@@ -21,7 +21,7 @@
 // PURE ESM. Data and pure functions only: no DOM, no clock, no randomness. The engine reads only the tier rows (hunt-tiers.js builds GROUND_TIERS from tierRowFor, lane/b-tier-dials).
 // ════════════════════════════════════════════════════════════════════════
 
-import { LEVEL_PACE, VITALS } from './core-model.js?v=0.2.107';
+import { LEVEL_PACE, VITALS } from './core-model.js?v=0.2.109';
 
 /* ── THE TARGET SHEET ─────────────────────────────────────────────────────
    Judged per ground on the real engine, store supplies bought per use (the store bill is the whole

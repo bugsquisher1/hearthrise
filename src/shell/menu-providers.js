@@ -12,19 +12,19 @@
 //                                         (party-intents.js inviteOwn: it joins
 //                                         at once); Leave party for an own
 //                                         character that sits in one
-//   look                                  a monster's name, tier and weaknesses,
-//                                         from the bestiary rows
+//   look                                  a monster's name, tier and weapon
+//                                         weakness, from the bestiary rows
 //   trade                                 none yet: the row is hidden until the
 //                                         trade lane (its own server work and the
 //                                         Security review) ships
 // worldTargetOf turns what the World picked under a pointer into a target.
 // ════════════════════════════════════════════════════════════════════════
-import { MONSTERS } from '../data/monsters.js?v=0.2.107';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.107';
-import { refusalText } from './intent-words.js?v=0.2.107';
-import { monsterName } from './widgets/bits.js?v=0.2.107';
-import { partyMembershipOf, partyPeopleOf } from '../session/party-sections.js?v=0.2.107';
-import { inviteOwn, invitePlayer, afterLeave } from '../session/party-intents.js?v=0.2.107';
+import { MONSTERS } from '../data/monsters.js?v=0.2.109';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.109';
+import { refusalText } from './intent-words.js?v=0.2.109';
+import { monsterName } from './widgets/bits.js?v=0.2.109';
+import { partyMembershipOf, partyPeopleOf } from '../session/party-sections.js?v=0.2.109';
+import { inviteOwn, invitePlayer, afterLeave } from '../session/party-intents.js?v=0.2.109';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -35,8 +35,8 @@ function lookText(id) {
   const kind = String(m.className || m.family || 'creature').toLowerCase();
   let s = monsterName(id) + ', a tier ' + (Number.isInteger(m.tier) ? m.tier : '?') + ' ' + kind + (m.boss ? ' boss' : '') + '.';
   if (m.weaponWeak && WEAPON_WORDS[m.weaponWeak]) s += ' Weak to ' + WEAPON_WORDS[m.weaponWeak].toLowerCase() + '.';
-  const resist = Array.isArray(m.weaponResist) ? m.weaponResist.filter((w) => WEAPON_WORDS[w]).map((w) => WEAPON_WORDS[w].toLowerCase()) : [];
-  if (resist.length) s += ' Shrugs off ' + resist.join(' and ') + '.';
+  /* Never a weapon resistance: no engine code reads `weaponResist`, so a claim
+     here would be false (tests/chat-social.mjs MN-2 holds this). */
   return s;
 }
 

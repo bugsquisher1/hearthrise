@@ -60,15 +60,15 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { resolveArtisanAction, missingInput, recipeInputs, gateOk, burnChance, BURNT_ITEM } from './artisan.js?v=0.2.107';
-import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=0.2.107';
-import { actionIntervalMs } from './pacing.js?v=0.2.107';
-import { CHANNEL, channelApplies, rateMult } from './away.js?v=0.2.107';
-import { sliceSpan } from './skill-sim.js?v=0.2.107';
-import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=0.2.107';
-import { levelOf } from './xp.js?v=0.2.107';
-import { recipeOutcomes } from '../data/jewelry.js?v=0.2.107';
-import { canPayNext, payCraft } from './bench-tax.js?v=0.2.107';
+import { resolveArtisanAction, missingInput, recipeInputs, gateOk, burnChance, BURNT_ITEM } from './artisan.js?v=0.2.109';
+import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=0.2.109';
+import { actionIntervalMs } from './pacing.js?v=0.2.109';
+import { CHANNEL, channelApplies, rateMult } from './away.js?v=0.2.109';
+import { sliceSpan } from './skill-sim.js?v=0.2.109';
+import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=0.2.109';
+import { levelOf } from './xp.js?v=0.2.109';
+import { recipeOutcomes } from '../data/jewelry.js?v=0.2.109';
+import { canPayNext, payCraft } from './bench-tax.js?v=0.2.109';
 
 function fxOf(ctx) { return (ctx && ctx.fx) || {}; }
 function call(fx, name, ...args) {

@@ -31,13 +31,13 @@
 // the server's `role` is only the pick, kept when the weapon allows it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.107';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.107';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.107';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.107';
-import { huntOf, staminaOf, tierMapOf } from './hunt-sections.js?v=0.2.107';
-import { heroVitalsOf } from './character-sections.js?v=0.2.107';
-import { dyeKeyOf } from '../data/outfits.js?v=0.2.107';
+import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.109';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.109';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.109';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.109';
+import { huntOf, staminaOf, tierMapOf } from './hunt-sections.js?v=0.2.109';
+import { heroVitalsOf } from './character-sections.js?v=0.2.109';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.109';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

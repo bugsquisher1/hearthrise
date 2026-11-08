@@ -40,25 +40,25 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX } from '../data/alerts.js?v=0.2.107';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.107';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.107';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.107';
-import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.107';
-import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.107';
-import { callOfHunt } from '../data/boss-calls.js?v=0.2.107';
-import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.107';
-import { itemName } from './widgets/bits.js?v=0.2.107';
-import { noShotWords } from './hunt-go.js?v=0.2.107';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.107';
-import { deathSeen } from './death-popup.js?v=0.2.107';
-import { summaryClosedFor, forgetUnreadSummary } from '../hunt-view/summary-recorder.js?v=0.2.107';
-import { awayRecapOf, awayLineNow, awaySettled, stampAway as stampNow, markBack, backWithNoStamp } from './away-recap.js?v=0.2.107';
-import { benchStopRecapOf } from './bench-fee.js?v=0.2.107';
-import { workRow } from './town-work.js?v=0.2.107';
-import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.107';
-import { tallyTask } from '../data/tally-tasks.js?v=0.2.107';
-import { gold } from '../render/format.js?v=0.2.107';
+import { ALERT_INDEX } from '../data/alerts.js?v=0.2.109';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.109';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.109';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.109';
+import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.109';
+import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.109';
+import { callOfHunt } from '../data/boss-calls.js?v=0.2.109';
+import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.109';
+import { itemName } from './widgets/bits.js?v=0.2.109';
+import { noShotWords } from './hunt-go.js?v=0.2.109';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.109';
+import { deathSeen } from './death-popup.js?v=0.2.109';
+import { summaryClosedFor, forgetUnreadSummary } from '../hunt-view/summary-recorder.js?v=0.2.109';
+import { awayRecapOf, awayLineNow, awaySettled, stampAway as stampNow, markBack, backWithNoStamp } from './away-recap.js?v=0.2.109';
+import { benchStopRecapOf } from './bench-fee.js?v=0.2.109';
+import { workRow } from './town-work.js?v=0.2.109';
+import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.109';
+import { tallyTask } from '../data/tally-tasks.js?v=0.2.109';
+import { gold } from '../render/format.js?v=0.2.109';
 
 const tallyLabel = (task) => { const t = tallyTask(task); return t ? t.label : 'a tally'; };
 

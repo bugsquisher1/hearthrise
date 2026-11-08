@@ -25,6 +25,7 @@
 // ============================================================
 
 import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.108';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.108';
 import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=0.2.108';
 import { makeUnit } from './world-state.js?v=0.2.108';
 import { holderOutside, resetPack } from './leash.js?v=0.2.108';
@@ -68,8 +69,10 @@ function stepWorld(world, swingCtx, track, events) {
   const n = substepsOf(swingCtx.swingMs);
   /* `heroes`: the per-hero settings, bar and supply session the settle injects (spec §2 world-step).
      tier: the hunt's hunt-tiers.js row, the settle's read of its frozen pick (null = Normal); never persisted, so the world's shape doesn't move.
-     makeUnit: how pull-cycle.js spawns a pack with every persisted field (it may not import world-state). */
-  const inst = { world, ground: swingCtx.ground, grid: swingCtx.grid, occ: null, heroes: swingCtx.heroes || null, tier: swingCtx.tier || null, makeUnit };
+     makeUnit: how pull-cycle.js spawns a pack with every persisted field (it may not import world-state).
+     monsters: the ONE door to a monster's row (combat-sim.js huntPlayOf: a scaled hunt's table), the catalogue when the settle names none. */
+  const inst = { world, ground: swingCtx.ground, grid: swingCtx.grid, occ: null, heroes: swingCtx.heroes || null, tier: swingCtx.tier || null, makeUnit,
+    monsters: swingCtx.monsters || MONSTERS };
   const atMs = Number(swingCtx.atMs);
   if (!Number.isInteger(atMs)) throw new Error('world-step: atMs must be an integer');
   /* xpMultOf: the per-hero XP multiplier hook (xp-share.js; server-read, absent = 1). */

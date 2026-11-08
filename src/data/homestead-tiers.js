@@ -1,13 +1,12 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/data/homestead-tiers.js — THE PROPERTY LADDER AND THE ROOM RUNGS (data).
 //
-// The property tiers (what each one opens: plots, workers, rooms) and each
+// The property tiers (what each one opens: plots and rooms) and each
 // room's rungs (the property tier a rung asks for, and its cost). These rows
 // lived in the old client (src/features/homestead.js TIERS and src/legacy.js
 // ROOMS) until the client reset on 2026-10-17 and were moved here VERBATIM, so
 // the server catalogue generators read them from data:
 //   tools/gen-unlock-offers.mjs   room/property prerequisites + the room price cross-check
-//   tools/gen-gold-ladders.mjs    the worker and farm-land caps and tier gates
 // This file is the source; change a rung here and regenerate.
 //
 // NO ASHLAR (designer 2026-10-22): the Stonemason skill and its quarried stone, blocks and ashlar were cut on
@@ -37,14 +36,12 @@ export const PROPERTY_TIERS = Object.freeze([
     "id": "camp",
     "name": "Wanderer's Camp",
     "plots": 2,
-    "workers": 0,
     "rooms": []
   },
   {
     "id": "homestead",
     "name": "Hearthside Homestead",
     "plots": 4,
-    "workers": 1,
     "rooms": [
       "kitchen",
       "garden"
@@ -54,7 +51,6 @@ export const PROPERTY_TIERS = Object.freeze([
     "id": "farmstead",
     "name": "Fieldworth Farmstead",
     "plots": 6,
-    "workers": 2,
     "rooms": [
       "workshop",
       "cellar",
@@ -65,7 +61,6 @@ export const PROPERTY_TIERS = Object.freeze([
     "id": "manor",
     "name": "Stonecross Manor",
     "plots": 8,
-    "workers": 3,
     "rooms": [
       "library"
     ]
@@ -74,7 +69,6 @@ export const PROPERTY_TIERS = Object.freeze([
     "id": "keep",
     "name": "Ironvale Keep",
     "plots": 10,
-    "workers": 4,
     "rooms": [
       "shrine",
       "trophy"
@@ -84,7 +78,6 @@ export const PROPERTY_TIERS = Object.freeze([
     "id": "castle",
     "name": "Hearthrise Castle",
     "plots": 12,
-    "workers": 6,
     "rooms": []
   }
 ]);

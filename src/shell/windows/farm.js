@@ -209,10 +209,10 @@ function patchTier(root, st) {
   const adds = up ? unlockedCrops(up.level).filter((id) => requiredPlotLevel(id) === up.level)
     .map((id) => cropName(id) + (CROPS[id] && CROPS[id].req > up.farming ? ' (Farming ' + CROPS[id].req + ' to plant)' : '')).join(', ') : '';
   text(root.querySelector('.hw-tier'), 'Tier ' + lv + ' grows ' + grows + '.'
-    + (up ? ' Tier ' + up.level + ' adds ' + adds + ': ' + gold(up.gold) + (up.deeds ? ' (or ' + whole(up.deeds) + ' Farmer\'s Deed' + (up.deeds === 1 ? '' : 's') + ')' : '') + ', at Farming ' + up.farming + '.' : ' Your plots are at the top tier.'));
+    + (up ? ' Tier ' + up.level + ' adds ' + adds + ': ' + gold(up.gold) + ', at Farming ' + up.farming + '.' : ' Your plots are at the top tier.'));
   const btn = root.querySelector('[data-hs-act="upgrade"]');
   text(btn, up ? 'Improve the soil · ' + gold(up.gold) : 'Top tier');
-  const afford = !!up && ((st.purse !== null && st.purse >= up.gold) || st.land.deeds >= up.deeds);
+  const afford = !!up && st.purse !== null && st.purse >= up.gold;
   prop(btn, 'disabled', !up || st.sc.pending || st.farming === null || st.farming < up.farming || !afford);
 }
 

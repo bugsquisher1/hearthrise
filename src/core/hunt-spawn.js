@@ -96,7 +96,8 @@ function heroUnit(id, h, partyRoles, tile) {
  * `settings` the character's own { dist, chase, tmode, stance } (an absent key
  * takes the role's default for this party). Heroes are units 1..n. `o.density`, when given,
  * is the density the packs spawn at (the settle's whole entering party), else the party's own.
- * `o.tier` (a hunt-tiers.js row, null = Normal) is the hunt's tier the first packs spawn on, as every respawn does.
+ * `o.tier` (a hunt-tiers.js row, null = Normal) is the hunt's tier the first packs spawn on, as every respawn does; `o.monsters` the
+ * rows they spawn from (combat-sim.js huntPlayOf: a scaled hunt's table; the catalogue when absent).
  */
 export function newHuntWorld(ground, grid, party, o) {
   if (!Array.isArray(party) || !party.length || party.length > ground.start.length) {
@@ -111,16 +112,17 @@ export function newHuntWorld(ground, grid, party, o) {
     density: o && Number.isInteger(o.density) ? o.density
       : densityFor(ground, party.length, partyPick(party.map((h, i) => ({ density: h.density, lead: h.lead === true, seat: i })))) });
   world.units = units;
-  const inst = { world, ground, grid, occ: null, tier: (o && o.tier) || null, makeUnit };
+  const inst = { world, ground, grid, occ: null, tier: (o && o.tier) || null, makeUnit, monsters: (o && o.monsters) || MONSTERS };
   for (let p = 0; p < ground.pockets.length; p++) spawnPack(inst, p, null);
   return world;
 }
 
-/** A CALLED ROOM'S ONE SPAWN (src/data/boss-calls.js): each monster's HP for the `heroes` walking in, as the ground's party scale reads it (hunt-grounds.js packHpFor), on `tier` as a pack's (null = Normal). */
-export function scaleRoomFor(world, ground, heroes, tier) {
+/** A CALLED ROOM'S ONE SPAWN (src/data/boss-calls.js): each monster's HP for the `heroes` walking in, as the ground's party scale reads it (hunt-grounds.js packHpFor), on `tier` as a pack's (null = Normal), from `monsters` (the catalogue when absent). */
+export function scaleRoomFor(world, ground, heroes, tier, monsters) {
+  const rows = monsters || MONSTERS;
   for (const u of world.units) {
     if (u.side !== 'mon') continue;
-    u.maxHp = packHpFor(ground, atTier(MONSTERS[u.kind], tier), heroes);
+    u.maxHp = packHpFor(ground, atTier(rows[u.kind], tier), heroes);
     u.hp = u.maxHp;
   }
 }

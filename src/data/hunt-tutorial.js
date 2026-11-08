@@ -1150,7 +1150,7 @@ function readyWords(ready) {
 
 /* WHAT TO WANT, HOURS 5 TO 20 (panel 2026-11-01: 16-22k gold and "nothing to want"; designer's ruling, PRIORITY_BOARD 2026-11-01): the purse's
    next buy on the What next line, at the server's price. Below this share of the next hero's price, it is too far off to be a goal and the house's deeds speak instead.
-   A HALF (2026-11-04, the ladder at 25,000 / 75,000 / 250,000): the third speaks from 12,500 gp, about hour 5, the fourth from 37,500 gp, about 8-10 h after the third for a lone hero. */
+   A HALF (2026-11-04, the ladder at 25,000 / 75,000; no fifth slot since 2026-11-07): the third speaks from 12,500 gp, about hour 5, the fourth from 37,500 gp, about 8-10 h after the third for a lone hero. */
 const SAVING_FROM = 0.5;
 const ORDINAL = Object.freeze(['', 'first', 'second', 'third', 'fourth', 'fifth']);
 const gp = (n) => n.toLocaleString('en-US') + ' gp';

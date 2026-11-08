@@ -6,7 +6,7 @@
 //   node tests/hunt-live.mjs --mutate   every planted defect must turn its rule RED
 //   node tests/hunt-live.mjs --mutate --only LV-HOLD   just the mutants whose name holds that text
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js src/core/hunt/boss-phases.js
+// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js src/core/hunt/boss-phases.js src/core/hunt/damage.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
 // mutant-rule-functions: rules
 // mutant-runner-functions: mutate main
@@ -102,6 +102,16 @@
 //   LV-TGT "STRONGEST" AND "FOLLOW" ON A MIXED PACK (Andy a08): a follower stands on the leader's monster, a
 //         Strongest hero on the strongest kind engaged, browser closed (the server's boundaries) and viewed (every
 //         commit matches; the browser plays their blows as the server's commits hold them).
+//   LV-SCALE A SCALED HUNT, VIEWED (lane/c-scaled-hunts; Tyler 2026-11-07 "party would scale to the leader"): the Cellar played at
+//         Level 50 (src/core/combat-sim.js huntPlayOf, the server's scale on the start point): every commit matches the prediction,
+//         solo and in a pair viewed from the member (its leader a frozen peer, rolled against the scaled rows); the server's
+//         monsters stand at the scaled rows' health; against the same pair unscaled a kill pays 2x the Level XP and coin, and a
+//         monster lands a blow no catalogue Cellar monster can. The settle's half (the bank, the bounds, browser closed):
+//         tests/scaled-hunts-server.mjs.
+//   LV-EVENT A LIVE EVENT, VIEWED (lane/c-live-events; src/core/live-events.js): a pair on the Cellar, the peer leader's account inside a
+//         +25% Level XP window for 40 s of the run (the server's windows on the start point, hunt_live.instance.live_xp): every commit
+//         matches, every `xp` event the server played is the browser's (the event's part `ev` included), a kill pays its dial by its own
+//         time (inside the window only, the windowless viewer never), and the leader's Level XP over the window is the event's x1.25.
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
@@ -132,6 +142,8 @@ async function load(base) {
     ENGINE_TIERS: (await import(pathToFileURL(join(base, 'src/data/hunt-tiers.js')).href + V)).GROUND_TIERS,
     /* the engine's own blow and to-hit (deadlyRows builds its rows with them) */
     ENGINE_COMBAT: await import(pathToFileURL(join(base, 'src/core/combat.js')).href + V),
+    /* the engine's own scaled-hunt play (LV-SCALE reads the rows a scaled Cellar fights with) */
+    ENGINE_SIM: await import(pathToFileURL(join(base, 'src/core/combat-sim.js')).href + V),
     HGR: await u('src/data/hunt-grounds.js'),
     base,
     AC: await u(FN + '/accrual.js'),
@@ -210,6 +222,8 @@ function server(M, mis, o) {
   const hunt = (o && o.hunt) || 'mill_cellar', t0 = (o && o.t0) || T0;
   const where = M.HG.huntGroundOf(hunt);
   const inst = { id: (o && o.id) || 'i-live', hunt, world: null, settled_to_ms: t0, next_swing_at_ms: t0, world_swing: 0, secret: SECRET };
+  /* LV-SCALE: the server's scale of this instance (hunt-settle.js scalePlanOf's `play`; the hours never run out here) */
+  inst.play = { level: (o && o.scale) || null, restart: false, stopMs: Infinity };
   const drops = {}, buys = {};
   return {
     inst, drops, buys,
@@ -217,7 +231,7 @@ function server(M, mis, o) {
     commit(to) {
       const r = M.AC.accrueHunt({ instance: { id: inst.id, nextSwingAtMs: inst.next_swing_at_ms, world: inst.world, worldSwing: inst.world_swing },
         window: { fromMs: inst.settled_to_ms, toMs: to }, secret: SECRET, ground: where.ground, grid: where.grid,
-        items: M.ITEMS, monsters: (o && o.monsters) || M.MONSTERS, members: mis });
+        items: M.ITEMS, monsters: (o && o.monsters) || M.MONSTERS, members: mis, ...(inst.play.level ? { scale: { level: inst.play.level } } : {}) });
       if (!r.accrued) return null;
       const tl = M.HT.huntTimeline(r.track, r.events, inst.settled_to_ms, r.settledTo, to, r.units);
       for (const p of r.members) {
@@ -509,6 +523,85 @@ function rules(M) {
       ok('LV-DIAL', !!w && w.units.some((u) => u.side === 'mon') && off.length === 0, `${off.length} monster(s) of the server's world stand off the dial's health: ${off.slice(0, 3).map((u) => u.kind + ' ' + u.maxHp).join(', ')}`);
       console.log(`  LV-DIAL Glade pair on Deadly at health x${HP / 1000}, 48 s: ${r.verdicts.length} commits, ${r.verdicts.length - bad.length} matched; ${w ? w.units.filter((u) => u.side === 'mon').length : 0} monsters at the dial's health`);
     } finally { rows.deadly = was; }
+  }
+
+  { // LV-SCALE: A SCALED HUNT, VIEWED (lane/c-scaled-hunts; src/core/combat-sim.js huntPlayOf). The Cellar played at Level 50, its Level 50
+    // leader's paid scale: the browser predicts every commit from the start point's scale (solo, and a pair viewed from the member, its leader
+    // a frozen peer rolled against the scaled rows); the server's world stands on the scaled rows; against the same pair unscaled a kill pays
+    // more, and a scaled monster lands blows no Cellar monster of the catalogue can.
+    const L = 50;
+    const worn = { tank: { weapon: 'steel_sword', shield: 'coppercap_shield', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' },
+      melee_dps: { weapon: 'steel_warhammer', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' } };
+    const pair = (n) => ['tank', 'melee_dps'].slice(0, n).map((role, i) => {
+      const mi = memberOf(M, 'sc' + i, i, role, L); mi.equipment = worn[role]; mi.gold = 50000;
+      mi.hero = Object.assign({}, mi.hero, { lead: i === 0 });
+      /* the leader swings at Melee 5, so its to-hit reads each monster's defense unclamped (0.72 on the catalogue's rows, 0.44-0.55 on
+         the scaled): a frozen peer rolled against the wrong rows lands other blows */
+      if (i === 0) mi.skills = Object.assign({}, mi.skills, { melee: M.XP.skillXpForLevel('melee', 5) });
+      return mi;
+    });
+    const play = M.ENGINE_SIM.huntPlayOf('mill_cellar', { level: L });
+    const ground = M.HG.huntGroundOf('mill_cellar').ground;
+    /* the hardest blow any Cellar monster of the catalogue can swing (combat.js monsterMaxHit, before the hero's armor) */
+    const catMax = Math.max(...Object.keys(play.monsters).filter((k) => play.monsters[k] !== M.ENGINE_MONSTERS[k]).map((k) => M.ENGINE_COMBAT.monsterMaxHit(M.ENGINE_MONSTERS[k])));
+    const stats = (r, mis) => {
+      const ev = r.verdicts.flatMap((x) => x.tl.hunt_events);
+      const kills = ev.filter((e) => e.type === 'kill').length;
+      const heroes = new Set(mis.map((mi) => mi.unitId).filter(Number.isInteger));
+      const blows = ev.filter((e) => e.type === 'dmg' && heroes.has(e.t) && !e.dot).map((e) => e.amount);
+      return { kills, xp: mis.reduce((a, mi) => a + mi.levelXp - M.XP.charXpForLevel(L), 0), gold: mis.reduce((a, mi) => a + mi.gold - 50000, 0),
+        maxBlow: blows.length ? Math.max(...blows) : 0 };
+    };
+    for (const [name, n, viewer] of [['solo', 1, null], ['party', 2, { user: 'sc1', slot: 0 }]]) {
+      const mis = pair(n);
+      const r = run(M, mis, 64000, { server: { scale: L }, ...(viewer ? { viewer } : {}) });
+      const bad = r.verdicts.filter((x) => x.v !== 'match');
+      ok('LV-SCALE', r.verdicts.length >= 3 && bad.length === 0, name + ': ' + bad.length + ' of ' + r.verdicts.length + ' commits did not match the prediction');
+      const w = r.srv.inst.world ? M.WS.decode(JSON.parse(r.srv.inst.world)) : null;
+      const off = (w ? w.units : []).filter((u) => u.side === 'mon' && ![1, 2].some((k) => M.HGR.packHpFor(ground, play.monsters[u.kind], k) === u.maxHp));
+      ok('LV-SCALE', !!w && w.units.some((u) => u.side === 'mon') && off.length === 0,
+        name + ': ' + off.length + ' monster(s) of the server\'s world stand off the scaled rows\' health: ' + off.slice(0, 3).map((u) => u.kind + ' ' + u.maxHp).join(', '));
+      if (name !== 'party') continue;
+      const scaled = stats(r, mis), ownMis = pair(2), own = stats(run(M, ownMis, 64000, { viewer }), ownMis);
+      const per = (x, k) => x[k] / Math.max(1, x.kills);
+      ok('LV-SCALE', scaled.kills > 3 && per(scaled, 'xp') >= 2 * per(own, 'xp'), 'a scaled kill paid ' + per(scaled, 'xp').toFixed(1) + ' Level XP, the Cellar\'s own ' + per(own, 'xp').toFixed(1) + ' (want 2x)');
+      ok('LV-SCALE', per(scaled, 'gold') >= 2 * per(own, 'gold'), 'a scaled kill paid ' + per(scaled, 'gold').toFixed(1) + ' coin, the Cellar\'s own ' + per(own, 'gold').toFixed(1) + ' (want 2x)');
+      ok('LV-SCALE', scaled.maxBlow > catMax, 'a scaled monster\'s hardest blow landed ' + scaled.maxBlow + ', no more than a catalogue Cellar monster can swing (' + catMax + ')');
+      console.log('  LV-SCALE Cellar pair at Level ' + L + ', 64 s: ' + r.verdicts.length + ' commits, ' + (r.verdicts.length - bad.length) + ' matched; a kill pays '
+        + per(scaled, 'xp').toFixed(0) + ' Level XP and ' + per(scaled, 'gold').toFixed(1) + ' coin (own ' + per(own, 'xp').toFixed(0) + ' and ' + per(own, 'gold').toFixed(1)
+        + '); the hardest blow landed ' + scaled.maxBlow + ' (a catalogue Cellar monster swings at most ' + catMax + ')');
+    }
+  }
+
+  { // LV-EVENT: A LIVE EVENT, VIEWED (lane/c-live-events). The peer leader's account holds a +25% Level XP window for 40 s of a 64 s run; the
+    // viewer's doesn't. The browser reads both from the start point and earns, kill by kill, what the server's commits pay.
+    const W = [T0 + 20000, T0 + 60000, 1250];
+    const pair = () => [memberOf(M, 'ev0', 0, 'tank', 6), memberOf(M, 'ev1', 1, 'melee_dps', 6)].map((mi, i) => {
+      mi.hero = Object.assign({}, mi.hero, { lead: i === 0 });
+      return mi;
+    });
+    const mis = pair(); mis[0].liveXp = [W];
+    const r = run(M, mis, 64000, { viewer: { user: 'ev1', slot: 0 } });
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-EVENT', r.verdicts.length >= 3 && bad.length === 0, bad.length + ' of ' + r.verdicts.length + ' commits did not match the prediction');
+    const fedEvents = new Set(r.fed.events.map(ekey));
+    const xps = r.verdicts.flatMap((x) => x.tl.hunt_events).filter((e) => e.type === 'xp');
+    const miss = xps.filter((e) => !fedEvents.has(ekey(e)));
+    ok('LV-EVENT', xps.length > 3 && miss.length === 0, miss.length + ' of the server\'s ' + xps.length + ' xp events were not the browser\'s (' + miss.slice(0, 2).map(ekey).join(' ') + ')');
+    const lead = mis[0].unitId, other = mis[1].unitId;
+    const inWin = (e) => e.atMs >= W[0] && e.atMs < W[1];
+    const wrong = xps.filter((e) => (e.u === lead && inWin(e) && !(e.ev > 0)) || ((e.u !== lead || !inWin(e)) && e.ev !== undefined));
+    ok('LV-EVENT', xps.some((e) => e.u === lead && inWin(e)) && wrong.length === 0,
+      wrong.length + ' xp event(s) pay the dial at the wrong time or to the wrong hero: ' + wrong.slice(0, 2).map(ekey).join(' '));
+    const ctl = pair(), rc = run(M, ctl, 64000, { viewer: { user: 'ev1', slot: 0 } });
+    const xpc = rc.verdicts.flatMap((x) => x.tl.hunt_events).filter((e) => e.type === 'xp');
+    const sum = (list, u, f) => list.filter((e) => e.u === u && f(e)).reduce((a, e) => a + e.amount, 0);
+    const with_ = sum(xps, lead, inWin), without = sum(xpc, lead, inWin);
+    ok('LV-EVENT', without > 0 && Math.abs(with_ / without - 1.25) < 0.05 && sum(xps, other, () => true) === sum(xpc, other, () => true)
+      && sum(xps, lead, (e) => !inWin(e)) === sum(xpc, lead, (e) => !inWin(e)),
+      'the leader earned ' + with_ + ' inside the window against ' + without + ' with none (want x1.25), the viewer ' + sum(xps, other, () => true) + ' against ' + sum(xpc, other, () => true));
+    console.log('  LV-EVENT Cellar pair, +25% for the leader 20-60 s of 64 s: ' + r.verdicts.length + ' commits, ' + (r.verdicts.length - bad.length) + ' matched; '
+      + xps.length + ' xp events, all the browser\'s; the leader ' + with_ + ' Level XP inside the window against ' + without + ' with none');
   }
 
   { // LV-K: THE LEADER CHOOSES (Tyler 2026-10-20): the peer leader's pick is the pull, on the server and in the browser.
@@ -1556,6 +1649,16 @@ function rules(M) {
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
+  ['the browser drops the live event windows (LV-EVENT)', 'src/hunt-view/live-engine.js', 's.xpMultOf = lx ? xpMultFor(sides, (sd) => lx[String(sd.mi.key)]) : null;', 's.xpMultOf = null;', /^LV-EVENT: \d+ of the server's/],
+  ['a kill reads its dial with no time (LV-EVENT)', 'src/core/hunt/xp-share.js', 'const m = f ? f(hero, sc.atMs) : 1;', 'const m = f ? f(hero) : 1;', /^LV-EVENT: (\d+ xp event|the leader earned)/],
+  ['the start point drops the windows (LV-EVENT)', 'supabase/functions/hr-accrue/hunt-settle.js', '...(members.some((m) => m.liveXp) ?', '...(false ?', /^LV-EVENT: \d+ of the server's/],
+  ['the browser plays a scaled hunt unscaled (LV-SCALE)', 'src/hunt-view/live-engine.js', 'monsters, items, ...(s.scale ? { scale: s.scale } : {}),', 'monsters, items,', /^LV-SCALE: (solo|party): \d+ of/],
+  ['the start point drops the scale (LV-SCALE)', 'supabase/functions/hr-accrue/hunt-settle.js', '      scale: play.level === null ? null : { level: play.level },', '      scale: null,', /^LV-SCALE: (solo|party): \d+ of/],
+  ["a peer is frozen against the catalogue's rows (LV-SCALE)", 'supabase/functions/hr-accrue/hunt-settle.js', 'Number(inst.next_swing_at_ms), rows) };', 'Number(inst.next_swing_at_ms)) };', /^LV-SCALE: party: \d+ of/],
+  ['a spawn reads the catalogue row (LV-SCALE)', 'src/core/hunt/pull-cycle.js', 'const row = (inst.monsters || MONSTERS)[s.monster];', 'const row = MONSTERS[s.monster];', /^LV-SCALE: .*scaled rows' health/],
+  ['a kill pays the catalogue Level XP (LV-SCALE)', 'src/core/hunt/damage.js', 'xp: Math.round((atTier(rowOf(inst, target.kind), inst.tier).xp', 'xp: Math.round((atTier(MONSTERS[target.kind], inst.tier).xp', /^LV-SCALE: a scaled kill paid .* Level XP/],
+  ["a kill's coin is the catalogue's (LV-SCALE)", 'src/core/combat-sim.js', 'monsters: play.monsters || ctx.monsters, tier,', 'monsters: ctx.monsters, tier,', /^LV-SCALE: a scaled kill paid .* coin/],
+  ['a monster swings its catalogue row (LV-SCALE)', 'src/core/hunt/damage.js', 'const row = atTier(rowOf(inst, u.kind), inst.tier);', 'const row = atTier(MONSTERS[u.kind], inst.tier);', /^LV-SCALE: a scaled monster's hardest blow/],
   ['the prediction never answers why a slot waits (LV-WAITS)', 'src/hunt-view/live-engine.js', 'return side ? slotTesterOf(st.world, st.where.grid, side.member, items) : null;', 'return null;', /^LV-WAITS: CONTROL: the prediction never read/],
   ['asking why a slot waits moves the prediction (LV-WAITS)', 'src/hunt-view/live-engine.js', '    const t = testSlot(inst, u, h, slot);\n', '    const t = testSlot(inst, u, h, slot);\n    u.mana -= 1;\n', /^LV-WAITS: \d+ commit/],
   ['the engine shoots ammo under its skill (LV-SHOT-SKILL)', 'src/core/hunt/abilities.js', "function shotLocked(h, id) {\n", "function shotLocked(h, id) {\n  if (h) return false;\n", /^LV-SHOT-SKILL: browser closed/],
@@ -1651,7 +1754,7 @@ const MUTANTS = [
   ['"Strongest" ranks nothing (LV-TGT)', 'src/core/hunt/targeting.js', '  strongest: () => (a, b) => b.maxHp - a.maxHp,', '  strongest: () => () => 0,', /^LV-TGT: closed: "Strongest"/],
   /* Andy #64/#65 (live v0.2.45, match 0): a peer the browser draws carries every input the engine reads, as a number. */
   ['a peer is frozen without its skill levels: its spells cast at level 1 (LV-4P)', 'src/core/member.js', '  for (const k of engineSkillsOf(m.hero.slots)) lv[k] = levelOf(m.state.skills, k);\n', '', /^LV-4P: viewing/],
-  ['a frozen peer swings every shot on its worn rolls (LV-4P)', 'src/core/member.js', '    shotRolls: (m, ammo, sharePm) => {', '    wornOnly: (m, ammo, sharePm) => {', /^LV-4P: viewing/],
+  ['a frozen peer swings every shot on its worn rolls (LV-4P)', 'src/core/member.js', '    shotRolls: (m, ammo, sharePm, kind) => {', '    wornOnly: (m, ammo, sharePm, kind) => {', /^LV-4P: viewing/],
   ['a frozen peer\'s store shot hits as a carried one (LV-4P)', 'src/core/member.js', '      for (const pm of [1000, STORE_SHOT_PM]) {', '      for (const pm of [1000]) {', /^LV-4P: viewing/],
   ['a unit spawned in a catch-up\'s last swing has no kind (LV-N, Andy #65)', 'src/hunt-view/live-engine.js',
     'for (const s of track) { alive.add(s.u); if (!units[s.u] && !killed.has(s.u) && hp[s.u]) units[s.u] = rowAt(s.u); }', 'for (const s of track) alive.add(s.u);', /^LV-N: a restart played on/],

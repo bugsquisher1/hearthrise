@@ -45,6 +45,7 @@ import { stepCost } from '../core/hunt/grid.js?v=0.2.108';
 import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.108';
 import { holderTank, roleOf, engaged, challengeable } from '../core/hunt/targeting.js?v=0.2.108';
 import { testSlot, aimsAtMonsters, ignores } from '../core/hunt/conditions.js?v=0.2.108';
+import { xpMultFor } from '../core/live-events.js?v=0.2.108';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
@@ -64,7 +65,10 @@ const encodeWorld = (w) => JSON.stringify(encodeWorldRow(w));
    density, thresholds), the viewer's own or a peer's frozen one, by member key. The server reads it afresh
    at every settle, so a start point naming another one is a setup changed mid-hunt (r10). */
 const setupOf = (live) => JSON.stringify(live.members.map((m) => [String(m.key), (m.frozen ? m.frozen.hero : m.hero) ?? null])
-  .sort((a, b) => (a[0] < b[0] ? -1 : 1)));
+  .sort((a, b) => (a[0] < b[0] ? -1 : 1)).concat([['scale', scaleOf(live)]]));
+/* THE SERVER'S SCALE OF THE HUNT (hunt-settle.js huntLive `scale`, src/data/scaled-hunts.js): { level } or null. The engine plays the same rows
+   from it (combat-sim.js huntPlayOf), so the prediction is the server's; a start point naming another one is a setup changed mid-hunt. */
+const scaleOf = (live) => (live.instance && live.instance.scale && Number.isInteger(live.instance.scale.level) ? { level: live.instance.scale.level } : null);
 /* The monster kinds of `world` this build's catalogue lacks (a newer server's), in first-seen order. */
 const unknownKinds = (world, monsters) => [...new Set((world ? world.units : [])
   .filter((u) => u.side === 'mon' && !Object.hasOwn(monsters, u.kind)).map((u) => String(u.kind)))];
@@ -201,8 +205,11 @@ export function createLiveEngine(o) {
       seeds: { from: Number(live.seeds.from), list: live.seeds.list.slice() },
       hashes: new Map(), texts: new Map(), starved: false, drawn: new Map(),
       self: (live.members.find((m) => m.self) || {}).unitId ?? null,
-      setup: setupOf(live),
+      setup: setupOf(live), scale: scaleOf(live),
     };
+    /* A LIVE EVENT (hunt_live.instance.live_xp): each member's Level XP windows by key, the server's own, so a kill earns here what it will there */
+    const lx = live.instance.live_xp && typeof live.instance.live_xp === 'object' ? live.instance.live_xp : null;
+    s.xpMultOf = lx ? xpMultFor(sides, (sd) => lx[String(sd.mi.key)]) : null;
     s.hashes.set(Number(live.instance.world_swing), live.instance.world_hash);
     if (text !== null) s.texts.set(Number(live.instance.world_swing), text);
     return s;
@@ -230,7 +237,8 @@ export function createLiveEngine(o) {
     for (const u of (s.world ? s.world.units : [])) speeds.set(u.id, u.speed);
     const sim = simulateHuntInstance({ world: s.world, nextSwingAtMs: at, members: s.sides.map((x) => x.member),
       worldSwing: s.worldSwing },
-    { toMs: at + 1, tickMs: COMBAT_BALANCE.tickMs, seed, ground: s.where.ground, grid: s.where.grid, monsters, items });
+    { toMs: at + 1, tickMs: COMBAT_BALANCE.tickMs, seed, ground: s.where.ground, grid: s.where.grid, monsters, items, ...(s.scale ? { scale: s.scale } : {}),
+      ...(s.xpMultOf ? { xpMultOf: s.xpMultOf } : {}) });
     /* THE INSTANCE HAS ENDED (every member left: a death and the party's end with it, a leave, stamina):
        the engine runs no swing and its clock stands. A prediction that kept calling it never caught up:
        64 empty swings a frame, then a catch-up whose loop never ended (live v0.2.22, Andy: the tab froze

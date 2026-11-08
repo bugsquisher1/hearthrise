@@ -170,8 +170,8 @@ const JS_MUTANTS = {
   },
   no_retry_on_purse_race: {
     why: 'the edge does not re-read when another hero moved the purse: a raced window is refused instead of re-run',
-    file: 'supabase/functions/hr-accrue/hunt-settle.js', find: "const RETRYABLE = Object.freeze(['session_moved', 'version_conflict', 'gold_short']);",
-    repl: "const RETRYABLE = Object.freeze(['session_moved', 'version_conflict']);",
+    file: 'supabase/functions/hr-accrue/hunt-settle.js', find: "const RETRYABLE = Object.freeze(['session_moved', 'version_conflict', 'gold_short', 'scale_moved']);",
+    repl: "const RETRYABLE = Object.freeze(['session_moved', 'version_conflict', 'scale_moved']);",
   },
 };
 const MUTATIONS = { ...Object.fromEntries(Object.entries(SQL_MUTANTS).map(([k, v]) => [k, { ...v, kind: 'sql' }])),

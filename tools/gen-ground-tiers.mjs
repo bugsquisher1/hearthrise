@@ -45,7 +45,7 @@ const FILE_NOTE = `-- THIS FILE (lane/b-one-difficulty, Tyler 2026-11-08: "a sol
 -- first grounds, floors under 16 (the Thicket, Wickstead, the Sewer): no tier brings more monsters, for anyone, {0,0,0,0} (Wickstead
 -- and the Sewer were {0,5,5,6} and {0,8,8,8}: a party pulled more than a lone hero). Damage, health and XP as they stand. The solo
 -- boost (party-class-xp.js SOLO_XP_PM) is engine data and moves nothing here.
--- ORDER: after 2027-03-21-sewer-deadly-xp.generated.sql (APPLIED). Idempotent: the rename stays guarded and the rows are rewritten
+-- ORDER: last, after 2027-03-21-sewer-deadly-xp.generated.sql and the v0.2.109 bundle (all APPLIED). Idempotent: the rename stays guarded and the rows are rewritten
 -- whole, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2). The hr-accrue deploy carrying the same
 -- src/data/balance-sheet.js and src/data/party-class-xp.js follows AT ONCE (a hunt already running keeps the pull it froze).
 -- REVERSIBLE: re-apply 2027-03-21-sewer-deadly-xp.generated.sql, with the engine from before this lane.`;

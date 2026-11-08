@@ -6,14 +6,15 @@
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
-//   plot               4  src/legacy.js
 //   seed               3  src/legacy.js (9 seed rows moved to the seed counter, 2026-10-22; the Air Rune row left
 //                         with the old rune ladder, 2026-10-23)
 //   equip              8  src/legacy.js (5 rows moved to the outfitter, 2026-10-22)
 //   property           5  src/features/homestead.js
-//   worker             6  src/features/workers.js
-//   character_slot     3  src/multi-character.js (slot 1 is a starter: owned, never sold, 2026-10-26)
+//   character_slot     2  src/multi-character.js (slot 1 is a starter: owned, never sold, 2026-10-26; slot 4, the
+//                         fifth hero, is no longer sold: four heroes an account, Tyler 2026-11-07)
 //   companion          4  src/data/companions.js
+//   (the four `plot` buildings and the six `worker` hires were cut 2026-11-07, lane/c-dead-plot-deed: the engine
+//    refused every one and nothing read what they granted; tests/catalogue-coherence.mjs C14 keeps them out)
 //
 // THE LINE SHAPE — both sides of every offer
 //   { kind, id, amount }
@@ -42,8 +43,8 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.108';
-import { ITEMS } from './items.js?v=0.2.108';
+import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.109';
+import { ITEMS } from './items.js?v=0.2.109';
 
 export const SHOPS_DIGEST = "3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07";
 
@@ -66,12 +67,6 @@ export const SHOP_OFFERS = [
     name: "Character slot 4",
     cost: [{ kind: "currency", id: "gold", amount: 75000 }],
     grant: [{ kind: "unlock", id: "character_slot:3", amount: 1 }],
-  },
-  {
-    id: "character_slot.4", table: "character_slot",
-    name: "Character slot 5",
-    cost: [{ kind: "currency", id: "gold", amount: 250000 }],
-    grant: [{ kind: "unlock", id: "character_slot:4", amount: 1 }],
   },
   {
     id: "companion.honeybee", table: "companion",
@@ -147,38 +142,6 @@ export const SHOP_OFFERS = [
     cost: [{ kind: "currency", id: "gold", amount: 140 }],
     grant: [{ kind: "item", id: "stone_maul", amount: 1 }],
     repeatable: true,
-  },
-  {
-    id: "plot.farm_plot", table: "plot",
-    name: "Farm Plot",
-    cost: [{ kind: "currency", id: "gold", amount: 100 }, { kind: "item", id: "normal_log", amount: 5 }],
-    grant: [{ kind: "unlock", id: "plot:farm_plot", amount: 1 }],
-    repeatable: true,
-    max: 12,
-  },
-  {
-    id: "plot.scarecrow", table: "plot",
-    name: "Scarecrow",
-    cost: [{ kind: "currency", id: "gold", amount: 200 }, { kind: "item", id: "wheat", amount: 10 }],
-    grant: [{ kind: "unlock", id: "plot:scarecrow", amount: 1 }],
-    repeatable: true,
-    max: 2,
-  },
-  {
-    id: "plot.toolshed", table: "plot",
-    name: "Tool Shed",
-    cost: [{ kind: "currency", id: "gold", amount: 800 }, { kind: "item", id: "normal_log", amount: 40 }],
-    grant: [{ kind: "unlock", id: "plot:toolshed", amount: 1 }],
-    repeatable: true,
-    max: 1,
-  },
-  {
-    id: "plot.watchtower", table: "plot",
-    name: "Watchtower",
-    cost: [{ kind: "currency", id: "gold", amount: 1500 }, { kind: "item", id: "oak_log", amount: 30 }],
-    grant: [{ kind: "unlock", id: "plot:watchtower", amount: 1 }],
-    repeatable: true,
-    max: 1,
   },
   {
     id: "property.castle", table: "property",
@@ -471,43 +434,6 @@ export const SHOP_OFFERS = [
     grant: [{ kind: "item", id: "rune_blank", amount: 18 }],
     repeatable: true,
   },
-  {
-    id: "worker.1", table: "worker",
-    name: "Hire worker #1",
-    cost: [{ kind: "currency", id: "gold", amount: 500 }],
-    grant: [{ kind: "unlock", id: "worker", amount: 1 }],
-  },
-  {
-    id: "worker.2", table: "worker",
-    name: "Hire worker #2",
-    cost: [{ kind: "currency", id: "gold", amount: 3000 }],
-    grant: [{ kind: "unlock", id: "worker", amount: 1 }],
-  },
-  {
-    id: "worker.3", table: "worker",
-    name: "Hire worker #3",
-    cost: [{ kind: "currency", id: "gold", amount: 15000 }],
-    grant: [{ kind: "unlock", id: "worker", amount: 1 }],
-  },
-  {
-    id: "worker.4", table: "worker",
-    name: "Hire worker #4",
-    cost: [{ kind: "currency", id: "gold", amount: 75000 }],
-    grant: [{ kind: "unlock", id: "worker", amount: 1 }],
-  },
-  {
-    id: "worker.5", table: "worker",
-    name: "Hire worker #5",
-    cost: [{ kind: "currency", id: "gold", amount: 250000 }],
-    grant: [{ kind: "unlock", id: "worker", amount: 1 }],
-  },
-  {
-    id: "worker.6", table: "worker",
-    name: "Hire worker #6",
-    cost: [{ kind: "currency", id: "gold", amount: 750000 }],
-    grant: [{ kind: "unlock", id: "worker", amount: 1 }],
-    note: "and every hire after this one",
-  },
   /* Tools, gear and seeds, never supplies (Tyler 2026-10-20; designer 2026-10-22); SUPPLY_PRICE_LIST is never sold. */
   ...SUPPLY_SHOP_OFFERS.filter((s) => SHOP_SOLD_KINDS.includes(s.kind)).map(supplyOffer),
 ];
@@ -541,13 +467,6 @@ export const SHOP_TABLES = [
     "count": 40
   },
   {
-    "table": "plot",
-    "origin": "src/legacy.js",
-    "anchor": "const PLOT_BUILDINGS={",
-    "spends_at": "legacy.js buildPlot()",
-    "count": 4
-  },
-  {
     "table": "seed",
     "origin": "src/legacy.js",
     "anchor": "const SEED_SHOP=[",
@@ -570,14 +489,6 @@ export const SHOP_TABLES = [
     "spends_at": "homestead.js upgradeTier()",
     "note": "grant amount is the tier index",
     "count": 5
-  },
-  {
-    "table": "worker",
-    "origin": "src/features/workers.js",
-    "anchor": "var HIRE_COSTS = [",
-    "spends_at": "workers.js hire()",
-    "note": "rung N is the price of the Nth hire, and the last rung repeats forever",
-    "count": 6
   },
   {
     "table": "character_slot",

@@ -3,16 +3,15 @@
 //
 // PURE. Reads the `farm_land` section (supabase/migrations/2026-12-14-shared-farm.sql,
 // hr_farm_land_view) of the record a CharacterSession holds:
-//   { cap, plot_level, deeds, upgrade: { level, gold, deeds, farming } | null,
+//   { cap, plot_level, upgrade: { level, gold, farming } | null,
 //     plots: [{ i, crop, ready, ready_in_s, waterable, regrows_left, by, by_name, extra }] }
 // The field is the ACCOUNT's (Tyler 2026-10-23): every hero reads the same plots,
 // each naming the hero who planted it (`by` the slot, `by_name` the name); an
 // `extra` plot sits past the cap and goes once harvested.
-// NO DEEDS: the server still sends `deeds` (the hero's Farmer's Deeds and the tier's
-// deed price), but the Farmer's Deed left the catalogue with every source it had (the
-// 2026-10-23 demolition), so no player can hold one. The reader drops both, and no
-// window offers a payment nobody can make (coverage bot 2026-11-07; the server half
-// is tests/catalogue-coherence.mjs SERVER_ITEM_DEBT's).
+// GOLD ONLY: the Farmer's Deed left the catalogue with every source it had (the
+// 2026-10-23 demolition), and its payment and count left the server with
+// lane/c-dead-plot-deed (2026-11-07, 2027-03-22-dead-plot-deed.sql). The reader takes
+// only the gold price and the Farming level.
 // Every judgement is the server's: how many plots the land holds (the property
 // ladder and the Garden), whether a plot is ready or may be watered (by the
 // server's clock), and the next plot tier's price. Null = the server sent no field

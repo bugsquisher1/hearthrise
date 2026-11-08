@@ -139,7 +139,7 @@ export const MUTANTS = {
   oak_back: { arm: 'TW-MAP', why: 'the oak still stands on the lot',
     js: ['src/data/world/town/greenery.js', [["export const GREENERY = Object.freeze([\n", "export const GREENERY = Object.freeze([\n  ['oak', 98, 58],\n"]]] },
   compose_ignores_swap: { arm: 'TW-MAP', why: 'the stage\'s art is never drawn',
-    js: ['src/world/core/compose.js', [["place((state.objectSwap && state.objectSwap[o.id]) || o.id, o.x, o.y, { fp: [o.fw, o.fh] });", 'place(o.id, o.x, o.y, { fp: [o.fw, o.fh] });']]] },
+    js: ['src/world/core/compose.js', [["place(swap || o.id, o.x, o.y, { fp: [o.fw, o.fh] });", 'place(o.id, o.x, o.y, { fp: [o.fw, o.fh] });']]] },
   lot_is_an_effect: { arm: 'TW-MAP', why: 'the lot draws over everyone, as the fire does',
     js: ['src/data/world/town/sites.js', [["export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 86 })]);", "export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 86 }), Object.freeze({ id: 'havora_weighhouse_staked', x: 98, y: 60, lift: 0 })]);"]]] },
   /* THE TAPS */

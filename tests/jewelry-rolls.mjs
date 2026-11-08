@@ -8,7 +8,8 @@
 //       roll comes up, a Hallmarked piece never carries one perk twice, and every made id is one of its job's outcomes.
 //   J3  BOTH PATHS ON THE SERVER'S ENGINE (computeAccrual, the hr-accrue settle): a bench WATCHED (the town poll's short settles) and
 //       one left with the BROWSER CLOSED (one long settle) both pay only the job's outcomes, one piece per 14 Bronze Bars spent, the
-//       XP, and NO gold: a roll pays no bench tax. Each window rolls on its own server seed, so the same window rolls the same twice.
+//       XP, and NO gold: a roll pays no bench tax. Each window rolls on its own server seed, so the same window rolls the same twice
+//       (the long window and every watched one, retried).
 //   J4  A JOB THAT DOESN'T ROLL DRAWS WHAT IT ALWAYS DREW: the plain Crafting rows leave the stream untouched.
 //   J6  THE END LINE SAYS WHAT THE DICE MADE: a watched run stops on "41 Banded Signet, 3 Fine (2 Keen, 1 Surge), 1 Hallmarked (...)".
 //   J7  THE BROWSER NEVER GUESSES A GRADE: the town ticker counts a rolled job's actions as unsure, in no stack, until the server pays.
@@ -108,8 +109,11 @@ const claims = {
     const closed = read(call(T0, T0 + 2 * 3600000, { bronze_bar: bars }, 0x7a11));
     /* WATCHED: the town poll's settles, each on its own seed, the bag carried between them. */
     let bag = { bronze_bar: bars }, watched = zero();
+    const windows = [];
     for (let t = T0, i = 0; t < T0 + 2 * 3600000; t += 60000, i++) {
+      const held = Object.assign({}, bag);
       const r = read(call(t, t + 60000, bag, 0x5000 + i));
+      windows.push([t, held, 0x5000 + i, JSON.stringify(r.items)]);
       watched = tally(watched, r);
       bag = Object.assign({}, bag);
       for (const [id, q] of Object.entries(r.items)) { bag[id] = (bag[id] || 0) + q; if (bag[id] <= 0) delete bag[id]; }
@@ -126,9 +130,16 @@ const claims = {
       if (!(r.xp > 0)) return `${why}: no Crafting XP`;
     }
     if (process.argv.includes('--verbose')) console.log('  J3 closed', JSON.stringify(closed.items), closed.xp, '| watched', JSON.stringify(watched.items), watched.xp);
-    /* THE SAME WINDOW ROLLS THE SAME: a retried settle is the settle. */
+    /* THE SAME WINDOW ROLLS THE SAME: a retried settle is the settle. The long window alone is not enough: a grade drawn off
+       the bench's seed (Math.random) still takes its perks from the seeded stream, so two runs with the same Fine count pay the
+       same bag: that mutant passed the long window alone in 5 runs of 300 (release run 42519810819 missed it). Every watched
+       window is retried too, 120 of ~2.5 jobs each: the two together missed it in 0 runs of 300. */
     const again = read(call(T0, T0 + 2 * 3600000, { bronze_bar: bars }, 0x7a11));
     if (JSON.stringify(again.items) !== JSON.stringify(closed.items)) return 'the same window on the same seed rolled two different benches';
+    for (const [t, held, seed, items] of windows) {
+      const twice = JSON.stringify(read(call(t, t + 60000, Object.assign({}, held), seed)).items);
+      if (twice !== items) return `the watched window at +${(t - T0) / 60000} min on the same seed rolled ${items}, then ${twice}`;
+    }
     return null;
   },
   J4(M) {

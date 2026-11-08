@@ -10,6 +10,7 @@
 // mutant-anchors: none — a review tool, not a guard
 import { readFileSync } from 'node:fs';
 import { decodePNG } from './png.mjs';
+import { isMain } from '../../tests/_is-main.mjs';
 
 const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
 const lum = (d, i) => 0.2126 * lin(d[i]) + 0.7152 * lin(d[i + 1]) + 0.0722 * lin(d[i + 2]);
@@ -36,7 +37,7 @@ export function floorLuminance(im) {
 
 export const contrast = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 
-if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/world-art/ring-contrast.mjs')) {
+if (isMain(import.meta.url)) {
   const [floorFile, ...specs] = process.argv.slice(2);
   if (!floorFile || !specs.length) { console.error('usage: ring-contrast.mjs FLOOR.png SPRITE.png[:x,y,w,h] …'); process.exit(2); }
   const lf = floorLuminance(decodePNG(readFileSync(floorFile)));

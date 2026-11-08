@@ -323,10 +323,17 @@ export class TownPresence {
   /** A stand another answer named for this character (hr_hearth_burn's `me`): the World walks the hero there. */
   noteStand(raw) { if (!this._dead) this._noteMe(raw); }
 
-  /** The server burnt this character's named fuel `item` (hr_hearth_burn): the World throws it once the hero is at the fire. */
-  noteBurn(item) { if (!this._dead && typeof item === 'string') { this._burn = Object.freeze({ item, at: this._now() }); this._changed(); } }
+  /** The server burnt this character's named fuel or powder `item` (hr_hearth_burn, hr_town_show): the World throws it once the
+      hero reaches the stand that answer set it on (noteStand, just before). The server holds the body there for the walk and the
+      throw (2027-03-23-town-visit-hold.sql); when it moves the body on, the stand changes and a throw never reached is dropped. */
+  noteBurn(item) {
+    if (this._dead || typeof item !== 'string') return;
+    const m = this._me;
+    this._burn = Object.freeze({ item, at: this._now(), stand: m ? Object.freeze({ station: m.station, stand: m.stand, since: m.since }) : null });
+    this._changed();
+  }
 
-  /** This character's last accepted named burn ({item, at}, local ms), or null. Display only. */
+  /** This character's last accepted named burn ({item, at, stand: {station, stand, since}|null}, local ms), or null. Display only. */
   lastBurn() { return this._burn; }
 
   _noteMe(raw) {

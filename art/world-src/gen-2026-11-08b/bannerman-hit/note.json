@@ -1,0 +1,282 @@
+{
+  "asset": "bannerman hit clip (brief 10 B3b), Barrow March (unmerged art)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B3b (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "march",
+  "object_id": "371d7c5c-7a9f-4cea-a4e1-6bb261a677ec",
+  "name": "bannerman (64 frame; March body)",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); hit/<facing>/0..N.png = the kept roll; alt/<roll>/hit/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the object, frame_count 6, keep_first_frame false; south and the side facings are separate groups (their action texts differ)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "931ac20a-2049-4b7e-bb31-5ab0aec4b70d",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "d5d67873-bc6f-497d-8d89-48ccd246db8e",
+        "directions": "e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r2": [
+      {
+        "group": "23b83d2a-552c-444d-a99e-22f07f0912ac",
+        "directions": "e",
+        "action": "seen from the side, leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, it never turns toward the viewer, the banner pole stays in its hand, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r3": [
+      {
+        "group": "b1e49fcd-290e-4700-9138-d8a59d7f336c",
+        "directions": "e",
+        "action": "seen in profile the whole time, sways back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the face and body keep pointing the same way, the banner pole stays in its hand, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r1",
+    "east": "r3",
+    "north": "r1",
+    "west": "r1"
+  },
+  "refused": {
+    "east r1": "turns to face the viewer at frames 4-5",
+    "east r2": "turns toward the viewer again (5 px)"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r1",
+      "xor": [
+        147,
+        201,
+        284,
+        325,
+        309,
+        262
+      ],
+      "alien": [
+        0,
+        0,
+        8,
+        12,
+        6,
+        2
+      ],
+      "dx": [
+        0.3,
+        0.5,
+        0.5,
+        0.8,
+        1.1,
+        0.8
+      ],
+      "dy": [
+        0.2,
+        0.5,
+        1.1,
+        1.1,
+        0.8,
+        0.4
+      ],
+      "top": [
+        0,
+        1,
+        2,
+        3,
+        2,
+        1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "east": {
+      "roll": "r3",
+      "xor": [
+        103,
+        102,
+        144,
+        217,
+        192,
+        188
+      ],
+      "alien": [
+        4,
+        0,
+        7,
+        18,
+        20,
+        16
+      ],
+      "dx": [
+        0.9,
+        0.8,
+        0.8,
+        0.6,
+        1.4,
+        0.6
+      ],
+      "dy": [
+        -1.8,
+        -0.1,
+        0.8,
+        0.6,
+        1.5,
+        1.5
+      ],
+      "top": [
+        -1,
+        0,
+        0,
+        -1,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "loose f0 (4)"
+      ]
+    },
+    "north": {
+      "roll": "r1",
+      "xor": [
+        248,
+        351,
+        452,
+        491,
+        483,
+        451
+      ],
+      "alien": [
+        1,
+        14,
+        41,
+        34,
+        44,
+        49
+      ],
+      "dx": [
+        0.6,
+        1.5,
+        3.1,
+        4.1,
+        3.8,
+        3.2
+      ],
+      "dy": [
+        0.2,
+        -0.5,
+        0.5,
+        1.5,
+        0.8,
+        -0.1
+      ],
+      "top": [
+        1,
+        1,
+        4,
+        5,
+        4,
+        1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (41)",
+        "shift f2 (3.1,0.5)",
+        "colour f3 (34)",
+        "shift f3 (4.1,1.5)",
+        "top f3 (5)",
+        "colour f4 (44)",
+        "shift f4 (3.8,0.8)",
+        "colour f5 (49)",
+        "shift f5 (3.2,-0.1)"
+      ]
+    },
+    "west": {
+      "roll": "r1",
+      "xor": [
+        148,
+        266,
+        314,
+        339,
+        217,
+        55
+      ],
+      "alien": [
+        0,
+        18,
+        37,
+        72,
+        10,
+        0
+      ],
+      "dx": [
+        -0.9,
+        -1.8,
+        -1.7,
+        -2.2,
+        -1.1,
+        0.2
+      ],
+      "dy": [
+        1.1,
+        1.4,
+        2.2,
+        2.2,
+        1.5,
+        0.7
+      ],
+      "top": [
+        2,
+        2,
+        4,
+        5,
+        3,
+        1
+      ],
+      "bottom": [
+        1,
+        1,
+        1,
+        2,
+        1,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (37)",
+        "colour f3 (72)",
+        "top f3 (5)"
+      ]
+    }
+  },
+  "generations": 6,
+  "flags": [
+    "north and west: the banner cloth swings 3-4 px at frames 2-4 (the box centre moves with it); the body holds",
+    "east r3: 4 loose px at frame 0 (the banner tassel)"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/bannerman-hit.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)"
+}

@@ -818,3 +818,11 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - A new curve file is rows only: 02-11 holds `hr_char_xp_for_level` as plpgsql, and a restated SQL body turns `settle-budget` SB-3 red.
 - The careers' reference from 32 to 50 is the over-leveled Glade on Normal (86k), while Dangerous and Deadly there pay 1.4-2x with no death in 4 h. The pace is the default path's; the fastest honest hour is its own read, and it is far ahead.
 - Under load, split a plan: a second pool on `--only "x=(R|M)"` into its own folder, and a reader that takes both (`pacefinal-table.mjs --in a,b`).
+
+## 2026-11-08 lane/d-area-spells (area spells, the party heal, effect settings: design and measure)
+- A fair telegraph is one a free hero can step off, and a kiter is always free. So monster area spells are a melee and tank threat by construction: they can't make a lone kiter pay, and no dial I tried (2-3x spells, monsters 25% faster, a thrown basic) did. Ask what reaches each way to fight before promising risk for all eight.
+- A windup costs the caster its swings. A spell under about 2x its blow makes a monster weaker (Squeal at 1.5x lifted a good bar 88% to 93%). Size spells against the swings they replace.
+- Kill-the-caster-first is a fake decision when a caster outlives its windup (25-30 HP vs 1.6 s): measured no change, cut. Defensive stance is the strongest setup answer (16.3 to 1.25 deaths an hour), eat-on-cast adds to it (0.31).
+- With melee hold, ranged step off, a party heal on 2+ hurt allies only wakes when two melee stand in the ring. Measure a party heal on a four with two melee, never on tank, healer, bow, mage (it never fires there).
+- Slot conditions join with AND only (OR is for stop rules): an or-rule is two slots. A true/false metric negates by swapping " is " in its label, so every bool label must hold " is ".
+- Bash guard blocks rm -rf inside a worktree (even tools/balance-sim/out): give a re-run a new out tag instead.

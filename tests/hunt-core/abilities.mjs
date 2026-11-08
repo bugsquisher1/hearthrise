@@ -673,6 +673,13 @@ const cases = {
     const at = reasonOf(sl, set, bag, null, 'bronze_arrows', { ranged: { level: 10, xp: 0 } }, null);
     if (at && at.code === 'unlock') return 'a slot at its unlock still waits: ' + JSON.stringify(at);
     if (reasonOf(sl, set, bag, null, 'bronze_arrows', null, null)) return 'with no skills read the slot claims a wait: ' + JSON.stringify(reasonOf(sl, set, bag, null, 'bronze_arrows', null, null));
+    /* a new pick takes its own starting rule when the slot still holds the last pick's untouched (Turning Cut, then a food), never
+       the player's own edits */
+    const { conditionsAfterPick, startConditions } = M.shell.draft;
+    const cutA = { type: 'ability', id: 'turning_cut' }, fish = { type: 'consume', id: 'cooked_shrimp' };
+    const after = conditionsAfterPick(startConditions(cutA), cutA, fish), mine = [{ metric: 'enemies_in_aoe', op: 'gte', value: 4 }];
+    if (JSON.stringify(after) !== JSON.stringify(startConditions(fish)) || startConditions(fish)[0].metric !== 'self_hp_pct') return 'a food picked after Turning Cut keeps ' + JSON.stringify(after);
+    if (conditionsAfterPick(mine, cutA, fish) !== mine) return 'a pick threw away the player’s own conditions';
     /* the area conditions, picked: each starts on a test that can hold, in plain words */
     const said = ['party_hp_pct', 'enemy_casting', 'in_fight', 'target_weak', 'target_resists'].map((id) => conditionWords(conditionFor(id)));
     const want = ['the party’s HP is below 50%', 'the number of monsters casting at me is at or above 1', 'the fight is on', 'my target is weak to it', 'my target is resistant to it'];
@@ -930,6 +937,8 @@ const mutants = [
     edits: [['src/shell/action-table.js', "ammo: a.ammo || 0, unpriced", 'ammo: 0, unpriced']] },
   { name: '[area-client] Chill says nothing of what it does', case: 'configure-words', also: ['src'],
     edits: [['src/shell/action-facts.js', "const does = st.slowPm ? 'its swings", "const does = false ? 'its swings"]] },
+  { name: '[area-client] a new pick keeps the last pick’s rule', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/bar-draft.js', "  return !conds || !conds.length || untouched ? startConditions(next) : conds;", '  return !conds || !conds.length ? startConditions(next) : conds;']] },
   { name: '[area-client] a picked count starts below 0', case: 'configure-words', also: ['src'],
     edits: [['src/shell/bar-draft.js', "  const any = m.value === 'count' && m.ops.includes('gte');", '  const any = false;']] },
   { name: 'the lanes are not persisted', case: 'clocks-survive-a-cut',

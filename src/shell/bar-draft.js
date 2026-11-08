@@ -78,6 +78,16 @@ export function startConditions(a) {
   return suggestedConditions(a);
 }
 
+/**
+ * The conditions a slot keeps when its pick changes from `was` to `next`: the player's own, unless they are none or still
+ * exactly `was`'s starting conditions untouched, which become `next`'s. A food picked after Turning Cut never keeps "the
+ * monsters it would hit is at or above 3", a rule written for the spell and never read by a food (area spells, 2026-11-08).
+ */
+export function conditionsAfterPick(conds, was, next) {
+  const untouched = JSON.stringify(conds || []) === JSON.stringify(startConditions(was));
+  return !conds || !conds.length || untouched ? startConditions(next) : conds;
+}
+
 /** A fresh condition on the registry's first test. */
 export function blankCondition() {
   const m = METRICS[0];

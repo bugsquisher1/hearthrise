@@ -1625,7 +1625,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await page.click('.hc-foot [data-x="save"]');
       await until(() => s.sent('hr_action_set_options').length >= 1);
       const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
-      if (sent.length !== 1 || JSON.stringify(sent[0].slots[5]) !== JSON.stringify(want)) fails.push('HS-8 the town save sent ' + JSON.stringify(sent).slice(0, 300));
+      if (sent.length !== 1 || JSON.stringify(sent[0].slots[5]) !== JSON.stringify(want)) fails.push('HS-8 the town save sent ' + sent.length + ' save(s), slot 6 ' + JSON.stringify(sent[0] && sent[0].slots[5]));
       const saved = await wait(page, () => /Salted Trout/.test(document.querySelector('.hb-slot[data-slot="5"]').getAttribute('aria-label')) && !document.querySelector('[data-hs-win="configure-action"]'), null);
       if (!saved) fails.push('HS-8 the town slot did not show the server’s Salted Trout after it confirmed');
       /* Nobody is told to buy first (Tyler 10-19): with a store food on the bar and an empty bag, Hunt prep reads the store per use. */

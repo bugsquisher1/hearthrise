@@ -31,7 +31,7 @@ import { carriedOf, skillsOf } from '../../session/item-sections.js?v=0.2.108';
 import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.108';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.108';
 import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.108';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.108';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, conditionsAfterPick, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.108';
 import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning } from '../action-facts.js?v=0.2.108';
 import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.108';
 import { glyphSvg } from '../launcher.js?v=0.2.108';
@@ -316,15 +316,17 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
     const x = t.getAttribute('data-x');
     if (x === 'tab') { v.tab = t.getAttribute('data-tab'); v.hover = null; repaint(); listToTop(body); return; }
     else if (x === 'pick') {
+      const was = d.action;
       d.action = { type: t.getAttribute('data-type'), id: t.getAttribute('data-id') };
       v.hover = null;
       v.pickedAt = { x: ev.clientX, y: ev.clientY };
       LAST_TAB.set(cs, tabOf(d.action));
       const st = storeDefault(d.action, (settingsOf(cs) || {}).store);
       if (st) d.action.store = st;
-      /* A slot with no condition yet starts with its action's own, written on it: food at HP below 50%, drink at
-         mana below 30%, a heal or a shield under its threshold, an area at two monsters (nothing hidden behind it). */
-      if (!d.conditions.length) d.conditions = startConditions(d.action);
+      /* A slot with no condition yet, or still holding the last pick's own untouched, starts with its action's own, written
+         on it: food at HP below 50%, drink at mana below 30%, a heal or a shield under its threshold, an area at two monsters
+         (nothing hidden behind it). Conditions the player changed are theirs and stay (bar-draft.js conditionsAfterPick). */
+      d.conditions = conditionsAfterPick(d.conditions, was, d.action);
     }
     else if (x === 'find') {
       /* The item token names the pick: bring its row into view. */

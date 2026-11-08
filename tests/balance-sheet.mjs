@@ -88,6 +88,7 @@ const CASES = {
     }
     if (!(B.TIER_PULL_OVERRIDES.mill_cellar && B.TIER_PULL_OVERRIDES.mill_cellar.normalOnly)) bad.push('the Mill Cellar offers a harder tier');
     for (const [g, o] of Object.entries(B.TIER_PULL_OVERRIDES)) if (!o.why) bad.push(g + '\'s override has no reason');
+    if (bad.length) return bad; /* (tierRowFor refuses a pull a party size, so the rows below can't be read) */
     /* the engine row a ground gets: never softer than the table, the table's own on a full ground, harder the gentler the ground */
     for (const id of ['dangerous', 'deadly']) {
       let above = Infinity;

@@ -25,7 +25,7 @@
 -- ORDER: after 2027-03-21-sewer-deadly-xp.generated.sql (APPLIED). Idempotent: the rename stays guarded and the rows are rewritten
 -- whole, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2). The hr-accrue deploy carrying the same
 -- src/data/balance-sheet.js and src/data/party-class-xp.js follows AT ONCE (a hunt already running keeps the pull it froze).
--- REVERSIBLE: re-apply 2027-03-21-sewer-deadly-xp.generated.sql (and deploy the engine before this lane).
+-- REVERSIBLE: re-apply 2027-03-21-sewer-deadly-xp.generated.sql, with the engine from before this lane.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────

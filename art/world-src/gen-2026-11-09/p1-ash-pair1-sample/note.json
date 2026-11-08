@@ -1,0 +1,17 @@
+{
+  "asset": "brief 12 P1 pair 1 (THE FIRST CALL, rolled twice) SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/12-pyre-field.txt",
+  "status": "SAMPLE for the art director's one-pass read with brief 11's samples; nothing chains or batches before it. Not imported (staged set pyre when it is)",
+  "made": "2026-11-08",
+  "generations": 30,
+  "made_how": "create_topdown_tileset mode pro, 32 px, high top-down, transition 0.25, transition \"the ash thins over the scorched earth\". r1 (tileset 2a24fce7-79e6-4d36-8d15-657e31fa312f; ash base 093a18a0-67de-4862-b64a-b755422ac0a0, scorched base 6b18a8c0-a1a7-4c5b-9c01-3fb34eee77ec) with the brief's words; r2 (tileset 5699bf3a-4c63-441c-b051-0a30a569f6ef; ash base f69328ad-a9dc-4ced-9f4d-7cc1cfb16c6e, scorched base 11a86aa9-9577-46f3-9b9d-9c0590637c42) with lower \"grey wood ash, soft and powdery, a warm mid grey like weathered stone, a few charred flecks, calm low contrast, no white\" and upper \"scorched bare earth, warm brown-grey, one value darker than the ash, dry soil with thin hairline cracks, no paving, no stones, calm\"",
+  "measured": "full-tile fills (metadata corners all lower / all upper): r1 ash median L 0.401 (#afa9a2), min 0.162, no run darker than #6a6865; r1 scorched median L 0.101 (#65574e). r2 ash median L 0.216 (#80807f), one 3 px run darker than #6a6865; r2 scorched median L 0.112 (#6c5b50). The rule: ash median on #8a867d (L 0.239) or lighter with no white (#aaa49a only in specks); scorched median on #6a6865 (L 0.139)",
+  "refs": "refs/floor-pyre-ash-64.png = r1's ash fill tiled 2x2 (the brief's ref name); refs/floor-pyre-ash-r2-64.png = r2's",
+  "findings": [
+    "NEITHER ROLL MEETS THE RULE EXACTLY: r1's ash is too pale (its median #afa9a2 is above the #aaa49a white cap: the whole fill sits at the cap, a flat pale tone); r2's ash is a little dark (L 0.216 vs 0.239) and NEUTRAL grey, not warm",
+    "both scorched fills come out darker than #6a6865 and drawn as cracked plates on a RAISED bank (transition 0.25 in pro draws a step): r1 reads as paving slabs, r2 as dried-mud hexagons (closer to \"cracked earth\")",
+    "nothing is chained yet: pairs 2-6 wait for the pick of r1 or r2 (or a third roll between them, about L 0.28-0.33 and warm)",
+    "the bodies were measured against BOTH ash fills (P2, P7 notes)"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/p1-ash-pair1-sample.png"
+}

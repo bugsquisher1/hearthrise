@@ -1,0 +1,14 @@
+{
+  "asset": "brief 12 P7 pyre_wraith (rotations and south idle) SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/12-pyre-field.txt",
+  "status": "SAMPLE for the art director's one-pass read with brief 11's samples; nothing chains or batches before it. Not imported (staged set pyre when it is)",
+  "made": "2026-11-08",
+  "generations": 7,
+  "made_how": "create_object_pro_flash 8 directions 48 canvas, seed 2401, P2's style and settings, the brief's words (object 0270f103-104f-41d8-802e-e45ed6f4c212); south idle group b5b256e8 \"standing, the shroud stirs by one pixel at the hem, the head stays level, nothing else appears in the frame\", 8 frames keeping the still",
+  "measured": "body 25x39 S (ok), 17x42 E (2 px over 40); ring median 0.017 S / 0.009 E (under 0.045); ring 6.75/7.70 on ash r1, 3.97/4.54 on ash r2; no ember",
+  "findings": [
+    "reads as a hooded burial shroud with a pale skull face and ragged tattered hem; a small pale pin shows at the chest in S: not the wight recoloured",
+    "the south idle brings two pale bony hands out at the sides from frame 2 on (the still hides them): gear that appears; the calm pair for a ping-pong is frames 0-1 only"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/p7-pyre-wraith-sample.png"
+}

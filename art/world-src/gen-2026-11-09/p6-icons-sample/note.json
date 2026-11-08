@@ -1,0 +1,18 @@
+{
+  "asset": "brief 12 P6 the five icons (one each) SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/12-pyre-field.txt",
+  "status": "SAMPLE for the art director's one-pass read with brief 11's samples; nothing chains or batches before it. Not imported (staged set pyre when it is)",
+  "made": "2026-11-08",
+  "generations": 5,
+  "made_how": "create_image_pixen 32x32, transparent, single black outline, seed 7, \"<itemText line>, game item icon, drawn on the diagonal, filling the frame\" (jobs cc9a907a pike_ferrule, 2adc56a3 rake_tine, e1b007da kennel_tag, 35830dea shroud_pin, d0d2ea3e warrant_seal). Not snapped to hr-world-56-v2 (pixen takes no palette; the import's lock.mjs snaps)",
+  "measured": "boxes: pike_ferrule 32x32, rake_tine 32x32, kennel_tag 28x27 (88%), shroud_pin 32x32, warrant_seal 32x32 (four at 100%, over the 75-94% fill)",
+  "findings": [
+    "kennel_tag: a leather collar with a tag, reads (the closest to the brief)",
+    "rake_tine: draws a whole rake head with a handle, not one bent tine",
+    "pike_ferrule: an unreadable tube with a cap",
+    "shroud_pin: a mace-like pin with a face on its knob",
+    "warrant_seal: reads as a grey ball of yarn with a cord",
+    "four of five fill the whole canvas: the batch should ask for a margin (\"centred with space around it\")"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/p6-icons-sample.png"
+}

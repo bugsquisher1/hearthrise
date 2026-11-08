@@ -1,0 +1,16 @@
+{
+  "asset": "brief 12 P5 sheet 1 (one call; the Coordinator's list skipped P5, the brief's 11-09 list includes it) SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/12-pyre-field.txt",
+  "status": "SAMPLE for the art director's one-pass read with brief 11's samples; nothing chains or batches before it. Not imported (staged set pyre when it is)",
+  "made": "2026-11-08",
+  "generations": 9,
+  "made_how": "create_image_pro_flash 256x256, a 4x4 grid of 64 px cells, transparent, seed 2601, style = a 64x64 crop of hf_pyre_unlit (upload 194e1cdb) (job 6189e965)",
+  "measured": "cell art sizes in reading order: row 1 (pf_burnt_pyre) 50x33, 49x34, 44x35, 48x25; row 2 (small) 30x32, 33x54, 36x53, 30x54; row 3 (scatter) 43x48, 42x23, 41x22, 41x49; row 4 ma_fire_rake 35x42, ma_log_stack 42x33, ma_ash_barrow 55x35, ma_charred_stake 19x38",
+  "findings": [
+    "every cell holds one prop on its own, no glow, the burnt look of the pyre style",
+    "row 2 cells 2-4 are 53-54 px tall, over the bulky class: the small heaps came out as tall cones",
+    "row 3: cells 1 and 4 draw sticks standing up, not flat (a decal must be flat); cells 2 and 3 are flat",
+    "row 4: the rake leans on a post, the barrow is full of ash, the stake is burnt black: all four kit props read"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/p5-burnt-pyres-sample.png"
+}

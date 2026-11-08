@@ -1,0 +1,17 @@
+{
+  "asset": "brief 12 P2 body sample (each body's rotations and south idle) SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/12-pyre-field.txt",
+  "status": "SAMPLE for the art director's one-pass read with brief 11's samples; nothing chains or batches before it. Not imported (staged set pyre when it is)",
+  "made": "2026-11-08",
+  "generations": 21,
+  "made_how": "create_object_pro_flash 8 directions, high top-down, single black outline, basic shading, style = refs/style-glade-poacher-s-48.png (upload ab3eda12) \"match palette, outline, shading\": charred_pikeman 48 canvas seed 2101 (object fe423e33-6f3a-4ac1-85b4-5f0c33dbfb8c), stoker 64 canvas seed 2201 (765cee1e-c89e-49f9-b594-a182e094bb5f), lurcher 64 canvas seed 2301 (8f6e46c7-9f0f-4a0f-aa9e-58a1161ed351). South idles, 8 frames keeping the still, the brief's words: pikeman group f75c08a0, stoker f8417156, lurcher 60cab7a0",
+  "measured": "bodies: pikeman 26x37 S, 13x40 E (character 36-40 ok); stoker 40x41 S, 15x42 E (brute 41-52, at its floor); lurcher 18x41 S, 51x37 E (beast 40-48 by width: 51, 3 OVER). Ring medians: pikeman 0.036, stoker 0.043 S / 0.033 E, lurcher 0.064 S / 0.049 E (the rule caps it at 0.045: the lurcher FAILS). Ember share: pikeman 1.5-2.1%, stoker 4.8-6.3%, lurcher 0-0.6% (cap 15%). ring-contrast.mjs, rotations S and E: on ash r1 (refs/floor-pyre-ash-64.png, median L 0.401) pikeman 5.25/5.25, stoker 4.86/5.41, lurcher 3.95/4.55, wraith 6.75/7.70 (all pass); on ash r2 (refs/floor-pyre-ash-r2-64.png, L 0.216) pikeman 3.09/3.09, stoker 2.86 UNDER/3.19, lurcher 2.33 UNDER/2.68 UNDER, wraith 3.97/4.54",
+  "findings": [
+    "charred_pikeman: reads as a HOODED dark soldier with red armband scraps and a short pike, not as black bones: it is not the Banded Pikeman's twin, but \"burned skeleton\" does not read either (the art director decides)",
+    "stoker: a hooded lay brother in a brown habit and leather apron holding a fire rake (reads as a hay fork at x2); mid-brown cloth, the ring passes only because the outline and dark folds hold it",
+    "lurcher: FAILS the ring rule (0.049-0.064 > 0.045): its coat came out mid grey-brown, not soot-dark, and it fades on ash r2. 3 px over the beast width. Its south idle raises a pale tail tip over the head at frames 2-8 (\"the tail still\" did not hold)",
+    "pikeman and stoker idles are calm (the stub and the rake hold)",
+    "the strip shows each body on ash r1 (top half) and ash r2 (bottom half) beside the knight"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/p2-bodies-sample.png"
+}

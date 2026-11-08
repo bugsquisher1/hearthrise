@@ -1,0 +1,15 @@
+{
+  "asset": "brief 12 P4 pf_great_pyre (2 candidates) SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/12-pyre-field.txt",
+  "status": "SAMPLE for the art director's one-pass read with brief 11's samples; nothing chains or batches before it. Not imported (staged set pyre when it is)",
+  "made": "2026-11-08",
+  "generations": 30,
+  "made_how": "create_image_pro 320x256, transparent, style image hf_pyre_unlit (art/world/march on lane/b-hasks-ford-art, 50x48 padded to 52x48, upload cf7a39c7), seeds 2501, 2502 (jobs f4a16930, 1fd54aad). 15 gens each (the receipt's price for 320x256), one candidate per call",
+  "measured": "c1 art 164x174 (x78-241, y38-211): about 5 tiles wide, not the 256 the 8-tile footprint asks; c2 art 280x206 (x20-299)",
+  "findings": [
+    "c1: top-down, a fieldstone plinth, stacked charred logs, shields and broken banner poles on top, a bed of red embers in the heart, no glow: on the brief, but narrow (5 of 8 tiles)",
+    "c2: wide enough but drawn in a three-quarter ISOMETRIC view (a second perspective: brief 09 refused that for the barge)",
+    "no ember overlay made yet (it follows the pick)"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/p4-great-pyre-sample.png"
+}

@@ -44,20 +44,22 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.106';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.106';
-import { createRng } from './rng.js?v=0.2.106';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.106';
-import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.106';
-import { stepSwing } from './hunt/world-step.js?v=0.2.106';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.106';
-import { newHuntWorld, joinHero, leaveHero, scaleRoomFor } from './hunt-spawn.js?v=0.2.106';
-import { pullLeader } from './hunt/pull-cycle.js?v=0.2.106';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.106';
-import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.106';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.109';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.109';
+import { createRng } from './rng.js?v=0.2.109';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.109';
+import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.109';
+import { MONSTERS } from '../data/monsters.js?v=0.2.109';
+import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../data/scaled-hunts.js?v=0.2.109';
+import { stepSwing } from './hunt/world-step.js?v=0.2.109';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.109';
+import { newHuntWorld, joinHero, leaveHero, scaleRoomFor } from './hunt-spawn.js?v=0.2.109';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.109';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.109';
+import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.109';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.106';
+export { stepSwing } from './hunt/world-step.js?v=0.2.109';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -82,6 +84,26 @@ const picker = (ms) => partyPick(ms.map((x) => ({ density: x.hero.density, lead:
 /* THE HUNT'S TIER: the party leader's hero's, else the first standing hero's. The server freezes one on the instance and overlays it on every member (hr_hunt_instance_read `options.tier`). The SAME call on
    the server's settle and the browser's live view (a peer's `hero` carries `tier`). */
 const tierPick = (ms) => { const lead = ms.find((x) => x.hero.lead === true) || ms[0]; return (lead && lead.hero.tier) || DEFAULT_TIER; };
+
+/**
+ * WHAT AN INSTANCE PLAYS ON `groundId` UNDER THE SERVER'S `scale` (src/data/scaled-hunts.js; Tyler 2026-11-07 "party would scale to the
+ * leader"). `scale` is { level } when the server says the leader's paid hours scale this window (hr_scaled_hunt_of: the switch on, hours
+ * banked, the leader past the ground's band), else null. The SAME answer on the server's settle and the browser's live view:
+ *   level     the Level the ground plays at, or null (unscaled, and a scale the data can't play is unscaled too: never half a scale)
+ *   monsters  the catalogue with the ground's roster on its scaled rows, the ONE door every reader of a monster row takes (world-step.js
+ *             inst.monsters, hunt-rewards.js ctx.monsters); null unscaled, so an unscaled hunt reads exactly what it always read
+ *   tierOf    a tier pick's row: unscaled, the ground's own (hunt-tiers.js); scaled, the sheet's at the scaled floor (scaledTierRow), and a
+ *             pick the scaled ground doesn't offer (Deadly) plays Normal
+ *   normalOf  true for a pick that plays Normal for that reason: its frozen pull goes with it (the ground as it stands)
+ */
+export function huntPlayOf(groundId, scale) {
+  const asked = scale && Number.isInteger(scale.level) ? scale.level : null;
+  const level = asked !== null && scaleLevelFor(groundId, asked) === asked ? asked : null;
+  if (level === null) return { level: null, monsters: null, tierOf: (id) => tierRowOf(groundId, id), normalOf: () => false };
+  const monsters = Object.assign({}, MONSTERS, scaledMonsters(MONSTERS, groundId, level));
+  const own = (id) => scaledTierRow(groundId, id, level);
+  return { level, monsters, tierOf: (id) => own(id) || tierRowOf(groundId, DEFAULT_TIER), normalOf: (id) => id !== DEFAULT_TIER && own(id) === null };
+}
 
 /* WHO HOLDS THE PACK (Tyler 2026-10-22): the seat the party leader's hero names (hunt-spawn.js heroSetup `hold`,
    the server's hunt_parties.hold_seat) as that member's unit, or null (the tanks take turns; that seat is not in
@@ -214,14 +236,18 @@ export function bornHpOf(u, evs) {
  *        buff queue the member's bonus reads, at each of its boundaries) }
  * @param {{toMs: number, tickMs?: number, seed: (domain: string, index: number) => number, ground: any, grid: any, monsters?: any, items?: any, hearthfind?: any, xpMultOf?: any}} ctx
  *        { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters?, items? (the server's item catalogue: an attack item's footprint),
- *        hearthfind? (an indexed Hearthfind table; the catalogue's when absent), xpMultOf?(unitId) }
- * @returns { world, nextSwingAtMs, swings, track, events, kinds, members: { [key]: summary } }
+ *        hearthfind? (an indexed Hearthfind table; the catalogue's when absent), xpMultOf?(unitId),
+ *        scale? ({ level }: the server's scale of this window, huntPlayOf; absent = unscaled) }
+ * @returns { world, nextSwingAtMs, swings, track, events, kinds, members: { [key]: summary }, scale (the Level it played at, or null) }
  */
 export function simulateHuntInstance(inst, ctx) {
   const tick = Number.isInteger(ctx.tickMs) && ctx.tickMs > 0 ? ctx.tickMs : COMBAT_BALANCE.tickMs;
   const toMs = Math.floor(Number(ctx.toMs) || 0);
   const members = inst.members;
   let world = inst.world || null;
+  /* A SCALED HUNT (huntPlayOf): its rows, its tier and its pull, the same for every swing of this span. */
+  const play = huntPlayOf(ctx.ground.id, ctx.scale || null);
+  const pickOf = (ms) => (play.normalOf(tierPick(ms)) ? 0 : picker(ms));
   /* A world made in this call: the leader's hold pick is in force from its first lap (not only from the next). */
   let fresh = false;
   /* CALL OUT (src/data/boss-calls.js): the room's call, its limit from the party's first swing (one instant for every member however the windows were cut), and ONE FIGHT: whatever ends one
@@ -294,11 +320,11 @@ export function simulateHuntInstance(inst, ctx) {
              number), the same number every respawn reads below, never the first hero's pick alone. */
           const standing = members.filter((x) => !x.left);
           /* ...and on the hunt's tier, the one every respawn reads below (hunt-tiers.js: its health is the packs' from the first). */
-          const tier = tierRowOf(ctx.ground.id, tierPick(standing));
+          const tier = play.tierOf(tierPick(standing));
           world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],
-            { density: densityFor(ctx.ground, standing.length, picker(standing)), tier });
+            { density: densityFor(ctx.ground, standing.length, pickOf(standing)), tier, monsters: play.monsters });
           /* The room's one spawn is for the party walking in, not the first hero through the door: he never comes back at their size. */
-          if (call) scaleRoomFor(world, ctx.ground, standing.length, tier);
+          if (call) scaleRoomFor(world, ctx.ground, standing.length, tier, play.monsters);
           fresh = true;
           /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
           world.swing = Math.max(0, Math.floor(Number(inst.worldSwing) || 0));
@@ -347,21 +373,22 @@ export function simulateHuntInstance(inst, ctx) {
       /* MONSTER DENSITY for the packs that spawn from here: the party leader's pick (Tyler 2026-10-20),
          clamped to the ground for the party's size (hunt-grounds.js partyPick, densityFor). */
       world.density = densityFor(ctx.ground, world.units.filter((u) => u.side === 'hero').length,
-        picker(members.filter((m) => !m.left && m.unitId !== null)));
+        pickOf(members.filter((m) => !m.left && m.unitId !== null)));
       /* THE LEADER'S HOLD PICK, read every swing; it takes force at the next lap boundary (pull-cycle.js), or at once
          in a world just made (every member that enters with it has joined by now). */
       world.holdNext = holdPick(members.filter((m) => !m.left && m.unitId !== null));
       if (fresh) { world.hold = world.holdNext; world.leader = pullLeader({ world }); fresh = false; }
       /* THE TIER (hunt-tiers.js): read every swing, like the hold pick, and never stored on the world. */
       const { ground } = ctx;
-      const tier = tierRowOf(ground.id, tierPick(members.filter((m) => !m.left && m.unitId !== null)));
+      const tier = play.tierOf(tierPick(members.filter((m) => !m.left && m.unitId !== null)));
       const r = stepSwing(world, { atMs, swingMs: tick, rng: createRng(seedOf(ctx, 's', sw)),
-        ground, grid: ctx.grid, heroes, tier, ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}) });
+        ground, grid: ctx.grid, heroes, tier, ...(play.monsters ? { monsters: play.monsters } : {}),
+        ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}) });
       seen(r.events);
       for (const t of r.track) track.push(t);
       for (const e of r.events) worldEvents.push(e);
       /* The rewards' own events (a party's rare roll) follow the swing's, on the server-only `r` stream. */
-      const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: ctx.monsters, tier, hearthfind: ctx.hearthfind, call,
+      const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: play.monsters || ctx.monsters, tier, hearthfind: ctx.hearthfind, call,
         emit: (e) => worldEvents.push(e) });
       /* THE CALLED BOSS IS DOWN: everyone still in the fight ends `boss_felled` at their next boundary. */
       if (call && r.events.some((e) => e.type === 'kill' && kinds[e.t] === call.monster)) for (const m of members) if (!m.left) m.hs.bossFelled = true;
@@ -416,5 +443,5 @@ export function simulateHuntInstance(inst, ctx) {
       unitIdEver: o.unitEver,
     };
   }
-  return { world, nextSwingAtMs: atMs, swings, track, events: worldEvents, kinds, units, members: summaries };
+  return { world, nextSwingAtMs: atMs, swings, track, events: worldEvents, kinds, units, members: summaries, scale: play.level };
 }

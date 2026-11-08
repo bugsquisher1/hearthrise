@@ -818,3 +818,10 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - A new curve file is rows only: 02-11 holds `hr_char_xp_for_level` as plpgsql, and a restated SQL body turns `settle-budget` SB-3 red.
 - The careers' reference from 32 to 50 is the over-leveled Glade on Normal (86k), while Dangerous and Deadly there pay 1.4-2x with no death in 4 h. The pace is the default path's; the fastest honest hour is its own read, and it is far ahead.
 - Under load, split a plan: a second pool on `--only "x=(R|M)"` into its own folder, and a reader that takes both (`pacefinal-table.mjs --in a,b`).
+
+## 2026-11-07 lane/d-live-events (timed world events from data, design only)
+- The engine already has the per-hero XP seam: `xp-share.js` `sc.xpMultOf`, handed in as `combat-sim.js` `ctx.xpMultOf`, and nothing sets it. An event plugs in there with the kill's `atMs`, never as a tier row. Forcing a tier row onto the Normal-only Cellar changed its fights in the check.
+- A career's chunk fixes the hero's Level (`cell.mjs` builds vitals from the start Level), so a Level XP dial is measured on careers by multiplying each chunk's settled Level XP. It is exact and cheap, and a hammer re-run matched `level-pace.json` to the hundredth. When C1's fingerprint matches, `level-pace.json`'s per-style careers are a free baseline.
+- An XP bonus's pace cost is its share of hunting hours x its percent. +25% on every hour reads x0.805 at Level 50 and x0.81-0.82 at 10-25 (skills lag a little).
+- +10% is below what a player feels. At the Glade at 24 the gap between a hammer (83k) and a mage (91k) is wider than +10% on either.
+- Lane branches that insert at the top of the Decisions list collide. Insert a same-day section lower down (before the next dated heading) when another lane is writing the top.

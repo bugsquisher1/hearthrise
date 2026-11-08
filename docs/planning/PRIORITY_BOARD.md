@@ -30,6 +30,89 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-07 Scaled hunts (designer, lane/b-scaled-hunts, Tyler 2026-11-07 "an option to 'scale' early game hunts up with gold", "party would scale to the leader", "+x% exp +x% more damage from monsters +x% more gold from monsters", "make it a per hour slider", "up to 24 hours", "the time only ticks down while in the spawn"): DESIGNED as data, MEASURED on the real engine, nothing wired, the feature stays hidden. **The server half is a §1 money surface (a gold purchase) and goes on the pre-EA Security list (§3.7)**
+**What it is.** A hero who has outgrown an early ground can pay gold to fight it at their own Level. The ground keeps its map, its monsters and its loot, and its monsters come up to the leader. It is for finishing an early bestiary at XP worth having, and it is a gold sink. It is never the best grind. At every tested gap the free right-Level ground pays more Level XP, and the best free ground pays more gold, so gold never buys faster leveling (the Crowns link, Tyler's 11-04 avoid list). The rules and numbers live in `src/data/scaled-hunts.js`. `tests/scaled-hunts.mjs` plays them on the real settle.
+
+**The rules** (mine, each with its reason).
+| Rule | What | Why |
+|---|---|---|
+| Who | The party leader, once their Level is past the ground's band top. A party scales to the leader | Tyler: "party would scale to the leader". A ground that still fits you needs no scaling |
+| Which grounds | Mill Cellar, Meadowbrook Thicket, Wickstead, Millrace Sewer, Mosslight Glade. Not the Coppercap Warrens | Every early monster's bestiary can be finished. The Warrens is the top ground and has nothing above it to stay under |
+| The Level | The ground's floor moves up to the leader's Level and every monster moves by the same gap, never past 50 | The band then starts at your Level, which is what "right for your level" means in the Hunts window. The sheet grades safety at a ground's floor. Past 50 there is no right-Level ground to stay under |
+| Monsters | The stat formula read at the new Level, each monster with its own role, art tier and fit. HP, blows, to-hit, defense and the monster's Level all move | Tyler's three dials plus HP, so a high party can't one-shot it. One damage percentage per ground is not enough. The engine's to-hit reads atk against the hero's Defense, so atk alone left a scaled whelp landing 5% of swings on a Level 45 hero. Defense and the monster's Level (what armor reads and what trains Defense) must move too |
+| Danger | A gentle ground goes to full danger at its new floor. The Thicket is held at half | The formula keys danger on the floor, so a gentle ground scaled up bites in full. That is wanted, because a late hero doesn't need the fresh hero's kindness. Not on the Thicket, whose fast wolves run down a lone archer. At full danger a lone bow at the leader's Level died once and dipped under 25% HP 12 times in 4 h. At half, 0 deaths and 2 dips |
+| Level XP | The formula's, x0.8 | At x1 a four on the scaled Glade at Level 50 earned 1.13x the Warrens' XP (its layout kills fast) |
+| Coin | The formula's, x0.6 on a solo ground and x1 on a party ground | A party ground already pays the party line. A solo ground's monsters have solo HP, so at x1 a scaled Glade four netted 2,100-2,400 a head over the Warrens |
+| Item drops | The ground's own rows at their own rates | Early materials don't flood the market. Measured: coin a kill x3.8, commons a kill x1.18 (the kill mix, the rows are the same objects) |
+| Bestiary | Nothing new. A scaled kill is one kill of that monster | The counters are per monster. Note that a ground unscaled gives more kills an hour (no XP). Scaling is for doing it at a fitting XP |
+| Tiers | Normal and Dangerous, each read at the scaled floor. Deadly is not offered while scaled | Deadly at Level 41 is a trap. A four died 47 times in 16 hero-hours on the scaled Glade and 44 on the scaled Sewer (the Warrens' Deadly, 0) for 0.47-0.80x the Warrens' Deadly XP. Dangerous held, with 0 deaths at 41 on the Glade, Wickstead, Thicket and Sewer fours and a lone Glade hero, for 0.50-0.84x the Warrens' Dangerous XP (the Glade's four at 50 died 6 times in 16 hero-hours there). A remembered Deadly pick plays Normal while scaled, and the top bar says so |
+| Buying | A slider of whole hours, 1 to 24. The price is 40 gold an hour for each Level the ground is scaled to, from the leader's account purse | Tyler: "make it a per hour slider", "up to 24 hours" |
+| The bank | Hours are banked per hero and per ground, at most 24. They never expire. At most 48 hours bought per server day | The cap means a price change never leaves a big stock bought at the old price. An hour paid for is never lost |
+| Spending | One banked hour per hour the party hunts that ground, whatever its size, on the server clock. Town, travel and other grounds spend nothing | Tyler: "the time only ticks down while in the spawn". One fee a party hour keeps the slider in hours of play. The coin dial already keeps a four's gold under the best free ground before the fee, so the fee doesn't have to |
+| A switch | "Use my scaled hours here", per hero and ground, remembered, on after a purchase | A hero holding hours can still hunt the ground at its own Level without spending them |
+| Hours run out | At the next settle the ground goes back to its own Level and the hunt keeps running | A hunt ends only on stamina, supplies, gold, death or an end order. The world restarts the way a party change restarts it, so no standing monster keeps a scaled row |
+| The leader leaves | The new leader's Level, hours and switch decide at the next settle. No hours means the ground's own Level | The leader picks the hunt's settings and members read them (10-20). The scale is one of them |
+| Heroes under the leader | They stand under the scaled floor and get the usual warning on the picker | 11-04: no Level penalty. The monsters are simply stronger |
+
+**The price** (gold a banked hour = 40 x the Level the ground is scaled to, which is the leader's Level up to 50).
+| Leader's Level | An hour | 24 hours | Grounds it can scale |
+|---|---|---|---|
+| 9 | 360 | 8,640 | Cellar |
+| 16 | 640 | 15,360 | Cellar, Thicket |
+| 20 | 800 | 19,200 | Cellar, Thicket, Wickstead |
+| 26 | 1,040 | 24,960 | and the Sewer |
+| 32 | 1,280 | 30,720 | and the Glade |
+| 41 | 1,640 | 39,360 | all five |
+| 50 and up | 2,000 | 48,000 | all five |
+**Worked example.** Sorrel is Level 41 and wants her wolf bestiary. The Thicket (Level 5 to 15) scaled to her reads Level 41 to 51: whelps at 41, the Grayjaw at 51, at half danger. She buys 6 hours for 6 x 1,640 = 9,840 gold. Alone, an hour there measured 118k Level XP and 6,056 gold before the fee, so 4,416 after it. The Thicket unscaled pays her 28k XP and 3,556 gold, the Warrens alone 216k XP, and the Glade 8,175 gold. If she brings three friends, the same 6 hours cover 6 hours for all four of them, at 410 gold a head an hour.
+
+**The guard** (`tests/scaled-hunts.mjs`, the real settle, one seed and one hour a way, the same dice in every cell. Alone is the median of hammer, bow and mage, a four is tank, healer, bow and mage. Per hero an hour, Normal). The right-Level ground is the open ground whose band holds the Level. The best free gold is every open ground at or under the Level. The bars are XP under the right-Level ground, gold after the fee under the best free gold, XP at least 1.25x the ground unscaled, and alone the fee is 15-60% of the scaled gold and never turns the hour into a loss.
+| Case | Level XP (vs right-Level / vs unscaled) | Gold before fee, fee a head, after | Best free gold / unscaled | Deaths |
+|---|---|---|---|---|
+| Cellar, alone at 20 | 50k (Glade 81k, 0.62x / 6.3x) | 2,984 - 800 = 2,184 | Glade 6,947 / 1,972 | 0 |
+| Cellar, a four at 32 | 114k (Warrens 211k, 0.54x / 11.8x) | 3,618 - 320 = 3,298 | Glade 7,249 / 1,512 | 0 |
+| Cellar, alone at 50 | 157k (Warrens 235k, 0.67x / 19.4x) | 5,284 - 2,000 = 3,284 | Warrens 10,028 / 1,954 | 0 |
+| Thicket, alone at 20 | 59k (Glade 81k, 0.73x / 2.2x) | 3,995 - 800 = 3,195 | Glade 6,947 / 3,399 | 0 |
+| Thicket, alone at 41 | 118k (Warrens 216k, 0.55x / 4.2x) | 6,056 - 1,640 = 4,416 | Glade 8,175 / 3,556 | 0 |
+| Thicket, a four at 50 | 172k (Warrens 247k, 0.70x / 4.9x) | 6,542 - 500 = 6,042 | Warrens 8,432 / 3,730 | 0 |
+| Glade, alone at 32 | 116k (Warrens 199k, 0.58x / 1.3x) | 5,379 - 1,280 = 4,099 | Glade 8,015 / 8,015 | 0 |
+| Glade, a four at 41 | 185k (Warrens 233k, 0.80x / 1.6x) | 6,601 - 410 = 6,191 | Warrens 7,606 / 7,465 | 0 |
+| Glade, a four at 50 | 224k (Warrens 247k, **0.90x** / 1.9x) | 7,172 - 500 = 6,672 | Warrens 8,432 / 7,846 | 0 |
+The rest come from a wider scratch grid (2 seeds, 4 lone ways, Levels 20 to 60). The Sewer's four reads 0.59-0.75x the Warrens' XP and 2,150-2,300 under the best free gold before the fee, Wickstead's four 0.57-0.80x and 2,400-2,500 under. A leader past 50 plays the ground at 50, and at Level 60 the Glade's four reads 0.91x the Warrens at 60. Every four in every case held on Normal. A lone hero on the scaled Sewer died 3-5 times in 8 hero-hours, as it would in the Warrens at its floor (a party ground alone, warned as usual). 17 mutants are caught (`--mutate`), among them XP x1.5, coin x2, the fee 10x and at 1 gold, blows x2.5, drops x3, Deadly offered, a tier read at the ground's own floor and the Thicket's hold dropped.
+**One part of the brief I changed.** The brief asked for gold after the fee over the ground unscaled too. It can't hold on the Glade, because the Glade unscaled IS the best free gold at Levels 32 and 41, so being over it and under the best free ground at once is impossible. Worth buying is judged by XP (1.3x to 19x the ground unscaled), and the fee never turns a lone leader's hour into a loss. On the earliest grounds gold rises as well (the Cellar at 50 from 1,954 to 3,284, the Thicket at 41 from 3,556 to 4,416). The thinnest margin is the Glade's four at 50 (0.90x the Warrens' XP).
+
+**For the formula lane (a finding, not a change here).** A solo ground's Deadly gets deadlier with Level. The scaled Glade's four died 7 times in 16 hero-hours on Deadly at Level 32 (inside the sheet's 9) and 47 at Level 41. No solo ground lives there today, but the next solo ground above 32 will meet it. Worth a look before one is built.
+
+**The Balance Lab's scale preview does not match `scaleFor`.** Played its own code (`tools/balance-lab/dials.mjs` scaleOf and applyDials, its sheet pointed at balance-sheet.js the way build.mjs does) against `scaledRow` at Level 41, row for row. The Lab was not edited.
+| Difference | The Lab | The game's rows |
+|---|---|---|
+| Defense | Never moves (def 0-14 at Level 41) | Moves with the Level (12-38) |
+| A party ground's fit | Read as a solo ground. On the Sewer it hits 2.0-2.4x harder, lands 30-65 points more often and pays 1.5-1.9x the coin | The party fit (HP x2.5, blows x0.75, to-hit -0.3, the party coin line) |
+| Roles | Every monster a regular, so on a gentle ground a heavy's or elite's HP never grows to its full share (73-91%) and swarm and heavy blows read 17-28% over | Each monster's own role |
+| The Thicket's danger hold | Full danger (blows 20-64% harder, 15 more to-hit points) | Half danger |
+| XP and coin dials | None (1.04-1.29x the XP and 1.4-1.9x the coin) | x0.8 XP, x0.6 coin on solo grounds |
+| Rules | Scales any ground to any Level from any Level, no cap at 50, keeps the ground's own tier rows (the Thicket's Dangerous at 2,711 over full-danger rows) and offers Deadly | Past the band top only, held at 50, tiers read at the scaled floor, no Deadly |
+The Level, and the to-hit on a solo ground, agree. The fix for the Lab's owner is to read `scaledMonsters` and `scaledTierRow` from `src/data/scaled-hunts.js` instead of its own ratios.
+
+**The build plan for the server half** (lane C, then the client through lane B. Nothing here is built).
+1. **A banked-hours table**, one row per hero and ground: hours held in milliseconds (0 to 24 h), the "use my hours here" switch (default on), updated_at. Per-user RLS read, written only by the RPCs below and the settle. Its catalogue (the scalable grounds, their floor and top, the price per Level, topLevel, the hour and day clamps) is GENERATED from `src/data/scaled-hunts.js` with a `--check`, never typed in SQL.
+2. **The buy RPC** (SECURITY DEFINER). It takes a hero, a ground and whole hours. It reads the hero's Level on the server (`hr_level_of`) and prices from the server catalogue: 40 x min(Level, 50) an hour. It refuses a ground the hero still fits or can't scale, hours that aren't whole or fall outside 1-24, a bank that would pass 24 h, more than 48 hours in a server (UTC) day (counted from the ledger), and a purse that can't pay. It debits the account purse and writes one `player_ledger` row (kind, hero, ground, hours, Level, price), with an idempotency key per call. No client value is trusted: not the price, not the Level, not the hours past the clamp. Pattern: `2026-10-25-stamina-refill.sql`.
+3. **The switch RPC** sets the "use my hours here" flag. It moves no money.
+4. **The settle** (hr-accrue, the one engine). At each settle, for each instance, it reads the LEADER's row for the instance's ground. When the switch is on, hours remain and `scaleLevelFor` answers a Level, it plays the ground with `scaledMonsters(MONSTERS, ground, level)` and the tier from `scaledTierRow` (a Deadly pick plays Normal). It then debits the leader's hours by the instance's paid hunting time in that settle (the clock stamina drains on, the server clock), floored at 0, in the same transaction as the apply, journalled. When the bank empties, the switch goes off, or the leader changes, the next settle restarts the world on the ground's own rows, as a party change does. **The engine work:** today eight src/core modules (hunt-rewards, hunt-spawn, member, hunt/boss-phases, hunt/conditions, hunt/damage, hunt/pull-cycle, hunt/targeting) and hr-accrue's hunt-settle and set-activity import MONSTERS directly. A scaled hunt needs them to read monster rows through one door (the settle's `ctx.monsters`). That change must be byte-identical on every unscaled hunt (the combat replay), and the kill bounds in the hunt-sessions catalogue must read the scaled row, or the server would clamp a scaled kill's XP and coin. Tests: both paths (the hunt viewed, and the browser closed), hours running out mid-hunt, the leader leaving, a level-up mid-hunt.
+5. **The client slider** (behind a flag until the server lands). On the Hunts page, for a ground the leader has outgrown: the band it would read ("Fights at Level 41 to 51"), the four dials in words from `scaleFor` ("about 4 times the damage, 5 times the HP, 10 times the Level XP and 5 times the coin a kill, same drops"), the hours banked, the slider from 1 to 24 with the server's price, a Buy press with one confirm, the switch, and one line, "A party spends one hour of it for each hour it hunts here." Every number comes from the server.
+6. **Security.** A gold purchase is a §1 money surface. It goes on the pre-EA Security list: the price and Level computed on the server, the clamps, the ledger row, the settle's debit, and the kill bounds on scaled rows.
+
+**Known limits.** The price reads the Level at the purchase, so a hero who levels after buying uses hours bought cheaper. That's bounded by 24 h a ground, and no gold is created. The guard samples one seed and one hour a way. The dice are fixed, so it never flakes, but a small edge reads as a pass. The guard compares Normal only. Dangerous was measured once (above) and isn't guarded.
+
+**The server half (lane/c-scaled-hunts, backend architect, STAGED).** Two files, in order: `2027-03-21-scaled-hunts-catalogue.generated.sql` (from this data through `tools/gen-scaled-hunts.mjs`) and `2027-03-21-scaled-hunts.sql`. The engine change (`src/core/combat-sim.js` huntPlayOf, every monster row read through the instance's one table) ships in the next hr-accrue deploy. Either order is safe: without the server's scale every hunt plays as today. The whole feature sits behind the server switch `scaled_hunts` (`2027-03-21-feature-switches.sql`, staged first), seeded off. While it is off the verbs refuse `feature_off`, the section is null and no hunt scales. The Coordinator turns it on with a one-line migration (testers first), no release. The `features` section lists the switches on for the account. For the slider lane:
+| Piece | What the client gets |
+|---|---|
+| Section `scaled_hunts` | `min_hours`, `max_hours`, `bank_max_ms`, `day_max_hours`, `today_hours`, `playing` { hunt, level } or null, and `grounds` { hunt: { level (null: not yet), from_level, price (an hour, null: not yet), banked_ms, on } } |
+| `hr_scaled_hunt_buy(p_slot, p_hunt, p_hours, p_price, p_idem)` | The price the section shows times the hours. Refusals: not_scalable, scale_level { level, need }, bad_hours { min, max }, quote_changed { scaled_hunts }, scaled_bank_full { banked_ms, max_ms }, scaled_day_limit { today, max }, insufficient_gold |
+| `hr_scaled_hunt_switch(p_slot, p_hunt, p_on, p_idem)` | The switch, the hero's own row. Refusals: not_scalable, bad_switch |
+| `hunt_live.instance.scale` | { level } or null: the live view plays the same rows (live-engine.js passes it to the engine) |
+The calls I made where the plan left room. The leader must be hunting in the instance (a solo hunt's hero is its own leader). A party whose leader is in town plays the ground's own rows and spends nothing. A window stops where the banked swings end, so hours never overrun, and the next settle restarts the world on the ground's own rows. A remembered Deadly plays Normal's dials and Normal's pull while scaled. The day's 48 hours are counted from the ledger, not a counter column.
+
 ### 2026-11-07 One formula for every hunt (designer, lane/b-ground-formula; Tyler 2026-11-07 "is there a formula you can start following?", then "Yes, start there", then "fleshing this system out perfectly and applying it to all current hunts"): BUILT as data, a generator and a grader; the sample MEASURED on the real engine; Wickstead's and the Glade's rows WRITTEN by the formula
 **The call.** Every ground is now built and graded by three things in one data module, `src/data/balance-sheet.js`: a **target sheet** (what a ground must measure), a **stat formula** (a monster's numbers from its Level, its role and its ground's floor) and **one tier table** (Normal, Dangerous, Deadly as dials). `tools/gen-ground-stats.mjs` writes the rows (`formula: true` on each), `tools/balance-sim/sheet-check.mjs` plays a ground and grades it line by line, and `tests/balance-sheet.mjs` holds every written row to the formula digit for digit. A balance complaint becomes a dial to move, not a hand re-fit. The formula keeps the XP the hand rows already paid (about 1.8 x Level^0.4 a HP point on every open ground) and their coin (about 0.3 g a point), plus 30% coin on a ground that bites in full, so the food its danger costs comes back (harder pays more). What it fixes is danger, which now climbs by one rule instead of by ground.
 
@@ -147,6 +230,182 @@ The Glade on the formula meets every line; it reads like Tyler's x1.2 on close c
 **Scaled hunts (later, not built):** a ground scaled to a leader's Level is this formula read at every monster's Level plus the gap and the floor plus the gap: HP, danger, XP and coin follow their curves, the drops stay the ground's own, and the fee is set so its net stays under the right-Level ground's. The tiers use the same dials on top.
 
 **Proof and guards.** `tests/balance-sheet.mjs` (engine constants restated, every role read back through the engine's own to-hit and max hit at Levels 1-200, blows capped, curves climb, the tier table, the roster, every `formula: true` row equal to the formula; 9 mutants). `tools/balance-sim/sheet-check.mjs --selftest` (6 mutants on a real run). `tools/gen-ground-stats.mjs --selftest` and `--check`. `monster-classes.js` auditRoster holds a formula row to the formula instead of the August hand bands. `forest-cave` glade-between judges the Glade's +25% in its four plate pieces, per Tyler's 11-07 (he took the helm-and-body drop to +6%), and its mutant became x2 attack. **Server:** `2027-03-20-ground-formula-hunt-sessions-catalogue.generated.sql` STAGED (hr_hunt_kill_bounds for the eleven rows, the same full replace; some bounds widen, so it applies BEFORE the hr-accrue deploy carrying `monsters.js`). The tier rows (`hr_ground_tiers`) are lane/b-tier-dials' to generate from `TIER_DIALS` / `tierRowFor`; until they land, the live Glade tiers (1400 / 1600) sit on a Normal a fifth harder, which kills a four at the Glade's floor on Deadly (31 deaths in 16 hero-hours, measured), so **the rows and the tier table ship together**. **Guards on the written rows (exit codes, this branch):** green: `balance-sheet --mutate` (9), `gen-ground-stats --check` and `--selftest`, `sheet-check --selftest`, `mutant-anchors`, `hunt-data`, `first-week-bands` (risk-ladder gained a per-swing line so its armor mutant still bites on the harder Glade), `house-pelts`, `tally-tasks`, `gen-hunt-sessions --check`, `apply-order-honesty`, `schema-drift`. **RED, named:** (1) `forest-cave` harder-pays-more: with the Glade's coin +30%, a lone tank at 45 earns 6,778 g an hour on the Glade against the Warrens' 6,381, and a four at 41 7,301 against 6,185 (it was +38 g/h the right way before). Without the premium the Glade fell under the Sewer's party (1,234 against 1,900). Tyler's x1.2 costs the Glade food, and the hand-built Warrens sits too close above it: it closes when the Warrens gets the formula's own coin (batch 2). (2) `drop-tables` total-value: the Glade pays 4,874 g a hero-hour against a 3,834 pin (+27%, the cap is +25%), measured in the full kit the pin wasn't; re-pin with batch 2. Its big-pull mutant (the Bear Claw at 0.19%) is no longer caught on the new bear row: the case needs its threshold re-measured. (3) `level-curve` C1. **Not yet:** `level-curve` C1 is red (the pace fingerprint moved) until ONE pace re-measure after batch 2 (`node tools/balance-sim/sim.mjs --plan pace` and `--plan ladder`, then `pace.mjs --write`, re-fit if C2-C5 go red). **Measured:** every number above. **Assumed:** that 2 seeds x 2 h with no death bounds a death rate only to about 0.9 an hour (the 1-in-1,000 h line needs deep runs); that the median of 8 ways stands for a player.
+
+### 2026-11-07 Live events (designer, lane/d-live-events, Tyler 2026-11-07 approved "live events from data"): DESIGN ONLY, measured on the real engine, nothing built. **Two events to build first. A Bonus XP weekend every other weekend, and Open Halls every Wednesday**
+**The ask.** Timed world events written as rows on the server clock, so players have a reason to log in each week without a new ground. An event must reward showing up and must never set back a player who can't come. No event may break three rulings. There is no Level penalty (11-04), tiers never move gold (11-07), and the server owns anything tradeable or rankable (§1).
+
+**What exists today.** Nothing in the game is a scheduled event. Every timed thing is a daily cap or a moment a player starts.
+| Thing | What it is | What times it |
+|---|---|---|
+| Call out (`src/data/boss-calls.js`, live since 11-06 01:47 UTC) | A party pays 10,000 or 30,000 gp to fight a stronger Rat King or Chief Coppercap in his hall. No XP, no coin, no drops. The prize is a title at price 0 | 3 calls an account a UTC day. Vitals: 3 calls in all, every one on 11-07 |
+| Named fuels (`hearth.js`) | Burning one turns the Hearth's flame a color for everyone in Havora for 60-90 s | The player. 20 a hero a UTC day, the queue capped at 10 min |
+| The Hearthrise (this board, 2026-10-25, not built) | A server-wide meter filled with fuel. When it fills, every hero gets +10% XP for 2 h | Earned, not scheduled |
+| Town Works (`town-works.js`) | The server gives gold toward the Weighhouse. Stage lines and a plaque, no buff | No clock. 25,000 g an account a UTC day |
+| Leaderboards (`honor-roll.js`) | Gold Given starts again on the 1st of each UTC month. The rest never reset | The month |
+| World notices (`chat-channels.js` WORLD_NOTICES) | System lines only the server writes. `rare_drop` is the only kind | 3 a character a UTC day |
+| Blessings (`blessings.js`) | Death protection. The 10-14 "daily world blessings" buffs are superseded | Not timed |
+| `bosses.js`, `champions.js` | Old-client registries (dungeon bosses, field champions on no open ground) | Not timed, not events |
+| pg_cron (`supabase/migrations`) | The 10 s world tick (hunt settlement), leaderboards every 5 min, nightly prunes (chat, game events, kill credits), an hourly cron health check | Nothing a player sees |
+| Cut on 10-22 | `raid_strike`, `world_event_*`, `clan_board_*` (old client). Tyler: "Live world events get a deliberate redesign later; do not revive the old ones" | This section is that redesign |
+
+Two seams an event can use already exist. **Feature switches** (lane/c-scaled-hunts, in flight as `2027-03-21-feature-switches.sql`, WIP eaf34dea0, not yet pushed) are `hr_feature_switches` (off, accounts, testers, everyone) and `hr_feature_on(switch, account)`, moved only by a Coordinator migration. **The per-hero XP hook** (`src/core/hunt/xp-share.js` `sc.xpMultOf`, handed in through `combat-sim.js` `ctx.xpMultOf`), "read server-side and injected per hero (bestiary mastery, boosts, later modifiers)". Nothing sets it today, so every hero's is 1. An event needs no new engine seam.
+
+**The purpose test, five candidates** (DESIGN_STANDARDS §4).
+| Candidate | The player problem | The decision it adds | Plugs into | Verdict |
+|---|---|---|---|---|
+| **Bonus XP weekend** (+% Level XP everywhere, for a window) | Every day plays the same, so nothing pulls friends online on the same days, and parties only form when people are on at once | When to spend stamina (rest Thursday and start Friday full), whether a refill is worth it, which tier to push, who to party with while friends are on | Level XP a kill (`xpMultOf`), stamina and refills, the Level board, parties, the System tab | **KEEP, sample 1** |
+| **Open Halls** (Call out with no fee, one evening a week) | Call out costs 10,000-30,000 gp and earns nothing, so parties don't try it (3 calls ever). A party that loses can only learn the fight by paying again | Is our bar ready, who brings the heals, which hall | Call out, titles, parties (your own second hero counts), the losing line | **KEEP, sample 2** |
+| **The Hearthrise** (the earned rise, 10-25) | Fuel has no shared goal | Burn a named fuel now or sell it | The same XP dial and the same rows (a rise writes a 2 h row) | **KEEP, later.** At today's 2-4 players a day its 15,000-point goal can't fill (the 300-point per-hero day clamp x about 6 heroes is 1,800 a day, so one rise every 8 days at best). Build it on these rows once its goal is sized by active heroes |
+| **Ground of the week** (one rotating ground gets a bonus) | Outgrown grounds empty out | Go back, or stay | Level XP, or bestiary kills | **CUT.** Extra XP on an outgrown ground is still little XP, so it only moves heroes already in its band. On a scaled ground it lets gold buy faster leveling (the scaled Glade's four at 50 reads 0.90x the Warrens, so +12% puts it over). Counting kills double makes the counters the titles read untrue. Bringing heroes back to old grounds is the scaled hunts' job (11-07) |
+| **Lucky weekend** (+% drops or +% coin) | Excitement | Nothing new, just hunt more | Loot and the purse | **CUT.** Coin is a faucet with no matching sink, and Tyler's 11-07 line (no gold where none is paid to enter) points the other way. Rares trade and are paced at one every 10-20 h (the drop-tables guard), so a lucky weekend floods the market at once and makes the super-rare reveal common. A gold refill inside the window would buy more rare drops, which is on the 11-04 avoid list |
+
+**Not a daily event.** Tyler asked for reasons to log in "each day and week". A fixed daily hour favors one time zone and makes a player repeat the same timing choice every day, which the first principle calls a bug. The daily reason is already the hunt you start and its stamina. The week gets two anchors instead (Wednesday and every other weekend).
+
+**What every event obeys** (designer rules, binding on the build).
+1. **The curve is fit and guarded with no event.** A player who never attends is on Tyler's pace and an attendee is ahead, so nobody falls behind the curve by missing one. Events never enter `level-pace.json`, `level-curve` or the grader (the sim never sets `xpMultOf`).
+2. **A server value on the server clock, at the kill's own time.** A kill earns the dial that is live at its combat time, in the one engine, viewed or not, browser open or closed. A catch-up settle across a window's edge pays each kill by its own time, never by when the settle ran.
+3. **Percent dials only.** An event moves a permille on something the server already computes (Level XP a kill, a fee it already charges). It never puts gold in a purse and never moves drops, rares, coin, skill XP or the death loss. A Call out room earns nothing with or without one.
+4. **One factor everywhere it reaches.** A world event multiplies every ground, tier, party cell and scaled hunt by the same number, so every order the guards hold still holds (the ladder, tiers at least Normal, a scaled ground under the right-Level ground, the party lines).
+5. **Two live rows of one dial add, then cap.** +25% and +10% make +35%, never 1.25 x 1.1, and the type's range caps the sum (Level XP at +50%). Events multiply with tier and party dials, which are pay for difficulty and for a mixed party, not buffs.
+6. **A switch arms each type.** Off means nobody gets it. Testers first, then everyone. Turning it off mid-window stops the event at the next settle, with no release.
+7. **The bonus is never sold.** Nothing buys or extends an event. Stamina refills keep their price and their 6 a day. A refilled hour inside a weekend earns the bonus like any other hour, so refills sink more gold that weekend. That is buying hunting time, which Tyler allows, not buying the buff.
+8. **It says what happens,** before, during and after, in plain English and the player's local time.
+
+**Measured** on the real engine (`tools/balance-sim` cells and careers, on this branch, which is main plus release/v0.2.106). The scripts were scratch, and nothing is committed but this section.
+
+(a) **The XP dial moves Level XP and nothing else.** Every open ground at its band's middle (a hammer, a bow and a mage alone, the Warrens a four), 2 seeds x 1 h. Each cell was played twice on the same dice, once on Normal as built and once on a Normal row with `xpPm` 1250 read through the engine's own `atTier`.
+| | Level XP | Damage dealt and taken | Coin | Store spend | Skill XP | Deaths |
+|---|---|---|---|---|---|---|
+| 13 cells on the Thicket, Wickstead, the Sewer, the Glade, the Warrens | x1.2475 to x1.2552 (a kill rounds to whole XP) | the same | the same | the same | the same | 0 and 0 |
+| 3 cells on the Mill Cellar | x1.2467 | the mage's differs | the mage's differs | the hammer's differs | the mage's differs | 0 and 0 |
+The Cellar differs only because the check forced a tier row onto a Normal-only ground. That is the method's limit, and it is why the build puts the event in `xpMultOf` and never in a tier pick. Level XP an hour a head moved from 83,117 to 103,965 for the Glade's hammer at 24, and from 230,958 to 288,752 for the Warrens four at 41.
+
+(b) **What it does to the pace.** Careers from Level 1 to 50 where the Hunts window recommends, the event as a dial on every hunting hour it covers (the hour's Level XP x the dial). A career's hour fixes the hero's Level, so this is exactly the kill dial. The no-event rows are `level-pace.json`, and a hammer re-run on this branch matched it to the hundredth of an hour. Hours to each Level, hammer / bow / mage (their median). The last column applies the three styles' median ratio to `level-pace.json`'s eight-style reference and reads it against Tyler's targets (36 h to Level 25, 168 h to Level 50).
+| Schedule, and the player it models | Hunting hours the window covers | Level 10 | Level 25 | Level 50 | Level 50 against no event | The reference against Tyler's targets |
+|---|---|---|---|---|---|---|
+| No event | none | 5.63 / 6.13 / 5.59 (5.63) | 32.07 / 33.89 / 31.01 (32.07) | 160.77 / 161.72 / 147.42 (160.77) | x1 | 33.8 h (-6.0%), 161.4 h (-3.9%) |
+| +25% every other weekend, a player who hunts every night (3 nights in 14, a dial of x1.054 on average) | 21% | 5.38 / 5.81 / 5.34 (5.38) | 30.81 / 32.08 / 29.90 (30.81) | 152.99 / 153.71 / 140.35 (152.99) | x0.952 | 32.5 h (-9.7%), 153.6 h (-8.6%) |
+| +25% every weekend, the same player (3 nights in 7, x1.107) | 43% | 5.09 / 5.56 / 5.06 (5.09) | 29.19 / 30.96 / 28.20 (29.19) | 145.69 / 146.93 / 133.53 (145.69) | x0.906 | 30.8 h (-14.4%), 146.3 h (-12.9%) |
+| +25% on every hour, a player who hunts only on bonus weekends | 100% | 4.57 / 4.96 / 4.55 (4.57) | 26.17 / 27.21 / 25.32 (26.17) | 129.45 / 130.41 / 118.63 (129.45) | x0.805 | 27.6 h (-23.3%), 130.0 h (-22.6%) |
+No career died. The pace follows the share almost exactly (x0.805 is 1 / 1.24). Skills lag the faster Levels by 1-2% at Levels 10-25 and by nothing that shows at 50.
+
+(c) **Open Halls, from the measured Call out table** (2026-11-05, real settle, 30 seeds a cell, a four at Level 25 and 45) and the formula section's net gold a hero-hour at each ground's lowest Level.
+| | The Rat King (10,000 gp) | Chief Coppercap (30,000 gp) |
+|---|---|---|
+| Wins with a good bar / a bad bar / a bar never touched | 80% / 27% / 73% | 93% / 30% / 13% |
+| A pair (tank and healer), good bar / bad bar | 80% / 3% | 23% / 23% |
+| Fee a win costs with a bad bar (fee / win rate) | 37,000 gp | 100,000 gp |
+| One fee in hours of a hero's net gold at the ground's lowest Level | 5.1 h (the Sewer, 1,966 an hour) | 5.5 h (the Warrens four, 5,426 an hour) |
+Today a win costs the leader about 6 hours of a hero's gold with a good bar, about 19 hours with a bad one, and 43 hours at the Chief with a bar never touched (30,000 / 13% / 5,426 an hour). That is why a party doesn't try. On an Open Halls night it costs nothing, and the losing line still says what to fix, so the next paid call is an informed one. The sink gives up little, since 3 calls were paid in all.
+
+**The cadence, from (b). +25%, every other weekend.**
+- **Every weekend is too much.** It brings a player who hunts every night to Level 50 in x0.906 the hours, 12.9% under Tyler's 168 h and 14.4% under his 36 h at Level 25. That is past the curve's own 10% band for everyone who plays every night, which is exactly the player the curve is for.
+- **Every other weekend fits.** It reads x0.952, 8.6% under at Level 50 and 9.7% at Level 25, inside the band.
+- **+50% once a month costs the curve the same** (the same XP on average), but it gives half as many reasons to come back, and missing one costs twice as much.
+- **+10% every weekend costs about the same, and nobody would feel it.** At the Glade at 24 a hammer earns 83,117 an hour and a mage 90,681 (cells above), a wider gap than +10% on either. +25% takes the hammer to 103,965, more than any gap between two ways to fight there.
+- **The most an event can give** is to a player who hunts only on bonus weekends, x0.805 the hours. Every hour of it is still fought at the ground's normal danger.
+- **What missing one costs.** An attendee who starts one 8 h hunt on each of the three nights earns 24 h x 25% = 6 h of extra Level XP (9 h with premium's 12 h nights). Between Level 40 and 50 a Level takes about 7.3 h with no event, so a missed weekend leaves a player about one Level behind an attendee there, and nothing behind the curve.
+- **Open Halls every week** costs the curve nothing (the halls earn no XP), so it can be the weekly anchor, on a Wednesday so the week has a middle.
+
+**The data shape.** One home, `src/data/live-events.js`, holding data and words only. A generator (`tools/gen-live-events.mjs`, with `--check`) writes the server's two tables from it, like the titles and the Town Works. Nothing under `src/core` imports it, so a new event never moves the edge hash. The settle reads the server's rows.
+```js
+/* WHAT A TYPE MAY MOVE: one dial a type, a permille, its range, how two live rows of it combine, what its scope may name. */
+export const LIVE_EVENT_TYPES = Object.freeze({
+  xp_bonus: Object.freeze({
+    switch: 'event_xp_bonus',            // hr_feature_switches row that arms it: off = nobody, then testers, then everyone
+    dial: 'xpPm',                        // Level XP a kill, per hero (xp-share.js xpMultOf, at the kill's combat time)
+    range: Object.freeze([1000, 1500]),  // one row, and the sum of live rows, never past +50%
+    stack: 'add',                        // +25% and +10% make +35%
+    scope: 'grounds',                    // 'world' or ground ids
+  }),
+  open_halls: Object.freeze({
+    switch: 'event_open_halls',
+    dial: 'feePm',                       // a Call out's fee, permille of its row's fee (boss-calls.js)
+    range: Object.freeze([0, 1000]),     // never above the row's fee
+    stack: 'min',                        // two live rows: the lower fee wins
+    scope: 'calls',                      // 'world' or call ids
+  }),
+});
+
+/* THE SCHEDULE: a window starts at `first` (UTC) and lasts `hours`. With `everyDays` it starts again that many days after each start, until
+   `until` (null: for good). Without it, it happens once. The server answers "what is live at instant t" from these rows alone. */
+export const LIVE_EVENTS = Object.freeze({
+  bonus_weekend: Object.freeze({ type: 'xp_bonus', pm: 1250, scope: 'world',
+    first: '2026-11-20T12:00:00Z', hours: 72, everyDays: 14, until: null, words: WORDS.bonus_weekend }),
+  open_halls: Object.freeze({ type: 'open_halls', pm: 0, scope: 'world',
+    first: '2026-11-18T17:00:00Z', hours: 12, everyDays: 7, until: null, words: WORDS.open_halls }),
+});
+```
+`first` is a placeholder. The build lane sets it to the first Friday (Wednesday) after the server half applies. In the words, `{pct}` comes from `pm` (1250 reads 25), and `{start}`, `{end}` and `{next}` are server instants the client shows in the player's local time, so a sentence can never disagree with the row.
+
+**Where the server and the engine read it.**
+| Piece | What it does |
+|---|---|
+| `hr_live_event_types`, `hr_live_events` (generated, `--check`) | The two tables. A CHECK holds `pm` inside its type's range, `hours` 1 to 168 and `every_days` 1 to 90. No client role writes them. A row changes only through a Coordinator migration, as a switch does |
+| `hr_live_events_at(t)` | The rows live at instant t with their window's start and end. Pure SQL on the server clock |
+| `hr_live_xp_windows(account, ground, from, to)` | The XP dial over a settle's span, as `[[from_ms, to_ms, pm], ...]`. It adds every live `xp_bonus` row whose switch is on for the account and whose scope holds the ground, then caps the sum at the range |
+| The settle (hr-accrue) | Reads those windows with each member and hands the engine `ctx.xpMultOf(unit, atMs)`, answered by one pure helper (`src/core/live-events.js` `pmAt`). The only engine change is that `xp-share.js` passes the kill's `sc.atMs` to the hook. The `xp` event gains `ev` (the part the event added) |
+| `hr_hunt_apply_member` | The XP value bound reads the most the member's own windows allow in the span. With no event it is today's bound, so a forged claim can't widen it |
+| `hunt_session_tally.xp_event`, `hunt_bests` | The analyzer shows the bonus as its own row. A personal best records XP an hour without it, so a weekend never sets a best nobody can beat on a normal day |
+| The live view (`hunt_live`) | Carries the viewed hero's windows, so the browser's prediction earns what the server will (§6) |
+| `hr_boss_call_quote` | The fee x `hr_live_fee_pm(account, call, now())` / 1000 on the server clock. A press across the edge already answers `quote_changed`. A free call still journals its row (gold 0, the event id), so the day's count of 3 reads it |
+| Section `live_events` | The rows live now or starting within 7 days whose switch is on for this account, each with its id, type, pm, starts, ends and scope. Null when none, so an idle week costs nothing |
+| An announcer (one pg_cron job a minute) | Writes the start and end lines to the System tab once per window edge, keyed on the event, the window start and the edge |
+| The switches | An event is live for an account only when its window holds the instant AND `hr_feature_on(type switch, account)`. The row says when and how much, the switch says who. Seeded off on a rebuilt database. Scope `testers` runs a weekend on the allowlist before everyone |
+| Later | The Hearthrise writes a 2 h `xp_bonus` row when its meter fills (it adds to a weekend under the cap). A GM verb `hr_gm_event_add` (a dated row of a catalogued type inside its range, journalled) lets Tyler run a surprise weekend without a migration. Both go on the EA Security list |
+
+**The first sample, ready for a build lane.**
+| | Bonus XP weekend | Open Halls |
+|---|---|---|
+| id, type | `bonus_weekend`, `xp_bonus` | `open_halls`, `open_halls` |
+| When (UTC) | Friday 12:00 to Monday 12:00 (72 h), every other weekend | Wednesday 17:00 to Thursday 05:00 (12 h, the European and American evenings), every week |
+| What moves | Level XP a kill x1.25 on every ground, solo or party, tier or scaled. Not skill XP, coin, drops or the death loss | The Call out fee x0 at both halls. The 3 calls a day still count (the window crosses midnight UTC, so up to 3 on Wednesday and 3 on Thursday) |
+| Switch | `event_xp_bonus` | `event_open_halls` |
+
+The words (`WORDS` in `src/data/live-events.js`), checked by hand against the copy rules. No semicolons, no dashes, no colon-joined clauses, and XP is earned.
+| Key | Bonus XP weekend | Open Halls |
+|---|---|---|
+| name | Bonus XP weekend | Open Halls |
+| soon (the chip, within 7 days) | A Bonus XP weekend starts {start}. Rest up so your stamina is full when it begins. | Open Halls starts {start}. Calling out the Rat King or Chief Coppercap will be free. |
+| on (the chip's tooltip) | Every hunt earns {pct}% more Level XP until {end}, even while you're away. Skill XP stays the same. | Calling out the Rat King or Chief Coppercap is free until {end}. There's still no XP, coin or drops in the hall. |
+| chip | +{pct}% Level XP | Open Halls |
+| start (System tab) | The Bonus XP weekend has started. Every hunt earns {pct}% more Level XP until {end}. | The halls are open. Until {end}, calling out the Rat King or Chief Coppercap is free. Bring a friend or a second hero. |
+| end (System tab) | The Bonus XP weekend is over. The next one starts {next}. | The halls are closed again. Calling out costs its usual fee. |
+| Hunts window | +{pct}% Level XP this weekend (each ground's line) | Call out {boss} for free (the press) |
+| Call out warning, its second paragraph | | Open Halls is on, so there's no fee. You still get no XP, no coin and no drops in this room, only the fight. It ends after {minutes} minutes. |
+| Call out confirm | | Call him out for free |
+| Analyzer row | Weekend bonus | |
+
+**Walk-through 1, the Bonus XP weekend, a free hero at Level 20** (every name grepped in `src/data/*` or the migrations).
+| # | Step | What the player holds and can reach (the kit and steps before) | Why it's doable |
+|---|---|---|---|
+| 1 | Thursday, the chip reads "A Bonus XP weekend starts Friday 6:00 AM" (local) | A hero in town, the Hunts window | The section `live_events` lists rows starting within 7 days (built in lane C) |
+| 2 | Doesn't hunt Thursday night | Stamina | Stamina rests 1:1 outside a hunt up to 8 h free, 12 h premium (`hunt-sessions.js` STAMINA_MAX_MS) |
+| 3 | Friday after 12:00 UTC, opens Hunts, picks a ground, Enter | Full stamina, a bar, a ground marked "Right for your level" | The loop as today. The ground's line reads "+25% Level XP this weekend" |
+| 4 | Closes the game | A running hunt | Hunts run on the server until stamina, supplies, gold or a death ends them (Tyler 10-18). Each kill earns x1.25 at its combat time through `xpMultOf` |
+| 5 | Back after the hunt ends, reads the analyzer | Town, the analyzer (`hud-widgets.js` id `analyzer`) | The tally's `xp_event` shows as "Weekend bonus" |
+| 6 | Saturday and Sunday, another hunt each. Maybe a refill | The gold "+" right of the stamina timer | `stamina-refill.js`, 6 a day, its price unchanged |
+| 7 | Monday 12:00 UTC, the System tab reads "The Bonus XP weekend is over. The next one starts ..." | A hunt that may still be running | Kills after 12:00 earn the usual XP from that moment. The announcer writes the line once |
+A fresh hero gets the same from its first kill in the Mill Cellar. Its first Levels come a fifth sooner (Level 5 at 0.19 h against 0.24 h in the hammer's career), so the tutorial's "about a quarter of an hour" stays true.
+
+**Walk-through 2, Open Halls, one player with two heroes at Level 25.**
+| # | Step | What the player holds and can reach | Why it's doable |
+|---|---|---|---|
+| 1 | Wednesday afternoon, the chip reads "Open Halls starts ..." | Two heroes (every account starts with 2 slots, Tyler 10-17), both in town | The section `live_events` |
+| 2 | 17:00 UTC, the System tab reads "The halls are open ..." | | The announcer |
+| 3 | Invites the second hero to a party | A party of two | Your own heroes join at once with no accept (`2026-10-28-party-flow.sql`). `BOSS_CALL_RULES.partyMin` is 2 |
+| 4 | Hunts, the Sewer's page, presses "Call out the Rat King for free" | The leader in town, nobody hunting, both ready | `callFromGround('millrace_sewer')`. The refusals `call_leader`, `party_hunting` and `not_ready` say why if not |
+| 5 | Reads the warning, presses "Call him out for free" | A quote at 0 gp | `hr_boss_call_quote` reads the event. Charged 0, and the call counts as 1 of today's 3 |
+| 6 | Fights in the Rat King's Hall (`millrace_sewer_called`) for up to 10 minutes | | A win gives "the Grate Thief" (`titles.js` `grate_thief`, price 0) and today's System line. A loss shows the losing line (`boss-loss.js`) with what to fix. A tank and healer pair with a good bar wins 80% |
+| 7 | Thursday 05:00 UTC, the System tab reads "The halls are closed again ..." | | The press shows its fee again |
+
+**The build plan.**
+1. **Lane C (backend architect), the server half.** `tools/gen-live-events.mjs` and `--check`. One migration with the two tables, `hr_live_events_at`, `hr_live_xp_windows`, `hr_live_fee_pm`, the section, the announcer job, two switch rows seeded off, and two anchored splices (the XP value bound in `hr_hunt_apply_member`, the fee in `hr_boss_call_quote` with its 0-gold journal row). Its §self-check executes the window math at the edges (first, a repeat, `until`), a switch off (nobody), `testers` (only them), two rows adding under the cap, and the fee's `min`. It orders after `2027-03-21-feature-switches.sql`. It goes on the EA Security list (Level XP feeds a ranked board, the fee is a price).
+2. **Lane B (systems engineer), the engine.** `src/core/live-events.js` `pmAt`, `xp-share.js` handing `atMs` to the hook, the settle's member read passing the windows, the `xp` event's `ev`, `xp_event` on the tally, `hunt_bests` without it, the live view. Tests: the hunt viewed and the browser closed (§4 both paths), a window edge inside a long catch-up span, a party with one hero whose switch is on and one whose isn't, a Call out room still earning 0, and the combat replay byte-identical with no event live. The edge deploys after the apply.
+3. **Lane B (client, art director first), the words.** The chip (a HUD widget the art director designs, desktop first, with its own phone layout), the Hunts line, the Call out press and warning, the analyzer row. Every time comes from a server instant. Hidden while the section is null.
+4. **The Coordinator.** Apply, deploy, then a one-line switch migration to `testers` and one weekend played on the QA account (a kill inside and outside the window, a reload, the analyzer row), then `everyone`. The Discord note announces the first weekend.
+
+**Known limits.** Measured are the dial on 16 cells, the pace on careers and the Call out numbers (cited, 30 seeds). Not measured are how many players attend (2-4 a day today), refill demand inside a weekend, and a party's pace under the event (it multiplies the same). The careers model a player who hunts every night, so the share of hours a window covers is its expectation, and a real player's lands either side of it. Open Halls draws hardest before a party has its title. After that its draw is the night itself. A later prize could be a fastest-felling board per hall (a ranked surface, server-timed, EA Security), not in this sample.
 
 ### 2026-11-07 Normal can't bite through monster stats (designer, lane/b-monster-bite, inside Tyler's 11-04 NO LEVEL PENALTY): MEASURED, no rows changed, the edge does not move. **Tyler's call: which hero Normal at a ground's floor protects**
 **The question.** Make Normal bite through the monsters' own stats, so the right Level spends real supplies, a pair 2-3 Levels under breaks even or loses, 5 under dies and loses, and the floor stays safe. The Level-gap rule is withdrawn (it broke 11-04).

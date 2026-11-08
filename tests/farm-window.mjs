@@ -16,7 +16,8 @@
 //   FW-2  PLANT: pressing the empty plot opens the seed picker; turnip says the
 //         seeds held, carrot its Farming level; Plant sends exactly ONE
 //         hr_farm_plant (slot, plot 2, turnip) and every control is off until
-//         the server answers
+//         the server answers; the tier line offers no Farmer's Deed (no player
+//         can get one, coverage bot 2026-11-07)
 //   FW-3  HARVEST ON THE SERVER'S WORD: only the ready plot shows Harvest (the
 //         growing one does not, however its clock reads); Harvest sends ONE
 //         hr_farm_harvest_replant for plot 1 and the line words the answer
@@ -51,7 +52,7 @@ import { pinFonts } from './_test-fonts.mjs';
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const FARM = {
-  farm_land: { cap: 3, plot_level: 1, deeds: 0, upgrade: { level: 2, gold: 500, deeds: 1, farming: 5 },
+  farm_land: { cap: 3, plot_level: 1, upgrade: { level: 2, gold: 500, farming: 5 },
     plots: [{ i: 0, crop: 'turnip', ready: false, ready_in_s: 5400, waterable: true, regrows_left: null, by: 0, by_name: 'Alda', extra: false },
       { i: 1, crop: 'turnip', ready: true, ready_in_s: 0, waterable: false, regrows_left: null, by: 1, by_name: 'Bren', extra: false }] },
   inventory: Object.assign(clone(BASE_ENV.inventory), { turnip_seed: 8 }),
@@ -59,7 +60,7 @@ const FARM = {
 /* The shared field: room for 2, plot 0 growing (Bren planted it), plot 1 empty, and an
    EXTRA plot 3 past the cap, ready (Alda planted it). */
 const SHARED = {
-  farm_land: { cap: 2, plot_level: 1, deeds: 0, upgrade: null,
+  farm_land: { cap: 2, plot_level: 1, upgrade: null,
     plots: [{ i: 0, crop: 'turnip', ready: false, ready_in_s: 600, waterable: false, regrows_left: null, by: 1, by_name: 'Bren', extra: false },
       { i: 3, crop: 'turnip', ready: true, ready_in_s: 0, waterable: false, regrows_left: null, by: 0, by_name: 'Alda', extra: true }] },
 };
@@ -69,14 +70,14 @@ const HARVEST = { ok: true, plot: 1, crop: 'turnip', produce: 'turnip', qty: 3, 
 /* Report #66: tomatoes REGROW. Room for 3: plot 0 growing (the server says 4 more regrows), plot 1
    ready (3 more), plot 2 ready on its LAST harvest (0 more: it withers, so its no-replant press clears the plot). */
 const REGROW = {
-  farm_land: { cap: 3, plot_level: 4, deeds: 0, upgrade: null,
+  farm_land: { cap: 3, plot_level: 4, upgrade: null,
     plots: [{ i: 0, crop: 'tomato', ready: false, ready_in_s: 3600, waterable: false, regrows_left: 4, by: 0, by_name: 'Alda', extra: false },
       { i: 1, crop: 'tomato', ready: true, ready_in_s: 0, waterable: false, regrows_left: 3, by: 0, by_name: 'Alda', extra: false },
       { i: 2, crop: 'tomato', ready: true, ready_in_s: 0, waterable: false, regrows_left: 0, by: 0, by_name: 'Alda', extra: false }] },
 };
 /* FW-9: room for 4 at tier 2, Farming 10, plot 1 growing; 2 carrot seeds and no turnip seed, so the third plant is refused. */
 const SOW = {
-  farm_land: { cap: 4, plot_level: 2, deeds: 0, upgrade: null,
+  farm_land: { cap: 4, plot_level: 2, upgrade: null,
     plots: [{ i: 1, crop: 'turnip', ready: false, ready_in_s: 7200, waterable: false, regrows_left: null, by: 0, by_name: 'Alda', extra: false }] },
   skills: Object.assign(clone(BASE_ENV.skills), { farming: { xp: 9000, level: 10, frac: 0 } }),
   inventory: Object.assign(clone(BASE_ENV.inventory), { carrot_seed: 2, turnip_seed: 0 }),
@@ -171,6 +172,9 @@ async function checks(overrides) {
         /* the tier line agrees with the picker (playtest 2026-10-29 #12): the soil needs Farming 5, the carrot itself 10 */
         const tier = await txt(page, W + '.hw-tier');
         if (!/Tier 2 adds Carrot \(Farming 10 to plant\)[^:]*: .*, at Farming 5\./.test(tier || '')) fails.push('FW-2 the tier line reads ' + JSON.stringify(tier) + ' beside "Needs Farming 10"');
+        /* the tier is priced in gold only: the Farmer's Deed left the catalogue with its sources (2026-10-23) and its server
+           payment with lane/c-dead-plot-deed (2026-11-07), so the line never offers one */
+        if (/Deed/.test(tier || '')) fails.push('FW-2 the tier line offers a Farmer\'s Deed, which no player can get: ' + JSON.stringify(tier));
         await press(page, W + '.hw-seeds li[data-crop="turnip"] button', 'FW-2');
         await page.waitForTimeout(60);
         if (!(await page.evaluate(() => document.querySelector('[data-hs-win="farm"] [data-hs-act="water"]').disabled))) fails.push('FW-2 a control stayed on while the plant was in flight');

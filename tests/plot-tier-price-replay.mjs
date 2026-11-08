@@ -29,14 +29,15 @@ import { bootReplay } from './schema-replay.mjs';
 import { accountGold, goldOf, setGold } from './_gold.mjs';
 import { PLOT_TIER_PRICES } from '../src/core/farm.js';
 
-const FARM = '2026-10-23-demolition-farm-catalogues.generated.sql';
+/* The chain end's farm catalogue refill (lane/c-dead-plot-deed moved it here; the 2026-10-23 file is APPLIED history). */
+const FARM = '2027-03-22-dead-plot-deed-farm-catalogues.generated.sql';
 const UID = '000000f3-0000-0000-0000-0000000000a1';
 const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
   const r = (Math.random() * 16) | 0; return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
 });
 
 const MUTANTS = [{
-  name: 'R1: the refill names only deed_cost (gold 0 / farming 1 defaults)',
+  name: 'R1: the refill leaves the price columns at their defaults (gold 0 / farming 1)',
   patches: [
     ['truncate table public.hr_farm_yield_perk;',
      'update public.hr_plot_tier set gold_cost = default, req_farm_level = default;\ntruncate table public.hr_farm_yield_perk;'],

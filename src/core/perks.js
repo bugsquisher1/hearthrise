@@ -45,43 +45,24 @@
 // later roll. That is what lets the away parity test compare byte for byte.
 // ============================================================
 
-import { ROOM_PERKS, ROOM_RUNG_EXTRAS, ROOM_PERK_KEYS } from '../data/perks.js?v=0.2.106';
+import { ROOM_PERKS, ROOM_RUNG_EXTRAS, ROOM_PERK_KEYS } from '../data/perks.js?v=0.2.109';
 
 export { ROOM_PERKS, ROOM_RUNG_EXTRAS, ROOM_PERK_KEYS };
 
 /* ══════════════════════════════════════════════════════════════════════════
-   1 · THE SOURCES THAT ARE NOT A TABLE
+   1 · THE SOURCE THAT IS NOT A TABLE
 
-   The three plot buildings and the property capstone were LITERALS inside
-   getBonus (`t += 0.02` and friends), not rows in PLOT_BUILDINGS — its rows
-   carry name/icon/cost/desc and no bonus at all. They are authored HERE and
-   getBonus delegates, so there is exactly ONE copy and nothing to guard.
-   (Extracting a literal out of a function body by regex would be the
-   "source-text regex standing in for a numeric assertion" failure this repo
-   has already recorded once.)
+   The property capstone was a LITERAL inside the old client's getBonus, not a
+   row in any table. It is authored HERE, so there is exactly ONE copy.
 
-   Magnitudes are bonus-rebase.md §3.1 as shipped in b228: Toolshed 5%→2%,
-   Watchtower already in grammar at 2%, Scarecrow's +0.1 (a ghost —
-   harvestPlot floored it to zero) became a real +1.
+   THE PLOT BUILDINGS ARE CUT (lane/c-dead-plot-deed, 2026-11-07). The Tool
+   Shed's +2% gatherSpeed, the Scarecrow, the Watchtower and the farm plot were
+   the `plots` half of this channel, but the engine refused every `plot.*` shop
+   row (`namespace_unsupported:plot`) and nothing else could grant one, so the
+   perk was unreachable. The shop rows, this table, the perk state's `plots`
+   field and hr_perks_of's `plots` key left together; tests/perk-channel.mjs P5
+   holds a `plots` field at zero on every key.
    ══════════════════════════════════════════════════════════════════════════ */
-
-/* PER INSTANCE, not per id. `plot` unlocks are repeatable (Scarecrow max 2),
-   and getBonus iterated `G.plotBuildings` — an ARRAY with one entry per
-   building owned — so two Scarecrows really do pay +2 farmYield. The perk
-   state therefore carries a COUNT, and this table is multiplied by it.
-   Getting that wrong in the direction of "one each" would have been a silent
-   under-pay of exactly the kind this file exists to end. */
-export const PLOT_PERKS = Object.freeze({
-  toolshed: Object.freeze({ gatherSpeed: 0.02 }),
-  /* Master Design Reference §9 (2026-10-14): a home never grants XP or a
-     resource advantage — the Scarecrow's farmYield and the Watchtower's
-     combatXP left the channel. The buildings stay as places. */
-  scarecrow: Object.freeze({}),
-  watchtower: Object.freeze({}),
-  /* farm_plot pays no bonus — it grants a PLOT, which is capacity. Listed so
-     a reader can see it was considered rather than missed. */
-  farm_plot: Object.freeze({}),
-});
 
 /* The property capstone: owning the Hearthrise Castle, the last tier. It paid
    +2% allXP until Master Design Reference §9 (2026-10-14): a home never grants
@@ -188,7 +169,6 @@ export function clampPermanent(key, value) {
     executable behaviour. */
 export const EMPTY_PERKS = Object.freeze({
   rooms: Object.freeze({}),
-  plots: Object.freeze({}),
   propertyTier: 0,
 });
 
@@ -224,17 +204,8 @@ export function normalisePerkState(raw) {
     if (lv > 0) rooms[id] = lv;
   }
 
-  const plots = Object.create(null);
-  const rawPlots = (r.plots && typeof r.plots === 'object') ? r.plots : {};
-  for (const id of Object.keys(rawPlots)) {
-    if (!own(PLOT_PERKS, id)) continue;
-    const n = nonNegInt(rawPlots[id]);
-    if (n > 0) plots[id] = n;
-  }
-
   return {
     rooms,
-    plots,
     propertyTier: nonNegInt(r.propertyTier),
   };
 }
@@ -268,15 +239,6 @@ export function permanentBonus(key, state) {
     if (lv <= 0) continue;
     const rung = ladder[Math.min(lv, ladder.length) - 1];
     if (own(rung, key)) t += Number(rung[key]) || 0;
-  }
-
-  /* Plots, per instance owned. */
-  const plots = s.plots || {};
-  for (const id of Object.keys(plots)) {
-    if (!own(PLOT_PERKS, id)) continue;
-    const per = PLOT_PERKS[id];
-    if (!own(per, key)) continue;
-    t += (Number(per[key]) || 0) * (plots[id] | 0);
   }
 
   /* The property capstone. */
@@ -355,20 +317,24 @@ export function restedPayload(state) {
    how "bounded and journalled" came to describe a function that was neither.
 
    ── DERIVABLE NOW, and wired ────────────────────────────────────────────
-   rooms / plots / propertyTier
-       All three are `unlock` grants in src/data/shops.js
-       (`room:<id>` amount = rung, `plot:<id>` amount = 1 per purchase and
-       repeatable, `property:<id>` amount = tier index). They are read through
-       `public.hr_unlock_levels` — ONE named seam, so whichever storage model
-       the unlock work lands on is a change to that view and to nothing else.
-       Until an unlock is actually WRITTEN, the seam returns no rows, this
-       channel returns 0, and the engine behaves exactly as it does today.
+   rooms / propertyTier
+       Both are `unlock` grants in src/data/shops.js (`room:<id>` amount =
+       rung, `property:<id>` amount = tier index), sold by hr_unlock_buy. They
+       are read through `public.hr_unlock_levels` — ONE named seam, so
+       whichever storage model the unlock work lands on is a change to that
+       view and to nothing else. Until an unlock is actually WRITTEN, the seam
+       returns no rows, this channel returns 0, and the engine behaves exactly
+       as it does with no perks.
 
    ── REMOVED (clean-slate demolition, 2026-10-14) ────────────────────────
    renownAllXp, clanPerks and castle were the renown, clan-level and clan
    castle sources; companions, blessings, the feast and the muster aura were
    wrapper layers. Those systems are deleted. normalisePerkState no longer
    reads the three fields, so an hr_perks_of that still returns them pays
-   nothing for them. Output for every room/plot/property input is unchanged
+   nothing for them. Output for every room/property input is unchanged
    (tests/perk-channel.mjs P10 pins it by hash).
+
+   ── REMOVED (lane/c-dead-plot-deed, 2026-11-07) ─────────────────────────
+   plots: the four plot buildings, unreachable (§1). normalisePerkState no
+   longer reads the field, so a `plots` map pays nothing on any key.
    ══════════════════════════════════════════════════════════════════════════ */

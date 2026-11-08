@@ -35,16 +35,16 @@
 // on the server's `ready`, never on the clock. Every control is off while an
 // intent is in flight; the field changes only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.106';
-import { plantCrop, waterPlot, harvestPlot, clearPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.106';
-import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.106';
-import { CROPS } from '../../data/gathering.js?v=0.2.106';
-import { requiredPlotLevel, unlockedCrops, emptyPlotIndices } from '../../core/farm.js?v=0.2.106';
-import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.106';
-import { whole, gold } from '../../render/format.js?v=0.2.106';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.106';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.106';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.106';
+import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.109';
+import { plantCrop, waterPlot, harvestPlot, clearPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.109';
+import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.109';
+import { CROPS } from '../../data/gathering.js?v=0.2.109';
+import { requiredPlotLevel, unlockedCrops, emptyPlotIndices } from '../../core/farm.js?v=0.2.109';
+import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.109';
+import { whole, gold } from '../../render/format.js?v=0.2.109';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.109';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.109';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.109';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '', asked: null }; SCRATCH.set(cs, s); } return s; };
@@ -209,10 +209,10 @@ function patchTier(root, st) {
   const adds = up ? unlockedCrops(up.level).filter((id) => requiredPlotLevel(id) === up.level)
     .map((id) => cropName(id) + (CROPS[id] && CROPS[id].req > up.farming ? ' (Farming ' + CROPS[id].req + ' to plant)' : '')).join(', ') : '';
   text(root.querySelector('.hw-tier'), 'Tier ' + lv + ' grows ' + grows + '.'
-    + (up ? ' Tier ' + up.level + ' adds ' + adds + ': ' + gold(up.gold) + (up.deeds ? ' (or ' + whole(up.deeds) + ' Farmer\'s Deed' + (up.deeds === 1 ? '' : 's') + ')' : '') + ', at Farming ' + up.farming + '.' : ' Your plots are at the top tier.'));
+    + (up ? ' Tier ' + up.level + ' adds ' + adds + ': ' + gold(up.gold) + ', at Farming ' + up.farming + '.' : ' Your plots are at the top tier.'));
   const btn = root.querySelector('[data-hs-act="upgrade"]');
   text(btn, up ? 'Improve the soil · ' + gold(up.gold) : 'Top tier');
-  const afford = !!up && ((st.purse !== null && st.purse >= up.gold) || st.land.deeds >= up.deeds);
+  const afford = !!up && st.purse !== null && st.purse >= up.gold;
   prop(btn, 'disabled', !up || st.sc.pending || st.farming === null || st.farming < up.farming || !afford);
 }
 

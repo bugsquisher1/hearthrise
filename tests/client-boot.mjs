@@ -38,8 +38,8 @@
 //        before any Play (src/world/prewarm.js), and the World never fetches one again
 //   B-21 THE TOWN OPENS ON ITS VIEW (phone, first visit: Play waited 6.5 s for six sheets, the view drew two): with the other sheets held the
 //        town opens and is painted, asks for nothing the view does not draw until the server has named its stand, then asks for all the others;
-//        a view that draws a held sheet waits for it, a shadow falling off it does not (v0.2.97); a failed sheet and a read that never
-//        answers do not hold it shut. Its pixels: PB-VIEW
+//        a view that draws a held sheet waits for it, a shadow falling off it does not (v0.2.97); a failed sheet, a read that never
+//        answers and a sheet whose decode() never settles (v0.2.106) do not hold it shut. Its pixels: PB-VIEW
 //   B-15 A SESSION THAT ENDS WHILE THE TOWN PREWARM RUNS STOPS IT (v0.2.71 merge; run 41045835796: 6 sheets):
 //        signed out with the atlas manifests still held, the page asks for no sheet afterwards
 //   B-17 "WHILE YOU WERE AWAY" IS WRITTEN ON THE WAY OUT (beta cost 11-01: a put a minute per hero): a hunt on screen with a young
@@ -184,7 +184,7 @@ async function stubServer(page, o) {
       const slot = name === 'hr_load' ? body.p_slot : body.slot;
       const slots = o.slots || [0, 1];
       const next = o.ladder ? Object.keys(o.ladder).map(Number).find((k) => !slots.includes(k)) : undefined;
-      const account = Object.assign({ max_concurrent: 4 }, o.ladder ? { hero_slots_max: 5, hero_slot_offer: next === undefined ? null : { slot_id: next, cost_gold: o.ladder[next] } } : {});
+      const account = Object.assign({ max_concurrent: 4 }, o.ladder ? { hero_slots_max: 4, hero_slot_offer: next === undefined ? null : { slot_id: next, cost_gold: o.ladder[next] } } : {});
       if (name === 'hr_load' || name === 'hr-accrue') {
         const b = o.heroes[slot] ? envelope(slot, 1, { name: o.heroes[slot], hero_slots: slots, account,
           /* THE ACCOUNT PURSE (one per account): every hero states it; a lagging hero states an older version. */
@@ -886,6 +886,17 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         if (!(await opened(page, 20000))) fails.push('B-21 a read that never answers held the town shut');
         await ctx.close();
       }
+
+      { // a sheet whose decode() never settles (a page that is not rendering; live v0.2.106: 60-100 s on "Still loading the world") is not waited on
+        const { ctx, page, errors } = await fresh({}, PHONE);
+        await answerWith(page, TOWN_VIEWS.quiet);
+        await page.addInitScript(() => { window.__decodes = 0; HTMLImageElement.prototype.decode = function () { window.__decodes++; return new Promise(() => {}); }; });
+        await toPlay(page);
+        if (!(await opened(page, 15000))) fails.push('B-21 a sheet whose decode() never settles held the town shut: ' + await page.evaluate(() => (document.querySelector('.world-status') || {}).textContent || 'no line'));
+        else if (!(await page.evaluate(() => window.__decodes))) fails.push('B-21 harness: no sheet called decode(), so a stuck decode was never met (src/render/images.js)');
+        if (errors.length) fails.push('B-21 console errors: ' + errors.slice(0, 3).join(' | '));
+        await ctx.close();
+      }
     }
 
     { // B-13 a sheet that lands after its pane was closed draws nothing and wakes no presence
@@ -1078,7 +1089,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
 
     { // B-11 buy a hero slot with the account's gold, at the server's price; none at the cap
       const o = { heroes: { 0: 'Tester', 1: 'Fennick' }, created: [], bought: [], slots: [0, 1], purse: 14100, goldV: 7,
-        lag: { 1: { gold: 90000, v: 3 } }, ladder: { 2: 15000, 3: 40000, 4: 120000 } };
+        lag: { 1: { gold: 90000, v: 3 } }, ladder: { 2: 15000, 3: 40000 } };   // four heroes an account (Tyler 2026-11-07): slots 2 and 3 are sold, no fifth
       const { ctx, page, errors } = await fresh(o);
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
@@ -1118,10 +1129,10 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         const b3 = await btn();
         /* The new slot stands empty, so no other is on sale until a hero is in it (newcomer panel 2026-11-01); the third hero brings the fourth slot's price. */
         if (!reread || b3) fails.push('B-11 after the purchase the roster reads ' + JSON.stringify(b3) + (reread ? ' beside the new empty slot' : ' with no new empty slot'));
-        o.slots.push(3, 4);
+        o.slots.push(3);
         await page.reload({ waitUntil: 'load' });
-        await wait(page, () => document.querySelectorAll('.char-row').length === 5);
-        if ((await page.$$('.char-row')).length !== 5 || await page.$('[data-app="buy-slot"]')) fails.push('B-11 at five slots the roster still offers a slot, or does not list five');
+        await wait(page, () => document.querySelectorAll('.char-row').length === 4);
+        if ((await page.$$('.char-row')).length !== 4 || await page.$('[data-app="buy-slot"]')) fails.push('B-11 at four slots the roster still offers a slot, or does not list four');
       }
       if (errors.length) fails.push('B-11 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
@@ -1335,6 +1346,7 @@ const MUTANTS = [
   ['the sheets behind the view are never asked for (B-21)', 'src/world/view-sheets.js', '    sheets.ensure(needs.get(id));\n', ''],
   ['a frame asks for the sheets of the town start while the first view waits for its stand (B-21)', 'src/world/view-sheets.js', 'const held = (id, cast) => (opening ? opensOnView(id) : check(id, cast));', 'const held = check;'],
   ['the frame loop runs while the first view waits (B-21)', 'src/world/view-sheets.js', 'sheets.ensure([set]).then(() => { if (!opening) wake(); });', 'sheets.ensure([set]).then(wake);'],
+  ['a sheet whose decode never settles holds the town shut (B-21, live v0.2.106)', 'src/render/images.js', 'return Promise.race([img.decode(), new Promise((late) => win.setTimeout(late, DECODE_WAIT_MS))]);', 'return img.decode();'],
   ['a read that never answers holds the town shut (B-21)', 'src/world/view-sheets.js', 'await Promise.race([town.heard(), new Promise((done) => win.setTimeout(done, PLACE_WAIT_MS))]);', 'await new Promise(() => {});'],
   ['a shadow off the view holds the town for its sheet (B-21, v0.2.97: the Weighhouse plaque under the hearth view)', 'src/world/render/canvas-backend.js', " && sh.sprite.set && meets(castBox(sh.sprite, sh.m))) ", ' && sh.sprite.set) '],
   ['a frame naming a sheet on its way is drawn anyway (B-21)', 'src/world/view-sheets.js', 'return miss.length > 0;', 'return false;'],

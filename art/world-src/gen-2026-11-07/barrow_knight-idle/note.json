@@ -201,7 +201,7 @@
       "best_of": "r1 51/148 feet 8; r2 298/191; r3 288/351 (floor at 60)"
     }
   },
-  "generations": 14,
+  "generations": 15,
   "flags": [
     "IMPORT WARNING: the shipped stills of S and SE reach rows 63 and 60 (the sword tip below the feet), under the anchor row 58. idle-clip.mjs idleFrames(still, frames, 58) then lifts every generated frame 2-5 px (layFrame) while frame 0 stays down, which reads as a pop (the S numbers in the strip, 753 px, are that lift, not the clip). The import needs the floor at the still's lowest row for these facings, or a hand pass",
     "south, east, south-east failed all 3 rolls: retry limit; best rolls in place, hand passes flagged"

@@ -33,7 +33,7 @@ const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role,
    START_EQUIPMENT); a player can make more heroes and play several at once (2 slots to start, up to 4 at once). */
 export const HOW_YOU_FIGHT_LEAD = 'There\'s no class to pick, and nothing to choose here. Your hero owns every weapon below, and the one in your hand decides how you fight. You start with the sword and shield on, and the rest are in your bag. To switch, equip another in town, any time.';
 /* The lead's last sentence: not about fighting, so a phone's short card leaves it to the Help page (app.css). */
-export const HOW_YOU_FIGHT_SLOTS = 'You start with two hero slots, gold buys more, and up to four heroes can play at once.';
+export const HOW_YOU_FIGHT_SLOTS = 'You start with two hero slots and gold buys two more. All four heroes can play at once.';
 
 export const HOW_YOU_FIGHT = Object.freeze([
   style('hold', 'tank', ['practice_sword', 'practice_shield'], 'Sword and shield',
@@ -78,7 +78,7 @@ export const HELP_NOTES = Object.freeze([
   note('town', 'Work in town',
     'Between hunts your hero can chop, mine, fish, cook, smith, craft and bind runes. Open Gathering and crafting (G), press a skill and choose what to do. Gathering keeps going with the game closed. Making something uses what is in your bag. Starting a hunt stops either one.'),
   note('heroes', 'Several heroes at once',
-    'Your account starts with two hero slots, and up to four heroes can play at the same time. Your own heroes join your party straight away, so one can hold the monsters while another heals.'),
+    'Your account starts with two hero slots, and gold buys two more. All four heroes can play at the same time. Your own heroes join your party straight away, so one can hold the monsters while another heals.'),
   note('death', 'If your hero dies',
     'The hunt ends and your hero wakes in town, losing a little Level XP. Blessings from the Shop\'s Services tab cut that loss, and they are free below Level 30.'),
 ]);

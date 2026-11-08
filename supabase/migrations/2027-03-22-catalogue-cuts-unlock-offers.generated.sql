@@ -8,8 +8,8 @@
 --   here is reverted by the next generation and FAILS
 --   `node tools/gen-unlock-offers.mjs --check`, a preflight in tests/run-smoke.mjs.
 --
---   offer digest: 94745c084bcfe519b727fc5ebd41b32521812ae463e411daafcaf5ccff99cb96
---   54 authored unlock offers · 36 sellable (property=4 · room=32) · refused: held=9 · namespace_unsupported=9
+--   offer digest: cce7895ee6a45fecbd66c7392ebd627b00ce3d42aa43a7d5fa63cb6c403fd896
+--   47 authored unlock offers · 36 sellable (property=4 · room=32) · refused: held=9 · namespace_unsupported=2
 --
 -- ── WHAT THIS TABLE IS ──────────────────────────────────────────────────
 -- THE PRICE AND THE PREREQUISITE OF A PERMANENT UNLOCK, so that
@@ -130,7 +130,7 @@ begin
   alter table public.hr_unlock_offers
     add column source text not null default 'gen-unlock-offers';
   update public.hr_unlock_offers set source = 'foreign:pre-source'
-   where offer_id <> all (array['character_slot.2', 'character_slot.3', 'character_slot.4', 'property.castle', 'property.farmstead', 'property.homestead', 'property.keep', 'property.manor', 'room.cellar.1', 'room.cellar.2', 'room.cellar.3', 'room.cellar.4', 'room.cellar.5', 'room.forge.1', 'room.forge.2', 'room.forge.3', 'room.forge.4', 'room.forge.5', 'room.garden.1', 'room.garden.2', 'room.garden.3', 'room.garden.4', 'room.garden.5', 'room.kitchen.1', 'room.kitchen.2', 'room.kitchen.3', 'room.kitchen.4', 'room.kitchen.5', 'room.library.1', 'room.library.2', 'room.library.3', 'room.library.4', 'room.library.5', 'room.shrine.1', 'room.shrine.2', 'room.shrine.3', 'room.shrine.4', 'room.shrine.5', 'room.trophy.1', 'room.trophy.2', 'room.trophy.3', 'room.trophy.4', 'room.trophy.5', 'room.workshop.1', 'room.workshop.2', 'room.workshop.3', 'room.workshop.4', 'room.workshop.5', 'worker.1', 'worker.2', 'worker.3', 'worker.4', 'worker.5', 'worker.6']);
+   where offer_id <> all (array['character_slot.2', 'character_slot.3', 'property.castle', 'property.farmstead', 'property.homestead', 'property.keep', 'property.manor', 'room.cellar.1', 'room.cellar.2', 'room.cellar.3', 'room.cellar.4', 'room.cellar.5', 'room.forge.1', 'room.forge.2', 'room.forge.3', 'room.forge.4', 'room.forge.5', 'room.garden.1', 'room.garden.2', 'room.garden.3', 'room.garden.4', 'room.garden.5', 'room.kitchen.1', 'room.kitchen.2', 'room.kitchen.3', 'room.kitchen.4', 'room.kitchen.5', 'room.library.1', 'room.library.2', 'room.library.3', 'room.library.4', 'room.library.5', 'room.shrine.1', 'room.shrine.2', 'room.shrine.3', 'room.shrine.4', 'room.shrine.5', 'room.trophy.1', 'room.trophy.2', 'room.trophy.3', 'room.trophy.4', 'room.trophy.5', 'room.workshop.1', 'room.workshop.2', 'room.workshop.3', 'room.workshop.4', 'room.workshop.5']);
   raise notice 'hr_unlock_offers.source added; % pre-existing foreign row(s) preserved',
     (select count(*) from public.hr_unlock_offers where source = 'foreign:pre-source');
 end $$;
@@ -144,7 +144,6 @@ insert into public.hr_unlock_offers
 values
   ('character_slot.2', 'character_slot', 'Character slot 3', 'character_slot:2', 1, null, null, null, null, 'namespace_unsupported:character_slot', 'gen-unlock-offers'),
   ('character_slot.3', 'character_slot', 'Character slot 4', 'character_slot:3', 1, null, null, null, null, 'namespace_unsupported:character_slot', 'gen-unlock-offers'),
-  ('character_slot.4', 'character_slot', 'Character slot 5', 'character_slot:4', 1, null, null, null, null, 'namespace_unsupported:character_slot', 'gen-unlock-offers'),
   ('property.castle', 'property', 'Hearthrise Castle', 'property:castle', 5, null, null, null, null, 'held:its_materials_have_no_source_yet', 'gen-unlock-offers'),
   ('property.farmstead', 'property', 'Fieldworth Farmstead', 'property:farmstead', 2, 2500, '{"cooked_shrimp":10,"copper_ore":25,"oak_log":40,"wolf_pelt":4}'::jsonb, 1, null, null, 'gen-unlock-offers'),
   ('property.homestead', 'property', 'Hearthside Homestead', 'property:homestead', 1, 400, '{"copper_ore":20,"normal_log":30}'::jsonb, 0, null, null, 'gen-unlock-offers'),
@@ -189,13 +188,7 @@ values
   ('room.workshop.2', 'room', 'Workshop — Joiner''s Bench', 'room:workshop', 2, 110000, '{"timber_beam":12,"willow_plank":100}'::jsonb, 2, null, null, 'gen-unlock-offers'),
   ('room.workshop.3', 'room', 'Workshop — The Sawpit', 'room:workshop', 3, 160000, '{"iron_fitting":10,"timber_beam":20,"willow_plank":200}'::jsonb, 2, null, null, 'gen-unlock-offers'),
   ('room.workshop.4', 'room', 'Workshop — The Lathe', 'room:workshop', 4, 240000, '{"iron_fitting":25,"maple_plank":100,"silk_thread":30}'::jsonb, 3, null, null, 'gen-unlock-offers'),
-  ('room.workshop.5', 'room', 'Workshop — The Master''s Shop', 'room:workshop', 5, null, null, null, null, 'held:its_materials_have_no_source_yet', 'gen-unlock-offers'),
-  ('worker.1', 'worker', 'Hire worker #1', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker', 'gen-unlock-offers'),
-  ('worker.2', 'worker', 'Hire worker #2', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker', 'gen-unlock-offers'),
-  ('worker.3', 'worker', 'Hire worker #3', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker', 'gen-unlock-offers'),
-  ('worker.4', 'worker', 'Hire worker #4', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker', 'gen-unlock-offers'),
-  ('worker.5', 'worker', 'Hire worker #5', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker', 'gen-unlock-offers'),
-  ('worker.6', 'worker', 'Hire worker #6', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker', 'gen-unlock-offers');
+  ('room.workshop.5', 'room', 'Workshop — The Master''s Shop', 'room:workshop', 5, null, null, null, null, 'held:its_materials_have_no_source_yet', 'gen-unlock-offers');
 
 -- ── SELF-CHECK ───────────────────────────────────────────────────────────
 do $$
@@ -205,8 +198,8 @@ begin
   -- same table and are none of this count's business.
   select count(*) into v_n from public.hr_unlock_offers where source = 'gen-unlock-offers'
      and table_name <> all (array['companion']::text[]);
-  if v_n <> 54 then
-    raise exception 'hr_unlock_offers holds % gen-unlock-offers rows, expected 54 — the insert was partial', v_n;
+  if v_n <> 47 then
+    raise exception 'hr_unlock_offers holds % gen-unlock-offers rows, expected 47 — the insert was partial', v_n;
   end if;
   select count(*) into v_n from public.hr_unlock_offers
    where source = 'gen-unlock-offers' and refusal is null
@@ -300,5 +293,5 @@ begin
                     '''artisan'' cannot become payable';
   end if;
 
-  raise notice 'hr_unlock_offers OK — % rows, % sellable (property=4 · room=32)', 54, 36;
+  raise notice 'hr_unlock_offers OK — % rows, % sellable (property=4 · room=32)', 47, 36;
 end $$;

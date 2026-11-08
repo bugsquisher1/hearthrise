@@ -316,6 +316,8 @@ const RETIRED_UNLOCKS = Object.freeze([
   'plot:farm_plot', 'plot:scarecrow', 'plot:toolshed', 'plot:watchtower',
   /* ...and the worker hires' count row, with the six worker.* shop rows that granted it. */
   'worker',
+  /* The fifth hero slot is no longer sold: four heroes an account (Tyler 2026-11-07, 2027-03-22-four-slots.sql). */
+  'character_slot:4',
 ]);
 for (const id of RETIRED_UNLOCKS) {
   if (rows.some((r) => r.unlock_id === id)) die(`retired unlock ${id} is still derived — take it off RETIRED_UNLOCKS or remove its source`);

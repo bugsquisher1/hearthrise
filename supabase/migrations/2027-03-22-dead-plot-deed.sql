@@ -43,9 +43,11 @@
 --    view and the perk answer carry no deed or plot key; a harvest with two Scarecrows on
 --    the books and the Scarecrow's catalogue row raised to 1 pays no perk; no function body
 --    names farm_deed, the deed price column or a plot building; grants unchanged; nothing leaked.
--- RIDES WITH three GENERATED files, in this order after it:
---    2027-03-22-dead-plot-deed-unlocks.generated.sql        hr_unlocks: the 4 plot rows retired
---    2027-03-22-dead-plot-deed-unlock-offers.generated.sql  hr_unlock_offers: the 4 refused rows go
+-- RIDES WITH GENERATED files, in this order after it (tests/schema-apply-order.json):
+--    2027-03-22-catalogue-cuts-unlocks.generated.sql        hr_unlocks: the 4 plot rows retired (with the
+--                                                           worker row and character_slot:4, lane/c-four-slots)
+--    2027-03-22-catalogue-cuts-unlock-offers.generated.sql  hr_unlock_offers: the 4 refused plot rows go (with the
+--                                                           6 worker rows and character_slot.4)
 --    2027-03-22-dead-plot-deed-farm-catalogues.generated.sql hr_plot_tier loses deed_cost
 --      (its drop REFUSES while any body still reads the column, so it cannot land before this
 --      file), hr_farm_yield_perk loses 'scarecrow'.

@@ -10,7 +10,8 @@
 //                         with the old rune ladder, 2026-10-23)
 //   equip              8  src/legacy.js (5 rows moved to the outfitter, 2026-10-22)
 //   property           5  src/features/homestead.js
-//   character_slot     3  src/multi-character.js (slot 1 is a starter: owned, never sold, 2026-10-26)
+//   character_slot     2  src/multi-character.js (slot 1 is a starter: owned, never sold, 2026-10-26; slot 4, the
+//                         fifth hero, is no longer sold: four heroes an account, Tyler 2026-11-07)
 //   companion          4  src/data/companions.js
 //   (the four `plot` buildings and the six `worker` hires were cut 2026-11-07, lane/c-dead-plot-deed: the engine
 //    refused every one and nothing read what they granted; tests/catalogue-coherence.mjs C14 keeps them out)
@@ -66,12 +67,6 @@ export const SHOP_OFFERS = [
     name: "Character slot 4",
     cost: [{ kind: "currency", id: "gold", amount: 75000 }],
     grant: [{ kind: "unlock", id: "character_slot:3", amount: 1 }],
-  },
-  {
-    id: "character_slot.4", table: "character_slot",
-    name: "Character slot 5",
-    cost: [{ kind: "currency", id: "gold", amount: 250000 }],
-    grant: [{ kind: "unlock", id: "character_slot:4", amount: 1 }],
   },
   {
     id: "companion.honeybee", table: "companion",

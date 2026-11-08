@@ -33,6 +33,15 @@
       "group": "9a3bca33-ba7d-4e5e-889d-b66deb820f8a",
       "action": "standing still at rest, only the chest rises and falls by one pixel, the head stays level, both feet stay exactly where they are, both arms and everything held in the hands stay completely still, stays in place, nothing else appears in the frame",
       "directions": "e ne"
+    },
+    "r4": {
+      "brief": "08 R2",
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "38f574b7-5dd6-4717-bab3-4793176211d7",
+      "directions": "ne",
+      "action": "standing at rest, the whole body stays exactly in place, only the beard and the robe's hem stir by one pixel, the staff and orb stay still, nothing else appears in the frame"
     }
   },
   "chosen": {
@@ -43,7 +52,7 @@
     "south-east": "r2",
     "north-west": "r2",
     "east": "r3",
-    "north-east": "r3"
+    "north-east": "r4"
   },
   "loop_preview": {
     "how": "idle-clip.mjs idleFrames(shipped still, frames, 58), as port-pixellab.mjs idle lays it; feet = foot-row mask px moved, detached = px of the picked frames 3+ px off the still's body",
@@ -186,7 +195,7 @@
       }
     }
   },
-  "generations": 17,
+  "generations": 18,
   "flags": [
     "the sparkles around the staff orb (in the shipped still) blink on and off in most loops: brief 05 rejects any glow or spark; the AD decides whether a twinkle is the orb's own life",
     "east: all three rolls move the robe hem or the orb (feet 10 at best); retry limit",
@@ -211,5 +220,8 @@
       "brief": "08-next-batch.txt",
       "how": "local script on the raw frames (copy frame_000 inside the box; 0 gens); the other raw frames moved to alt/unpicked/east"
     }
+  },
+  "r2_brief08": {
+    "north-east": "r4 kept: picks raw 0,1,2,1, steps 151/165, feet 2, no stray px, no whole-body shift (frames 1 and 2 lay at 0,0); the hat tip droops up to 3 px in the far frame (cloth?). The old r3 is under alt/r3"
   }
 }

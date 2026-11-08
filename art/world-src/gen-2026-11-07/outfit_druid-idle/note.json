@@ -43,17 +43,39 @@
         "north-east": "8e83ab67-f62b-4e17-96c1-9b2cb25f107f",
         "north-west": "a8046786-7579-4544-8e2e-cac40afbbd15"
       }
+    },
+    "r4": {
+      "brief": "08 R1, roll 1",
+      "tool": "animate_image from an upload of each shipped still (64x64, 8 frames)",
+      "action": "standing at rest, only the hood and shoulders rise and fall by one pixel, the staff is held perfectly still and does not grow, glow, sway or vanish, its leaves do not move, feet planted, stays in place, nothing else appears in the frame",
+      "jobs": {
+        "south": "1bacc9f6-4ef6-4808-8fcb-73183825f073",
+        "north": "991461f2-a317-44b7-a82f-99f0f77eaf9e",
+        "west": "304a9c85-874a-45ac-b90f-9962bfc04636",
+        "south-east": "d319275a-0ce6-4336-ab85-c08c826f00b2",
+        "south-west": "976d8b4a-6706-401a-9fbe-671d74435a5c",
+        "north-east": "171a5b15-e1ae-4277-a93f-3a653aa50922",
+        "north-west": "a4da5330-fc8c-45d1-b3a8-31088d96fe43"
+      }
+    },
+    "r5": {
+      "brief": "08 R1, roll 2 (the 6 that failed roll 1)",
+      "tool": "animate_image, seed 21",
+      "action": "standing at rest, only the hood and shoulders rise and fall by one pixel, the staff is held perfectly still and does not grow, glow, sway or vanish, its leaves do not move, feet planted, stays in place, nothing else appears in the frame",
+      "jobs": {
+        "south": "73bb477f-107c-4926-881a-c9649ed96e24",
+        "north": "5639af0e-a65c-49ab-b7b0-6a78fae8b83d",
+        "south-east": "ce9763f3-dc09-4345-9aa1-ea12a4299c2a",
+        "south-west": "75eae168-0ba4-4b36-adf9-5814986bfecc",
+        "north-east": "a58cf862-da99-4641-871a-dc51102adb84",
+        "north-west": "e1d463e1-afca-4d4d-ad9e-940019df2bec"
+      }
     }
   },
   "chosen": {
     "east": "r2",
-    "south": "r2",
-    "north": "r2",
-    "south-east": "r2",
-    "north-east": "r2",
-    "west": "r3",
-    "south-west": "r3",
-    "north-west": "r3"
+    "west": "r4",
+    "north-east": "r5"
   },
   "loop_preview": {
     "how": "idle-clip.mjs idleFrames(shipped still, frames, 58), as port-pixellab.mjs idle lays it; feet = foot-row mask px moved, detached = px of the picked frames 3+ px off the still's body",
@@ -196,12 +218,30 @@
       }
     }
   },
-  "generations": 23,
+  "generations": 36,
   "flags": [
     "ONLY EAST PASSES. The druid's staff will not hold still: it grows, sprouts a glowing tip or vanishes in every other facing across all three rolls; retry limit reached in s n w se sw ne nw",
     "west r2 grew a glowing green ball on the staff, so r3 is kept there; north-east r2 loses the staff head in its far frame",
-    "suggest: a 2-frame loop (still + the calm near frame) for the druid, or a hand pass, rather than more rolls"
+    "suggest: a 2-frame loop (still + the calm near frame) for the druid, or a hand pass, rather than more rolls",
+    "08 R1: only west and north-east found a calm roll; south, north, south-east, south-west, north-west keep the still"
   ],
   "review_strip": "art/review/gen-2026-11-07/outfit_druid-idle.png (per facing: knight walk, raw clip, change from frame 0, the laid loop) and outfit_druid-idle-loops.png (per facing s e n w se sw ne nw: own walk frame 0 or idle still, then the 4-frame loop)",
-  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set hunt --id outfit_druid --clip art/world-src/gen-2026-11-07/outfit_druid-idle"
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set hunt --id outfit_druid --clip art/world-src/gen-2026-11-07/outfit_druid-idle",
+  "keeps_its_still": [
+    "south",
+    "north",
+    "south-east",
+    "south-west",
+    "north-west"
+  ],
+  "r1_brief08": {
+    "west": "r4 PASS (steps 52/69, feet 0)",
+    "north-east": "r5 PASS (129/38, feet 0; the staff head shifts 1-2 px and the right hand redraws in the far frame)",
+    "south": "r4 feet 11, 285 px step, 7 stray px; r5 feet 10, 277 px",
+    "north": "r4 feet 10, stray leaves above the head; r5 feet 7",
+    "south-east": "r4 passes the numbers but frame a shifts the whole body 1 px (a pop); r5 feet 5, 185 px",
+    "south-west": "r4 a leaf flies off (17 px); r5 22 stray px",
+    "north-west": "r4 feet 5; r5 42 stray px",
+    "verdict": "per 08, a facing with no calm roll after 2 keeps its still: those five are left out of the clip folder (their rolls are under alt/)"
+  }
 }

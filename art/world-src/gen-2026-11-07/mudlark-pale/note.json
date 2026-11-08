@@ -1,38 +1,148 @@
 {
   "asset": "mudlark-pale",
   "brief": "art/briefs/gen-2026-11-07/07-next-batch.txt (DAY 1, SIDE BY SIDE: THE MUDLARK SAMPLE) on brief 01",
-  "status": "STOPPED at the retry limit (the 07 sample + 2 re-rolls). No candidate passes in every facing, so no clips were made (a clip is drawn from its body and would fail with it).",
+  "status": "ACCEPTED body r3 (object b0f9bca5, brief 08). C1a south clips made; C1b and C1c wait for the art director's read of the C1a strip",
   "made": "2026-11-07",
   "check": "node tools/world-art/ring-contrast.mjs art/briefs/gen-2026-11-07/refs/floor-ford-mud-64.png <rotation>  (3:1 or more); body <= 38 px; crouched",
   "style_image": "art/briefs/gen-2026-11-07/refs/style-glade-poacher-s-48.png as upload:61e1504d-862f-4de6-9d4e-8f2d43000afb",
   "candidates": {
     "r3 (the files in this folder, best)": {
-      "object_id": "b0f9bca5-f91f-462d-a28a-f7dcc24f0114", "name": "S1 Mudlark (pale r3)", "tool": "create_object_pro_flash", "generations": 6,
-      "settings": { "n_directions": 8, "width": 48, "height": 48, "view": "high top-down", "seed": 11, "style_options": { "color_palette": false, "detail": true, "outline": true, "shading": true }, "style_usage": "match outline and shading style only, not its colours; the creature is smaller, crouches lower and is much paler than this figure" },
+      "object_id": "b0f9bca5-f91f-462d-a28a-f7dcc24f0114",
+      "name": "S1 Mudlark (pale r3)",
+      "tool": "create_object_pro_flash",
+      "generations": 6,
+      "settings": {
+        "n_directions": 8,
+        "width": 48,
+        "height": 48,
+        "view": "high top-down",
+        "seed": 11,
+        "style_options": {
+          "color_palette": false,
+          "detail": true,
+          "outline": true,
+          "shading": true
+        },
+        "style_usage": "match outline and shading style only, not its colours; the creature is smaller, crouches lower and is much paler than this figure"
+      },
       "prompt": "small hunched undead river scavenger squatting low on deeply bent knees, compact crouched body with thick limbs, head sunk low between the shoulders, chalk-white bleached drowned skin, off-white pale rags, a bright pale body with only light grey shading, a single thin black outline, a small pale canvas sack tied on its back, a short dark iron boathook with green copper stains in one hand, game enemy sprite",
-      "ring_contrast": { "south": 2.81, "south-east": 3.51, "east": 3.51, "north-east": 3.24, "north": 4.15, "north-west": 3.24, "west": 3.51, "south-west": 3.51 },
-      "body_h_px": { "south": 38, "south-east": 37, "east": 36, "north-east": 38, "north": 38, "north-west": 39, "west": 38, "south-west": 38 },
-      "rejects": ["south ring 2.81:1 (UNDER 3:1; its darkest ring pixels are the iron hook and the face's hollows)", "north-west 39 px (over 38)"],
-      "flags": ["the sack is pale canvas, not dark: a dark sack kept the back views under 3:1 in r1 and r2", "it stands more upright than r1 (knees bent, but not the squat of the accepted brown body)", "the hook is hidden in east and north-east"]
+      "ring_contrast": {
+        "south": 2.81,
+        "south-east": 3.51,
+        "east": 3.51,
+        "north-east": 3.24,
+        "north": 4.15,
+        "north-west": 3.24,
+        "west": 3.51,
+        "south-west": 3.51
+      },
+      "body_h_px": {
+        "south": 38,
+        "south-east": 37,
+        "east": 36,
+        "north-east": 38,
+        "north": 38,
+        "north-west": 39,
+        "west": 38,
+        "south-west": 38
+      },
+      "rejects": [
+        "south ring 2.81:1 (UNDER 3:1; its darkest ring pixels are the iron hook and the face's hollows)",
+        "north-west 39 px (over 38)"
+      ],
+      "flags": [
+        "the sack is pale canvas, not dark: a dark sack kept the back views under 3:1 in r1 and r2",
+        "it stands more upright than r1 (knees bent, but not the squat of the accepted brown body)",
+        "the hook is hidden in east and north-east"
+      ]
     },
     "r2 (rejected-rotations-2/)": {
-      "object_id": "abb672c0-efe5-44ee-a70a-1d8bdd06dd05", "name": "S1 Mudlark (pale r2)", "generations": 6,
+      "object_id": "abb672c0-efe5-44ee-a70a-1d8bdd06dd05",
+      "name": "S1 Mudlark (pale r2)",
+      "generations": 6,
       "settings": "as r3 (color_palette false, the same style usage)",
       "prompt": "small hunched undead river scavenger squatting low on deeply bent knees, compact crouched body, head sunk low between the shoulders, pale bleached grey-white drowned skin, washed-out pale grey rags, pale bone-white body right up to a thin black outline, light soft shading with no dark edges, a small dark brown sack of scavenged scraps tied on its back, a short dark iron boathook with green copper stains in one hand, game enemy sprite",
-      "ring_contrast": { "south": 1.99, "south-east": 1.99, "east": 1.99, "north-east": 3.08, "north": 2.57, "north-west": 1.99, "west": 1.99, "south-west": 2.23 },
+      "ring_contrast": {
+        "south": 1.99,
+        "south-east": 1.99,
+        "east": 1.99,
+        "north-east": 3.08,
+        "north": 2.57,
+        "north-west": 1.99,
+        "west": 1.99,
+        "south-west": 2.23
+      },
       "body_h_px": "33-38",
       "why": "7 of 8 facings under 3:1 (ring holds mid-brown shading, the brown sack and 2 px black outline joins)"
     },
     "r1, the 07 sample as written (rejected-rotations-1/)": {
-      "object_id": "ab94af3e-9525-42b5-9e83-6f2474d35918", "name": "S1 Mudlark (pale)", "generations": 6,
-      "settings": { "seed": 11, "style_options": "palette, detail, outline, shading all on", "style_usage": "match palette, outline, shading only; the creature is smaller and crouches lower than this figure" },
+      "object_id": "ab94af3e-9525-42b5-9e83-6f2474d35918",
+      "name": "S1 Mudlark (pale)",
+      "generations": 6,
+      "settings": {
+        "seed": 11,
+        "style_options": "palette, detail, outline, shading all on",
+        "style_usage": "match palette, outline, shading only; the creature is smaller and crouches lower than this figure"
+      },
       "prompt": "small hunched undead river scavenger squatting low on deeply bent knees, compact crouched body, head sunk low between the shoulders, pale bleached grey-white drowned skin, washed-out pale grey rags, a dark brown lumpy sack of scavenged scraps tied on its back, a short dark iron boathook with green copper stains in one hand, dark outline, game enemy sprite",
       "ring_contrast": "1.03-1.10 in all 8",
       "body_h_px": "32-36",
       "why": "with the poacher's palette matched, the pixels inside the outline are dark browns (#433a2d, #513922); the body only looks pale in its middle"
     }
   },
-  "generations_total": 18,
+  "generations_total": 22,
   "review_strip": "art/review/gen-2026-11-07/mudlark-pale.png (rows: knight walk; r3; r2; r1; each s se e ne n nw w sw)",
-  "possible_ways_on": ["accept r3 with its south lifted at import (port-pixellab.mjs unit --ramps .. --lift N)", "one more roll of r3's settings for south only is not possible: a Pro Flash object makes all 8 together"]
+  "possible_ways_on": [
+    "accept r3 with its south lifted at import (port-pixellab.mjs unit --ramps .. --lift N)",
+    "one more roll of r3's settings for south only is not possible: a Pro Flash object makes all 8 together"
+  ],
+  "accepted_object": "b0f9bca5-f91f-462d-a28a-f7dcc24f0114",
+  "clips_c1a": {
+    "brief": "08 C1a (south only)",
+    "object": "b0f9bca5-f91f-462d-a28a-f7dcc24f0114",
+    "tool": "animate_object",
+    "mode": "v3",
+    "idle": {
+      "group": "905b7001-0419-48b4-ba22-73e515167cfb",
+      "animation_id": "4d977263-2d97-42ef-a3bc-0ceab4472d4a",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "files": "idle/south/frame_000..008.png",
+      "action": "crouched, only the shoulders and the sack rise and fall by one pixel, the knees stay bent, the head stays low, feet planted, nothing else appears in the frame",
+      "measured": "height 38 -> 43 px at frame 5 (it still rises); the laid loop (idleFrames, vermin anchor 40) picks raw 0,8,7,8 at 39-41 px, steps 69/126, feet 0. Ring 2.60-3.24:1 by frame (frame_000 2.81, the accepted S)"
+    },
+    "walk": {
+      "group": "5c6c5e4d-d4a9-49b3-8451-9fa7d147504a",
+      "animation_id": "2cf8df56-1afa-4432-8760-5d031b2ebca2",
+      "frame_count": 6,
+      "keep_first_frame": false,
+      "files": "walk/south/0..5.png",
+      "action": "a quick low scuttle, stays crouched the whole cycle, the head stays at the same height, short steps, both feet lift in turn, nothing else appears in the frame",
+      "measured": "both feet lift (rows 42-44 vs 45); height 39-42 px: frames 2, 4 and 5 are 42 px, OVER the 40 px cap; ring 2.60-3.24:1 (frames 0 and 1 at 2.60, under the accepted 2.81)"
+    },
+    "attack": {
+      "group": "8ee28474-7eb4-4d7f-b78e-a56f182d019e",
+      "animation_id": "d906df17-e2b3-4c3d-add6-63b6a43101a8",
+      "frame_count": 6,
+      "keep_first_frame": false,
+      "files": "attack/south/0..5.png",
+      "action": "stays crouched low, lunges forward and hooks with the boathook, then pulls back, the boathook stays in its hand the whole time, nothing else appears in the frame",
+      "measured": "the hook stays in hand and swings out; rises to 44 px at the top of the lunge; feet planted"
+    },
+    "death": {
+      "group": "0464dbfe-ee2a-497c-97a2-7f57fdaa2f38",
+      "animation_id": "9f178d76-8ff2-47a9-b2cb-ae86184066f3",
+      "frame_count": 6,
+      "keep_first_frame": false,
+      "files": "death/south/0..5.png",
+      "action": "collapses face down into the mud, falls forward flat onto the ground, the sack slides off onto the ground beside it, lies still, nothing else appears in the frame",
+      "measured": "falls flat (37 -> 21 px tall), the hook stays by the body; the sack stays on its back"
+    },
+    "generations": 4,
+    "flags": [
+      "walk: frames 2, 4, 5 at 42 px break the 40 px cap, and its ring dips to 2.60:1; not re-rolled (08: stop after C1a for the read)",
+      "idle: the raw clip still rises 5 px; the laid loop stays at 39-41 px"
+    ],
+    "strip": "art/review/gen-2026-11-07/mudlark-pale-c1a.png (knight walk; 8 rotations; idle; idle change; idle laid loop; walk; attack; death)"
+  }
 }

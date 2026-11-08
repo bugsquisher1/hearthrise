@@ -1,0 +1,257 @@
+{
+  "asset": "banded_pikeman hit clip (brief 10 B3b), Barrow March (unmerged art)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B3b (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "march",
+  "object_id": "fd5d913f-f372-41a2-b45b-098b375b3570",
+  "name": "banded pikeman (64 frame; March body)",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); hit/<facing>/0..N.png = the kept roll; alt/<roll>/hit/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the object, frame_count 6, keep_first_frame false; south and the side facings are separate groups (their action texts differ)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "a26f4f15-513b-476c-8dae-31eadec53048",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "a11b0557-1efe-4f59-b235-bb4697df4136",
+        "directions": "e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r2": [
+      {
+        "group": "8d69ffe2-3a75-4477-a927-b9a479f5ddf8",
+        "directions": "e",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance upright, feet planted, it does not bow forward, both arms stay where they are, the pike stays in its hand, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r1",
+    "east": "r2",
+    "north": "r1",
+    "west": "r1"
+  },
+  "refused": {
+    "east r1": "bows forward and the free arm reaches out (frames 2-3, 135 px new colour)"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r1",
+      "xor": [
+        99,
+        181,
+        220,
+        234,
+        146,
+        21
+      ],
+      "alien": [
+        0,
+        1,
+        5,
+        7,
+        0,
+        0
+      ],
+      "dx": [
+        0.2,
+        0.3,
+        0.4,
+        0.5,
+        0.3,
+        0.1
+      ],
+      "dy": [
+        0.2,
+        0.2,
+        0.3,
+        0.7,
+        0.4,
+        -0.3
+      ],
+      "top": [
+        0,
+        1,
+        2,
+        4,
+        2,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "east": {
+      "roll": "r2",
+      "xor": [
+        85,
+        187,
+        286,
+        331,
+        279,
+        174
+      ],
+      "alien": [
+        0,
+        0,
+        12,
+        61,
+        8,
+        0
+      ],
+      "dx": [
+        0.3,
+        0.7,
+        0.8,
+        0.9,
+        0.8,
+        0.5
+      ],
+      "dy": [
+        0,
+        0.2,
+        0.2,
+        0.1,
+        0.2,
+        0.1
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f3 (61)"
+      ]
+    },
+    "north": {
+      "roll": "r1",
+      "xor": [
+        133,
+        177,
+        180,
+        212,
+        175,
+        196
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "dx": [
+        0.3,
+        0.8,
+        0.8,
+        0.8,
+        0.6,
+        0.6
+      ],
+      "dy": [
+        0.3,
+        0.5,
+        0.9,
+        1.3,
+        0.7,
+        0.2
+      ],
+      "top": [
+        2,
+        2,
+        3,
+        4,
+        3,
+        1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "west": {
+      "roll": "r1",
+      "xor": [
+        26,
+        70,
+        232,
+        284,
+        229,
+        199
+      ],
+      "alien": [
+        0,
+        1,
+        2,
+        5,
+        16,
+        11
+      ],
+      "dx": [
+        -0.2,
+        -0.4,
+        -0.1,
+        0.4,
+        0.8,
+        0.7
+      ],
+      "dy": [
+        0.6,
+        0.2,
+        -0.1,
+        0.1,
+        -0.1,
+        -0.5
+      ],
+      "top": [
+        0,
+        1,
+        2,
+        3,
+        3,
+        1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    }
+  },
+  "generations": 5,
+  "flags": [],
+  "review_strip": "art/review/gen-2026-11-08b/banded_pikeman-hit.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)"
+}

@@ -39,6 +39,7 @@ const BAR = 1.0;
 /* THE ONE NAMED EXCEPTION. Tyler 2026-11-02 ("same-weapon friends lose about 6-15%") beats his 2026-10-31 ("a same-class party never out-earns solo") where they conflict (CLAUDE.md §0; Coordinator 2026-11-04):
    the Thicket's one-class four pays the even share, and a four of wands at its default pull stands 4-5% over solo (an hour's read; this guard's 15-minute cut reads about 1.02). It holds for that party, on that
    ground and arm only, and only on the row that was ruled on (table cell 940, pull 6; 1000 until the formula's rows moved the four 10% toward the party, lane/b-ground-formula-2): any other number voids it, and the party answers to 1.00 like every other cell. Its own bar is the accepted 5%. */
+/* Since the solo boost (Tyler 2026-11-08, party-class-xp.js SOLO_XP_PM) the four of wands reads 0.995 here, under 1.00: the exception can retire with its five mutants (lane/b-one-difficulty left it in place). */
 const EXCEPTION = Object.freeze({ ground: 'meadowbrook_thicket', arm: 'pull', party: 'wands4', cell: 940, pull: 6, bar: 1.05 });
 const WIDE = process.argv.includes('--wide');
 /* A party cell's hours, and a lone hero's as built: every party is judged against those, and they are the cheapest cells. */

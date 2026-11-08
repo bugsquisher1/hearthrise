@@ -223,8 +223,9 @@ cases['before-bonuses'] = () => {
   if (again.raw !== mixed.raw || again.paid !== mixed.paid) return 'browser closed reads ' + JSON.stringify(again) + ', viewed ' + JSON.stringify(mixed);
   const cut = totals('millrace_sewer', ['tank', 'tank'], 30000);
   if (!(cut.paid < cut.raw)) return 'a one-class Sewer party was paid ' + cut.paid + ' on a share of ' + cut.raw;
+  /* alone: over the share by the boost, never past it, and at least half of it (each kill's share floors: a Wickstead kill of a few dozen XP keeps about 3.5 of the 5%) */
   const lone = totals('wickstead', ['tank'], 30000), boost = PCX.SOLO_XP_PM / 1000;
-  if (Math.abs(lone.raw * boost - lone.paid) > lone.paid * 0.01) return 'a lone hero reads ' + lone.raw + ' before bonuses and ' + lone.paid + ' paid, the solo boost says ' + Math.round(lone.raw * boost);
+  if (!(lone.paid >= lone.raw * (1 + (boost - 1) / 2) && lone.paid <= Math.ceil(lone.raw * boost))) return 'a lone hero reads ' + lone.raw + ' before bonuses and ' + lone.paid + ' paid, the solo boost says up to ' + Math.round(lone.raw * boost);
   const loneClosed = totals('wickstead', ['tank'], 600000);
   if (loneClosed.raw !== lone.raw || loneClosed.paid !== lone.paid) return 'alone, browser closed reads ' + JSON.stringify(loneClosed) + ', viewed ' + JSON.stringify(lone);
   return null;

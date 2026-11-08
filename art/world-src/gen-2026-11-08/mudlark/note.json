@@ -1,0 +1,56 @@
+{
+  "asset": "mudlark (set slake), brief 09 C1b + C1c: the other facings of idle, walk, attack and death",
+  "brief": "art/briefs/gen-2026-11-07/09-next-batch.txt C1b, C1c (on 08's C1 and 01's clip list)",
+  "status": "CANDIDATES for the art director; not imported. N and NE attack have NO clean roll after 2 retries (flagged below)",
+  "made": "2026-11-08",
+  "object_id": "b0f9bca5-f91f-462d-a28a-f7dcc24f0114 (S1 Mudlark, pale r3, accepted in 08)",
+  "layout": "a COMPLETE folder for port-pixellab.mjs unit: <facing>.png rotations, idle/<facing>/frame_000..008.png, walk|attack|death/<facing>/0..5.png. The rotations and every south clip are byte-identical to gen-2026-11-07/mudlark-pale (C1a, approved in 09). alt/<roll>/<clip>/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the object; frames as stored",
+  "groups": {
+    "idle":  { "group": "905b7001-0419-48b4-ba22-73e515167cfb", "frame_count": 8, "keep_first_frame": true, "added": "e n w se sw ne nw (C1b)",
+      "action": "crouched, only the shoulders and the sack rise and fall by one pixel, the knees stay bent, the head stays low, feet planted, nothing else appears in the frame" },
+    "walk":  { "group": "5c6c5e4d-d4a9-49b3-8451-9fa7d147504a", "frame_count": 6, "keep_first_frame": false, "added": "e n w se sw ne nw (C1b)",
+      "action": "a quick low scuttle, stays crouched the whole cycle, the head stays at the same height, short steps, both feet lift in turn, nothing else appears in the frame" },
+    "attack": { "group": "8ee28474-7eb4-4d7f-b78e-a56f182d019e", "frame_count": 6, "keep_first_frame": false, "added": "e n w se sw ne (C1b), nw (C1c)",
+      "action": "stays crouched low, lunges forward and hooks with the boathook, then pulls back, the boathook stays in its hand the whole time, nothing else appears in the frame" },
+    "death": { "group": "0464dbfe-ee2a-497c-97a2-7f57fdaa2f38", "frame_count": 6, "keep_first_frame": false, "added": "e n w (C1c)",
+      "action": "collapses face down into the mud, falls forward flat onto the ground, the sack slides off onto the ground beside it, lies still, nothing else appears in the frame" },
+    "attack r2": { "group": "044bc0f2-fce2-4292-ad52-2c96b56a14a5", "directions": "w ne n", "frame_count": 6, "keep_first_frame": false,
+      "action": "stays crouched low, lunges forward and hooks with the dark iron boathook, then pulls back, the boathook keeps its dark iron colour and stays in its hand and in view the whole time, no white lines, no streaks, no sparkles, nothing else appears in the frame" },
+    "death r2": { "group": "660c0e2c-b914-4bca-9bda-a4d0f1477a15", "directions": "e", "frame_count": 6, "keep_first_frame": false,
+      "action": "collapses face down into the mud, falls forward flat onto the ground, the sack slides off and stays lying on the ground beside it, lies still, no dust, no specks, nothing else appears in the frame" },
+    "attack r3": { "group": "cac20948-42a5-4b20-8fb0-fecb624b267c", "directions": "n ne", "frame_count": 6, "keep_first_frame": false,
+      "action": "stays crouched low, swings the dark iron boathook out to its right side and hooks with it, then pulls back, the boathook stays dark iron, in its hand and in view beside the body the whole time, no white lines, no loose pixels, no sparkles, nothing else appears in the frame" }
+  },
+  "chosen": {
+    "idle": "roll 1, all 7", "walk": "roll 1, all 7", "death": "n w roll 1; e r2",
+    "attack": "e se sw nw roll 1; w r2; n roll 1 (FLAGGED); ne r2 (FLAGGED)"
+  },
+  "refused": {
+    "attack w r1 (alt/r1)": "the hook's head turns into a pale white loop in frames 1-5 (gear changes)",
+    "attack ne r1 (alt/r1)": "white streaks like a slash arc and sparkles in frames 1-5, and a pale second hook at its back",
+    "attack n r2 (alt/r2)": "the hook is hidden again after frame 1, plus a stray white pixel in frames 1 and 4",
+    "attack n r3 (alt/r3)": "the hook swaps hands (left in frame 0, right in frames 1-5) and a pale blob grows at the left fist",
+    "attack ne r3 (alt/r3)": "a pale loop hook, specks beside it and a teal glint on the head",
+    "death e r1 (alt/r1)": "dark specks over the body in frames 4-5 and the spilled sack vanishes after frame 3"
+  },
+  "measured": {
+    "how": "each clip seated as port-pixellab.mjs unit seats it (vermin 48 frame, lowest foot on anchor row 40); the idle laid with idle-clip.mjs idleFrames(still, frames, 40); ring = tools/world-art/ring-contrast.mjs against refs/floor-ford-mud-64.png",
+    "idle_laid": { "e": "0,1,8,1 steps 29/107, 36-37 px", "n": "0,4,5,4 steps 202/117, 37-38 px", "w": "0,1,2,1 steps 27/175, 38 px", "se": "0,1,8,1 steps 63/191, 37-38 px", "sw": "0,7,1,7 steps 62/97, 38-39 px", "ne": "0,1,2,1 steps 80/64, 38 px", "nw": "0,8,7,8 steps 67/46, 38-39 px", "feet": "0 in every facing", "lifted": "0 in every facing" },
+    "heights": "laid idle 36-39 px in the 7 new facings (cap 41); walk 32-41 px (both feet lift in turn: foot rows 37-40); attack 34-40 px; everything under 44 px (vermin 40 +10%)",
+    "ring_contrast": "157 of the 192 clip frames reach 3:1. Under 3:1 outside the accepted south: idle nw frame_008 2.81 (a picked frame); walk nw 4-5 2.60; attack w (r2) 1-5 2.81; attack ne 3 2.81; death n 4 2.60; death w 3-5 2.40 (lying flat)",
+    "hook": "in hand in every kept frame where the rotation shows it; the e and ne rotations hide it, so their idle and walk do too (as the r3 body was accepted)"
+  },
+  "generations": 30,
+  "retries": "attack w 1 (r2 kept), attack n 2 (none clean), attack ne 2 (none clean), death e 1 (r2 kept): the retry limit is reached on n and ne",
+  "flags": [
+    "attack NORTH: no clean roll. Kept r1: clean, but the hook is hidden behind the body in frames 2-4 (the creature lunges away from the camera). r2 hides it too, r3 swaps hands",
+    "attack NORTH-EAST: no clean roll. Kept r2 as the least bad: a pale hook head, and loose pale pixels left of the body in frames 1-3 and beside the hook in frame 3. A hand pass deleting the loose pixels may save it (a box for the art director to name)",
+    "death east r2: the sack stays on its back as it falls (the approved south does the same); the r1 spill vanished",
+    "death west: lying frames 3-5 ring 2.40:1 (the lowest of the set)",
+    "attack west r2: the hook is a dark iron line now; its ring is 2.81:1 in frames 1-5",
+    "idle north first step 202 px, south-east second step 191 px, west 175: the largest steps of the set (no feet move)"
+  ],
+  "review_strip": "art/review/gen-2026-11-08/mudlark-c1.png (x3, on 64 cells with the anchor rows matched: row 1 the knight's still and walk; then s e n w se sw ne nw, each: rotation | laid idle a, b, a | walk 0-5 | attack 0-5 | death 0-5 where made) and art/review/gen-2026-11-08/mudlark-c1-rerolls.png (x4 rows: attack w r1, w r2 kept, ne r1, ne r2 kept, ne r3, n r1 kept, n r2, n r3, death e r1, e r2 kept)",
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs unit --set slake --id mudlark --dir art/world-src/gen-2026-11-08/mudlark --class vermin --object b0f9bca5-f91f-462d-a28a-f7dcc24f0114 --name \"S1 Mudlark\" --hit 3; then port-pixellab.mjs idle --set slake --id mudlark --clip art/world-src/gen-2026-11-08/mudlark/idle"
+}

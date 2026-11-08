@@ -1,0 +1,28 @@
+{
+  "asset": "outfit_ranger-idle (south only, brief 09 R3)",
+  "brief": "art/briefs/gen-2026-11-07/09-next-batch.txt R3",
+  "status": "CANDIDATE for the art director; not imported. The other 7 facings are art/world-src/gen-2026-11-07/outfit_ranger-idle (approved in 09)",
+  "made": "2026-11-08",
+  "set": "hunt",
+  "still": "art/world/hunt/outfit_ranger.png idle row 0 (south), 64x64, uploaded as upload:4bcc101b-4e2e-4d7e-b23a-0bf392e7a9e6",
+  "layout": "south/frame_000..008.png = the chosen roll (frame_000 the still); alt/<roll>/south/ = the other roll",
+  "tool": "animate_image (from the upload; a NEW group, not the object 0934ce5c), 64x64, frame_count 8",
+  "action": "standing at rest, only the shoulders rise and fall by one pixel; the arms, the hands and the crossbow are not redrawn and do not move; feet planted; nothing else appears in the frame",
+  "rolls": {
+    "r3a": { "job": "ea472c20-4eb9-4719-97e0-2e7fe03be857", "asset": "5c5b1b8c-0150-5543-98d3-fcd4baffdade", "seed": 31, "gens": 1,
+      "laid": { "picks_raw": "000,001,002,001", "steps": [19, 157], "feet": 0 },
+      "why_not": "the far frame redraws the crossbow's outline and the head (157 px step)" },
+    "r3b": { "job": "b4994b9e-70f4-4971-8fba-1a5ca8efdb96", "asset": "ff9a6a99-f6a4-59e1-86bd-8fc8234928da", "seed": 32, "gens": 1,
+      "laid": { "picks_raw": "000,001,008,001", "steps": [45, 70], "feet": [0, 3], "lifted": 0, "register": [0, 0], "missed": 0 },
+      "measured": "the crossbow (bolt, prod, stock) holds; in its box only the bolt tip flickers 1 px, and the shoulder above it rises (the asked motion). Changes by 8-row band from the still, a: rows 24-55 15/14/10/6 px; b: 33 (head) / 15 / 5 / 6 px" }
+  },
+  "chosen": { "south": "r3b" },
+  "generations": 2,
+  "flags": [
+    "r3b: a 1x2 px hair tuft sprouts on the crown in frames a and b, and in b the hair's top line sits 1 px higher (33 px in rows 24-31)",
+    "r3b: the left boot changes 3 px at b (the foot rows), the 08 limit",
+    "r3b: the bolt tip pixel flickers 1 px in a and b"
+  ],
+  "review_strip": "art/review/gen-2026-11-08/outfit_ranger-idle-r3.png (r3b chosen: raw clip x3, change from frame 0, still + laid loop; then its laid still/a/b + diffs a-still, b-still, b-a at x5; then r3a the same)",
+  "import_after_yes": "copy south/ into the 11-07 outfit_ranger-idle folder (or point the idle port at it); node tools/world-art/port-pixellab.mjs idle --set <heroes set> --id outfit_ranger --clip <that folder>"
+}

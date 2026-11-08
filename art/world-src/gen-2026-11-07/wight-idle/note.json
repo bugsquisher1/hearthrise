@@ -1,0 +1,186 @@
+{
+  "asset": "wight-idle",
+  "brief": "art/briefs/gen-2026-11-07/02-march-idles.txt, run per 08-next-batch.txt (A3)",
+  "status": "NOT imported; waits on the art director's read",
+  "made": "2026-11-08",
+  "object_id": "68b66de1-bf39-482d-83c5-60f9c95d225d",
+  "set": "march",
+  "layout": "<facing>/frame_000..008.png = the chosen roll (frame_000 the still); alt/<roll>/<facing>/ = every other roll",
+  "rolls": {
+    "r1": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "60d11d85-0b4c-47f8-8837-28e9e35bf740",
+      "directions": "all 8",
+      "action": "standing guard, breathing slowly, a slight sway, the robe stirs, feet planted, stays in place, nothing else appears in the frame"
+    },
+    "r2": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "4e4d0a60-0312-463e-83e2-1a461f61aad5",
+      "directions": "e se ne",
+      "action": "standing guard very still, the chest rises and falls, the head stays level and does not turn, both feet stay exactly where they are, both arms hang still, only the robe's hem stirs by one pixel, nothing else appears in the frame"
+    },
+    "r3": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "b39df5b4-959c-42c2-bc7b-31dbc14f243e",
+      "directions": "e",
+      "action": "standing completely still like a statue, only the chest rises and falls by one pixel, the head, the arms and the hands do not move at all, feet planted, the robe hangs still, nothing else appears in the frame"
+    }
+  },
+  "chosen": {
+    "south": "r1",
+    "north": "r1",
+    "west": "r1",
+    "south-west": "r1",
+    "north-west": "r1",
+    "south-east": "r2",
+    "north-east": "r2",
+    "east": "r3"
+  },
+  "loop_preview": {
+    "how": "idle-clip.mjs idleFrames(the shipped still from the March art branch, frames, 58)",
+    "facings": {
+      "south": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          79,
+          45
+        ],
+        "feet": 3,
+        "detached": 0,
+        "missed": 0
+      },
+      "east": {
+        "roll": "r3",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          23,
+          45
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "steps": [
+          90,
+          64
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          8,
+          7,
+          8
+        ],
+        "steps": [
+          75,
+          60
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          8,
+          7,
+          8
+        ],
+        "steps": [
+          78,
+          19
+        ],
+        "feet": 1,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          156,
+          35
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          8,
+          7,
+          8
+        ],
+        "steps": [
+          125,
+          62
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          2,
+          1,
+          2
+        ],
+        "steps": [
+          115,
+          127
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      }
+    }
+  },
+  "needs_hand_pass": {},
+  "generations": 12,
+  "flags": [
+    "east: r1 and r2 painted a pale hand or blob in front of the face (10-13 stray px); r3 is calm (23/45)",
+    "all 8 pass the screen"
+  ],
+  "review_strip": "art/review/gen-2026-11-07/wight-idle.png and wight-idle-loops.png",
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set march --id wight --clip art/world-src/gen-2026-11-07/wight-idle (on the March merge, where the march set lives)"
+}

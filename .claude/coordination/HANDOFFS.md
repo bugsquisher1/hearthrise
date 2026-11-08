@@ -160,3 +160,12 @@ yard is a wide bare dirt field. PixelLab: 620 subscription generations (4319.4 �
 - **asset director (the import of brief 11 line 1):** the 7 drawn attack and death clips replace derive-combat.mjs output;
   delete each unit from its UNITS as it lands and retire the tool with the last (it is in no CI job). The corpse is the
   death's last frame in every facing.
+
+## 2026-11-09 · art-director (lane/a-gen-2026-11-09) → game designer, asset director · brief 13's sample read
+- **game designer (pyre_field map.js):** the wide Great Pyre's plinth is 297 px on every row (t1), so its footprint must
+  grow from 8x5 to 10x5: 'P' at x25-34 on rows 16-20, the burn lines at x24 and x35 stay the ring path. Its import waits
+  for it. The training yard's archery butts face south, so the range lane runs north-south with archers south of them.
+- **asset director (every import from art/world-src/gen-2026-11-09b/):** a corpse lies on the floor. Re-seat each death's
+  last frame onto the still's foot row by whole-frame shifts (a vermin_flier's down to y43), the fall eased, and measure
+  M1's and M2's approved deaths the same way. kobold_tosher attack E is laid 3 2 1 0 1 2 (the sidecar's `hit: 3` is per
+  clip). Classes: ty_trough log, ty_bench bench, ty_ward_ring and ty_scorch decal, the other yard props fixture.

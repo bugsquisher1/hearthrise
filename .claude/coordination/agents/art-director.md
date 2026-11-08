@@ -3204,3 +3204,15 @@ Brief 12 (the Pyre Field, same day): (5) the ring rule cuts both ways: on a PALE
 silhouette, so a ground of burnt-black bodies is made readable by its floor's value, set before any body is drawn
 (ash on stone #8a867d: black rings 3.7-4.6:1, the March mud 1.3); (6) a re-pour can pass on contrast and still fail on
 identity: read whether it is the thing its name says, not only whether it shows.
+
+### 2026-11-09 lane/a-gen-2026-11-09 (brief 13's sample read, no generation)
+Verdicts appended to art/briefs/gen-2026-11-07/13-next-batch.txt, with a run-as-is next batch (707 gens, 115 to a reserve
+and the next-cycle head, so the 822 reach zero by 11-13). Lessons: (1) measure a death's SEAT, not only its pose: five
+corpses floated 2-9 px over the still's foot row (a vermin_flier's hover is drawn into its frame, so its corpse must come
+down to the anchor), and the generator flagged one; (2) a sidecar's `hit` is per clip, so an attack drawn from full reach
+backwards (the kobold E) lands its blow on the drawn-back spear unless the frames are re-laid; (3) value is the one axis a
+PixelLab tileset roll cannot aim: probe the scripted step before choosing it. The sand's snap held (a rim-bounded flood
+fill moves the sand only), the ash's failed (a flat raw locks to one colour, and the stretch that passes the numbers
+turns its flecks into a grid); (4) a style image leaks its props (the poacher's bow on the pikeman): pick one whose
+weapon matches; (5) a crop's ripening stage must not show what makes the ripe one ripe, or the player can't read ready;
+(6) the generator's fill percentages were short by 3 points: measure the longest side myself.

@@ -5,12 +5,13 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
-## v0.2.107 — 2026-11-07 (Clear Shop Labels)
+## v0.2.107 — 2026-11-07 (Clear Shop Labels, Faster Reload)
 
 **The Shop and the Farm say what you need before you pay.**
 
 - A seed in the Shop now says when your farm plots need an upgrade before you can plant it, for example "Needs plot tier 2 to plant". Carrot and wheat seeds need tier 2.
 - The Farm no longer lists a Farmer's Deed as another way to pay for a land upgrade. That item left the game in October.
+- After you reload the page during a hunt, the hunt shows again in a few seconds. Before, it could sit on "Still loading the world" for over a minute.
 
 ## v0.2.106 — 2026-11-07 (One Rule for Every Hunt)
 

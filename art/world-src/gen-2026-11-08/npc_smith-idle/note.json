@@ -1,0 +1,20 @@
+{
+  "asset": "npc_smith-idle (north-east only, brief 09 H7b)",
+  "brief": "art/briefs/gen-2026-11-07/09-next-batch.txt H7b",
+  "status": "FAILS the brief's test: north-east keeps its still. The hand-passed frames are under alt/h7b/ only, so nothing here is imported",
+  "made": "2026-11-08",
+  "tool": "local pixel copy (0 gens): frame_000's pixels in raw BOX x31-40 y28-42 copied over frame_008 of art/world-src/gen-2026-11-07/npc_smith-idle/north-east (which already carries H7's boot box x27-30 y30-40); frame_000 and frame_002 copied unchanged",
+  "files": "alt/h7b/north-east/frame_000.png, frame_002.png, frame_008.png (raw 48x48)",
+  "measured": {
+    "changed_px_in_008": 38,
+    "seam": "4 pixels just outside the box differ from frame_000 where the box cuts frame 008's forearm: x30 at rows 28-29 (left edge) and y27 at x31-33 (top edge). 008's forearm reaches lower than 000's, so it meets 000's hand at the box's top-left corner with a kink",
+    "laid": "idleFrames(still, [000, 002, 008 H7b], 58) THROWS: no frame of this clip moves 12 px from the still (the hammer was the clip's motion; boxed, nothing is left to breathe)"
+  },
+  "generations": 0,
+  "flags": [
+    "a seam at x31 / y28 (the brief's test): north-east keeps its still",
+    "even without the seam the import could not lay it: the laid loop no longer moves 12 px (idle-clip.mjs MIN_MOTION)",
+    "the 11-07 note's other route (a second box on 002 and 007 from alt/unpicked) was not tried: 09 named 008"
+  ],
+  "review_strip": "art/review/gen-2026-11-08/npc_smith-idle-h7b.png (x6 with the box drawn: frame_000, frame_002, frame_008 as H7 left it, frame_008 after H7b)"
+}

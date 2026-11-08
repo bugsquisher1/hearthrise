@@ -123,6 +123,12 @@ export function blowShareWords(r) {
   return (STRUCK[r.target] || 'Each monster it hits') + ' takes ' + low + '% to ' + top + '% of your biggest normal hit' + (r.element ? ' as ' + r.element + ' damage' : '') + '.';
 }
 
+/** What a status does to the monster it lands on, from its row: "Causes chill for 4 s, so its swings and spell windups run 30% slower." */
+export function statusWords(st) {
+  const does = st.slowPm ? 'its swings and spell windups run ' + st.slowPm / 10 + '% slower' : st.takenPm ? 'it takes ' + st.takenPm / 10 + '% more from every blow' : null;
+  return 'Causes ' + st.name.toLowerCase() + (st.durationMs ? ' for ' + secs(st.durationMs) + ' s' : '') + (does ? ', so ' + does : '') + '.';
+}
+
 /** "Unlocks at Ranged 10." for a row that waits for a level in its own skill (`unlock`), else null. */
 export function unlockWords(r) {
   if (!r || !r.unlock) return null;
@@ -145,7 +151,7 @@ export function factsOf(a) {
     if (Number.isInteger(r.hitPm)) effect.push(blowShareWords(r));
     if (r.heal) effect.push('Heals ' + r.heal[0] + '–' + r.heal[1] + '.');
     if (r.shield) effect.push('A ' + r.shield + '-point shield.');
-    if (r.status && STATUSES[r.status]) effect.push('Causes ' + STATUSES[r.status].name.toLowerCase() + '.');
+    if (r.status && STATUSES[r.status]) effect.push(statusWords(STATUSES[r.status]));
     const cost = [r.mana ? r.mana + ' mana' : 'No mana'].concat(r.rune ? ['1 ' + runeWords(r.rune, 1)] : [], r.ammo ? [r.ammo + ' ammo'] : []).join(' · ');
     /* (an ally shield is a ward, not a heal; the universal self-heal needs no particular weapon) */
     const type = TARGET_LINE[r.target] ? TARGET_LINE[r.target](r) : null;

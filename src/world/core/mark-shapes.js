@@ -5,25 +5,31 @@
 // canvas draws them with fillRect alone: whole pixels, no smoothing, no glow (ART_DIRECTION §2, §3), and the
 // null backend's tests read exactly what the canvas paints. A mark sits ON THE GROUND, under every actor
 // (canvas-backend.js draws it after the shadows and before the sprites): it never hides a unit.
-//   ground  a marked spell's tiles: one even wash over the whole shape, deepening in the scene's 8 steps as the
-//           windup fills, and the shape's outer edge as a solid 1 art px line (2 in the last quarter), its convex
-//           corners cut by a pixel (the cut-corner standard every wall edge keeps)
+//   ground  a marked spell's tiles: one even wash over the whole shape and a hazard hatch over it, both deepening in
+//           the scene's 8 steps as the windup fills, and the shape's outer edge as a solid 1 art px line (2 in the last
+//           quarter), its convex corners cut by a pixel (the cut-corner standard every wall edge keeps). A one-tile hole
+//           the shape closes round (a ring's caster stands in it) is drawn filled: one shape, never a box round the caster
 //   group   a group spell on one hero: a 2:1 ground ring at its feet that closes in from 1.5 tiles across to
-//           half a tile as the windup fills, solid, with the same wash inside it
-// Colours are the canvas's (--world-mark-fill, --world-mark-line in tokens.css); `fillAlpha` is the wash's
-// opacity, the Danger marks slider (src/data/fx-alpha.js) already in it. The line is always solid.
+//           half a tile as the windup fills, solid, with the same wash and hatch inside it
+// Colours are the canvas's (--world-mark-fill the wash, --world-mark-line the hatch and the line, in tokens.css);
+// `fillAlpha` and `hatchAlpha` carry the Danger marks slider (src/data/fx-alpha.js). The line is always solid.
 // ════════════════════════════════════════════════════════════════════════
 
 /* The wash: its opacity at an empty windup and how much a full one adds (times the Danger marks slider). The ring:
    its half-width at an empty windup and at the landing, in tiles. */
-export const MARK_LOOK = Object.freeze({ washFrom: 0.2, washAdd: 0.4, heavyFrom: 0.75, ringFrom: 0.75, ringTo: 0.3 });
+export const MARK_LOOK = Object.freeze({ washFrom: 0.25, washAdd: 0.3, hatchFrom: 0.3, hatchAdd: 0.5, heavyFrom: 0.75, ringFrom: 0.75, ringTo: 0.3 });
 
 function groundShape(m, T) {
   const on = new Set(m.tiles.map(([x, y]) => x + ',' + y));
   const has = (x, y) => on.has(x + ',' + y);
+  /* a one-tile hole the shape closes round on all four sides is part of its look */
+  const tiles = m.tiles.slice();
+  for (const [x, y] of m.tiles) for (const [hx, hy] of [[x + 1, y], [x, y + 1]]) {
+    if (!has(hx, hy) && has(hx - 1, hy) && has(hx + 1, hy) && has(hx, hy - 1) && has(hx, hy + 1)) { on.add(hx + ',' + hy); tiles.push([hx, hy]); }
+  }
   const th = m.fill >= MARK_LOOK.heavyFrom ? 2 : 1;
   const fill = [], line = [];
-  for (const [x, y] of m.tiles) {
+  for (const [x, y] of tiles) {
     const px = x * T, py = y * T;
     fill.push([px, py, T, T]);
     const L = !has(x - 1, y), R = !has(x + 1, y), U = !has(x, y - 1), D = !has(x, y + 1);
@@ -55,7 +61,8 @@ function groupShape(m, T) {
 }
 
 /**
- * The scene's marks as rectangles in art px: [{ fill: [[x, y, w, h]], line: [[x, y, w, h]], fillAlpha }].
+ * The scene's marks as rectangles in art px: [{ fill: [[x, y, w, h]], line: [[x, y, w, h]], fillAlpha, hatchAlpha }] (the hatch
+ * covers the fill's rectangles).
  * @param {{kind: string, tiles?: number[][], x?: number, y?: number, fill: number, alpha: number}[]} marks
  * @param {number} T  the map's tile size in art px
  */
@@ -63,7 +70,8 @@ export function markShapes(marks, T) {
   const out = [];
   for (const m of marks || []) {
     const s = m.kind === 'group' ? groupShape(m, T) : m.kind === 'ground' && Array.isArray(m.tiles) ? groundShape(m, T) : null;
-    if (s) out.push(Object.assign(s, { fillAlpha: Math.max(0, Math.min(1, m.alpha)) * (MARK_LOOK.washFrom + MARK_LOOK.washAdd * m.fill) }));
+    const a = Math.max(0, Math.min(1, m.alpha));
+    if (s) out.push(Object.assign(s, { fillAlpha: a * (MARK_LOOK.washFrom + MARK_LOOK.washAdd * m.fill), hatchAlpha: a * (MARK_LOOK.hatchFrom + MARK_LOOK.hatchAdd * m.fill) }));
   }
   return out;
 }

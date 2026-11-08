@@ -90,7 +90,7 @@ export function tableOf(tab, ctx) {
       const pays = named || p;
       return { action: { type: 'ability', id: a.id }, kind: runes ? 'runes' : 'spells', name: abilityName(a.id), store: false,
         amount: a.mana, price: pays ? pays.price : null, per: pays ? pays.price : null, carry: a.rune ? familyCount(a.rune, c.bag) : null,
-        cooldown: secs(a.cdMs) + ' s', rune: a.rune ? '1 ' + runeWords(a.rune, 1) : '—', unpriced: false, none: false,
+        cooldown: secs(a.cdMs) + ' s', rune: a.rune ? '1 ' + runeWords(a.rune, 1) : '—', ammo: a.ammo || 0, unpriced: false, none: false,
         locked: !disc || !(a.universal || a.disciplines.includes(disc)) };
     });
     rows.sort((a, b) => (a.locked - b.locked) || (runes ? byValue(a, b) : 0));
@@ -188,7 +188,12 @@ export function wasteLine(row, pct, max) {
 /** Where a row's uses come from, in one sentence. */
 export function sourceLine(row) {
   if (!row) return '';
-  if (row.kind === 'spells' || row.kind === 'runes') return row.rune === '—' ? 'Costs only mana.' : 'Each cast uses ' + row.rune + '.';
+  if (row.kind === 'spells' || row.kind === 'runes') {
+    /* a shot spell looses the bar's ammo too (abilities.js castShotOf): Raking Shot 2 a cast */
+    const shots = row.ammo > 0 ? (row.ammo === 1 ? 'one shot' : row.ammo + ' shots') + ' of your ammo' : null;
+    if (row.rune === '—') return shots ? 'Each cast costs its mana and ' + shots + '.' : 'Costs only mana.';
+    return 'Each cast uses ' + row.rune + (shots ? ' and ' + shots : '') + '.';
+  }
   if (row.action.type === 'attack_with_item' && row.carry === null) return 'Uses whatever ammo you have loaded.';
   if (row.store) return row.unpriced ? 'The store has no price for this right now.' : 'The store sells it at ' + row.price + ' g each, paid as used.';
   const n = row.carry > 0 ? row.carry : 0;

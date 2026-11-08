@@ -542,9 +542,13 @@ async function rules(M) {
       'the mark fills in even eighths over its 1.6 s windup: ' + JSON.stringify([ring[0] && ring[0].fill, grounds(v.at(at(S0 + 1700))).map((m) => m.fill)]));
     const list = M.K.composeFrame(M.map, M.book, Object.assign({ t: at(S0 + 1000), roofAlpha: {} }, f), view, M.tables, 32);
     const painted = list.marks[0];
-    ok('SC-16', list.marks.length === 1 && painted.fill.length === want.length && painted.line.length > 0 && Math.abs(painted.fillAlpha - 0.4) < 1e-9
-      && painted.fill.every(([x, y, w, h], i) => x === want[i][0] * 32 && y === want[i][1] * 32 && w === 32 && h === 32),
-      'the canvas list must hold the mark as whole tiles of wash and a solid line: ' + JSON.stringify(painted && { n: painted.fill.length, lines: painted.line.length, a: painted.fillAlpha }));
+    /* whole tiles of wash and hatch: the ring's own, and the caster's tile it closes round (one shape, never a box round him) */
+    const tileAt = (r, x, y) => r[0] === x * 32 && r[1] === y * 32 && r[2] === 32 && r[3] === 32;
+    const inCaster = (r) => r[0] >= 15 * 32 && r[0] < 16 * 32 && r[1] >= 7 * 32 && r[1] < 8 * 32;
+    ok('SC-16', list.marks.length === 1 && painted.line.length > 0 && painted.fill.length === want.length + 1
+      && want.every(([x, y]) => painted.fill.some((r) => tileAt(r, x, y))) && painted.fill.some((r) => tileAt(r, 15, 7)) && !painted.line.some(inCaster)
+      && Math.abs(painted.fillAlpha - 0.4) < 1e-9 && Math.abs(painted.hatchAlpha - 0.55) < 1e-9,
+      'the canvas list must hold the mark as whole tiles of wash and hatch with its outer line: ' + JSON.stringify(painted && { n: painted.fill.length, lines: painted.line.length, a: painted.fillAlpha, h: painted.hatchAlpha }));
     ok('SC-16', v.at(at(S0 + 1850)).marks.length === 0 && v.scene.stats().marks === 0, 'spell_end must clear the mark: ' + JSON.stringify(v.at(at(S0 + 1850)).marks));
     const g = v.at(at(S0 + 2500));
     const tank = unitOf(g, 1), ranger = unitOf(g, 2);
@@ -646,6 +650,7 @@ const MUTANTS = [
   ['a group spell marks nobody (SC-16)', 'src/hunt-view/spell-marks.js', 'if (m.group) for (const h of o.heroes)', 'if (m.group) for (const h of [])'],
   ['a mark fills on a clock of its own (SC-16)', 'src/hunt-view/spell-marks.js', 'const f = Math.min(1, (now - m.start) / (m.lands - m.start));', 'const f = 1;'],
   ['the mark is not handed to the canvas (SC-16)', 'src/world/core/compose.js', 'marks: markShapes(state.marks, T) };', 'marks: [] };'],
+  ['a ring draws a box round its caster (SC-16)', 'src/world/core/mark-shapes.js', '    if (!has(hx, hy) && has(hx - 1, hy)', '    if (false && has(hx - 1, hy)'],
   ['the group ring never closes in (SC-16)', 'src/world/core/mark-shapes.js', '(MARK_LOOK.ringFrom - MARK_LOOK.ringTo) * m.fill', '0'],
   ['an effect ignores its owner\'s slider (SC-17)', 'src/hunt-view/scene.js', 'const age = now - e.start, alpha = alphaOf(e.by);', 'const age = now - e.start, alpha = 1;'],
   ['a reward is dimmed with the spells (SC-17)', 'src/hunt-view/scene.js', 'r.reward ? undefined : Number.isInteger(ev.u)', 'Number.isInteger(ev.u)'],

@@ -10,6 +10,7 @@ import { RUNE_FAMILIES } from '../../data/runes.js?v=0.2.108';
 import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.108';
 import { MONSTERS } from '../../data/monsters.js?v=0.2.108';
 import { ABILITIES } from '../../data/abilities.js?v=0.2.108';
+import { spellRow } from '../../data/monster-spells.js?v=0.2.108';
 import { SKILLS_DEF } from '../../data/skills.js?v=0.2.108';
 import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD } from '../../data/item-art.js?v=0.2.108';
 import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.108';
@@ -68,7 +69,7 @@ export function familyCount(id, lines) {
 export function monsterName(id) { return (MONSTERS[id] && MONSTERS[id].name) || spelled(id); }
 
 /** An ability's name ('basic' is the weapon's basic attack). */
-export function abilityName(id) { return id === 'basic' ? 'Basic attack' : (ABILITIES[id] && ABILITIES[id].n) || spelled(id); }
+export function abilityName(id) { return id === 'basic' ? 'Basic attack' : (ABILITIES[id] && ABILITIES[id].n) || (spellRow(id) || {}).n || spelled(id); }
 
 /** A skill's name (Melee, Defense…) from the skill rows. */
 export function skillName(id) { return (SKILLS_DEF[id] && SKILLS_DEF[id].name) || spelled(id); }

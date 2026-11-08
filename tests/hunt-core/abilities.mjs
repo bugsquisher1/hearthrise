@@ -652,11 +652,16 @@ const cases = {
     const rows = [
       ['raking_shot', 'A line spell that hits every monster on a line 4 tiles long, from you through your target.', ['Each monster on the line takes 40% to 80% of your biggest normal hit.'], 'Unlocks at Ranged 10.'],
       ['turning_cut', 'A ring spell that hits every monster beside you, up to 8.', ['Each monster it reaches takes 30% to 60% of your biggest normal hit.'], 'Unlocks at Melee 10.'],
-      ['hoarfrost', 'An area spell that hits every monster in the 3 by 3 square round your target.', ['Deals 5–9 frost damage to each monster hit.'], 'Unlocks at Magic 14.'],
+      ['hoarfrost', 'An area spell that hits every monster in the 3 by 3 square round your target.', ['Deals 5–9 frost damage to each monster hit.', 'Causes chill for 4 s, so its swings and spell windups run 30% slower.'], 'Unlocks at Magic 14.'],
       ['spring_tide', 'A group heal for everyone within 8 tiles of you.', ['Heals 120–180.'], 'Unlocks at Magic 20.'],
     ];
     for (const [id, type, effect, unlock] of rows) if (!has(f(id), type, effect, unlock)) return id + ' reads ' + JSON.stringify(f(id));
     if (f('power_strike').unlock !== null) return 'a row with no unlock reads one: ' + f('power_strike').unlock;
+    /* a shot spell's source says what each cast shoots (Raking Shot looses two of the bar's ammo), a plain one only mana */
+    const { tableOf, rowIn, sourceLine } = M.shell.table;
+    const spells = tableOf('spells', { discipline: 'ranged' });
+    const src = ['raking_shot', 'power_strike'].map((id) => sourceLine(rowIn(spells, { type: 'ability', id })));
+    if (src.join('|') !== 'Each cast costs its mana and 2 shots of your ammo.|Costs only mana.') return 'the source lines read ' + JSON.stringify(src);
     const blind = Object.keys(M.AD.ABILITIES).filter((id) => !f(id).type);
     if (blind.length) return 'abilities with no target line: ' + blind;
     /* the slot under its unlock waits, in the same words, from the server's skills; at the level it does not */
@@ -921,6 +926,10 @@ const mutants = [
     edits: [['src/shell/action-facts.js', 'unlock: unlockWords(r) };', 'unlock: null };']] },
   { name: '[area-client] a slot under its unlock reads ready', case: 'configure-words', also: ['src'],
     edits: [['src/shell/action-facts.js', "    if (have !== null && have < r.unlock) return { code: 'unlock',", "    if (false) return { code: 'unlock',"]] },
+  { name: '[area-client] a shot spell reads mana only', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/action-table.js', "ammo: a.ammo || 0, unpriced", 'ammo: 0, unpriced']] },
+  { name: '[area-client] Chill says nothing of what it does', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', "const does = st.slowPm ? 'its swings", "const does = false ? 'its swings"]] },
   { name: '[area-client] a picked count starts below 0', case: 'configure-words', also: ['src'],
     edits: [['src/shell/bar-draft.js', "  const any = m.value === 'count' && m.ops.includes('gte');", '  const any = false;']] },
   { name: 'the lanes are not persisted', case: 'clocks-survive-a-cut',

@@ -8,9 +8,9 @@
 //           markOfEvent over the ground's walkable grid), and it fills from the event's instant to its landing.
 //           A MARKED spell marks its ground tiles: the tank holds, ranged heroes and casters step off. A GROUP spell
 //           marks no ground (nobody steps out of one), so every hero in the fight is marked instead.
-//   close   the caster's `spell_end` (landed, killed or reset), a `kill` of the caster, or a restart of the live view
-//           that no longer holds the caster alive (keep). A mark is never timed out by the screen while its spell can
-//           still land: only one whose close was lost (a window dropped) goes, graceMs after its landing instant.
+//   close   the caster's `spell_end` (landed, killed or reset), the caster drawn dead (the scene's `kill`), or a restart of
+//           the live view that no longer holds the caster alive (keep). A mark is never timed out by the screen while its
+//           spell can still land: only one whose close was lost (a window dropped) goes, graceMs after its landing instant.
 // A reload mid-windup draws the same mark again from the server's world: the live view hands the scene the casts its
 // start point holds (src/hunt-view/live-engine.js openCasts), as `spell` events. Nothing here is client-authored.
 //

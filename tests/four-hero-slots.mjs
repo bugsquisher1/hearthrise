@@ -127,7 +127,9 @@ async function run(mutate) {
   o.newMade = [await hero(neu, 0), await hero(neu, 1)];
   await setGold(q, neu.uid, 0, 25000 + 75000 + 11);
   o.acc0 = (await load(neu, 0))?.account;
+  o.gold4First = await goldOf(q, neu.uid, 0);
   o.buy4First = await buy(neu, 4);
+  o.gold4First = [o.gold4First, await goldOf(q, neu.uid, 0)];
   o.buy2 = await buy(neu, 2);
   o.newMade.push(await hero(neu, 2));
 
@@ -150,9 +152,10 @@ async function run(mutate) {
   o.buy3 = await buy(neu, 3);
   o.newMade.push(await hero(neu, 3));
   o.at4 = await screen(neu);
+  o.gold4Last = await goldOf(q, neu.uid, 0);
   o.buy4Last = await buy(neu, 4);
   o.create4 = await as(neu.uid, 'select public.hr_create_character(4) as r');
-  o.newGold = await goldOf(q, neu.uid, 0);
+  o.gold4Last = [o.gold4Last, await goldOf(q, neu.uid, 0)];
   o.newLedger = (await q("select gold::text g from public.player_ledger where user_id = $1 and kind = 'hero_slot' order by at", [neu.uid])).map((r) => Number(r.g));
 
   // ── FS-4: THE OLD ACCOUNT AFTER THE FILES ──
@@ -185,7 +188,8 @@ function grade(o) {
     `FS-2: the fourth hero's slot answered ${js(o.buy3)} (expected ok, nothing more for sale, four in all)`);
   ok(o.buy4Last?.error === 'slot_cap' && Number(o.buy4Last?.max) === 4, `FS-2: slot 4 at the top of the ladder answered ${js(o.buy4Last)}`);
   ok(o.create4?.error === 'slot_not_owned', `FS-2: a hero in slot 4 answered ${js(o.create4)}`);
-  ok(o.newGold === 11 && js(o.newLedger) === js([-25000, -75000]), `FS-2: the ladder left ${o.newGold} of 11 gold, journal ${js(o.newLedger)}`);
+  ok(js(o.newLedger) === js([-25000, -75000]) && o.gold4First[0] === o.gold4First[1] && o.gold4Last[0] === o.gold4Last[1],
+    `FS-2: the ladder journalled ${js(o.newLedger)} (expected -25,000 then -75,000), and a slot-4 refusal moved gold ${js([o.gold4First, o.gold4Last])}`);
 
   ok(o.at3.rows === '0:' + o.newMade[0]?.name + ',1:' + o.newMade[1]?.name + ',2:' + o.newMade[2]?.name,
     `FS-3: at three heroes the roster lists ${o.at3.rows}`);

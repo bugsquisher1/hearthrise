@@ -66,7 +66,7 @@ const cases = {
     }
     /* NEVER TYPED: every ground's row is the sheet's tierRowFor at its floor (hunts.js band) and its fit, as the designer's own tool reads
        them (tools/gen-ground-stats.mjs floorOf, fitOf), per-ground dials included, digit for digit. */
-    const fitOf = (gr) => (gr.pockets.some((p) => p.minParty) ? 'party' : gr.groupFit || 'both');
+    const fitOf = (gr) => (gr.pockets.some((p) => p.forParty) ? 'party' : gr.groupFit || 'both');
     for (const [g, rows] of Object.entries(T.GROUND_TIERS)) for (const t of HARDER) {
       const want = S.tierRowFor(HUNTS.HUNT_INDEX[G.OPEN_GROUNDS[g].hunt].band[0], t, { ground: g, fit: fitOf(G.OPEN_GROUNDS[g]) }), r = rows[t];
       if (!r || r.pull.join() !== want.pull.join() || T.DIALS.some((k) => r[k] !== want[k])) return g + ' ' + t + ' plays ' + JSON.stringify(r) + ', the sheet answers ' + JSON.stringify(want);
@@ -81,10 +81,10 @@ const cases = {
         /* harder: damage and health never fall and one of them rises; better paid: more XP a kill */
         if (r.dmgPm < was.dmgPm || r.hpPm < was.hpPm || (r.dmgPm === was.dmgPm && r.hpPm === was.hpPm) || !(r.xpPm > was.xpPm)) return id + ': ' + t + ' is not harder and better paid than ' + was.id;
         /* ONE PULL FOR EVERY GROUP (Tyler 2026-11-08: "the difficulty should be unchanged"): a lone hero fights the four's pull, entry for entry */
-        if (r.pull.length !== G.PARTY_SCALE.maxHeroes || r.pull.some((p) => p !== r.pull[0])) return id + ': ' + t + ' pulls by party size: ' + r.pull + ' (one pull for one hero or four)';
+        if (r.pull.length !== G.MAX_HEROES || r.pull.some((p) => p !== r.pull[0])) return id + ': ' + t + ' pulls by party size: ' + r.pull + ' (one pull for one hero or four)';
         if (r.pull[0] && r.pull[0] < was.pull[0]) return id + ': ' + t + "'s pull falls: " + r.pull;
         /* never fewer monsters than a party draws on Normal (hunt-grounds.js partyPull): a harder tier is never a smaller fight */
-        for (let s = 1; s <= GR.PARTY_SCALE.maxHeroes; s++) if (r.pull[0] && r.pull[0] < GR.partyPullOf(g, s)) return id + ': ' + t + ' brings ' + r.pull[0] + ', fewer than a party of ' + s + ' draws on Normal (' + GR.partyPullOf(g, s) + ')';
+        for (let s = 1; s <= GR.MAX_HEROES; s++) if (r.pull[0] && r.pull[0] < GR.partyPullOf(g, s)) return id + ': ' + t + ' brings ' + r.pull[0] + ', fewer than a party of ' + s + ' draws on Normal (' + GR.partyPullOf(g, s) + ')';
         for (let s = 0; s < r.pull.length; s++) if (r.pull[s] > g.densityMax[s]) return id + " cannot spawn " + t + "'s " + r.pull[s] + ' for ' + (s + 1);
         /* SLIGHTLY MORE XP (Tyler 2026-11-05 tier words: "Dangerous and Deadly ... pay slightly more Level XP", +10% and +20% in his 11-05
            table; 11-07's "a scaling % of exp and difficulty" names the dial, not the amount): a kill never pays more than +25% for a tier, and
@@ -165,17 +165,16 @@ const cases = {
     rows.deadly = { ...was, pull: [...was.pull], dmgPm: 1000, hpPm: HP, xpPm: 1000 };
     try {
       const pull = T.pullOfTier(rows.deadly, 1);
-      /* (1) THE FIRST WORLD: every monster, at the dial's health under the party scale (hunt-grounds.js scaledHp, never the reader under test),
-         and at the party scale's yield, so more health pays no more. */
+      /* (1) THE FIRST WORLD: every monster at the dial's health, the same for every party size (Tyler 2026-11-08), carrying no yield of its own. */
       let first = null;
       P.run(GLADE, 31, ['tank'], { spanMs: 10000, windowMs: 10000, density: pull, options: () => ({ tier: 'deadly' }), onWindow: (out) => { if (!first) first = out.world; } });
       const w = first ? WS.decode(JSON.parse(first)) : null;
       const mons = w ? w.units.filter((u) => u.side === 'mon') : [];
       if (mons.length < pull) return 'the first world holds ' + mons.length + ' monsters for a pull of ' + pull;
       for (const u of mons) {
-        const row = P.MONSTERS[u.kind], want = G.scaledHp({ hp: Math.round((row.hp * HP) / 1000) }, 1);
-        if (u.maxHp !== want || !(want > G.scaledHp(row, 1))) return 'a ' + u.kind + ' spawned at ' + u.maxHp + ' health; the dial says ' + want + ', Normal ' + G.scaledHp(row, 1);
-        if (u.yieldPm !== G.yieldPermille(1)) return 'a ' + u.kind + ' spawned at a yield of ' + u.yieldPm + ', the party scale says ' + G.yieldPermille(1) + ': health paid in coin';
+        const row = P.MONSTERS[u.kind], want = Math.max(1, Math.round((row.hp * HP) / 1000));
+        if (u.maxHp !== want || !(want > row.hp)) return 'a ' + u.kind + ' spawned at ' + u.maxHp + ' health; the dial says ' + want + ', Normal ' + row.hp;
+        if ('yieldPm' in u) return 'a ' + u.kind + ' spawned carrying a yield share: health paid in coin';
       }
       /* (2) AN HOUR, the same hero and pull with no tier against the dialled Deadly: a kill takes the dial's damage, earns the tier's XP and
          pays the row's coin and loot (Tyler 2026-11-07: never gold). */
@@ -236,13 +235,13 @@ const mutants = [
   { name: 'the dial reader drops the health dial', case: 'dials', edits: [[D, 'hp: hp === 1000 ? row.hp : Math.max(1, Math.round(((row.hp || 1) * hp) / 1000))', 'hp: row.hp']] },
   { name: 'the dial reader drops the XP dial', case: 'harder-tier-costs', edits: [[D, 'xp: ((row.xp || 0) * xp) / 1000 };', 'xp: row.xp || 0 };']] },
   { name: 'health is no dial: a row on damage and XP alone is the row', case: 'dials', edits: [[D, "if (!row || (dmg === 1000 && hp === 1000 && xp === 1000)) return row;", "if (!row || (dmg === 1000 && xp === 1000)) return row;"]] },
-  { name: 'a spawn ignores the tier\'s health', case: 'dials', edits: [[PC, 'const hp = packHpFor(inst.ground, atTier(row, inst.tier), heroes);', 'const hp = packHpFor(inst.ground, row, heroes);']] },
+  { name: 'a spawn ignores the tier\'s health', case: 'dials', edits: [[PC, 'const hp = Math.max(1, atTier(row, inst.tier).hp || 1);', 'const hp = Math.max(1, row.hp || 1);']] },
   { name: 'the first packs spawn on no tier', case: 'dials', edits: [['src/core/combat-sim.js', '            { density: densityFor(ctx.ground, standing.length, pickOf(standing)), tier, monsters: play.monsters });', '            { density: densityFor(ctx.ground, standing.length, pickOf(standing)), monsters: play.monsters });']] },
-  { name: 'more health pays more coin', case: 'dials', edits: [[PC, 'const yieldPm = inst.ground.partyScale === true ? yieldPermille(heroes) : 1000;', 'const yieldPm = Math.round(((inst.ground.partyScale === true ? yieldPermille(heroes) : 1000) * (inst.tier ? inst.tier.hpPm : 1000)) / 1000);']] },
+  { name: 'more health pays more coin', case: 'dials', edits: [['src/core/hunt-rewards.js', 'const gp = Array.isArray(row.gp) ? rng.int(row.gp[0], row.gp[1]) : 0;', 'const gp = Array.isArray(row.gp) ? Math.round((rng.int(row.gp[0], row.gp[1]) * (ctx.tier ? ctx.tier.hpPm : 1000)) / 1000) : 0;']] },
   { name: 'the settle reads no tier at all', case: 'harder-tier-costs', edits: [['src/core/combat-sim.js', "const tier = play.tierOf(tierPick(members.filter((m) => !m.left && m.unitId !== null)));", "const tier = null;"]] },
-  { name: 'a tier rolls more drops', case: 'never-gold', edits: [['src/core/hunt-rewards.js', 'yieldMult: y }, rng);', 'yieldMult: y * (ctx.tier ? ctx.tier.xpPm / 1000 : 1) }, rng);']] },
-  { name: 'a tier pays more gold a kill (exact)', case: 'never-gold', edits: [['src/core/hunt-rewards.js', "const y = yieldPm / 1000;", "const y = (yieldPm / 1000) * (ctx.tier ? ctx.tier.xpPm / 1000 : 1);"]] },
-  { name: 'a tier pays more gold a kill', case: 'harder-tier-costs', edits: [['src/core/hunt-rewards.js', "const y = yieldPm / 1000;", "const y = (yieldPm / 1000) * (ctx.tier ? ctx.tier.xpPm / 1000 : 1);"]] },
+  { name: 'a tier rolls more drops', case: 'never-gold', edits: [['src/core/hunt-rewards.js', "dropBuff: lead.bonus('dropRate') }, rng);", "dropBuff: lead.bonus('dropRate'), dropMult: lead.weakness(row).dropMult * (ctx.tier ? ctx.tier.xpPm / 1000 : 1) }, rng);"]] },
+  { name: 'a tier pays more gold a kill (exact)', case: 'never-gold', edits: [['src/core/hunt-rewards.js', 'const gp = Array.isArray(row.gp) ? rng.int(row.gp[0], row.gp[1]) : 0;', 'const gp = Array.isArray(row.gp) ? Math.round((rng.int(row.gp[0], row.gp[1]) * (ctx.tier ? ctx.tier.xpPm : 1000)) / 1000) : 0;']] },
+  { name: 'a tier pays more gold a kill', case: 'harder-tier-costs', edits: [['src/core/hunt-rewards.js', 'const gp = Array.isArray(row.gp) ? rng.int(row.gp[0], row.gp[1]) : 0;', 'const gp = Array.isArray(row.gp) ? Math.round((rng.int(row.gp[0], row.gp[1]) * (ctx.tier ? ctx.tier.xpPm : 1000)) / 1000) : 0;']] },
   { name: 'a word nobody offers plays a harder tier', case: 'normal-is-the-ground', edits: [[D, "return (rows && Object.prototype.hasOwnProperty.call(rows, id) && rows[id]) || NORMAL;", "return (rows && (rows[id] || rows.deadly)) || NORMAL;"]] },
   { name: 'Deadly pays triple XP: nobody moves on', case: 'ladder', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1250', 'xpPm: 4200')]] },
   /* the bigger pulls from Wickstead's and the Sewer's floor (8), not the Glade's (16), one for everyone: a lone hammer there out-earns the Glade (98k and 113k against 79k, lane/b-one-difficulty) */

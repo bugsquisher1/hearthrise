@@ -6,9 +6,8 @@
 // party leader pays, whatever the dice say. The fight ends on `boss_felled`, on a death, or at the limit.
 //
 // THE RULE THIS TABLE EXISTS FOR: a called row (monsters.js `called: true`) has `xp: 0`, `gp: [0, 0]`, `drops: []`,
-// and the room pays nothing on any route (hunt-rewards.js, hr_hunt_apply_member). Tyler ruled out buying rare drops,
-// and `yieldPm: 0` is no way to say so: damage.js yieldOf reads 0 as full yield. tests/boss-call.mjs is the standing
-// guard. The prize is a title at price 0, the same whatever the dice say, nothing tradeable.
+// and the room pays nothing on any route (hunt-rewards.js, hr_hunt_apply_member). Tyler ruled out buying rare drops.
+// tests/boss-call.mjs is the standing guard. The prize is a title at price 0, the same whatever the dice say, nothing tradeable.
 //
 // Postgres reads this table as hr_boss_calls (tools/gen-hunt-sessions.mjs). Fees are the designer's; a row moves them.
 //
@@ -18,7 +17,7 @@
 export const BOSS_CALL_RULES = Object.freeze({
   /* Per account, per UTC day, whichever hero leads. */
   perDay: 3,
-  /* A party of at least this many (Tyler: the lone hero skips the King's hall anyway). */
+  /* A party of at least this many to CALL (pay for) the fight. Since 2026-11-08 a lone hero walks the King's hall on the ground itself. */
   partyMin: 2,
   /* The fight's limit from the party's first swing: nobody sits in the room for ever. */
   limitMs: 10 * 60000,

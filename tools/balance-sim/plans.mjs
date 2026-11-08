@@ -29,7 +29,7 @@ export async function loadAxes(root) {
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
   const { MATERIAL_TIERS } = await import(u('src/data/gear-tiers.js'));
   const { tierRowOf } = await import(u('src/data/hunt-tiers.js'));
-  const grounds = Object.values(G.OPEN_GROUNDS).map((g) => ({ id: g.id, band: HUNT_INDEX[g.hunt].band.slice(), groupFit: g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit,
+  const grounds = Object.values(G.OPEN_GROUNDS).map((g) => ({ id: g.id, band: HUNT_INDEX[g.hunt].band.slice(), groupFit: g.pockets.some((p) => p.forParty) ? 'party' : g.groupFit,
     soloFrom: g.soloFrom || null, densityMax: g.densityMax ? g.densityMax[0] : 8 })).sort((a, b) => a.band[0] - b.band[0]);
   const { ITEMS } = await import(u('src/data/items.js'));
   /* Every cape and jewelry slot's best row a Level can wear. */

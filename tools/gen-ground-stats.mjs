@@ -63,7 +63,7 @@ async function load() {
   /* a ground's floor: its hunt's band floor (src/data/hunts.js) */
   const floorOf = (gid) => { const g = HUNT_GROUNDS[gid]; if (!g || !HUNT_INDEX[g.hunt]) throw new Error('gen-ground-stats: no ground ' + gid); return HUNT_INDEX[g.hunt].band[0]; };
   /* who a ground is built for: a pocket that needs a party makes it a party ground (tools/balance-sim plans.mjs reads it the same way) */
-  const fitOf = (gid) => { const g = HUNT_GROUNDS[gid]; return g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit || 'both'; };
+  const fitOf = (gid) => { const g = HUNT_GROUNDS[gid]; return g.pockets.some((p) => p.forParty) ? 'party' : g.groupFit || 'both'; };
   return { MONSTERS, formulaStats, tierRowFor, floorOf, fitOf };
 }
 const fmt = (r) => r.hp + ' hp, atk ' + r.atk + ' @' + r.baseAcc + ', def ' + r.def + ', xp ' + r.xp + ', gp ' + r.gp.join('-');

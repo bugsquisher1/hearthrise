@@ -85,15 +85,15 @@ import { pinFonts } from './_test-fonts.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/party-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
-/* UI-5: each ground's party note, read off ITS catalogue row (the pocket with minParty and the boss in it). */
+/* UI-5: each ground's party note, read off ITS catalogue row (the pocket with forParty and the boss in it): a warning, never a gate (Tyler 2026-11-08). */
 const { HUNT_GROUNDS } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href);
 const { MONSTERS } = await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href);
 /* the poll clocks quietHuntPoll models (never under mutation: page mutants override other files) */
 const { SESSION_CONFIG } = await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href);
 const PARTY_NOTES = Object.fromEntries(Object.values(HUNT_GROUNDS).map((g) => {
-  const p = g.pockets.find((q) => q.minParty);
+  const p = g.pockets.find((q) => q.forParty);
   const boss = p && p.spawns.map((x) => MONSTERS[x.monster]).find((m) => m && m.boss);
-  return [g.hunt, p && boss ? 'The ' + boss.name + ' wants a party of ' + ['', 'one', 'two', 'three', 'four'][p.minParty] + ' or more. Alone, you skip that hall.' : ''];
+  return [g.hunt, p && boss ? 'The ' + boss.name + ' is built for a party of ' + ['', 'one', 'two', 'three', 'four'][p.forParty] + ' or more. Alone, you still fight him, and he can kill you.' : ''];
 }));
 if (!PARTY_NOTES.millrace_sewer || PARTY_NOTES.coppercap_warrens !== '') throw new Error('party-ui: UI-5 needs a party-gated ground and one without');
 const PARTY_RPCS = ['hr_hunt_party_join', 'hr_hunt_party_leave', 'hr_hunt_party_kick', 'hr_hunt_party_invite',

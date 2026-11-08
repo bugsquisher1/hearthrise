@@ -8,7 +8,6 @@
 // Per hero: the purse pays, but the kills and the title are this hero's.
 // ════════════════════════════════════════════════════════════════════════
 import { TITLES } from '../../../data/titles.js?v=0.2.109';
-import { MIN_PARTY_NOTE } from '../../../data/hunt-grounds.js?v=0.2.109';
 import { titlesOf } from '../../../session/character-sections.js?v=0.2.109';
 import { goldOf } from '../../../session/item-sections.js?v=0.2.109';
 import { buyTitle, wearTitle } from '../../../session/title-intents.js?v=0.2.109';
@@ -30,16 +29,15 @@ const lineOf = (r) => {
   return {
     name: d ? d.name : r.words,
     label: d ? d.label : 'Kills',
-    note: d && d.partyOnly ? MIN_PARTY_NOTE : '',
   };
 };
 
 /* What the row says under its name, and what its button says (null: nothing to press). */
 function rowWords(r, purse) {
-  const { label, note } = lineOf(r);
+  const { label } = lineOf(r);
   if (r.held) return { small: r.worn ? 'You wear this one.' : 'Yours to wear.', press: r.worn ? 'Take off' : 'Wear', off: false };
   const count = label + ': ' + whole(r.have) + ' of ' + whole(r.kills);
-  if (r.have < r.kills) return { small: count + (note ? ' · ' + note : ''), press: null, off: true };
+  if (r.have < r.kills) return { small: count, press: null, off: true };
   const short = purse !== null && purse < r.price ? r.price - purse : 0;
   return { small: count + (short ? ' · You need ' + gold(short) + ' more.' : ''), press: r.price ? 'Claim for ' + gold(r.price) : 'Claim', off: short > 0 };
 }

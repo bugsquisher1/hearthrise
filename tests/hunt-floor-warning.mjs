@@ -18,7 +18,7 @@
 //       same-blow-at-any-level plays it. The only reader of a unit's Level is the party's level share (xp-share.js), which Tyler is deciding on separately.
 //   G1  the ONE recommendation (src/shell/hunt-list.js recommendedHunt) prefers a ground whose
 //       groupFit suits the party; a party ground tells a lone hero "Best with a party of 2–4"
-//   G2  a ground with a party-only hall (minParty: the Rat King) is a party ground: a lone hero
+//   G2  a ground with a hall built for a party (forParty: the Rat King) is a party ground: a lone hero
 //       is never recommended one; past every solo band the pick is the nearest solo ground below
 //       and the Hunts window says so plainly; a party is recommended by its seats' levels
 //   G2b a party ground's card never offers it alone below its measured break-even (designer
@@ -66,7 +66,7 @@ async function run(base) {
      the advice; a lone hero is never recommended one, at any level; where no solo ground holds the level the
      pick is the nearest solo ground below and the note says so; a party is recommended by its levels. */
   const { HUNT_GROUNDS } = await import(pathToFileURL(join(base, 'src/data/hunt-grounds.js')).href + '?t=' + Math.random());
-  const halls = Object.values(HUNT_GROUNDS).filter((g) => g.pockets.some((p) => p.minParty)).map((g) => g.hunt);
+  const halls = Object.values(HUNT_GROUNDS).filter((g) => g.pockets.some((p) => p.forParty)).map((g) => g.hunt);
   ok('G2', halls.length > 0 && halls.every((h) => (rows.find((r) => r.hunt === h) || {}).groupFit === 'party'), 'a ground with a party-only hall is not a party ground to the advice: ' + halls.join(', '));
   const solo15 = HL.recommendedHunt(15, 1, rows);
   ok('G2', !!solo15 && HL.fitsGroup(solo15, 1) && !halls.includes(solo15.hunt), 'a lone Level-15 hero is recommended ' + (solo15 && solo15.hunt));
@@ -166,7 +166,7 @@ const MUTANTS = [
   ['the recommendation ignores the group', 'src/shell/hunt-list.js', 'const fit = rows.filter((r) => fitsGroup(r, partySize));', 'const fit = rows;'],
   ['the window forgets the harder ground the hero chose', 'src/shell/hunt-list.js', 'return was && advised && was.band[0] > advised.band[0] ? was : advised;', 'return advised;'],
   ['the window re-opens on the ground that killed the hero', 'src/shell/hunt-list.js', "const was = last && last.endReason !== 'died' ? list.find((r) => r.hunt === last.huntId) : null;", 'const was = last ? list.find((r) => r.hunt === last.huntId) : null;'],
-  ['a party-only hall leaves its ground solo (the Sewer)', 'src/shell/hunt-list.js', "groupFit: g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit,", 'groupFit: g.groupFit,'],
+  ['a hall built for a party leaves its ground solo (the Sewer)', 'src/shell/hunt-list.js', "groupFit: g.pockets.some((p) => p.forParty) ? 'party' : g.groupFit,", 'groupFit: g.groupFit,'],
   ['the gap falls back to a party ground in band', 'src/shell/hunt-list.js', "    return { row: below, note };\n", ''],
   ['the gap is not said', 'src/shell/hunt-list.js', 'return { row: below, note };', 'return { row: below, note: null };'],
   ['a party is recommended by its own hero\'s level', 'src/shell/windows/hunts.js', 'recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list)', 'recommendation(level, size, list)'],

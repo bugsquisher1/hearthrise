@@ -326,20 +326,20 @@ function marginOf(x) {
 }
 /* THE EXPECTED loot per hero-hour on the run's kills (the loot stream never moves a kill, so it is exact for the seed
    and stable under any drop-row change): coin as the settle rounds each kill's roll (hunt-rewards.js payKill), each
-   row at the engine's own chance (drops.js effectiveDropChance, the kill's yield share) and the trader's price.
+   row at the engine's own chance (drops.js effectiveDropChance, the whole kill for any party size since 2026-11-08) and the trader's price.
    `items` = band:id -> pieces per hero-hour; `gearBook` = the equipment at full book (the sell factor's evidence). */
 function expectedLoot(M, P, monsters, x, n, bossKills) {
-  const y = M.G.yieldPermille(n) / 1000, per = 1 / n / (x.playedMs / H || 1);
+  const per = 1 / n / (x.playedMs / H || 1);
   const out = { coin: 0, commons: 0, gear: 0, gearBook: 0, other: 0, items: {} };
   for (const [id, k] of Object.entries(x.killsBy)) {
     const m = monsters[id] || {};
     if (Array.isArray(m.gp)) {
       let t = 0;
-      for (let v = m.gp[0]; v <= m.gp[1]; v++) t += Math.round(v * y);
+      for (let v = m.gp[0]; v <= m.gp[1]; v++) t += v;
       out.coin += k * t / (m.gp[1] - m.gp[0] + 1) * per;
     }
     for (const d of m.drops || []) {
-      const c = M.drops.effectiveDropChance(d, { dropMult: m.dropBonus || 1, yieldMult: y }), it = M.ITEMS[d.id] || {};
+      const c = M.drops.effectiveDropChance(d, { dropMult: m.dropBonus || 1 }), it = M.ITEMS[d.id] || {};
       const sold = k * c * P.vendorPriceOf(M.ITEMS, d.id) * per;
       if (!HOUR_BANDS.includes(d.band)) { out.commons += sold; continue; }
       const key = d.band + ':' + d.id;
@@ -369,10 +369,10 @@ function bandRules(M, P, monsters, R, gid, x, n, today, label, bossKills) {
   const E = expectedLoot(M, P, monsters, x, n, bossKills), list = Object.values(E.items), at = gid + (label ? ' (' + label + ')' : '');
   const range = (band) => list.filter((p) => p.band === band && !p.pending).map((p) => 1 / p.perH);
   /* A parked row (PENDING_ROWS) is measured at the pace it will have on this run's kills. */
-  const y = M.G.yieldPermille(n) / 1000, per = 1 / n / (x.playedMs / H || 1);
+  const per = 1 / n / (x.playedMs / H || 1);
   for (const r of M.LB.PENDING_ROWS) {
     const k = x.killsBy[r.monster] || 0;
-    if (k) list.push({ id: r.id, band: r.band, perH: k * Math.min(0.95, r.ch * y) * per, from: [r.monster + ', pending'], pending: true });
+    if (k) list.push({ id: r.id, band: r.band, perH: k * Math.min(0.95, r.ch) * per, from: [r.monster + ', pending'], pending: true });
   }
   for (const band of HOUR_BANDS) {
     const T = M.LB.BAND_TARGETS[band], lo = T.hours[0] * (T.boostMax || 1), hi = T.hours[1];
@@ -537,7 +537,7 @@ function bigPull(M, P, monsters, R, print) {
         R.ok(kills > 0, 'big-pull: ' + gid + ' at density ' + density + ' met no ' + id + ' in a played hour');
         for (const d of monsters[id].drops) {
           /* THE YIELD IT REALLY PAYS (designer 2026-11-03): this read 1, so a Claw measured every 11-19 h came every 20-37 h on the real settle: a lone hero's scaled monster pays 0.55 of every chance (hunt-grounds.js). */
-          const perH = kills * M.drops.effectiveDropChance(d, { dropMult: monsters[id].dropBonus || 1, yieldMult: ground.partyScale === true ? M.G.yieldPermille(1) / 1000 : 1 });
+          const perH = kills * M.drops.effectiveDropChance(d, { dropMult: monsters[id].dropBonus || 1 });
           if (d.band === 'rare') {
             const [lo, hi] = M.LB.BAND_TARGETS.rare.hours;
             R.ok(1 / perH >= lo && 1 / perH <= hi, 'big-pull: ' + gid + ' rare ' + d.id + ' (' + id + ', density ' + density + ') every ' + (1 / perH).toFixed(1) + ' h, outside ' + lo + '-' + hi + ' h');

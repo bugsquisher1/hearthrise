@@ -16,7 +16,7 @@
 //                        or this party's levels, and a plain note when no ground
 //                        built for the group holds them
 //   partyNote(hunt)     the ground's party rule in words, from ITS row (the
-//                        pocket carrying minParty and the boss standing in it),
+//                        pocket carrying forParty and the boss standing in it),
 //                        or '' for a ground with no party-only pocket
 //   packFor(bag)        what the hunt carries: the bag's own hunt supplies,
 //                        every stack, at most the server's line cap
@@ -41,15 +41,16 @@ import { whole, gold } from '../render/format.js?v=0.2.109';
 const PACK_QTY_MAX = 100000;
 const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);
 
-/** "The Rat King wants a party of two or more. Alone, you skip that hall." for this hunt's ground, or ''. */
+/** "The Rat King is built for a party of two or more. Alone, you still fight him, and he can kill you." for this hunt's ground, or ''. */
 export function partyNote(hunt) {
   const g = Object.values(HUNT_GROUNDS).find((r) => r.hunt === hunt);
-  const p = g && g.pockets.find((q) => q.minParty);
+  const p = g && g.pockets.find((q) => q.forParty);
   if (!p) return '';
   const boss = p.spawns.map((s) => MONSTERS[s.monster]).find((m) => m && m.boss === true);
-  const n = COUNT_WORDS[p.minParty] || String(p.minParty);
-  return boss ? 'The ' + boss.name + ' wants a party of ' + n + ' or more. Alone, you skip that hall.'
-    : 'One hall here wants a party of ' + n + ' or more. Alone, you skip it.';
+  const n = COUNT_WORDS[p.forParty] || String(p.forParty);
+  /* A warning, never a gate (Tyler 2026-11-08: "Either they are strong enough to do the harder content or they aren't"): a lone hero walks the hall. */
+  return boss ? 'The ' + boss.name + ' is built for a party of ' + n + ' or more. Alone, you still fight him, and he can kill you.'
+    : 'One hall here is built for a party of ' + n + ' or more. Alone, you still fight it, and it can kill you.';
 }
 
 /** One line per hunt ground, lowest band first (ties by name). */
@@ -61,11 +62,11 @@ export function huntRows() {
     if (!h || h.staged === true) continue;
     const sizes = g.pockets.map((p) => p.spawns.length);
     out.push({
-      /* A ground with a party-only hall (a minParty pocket: the Rat King) is a PARTY ground to the advice,
+      /* A ground with a hall built for a party (a forParty pocket: the Rat King) is a PARTY ground to the advice,
          whatever its workbook column says (Tyler 2026-10-21: "The Sewer is a party hunt"): its fight is
          built for a party, so a lone hero is never pointed at it and is told it is best with one. */
       hunt: g.hunt, name: h.name, theme: h.theme || '', band: h.band.slice(),
-      groupFit: g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit,
+      groupFit: g.pockets.some((p) => p.forParty) ? 'party' : g.groupFit,
       soloFrom: Number.isInteger(g.soloFrom) ? g.soloFrom : null,
       /* WHO MAY COME is the server's party size on every ground, never the ground's start tiles: two tiles read "up to 1 more"
          on the Thicket while the server walked in four (panel 2026-11-01; heroes past the tiles stand beside them). */
@@ -114,7 +115,7 @@ const tierHead = (r, t, size) => {
 export function tierWords(r, id, size = 1) {
   const t = tierRowOf(r.hunt, id);
   if (t.id === DEFAULT_TIER) return '';
-  const blow = biggestBlowOn(r.hunt, size, t), was = biggestBlowOn(r.hunt, size);
+  const blow = biggestBlowOn(r.hunt, t), was = biggestBlowOn(r.hunt);
   return tierHead(r, t, size) + (blow && was && blow.hit !== was.hit ? ', and the biggest blow here is ' + blow.hit + ', not ' + was.hit : '') + '. '
     + 'Each kill earns ' + PCT(t.xpPm) + ' more Level XP, with the same gold and drops. Expect a bigger food bill, and you can die. A death ends the hunt and costs ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';
 }

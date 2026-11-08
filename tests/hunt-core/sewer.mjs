@@ -4,7 +4,7 @@
 //                          world map, and every spawn is also listed in the map's `spawns`
 //   formation-rows         the six sewer rows pass the roster audit on the formation band,
 //                          walk at their own speed, and only the Rat King is a boss
-//   party-scale            550 / 700 / 850 / 1000 permille
+//   one-king               the Rat King's hall is built for a party of two and stands on every hero's route
 //   sewer-full-party-loop  a four-hero party plays the real core (stepSwing) on the real map:
 //                          every pocket is pulled in route order, the Rat King dies, nobody wipes
 //   tutorial-walk-through  each step is doable from the start kit plus the steps before it; one hero walks the whole
@@ -421,13 +421,13 @@ const cases = {
     }
     return M.MONSTERS.rat_king.drops.some((d) => d.id === 'crown_shard') ? null : 'the Rat King does not drop the Crown Shard';
   },
-  'party-scale': (M) => {
-    const got = [1, 2, 3, 4].map((n) => M.grounds.packScalePermille(n)).join(',');
-    if (got !== '550,700,850,1000') return 'party scale ' + got;
-    /* his row's HP at the solo 550 permille, read off the row (the formula moved it, 600 -> 556: lane/b-ground-formula-2) */
-    const solo = Math.floor((M.MONSTERS.rat_king.hp * 550) / 1000);
-    if (M.grounds.scaledHp(M.MONSTERS.rat_king, 1) !== solo) return 'a solo Rat King has ' + M.grounds.scaledHp(M.MONSTERS.rat_king, 1) + ' HP, not ' + solo;
-    return null;
+  /* THE KING'S HALL IS BUILT FOR A PARTY, AND WALKED BY ANYONE (Tyler 2026-11-08: one difficulty for every group): his pocket carries forParty 2 (the
+     Hunts window's warning, the advice's party ground) and stands on the route every hero walks; he spawns at his row's HP for any party (conditions.mjs one-pack). */
+  'one-king': (M) => {
+    const sewer = M.grounds.HUNT_GROUNDS.millrace_sewer;
+    const hall = sewer.pockets.findIndex((p) => p.spawns.some((s) => s.monster === 'rat_king'));
+    if (hall < 0 || sewer.pockets[hall].forParty !== 2) return 'the Rat King\'s hall is not marked built for a party of two';
+    return sewer.route.includes(hall) ? null : 'the Rat King\'s hall is off the route';
   },
   'sewer-full-party-loop': (M) => {
     /* The mechanics claim (route order, the boss dies, nobody dies) at Level 30. Measured 2026-10-19 on the
@@ -571,7 +571,7 @@ const cases = {
       } else if (d.kind === 'pull') {
         if (can.inHunt !== M.grounds.HUNT_GROUNDS[d.ground].hunt) return s.id + ': not hunting ' + d.ground;
         const pk = M.grounds.HUNT_GROUNDS[d.ground].pockets[d.pocket];
-        if (pk && (pk.minParty || 1) > 1) return s.id + ': pocket ' + d.pocket + ' of ' + d.ground + ' needs a party of ' + pk.minParty;
+        if (pk && (pk.forParty || 1) > 1) return s.id + ': pocket ' + d.pocket + ' of ' + d.ground + ' is built for a party of ' + pk.forParty;
         const route = M.grounds.HUNT_GROUNDS[d.ground].route;
         const prev = can.pulled.length ? route.indexOf(can.pulled[can.pulled.length - 1]) : -1;
         if (route.indexOf(d.pocket) <= prev) return s.id + ': pocket ' + d.pocket + ' comes before one already reached';
@@ -1788,8 +1788,8 @@ const mutants = [
     edits: [['src/data/monsters.js', "family: 'Vermin', formation: true, boss: true,", "family: 'Vermin', formation: true,"]] },
   { name: 'the cellar pocket holds a monster a fresh hero cannot kill', case: 'cellar-solo-first-kill',
     edits: [['src/data/hunt-grounds.js', "pocket([15, 5, 21, 10], ['rat', 18, 7], ['rat', 19, 6]),", "pocket([15, 5, 21, 10], ['rat_king', 18, 7]),"]] },
-  { name: 'the party scale is flat', case: 'party-scale',
-    edits: [['src/data/hunt-grounds.js', 'perHeroPermille: 150', 'perHeroPermille: 0']] },
+  { name: 'the King\'s hall loses its party mark', case: 'one-king',
+    edits: [['src/data/hunt-grounds.js', "['drain_rat', 54, 21], ['drain_rat', 54, 25]), forParty: 2 }),", "['drain_rat', 54, 21], ['drain_rat', 54, 25]) }),"]] },
   /* THE FIRST HOUR (lane/b-first-hour, 2026-10-28) */
   /* THE PANEL, ROUND 2 (2026-11-01): the coach's load before hunt 2, a return's stale cards, What next's goals */
   { name: 'Decide once is back before the second hunt', case: 'tutorial-town-chain',

@@ -25,7 +25,7 @@ const G = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).hre
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href);
 /* every open ground's shape, from its band and fit (plans.mjs plays them the same way): a party ground is graded on its four's seats */
 export const SHAPE = Object.freeze(Object.fromEntries(Object.values(G.OPEN_GROUNDS).map((g) => { const b = HUNT_INDEX[g.hunt].band;
-  return [g.id, { floor: b[0], mid: Math.round((b[0] + b[1]) / 2), top: b[1], party: g.pockets.some((p) => p.minParty) || g.groupFit === 'party', firstDay: b[0] <= 15 }]; })));
+  return [g.id, { floor: b[0], mid: Math.round((b[0] + b[1]) / 2), top: b[1], party: g.pockets.some((p) => p.forParty) || g.groupFit === 'party', firstDay: b[0] <= 15 }]; })));
 const seats = (c) => c.heroes.map((h) => ({ ...c, heroes: [h] }));
 
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : NaN; };

@@ -47,7 +47,7 @@ export function paceFingerprint(D) {
   const g = grounds.map((x) => {
     for (const p of x.pockets) for (const s of [...(p.pack || []), ...(p.spawns || [])]) ids.add(s.monster);
     return { id: x.id, hunt: x.hunt, band: D.HUNT_INDEX[x.hunt].band, groupFit: x.groupFit, soloFrom: x.soloFrom || null, respawnMs: x.respawnMs,
-      pockets: x.pockets.map((p) => ({ minParty: p.minParty || null, pack: (p.pack || []).map((s) => [s.monster, s.n]), spawns: (p.spawns || []).map((s) => [s.monster, s.n]) })) };
+      pockets: x.pockets.map((p) => ({ forParty: p.forParty || null, pack: (p.pack || []).map((s) => [s.monster, s.n]), spawns: (p.spawns || []).map((s) => [s.monster, s.n]) })) };
   });
   const m = [...ids].sort().map((id) => { const r = D.MONSTERS[id] || {}; return [id, r.xp, r.hp, r.level, r.atk, r.def]; });
   const top = Math.max(...grounds.map((x) => D.HUNT_INDEX[x.hunt].band[1]));

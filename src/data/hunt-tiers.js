@@ -20,8 +20,8 @@
 //          case holds it). 0 = no more than Normal brings that group (as built alone, its row's partyPull in a party).
 //   dmgPm  a monster's atk and its Level, permille of its row. Atk is its accuracy and its blow (combat.js); its Level is what
 //          armor reads (mitigation.js) and what a blow trains Defense by (hunt-rewards.js).
-//   hpPm   a monster's HP, permille of its row, under the party scale (hunt-grounds.js packHpFor). Its kill yield stays the
-//          party scale's (pull-cycle.js yieldPm): more HP never pays more coin or drops.
+//   hpPm   a monster's HP, permille of its row, the same for every party size. A kill still pays the
+//          row's whole kill: more HP never pays more coin or drops.
 //   xpPm   Level XP a kill pays, permille of its row. Nothing else a kill pays moves.
 // GROUND_TIERS is DERIVED: the engine, the Hunts page and the server's catalogue (tools/gen-ground-tiers.mjs writes
 // hr_ground_tiers from it) all read the same rows. Never type a tier number here.
@@ -52,7 +52,7 @@ const NORMAL = Object.freeze({ id: DEFAULT_TIER, pull: Object.freeze([0, 0, 0, 0
 const normalOnly = (groundId) => !!(Object.prototype.hasOwnProperty.call(TIER_PULL_OVERRIDES, groundId) && TIER_PULL_OVERRIDES[groundId].normalOnly === true);
 
 /* Who a ground is built for, as the sheet's tools read it (tools/gen-ground-stats.mjs fitOf): a party ground's tiers lift nothing. */
-const fitOf = (ground) => (ground.pockets.some((p) => p.minParty) ? 'party' : ground.groupFit || 'both');
+const fitOf = (ground) => (ground.pockets.some((p) => p.forParty) ? 'party' : ground.groupFit || 'both');
 
 /* Every open ground's harder rows from the sheet, at its floor and fit, its per-ground dials included (tierRowFor reads the
    sheet's named exceptions: the Thicket's tiers pay 1050 and 1080 XP on no HP dial). A fresh pull array a row, so a what-if moves one ground. */

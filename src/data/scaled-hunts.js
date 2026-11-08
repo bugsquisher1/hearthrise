@@ -51,7 +51,7 @@ export function scaleLadderOf(open, huntIndex, roster = GROUND_ROSTER, exception
   for (const [id, g] of rows) {
     const [floor, top] = bandOf(g);
     if (top >= topLevel || !roster[id]) continue;
-    const fit = (g.pockets || []).some((p) => p.minParty) ? 'party' : g.groupFit || 'both';
+    const fit = (g.pockets || []).some((p) => p.forParty) ? 'party' : g.groupFit || 'both';
     grounds[id] = Object.freeze({ floor, top, fit, ...(exceptions[id] || {}) });
   }
   return { topLevel, grounds: Object.freeze(grounds) };

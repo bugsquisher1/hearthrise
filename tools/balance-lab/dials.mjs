@@ -2,7 +2,7 @@
 //
 // Nothing here forks a formula: a dial moves a data row the engine already reads (src/data/monsters.js MONSTERS,
 // src/data/hunt-tiers.js through tierRowOf), the same road tools/balance-sim/worker.mjs's what-ifs take, and the run
-// reads it through the engine's own code (atTier, packHpFor, payKill). applyDials answers the undo; the worker calls it
+// reads it through the engine's own code (atTier, payKill). applyDials answers the undo; the worker calls it
 // before a run and the undo after, so a baseline played next reads today's data digit for digit.
 //
 // ── THE DIALS JSON ("Copy dials as JSON"; schema hearthrise.balance-dials/1) ───────────────────────────────────────

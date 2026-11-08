@@ -27,7 +27,7 @@
 // with their own saved setup, or nobody, and the answer names who was not
 // ready. A member's Enter stays off ("the leader starts the hunt"). The party
 // size is the server's seat count; the picked ground's party rule (its row's
-// minParty pocket and boss) shows on its page.
+// forParty pocket and boss) shows on its page.
 //
 // THE TIER is chosen with the hunt, before Enter (Tyler 2026-11-04; hunt-tiers.js): Normal, Dangerous or
 // Deadly, three buttons on the picked ground's page where it offers more than Normal. It sets how many monsters

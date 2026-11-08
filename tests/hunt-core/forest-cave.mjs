@@ -478,22 +478,22 @@ cases['harder-pays-more'] = async (M) => {
   const { effectiveDropChance } = await imp('src/core/drops.js');
   const bad = [], ids = new Set();
   for (const g of Object.values(M.grounds.OPEN_GROUNDS)) for (const p of g.pockets) for (const s of [...(p.pack || []), ...(p.spawns || [])]) ids.add(s.monster);
-  const bid = (d, y) => effectiveDropChance(d, { dropMult: 1, yieldMult: y }) * P.vendorPriceOf(P.ITEMS, d.id);
-  const coinOf = (m, y) => { let t = 0; for (let v = m.gp[0]; v <= m.gp[1]; v++) t += Math.round(v * y); return t / (m.gp[1] - m.gp[0] + 1); };
-  const kill = (m, y) => coinOf(m, y) + (m.drops || []).reduce((s, d) => s + bid(d, y), 0);
+  const bid = (d) => effectiveDropChance(d, { dropMult: 1 }) * P.vendorPriceOf(P.ITEMS, d.id);
+  const coinOf = (m) => (m.gp[0] + m.gp[1]) / 2;
+  const kill = (m) => coinOf(m) + (m.drops || []).reduce((s, d) => s + bid(d), 0);
   const sum = HARDNESS_BANDS.concat(Infinity).map(() => ({ n: 0, g: 0 }));
   for (const id of ids) {
     const m = M.MONSTERS[id], b = sum[HARDNESS_BANDS.concat(Infinity).findIndex((top) => m.hp * m.atk < top)];
-    b.n++; b.g += kill(m, 1);
+    b.n++; b.g += kill(m);
   }
   const means = sum.map((b) => (b.n ? b.g / b.n : 0));
   console.log('    a kill\'s gold by hp x attack, under ' + HARDNESS_BANDS.join(' / ') + ' / above: ' + means.map((v) => Math.round(v)).join(' -> '));
   for (let i = 1; i < means.length; i++) if (!(means[i] > means[i - 1])) bad.push('a kill past hp x attack ' + HARDNESS_BANDS[i - 1] + ' pays ' + Math.round(means[i]) + ' g, not above ' + Math.round(means[i - 1]) + ' g below it');
   const hour = (gid, L, roles, fullSet) => {
     const x = P.run(gid, L, roles, { spanMs: 1800000, fullSet, secret: STARTER_SEEDS[0] });
-    const y = M.grounds.yieldPermille(roles.length) / 1000, h = x.playedMs / 3600000;
+    const h = x.playedMs / 3600000;
     let g = 0;
-    for (const [id, k] of Object.entries(x.killsBy)) g += k * kill(M.MONSTERS[id], y);
+    for (const [id, k] of Object.entries(x.killsBy)) g += k * kill(M.MONSTERS[id]);
     return Math.round((g - x.totals.store) / roles.length / h);
   };
   for (const [L, roles, low, high, fullSet] of CLIMB) {
@@ -546,7 +546,7 @@ const mutants = [
   { name: 'the server catalogue serves a staged ground', case: 'staged-until-art',
     edits: [...RESTAGE, ['tools/gen-hunt-sessions.mjs', "    grounds: OPEN_GROUNDS, worldMaxBytes:", "    grounds: HUNT_GROUNDS, worldMaxBytes:"],
       ['tools/gen-hunt-sessions.mjs', "hunts: OPEN_HUNTS, monsters: MONSTERS, items: ITEMS,", "hunts: HUNTS, monsters: MONSTERS, items: ITEMS,"],
-      ['tools/gen-hunt-sessions.mjs', "import { OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf }", "import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf }"]] },
+      ['tools/gen-hunt-sessions.mjs', "import { OPEN_GROUNDS, DENSITY_PICK, MAX_HEROES, densityFor, reachableOf }", "import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, MAX_HEROES, densityFor, reachableOf }"]] },
   /* Recalibrated (designer 2026-10-22, armour weights K7 + tier-3 blows at 4.0 + store-by-slot bars): a ladder-kit
      floor hero now LIVES Warrens-strength hits (atk 26, 30, 36, 42, 50 all lived six seeds of six, eating 3-8k g/h),
      so "like the Warrens" no longer proves lethality. The floor still bites: at atk 60 three seeds of six die, at

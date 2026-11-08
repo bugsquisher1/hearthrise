@@ -128,7 +128,7 @@ const CASES = {
 const GEN_D = await (async () => {
   const { HUNT_GROUNDS } = await import(u('src/data/hunt-grounds.js'));
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
-  return { floorOf: (g) => HUNT_INDEX[HUNT_GROUNDS[g].hunt].band[0], fitOf: (g) => (HUNT_GROUNDS[g].pockets.some((p) => p.minParty) ? 'party' : HUNT_GROUNDS[g].groupFit || 'both') };
+  return { floorOf: (g) => HUNT_INDEX[HUNT_GROUNDS[g].hunt].band[0], fitOf: (g) => (HUNT_GROUNDS[g].pockets.some((p) => p.forParty) ? 'party' : HUNT_GROUNDS[g].groupFit || 'both') };
 })();
 
 /* THE MUTANTS: a planted copy of the module with one rule broken; the named case must go red on it. */

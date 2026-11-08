@@ -1199,8 +1199,8 @@ const PARTY_HOW = 'Invite a friend, or make a second hero. Up to four of yours c
 /* A hero with another hero of its own already needs only the press. */
 const PARTY_HOW_OWN = 'Right-click your other hero\'s tab (on a phone, Heroes, then Invite) and choose Invite to party.';
 const partyHow = (f) => (Array.isArray(f.roster) && f.roster.length > 1 ? PARTY_HOW_OWN : PARTY_HOW);
-/* A ground built for a party: a pocket of it needs one (hunt-grounds.js minParty). */
-const partyGround = (hunt) => Object.values(HUNT_GROUNDS).some((g) => g.hunt === hunt && g.pockets.some((p) => (p.minParty || 1) > 1));
+/* A ground built for a party: a pocket of it is built for one (hunt-grounds.js forParty). */
+const partyGround = (hunt) => Object.values(HUNT_GROUNDS).some((g) => g.hunt === hunt && g.pockets.some((p) => (p.forParty || 1) > 1));
 
 /* THE NEXT STEP UP (Tyler 2026-11-04: "if someone wants to try and 'rush' exp then they should be able to try harder content to get there faster, but it comes with risk"; played 11-04: a Level 12 in
    Bronze earned 55,106 Level XP/h in the Glade at +3,042 g/h, while the list's "Fits your level" stood on Wickstead's 28,388 at +3,017 g/h). The lowest floor above the hero's Level, and at most this far

@@ -91,10 +91,10 @@
 //   HS-22 THE PHONE BAR (922x423; the height also at 844x390 and 667x375), in a hunt and in town: at most 100 px tall, the alerts dock
 //         above its top, and the fight settings are a slide-out sheet (shut until the bar's
 //         button opens it, then on top of everything, shut again on Escape)
-//   HS-23 THE HEAL WARNING: a heal slot whose HP % is fewer HP than the hunt's biggest blow at the
-//         party's size says so in Configure action's sticky foot beside Save ("The Rat King can hit for 75.
+//   HS-23 THE HEAL WARNING: a heal slot whose HP % is fewer HP than the hunt's biggest blow (the same for
+//         every party size since 2026-11-08: a lone hero walks the King's hall too) says so in Configure action's sticky foot beside Save ("The Rat King can hit for 75.
 //         At 30% you have 66 HP, so one hit can kill you before you eat."), in view at 922x423 whenever Save is;
-//         it hides at a safe threshold and for a solo hero (who skips the King's hall)
+//         it hides at a safe threshold, and a lone hero is warned like a party
 //   HS-21 THE COOLDOWN EMBER: the hero's played cast cools that ability's slot for its
 //         catalogue cooldown; the ember rises and the seconds fall as it runs out
 //   HS-24 THE PICKER'S PERSONAL BESTS (designer 2026-10-21, master-detail 2026-10-22): each
@@ -127,42 +127,14 @@ const GLADE_DANGEROUS = (await import(pathToFileURL(join(ROOT, 'src/data/hunt-ti
 const tierPct = (pm) => Math.round((pm - 1000) / 10);
 /* A tier's sentence head from its row (hunt-list.js tierHead): the pull, then each dial the tier moves, HP only when hpPm is off 1000 (lane/b-tier-dials). */
 const tierHeadOf = (row) => row.pull[0] + ' monsters a pull' + (row.dmgPm > 1000 ? ', hitting ' + tierPct(row.dmgPm) + '% harder' : '') + (row.hpPm > 1000 ? ', with ' + tierPct(row.hpPm) + '% more HP' : '');
-/* HS-23's numbers from the data, never typed (lane/b-tier-dials: lane/b-ground-formula-2 rewrote the Sewer and the Rat King's 75 became 37):
-   the fixture hero's 220 HP, the Sewer's biggest blow for a pair (pull-cycle.js biggestBlowOn, the warning's own read), a warned threshold in
-   whole HP under it (a multiple of 5%: 11 HP a step), and a lone hero's biggest blow under that, so the solo hero is never warned. */
-/* THE PARTY-ONLY BLOW IS BUILT FROM DATA (lane/a-v106-reds): the reshaped Sewer (blows x1.6) gave its Cistern Spider the Rat King's 37, so no
-   ground's rows leave a party-only blow over a lone hero's (every ground's biggest is the same alone and in a pair). For this case only, on
-   the page's own rows (HS23_LIFT, set through the page's monsters.js module) and in these numbers, every monster a pair meets and a lone
-   hero never does (hunt-grounds.js monstersOn) hits until its blow is two 5% steps of the fixture's HP over a lone hero's biggest. */
+/* HS-23's numbers from the data, never typed: the fixture hero's 220 HP, the Sewer's biggest blow (pull-cycle.js biggestBlowOn, the warning's
+   own read, the same for every party size since 2026-11-08), and a warned threshold in whole HP under it (a multiple of 5%: 11 HP a step). */
 const PULL_CYCLE = await import(pathToFileURL(join(ROOT, 'src/core/hunt/pull-cycle.js')).href);
 const HS23_HP = 220, HS23_STEP = (HS23_HP * 5) / 100;
-const SEWER_SOLO_BLOW = PULL_CYCLE.biggestBlowOn('millrace_sewer', 1);
-const { MONSTERS: HS23_ROWS } = await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href);
-const { monsterMaxHit } = await import(pathToFileURL(join(ROOT, 'src/core/combat.js')).href);
-const HS23_GROUNDS = Object.values((await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href)).HUNT_GROUNDS).filter((g) => g.hunt === 'millrace_sewer');
-const { monstersOn } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href);
-const HS23_SPAWNS = (await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href)).HUNT_INDEX.millrace_sewer.spawns.map((s) => s.monster);
-const HS23_MET = (size) => new Set([...HS23_SPAWNS, ...HS23_GROUNDS.flatMap((g) => [...monstersOn(g, size)])].filter((id) => HS23_ROWS[id]));
-const HS23_LIFT = {};
-for (const id of [...HS23_MET(2)].filter((x) => !HS23_MET(1).has(x))) {
-  let atk = HS23_ROWS[id].atk || 1;
-  while (monsterMaxHit({ ...HS23_ROWS[id], atk }) < SEWER_SOLO_BLOW.hit + 2 * HS23_STEP) atk++;
-  HS23_LIFT[id] = atk;
-}
-/* the pair's biggest blow as pull-cycle.js biggestBlowOn reads it (sorted ids, the first of the biggest), on the lifted rows */
-const SEWER_PAIR_BLOW = [...HS23_MET(2)].sort().reduce((best, id) => {
-  const hit = monsterMaxHit({ ...HS23_ROWS[id], atk: HS23_LIFT[id] ?? HS23_ROWS[id].atk });
-  return !best || hit > best.hit ? { monster: id, name: HS23_ROWS[id].name, hit } : best;
-}, null);
-const HS23_PCT = 5 * Math.floor((SEWER_PAIR_BLOW.hit - 1) / HS23_STEP), HS23_AT = (HS23_HP * HS23_PCT) / 100;
-/* ...set on the page before the heal slot opens (the warning reads the rows live) */
-const liftHs23 = (page) => page.evaluate(async (lift) => {
-  const v = new URL(document.querySelector('script[type="module"]').src).searchParams.get('v');
-  const m = await import('/src/data/monsters.js?v=' + v);
-  for (const [id, atk] of Object.entries(lift)) m.MONSTERS[id].atk = atk;
-}, HS23_LIFT);
-const HS23_HARNESS = !(HS23_PCT >= 5 && HS23_HP / 2 >= SEWER_PAIR_BLOW.hit && SEWER_SOLO_BLOW.hit < HS23_AT)
-  ? 'HS-23 HARNESS: the Sewer\'s blows (a pair ' + SEWER_PAIR_BLOW.hit + ', alone ' + SEWER_SOLO_BLOW.hit + ') leave no warned threshold between them at ' + HS23_HP + ' HP' : null;
+const SEWER_BLOW = PULL_CYCLE.biggestBlowOn('millrace_sewer');
+const HS23_PCT = 5 * Math.floor((SEWER_BLOW.hit - 1) / HS23_STEP), HS23_AT = (HS23_HP * HS23_PCT) / 100;
+const HS23_HARNESS = !(HS23_PCT >= 5 && HS23_HP / 2 >= SEWER_BLOW.hit)
+  ? 'HS-23 HARNESS: the Sewer\'s biggest blow (' + SEWER_BLOW.hit + ') leaves no warned threshold at ' + HS23_HP + ' HP' : null;
 const xpInto = (L, share) => charXpForLevel(L) + Math.ceil(share * (charXpForLevel(L + 1) - charXpForLevel(L)));
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
@@ -1195,26 +1167,26 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     { // HS-23 THE HEAL WARNING (designer 2026-10-21, Andy died in the Sewer healing at 40%)
       const { ctx, page, s, up } = await open({ prep: (st) => { st.env.hunt.hunt_id = 'millrace_sewer'; } });
       if (up) {
-        await liftHs23(page);   // the party-only blow, built from data (HS23_LIFT)
         await page.click('.hb-slot[data-slot="2"]');
         await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank'), null);
         const warn = () => page.evaluate(() => { const w = document.querySelector('.ca-warn'); return w && w.getClientRects().length ? w.textContent : ''; });
-        /* Wheat Bread at HP 50% or below of 220 = 110 HP: above the pair's biggest blow (the King's), nothing to say. */
+        /* Wheat Bread at HP 50% or below of 220 = 110 HP: above the ground's biggest blow, nothing to say. */
         const safe = await warn();
         if (HS23_HARNESS) fails.push(HS23_HARNESS);
         await page.fill('.ca-cond[data-cond="0"] [data-f="value"]', String(HS23_PCT));
         await page.dispatchEvent('.ca-cond[data-cond="0"] [data-f="value"]', 'change');
         const shown = await warn();
-        if (safe !== '' || shown !== 'The ' + SEWER_PAIR_BLOW.name + ' can hit for ' + SEWER_PAIR_BLOW.hit + '. At ' + HS23_PCT + '% you have ' + HS23_AT + ' HP, so one hit can kill you before you eat.') {
+        const said = 'The ' + SEWER_BLOW.name + ' can hit for ' + SEWER_BLOW.hit + '. At ' + HS23_PCT + '% you have ' + HS23_AT + ' HP, so one hit can kill you before you eat.';
+        if (safe !== '' || shown !== said) {
           fails.push('HS-23 the heal warning did not follow the threshold in a party of two: at 50% "' + safe + '", at 30% "' + shown + '"');
         }
         const footOn = () => page.evaluate(() => { const f = document.querySelector('.hp-foot'); return !!f && f.getClientRects().length > 0; });
         const twoFoot = await footOn();
-        /* Alone the King's hall is skipped (minParty 2): the biggest blow is a lone hero's (a Cistern Spider's), under the warned HP. */
+        /* Alone the same: a lone hero walks the King's hall too (Tyler 2026-11-08: one difficulty for every group), so the warning stands. */
         s.env.party.members = [s.env.party.members[0]];
         await pushEnvelope(page, s);
         const solo = await warn();
-        if (solo !== '') fails.push('HS-23 a solo hero (who never meets the Rat King) was warned: "' + solo + '"');
+        if (solo !== said) fails.push('HS-23 a lone hero (who meets the Rat King too) was not warned the same: "' + solo + '"');
         /* Who pays for what is said to a party, never to a hero alone (door panel 2026-11-04: "Costs are personal." under one name). */
         if (!twoFoot || (await footOn())) fails.push('HS-23 the party panel\'s supplies line: two heroes ' + twoFoot + ', one hero ' + (await footOn()));
       } else fails.push('HS-23 the screen did not mount on the Sewer');
@@ -1224,7 +1196,6 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       // keeps the sentence (and its warning, one line) above the only scrolling parts; the detail pane says it whole.
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, prep: (st) => { st.env.hunt.hunt_id = 'millrace_sewer'; } });
       if (up) {
-        await liftHs23(page);   // the party-only blow, built from data (HS23_LIFT)
         await page.click('.hb-slot[data-slot="2"]');
         await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank'), null);
         await page.fill('.ca-cond[data-cond="0"] [data-f="value"]', String(HS23_PCT));
@@ -1668,7 +1639,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       /* The note names the risk with real numbers: a lone hero's pull, the power, the biggest blow on the tier against Normal's, the XP.
          The blow clause is REQUIRED with the data's own numbers whenever the tier moves the blow (pull-cycle.js biggestBlowOn, the note's
          own read; the Glade's Dangerous moves it). An optional clause let "the tier note drops its numbers" escape (v0.2.106 run 42421655374). */
-      const gdBlowNow = PULL_CYCLE.biggestBlowOn(picked, 1, GLADE_DANGEROUS), gdBlowWas = PULL_CYCLE.biggestBlowOn(picked, 1);
+      const gdBlowNow = PULL_CYCLE.biggestBlowOn(picked, GLADE_DANGEROUS), gdBlowWas = PULL_CYCLE.biggestBlowOn(picked);
       const gdBlow = gdBlowNow && gdBlowWas && gdBlowNow.hit !== gdBlowWas.hit ? ', and the biggest blow here is ' + gdBlowNow.hit + ', not ' + gdBlowWas.hit : '';
       if (!gdBlow) fails.push('HS-8 HARNESS: the Glade’s Dangerous no longer moves its biggest blow, so this case cannot see the blow clause; pick a ground whose tier moves it');
       if (!new RegExp(gdHead + gdBlow + '\\. Each kill earns ' + gdXp + '% more Level XP, with the same gold and drops\\. Expect a bigger food bill, and you can die\\. A death ends the hunt and costs 2% of your XP\\.').test(d0.note)) fails.push('HS-8 the tier note reads: ' + d0.note);
@@ -1913,7 +1884,7 @@ const MUTANTS = [
   ['a spell the weapon cannot cast reads like a castable one', 'src/shell/windows/configure-action.js', "  cls(el, 'is-locked', !!r.locked);", ''],
   ['Configure action never says a locked spell stays struck', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.discipline, set.role, skillsOf(cs)));", ''],
   ['the phone sheet cuts the heal warning to one line and says it nowhere whole', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-d-warn'), warn);", ''],
-  ['the heal warning reads the whole ground whatever the party size', 'src/shell/windows/configure-action.js', 'biggestBlowOn(h.huntId, p ? p.members.length : 1)', 'biggestBlowOn(h.huntId, 4)'],
+  ['a lone hero is never warned of the King', 'src/shell/windows/configure-action.js', 'biggestBlowOn(h.huntId)', "(p && p.members.length > 1 ? biggestBlowOn(h.huntId) : null)"],
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
   ['the Hunts window stays over the hunt it entered (HS-9b, playtest 2026-10-24)', 'src/shell/windows/hunts.js', "  if (sc.closeOnHunt && now) { sc.closeOnHunt = false; queueMicrotask(() => ctx.wm.close('hunts')); }\n", ''],
   ['an edge panel never steps out of the hunt bar’s way', 'src/shell/shell.js', "        for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';\n", ''],

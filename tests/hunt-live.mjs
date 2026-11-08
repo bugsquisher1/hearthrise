@@ -502,7 +502,7 @@ function rules(M) {
 
   { // LV-DIAL: A TIER'S HEALTH, WATCHED (hunt-tiers.js hpPm, lane/b-tier-dials; Tyler 2026-11-07: a tier is a % of difficulty). The Glade's Deadly
     // pull with the health dial alone (a what-if on the engine's own rows, put back after): the viewer's browser predicts every commit, and
-    // every monster of the server's world stands at the dial's health under the party scale (hunt-grounds.js scaledHp, not the reader).
+    // every monster of the server's world stands at the dial's health, the same for any party size (Tyler 2026-11-08).
     const HP = 1500, rows = M.ENGINE_TIERS.mosslight_glade, was = rows.deadly;
     rows.deadly = { ...was, pull: [...was.pull], dmgPm: 1000, hpPm: HP, xpPm: 1000 };
     try {
@@ -517,9 +517,8 @@ function rules(M) {
       const bad = r.verdicts.filter((x) => x.v !== 'match');
       ok('LV-DIAL', r.verdicts.length >= 2 && bad.length === 0, `the viewer's browser did not predict a Deadly with the health dial: ${bad.length} of ${r.verdicts.length} commits diverged`);
       const w = r.srv.inst.world ? M.WS.decode(JSON.parse(r.srv.inst.world)) : null;
-      /* the first packs spawn for the one hero the world opens with, a respawn for the pair (pull-cycle.js partySize) */
-      const dialHp = (u) => [1, 2].map((n) => M.HGR.scaledHp({ hp: Math.round((M.MONSTERS[u.kind].hp * HP) / 1000) }, n));
-      const off = (w ? w.units : []).filter((u) => u.side === 'mon' && !dialHp(u).includes(u.maxHp));
+      const dialHp = (u) => Math.max(1, Math.round((M.MONSTERS[u.kind].hp * HP) / 1000));
+      const off = (w ? w.units : []).filter((u) => u.side === 'mon' && dialHp(u) !== u.maxHp);
       ok('LV-DIAL', !!w && w.units.some((u) => u.side === 'mon') && off.length === 0, `${off.length} monster(s) of the server's world stand off the dial's health: ${off.slice(0, 3).map((u) => u.kind + ' ' + u.maxHp).join(', ')}`);
       console.log(`  LV-DIAL Glade pair on Deadly at health x${HP / 1000}, 48 s: ${r.verdicts.length} commits, ${r.verdicts.length - bad.length} matched; ${w ? w.units.filter((u) => u.side === 'mon').length : 0} monsters at the dial's health`);
     } finally { rows.deadly = was; }
@@ -558,7 +557,7 @@ function rules(M) {
       const bad = r.verdicts.filter((x) => x.v !== 'match');
       ok('LV-SCALE', r.verdicts.length >= 3 && bad.length === 0, name + ': ' + bad.length + ' of ' + r.verdicts.length + ' commits did not match the prediction');
       const w = r.srv.inst.world ? M.WS.decode(JSON.parse(r.srv.inst.world)) : null;
-      const off = (w ? w.units : []).filter((u) => u.side === 'mon' && ![1, 2].some((k) => M.HGR.packHpFor(ground, play.monsters[u.kind], k) === u.maxHp));
+      const off = (w ? w.units : []).filter((u) => u.side === 'mon' && Math.max(1, play.monsters[u.kind].hp) !== u.maxHp);
       ok('LV-SCALE', !!w && w.units.some((u) => u.side === 'mon') && off.length === 0,
         name + ': ' + off.length + ' monster(s) of the server\'s world stand off the scaled rows\' health: ' + off.slice(0, 3).map((u) => u.kind + ' ' + u.maxHp).join(', '));
       if (name !== 'party') continue;
@@ -680,7 +679,8 @@ function rules(M) {
       return mi;
     });
     const boxes = [];
-    const r = run(M, mis, 80000, { server: { hunt: 'coppercap_warrens' }, commitMs: 2000, onCommit: ({ srv }) => {
+    /* 160 s: since 2026-11-08 the pair's packs carry their rows' whole HP (was 70%), so the second pocket's pull comes later */
+    const r = run(M, mis, 160000, { server: { hunt: 'coppercap_warrens' }, commitMs: 2000, onCommit: ({ srv }) => {
       if (!srv.inst.world) return;
       const w = M.WS.decode(JSON.parse(srv.inst.world));
       const pk = w.packs.find((p) => p.aggro && Number.isInteger(p.holder));
@@ -921,12 +921,12 @@ function rules(M) {
       for (const e of evs) if ((e.type === 'dmg' || e.type === 'miss') && !ids.includes(e.u) && ids.includes(e.t)) out[e.t === ids[1] ? 'pick' : 'other']++;
       return out;
     };
-    /* browser closed: the server's commits alone, with the change to "Take turns" at 400 s (two laps begun by then) */
+    /* browser closed: the server's commits alone, with the change to "Take turns" at 1,000 s (two laps begun by then: since 2026-11-08 a pack carries its row's whole HP for a pair, a lap about 450 s) */
     const mis = mk();
     const srv = server(M, mis, { hunt: 'millrace_sewer' });
     const evs = []; const seen = []; let changeAt = null;
-    for (let t = T0 + M.CB.tickMs; t <= T0 + 800000; t += M.CB.tickMs) {
-      if (t === T0 + 400000) { mis[1].hero = Object.assign({}, mis[1].hero, { hold: null }); changeAt = t; }
+    for (let t = T0 + M.CB.tickMs; t <= T0 + 1400000; t += M.CB.tickMs) {
+      if (t === T0 + 1000000) { mis[1].hero = Object.assign({}, mis[1].hero, { hold: null }); changeAt = t; }
       const c = srv.commit(t);
       if (!c) break;
       if (!srv.inst.world) { ok('LV-HOLD', false, `closed: the instance ended ${(t - T0) / 1000} s in (a hero died)`); break; }
@@ -1003,7 +1003,7 @@ function rules(M) {
       const mis = andy(hold);
       const srv = server(M, mis, { hunt });
       const evs = []; let wrongLeader = 0, wrongHolder = 0, commits = 0;
-      for (let t = T0 + M.CB.tickMs; t <= T0 + 600000; t += M.CB.tickMs) {
+      for (let t = T0 + M.CB.tickMs; t <= T0 + 1500000; t += M.CB.tickMs) {
         const c = srv.commit(t);
         if (!c) break;
         if (!srv.inst.world) { ok('LV-PULL', false, `${mode}, closed: the instance ended ${(t - T0) / 1000} s in (a hero died)`); break; }
@@ -1019,7 +1019,7 @@ function rules(M) {
       const lapWords = (ls) => ls.map((l) => ['E', 'F', 'A'].map((n, i) => n + (l.at[ids[i]] || 0)).join('/') + ' c' + l.casts).join(', ');
       const offHolder = laps.reduce((n, l, i) => n + Object.entries(l.at).filter(([u]) => Number(u) !== holderOf(ids, i)).reduce((m, [, k]) => m + k, 0), 0);
       const casts = laps.reduce((n, l) => n + l.casts, 0), onApollo = laps.reduce((n, l) => n + (l.at[ids[2]] || 0), 0);
-      console.log(`  LV-PULL ${mode}, closed (Andy's party, Warrens d5, 600 s): ${laps.length} lap(s) [${lapWords(laps)}]; pull leader off the holder at ${wrongLeader} of ${commits} commits, ${wrongHolder} pack(s) held by another`);
+      console.log(`  LV-PULL ${mode}, closed (Andy's party, Warrens d5, 1,500 s): ${laps.length} lap(s) [${lapWords(laps)}]; pull leader off the holder at ${wrongLeader} of ${commits} commits, ${wrongHolder} pack(s) held by another`);
       ok('LV-PULL', laps.length >= 3 && wrongLeader === 0 && wrongHolder === 0, `${mode}, closed: over ${laps.length} lap(s) the pull leader was not the holder at ${wrongLeader} of ${commits} commits and ${wrongHolder} pack(s) were held by another tank (want 3+ laps, 0, 0)`);
       ok('LV-PULL', onApollo === 0 && casts === 0 && offHolder === 0, `${mode}, closed: ${casts} Challenge cast(s), ${offHolder} monster swing(s) off the holder, ${onApollo} at Apollo (want 0, 0; control 0)`);
       /* viewed: Apollo's browser (Eddie and Fremulon are its peers: their frozen heroes) */
@@ -1656,7 +1656,7 @@ const MUTANTS = [
   ['the start point drops the scale (LV-SCALE)', 'supabase/functions/hr-accrue/hunt-settle.js', '      scale: play.level === null ? null : { level: play.level },', '      scale: null,', /^LV-SCALE: (solo|party): \d+ of/],
   ["a peer is frozen against the catalogue's rows (LV-SCALE)", 'supabase/functions/hr-accrue/hunt-settle.js', 'Number(inst.next_swing_at_ms), rows) };', 'Number(inst.next_swing_at_ms)) };', /^LV-SCALE: party: \d+ of/],
   ['a spawn reads the catalogue row (LV-SCALE)', 'src/core/hunt/pull-cycle.js', 'const row = (inst.monsters || MONSTERS)[s.monster];', 'const row = MONSTERS[s.monster];', /^LV-SCALE: .*scaled rows' health/],
-  ['a kill pays the catalogue Level XP (LV-SCALE)', 'src/core/hunt/damage.js', 'xp: Math.round((atTier(rowOf(inst, target.kind), inst.tier).xp', 'xp: Math.round((atTier(MONSTERS[target.kind], inst.tier).xp', /^LV-SCALE: a scaled kill paid .* Level XP/],
+  ['a kill pays the catalogue Level XP (LV-SCALE)', 'src/core/hunt/damage.js', 'xp: Math.round(atTier(rowOf(inst, target.kind), inst.tier).xp', 'xp: Math.round(atTier(MONSTERS[target.kind], inst.tier).xp', /^LV-SCALE: a scaled kill paid .* Level XP/],
   ["a kill's coin is the catalogue's (LV-SCALE)", 'src/core/combat-sim.js', 'monsters: play.monsters || ctx.monsters, tier,', 'monsters: ctx.monsters, tier,', /^LV-SCALE: a scaled kill paid .* coin/],
   ['a monster swings its catalogue row (LV-SCALE)', 'src/core/hunt/damage.js', 'const row = atTier(rowOf(inst, u.kind), inst.tier);', 'const row = atTier(MONSTERS[u.kind], inst.tier);', /^LV-SCALE: a scaled monster's hardest blow/],
   ['the prediction never answers why a slot waits (LV-WAITS)', 'src/hunt-view/live-engine.js', 'return side ? slotTesterOf(st.world, st.where.grid, side.member, items) : null;', 'return null;', /^LV-WAITS: CONTROL: the prediction never read/],
@@ -1725,7 +1725,7 @@ const MUTANTS = [
   ['corpses are never cleared from the stored world (LV-G)', 'src/core/hunt/pull-cycle.js', 'if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;', 'if (false) gone = true;', /^LV-G/],
   ['the browser drops the leader flag of a peer (LV-K)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { lead: false }),', /^LV-K/],
   ['the browser drops the tier of a peer (LV-TIER)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { tier: null }),', /^LV-TIER/],
-  ["a spawn ignores the tier's health (LV-DIAL)", 'src/core/hunt/pull-cycle.js', 'const hp = packHpFor(inst.ground, atTier(row, inst.tier), heroes);', 'const hp = packHpFor(inst.ground, row, heroes);', /^LV-DIAL/],
+  ["a spawn ignores the tier's health (LV-DIAL)", 'src/core/hunt/pull-cycle.js', 'const hp = Math.max(1, atTier(row, inst.tier).hp || 1);', 'const hp = Math.max(1, row.hp || 1);', /^LV-DIAL/],
   ['the browser drops the tier of a peer, health dial (LV-DIAL)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { tier: null }),', /^LV-DIAL/],
   ["a peer's frozen numbers drop its Blows rung (LV-TEMPER)", 'src/core/member.js', '...(snap.blowsPm ? { blowsPm: snap.blowsPm } : {}), ', '', /^LV-TEMPER/],
   ["a peer's frozen numbers drop its Armor rung (LV-TEMPER)", 'src/core/member.js', '...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ', '', /^LV-TEMPER/],

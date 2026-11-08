@@ -1,0 +1,388 @@
+{
+ "stoker/attack/east": {
+  "reach": [
+   0,
+   1,
+   18,
+   17,
+   17,
+   18
+  ],
+  "changed": [
+   306,
+   393,
+   943,
+   917,
+   635,
+   650
+  ],
+  "peak": 2,
+  "peakReach": 18,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "stoker/attack/north": {
+  "reach": [
+   -1,
+   -1,
+   2,
+   1,
+   1,
+   1
+  ],
+  "changed": [
+   690,
+   827,
+   973,
+   899,
+   767,
+   678
+  ],
+  "peak": 2,
+  "peakReach": 2,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "stoker/attack/north-east": {
+  "reach": [
+   0,
+   -1,
+   9,
+   12,
+   6,
+   1
+  ],
+  "changed": [
+   468,
+   613,
+   638,
+   687,
+   606,
+   466
+  ],
+  "peak": 3,
+  "peakReach": 12,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "stoker/attack/north-west": {
+  "reach": [
+   1,
+   8,
+   8,
+   3,
+   3,
+   2
+  ],
+  "changed": [
+   484,
+   627,
+   746,
+   817,
+   728,
+   675
+  ],
+  "peak": 3,
+  "peakReach": 3,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "stoker/attack/south": {
+  "reach": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "changed": [
+   673,
+   666,
+   921,
+   930,
+   813,
+   620
+  ],
+  "peak": 3,
+  "peakReach": 0,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "stoker/attack/south-east": {
+  "reach": [
+   0,
+   0,
+   1,
+   3,
+   3,
+   3
+  ],
+  "changed": [
+   361,
+   440,
+   617,
+   867,
+   757,
+   704
+  ],
+  "peak": 3,
+  "peakReach": 3,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "stoker/attack/south-west": {
+  "reach": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "changed": [
+   502,
+   577,
+   563,
+   913,
+   574,
+   560
+  ],
+  "peak": 3,
+  "peakReach": 0,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "stoker/attack/west": {
+  "reach": [
+   0,
+   1,
+   3,
+   15,
+   17,
+   16
+  ],
+  "changed": [
+   348,
+   461,
+   693,
+   789,
+   779,
+   604
+  ],
+  "peak": 3,
+  "peakReach": 15,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "stoker/death/east": {
+  "foot": 55,
+  "lastLow": 55,
+  "shift": 0,
+  "drop": 0.71,
+  "stillBox": [
+   23,
+   14,
+   37,
+   55
+  ],
+  "lastBox": [
+   6,
+   44,
+   56,
+   55
+  ]
+ },
+ "stoker/death/north": {
+  "foot": 54,
+  "lastLow": 52,
+  "shift": 2,
+  "drop": 0.1,
+  "stillBox": [
+   7,
+   13,
+   47,
+   54
+  ],
+  "lastBox": [
+   21,
+   17,
+   43,
+   52
+  ]
+ },
+ "stoker/death/north-east": {
+  "foot": 54,
+  "lastLow": 54,
+  "shift": 0,
+  "drop": 0.62,
+  "stillBox": [
+   15,
+   13,
+   46,
+   54
+  ],
+  "lastBox": [
+   8,
+   39,
+   54,
+   54
+  ]
+ },
+ "stoker/death/north-west": {
+  "foot": 54,
+  "lastLow": 55,
+  "shift": 0,
+  "drop": 0.71,
+  "stillBox": [
+   12,
+   13,
+   42,
+   54
+  ],
+  "lastBox": [
+   10,
+   43,
+   54,
+   55
+  ]
+ },
+ "stoker/death/south": {
+  "foot": 54,
+  "lastLow": 55,
+  "shift": 0,
+  "drop": 0.61,
+  "stillBox": [
+   15,
+   14,
+   54,
+   54
+  ],
+  "lastBox": [
+   8,
+   39,
+   56,
+   55
+  ]
+ },
+ "stoker/death/south-east": {
+  "foot": 55,
+  "lastLow": 56,
+  "shift": 0,
+  "drop": 0.67,
+  "stillBox": [
+   20,
+   14,
+   46,
+   55
+  ],
+  "lastBox": [
+   8,
+   42,
+   55,
+   56
+  ]
+ },
+ "stoker/death/south-west": {
+  "foot": 55,
+  "lastLow": 57,
+  "shift": 0,
+  "drop": 0.69,
+  "stillBox": [
+   16,
+   14,
+   47,
+   55
+  ],
+  "lastBox": [
+   10,
+   43,
+   55,
+   57
+  ]
+ },
+ "stoker/death/west": {
+  "foot": 55,
+  "lastLow": 55,
+  "shift": 0,
+  "drop": 0.71,
+  "stillBox": [
+   24,
+   14,
+   38,
+   55
+  ],
+  "lastBox": [
+   7,
+   44,
+   54,
+   55
+  ]
+ },
+ "stoker/deathpose/north": {
+  "foot": 54,
+  "lastLow": 49,
+  "shift": 5,
+  "drop": 0.38,
+  "stillBox": [
+   7,
+   13,
+   47,
+   54
+  ],
+  "lastBox": [
+   5,
+   29,
+   53,
+   49
+  ]
+ }
+}

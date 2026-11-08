@@ -3,6 +3,8 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.106';
+import { foldRows } from './grounds/shape.js?v=0.2.106';
 import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.106';
 import { SLOT_DESC } from './slot-ladders.js?v=0.2.106';
 import { LIB2_DESC } from './library2-items.js?v=0.2.106';
@@ -341,7 +343,7 @@ export const ITEM_DESC = {
   'raw_bear_meat': 'A thick, fatty slab of raw bear, a filling roast waiting to happen',
   'raw_panther_meat': 'Lean, dark raw meat from a hunting cat. Cook it well to make it worth the chew',
   'raw_wolf_meat': 'A tough cut of wild wolf, raw and gamey, barely food until it meets the fire',
-  'razor_claw': 'A wickedly sharp claw for honing blades and adorning trophies',
+  'razor_claw': 'A hooked claw off a Lurcher, one of the company dogs that dig for bones in the pyre ash',
   'regent_helm': 'Crown of a fallen Hunt lord, hollow and warding, won by no solo hand',
   'riftmaw_husk': 'The husk the Riftmaw shed at its ruin, hollow and cold, kept as proof of the dive',
   'river_chowder': 'A thick chowder of silverfin, potato and carrot. For five minutes, every blow that reaches you lands a little lighter',
@@ -484,7 +486,7 @@ export const ITEM_DESC = {
   'willow_staff': 'Supple willow staff channeling stronger mending',
   'wolf_pelt': 'Gray pelt of a wolf, tanned into leather for light armor',
   'worldroot_seed': 'A seed cut from the world tree\'s own root, kept by the finder as a keepsake and nothing more',
-  'wraith_veil': 'The tattered shroud of a wraith, cold to hold, a spectral reagent',
+  'wraith_veil': 'The shroud a Pyre Wraith was laid on the pyre in. The fire never took it, and it is cold to hold',
   'wyrm_gilding': 'Gilding flaked from an elder wyrm, radiant, the rarest forging material of all',
   'wyrmgilt_mantle': 'Wyrm-gilded Hunt-forged cape that both wards the wearer and whets the blade',
   'wyvernhide_belt': 'A wyvernhide belt, scaled and stiff, a hardened ranger\'s working brace',
@@ -499,3 +501,9 @@ export const ITEM_DESC = {
   'yew_rod': 'Strong yew rod that hauls in the fish lesser lines would lose',
   'yew_staff': 'Prized yew staff, a deep channel for a skilled healer',
 };
+
+/* GROUND PACKS (src/data/grounds): each pack's items say their line here too (`itemText`). An id already said is refused. */
+for (const [id, text] of Object.entries(foldRows('item text', {}, GROUND_PACKS, (p) => p.itemText))) {
+  if (Object.prototype.hasOwnProperty.call(ITEM_DESC, id)) throw new Error('ground pack: item text ' + id + ' is already said; a pack only adds');
+  ITEM_DESC[id] = text;
+}

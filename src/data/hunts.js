@@ -59,9 +59,13 @@
 // below — same shape, generated, never stored. Its pointer is the monster id
 // itself, which is why every fight that existed before this file prices
 // byte-identically (a one-spawn pick draws nothing from the RNG).
+//
+// GROUND PACKS (lane/b-ground-pack): a new ground is a folder under src/data/grounds, not a row here. HUNTS is the rows below
+// and then every pack's hunt (src/data/grounds/index.js), its id the pack's and `staged` while the pack is.
 // ════════════════════════════════════════════════════════════════════════
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.106';
 
-export const HUNTS = Object.freeze([
+const BASE_HUNTS = Object.freeze([
   {
     id: 'mill_cellar', name: 'Mill Cellar', theme: 'Damp sacks, gnawed grain and things that buzz in the dark.',
     band: [1, 8],
@@ -153,6 +157,15 @@ export const HUNTS = Object.freeze([
     family: 'Vermin', art: 'granary_rat', travelS: 0, pull: 4, respawnMs: 60000,
   },
 ]);
+
+/** A pack's hunt row: its id, and `staged` while the pack is. */
+const packHunt = (p) => Object.freeze({ id: p.id, ...p.hunt, ...(p.status === 'staged' ? { staged: true } : {}) });
+const taken = new Set(BASE_HUNTS.map((h) => h.id));
+export const HUNTS = Object.freeze([...BASE_HUNTS, ...GROUND_PACKS.map((p) => {
+  if (taken.has(p.id)) throw new Error('ground pack ' + p.id + ': hunt id ' + p.id + ' is already taken; a pack only adds');
+  taken.add(p.id);
+  return packHunt(p);
+})]);
 
 /** The hunts a player can see and enter: every row not `staged`. */
 export const OPEN_HUNTS = Object.freeze(HUNTS.filter((h) => h.staged !== true));

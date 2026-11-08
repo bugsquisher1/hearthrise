@@ -9,15 +9,18 @@ import coppercapWarrens from './coppercap_warrens.js?v=0.2.106';
 import mosslightGlade from './mosslight_glade.js?v=0.2.106';
 import sandboxHd64 from './sandbox_hd64.js?v=0.2.106';
 import wickstead from './wickstead.js?v=0.2.106';
+import { GROUND_PACKS } from '../../grounds/index.js?v=0.2.106';
 
-export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, sandboxHd64]);
+/* a ground pack's map follows its status (src/data/grounds): an open pack's is drawn, a staged one's is staged below */
+const packMaps = (status) => GROUND_PACKS.filter((p) => p.status === status).map((p) => p.map);
+export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, sandboxHd64, ...packMaps('open')]);
 
 /* STAGED MAPS: a staged hunt's map (src/data/hunts.js `staged`): its grid is authored and walked by the
    engine, its painted ground art is not done yet. No client draws it (src/world reads WORLD_MAPS only);
    tests/world-core.mjs lints it like any map except for the ground art. It moves to WORLD_MAPS, and its
    hunt loses `staged`, when the art lands (tests/hunt-core/forest-cave.mjs staged-until-art). */
 /* Empty since Wickstead opened on its painted ground (lane b-wickstead-art, 2026-10-28). */
-export const STAGED_MAPS = Object.freeze([]);
+export const STAGED_MAPS = Object.freeze([...packMaps('staged')]);
 
 /** The row of map `id`, shipped or staged, or null: the engine's grid reader (src/core/hunt-ground.js). */
 export function mapRowOf(id) {

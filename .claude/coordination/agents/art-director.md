@@ -3200,3 +3200,7 @@ map object draws frame 0 facing south (compose.js place), so an NPC idle on a st
 facing can ever show: check how a sprite is DRAWN before buying its facings; (3) a mirror is fine for a one-way clip
 whose W already mirrors E, never for a flinch that returns to a stance drawn in its own light; (4) every 4-facing clip
 beside 8-facing idles turns 45 degrees on a diagonal (facing.js falls back to the cardinal): death, hit, fall.
+Brief 12 (the Pyre Field, same day): (5) the ring rule cuts both ways: on a PALE floor the black outline is the
+silhouette, so a ground of burnt-black bodies is made readable by its floor's value, set before any body is drawn
+(ash on stone #8a867d: black rings 3.7-4.6:1, the March mud 1.3); (6) a re-pour can pass on contrast and still fail on
+identity: read whether it is the thing its name says, not only whether it shows.

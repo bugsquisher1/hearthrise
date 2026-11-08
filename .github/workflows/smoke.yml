@@ -3744,6 +3744,12 @@ jobs:
           node tools/mutant-gate.mjs node tests/balance-sheet.mjs --mutate
           node tools/gen-ground-stats.mjs --check
           node tools/mutant-gate.mjs node tools/gen-ground-stats.mjs --selftest
+          # GROUND PACKS (lane/b-ground-pack): a new ground is a folder that only adds (src/data/grounds), its lint and the
+          # formula hold (tools/pack.mjs), and its server rows are ONE additive file equal to the whole one: every shipped
+          # ground planted as a pack writes its own rows renamed and nothing else, on a replayed PostgreSQL too (--fold)
+          node tools/mutant-gate.mjs node tools/pack.mjs --selftest
+          node tests/ground-pack.mjs --fold
+          node tools/mutant-gate.mjs node tests/ground-pack.mjs --mutate
           node tests/balance-grade.mjs
           node tools/mutant-gate.mjs node tools/balance-sim/grade.mjs --selftest
           node tools/gen-level-curve.mjs --check

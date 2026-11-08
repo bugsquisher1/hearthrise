@@ -71,10 +71,11 @@
 //            calls (tests/_sql-bodies.mjs, the latest body in apply order);
 //       C13b no stale debt row: its id is still named by a reached body and is still no item (shrink-only). The list is
 //            EMPTY since lane/c-dead-plot-deed (2026-11-07) cut the deed's server payment and count.
-//   C14 no shop row sells a plot building (lane/c-dead-plot-deed, 2026-11-07: the four `plot.*` rows were refused by every
-//       verb, listed by no window and granted by nothing, and the Tool Shed's +2% gatherSpeed rode an unreachable unlock):
-//       no SHOP_OFFERS row sits in the cut `plot` table or grants a `plot:` unlock. (plot:farm_land is a gold-ladder rung
-//       in src/data/gold-ladders.js, not a shop row.)
+//   C14 nothing sells a cut capability (lane/c-dead-plot-deed, 2026-11-07: the four `plot.*` buildings and the six
+//       `worker.*` hires were refused by every verb and listed by no window, and the worker_hire and plot:farm_land
+//       gold ladders were sold to a hand-made unlock_buy for gold while nothing read the rung):
+//       C14a no SHOP_OFFERS row sits in a cut table (plot, worker) or grants a cut unlock (plot:*, worker, worker_hire);
+//       C14b no gold-ladder rung or ladder row (src/data/gold-ladders.js) names a cut unlock.
 //
 // THE PENDING LIST is shrink-only. It names the few gaps the audit assigned to
 // OTHER W0 lanes, with the lane. An id that gains a use must be removed from it
@@ -103,6 +104,7 @@ import { JEWEL_PIECES, JEWEL_SHOP_PREMIUM } from '../src/data/jewelry.js';
 import { START_CURRENCY } from '../src/data/start-kit.js';
 import { PROPERTY_TIERS, ROOM_RUNGS, STORAGE_CHESTS, HELD_HOME_OFFERS } from '../src/data/homestead-tiers.js';
 import { latestBodies, clientRpcNames, serverEntryNames, reachedFunctions } from './_sql-bodies.mjs';
+import { GOLD_LADDER_OFFERS, GOLD_LADDER_UNLOCKS } from '../src/data/gold-ladders.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 /* C9's start kit: the shipped one, or a planted one (mutate() only; the data is frozen). */
@@ -115,6 +117,8 @@ let CHESTS_PLANT = null;
 /* C13's reached server bodies and debt list: the repo's, or planted ones (mutate() only). */
 let BODIES_PLANT = null;
 let DEBT_PLANT = null;
+/* C14b's gold-ladder rungs: the shipped (frozen) ones, or planted ones (mutate() only). */
+let LADDER_PLANT = null;
 const realRead = (rel) => readFileSync(join(ROOT, rel), 'utf8');
 
 /* C13: item ids a server function the game reaches still compares the bag against, with no ITEMS row and so no source.
@@ -150,15 +154,20 @@ export function serverItemFails({ bodies = BODIES_PLANT || reached(), debt = DEB
   return out;
 }
 
-/* C14. The plot buildings are cut (lane/c-dead-plot-deed, 2026-11-07): every verb refused them and nothing read them, so
-   no shop row may sell one again, under the old table or any other. */
-export function plotBuildingFails(offers = SHOP_OFFERS) {
+/* C14. The cut capabilities (lane/c-dead-plot-deed, 2026-11-07): the plot buildings, the worker hires and the crew and
+   farm-land gold ladders. Every verb refused the shop rows, nothing read what any of them granted, and two ladders took
+   gold for it. Nothing may sell one again, under the old table or any other. */
+export const CUT_TABLES = Object.freeze(['plot', 'worker']);
+export const CUT_UNLOCK = (id) => typeof id === 'string' && (id.startsWith('plot:') || id === 'worker' || id === 'worker_hire');
+export function cutCapabilityFails({ offers = SHOP_OFFERS, ladder = LADDER_PLANT || GOLD_LADDER_OFFERS, ladders = GOLD_LADDER_UNLOCKS } = {}) {
   const out = [];
   for (const o of offers) {
     if (!o) continue;
-    const g = (o.grant || []).find((x) => x && x.kind === 'unlock' && typeof x.id === 'string' && x.id.startsWith('plot:'));
-    if (o.table === 'plot' || g) out.push(`C14 shop row ${o.id} sells a plot building (${g ? g.id : 'table plot'}): the plot buildings are cut and nothing reads one`);
+    const g = (o.grant || []).find((x) => x && x.kind === 'unlock' && CUT_UNLOCK(x.id));
+    if (CUT_TABLES.includes(o.table) || g) out.push(`C14a shop row ${o.id} sells a cut capability (${g ? g.id : 'table ' + o.table}): nothing reads it`);
   }
+  for (const r of ladder) if (r && CUT_UNLOCK(r.unlock_id)) out.push(`C14b gold-ladder rung ${r.offer_id} sells the cut ${r.unlock_id}: nothing reads it`);
+  for (const u of ladders) if (u && CUT_UNLOCK(u.unlock_id)) out.push(`C14b gold-ladder row ${u.unlock_id} is a cut ladder: nothing reads it`);
   return out;
 }
 
@@ -278,8 +287,8 @@ export function check({ read = realRead, unreachable = UNREACHABLE } = {}) {
   fails.push(...housePriceFails());
   // C13 — no server function the game reaches trades in an item the catalogue does not hold.
   fails.push(...serverItemFails());
-  // C14 — no shop row sells a plot building.
-  fails.push(...plotBuildingFails());
+  // C14 — nothing sells a cut capability.
+  fails.push(...cutCapabilityFails());
   return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length, pendingSource: Object.keys(PENDING_SOURCE).length, awaiting: AWAITING_ROSTER.length, ...far.counts } };
 }
 
@@ -638,17 +647,30 @@ function mutate() {
     return { restore: () => { DEBT_PLANT = null; } };
   });
   run('the walk loses every server function', 'C13 the walk', () => bodiesWith((m) => m.clear()));
-  /* C14 — the plot buildings stay cut (lane/c-dead-plot-deed, 2026-11-07). */
-  run('the Tool Shed comes back to the shop', 'C14', () => {
+  /* C14 — the cut capabilities stay cut (lane/c-dead-plot-deed, 2026-11-07). */
+  run('the Tool Shed comes back to the shop', 'C14a', () => {
     SHOP_OFFERS.push({ id: 'plot.toolshed', table: 'plot', name: 'Tool Shed',
       cost: [{ kind: 'currency', id: 'gold', amount: 800 }, { kind: 'item', id: 'normal_log', amount: 40 }],
       grant: [{ kind: 'unlock', id: 'plot:toolshed', amount: 1 }], repeatable: true, max: 1 });
     return { restore: () => { SHOP_OFFERS.pop(); } };
   });
-  run('a room row grants a plot building', 'C14', () => {
+  run('a room row grants a plot building', 'C14a', () => {
     const o = offerOf('room.kitchen.1'); const was = o.grant;
     o.grant = [{ kind: 'unlock', id: 'plot:scarecrow', amount: 1 }];
     return { restore: () => { o.grant = was; } };
+  });
+  run('a worker hire comes back to the shop', 'C14a', () => {
+    SHOP_OFFERS.push({ id: 'worker.1', table: 'worker', name: 'Hire worker #1',
+      cost: [{ kind: 'currency', id: 'gold', amount: 500 }], grant: [{ kind: 'unlock', id: 'worker', amount: 1 }] });
+    return { restore: () => { SHOP_OFFERS.pop(); } };
+  });
+  run('the crew ladder sells a rung again', 'C14b', () => {
+    LADDER_PLANT = [...GOLD_LADDER_OFFERS, { offer_id: 'worker_hire.1', table_name: 'worker', unlock_id: 'worker_hire', value: 1, gold: 500 }];
+    return { restore: () => { LADDER_PLANT = null; } };
+  });
+  run('the farm-land ladder sells a rung again', 'C14b', () => {
+    LADDER_PLANT = [...GOLD_LADDER_OFFERS, { offer_id: 'farm_land.1', table_name: 'plot', unlock_id: 'plot:farm_land', value: 1, gold: 100 }];
+    return { restore: () => { LADDER_PLANT = null; } };
   });
 
   let bad = 0;

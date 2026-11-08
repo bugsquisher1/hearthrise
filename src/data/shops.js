@@ -10,11 +10,10 @@
 //                         with the old rune ladder, 2026-10-23)
 //   equip              8  src/legacy.js (5 rows moved to the outfitter, 2026-10-22)
 //   property           5  src/features/homestead.js
-//   worker             6  src/features/workers.js
 //   character_slot     3  src/multi-character.js (slot 1 is a starter: owned, never sold, 2026-10-26)
 //   companion          4  src/data/companions.js
-//   (the four `plot` buildings were cut 2026-11-07, lane/c-dead-plot-deed: the engine refused every one,
-//    nothing could grant a `plot:` building, and tests/catalogue-coherence.mjs C14 keeps them out)
+//   (the four `plot` buildings and the six `worker` hires were cut 2026-11-07, lane/c-dead-plot-deed: the engine
+//    refused every one and nothing read what they granted; tests/catalogue-coherence.mjs C14 keeps them out)
 //
 // THE LINE SHAPE — both sides of every offer
 //   { kind, id, amount }
@@ -440,43 +439,6 @@ export const SHOP_OFFERS = [
     grant: [{ kind: "item", id: "rune_blank", amount: 18 }],
     repeatable: true,
   },
-  {
-    id: "worker.1", table: "worker",
-    name: "Hire worker #1",
-    cost: [{ kind: "currency", id: "gold", amount: 500 }],
-    grant: [{ kind: "unlock", id: "worker", amount: 1 }],
-  },
-  {
-    id: "worker.2", table: "worker",
-    name: "Hire worker #2",
-    cost: [{ kind: "currency", id: "gold", amount: 3000 }],
-    grant: [{ kind: "unlock", id: "worker", amount: 1 }],
-  },
-  {
-    id: "worker.3", table: "worker",
-    name: "Hire worker #3",
-    cost: [{ kind: "currency", id: "gold", amount: 15000 }],
-    grant: [{ kind: "unlock", id: "worker", amount: 1 }],
-  },
-  {
-    id: "worker.4", table: "worker",
-    name: "Hire worker #4",
-    cost: [{ kind: "currency", id: "gold", amount: 75000 }],
-    grant: [{ kind: "unlock", id: "worker", amount: 1 }],
-  },
-  {
-    id: "worker.5", table: "worker",
-    name: "Hire worker #5",
-    cost: [{ kind: "currency", id: "gold", amount: 250000 }],
-    grant: [{ kind: "unlock", id: "worker", amount: 1 }],
-  },
-  {
-    id: "worker.6", table: "worker",
-    name: "Hire worker #6",
-    cost: [{ kind: "currency", id: "gold", amount: 750000 }],
-    grant: [{ kind: "unlock", id: "worker", amount: 1 }],
-    note: "and every hire after this one",
-  },
   /* Tools, gear and seeds, never supplies (Tyler 2026-10-20; designer 2026-10-22); SUPPLY_PRICE_LIST is never sold. */
   ...SUPPLY_SHOP_OFFERS.filter((s) => SHOP_SOLD_KINDS.includes(s.kind)).map(supplyOffer),
 ];
@@ -532,14 +494,6 @@ export const SHOP_TABLES = [
     "spends_at": "homestead.js upgradeTier()",
     "note": "grant amount is the tier index",
     "count": 5
-  },
-  {
-    "table": "worker",
-    "origin": "src/features/workers.js",
-    "anchor": "var HIRE_COSTS = [",
-    "spends_at": "workers.js hire()",
-    "note": "rung N is the price of the Nth hire, and the last rung repeats forever",
-    "count": 6
   },
   {
     "table": "character_slot",

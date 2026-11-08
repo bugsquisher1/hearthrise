@@ -877,6 +877,8 @@ async function run(mutate) {
       "room.kitchen.1'; drop table player_state; --",
       'room.kitchen.99', 'room.not_a_room.1', 'x'.repeat(500),
       'equip.bronze_sword', 'plot.scarecrow',
+      /* the cut ladders (2026-11-07): sold for gold until then, bought nothing; now no offer at all */
+      'worker_hire.1', 'farm_land.1', 'worker.1',
     ];
     for (const h of hostile) {
       await clearGate();
@@ -890,11 +892,12 @@ async function run(mutate) {
     ok(Number((await db.query('select count(*) as n from public.player_state')).rows[0].n) >= 2,
       'U9: player_state did not survive the hostile bodies');
     /* AND THE REAL-BUT-UNSELLABLE ONES ARE NAMED. `theme.winter` was the probe
-       until the house themes left (2026-10-14); `worker.1` is a real offer that
-       this verb cannot sell (hiring is its own verb), so telling a player it does
+       until the house themes left (2026-10-14), then `worker.1` until the worker
+       hires were cut (2026-11-07); `character_slot.2` is a real offer that this
+       verb cannot sell (a hero slot is its own verb), so telling a player it does
        not exist would send them to the wrong bug report. */
     await clearGate();
-    const named = await doBuy({ intentId: uuid(), offer: 'worker.1' });
+    const named = await doBuy({ intentId: uuid(), offer: 'character_slot.2' });
     ok(named.body.error === 'offer_unsupported' && named.body.reason,
       `U9: a real offer this build cannot sell answered ${JSON.stringify(named.body)} — it must `
       + 'be refused BY NAME with the reason attached');

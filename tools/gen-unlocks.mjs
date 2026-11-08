@@ -120,14 +120,11 @@ const NAMESPACES = {
     merge: 'max', progress_kind: 'unlock',
     why: 'A tier ladder with no colon in its id — the id IS the namespace.',
   },
-  /* `plot` is NOT declared (lane/c-dead-plot-deed, 2026-11-07): the four plot
-     buildings were refused by every verb and granted by nothing, and they are cut
-     (RETIRED_UNLOCKS below). A shop row that grants a `plot:` unlock again fails
-     generation here, by name. (plot:farm_land is gen-gold-ladders.mjs's row.) */
-  worker: {
-    merge: 'count', progress_kind: 'stat',
-    why: 'Repeatable hire, one id, no colon. Additive is correct.',
-  },
+  /* `plot` and `worker` are NOT declared (lane/c-dead-plot-deed, 2026-11-07): the
+     four plot buildings and the six worker hires were refused by every verb and
+     nothing read what they granted, so they are cut (RETIRED_UNLOCKS below). A
+     shop row that grants a `plot:` or `worker` unlock again fails generation here,
+     by name. */
   recipe: {
     merge: 'flag', progress_kind: 'flag',
     why: 'THE ARTISAN GATE. Boolean, and it must be writable by the accrual '
@@ -317,6 +314,8 @@ const RETIRED_UNLOCKS = Object.freeze([
   'recipe:spellstone_diagram',
   /* lane/c-dead-plot-deed (2026-11-07): the four plot buildings, refused by every verb and granted by nothing. */
   'plot:farm_plot', 'plot:scarecrow', 'plot:toolshed', 'plot:watchtower',
+  /* ...and the worker hires' count row, with the six worker.* shop rows that granted it. */
+  'worker',
 ]);
 for (const id of RETIRED_UNLOCKS) {
   if (rows.some((r) => r.unlock_id === id)) die(`retired unlock ${id} is still derived — take it off RETIRED_UNLOCKS or remove its source`);

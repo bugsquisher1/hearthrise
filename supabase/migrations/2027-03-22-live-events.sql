@@ -264,10 +264,10 @@ end $mig$;
 do $mig$
 declare
   a1 constant text := $a$                 'state', public.hr_hunt_member_state(h.user_id, h.slot))$a$;
-  r1 constant text := $a$                 'state', public.hr_hunt_member_state(h.user_id, h.slot),
-                 -- LIVE-EVENTS (2027-03-22-live-events.sql): the member's own Level XP windows from the instance's clock to an hour past now
+  r1 constant text := $a$                 -- LIVE-EVENTS (2027-03-22-live-events.sql): the member's own Level XP windows from the instance's clock to an hour past now
                  -- (hr_live_xp_windows: its switches, its ground, summed and capped); [] when none, so the engine sets no hook.
-                 'live_xp', public.hr_live_xp_windows(h.user_id, v_i.hunt_id, v_i.settled_to, now() + interval '1 hour'))$a$;
+                 'live_xp', public.hr_live_xp_windows(h.user_id, v_i.hunt_id, v_i.settled_to, now() + interval '1 hour'),
+                 'state', public.hr_hunt_member_state(h.user_id, h.slot))$a$;
   v_def text; v_n int;
 begin
   v_def := replace(pg_get_functiondef('public.hr_hunt_instance_read(uuid,integer)'::regprocedure), chr(13), '');
@@ -299,10 +299,15 @@ declare
               else coalesce(case when jsonb_typeof(p_delta->'level_xp') = 'number' then (p_delta->>'level_xp')::numeric end, 0) * (q.m - 1000) / q.m + v_kills end
             from (select public.hr_live_xp_max_pm(p_user, v_s.hunt_id, v_s.settled_to, v_to) as m) q) then
       perform public.hr_reject('bad_xp_event', jsonb_build_object('xp_event', p_hunt->'xp_event', 'level_xp', p_delta->'level_xp')); end if;
-    update public.hunt_session_tally t set xp_event = t.xp_event + (p_hunt->>'xp_event')::bigint where t.session_id = p_session;
   end if;
   -- STAMINA LOW:$a$;
-  v_a text[] := array[a1, a2, a3]; v_b text[] := array[r1, r2, r3];
+  a4 constant text := $a$  if p_analyzer is not null and jsonb_typeof(p_analyzer) = 'object' then$a$;
+  r4 constant text := $a$  -- LIVE-EVENTS: the tally's one update also keeps the event's part (bounded above), analyzer or not.
+  if (p_analyzer is not null and jsonb_typeof(p_analyzer) = 'object') or p_hunt ? 'xp_event' then$a$;
+  a5 constant text := $a$       set dealt = public.hr_hunt_tally_add(t.dealt, coalesce(p_analyzer->'dealt', '{}'::jsonb)),$a$;
+  r5 constant text := $a$       set xp_event = t.xp_event + coalesce((p_hunt->>'xp_event')::bigint, 0),
+           dealt = public.hr_hunt_tally_add(t.dealt, coalesce(p_analyzer->'dealt', '{}'::jsonb)),$a$;
+  v_a text[] := array[a1, a2, a3, a4, a5]; v_b text[] := array[r1, r2, r3, r4, r5];
   v_def text; v_n int; i int;
 begin
   v_def := replace(pg_get_functiondef('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure), chr(13), '');
@@ -442,7 +447,8 @@ begin
   -- (a)
   select prosrc into v_src from pg_proc where oid = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure;
   if (length(v_src) - length(replace(v_src, 'public.hr_live_xp_max_pm(', ''))) / length('public.hr_live_xp_max_pm(') <> 2
-     or strpos(v_src, '''tick_ms'' - ''xp_event''') = 0 or strpos(v_src, 'set xp_event = t.xp_event +') = 0 then
+     or strpos(v_src, '''tick_ms'' - ''xp_event''') = 0 or strpos(v_src, 'set xp_event = t.xp_event + coalesce((p_hunt->>''xp_event'')::bigint, 0),') = 0
+     or strpos(v_src, 'or p_hunt ? ''xp_event'' then') = 0 then
     raise exception 'live-events §8(a): hr_hunt_apply_member does not bound and keep the event''s part'; end if;
   if strpos((select prosrc from pg_proc where oid = 'public.hr_hunt_instance_read(uuid,integer)'::regprocedure), '''live_xp'', public.hr_live_xp_windows(') = 0
      or strpos((select prosrc from pg_proc where oid = 'public.hr_hunt_best_fold(uuid)'::regprocedure), 'xp_event') = 0

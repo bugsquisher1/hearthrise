@@ -129,7 +129,7 @@ export default definePack({
      bought per use keep a pair up on Dangerous on every ground (the v0.2.106 grade fails the same row on five of six). A lone hero
      keeps the table's 3. */
   tierOverride: { dangerous: [3, 6, 6, 7], why: 'weight class (11-06): on the table pull of 5 a Melee and Healer pair 2-3 under the floor netted gold on Dangerous' },
-  xpFit: { k: 1.4, why: 'the formula pays 0.72 of the pace contract at the band middle (58), measured as opened: grade full, 8 ways' },
+  xpFit: { k: 1.4, why: 'the formula pays 0.72 of the pace contract at the band middle (58), measured as opened over the 8 ways of a full grade' },
   roster: {
     greened_pikeman: 'swarm',   // the common majority
     bargeman: 'heavy',          // the tank: slow (2400), thick

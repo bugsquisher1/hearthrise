@@ -12,7 +12,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js
+// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js src/shell/windows/inventory/elsewhere.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -61,8 +61,11 @@
 //   AW-74 A SEED SAYS WHAT PLANTING IT NEEDS (coverage bot 2026-11-07: carrot and wheat seeds bought on tier 1 land, every plant refused
 //         plot_tier_locked): on the server's tier 1 land a Farming 10 hero's carrot seed reads "Needs plot tier 2 to plant" before the
 //         purchase; the turnip seed (tier 1, Farming 1) names no need
+//   AW-75 ALSO FOUND IS THE SERVER'S (audit 11-09 F1): with hr_account_items silent the Inventory search's list reads "Searching…"
+//         and lists nothing built from the open envelopes; then exactly the answer's rows; a refused read says so with no rows
 //   AW-9  FAIL SAFE: with no bag_rules and no shop section, lock, the loot plans
-//         and Dispatch loot stay off and the bag value reads a dash
+//         and Dispatch loot stay off and the bag value reads a dash; L and the This hunt tab say "Reading your locks…" and
+//         "Reading your loot plans…" (bag_rules is projected, so no "switch on when the server starts keeping them")
 //   AW-10 a food stack dragged onto a bar slot is ONE hr_action_set_options with
 //         the whole bar restated and the item in that slot
 //   AW-11 the bag's keys: an arrow moves the cursor, L locks that stack with ONE
@@ -269,7 +272,12 @@ async function stub(page, s) {
     }
     if (ITEM_RPCS.includes(name)) { await new Promise((ok) => setTimeout(ok, s.delayMs)); return json(s.reply); }
     if (name === 'hr_put_client_state') { Object.assign(s.residue, body.p_patch || {}); return json({ ok: true }); }
-    if (name === 'hr_account_items') return json({ ok: true, rows: [{ slot: null, name: null, item: 'rat_tail', qty: 4, where: 'bank' }, { slot: 1, name: 'Druid', item: 'rat_tail', qty: 2, where: 'bag' }] });
+    if (name === 'hr_account_items') {
+      /* AW-75: the server stays silent until the rule lets it answer, or refuses */
+      if (s.findGate) await s.findGate;
+      if (s.findRefuse) return json({ ok: false, error: s.findRefuse });
+      return json({ ok: true, rows: [{ slot: null, name: null, item: 'rat_tail', qty: 4, where: 'bank' }, { slot: 1, name: 'Druid', item: 'rat_tail', qty: 2, where: 'bag' }] });
+    }
     return json({ ok: true });
   });
 }
@@ -1860,7 +1868,48 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           rules: Array.from(document.querySelectorAll('[data-hs-act="m-rule"]')).every((b) => b.disabled),
           dispatch: document.querySelector('[data-hs-act="dispatch"]').disabled, value: document.querySelector('.hw-value').textContent }));
         if (!st.lock || !st.rules || !st.dispatch || st.value !== 'Reading the shop prices…') fails.push('AW-9 without the server’s sections the bag offered ' + JSON.stringify(st));
+        /* The reason is a loading line (audit 11-09 F11): bag_rules IS projected, so "switch on when the server starts keeping them" was false. */
+        await page.click('.hw-pocket[data-item="rat_tail"]');
+        await page.keyboard.press('l');
+        await page.waitForTimeout(150);
+        const lockSaid = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);
+        await page.click('[data-hs-win="inventory"] .hw-tab[data-tab="hunt"]');
+        await page.waitForTimeout(150);
+        const said = await page.evaluate(() => ({ note: document.querySelector('[data-hs-win="inventory"] .hw-loot-note').textContent,
+          keeping: /starts keeping/.test(document.querySelector('[data-hs-win="inventory"]').textContent) }));
+        if (lockSaid !== 'Reading your locks…' || said.note !== 'Reading your loot plans…' || said.keeping) fails.push('AW-9 before bag_rules loads the bag says ' + JSON.stringify({ lockSaid, ...said }));
       } else fails.push('AW-9 the screen did not mount');
+      await ctx.close();
+    }
+
+    { // AW-75 ALSO FOUND IS THE SERVER'S (audit 11-09 F1): while hr_account_items is silent the list says Searching… and lists
+      // nothing (never the open envelopes' copy: this hero's Storage holds 9 rat tails, the server's answer 4); then the answer's
+      // rows only; a refused read says so, with no rows and no "Nowhere else."
+      let release = null;
+      const { ctx, page, s, up } = await open({ mutateEnv: (e) => { e.bank = { rat_tail: 9 }; } });
+      if (up) {
+        s.findGate = new Promise((ok) => { release = ok; });
+        await openWin(page, 'b', 'inventory');
+        const seen = () => page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-elsewhere');
+          return { on: b.classList.contains('is-on'), from: b.querySelector('.hw-find-from').textContent,
+            rows: Array.from(b.querySelectorAll('.hw-found li small')).map((x) => x.textContent),
+            none: b.querySelector('.hw-found-none').classList.contains('is-on'), text: b.textContent }; });
+        await page.fill('[data-hs-win="inventory"] .hw-q', 'rat');
+        await page.waitForTimeout(700);
+        let v = await seen();
+        if (!sent(s, 'hr_account_items').some((c) => c.body.p_query === 'rat')) fails.push('AW-75 the search never asked the server');
+        if (!v.on || v.from !== 'Searching…' || v.rows.length || v.none || /not on the server/.test(v.text)) fails.push('AW-75 with the server silent the list reads ' + JSON.stringify(v));
+        release();
+        await wait(page, () => document.querySelector('[data-hs-win="inventory"] .hw-find-from').textContent === 'All your characters');
+        v = await seen();
+        if (JSON.stringify(v.rows) !== JSON.stringify(['In storage (all your characters) · ×4', 'Druid · in the bag · ×2'])) fails.push('AW-75 the server\'s answer reads ' + JSON.stringify(v));
+        s.findRefuse = 'search_down';
+        await page.fill('[data-hs-win="inventory"] .hw-q', 'tail');
+        await page.waitForTimeout(700);
+        v = await seen();
+        if (v.from !== 'The search did not go through, so nothing is listed. Change the search to try again.' || v.rows.length || v.none) fails.push('AW-75 a refused search reads ' + JSON.stringify(v));
+      } else fails.push('AW-75 the screen did not mount');
+      if (release) release();
       await ctx.close();
     }
 
@@ -3787,6 +3836,8 @@ const MUTANTS = [
   ['edgeBody lets an unlisted field through', 'src/session/edge-intents.js', '  for (const k of Object.keys(fields)) if (!allowed.includes(k)) return null;\n', ''],
   /* AW-24 in the page: the bag's pocket is where the ticker shows, so these two are judged by the page rules. */
   ['the bag shows only the server\'s count while town work runs', 'src/shell/windows/inventory/grid.js', '  patchCount(li, shown.qty, shown.ahead !== 0);', '  patchCount(li, r.qty);'],
+  ['the find list builds its own rows from this hero\'s Storage again (AW-75)', 'src/shell/windows/inventory/elsewhere.js', "sc.rows.filter((r) => !(r.slot === cs.slot && r.where === 'bag')) : [];",
+    "sc.rows.filter((r) => !(r.slot === cs.slot && r.where === 'bag')) : Object.entries(cs.read('bank') || {}).map(([item, qty]) => ({ slot: null, name: null, item, qty, where: 'bank' }));"],
   ['a pending count reads as final', 'src/shell/windows/inventory/pockets.js', "  cls(el, 'is-ahead', !!ahead);\n", ''],
   /* AW-24 the town ticker. `ticker:` mutants are judged by the pure rules on a temp copy of src (tickerMutant). */
   ['ticker: it counts an action before the engine has done it', 'src/shell/town-ticker.js', 'const ctx = { fromMs: win.fromMs, toMs: win.toMs,', 'const ctx = { fromMs: win.fromMs, toMs: win.toMs + stepMs,'],

@@ -234,7 +234,7 @@ function patchHuntPane(root, st, ctx) {
   });
   cls(pane.querySelector('.hw-loot-none'), 'is-on', !loot.length);
   text(pane.querySelector('.hw-loot-note'), st.rules ? 'Loot goes into your bag as it drops. Back in town, Dispatch loot (in the Bag tab or Storage) stores and sells each item by its plan. Don\'t pick up leaves it on the ground.'
-    : 'Loot plans switch on when the server starts keeping them.');
+    : 'Reading your loot plans…');
 }
 
 /** The grid column for the open tab. */

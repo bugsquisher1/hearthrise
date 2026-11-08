@@ -214,7 +214,7 @@ export const REASONS = Object.freeze({
     { cond: 'sc.pending || !!dWhy', words: "whyLine(root.querySelector('.hw-dispatch-why'), onBag ? dWhy : '', false);", where: 'Dispatch loot: its own line under the tools row (out hunting, nothing planned, reading the bag)' },
     { cond: '!!why', words: "(offWhy ? ' · ' + offWhy : '')", where: 'the This hunt row: a plan the server refuses for the item (starting kit, no shop price) is said on the row line' },
     { cond: 'sc.confirm.empty', words: 'hw-confirm-note', where: 'the confirmation lists what is kept' },
-    { cond: '!st.rules', words: "'Loot plans switch on when the server starts keeping them.'", where: 'the This hunt tab: the plan select is off before bag_rules loads and the tab note says so' },
+    { cond: '!st.rules', words: "'Reading your loot plans…'", where: 'the This hunt tab: the plan select is off before bag_rules loads and the tab note says so' },
     { cond: '!cur', words: "cls(pick, 'is-on', !!cur)", where: 'More sits on the picked line, which shows only with a stack picked' },
   ],
   'src/shell/windows/inventory/doll.js': [

@@ -131,10 +131,10 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
   });
   const none = root.querySelector('.hw-presets-none');
   cls(none, 'is-on', !presets || !presets.length);
-  text(none, presets ? 'No saved setups yet.' : 'Saved setups switch on when the server starts keeping them.');
-  /* The server says how many this hero may open; with no such section it is the limit and the server's refusal still speaks. */
+  text(none, presets ? 'No saved setups yet.' : 'Reading your saved setups…');
+  /* The server says how many this hero may open (`setup_slots`). Until it has, none is free (§6: fail safe to not unlocked). */
   const slots = setupSlotsOf(cs);
-  const count = slots ? slots.count : MAX_PRESETS;
+  const count = slots ? slots.count : 0;
   const full = presets && firstFree(presets) >= count;
   for (const el of root.querySelectorAll('.hw-add input, .hw-add button')) prop(el, 'disabled', sc.pending || !presets || full || hunting);
   cls(root.querySelector('.hw-town-only'), 'is-on', hunting);
@@ -147,7 +147,8 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
   text(buy, price === null ? '' : setupBuyWords(count, price));
   prop(buy, 'disabled', sc.pending || short > 0);
   /* Saving a new setup is off when every slot is used: said, not only greyed (say-why), on a line of its own so an answer's news never hides it. */
-  const why = full && !hunting ? setupFullWords(count, price) + (short ? ' You need ' + gold(short) + ' more.' : '') : '';
+  const why = hunting || !presets ? '' : !slots ? 'Reading your setup slots…'
+    : full ? setupFullWords(count, price) + (short ? ' You need ' + gold(short) + ' more.' : '') : '';
   const whyEl = root.querySelector('.hw-slot-why');
   prop(whyEl, 'hidden', !why);
   text(whyEl, why);

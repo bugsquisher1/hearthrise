@@ -304,7 +304,7 @@ export function createCanvasBackend(o) {
     /* VW-08: a bleed badge with its stack count, right of the bar. */
     for (const k of list.badges || []) {
       const [x, y] = at(k.x, k.y);
-      const px = Math.max(Math.round(4.5 * zs), Math.round(11 * dpr));
+      const px = Math.max(Math.round(4.5 * zs), Math.round(12 * dpr));
       ctx.font = '800 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
       const text = '×' + k.n, w = Math.ceil(ctx.measureText(text).width) + Math.round(px * 0.6), h = px + 2;
       ctx.fillStyle = tone('bar-back');

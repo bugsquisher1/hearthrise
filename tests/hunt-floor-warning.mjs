@@ -96,7 +96,12 @@ async function run(base) {
   ok('G5', open({ huntId: 'coppercap_warrens', endReason: 'died' }) === 'mosslight_glade', 'a hero the Warrens killed opens on ' + open({ huntId: 'coppercap_warrens', endReason: 'died' }));
   ok('G5', open({ huntId: 'wickstead', endReason: 'left' }) === 'mosslight_glade', 'a hero who has outgrown its last ground opens on ' + open({ huntId: 'wickstead', endReason: 'left' }));
   /* G6: the list's two tags, on the advice and the ground above it; a note means the advice's band doesn't hold, so no Fits. */
-  const tagged = (lv) => { const rec = HL.recommendation(lv, 1, rows), step = STEP.nextStepUp(rows, lv, true); return rows.filter((r) => HL.adviceTag(r, rec, step, false)).map((r) => r.hunt + ':' + HL.adviceTag(r, rec, step, false)).join(); };
+  /* the lines below are the BASE world's advice (the literal anchor); a ground pack (src/data/grounds) is read without, so a new
+     ground above the top can't turn "nothing above" red outside its lane (lane/b-ground-pack phase 2) */
+  const { GROUND_PACKS } = await import(pathToFileURL(join(base, 'src/data/grounds/index.js')).href + '?t=' + Math.random());
+  const packIds = new Set(GROUND_PACKS.map((p) => p.id));
+  const baseRows = rows.filter((r) => !packIds.has(r.hunt));
+  const tagged = (lv) => { const rec = HL.recommendation(lv, 1, baseRows), step = STEP.nextStepUp(baseRows, lv, true); return baseRows.filter((r) => HL.adviceTag(r, rec, step, false)).map((r) => r.hunt + ':' + HL.adviceTag(r, rec, step, false)).join(); };
   ok('G6', tagged(1) === 'mill_cellar:Right for your level', 'Level 1 reads ' + tagged(1));
   ok('G6', tagged(11) === 'wickstead:Right for your level,mosslight_glade:Next step up', 'Level 11 reads ' + tagged(11));
   ok('G6', tagged(17) === 'mosslight_glade:Right for your level,coppercap_warrens:Next step up', 'Level 17 reads ' + tagged(17));

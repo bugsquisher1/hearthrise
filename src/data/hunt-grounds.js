@@ -137,19 +137,10 @@
 import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.109';
 import { HUNT_INDEX } from './hunts.js?v=0.2.109';
 import { MONSTERS } from './monsters.js?v=0.2.109';
-
-const pocket = (room, ...spawns) => Object.freeze({ room: Object.freeze(room),
-  spawns: Object.freeze(spawns.map(([monster, x, y]) => Object.freeze({ monster, x, y }))) });
-
-/* A BOX: every walked pocket can field a full box of 8, all 8 tiles round the tank (Tyler 10-18). Its `pull` tile is 3x3 clear, no wall or
-   prop (tests/hunt-core/forest-cave.mjs), and its `pack` is 8 rows in join order on the ring round that tile (N, E, S, W, then the corners).
-   `spawns` is the first `base` of them, the pocket as built. Read only through pullRows. */
-export const FULL_BOX = 8;
-const RING = Object.freeze([[0, -1], [1, 0], [0, 1], [-1, 0], [1, -1], [1, 1], [-1, 1], [-1, -1]]);
-const box = (room, pull, base, more) => {
-  const pack = base.concat(more).map((monster, i) => Object.freeze({ monster, x: pull[0] + RING[i][0], y: pull[1] + RING[i][1] }));
-  return Object.freeze({ room: Object.freeze(room), pull: Object.freeze(pull), spawns: Object.freeze(pack.slice(0, base.length)), pack: Object.freeze(pack) });
-};
+/* the shape helpers (pocket, box, gather) live with the ground packs, which build their grounds with the same ones */
+import { pocket, box, gather, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.109';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.109';
+export { FULL_BOX };
 
 /* THE GATHER NODE KINDS (HUNT_GATHERING_SPEC §3, REVIEW §3 and §5): what a placed node is. `node` is a
    src/data/gathering.js TREES/ROCKS id (its req, xp, ms and product are read from there, never copied);
@@ -167,15 +158,9 @@ export const GROUND_NODE_KINDS = Object.freeze({
   gold_rock: kind('mining', 3, 4, 120000, 'cw_gold_seam', 'cw_gold_seam_spent'),
 });
 
-/* THE GATHER SLIDER (Tyler 10-18): `shares` are the steps of the time between pulls a hero spends
-   on a node, in permille of the hunt (0 = None, the default: REVIEW amendment). `refKillMs` is the
-   reference hero's time to clear one pack here (spec §2): the engine sizes a gap from it, so a hero
-   who out-levels the ground gathers more. Each node is placed in a pocket's room, on its route. */
-const GATHER_SHARES = Object.freeze([0, 250, 500, 750]);
-const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: GATHER_SHARES,
-  nodes: Object.freeze(nodes.map(([node, x, y, p]) => Object.freeze({ id: 'n' + x + '_' + y, node, x, y, pocket: p }))) });
+/* THE GATHER SLIDER (Tyler 10-18): grounds/shape.js gather(). */
 
-export const HUNT_GROUNDS = Object.freeze({
+const BASE_GROUNDS = Object.freeze({
   mill_cellar: Object.freeze({
     id: 'mill_cellar', hunt: 'mill_cellar', map: 'mill_cellar',
     /* the foot of the stair under the arch */
@@ -362,6 +347,9 @@ export const HUNT_GROUNDS = Object.freeze({
     ]),
   }),
 });
+
+/* THE BASE ROWS, then every ground pack's (src/data/grounds): its id is the pack's, and so is its hunt. */
+export const HUNT_GROUNDS = Object.freeze(foldRows('ground', BASE_GROUNDS, GROUND_PACKS, (p) => ({ [p.id]: Object.freeze({ id: p.id, hunt: p.id, ...p.ground }) })));
 
 /* A called boss's wave, rows like a pocket's spawns (pull-cycle.js spawnAdds): nothing else reads them but the catalogue's bounds. */
 const addRows = (...rows) => Object.freeze(rows.map(([monster, x, y]) => Object.freeze({ monster, x, y })));

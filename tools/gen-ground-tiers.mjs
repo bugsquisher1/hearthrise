@@ -29,6 +29,7 @@
 // worst case, every swing from 16 foes at the ground's top Level, x K; at most a full box (8) strikes one hero, so the table's
 // 4000 cap is half that room at K = 3 (x3.43 at the Thicket's Deadly reads 0.57 of it).
 // ════════════════════════════════════════════════════════════════════════
+import { wholeViewOrRerun } from './pack/whole.mjs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -179,7 +180,10 @@ async function loadData(root) {
   const T = await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + v);
   const { VALUE_HEADROOM } = await import(pathToFileURL(join(root, 'src/data/hunt-sessions.js')).href + v);
   const { TIER_PULL_OVERRIDES } = await import(pathToFileURL(join(root, 'src/data/balance-sheet.js')).href + v);
-  return { tiers: T.GROUND_TIERS, overrides: TIER_PULL_OVERRIDES, headroom: VALUE_HEADROOM };
+  const { OPEN_GROUNDS } = await import(pathToFileURL(join(root, 'src/data/hunt-grounds.js')).href + v);
+  /* the server is served OPEN grounds only: GROUND_TIERS holds a staged one too, for the grader (tools/pack.mjs check) */
+  const tiers = Object.fromEntries(Object.entries(T.GROUND_TIERS).filter(([g]) => Object.prototype.hasOwnProperty.call(OPEN_GROUNDS, g)));
+  return { tiers, overrides: TIER_PULL_OVERRIDES, headroom: VALUE_HEADROOM };
 }
 
 /* ONE FORMULA, SAID OUT LOUD: the grounds on the table as it stands, and each named exception the sheet carries. */
@@ -228,4 +232,5 @@ async function main() {
   console.log('gen-ground-tiers: wrote ' + OUT_NAME + ' (' + line + ')');
 }
 
-if (isMain(import.meta.url)) main().catch((e) => { console.error(e && e.stack ? e.stack : e); process.exit(1); });
+/* GROUND PACKS: a whole file carries the base and the folded packs only (tools/pack/whole.mjs), so a new pack re-issues nothing */
+if (isMain(import.meta.url) && wholeViewOrRerun(import.meta.url, OUT_NAME)) main().catch((e) => { console.error(e && e.stack ? e.stack : e); process.exit(1); });

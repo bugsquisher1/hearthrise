@@ -28,6 +28,8 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { HUNT_ROLES } from './hunt-roles.js?v=0.2.109';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.109';
+import { foldRows } from './grounds/shape.js?v=0.2.109';
 
 /* THE CLASSES a party can hold: class id → the word the player reads and the hunt roles it covers.
    Tank is a function of a Melee, not a class of its own (Tyler 2026-10-16). */
@@ -41,7 +43,7 @@ export const PARTY_CLASSES = Object.freeze({
 const row = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 
 /* ground id → its row (designer's final table, 2026-11-01). */
-export const PARTY_CLASS_XP = Object.freeze({
+const BASE_CLASS_XP = Object.freeze({
   /* NO SEAT SLIDES UNDER TODAY ON THE FORMULA'S ROWS (lane/b-party-xp, 2026-11-07; tools/balance-sim/grade-compare.mjs, the release gate). The formula left lone heroes
      where they were and took 8-10% off a tank + healer pair: its tank against the median hero alone read 1.02 -> 0.93 on the Cellar and 0.95 -> 0.87 at the Sewer floor,
      and a three of tank, healer and bow 1.03 -> 0.99 on Wickstead. A ground's XP dial moves alone and party alike, so the cell is the lever: the Cellar's two-class pair
@@ -63,6 +65,8 @@ export const PARTY_CLASS_XP = Object.freeze({
      pair reads 0.987 and the four still 1.009, and each gate rerolls the first grounds' net chain); the cell can, and it moves no gold, no mixed party and no other ground. */
   coppercap_warrens: row([960, 1180], [970, 1200, 1280], [960, 1200, 1260, 1360]),
 });
+/* A ground pack's own row, when its same-class party would beat solo (src/data/grounds/<id>/pack.js `partyClassXp`: { 2, 3, 4 }). */
+export const PARTY_CLASS_XP = Object.freeze(foldRows('party class row', BASE_CLASS_XP, GROUND_PACKS, (p) => (p.partyClassXp ? { [p.id]: row(p.partyClassXp[2], p.partyClassXp[3], p.partyClassXp[4]) } : {})));
 
 /* WHAT THE PLAYER IS TOLD (designer 2026-11-02; blind party test 2026-11-01). The table above is a factor on an even share of a bigger pull, so "52% more" sat on a party
    that measured 19% more than its heroes alone. THIS row is the measured answer, in whole percent to the nearest 5: Level XP per hero at the default pull, against the
@@ -72,7 +76,7 @@ export const PARTY_CLASS_XP = Object.freeze({
    RE-MEASURED 2026-11-07 on the formula's rows with tier dials (lane/b-party-xp; tools/balance-sim/grade.mjs full, Normal, at the floor, each seat over the same way alone):
    the Sewer pair +25, Wickstead's three +15, and the fours that read off, the Cellar's at 3 and 4 classes +9% and +28% (10, 30), Wickstead's +26% and +27% (25, 25). */
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
-export const PARTY_VS_ALONE = Object.freeze({
+const BASE_VS_ALONE = Object.freeze({
   mill_cellar: said([-5, 10], [-5, 5, 15], [-20, 5, 10, 30]),
   meadowbrook_thicket: said([-10, 10], [-10, 5, 20], [-10, 0, 5, 20]),
   wickstead: said([-10, 5], [-10, 5, 15], [-15, 5, 25, 25]),
@@ -80,6 +84,8 @@ export const PARTY_VS_ALONE = Object.freeze({
   millrace_sewer: said([-10, 25], [-15, 10, 20], [-20, 10, 10, 20]),
   coppercap_warrens: said([-10, 10], [-15, 5, 15], [-15, 5, 10, 20]),
 });
+/* A ground pack's measured line (src/data/grounds/<id>/pack.js `partyVsAlone`: { 2, 3, 4 }, whole fives, measured on the real settle). */
+export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', BASE_VS_ALONE, GROUND_PACKS, (p) => (p.partyVsAlone ? { [p.id]: said(p.partyVsAlone[2], p.partyVsAlone[3], p.partyVsAlone[4]) } : {})));
 
 /* A FOUR WHO ALL SHARE ONE ROLE READS ITS OWN LINE (designer 2026-11-04; CLAUDE.md §6). The Thicket's one-class four pays the even share, so its weapons no longer sit near one number, and a four of wands earns more than
    alone. Whole percent to the nearest 5, against the same heroes alone (1 h x 2 seeds, Levels 5 and 10: shields -12, -15; hammers -11, -9; bows -9, -8; staffs -12, -11; wands +4, +5). first-week-bands vs-alone plays it. */

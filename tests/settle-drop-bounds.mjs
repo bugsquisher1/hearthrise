@@ -27,7 +27,7 @@
 // The catalogue read is the GENERATED SQL itself (the file that applies: tools/gen-hunt-sessions.mjs OUT; a
 // mutant's, its planted generator's render()), parsed here, never the generator's in-memory rows.
 // ════════════════════════════════════════════════════════════════════════
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, plant } from './hunt-core/fixtures/h1.js';
@@ -59,6 +59,17 @@ async function check(root, sql) {
   const { MONSTERS } = await imp(root, 'src/data/monsters.js');
   const bounds = {};
   for (const [id, gold, xp, drops] of valuesOf(sql, 'hr_hunt_kill_bounds')) bounds[id] = { gold, xp, drops: JSON.parse(drops) };
+  /* A GROUND PACK's bounds ship in its own additive file until a whole file folds it (tools/pack/whole.mjs, lane/b-ground-pack): the
+     settle reads both, so this does too. An open pack with no file on disk has no bounds, and reads red here (and in tests/ground-pack.mjs GP-2). */
+  const { packIds } = await imp(root, 'tools/pack/files.mjs'), { packSqlOf } = await imp(root, 'tools/pack/whole.mjs'), { rowsOf } = await imp(root, 'tools/pack/sql.mjs');
+  for (const pid of packIds(root)) {
+    const f = packSqlOf(pid, root), path = f && join(root, 'supabase', 'migrations', f);
+    if (!path || !existsSync(path)) continue;
+    for (const s of rowsOf(readFileSync(path, 'utf8')).filter((x) => x.table === 'hr_hunt_kill_bounds')) for (const r of s.rows) {
+      const v = (c) => r[s.cols.indexOf(c)], str = (x) => x.replace(/^'|'(::jsonb)?$/g, '').replace(/''/g, "'");
+      bounds[str(v('monster_id'))] = { gold: Number(v('gold_max')), xp: Number(v('xp_max')), drops: JSON.parse(str(v('drops'))) };
+    }
+  }
   const spawns = {};
   for (const [hunt, monster] of valuesOf(sql, 'hr_hunt_ground_spawns')) (spawns[hunt] = spawns[hunt] || new Set()).add(monster);
   const out = [];
@@ -100,7 +111,7 @@ const MUTANTS = [
     edits: [['tools/gen-hunt-sessions.mjs', 'const gold = Math.max(0, Math.ceil(Number((m.gp || [0, 0])[1]) || 0));', 'const gold = Math.max(0, Math.ceil(Number((m.gp || [0, 0])[0]) || 0));']] },
 ];
 /* What a planted generator needs beside src/core and src/data (its imports). */
-const TREES = ['src/session', 'supabase/functions/hr-accrue', 'tools/gen-hunt-sessions.mjs', 'tests/_is-main.mjs'];
+const TREES = ['src/session', 'supabase/functions/hr-accrue', 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tests/_is-main.mjs'];
 
 if (process.argv.includes('--mutate')) {
   const clean = await check(ROOT, readFileSync((await imp(ROOT, 'tools/gen-hunt-sessions.mjs')).OUT, 'utf8'));

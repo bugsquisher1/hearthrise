@@ -22,6 +22,8 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { LEVEL_PACE, VITALS } from './core-model.js?v=0.2.109';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.109';
+import { foldRows } from './grounds/shape.js?v=0.2.109';
 
 /* ── THE TARGET SHEET ─────────────────────────────────────────────────────
    Judged per ground on the real engine, store supplies bought per use (the store bill is the whole
@@ -181,7 +183,7 @@ export const ROLE_IDS = Object.freeze(Object.keys(MONSTER_ROLES));
 /* THE ROSTER: each monster's role on its ground (designer input; the reason is the row's own comment in
    monsters.js). Its Level, art tier and class are on the row; its ground gives the floor and the fit. A monster
    on two grounds keeps one role. tools/gen-ground-stats.mjs writes the numbers from these. */
-export const GROUND_ROSTER = Object.freeze({
+const BASE_ROSTER = Object.freeze({
   mill_cellar: Object.freeze({
     rat: 'swarm',             // the tutorial's first kills
     slime: 'heavy',           // slow (2400), a blob
@@ -225,6 +227,8 @@ export const GROUND_ROSTER = Object.freeze({
     chief_coppercap: 'boss',
   }),
 });
+/* A ground pack's roster is its own (src/data/grounds/<id>/pack.js `roster`). */
+export const GROUND_ROSTER = Object.freeze(foldRows('roster', BASE_ROSTER, GROUND_PACKS, (p) => ({ [p.id]: Object.freeze({ ...p.roster }) })));
 /* A GROUND'S XP FIT: Level XP a kill on one ground, x this, where its layout (pockets, walks) kills faster than its Levels
    pay for. Measured, each with its reason (lane/b-ground-formula-2): the Meadowbrook Thicket x0.9: at Wickstead's floor (8) its
    Normal paid within 0-12% of Wickstead's for every way to fight (a four 33.3k against 33.6k), so no harder tier fitted under
@@ -233,7 +237,7 @@ export const GROUND_ROSTER = Object.freeze({
    contract in band (the Cellar 5,960 at 4.5, Wickstead 30,088 at 13), so the ladder's fit ran steeper than the contract (718 x L^1.472:
    level-curve C5 -13% at 100) and the careers reached Level 10 in 6.7 h (C3, +12%); the Cellar is the tutorial, paced to Level 5 in
    LEVEL_PACE.early (0.32 h against its 0.25 aim). */
-export const GROUND_XP_FIT = Object.freeze({ mill_cellar: 1.25, meadowbrook_thicket: 0.9, wickstead: 1.1 });
+export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.25, meadowbrook_thicket: 0.9, wickstead: 1.1 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));
 
 /* NAMED EXCEPTIONS: { monster: { field: 'the reason' } }, a field a row keeps by hand. Empty: none has earned one. */
 export const FORMULA_EXCEPTIONS = Object.freeze({});
@@ -322,7 +326,7 @@ export const TIER_DIALS = Object.freeze({
 });
 /* Per-ground pull rows, only where a ground's shape demands one, each with its reason: { tier: pull[4] }, or
    normalOnly. Grounds not listed take TIER_DIALS whole. */
-export const TIER_PULL_OVERRIDES = Object.freeze({
+const BASE_TIER_OVERRIDES = Object.freeze({
   mill_cellar: Object.freeze({ normalOnly: true, why: 'the first ground: a choice adds nothing to the first minutes (Coordinator 2026-11-05)' }),
   /* THE LADDER RULE (tests/hunt-core/hunt-tiers.mjs: a ground's top tier never beats the next ground's Normal at the Level that fits it):
      Wickstead's monsters are soft in absolute terms, so a bigger LONE pull is free XP: on the formula's rows a lone hammer at 18 earned
@@ -343,6 +347,8 @@ export const TIER_PULL_OVERRIDES = Object.freeze({
     dials: Object.freeze({ deadly: Object.freeze({ xpPm: 1220 }) }),
     why: 'the ladder rule: a lone pull of 4 at the Sewer beats the Glade for a hammer, and its Deadly at x1.25 XP did for a lone hammer at 16' }),
 });
+/* A ground pack's own tier row, when its shape demands one (src/data/grounds/<id>/pack.js `tierOverride`, with its why). */
+export const TIER_PULL_OVERRIDES = Object.freeze(foldRows('tier override', BASE_TIER_OVERRIDES, GROUND_PACKS, (p) => (p.tierOverride ? { [p.id]: p.tierOverride } : {})));
 
 /* What one swing is worth at a same-Level hero: its to-hit times its blow share, a tier's atk scaling `k` applied the engine's way
    (atk x k: the blow x k, the to-hit up 2% a point of atk added). The reference monster is a regular at the floor, tier-1 damage scale. */

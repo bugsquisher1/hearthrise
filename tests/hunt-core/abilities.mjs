@@ -42,7 +42,13 @@ const cases = {
     const loose = runes.filter((id) => !M.SC.CRAFTED_RUNE_FAMILIES.includes(M.ITEMS[id].family));
     if (new Set(loose.map((id) => M.ITEMS[id].family)).size !== loose.length || !loose.every((id) => M.runes.runeTierOf(M.ITEMS[id]) === 1)) return 'an uncrafted family has more than its one old rune: ' + loose;
     const inactive = Object.values(M.AD.ABILITIES).filter((r) => !r.active).map((r) => r.id).sort();
-    return JSON.stringify(inactive) === '[]' ? null : 'held rows changed: ' + JSON.stringify(inactive);
+    if (JSON.stringify(inactive) !== '[]') return 'held rows changed: ' + JSON.stringify(inactive);
+    /* a row's own starting rule (`trigger`) is a slot the server's check (mirrored) takes, in the registry's words */
+    for (const r of Object.values(M.AD.ABILITIES).filter((x) => x.trigger)) {
+      const p = M.conditions.slotProblem({ action: { type: 'ability', id: r.id }, conditions: r.trigger, join: 'and' });
+      if (p) return r.id + "'s trigger is refused as a slot: " + JSON.stringify(p);
+    }
+    return null;
   },
   /* AB-10: the first usable ability in bar order fires, one per lane. */
   'first-usable-in-order': (M) => {

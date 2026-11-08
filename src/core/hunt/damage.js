@@ -79,8 +79,10 @@ function slowPmOf(u) {
   return best;
 }
 
-/** A clock of `ms` that unit `u` starts NOW, slowed by its live slowing statuses (Chill): `ms` x (1000 + slowPm) / 1000,
-    up to a whole sub-step. Fixed as it starts: a slow that lands later stretches the next one. Unslowed it is `ms`. */
+/** A clock of `ms` that unit `u` starts NOW, slowed by its live slowing statuses (a wiki formula, Chill's slowPm 300 = 30%):
+      slowed = ceil(ms x (1000 + slowPm) / 1000 / stepMs) x stepMs   (stepMs: hunt-tuning.js, 100 ms),
+    so a chilled 2 s swing waits 2.6 s and a chilled 1.6 s windup 2.1 s. Fixed as it starts: a slow that lands later
+    stretches the next one. Unslowed it is `ms`. */
 export function slowed(u, ms) {
   const pm = slowPmOf(u);
   if (!pm) return ms;

@@ -98,6 +98,71 @@ THE LAST ~1,034, IN RUN ORDER (gens include re-rolls; the reserve of 100 is on t
      spread"), the kobold and the rat king, with a pose on a refusal.
  Q2  L1, the other four flames (6): forge, candle (padded to 32x32), cook cauldron, bread oven, the sample's words
      and cut.
+ TRAINING (Tyler 2026-11-08, top priority: "Make the training area look cool too", and a personal house dummy as a
+ "wildly expensive" gold sink with "multiple unlocks for each combat skill"). Today the yard (plan.js `training`,
+ 22x18 tiles) is a bare dirt square with 8 identical straw dummies, one rack, barrels and a hay bale
+ (art/review/havora-polish-2026-10-26/after/training-yard-1920.png). Heroes train there for hours, so it should be
+ lively and readable: one target type per combat style, each one reacting to a blow. Every piece is style 1, on the
+ one palette, with no glow (magic is shown by carved and inlaid runes, never by light).
+ Y1  The yard kit, one sheet (18): create_image_pro_flash 256x256, 64 px cells, style image a 32x43 crop of the
+     shipped dummy (art/world/cottage/dummy.png), "match palette, outline, shading". Rows:
+       melee    ty_straw_dummy (a straw dummy on a post with a battered wooden buckler strapped to one arm),
+                ty_pell (a thick nicked oak post for sword drills), ty_quintain (a pivoting arm on a post, a shield
+                at one end and a sandbag at the other), ty_sparring_board (a padded board on two posts)
+       ranged   ty_archery_butt (a round straw target in red and cream rings on a wooden A-frame, arrows stuck in it),
+                ty_butt_small, ty_arrow_stand (a barrel of practice arrows), ty_range_marker (a painted distance post)
+       magic    ty_rune_post (a squat standing stone carved with runes and scorched black, no glow), ty_ward_ring
+                (a flat ring of carved stones set in the ground: a decal), ty_scorch (flat scorch marks: a decal),
+                ty_rune_lectern (a stone stand holding an open spellbook)
+       yard     ty_sword_rack (wooden practice swords in a rack), ty_trough (a water trough), ty_bench (a plank bench),
+                ty_banner (the town watch's dark red banner with the cream flame, on a pole: the E1 banner's look)
+     2 sheets (the second a re-roll of any refused row) and 1 spare. Classes at import: fixture, wreck, bulky, decal.
+     Scale: 64 px cells draw props about 1.4x big (KIT §8), so every target stands at the shipped dummy's height (43
+     px) or lower. Refuse a cell over 48 px tall.
+ Y2  The sand ring (30): create_topdown_tileset pro, 32 px, chained on the town's dirt base
+     97e71544-5fcf-4e48-94b7-c809721a12be (which must come back byte-identical), upper "raked pale training sand,
+     fine, calm, low contrast, flat and level with the dirt". One roll and one spare. Locked, the sand sits one step
+     lighter than the dirt, so a hero reads on it by outline as on brief 12's ash. The pair joins the town's BLEND.
+ Y3  The arms master (8): the trainer who stands by the rack. N1's recipe, rotations and the S idle ONLY: "a grizzled
+     arms master in a padded quilted gambeson and leather bracers, a wooden practice sword resting on one shoulder,
+     a scarred face and a grey beard, town npc sprite".
+ Y4  The reactions (6): a target answers the blow it takes. animate_image on each shipped target, cut to the moving
+     pixels (the Great Hearth's method), 5 frames at 12 fps (§6's hit): ty_straw_dummy "rocks back on its post and
+     settles, the post stays in the ground", ty_quintain "the arm swings round half a turn and back", ty_pell and
+     ty_archery_butt "shudders by one pixel". Straw and splinter puffs are vfx_workbench particles (free, particles
+     only, my 10-25 lesson). The rune post answers with free vfx rune sparks, never a glow.
+ Y5  THE HOUSE TRAINING DUMMY, a showpiece (45). One dummy that a list of unlocked parts dresses. It must look
+     EXPENSIVE: a dark polished oak post on a carved stone plinth inlaid with gold, a stitched crimson leather body
+     with brass studs, gilded trim. No glow anywhere. Frame 64x64, the plinth on a 1x1 footprint, the body about 48 px
+     tall (its plinth lifts it above the yard's straw dummies).
+     Its parts, one per combat skill, each in its own region so any set of them can show at once:
+       hd_base      the dummy on its plinth (always shown: the purchase)
+       hd_circle    MAGIC: a ring of runes inlaid in silver and gold on the floor round the plinth (flat, on the
+                    decal layer, drawn first)
+       hd_plates    DEFENSE: a steel helm and pauldrons on the head and shoulders
+       hd_arms      MELEE: two pivoting practice arms, a wooden sword and a buckler
+       hd_target    RANGED: a painted target disc in red and gold rings strapped on the chest
+     Draw order: hd_circle, hd_base, hd_plates, hd_arms, hd_target. Every part shares hd_base's frame and anchor, so
+     the renderer stacks the unlocked ones and nothing moves.
+     HOW (one drawing, aligned layers): create_object_pro_flash, 1 direction, 64x64, the FULLY unlocked dummy in all
+     its parts (2 candidates, then 1 more). On the pick, inpaint_image removes one part at a time ("the bare dummy
+     underneath, the same wood, leather and brass"): part k = the pixels where the full dummy differs from the full
+     dummy without part k. hd_base = the full dummy with all four removed. 5 inpaints.
+     GRADES (for "multiple unlocks for each combat skill"): the generated parts are the top grade, gilded steel.
+     Grades 1 and 2 of each part are scripted re-pours (0 gens, brief 12 P3's method): the gold and steel ramps
+     poured to iron, then to plain wood and leather. So an unlock is (skill, grade), and the sprite is
+     hd_<part>_<grade>. The designer's lane owns how many grades, the prices and the fees. The art supports up to 3
+     grades a part.
+     The house dummy answers a blow with §11's 1 px recoil and free particles. A generated wobble would have to be made
+     for every set of parts.
+ TRAINING SAMPLES (with Q1's on 11-09, one read): Y1 sheet 1, Y2's roll, Y3 rotations + S idle, Y4 the straw dummy,
+ Y5 two candidates of the full showpiece.
+ TRAINING WIRING (not the generator's): the art imports into the havora set (yard) and the cottage set (house
+ dummy). The YARD LAYOUT is a data change for the designer's lane: the sand ring in the middle with the straw dummies,
+ pells and quintain; a range lane along the east fence with the butts, archers standing 4 tiles off; the rune posts in
+ the ward ring in one corner; racks, benches, the trough and the arms master along the fence; banners at the gate.
+ Today every target has three stands round it, and a butt needs its stands down the lane instead. Which target a hero
+ trains at follows its combat style (systems). The reactions play on the hero's swing (brief 13's hook lane, B2).
  Q3  P1, the ash pair 1: ONE more roll, a second only if it misses (30)
      lower "light warm grey wood ash like weathered limestone, mottled with paler and darker flecks, soft, calm";
      upper "dry cracked bare earth, warm brown-grey, flat and level with the ash, no raised edge, no step, no slabs,
@@ -131,24 +196,25 @@ THE LAST ~1,034, IN RUN ORDER (gens include re-rolls; the reserve of 100 is on t
      warrant_seal "a flat round grey lead disc stamped with a crest, a scorched red cord through a hole at its top"
  Q10 T1, npc_gate_sergeant (10): rotations and the S idle (brief 11 T1).
  Q11 C1, sheets 2 and 3 as brief 11 C1, and one re-roll sheet (18).
- Q12 N1, the four keepers (35): shopkeep, clerk, hunter, cook, brief 10's prompts, rotations and the S idle ONLY.
- Q13 M3, hit diagonals (44): the Cellar and the Sewer first (rat, slime, hive_wasp, drain_rat, sump_slime,
-     cistern_spider, culvert_bat, kobold_tosher, rat_king), B3's words, never mirrored. Then the next grounds in
-     order while gens last.
- Q14 H1d, the hero flinch diagonals for 7 outfits (26), the druid waiting. H1's held wording: "only the upper body
-     tips back, the legs and feet do not move, it keeps facing the same way". Knight ne again.
- TOTAL 857, with the reserve of 100 on top 957. What the reserve leaves on 11-13 goes to Q13's next grounds.
+ TOTAL: Q1-Q11 752, TRAINING Y1-Y5 107, so 859, with the reserve of 100 on top 959.
+ PUSHED OUT BY THE TRAINING LINES (they open the next cycle, first in the list below):
+     the old Q12 N1, the four keepers (35): shopkeep, clerk, hunter, cook, rotations and the S idle only.
+     the old Q13 M3, hit diagonals (44): the Cellar and the Sewer first, B3's words, never mirrored.
+     the old Q14 H1d, the hero flinch diagonals for 7 outfits (26), with H1's held wording; knight ne again.
+     All three are inert or still today: hits wait for the hook, and placed NPCs for brief 11's F4 fix.
+ If the reserve is not spent by the evening of 11-13, it goes to M3 (the Cellar and the Sewer) first, then N1.
 
- NEXT CYCLE, IN THIS ORDER (after the 11-14 renewal): the druid's five swings, its hits E and N and its four hit
- diagonals, by the pose route; the Pyre bodies' and the wraith's hits; M3's other grounds; the four dropped B3
- facings by the pose route; M4; H2d; S1 drawn wide; E1's two marks; T3; T2.
+ NEXT CYCLE, IN THIS ORDER (after the 11-14 renewal): N1's four keepers; M3, the Cellar and the Sewer first; H1d;
+ the druid's five swings, its hits E and N and its four hit diagonals, by the pose route; the Pyre bodies' and the
+ wraith's hits; M3's other grounds; the four dropped B3 facings by the pose route; M4; H2d; S1 drawn wide; E1's two
+ marks; T3; T2.
 
 BY DAY
- 11-09  Q1, Q2 ................................................................................. ~245
- 11-10  Q3 (one roll, my read, then pairs 2-6), Q4's first half ........................................ ~180
- 11-11  Q4's rest, Q5 .......................................................................... ~205
- 11-12  Q6 to Q12 .............................................................................. ~160
- 11-13  Q13, Q14, then the reserve to zero ..................................................... ~70 + 100
+ 11-09  the training samples (7 calls) with Q1, Q2 .............................................. ~270
+ 11-10  Y1-Y5 after my read, Q3 (one roll, my read, then pairs 2-6) ............................ ~185
+ 11-11  Q4, Q5's first half .................................................................... ~210
+ 11-12  Q5's rest, Q6 to Q9 .................................................................... ~190
+ 11-13  Q10, Q11, then the reserve to zero ..................................................... ~30 + 100
 
 READY FOR IMPORT NOW, by the lane that takes it (art/world-src/gen-2026-11-08b/ unless named)
  1. THE ANIMATION HOOK LANE (systems: play `hit` on the blow's hit frame, `attack` as the hero's swing, and the fall

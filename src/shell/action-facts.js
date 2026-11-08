@@ -30,13 +30,14 @@ import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js
 import { shortOf } from './item-lore.js?v=0.2.109';
 import { storeOf, storeWords, storeChoices, conditionWords } from './bar-draft.js?v=0.2.109';
 import { listWords, whole } from '../render/format.js?v=0.2.109';
+import { t } from '../render/player-text.js?v=0.2.109';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
 
 /** The four tabs of the Configure action window: spells, the spells that spend a rune, food and drink, and ammo
     (Tyler 2026-10-25: ammo keeps its own tab, never mixed in with food and drink). */
-export const TABS = Object.freeze([['spells', 'Spells'], ['runes', 'Runes'], ['food', 'Food & drink'], ['ammo', 'Ammo']]);
+export const TABS = Object.freeze([['spells', t('bar.tab_spells')], ['runes', t('bar.tab_runes')], ['food', t('bar.tab_food')], ['ammo', t('bar.tab_ammo')]]);
 
 /** The tab an action belongs to (a rune spell under Runes; a shot under Ammo; food and drink under Food & drink). */
 export function tabOf(a) {
@@ -47,7 +48,7 @@ export function tabOf(a) {
 /** An action's player-facing name. */
 export function actionName(a) {
   if (a.type === 'ability') return abilityName(a.id);
-  return own(ATTACK_KINDS, a.id) ? 'The loaded ammo' : itemName(a.id);
+  return own(ATTACK_KINDS, a.id) ? t('bar.loaded_ammo') : itemName(a.id);
 }
 
 /* The worn sets that give a discipline, in words ("Shield or Bare hands"), each word once: every role key playing it (ROLE_KEYS). */
@@ -79,12 +80,12 @@ function wordsOfKeys(keys) {
 function shotProblem(a, role, skills) {
   if (!a || a.type !== 'attack_with_item' || own(ATTACK_KINDS, a.id)) return '';
   const it = ITEMS[a.id];
-  if (shootsItem(role, it)) { const need = shortOf(a.id, skills, null); return need ? need.text + '. This slot waits until then, and your next ammo fires.' : ''; }
-  if (it && it.reqSkill === 'melee') return 'A whetstone is not a shot. It sharpens a Melee weapon worn in the ammo slot. No weapon shoots it, so this slot never fires.';
-  if (isRune(it)) return 'A rune isn’t a shot. It fuels your spells. No weapon shoots it, so this slot never fires.';
+  if (shootsItem(role, it)) { const need = shortOf(a.id, skills, null); return need ? t('bar.shot_waits', { need: need.text }) : ''; }
+  if (it && it.reqSkill === 'melee') return t('bar.shot_whetstone');
+  if (isRune(it)) return t('bar.shot_rune');
   const by = weaponsOf(Object.keys(HUNT_ROLES).filter((r) => shootsItem(r, it)));
-  if (!by) return 'No weapon shoots this, so this slot never fires.';
-  return (role && HUNT_ROLES[role] ? 'Your weapon can’t shoot this' : 'No weapon worn') + '. The slot stays struck until you wield a ' + by + '.';
+  if (!by) return t('bar.shot_nobody');
+  return t(role && HUNT_ROLES[role] ? 'bar.shot_wrong_weapon' : 'bar.shot_no_weapon', { weapons: by });
 }
 
 /** "Your weapon can’t cast this. The slot stays struck until you wield a Shield." for a spell the hero's worn
@@ -95,19 +96,25 @@ export function weaponWarning(a, disc, role, skills) {
   if (a && a.type === 'attack_with_item') return shotProblem(a, role, skills);
   const r = a && a.type === 'ability' ? ABILITIES[a.id] : null;
   if (!r || r.universal || (disc && r.disciplines.includes(disc))) return '';
-  return 'Your weapon can’t cast this. The slot stays struck until you wield a ' + weaponsFor(r.disciplines[0]) + '.';
+  return t('bar.cast_wrong_weapon', { weapons: weaponsFor(r.disciplines[0]) });
 }
 
+/* The line for each spell target (bar.target_<target>). */
 const TARGET_LINE = Object.freeze({
-  taunt: 'Taunt: pulls the monsters near you onto you.',
-  mark: 'Mark: marks your current target.',
-  enemy: 'Attack spell: casts on your current target.',
-  area: 'Area spell: hits the monsters round your target.',
-  cleave: 'Cleave: hits the monsters in front of you.',
-  self: 'Self spell: casts on yourself.',
-  ally: 'Heal: casts on the ally who needs it most.',
-  party: 'Group heal: heals everyone near you.',
+  taunt: 'bar.target_taunt', mark: 'bar.target_mark', enemy: 'bar.target_enemy', area: 'bar.target_area',
+  cleave: 'bar.target_cleave', self: 'bar.target_self', ally: 'bar.target_ally', party: 'bar.target_party',
 });
+
+/* "Deals 4–9 fire damage to each monster hit." by the spell's shape: area, a cap on monsters, repeated hits, or one. */
+function damageLine(r) {
+  const shape = r.target === 'area' ? '_area' : r.maxHits ? '_max' : r.hits ? '_hits' : '';
+  /** @type {Record<string, number|string>} */
+  const v = { lo: r.dmg[0], hi: r.dmg[1] };
+  if (r.element) v.element = r.element;
+  if (shape === '_max') v.max = r.maxHits;
+  if (shape === '_hits') v.hits = r.hits;
+  return t('bar.effect_dmg' + shape + (r.element ? '_el' : ''), v);
+}
 
 /**
  * What an action is: { type, cost, cooldown, effect[], requires } (absent fields
@@ -117,28 +124,29 @@ export function factsOf(a) {
   if (a.type === 'ability') {
     const r = ABILITIES[a.id];
     if (!r) return { type: null, cost: null, cooldown: null, effect: [], requires: null };
-    const el = r.element ? ' ' + r.element : '';
     const effect = [];
-    if (r.target === 'mark') effect.push('Your target takes ' + r.bonusPct + '% more damage for ' + secs(r.durMs) + ' s.');
-    if (r.dmg) effect.push('Deals ' + r.dmg[0] + '–' + r.dmg[1] + el + ' damage' + (r.target === 'area' ? ' to each monster hit.' : r.maxHits ? ' to up to ' + r.maxHits + ' monsters.' : r.hits ? ', ' + r.hits + ' times.' : '.'));
-    if (r.heal) effect.push('Heals ' + r.heal[0] + '–' + r.heal[1] + '.');
-    if (r.shield) effect.push('A ' + r.shield + '-point shield.');
-    if (r.status && STATUSES[r.status]) effect.push('Causes ' + STATUSES[r.status].name.toLowerCase() + '.');
-    const cost = [r.mana ? r.mana + ' mana' : 'No mana'].concat(r.rune ? ['1 ' + runeWords(r.rune, 1)] : [], r.ammo ? [r.ammo + ' ammo'] : []).join(' · ');
+    if (r.target === 'mark') effect.push(t('bar.effect_mark', { pct: r.bonusPct, secs: secs(r.durMs) }));
+    if (r.dmg) effect.push(damageLine(r));
+    if (r.heal) effect.push(t('bar.effect_heal', { lo: r.heal[0], hi: r.heal[1] }));
+    if (r.shield) effect.push(t('bar.effect_shield', { points: r.shield }));
+    if (r.status && STATUSES[r.status]) effect.push(t('bar.effect_status', { status: STATUSES[r.status].name.toLowerCase() }));
+    const cost = [r.mana ? t('bar.cost_mana', { mana: r.mana }) : t('bar.cost_no_mana')]
+      .concat(r.rune ? [t('bar.cost_rune', { rune: runeWords(r.rune, 1) })] : [], r.ammo ? [t('bar.cost_ammo', { ammo: r.ammo })] : []).join(' · ');
     /* (an ally shield is a ward, not a heal; the universal self-heal needs no particular weapon) */
-    const type = r.target === 'ally' && r.shield ? 'Ward: shields the ally who needs it most.' : TARGET_LINE[r.target] || null;
-    return { type, cost, cooldown: secs(r.cdMs) + ' s cooldown', effect, requires: r.universal ? 'Requires: any weapon.' : 'Requires: ' + weaponsFor(r.disciplines[0]) + '.' };
+    const type = r.target === 'ally' && r.shield ? t('bar.target_ward') : own(TARGET_LINE, r.target) ? t(TARGET_LINE[r.target]) : null;
+    return { type, cost, cooldown: t('bar.cooldown', { secs: secs(r.cdMs) }), effect,
+      requires: r.universal ? t('bar.requires_any') : t('bar.requires', { weapons: weaponsFor(r.disciplines[0]) }) };
   }
   if (a.type === 'consume') {
-    const spread = 'Half lands at once, the rest over ' + secs(CONSUMABLE_RULES.overTimeMs) + ' s.';
+    const spread = t('bar.spread', { secs: secs(CONSUMABLE_RULES.overTimeMs) });
     const r = CONSUMABLES[a.id];
     if (!r) return { type: null, cost: null, cooldown: null, effect: [], requires: null };
-    return { type: r.kind === 'drink' ? 'Drink: restores mana.' : 'Food: restores health.', cost: null, cooldown: null,
-      effect: ['Restores ' + r.amount + (r.kind === 'drink' ? ' mana.' : ' health.'), spread], requires: null };
+    return { type: r.kind === 'drink' ? t('bar.type_drink') : t('bar.type_food'), cost: null, cooldown: null,
+      effect: [t(r.kind === 'drink' ? 'bar.restores_mana' : 'bar.restores_health', { amount: r.amount }), spread], requires: null };
   }
-  if (own(ATTACK_KINDS, a.id)) return { type: 'Ammo: your attacks use whatever you have loaded.', cost: null, cooldown: null, effect: [], requires: null };
+  if (own(ATTACK_KINDS, a.id)) return { type: t('bar.type_loaded'), cost: null, cooldown: null, effect: [], requires: null };
   /* (A rune is no ammo: it fuels spells only, Tyler 2026-10-23, so no attack slot names one.) */
-  return { type: 'Ammo: your attacks use it, one per shot.', cost: null, cooldown: null, effect: [], requires: null };
+  return { type: t('bar.type_ammo'), cost: null, cooldown: null, effect: [], requires: null };
 }
 
 /** How many of an action's ONE item the bag holds, from the server's inventory; null = not counted (a spell, the loaded ammo, a store item). */
@@ -153,11 +161,11 @@ export function carried(a, bag) {
 function loadedLine(worn, set, bag, st) {
   const role = set && set.role;
   if (!shootsItem(role, { slot: 'ammo', reqSkill: 'ranged' })) return null;
-  if (!worn || !shootsItem(role, ITEMS[worn])) return 'Nothing loaded: your weapon shoots the ammo on your bar, then waits.';
-  const n = (bag || []).reduce((t, l) => (l && l.id === worn ? t + l.qty : t), 0);
-  if (n > 0 && ammoPerShot(ITEMS[worn]) === 0) return itemName(worn) + ' loaded. They never run out.';
-  if (n > 0) return 'You carry ' + n + ' ' + itemName(worn) + '. ' + (st ? 'Own stock first, ' + storeWords(st) + '.' : 'When they run out, your other ammo fires.');
-  return 'You carry no ' + itemName(worn) + '. Your other ammo fires first' + (st ? ', ' + storeWords(st) : '') + '.';
+  if (!worn || !shootsItem(role, ITEMS[worn])) return t('bar.nothing_loaded');
+  const n = (bag || []).reduce((sum, l) => (l && l.id === worn ? sum + l.qty : sum), 0);
+  if (n > 0 && ammoPerShot(ITEMS[worn]) === 0) return t('bar.loaded_endless', { item: itemName(worn) });
+  if (n > 0) return st ? t('bar.loaded_carry_store', { n, item: itemName(worn), store: storeWords(st) }) : t('bar.loaded_carry', { n, item: itemName(worn) });
+  return st ? t('bar.loaded_none_store', { item: itemName(worn), store: storeWords(st) }) : t('bar.loaded_none', { item: itemName(worn) });
 }
 
 /** Where an action's uses come from: own stock first, then the store per use, and the supply setting. `worn` is the ammo slot's item. */
@@ -167,24 +175,25 @@ export function supplyLines(a, set, bag, worn) {
     const r = ABILITIES[a.id];
     if (!r || !r.rune) return [];
     const have = familyCount(r.rune, bag);
-    return ['You carry ' + have + ' ' + runeWords(r.rune, have) + '. ' + (st ? 'Own runes first, ' + storeWords(st) + '.' : 'Carried runes only: once they are gone this slot waits.')];
+    return [st ? t('bar.runes_carry_store', { n: have, rune: runeWords(r.rune, have), store: storeWords(st) }) : t('bar.runes_carry', { n: have, rune: runeWords(r.rune, have) })];
   }
   const n = carried(a, bag);
   const out = [];
   /* ONE item a slot (Tyler 2026-10-21): a store item is bought per use; a crafted one is your own stock only. */
   if (own(ATTACK_KINDS, a.id)) { const said = loadedLine(worn, set, bag, st); if (said) out.push(said); }
-  else if (a.type === 'consume' && st && n === null) out.push('Bought from the store at ' + st.price + ' g each, paid as used.');
-  else if (n !== null && n > 0) out.push('You carry ' + n + '. ' + (st && a.type !== 'consume' ? 'Own stock first, ' + storeWords(st) + '.' : 'When they run out, this slot waits and the next slot fires.'));
-  else if (n !== null) out.push(st && a.type !== 'consume' ? 'You carry none: ' + storeWords(st).replace(/^then /, '') + '.' : 'You carry none, so this slot waits and the next slot fires.');
-  if (st && set && set.supplySource !== 'store' && set.onEmpty !== 'switch') out.push('This hero is set to end the hunt when its own stock runs out, so the store stays off.');
+  else if (a.type === 'consume' && st && n === null) out.push(t('bar.bought_per_use', { price: st.price }));
+  else if (n !== null && n > 0) out.push(st && a.type !== 'consume' ? t('bar.stock_carry_store', { n, store: storeWords(st) }) : t('bar.stock_carry', { n }));
+  else if (n !== null) out.push(st && a.type !== 'consume' ? t('bar.stock_none_store', { store: storeWords(st, false) }) : t('bar.stock_none'));
+  if (st && set && set.supplySource !== 'store' && set.onEmpty !== 'switch') out.push(t('bar.store_stays_off'));
   return out;
 }
 
 /** A slot's setup in words: its conditions, exactly as the engine tests them (none: whenever it is ready,
     Tyler 2026-10-23: nothing hidden stands behind a slot). */
 export function setupWords(w) {
-  if (!w.conditions.length) return 'Always: whenever it is ready (no conditions).';
-  return (w.conditions.length > 1 ? (w.join === 'or' ? 'Any of: ' : 'All of: ') : 'When ') + listWords(w.conditions.map(conditionWords), Infinity, w.join === 'or' ? 'or' : 'and') + '.';
+  if (!w.conditions.length) return t('bar.setup_always');
+  const conditions = listWords(w.conditions.map(conditionWords), Infinity, w.join === 'or' ? 'or' : 'and');
+  return t(w.conditions.length > 1 ? (w.join === 'or' ? 'bar.setup_any' : 'bar.setup_all') : 'bar.setup_when', { conditions });
 }
 
 /* A slot that heals its own hero: a food, or a self spell that heals. */
@@ -204,8 +213,7 @@ export function healWarning(w, set, blow, hpMax) {
   const c = w.conditions.find((x) => x.metric === 'self_hp_pct' && (x.op === 'lt' || x.op === 'lte') && Number.isFinite(x.value));
   if (!c) return '';
   const at = Math.floor((hpMax * c.value) / 100);
-  return at < blow.hit ? 'The ' + blow.name + ' can hit for ' + blow.hit + '. At ' + c.value + '% you have ' + at + ' HP, so one hit can kill you before you '
-    + (w.action.type === 'consume' ? 'eat' : 'heal') + '.' : '';
+  return at < blow.hit ? t(w.action.type === 'consume' ? 'bar.heal_warning_eat' : 'bar.heal_warning_heal', { monster: blow.name, hit: blow.hit, pct: c.value, hp: at }) : '';
 }
 const condKey = (c) => JSON.stringify([c.metric, c.op, c.value, c.subject || null]);
 /* A passes whenever B passes: A is On, ignores no monster B fights, and A's conditions are all among B's
@@ -237,7 +245,7 @@ export function conflictsOf(wires) {
       const a = wires[i];
       if (!a || !weaker(a, b)) continue;
       if (a.action.type === b.action.type && a.action.id === b.action.id) {
-        out.set(j, { by: i, why: 'Blocked by ' + actionName(a.action) + ' (slot ' + (i + 1) + '): the same action, and it fires first whenever this one could.' });
+        out.set(j, { by: i, why: t('bar.blocked_by', { action: actionName(a.action), slot: i + 1 }) });
         break;
       }
     }
@@ -278,65 +286,67 @@ export function reasonOf(sl, set, bag, hero, worn, skills, pack) {
   if (!sl || sl.empty) return null;
   const a = sl.action;
   /* "N Cooked Shrimp wait in your backpack. Press this slot to carry them in." for what the bag holds, or null. */
-  const waiting = (n) => (n > 0 ? whole(n) + (n === 1 ? ' waits in your backpack. Press this slot to carry it in.' : ' wait in your backpack. Press this slot to carry them in.') : null);
+  const waiting = (n) => (n > 0 ? t('bar.waiting', { count: n, n: whole(n) }) : null);
+  /* The same, naming the item ("3 Cooked Shrimp wait in your backpack…"). */
+  const waitingItem = (n, id) => (n > 0 ? t('bar.waiting_item', { count: n, n: whole(n), item: itemName(id) }) : null);
   const inPack = (id) => ((pack || []).find((r) => r.id === id) || {}).have || 0;
+  const SERVER = { code: 'server', text: t('bar.server_refused'), glyph: 'uiLock', strike: true };
   if (a.type === 'ability') {
     const r = ABILITIES[a.id];
-    if (!r) return { code: 'unknown', text: 'The server does not know this ability.', glyph: 'uiLock', strike: true };
-    if (!r.active) return { code: 'inactive', text: 'Not in the game yet: ' + abilityName(a.id) + ' waits on its rune.', glyph: 'uiLock', strike: true };
+    if (!r) return { code: 'unknown', text: t('bar.unknown_ability'), glyph: 'uiLock', strike: true };
+    if (!r.active) return { code: 'inactive', text: t('bar.inactive', { ability: abilityName(a.id) }), glyph: 'uiLock', strike: true };
     const disc = set && set.discipline ? set.discipline : null;
-    if (!disc) return { code: 'weapon', text: 'No weapon worn: abilities come from the weapon you wield. Needs ' + (r.universal ? 'any weapon' : weaponsFor(r.disciplines[0])) + '.', glyph: 'uiLock', strike: true };
-    if (!r.universal && !r.disciplines.includes(disc)) return { code: 'weapon', text: 'Your weapon can’t use this. Needs ' + weaponsFor(r.disciplines[0]) + '.', glyph: 'uiLock', strike: true };
+    if (!disc) return { code: 'weapon', text: r.universal ? t('bar.no_weapon_any') : t('bar.no_weapon', { weapons: weaponsFor(r.disciplines[0]) }), glyph: 'uiLock', strike: true };
+    if (!r.universal && !r.disciplines.includes(disc)) return { code: 'weapon', text: t('bar.weapon_cant_use', { weapons: weaponsFor(r.disciplines[0]) }), glyph: 'uiLock', strike: true };
     const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
     if (r.rune && !(familyCount(r.rune, bag) > 0) && !(storeOn && storeOf(a, set && set.store))) {
       const rune = runeWords(r.rune, 1);
       const packed = waiting(familyCount(r.rune, (pack || []).map((x) => ({ id: x.id, qty: x.have }))));
-      return { code: 'rune', text: 'Needs ' + (/^[aeiou]/i.test(rune) ? 'an ' : 'a ') + rune + ' for each cast: '
-        + (packed ? 'none in this hunt, and ' + packed : 'you carry none. Pick the store’s rune for this slot to buy one as used.'), glyph: 'uiChest', strike: true };
+      const an = /^[aeiou]/i.test(rune) ? 'an' : 'a';
+      return { code: 'rune', text: packed ? t('bar.rune_needs_' + an + '_packed', { rune, waiting: packed }) : t('bar.rune_needs_' + an, { rune }), glyph: 'uiChest', strike: true };
     }
     if (r.ammo > 0 && set && !hasShot(set, bag, worn, skills)) {
-      return { code: 'ammo', text: 'Nothing loaded to shoot. Put arrows or bolts on the bar (Ammo), and this spell casts them.', glyph: 'uiChest', strike: true };
+      return { code: 'ammo', text: t('bar.no_shot'), glyph: 'uiChest', strike: true };
     }
     if (sl.usable === false && sl.why === 'rune_level') {
-      return { code: 'rune_level', text: 'Your ' + runeWords(r.rune, 2) + ' are a higher tier than your level can cast. Carry a lower tier, or pick the store’s rune for this slot.', glyph: 'uiLock', strike: true };
+      return { code: 'rune_level', text: t('bar.rune_level', { runes: runeWords(r.rune, 2) }), glyph: 'uiLock', strike: true };
     }
     if (sl.usable === false && sl.why === 'store_level') {
       const c = storeChoices(a, set && set.store, skills).find((x) => x.id === a.store);
-      return { code: 'store_level', text: (c ? c.name + ' needs ' + c.needs : 'The store rune on this slot is a higher tier than your level can cast') + '. This slot waits until then. Pick a lower rune for it, or carry your own.', glyph: 'uiLock', strike: true };
+      return { code: 'store_level', text: c ? t('bar.store_level_named', { name: c.name, needs: c.needs }) : t('bar.store_level'), glyph: 'uiLock', strike: true };
     }
-    if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };
-    if (hero && Number.isFinite(hero.mana) && r.mana > hero.mana) return { code: 'mana', text: 'Needs ' + r.mana + ' mana, you have ' + Math.floor(hero.mana) + '.', glyph: 'uiPotion', strike: false };
+    if (sl.usable === false) return SERVER;
+    if (hero && Number.isFinite(hero.mana) && r.mana > hero.mana) return { code: 'mana', text: t('bar.mana_short', { mana: r.mana, have: Math.floor(hero.mana) }), glyph: 'uiPotion', strike: false };
     return null;
   }
   /* A food or drink's struck state is the SERVER's (hr_hunt_settings_view `usable` + `why`), never the browser's own count. */
   if (a.type === 'consume' && sl.usable === false) {
     if (sl.why === 'none_left') {
-      const packed = waiting(inPack(a.id));
-      return { code: 'none_left', text: packed ? 'None in this hunt: ' + packed.replace(/^([\d,]+)/, '$1 ' + itemName(a.id))
-        : 'None left: you carry no ' + itemName(a.id) + '. The next food or drink slot fires instead.', glyph: 'uiChest', strike: true };
+      const packed = waitingItem(inPack(a.id), a.id);
+      return { code: 'none_left', text: packed ? t('bar.none_in_hunt', { waiting: packed }) : t('bar.none_left', { item: itemName(a.id) }), glyph: 'uiChest', strike: true };
     }
-    if (sl.why === 'store_off') return { code: 'store_off', text: 'This hero is set to end the hunt rather than buy from the store.', glyph: 'uiChest', strike: true };
+    if (sl.why === 'store_off') return { code: 'store_off', text: t('bar.store_off'), glyph: 'uiChest', strike: true };
   }
   /* An attack item the worn weapon cannot shoot, or the hero's skill cannot use yet, never fires (the engine passes it over: damage.js pickShot). */
   const shot = shotProblem(a, set && set.role, skills);
   if (shot) return { code: shootsItem(set && set.role, ITEMS[a.id]) ? 'skill' : 'weapon', text: shot, glyph: 'uiLock', strike: true };
-  if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };
+  if (sl.usable === false) return SERVER;
   if (a.type === 'consume') return null;
   const n = Number.isInteger(sl.count) && !own(ATTACK_KINDS, a.id) ? sl.count : carried(a, bag);
   if (n === null || n > 0) return null;
   const st = storeOf(a, set && set.store);
   const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
   if (st && storeOn) return null;
-  const packed = waiting(inPack(a.id));
-  if (packed) return { code: 'stock', text: 'None in this hunt: ' + packed.replace(/^([\d,]+)/, '$1 ' + itemName(a.id)), glyph: 'uiChest', strike: true };
-  if (st) return { code: 'store_off', text: 'Out of stock, and this hero is set to end the hunt rather than buy from the store.', glyph: 'uiChest', strike: true };
-  return { code: 'stock', text: 'Out of stock, and the store does not sell it.', glyph: 'uiChest', strike: true };
+  const packed = waitingItem(inPack(a.id), a.id);
+  if (packed) return { code: 'stock', text: t('bar.none_in_hunt', { waiting: packed }), glyph: 'uiChest', strike: true };
+  if (st) return { code: 'store_off', text: t('bar.out_store_off'), glyph: 'uiChest', strike: true };
+  return { code: 'stock', text: t('bar.out_no_store'), glyph: 'uiChest', strike: true };
 }
 
 /* THE CHALLENGE SLOT READS AS WORKING (bug #61; Coordinator ruling 2026-10-22): a tank that holds every engaged
    monster has nothing to Challenge (Tyler 10-16: it Challenges only what is not on it), so its taunt slot rests in a
    quiet state that says so, instead of looking broken. Not a stop: it fires the moment something leaves the tank. */
-const HOLDING = Object.freeze({ code: 'holding', text: 'Holding the pack: nothing to Challenge.', glyph: 'uiShield', strike: false, quiet: true });
+const HOLDING = Object.freeze({ code: 'holding', text: t('bar.holding'), glyph: 'uiShield', strike: false, quiet: true });
 
 /** The slot's quiet "Holding" state: a taunt ability's slot while `holding` (live-engine.js holdsPack), else null. */
 export function holdingReason(sl, holding) {
@@ -357,7 +367,7 @@ export function sharedCooldownOf(wires, i) {
   for (let k = 0; k < i; k++) {
     const a = wires[k];
     const ra = a && a.action.type === 'ability' ? ABILITIES[a.action.id] : null;
-    if (ra && ra.lane === rb.lane) return 'Shares a cooldown with ' + abilityName(a.action.id) + ' (slot ' + (k + 1) + '), which fires first when both are ready.';
+    if (ra && ra.lane === rb.lane) return t('bar.shared_cooldown', { action: abilityName(a.action.id), slot: k + 1 });
   }
   return null;
 }

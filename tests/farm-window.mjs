@@ -113,7 +113,9 @@ async function stub(page, s) {
 }
 
 async function signInAndPlay(page, base) {
-  await page.goto(base + '/play.html', { waitUntil: 'load' });
+  /* DOMContentLoaded with a long boot (alpha-windows' BOOTED): the `load` event also waits for every image, and on a
+     loaded box the 6 s default timed out before the page drew anything a rule reads. */
+  await page.goto(base + '/play.html', { waitUntil: 'domcontentloaded', timeout: 60000 });
   await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
   await page.fill('input[name=email]', 'qa@example.test');
   await page.fill('input[name=password]', 'not-a-real-password');
@@ -324,27 +326,27 @@ async function checks(overrides) {
 const MUTANTS = [
   ['Harvest opens on the client clock, not the server', 'src/shell/windows/farm.js', "cls(harvest, 'is-on', !!p && p.ready);", "cls(harvest, 'is-on', !!p);"],
   ['Harvest leaves the plot empty', 'src/shell/windows/farm.js', "harvestPlot(ctx.account, cs, plot, action === 'harvest')", "harvestPlot(ctx.account, cs, plot, false)"],
-  ['the picker ignores the Farming level', 'src/shell/windows/farm.js', "st.farming < c.req ? 'Needs Farming ' + c.req", "false ? 'Needs Farming ' + c.req"],
+  ['the picker ignores the Farming level', 'src/shell/windows/farm.js', "st.farming < c.req ? t('farm.why_farming', { level: c.req })", "false ? t('farm.why_farming', { level: c.req })"],
   ['the reader invents room', 'src/session/farm-sections.js', 'cap: Math.min(cap, MAX_PLOTS)', 'cap: Math.max(cap, 4)'],
   ['the reader invents a field', 'src/session/farm-sections.js', "  const raw = read(cs, 'farm_land');\n", "  const raw = read(cs, 'farm_land') || { cap: 2, plot_level: 1, plots: [] };\n"],
   ['plant names another plot', 'src/session/farm-intents.js', 'p_plot_idx: plot, p_crop: crop', 'p_plot_idx: plot + 1, p_crop: crop'],
-  ['a refusal reads as a generic line', 'src/shell/windows/farm.js', "  plot_cap: 'Your land has no room for that plot yet.',\n", ''],
-  ['the window never says the land is shared', 'src/shell/windows/farm.js', "    + '<p class=\"hs-note hw-farm-shared\">Your heroes share this land. The hero you are playing plants their own seeds and keeps the crop and the Farming XP.</p>'\n", ''],
+  ['a refusal reads as a generic line', 'src/data/text/farm.js', "  refused_plot_cap: 'Your land has no room for that plot yet.',\n", ''],
+  ['the window never says the land is shared', 'src/shell/windows/farm.js', "    + '<p class=\"hs-note hw-farm-shared\">' + esc(t('farm.shared')) + '</p>'\n", ''],
   ['a plot never says who planted it', 'src/shell/windows/farm.js', "text(li.querySelector('.hw-plot-by'), !p ? '' :", "text(li.querySelector('.hw-plot-by'), true ? '' :"],
   ['an extra plot is not drawn', 'src/shell/windows/farm.js', '(_, i) => i).concat(extras);', '(_, i) => i);'],
   ['an extra plot is replanted', 'src/shell/windows/farm.js', "attr(harvest, 'data-hs-act', extra || vine ? 'leave' : 'harvest');", "attr(harvest, 'data-hs-act', vine ? 'leave' : 'harvest');"],
-  ['the replant button reads plain Harvest (Tyler 10-25)', 'src/shell/windows/farm.js', "text(harvest, extra ? 'Harvest' : vine ?", "text(harvest, true ? 'Harvest' : vine ?"],
-  ['the no-replant button reads Leave it empty (Tyler 10-25)', 'src/shell/windows/farm.js', "(regrow ? 'Harvest and clear plot' : 'Harvest only')", "(regrow ? 'Harvest and clear plot' : 'Leave it empty')"],
-  ['the extra plot\'s button says replant (Tyler 10-25)', 'src/shell/windows/farm.js', "text(harvest, extra ? 'Harvest' : vine ?", "text(harvest, false ? 'Harvest' : vine ?"],
+  ['the replant button reads plain Harvest (Tyler 10-25)', 'src/shell/windows/farm.js', "text(harvest, extra ? t('farm.harvest') : vine ?", "text(harvest, true ? t('farm.harvest') : vine ?"],
+  ['the no-replant button reads Leave it empty (Tyler 10-25)', 'src/shell/windows/farm.js', "(regrow ? t('farm.harvest_clear') : t('farm.harvest_only'))", "(regrow ? t('farm.harvest_clear') : 'Leave it empty')"],
+  ['the extra plot\'s button says replant (Tyler 10-25)', 'src/shell/windows/farm.js', "text(harvest, extra ? t('farm.harvest') : vine ?", "text(harvest, false ? t('farm.harvest') : vine ?"],
   /* Report #66: a regrowing crop (tomato) said "Harvest only" and grew back. */
   ['a regrowing crop offers Harvest only (#66)', 'src/shell/windows/farm.js', "const vine = regrow && more !== 0;", "const vine = false;"],
-  ['a tomato on its last harvest offers Harvest only (#66)', 'src/shell/windows/farm.js', "(regrow ? 'Harvest and clear plot' : 'Harvest only')", "'Harvest only'"],
-  ['a regrowing plot never says it grows back (#66)', 'src/shell/windows/farm.js', "    + (!regrow ? '' :", "    + (true ? '' :"],
+  ['a tomato on its last harvest offers Harvest only (#66)', 'src/shell/windows/farm.js', "(regrow ? t('farm.harvest_clear') : t('farm.harvest_only'))", "t('farm.harvest_only')"],
+  ['a regrowing plot never says it grows back (#66)', 'src/shell/windows/farm.js', "    (!regrow ? '' :", "    (true ? '' :"],
   ['clear sends the plain harvest (#66)', 'src/session/farm-intents.js', "rpc('hr_farm_harvest_clear', {", "rpc('hr_farm_harvest', {"],
   ['the regrow count is not the server\'s (#66)', 'src/session/farm-sections.js', 'regrowsLeft: count(p.regrows_left)', 'regrowsLeft: 4'],
   ['the reader drops the planter', 'src/session/farm-sections.js', 'byName: nameOf(p.by_name)', 'byName: null'],
   /* Discord 0.2.95: "Scrolling up and down to select new plantable seeds over and over is tedious". */
-  ['the picker closes after a plant (0.2.95)', 'src/shell/windows/farm.js', "sc.pick = nextEmpty(cs, ctx, at); return 'Planted '", "sc.pick = null; return 'Planted '"],
+  ['the picker closes after a plant (0.2.95)', 'src/shell/windows/farm.js', "sc.pick = nextEmpty(cs, ctx, at); return t('farm.planted_in'", "sc.pick = null; return t('farm.planted_in'"],
   ['the picker lists crops in catalogue order (0.2.95)', 'src/shell/windows/farm.js', '}).sort((a, b) => Number(!!a.why) - Number(!!b.why));', '});'],
   ['the picker hides while a plant is in flight (0.2.95)', 'src/shell/windows/farm.js', '(st.sc.pending || !st.land.plots.has(st.sc.pick))', '!st.land.plots.has(st.sc.pick)'],
   ['the picker is left off screen (0.2.95)', 'src/shell/windows/farm.js', "if (sow && typeof sow.scrollIntoView === 'function')", 'if (false)'],

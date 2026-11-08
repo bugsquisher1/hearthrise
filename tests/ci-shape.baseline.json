@@ -440,6 +440,8 @@
     "node tools/mutant-gate.mjs node tests/https-upgrade.mjs --selftest": "client-guards",
     "node tests/copy-lint.mjs --report": "client-guards",
     "node tools/mutant-gate.mjs node tests/copy-lint.mjs --selftest": "client-guards",
+    "node tests/text-home.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/text-home.mjs --mutate": "client-guards",
     "node tests/token-single-source.mjs --report": "client-guards",
     "node tools/mutant-gate.mjs node tests/token-single-source.mjs --selftest": "client-guards",
     "node tools/mutant-gate.mjs node tests/dead-exports.mjs --selftest": "client-guards",

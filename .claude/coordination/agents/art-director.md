@@ -3191,3 +3191,12 @@ A hit painted a 70% `#e6dcbc` silhouette over the frame for 120 ms, so the armor
 
 ### 2026-11-07 lane/a-region-kit (region art kits as data; the 2,100-gen plan)
 Kits are `src/data/world/region-kits.js` (greenhaven, barrow_march), held by world-assets [kit] (tools/world-art/region-kit.mjs, 9 mutants). A kit reader: `tools/qa/region-kit.html` (real renderer, unshipped sets by URL). Briefs: art/briefs/gen-2026-11-07/. Lessons: (1) the renderer needs no region concept: scene-sets.js derives a scene's sets from what it places, so a kit is a rule on the art pipeline, not a runtime row; (2) a PixelLab tileset's metadata (pair prompts, terrain ids) is a free GET /v2/tilesets/<id>: read it before naming a family; (3) the browser pane can shrink to a sliver mid-session: shoot pages with headless Playwright at a fixed size and Read the PNGs; (4) a scripted ramp re-pour only moves the ramps a body actually wears after the unit grade (the March bodies are mostly earth and shadow), so it re-colours plate and nothing else: read one before planning on it; (5) the live-ground rules moved since the March art was made ([sheet-encoding] 11-01, [live] idles 11-05): audit held art against today's law, not its lane's exit codes; (6) a brief's "Needs" column is the honest part of a spend plan: half of 2,100 gens waits on a designer's rows.
+
+### 2026-11-08 lane/a-art-brief-11 (the last ~1,000 gens of the cycle, ranked; no generation)
+Brief: art/briefs/gen-2026-11-07/11-next-batch.txt (13 lines + 120 reserve). Lessons: (1) read a clip's SOURCE before
+planning facings for it: the "7 with 4 attack facings" were the 7 whose attack and death derive-combat.mjs scripted from
+idle pixels, so brief 10's "draw their diagonals" would have mixed drawn and scripted frames in one clip; (2) a placed
+map object draws frame 0 facing south (compose.js place), so an NPC idle on a station prop is inert and only its S
+facing can ever show: check how a sprite is DRAWN before buying its facings; (3) a mirror is fine for a one-way clip
+whose W already mirrors E, never for a flinch that returns to a stance drawn in its own light; (4) every 4-facing clip
+beside 8-facing idles turns 45 degrees on a diagonal (facing.js falls back to the cardinal): death, hit, fall.

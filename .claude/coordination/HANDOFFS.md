@@ -150,3 +150,13 @@ yard is a wide bare dirt field. PixelLab: 620 subscription generations (4319.4 �
   hr_state_sections_of's 30 EXECUTEs are ~8 % of a projection on PostgreSQL 17.
 - **every perf lane:** PGlite is PostgreSQL 18, which caches SQL-function plans production (17) re-plans; time server changes
   with `node tools/pg-replay.mjs` + `tools/settle-cost.mjs --pg` (a local PostgreSQL 17, HR_PG_BIN); call counts on either.
+
+## 2026-11-08 · art-director (lane/a-art-brief-11) → systems-engineer, asset director · two things brief 11 needs
+- **systems-engineer:** src/world/core/compose.js draws every placed map object with `place(id, x, y, { fp })`, so book.frame
+  returns idle frame 0 facing south. A placed sprite whose idle has fps > 0 (the station NPCs) should play it on state.t from
+  its own place in the loop (as hunt-view/scene.js idleFrame), facing south. Without it the crier's and smith's approved
+  idles (brief 09), brief 10's N1 keepers and brief 11's gate guards stand still. One test: a placed NPC's frame changes
+  with state.t, a prop with an fps 0 idle does not.
+- **asset director (the import of brief 11 line 1):** the 7 drawn attack and death clips replace derive-combat.mjs output;
+  delete each unit from its UNITS as it lands and retire the tool with the last (it is in no CI job). The corpse is the
+  death's last frame in every facing.

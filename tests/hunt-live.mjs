@@ -133,6 +133,7 @@ async function load(base) {
     ENGINE_MONSTERS: (await import(pathToFileURL(join(base, 'src/data/monsters.js')).href + V)).MONSTERS,
     /* the engine's own spell table (LV-SPELL plants a test row and takes it back) */
     ENGINE_SPELLS: (await import(pathToFileURL(join(base, 'src/data/monster-spells.js')).href + V)).MONSTER_SPELLS,
+    ENGINE_ELEMENTS: await import(pathToFileURL(join(base, 'src/core/elements.js')).href + V),
     /* the engine's own tier rows (LV-DIAL swaps one for a what-if and puts it back) */
     ENGINE_TIERS: (await import(pathToFileURL(join(base, 'src/data/hunt-tiers.js')).href + V)).GROUND_TIERS,
     /* the engine's own blow and to-hit (deadlyRows builds its rows with them) */
@@ -1563,14 +1564,15 @@ function rules(M) {
     // (a test resistPm on its shield) and takes at most half of what the others can. Browser closed: the server's commits.
     // Viewed: every commit matches the prediction, the marks (spell / spell_end) the browser plays are the server's, and the
     // tank's resistance reaches the browser through its frozen row (a peer's in the party).
-    const SPELL = { id: 'lv_squall', n: 'Test Squall', shape: 'group', range: 1, windupMs: 1600, cdMs: 6000, dmgPm: 2000, element: 'frost' };
+    const SPELL = { n: 'Test Squall', shape: 'group', range: 6, windupMs: 2000, cdMs: 6000, hitPm: 2000, element: 'frost' }, SID = 'lv_squall';
     const kinds = [...new Set(M.HG.huntGroundOf('mill_cellar').ground.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((s) => s.monster || s)))]
       .filter((k) => M.ENGINE_MONSTERS[k]);
     const rows = [M.ENGINE_MONSTERS, M.MONSTERS];
-    const keep = kinds.map((k) => rows.map((t) => [Object.prototype.hasOwnProperty.call(t[k], 'spell'), t[k].spell]));
+    const keep = kinds.map((k) => rows.map((t) => [Object.prototype.hasOwnProperty.call(t[k], 'spells'), t[k].spells]));
     const shield = M.ITEMS.practice_shield, hadResist = Object.prototype.hasOwnProperty.call(shield, 'resistPm'), oldResist = shield.resistPm;
-    M.ENGINE_SPELLS[SPELL.id] = SPELL;
-    for (const k of kinds) for (const t of rows) t[k].spell = SPELL.id;
+    M.ENGINE_SPELLS[SID] = SPELL;
+    for (const k of kinds) for (const t of rows) t[k].spells = [SID];
+    /* asked 50%, worn at the 40% cap (data/elements.js HERO_RESIST_PM) */
     shield.resistPm = { frost: 500 };
     try {
       for (const [name, mis] of [['four', [memberOf(M, 'a', 0, 'tank', 6), memberOf(M, 'b', 1, 'melee_dps', 6), memberOf(M, 'c', 2, 'ranger', 6), memberOf(M, 'd', 3, 'melee_dps', 6)]],
@@ -1579,8 +1581,9 @@ function rules(M) {
         const server = r.verdicts.flatMap((x) => x.tl.hunt_events);
         const ends = server.filter((e) => e.type === 'spell_end' && e.why === 'landed');
         const heroes = mis.map((m) => m.unitId);
-        const hitAt = (at) => server.filter((e) => e.type === 'dmg' && e.ability === SPELL.id && e.atMs === at).map((e) => e.t).sort((a, b) => a - b);
-        const missed = ends.filter((e) => e.hits !== heroes.length || JSON.stringify(hitAt(e.atMs)) !== JSON.stringify(heroes.slice().sort((a, b) => a - b)));
+        /* (two casters may land in one instant: each landing is its own caster's hits) */
+        const hitAt = (at, u) => server.filter((e) => e.type === 'dmg' && e.ability === SID && e.atMs === at && e.u === u).map((e) => e.t).sort((a, b) => a - b);
+        const missed = ends.filter((e) => e.hits !== heroes.length || JSON.stringify(hitAt(e.atMs, e.u)) !== JSON.stringify(heroes.slice().sort((a, b) => a - b)));
         console.log(`  LV-SPELL ${name}: ${ends.length} group strikes landed on the server's commits, ${missed.length} missed a hero; ${r.verdicts.filter((x) => x.v === 'match').length} of ${r.verdicts.length} commits matched`);
         ok('LV-SPELL', ends.length >= 3, `${name}: browser closed: ${ends.length} group strikes landed in 96 s (the rule needs some)`);
         ok('LV-SPELL', missed.length === 0, `${name}: browser closed: a group strike missed a hero of ${heroes.length} at ${missed.map((e) => e.atMs - T0)}`);
@@ -1589,16 +1592,17 @@ function rules(M) {
         const fed = new Set(r.fed.events.filter((e) => e.type === 'spell' || e.type === 'spell_end').map((e) => JSON.stringify(e)));
         const marks = server.filter((e) => e.type === 'spell' || e.type === 'spell_end');
         ok('LV-SPELL', marks.length > 0 && marks.every((e) => fed.has(JSON.stringify(e))), `${name}: viewed: ${marks.filter((e) => !fed.has(JSON.stringify(e))).length} of the server's ${marks.length} marks were not the browser's`);
-        /* the tank's resistance: its hits stay under half the strike's top through its stance, the others' do not */
+        /* the tank's resistance: its hits stay inside the capped share of the strike's top (balanced stance, no armor worn), the others' go past it */
         const tank = mis[0].unitId;
-        const amounts = (pred) => server.filter((e) => e.type === 'dmg' && e.ability === SPELL.id && pred(e.t)).map((e) => e.amount);
+        const amounts = (pred) => server.filter((e) => e.type === 'dmg' && e.ability === SID && pred(e.t)).map((e) => e.amount);
         const T = amounts((t) => t === tank), O = amounts((t) => t !== tank);
-        const top = Math.max(...O, 0);
-        ok('LV-SPELL', T.length > 0 && (name === 'lone' || Math.max(...T) * 2 <= top + 1), `${name}: the frost-resisting tank took ${Math.max(...T, 0)} at most against ${top} for the rest`);
+        const top = Math.max(...kinds.map((k) => Math.floor((M.ENGINE_COMBAT.monsterMaxHit(M.ENGINE_MONSTERS[k]) * SPELL.hitPm) / 1000)));
+        const cap = Math.floor((top * M.ENGINE_ELEMENTS.heroElementPermille({ frost: 500 }, 'frost')) / 1000);
+        ok('LV-SPELL', T.length > 0 && Math.max(...T) <= cap && (name === 'lone' || Math.max(...O) > cap), `${name}: the frost-resisting tank took ${Math.max(...T, 0)} at most (cap ${cap} of the top ${top}), the rest ${Math.max(...O, 0)}`);
       }
     } finally {
-      delete M.ENGINE_SPELLS[SPELL.id];
-      kinds.forEach((k, i) => rows.forEach((t, j) => { const [had, v] = keep[i][j]; if (had) t[k].spell = v; else delete t[k].spell; }));
+      delete M.ENGINE_SPELLS[SID];
+      kinds.forEach((k, i) => rows.forEach((t, j) => { const [had, v] = keep[i][j]; if (had) t[k].spells = v; else delete t[k].spells; }));
       if (hadResist) shield.resistPm = oldResist; else delete shield.resistPm;
     }
   }

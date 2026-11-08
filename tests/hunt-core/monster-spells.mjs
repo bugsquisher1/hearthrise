@@ -39,18 +39,21 @@ async function load(root) {
 }
 
 /* THE FIXTURE SPELLS (test rows, planted on the engine's own instance of the table for one case, then removed). */
-const RING = Object.freeze({ id: 't_ring', n: 'Test Ring', shape: 'ring', r: 1, range: 1, windupMs: 2400, cdMs: 12000, dmgPm: 2000, element: null });
-const BLAST = Object.freeze({ id: 't_blast', n: 'Test Blast', shape: 'blast', r: 1, range: 4, windupMs: 1600, cdMs: 14000, dmgPm: 1800, element: null });
-const GROUP = Object.freeze({ id: 't_group', n: 'Test Group', shape: 'group', range: 1, windupMs: 1600, cdMs: 10000, dmgPm: 1500, element: 'frost' });
+const RING = Object.freeze({ id: 't_ring', n: 'Test Ring', shape: 'ring', r: 1, range: 1, windupMs: 2400, cdMs: 12000, hitPm: 2000, element: null });
+const BLAST = Object.freeze({ id: 't_blast', n: 'Test Blast', shape: 'blast', r: 1, range: 4, windupMs: 1600, cdMs: 14000, hitPm: 1800, element: null });
+const GROUP = Object.freeze({ id: 't_group', n: 'Test Group', shape: 'group', range: 1, windupMs: 1600, cdMs: 10000, hitPm: 1500, element: 'frost' });
 
-/** Run `fn` with spell rows planted and monster kinds naming them ({ kind: spell id }); everything is put back after. */
+/** Run `fn` with spell rows planted (keyed by their id) and monster kinds listing them ({ kind: id | [ids] }); all put back after. */
 function withSpells(M, rows, kinds, fn) {
   const T = M.MS.MONSTER_SPELLS; const keep = [];
   for (const r of rows) T[r.id] = Object.assign({}, r);
-  for (const [k, id] of Object.entries(kinds)) { keep.push([k, Object.prototype.hasOwnProperty.call(M.MONSTERS[k], 'spell'), M.MONSTERS[k].spell]); M.MONSTERS[k].spell = id; }
+  for (const [k, ids] of Object.entries(kinds)) {
+    keep.push([k, Object.prototype.hasOwnProperty.call(M.MONSTERS[k], 'spells'), M.MONSTERS[k].spells]);
+    M.MONSTERS[k].spells = Array.isArray(ids) ? ids : [ids];
+  }
   try { return fn(); } finally {
     for (const r of rows) delete T[r.id];
-    for (const [k, had, v] of keep) { if (had) M.MONSTERS[k].spell = v; else delete M.MONSTERS[k].spell; }
+    for (const [k, had, v] of keep) { if (had) M.MONSTERS[k].spells = v; else delete M.MONSTERS[k].spells; }
   }
 }
 
@@ -80,20 +83,27 @@ const cases = {
   'rows-and-formulas': (M) => {
     const bad = M.MS.validate(M.MONSTERS);
     if (bad.length) return 'the shipped table: ' + bad.join('; ');
-    for (const r of [RING, BLAST, GROUP]) { const p = M.MS.validateSpell(r); if (p.length) return r.id + ' refused: ' + p.join('; '); }
-    const refused = (o, why) => (M.MS.validateSpell(Object.assign({}, RING, o)).length ? null : why);
+    for (const r of [RING, BLAST, GROUP]) { const p = M.MS.validateSpell(r, r.id); if (p.length) return r.id + ' refused: ' + p.join('; '); }
+    const refused = (o, why) => (M.MS.validateSpell(Object.assign({}, RING, o), RING.id).length ? null : why);
     for (const [o, why] of [[{ r: 3 }, 'a ring of 3 passed'], [{ windupMs: 1100 }, 'a windup under the fair warning passed'],
       [{ r: 2, windupMs: 1500 }, 'a radius-2 ring with a 1.5 s warning passed'], [{ cdMs: 2400 }, 'a cooldown no longer than its windup passed'],
       [{ element: 'fire' }, 'an unknown element passed'], [{ len: 3 }, 'a ring with a len passed'], [{ shape: 'square', n: 3 }, 'a monster square passed'],
-      [{ dmgPm: 50 }, 'a 5% hit passed'], [{ windupMs: 2450 }, 'a windup off the sub-step passed'], [{ range: 5 }, 'a range of 5 passed']]) {
+      [{ hitPm: 50 }, 'a 5% hit passed'], [{ windupMs: 2450 }, 'a windup off the sub-step passed'], [{ range: 7 }, 'a range of 7 passed'],
+      [{ dmgPm: 2000 }, 'the old dmgPm name passed'], [{ id: 'other' }, 'an id field off its key passed']]) {
       const w = refused(o, why);
       if (w) return w;
     }
     const FW = M.MS.FAIR_WARNING;
     if (M.MS.minWindupMs({ shape: 'ring', r: 2 }) !== FW.baseMs + FW.perRadiusMs || M.MS.minWindupMs({ shape: 'cone', len: 4 }) !== FW.baseMs
       || M.MS.minWindupMs({ shape: 'group' }) !== FW.baseMs) return 'the fair warning is not baseMs + perRadiusMs x (r - 1)';
-    if (JSON.stringify(M.MS.spellHit(10, { dmgPm: 2000 })) !== '[10,20]' || JSON.stringify(M.MS.spellHit(3, { dmgPm: 1500 })) !== '[2,4]'
-      || JSON.stringify(M.MS.spellHit(1, { dmgPm: 100 })) !== '[1,1]') return 'spellHit is not [ceil(top x lowPm), floor(M x dmgPm)]: ' + JSON.stringify(M.MS.spellHit(10, { dmgPm: 2000 }));
+    if (JSON.stringify(M.MS.spellHit(10, { hitPm: 2000 })) !== '[10,20]' || JSON.stringify(M.MS.spellHit(3, { hitPm: 1500 })) !== '[2,4]'
+      || JSON.stringify(M.MS.spellHit(1, { hitPm: 100 })) !== '[1,1]') return 'spellHit is not [ceil(top x lowPm), floor(M x hitPm)]: ' + JSON.stringify(M.MS.spellHit(10, { hitPm: 2000 }));
+    if (M.MS.SHIELD_BRACE.markedPm !== 300 || M.MS.marked(GROUP) || !M.MS.marked(RING)) return 'the brace is not 30% off a marked spell only';
+    /* a monster names a LIST (a boss: one of each kind), at most MAX_SPELLS, each a row; the old one-spell field is refused */
+    const many = withSpells(M, [RING, BLAST, GROUP], { rat: ['t_ring', 't_blast', 't_group'] }, () => M.MS.validate(M.MONSTERS));
+    if (!many.some((x) => /rat spells must list 1\.\.2/.test(x))) return 'three spells on one monster passed';
+    M.MONSTERS.rat.spell = 't_ring';
+    try { if (!M.MS.validate(M.MONSTERS).some((x) => /rat names `spell`/.test(x))) return 'the old one-spell field passed'; } finally { delete M.MONSTERS.rat.spell; }
     if (JSON.stringify(M.AD.blowShare(10, { hitPm: 800 })) !== '[4,8]') return 'blowShare is not [ceil(top x hitLowPm), floor(M x hitPm)]: ' + JSON.stringify(M.AD.blowShare(10, { hitPm: 800 }));
     /* a monster naming no row, and a row no monster casts, are both refused against the roster */
     const flagged = withSpells(M, [RING], { rat: 't_ring', slime: 'nope' }, () => M.MS.validate(M.MONSTERS));
@@ -129,14 +139,18 @@ const cases = {
     if (S.tilesMax({ shape: 'ring', r: 1 }) !== 8 || S.tilesMax({ shape: 'line', len: 4 }) !== 4 || S.tilesMax({ shape: 'cone', len: 3 }) !== 15) return 'tilesMax is off';
     /* the drawn tiles drop the walls: a blast on the door column (x = 9 is wall on rows 1-2 and 5-6) */
     const drawn = S.tilesOf(S.place({ shape: 'blast', r: 1 }, { x: 9, y: 2 }, { x: 9, y: 2 }), gridOf(M)).map((t) => t.join(','));
-    return drawn.includes('9,2') || drawn.includes('9,1') || !drawn.includes('9,3') || drawn.length !== 7 ? 'the drawn blast kept a wall or lost a floor tile: ' + drawn.join(' ') : null;
+    if (drawn.includes('9,2') || drawn.includes('9,1') || !drawn.includes('9,3') || drawn.length !== 7) return 'the drawn blast kept a wall or lost a floor tile: ' + drawn.join(' ');
+    /* the screen's mark from a spell event drops the same walls (marks.js markOfEvent) */
+    const ev = M.events.makeEvent('spell', 0, { u: 10, t: 1, spell: 'x', shape: 'blast', x: 9, y: 2, dx: 0, dy: 0, r: 1, len: 0, ms: 1600 });
+    const mk = M.marks.markOfEvent(ev, gridOf(M));
+    return mk && JSON.stringify(mk.tiles.map((t) => t.join(','))) === JSON.stringify(drawn) ? null : "the screen's mark is not the drawn blast: " + JSON.stringify(mk);
   },
   'telegraph-then-land': (M) => withSpells(M, [RING], { rat: 't_ring' }, () => {
     const k = H(M, 1, 13, 3, 'tank');
     const r = mon(M, 10, 0, 14, 3, { target: 1, hp: 9999, maxHp: 9999 });
     const inst = fightOf(M, [k, r]);
     const sc = recorder(M, 3);
-    let swingAfter = null;
+    let swingAfter = null; let drawn = null;
     for (let i = 0; i <= 130; i++) {
       sc.atMs = i * 100;
       M.movement.occupancy(inst);
@@ -147,6 +161,7 @@ const cases = {
       M.spells.castSpells(inst, sc);
       M.spells.dropCasts(inst, sc);
       if (sc.atMs === RING.windupMs) swingAfter = r.swingLeftMs;
+      if (sc.atMs === 1000) drawn = JSON.stringify(M.marks.markTiles(r, inst.grid));
     }
     const spell = of(sc, 'spell'), ends = of(sc, 'spell_end');
     const s0 = spell[0];
@@ -160,7 +175,10 @@ const cases = {
     const hit = of(sc, 'dmg').filter((e) => e.ability === 't_ring');
     const [lo, top] = topOf(M, 'rat', RING);
     if (hit.length !== 1 || hit[0].atMs !== RING.windupMs || hit[0].t !== 1 || hit[0].amount < lo || hit[0].amount > top) return 'the hit is not one roll of [' + lo + ', ' + top + '] on the tank: ' + JSON.stringify(hit);
-    if (spell.length !== 2 || spell[1].atMs !== RING.cdMs) return 'the second cast is not at the cooldown from the first\'s start: ' + spell.map((e) => e.atMs);
+    /* THE SCREEN'S MARK: the event's tiles are the live cast's, the eight round the caster, landing at the windup's end */
+    const mark = M.marks.markOfEvent(s0, inst.grid);
+    if (!mark || mark.landsAtMs !== RING.windupMs || mark.group || JSON.stringify(mark.tiles) !== drawn || mark.tiles.length !== 8) return "the event's mark is not the live cast's: " + JSON.stringify({ mark, drawn });
+    if (spell.length !== 2 || spell[1].atMs !== RING.cdMs || spell[1].spell !== 't_ring') return 'the second cast is not at the cooldown from the first\'s start: ' + spell.map((e) => e.atMs);
     return null;
   }),
   'dropped': (M) => withSpells(M, [RING], { rat: 't_ring' }, () => {
@@ -284,7 +302,8 @@ const cases = {
     const e = of(a.sc, 'spell_end')[0];
     const hit = of(a.sc, 'dmg').filter((x) => x.ability === 't_group').map((x) => x.t).sort();
     if (!e || e.hits !== 4 || JSON.stringify(hit) !== '[1,2,3,4]') return 'a group strike missed a hero of four: ' + JSON.stringify({ e, hit });
-    if (of(a.sc, 'spell')[0].shape !== 'group') return 'the mark is not a group mark';
+    const gm = M.marks.markOfEvent(of(a.sc, 'spell')[0], gridOf(M));
+    if (!gm || !gm.group || gm.tiles.length) return 'the mark is not a group mark with no ground tiles: ' + JSON.stringify(gm);
     const one = play([H(M, 1, 13, 3, 'tank')]);
     const e1 = of(one.sc, 'spell_end')[0];
     return e1 && e1.hits === 1 && of(one.sc, 'dmg').filter((x) => x.ability === 't_group' && x.t === 1).length === 1 ? null : 'a lone hero was not struck: ' + JSON.stringify(e1);
@@ -296,11 +315,13 @@ const cases = {
     /* (resistPm rides the unit unpersisted, as the armour does: combat-sim.js syncUnit writes it at every boundary) */
     const warm = Object.assign(H(M, 2, 13, 4, 'tank'), { resistPm: M.EL.resistProfile({ frost: 500, ember: -500 }) });
     const hit = (t, el) => M.damage.hurt(inst, t, 100, r, el, null, M.rng.createRng(1)).dmg;
-    if (hit(plain, 'frost') !== 100 || hit(warm, 'frost') !== 50) return 'frost on a 50% frost resist: ' + hit(warm, 'frost') + ' (plain ' + hit(plain, 'frost') + ')';
-    if (hit(warm, 'ember') !== 150) return 'a 50% ember weakness took ' + hit(warm, 'ember');
+    /* 50% asked, 40% the cap (data/elements.js HERO_RESIST_PM): 60 of 100; gear makes nobody weak, so the -50% ember is 0 */
+    if (M.EL.heroElementPermille({ frost: 200 }, 'frost') !== 800) return 'a 20% frost resist does not take 20% off';
+    if (hit(plain, 'frost') !== 100 || hit(warm, 'frost') !== 60) return 'frost on a capped 40% resist: ' + hit(warm, 'frost') + ' (plain ' + hit(plain, 'frost') + ')';
+    if (hit(warm, 'ember') !== 100) return 'gear made a hero weak to ember: ' + hit(warm, 'ember');
     if (hit(warm, null) !== 100 || hit(warm, 'poison') !== 100) return 'a resist touched a physical or an unnamed element';
     const prof = M.EL.resistProfile({ frost: 900, ember: -2000, poison: 0, bogus: 100 });
-    if (JSON.stringify(prof) !== '{"ember":-1000,"frost":750}' || M.EL.resistProfile({ frost: 0 }) !== null) return 'resistProfile does not clamp to ELEMENT_PCT x 10: ' + JSON.stringify(prof);
+    if (JSON.stringify(prof) !== '{"frost":400}' || M.EL.resistProfile({ frost: 0 }) !== null) return 'resistProfile does not clamp to HERO_RESIST_PM: ' + JSON.stringify(prof);
     /* gear sums it (combat.js equipmentStats), and a hero whose gear carries none has none */
     const items = { cape: { slot: 'cape', resistPm: { frost: 200 } }, boots: { slot: 'boots', resistPm: { frost: 100, ember: 50 } }, ring: { slot: 'ring' } };
     const eq = M.C.equipmentStats({ cape: 'cape', boots: 'boots', ring: 'ring' }, items);
@@ -319,7 +340,8 @@ const cases = {
       /* the top through the hero's stance (both heroes play the same role, so the same stance), then half of it */
       const u1 = fx.world.units.find((u) => u.id === 1);
       const stanced = Math.floor((top * M.RS.HUNT_STANCES[u1.stance || 'balanced'].taken) / 1000);
-      if (Math.max(...A) > Math.floor(stanced / 2)) return 'the resisting hero took ' + Math.max(...A) + ', over half the stanced top ' + stanced;
+      const cap = Math.floor((stanced * M.EL.heroElementPermille({ frost: 500 }, 'frost')) / 1000);
+      if (Math.max(...A) > cap) return 'the resisting hero took ' + Math.max(...A) + ', over the capped share ' + cap + ' of the stanced top ' + stanced;
       if (Math.max(...B) <= Math.max(...A)) return 'the plain hero took no more than the resisting one: ' + JSON.stringify({ A, B });
       /* THE BROWSER'S PEER (viewed): a frozen row's snap reaches its engine member as it is (member.js frozenSide; the row is
          built by frozenOf, whose resistPm tests/hunt-live.mjs LV-SPELL plays against the server's commits) */
@@ -327,6 +349,43 @@ const cases = {
       return JSON.stringify(peer.member.snapshot().resistPm) === '{"frost":500}' ? null : "a frozen peer's snapshot lost its resistPm";
     });
   },
+  'shield-braces-marked': (M) => {
+    /* the same fight twice on the same dice, the tank's shield worn and not: a marked hit lands SHIELD_BRACE lighter, a group one the same */
+    const play = (row, shield) => withSpells(M, [row], { rat: row.id }, () => {
+      const k = H(M, 1, 13, 3, 'tank');
+      if (shield) k.shieldWorn = true;
+      const r = mon(M, 10, 0, 14, 3, { target: 1, hp: 9999, maxHp: 9999, swingLeftMs: 99999 });
+      const inst = fightOf(M, [k, r]);
+      const sc = recorder(M, 12);
+      for (let i = 0; i <= 25; i++) { sc.atMs = i * 100; M.movement.occupancy(inst); M.spells.castSpells(inst, sc); M.spells.dropCasts(inst, sc); }
+      return of(sc, 'dmg').filter((e) => e.ability === row.id).map((e) => e.amount);
+    });
+    const [bare] = play(RING, false), [braced] = play(RING, true);
+    if (!bare || braced !== Math.max(1, Math.floor((bare * (1000 - M.MS.SHIELD_BRACE.markedPm)) / 1000))) return 'a shield took ' + bare + ' to ' + braced + ' on a marked hit';
+    const [g0] = play({ ...GROUP, element: null }, false), [g1] = play({ ...GROUP, element: null }, true);
+    if (!g0 || g0 !== g1) return 'a shield braced a group spell: ' + g0 + ' to ' + g1;
+    /* THE SETTLE carries the member's worn shield to its unit (combat-sim.js syncUnit): the same span with and without it, the
+       first marked hit on that hero lands lighter with it (everything before it is the same dice) */
+    return withSpells(M, [{ ...RING, windupMs: 1600, cdMs: 6000 }], { rat: 't_ring' }, () => {
+      const first = (shield) => {
+        const fx = spanFixture(M, 7, { members: [member(M, 'a', { unitId: 1, seat: 0, shield, hp: 5000, maxHp: 5000 }), member(M, 'b', { unitId: 2, seat: 1, hp: 5000, maxHp: 5000 })] });
+        const e = JSON.parse(runSpan(M, fx, [])).events.find((x) => x.type === 'dmg' && x.ability === 't_ring' && x.t === 1);
+        return e ? e.amount : null;
+      };
+      const off = first(false), on = first(true);
+      return off !== null && on !== null && on < off ? null : 'the settle did not brace the worn shield: ' + off + ' bare, ' + on + ' with it';
+    });
+  },
+  'two-spells-own-cooldowns': (M) => withSpells(M, [RING, { ...GROUP, windupMs: 1600, cdMs: 10000 }], { rat: ['t_ring', 't_group'] }, () => {
+    const k = H(M, 1, 13, 3, 'tank', { hp: 99999, maxHp: 99999 });
+    const r = mon(M, 10, 0, 14, 3, { target: 1, hp: 9999, maxHp: 9999 });
+    const inst = fightOf(M, [k, r]);
+    const sc = recorder(M, 13);
+    for (let i = 0; i <= 130; i++) { sc.atMs = i * 100; M.movement.occupancy(inst); M.damage.resolveAttacks(inst, sc); M.spells.castSpells(inst, sc); M.spells.dropCasts(inst, sc); }
+    /* the list's first ready spell starts; the second waits out the first's windup; each keeps its own cooldown from its start */
+    const got = of(sc, 'spell').map((e) => e.spell + '@' + e.atMs).join(' ');
+    return got.startsWith('t_ring@0 t_group@2500 t_ring@12000') ? null : 'two spells on one monster cast ' + got;
+  }),
   'split-parity': (M) => withSpells(M, [{ ...RING, cdMs: 6000 }, BLAST], { rat: 't_ring', slime: 't_blast' }, () => {
     const one = runSpan(M, spanFixture(M, 7), []);
     const ev = JSON.parse(one).events.filter((e) => e.type === 'spell');
@@ -344,7 +403,7 @@ const cases = {
     const fx = spanFixture(M, 7);
     const text = JSON.parse(runSpan(M, fx, [T0 + 31337]));
     if (text.events.some((e) => e.type === 'spell' || e.type === 'spell_end')) return 'a span with no spell row cast one';
-    return fx.world.units.some((u) => u.cast !== null || u.spellCd !== 0) ? 'a unit carries a cast or a cooldown with no spell row' : null;
+    return fx.world.units.some((u) => u.cast !== null || u.spellCds !== null) ? 'a unit carries a cast or a cooldown with no spell row' : null;
   },
 };
 
@@ -353,11 +412,19 @@ const mutants = [
   { name: 'a casting monster still swings', case: 'telegraph-then-land', edits: [['src/core/hunt/damage.js', '    if (u.cast) continue;\n    if (u.swingLeftMs > 0 || !Number.isInteger(u.target)) continue;', '    if (u.swingLeftMs > 0 || !Number.isInteger(u.target)) continue;']] },
   { name: 'a casting monster walks', case: 'telegraph-then-land', edits: [['src/core/hunt/movement.js', '    if (u.cast) continue;\n    stepUnit(inst, u, sc);', '    stepUnit(inst, u, sc);']] },
   { name: 'the landing leaves the swing clock', case: 'telegraph-then-land', edits: [[S, '  u.cast = null;\n  restart(u);\n', '  u.cast = null;\n']] },
-  { name: 'the cooldown is never set', case: 'telegraph-then-land', edits: [[S, '  u.spellCd = sp.cdMs;\n', '']] },
-  { name: 'the cooldown runs from the landing', case: 'telegraph-then-land', edits: [[S, '  u.cast = null;\n  restart(u);\n', '  u.cast = null;\n  u.spellCd = sp.cdMs;\n  restart(u);\n']] },
+  { name: 'the cooldown is never set', case: 'telegraph-then-land', edits: [[S, '  u.spellCds = Object.assign({}, u.spellCds || {}, { [id]: sp.cdMs });\n', '']] },
+  { name: 'one cooldown for every spell', case: 'two-spells-own-cooldowns', edits: [[S, '      if (u.spellCds && u.spellCds[id] > 0) continue;', '      if (u.spellCds) continue;']] },
+  { name: 'a monster casts only its first spell', case: 'two-spells-own-cooldowns', edits: [[S, '    for (const id of list) {', '    for (const id of list.slice(0, 1)) {']] },
+  { name: 'no brace', case: 'shield-braces-marked', edits: [[S, 'marked(sp) && h.shieldWorn === true ? braced : plain', 'plain']] },
+  { name: 'the settle never carries the worn shield', case: 'shield-braces-marked', edits: [['src/core/combat-sim.js', '  if (m.shield === true) u.shieldWorn = true; else if (u.shieldWorn) delete u.shieldWorn;\n', '']] },
+  { name: 'a shield braces a group spell too', case: 'shield-braces-marked', edits: [[S, 'marked(sp) && h.shieldWorn === true ? braced : plain', 'h.shieldWorn === true ? braced : plain']] },
+  { name: 'a brace of nothing', case: 'shield-braces-marked', edits: [['src/data/monster-spells.js', 'export const SHIELD_BRACE = Object.freeze({ markedPm: 300 });', 'export const SHIELD_BRACE = Object.freeze({ markedPm: 0 });']] },
+  { name: 'the cooldown runs from the landing', case: 'telegraph-then-land', edits: [[S, '  u.cast = null;\n  restart(u);\n', '  u.cast = null;\n  u.spellCds = Object.assign({}, u.spellCds || {}, { [id]: sp.cdMs });\n  restart(u);\n']] },
   { name: 'the hit has no roll range (always its top)', case: 'rows-and-formulas', edits: [['src/data/monster-spells.js', 'export const SPELL_ROLL = Object.freeze({ lowPm: 500 });', 'export const SPELL_ROLL = Object.freeze({ lowPm: 1000 });']] },
   { name: 'the windup is skipped', case: 'telegraph-then-land', edits: [[S, '  const ms = slowed(u, sp.windupMs);', '  const ms = 100;']] },
   { name: 'a fair warning of a flat 1.2 s', case: 'rows-and-formulas', edits: [['src/data/monster-spells.js', '  return FAIR_WARNING.baseMs + FAIR_WARNING.perRadiusMs * (r - 1);', '  return FAIR_WARNING.baseMs;']] },
+  { name: "the screen's mark lands on its own clock", case: 'telegraph-then-land', edits: [['src/core/hunt/marks.js', 'landsAtMs: ev.atMs + ev.ms };', 'landsAtMs: ev.atMs + 2000 };']] },
+  { name: "the screen's mark keeps the walls", case: 'shapes', edits: [['src/core/hunt/marks.js', '  return { caster: ev.u, spell: ev.spell, tiles: tilesOf(s, grid),', '  return { caster: ev.u, spell: ev.spell, tiles: tilesOf(s),']] },
   { name: 'a ring covers its caster', case: 'shapes', edits: [['src/core/hunt/shapes.js', "    case 'ring': return d >= 1 && d <= s.r;", "    case 'ring': return d <= s.r;"]] },
   { name: 'a cone of 180 degrees', case: 'shapes', edits: [['src/core/hunt/shapes.js', '      return dot > 0 && 2 * dot * dot >= (rx * rx + ry * ry) * (s.dx * s.dx + s.dy * s.dy);', '      return dot >= 0;']] },
   { name: 'a line on the 8 ways only', case: 'shapes', edits: [['src/core/hunt/shapes.js', '  return [s.ox + rdiv(k * s.dx, d), s.oy + rdiv(k * s.dy, d)];', '  return [s.ox + Math.sign(s.dx) * k, s.oy + Math.sign(s.dy) * k];']] },
@@ -378,9 +445,10 @@ const mutants = [
   { name: 'enemy_casting reads only ground marks', case: 'group-strikes-all', edits: [['src/core/hunt/marks.js', "    const s = castShape(m);\n    if (s && heroes.some((h) => h && covers(s, h.x, h.y))) out.push(m);", "    const s = groundOf(m);\n    if (s && heroes.some((h) => h && covers(s, h.x, h.y))) out.push(m);"]] },
   { name: 'a hero ignores its resistance', case: 'resist-takes-less', edits: [['src/core/hunt/targeting.js', ': heroElementPermille(unit.resistPm, element));', ': 1000);']] },
   { name: 'the settle never carries resistPm to the unit', case: 'resist-takes-less', edits: [['src/core/combat-sim.js', '  if (snap.resistPm) u.resistPm = snap.resistPm; else if (u.resistPm) delete u.resistPm;\n', '']] },
-  { name: 'a resist past the bound', case: 'resist-takes-less', edits: [['src/core/elements.js', '    const pm = Number.isFinite(v) ? Math.min(ELEMENT_PCT.max * 10, Math.max(ELEMENT_PCT.min * 10, v)) : 0;', '    const pm = Number.isFinite(v) ? v : 0;']] },
+  { name: 'a resist past the 40% cap', case: 'resist-takes-less', edits: [['src/data/elements.js', 'export const HERO_RESIST_PM = Object.freeze({ min: 0, max: 400 });', 'export const HERO_RESIST_PM = Object.freeze({ min: -1000, max: 750 });']] },
+  { name: 'the combat seam reads past the cap', case: 'resist-takes-less', edits: [['src/core/elements.js', '  return Number.isFinite(v) ? 1000 - Math.min(HERO_RESIST_PM.max, Math.max(HERO_RESIST_PM.min, v)) : 1000;', '  return Number.isFinite(v) ? 1000 - v : 1000;']] },
   { name: 'gear never sums its resistPm', case: 'resist-takes-less', edits: [['src/core/combat.js', '  if (resist) Object.assign(s, { resistPm: resist });\n', '']] },
-  { name: 'the cast record is not persisted (a cut forgets the mark)', case: 'split-parity', edits: [[S, "  unit: Object.freeze([['spellCd', 'int'], ['cast', 'json']]),", "  unit: Object.freeze([['spellCd', 'int']]),"]] },
+  { name: 'the cast record is not persisted (a cut forgets the mark)', case: 'split-parity', edits: [[S, "  unit: Object.freeze([['spellCds', 'json'], ['cast', 'json']]),", "  unit: Object.freeze([['spellCds', 'json']]),"]] },
 ];
 
 const R = makeReport('hunt-core/monster-spells');

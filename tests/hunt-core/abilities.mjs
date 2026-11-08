@@ -666,6 +666,9 @@ const cases = {
       const at = lineFight(10);
       const hit = at.events.filter((e) => e.type === 'dmg' && e.ability === 'zz_line');
       const [lo, top] = X.AD.blowShare(10, line);
+      /* the wiki formula, stated here on its own: top = floor(M x hitPm / 1000), low = ceil(top x hitLowPm / 1000) */
+      const wantTop = Math.floor((10 * line.hitPm) / 1000);
+      if (top !== wantTop || lo !== Math.ceil((wantTop * X.AD.ABILITY_RULES.hitLowPm) / 1000)) return 'blowShare(10) of an 800 hitPm row is [' + lo + ', ' + top + ']';
       if (JSON.stringify(casts(at)) !== '["zz_line"]' || JSON.stringify(hit.map((e) => e.t)) !== '[10,11,12]') return 'the line hit ' + JSON.stringify(hit.map((e) => e.t)) + ', want the three in a row';
       if (hit.some((e) => e.amount < lo || e.amount > top)) return 'a line hit off its share [' + lo + ', ' + top + '] of the blow: ' + hit.map((e) => e.amount);
       /* THE RING: three beside a sword hero, maxHits 2: the two lowest ids */
@@ -676,7 +679,27 @@ const cases = {
       const rh = r.sc.events.filter((e) => e.type === 'dmg' && e.ability === 'zz_ring');
       const [rlo, rtop] = X.AD.blowShare(20, ring);
       if (JSON.stringify(rh.map((e) => e.t)) !== '[10,11]') return 'the ring of maxHits 2 hit ' + JSON.stringify(rh.map((e) => e.t)) + ', want the two lowest beside';
-      return rh.every((e) => e.amount >= rlo && e.amount <= rtop) ? null : 'a ring hit off its share of the blow: ' + rh.map((e) => e.amount);
+      if (!rh.every((e) => e.amount >= rlo && e.amount <= rtop)) return 'a ring hit off its share of the blow: ' + rh.map((e) => e.amount);
+      /* THE LONG PARTY HEAL (Spring Tide's shape: radius 8, a 60 s cooldown, 160 mana, its own "the fight is on" rule) */
+      const tide = X.AD.ABILITIES.zz_tide;
+      const tideFight = (fight) => {
+        const x = oneHero(X, { role: 'healer', mana: 400, maxMana: 400, hp: 50, maxHp: 100 }, { bar: [{ action: { type: 'ability', id: 'zz_tide' }, conditions: X.AD.suggestedTrigger(tide), join: 'and' }], range: 7 },
+          fight ? [{ x: 13, y: 3, hp: 900, maxHp: 900 }] : []);
+        const near = hero(X, 2, 14, 5, { hp: 40, maxHp: 100 }), far = hero(X, 3, 3, 3, { hp: 40, maxHp: 100 });
+        x.inst.world.units.splice(1, 0, near, far);
+        x.inst.world.phase = fight ? 'fight' : 'travel';
+        x.sc.rng = rngOf(X, 11);
+        steps(x.inst, x.sc, cast(X), 20, 0);
+        return { x, near, far };
+      };
+      const calm = tideFight(false);
+      if (casts(calm.x.sc).length) return 'the long party heal fired between pulls: ' + casts(calm.x.sc);
+      const hot = tideFight(true);
+      const heals = hot.x.sc.events.filter((e) => e.type === 'heal').map((e) => e.t).sort();
+      if (JSON.stringify(casts(hot.x.sc)) !== '["zz_tide"]' || JSON.stringify(heals) !== '[1,2]') return 'the long party heal: casts ' + casts(hot.x.sc) + ', healed ' + heals + ' (want once, the caster and the ally within 8 tiles, not the one 9 away)';
+      /* (19 sub-steps of regen after the cast: 25% of 400 a minute is 3 mana) */
+      if (hot.x.h.mana < 400 - tide.mana || hot.x.h.mana > 400 - tide.mana + 4 || hot.x.h.cds.zz_tide !== tide.cdMs) return 'the long heal\'s mana or cooldown: ' + hot.x.h.mana + ' / ' + JSON.stringify(hot.x.h.cds);
+      return null;
     } finally { P.done(); }
   },
 };
@@ -686,7 +709,9 @@ const AREA_ROWS = [['src/data/abilities.js', "    versions: [[50, 1000], [60, 17
   "    versions: [[50, 1000], [60, 1740], [72, 2520], [86, 3310], [104, 4100]], lvPm: LV_PM }),\n"
   + "  ab({ id: 'zz_line', n: 'Test Line', disciplines: ['ranged'], lane: 'offense', cdMs: 8000, mana: 10, unlock: 10, target: 'line', len: 4, hitPm: 800 }),\n"
   + "  ab({ id: 'zz_ring', n: 'Test Ring', disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 8, target: 'ring', maxHits: 2, hitPm: 600,\n"
-  + "    trigger: [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }, { metric: 'in_fight', op: 'eq', value: true }] }),\n"]];
+  + "    trigger: [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }, { metric: 'in_fight', op: 'eq', value: true }] }),\n"
+  + "  ab({ id: 'zz_tide', n: 'Test Tide', disciplines: ['restoration'], lane: 'heal', cdMs: 60000, mana: 160, target: 'party', heal: [120, 180], radius: 8,\n"
+  + "    trigger: [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_60' }, { metric: 'in_fight', op: 'eq', value: true }] }),\n"]];
 /** A copy of `root`'s src/core + src/data with `edits` applied, loaded as the suite loads a tree: { M, done() }. */
 async function withRows(root, edits) {
   const dir = mkdtempSync(join(tmpdir(), 'hunt-rows-'));

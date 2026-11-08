@@ -49,7 +49,7 @@
    `equipmentStats` and this module, so a fourth "element" can never leak in from
    a forged enchant or a bad rune row) are src/data/elements.js's, the one copy;
    re-exported so existing callers keep their import. */
-import { ELEMENTS, ELEMENT_PCT, isElement } from '../data/elements.js?v=0.2.108';
+import { ELEMENTS, ELEMENT_PCT, HERO_RESIST_PM, isElement } from '../data/elements.js?v=0.2.108';
 export { ELEMENTS, isElement };
 
 /** The hard ceiling on the single enchant factor (damage only: the b343 ruling, an
@@ -96,8 +96,8 @@ export function elementPermille(monster, element) {
  * resistance to gear and imbuements in order for the party to survive"). `resistPm` is the hero's resolved
  * { element: permille less taken } (combat.js equipmentStats sums the worn pieces' `resistPm`; member.js heroSnapshot
  * carries it to the unit as `resistPm`). The profile a hero's unit holds, normalised: element ids only, whole permille
- * inside ELEMENT_PCT x 10 (never shrugged off whole, at most double from a weakness), zeros dropped, keys in vocabulary
- * order (so two runtimes write the same JSON); null when nothing is left, which is every hero today.
+ * inside HERO_RESIST_PM (data/elements.js: at most 40% off any one element, never a weakness), zeros dropped, keys in
+ * vocabulary order (so two runtimes write the same JSON); null when nothing is left, which is every hero today.
  */
 export function resistProfile(resistPm) {
   if (!resistPm || typeof resistPm !== 'object') return null;
@@ -106,19 +106,20 @@ export function resistProfile(resistPm) {
   let any = false;
   for (const e of ELEMENTS) {
     const v = Object.prototype.hasOwnProperty.call(resistPm, e) ? Math.trunc(Number(resistPm[e])) : 0;
-    const pm = Number.isFinite(v) ? Math.min(ELEMENT_PCT.max * 10, Math.max(ELEMENT_PCT.min * 10, v)) : 0;
+    const pm = Number.isFinite(v) ? Math.min(HERO_RESIST_PM.max, Math.max(HERO_RESIST_PM.min, v)) : 0;
     if (pm) { out[e] = pm; any = true; }
   }
   return any ? out : null;
 }
 
-/** What one blow of `element` is worth against a HERO carrying `resistPm` (resistProfile), in permille: 1000 less its
-    resistance to that element; physical, an unnamed element or no profile: 1000. The armour chain's resistances step
-    (src/core/mitigation.js mitigate, through targeting.js elementOn). */
+/** What one blow of `element` is worth against a HERO carrying `resistPm` (resistProfile), in permille (a wiki formula):
+      taken = 1000 - min(HERO_RESIST_PM.max, resistPm[element]),
+    so with 20% fire resistance a fire hit of 100 lands for 80; physical, an unnamed element or no profile: 1000. The armour
+    chain's resistances step (src/core/mitigation.js mitigate, through targeting.js elementOn). */
 export function heroElementPermille(resistPm, element) {
   if (!resistPm || !isElement(element) || !Object.prototype.hasOwnProperty.call(resistPm, element)) return 1000;
   const v = Math.trunc(Number(resistPm[element]));
-  return Number.isFinite(v) ? 1000 - Math.min(ELEMENT_PCT.max * 10, Math.max(ELEMENT_PCT.min * 10, v)) : 1000;
+  return Number.isFinite(v) ? 1000 - Math.min(HERO_RESIST_PM.max, Math.max(HERO_RESIST_PM.min, v)) : 1000;
 }
 
 /**

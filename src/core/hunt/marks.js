@@ -60,3 +60,15 @@ export function markTiles(u, grid) {
   const s = castShape(u);
   return s ? tilesOf(s, grid) : [];
 }
+
+/**
+ * THE MARK A `spell` EVENT STARTS (events.js; the live frame's telegraph, what the screen draws from the timeline):
+ * { caster, spell, tiles (the walkable tiles of `grid` it covers, the server's own), group (a whole-party strike: no ground
+ * tiles, the screen marks every hero), fromMs, landsAtMs }. It closes at the caster's `spell_end` (landed, killed or reset),
+ * never on a clock of the screen's own. Null for any other event.
+ */
+export function markOfEvent(ev, grid) {
+  if (!ev || ev.type !== 'spell') return null;
+  const s = { kind: ev.shape, ox: ev.x, oy: ev.y, dx: ev.dx || 0, dy: ev.dy || 0, n: 0, r: ev.r || 0, len: ev.len || 0 };
+  return { caster: ev.u, spell: ev.spell, tiles: tilesOf(s, grid), group: ev.shape === 'group', fromMs: ev.atMs, landsAtMs: ev.atMs + ev.ms };
+}

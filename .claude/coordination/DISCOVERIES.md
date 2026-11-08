@@ -3851,3 +3851,9 @@ row. Give the head cells the rows' data-c and hide both with one selector.
 - P3, art: mb_stepping_stones are near-white, brighter than any actor's body on the March shallows (ART_DIRECTION §4).
 - P3, art: the eight hero outfits and the two town NPCs still idle on one frame; every monster breathes since v0.2.98 (brief 05).
 - Measured, not a bug: a scripted verdigris re-pour moves only a body's metal ramps, so it fails on bodies without plate (repour-sample.png).
+
+## 2026-11-08 · art-director (lane/a-art-brief-11) · what the combat and town art does on screen, read from the clips
+- P2, art: the Mill Cellar's whole roster (rat, slime, hive_wasp) and 4 of the Sewer's 6 (cistern_spider, culvert_bat, kobold_tosher, rat_king) have NO drawn attack or death: tools/world-art/derive-combat.mjs scripts them from idle pixels. The rat's attack barely moves; the spider, bat and wasp land as their own idle flipped, so the corpse reads alive (art/review/brief-11-2026-11-08/). Brief 11 line 1 draws them.
+- P2, systems: compose.js draws a placed map object at frame 0 facing south, so the station NPCs' approved idles (crier, smith) and brief 10's N1 keepers never play in town. Handoff filed.
+- P3, art: every death (all 30 live bodies) and B3 / H1 / F1 are s, e, n, w beside 8-facing idles and walks: about half of all kills turn 45 degrees on the fall's first frame. Brief 11 lines 3, 4, 5, 10.
+- P3, art: every flame (wall_torch, brazier, candle, forge, cook fires, ovens: 26 placed in the grounds, 10 in town) is a still. Brief 11 line 2.

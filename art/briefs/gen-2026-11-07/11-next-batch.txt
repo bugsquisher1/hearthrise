@@ -1,0 +1,285 @@
+BRIEF 11: THE LAST ~1,000 GENS OF THE CYCLE, RANKED (art director, 2026-11-08, lane/a-art-brief-11 from 8a7818bbb)
+Runs 11-09 to 11-13, after brief 10 and the hero attack swings (~490 gens). About 1,150 are left with no ready line, and
+unused gens expire on 11-14. Read the balance before each batch, stop at zero, never buy credits. Every line opens with
+its SAMPLE (about 5 calls). Hand me the strip, and wait for my yes before that line's batch (CLAUDE.md §10). A batch is
+20 calls or fewer. Different lines may run side by side. Ranked by what a player sees most in hours 1-20: the Mill
+Cellar, the Sewer, the Thicket, Wickstead, the Glade, and Havora between hunts.
+
+WHAT I MEASURED FIRST (assets/world/*.json at 8a7818bbb; sheets at x3 in art/review/brief-11-2026-11-08/)
+ F1  The 7 "creatures with only 4 attack facings" are the 7 whose attack AND death were never drawn.
+     tools/world-art/derive-combat.mjs built them from idle pixels by shifts, flips and squashes (their sidecars say
+     "no drawn death exists"): rat, slime, hive_wasp (the whole Mill Cellar roster, every player's first fight) and
+     cistern_spider, culvert_bat, kobold_tosher, rat_king (4 of the Sewer's 6). The rat's attack barely moves, the
+     kobold's spear never thrusts, and the spider, bat and wasp land as their own idle flipped. That corpse reads alive
+     for the 10 s it lies (hunt-view/scene.js corpseMs). The drawn drain_rat is in the same sheet for comparison.
+     Brief 10's fallback (draw only their diagonals) is withdrawn. Four drawn facings beside four scripted ones would
+     put two qualities in one clip.
+ F2  Every live death has 4 facings (s, e, n, w). Idle, walk and 23 of 30 attacks have 8. A unit falls facing the way it
+     faced (scene.js `lie`), and world/core/facing.js shows a diagonal's cardinal, so about half of all kills turn 45
+     degrees on the fall's first frame (4 of a full box's 8 places are diagonal). B3's hit clips and H1 / F1 are also
+     s, e, n, w. Once the hit hook plays them, a diagonal flinch will turn away and back on every blow.
+ F3  Every flame in the world is a still: wall_torch, brazier and candle (26 placed in the Cellar, Sewer, Warrens, Glade
+     and Wickstead), the forge, the cook spits and cauldrons, and the bread ovens. LIGHTS (data/world/terrain.js) gives
+     them light, but no frame moves. ART_DIRECTION §6: "flames are the cheapest life a scene can get".
+ F4  A placed map object is drawn at frame 0 facing south (world/core/compose.js place() passes no clip and no clock).
+     Station NPCs are placed objects, so the crier's and the smith's approved idles (brief 09) and N1's keepers will
+     stand still in town. Only their S facing can ever show. See HANDOFF below.
+ F5  The Farm window draws each crop's produce icon at every stage (shell/windows/farm.js patchPlot, crop.prod). Its
+     soil well is a CSS colour, where ART_DIRECTION §12 asks for the world's soil.
+ F6  Nobody stands at the gate where every hunt ends (art/review/playtest-first-hour-2026-10-29/d27-back-in-town.png).
+ F7  Wickstead's Burned House and the Glade's Rook's Hide (the ruined spring-house) are named in their map rows but
+     drawn as cracked flagstones and rubble. Neither ground has a signature piece (data/world/region-kits.js).
+
+THE LINES
+ #   Line                                         Gens  Wiring                                              Plays
+ 1   M1  The first fights, drawn                   165  import, retire derive-combat (no code)              on import
+ 2   L1  Every flame moves                          35  small lane: FLAMES table and an ambient loop        after lane
+ 3   M2  Every fall in eight facings               100  import (no code)                                    on import
+ 4   M3  Every flinch in eight facings             145  import                                              hit hook
+ 5   H1d The hero's flinch in eight                 40  import (heroes set, masks re-run)                   hit hook
+ 6   T1  The gate watch                             20  import and 2 station prop rows                      F4's fix
+ 7   C1  Crop beds                                  30  small farm.js lane and a crop icon folder           after lane
+ 8   T2  Pigeons on the square, hens at the farm    40  small lane: town-critters.js                        after lane
+ 9   S1  Two grounds' signature pieces              70  2 map rows on blocked cells, region-kits            on import
+ 10  H2d The hero's fall in eight                   40  import, with F1                                     fall hook
+ 11  T3  Townsfolk                                 100  small lane: town-folk.js                            after lane
+ 12  E1  Live-event marks                           25  the live-events client half                         after lane
+ 13  M4  The March in eight                         70  rides the March art merge                           with March
+     Re-rolls held back                            120
+     TOTAL                                       ~1,000
+
+1  M1 THE FIRST FIGHTS, DRAWN (~165). Attack and death in all 8 facings for the 7 of F1, on their own objects (KIT §2):
+     rat 01744036-6944-4548-a581-a408b4bf1bee        slime a53b1f35-5b54-47e4-be50-40a593b96392
+     hive_wasp 1c4dd534-ac8a-47de-90f3-bed71ad6a160  culvert_bat 3d41dcb0-204b-4cba-8b22-66ae711d449d
+     cistern_spider d6f7f699-30f0-4ed1-985e-62d41ae98bee   kobold_tosher 27b8daf0-8222-4e0b-ac00-30cf6fa91b21
+     rat_king 3c137163-dbd3-4812-8a72-a518a58f0f20 (64 canvas)
+   WHO: every player's first hunt and the Sewer, Levels 1-15, on every blow and every kill. The rest of the cast got
+   drawn clips on 11-05 (lane/a-art-batch-1). This replaces clips that were never drawn. It does not touch any drawn
+   rotation, idle or walk, so it is not a cleanup pass (Tyler 10-22).
+   TOOL: animate_object v3 on the object, frame_count 6, keep_first_frame false (the art-batch-1 recipe).
+     attack  8 facings, all generated (56 calls). The blow lands on frame 3. Each action ends "then returns to its
+             stance, feet planted, nothing else appears in the frame":
+             rat "lunges forward low and bites"; slime "rears up and slaps forward with its whole body"; hive_wasp
+             "darts forward and jabs with its stinger, wings beating"; culvert_bat "swoops forward and bites, wings
+             beating"; cistern_spider "rears its front legs and strikes down with its fangs"; kobold_tosher "thrusts its
+             spear forward with both hands"; rat_king "raises his bone sceptre and brings it down in a heavy blow".
+     death   s, e, n, se, ne generated for the five that hold nothing, with w, sw, nw mirrored from e, se, ne (as
+             drain_rat's west fall is). All 8 generated for kobold_tosher and rat_king. 41 calls. Each facing first gets
+             its end pose: edit_image_pro_flash on that facing's still, "the same creature lying dead on the ground,
+             <pose>" (41 calls). The clip then falls into it (art-batch-1's drawn deaths, drain_rat.json `clips`).
+             Poses: rat and cistern_spider "on its back, legs curled up"; slime "melted flat into a puddle"; culvert_bat
+             and hive_wasp "fallen to the floor on its back, wings spread"; kobold_tosher "flat on its back, the spear
+             beside it"; rat_king "face down, his cape spread, the sceptre beside him". The last frame is the corpse and
+             must read dead at x2 (§6: lying flat, legs out).
+   SAMPLE (6 calls + 2 edits): rat attack S and E, slime attack S, rat death S and cistern_spider death S with end
+     poses, and rat death S plain (no end pose). I read them beside drain_rat's drawn clips. If the plain death lands
+     the same corpse, the 41 edits go back to the reserve.
+   REJECT: any spark, slash arc, dust or flash. Gear that appears or vanishes. A lunge that leaves the anchor row by
+     more than 3 px. A corpse that could be standing (the derived spider's fault). A body outside its class (vermin
+     28-40, vermin_flier 20-32, beast 40-48 wide, character 36-40).
+   WIRING (import lane, asset director): port-pixellab.mjs unit clips into each sidecar (attack --hit 3, death, corpse
+     from the death's last frame, 8 facings), delete the 7 from derive-combat.mjs UNITS and retire the tool with its
+     last unit (it is in no CI job), then build.mjs, world-assets, hunt-scene, and a Mill Cellar and Sewer visual pass.
+     No code: the renderer plays every clip and facing a sidecar declares (facing.js).
+
+2  L1 EVERY FLAME MOVES (~35). A 4-6 frame flicker for the 7 still flames of F3, cut to the pixels that move and drawn
+   as a `light` overlay on its prop (the Great Hearth's fire method, 10-25): wall_torch, brazier, candle (sewer and mill
+   sets), forge (cottage), havora_cook_spit, havora_cook_cauldron, havora_bread_oven (havora). The lamppost flame is
+   brief 10's C2 and joins the same table.
+   WHO: the Cellar's two torches, its candle and its brazier stand in every player's first fight. The Sewer has 9
+   torches, the Warrens 8 and 2 braziers. In town, every hero who cooks or smiths stands at one.
+   TOOL: animate_image on the prop's own frame (the candle padded to 32x32), 8 frames, "the flame flickers and sways,
+     the <torch / bowl / candle / forge / spit and meat / pot and tripod / oven> does not move, nothing else appears in
+     the frame". Never the word "glow" (it paints one). Keep the calmest 4-6 frames as a loop at 8 fps (§6). The overlay
+     keeps the prop's frame and anchor, so it registers pixel for pixel. 7 calls and 7 re-rolls, about 2.5 gens a call.
+   SAMPLE (3): wall_torch, brazier, havora_cook_spit, each laid over its still at x2 in tools/qa/region-kit.html on the
+     Mill Cellar and the cook yard.
+   WIRING (a small lane, systems or art): FLAMES beside LIGHTS in src/data/world/terrain.js (prop id to its flame
+     sprite). map-compile.js adds one ambient loop for each placed prop that has one, placed by the prop's own rule
+     (compose.js frameBox and its footprint), and compose.js's existing ambient path draws it after the light pass, as
+     it draws the hearth's fire. One test: every placed flame prop gets exactly one loop. Measure the Warrens (10
+     flames) with tools/qa/pane-probe.js.
+
+3  M2 EVERY FALL IN EIGHT FACINGS (~100). Death in se, sw, ne, nw for the 23 drawn bodies (F2), each on its own object
+   (its sidecar's `pixellab.object`). Mirror only what already mirrors: the 5 whose shipped W fall is their E mirrored
+   (drain_rat, sump_slime, barn_spider, barn_wasp, granary_rat: sidecar `west_fall`) get se and ne generated and sw and
+   nw mirrored (10 calls). The other 18 carry no such note, so all four of their diagonals are generated (72 calls). A
+   mirrored corpse among generated ones would lie lit from the wrong side for the 10 s it stays. 82 calls.
+   WHO: every kill from the Sewer to the Glade, Levels 5-30, about half of them.
+   TOOL: animate_object v3, frame_count 6, keep_first_frame false. Read each body's shipped S and E death strips first
+     and describe the same fall and the same corpse in words (for example drain_rat "rolls onto its side, belly up, legs
+     out, and lies still"). Use line 1's end pose only for a facing whose plain roll lands a different corpse.
+   SAMPLE (5): gray_wolf se and ne, glade_poacher se and sw, drain_rat se. Read beside each body's shipped deaths: the
+     same fall, the same corpse turned 45 degrees, resting on the anchor row.
+   WIRING: the import (each sidecar's death and corpse gain four facings). No code.
+
+4  M3 EVERY FLINCH IN EIGHT FACINGS (~145). Hit in se, sw, ne, nw for the 30 live bodies (B3 is s, e, n, w), on the
+   same objects with B3's approved recipe and words: "leans back by one pixel as if pushed from the side it faces, then
+   returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame", frame_count 6,
+   frames 0-4 kept. All four are generated and NEVER mirrored. A flinch returns to a stance drawn in its own light, so a
+   mirrored one would flip the light and flip it back on every blow. 120 calls in 6 batches, in the order a player
+   meets the grounds (Cellar, Sewer, Thicket, Wickstead, Glade, Warrens).
+   WHO: once the hit hook plays `hit`, every blow on a monster. It will be the most frequent clip in the game.
+   SAMPLE (5): rat se, slime ne, gray_wolf sw, glade_poacher se, goblin_digger nw.
+   WIRING: the import. It stays inert until the hit hook (a systems lane). With these in, the hook needs no rule for a
+     missing facing. Without them, it must play `hit` only on a facing the clip has and fall back to §11's 1 px recoil.
+
+5  H1d THE HERO'S FLINCH IN EIGHT (~40). Hit in se, sw, ne, nw for the 8 outfits (brief 10's H1 is s, e, n, w), with
+   H1's words, on brief 05's objects (the druid from an upload of its shipped still, as R1 did). 32 calls, never
+   mirrored (a hero holds a weapon). The weapon and shield move only with the body.
+   WHO: the tank in a full box is hit about once a second for the whole hunt, and faces a diagonal foe half the time.
+   SAMPLE (5): knight se and ne, ranger sw, sorcerer nw, druid se (upload).
+   WIRING: the import into the heroes set, then outfit-masks.mjs. It plays with H1 through the hit hook.
+
+6  T1 THE GATE WATCH (~20). Two guards of the town watch beside the gatehouse doors (F6). They wear the same tabard,
+   with Havora's own mark, the Great Hearth's flame, in 3 or 4 pixels:
+     npc_gate_guard     "a town gate guard in a dented steel cap and a dark red tabard with a cream flame on it over
+                        mail, a tall spear held upright, a round shield on his back, town npc sprite"
+     npc_gate_sergeant  "a stout older gate sergeant with a grey beard, a steel cap and the same dark red tabard with a
+                        cream flame, a halberd held upright, town npc sprite"
+   TOOL: N1's recipe. create_object_pro_flash, 8 directions, 48x48, high top-down, single black outline, basic shading,
+     style image a 48x48 crop of npc_crier's south still, "match palette, outline, shading". Then ONE idle, south only
+     (F4: a placed NPC only ever faces south), with brief 05's words plus "the spear stays upright and still". 4 calls.
+     Muted cloth, no purple, no glow.
+   WHO: every hero back from every hunt lands in that yard (the gatehouse arrival station). With 1 online it is a bare
+     dirt field today.
+   SAMPLE (2): npc_gate_guard rotations and its south idle. Then the sergeant.
+   WIRING: the import (havora set) and two `gatehouse` prop rows in data/world/stations.js beside the doors, on tiles no
+     stand uses (tests/town-stations.mjs, gen-town-stations.mjs --check). They stand still until F4's fix lands.
+
+7  C1 CROP BEDS (~30). Each of the 9 crops (data/gathering.js CROPS) in 3 stages, sprout, growing and ripe, plus a
+   second ripe for variety, as 32x32 cells of plants with no soil drawn, and a watered-soil overlay.
+   TOOL: create_image_pro_flash, 128x128, a 4x4 grid of 32 px cells on a transparent canvas (KIT §8: 6 gens for 16),
+     high top-down, style image a 32x32 crop of cabbage_crate (common), "match palette, outline, shading". One crop to a
+     row, its stages left to right:
+       sheet 1  turnip, carrot, wheat, potato
+       sheet 2  tomato (a staked vine), pumpkin (a vine on the ground), goldenroot (a root with gold shoulders),
+                emberfruit (a low shrub with ember-orange fruit, no glow)
+       sheet 3  moonbloom (pale silver-white flowers, no glow), then a row of 4 watered-soil overlays (dark wet patches,
+                no plants), and two spare rows for the re-roll of whichever crop row failed
+     §7's fill rule is for items: a sprout is small on purpose. 3 sheets and 2 re-roll sheets.
+   WHO: every player who farms, each time they open the Farm (crops take 4-22 h, so a few times a day).
+   SAMPLE (1 call): sheet 1. I read its cells in the Farm well at x2 over the tilled tile.
+   WIRING (a small lane on shell/windows/farm.js): the cells as assets/icons-bundle/pixel/crops/<crop>-<stage>.png (a
+     CROP_DIR row in src/data/item-art.js, and tests/pixel-icons.mjs asks one file per crop and stage, on the palette).
+     The well's floor becomes the world's tilled soil (the fill of havora_grass_tilled) at x2. The stage comes from
+     the times the plot already shows: sprout for the first third, then growing, and ripe only when the server says
+     ready. A regrowing crop starts again at growing. Display only: Harvest still reads the server's `ready`. Whether
+     Havora's 12 shared plots show crops is the designer's call. A ripe crop there would tell a player whose own plots
+     are not ready that they are (CLAUDE.md §6).
+
+8  T2 PIGEONS ON THE SQUARE, HENS AT THE FARM (~40). ART_DIRECTION §3: in town, "something always moves: smoke, the
+   waterwheel, NPC idles, birds". Two critters (class critter, 12-20 px, 48 frame):
+     town_pigeon  "a small slate-grey town pigeon with pale wing bars and a darker head, game critter sprite"
+     farm_hen     "a small brown farm hen with a red comb, game critter sprite"
+   TOOL: create_object_pro_flash, 8 directions, 32x32 canvas (a 48 canvas draws about 36 px, twice a pigeon), style
+     image a 32x32 crop of the rat's south still. Clips, animate_object v3 in s, e, n, w: pigeon idle "pecks at the
+     ground", hop "hops forward twice", and in e and w only "takes off and flies up out of the frame" (6 frames).
+     Hen idle "pecks and scratches at the ground", walk "struts forward". 20 calls. The ring must reach 3:1 on the
+     square's paving and on the farm grass (tools/world-art/ring-contrast.mjs).
+   WHO: every hero in Havora. The square is where a new hero appears and where heroes wait between hunts.
+   SAMPLE (4): pigeon rotations, idle e, hop e, fly e.
+   WIRING (a small lane): src/world/town-critters.js, display only, like town-shows.js. A flock of 4-6 pigeons on the
+     square's open paving and 3-4 hens on the farm grass, never on a stand tile. Pigeons fly off when a walker comes
+     within 2 tiles and land again 20-40 s later. At most 12 critters in view.
+
+9  S1 TWO GROUNDS' SIGNATURE PIECES (~70). The one piece each that the two grounds of hours 10-20 lack (F7):
+     ws_burned_house  Wickstead: "the burned-out shell of a timber-framed farmhouse, the roof gone, charred black beams
+                      and blackened fieldstone walls standing to half height, a fallen chimney, an empty doorway facing
+                      the viewer, weeds in the rubble, muted greys and charcoal, top-down game building"
+     mg_spring_house  the Glade: "a small ruined stone spring-house built over a spring, its slate roof half fallen in,
+                      moss on the stones, a trickle of water running out under the doorway, muted greys and greens,
+                      top-down game building" (no glow: the moss is "mosslight" by name only)
+   TOOL: create_object_pro_flash, 1 direction, high top-down, single black outline, basic shading, style image a 128x128
+     crop of neighbour_cottage (cottage set). The house on a 256 canvas, about 7x3 tiles of footprint, with art at most
+     3 tiles above its footprint row so it never hides the Orchard's pack. The spring-house on 192, about 4x3. 3
+     candidates each, then inpaint fixes. Class building.
+   WHO: a hunt loops through all six yards, so every hero hunting there passes each piece every lap.
+   SAMPLE (4): 2 candidates of each.
+   WIRING (data): one object row each in maps/wickstead.js (on the '#' band north of the Burned House yard) and
+     maps/mosslight_glade.js (on the '#' block east of Rook's Hide). Footprints sit on blocked cells only, so no step
+     moves (tests/world-core.mjs hashes unchanged). Add the ids to region-kits.js signatures and the art to the stead
+     and glade sets. I read each at its spot on the region-kit page before the import.
+
+10 H2d THE HERO'S FALL IN EIGHT (~40). Brief 10's F1 fall in se, sw, ne, nw for the 8 outfits, with F1's words, never
+   mirrored. 32 calls. WHO: every hero death, rarer than a blow and the moment a player remembers.
+   SAMPLE (5): knight se and ne, ranger sw, druid se (upload), brute nw.
+   WIRING: the import. It plays with F1 through the fall hook.
+
+11 T3 TOWNSFOLK (~100). Four people who live in Havora and walk its roads, so the town is not empty when its players are
+   away (§3: "warm, lived-in, busy"):
+     folk_basket    "a townswoman in a faded blue dress and a white apron carrying a wicker basket of bread"
+     folk_porter    "a porter in a brown tunic carrying a full grain sack on one shoulder"
+     folk_elder     "an old man in a long grey coat walking with a wooden stick"
+     folk_milkmaid  "a milkmaid in a green skirt with a wooden yoke and two pails across her shoulders"
+   TOOL: N1's recipe and style image, then idle (brief 05's words) and walk ("walks at an easy pace, both feet lift in
+     turn, the <basket / sack / stick / yoke> stays in place, nothing else appears in the frame", 6 frames), 8 facings
+     each. No hero outfit and no nameplate: they must never read as players. 68 calls.
+   WHO: every hero in town.
+   SAMPLE (3): folk_porter rotations, idle s, walk s.
+   WIRING (a small lane): src/world/town-folk.js, display only. 4-6 walkers on loops between named points (the market,
+     the well, the tavern door, the gate), steered like peers (steer-local.js), never stopping on a stand.
+
+12 E1 LIVE-EVENT MARKS (~25). The events system (data/live-events.js, built and switched off) names each event in words
+   ("+25% Level XP", "Open Halls"). Two 32x32 marks in the item language go beside those words in the HUD chip and the
+   Hunts line, and one banner stands on Hearth Square while a Bonus XP weekend is on:
+     bonus_weekend    "a brass hunting horn with a dark red ribbon"
+     open_halls       "a heavy iron-bound hall door standing open"
+     festival_banner  "a tall wooden pole with a long dark red banner bearing a cream flame" (the watch's mark,
+                      T1; class fixture, 64 canvas)
+   TOOL: create_image_pixen 32x32 on hr-world-56-v2 for the marks (3 candidates each). create_object_pro_flash, 1
+     direction, for the banner (2 candidates), then animate_image "the banner stirs in the wind, the pole does not
+     move", 4 frames, cut to the moving pixels.
+   WHO: every player, on the weekends and Wednesdays the events run (the first windows are 11-18 and 11-20).
+   SAMPLE (5): each mark twice, the banner once.
+   WIRING: the live-events client half (not built yet). The marks go in pixel/events/<event id>.png (EVENT_ART in
+     item-art.js and a pixel-icons rule). The banner is placed round the Great Hearth while the server says the event is
+     live (display only).
+
+13 M4 THE MARCH IN EIGHT (~70). Death and hit in se, sw, ne, nw for the 6 March bodies and the Mudlark, in the words
+   of their own shipped clips (briefs 01 and 02, 10's B3b). Hits are never mirrored. Deaths follow line 3's rule. 56
+   calls at most. These are past hour 20 (Level 45 and up), so they come last. They must exist before the March ships,
+   and these gens die on the 14th.
+   SAMPLE (5): wight death se and ne, barrow_knight hit se, mudlark death se, fordsunk hit ne.
+   WIRING: rides the March art merge and the Slake (brief 10's import notes).
+
+RESERVE (120): re-rolls for any line. What is left on 11-13 goes first to M1's end poses (if the plain deaths were
+   kept), then to more townsfolk.
+
+BY DAY (about 175 a day)
+ 11-09  samples for lines 1-4 (about 20 calls), my read, then M1 .......................................... ~190
+ 11-10  L1, M2, T1, H1d ...................................................................................... ~195
+ 11-11  M3, C1 ............................................................................................... ~175
+ 11-12  T2, S1, H2d, E1 ...................................................................................... ~175
+ 11-13  T3, M4, the reserve to zero .......................................................................... ~170
+ If the Pyre Field's rows land (B4, ~280) or the Chantry's (B5, ~300), they take their gens from the bottom of this list
+ (M4, E1, T3, H2d, S1, T2, C1, in that order). Lines 1-6 never give way: they fix what every player sees in hours 1-20.
+
+SAID NO
+ - Hero outfit variants for each gear tier. Each variant is a new object (8 rotations, idle, walk, attack, hit and fall,
+   about 60 gens), and 8 outfits x 3 tiers comes to about 1,400. A new object also drifts in build and proportion from
+   its base (the druid's PixelLab object is not even the shipped druid, brief 08 R1), so a party would show one outfit
+   in two styles. The free route: the dye masks already recolour an outfit by region (tools/world-art/outfit-masks.mjs).
+   A tier could step the armour region's metal ramp (iron, steel, gilt): a design ruling and a small lane, not art.
+ - Hero work clips at the stations (chop, mine, fish, hoe, hammer). Stands face all four ways (gen-town-stations.mjs
+   facingOf), so 8 outfits x 6 kinds x 4 facings is about 230 gens, and a tool that appears in the hand breaks §6
+   (PixelLab adds and drops props between facings, as with the druid's staff). The free route: the server already
+   sends `work: true` (session/town-presence.js), so a lane can play B2's swing toward the node at a work cadence, with
+   vfx_workbench particles (chips, sparks, a splash).
+ - Redrawing shipped sprites (the loot bag, the March bodies at 1.00:1 on the mud): Tyler 10-22. Line 1 is not this. It
+   replaces clips that were never drawn and leaves every drawn frame alone.
+ - Animating decals (mb_reeds, the Glade's moss, drowned_lantern, puddles, the Sewer's water). The floor layer is
+   cached (render/canvas-backend.js groundLayer).
+ - Bestiary and Hunts portraits: none to make. The Hunts window draws each creature's own world idle facing south
+   (render/creature-sprite.js), and all 30 live bodies have one. monster-art.js's painted portraits are the retired
+   direction and never show beside style 1.
+ - Attack diagonals alone for the 7 (brief 10's fallback): replaced by line 1 (F1).
+ - Mirrored hits (M3, H1d, M4): see line 4.
+
+HANDOFF, systems-engineer (F4): compose.js draws a placed map object at frame 0 facing south. A placed sprite whose idle
+ has fps > 0 should play it on state.t from its own place in the loop (as hunt-view/scene.js idleFrame does), facing
+ south. Until then the crier and the smith (brief 09), N1's five keepers and T1's guards all stand still. N1 asked for
+ 8 idle facings. If its other 7 have not run yet, skip them (about 28 gens back to the reserve).
+
+WHERE IT GOES: as before. Raw output under art/world-src/gen-2026-11-09/<asset>/ with a note.json (object, groups,
+ actions, picks), and one review strip per batch in art/review/gen-2026-11-09/. The generator imports and wires nothing.

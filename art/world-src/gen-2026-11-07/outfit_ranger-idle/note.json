@@ -192,5 +192,23 @@
     "north-west: r1 kept (steps 16/15) though its foot rows move 4 px; r2 was worse (feet 10)"
   ],
   "review_strip": "art/review/gen-2026-11-07/outfit_ranger-idle.png (per facing: knight walk, raw clip, change from frame 0, the laid loop) and outfit_ranger-idle-loops.png (per facing s e n w se sw ne nw: own walk frame 0 or idle still, then the 4-frame loop)",
-  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set hunt --id outfit_ranger --clip art/world-src/gen-2026-11-07/outfit_ranger-idle"
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set hunt --id outfit_ranger --clip art/world-src/gen-2026-11-07/outfit_ranger-idle",
+  "hand_passes": {
+    "south": {
+      "id": "H2",
+      "box": "x23-36 y9-27 (the crossbow)",
+      "frames": "003, 005",
+      "laid": {
+        "picks_raw": "000,003,005,003",
+        "steps": [
+          215,
+          31
+        ],
+        "feet": 0
+      },
+      "flag": "the crossbow centre holds, but the body around it redraws (first step still 215 px: shoulders, quiver, and the bow's right limb outside the box at x37-45, which also leaves a seam at x36/37). A box out to x46/y30 changes nothing (same 62 px). Suggest S keeps its still (08: a hero facing with no calm loop keeps it)",
+      "brief": "08-next-batch.txt",
+      "how": "local script on the raw frames (copy frame_000 inside the box; 0 gens); the other raw frames moved to alt/unpicked/south"
+    }
+  }
 }

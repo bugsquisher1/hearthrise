@@ -182,5 +182,41 @@
     "south-east and north-east: a hatchet head is redrawn 1-2 px in the far frame"
   ],
   "review_strip": "art/review/gen-2026-11-07/outfit_berserker-idle.png (per facing: knight walk, raw clip, change from frame 0, the laid loop) and outfit_berserker-idle-loops.png (per facing s e n w se sw ne nw: own walk frame 0 or idle still, then the 4-frame loop)",
-  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set hunt --id outfit_berserker --clip art/world-src/gen-2026-11-07/outfit_berserker-idle"
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set hunt --id outfit_berserker --clip art/world-src/gen-2026-11-07/outfit_berserker-idle",
+  "hand_passes": {
+    "south": {
+      "id": "H4",
+      "box": "x10-17 y24-37 and x30-36 y24-37 (both hatchet heads)",
+      "frames": "001, 007",
+      "laid": {
+        "picks_raw": "000,001,007,001",
+        "steps": [
+          24,
+          28
+        ],
+        "feet": 0
+      },
+      "flag": "clean; colour turns at the belt line only",
+      "brief": "08-next-batch.txt",
+      "how": "local script on the raw frames (copy frame_000 inside the box; 0 gens); the other raw frames moved to alt/unpicked/south"
+    },
+    "north-east": {
+      "id": "H5",
+      "box": "x15-18 y24-37 and x30-37 y24-37 (both hatchet heads)",
+      "named_frames": "001, 008",
+      "kept_frames": "003, 007",
+      "laid": {
+        "picks_raw": "000,007,003,007",
+        "steps": [
+          32,
+          46
+        ],
+        "feet": 0
+      },
+      "why_not_named": "boxed 001 and 008 moved 2 and 1 px: idleFrames throws. Same box on 003 and 007 (its pick over all 8)",
+      "flag": "a few px of the right hatchet below y37 still move (outside the box); the back edge sways 1 px",
+      "brief": "08-next-batch.txt",
+      "how": "local script on the raw frames (copy frame_000 inside the box; 0 gens); the other raw frames moved to alt/unpicked/north-east"
+    }
+  }
 }

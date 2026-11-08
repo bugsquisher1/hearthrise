@@ -191,5 +191,25 @@
     "north-east: the foot rows move 6 px in every roll (best r3, steps 13/26); retry limit"
   ],
   "review_strip": "art/review/gen-2026-11-07/npc_smith-idle.png (per facing: knight walk, raw clip, change from frame 0, the laid loop) and npc_smith-idle-loops.png (per facing s e n w se sw ne nw: own walk frame 0 or idle still, then the 4-frame loop)",
-  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set common --id npc_smith --clip art/world-src/gen-2026-11-07/npc_smith-idle"
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set common --id npc_smith --clip art/world-src/gen-2026-11-07/npc_smith-idle",
+  "hand_passes": {
+    "north-east": {
+      "id": "H7",
+      "box": "x27-30 y30-40 (the right boot)",
+      "named_frames": "001, 002",
+      "kept_frames": "002, 008",
+      "laid": {
+        "picks_raw": "000,002,008,002",
+        "steps": [
+          23,
+          54
+        ],
+        "feet": 0
+      },
+      "why_not_named": "boxed 001 and 002 moved 1 and 7 px: idleFrames throws",
+      "flag": "in 008 the hammer head redraws (outside the boot box). With a second box x31-40 y28-42 the pick is 002, 007 (steps 21/56). Or NE keeps its still (an NPC)",
+      "brief": "08-next-batch.txt",
+      "how": "local script on the raw frames (copy frame_000 inside the box; 0 gens); the other raw frames moved to alt/unpicked/north-east"
+    }
+  }
 }

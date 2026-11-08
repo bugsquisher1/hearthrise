@@ -644,31 +644,45 @@ function rules(M) {
     /* THE SIM'S FIGURE, measured 2026-10-19 (prototypes/hunt-sim, a lone knight, 600 s at dt 0.1 through
        __simFast): 10.9 tile changes per kill. No melee hero of the engine may wander more than that. */
     const SIM_TILES_PER_KILL = 10.9;
+    /* THE FIGHT IS BUILT FROM DATA (lane/a-v106-reds): a hero can only wander between swings if a monster outlives a swing. On the
+       formula's Cellar a rat falls to a blow or two, and the stepping mutant moved a Melee 11 times in 87 kills (bar 13): escaped.
+       So for this case (a what-if on the engine's own rows, put back after, as LV-CALL does) every Cellar monster has at least
+       BLOWS x the hero's largest blow (member.js snapshot): BLOWS 3, the mutant reads 110 back-and-forths over 75 kills, the
+       engine 0 (5: 230 and 0). Its own HP rows stay what they are everywhere else. */
+    const BLOWS = 3;
     for (const role of ['tank', 'melee_dps']) {
       const mis = [memberOf(M, 'a', 0, role, 6)];
-      const srv = server(M, mis);
-      const steps = []; const killAt = [];
-      for (let t = T0 + 16000; t <= T0 + 600000; t += 16000) {
-        const c = srv.commit(t);
-        if (!c) continue;
-        for (const st of c.tl.hunt_track) if (st.u === mis[0].unitId) steps.push(st);
-        for (const e of c.tl.hunt_events) if (e.type === 'kill' && e.u === mis[0].unitId) killAt.push(e.atMs);
-      }
-      const kills = killAt.length;
-      let moves = 0, flips = 0;
-      for (let i = 1; i < steps.length; i++) if (steps[i].x !== steps[i - 1].x || steps[i].y !== steps[i - 1].y) moves++;
-      /* A back-and-forth is a step out and straight back with no kill between: the hero stepping between swings. A step
-         in to pull and the same step out once the pack is dead (report #69: the knight walks on to the next pocket at
-         once, by the tile it came in on) spans the fight, and is not one. */
-      for (let i = 2; i < steps.length; i++) {
-        const back = steps[i].x === steps[i - 2].x && steps[i].y === steps[i - 2].y;
-        const moved = steps[i - 1].x !== steps[i].x || steps[i - 1].y !== steps[i].y;
-        const fought = killAt.some((at) => at > steps[i - 1].atMs && at <= steps[i].atMs);
-        if (back && moved && !fought) flips++;
-      }
-      console.log(`  LV-M ${role}: ${moves} tile changes over ${kills} kills (${(moves / Math.max(1, kills)).toFixed(2)} per kill; the sim's knight ${SIM_TILES_PER_KILL}), ${flips} back-and-forth steps in 600 s`);
-      ok('LV-M', kills > 20 && moves / kills <= SIM_TILES_PER_KILL, `${role}: ${(moves / Math.max(1, kills)).toFixed(2)} tile changes per kill (sim ${SIM_TILES_PER_KILL})`);
-      ok('LV-M', flips <= kills * 0.15, `${role}: ${flips} back-and-forth steps over ${kills} kills (a hero stepping between swings)`);
+      const side = M.MB.memberSide(mis[0], { items: M.ITEMS });
+      const blow = side.member.snapshot(side.state).maxHit;
+      const kinds = [...new Set(M.HG.huntGroundOf('mill_cellar').ground.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((s) => s.monster || s)))]
+        .filter((k) => M.ENGINE_MONSTERS[k]);
+      const keep = kinds.map((id) => [id, { hp: M.ENGINE_MONSTERS[id].hp }]);
+      for (const id of kinds) { const hp = Math.max(M.ENGINE_MONSTERS[id].hp, blow * BLOWS); M.ENGINE_MONSTERS[id].hp = hp; M.MONSTERS[id].hp = hp; }
+      try {
+        const srv = server(M, mis);
+        const steps = []; const killAt = [];
+        for (let t = T0 + 16000; t <= T0 + 600000; t += 16000) {
+          const c = srv.commit(t);
+          if (!c) continue;
+          for (const st of c.tl.hunt_track) if (st.u === mis[0].unitId) steps.push(st);
+          for (const e of c.tl.hunt_events) if (e.type === 'kill' && e.u === mis[0].unitId) killAt.push(e.atMs);
+        }
+        const kills = killAt.length;
+        let moves = 0, flips = 0;
+        for (let i = 1; i < steps.length; i++) if (steps[i].x !== steps[i - 1].x || steps[i].y !== steps[i - 1].y) moves++;
+        /* A back-and-forth is a step out and straight back with no kill between: the hero stepping between swings. A step
+           in to pull and the same step out once the pack is dead (report #69: the knight walks on to the next pocket at
+           once, by the tile it came in on) spans the fight, and is not one. */
+        for (let i = 2; i < steps.length; i++) {
+          const back = steps[i].x === steps[i - 2].x && steps[i].y === steps[i - 2].y;
+          const moved = steps[i - 1].x !== steps[i].x || steps[i - 1].y !== steps[i].y;
+          const fought = killAt.some((at) => at > steps[i - 1].atMs && at <= steps[i].atMs);
+          if (back && moved && !fought) flips++;
+        }
+        console.log(`  LV-M ${role}: ${moves} tile changes over ${kills} kills (${(moves / Math.max(1, kills)).toFixed(2)} per kill; the sim's knight ${SIM_TILES_PER_KILL}), ${flips} back-and-forth steps in 600 s`);
+        ok('LV-M', kills > 20 && moves / kills <= SIM_TILES_PER_KILL, `${role}: ${(moves / Math.max(1, kills)).toFixed(2)} tile changes per kill (sim ${SIM_TILES_PER_KILL})`);
+        ok('LV-M', flips <= kills * 0.15, `${role}: ${flips} back-and-forth steps over ${kills} kills (a hero stepping between swings)`);
+      } finally { for (const [id, r] of keep) { M.ENGINE_MONSTERS[id].hp = r.hp; M.MONSTERS[id].hp = r.hp; } }
     }
   }
 

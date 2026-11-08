@@ -187,7 +187,7 @@ function doSell(st, repaint) {
 }
 
 function doLock(st, id, repaint) {
-  if (!st.rules) { say(st, repaint, 'Locks switch on when the server starts keeping them.'); return; }
+  if (!st.rules) { say(st, repaint, 'Reading your locks…'); return; }
   const on = !st.rules.locked.has(id);
   send(st, repaint, () => st.cs.lockItem(id, on), on ? 'Locking…' : 'Unlocking…');
 }

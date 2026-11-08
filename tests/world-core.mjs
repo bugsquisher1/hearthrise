@@ -29,7 +29,7 @@
 //   W  the Wang vertex grid melts lone tiles and keeps plains whole; a fill
 //      floor is laid in its cycle order
 //   G  scene routing; missing art compiles and draws as a stub; the canvas
-//      draws the layers in the plan's order
+//      draws the layers in the plan's order, and every canvas text size floors at 12 CSS px
 //   A  art by scene (src/world/scene-sets.js): every shipped scene loads every
 //      sheet it draws from (the whole map, every hero, its monsters and effects,
 //      every room's furniture), and a walked scene loads nothing more: the
@@ -596,6 +596,14 @@ async function check(M) {
     const draw = M.canvasSrc.slice(M.canvasSrc.indexOf('function draw('));
     const pos = order.map((k) => draw.indexOf(k));
     ok('G3', pos.every((p, i) => p > 0 && (!i || pos[i - 1] < p)), 'canvas-backend draw() must paint ground, decals, shadows, sprites, raised, light, blit, screen overlay in that order (' + pos.join(',') + ')');
+    /* §7 text at least 12 px: every canvas text size (a `px` or `font` floor, Math.round(N * dpr)) floors at 12 CSS px or more
+       (audit 11-09 F13: the bleed badge's floor was 11). */
+    const floors = M.canvasSrc.split('\n').filter((l) => /\b(?:const|let)\s+(?:px|font)\s*=/.test(l) && /\*\s*dpr\)/.test(l)).map((l) => {
+      const a = l.lastIndexOf('Math.round(');
+      return { l: l.trim(), n: (l.slice(a + 11, l.indexOf('* dpr)', a)).match(/\d+(?:\.\d+)?/g) || []).map(Number) };
+    });
+    const small = floors.filter((f) => !f.n.length || Math.min(...f.n) < 12);
+    ok('G4', floors.length >= 3 && !small.length, 'every canvas text size must floor at 12 CSS px (' + floors.length + ' floors; under 12: ' + small.map((f) => f.l).join(' | ') + ')');
   });
 
   /* A  ART BY SCENE (scene-sets.js; 10-23: every sheet loaded on Play, 2.32 MB / ~45 MB decoded): a scene loads
@@ -726,6 +734,7 @@ const MUTANTS = [
   ['A1', 'the scene sheets forget the heroes', 'src/world/scene-sets.js', [['  const ids = new Set(Object.values(OUTFITS));', '  const ids = new Set();']]],
   ['A1', 'the scene sheets forget the hunt effects', 'src/world/scene-sets.js', [['    for (const id of effectIds()) ids.add(id);\n', '']]],
   ['A1', 'the scene sheets forget the home\'s furniture', 'src/world/scene-sets.js', [['  const layout = ROOM_LAYOUTS[row.id];', '  const layout = null;']]],  ['A2', 'every scene loads every sheet', 'src/world/scene-sets.js', [['  return fetchOrder(sets, groundTiles, book);', '  for (const id of Object.keys(book.sprites)) note(book.frame(id).set);\n  return fetchOrder(sets, groundTiles, book);']]],
+  ['G4', 'the bleed badge floors at 11 px again', 'src/world/render/canvas-backend.js', [['const px = Math.max(Math.round(4.5 * zs), Math.round(12 * dpr));', 'const px = Math.max(Math.round(4.5 * zs), Math.round(11 * dpr));']]],
   ['G3', 'sprites drawn over the roofs', 'src/world/render/canvas-backend.js', [
     ['    for (const d of list.sprites) {\n      if (d.kind === \'unit\' && d.grey) blitUnit(g, d, view);\n      else { g.globalAlpha = d.alpha == null ? 1 : d.alpha; blit(g, d, view); }\n    }\n', ''],
     ['    g.globalAlpha = 1;\n    light(g, list, view, fv);', '    for (const d of list.sprites) blit(g, d, view);\n    g.globalAlpha = 1;\n    light(g, list, view, fv);']]],

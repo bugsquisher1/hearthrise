@@ -1,0 +1,48 @@
+{
+  "asset": "brief 13 Q1 (brief 11 M1, the first fights drawn) SAMPLE: the new words and the pose route on the cases brief 11's sample did not cover",
+  "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt Q1",
+  "status": "SAMPLE for the art director's one read; Q1's batch (the other attacks and deaths) waits for it. Not imported",
+  "made": "2026-11-08 (the brief's 11-09 samples)",
+  "generations": 32,
+  "objects": { "rat": "01744036-6944-4548-a581-a408b4bf1bee", "slime": "a53b1f35-5b54-47e4-be50-40a593b96392", "cistern_spider": "d6f7f699-30f0-4ed1-985e-62d41ae98bee", "kobold_tosher": "27b8daf0-8222-4e0b-ac00-30cf6fa91b21", "hive_wasp": "1c4dd534-ac8a-47de-90f3-bed71ad6a160", "culvert_bat": "3d41dcb0-204b-4cba-8b22-66ae711d449d", "rat_king": "3c137163-dbd3-4812-8a72-a518a58f0f20" },
+  "plain": {
+    "tool": "animate_object v3 on the object, one direction, frame_count 6, keep_first_frame false (6 stored frames, frame_000 the first generated); the blow lands on frame 3",
+    "rat attack S": { "group": "5c2be797-bb1c-4099-b9ad-98aa23431b83", "action": "lunges toward the viewer, the head and front legs reach down and forward 2-3 px, then back to its stance, feet planted, nothing else appears in the frame" },
+    "rat attack N": { "group": "5882642f-9d44-4e9c-adfd-d7497bd17f88", "action": "lunges away from the viewer, the head and front legs reach up and forward 2-3 px, then back to its stance, feet planted, nothing else appears in the frame" },
+    "slime attack S": { "group": "b6b7d695-6194-4870-b298-b722c502d496", "action": "no legs, no feet, a blob the whole time: it squashes down flat, then surges forward and up, then settles, the same colours throughout, nothing else appears in the frame" },
+    "cistern_spider attack E": { "group": "c0cadb77-28d0-4579-9fff-f154d8cee532", "action": "rears its front legs and strikes down with its fangs, then returns to its stance, feet planted, nothing else appears in the frame" },
+    "kobold_tosher attack E": { "group": "16b18a7c-8f7e-4a4f-a063-a2d264ea5a58", "action": "thrusts its spear forward with both hands, then returns to its stance, feet planted, nothing else appears in the frame" },
+    "hive_wasp attack E": { "group": "ce5eb751-28a2-4fe5-b6ec-fac69249c2ad", "action": "darts forward and jabs with its stinger, wings beating, then returns to its stance, nothing else appears in the frame" },
+    "culvert_bat death S": { "group": "c030d6a8-8324-4b82-a8fb-b4fdb020acfa", "action": "stops flapping, falls to the floor on its back, wings spread, and lies still, eyes closed, nothing else appears in the frame" },
+    "slime death S": { "group": "9a14400e-b7fa-4d27-8857-4658ba7b0be3", "action": "melts flat into a puddle and lies still, no legs, no feet, the same colours throughout, nothing else appears in the frame" },
+    "rat_king death S": { "group": "1ced6f0f-ace3-4937-bf9b-78c91c6cd6fb", "action": "collapses and falls face down, his cape spread, the bone sceptre beside him, and lies still, eyes closed, nothing else appears in the frame" },
+    "kobold_tosher death S": { "group": "f76dee5b-92c1-405d-95fc-89a33f250460", "action": "falls flat on its back, the spear beside it, and lies still, eyes closed, nothing else appears in the frame" }
+  },
+  "pose_route": {
+    "tool": "edit_image_pro_flash on the facing's still (5 gens), then animate_image first frame = the still, last frame = the pose (1 gen); frame_000 is the still, the last frame the pose",
+    "rat death E": { "edit": "d3391c5b-e5a1-483e-975c-6ffea5d0477e \"the same creature lying dead on the ground, rolled onto its back, legs curled up, eyes closed\"", "animate": "740803e7-81c0-4ed7-8fef-f43245eecc82, frame_count 6 (7 stored), \"the rat is struck dead, rolls over onto its back with its legs curled up, eyes closed, and lies still, nothing else appears in the frame\"" },
+    "rat attack S (after the plain roll dipped)": { "edit": "52875664-0768-4c2b-9815-437b49d2854d \"the same rat lunging toward the viewer to bite: its head and front paws thrust down and forward toward the viewer by three pixels, jaws open, back legs planted where they were\"", "animate": "325bc7be-8e23-44be-94f0-6016574fcf3a, frame_count 4 (5 stored, frame_004 the pose), \"the rat lunges toward the viewer to bite, its head and front paws thrust down and forward, jaws open, back legs planted, nothing else appears in the frame\". Laid as a ping-pong at import: 0 1 2 4 2 1 (the pose = the blow)" },
+    "slime death S (after the plain roll was refused)": { "edit": "d239ed98-67e2-4a91-9e2d-48ae3e8cc712 \"the same slime lying dead, melted flat into a wide low puddle on the ground, no legs, no feet, eyes closed, the same green colours\"", "animate": "5217eacd-f3c4-44e4-b22f-489fa098e9c4, frame_count 6 (7 stored), \"the slime is struck dead and melts down flat into a wide low puddle, eyes closed, no legs, no feet, the same green colours throughout, and lies still, nothing else appears in the frame\"" }
+  },
+  "layout": "<creature>/<facing>.png the object's rotation; <creature>/<clip>/<facing>/frame_NNN.png (attack, death = plain rolls; attackpose, deathpose = the pose route, with pose-<facing>.png the edit)",
+  "measured": {
+    "rat attack S plain": "the box top drops y5 -> y7 at frames 2-3 (a 2 px head dip), the bottom row never moves: no reach toward the viewer",
+    "rat attack N plain": "the top rises y13 -> y9 at frame 3 (4 px), back by frame 5",
+    "slime attack S plain": "squashes (frame 0), rises 7 px tall (y15 -> y8, frames 2-3) and the base lifts 2-3 px off the anchor row at frame 2, settles by frame 5",
+    "slime death S plain": "grows from y15 to y7 and widens: the opposite of melting"
+  },
+  "flags": [
+    "rat attack S plain: the same 2 px dip as brief 11's sample (no forward reach). The pose route version lunges: head and paws down and forward, jaws open. The art director picks",
+    "rat attack N plain: a clear 4 px lunge away, no effect",
+    "slime attack S plain: no legs; squash, then a tall surge, then settles. Its face changes (eyes become a line at frames 0 and 3)",
+    "slime death S plain: REFUSED by the generator (it rises into a tall ghost shape with a dark open mouth). The pose route melts it into a flat puddle with closed eyes",
+    "cistern_spider attack E: the front legs rear at frames 2-3 and come down; no effect",
+    "kobold_tosher attack E: a clear spear thrust at frames 0-2, the spear stays in both hands",
+    "hive_wasp attack E: dips forward and down at frame 3, wings keep beating; no effect",
+    "culvert_bat death S: folds to the floor flat with the wings spread; reads down, the eyes still show",
+    "rat_king death S: sinks and falls face forward, cape spread, the sceptre beside him, the crown stays on: reads dead",
+    "kobold_tosher death S: falls flat on its back, the spear beside it: reads dead",
+    "rat death E by the pose route: rolls onto its back, legs curled: the same corpse as the approved S"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/q1-first-fights-sample.png (x3, 64 cells, frames as is; blue-barred = shipped derived clips: rat attack S, slime attack S; each other row starts with the rotation still: rat attack S, rat attack N, slime attack S, spider attack E, kobold attack E, wasp attack E, bat death S, slime death S (refused), rat king death S, kobold death S, rat death E (pose), rat attack S (pose, 0-4), slime death S (pose, 0-6))"
+}

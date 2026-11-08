@@ -79,8 +79,9 @@ export default definePack({
       /* P3 the Kennels: the burnt-out pits the Lurchers den in. Three come out at once (as built), as the Slake's Mudlark Holes do,
          so a lone hero's Normal costs real food here */
       box([35, 2, 55, 12], [45, 7], [LU, LU, CP], [LU, CP, ST, CP, LU]),
-      /* P4 the Ash Heaps: the pyres that burned down, the Pikemen who crawled out of them, and a Provost driving them back */
-      box([39, 15, 57, 26], [51, 21], [CP, PV], [CP, ST, PW, CP, LU, CP]),
+      /* P4 the Ash Heaps: the pyres that burned down, the Pikemen who crawled out of them, and a Provost driving them back. Three come
+         out at once (as built): with two a pocket here the median way's supplies were 9% of its income (full grade), the sheet's floor 10% */
+      box([39, 15, 57, 26], [51, 21], [CP, PV, CP], [ST, PW, CP, LU, CP]),
       /* P5 the Great Pyre: the officers' pyre, and the Provosts who still keep the company in line under it */
       box([23, 22, 36, 26], [30, 24], [PV, ST], [PV, PW, CP, CP, ST, CP]),
     ],
@@ -178,14 +179,29 @@ export default definePack({
     ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_ice_rune', qty: 650 } } },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT): on the formula's rows the median way at the band middle (80) earned 0.85 of the pace
-     contract as opened (its own tier-5 set; quick grade, 1 seed), where the sheet asks 0.90-1.10. */
+     contract as opened (its own tier-5 set; quick grade, 1 seed), where the sheet asks 0.90-1.10. At 1.18 the full grade reads 0.91. */
   xpFit: { k: 1.18, why: 'the formula pays 0.85 of the pace contract at the band middle (80), measured as opened on the quick grade' },
-  /* THE PARTY'S DANGEROUS PULL, one up (TIER_PULL_OVERRIDES' shape), as the Slake: on the table's 5 a Melee and Healer pair two or three
-     Levels under the floor netted +14k to +15k an hour on Dangerous, where the weight-class ruling (11-06) asks them to lose gold. */
-  tierOverride: { dangerous: [3, 7, 7, 8], why: 'weight class (11-06): on the table pull of 5, and on 6, a Melee and Healer pair 2-5 under the floor netted gold on Dangerous' },
+  /* THE TIER PULLS (TIER_PULL_OVERRIDES' shape). Dangerous, the pair's and three's two up: on the table's 5 a Melee and Healer pair two
+     to five Levels under the floor netted +14k to +15k an hour, and on 6 +7.8k and +2.8k (quick grade), where the weight-class ruling
+     (11-06) asks them to lose gold. Deadly, the four's two down: at 8 a four with no Healer died 47 times in 16 hero-hours at the floor
+     (the sheet allows 9); at 6 it died 4 times and still earns 1.33x its Normal a head (the sheet asks 1.25). A lone hero keeps the table. */
+  tierOverride: { dangerous: [3, 7, 7, 8], deadly: [8, 8, 8, 6], why: 'weight class (11-06): on the table pull of 5, and on 6, a Melee and Healer pair 2-5 under the floor netted gold on Dangerous; on Deadly at 8 a four with no Healer died 47 times in 16 h at the floor (the sheet allows 9)' },
   /* PARTY LEVEL XP (party-class-xp.js's row shape): better only with different classes (Tyler 10-31). With no row a mixed four read
-     0.97-1.00 of its heroes alone and a tank's seat beside a Healer 0.91 (quick grade): the Slake's cells, the same shape. */
-  partyClassXp: { 2: [960, 1160], 3: [960, 1120, 1240], 4: [960, 1120, 1230, 1230] },
-  checks: { dropRef: { roles: ['tank'], full: true } },
+     0.97-1.00 of its heroes alone and a tank's seat beside a Healer 0.91 (quick grade), so the Slake's cells went in. On the full grade
+     at 1230 a four read 1.26-1.34 of the median lone way, where the ruling asks 1.15-1.25; at 1135 1.15-1.23, the top's three-class
+     four 1.146. At 1150 (computed, the cell is a straight factor on the share) the three-class four reads 1.16-1.18 and the four with a
+     Healer 1.21-1.24. Adding a class never pays less (tests/hunt-core/xp-share.mjs party-class-every-cell). */
+  partyClassXp: { 2: [960, 1160], 3: [960, 1120, 1240], 4: [960, 1120, 1150, 1150] },
+  /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
+     from the full grade's Normal cells at the band middle (80), 2 seeds x 2 h, the default pull: two classes +3 and +7, three +2 and
+     +5, the fours -3 and -2 at 1135 (0 at 1150). One-class cells are computed from the same share (the grade plays no one-class party).
+     Against the median lone way the mixed parties read 1.17-1.33: a Mage or a Healer alone earns 40-60% over the median way here. */
+  partyVsAlone: { 2: [-15, 5], 3: [-20, -5, 5], 4: [-20, -5, 0, 0] },
+  /* THE PACK'S TEST FACTS (frozen 2026-11-08). dropRef: a lone tank at the floor in its full own-tier set (tests/hunt-core/drop-tables.mjs,
+     the harness's tier-5 kit). valueToday is COMPUTED, not a pre-conversion pin: the measured coin (9,783 g/h) and commons (3,537) plus
+     the gear-faucet's half of the coin (4,892), the most the hour's worn gear may sell for. With it the guard prints the sale rate this
+     ground's caps allow (about 0.046 of book): the tier-5 rate must sit between that and 0.025 (a Rune Platebody must still sell for a
+     Mithril one's 337 g at tier 4's 0.075). No room holders (every placed body has a spawn weight) and no one-tile bridge. */
+  checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 18212 },
   map,
 });

@@ -5001,6 +5001,16 @@ jobs:
           node tools/mutant-gate.mjs node tests/catalogue-coherence.mjs --mutate
           node tests/catalogue-coherence.mjs
 
+      # THE COVERAGE BOT'S PARTS (lane/b-coverage-bot, tools/qa/coverage/): catalogue coherence proves every item has a
+      # door and a use on paper; the bot proves it in PLAY. Here only its parts, on fixtures, under a second: the map is
+      # the data (a new ground, recipe or offer is a row with no edit), every brain rule answers on its own fixture, the
+      # journal and the report's verdicts bite (each check runs a planted twin). The PLAY itself needs Node 23.6+ and the
+      # replayed chain (tools/qa/local-world.mjs), about 40 min a hero for 20 in-game hours: a local and nightly tool, as
+      # is its --mutate (a lost source, a blocked skill and a refused buy, each in its own world).
+      - name: Coverage bot - its map, brain and verdicts
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tools/qa/coverage/run.mjs --selftest
+
       # THE STYLE LADDER (designer 2026-10-22, src/data/style-gear.js): every style's practice weapon has a
       # rung a player can reach by skill 15 that beats it, the cloth line is made at tiers 1 and 2, and no
       # made piece sells above its inputs' book. --mutate plants nine defects, each CAUGHT by its arm.

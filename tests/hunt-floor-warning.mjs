@@ -107,6 +107,10 @@ async function run(base) {
   ok('G2', rows.filter((r) => r.groupFit === 'party').every((r) => !/^Alone/.test(HL.heroWords(r))), 'a party ground offers itself alone');
   const solo = rows.find((r) => r.groupFit !== 'party' && r.heroes > 1);
   ok('G2', !!solo && /^Alone or with up to \d more$/.test(HL.heroWords(solo)), 'a solo/both ground lost its offer: ' + (solo && HL.heroWords(solo)));
+  /* G2 THE SOLO BOOST IN WORDS (Tyler 2026-11-08): the engine's own number (party-class-xp.js SOLO_XP_PM), said on every ground page beside who may come */
+  const PCX = await import(pathToFileURL(join(base, 'src/data/party-class-xp.js')).href + '?t=' + Math.random());
+  const boost = Math.round(PCX.SOLO_XP_PM / 10 - 100);
+  ok('G2', boost > 0 && HL.SOLO_WORDS === 'Alone, you earn ' + boost + '% more Level XP.', 'the solo boost reads ' + JSON.stringify(HL.SOLO_WORDS) + ' for a boost of ' + PCX.SOLO_XP_PM);
   /* G3 (panel 2026-11-01): the words say what the server allows. It walks in PARTY.maxSize on every ground (hr_hunt_party_start has no
      per-ground size), so no ground may name fewer: the Thicket read "up to 1 more" over its two start tiles, and 3 and 4 walked in. */
   const most = (await import(pathToFileURL(join(base, 'src/data/party.js')).href + '?t=' + Math.random())).PARTY.maxSize;
@@ -143,6 +147,7 @@ async function run(base) {
     && win.includes("(groupWords(r, size) || heroWords(r)) + '.'"),
     'the Hunts line does not draw rangeWords');
   ok('W4', read('src/shell/hunt-list.js').includes('Expect a bigger food bill, and you can die') && win.includes('tierWords(r, tier, size)'), 'the tier no longer says what a bigger pull costs (first-week-bands.mjs bigger-pulls-words plays it)');
+  ok('G2', win.includes("text(det.querySelector('.hw-hd-who'), heroWords(r) + '. ' + SOLO_WORDS);"), 'the ground page no longer says what hunting alone earns');
   ok('W2', !/prop\([^)]*'disabled'[^)]*(short|rangeWords)/.test(win), 'Enter must never be disabled by the level warning');
   ok('W2', win.includes("if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {") && win.includes("armed ? 'Enter anyway' : 'Enter'"), 'a lone hero above its level walks in with no confirm press');
   ok('W2', /res && res\.belowRange \? ' ' \+ ABOVE_LEVEL_WORDS/.test(win), 'a below_range enter does not repeat the warning');

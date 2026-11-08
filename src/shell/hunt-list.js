@@ -30,6 +30,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_GROUNDS, partyPullOf, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.108';
 import { DEFAULT_TIER, TIER_NAME, tierRowOf, pullOfTier } from '../data/hunt-tiers.js?v=0.2.108';
+import { SOLO_XP_PM } from '../data/party-class-xp.js?v=0.2.108';
 import { biggestBlowOn } from '../core/hunt/pull-cycle.js?v=0.2.108';
 import { PARTY } from '../data/party.js?v=0.2.108';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.108';
@@ -292,6 +293,10 @@ export function heroWords(r) {
   }
   return r.heroes > 1 ? 'Alone or with up to ' + (r.heroes - 1) + ' more' : 'One hero';
 }
+
+/** The solo boost in words, beside who may come on every ground page (Tyler 2026-11-08: "a solo person gets a small exp boost BUT the
+    difficulty should be unchanged"): read off the engine's own number (party-class-xp.js SOLO_XP_PM), so it can't say one thing while the kill pays another. */
+export const SOLO_WORDS = 'Alone, you earn ' + Math.round(SOLO_XP_PM / 10 - 100) + '% more Level XP.';
 
 /**
  * What a hunt carries from the bag: every hunt supply the bag holds, the whole

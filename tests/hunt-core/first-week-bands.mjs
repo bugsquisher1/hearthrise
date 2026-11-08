@@ -210,7 +210,7 @@ cases['armor-rungs'] = (R) => {
 };
 
 /* "LEVEL XP BEFORE BONUSES" IS THE EVEN SHARE (blind party test 2026-11-01: it always equalled what was paid). A mixed party was paid above it, a one-class
-   Sewer party under it; alone the two are one number. Both paths: the same totals in 30 s and 10 min cuts. */
+   Sewer party under it; alone the paid is the solo boost over it (Tyler 2026-11-08, party-class-xp.js SOLO_XP_PM). Both paths: the same totals in 30 s and 10 min cuts. */
 cases['before-bonuses'] = () => {
   const totals = (ground, roles, windowMs) => {
     const sum = { raw: 0, paid: 0 };
@@ -223,8 +223,10 @@ cases['before-bonuses'] = () => {
   if (again.raw !== mixed.raw || again.paid !== mixed.paid) return 'browser closed reads ' + JSON.stringify(again) + ', viewed ' + JSON.stringify(mixed);
   const cut = totals('millrace_sewer', ['tank', 'tank'], 30000);
   if (!(cut.paid < cut.raw)) return 'a one-class Sewer party was paid ' + cut.paid + ' on a share of ' + cut.raw;
-  const lone = totals('wickstead', ['tank'], 30000);
-  if (Math.abs(lone.raw - lone.paid) > lone.paid * 0.01) return 'a lone hero reads ' + lone.raw + ' before bonuses and ' + lone.paid + ' paid';
+  const lone = totals('wickstead', ['tank'], 30000), boost = PCX.SOLO_XP_PM / 1000;
+  if (Math.abs(lone.raw * boost - lone.paid) > lone.paid * 0.01) return 'a lone hero reads ' + lone.raw + ' before bonuses and ' + lone.paid + ' paid, the solo boost says ' + Math.round(lone.raw * boost);
+  const loneClosed = totals('wickstead', ['tank'], 600000);
+  if (loneClosed.raw !== lone.raw || loneClosed.paid !== lone.paid) return 'alone, browser closed reads ' + JSON.stringify(loneClosed) + ', viewed ' + JSON.stringify(lone);
   return null;
 };
 

@@ -9,11 +9,15 @@
 // the monster row's: a tier costs no gold to enter, so it pays none (gold an hour may still rise with more kills).
 //
 // THE ONE SOURCE is src/data/balance-sheet.js (lane/b-ground-formula, the game designer's): TIER_DIALS, the table every ground
-// shares, TIER_PULL_OVERRIDES, the named per-ground pulls and the Normal-only grounds, and tierRowFor, which answers a ground's
+// shares, TIER_PULL_OVERRIDES, the named per-ground pulls (one number a tier, every group) and the Normal-only grounds, and tierRowFor, which answers a ground's
 // engine row from its floor (hunts.js band). This file only resolves each open ground's rows ONCE, at load, and reads them.
+// ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged.
+// Either they are strong enough to do the harder content or they aren't"): a tier is the same pull, damage and HP for one hero or
+// four. A hero alone earns a little more Level XP instead (party-class-xp.js SOLO_XP_PM).
 // A ROW { id, pull, dmgPm, hpPm, xpPm }:
-//   pull   monsters a pull, one entry per party size 1..4: the instance's frozen density (hr_hunt_density_freeze). 0 = the
-//          ground as it stands (as built alone, its row's partyPull in a party). Each cell is that tier's whole answer.
+//   pull   monsters a pull: the instance's frozen density (hr_hunt_density_freeze). One entry per party size 1..4 because the
+//          server's catalogue reads it by size, and every entry is the tier's ONE number (balance-sheet.js TIER_DIALS; the rows
+//          case holds it). 0 = no more than Normal brings that group (as built alone, its row's partyPull in a party).
 //   dmgPm  a monster's atk and its Level, permille of its row. Atk is its accuracy and its blow (combat.js); its Level is what
 //          armor reads (mitigation.js) and what a blow trains Defense by (hunt-rewards.js).
 //   hpPm   a monster's HP, permille of its row, under the party scale (hunt-grounds.js packHpFor). Its kill yield stays the
@@ -76,7 +80,7 @@ export function tierRowOf(groundId, id) {
   return (rows && Object.prototype.hasOwnProperty.call(rows, id) && rows[id]) || NORMAL;
 }
 
-/** The pull a tier brings for a group of `size` (0 = the ground as it stands). */
+/** The pull a tier brings for a group of `size` (0 = the ground as it stands): the same number for every size since 2026-11-08. */
 export const pullOfTier = (row, size) => row.pull[Math.min(row.pull.length, Math.max(1, Math.floor(Number(size) || 1))) - 1];
 
 /* THE DIAL READER: one dial's permille of one stat, 1000 (the row as written) when the dial is absent or silent on it. A dial is

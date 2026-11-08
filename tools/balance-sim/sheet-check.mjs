@@ -34,6 +34,7 @@ const starter = (c) => !!(c.cell.gear && c.cell.gear.starter);
 const k = (n) => (!Number.isFinite(n) ? '-' : Math.abs(n) >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(Math.round(n)));
 const signed = (n) => (n >= 0 ? '+' : '') + k(n);
 const pct = (x) => (x == null || !Number.isFinite(x) ? '-' : Math.round(x * 100) + '%');
+const TIER_WORD = { dangerous: 'Dangerous', deadly: 'Deadly' };
 export const load = (dir) => (existsSync(join(dir, 'cells.jsonl')) ? [...new Map(readFileSync(join(dir, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((r) => r.heroes).map((r) => [r.id, r])).values()] : []);
 
 /** The cells of one ground, row set and tier, by a predicate. */
@@ -93,19 +94,21 @@ export function gradeGround(cells, g, rows) {
     line('party.four', 'Normal, a four at the floor: Level XP a head against the median way alone', k(r.xp) + ' (' + ratio.toFixed(2) + 'x)', S.party.fourVsSolo.join('-') + 'x', ratio >= S.party.fourVsSolo[0] && ratio <= S.party.fourVsSolo[1]);
     facts.fourXp = r.xp;
   }
-  /* THE HARDER TIERS AT THE RIGHT LEVEL */
+  /* THE HARDER TIERS AT THE RIGHT LEVEL: one difficulty for every group (RULED 2026-11-08), so the lines read what the tier pays whoever
+     held it (the lone ways that held, the median), and what a lone hero there fared is a report line, never a target */
   for (const tier of ['dangerous', 'deadly']) {
     const T = pick(cells, g, rows, tier);
     const fl = lone(T((c) => c.cell.level === sh.floor && !starter(c))).map((c) => readCell(c));
+    const want = S.tiers[tier].xpVsNormalMin;
     if (fl.length && facts.floorXp) {
-      const xp = median(fl.map((r) => r.xp)), held = fl.filter((r) => r.deaths === 0).length, net = median(fl.map((r) => r.net));
-      if (tier === 'dangerous') line('dangerous.lone', 'Dangerous, ' + by + ' floor: Level XP against Normal (median) / ways that held', (xp / facts.floorXp).toFixed(2) + 'x / ' + held + ' of ' + fl.length, '>= ' + S.tiers.dangerous.xpVsNormalMin + 'x / >= ' + S.tiers.dangerous.loneHeldMin, xp / facts.floorXp >= S.tiers.dangerous.xpVsNormalMin && held >= Math.min(S.tiers.dangerous.loneHeldMin, fl.length));
-      else if (!sh.party) line('deadly.lone', 'Deadly, ' + by + ' floor: the median way pays for it (dies, or nets less than on Normal)', held + ' of ' + fl.length + ' held, net ' + signed(net) + ' (Normal ' + signed(facts.floorNet) + ')', 'a death, or net under Normal', held < fl.length / 2 || net < facts.floorNet);
+      const heldXp = fl.filter((r) => r.deaths === 0).map((r) => r.xp), held = heldXp.length, net = median(fl.map((r) => r.net));
+      const xp = held ? median(heldXp) : null;
+      line(tier + '.held', TIER_WORD[tier] + ', ' + by + ' floor: Level XP of the ways that held, against Normal (median) / ways that held / net (report)', (xp ? (xp / facts.floorXp).toFixed(2) + 'x' : 'none held') + ' / ' + held + ' of ' + fl.length + ' / ' + signed(net), '>= ' + want + 'x', !xp || xp / facts.floorXp >= want);
     }
     const f4 = T((c) => c.heroes.length === 4 && c.cell.level === sh.floor && !starter(c))[0];
     if (tier === 'deadly' && f4 && facts.fourXp) {
       const r = readCell(f4), per16 = (16 * r.deaths) / r.hours;
-      line('deadly.four', 'Deadly, a four at the floor: Level XP a head against its Normal / deaths per 16 hero-hours', (r.xp / facts.fourXp).toFixed(2) + 'x / ' + per16.toFixed(1), '>= ' + S.tiers.deadly.fourXpVsNormalMin + 'x / <= ' + S.tiers.deadly.fourDeathsPer16hMax, r.xp / facts.fourXp >= S.tiers.deadly.fourXpVsNormalMin && per16 <= S.tiers.deadly.fourDeathsPer16hMax);
+      line('deadly.four', 'Deadly, a four at the floor: Level XP a head against its Normal / deaths per 16 hero-hours', (r.xp / facts.fourXp).toFixed(2) + 'x / ' + per16.toFixed(1), '>= ' + want + 'x / <= ' + S.tiers.deadly.fourDeathsPer16hMax, r.xp / facts.fourXp >= want && per16 <= S.tiers.deadly.fourDeathsPer16hMax);
     }
     /* OUTSIDE THE WEIGHT CLASS */
     const pairs = T((c) => c.heroes.length === 2 && c.cell.level >= sh.floor - 3 && c.cell.level <= sh.floor - 2).map((c) => readCell(c));

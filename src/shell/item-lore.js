@@ -15,23 +15,23 @@
 //   needOf(id, sk, lv)  "Needs Melee 30 — you have 20" / "Needs Level 30 — you're 28", against the server's numbers
 //   flavourOf(id)   the item's one-line description, or ''
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.107';
-import { toolSpeed, toolXpB, toolDouble } from '../core/tools.js?v=0.2.107';
-import { listWords, whole } from '../render/format.js?v=0.2.107';
-import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.107';
-import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.107';
-import { MONSTERS } from '../data/monsters.js?v=0.2.107';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.107';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.107';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.107';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.107';
-import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.107';
-import { itemName } from './widgets/bits.js?v=0.2.107';
-import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromKit } from './bag-model.js?v=0.2.107';
-import { FLAMES } from '../data/hearth.js?v=0.2.107';
-import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.107';
-import { dropWhereWords, isRareItem } from './hunt-ground-facts.js?v=0.2.107';
-import { recipeOutcomes, HALLMARK_OFFERS } from '../data/jewelry.js?v=0.2.107';
+import { ITEMS } from '../data/items.js?v=0.2.108';
+import { toolSpeed, toolXpB, toolDouble } from '../core/tools.js?v=0.2.108';
+import { listWords, whole } from '../render/format.js?v=0.2.108';
+import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.108';
+import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.108';
+import { MONSTERS } from '../data/monsters.js?v=0.2.108';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.108';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.108';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.108';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.108';
+import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.108';
+import { itemName } from './widgets/bits.js?v=0.2.108';
+import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromKit } from './bag-model.js?v=0.2.108';
+import { FLAMES } from '../data/hearth.js?v=0.2.108';
+import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.108';
+import { dropWhereWords, isRareItem } from './hunt-ground-facts.js?v=0.2.108';
+import { recipeOutcomes, HALLMARK_OFFERS } from '../data/jewelry.js?v=0.2.108';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', unique: 'Unique' });
@@ -115,6 +115,12 @@ export function whereToGet(id) {
   const easy = r.shop || Object.values(r.at).some((lv) => lv <= 1);
   const drop = !easy && r.drops.length ? dropWhereWords(id) : '';
   return hands.concat(drop ? [drop] : []).join('. ');
+}
+
+/** Only a hunt gets it: a creature drops it, and no bench, node, crop or shop tab does. */
+export function huntedOnly(id) {
+  const r = index().get(id);
+  return !!r && r.drops.length > 0 && !r.made.length && !r.from.length && !r.shop;
 }
 
 /** A tool's one job, in numbers from its row (the engine's own: core/tools.js): "Woodcutting 10% faster, 4% more XP, 4% extra yield". */

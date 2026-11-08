@@ -10,20 +10,25 @@ const ofType = (sc, t) => sc.events.filter((e) => e.type === t);
 
 /* Kill XP actually credited, per path: the total fx.addLevelXp at multiplier 2 minus at 1 is exactly the kill XP
    at 1 (every die is the same; the multiplier draws nothing). Kill XP is the character's LEVEL only
-   (CORE_MODEL.md §4). Answers { killXp, monsterXp, kills }. */
+   (CORE_MODEL.md §4). Answers { killXp, monsterXp, kills, boosted }: boosted is the exact difference a hero alone is paid, each kill floored as
+   xp-share.js floors it (x2 then x1 on the solo boost), so a boost of under one XP a kill still shows (the Cellar's rats pay 15 since 2026-11-08). */
 function creditedKillXp(M, run) {
   const at = (mult) => {
-    let xp = 0; let monsterXp = 0; let kills = 0;
+    let xp = 0; let monsterXp = 0; let kills = 0; let boosted = 0;
     /* Summed in integer milli-XP: hit XP is fractional (HP XP per damage), and a float sum's
        difference is not exact (33.00000000000006). Kill XP is whole, so the rule stays exact. */
     const fx = { addLevelXp: (n) => { xp += Math.round(n * 1000); },
-      updateQuest: (type, n, meta) => { if (type === 'kill_monster') { kills++; monsterXp += M.MONSTERS[meta.target].xp; } } };
+      updateQuest: (type, n, meta) => {
+        if (type !== 'kill_monster') return;
+        const r = M.MONSTERS[meta.target].xp;
+        kills++; monsterXp += r; boosted += Math.floor((r * SOLO * 2) / 1000 + 1e-9) - Math.floor((r * SOLO) / 1000 + 1e-9);
+      } };
     run(fx, () => mult);
-    return { xp, monsterXp, kills };
+    return { xp, monsterXp, kills, boosted };
   };
   const one = at(1); const two = at(2);
   if (one.kills !== two.kills || one.monsterXp !== two.monsterXp) throw new Error('the multiplier changed the fight');
-  return { killXp: (two.xp - one.xp) / 1000, monsterXp: one.monsterXp, kills: one.kills };
+  return { killXp: (two.xp - one.xp) / 1000, monsterXp: one.monsterXp, kills: one.kills, boosted: one.boosted };
 }
 
 /* A SOLO hero on the h1 ground (a party of one, so a kill's share is the whole kill and the rule is exact). */
@@ -42,14 +47,14 @@ function away(M, fx, xpMultOf, awayFlag) {
   runSpan(M, f, []);
 }
 
-/* THE DESIGNER'S TABLE (2026-11-01; every mixed cell x1.05 with the solo boost, 2026-11-08): ground -> heroes alive -> permille by distinct classes (1, 2, ...). */
+/* THE DESIGNER'S TABLE (2026-11-01; same monsters re-tuned 2026-11-08, the mixed cells raised): ground -> heroes alive -> permille by distinct classes (1, 2, ...). */
 const PARTY_TABLE = {
-  mill_cellar: { 2: [1000, 1270], 3: [990, 1175, 1240], 4: [1000, 1315, 1335, 1470] },
-  meadowbrook_thicket: { 2: [930, 1355], 3: [880, 1240, 1375], 4: [940, 1155, 1210, 1240] },
-  wickstead: { 2: [880, 1125], 3: [970, 1220, 1335], 4: [970, 1260, 1300, 1335] },
-  mosslight_glade: { 2: [960, 1240], 3: [1000, 1365, 1470], 4: [1000, 1260, 1355, 1385] },
-  millrace_sewer: { 2: [800, 1155], 3: [800, 1105, 1155], 4: [800, 1105, 1155, 1240] },
-  coppercap_warrens: { 2: [960, 1240], 3: [970, 1260, 1345], 4: [960, 1260, 1325, 1430] },
+  mill_cellar: { 2: [1000, 1545], 3: [990, 1755, 1850], 4: [1000, 2130, 2165, 2380] },
+  meadowbrook_thicket: { 2: [930, 1735], 3: [880, 1620, 1800], 4: [940, 1735, 1815, 1860] },
+  wickstead: { 2: [880, 1610], 3: [970, 1745, 1910], 4: [970, 1800, 1860, 1910] },
+  mosslight_glade: { 2: [960, 1610], 3: [1000, 1660, 1795], 4: [1000, 1575, 1695, 1730] },
+  millrace_sewer: { 2: [800, 1660], 3: [800, 1660, 1735], 4: [800, 1660, 1735, 1860] },
+  coppercap_warrens: { 2: [960, 1325], 3: [970, 1345, 1435], 4: [960, 1300, 1365, 1475] },
 };
 /* A HERO HUNTING ALONE (Tyler 2026-11-08: "a solo person gets a small exp boost"), typed here like the table: a retune moves both. */
 const SOLO = 1050;
@@ -127,11 +132,11 @@ const cases = {
     const cell = PARTY_TABLE.meadowbrook_thicket[2][0];   // the Thicket's one-class duo cell, read from the table (930 since lane/b-ground-formula-2)
     if (Object.values(one).some((v) => v !== Math.round((BIG / 2) * cell / 1000))) return 'tank + melee_dps paid ' + JSON.stringify(one) + ', the one-class cell is ' + cell;
     const four = killOn(M, 'mosslight_glade', ['tank', 'tank', 'melee_dps', 'melee_dps'], BIG);
-    if (Object.values(four).some((v) => v !== BIG / 4)) return 'four Melee paid ' + JSON.stringify(four);
+    if (Object.values(four).some((v) => v !== (BIG / 4) * PARTY_TABLE.mosslight_glade[4][0] / 1000)) return 'four Melee paid ' + JSON.stringify(four);
     const sewer = killOn(M, 'millrace_sewer', ['tank', 'melee_dps'], BIG);
-    if (Object.values(sewer).some((v) => v !== Math.round((BIG / 2) * 0.8))) return 'tank + melee_dps in the Sewer paid ' + JSON.stringify(sewer);
+    if (Object.values(sewer).some((v) => v !== Math.round((BIG / 2) * PARTY_TABLE.millrace_sewer[2][0] / 1000))) return 'tank + melee_dps in the Sewer paid ' + JSON.stringify(sewer);
     const two = killOn(M, 'meadowbrook_thicket', ['tank', 'ranger'], BIG);
-    return Object.values(two).every((v) => v === Math.round((BIG / 2) * 1.355)) ? null : 'CONTROL: a Melee and a Ranger paid ' + JSON.stringify(two);
+    return Object.values(two).every((v) => v === Math.round((BIG / 2) * PARTY_TABLE.meadowbrook_thicket[2][1] / 1000)) ? null : 'CONTROL: a Melee and a Ranger paid ' + JSON.stringify(two);
   },
   /* READ AT EACH KILL, NO LATCH: a death changes the mix on the NEXT kill, a leave too, and the last hero standing hunts alone (the solo boost). */
   'party-class-death-changes-next-kill': (M) => {
@@ -141,13 +146,13 @@ const cases = {
     const kill = () => M.xpshare.shareKillXp(at, { t: 9, u: 1, xp: BIG }, ctx35(M, 7));
     const each = (o) => [...new Set(Object.values(o))];
     let got = each(kill());
-    if (got.join() !== String(Math.round((BIG / 4) * 1.47))) return 'four classes alive paid ' + got;
+    if (got.join() !== String(Math.round((BIG / 4) * PARTY_TABLE.mill_cellar[4][3] / 1000))) return 'four classes alive paid ' + got;
     heroes[1].alive = false;   // the Ranger dies: three heroes of three classes
     got = each(kill());
-    if (got.join() !== String(Math.round((BIG / 3) * 1.24))) return 'after the Ranger died three classes paid ' + got;
+    if (got.join() !== String(Math.round((BIG / 3) * PARTY_TABLE.mill_cellar[3][2] / 1000))) return 'after the Ranger died three classes paid ' + got;
     heroes[0].alive = false;   // the Melee dies: two heroes of two classes
     got = each(kill());
-    if (got.join() !== String(Math.round((BIG / 2) * 1.27))) return 'after the Melee died two classes paid ' + got;
+    if (got.join() !== String(Math.round((BIG / 2) * PARTY_TABLE.mill_cellar[2][1] / 1000))) return 'after the Melee died two classes paid ' + got;
     w.units = w.units.filter((u) => u !== heroes[2]);   // the Mage leaves: a hero alone
     got = each(kill());
     if (got.join() !== String((BIG * SOLO) / 1000)) return 'the last hero standing paid ' + got + ', a hero alone earns ' + (BIG * SOLO) / 1000;
@@ -156,10 +161,10 @@ const cases = {
     const w2 = worldOf(M, [...t, unit(M, 9, 'mon')]);
     const at2 = { world: w2, ground: { id: 'wickstead' }, grid: null, occ: null };
     got = each(M.xpshare.shareKillXp(at2, { t: 9, u: 1, xp: BIG }, ctx35(M, 7)));
-    if (got.join() !== String(Math.round((BIG / 3) * 1.22))) return 'three heroes of two classes paid ' + got;
+    if (got.join() !== String(Math.round((BIG / 3) * PARTY_TABLE.wickstead[3][1] / 1000))) return 'three heroes of two classes paid ' + got;
     t[1].alive = false;
     got = each(M.xpshare.shareKillXp(at2, { t: 9, u: 1, xp: BIG }, ctx35(M, 7)));
-    return got.join() === String(Math.round((BIG / 2) * 1.125)) ? null : 'two heroes of two classes paid ' + got;
+    return got.join() === String(Math.round((BIG / 2) * PARTY_TABLE.wickstead[2][1] / 1000)) ? null : 'two heroes of two classes paid ' + got;
   },
   /* THE DEFAULT: a ground with no row pays a party the even share, mixed or not; a hero alone earns the solo boost everywhere, a ground with no row too. */
   'party-class-no-row-is-even': (M) => {
@@ -171,14 +176,14 @@ const cases = {
     }
     /* A party past the table's largest size keeps its cut and its top cell (the party cap is a config value). */
     const five = killOn(M, 'millrace_sewer', ['tank', 'tank', 'tank', 'tank', 'tank'], BIG);
-    return Object.values(five).every((v) => v === Math.round((BIG / 5) * 0.8)) ? null : 'five Melee in the Sewer paid ' + JSON.stringify(five);
+    return Object.values(five).every((v) => v === Math.round((BIG / 5) * PARTY_TABLE.millrace_sewer[4][0] / 1000)) ? null : 'five Melee in the Sewer paid ' + JSON.stringify(five);
   },
   /* `raw` is the even share (spec §3.6 #3): the gap to `amount` is the party factor, and the hook still multiplies on top. */
   'party-class-raw-is-the-even-share': (M) => {
     const w = worldOf(M, [unit(M, 1, 'hero', { role: 'tank' }), unit(M, 2, 'hero', { role: 'mage' }), unit(M, 9, 'mon')]);
     const sc = ctx35(M, 8, { xpMultOf: (h) => (h.id === 1 ? 2 : 1) });
     const paid = M.xpshare.shareKillXp({ world: w, ground: { id: 'mill_cellar' }, grid: null, occ: null }, { t: 9, u: 1, xp: BIG }, sc);
-    if (paid[1] !== Math.round(BIG * 1.27) || paid[2] !== Math.round((BIG / 2) * 1.27)) return 'the factor and the hook paid ' + JSON.stringify(paid);
+    if (paid[1] !== Math.round(BIG * PARTY_TABLE.mill_cellar[2][1] / 1000) || paid[2] !== Math.round((BIG / 2) * PARTY_TABLE.mill_cellar[2][1] / 1000)) return 'the factor and the hook paid ' + JSON.stringify(paid);
     const xp = ofType(sc, 'xp');
     if (!(xp.length === 2 && xp.every((e) => e.raw === BIG / 2))) return 'raw must stay the even share: ' + JSON.stringify(xp);
     /* alone, raw is the whole kill and the gap to the amount is the solo boost (the analyzer's raw XP line reads it) */
@@ -314,13 +319,13 @@ const cases = {
   'attended-kill-xp-through-the-rule': (M) => {
     const r = creditedKillXp(M, (fx, mult) => attended(M, fx, mult));
     if (r.kills < 3) return 'the attended fixture killed ' + r.kills;
-    return Math.abs(r.killXp - (r.monsterXp * SOLO) / 1000) <= r.kills ? null : 'attended kill XP at x2 rose by ' + r.killXp + ', the kills were worth ' + r.monsterXp + ' alone x' + SOLO / 1000;
+    return r.killXp === r.boosted ? null : 'attended kill XP at x2 rose by ' + r.killXp + ', the kills were worth ' + r.monsterXp + ' alone x' + SOLO / 1000 + ' (' + r.boosted + ' floored)';
   },
   /* AWAY (browser closed): the same rule on the span, the same solo boost, and away equals attended (AWAY-1). */
   'away-kill-xp-through-the-rule': (M) => {
     const r = creditedKillXp(M, (fx, mult) => away(M, fx, mult));
     if (r.kills < 2) return 'the away fixture killed ' + r.kills;
-    if (Math.abs(r.killXp - (r.monsterXp * SOLO) / 1000) > r.kills) return 'away kill XP at x2 rose by ' + r.killXp + ', the kills were worth ' + r.monsterXp + ' alone x' + SOLO / 1000;
+    if (r.killXp !== r.boosted) return 'away kill XP at x2 rose by ' + r.killXp + ', the kills were worth ' + r.monsterXp + ' alone x' + SOLO / 1000 + ' (' + r.boosted + ' floored)';
     const tot = (flag) => { let xp = 0; away(M, { addXp: (s, n) => { xp += n; } }, () => 1, flag); return xp; };
     return tot(true) === tot(false) ? null : 'ctx.away changed the XP';
   },
@@ -343,7 +348,7 @@ const mutants = [
   { name: 'the ground is ignored: every ground reads the Cellar\'s row', case: 'party-class-every-cell',
     edits: [['src/core/hunt/xp-share.js', "partyClassXp(groundId, heroes", "partyClassXp('mill_cellar', heroes"]] },
   { name: 'one Sewer cell drifts (a same-class duo back to the even share)', case: 'party-class-every-cell',
-    edits: [['src/data/party-class-xp.js', 'millrace_sewer: row([800, 1155]', 'millrace_sewer: row([1000, 1155]']] },
+    edits: [['src/data/party-class-xp.js', 'millrace_sewer: row([800, 1660]', 'millrace_sewer: row([1000, 1660]']] },
   { name: 'a ground with no row pays a bonus', case: 'party-class-no-row-is-even',
     edits: [['src/data/party-class-xp.js', "if (n < 2 || !Object.hasOwn(PARTY_CLASS_XP, groundId)) return { permille: 1000, classes };", "if (n < 2) return { permille: 1000, classes }; if (!Object.hasOwn(PARTY_CLASS_XP, groundId)) return { permille: 1200, classes };"]] },
   { name: 'a hero alone reads a party cell', case: 'party-class-no-row-is-even',

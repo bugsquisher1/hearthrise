@@ -1022,9 +1022,11 @@ function rules(M) {
       console.log(`  LV-PULL ${mode}, closed (Andy's party, Warrens d5, 1,500 s): ${laps.length} lap(s) [${lapWords(laps)}]; pull leader off the holder at ${wrongLeader} of ${commits} commits, ${wrongHolder} pack(s) held by another`);
       ok('LV-PULL', laps.length >= 3 && wrongLeader === 0 && wrongHolder === 0, `${mode}, closed: over ${laps.length} lap(s) the pull leader was not the holder at ${wrongLeader} of ${commits} commits and ${wrongHolder} pack(s) were held by another tank (want 3+ laps, 0, 0)`);
       ok('LV-PULL', onApollo === 0 && casts === 0 && offHolder === 0, `${mode}, closed: ${casts} Challenge cast(s), ${offHolder} monster swing(s) off the holder, ${onApollo} at Apollo (want 0, 0; control 0)`);
-      /* viewed: Apollo's browser (Eddie and Fremulon are its peers: their frozen heroes) */
+      /* viewed: Apollo's browser (Eddie and Fremulon are its peers: their frozen heroes). 800 s: since one pack for every group (lane/b-one-difficulty,
+         2026-11-08) a three's Warrens monsters have their row's HP, not 85% of it, so a lap takes about 350 s and the third begins near 705 s. Every
+         commit to 800 s matches; the browser's first commit off the prediction is at 1,024 s in both modes (on the board, not this rule's). */
       const vm = andy(hold);
-      const v = run(M, [vm[2], vm[0], vm[1]], 600000, { server: { hunt } });
+      const v = run(M, [vm[2], vm[0], vm[1]], 800000, { server: { hunt } });
       const vids = [vm[0].unitId, vm[1].unitId, vm[2].unitId];
       const vlaps = tally(v.fed.events.slice().sort((x, y) => x.atMs - y.atMs), vids);
       const vOff = vlaps.reduce((n, l, i) => n + Object.entries(l.at).filter(([u]) => Number(u) !== holderOf(vids, i)).reduce((m, [, k]) => m + k, 0), 0);

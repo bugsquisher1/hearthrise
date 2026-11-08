@@ -132,15 +132,22 @@ export const STAT_FORMULA = Object.freeze({
   def: Object.freeze({ perLevel: 0.08, past: Object.freeze({ from: 20, perLevel: 0.5 }) }),
   /* LEVEL XP a kill = a x L^b per HP point of the monster, never under `min` (today's grounds pay about
      1.8 x L^0.4 from the Thicket to the Warrens: the pace contract's L^1.365 rising over a hero's roughly linear
-     damage; the Cellar's first kills pay about 3 a point, the floor). */
-  xp: Object.freeze({ a: 1.70, b: 0.4, min: 3.0 }),
+     damage; the Cellar's first kills pay about 3 a point, the floor).
+     `floorFit` (Tyler 2026-11-08, "Same monsters, re-tune"; lane/b-one-difficulty): since a monster has its row's HP and pays its whole
+     kill for any party size, a lone hero on the first grounds kills in a blow or two and walks between pulls, so the full kill paid
+     1.37-1.53x the pace contract at the band middle (a lean grid, 8 ways, 1 seed x 2 h). A kill's XP is `lo` of the curve on a ground
+     whose floor is `from` or under, rising straight to the whole curve at `to`: the Cellar, the Thicket, Wickstead and the Sewer 0.67,
+     the Glade 0.78, the Warrens 1. */
+  xp: Object.freeze({ a: 1.70, b: 0.4, min: 3.0, floorFit: Object.freeze({ from: 8, to: 32, lo: 0.67 }) }),
   /* COIN a kill: perHp gold per HP point times the ground's `line`, rolled lo..2 x mean - lo so the roll's mean IS the
      formula's (keepMean: a plain [0.5, 1.5] rounding paid a 3 g whelp 3.5). HARDER PAYS MORE ON ONE LINE (Tyler 11-03,
      11-04): coin per HP climbs straight with the ground's floor, x0.75 at the first ground to x1.4 from floor 16
      (the Thicket x0.92, Wickstead and the Sewer x1.05). Measured (lane/b-ground-formula-2, the real settle, 6 seeds):
      at a flat 0.30 the Thicket's floor netted 2,069 g an hour over the Sewer party's 1,771 (first-grounds chain), and
-     the Glade's floor, whose x1.2 bite costs food, needs x1.4 to net over the Sewer party (2,234 against 1,964). */
-  gp: Object.freeze({ perHp: 0.30, lo: 0.5, keepMean: true, line: Object.freeze({ from: 1, to: 16, lo: 0.75, hi: 1.4 }) }),
+     the Glade's floor, whose x1.2 bite costs food, needs x1.4 to net over the Sewer party (2,234 against 1,964).
+     The line starts at x0.5 since 2026-11-08 (was x0.75; the Thicket x0.74, Wickstead and the Sewer x0.92): a lone hero now takes the
+     whole kill, and the first grounds' gold an hour read +39-54% over their pinned values (tests/hunt-core/drop-tables.mjs total-value). */
+  gp: Object.freeze({ perHp: 0.30, lo: 0.5, keepMean: true, line: Object.freeze({ from: 1, to: 16, lo: 0.5, hi: 1.4 }) }),
   /* WHO A GROUND IS BUILT FOR. A PARTY GROUND (hunt-grounds.js groupFit 'party', or a pocket that needs a party) is built
      for four heroes' damage on one tank: its rows carry `hp` times the HP (today's Sewer and Warrens stand 2.2-3x the solo
      grounds' at their Levels), each blow `blow` of a solo ground's (the tank takes every monster of the pull at once: on
@@ -151,7 +158,7 @@ export const STAT_FORMULA = Object.freeze({
        to-hit  `hit` points on a gentle party ground, `hitFull` on a full one. -0.3 there: a lone hero at the Warrens'
                soloFrom (45) ate 3.9k g an hour of food at the formula's to-hit and earned less than on the Glade
                (forest-cave harder-pays-more); at -0.3 it eats next to nothing, as the card's "alone from 45" says.
-       coin    `gp` on a gentle party ground, `gpFull` on a full one, on top of the line. Gentle 1.02: since the gentle blow cap the
+       coin    `gp` on a gentle party ground (1.17 since 2026-11-08, when the line's start fell to x0.5: the Sewer keeps its coin a kill), `gpFull` on a full one, on top of the line. Gentle 1.02: since the gentle blow cap the
                Sewer's four eats less and nets 1,945-2,050 a head against the Thicket's ~1,850 (1.05 put it over the Glade's floor,
                forest-cave glade-between); at 1 the store-fed crossbow Ranger read +24.2% (ranger-floor, bar +25%). Full 0.53: the least that keeps harder-pays-more with a 5% margin at
                both Warrens probes (a four at 41: 8,168 against the Glade's 7,693; alone at 45: 8,356 against 7,116); at x1
@@ -159,7 +166,7 @@ export const STAT_FORMULA = Object.freeze({
   fit: Object.freeze({
     solo: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
     both: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
-    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, tierLift: false, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1.02, gpFull: 0.53, blowShape: 1.6 }),
+    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, tierLift: false, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1.17, gpFull: 0.53, blowShape: 1.6 }),
   }),
 });
 
@@ -238,7 +245,10 @@ export const GROUND_ROSTER = Object.freeze({
    contract in band (the Cellar 5,960 at 4.5, Wickstead 30,088 at 13), so the ladder's fit ran steeper than the contract (718 x L^1.472:
    level-curve C5 -13% at 100) and the careers reached Level 10 in 6.7 h (C3, +12%); the Cellar is the tutorial, paced to Level 5 in
    LEVEL_PACE.early (0.32 h against its 0.25 aim). */
-export const GROUND_XP_FIT = Object.freeze({ mill_cellar: 1.25, meadowbrook_thicket: 0.9, wickstead: 1.1 });
+/* The Sewer x0.9 (lane/b-one-difficulty, 2026-11-08): its party-built monsters die to area blows in packs, so with one pack for every
+   group a lone hammer at the Glade's floor earned 131k on its Deadly against the Glade's Normal 108k (the ladder rule); the floor fit alone
+   leaves it about 4% over. */
+export const GROUND_XP_FIT = Object.freeze({ mill_cellar: 1.25, meadowbrook_thicket: 0.9, wickstead: 1.1, millrace_sewer: 0.9 });
 
 /* NAMED EXCEPTIONS: { monster: { field: 'the reason' } }, a field a row keeps by hand. Empty: none has earned one. */
 export const FORMULA_EXCEPTIONS = Object.freeze({});
@@ -292,7 +302,8 @@ export function formulaStats(spec, opts = {}) {
   const hp = Math.max(1, Math.round(((F.hp.base || 0) + F.hp.perLevel * L) * rHp * fit.hp));
   const def = Math.max(0, Math.round(F.def.perLevel * L * R.def + (F.def.past ? F.def.past.perLevel * Math.max(0, L - F.def.past.from) : 0)));
   const gx = (opts.groundXp || GROUND_XP_FIT)[spec.ground] || 1;
-  const xp = Math.max(1, Math.round(Math.max(F.xp.min || 0, F.xp.a * L ** F.xp.b) * hp * R.xp * fit.xp * gx));
+  const ff = F.xp.floorFit, xFloor = ff ? ff.lo + (1 - ff.lo) * clamp01((Number(spec.floor) - ff.from) / (ff.to - ff.from)) : 1;
+  const xp = Math.max(1, Math.round(Math.max(F.xp.min || 0, F.xp.a * L ** F.xp.b) * hp * R.xp * fit.xp * gx * xFloor));
   const g0 = fit.gp === undefined ? 1 : fit.gp, fitGp = fit.gpFull === undefined ? g0 : g0 + (fit.gpFull - g0) * dz.ramp;
   const line = F.gp.line ? F.gp.line.lo + (F.gp.line.hi - F.gp.line.lo) * clamp01((Number(spec.floor) - F.gp.line.from) / (F.gp.line.to - F.gp.line.from)) : 1 + (F.gp.danger || 0) * dz.ramp;
   const mean = F.gp.perHp * line * hp * R.gp * fitGp;
@@ -357,7 +368,7 @@ export const TIER_PULL_OVERRIDES = Object.freeze({
      24.3k, a four 38.1k against 33.6k). Its tiers pay +5% and +8% a kill on no extra HP, as live. */
   meadowbrook_thicket: Object.freeze({
     dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1000, xpPm: 1050 }), deadly: Object.freeze({ hpPm: 1000, xpPm: 1080 }) }),
-    why: 'the Thicket sits just under Wickstead: at the table\'s +20% and +25% a kill its harder tiers out-earned Wickstead, so they pay +5% and +8%' }),
+    why: 'the Thicket sits just under Wickstead. At the table\'s +20% and +25% a kill its harder tiers out-earned Wickstead, so they pay +5% and +8%' }),
   /* The Sewer's Deadly pays x1.22 Level XP, not the table's x1.25: since the gentle party blow shape (STAT_FORMULA.fit.party.blowShape) a lone hammer on
      it at the Glade's floor (16) read 78,980 XP an hour against the Glade's Normal 78,779 (tests/hunt-core/hunt-tiers.mjs ladder, v0.2.106 run
      42394831391). Still above its Dangerous (x1.2), so Deadly stays the better paid. */

@@ -32,7 +32,9 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_NAME = '2027-03-21-scaled-hunts-catalogue.generated.sql';
+/* 2027-03-21-scaled-hunts-catalogue.generated.sql is APPLIED history (v0.2.109). The re-tune's kill pay (lane/b-one-difficulty, 2026-11-08: the stat formula's
+   floor fit and coin line) moves the scaled rows' most-a-kill bounds, so they are a new dated file. */
+export const OUT_NAME = '2027-03-23-one-difficulty-scaled-hunts-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const whole = (n) => Number.isInteger(n) && n >= 1;

@@ -1649,7 +1649,7 @@ function rules(M) {
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
-  ['the browser drops the live event windows (LV-EVENT)', 'src/hunt-view/live-engine.js', 's.xpMultOf = lx ? xpMultFor(sides, (sd) => lx[String(sd.mi.key)]) : null;', 's.xpMultOf = null;', /^LV-EVENT: \d+ of the server's/],
+  ['the browser drops the live event windows (LV-EVENT)', 'src/hunt-view/live-engine.js', 'xpMultOf: lx ? xpMultFor(sides, (sd) => lx[String(sd.mi.key)]) : null,', 'xpMultOf: null,', /^LV-EVENT: \d+ of the server's/],
   ['a kill reads its dial with no time (LV-EVENT)', 'src/core/hunt/xp-share.js', 'const m = f ? f(hero, sc.atMs) : 1;', 'const m = f ? f(hero) : 1;', /^LV-EVENT: (\d+ xp event|the leader earned)/],
   ['the start point drops the windows (LV-EVENT)', 'supabase/functions/hr-accrue/hunt-settle.js', '...(members.some((m) => m.liveXp) ?', '...(false ?', /^LV-EVENT: \d+ of the server's/],
   ['the browser plays a scaled hunt unscaled (LV-SCALE)', 'src/hunt-view/live-engine.js', 'monsters, items, ...(s.scale ? { scale: s.scale } : {}),', 'monsters, items,', /^LV-SCALE: (solo|party): \d+ of/],

@@ -42,6 +42,19 @@ export const TIER_IDS = Object.freeze(['normal', 'dangerous', 'deadly']);
 export const DEFAULT_TIER = 'normal';
 /* The word a player reads, on the picker and the hunt's top bar. */
 export const TIER_NAME = Object.freeze({ normal: 'Normal', dangerous: 'Dangerous', deadly: 'Deadly' });
+/* WHAT A TIER IS, IN PLAIN WORDS (Tyler 2026-11-08 on the old numbers note: "Simplify this holy shit it's way too 'exact' it seems AI").
+   The hunt page says the line for the picked tier, never a percent, an HP or a blow: those numbers live in the wiki's tier text.
+   `more`: the tier brings more monsters at once than Normal does for this group; `same`: it brings the same monsters (the Thicket,
+   Wickstead and the Sewer, under the floor-16 pull rule). The line beside Enter is the first sentence, after the tier's name. */
+export const TIER_LINES = Object.freeze({
+  normal: 'Safe at your level.',
+  dangerous: Object.freeze({ more: 'More monsters at once, and they hit harder. More XP for each kill. You can die here.',
+    same: 'The monsters hit harder. More XP for each kill. You can die here.' }),
+  deadly: Object.freeze({ more: 'Big groups that hit hard. The most XP for each kill. Bring plenty of food. You can die here.',
+    same: 'The monsters hit much harder. The most XP for each kill. Bring plenty of food. You can die here.' }),
+});
+/* The one death line a harder tier's note ends on (hunt-sessions.js DEATH_XP_LOSS is the number; the wiki says it). */
+export const TIER_DEATH_LINE = 'Dying ends the hunt and costs a little XP.';
 /* The dials a tier row carries (permille of the monster row). */
 export const DIALS = Object.freeze(['dmgPm', 'hpPm', 'xpPm']);
 

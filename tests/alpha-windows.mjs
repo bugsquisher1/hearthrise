@@ -450,20 +450,19 @@ async function huntsPure(imp) {
     if (tierPull(glade, 'dangerous', 1) !== 4 || tierPull(glade, 'dangerous', 4) !== 6 || tierPull(glade, 'deadly', 1) !== 8 || tierPull(glade, 'deadly', 4) !== 8) fails.push('AW-25 a harder tier does not read its row');
     if (tierPull(thicketR, 'deadly', 1) !== 0 || tierPull(thicketR, 'deadly', 4) !== 6) fails.push('AW-25 a row with no more monsters does not read the ground as it stands: ' + tierPull(thicketR, 'deadly', 1) + ' / ' + tierPull(thicketR, 'deadly', 4));
     if (tierWords(glade, 'normal', 1) !== '' || tierChoiceWords(glade, 'normal', 1) !== '') fails.push('AW-25 Normal says more than the ground\'s page: ' + tierWords(glade, 'normal', 1));
-    if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: 8 monsters a pull, hitting 50% harder.') fails.push('AW-25 the line beside Enter reads: ' + tierChoiceWords(glade, 'deadly', 1));
-    if (tierChoiceWords(thicketR, 'deadly', 1) !== 'Deadly: the same monsters, hitting 3 times as hard.') fails.push('AW-25 a row with no more monsters reads: ' + tierChoiceWords(thicketR, 'deadly', 1));
-    /* THE HP DIAL IN WORDS: said only when the tier moves it, beside the damage, alone, and doubled. */
-    TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 1500, 1250, 1200);
-    if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: 8 monsters a pull, hitting 50% harder, with 25% more HP.') fails.push('AW-25 a tier with more HP reads: ' + tierChoiceWords(glade, 'deadly', 1));
-    if (!/^8 monsters a pull, hitting 50% harder, with 25% more HP, and the biggest blow here is (\d+), not (?!\1\.)\d+\. /.test(tierWords(glade, 'deadly', 1))) fails.push('AW-25 the tier note with a harder blow reads: ' + tierWords(glade, 'deadly', 1));
-    TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 1000, 2000, 1200);
-    if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: 8 monsters a pull, with twice the HP.') fails.push('AW-25 a tier with HP alone reads: ' + tierChoiceWords(glade, 'deadly', 1));
-    /* a sheet's multiple is not round (Wickstead's 2261 and 2847): one decimal, never "2.261 times" */
+    /* THE PLAIN LINE (Tyler 2026-11-08: the old numbers note was 'way too exact'; hunt-tiers.js TIER_LINES): a tier that brings more monsters at once than
+       this group's Normal reads its 'more' line, one that brings no more its 'same' line, each with the one death line and never a number. */
+    const W = (t, k) => TV.TIER_LINES[t][k] + ' ' + TV.TIER_DEATH_LINE;
+    if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: big groups that hit hard.') fails.push('AW-25 the line beside Enter reads: ' + tierChoiceWords(glade, 'deadly', 1));
+    if (tierWords(glade, 'deadly', 1) !== W('deadly', 'more')) fails.push('AW-25 the Deadly note reads: ' + tierWords(glade, 'deadly', 1));
+    if (tierChoiceWords(glade, 'dangerous', 4) !== 'Dangerous: more monsters at once, and they hit harder.') fails.push('AW-25 a four on a bigger pull reads: ' + tierChoiceWords(glade, 'dangerous', 4));
+    if (tierChoiceWords(thicketR, 'deadly', 1) !== 'Deadly: the monsters hit much harder.' || tierWords(thicketR, 'dangerous', 4) !== W('dangerous', 'same')) fails.push('AW-25 a row with no more monsters reads: ' + tierChoiceWords(thicketR, 'deadly', 1) + ' / ' + tierWords(thicketR, 'dangerous', 4));
+    /* a pull no bigger than this group's Normal (a pair's 3 on the Glade) is no more monsters */
+    TV.GROUND_TIERS.mosslight_glade.dangerous = tierRow('dangerous', [4, 3, 3, 4], 1200, 1000, 1100);
+    if (tierWords(glade, 'dangerous', 2) !== W('dangerous', 'same') || tierWords(glade, 'dangerous', 1) !== W('dangerous', 'more')) fails.push('AW-25 the pull read against Normal: ' + tierWords(glade, 'dangerous', 2));
+    /* every dial at a sheet's odd multiple still reads no number, on every tier and group size */
     TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 2261, 2847, 1400);
-    if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: 8 monsters a pull, hitting 2.3 times as hard, with 2.8 times the HP.') fails.push('AW-25 a sheet multiple reads: ' + tierChoiceWords(glade, 'deadly', 1));
-    TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 1000, 2000, 1200);
-    /* the same blow is no news: the note never says "72, not 72" */
-    if (!tierWords(glade, 'deadly', 1).startsWith('8 monsters a pull, with twice the HP. Each kill earns 20% more Level XP, with the same gold and drops.')) fails.push('AW-25 the tier note with HP alone reads: ' + tierWords(glade, 'deadly', 1));
+    for (const r of [glade, thicketR]) for (const t of ['dangerous', 'deadly']) for (const n of [1, 2, 3, 4]) if (/\d/.test(tierWords(r, t, n) + tierChoiceWords(r, t, n))) fails.push('AW-25 a tier note carries a number: ' + tierWords(r, t, n));
   } finally { TV.GROUND_TIERS.mosslight_glade = kept.glade; TV.GROUND_TIERS.meadowbrook_thicket = kept.thicket; }
   /* Who lives here: each creature's share of the ground's spawn points (Tyler 10-18: a common majority, some uncommon, a rare). */
   const cellar = residentsOf('mill_cellar').map((m) => m.id + ':' + m.band + ':' + m.level).join();

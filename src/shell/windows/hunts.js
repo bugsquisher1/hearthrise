@@ -55,7 +55,7 @@ import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.109';
 import { glyphSvg } from '../launcher.js?v=0.2.109';
 import { runIntent, refusalText } from '../intent-words.js?v=0.2.109';
 import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.109';
-import { TIER_IDS, TIER_NAME, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.109';
+import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.109';
 import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.109';
 import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.109';
 import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.109';
@@ -334,8 +334,10 @@ function patchPage(det, ctx, sc, v) {
     attr(b, 'data-pending', String(id === tier && !!(sc.draft || sc.saving)));
   }
   text(det.querySelector('.hw-tier-read'), follower && tier ? 'Set by ' + (party.leaderName || 'your leader') + ': ' + TIER_NAME[tier] : '');
+  /* Normal says it is safe only where it is: under the ground's floor the warning above says what the hero risks. */
+  const safe = rangeWords(r, level) ? '' : TIER_LINES.normal + ' ';
   text(det.querySelector('.hw-tier-note'), !choice ? '' : tierWords(r, tier, size) || (follower ? 'Your party leader picks how hard the hunt is.'
-    : size > 1 ? 'The ground as it stands. As the leader, your pick holds for everyone, and it\'s kept for this ground.' : 'The ground as it stands. Your pick is kept for this ground.'));
+    : size > 1 ? safe + 'As the leader, your pick holds for everyone, and it\'s kept for this ground.' : safe + 'Your pick is kept for this ground.'));
 }
 
 renderHunts.act = function actHunts(ctx, body, action, ev, t) {

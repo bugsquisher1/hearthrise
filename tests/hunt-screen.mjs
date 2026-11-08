@@ -45,7 +45,8 @@
 //         the new tier at once, marked Saving..., send ONE intent with the last
 //         value (hr_hunt_tier_set, that ground only: every other line keeps its
 //         own pick), and the server's answer replaces it; the line's facts say the
-//         pull size on the tier ("6 packs of 4"); a refused save shows the server's
+//         pull size on the tier ("6 packs of 4"); the tier note is the tier's plain
+//         line from the data and carries no number (Tyler 2026-11-08); a refused save shows the server's
 //         value again and why; after a reload both come back
 //   HS-9  the Hunts window follows the server's hunt: once the hero is hunting
 //         it says so, never a stale "On the way to ..." (Tyler 10-19)
@@ -122,11 +123,9 @@ import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 /* Level totals on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
 const { charXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
-/* The Glade's Dangerous row, never typed: HS-8 reads its numbers from the data (v0.2.105 moved them; the formula lanes move them again). */
-const GLADE_DANGEROUS = (await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href)).GROUND_TIERS.mosslight_glade.dangerous;
-const tierPct = (pm) => Math.round((pm - 1000) / 10);
-/* A tier's sentence head from its row (hunt-list.js tierHead): the pull, then each dial the tier moves, HP only when hpPm is off 1000 (lane/b-tier-dials). */
-const tierHeadOf = (row) => row.pull[0] + ' monsters a pull' + (row.dmgPm > 1000 ? ', hitting ' + tierPct(row.dmgPm) + '% harder' : '') + (row.hpPm > 1000 ? ', with ' + tierPct(row.hpPm) + '% more HP' : '');
+/* The Glade's Dangerous row and the tier's plain words, never typed: HS-8 reads them from the data (hunt-tiers.js GROUND_TIERS, TIER_LINES). */
+const TIERS = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href);
+const GLADE_DANGEROUS = TIERS.GROUND_TIERS.mosslight_glade.dangerous;
 /* HS-23's numbers from the data, never typed: the fixture hero's 220 HP, the Sewer's biggest blow (pull-cycle.js biggestBlowOn, the warning's
    own read, the same for every party size since 2026-11-08), and a warned threshold in whole HP under it (a multiple of 5%: 11 HP a step). */
 const PULL_CYCLE = await import(pathToFileURL(join(ROOT, 'src/core/hunt/pull-cycle.js')).href);
@@ -1634,17 +1633,17 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const others0 = await otherFacts();
       const d0 = await dRead();
       if (d0.v !== 'dangerous') fails.push('HS-8 the tier does not show the server’s Dangerous: ' + d0.v);
-      const gdPull = GLADE_DANGEROUS.pull[0], gdHead = tierHeadOf(GLADE_DANGEROUS), gdXp = tierPct(GLADE_DANGEROUS.xpPm);
+      const gdPull = GLADE_DANGEROUS.pull[0];
       if (!new RegExp(' packs? of ' + gdPull + '[ ,]').test(d0.facts)) fails.push('HS-8 the facts line does not say the pull on the server’s Dangerous: ' + d0.facts);
-      /* The note names the risk with real numbers: a lone hero's pull, the power, the biggest blow on the tier against Normal's, the XP.
-         The blow clause is REQUIRED with the data's own numbers whenever the tier moves the blow (pull-cycle.js biggestBlowOn, the note's
-         own read; the Glade's Dangerous moves it). An optional clause let "the tier note drops its numbers" escape (v0.2.106 run 42421655374). */
-      const gdBlowNow = PULL_CYCLE.biggestBlowOn(picked, GLADE_DANGEROUS), gdBlowWas = PULL_CYCLE.biggestBlowOn(picked);
-      const gdBlow = gdBlowNow && gdBlowWas && gdBlowNow.hit !== gdBlowWas.hit ? ', and the biggest blow here is ' + gdBlowNow.hit + ', not ' + gdBlowWas.hit : '';
-      if (!gdBlow) fails.push('HS-8 HARNESS: the Glade’s Dangerous no longer moves its biggest blow, so this case cannot see the blow clause; pick a ground whose tier moves it');
-      if (!new RegExp(gdHead + gdBlow + '\\. Each kill earns ' + gdXp + '% more Level XP, with the same gold and drops\\. Expect a bigger food bill, and you can die\\. A death ends the hunt and costs 2% of your XP\\.').test(d0.note)) fails.push('HS-8 the tier note reads: ' + d0.note);
-      /* A pick kept from last time is said at the press: the line beside Enter. */
-      if (d0.press !== 'Dangerous: ' + gdHead + '.') fails.push('HS-8 the line beside Enter reads: ' + d0.press);
+      /* THE NOTE IS THE TIER'S PLAIN LINE (Tyler 2026-11-08 on the old numbers note: "Simplify this holy shit it's way too 'exact' it seems AI"; a ruled
+         contract change, not a loosened guard). The Glade's Dangerous brings more monsters than a lone hero's Normal, so it reads TIER_LINES.dangerous.more
+         and the one death line, word for word from the data, and no number at all: no percent, no HP, no blow (those are the wiki's). */
+      const gdLine = TIERS.TIER_LINES.dangerous.more;
+      if (d0.note !== gdLine + ' ' + TIERS.TIER_DEATH_LINE) fails.push('HS-8 the tier note reads: ' + d0.note);
+      if (/\d/.test(d0.note)) fails.push('HS-8 the tier note carries a number: ' + d0.note);
+      /* A pick kept from last time is said at the press: the line beside Enter, the plain line's first sentence after the tier's name. */
+      if (d0.press !== 'Dangerous: ' + gdLine.split('. ')[0].replace(/^M/, 'm') + '.') fails.push('HS-8 the line beside Enter reads: ' + d0.press);
+      if (/\d/.test(d0.press)) fails.push('HS-8 the line beside Enter carries a number: ' + d0.press);
       /* the save answers Dangerous (not the Deadly asked, s.onTier): what shows afterwards is the server's. The answer
          is held while the unsaved draft is read, so a slow box cannot let it land first. */
       s.holdTier = true;
@@ -1917,7 +1916,9 @@ const MUTANTS = [
   ['the tier waits for the server before it moves', 'src/shell/windows/hunts.js', '  return t && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : t;', '  return t;'],
   ['the tier draft outlives the server answer', 'src/shell/windows/hunts.js', '    if (sc.draft === d) { sc.draft = null;', '    if (sc.draft === d) { sc.draft = r.ok ? d : null;'],
   ['the facts line ignores the tier', 'src/shell/windows/hunts.js', "packWords(r, tier ? tierPull(r, tier, size) : null)", "packWords(r, null)"],
-  ['the tier note drops its numbers', 'src/shell/hunt-list.js', " + (blow && was && blow.hit !== was.hit ? ', and the biggest blow here is ' + blow.hit + ', not ' + was.hit : '') + ", " + "],
+  /* Tyler 2026-11-08: the tier note is the plain line for its tier, no numbers (HS-8). */
+  ['the tier note says its numbers again', 'src/shell/hunt-list.js', "tierLine(r, t, size) + ' ' + TIER_DEATH_LINE;", "tierLine(r, t, size) + ' ' + TIER_DEATH_LINE + ' Each kill earns ' + Math.round(t.xpPm / 10 - 100) + '% more Level XP.';"],
+  ['the tier note reads one line whatever the pull', 'src/shell/hunt-list.js', 'tierPull(r, t.id, size) > tierPull(r, DEFAULT_TIER, size) ? L.more : L.same;', 'L.same;'],
   ['a party member picks its own tier', 'src/shell/windows/hunts.js', "  if (party && !party.isLeader) return tierOf(party.tiers, hunt);\n", ''],
   ['Enter says nothing of the harder hunt', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-enter-why'), off || choosing);", "text(det.querySelector('.hw-enter-why'), off);"],
   ['a party member keeps the tier buttons', 'src/shell/windows/hunts.js', "prop(b, 'hidden', follower || !offered.includes(id));", "prop(b, 'hidden', !offered.includes(id));"],

@@ -2438,12 +2438,17 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.mouse.move(2, 2);
         /* Storage: the counting axe put away says so, the one that wasn't counting does not. */
         await openWin(page, 't', 'storage');
+        /* each line is read once the server has answered, never after a fixed wait: a slow runner still showed "Putting it away…"
+           at 500 ms (v0.2.107 run 42441133986, in-page-10). Settled = not the pending line, and not the line before the press. */
+        const storeMsg = '[data-hs-win="storage"] .hh-intent-msg';
+        const settledAfter = (before) => wait(page, (a) => { const m = document.querySelector(a.sel); const t = m ? m.textContent.trim() : '';
+          return !!t && !/…$/.test(t) && t !== a.before; }, { sel: storeMsg, before });
         await page.click('[data-hs-win="storage"] [data-side="bag"] .hw-pocket[data-item="bronze_axe"]');
-        await page.waitForTimeout(500);
-        const quiet = await say('[data-hs-win="storage"] .hh-intent-msg');
+        await settledAfter(null);
+        const quiet = await say(storeMsg);
         await page.click('[data-hs-win="storage"] [data-side="bag"] .hw-pocket[data-item="iron_axe"]');
-        await page.waitForTimeout(500);
-        const told = await say('[data-hs-win="storage"] .hh-intent-msg');
+        await settledAfter(quiet);
+        const told = await say(storeMsg);
         if (/slower/.test(quiet || '') || !/Woodcutting is slower without it/.test(told || '')) fails.push('AW-60 Storage says ' + JSON.stringify([quiet, told]));
       }
       if (errors.length) fails.push('AW-60 console errors: ' + errors.slice(0, 2).join(' | '));

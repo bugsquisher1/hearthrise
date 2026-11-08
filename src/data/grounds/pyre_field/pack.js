@@ -183,9 +183,11 @@ export default definePack({
   xpFit: { k: 1.18, why: 'the formula pays 0.85 of the pace contract at the band middle (80), measured as opened on the quick grade' },
   /* THE TIER PULLS (TIER_PULL_OVERRIDES' shape). Dangerous, the pair's and three's two up: on the table's 5 a Melee and Healer pair two
      to five Levels under the floor netted +14k to +15k an hour, and on 6 +7.8k and +2.8k (quick grade), where the weight-class ruling
-     (11-06) asks them to lose gold. Deadly, the four's two down: at 8 a four with no Healer died 47 times in 16 hero-hours at the floor
-     (the sheet allows 9); at 6 it died 4 times and still earns 1.33x its Normal a head (the sheet asks 1.25). A lone hero keeps the table. */
-  tierOverride: { dangerous: [3, 7, 7, 8], deadly: [8, 8, 8, 6], why: 'weight class (11-06): on the table pull of 5, and on 6, a Melee and Healer pair 2-5 under the floor netted gold on Dangerous; on Deadly at 8 a four with no Healer died 47 times in 16 h at the floor (the sheet allows 9)' },
+     (11-06) asks them to lose gold. Deadly, 7 for every size: a four with no Healer died 47 times in 16 hero-hours at the floor on the
+     table's 8, 32 at 7 and 4 at 6 (the sheet allows 9; with a Healer 0). It can't have 6: a tier's pull never falls with the party's
+     size or under the tier below (tests/hunt-core/hunt-tiers.mjs rows), and the pair needs 7 on Dangerous. So the four with no Healer
+     stays over the sheet at 7 (OPEN, named in the lane's report): one row of the grade, the healerless four on Deadly at the floor. */
+  tierOverride: { dangerous: [3, 7, 7, 7], deadly: [7, 7, 7, 7], why: 'weight class (11-06): on the table pull of 5, and on 6, a Melee and Healer pair 2-5 under the floor netted gold on Dangerous. On Deadly at 8 a four with no Healer died 47 times in 16 h at the floor, at 7 32 (the sheet allows 9)' },
   /* PARTY LEVEL XP (party-class-xp.js's row shape): better only with different classes (Tyler 10-31). With no row a mixed four read
      0.97-1.00 of its heroes alone and a tank's seat beside a Healer 0.91 (quick grade), so the Slake's cells went in. On the full grade
      at 1230 a four read 1.26-1.34 of the median lone way, where the ruling asks 1.15-1.25; at 1135 1.15-1.23, the top's three-class

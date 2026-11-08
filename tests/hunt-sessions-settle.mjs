@@ -577,15 +577,18 @@ const ENGINE_ARMS = {
       let threw = false; try { M.SEED.swingSeederFor(bad, IID); } catch { threw = true; }
       if (!threw) problems.push(`a malformed secret ${JSON.stringify(bad)} was accepted`);
     }
-    let unseeded = false;
-    try {
-      M.CS.simulateHuntInstance({ world: null, nextSwingAtMs: T0, members: [] }, { toMs: T0 + 10000, tickMs: 2000 });
-      const m = memberIn(M, 'a');
-      const fake = { key: 'a', seat: 0, unitId: null, hs: M.AR.newHuntSession(m.huntSession), state: { skills: {}, levelXp: 0, playerHp: 150, playerMaxHp: 150, playerMaxMana: 100, regenPm: 1000, stats: {} },
-        hero: m.hero, snapshot: () => ({ acc: 500, maxHit: 2, def: 1 }), family: 'sword', bonus: () => 0, weakness: () => ({ dropMult: 1 }), fx: {} };
-      M.CS.simulateHuntInstance({ world: null, nextSwingAtMs: T0, members: [fake] }, { toMs: T0 + 10000, tickMs: 2000, ...groundsOf(M).mill_cellar });
-    } catch { unseeded = true; }
-    if (!unseeded) problems.push('an UNSEEDED instance swing ran — the engine must refuse a swing with no ctx.seed');
+    /* THE REFUSAL ITSELF, not any throw: since the scaled-hunts row door (combat-sim.js huntPlayOf reads ctx.ground first) a call with no
+       ground throws a TypeError before the seed is asked for, and an arm that took any throw let 'an unseeded swing runs on a zero seed'
+       survive (run 42454194810). Each call carries the fixture ground; only the engine's own seed refusal passes. */
+    const refusalOf = (fn) => { try { fn(); return 'ran'; } catch (e) { return String((e && e.message) || e); } };
+    const SEED_REFUSAL = /refusing an unseeded swing/;
+    const where = groundsOf(M).mill_cellar || {};
+    const m = memberIn(M, 'a');
+    const fake = { key: 'a', seat: 0, unitId: null, hs: M.AR.newHuntSession(m.huntSession), state: { skills: {}, levelXp: 0, playerHp: 150, playerMaxHp: 150, playerMaxMana: 100, regenPm: 1000, stats: {} },
+      hero: m.hero, snapshot: () => ({ acc: 500, maxHit: 2, def: 1 }), family: 'sword', bonus: () => 0, weakness: () => ({ dropMult: 1 }), fx: {} };
+    const unseeded = refusalOf(() => M.CS.simulateHuntInstance({ world: null, nextSwingAtMs: T0, members: [fake] }, { toMs: T0 + 10000, tickMs: 2000, ...where }));
+    if (!where.ground) problems.push('HARNESS: the SEED arm has no fixture ground to swing on');
+    if (!SEED_REFUSAL.test(unseeded)) problems.push('an UNSEEDED instance swing was not refused for its seed (it ' + (unseeded === 'ran' ? 'ran' : 'failed on: ' + unseeded.slice(0, 140)) + ') — the engine must refuse a swing with no ctx.seed');
     return problems;
   },
 
@@ -4497,7 +4500,7 @@ const DB_MUTANTS = [
   { arm: 'TALLY', name: 'the fold drops the own-supply rows', fn: SS,
     find: 'supplies = public.hr_jsonb_add(t.supplies, v_sup)', replace: 'supplies = t.supplies' },
   { arm: 'ANALYZER', name: 'the analyzer tally is not folded', fn: AM,
-    find: '       set dealt = public.hr_hunt_tally_add(t.dealt, coalesce(p_analyzer->\'dealt\', \'{}\'::jsonb)),', replace: '       set dealt = t.dealt,' },
+    find: '           dealt = public.hr_hunt_tally_add(t.dealt, coalesce(p_analyzer->\'dealt\', \'{}\'::jsonb)),', replace: '           dealt = t.dealt,' },
   /* 'a free character reads the analyzer' RETIRED 2026-10-19: 2026-10-26-hunt-analyzer-basic.sql gives every
      character the basic analyzer, so the live body has no premium gate to remove. */
   { arm: 'DEATHXP', name: 'the applier stops bounding the Level\'s death price', fn: AM,
@@ -4507,7 +4510,7 @@ const DB_MUTANTS = [
   { arm: 'STAMINA', name: 'the applier stops proving the pool', fn: AM,
     find: '  if v_e <> greatest(0, v_s0 - v_paid) then', replace: '  if v_e < 0 then' },
   { arm: 'VALUE', name: 'the Level XP bound is gone', fn: AM,
-    find: "  if jsonb_typeof(p_delta->'level_xp') = 'number' and (p_delta->>'level_xp')::numeric > v_kills * v_vb_xp * v_vb_h then", replace: '  if false then' },
+    find: "  if jsonb_typeof(p_delta->'level_xp') = 'number' and (p_delta->>'level_xp')::numeric\n       > v_kills * v_vb_xp * v_vb_h * public.hr_live_xp_max_pm(p_user, v_s.hunt_id, v_s.settled_to, v_to) / 1000.0 then", replace: '  if false then' },
   { arm: 'VALUE', name: 'a died end is proven without a death', fn: SS,
     find: "      when 'died' then v_deaths >= 1", replace: "      when 'died' then true" },
   { arm: 'END', name: 'a journalled death owes no end', fn: SS,

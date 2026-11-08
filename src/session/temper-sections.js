@@ -33,10 +33,13 @@ export function temperOf(cs) {
 const belowLadders = (tier) => Number.isFinite(tier) && tier < Math.min(...Object.keys(TEMPER_TIERS).map(Number));
 /* An ingredient by its stack: Iron Bars, Bone Chips. */
 const stackName = (id) => { const n = ITEMS[id] ? ITEMS[id].n : id; return n.endsWith('s') ? n : n + 's'; };
+/* A recipe's input with its count: "1 Iron Bar", "2 Iron Bars", "1 Big Bones". */
+const inputOf = ([id, qty]) => ({ id, qty, words: qty + ' ' + (qty === 1 && ITEMS[id] ? ITEMS[id].n : stackName(id)), stack: stackName(id) });
 
 /**
  * WHAT THE NEXT RUNG ASKS BESIDES GOLD, AND WHAT THIS HERO CAN REACH: the sale spends the bag, then the account's Storage (hr_unlock_buy), and a
- * hunt's packed bag is neither. [{ id, name, need, bag, storage, held, short, smith }]; `smith` is the recipe's way to make it, from the same table the bench reads.
+ * hunt's packed bag is neither. [{ id, name, need, bag, storage, held, short, smith }]; `smith` is the recipe's way to make it, from the same table the bench reads,
+ * `smith.from` its inputs [{ id, qty, words, stack }].
  */
 function needsOf(cs, ladder) {
   if (!ladder || !ladder.offer) return [];
@@ -49,7 +52,7 @@ function needsOf(cs, ladder) {
     const storage = row ? row.qty : 0;
     const recipe = ARTISAN_RECIPES.smithing.find((r) => r.output === id) || null;
     return { id, name: ITEMS[id] ? ITEMS[id].n : id, need, bag, storage, held: bag + storage, short: Math.max(0, need - bag - storage),
-      smith: recipe ? { req: recipe.req, level: levels.smithing ? levels.smithing.level : 1, from: Object.keys(recipeInputs(recipe)).map(stackName) } : null };
+      smith: recipe ? { req: recipe.req, level: levels.smithing ? levels.smithing.level : 1, from: Object.entries(recipeInputs(recipe)).map(inputOf) } : null };
   });
 }
 

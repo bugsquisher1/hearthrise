@@ -117,6 +117,12 @@ export function whereToGet(id) {
   return hands.concat(drop ? [drop] : []).join('. ');
 }
 
+/** Only a hunt gets it: a creature drops it, and no bench, node, crop or shop tab does. */
+export function huntedOnly(id) {
+  const r = index().get(id);
+  return !!r && r.drops.length > 0 && !r.made.length && !r.from.length && !r.shop;
+}
+
 /** A tool's one job, in numbers from its row (the engine's own: core/tools.js): "Woodcutting 10% faster, 4% more XP, 4% extra yield". */
 export function toolEffect(id) {
   const it = ITEMS[id];

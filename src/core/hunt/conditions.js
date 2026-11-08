@@ -408,7 +408,7 @@ export function areaTopOf(slot, h) {
 export function shapedAim(inst, hero, range, row, slot) {
   const spec = areaSpec(row);
   const mons = engagedMons(inst);
-  const own = (a, b) => ((b.id === hero.target) - (a.id === hero.target)) || a.id - b.id;
+  const own = (a, b) => (Number(b.id === hero.target) - Number(a.id === hero.target)) || a.id - b.id;
   if (spec.shape === 'ring') {
     const s = place(spec, hero, hero);
     const hit = mons.filter((m) => covers(s, m.x, m.y));

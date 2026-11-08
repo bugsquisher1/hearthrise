@@ -5,7 +5,7 @@
 // next price come from `setup_slots` or hr_setup_locked's answer. Nothing here knows how many are free or what a rung costs: Tyler may
 // move both with one row (src/data/gold-sinks.js).
 // ════════════════════════════════════════════════════════════════════════
-import { gold } from '../render/format.js?v=0.2.107';
+import { gold } from '../render/format.js?v=0.2.108';
 
 const ORDINALS = Object.freeze(['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth']);
 const aNew = (n) => { const o = ORDINALS[n - 1] || 'new'; return (o === 'eighth' ? 'an ' : 'a ') + o; };

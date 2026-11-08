@@ -41,30 +41,30 @@
 // read-only ("Set by <leader>: Dangerous", the server's `leader_tiers`) with no buttons, and the server refuses a
 // member's pick (hr_hunt_tier_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js?v=0.2.107';
-import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.107';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.107';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.107';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.107';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.107';
-import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.107';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.107';
-import { whole } from '../../render/format.js?v=0.2.107';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.107';
-import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.107';
-import { glyphSvg } from '../launcher.js?v=0.2.107';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.107';
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.107';
-import { TIER_IDS, TIER_NAME, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.107';
-import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.107';
-import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.107';
-import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.107';
-import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.107';
-import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.107';
-import { openFinderOn } from './party-finder.js?v=0.2.107';
-import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.107';
-import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.107';
-import { callFromGround } from '../../data/boss-calls.js?v=0.2.107';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js?v=0.2.108';
+import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.108';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.108';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.108';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.108';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.108';
+import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.108';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.108';
+import { whole } from '../../render/format.js?v=0.2.108';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.108';
+import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.108';
+import { glyphSvg } from '../launcher.js?v=0.2.108';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.108';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.108';
+import { TIER_IDS, TIER_NAME, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.108';
+import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.108';
+import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.108';
+import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.108';
+import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.108';
+import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.108';
+import { openFinderOn } from './party-finder.js?v=0.2.108';
+import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.108';
+import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.108';
+import { callFromGround } from '../../data/boss-calls.js?v=0.2.108';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the tier shown before the server has it ({ hunt, tier }), `timer` its coalescing

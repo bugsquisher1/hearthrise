@@ -4,8 +4,8 @@
 // PURE. The server's refusal (2027-02-27-town-shows.sql, -town-crier.sql, 2027-03-04-town-works.sql) carries the numbers; these are the designer's sentences around them
 // (priority board, "2026-11-04 Gold sinks"). A code with no number to say reads from src/data/refusal-words.js. src/shell/intent-words.js is the only caller.
 // ════════════════════════════════════════════════════════════════════════
-import { whole } from '../render/format.js?v=0.2.107';
-import { TOWN_WORKS } from '../data/town-works.js?v=0.2.107';
+import { whole } from '../render/format.js?v=0.2.108';
+import { TOWN_WORKS } from '../data/town-works.js?v=0.2.108';
 
 const num = (v) => Number.isInteger(v);
 const SHOW_NOUN = Object.freeze({ town_powder: 'powders', town_round: 'rounds' });

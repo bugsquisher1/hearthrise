@@ -20,6 +20,8 @@
 //         Cleave's hatchet is one tile away, so this one shows what the axes do, not the axes.
 //   WARD  a gold-rimmed heater shield with a leaf on it inside a pale bubble: a shield put on someone else, not
 //         Challenge's steel one held up, and not the Barrier's blue disc.
+//   UNDERTOW (2026-11-09) a whirlpool winding down to a dark eye, foam on its lit outer turn: the Healer's own strike,
+//         water that drags, not Frost Lance's ice shard or the Barrier's disc.
 //
 //   node tools/world-art/ability-tiles.mjs            write assets/icons-bundle/pixel/abilities/<id>.png
 //   node tools/world-art/ability-tiles.mjs --out <d>  write to a folder instead (a preview)
@@ -173,7 +175,41 @@ function ward() {
   return g;
 }
 
-export const DRAW = Object.freeze({ mend, rend, protective_ward: ward });
+/* UNDERTOW (lane/b-one-difficulty, 2026-11-09: the Healer's strike when it hunts alone): a whirlpool that pulls down, the
+   Water family's blues taken from its sibling tiles (Frost Lance's ice, the Barrier's deep blue) and the set's white foam.
+   One arm wound inward: bright foam where the outer turn meets the light (upper left), darker the deeper it winds. */
+const WATER = { foam: '#fdfeff', crest: '#b7f9fa', light: '#8be1fc', mid: '#60b1dc', body: '#3680b3', low: '#1173b6', deep: '#07497f' };
+
+function undertow() {
+  const g = frame();
+  const cx = 15.5, cy = 16, top = 3.55 * Math.PI, r0 = 1.4, grow = 2.75 / Math.PI;
+  const arm = [];
+  for (let y = 3; y < 29; y++) for (let x = 3; x < 29; x++) {
+    const rho = Math.hypot(x - cx, y - cy), phi = (Math.atan2(y - cy, x - cx) + 2 * Math.PI) % (2 * Math.PI);
+    let best = null;
+    for (let k = 0; k < 3; k++) {
+      const th = phi + 2 * Math.PI * k;
+      if (th > top) break;
+      const d = rho - (r0 + grow * th), w = 0.75 + 1.25 * (th / top);
+      if (Math.abs(d) <= w && (!best || Math.abs(d) < Math.abs(best.d))) best = { th, d, w };
+    }
+    if (!best) continue;
+    const t = best.th / top, e = best.d / best.w;
+    const lit = Math.cos(phi - 1.25 * Math.PI) > 0.2;                   // facing the upper-left light
+    const c = e > 0.35 && lit ? (t > 0.7 ? WATER.foam : WATER.crest)
+      : e < -0.45 ? (t > 0.55 ? WATER.body : WATER.deep)
+      : e > 0.35 ? WATER.light : t > 0.75 ? WATER.mid : t > 0.45 ? WATER.body : WATER.low;
+    arm.push([x, y, c]);
+  }
+  stamp(g, arm);
+  // the eye it pulls down into
+  for (const [x, y] of [[15, 16], [16, 16], [15, 15]]) g[y][x] = WATER.deep;
+  // spray thrown off the outer turn
+  for (const [x, y, c] of [[25, 6, WATER.foam], [26, 7, WATER.crest], [23, 4, WATER.crest]]) g[y][x] = c;
+  return g;
+}
+
+export const DRAW = Object.freeze({ mend, rend, protective_ward: ward, undertow });
 
 /** A grid (hex or null per pixel) as an opaque 32x32 image. */
 export function toImage(g) {

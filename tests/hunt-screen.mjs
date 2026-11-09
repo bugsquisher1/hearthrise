@@ -436,8 +436,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const got2 = s.sent('hr_action_set_options').slice(b2).map((c) => JSON.stringify(c.body.p_opts));
         if (got2.length !== 1 || got2[0] !== '{"chase":true}') fails.push('HS-27 the town Chase sent ' + JSON.stringify(got2));
         if (shots) await page.screenshot({ path: join(shots, 'town-1440x900-fight-panel.png') });
-        /* Every slot too, in town: an empty slot opens Configure action, whose tabs are Spells | Runes | Food & drink | Ammo
-           (Tyler 2026-10-25: ammo on its own tab, never mixed in with food and drink; HS-7 reads the same in a hunt). */
+        /* Every slot too, in town: an empty slot opens Configure action, whose tabs are Spells | Food & drink | Ammo
+           (Tyler 2026-10-25: ammo on its own tab, never mixed in with food and drink; Tyler 2026-11-08: a rune spell is a spell, the
+           Runes tab merged into Spells; HS-7 reads the same in a hunt). */
         await page.click('.hb-slot[data-slot="5"]');
         await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank'), null);
         const runsOn = async (tab) => { await page.click('.ca-tab[data-tab="' + tab + '"]');
@@ -1138,12 +1139,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (!picks.ok) fails.push('HS-7 the metric picker is not the registry: ' + picks.shown.join(','));
           if (!/^Slot 3 · tried after slot 2$/.test(picks.title)) fails.push('HS-7 the window opened on "' + picks.title + '", not slot 3');
           if (picks.picked !== 'Wheat Bread' || picks.tab !== 'Food & drink') fails.push('HS-7 the server’s action is not the picked choice on its tab: ' + picks.picked + ' / ' + picks.tab);
-          /* AMMO HAS ITS OWN TAB (Tyler 2026-10-25): Spells | Runes | Food & drink | Ammo; Food & drink lists food and drink
-             only, and every shot is under Ammo. */
+          /* AMMO HAS ITS OWN TAB (Tyler 2026-10-25): Spells | Food & drink | Ammo (Tyler 2026-11-08: the Runes tab merged into Spells,
+             "why bother having a 'spells' and 'runes' section"); Food & drink lists food and drink only, and every shot is under Ammo. */
           const tabsOf = async () => page.evaluate(() => ({ tabs: Array.from(document.querySelectorAll('.ca-tab')).map((b) => b.textContent),
             runs: Array.from(document.querySelectorAll('.ca-runs .ca-run')).map((r) => r.getAttribute('data-run')) }));
           const onFood = await tabsOf();
-          if (onFood.tabs.join('|') !== 'Spells|Runes|Food & drink|Ammo') fails.push('HS-7 the tabs read ' + onFood.tabs.join(' | '));
+          if (onFood.tabs.join('|') !== 'Spells|Food & drink|Ammo') fails.push('HS-7 the tabs read ' + onFood.tabs.join(' | '));
           if (onFood.runs.join() !== 'food,drink') fails.push('HS-7 the Food & drink tab lists the runs ' + JSON.stringify(onFood.runs) + ' (ammo mixed in?)');
           await page.click('.ca-tab[data-tab="ammo"]');
           await wait(page, () => document.querySelector('.ca-tab[data-tab="ammo"][aria-selected="true"]'), null);

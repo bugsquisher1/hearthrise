@@ -23,7 +23,7 @@
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
 --   hr_death_xp_max(skill, xp) NEW        THE BOUND, in one place: the most one death may take from `xp` (the settle's re-check; the
 --                                         same rule as src/core/action-rules.js levelDeathLoss / skillDeathLoss). Server-only.
---   hr_hunt_apply_member RESTATED WHOLE   (tests/patch-chain-guard.mjs: its chain was 5 deep since 2027-01-31-inner-flame.sql). The body
+--   hr_hunt_apply_member RESTATED WHOLE   (tests/patch-chain-guard.mjs: never an anchored patch on this chain). The body
 --                                         is 2027-03-22-live-events.sql's with three changes, each marked DEATH-SHARE: the Level's bound is
 --                                         hr_death_xp_max (the floor at the current Level's start is gone, and so is the death_xp_base
 --                                         read: one formula); a skill's bound is the same helper; the death event gains `level_from` and

@@ -53,8 +53,9 @@ const SLOT_MIGRATION = 'supabase/migrations/2027-01-13-slot-truth.sql';
 const CONTENT_MIGRATION = 'supabase/migrations/2027-01-13-spell-content.sql';
 /* The settings view that places the starter bar, at the chain's end (restated: a slot may name any store rune of its family): lane/c-rune-ladder, 2026-11-05. */
 const VIEW_MIGRATION = 'supabase/migrations/2027-03-08-rune-ladder-slots.sql';
-/* The role rule sets once more (every default rune spell names its store rune, Flame Volley and Rend off the default bars: lane/c-caster-starter-bars, designer 2026-11-05). */
-const BAR_MIGRATION = 'supabase/migrations/2027-03-09-caster-starter-bars.sql';
+/* The role rule sets once more (every default rune spell names its store rune, Flame Volley and Rend off the default bars: lane/c-caster-starter-bars, designer 2026-11-05),
+   and again (Undertow on the Healer's set: lane/b-one-difficulty, Tyler 2026-11-09). */
+const BAR_MIGRATION = 'supabase/migrations/2027-03-24-undertow-bar.sql';
 
 async function load(root) {
   const M = await loadCore(root);

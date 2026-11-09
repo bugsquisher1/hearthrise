@@ -8,10 +8,10 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: d5667132479a3c49b2ca37463274fab43d1e79456d230920bb1f288127967f41
+--   digest: a373650443ef1c7f6785a6f2455a6af9cdf8bebf0049f6f628292c80b0c991da
 --   82 supplies, 130 hunts (named + training), 47 limits, 15 end reasons,
 --   557 vendor values, 49 store supplies paid per use, 5 target modes,
---   4 lanes, 16 abilities, 10 action-set options, 8 hunt grounds
+--   4 lanes, 17 abilities, 10 action-set options, 8 hunt grounds
 --
 -- NEW IN THIS FILE (lane/c-rune-ladder, Tyler 2026-11-05: "let start with your calls"): hr_hunt_basic_supplies gains one store rune a
 -- family a tier above Plain (src/data/supply-basics.js STORE_RUNE_PRICE), and hr_hunt_vendor_value moves the deeper runes' bids to their new
@@ -705,11 +705,12 @@ insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana
   ('greater_mend', array['restoration']::text[], 'heal', 2000, 25, 'chalked_water_rune', 0, true, 11),
   ('green_sickness', array['restoration']::text[], 'offense', 10000, 20, 'chalked_poison_rune', 0, true, 13),
   ('hunters_mark', array['ranged']::text[], 'support', 12000, 8, null, 0, true, 5),
-  ('mend', array['club', 'destruction', 'dual_axe', 'ranged', 'restoration', 'shield', 'sword']::text[], 'heal', 6000, 15, null, 0, true, 15),
+  ('mend', array['club', 'destruction', 'dual_axe', 'ranged', 'restoration', 'shield', 'sword']::text[], 'heal', 6000, 15, null, 0, true, 16),
   ('power_strike', array['club', 'dual_axe', 'shield', 'sword']::text[], 'offense', 6000, 6, null, 0, true, 2),
   ('precision_shot', array['ranged']::text[], 'offense', 6000, 6, null, 1, true, 7),
   ('protective_ward', array['restoration']::text[], 'support', 12000, 25, 'chalked_earth_rune', 0, true, 14),
-  ('rend', array['dual_axe']::text[], 'offense', 6000, 8, 'chalked_rupture_rune', 0, true, 4);
+  ('rend', array['dual_axe']::text[], 'offense', 6000, 8, 'chalked_rupture_rune', 0, true, 4),
+  ('undertow', array['restoration']::text[], 'offense', 20000, 15, 'chalked_water_rune', 0, true, 15);
 delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
 insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values
@@ -1691,7 +1692,7 @@ begin
      or (select count(*) from public.hr_hunt_lanes) <> 4
      or (select count(*) from public.hr_hunt_set_options) <> 10
      or (select count(*) from public.hr_hunt_kill_bounds) <> 144
-     or (select count(*) from public.hr_hunt_abilities) <> 16
+     or (select count(*) from public.hr_hunt_abilities) <> 17
      or (select count(*) from public.hr_hunt_grounds) <> 8
      or (select count(*) from public.hr_hunt_grounds where density_max is null) <> 0
      or (select count(*) from public.hr_hunt_ground_spawns) <> 34

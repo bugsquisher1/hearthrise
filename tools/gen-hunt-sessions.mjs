@@ -232,7 +232,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
    2027-03-20-ground-formula is APPLIED history. The party scale is gone, so a monster unit no longer carries its yield share (pull-cycle.js PERSISTED
    loses yieldPm): ONLY hr_hunt_world_shape moves (its shape and fields), the same full replace. No kill bound moves (they were always the full kill's),
    no spawn, limit or bid. THE SHAPE MOVES, so the old engine refuses every stored world once this applies: the hr-accrue deploy carrying the same
-   src/core follows AT ONCE (each running hunt's world restarts once, as on any shape change). */
+   src/core follows AT ONCE (each running hunt's world restarts once, as on any shape change).
+   Regenerated in place while STAGED (Tyler 2026-11-09, answer d): hr_hunt_abilities gains Undertow, the Healer's strike when it hunts alone
+   (abilities.js `alone`, read by the engine only; no column carries it), the same full replace. */
 export const OUT_NAME = '2027-03-23-one-difficulty-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;

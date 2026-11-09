@@ -116,7 +116,7 @@
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
 //   LV-CLASS PARTY LEVEL XP (Tyler 2026-10-31: better only with different classes): a mixed pair earns the table's
-//         factor and a same-class pair the even share, on the server's commits (browser closed, one long settle) and
+//         factor and a same-class pair its own smaller cell, on the server's commits (browser closed, one long settle) and
 //         viewed (the prediction's own `xp` events), the same XP on every path; every commit matches. The swing the
 //         prediction runs past the last commit shows what the server's next commit pays.
 // ════════════════════════════════════════════════════════════════════════
@@ -1622,10 +1622,11 @@ function rules(M) {
       ok('LV-CLASS', shownXp.join() === closedXp.join(), name + ': the prediction shows ' + shownXp + ', the server pays ' + closedXp);
       ok('LV-CLASS', !!next && aheadXp.join() === nextXp.join(), name + ': the prediction past the last commit shows ' + aheadXp + ', the next commit pays ' + nextXp);
       ok('LV-CLASS', off === 0, name + ': ' + off + ' of ' + r.verdicts.length + ' commits did not match the prediction');
-      /* Whole shares floor: the cell moves each share before its floor, so the sum sits within a floor of it. */
-      const cell = M.PCX.partyClassXp('mill_cellar', roles).permille;
-      const want = name === 'mixed' ? evs.reduce((s, e) => s + Math.floor((e.raw * cell) / 1000 + 1e-9), 0) : raw;
-      ok('LV-CLASS', name === 'same' ? paid === raw : paid >= want && paid > raw, name + ': ' + paid + ' Level XP on ' + raw + ' even shares');
+      /* Whole shares floor: the cell moves each share before its floor, so the sum sits within a floor of it. One class reads its own
+         cell, exactly (since the lane/b-one-difficulty re-tune a one-class cell sits over the even share and always under the mixed one). */
+      const cell = M.PCX.partyClassXp('mill_cellar', roles).permille, mixedCell = M.PCX.partyClassXp('mill_cellar', cast.mixed).permille;
+      const want = evs.reduce((s, e) => s + Math.floor((e.raw * cell) / 1000 + 1e-9), 0);
+      ok('LV-CLASS', name === 'same' ? paid === want && cell < mixedCell : paid >= want && paid > raw, name + ': ' + paid + ' Level XP on ' + raw + ' even shares (the cell ' + cell + ')');
     }
     /* A PARTY'S DEFAULT PULL (designer 2026-11-01), both paths: a Thicket pair with no pick stands at 3 each in the server's world
        and in the browser's, every commit matching; the same XP viewed and with the browser closed. */

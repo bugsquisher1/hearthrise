@@ -32,15 +32,15 @@ export const TITLES = Object.freeze({
     monsters: Object.freeze(['rat', 'drain_rat', 'granary_rat']), label: 'Rats', noun: 'rats',
   }),
   wolfer: Object.freeze({
-    name: 'Wolfer', words: 'the Wolfer', price: 3000, kills: 5000,
+    name: 'Wolfslayer', words: 'the Wolfslayer', price: 3000, kills: 5000,
     monsters: Object.freeze(['gray_wolf', 'gray_whelp', 'briarcoat_wolf', 'dire_gray', 'grayjaw']), label: 'Wolves', noun: 'wolves',
   }),
   gamekeeper: Object.freeze({
-    name: 'Gamekeeper', words: 'the Gamekeeper', price: 10000, kills: 2500,
+    name: 'Warden', words: 'the Warden', price: 10000, kills: 2500,
     monsters: Object.freeze(['glade_poacher', 'rook_poacher']), label: 'Poachers', noun: 'poachers',
   }),
   knotcutter: Object.freeze({
-    name: 'Knotcutter', words: 'the Knotcutter', price: 25000, kills: 250,
+    name: 'Crownbreaker', words: 'the Crownbreaker', price: 25000, kills: 250,
     monsters: Object.freeze(['rat_king']), label: 'Rat Kings', noun: 'Rat Kings', partyOnly: true,
   }),
   potbreaker: Object.freeze({
@@ -49,11 +49,11 @@ export const TITLES = Object.freeze({
   }),
   /* THE PRIZES OF CALL OUT (src/data/boss-calls.js; Tyler 2026-11-04), price 0: the same whatever the dice say, and nothing tradeable. The King's crown is hammered from drain grates; the Chief wears his cauldron. */
   grate_thief: Object.freeze({
-    name: 'Grate Thief', words: 'the Grate Thief', price: 0, kills: 1,
+    name: 'Sewerlord', words: 'the Sewerlord', price: 0, kills: 1,
     monsters: Object.freeze(['rat_king_called']), label: 'Rat King called out and felled', noun: 'Rat King called out and felled',
   }),
   cauldron_thief: Object.freeze({
-    name: 'Cauldron Thief', words: 'the Cauldron Thief', price: 0, kills: 1,
+    name: 'Slagbreaker', words: 'the Slagbreaker', price: 0, kills: 1,
     monsters: Object.freeze(['chief_coppercap_called']), label: 'Chief Coppercap called out and felled', noun: 'Chief Coppercap called out and felled',
   }),
 });

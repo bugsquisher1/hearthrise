@@ -33,13 +33,14 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { OUT_FILE } from '../tools/gen-title-catalogue.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const A = '000000c0-0000-4000-a000-0000901d7c01';
 const B = '000000c0-0000-4000-a000-0000901d7c02';
 const idem = () => crypto.randomUUID();
 const MIG = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
-const CATALOGUE = '2027-03-12-boss-call-titles-catalogue.generated.sql';
+const CATALOGUE = OUT_FILE;   // the generator's current forward file: an older catalogue file is applied history and re-running it after its successor would roll the words back
 const FILE = '2027-02-28-titles.sql';
 const COLORS = '2027-03-05-hero-colors.sql';   // restates hr_title_wear: a second apply of this file is followed by that one's, as the chain orders them
 const BUY = 'public.hr_title_buy(integer,text,bigint,uuid)';

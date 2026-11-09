@@ -287,7 +287,7 @@ export const REASONS = Object.freeze({
     { cond: '!t', words: "'Loading her board…'", where: 'the board says it is loading' },
   ],
   'src/shell/windows/work.js': [
-    { cond: '(!running && !!why)', words: ".hw-work-why'), why", where: 'the row\'s own line (workBlock: "You need Smithing 3 to make Bronze Axe. You have 1.")' },
+    { cond: '(!running && !!why)', words: ": [why || (running ? 'Working on it now · '", where: 'the row\'s own line, a short input\'s places linked (workBlock: "You need Smithing 3 to make Bronze Axe. You have 1.")' },
     { cond: 'running', words: "'Working on it now · '", where: 'the row says it is running' },
   ],
   'src/shell/windows/party-finder.js': [

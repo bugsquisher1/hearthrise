@@ -45,10 +45,10 @@ async function load(base) {
   /* the recipe rows bag-model.js reads, at the same URL it imports them by (the build's ?v=), so V6 can add one */
   const v = (await import(u('src/build-info.js'))).BUILD.version;
   return { B: await import(u(BAG)), S: await import(u(STORE)), R: await import(u(RES)), H: await import(u('src/data/homestead-tiers.js')),
-    REC: await import(u('src/data/recipes.js') + '?v=' + v), MON: await import(u('src/data/monsters.js') + '?v=' + v) };
+    REC: await import(u('src/data/recipes.js') + '?v=' + v), MON: await import(u('src/data/monsters.js') + '?v=' + v), ITM: await import(u('src/data/items.js') + '?v=' + v) };
 }
 
-async function runTests({ B, S, R, H, REC, MON }) {
+async function runTests({ B, S, R, H, REC, MON, ITM }) {
   const fails = [];
   const ok = (test, cond, msg) => { if (!cond) fails.push(test + ' ' + msg); };
   const ids = (rows) => rows.map((r) => r.id).join(',');
@@ -72,6 +72,9 @@ async function runTests({ B, S, R, H, REC, MON }) {
   const want = { shrimp: 'food', carrot_juice: 'drink', bronze_arrows: 'ammo', bronze_helm: 'gear', rat_incisor: 'junk',
     copper_bar: 'material', oak_plank: 'material', rune_blank: 'material', turnip_seed: 'material', emberheart: 'rare', dragon_relic: 'rare' };
   for (const [id, k] of Object.entries(want)) ok('V1', B.kindOf(id) === k, id + ' files under ' + B.kindOf(id) + ', not ' + k);
+  /* a non-gear row at an epic rung that nothing drops, makes or spends (no shipped row is one today): Rare by its rung alone */
+  ITM.ITEMS.v1_star_shard = { name: 'Star Shard', rarity: 'epic', v: 10 };
+  ok('V1', B.kindOf('v1_star_shard') === 'rare', 'an epic keepsake files under ' + B.kindOf('v1_star_shard') + ', not rare');
 
   const items = [
     { id: 'shrimp', qty: 5 }, { id: 'copper_bar', qty: 40 }, { id: 'bronze_helm', qty: 1 },

@@ -138,7 +138,8 @@ export function wherePlaces(id) {
   if (r.shop) out.push({ words: t('item.sold_at_shop'), place: { kind: 'shop', item: id } });
   const easy = r.shop || Object.values(r.at).some((lv) => lv <= 1);
   const drop = !easy && r.drops.length ? dropWhereWords(id) : '';
-  if (drop) out.push({ words: drop, place: dropHuntOf(id) ? { kind: 'hunt', hunt: dropHuntOf(id) } : null });
+  const hunt = drop ? dropHuntOf(id) : null;
+  if (drop) out.push({ words: drop, place: hunt ? { kind: 'hunt', hunt } : null });
   return out;
 }
 

@@ -59,15 +59,20 @@ const { SKILLS_DEF } = await imp('src/data/skills.js');
 const SESSION = FIXTURE.characters[0].hunt.session_id;
 const SEEN = 'died:' + SESSION;
 /* One death row as hr_death_log_view projects it. */
+/* It took a Level (2027-03-25-death-share.sql): died two over the ground's floor, now one over; two Blessings used up. */
+const FLOOR = HUNT_INDEX.millrace_sewer.band[0];
 const ROW = { id: 777, at: '2026-10-17T12:29:58Z', hunt: 'millrace_sewer', session: SESSION, monster: 'rat_king', xp: 1240,
-  xp_lost: { melee: 40, level: 1200 }, saved: { level: 300 } };
+  xp_lost: { melee: 40, level: 1200 }, saved: { level: 300 }, blessings: 2, level_from: FLOOR + 2, level_to: FLOOR + 1 };
 const WANT = {
   title: 'Tyler died in ' + HUNT_INDEX.millrace_sewer.name,
   killed: 'Killed by ' + MONSTERS.rat_king.name + '.',
   lost: 'Dying cost 1,200 Level XP and 40 ' + SKILLS_DEF.melee.name + ' XP.',
-  saved: 'Your Blessing kept 300 Level XP, and is now used up.',
+  level: 'Tyler dropped from Level ' + (FLOOR + 2) + ' to Level ' + (FLOOR + 1) + '.',
+  saved: 'Your 2 Blessings kept 300 Level XP, and are now used up.',
   town: 'Tyler is back in town with full health and mana.',
 };
+/* The why reads the Level died at (the row's level_from, in range), not the hero's Level now (the fixture's is 1). */
+const WHY_IN_RANGE = 'Better armor, food eaten sooner or a smaller pull would help.';
 
 /* ── DP-0: the words, in node ── */
 async function pure(base) {
@@ -85,8 +90,10 @@ async function pure(base) {
   if (unpriced.lost !== '') fail(fails, 'DP-0 an unpriced death states a cost: ' + JSON.stringify(unpriced.lost));
   /* THE WHY (Tyler 2026-11-04 UTC: a death teaches): how far under the ground, what that did to every blow, what would have helped. The server's Level and row; an older hunt's row says nothing. */
   const { charXpForLevel } = await import(pathToFileURL(join(base, 'src/core/xp.js')).href);
+  /* A row from before the server named the Level pair: the why reads the hero's own Level. */
+  const BARE = Object.assign({}, ROW); delete BARE.level_from; delete BARE.level_to;
   const whyAt = (level, session) => { const hunt = { session_id: session, hunt_id: ROW.hunt, ended: true, session: { end_reason: 'died' } };
-    const cs = { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [ROW] : k === 'state' ? { level_xp: charXpForLevel(level) } : k === 'hunt' ? hunt : null), record: { residue: {} } };
+    const cs = { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [BARE] : k === 'state' ? { level_xp: charXpForLevel(level) } : k === 'hunt' ? hunt : null), record: { residue: {} } };
     return deathWords(cs, { session: SESSION, row: deathLogOf(cs)[0] }).why; };
   const under = whyAt(2, SESSION), floor = HUNT_INDEX[ROW.hunt].band[0];
   if (under !== 'You were ' + (floor - 2) + ' Levels under this ground, and its monsters are stronger than you. Better armor, food eaten sooner, a healer or a few more Levels would help.') fail(fails, 'DP-0 a death under the floor reads ' + JSON.stringify(under));
@@ -97,7 +104,7 @@ async function pure(base) {
   const took = Object.assign({}, ROW, { level_from: floor, level_to: floor - 1, blessings: 3 });
   if (words(took).level !== 'Tyler dropped from Level ' + floor + ' to Level ' + (floor - 1) + '.') fail(fails, 'DP-0b a death that took a Level reads ' + JSON.stringify(words(took).level));
   if (words(Object.assign({}, took, { level_to: floor })).level !== '') fail(fails, 'DP-0b a death that took no Level still names one');
-  if (words(ROW).level !== '') fail(fails, 'DP-0b an older row (no Level pair) names a Level: ' + JSON.stringify(words(ROW).level));
+  if (words(BARE).level !== '') fail(fails, 'DP-0b an older row (no Level pair) names a Level: ' + JSON.stringify(words(BARE).level));
   if (words(took).saved !== 'Your 3 Blessings kept 300 Level XP, and are now used up.') fail(fails, 'DP-0b three Blessings read ' + JSON.stringify(words(took).saved));
   if (words(Object.assign({}, took, { saved: {} })).saved !== 'Your 3 Blessings are now used up.') fail(fails, 'DP-0b three Blessings that kept nothing read ' + JSON.stringify(words(Object.assign({}, took, { saved: {} })).saved));
   if (words(Object.assign({}, ROW, { saved: null })).saved !== 'No Blessing was active. Blessings in the Shop\'s Services tab make dying cost less.') fail(fails, 'DP-0b no Blessing reads ' + JSON.stringify(words(Object.assign({}, ROW, { saved: null })).saved));
@@ -166,7 +173,7 @@ const popRead = (page) => page.evaluate((q) => {
   const r = w.getBoundingClientRect();
   return { modal: w.classList.contains('is-modal'), cx: r.left + r.width / 2, cy: r.top + r.height / 2, vw: innerWidth, vh: innerHeight,
     inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
-    title: t('.hdeath-title'), killed: t('.hdeath-killed'), why: t('.hdeath-why'), lost: t('.hdeath-lost'), saved: t('.hdeath-saved'), town: t('.hdeath-town'),
+    title: t('.hdeath-title'), killed: t('.hdeath-killed'), why: t('.hdeath-why'), lost: t('.hdeath-lost'), level: t('.hdeath-level'), saved: t('.hdeath-saved'), town: t('.hdeath-town'),
     summary: !!document.querySelector('[data-hs-win="hunt-summary"]:not(.is-leaving)'),
     minPx: Math.min(...Array.from(w.querySelectorAll('.hdeath-card *')).filter((n) => n.childNodes.length && n.textContent.trim() && getComputedStyle(n).display !== 'none').map((n) => parseFloat(getComputedStyle(n).fontSize))) };
 }, POP);
@@ -211,7 +218,7 @@ async function pageRules(overrides, shots, { stopAtFirst = false } = {}) {
           if (!r.modal || Math.abs(r.cx - r.vw / 2) > 40 || !r.inside) fails.push('DP-1 [' + tag + '] the popup is not a centred modal on screen: ' + JSON.stringify({ modal: r.modal, cx: r.cx, vw: r.vw, inside: r.inside }));
           words(r, fails, tag, 'DP-1');
           if (!(r.minPx >= 12)) fails.push('DP-1 [' + tag + '] popup text at ' + r.minPx + ' px (under 12)');
-          if (!/would help\.$/.test(r.why || '')) fails.push('DP-1 [' + tag + '] the card never says what would have helped: ' + JSON.stringify(r.why));
+          if (r.why !== WHY_IN_RANGE) fails.push('DP-1 [' + tag + '] the card never says what would have helped at the Level died at: ' + JSON.stringify(r.why));
           if (r.summary) fails.push('DP-1 [' + tag + '] the hunt summary opened over the death popup');
           const side = await a.page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-widget="alerts"] li')).map((li) => li.textContent).filter((t) => /died/.test(t)));
           if (side.length) fails.push('DP-1 [' + tag + '] the death also raised a side line: ' + side.join(' | '));
@@ -263,7 +270,7 @@ async function pageRules(overrides, shots, { stopAtFirst = false } = {}) {
         await c.ctx.close();
         /* DP-3 AN OLDER SERVER: a death row with no `saved` key (before 2026-11-07-death-popup-blessing.sql) says
            nothing about a Blessing; every other line is still the row's. */
-        const older = clone(ROW); delete older.saved; delete older.session;
+        const older = clone(ROW); delete older.saved; delete older.session; delete older.blessings; delete older.level_from; delete older.level_to;
         const d = await fresh(scripted(true, older));
         if (!d.ok || !(await popWaits(d.page))) fails.push('DP-3 [' + tag + '] an older server\'s death row opened no popup');
         else {

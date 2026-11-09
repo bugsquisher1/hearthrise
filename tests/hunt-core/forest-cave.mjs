@@ -461,9 +461,9 @@ cases['glade-between'] = async (M) => {
     rows.push({ gid, floor, net: median(nets), xp: median(xps) });
   }
   console.log('    per hero-hour at the floor (6-seed median), net g | Level XP: ' + rows.map((r) => r.gid + ' L' + r.floor + ' ' + r.net + ' | ' + r.xp).join(' -> '));
+  /* THE STEP UP PAYS MORE GOLD OR MORE XP (Tyler 2026-11-09: grounds may differ, gold against XP; a ruled bar, not a loosened one), never less of both. */
   for (let i = 1; i < rows.length; i++) {
-    if (!(rows[i].net > rows[i - 1].net)) bad.push(rows[i].gid + ' nets ' + rows[i].net + ' g/h, not above ' + rows[i - 1].gid + "'s " + rows[i - 1].net);
-    if (!(rows[i].xp > rows[i - 1].xp)) bad.push(rows[i].gid + ' gives ' + rows[i].xp + ' Level XP/h, not above ' + rows[i - 1].gid + "'s " + rows[i - 1].xp);
+    if (!(rows[i].net > rows[i - 1].net || rows[i].xp > rows[i - 1].xp)) bad.push(rows[i].gid + ' nets ' + rows[i].net + ' g/h and gives ' + rows[i].xp + ' Level XP/h, neither above ' + rows[i - 1].gid + "'s " + rows[i - 1].net + ' and ' + rows[i - 1].xp);
   }
   return bad.length ? bad.join('; ') : null;
 };
@@ -563,14 +563,14 @@ const mutants = [
       "const [MAPS, TER, MC, SETS, GRID, FS] = await Promise.all(['src/data/world/maps/index.js', 'src/data/world/terrain.js', 'src/world/core/map-compile.js', 'src/data/world/atlas-sets.js', 'src/core/hunt/grid.js'].map((p) => import(u(p))).concat(import('node:fs'))); const sprites = {}; for (const s of SETS.ATLAS_SETS) Object.assign(sprites, JSON.parse(FS.readFileSync(join(root, 'assets/world/atlas-' + s + '.json'), 'utf8')).sprites); const gridOfMap = (mapId) => { const map = MC.compileMap(MAPS.mapRowOf(mapId), { materials: TER.MATERIALS, sprites, openClasses: TER.OPEN_CLASSES, lights: {} }); return GRID.makeGrid(map.w, map.h, (x, y) => map.mask[y * map.w + x] === 0, (x, y) => { const m = TER.MATERIALS[map.ground[y * map.w + x]]; return !!(m && m.solid && !m.flat); }); };"]] },
   { name: 'one walkable tile short on the map the run plays', case: 'sim-plays-the-server-map',
     edits: [['tests/hunt-core/fixtures/play-ground.mjs', "grid = gridOfMap(ground.map);", "grid = (() => { const g = gridOfMap(ground.map), walk = g.walk.slice(); walk[walk.indexOf(1)] = 0; return { ...g, walk }; })();"]] },
-  { name: 'the glade\'s coin doubled (it out-earns the Warrens)', case: 'glade-between',
-    edits: [['src/data/monsters.js', 'xp: 121, gp: [6, 19]', 'xp: 121, gp: [12, 38]'], ['src/data/monsters.js', 'xp: 134, gp: [5, 17]', 'xp: 134, gp: [10, 34]'],
-      ['src/data/monsters.js', 'xp: 241, gp: [10, 30]', 'xp: 241, gp: [20, 60]'], ['src/data/monsters.js', 'xp: 415, gp: [16, 46]', 'xp: 415, gp: [32, 92]'],
-      ['src/data/monsters.js', 'xp: 475, gp: [17, 51]', 'xp: 475, gp: [34, 102]'], ['src/data/monsters.js', 'xp: 375, gp: [14, 44]', 'xp: 375, gp: [28, 88]']] },
-  { name: 'the glade\'s coin halved (it pays under the Sewer\'s party)', case: 'glade-between',
-    edits: [['src/data/monsters.js', 'xp: 121, gp: [6, 19]', 'xp: 121, gp: [3, 10]'], ['src/data/monsters.js', 'xp: 134, gp: [5, 17]', 'xp: 134, gp: [2, 9]'],
-      ['src/data/monsters.js', 'xp: 241, gp: [10, 30]', 'xp: 241, gp: [5, 15]'], ['src/data/monsters.js', 'xp: 415, gp: [16, 46]', 'xp: 415, gp: [8, 23]'],
-      ['src/data/monsters.js', 'xp: 475, gp: [17, 51]', 'xp: 475, gp: [8, 26]'], ['src/data/monsters.js', 'xp: 375, gp: [14, 44]', 'xp: 375, gp: [7, 22]']] },
+  { name: 'the glade\'s coin doubled and its XP x5 (it out-earns the Warrens in both)', case: 'glade-between',
+    edits: [['src/data/monsters.js', 'xp: 121, gp: [6, 19]', 'xp: 605, gp: [12, 38]'], ['src/data/monsters.js', 'xp: 134, gp: [5, 17]', 'xp: 670, gp: [10, 34]'],
+      ['src/data/monsters.js', 'xp: 241, gp: [10, 30]', 'xp: 1205, gp: [20, 60]'], ['src/data/monsters.js', 'xp: 415, gp: [16, 46]', 'xp: 2075, gp: [32, 92]'],
+      ['src/data/monsters.js', 'xp: 475, gp: [17, 51]', 'xp: 2375, gp: [34, 102]'], ['src/data/monsters.js', 'xp: 375, gp: [14, 44]', 'xp: 1875, gp: [28, 88]']] },
+  { name: 'the glade\'s coin halved and its XP a third (it pays under the Sewer\'s party in both)', case: 'glade-between',
+    edits: [['src/data/monsters.js', 'xp: 121, gp: [6, 19]', 'xp: 40, gp: [3, 10]'], ['src/data/monsters.js', 'xp: 134, gp: [5, 17]', 'xp: 45, gp: [2, 9]'],
+      ['src/data/monsters.js', 'xp: 241, gp: [10, 30]', 'xp: 80, gp: [5, 15]'], ['src/data/monsters.js', 'xp: 415, gp: [16, 46]', 'xp: 138, gp: [8, 23]'],
+      ['src/data/monsters.js', 'xp: 475, gp: [17, 51]', 'xp: 158, gp: [8, 26]'], ['src/data/monsters.js', 'xp: 375, gp: [14, 44]', 'xp: 125, gp: [7, 22]']] },
   { name: 'the glade\'s blows x2 (its four plate pieces under +25%)', case: 'glade-between',
     edits: [['src/data/monsters.js', 'hp: 30, atk: 11, baseAcc: 0.8,', 'hp: 30, atk: 22, baseAcc: 0.8,'], ['src/data/monsters.js', 'hp: 26, atk: 14, baseAcc: 0.85,', 'hp: 26, atk: 28, baseAcc: 0.85,'],
       ['src/data/monsters.js', 'hp: 48, atk: 11, baseAcc: 0.82,', 'hp: 48, atk: 22, baseAcc: 0.82,'], ['src/data/monsters.js', 'hp: 74, atk: 21, baseAcc: 0.8,', 'hp: 74, atk: 42, baseAcc: 0.8,'],
@@ -584,8 +584,8 @@ const mutants = [
     edits: [['src/data/monsters.js', 'xp: 819, gp: [16, 49]', 'xp: 164, gp: [8, 25]'], ['src/data/monsters.js', 'xp: 853, gp: [14, 40]', 'xp: 171, gp: [7, 20]'],
       ['src/data/monsters.js', 'xp: 1348, gp: [23, 69]', 'xp: 270, gp: [12, 35]'], ['src/data/monsters.js', 'xp: 2257, gp: [35, 104]', 'xp: 451, gp: [18, 52]'],
       ['src/data/monsters.js', 'xp: 8688, gp: [122, 366]', 'xp: 1738, gp: [61, 183]']] },
-  { name: 'the Thicket\'s Gray Wolf pays three times over (staying in the wood pays more than Wickstead)', case: 'harder-pays-more',
-    edits: [['src/data/monsters.js', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 40, gp: [2, 6]', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 40, gp: [6, 18]']] },
+  { name: 'the Thicket\'s Gray Wolf pays three times the coin and five times the XP (staying in the wood pays more of both)', case: 'harder-pays-more',
+    edits: [['src/data/monsters.js', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 40, gp: [2, 6]', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 200, gp: [6, 18]']] },
   { name: 'a whelp pays like a Chief (a kill stops climbing with the monster)', case: 'harder-pays-more',
     edits: [['src/data/monsters.js', 'hp: 10, atk: 4, baseAcc: 0.38, def: 0, xp: 20, gp: [1, 3]', 'hp: 10, atk: 4, baseAcc: 0.38, def: 0, xp: 20, gp: [3000, 4167]']] },
   { name: 'the Shop sells a helmet the Thicket wolves drop', case: 'shop-outfits-defense',

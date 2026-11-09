@@ -230,25 +230,16 @@ export function cookOf(id) {
   return COOKS.get(id) || null;
 }
 
-let MADE_FROM = null;
-/* output -> the inputs of every recipe making it, built once. */
-function madeFrom() {
-  if (MADE_FROM) return MADE_FROM;
-  MADE_FROM = new Map();
-  for (const rows of Object.values(ARTISAN_RECIPES)) for (const r of rows || []) if (r && r.output) MADE_FROM.set(r.output, [...(MADE_FROM.get(r.output) || []), ...Object.keys(recipeInputs(r) || {})]);
-  return MADE_FROM;
-}
-
 /**
  * WHAT THE HOUSE'S NEXT STEPS NEED (panel 2026-11-01: Sell all loot sold Slime Gel while deed III wanted Timber Beams, which are
- * made from it): the Set of items the steps the House window prices now (the server's `home` and `chests`) name, and everything
- * those are made from, however far down. Null when the server has not said (`home` null): lootToSell then sells nothing a recipe spends.
+ * made from it): the Set of items the steps the House window prices now (the server's `home` and `chests`) name, its own word,
+ * so Sell all junk keeps even a Junk row a step names. What those are made from needs no walk: a recipe's input is a Material
+ * (kindOf), which no bulk sale sweeps. Null when the server has not said (`home` null).
  */
 export function upgradeNeeds(home, chests) {
   if (!home) return null;
   const want = new Set();
-  const add = (id) => { if (!want.has(id)) { want.add(id); for (const input of madeFrom().get(id) || []) add(input); } };
-  const step = (s) => { for (const it of s.items) add(it.id); };
+  const step = (s) => { for (const it of s.items) want.add(it.id); };
   const deed = home.tiers.find((t) => !t.owned);
   if (deed) step(deed);
   for (const r of home.rooms) if (r.next && r.opens <= home.tier && r.next.need <= home.tier) step(r.next);

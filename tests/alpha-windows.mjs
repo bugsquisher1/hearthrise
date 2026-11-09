@@ -2972,11 +2972,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const WANT = '{"belt":"bronze_belt","body":"iron_platebody","gloves":"leather_gloves","helmet":"iron_helm","ring2":"copper_ring","weapon":"steel_sword"}';
       const sorted = (o) => JSON.stringify(Object.fromEntries(Object.entries(o || {}).sort(([a], [b]) => (a < b ? -1 : 1))));
       const msg = () => page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);
-      if (up) {
+      if (up) aw21: {
         await openWin(page, 'b', 'inventory');
         await page.waitForTimeout(250);
         const pre = await page.evaluate(() => { const l = document.querySelector('.hw-inv .hw-upgrade'); return { on: l.classList.contains('is-on'), q: l.querySelector('.hw-upgrade-q').textContent, off: l.querySelector('button').disabled }; });
-        if (!pre.on || pre.off || !/^Wear Iron Helm \(\+\d+ Defense/.test(pre.q) || /Steel|Mithril/.test(pre.q)) fails.push('AW-21 the preview line is wrong before the press: ' + JSON.stringify(pre));
+        /* Every step below presses or reads this line: when it is already wrong the catch is made, so stop here rather than click a line a mutant
+           reshaped (nightly run 42678595702: a 6 s click timeout on a loaded runner read as HARNESS, not the catch it was). */
+        if (!pre.on || pre.off || !/^Wear Iron Helm \(\+\d+ Defense/.test(pre.q) || /Steel|Mithril/.test(pre.q)) { fails.push('AW-21 the preview line is wrong before the press: ' + JSON.stringify(pre)); break aw21; }
         /* A REQUIREMENT THE SERVER'S NUMBERS SAY IS UNMET (Tyler 2026-10-24, "Gear swapping isn't working": Fingerguns
            was offered Equip on a helm he could not wear, and the refusal said nothing on screen; gear is worn by Level
            since): the picked line's Equip is off and says why, and a press sends nothing. */

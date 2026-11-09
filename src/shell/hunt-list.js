@@ -40,7 +40,7 @@ import { whole, gold } from '../render/format.js?v=0.2.109';
 const PACK_QTY_MAX = 100000;
 const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);
 
-/** "The Rat King is built for a party of two or more. Alone, you still fight him, and he can kill you." for this hunt's ground, or ''. */
+/** "The Rat King is built for a group of two or more. Alone, you still fight him, and he can kill you." for this hunt's ground, or ''. */
 export function partyNote(hunt) {
   const g = Object.values(HUNT_GROUNDS).find((r) => r.hunt === hunt);
   const p = g && g.pockets.find((q) => q.forParty);
@@ -48,8 +48,8 @@ export function partyNote(hunt) {
   const boss = p.spawns.map((s) => MONSTERS[s.monster]).find((m) => m && m.boss === true);
   const n = COUNT_WORDS[p.forParty] || String(p.forParty);
   /* A warning, never a gate (Tyler 2026-11-08: "Either they are strong enough to do the harder content or they aren't"): a lone hero walks the hall. */
-  return boss ? 'The ' + boss.name + ' is built for a party of ' + n + ' or more. Alone, you still fight him, and he can kill you.'
-    : 'One hall here is built for a party of ' + n + ' or more. Alone, you still fight it, and it can kill you.';
+  return boss ? 'The ' + boss.name + ' is built for a group of ' + n + ' or more. Alone, you still fight him, and he can kill you.'
+    : 'One hall here is built for a group of ' + n + ' or more. Alone, you still fight it, and it can kill you.';
 }
 
 /** One line per hunt ground, lowest band first (ties by name). */
@@ -197,9 +197,10 @@ export function recommendation(levels, partySize = 1, rows = huntRows()) {
   const below = fit.filter((r) => r.band[1] < lo).sort((x, y) => y.band[1] - x.band[1] || y.band[0] - x.band[0])[0];
   if (below) {
     const party = alone ? best(rows.filter((r) => !fitsGroup(r, 1) && holds(r, lo, lo))) : null;
-    const note = 'There\'s no ground ' + (alone ? 'for one hero' : 'for your party') + ' at ' + levelsWords(lo, hi) + ' yet. '
-      + below.name + ' (Level ' + below.band[0] + ' to ' + below.band[1] + ') is the nearest below.'
-      + (party ? ' ' + party.name + ' is right for your level if you bring a party.' : '');
+    /* NO GROUND IS SOLO OR PARTY TO THE PLAYER (Tyler 2026-11-08: "So some of those are solo only and party only? That isn't really matching up
+       with how we are planning the game"): the note says where the Levels are and what the tough ground costs, never who it is for. */
+    const note = 'No ground fits ' + levelsWords(lo, hi) + ' as well yet. ' + below.name + ' (Level ' + below.band[0] + ' to ' + below.band[1] + ') is the nearest below.'
+      + (party ? ' ' + party.name + ' is at your level. Its monsters are tough, so alone it costs more than it pays.' : '');
     return { row: below, note };
   }
   return { row: best(rows.filter((r) => holds(r, lo, lo))) || rows[0] || null, note: null };
@@ -225,11 +226,6 @@ export function openingPick(rec, list, last) {
 export function adviceTag(r, rec, step, party) {
   if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? 'Right for your party' : 'Right for your level';
   return step && step.hunt === r.hunt ? 'Next step up' : '';
-}
-
-/** A party ground seen by a lone hero: "Best with a party of 2–4"; else null. */
-export function groupWords(r, partySize) {
-  return r.groupFit === 'party' && (Number(partySize) || 1) < 2 ? 'Best with a party of 2–' + Math.max(2, r.heroes) : null;
 }
 
 /**
@@ -272,13 +268,9 @@ export function fitWords(r, level) {
   return level > r.band[1] ? { words: 'Below your level', tone: 'below' } : { words: 'In your range', tone: 'in' };
 }
 
-/** Who may come: "One hero", "Alone or with up to 3 more", or for a party ground "Best with 2 to 4, and alone it pays from Level 45"
-    when its row measured a lone hero's break-even (hunt-grounds.js soloFrom), else "Best with 2 to 4, and a lone hero can
-    enter": advice, no rule holds a lone hero out (the panel 2026-11-01 walked the Sewer alone at Level 10; Tyler 2026-11-04 UTC). */
+/** Who may come: "Alone or with up to 3 more" on every ground, or "One hero". No ground is solo or party (Tyler 2026-11-08): a boss built
+    for a group says so in its own warning (partyNote), and no rule holds a lone hero out. */
 export function heroWords(r) {
-  if (r.groupFit === 'party' && r.heroes > 1) {
-    return Number.isInteger(r.soloFrom) ? 'Best with 2 to ' + r.heroes + ', and alone it pays from Level ' + r.soloFrom : 'Best with 2 to ' + r.heroes + ', and a lone hero can enter';
-  }
   return r.heroes > 1 ? 'Alone or with up to ' + (r.heroes - 1) + ' more' : 'One hero';
 }
 

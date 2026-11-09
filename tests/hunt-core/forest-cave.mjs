@@ -57,6 +57,9 @@ const RING8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1,
 /* The designer's six hunt seeds (pass 2026-10-21) and the margin floor (+25%, a minimum: Tyler 10-18/10-20). */
 const STARTER_SEEDS = Object.freeze(['-4611686018427387904', '1234567890123', '-987654321987', '42', '7777777777777', '-31415926535']);
 const STARTER_MARGIN_MIN = 25;
+/* THE GLADE'S FLOOR MAY BE THIN (Tyler 2026-11-09, on its +15-25% over its bill in four plate pieces: "fine"; a ruled bar, not a loosened one):
+   it must still pay its way, at least this much over its bill on every seed. */
+const GLADE_MARGIN_MIN = 10;
 const BILL_SHARE_FOR_MARGIN = 0.25;   // the margin floor applies where store >= 25% of income
 /* The start flow's grounds in order: [ground, roles], each played at its floor in the reference (ladder) kit. */
 const FIRST_CHAIN = Object.freeze([['mill_cellar', ['tank']], ['meadowbrook_thicket', ['tank']],
@@ -451,8 +454,8 @@ cases['glade-between'] = async (M) => {
     for (const secret of STARTER_SEEDS) {
       const x = P.run(gid, floor, roles, { spanMs: 3600000, secret, fullSet });
       nets.push(x.income - x.store); xps.push(x.levelXp);
-      if (gid === GLADE && x.store >= BILL_SHARE_FOR_MARGIN * x.income && (x.income / x.store - 1) * 100 < STARTER_MARGIN_MIN) {
-        bad.push(gid + ' seed ' + secret + ' in its four plate pieces: ' + Math.round((x.income / x.store - 1) * 100) + '% over its bill, under +' + STARTER_MARGIN_MIN + '%');
+      if (gid === GLADE && x.store >= BILL_SHARE_FOR_MARGIN * x.income && (x.income / x.store - 1) * 100 < GLADE_MARGIN_MIN) {
+        bad.push(gid + ' seed ' + secret + ' in its four plate pieces: ' + Math.round((x.income / x.store - 1) * 100) + '% over its bill, under +' + GLADE_MARGIN_MIN + '%');
       }
     }
     rows.push({ gid, floor, net: median(nets), xp: median(xps) });
@@ -489,17 +492,19 @@ cases['harder-pays-more'] = async (M) => {
   const means = sum.map((b) => (b.n ? b.g / b.n : 0));
   console.log('    a kill\'s gold by hp x attack, under ' + HARDNESS_BANDS.join(' / ') + ' / above: ' + means.map((v) => Math.round(v)).join(' -> '));
   for (let i = 1; i < means.length; i++) if (!(means[i] > means[i - 1])) bad.push('a kill past hp x attack ' + HARDNESS_BANDS[i - 1] + ' pays ' + Math.round(means[i]) + ' g, not above ' + Math.round(means[i - 1]) + ' g below it');
+  /* AN HOUR ABOVE PAYS MORE GOLD OR MORE XP (Tyler 2026-11-09: "it doesn't all need to be uniform, people should figure out which hunts are good for exp and
+     which are good for gold"; a ruled bar, not a loosened one): staying on the weaker ground may pay more gold, never more of both. */
   const hour = (gid, L, roles, fullSet) => {
     const x = P.run(gid, L, roles, { spanMs: 1800000, fullSet, secret: STARTER_SEEDS[0] });
     const h = x.playedMs / 3600000;
     let g = 0;
     for (const [id, k] of Object.entries(x.killsBy)) g += k * kill(M.MONSTERS[id]);
-    return Math.round((g - x.totals.store) / roles.length / h);
+    return { gold: Math.round((g - x.totals.store) / roles.length / h), xp: Math.round(x.levelXp / h) };
   };
   for (const [L, roles, low, high, fullSet] of CLIMB) {
     const a = hour(low, L, roles, fullSet), b = hour(high, L, roles, fullSet), who = roles.length > 1 ? 'a party of ' + roles.length : 'a lone ' + roles[0];
-    console.log('    ' + who + ' at L' + L + ', gold an hour, all sold: ' + low + ' ' + a + ' -> ' + high + ' ' + b);
-    if (!(b > a)) bad.push(who + ' at L' + L + ' earns ' + a + ' g/h on ' + low + ' and ' + b + ' g/h on ' + high + ': staying on the weaker ground pays');
+    console.log('    ' + who + ' at L' + L + ', gold an hour, all sold | Level XP an hour: ' + low + ' ' + a.gold + ' | ' + a.xp + ' -> ' + high + ' ' + b.gold + ' | ' + b.xp);
+    if (!(b.gold > a.gold || b.xp > a.xp)) bad.push(who + ' at L' + L + ' earns ' + a.gold + ' g/h and ' + a.xp + ' XP/h on ' + low + ', ' + b.gold + ' and ' + b.xp + ' on ' + high + ': staying on the weaker ground pays more of both');
   }
   return bad.length ? bad.join('; ') : null;
 };
@@ -575,10 +580,10 @@ const mutants = [
   { name: 'Wickstead\'s coin cut to a third (it pays under the Thicket)', case: 'wickstead-solo-floor',
     edits: [['src/data/monsters.js', 'xp: 45, gp: [2, 6]', 'xp: 45, gp: [1, 2]'], ['src/data/monsters.js', 'xp: 96, gp: [3, 11]', 'xp: 96, gp: [1, 4]'],
       ['src/data/monsters.js', 'xp: 105, gp: [3, 10]', 'xp: 105, gp: [1, 4]'], ['src/data/monsters.js', 'xp: 67, gp: [2, 7]', 'xp: 67, gp: [1, 3]']] },
-  { name: 'the Warrens\' coin halved (the Glade out-earns the harder ground)', case: 'harder-pays-more',
-    edits: [['src/data/monsters.js', 'xp: 819, gp: [16, 49]', 'xp: 819, gp: [8, 25]'], ['src/data/monsters.js', 'xp: 853, gp: [14, 40]', 'xp: 853, gp: [7, 20]'],
-      ['src/data/monsters.js', 'xp: 1348, gp: [23, 69]', 'xp: 1348, gp: [12, 35]'], ['src/data/monsters.js', 'xp: 2257, gp: [35, 104]', 'xp: 2257, gp: [18, 52]'],
-      ['src/data/monsters.js', 'xp: 8688, gp: [122, 366]', 'xp: 8688, gp: [61, 183]']] },
+  { name: 'the Warrens\' coin halved and its XP a fifth (the Glade out-earns the harder ground in both)', case: 'harder-pays-more',
+    edits: [['src/data/monsters.js', 'xp: 819, gp: [16, 49]', 'xp: 164, gp: [8, 25]'], ['src/data/monsters.js', 'xp: 853, gp: [14, 40]', 'xp: 171, gp: [7, 20]'],
+      ['src/data/monsters.js', 'xp: 1348, gp: [23, 69]', 'xp: 270, gp: [12, 35]'], ['src/data/monsters.js', 'xp: 2257, gp: [35, 104]', 'xp: 451, gp: [18, 52]'],
+      ['src/data/monsters.js', 'xp: 8688, gp: [122, 366]', 'xp: 1738, gp: [61, 183]']] },
   { name: 'the Thicket\'s Gray Wolf pays three times over (staying in the wood pays more than Wickstead)', case: 'harder-pays-more',
     edits: [['src/data/monsters.js', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 40, gp: [2, 6]', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 40, gp: [6, 18]']] },
   { name: 'a whelp pays like a Chief (a kill stops climbing with the monster)', case: 'harder-pays-more',

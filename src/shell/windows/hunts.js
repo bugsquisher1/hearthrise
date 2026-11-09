@@ -56,7 +56,7 @@ import { glyphSvg } from '../launcher.js?v=0.2.109';
 import { runIntent, refusalText } from '../intent-words.js?v=0.2.109';
 import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.109';
 import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.109';
-import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.109';
+import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.109';
 import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.109';
 import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.109';
 import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.109';
@@ -196,11 +196,11 @@ export function renderHunts(ctx) {
     + '</section></div></div>';
 }
 
-/* One ground's line: the solo / party glyph, the name, the band in words, the advice and the best. */
+/* One ground's line: who may come, the name, the band in words, the advice and the best. Every ground takes one hero or a group
+   (Tyler 2026-11-08: no ground is solo or party), so the glyph is the same on every line. */
 function lineHtml(r, glyphs) {
-  const party = r.groupFit === 'party';
   return '<li class="hw-hunt" role="option" data-hs-act="pick" data-hunt="' + esc(r.hunt) + '" tabindex="-1">'
-    + '<span class="hw-hunt-glyph" title="' + (party ? 'Built for a party' : 'Built for one hero') + '">' + glyphSvg(glyphs, party ? 'uiPeople' : 'navProfile') + '</span>'
+    + '<span class="hw-hunt-glyph" title="' + esc(heroWords(r)) + '">' + glyphSvg(glyphs, 'uiPeople') + '</span>'
     + '<span class="hw-hunt-main"><b class="hw-hunt-name">' + esc(r.name) + '</b>'
     + '<small class="hw-hunt-band"><span class="hw-hunt-lv">Level ' + r.band[0] + '–' + r.band[1] + '</span><span class="hw-hunt-fit"></span></small>'
     + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span><span class="hw-hunt-bestline"></span></small>'
@@ -297,7 +297,7 @@ function patchPage(det, ctx, sc, v) {
     setups, chosen, off: sc.pending || !!now || follower,
     before: now ? [] : beforeLines(cs, { hunt: r.hunt, other: other ? other.name : null }),
     partyBlock: !follower && (r.groupFit === 'party' || (party && party.isLeader)) ? {
-      why: party ? 'You lead a party of ' + party.seats.length + '.' : (groupWords(r, size) || heroWords(r)) + '.',
+      why: party ? 'You lead a party of ' + party.seats.length + '.' : heroWords(r) + '.',
       find: party ? 'Open the party finder' : 'Find a party',
       bring: freeHeroes(cs, ctx.peers()), full: !!party && party.full,
     } : null,

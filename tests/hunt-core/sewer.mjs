@@ -1230,7 +1230,7 @@ const cases = {
     if (next && !html.includes(next.name)) return 'the what-next line does not name ' + next.name + ': ' + html;
     /* THE PARTY PITCH, NOT A PARTY WALL (playtest 2026-10-24): a solo hero hears of the party ground its Level fits and
        how to make a party; a hero in a party does not. */
-    const pitch = 'The Sewer is right for your Level if you bring a party. Invite a friend, or make a second hero. Up to four of yours can hunt at once.';
+    const pitch = 'The Sewer is at your Level. Its monsters are tough, and a group kills them faster. Invite a friend, or make a second hero. Up to four of yours can hunt at once.';
     if (!html.includes(pitch)) return 'a solo Level ' + L + ' hero hears no party pitch: ' + html;
     const partyEnv = { ...sewerEnv, party: { id: '0a47c0de-0000-4000-a000-00000000aa01', members: [{ seat: 0, name: 'Mira' }, { seat: 1, name: 'Tyler' }], self_seat: 0, leader_seat: 0 } };
     const withParty = renderLaunchers({ character: { read: (k) => partyEnv[k] }, glyphs: {}, hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });

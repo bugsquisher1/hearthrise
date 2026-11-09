@@ -223,8 +223,10 @@ cases['before-bonuses'] = () => {
   if (!(mixed.raw > 0 && mixed.paid > mixed.raw)) return 'a mixed party was paid ' + mixed.paid + ' on a share of ' + mixed.raw;
   const again = totals('wickstead', ['tank', 'healer'], 600000);
   if (again.raw !== mixed.raw || again.paid !== mixed.paid) return 'browser closed reads ' + JSON.stringify(again) + ', viewed ' + JSON.stringify(mixed);
-  const cut = totals('millrace_sewer', ['tank', 'tank'], 30000);
-  if (!(cut.paid < cut.raw)) return 'a one-class Sewer party was paid ' + cut.paid + ' on a share of ' + cut.raw;
+  /* one class: paid its own cell over the even share, never the even share itself (since the lane/b-one-difficulty re-tune a one-class cell sits
+     over 1000 and under the mixed one), so "before bonuses" still differs from what was paid */
+  const cut = totals('millrace_sewer', ['tank', 'tank'], 30000), oneCell = PCX.partyClassXp('millrace_sewer', ['tank', 'tank']).permille;
+  if (!(cut.raw > 0 && cut.paid !== cut.raw && cut.paid <= Math.ceil((cut.raw * oneCell) / 1000))) return 'a one-class Sewer party was paid ' + cut.paid + ' on a share of ' + cut.raw + ' (its cell ' + oneCell + ')';
   /* alone: over the share by the boost, never past it, and at least half of it (each kill's share floors: a Wickstead kill of a few dozen XP keeps about 3.5 of the 5%) */
   const lone = totals('wickstead', ['tank'], 30000), boost = PCX.SOLO_XP_PM / 1000;
   if (!(lone.paid >= lone.raw * (1 + (boost - 1) / 2) && lone.paid <= Math.ceil(lone.raw * boost))) return 'a lone hero reads ' + lone.raw + ' before bonuses and ' + lone.paid + ' paid, the solo boost says up to ' + Math.round(lone.raw * boost);

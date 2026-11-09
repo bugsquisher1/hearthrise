@@ -1305,7 +1305,7 @@ export function nextGoal(facts) {
      no party hears of the party ground its Level fits, and how to make a party: once, on whichever line names it. */
   const fits = solo ? groundHunts().find((h) => partyGround(h) && HUNT_INDEX[h].band[0] <= facts.charLevel && facts.charLevel <= HUNT_INDEX[h].band[1]) : null;
   if (fits) {
-    lines.push(HUNT_INDEX[fits].name + ' is right for your Level if you bring a party. ' + partyHow(facts));
+    lines.push(HUNT_INDEX[fits].name + ' is at your Level. Its monsters are tough, and a group kills them faster. ' + partyHow(facts));
     ids.push('party', fits);
   }
   /* THE NEXT GEAR, BY LEVEL (Tyler 2026-10-24): the lowest Level above the hero's that opens a piece a player can get

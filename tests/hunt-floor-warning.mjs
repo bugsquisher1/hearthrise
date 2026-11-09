@@ -60,7 +60,8 @@ async function run(base) {
   const solo12 = HL.recommendedHunt(12, 1, wide), party40 = HL.recommendedHunt(40, 3, rows);
   ok('G1', !!solo12 && solo12.groupFit !== 'party' && solo12.band[0] <= 12 && 12 <= solo12.band[1], 'a lone Level-12 hero is recommended ' + (solo12 && solo12.hunt + ' (' + solo12.groupFit + ')'));
   const pg = rows.find((r) => r.groupFit === 'party');
-  ok('G1', !!pg && /^Best with a party of 2–[2-5]$/.test(HL.groupWords(pg, 1) || '') && HL.groupWords(pg, 2) === null, 'a party ground does not tell a lone hero it is best with a party: ' + (pg && HL.groupWords(pg, 1)));
+  /* NO GROUND IS SOLO OR PARTY TO THE PLAYER (Tyler 2026-11-08; a ruled contract change): a ground built tough reads like any other. */
+  ok('G1', !!pg && HL.heroWords(pg) === 'Alone or with up to ' + (pg.heroes - 1) + ' more' && HL.groupWords === undefined, 'a tough ground still labels who it is for: ' + (pg && HL.heroWords(pg)));
   ok('G1', !!party40 && HL.fitsGroup(party40, 3), 'a party of three at 40 is recommended ' + (party40 && party40.hunt));
   /* G2 (Tyler 2026-10-21: "The Sewer is a party hunt"): a ground with a party-only hall is a party ground to
      the advice; a lone hero is never recommended one, at any level; where no solo ground holds the level the
@@ -75,7 +76,7 @@ async function run(base) {
     const r = HL.recommendation(lv, 1, rows);
     if (!r.row || !HL.fitsGroup(r.row, 1)) { ok('G2', false, 'a lone Level-' + lv + ' hero is recommended ' + (r.row && r.row.hunt)); break; }
     const inBand = r.row.band[0] <= lv && lv <= r.row.band[1];
-    if (!inBand && !(r.row.band[1] < lv && typeof r.note === 'string' && r.note.startsWith('There\'s no ground for one hero at Level ' + lv + ' yet. ' + r.row.name))) {
+    if (!inBand && !(r.row.band[1] < lv && typeof r.note === 'string' && r.note.startsWith('No ground fits Level ' + lv + ' as well yet. ' + r.row.name))) {
       ok('G2', false, 'a lone Level-' + lv + ' hero is sent to ' + r.row.hunt + ' [' + r.row.band + '] with the note ' + JSON.stringify(r.note)); break;
     }
     if (inBand && r.note !== null) { ok('G2', false, 'a fitting ground still carries a note at Level ' + lv); break; }
@@ -84,7 +85,8 @@ async function run(base) {
   ok('G2', !!duo.row && HL.fitsGroup(duo.row, 2) && duo.row.band[0] <= 12 && 20 <= duo.row.band[1] && duo.note === null, 'a party at Levels 12 and 20 is recommended ' + (duo.row && duo.row.hunt));
   /* G4: where the advice stands until the pace is re-measured (level-curve reads it: a pair sent to the Glade and a lone 45 sent to the Warrens re-land together, 2026-11-04): the Warrens is a party's, and a pair's first ground is the Sewer. */
   const lone = (lv) => HL.recommendation(lv, 1, rows);
-  ok('G4', lone(44).row.hunt === 'mosslight_glade' && /Coppercap Warrens is right for your level if you bring a party/.test(lone(44).note || ''), 'a lone Level 44 reads ' + JSON.stringify(lone(44).note));
+  ok('G4', lone(44).row.hunt === 'mosslight_glade' && /Coppercap Warrens is at your level\. Its monsters are tough, so alone it costs more than it pays\./.test(lone(44).note || '')
+    && !/party|one hero|solo/i.test(lone(44).note || ''), 'a lone Level 44 reads ' + JSON.stringify(lone(44).note));
   const sewerPair = HL.recommendation([12, 12], 2, rows);
   ok('G4', sewerPair.row.hunt === 'millrace_sewer', 'the first party ground moved: a pair at Level 12 is sent to ' + sewerPair.row.hunt);
   /* G5 (first principle, played 11-04): the window opens on the harder ground this hero last hunted and came home from; never on one that killed it, and never on one below the advice. */
@@ -103,8 +105,8 @@ async function run(base) {
   ok('G6', tagged(16) === 'mosslight_glade:Right for your level', 'Level 16 (16 under the Warrens) reads ' + tagged(16));
   ok('G6', tagged(35) === '', 'Level 35 alone, with a note and nothing above, reads ' + tagged(35));
   const war = rows.find((r) => r.hunt === 'coppercap_warrens');
-  ok('G2', !!war && HL.heroWords(war) === 'Best with 2 to 4, and alone it pays from Level 45', 'the Warrens card reads ' + JSON.stringify(war && HL.heroWords(war)));
-  ok('G2', rows.filter((r) => r.groupFit === 'party').every((r) => !/^Alone/.test(HL.heroWords(r))), 'a party ground offers itself alone');
+  ok('G2', !!war && HL.heroWords(war) === 'Alone or with up to 3 more', 'the Warrens card reads ' + JSON.stringify(war && HL.heroWords(war)));
+  ok('G2', rows.every((r) => !/party|one hero|solo/i.test(HL.heroWords(r))), 'a ground is labelled solo or party: ' + rows.map((r) => HL.heroWords(r)).join(' | '));
   const solo = rows.find((r) => r.groupFit !== 'party' && r.heroes > 1);
   ok('G2', !!solo && /^Alone or with up to \d more$/.test(HL.heroWords(solo)), 'a solo/both ground lost its offer: ' + (solo && HL.heroWords(solo)));
   /* G3 (panel 2026-11-01): the words say what the server allows. It walks in PARTY.maxSize on every ground (hr_hunt_party_start has no
@@ -112,7 +114,7 @@ async function run(base) {
   const most = (await import(pathToFileURL(join(base, 'src/data/party.js')).href + '?t=' + Math.random())).PARTY.maxSize;
   for (const r of rows) {
     const said = HL.heroWords(r);
-    const named = r.groupFit === 'party' ? Number((/ 2 to (\d+)/.exec(said) || [])[1]) : Number((/up to (\d+) more/.exec(said) || [])[1]) + 1;
+    const named = Number((/up to (\d+) more/.exec(said) || [])[1]) + 1;
     ok('G3', named === most, r.hunt + ' reads ' + JSON.stringify(said) + ', and the server walks in ' + most);
   }
   /* THE FIXTURE GROUND: since the Thicket gained four seats (Tyler 2026-11-02) no live ground has fewer start tiles than the party, so the rows above can't tell the party
@@ -140,7 +142,7 @@ async function run(base) {
   ok('G2', win.includes("recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list)")
     && win.includes('<p class="hs-note hw-hunts-reco" hidden></p>') && win.includes('text(reco, advice);'), 'the Hunts window does not recommend by the party\'s levels or never says the note');
   ok('W2', win.includes("text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));") && win.includes('<p class="hw-hunt-warn"></p>')
-    && win.includes("(groupWords(r, size) || heroWords(r)) + '.'"),
+    && win.includes("heroWords(r) + '.'"),
     'the Hunts line does not draw rangeWords');
   /* W4 in plain words (Tyler 2026-11-08, the tier note "way too exact"): every harder tier's line says you can die here, Deadly's says to bring food, and the note ends on the death line. */
   const tierData = read('src/data/hunt-tiers.js');
@@ -173,10 +175,11 @@ const MUTANTS = [
   ['the gap falls back to a party ground in band', 'src/shell/hunt-list.js', "    return { row: below, note };\n", ''],
   ['the gap is not said', 'src/shell/hunt-list.js', 'return { row: below, note };', 'return { row: below, note: null };'],
   ['a party is recommended by its own hero\'s level', 'src/shell/windows/hunts.js', 'recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list)', 'recommendation(level, size, list)'],
-  ['a party ground never says so', 'src/shell/hunt-list.js', "r.groupFit === 'party' && (Number(partySize) || 1) < 2 ?", 'false ?'],
+  ['a ground says who it is for again (Tyler 2026-11-08: no ground is solo or party)', 'src/shell/hunt-list.js', "  return r.heroes > 1 ? 'Alone or with up to ' + (r.heroes - 1) + ' more' : 'One hero';", "  return r.band[0] >= 32 ? 'Best with a party of 2 to 4' : r.heroes > 1 ? 'Alone or with up to ' + (r.heroes - 1) + ' more' : 'One hero';"],
   ['the warning words are dropped', 'src/shell/hunt-list.js', "  if (!Number.isInteger(level) || level >= r.band[0]) return null;\n  const gap", "  return null;\n  const gap"],
-  ['a party ground offers itself alone again', 'src/shell/hunt-list.js', "  if (r.groupFit === 'party' && r.heroes > 1) {", '  if (false) {'],
-  ['the Warrens forgets its solo break-even', 'src/data/hunt-grounds.js', '    soloFrom: 45,\n', ''],
+  ['the note sends a lone hero to bring a party again', 'src/shell/hunt-list.js', "' is at your level. Its monsters are tough, so alone it costs more than it pays.'", "' is right for your level if you bring a party.'"],
+  /* "the Warrens forgets its solo break-even" retired with the words it guarded (Tyler 2026-11-08: no ground is solo or party; the card no longer
+     says "alone it pays from Level 45"). soloFrom stays data: drop-tables reads a lone 45 there as its second sample, printed, not judged. */
   ['far under reads as near (the words never lean harder)', 'src/shell/hunt-list.js', "(gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS)", 'ABOVE_LEVEL_WORDS'],
   ['the words forget what dying costs', 'src/shell/hunt-list.js', "    + ' If you die, the hunt ends and you lose ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';", "    + '';"],
   ['the fight reads a hero Level again (S2)', 'src/core/hunt/damage.js', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow));', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow) + (t.heroLv ? 0 : 0));'],

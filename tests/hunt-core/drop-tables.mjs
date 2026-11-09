@@ -58,6 +58,8 @@ const imp = (root, p) => import(pathToFileURL(join(root, p)).href + V);
 
 /* THE NUMBERS THE RULINGS NAME (the designer's picks inside them, stated once). */
 const MARGIN_MIN = 25;          // percent over the store bill at the band floor (Tyler 10-18/10-20: 25-35%, a minimum)
+/* THE GLADE'S FLOOR MAY BE THIN (Tyler 2026-11-09, on its +19%: "fine"; a ruled bar, not a loosened one): it must still pay its way by this much. */
+const MARGIN_MIN_OF = Object.freeze({ mosslight_glade: 10 });
 const GEAR_HOURS = 6;           // "a few hours of hunting equips a new hero": every slot within 6 h at the floor
 const FAUCET = 0.50;            // designer 2026-10-23, Tyler: gear's sale value at most half the coin
 const TOTAL_RISE_MAX = 0.25;    // Tyler 2026-10-23: total value up to +25% over today's pinned numbers
@@ -365,7 +367,10 @@ function bossKillsOf(M, monsters, gid, x, rerun) {
   return Object.fromEntries(bosses.map((b) => [b, hx * runs.reduce((a, r) => a + (r.killsBy[b] || 0) / (r.playedMs / H || 1), 0) / runs.length]));
 }
 
-function bandRules(M, P, monsters, R, gid, x, n, today, label, bossKills) {
+/* ONE DROP CHANCE A KILL FOR EVERYONE (Tyler 2026-11-09: "base drop chances should be the same all around"; a ruled contract change): a row's pace is
+   judged at ONE sample point, the ground's reference group. A second group (BAND_ALT: the Sewer's party, the Warrens' lone hero at 45) reads the same
+   chance at its own kill speed: its paces are printed, never judged (`judge` false), so a lone 45 who kills the Chief faster sees the Cauldron sooner. */
+function bandRules(M, P, monsters, R, gid, x, n, today, label, bossKills, judge = true) {
   const E = expectedLoot(M, P, monsters, x, n, bossKills), list = Object.values(E.items), at = gid + (label ? ' (' + label + ')' : '');
   const range = (band) => list.filter((p) => p.band === band && !p.pending).map((p) => 1 / p.perH);
   /* A parked row (PENDING_ROWS) is measured at the pace it will have on this run's kills. */
@@ -379,7 +384,7 @@ function bandRules(M, P, monsters, R, gid, x, n, today, label, bossKills) {
     const rule = band === 'scarce' ? 'gear-pace' : band === 'rare' ? 'rare-pace' : 'trophy-pace';
     for (const p of list.filter((q) => q.band === band)) {
       const h = 1 / p.perH;
-      R.ok(h >= lo && h <= hi, rule + ': ' + at + ' ' + (p.pending ? 'pending ' : '') + band + ' ' + p.id + ' (' + p.from.join(', ') + ') every ' + h.toFixed(2) + ' h per hero, outside ' + lo + '-' + hi + ' h');
+      if (judge) R.ok(h >= lo && h <= hi, rule + ': ' + at + ' ' + (p.pending ? 'pending ' : '') + band + ' ' + p.id + ' (' + p.from.join(', ') + ') every ' + h.toFixed(2) + ' h per hero, outside ' + lo + '-' + hi + ' h');
     }
   }
   R.ok(E.gear <= FAUCET * E.coin, 'gear-faucet: ' + at + ' equipment sells for ' + Math.round(E.gear) + ' g/h, over ' + FAUCET + ' of the coin (' + Math.round(E.coin) + ' g/h)');
@@ -461,7 +466,8 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
     rows.push(row);
     if (!STARTER.includes(gid)) {
       R.ok(x.playedMs >= H, 'profit-floor: ' + gid + ' ended after ' + (x.playedMs / 60000).toFixed(0) + ' min at its floor (' + T.ended.join(', ') + ')');
-      R.ok(m >= MARGIN_MIN, 'profit-floor: ' + gid + ' at level ' + floor + ' earns ' + pct(m) + ' over its store bill, under +' + MARGIN_MIN + '%');
+      const mMin = MARGIN_MIN_OF[gid] ?? MARGIN_MIN;
+      R.ok(m >= mMin, 'profit-floor: ' + gid + ' at level ' + floor + ' earns ' + pct(m) + ' over its store bill, under +' + mMin + '%');
     }
     /* the value and band rules read the kit the pin was measured in (REFERENCE valueFull), the profit rule the reference kit */
     const vFull = ref.valueFull === undefined ? ref.full : ref.valueFull;
@@ -474,7 +480,7 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
       const lv = alt.at === 'soloFrom' ? M.G.HUNT_GROUNDS[gid].soloFrom : floor;
       const xa = P.run(gid, lv, alt.roles, { spanMs: H, fullSet: alt.full, monsters });
       const altKills = bossKillsOf(M, monsters, gid, xa, (secret) => P.run(gid, lv, alt.roles, { spanMs: H, fullSet: alt.full, monsters, secret }));
-      row.alt = bandRules(M, P, monsters, R, gid, xa, alt.roles.length, alt.today, alt.roles.length > 1 ? 'party of ' + alt.roles.length : 'alone at ' + lv, altKills);
+      row.alt = bandRules(M, P, monsters, R, gid, xa, alt.roles.length, alt.today, alt.roles.length > 1 ? 'party of ' + alt.roles.length : 'alone at ' + lv, altKills, false);
       row.altLevel = lv;
     }
   }
@@ -727,25 +733,28 @@ const playMutants = [
   /* The Sewer's coin cut to under half (armour weights, ruling K7, left the ladder-kit Melee +119% at the floor,
      so the old /1.8 coin clears +25% by a hair; lane b-spell-roles' Bronze-Rimmed Shield took the floor tank to +159%,
      so /2.2 clears it too, about +32%: the floor still bites at /2.6, about +16%). */
+  { name: 'the Glade\'s coin cut to a third (its thin floor no longer pays its way)', rule: 'profit-floor: mosslight_glade', edit: (ms) => {
+    for (const id of ['carrion_crow', 'glade_poacher', 'walking_vine', 'goblin_sluicer', 'rook_poacher', 'brook_bear']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 3)));
+  } },
   { name: 'the Sewer coin cut to a sixth (re-aimed from 1/2.6 when the gentle blow cap cut the floor tank\'s bill to 628 g an hour)', rule: 'profit-floor: millrace_sewer', edit: (ms) => {
     for (const id of ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 6)));
   } },
-  { name: 'the Kingsgrate at 5% (a Rare every 4 h)', rule: 'rare-pace: millrace_sewer (party of 4) rare kingsgrate', edit: (ms) => { rowOf(ms, 'rat_king', 'kingsgrate').ch = 0.05; } },
+  { name: 'the Kingsgrate at 5% (a Rare every 4 h)', rule: 'rare-pace: millrace_sewer rare kingsgrate', edit: (ms) => { rowOf(ms, 'rat_king', 'kingsgrate').ch = 0.05; } },
   { name: 'the Thicket\'s heavy boots five times rarer', rule: 'gear-pace: meadowbrook_thicket', edit: (ms) => { rowOf(ms, 'gray_whelp', 'bronze_boots').ch /= 5; } },
   { name: 'the Thicket\'s bodies twice as common', rule: 'gear-pace: meadowbrook_thicket', edit: (ms) => { for (const d of scarceOf(ms, 'dire_gray')) d.ch *= 2; } },
-  { name: 'the Sewer\'s party bodies too slow (a party of four)', rule: 'gear-pace: millrace_sewer (party of 4)', edit: (ms) => { for (const d of scarceOf(ms, 'sump_slime')) d.ch = 0.03; } },
+  { name: 'the Sewer\'s bodies too slow (the one sample point)', rule: 'gear-pace: millrace_sewer', edit: (ms) => { for (const d of scarceOf(ms, 'sump_slime')) d.ch = 0.03; } },
   { name: 'the Glade\'s bodies too slow', rule: 'gear-pace: mosslight_glade', edit: (ms) => { for (const d of scarceOf(ms, 'goblin_sluicer')) d.ch = 0.02; } },
   { name: 'the Warrens bodies on the Chief alone (a party too slow)', rule: 'gear-pace: coppercap_warrens', edit: (ms) => {
     for (const id of ['goblin_skulker', 'hobgoblin_foreman']) ms[id].drops = ms[id].drops.filter((d) => d.band !== 'scarce');
   } },
-  { name: 'the Warrens boots too slow for a lone hero', rule: 'gear-pace: coppercap_warrens (alone at 45)', edit: (ms) => { for (const d of scarceOf(ms, 'goblin_scavenger')) d.ch = 0.01; } },
+  { name: 'the Warrens boots too slow (the one sample point)', rule: 'gear-pace: coppercap_warrens', edit: (ms) => { for (const d of scarceOf(ms, 'goblin_scavenger')) d.ch = 0.01; } },
   { name: 'the den mother\'s fang back to 1%', rule: 'rare-pace: meadowbrook_thicket', edit: (ms) => { rowOf(ms, 'grayjaw', 'alpha_fang').ch = 0.01; } },
   { name: 'the Studded Leather Body ten times rarer', rule: 'rare-pace: meadowbrook_thicket', edit: (ms) => { rowOf(ms, 'dire_gray', 'studded_body').ch /= 10; } },
   { name: 'the Sewer\'s bows too common for a solo hero', rule: 'rare-pace: millrace_sewer rare longbow', edit: (ms) => { for (const d of ms.cistern_spider.drops) if (d.band === 'rare') d.ch = 0.02; } },
   { name: 'Rook\'s Whistle at 1%', rule: 'rare-pace: mosslight_glade rare rooks_whistle', edit: (ms) => { rowOf(ms, 'rook_poacher', 'rooks_whistle').ch = 0.01; } },
   { name: 'the War Crown at 4%', rule: 'rare-pace: coppercap_warrens rare war_crown', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'war_crown').ch = 0.04; } },
   { name: 'a boss Trophy every 44 h', rule: 'trophy-pace: meadowbrook_thicket', edit: (ms) => { ms.grayjaw.boss = true; ms.grayjaw.drops.push({ id: 'war_crown', ch: 0.001, band: 'trophy' }); } },
-  { name: 'the Rat King\'s Crown at 0.2% (a full Bestiary under 100 h)', rule: 'trophy-pace: millrace_sewer (party of 4)', edit: (ms) => { rowOf(ms, 'rat_king', 'rat_kings_crown').ch = 0.002; } },
+  { name: 'the Rat King\'s Crown at 0.2% (a full Bestiary under 100 h)', rule: 'trophy-pace: millrace_sewer', edit: (ms) => { rowOf(ms, 'rat_king', 'rat_kings_crown').ch = 0.002; } },
   /* the Trophy pace on the Chief's meaned kills (TROPHY_SEEDS) still bites both ways */
   { name: 'the Chief\'s Cauldron at 0.17% (a full Bestiary under 100 h)', rule: 'trophy-pace: coppercap_warrens', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'coppercaps_cauldron').ch = 0.0017; } },
   { name: 'the Chief\'s Cauldron at 0.10% (the party waits over 150 h)', rule: 'trophy-pace: coppercap_warrens', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'coppercaps_cauldron').ch = 0.001; } },

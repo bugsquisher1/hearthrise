@@ -75,6 +75,16 @@ export function castOf(a, ctx) {
   return { row, version, level, skill, pm: Math.floor((outputPm(row, version, lv) * share) / 1000), mana: versionOf(row, version).mana, rune };
 }
 
+/** A cast's numbers for THIS hero in a few words (Tyler 2026-11-08, "75% what?": Configure action's rune choices show what each
+    lands, never a share): "13–23 damage", "heals 13–23", "shields 40", or '' for a spell with none (a taunt, a mark). `k` is castOf's. */
+export function outputWords(k) {
+  const r = k && k.row;
+  if (!r) return '';
+  if (r.dmg) return t('bar.out_dmg', { lo: landed(r.dmg[0], k.pm), hi: landed(r.dmg[1], k.pm) });
+  if (r.heal) return t('bar.out_heal', { lo: landed(r.heal[0], k.pm), hi: landed(r.heal[1], k.pm) });
+  return r.shield ? t('bar.out_shield', { points: landed(r.shield, k.pm) }) : '';
+}
+
 /** A row's number `n` at `pm` permille, exactly as the engine lands it (abilities.js effect `scaled`, damage.js `mult`). */
 export function landed(n, pm) {
   return pm === 1000 ? n : Math.floor((n * pm) / 1000);

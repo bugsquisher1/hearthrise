@@ -14,7 +14,7 @@
 import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.110';
 import { STATUSES } from '../data/statuses.js?v=0.2.110';
 import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.110';
-import { BASIC_INDEX, BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.110';
+import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.110';
 import { isRune } from '../data/supplies.js?v=0.2.110';
 import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.110';
 import { ITEMS } from '../data/items.js?v=0.2.110';
@@ -151,10 +151,10 @@ export function storeChoices(a, rows, skills) {
   return list;
 }
 
-/** A shop rune in words: "Scored Fire Rune · 8 g a cast · hits at 75%", or the level it waits for. The share is the
-    store's (supply-basics.js BASIC_EFFECT_SHARE: a shop rune casts its version at that share). */
-export function storeChoiceWords(c) {
-  return t(c.short ? 'bar.shop_rune_short' : 'bar.shop_rune', { name: c.name, price: c.price, needs: c.needs, pct: Math.round(BASIC_EFFECT_SHARE * 100) });
+/** A shop rune in words: "Scored Fire Rune · 8 g each · 10–17 damage" (`out`: what one cast lands for this hero, cast-facts.js
+    outputWords; Tyler 2026-11-08, never a share), or the level it waits for. */
+export function storeChoiceWords(c, out) {
+  return t(c.short ? 'bar.shop_rune_short' : out ? 'bar.shop_rune' : 'bar.shop_rune_plain', { name: c.name, price: c.price, needs: c.needs, out: out || '' });
 }
 
 /** The shop rune a freshly picked rune spell starts with: Plain, its family's cheapest row (shown, changeable), else

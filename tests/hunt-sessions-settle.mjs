@@ -2085,10 +2085,16 @@ const DB_ARMS = {
         'state', md5(replace(pg_get_functiondef('public.hr_hunt_rune_state(uuid,integer,uuid,text)'::regprocedure), chr(13), '')),
         'state_acl', (select proacl::text from pg_proc where oid = 'public.hr_hunt_rune_state(uuid,integer,uuid,text)'::regprocedure),
         'baseline', (select jsonb_agg(to_jsonb(b) order by b.grantee) from public.hr_client_rpc_baseline b where b.proname = 'hr_hunt_restock'))`);
-    /* The view moved on (2027-03-08-rune-ladder-slots.sql): this file's §0 accepts only its own two images, so its own image goes back first, inside this rolled-back transaction. */
+    /* The view moved on (2027-03-08-rune-ladder-slots.sql): this file's §0 accepts only its own two images, so its own image goes back first, inside this rolled-back transaction.
+       Its 4-argument hr_hunt_rune_state was dropped by 2027-03-24-rune-supply.sql (the ticked runes' 5-argument form replaced it), so it goes back the same way. */
     const carryIn = readFileSync(join(ROOT, 'supabase', 'migrations', '2027-02-21-hunt-carry-in.sql'), 'utf8').replace(/\r\n/g, '\n');
-    const from = carryIn.indexOf('create or replace function public.hr_hunt_settings_view(p_user uuid, p_slot int)');
-    await db.exec(carryIn.slice(from, carryIn.indexOf('end $$;', from) + 'end $$;'.length));
+    for (const head of ['create or replace function public.hr_hunt_rune_state(p_user uuid, p_slot int, p_session uuid, p_ability text)',
+      'create or replace function public.hr_hunt_settings_view(p_user uuid, p_slot int)']) {
+      const from = carryIn.indexOf(head);
+      if (from < 0) return ['HARNESS: 2027-02-21-hunt-carry-in.sql no longer creates ' + head];
+      await db.exec(carryIn.slice(from, carryIn.indexOf('end $$;', from) + 'end $$;'.length));
+    }
+    await db.exec('revoke execute on function public.hr_hunt_rune_state(uuid, int, uuid, text) from public, anon, authenticated, service_role');
     await db.exec('revoke execute on function public.hr_hunt_settings_view(uuid, int) from public, anon, authenticated, service_role');
     const before = await image();
     try { await db.exec(carryIn); }
@@ -4329,13 +4335,13 @@ const DB_MUTANTS = [
     find: '  if v_s.leave_at is not null or v_s.change_at is not null then', replace: '  if false then' },
   { arm: 'CARRY-IN', name: '[carry-in] a carry lands in a hunt minutes behind its settle', fn: 'public.hr_hunt_restock(integer,text,bigint,uuid)',
     find: '  if public.hr_hunt_gap_ms(v_s) > c_slack_ms then', replace: '  if false then' },
-  { arm: 'RUNE-TRUTH', name: '[rune-truth] a hunting hero\'s runes are read from the backpack (the false strike)', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text)',
+  { arm: 'RUNE-TRUTH', name: '[rune-truth] a hunting hero\'s runes are read from the backpack (the false strike)', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text,jsonb)',
     find: '  if p_session is not null then', replace: '  if false then' },
-  { arm: 'RUNE-TRUTH', name: '[rune-truth] a rune above the hero\'s level reads ready', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text)',
+  { arm: 'RUNE-TRUTH', name: '[rune-truth] a rune above the hero\'s level reads ready', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text,jsonb)',
     find: "case when coalesce(v_lv, 1) >= v_min then 'ready' else 'locked' end", replace: "'ready'" },
-  { arm: 'RUNE-TRUTH', name: '[rune-truth] a weapon ability\'s version is read on Magic', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text)',
+  { arm: 'RUNE-TRUTH', name: '[rune-truth] a weapon ability\'s version is read on Magic', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text,jsonb)',
     find: "k.skill_id = v_row->>'skill'", replace: "k.skill_id = 'magic'" },
-  { arm: 'RUNE-TRUTH', name: '[rune-truth] only the family\'s Chalked rune counts', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text)',
+  { arm: 'RUNE-TRUTH', name: '[rune-truth] only the family\'s Chalked rune counts', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text,jsonb)',
     find: "and b.qty_left > 0 and v_row->'runes' ? b.item_id", replace: "and b.qty_left > 0 and b.item_id like 'chalked_%'" },
   { arm: 'RUNE-TRUTH', name: '[rune-truth] the view says nothing of a rune above the level', fn: 'public.hr_hunt_settings_view(uuid,integer)',
     find: "when v_can is false and v_rune = 'locked' then 'rune_level' end", replace: "when false then 'rune_level' end" },

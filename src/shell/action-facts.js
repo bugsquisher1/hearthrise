@@ -293,7 +293,7 @@ export function reasonOf(sl, set, bag, hero, worn, skills, pack) {
     if (sup && sup.onEmpty === 'leave' && !(ownCount(a, bag) > 0)) {
       return { code: 'runes_out', text: packed ? t('bar.rune_leaves_packed', { waiting: packed }) : t('bar.rune_leaves'), glyph: 'uiChest', strike: true };
     }
-    if (sup && !(ownCount(a, bag) > 0) && !(storeOn && storeOf(a, set && set.store))) {
+    if (sup && !(ownCount(a, bag) > 0) && !(storeOn && sup.onEmpty === 'store' && storeOf({ ...a, store: sup.store }, set && set.store))) {
       const rune = runeWords(r.rune, 1);
       const an = /^[aeiou]/i.test(rune) ? 'an' : 'a';
       return { code: 'rune', text: packed ? t('bar.rune_needs_' + an + '_packed', { rune, waiting: packed }) : t('bar.rune_needs_' + an, { rune }), glyph: 'uiChest', strike: true };

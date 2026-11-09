@@ -13,7 +13,7 @@
 --   hr_hunt_rune_supply          NEW, server-only: a spell slot's rune supply { runes, own, store, onEmpty } (src/core/hunt/conditions.js
 --                                runeSupplyOf, the same rule): `own` the runes of the spell's family it ticked, lowest tier first; `onEmpty`
 --                                'store' (buy the store rune it names) or 'leave' (end the hunt runes_out). A slot that says nothing ticks every
---                                rune of its family, and buys when it names a store rune, else leaves.
+--                                rune of its family and buys from the shop (Tyler 2026-11-08), its named rune, else the family's tier-1 one.
 --   hr_hunt_slot_check           SPLICED (marker RUNE-SUPPLY): a rune spell's slot may carry `own` and `onEmpty`, refused bad_own / bad_on_empty /
 --                                bad_store unless they read back as said (a rune of another family, a repeat, an unknown word; "buy" with no
 --                                store rune, "leave" with one, "leave" with nothing ticked); the stored slot always carries both.
@@ -23,12 +23,12 @@
 --                                none of its ticked runes left says `why` runes_out; every rune spell's slot projects its supply whole.
 --   hr_hunt_settle_session       SPLICED: proves runes_out (the session's bar holds that spell leaving on empty, and no rune it ticks is left).
 --   THE SAVED BARS               every stored rune spell slot is re-stored through the new door: own = every rune of the family, onEmpty =
---                                'store' when it names a store rune, else 'leave' (lane/b-rune-supply's default for existing bars).
+--                                'store', the shop rune it names, else the family's tier-1 one (Tyler 2026-11-08: "Yes make the default to buy from the shop").
 --
 -- ── WHO IS TOUCHED ─────────────────────────────────────────────────────────────────────────────────────────────────
 -- Every saved bar holding a rune spell slot is rewritten once, here (no back-compat, CLAUDE.md §1; Tyler 2026-11-07, no progress protection).
--- What such a slot spends does not move: it ticks every rune of its family, which is what the engine spent before. What moves: a slot that
--- named no store rune now LEAVES the hunt when its runes run out (it used to stop casting and hunt on). Its rule id moves with its content.
+-- What such a slot spends first does not move: it ticks every rune of its family, which is what the engine spent before. What moves: a slot
+-- that named no store rune now BUYS the family's tier-1 shop rune when its runes run out (it used to stop casting). Its rule id moves with it.
 -- No other slot, row, grant or signature moves; no value moves.
 --
 -- ── EXPLOIT SURFACE DELTA ──────────────────────────────────────────────────────────────────────────────────────────
@@ -80,9 +80,11 @@ begin
                 else v_all end;
   v_store := case when jsonb_typeof(p_action->'store') = 'string' then p_action->>'store' end;
   -- ⟦rune-on-empty⟧ src/data/runes.js RUNE_ON_EMPTY, pinned by tests/hunt-core/abilities.mjs
-  v_on := case when jsonb_typeof(p_action->'onEmpty') = 'string' and p_action->>'onEmpty' = any (array['store', 'leave']) then p_action->>'onEmpty'
-               when v_store is not null then 'store' else 'leave' end;
+  v_on := case when jsonb_typeof(p_action->'onEmpty') = 'string' and p_action->>'onEmpty' = any (array['store', 'leave']) then p_action->>'onEmpty' else 'store' end;
   -- ⟦/rune-on-empty⟧
+  -- BUY FROM THE SHOP BY DEFAULT (Tyler 2026-11-08, "Yes make the default to buy from the shop"): naming no shop rune, the family's tier-1 one.
+  if v_on = 'store' and v_store is null then
+    select r.key into v_store from jsonb_each_text(v_row->'store') r where r.value::int = 1 order by r.key limit 1; end if;
   return jsonb_build_object('runes', v_all, 'own', v_own, 'store', v_store, 'onEmpty', v_on);
 end $$;
 revoke execute on function public.hr_hunt_rune_supply(jsonb) from public, anon, authenticated, service_role;
@@ -125,7 +127,7 @@ begin
       array[$a$    v_r := jsonb_build_object('action', jsonb_build_object('type', 'ability', 'id', p_s #>> '{}'), 'conditions', '[]'::jsonb, 'join', 'and');$a$,
             $a$    v_rs := public.hr_hunt_rune_supply(jsonb_build_object('type', 'ability', 'id', p_s #>> '{}'));
     v_r := jsonb_build_object('action', jsonb_build_object('type', 'ability', 'id', p_s #>> '{}')
-                                        || case when v_rs is null then '{}'::jsonb else jsonb_build_object('own', v_rs->'own', 'onEmpty', v_rs->'onEmpty') end,
+                                        || case when v_rs is null then '{}'::jsonb else jsonb_strip_nulls(jsonb_build_object('own', v_rs->'own', 'onEmpty', v_rs->'onEmpty', 'store', v_rs->'store')) end,
                               'conditions', '[]'::jsonb, 'join', 'and');$a$],
       array[$a$where k not in ('type', 'id', 'store')) then$a$, $a$where k not in ('type', 'id', 'store', 'own', 'onEmpty')) then$a$],
       array[$a$  v_r := public.hr_hunt_conds_check(p_s->'conditions', p_s->'join', false);$a$,
@@ -143,14 +145,15 @@ begin
       return jsonb_build_object('ok', false, 'error', 'bad_own'); end if;
     if p_s->'action' ? 'onEmpty' and (p_s->'action'->'onEmpty') is distinct from (v_rs->'onEmpty') then
       return jsonb_build_object('ok', false, 'error', 'bad_on_empty'); end if;
-    if (v_rs->>'onEmpty' = 'store') <> (v_store is not null) then return jsonb_build_object('ok', false, 'error', 'bad_store'); end if;
+    if (v_rs->>'onEmpty' = 'store') <> (v_rs->>'store' is not null) or (v_rs->>'onEmpty' = 'leave' and v_store is not null) then
+      return jsonb_build_object('ok', false, 'error', 'bad_store'); end if;
     if v_rs->>'onEmpty' = 'leave' and jsonb_array_length(v_rs->'own') = 0 then
       return jsonb_build_object('ok', false, 'error', 'bad_on_empty'); end if;
   end if;
   v_r := public.hr_hunt_conds_check(p_s->'conditions', p_s->'join', false);$a$],
       array[$a$                                     || case when v_store is null then '{}'::jsonb else jsonb_build_object('store', v_store) end,$a$,
             $a$                                     || case when v_store is null then '{}'::jsonb else jsonb_build_object('store', v_store) end
-                                     || case when v_rs is null then '{}'::jsonb else jsonb_build_object('own', v_rs->'own', 'onEmpty', v_rs->'onEmpty') end,$a$]
+                                     || case when v_rs is null then '{}'::jsonb else jsonb_strip_nulls(jsonb_build_object('own', v_rs->'own', 'onEmpty', v_rs->'onEmpty', 'store', v_rs->'store')) end,$a$]
     ] loop
       v_n := (length(v_def) - length(replace(v_def, v_pair[1], ''))) / length(v_pair[1]);
       if v_n <> 1 then raise exception 'hr_hunt_slot_check: RUNE-SUPPLY anchor matched % times (need 1): the body moved: %', v_n, left(v_pair[1], 80); end if;
@@ -173,7 +176,7 @@ begin
             $a$      -- RUNE-SUPPLY (2027-03-24-rune-supply.sql, Tyler 2026-11-08): only the runes the slot ticked count, and the store only when the
       -- slot buys on empty (abilities.js runeFor). The slot projects its supply whole, a default slot's too, so the bar reads what the engine runs.
       v_rs := public.hr_hunt_rune_supply(v_e->'action');
-      if v_rs is not null then v_e := jsonb_set(v_e, '{action}', (v_e->'action') || jsonb_build_object('own', v_rs->'own', 'onEmpty', v_rs->'onEmpty')); end if;
+      if v_rs is not null then v_e := jsonb_set(v_e, '{action}', (v_e->'action') || jsonb_strip_nulls(jsonb_build_object('own', v_rs->'own', 'onEmpty', v_rs->'onEmpty', 'store', v_rs->'store'))); end if;
       v_rune := case when v_ab.rune is null then 'ready' else public.hr_hunt_rune_state(p_user, p_slot, s.id, v_ab.ability_id, v_rs->'own') end;$a$],
       array[$a$      v_store := case when v_rune <> 'ready' and v_on and v_e->'action' ? 'store'$a$,
             $a$      v_store := case when v_rune <> 'ready' and v_on and v_rs->>'onEmpty' = 'store' and v_e->'action' ? 'store'$a$],
@@ -229,7 +232,7 @@ end $grants$;
 
 -- ── §5 THE SAVED BARS, ONCE (the migration's work, not a self-check) ─────────────────────────────────────────────────────
 -- Every stored rune spell slot goes back through the new door (hr_hunt_slot_check), which writes its supply out whole: own = every rune of
--- the family, onEmpty = 'store' when it names a store rune, else 'leave'. The bar keeps every other slot as stored (an invalid one still
+-- the family, onEmpty = 'store', the shop rune it names, else the family's tier-1 one. The bar keeps every other slot as stored (an invalid one still
 -- reads as an empty tablet) and its repeats' _2, _3 ids as hr_hunt_bar_check gives them. A second apply finds nothing to rewrite.
 create or replace function pg_temp.hr_rune_supply_bar(p_slots jsonb)
 returns jsonb language plpgsql as $$
@@ -254,7 +257,8 @@ update public.player_action_sets a
  where jsonb_typeof(a.slots) = 'array'
    and exists (select 1 from jsonb_array_elements(a.slots) e
                 where public.hr_hunt_rune_supply(case when jsonb_typeof(e) = 'string' then jsonb_build_object('type', 'ability', 'id', e #>> '{}') else e->'action' end) is not null
-                  and not (jsonb_typeof(e) = 'object' and e->'action' ? 'own' and e->'action' ? 'onEmpty'));
+                  and not (jsonb_typeof(e) = 'object' and e->'action' ? 'own' and e->'action' ? 'onEmpty'
+                           and (e->'action'->>'onEmpty' = 'leave' or e->'action' ? 'store')));
 
 -- ── §6 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe row rolled back ───────────────────────────────────────────────
 do $$
@@ -279,10 +283,10 @@ begin
     raise exception 'rune-supply §6(a): the 4-argument hr_hunt_rune_state (every rune of the family) still stands'; end if;
   perform public.hr_assert_grant_hygiene(true);
 
-  -- (b) THE SUPPLY: a slot that says nothing ticks the five Fire runes, lowest tier first, and leaves; naming a store rune, it buys.
+  -- (b) THE SUPPLY: a slot that says nothing ticks the five Fire runes, lowest tier first, and buys the shop's tier-1 Fire rune.
   v := public.hr_hunt_rune_supply('{"type":"ability","id":"fireball"}'::jsonb);
   if v->'own' is distinct from '["chalked_fire_rune","scored_fire_rune","etched_fire_rune","carved_fire_rune","graven_fire_rune"]'::jsonb
-     or v->'runes' is distinct from v->'own' or v->>'onEmpty' <> 'leave' or v->'store' <> 'null'::jsonb then
+     or v->'runes' is distinct from v->'own' or v->>'onEmpty' <> 'store' or v->>'store' is distinct from 'plain_fire_rune' then
     raise exception 'rune-supply §6(b): a bare Fireball reads %', v; end if;
   v := public.hr_hunt_rune_supply('{"type":"ability","id":"fireball","store":"plain_fire_rune","own":["graven_fire_rune","chalked_fire_rune","chalked_ice_rune"]}'::jsonb);
   if v->'own' is distinct from '["chalked_fire_rune","graven_fire_rune"]'::jsonb or v->>'onEmpty' <> 'store' then
@@ -300,7 +304,6 @@ begin
       ('{"own":[7],"store":"plain_fire_rune"}', 'bad_own'),
       ('{"onEmpty":"end","store":"plain_fire_rune"}', 'bad_on_empty'),
       ('{"onEmpty":1,"store":"plain_fire_rune"}', 'bad_on_empty'),
-      ('{"onEmpty":"store"}', 'bad_store'),
       ('{"onEmpty":"leave","store":"plain_fire_rune"}', 'bad_store'),
       ('{"own":[],"onEmpty":"leave"}', 'bad_on_empty'),
       ('{"own":[],"store":"plain_ice_rune"}', 'bad_store')) t(extra, want) loop
@@ -312,15 +315,16 @@ begin
     if v->>'error' not in ('bad_own', 'bad_on_empty') then raise exception 'rune-supply §6(c): a slot that spends no rune took a rune supply: % answered %', v_k, v; end if;
   end loop;
   foreach v_k in array array['{"own":[],"store":"plain_fire_rune","onEmpty":"store"}', '{"own":["scored_fire_rune"],"onEmpty":"leave"}',
-                             '{"own":["graven_fire_rune","chalked_fire_rune"],"store":"plain_etched_fire_rune","onEmpty":"store"}', '{}', '{"store":"plain_fire_rune"}'] loop
+                             '{"own":["graven_fire_rune","chalked_fire_rune"],"store":"plain_etched_fire_rune","onEmpty":"store"}', '{}', '{"store":"plain_fire_rune"}', '{"onEmpty":"store"}'] loop
     v := public.hr_hunt_slot_check(jsonb_build_object('action', jsonb_build_object('type', 'ability', 'id', 'flame_strike') || v_k::jsonb, 'conditions', '[]'::jsonb, 'join', 'and'));
     v_slot := v->'slot';
     if coalesce(v->>'ok', '') <> 'true' or not (v_slot->'action' ? 'own' and v_slot->'action' ? 'onEmpty')
+       or (v_slot->'action'->>'onEmpty' = 'store' and not (v_slot->'action' ? 'store'))
        or v_slot->>'id' is distinct from 'r' || substr(md5((v_slot - 'id')::text), 1, 8) then
       raise exception 'rune-supply §6(c): % was refused or stored without its supply: %', v_k, v; end if;
   end loop;
   v := public.hr_hunt_slot_check('"fireball"'::jsonb);
-  if v->'slot'->'action'->'own' is distinct from (public.hr_hunt_rune_supply('{"type":"ability","id":"fireball"}'::jsonb)->'own') or v->'slot'->'action'->>'onEmpty' <> 'leave' then
+  if v->'slot'->'action'->'own' is distinct from (public.hr_hunt_rune_supply('{"type":"ability","id":"fireball"}'::jsonb)->'own') or v->'slot'->'action'->>'onEmpty' <> 'store' or v->'slot'->'action'->>'store' is distinct from 'plain_fire_rune' then
     raise exception 'rune-supply §6(c): a bare Fireball id is stored as %', v; end if;
 
   -- (d) THE SETTLE PROVES runes_out, and no saved rune spell slot is left without its supply.
@@ -328,7 +332,8 @@ begin
     raise exception 'rune-supply §6(d): the settle has no runes_out proof'; end if;
   if exists (select 1 from public.player_action_sets a, jsonb_array_elements(case when jsonb_typeof(a.slots) = 'array' then a.slots else '[]'::jsonb end) e
               where public.hr_hunt_rune_supply(case when jsonb_typeof(e) = 'string' then jsonb_build_object('type', 'ability', 'id', e #>> '{}') else e->'action' end) is not null
-                and not (jsonb_typeof(e) = 'object' and e->'action' ? 'own' and e->'action' ? 'onEmpty')) then
+                and not (jsonb_typeof(e) = 'object' and e->'action' ? 'own' and e->'action' ? 'onEmpty'
+                         and (e->'action'->>'onEmpty' = 'leave' or e->'action' ? 'store'))) then
     raise exception 'rune-supply §6(d): a saved rune spell slot still has no supply'; end if;
 
   -- (e) THE VIEW on a real hero (a wand, Magic 1, the store open): only the ticked runes count, the store only when the slot buys, and a
@@ -349,7 +354,8 @@ begin
     insert into public.player_action_sets (user_id, slot, preset, name, slots, options) values (c_u, 0, 0, 'Probe', jsonb_build_array(
         jsonb_build_object('action', jsonb_build_object('type', 'ability', 'id', 'fireball', 'own', jsonb_build_array('chalked_fire_rune'), 'onEmpty', 'leave'), 'conditions', '[]'::jsonb, 'join', 'and'),
         jsonb_build_object('action', jsonb_build_object('type', 'ability', 'id', 'fireball', 'own', jsonb_build_array('chalked_fire_rune'), 'store', 'plain_fire_rune', 'onEmpty', 'store'), 'conditions', '[]'::jsonb, 'join', 'and'),
-        jsonb_build_object('action', jsonb_build_object('type', 'ability', 'id', 'fireball', 'own', jsonb_build_array('scored_fire_rune'), 'onEmpty', 'leave'), 'conditions', '[]'::jsonb, 'join', 'and')),
+        jsonb_build_object('action', jsonb_build_object('type', 'ability', 'id', 'fireball', 'own', jsonb_build_array('scored_fire_rune'), 'onEmpty', 'leave'), 'conditions', '[]'::jsonb, 'join', 'and'),
+        jsonb_build_object('action', jsonb_build_object('type', 'ability', 'id', 'fireball', 'own', jsonb_build_array('chalked_fire_rune')), 'conditions', '[]'::jsonb, 'join', 'and')),
       '{"on_empty":"switch"}'::jsonb);
     v := public.hr_hunt_settings_view(c_u, 0);
     if v->'slots'->0->>'usable' is distinct from 'false' or v->'slots'->0->>'why' is distinct from 'runes_out' then
@@ -358,6 +364,8 @@ begin
       raise exception 'rune-supply §6(e): a buying slot whose ticked rune is not carried reads %', v->'slots'->1; end if;
     if v->'slots'->2->>'usable' is distinct from 'false' or v->'slots'->2->>'why' is distinct from 'rune_level' then
       raise exception 'rune-supply §6(e): a slot ticking a rune above Magic 1 reads %', v->'slots'->2; end if;
+    if v->'slots'->3->>'usable' is distinct from 'true' or v->'slots'->3->'action'->>'onEmpty' <> 'store' or v->'slots'->3->'action'->>'store' is distinct from 'plain_fire_rune' then
+      raise exception 'rune-supply §6(e): a slot naming no shop rune does not buy the tier-1 one: %', v->'slots'->3; end if;
     if v->'slots'->0->'action'->'own' is distinct from '["chalked_fire_rune"]'::jsonb or v->'slots'->0->'action'->>'onEmpty' <> 'leave' then
       raise exception 'rune-supply §6(e): the view does not project the slot''s supply: %', v->'slots'->0; end if;
     insert into public.player_inventory (user_id, slot, item_id, qty) values (c_u, 0, 'chalked_fire_rune', 3);

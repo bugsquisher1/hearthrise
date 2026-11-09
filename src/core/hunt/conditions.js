@@ -169,19 +169,28 @@ function familyRunes(family) {
  * THE RUNE SUPPLY OF A SPELL'S SLOT (Tyler 2026-11-08, RUNE SUPPLY PER SLOT; src/data/runes.js RUNE_ON_EMPTY):
  * { family, runes (every rune of the family, lowest tier first), own (the carried runes the player ticked, in that
  * order: none = "Use carried runes" is off), store (the store rune it buys, or null), onEmpty ('store' | 'leave') },
- * or null for an action that spends no rune. A slot that says nothing ticks every rune of the family, and buys its
- * store rune when it names one, else leaves: the server's hr_hunt_slot_check stores the same, so one rule reads a slot
- * everywhere (the engine's runeFor, the bar's cost line and Configure action).
+ * or null for an action that spends no rune. A slot that says nothing ticks every rune of the family and buys from the
+ * rune shop (Tyler 2026-11-08: "Yes make the default to buy from the shop"), the store rune it names, else the family's
+ * tier-1 one: the server's hr_hunt_slot_check stores the same, so one rule reads a slot everywhere (the engine's runeFor,
+ * the bar's cost line and Configure action).
  */
 export function runeSupplyOf(action) {
   const row = action && action.type === 'ability' ? ABILITIES[action.id] : null;
   const family = row && row.rune && ITEMS[row.rune] ? ITEMS[row.rune].family : null;
   if (!family) return null;
   const runes = familyRunes(family);
-  const store = typeof action.store === 'string' ? action.store : null;
   const own = Array.isArray(action.own) ? runes.filter((id) => action.own.includes(id)) : runes.slice();
-  const onEmpty = RUNE_ON_EMPTY.includes(action.onEmpty) ? action.onEmpty : store ? 'store' : 'leave';
+  const onEmpty = RUNE_ON_EMPTY.includes(action.onEmpty) ? action.onEmpty : 'store';
+  const named = typeof action.store === 'string' ? action.store : null;
+  const store = named || (onEmpty === 'store' ? plainRuneOf(runes) : null);
   return { family, runes, own, store, onEmpty };
+}
+
+/* The rune shop's tier-1 rune of a family: the store row partnering its lowest-tier rune (supply-basics.js; every family has one,
+   tools/gen-catalogues.mjs refuses a family without). */
+function plainRuneOf(runes) {
+  const b = Object.values(BASIC_INDEX).find((x) => x && x.partner === runes[0]);
+  return b ? b.id : null;
 }
 
 /** Why a slot's rune supply is refused, or null (the server's hr_hunt_slot_check, the same rule): what runeSupplyOf reads

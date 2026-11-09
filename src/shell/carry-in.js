@@ -14,7 +14,7 @@
 //                          carries it (the units only move; the slot wakes at the level,
 //                          designer 2026-11-03), and every line says it can't be shot yet
 //   carryFor(cs, action)   the rows one bar action can use: its own item, or every
-//                          tier of a rune spell's family
+//                          rune its spell's slot ticked
 //   carryWords(row)        "Carry 40 into this hunt"
 //   askCarry(ctx, body, sc, repaint, row, at)  "Carry how many?" (widgets/amount.js)
 //                          beside the press, then ONE carry (src/session/carry-intents.js);
@@ -32,7 +32,8 @@ import { shortOf } from './item-lore.js?v=0.2.110';
 import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.110';
 import { amountHtml, amountOf, stepAmount } from './widgets/amount.js?v=0.2.110';
 import { runIntent } from './intent-words.js?v=0.2.110';
-import { itemName, familyCount } from './widgets/bits.js?v=0.2.110';
+import { itemName } from './widgets/bits.js?v=0.2.110';
+import { runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.110';
 import { whole } from '../render/format.js?v=0.2.110';
 
 /* The server's hunt is open and not on its way home: a session, not ended, no Leave or change pending. */
@@ -42,14 +43,14 @@ function running(cs) {
   return !!s && typeof s === 'object' && !s.ended_at && !s.leave_at && !s.change_at;
 }
 
-/* Does a bar action spend the item `id`: its own item (the "loaded" shot is the worn ammo, `worn`), or a rune of its
-   spell's family? */
+/* Does a bar action spend the item `id`: its own item (the "loaded" shot is the worn ammo, `worn`), or a rune its spell's
+   slot ticked (Tyler 2026-11-08, RUNE SUPPLY PER SLOT: conditions.js runeSupplyOf; an unticked tier is never spent)? */
 function spends(a, id, worn) {
   if (!a || !a.id) return false;
   if (a.type === 'consume') return a.id === id;
   if (a.type === 'attack_with_item') return (a.id === 'loaded' ? worn : a.id) === id;
-  const r = a.type === 'ability' && ABILITIES[a.id] ? ABILITIES[a.id].rune : null;
-  return !!r && familyCount(r, [{ id, qty: 1 }]) > 0;
+  const sup = runeSupplyOf(a);
+  return !!sup && sup.own.includes(id);
 }
 
 /* The worn ammo (the server's equipment), which the bar's "loaded" shot spends. */

@@ -6,9 +6,11 @@
 // runes' checked, it opens a section of carried runes that fit that spell type, and they check the box.
 // Then condition - 'when rune supply runs out' 'Pay rune shop' or 'leave hunt'". In a rune spell's detail:
 //   [ ] Use carried runes      ticked: the runes of the spell's family the hero carries, each with its
-//                              count and a box, a locked tier saying the level it needs
+//                              count, what one cast lands for this hero and a box, a locked tier saying
+//                              the level it needs
 //   When your runes run out    ( ) Buy from the rune shop, a tier picker of the family's shop runes, each
-//                              with its price and the shop's share   ( ) Leave the hunt
+//                              with its price and what one cast lands (Tyler 2026-11-08: "75% what?",
+//                              so the numbers, never a share)   ( ) Leave the hunt
 // With the box off the rune shop is the slot's one supply. Every choice is the draft's until Save (the
 // window's one intent); the rule is src/shell/rune-supply.js's, the engine's. The bar's hover only
 // summarises it (cast-facts.js costLine).
@@ -19,6 +21,7 @@ import { runeSupplyOf } from '../../core/hunt/conditions.js?v=0.2.110';
 import { RUNE_FAMILIES } from '../../data/runes.js?v=0.2.110';
 import { storeChoices, storeChoiceWords } from '../bar-draft.js?v=0.2.110';
 import { carriedRunes, withSupply } from '../rune-supply.js?v=0.2.110';
+import { castOf, outputWords } from '../cast-facts.js?v=0.2.110';
 import { whole } from '../../render/format.js?v=0.2.110';
 import { t } from '../../render/player-text.js?v=0.2.110';
 
@@ -49,7 +52,7 @@ export function patchRunes(root, d, c) {
   rows(box.querySelector('.ca-rn-list'), list, {
     key: (r) => r.id,
     build: (r) => element(c.doc, '<li class="ca-rn"><label><input type="checkbox" data-hs-act="cfg-f" data-f="rn-tick" data-rune="' + esc(r.id) + '">'
-      + ' <span class="ca-rn-name"></span> <span class="ca-rn-have"></span> <span class="ca-rn-lock"></span></label></li>'),
+      + ' <span class="ca-rn-name"></span> <span class="ca-rn-have"></span> <span class="ca-rn-out"></span><span class="ca-rn-lock"></span></label></li>'),
     patch: (li, r) => {
       cls(li, 'is-locked', r.locked);
       const cb = li.querySelector('input');
@@ -58,6 +61,7 @@ export function patchRunes(root, d, c) {
       text(li.querySelector('.ca-rn-name'), r.name);
       text(li.querySelector('.ca-rn-have'), whole(r.have));
       text(li.querySelector('.ca-rn-lock'), r.locked ? t('bar.runes_needs', { needs: r.needs }) : '');
+      text(li.querySelector('.ca-rn-out'), r.locked ? '' : landsWith(d.action, { own: [r.id], onEmpty: 'leave' }, c));
     },
   });
   const fam = RUNE_FAMILIES[sup.family];
@@ -75,9 +79,16 @@ export function patchRunes(root, d, c) {
       attr(b, 'aria-selected', String(sel));
       cls(b, 'is-on', sel);
       prop(b, 'disabled', c.off);
-      text(b, storeChoiceWords(x));
+      text(b, storeChoiceWords(x, landsWith(d.action, { own: [], store: x.id, onEmpty: 'store' }, c)));
     },
   });
+}
+
+/* What one cast lands for this hero on ONE supply (castOf, the engine's rule): a carried tier, or a shop rune. '' when that supply
+   would not cast (the cast-facts.js source is not the one asked for). */
+function landsWith(a, supply, c) {
+  const k = castOf(Object.assign({ type: a.type, id: a.id }, supply), { bag: supply.store ? [] : c.bag, store: c.store, skills: c.skills });
+  return k && k.rune && k.rune.source === (supply.store ? 'store' : 'own') ? outputWords(k) : '';
 }
 
 /** The slot's action after one of the section's controls (`el`: a box, a tick, a choice, or a shop rune pressed), or null

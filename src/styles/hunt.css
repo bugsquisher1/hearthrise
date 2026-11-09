@@ -472,6 +472,8 @@
 .ca-rn-list { margin: 0 0 0 22px; padding: 0; list-style: none; }
 .ca-rn-list:empty { display: none; }
 .ca-rn-have { margin-left: auto; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.ca-rn-out { min-width: 7em; text-align: right; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.ca-rn-out:empty { display: none; }
 .ca-rn.is-locked .ca-rn-name, .ca-rn-lock, .ca-rn-none, .ca-rn-shop { color: var(--ink-3); }
 .ca-rn-lock:empty, .ca-rn-none:empty, .ca-rn-shop:empty { display: none; }
 .ca-rn-empty { min-width: 0; margin: 4px 0 0; padding: 0; border: 0; }

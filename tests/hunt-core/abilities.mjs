@@ -111,9 +111,9 @@ const cases = {
     const bare = supplySession(M, { bag: { chalked_fire_rune: { loaded: 0 } }, shot: 'plain_fire_rune', ammo: 'chalked_fire_rune', purse: 50 });
     const n = melee(M, ['flame_strike'], {}, { hs: bare });
     M.abilities.castAbilities(n.inst, n.sc);
-    if (casts(n.sc).length !== 0 || bare.purse !== 50) return 'a Flame Strike slot naming no store rune bought one';
-    /* RUNE SUPPLY PER SLOT (Tyler 2026-11-08): a slot naming no store rune reads "Leave the hunt" when its runes run out */
-    return bare.runesOut === 'flame_strike' ? null : 'a slot naming no store rune, out of runes, did not leave: ' + JSON.stringify(bare.runesOut);
+    /* RUNE SUPPLY PER SLOT (Tyler 2026-11-08, "Yes make the default to buy from the shop"): a slot naming no shop rune buys its family's tier-1 one */
+    return casts(n.sc).length === 1 && bare.purse === 48 && bare.tally.bought.plain_fire_rune === 1 && !bare.runesOut ? null
+      : 'a Flame Strike slot naming no shop rune did not buy the Plain Fire Rune: ' + JSON.stringify([casts(n.sc), bare.purse, bare.tally.bought, bare.runesOut]);
   },
   /* RUNE SUPPLY PER SLOT (Tyler 2026-11-08: "If the player has 'use carried runes' checked, it opens a section of carried runes
      that fit that spell type, and they check the box. Then condition - 'when rune supply runs out' 'Pay rune shop' or 'leave
@@ -150,11 +150,16 @@ const cases = {
     /* the bar's door: a rune of another family, a bad onEmpty, "buy" with no store rune, "leave" with one, and "leave" with nothing ticked */
     const bad = (action) => (M.conditions.slotProblem({ action: Object.assign({ type: 'ability', id: 'flame_strike' }, action), conditions: [], join: 'and' }) || {}).error;
     const refusals = [[{ own: ['chalked_ice_rune'], store: 'plain_fire_rune' }, 'bad_own'], [{ own: ['chalked_fire_rune', 'chalked_fire_rune'], store: 'plain_fire_rune' }, 'bad_own'],
-      [{ own: 'chalked_fire_rune', store: 'plain_fire_rune' }, 'bad_own'], [{ onEmpty: 'end', store: 'plain_fire_rune' }, 'bad_on_empty'], [{ onEmpty: 'store' }, 'bad_store'],
+      [{ own: 'chalked_fire_rune', store: 'plain_fire_rune' }, 'bad_own'], [{ onEmpty: 'end', store: 'plain_fire_rune' }, 'bad_on_empty'],
       [{ onEmpty: 'leave', store: 'plain_fire_rune' }, 'bad_store'], [{ own: [], onEmpty: 'leave' }, 'bad_on_empty']];
     for (const [a, want] of refusals) if (bad(a) !== want) return 'the bar answered ' + bad(a) + ' to ' + JSON.stringify(a) + ', want ' + want;
     if ((M.conditions.slotProblem({ action: { type: 'ability', id: 'power_strike', onEmpty: 'leave' }, conditions: [], join: 'and' }) || {}).error !== 'bad_on_empty') return 'a spell with no rune took onEmpty';
-    for (const a of [{ own: [], store: 'plain_fire_rune', onEmpty: 'store' }, { own: ['scored_fire_rune'], onEmpty: 'leave' }, { own: ['chalked_fire_rune', 'graven_fire_rune'], store: 'plain_etched_fire_rune', onEmpty: 'store' }]) {
+    if (M.conditions.runeSupplyOf({ type: 'ability', id: 'flame_strike' }).store !== 'plain_fire_rune') return 'a slot that says nothing does not buy the tier-1 Fire rune';
+    /* the server's same rule (2027-03-24-rune-supply.sql hr_hunt_rune_supply): its on-empty words are RUNE_ON_EMPTY */
+    const sql = readFileSync(join(ROOT, 'supabase/migrations/2027-03-24-rune-supply.sql'), 'utf8');
+    const words = /⟦rune-on-empty⟧[\s\S]*?array\[([^\]]*)\][\s\S]*?⟦\/rune-on-empty⟧/.exec(sql);
+    if (!words || JSON.stringify(words[1].split(',').map((w) => w.trim().replace(/'/g, ''))) !== JSON.stringify(M.runes.RUNE_ON_EMPTY)) return 'the server\'s on-empty words are not RUNE_ON_EMPTY: ' + (words && words[1]);
+    for (const a of [{ onEmpty: 'store' }, { own: [], store: 'plain_fire_rune', onEmpty: 'store' }, { own: ['scored_fire_rune'], onEmpty: 'leave' }, { own: ['chalked_fire_rune', 'graven_fire_rune'], store: 'plain_etched_fire_rune', onEmpty: 'store' }]) {
       if (bad(a)) return 'the bar refused ' + JSON.stringify(a) + ': ' + bad(a);
     }
     return fs.rune === 'chalked_fire_rune' ? null : 'fixture: Flame Strike spends ' + fs.rune;
@@ -194,7 +199,8 @@ const cases = {
     if (skill !== 'melee' || need !== 30) return 'Flame Strike levels on ' + skill + ' and version III needs ' + need + ', want melee 30';
     const at = (lv, store) => {
       const hs = supplySession(M, { bag: { etched_fire_rune: { loaded: 2 } }, shot: 'plain_fire_rune', ammo: 'chalked_fire_rune', purse: 50 });
-      const x = melee(M, [store ? storeSlot('flame_strike') : 'flame_strike'], {}, { hs, skills: { melee: M.XP.skillXpForLevel('melee', lv) } });
+      /* (no store: a slot set to leave, since a slot that says nothing buys from the shop, Tyler 2026-11-08) */
+      const x = melee(M, [store ? storeSlot('flame_strike') : { action: { type: 'ability', id: 'flame_strike', onEmpty: 'leave' }, conditions: [], join: 'and' }], {}, { hs, skills: { melee: M.XP.skillXpForLevel('melee', lv) } });
       M.abilities.castAbilities(x.inst, x.sc);
       return { x, hs, cast: x.sc.events.find((e) => e.type === 'cast') || null };
     };
@@ -260,13 +266,9 @@ const cases = {
     Object.assign(foreignHs.basics, shelf());
     const past = M.conditions.heroSlots([{ action: { type: 'ability', id: 'flame_strike', store: 'plain_scored_fire_rune' }, conditions: [], join: 'and' }], null)
       .map((r) => ({ ...r, slot: { ...r.slot, action: { ...r.slot.action, store: 'plain_scored_ice_rune' } } }));
-    /* the Runes tab's row, pinned or listed, states what the slot it is open on would pay, every tier; another spell's row stays on its Plain */
+    /* the cost line states what the slot would pay, every tier (the Runes tab is merged into Spells, Tyler 2026-11-08: the price is the cost line's) */
     for (const t of M.runes.RUNE_TIERS) {
       const id = t.tier === 1 ? 'plain_fire_rune' : 'plain_' + M.runes.runeId('fire', t.tier);
-      const table = SHELL.table.tableOf('runes', { store: M.SB.BASIC_SUPPLIES, bag: [], picked: { type: 'ability', id: 'flame_strike', store: id } });
-      const row = SHELL.table.rowIn(table, { type: 'ability', id: 'flame_strike' }), other = SHELL.table.rowIn(table, { type: 'ability', id: 'rend' });
-      if (row.price !== M.SB.BASIC_INDEX[id].price || SHELL.table.cellsOf(row)[2] !== String(M.SB.BASIC_INDEX[id].price)) return 'the Runes tab reads ' + JSON.stringify(SHELL.table.cellsOf(row)) + ' for a slot naming ' + id;
-      if (other.price !== M.SB.BASIC_INDEX.plain_rupture_rune.price) return 'naming ' + id + ' moved another spell\'s price: ' + JSON.stringify(other);
       const cost = SHELL.facts.factsOf({ type: 'ability', id: 'flame_strike', store: id }, { store: M.SB.BASIC_SUPPLIES, bag: [], skills: { melee: { level: t.level } } }).cost;
       if (cost !== 'Cost: ' + M.AD.versionOf(fs, t.tier).mana + ' mana · 1 ' + M.SB.BASIC_INDEX[id].n + ' (' + M.SB.BASIC_INDEX[id].price + ' g)') return 'the cost line does not name ' + id + ' at its price and its version\'s mana: ' + cost;
     }
@@ -274,7 +276,7 @@ const cases = {
     M.abilities.castAbilities(foreign.inst, foreign.sc);
     if (casts(foreign.sc).length || foreignHs.purse !== 1000) return 'a Fire spell cast on an Ice store rune: ' + JSON.stringify([casts(foreign.sc), foreignHs.purse]);
     const unnamed = at(60, null);
-    if (unnamed.cast || unnamed.hs.purse !== 1000) return 'a slot naming no store rune bought one: ' + JSON.stringify(unnamed.cast);
+    if (!unnamed.cast || unnamed.cast.supply !== 'plain_fire_rune' || unnamed.hs.purse !== 1000 - M.SB.BASIC_INDEX.plain_fire_rune.price) return 'a slot naming no shop rune did not buy the tier-1 one: ' + JSON.stringify(unnamed.cast);
     const own = at(60, 'plain_graven_fire_rune', { chalked_fire_rune: { loaded: 1 } });
     if (!own.cast || own.cast.source !== 'own' || own.cast.version !== 1 || own.hs.purse !== 1000) return 'a carried rune was not spent first: ' + JSON.stringify(own.cast);
     for (const t of M.runes.RUNE_TIERS) {
@@ -325,8 +327,8 @@ const cases = {
     for (const a of Object.values(M.AD.ABILITIES).filter((x) => x.active && x.rune)) {
       const fam = M.ITEMS[a.rune].family;
       const list = SHELL.draft.storeChoices({ type: 'ability', id: a.id }, M.SB.BASIC_SUPPLIES, null);
-      if (list.length !== M.runes.RUNE_TIERS.length + 1 || list[0].id !== null) return a.id + ': the choices are ' + JSON.stringify(list.map((c) => c.id));
-      if (list.slice(1).some((c, i) => c.tier !== i + 1 || M.ITEMS[M.SB.BASIC_INDEX[c.id].partner].family !== fam)) return a.id + ': the choices are not its family, cheapest first: ' + JSON.stringify(list.map((c) => c.id));
+      if (list.length !== M.runes.RUNE_TIERS.length) return a.id + ': the shop choices are ' + JSON.stringify(list.map((c) => c.id));
+      if (list.some((c, i) => c.tier !== i + 1 || M.ITEMS[M.SB.BASIC_INDEX[c.id].partner].family !== fam)) return a.id + ': the choices are not its family, cheapest first: ' + JSON.stringify(list.map((c) => c.id));
       const first = SHELL.draft.storeDefault({ type: 'ability', id: a.id }, M.SB.BASIC_SUPPLIES);
       if (first !== 'plain_' + fam + '_rune') return a.id + ' starts on ' + first + ', never a deeper rune';
     }
@@ -807,9 +809,8 @@ const mutants = [
   { name: 'an unaffordable slot marks the hunt gold_out while the bar is still walked', case: 'unaffordable-slot-waits',
     edits: [['src/core/hunt/abilities.js', "    if (s.why) return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' };",
       "    if (s.why) { if (s.short) h.hs.goldOut = true; return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' }; }"]] },
-  { name: 'a rune slot buys the store rune without naming it', case: 'rune-own-then-store',
-    edits: [['src/core/hunt/abilities.js', "  if (sup.onEmpty === 'leave') return { why: locked ? 'level' : 'runes_out', short: false };\n", ''],
-      ['src/core/hunt/abilities.js', "  const s = version ? storeLine(h.hs, b.partner, store) : { why: 'none' };", "  const s = storeLine(h.hs, row.rune, typeof store === 'string' ? store : undefined);"]] },
+  { name: 'a slot naming no shop rune leaves instead of buying (the old default)', case: 'rune-own-then-store',
+    edits: [['src/core/hunt/conditions.js', "  const onEmpty = RUNE_ON_EMPTY.includes(action.onEmpty) ? action.onEmpty : 'store';", "  const onEmpty = RUNE_ON_EMPTY.includes(action.onEmpty) ? action.onEmpty : typeof action.store === 'string' ? 'store' : 'leave';"]] },
   { name: '[rune supply] an unticked rune is spent', case: 'only-ticked-runes-then-on-empty',
     edits: [['src/core/hunt/conditions.js', '  const own = Array.isArray(action.own) ? runes.filter((id) => action.own.includes(id)) : runes.slice();', '  const own = runes.slice();']] },
   { name: '[rune supply] a leaving slot never leaves', case: 'only-ticked-runes-then-on-empty',

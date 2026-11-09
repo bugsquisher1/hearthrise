@@ -84,8 +84,13 @@ export const BAR_TEXT = Object.freeze({
   runes_buy: 'Buy from the rune shop',
   runes_leave: 'Leave the hunt',
   runes_shop_only: 'Every cast buys from the rune shop.',
-  shop_rune: '{name} · {price} g a cast · hits at {pct}%',
-  shop_rune_short: '{name} · {price} g a cast · needs {needs}',
+  shop_rune: '{name} · {price} g each · {out}',
+  shop_rune_plain: '{name} · {price} g each',
+  shop_rune_short: '{name} · {price} g each · needs {needs}',
+  /* What one cast lands for this hero (cast-facts.js outputWords). */
+  out_dmg: '{lo}–{hi} damage',
+  out_heal: 'heals {lo}–{hi}',
+  out_shield: 'shields {points}',
   /* Which numbers a spell's lines are for (cast-facts.js versionWords). */
   numbers_for: 'Numbers for the {rune} at {skill} {level}.',
   numbers_at: 'Numbers at {skill} {level}.',

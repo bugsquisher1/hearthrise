@@ -34,7 +34,8 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.110';
 import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.110';
 import { runIntent } from '../intent-words.js?v=0.2.110';
 import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.110';
-import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, perHourOf, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf, toolLine } from '../town-work.js?v=0.2.110';
+import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, perHourOf, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf, toolLine, shortInputLine } from '../town-work.js?v=0.2.110';
+import { patchParts, placesParts } from '../goto.js?v=0.2.110';
 import { saleWords } from '../item-lore.js?v=0.2.110';
 import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.110';
 import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.110';
@@ -99,7 +100,7 @@ function oddsWords(cs, w) {
 
 function rowHtml(g, w) {
   const icon = productOf(w) || Object.keys(recipeInputs(w.row))[0];
-  return '<li class="hw-line hw-work-row" data-id="' + esc(w.id) + '"><span class="hw-ico">' + itemIconHtml(g, icon) + '</span>'
+  return '<li class="hw-line hw-work-row" data-id="' + esc(w.id) + '" data-hs-find="' + esc(w.id) + '"><span class="hw-ico">' + itemIconHtml(g, icon) + '</span>'
     + '<span class="hw-line-name"><b>' + esc(w.row.name) + '</b><small class="hw-work-what"></small><small class="hw-work-odds"></small><small class="hw-work-fee"></small><small class="hw-work-why"></small>'
     /* "Make N" (a bench row only), under the row's words: how many the next Start makes; the server stops the bench there. */
     + (w.kind === 'artisan' ? '<span class="hh-segs hw-work-n" role="group" aria-label="How many to make">'
@@ -136,7 +137,10 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
     : makes + ' · ' + each + (burn ? ' · burns up to ' + burn + '%' : '');
   /* Running: the server's count left on this run ("3 left"), or nothing when it runs until the bag is out. */
   const left = running && !gather ? leftOf(cs) : null;
-  text(li.querySelector('.hw-work-why'), why || (running ? 'Working on it now · ' + (left !== null ? whole(left) + ' left · ' : '') : '') + have);
+  /* Short of an input: where to get it, each place a link to its window (src/shell/goto.js) */
+  const short = why ? shortInputLine(cs, w, hunting) : null;
+  patchParts(li.querySelector('.hw-work-why'), short ? [short.head].concat(short.places.length ? [' '] : [], placesParts(short.places))
+    : [why || (running ? 'Working on it now · ' + (left !== null ? whole(left) + ' left · ' : '') : '') + have]);
   for (const s of li.querySelectorAll('.hw-work-n .hh-seg')) {
     attr(s, 'aria-pressed', String(s.getAttribute('data-n') === String(pick)));
     prop(s, 'disabled', sc.pending || running);
@@ -165,6 +169,9 @@ export function renderWork() {
 renderWork.patch = function patchWork(body, ctx) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
+  /* a link that named a skill (src/shell/goto.js: "Made with Smithing 15") opens its rows */
+  const want = ctx.wm && typeof ctx.wm.takeTab === 'function' ? ctx.wm.takeTab('skills-trade') : null;
+  if (want && hasWork(want) && want !== sc.skill) { sc.skill = want; sc.msg = ''; }
   const root = body.querySelector('.hw-trade');
   const on = workOf(cs);
   const h = huntOf(cs);

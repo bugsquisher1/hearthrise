@@ -210,6 +210,9 @@ function lineHtml(r, glyphs) {
 renderHunts.patch = function patchHunts(body, ctx) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
+  /* a link that named a ground (src/shell/goto.js: "Dropped by Rat at Mill Cellar") picks it */
+  const want = ctx.wm && typeof ctx.wm.takeTab === 'function' ? ctx.wm.takeTab('hunts') : null;
+  if (want) pickHunt(cs, want);
   const root = body.querySelector('.hw-hunts');
   const list = huntRows();
   const h = huntOf(cs);

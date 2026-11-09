@@ -52,7 +52,7 @@ function needsOf(cs, ladder) {
     const storage = row ? row.qty : 0;
     const recipe = ARTISAN_RECIPES.smithing.find((r) => r.output === id) || null;
     return { id, name: ITEMS[id] ? ITEMS[id].n : id, need, bag, storage, held: bag + storage, short: Math.max(0, need - bag - storage),
-      smith: recipe ? { req: recipe.req, level: levels.smithing ? levels.smithing.level : 1, from: Object.entries(recipeInputs(recipe)).map(inputOf) } : null };
+      smith: recipe ? { id: recipe.id, req: recipe.req, level: levels.smithing ? levels.smithing.level : 1, from: Object.entries(recipeInputs(recipe)).map(inputOf) } : null };
   });
 }
 

@@ -96,7 +96,7 @@ export function renderShop() {
 
 function offerRow(ctx, o) {
   const qtys = QTYS_BY_KIND[o.kind] || QTYS;
-  return element(ctx.doc, '<li class="hw-line" data-hs-act="line" data-item="' + esc(o.item) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, o.item) + '</span>'
+  return element(ctx.doc, '<li class="hw-line" data-hs-act="line" data-item="' + esc(o.item) + '" data-hs-find="' + esc(o.item) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, o.item) + '</span>'
     + '<span class="hw-line-name"><b>' + esc(itemName(o.item)) + '</b><small></small></span>'
     + '<select class="hh-select hw-qty" data-hs-act="qty" data-offer="' + esc(o.offer) + '" aria-label="How many">' + qtys.map((n) => '<option value="' + n + '">' + n + '</option>').join('') + '</select>'
     + '<button type="button" class="hh-tool" data-hs-act="buy" data-offer="' + esc(o.offer) + '"></button></li>');

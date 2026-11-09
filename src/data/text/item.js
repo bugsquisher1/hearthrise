@@ -63,6 +63,11 @@ export const ITEM_TEXT = Object.freeze({
   cook_it: 'Cook it into food ({skill} {level})',
   plant_it: 'Plant it on the Farm',
   house_asks: 'The House asks for it',
+  temper_asks: 'The smith takes it to temper gear',
+  /* The bag's picked line: what spends it and where to get more, each a link to its window (src/shell/goto.js). */
+  way_used_in: 'Used in {place}',
+  place_house: 'the House',
+  place_tempering: 'Tempering',
   sell_it: 'Sell it at the shop',
   keep_only: 'Nothing but keeping: the shop won\'t buy it',
   ammo_rune: 'Spent by spells that call for it',

@@ -20,6 +20,8 @@
 // ════════════════════════════════════════════════════════════════════════
 import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.110';
 import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.110';
+import { usePlaces, wherePlaces } from '../../item-lore.js?v=0.2.110';
+import { patchParts, placeLink } from '../../goto.js?v=0.2.110';
 import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.110';
 import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.110';
 import { whole, gold } from '../../../render/format.js?v=0.2.110';
@@ -67,7 +69,7 @@ export function toolsHtml(g) {
   return '<div class="hw-pick"><span class="hw-pick-ico"></span><span class="hw-pick-name"><b></b><small></small></span>'
     + '<button type="button" class="hw-primary" data-hs-act="primary"></button>'
     + '<button type="button" class="hh-tool hw-more" data-hs-act="more" aria-label="More for this item">' + glyphSvg(g, 'uiPlus') + '</button></div>'
-    + '<p class="hw-why hw-pick-why" role="status" aria-live="polite"></p>'
+    + '<p class="hw-why hw-pick-why" role="status" aria-live="polite"></p><p class="hw-pick-ways"></p>'
     + upgradeLineHtml()
     + '<div class="hw-burying" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="bury-stop">Stop</button></div>'
     + '<div class="hw-bulk"><span class="hw-selcount"></span>'
@@ -161,6 +163,8 @@ export function patchTools(root, st, ctx) {
   /* The picked line's words: its last press's answer, else why its action is off. */
   const pickSaid = !!cur && sc.msgAt === 'pick:' + cur && !!sc.msg;
   whyLine(root.querySelector('.hw-pick-why'), !cur ? '' : (pickSaid ? sc.msg : wearWhy || buryWhy || eatWhy), pickSaid);
+  /* THE ITEM'S WAYS (Tyler 2026-11-08): what spends it and where to get more, each place a link to its window (src/shell/goto.js) */
+  patchParts(root.querySelector('.hw-pick-ways'), cur ? usePlaces(cur).concat(wherePlaces(cur)).flatMap((p, i) => (i ? [' · ', placeLink(p)] : [placeLink(p)])) : []);
   patchUpgradeLine(root, st.upgrade, onBag, sc.pending, { locked: gearLocked(st.cs), msg: sc.msgAt === 'upgrade' ? sc.msg : '' });
   const line = buryParts(st.cs);
   const bl = root.querySelector('.hw-burying');

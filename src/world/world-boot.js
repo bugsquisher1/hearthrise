@@ -408,8 +408,8 @@ export async function bootWorld(panel, opts) {
     if (viewSheets.held(sc.map, cast)) return;   // a sheet this frame draws is on its way: the last frame stays on screen
     /* a new map's (or zoom's) first view bakes its ground a slice a frame first: the last frame stays meanwhile */
     if (!backend.ready(cast)) return;
-    /* the hero's own label in town reads as a stranger's does: "Marlow the Wolfer" */
-    backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name && G.playerTitle ? name + ' ' + G.playerTitle : name, roofAlpha, t: now, stillIdle: idleMotion.still() }, cast));
+    /* the hero's own label in town reads as a stranger's does: "Marlow", "the Wolfer" under it */
+    backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name, title: sc.kind === 'hunt' ? null : G.playerTitle, roofAlpha, t: now, stillIdle: idleMotion.still() }, cast));
     frames++;
   }
 

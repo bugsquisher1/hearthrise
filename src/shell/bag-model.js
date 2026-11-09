@@ -103,6 +103,8 @@ function homeSpends() {
 export const houseSpends = (id) => homeSpends().has(id);
 /* What a Tempering rung takes besides gold (src/data/temper.js TEMPER_MATERIALS). */
 const TEMPER_SPENDS = new Set(Object.values(TEMPER_MATERIALS).map((m) => m.item));
+/** Does a Tempering rung take this item? */
+export const temperSpends = (id) => TEMPER_SPENDS.has(id);
 /** Does any recipe, House price or Tempering rung spend this item? From the rows, so a new recipe or rung needs no list. */
 export const isSpentMaterial = (id) => inputSet().has(id) || homeSpends().has(id) || TEMPER_SPENDS.has(id);
 

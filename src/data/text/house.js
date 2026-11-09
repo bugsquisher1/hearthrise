@@ -29,7 +29,6 @@ export const HOUSE_TEXT = Object.freeze({
   cost_gold_short: '{price} (you have {purse})',
   cost_item: '{item} {qty}',
   cost_item_held: '{item} {qty} ({held})',
-  cost_where: '{where}.',
 
   /* The window's frame. */
   cost_aria: 'Cost',

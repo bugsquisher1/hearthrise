@@ -102,7 +102,7 @@ export const MUTANTS = {
   walker_keeps_junk: { arm: 'TS-CLIENT', why: 'a title that is not plain words reaches the plate',
     js: ['src/session/town-presence.js', [["    title: typeof w.title === 'string' && TITLE.test(w.title) ? w.title : null,", '    title: w.title,']]] },
   plate_no_title: { arm: 'TS-CLIENT', why: 'the town label drops the title',
-    js: ['src/world/town-scene.js', [["w.name + (w.title ? ' ' + w.title : '') + (w.level", 'w.name + (w.level']]] },
+    js: ['src/world/town-scene.js', [["title: w.title || null, kind:", 'title: null, kind:']]] },
   line_no_title: { arm: 'TS-CLIENT', why: 'a chat line drops the title',
     js: ['src/social/chat-lines.js', [["    title: !whisper && typeof row.from_title === 'string' && TITLE.test(row.from_title) ? row.from_title : null,", '    title: null,']]] },
   extras_merged: { arm: 'TS-CLIENT', why: 'an answer with no extras keeps the last ones',
@@ -972,8 +972,9 @@ const ARMS = {
     if (X.TP.walkerOf(W({ colors: { head: -1, body: 2, legs: 3, feet: 4 } })).colors !== null) out.push('a negative dye passed');
     if (X.TP.walkerOf(W({})).title !== null || X.TP.walkerOf(W({})).colors !== null) out.push('a walker from an older answer does not read null');
 
-    const plates = [X.TS.plateTextOf(X.TP.walkerOf(W({ title: 'the Wolfer' }))), X.TS.plateTextOf(X.TP.walkerOf(W({ id: B, name: 'Tamsel' })))];
-    if (plates[0] !== 'Marlow the Wolfer · 18' || plates[1] !== 'Tamsel · 18') out.push('the plates read ' + JSON.stringify(plates));
+    /* the title under the name (Tyler 2026-11-08: "Fingerguns / The Rat catcher") */
+    const plates = [X.TS.plateOf(X.TP.walkerOf(W({ title: 'the Wolfer' }))), X.TS.plateOf(X.TP.walkerOf(W({ id: B, name: 'Tamsel' })))];
+    if (plates[0].text !== 'Marlow · 18' || plates[0].title !== 'the Wolfer' || plates[1].text !== 'Tamsel · 18' || plates[1].title !== null) out.push('the plates read ' + JSON.stringify(plates));
 
     const row = (o) => ({ id: 'aaaaaaaa-0000-4000-8000-0000000000a1', channel: 'global', from_id: A, from_name: 'Marlow', from_slot: 0, from_level: 18, from_weapon: null, from_role: null, body: 'hi', created_at: '2026-11-04T09:00:00Z', ...o });
     const line = X.CL.lineOf(row({ from_title: 'the Wolfer' }), { tz: 'utc' });

@@ -320,7 +320,7 @@ const MUTANTS = [
   ['short of material stays on (SV-8)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short || itemsShort ||", "prop(btn, 'disabled', !offer || !!short ||"],
   ['Storage is not counted (SV-8)', 'src/session/temper-sections.js', 'const storage = row ? row.qty : 0;', 'const storage = 0;'],
   ['the row hides what it takes (SV-8)', 'src/shell/windows/temper-pane.js', "      text(li.querySelector('.hw-temper-need'), needWords(r.needs));\n", ''],
-  ['the way is not said (SV-8)', 'src/shell/windows/temper-pane.js', "  text(root.querySelector('.hw-temper-way'), all ? wayWords([all.blows, all.armor]) : '');\n", ''],
+  ['the way is not said (SV-8)', 'src/shell/windows/temper-pane.js', "  patchParts(root.querySelector('.hw-temper-way'), all ? wayParts([all.blows, all.armor]) : []);\n", ''],
   ['a refused sale never re-reads (SV-8)', 'src/shell/windows/temper-pane.js', "if (!r.ok && r.error !== 'closed') await cs.resync(); return r;", 'return r;'],
   ['short of gold stays on (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short || itemsShort ||", "prop(btn, 'disabled', !offer || itemsShort ||"],
   ['the top of a ladder can be pressed (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short ||", "prop(btn, 'disabled', !!short ||"],

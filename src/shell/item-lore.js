@@ -10,6 +10,9 @@
 //   kindWords(id)   "Weapon · Tier 1 · Common", "Food · heals 18 health"
 //   sourcesOf(id)   ["Dropped by Slime at Mill Cellar", "Made with Cooking"]
 //   whereToGet(id)  the short answer where a shortage is shown: "Made with Crafting 21"
+//   wherePlaces(id) the same answer piece by piece, each with the PLACE it names (a bench row, the Farm, the Shop's
+//                   row, a hunt), so a line can link each piece to its window (src/shell/goto.js)
+//   usePlaces(id)   what spends it, by place: a bench row per skill, the House, Tempering, the Farm
 //   usesOf(id)      ["Used in Cooking: Wheat Bread", "Eat to heal 18 health"]
 //   saleWords(id)   who won't buy it: "" or "For your own use. ..."; toolWords(id) what a tool does and where it counts
 //   needOf(id, sk, lv)  "Needs Melee 30 — you have 20" / "Needs Level 30 — you're 28", against the server's numbers
@@ -27,10 +30,10 @@ import { SHOP_OFFERS } from '../data/shops.js?v=0.2.110';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.110';
 import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.110';
 import { itemName } from './widgets/bits.js?v=0.2.110';
-import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromKit } from './bag-model.js?v=0.2.110';
+import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromKit, temperSpends } from './bag-model.js?v=0.2.110';
 import { FLAMES } from '../data/hearth.js?v=0.2.110';
 import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.110';
-import { dropWhereWords, isRareItem } from './hunt-ground-facts.js?v=0.2.110';
+import { dropWhereWords, dropHuntOf, isRareItem } from './hunt-ground-facts.js?v=0.2.110';
 import { recipeOutcomes, HALLMARK_OFFERS } from '../data/jewelry.js?v=0.2.110';
 import { t, hasText } from '../render/player-text.js?v=0.2.110';
 
@@ -41,27 +44,32 @@ const TYPES = new Set(['weapon', 'armor', 'jewelry', 'tool', 'trophy']);
 const typeWord = (type, or) => (TYPES.has(type) ? t('item.type_' + type) : t(or));
 
 let INDEX = null;
-/* item -> { drops:[monster], made:[skill], from:[gather skill], at:{skill: lowest level}, shop, inputOf:[[skill, output, job]] }, built once.
+/* item -> { drops:[monster], made:[skill], from:[gather skill], at:{skill: lowest level}, row:{skill: the bench recipe or node at that
+   level}, shop, inputOf:[[skill, output, job, recipe]] }, built once.
    `job`: the words for a job that names itself rather than its product (designer 2026-11-05: an input to a gem roll or to the Hallmark
-   names the job, never the grades it may make); null for every other recipe. */
+   names the job, never the grades it may make); null for every other recipe. `recipe`: the bench row's id (null for the Hallmark). */
 function index() {
   if (INDEX) return INDEX;
   INDEX = new Map();
-  const at = (id) => { let r = INDEX.get(id); if (!r) { r = { drops: [], made: [], from: [], at: {}, shop: false, inputOf: [] }; INDEX.set(id, r); } return r; };
+  const at = (id) => { let r = INDEX.get(id); if (!r) { r = { drops: [], made: [], from: [], at: {}, row: {}, shop: false, inputOf: [] }; INDEX.set(id, r); } return r; };
   for (const [mid, m] of Object.entries(MONSTERS)) for (const d of (m && m.drops) || []) if (d && d.id) at(d.id).drops.push(mid);
-  const lowest = (row, skill, req) => { row.at[skill] = Math.min(row.at[skill] || Infinity, Math.max(1, Number(req) || 1)); };
+  /* the lowest level a skill gets it at, and the bench row or node that does it there (the row a link opens) */
+  const lowest = (row, skill, req, rowId) => {
+    const lv = Math.max(1, Number(req) || 1);
+    if (!(lv >= row.at[skill])) { row.at[skill] = lv; row.row[skill] = rowId || null; }
+  };
   const recipe = (skill, r) => {
     /* every grade a rolled job can make is made by it (src/data/jewelry.js) */
-    for (const id of recipeOutcomes(r)) { at(id).made.push(skill); lowest(at(id), skill, r.req); }
+    for (const id of recipeOutcomes(r)) { at(id).made.push(skill); lowest(at(id), skill, r.req, r.id); }
     const ins = Object.assign({}, r.inputs || {}, r.input ? { [r.input]: 1 } : {}, r.secondary || {});
     /* a gem roll never makes the piece it is named for: its inputs name the job (a piece's own rolled job is named for the piece it makes) */
-    for (const id of Object.keys(ins)) if (r.output) at(id).inputOf.push([skill, r.output, r.roll === 'gem' ? r.name : null]);
+    for (const id of Object.keys(ins)) if (r.output) at(id).inputOf.push([skill, r.output, r.roll === 'gem' ? r.name : null, r.id || null, Math.max(1, Number(r.req) || 1)]);
   };
   for (const [skill, rows] of Object.entries(ARTISAN_RECIPES)) for (const r of rows || []) recipe(skill, r);
   for (const r of DRINK_RECIPES) recipe('cooking', r);
   /* the Hallmark step: a Fine piece and its gem make the Hallmarked row (at Crafting), and are used in it */
-  for (const o of HALLMARK_OFFERS) { at(o.to).made.push(o.skill); lowest(at(o.to), o.skill, o.level); for (const id of [o.from, o.gem]) at(id).inputOf.push([o.skill, o.to, 'the Hallmark']); }
-  for (const [nodes, skill] of [[TREES, 'woodcutting'], [ROCKS, 'mining'], [FISH_SPOTS, 'fishing']]) for (const n of nodes) if (n.prod) { at(n.prod).from.push(skill); lowest(at(n.prod), skill, n.req); }
+  for (const o of HALLMARK_OFFERS) { at(o.to).made.push(o.skill); lowest(at(o.to), o.skill, o.level); for (const id of [o.from, o.gem]) at(id).inputOf.push([o.skill, o.to, 'the Hallmark', null, o.level]); }
+  for (const [nodes, skill] of [[TREES, 'woodcutting'], [ROCKS, 'mining'], [FISH_SPOTS, 'fishing']]) for (const n of nodes) if (n.prod) { at(n.prod).from.push(skill); lowest(at(n.prod), skill, n.req, n.id); }
   for (const c of Object.values(CROPS)) if (c && c.prod) { at(c.prod).from.push('farming'); lowest(at(c.prod), 'farming', c.req || c.lv); }
   /* Only a row a Shop tab lists is "sold at the shop": the rest are the vendor's price list (lane/b-orphan-sources). */
   for (const o of SHOP_OFFERS) if (SHOP_LISTED_OFFER_IDS.has(o.id)) for (const g of o.grant || []) if (g.kind === 'item') at(g.id).shop = true;
@@ -110,16 +118,48 @@ const fromWords = (skills) => skills.map((s) => t(s === 'farming' ? 'item.grown_
  * Rat at Mill Cellar", "Dropped by Briarcoat Wolf at Meadowbrook Thicket". '' when the catalogue knows no way.
  */
 export function whereToGet(id) {
+  return wherePlaces(id).map((p) => p.words).join('. ');
+}
+
+/**
+ * whereToGet piece by piece: [{ words, place }], in its order. `place` is what the words name, for a link to open:
+ * { kind: 'work', skill, row } (a bench recipe or a gathering node), { kind: 'farm' }, { kind: 'shop', item },
+ * { kind: 'hunt', hunt }. From the catalogue rows, so a new recipe or ground links itself.
+ */
+export function wherePlaces(id) {
   const r = index().get(id);
-  if (!r) return '';
+  if (!r) return [];
   /* "Made with Crafting 21", or no level at 1: [the row without a level, the row with one] */
   const leveled = (ids, skill) => (r.at[skill] > 1 ? t(ids[1], { skill: skillName(skill), level: r.at[skill] }) : t(ids[0], { skill: skillName(skill) }));
-  const hands = [...new Set(r.from)].map((s) => leveled(s === 'farming' ? ['item.grown_with', 'item.grown_with_level'] : ['item.gathered_with', 'item.gathered_with_level'], s))
-    .concat([...new Set(r.made)].map((s) => leveled(['item.made_with', 'item.made_with_level'], s)));
-  if (r.shop) hands.push(t('item.sold_at_shop'));
+  const work = (skill) => ({ kind: 'work', skill, row: r.row[skill] || null });
+  const out = [...new Set(r.from)].map((s) => (s === 'farming' ? { words: leveled(['item.grown_with', 'item.grown_with_level'], s), place: { kind: 'farm' } }
+    : { words: leveled(['item.gathered_with', 'item.gathered_with_level'], s), place: work(s) }))
+    .concat([...new Set(r.made)].map((s) => ({ words: leveled(['item.made_with', 'item.made_with_level'], s), place: work(s) })));
+  if (r.shop) out.push({ words: t('item.sold_at_shop'), place: { kind: 'shop', item: id } });
   const easy = r.shop || Object.values(r.at).some((lv) => lv <= 1);
   const drop = !easy && r.drops.length ? dropWhereWords(id) : '';
-  return hands.concat(drop ? [drop] : []).join('. ');
+  if (drop) out.push({ words: drop, place: dropHuntOf(id) ? { kind: 'hunt', hunt: dropHuntOf(id) } : null });
+  return out;
+}
+
+/**
+ * WHAT SPENDS IT, by place, for the bag's picked line to link (Tyler 2026-11-08: "there should be a direct line to click"):
+ * [{ words, place }]: each skill whose recipes take it ("Used in Crafting", its lowest such row), the House, Tempering, the Farm
+ * for a seed. From the same rows as usesOf.
+ */
+export function usePlaces(id) {
+  const r = index().get(id);
+  const out = [];
+  const bySkill = new Map();
+  for (const [skill, , , recipe, req] of (r && r.inputOf) || []) {
+    const had = bySkill.get(skill);
+    if (!had || req < had.req) bySkill.set(skill, { recipe, req });
+  }
+  for (const [skill, b] of bySkill) out.push({ words: t('item.way_used_in', { place: skillName(skill) }), place: { kind: 'work', skill, row: b.recipe } });
+  if (houseSpends(id)) out.push({ words: t('item.way_used_in', { place: t('item.place_house') }), place: { kind: 'house' } });
+  if (temperSpends(id)) out.push({ words: t('item.way_used_in', { place: t('item.place_tempering') }), place: { kind: 'temper' } });
+  if ((ITEMS[id] || {}).seed) out.push({ words: t('item.plant_it'), place: { kind: 'farm' } });
+  return out;
 }
 
 /** Only a hunt gets it: a creature drops it, and no bench, node, crop or shop tab does. */
@@ -201,6 +241,7 @@ export function usesOf(id) {
   if (tool) out.push(tool);
   if (it.seed) out.push(t('item.plant_it'));
   if (houseSpends(id)) out.push(t('item.house_asks'));
+  if (temperSpends(id)) out.push(t('item.temper_asks'));
   /* The last word only where it is true: the shop bids on what has a book value (catalogue.js vendorPriceOf). */
   if (!out.length) out.push(Number(it.v) > 0 ? t('item.sell_it') : t('item.keep_only'));
   return out;

@@ -132,7 +132,7 @@ import { SUPPLIES, COMBAT_BUFF_TYPES } from '../src/data/supplies.js';
 import { BASIC_SUPPLIES } from '../src/data/supply-basics.js';
 import { DRINK_ITEMS } from '../src/data/drinks.js';
 import { ACTION_SET_LIMITS, TARGET_MODES, DEFAULT_TARGET_MODE, HERO_DISTANCE } from '../src/data/rule-subjects.js';
-import { SESSION_LIMITS, END_ORDER, NO_FIGHT_END_MIN, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, DEATH_XP_BASE, STAMINA_MAX_MS,
+import { SESSION_LIMITS, END_ORDER, NO_FIGHT_END_MIN, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, STAMINA_MAX_MS,
   RESUMABLE_KINDS, RESUME_AFTER_END, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY, ACTION_SET_OPTIONS, VALUE_HEADROOM,
   DEFAULT_RESUME, EVENT_COPY, GATHER_SHARE, coverSellable } from '../src/data/hunt-sessions.js';
 import { CONSUMABLE_RULES } from '../src/data/consumables.js';
@@ -229,7 +229,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* ONE FORMULA FOR EVERY HUNT (lane/b-ground-formula, Tyler 2026-11-07): 2027-03-17-lucky-kobold is APPLIED history; every open ground's thirty monsters are written by
    tools/gen-ground-stats.mjs, so their hr_hunt_kill_bounds rows move (gold_max, xp_max), the same full replace. Some bounds WIDEN (the Barn Wasp, the Walking Vine, the Warrens' coin, the
    Sluicer pay more a kill), so this applies BEFORE the hr-accrue edge carrying the same src/data/monsters.js. No spawn, limit, bid or shape moves. */
-export const OUT_NAME = '2027-03-20-ground-formula-hunt-sessions-catalogue.generated.sql';
+/* THE DEATH SHARE (lane/c-death-and-slots, Tyler 2026-11-09): 2027-03-20-ground-formula is APPLIED history; death_xp_permille 20 -> 60 and the death_xp_base
+   row cut, the same full replace, AFTER 2027-03-25-death-share.sql (its precondition) and BEFORE the hr-accrue carrying DEATH_XP_LOSS 0.06. */
+export const OUT_NAME = '2027-03-25-death-share-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -423,9 +425,9 @@ export function catalogueRows(src = {}) {
     value_headroom: S.valueHeadroom,
     stamina_low_min: S.staminaLow, sessions_kept: S.kept,
     gold_floor_min: S.floor.min, gold_floor_max: S.floor.max, gold_floor_default: S.floor.default,
+    /* A death's share of the TOTAL Level XP and of each combat skill's progress (Tyler 2026-11-09: one public formula,
+       no alternative base; the `death_xp_base` row was cut by 2027-03-25-death-share.sql). */
     death_xp_permille: Math.round(Number(S.deathXpLoss) * 1000),
-    /* What the Level's death loss is a share of: 0 total Level XP, 1 the current Level's span. */
-    death_xp_base: { total: 0, level: 1 }[DEATH_XP_BASE],
     stamina_free_min: staminaFree, stamina_premium_min: staminaPremium,
     distance_min: S.distance.min, distance_max: S.distance.max,
     density_min: DENSITY_PICK.min, density_max: DENSITY_PICK.max,
@@ -467,7 +469,6 @@ export function catalogueRows(src = {}) {
   if (!(lim.gold_floor_min <= lim.gold_floor_default && lim.gold_floor_default <= lim.gold_floor_max)) {
     throw new Error(`GOLD_FLOOR ${JSON.stringify(S.floor)} is not min <= default <= max`);
   }
-  if (lim.death_xp_base === undefined) throw new Error(`DEATH_XP_BASE ${DEATH_XP_BASE} is not 'total' or 'level'`);
   if (lim.hit_xp_permille / 1000 !== COMBAT_XP.hitXpPerDamage) throw new Error(`COMBAT_XP.hitXpPerDamage ${COMBAT_XP.hitXpPerDamage} is not a whole permille`);
   if (!(whole(lim.stamina_free_min) && lim.stamina_free_min > 0 && whole(lim.stamina_premium_min) && lim.stamina_premium_min >= lim.stamina_free_min)) {
     throw new Error(`STAMINA_MAX_MS ${JSON.stringify(st)} is not whole minutes with premium >= free > 0`);
@@ -724,6 +725,12 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
+-- NEW IN THIS FILE (lane/c-death-and-slots, Tyler 2026-11-09: "Death needs to be more than 2% I think, and losing a level should be possible"):
+-- hr_hunt_limits.death_xp_permille 20 -> 60 (src/data/hunt-sessions.js DEATH_XP_LOSS 0.06), and the death_xp_base row is CUT (one public formula:
+-- a share of the TOTAL Level XP, no alternative base). Nothing else moves; the world's shape is unchanged (no world_shape_pending on either
+-- order). ORDER: AFTER 2027-03-25-death-share.sql (the precondition below refuses this file while a body still reads death_xp_base), THEN the
+-- hr-accrue carrying DEATH_XP_LOSS 0.06 at once. Never the edge first: until this row is 60 the settle refuses a 6% death death_xp_over.
+--
 -- NEW IN THIS FILE (lane/c-rune-ladder, Tyler 2026-11-05: "let start with your calls"): hr_hunt_basic_supplies gains one store rune a
 -- family a tier above Plain (src/data/supply-basics.js STORE_RUNE_PRICE), and hr_hunt_vendor_value moves the deeper runes' bids to their new
 -- book (src/data/stonecraft.js RUNE_VALUE). Plain does not move and no bar is rewritten. No kill bound, spawn or limit moves and the world's
@@ -866,6 +873,8 @@ begin
               and p.proname in ('hr_char_level', 'hr_char_xp_for_level') and p.prosrc like '%level_quartic%')
      or to_regclass('public.hr_level_curve') is null then
     raise exception 'PRECONDITION: apply 2027-02-01-level-curve.generated.sql first (a Level curve function still reads hr_hunt_limits)'; end if;
+  if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosrc like '%death_xp_base%') then
+    raise exception 'PRECONDITION: apply 2027-03-25-death-share.sql first (a hunt body still reads hr_hunt_limits.death_xp_base)'; end if;
 end $$;
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).

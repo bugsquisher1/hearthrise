@@ -87,8 +87,8 @@
 //              compact form; world-state refuses one past it.
 //   FENCE      a hunter is never priced by the old path (hunt_open), a combat
 //              pointer with no hunt by nothing (hunt_required).
-//   DEATHXP-RULE  a death costs DEATH_XP_LOSS of the total Level XP (DEATH_XP_BASE) and of
-//              each combat skill's progress, never a level.
+//   DEATHXP-RULE  a death costs DEATH_XP_LOSS of the total Level XP and can take a Level, never
+//              below Level 1 (Tyler 2026-11-09); each combat skill loses it of its progress, never a level.
 // ARMS (DATABASE — the replayed chain)
 //   TICK-1     N tick windows (90 s) and odd cuts == ONE window, through the
 //              database: the character, the session, the bag, the tally, the
@@ -1415,13 +1415,15 @@ const ENGINE_ARMS = {
 
   'DEATHXP-RULE': async (M) => {
     const problems = [];
-    const lv = M.AR.levelDeathLoss; const sk = M.AR.skillDeathLoss; const C = M.XP.charXpForLevel; const S = (l) => M.XP.skillXpForLevel('melee', l);
+    const lv = M.AR.levelDeathLoss; const sk = M.AR.skillDeathLoss; const C = M.XP.charXpForLevel; const L = M.XP.charLevelFromXp;
+    const S = (l) => M.XP.skillXpForLevel('melee', l);
     const f = M.HSD.DEATH_XP_LOSS;
-    if (lv(C(10)) !== 0) problems.push('a death at a Level floor costs Level XP');
+    /* Tyler 2026-11-09: a flat share of the TOTAL Level XP; it can take a Level, never below Level 1. */
     const x = C(11) - 1;
-    if (lv(x, f, 'total') !== Math.min(Math.floor(x * f), x - C(10))) problems.push('a death does not cost DEATH_XP_LOSS of the TOTAL Level XP');
-    if (lv(x, f, 'level') !== Math.min(Math.floor((C(11) - C(10)) * f), x - C(10))) problems.push('the `level` base does not cost a share of the Level span');
-    if (lv(C(10) + 3) !== 3) problems.push('a death de-levels the Level');
+    if (lv(x) !== Math.floor(x * f)) problems.push('a death does not cost DEATH_XP_LOSS of the TOTAL Level XP');
+    if (!(lv(C(10)) > 0) || lv(C(10)) !== Math.floor(C(10) * f)) problems.push('a death at a Level floor costs nothing (the old never-de-level floor)');
+    if (!(L(C(10) + 1 - lv(C(10) + 1)) < 10)) problems.push('a hero 1 XP into Level 10 does not drop a Level on a death');
+    if (lv(0) !== 0 || lv(1) !== 0 || lv(C(2)) > C(2)) problems.push('a death takes a Level 1 hero below 0 XP');
     if (sk('melee', S(10)) !== 0 || sk('melee', S(10) + 1000) !== Math.floor(1000 * f)) problems.push('a skill does not lose DEATH_XP_LOSS of its progress');
     if (sk('melee', S(11) - 1) > S(11) - 1 - S(10)) problems.push('a skill loses a level');
     return problems;
@@ -4248,10 +4250,15 @@ const MUTANTS = [
     from: '  worldMaxBytes: 16384,', to: '  worldMaxBytes: 16384000,' },
   { arm: 'FENCE', name: 'the engine prices a hunter on the old path', file: join(FN, 'accrual.js'),
     from: '  if (inp.huntOpen === true) return { accrued: false, reason: SKIP.HUNT_OPEN };', to: '' },
-  { arm: 'DEATHXP-RULE', name: 'a death takes Level XP below the Level floor (de-levelling)', file: 'src/core/action-rules.js',
-    from: '  return Math.max(0, Math.min(Math.floor(of * f), x - floor));', to: '  return Math.max(0, Math.floor(of * f));' },
-  { arm: 'DEATHXP-RULE', name: 'the total base is read as the Level span', file: 'src/core/action-rules.js',
-    from: "  const of = base === 'level' ? charXpForLevel(lv + 1) - floor : x;", to: '  const of = charXpForLevel(lv + 1) - floor;' },
+  { arm: 'DEATHXP-RULE', name: 'the old never-de-level floor is put back (a death stops at the Level\'s start)', file: 'src/core/action-rules.js',
+    from: 'export function levelDeathLoss(levelXp, fraction = DEATH_XP_LOSS) {',
+    to: "import { charLevelFromXp as zzL, charXpForLevel as zzC } from './xp.js';\n"
+      + 'export function levelDeathLoss(levelXp, fraction = DEATH_XP_LOSS) {\n'
+      + '  { const zx = Math.max(0, Math.floor(Number(levelXp) || 0)); if (!(Number(fraction) > 0)) return 0; return Math.max(0, Math.min(Math.floor(zx * Number(fraction)), zx - zzC(zzL(zx)))); }' },
+  { arm: 'DEATHXP-RULE', name: 'the share is still the old 2%', file: 'src/core/action-rules.js',
+    from: '  return Math.max(0, Math.min(Math.floor(x * f), x));', to: '  return Math.max(0, Math.min(Math.floor(x * 0.02), x));' },
+  { arm: 'DEATHXP-RULE', name: 'a death takes more than the whole total (below Level 1)', file: 'src/core/action-rules.js',
+    from: '  return Math.max(0, Math.min(Math.floor(x * f), x));', to: '  return Math.max(0, Math.floor(x * f) + 1);' },
   { arm: 'DEATHXP', name: 'a death prices nothing', file: 'src/core/combat-sim.js',
     from: '  const xpLost = deathXpLoss(m.state);', to: '  const xpLost = {};' },
   { arm: 'END', name: 'a death ends nothing (the hunt runs on to another end)', file: 'src/core/action-rules.js',

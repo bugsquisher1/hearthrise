@@ -194,7 +194,7 @@ function endMember(m, why, atMs, world, out) {
   const hs = m.hs;
   hs.endedReason = why;
   hs.endedAtMs = atMs;
-  out.events.push(makeEvent('ended', atMs, { reason: why, ...(why === 'rule' ? { rule: hs.ruleStop } : {}) }));
+  out.events.push(makeEvent('ended', atMs, { reason: why, ...(why === 'rule' ? { rule: hs.ruleStop } : {}), ...(why === 'runes_out' ? { ability: hs.runesOut } : {}) }));
   /* EVERY END SENDS THE HERO HOME WHOLE (designer 2026-10-29, extending Tyler 2026-10-19's death rule): town is
      safe and the next hunt starts fresh, so whatever ended it (a death, a leave, stamina, supplies, gold, a stop
      rule, a party end) the hero is back with full HP. Mana is never stored: a hero enters every hunt full
@@ -410,7 +410,8 @@ export function simulateHuntInstance(inst, ctx) {
 
   /* AN END THAT IS ALREADY CERTAIN is stamped at the member's VERY NEXT boundary,
      even when it lies past this window's end: a store use the purse could not
-     cover, a stop rule met, and a death on this window's last swing (none of
+     cover, a stop rule met, a spell slot out of its runes that says leave (runesOut),
+     and a death on this window's last swing (none of
      those flags is part of the stored session, and the database requires the
      `died` end in the SAME settle as the death row). The full end order is
      asked at that boundary, so an earlier reason that also holds there wins —
@@ -420,7 +421,7 @@ export function simulateHuntInstance(inst, ctx) {
   const stamped = new Map();
   for (const m of members) {
     if (m.left || m.unitId === null) continue;
-    if (m.hs.goldOut === true || typeof m.hs.ruleStop === 'string' || m.hs.died === true || m.hs.bossFelled === true) {
+    if (m.hs.goldOut === true || typeof m.hs.ruleStop === 'string' || typeof m.hs.runesOut === 'string' || m.hs.died === true || m.hs.bossFelled === true) {
       stamped.set(m, endReasonAt(m.hs, m.hs.nextSwingAtMs) || 'gold_out');
     }
   }

@@ -464,9 +464,19 @@
 .ca-src { padding-top: 6px; border-top: 1px solid var(--line-soft); }
 .ca-eff, .ca-req { font-size: var(--t-micro); color: var(--ink-3); }
 .ca-vs:empty, .ca-cmp:empty, .ca-waste:empty, .ca-src:empty, .ca-eff:empty, .ca-req:empty { display: none; }
-.ca-runestore { display: none; padding-top: 6px; border-top: 1px solid var(--line-soft); }
-.ca-runestore.is-on { display: block; }
-.ca-rs-q { margin: 0 0 2px; color: var(--ink-2); }
+/* A rune spell's supply (configure-runes.js, Tyler 2026-11-08): the carried runes it spends, then the rune shop or leaving the hunt. */
+.ca-runes { display: none; padding-top: 6px; border-top: 1px solid var(--line-soft); }
+.ca-runes.is-on { display: flex; flex-direction: column; gap: 2px; }
+.ca-runes input { flex: none; margin: 0; accent-color: var(--gold); }
+.ca-rn-own, .ca-rn-pick, .ca-rn label { display: flex; align-items: center; gap: 6px; min-height: 32px; color: var(--ink); cursor: pointer; }
+.ca-rn-list { margin: 0 0 0 22px; padding: 0; list-style: none; }
+.ca-rn-list:empty { display: none; }
+.ca-rn-have { margin-left: auto; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.ca-rn.is-locked .ca-rn-name, .ca-rn-lock, .ca-rn-none, .ca-rn-shop { color: var(--ink-3); }
+.ca-rn-lock:empty, .ca-rn-none:empty, .ca-rn-shop:empty { display: none; }
+.ca-rn-empty { min-width: 0; margin: 4px 0 0; padding: 0; border: 0; }
+.ca-rn-empty[hidden] { display: none; }
+.ca-rs-q { margin: 0 0 2px; padding: 0; color: var(--ink-2); }
 .ca-rs-list { margin: 0; padding: 0; list-style: none; }
 .ca-rs { width: 100%; min-height: 40px; padding: 0 8px; border: 0; border-bottom: 1px solid var(--line-soft); background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; font-variant-numeric: lining-nums tabular-nums; }
 .ca-rs:hover:not(:disabled) { background: var(--surf-panel); }

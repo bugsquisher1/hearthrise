@@ -111,7 +111,53 @@ const cases = {
     const bare = supplySession(M, { bag: { chalked_fire_rune: { loaded: 0 } }, shot: 'plain_fire_rune', ammo: 'chalked_fire_rune', purse: 50 });
     const n = melee(M, ['flame_strike'], {}, { hs: bare });
     M.abilities.castAbilities(n.inst, n.sc);
-    return casts(n.sc).length === 0 && bare.purse === 50 ? null : 'a Flame Strike slot naming no store rune bought one';
+    if (casts(n.sc).length !== 0 || bare.purse !== 50) return 'a Flame Strike slot naming no store rune bought one';
+    /* RUNE SUPPLY PER SLOT (Tyler 2026-11-08): a slot naming no store rune reads "Leave the hunt" when its runes run out */
+    return bare.runesOut === 'flame_strike' ? null : 'a slot naming no store rune, out of runes, did not leave: ' + JSON.stringify(bare.runesOut);
+  },
+  /* RUNE SUPPLY PER SLOT (Tyler 2026-11-08: "If the player has 'use carried runes' checked, it opens a section of carried runes
+     that fit that spell type, and they check the box. Then condition - 'when rune supply runs out' 'Pay rune shop' or 'leave
+     hunt'"). Only the runes the slot TICKED are spent, the best ticked tier the hero's level has unlocked first, never an
+     unticked one and never a locked one. When none is left, `store` buys exactly the store rune the slot names, and `leave`
+     casts nothing, buys nothing and ends the hunt `runes_out` naming the spell. A ticked rune held but still locked is not
+     "run out": a leave slot waits on it. A slot that says nothing ticks every rune of its family (runeSupplyOf). */
+  'only-ticked-runes-then-on-empty': (M) => {
+    const fs = M.AD.ABILITIES.flame_strike;
+    const run = (lv, bag, action, purse) => {
+      const hs = supplySession(M, { bag, shot: 'plain_fire_rune', ammo: 'chalked_fire_rune', purse: purse ?? 100 });
+      const x = melee(M, [{ action: Object.assign({ type: 'ability', id: 'flame_strike' }, action), conditions: [], join: 'and' }], { mana: 500, maxMana: 500 },
+        { hs, skills: { melee: M.XP.skillXpForLevel('melee', lv) } });
+      M.abilities.castAbilities(x.inst, x.sc);
+      return { hs, x, cast: x.sc.events.find((e) => e.type === 'cast') || null };
+    };
+    const both = () => ({ chalked_fire_rune: { loaded: 3 }, scored_fire_rune: { loaded: 3 } });
+    const one = run(60, both(), { own: ['chalked_fire_rune'], store: 'plain_fire_rune', onEmpty: 'store' });
+    if (!one.cast || one.cast.supply !== 'chalked_fire_rune' || one.cast.version !== 1 || one.hs.bag.scored_fire_rune.left !== 3) return 'a slot ticking only Chalked spent ' + JSON.stringify(one.cast) + ', Scored left ' + one.hs.bag.scored_fire_rune.left;
+    const best = run(60, both(), { own: ['chalked_fire_rune', 'scored_fire_rune'], store: 'plain_fire_rune', onEmpty: 'store' });
+    if (!best.cast || best.cast.supply !== 'scored_fire_rune' || best.cast.version !== 2) return 'a slot ticking both did not spend the best ticked tier first: ' + JSON.stringify(best.cast);
+    const all = run(60, both(), {});
+    if (!all.cast || all.cast.supply !== 'scored_fire_rune') return 'a slot that says nothing did not tick every rune of its family: ' + JSON.stringify(all.cast);
+    const shut = run(M.runes.versionLevel(2) - 1, both(), { own: ['scored_fire_rune'], store: 'plain_fire_rune', onEmpty: 'store' });
+    if (!shut.cast || shut.cast.source !== 'store' || shut.cast.supply !== 'plain_fire_rune' || shut.hs.bag.scored_fire_rune.left !== 3 || shut.hs.bag.chalked_fire_rune.left !== 3) return 'a locked ticked rune, its slot buying, spent ' + JSON.stringify(shut.cast) + ' (want the store rune, the bag untouched)';
+    /* when the ticked runes are gone: buy the one the slot names, or leave */
+    const buy = run(60, { scored_fire_rune: { loaded: 3 } }, { own: ['chalked_fire_rune'], store: 'plain_fire_rune', onEmpty: 'store' });
+    if (!buy.cast || buy.cast.source !== 'store' || buy.cast.supply !== 'plain_fire_rune' || buy.hs.purse !== 98 || buy.hs.bag.scored_fire_rune.left !== 3 || buy.hs.runesOut) return 'out of ticked runes, a buying slot did ' + JSON.stringify([buy.cast, buy.hs.purse, buy.hs.runesOut]);
+    const leave = run(60, { scored_fire_rune: { loaded: 3 } }, { own: ['chalked_fire_rune'], onEmpty: 'leave' });
+    if (leave.cast || leave.hs.purse !== 100 || leave.hs.bag.scored_fire_rune.left !== 3) return 'out of ticked runes, a leaving slot cast or bought: ' + JSON.stringify([leave.cast, leave.hs.purse]);
+    if (leave.hs.runesOut !== 'flame_strike' || M.AR.endReasonAt(leave.hs, 0) !== 'runes_out') return 'out of ticked runes, a leaving slot did not end the hunt runes_out: ' + JSON.stringify([leave.hs.runesOut, M.AR.endReasonAt(leave.hs, 0)]);
+    const wait = run(M.runes.versionLevel(2) - 1, { scored_fire_rune: { loaded: 3 } }, { own: ['scored_fire_rune'], onEmpty: 'leave' });
+    if (wait.cast || wait.hs.runesOut || !wait.x.sc.events.some((e) => e.type === 'rule_wait' && e.why === 'level')) return 'a leaving slot holding a ticked rune its level cannot cast ended or cast: ' + JSON.stringify([wait.cast, wait.hs.runesOut]);
+    /* the bar's door: a rune of another family, a bad onEmpty, "buy" with no store rune, "leave" with one, and "leave" with nothing ticked */
+    const bad = (action) => (M.conditions.slotProblem({ action: Object.assign({ type: 'ability', id: 'flame_strike' }, action), conditions: [], join: 'and' }) || {}).error;
+    const refusals = [[{ own: ['chalked_ice_rune'], store: 'plain_fire_rune' }, 'bad_own'], [{ own: ['chalked_fire_rune', 'chalked_fire_rune'], store: 'plain_fire_rune' }, 'bad_own'],
+      [{ own: 'chalked_fire_rune', store: 'plain_fire_rune' }, 'bad_own'], [{ onEmpty: 'end', store: 'plain_fire_rune' }, 'bad_on_empty'], [{ onEmpty: 'store' }, 'bad_store'],
+      [{ onEmpty: 'leave', store: 'plain_fire_rune' }, 'bad_store'], [{ own: [], onEmpty: 'leave' }, 'bad_on_empty']];
+    for (const [a, want] of refusals) if (bad(a) !== want) return 'the bar answered ' + bad(a) + ' to ' + JSON.stringify(a) + ', want ' + want;
+    if ((M.conditions.slotProblem({ action: { type: 'ability', id: 'power_strike', onEmpty: 'leave' }, conditions: [], join: 'and' }) || {}).error !== 'bad_on_empty') return 'a spell with no rune took onEmpty';
+    for (const a of [{ own: [], store: 'plain_fire_rune', onEmpty: 'store' }, { own: ['scored_fire_rune'], onEmpty: 'leave' }, { own: ['chalked_fire_rune', 'graven_fire_rune'], store: 'plain_etched_fire_rune', onEmpty: 'store' }]) {
+      if (bad(a)) return 'the bar refused ' + JSON.stringify(a) + ': ' + bad(a);
+    }
+    return fs.rune === 'chalked_fire_rune' ? null : 'fixture: Flame Strike spends ' + fs.rune;
   },
   /* LIVE 10-21 (Andy: "Flame Strike isn't usable, not using runes from store"): the store had no rune row,
      and the store was shut while ANY carried ammo line had a use left — the starter kit's free Bronze Arrows
@@ -720,7 +766,7 @@ const mutants = [
   { name: '[spell-content] a cast spends the lowest tier its hero carries', case: 'family-spends-the-best-unlocked-tier',
     edits: [['src/core/hunt/abilities.js', '    if (!best || tier > best.version) best = { line: l, version: tier, pm: 1000 };', '    if (!best || tier < best.version) best = { line: l, version: tier, pm: 1000 };']] },
   { name: '[spell-content] a spell spends a rune of another family', case: 'family-spends-the-best-unlocked-tier',
-    edits: [['src/core/hunt/abilities.js', '    if (!tier || it.family !== fam) continue;', '    if (!tier) continue;']] },
+    edits: [['src/core/hunt/conditions.js', '(id) => isRune(ITEMS[id]) && ITEMS[id].family === family && runeTierOf(ITEMS[id]))', '(id) => isRune(ITEMS[id]) && runeTierOf(ITEMS[id]))']] },
   { name: '[spell-content] a version costs version I\'s mana', case: 'family-spends-the-best-unlocked-tier',
     edits: [['src/core/hunt/abilities.js', '    const v = versionOf(row, s.version);', '    const v = versionOf(row, 1);']] },
   { name: '[spell-content] output ignores the level', case: 'output-grows-with-level-not-mana',
@@ -762,7 +808,20 @@ const mutants = [
     edits: [['src/core/hunt/abilities.js', "    if (s.why) return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' };",
       "    if (s.why) { if (s.short) h.hs.goldOut = true; return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' }; }"]] },
   { name: 'a rune slot buys the store rune without naming it', case: 'rune-own-then-store',
-    edits: [['src/core/hunt/abilities.js', "  const s = version ? storeLine(h.hs, b.partner, store) : { why: 'none' };", "  const s = storeLine(h.hs, row.rune, typeof store === 'string' ? store : undefined);"]] },
+    edits: [['src/core/hunt/abilities.js', "  if (sup.onEmpty === 'leave') return { why: locked ? 'level' : 'runes_out', short: false };\n", ''],
+      ['src/core/hunt/abilities.js', "  const s = version ? storeLine(h.hs, b.partner, store) : { why: 'none' };", "  const s = storeLine(h.hs, row.rune, typeof store === 'string' ? store : undefined);"]] },
+  { name: '[rune supply] an unticked rune is spent', case: 'only-ticked-runes-then-on-empty',
+    edits: [['src/core/hunt/conditions.js', '  const own = Array.isArray(action.own) ? runes.filter((id) => action.own.includes(id)) : runes.slice();', '  const own = runes.slice();']] },
+  { name: '[rune supply] a leaving slot never leaves', case: 'only-ticked-runes-then-on-empty',
+    edits: [['src/core/hunt/abilities.js', "  if (sup.onEmpty === 'leave') return { why: locked ? 'level' : 'runes_out', short: false };\n", '']] },
+  { name: '[rune supply] a leaving slot leaves on a rune it holds but cannot cast yet', case: 'only-ticked-runes-then-on-empty',
+    edits: [['src/core/hunt/abilities.js', "  if (sup.onEmpty === 'leave') return { why: locked ? 'level' : 'runes_out', short: false };", "  if (sup.onEmpty === 'leave') return { why: 'runes_out', short: false };"]] },
+  { name: '[rune supply] runes_out ends no hunt', case: 'only-ticked-runes-then-on-empty',
+    edits: [['src/core/action-rules.js', "  runes_out: (hs) => typeof hs.runesOut === 'string' && hs.runesOut.length > 0,", '  runes_out: () => false,']] },
+  { name: '[rune supply] the bar takes a rune of another family', case: 'only-ticked-runes-then-on-empty',
+    edits: [['src/core/hunt/conditions.js', "(!Array.isArray(a.own) || a.own.length !== sup.own.length)) return { error: 'bad_own' };", "!Array.isArray(a.own)) return { error: 'bad_own' };"]] },
+  { name: '[rune supply] the bar takes any onEmpty', case: 'only-ticked-runes-then-on-empty',
+    edits: [['src/core/hunt/conditions.js', "  if (a.onEmpty !== undefined && a.onEmpty !== sup.onEmpty) return { error: 'bad_on_empty' };\n", '']] },
   { name: '[spell-content] Mend casts at full health', case: 'mend-heals-only-the-hurt',
     edits: [['src/core/hunt/abilities.js', "    case 'self': return pct(hero) < 100 ? hero : null;",
       "    case 'self': return row.heal || pct(hero) < 100 ? hero : null;"]] },

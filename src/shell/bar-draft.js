@@ -14,15 +14,16 @@
 import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.110';
 import { STATUSES } from '../data/statuses.js?v=0.2.110';
 import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.110';
-import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.110';
+import { BASIC_INDEX, BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.110';
 import { isRune } from '../data/supplies.js?v=0.2.110';
 import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.110';
 import { ITEMS } from '../data/items.js?v=0.2.110';
 import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.110';
 import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.110';
-import { ABILITIES, abilitySkill, versionOf, outputPm } from '../data/abilities.js?v=0.2.110';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.110';
 import { refusalWords } from './intent-words.js?v=0.2.110';
 import { skillName } from './widgets/bits.js?v=0.2.110';
+import { t } from '../render/player-text.js?v=0.2.110';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
@@ -126,11 +127,12 @@ export function storeName(id) {
 }
 
 /**
- * A RUNE SPELL'S STORE CHOICE (designer 2026-11-05: every default rune slot starts with its store rune on, shown, and the player can change it; the rune ladder, Tyler
- * 2026-11-05): "Carried runes only" (`id` null), then every store row of the spell's family, Plain first, at the
- * server's price a cast. Each row is what the player compares: `mana` a cast, `times` the power against Plain's
- * at the hero's own level (`skills`, the server's; null until it has said), `needs` the level its version takes and
- * `short` when the hero is under it (the engine's rule, abilities.js runeFor: it waits, it never casts a cheaper one).
+ * A RUNE SPELL'S SHOP CHOICE (designer 2026-11-05: every default rune slot starts with its store rune on, shown, and the player can change it; the rune ladder, Tyler
+ * 2026-11-05; RUNE SUPPLY PER SLOT, Tyler 2026-11-08: the shop is what "Buy from the rune shop" buys once the ticked runes run out, and
+ * "Leave the hunt" is its own choice, src/shell/rune-supply.js): every store row of the spell's family, Plain first, at the
+ * server's price a cast. Each row says `needs`, the level its version takes in the spell's skill, and `short` when the
+ * hero (`skills`, the server's; null until it has said) is under it (the engine's rule, abilities.js runeFor: it waits,
+ * it never casts a cheaper one).
  * [] for every other action (a food or drink slot names its one item).
  */
 export function storeChoices(a, rows, skills) {
@@ -143,25 +145,23 @@ export function storeChoices(a, rows, skills) {
   const list = rows.filter((r) => ITEMS[r.partner] && ITEMS[r.partner].family === family && runeTierOf(ITEMS[r.partner]))
     .map((r) => {
       const tier = runeTierOf(ITEMS[r.partner]);
-      return { id: r.id, name: storeName(r.id), price: r.price, tier, mana: versionOf(spell, tier).mana,
-        times: have === null ? null : outputPm(spell, tier, have) / outputPm(spell, 1, have),
+      return { id: r.id, name: storeName(r.id), price: r.price, tier,
         needs: skillName(skill) + ' ' + versionLevel(tier), short: have !== null && have < versionLevel(tier) };
     }).sort((x, y) => x.tier - y.tier);
-  return list.length ? [{ id: null, name: 'Carried runes only', price: null, tier: 0, mana: 0, times: null, needs: '', short: false }].concat(list) : [];
+  return list;
 }
 
-/** A rune choice in words: "Scored Fire Rune · 8 g a cast · 30 mana · 1.7x the power", or what it waits for. */
+/** A shop rune in words: "Scored Fire Rune · 8 g a cast · hits at 75%", or the level it waits for. The share is the
+    store's (supply-basics.js BASIC_EFFECT_SHARE: a shop rune casts its version at that share). */
 export function storeChoiceWords(c) {
-  if (c.price === null) return c.name;
-  const power = c.tier > 1 && c.times !== null ? ' · ' + (Math.round(c.times * 10) / 10) + 'x the power' : '';
-  return c.name + ' · ' + c.price + ' g a cast · ' + c.mana + ' mana' + (c.short ? ' · needs ' + c.needs : power);
+  return t(c.short ? 'bar.shop_rune_short' : 'bar.shop_rune', { name: c.name, price: c.price, needs: c.needs, pct: Math.round(BASIC_EFFECT_SHARE * 100) });
 }
 
-/** The store choice a freshly picked rune spell starts with: Plain, its family's cheapest row (shown, changeable), else
+/** The shop rune a freshly picked rune spell starts with: Plain, its family's cheapest row (shown, changeable), else
     none. Never a deeper tier: that is the player's own pick (Tyler 2026-10-21, the game never decides which supply is best). */
 export function storeDefault(a, rows) {
   const c = storeChoices(a, rows);
-  return c.length > 1 ? c[1].id : null;
+  return c.length ? c[0].id : null;
 }
 
 /** A comparison in the words of metric `m`'s kind (condition-metrics.js OPERATORS): "is at most" for a percent, "at least"

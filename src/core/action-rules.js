@@ -253,6 +253,9 @@ const END_CHECKS = Object.freeze({
   party_member_left: (hs) => hs.partyEnd === 'left' && hs.died !== true,
   heals_out: (hs) => essentialOut(hs, 'heal'),
   ammo_out: (hs) => essentialOut(hs, 'ammo'),
+  /* RUNE SUPPLY PER SLOT (Tyler 2026-11-08): a spell slot set to "Leave the hunt" came to cast with none of its ticked runes
+     left (abilities.js firstUsable: `runesOut`, the spell's id); like goldOut, a flag of this span, never stored. */
+  runes_out: (hs) => typeof hs.runesOut === 'string' && hs.runesOut.length > 0,
   gold_out: (hs) => hs.goldOut === true,
   /* A stop rule met (conditions.js checkStopRules); like goldOut, a flag of this span, never stored. */
   rule: (hs) => typeof hs.ruleStop === 'string' && hs.ruleStop.length > 0,
@@ -395,6 +398,8 @@ export function newHuntSession(o) {
     basics: shopTable(s.basics),
     purse: Math.max(0, int(s.purse, 0)),
     goldOut: s.goldOut === true,
+    /* The spell whose slot left the hunt when its ticked runes ran out (abilities.js firstUsable), or null: a flag of the span. */
+    runesOut: typeof s.runesOut === 'string' && s.runesOut ? s.runesOut : null,
     /* THE GOLD FLOOR and the loot sell-to-cover may sell (row 3). */
     goldFloor: Math.min(GOLD_FLOOR.max, Math.max(GOLD_FLOOR.min, int(s.goldFloor, GOLD_FLOOR.default))),
     /* THE HERO'S SUPPLY SETTING (SUPPLY_SOURCE / ON_EMPTY; unknown = the

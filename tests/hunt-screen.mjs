@@ -1367,7 +1367,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(300);
         const want = [
           [0, 'mana', /^Needs 6 mana, you have 2\.$/, false],
-          [1, 'rune', /^Needs a Fire rune for each cast: you carry none. Pick the store’s rune/, true],
+          /* RUNE SUPPLY PER SLOT (Tyler 2026-11-08): a Flame Strike slot naming no shop rune leaves the hunt when its runes run out */
+          [1, 'runes out', /^You carry none of the runes ticked on this slot\. When it comes to cast, your hero leaves the hunt\.$/, true],
           [2, 'none left', /^None left: you carry no Wheat Bread\. The next food or drink slot fires instead\.$/, true],
           [5, 'store off', /^This hero is set to end the hunt rather than buy from the store\.$/, true],
           [7, 'server', /^The server says this cannot fire now\.$/, true],
@@ -1975,7 +1976,7 @@ const MUTANTS = [
   ['the fight panel locks a value the server sent in town (HS-27)', 'src/shell/widgets/settings-intent.js', "  return v === undefined || v === null ? null : v;", "  return null;"],
   ['the client fills an unset option with its own pick (HS-27)', 'src/shell/widgets/settings-intent.js', "  return v === undefined || v === null ? null : v;", "  return v === undefined ? null : v === null ? 'nearest' : v;"],
   ['the gold to keep shows a client default while unset (HS-27)', 'src/shell/widgets/settings-intent.js', "return Number.isSafeInteger(v) && v >= 0 ? v : null;", "return Number.isSafeInteger(v) && v >= 0 ? v : GOLD_FLOOR.default;"],
-  ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (r.rune && !(familyCount(r.rune, bag) > 0)', '    if (false && r.rune && !(familyCount(r.rune, bag) > 0)'],
+  ['a slot out of its ticked runes does not say it leaves the hunt', 'src/shell/action-facts.js', "    if (sup && sup.onEmpty === 'leave' && !(ownCount(a, bag) > 0)) {", "    if (false && sup && sup.onEmpty === 'leave' && !(ownCount(a, bag) > 0)) {"],
   ['the hub keeps an ended hunt’s in-fight regen', 'src/shell/widgets/vitals-hub.js', '  const hero = h && !h.ended ? h.hero : null;', '  const hero = h ? h.hero : null;'],
   ['the gold to keep shows the typed value before the server confirms', 'src/shell/widgets/settings-intent.js', "(pending || el.ownerDocument.activeElement !== el)", "(!pending && el.ownerDocument.activeElement !== el)"],
   ['the gold to keep sends nothing', 'src/shell/widgets/settings-intent.js', ": { gold_floor: n };", ": null;"],

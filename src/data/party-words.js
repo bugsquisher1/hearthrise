@@ -24,6 +24,7 @@ const CAME_HOME_BECAUSE = Object.freeze({
   gold_out: '{member} ran out of gold for supplies, so {name} came home too.',
   heals_out: '{member} ran out of healing food, so {name} came home too.',
   ammo_out: '{member} ran out of ammunition, so {name} came home too.',
+  runes_out: '{member} ran out of runes, so {name} came home too.',
   rule: '{member}’s stop rule was met, so {name} came home too.',
   hours: '{member}’s time limit was up, so {name} came home too.',
   no_fight: '{member} went too long without landing a blow, so {name} came home too.',

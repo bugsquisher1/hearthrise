@@ -177,3 +177,8 @@ yard is a wide bare dirt field. PixelLab: 620 subscription generations (4319.4 �
   of its 48 frame after placement; the Pyre ash fill is P1 r1's base x0.86 at import (next cycle, with its pairs).
 - **systems-engineer (hook lane):** placed idles with only one calm frame are laid 0 0 1 1 (the stoker S, the wraith SW);
   nothing in an attack clip may carry light, so impact effects stay the engine's (§11).
+
+## 2026-11-09 · asset-director (lane/a-import-town-art) → game designer, systems-engineer, art-director · what the town import left
+- **game designer:** the `training_yard` station has stands but no hero can be on it: `player_state_active_kind_check` allows idle, gather, artisan, combat only, so the new yard is a showpiece with nobody in it. Either a training activity is born or the yard is dressing. The house dummy parts (hd_circle, hd_base, hd_plates, hd_arms, hd_target, set cottage, class `part`) are art only; their system (prices, unlocks) is yours.
+- **systems-engineer:** every target carries a `hit` clip (quintain, pell, both butts, the three dummies, 12 fps) that nothing plays: a town has no strike event. The farm shows a crop per plot tile from `farm_land` (src/world/town-farm.js); the four `crop_watered_<n>` overlays wait for a watered flag in the plot projection (it has `waterable` only).
+- **art-director:** `ty_rune_post` is not imported (A1e waits for your read of y1-yard-kit/rune-post-edit), so the magic corner is the lectern, the ward ring and the scorch. The yard lays out in sites.js: melee row north, archery lane west (butts north, archers south), rune corner south.

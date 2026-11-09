@@ -20,7 +20,8 @@
 // ════════════════════════════════════════════════════════════════════════
 import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.110';
 import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.110';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.110';
+import { usePlaces, wherePlaces } from '../../item-lore.js?v=0.2.110';
+import { patchParts, placeLink } from '../../goto.js?v=0.2.110';
 import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.110';
 import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.110';
 import { whole, gold } from '../../../render/format.js?v=0.2.110';
@@ -68,7 +69,7 @@ export function toolsHtml(g) {
   return '<div class="hw-pick"><span class="hw-pick-ico"></span><span class="hw-pick-name"><b></b><small></small></span>'
     + '<button type="button" class="hw-primary" data-hs-act="primary"></button>'
     + '<button type="button" class="hh-tool hw-more" data-hs-act="more" aria-label="More for this item">' + glyphSvg(g, 'uiPlus') + '</button></div>'
-    + '<p class="hw-why hw-pick-why" role="status" aria-live="polite"></p>'
+    + '<p class="hw-why hw-pick-why" role="status" aria-live="polite"></p><p class="hw-pick-ways"></p>'
     + upgradeLineHtml()
     + '<div class="hw-burying" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="bury-stop">Stop</button></div>'
     + '<div class="hw-bulk"><span class="hw-selcount"></span>'
@@ -162,6 +163,8 @@ export function patchTools(root, st, ctx) {
   /* The picked line's words: its last press's answer, else why its action is off. */
   const pickSaid = !!cur && sc.msgAt === 'pick:' + cur && !!sc.msg;
   whyLine(root.querySelector('.hw-pick-why'), !cur ? '' : (pickSaid ? sc.msg : wearWhy || buryWhy || eatWhy), pickSaid);
+  /* THE ITEM'S WAYS (Tyler 2026-11-08): what spends it and where to get more, each place a link to its window (src/shell/goto.js) */
+  patchParts(root.querySelector('.hw-pick-ways'), cur ? usePlaces(cur).concat(wherePlaces(cur)).flatMap((p, i) => (i ? [' · ', placeLink(p)] : [placeLink(p)])) : []);
   patchUpgradeLine(root, st.upgrade, onBag, sc.pending, { locked: gearLocked(st.cs), msg: sc.msgAt === 'upgrade' ? sc.msg : '' });
   const line = buryParts(st.cs);
   const bl = root.querySelector('.hw-burying');
@@ -211,7 +214,7 @@ function patchHuntPane(root, st, ctx) {
   let worth = 0, priced = true;
   for (const l of loot) if (bids && bids.has(l.item)) worth += bids.get(l.item) * l.count; else priced = false;
   const n = loot.reduce((s, l) => s + l.count, 0);
-  const coin = new Set(lootToSell(loot.map((l) => ({ id: l.item, qty: l.count })), skillsOf(st.cs), upgradeNeeds(homeOf(st.cs), chestsOf(st.cs))));
+  const coin = new Set(lootToSell(loot.map((l) => ({ id: l.item, qty: l.count })), upgradeNeeds(homeOf(st.cs), chestsOf(st.cs))));
   text(pane.querySelector('.hw-loot-sum'), loot.length ? 'This hunt: ' + whole(n) + (n === 1 ? ' item' : ' items') + (bids ? ' · worth ' + gold(worth) + (priced ? '' : ' or more') : '') : '');
   rows(pane.querySelector('.hw-loot'), loot, {
     key: (l) => l.item,
@@ -227,7 +230,7 @@ function patchHuntPane(root, st, ctx) {
       if (st.rules) prop(sel, 'value', st.rules.loot[l.item] || 'keep');
       prop(sel, 'disabled', st.sc.pending || !st.rules);
       for (const o of sel.options) { const why = planBlock(l.item, o.value, bids, inBag > 0); prop(o, 'disabled', !!why); attr(o, 'title', why || null); }
-      /* a stack that only pays coin (what Sell all loot sells): the row the coach's "Decide once" rings, never the
+      /* a stack that only pays coin (what Sell all junk sells): the row the coach's "Decide once" rings, never the
          Bones a skill trains on (played 2026-10-25: the first row, Bones, was ringed for "Sell at the shop") */
       attr(sel, 'data-coin', coin.has(l.item) ? '' : null);
     },

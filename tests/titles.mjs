@@ -131,8 +131,8 @@ const ARMS = {
       if (!d) continue;
       if (r.words !== d.words || r.price !== d.price || r.kills !== d.kills || r.monsters.join() !== d.monsters.join()) out.push(`${r.title_id} differs from the data file: ` + JSON.stringify(r));
       /* the words survive the seam's own filters */
-      const plate = X.TS.plateTextOf(X.TP.walkerOf({ id: A, slot: 0, name: 'Marlow', x: 1, y: 1, gx: 1, gy: 1, dir: 's', level: 18, title: d.words }));
-      if (plate !== `Marlow ${d.words} · 18`) out.push(`${r.title_id}'s plate reads ${plate}`);
+      const plate = X.TS.plateOf(X.TP.walkerOf({ id: A, slot: 0, name: 'Marlow', x: 1, y: 1, gx: 1, gy: 1, dir: 's', level: 18, title: d.words }));
+      if (plate.text !== 'Marlow · 18' || plate.title !== d.words) out.push(`${r.title_id}'s plate reads ${JSON.stringify(plate)}`);
       const line = X.CL.lineOf({ id: 'aaaaaaaa-0000-4000-8000-0000000000a1', channel: 'global', from_id: A, from_name: 'Marlow', from_slot: 0, from_level: 18, from_weapon: null, from_role: null, from_title: d.words, body: 'hi', created_at: '2026-11-04T09:00:00Z' }, { tz: 'utc' });
       if (!line || line.title !== d.words) out.push(`${r.title_id}'s chat line lost its title`);
       if (d.words.length > 40) out.push(`${r.title_id}'s words are over 40 letters`);

@@ -439,14 +439,15 @@ export function composeFrame(map, book, state, view, tables, T) {
     return { cx, foot, top: foot - (s.height || 20) - (s.class === 'flier' ? s.hover || 0 : 0) };
   };
   /* PROPS come from state, not the map row (a home's furniture follows the rooms
-     you own): { id, x, y, ref, plate:{text,kind} }, placed exactly like objects. */
+     you own): { id, x, y, ref, plate:{text,kind} }, placed exactly like objects. A plate's `text` is its name line and
+     its `title` (a hero's worn title, or none) the line under it (core/plates.js). */
   for (const o of state.props || []) {
     const d = place(o.id, o.x, o.y, { ref: o.ref });
     if (o.plate) { const hd = head(d); plates.push({ text: o.plate.text, kind: o.plate.kind, x: hd.cx, y: hd.top, alpha: 1, id: o.id, ref: o.ref || null }); }
   }
   /* A unit: { id, x, y, anim, dir, diag, age (ms into the clip) | frame (the clip frame itself, a
      walk chosen by distance), alpha, grey (0..1 toward its corpse tone), recoil ([dx, dy] art px), under (drawn
-     beneath the standing: a corpse), plate:{text,kind,alpha?}, bar, barKind, mana, badge, target, dye }.
+     beneath the standing: a corpse), plate:{text,title?,kind,alpha?}, bar, barKind, mana, badge, target, dye }.
      dir is the cardinal; diag the diagonal of a diagonal step, drawn when the clip has it (core/facing.js). */
   function unit(u, isHero) {
     const anim = u.anim || 'idle';
@@ -459,7 +460,7 @@ export function composeFrame(map, book, state, view, tables, T) {
     const { cx, foot, top } = head(d);
     /* After head(): a recoil moves the art alone, so a full box's blows never shake a name, a bar or the lamp. */
     if (u.recoil) { d.x += u.recoil[0]; d.y += u.recoil[1]; }
-    if (u.plate) plates.push({ text: u.plate.text, kind: u.plate.kind, x: cx, y: top - (u.bar == null ? 0 : 4), alpha: u.plate.alpha != null ? u.plate.alpha : u.alpha == null ? 1 : u.alpha,
+    if (u.plate) plates.push({ text: u.plate.text, title: u.plate.title || null, kind: u.plate.kind, x: cx, y: top - (u.bar == null ? 0 : 4), alpha: u.plate.alpha != null ? u.plate.alpha : u.alpha == null ? 1 : u.alpha,
       /* the plate names its owner, so a right-click on the NAME picks the unit too */ id: u.id, ref: u.ref || null });
     if (u.bar != null) {
       const pct = Math.max(0, Math.min(1, u.bar));
@@ -481,7 +482,7 @@ export function composeFrame(map, book, state, view, tables, T) {
   if (hero) {
     /* The hero is drawn in its style-1 outfit (src/session/hero-look.js); the knight's when none is named. */
     const h = unit(Object.assign({ id: OUTFITS.knight, anim: 'idle', dir: 's' }, hero, {
-      plate: hero.plate || (state.name ? { text: state.name, kind: 'self' } : null) }), true);
+      plate: hero.plate || (state.name ? { text: state.name, title: state.title || null, kind: 'self' } : null) }), true);
     if (map.light === 'cellar') points.push({ x: h.cx, y: h.foot - 18, r: HERO_LIGHT_TILES * T, tint: 'hero' });
   }
   for (const u of state.units || []) unit(u, false);

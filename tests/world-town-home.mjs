@@ -528,7 +528,7 @@ const MUTANTS = [
   ['T', 'peers wear one outfit', 'src/world/town-scene.js', [['const id = outfitSprite(p.w.outfit, p.w.role);', "const id = outfitSprite(null, 'tank');"]]],
   ['T', 'a peer ignores the outfit its character chose', 'src/world/town-scene.js', [['const id = outfitSprite(p.w.outfit, p.w.role);', 'const id = outfitSprite(null, p.w.role);']]],
   ['T', 'a peer is not stamped for the player menu', 'src/world/town-scene.js', [['ref: { player: { id: p.w.id, name: p.w.name, slot: p.w.slot, gm: p.w.gm === true } },', 'ref: null,']]],
-  ['T', 'the Game Master reads like anyone in town', 'src/world/town-scene.js', [["kind: p.w.gm ? 'gm' : 'peer' }", "kind: 'peer' }"]]],
+  ['T', 'the Game Master reads like anyone in town', 'src/world/town-scene.js', [["kind: w.gm ? 'gm' : 'peer' })", "kind: 'peer' })"]]],
   ['F', 'furniture merged across envelopes', 'src/world/home-scene.js', [['export function furnish(mapId, rooms, trophies, nameOf) {', 'const KEPT = new Map();\nexport function furnish(mapId, rooms, trophies, nameOf) {\n  const out0 = furnish0(mapId, rooms, trophies, nameOf);\n  for (const p of out0) if (p.ref && p.ref.room) KEPT.set(p.id + p.x + "," + p.y, p);\n  return out0.filter((p) => !(p.ref && p.ref.room)).concat([...KEPT.values()]);\n}\nfunction furnish0(mapId, rooms, trophies, nameOf) {']]],
   ['F', 'the home reads no rungs from the server\'s section', 'src/world/home-scene.js', [['rooms[r.room] = r.level;', 'void r.level;']]],
   ['F', 'a built Trophy Room with nothing to hang says nothing', 'src/world/home-scene.js', [["if (first) first.plate = { text: EMPTY_WALL, kind: 'sign' };", 'void first;']]],

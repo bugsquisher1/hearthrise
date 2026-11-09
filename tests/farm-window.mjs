@@ -5,7 +5,7 @@
 //   node tests/farm-window.mjs            the rules
 //   node tests/farm-window.mjs --mutate   every planted defect must turn a rule RED
 //
-// mutant-anchors: src/shell/windows/farm.js src/session/farm-sections.js src/session/farm-intents.js
+// mutant-anchors: src/shell/windows/farm.js src/session/farm-sections.js src/session/farm-intents.js src/shell/goto.js src/shell/shell.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus a `farm_land` section
@@ -41,6 +41,11 @@
 //         moves to the server's next empty plot and the window keeps its scroll; "Plant
 //         N empty plots" sends ONE hr_farm_plant per empty plot in order, every control off
 //         meanwhile, and stops at the first refusal saying so
+//   FW-10 TAKE ME THERE (Tyler 2026-11-08: "there should be a direct line to click from here and get
+//         to the shop"): a crop with no seed that the Shop sells reads "No seeds. The Shop sells them
+//         for 10 gp." with that sentence a link; pressed on a phone sheet (922×423), the Shop opens on
+//         Buy in its place with the seed's row in view and ringed; on the desktop Enter on the focused
+//         link does the same, and never opens Chat
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -90,6 +95,14 @@ function sowOn(body, s) {
   s.env.farm_land.plots.push({ i: body.p_plot_idx, crop: body.p_crop, ready: false, ready_in_s: 21600, waterable: true, regrows_left: null, by: 0, by_name: 'Alda', extra: false });
   return { ok: true, plot: body.p_plot_idx, crop: body.p_crop };
 }
+/* FW-10: Farming 10 on tier-2 land, two empty plots, no carrot seed, and the Shop's seed counter (its server offers) */
+const SEEDLESS = {
+  farm_land: { cap: 2, plot_level: 2, upgrade: null, plots: [] },
+  skills: Object.assign(clone(BASE_ENV.skills), { farming: { xp: 9000, level: 10, frac: 0 } }),
+  inventory: Object.assign(clone(BASE_ENV.inventory), { turnip_seed: 4 }),
+  shop: Object.assign(clone(BASE_ENV.shop), { offers: BASE_ENV.shop.offers.concat([
+    { offer: 'supply.turnip_seed', item: 'turnip_seed', kind: 'seed', price: 5 }, { offer: 'supply.carrot_seed', item: 'carrot_seed', kind: 'seed', price: 10 }]) }),
+};
 const CLEAR = { ok: true, plot: 1, crop: 'tomato', produce: 'tomato', qty: 3, xp: 4410, regrew: false, withered: false, extra: false, cleared: true, regrows_left: null };
 const RPCS = ['hr_farm_plant', 'hr_farm_water', 'hr_farm_harvest', 'hr_farm_harvest_replant', 'hr_farm_harvest_clear', 'hr_farm_upgrade_plot'];
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
@@ -307,6 +320,36 @@ async function checks(overrides) {
       }
       await ctx.close();
     }
+    for (const [viewport, how] of [[{ width: 922, height: 423 }, 'press'], [{ width: 1440, height: 900 }, 'enter']]) { // FW-10
+      const { ctx, page, errors, opened } = await open(clone(SEEDLESS), null, viewport);
+      if (!opened) { fails.push('FW-10 the Farm did not open at ' + viewport.width + 'x' + viewport.height); await ctx.close(); continue; }
+      await press(page, W + '.hw-plot[data-plot="0"] .hw-soil', 'FW-10');
+      await wait(page, () => document.querySelector('[data-hs-win="farm"] .hw-sow.is-on'), null, 2000);
+      const said = await txt(page, W + '.hw-seeds li[data-crop="carrot"] small');
+      const link = W + '.hw-seeds li[data-crop="carrot"] small .hs-goto';
+      if (!/^6 h · No seeds\. The Shop sells them for 10 gp\.$/.test(said || '') || (await txt(page, link)) !== 'The Shop sells them for 10 gp.')
+        fails.push('FW-10 the carrot row reads ' + JSON.stringify(said) + ' with the link ' + JSON.stringify(await txt(page, link)));
+      else if (!(await page.evaluate(() => document.querySelector('[data-hs-win="farm"] .hw-seeds li[data-crop="carrot"] [data-hs-act="sow"]').disabled)))
+        fails.push('FW-10 a crop with no seed can be planted');
+      else {
+        if (how === 'press') await press(page, link, 'FW-10');
+        else { await page.focus(link); await page.keyboard.press('Enter'); }
+        const landed = await wait(page, () => {
+          const row = document.querySelector('[data-hs-win="shop"] [data-hs-find="carrot_seed"]');
+          if (!row || !row.classList.contains('is-found') || !document.querySelector('[data-hs-win="shop"] .hw-tab[data-tab="buy"][aria-selected="true"]')) return false;
+          let box = row.parentElement;
+          while (box && !box.hasAttribute('data-hs-win') && !(box.scrollHeight > box.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(box).overflowY))) box = box.parentElement;
+          const r = row.getBoundingClientRect(), b = box.getBoundingClientRect();
+          return r.height > 0 && r.top >= b.top - 1 && r.bottom <= b.bottom + 1;
+        }, null, 4000);
+        const where = await page.evaluate(() => ({ open: [...document.querySelectorAll('[data-hs-win]')].map((w) => w.getAttribute('data-hs-win')) }));
+        if (!landed) fails.push('FW-10 ' + how + ' on the link at ' + viewport.width + 'x' + viewport.height + ' left the carrot seed\'s Buy row out of view or unringed; open: ' + where.open.join(','));
+        if (how === 'press' && where.open.includes('farm')) fails.push('FW-10 the phone kept the Farm sheet under the Shop: ' + where.open.join(','));
+        if (how === 'enter' && where.open.includes('chat')) fails.push('FW-10 Enter on the link opened Chat');
+      }
+      if (errors.length) fails.push('FW-10 console errors: ' + errors.join(' | ').slice(0, 300));
+      await ctx.close();
+    }
     { // FW-6
       const { ctx, page, opened } = await open({});
       if (!opened) fails.push('FW-6 the window did not open without the section');
@@ -350,6 +393,11 @@ const MUTANTS = [
   ['the picker lists crops in catalogue order (0.2.95)', 'src/shell/windows/farm.js', '}).sort((a, b) => Number(!!a.why) - Number(!!b.why));', '});'],
   ['the picker hides while a plant is in flight (0.2.95)', 'src/shell/windows/farm.js', '(st.sc.pending || !st.land.plots.has(st.sc.pick))', '!st.land.plots.has(st.sc.pick)'],
   ['the picker is left off screen (0.2.95)', 'src/shell/windows/farm.js', "if (sow && typeof sow.scrollIntoView === 'function')", 'if (false)'],
+  /* Tyler 2026-11-08: "there should be a direct line to click from here and get to the shop" */
+  ['the no-seed row has no link to the Shop (11-08)', 'src/shell/windows/farm.js', ".concat(r.buy ? [' ', r.buy] : []));", '.concat([]));'],
+  ['the link opens the Shop with the seed row out of view (11-08)', 'src/shell/goto.js', '    revealInWindow(row);\n', ''],
+  ['the link opens the Shop without asking for the row (11-08)', 'src/shell/shell.js', '    seekRow(wm, id, body);', '    void seekRow;'],
+  ['Enter on a link opens Chat (11-08)', 'src/shell/shell.js', 'if (!ownsKey(e) && wm.handleKey(e))', 'if (wm.handleKey(e))'],
   ['Plant in all runs past a refusal (0.2.95)', 'src/shell/windows/farm.js', 'if (!r.ok) return n ? { ok: true, n, at, stop: r } : r;', 'if (!r.ok) continue;'],
 ];
 

@@ -98,7 +98,7 @@
 //         raw food with a one-input Cooking recipe to food offers Cook all, the same ONE
 //         set_activity { kind:'artisan', id:'cook_wolf_meat' }; the Cooking line reads the
 //         server's pointer; Stop says what the server made and burnt; the tooltip says it
-//         cooks; Sell all loot keeps it; a level under the recipe's says so in words
+//         cooks; Sell all junk keeps it; a level under the recipe's says so in words
 //   AW-21 EQUIP UPGRADES: ONE equip intent naming every strictly better piece (the weapon only within its family and grip, never the off-hand or ammo; never the weapon's style
 //         or a piece above the hero's skill), its slots and stacks marked until the answer, a
 //         refusal in words with nothing moved, the Shop's offer after a gear purchase, a reload agrees;
@@ -360,11 +360,10 @@ async function pure() {
   const { usesOf } = await imp('src/shell/item-lore.js');
   const sold = lootToSell([{ id: 'bones', qty: 15 }, { id: 'rat_tail', qty: 4 }, { id: 'razor_claw', qty: 1 }, { id: 'lamp_jelly', qty: 3 }, { id: 'den_knot', qty: 1 }]);
   if (sold.join(',') !== 'rat_tail') fails.push('AW-0 Sell all loot would sell ' + sold.join(', ') + ' (bones and every Hearth fuel are kept for the Great Hearth)');
-  /* board 2026-10-25 #22: Sell all loot sold Silk Thread, the first Crafting recipes' thread: a material a recipe the hero
-     can make NOW spends is kept (the server's skill level); one only a far higher level spends is sold */
-  const crafter = lootToSell([{ id: 'silk_thread', qty: 6 }, { id: 'slime_gel', qty: 3 }, { id: 'rat_tail', qty: 2 }], { crafting: { xp: 0, level: 1 } });
-  if (crafter.join(',') !== 'slime_gel,rat_tail') fails.push('AW-0 a Crafting 1 hero\'s Sell all loot sells ' + crafter.join(', ') + ' (want slime_gel, rat_tail: Silk Thread is its Crafting 1 thread)');
-  if (lootToSell([{ id: 'slime_gel', qty: 3 }], { crafting: { xp: 0, level: 30 } }).length) fails.push('AW-0 a Crafting 30 hero\'s Sell all loot sells its Slime Gel');
+  /* board 2026-10-25 #22: Sell all loot sold Silk Thread, the first Crafting recipes' thread. Tyler 2026-11-08: a bulk sale never
+     sweeps a Material, whatever the hero's level: Slime Gel (a Crafting 30 input) stays too, and only the Junk is sold */
+  const crafter = lootToSell([{ id: 'silk_thread', qty: 6 }, { id: 'slime_gel', qty: 3 }, { id: 'rat_tail', qty: 2 }]);
+  if (crafter.join(',') !== 'rat_tail') fails.push('AW-0 Sell all junk sells ' + crafter.join(', ') + ' (want rat_tail only: Silk Thread and Slime Gel are Materials)');
   /* WHAT THE PRICE LEAVES OUT (blind playtest 2026-10-31: "Sell all loot · 423 gp" over a list worth 1,215; "×2,004 · 1 gp
      each · Sell · 1,000 gp"): the loot the button keeps is named with its worth, and a stack past one sale's limit is marked. */
   {
@@ -597,7 +596,8 @@ async function itemTruthRules(base) {
     if (it.slot === 'ammo' && it.reqSkill === 'magic' && !/^Rune/.test(kindWords(id))) fails.push('AW-60 the rune ' + id + ' is headed ' + kindWords(id));
     if (/Sell it at the shop/.test(said) && !(Number(it.v) > 0)) fails.push('AW-60 ' + id + ' says to sell it, and the shop bids nothing on it');
     if (it.seed && !/Plant it on the Farm/.test(said)) fails.push('AW-60 the seed ' + id + ' reads ' + said);
-    if (kindWords(id) === 'Monster loot' && /(Made|Gathered|Grown) with/.test(srcs)) fails.push('AW-60 ' + id + ' is headed Monster loot and reads ' + srcs);
+    if (kindWords(id) === 'Junk' && /(Made|Gathered|Grown) with/.test(srcs)) fails.push('AW-60 ' + id + ' is headed Junk and reads ' + srcs);
+    if (kindWords(id) === 'Junk' && /^Used in /.test(said)) fails.push('AW-60 ' + id + ' is headed Junk and reads ' + said);
     if (it.type === 'tool') {
       const pc = Math.round(it.toolSpeed * 100) + '%';
       if (/Sell it at the shop/.test(said) || !said.includes(pc + ' faster') || !/while it's in your bag/.test(said) || !/In Storage it does nothing/.test(said)) fails.push('AW-60 the tool ' + id + ' reads ' + said);
@@ -609,23 +609,26 @@ async function itemTruthRules(base) {
     if (Number(it.v) > 0 && !it.bop && isStartKit(id) !== /Weighhouse won't list/.test(sale)) fails.push('AW-60 ' + id + ' (kit ' + isStartKit(id) + ') says of its buyers: ' + JSON.stringify(sale));
   }
   /* Bug 7 and worse: what a hero makes or gathers is a material, whoever else drops it. */
-  for (const id of ['copper_ore', 'oak_log', 'iron_bar', 'steel_bar', 'timber_beam', 'iron_fitting']) if (kindWords(id) !== 'Material') fails.push('AW-60 ' + id + ' is headed ' + kindWords(id));
+  for (const id of ['copper_ore', 'oak_log', 'iron_bar', 'steel_bar', 'timber_beam', 'iron_fitting', 'gold_bar']) if (kindWords(id) !== 'Material') fails.push('AW-60 ' + id + ' is headed ' + kindWords(id));
   /* SELL ALL LOOT: Slime Gel at Crafting 1 with deed III next (Timber Beam -> Slime Gel); Timber Beam itself; the next deed's Silk Thread. */
   const skills = { crafting: { xp: 0, level: 1 }, smithing: { xp: 0, level: 1 } };
   const bag = ['slime_gel', 'silk_thread', 'timber_beam', 'iron_ore', 'copper_ore', 'normal_log', 'rat_tail', 'bat_wing'].map((id) => ({ id, qty: 5 }));
   const step = (items) => ({ gold: 1, items: items.map((id) => ({ id, qty: 1 })) });
   const manor = { tier: 2, rooms: [], tiers: [{ tier: 1, owned: true, ...step([]) }, { tier: 2, owned: true, ...step([]) }, { tier: 3, owned: false, ...step(['iron_ore', 'silk_thread', 'timber_beam', 'iron_fitting', 'willow_plank']) }] };
   const needs = upgradeNeeds(manor, null);
-  const sold = lootToSell(bag, skills, needs);
-  if (sold.includes('slime_gel') || sold.includes('timber_beam') || sold.includes('iron_ore') || !sold.includes('rat_tail')) fails.push('AW-60 with deed III next, Sell all loot sells ' + sold.join(', '));
-  if (!lootToSell(bag, skills, upgradeNeeds({ tier: 5, rooms: [], tiers: [{ tier: 5, owned: true, ...step([]) }] }, null)).includes('slime_gel')) fails.push('AW-60 Slime Gel stays kept after the House stops asking');
-  if (lootToSell(bag, skills, upgradeNeeds(null, null)).includes('slime_gel')) fails.push('AW-60 a House not yet read sells a recipe\'s material on a guess');
+  const sold = lootToSell(bag, needs);
+  if (sold.includes('slime_gel') || sold.includes('timber_beam') || sold.includes('iron_ore') || !sold.includes('rat_tail')) fails.push('AW-60 with deed III next, Sell all junk sells ' + sold.join(', '));
+  if (lootToSell(bag, upgradeNeeds({ tier: 5, rooms: [], tiers: [{ tier: 5, owned: true, ...step([]) }] }, null)).includes('slime_gel')) fails.push('AW-60 Sell all junk sells Slime Gel, a Material, once the House stops asking');
+  if (lootToSell(bag, upgradeNeeds(null, null)).includes('slime_gel')) fails.push('AW-60 a House not yet read sells a recipe\'s material on a guess');
+  /* the House's own word keeps even Junk: a next step the server prices names it (its catalogue can run ahead of this client's) */
+  const asked = upgradeNeeds({ tier: 1, rooms: [], tiers: [{ tier: 2, owned: false, ...step(['rat_tail']) }] }, null);
+  if (lootToSell(bag, asked).includes('rat_tail')) fails.push('AW-60 Sell all junk sells the Rat Tail the House\'s next step names');
   const roomed = upgradeNeeds({ tier: 2, tiers: [], rooms: [{ opens: 2, next: { need: 2, ...step(['bat_wing']) } }, { opens: 3, next: { need: 3, ...step(['rat_tail']) } }] }, { next: { canBuild: true, ...step(['venom_sac']) } });
   if (!roomed.has('bat_wing') || !roomed.has('venom_sac') || roomed.has('rat_tail')) fails.push('AW-60 upgradeNeeds reads rooms and chests as ' + [...roomed].join(', '));
   const bids = new Map(bag.map((r) => [r.id, 2]));
   const shop = { bids };
-  const onePress = lootSale(bag, { locked: new Set() }, shop, skills, needs);
-  const kept = lootKept(bag, { locked: new Set() }, shop, skills, needs);
+  const onePress = lootSale(bag, { locked: new Set() }, shop, needs);
+  const kept = lootKept(bag, { locked: new Set() }, shop, needs);
   if (onePress.lines.some((l) => l.item === 'slime_gel') || !kept.ids.includes('slime_gel')) fails.push('AW-60 the button sells ' + JSON.stringify(onePress.lines) + ' and says it keeps ' + kept.ids.join());
   /* TOOLS: the row, where it counts, and moving one away. */
   const hero = (inv, bank, offers) => { const e = { inventory: inv, skills, shop: { offers: offers || [], bids: {} }, bank: bank || {} }; return { read: (k) => e[k], account: { read: (k) => e[k] } }; };
@@ -1160,7 +1163,7 @@ async function planRules(base) {
   ]) if (spareIds(stack([id]), worn, rules, o)) fails.push('AW-70 Sell spare gear would sell ' + what + ': ' + id);
   const clubs = stack(['practice_club', 'klappas_club']);
   const { lootSale, madeFromKit } = await imp('src/shell/bag-model.js');
-  if (lootSale(clubs, rulesAre(), bidsOn(clubs), lv1, null).lines.length) fails.push('AW-70 Sell all loot would sell a club: ' + JSON.stringify(lootSale(clubs, rulesAre(), bidsOn(clubs), lv1, null).lines));
+  if (lootSale(clubs, rulesAre(), bidsOn(clubs), null).lines.length) fails.push('AW-70 Sell all junk would sell a club: ' + JSON.stringify(lootSale(clubs, rulesAre(), bidsOn(clubs), null).lines));
   if (madeFromKit('klappas_club') !== 'practice_club' || madeFromKit('cooked_shrimp') || madeFromKit('bronze_helm')) fails.push('AW-70 made from the kit reads ' + [madeFromKit('klappas_club'), madeFromKit('cooked_shrimp'), madeFromKit('bronze_helm')].join());
   const saleWords = (await imp('src/shell/item-lore.js')).rareSaleWords;
   if (saleWords([{ item: 'klappas_club', qty: 1 }]) !== 'Nothing sells the Practice Club that makes another Klappa\'s Club.' || saleWords([{ item: 'bronze_helm', qty: 3 }])) fails.push('AW-70 a hand sale of the club says ' + JSON.stringify(saleWords([{ item: 'klappas_club', qty: 1 }])));
@@ -2451,8 +2454,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(200);
         const gel = await say('[data-hs-win="shop"] .hw-sell-list .hw-line[data-item="slime_gel"] small');
         const tail = await say('[data-hs-win="shop"] .hw-sell-list .hw-line[data-item="rat_tail"] small');
-        if (!/Sell all loot keeps it/.test(gel || '') || /keeps it/.test(tail || '')) fails.push('AW-60 the Shop: Slime Gel ' + gel + ' / Rat Tail ' + tail);
-        if (!/· 186 gp$/.test(await say('[data-hs-win="shop"] [data-hs-act="sell-loot"]') || '')) fails.push('AW-60 Sell all loot is priced ' + await say('[data-hs-win="shop"] [data-hs-act="sell-loot"]'));
+        if (!/Sell all junk keeps it/.test(gel || '') || /keeps it/.test(tail || '')) fails.push('AW-60 the Shop: Slime Gel ' + gel + ' / Rat Tail ' + tail);
+        if (!/· 186 gp$/.test(await say('[data-hs-win="shop"] [data-hs-act="sell-loot"]') || '')) fails.push('AW-60 Sell all junk is priced ' + await say('[data-hs-win="shop"] [data-hs-act="sell-loot"]'));
         /* Selling the counting tool warns in the sale's own confirmation. */
         await page.click('[data-hs-win="shop"] .hw-line[data-item="iron_axe"] [data-hs-act="sell"]');
         await page.waitForTimeout(150);
@@ -3608,13 +3611,12 @@ const MUTANTS = [
   ['item truth: a tool says sell it again', 'src/shell/item-lore.js', "  if (tool) out.push(tool);\n", ''],
   ['item truth: a kit stone says sell it', 'src/shell/item-lore.js', "Number(it.v) > 0 ? t('item.sell_it') : ", "true ? t('item.sell_it') : "],
   ['item truth: a seed says sell it', 'src/shell/item-lore.js', "  if (it.seed) out.push(t('item.plant_it'));\n", ''],
-  ['item truth: copper ore is monster loot again', 'src/shell/bag-model.js', "if (dropSet().has(id) && !made) return 'loot';", "if (dropSet().has(id)) return 'loot';"],
+  ['item truth: a bar a hero makes files as junk', 'src/shell/bag-model.js', "if (dropSet().has(id) && !made) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';", "if (dropSet().has(id)) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';"],
   ['item truth: a tool files as a material', 'src/shell/bag-model.js', "const made = it.type !== 'tool' && madeSet().has(id);", 'const made = madeSet().has(id);'],
   ['item truth: the shop\'s raw flag files a tool as a material', 'src/shell/bag-model.js', "if (it.type === 'tool') return 'other';", ''],
   ['item truth: Sell all loot ignores the House', 'src/shell/bag-model.js', ' && !(needs && needs.has(r.id))', ''],
-  ['item truth: the House need stops at the Timber Beam', 'src/shell/bag-model.js', 'for (const input of madeFrom().get(id) || []) add(input);', ''],
   ['item truth: a gated room counts as a next step', 'src/shell/bag-model.js', 'if (r.next && r.opens <= home.tier && r.next.need <= home.tier) step(r.next);', 'if (r.next) step(r.next);'],
-  ['item truth: no House read sells on a guess', 'src/shell/bag-model.js', 'const know = needs === null ? null : (skills === undefined ? null : skills);', 'const know = skills === undefined ? null : skills;'],
+  ['item truth: Sell all junk sweeps a Material', 'src/shell/bag-model.js', "return (items || []).filter((r) => kindOf(r.id) === 'junk' && ", "return (items || []).filter((r) => kindOf(r.id) !== 'gear' && "],
   ['item truth: a storage move of the counting tool is silent', 'src/shell/town-work.js', "if (!before || before.id !== id) return '';", "return '';"],
   ['item truth: storing one of two warns', 'src/shell/town-work.js', "  if (left > 0) return '';\n", ''],
   ['item truth: no tool line', 'src/shell/town-work.js', "  const inBag = pick(skill, invOf(cs));\n", "  if (skill) return '';\n  const inBag = pick(skill, invOf(cs));\n"],
@@ -3800,7 +3802,7 @@ const MUTANTS = [
   ['coach: the sale\'s confirmation is never ringed (AW-31)', 'src/shell/windows/shop.js', ' data-coach-hook="sell-confirm"', ''],
   ['coach: R opens nothing once Services left the icon row (AW-31)', 'src/data/shell-windows.js', ", tabKeys: Object.freeze({ r: 'services' }) }),", ' }),'],
   ['coach: "Decide once" rings Bones for the shop (AW-31)', 'src/shell/windows/inventory/grid.js', "attr(sel, 'data-coin', coin.has(l.item) ? '' : null);", "attr(sel, 'data-coin', '');"],
-  ['coach: R over the open Shop never switches it to Services (AW-31)', 'src/shell/shell.js', '    for (const id of wm.openIds()) if (wm.wantsTab(id)) refresh(id);\n', ''],
+  ['coach: R over the open Shop never switches it to Services (AW-31)', 'src/shell/shell.js', '    for (const id of wm.openIds()) if (wm.wantsTab(id) || wm.wantsFind(id)) refresh(id);\n', ''],
   ['coach: an ended hunt\'s bar stays over its open summary (AW-31)', 'src/shell/shell.js', " && !wm.isOpen('hunt-summary');", ';'],
   /* The Hunts window, master-detail (designer plan 2026-10-22): AW-25 .. AW-29. */
   ['AW-25 every creature reads common', 'src/shell/hunt-ground-facts.js', "  if (share >= SHARE_BANDS.common) return 'common';", "  return 'common';"],

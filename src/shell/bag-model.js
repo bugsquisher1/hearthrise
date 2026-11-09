@@ -7,7 +7,10 @@
 // adds up what the server sent, for display and for the NAMES a sale intent
 // carries; the server re-checks every line under the character lock.
 //
-//   kindOf(id)            the pocket's kind: gear, ammo, food, drink, loot, material, rare, other
+//   kindOf(id)            the pocket's kind: gear, ammo, food, drink, junk, material, rare, other. A monster's drop
+//                         that a recipe, the House or Tempering spends, or that is kept for a planned use (an
+//                         imbuement's ingredient), is a material; one nothing spends or will spend is junk (Tyler
+//                         2026-11-08: "if its a monster drop that is only good for selling, the category should just be Junk")
 //   view(items, o)        one category, a search, a sort (the remembered choice; the
 //                         Inventory's and the Storage window's, each its own residue)
 //   sellPlan(items, ids)  the lines a bulk sale sends; LOCKED stacks are never named
@@ -18,7 +21,7 @@
 //   riteOf / cookOf       the bench recipe that spends a whole stack (Fuel the hearth, Cook all)
 //   namedFuelOf(id)       a named Hearth fuel's row (src/data/hearth.js): burnt alone, never sold in bulk
 //   upgradeNeeds(h, c)    what the House's next steps need, and what those are made from: Sell all loot keeps it
-//   isSpentMaterial(id)   does any recipe or House price spend this?
+//   isSpentMaterial(id)   does any recipe, House price or Tempering rung spend this?
 // ════════════════════════════════════════════════════════════════════════
 import { ITEMS } from '../data/items.js?v=0.2.110';
 import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.110';
@@ -30,6 +33,7 @@ import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gatheri
 import { SHOP_OFFERS } from '../data/shops.js?v=0.2.110';
 import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.110';
 import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.110';
+import { TEMPER_MATERIALS } from '../data/temper.js?v=0.2.110';
 import { recipeInputs } from '../core/artisan.js?v=0.2.110';
 import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.110';
 import { itemName } from './widgets/bits.js?v=0.2.110';
@@ -37,7 +41,7 @@ import { itemName } from './widgets/bits.js?v=0.2.110';
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([
   ['all', 'All'], ['gear', 'Gear'], ['food', 'Food'], ['drink', 'Drinks'], ['ammo', 'Ammo & runes'],
-  ['loot', 'Loot'], ['material', 'Materials'], ['rare', 'Rare'], ['other', 'Other'],
+  ['junk', 'Junk'], ['material', 'Materials'], ['rare', 'Rare'], ['other', 'Other'],
 ]);
 export const BAG_SORTS = Object.freeze([['type', 'Type'], ['value', 'Value'], ['newest', 'Newest'], ['count', 'Count'], ['name', 'Name']]);
 /* A non-gear item at these rungs, or a trophy / cosmetic / quest piece, files under Rare (it is kept, not spent). */
@@ -98,8 +102,19 @@ function homeSpends() {
 }
 /** Does a House price name this item? */
 export const houseSpends = (id) => homeSpends().has(id);
-/** Does any recipe or House price spend this item? From the rows, so a new recipe or rung needs no list. */
-export const isSpentMaterial = (id) => inputSet().has(id) || homeSpends().has(id);
+/* What a Tempering rung takes besides gold (src/data/temper.js TEMPER_MATERIALS). */
+const TEMPER_SPENDS = new Set(Object.values(TEMPER_MATERIALS).map((m) => m.item));
+/** Does a Tempering rung take this item? */
+export const temperSpends = (id) => TEMPER_SPENDS.has(id);
+/**
+ * Is this item kept for a use the game plans but has not built? An imbuement's ingredient (src/data/imbuements.js: every IMBUE_ITEMS
+ * row carries `imbue: { kind, tier }`, the imbuement it will feed, Element Ward's ward items included) is a Material now and never
+ * bulk-sold: Tyler, only get rid of what we are not planning to use, and imbuement items are never NPC-sold unless ticked (ruling
+ * 2026-10-14). From the rows, so a new ground's imbuement drop files itself.
+ */
+export const plannedUse = (id) => !!(ITEMS[id] && ITEMS[id].imbue);
+/** Does any recipe, House price or Tempering rung spend this item? From the rows, so a new recipe or rung needs no list. */
+export const isSpentMaterial = (id) => inputSet().has(id) || homeSpends().has(id) || TEMPER_SPENDS.has(id);
 
 /** The pocket's kind, from the catalogue row (and the drop and recipe rows, so a new row files itself). */
 export function kindOf(id) {
@@ -111,14 +126,18 @@ export function kindOf(id) {
   if (Number(it.heals) > 0) return 'food';
   /* a named Hearth fuel is a rare reveal kept to burn (src/data/hearth.js): Rare, never bulk-sold loot */
   if (NAMED_FUELS[id]) return 'rare';
-  /* a monster's drop is loot unless a hero can make or gather it too; a tool is a tool however it is made */
+  /* a trophy is kept, never junk, however it is got (the Rat King's Crown is a boss's drop) */
+  if (it.type === 'trophy' || RARE_TAGS.has(it.tag)) return 'rare';
+  /* a monster's drop is junk when nothing spends it and a material when something does (a recipe, the House, a Tempering
+     rung: Big Bones, Silk Thread, pelts, raw meat) or will (an imbuement's ingredient), unless a hero can make or gather it
+     too; a tool is a tool however it is made */
   const made = it.type !== 'tool' && madeSet().has(id);
-  if (dropSet().has(id) && !made) return 'loot';
+  if (dropSet().has(id) && !made) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';
   if (made) return 'material';
   /* the raw flag on a tool is only the shop's bid (BULK_GOODS, src/data/items.js), never its kind */
   if (it.type === 'tool') return 'other';
   if (it.raw || it.tag === 'crafting-mat' || it.seed || inputSet().has(id)) return 'material';
-  if (it.type === 'trophy' || RARE_TAGS.has(it.tag) || RARE_RUNGS.has(it.rarity)) return 'rare';
+  if (RARE_RUNGS.has(it.rarity)) return 'rare';
   return 'other';
 }
 
@@ -220,44 +239,16 @@ export function cookOf(id) {
   return COOKS.get(id) || null;
 }
 
-let USES = null;
-/* Every item some recipe spends -> the skill and level of each recipe spending it, built once from the recipe rows. */
-function inputUses() {
-  if (USES) return USES;
-  USES = new Map();
-  for (const [skill, rows] of Object.entries(ARTISAN_RECIPES)) for (const r of rows || []) if (r) for (const id of Object.keys(recipeInputs(r) || {})) {
-    if (!USES.has(id)) USES.set(id, []);
-    USES.get(id).push({ skill, req: Math.max(1, Number(r.req) || 1) });
-  }
-  return USES;
-}
-/* Does a recipe this hero can make NOW spend `id`? `skills`: the server's ({ skill: { level } }), a skill it does not
-   list being level 1; null (not said yet): any recipe counts, so nothing useful is sold on a guess. */
-function madeInto(id, skills) {
-  const uses = inputUses().get(id);
-  if (!uses) return false;
-  return uses.some((u) => !skills || ((skills[u.skill] && skills[u.skill].level) || 1) >= u.req);
-}
-
-let MADE_FROM = null;
-/* output -> the inputs of every recipe making it, built once. */
-function madeFrom() {
-  if (MADE_FROM) return MADE_FROM;
-  MADE_FROM = new Map();
-  for (const rows of Object.values(ARTISAN_RECIPES)) for (const r of rows || []) if (r && r.output) MADE_FROM.set(r.output, [...(MADE_FROM.get(r.output) || []), ...Object.keys(recipeInputs(r) || {})]);
-  return MADE_FROM;
-}
-
 /**
  * WHAT THE HOUSE'S NEXT STEPS NEED (panel 2026-11-01: Sell all loot sold Slime Gel while deed III wanted Timber Beams, which are
- * made from it): the Set of items the steps the House window prices now (the server's `home` and `chests`) name, and everything
- * those are made from, however far down. Null when the server has not said (`home` null): lootToSell then sells nothing a recipe spends.
+ * made from it): the Set of items the steps the House window prices now (the server's `home` and `chests`) name, its own word,
+ * so Sell all junk keeps even a Junk row a step names. What those are made from needs no walk: a recipe's input is a Material
+ * (kindOf), which no bulk sale sweeps. Null when the server has not said (`home` null).
  */
 export function upgradeNeeds(home, chests) {
   if (!home) return null;
   const want = new Set();
-  const add = (id) => { if (!want.has(id)) { want.add(id); for (const input of madeFrom().get(id) || []) add(input); } };
-  const step = (s) => { for (const it of s.items) add(it.id); };
+  const step = (s) => { for (const it of s.items) want.add(it.id); };
   const deed = home.tiers.find((t) => !t.owned);
   if (deed) step(deed);
   for (const r of home.rooms) if (r.next && r.opens <= home.tier && r.next.need <= home.tier) step(r.next);
@@ -266,22 +257,20 @@ export function upgradeNeeds(home, chests) {
 }
 
 /**
- * The stacks "Sell all loot" sells: monster loot, never a fuel a skill trains on (bones feed the Great Hearth,
- * ruling 2026-10-14; Brannoc 10-22: Sell all loot sold his bones; a named fuel is Rare, never loot), nor raw food that cooks (the same playtest's
- * Raw Wolf Meat), nor a material a recipe the hero can make spends (board 2026-10-25 #22: it sold Silk Thread, the
- * first Crafting recipes' thread), nor anything the House's next steps need (`needs`: upgradeNeeds). Ids, in the bag's order.
- * `skills`: the server's skills, or null. `needs` null: the House is not read yet, so every recipe's material is kept.
+ * The stacks "Sell all junk" sells: the Junk (kindOf: a monster's drop nothing spends), never a Material (Tyler 2026-11-08:
+ * a bulk sale never sweeps one unless the player picked it: bones for the Great Hearth, raw meat that cooks, Silk Thread,
+ * pelts and whatever else a recipe, the House or Tempering spends), nor anything the House's next steps name (`needs`:
+ * upgradeNeeds, the server's own word, null when the House is not read yet). Ids, in the bag's order.
  */
-export function lootToSell(items, skills, needs) {
-  const know = needs === null ? null : (skills === undefined ? null : skills);
-  return (items || []).filter((r) => kindOf(r.id) === 'loot' && !riteOf(r.id) && !cookOf(r.id) && !madeInto(r.id, know) && !(needs && needs.has(r.id))).map((r) => r.id);
+export function lootToSell(items, needs) {
+  return (items || []).filter((r) => kindOf(r.id) === 'junk' && !(needs && needs.has(r.id))).map((r) => r.id);
 }
 
-/** "Sell all loot": the plan its button shows and sends (src/shell/windows/shop.js) and the coach's `sellable` fact
-    reads (src/shell/launcher.js coachFactsOf), ONE function so the card and the button never disagree. `rules`,
-    `shop` and `skills`: the server's sections (rulesOf, shopOf, skillsOf), or null. `needs`: upgradeNeeds. */
-export function lootSale(items, rules, shop, skills, needs) {
-  return sellPlan(items || [], lootToSell(items, skills, needs), { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null });
+/** "Sell all junk": the plan its button shows and sends (src/shell/windows/shop.js) and the coach's `sellable` fact
+    reads (src/shell/launcher.js coachFactsOf), ONE function so the card and the button never disagree. `rules` and
+    `shop`: the server's sections (rulesOf, shopOf), or null. `needs`: upgradeNeeds. */
+export function lootSale(items, rules, shop, needs) {
+  return sellPlan(items || [], lootToSell(items, needs), { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null });
 }
 
 /* The lines one sale may carry (edge-intents.js EDGE_LIMITS.sellLines, the engine's MAX_SELL_LINES). */
@@ -313,16 +302,17 @@ export function spareSale(items, worn, rules, shop, o) {
 }
 
 /**
- * WHAT "SELL ALL LOOT" LEAVES, in the same words the button is priced from (blind playtest 2026-10-31: "Sell all loot ·
- * 423 gp" over a list worth 1,215, the rule invisible): the loot the shop bids on that the button keeps for a use
- * (fuel, food that cooks, a material the hero can make with or the House needs), { ids, worth } at the server's bids.
- * Locked stacks are the confirmation's to say. Pure.
+ * WHAT "SELL ALL JUNK" LEAVES, in the same words the button is priced from (blind playtest 2026-10-31: "Sell all loot ·
+ * 423 gp" over a list worth 1,215, the rule invisible): the monster drops the shop bids on that the button keeps for a use
+ * (a Material, or Junk the House's next step names), { ids, worth } at the server's bids. Locked stacks are the
+ * confirmation's to say. Pure.
  */
-export function lootKept(items, rules, shop, skills, needs) {
-  const sold = new Set(lootToSell(items, skills, needs));
+export function lootKept(items, rules, shop, needs) {
+  const sold = new Set(lootToSell(items, needs));
   const locked = rules ? rules.locked : new Set();
   const bids = shop ? shop.bids : new Map();
-  const kept = (items || []).filter((r) => kindOf(r.id) === 'loot' && !sold.has(r.id) && !locked.has(r.id) && bids.has(r.id));
+  const drop = (id) => { const k = kindOf(id); return dropSet().has(id) && (k === 'junk' || k === 'material'); };
+  const kept = (items || []).filter((r) => drop(r.id) && !sold.has(r.id) && !locked.has(r.id) && bids.has(r.id));
   return { ids: kept.map((r) => r.id), worth: kept.reduce((n, r) => n + bids.get(r.id) * r.qty, 0) };
 }
 

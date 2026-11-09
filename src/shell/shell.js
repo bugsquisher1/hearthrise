@@ -61,6 +61,7 @@ import { benchSpentAtMs } from './town-work.js?v=0.2.110';
 import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.110';
 import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.110';
 import { heroIsAlone } from './widgets/party-panel.js?v=0.2.110';
+import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.110';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -170,9 +171,9 @@ export function mountShell(root, o) {
     const render = WINDOW_RENDERERS[id];
     if (!el || !render) return;
     const body = el.querySelector('[data-hs-body]');
-    if (!render.patch) { body.innerHTML = render(ctx); return; }
-    if (!body.hasAttribute('data-hs-built')) { body.innerHTML = render(ctx); body.setAttribute('data-hs-built', ''); }
-    render.patch(body, ctx);
+    if (!render.patch) body.innerHTML = render(ctx);
+    else { if (!body.hasAttribute('data-hs-built')) { body.innerHTML = render(ctx); body.setAttribute('data-hs-built', ''); } render.patch(body, ctx); }
+    seekRow(wm, id, body);   // a "take me there" link's row, once drawn (goto.js)
   }
 
   function paintWindows() {
@@ -403,7 +404,7 @@ export function mountShell(root, o) {
     summaryWasOpen = so;
     paintWindows();
     /* an open window asked to show another tab (R on an open Shop: window-manager.js openTab) shows it at once */
-    for (const id of wm.openIds()) if (wm.wantsTab(id)) refresh(id);
+    for (const id of wm.openIds()) if (wm.wantsTab(id) || wm.wantsFind(id)) refresh(id);
     paintWidgets();
     coach();
   }
@@ -495,7 +496,7 @@ export function mountShell(root, o) {
     /* the coach's fold and open inside a window (the window's own renderer does not know them) */
     const fold = e.target.closest('.hs-win-coach [data-hs-act]');
     if (fold) { actCoach(ctx, fold.closest('.hs-win-coach'), fold.getAttribute('data-hs-act'), e); return; }
-    if (onAct(e)) return;
+    if (followGoto(ctx, e.target.closest('[data-hs-goto]')) || onAct(e)) return;
     const t = e.target.closest('[data-hs-open],[data-hs-close],[data-hs-wreset]');
     if (!t) return;
     if (t.hasAttribute('data-hs-open')) wm.toggle(t.getAttribute('data-hs-open'));
@@ -514,7 +515,7 @@ export function mountShell(root, o) {
       hud.setVisible(t.getAttribute('data-hs-wshow'), t.checked);
     }
   }
-  function onKey(e) { if (wm.handleKey(e)) e.preventDefault(); }
+  function onKey(e) { if (!ownsKey(e) && wm.handleKey(e)) e.preventDefault(); }
   /* A press on a window raises it (z only: the dock never moves, window-manager.js slots); a press on
      its head (desktop) drags it off the dock. The X is a button: its press raises nothing and drags
      nothing, so the click lands on the same X and closes. */

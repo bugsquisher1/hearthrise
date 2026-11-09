@@ -122,7 +122,7 @@ async function checks(overrides) {
   const press = async (page, sel, rule) => { try { await page.click(sel, { timeout: 1500 }); return true; } catch { fails.push(rule + ' could not press ' + sel); return false; } };
   const txt = (page, sel) => page.evaluate((q) => { const e = document.querySelector(q); return e ? e.textContent : null; }, W + sel);
   const lines = (page, list) => page.evaluate((q) => [...document.querySelectorAll(q + ' > li')].map((li) => {
-    const b = li.querySelector('button');
+    const b = li.querySelector('[data-hs-act="house-ask"]');
     return { t: li.textContent, short: [...li.querySelectorAll('.hw-mat.is-short')].map((m) => m.textContent), btn: b && b.classList.contains('is-on') ? (b.disabled ? 'off' : 'on') : 'none' };
   }), W + list);
   const idle = (page) => wait(page, () => !document.querySelector('[data-hs-win="house"] .hw-house.is-pending'), null, 4000);
@@ -208,8 +208,8 @@ const MUTANTS = [
   ['Build sends without a confirmation', 'src/shell/windows/house.js',
     "if (id && (kind === 'home' || kind === 'chest')) { sc.ask = { kind, id }; sc.msg = ''; repaint(); }",
     "if (id && kind === 'chest') runIntent(sc, repaint, () => buildChest(ctx.account, cs, id, 3000), 'x');"],
-  ['a short purse or bag still buys', 'src/shell/windows/house.js', "patchAsk(li.querySelector('button'), 'home', isNext ? tier.offer : null, t('house.buy'), isNext && afford && !sc.pending);",
-    "patchAsk(li.querySelector('button'), 'home', isNext ? tier.offer : null, t('house.buy'), isNext && !sc.pending);"],
+  ['a short purse or bag still buys', 'src/shell/windows/house.js', "patchAsk(li.querySelector('[data-hs-act=\"house-ask\"]'), 'home', isNext ? tier.offer : null, t('house.buy'), isNext && afford && !sc.pending);",
+    "patchAsk(li.querySelector('[data-hs-act=\"house-ask\"]'), 'home', isNext ? tier.offer : null, t('house.buy'), isNext && !sc.pending);"],
   ['a room the home has not opened is offered', 'src/shell/windows/house.js', 'const buyable = open && useful && n && !gated;', 'const buyable = useful && n;'],
   ['the reader invents a home', 'src/session/home-sections.js', "  const h = read(cs, 'home');\n", "  const h = read(cs, 'home') || { tier: 0, tiers: [{ offer: 'property.homestead', name: 'Home', tier: 1, need: 0, gold: 1, items: {} }], rooms: [] };\n"],
   ['the room rung goes to the wrong verb', 'src/session/home-intents.js', "cs.edgeIntent('unlock_buy', { offer })", "cs.edgeIntent('shop_buy', { offer, qty: 1 })"],

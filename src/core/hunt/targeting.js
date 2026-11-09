@@ -66,6 +66,7 @@ const ORDER = Object.freeze({
   /* Highest % life first, compared as integers (b.hp / b.maxHp vs a.hp / a.maxHp, cross-multiplied). */
   highest_pct: () => (a, b) => b.hp * a.maxHp - a.hp * b.maxHp,
   strongest: () => (a, b) => b.maxHp - a.maxHp,
+  casting: () => (a, b) => (b.spLeft > 0) - (a.spLeft > 0), /* PROTOTYPE lane/d-area-spells: a monster winding up first */
   /* The monster the leader fights first (followed, TG-04), then nearest. */
   follow: (inst, u) => {
     const lt = followed(inst, u);
@@ -77,7 +78,7 @@ const orderOf = (inst, u, mode) => (ORDER[mode] || ORDER[DEFAULT_TARGET_MODE])(i
 /* THE MODES THE FIGHT DOES NOT REORDER: a kind's max HP, the leader's choice. A melee hero beside a target
    turns to its mark when one of these ranks the mark strictly ahead (outranked); under nearest, lowest HP
    and highest % every blow reorders the pack, so it keeps the one it fights until that one falls. */
-const STEADY_MODES = Object.freeze(['strongest', 'follow']);
+const STEADY_MODES = Object.freeze(['strongest', 'follow', 'casting']); /* casting: PROTOTYPE lane/d-area-spells */
 
 /**
  * THE MONSTER A "FOLLOW" HERO FOLLOWS (TG-04): the one the leader is on NOW, else the one its last blow

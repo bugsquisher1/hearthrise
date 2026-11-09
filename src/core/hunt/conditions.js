@@ -64,6 +64,15 @@ import { makeEvent } from './events.js?v=0.2.108';
 import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.108';
 import { START_BAR } from '../../data/start-kit.js?v=0.2.108';
 import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.108';
+import { marked as markedBy } from './monster-spells.js?v=0.2.108'; /* PROTOTYPE lane/d-area-spells */
+import { elementPermille } from '../elements.js?v=0.2.108'; /* PROTOTYPE */
+/* PROTOTYPE: the permille the slot's ability element does to its aim or the hero's target; null for no element or no target */
+function elementVs(cx) {
+  const row = cx.slot && cx.slot.action.type === 'ability' ? ABILITIES[cx.slot.action.id] : null;
+  const t = cx.aim || (Number.isInteger(cx.u.target) ? cx.inst.world.units.find((x) => x.id === cx.u.target) : null);
+  if (!row || !row.element || !t || t.side !== 'mon') return null;
+  return elementPermille(MONSTERS[t.kind], row.element);
+}
 
 /* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
    ruleWait: the last `rule_wait` reported, per lane ('ruleId:why'), so it is reported once.
@@ -460,6 +469,17 @@ const EVAL = Object.freeze({
     if (b) cx.aim = b.aim;
     return b ? b.count : 0;
   },
+  /* PROTOTYPE lane/d-area-spells */
+  enemy_casting: (cx, c) => {
+    const who = c.subject === 'any' ? heroesOf(cx.inst) : [cx.u];
+    return cx.inst.world.units.filter((m) => m.side === 'mon' && m.alive && m.spLeft > 0 && MONSTERS[m.kind] && MONSTERS[m.kind].spell
+      && who.some((h) => markedBy(m, MONSTERS[m.kind].spell, h.x, h.y))).length;
+  },
+  in_fight: (cx) => cx.inst.world.phase === 'fight' && cx.inst.world.units.some((m) => m.side === 'mon' && m.alive && Number.isInteger(m.target)), /* PROTOTYPE */
+  /* PROTOTYPE lane/d-area-spells: the party's pooled HP; what the slot's element does to its aim (else the hero's target) */
+  party_hp_pct: (cx) => { const hs = heroesOf(cx.inst); return share(hs.reduce((a, h) => a + int(h.hp), 0), hs.reduce((a, h) => a + int(h.maxHp), 0)); },
+  target_weak: (cx) => elementVs(cx) > 1000,
+  target_resists: (cx) => { const e = elementVs(cx); return e !== null && e < 1000; },
   target_is_boss: (cx) => {
     const t = Number.isInteger(cx.u.target) ? cx.inst.world.units.find((x) => x.id === cx.u.target) : null;
     return !!(t && t.side === 'mon' && MONSTERS[t.kind] && MONSTERS[t.kind].boss === true);

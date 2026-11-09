@@ -186,6 +186,7 @@ export function moveAll(inst, sc) {
       u.path = plan(inst, u, u.goal[0], u.goal[1]) || [];
       u.repathMs = HUNT_TUNING.blockedRepathMs;
     }
+    if (u.spLeft > 0) continue; /* PROTOTYPE lane/d-area-spells: a caster stands through its windup */
     stepUnit(inst, u, sc);
   }
 }

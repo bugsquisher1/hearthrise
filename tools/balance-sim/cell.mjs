@@ -65,7 +65,7 @@ export async function loadCellRunner(root) {
   const barFor = (huntId, bar) => {
     const g = guideOf(huntId);
     const item = g ? { d_food: g.melee.heal.id, d_food_store: storeOf('heal', g.melee.heal.id), d_drink: storeOf('mana', g.magic.mana.id) } : {};
-    return START_BAR.map((x) => {
+    const out = START_BAR.map((x) => {
       const y = JSON.parse(JSON.stringify(x));
       if (item[y.id]) y.action.id = item[y.id];
       const c = y.conditions[0];
@@ -73,6 +73,10 @@ export async function loadCellRunner(root) {
       if (c.metric === 'self_mana_pct' && Number.isInteger(bar.drinkPct)) c.value = bar.drinkPct;
       return y;
     });
+    /* PROTOTYPE lane/d-area-spells: a first food slot that fires while a monster's mark covers the hero (and it is under 90%) */
+    const food = out.find((y) => y.id === 'd_food_store') || out.find((y) => y.action.type === 'consume' && y.conditions[0] && y.conditions[0].metric === 'self_hp_pct');
+    if (bar.castEat && food) out.unshift({ ...JSON.parse(JSON.stringify(food)), id: 'c_food', conditions: [{ metric: 'enemy_casting', op: 'gte', value: 1, subject: 'self' }, { metric: 'self_hp_pct', op: 'lt', value: 90 }], join: 'and' });
+    return out;
   };
   /* THE BAG: 'store' = empty (every heal and drink bought per use: the store bill is the whole supply cost);
      'own' = the ground's guide food and drink carried (crafted, own stock first, then the store). A Ranger on the
@@ -122,8 +126,8 @@ export async function loadCellRunner(root) {
       rareItems: [], gear: {}, store: 0, buys: {}, uses: {}, deaths: 0, killers: {}, xpLostLevel: 0, deathLevelXpLost: [],
       xpLostSkill: {}, dealt: 0, dealtBy: {}, taken: 0, takenBy: {}, healIn: { food: 0, self: 0, ally: 0 }, healOut: 0, shieldIn: 0,
       blowsLanded: 0, blowsMissed: 0, dodged: 0, eats: { own: 0, store: 0 }, drinks: { own: 0, store: 0 }, casts: {}, castGold: 0,
-      manaShots: 0, enc: [], close: 0, dips: 0, ttdClose: [], ended: {} }));
-    const P = { kills: 0, ttk: [], hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0 };
+      manaShots: 0, enc: [], close: 0, dips: 0, ttdClose: [], ended: {}, spellTaken: 0, spellHits: 0 }));
+    const P = { kills: 0, ttk: [], hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0, monCasts: 0 };
     const byKey = Object.fromEntries(H.map((h) => [h.key, h]));
     for (let seed = 0; seed < cell.seeds; seed++) {
       let left = cell.hours * 3600000, seg = 0;
@@ -174,6 +178,7 @@ export async function loadCellRunner(root) {
                   const kind = (out.units && out.units[e.u] && out.units[e.u][0]) || (e.dot ? 'status' : '?');
                   h.takenBy[kind] = (h.takenBy[kind] || 0) + n;
                   if (!e.dot && !uk) h.blowsLanded++;
+                  if (!e.dot && !uk && e.ability && e.ability !== 'basic') { h.spellTaken += n; h.spellHits++; } /* PROTOTYPE lane/d-area-spells */
                   hp.push([e.atMs, tk, -n]);
                 } else if (uk) {
                   const h = byKey[uk];
@@ -203,6 +208,7 @@ export async function loadCellRunner(root) {
                 if (uk) { const h = byKey[uk]; (e.type === 'eat' ? h.eats : h.drinks)[e.source === 'store' ? 'store' : 'own']++; }
                 break;
               case 'cast':
+                if (!uk) P.monCasts++; /* PROTOTYPE lane/d-area-spells */
                 if (uk) { const h = byKey[uk]; h.casts[e.ability] = (h.casts[e.ability] || 0) + 1; h.castGold += e.gold || 0; }
                 break;
               case 'shot':
@@ -345,6 +351,7 @@ export async function loadCellRunner(root) {
         closeCallsPer12h: closeCalls, dipsUnder40Per12h: rateCI(h.dips, h.hours, 12),
         ttdAtCloseS: quantile(h.ttdClose.filter(Number.isFinite), 0.5),
         band: bandOfCell(minMed, deaths.rate), ended: h.ended,
+        spellTakenPerH: per(h.spellTaken), spellHitsPerH: round(h.spellHits / hr, 1), /* PROTOTYPE lane/d-area-spells */
         /* the raw totals a career run carries into its next chunk (gains, and what deaths took back) */
         raw: { levelXp: h.levelXp, skillXp: h.skillXp, xpLostLevel: h.xpLostLevel, xpLostSkill: h.xpLostSkill, coin: h.coin,
           income, store: h.store, rares },
@@ -355,7 +362,7 @@ export async function loadCellRunner(root) {
     return {
       id: cell.id, cell, ground: cell.ground, hunt: { band: hunt.band || null, groupFit: ground.groupFit || null },
       party: { size: heroes.length, hours: round(P.hours, 2), segments: P.segments, killsPerH: round(P.kills / hours, 0),
-        pullsPerH: round(P.pulls / hours, 1), ttkS: { p50: msS(quantile(P.ttk, 0.5)), p90: msS(quantile(P.ttk, 0.9)) },
+        pullsPerH: round(P.pulls / hours, 1), monCastsPerH: round(P.monCasts / hours, 1), ttkS: { p50: msS(quantile(P.ttk, 0.5)), p90: msS(quantile(P.ttk, 0.9)) },
         rareRolls: P.rareRolls, rareWins: P.rareWins, rareGini: gini(wins),
         levelXpPerHeroPerH: round(heroes.reduce((s, h) => s + (h.levelXpPerH || 0), 0) / heroes.length, 0),
         createdPerH: round(heroes.reduce((s, h) => s + h.incomePerH + h.raresPerH, 0), 0),

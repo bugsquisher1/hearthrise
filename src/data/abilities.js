@@ -149,6 +149,10 @@ export const ABILITIES = Object.freeze([
   ab({ id: 'circle_of_renewal', n: 'Circle of Renewal', disciplines: ['restoration'], lane: 'heal', cdMs: 12000, mana: 50, rune: 'chalked_water_rune', target: 'party',
     heal: [20, 30], whenBelowPct: 80, minHurt: 2, radius: 8, magicXpMult: 1600,
     versions: [[50, 1000], [60, 1740], [72, 2520], [86, 3310], [104, 4100]], lvPm: LV_PM }),
+  /* PROTOTYPE lane/d-area-spells: SPRING TIDE, the healer's long-cooldown party heal (Tyler 2026-11-08) */
+  ab({ id: 'spring_tide', n: 'Spring Tide', disciplines: ['restoration'], lane: 'heal', cdMs: 60000, mana: 160, rune: 'chalked_water_rune', target: 'party',
+    heal: [120, 180], whenBelowPct: 60, minHurt: 2, radius: 8, magicXpMult: 1600,
+    versions: [[160, 1000], [192, 1740], [230, 2520], [276, 3310], [332, 4100]], lvPm: LV_PM }),
   /* GREEN SICKNESS (was Nature's Wrath; Tyler 2026-10-23: a POISON rune spell, its element poison): Restoration's
      lower-power area spell, and every monster it hits takes more from every blow for a while (statuses.js sickness,
      Bible §17: a fixed, non-stacking vulnerability that no rune tier raises). */

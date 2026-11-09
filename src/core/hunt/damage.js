@@ -42,6 +42,7 @@ import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.10
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.108';
 import { temperedAmount } from '../temper.js?v=0.2.108';
 import { swingRow, crossLines, guardPmOf } from './boss-phases.js?v=0.2.108';
+import { monsterSpellStep, SPELL_PERSISTED } from './monster-spells.js?v=0.2.108'; /* PROTOTYPE lane/d-area-spells, sim only */
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -51,7 +52,7 @@ const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
    fightAt (world): the instant a blow last landed on a monster, the no-fight end's clock (action-rules.js `no_fight`):
    stored with the world, so every settle cut reads the same boundary. */
 export const PERSISTED = Object.freeze({
-  unit: Object.freeze([['stance', 'str'], ['acc', 'int'], ['maxHit', 'int'], ['def', 'int'], ['element', 'str'], ['swingLeftMs', 'int']]),
+  unit: Object.freeze([['stance', 'str'], ['acc', 'int'], ['maxHit', 'int'], ['def', 'int'], ['element', 'str'], ['swingLeftMs', 'int'], ...SPELL_PERSISTED]),
   world: Object.freeze([['fightAt', 'int']]),
   pack: Object.freeze([]),
 });
@@ -182,11 +183,14 @@ export function resolveAttacks(inst, sc) {
   for (const u of inst.world.units) {
     if (!u.alive) continue;
     if (u.swingLeftMs > 0) u.swingLeftMs = Math.max(0, u.swingLeftMs - sc.dtMs);
+    if (u.side === 'mon' && monsterSpellStep(inst, sc, u, landHit)) continue; /* PROTOTYPE lane/d-area-spells */
     if (u.swingLeftMs > 0 || !Number.isInteger(u.target)) continue;
     const t = unitById(inst, u.target);
     if (!t || !t.alive) continue;
     if (u.side === 'mon') {
-      if (cheb(u, t) > 1 || !atRest(u)) continue;
+      /* PROTOTYPE lane/d-area-spells: a row's `reach` (a thrower) swings from that many tiles with line of sight */
+      const reach = (MONSTERS[u.kind] && MONSTERS[u.kind].reach) || 1;
+      if (cheb(u, t) > reach || !atRest(u) || (cheb(u, t) > 1 && !los(inst.grid, u, t))) continue;
       const row = atTier(MONSTERS[u.kind], inst.tier);
       /* A called boss under his enrage line swings that row raised (boss-phases.js). */
       const blowRow = swingRow(u, row);

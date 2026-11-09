@@ -30,6 +30,7 @@ export const TARGET_MODES = Object.freeze({
   highest_pct: Object.freeze({ label: 'Highest % life' }),
   strongest: Object.freeze({ label: 'Strongest' }),
   follow: Object.freeze({ label: 'Follow the leader' }),
+  casting: Object.freeze({ label: 'Casting first' }), /* PROTOTYPE lane/d-area-spells */
 });
 export const DEFAULT_TARGET_MODE = 'nearest';
 

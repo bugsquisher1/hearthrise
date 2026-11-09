@@ -59,7 +59,7 @@ const guideBar = (from, eatPct) => {
 const starterBar = () => JSON.parse(JSON.stringify(START_BAR));
 /* A spell or skill on the bar, under the game's own suggested conditions (conditions.js): what the bar window offers a player. `store`: the rune it buys per cast. */
 const STORE_RUNE = { flame_strike: 'plain_fire_rune', flame_volley: 'plain_fire_rune', fireball: 'plain_fire_rune', frost_lance: 'plain_ice_rune', greater_mend: 'plain_water_rune',
-  circle_of_renewal: 'plain_water_rune', arcane_barrier: 'plain_earth_rune', protective_ward: 'plain_earth_rune', green_sickness: 'plain_poison_rune', rend: 'plain_rupture_rune' };
+  circle_of_renewal: 'plain_water_rune', arcane_barrier: 'plain_earth_rune', protective_ward: 'plain_earth_rune', green_sickness: 'plain_poison_rune', rend: 'plain_rupture_rune', spring_tide: 'plain_water_rune' };
 const slotOf = (id) => ({ action: { type: 'ability', id, ...(STORE_RUNE[id] ? { store: STORE_RUNE[id] } : {}) }, conditions: COND.suggestedConditions({ type: 'ability', id }), join: 'and' });
 /* A slot under conditions of its own (`when`), or the game's suggested ones. */
 const slotWith = (id, when) => (when ? { ...slotOf(id), conditions: when } : slotOf(id));
@@ -80,6 +80,18 @@ const BARS = {
 /* DOES EACH QUESTION BITE? The good bar with one answer taken away. At the Chief the Mage keeps Fireball, his one spell he doesn't resist, so "no area slot" there is the hammer's Cleave. */
 const without = (spells) => ({ ...BARS.good, spells: { ...BARS.good.spells, ...spells } });
 BARS.noChallenge = without({ tank: [['power_strike']] });
+/* PROTOTYPE lane/d-area-spells: the good bar with Spring Tide first on the healer */
+BARS.goodTide = without({ healer: [['spring_tide', [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_60' }, { metric: 'in_fight', op: 'eq', value: true }]], ...BARS.good.spells.healer] });
+/* PROTOTYPE lane/d-area-spells: --spells puts Squeal on the King and Slag Toss on the Chief (sim only) */
+if (process.argv.includes('--spells')) {
+  ENGINE_MONSTERS.rat_king_called.spell = { id: 'squeal', shape: 'nova', r: 2, range: 1, windupMs: 2000, cdMs: 15000, dmgPm: Number(arg('sqpm', '1500')), element: null };
+  ENGINE_MONSTERS.chief_coppercap_called.spell = { id: 'slag_toss', shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, dmgPm: Number(arg('slpm', '2000')), element: 'ember' };
+}
+/* PROTOTYPE lane/d-area-spells: --group gives each boss a WHOLE-GROUP pulse instead (every hero in the room, no step-off) */
+if (process.argv.includes('--group')) {
+  ENGINE_MONSTERS.rat_king_called.spell = { id: 'squeal', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, dmgPm: Number(arg('sqpm', '1000')), element: 'poison' };
+  ENGINE_MONSTERS.chief_coppercap_called.spell = { id: 'slag_rain', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, dmgPm: Number(arg('slpm', '1000')), element: 'ember' };
+}
 BARS.noArea = without({ hammer: [['power_strike']], mage: { rat_king: [['frost_lance']], chief_coppercap: [['fireball', []]] } });
 BARS.noTarget = { ...BARS.good, tmode: 'strongest' };
 BARS.eatsLate = { ...BARS.good, eat: 40 };
@@ -212,6 +224,7 @@ function cell(call, c, seeds) {
 const under = (off) => (s, L) => gear.kitOf(s, L, { tierOffset: off, only: 'all' });
 const shipRows = (L) => [
   ['Ship: good bar, tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'], bar: 'good' }],
+  ['Ship: good bar + Spring Tide, tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'], bar: 'goodTide' }],
   ['Ship: bar never touched, tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'] }],
   ['Ship: bad bar, tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'], bar: 'bad' }],
   ['Ship: good bar, one gear tier behind, tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'], bar: 'good', gear: under(-1) }],

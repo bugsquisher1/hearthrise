@@ -15,6 +15,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Five titles have new names.** Wolfer is now Wolfslayer, Gamekeeper is Warden, Knotcutter is Crownbreaker, Grate Thief is Sewerlord and Cauldron Thief is Slagbreaker. A title you own keeps working under its new name. Titles now sit on their own line under your hero's name.
 
+**Changing weapons keeps your spells.** Swapping to another weapon used to remove the spells it can't use from your action bar, and they did not come back when you swapped back. Now they stay on the bar, behind the moves your new weapon can use, and return to the front when you change back. If you lost spells this way, put them back once and they will stay.
+
 **The Hearth waits for the walk.** A hero sent to the Hearth finishes the walk before anything else happens. A hero who was working goes back to that job afterward.
 
 ## v0.2.110 — 2026-11-08 (Heroes at Rest)

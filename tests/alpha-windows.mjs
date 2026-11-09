@@ -919,13 +919,21 @@ async function planRules(base) {
   /* AW-27 A MOVE THE WORN WEAPON CAN'T USE SPENDS NOTHING: a club hero is not warned about Flame Volley's runes (QA 2026-11-04) */
   const clubSay = say(sess({ hunt_settings: { preset: 0, presets: [], discipline: 'club', slots: [slot('ability', 'flame_volley', 0), slot('ability', 'power_strike', 0)], store: RUNES } }));
   if (/Flame Volley|Fire rune|^Runes:/.test(clubSay)) fails.push('AW-27 a club hero is told about another weapon\'s runes: ' + JSON.stringify(clubSay));
-  /* AW-27 A WEAPON SWAP LEAVES NO MOVE BEHIND (QA 2026-11-04: bow to club kept Hunter's Mark, Flame Volley and Precision Shot struck in 1-3, Power Strike in 7): they come off, the new moves step up, food never moves */
+  /* AW-27 A WEAPON SWAP PUTS THE WORN WEAPON'S MOVES IN FRONT (QA 2026-11-04: bow to club kept Hunter's Mark, Flame Volley and Precision Shot struck in 1-3, Power Strike in 7)
+     AND TAKES NONE OFF (report #79, 2026-11-09: staff to spellbook deleted a Healer's four staff spells, and the staff again brought none back): the moves trade places, food never moves */
   const { barAfterSwap } = await imp('src/shell/bar-assign.js');
   const barSlot = (type, id) => ({ action: { type, id }, conditions: [], join: 'and' });
   const swapped = barAfterSwap({ discipline: 'club', slots: [barSlot('ability', 'hunters_mark'), barSlot('ability', 'flame_volley'), barSlot('ability', 'precision_shot'), barSlot('consume', 'cooked_shrimp'), barSlot('consume', 'salted_shrimp'), barSlot('consume', 'thin_turnip_juice'), barSlot('ability', 'power_strike'), barSlot('ability', 'cleave')] });
   const swapRead = (swapped || []).slice(0, 9).map((w) => (w ? w.action.id : '-')).join(' ');
-  if (swapRead !== 'power_strike cleave - cooked_shrimp salted_shrimp thin_turnip_juice - - -') fails.push('AW-27 the bar after bow to club reads ' + JSON.stringify(swapRead));
+  if (swapRead !== 'power_strike cleave hunters_mark cooked_shrimp salted_shrimp thin_turnip_juice flame_volley precision_shot -') fails.push('AW-27 the bar after bow to club reads ' + JSON.stringify(swapRead));
   if (barAfterSwap({ discipline: 'club', slots: [barSlot('ability', 'power_strike'), barSlot('consume', 'cooked_shrimp')] }) !== null) fails.push('AW-27 a bar with nothing left behind is restated anyway');
+  /* the Healer's round trip, as Marigold played it: staff (restoration) to spellbook (destruction) and back gives the bar she had */
+  const healerBar = [barSlot('ability', 'mend'), barSlot('ability', 'greater_mend'), barSlot('ability', 'circle_of_renewal'), barSlot('ability', 'green_sickness'), barSlot('ability', 'protective_ward'), null, barSlot('consume', 'cooked_shrimp')];
+  const ids = (w) => (w || []).slice(0, 8).map((x) => (x ? x.action.id : '-')).join(' ');
+  const onBook = barAfterSwap({ discipline: 'destruction', slots: healerBar });
+  const back = barAfterSwap({ discipline: 'restoration', slots: onBook || healerBar });
+  if (ids(onBook || healerBar).split(' ').filter((x) => /mend|renewal|sickness|ward/.test(x)).length !== 5) fails.push('AW-27 a swap to the spellbook took moves off the bar: ' + JSON.stringify(ids(onBook)));
+  if (ids(back || onBook || healerBar) !== ids(healerBar)) fails.push('AW-27 staff to spellbook and back reads ' + JSON.stringify(ids(back || onBook)) + ', want the bar as it was, ' + JSON.stringify(ids(healerBar)));
   /* AW-27 A BOW WITH NOTHING LOADED WON'T ATTACK, AND THE PAGE SAYS SO BEFORE ENTER (the kit's bow: 0 kills in 7 minutes) */
   const bowSet = (o) => sess({ hunt_settings: { preset: 0, presets: [], role: 'ranger', slots: [], store: STORE }, inventory: { bronze_arrows: 50 }, ...o });
   const empty = say(bowSet({ equipment: { weapon: 'practice_bow' } }));
@@ -3719,7 +3727,8 @@ const MUTANTS = [
   ['plans: AW-27 three spells read as a fallback ("then")', 'src/shell/hunt-go.js', "+ ' gp a cast').join('. ');", "+ ' gp a cast').join(', then ');"],
   ['plans: AW-27 each store rune is said on its own', 'src/shell/hunt-go.js', "    if (same) same.names.push(p.store.name);\n    else spends.push(", "    spends.push("],
   ['plans: AW-27 a family\'s store rune said twice behind its own runes', 'src/shell/hunt-go.js', "    if (said.has(p.store.name)) continue;\n", ''],
-  ['plans: AW-27 a weapon swap leaves its moves struck on the bar', 'src/shell/bar-assign.js', 'moveOffWeapon(set.discipline, wire[i].action.id)) {', 'false) {'],
+  ['plans: AW-27 a weapon swap leaves its moves struck on the bar', 'src/shell/bar-assign.js', '  const off = (w) => moveOffWeapon(set.discipline, w.action.id);', '  const off = (w) => false;'],
+  ['plans: AW-27 a weapon swap takes the other weapon moves off the bar (report #79)', 'src/shell/bar-assign.js', '  const order = moves.filter((w) => !off(w)).concat(moves.filter(off));', '  const order = moves.filter((w) => !off(w)).concat(moves.filter(off).map(() => null));'],
   ['plans: Hunt prep calls an empty food slot short', 'src/shell/hunt-go.js', "(spare ? '. ' + spare : ''), short: false });", "(spare ? '. ' + spare : ''), short: !usable });"],
   ['plans: AW-64 Hunt prep reads the bag in a hunt', 'src/shell/readiness.js', '  const carried = carriedOf(cs);', "  const inv = cs.read('inventory');\n  const carried = inv ? Object.entries(inv).map(([id, qty]) => ({ id, qty })) : null;"],
   ['plans: AW-64 a free arrow is said with the store behind it', 'src/shell/hunt-go.js', '    if (free && !o.ruled) { endless = true; break; }\n', ''],

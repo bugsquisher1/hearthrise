@@ -17,6 +17,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { whole } from '../render/format.js?v=0.2.110';
+import { t } from '../render/player-text.js?v=0.2.110';
 
 const ORDINAL = Object.freeze(['first', 'second', 'third', 'fourth', 'fifth', 'sixth']);
 
@@ -55,12 +56,8 @@ export function playLineOf(stated, limit, owned, offer, rows) {
   if (!(owned < most)) return 'Up to ' + most + ' can play at once.';
   if (anEmptySlot(rows)) return 'You own ' + owned + ' hero ' + (owned === 1 ? 'slot' : 'slots') + ', and up to ' + most + ' heroes can play at once.';
   /* The price is the offer block's (the server's quote, right under the roster), so the line names none (designer 2026-11-09). */
-  return 'You own ' + owned + ' hero ' + (owned === 1 ? 'slot' : 'slots') + '. Up to ' + most + ' heroes can play at once, and more slots cost gold.';
+  return t('slots.more_cost_gold', { count: owned, most });
 }
-
-/* The second hero is a week away for most players (designer 2026-11-09, table E: about 56 hours of hunting for 300,000 gold):
-   while the account has ONE hero, say so and point at other players meanwhile. */
-const ONE_HERO_NOTE = 'Most players can buy a second hero after about a week. Until then, use Find a party in the Party window to hunt with other players.';
 
 /* A slot the account owns with no hero in it: nothing need be bought to make the next one (newcomer panel 2026-11-01: it read as if a second hero cost 15,000). */
 const anEmptySlot = (rows) => (Array.isArray(rows) ? rows : []).some((r) => r && !r.exists);
@@ -102,7 +99,9 @@ export function slotOfferHtml(offer, roster, o = {}) {
   return '<section class="slot-offer" data-slot-id="' + offer.slotId + '">'
     + '<p class="slot-offer-lead">' + (nth ? 'A ' + nth + ' hero slot' : 'Another hero slot') + ' costs ' + whole(offer.cost) + ' gold'
     + (offer.max ? '. An account holds up to ' + offer.max + ' heroes' : '') + '.</p>'
-    + (heroes === 1 ? '<p class="slot-offer-lead slot-offer-note">' + ONE_HERO_NOTE + '</p>' : '')
+    /* The second hero is a week away for most players (designer 2026-11-09, table E: about 56 hours of hunting for the
+       second slot): while the account has ONE hero, say so and point at other players meanwhile. */
+    + (heroes === 1 ? '<p class="slot-offer-lead slot-offer-note">' + t('slots.one_hero_note') + '</p>' : '')
     + '<p class="slot-offer-purse">Your gold: ' + whole(purse.gold) + '</p>'
     + (short > 0 ? '<p class="slot-offer-short">You need ' + whole(short) + ' more gold.</p>' : '')
     + '<button type="button" class="slot-offer-buy" data-app="buy-slot" data-slot-id="' + offer.slotId + '" data-pay="' + actor + '"'

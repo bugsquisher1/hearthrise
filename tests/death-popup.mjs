@@ -401,7 +401,7 @@ const MUTANTS = [
   ['a death opens no popup', 'src/shell/death-popup.js', "    ctx.wm.open('death');", '    void 0;'],
   ['the dismissal is not kept', 'src/shell/death-popup.js', '{ const s = showing; showing = null; dismissDeath(cs, s); }', '{ showing = null; }'],
   ['the cost is not the row\'s', 'src/shell/death-popup.js', "'Dying cost ' + xpWords(row.xpLost)", "'Dying cost ' + xpWords({ level: row.xp })"],
-  ['the Blessing line ignores the row', 'src/shell/death-popup.js', "return Object.keys(row.saved).length ? who + ' kept '", "return false ? who + ' kept '"],
+  ['the Blessing line ignores the row', 'src/shell/death-popup.js', "return Object.keys(row.saved).length ? t('death.blessing_kept'", "return false ? t('death.blessing_kept'"],
   ['the Blessings a death used are always one (DP-0b)', 'src/shell/death-popup.js', 'row.blessings > 1 ? row.blessings : 1;', 'false ? row.blessings : 1;'],
   ['a Level the death took is not said (DP-0b)', 'src/shell/death-popup.js', '&& row.levelTo < row.levelFrom', '&& false'],
   ['the why reads the Level after the death, not the one died at (DP-0b)', 'src/shell/death-popup.js',

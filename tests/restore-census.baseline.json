@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-11-08",
+ "generated": "2026-11-09",
  "production": {
   "measured": "2026-08-30",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -1201,7 +1201,7 @@
   },
   "hr_hunt_limits": {
    "class": "seeded",
-   "replay": 47,
+   "replay": 46,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the session limits (presets, slots, conditions, bag lines, falls and hours ranges, cooldowns, vigour_low threshold, sessions kept). Every RPC reads them; a missing key fails the RPC closed. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_resumable_kinds": {
@@ -1655,7 +1655,7 @@
   },
   "hr_unlock_offers": {
    "class": "seeded",
-   "replay": 101,
+   "replay": 102,
    "note": "Generated catalogue (2026-08-16-unlock-offers.generated.sql, tools/gen-unlock-offers.mjs --check as a smoke preflight): every purchasable unlock offer with its namespace, rung and price. 142 rows, and it is a PRICE LIST — a rebuild producing a different set sells different things at different prices than the ledger's recorded purchases were made at. Rebuilt from repo, never restored."
   },
   "hr_unlocks": {

@@ -778,7 +778,7 @@ async function panelLeftovers(base) {
   const { slotOfferHtml, playLineOf } = await imp('src/app/slot-offer.js');
   const offer = { slotId: 2, cost: 15000, max: 5 }, one = { exists: true, slot: 0, gold: 500, goldV: 1 }, two = { exists: true, slot: 1, gold: 500, goldV: 1 };
   if (slotOfferHtml(offer, [one, { exists: false, slot: 1 }]) !== '' || !/Buy a hero slot/.test(slotOfferHtml(offer, [one, two]))) fails.push('AW-62 the slot offer with a free slot empty');
-  if (/cost gold/.test(playLineOf(4, 4, 2, offer, [one, { exists: false, slot: 1 }])) || !/the third is 15,000/.test(playLineOf(4, 4, 2, offer, [one, two]))) fails.push('AW-62 the play line with a free slot empty');
+  if (/cost gold/.test(playLineOf(4, 4, 2, offer, [one, { exists: false, slot: 1 }])) || !/and more slots cost gold\.$/.test(playLineOf(4, 4, 2, offer, [one, two]))) fails.push('AW-62 the play line with a free slot empty');
   const { jobReplacedWords } = await imp('src/shell/town-work.js');
   const worker = (state, hunt) => ({ read: (k) => (k === 'state' ? state : k === 'hunt' ? hunt : null) });
   const tree = { active_kind: 'gather', active_id: 'normal_tree', active_since: '2026-11-01T00:00:00Z' };

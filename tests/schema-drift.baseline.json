@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-11-08",
- "digest": "0e4009cf944566b76b197637bc96739c4be8a5539dadd99e29c2dc8320cdc697",
+ "generated": "2026-11-09",
+ "digest": "c463592147ccd6328780bda58edf676001c06ecc29b7de9aa65cb1e5f65f1b0d",
  "counts": {
   "relations": 272,
-  "functions": 687,
+  "functions": 688,
   "policies": 119,
   "indexes": 386,
   "triggers": 92,
@@ -469,6 +469,7 @@
    "hr_day_budget_used(p_user uuid, p_slot integer, p_at timestamp with time zone)",
    "hr_db_sample(p_top integer)",
    "hr_death_log_view(p_user uuid, p_slot integer)",
+   "hr_death_xp_max(p_skill text, p_xp bigint)",
    "hr_depot_cap(p_user uuid)",
    "hr_depot_view(p_user uuid, p_slot integer)",
    "hr_detail_bound(p_detail jsonb)",

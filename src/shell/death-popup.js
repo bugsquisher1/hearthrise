@@ -28,6 +28,7 @@ import { SKILLS_DEF } from '../data/skills.js?v=0.2.110';
 import { whole } from '../render/format.js?v=0.2.110';
 import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.110';
 import { monsterName } from './widgets/bits.js?v=0.2.110';
+import { t } from '../render/player-text.js?v=0.2.110';
 
 const seenOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -39,13 +40,13 @@ const deathSeenId = (session) => 'died:' + session;
    popup never said so, and the player walked back into the same death unblessed), else nothing. */
 function freeWords(cs) {
   const b = blessingsOf(cs), lv = levelOf(cs);
-  return b && Number.isInteger(b.freeUntil) && lv && lv.level < b.freeUntil ? ', and they\'re free until Level ' + b.freeUntil : '';
+  return b && Number.isInteger(b.freeUntil) && lv && lv.level < b.freeUntil ? t('death.free_until', { level: b.freeUntil }) : '';
 }
 
 /** Does this hero hold fewer Blessings than the server offers? (the popup's Blessings button) Null when unknown. */
 export function blessingsMissing(cs) {
   const b = blessingsOf(cs);
-  return b && b.tiers.length ? b.tiers.some((t) => !t.held) : null;
+  return b && b.tiers.length ? b.tiers.some((tier) => !tier.held) : null;
 }
 /* Dismissed on this page: an envelope that lands before the residue put cannot bring one back. */
 const DISMISSED = new WeakMap();
@@ -103,9 +104,7 @@ const xpWords = (m) => {
    (the row's `blessings`, the tiers the death used); one when it did not say. */
 function savedWords(row) {
   const n = Number.isSafeInteger(row.blessings) && row.blessings > 1 ? row.blessings : 1;
-  const who = n > 1 ? 'Your ' + n + ' Blessings' : 'Your Blessing';
-  const used = n > 1 ? 'are now used up.' : 'is now used up.';
-  return Object.keys(row.saved).length ? who + ' kept ' + xpWords(row.saved) + ', and ' + used : who + ' ' + used;
+  return Object.keys(row.saved).length ? t('death.blessing_kept', { count: n, xp: xpWords(row.saved) }) : t('death.blessing_used', { count: n });
 }
 
 /**
@@ -125,10 +124,10 @@ export function deathWords(cs, d) {
     lost: Object.keys(row.xpLost).length ? 'Dying cost ' + xpWords(row.xpLost) + '.' : row.xp === null ? '' : 'Dying cost no XP.',
     /* A death can take a Level (Tyler 2026-11-09): said only when the server's row shows the Level fell. */
     level: Number.isInteger(row.levelFrom) && Number.isInteger(row.levelTo) && row.levelTo < row.levelFrom
-      ? who + ' dropped from Level ' + row.levelFrom + ' to Level ' + row.levelTo + '.' : '',
+      ? t('death.level_dropped', { name: who, from: row.levelFrom, to: row.levelTo }) : '',
     /* undefined: the server did not say whether a Blessing was used, so nothing is said about one. */
     saved: row.saved === undefined ? ''
-      : row.saved === null ? 'No Blessing was active. Blessings in the Shop\'s Services tab make dying cost less' + freeWords(cs) + '.'
+      : row.saved === null ? t('death.no_blessing', { free: freeWords(cs) })
       : savedWords(row),
     town: who + ' is back in town with full health and mana.',
   };

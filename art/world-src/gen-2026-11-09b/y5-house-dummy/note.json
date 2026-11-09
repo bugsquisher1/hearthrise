@@ -1,0 +1,23 @@
+{
+  "asset": "brief 13 Y5 the house training dummy, the fully unlocked showpiece, 2 candidates SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt Y5",
+  "status": "SAMPLE for the art director's one read; the third candidate, the 5 part inpaints and the grade re-pours wait for the pick. Not imported",
+  "made": "2026-11-08 (the brief's 11-09 samples)",
+  "generations": 10,
+  "tool": "create_object_pro_flash 1 direction 64x64 high top-down, style image the shipped dummy (upload e2841b2a) \"match palette, outline, shading\"",
+  "description": "an expensive personal training dummy, the showpiece of a rich hero's house: a dark polished oak post standing on a carved grey stone plinth inlaid with gold, a stitched crimson leather body with brass studs and gilded trim, a steel helm on its head and steel pauldrons on its shoulders, two pivoting wooden practice arms, one holding a wooden sword and one a small buckler, a painted target disc in red and gold rings strapped on its chest, a flat ring of runes inlaid in silver and gold on the floor around the plinth, no glow anywhere, top-down game prop, single black outline, basic shading",
+  "candidates": {
+    "c1": { "object": "91918bce-118f-40ae-a37d-24bb38843c97", "seed": 3501, "file": "c1-91918bce.png", "box": "39x55 (x11-49, y5-59)" },
+    "c2": { "object": "64e2a71d-d95d-4f79-80d3-66aa04b4c1ca", "seed": 3502, "file": "c2-64e2a71d.png", "box": "37x55 (x12-48, y5-59)" }
+  },
+  "flags": [
+    "both carry all five parts in their own places: the floor ring, the plinth and post, the helm and pauldrons, the sword and buckler arms, the target disc on the chest",
+    "c2's floor ring is gold with silver runes and dark rune marks, the plinth dark stone with a gold cap; c1's ring is pale bone-grey with few marks and its plinth is grey stone",
+    "c1's sword arm leans out to the left past the ring; c2's arms stay inside the ring's width",
+    "the post shows as mid brown wood in both, not the dark polished oak the brief asks",
+    "c1 has 2-3 green pixels at the lower left of the chest",
+    "about 55 px top to ring bottom; the dummy above the ring stands about 45-48 px",
+    "no glow in either (the gold and silver are flat colours)"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/y5-house-dummy-sample.png (x4 on a cottage floor crop: the shipped dummy | Y1's ty_straw_dummy | c1 | c2)"
+}

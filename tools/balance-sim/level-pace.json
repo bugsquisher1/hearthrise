@@ -1,49 +1,49 @@
 {
  "schema": "hearthrise.level-pace/1",
- "generated": "2026-11-07T14:03:02.151Z",
- "commit": "edad3282f",
- "version": "0.2.105",
+ "generated": "2026-11-09T01:07:31.056Z",
+ "commit": "2483c6148",
+ "version": "0.2.109",
  "curve": {
-  "first": 128,
+  "first": 143,
   "brackets": [
    {
     "from": 1,
-    "rise": 128,
+    "rise": 143,
     "bend": 0
    },
    {
     "from": 2,
-    "rise": 255,
+    "rise": 286,
     "bend": 0
    },
    {
     "from": 3,
-    "rise": 504,
+    "rise": 563,
     "bend": 0
    },
    {
     "from": 4,
-    "rise": 4965,
+    "rise": 4665,
     "bend": 0
    },
    {
     "from": 5,
-    "rise": 6120,
+    "rise": 6280,
     "bend": 0
    },
    {
     "from": 6,
-    "rise": 12700,
+    "rise": 13370,
     "bend": 0
    },
    {
     "from": 7,
-    "rise": 34563,
+    "rise": 33843,
     "bend": 0
    },
    {
     "from": 8,
-    "rise": 12681,
+    "rise": 18753,
     "bend": 0
    },
    {
@@ -54,21 +54,21 @@
    {
     "from": 10,
     "rise": 0,
-    "bend": 504
+    "bend": 619
    },
    {
     "from": 50,
-    "rise": 87981,
-    "bend": 161
+    "rise": 78876,
+    "bend": 203
    },
    {
     "from": 300,
-    "rise": 209508,
-    "bend": 742
+    "rise": 224949,
+    "bend": 723
    }
   ]
  },
- "fingerprint": "a8e4dffddf2d1146",
+ "fingerprint": "b3f5ff849beb9f44",
  "ceiling": 50,
  "reference": "median of 8 solo styles, Level 1 to 50, where the Hunts window recommends, as built (tools/balance-sim plan pace)",
  "styles": [
@@ -82,66 +82,66 @@
   "healer"
  ],
  "rate": {
-  "1": 7686,
-  "2": 7686,
-  "3": 7686,
-  "4": 7778,
-  "5": 23066,
-  "6": 23441,
-  "7": 24069,
-  "8": 32584,
-  "9": 33089,
-  "10": 33635,
-  "11": 33899,
-  "12": 34142,
-  "13": 34392,
-  "14": 34367,
-  "15": 35000,
-  "16": 79868,
-  "17": 80447,
-  "18": 80877,
-  "19": 81966,
-  "20": 82475,
-  "21": 81539,
-  "22": 81986,
-  "23": 83329,
-  "24": 83289,
-  "25": 84211,
-  "26": 84204,
-  "27": 84926,
-  "28": 84836,
-  "29": 85947,
-  "30": 89206,
-  "31": 89685,
-  "32": 89978,
-  "33": 89408,
-  "34": 90762,
-  "35": 90428,
-  "36": 90457,
-  "37": 90826,
-  "38": 90753,
-  "39": 90865,
-  "40": 91482,
-  "41": 91034,
-  "42": 91805,
-  "43": 91228,
-  "44": 91594,
-  "45": 91696,
-  "46": 92138,
-  "47": 92054,
-  "48": 92467,
-  "49": 92714
+  "1": 8676,
+  "2": 8676,
+  "3": 8676,
+  "4": 8676,
+  "5": 22220,
+  "6": 23196,
+  "7": 24466,
+  "8": 33151,
+  "9": 34510,
+  "10": 34984,
+  "11": 35569,
+  "12": 35923,
+  "13": 36278,
+  "14": 36428,
+  "15": 37748,
+  "16": 85584,
+  "17": 86726,
+  "18": 86986,
+  "19": 87584,
+  "20": 88283,
+  "21": 87107,
+  "22": 88573,
+  "23": 89174,
+  "24": 89116,
+  "25": 90173,
+  "26": 90776,
+  "27": 91590,
+  "28": 92821,
+  "29": 93583,
+  "30": 99254,
+  "31": 100003,
+  "32": 100655,
+  "33": 100750,
+  "34": 101435,
+  "35": 101437,
+  "36": 102547,
+  "37": 102291,
+  "38": 102877,
+  "39": 103713,
+  "40": 103652,
+  "41": 103434,
+  "42": 104614,
+  "43": 105158,
+  "44": 105403,
+  "45": 105502,
+  "46": 106104,
+  "47": 106218,
+  "48": 107027,
+  "49": 107488
  },
  "measuredHours": {
   "2": 0.02,
   "5": 0.25,
-  "10": 6.175,
-  "15": 17.2,
-  "20": 25.015,
-  "25": 33.84,
-  "30": 46.715,
-  "40": 88.505,
-  "50": 161.445
+  "10": 6.185,
+  "15": 17.61,
+  "20": 25.455,
+  "25": 34.99,
+  "30": 49.125,
+  "40": 94.495,
+  "50": 170.04
  },
  "careers": {
   "hammer": {
@@ -149,20 +149,20 @@
     "hammer"
    ],
    "density": null,
-   "hours": 161.75,
+   "hours": 160.75,
    "reached": [
     50
    ],
    "hoursTo": {
-    "2": 0.02,
-    "5": 0.24,
-    "10": 5.63,
-    "15": 16.22,
-    "20": 23.53,
-    "25": 32.07,
+    "2": 0.01,
+    "5": 0.22,
+    "10": 5.52,
+    "15": 15.95,
+    "20": 23.26,
+    "25": 31.85,
     "30": 44.68,
-    "40": 86.65,
-    "50": 160.77
+    "40": 86.68,
+    "50": 160.6
    },
    "deaths": 0,
    "grounds": [
@@ -173,24 +173,24 @@
    ],
    "skillsAt": {
     "10": {
-     "melee": 19,
+     "melee": 22,
      "ranged": 1,
      "magic": 1,
-     "defense": 11,
+     "defense": 13,
      "inner_flame": 1
     },
     "25": {
-     "melee": 33,
+     "melee": 37,
      "ranged": 1,
      "magic": 1,
-     "defense": 22,
+     "defense": 24,
      "inner_flame": 1
     },
     "49": {
-     "melee": 51,
+     "melee": 55,
      "ranged": 1,
      "magic": 1,
-     "defense": 36,
+     "defense": 38,
      "inner_flame": 1
     }
    }
@@ -200,20 +200,20 @@
     "axes"
    ],
    "density": null,
-   "hours": 163.75,
+   "hours": 168.75,
    "reached": [
     50
    ],
    "hoursTo": {
-    "2": 0.02,
-    "5": 0.24,
-    "10": 5.68,
-    "15": 16.35,
-    "20": 23.63,
-    "25": 32.33,
-    "30": 45.14,
-    "40": 87.96,
-    "50": 163.51
+    "2": 0.01,
+    "5": 0.22,
+    "10": 5.72,
+    "15": 16.6,
+    "20": 24.29,
+    "25": 33.1,
+    "30": 46.36,
+    "40": 90.52,
+    "50": 167.96
    },
    "deaths": 0,
    "grounds": [
@@ -224,24 +224,24 @@
    ],
    "skillsAt": {
     "10": {
-     "melee": 19,
+     "melee": 22,
      "ranged": 1,
      "magic": 1,
-     "defense": 12,
+     "defense": 13,
      "inner_flame": 1
     },
     "25": {
-     "melee": 33,
+     "melee": 36,
      "ranged": 1,
      "magic": 1,
-     "defense": 23,
+     "defense": 24,
      "inner_flame": 1
     },
     "49": {
-     "melee": 51,
+     "melee": 55,
      "ranged": 1,
      "magic": 1,
-     "defense": 37,
+     "defense": 39,
      "inner_flame": 1
     }
    }
@@ -251,20 +251,20 @@
     "sword"
    ],
    "density": null,
-   "hours": 189.25,
+   "hours": 201.75,
    "reached": [
     50
    ],
    "hoursTo": {
     "2": 0.02,
-    "5": 0.27,
-    "10": 7.15,
-    "15": 19.31,
-    "20": 28.17,
-    "25": 38.75,
-    "30": 53.99,
-    "40": 103.21,
-    "50": 188.66
+    "5": 0.26,
+    "10": 7.62,
+    "15": 21.03,
+    "20": 30.66,
+    "25": 41.84,
+    "30": 58.33,
+    "40": 110.69,
+    "50": 201.12
    },
    "deaths": 0,
    "grounds": [
@@ -275,24 +275,24 @@
    ],
    "skillsAt": {
     "10": {
-     "melee": 19,
+     "melee": 22,
      "ranged": 1,
      "magic": 1,
-     "defense": 13,
+     "defense": 14,
      "inner_flame": 1
     },
     "25": {
-     "melee": 33,
+     "melee": 36,
      "ranged": 1,
      "magic": 1,
-     "defense": 24,
+     "defense": 26,
      "inner_flame": 1
     },
     "49": {
-     "melee": 51,
+     "melee": 55,
      "ranged": 1,
      "magic": 1,
-     "defense": 39,
+     "defense": 41,
      "inner_flame": 1
     }
    }
@@ -302,20 +302,20 @@
     "tank"
    ],
    "density": null,
-   "hours": 194.25,
+   "hours": 208,
    "reached": [
     50
    ],
    "hoursTo": {
     "2": 0.02,
     "5": 0.26,
-    "10": 7.21,
-    "15": 19.48,
-    "20": 28.42,
-    "25": 39.3,
-    "30": 55.05,
-    "40": 105.65,
-    "50": 193.47
+    "10": 7.8,
+    "15": 21.52,
+    "20": 31.21,
+    "25": 42.79,
+    "30": 59.87,
+    "40": 113.89,
+    "50": 207.09
    },
    "deaths": 0,
    "grounds": [
@@ -326,24 +326,24 @@
    ],
    "skillsAt": {
     "10": {
-     "melee": 19,
+     "melee": 22,
      "ranged": 1,
      "magic": 1,
-     "defense": 16,
+     "defense": 18,
      "inner_flame": 1
     },
     "25": {
-     "melee": 33,
+     "melee": 36,
      "ranged": 1,
      "magic": 1,
-     "defense": 29,
+     "defense": 31,
      "inner_flame": 1
     },
     "49": {
-     "melee": 51,
+     "melee": 55,
      "ranged": 1,
      "magic": 1,
-     "defense": 45,
+     "defense": 48,
      "inner_flame": 1
     }
    }
@@ -353,20 +353,20 @@
     "bow"
    ],
    "density": null,
-   "hours": 162.25,
+   "hours": 174.25,
    "reached": [
     50
    ],
    "hoursTo": {
     "2": 0.02,
     "5": 0.25,
-    "10": 6.13,
-    "15": 17.15,
-    "20": 25.03,
-    "25": 33.89,
-    "30": 46.83,
-    "40": 88.7,
-    "50": 161.72
+    "10": 6.2,
+    "15": 17.66,
+    "20": 25.51,
+    "25": 35.11,
+    "30": 49.38,
+    "40": 95.37,
+    "50": 174.04
    },
    "deaths": 0,
    "grounds": [
@@ -378,23 +378,23 @@
    "skillsAt": {
     "10": {
      "melee": 1,
-     "ranged": 19,
+     "ranged": 22,
      "magic": 1,
-     "defense": 9,
+     "defense": 10,
      "inner_flame": 1
     },
     "25": {
      "melee": 1,
-     "ranged": 33,
+     "ranged": 36,
      "magic": 1,
-     "defense": 17,
+     "defense": 19,
      "inner_flame": 1
     },
     "49": {
      "melee": 1,
-     "ranged": 51,
+     "ranged": 55,
      "magic": 1,
-     "defense": 27,
+     "defense": 31,
      "inner_flame": 1
     }
    }
@@ -404,20 +404,20 @@
     "crossbow"
    ],
    "density": null,
-   "hours": 161.25,
+   "hours": 172.25,
    "reached": [
     50
    ],
    "hoursTo": {
     "2": 0.02,
     "5": 0.25,
-    "10": 6.22,
-    "15": 17.25,
-    "20": 25,
-    "25": 33.79,
-    "30": 46.6,
-    "40": 88.31,
-    "50": 160.93
+    "10": 6.17,
+    "15": 17.56,
+    "20": 25.4,
+    "25": 34.87,
+    "30": 48.87,
+    "40": 94.21,
+    "50": 172.12
    },
    "deaths": 0,
    "grounds": [
@@ -429,23 +429,23 @@
    "skillsAt": {
     "10": {
      "melee": 1,
-     "ranged": 19,
+     "ranged": 22,
      "magic": 1,
-     "defense": 10,
+     "defense": 13,
      "inner_flame": 1
     },
     "25": {
      "melee": 1,
-     "ranged": 33,
+     "ranged": 36,
      "magic": 1,
-     "defense": 19,
+     "defense": 22,
      "inner_flame": 1
     },
     "49": {
      "melee": 1,
-     "ranged": 51,
+     "ranged": 55,
      "magic": 1,
-     "defense": 30,
+     "defense": 35,
      "inner_flame": 1
     }
    }
@@ -455,20 +455,20 @@
     "mage"
    ],
    "density": null,
-   "hours": 147.75,
+   "hours": 141.5,
    "reached": [
     50
    ],
    "hoursTo": {
     "2": 0.02,
     "5": 0.23,
-    "10": 5.59,
-    "15": 16.1,
-    "20": 23.06,
-    "25": 31.01,
-    "30": 42.64,
-    "40": 80.5,
-    "50": 147.42
+    "10": 5.47,
+    "15": 15.33,
+    "20": 22.12,
+    "25": 30.49,
+    "30": 42.99,
+    "40": 79.43,
+    "50": 141.13
    },
    "deaths": 0,
    "grounds": [
@@ -481,22 +481,22 @@
     "10": {
      "melee": 1,
      "ranged": 1,
-     "magic": 22,
-     "defense": 6,
+     "magic": 23,
+     "defense": 9,
      "inner_flame": 1
     },
     "25": {
      "melee": 1,
      "ranged": 1,
-     "magic": 33,
-     "defense": 13,
+     "magic": 35,
+     "defense": 17,
      "inner_flame": 1
     },
     "49": {
      "melee": 1,
      "ranged": 1,
      "magic": 51,
-     "defense": 19,
+     "defense": 25,
      "inner_flame": 1
     }
    }
@@ -506,20 +506,20 @@
     "healer"
    ],
    "density": null,
-   "hours": 162,
+   "hours": 168,
    "reached": [
     50
    ],
    "hoursTo": {
     "2": 0.02,
-    "5": 0.27,
-    "10": 7,
-    "15": 18.79,
-    "20": 26.77,
-    "25": 35.71,
-    "30": 48.75,
-    "40": 89.46,
-    "50": 161.17
+    "5": 0.28,
+    "10": 7.83,
+    "15": 20.79,
+    "20": 29.2,
+    "25": 39.06,
+    "30": 53.3,
+    "40": 94.78,
+    "50": 167.14
    },
    "deaths": 0,
    "grounds": [
@@ -533,21 +533,21 @@
      "melee": 1,
      "ranged": 1,
      "magic": 20,
-     "defense": 9,
+     "defense": 11,
      "inner_flame": 1
     },
     "25": {
      "melee": 1,
      "ranged": 1,
-     "magic": 32,
-     "defense": 16,
+     "magic": 33,
+     "defense": 20,
      "inner_flame": 1
     },
     "49": {
      "melee": 1,
      "ranged": 1,
-     "magic": 48,
-     "defense": 24,
+     "magic": 49,
+     "defense": 29,
      "inner_flame": 1
     }
    }
@@ -557,32 +557,32 @@
   "points": [
    [
     4.5,
-    7649,
+    8774,
     "mill_cellar"
    ],
    [
     10,
-    24634,
+    24883,
     "meadowbrook_thicket"
    ],
    [
     13,
-    32903,
+    33760,
     "wickstead"
    ],
    [
     23.5,
-    80082,
+    84781,
     "mosslight_glade"
    ],
    [
     47.5,
-    194200,
+    222774,
     "coppercap_warrens"
    ]
   ],
-  "a": 993,
-  "b": 1.376
+  "a": 1049,
+  "b": 1.383
  },
  "bounds": {
   "box:tank": {
@@ -740,72 +740,72 @@
   "10": {
    "target": 6,
    "hours": 6.1,
-   "err": 0.009,
+   "err": 0.02,
    "measured": 6.2,
    "before": 1
   },
   "25": {
    "target": 36,
-   "hours": 33.3,
-   "err": -0.075,
-   "measured": 33.8,
-   "before": 10
+   "hours": 34.8,
+   "err": -0.035,
+   "measured": 35,
+   "before": 9
   },
   "50": {
    "target": 168,
-   "hours": 161.7,
-   "err": -0.038,
-   "measured": 161.4,
-   "before": 92
+   "hours": 171.1,
+   "err": 0.019,
+   "measured": 170,
+   "before": 82
   },
   "100": {
    "target": 600,
-   "hours": 567.7,
-   "err": -0.054,
+   "hours": 539.8,
+   "err": -0.1,
    "measured": null,
-   "before": 363
+   "before": 325
   },
   "200": {
    "target": 1680,
-   "hours": 1740.3,
-   "err": 0.036,
+   "hours": 1555.2,
+   "err": -0.074,
    "measured": null,
-   "before": 1927
+   "before": 1712
   },
   "300": {
    "target": 3120,
-   "hours": 3042.1,
-   "err": -0.025,
+   "hours": 2702.3,
+   "err": -0.134,
    "measured": null,
-   "before": 5384
+   "before": 4752
   },
   "500": {
    "target": 6720,
-   "hours": 6443.4,
-   "err": -0.041,
+   "hours": 5752.1,
+   "err": -0.144,
    "measured": null,
-   "before": 20083
+   "before": 17566
   },
   "750": {
    "target": 13440,
-   "hours": 13150.5,
-   "err": -0.022,
+   "hours": 11667,
+   "err": -0.132,
    "measured": null,
-   "before": 57643
+   "before": 50051
   },
   "1000": {
    "target": 23520,
-   "hours": 22567.9,
-   "err": -0.04,
+   "hours": 19828.3,
+   "err": -0.157,
    "measured": null,
-   "before": 122172
+   "before": 105532
   }
  },
  "death": [
   {
    "level": 10,
-   "xpLost": 4244,
-   "shareOfLevel": 0.059,
+   "xpLost": 4436,
+   "shareOfLevel": 0.057,
    "unblessedHours": 0.13,
    "blessedHours": {
     "1": 0.09,
@@ -816,73 +816,73 @@
   },
   {
    "level": 25,
-   "xpLost": 37223,
-   "shareOfLevel": 0.201,
-   "unblessedHours": 0.44,
+   "xpLost": 41809,
+   "shareOfLevel": 0.192,
+   "unblessedHours": 0.46,
    "blessedHours": {
-    "1": 0.3,
-    "2": 0.16,
+    "1": 0.32,
+    "2": 0.17,
     "3": 0.02
    },
    "extrapolated": false
   },
   {
    "level": 50,
-   "xpLost": 276987,
-   "shareOfLevel": 0.315,
-   "unblessedHours": 1.3,
+   "xpLost": 331063,
+   "shareOfLevel": 0.31,
+   "unblessedHours": 1.41,
    "blessedHours": {
-    "1": 0.89,
-    "2": 0.48,
+    "1": 0.96,
+    "2": 0.52,
     "3": 0.07
    },
    "extrapolated": true
   },
   {
    "level": 100,
-   "xpLost": 2839997,
+   "xpLost": 2759873,
    "shareOfLevel": 0.5,
-   "unblessedHours": 5.19,
+   "unblessedHours": 4.51,
    "blessedHours": {
-    "1": 3.53,
-    "2": 1.92,
-    "3": 0.26
+    "1": 3.07,
+    "2": 1.67,
+    "3": 0.23
    },
    "extrapolated": true
   },
   {
    "level": 200,
-   "xpLost": 8849047,
+   "xpLost": 8733673,
    "shareOfLevel": 0.5,
-   "unblessedHours": 6.28,
+   "unblessedHours": 5.47,
    "blessedHours": {
-    "1": 4.27,
-    "2": 2.32,
-    "3": 0.31
+    "1": 3.72,
+    "2": 2.02,
+    "3": 0.27
    },
    "extrapolated": true
   },
   {
    "level": 500,
-   "xpLost": 52258897,
+   "xpLost": 53692373,
    "shareOfLevel": 0.5,
-   "unblessedHours": 10.61,
+   "unblessedHours": 9.47,
    "blessedHours": {
-    "1": 7.22,
-    "2": 3.93,
-    "3": 0.53
+    "1": 6.44,
+    "2": 3.5,
+    "3": 0.47
    },
    "extrapolated": true
   },
   {
    "level": 1000,
-   "xpLost": 271585897,
+   "xpLost": 272604623,
    "shareOfLevel": 0.5,
-   "unblessedHours": 21.42,
+   "unblessedHours": 18.44,
    "blessedHours": {
-    "1": 14.56,
-    "2": 7.92,
-    "3": 1.07
+    "1": 12.54,
+    "2": 6.82,
+    "3": 0.92
    },
    "extrapolated": true
   }

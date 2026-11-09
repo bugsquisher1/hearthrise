@@ -8,8 +8,9 @@
 // carries; the server re-checks every line under the character lock.
 //
 //   kindOf(id)            the pocket's kind: gear, ammo, food, drink, junk, material, rare, other. A monster's drop
-//                         that a recipe, the House or Tempering spends is a material; one nothing spends is junk
-//                         (Tyler 2026-11-08: "if its a monster drop that is only good for selling, the category should just be Junk")
+//                         that a recipe, the House or Tempering spends, or that is kept for a planned use (an
+//                         imbuement's ingredient), is a material; one nothing spends or will spend is junk (Tyler
+//                         2026-11-08: "if its a monster drop that is only good for selling, the category should just be Junk")
 //   view(items, o)        one category, a search, a sort (the remembered choice; the
 //                         Inventory's and the Storage window's, each its own residue)
 //   sellPlan(items, ids)  the lines a bulk sale sends; LOCKED stacks are never named
@@ -105,6 +106,13 @@ export const houseSpends = (id) => homeSpends().has(id);
 const TEMPER_SPENDS = new Set(Object.values(TEMPER_MATERIALS).map((m) => m.item));
 /** Does a Tempering rung take this item? */
 export const temperSpends = (id) => TEMPER_SPENDS.has(id);
+/**
+ * Is this item kept for a use the game plans but has not built? An imbuement's ingredient (src/data/imbuements.js: every IMBUE_ITEMS
+ * row carries `imbue: { kind, tier }`, the imbuement it will feed, Element Ward's ward items included) is a Material now and never
+ * bulk-sold: Tyler, only get rid of what we are not planning to use, and imbuement items are never NPC-sold unless ticked (ruling
+ * 2026-10-14). From the rows, so a new ground's imbuement drop files itself.
+ */
+export const plannedUse = (id) => !!(ITEMS[id] && ITEMS[id].imbue);
 /** Does any recipe, House price or Tempering rung spend this item? From the rows, so a new recipe or rung needs no list. */
 export const isSpentMaterial = (id) => inputSet().has(id) || homeSpends().has(id) || TEMPER_SPENDS.has(id);
 
@@ -121,9 +129,10 @@ export function kindOf(id) {
   /* a trophy is kept, never junk, however it is got (the Rat King's Crown is a boss's drop) */
   if (it.type === 'trophy' || RARE_TAGS.has(it.tag)) return 'rare';
   /* a monster's drop is junk when nothing spends it and a material when something does (a recipe, the House, a Tempering
-     rung: Big Bones, Silk Thread, pelts, raw meat), unless a hero can make or gather it too; a tool is a tool however it is made */
+     rung: Big Bones, Silk Thread, pelts, raw meat) or will (an imbuement's ingredient), unless a hero can make or gather it
+     too; a tool is a tool however it is made */
   const made = it.type !== 'tool' && madeSet().has(id);
-  if (dropSet().has(id) && !made) return isSpentMaterial(id) ? 'material' : 'junk';
+  if (dropSet().has(id) && !made) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';
   if (made) return 'material';
   /* the raw flag on a tool is only the shop's bid (BULK_GOODS, src/data/items.js), never its kind */
   if (it.type === 'tool') return 'other';

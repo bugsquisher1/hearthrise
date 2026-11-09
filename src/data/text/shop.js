@@ -16,6 +16,6 @@ export const SHOP_TEXT = Object.freeze({
   sell_junk: 'Sell all junk',
   sell_junk_for: 'Sell all junk · {total}',
   junk_keeps_it: 'Sell all junk keeps it',
-  junk_keeps: { one: 'Sell all junk keeps {count} stack worth {worth} that a recipe, the House or Tempering uses. Sell it by hand if you want the gold.',
-    other: 'Sell all junk keeps {count} stacks worth {worth} that a recipe, the House or Tempering uses. Sell those by hand if you want the gold.' },
+  junk_keeps: { one: 'Sell all junk keeps {count} stack worth {worth}. It is a Material. Sell it by hand if you want the gold.',
+    other: 'Sell all junk keeps {count} stacks worth {worth}. They are Materials. Sell those by hand if you want the gold.' },
 });

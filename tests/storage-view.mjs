@@ -23,9 +23,11 @@
 //       on the allowlist and bounded (storeSeen by the fullest depot the data allows)
 //   V6  JUNK OR MATERIALS (Tyler 2026-11-08: "if its a monster drop that is only good for
 //       selling, the category should just be Junk"): Big Bones, Bat Wing and Silk Thread are
-//       Materials, Rat Tail is Junk, a boss trophy is Rare; across every monster drop, Junk
-//       is never something a recipe, the House or Tempering spends, and a recipe row added
-//       before the bag files anything makes its drop a Material by itself
+//       Materials, Rat Tail is Junk, a boss trophy is Rare; an imbuement's ingredient (a ward
+//       item: its row's `imbue`) is a Material and Sell all junk never takes it; across every
+//       monster drop, Junk is never something a recipe, the House or Tempering spends or an
+//       imbuement will, and a recipe row added before the bag files anything makes its drop a
+//       Material by itself
 //
 // The selftest copies src/ to a temp tree, plants one defect per arm and
 // requires the named test to fail. No ?v= on imports here (tests/**).
@@ -60,8 +62,12 @@ async function runTests({ B, S, R, H, REC, MON, ITM }) {
   ok('V6', B.kindOf(NEW) === 'material', 'a drop a new recipe spends files under ' + B.kindOf(NEW) + ', not material');
   for (const [id, k] of Object.entries({ big_bones: 'material', bat_wing: 'material', silk_thread: 'material', raw_wolf_meat: 'material', rat_tail: 'junk', gold_bar: 'material', rat_kings_crown: 'rare' }))
     ok('V6', B.kindOf(id) === k, id + ' files under ' + B.kindOf(id) + ', not ' + k);
+  /* a ward item (Briar Burr feeds Ward, Cistern Venom Gland Element Ward): kept for the imbuement it will feed */
+  const wards = ['briar_burr', 'cistern_venom_gland'];
+  ok('V6', wards.every((id) => ITM.ITEMS[id] && ITM.ITEMS[id].imbue && B.kindOf(id) === 'material'), 'a ward item files under ' + wards.map((id) => B.kindOf(id)).join(',') + ', not material');
+  ok('V6', B.lootToSell(wards.concat(['rat_tail']).map((id) => ({ id, qty: 3 }))).join() === 'rat_tail', 'Sell all junk takes ' + B.lootToSell(wards.concat(['rat_tail']).map((id) => ({ id, qty: 3 }))).join());
   const drops = new Set(Object.values(MON.MONSTERS).flatMap((m) => ((m && m.drops) || []).map((d) => d && d.id).filter(Boolean)));
-  const wrong = [...drops].filter((id) => B.kindOf(id) === 'junk' && B.isSpentMaterial(id));
+  const wrong = [...drops].filter((id) => B.kindOf(id) === 'junk' && (B.isSpentMaterial(id) || B.plannedUse(id)));
   ok('V6', wrong.length === 0, 'Junk that a recipe, the House or Tempering spends: ' + wrong.join(','));
   ok('V6', [...drops].some((id) => B.kindOf(id) === 'junk') && [...drops].some((id) => B.kindOf(id) === 'material' && B.isSpentMaterial(id)), 'the drops hold no Junk or no spent Material: the sweep proves nothing');
 
@@ -69,7 +75,7 @@ async function runTests({ B, S, R, H, REC, MON, ITM }) {
   const cats = new Set(B.BAG_CATS.map(([id]) => id));
   for (const c of ['all', 'food', 'drink', 'ammo', 'gear', 'material', 'junk', 'rare']) ok('V1', cats.has(c), 'no "' + c + '" chip in BAG_CATS');
   ok('V1', !cats.has('loot') && (B.BAG_CATS.find(([id]) => id === 'junk') || [])[1] === 'Junk', 'the bag still has a Loot chip, or Junk is not named Junk');
-  const want = { shrimp: 'food', carrot_juice: 'drink', bronze_arrows: 'ammo', bronze_helm: 'gear', rat_incisor: 'junk',
+  const want = { shrimp: 'food', carrot_juice: 'drink', bronze_arrows: 'ammo', bronze_helm: 'gear', rat_tail: 'junk',
     copper_bar: 'material', oak_plank: 'material', rune_blank: 'material', turnip_seed: 'material', emberheart: 'rare', dragon_relic: 'rare' };
   for (const [id, k] of Object.entries(want)) ok('V1', B.kindOf(id) === k, id + ' files under ' + B.kindOf(id) + ', not ' + k);
   /* a non-gear row at an epic rung that nothing drops, makes or spends (no shipped row is one today): Rare by its rung alone */
@@ -78,7 +84,7 @@ async function runTests({ B, S, R, H, REC, MON, ITM }) {
 
   const items = [
     { id: 'shrimp', qty: 5 }, { id: 'copper_bar', qty: 40 }, { id: 'bronze_helm', qty: 1 },
-    { id: 'emberheart', qty: 1 }, { id: 'oak_plank', qty: 12 }, { id: 'rat_incisor', qty: 11 },
+    { id: 'emberheart', qty: 1 }, { id: 'oak_plank', qty: 12 }, { id: 'rat_tail', qty: 11 },
   ];
   const v = (o) => B.view(items.map((r) => ({ ...r })), o);
 
@@ -92,7 +98,7 @@ async function runTests({ B, S, R, H, REC, MON, ITM }) {
 
   /* V3 — sorts */
   const count = ids(v({ sort: 'count' }));
-  ok('V3', count === 'copper_bar,oak_plank,rat_incisor,shrimp,bronze_helm,emberheart', 'Count (most first, then by name) reads ' + count);
+  ok('V3', count === 'copper_bar,oak_plank,rat_tail,shrimp,bronze_helm,emberheart', 'Count (most first, then by name) reads ' + count);
   const byName = v({ sort: 'name' }).map((r) => r.id);
   ok('V3', byName[0] === 'bronze_helm' && byName[byName.length - 1] === 'shrimp', 'Name reads ' + byName.join(','));
   const bids = new Map([['shrimp', 100], ['copper_bar', 1], ['bronze_helm', 30]]);
@@ -102,7 +108,7 @@ async function runTests({ B, S, R, H, REC, MON, ITM }) {
   ok('V3', type.join() === 'gear,food,junk,material,material,rare', 'Type groups by the chip order: ' + type.join());
   const seen = { shrimp: [5, 3], copper_bar: [40, 1], bronze_helm: [1, 0], emberheart: [1, 0], oak_plank: [12, 2] };
   const newest = ids(v({ sort: 'newest', seen }));
-  ok('V3', newest.startsWith('rat_incisor,shrimp,oak_plank,copper_bar'), 'Newest (unmarked first, then the latest mark) reads ' + newest);
+  ok('V3', newest.startsWith('rat_tail,shrimp,oak_plank,copper_bar'), 'Newest (unmarked first, then the latest mark) reads ' + newest);
 
   /* V4 — the "recently added" marks */
   const MAX = 10;
@@ -141,8 +147,9 @@ const MUTANTS = [
   { test: 'V1', file: BAG, from: "if (it.raw || it.tag === 'crafting-mat' || it.seed || inputSet().has(id)) return 'material';", to: "if (it.raw || it.tag === 'crafting-mat') return 'material';" },
   { test: 'V1', file: BAG, from: "  if (RARE_RUNGS.has(it.rarity)) return 'rare';\n", to: '' },
   { test: 'V6', file: BAG, from: "  if (it.type === 'trophy' || RARE_TAGS.has(it.tag)) return 'rare';\n", to: '' },
-  { test: 'V6', file: BAG, from: "return isSpentMaterial(id) ? 'material' : 'junk';", to: "return 'junk';" },
-  { test: 'V6', file: BAG, from: "return isSpentMaterial(id) ? 'material' : 'junk';", to: "return 'material';" },
+  { test: 'V6', file: BAG, from: "return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';", to: "return 'junk';" },
+  { test: 'V6', file: BAG, from: "return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';", to: "return 'material';" },
+  { test: 'V6', file: BAG, from: "return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';", to: "return isSpentMaterial(id) ? 'material' : 'junk';" },
   { test: 'V6', file: BAG, from: "export const isSpentMaterial = (id) => inputSet().has(id) || homeSpends().has(id) || TEMPER_SPENDS.has(id);", to: "export const isSpentMaterial = (id) => homeSpends().has(id) || TEMPER_SPENDS.has(id);" },
   { test: 'V2', file: BAG, from: "(cat === 'all' || kindOf(r.id) === cat)", to: 'true' },
   { test: 'V3', file: BAG, from: '    count: (a, b) => b.qty - a.qty || byName(a, b),\n', to: '' },

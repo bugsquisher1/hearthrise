@@ -29,6 +29,8 @@
 //                     first pocket at Level 5 (its first real ground, Tyler 10-21) and the Sewer's at its floor (a party's first ground)
 //   starter-bar-fires       every worn set of the kit, on the real settle: no dead default slot, the first pull fires, a lone monster fires, every slot earns its place
 //   starter-bars-both-paths a new caster's bar, watched and with the browser closed: the same result
+//   undertow-both-paths     the Healer's alone spell (Tyler 2026-11-09): a lone Healer casts it watched and closed alike; a tank and a
+//                           Healer, both alive, never do on either path
 //   sql-rows          the migration's catalogue rows equal the registry, the action ids and ROLE_RULES
 //
 //   node tests/hunt-core/conditions.mjs            cases + mutants
@@ -837,6 +839,30 @@ const cases = {
     }
     return null;
   },
+  /* UNDERTOW ON BOTH PATHS (Tyler 2026-11-09: "a new spell that can only be used when not in a party"; CLAUDE.md §4): the Healer's
+     default bar at the Thicket's floor, watched (10 s settles) and with the browser closed (10 min windows). A lone Healer casts
+     Undertow on both, the same casts; a tank and a Healer, both alive throughout, never cast it on either, and their paths agree. */
+  'undertow-both-paths': (M) => {
+    const L = M.HUNTS.meadowbrook_thicket.band[0];
+    const play = (roles, windowMs) => {
+      const casts = [];
+      const r = M.play.run('meadowbrook_thicket', L, roles, { spanMs: 10 * 60000, windowMs, secret: '42', bar: () => [],
+        onWindow: (w) => { for (const e of w.events || []) if (e.type === 'cast') casts.push([e.atMs, e.u, e.ability]); } });
+      return { casts, n: casts.filter((c) => c[2] === 'undertow').length, falls: r.totals.falls,
+        sum: JSON.stringify([r.totals.buys, r.totals.coin, r.totals.levelXp, r.totals.xp, r.totals.kills, r.totals.falls, Object.entries(r.items).sort()]) };
+      /* (a party's loot tallies its windows in another key order: the bag compared as sorted pairs) */
+    };
+    for (const roles of [['healer'], ['tank', 'healer']]) {
+      const tag = roles.join(' + ');
+      const watched = play(roles, 10000), closed = play(roles, 600000);
+      if (watched.falls || closed.falls) return 'CONTROL: ' + tag + ' fell (' + watched.falls + ' watched, ' + closed.falls + ' closed), so a hero was alone for a while';
+      if (JSON.stringify(watched.casts) !== JSON.stringify(closed.casts)) return tag + ': the casts differ with the browser closed (' + watched.casts.length + ' watched, ' + closed.casts.length + ' closed)';
+      if (watched.sum !== closed.sum) return tag + ': watched ' + watched.sum.slice(0, 160) + ' but closed ' + closed.sum.slice(0, 160);
+      if (roles.length === 1 && !(watched.n > 0)) return 'CONTROL: a lone Healer never cast Undertow in 10 minutes';
+      if (roles.length > 1 && (watched.n || closed.n)) return tag + ': Undertow cast ' + watched.n + ' times watched and ' + closed.n + ' closed with two heroes alive';
+    }
+    return null;
+  },
   'density-settle': (M) => {
     const out = freshHealer(M, 'millrace_sewer', 1, 1, { density: 16 });
     const w = M.worldstate.decode(JSON.parse(out.world));
@@ -1028,6 +1054,8 @@ const mutants = [
   { name: 'the druid heals whoever is lowest', case: 'ally-subject', edits: [['src/core/hunt/conditions.js', '  if (subject && subject !== \'lowest\') return all.find((a) => a.role === subject) || null;\n', '']] },
   { name: 'an attack slot ignores its conditions', case: 'party-acceptance', edits: [['src/core/hunt/damage.js', '  const got = shotPasses(inst, u, h, rows, (own) => (slot, cx) => {', '  const got = shotPasses(inst, u, h, rows.map((r) => ({ rule: r.rule, slot: Object.assign({}, r.slot, { conditions: [] }) })), (own) => (slot, cx) => {']] },
   { name: 'the stop-rule hold is not persisted (a cut resets it)', case: 'stop-rule-span', edits: [['src/core/hunt/conditions.js', "  unit: Object.freeze([['ruleHold', 'json'], ['ruleWait', 'json']]),", "  unit: Object.freeze([['ruleWait', 'json']]),"]] },
+  { name: '[undertow] a party casts the alone spell', case: 'undertow-both-paths',
+    edits: [['src/core/hunt/abilities.js', '    && (solo || !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].alone)));', '    && (solo || true));']] },
   { name: 'the healer\'s default rule set has no attack-when-safe rule', case: 'healer-default-rules',
     edits: [['src/data/rule-subjects.js', ", slot('green_sickness', SICKNESS_WHEN), slot('undertow', UNDERTOW_WHEN)]),", ", slot('undertow', UNDERTOW_WHEN)]),"]] },
   { name: 'the healer\'s attack spends the mana a heal needs', case: 'healer-default-rules',
@@ -1050,8 +1078,10 @@ const mutants = [
     edits: [['src/data/rule-subjects.js', "? BASIC_SUPPLIES.find((x) => x.partner === r.rune) : null; return b ? b.id : null; };", "? BASIC_SUPPLIES.find((x) => x.partner === r.rune) : null; return b ? 'plain_fire_rune' : null; };"]] },
   { name: 'Frost Lance waits for two monsters (a new Mage fires nothing on a lone one)', case: 'starter-bar-fires',
     edits: [['src/data/rule-subjects.js', "slot('frost_lance', SPARE_MANA)", "slot('frost_lance', [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }])"]] },
+  /* (Undertow fires on a lone monster too since 2026-11-09, so both of the Healer's strikes wait for two here.) */
   { name: 'Green Sickness waits for two monsters (a new Healer fires nothing on a lone one)', case: 'starter-bar-fires',
-    edits: [['src/data/rule-subjects.js', "slot('green_sickness', SICKNESS_WHEN)", "slot('green_sickness', [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }])"]] },
+    edits: [['src/data/rule-subjects.js', "slot('green_sickness', SICKNESS_WHEN)", "slot('green_sickness', [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }])"],
+      ['src/data/rule-subjects.js', "slot('undertow', UNDERTOW_WHEN)", "slot('undertow', [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }])"]] },
   { name: 'Green Sickness waits for someone hurt (the old Healer: nothing until it hurts)', case: 'starter-bar-fires',
     edits: [['src/data/rule-subjects.js', "slot('green_sickness', SICKNESS_WHEN)", "slot('green_sickness', [{ metric: 'ally_hp_pct', op: 'lt', value: 70, subject: 'lowest' }])"]] },
   { name: 'Arcane Barrier can never fire (HP under 0%)', case: 'starter-bar-fires',

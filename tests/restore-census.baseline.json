@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-11-08",
+ "generated": "2026-11-09",
  "production": {
   "measured": "2026-08-30",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -1130,7 +1130,7 @@
   },
   "hr_hunt_abilities": {
    "class": "seeded",
-   "replay": 16,
+   "replay": 17,
    "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): the hunt abilities (lane, cooldown, mana, rune / ammo cost) the bar check and the instance settle read. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_action_ids": {
@@ -1211,7 +1211,7 @@
   },
   "hr_hunt_role_rules": {
    "class": "seeded",
-   "replay": 12,
+   "replay": 13,
    "note": "Catalogue (2026-10-25-action-conditions.sql §1, rows pinned equal to src/data by tests/hunt-core/conditions.mjs sql-rows): the role default rule sets the settings view projects (src/data/rule-subjects.js ROLE_RULES). Rebuilt from repo, never restored; nothing player-owned. If it came back empty every conditional bar edit is refused (catalogue_missing / bad_metric), loud, never a wrong grant."
   },
   "hr_hunt_roles": {

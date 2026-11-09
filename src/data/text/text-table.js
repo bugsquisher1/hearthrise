@@ -8,15 +8,15 @@
 // tests/text-home.mjs keeps every call site honest and ratchets the text
 // still written in code down to none.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_TEXT } from './bar.js?v=0.2.110';
-import { FARM_TEXT } from './farm.js?v=0.2.110';
-import { HEROES_TEXT } from './heroes.js?v=0.2.110';
-import { HOUSE_TEXT } from './house.js?v=0.2.110';
-import { HUNTS_TEXT } from './hunts.js?v=0.2.110';
-import { ITEM_TEXT } from './item.js?v=0.2.110';
-import { PREP_TEXT } from './prep.js?v=0.2.110';
-import { SHOP_TEXT } from './shop.js?v=0.2.110';
-import { TEMPER_TEXT } from './temper.js?v=0.2.110';
+import { BAR_TEXT } from './bar.js?v=0.2.111';
+import { FARM_TEXT } from './farm.js?v=0.2.111';
+import { HEROES_TEXT } from './heroes.js?v=0.2.111';
+import { HOUSE_TEXT } from './house.js?v=0.2.111';
+import { HUNTS_TEXT } from './hunts.js?v=0.2.111';
+import { ITEM_TEXT } from './item.js?v=0.2.111';
+import { PREP_TEXT } from './prep.js?v=0.2.111';
+import { SHOP_TEXT } from './shop.js?v=0.2.111';
+import { TEMPER_TEXT } from './temper.js?v=0.2.111';
 
 export const TEXT = Object.freeze({
   bar: BAR_TEXT,

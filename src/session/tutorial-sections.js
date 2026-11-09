@@ -23,18 +23,18 @@
 //   back        string           the hunt the player came back to after an absence (residue `coach.back`, away-recap.js)
 //   slotCost    number           the next hero slot's price (AccountSession.slotOffer, the server's), absent when none is for sale
 // ════════════════════════════════════════════════════════════════════════
-import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.110';
-import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.110';
-import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf } from './hunt-sections.js?v=0.2.110';
-import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js?v=0.2.110';
-import { farmFieldOf } from './farm-sections.js?v=0.2.110';
-import { homeOf, chestsOf } from './home-sections.js?v=0.2.110';
-import { tallyOf } from './tally-sections.js?v=0.2.110';
-import { temperFirstRungOf } from './temper-sections.js?v=0.2.110';
-import { partyMembershipOf } from './party-sections.js?v=0.2.110';
-import { wearsArmour } from '../core/vitals.js?v=0.2.110';
-import { ITEMS } from '../data/items.js?v=0.2.110';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.110';
+import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.111';
+import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.111';
+import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf } from './hunt-sections.js?v=0.2.111';
+import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js?v=0.2.111';
+import { farmFieldOf } from './farm-sections.js?v=0.2.111';
+import { homeOf, chestsOf } from './home-sections.js?v=0.2.111';
+import { tallyOf } from './tally-sections.js?v=0.2.111';
+import { temperFirstRungOf } from './temper-sections.js?v=0.2.111';
+import { partyMembershipOf } from './party-sections.js?v=0.2.111';
+import { wearsArmour } from '../core/vitals.js?v=0.2.111';
+import { ITEMS } from '../data/items.js?v=0.2.111';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.111';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;

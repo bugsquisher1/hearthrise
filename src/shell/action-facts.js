@@ -98,6 +98,20 @@ export function weaponWarning(a, disc, role, skills) {
   return 'Your weapon can’t cast this. The slot stays struck until you wield a ' + weaponsFor(r.disciplines[0]) + '.';
 }
 
+/** THE ALONE CALLOUT (Tyler 2026-11-09: "Make that callout clear to the player"): a spell marked `alone` (src/data/abilities.js)
+    casts only while no other living hero shares its hunt. Said on its card, its slot's tooltip and, in a party, on the slot. */
+export const ALONE_WORDS = 'Only when you hunt alone.';
+
+/**
+ * WHY AN ALONE SPELL'S SLOT WAITS (the engine's own rule, src/core/hunt/abilities.js aloneIn): `alone` is false when another
+ * hero shares the hunt (slot-waits.js whyFacts: the running prediction's world, else the server's party), so the slot greys.
+ * Null for any other slot, or while the hero hunts alone.
+ */
+export function aloneReason(sl, alone) {
+  const r = sl && !sl.empty && sl.action && sl.action.type === 'ability' ? ABILITIES[sl.action.id] : null;
+  return r && r.alone && alone === false ? { code: 'alone', text: ALONE_WORDS, glyph: 'uiPeople', strike: true } : null;
+}
+
 const TARGET_LINE = Object.freeze({
   taunt: 'Taunt: pulls the monsters near you onto you.',
   mark: 'Mark: marks your current target.',
@@ -110,8 +124,8 @@ const TARGET_LINE = Object.freeze({
 });
 
 /**
- * What an action is: { type, cost, cooldown, effect[], requires } (absent fields
- * are null). All from catalogue rows.
+ * What an action is: { type, cost, cooldown, effect[], requires, alone? } (absent fields
+ * are null; `alone` is an alone spell's ALONE_WORDS). All from catalogue rows.
  */
 export function factsOf(a) {
   if (a.type === 'ability') {
@@ -127,7 +141,8 @@ export function factsOf(a) {
     const cost = [r.mana ? r.mana + ' mana' : 'No mana'].concat(r.rune ? ['1 ' + runeWords(r.rune, 1)] : [], r.ammo ? [r.ammo + ' ammo'] : []).join(' · ');
     /* (an ally shield is a ward, not a heal; the universal self-heal needs no particular weapon) */
     const type = r.target === 'ally' && r.shield ? 'Ward: shields the ally who needs it most.' : TARGET_LINE[r.target] || null;
-    return { type, cost, cooldown: secs(r.cdMs) + ' s cooldown', effect, requires: r.universal ? 'Requires: any weapon.' : 'Requires: ' + weaponsFor(r.disciplines[0]) + '.' };
+    return { type, cost, cooldown: secs(r.cdMs) + ' s cooldown', effect, requires: r.universal ? 'Requires: any weapon.' : 'Requires: ' + weaponsFor(r.disciplines[0]) + '.',
+      alone: r.alone ? ALONE_WORDS : null };
   }
   if (a.type === 'consume') {
     const spread = 'Half lands at once, the rest over ' + secs(CONSUMABLE_RULES.overTimeMs) + ' s.';

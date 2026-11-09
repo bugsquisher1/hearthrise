@@ -21,7 +21,8 @@ import { areaTopOf } from '../core/hunt/conditions.js?v=0.2.109';
 import { huntOf, settingsOf, partyOf } from '../session/hunt-sections.js?v=0.2.109';
 import { carriedOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.109';
 import { conditionWords } from './bar-draft.js?v=0.2.109';
-import { reasonOf, holdingReason } from './action-facts.js?v=0.2.109';
+import { reasonOf, holdingReason, aloneReason, ALONE_WORDS } from './action-facts.js?v=0.2.109';
+import { ABILITIES } from '../data/abilities.js?v=0.2.109';
 import { carryRows } from './carry-in.js?v=0.2.109';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
@@ -81,9 +82,12 @@ export function waitReason(sl, party, test) {
   return { code: 'wait_until', text: 'Waiting until ' + conditionWords(c) + '.', glyph: 'uiHourglass', strike: false, quiet: true, rest: true };
 }
 
-/** Configure action's line: what the conditions being set up will mean, '' when they ask nothing surprising. `d` is the draft slot. */
+/** Configure action's line: what the conditions being set up will mean, '' when they ask nothing surprising. `d` is the draft slot.
+    An alone spell in a party says so first: it never fires there, whatever its conditions (abilities.js `alone`). */
 export function setupNote(d, party) {
   if (!d || !d.action || !d.action.id) return '';
+  const r = d.action.type === 'ability' ? ABILITIES[d.action.id] : null;
+  if (r && r.alone && party > 1) return ALONE_WORDS + ' In your party this slot never fires.';
   for (const c of d.conditions) {
     if (!canHold(c, d, party)) return neverWords(c, d, party);
     const need = c.metric === 'enemies_in_aoe' ? atLeast(c) : null;
@@ -100,6 +104,9 @@ export function whyFacts(cs) {
   return {
     set: settingsOf(cs), bag: carriedOf(cs), hero, worn: /** @type {{ ammo?: string }} */ (equipmentOf(cs) || {}).ammo, skills: skillsOf(cs), pack: carryRows(cs),
     party: p ? p.members.length : 1,
+    /* Does the hero hunt alone (an alone spell's gate)? The running prediction's own world when one runs (live-engine.js
+       alone: the engine's aloneIn, so a party whose others went home reads alone, as the server does), else the server's party. */
+    alone: hero && live && typeof live.alone === 'function' && live.alone(hero.unit) !== null ? live.alone(hero.unit) : !(p && p.members.length > 1),
     /* (Bug #61: the viewed tank holds every engaged monster, so its Challenge slot reads "Holding".) */
     holding: !!hero && !!live && typeof live.holdsPack === 'function' && live.holdsPack(hero.unit),
     test: hero && live && typeof live.slotTester === 'function' ? live.slotTester(hero.unit) : null,
@@ -114,6 +121,8 @@ export function whyFacts(cs) {
 export function slotWhy(sl, f) {
   const r = reasonOf(sl, f.set, f.bag, f.hero, f.worn, f.skills, f.pack);
   if (r && r.strike) return r;
+  const a = aloneReason(sl, f.alone);
+  if (a) return a;
   const w = waitReason(sl, f.party, f.test);
   if (w && !w.rest) return w;
   return r || w || holdingReason(sl, f.holding);

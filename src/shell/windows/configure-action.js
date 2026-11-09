@@ -252,7 +252,8 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   text(root.querySelector('.ca-src'), shown ? sourceLine(shown) : '');
   text(root.querySelector('.ca-eff'), effectLine(shown));
   const f = shown ? factsOf(shown.action) : null;
-  text(root.querySelector('.ca-req'), f && f.requires ? f.requires : '');
+  /* The spell card's requirement, and an alone spell's callout beside it (Tyler 2026-11-09: "Make that callout clear to the player"). */
+  text(root.querySelector('.ca-req'), f && f.requires ? f.requires + (f.alone ? ' ' + f.alone : '') : '');
   /* A rune spell's store choice: carried runes only, or a store rune of its family at the server's price a cast. */
   const runes = storeChoices(d.action, set.store, skillsOf(cs));
   cls(root.querySelector('.ca-runestore'), 'is-on', runes.length > 0);

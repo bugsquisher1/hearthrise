@@ -833,24 +833,24 @@ async function pureRules(M, base) {
     const end = ' Melee, Ranger, Mage and Healer each count.';
     for (const [roles, hunt, want] of [
       [['tank', 'ranger'], 'meadowbrook_thicket', 'Your party has 2 of 4 classes: about 45% more Level XP each than hunting alone in Meadowbrook Thicket.'],
-      /* one class: since one pack for every group (2026-11-08) a one-class party shares a whole kill, measured well under a hero alone */
-      [['tank', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 25% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['tank', 'melee_dps'], 'millrace_sewer', 'Your party has 1 of 4 classes: about 30% less Level XP each than hunting alone in The Sewer.'],
+      /* one class: a one-class party loses a little against a hero alone (Tyler 11-02 "about 6-15%"; the lane's fifth commit), measured */
+      [['tank', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in Meadowbrook Thicket.'],
+      [['tank', 'melee_dps'], 'millrace_sewer', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in The Sewer.'],
       [['tank', 'mage', 'healer'], 'coppercap_warrens', 'Your party has 3 of 4 classes: about 20% more Level XP each than hunting alone in Coppercap Warrens.'],
       [['tank', 'ranger'], 'millrace_sewer', 'Your party has 2 of 4 classes: about 40% more Level XP each than hunting alone in The Sewer.'],
       [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', 'Your party has 4 of 4 classes: about 35% more Level XP each than hunting alone in The Sewer.'],
       /* a seat with no weapon fights bare-handed, a Melee (hunt-roles.js ROLE_KEYS.neutral): it holds the Melee class */
       [[null, 'ranger'], 'wickstead', 'Your party has 2 of 4 classes: about 40% more Level XP each than hunting alone in Wickstead.'],
-      [[null, 'tank'], 'wickstead', 'Your party has 1 of 4 classes: about 20% less Level XP each than hunting alone in Wickstead.'],
-      /* A Thicket four who all share one role reads its own measured line (ONE_ROLE_VS_ALONE, CLAUDE.md §6): a four of wands loses least, a four of axes most. */
-      [['mage', 'mage', 'mage', 'mage'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 30% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['tank', 'tank', 'tank', 'tank'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 40% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['melee_dps', 'melee_dps', 'melee_dps', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 40% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['ranger', 'ranger', 'ranger', 'ranger'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 35% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['healer', 'healer', 'healer', 'healer'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 30% less Level XP each than hunting alone in Meadowbrook Thicket.'],
+      [[null, 'tank'], 'wickstead', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in Wickstead.'],
+      /* A Thicket four who all share one role reads its own measured line (ONE_ROLE_VS_ALONE, CLAUDE.md §6): a four of wands loses least, shields and axes most. */
+      [['mage', 'mage', 'mage', 'mage'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 10% less Level XP each than hunting alone in Meadowbrook Thicket.'],
+      [['tank', 'tank', 'tank', 'tank'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 25% less Level XP each than hunting alone in Meadowbrook Thicket.'],
+      [['melee_dps', 'melee_dps', 'melee_dps', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 25% less Level XP each than hunting alone in Meadowbrook Thicket.'],
+      [['ranger', 'ranger', 'ranger', 'ranger'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 20% less Level XP each than hunting alone in Meadowbrook Thicket.'],
+      [['healer', 'healer', 'healer', 'healer'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in Meadowbrook Thicket.'],
       /* one class of two roles reads the ground's row, and another ground's wands keep theirs */
-      [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 35% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['mage', 'mage', 'mage', 'mage'], 'wickstead', 'Your party has 1 of 4 classes: about 40% less Level XP each than hunting alone in Wickstead.'],
+      [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 20% less Level XP each than hunting alone in Meadowbrook Thicket.'],
+      [['mage', 'mage', 'mage', 'mage'], 'wickstead', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in Wickstead.'],
     ]) {
       if (L(roles, hunt) !== want + end) return JSON.stringify(roles) + ' on ' + hunt + ' reads ' + JSON.stringify(L(roles, hunt));
     }

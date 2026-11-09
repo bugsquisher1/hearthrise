@@ -47,14 +47,14 @@ function away(M, fx, xpMultOf, awayFlag) {
   runSpan(M, f, []);
 }
 
-/* THE DESIGNER'S TABLE (2026-11-01; same monsters re-tuned 2026-11-08, the mixed cells raised): ground -> heroes alive -> permille by distinct classes (1, 2, ...). */
+/* THE DESIGNER'S TABLE (2026-11-01; same monsters re-tuned 2026-11-08, the mixed cells raised, then the one-class cells): ground -> heroes alive -> permille by distinct classes (1, 2, ...). */
 const PARTY_TABLE = {
-  mill_cellar: { 2: [1000, 1545], 3: [990, 1755, 1850], 4: [1000, 2130, 2165, 2380] },
-  meadowbrook_thicket: { 2: [930, 1735], 3: [880, 1620, 1800], 4: [940, 1735, 1815, 1860] },
-  wickstead: { 2: [880, 1610], 3: [970, 1745, 1910], 4: [970, 1800, 1860, 1910] },
-  mosslight_glade: { 2: [960, 1610], 3: [1000, 1660, 1795], 4: [1000, 1575, 1695, 1730] },
-  millrace_sewer: { 2: [800, 1660], 3: [800, 1660, 1735], 4: [800, 1660, 1735, 1860] },
-  coppercap_warrens: { 2: [960, 1325], 3: [970, 1345, 1435], 4: [960, 1300, 1365, 1475] },
+  mill_cellar: { 2: [1145, 1545], 3: [1320, 1755, 1850], 4: [1785, 2130, 2165, 2380] },
+  meadowbrook_thicket: { 2: [1045, 1735], 3: [1015, 1620, 1800], 4: [1190, 1735, 1815, 1860] },
+  wickstead: { 2: [975, 1610], 3: [1200, 1745, 1910], 4: [1335, 1800, 1860, 1910] },
+  mosslight_glade: { 2: [990, 1610], 3: [1180, 1660, 1795], 4: [1160, 1575, 1695, 1730] },
+  millrace_sewer: { 2: [1015, 1660], 3: [1155, 1660, 1735], 4: [1150, 1660, 1735, 1860] },
+  coppercap_warrens: { 2: [990, 1325], 3: [990, 1345, 1435], 4: [970, 1300, 1365, 1475] },
 };
 /* A HERO HUNTING ALONE (Tyler 2026-11-08: "a solo person gets a small exp boost"), typed here like the table: a retune moves both. */
 const SOLO = 1050;
@@ -348,7 +348,7 @@ const mutants = [
   { name: 'the ground is ignored: every ground reads the Cellar\'s row', case: 'party-class-every-cell',
     edits: [['src/core/hunt/xp-share.js', "partyClassXp(groundId, heroes", "partyClassXp('mill_cellar', heroes"]] },
   { name: 'one Sewer cell drifts (a same-class duo back to the even share)', case: 'party-class-every-cell',
-    edits: [['src/data/party-class-xp.js', 'millrace_sewer: row([800, 1660]', 'millrace_sewer: row([1000, 1660]']] },
+    edits: [['src/data/party-class-xp.js', 'millrace_sewer: row([1015, 1660]', 'millrace_sewer: row([1000, 1660]']] },
   { name: 'a ground with no row pays a bonus', case: 'party-class-no-row-is-even',
     edits: [['src/data/party-class-xp.js', "if (n < 2 || !Object.hasOwn(PARTY_CLASS_XP, groundId)) return { permille: 1000, classes };", "if (n < 2) return { permille: 1000, classes }; if (!Object.hasOwn(PARTY_CLASS_XP, groundId)) return { permille: 1200, classes };"]] },
   { name: 'a hero alone reads a party cell', case: 'party-class-no-row-is-even',

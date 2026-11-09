@@ -133,11 +133,11 @@ const cellWords = (r) => r.g + ', ' + armWords(r.armId) + ', ' + r.party.join('+
 /* ── THE PROOF. Each mutant reaches the rule the way a data row or a code slip would, and plays the cell it should move. ── */
 const MUTANTS = [
   { name: 'the Sewer pays a same-class pair 1300', cells: [['millrace_sewer', ['bow', 'bow']]],
-    edits: [['src/data/party-class-xp.js', 'millrace_sewer: row([800, 1660]', 'millrace_sewer: row([1300, 1660]']] },
+    edits: [['src/data/party-class-xp.js', 'millrace_sewer: row([1015, 1660]', 'millrace_sewer: row([1300, 1660]']] },
   { name: 'Wickstead pays a same-class pair 1300', cells: [['wickstead', ['bow', 'bow']], ['wickstead', ['tank', 'tank']], ['wickstead', ['healer', 'healer']]],
-    edits: [['src/data/party-class-xp.js', 'wickstead: row([880, 1610]', 'wickstead: row([1300, 1610]']] },
+    edits: [['src/data/party-class-xp.js', 'wickstead: row([975, 1610]', 'wickstead: row([1300, 1610]']] },
   { name: 'a one-class pair paid 1500 on one row (the Warrens)', cells: [['coppercap_warrens', ['bow', 'bow']]],
-    edits: [['src/data/party-class-xp.js', 'coppercap_warrens: row([960, 1325]', 'coppercap_warrens: row([1500, 1325]']] },
+    edits: [['src/data/party-class-xp.js', 'coppercap_warrens: row([990, 1325]', 'coppercap_warrens: row([1500, 1325]']] },
   { name: 'every party reads its top cell, classes or no classes', cells: [['mosslight_glade', ['bow', 'bow']], ['wickstead', ['bow', 'bow']]],
     edits: [['src/data/party-class-xp.js', 'return { permille: cells[Math.min(Math.max(classes.length, 1), cells.length) - 1], classes };', 'return { permille: cells[cells.length - 1], classes };']] },
   { name: 'a shield Melee and a Melee count as two classes', cells: [['millrace_sewer', ['tank', 'axes']], ['meadowbrook_thicket', ['tank', 'axes']]],
@@ -147,9 +147,9 @@ const MUTANTS = [
     edits: [['src/data/hunt-grounds.js', 'partyPull: Object.freeze([0, 4, 5, 5])', 'partyPull: Object.freeze([0, 8, 8, 8])']] },
   /* A ONE-CLASS CELL PAID LIKE A MIX, on another size and another ground than the rows above, and a four's shares lifted in the engine. */
   { name: 'the Thicket\'s three of wands paid a mix\'s 1620', cells: [['meadowbrook_thicket', LARGER.wands3]],
-    edits: [['src/data/party-class-xp.js', 'meadowbrook_thicket: row([930, 1735], [880, 1620, 1800]', 'meadowbrook_thicket: row([930, 1735], [1620, 1620, 1800]']] },
+    edits: [['src/data/party-class-xp.js', 'meadowbrook_thicket: row([1045, 1735], [1015, 1620, 1800]', 'meadowbrook_thicket: row([1045, 1735], [1620, 1620, 1800]']] },
   { name: 'Wickstead\'s four of wands paid 2000', cells: [['wickstead', LARGER.wands4]],
-    edits: [['src/data/party-class-xp.js', 'wickstead: row([880, 1610], [970, 1745, 1910], [970, 1800, 1860, 1910])', 'wickstead: row([880, 1610], [970, 1745, 1910], [2000, 2000, 2000, 2000])']] },
+    edits: [['src/data/party-class-xp.js', 'wickstead: row([975, 1610], [1200, 1745, 1910], [1335, 1800, 1860, 1910])', 'wickstead: row([975, 1610], [1200, 1745, 1910], [2000, 2000, 2000, 2000])']] },
   { name: 'a four\'s shares x1.5 in the engine', cells: [['meadowbrook_thicket', LARGER.wands4]],
     edits: [['src/core/hunt/xp-share.js', 'const paid = (raw * party * multOf(sc, h)) / 1000;', 'const paid = (raw * party * (heroes.length === 4 ? 1.5 : 1) * multOf(sc, h)) / 1000;']] },
 ];

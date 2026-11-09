@@ -113,6 +113,105 @@ The Level, and the to-hit on a solo ground, agree. The fix for the Lab's owner i
 | `hunt_live.instance.scale` | { level } or null: the live view plays the same rows (live-engine.js passes it to the engine) |
 The calls I made where the plan left room. The leader must be hunting in the instance (a solo hunt's hero is its own leader). A party whose leader is in town plays the ground's own rows and spends nothing. A window stops where the banked swings end, so hours never overrun, and the next settle restarts the world on the ground's own rows. A remembered Deadly plays Normal's dials and Normal's pull while scaled. The day's 48 hours are counted from the ledger, not a counter column.
 
+### 2026-11-09 Death share and alt price (designer, lane/d-death-and-slots, Tyler 2026-11-09 "Death needs to be more than 2% I think, and losing a level should be possible", "A flat share of exp that is reduced with blessings", and "like a week to afford the first alt"): DESIGNED, MEASURED on real-engine cells already played, nothing built. **Lane C: a death costs 6% of the hero's total Level XP and can take a Level, each Blessing cuts a quarter. The second hero slot costs 300,000 gold, then 750,000 and 1,500,000**
+Placed below the top of Decisions on purpose: lane/b-one-difficulty inserts there. Sources (no new runs): the full grade of main's rows (lane/b-one-difficulty `out/grade-before`, 1,424 cells, 11-08), the pace careers (main from lane/b-ground-formula-2 `out/pace` 11-07, lane/b-one-difficulty `out/pace3` 11-08), `tools/balance-sim/level-pace.json` rates, the curve in `src/core/xp.js`.
+
+**1. DEATH.** One formula, nothing keyed on a ground: **XP lost = total Level XP x 0.06 x (1 - 0.25 x Blessings held)**.
+| Part | Rule | Today |
+|---|---|---|
+| Level | 6% of total Level XP. It can take a Level, never below Level 1 (6% of a total never reaches zero) | 2%, never below the current Level |
+| Combat skills (Melee, Ranged, Magic, Defense, Inner Flame) | 6% of their progress toward the next skill level, never a skill level. Gathering and crafting lose nothing (Tyler 10-25) | 2%, same shape |
+| Blessings | Three. Each removes a quarter of the full loss: 6% / 4.5% / 3% / 1.5%. Free under Level 30, prices unchanged, used up by a death | 32 / 63 / 95% (2% / 1.36% / 0.74% / 0.1%) |
+
+**Why 6%.** Tyler's anchor: an unblessed death worth about one Level at a typical hunting Level. A flat share of the total is worth MORE Levels the higher you go, forever, so I anchored it at Level 50 (the top of today's grounds, the floor of the 50+ grounds coming), not at the first fortnight. One Level is this share of the total: **Level 10 40.9%, 25 10.5%, 50 6.55%, 75 5.08%, 100 3.31%** (200: 1.35%). 6% is 0.95 of a Level at 50. Rejected: 10% (one Level at 25, but 7.4 Levels and 93 h at Level 200), 5% (0.79 at 50, under the anchor). **Why 25/50/75 and not 95%:** at 6% a full 95% set would leave 0.3%, cheaper than today's unblessed 2%. Tyler asked for more. A blessed death should still cost something, and three equal steps read in one line on the wiki.
+
+**A. What one death costs on the real curve** (a hero halfway into the Level. XP an hour is the median lone way's measured rate to 49, the curve's contract 1019 x L^1.365 past it).
+| Level | XP an hour | Today, 2% | 6%, no Blessing | 6% with 1 / 2 / 3 Blessings |
+|---|---|---|---|---|
+| 10 | 33.6k | 0.06 Level, 0.1 h | 12.7k XP, 0.18 Level, 0.4 h | 0.3 / 0.2 / 0.1 h |
+| 25 | 84.2k | 0.20 Level, 0.4 h | 112k, 0.60 Level, 1.3 h (ends at 24) | 1.0 / 0.7 / 0.3 h |
+| 50 | 212k (contract) | 0.32 Level, 1.3 h | 831k, 0.95 Level, 3.9 h (ends at 49) | 2.9 / 2.0 / 1.0 h |
+| 75 | 370k | 0.40 Level, 3.5 h | 3.85M, 1.21 Levels, 10.4 h | 7.8 / 5.2 / 2.6 h |
+| 100 | 547k | 0.50 Level (stopped at the Level's start), 5.2 h | 10.5M, 1.84 Levels, 19.1 h | 14.3 / 9.6 / 4.8 h |
+| 200 | 1.41M | 0.50 Level (stopped at the Level's start), 6.3 h | 79.0M, 4.46 Levels, 56 h | 42 / 28 / 14 h (1.1 Levels at 3) |
+Today a Level 50 hero still hunts the Glade at 92.7k an hour, so its unblessed death there is 9.0 h. Level 200 stays a big deal (Tyler 10-14): a death there is a real event, blessed or not.
+
+**B. Where deaths happen** (main's rows. Each cell reads deaths per 100 hero-hours, then Level XP an hour against Normal on the same ground, way and Level: gross, then net of deaths at 6%, then at 6% with 3 Blessings).
+| Tier, where | Alone | A party |
+|---|---|---|
+| Normal, in range / 2 to 5 under | 0 in 4,608 h / 0 in 896 h | 0 in 1,512 h / 0 in 1,008 h |
+| Dangerous, in range | 0, 1.16x | 0, 1.27x |
+| Dangerous, 2-3 under | 0, 1.15x | 11.3, 1.24x, 1.20x, 1.23x |
+| Dangerous, 5 under | 0, 1.16x | 34.4, 1.25x, 1.19x, 1.24x |
+| Deadly, in range | 198, 1.30x, -0.30x, 0.90x | 25, 1.43x, 1.32x, 1.40x |
+| Deadly, 2-3 under | 998, 1.19x, -6.3x, -0.68x | 337, 1.29x, -0.31x, 0.89x |
+| Deadly, 5 under | 1,715, 1.16x, -11.6x, -2.0x | 598, 1.27x, -1.09x, 0.68x |
+
+**C. Against the 168 h pace** (Levels 16 to 50 at each tier's measured in-range rates, the Glade to 31 and, for a party, the Warrens from 32. Levels 1-16 take 18.8 h on Normal).
+| Path to Level 50 | Today (2%, 95% Blessings) unblessed / blessed | 6%, no Blessing | 6% with 3 Blessings |
+|---|---|---|---|
+| Normal, alone | 161 h | 161 h | 161 h |
+| Dangerous, alone / a party | 126 / 133 h (no deaths) | same | same |
+| Deadly, a party | 137 / 122 h | 196 h | 132 h |
+| Deadly, alone | never / 184 h | never | never |
+**Reading.** Normal never pays it (0 deaths in 6,120 in-range hours), so a careful player's 168 h is untouched. The share bites only where Tyler wants risk (11-04: "if someone wants to try and rush exp ... it comes with risk"): a blessed four rushing Deadly still reaches 50 29 hours sooner than Normal, unblessed it is slower than Normal, and Deadly alone or under the weight class loses XP outright. **Finding, not mine to fix here:** Dangerous in range has no death in 2,448 hours on main, so no share can make Dangerous risky. Only monster stats can (Tyler 11-04), lane/b-tier-risk's job. On lane/b-one-difficulty's world Dangerous alone 2-3 under dies 52 times in 100 h, and 6% takes its edge from 1.14x to 1.01x Normal, not below.
+
+**Words** (no semicolons, no dashes, every number the server's).
+| Where | Words |
+|---|---|
+| Death popup, XP (as today) | Dying cost 830,962 Level XP and 1,204 Melee XP. |
+| Death popup, NEW, only when the Level fell | {name} dropped from Level 50 to Level 49. |
+| Death popup, no Blessing | No Blessing was active. Blessings in the Shop's Services tab make dying cost less, and they're free until Level 30. (the last clause only while free) |
+| Death popup, Blessings used | Your Blessing kept 207,740 Level XP, and is now used up. / Your 3 Blessings kept 623,221 Level XP, and are now used up. |
+| Hunts card (text/hunts.js, reads DEATH_XP_LOSS) | tier_cost ends "A death ends the hunt and costs 6% of your Level XP." range_die: "If you die, the hunt ends and you lose 6% of your Level XP." |
+| How to play, death note | The hunt ends and your hero wakes in town. A death costs 6% of your Level XP, and that can take a Level. Blessings from the Shop's Services tab cut the loss, and they are free below Level 30. |
+| Wiki, Death and Blessings | When your hero dies, the hunt ends and your hero wakes in town with full health and mana. A death costs 6% of your hero's Level XP. That can take your hero down a Level, but never below Level 1. Each combat skill (Melee, Ranged, Magic, Defense and Inner Flame) also loses 6% of its progress toward its next level, and a skill never drops a level. Gathering and crafting skills lose nothing. Blessings make a death cost less. With one Blessing a death costs 4.5%, with two 3%, and with all three 1.5%. The same cut applies to your skills. A death uses up every Blessing you hold, so buy them again before your next hunt. They are in the Shop's Services tab, free until Level 30, and after that each costs more as your Level rises. XP lost = total Level XP x 0.06 x (1 - 0.25 x Blessings held). |
+
+**2. THE FIRST ALT: 300,000 GOLD, then 750,000 and 1,500,000.** A new account owns ONE hero slot (slot 1 stops being a free starter). Cap 4 as today.
+**What "a week of normal play" is.** The brief's 2-3 h of play a day is the player's attention, not the hero's hunting. The hunt started in that session runs on after the game closes (Tyler 10-18) until stamina ends it, and stamina refills hour for hour while the hero rests. So one login a day hunts the free cap, **8 h a day, 56 h a week**. The 2.5 h row (hunting only while watching) and the 12 h row (the pace's day, the beta's premium cap) are shown beside it.
+
+**D. What a lone hero banks** (the pace careers, 8 ways, the real settle, net of store supplies, no rares, no other spending).
+| Hunting hours | What that is | Level (median) | Gold, main: median (slowest to fastest way) | On lane/b-one-difficulty |
+|---|---|---|---|---|
+| 17.5 | a week at 2.5 h a day | 14.5 | 58k (52-63k), 3.6k an hour then | 71k |
+| 35 | | 25 | 171k (134-188k), 7.2k an hour | 210k |
+| 56 | **a week of one daily login, 8 h** | 32 | **332k (264-361k)**, 7.7k an hour | 414k |
+| 84 | a week at 12 h a day | 38.5 | 557k (450-595k), 8.0k an hour | 714k |
+
+**E. The day each slot is bought** (one purse for every hero, Tyler 10-23. Every hero hunts the same hours and earns the median career's gold for its own hours, and a slot is bought the moment the purse covers it. "x0.75" ASSUMES a real player spends a quarter of it on their main or stops: no live purse data was read).
+| A hero hunts | Today (free / 25,000 / 75,000) | 300k / 750k / 1.5M, main | same, x0.75 | same, lane/b-one-difficulty |
+|---|---|---|---|---|
+| 2.5 h a day | day 0 / 1.1 / 4.1 | day 20 / 42 / 68 | 25 / 53 / 88 | 17 / 34 / 55 |
+| **8 h a day** | day 0 / 0.2 / 1.2 | **day 6.2 / 13 / 21** | 8.0 / 16 / 27 | 5.2 / 10 / 17 |
+| 12 h a day | day 0 / 0.2 / 0.5 | day 4.2 / 8.4 / 14 | 5.2 / 10.7 / 18 | 3.4 / 7.0 / 11 |
+**Why these three.** 300,000 lands the first alt on day 6-8 of normal play on main (day 5-6 on lane/b-one-difficulty), about 90% of main's median 56 h purse, so a player who spends a little on their main still gets there in about a week. One purse feeds every hero, so a second hero doubles income: holding "later slots more" in TIME needs more than double the gold. 750,000 is about a week of the two-hero account, 1,500,000 about eight days of the three-hero one: a full roster at about three weeks. Today's ladder gives four heroes by day 1 or 2. Tyler's reasons hold: a week of one hero is a week of finding other players (Find a party exists in the Party window and the Hunts window).
+
+**Words** (character screen, `src/app/slot-offer.js`, prices the server's).
+| Where | Words |
+|---|---|
+| Play line (replaces "More slots cost gold: the third is 25,000.") | You own 1 hero slot. Up to 4 heroes can play at once, and more slots cost gold. |
+| Offer lead (today's shape) | A second hero slot costs 300,000 gold. An account holds up to 4 heroes. |
+| NEW, only while the account has one hero | Most players can buy a second hero after about a week. Until then, use Find a party in the Party window to hunt with other players. |
+| Unchanged | Your gold: 158,800 / You need 141,200 more gold. / Buy a hero slot for 300,000 gold |
+| How to play, heroes note | Your account starts with one hero slot, and gold buys up to three more. All four heroes can play at the same time. Your own heroes join your party straight away, so one can hold the monsters while another heals. |
+**Walk-through, a new account's first week** (every name grepped in `src/data/hunt-tutorial.js`, `how-to-play.js`, `slot-offer.js`): (1) create a hero, slot 0 (`hr_create_character(0)`). (2) Characters reads the play line and the 300,000 offer. (3) `more_heroes` ("Press Characters, then Create hero in your empty slot") needs `one_hero`, which needs slotsOwned > 1: silent until the slot is bought, so it never asks for a slot the player lacks. (4) `party_own` needs `own_hero_in_town`: silent. (5) `purse_goal` speaks at half the price (`SAVING_FROM` 0.5): 150,000, about hour 30 at Level 23-24, and its words still hold. (6) Buying slot 1 makes `one_hero` true and `more_heroes` fires with an empty slot to fill. (7) The How to play heroes note is the one line that says "starts with two" today: it changes.
+
+**Balance and exploit review.** Death: no gold moves. No reward exists for reaching a Level (Tyler 10-23 no milestone gear, 10-22 old reward tables cut), so a Level lost and earned again pays nothing twice (level_up events are display only). Level gates read the current Level and fail safe (the market bench gate's min_level, a scaled hunt's leader past the band, the Blessing price): a de-level can close one, and the refusal says why. A Leave still lands only at the next settle (10-20), so a death seen coming can't be dodged. Leaderboards by Level fall with it, as they should. Slots: a pure sink (gold destroyed), priced by the server catalogue, the per-day clamp and journal unchanged. Crowns bought for players' gold can speed an alt: accepted under Tyler 11-04 "paying for power has to live somewhere", bounded by the weekly Crowns exchange cap.
+**First-principle flag.** After every death a player re-buys up to three Blessings, one press each. Tyler 10-18 rules out automatic purchases, so the fix is one "Bless all" press in Services and on the death popup that shows the total first (the one-tap refill pattern). Not in this lane: a small client and RPC follow-up.
+
+**Lane C implementation outline** (one lane, two parts. Both are money or ranking surfaces for the pre-EA Security review, §3.7).
+| # | Death | Slots |
+|---|---|---|
+| 1 | `src/data/hunt-sessions.js` DEATH_XP_LOSS 0.02 to 0.06, comments to "never below Level 1". DEATH_XP_BASE stays 'total'. Cut its unused 'level' arm and the `death_xp_base` row if the settle restate makes it free (Tyler 11-08: public formulas, no hidden alternative) | One migration: `hr_hero_slots` slot 1 starter false and 300,000, slot 2 750,000, slot 3 1,500,000. §0 pins today's '1:0:true,2:25000:false,3:75000:false' (2027-03-22-four-slots.sql's). §2 asserts a new account owns slot 0 only, its offer is {slot_id 1, cost 300000}, `hr_create_character(1)` is slot_not_owned until bought, slot 2 needs slot 1, the cap stays 4 = max_concurrent. No body moves: every body reads the catalogue |
+| 2 | `src/core/action-rules.js` levelDeathLoss: the Level floor goes (`x - floor` becomes `x`). skillDeathLoss unchanged | `src/data/shops.js`: character_slot.1 back at 300,000, .2 750,000, .3 1,500,000. Re-run the generated unlocks and unlock-offers catalogues (character_slot:1 returns) |
+| 3 | `src/data/blessings.js` permille 320/630/950 to 250/500/750, the header's table re-worked, prices unchanged | `tests/hero-slot-buy.mjs` BIND ("a starter slot is never offered") re-aimed: slot 1 is offered, no slot but 0 starts owned |
+| 4 | Server: regenerate the hunt-sessions catalogue (`tools/gen-hunt-sessions.mjs`, death_xp_permille 60) and the alpha catalogue (`tools/gen-alpha-catalogue.mjs`, hr_blessing_tiers). Restate hr_hunt_apply_member §6 from its newest body (2027-03-22-live-events.sql, or lane/b-one-difficulty's if it lands first): the Level debit's floor `v_cur - v_n < v_xfloor` becomes `< 0`, the level_up clean-up loop holds when the final Level is under the window's start, the death event gains `level_from` / `level_to`, projected by hr_death_log_view. hr_blessing_take unchanged. §4 self-check: a hero 1 XP into Level 10 dies and lands at Level 9, three Blessings keep 75%, nothing goes below 0 XP | Client words: `slot-offer.js` (play line, the one-hero line), `how-to-play.js` heroes note, `hunt-tutorial.js` comments at SAVING_FROM and purse_saving_hero (the half now speaks at 150,000, about hour 30), `hero-rename.js` comment (a rename is now a tenth of a hero, not "about as much") |
+| 5 | Engine: nothing beyond rows 1-3 (combat-sim die() reads deathXpLoss). hr-accrue redeploys right after the catalogues | Edge: shops.js is in the hr-accrue bundle, one redeploy |
+| 6 | Client: `death-popup.js` (the Level line, and whyWords must read the death row's level_from, its comment says a death never lowers the Level), `text/hunts.js` tier_cost and range_die say "Level XP", `how-to-play.js` death note built from DEATH_XP_LOSS, the wiki page from the data rows when the wiki ships | Existing accounts: a hero already in slot 1 stays (an existing character is ownership). An account with an EMPTY free slot 1 loses it: say so in the Discord note (Tyler 11-07, transparent, no protection) |
+| 7 | Tests: `tests/hunt-sessions-settle.mjs` DEATHXP-RULE (lines 1418-1425: "a death de-levels the Level" flips to "the share crosses a Level, never below 0"), its mutant at 4251 re-aimed (the old floor put back must go red), a new arm with the same death viewed and with the browser closed (CLAUDE.md §4 both paths). `tests/boss-call.mjs` BC-DEATH comment. `tests/hunt-floor-warning.mjs` moves with DEATH_XP_LOSS. Blessings validate() and `tests/hunt-core/sewer.mjs` read the rows | Re-read rule: the price is a data row. At each pace re-measure read the 56 h median purse, and move the ladder only if it leaves 250,000-450,000 |
+| 8 | CLAUDE.md §6, Coordinator with the apply: "it costs the small death XP loss (2%, never de-levels; blessings reduce it)" becomes "it costs 6% of the hero's total Level XP and 6% of each combat skill's progress, it can take a Level but never below Level 1, and each Blessing cuts a quarter of that (Tyler, 2026-11-09)". Rulings of record: the 10-18 Blessings line (32/63/95) is superseded by 25/50/75 | Rulings of record: the 10-17 "accounts start with 2 slots" and 11-04 "25,000 / 75,000 / 250,000" lines are superseded by one slot and 300,000 / 750,000 / 1,500,000 |
+**Measured:** tables A to E from the cells named above. **Assumed:** x0.75 for a real player's purse, that a once-a-day player runs the stamina dry daily, and that floor-heavy pooling stands for a Deadly push (a four on Deadly dies 217 times in 100 h at the Glade's floor, 14 at its middle). **Not done:** no new sim run, nothing built, no live purse read.
+
 ### 2026-11-07 One formula for every hunt (designer, lane/b-ground-formula; Tyler 2026-11-07 "is there a formula you can start following?", then "Yes, start there", then "fleshing this system out perfectly and applying it to all current hunts"): BUILT as data, a generator and a grader; the sample MEASURED on the real engine; Wickstead's and the Glade's rows WRITTEN by the formula
 **The call.** Every ground is now built and graded by three things in one data module, `src/data/balance-sheet.js`: a **target sheet** (what a ground must measure), a **stat formula** (a monster's numbers from its Level, its role and its ground's floor) and **one tier table** (Normal, Dangerous, Deadly as dials). `tools/gen-ground-stats.mjs` writes the rows (`formula: true` on each), `tools/balance-sim/sheet-check.mjs` plays a ground and grades it line by line, and `tests/balance-sheet.mjs` holds every written row to the formula digit for digit. A balance complaint becomes a dial to move, not a hand re-fit. The formula keeps the XP the hand rows already paid (about 1.8 x Level^0.4 a HP point on every open ground) and their coin (about 0.3 g a point), plus 30% coin on a ground that bites in full, so the food its danger costs comes back (harder pays more). What it fixes is danger, which now climbs by one rule instead of by ground.
 

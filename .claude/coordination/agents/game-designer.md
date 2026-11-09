@@ -825,3 +825,11 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - An XP bonus's pace cost is its share of hunting hours x its percent. +25% on every hour reads x0.805 at Level 50 and x0.81-0.82 at 10-25 (skills lag a little).
 - +10% is below what a player feels. At the Glade at 24 the gap between a hammer (83k) and a mage (91k) is wider than +10% on either.
 - Lane branches that insert at the top of the Decisions list collide. Insert a same-day section lower down (before the next dated heading) when another lane is writing the top.
+
+## 2026-11-09 lane/d-death-and-slots (death share and the first alt's price, design only)
+- A flat share of TOTAL Level XP is worth more Levels the higher you go (one Level is 41% of the total at 10, 6.55% at 50, 1.35% at 200). Anchor it where players spend their life, not the first fortnight: 6% is about one Level at 50 and 4.5 at 200.
+- Normal at the recommended Level had 0 deaths in 6,120 hero-hours on main. A death share never touches the careful path. Risk lives in the death RATE (monster stats), and the share only prices it. Dangerous in range had no death at all, so no share can make it risky.
+- Grade cells' `levelXpPerH` is gross (the kills' XP), and deaths' XP sits apart in `raw.xpLostLevel`. Price a new share yourself: deaths x share x total XP at the cell's Level, against its Normal twin (same ground, offset, way, Level).
+- Pace career traces carry `hours` as each chunk's END (cumulative), not its length. Summing them as lengths read Level 9 at 56 h.
+- A semi-idle "2-3 h of play a day" is not 2-3 h of hunting. The hunt runs on after the game closes until stamina ends it, so one login a day hunts the free 8 h cap. Say which you priced.
+- One purse for every hero: each new hero adds its income, so a slot that should take as long as the one before needs more than double the gold (300k / 750k / 1.5M lands on day 6 / 13 / 21 at 8 h a day).

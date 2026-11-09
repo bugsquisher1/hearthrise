@@ -328,7 +328,7 @@ function standingOf(map, book, tables, T) {
 /**
  * @param {object} map       compileMap() output
  * @param {object} book      createBook()
- * @param {{hero: {x:number,y:number}|null, name?: string, roofAlpha?: object, t?: number,
+ * @param {{hero: {x:number,y:number}|null, name?: string, title?: string|null, roofAlpha?: object, t?: number,
  *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null, objectSwap?: Object<string, string>|null,
  *          stillIdle?: boolean}} state
  *                           hero in tile coords (fractional while moving); t = ms clock for idle clips; stillIdle: idle clips hold frame 0

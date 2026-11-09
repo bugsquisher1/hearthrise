@@ -58,6 +58,8 @@ import { homeOf } from '../session/home-sections.js?v=0.2.110';
 import { skillsOf } from '../session/item-sections.js?v=0.2.110';
 import { createHearthView } from './hearth-burn.js?v=0.2.110';
 import { townWorksSwap } from './town-works.js?v=0.2.110';
+import { farmCropProps } from './town-farm.js?v=0.2.110';
+import { farmFieldOf } from '../session/farm-sections.js?v=0.2.110';
 import { createTownShows } from './town-shows.js?v=0.2.110';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
@@ -320,6 +322,9 @@ export async function bootWorld(panel, opts) {
       Object.assign(f, hearthState(map, f, now));
       /* THE TOWN WORKS (town-works.js): a lot's art by the stage the server said */
       f.objectSwap = townWorksSwap(map, town.extras());
+      /* THE FARM (town-farm.js): every planted plot's crop at the stage the server's plot data names */
+      const crops = farmCropProps(farmFieldOf(character));
+      if (crops.length) f.props = (f.props || []).concat(crops);
       /* A ROUND'S FIREWORKS over Hearth Square (town-shows.js), from the server's answer */
       const round = showsView.frame(town.round(), now);
       if (round.length) f.fx = (f.fx || []).concat(round);

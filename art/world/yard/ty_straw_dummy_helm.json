@@ -1,0 +1,42 @@
+{
+  "id": "ty_straw_dummy_helm",
+  "class": "fixture",
+  "style": "s1",
+  "material": "wood",
+  "source": "ty_straw_dummy_helm.png",
+  "frame": [
+    32,
+    45
+  ],
+  "anchor_px": [
+    16,
+    44
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    },
+    {
+      "name": "hit",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 5
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "PixelLab create_image_pro_flash, brief 13 Y1 (art/world-src/gen-2026-11-09b/y1-yard-kit), style 1; cut by blob, no pixel redrawn + animate_image (Y4/B1v)",
+    "image": "b1ba6742"
+  },
+  "notes": "The helmed variant (retry c4): it reads as another dummy, not a small one. The `hit` clip is laid 0 1 2 1 0 at 12 fps (a drawn lean beats a sliding recoil: the post stays planted)."
+}

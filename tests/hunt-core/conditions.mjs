@@ -1028,7 +1028,7 @@ const mutants = [
   { name: 'an attack slot ignores its conditions', case: 'party-acceptance', edits: [['src/core/hunt/damage.js', '  const got = shotPasses(inst, u, h, rows, (own) => (slot, cx) => {', '  const got = shotPasses(inst, u, h, rows.map((r) => ({ rule: r.rule, slot: Object.assign({}, r.slot, { conditions: [] }) })), (own) => (slot, cx) => {']] },
   { name: 'the stop-rule hold is not persisted (a cut resets it)', case: 'stop-rule-span', edits: [['src/core/hunt/conditions.js', "  unit: Object.freeze([['ruleHold', 'json'], ['ruleWait', 'json']]),", "  unit: Object.freeze([['ruleWait', 'json']]),"]] },
   { name: 'the healer\'s default rule set has no attack-when-safe rule', case: 'healer-default-rules',
-    edits: [['src/data/rule-subjects.js', ", slot('green_sickness', SICKNESS_WHEN)]),", ']),']] },
+    edits: [['src/data/rule-subjects.js', ", slot('green_sickness', SICKNESS_WHEN), slot('undertow', UNDERTOW_WHEN)]),", ", slot('undertow', UNDERTOW_WHEN)]),"]] },
   { name: 'the healer\'s attack spends the mana a heal needs', case: 'healer-default-rules',
     edits: [['src/data/rule-subjects.js', "subject: 'lowest' }, { metric: 'self_mana_pct', op: 'gte', value: 78 }]);", "subject: 'lowest' }]);"]] },
   { name: 'the tank\'s default set holds Flame Strike again, with no store rune (struck from minute one)', case: 'starter-bar-fires',

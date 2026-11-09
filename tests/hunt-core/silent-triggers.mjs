@@ -15,6 +15,9 @@
 //   ignored             a slot ignoring the monster its hero fights says that, not a condition that holds.
 //   order               a strike beats a wait; a marked wait beats mana; mana beats a wait the player can read.
 //   configure-note      the line Configure action shows: the lone monster, the lone hero, and silence where nothing surprises.
+//   alone-only          UNDERTOW (Tyler 2026-11-09: "can only be used when not in a party. Make that callout clear to the player"): beside a
+//                       living partner the engine casts it 0 times and the slot greys with "Only when you hunt alone."; the partner dead,
+//                       it fires and says nothing; its card and its Configure action line say the words; no other ability carries them.
 //
 //   node tests/hunt-core/silent-triggers.mjs [--mutate]   cases + mutants (each mutant must turn its case red)
 //   node tests/hunt-core/silent-triggers.mjs --no-mutate  cases only
@@ -149,7 +152,7 @@ const cases = {
       const sl = suggested(M, row.id);
       for (const [name, o] of Object.entries(FIGHTS)) {
         const f = fight(M, roleOf(row), [sl], o);
-        const words = M.W.waitReason(sl, f.party, f.test()) || M.F.holdingReason(sl, M.L.holdsPackOf(f.inst.world, 1));
+        const words = M.F.aloneReason(sl, M.abilities.aloneIn(f.inst.world, f.me)) || M.W.waitReason(sl, f.party, f.test()) || M.F.holdingReason(sl, M.L.holdsPackOf(f.inst.world, 1));
         const fired = !!casts(M, f, 100)[row.id];
         if (fired && words) bad.push(row.id + ' in ' + name + ' fires and still says ' + JSON.stringify(words.text));
         if (!fired && !words) bad.push(row.id + ' in ' + name + ' does not fire and says nothing');
@@ -224,6 +227,34 @@ const cases = {
     const set = { discipline: 'shield', role: 'tank', store: [], slots: [] };
     return M.W.slotWhy(slotOf('challenge', []), facts({ set, holding: true })).code === 'holding' ? null : 'a tank holding the pack does not read Holding';
   },
+  'alone-only': (M) => {
+    const WORDS = 'Only when you hunt alone.';
+    const alone = Object.values(M.AD.ABILITIES).filter((r) => r.alone).map((r) => r.id);
+    if (alone.join() !== 'undertow') return 'the alone spells are ' + JSON.stringify(alone) + ', want Undertow alone: re-judge this case';
+    const row = M.AD.ABILITIES.undertow;
+    if (!row.disciplines.includes('restoration') || row.mana !== M.AD.ABILITIES.mend.mana || !row.dmg || row.target !== 'enemy') return 'Undertow is not the Healer’s single-target strike at a Mend’s mana: ' + JSON.stringify(row);
+    const sl = slotOf('undertow', []);
+    const facts = (alone) => ({ set: { discipline: 'restoration', role: 'healer', store: [], slots: [] }, bag: [{ id: 'chalked_water_rune', qty: 5 }], hero: { mana: 500 }, worn: null, skills: null, pack: null, party: alone ? 1 : 2, alone, holding: false, test: null });
+    /* THE ENGINE: beside a living partner it never fires; with the partner dead it does (read at each cast). */
+    const duo = fight(M, 'healer', [sl], { mons: [[13, 3]], duo: true });
+    if (M.abilities.aloneIn(duo.inst.world, duo.me)) return 'a Healer beside a living partner reads alone';
+    const party = casts(M, duo, 60000);
+    if (party.undertow) return 'the engine cast Undertow ' + party.undertow + ' times beside a living partner';
+    const said = M.W.slotWhy(sl, facts(false));
+    if (!said || said.code !== 'alone' || !said.strike || said.text !== WORDS) return 'in a party the slot reads ' + JSON.stringify(said);
+    const left = fight(M, 'healer', [sl], { mons: [[13, 3]], duo: true });
+    left.inst.world.units[1].alive = false;
+    if (!M.abilities.aloneIn(left.inst.world, left.me)) return 'a Healer whose partner died does not read alone';
+    if (!casts(M, left, 100).undertow) return 'the partner dead, Undertow did not fire';
+    if (M.W.slotWhy(sl, facts(true)) !== null) return 'alone, the slot still reads ' + JSON.stringify(M.W.slotWhy(sl, facts(true)));
+    /* THE WORDS before the hunt: its card (the bar's tooltip and Configure action's), and Configure action's line in a party only. */
+    if (M.F.factsOf({ type: 'ability', id: 'undertow' }).alone !== WORDS) return 'its card reads ' + JSON.stringify(M.F.factsOf({ type: 'ability', id: 'undertow' }).alone);
+    const stray = Object.keys(M.AD.ABILITIES).filter((id) => id !== 'undertow' && M.F.factsOf({ type: 'ability', id }).alone);
+    if (stray.length) return 'a spell that casts in a party says it does not: ' + stray.join(', ');
+    const draft = { action: { type: 'ability', id: 'undertow' }, conditions: [], join: 'and' };
+    if (M.W.setupNote(draft, 2) !== WORDS + ' In your party this slot never fires.') return 'Configure action in a party reads ' + JSON.stringify(M.W.setupNote(draft, 2));
+    return M.W.setupNote(draft, 1) === '' ? null : 'Configure action alone reads ' + JSON.stringify(M.W.setupNote(draft, 1));
+  },
   'configure-note': (M) => {
     const draft = (id) => ({ action: { type: 'ability', id }, conditions: M.conditions.suggestedConditions({ type: 'ability', id }), join: 'and' });
     if (M.W.setupNote(draft('fireball'), 1) !== 'On a lone monster this slot waits and your hero fights on without it. To use it on one, remove this condition.') return 'Fireball\'s suggestion reads ' + JSON.stringify(M.W.setupNote(draft('fireball'), 1));
@@ -277,6 +308,16 @@ const MUTANTS = [
     edits: [['src/shell/slot-waits.js', "  return { code: 'wait_until', text: 'Waiting until ' + conditionWords(c) + '.', glyph: 'uiHourglass', strike: false, quiet: true, rest: true };\n", '  return null;\n']] },
   { name: 'the Mage\'s default fires on one (re-judge: a default the display no longer has to explain)', case: 'lone-monster',
     edits: [['src/data/abilities.js', '  areaMin: 2,\n', '  areaMin: 1,\n']] },
+  { name: '[alone] the engine casts Undertow in a party', case: 'alone-only',
+    edits: [['src/core/hunt/abilities.js', '    && (solo || !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].alone)));', '    && (solo || true));']] },
+  { name: '[alone] a dead partner still counts as company', case: 'alone-only',
+    edits: [['src/core/hunt/abilities.js', "!world.units.some((o) => o !== hero && o.side === 'hero' && o.alive === true);", "!world.units.some((o) => o !== hero && o.side === 'hero');"]] },
+  { name: '[alone] the slot in a party says nothing', case: 'alone-only',
+    edits: [['src/shell/slot-waits.js', '  if (a) return a;\n', '']] },
+  { name: '[alone] the card loses the callout', case: 'alone-only',
+    edits: [['src/shell/action-facts.js', '      alone: r.alone ? ALONE_WORDS : null };', '      alone: null };']] },
+  { name: '[alone] Configure action says nothing in a party', case: 'alone-only',
+    edits: [['src/shell/slot-waits.js', "  if (r && r.alone && party > 1) return ALONE_WORDS + ' In your party this slot never fires.';\n", '']] },
   { name: 'an ability whose target rule stops finding a target, and no words say so', case: 'every-suggestion',
     edits: [['src/core/hunt/abilities.js', "    case 'mark': {\n", "    case 'mark': return null;\n    case 'mark_old': {\n"]] },
 ];

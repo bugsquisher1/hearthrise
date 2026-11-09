@@ -1,8 +1,9 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/app/slot-offer.js — BUY A HERO SLOT, ON "YOUR CHARACTERS" (tracker r45).
 //
-// Tyler 2026-10-17: every account starts with two hero slots; more cost gold,
-// up to four heroes in all (Tyler 2026-11-07: the fifth slot is gone). Gold
+// Tyler 2026-11-09: every account starts with ONE hero slot; the second costs
+// about a week of play (300,000 gold, then 750,000 and 1,500,000), up to four
+// heroes in all (Tyler 2026-11-07: the fifth slot is gone). Gold
 // is the ACCOUNT's (Tyler 2026-10-23, one purse for every hero:
 // 2026-12-15-account-gold.sql), so there is nobody to pick: the
 // slot is paid from "your gold". Every number shown is the server's: the price
@@ -53,10 +54,13 @@ export function playLineOf(stated, limit, owned, offer, rows) {
   const most = Math.min(stated, limit);
   if (!(owned < most)) return 'Up to ' + most + ' can play at once.';
   if (anEmptySlot(rows)) return 'You own ' + owned + ' hero ' + (owned === 1 ? 'slot' : 'slots') + ', and up to ' + most + ' heroes can play at once.';
-  const nth = offer ? ORDINAL[offer.slotId] : null;
-  return 'You own ' + owned + ' hero ' + (owned === 1 ? 'slot' : 'slots') + ', and up to ' + most + ' heroes can play at once. More slots cost gold'
-    + (nth ? ': the ' + nth + ' is ' + whole(offer.cost) + '.' : '.');
+  /* The price is the offer block's (the server's quote, right under the roster), so the line names none (designer 2026-11-09). */
+  return 'You own ' + owned + ' hero ' + (owned === 1 ? 'slot' : 'slots') + '. Up to ' + most + ' heroes can play at once, and more slots cost gold.';
 }
+
+/* The second hero is a week away for most players (designer 2026-11-09, table E: about 56 hours of hunting for 300,000 gold):
+   while the account has ONE hero, say so and point at other players meanwhile. */
+const ONE_HERO_NOTE = 'Most players can buy a second hero after about a week. Until then, use Find a party in the Party window to hunt with other players.';
 
 /* A slot the account owns with no hero in it: nothing need be bought to make the next one (newcomer panel 2026-11-01: it read as if a second hero cost 15,000). */
 const anEmptySlot = (rows) => (Array.isArray(rows) ? rows : []).some((r) => r && !r.exists);
@@ -94,9 +98,11 @@ export function slotOfferHtml(offer, roster, o = {}) {
   if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';
   const nth = ORDINAL[offer.slotId] || '';
   const short = offer.cost - purse.gold;
+  const heroes = (Array.isArray(roster) ? roster : []).filter((r) => r && r.exists).length;
   return '<section class="slot-offer" data-slot-id="' + offer.slotId + '">'
     + '<p class="slot-offer-lead">' + (nth ? 'A ' + nth + ' hero slot' : 'Another hero slot') + ' costs ' + whole(offer.cost) + ' gold'
     + (offer.max ? '. An account holds up to ' + offer.max + ' heroes' : '') + '.</p>'
+    + (heroes === 1 ? '<p class="slot-offer-lead slot-offer-note">' + ONE_HERO_NOTE + '</p>' : '')
     + '<p class="slot-offer-purse">Your gold: ' + whole(purse.gold) + '</p>'
     + (short > 0 ? '<p class="slot-offer-short">You need ' + whole(short) + ' more gold.</p>' : '')
     + '<button type="button" class="slot-offer-buy" data-app="buy-slot" data-slot-id="' + offer.slotId + '" data-pay="' + actor + '"'

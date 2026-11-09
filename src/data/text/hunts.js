@@ -47,7 +47,7 @@ export const HUNTS_TEXT = Object.freeze({
   tier_same_mid_hard_tough: 'the same monsters, hitting {harder}, with {tougher}',
   tier_head_end: '{head}.',
   tier_head_blow: '{head}, and the biggest blow here is {hit}, not {was}.',
-  tier_cost: 'Each kill earns {xp} more Level XP, with the same gold and drops. Expect a bigger food bill, and you can die. A death ends the hunt and costs {loss}% of your XP.',
+  tier_cost: 'Each kill earns {xp} more Level XP, with the same gold and drops. Expect a bigger food bill, and you can die. A death ends the hunt and costs {loss}% of your Level XP.',
   tier_choice: '{tier}: {head}.',
 
   /* The band, and a ground above the hero. */
@@ -56,7 +56,7 @@ export const HUNTS_TEXT = Object.freeze({
   above_level: 'Its monsters are stronger than you. Expect to spend more on supplies, or to die. More XP and better loot.',
   far_above_level: 'Its monsters are far stronger than you. Expect to spend much more on supplies, or to die. More XP and better loot.',
   range_under: { one: 'You\'re {count} Level under this ground.', other: 'You\'re {count} Levels under this ground.' },
-  range_die: 'If you die, the hunt ends and you lose {loss}% of your XP.',
+  range_die: 'If you die, the hunt ends and you lose {loss}% of your Level XP.',
   seat_level: '{name} (Level {level})',
   seats_under: { one: '{who} is under this ground’s Level {level}. It will hit them hard, and they could die.',
     other: '{who} are under this ground’s Level {level}. It will hit them hard, and they could die.' },

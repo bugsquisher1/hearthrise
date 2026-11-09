@@ -5,7 +5,8 @@
 // src/data/shell-windows.js; windows/death.js draws it), not a side alert.
 // Every fact is the server's: the death row (`death_log`, hr_death_log_view):
 // the ground, the killer, the XP the settle debited and the XP a Blessing kept
-// (2026-11-07-death-popup-blessing.sql); "what happened" is the hunt summary's
+// (2026-11-07-death-popup-blessing.sql), the Level it took and how many Blessings
+// it used (2027-03-25-death-share.sql); "what happened" is the hunt summary's
 // death explanation (summary-recorder.js), made from the server's own events
 // while the hunt was watched. Nothing is counted or priced in the browser, and
 // a number the server did not send is never shown.
@@ -78,12 +79,15 @@ function dismissDeath(cs, session) {
 }
 
 /* WHY, SO A DEATH TEACHES (Tyler 2026-11-04: dying is the price of a big risk, and the monsters are simply stronger): how far under this ground the hero stood, then what would have helped.
-   The Level is the server's and a death never lowers it, so it is the Level the hero died at; a row from an older hunt, opened by the key, may have been outgrown and says nothing. */
+   The Level is the server's: the death row's `levelFrom`, the Level the hero died at (a death can take a Level since Tyler 2026-11-09, so
+   the hero's Level now may be lower), else the hero's own Level on a row from before the server named it. A row from an older hunt,
+   opened by the key, may have been outgrown and says nothing. */
 function whyWords(cs, d) {
   const h = huntOf(cs), lv = levelOf(cs);
   const band = d.row.hunt && HUNT_INDEX[d.row.hunt] && HUNT_INDEX[d.row.hunt].band;
-  if (!band || !lv || !h || h.sessionId !== d.session) return '';
-  const gap = band[0] - lv.level;
+  const at = d.row.levelFrom !== null && d.row.levelFrom !== undefined ? d.row.levelFrom : lv ? lv.level : null;
+  if (!band || at === null || !h || h.sessionId !== d.session) return '';
+  const gap = band[0] - at;
   if (gap <= 0) return 'Better armor, food eaten sooner or a smaller pull would help.';
   return 'You were ' + gap + (gap === 1 ? ' Level' : ' Levels') + ' under this ground, and its monsters are stronger than you. Better armor, food eaten sooner, a healer or a few more Levels would help.';
 }
@@ -95,9 +99,18 @@ const xpWords = (m) => {
   return parts.length < 2 ? parts.join('') : parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
 };
 
+/* "Your Blessing kept 300 Level XP, and is now used up." / "Your 3 Blessings kept ..., and are now used up.", the count the server's
+   (the row's `blessings`, the tiers the death used); one when it did not say. */
+function savedWords(row) {
+  const n = Number.isSafeInteger(row.blessings) && row.blessings > 1 ? row.blessings : 1;
+  const who = n > 1 ? 'Your ' + n + ' Blessings' : 'Your Blessing';
+  const used = n > 1 ? 'are now used up.' : 'is now used up.';
+  return Object.keys(row.saved).length ? who + ' kept ' + xpWords(row.saved) + ', and ' + used : who + ' ' + used;
+}
+
 /**
  * The popup's words for one character's death (pure; every number is the server's row).
- * @returns {{title: string, killed: string, what: string, why: string, lost: string, saved: string, town: string}}
+ * @returns {{title: string, killed: string, what: string, why: string, lost: string, level: string, saved: string, town: string}}
  */
 export function deathWords(cs, d) {
   const who = nameOf(cs) || 'Your hero';
@@ -110,10 +123,13 @@ export function deathWords(cs, d) {
     why: whyWords(cs, d),
     /* xp null: the server has not priced it (an older row); say nothing rather than guess. */
     lost: Object.keys(row.xpLost).length ? 'Dying cost ' + xpWords(row.xpLost) + '.' : row.xp === null ? '' : 'Dying cost no XP.',
+    /* A death can take a Level (Tyler 2026-11-09): said only when the server's row shows the Level fell. */
+    level: Number.isInteger(row.levelFrom) && Number.isInteger(row.levelTo) && row.levelTo < row.levelFrom
+      ? who + ' dropped from Level ' + row.levelFrom + ' to Level ' + row.levelTo + '.' : '',
     /* undefined: the server did not say whether a Blessing was used, so nothing is said about one. */
     saved: row.saved === undefined ? ''
-      : row.saved === null ? 'No Blessing was active. Blessings, in the Shop\'s Services tab, lower what dying costs' + freeWords(cs) + '.'
-      : Object.keys(row.saved).length ? 'Your Blessing kept ' + xpWords(row.saved) + ', and is now used up.' : 'Your Blessing is now used up.',
+      : row.saved === null ? 'No Blessing was active. Blessings in the Shop\'s Services tab make dying cost less' + freeWords(cs) + '.'
+      : savedWords(row),
     town: who + ' is back in town with full health and mana.',
   };
 }

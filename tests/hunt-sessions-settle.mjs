@@ -1798,6 +1798,40 @@ const DB_ARMS = {
     }
     return problems;
   },
+  /* A DEATH CAN TAKE A LEVEL (Tyler 2026-11-09; 2027-03-25-death-share.sql): a hero 1 XP into Level 5 dies, with the browser
+     closed (the tick's windows) and the hunt viewed (a player's irregular instants). Each door debits the share of the TOTAL
+     Level XP, crossing under the Level; the death event names the Level it took the hero from and to, and the death log the
+     popup reads projects the same pair. */
+  'DEATHXP-LEVEL': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { ...DOOMED, levelXpOver: 1 });
+    const door = async (cuts) => {
+      await run(db, M, h.from, cuts);
+      const s = await snapshot(db, h.sid, UIDS[0]);
+      s.death_log = await one(db, 'select public.hr_death_log_view($1::uuid, 0)', [UIDS[0]]);
+      return s;
+    };
+    await db.query('savepoint death_level');
+    const a = await door(ticksOf(90000, SPAN_MS));
+    await db.query('rollback to savepoint death_level');
+    const b = await door((f) => attendedCuts(f, [a]));
+    const L = M.XP.charLevelFromXp;
+    let crossed = 0;
+    for (const [door, s] of [['the browser closed', a], ['the hunt viewed', b]]) {
+      const death = (s.events || []).filter((e) => e[0] === 'death');
+      if (death.length !== 1) { problems.push(`CONTROL (${door}): the hero died ${death.length} time(s)`); continue; }
+      const price = Number((s.death_xp || {}).level || 0), now = Number(s.level_xp), before = now + price;
+      const d = death[0][2] || {};
+      if (!(price > 0) || price !== Math.floor(before * M.HSD.DEATH_XP_LOSS)) problems.push(`${door}: the death cost ${price} Level XP of ${before}, not DEATH_XP_LOSS of the total`);
+      if (d.level_from !== L(before) || d.level_to !== L(now)) problems.push(`${door}: the death event names Level ${d.level_from} to ${d.level_to}, the bank says ${L(before)} to ${L(now)}`);
+      if (now < 0) problems.push(`${door}: the death left ${now} Level XP`);
+      if (L(now) < L(before)) crossed++;
+      const log = (s.death_log || [])[0] || {};
+      if (log.level_from !== d.level_from || log.level_to !== d.level_to) problems.push(`${door}: the death log reads Level ${log.level_from} to ${log.level_to}, the event ${d.level_from} to ${d.level_to}`);
+    }
+    if (crossed !== 2) problems.push(`CONTROL: the death crossed a Level in ${crossed} of 2 doors (the fixture must start 1 XP into its Level and die before it climbs)`);
+    return problems;
+  }),
   'NO-DODGE': async (db, M) => inTx(db, async () => {
     const problems = [];
     const h = await hunter(db, M, { ...DOOMED });
@@ -4511,9 +4545,16 @@ const DB_MUTANTS = [
   /* 'a free character reads the analyzer' RETIRED 2026-10-19: 2026-10-26-hunt-analyzer-basic.sql gives every
      character the basic analyzer, so the live body has no premium gate to remove. */
   { arm: 'DEATHXP', name: 'the applier stops bounding the Level\'s death price', fn: AM,
-    find: '        if v_n > floor(v_lxb * v_rate / 1000.0) or v_cur - v_n < v_xfloor then', replace: '        if false then' },
+    find: "        if v_n > public.hr_death_xp_max('level', v_cur) then", replace: '        if false then' },
   { arm: 'DEATHXP', name: 'the Level\'s death price is never debited', fn: AM,
     find: '        update public.player_state set level_xp = level_xp - v_n where user_id = p_user and slot = p_slot;', replace: '        null;' },
+  { arm: 'DEATHXP-LEVEL', name: 'the settle puts the never-de-level floor back (a death that crosses a Level is refused)', fn: AM,
+    find: "        if v_n > public.hr_death_xp_max('level', v_cur) then",
+    replace: "        if v_n > public.hr_death_xp_max('level', v_cur) or public.hr_char_level(v_cur - v_n) < public.hr_char_level(v_cur) then" },
+  { arm: 'DEATHXP-LEVEL', name: 'the death event does not name the Level it took', fn: AM,
+    find: "'level_from', v_lfrom, 'level_to', v_lto)", replace: "'level_from', null::int, 'level_to', null::int)" },
+  { arm: 'DEATHXP-LEVEL', name: 'the death log drops the Level pair', fn: 'public.hr_death_log_view(uuid,integer)',
+    find: "then jsonb_build_object('level_from', (d.data->>'level_from')::int, 'level_to', (d.data->>'level_to')::int)", replace: "then '{}'::jsonb" },
   { arm: 'STAMINA', name: 'the applier stops proving the pool', fn: AM,
     find: '  if v_e <> greatest(0, v_s0 - v_paid) then', replace: '  if v_e < 0 then' },
   { arm: 'VALUE', name: 'the Level XP bound is gone', fn: AM,

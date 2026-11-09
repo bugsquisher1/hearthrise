@@ -3501,7 +3501,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="coppercap_warrens"]').catch(() => fails.push('AW-63 could not press ' + "'[data-hs-win=\"hunts\"] .hw-hunt[data-hunt=\"coppercap_warrens\"]'"));
             await page.waitForTimeout(200);
             const far = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunts"]'), e = w.querySelector('.hw-hunt-enter'); return { off: e.disabled, why: w.querySelector('.hw-enter-why').textContent, warn: w.querySelector('.hw-hunt-warn').textContent, label: e.textContent }; });
-            if (far.off || far.why !== '' || far.label !== 'Enter' || !/^You're 31 Levels under this ground\. .*you lose 2% of your XP\.$/.test(far.warn)) fails.push('AW-63 Coppercap far under its floor reads ' + JSON.stringify(far));
+            if (far.off || far.why !== '' || far.label !== 'Enter' || !/^You're 31 Levels under this ground\. .*you lose 6% of your Level XP\.$/.test(far.warn)) fails.push('AW-63 Coppercap far under its floor reads ' + JSON.stringify(far));
             const sentBefore = s.calls.filter((c) => c.name === 'hr_hunt_enter').length;
             await page.click('[data-hs-win="hunts"] .hw-hunt-enter');
             await page.waitForTimeout(200);

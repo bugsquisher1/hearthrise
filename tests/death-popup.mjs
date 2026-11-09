@@ -16,6 +16,8 @@
 //   DP-0 PURE      the words are the row's: no `saved` key says nothing about a Blessing,
 //                  saved null says none was active, a saving names its XP; an unpriced row
 //                  (xp null) says nothing about the cost
+//   DP-0b A LEVEL TAKEN (Tyler 2026-11-09)  a row whose level_to is under its level_from says the hero dropped
+//                  a Level, none otherwise; the why reads the Level died at; "Your 3 Blessings kept ..."
 //   DP-1 ATTENDED  the hunt section ends `died` in a new envelope: the death popup opens,
 //                  centred, and every line is the death row's (where, the killer, the XP
 //                  dying cost, what the Blessing kept, back in town); no side alert line for
@@ -90,6 +92,18 @@ async function pure(base) {
   if (under !== 'You were ' + (floor - 2) + ' Levels under this ground, and its monsters are stronger than you. Better armor, food eaten sooner, a healer or a few more Levels would help.') fail(fails, 'DP-0 a death under the floor reads ' + JSON.stringify(under));
   if (whyAt(floor, SESSION) !== 'Better armor, food eaten sooner or a smaller pull would help.') fail(fails, 'DP-0 a death in range reads ' + JSON.stringify(whyAt(floor, SESSION)));
   if (whyAt(2, 'an-older-hunt') !== '') fail(fails, 'DP-0 an older hunt\'s death guesses at its Level: ' + JSON.stringify(whyAt(2, 'an-older-hunt')));
+  /* DP-0b A DEATH CAN TAKE A LEVEL (Tyler 2026-11-09; 2027-03-25-death-share.sql): the row's level_from / level_to say so, the
+     why reads the Level the hero died at, and the Blessings line counts the tiers the death used. */
+  const took = Object.assign({}, ROW, { level_from: floor, level_to: floor - 1, blessings: 3 });
+  if (words(took).level !== 'Tyler dropped from Level ' + floor + ' to Level ' + (floor - 1) + '.') fail(fails, 'DP-0b a death that took a Level reads ' + JSON.stringify(words(took).level));
+  if (words(Object.assign({}, took, { level_to: floor })).level !== '') fail(fails, 'DP-0b a death that took no Level still names one');
+  if (words(ROW).level !== '') fail(fails, 'DP-0b an older row (no Level pair) names a Level: ' + JSON.stringify(words(ROW).level));
+  if (words(took).saved !== 'Your 3 Blessings kept 300 Level XP, and are now used up.') fail(fails, 'DP-0b three Blessings read ' + JSON.stringify(words(took).saved));
+  if (words(Object.assign({}, took, { saved: {} })).saved !== 'Your 3 Blessings are now used up.') fail(fails, 'DP-0b three Blessings that kept nothing read ' + JSON.stringify(words(Object.assign({}, took, { saved: {} })).saved));
+  if (words(Object.assign({}, ROW, { saved: null })).saved !== 'No Blessing was active. Blessings in the Shop\'s Services tab make dying cost less.') fail(fails, 'DP-0b no Blessing reads ' + JSON.stringify(words(Object.assign({}, ROW, { saved: null })).saved));
+  const tookCs = { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [took] : k === 'state' ? { level_xp: charXpForLevel(2) } : k === 'hunt' ? { session_id: SESSION, hunt_id: ROW.hunt, ended: true, session: { end_reason: 'died' } } : null), record: { residue: {} } };
+  const tookWhy = deathWords(tookCs, { session: SESSION, row: deathLogOf(tookCs)[0] }).why;
+  if (tookWhy !== 'Better armor, food eaten sooner or a smaller pull would help.') fail(fails, 'DP-0b a hero who died in range and lost Levels is told it stood under the ground: ' + JSON.stringify(tookWhy));
   return fails;
 }
 function fail(list, msg) { list.push(msg); }
@@ -387,10 +401,15 @@ const MUTANTS = [
   ['a death opens no popup', 'src/shell/death-popup.js', "    ctx.wm.open('death');", '    void 0;'],
   ['the dismissal is not kept', 'src/shell/death-popup.js', '{ const s = showing; showing = null; dismissDeath(cs, s); }', '{ showing = null; }'],
   ['the cost is not the row\'s', 'src/shell/death-popup.js', "'Dying cost ' + xpWords(row.xpLost)", "'Dying cost ' + xpWords({ level: row.xp })"],
-  ['the Blessing line ignores the row', 'src/shell/death-popup.js', ": Object.keys(row.saved).length ? 'Your Blessing kept '", ": false ? 'Your Blessing kept '"],
+  ['the Blessing line ignores the row', 'src/shell/death-popup.js', "return Object.keys(row.saved).length ? who + ' kept '", "return false ? who + ' kept '"],
+  ['the Blessings a death used are always one (DP-0b)', 'src/shell/death-popup.js', 'row.blessings > 1 ? row.blessings : 1;', 'false ? row.blessings : 1;'],
+  ['a Level the death took is not said (DP-0b)', 'src/shell/death-popup.js', '&& row.levelTo < row.levelFrom', '&& false'],
+  ['the why reads the Level after the death, not the one died at (DP-0b)', 'src/shell/death-popup.js',
+    'const at = d.row.levelFrom !== null && d.row.levelFrom !== undefined ? d.row.levelFrom : lv ? lv.level : null;', 'const at = lv ? lv.level : null;'],
+  ['the projection drops the Level pair (DP-0b)', 'src/session/character-sections.js', 'levelFrom: pair ? from : null, levelTo: pair ? to : null', 'levelFrom: null, levelTo: null'],
   ['an older row is read as no Blessing', 'src/shell/death-popup.js', "    saved: row.saved === undefined ? ''\n", "    saved: row.saved === undefined ? 'No Blessing was active.'\n"],
   ['the own death is a side line again', 'src/shell/alerts.js', '    if (!viewed && !deathSeen(cs, h.sessionId)) out.push(', '    out.push('],
-  ['the projection drops the Blessing', 'src/session/character-sections.js', "      saved: !('saved' in r) ? undefined : isObj(r.saved) ? xpMap(r.saved) : null });", '      saved: undefined });'],
+  ['the projection drops the Blessing', 'src/session/character-sections.js', "      saved: !('saved' in r) ? undefined : isObj(r.saved) ? xpMap(r.saved) : null,", '      saved: undefined,'],
   ['Hunt summary only closes', 'src/shell/windows/death.js', "  if (action === 'death-summary') ctx.show('hunt-summary');\n", ''],
   ['a reload stands the hunt bar back up in town', 'src/hunt-view/summary-recorder.js', 'return a.earlier === sessionId || a.closed === sessionId;', 'return a.closed === sessionId;'],
   ['a seen end stays in the lines (DP-7)', 'src/shell/alerts.js', 'if (stale || seenEnd || ', 'if (stale || '],

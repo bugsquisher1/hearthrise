@@ -38,7 +38,7 @@
 // search inside Inventory and Storage, not a window of its own.
 // ════════════════════════════════════════════════════════════════════════
 
-import { TOWN_NAME } from './world/town/plan.js?v=0.2.112';
+import { TOWN_NAME } from './world/town/plan.js?v=0.2.113';
 
 export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'hunts', label: 'Hunts', key: 'h', glyph: 'uiMap', width: 960, object: 'plain' }),
@@ -87,6 +87,9 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'settings', label: 'Settings', key: 'escape', glyph: 'uiSettings', width: 540, object: 'plain', escape: true }),
   /* A player's problem report, straight to the team through the bug-report bridge (also in Settings, Help: a phone's way in). */
   Object.freeze({ id: 'report', label: 'Report a problem', key: 'f', phoneIcon: false, glyph: 'uiWarn', width: 420, object: 'plain' }),
+  /* One monster's facts, a page of the encyclopedia (Tyler 2026-11-09: every monster's stats are visible). A creature on a hunt's page opens it
+     (src/shell/goto.js), so it has no icon and no key. It opens at the bottom-left, beside the Hunts window it was opened from: docked, it would close it. */
+  Object.freeze({ id: 'monster', label: 'Monster facts', key: null, noShortcut: true, launcher: false, glyph: 'uiBook', width: 420, height: 560, home: 'bl', object: 'book' }),
   /* The owner's tools (2027-03-13-gm-tools.sql). No key: nobody else's keyboard reaches an empty window; the icon is the way in. */
   Object.freeze({ id: 'game-master', label: 'Game Master', key: null, phoneIcon: false, gm: true, glyph: 'uiTarget', width: 520, object: 'ledger' }),
 ]);

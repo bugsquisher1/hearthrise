@@ -25,6 +25,7 @@
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { ownHeroSlots } from './_slots.mjs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -75,6 +76,7 @@ const engineExec = (db) => async (text, params) => {
 
 async function makeHero(db, uid, slot) {
   const name = 'Taxpayer' + String.fromCharCode(97 + (seq % 26)) + String.fromCharCode(97 + Math.floor(seq / 26) % 26) + 'abcdef'[slot];
+  if (slot > 0) await ownHeroSlots((sql, p) => db.query(sql, p), uid, slot);   // one slot to start (2027-03-25-hero-slots-one.sql)
   const h = await as(db, uid, 'select public.hr_create_hero($1, $2, $3::jsonb, $4::uuid)', [slot, name, COLORS, idem()]);
   if (!h || h.ok !== true) throw Object.assign(new Error('hr_create_hero refused: ' + js(h)), { harness: true });
 }

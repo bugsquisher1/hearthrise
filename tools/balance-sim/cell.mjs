@@ -294,7 +294,7 @@ export async function loadCellRunner(root) {
         if (!opts.options) delete opts.options;
         if (Number.isInteger(cell.density)) opts.density = cell.density;
         if (cell.temper) opts.temper = cell.temper;
-        /* a what-if on the ground's own row (respawnMs, partyScale ...): a copy, never the frozen table */
+        /* a what-if on the ground's own row (respawnMs, pockets ...): a copy, never the frozen table */
         if (cell.groundPatch) opts.ground = { ...ground, ...cell.groundPatch };
         const res = play.run(cell.ground, levels.length > 1 ? levels : levels[0], roles, opts);
         for (const h of H) close(h, live[h.key]);

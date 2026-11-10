@@ -98,15 +98,21 @@ const OWN_SQL = '2026-10-09-xp-frac-carry.sql';
    439f106a -> f9b281a9 and the levelling run's 9aabde49 -> a20e1e5f. Proof it is ONLY that row: with the Slime's stat line
    put back to main's (everything else the formula's), --measure-draws reads 439f106a and 9aabde49 again; n 4478 / 2374,
    687 kills and the items are unchanged. */
-const PRE_CHANGE_DRAWS = { n: 4478, hash: 'f9b281a9', kills: 687,
-  items: '{"lamp_jelly":213,"slime_gel":633,"sticky_core":63}' };   // re-measured lane S1 (instance engine; n = events)
+/* RE-MEASURED one difficulty for every group (2026-11-10, lane/b-one-difficulty): the re-tune moved the Slime's row (XP 33 -> 22,
+   coin [1, 3] -> [1, 1], Slime Gel 80% -> 48%: src/data/monsters.js) and a hero alone earns the solo boost (party-class-xp.js
+   SOLO_XP_PM 1050), so the XP events and the drops moved: hash f9b281a9 -> cb59f92a, the levelling run's a20e1e5f -> 935dd946,
+   items 213 / 633 / 63 -> 180 / 385 / 75. Proof it is ONLY those two: with the Slime's line put back to main's and SOLO_XP_PM at
+   1000 (everything else this lane's), --measure-draws reads f9b281a9 and a20e1e5f again with main's items; with the line alone put
+   back, main's items and e2c650c0. n 4478 / 2374 and 687 kills are unchanged. */
+const PRE_CHANGE_DRAWS = { n: 4478, hash: 'cb59f92a', kills: 687,
+  items: '{"lamp_jelly":180,"slime_gel":385,"sticky_core":75}' };   // re-measured lane S1 (instance engine; n = events)
 /* AND A LEVELLING HERO (every combat skill at 5, 30 minutes): the DRAW STREAM is
    pinned (count + hash), the outcomes deliberately are not. Measured on both
    trees: the same 2,360 draws, but 131 -> 130 kills — the carry pays the XP the
    floor used to eat, a level arrives at a different swing, and the same number
    rolled against a different accuracy is a different hit. That is XP moving a
    level, never XP moving a draw. */
-const PRE_CHANGE_DRAWS_L5 = { n: 2374, hash: 'a20e1e5f' };   // re-measured the formula's Slime row 2026-11-07 (was 9aabde49; above)   // re-measured loot bands phase C (no rare_drop events from the Slime)   // re-measured v0.2.29 loot loop (+4 rare_drop events; minus them the old 2374 / 9aabde49)   // re-measured option B 2026-10-19 (anchor steps; draws unchanged)   // re-measured core rebuild 2026-10-19 (Melee/Defense at 5 on the uncapped curve)   // re-measured lane S1 on the instance engine (was 2840 / 7a2d23c4 on the single-foe span)
+const PRE_CHANGE_DRAWS_L5 = { n: 2374, hash: '935dd946' };   // re-measured one difficulty 2026-11-10 (was a20e1e5f; above)   // re-measured the formula's Slime row 2026-11-07 (was 9aabde49; above)   // re-measured loot bands phase C (no rare_drop events from the Slime)   // re-measured v0.2.29 loot loop (+4 rare_drop events; minus them the old 2374 / 9aabde49)   // re-measured option B 2026-10-19 (anchor steps; draws unchanged)   // re-measured core rebuild 2026-10-19 (Melee/Defense at 5 on the uncapped curve)   // re-measured lane S1 on the instance engine (was 2840 / 7a2d23c4 on the single-foe span)
 
 const JS_MUTANTS = [
   { name: 'floor before multiplier', arm: 'X1', file: 'src/core/progression.js',

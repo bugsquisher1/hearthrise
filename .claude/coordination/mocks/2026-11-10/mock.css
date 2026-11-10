@@ -1,0 +1,67 @@
+/* MOCK ONLY (lane/d-scaled-and-events-mocks, 2026-11-10). Every colour, size and face is a token from
+   src/styles/tokens.css. Part 1 is the proposed new rules, named the way the build would name them.
+   Part 2 is the review board around the screens and never ships. */
+
+/* ── 1a. SCALED HUNTS: one section on a ground's page (windows.css) ── */
+.hw-hd-scale[hidden] { display: none; }
+.hw-scale-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.hw-scale-use { display: flex; align-items: center; gap: 8px; min-height: 36px; font-size: var(--t-small); font-weight: 700; color: var(--ink); cursor: pointer; }
+.hw-scale-use input { width: 18px; height: 18px; margin: 0; accent-color: var(--gold); }
+.hw-scale-use:has(input:disabled) { color: var(--ink-3); cursor: default; }
+.hw-scale-bank { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.hw-scale-bank b { color: var(--ink); }
+.hw-scale-note { margin: 2px 0 0; font-size: var(--t-micro); line-height: 1.4; color: var(--ink-2); }
+.hw-scale-note:empty { display: none; }
+.hw-scale-note.is-short { color: var(--red); }
+.hw-scale-buy { display: grid; grid-template-columns: auto minmax(110px, 1fr) auto auto; align-items: center; gap: 10px; margin-top: 10px; }
+.hw-scale-buy[hidden] { display: none; }
+.hw-scale-buy > label { white-space: nowrap; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-scale-hours { min-width: 4.6em; font-size: var(--t-small); font-weight: 700; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.hw-scale-press { min-height: 36px; padding: 0 10px; background: var(--bg-0); box-shadow: var(--hw-well); white-space: nowrap; }
+.hw-scale-set { margin: 0; font-size: var(--t-small); color: var(--ink); }
+.hw-scale-set b { font-weight: 700; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hw-scale-buy { grid-template-columns: minmax(90px, 1fr) auto; gap: 6px 10px; }
+  .hw-scale-buy > label { grid-column: 1 / -1; }
+  .hw-scale-buy .hw-scale-press { grid-column: 1 / -1; min-height: 40px; }
+  .hw-scale-buy input[type="range"] { height: 22px; }
+}
+
+/* ── 1b. LIVE EVENTS: the screen plate (shell.css, beside .hs-online) and the Hunts lines (windows.css) ── */
+.hs-event { position: absolute; z-index: 2; display: flex; align-items: center; gap: 8px; margin: 0; padding: 4px 10px 4px 8px; border: 0;
+  background: var(--hud-fill); font-family: var(--f-ui); font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap;
+  font-variant-numeric: lining-nums tabular-nums; text-shadow: 0 1px 0 var(--world-shadow); cursor: pointer; }
+.hs-event::before { content: ''; flex: none; width: 6px; height: 6px; background: var(--gold); transform: rotate(45deg); }
+.hs-event b { font-weight: 700; color: var(--ink); }
+.hs-event.is-gain b { color: var(--green); }
+.hs-event.is-soon::before { background: var(--ink-3); }
+.hs-event.is-soon b { color: var(--ink-2); }
+.hs-event.is-ending .hs-event-when { color: var(--ink); font-weight: 700; }
+.hs-event + .hs-event { margin-top: 4px; }
+.hw-hd-event { margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-hd-event b { font-weight: 700; color: var(--green); }
+.hw-hd-event.is-plain b, .hw-hunt-event b { color: var(--ink); }
+.hw-hunt-event { display: block; font-size: var(--t-micro); color: var(--ink-2); }
+
+/* ── 2. THE REVIEW BOARD (never ships) ── */
+html.mock-board, html.mock-board body { height: auto; min-height: 100%; overflow: auto; }
+html.mock-board body { margin: 0; padding: 28px 32px 60px; background: var(--bg-0); color: var(--ink); font-family: var(--f-ui); font-size: var(--t-small); }
+.mock-h1 { margin: 0 0 4px; font-family: var(--f-display); font-size: var(--t-h2, 22px); letter-spacing: .06em; color: var(--gold); }
+.mock-lede { margin: 0 0 22px; max-width: 980px; color: var(--ink-2); line-height: 1.45; }
+.mock-cap { margin: 26px 0 8px; font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.mock-cap b { color: var(--ink); }
+.mock-screen { display: block; border: 0; background: var(--bg-0); box-shadow: 0 0 0 1px var(--line); }
+.mock-states { display: grid; gap: 28px 36px; align-items: start; }
+.mock-states.is-wide { grid-template-columns: repeat(2, 600px); }
+.mock-states.is-narrow { grid-template-columns: repeat(3, 380px); }
+.mock-state > .mock-cap { margin-top: 0; }
+.mock-why { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-3); line-height: 1.4; }
+/* A slice of the real window: the Hunts page's own classes, standing still on the board. */
+.mock-slice.hs-win { position: relative; top: auto; width: auto; max-height: none; transform: none; animation: none; }
+.mock-slice .hs-win-body { max-height: none; overflow: visible; }
+.mock-slice .hw-hunts-cols { display: block; }
+.mock-slice .hw-hunt-detail { max-height: none; height: auto; overflow: visible; }
+.mock-slice .hw-hd-page { max-height: none; height: auto; overflow: visible; padding-top: 2px; padding-bottom: 14px; }
+.mock-slice .hw-hd-page > .hw-hd-h:first-child, .mock-slice .hw-hd-page > section:first-child > .hw-hd-h { margin-top: 6px; }
+.mock-plates { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px; background: var(--bg-2); }
+.mock-plates .hs-event { position: static; }

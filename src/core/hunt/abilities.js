@@ -14,6 +14,7 @@
 //   RUNE is bought only when the slot names the store rune, `action.store`, which
 //   the bar shows and the player can change — designer 2026-11-05; a basic shot
 //   never buys one, shotLine),
+//   an `alone` row only while no other living hero shares the world (aloneIn),
 //   and its target rule finds a target (AB-03). A slot the purse cannot pay
 //   waits and the next one is tried; it never ends the hunt by itself.
 // Firing spends the mana, the rune and the shots, sets the cooldown and the
@@ -39,23 +40,23 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.112';
-import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js?v=0.2.112';
-import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.112';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.112';
-import { temperedAmount } from '../temper.js?v=0.2.112';
-import { SURGE_MULT_PM } from '../../data/jewelry.js?v=0.2.112';
-import { cheb, dist2, los } from './grid.js?v=0.2.112';
-import { makeEvent } from './events.js?v=0.2.112';
-import { landHit } from './damage.js?v=0.2.112';
-import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.112';
-import { applyStatus, statusRow } from './status.js?v=0.2.112';
-import { levelOf } from '../xp.js?v=0.2.112';
-import { ammoPerShot } from '../ammo.js?v=0.2.112';
-import { ITEMS } from '../../data/items.js?v=0.2.112';
-import { isRune } from '../../data/supplies.js?v=0.2.112';
-import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder, runeSupplyOf } from './conditions.js?v=0.2.112';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.112';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.113';
+import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js?v=0.2.113';
+import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.113';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.113';
+import { temperedAmount } from '../temper.js?v=0.2.113';
+import { SURGE_MULT_PM } from '../../data/jewelry.js?v=0.2.113';
+import { cheb, dist2, los } from './grid.js?v=0.2.113';
+import { makeEvent } from './events.js?v=0.2.113';
+import { landHit } from './damage.js?v=0.2.113';
+import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.113';
+import { applyStatus, statusRow } from './status.js?v=0.2.113';
+import { levelOf } from '../xp.js?v=0.2.113';
+import { ammoPerShot } from '../ammo.js?v=0.2.113';
+import { ITEMS } from '../../data/items.js?v=0.2.113';
+import { isRune } from '../../data/supplies.js?v=0.2.113';
+import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder, runeSupplyOf } from './conditions.js?v=0.2.113';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.113';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
@@ -227,6 +228,14 @@ export function gateOf(hero, h, row, atMs) {
   return null;
 }
 
+/**
+ * ALONE (Tyler 2026-11-09, src/data/abilities.js `alone`): no other living hero shares `world` with `hero`. Read at each
+ * cast, as the kill XP reads the living heroes (xp-share.js): a death or a leave changes the next cast. Pure.
+ */
+export function aloneIn(world, hero) {
+  return !!world && Array.isArray(world.units) && !world.units.some((o) => o !== hero && o.side === 'hero' && o.alive === true);
+}
+
 /* The shield a self-shield lands at `pm` permille of its row's (effect's `scaled`). */
 const landsShield = (row, pm) => (pm === 1000 ? row.shield : Math.floor((row.shield * pm) / 1000));
 
@@ -262,9 +271,12 @@ export function firstUsable(inst, hero, sc, only) {
   if (!h || !h.hs) return null;
   /* Evaluated only while its LANE is free: a slot whose lane is shut is not even tested.
      One whose conditions pass but that waits on its cooldown, mana, stock or a target
-     in reach is the lane's `rule_wait` (conditions.js noteWait). */
+     in reach is the lane's `rule_wait` (conditions.js noteWait). An ALONE row with another
+     living hero in the world is not tested either (aloneIn): in a party it is as if absent. */
+  const solo = aloneIn(inst.world, hero);
   const rows = slotsFor(h, 'ability').filter((r) => (!only || only(ABILITIES[r.slot.action.id]))
-    && gateOf(hero, h, ABILITIES[r.slot.action.id], sc.atMs) !== 'lane');
+    && gateOf(hero, h, ABILITIES[r.slot.action.id], sc.atMs) !== 'lane'
+    && (solo || !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].alone)));
   const got = pickSlot(inst, hero, h, rows, (slot, cx) => {
     const row = ABILITIES[slot.action.id];
     const gate = gateOf(hero, h, row, sc.atMs);

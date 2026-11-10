@@ -16,7 +16,6 @@
 //   monsters  the monster ids whose `ev:kill_monster:<id>` counters are summed, per hero
 //   label     the locked row's count: "Wolves: 3,214 of 5,000"
 //   noun      the same in a sentence
-//   partyOnly the only way to these monsters is a party, so the row says so (the data's own MIN_PARTY_NOTE)
 //
 // THIS FILE STAYS OUT OF THE hr-accrue BUNDLE: nothing under src/core or the edge imports it, so a new title never moves the edge hash.
 //
@@ -41,7 +40,7 @@ export const TITLES = Object.freeze({
   }),
   knotcutter: Object.freeze({
     name: 'Crownbreaker', words: 'the Crownbreaker', price: 25000, kills: 250,
-    monsters: Object.freeze(['rat_king']), label: 'Rat Kings', noun: 'Rat Kings', partyOnly: true,
+    monsters: Object.freeze(['rat_king']), label: 'Rat Kings', noun: 'Rat Kings',
   }),
   potbreaker: Object.freeze({
     name: 'Potbreaker', words: 'the Potbreaker', price: 40000, kills: 10000,

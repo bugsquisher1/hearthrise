@@ -17,7 +17,8 @@
 --   XP lost = total Level XP x death_xp_permille / 1000 x (1 - the held Blessings' cut)
 --   LEVEL   the share of the TOTAL Level XP. It may cross a Level, never below 0 XP (Level 1): the share is at most the whole.
 --   SKILLS  each combat skill (hr_skills cat 'combat') the share of its progress into its level, never a level (unchanged).
---   BLESSINGS hr_blessing_take (unchanged) keeps the cut of hr_blessing_tiers.permille (Tyler's 32 / 63 / 95%, src/data/blessings.js
+--   BLESSINGS hr_blessing_take (unchanged) keeps the cut of hr_blessing_tiers.permille (25 / 50 / 75%, Tyler 2026-11-10, once
+--           2027-03-25-death-share-alpha-catalogue.generated.sql has run; 32 / 63 / 95% until then; src/data/blessings.js
 --           BLESSING_CUT_PERMILLE, one line). The engine proposes the unblessed price; the server blesses, bounds and debits it.
 --
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
@@ -634,7 +635,7 @@ end $grants$;
 -- (b) THE RULE, executed at the catalogue's own permille (2% before the catalogue file, 6% after): a hero 1 XP into Level 10 dies and
 --     lands at Level 9; 0 XP loses nothing; the share never exceeds the whole (never below Level 1); a skill at its level's start loses
 --     nothing and a skill 1 XP short of its next level never drops a level
--- (c) Blessings, executed on a probe hero: all three held keep the catalogue's cut of the share (Tyler's 95% today), and are used up
+-- (c) Blessings, executed on a probe hero: all three held keep the catalogue's own cut of the share (whatever its top row reads), and are used up
 -- (d) no client role reaches the helper, the settle or the view; zero leak; grant hygiene
 -- Nothing here reads or counts a real player's row: every probe is its own account, scoped by its id, and rolled back.
 do $check$

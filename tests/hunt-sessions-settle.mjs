@@ -97,6 +97,10 @@
 //              Flame dies and the death prices it as a combat skill (DEATH_XP_LOSS of its progress, never a
 //              level), the same with the browser closed (the tick's windows) and the hunt viewed (a player's
 //              irregular instants), and the bank says so
+//   DEATHXP-BLESS  Blessings cut a death by 25 / 50 / 75% (Tyler 2026-11-10): the one data row, and
+//              hr_blessing_tiers after the chain; a hero holding all three dies with the browser closed and
+//              with the hunt viewed, each door debits the share less the top cut, the death log names the
+//              three Blessings and what they kept, and they are used up
 //   BOTH-PATH  a hunt with a death settled at a player's irregular instants writes
 //              what the tick's windows write.
 //   BOTH-PATH-MIDNIGHT  the same on a pinned server clock, a second death of the day at 23:59:40: the browser closed,
@@ -297,6 +301,8 @@ async function loadEdge(root) {
     TK: await import(u(join(FN, 'tick.js'))),
     SA: await import(u(join(FN, 'set-activity.js'))),
     HSD: await import(u('src/data/hunt-sessions.js')),
+    /* the Blessings' one cut row (DEATHXP-BLESS) */
+    BL: await import(u('src/data/blessings.js')),
     /* The client's envelope applier is read from the REAL tree (the mutant copies
        hold only the edge, src/core and src/data). */
     ENV: await import(pathToFileURL(join(ROOT, 'src', 'session', 'envelope.js')).href),
@@ -1837,6 +1843,47 @@ const DB_ARMS = {
       if (log.level_from !== d.level_from || log.level_to !== d.level_to) problems.push(`${door}: the death log reads Level ${log.level_from} to ${log.level_to}, the event ${d.level_from} to ${d.level_to}`);
     }
     if (crossed !== 2) problems.push(`CONTROL: the death crossed a Level in ${crossed} of 2 doors (the fixture must start 1 XP into its Level and die before it climbs)`);
+    return problems;
+  }),
+  /* A BLESSED DEATH, BOTH DOORS (Tyler 2026-11-10: Blessings cut a death by 25 / 50 / 75%, replacing 32 / 63 / 95;
+     2027-03-25-death-share-alpha-catalogue.generated.sql). The ruled row is the data's one line and the replayed chain's
+     hr_blessing_tiers reads the same. A hero holding all three dies with the browser closed (the tick's windows) and with
+     the hunt viewed (a player's irregular instants): each door debits the share less the top cut, the death log names the
+     three Blessings and what they kept, and the Blessings are used up. */
+  'DEATHXP-BLESS': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const cut = [...M.BL.BLESSING_CUT_PERMILLE];
+    if (JSON.stringify(cut) !== '[250,500,750]') problems.push(`the Blessing cut row reads ${cut.join(' / ')} permille, the ruling is 250 / 500 / 750`);
+    if (JSON.stringify(M.BL.BLESSING_TIERS.map((t) => t.xpLossReductionPermille)) !== JSON.stringify(cut)) problems.push('a Blessing tier does not read the one cut row');
+    const rows = (await q(db, 'select permille from public.hr_blessing_tiers order by tier')).map((r) => Number(r.permille));
+    if (JSON.stringify(rows) !== JSON.stringify(cut)) problems.push(`hr_blessing_tiers reads ${rows.join(' / ')} after the chain, the data row ${cut.join(' / ')}`);
+    const top = rows[rows.length - 1];
+    const h = await hunter(db, M, { ...DOOMED, levelXpOver: 1 });
+    await db.query(`insert into public.player_blessings (user_id, slot, tier, paid, bought_at)
+                      select $1, 0, t.tier, 0, now() - interval '2 days' from public.hr_blessing_tiers t`, [UIDS[0]]);
+    const door = async (cuts) => {
+      await run(db, M, h.from, cuts);
+      const s = await snapshot(db, h.sid, UIDS[0]);
+      s.death_log = await one(db, 'select public.hr_death_log_view($1::uuid, 0)', [UIDS[0]]);
+      s.held = Number(await one(db, 'select count(*) from public.player_blessings where user_id = $1 and slot = 0', [UIDS[0]]));
+      return s;
+    };
+    await db.query('savepoint death_bless');
+    const a = await door(ticksOf(90000, SPAN_MS));
+    await db.query('rollback to savepoint death_bless');
+    const b = await door((f) => attendedCuts(f, [a]));
+    for (const [name, s] of [['the browser closed', a], ['the hunt viewed', b]]) {
+      const death = (s.events || []).filter((e) => e[0] === 'death');
+      if (death.length !== 1) { problems.push(`CONTROL (${name}): the hero died ${death.length} time(s)`); continue; }
+      const log = (s.death_log || [])[0] || {};
+      const paid = Number((s.death_xp || {}).level || 0), kept = Number((log.saved || {}).level || 0);
+      const share = paid + kept, before = Number(s.level_xp) + paid;
+      if (!(share > 0) || share !== Math.floor(before * M.HSD.DEATH_XP_LOSS)) problems.push(`${name}: the unblessed share was ${share} Level XP of ${before}, not DEATH_XP_LOSS of the total`);
+      if (!(kept > 0) || kept !== Math.floor(share * top / 1000)) problems.push(`${name}: three Blessings kept ${kept} of ${share} Level XP, not floor(${share} x ${top} / 1000)`);
+      if (log.blessings !== rows.length) problems.push(`${name}: the death log names ${log.blessings} Blessing(s) used, ${rows.length} were held`);
+      if (s.held !== 0) problems.push(`${name}: ${s.held} Blessing(s) still held after the death`);
+    }
+    if (JSON.stringify([a.level_xp, a.death_xp]) !== JSON.stringify([b.level_xp, b.death_xp])) problems.push(`the two doors disagree: ${JSON.stringify([a.level_xp, a.death_xp])} with the browser closed, ${JSON.stringify([b.level_xp, b.death_xp])} with the hunt viewed`);
     return problems;
   }),
   'NO-DODGE': async (db, M) => inTx(db, async () => {
@@ -4475,6 +4522,8 @@ const MUTANTS = [
     from: '  return Math.max(0, Math.min(Math.floor(x * f), x));', to: '  return Math.max(0, Math.floor(x * f) + 1);' },
   { arm: 'DEATHXP', name: 'a death prices nothing', file: 'src/core/combat-sim.js',
     from: '  const xpLost = deathXpLoss(m.state);', to: '  const xpLost = {};' },
+  { arm: 'DEATHXP-BLESS', name: 'the Blessing cut row is the old 32 / 63 / 95', file: 'src/data/blessings.js',
+    from: 'export const BLESSING_CUT_PERMILLE = Object.freeze([250, 500, 750]);', to: 'export const BLESSING_CUT_PERMILLE = Object.freeze([320, 630, 950]);' },
   { arm: 'END', name: 'a death ends nothing (the hunt runs on to another end)', file: 'src/core/action-rules.js',
     from: '  died: (hs) => hs.died === true,', to: '  died: () => false,' },
   { arm: 'END', name: '[C2 dry heal line] a dry essential heal line under end ends nothing', file: 'src/core/action-rules.js',
@@ -4748,6 +4797,10 @@ const DB_MUTANTS = [
     find: "'level_from', v_lfrom, 'level_to', v_lto)", replace: "'level_from', null::int, 'level_to', null::int)" },
   { arm: 'DEATHXP-LEVEL', name: 'the death log drops the Level pair', fn: 'public.hr_death_log_view(uuid,integer)',
     find: "then jsonb_build_object('level_from', (d.data->>'level_from')::int, 'level_to', (d.data->>'level_to')::int)", replace: "then '{}'::jsonb" },
+  { arm: 'DEATHXP-BLESS', name: 'the settle ignores the Blessings a hero holds', fn: AM,
+    find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', replace: '    v_bless := null;' },
+  { arm: 'DEATHXP-BLESS', name: 'the death log drops the Blessings a death used', fn: 'public.hr_death_log_view(uuid,integer)',
+    find: "then jsonb_build_object('blessings', jsonb_array_length(b.meta->'tiers'))", replace: "then '{}'::jsonb" },
   { arm: 'STAMINA', name: 'the applier stops proving the pool', fn: AM,
     find: '  if v_e <> greatest(0, v_s0 - v_paid) then', replace: '  if v_e < 0 then' },
   { arm: 'VALUE', name: 'the Level XP bound is gone', fn: AM,

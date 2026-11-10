@@ -60,7 +60,7 @@ re-derives it and proves N bones pay exactly N x 15.5 with the fraction carried)
 2. Party (Tyler): every other member ends `party_member_died` at its own boundary and pays nothing for it.
 3. Price (Tyler 2026-11-09): Level loses `DEATH_XP_LOSS` (6%) of the TOTAL Level XP; it can take a Level, never below
    Level 1 (one formula, no alternative base). Each combat skill loses 6% of its progress toward the next level, never a
-   level. Blessings (`BLESSING_CUT_PERMILLE`, 320/630/950 permille) reduce both. SQL re-bounds the price with
+   level. Blessings (`BLESSING_CUT_PERMILLE`, 250/500/750 permille, Tyler 2026-11-10; the server's copy is `hr_blessing_tiers`, `2027-03-25-death-share-alpha-catalogue.generated.sql`) reduce both. SQL re-bounds the price with
    `hr_death_xp_max` and debits it (`death_xp_over` refuses an over-charge); the death event names `level_from` /
    `level_to` (2027-03-25-death-share.sql).
 4. `END_ORDER` starts `died`, `party_member_died`; both resume the last non-hunt activity (`RESUME_AFTER_END`), gathering only: a bench spends what the player owns and is never restarted (`2027-02-15-panel-truth.sql`).

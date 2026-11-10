@@ -1,8 +1,9 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/data/blessings.js — BLESSINGS: PROTECTION FROM THE XP A DEATH TAKES (Tyler 2026-10-18)
 //
-// Tyler's rules: three blessing tiers, each adds about a third of the
-// protection (cumulative 32% / 63% / 95% less XP lost on a death); each tier
+// Tyler's rules: three blessing tiers, each cuts a quarter of what a death
+// takes (cumulative 25% / 50% / 75% less XP lost, Tyler 2026-11-10, the
+// designer's numbers; 32 / 63 / 95 until then); each tier
 // costs more than the last; all three are FREE under combat level 30; above
 // it each tier's price scales with level, starting cheap; a death USES THEM
 // UP (rebuy after dying). Gold only. Server-owned: a backend lane writes the
@@ -23,9 +24,9 @@
 // Level = src/core/xp.js charLevelFromXp(level_xp) (server: hr_level_of).
 //
 // WORKED PRICES:          level 31   level 60   level 100
-//   tier 1 (32%)             110        400        800
-//   tier 2 (63% total)       165        600      1,200
-//   tier 3 (95% total)       220        800      1,600
+//   tier 1 (25%)             110        400        800
+//   tier 2 (50% total)       165        600      1,200
+//   tier 3 (75% total)       220        800      1,600
 //   full set                 495      1,800      3,600
 //
 // PURE ESM. Data only.
@@ -43,12 +44,13 @@ export const BLESSING_RULES = Object.freeze({
 
 /* THE CUT, ONE ROW (lane/c-death-and-slots, 2026-11-09): the share of a death's
    XP loss removed while 1, 2 or all 3 Blessings are held, CUMULATIVE, in
-   permille. Tyler's ruled 32% / 63% / 95% (2026-10-18). With the death share at
-   6% (hunt-sessions.js DEATH_XP_LOSS) the designer proposes 250 / 500 / 750, a
-   quarter each (PRIORITY_BOARD "2026-11-09 Death share and alt price"); Tyler has
-   not ruled, so the switch is this one line and a regenerated alpha catalogue
-   (tools/gen-alpha-catalogue.mjs, hr_blessing_tiers.permille). */
-export const BLESSING_CUT_PERMILLE = Object.freeze([320, 630, 950]);
+   permille. A quarter each, 25% / 50% / 75% (Tyler 2026-11-10, the designer's
+   numbers for the 6% death share, hunt-sessions.js DEATH_XP_LOSS; PRIORITY_BOARD
+   "2026-11-09 Death share and alt price"). It replaces his 32% / 63% / 95% of
+   2026-10-18. The server's copy is hr_blessing_tiers.permille, generated from
+   this line (tools/gen-alpha-catalogue.mjs); hr_blessing_take applies it, and
+   every number a player reads is that row's, projected. */
+export const BLESSING_CUT_PERMILLE = Object.freeze([250, 500, 750]);
 
 /* xpLossReductionPermille is CUMULATIVE: the share of the death XP loss removed
    while this tier (and every one below it) is held. */

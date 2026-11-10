@@ -9,8 +9,9 @@
 // ONE replay of the chain up to the file before them. Two LIVE accounts are made the production way first (no wipe is
 // planned, Tyler 2026-11-09): one with heroes in slots 0 and 1 and a bought slot 2, one with a hero in slot 0 and its free
 // slot 1 empty. Then the three files apply, twice.
-//   HS-0  the files (the death pair, 2027-03-25-death-share*.sql, then the slot trio) apply over the live accounts, and a
-//         second apply of all five moves nothing (every function body, table, catalogue row and hero)
+//   HS-0  the files (the death trio, 2027-03-25-death-share*.sql with the Blessing cut's catalogue, then the slot trio) apply
+//         over the live accounts, and a second apply of all six moves nothing (every function body, table, catalogue row
+//         and hero)
 //   HS-1  the catalogue: no starter, 300,000 / 750,000 / 1,500,000, four heroes = the play cap; src/data/shops.js and the
 //         generated unlock ids and offers name slots 1-3 at the same prices
 //   HS-2  a NEW account through the real wrapper: owns slot 0 alone, is offered the second hero at 300,000, cannot make a
@@ -35,8 +36,8 @@ import { isMain } from './_is-main.mjs';
 
 const BEFORE = '2027-03-24-rune-supply.sql';
 const MIG = '2027-03-25-hero-slots-one.sql';
-/* The whole 2027-03-25 lane in apply order (the death pair first), so HS-0 proves every one of them re-applies byte for byte. */
-const FILES = ['2027-03-25-death-share.sql', '2027-03-25-death-share-hunt-sessions-catalogue.generated.sql',
+/* The whole 2027-03-25 lane in apply order (the death trio first), so HS-0 proves every one of them re-applies byte for byte. */
+const FILES = ['2027-03-25-death-share.sql', '2027-03-25-death-share-hunt-sessions-catalogue.generated.sql', '2027-03-25-death-share-alpha-catalogue.generated.sql',
   MIG, '2027-03-25-hero-slots-one-unlocks.generated.sql', '2027-03-25-hero-slots-one-unlock-offers.generated.sql'];
 const SELF_CHECK = '-- ── §2 SELF-CHECK';
 const COLORS = '{"head": 13, "body": 5, "legs": 3, "feet": 0}';
@@ -113,6 +114,8 @@ async function run(mutate) {
     await q(`select p.oid::regprocedure::text f, md5(p.prosrc) h, coalesce(p.proacl::text, '') a from pg_proc p
               where p.pronamespace = 'public'::regnamespace order by 1`),
     await q('select * from public.hr_hero_slots order by slot_id'),
+    await q('select * from public.hr_blessing_tiers order by tier'),
+    await q('select * from public.hr_hunt_limits order by 1'),
     await q('select unlock_id from public.hr_unlocks order by 1'),
     await q('select offer_id from public.hr_unlock_offers order by 1'),
     await q('select user_id, slot, md5(to_jsonb(ps)::text) from public.player_state ps order by 1, 2')]);

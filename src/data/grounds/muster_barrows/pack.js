@@ -61,7 +61,9 @@
 // (tests/pixel-icons.mjs), and a revealed one before it may drop (drop-tables loot-structure). The Pyre Field's pack carries the same set for a lone
 // hero ten Levels on. Tier 5 has no sale rate (loot-bands.js VENDOR_GEAR_RATES stops at tier 3): a tier above the table sells at
 // its last rate, 0.14 of book, and the hour's gear would sell for several times its coin. This pack ships only with or after the
-// tier-4 and tier-5 rates (the Pyre Field's pack says the same).
+// tier-4 and tier-5 rates (the Pyre Field's pack says the same). Measured here (drop-tables, the four at the floor, each Scarce piece
+// every 1.00-1.04 h and each Rare every 14.6-15.2 h): at 0.14 the hour's gear sells for 12,890 g a head against 7,178 of coin, and the
+// caps hold up to 0.04 of book for tier 5.
 // Commons feed the Hearth (Bones, Big Bones, Bone Chips, Grave Dust). Each body drops its own imbuement item, kept for the imbuer
 // (catalogue-coherence.js VENDOR_TRASH until imbuing is built): Sergeant's Spur and Hask's Coin have icons on the art lane, Coffin
 // Nail and Urn Shard need one each. The ground's named fuel waits on a pack field for NAMED_FUELS (src/data/hearth.js): no row.
@@ -127,9 +129,9 @@ export default definePack({
          class as written (no override): a hammer breaks them, and they come many at a time, so the area blow earns its slot here.
          Their boots and helmets, their sidearm, their bones for the Hearth. */
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'coffin_nail', ch: 0.08, band: 'uncommon' },
-        { id: 'rune_boots', ch: 0.01, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.01, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.01, band: 'scarce' },
-        { id: 'rune_helm', ch: 0.01, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.01, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.01, band: 'scarce' },
-        { id: 'rune_sword', ch: 0.01, band: 'scarce' }],
+        { id: 'rune_boots', ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.016, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.016, band: 'scarce' },
+        { id: 'rune_helm', ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.016, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.016, band: 'scarce' },
+        { id: 'rune_sword', ch: 0.016, band: 'scarce' }],
       hp: 191, atk: 23, baseAcc: 1.04, def: 21, xp: 1217, gp: [21, 64], formula: true },
     cairn_wight: {
       name: 'Cairn Wight', icon: '🪦', tier: 4, level: 60, cls: 'undead', family: 'Undead', speed: 4000,
@@ -138,9 +140,9 @@ export default definePack({
          the bestiary's words). Its grave dust for the Hearth, the legs it was wound in, and the caster's prizes. */
       weaponWeak: 'ranged', weaponResist: ['magic'],
       drops: [{ id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'urn_shard', ch: 0.08, band: 'uncommon' },
-        { id: 'rune_platelegs', ch: 0.03, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.03, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.03, band: 'scarce' },
-        { id: 'yew_staff', ch: 0.03, band: 'scarce' },
-        { id: 'yew_wand', ch: 0.002, band: 'rare' }, { id: 'yew_spellbook', ch: 0.002, band: 'rare' }],
+        { id: 'rune_platelegs', ch: 0.048, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.048, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.048, band: 'scarce' },
+        { id: 'yew_staff', ch: 0.048, band: 'scarce' },
+        { id: 'yew_wand', ch: 0.0033, band: 'rare' }, { id: 'yew_spellbook', ch: 0.0033, band: 'rare' }],
       hp: 188, atk: 31, baseAcc: 1.03, def: 22, xp: 1468, gp: [21, 63], formula: true },
     muster_knight: {
       name: 'Barrow Knight', icon: '⚔️', tier: 5, level: 66, cls: 'undead', family: 'Undead', speed: 3000,
@@ -149,9 +151,9 @@ export default definePack({
          blade and an arrow glance off, the bestiary's words). The bodies, the warhammer, and the gauntlets nobody could get off. */
       weaponWeak: 'magic', weaponResist: ['sword', 'ranged'],
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'sergeant_spur', ch: 0.08, band: 'uncommon' },
-        { id: 'rune_platebody', ch: 0.03, band: 'scarce' }, { id: 'wyvernhide_body', ch: 0.03, band: 'scarce' }, { id: 'sorcerer_body', ch: 0.03, band: 'scarce' },
-        { id: 'rune_warhammer', ch: 0.03, band: 'scarce' },
-        { id: 'rune_gauntlets', ch: 0.002, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.002, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.002, band: 'rare' }],
+        { id: 'rune_platebody', ch: 0.048, band: 'scarce' }, { id: 'wyvernhide_body', ch: 0.048, band: 'scarce' }, { id: 'sorcerer_body', ch: 0.048, band: 'scarce' },
+        { id: 'rune_warhammer', ch: 0.048, band: 'scarce' },
+        { id: 'rune_gauntlets', ch: 0.0033, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0033, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0033, band: 'rare' }],
       hp: 440, atk: 41, baseAcc: 0.9, def: 44, xp: 3420, gp: [49, 147], formula: true },
     captain_hask: {
       name: 'Captain Hask', icon: '👑', tier: 5, level: 75, cls: 'undead', family: 'Undead', speed: 2800, boss: true,
@@ -159,8 +161,8 @@ export default definePack({
          and with the price still on him. The class as written (no override): a hammer and fire both answer him. His belts and the
          bow are the Rares. His Trophy waits on its icon (the header). His phases are in the header: this row is what a ground's engine plays today. */
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'hasks_coin', ch: 0.15, band: 'uncommon' },
-        { id: 'rune_belt', ch: 0.01, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.01, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.01, band: 'rare' },
-        { id: 'yew_bow', ch: 0.01, band: 'rare' }],
+        { id: 'rune_belt', ch: 0.0133, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.0133, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.0133, band: 'rare' },
+        { id: 'yew_bow', ch: 0.0133, band: 'rare' }],
       hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 13281, gp: [173, 520], formula: true },
   },
   roster: {
@@ -199,18 +201,29 @@ export default definePack({
      harder tiers differ by their blows and their pay, not their pull. OPEN, ONE ROW OF THE GRADE: five under on Dangerous the sheet
      also asks that pair to die, and it never did in the hour, on a pull of 5, 7 or 8 (its tank's typical low 44%). The next step up
      in the monsters' own blows is Deadly's, where it died 8 times. The pair pays in gold here, not in deaths.
-     Deadly pays +35% a kill, not the table's +25%: a tank and Healer pair holding it at the floor earned 1.17 of its Normal (its
-     kills are held by its damage, and a Deadly monster has 10% more HP), where the sheet asks 1.25 of whoever holds it. */
-  tierOverride: { dangerous: 8, dials: { deadly: { xpPm: 1350 } },
-    why: 'on the table pull of 5 a Melee and Healer pair two to five Levels under the floor still made gold on Dangerous, so it brings the full box. At +25% a kill a pair holding Deadly at the floor earned 17% over its Normal, so it pays +35%' },
+     THE HARDER TIERS ADD NO HP HERE (the table adds 10%). A tank and Healer pair holding Deadly at the floor earned 1.17 of its Normal
+     at the table's dials, where the sheet asks 1.25 of whoever holds it: its kills are held by its damage, and these party-built
+     bodies already carry 2.5 times a solo ground's HP. A kill never pays more than +25% for a tier (Tyler 11-05, hunt-tiers rows),
+     so the answer is the HP, not the pay. */
+  tierOverride: { dangerous: 8, dials: { dangerous: { hpPm: 1000 }, deadly: { hpPm: 1000 } },
+    why: 'on the table pull of 5 a Melee and Healer pair two to five Levels under the floor still made gold on Dangerous, so it brings the full box. With the 10% more HP the table adds, a pair holding Deadly at the floor earned 17% over its Normal, under the 25% a tier owes whoever holds it, so the harder tiers add no HP here' },
   /* PARTY LEVEL XP (party-class-xp.js's row shape: a share of the kill by how many classes stand, not a difficulty row). With no row a
      party pays the even share of a whole kill, and on the quick grade a tank and Healer pair read 0.78-0.81 of the median lone way and
      the four-class four 0.85-0.86, where 10-25 asks a pair 1.05-1.15 and a four 1.15-1.25. The mixed cells are those readings scaled
      (a cell is a straight factor on the share): at 1360 the pair read 1.01-1.05 and at 1400 the four 1.11-1.13, so 1440 and 1485. The
-     three's cells are set between them and the one-class cells are the Warrens': both unmeasured here (tests/party-class-xp-line.mjs). */
+     three's cells are set between them. The one-class cells are the Warrens' and hold here (the line below). */
   partyClassXp: { 2: [990, 1440], 3: [990, 1440, 1470], 4: [970, 1300, 1440, 1485] },
-  /* THE PACK'S TEST FACTS. Hask holds his barrow (no spawn weight). dropRef: the four the ground is built for, at the floor in their
-     own-tier set (tests/hunt-core/drop-tables.mjs, as the Warrens'). */
-  checks: { holders: [HASK], dropRef: { roles: ['tank', 'ranger', 'mage', 'healer'], full: true } },
+  /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
+     measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-09). One class is the mean
+     of its five one-class parties: pairs 0.85-0.94, threes 0.72-0.90, fours 0.71-0.84 (no one-class party beats its heroes alone, the
+     worst cell 0.943 as built and 0.985 at 8 each). Two of two is the mean of three mixes (1.31-1.38), three of three of two (1.22 and
+     1.30), four of four the one played (1.23). The cells between are the size's mix times the cell ratio. A tank and a Healer are
+     the slowest heroes alone, so a mixed party reads more against them than against the median lone way (the cells above). */
+  partyVsAlone: { 2: [-10, 35], 3: [-20, 25, 25], 4: [-25, 10, 20, 25] },
+  /* THE PACK'S TEST FACTS. Hask holds his barrow (no spawn weight). dropRef: the four the ground is built for, at the floor in the
+     harness's own-tier set (tests/hunt-core/drop-tables.mjs, as the Warrens'). valueToday is COMPUTED, not a pre-conversion pin: that
+     four's measured coin a head (7,178 g/h) and commons (499) plus the gear-faucet's half of the coin (3,589), the most the hour's
+     worn gear may sell for. Tier 5 has no sale rate yet, so gear-faucet and total-value stay red on this ground until one lands. */
+  checks: { holders: [HASK], dropRef: { roles: ['tank', 'ranger', 'mage', 'healer'], full: true }, valueToday: 11266 },
   map,
 });

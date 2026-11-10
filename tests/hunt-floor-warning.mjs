@@ -66,8 +66,9 @@ async function run(base) {
   /* G2 (Tyler 2026-10-21: "The Sewer is a party hunt"): a ground with a party-only hall is a party ground to
      the advice; a lone hero is never recommended one, at any level; where no solo ground holds the level the
      pick is the nearest solo ground below and the note says so; a party is recommended by its levels. */
-  const { HUNT_GROUNDS } = await import(pathToFileURL(join(base, 'src/data/hunt-grounds.js')).href + '?t=' + Math.random());
-  const halls = Object.values(HUNT_GROUNDS).filter((g) => g.pockets.some((p) => p.forParty)).map((g) => g.hunt);
+  /* the OPEN grounds: a staged pack (src/data/grounds) has no row in the Hunts window yet, so the advice says nothing of it until it opens */
+  const { OPEN_GROUNDS } = await import(pathToFileURL(join(base, 'src/data/hunt-grounds.js')).href + '?t=' + Math.random());
+  const halls = Object.values(OPEN_GROUNDS).filter((g) => g.pockets.some((p) => p.forParty)).map((g) => g.hunt);
   ok('G2', halls.length > 0 && halls.every((h) => (rows.find((r) => r.hunt === h) || {}).groupFit === 'party'), 'a ground with a party-only hall is not a party ground to the advice: ' + halls.join(', '));
   const solo15 = HL.recommendedHunt(15, 1, rows);
   ok('G2', !!solo15 && HL.fitsGroup(solo15, 1) && !halls.includes(solo15.hunt), 'a lone Level-15 hero is recommended ' + (solo15 && solo15.hunt));

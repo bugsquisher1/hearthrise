@@ -48,6 +48,18 @@ export const SPELL_ROLL = Object.freeze({ lowPm: 500 });
 /* THE SHIELD'S BRACE (the design's 4K): a hero wearing a shield takes markedPm permille off a MARKED spell's hit, so the
    tank is the right hero to stand in a boss's heavy hit. A group spell is not braced. */
 export const SHIELD_BRACE = Object.freeze({ markedPm: 300 });
+/* THE FIRST CAST (Tyler 2026-11-08: more monsters means more spells, but a pack must not open with every cast at once and then
+   repeat in step): a monster joining a fight waits a random share of each spell's cooldown, from none of it to spanPm permille
+   of it, before that spell's first cast. So a pack's casts are spread over the cooldown and each one can be read. No cap on how
+   many monsters cast: a bigger pull is more spells. 0 turns the wait off (every spell ready as the fight starts).
+   MUTABLE LIKE THE ROWS: a test or a balance what-if sets it for its own run and puts it back. */
+export const SPELL_STAGGER = { spanPm: 1000 };
+/** THE FIRST CAST (a wiki formula): the most sub-steps a spell's first cast waits, the wait itself a whole number drawn from 0
+    to it:  steps = floor(cdMs x SPELL_STAGGER.spanPm / 1000 / stepMs). */
+export function firstCastSteps(row) {
+  const pm = Number.isInteger(SPELL_STAGGER.spanPm) ? Math.min(1000, Math.max(0, SPELL_STAGGER.spanPm)) : 0;
+  return row && Number.isInteger(row.cdMs) ? Math.floor((row.cdMs * pm) / 1000 / HUNT_TUNING.stepMs) : 0;
+}
 /* How many spells one monster may carry (a boss: its marked hit and its group pulse). */
 export const MAX_SPELLS = 2;
 

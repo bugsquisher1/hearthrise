@@ -1,9 +1,10 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/app/slot-offer.js — BUY A HERO SLOT, ON "YOUR CHARACTERS" (tracker r45).
 //
-// Tyler 2026-10-17: every account starts with two hero slots; more, up to
-// five, cost gold. Gold is the ACCOUNT's (Tyler 2026-10-23, one purse for
-// every hero: 2026-12-15-account-gold.sql), so there is nobody to pick: the
+// Tyler 2026-10-17: every account starts with two hero slots; more cost gold,
+// up to four heroes in all (Tyler 2026-11-07: the fifth slot is gone). Gold
+// is the ACCOUNT's (Tyler 2026-10-23, one purse for every hero:
+// 2026-12-15-account-gold.sql), so there is nobody to pick: the
 // slot is paid from "your gold". Every number shown is the server's: the price
 // and the cap come from the envelope's `account.hero_slot_offer`
 // (AccountSession.slotOffer), the gold from the heroes' own hr_load answers
@@ -14,7 +15,7 @@
 // PURE: strings in, strings out. src/app/boot.js mounts and wires it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { whole } from '../render/format.js?v=0.2.106';
+import { whole } from '../render/format.js?v=0.2.112';
 
 const ORDINAL = Object.freeze(['first', 'second', 'third', 'fourth', 'fifth', 'sixth']);
 

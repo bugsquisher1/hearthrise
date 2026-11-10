@@ -14,12 +14,12 @@
 // buy that for ever while the hero's own juice waited (crafter's panel 2026-11-01: 78 Turnip Juice untouched through a 160 min
 // hunt). A slot the player names (a drag, `at`) is the player's order and is never moved.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.106';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.106';
-import { attackItem } from '../core/hunt/conditions.js?v=0.2.106';
-import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.106';
-import { kindOf } from './bag-model.js?v=0.2.106';
-import { startConditions, moveOffWeapon } from './bar-draft.js?v=0.2.106';
+import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.112';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.112';
+import { attackItem } from '../core/hunt/conditions.js?v=0.2.112';
+import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.112';
+import { kindOf } from './bag-model.js?v=0.2.112';
+import { startConditions, moveOffWeapon } from './bar-draft.js?v=0.2.112';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 
@@ -75,28 +75,28 @@ export async function assignToBar(cs, id, at) {
 }
 
 /**
- * THE BAR AFTER A WEAPON SWAP: the moves the worn weapon can't use come off, and the moves it can use step up into their places,
- * or null when nothing is left behind. Bow to club on an edited bar left Hunter's Mark, Flame Volley and Precision Shot struck
- * in slots 1-3 and Power Strike in 7 (QA 2026-11-04): an edited bar is stored whole, so the engine's defaults only find its gaps.
- * Food, drink and ammo never move. Pure, over the server's settings (`set.discipline`).
+ * THE BAR AFTER A WEAPON SWAP: the moves the worn weapon can use step to the front of the bar's move slots, and the moves it
+ * can't use wait behind them, in their order; null when the order already holds. Bow to club on an edited bar left Hunter's
+ * Mark, Flame Volley and Precision Shot struck in slots 1-3 and Power Strike in 7 (QA 2026-11-04). NOTHING COMES OFF: a swap
+ * that deleted them took a Healer's four staff spells for good, and wearing the staff again brought none back (report #79,
+ * 2026-11-09). Swapping back puts the first weapon's moves in front again, in their old order. Food, drink and ammo never
+ * move, and the moves keep the slots moves held. Pure, over the server's settings (`set.discipline`).
  */
 export function barAfterSwap(set) {
   if (!set || !set.discipline) return null;
   const wire = Array.from({ length: SLOTS }, (_, i) => wireSlot(set.slots[i]));
-  const isMove = (w) => !!w && w.action.type === 'ability';
-  const places = [];
-  for (let i = 0; i < SLOTS; i++) {
-    if (isMove(wire[i]) && moveOffWeapon(set.discipline, wire[i].action.id)) { wire[i] = null; places.push(i); }
-  }
-  if (!places.length) return null;
-  for (let i = 0; i < SLOTS && places.length; i++) {
-    if (isMove(wire[i]) && places[0] < i) { const to = places.shift(); wire[to] = wire[i]; wire[i] = null; places.push(i); places.sort((a, b) => a - b); }
-  }
+  const at = [];
+  for (let i = 0; i < SLOTS; i++) if (wire[i] && wire[i].action.type === 'ability') at.push(i);
+  const moves = at.map((i) => wire[i]);
+  const off = (w) => moveOffWeapon(set.discipline, w.action.id);
+  const order = moves.filter((w) => !off(w)).concat(moves.filter(off));
+  if (order.every((w, k) => w === moves[k])) return null;
+  at.forEach((i, k) => { wire[i] = order[k]; });
   return wire;
 }
 
 /**
- * After an equip's yes that put a weapon or a shield in hand (the two set the discipline): restate the bar when the swap left moves behind, one more
+ * After an equip's yes that put a weapon or a shield in hand (the two set the discipline): restate the bar when the swap put a move it can't use in front, one more
  * intent, read back from the server. Its answer, or null with nothing to do: the caller's runIntent says a refusal.
  */
 export function tidyBarAfterSwap(cs, ops) {

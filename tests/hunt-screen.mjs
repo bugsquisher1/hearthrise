@@ -436,8 +436,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const got2 = s.sent('hr_action_set_options').slice(b2).map((c) => JSON.stringify(c.body.p_opts));
         if (got2.length !== 1 || got2[0] !== '{"chase":true}') fails.push('HS-27 the town Chase sent ' + JSON.stringify(got2));
         if (shots) await page.screenshot({ path: join(shots, 'town-1440x900-fight-panel.png') });
-        /* Every slot too, in town: an empty slot opens Configure action, whose tabs are Spells | Runes | Food & drink | Ammo
-           (Tyler 2026-10-25: ammo on its own tab, never mixed in with food and drink; HS-7 reads the same in a hunt). */
+        /* Every slot too, in town: an empty slot opens Configure action, whose tabs are Spells | Food & drink | Ammo
+           (Tyler 2026-10-25: ammo on its own tab, never mixed in with food and drink; Tyler 2026-11-08: a rune spell is a spell, the
+           Runes tab merged into Spells; HS-7 reads the same in a hunt). */
         await page.click('.hb-slot[data-slot="5"]');
         await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank'), null);
         const runsOn = async (tab) => { await page.click('.ca-tab[data-tab="' + tab + '"]');
@@ -1138,12 +1139,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (!picks.ok) fails.push('HS-7 the metric picker is not the registry: ' + picks.shown.join(','));
           if (!/^Slot 3 · tried after slot 2$/.test(picks.title)) fails.push('HS-7 the window opened on "' + picks.title + '", not slot 3');
           if (picks.picked !== 'Wheat Bread' || picks.tab !== 'Food & drink') fails.push('HS-7 the server’s action is not the picked choice on its tab: ' + picks.picked + ' / ' + picks.tab);
-          /* AMMO HAS ITS OWN TAB (Tyler 2026-10-25): Spells | Runes | Food & drink | Ammo; Food & drink lists food and drink
-             only, and every shot is under Ammo. */
+          /* AMMO HAS ITS OWN TAB (Tyler 2026-10-25): Spells | Food & drink | Ammo (Tyler 2026-11-08: the Runes tab merged into Spells,
+             "why bother having a 'spells' and 'runes' section"); Food & drink lists food and drink only, and every shot is under Ammo. */
           const tabsOf = async () => page.evaluate(() => ({ tabs: Array.from(document.querySelectorAll('.ca-tab')).map((b) => b.textContent),
             runs: Array.from(document.querySelectorAll('.ca-runs .ca-run')).map((r) => r.getAttribute('data-run')) }));
           const onFood = await tabsOf();
-          if (onFood.tabs.join('|') !== 'Spells|Runes|Food & drink|Ammo') fails.push('HS-7 the tabs read ' + onFood.tabs.join(' | '));
+          if (onFood.tabs.join('|') !== 'Spells|Food & drink|Ammo') fails.push('HS-7 the tabs read ' + onFood.tabs.join(' | '));
           if (onFood.runs.join() !== 'food,drink') fails.push('HS-7 the Food & drink tab lists the runs ' + JSON.stringify(onFood.runs) + ' (ammo mixed in?)');
           await page.click('.ca-tab[data-tab="ammo"]');
           await wait(page, () => document.querySelector('.ca-tab[data-tab="ammo"][aria-selected="true"]'), null);
@@ -1163,7 +1164,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const mid = await page.evaluate(() => Array.from(document.querySelectorAll('.ca-form button, .ca-form select, .ca-form input')).every((b) => b.disabled));
           if (!mid) fails.push('HS-7 Configure action stayed on while its intent was in flight');
           /* ...as a plain sentence, the words Configure action uses (core-loop play 2026-10-30: "When My HP % below 50%.") */
-          if (!/When my HP is at or below 50%\./.test(tipBefore)) fails.push('HS-7 the slot tooltip did not show the server’s setup in plain words: ' + tipBefore);
+          if (!/When my HP is at most 50%\./.test(tipBefore)) fails.push('HS-7 the slot tooltip did not show the server’s setup in plain words: ' + tipBefore);
           await until(() => s.sent('hr_action_set_options').length >= 1);
           s.release('options');
           const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
@@ -1897,7 +1898,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 
 const MUTANTS = [
   /* Tyler 10-25: ammo on its own tab (HS-7). */
-  ['ammo mixed back into Food & drink (HS-27, HS-7)', 'src/shell/action-table.js', [["    return { runs, empty: runs.length ? null : 'No food or drink in the game yet.' };\n", ''], ["  if (tab !== 'ammo') return { runs, empty: null };\n", '']]],
+  ['ammo mixed back into Food & drink (HS-27, HS-7)', 'src/shell/action-table.js', [["    return { runs, empty: runs.length ? null : t('bar.no_food') };\n", ''], ["  if (tab !== 'ammo') return { runs, empty: null };\n", '']]],
   ['the shell rebuilds a component on every paint', 'src/shell/shell.js', 'if (render.patch) render.patch(el, ctx);', 'if (render.patch) { el.innerHTML = render(ctx); render.patch(el, ctx); }'],
   ['keyed rows rebuild every row', 'src/render/paint.js', 'let el = held.get(k) || (kept && kept.get(k));', 'let el = null;'],
   ['a setting shows before the server confirms', 'src/shell/widgets/settings-intent.js', [["  attr(root, 'data-pending', true);\n", "  attr(root, 'data-pending', true);\n  root.__want = el;\n"],
@@ -1933,7 +1934,7 @@ const MUTANTS = [
   ['the analyzer keeps the last numbers when the section goes', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],
   ['the metric picker is a hard-coded list', 'src/shell/windows/configure-action.js', "options(METRICS.map((m) => [m.id, m.say]))", "options([['self_hp_pct', 'My HP %'], ['self_mana_pct', 'My mana %']])"],
   ['the controls stay on while a bar intent is in flight', 'src/shell/windows/configure-action.js', '  const off = s.pending;', '  const off = false;'],
-  ['a slot tooltip words its test as a form label', 'src/shell/bar-draft.js', "  const op = OPERATORS[c.op] ? OPERATORS[c.op].say : c.op;", "  const op = OPERATORS[c.op] ? OPERATORS[c.op].label : c.op;"],
+  ['a slot tooltip reads its number with no unit (Tyler 2026-11-08: "at or above 2 what?")', 'src/shell/bar-draft.js', " + c.value + unitWords(m, c.value) + (m.subjectAfter ? subject : '');", " + c.value + (m.subjectAfter ? subject : '');"],
   ['a server validation error is not shown inline', 'src/shell/bar-draft.js', '  else { s.error = r;', '  else { s.error = null;'],
   ['the bar hides in town', 'src/data/hud-widgets.js', "removable: true, when: 'always',\n    phone: Object.freeze({ dy: 2 }),", "removable: true, when: 'hunt',\n    phone: Object.freeze({ dy: 2 }),"],
   ['the Food run is sorted by name, not gold per point', 'src/shell/action-table.js', "const byValue = (a, b) => ((a.per === null) - (b.per === null)) || ((a.per || 0) - (b.per || 0))", "const byValue = (a, b) => 0 || 0"],
@@ -1946,7 +1947,7 @@ const MUTANTS = [
   ['the tier waits for the server before it moves', 'src/shell/windows/hunts.js', '  return t && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : t;', '  return t;'],
   ['the tier draft outlives the server answer', 'src/shell/windows/hunts.js', '    if (sc.draft === d) { sc.draft = null;', '    if (sc.draft === d) { sc.draft = r.ok ? d : null;'],
   ['the facts line ignores the tier', 'src/shell/windows/hunts.js', "packWords(r, tier ? tierPull(r, tier, size) : null)", "packWords(r, null)"],
-  ['the tier note drops its numbers', 'src/shell/hunt-list.js', " + (blow && was && blow.hit !== was.hit ? ', and the biggest blow here is ' + blow.hit + ', not ' + was.hit : '') + ", " + "],
+  ['the tier note drops its numbers', 'src/shell/hunt-list.js', "(blow && was && blow.hit !== was.hit ? t('hunts.tier_head_blow'", "(false ? t('hunts.tier_head_blow'"],
   ['a party member picks its own tier', 'src/shell/windows/hunts.js', "  if (party && !party.isLeader) return tierOf(party.tiers, hunt);\n", ''],
   ['Enter says nothing of the harder hunt', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-enter-why'), off || choosing);", "text(det.querySelector('.hw-enter-why'), off);"],
   ['a party member keeps the tier buttons', 'src/shell/windows/hunts.js', "prop(b, 'hidden', follower || !offered.includes(id));", "prop(b, 'hidden', !offered.includes(id));"],
@@ -1969,13 +1970,13 @@ const MUTANTS = [
   ['the hub prints the server’s per-minute mana regen as /s', 'src/shell/widgets/vitals-hub.js', "regen(hero.manaPerS) : ''", "regen(hero.manaPerS * 60) : ''"],
   ['the hub prints regen with two decimals', 'src/shell/widgets/vitals-hub.js', "'+' + r.toFixed(1)", "'+' + r.toFixed(2)"],
   ['a struck slot carries no glyph', 'src/shell/widgets/action-bar.js', "g.innerHTML = seen ? glyphSvg(ctx.glyphs, seen.glyph) : '';", "g.innerHTML = seen && !seen.strike ? glyphSvg(ctx.glyphs, seen.glyph) : '';"],
-  ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };\n  if (a.type === 'consume') return null;", "  if (a.type === 'consume') return null;"],
+  ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return SERVER;\n  if (a.type === 'consume') return null;", "  if (a.type === 'consume') return null;"],
   ['the panel’s chase sends nothing', 'src/shell/widgets/settings-intent.js', "  if (key === 'chase') { const c = valueOf(s, key, cs); return c === null ? null : { chase: !c }; }", "  if (key === 'chase') return null;"],
   /* Tyler 10-25: the bar is configurable IN TOWN from the server's projected picks; the client fills nothing (HS-27). */
   ['the fight panel locks a value the server sent in town (HS-27)', 'src/shell/widgets/settings-intent.js', "  return v === undefined || v === null ? null : v;", "  return null;"],
   ['the client fills an unset option with its own pick (HS-27)', 'src/shell/widgets/settings-intent.js', "  return v === undefined || v === null ? null : v;", "  return v === undefined ? null : v === null ? 'nearest' : v;"],
   ['the gold to keep shows a client default while unset (HS-27)', 'src/shell/widgets/settings-intent.js', "return Number.isSafeInteger(v) && v >= 0 ? v : null;", "return Number.isSafeInteger(v) && v >= 0 ? v : GOLD_FLOOR.default;"],
-  ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (r.rune && !(familyCount(r.rune, bag) > 0)', '    if (false && r.rune && !(familyCount(r.rune, bag) > 0)'],
+  ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (sup && !(ownCount(a, bag) > 0)', '    if (false && sup && !(ownCount(a, bag) > 0)'],
   ['the hub keeps an ended hunt’s in-fight regen', 'src/shell/widgets/vitals-hub.js', '  const hero = h && !h.ended ? h.hero : null;', '  const hero = h ? h.hero : null;'],
   ['the gold to keep shows the typed value before the server confirms', 'src/shell/widgets/settings-intent.js', "(pending || el.ownerDocument.activeElement !== el)", "(!pending && el.ownerDocument.activeElement !== el)"],
   ['the gold to keep sends nothing', 'src/shell/widgets/settings-intent.js', ": { gold_floor: n };", ": null;"],

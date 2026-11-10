@@ -281,12 +281,45 @@ selftest() {
     "b332: a ?v= outside src/** has no job to do and must not be demanded. tests/ and supabase/functions/ are not served to a browser; versionQueryGuard owns that half" \
     "mkdir -p othertests && printf \"%s\\n\" \"import { x } from '../src/core/pacing.js';\" > othertests/probe.mjs"
 
+  # ── B9: THE BUMP ITSELF RE-DERIVES THE PRELOAD BLOCK (step 4). A copy of the tree
+  # with one module dropped from play.html's block is bumped (post-merge repair, same
+  # version); tests/module-preload.mjs must then be GREEN. The control runs the same
+  # bump with step 4 cut out and must leave it RED, so B9 cannot pass vacuously.
+  bump_preload() {
+    local script="$1" out rc
+    scratch="$(mktemp -d)"
+    cp -r "$orig/src" "$scratch/src"; cp "$orig"/*.html "$scratch/"
+    mkdir -p "$scratch/tests"; cp "$orig/tests/module-preload.mjs" "$scratch/tests/"
+    cp "$script" "$scratch/bump-version.sh"
+    ( cd "$scratch" && sed -i '0,/^<link rel="modulepreload" href="src\/app\/[^"]*">\r\?$/{//d}' play.html )
+    set +e
+    ( cd "$scratch" && node tests/module-preload.mjs >/dev/null 2>&1 ); local before=$?
+    ( cd "$scratch" && bash bump-version.sh "$cur" >/dev/null 2>&1 )
+    out="$( cd "$scratch" && node tests/module-preload.mjs 2>&1 )"; rc=$?
+    set -e
+    rm -rf "$scratch"
+    echo "$before $rc"
+  }
+  local b9 b9cut cut
+  b9="$(bump_preload "$orig/bump-version.sh")"
+  cut="$(mktemp)"
+  sed '/^# 4\. ── THE PRELOAD IS THE GRAPH/,/^# --- Verify:/{/^# --- Verify:/!d}' "$orig/bump-version.sh" > "$cut"
+  b9cut="$(bump_preload "$cut")"
+  rm -f "$cut"
+  if [[ "$b9" == "1 0" && "$b9cut" == "1 1" ]]; then
+    echo "  ok    B9-bump-repins-the-preload — a stale block is RED before, GREEN after the bump; the bump without step 4 leaves it RED"
+  else
+    echo "  FAIL  B9-bump-repins-the-preload — before/after: with step 4 ${b9}, without ${b9cut} (want 1 0, 1 1)"
+    bad=$((bad+1))
+  fi
+  echo "        a lane adds an import and forgets --write: v0.2.106's client-guards-2 went red on MP-1 (run 42394831391)"
+
   echo
   if [[ "$bad" != "0" ]]; then
     echo "bump-version --selftest FAILED — ${bad} unproven" >&2
     return 1
   fi
-  echo "bump-version --selftest PASSED — clean control green, 7/7 mutations caught, 2/2 ignorable shapes ignored."
+  echo "bump-version --selftest PASSED — clean control green, 7/7 mutations caught, 2/2 ignorable shapes ignored, the bump re-derives the preload (B9)."
   return 0
 }
 
@@ -350,6 +383,20 @@ find src -path src/vendor -prune -o -name '*.js' -print0 | xargs -0 sed -i "s/?v
 #   The pin is gone (icon-swap.js derives the version now) and check_invariant
 #   grew a `bad_lit` rule so a bare quoted `?v=<n>` can never come back silently.
 find src -path src/vendor -prune -o -name '*.js' -print0 | xargs -0 sed -i -E "s/([\"'\`][^\"'\`]*\.[a-z0-9]+)\?v=[0-9][0-9.]*/\1?v=${new}/g"
+
+# 4. ── THE PRELOAD IS THE GRAPH THE RELEASE SHIPS (lane r-green-first, 2026-11-07) ──
+# play.html's <link rel="modulepreload"> block is generated from the module graph
+# (tests/module-preload.mjs). A lane that adds or drops an import and forgets its
+# `--write` reddened the release run: four of the 30 runs before 2026-11-04 and
+# v0.2.106 (run 42394831391). The bump is the one step every release runs on the
+# assembled tree, so the block is re-derived here; the guard still runs on CI and
+# still goes red on a hand edit. --selftest B9 proves a bump repairs a stale block.
+if [[ -f tests/module-preload.mjs ]]; then
+  if ! node tests/module-preload.mjs --write; then
+    echo "WARNING: play.html's module preload block could not be regenerated: run node tests/module-preload.mjs --write and read it." >&2
+    exit 1
+  fi
+fi
 
 # --- Verify: the SAME rule --check uses, so the two can never disagree ---
 # (b493: this used to check only for leftover `?v=${old}`, which is why fourteen

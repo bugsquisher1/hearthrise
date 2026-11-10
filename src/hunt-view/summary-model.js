@@ -18,13 +18,13 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.106';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.106';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.106';
-import { callOfHunt } from '../data/boss-calls.js?v=0.2.106';
-import { lossLine } from './boss-loss.js?v=0.2.106';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.106';
-import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.106';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.112';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.112';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.112';
+import { callOfHunt } from '../data/boss-calls.js?v=0.2.112';
+import { lossLine } from './boss-loss.js?v=0.2.112';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.112';
+import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.112';
 
 export { sanitizeSummaries };
 
@@ -37,6 +37,7 @@ export const END_WORDS = Object.freeze({
   party_member_left: 'A party member left the hunt, so your hero came home too.',
   heals_out: 'You ran out of healing supplies.',
   ammo_out: 'You ran out of ammunition.',
+  runes_out: END_REASON_COPY.runes_out.one,
   gold_out: 'Ran out of gold for supplies, returned to town.',
   rule: 'One of your stop rules was met, so you headed home.',
   stamina: 'Your stamina ran out, so your hero came home. It comes back hour for hour while you aren\'t hunting.',

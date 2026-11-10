@@ -22,7 +22,7 @@
 //   snapTiles      a peer drawn this many tiles from where the server says it is
 //                  jumps there instead of walking (a door, an exit, a long gap)
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_INSTANCE } from './world/stations.js?v=0.2.106';
+import { TOWN_INSTANCE } from './world/stations.js?v=0.2.112';
 
 export const TOWN_PRESENCE = Object.freeze({
   publishMinMs: 1000,
@@ -35,6 +35,15 @@ export const TOWN_PRESENCE = Object.freeze({
   cap: TOWN_INSTANCE.cap,
   snapTiles: 6,
 });
+
+/* A VISIT (a Hearth powder or a named fuel sets the body on a fuel stand; hr_town_go a counter): the SERVER holds the body on
+   the visit's stand long enough to walk there from where it stood and throw, then sets a hero still working a town job back
+   at its job's station (a pointer change meanwhile waits for the visit too). The walk is never longer than the straight
+   line times `pathFactor` plus `holdS` (measured 2026-11-08 on Havora at the client's 3.2 tiles/s, every stand to the
+   first four stands of the Hearth and every counter: at 1.5 the path outruns the line by 3.2 s at worst); `holdS` covers
+   that, a read's lag and the throw. The visit's end changes the stand, so the World drops a throw the hero never reached.
+   Mirrored by hr_town_visit_hold (supabase/migrations/2027-03-23-town-visit-hold.sql); tests/town-shows.mjs TS-VISIT is the twin. */
+export const TOWN_VISIT = Object.freeze({ pathFactor: 1.5, holdS: 10 });
 
 /** The facings the server takes (hr_town_move p_dir). */
 export const TOWN_DIRS = Object.freeze(['n', 's', 'e', 'w']);

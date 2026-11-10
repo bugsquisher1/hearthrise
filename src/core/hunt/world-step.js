@@ -24,19 +24,20 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.106';
-import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=0.2.106';
-import { makeUnit } from './world-state.js?v=0.2.106';
-import { holderOutside, resetPack } from './leash.js?v=0.2.106';
-import { chooseTargets } from './targeting.js?v=0.2.106';
-import { positionHeroes } from './roles.js?v=0.2.106';
-import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js?v=0.2.106';
-import { resolveAttacks } from './damage.js?v=0.2.106';
-import { castAbilities } from './abilities.js?v=0.2.106';
-import { tickStatuses } from './status.js?v=0.2.106';
-import { consume } from './consumables.js?v=0.2.106';
-import { flushXpGroup } from './xp-share.js?v=0.2.106';
-import { checkStopRules } from './conditions.js?v=0.2.106';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.112';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.112';
+import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=0.2.112';
+import { makeUnit } from './world-state.js?v=0.2.112';
+import { holderOutside, resetPack } from './leash.js?v=0.2.112';
+import { chooseTargets } from './targeting.js?v=0.2.112';
+import { positionHeroes } from './roles.js?v=0.2.112';
+import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js?v=0.2.112';
+import { resolveAttacks } from './damage.js?v=0.2.112';
+import { castAbilities } from './abilities.js?v=0.2.112';
+import { tickStatuses } from './status.js?v=0.2.112';
+import { consume } from './consumables.js?v=0.2.112';
+import { flushXpGroup } from './xp-share.js?v=0.2.112';
+import { checkStopRules } from './conditions.js?v=0.2.112';
 
 /** How many sub-steps one swing of `swingMs` is; refuses a swing that is not a whole number of them. */
 export function substepsOf(swingMs) {
@@ -68,8 +69,10 @@ function stepWorld(world, swingCtx, track, events) {
   const n = substepsOf(swingCtx.swingMs);
   /* `heroes`: the per-hero settings, bar and supply session the settle injects (spec §2 world-step).
      tier: the hunt's hunt-tiers.js row, the settle's read of its frozen pick (null = Normal); never persisted, so the world's shape doesn't move.
-     makeUnit: how pull-cycle.js spawns a pack with every persisted field (it may not import world-state). */
-  const inst = { world, ground: swingCtx.ground, grid: swingCtx.grid, occ: null, heroes: swingCtx.heroes || null, tier: swingCtx.tier || null, makeUnit };
+     makeUnit: how pull-cycle.js spawns a pack with every persisted field (it may not import world-state).
+     monsters: the ONE door to a monster's row (combat-sim.js huntPlayOf: a scaled hunt's table), the catalogue when the settle names none. */
+  const inst = { world, ground: swingCtx.ground, grid: swingCtx.grid, occ: null, heroes: swingCtx.heroes || null, tier: swingCtx.tier || null, makeUnit,
+    monsters: swingCtx.monsters || MONSTERS };
   const atMs = Number(swingCtx.atMs);
   if (!Number.isInteger(atMs)) throw new Error('world-step: atMs must be an integer');
   /* xpMultOf: the per-hero XP multiplier hook (xp-share.js; server-read, absent = 1). */

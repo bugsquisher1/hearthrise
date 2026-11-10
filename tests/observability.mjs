@@ -5,7 +5,7 @@
 //   node tests/observability.mjs           the checks
 //   node tests/observability.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/net/observability.js src/net/diagnostics.js src/net/observability-config.js src/net/boot-timing.js src/app/boot.js src/shell/windows/chat.js src/shell/widgets/hunt-topbar.js src/shell/launcher.js src/session/replay-pref.js play.html
+// mutant-anchors: src/net/observability.js src/net/diagnostics.js src/net/observability-config.js src/net/boot-timing.js src/app/boot.js src/shell/windows/chat.js src/shell/widgets/hunt-topbar.js src/shell/launcher.js src/session/replay-pref.js src/session/player-switch.js play.html
 //
 // play.html in a real Chromium with the REAL vendored Sentry and PostHog SDKs,
 // supabase-js and the REST paths stubbed (tests/_client-harness.mjs). The page is
@@ -900,7 +900,7 @@ const MUTANTS = [
   ['an unread hero reads as yes, so a screen is recorded before the choice is known', 'src/net/observability.js', 'replayWanted(Array.from(watched.keys())) === true;', 'replayWanted(Array.from(watched.keys())) !== false;'],
   ['a press of the switch does not stop the recorder', 'src/net/observability.js', '      syncRecording();\n      watchHunt(cs, w, now(), send);', '      watchHunt(cs, w, now(), send);'],
   ['signing out leaves the recorder running', 'src/net/observability.js', 'safe(syncRecording);   // no account behind the screen any more: nothing records', ''],
-  ['an older recording pick beats a newer one', 'src/session/replay-pref.js', 'if (p && (!best || p.at > best.at)) best = p;', 'if (p && (!best || p.at < best.at)) best = p;'],
+  ['an older recording pick beats a newer one', 'src/session/player-switch.js', 'if (p && (!best || p.at > best.at)) best = p;', 'if (p && (!best || p.at < best.at)) best = p;'],
   ['the game screen is reported before the other heroes are read', 'src/app/boot.js', "      clear();\n      root.className = 'app is-game';", "      clear();\n      obs.screen('game');\n      root.className = 'app is-game';"],
 ];
 

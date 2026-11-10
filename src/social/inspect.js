@@ -7,8 +7,8 @@
 // Read-only: nothing here is kept in any record.
 //   → { ok: true, view: { id, name, title, slot, level, role, gear: [{ slot, item }] } } | { ok: false, error }
 // ════════════════════════════════════════════════════════════════════════
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.106';
-import { TITLE_WORDS } from '../data/titles.js?v=0.2.106';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.112';
+import { TITLE_WORDS } from '../data/titles.js?v=0.2.112';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ID = /^[a-z0-9_]{1,64}$/;

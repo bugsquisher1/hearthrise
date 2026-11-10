@@ -466,7 +466,18 @@ function cutArg(s, from) {
  * the owner column to the table rather than to a row this block created.
  * `v_row.user_id` IS allowed — `v_row` is a declared record.
  */
+/* A SET OF THE GIVEN (2026-11-08, lane/c-live-events): `id in (select (e.value->>'k')::uuid from jsonb_array_elements(p_members) e)` is every
+   element of an array the body was GIVEN (a parameter or a local) and nothing else: no table, no join, no where, one alias. It reaches
+   exactly the rows its caller named, the shape a commit uses to reset the sessions it was handed (hr_hunt_apply_instance's refusal fuse,
+   restated whole by 2027-03-21-scaled-hunts.sql). Any other select stays unowned below; --selftest's set_of_* plants hold both edges. */
+const SET_OF_GIVEN = /^\(\s*select\s+\(?\s*([a-z_][a-z0-9_]*)\s*\.\s*value\s*(?:->>?\s*'[^']*'\s*)?\)?\s*(?:::\s*[a-z_][a-z0-9_]*\s*)?from\s+jsonb_array_elements(?:_text)?\s*\(\s*([a-z_][a-z0-9_]*)\s*\)\s*(?:as\s+)?([a-z_][a-z0-9_]*)\s*\)$/i;
+function setOfGiven(arg, locals) {
+  const m = SET_OF_GIVEN.exec(String(arg).trim());
+  return !!m && m[1].toLowerCase() === m[3].toLowerCase() && locals.has(m[2].toLowerCase());
+}
+
 function argIsOwned(arg, locals) {
+  if (setOfGiven(arg, locals)) return true;
   if (/\bselect\b/i.test(arg)) return false;
   if (SELF_BIND.test(arg)) return true;
   let owned = false;
@@ -1173,6 +1184,54 @@ ${CRON_IN_BLOCK}`),
     what: 'a write on the TEMP probe table in pg_cron\'s shape is the shape this family asks for',
     control: true, file: CRON_TARGET,
     patch: (s) => s.replace(CRON_IN_BLOCK, `    insert into pg_temp.hr_cf_runs (runid, jobid, status) values (7, 1, 'failed');\n${CRON_IN_BLOCK}`),
+  },
+  {
+    name: 'CONTROL set_of_given',
+    what: 'a body resetting exactly the sessions it was GIVEN (id in the elements of its own jsonb parameter) reaches no other row',
+    control: true,
+    patch: (s) => `create or replace function public.hr_selftest_set_given(p_members jsonb) returns void language plpgsql as $f$
+begin
+  update public.hunt_sessions set refusals = 0 where id in (select (e.value->>'session')::uuid from jsonb_array_elements(p_members) e) and refusals > 0;
+end $f$;
+`
+      + s.replace(IN_BLOCK, `    perform public.hr_selftest_set_given('[]'::jsonb);
+${IN_BLOCK}`),
+  },
+  {
+    name: 'set_of_a_table',
+    what: 'the same reset with its set read from a TABLE (every open session) is global, whatever the parameter',
+    by: 'open', match: /hr_selftest_set_table/,
+    patch: (s) => `create or replace function public.hr_selftest_set_table(p_members jsonb) returns void language plpgsql as $f$
+begin
+  update public.hunt_sessions set refusals = 0 where id in (select h.id from public.hunt_sessions h where h.ended_at is null);
+end $f$;
+`
+      + s.replace(IN_BLOCK, `    perform public.hr_selftest_set_table('[]'::jsonb);
+${IN_BLOCK}`),
+  },
+  {
+    name: 'set_of_an_undeclared_array',
+    what: 'a set over an array the body was NOT given (a column) is the table\'s, not the caller\'s',
+    by: 'open', match: /hr_selftest_set_alien/,
+    patch: (s) => `create or replace function public.hr_selftest_set_alien(p_members jsonb) returns void language plpgsql as $f$
+begin
+  update public.hunt_sessions set refusals = 0 where id in (select (e.value->>'session')::uuid from jsonb_array_elements(world) e);
+end $f$;
+`
+      + s.replace(IN_BLOCK, `    perform public.hr_selftest_set_alien('[]'::jsonb);
+${IN_BLOCK}`),
+  },
+  {
+    name: 'set_of_given_joined_to_a_table',
+    what: 'the given elements JOINED to a table widen the set past what the caller named',
+    by: 'open', match: /hr_selftest_set_join/,
+    patch: (s) => `create or replace function public.hr_selftest_set_join(p_members jsonb) returns void language plpgsql as $f$
+begin
+  update public.hunt_sessions set refusals = 0 where id in (select h.id from jsonb_array_elements(p_members) e join public.hunt_sessions h on h.instance_id = (e.value->>'instance')::uuid);
+end $f$;
+`
+      + s.replace(IN_BLOCK, `    perform public.hr_selftest_set_join('[]'::jsonb);
+${IN_BLOCK}`),
   },
   {
     name: 'session_id_bound_to_nothing_declared',

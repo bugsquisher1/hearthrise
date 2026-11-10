@@ -553,5 +553,8 @@ export function heroCard(style, level, preset) {
   return { pieces: Object.entries(kit).map(([slot, id]) => ({ slot, id, name: (ITEMS[id] && (ITEMS[id].n || ITEMS[id].name)) || id, tier: (ITEMS[id] && ITEMS[id].tier) || null })),
     maxHp: vit.maxHp, maxMana: vit.maxMana };
 }
+/** A copy of a monster row as the engine reads it right now (dials and a scaled hunt included): parity.mjs reads it. */
+export const liveMonster = (id) => (MONSTERS[id] ? clone(MONSTERS[id]) : null);
+
 /** Level XP from Level `L` to `L + 1` (the curve the game reads). */
 export const xpToNext = (L) => charXpForLevel(L + 1) - charXpForLevel(L);

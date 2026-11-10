@@ -397,10 +397,10 @@ const MUTANTS = [
   { name: 'a called kill counts as a kill', edits: [['src/core/hunt-rewards.js', "for (const m of members.values()) call(m.fx, 'updateQuest', 'kill_monster', 1, { target: t.kind });", "for (const m of members.values()) { m.hs.tally.kills += 1; call(m.fx, 'updateQuest', 'kill_any', 1, { target: t.kind }); call(m.fx, 'updateQuest', 'kill_monster', 1, { target: t.kind }); }"]], want: /BC-PAY/ },
   { name: 'the kill never reaches the title', edits: [['src/core/hunt-rewards.js', "for (const m of members.values()) call(m.fx, 'updateQuest', 'kill_monster', 1, { target: t.kind });", '']], want: /BC-PAY/ },
   { name: 'the kill ends nothing', edits: [['src/core/combat-sim.js', "for (const m of members) if (!m.left) m.hs.bossFelled = true;", '']], want: /BC-PAY|BC-FELLED/ },
-  { name: 'the kill ends only the window it fell in', edits: [['src/core/combat-sim.js', "typeof m.hs.ruleStop === 'string' || m.hs.died === true || m.hs.bossFelled === true) {", "typeof m.hs.ruleStop === 'string' || m.hs.died === true) {"]], want: /BC-FELLED/ },
+  { name: 'the kill ends only the window it fell in', edits: [['src/core/combat-sim.js', "typeof m.hs.runesOut === 'string' || m.hs.died === true || m.hs.bossFelled === true) {", "typeof m.hs.runesOut === 'string' || m.hs.died === true) {"]], want: /BC-FELLED/ },
   { name: 'a death leaves the unticked friend in the room', edits: [['src/core/combat-sim.js', 'm.hero = Object.assign({}, m.hero, { leaveTogether: true });', '']], want: /BC-DEATH/ },
   { name: 'the limit never falls', edits: [['src/core/action-rules.js', 'boss_time: (hs, t) => at(hs.callEndsAtMs, t),', 'boss_time: () => false,']], want: /BC-TIME/ },
-  { name: 'the boss spawns at one hero\'s HP', edits: [['src/core/combat-sim.js', 'if (call) scaleRoomFor(world, ctx.ground, standing.length, tier);', '']], want: /BC-HP/ },
+  { name: 'the boss spawns at one hero\'s HP', edits: [['src/core/combat-sim.js', 'if (call) scaleRoomFor(world, ctx.ground, standing.length, tier, play.monsters);', '']], want: /BC-HP/ },
   { name: 'a called boss in the Bestiary', edits: [['src/data/bestiary.js', "if (!m || typeof m !== 'object' || m.called === true) continue;", "if (!m || typeof m !== 'object') continue;"]], want: /BC-ROW/ },
   /* THE ADDS PAY NOTHING EITHER (the brief's core rule: "any add that pays goes red"). */
   { name: 'XP planted on an add', edits: [['src/data/monsters.js', ROW_ADD, ROW_ADD.replace('xp: 0', 'xp: 500')]], want: /BC-ROW/ },

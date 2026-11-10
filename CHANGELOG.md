@@ -5,6 +5,57 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.112 — 2026-11-10 (Runes on Hand)
+
+**Spells keep casting when your runes run out.** A spell slot now uses the runes you carry first. When those are gone, it buys runes from the shop for each cast and keeps going. Before, a slot that named no shop rune just stopped casting. In Configure action you can turn off using your carried runes, or have the hunt end when your runes run out.
+
+**Runes live in the Spells tab.** Configure action has one Spells tab now. Pick a spell, then pick which rune it uses right below it.
+
+**Each rune shows what it does for your hero.** Rune choices show the real damage this hero deals with them, like "13–23 damage", instead of a percent.
+
+## v0.2.111 — 2026-11-09 (Take Me There)
+
+**Links take you where they say.** When a line names a place, like "The Shop sells them," it is now a link. It opens that window on the right tab with the row in view and ringed.
+
+**Your bag splits Junk from Materials.** The Loot tab is now Junk. Anything a recipe, a craft or the House can use is a Material, and "Sell all junk" never sells one.
+
+**Spell numbers match what your slot casts.** A spell's tooltip shows the rune your slot will really use. The cost line reads like "Cost: 30 mana · 1 Scored Fire Rune (8 g)". Shop runes no longer say "Plain", and conditions that count things say what they count.
+
+**Five titles have new names.** Wolfer is now Wolfslayer, Gamekeeper is Warden, Knotcutter is Crownbreaker, Grate Thief is Sewerlord and Cauldron Thief is Slagbreaker. A title you own keeps working under its new name. Titles now sit on their own line under your hero's name.
+
+**Changing weapons keeps your spells.** Swapping to another weapon used to remove the spells it can't use from your action bar, and they did not come back when you swapped back. Now they stay on the bar, behind the moves your new weapon can use, and return to the front when you change back. If you lost spells this way, put them back once and they will stay.
+
+**The Hearth waits for the walk.** A hero sent to the Hearth finishes the walk before anything else happens. A hero who was working goes back to that job afterward.
+
+## v0.2.110 — 2026-11-08 (Heroes at Rest)
+
+**Your heroes move when they stand still.** While they wait in town or between fights on a hunt, heroes now breathe and shift their weight. Every outfit has its own idle, and so do the people of Havora.
+
+**You can turn idle animations off.** Open Settings, then Interface, and switch off "Idle animations". Heroes, townsfolk and monsters then stand still between actions. Walking, attacks, hits and falls still play. The switch applies to every hero you have open.
+
+**Inventory search shows only what the server found.** While it looks, the list says "Searching…". If a search fails, it says so instead of showing a guess. A few lines that said a section would "switch on later" now say they are reading your hero.
+
+## v0.2.109 — 2026-11-08 (Four Heroes)
+
+**An account now holds up to four heroes.** The fifth hero slot is gone from the character screen. If you already have five heroes, all five stay and keep playing.
+
+**Old shop rows are gone.** A few upgrades that did nothing (farm buildings, worker hires and extra farm land rows) were removed. None of them ever showed in a window.
+
+## v0.2.108 — 2026-11-08 (Honest Labels)
+
+**Monster descriptions only say what is true.** When you look at a monster, it no longer says it "shrugs off" a weapon. That never changed the damage you deal, so the line is gone. "Weak to" still works the way it says.
+
+**Tempering tells you where to get the salts.** The Tempering screen now names where each ingredient drops. Big Bones for Fine Tempering Salts drop from the Hobgoblin Foreman and Chief Coppercap at the Coppercap Warrens. Bone Chips for plain Tempering Salts drop at the Sewer and the Mosslight Glade.
+
+## v0.2.107 — 2026-11-07 (Clear Shop Labels, Faster Reload)
+
+**The Shop and the Farm say what you need before you pay.**
+
+- A seed in the Shop now says when your farm plots need an upgrade before you can plant it, for example "Needs plot tier 2 to plant". Carrot and wheat seeds need tier 2.
+- The Farm no longer lists a Farmer's Deed as another way to pay for a land upgrade. That item left the game in October.
+
+**Reloading during a hunt is quicker.** After you reload the page mid-hunt, your hunt shows again in a few seconds. Before, it could sit on "Still loading the world" for over a minute.
+
 ## v0.2.106 — 2026-11-07 (One Rule for Every Hunt)
 
 **Every hunting ground now follows the same rules.** A ground's Level now decides how hard its monsters hit, how much health they have and how much gold they drop. Before, each ground was set by hand, so some were much easier or richer than others. If you're partway through the game, some hunts will feel different. Your hero keeps all their progress.

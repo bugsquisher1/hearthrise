@@ -5,17 +5,17 @@
 // derived from the id; a glyph when the id is not an item), an item's name, and
 // the frame every hunt panel sits in (title, minimise). Display only.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../data/items.js?v=0.2.106';
-import { RUNE_FAMILIES } from '../../data/runes.js?v=0.2.106';
-import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.106';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.106';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.106';
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.106';
-import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD } from '../../data/item-art.js?v=0.2.106';
-import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.106';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.106';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.106';
-import { text, style, attr } from '../../render/paint.js?v=0.2.106';
+import { ITEMS } from '../../data/items.js?v=0.2.112';
+import { RUNE_FAMILIES } from '../../data/runes.js?v=0.2.112';
+import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.112';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.112';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.112';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.112';
+import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD } from '../../data/item-art.js?v=0.2.112';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.112';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.112';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.112';
+import { text, style, attr } from '../../render/paint.js?v=0.2.112';
 
 /** An inline SVG for a window.HR_GLYPHS key, or '' when the glyph is missing. (Here, under every panel part; the
     icon row re-exports it, src/shell/launcher.js, so a coach import of these parts is never a cycle.) */
@@ -50,19 +50,13 @@ export function itemName(id) {
 }
 
 /* A RUNE SPELL spends any tier of its family (src/data/runes.js; src/core/hunt/abilities.js runeFor), so the screen
-   names and counts the FAMILY, never the one tier its row keys: "Fire rune", "12 Fire runes". */
+   names the FAMILY, never the one tier its row keys: "Fire rune", "12 Fire runes". */
 const familyOf = (id) => (ITEMS[id] && RUNE_FAMILIES[ITEMS[id].family] ? ITEMS[id].family : null);
 /** The family words of rune item `id` for `n` runes ("Fire rune" / "Fire runes"); a non-rune's item name. */
 export function runeWords(id, n) {
   const f = familyOf(id);
   return f ? RUNE_FAMILIES[f].label + (n === 1 ? ' rune' : ' runes') : itemName(id);
 }
-/** How many runes of `id`'s family the inventory rows `lines` ({ id, qty }) hold, every tier (the server's counts). */
-export function familyCount(id, lines) {
-  const f = familyOf(id);
-  return (lines || []).filter((l) => l && (f ? familyOf(l.id) === f : l.id === id)).reduce((n, l) => n + (Number(l.qty) || 0), 0);
-}
-
 
 /** A monster's name from the bestiary rows. */
 export function monsterName(id) { return (MONSTERS[id] && MONSTERS[id].name) || spelled(id); }

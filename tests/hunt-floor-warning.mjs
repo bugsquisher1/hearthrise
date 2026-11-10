@@ -147,7 +147,7 @@ async function run(base) {
   ok('W2', win.includes("text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));") && win.includes('<p class="hw-hunt-warn"></p>')
     && win.includes("(groupWords(r, size) || heroWords(r)) + '.'"),
     'the Hunts line does not draw rangeWords');
-  ok('W4', read('src/shell/hunt-list.js').includes('Expect a bigger food bill, and you can die') && win.includes('tierWords(r, tier, size)'), 'the tier no longer says what a bigger pull costs (first-week-bands.mjs bigger-pulls-words plays it)');
+  ok('W4', read('src/data/text/hunts.js').includes('Expect a bigger food bill, and you can die') && read('src/shell/hunt-list.js').includes("t('hunts.tier_cost'") && win.includes('tierWords(r, tier, size)'), 'the tier no longer says what a bigger pull costs (first-week-bands.mjs bigger-pulls-words plays it)');
   ok('W2', !/prop\([^)]*'disabled'[^)]*(short|rangeWords)/.test(win), 'Enter must never be disabled by the level warning');
   ok('W2', win.includes("if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {") && win.includes("armed ? 'Enter anyway' : 'Enter'"), 'a lone hero above its level walks in with no confirm press');
   ok('W2', /res && res\.belowRange \? ' ' \+ ABOVE_LEVEL_WORDS/.test(win), 'a below_range enter does not repeat the warning');
@@ -180,13 +180,13 @@ const MUTANTS = [
   ['a party ground offers itself alone again', 'src/shell/hunt-list.js', "  if (r.groupFit === 'party' && r.heroes > 1) {", '  if (false) {'],
   ['the Warrens forgets its solo break-even', 'src/data/hunt-grounds.js', '    soloFrom: 45,\n', ''],
   ['far under reads as near (the words never lean harder)', 'src/shell/hunt-list.js', "(gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS)", 'ABOVE_LEVEL_WORDS'],
-  ['the words forget what dying costs', 'src/shell/hunt-list.js', "    + ' If you die, the hunt ends and you lose ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';", "    + '';"],
+  ['the words forget what dying costs', 'src/shell/hunt-list.js', ",\n    t('hunts.range_die', { loss: Math.round(DEATH_XP_LOSS * 100) })]", "]"],
   ['the fight reads a hero Level again (S2)', 'src/core/hunt/damage.js', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow));', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow) + (t.heroLv ? 0 : 0));'],
   ['a gap row comes back in the data (S2)', 'src/data/hunt-tuning.js', '  partyShareRangePm: 667,', '  partyShareRangePm: 667,\n  underFloorAtkPm: 50,'],
-  ['the warning claims a penalty again', 'src/shell/hunt-list.js', "'Its monsters are stronger than you. Expect to spend more on supplies, or to die. More XP and better loot.'", "'More XP and better loot, but its monsters hit harder.'"],
+  ['the warning claims a penalty again', 'src/data/text/hunts.js', "'Its monsters are stronger than you. Expect to spend more on supplies, or to die. More XP and better loot.'", "'More XP and better loot, but its monsters hit harder.'"],
   ['a margin comes back in the data', 'src/data/hunt-sessions.js', '  bagLines: 10,\n', '  bagLines: 10,\n  belowRangeRefuse: 15,\n'],
   ['a lone hero walks in with no confirm press', 'src/shell/windows/hunts.js', "if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {", 'if (false) {'],
-  ['the tier says nothing of what it costs', 'src/shell/hunt-list.js', "' more Level XP, with the same gold and drops. Expect a bigger food bill, and you can die. A death ends the hunt and costs '", "' more Level XP, with the same gold and drops. It costs '"],
+  ['the tier says nothing of what it costs', 'src/data/text/hunts.js', " more Level XP, with the same gold and drops. Expect a bigger food bill, and you can die. A death ends the hunt and costs {loss}", " more Level XP, with the same gold and drops. It costs {loss}"],
   ['the window never draws the warning', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));", ''],
   ['a ground names its start tiles, not the party the server allows (G3)', 'src/shell/hunt-list.js', 'heroes: PARTY.maxSize,', 'heroes: Math.min(g.start.length, PARTY.maxSize),'],
   ['the leader\'s warning names the leader too (G3)', 'src/shell/hunt-list.js', 's.seat !== party.me && Number.isInteger(s.level)', 'Number.isInteger(s.level)'],

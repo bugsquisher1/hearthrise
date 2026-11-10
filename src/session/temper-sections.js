@@ -5,13 +5,13 @@
 // rung's offer at the server's price, gold and material. Every envelope replaces it and nothing here holds a number of its own: what a rung is
 // worth is the one rule the fight uses (src/core/temper.js), read over the server's rungs and the server's worn set.
 // ════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.106';
-import { TEMPER_TIERS, temperUnlockId } from '../data/temper.js?v=0.2.106';
-import { armourLineWord } from '../data/gear-tiers.js?v=0.2.106';
-import { armorLineOf, armorPmOf, blowsPmOf } from '../core/temper.js?v=0.2.106';
-import { equipmentOf, bankOf, skillsOf } from './item-sections.js?v=0.2.106';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.106';
-import { recipeInputs } from '../core/artisan.js?v=0.2.106';
+import { ITEMS } from '../data/items.js?v=0.2.112';
+import { TEMPER_TIERS, temperUnlockId } from '../data/temper.js?v=0.2.112';
+import { armourLineWord } from '../data/gear-tiers.js?v=0.2.112';
+import { armorLineOf, armorPmOf, blowsPmOf } from '../core/temper.js?v=0.2.112';
+import { equipmentOf, bankOf, skillsOf } from './item-sections.js?v=0.2.112';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.112';
+import { recipeInputs } from '../core/artisan.js?v=0.2.112';
 
 const count = (n) => (Number.isSafeInteger(n) && n >= 0 ? n : null);
 
@@ -33,10 +33,13 @@ export function temperOf(cs) {
 const belowLadders = (tier) => Number.isFinite(tier) && tier < Math.min(...Object.keys(TEMPER_TIERS).map(Number));
 /* An ingredient by its stack: Iron Bars, Bone Chips. */
 const stackName = (id) => { const n = ITEMS[id] ? ITEMS[id].n : id; return n.endsWith('s') ? n : n + 's'; };
+/* A recipe's input with its count: "1 Iron Bar", "2 Iron Bars", "1 Big Bones". */
+const inputOf = ([id, qty]) => ({ id, qty, words: qty + ' ' + (qty === 1 && ITEMS[id] ? ITEMS[id].n : stackName(id)), stack: stackName(id) });
 
 /**
  * WHAT THE NEXT RUNG ASKS BESIDES GOLD, AND WHAT THIS HERO CAN REACH: the sale spends the bag, then the account's Storage (hr_unlock_buy), and a
- * hunt's packed bag is neither. [{ id, name, need, bag, storage, held, short, smith }]; `smith` is the recipe's way to make it, from the same table the bench reads.
+ * hunt's packed bag is neither. [{ id, name, need, bag, storage, held, short, smith }]; `smith` is the recipe's way to make it, from the same table the bench reads,
+ * `smith.from` its inputs [{ id, qty, words, stack }].
  */
 function needsOf(cs, ladder) {
   if (!ladder || !ladder.offer) return [];
@@ -49,7 +52,7 @@ function needsOf(cs, ladder) {
     const storage = row ? row.qty : 0;
     const recipe = ARTISAN_RECIPES.smithing.find((r) => r.output === id) || null;
     return { id, name: ITEMS[id] ? ITEMS[id].n : id, need, bag, storage, held: bag + storage, short: Math.max(0, need - bag - storage),
-      smith: recipe ? { req: recipe.req, level: levels.smithing ? levels.smithing.level : 1, from: Object.keys(recipeInputs(recipe)).map(stackName) } : null };
+      smith: recipe ? { id: recipe.id, req: recipe.req, level: levels.smithing ? levels.smithing.level : 1, from: Object.entries(recipeInputs(recipe)).map(inputOf) } : null };
   });
 }
 

@@ -91,7 +91,7 @@ function shotProblem(a, role, skills) {
   return t(role && HUNT_ROLES[role] ? 'bar.shot_wrong_weapon' : 'bar.shot_no_weapon', { weapons: by });
 }
 
-/** "Your weapon can’t cast this. The slot stays struck until you wield a Shield." for a spell the hero's worn
+/** "Your weapon can’t cast this. It works once you hold a Shield." for a spell the hero's worn
     set (the server's discipline, hunt_settings.discipline) cannot cast, or the same for an attack item its
     weapon (the server's role, hunt_settings.role) cannot shoot or the hero's skill (`skills`, the server's) cannot use yet; '' otherwise.
     A warning, never a refusal (art spec §8): the bar is configured for whichever weapon the hero wields next. */

@@ -1,0 +1,30 @@
+{
+  "id": "npc_gate_sergeant",
+  "class": "character",
+  "style": "s1",
+  "material": "unit",
+  "source": "npc_gate_sergeant.png",
+  "anchor_px": [
+    32,
+    58
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 5,
+      "loop": true,
+      "dirs": {
+        "s": 4
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash 8 directions 48x48 + animate_object v3 (brief 13)",
+    "object": "ccd33d70-ee8a-48f6-a0bc-c6545d3b5f5a"
+  },
+  "notes": "The gate sergeant: a stout older sergeant with a grey beard, a steel cap and a dark red tabard with a cream flame over mail, a halberd held upright. S idle laid 0 1 2 1 at 5 fps (frames 3-8 drift the right arm and grow a spike on the cap)."
+}

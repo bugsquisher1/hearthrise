@@ -72,6 +72,10 @@
 //   ACC-5  a hero the server no longer holds closes in the tab; its pending residue reaches no later hero in that slot
 //   NET-1  the engine is asked in the database's region (forceFunctionRegion from SUPABASE_CONFIG)
 //   OUT-1  sign-out clears every copy of the session (device + tab, sb-*, retired keys, tab id) and closes every character
+//   OUT-2  sign-out tells the server its client is gone (report #78: the players-online count kept a signed-out account's
+//          idle heroes for 61 to 71 s): ONE hr_presence_leave with no argument, after the social poll has stopped and every
+//          hero has closed, before the login is forgotten; a refusal, a dead network, a throw or an answer that never
+//          comes (one bounded wait of a few seconds) never holds the sign-out
 //   TAB-1  the tab id is stable within a tab and new for a new tab
 //   COPY-1 sign-up/reset copy never reveals whether an email has an account (by code or by message); no "open beta"/"invite code"
 //   COPY-2 a refused sign-up, sign-in or new password says WHY, read by supabase-js's error.code, then status, then
@@ -1695,6 +1699,57 @@ async function rules(M) {
     if (acc.characters().length || c0.status !== 'closed' || c1.status !== 'closed' || c0.record) return 'characters stayed open';
     return signedOut || 'supabase signOut was not called';
   });
+  /* Report #78: SIGNED OUT IS NOT ONLINE (2027-03-26-signout-presence.sql). The players-online count kept a signed-out account's idle
+     heroes for 61 to 71 s, because nothing told the server its client was gone: both presences only aged out. */
+  await t('OUT-2', async () => {
+    const rig = (leave, tm) => {
+      const order = [];
+      const srv = fakeServer({ 0: env(1, said(2)), 1: env(1, said(2)) });
+      const rpc = srv.rpc;
+      let acc = null;
+      srv.rpc = (name, args) => {
+        if (name !== 'hr_presence_leave') return rpc(name, args);
+        order.push('leave ' + JSON.stringify(args) + ' open=' + acc.characters().length);
+        return leave();
+      };
+      const auth = { userId: () => UID, token: () => 'jwt', signOut: async () => { order.push('auth'); } };
+      const social = { start() {}, setAway() {}, destroy() { order.push('poll-stopped'); } };
+      acc = new A.AccountSession({ auth, server: srv, tab: memStore(), channel: fakeHub().channel, timers: tm || timers, social: () => social });
+      return { acc, order };
+    };
+    /* told ONCE, with no argument (the server reads who asks from the token), after the poll has stopped (it would stamp the heroes
+       again) and every hero has closed, and before the login is forgotten */
+    const a = rig(async () => ({ ok: true, status: 200, body: { ok: true }, closed: false }));
+    await a.acc.open(0); await a.acc.open(1);
+    let heard = false;
+    a.acc.subscribe((why) => { if (why === 'signed-out') heard = true; });
+    await a.acc.signOut();
+    const want = 'poll-stopped | leave {} open=0 | auth';
+    if (a.order.join(' | ') !== want) return 'sign-out ran "' + a.order.join(' | ') + '", wanted "' + want + '"';
+    if (!heard) return 'signed-out was not told after the leave';
+    /* a refusal, a dead network, a rejection and a throw never hold the sign-out: the server's 75 s window is the fallback */
+    for (const [what, leave] of [['refused', async () => ({ ok: false, status: 404, body: { code: 'PGRST202' }, closed: false, error: 'http_404' })],
+      ['unreachable', async () => ({ ok: false, status: 0, error: 'network', closed: false })],
+      ['rejected', () => Promise.reject(new Error('boom'))], ['thrown', () => { throw new Error('boom'); }]]) {
+      const r = rig(leave);
+      try { await r.acc.signOut(); } catch (e) { return 'a ' + what + ' leave broke the sign-out: ' + (e && e.message); }
+      if (r.order[r.order.length - 1] !== 'auth') return 'a ' + what + ' leave held the sign-out: ' + r.order.join(' | ');
+    }
+    /* an answer that never comes is waited for ONE bounded wait (no hero is open here, so it is the only timer this sign-out
+       sets): long enough for a healthy answer, short enough that Sign out still feels like a press */
+    const due = [];
+    const h = rig(() => new Promise(() => {}), { setTimer: (fn, ms) => { due.push({ fn, ms }); return due.length; }, clearTimer: () => {} });
+    const out = h.acc.signOut();
+    for (let k = 0; k < 6; k++) await new Promise((r) => setImmediate(r));
+    if (h.order.includes('auth')) return 'the login was forgotten before the leave was given its time';
+    const bound = due.filter((d) => d.ms >= 1000 && d.ms <= 5000);
+    if (due.length !== 1 || bound.length !== 1) return 'an unanswered leave is bounded by [' + due.map((d) => d.ms).join(',') + '] ms, wanted one wait of 1 to 5 s';
+    bound[0].fn();
+    let stop = null;
+    const done = await Promise.race([out.then(() => true), new Promise((r) => { stop = setTimeout(() => r(false), 500); })]);
+    clearTimeout(stop);
+    return (done && h.order[h.order.length - 1] === 'auth') || 'an unanswered leave held the sign-out past its bound: ' + h.order.join(' | ');
+  });
   await t('TAB-1', () => {
     const tab = memStore(), other = memStore();
     const a = A.tabSessionId(tab), b = A.tabSessionId(tab), c = A.tabSessionId(other);
@@ -1985,6 +2040,15 @@ const MUTANTS = [
   ['sign-out keeps the tab id', 'src/net/auth.js', ' o.tab.remove(cfg.tabKey);', ''],
   ['sign-out keeps the heroes the tab had open', 'src/net/auth.js', ' o.tab.remove(cfg.openKey);', ''],
   ['sign-out leaves characters open', 'src/session/account-session.js', '    for (const slot of Array.from(this._chars.keys())) this.close(slot);\n', ''],
+  /* OUT-2 (report #78; 2027-03-26-signout-presence.sql) */
+  ['[#78] sign-out never tells the server its client is gone', 'src/session/account-session.js', '    await this._leavePresence();\n    await this.auth.signOut();\n', '    await this.auth.signOut();\n'],
+  ['[#78] the login is forgotten before the leave is asked', 'src/session/account-session.js', '    await this._leavePresence();\n    await this.auth.signOut();\n', '    await this.auth.signOut();\n    await this._leavePresence();\n'],
+  ['[#78] the leave is asked while the poll still runs', 'src/session/account-session.js', '    if (this.social) { this.social.destroy(); this.social = null; }\n    for (const slot of Array.from(this._chars.keys())) this.close(slot);\n    await this._leavePresence();\n',
+    '    await this._leavePresence();\n    if (this.social) { this.social.destroy(); this.social = null; }\n    for (const slot of Array.from(this._chars.keys())) this.close(slot);\n'],
+  ['[#78] an unanswered leave holds the sign-out', 'src/session/account-session.js', '      const bound = set(() => done(false), SIGN_OUT_LEAVE_MS);', '      const bound = 0;'],
+  ['[#78] the leave is given no time to be heard', 'src/session/account-session.js', 'const SIGN_OUT_LEAVE_MS = 2500;', 'const SIGN_OUT_LEAVE_MS = 0;'],
+  ['[#78] a thrown leave holds the sign-out', 'src/session/account-session.js', "      try { ask = this.server.rpc('hr_presence_leave', {}); } catch (e) { end(false); return; }", "      ask = this.server.rpc('hr_presence_leave', {});"],
+  ['[#78] the leave names the heroes it had open', 'src/session/account-session.js', "this.server.rpc('hr_presence_leave', {})", "this.server.rpc('hr_presence_leave', { p_slots: [0, 1] })"],
   ["existing email told apart by its message","src/net/auth.js","  [/already (registered|exists)/i, 'signUpSent'],\n",""],
   ["existing email told apart by its code","src/net/auth.js","  user_already_exists: 'signUpSent', email_exists: 'signUpSent',","  user_already_exists: 'signUpFailed', email_exists: 'signUpFailed',"],
   /* COPY-2 (Tyler 10-24): a refusal says why */
@@ -2099,7 +2163,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (43 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (44 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(async () => rules(await load(ROOT)));

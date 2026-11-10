@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-10",
- "digest": "b8b39159501327eef31cabd6ab2eed2397c572011c73ddfd7ea02b934e5b597f",
+ "digest": "cfd9f65dbf8493d5ba2277f90699b9ac31dbf2189c6eb18b90983dc08121e329",
  "counts": {
   "relations": 272,
-  "functions": 690,
+  "functions": 691,
   "policies": 119,
   "indexes": 387,
   "triggers": 92,
@@ -789,6 +789,7 @@
    "hr_premium_grant(p_user uuid, p_slot integer, p_until timestamp with time zone, p_reason text)",
    "hr_premium_until(p_user uuid, p_slot integer)",
    "hr_premium_view(p_user uuid, p_slot integer)",
+   "hr_presence_leave()",
    "hr_progress_prune(p_older interval)",
    "hr_purse_lock(p_user uuid)",
    "hr_purse_move(p_user uuid, p_gold bigint, p_floor bigint)",

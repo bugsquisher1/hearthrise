@@ -14,8 +14,8 @@
 // and when the boards were last rebuilt. No account id crosses: the server marks the caller's own
 // heroes (`mine`, with their slot) and nobody else's.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.113';
-import { HONOR_TOP, honorBoard } from '../data/honor-roll.js?v=0.2.113';
+import { askVia } from './intent-ledger.js?v=0.2.114';
+import { HONOR_TOP, honorBoard } from '../data/honor-roll.js?v=0.2.114';
 
 const count = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : null);
 const NAME_MAX = 40;

@@ -1,0 +1,30 @@
+{
+  "id": "hd_plates",
+  "class": "part",
+  "style": "s1",
+  "material": "wood",
+  "source": "hd_plates.png",
+  "anchor_px": [
+    19,
+    46
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash 64x64 (Y5 c2), parts by inpaint_image (B2)",
+    "object": "64e2a71d-d95d-4f79-80d3-66aa04b4c1ca"
+  },
+  "notes": "A layer of the gilded house training dummy (brief 13 Y5 c2, B2): circle, base, plates, arms, target stack in that draw order at one anchor. Art only; the house dummy system (prices, unlocks) is a later designer lane and no map places it."
+}

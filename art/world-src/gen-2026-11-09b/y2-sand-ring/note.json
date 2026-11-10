@@ -1,0 +1,29 @@
+{
+  "asset": "brief 13 Y2 the sand ring (dirt / training sand) SAMPLE: the roll, the spare, and one more",
+  "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt Y2",
+  "status": "SAMPLE for the art director's one read; nothing joins the town's BLEND before it. Not imported",
+  "made": "2026-11-08 (the brief's 11-09 samples)",
+  "generations": 45,
+  "tool": "create_topdown_tileset mode pro, 32 px, high top-down, transition_size 0 (flat, level), lower_base_tile_id 97e71544-5fcf-4e48-94b7-c809721a12be (the town dirt), lower text \"packed brown dirt, the town's yard earth\"",
+  "rolls": {
+    "r1": { "tileset": "6b9a7f66-1d57-4b8c-9b36-c55ad96a96a5", "sand_base": "6e2e75a1-d13b-4227-9618-ff0732d49821",
+      "upper": "raked pale training sand, fine, calm, low contrast, flat and level with the dirt",
+      "measured": "raw sand median L 0.705 (#e3dac5); LOCKED: #c9bfa0 bone 73.6% (L 0.522) + #aaa49a 26.4% (L 0.374), mottled in 2 colours. Two value steps over the locked dirt #a88457 (L 0.255), near cream" },
+    "r2": { "tileset": "54ab2521-a1b8-4930-a4c2-e29b61856f03", "sand_base": "a533b5d2-d674-4721-869a-5b0142c42043",
+      "upper": "raked training sand, a warm sandy tan only a little lighter than the dirt, fine, calm, low contrast, flat and level with the dirt, not white",
+      "measured": "raw median L 0.592 (#e2c797); LOCKED: #c9bfa0 97.1% + #a88457 2.9%: ONE flat colour (brief 13's ash r1 fault)" },
+    "r3": { "tileset": "0edd6ad0-2b4c-471c-9c7a-638678a5adf3", "sand_base": "38df8027-3a7a-40eb-9418-0942850f25cc",
+      "upper": "raked training sand, a medium warm tan brown like damp sand, a mid value only one shade lighter than the brown dirt, darker than cream, fine raked lines, calm, low contrast, flat and level with the dirt",
+      "measured": "raw median L 0.402 (#cfa26c), raked diagonal lines; LOCKED: #a88457 84.0% (the dirt's own colour, no step) + #dcae86 16.0% (the SKIN ramp, as streaks)" }
+  },
+  "dirt_check": "every roll's all-lower fill is BYTE-IDENTICAL to the town dirt (art/world/havora/havora_earth_gravel.png tile 0000 at 64,32)",
+  "hero_on_sand": "knight idle S, locked ring 0.211: on r1/r2 sand 2.19:1 with its black outline at 10.8:1; on r3 sand (= the dirt) 1.17:1, outline 5.76:1, the same as on the dirt today",
+  "flags": [
+    "NO ROLL LANDS 'ONE STEP LIGHTER' LOCKED. The earth ramp's next step over the dirt #a88457 is #c49a5c (L 0.356); raw sand around L 0.45-0.50 would be needed for the terrain grade (sat 0.7, value 0.9) to snap there. r1/r2's raw 0.59-0.71 snap to bone #c9bfa0, r3's 0.40 snaps back onto the dirt colour",
+    "r1 is the only roll that stays mottled (2 colours) when locked; r2 locks to one flat colour; r3 adds skin-ramp streaks",
+    "all three are flat (transition 0): the edge is a thin dark rim line, no bank",
+    "both of the line's budgeted rolls (30) plus one retry (15) are spent; a snapTo(earth ramp) at import, or a 4th roll aimed at raw L ~0.47, are the art director's call"
+  ],
+  "layout": "r<N>-<tileset>-sheet.png + -metadata.json per roll (Wang 16, corners in the metadata)",
+  "review_strip": "art/review/gen-2026-11-09b/y2-sand-ring-sample.png (x3, one row per roll r1, r2, r3: the sheet | the raw sand fill | the LOCKED sand 64 | the LOCKED dirt 64 | the knight on the locked sand)"
+}

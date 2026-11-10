@@ -1,0 +1,17 @@
+{
+ "order": [
+  0,
+  1,
+  2,
+  1
+ ],
+ "alt": [
+  3,
+  4,
+  5,
+  6,
+  7,
+  8
+ ],
+ "why": "from frame 3 the right arm drifts, from frame 5 a spike grows on the cap"
+}

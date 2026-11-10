@@ -25,21 +25,21 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.113';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.113';
-import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=0.2.113';
-import { makeUnit } from './world-state.js?v=0.2.113';
-import { holderOutside, resetPack } from './leash.js?v=0.2.113';
-import { chooseTargets } from './targeting.js?v=0.2.113';
-import { positionHeroes } from './roles.js?v=0.2.113';
-import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js?v=0.2.113';
-import { resolveAttacks } from './damage.js?v=0.2.113';
-import { castSpells, dropCasts } from './monster-spells.js?v=0.2.113';
-import { castAbilities } from './abilities.js?v=0.2.113';
-import { tickStatuses } from './status.js?v=0.2.113';
-import { consume } from './consumables.js?v=0.2.113';
-import { flushXpGroup } from './xp-share.js?v=0.2.113';
-import { checkStopRules } from './conditions.js?v=0.2.113';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.114';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.114';
+import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=0.2.114';
+import { makeUnit } from './world-state.js?v=0.2.114';
+import { holderOutside, resetPack } from './leash.js?v=0.2.114';
+import { chooseTargets } from './targeting.js?v=0.2.114';
+import { positionHeroes } from './roles.js?v=0.2.114';
+import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js?v=0.2.114';
+import { resolveAttacks } from './damage.js?v=0.2.114';
+import { castSpells, dropCasts } from './monster-spells.js?v=0.2.114';
+import { castAbilities } from './abilities.js?v=0.2.114';
+import { tickStatuses } from './status.js?v=0.2.114';
+import { consume } from './consumables.js?v=0.2.114';
+import { flushXpGroup } from './xp-share.js?v=0.2.114';
+import { checkStopRules } from './conditions.js?v=0.2.114';
 
 /** How many sub-steps one swing of `swingMs` is; refuses a swing that is not a whole number of them. */
 export function substepsOf(swingMs) {

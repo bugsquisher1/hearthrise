@@ -45,9 +45,9 @@ export const HUNTS_TEXT = Object.freeze({
   /* The advice. */
   level_one: 'Level {level}',
   levels_range: 'Levels {lo} to {hi}',
-  no_ground: 'No ground fits {levels} as well yet.',
+  no_ground: 'There’s no good hunt for {levels} yet.',
   nearest_below: '{ground} (Level {lo} to {hi}) is the nearest below.',
-  tough_at_level: '{ground} is at your level. Its monsters are tough, so alone it costs more than it pays.',
+  tough_at_level: '{ground} is at your level. Its monsters are tough, so alone you’ll spend more than you earn.',
   tag_right_party: 'Right for your party',
   tag_right_level: 'Right for your level',
   tag_next_step: 'Next step up',

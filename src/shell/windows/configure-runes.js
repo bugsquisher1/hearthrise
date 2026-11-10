@@ -38,8 +38,10 @@ export function runesHtml() {
     + '</div>';
 }
 
-/** Patch the section for the draft `d`. `c` = { doc, bag (what the hero carries now), store (the server's rows), skills, off }. */
+/** Patch the section for the draft `d`. `c` = { doc, bag (what the hero carries now), store (the server's rows), skills, off (the
+   Save in flight: Configure action's own busy line says so) }. */
 export function patchRunes(root, d, c) {
+  const off = c.off;
   const box = root.querySelector('.ca-runes');
   const sup = runeSupplyOf(d.action);
   cls(box, 'is-on', !!sup);
@@ -47,7 +49,7 @@ export function patchRunes(root, d, c) {
   const useOwn = sup.own.length > 0;
   const own = box.querySelector('[data-f="rn-own"]');
   prop(own, 'checked', useOwn);
-  prop(own, 'disabled', c.off);
+  prop(own, 'disabled', off);
   const list = useOwn ? carriedRunes(d.action, c.bag, c.skills) : [];
   rows(box.querySelector('.ca-rn-list'), list, {
     key: (r) => r.id,
@@ -57,7 +59,7 @@ export function patchRunes(root, d, c) {
       cls(li, 'is-locked', r.locked);
       const cb = li.querySelector('input');
       prop(cb, 'checked', r.ticked);
-      prop(cb, 'disabled', c.off);
+      prop(cb, 'disabled', off);
       text(li.querySelector('.ca-rn-name'), r.name);
       text(li.querySelector('.ca-rn-have'), whole(r.have));
       text(li.querySelector('.ca-rn-lock'), r.locked ? t('bar.runes_needs', { needs: r.needs }) : '');
@@ -68,7 +70,7 @@ export function patchRunes(root, d, c) {
   text(box.querySelector('.ca-rn-none'), useOwn && !list.length ? t('bar.runes_none', { family: fam ? fam.label : '' }) : '');
   const empty = box.querySelector('.ca-rn-empty');
   prop(empty, 'hidden', !useOwn);
-  for (const r of empty.querySelectorAll('input')) { prop(r, 'checked', r.value === sup.onEmpty); prop(r, 'disabled', c.off); }
+  for (const r of empty.querySelectorAll('input')) { prop(r, 'checked', r.value === sup.onEmpty); prop(r, 'disabled', off); }
   text(box.querySelector('.ca-rn-shop'), useOwn ? '' : t('bar.runes_shop_only'));
   rows(box.querySelector('.ca-rs-list'), sup.onEmpty === 'store' ? storeChoices(d.action, c.store, c.skills) : [], {
     key: (x) => x.id,
@@ -78,7 +80,7 @@ export function patchRunes(root, d, c) {
       const b = li.firstElementChild;
       attr(b, 'aria-selected', String(sel));
       cls(b, 'is-on', sel);
-      prop(b, 'disabled', c.off);
+      prop(b, 'disabled', off);
       text(b, storeChoiceWords(x, landsWith(d.action, { own: [], store: x.id, onEmpty: 'store' }, c)));
     },
   });

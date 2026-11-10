@@ -228,9 +228,9 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   text(root.querySelector('.ca-ready'), d.action.id && !d.conditions.length ? ' whenever it is ready.' : '');
   root.querySelectorAll('.ca-cond').forEach((row, i) => patchCond(row, d.conditions[i], i, s, ctx.doc));
   text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.discipline, set.role, skillsOf(cs)));
-  /* The heal warning: the hero's hunt (running, else the last one) at the party's size, the server's max HP. */
+  /* The heal warning: the hero's hunt (running, else the last one), its biggest blow for any party size (2026-11-08), the server's max HP. */
   const h = huntOf(cs), p = partyOf(cs);
-  const blow = h && h.huntId ? biggestBlowOn(h.huntId, p ? p.members.length : 1) : null;
+  const blow = h && h.huntId ? biggestBlowOn(h.huntId) : null;
   /* ...and what the slot's conditions will mean in a fight (slot-waits.js): a player setting it up reads it here, in town too. */
   /* (and the earlier slot it shares a cooldown with: the bar's hover no longer says it, Tyler 2026-11-08) */
   const wires = serverBar(cs);
@@ -276,7 +276,8 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const f = named ? factsOf(named, facts) : null;
   text(root.querySelector('.ca-src'), f && f.cost ? f.cost : '');
   text(root.querySelector('.ca-eff'), f && named.type === 'ability' ? [f.type].concat(f.effect).filter(Boolean).join(' ') : effectLine(shown));
-  text(root.querySelector('.ca-req'), f && f.requires ? f.requires : '');
+  /* The spell card's requirement, and an alone spell's callout beside it (Tyler 2026-11-09: "Make that callout clear to the player"). */
+  text(root.querySelector('.ca-req'), f && f.requires ? f.requires + (f.alone ? ' ' + f.alone : '') : '');
   /* A rune spell's supply (configure-runes.js): the carried runes it may spend, then the rune shop or leaving the hunt. */
   patchRunes(root, d, { doc: ctx.doc, bag, store: set.store, skills: facts.skills, off });
   /* THE FOOT */

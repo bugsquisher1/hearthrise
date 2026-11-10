@@ -51,7 +51,7 @@ export function scaleLadderOf(open, huntIndex, roster = GROUND_ROSTER, exception
   for (const [id, g] of rows) {
     const [floor, top] = bandOf(g);
     if (top >= topLevel || !roster[id]) continue;
-    const fit = (g.pockets || []).some((p) => p.minParty) ? 'party' : g.groupFit || 'both';
+    const fit = (g.pockets || []).some((p) => p.forParty) ? 'party' : g.groupFit || 'both';
     grounds[id] = Object.freeze({ floor, top, fit, ...(exceptions[id] || {}) });
   }
   return { topLevel, grounds: Object.freeze(grounds) };
@@ -70,8 +70,10 @@ export const SCALED_HUNTS = Object.freeze({
   /* the highest Level a ground scales to: the top of the highest open ground's band (today the Coppercap Warrens, 32 to 50) */
   topLevel: LADDER.topLevel,
   /* Level XP a kill, permille of the formula's at the scaled Level. 800: the scaled Glade's four at 50 read 1.13x the Warrens' XP at
-     the formula's own (its layout kills fast); at 800 every tested gap reads 0.5-0.9x the right-Level ground */
-  xpPm: 800,
+     the formula's own (its layout kills fast); at 800 every tested gap reads 0.5-0.9x the right-Level ground. 700 since the re-tune
+     (lane/b-one-difficulty, 2026-11-08): the mixed party cells rose, and a scaled four reads its ground's cell (the Thicket's 1860, the
+     Glade's 1730, against the Warrens' 1475), so at 800 the Thicket's and the Glade's fours at 50 read 1.01x and 1.08x the Warrens */
+  xpPm: 700,
   /* coin a kill, permille of the formula's at the scaled Level, by the ground's fit. A party ground already pays the party line
      (x0.53 at full danger, balance-sheet STAT_FORMULA.fit.party); a solo ground's monsters have a solo HP, so at the formula's own
      coin a scaled Glade's four netted 2,100-2,400 a head over the Warrens. 600 leaves about 1,000 or more a head under the best free gold before the fee */

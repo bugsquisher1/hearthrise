@@ -2,16 +2,16 @@
 // src/data/text/hunts.js — THE HUNTS LIST'S WORDS: a ground's band, packs, tier,
 // who may come, the advice and the warnings (src/shell/hunt-list.js).
 //
-// One row per sentence or label, read by t('hunts.<key>'). A tier line is its
-// head (tier_pull* / tier_same*: what a pull brings and how much harder) closed
-// by tier_head_end or tier_head_blow, then tier_cost. The *_mid heads stand
-// inside a sentence ("Deadly: the same monsters, hitting 50% harder.").
+// One row per sentence or label, read by t('hunts.<key>'). A harder tier says its
+// plain line (src/data/hunt-tiers.js TIER_LINES, Tyler 2026-11-08: no numbers on a
+// card) and its death line; tier_choice names it beside Enter ("Deadly: big groups
+// that hit hard.").
 // ════════════════════════════════════════════════════════════════════════
 
 export const HUNTS_TEXT = Object.freeze({
-  /* A party-only hall. {n} is a number word (count_2 …). */
-  party_boss: 'The {boss} wants a party of {n} or more. Alone, you skip that hall.',
-  party_hall: 'One hall here wants a party of {n} or more. Alone, you skip it.',
+  /* A hall built for a group: a warning, never a gate (Tyler 2026-11-08). {n} is a number word (count_2 …). */
+  party_boss: 'The {boss} is built for a group of {n} or more. Alone, you still fight him, and he can kill you.',
+  party_hall: 'One hall here is built for a group of {n} or more. Alone, you still fight it, and it can kill you.',
   count_1: 'one',
   count_2: 'two',
   count_3: 'three',
@@ -27,27 +27,6 @@ export const HUNTS_TEXT = Object.freeze({
   packs_boss: { one: '{count} pack of {size}, a boss · back in {secs} s', other: '{count} packs of {size}, a boss · back in {secs} s' },
 
   /* What a tier does. */
-  twice_as_hard: 'twice as hard',
-  times_as_hard: '{x} times as hard',
-  pct_harder: '{pct} harder',
-  twice_the_hp: 'twice the HP',
-  times_the_hp: '{x} times the HP',
-  pct_more_hp: '{pct} more HP',
-  tier_pull: '{n} monsters a pull',
-  tier_pull_hard: '{n} monsters a pull, hitting {harder}',
-  tier_pull_tough: '{n} monsters a pull, with {tougher}',
-  tier_pull_hard_tough: '{n} monsters a pull, hitting {harder}, with {tougher}',
-  tier_same: 'The same monsters',
-  tier_same_hard: 'The same monsters, hitting {harder}',
-  tier_same_tough: 'The same monsters, with {tougher}',
-  tier_same_hard_tough: 'The same monsters, hitting {harder}, with {tougher}',
-  tier_same_mid: 'the same monsters',
-  tier_same_mid_hard: 'the same monsters, hitting {harder}',
-  tier_same_mid_tough: 'the same monsters, with {tougher}',
-  tier_same_mid_hard_tough: 'the same monsters, hitting {harder}, with {tougher}',
-  tier_head_end: '{head}.',
-  tier_head_blow: '{head}, and the biggest blow here is {hit}, not {was}.',
-  tier_cost: 'Each kill earns {xp} more Level XP, with the same gold and drops. Expect a bigger food bill, and you can die. A death ends the hunt and costs {loss}% of your Level XP.',
   tier_choice: '{tier}: {head}.',
 
   /* The band, and a ground above the hero. */
@@ -66,14 +45,12 @@ export const HUNTS_TEXT = Object.freeze({
   /* The advice. */
   level_one: 'Level {level}',
   levels_range: 'Levels {lo} to {hi}',
-  no_ground_solo: 'There\'s no ground for one hero at {levels} yet.',
-  no_ground_party: 'There\'s no ground for your party at {levels} yet.',
+  no_ground: 'No ground fits {levels} as well yet.',
   nearest_below: '{ground} (Level {lo} to {hi}) is the nearest below.',
-  bring_party: '{ground} is right for your level if you bring a party.',
+  tough_at_level: '{ground} is at your level. Its monsters are tough, so alone it costs more than it pays.',
   tag_right_party: 'Right for your party',
   tag_right_level: 'Right for your level',
   tag_next_step: 'Next step up',
-  best_with_party: 'Best with a party of 2–{max}',
 
   /* This hero's bests. */
   best_rate: '{xp} Level XP per hour · balance {gold} per hour',
@@ -88,8 +65,6 @@ export const HUNTS_TEXT = Object.freeze({
   fit_far: 'Far above your level',
   fit_below: 'Below your level',
   fit_in: 'In your range',
-  heroes_solo_from: 'Best with 2 to {n}, and alone it pays from Level {level}',
-  heroes_lone_ok: 'Best with 2 to {n}, and a lone hero can enter',
   heroes_up_to: 'Alone or with up to {n} more',
   heroes_one: 'One hero',
 });

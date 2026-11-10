@@ -14,6 +14,7 @@
 //   RUNE is bought only when the slot names the store rune, `action.store`, which
 //   the bar shows and the player can change — designer 2026-11-05; a basic shot
 //   never buys one, shotLine),
+//   an `alone` row only while no other living hero shares the world (aloneIn),
 //   and its target rule finds a target (AB-03). A slot the purse cannot pay
 //   waits and the next one is tried; it never ends the hunt by itself.
 // Firing spends the mana, the rune and the shots, sets the cooldown and the
@@ -227,6 +228,14 @@ export function gateOf(hero, h, row, atMs) {
   return null;
 }
 
+/**
+ * ALONE (Tyler 2026-11-09, src/data/abilities.js `alone`): no other living hero shares `world` with `hero`. Read at each
+ * cast, as the kill XP reads the living heroes (xp-share.js): a death or a leave changes the next cast. Pure.
+ */
+export function aloneIn(world, hero) {
+  return !!world && Array.isArray(world.units) && !world.units.some((o) => o !== hero && o.side === 'hero' && o.alive === true);
+}
+
 /* The shield a self-shield lands at `pm` permille of its row's (effect's `scaled`). */
 const landsShield = (row, pm) => (pm === 1000 ? row.shield : Math.floor((row.shield * pm) / 1000));
 
@@ -262,9 +271,12 @@ export function firstUsable(inst, hero, sc, only) {
   if (!h || !h.hs) return null;
   /* Evaluated only while its LANE is free: a slot whose lane is shut is not even tested.
      One whose conditions pass but that waits on its cooldown, mana, stock or a target
-     in reach is the lane's `rule_wait` (conditions.js noteWait). */
+     in reach is the lane's `rule_wait` (conditions.js noteWait). An ALONE row with another
+     living hero in the world is not tested either (aloneIn): in a party it is as if absent. */
+  const solo = aloneIn(inst.world, hero);
   const rows = slotsFor(h, 'ability').filter((r) => (!only || only(ABILITIES[r.slot.action.id]))
-    && gateOf(hero, h, ABILITIES[r.slot.action.id], sc.atMs) !== 'lane');
+    && gateOf(hero, h, ABILITIES[r.slot.action.id], sc.atMs) !== 'lane'
+    && (solo || !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].alone)));
   const got = pickSlot(inst, hero, h, rows, (slot, cx) => {
     const row = ABILITIES[slot.action.id];
     const gate = gateOf(hero, h, row, sc.atMs);

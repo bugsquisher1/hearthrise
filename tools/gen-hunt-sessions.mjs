@@ -140,7 +140,7 @@ import { ABILITIES, ABILITY_LANES, ABILITY_RULES } from '../src/data/abilities.j
 import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, roleWeaponOf } from '../src/data/hunt-roles.js';
 import { isShield } from '../src/data/shields.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
-import { OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
+import { OPEN_GROUNDS, DENSITY_PICK, MAX_HEROES, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
 import { CALLED_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
 import { PARTY } from '../src/data/party.js';
@@ -234,7 +234,13 @@ export const WORLD_FIELDS_READ = Object.freeze({
    applied right before 2027-03-24-rune-supply.sql (its §0 and the settle's proof arm read the reason). No kill bound, spawn, limit, bid or shape moves. */
 /* THE DEATH SHARE (lane/c-death-and-slots, Tyler 2026-11-09): 2027-03-24-rune-supply is APPLIED history and this file carries it (runes_out); death_xp_permille 20 -> 60 and the death_xp_base
    row cut, the same full replace, AFTER 2027-03-25-death-share.sql (its precondition) and BEFORE the hr-accrue carrying DEATH_XP_LOSS 0.06. */
-export const OUT_NAME = '2027-03-25-death-share-hunt-sessions-catalogue.generated.sql';
+/* ONE PACK FOR EVERY GROUP (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged"):
+   2027-03-25-death-share is APPLIED history and this file carries it (death_xp_permille 60, no death_xp_base row) with rune supply's runes_out. The party scale is gone, so a monster unit no longer carries its yield share (pull-cycle.js PERSISTED
+   loses yieldPm): hr_hunt_world_shape moves (its shape and fields), the same full replace. The re-tune moves the most one kill pays (hr_hunt_kill_bounds)
+   for 25 monsters, and hr_hunt_abilities gains Undertow, the Healer's strike when it hunts alone (Tyler 2026-11-09; abilities.js `alone`, read by the
+   engine only; no column carries it). No spawn, limit or bid. THE SHAPE MOVES, so the old engine refuses every stored world once this applies: the
+   hr-accrue deploy carrying the same src/core follows AT ONCE (each running hunt's world restarts once, as on any shape change). */
+export const OUT_NAME = '2027-03-26-one-difficulty-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -283,9 +289,9 @@ export function groundRows(grounds, refs = {}) {
       }
     }
     if (!n) throw new Error(`ground ${id} spawns nothing`);
-    /* THE MOST A HERO MAY PICK here, per party size 1..PARTY_SCALE.maxHeroes (densityFor's clamp, the one
+    /* THE MOST A HERO MAY PICK here, per party size 1..MAX_HEROES (densityFor's clamp, the one
        rule): hr_hunt_density_set refuses a pick over the largest, the instance's freeze clamps to it. */
-    const dmax = Array.from({ length: PARTY_SCALE.maxHeroes }, (_, i) => densityFor(g, i + 1, DENSITY_PICK.max));
+    const dmax = Array.from({ length: MAX_HEROES }, (_, i) => densityFor(g, i + 1, DENSITY_PICK.max));
     if (!dmax.every((v, i) => whole(v) && v >= 0 && v <= DENSITY_PICK.max && (i === 0 || v >= dmax[i - 1]))) {
       throw new Error(`ground ${id} density max ${dmax} is not 0..${DENSITY_PICK.max}, never falling as the party grows`);
     }
@@ -641,7 +647,7 @@ function calledRows(S) {
     if (!(m.xp === 0)) throw new Error(`called row ${id} pays XP (${m.xp}): a called row pays nothing`);
     if (!(Array.isArray(m.gp) && m.gp[0] === 0 && m.gp[1] === 0)) throw new Error(`called row ${id} pays coin (${JSON.stringify(m.gp)}): a called row pays nothing`);
     if (!(Array.isArray(m.drops) && m.drops.length === 0)) throw new Error(`called row ${id} drops something: a called row pays nothing`);
-    if (m.yieldPm !== undefined || m.dropBonus !== undefined) throw new Error(`called row ${id} carries a yield: damage.js yieldOf reads 0 as full yield`);
+    if (m.dropBonus !== undefined) throw new Error(`called row ${id} carries a drop bonus: a called row drops nothing`);
     if (m.boss !== true && m.add !== true) throw new Error(`called row ${id} is neither a boss nor his add`);
     if (m.boss === true && m.add === true) throw new Error(`called row ${id} is both a boss and an add: "target is a boss" tells them apart`);
     if (m.boss === true && !(m.phases && whole(m.phases.addsPm) && whole(m.phases.enragePm) && whole(m.phases.enrageAtkPm) && m.phases.addsPm > m.phases.enragePm && m.phases.enragePm > 0 && m.phases.addsPm < 1000 && m.phases.enrageAtkPm > 1000)) throw new Error(`called boss ${id} has no two lines: ${JSON.stringify(m.phases)}`);
@@ -728,11 +734,17 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/c-death-and-slots, Tyler 2026-11-09: "Death needs to be more than 2% I think, and losing a level should be possible"):
+-- NEW IN THIS FILE (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged"):
+-- hr_hunt_world_shape MOVES (a monster unit carries no yield share: one pack for every group), hr_hunt_kill_bounds moves for the re-tuned
+-- monsters, and hr_hunt_abilities gains Undertow. Every row the files before it set is carried: the death share's (death_xp_permille 60, no
+-- death_xp_base) and rune supply's runes_out. ORDER: AFTER the six APPLIED 2027-03-25 files (the precondition below still asks for
+-- 2027-03-25-death-share.sql), THEN the hr-accrue carrying the same src/core AT ONCE: the shape moves, so the old engine refuses every stored
+-- world until it deploys, and each running hunt's world restarts once.
+--
+-- CARRIED FROM 2027-03-25-death-share-hunt-sessions-catalogue (APPLIED; lane/c-death-and-slots, Tyler 2026-11-09: "Death needs to be more than 2% I think, and losing a level should be possible"):
 -- hr_hunt_limits.death_xp_permille 20 -> 60 (src/data/hunt-sessions.js DEATH_XP_LOSS 0.06), and the death_xp_base row is CUT (one public formula:
--- a share of the TOTAL Level XP, no alternative base). Nothing else moves; the world's shape is unchanged (no world_shape_pending on either
--- order). ORDER: AFTER 2027-03-25-death-share.sql (the precondition below refuses this file while a body still reads death_xp_base), THEN the
--- hr-accrue carrying DEATH_XP_LOSS 0.06 at once. Never the edge first: until this row is 60 the settle refuses a 6% death death_xp_over.
+-- a share of the TOTAL Level XP, no alternative base). That file moved nothing else and applied AFTER 2027-03-25-death-share.sql (the precondition
+-- below refuses a catalogue while a body still reads death_xp_base) and before the hr-accrue carrying DEATH_XP_LOSS 0.06.
 --
 -- NEW IN THIS FILE (lane/c-rune-ladder, Tyler 2026-11-05: "let start with your calls"): hr_hunt_basic_supplies gains one store rune a
 -- family a tier above Plain (src/data/supply-basics.js STORE_RUNE_PRICE), and hr_hunt_vendor_value moves the deeper runes' bids to their new
@@ -1394,7 +1406,7 @@ function selftest() {
     'a called row that pays XP': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, xp: 1 } } }),
     'a called row that pays coin': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, gp: [0, 1] } } }),
     'a called row that drops': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, drops: [{ id: 'bones', ch: 1, band: 'common' }] } } }),
-    'a called row with a yield of nothing': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, yieldPm: 0 } } }),
+    'a called row with a drop bonus': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, dropBonus: 2 } } }),
     'a paying row named as a called one': () => ({ monsters: { ...MONSTERS, rat_called: { ...MONSTERS.rat } } }),
     'a called row with an ordinary id': () => ({ monsters: { ...MONSTERS, rat_king_copy: { ...MONSTERS.rat_king_called } } }),
     'a called room fielding a row that pays': () => ({ calledGrounds: { ...CALLED_GROUNDS, millrace_sewer_called: { ...CALLED_GROUNDS.millrace_sewer_called,

@@ -23,6 +23,10 @@
 //   dmg [lo, hi], element (an elements.js id), hits, maxHits, status (a statuses.js id, H3),
 //   bonusPct + durMs (mark), shield, heal [lo, hi], whenBelowPct, minHurt,
 //   radius (party heal, tiles)
+//   alone: true = cast only while no other living hero shares the caster's world (Tyler 2026-11-09:
+//     "a new spell that can only be used when not in a party"), read at each cast as the kill XP
+//     reads the living heroes (src/core/hunt/abilities.js aloneIn); a death or a leave changes the
+//     next cast. Otherwise the slot falls through to the next, as a slot that cannot act does.
 //   versions: a RUNE spell's versions I..V (Tyler 2026-10-23, src/data/runes.js), up to five
 //     { mana, outPm }: version N is cast by spending a tier-N rune at level versionLevel(N) in
 //     the row's skill (ABILITY_SKILL), costs `mana` and lands `outPm` permille of the row's
@@ -162,6 +166,13 @@ export const ABILITIES = Object.freeze([
   ab({ id: 'protective_ward', n: 'Protective Ward', disciplines: ['restoration'], lane: 'support', cdMs: 12000, mana: 25, rune: 'chalked_earth_rune',
     target: 'ally', shield: 30, whenBelowPct: 80, magicXpMult: 1600,
     versions: [[25, 1000], [30, 1740], [36, 2520], [43, 3310], [52, 4100]], lvPm: LV_PM }),
+  /* UNDERTOW (Tyler 2026-11-09: "Give the healer a little more damage by giving it a new spell that can only be used when
+     not in a party"): the Healer's own strike, a WATER rune spell (the spring that closes wounds drags a foe under), on one
+     target, cast only while the Healer hunts alone (`alone`). A lone Healer killed slowest of every way to fight (0.46-0.48
+     of the pace of record at the Thicket's and Wickstead's floors); a party never sees it fire. About a Mend's mana. */
+  ab({ id: 'undertow', n: 'Undertow', disciplines: ['restoration'], lane: 'offense', cdMs: 20000, mana: 15, rune: 'chalked_water_rune', alone: true,
+    target: 'enemy', dmg: [8, 13], magicXpMult: 1600,
+    versions: [[15, 1000], [18, 1740], [22, 2520], [26, 3310], [31, 4100]], lvPm: LV_PM }),
   /* MEND, THE UNIVERSAL SELF-HEAL (Bible §4.1 / §17 CONFIRMED; roadmap p21): every loadout heals itself with mana on
      the heal lane, outside its three discipline abilities. It needs missing HP (a hero at full health never casts it,
      so a full-health cast never pays Magic XP) and spends no rune: the free floor. It levels on Magic, and pays Magic
@@ -237,6 +248,8 @@ export function validate() {
     /* The family's version-I rune: the one its store row partners (a cast spends any tier of the family). */
     if (r.rune && r.active && runeTierOf(ITEMS[r.rune]) !== 1) bad('rune ' + r.rune + ' is not its family\'s Chalked rune');
     if (r.lvPm !== undefined && !(Number.isInteger(r.lvPm) && r.lvPm >= 0)) bad('lvPm must be an integer >= 0');
+    /* Alone-only is a strike's rule: a row everyone holds (the self-heal) or one that helps a friend would never help one. */
+    if (r.alone !== undefined && (r.alone !== true || r.universal || !['enemy', 'area', 'cleave'].includes(r.target))) bad('alone is true on a damaging, non-universal row, or absent');
     if (!r.universal && new Set(r.disciplines.map((d) => DISCIPLINE_SKILL[d])).size !== 1) bad('its disciplines level on different skills');
     if (r.versions !== undefined) {
       const vs = r.versions;

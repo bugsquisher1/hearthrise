@@ -9,14 +9,14 @@
 //   packWords(row, n)   "6 packs of 7 · back in 60 s": the pull size the
 //                        server spawns on the shown tier; the room as built only at 0
 //   tierPull(row, tier, size)  how many monsters a pull brings on a tier for this group
-//   tierWords(row, tier, size)  what a tier does, in numbers from its row and the ground's biggest blow
+//   tierWords(row, tier, size)  what a tier does, in plain words (hunt-tiers.js TIER_LINES; the numbers are the wiki's)
 //   tierChoiceWords(row, tier, size)  the same choice in one line, beside Enter
 //   bandWords(row, lv)  "Level 1 to 8" (+ ", you are 3" when known)
 //   recommendation(levels, size)  the Hunts window's default pick for this hero
 //                        or this party's levels, and a plain note when no ground
 //                        built for the group holds them
 //   partyNote(hunt)     the ground's party rule in words, from ITS row (the
-//                        pocket carrying minParty and the boss standing in it),
+//                        pocket carrying forParty and the boss standing in it),
 //                        or '' for a ground with no party-only pocket
 //   packFor(bag)        what the hunt carries: the bag's own hunt supplies,
 //                        every stack, at most the server's line cap
@@ -29,8 +29,7 @@
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_GROUNDS, partyPullOf, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.113';
-import { DEFAULT_TIER, TIER_NAME, tierRowOf, pullOfTier } from '../data/hunt-tiers.js?v=0.2.113';
-import { biggestBlowOn } from '../core/hunt/pull-cycle.js?v=0.2.113';
+import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier } from '../data/hunt-tiers.js?v=0.2.113';
 import { PARTY } from '../data/party.js?v=0.2.113';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.113';
 import { MONSTERS } from '../data/monsters.js?v=0.2.113';
@@ -43,13 +42,14 @@ const PACK_QTY_MAX = 100000;
 /* A party size in words (hunts.count_<n>, "two"), else the number. */
 const countWords = (n) => (Number.isInteger(n) && hasText('hunts.count_' + n) ? t('hunts.count_' + n) : String(n));
 
-/** "The Rat King wants a party of two or more. Alone, you skip that hall." for this hunt's ground, or ''. */
+/** "The Rat King is built for a group of two or more. Alone, you still fight him, and he can kill you." for this hunt's ground, or ''. */
 export function partyNote(hunt) {
   const g = Object.values(HUNT_GROUNDS).find((r) => r.hunt === hunt);
-  const p = g && g.pockets.find((q) => q.minParty);
+  const p = g && g.pockets.find((q) => q.forParty);
   if (!p) return '';
   const boss = p.spawns.map((s) => MONSTERS[s.monster]).find((m) => m && m.boss === true);
-  const n = countWords(p.minParty);
+  const n = countWords(p.forParty);
+  /* A warning, never a gate (Tyler 2026-11-08: "Either they are strong enough to do the harder content or they aren't"): a lone hero walks the hall. */
   return boss ? t('hunts.party_boss', { boss: boss.name, n }) : t('hunts.party_hall', { n });
 }
 
@@ -62,11 +62,11 @@ export function huntRows() {
     if (!h || h.staged === true) continue;
     const sizes = g.pockets.map((p) => p.spawns.length);
     out.push({
-      /* A ground with a party-only hall (a minParty pocket: the Rat King) is a PARTY ground to the advice,
+      /* A ground with a hall built for a party (a forParty pocket: the Rat King) is a PARTY ground to the advice,
          whatever its workbook column says (Tyler 2026-10-21: "The Sewer is a party hunt"): its fight is
          built for a party, so a lone hero is never pointed at it and is told it is best with one. */
       hunt: g.hunt, name: h.name, theme: h.theme || '', band: h.band.slice(),
-      groupFit: g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit,
+      groupFit: g.pockets.some((p) => p.forParty) ? 'party' : g.groupFit,
       soloFrom: Number.isInteger(g.soloFrom) ? g.soloFrom : null,
       /* WHO MAY COME is the server's party size on every ground, never the ground's start tiles: two tiles read "up to 1 more"
          on the Thicket while the server walked in four (panel 2026-11-01; heroes past the tiles stand beside them). */
@@ -94,46 +94,23 @@ export function tierPull(r, id, size = 1) {
   return pullOfTier(tierRowOf(r.hunt, id), size) || partyPullOf(r, size);
 }
 
-const PCT = (pm) => Math.round(pm / 10 - 100) + '%';
-/* What's different, the words both lines open on: the monsters a pull, how much harder they hit and how much more HP they
-   have (hunt-tiers.js dmgPm, hpPm), each said only when the tier moves it. */
-/* A multiple to one decimal (the sheet's per-ground dials are not round: Wickstead's 2847 reads "2.8 times"), "twice" when it is 2. */
-const TIMES = (pm, twice, times) => { const x = Math.round(pm / 100) / 10; return x === 2 ? t(twice) : t(times, { x }); };
-const HARDER = (pm) => (pm >= 1950 ? TIMES(pm, 'hunts.twice_as_hard', 'hunts.times_as_hard') : t('hunts.pct_harder', { pct: PCT(pm) }));
-const TOUGHER = (pm) => (pm >= 1950 ? TIMES(pm, 'hunts.twice_the_hp', 'hunts.times_the_hp') : t('hunts.pct_more_hp', { pct: PCT(pm) }));
-/* Each head's four shapes: plain, harder, tougher, both. */
-const TIER_HEADS = Object.freeze({
-  pull: ['hunts.tier_pull', 'hunts.tier_pull_hard', 'hunts.tier_pull_tough', 'hunts.tier_pull_hard_tough'],
-  same: ['hunts.tier_same', 'hunts.tier_same_hard', 'hunts.tier_same_tough', 'hunts.tier_same_hard_tough'],
-  mid: ['hunts.tier_same_mid', 'hunts.tier_same_mid_hard', 'hunts.tier_same_mid_tough', 'hunts.tier_same_mid_hard_tough'],
-});
-/* The head, at a sentence's start or (`mid`) inside one: the pull, then how much harder and tougher, each only when the tier moves it. */
-const tierHead = (r, tier, size, mid = false) => {
-  const n = pullOfTier(tier, size);
-  const v = {};
-  if (n) v.n = n;
-  if (tier.dmgPm > 1000) v.harder = HARDER(tier.dmgPm);
-  if (tier.hpPm > 1000) v.tougher = TOUGHER(tier.hpPm);
-  return t(TIER_HEADS[n ? 'pull' : mid ? 'mid' : 'same'][(v.harder ? 1 : 0) + (v.tougher ? 2 : 0)], v);
-};
-
 /**
- * WHAT A TIER DOES, the page's words: its numbers from its row (hunt-tiers.js), and the biggest blow the ground can land on it, before armor (pull-cycle.js biggestBlowOn).
- * Normal says nothing: it is the ground as the page describes it. The risk is a real number, never a mood (Tyler 2026-11-04: a warned choice). Pure.
+ * WHAT A TIER DOES, the page's words (Tyler 2026-11-08: "Simplify this ... it's way too 'exact' it seems AI"): the plain line for the tier
+ * (hunt-tiers.js TIER_LINES), `more` when its pull brings more monsters at once than Normal does for this group, else `same`, and one short
+ * death line. No percent, HP or blow here: the wiki says the numbers. Normal says '' (the ground as the page describes it). Pure.
  */
+const tierLine = (r, tier, size) => { const L = TIER_LINES[tier.id]; return typeof L === 'string' ? L : tierPull(r, tier.id, size) > tierPull(r, DEFAULT_TIER, size) ? L.more : L.same; };
 export function tierWords(r, id, size = 1) {
   const tier = tierRowOf(r.hunt, id);
-  if (tier.id === DEFAULT_TIER) return '';
-  const blow = biggestBlowOn(r.hunt, size, tier), was = biggestBlowOn(r.hunt, size);
-  const head = tierHead(r, tier, size);
-  return [(blow && was && blow.hit !== was.hit ? t('hunts.tier_head_blow', { head, hit: blow.hit, was: was.hit }) : t('hunts.tier_head_end', { head })),
-    t('hunts.tier_cost', { xp: PCT(tier.xpPm), loss: Math.round(DEATH_XP_LOSS * 100) })].join(' ');
+  return tier.id === DEFAULT_TIER ? '' : [tierLine(r, tier, size), TIER_DEATH_LINE].join(' ');
 }
 
-/** The one line beside Enter, so a pick kept from last time is said at the press: "Deadly: 8 monsters a pull, hitting 50% harder." '' on Normal. Pure. */
+/** The one line beside Enter, so a pick kept from last time is said at the press: "Deadly: big groups that hit hard." '' on Normal. Pure. */
 export function tierChoiceWords(r, id, size = 1) {
   const tier = tierRowOf(r.hunt, id);
-  return tier.id === DEFAULT_TIER ? '' : t('hunts.tier_choice', { tier: TIER_NAME[tier.id], head: tierHead(r, tier, size, true) });
+  if (tier.id === DEFAULT_TIER) return '';
+  const first = tierLine(r, tier, size).split('. ')[0].replace(/\.$/, '');
+  return t('hunts.tier_choice', { tier: TIER_NAME[tier.id], head: first.charAt(0).toLowerCase() + first.slice(1) });
 }
 
 /** The ground's level band in words, and where the character stands when its level is known. */
@@ -219,9 +196,10 @@ export function recommendation(levels, partySize = 1, rows = huntRows()) {
   const below = fit.filter((r) => r.band[1] < lo).sort((x, y) => y.band[1] - x.band[1] || y.band[0] - x.band[0])[0];
   if (below) {
     const party = alone ? best(rows.filter((r) => !fitsGroup(r, 1) && holds(r, lo, lo))) : null;
-    const note = [t(alone ? 'hunts.no_ground_solo' : 'hunts.no_ground_party', { levels: levelsWords(lo, hi) }),
-      t('hunts.nearest_below', { ground: below.name, lo: below.band[0], hi: below.band[1] })]
-      .concat(party ? [t('hunts.bring_party', { ground: party.name })] : []).join(' ');
+    /* NO GROUND IS SOLO OR PARTY TO THE PLAYER (Tyler 2026-11-08: "So some of those are solo only and party only? That isn't really matching up
+       with how we are planning the game"): the note says where the Levels are and what the tough ground costs, never who it is for. */
+    const note = [t('hunts.no_ground', { levels: levelsWords(lo, hi) }), t('hunts.nearest_below', { ground: below.name, lo: below.band[0], hi: below.band[1] })]
+      .concat(party ? [t('hunts.tough_at_level', { ground: party.name })] : []).join(' ');
     return { row: below, note };
   }
   return { row: best(rows.filter((r) => holds(r, lo, lo))) || rows[0] || null, note: null };
@@ -247,11 +225,6 @@ export function openingPick(rec, list, last) {
 export function adviceTag(r, rec, step, party) {
   if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? t('hunts.tag_right_party') : t('hunts.tag_right_level');
   return step && step.hunt === r.hunt ? t('hunts.tag_next_step') : '';
-}
-
-/** A party ground seen by a lone hero: "Best with a party of 2–4"; else null. */
-export function groupWords(r, partySize) {
-  return r.groupFit === 'party' && (Number(partySize) || 1) < 2 ? t('hunts.best_with_party', { max: Math.max(2, r.heroes) }) : null;
 }
 
 /**
@@ -294,13 +267,9 @@ export function fitWords(r, level) {
   return level > r.band[1] ? { words: t('hunts.fit_below'), tone: 'below' } : { words: t('hunts.fit_in'), tone: 'in' };
 }
 
-/** Who may come: "One hero", "Alone or with up to 3 more", or for a party ground "Best with 2 to 4, and alone it pays from Level 45"
-    when its row measured a lone hero's break-even (hunt-grounds.js soloFrom), else "Best with 2 to 4, and a lone hero can
-    enter": advice, no rule holds a lone hero out (the panel 2026-11-01 walked the Sewer alone at Level 10; Tyler 2026-11-04 UTC). */
+/** Who may come: "Alone or with up to 3 more" on every ground, or "One hero". No ground is solo or party (Tyler 2026-11-08): a boss built
+    for a group says so in its own warning (partyNote), and no rule holds a lone hero out. */
 export function heroWords(r) {
-  if (r.groupFit === 'party' && r.heroes > 1) {
-    return Number.isInteger(r.soloFrom) ? t('hunts.heroes_solo_from', { n: r.heroes, level: r.soloFrom }) : t('hunts.heroes_lone_ok', { n: r.heroes });
-  }
   return r.heroes > 1 ? t('hunts.heroes_up_to', { n: r.heroes - 1 }) : t('hunts.heroes_one');
 }
 

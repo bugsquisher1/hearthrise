@@ -7,7 +7,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.114 — 2026-11-10 (One Fight for Everyone)
 
-**Every hunt is the same fight, alone or in a party.** Monsters don't change with your group size anymore. Hunting alone pays 5% more Level XP. A mixed party still earns more than a party of one class.
+**Every hunt is the same fight, alone or in a party.** Monsters don't change with your group size anymore. You get 5% more Level XP when you hunt alone. A mixed party still earns more than a party of one class.
 
 **Healers get Undertow.** It's a damage spell that only works when you hunt alone, so a lone Healer can keep up.
 

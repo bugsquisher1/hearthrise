@@ -2268,6 +2268,20 @@ jobs:
           node tests/apply-order-honesty.mjs
           node tools/mutant-gate.mjs node tests/apply-order-honesty.mjs --selftest
 
+      # THE SERVER TIER'S STATIC LINTS, REGISTERED 2026-11-10. tests/run-sql-tests.mjs
+      # (grant hygiene, rate-limit refusals recorded, the hr_apply / hr_state_of
+      # derivation chains, every delta key classified) ran in NO job: it sat red on
+      # main with 77 fails for two weeks and four lanes reported it "pre-existing".
+      # Read: 56 were the lint behind the schema (29 in-place restatements, 24 Game
+      # Master journal, 1 undeclared chain line, 2 delta keys); 21 were 11 real
+      # findings, pinned by name in its OPEN_SERVER_FINDINGS (printed every run,
+      # stale pins fail). No database, about 2 s; --selftest plants 12 defects.
+      - name: Server-tier static lints — grants, rate refusals, derivation chains, delta keys
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/run-sql-tests.mjs
+          node tools/mutant-gate.mjs node tests/run-sql-tests.mjs --selftest
+
       # (BACK IN db-replay-2 2026-10-24, with the five steps above it: see the note
       # where they left db-replay.) MOVED TO db-replay FROM db-replay-2, 2026-09-26 CI
       # REBALANCE: run 36219670449

@@ -12,8 +12,8 @@
 //
 // Ships with supabase/migrations/2027-01-19-play-cap.sql. On the real chain (PGlite), as a player and as the engine
 // call each door (`authenticated` with the request's cf-connecting-ip header; `hr_engine` with neither JWT nor header):
-//   PC-EMPTY   AN ACCOUNT WITH NO HERO (2027-01-20-tutorial-facts.sql): hr_load(0) answers no_character WITH the two
-//              owned slots and the cap; the real roster reads two empty slots and plays the cap at once (not one)
+//   PC-EMPTY   AN ACCOUNT WITH NO HERO (2027-01-20-tutorial-facts.sql): hr_load(0) answers no_character WITH the one
+//              owned slot (one to start since 2027-03-25-hero-slots-one.sql) and the cap; the real roster reads one empty slot and plays the cap at once
 //   (Four heroes an account since 2027-03-22-four-slots.sql: the account-cap arms own every slot sold and lower the cap to
 //   one under it in their rolled-back fixture, so the last owned hero is the one too many.)
 //   PC-CLOSED  THE BROWSER CLOSED (no client at all): half the cap hunts (hr_hunt_enter), the rest gathers through the REAL
@@ -100,7 +100,7 @@ async function world(db, accounts) {
       const c = await as(db, uid, null, 'select public.hr_create_character($1)', [slot]);
       if (!c || c.ok !== true) throw Object.assign(new Error('HARNESS: hr_create_character refused: ' + JSON.stringify(c)), { harness: true });
       if (slot === 0) await db.query(`insert into public.player_progress (user_id, slot, kind, key, period_key, value)
-                                      select $1, 0, 'flag', 'character_slot:' || h.slot_id, '', 1 from public.hr_hero_slots h where h.slot_id >= 2`, [uid]);
+                                      select $1, 0, 'flag', 'character_slot:' || h.slot_id, '', 1 from public.hr_hero_slots h where h.slot_id >= 1`, [uid]);   // one slot to start (2027-03-25-hero-slots-one.sql): every slot past 0 bought
       const nm = await as(db, uid, null, 'select public.hr_character_name_set($1, $2, $3::uuid)', [slot, 'Capa ' + 'ABCDEFGH'[i] + 'abcde'[slot] + 'lt', idem()]);
       if (!nm || nm.ok !== true) throw Object.assign(new Error('HARNESS: naming refused: ' + JSON.stringify(nm)), { harness: true });
     }
@@ -122,13 +122,13 @@ const ARMS = {
     const owned = await one(db, 'select public.hr_hero_slots_of($1)', [E]);
     const ans = await as(db, E, IP_X, 'select public.hr_load(0)', []);
     if (!ans || ans.error !== 'no_character') p.push('an empty account loaded as ' + JSON.stringify(ans).slice(0, 160));
-    if (JSON.stringify(ans && ans.hero_slots) !== JSON.stringify(owned) || owned.length !== 2) p.push(`the empty answer names slots ${JSON.stringify(ans && ans.hero_slots)}, the server owns ${JSON.stringify(owned)} (two to start)`);
+    if (JSON.stringify(ans && ans.hero_slots) !== JSON.stringify(owned) || JSON.stringify(owned) !== '[0]') p.push(`the empty answer names slots ${JSON.stringify(ans && ans.hero_slots)}, the server owns ${JSON.stringify(owned)} (one to start, Tyler 2026-11-09)`);
     if (!ans || !ans.account || ans.account.max_concurrent !== cap || cap !== SESSION_CONFIG.maxConcurrentCharacters) p.push(`the empty answer names the limit ${JSON.stringify(ans && ans.account)}, the cap is ${cap}`);
     const server = { rpc: async (name, args) => ({ ok: true, status: 200, closed: false,
       body: name === 'hr_load' ? await as(db, E, IP_X, 'select public.hr_load($1)', [args.p_slot]) : { ok: false, error: 'not_in_this_test' } }) };
     const acc = new AccountSession({ auth: { userId: () => E, token: () => 'jwt' }, server, tab: null, timers: {} });
     const rows = await acc.roster();
-    if (JSON.stringify(rows.map((r) => [r.slot, r.exists, r.unnamed])) !== '[[0,false,false],[1,false,false]]') p.push('the roster of an empty account read ' + JSON.stringify(rows));
+    if (JSON.stringify(rows.map((r) => [r.slot, r.exists, r.unnamed])) !== '[[0,false,false]]') p.push('the roster of an empty account read ' + JSON.stringify(rows));
     if (acc.limit() !== cap) p.push(`the roster of an empty account plays ${acc.limit()} at once, the server says ${cap}`);
     return p;
   },

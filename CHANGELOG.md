@@ -9,6 +9,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Every hunt is the same fight, alone or in a party.** Monsters don't change with your group size anymore. You get 5% more Level XP when you hunt alone. A mixed party still earns more than a party of one class.
 
+**Levels take a bit more XP now, so your hero may show one Level lower.** You didn't lose any XP. The Level bar moved because hunts changed. Your max Health and mana follow your Level.
+
 **Healers get Undertow.** It's a damage spell that only works when you hunt alone, so a lone Healer can keep up.
 
 **Look up any monster.** Click a creature on a hunt's page to see its Health, how hard it hits, what it's weak to, and the XP and gold you get for a kill. Every drop shows its chance per kill and what the item is for.

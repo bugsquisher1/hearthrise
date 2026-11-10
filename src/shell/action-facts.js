@@ -148,7 +148,7 @@ function damageLine(r, pm) {
  * `alone` is an alone spell's callout (bar.alone), else null.
  */
 export function factsOf(a, ctx) {
-  const none = { type: null, cost: null, cooldown: null, numbers: [], effect: [], requires: null };
+  const none = { type: null, cost: null, cooldown: null, numbers: [], effect: [], requires: null, alone: null };
   if (a.type === 'ability') {
     const k = castOf(a, ctx);
     if (!k) return none;

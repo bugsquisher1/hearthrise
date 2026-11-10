@@ -1,0 +1,25 @@
+{
+ "order": [
+  0,
+  1,
+  2,
+  1,
+  0
+ ],
+ "fps": 12,
+ "arm_peg_boxes": [
+  [
+   8,
+   22,
+   8,
+   26
+  ],
+  [
+   33,
+   19,
+   39,
+   23
+  ]
+ ],
+ "from": "cut/ with frame 0's arm pegs pasted over frames 1-2"
+}

@@ -312,13 +312,13 @@ function standingOf(map, book, tables, T) {
     for (let x = 0; x < map.w; x++) { const m = tables.materials[map.ground[y * map.w + x]]; if (m && m.solid && !m.flat) cells.push(x, y); }
   }
   const boxes = new Float64Array(map.objects.length * 4);
-  /* a placed TOWNSFOLK (a unit sprite standing as a map object: the crier, the smith) breathes on its idle clip; every frame of a
-     sprite shares its size and anchor, so the box below holds for all of them */
+  /* a placed sprite with a looping idle (a townsperson: the crier, the smith, the gate sergeant; a fire: the forge, the cauldron, the oven, a candle)
+     plays it on the state's clock; every frame of a sprite shares its size and anchor, so the box below holds for all of them */
   const folk = new Uint8Array(map.objects.length);
   map.objects.forEach((o, i) => {
     const b = frameBox(book, o.id, o.x, o.y, { fp: [o.fw, o.fh] }, T); boxes.set([b.x, b.y, b.w, b.h], i * 4);
     const s = book.sprite(o.id);
-    folk[i] = s.layer === 'unit' && s.anims && s.anims.idle && s.anims.idle.fps ? 1 : 0;
+    folk[i] = s.anims && s.anims.idle && s.anims.idle.fps ? 1 : 0;
   });
   const made = { book, materials: tables.materials, T, n: map.objects.length, cells: Int32Array.from(cells), boxes, folk };
   STANDING.set(map, made);
@@ -425,7 +425,7 @@ export function composeFrame(map, book, state, view, tables, T) {
     /* state.objectSwap draws another sprite in a placed object's place ({ havora_weighhouse_staked: 'havora_weighhouse_framed' }: a Town Works stage, src/world/town-works.js).
        The tiles it blocks are the object's own, and a sprite swapped in shares its frame and anchor (tests/town-works.mjs), so the box above still holds. */
     const swap = state.objectSwap && state.objectSwap[o.id];
-    /* townsfolk breathe through place() as an idle unit does, on the state's clock, so the Idle animations switch holds them too */
+    /* townsfolk breathe and fires flicker through place() as an idle unit does, on the state's clock, so the Idle animations switch holds them too */
     if (!swap && standing.folk[i]) place(o.id, o.x, o.y, { fp: [o.fw, o.fh], anim: 'idle', dir: 's', i: clipFrame(book, o.id, 'idle', 's', state.t || 0) });
     else place(swap || o.id, o.x, o.y, { fp: [o.fw, o.fh] });
   }

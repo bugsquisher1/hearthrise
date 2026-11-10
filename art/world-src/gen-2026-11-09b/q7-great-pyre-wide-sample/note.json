@@ -1,0 +1,20 @@
+{
+  "asset": "brief 13 Q7 (brief 12 P4) pf_great_pyre drawn wide, 2 tries SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt Q7",
+  "status": "SAMPLE for the art director's one read; the inpaint fixes and the ember overlay wait for the pick. Not imported",
+  "made": "2026-11-08 (the brief's 11-09 samples)",
+  "generations": 30,
+  "tool": "create_image_pro 320x224 (15 gens each, one candidate), transparent, reference_images [11-09's c1 cropped to its art with a 4 px margin, 172x184, upload a7dcbbc7, usage \"the same pyre's design, view, palette and outline: its fieldstone plinth, charred logs, shields, banner poles and embers; draw it wider\"]",
+  "description": "a great square funeral pyre of stacked charred logs on a low fieldstone plinth, the same pyre as the reference, drawn wide: eight logs long and five deep, filling the width from x32 to x288, the same plinth, logs, officers' shields, broken banner poles and the bed of dull embers in its heart, burnt half down, black timbers and grey ash, top-down view with the front (south) face toward the viewer, top-down game landmark, single black outline, no glow",
+  "tries": {
+    "t1": { "job": "26829e3c-4d45-441a-961f-6f767864f680", "seed": 3901, "file": "t1-26829e3c.png", "box": "297x174 (x11-307, y21-194): about 9.3 tiles, 41 px over the asked 256, not cut by the canvas" },
+    "t2": { "job": "34149263-d5ad-478e-be8a-3e85ade4c417", "seed": 3902, "file": "t2-34149263.png", "box": "320x214 (x0-319, y7-220): CUT by the canvas on all four sides (the barge rule: a re-roll)" }
+  },
+  "flags": [
+    "t1 keeps c1's design and view (the fieldstone plinth face, the log frame, two shields at each end, banner poles, a bed of red embers), top-down, no glow",
+    "t1's ember heart is c1's single pit repeated three times side by side inside hexagonal log frames: a visible repeat",
+    "t1 is 297 px wide, not 256: an 8-tile footprint needs it trimmed or the ends inpainted in",
+    "t2 refused by the generator: canvas-cut on every side"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/q7-great-pyre-wide-sample.png (x2 on the target ash colour: blue = 11-09's c1; t1; red = t2 canvas-cut)"
+}

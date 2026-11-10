@@ -1,0 +1,28 @@
+{
+  "asset": "brief 13 Y1 the training yard kit, sheet 1 SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt Y1",
+  "status": "SAMPLE for the art director's one read; sheet 2 (a re-roll of any refused row) and the spare wait for it. Not imported",
+  "made": "2026-11-08 (the brief's 11-09 samples)",
+  "generations": 9,
+  "tool": "create_image_pro_flash 256x256, 4x4 cells of 64, transparent, seed 3101, style image the shipped dummy art/world/cottage/dummy.png (32x43 as is, upload e2841b2a) \"match palette, outline, shading\" (job 47adb93a-e85e-49c0-88ba-dd04b93df762, image b008f4cb-1c08-565e-b215-8ef1232fa0f0)",
+  "prompt": "A 4x4 sheet of 16 separate top-down game props for a town training yard, each prop alone and centred in its own 64x64 cell on a transparent background, high top-down view, single black outline, basic shading, muted earthy colours, no glow, no text. Row 1, melee targets: 1) a straw training dummy on a wooden post with a battered wooden buckler strapped to one arm; 2) a thick nicked oak post for sword drills; 3) a quintain, a pivoting wooden arm on a post with a shield at one end and a sandbag hanging at the other; 4) a padded sparring board on two wooden posts. Row 2, archery: 5) a round straw archery target painted in red and cream rings on a wooden A-frame, arrows stuck in it; 6) a smaller round straw archery target on a low wooden stand; 7) a wooden barrel full of practice arrows; 8) a short painted wooden distance post. Row 3, magic: 9) a squat standing stone carved with runes and scorched black, no glow; 10) a flat ring of carved stones set into the ground, lying flat on the floor; 11) flat black scorch marks on the ground, lying flat on the floor; 12) a stone lectern holding an open spellbook. Row 4, the yard: 13) wooden practice swords standing in a wooden rack; 14) a wooden water trough; 15) a plank bench; 16) a tall wooden pole with a long dark red banner bearing a cream flame. Every target is no taller than the training dummy of the style image.",
+  "layout": "sheet1.png = the raw sheet; cells/<id>.png = each prop cut by blob (8-connected, specks under 40 px joined to the nearest prop within 6 px; the props straddle the 64 px cell lines, so a cell cut clips them)",
+  "measured": {
+    "ty_straw_dummy": "32x43 (the shipped dummy's 32x43 exactly), buckler on its left arm",
+    "ty_pell": "18x42", "ty_quintain": "59x43", "ty_sparring_board": "38x41",
+    "ty_archery_butt": "42x46 (3 px over the shipped dummy's 43, under the 48 cap)", "ty_butt_small": "30x37",
+    "ty_arrow_stand": "27x44", "ty_range_marker": "18x37",
+    "ty_rune_post": "33x41", "ty_ward_ring": "50x29 (flat)", "ty_scorch": "47x29 (flat)", "ty_rune_lectern": "38x39",
+    "ty_sword_rack": "34x40", "ty_trough": "52x24", "ty_bench": "46x17", "ty_banner": "27x59 (a yard banner, not a target; over 48)"
+  },
+  "flags": [
+    "every cell holds one prop on its own; no glow, no text; nothing over 48 px tall among the targets (the archery butt is 46, 3 over the dummy's 43)",
+    "ty_sword_rack: the blades are drawn steel-grey with pale edges, so they read as real swords, not wooden practice swords",
+    "ty_sparring_board: a pale plain panel between two posts, closer to a notice board than a padded board",
+    "ty_rune_post: the runes are dark carving on dark stone, barely visible at x2 (brief: runes carved, never lit)",
+    "ty_ward_ring: a ring of grey stones with a few pale chips round it; flat, as asked",
+    "ty_range_marker: red-and-cream stripes and a green grass tuft at the foot (the tuft is a second colour family on a dirt yard)",
+    "ty_banner: dark red with a cream flame on a pole with a crossbar, the E1 festival banner's look; 59 px tall"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/y1-yard-kit-sample.png (x3 on the town dirt fill: blue-barred row = the shipped dummy; then the four rows of the sheet, each prop resting on its cell floor)"
+}

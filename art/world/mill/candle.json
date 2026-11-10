@@ -19,10 +19,10 @@
   "anims": [
     {
       "name": "idle",
-      "fps": 0,
-      "loop": false,
+      "fps": 8,
+      "loop": true,
       "dirs": {
-        "s": 1
+        "s": 9
       }
     }
   ],
@@ -31,5 +31,5 @@
     "image": "4be24e7a-2037-5e9d-895a-148f18fc1f7a",
     "cell": 1
   },
-  "notes": "Cell 1 of a 4x4 style-1 prop sheet (PixelLab image 4be24e7a-2037-5e9d-895a-148f18fc1f7a, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+  "notes": "Cell 1 of a 4x4 style-1 prop sheet (PixelLab image 4be24e7a-2037-5e9d-895a-148f18fc1f7a, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled. Flame loop: the still with only its warm flame pixels moving (brief 13 L1 cut, verdict laid 0 1 2 3 4 5 6 7 8 at 8 fps), imported in place."
 }

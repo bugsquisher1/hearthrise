@@ -1,0 +1,11 @@
+{
+  "asset": "verdicts B10: barrow_knight death sw, ne, nw (for the provost re-pour)",
+  "status": "for the art director's read. Not imported",
+  "generations": 3,
+  "object": "95e3ea23-fbf4-4bbd-b467-fa6beec1a011",
+  "clip": "group 888c761d-2fa2-43da-aaa8-99ec6c98da76, the Q8 words: \"sinks to one knee, then falls onto his side flat on the ground, the sword and shield beside him, and lies still, nothing else appears in the frame\", 6 frames, keep_first_frame false",
+  "measured": "fall test (top drop / still height): sw 0.27, ne 0.38, nw 0.61; no seat shift needed (no corpse floats)",
+  "flags": ["plain rolls held for all three; no pose needed"],
+  "layout": "barrow_knight/<facing>.png; death/<facing>/; death-seated/ (identical, shift 0)",
+  "review_strip": "art/review/gen-2026-11-09b/b10-barrow_knight.png"
+}

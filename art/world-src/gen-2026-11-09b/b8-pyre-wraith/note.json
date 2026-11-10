@@ -1,0 +1,19 @@
+{
+  "asset": "verdicts B8: the pyre wraith's clips (idle in the 7 other facings, walk 8, attack 8, death 8)",
+  "status": "for the art director's read; its hits wait for the hook. Not imported",
+  "generations": 37,
+  "object": "0270f103-104f-41d8-802e-e45ed6f4c212",
+  "clips": {
+    "idle": "the approved S group 69bf3b6d-412c-4722-af5e-11e8b049d99d extended to the 7 other facings (its words: standing, the bony hands stay hidden inside the shroud, only the hem stirs by one pixel, the head stays level, nothing else appears in the frame)",
+    "walk": "group ec96b97f-ca40-4af6-a256-e2397fe4b40e, \"glides forward, the hem drags, the legs move in turn under the shroud, nothing else appears in the frame\"",
+    "attack": "group d057eaa4-3dd7-4680-be16-d0d0f9f78c8e, \"reaches out with both bony hands and claws, then draws back to its stance, nothing else appears in the frame\"",
+    "death": "group a4beb692-4d98-447a-9886-6c4d6e4fe96b, \"the shroud collapses empty to the ground and lies flat, nothing else appears in the frame\"; S refused (it stays standing) and redone by the pose route: edit 628a8039 (\"the empty burial shroud collapsed flat on the ground in a crumpled heap of dark cloth, the bone pin lying on it, nobody inside\"), animate_image 998de42d (deathpose/south)"
+  },
+  "idle_lay": "idle/lay.json: still, a, b, a per facing from the frames whose box stays within 1 px of the still (the verdict's rule): E, N, NE, SE 0 1 8 1; NW 0 1 7 1; S and W 0 1 2 1 (S as the verdict laid it)",
+  "flags": [
+    "SW idle has only ONE calm frame (frame 1); from frame 2 the hood rises 2-4 px, so no still-a-b-a exists there: it needs a re-roll or a 0 1 0 1 lay",
+    "the walk is a glide; the legs show under the hem only in some facings"
+  ],
+  "layout": "pyre_wraith/<facing>.png the rotations; idle|walk|attack|death|deathpose/<facing>/; *-seated/; analysis.json",
+  "review_strip": "art/review/gen-2026-11-09b/b8-pyre_wraith.png (x2, 48 cells; deaths grey-barred, the pose-route row amber)"
+}

@@ -1,0 +1,10 @@
+{
+ "order": [
+  0,
+  1,
+  2,
+  3
+ ],
+ "fps": 12,
+ "how": "the generated reaction refused (round 2); frame 0 is the padded still, frames 1-2 shift every row above row 37 by +1 and -1 art px, the base never moves; straw and splinter puffs are free particles at import"
+}

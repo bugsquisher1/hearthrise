@@ -1,0 +1,19 @@
+{
+  "asset": "brief 13 Q11 (brief 11 C1) crop beds sheet 2 SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt Q11",
+  "status": "SAMPLE for the art director's one read; sheet 3 (moonbloom, watered-soil overlays, re-roll rows) and the re-roll sheet wait for it. Not imported",
+  "made": "2026-11-08 (the brief's 11-09 samples)",
+  "generations": 6,
+  "tool": "create_image_pro_flash 128x128, 4x4 cells of 32, transparent, seed 3911, style image a 32x32 crop of cabbage_crate (art/world/common, x3 of 38, upload d80d9da2) \"match palette, outline, shading\" (job 12c2816d-7274-407d-81b5-735a40606553, image 6dbb459f-5568-5ecd-9391-edc671a13030)",
+  "prompt": "A 4x4 sheet of 16 separate crop plants for a farm plot, each plant alone and centred in its own 32x32 cell on a transparent background, no soil drawn, high top-down view, single black outline, basic shading, muted natural colours, no glow, no text. One crop to a row, its four growth stages left to right: a small sprout, a young plant, a ripening plant, a ripe plant ready to harvest. Row 1: tomato, a vine tied to a wooden stake, red tomatoes when ripe. Row 2: pumpkin, a leafy vine on the ground, a big orange pumpkin when ripe. Row 3: goldenroot, a leafy root plant whose root shows gold shoulders at the soil line when ripe. Row 4: emberfruit, a low shrub with small ember-orange fruit when ripe, no glow.",
+  "layout": "sheet2.png the raw sheet; cells/<crop>-<stage>.png cut by blob (sprout, young, ripening, ripe: sheet 1's approved four stages)",
+  "measured": "tomato 11x11, 18x19, 19x26, 20x28; pumpkin 16x11, 25x14, 26x19, 33x21 (1 px over the cell); goldenroot 15x15, 21x19, 23x24, 23x25; emberfruit 16x15, 20x19, 22x21, 24x21",
+  "flags": [
+    "all four rows read as their crop and run sprout, young, ripening, ripe; no soil, no glow",
+    "tomato: staked from ripening on, yellow flowers then red fruit",
+    "pumpkin ripe: one big orange pumpkin in its leaves, 33 px wide (1 over the 32 cell)",
+    "goldenroot: the gold root shows from ripening on (both ripening and ripe show the root, with a few pale root hairs)",
+    "emberfruit: yellow flowers at young, orange fruit at ripening and ripe; plain orange, no glow"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/q11-crop-beds-sheet2-sample.png (x3, each 32 cell as is over the tilled soil tile of havora_grass_tilled; rows tomato, pumpkin, goldenroot, emberfruit)"
+}

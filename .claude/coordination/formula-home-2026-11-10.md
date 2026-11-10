@@ -63,7 +63,7 @@ F11 is not a home problem: shop prices are already rows a generator reads. The g
 
 **Authority.** The server computes. The client calls an evaluator only to draw a number the envelope also carries or the server will re-prove. No evaluator output is ever sent as an intent value.
 
-**The guard, `tests/formula-single-source.mjs`.** Reads the registry and fails when: a row's number is typed anywhere else in `src/`, the edge or `tools/` (each row lists its fingerprints: the constant's name with a numeric literal, and the expression's own literals in the evaluator's old file); `src/core/formulas/*` types a tuning number; a row has no evaluator or an evaluator has no row. Known copies that wait for area spells sit in a shrink-only list the guard refuses to let grow or go stale. `--selftest` plants a second copy per row.
+**The guard, `tests/formula-single-source.mjs`.** Reads the registry and fails when: a constant a row names is exported twice, or from outside `src/data` (one-home); anything in `src/`, the edge or `tools/` gives one of those constants, a `keys` name or a retired name a number (typed-again); a file under `src/core/formulas` types a number other than 0, 1 and 1000 (core-clean); a row has no evaluator, or an evaluator no row (bound); a listed reader stops calling the evaluator (reader); a row holds something a wiki cannot print or that is not frozen (shape). Known copies that wait for area spells sit in PENDING, which only shrinks and goes red when stale. `--selftest` plants 18 breaches, each caught by its rule.
 
 **Same numbers.** `tools/qa/same-numbers.mjs` prints one digest per formula over a fixed grid (every item's sale price, vitals for Levels 1-300 x armor, curve totals, death and blessing and refill prices) plus a combat digest of real `accrueHunt` plays. A slice runs it before and after. Generated SQL must be byte-identical (`git diff --stat supabase/migrations` empty, each `--check` exit 0). The pack-edge hash is stated.
 
@@ -71,20 +71,32 @@ F11 is not a home problem: shop prices are already rows a generator reads. The g
 
 ## 3. Slices
 
-Each slice is one commit: guards green, digests equal, `git merge-tree` against `origin/lane/b-area-set` clean.
+Each slice is one commit: guards green, digests equal, `git merge-tree` against `origin/lane/b-area-set` clean (exit 0 at ed963151e).
 
-**Now** (no file hunk shared with the area-spell lanes):
-1. Registry, guard, same-numbers tool, and SALE: rates and the function move out of the edge into `data/formulas/sale.js` + `core/formulas/sale.js`; the edge keeps only the lookup.
-2. VITALS: one regen-per-second evaluator for the client line; `refHp` reads the vitals evaluator (same number, the one-Level offset written down).
-3. CURVES: XP_TABLE moves from core to data; Level and skill curves registered.
-4. SHOP BUY PRICE: the rule moves from the generator into a core evaluator the generator calls.
-5. DEATH, BLESSINGS, STAMINA, SCALED HUNTS, TEMPER, BENCH TAX: registered and guarded (no move).
-6. Numbers out of non-hunt core: pacing dials, burn chance, farm tables.
+**Built** (base digests, `tools/qa/same-numbers.mjs`: formulas 80dfdc0b, 18 combat plays e9a2bc31, all c97cbb1a; equal after every slice. The 18 plays are this tool's, not the lost harness behind 342a5481.)
+1. DONE 0eff06d3d. Registry, guard, same-numbers tool, and SALE: both rates and the function out of the edge (`data/formulas/sale.js`, `core/formulas/sale.js`). The edge keeps the lookup. `vendor-shop-arbitrage`'s database arm calls the formula (its copy had lost the gear ladder).
+2. DONE. VITALS registered (max HP, max mana, regen). No move.
+3. DONE 5c51045a8. XP_TABLE is `core-model.js` CAPPED_CURVE; Level, combat skill and capped curves registered.
+5. DONE 72ed0a17e. Death share, Blessings, stamina refill, scaled hunts, tempering, bench tax, rename registered. 14 rows in all.
+
+**Not built, still safe before area spells**
+4. SHOP BUY PRICE: the rule (`SHOP_PREMIUM` x book, the per-point supply rate) moves from `tools/gen-alpha-catalogue.mjs:87-126` into `core/formulas/shop.js`; the generator calls it. No SQL moves.
+6. Numbers out of non-hunt core: `pacing.js` PACE and SPEED_FUSE, `artisan.js` burn, `farm.js` tables, each to its data file. Check `mutant-anchors` first: tests patch those lines.
 
 **After area spells** (v0.2.116; these touch `core/combat.js`, `elements.js`, `member.js`, `core/hunt/*`, or lines that lane edits):
 7. COMBAT: COMBAT_BALANCE, weakness, bane and element ceilings to `data/formulas/combat.js`; `playerCombatRolls` reads its table; `balance-sheet.js` restatements deleted.
 8. DROPS: the 0.95 cap, bands and relic cap to data.
-9. SALE, the rest: delete `shops.js` DERIVED_PRICES (line 555 is edited there), gear ladder registered from `loot-bands.js`, `gold-intents` G1 literals read the home.
-10. Regen in `pull-cycle.js` reads the evaluator from slice 2. XP share registered; `underFloorSharePm` cut with lane/c-risk-ladder.
+9. SALE, the rest: delete `shops.js` DERIVED_PRICES and the guard's four PENDING entries (line 555 is edited there).
+10. REGEN: one integer step function for `pull-cycle.js` and the HUD line (`session/hunt-sections.js:94-100`, whose mutant in `hunt-scene-live.mjs:1704` moves with it). XP share registered; `underFloorSharePm` cut with lane/c-risk-ladder.
 
 **Other lanes.** #22 book values (S2, item rows: designer picks the winner, then a catalogue file). F11 re-prove and #31 plant XP: lane/c-server-debt. #15 table and #33 SQL twins: a generator each, lane C.
+
+## 4. Found while building
+
+- **The edge bundle moved** (`catalogue.js`, `xp.js`, `core-model.js`): this lane needs an edge deploy and the one local `run-smoke` before it. Hash at ed963151e: `pack-edge --hash`.
+- `ARMOUR_SLOTS` is exported twice: `core-model.js:129` (the six slot ids) and `gear-tiers.js:63` (the six armor lines). The guard caught it. Audit S2, for a lane that may edit `gear-tiers.js`.
+- The HUD's HP regen is the plain product; the engine floors it every 100 ms step, so the HUD can read up to about 2% over what the fight adds. Display only. Decide in slice 10.
+- A registry file named `index.js` made `tools/guards-for` pick about 150 tests for one edit (it matches by basename). Renamed.
+- An anchor that holds a `?v=` goes stale at the next bump. None of this lane's anchors has one.
+- The guard's first regex read `x ? NAME : 0` as a definition. It now reads `NAME =` and object keys only.
+- `tools/gen-scaled-hunts.mjs:233` plants `bankMaxHours: 12` in its own selftest, so common key names are not policed (`keys` lists distinctive ones only).

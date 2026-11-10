@@ -47,6 +47,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { ownHeroSlots, asOldLadder } from './_slots.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const A = '000000c0-0000-4000-a000-0000901d7a01';
@@ -213,6 +214,7 @@ async function hero(db, uid, slot, name) {
   await db.query('insert into auth.users (id) values ($1) on conflict (id) do nothing', [uid]);
   await db.query(`insert into public.hr_access_allowlist (user_id, note) values ($1, 'town-shows guard') on conflict (user_id) do nothing`, [uid]);
   const dye = await one(db, 'select min(idx) from public.hr_outfit_dyes');
+  if (slot > 0) await ownHeroSlots((sql, p) => db.query(sql, p), uid, slot);   // one slot to start (2027-03-25-hero-slots-one.sql)
   const r = await as(db, uid, 'select public.hr_create_hero($1::int, $2, $3::jsonb, $4::uuid)', [slot, name, JSON.stringify({ head: dye, body: dye, legs: dye, feet: dye }), idem()]);
   if (!r || r.ok !== true) throw Object.assign(new Error(`hr_create_hero(${slot}, ${name}): ` + JSON.stringify(r)), { harness: true });
   await db.query('update public.player_state set stamina_ms = 28800000, stamina_at = now() where user_id = $1 and slot = $2', [uid, slot]);
@@ -387,7 +389,8 @@ const ARMS = {
     const rows = JSON.stringify(await q(db, 'select * from public.hr_sink_rules order by sink_id'));
     await db.exec('savepoint again');
     try {
-      for (const f of CHAIN) await db.exec(plantIn(f));
+      /* gold-given's own self-check makes a second hero unpaid: re-applied on the ladder it was written against (tests/_slots.mjs) */
+      await asOldLadder((sql) => db.exec(sql), async () => { for (const f of CHAIN) await db.exec(plantIn(f)); });
     } catch (e) {
       out.push('the second apply refused: ' + String(e.message).split('\n')[0].slice(0, 180));
       await db.exec('rollback to savepoint again');

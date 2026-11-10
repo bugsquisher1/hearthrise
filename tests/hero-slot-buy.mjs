@@ -899,6 +899,11 @@ async function bindGuard(cat) {
       `BIND: slot ${i} is waived on the server, and the catalogue offers no waiver — the server gives away a slot the shop sells`);
     ok(c.starter !== true, `BIND: slot ${i} is a starter on the server (owned by everyone) but src/data/shops.js sells it`);
   }
+  /* ONE SLOT TO START (Tyler 2026-11-09, 2027-03-25-hero-slots-one.sql): no catalogue row is a starter, so slot 0 is the
+     only slot a new account owns and slot 1 is the first one offered (arm Z buys it). */
+  ok(![...cat.values()].some((c) => c.starter === true),
+    `BIND: hr_hero_slots still carries a starter slot (${[...cat.values()].filter((c) => c.starter === true).map((c) => c.slot_id)}); an account starts with slot 0 alone`);
+  ok(A.costs[1] > 0 && cat.get(1) && Number(cat.get(1).cost) === A.costs[1], `BIND: slot 1 is not the first slot offered (${A.costs[1]} / ${cat.get(1) && cat.get(1).cost})`);
   for (const [id, c] of cat) {
     if (c.starter === true) {
       ok(A.costs[id] === undefined && Number(c.cost) === 0,

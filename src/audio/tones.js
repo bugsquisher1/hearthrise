@@ -11,38 +11,39 @@
 // A recipe: [wave, [hz, atMs, durMs, toHz?] ...]   notes in order; `toHz` slides
 // A bed:    { noise: lowpassHz }  filtered noise    | { drone: [hz, hz] }  two held sines
 // A sound with no recipe gets a plain blip, so a new row is audible at once;
-// tests/sound.mjs asks that every row has its own, so no two events sound alike by accident.
+// tests/sound.mjs asks that every row has its own and that no two of one wave start inside each other's tuned
+// range, so no two events sound alike by accident (the first playthrough counted Power Strike as a Level-up).
 // ════════════════════════════════════════════════════════════════════════
 
 export const TONES = Object.freeze({
   hero_hit: ['triangle', [170, 0, 70, 110]],
   hero_hurt: ['sawtooth', [120, 0, 130, 80]],
   ally_hurt: ['triangle', [95, 0, 90, 70]],
-  blow_miss: ['sine', [1100, 0, 70, 500]],
+  blow_miss: ['sine', [950, 0, 70, 450]],
   cast_fire: ['sawtooth', [220, 0, 260, 520]],
   cast_ice: ['sine', [1300, 0, 260, 700]],
   cast_poison: ['square', [310, 0, 300, 190]],
   cast_heal: ['sine', [523, 0, 140], [659, 120, 220]],
   cast_ward: ['sine', [330, 0, 320, 350]],
-  cast_strike: ['square', [250, 0, 150, 120]],
+  cast_strike: ['square', [215, 0, 150, 110]],
   cast_shout: ['sawtooth', [140, 0, 260, 185]],
   monster_die: ['triangle', [300, 0, 230, 75]],
   boss_phase: ['sawtooth', [82, 0, 650, 70], [123, 0, 650, 105]],
   eat: ['square', [520, 0, 35], [470, 90, 35]],
   drink: ['sine', [400, 0, 160, 620]],
-  loot_common: ['sine', [880, 0, 60], [1175, 60, 90]],
+  loot_common: ['triangle', [1320, 0, 60], [1760, 60, 90]],
   loot_rare: ['triangle', [784, 0, 140], [988, 130, 140], [1175, 260, 140], [1568, 390, 620]],
   level_up: ['square', [262, 0, 150], [330, 140, 150], [392, 280, 150], [523, 420, 460]],
   skill_up: ['square', [392, 0, 120], [523, 110, 260]],
   hero_death: ['sawtooth', [330, 0, 260], [262, 240, 260], [196, 480, 260], [131, 720, 700]],
   hunt_start: ['sawtooth', [196, 0, 240], [294, 220, 380]],
   hunt_end: ['sawtooth', [294, 0, 240], [196, 220, 420]],
-  window_open: ['sine', [600, 0, 60, 840]],
-  window_close: ['sine', [840, 0, 60, 600]],
+  window_open: ['sine', [600, 0, 60, 760]],
+  window_close: ['sine', [760, 0, 60, 560]],
   ui_press: ['square', [1000, 0, 22]],
   purchase: ['triangle', [1800, 0, 45], [2250, 70, 80]],
   refusal: ['square', [150, 0, 160, 130]],
-  chat_message: ['sine', [1400, 0, 55]],
+  chat_message: ['sine', [1700, 0, 55]],
   party_invite: ['triangle', [660, 0, 130], [880, 130, 130], [660, 260, 220]],
 });
 

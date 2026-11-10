@@ -274,6 +274,12 @@ async function check(base) {
       r.pass();   // each tone ends before the next: this rule is about tones, not voices
     }
     must(!silent.length, 'SND-13 no tone of its own for: ' + silent.join(', '));
+    /* no two tones of one wave may start inside each other's tuned range (2% to spare): told apart by ear, and by a count */
+    const span = (id) => { const hz = T.TONES[id][1][0], p = D.SOUNDS[id].pitch + 0.02; return [hz * (1 - p), hz * (1 + p)]; };
+    const alike = [];
+    const named = Object.keys(T.TONES).filter((id) => D.SOUNDS[id]);
+    for (const a of named) for (const b of named) if (a < b && T.TONES[a][0] === T.TONES[b][0] && span(a)[0] <= span(b)[1] && span(b)[0] <= span(a)[1]) alike.push(a + ' ~ ' + b);
+    must(!alike.length, 'SND-13 two tones start alike: ' + alike.join(', '));
     const extra = [...Object.keys(T.TONES), ...Object.keys(T.BED_TONES)].filter((id) => !D.SOUNDS[id]);
     must(!extra.length && r.fetched.length === 0, 'SND-13 tones must ask for no file and name only sounds of the map (extra: ' + extra.join(', ') + '; fetched ' + r.fetched.length + ')');
   }
@@ -442,7 +448,8 @@ async function check(base) {
       const doc = { hidden: false,
         addEventListener: (type, fn) => { if (!handlers.has(type)) handlers.set(type, new Set()); handlers.get(type).add(fn); },
         removeEventListener: (type, fn) => { if (handlers.has(type)) handlers.get(type).delete(fn); } };
-      const win = { document: doc, location: { search }, AudioContext: audio.Ctx, performance: { now: () => 1000 }, fetch: () => Promise.resolve({ ok: false }) };
+      let at = 1000;   // the page's clock moves on between presses, so a cooldown never hides a second tick
+      const win = { document: doc, location: { search }, AudioContext: audio.Ctx, performance: { now: () => (at += 500) }, fetch: () => Promise.resolve({ ok: false }) };
       const account = { viewed: null, userId: 'me', subscribe: () => () => {}, character: () => null, characters: () => [] };
       const fire = (type, target) => { for (const fn of Array.from(handlers.get(type) || [])) fn({ type, target: target || null }); };
       return { audio, doc, win, account, fire, listening: () => Array.from(handlers.values()).reduce((n, s) => n + s.size, 0) };
@@ -494,6 +501,7 @@ const MUTANTS = [
   { name: 'the rare drop does not duck', file: 'src/audio/manager.js', from: 'if (row.duckMs) duck(row.duckMs);', to: '', want: 'SND-11' },
   { name: 'the old bed keeps playing', file: 'src/audio/manager.js', from: 'if (b.voice) { stop(b.voice, limits.bedFadeMs); b.voice = null; }', to: 'b.voice = null;', want: 'SND-12 a new place' },
   { name: 'a map row with no tone', file: 'src/audio/tones.js', from: "  loot_rare: ['triangle',", to: "  loot_rarer: ['triangle',", want: 'SND-13' },
+  { name: 'two tones that start alike', file: 'src/audio/tones.js', from: "  cast_strike: ['square', [215,", to: "  cast_strike: ['square', [258,", want: 'SND-13 two tones start alike' },
   { name: 'a table names a sound that is not in the map', file: 'src/data/sounds.js', from: "heal: 'cast_heal', shield:", to: "heal: 'cast_mend', shield:", want: 'SND-14' },
   { name: 'a sound in the map that nothing raises', file: 'src/data/sounds.js', from: "  music_town: row('music', 'music/town.ogg',", to: "  owl_hoot: fx('combat/owl-hoot.ogg', { cooldownMs: 500 }),\n  music_town: row('music', 'music/town.ogg',", want: 'SND-15 in the map but raised nowhere: owl_hoot' },
   { name: 'code raises a sound the map lacks', file: 'src/audio/watch.js', from: "cue('hunt_end');", to: "cue('hunt_over');", want: 'SND-15 src/audio/watch.js raises `hunt_over`' },

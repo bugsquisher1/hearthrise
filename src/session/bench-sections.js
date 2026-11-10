@@ -5,11 +5,11 @@
 // opens takes at a public bench, in milligold; per skill the share, the room and whether the account owns it; the carried
 // remainder; the gold the hero set to keep; its latest bench run. Every envelope replaces it and nothing here computes a fee.
 // ════════════════════════════════════════════════════════════════════════
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.112';
-import { ITEMS } from '../data/items.js?v=0.2.112';
-import { indexArtisanRecipes, artisanIntervalMs } from '../core/artisan-sim.js?v=0.2.112';
-import { recipeInputs } from '../core/artisan.js?v=0.2.112';
-import { heldOf } from './item-sections.js?v=0.2.112';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.113';
+import { ITEMS } from '../data/items.js?v=0.2.113';
+import { indexArtisanRecipes, artisanIntervalMs } from '../core/artisan-sim.js?v=0.2.113';
+import { recipeInputs } from '../core/artisan.js?v=0.2.113';
+import { heldOf } from './item-sections.js?v=0.2.113';
 
 const BENCH = indexArtisanRecipes(ARTISAN_RECIPES);
 const whole = (n) => (Number.isSafeInteger(n) && n >= 0 ? n : 0);

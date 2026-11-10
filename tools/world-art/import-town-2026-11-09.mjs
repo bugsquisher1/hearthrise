@@ -296,7 +296,9 @@ if (isMain(import.meta.url)) {
   for (const [p, data] of files) {
     const abs = join(ROOT, p);
     const buf = Buffer.isBuffer(data) ? data : Buffer.from(data);
-    if (check) { if (!existsSync(abs) || Buffer.compare(readFileSync(abs), buf) !== 0) { console.error('drift: ' + p); drift++; } continue; }
+    /* a text sidecar is compared without CR: a Windows checkout (core.autocrlf) rewrites its line ends, and that is not drift */
+    const onDisk = (a) => (Buffer.isBuffer(data) ? readFileSync(a) : Buffer.from(readFileSync(a, 'utf8').replace(/\r\n/g, '\n')));
+    if (check) { if (!existsSync(abs) || Buffer.compare(onDisk(abs), buf) !== 0) { console.error('drift: ' + p); drift++; } continue; }
     mkdirSync(dirname(abs), { recursive: true });
     writeFileSync(abs, buf);
   }

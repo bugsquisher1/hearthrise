@@ -1,6 +1,6 @@
 {
   "note": "Ceilings, not targets: per file and error kind, counts may only fall. Written by node tests/typecheck-ratchet.mjs --write, which refuses a rise. Regenerate, never hand-merge.",
-  "total": 396,
+  "total": 392,
   "files": {
     "src/app/boot.js": {"TS2367":1,"TS2554":5},
     "src/app/hero-create.js": {"TS1005":3,"TS2304":2,"TS2353":1},
@@ -68,7 +68,7 @@
     "src/shell/context-menu.js": {"TS2339":2},
     "src/shell/hud.js": {"TS2554":1},
     "src/shell/hunt-go.js": {"TS2339":4},
-    "src/shell/item-lore.js": {"TS2339":5},
+    "src/shell/item-lore.js": {"TS2339":1},
     "src/shell/launcher.js": {"TS2339":1},
     "src/shell/market-model.js": {"TS2362":1,"TS2363":1},
     "src/shell/readiness.js": {"TS2339":4},

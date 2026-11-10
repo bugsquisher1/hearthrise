@@ -30,6 +30,10 @@
 //      floor is laid in its cycle order
 //   G  scene routing; missing art compiles and draws as a stub; the canvas
 //      draws the layers in the plan's order, and every canvas text size floors at 12 CSS px
+//   N  NAME PLATES (src/world/core/plates.js; Tyler 2026-11-08: "Fingerguns / The Rat catcher (centered of
+//      course)"): a titled hero's plate is two centred lines, the title under the name, the block's foot
+//      where a one-line plate's is; an untitled plate is one line; a crowd of plates on one spot never
+//      overlaps; compose carries the title of your hero and of every unit
 //   A  art by scene (src/world/scene-sets.js): every shipped scene loads every
 //      sheet it draws from (the whole map, every hero, its monsters and effects,
 //      every room's furniture), and a walked scene loads nothing more: the
@@ -51,7 +55,7 @@ const argv = process.argv.slice(2);
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
   const [grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, sets, budget,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM] = await Promise.all([
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM, platesM] = await Promise.all([
     'src/world/core/grid.js', 'src/world/core/zsort.js', 'src/world/core/roofs.js', 'src/world/core/shadows.js',
     'src/world/core/camera.js', 'src/world/core/map-compile.js', 'src/world/core/path.js', 'src/world/core/wang.js',
     'src/world/core/scene-route.js', 'src/world/core/compose.js', 'src/world/render/null-backend.js',
@@ -59,12 +63,13 @@ async function load(base) {
     'src/data/world/atlas-sets.js', 'src/data/world/art-budget.js',
     'src/world/scene-sets.js', 'src/data/hunt-outfits.js', 'src/data/hunt-grounds.js', 'src/data/hunt-vfx.js',
     'src/data/world/house-layouts.js', 'src/world/home-scene.js', 'src/world/render/ground-chunks.js', 'src/world/render/canvas-backend.js',
+    'src/world/core/plates.js',
   ].map(imp));
   const manifests = {};
   /* every set on any grid (atlas-sets.js LOADED_SETS): the sandbox map lints against its own grid's art */
   for (const set of sets.LOADED_SETS) manifests[set] = JSON.parse(readFileSync(join(base, 'assets/world/atlas-' + set + '.json'), 'utf8'));
   return { grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, budget, manifests,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM,
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM, platesM,
     canvasSrc: readFileSync(join(base, 'src/world/render/canvas-backend.js'), 'utf8'),
     worldCss: readFileSync(join(ROOT, 'src/styles/world.css'), 'utf8'), tokensCss: readFileSync(join(ROOT, 'src/styles/tokens.css'), 'utf8') };
 }
@@ -610,6 +615,32 @@ async function check(M) {
         exactly the sheets it draws from. Measured here through the null backend over the WHOLE map, with
         everything that can walk or play on it: every hero outfit; on a hunt map every monster its grounds and
         hunts spawn and every hunt effect; at home every piece of every room, its signposts and trophy mounts. */
+  fam('N', () => {
+    const m = compiled('town_common');
+    const at = [Math.floor(m.w / 2), Math.floor(m.h / 2)];
+    const knight = M.outfits.OUTFITS.knight;
+    const peer = (text, title) => ({ id: knight, x: at[0], y: at[1], plate: { text, title, kind: 'peer' }, ref: { player: { name: text } } });
+    const everything = { ox: -1e6, oy: -1e6, w: 2e6, h: 2e6 };
+    const f = M.compose.composeFrame(m, book, { hero: { x: at[0], y: at[1] }, name: 'Fingerguns', title: 'the Ratcatcher',
+      units: [peer('Marlow · 18', 'the Wolfer'), peer('Tamsel · 18', null), peer('Wren · 9', 'the Gamekeeper')], t: 0 }, everything, tables, T);
+    const mine = f.plates.find((p) => p.kind === 'self');
+    ok('N', !!mine && mine.text === 'Fingerguns' && mine.title === 'the Ratcatcher', 'your hero\'s plate carries ' + JSON.stringify(mine) + ', not Fingerguns over the Ratcatcher');
+    ok('N', f.plates.filter((p) => p.kind === 'peer').map((p) => p.title).join() === 'the Wolfer,,the Gamekeeper', 'the units\' plates carry the titles ' + f.plates.map((p) => p.title).join());
+    /* laid out as the canvas does (yours first; widths from a fixed advance, sizes the canvas's at x3) */
+    const order = f.plates.slice().sort((a, b) => (b.kind === 'self') - (a.kind === 'self'));
+    const laid = M.platesM.layPlates(order.map((p) => Object.assign({}, p, { x: p.x * 3, y: p.y * 3 })),
+      { measure: (s, px) => s.length * px * 0.55, px: (k) => (k === 'self' ? 15 : 13), width: 1e7, edge: 48 });
+    const me = laid[0], tamsel = laid.find((l) => l.plate.text === 'Tamsel · 18');
+    ok('N', me.lines.length === 2 && me.lines[0].text === 'Fingerguns' && me.lines[1].text === 'the Ratcatcher', 'a titled plate draws ' + JSON.stringify(me.lines));
+    ok('N', me.lines[1].y === me.box.b && me.box.b === order[0].y * 3 && me.lines[0].y === me.lines[1].y - me.px - M.platesM.PLATE_GAP && me.box.t === me.box.b - 2 * me.px - M.platesM.PLATE_GAP,
+      'the title is not under the name with the block\'s foot on the anchor: ' + JSON.stringify(me));
+    ok('N', Math.abs((me.box.l + me.box.r) / 2 - me.x) < 1e-9 && me.x === order[0].x * 3, 'the plate is not centred on its owner');
+    ok('N', tamsel && tamsel.lines.length === 1 && tamsel.box.t === tamsel.box.b - tamsel.px, 'an untitled plate draws ' + JSON.stringify(tamsel && tamsel.lines));
+    const touch = (a, b) => a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t;
+    const clash = laid.flatMap((a, i) => laid.slice(i + 1).filter((b) => touch(a.box, b.box)).map((b) => a.plate.text + ' / ' + b.plate.text));
+    ok('N', laid.length === 4 && clash.length === 0, 'four plates on one tile overlap: ' + clash.join(', '));
+  });
+
   fam('A', () => {
     const setOf = (id) => book.frame(id).set;
     const heroes = Object.values(M.outfits.OUTFITS);
@@ -738,6 +769,12 @@ const MUTANTS = [
   ['G3', 'sprites drawn over the roofs', 'src/world/render/canvas-backend.js', [
     ['    for (const d of list.sprites) {\n      if (d.kind === \'unit\' && d.grey) blitUnit(g, d, view);\n      else { g.globalAlpha = d.alpha == null ? 1 : d.alpha; blit(g, d, view); }\n    }\n', ''],
     ['    g.globalAlpha = 1;\n    light(g, list, view, fv);', '    for (const d of list.sprites) blit(g, d, view);\n    g.globalAlpha = 1;\n    light(g, list, view, fv);']]],
+  ['N', 'the title is dropped from the plate', 'src/world/core/plates.js', [['const lines = p.title ? [p.text, p.title] : [p.text];', 'const lines = [p.text];']]],
+  ['N', 'a two-line plate is placed as one line', 'src/world/core/plates.js', [['const tall = lines.length * px + (lines.length - 1) * PLATE_GAP;', 'const tall = px;']]],
+  ['N', 'the title lies on the head art, under the anchor', 'src/world/core/plates.js', [['y: y - (lines.length - 1 - i) * (px + PLATE_GAP)', 'y: y + i * (px + PLATE_GAP)']]],
+  ['N', 'a crowded plate never steps up', 'src/world/core/plates.js', [['for (let k = 0; k < PLATE_STEPS && touches(y); k++) y -= px + PLATE_GAP;', 'void touches;']]],
+  ['N', 'compose drops a unit\'s title', 'src/world/core/compose.js', [["title: u.plate.title || null, kind: u.plate.kind,", 'kind: u.plate.kind,']]],
+  ['N', 'compose drops your own title', 'src/world/core/compose.js', [["title: state.title || null, kind: 'self'", "kind: 'self'"]]],
 ];
 
 async function selftest() {

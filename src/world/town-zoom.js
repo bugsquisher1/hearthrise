@@ -14,8 +14,8 @@
 // put its older one back. Display only: it gates and spends nothing, and the next envelope's
 // residue is what is read back.
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.110';
-import { serverNowOf } from '../session/hunt-sections.js?v=0.2.110';
+import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.111';
+import { serverNowOf } from '../session/hunt-sections.js?v=0.2.111';
 
 /* deltaY a wheel turns into one step (a mouse notch is ~100 px; a trackpad's small deltas add up) */
 const WHEEL_STEP = 100;

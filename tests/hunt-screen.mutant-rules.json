@@ -27,7 +27,7 @@
   "a setting shows before the server confirms": "HS-3",
   "a slot short of its rune says nothing": "HS-20",
   "a slot that comes back builds a new icon": "HS-17",
-  "a slot tooltip words its test as a form label": "HS-7",
+  "a slot tooltip reads its number with no unit (Tyler 2026-11-08: \"at or above 2 what?\")": "HS-7",
   "a spell the weapon cannot cast reads like a castable one": "HS-8",
   "a struck slot carries no glyph": "HS-20",
   "a widget that grows after it is placed is never placed again (HS-22)": "HS-22",

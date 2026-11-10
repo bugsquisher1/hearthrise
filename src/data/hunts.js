@@ -63,7 +63,7 @@
 // GROUND PACKS (lane/b-ground-pack): a new ground is a folder under src/data/grounds, not a row here. HUNTS is the rows below
 // and then every pack's hunt (src/data/grounds/index.js), its id the pack's and `staged` while the pack is.
 // ════════════════════════════════════════════════════════════════════════
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.110';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.111';
 
 const BASE_HUNTS = Object.freeze([
   {

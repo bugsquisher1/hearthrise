@@ -15,16 +15,16 @@
 //   wasteLine(row, …)     "At 45% you are missing 121 HP; 167 of its 288 would be wasted."
 // No DOM, no clock, no state. Nothing here gates or spends anything.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES } from '../data/abilities.js?v=0.2.110';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.110';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.110';
-import { ITEMS } from '../data/items.js?v=0.2.110';
-import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.110';
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.110';
-import { itemName, abilityName, runeWords } from './widgets/bits.js?v=0.2.110';
-import { shortOf } from './item-lore.js?v=0.2.110';
-import { castOf } from './cast-facts.js?v=0.2.110';
-import { t } from '../render/player-text.js?v=0.2.110';
+import { ABILITIES } from '../data/abilities.js?v=0.2.111';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.111';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.111';
+import { ITEMS } from '../data/items.js?v=0.2.111';
+import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.111';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.111';
+import { itemName, abilityName, runeWords } from './widgets/bits.js?v=0.2.111';
+import { shortOf } from './item-lore.js?v=0.2.111';
+import { castOf } from './cast-facts.js?v=0.2.111';
+import { t } from '../render/player-text.js?v=0.2.111';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));

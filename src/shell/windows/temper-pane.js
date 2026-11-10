@@ -10,14 +10,15 @@
 // The answer takes the question's place, in the flow (.hw-temper-msg), never the tab's line stuck to the sheet's foot: on a phone that line lay over the
 // note saying where the next rung's material comes from, for the 30 s an answer stands (lane/c-temper-craft's play, 2026-11-05).
 // ════════════════════════════════════════════════════
-import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.110';
-import { goldOf } from '../../session/item-sections.js?v=0.2.110';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.110';
-import { gold, whole, listWords } from '../../render/format.js?v=0.2.110';
-import { runIntent } from '../intent-words.js?v=0.2.110';
-import { huntedOnly, saleWords } from '../item-lore.js?v=0.2.110';
-import { dropWhereWords } from '../hunt-ground-facts.js?v=0.2.110';
-import { t } from '../../render/player-text.js?v=0.2.110';
+import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.111';
+import { goldOf } from '../../session/item-sections.js?v=0.2.111';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.111';
+import { gold, whole, listWords } from '../../render/format.js?v=0.2.111';
+import { runIntent } from '../intent-words.js?v=0.2.111';
+import { huntedOnly, saleWords } from '../item-lore.js?v=0.2.111';
+import { dropWhereWords, dropHuntOf } from '../hunt-ground-facts.js?v=0.2.111';
+import { patchParts, targetOf } from '../goto.js?v=0.2.111';
+import { t } from '../../render/player-text.js?v=0.2.111';
 
 const TRACKS = Object.freeze([
   { id: 'blows', label: 'Blows', effect: 'your blows and heals land', worse: 'harder', none: 'Wield a weapon to temper it.' },
@@ -48,18 +49,20 @@ function dropWords(f) {
 }
 
 /* Where to get what either row is short of, said once under both: the two rows usually ask for the same thing. The Weighhouse is named
-   only for what it lists (item-lore saleWords, the market's rule). */
-function wayWords(rows) {
+   only for what it lists (item-lore saleWords, the market's rule). Each sentence is a link to its place (Tyler 2026-11-08): the smith's
+   sentence to the Smithing row that makes it, a drop's to its ground in Hunts, the Weighhouse's to the market. */
+function wayParts(rows) {
   const said = new Map();
   for (const r of rows) for (const n of r.needs) {
     if (!n.short || !n.smith || said.has(n.id)) continue;
     const inputs = listWords(n.smith.from.map((f) => f.words), Infinity);
-    said.set(n.id, [n.smith.level < n.smith.req
+    said.set(n.id, [{ words: n.smith.level < n.smith.req
       ? t('temper.way_smith_short', { name: n.name, req: n.smith.req, level: n.smith.level, inputs })
-      : t('temper.way_smith', { name: n.name, req: n.smith.req, inputs }),
-    ...n.smith.from.map(dropWords), saleWords(n.id) ? '' : t('temper.way_weighhouse')].filter(Boolean).join(' '));
+      : t('temper.way_smith', { name: n.name, req: n.smith.req, inputs }), target: targetOf({ kind: 'work', skill: 'smithing', row: n.smith.id }) },
+    ...n.smith.from.map((f) => ({ words: dropWords(f), target: targetOf({ kind: 'hunt', hunt: dropHuntOf(f.id) }) })),
+    { words: saleWords(n.id) ? '' : t('temper.way_weighhouse'), target: targetOf({ kind: 'market' }) }].filter((p) => p.words));
   }
-  return [...said.values()].join(' ');
+  return [...said.values()].flat().flatMap((p, i) => (i ? [' ', p] : [p]));
 }
 
 /** The section's skeleton, inside the Services tab. */
@@ -97,7 +100,7 @@ export function patchTemperPane(root, ctx, sc) {
       prop(btn, 'disabled', !offer || !!short || itemsShort || sc.pending || !!sc.ask);
     },
   });
-  text(root.querySelector('.hw-temper-way'), all ? wayWords([all.blows, all.armor]) : '');
+  patchParts(root.querySelector('.hw-temper-way'), all ? wayParts([all.blows, all.armor]) : []);
   const asked = sc.ask ? row(sc.ask) : null;
   const can = !!asked && !!asked.ladder && !!asked.ladder.offer && !sc.pending && (purse === null || purse >= asked.ladder.gold) && !asked.needs.some((n) => n.short > 0);
   if (sc.ask && !can) sc.ask = null;

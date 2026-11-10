@@ -22,20 +22,20 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.110';
-import { VITALS } from '../../data/core-model.js?v=0.2.110';
-import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.110';
-import { atTier } from '../../data/hunt-tiers.js?v=0.2.110';
-import { AI_REPATH_MS, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.110';
-import { HUNT_GROUNDS, packHpFor, yieldPermille, routeFor, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.110';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.110';
-import { monsterMaxHit } from '../combat.js?v=0.2.110';
-import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.110';
-import { inArea, resetPack } from './leash.js?v=0.2.110';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.110';
-import { makeEvent, trackStep } from './events.js?v=0.2.110';
-import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.110';
-import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.110';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.111';
+import { VITALS } from '../../data/core-model.js?v=0.2.111';
+import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.111';
+import { atTier } from '../../data/hunt-tiers.js?v=0.2.111';
+import { AI_REPATH_MS, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.111';
+import { HUNT_GROUNDS, packHpFor, yieldPermille, routeFor, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.111';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.111';
+import { monsterMaxHit } from '../combat.js?v=0.2.111';
+import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.111';
+import { inArea, resetPack } from './leash.js?v=0.2.111';
+import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.111';
+import { makeEvent, trackStep } from './events.js?v=0.2.111';
+import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.111';
+import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.111';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */

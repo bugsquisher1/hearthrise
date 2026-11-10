@@ -11,6 +11,9 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 
 ## Log
 
+### 2026-11-09 · lane/a-import-town-art, the close (main v0.2.112 merged)
+Learned: (1) merging an art lane for its sources brings everything that lane carried: `lane/a-gen-2026-11-09` held `lane/b-pyre-field` and `lane/b-the-slake`, so this branch names both packs in `src/data/grounds/index.js` (a pack named there is served). Next time take the source folder with `git checkout <lane> -- art/world-src/<batch>`, never a merge. (2) Town shots on the local world: the camera follows the hero and the server names its tile, so a shot is framed by setting `town_bodies` (station, stand, why 'visit', a long `visit_until`) in the local DB and reloading; the "−" zoom gives a whole district at x1. (3) A field of nine needs a 12-plot cap (local `hr_farm_plot_cap`), and 1920 px wide to hold both rows at x2.
+
 ### 2026-11-09 · lane/a-import-town-art (0 generations)
 Imported the art director's READY town list: set `yard` (59 sprites + the sand pair), the four flames in place, the house dummy's parts in `cottage`. `tools/world-art/import-town-2026-11-09.mjs` is the repeatable writer (`--check` is its drift twin). Learned: (1) plan coordinates (sites.js, stations.js) are map x minus 24 (`at()` / WEST); ground.js is MAP coordinates, so a ground edit needs +24. (2) `player_state_active_kind_check` allows only idle, gather, artisan, combat: no hero can be on the `training_yard` station today, so the yard shows no live heroes (the visual gate seated test bodies in the local DB). (3) a sprite's frame 0 must stay the shipped still when a loop replaces it in place: the import compares every opaque pixel and throws if not. (4) world-core's L-HASH (maskHash) and W2 (a `--world-ground-<material>-a/-b` token) both bite when a material or a blocking prop is added.
 

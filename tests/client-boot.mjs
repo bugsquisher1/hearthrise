@@ -20,7 +20,8 @@
 //   B-19 ONE FILE NEVER DECIDES THE PAGE (live v0.2.83: float-menu.js answered 503 once and the page stopped until a reload): one 503 on a
 //        file of the entry's graph, or on a preload nothing else imports yet, and the page boots with no press; a file that always fails ends
 //        on the words and a Reload press after exactly two reloads, then stays there (the press is one more try, never a loop); a third
-//        party's script reloads nothing; the World's module failing behind the first screen gets the same second go
+//        party's script reloads nothing; the World's module failing behind the first screen gets the same second go, and so do the
+//        game screen's own (boot.js asks for the pane when an account starts): held on the wire they hold back neither sign-in nor the list
 //   B-1  play.html boots to the sign-in screen with zero console errors
 //   B-2  sign in -> the characters screen lists the server's owned slots
 //   B-3  Play -> the World pane (a canvas) and the shell mount for that character;
@@ -286,8 +287,9 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       /* The page's own document loads, counted off the wire. */
       const docsOf = (page) => { const seen = { n: 0 }; page.on('request', (q) => { if (q.isNavigationRequest() && q.frame() === page.mainFrame()) seen.n++; }); return seen; };
       const atSignIn = (page) => until(page, () => document.querySelector('form[data-auth="sign-in"]') && !document.querySelector('.boot-shell'));
-      /* A file of the entry's graph (the entry's own script fails), and a classic script from before the tab store has loaded (the verdict waits for the parse). */
-      for (const [tag, file] of [['a file of the entry\'s graph', 'src/shell/windows/float-menu.js'], ['a classic script', 'src/vendor/supabase-js-']]) {
+      /* A file of the entry's graph (the entry's own script fails), and a classic script from before the tab store has loaded (the verdict waits for the parse).
+         The entry's graph is what the first screen waits on (tests/module-preload.mjs MP-5): float-menu.js, the live case's file, is the game screen's now. */
+      for (const [tag, file] of [['a file of the entry\'s graph', 'src/session/envelope.js'], ['a classic script', 'src/vendor/supabase-js-']]) {
         const s = await fresh();
         const docs = docsOf(s.page);
         let hits = 0;
@@ -316,7 +318,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       /* Always down: exactly two reloads, then the words and the press, and it stays there. */
       const down = await fresh();
       const docs = docsOf(down.page);
-      await down.page.route(FAILS('src/shell/windows/float-menu.js'), answer503);
+      await down.page.route(FAILS('src/session/envelope.js'), answer503);
       await down.page.goto(base + '/play.html', { waitUntil: 'commit', timeout: 60000 });
       const said = (page) => page.evaluate(() => { const b = document.querySelector('.boot-shell-again');
         return { words: /could not finish loading/.test((document.querySelector('.boot-shell-line') || {}).textContent || ''), press: !!b, seen: !!b && getComputedStyle(b).backgroundColor !== 'rgba(0, 0, 0, 0)' }; });
@@ -380,6 +382,30 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       }
       free();
       await late.ctx.close();
+      /* THE GAME SCREEN'S OWN MODULES (boot.js asks for src/app/world-pane.js when an account starts; hunt-path baseline 2026-11-10: every
+         module of the page ran before sign-in was drawn). One of them held on the wire holds back neither the sign-in screen nor the
+         characters list; failing behind them it gets the same second go: the hero's Play reloads by itself, and the hero stands in the World. */
+      const game = await fresh({ heroes: { 0: 'Tester' }, created: [] });
+      const gameDocs = docsOf(game.page);
+      let gameFree = null;
+      const gameHeld = new Promise((k) => { gameFree = k; });
+      await game.page.route(FAILS('src/shell/shell.js'), async (r) => { if (gameDocs.n > 1) return r.fallback(); await gameHeld; return answer503(r); });
+      await game.page.goto(base + '/play.html', { waitUntil: 'commit', timeout: 60000 });
+      if (!(await atSignIn(game.page))) fails.push('B-19 the sign-in screen waited on the game screen\'s modules (the shell held on the wire)');
+      else {
+        await game.page.fill('input[name=email]', 'qa@example.test');
+        await game.page.fill('input[name=password]', 'not-a-real-password');
+        await game.page.click('.auth-submit');
+        if (!(await wait(game.page, () => document.querySelector('[data-app="play"][data-slot="0"]')))) fails.push('B-19 the characters list waited on the game screen\'s modules');
+        gameFree();
+        await game.page.waitForTimeout(2500);   // past the first reload's pause, as above
+        if (gameDocs.n !== 1) fails.push('B-19 a game-screen preload failing behind the first screen reloaded the page under the player');
+        await game.page.click('[data-app="play"][data-slot="0"]');
+        if (!(await until(game.page, () => document.querySelector('#panel-world canvas')))) fails.push('B-19 a game-screen module failing once left the hero out of the World: ' + JSON.stringify((await game.page.evaluate(() => document.body.innerText)).slice(0, 160)));
+        else if (gameDocs.n !== 2) fails.push('B-19 the game screen\'s module took ' + gameDocs.n + ' document load(s), want 2');
+      }
+      gameFree();
+      await game.ctx.close();
     }
 
     { // B-1 .. B-5
@@ -1282,6 +1308,9 @@ const MUTANTS = [
   ['a third party\'s failure reloads the page (B-19)', 'src/platform/load-shell.js', "if (url.indexOf(win.location.origin) !== 0 || !/\\.js(\\?|$)/.test(url)) return;", 'if (!/\\.js(\\?|$)/.test(url)) return;'],
   ['a failure behind the first screen reloads under the player (B-19)', 'src/platform/load-shell.js', [['    if (!shell.parentNode) return;\n    if (!win.HearthriseRetryLoad', '    if (!win.HearthriseRetryLoad'], ['if (failed || !t || !shell.parentNode || (t.tagName', 'if (failed || !t || (t.tagName']]],
   ['the World\'s module gets no second go (B-19)', 'src/app/world-pane.js', "reloading = typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad();", 'void win;'],
+  ['the game screen\'s module gets no second go (B-19)', 'src/app/boot.js', "const again = typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad();", 'const again = false;'],
+  /* a second copy of the pane under another module key (no cache-buster): the entry waits on its whole graph again */
+  ['the first screen waits on the game screen again (B-19)', 'src/app/boot.js', "import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=", "import './world-pane.js';\nimport { mountCharacterStrip, stripTargetOf } from './character-strip.js?v="],
   ['a script that fails before the store is up is lost (B-19)', 'src/platform/load-shell.js', "if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', failedNow); else failedNow();", 'failedNow();'],
   ['the page paints no loading shell', 'play.html', '<p class="boot-shell-line">Loading Hearthrise…</p>', ''],
   ['a made hero\'s press asks the server again', 'src/app/hero-create.js', "    if (made) { enter(); return; }\n", ''],

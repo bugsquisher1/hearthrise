@@ -11,8 +11,9 @@
 //        → the game: the character strip (src/app/character-strip.js; up to the
 //          server's concurrent limit, each its own CharacterSession), built
 //          once, and the World pane with the shell over it for the VIEWED
-//          character (src/app/world-pane.js); one alert centre for the account
-//          (src/shell/alerts.js) watches every open character
+//          character (src/app/world-pane.js, asked for with import() when an account
+//          starts and run while the roster is read: tests/module-preload.mjs MP-5);
+//          one alert centre for the account (src/shell/alerts.js) watches every open character
 //
 // Which open character is shown is AccountSession.viewed, a view pointer; a
 // switch remounts only the pane; the shown character streams live and the others play on the server (a plain
@@ -48,7 +49,6 @@ import { createServerLink } from '../session/server.js?v=0.2.112';
 import { AccountSession } from '../session/account-session.js?v=0.2.112';
 import { FRAME_EVENT } from '../session/character-session.js?v=0.2.112';
 import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.112';
-import { mountWorldPane } from './world-pane.js?v=0.2.112';
 import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.112';
 import { renderHeroCreate } from './hero-create.js?v=0.2.112';
 import { renderBannedNotice, renderClosedNotice } from './closed-notice.js?v=0.2.112';
@@ -115,6 +115,13 @@ function startApp(win) {
   let rosterSlots = [];   // the account's existing characters, as the roster last read them
   let roster = [];        // the roster rows the characters screen shows (the server's, as last read)
   let slotBuying = false; // a hero-slot purchase is in flight: the button stays off until the answer
+  /* THE GAME SCREEN'S OWN MODULES RUN BEHIND THE FIRST SCREEN (src/app/world-pane.js: the World pane, the shell, every window and
+     widget; 126 of this page's 399 modules, hunt-path baseline 2026-11-10). Nothing uses them before the pane is mounted, so the
+     page no longer waits on them to start: sign-in is drawn and the roster's read leaves that much sooner, and they run while the
+     server answers. Their files still arrive with the page (play.html's preload block). Asked for once, when an account starts. */
+  let game = null;        // the module, once it has run: the pane is never mounted before it (showGame)
+  let gameAsked = null;
+  const askGame = () => gameAsked || (gameAsked = import('./world-pane.js?v=0.2.112'));
 
   const recovering = /type=recovery/.test(win.location.hash);
   /* AN EMAIL LINK THAT DID NOT WORK (expired, used twice, or opened first by a mail scanner) comes back with its error in the
@@ -185,6 +192,7 @@ function startApp(win) {
     /* ...for THIS session only: the pass asks before every slice and sheet whether its account is still the page's, so a
        sign-out or a refused session stops it at once (client-boot B-15) */
     import('../world/prewarm.js?v=0.2.112').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
+    askGame().catch(() => {});   // the game screen's modules, run while the roster is read; a failure is answered where they are needed (play)
     /* the token's answer is the moment the first read leaves (boot-timing.js): whatever it waited on is before that; the
        link carries THIS login's token only (auth.tokensFor), never another account's a later sign-in left on the device */
     const tokens = auth.tokensFor(auth.userId());
@@ -322,6 +330,15 @@ function startApp(win) {
     }
     if (a !== account) return false;
     a.view(slot);
+    /* A file of the game screen's that did not load stays failed in this page: its own second go (src/platform/load-shell.js), as the World's gets, else the list says so. */
+    try { game = game || await askGame(); } catch (e) {
+      console.error('[boot] the game screen failed to load', e);
+      const again = typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad();
+      const m = root.querySelector('.auth-message');
+      if (m && !again) m.textContent = 'The world could not load. Reload the page to try again.';
+      return false;
+    }
+    if (a !== account) return false;
     await showGame();
     timing.drawn('game');
     /* the account's other characters play too (in town for everyone), unviewed */
@@ -360,7 +377,7 @@ function startApp(win) {
     if (pane && pane.slot === cs.slot) { if (want) pane.shell.open(want); return; }
     const seq = ++paneSeq;
     if (pane) { pane.destroy(); pane = null; }
-    const p = await mountWorldPane(main, cs, { screen: root, account: acc, alerts, goTo,
+    const p = await game.mountWorldPane(main, cs, { screen: root, account: acc, alerts, goTo,
       peers: () => (acc ? acc.characters() : [cs]) });
     if (seq !== paneSeq) { p.destroy(); return; }
     pane = Object.assign(p, { slot: cs.slot });

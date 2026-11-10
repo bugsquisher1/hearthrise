@@ -5,6 +5,8 @@
 //   node tools/qa/same-numbers.mjs --no-combat     the formulas only (a second or two)
 //   node tools/qa/same-numbers.mjs --root <dir>    read another tree (a checkout of the base commit)
 //   node tools/qa/same-numbers.mjs --json          the digests as one JSON object
+//   node tools/qa/same-numbers.mjs --selftest      proof it sees a moved number: one constant changed in a copy of the tree
+//                                                  moves that formula's digest, and an untouched copy moves none
 //
 // WHY (lane/b-formula-home, 2026-11-10). A lane that moves where a formula lives must prove the numbers
 // stayed where they were. The proof used to be a throwaway harness each time (the 18-play digest of
@@ -22,12 +24,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const HERE = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const arg = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : null; };
 const ROOT = arg('--root') || HERE;
-const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
+const impFrom = (root) => (p) => import(pathToFileURL(join(root, p)).href);
 const dig = (v) => createHash('sha256').update(JSON.stringify(v)).digest('hex').slice(0, 8);
 
 const LEVELS = [1, 2, 3, 5, 8, 10, 15, 16, 25, 30, 31, 32, 45, 50, 60, 85, 100, 110, 200, 300, 500, 1000];
 
-async function formulas() {
+async function formulas(root = ROOT) {
+  const imp = impFrom(root);
   const out = {};
   const { ITEMS } = await imp('src/data/items.js');
   const CAT = await imp('supabase/functions/hr-accrue/catalogue.js');
@@ -85,6 +88,7 @@ async function formulas() {
 /* THE COMBAT DIGEST: each open ground played three ways on the real settle (a lone tank, a lone mage, a mixed four), ten sim-minutes each,
    at the ground's floor: 18 plays on today's six grounds. Hashes what the server would credit: totals, each hero's XP, items and end state. */
 async function combat() {
+  const imp = impFrom(ROOT);
   const { loadPlay } = await imp('tests/hunt-core/fixtures/play-ground.mjs');
   const P = await loadPlay(ROOT);
   const { OPEN_GROUNDS } = await imp('src/data/hunt-grounds.js');
@@ -99,6 +103,51 @@ async function combat() {
   }
   return plays;
 }
+
+/* ── THE PROOF THAT IT SEES A MOVED NUMBER ──────────────────────────────────
+   Each plant changes ONE constant in a temp copy of src/ and the edge, and names the formula whose digest must move. A control copy with
+   no plant must match the tree line for line: a digest that moved because the files were copied would prove nothing. */
+const PLANTS = [
+  { name: 'the raw sale rate 0.20 -> 0.21', moves: 'sale price (every item)', file: 'src/data/formulas/sale.js', find: '  rawRate: 0.20,', repl: '  rawRate: 0.21,' },
+  { name: 'HP a Level 10 -> 11', moves: 'max HP and mana', file: 'src/data/core-model.js', find: '  hpPerLevel: 10,', repl: '  hpPerLevel: 11,' },
+  { name: 'the XP dial 0.39 -> 0.40', moves: 'pacing', file: 'src/data/formulas/town-work.js', find: 'export const PACING = Object.freeze({ xp: 0.39,', repl: 'export const PACING = Object.freeze({ xp: 0.40,' },
+  { name: 'the death share 0.06 -> 0.07', moves: 'death loss', file: 'src/data/hunt-sessions.js', find: 'export const DEATH_XP_LOSS = 0.06;', repl: 'export const DEATH_XP_LOSS = 0.07;' },
+  { name: 'a Blessing\'s cut 250 -> 260', moves: 'blessings', file: 'src/data/blessings.js', find: 'Object.freeze([250, 500, 750])', repl: 'Object.freeze([260, 500, 750])' },
+];
+async function selftest() {
+  const { mkdtemp, cp, readFile, writeFile, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const digests = async (root) => { const f = await formulas(root), o = {}; for (const k of Object.keys(f)) o[k] = dig(f[k]); return o; };
+  const copy = async (plant) => {
+    const base = await mkdtemp(join(tmpdir(), 'hr-same-numbers-'));
+    await cp(join(HERE, 'src'), join(base, 'src'), { recursive: true });
+    await cp(join(HERE, 'supabase', 'functions', 'hr-accrue'), join(base, 'supabase', 'functions', 'hr-accrue'), { recursive: true });
+    if (plant) {
+      const p = join(base, plant.file), text = (await readFile(p, 'utf8')).replace(/\r\n/g, '\n');
+      if (text.split(plant.find).length !== 2) { console.error('HARNESS: "' + plant.name + '": the anchor matches ' + (text.split(plant.find).length - 1) + ' time(s) in ' + plant.file); process.exit(2); }
+      await writeFile(p, text.replace(plant.find, plant.repl));
+    }
+    return base;
+  };
+  const clean = await digests(HERE);
+  const bad = [], made = [];
+  const control = await copy(null); made.push(control);
+  const c = await digests(control);
+  const drift = Object.keys(clean).filter((k) => clean[k] !== c[k]);
+  if (drift.length) bad.push('control: an untouched copy moved ' + drift.join(', '));
+  for (const plant of PLANTS) {
+    const base = await copy(plant); made.push(base);
+    const d = await digests(base);
+    const moved = Object.keys(clean).filter((k) => clean[k] !== d[k]);
+    if (!moved.includes(plant.moves)) bad.push(plant.name + ': "' + plant.moves + '" did not move (moved: ' + (moved.join(', ') || 'nothing') + ')');
+    else console.log('  caught  ' + plant.name + ' -> ' + moved.join(', '));
+  }
+  for (const m of made) await rm(m, { recursive: true, force: true });
+  if (bad.length) { console.error('same-numbers --selftest: ' + bad.length + ' FAILED\n  ' + bad.join('\n  ')); process.exit(1); }
+  console.log('same-numbers --selftest: the control copy matches and all ' + PLANTS.length + ' changed constants moved their formula');
+  process.exit(0);
+}
+if (process.argv.includes('--selftest')) await selftest();
 
 const out = {};
 const f = await formulas();

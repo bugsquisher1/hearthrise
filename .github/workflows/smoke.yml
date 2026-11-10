@@ -5008,6 +5008,9 @@ jobs:
         run: |
           node tests/formula-single-source.mjs --report
           node tools/mutant-gate.mjs node tests/formula-single-source.mjs --selftest
+          # the refactor proof (tools/qa/same-numbers.mjs: one digest per formula) still sees a moved number:
+          # one constant changed in a copy of the tree moves that formula's digest, an untouched copy moves none
+          node tools/mutant-gate.mjs node tools/qa/same-numbers.mjs --selftest
 
 
 

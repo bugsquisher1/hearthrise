@@ -17,21 +17,21 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.114';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.114';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.114';
-import { runIntent } from '../intent-words.js?v=0.2.114';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle } from '../../hunt-view/summary-model.js?v=0.2.114';
-import { callOfHunt } from '../../data/boss-calls.js?v=0.2.114';
-import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.114';
-import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.114';
-import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.114';
-import { observeSessions } from '../../session/character-session.js?v=0.2.114';
-import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.114';
-import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.114';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.114';
-import { heldCard } from '../launcher.js?v=0.2.114';
-import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.114';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.115';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.115';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.115';
+import { runIntent } from '../intent-words.js?v=0.2.115';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle } from '../../hunt-view/summary-model.js?v=0.2.115';
+import { callOfHunt } from '../../data/boss-calls.js?v=0.2.115';
+import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.115';
+import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.115';
+import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.115';
+import { observeSessions } from '../../session/character-session.js?v=0.2.115';
+import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.115';
+import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.115';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.115';
+import { heldCard } from '../launcher.js?v=0.2.115';
+import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.115';
 
 /* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), and an old hunt that kept no settings. */
 const againOffWords = (cur) => (callOfHunt(cur.hunt) ? 'He comes when he is called, from the ground\'s page.' : 'This hunt did not keep its settings.');

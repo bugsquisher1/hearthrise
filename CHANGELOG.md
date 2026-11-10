@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.115 — 2026-11-10 (Honest Health)
+
+**Your Health reads right after a reload.** If you reloaded in the middle of a hunt, your Health could show 1 for up to a minute. It was never really 1. The bar shows your real Health right away now. Party members, monsters and the boss bar had the same problem and are fixed too.
+
 ## v0.2.114 — 2026-11-10 (One Fight for Everyone)
 
 **Every hunt is the same fight, alone or in a party.** Monsters don't change with your group size anymore. You get 5% more Level XP when you hunt alone. A mixed party still earns more than a party of one class.

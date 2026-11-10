@@ -49,7 +49,7 @@
 import { ITEMS } from '../data/items.js?v=0.2.111';
 import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.111';
 import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.111';
-import { JEWEL_PERKS, perkWords } from '../data/jewelry.js?v=0.2.111';
+import { JEWEL_PERKS } from '../data/jewelry.js?v=0.2.111';
 import { loadoutOf } from '../core/member.js?v=0.2.111';
 import { jewelPerksOf } from '../core/combat.js?v=0.2.111';
 import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.111';
@@ -121,8 +121,8 @@ function gainsOf(before, after) {
     if (d < EPS) continue;
     out.push({ label: label[k], text: (k === 'steady' ? '-' + d / 10 + '%' : '+' + (k === 'crit' ? (Math.round(d * 1000) / 10) + '%' : Math.round(d))) + ' ' + label[k] });
   }
-  /* a perk gained or raised, named as the tooltip and the Hallmark bench say it, at the size the hero then plays */
-  for (const p of perksIn(after, before)) if (perkOf(after, p) > perkOf(before, p)) out.push({ label: JEWEL_PERKS[p].name, text: perkWords(p, perkOf(after, p)) });
+  /* a perk gained or raised, by the name the piece and the tooltip give it (upgradeWords drops it when the piece's name says it) */
+  for (const p of perksIn(after, before)) if (perkOf(after, p) > perkOf(before, p)) out.push({ label: JEWEL_PERKS[p].name, perk: p, text: t('shop.upgrade_adds_perk', { perk: JEWEL_PERKS[p].name }) });
   return out;
 }
 
@@ -227,7 +227,10 @@ export function upgradeWords(plan, names = 2, gains = 1) {
   const byId = new Map();
   for (const p of plan.picks) { const g = byId.get(p.id); if (g) g.n++; else byId.set(p.id, { p, n: 1 }); }
   const groups = Array.from(byId.values());
-  const named = groups.slice(0, names).map(({ p, n }) => itemName(p.id) + (n > 1 ? ' ×' + n : '') + ' (' + p.gains.slice(0, gains).map((g) => g.text).join(', ') + (n > 1 ? ' each' : '') + ')');
+  /* a perk the piece's own name already says ("Banded Signet (Follow-through)") is not said twice; the tooltip holds its sentence */
+  const said = (p) => p.gains.filter((g) => !(g.perk && itemName(p.id).includes(g.label))).slice(0, gains);
+  const named = groups.slice(0, names).map(({ p, n }) => itemName(p.id) + (n > 1 ? ' ×' + n : '')
+    + (said(p).length ? ' (' + said(p).map((g) => g.text).join(', ') + (n > 1 ? ' each' : '') + ')' : ''));
   const more = groups.length - named.length;
   if (more > 0) named.push(more + (more === 1 ? ' more piece' : ' more pieces'));
   const left = plan.choices.map((c) => (EQUIP_SLOT_META[c.slot] || {}).label || c.slot);

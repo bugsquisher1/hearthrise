@@ -10,6 +10,8 @@
 //   node tests/live-hash-drift.mjs --live-sql            read-only SQL for production
 //   node tests/live-hash-drift.mjs --live-compare r.json grade a saved result
 //   node tests/live-hash-drift.mjs --live                fetch + grade in one step
+//   node tests/live-hash-drift.mjs --live --env staging  the same for the STAGING project, graded against
+//                                                        what the chain rebuilds to (beliefFor below)
 //   node tests/live-hash-drift.mjs --codediff [name]     is a divergence only comments?
 //   node tests/live-hash-drift.mjs --write [--no-live] [--out f]   re-seed the baseline (--out: a preview file)
 //
@@ -124,19 +126,56 @@
 
 import { readFile, writeFile, readdir, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { ROOT, bootReplay, manifest } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
+import { resolveEnv, PRODUCTION_REF } from '../tools/lib/env.mjs';
 
 const MIGDIR = join(ROOT, 'supabase', 'migrations');
 const BASELINE = join(ROOT, 'tests', 'live-hash-drift.baseline.json');
-const PROJECT = 'nezapsylztqbbwuwembx';
+const PROJECT = PRODUCTION_REF;
 const argv = process.argv.slice(2);
 
 const harness = (msg) => { const e = new Error(msg); e.harness = true; return e; };
+
+// ── WHICH PROJECT A LIVE MODE READS (lane/a-staging, tools/lib/env.mjs) ─────
+// `--live` reads production unless `--env staging` names the staging project. The
+// two are graded against DIFFERENT beliefs, because they answer different questions:
+//   production  must carry what the baseline's `live` side records (the deploy record)
+//   staging     is built from this repo and nothing else, so it must carry what the
+//               chain REBUILDS to: the baseline's `replay` side, staged files included
+// A staging project graded as production would go red on every explained comment-only
+// divergence and on every migration it rehearses before production gets it.
+let liveEnvCache = null;
+function liveEnv() {
+  if (!liveEnvCache) {
+    try { liveEnvCache = resolveEnv({ argv, write: false }); }
+    catch (e) { throw harness(e.message); }
+  }
+  return liveEnvCache;
+}
+
+/**
+ * The belief a project is graded against. Pure.
+ * @param {'production'|'staging'} envName
+ * @param {{functions: any[]}} base the baseline
+ */
+export function beliefFor(envName, base) {
+  if (envName !== 'staging') return base;
+  return {
+    ...base,
+    live_measured: 'never: staging is graded against the replay',
+    functions: base.functions.map((e) => ({
+      ...e,
+      live: e.replay ? { md5: e.replay.md5, norm_len: e.replay.norm_len, measured: 'the replay', source: 'replay-as-belief' } : null,
+      agree: !!e.replay,
+      why: e.replay ? undefined : 'the chain does not build this body, so a database built from the chain has none',
+    })),
+  };
+}
 
 // ── THE FLOOR ──────────────────────────────────────────────────────────────
 // Named by the server-authority program rather than derived, because a function
@@ -896,10 +935,11 @@ export function classifyReplay(replayRows, base, derivedNames, dropped = new Map
 // process table. curl, not fetch/urllib: the API's edge 403s unfamiliar TLS/UA
 // signatures, and a 403 that looks like an auth failure wastes an incident.
 async function fetchLive(sql) {
+  const env = liveEnv();
   let tok;
-  try { tok = (await readFile(join(homedir(), '.supabase-token'), 'utf8')).trim(); }
+  try { tok = env.token(); }
   catch {
-    throw harness('no Supabase token at ~/.supabase-token, so the live half cannot run.\n'
+    throw harness(`no Supabase token file for ${env.name}, so the live half cannot run.\n`
       + '  Use the two-step path instead — it needs no credential in this process:\n'
       + '    node tests/live-hash-drift.mjs --live-sql   > q.sql   (run it read-only)\n'
       + '    node tests/live-hash-drift.mjs --live-compare result.json');
@@ -923,7 +963,7 @@ async function fetchLive(sql) {
   try {
     await writeFile(body, JSON.stringify({ query: sql }));
     await writeFile(cfg,
-      `url = "https://api.supabase.com/v1/projects/${PROJECT}/database/query"\n`
+      `url = "${env.db}"\n`
       + 'request = "POST"\n'
       + `header = "Authorization: Bearer ${tok}"\n`
       + 'header = "Content-Type: application/json"\n'
@@ -1278,6 +1318,37 @@ function selftestCases(base) {
       const out = [...liveRows, { sig: DEAD_SIG, body_md5: 'f'.repeat(32), norm_len: 50, mojibake: false }];
       return out.map((r) => (r.sig === '__census__' ? { ...r, norm_len: out.length - 1 } : r));
     },
+  };
+
+  /* ── STAGING IS GRADED AGAINST THE REPLAY (beliefFor, lane/a-staging) ─────
+     A staging project is built from this repo's chain and rehearses a migration
+     before production gets it. Its belief is the baseline's `replay` side. */
+  const withStaged = () => { const b = clone(base); b.functions.push(clone(STAGED)); return b; };
+  const stagedRow = { sig: STAGED.sig, body_md5: STAGED.replay.md5, norm_len: 64, mojibake: false };
+  const counted = (out) => out.map((r) => (r.sig === '__census__' ? { ...r, norm_len: out.length - 1 } : r));
+  cases.staging_matches_the_chain = {
+    what: 'a staging database carrying exactly what the chain builds (a staged file included, and the replay\'s '
+        + 'body wherever production\'s differs by a comment) must produce NO finding',
+    side: 'live',
+    expectNone: true,
+    base: () => beliefFor('staging', withStaged()),
+    rows: () => counted([...repRows, stagedRow]),
+  };
+  cases.staging_missed_a_staged_file = {
+    what: 'a migration the repo holds as staged was NOT applied to staging: the rehearsal never happened, and '
+        + 'graded as production (where a staged body is expected absent) that would read green',
+    side: 'live',
+    expect: `live-missing ${STAGED.sig}`,
+    base: () => beliefFor('staging', withStaged()),
+    rows: () => repRows,
+  };
+  cases.staging_changed_by_hand = {
+    what: 'a staging body is not the one the chain builds (a hand edit, or a file applied from another revision): '
+        + 'what was rehearsed is not what will ship',
+    side: 'live',
+    expect: `live ${pinned.sig}`,
+    base: () => beliefFor('staging', base),
+    rows: () => repRows.map((r) => (r.sig === pinned.sig ? { ...r, body_md5: '0'.repeat(32) } : r)),
   };
 
   return { cases, liveRows, repRows, names };
@@ -1859,6 +1930,13 @@ async function main() {
     return;
   }
   const cdAt = argv.indexOf('--codediff');
+  /* The baseline is PRODUCTION's deploy record: neither mode that reads or rewrites it may be aimed at staging. */
+  const readsLive = cdAt !== -1 || (argv.includes('--write') && !argv.includes('--no-live'));
+  if (readsLive && liveEnv().name !== 'production') {
+    throw harness(`${liveEnv().banner} --write and --codediff record and explain PRODUCTION's bodies; they never run against staging. `
+      + 'Grade staging with  node tests/live-hash-drift.mjs --live --env staging');
+  }
+  if (readsLive) console.log(liveEnv().banner);
   if (cdAt !== -1) { await codeDiff(argv[cdAt + 1] && !argv[cdAt + 1].startsWith('--') ? argv[cdAt + 1] : null); return; }
   if (argv.includes('--selftest')) { await selftest(); return; }
   if (argv.includes('--mutate')) { await mutate(); return; }
@@ -1871,18 +1949,32 @@ async function main() {
 
   const cmpAt = argv.indexOf('--live-compare');
   if (cmpAt !== -1 || argv.includes('--live')) {
-    const base = await loadBaseline();
+    const env = liveEnv();
+    console.log(env.banner);
+    const base = beliefFor(env.name, await loadBaseline());
     const trackedLive = await sweep();
     let rows;
     if (cmpAt !== -1) {
       const file = argv[cmpAt + 1];
-      if (!file) throw harness('--live-compare needs the JSON produced by running --live-sql on production');
+      if (!file) throw harness('--live-compare needs the JSON produced by running --live-sql on the project');
       rows = readRows(JSON.parse(await readFile(file, 'utf8')));
     } else {
       rows = readRows(await fetchLive(bodyQuery([...trackedLive.keys()])));
     }
     censusOk(rows, 'live');
     const { findings, checked } = classifyLive(rows, base, droppedIn(trackedLive));
+    if (env.name === 'staging') {
+      console.log(`live-hash-drift: ${checked} tracked bodies compared against STAGING (belief: what the repo chain rebuilds to).`);
+      if (!findings.length) {
+        console.log('OK — staging carries exactly the bodies this checkout\'s chain builds.');
+        return;
+      }
+      report(findings, 'RED ');
+      console.error(`\n${findings.length} divergence(s) between staging and the chain. A file was not applied to staging,`);
+      console.error('was applied from another revision, or staging was changed by hand. Apply the missing file with');
+      console.error('--env staging, or rebuild staging (tools/staging-bootstrap.local.mjs). Never re-baseline for staging.');
+      process.exit(1);
+    }
     console.log(`live-hash-drift: ${checked} tracked bodies compared against production `
       + `(baseline measured ${base.live_measured}).`);
     if (!findings.length) {

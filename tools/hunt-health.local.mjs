@@ -1,34 +1,22 @@
-// tools/hunt-health.local.mjs — the live server's view of every open hunt, read-only, one screen.
+// tools/hunt-health.local.mjs — one server's view of every open hunt, read-only, one screen.
 //
 //   node tools/hunt-health.local.mjs            open hunts, settle lag, rate counters, today's refusals
 //   node tools/hunt-health.local.mjs --watch 15 re-read every 15 s (Ctrl+C stops)
 //   node tools/hunt-health.local.mjs --all      every open hunt, not just the alarms and the 12 most behind
+//   node tools/hunt-health.local.mjs --env staging   the staging project (default: production; tools/lib/env.mjs)
 //   Also prints the server's pulse (tools/lib/server-pulse.mjs): disk, connections, the tick, its edge answers, retention, frames.
 //
-// SELECT-only through the Management API with ~/.supabase-token (read as bytes, never printed),
-// inside a READ ONLY transaction. Lag verdicts: tools/lib/hunt-lag.mjs (FREEZING = a WATCHED hunt past the
+// The first line printed is the project. SELECT-only through the Management API with the env's token file
+// (read as bytes, never printed), inside a READ ONLY transaction. Lag verdicts: tools/lib/hunt-lag.mjs (FREEZING = a WATCHED hunt past the
 // 32 s look-ahead; STALLED = past the tick's own flush; an unwatched hunt's 0-100 s sawtooth is by design).
 // Local tool, not in CI.
 import { readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { isMain } from '../tests/_is-main.mjs';
 import { lagVerdict, WATCHED_SQL, watchedOf } from './lib/hunt-lag.mjs';
 import { pulseLines } from './lib/server-pulse.mjs';
+import { resolveEnv, runTool, scrub, API } from './lib/env.mjs';
 
 const SHOWN = 12;
-const REF = 'nezapsylztqbbwuwembx';
-const tok = readFileSync(join(homedir(), '.supabase-token'), 'utf8').trim();
-const at = process.argv.indexOf('--watch');
-const watchS = at >= 0 ? Math.max(5, Number(process.argv[at + 1]) || 15) : 0;
-
-async function q(sql) {
-  if (!/^\s*(select|with)\b/i.test(sql) || /\b(insert|update|delete|drop|alter|create|grant|truncate|call)\b/i.test(sql)) throw new Error('read-only queries only');
-  const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
-    method: 'POST', headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: 'begin read only; ' + sql + ';', read_only: true }) });
-  if (!r.ok) throw new Error('database answered ' + r.status + ' ' + (await r.text()).slice(0, 120));
-  return r.json();
-}
 
 const HUNTS = `select left(i.id::text, 8) inst, i.hunt_id, i.kind, count(*) heroes,
   string_agg(left(s.user_id::text, 8) || ':' || s.slot || (case when s.leave_at is not null then ' leaving' else '' end), ' ', ) who,
@@ -66,10 +54,35 @@ const PULSE_BUSY = "select sum(total_exec_time) ms, extract(epoch from clock_tim
 const BUSY_WINDOW_MS = 3000;
 /* The edge's own answers to everyone (browser and tick), from its logs: 10 minutes, bounded so a slow logs read costs a line, never the screen. */
 const PULSE_EDGE_SQL = "select count() as n, countIf(toInt32OrZero(log_attributes['response.status_code']) >= 500) as e5xx from logs where source = 'function_edge_logs' and log_attributes['request.pathname'] = '/functions/v1/hr-accrue'";
+
+/**
+ * @param {string[]} argv
+ * @param {object} [deps]  { fetch, read, home, log, err, busyWindowMs }: injectable (tests/tool-env.mjs)
+ * @returns {Promise<number>} the first read's exit code (a --watch keeps reading after it)
+ */
+export async function main(argv, deps = {}) {
+const log = deps.log || console.log;
+const err = deps.err || console.error;
+const fetchImpl = deps.fetch || fetch;
+const env = resolveEnv({ argv, write: false, home: deps.home, read: deps.read || ((p) => readFileSync(p, 'utf8')) });
+const REF = env.ref;
+const at = argv.indexOf('--watch');
+const watchS = at >= 0 ? Math.max(5, Number(argv[at + 1]) || 15) : 0;
+const busyMs = deps.busyWindowMs === undefined ? BUSY_WINDOW_MS : deps.busyWindowMs;
+
+async function q(sql) {
+  if (!/^\s*(select|with)\b/i.test(sql) || /\b(insert|update|delete|drop|alter|create|grant|truncate|call)\b/i.test(sql)) throw new Error('read-only queries only');
+  const r = await fetchImpl(env.db, {
+    method: 'POST', headers: { Authorization: 'Bearer ' + env.token(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: 'begin read only; ' + sql + ';', read_only: true }) });
+  if (!r.ok) throw new Error('database answered ' + r.status + ' ' + scrub(await r.text(), env).slice(0, 120));
+  return r.json();
+}
+
 async function edgeAnswers() {
   const end = new Date();
   const qs = new URLSearchParams({ sql: PULSE_EDGE_SQL, iso_timestamp_start: new Date(end.getTime() - 600000).toISOString(), iso_timestamp_end: end.toISOString() });
-  const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/analytics/endpoints/logs?${qs}`, { headers: { Authorization: 'Bearer ' + tok }, signal: AbortSignal.timeout(4000) });
+  const r = await fetchImpl(`${API}/v1/projects/${REF}/analytics/endpoints/logs?${qs}`, { headers: { Authorization: 'Bearer ' + env.token() }, signal: AbortSignal.timeout(4000) });
   const j = await r.json();
   return (j.result || [])[0] || {};
 }
@@ -77,11 +90,11 @@ async function edgeAnswers() {
 async function pulse(hunts, stalled) {
   const [b0] = await q(PULSE_BUSY);
   const [[d], [t], [n], [f], [c], logs] = await Promise.all([q(PULSE_DB), q(PULSE_TICK), q(PULSE_NET), q(PULSE_FRAMES), q(PULSE_CRON), edgeAnswers().catch(() => ({})),
-    new Promise((res) => setTimeout(res, BUSY_WINDOW_MS))]);
+    new Promise((res) => setTimeout(res, busyMs))]);
   const [b1] = await q(PULSE_BUSY);
   const dbMsPerS = (Number(b1.ms) - Number(b0.ms)) / Math.max(0.5, Number(b1.at_s) - Number(b0.at_s));
   /* The filesystem's own numbers: WAL and the slot's reserve live on this disk too (902 MB used for a 288 MB database, 11-02). */
-  const util = await fetch(`https://api.supabase.com/v1/projects/${REF}/config/disk/util`, { headers: { Authorization: 'Bearer ' + tok } }).then((r) => r.json()).catch(() => null);
+  const util = await fetchImpl(`${API}/v1/projects/${REF}/config/disk/util`, { headers: { Authorization: 'Bearer ' + env.token() } }).then((r) => r.json()).catch(() => null);
   const fs = (util && util.metrics) || {};
   return pulseLines({ dbBytes: d.db_bytes, dbBytes24h: d.db_bytes_24h, fsUsedBytes: fs.fs_used_bytes, diskBytes: fs.fs_size_bytes, conns: d.conns, maxConns: d.max_conns, engineConns: d.engine_conns, engineCap: d.engine_cap,
     active: d.active, peakConns: d.peak_conns, ledgerRows24h: d.ledger_rows_24h, tickLastS: t.last_s, fires10m: t.fires, edgePosts10m: n.posts, edge5xx10m: n.e5xx, edgeTimedOut10m: n.timed_out,
@@ -92,8 +105,8 @@ async function once() {
   const [hunts, rate, refused, watchedRows, tick] = await Promise.all([q(HUNTS), q(RATE), q(REFUSED), q(WATCHED_SQL), q(TICK)]);
   const watched = watchedOf(watchedRows);
   const cfg = { flushS: Number((tick[0] || {}).flush_seconds) || 90, cadenceS: Number((tick[0] || {}).cadence_seconds) || 10 };
-  console.log(`\nHunt health at ${new Date().toLocaleTimeString()}`);
-  if (!hunts.length) console.log('  no open hunts');
+  log(`${env.banner}\nHunt health at ${new Date().toLocaleTimeString()}`);
+  if (!hunts.length) log('  no open hunts');
   /* One screen at a beta's 50+ open hunts: every alarm, then the most behind up to SHOWN (--all: every one). */
   const lines = hunts.map((h) => {
     const seats = (Array.isArray(h.seats) ? h.seats : String(h.seats || '').replace(/[{}]/g, '').split(',')).map((x) => [x.slice(0, x.lastIndexOf(':')), x.slice(x.lastIndexOf(':') + 1)]);
@@ -103,14 +116,20 @@ async function once() {
   });
   const alarms = lines.filter((l) => l.code !== 'ok');
   const rest = lines.filter((l) => l.code === 'ok');
-  const shown = process.argv.includes('--all') ? lines : [...alarms, ...rest.slice(0, Math.max(0, SHOWN - alarms.length))];
-  for (const l of shown) console.log(l.text);
-  if (shown.length < lines.length) console.log(`  ... and ${lines.length - shown.length} more, all ok (--all lists them)`);
-  try { for (const l of await pulse(hunts, lines.filter((x) => x.code === 'STALLED').length)) console.log(l); } catch (e) { console.log('Server pulse unreadable << ' + e.message); }
-  console.log('Rate counters, last 2 min: ' + (rate.length ? rate.map((r) => `${r.u} ${r.bucket}=${r.n}`).join(' · ') : 'none'));
-  console.log('Refusals today: ' + (refused.length ? '' : 'none'));
-  for (const r of refused) console.log(`  ${r.u} ${r.code} (${r.intent}) ×${r.n}, last ${String(r.last).slice(11, 19)}`);
+  const shown = argv.includes('--all') ? lines : [...alarms, ...rest.slice(0, Math.max(0, SHOWN - alarms.length))];
+  for (const l of shown) log(l.text);
+  if (shown.length < lines.length) log(`  ... and ${lines.length - shown.length} more, all ok (--all lists them)`);
+  try { for (const l of await pulse(hunts, lines.filter((x) => x.code === 'STALLED').length)) log(l); } catch (e) { log('Server pulse unreadable << ' + e.message); }
+  log('Rate counters, last 2 min: ' + (rate.length ? rate.map((r) => `${r.u} ${r.bucket}=${r.n}`).join(' · ') : 'none'));
+  log('Refusals today: ' + (refused.length ? '' : 'none'));
+  for (const r of refused) log(`  ${r.u} ${r.code} (${r.intent}) ×${r.n}, last ${String(r.last).slice(11, 19)}`);
 }
 
-await once().catch((e) => { console.error('hunt-health:', e.message); process.exitCode = 1; });
-if (watchS) setInterval(() => once().catch((e) => console.error('hunt-health:', e.message)), watchS * 1000);
+let code = 0;
+await once().catch((e) => { err(env.banner + '\nhunt-health: ' + e.message); code = 1; });
+/* a run under a test's fake fetch reads once */
+if (watchS && !deps.fetch) setInterval(() => once().catch((e) => err('hunt-health: ' + e.message)), watchS * 1000);
+return code;
+}
+
+if (isMain(import.meta.url)) process.exitCode = await runTool(main, process.argv.slice(2));

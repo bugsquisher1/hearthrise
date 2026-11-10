@@ -373,7 +373,7 @@ function rewriteServed(rel, text, origin) {
   }
   if (rel === 'play.html') {
     must(/<link href="https:\/\/fonts\.googleapis\.com[^>]*>/, '');
-    must(/https:\/\/[a-z0-9]+\.supabase\.co wss:\/\/[a-z0-9]+\.supabase\.co /, '');   // the page's own CSP now refuses production too, in any browser
+    must(/(?:https:\/\/[a-z0-9]+\.supabase\.co wss:\/\/[a-z0-9]+\.supabase\.co )+/, '');   // the page's own CSP now refuses production (and a wired staging project) too, in any browser
   }
   if (text.includes(PRODUCTION_REF)) throw new Error('local-world: ' + rel + ' still names production after its rewrite');
   return text;

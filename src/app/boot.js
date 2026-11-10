@@ -68,6 +68,7 @@ import { mountLauncherNames } from '../shell/launcher-names.js?v=0.2.114';
 import { connection, mountConnectionLine } from '../net/connection.js?v=0.2.114';
 import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.114';
 import { mountNewVersion } from './new-version.js?v=0.2.114';
+import { mountStagingMark, renderNoServer } from './staging-mark.js?v=0.2.114';
 import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.114';
 import { coachFactsOf } from '../shell/launcher.js?v=0.2.114';
 
@@ -97,6 +98,10 @@ function startApp(win) {
   /* A touch-only screen of any size has no keys and no hover (app.css, shell.css :root.is-touch; a media query for it
      would be a new spelling, tests/breakpoint-guard.mjs). */
   doc.documentElement.classList.toggle('is-touch', win.matchMedia('(hover: none) and (pointer: coarse)').matches);
+  /* A STAGING SITE SAYS SO, and plays the staging project or nothing (src/net/supabase-bootstrap.js): a page whose origin has
+     no project stops here, before a client exists, so nothing it could send has anywhere to go. */
+  if (SUPABASE_CONFIG.env !== 'production') mountStagingMark(doc);
+  if (!SUPABASE_CONFIG.url) { renderNoServer(root); return { auth: null, account: () => null }; }
   const fresh = mountNewVersion(win);
   const HS = win.HearthriseStorage;
   const store = SESSION_CONFIG.authStore === 'tab' ? HS.session : HS;

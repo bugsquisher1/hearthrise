@@ -1470,4 +1470,6 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     if (msg.startsWith('config:')) return json({ ok: false, error: 'engine_unconfigured' }, 503);
     return json({ ok: false, error: 'server_error' }, 500);
   }
-}));
+/* The project this deployment runs on decides whether the staging site may read its answers (cors.js
+   stagingOriginsFor): never on production. */
+}, { projectUrl: SUPABASE_URL }));

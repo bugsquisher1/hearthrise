@@ -90,6 +90,27 @@ export const ALLOWED_ORIGINS = [
   'https://bugsquisher1.github.io',
 ];
 
+/* ── THE STAGING SITE, ON THE STAGING FUNCTION ONLY (lane/a-staging) ─────────
+   The same packed bytes run on both projects (one payload hash: what staging
+   ran is what production gets), so "staging only" cannot be a different build.
+   It is a property of WHERE the function runs: the platform hands every Edge
+   Function its own project's URL (SUPABASE_URL, which index.ts already reads
+   for the JWKS), and the staging site is admitted only when that URL is some
+   project other than production's. On production the list is empty whatever
+   anyone sets, and with no URL at all it is empty too (fail closed).
+   Kept identical to STAGING_ORIGINS in src/net/supabase-bootstrap.js —
+   asserted by tests/staging-origin.mjs. */
+export const STAGING_ORIGINS = ['https://staging.hearthrise.net'];
+const PRODUCTION_PROJECT_URL = 'https://nezapsylztqbbwuwembx.supabase.co';
+const PROJECT_URL_RE = /^https:\/\/[a-z]{20}\.supabase\.co$/;
+
+/** The extra origins the function running at `projectUrl` admits: the staging site, off production only. Pure. */
+export function stagingOriginsFor(projectUrl) {
+  const url = String(projectUrl || '').replace(/\/+$/, '');
+  if (!PROJECT_URL_RE.test(url) || url === PRODUCTION_PROJECT_URL) return [];
+  return STAGING_ORIGINS.slice();
+}
+
 /* Local development, any port, http or https. Same intent as the sibling's
    regex, widened to https because a service worker / secure-context test server
    is served over TLS on localhost. */
@@ -109,9 +130,10 @@ const BASE_ALLOWED_HEADERS = [
 const HEADER_TOKEN_RE = /^[a-z0-9!#$%&'*+.^_`|~-]{1,64}$/;
 const MAX_ECHOED_HEADERS = 32;
 
-export function isAllowedOrigin(origin) {
+/** `extra`: the origins this deployment admits on top (stagingOriginsFor); exact matches only. */
+export function isAllowedOrigin(origin, extra = []) {
   if (!origin || typeof origin !== 'string') return false;
-  return ALLOWED_ORIGINS.includes(origin) || LOCAL_ORIGIN_RE.test(origin);
+  return ALLOWED_ORIGINS.includes(origin) || LOCAL_ORIGIN_RE.test(origin) || extra.includes(origin);
 }
 
 export function allowedHeadersFor(requested) {
@@ -134,33 +156,34 @@ export function allowedHeadersFor(requested) {
  * bearer token, never a cookie, so there is deliberately no ambient-credential
  * surface to protect.
  */
-export function corsHeaders(origin, requestedHeaders) {
+export function corsHeaders(origin, requestedHeaders, extra = []) {
   const h = {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': allowedHeadersFor(requestedHeaders),
     'Access-Control-Max-Age': '3600',
     'Vary': 'Origin, Access-Control-Request-Headers',
   };
-  if (isAllowedOrigin(origin)) h['Access-Control-Allow-Origin'] = origin;
+  if (isAllowedOrigin(origin, extra)) h['Access-Control-Allow-Origin'] = origin;
   return h;
 }
 
 /** 204, empty body, no state read. See "WHAT ANSWERING A PREFLIGHT MAY NOT BECOME". */
-export function preflightResponse(req) {
+export function preflightResponse(req, extra = []) {
   return new Response(null, {
     status: 204,
     headers: corsHeaders(
       req.headers.get('origin'),
       req.headers.get('access-control-request-headers'),
+      extra,
     ),
   });
 }
 
 /** Copy a response, adding the CORS headers. Never drops what the handler set
     (a 429's `Retry-After` is the one that matters). */
-export function withCorsHeaders(res, origin, requestedHeaders) {
+export function withCorsHeaders(res, origin, requestedHeaders, extra = []) {
   const headers = new Headers(res.headers);
-  for (const [k, v] of Object.entries(corsHeaders(origin, requestedHeaders))) headers.set(k, v);
+  for (const [k, v] of Object.entries(corsHeaders(origin, requestedHeaders, extra))) headers.set(k, v);
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
 }
 
@@ -171,13 +194,18 @@ export function withCorsHeaders(res, origin, requestedHeaders) {
  * them reads to the browser as a CORS failure and hides the real status — which
  * is how an outage becomes unattributable. index.ts already catches its own
  * errors; this is the second lock, not the first.
+ *
+ * `o.projectUrl` is the project this deployment runs on (the platform's
+ * SUPABASE_URL): it decides, once, whether the staging site is admitted
+ * (stagingOriginsFor). Left out, only the game's own origins are.
  */
-export function withCors(handler) {
+export function withCors(handler, o = {}) {
+  const extra = stagingOriginsFor(o.projectUrl);
   return async (req) => {
     const origin = req.headers.get('origin');
     const asked = req.headers.get('access-control-request-headers');
 
-    if (req.method === 'OPTIONS') return preflightResponse(req);
+    if (req.method === 'OPTIONS') return preflightResponse(req, extra);
 
     let res;
     try {
@@ -190,6 +218,6 @@ export function withCors(handler) {
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    return withCorsHeaders(res, origin, asked);
+    return withCorsHeaders(res, origin, asked, extra);
   };
 }

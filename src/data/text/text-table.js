@@ -19,6 +19,7 @@ import { MONSTER_TEXT } from './monster.js?v=0.2.114';
 import { PREP_TEXT } from './prep.js?v=0.2.114';
 import { SHOP_TEXT } from './shop.js?v=0.2.114';
 import { SLOTS_TEXT } from './slots.js?v=0.2.114';
+import { STAGING_TEXT } from './staging.js?v=0.2.114';
 import { TEMPER_TEXT } from './temper.js?v=0.2.114';
 
 export const TEXT = Object.freeze({
@@ -33,5 +34,6 @@ export const TEXT = Object.freeze({
   prep: PREP_TEXT,
   shop: SHOP_TEXT,
   slots: SLOTS_TEXT,
+  staging: STAGING_TEXT,
   temper: TEMPER_TEXT,
 });

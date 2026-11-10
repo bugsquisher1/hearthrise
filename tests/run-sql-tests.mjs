@@ -671,6 +671,17 @@ const ALSO_LINTED = [
   /* THE RATE REFUSALS RECORDED (lane/c-server-debt, 2026-11-10): hr_rate_refused (server-only) and the 25 verbs
      restated with it, so PART 1c-iii judges the bodies the chain ends with (DISCOVERIES 2026-11-10 row 2). */
   '2027-04-02-rate-refusals-recorded.sql',
+  /* THE DEAD DOORS (lane/c-server-debt, 2026-11-10): link 24 of HR_GRANT_HYGIENE_CHAIN (two engine entries out), three client
+     doors dropped, and the service_role revoke that closes the lint's own P4 finding. */
+  '2027-04-02-dead-doors.sql',
+  /* The lane's other files that state a public function (each revoked from PUBLIC in-file or restated in place): the town's
+     walk mask and its hr_town_move (the LAST statement of that body, so PART 1c-iii judges its recorder line here), the
+     residue allowlist, and the Level XP ceiling's hr_hunt_apply_member. */
+  '2027-04-02-town-walk-mask.generated.sql',
+  '2027-04-02-town-walk-mask.sql',
+  '2027-04-02-residue-fields.generated.sql',
+  '2027-04-02-residue-allowlist.sql',
+  '2027-04-02-level-xp-ceiling.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -1041,8 +1052,12 @@ const HR_GRANT_HYGIENE_CHAIN = [
   // c_engine_allow, so its declared-removals list stays EMPTY. Its base is link 21's TARGET.
   '2027-02-10-settle-reads.sql',
   // link 23 (lane/c-gm-tools) — the Game Master's stop: two engine entries, INSERTED at the head of c_engine_allow, so
-  // its declared-removals list stays EMPTY. Its base is link 22's TARGET. It is the new last toucher.
+  // its declared-removals list stays EMPTY. Its base is link 22's TARGET.
   '2027-03-13-gm-tools.sql',
+  // link 24 (lane/c-server-debt) — two engine doors closed: hr_dungeon_settle and hr_quartermaster_buy leave
+  // c_engine_allow with their claims (dungeons paused, no edge caller). TWO REMOVALS, every line declared below.
+  // Its base is link 23's TARGET. It is the new last toucher.
+  '2027-04-02-dead-doors.sql',
 ];
 
 const HR_RATE_GATE_CHAIN = [
@@ -1103,12 +1118,19 @@ const SQL_MUTANTS = [
     from: "from public, anon, service_role', f);",
     to: "from anon, service_role', f);",
     expect: 'hr_inspect() is created but never revoked from PUBLIC' },
-  { name: 'a second function is granted to service_role',
+  /* (planted on hr_buy_hero_slot__ungated since 2026-11-10: 2027-04-02-dead-doors.sql DROPS hr_trait_buy__ungated, and a grant a
+     later file takes back is no finding) */
+  { name: 'a function is granted to service_role',
     file: 'supabase/migrations/2026-12-15-account-gold.sql',
-    from: 'revoke all on function public.hr_trait_buy__ungated(text, integer, uuid) from public, anon, authenticated, service_role;',
-    to: 'revoke all on function public.hr_trait_buy__ungated(text, integer, uuid) from public, anon, authenticated;\n'
-      + 'grant execute on function public.hr_trait_buy__ungated(text, integer, uuid) to service_role;',
-    expect: 'hr_trait_buy__ungated() granted to service_role' },
+    from: 'revoke all on function public.hr_buy_hero_slot__ungated(integer, integer, uuid) from public, anon, authenticated, service_role;',
+    to: 'revoke all on function public.hr_buy_hero_slot__ungated(integer, integer, uuid) from public, anon, authenticated;\n'
+      + 'grant execute on function public.hr_buy_hero_slot__ungated(integer, integer, uuid) to service_role;',
+    expect: 'hr_buy_hero_slot__ungated() granted to service_role' },
+  { name: 'the later file stops taking a grant back, so the old one stands again',
+    file: 'supabase/migrations/2027-04-02-dead-doors.sql',
+    from: 'revoke all on function public.clan_contribute__ungated(uuid, bigint, integer) from public, anon, authenticated, service_role;',
+    to: '',
+    expect: '2026-12-15-account-gold.sql: clan_contribute__ungated() granted to service_role' },
   { name: 'a Game Master verb rate-limits before the Game Master check',
     file: 'supabase/migrations/2027-03-13-gm-tools.sql',
     from: "v_no := public.hr_gm_open(v_uid, 'online', null, null, null, null);",
@@ -1141,10 +1163,10 @@ const SQL_MUTANTS = [
     from: 'CREATE OR REPLACE FUNCTION public.hr_inspect(p_target text, p_slot integer)',
     to: 'CREATE OR REPLACE FUNCTION public.hr_inspect_two(p_target text, p_slot integer)',
     expect: '2026-10-27-core-bodies.sql: hr_inspect() refuses \'inspect\' as rate_limited without hr_record_rejection (C2)' },
-  { name: 'a pinned finding is fixed and still pinned',
-    file: 'supabase/migrations/2026-12-15-account-gold.sql',
-    from: 'grant execute on function public.clan_contribute__ungated(uuid, bigint, integer) to service_role;',
-    to: '',
+  /* OPEN_SERVER_FINDINGS is EMPTY since 2026-11-10 (both findings fixed by 2027-04-02 files), so the stale-pin check is proven
+     with a PLANTED pin: a key whose finding a later file fixed must fail the run, not sit there for the next defect to hide under. */
+  { name: 'a pin stands with no finding under it',
+    pin: 'service_role|2026-12-15-account-gold.sql|clan_contribute__ungated',
     expect: 'OPEN_SERVER_FINDINGS pins "service_role|2026-12-15-account-gold.sql|clan_contribute__ungated"' },
   { name: 'hr_apply loses a line nobody declared',
     file: 'supabase/migrations/2026-10-27-core-bodies.sql',
@@ -1202,14 +1224,13 @@ if (process.argv.includes('--selftest')) {
 // build; anything else of the same shape still fails, and a key whose finding is
 // gone fails as stale, so the list can only shrink. Filed in
 // .claude/coordination/DISCOVERIES.md (2026-11-10).
-/* The ten `unrecorded|…` pins (a rate-limited chat, whisper, inspect or town-walk call wrote no hr_rejections row) left
-   on 2026-11-10: 2027-04-02-rate-refusals-recorded.sql restates those bodies with the recorder, and PART 1c-iii judges
-   the statement the chain ends with. */
+/* EMPTY SINCE 2026-11-10 (lane/c-server-debt). The ten `unrecorded|…` pins (a rate-limited chat, whisper, inspect or
+   town-walk call wrote no hr_rejections row) left with 2027-04-02-rate-refusals-recorded.sql, which restates those bodies
+   with the recorder (PART 1c-iii judges the statement the chain ends with). The `service_role|…|clan_contribute__ungated`
+   pin left with 2027-04-02-dead-doors.sql, which revokes that grant (a grant a later file takes back is no finding).
+   The mechanism stays for the next real finding; --selftest plants a pin to prove a stale one still fails. */
 const OPEN_SERVER_FINDINGS = new Map([
-  ['service_role|2026-12-15-account-gold.sql|clan_contribute__ungated',
-    'restates the ACL 2026-08-27-clan-economy-sinks.sql left (revoked from public, anon, authenticated; never from '
-    + 'service_role). The clan doors are closed and service_role is the server key, so nothing a player holds reaches '
-    + 'it. Owner: security-engineer, for the Early Access review; P4'],
+  ...(ACTIVE_MUTANT && ACTIVE_MUTANT.pin ? [[ACTIVE_MUTANT.pin, 'planted by --selftest']] : []),
 ]);
 const findingsSeen = new Set();
 const openFinding = (key, msg) => {
@@ -1618,7 +1639,14 @@ for (const [file, sql] of code) {
       .flatMap((m) => m[1].split(',').map((s) => s.trim()));
     const allowed = CLIENT_CALLABLE.get(fn) || [];
     for (const g of grants) {
-      if (g === 'service_role' && !openFinding(`service_role|${file}|${fn}`, `${file}: ${fn}() granted to service_role`)) {
+      /* A grant a LATER linted file takes back is history, not a finding (the same judgement PART 1c-iii makes of a
+         restated body): 2027-04-02-dead-doors.sql revokes the one 2026-12-15-account-gold.sql restated. The later file
+         must name the function and service_role in a revoke (or drop the function); it is read in apply order. */
+      const takenBack = g === 'service_role' && [...code].some(([later, text]) => APPLY_ORDER.indexOf(later) > APPLY_ORDER.indexOf(file)
+        && APPLY_ORDER.indexOf(file) >= 0
+        && (new RegExp(`revoke\\s+(?:execute|all(?:\\s+privileges)?)\\s+on\\s+function\\s+public\\.${fn}\\s*\\([^)]*\\)\\s*from[^;]*\\bservice_role\\b`, 'i').test(text)
+            || new RegExp(`drop\\s+function\\s+(?:if\\s+exists\\s+)?public\\.${fn}\\s*\\(`, 'i').test(text)));
+      if (g === 'service_role' && !takenBack && !openFinding(`service_role|${file}|${fn}`, `${file}: ${fn}() granted to service_role`)) {
         fail(`${file}: ${fn}() granted to service_role`);
       }
       if ((g === 'anon' || g === 'authenticated') && !allowed.includes(g)) {
@@ -1791,7 +1819,9 @@ say('── rate-limit rejections are observable (C2) and sampled (S6)');
   /* (a) the recorder, wherever the linted files last state it */
   let recorderOk = false;
   {
-    const at = last.get('hr_rate_refused(uuid,integer,text,integer,interval)');
+    const keys = [...last.keys()].filter((k) => k.startsWith('hr_rate_refused('));
+    if (keys.length > 1) fail(`hr_rate_refused() is stated with ${keys.length} argument lists (${keys.join(' ; ')}): one recorder, one shape`);
+    const at = keys.length ? last.get(keys[0]) : null;
     const e = at && extents.get(at.file).find((x) => x.fn === 'hr_rate_refused' && x.start === at.start);
     const body = e ? code.get(at.file).slice(e.start, e.end) : '';
     recorderOk = /hr_rate_sample_weight\([\s\S]*\bif\s+[a-z_]+\s*>\s*0\s+then[\s\S]*hr_record_rejection\(/.test(body);
@@ -2380,6 +2410,57 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
     '2026-08-17-market-v2.sql': [
       '    -- writes, but only the "return the lapsed seller\'s own goods" path, capped at 200',
       "    'market_expire(integer)',",
+    ],
+
+    /* ── link 24 (lane/c-server-debt; architecture audit 2026-11-09 F8): two engine doors closed ──
+       hr_dungeon_settle's block (23 lines) and hr_quartermaster_buy's (20): each `ADDED` header, the claim
+       under it and the entry line. hr_engine's EXECUTE on both is revoked by the same file (dungeons are paused, no
+       hr-accrue file calls either). A five-line note stands where the first block was. Anything else this link drops
+       is a silent regression. */
+    '2027-04-02-dead-doors.sql': [
+      "    -- ── ADDED 2026-09-10 — THE DUNGEON SETTLE WRITER ───────────────────",
+      "    -- At the HEAD again, an INSERTION, for the same reason as links 1/2/5/6: it",
+      "    -- removes nothing, so PART 1f-ii grades this link with an EMPTY",
+      "    -- declared-removals list. Position carries no meaning — check (7) tests",
+      "    -- membership with `<> all (...)`.",
+      "    --",
+      "    -- ⚠ NOT READ-ONLY, and the claim rests on SELF-VALIDATING, re-derived. Its",
+      "    -- whole caller-supplied surface is: a character slot, a version, an",
+      "    -- idempotency uuid, a DUNGEON ID (a primary key in the generated,",
+      "    -- client-unwritable hr_dungeons), a MODE (auto|manual|scavenger), and a",
+      "    -- p_quality CLAMPED server-side to [0,1] that scales SELF-ONLY scrip and",
+      "    -- touches NO loot. No item, no qty, no chance, no price and no timestamp",
+      "    -- cross. Every number it writes comes from hr_dungeons / hr_dungeon_loot or",
+      "    -- the character's OWN row read under the SAME advisory lock hr_apply takes;",
+      "    -- loot is rolled by the server hr_seed PRNG (never a client value); the entry",
+      "    -- KEY is debited from the caller's own player_inventory (the load-bearing",
+      "    -- gate); the cooldown and the per-day scrip cap read now() and the",
+      "    -- append-only ledger. NO NEW TARGET: p_user is the parameter the engine",
+      "    -- already passes to hr_apply and hr_state_of. WHY THE ENGINE NEEDS IT:",
+      "    -- dungeon scrip + run loot are server-of-record (dungeon-settlement.md",
+      "    -- §1/§2) and NO other RPC writes player_state.dungeon_scrip, so without this",
+      "    -- the only writer of the currency is the client.",
+      "    'hr_dungeon_settle(uuid,integer,bigint,uuid,text,text,numeric)',",
+      "    -- ── ADDED 2026-09-11 — THE QUARTERMASTER SPEND WRITER ───────────────",
+      "    -- At the HEAD again, an INSERTION, for the same reason as links 1/2/5/6/8: it",
+      "    -- removes nothing, so PART 1f-ii grades this link with an EMPTY",
+      "    -- declared-removals list. Position carries no meaning — check (7) tests",
+      "    -- membership with `<> all (...)`.",
+      "    --",
+      "    -- ⚠ NOT READ-ONLY, and the claim rests on SELF-VALIDATING, re-derived. Its",
+      "    -- whole caller-supplied surface is: a character slot, a version, an",
+      "    -- idempotency uuid, and an OFFER ID (a primary key in the generated,",
+      "    -- client-unwritable hr_qm_offers). No item, no qty, no price and no scrip",
+      "    -- amount cross. The PRICE and the ITEM come from hr_qm_offers; the scrip",
+      "    -- balance is the character's OWN player_state row read under the SAME advisory",
+      "    -- lock hr_apply takes; the debit is bounded by that balance",
+      "    -- (insufficient_scrip). NO NEW TARGET: p_user is the parameter the engine",
+      "    -- already passes to hr_apply and hr_state_of. WHY THE ENGINE NEEDS IT:",
+      "    -- dungeon scrip is server-of-record and its SPEND (the Quartermaster) must be",
+      "    -- one server transaction with the item grant, or the b372 half-undo returns —",
+      "    -- and NO other RPC debits player_state.dungeon_scrip, so without this the only",
+      "    -- writer of the spend is the client.",
+      "    'hr_quartermaster_buy(uuid,integer,bigint,uuid,text)',",
     ],
   };
 

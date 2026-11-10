@@ -457,12 +457,13 @@ async function blessArm(db, { H, M }, attended) {
 // ═══════════════════════════════════════════════════════════════════════
 /* Each mutant: the file, its [find, replace], the arm that must go red. The file's own
    self-check is turned into an uncalled function so the defect reaches the arm. */
-/* hr_hunt_apply_member's LAST author is 2027-03-25-death-share.sql §2: restated WHOLE (tests/patch-chain-guard.mjs) on
-   2027-03-22-live-events.sql §5(b)'s restatement (v0.2.113: a death costs a share of the total Level XP), which followed
+/* hr_hunt_apply_member's LAST author is 2027-04-02-level-xp-ceiling.sql §2: restated WHOLE (tests/patch-chain-guard.mjs) on
+   2027-03-25-death-share.sql §2's restatement (five marked lines: ranked Level XP's ceiling by the hour and the day), which
+   followed 2027-03-22-live-events.sql §5(b)'s (v0.2.113: a death costs a share of the total Level XP), which followed
    2027-03-21-scaled-hunts.sql's on 2027-01-31-inner-flame.sql's restatement and 2027-03-12-boss-call.sql's splice.
    Each restatement pins its pre-image, so a plant in any earlier file trips a pin and the chain never boots: a memberPlant mutant is
    planted into the live body (plantLive), the text that runs. Shared with tests/settle-hooks.mjs. */
-export const MEMBER_LAST = '2027-03-25-death-share.sql';
+export const MEMBER_LAST = '2027-04-02-level-xp-ceiling.sql';
 /* A PATCH IS AN AUTHOR: hr_hunt_instance_read is restated last by 2027-02-27-hunt-tiers.sql and then spliced in place (anchored
    replaces of pg_get_functiondef) by 2027-03-21-scaled-hunts.sql and READ_PATCH_LAST, so its last author is a patch. */
 const READ_RESTATE_LAST = '2027-02-27-hunt-tiers.sql';

@@ -403,6 +403,16 @@ export const LINKS = [
     target: '2027-03-13-gm-tools.sql',
     patchIds: ['gm_stop'],
   },
+  /* Link 24 (lane/c-server-debt, 2026-11-10; architecture audit 2026-11-09 F8) — TWO ENGINE DOORS CLOSED. 2027-04-02-dead-doors.sql
+     revokes hr_engine's EXECUTE on hr_dungeon_settle and hr_quartermaster_buy (dungeons are paused, no hr-accrue file calls
+     either) and takes their two entries OUT of c_engine_allow, so a re-grant reads engine_execute_outside_allowlist until a
+     file adds the entry back with its claim re-derived. Two REMOVALS (the second since link 5's market_expire): every line
+     of both blocks is declared in tests/run-sql-tests.mjs PART 1f-ii. Its base is link 23's TARGET. It is the new last toucher. */
+  {
+    base: '2027-03-13-gm-tools.sql',
+    target: '2027-04-02-dead-doors.sql',
+    patchIds: ['drop_dungeon_settle', 'drop_quartermaster_buy'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -436,6 +446,23 @@ export function innerBody(block) {
    already authorised for." Both justifications below re-derive that claim
    rather than asserting it — see the migration header for the long form. */
 export const PATCHES = [
+  {
+    id: 'drop_dungeon_settle',
+    name: 'the hr_dungeon_settle allowlist entry and its claim (link 24)',
+    /* A REMOVAL: the engine holds no EXECUTE on it from 2027-04-02-dead-doors.sql on (dungeons are paused; no edge caller). Its lines are
+       declared removals for this link in tests/run-sql-tests.mjs PART 1f-ii; the note that replaces them says why. */
+    find: "    -- ── ADDED 2026-09-10 — THE DUNGEON SETTLE WRITER ───────────────────\n    -- At the HEAD again, an INSERTION, for the same reason as links 1/2/5/6: it\n    -- removes nothing, so PART 1f-ii grades this link with an EMPTY\n    -- declared-removals list. Position carries no meaning — check (7) tests\n    -- membership with `<> all (...)`.\n    --\n    -- ⚠ NOT READ-ONLY, and the claim rests on SELF-VALIDATING, re-derived. Its\n    -- whole caller-supplied surface is: a character slot, a version, an\n    -- idempotency uuid, a DUNGEON ID (a primary key in the generated,\n    -- client-unwritable hr_dungeons), a MODE (auto|manual|scavenger), and a\n    -- p_quality CLAMPED server-side to [0,1] that scales SELF-ONLY scrip and\n    -- touches NO loot. No item, no qty, no chance, no price and no timestamp\n    -- cross. Every number it writes comes from hr_dungeons / hr_dungeon_loot or\n    -- the character's OWN row read under the SAME advisory lock hr_apply takes;\n    -- loot is rolled by the server hr_seed PRNG (never a client value); the entry\n    -- KEY is debited from the caller's own player_inventory (the load-bearing\n    -- gate); the cooldown and the per-day scrip cap read now() and the\n    -- append-only ledger. NO NEW TARGET: p_user is the parameter the engine\n    -- already passes to hr_apply and hr_state_of. WHY THE ENGINE NEEDS IT:\n    -- dungeon scrip + run loot are server-of-record (dungeon-settlement.md\n    -- §1/§2) and NO other RPC writes player_state.dungeon_scrip, so without this\n    -- the only writer of the currency is the client.\n    'hr_dungeon_settle(uuid,integer,bigint,uuid,text,text,numeric)',\n",
+    add: "    -- ── REMOVED 2027-04-02 — hr_dungeon_settle AND hr_quartermaster_buy (lane/c-server-debt; audit 2026-11-09 F8) ──\n    -- Dungeons are paused (Tyler 2026-10-14/15) and no hr-accrue file calls either. A value-writing function the engine\n    -- may run with no caller is a standing permission: 2027-04-02-dead-doors.sql revokes hr_engine's EXECUTE on both and\n    -- takes their entries out of this list, so a re-grant is refused by check (7) until a file adds the entry back with\n    -- its claim re-derived against the body of that day. The bodies stay (paused, not cut).\n",
+    where: 'replace',
+  },
+  {
+    id: 'drop_quartermaster_buy',
+    name: 'the hr_quartermaster_buy allowlist entry and its claim (link 24)',
+    /* A REMOVAL, the same file and reason: the scrip spend has no caller while dungeons are paused. */
+    find: "    -- ── ADDED 2026-09-11 — THE QUARTERMASTER SPEND WRITER ───────────────\n    -- At the HEAD again, an INSERTION, for the same reason as links 1/2/5/6/8: it\n    -- removes nothing, so PART 1f-ii grades this link with an EMPTY\n    -- declared-removals list. Position carries no meaning — check (7) tests\n    -- membership with `<> all (...)`.\n    --\n    -- ⚠ NOT READ-ONLY, and the claim rests on SELF-VALIDATING, re-derived. Its\n    -- whole caller-supplied surface is: a character slot, a version, an\n    -- idempotency uuid, and an OFFER ID (a primary key in the generated,\n    -- client-unwritable hr_qm_offers). No item, no qty, no price and no scrip\n    -- amount cross. The PRICE and the ITEM come from hr_qm_offers; the scrip\n    -- balance is the character's OWN player_state row read under the SAME advisory\n    -- lock hr_apply takes; the debit is bounded by that balance\n    -- (insufficient_scrip). NO NEW TARGET: p_user is the parameter the engine\n    -- already passes to hr_apply and hr_state_of. WHY THE ENGINE NEEDS IT:\n    -- dungeon scrip is server-of-record and its SPEND (the Quartermaster) must be\n    -- one server transaction with the item grant, or the b372 half-undo returns —\n    -- and NO other RPC debits player_state.dungeon_scrip, so without this the only\n    -- writer of the spend is the client.\n    'hr_quartermaster_buy(uuid,integer,bigint,uuid,text)',\n",
+    add: '',
+    where: 'replace',
+  },
   {
     id: 'gm_stop',
     name: 'the c_engine_allow array head (link 23)',

@@ -143,11 +143,3 @@ export function costLine(a, ctx) {
   return s ? t('bar.cost_line', { parts: supplyPart(s.name, s.source, s.have, s.price, s.shot) }) : '';
 }
 
-/** Which numbers a cast's facts are for: "Numbers for the Scored Fire Rune at Magic 20." ('' for a row that never changes). */
-export function versionWords(k) {
-  if (!k || !(k.row.rune || Number.isInteger(k.row.lvPm))) return '';
-  const vars = { skill: skillName(k.skill), level: k.level === null ? 1 : k.level };
-  if (!k.row.rune) return t('bar.numbers_at', vars);
-  const name = k.rune && k.rune.source !== 'none' ? k.rune.name : itemName(k.row.rune);
-  return t('bar.numbers_for', Object.assign(vars, { rune: name }));
-}

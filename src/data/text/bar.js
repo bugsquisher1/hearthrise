@@ -91,9 +91,6 @@ export const BAR_TEXT = Object.freeze({
   out_dmg: '{lo}–{hi} damage',
   out_heal: 'heals {lo}–{hi}',
   out_shield: 'shields {points}',
-  /* Which numbers a spell's lines are for (cast-facts.js versionWords). */
-  numbers_for: 'Numbers for the {rune} at {skill} {level}.',
-  numbers_at: 'Numbers at {skill} {level}.',
 
   /* A slot's setup, and what another slot does to it. */
   setup_any: 'Any of: {conditions}.',

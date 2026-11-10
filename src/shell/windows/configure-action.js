@@ -275,7 +275,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const named = shown && picked && keyOf(shown.action) === keyOf(picked.action) ? d.action : shown ? startSupply(shown.action, set.store) : null;
   const f = named ? factsOf(named, facts) : null;
   text(root.querySelector('.ca-src'), f && f.cost ? f.cost : '');
-  text(root.querySelector('.ca-eff'), f && named.type === 'ability' ? [f.type].concat(f.effect, [f.version]).filter(Boolean).join(' ') : effectLine(shown));
+  text(root.querySelector('.ca-eff'), f && named.type === 'ability' ? [f.type].concat(f.effect).filter(Boolean).join(' ') : effectLine(shown));
   text(root.querySelector('.ca-req'), f && f.requires ? f.requires : '');
   /* A rune spell's supply (configure-runes.js): the carried runes it may spend, then the rune shop or leaving the hunt. */
   patchRunes(root, d, { doc: ctx.doc, bag, store: set.store, skills: facts.skills, off });

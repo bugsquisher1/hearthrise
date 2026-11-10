@@ -30,7 +30,7 @@ import { itemName, abilityName, runeWords } from './widgets/bits.js?v=0.2.112';
 import { ownCount } from './rune-supply.js?v=0.2.112';
 import { shortOf } from './item-lore.js?v=0.2.112';
 import { storeOf, storeChoices, conditionWords } from './bar-draft.js?v=0.2.112';
-import { castOf, costLine, landed, versionWords } from './cast-facts.js?v=0.2.112';
+import { castOf, costLine, landed } from './cast-facts.js?v=0.2.112';
 import { listWords, whole } from '../render/format.js?v=0.2.112';
 import { t } from '../render/player-text.js?v=0.2.112';
 
@@ -128,7 +128,7 @@ function damageLine(r, pm) {
  * { bag, store, skills, set, worn }, all the server's; without them the numbers are version I's at level 1, as `version` says.
  */
 export function factsOf(a, ctx) {
-  const none = { type: null, cost: null, cooldown: null, numbers: [], effect: [], version: '', requires: null };
+  const none = { type: null, cost: null, cooldown: null, numbers: [], effect: [], requires: null };
   if (a.type === 'ability') {
     const k = castOf(a, ctx);
     if (!k) return none;
@@ -141,7 +141,7 @@ export function factsOf(a, ctx) {
     const effect = numbers.concat(r.status && STATUSES[r.status] ? [t('bar.effect_status', { status: STATUSES[r.status].name.toLowerCase() })] : []);
     /* (an ally shield is a ward, not a heal; the universal self-heal needs no particular weapon) */
     const type = r.target === 'ally' && r.shield ? t('bar.target_ward') : own(TARGET_LINE, r.target) ? t(TARGET_LINE[r.target]) : null;
-    return { type, cost: costLine(a, ctx), cooldown: t('bar.cooldown', { secs: secs(r.cdMs) }), numbers, effect, version: versionWords(k),
+    return { type, cost: costLine(a, ctx), cooldown: t('bar.cooldown', { secs: secs(r.cdMs) }), numbers, effect,
       requires: r.universal ? t('bar.requires_any') : t('bar.requires', { weapons: weaponsFor(r.disciplines[0]) }) };
   }
   const cost = costLine(a, ctx) || null;

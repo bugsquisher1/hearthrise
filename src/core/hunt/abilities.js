@@ -40,23 +40,23 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.111';
-import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js?v=0.2.111';
-import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.111';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.111';
-import { temperedAmount } from '../temper.js?v=0.2.111';
-import { SURGE_MULT_PM } from '../../data/jewelry.js?v=0.2.111';
-import { cheb, dist2, los } from './grid.js?v=0.2.111';
-import { makeEvent } from './events.js?v=0.2.111';
-import { landHit } from './damage.js?v=0.2.111';
-import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.111';
-import { applyStatus, statusRow } from './status.js?v=0.2.111';
-import { levelOf } from '../xp.js?v=0.2.111';
-import { ammoPerShot } from '../ammo.js?v=0.2.111';
-import { ITEMS } from '../../data/items.js?v=0.2.111';
-import { isRune } from '../../data/supplies.js?v=0.2.111';
-import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder } from './conditions.js?v=0.2.111';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.111';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.112';
+import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js?v=0.2.112';
+import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.112';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.112';
+import { temperedAmount } from '../temper.js?v=0.2.112';
+import { SURGE_MULT_PM } from '../../data/jewelry.js?v=0.2.112';
+import { cheb, dist2, los } from './grid.js?v=0.2.112';
+import { makeEvent } from './events.js?v=0.2.112';
+import { landHit } from './damage.js?v=0.2.112';
+import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.112';
+import { applyStatus, statusRow } from './status.js?v=0.2.112';
+import { levelOf } from '../xp.js?v=0.2.112';
+import { ammoPerShot } from '../ammo.js?v=0.2.112';
+import { ITEMS } from '../../data/items.js?v=0.2.112';
+import { isRune } from '../../data/supplies.js?v=0.2.112';
+import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder, runeSupplyOf } from './conditions.js?v=0.2.112';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.112';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
@@ -127,29 +127,33 @@ const BASIC_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
    a hero whose entry carries no skills (a bare fixture, a peer the browser draws: the server's commit is the truth). */
 const skillLevel = (h, row) => (h && h.skills ? levelOf(h.skills, abilitySkill(row)) : 1);
 
-/* THE RUNE A SPELL SPENDS AND THE VERSION IT CASTS (Tyler 2026-10-23, src/data/runes.js). A spell spends a
-   rune of its FAMILY (the family of its row's `rune`, the family's Chalked rune): of the runes of that family
-   the hero carries, the highest tier whose version its level in the row's skill has unlocked, cast at that
-   tier's version (a tie in tier goes to the lower item id). Until a slot names the rune it spends (the rune
-   quality picker, interface lane p40), a hero casts the best version its own bag and level allow. Else, only
-   when the slot names it (`store`), EXACTLY the store rune it names, bought per use: its partner's version at
-   the store's share (the rune ladder, Tyler 2026-11-05; a row of another family is no store here). A version
-   still locked is never spent, carried or bought (`level`), and a locked store rune never falls back to a
-   cheaper one: the game never chooses a player's tier. A hero whose entry carries no skills is not gated here. */
-function runeFor(h, row, store) {
+/* THE RUNE A SPELL SPENDS AND THE VERSION IT CASTS (Tyler 2026-10-23, src/data/runes.js; RUNE SUPPLY PER SLOT,
+   Tyler 2026-11-08). A spell spends a rune of its FAMILY, and only one its slot TICKED (`action.own`,
+   conditions.js runeSupplyOf): of those the hero carries, the highest tier whose version its level in the row's
+   skill has unlocked, cast at that tier's version (a tie in tier goes to the lower item id). When none of them is
+   left the slot does what its `onEmpty` says: `store` buys EXACTLY the store rune it names (`action.store`) per use,
+   its partner's version at the store's share (the rune ladder, Tyler 2026-11-05; a row of another family is no
+   store here); `leave` answers `runes_out` and the hunt ends (firstUsable). A version still locked is never spent,
+   carried or bought (`level`): a ticked rune the hero holds but cannot cast yet is not "run out", so a `leave` slot
+   waits on it, and a locked store rune never falls back to a cheaper one: the game never chooses a player's tier.
+   A hero whose entry carries no skills is not gated here. */
+function runeFor(h, row, action) {
+  const sup = runeSupplyOf(action) || { family: null, own: [], store: null, onEmpty: 'store' };
   const fam = (itemRow(h, row.rune) || {}).family;
   const lv = h.skills ? skillLevel(h, row) : Infinity;
   let best = null; let locked = false;
-  for (const id of Object.keys((h.hs && h.hs.bag) || {}).sort()) {
-    const it = itemRow(h, id);
-    const tier = runeTierOf(it);
-    if (!tier || it.family !== fam) continue;
+  /* (the ticked runes are the family's own, lowest tier first: runeSupplyOf keeps no other) */
+  for (const id of sup.own) {
+    const tier = runeTierOf(itemRow(h, id));
+    if (!tier) continue;
     const l = resolveLine(h.hs, id, null);
     if (!l.id || l.why) continue;
     if (lv < versionLevel(tier)) { locked = true; continue; }
     if (!best || tier > best.version) best = { line: l, version: tier, pm: 1000 };
   }
   if (best) return best;
+  if (sup.onEmpty === 'leave') return { why: locked ? 'level' : 'runes_out', short: false };
+  const store = sup.store;
   const b = typeof store === 'string' ? basicOf(h.hs, store) : null;
   const named = b ? itemRow(h, b.partner) : null;
   const version = named && named.family === fam ? runeTierOf(named) : 0;
@@ -182,13 +186,13 @@ function castShotOf(inst, hero, h) {
 }
 
 /* The supply lines one cast needs and the version it casts ({ lines, version, pm: the store's share
-   in permille }), or the reason it cannot have them. `store` is the slot's chosen store rune
-   (action.store), or none: own runes only. `ammo` is the item its shots are (castShotOf), or null: none. */
-function suppliesFor(h, row, store, ammo) {
+   in permille }), or the reason it cannot have them. `action` is the slot's (its rune supply: the ticked
+   runes, the store rune, what to do when they run out). `ammo` is the item its shots are (castShotOf), or null: none. */
+function suppliesFor(h, row, action, ammo) {
   const lines = [];
   let version = 1; let pm = 1000;
   if (row.rune) {
-    const r = runeFor(h, row, store);
+    const r = runeFor(h, row, action);
     if (r.why) return r;
     lines.push(r.line); version = r.version; pm = r.pm;
   }
@@ -283,7 +287,10 @@ export function firstUsable(inst, hero, sc, only) {
     /* A slot whose supplies the purse cannot pay WAITS (gold_short) and the next slot is tried. It never
        ends the hunt from here: out of gold ends a hunt only for the action actually taken (Tyler 10-14),
        and a slot that cannot pay is never taken (fire() pays what this answered affordable). */
-    const s = suppliesFor(h, row, slot.action.store, row.ammo > 0 ? castShotOf(inst, hero, h) : null);
+    const s = suppliesFor(h, row, slot.action, row.ammo > 0 ? castShotOf(inst, hero, h) : null);
+    /* OUT OF RUNES, AND THE SLOT SAYS LEAVE (Tyler 2026-11-08): its turn came with none of its ticked runes left, so the hunt
+       ends `runes_out` at the hero's next boundary (action-rules.js END_ORDER; a flag of the span, as goldOut), naming the spell. */
+    if (s.why === 'runes_out' && typeof h.hs.runesOut !== 'string') h.hs.runesOut = row.id;
     if (s.why) return { why: s.short ? 'gold_short' : s.why === 'level' ? 'level' : 'no_stock' };
     /* THE VERSION'S PRICE AND OUTPUT (abilities.js versionOf, outputPm): its mana (never more with level), and
        its permille of the row's numbers at the hero's level in the row's skill, at the rune's share (a store

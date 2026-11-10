@@ -44,22 +44,22 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.111';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.111';
-import { createRng } from './rng.js?v=0.2.111';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.111';
-import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.111';
-import { MONSTERS } from '../data/monsters.js?v=0.2.111';
-import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../data/scaled-hunts.js?v=0.2.111';
-import { stepSwing } from './hunt/world-step.js?v=0.2.111';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.111';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.111';
-import { pullLeader } from './hunt/pull-cycle.js?v=0.2.111';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.111';
-import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.111';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.112';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.112';
+import { createRng } from './rng.js?v=0.2.112';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.112';
+import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.112';
+import { MONSTERS } from '../data/monsters.js?v=0.2.112';
+import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../data/scaled-hunts.js?v=0.2.112';
+import { stepSwing } from './hunt/world-step.js?v=0.2.112';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.112';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.112';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.112';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.112';
+import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.112';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.111';
+export { stepSwing } from './hunt/world-step.js?v=0.2.112';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -194,7 +194,7 @@ function endMember(m, why, atMs, world, out) {
   const hs = m.hs;
   hs.endedReason = why;
   hs.endedAtMs = atMs;
-  out.events.push(makeEvent('ended', atMs, { reason: why, ...(why === 'rule' ? { rule: hs.ruleStop } : {}) }));
+  out.events.push(makeEvent('ended', atMs, { reason: why, ...(why === 'rule' ? { rule: hs.ruleStop } : {}), ...(why === 'runes_out' ? { ability: hs.runesOut } : {}) }));
   /* EVERY END SENDS THE HERO HOME WHOLE (designer 2026-10-29, extending Tyler 2026-10-19's death rule): town is
      safe and the next hunt starts fresh, so whatever ended it (a death, a leave, stamina, supplies, gold, a stop
      rule, a party end) the hero is back with full HP. Mana is never stored: a hero enters every hunt full
@@ -408,7 +408,8 @@ export function simulateHuntInstance(inst, ctx) {
 
   /* AN END THAT IS ALREADY CERTAIN is stamped at the member's VERY NEXT boundary,
      even when it lies past this window's end: a store use the purse could not
-     cover, a stop rule met, and a death on this window's last swing (none of
+     cover, a stop rule met, a spell slot out of its runes that says leave (runesOut),
+     and a death on this window's last swing (none of
      those flags is part of the stored session, and the database requires the
      `died` end in the SAME settle as the death row). The full end order is
      asked at that boundary, so an earlier reason that also holds there wins —
@@ -418,7 +419,7 @@ export function simulateHuntInstance(inst, ctx) {
   const stamped = new Map();
   for (const m of members) {
     if (m.left || m.unitId === null) continue;
-    if (m.hs.goldOut === true || typeof m.hs.ruleStop === 'string' || m.hs.died === true || m.hs.bossFelled === true) {
+    if (m.hs.goldOut === true || typeof m.hs.ruleStop === 'string' || typeof m.hs.runesOut === 'string' || m.hs.died === true || m.hs.bossFelled === true) {
       stamped.set(m, endReasonAt(m.hs, m.hs.nextSwingAtMs) || 'gold_out');
     }
   }

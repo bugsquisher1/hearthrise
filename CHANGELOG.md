@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.112 — 2026-11-10 (Runes on Hand)
+
+**Spells keep casting when your runes run out.** A spell slot now uses the runes you carry first. When those are gone, it buys runes from the shop for each cast and keeps going. Before, a slot that named no shop rune just stopped casting. In Configure action you can turn off using your carried runes, or have the hunt end when your runes run out.
+
+**Runes live in the Spells tab.** Configure action has one Spells tab now. Pick a spell, then pick which rune it uses right below it.
+
+**Each rune shows what it does for your hero.** Rune choices show the real damage this hero deals with them, like "13–23 damage", instead of a percent.
+
 ## v0.2.111 — 2026-11-09 (Take Me There)
 
 **Links take you where they say.** When a line names a place, like "The Shop sells them," it is now a link. It opens that window on the right tab with the row in view and ringed.

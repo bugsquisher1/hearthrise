@@ -229,14 +229,16 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* ONE FORMULA FOR EVERY HUNT (lane/b-ground-formula, Tyler 2026-11-07): 2027-03-17-lucky-kobold is APPLIED history; every open ground's thirty monsters are written by
    tools/gen-ground-stats.mjs, so their hr_hunt_kill_bounds rows move (gold_max, xp_max), the same full replace. Some bounds WIDEN (the Barn Wasp, the Walking Vine, the Warrens' coin, the
    Sluicer pay more a kill), so this applies BEFORE the hr-accrue edge carrying the same src/data/monsters.js. No spawn, limit, bid or shape moves. */
+/* RUNE SUPPLY PER SLOT (lane/b-rune-supply, Tyler 2026-11-08): 2027-03-20-ground-formula is APPLIED history; END_ORDER's runes_out (a spell slot set to "Leave the hunt"
+   with none of its ticked runes left; RESUME_AFTER_END too) lands in hr_hunt_end_reasons and hunt_sessions.end_reason's CHECK in this forward file, the same full replace,
+   applied right before 2027-03-24-rune-supply.sql (its §0 and the settle's proof arm read the reason). No kill bound, spawn, limit, bid or shape moves. */
 /* ONE PACK FOR EVERY GROUP (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged"):
-   2027-03-20-ground-formula is APPLIED history. The party scale is gone, so a monster unit no longer carries its yield share (pull-cycle.js PERSISTED
-   loses yieldPm): ONLY hr_hunt_world_shape moves (its shape and fields), the same full replace. No kill bound moves (they were always the full kill's),
-   no spawn, limit or bid. THE SHAPE MOVES, so the old engine refuses every stored world once this applies: the hr-accrue deploy carrying the same
-   src/core follows AT ONCE (each running hunt's world restarts once, as on any shape change).
-   Regenerated in place while STAGED (Tyler 2026-11-09, answer d): hr_hunt_abilities gains Undertow, the Healer's strike when it hunts alone
-   (abilities.js `alone`, read by the engine only; no column carries it), the same full replace. */
-export const OUT_NAME = '2027-03-23-one-difficulty-hunt-sessions-catalogue.generated.sql';
+   2027-03-24-rune-supply is APPLIED history. The party scale is gone, so a monster unit no longer carries its yield share (pull-cycle.js PERSISTED
+   loses yieldPm): hr_hunt_world_shape moves (its shape and fields), the same full replace. The re-tune moves the most one kill pays (hr_hunt_kill_bounds)
+   for 26 monsters, and hr_hunt_abilities gains Undertow, the Healer's strike when it hunts alone (Tyler 2026-11-09; abilities.js `alone`, read by the
+   engine only; no column carries it). No spawn, limit or bid. THE SHAPE MOVES, so the old engine refuses every stored world once this applies: the
+   hr-accrue deploy carrying the same src/core follows AT ONCE (each running hunt's world restarts once, as on any shape change). */
+export const OUT_NAME = '2027-03-26-one-difficulty-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -751,6 +753,11 @@ export function render(src) {
 -- only), so hr_hunt_kill_bounds' kobold row names iron_helm. No spawn, limit, bid or ground moves and the world's shape is unchanged (no world_shape_pending
 -- on either order); no ground fields a Kobold, so the edge may deploy before or after. ORDER: after 2027-03-14-jewelry-hallmark.sql (it carries
 -- 2027-03-14-jewelry-hunt-sessions-catalogue.generated.sql).
+--
+-- NEW IN THIS FILE (lane/b-rune-supply, Tyler 2026-11-08: "Then condition - 'when rune supply runs out' 'Pay rune shop' or 'leave hunt'"): END_ORDER's
+-- runes_out (a spell slot set to "Leave the hunt" came to cast with none of its ticked runes left; RESUME_AFTER_END too) in hr_hunt_end_reasons and
+-- hunt_sessions.end_reason's CHECK. No kill bound, spawn, limit, bid or ground moves and the world's shape is unchanged (no world_shape_pending on
+-- either order). ORDER: right before 2027-03-24-rune-supply.sql (its §0 needs the reason), then the hr-accrue at once.
 --
 -- CARRIED FROM 2027-02-24-gold-matters (lane/c-gold-matters, designer 2026-11-03): gold value climbs with the monster. hr_hunt_kill_bounds' gold_max falls on Wickstead,
 -- the Glade's poachers and the Sewer's bat and spider, and rises on the Rat King and the Warrens; hr_hunt_vendor_value falls for tier 2's helmet, body, legs and

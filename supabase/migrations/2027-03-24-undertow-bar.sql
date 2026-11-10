@@ -31,7 +31,7 @@
 -- another player.
 --
 -- ── ORDER ───────────────────────────────────────────────────────────────────
--- After 2027-03-23-one-difficulty-hunt-sessions-catalogue.generated.sql (hr_hunt_abilities
+-- After 2027-03-26-one-difficulty-hunt-sessions-catalogue.generated.sql (hr_hunt_abilities
 -- carries undertow) and 2027-03-24-undertow-rune-spells.generated.sql (hr_hunt_slot_check
 -- reads its store rows from hr_hunt_rune_spells()); §0 refuses without either.
 -- EDGE: hr-accrue carries the same ROLE_RULES and the engine's alone gate (src/data and
@@ -48,7 +48,7 @@ begin
      or to_regprocedure('public.hr_hunt_rune_spells()') is null then
     raise exception 'PRECONDITION: hr_hunt_role_rules, hr_hunt_abilities, hr_hunt_basic_supplies, hr_hunt_slot_check and hr_hunt_rune_spells must exist'; end if;
   if not exists (select 1 from public.hr_hunt_abilities where ability_id = 'undertow' and rune = 'chalked_water_rune' and active) then
-    raise exception 'PRECONDITION: hr_hunt_abilities has no Undertow: apply 2027-03-23-one-difficulty-hunt-sessions-catalogue.generated.sql first'; end if;
+    raise exception 'PRECONDITION: hr_hunt_abilities has no Undertow: apply 2027-03-26-one-difficulty-hunt-sessions-catalogue.generated.sql first'; end if;
   if public.hr_hunt_rune_spells()->'undertow'->'store' is null then
     raise exception 'PRECONDITION: hr_hunt_rune_spells() has no Undertow: apply 2027-03-24-undertow-rune-spells.generated.sql first'; end if;
 end $mig$;

@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-10",
- "replay_ms": 7701,
+ "replay_ms": 10142,
  "counts": {
-  "tracked_names": 821,
-  "entries": 673
+  "tracked_names": 822,
+  "entries": 674
  },
  "functions": [
   {
@@ -7676,24 +7676,25 @@
    "agree": true
   },
   {
-   "sig": "hr_hunt_rune_state(p_user uuid, p_slot integer, p_session uuid, p_ability text)",
+   "sig": "hr_hunt_rune_state(p_user uuid, p_slot integer, p_session uuid, p_ability text, p_own jsonb)",
    "name": "hr_hunt_rune_state",
    "tracked_by": [
     "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-02-21-hunt-carry-in.sql"
+    "2027-02-21-hunt-carry-in.sql",
+    "2027-03-24-rune-supply.sql"
    ],
    "live": {
-    "md5": "3248ad68ef8cfe4b75695ea16b203f7d",
-    "norm_len": 1038,
+    "md5": "151dc24a86b5d0d628686d983db8bc18",
+    "norm_len": 1224,
     "measured": "2026-11-10",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3248ad68ef8cfe4b75695ea16b203f7d",
-    "norm_len": 1038,
+    "md5": "151dc24a86b5d0d628686d983db8bc18",
+    "norm_len": 1224,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -7717,6 +7718,28 @@
    "replay": {
     "md5": "5d6b07dce11166a848ee9f995d408582",
     "norm_len": 774,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_rune_supply(p_action jsonb)",
+   "name": "hr_hunt_rune_supply",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-24-rune-supply.sql"
+   ],
+   "live": {
+    "md5": "38414660fa06ad167da14554a8b6eca9",
+    "norm_len": 1688,
+    "measured": "2026-11-10",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "38414660fa06ad167da14554a8b6eca9",
+    "norm_len": 1688,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -7814,17 +7837,18 @@
     "2027-01-13-spell-roles.sql",
     "2027-01-25-town-defaults.sql",
     "2027-02-21-hunt-carry-in.sql",
-    "2027-03-08-rune-ladder-slots.sql"
+    "2027-03-08-rune-ladder-slots.sql",
+    "2027-03-24-rune-supply.sql"
    ],
    "live": {
-    "md5": "6a1c82f1be477f7899f019bd14f462b4",
-    "norm_len": 11795,
+    "md5": "44178b8fc575c6501e63297228f17c52",
+    "norm_len": 12550,
     "measured": "2026-11-10",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "6a1c82f1be477f7899f019bd14f462b4",
-    "norm_len": 11795,
+    "md5": "44178b8fc575c6501e63297228f17c52",
+    "norm_len": 12550,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -7896,17 +7920,18 @@
     "2026-12-16-own-drinks-settle.sql",
     "2026-12-18-party-leave-together.sql",
     "2027-02-11-no-fight-settle.sql",
-    "2027-03-12-boss-call.sql"
+    "2027-03-12-boss-call.sql",
+    "2027-03-24-rune-supply.sql"
    ],
    "live": {
-    "md5": "a53fa5b7f3ec8f3b11014b8d88ed2bce",
-    "norm_len": 20278,
+    "md5": "f48c47d0e3806822c53fae9f805c4fc0",
+    "norm_len": 21405,
     "measured": "2026-11-10",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a53fa5b7f3ec8f3b11014b8d88ed2bce",
-    "norm_len": 20278,
+    "md5": "f48c47d0e3806822c53fae9f805c4fc0",
+    "norm_len": 21405,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -7968,17 +7993,18 @@
     "2026-10-25-action-conditions.sql",
     "2026-11-07-store-by-slot.sql",
     "2027-01-13-slot-truth.sql",
-    "2027-03-08-rune-ladder-slots.sql"
+    "2027-03-08-rune-ladder-slots.sql",
+    "2027-03-24-rune-supply.sql"
    ],
    "live": {
-    "md5": "3cc75530e89e0caa1a44450e6d479a84",
-    "norm_len": 5653,
+    "md5": "fd2b40eb693b1f578252c7499b9be0c6",
+    "norm_len": 7789,
     "measured": "2026-11-10",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3cc75530e89e0caa1a44450e6d479a84",
-    "norm_len": 5653,
+    "md5": "fd2b40eb693b1f578252c7499b9be0c6",
+    "norm_len": 7789,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -8,8 +8,8 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: a373650443ef1c7f6785a6f2455a6af9cdf8bebf0049f6f628292c80b0c991da
---   82 supplies, 130 hunts (named + training), 47 limits, 15 end reasons,
+--   digest: e865c205e65584dc3c8e474046e8eb1aa612f241243f0dc1ec1939595e660e88
+--   82 supplies, 130 hunts (named + training), 47 limits, 16 end reasons,
 --   557 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 17 abilities, 10 action-set options, 8 hunt grounds
 --
@@ -33,6 +33,11 @@
 -- only), so hr_hunt_kill_bounds' kobold row names iron_helm. No spawn, limit, bid or ground moves and the world's shape is unchanged (no world_shape_pending
 -- on either order); no ground fields a Kobold, so the edge may deploy before or after. ORDER: after 2027-03-14-jewelry-hallmark.sql (it carries
 -- 2027-03-14-jewelry-hunt-sessions-catalogue.generated.sql).
+--
+-- NEW IN THIS FILE (lane/b-rune-supply, Tyler 2026-11-08: "Then condition - 'when rune supply runs out' 'Pay rune shop' or 'leave hunt'"): END_ORDER's
+-- runes_out (a spell slot set to "Leave the hunt" came to cast with none of its ticked runes left; RESUME_AFTER_END too) in hr_hunt_end_reasons and
+-- hunt_sessions.end_reason's CHECK. No kill bound, spawn, limit, bid or ground moves and the world's shape is unchanged (no world_shape_pending on
+-- either order). ORDER: right before 2027-03-24-rune-supply.sql (its §0 needs the reason), then the hr-accrue at once.
 --
 -- CARRIED FROM 2027-02-24-gold-matters (lane/c-gold-matters, designer 2026-11-03): gold value climbs with the monster. hr_hunt_kill_bounds' gold_max falls on Wickstead,
 -- the Glade's poachers and the Sewer's bat and spider, and rises on the Rat King and the Warrens; hr_hunt_vendor_value falls for tier 2's helmet, body, legs and
@@ -1074,15 +1079,16 @@ insert into public.hr_hunt_end_reasons (reason, ord, resumes) values
   ('party_member_left', 4, true),
   ('heals_out', 5, true),
   ('ammo_out', 6, true),
-  ('gold_out', 7, true),
-  ('rule', 8, true),
-  ('stamina', 9, true),
-  ('hours', 10, true),
-  ('boss_time', 11, true),
-  ('left', 12, false),
-  ('changed', 13, false),
-  ('no_fight', 14, true),
-  ('server', 15, true);
+  ('runes_out', 7, true),
+  ('gold_out', 8, true),
+  ('rule', 9, true),
+  ('stamina', 10, true),
+  ('hours', 11, true),
+  ('boss_time', 12, true),
+  ('left', 13, false),
+  ('changed', 14, false),
+  ('no_fight', 15, true),
+  ('server', 16, true);
 delete from public.hr_hunt_resumable_kinds;
 insert into public.hr_hunt_resumable_kinds (kind) values
   ('gather'),
@@ -1091,7 +1097,7 @@ insert into public.hr_hunt_resumable_kinds (kind) values
 -- hunt_sessions.end_reason's CHECK is END_ORDER (the generator owns it).
 alter table public.hunt_sessions drop constraint if exists hunt_sessions_end_reason_check;
 alter table public.hunt_sessions add constraint hunt_sessions_end_reason_check
-  check (end_reason in ('died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'left', 'changed', 'no_fight', 'server'));
+  check (end_reason in ('died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'left', 'changed', 'no_fight', 'server'));
 -- The bar's size is ACTION_SET_LIMITS.slots (Huntera's two rows of ten).
 alter table public.player_action_sets drop constraint if exists player_action_sets_slots_check;
 alter table public.player_action_sets add constraint player_action_sets_slots_check
@@ -1681,7 +1687,7 @@ begin
   if (select count(*) from public.hr_hunt_supplies) <> 82
      or (select count(*) from public.hr_hunt_travel) <> 130
      or (select count(*) from public.hr_hunt_limits) <> 47
-     or (select count(*) from public.hr_hunt_end_reasons) <> 15
+     or (select count(*) from public.hr_hunt_end_reasons) <> 16
      or (select count(*) from public.hr_hunt_vendor_value) <> 557
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
@@ -1707,7 +1713,7 @@ begin
      or exists (select 1 from public.hr_hunt_weapon_roles where discipline is null)
      or exists (select 1 from public.hr_hunt_weapon_roles w where w.with_shield is not null
                  and not exists (select 1 from public.hr_hunt_weapon_roles k where k.weapon_type = w.with_shield))
-     or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 13 then
+     or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 14 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- Every ground's respawn is the data's (the settle's kill bound reads it: 2027-02-09, the Cellar at 32 s).
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.respawn_ms) not in

@@ -1508,7 +1508,7 @@ const sqlRuneSpells = `-- ══════════════════
 -- Server-only. New in this file: Undertow, the Healer's strike when it hunts alone (Tyler 2026-11-09), on the Water
 -- family; no other spell's runes or store rows move.
 --
--- APPLY ORDER: after 2027-03-23-one-difficulty-hunt-sessions-catalogue.generated.sql (hr_hunt_abilities carries Undertow,
+-- APPLY ORDER: after 2027-03-26-one-difficulty-hunt-sessions-catalogue.generated.sql (hr_hunt_abilities carries Undertow,
 --              and this file's self-check compares the two), BEFORE 2027-03-24-undertow-bar.sql, whose default slot names
 --              the Plain Water Rune through hr_hunt_slot_check. SAFE TO RE-RUN (create or replace).
 -- ══════════════════════════════════════════════════════════════

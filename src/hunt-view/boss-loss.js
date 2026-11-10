@@ -6,9 +6,9 @@
 // accrual.js fightOf); nothing here counts. Null for a fight won, one with no record, or one a hero walked out of.
 // PURE.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES } from '../data/abilities.js?v=0.2.111';
-import { MONSTERS } from '../data/monsters.js?v=0.2.111';
-import { BOSS_CALL_WORDS, callOfHunt, isGuarded } from '../data/boss-calls.js?v=0.2.111';
+import { ABILITIES } from '../data/abilities.js?v=0.2.112';
+import { MONSTERS } from '../data/monsters.js?v=0.2.112';
+import { BOSS_CALL_WORDS, callOfHunt, isGuarded } from '../data/boss-calls.js?v=0.2.112';
 
 const LOST = Object.freeze(['died', 'party_member_died', 'boss_time']);
 /* Every ability that heals (abilities.js `heal`), and every one that hits a crowd (an area cast or a Cleave). */

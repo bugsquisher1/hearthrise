@@ -1,7 +1,9 @@
 -- ════════════════════════════════════════════════════════════════════════
 -- Hearthrise — THE AREA SPELLS' CONDITIONS (lane/b-area-engine, systems-engineer,
--- 2026-11-08). STAGED, NOT APPLIED. Pre-EA: applies on its passing §2; the slot
--- vocabulary is on the EA Security list with the rest of the bar.
+-- 2026-11-08; re-dated 2026-11-10 from 2027-03-22 by lane/b-area-set so it sorts
+-- after one difficulty's files, nothing else changed). STAGED, NOT APPLIED. Pre-EA:
+-- applies on its passing §2; the slot vocabulary is on the EA Security list with
+-- the rest of the bar.
 --
 -- Tyler 2026-11-08: "make sure the conditions are available that make sense" (the
 -- party heal and the monsters' area spells; design: the board's "2026-11-08 Area
@@ -34,7 +36,13 @@
 -- It must apply BEFORE the client that offers the five conditions ships (the bar
 -- check would refuse them), and with or before the hr-accrue deploy carrying the
 -- engine that evaluates them (an older engine reads an unknown metric as false, so a
--- slot naming one would never fire). It ships in the area-spells combat batch.
+-- slot naming one would never fire). It ships in the area-spells combat batch,
+-- FIRST of its three server files (rows only, and it pauses nothing):
+--   1. 2027-03-28-area-conditions.sql                                   (this file)
+--   2. 2027-03-28-area-spells-hunt-sessions-catalogue.generated.sql     (the four hero
+--      abilities, the world's shape, the least spell windup: the shape MOVES)
+--   3. 2027-03-28-area-spells-rune-spells.generated.sql                 (Hoarfrost, Spring Tide)
+--   then the hr-accrue deploy AT ONCE, then the client that draws the warning marks.
 -- REVERSIBILITY: re-apply the ⟦metrics⟧ block of 2027-01-13-spell-content.sql.
 -- No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════

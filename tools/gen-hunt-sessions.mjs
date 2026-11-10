@@ -136,7 +136,8 @@ import { SESSION_LIMITS, END_ORDER, NO_FIGHT_END_MIN, STAMINA_LOW_MIN, SESSIONS_
   RESUMABLE_KINDS, RESUME_AFTER_END, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY, ACTION_SET_OPTIONS, VALUE_HEADROOM,
   DEFAULT_RESUME, EVENT_COPY, GATHER_SHARE, coverSellable } from '../src/data/hunt-sessions.js';
 import { CONSUMABLE_RULES } from '../src/data/consumables.js';
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES } from '../src/data/abilities.js';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, AREA_TARGETS } from '../src/data/abilities.js';
+import { MONSTER_SPELLS, SPELL_BOUNDS } from '../src/data/monster-spells.js';
 import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, roleWeaponOf } from '../src/data/hunt-roles.js';
 import { isShield } from '../src/data/shields.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
@@ -240,7 +241,14 @@ export const WORLD_FIELDS_READ = Object.freeze({
    for 25 monsters, and hr_hunt_abilities gains Undertow, the Healer's strike when it hunts alone (Tyler 2026-11-09; abilities.js `alone`, read by the
    engine only; no column carries it). No spawn, limit or bid. THE SHAPE MOVES, so the old engine refuses every stored world once this applies: the
    hr-accrue deploy carrying the same src/core follows AT ONCE (each running hunt's world restarts once, as on any shape change). */
-export const OUT_NAME = '2027-03-26-one-difficulty-hunt-sessions-catalogue.generated.sql';
+/* AREA SPELLS (lane/b-area-set, Tyler 2026-11-08: "start giving some monsters some aoe spells and our heros some more aoe spells"): 2027-03-26-one-difficulty is the file before
+   this one and this one carries it whole (its kill bounds, Undertow, death_xp_permille 60, no death_xp_base, runes_out). hr_hunt_abilities gains the four hero area abilities
+   (Turning Cut, Raking Shot, Hoarfrost, Spring Tide); a monster unit carries its spell cooldowns and its live cast (monster-spells.js PERSISTED: spellCds, cast), so
+   hr_hunt_world_shape moves; and hr_hunt_limits gains spell_windup_min_ms (monster-spells.js SPELL_BOUNDS), the number the settle's Defense bound leans on: a spell's landing is a
+   blow taken at the plain rate, once a windup, and the bound prices a block every swing interval, so it holds while the least windup x block_mult covers the swing interval
+   (refused here, and executed by the file's self-check). No kill bound, spawn, bid, end reason or ground moves. Postgres reads no spell row: the engine casts them. THE SHAPE MOVES,
+   so the hr-accrue carrying the same src/core follows AT ONCE, and the client that draws the warning marks is live BEFORE that edge (never the edge first: a spell would land unwarned). */
+export const OUT_NAME = '2027-03-28-area-spells-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -346,7 +354,9 @@ export function catalogueRows(src = {}) {
     grounds: OPEN_GROUNDS, worldMaxBytes: HUNT_TUNING.worldMaxBytes, calledHunts: CALLED_HUNTS, calledGrounds: CALLED_GROUNDS, calls: BOSS_CALLS, callRules: BOSS_CALL_RULES, partyMax: PARTY.maxSize,
     maxConcurrent: SESSION_CONFIG.maxConcurrentCharacters, maxSlot: SESSION_CONFIG.maxSlot,
     loginReward: PREMIUM_LOGIN_REWARD, worldVersion: WORLD_VERSION, worldShape: SHAPE, worldFields: WORLD_FIELDS,
-    roles: HUNT_ROLES, roleKeys: ROLE_KEYS, shieldArm: SHIELD_ARM, manaRegenPct: ABILITY_RULES.manaRegenPctPerMin, magicXpPermille: HUNT_XP.magicXpPermillePerMana, ...src,
+    roles: HUNT_ROLES, roleKeys: ROLE_KEYS, shieldArm: SHIELD_ARM, manaRegenPct: ABILITY_RULES.manaRegenPctPerMin, magicXpPermille: HUNT_XP.magicXpPermillePerMana,
+    /* the monsters' spells: the least windup any row may take (SPELL_BOUNDS), the rows, and the block multiple the Defense bound prices every blow at */
+    spellWindupMinMs: SPELL_BOUNDS.windupMs[0], spells: MONSTER_SPELLS, blockMult: COMBAT_XP.blockMult, ...src,
   };
   /* THE CALLED ROOMS (boss-calls.js) stand beside the open grounds in every row the settle reads; the roster below leaves them out. */
   S.hunts = [...S.hunts, ...S.calledHunts];
@@ -422,7 +432,9 @@ export function catalogueRows(src = {}) {
     if (!(whole(a.mana) && a.mana >= 0) || !(whole(a.ammo) && a.ammo >= 0)) throw new Error(`ability ${id} mana / ammo`);
     /* An INACTIVE row may wait on a rune that is not a supply yet (abilities.js header). */
     if (a.active && a.rune !== null && !(own(S.supplies, a.rune))) throw new Error(`ability ${id} names rune ${a.rune}, which is no supply`);
-    return { id, ord: abilityOrder.indexOf(id), disciplines: [...a.disciplines].sort(), lane: a.lane, cd: a.cdMs, mana: a.mana, rune: a.rune, ammo: a.ammo, active: a.active === true };
+    /* `area`: it strikes a shape (abilities.js AREA_TARGETS) or heals the whole party. No column carries it: the self-check names those rows. */
+    return { id, ord: abilityOrder.indexOf(id), disciplines: [...a.disciplines].sort(), lane: a.lane, cd: a.cdMs, mana: a.mana, rune: a.rune, ammo: a.ammo, active: a.active === true,
+      area: AREA_TARGETS.includes(a.target) || a.target === 'party' };
   });
   const lim = {
     presets: S.setLimits.presets, slots: S.setLimits.slots,
@@ -473,8 +485,22 @@ export function catalogueRows(src = {}) {
     in_fight_regen_permille_s: VITALS.inFightRegenPermillePerS,
     flame_regen_max_permille: FLAME_REGEN.maxPermille, flame_regen_k: FLAME_REGEN.k,
     hit_xp_permille: Math.round(COMBAT_XP.hitXpPerDamage * 1000),
-    defense_xp_level_permille: COMBAT_XP.defenseXpPerLevelPermille, block_mult: COMBAT_XP.blockMult,
+    defense_xp_level_permille: COMBAT_XP.defenseXpPerLevelPermille, block_mult: S.blockMult,
+    /* THE LEAST WINDUP OF A MONSTER'S SPELL (monster-spells.js SPELL_BOUNDS): what the Defense bound leans on (below). */
+    spell_windup_min_ms: S.spellWindupMinMs,
   };
+  /* THE DEFENSE BOUND HOLDS A SPELL (hr_hunt_apply_member's v_def: every foe, every swing interval, a block's multiple). A spell's landing is
+     one blow taken at the PLAIN rate (hunt-rewards.js defenseXp: a `dmg`, never a shield's block, braced or not), it takes the caster a whole
+     windup in which it makes no swing, and it restarts the swing clock (monster-spells.js land). So a caster's Defense XP a millisecond is at
+     most 1 / windup against the bound's block_mult / swing interval, and the bound holds exactly while
+       spell_windup_min_ms x block_mult >= swing_interval_ms.
+     A row under the least windup, or a least windup under that line, would have honest settles refused value_over: refused here instead. */
+  if (!(whole(lim.spell_windup_min_ms) && whole(lim.block_mult) && lim.block_mult >= 1 && lim.spell_windup_min_ms * lim.block_mult >= S.swingIntervalMs)) {
+    throw new Error(`the least spell windup ${lim.spell_windup_min_ms} ms x block_mult ${lim.block_mult} is under the swing interval ${S.swingIntervalMs} ms: a spell's blows would outrun the settle's Defense bound`);
+  }
+  for (const [id, sp] of Object.entries(S.spells || {})) {
+    if (!(whole(sp.windupMs) && sp.windupMs >= lim.spell_windup_min_ms)) throw new Error(`monster spell ${id} winds up in ${sp.windupMs} ms, under the least windup ${lim.spell_windup_min_ms} the Defense bound leans on`);
+  }
   if (!(lim.gold_floor_min <= lim.gold_floor_default && lim.gold_floor_default <= lim.gold_floor_max)) {
     throw new Error(`GOLD_FLOOR ${JSON.stringify(S.floor)} is not min <= default <= max`);
   }
@@ -734,12 +760,22 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged"):
--- hr_hunt_world_shape MOVES (a monster unit carries no yield share: one pack for every group), hr_hunt_kill_bounds moves for the re-tuned
--- monsters, and hr_hunt_abilities gains Undertow. Every row the files before it set is carried: the death share's (death_xp_permille 60, no
--- death_xp_base) and rune supply's runes_out. ORDER: AFTER the six APPLIED 2027-03-25 files (the precondition below still asks for
--- 2027-03-25-death-share.sql), THEN the hr-accrue carrying the same src/core AT ONCE: the shape moves, so the old engine refuses every stored
--- world until it deploys, and each running hunt's world restarts once.
+-- NEW IN THIS FILE (lane/b-area-set, Tyler 2026-11-08: "start giving some monsters some aoe spells and our heros some more aoe spells"):
+-- hr_hunt_abilities gains the four hero area abilities (turning_cut, raking_shot, hoarfrost, spring_tide: the bar's vocabulary, so a slot naming
+-- one is accepted); hr_hunt_world_shape MOVES (a monster unit carries its spell cooldowns and its live cast: spellCds, cast); hr_hunt_limits gains
+-- spell_windup_min_ms, the least windup a monster's spell may have, which the settle's Defense bound leans on (the self-check below executes it).
+-- Postgres reads no spell row: the engine casts them, and the settle bounds what they can pay. No kill bound, spawn, bid, end reason or ground
+-- moves. Every row the files before it set is carried (tests/area-spells-server.mjs AS-ROWS executes the comparison on the replayed chain): one difficulty's kill bounds
+-- and Undertow, the death share's death_xp_permille 60 with no death_xp_base, rune supply's runes_out. ORDER: after
+-- 2027-03-26-one-difficulty-hunt-sessions-catalogue.generated.sql and its batch (APPLIED with v0.2.114), right before
+-- 2027-03-28-area-spells-rune-spells.generated.sql (its self-check compares hr_hunt_abilities), THEN the hr-accrue carrying the same src/core AT ONCE:
+-- the shape moves, so the old engine refuses every stored world until it deploys, and each running hunt's world restarts once. The client that
+-- draws the spells' warning marks goes live with that edge, never after it by more than the push (a spell must not land unwarned).
+--
+-- CARRIED FROM 2027-03-26-one-difficulty-hunt-sessions-catalogue (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged"):
+-- hr_hunt_world_shape moved (a monster unit carries no yield share: one pack for every group), hr_hunt_kill_bounds moved for the re-tuned
+-- monsters, and hr_hunt_abilities gained Undertow. It carried the death share's rows (death_xp_permille 60, no death_xp_base) and rune supply's
+-- runes_out, after the six APPLIED 2027-03-25 files (the precondition below still asks for 2027-03-25-death-share.sql).
 --
 -- CARRIED FROM 2027-03-25-death-share-hunt-sessions-catalogue (APPLIED; lane/c-death-and-slots, Tyler 2026-11-09: "Death needs to be more than 2% I think, and losing a level should be possible"):
 -- hr_hunt_limits.death_xp_permille 20 -> 60 (src/data/hunt-sessions.js DEATH_XP_LOSS 0.06), and the death_xp_base row is CUT (one public formula:
@@ -1271,6 +1307,24 @@ begin
      or coalesce(public.hr_char_xp_for_level(2), 0) <= 0 or coalesce(public.hr_hunt_limit('skill_base'), 0) <= 0
      or coalesce(public.hr_hunt_limit('armour_slots'), 0) <= 0 then
     raise exception 'the stamina caps or the core model rows are malformed'; end if;
+  -- THE DEFENSE BOUND HOLDS A MONSTER'S SPELL (2027-03-28, area spells). hr_hunt_apply_member prices every foe at one block every swing
+  -- interval. A spell's landing is one blow taken at the PLAIN rate (a worn shield braces its damage, never its Defense XP), it costs its
+  -- caster a whole windup with no swing, and it restarts the swing clock. So the bound holds while the least windup x the block multiple
+  -- covers the swing interval; under that, an honest settle of a spell ground is refused value_over. Executed on the rows just written.
+  if public.hr_hunt_limit('spell_windup_min_ms') is null or public.hr_hunt_limit('block_mult') is null
+     or public.hr_hunt_limit('spell_windup_min_ms') * public.hr_hunt_limit('block_mult') < public.hr_hunt_limit('swing_interval_ms') then
+    raise exception 'the least spell windup (%) x block_mult (%) is under the swing interval (%): a spell''s blows outrun the Defense bound',
+      public.hr_hunt_limit('spell_windup_min_ms'), public.hr_hunt_limit('block_mult'), public.hr_hunt_limit('swing_interval_ms'); end if;
+  -- THE AREA ABILITIES AND THE PARTY HEALS (2027-03-28; src/data/abilities.js AREA_TARGETS and target 'party'): each is in the bar's vocabulary,
+  -- active, on the lane, disciplines, rune and ammo the data names, so the bar check accepts a slot naming one (Turning Cut, Raking Shot,
+  -- Hoarfrost and Spring Tide among them).
+${r.abilities.some((a) => a.area) ? `  select want.ability_id into v_t from (values
+${r.abilities.filter((a) => a.area).map((a) => `    (${sq(a.id)}, ${sq(a.lane)}, array[${a.disciplines.map(sq).join(', ')}]::text[], ${a.rune ? sq(a.rune) : 'null::text'}, ${a.ammo})`).join(',\n')}
+  ) want (ability_id, lane, disciplines, rune, ammo)
+   where not exists (select 1 from public.hr_hunt_abilities a where a.ability_id = want.ability_id and a.active and a.lane = want.lane
+                       and a.disciplines = want.disciplines and a.rune is not distinct from want.rune and a.ammo = want.ammo)
+   order by 1 limit 1;
+  if v_t is not null then raise exception 'the area ability % is not in hr_hunt_abilities as the data names it', v_t; end if;` : '  -- (no area ability in the data)'}
   -- CALL OUT, THE MONEY LINE: every called room stands only on rows that pay nothing, its rows reach no roster and no other ground, and it has its travel and its ground.
   if exists (select 1 from public.hr_boss_calls c
               where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = c.hunt_id)
@@ -1418,6 +1472,10 @@ function selftest() {
     'a free call': () => ({ calls: { ...BOSS_CALLS, rat_king: { ...BOSS_CALLS.rat_king, fee: 0 } } }),
     'a call for one hero': () => ({ callRules: { ...BOSS_CALL_RULES, partyMin: 1 } }),
     'no shield arm (no worn set plays the tank)': () => ({ shieldArm: {} }),
+    /* THE DEFENSE BOUND AND A MONSTER'S SPELL: the least windup x block_mult covers the swing interval, and no row winds up faster than the least */
+    'a least spell windup the Defense bound does not cover': () => ({ spellWindupMinMs: Math.ceil(COMBAT_BALANCE.tickMs / COMBAT_XP.blockMult) - 100 }),
+    'a block multiple that no longer covers a spell\'s windup': () => ({ blockMult: 1 }),
+    'a monster spell under the least windup': () => ({ spells: { ...MONSTER_SPELLS, squeal: { ...MONSTER_SPELLS.squeal, windupMs: SPELL_BOUNDS.windupMs[0] - 100 } } }),
   };
   /* The fixture ground itself must pass (the arm proves the ground path is live). */
   catalogueRows({ grounds: { ...fixtureGround, millrace_sewer: OPEN_GROUNDS.millrace_sewer, coppercap_warrens: OPEN_GROUNDS.coppercap_warrens } });

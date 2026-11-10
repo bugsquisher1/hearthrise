@@ -52,7 +52,7 @@ const STORE_MIGRATION = 'supabase/migrations/2026-11-07-store-by-slot.sql';
 const SLOT_MIGRATION = 'supabase/migrations/2027-01-13-slot-truth.sql';
 /* The metrics (Green Sickness's mark, the heal aimed at yourself; 2027-01-13-spell-content.sql, lane b-spell-content, Tyler
    2026-10-23), then once more: the area spells' five conditions and Chill (lane/b-area-engine, Tyler 2026-11-08). */
-const AREA_MIGRATION = 'supabase/migrations/2027-03-22-area-conditions.sql';
+const AREA_MIGRATION = 'supabase/migrations/2027-03-28-area-conditions.sql';
 /* The settings view that places the starter bar, at the chain's end (restated: a slot may name any store rune of its family): lane/c-rune-ladder, 2026-11-05. */
 const VIEW_MIGRATION = 'supabase/migrations/2027-03-08-rune-ladder-slots.sql';
 /* The role rule sets once more (every default rune spell names its store rune, Flame Volley and Rend off the default bars: lane/c-caster-starter-bars, designer 2026-11-05),

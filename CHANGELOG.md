@@ -13,6 +13,10 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Extra hero slots cost gold.** New accounts start with one hero slot. More slots cost 300,000, then 750,000, then 1,500,000 gold. If your second slot was empty, it’s gone. Heroes you made and slots you bought stay.
 
+**Equip upgrades names ring perks.** The preview now says what a ring does, like "Wear Banded Signet (Follow-through, +1 Melee accuracy)." Thanks for the report.
+
+**Plainer words.** About 40 lines across Configure action, food and Hunts were rewritten to read the way a person talks.
+
 ## v0.2.112 — 2026-11-10 (Runes on Hand)
 
 **Spells keep casting when your runes run out.** A spell slot now uses the runes you carry first. When those are gone, it buys runes from the shop for each cast and keeps going. Before, a slot that named no shop rune just stopped casting. In Configure action you can turn off using your carried runes, or have the hunt end when your runes run out.

@@ -5641,6 +5641,21 @@ jobs:
           node tests/module-preload.mjs
           node tools/mutant-gate.mjs node tests/module-preload.mjs --selftest
 
+      # THE SITE IS WHAT THE GAME LOADS (2026-11-10: Pages published the whole repository, 253 MB, and v0.2.114's
+      # deploy timed out four times). .github/workflows/pages.yml deploys the folder tools/build-site.mjs builds from
+      # its allowlist. A file a page, a module, a stylesheet or an art row asks for that the allowlist lacks is red
+      # HERE, on the release branch, not at the deploy after main is pushed. A new art folder: one PUBLISH row there.
+      - name: Site publish set - every file the game asks for is in the Pages artifact
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/build-site.mjs --check
+          node tools/mutant-gate.mjs node tools/build-site.mjs --selftest
+
+      # The Coordinator's release check reads the deploy's runs: a failed, cancelled or timed-out deploy prints RED.
+      - name: Release check - the Pages line reads a deploy's runs right
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tools/release-check.local.mjs --selftest
+
       - name: Guard hygiene — no orphans, no vacuous selftests
         if: ${{ !cancelled() }}
         run: node tools/mutant-gate.mjs node tests/guard-hygiene.mjs --selftest

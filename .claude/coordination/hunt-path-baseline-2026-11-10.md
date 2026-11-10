@@ -179,6 +179,10 @@ Smallest fix. `settleHunt` already takes a floor (`o.minWindowMs`, `hunt-settle.
 
 What it costs the player: confirmed loot, gold and XP on a watched hunt would refresh every 45 or 90 s and not every 16 s. The fight itself keeps moving, since it is the browser's prediction.
 
+CORRECTION, 2026-11-10 (lane/c-dead-writes, read from the code, not measured): the last sentence is true for 32 s only. The prediction steps on combat seeds the server hands out, 16 swings past the last COMMIT and never more (`src/data/hunt-tuning.js` `liveSeeds`, Tyler 2026-10-20; `hunt-settle.js:92` `liveSeeds(inst, inst.world_swing)`). An ask inside the floor answers a start point from the same stored world, so the same seeds. With commits 45 s apart the prediction runs dry at 32 s and the fight stands still until the next commit (`live-engine.js` `stalled`, the "froze, then jumped" of `live-link.js:160`), about 13 s of every 48; at 90 s, about 60 s of every 95. The client would also ask MORE often, because it re-asks early when its seeds run low (`live-link.js` `refillDelayMs`). So a longer floor has to ship with a longer look-ahead, and the look-ahead is also how long a Leave, a hunt change or a kick takes to land (`2026-10-31-live-horizon.sql`, `c_horizon_ms` = `liveSeeds` x 2 s: up to 32 s today). A 45 s floor needs about 60 s of seeds, a 90 s floor about 110 s. The other way is an engine change: let the floor's answer hand seeds up to now + 32 s without committing, which keeps Leave at 32 s.
+
+What is prediction and what is confirmed on the hunt screen today. Prediction, moving every frame: where everyone stands, every blow, cast and floating number (damage, heals, the +XP at a kill), the HP bars and the HP number (`character-sections.js` `heroVitalsOf`, `liveHpOf`), cooldown embers, the combat log's lines. Confirmed, replaced by each envelope (every 16 s today): Level and the XP ring, mana, stamina, gold, loot and the bag, food and rune counts, the analyzer, the Tally, rare drops and party rare rolls (`live-engine.js:11`, `SERVER_ONLY_EVENTS`).
+
 Lane: backend-architect for the edge, with the systems-engineer for the hunt view. It rides the next engine batch.
 
 ### 2. The journal and the counters carry rows nothing reads
@@ -241,3 +245,54 @@ Verified on live by SELECT: every row of the live table, the `hr_apply` length, 
 Assumed: that the fixture heroes (Level 10, bronze kit, Meadowbrook Thicket) stand for a typical hunt. The live party figures are from harder grounds and are 3 to 5 times the local engine time.
 Derived, not measured: commits removed by a longer floor (from the live window mix), the capacity table (a straight multiple of today), the residue's share of a live envelope.
 Not assessed in this lane: backups, restore tests, PITR. No migration, no destructive step.
+
+## Follow-up, 2026-11-10: finding 2 is staged (lane `lane/c-dead-writes`)
+
+Migration `supabase/migrations/2027-03-30-dead-writes.sql`, staged, not applied. No edge change and no client change.
+
+Who reads the two writes. Searched: every function, view, trigger, policy and cron job of the replayed chain (635 files; its `hr_apply` is production's, md5 `a6b41ad4`), `src/`, `supabase/functions/`, `tools/`, and production by SELECT.
+
+- The renown journal row and the mark it follows. `hr_claim_rank` is gone (dropped by `2026-12-02-old-rewards-cut.sql`; 0 functions on production, 0 of 128 rows in `hr_client_rpc_baseline`). Of 54 ledger reads in 32 functions none filters on kind `renown`; the ones with no kind filter are the day budget's sums (the row carries no value), the GM panel's last five rows, the prune and the immutability trigger. `renown_high` is projected by `hr_state_of` and read by no file under `src/` or the edge. The Leaderboards list renown as unsourced (`hr_lb_unsourced`). `hr_renown_of` still feeds `hr_perks_of.renownAllXp`, which the engine dropped on 2026-10-14 (`src/core/perks.js` `normalisePerkState` keeps rooms and the property tier only). STOPPED: the ratchet and its row leave `hr_apply` together.
+- The collection counter (`ev:loot:<item>`). Read by `hr_collection_of` (the edge counts it into the answer key `collection`, which no client file reads) and by `hr_renown_of` (above). `hr_state_of` leaves the rows out of `progress`. The 2026-10-22 cut kept every `ev:` counter for a redesigned reward (the board: "Kept: ... every `ev:` counter, the Bestiary and collection reads"), so it is SWITCHED OFF, not cut: `hr_apply` still checks the op and stores it only while the feature switch `collection_log` (seeded off) is on for the account.
+
+`hr_apply` takes three anchored edits, not a restatement: the file has to apply in either order with the 2027-03-27, -28 and -29 files. The chain is 14 splices deep now; restating it is its own lane.
+
+Nothing else moves. Every commit of the four scenarios was run twice from the same state, with production's `hr_apply` under a savepoint and then this branch's (`tools/qa/hunt-path-baseline.local.mjs --ab`), and every public table the commit writes was compared row for row. Let through: the renown ledger rows, the `ev:loot:` rows, `renown_high`, and ids that come off a sequence or `gen_random_uuid()`.
+
+| | lone, 10 min | four, 10 min | lone, 12 h | four, 12 h |
+|---|---|---|---|---|
+| commits compared (watched, tick, reopen, leave) | 13 | 14 | 456 | 455 |
+| identical | 13 | 14 | 456 | 455 |
+| row writes, production's `hr_apply` -> this one | 390 -> 330 | 1,621 -> 1,397 | 15,439 -> 12,742 | 59,132 -> 49,330 |
+| ledger rows | 32 -> 19 | 165 -> 109 | 919 -> 463 | 4,656 -> 2,836 |
+| of them renown | 13 -> 0 | 56 -> 0 | 456 -> 0 | 1,820 -> 0 |
+| `player_progress` writes | 94 -> 60 | 426 -> 314 | 4,790 -> 3,005 | 18,987 -> 12,825 |
+| `player_state` updates | 53 -> 40 | 228 -> 172 | 1,826 -> 1,370 | 7,288 -> 5,468 |
+
+The baseline's table again, clean runs on this branch. Before is the table in Part 2 (v0.2.112); the runs do not share dice.
+
+| before -> after | lone, 10 min | four, 10 min | lone, 12 h | four, 12 h |
+|---|---|---|---|---|
+| tick settles | 6 -> 6 | 6 -> 6 | 454 -> 454 | 453 -> 453 |
+| ROW WRITES a settle, the commit (med / p95) | 37 / 39 -> 29 / 35 | 133 / 138 -> 110 / 111 | 33 / 38 -> 28 / 30 | 132 / 142 -> 108 / 113 |
+| `player_ledger` rows a settle (mean) | 2.00 -> 1.00 | 10.17 -> 6.17 | 1.79 -> 1.02 | 10.23 -> 6.23 |
+| `player_ledger` rows a hero-hour of hunt | 75.0 -> 37.6 | 95.3 -> 57.4 | 67.1 -> 38.6 | 95.9 -> 58.9 |
+| `player_progress` writes a settle (mean) | 11.33 -> 6.50 | 43.00 -> 28.33 | 10.61 -> 6.58 | 42.95 -> 28.20 |
+| row writes a paid ask, watched (med) | 27 -> 23 | 102 -> 95 | 26 -> 22 | 100 -> 94 |
+| row writes, whole hunt (commits + cron) | 243 -> 203 | 836 -> 704 | 17,414 -> 14,938 | 63,613 -> 52,798 |
+| ENGINE ms a settle, the engine's own (med / p95) | 41 / 52 -> 30 / 36 | 111 / 157 -> 134 / 196 | 20 / 32 -> 22 / 40 | 69 / 114 -> 84 / 130 |
+| engine ms per simulated second (med / p95) | 0.4 / 0.5 -> 0.3 / 0.4 | 1.2 / 1.6 -> 1.4 / 1.9 | 0.2 / 0.3 -> 0.2 / 0.4 | 0.7 / 1.2 -> 0.9 / 1.4 |
+
+Engine time: no engine file is in the diff (nothing under `src/core/` or `supabase/functions/`), so the engine is the same code. The after runs shared the PC with other lanes' mutation sweeps and this lane's own tests (two thirds of its 20 cores busy). The four-hero 10 min run again, with this lane's tests finished: 79 / 98 ms a settle, 0.8 a simulated second. So 79 to 134 against the baseline's 111 is the PC's load, not the engine.
+
+Still dead after this, for the engine batch: the three reads on the watched ask (`hr_bestiary_of`, `hr_trophy_of`, `hr_collection_of`), `hr_perks_of`'s call to `hr_renown_of` once a member a settle, and the `ev:loot` ops themselves (the engine still sends them and the server drops them).
+
+Rows already written, production 2026-11-10 10:09 UTC: 52,067 renown rows, 9.6 MB of row data and about 19 MB with their three index entries (9% of the ledger's 214 MB; the index share is estimated from index sizes), 2,420 in the last 24 h. 1,641 `ev:loot` rows, 160 KB. Nothing is deleted here. Recommendation: delete nothing by hand. `hr_ledger_prune` retires the renown rows at 90 days (the first on 2027-01-17, the last 90 days after the apply), and the `ev:loot` rows are the counter's starting point if the switch comes on.
+
+Detectable from now on: `node tools/hunt-health.local.mjs` prints a Journal line, the ledger kind that wrote the most rows moving no value in 24 h, and alarms past 5% of the day's rows (`tools/lib/server-pulse.mjs`, selftest 25 of 25). Today it reads renown, 12.8%. After the apply it falls under 5% within a day; the next such kind today is 0.4%.
+
+Capacity. At today's mix this removes 13% of ledger rows and about 8% of ledger bytes on production, and locally 14 to 17% of a hunt's row writes and a quarter to a third of `player_progress` writes. The 90-day ledger line moves from 0.9 GB to about 0.83 GB, 8.2 GB at 10 times and 82 GB at 100 times: at 10 times it still meets the 8.4 GB disk. Finding 1 and a rollup of the per-settle combat rows are what move that line. No spend is asked for.
+
+Durability, unchanged by this lane and stated by `tests/restore-census.mjs`: Pro, daily backups, PITR off (up to 24 h of loss), restore drill never executed. The census is re-pinned for the one new seeded row (`hr_feature_switches` 3 to 4). The migration is additive, idempotent (second apply byte-identical) and reversed by swapping its three anchors back; it deletes nothing.
+
+Verified by running it: both tables, the 938 commits, the migration's own self-check failing on production's body and on three planted bodies. Verified on production by SELECT: the row counts and bytes, `hr_apply`'s md5, the missing claim. Estimated: the index share of the renown rows, the capacity line. Read from code, not measured: the finding 1 correction.

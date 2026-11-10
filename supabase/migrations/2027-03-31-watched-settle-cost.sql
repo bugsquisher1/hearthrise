@@ -4,9 +4,10 @@
 --   cadence stays, so the job is a cheaper watched settle, not a rarer one).
 --
 -- STATUS: STAGED, NOT APPLIED. The Coordinator applies (one file, never inside begin/commit). Pre-EA: applies on its passing
--- §6. ON THE EA SECURITY LIST (hr_hunt_apply_instance's commit point; no value path is edited). DB-ONLY: no hr-accrue
--- change (pack-edge --hash unmoved), no client change. ORDER-FREE against every 2027-03-27 / -28 / -29 / -30 file: it reads
--- none of them, pins no body md5, and each edit is an anchor matched exactly once on the lines it changes.
+-- §6. ON THE EA SECURITY LIST (hr_hunt_apply_instance's commit point; no value path is edited). THIS FILE IS DB-ONLY and
+-- needs no order with the lane's edge and client half (the settle floor's answer without the character). ORDER-FREE against
+-- every 2027-03-27 / -28 / -29 / -30 file: it reads none of them, pins no body md5, and each edit is an anchor matched
+-- exactly once on the lines it changes.
 --
 -- ── WHAT THE COST IS (production 2026-11-10 11:45 UTC, SELECT only; pg_stat_statements since 10-31) ─────────────
 -- A watched hunt commits a real 18 s window at each ask (26,725 in 7 days; 45 carried no value). The commit itself is not

@@ -246,6 +246,38 @@ Killed with numbers: reading committed state when the tick already settled (the 
 2. The floor's answer without the character (edge `hunt-settle.js`, `request.js`, one line of `index.ts`; client `character-session.js`). A hunter's ask names the version its record holds whole, `have`. When the row is at exactly that version the floor answers the live start point, the clock and the version, and builds no envelope. At any other version, or with no `have`, it answers the whole character as before, so a client is never left on an old version. One honest limit: a section that can move without the hero's version moving (the account purse spent by a hero in town on another device, a party invite) now arrives with the next commit's answer or frame, at most one window later than a floor answer would have brought it. A hunter's idle answers already worked this way (session-core ASK-3).
 3. A dial for the frames to the asker's own off-screen heroes, shipped at today's value. `hr_tick_config.frame_own_s`, 0 = a frame every commit. At N the commit holds the frame to a hero of the asker's own account that is not the asker until the window crosses a multiple of N seconds. Never held: the hunt's end (a death, stamina, supplies, gold, a leave), its Level rising, a rare drop, a supply running dry, stamina running low, any other account's member, the tick.
 
+### Before and after
+
+Measured on a local PostgreSQL 17 (production's version), the same hunt from the same start on two databases, windows interleaved, 30 windows each. The machine was running other lanes, so a statement's milliseconds wander by about 3; calls, rows, frames and bytes are exact. Level 20 heroes, `millrace_sewer`. The watched columns use the instrument's ask mix, 1.33 floor asks a commit; production's is 0.43, so the floor's part is smaller there.
+
+| A watched hero-hour | lone hero, before | after | party of 4 strangers, before | after |
+|---|---|---|---|---|
+| commits (16 s windows) | 225 | 225 | 225 for the party | 225 |
+| row writes a commit | 23.7 | 23.7 | 87 | 87 |
+| ledger rows the 30 windows wrote | 47 | 47, identical | 183 | 183, identical |
+| database ms a window | 59.7 | 49.9 | 134.6 | 113.4 |
+| database seconds a hero-hour | 13.4 | 11.2 | 7.6 | 6.4 |
+| `hr_hunt_apply_instance` ms, and its share | 20.1, 34% | 21.2, 42% | 72.1, 54% | 71.5, 63% |
+| `hr_state_of` calls and ms a window | 2.3, 23.3 | 1, 10.5 | 5.3, 57.7 | 4, 41.9 |
+| `hr_perks_of` ms a window, `hr_renown_of` calls | 2.7, 6 | 1.1, 1.3 | 7.0, 17.2 | 3.1, 5.5 |
+| answer bytes, 70 answers | 2.15 MB | 1.31 MB | 3.25 MB | 2.37 MB |
+| frames a commit | 0 | 0 | 3 | 3 |
+
+The commit's share rises because everything around it shrank. Its own milliseconds do not move at the shipped dial.
+
+One account's party of four, every hero open, one on screen and asking: 24 commits of 18 s, the commit path alone.
+
+| | before | dial 0 (shipped) | dial 30 | dial 40 |
+|---|---|---|---|---|
+| frames a commit | 3 | 3 | 1.88 | 1.38 |
+| frame KB a commit | 72.9 | 72.9 | 45.6 | 33.4 |
+| `hr_hunt_apply_instance` ms | 69.9 | 73.3 | 58.3 | 53.0 |
+| engine statements ms a commit | 82.5 | 84.5 | 69.7 | 64.5 |
+
+Before and dial 0 are the same work but for the perk read (4.3 to 2.9 ms); the 3 ms between them is the machine.
+
+Modelled on production's statement means (since 10-31), for that party, a commit and its share of floor asks: 362 ms today, 334 after this lane at dial 0 (8% less), 285 at dial 30, 265 at dial 40 (27% less). A lone watched hero: 143 to 120 (16% less). `hr_hunt_apply_instance` is 18.7% of database time today and its own time moves only with the dial: 279 ms to 210 ms a commit for that party at 40. If every watched party were one account's, its share would fall to about 15%.
+
 ### The dial: the number proposed, and what a player sees
 
 Proposed: 40. Not 60: the client re-reads an unviewed hero 60 s after its last frame (`unviewedPollMs`), so a frame held a full minute would be met by an `hr_load` of 91 ms each time. The migration caps the dial at 40 for that reason and `tests/watched-settle-cost.mjs` CAP holds the cap to the client's setting. At 40 an off-screen hero of the same account gets a frame every 22 to 58 s, 40 s on average, instead of every 18 s.

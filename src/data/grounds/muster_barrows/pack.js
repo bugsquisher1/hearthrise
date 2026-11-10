@@ -55,14 +55,17 @@
 // THE LOOT (src/data/loot-bands.js). THIS IS WHERE TIER 5 ARMOR COMES FROM (worn from Level 60; the spec gave it no home): the
 // whole set in all three weights, Scarce, about hourly a piece (Pikemen boots and helmets, Wights legs, Knights bodies), with one
 // tier-5 weapon on each (sword, staff, warhammer). Rare, each about every 15 h: the Wights' Yew Wand and Yewclasp Spellbook, the
-// Knights' gloves, and Hask's belts and Yew Bow. Hask's Trophy is his Mantle. The Pyre Field's pack carries the same set for a lone
+// Knights' gloves, and Hask's belts and Yew Bow. HASK'S TROPHY WAITS ON ITS ICON: Hask's Mantle ("The captain's cloak Hask wore the
+// day he sold the crossing. The men he sold buried him in it", type and tag trophy, legendary, v 11000), his last row at Trophy odds.
+// The art lane drew it over the old barrowking_mantle icon. Every item needs its own icon the day its row lands
+// (tests/pixel-icons.mjs), and a revealed one before it may drop (drop-tables loot-structure). The Pyre Field's pack carries the same set for a lone
 // hero ten Levels on. Tier 5 has no sale rate (loot-bands.js VENDOR_GEAR_RATES stops at tier 3): a tier above the table sells at
 // its last rate, 0.14 of book, and the hour's gear would sell for several times its coin. This pack ships only with or after the
 // tier-4 and tier-5 rates (the Pyre Field's pack says the same).
 // Commons feed the Hearth (Bones, Big Bones, Bone Chips, Grave Dust). Each body drops its own imbuement item, kept for the imbuer
 // (catalogue-coherence.js VENDOR_TRASH until imbuing is built): Sergeant's Spur and Hask's Coin have icons on the art lane, Coffin
 // Nail and Urn Shard need one each. The ground's named fuel waits on a pack field for NAMED_FUELS (src/data/hearth.js): no row.
-import { definePack, box } from '../shape.js?v=0.2.112';
+import { definePack, box, gather } from '../shape.js?v=0.2.112';
 import map from './map.js?v=0.2.112';
 
 const PK = 'barrow_pikeman', CW = 'cairn_wight', BK = 'muster_knight', HASK = 'captain_hask';
@@ -71,15 +74,20 @@ export default definePack({
   id: 'muster_barrows',
   status: "staged",
   sql: null,
-  /* Weights are the pockets' head-count at density 4 (the first four of each box): 16 Pikemen, 5 Wights and 6 Knights. Hask holds
-     his barrow and has no weight (checks.holders). */
+  /* Weights are the pockets' head-count at density 4 (the first four of each box): 16 Pikemen, 6 Wights and 5 Knights, who stand only
+     on the Sergeants' Row and with their captain. Hask holds his barrow and has no weight (checks.holders). */
   hunt: {
     name: 'The Muster Barrows', theme: 'The Banded Company buried its officers here. It buried Captain Hask too, who sold them.',
     band: [55, 75],
-    spawns: [{ monster: PK, w: 16, rarity: 'common' }, { monster: BK, w: 6, rarity: 'uncommon' }, { monster: CW, w: 5, rarity: 'uncommon' }],
+    spawns: [{ monster: PK, w: 16, rarity: 'common' }, { monster: CW, w: 6, rarity: 'uncommon' }, { monster: BK, w: 5, rarity: 'rare' }],
     family: 'Undead', art: BK, travelS: 0, pull: 4, respawnMs: 90000,
   },
-  /* THE ROUTE: in off the Ford road to the Muster Field, down the lane to the Wet Hollow, east along the south edge to the Biers,
+  /* THE BIGGER PULLS WAKE THE SERGEANTS. A pocket's first three are the room as built (Normal) and its fourth sets the weights. Slots
+     5 to 8 come only on Dangerous and Deadly and hold a Knight or two and a Wight, the bodies that hit hardest. Measured on the quick
+     grade (1 seed x 1 h a cell): with Pikemen in those slots a four at the floor held Deadly with no death and a typical low of 44%;
+     with two Knights in every pocket's it died 4 times in the hour (the sheet allows 9 in 16 hero-hours); on this mix once. Normal
+     does not move.
+     THE ROUTE: in off the Ford road to the Muster Field, down the lane to the Wet Hollow, east along the south edge to the Biers,
      up the sunken lane between the Long Barrows, north to the Sergeants' Row and along it, then down the east side to the
      Captain's Barrow. Hask is last, so a party meets every body before it meets him. */
   ground: {
@@ -88,24 +96,29 @@ export default definePack({
     start: [[1, 9], [1, 10], [1, 8], [1, 11]],
     pockets: [
       /* P0 the Muster Field: the first pull, the company's foot standing where it was counted */
-      box([1, 4, 19, 16], [9, 10], [PK, PK, PK], [CW, PK, PK, BK, PK]),
+      box([1, 4, 19, 16], [9, 10], [PK, PK, PK], [CW, BK, PK, CW, PK]),
       /* P1 the Wet Hollow: the field's older dead, up out of the reed bed */
-      box([4, 24, 18, 38], [9, 26], [CW, CW, PK], [PK, CW, PK, PK, CW]),
+      box([4, 24, 18, 38], [9, 26], [CW, CW, PK], [PK, CW, BK, PK, CW]),
       /* P2 the Biers: the dead laid out for a pyre nobody lit */
-      box([19, 29, 33, 38], [25, 32], [PK, PK, CW], [PK, BK, PK, CW, PK]),
-      /* P3 the Long Barrows: the rank and file, and a sergeant still keeping the file */
-      box([20, 13, 37, 28], [26, 19], [PK, PK, BK], [PK, CW, PK, PK, CW]),
+      box([19, 29, 33, 38], [25, 32], [PK, PK, CW], [PK, BK, CW, PK, BK]),
+      /* P3 the Long Barrows: the rank and file in the sunken lane, and a sergeant keeping the file when the whole barrow wakes */
+      box([20, 13, 37, 28], [26, 19], [PK, PK, CW], [PK, BK, CW, PK, PK]),
       /* P4 the Sergeants' Row, its west barrows */
-      box([34, 3, 45, 15], [40, 9], [BK, PK, PK], [CW, PK, BK, PK, PK]),
-      /* P5 the Sergeants' Row, its east barrows: two Knights at once */
-      box([46, 3, 58, 15], [51, 12], [BK, BK, PK], [PK, CW, PK, BK, PK]),
+      box([34, 3, 45, 15], [40, 9], [BK, PK, PK], [CW, BK, PK, CW, BK]),
+      /* P5 the Sergeants' Row, its east barrows. One Knight as built and a second at four: as built with two, a Knight killed a lone bow
+         at the floor on Normal (quick grade), and Normal in range is safe (11-04) */
+      box([46, 3, 58, 15], [51, 12], [BK, PK, PK], [BK, CW, BK, PK, PK]),
       /* P6 the Captain's Barrow: Captain Hask in the forecourt of the great mound, two of his sergeants with him. BUILT FOR FOUR
          (`forParty`, a warning before Enter and never a gate, Tyler 2026-11-08). */
-      { ...box([37, 21, 57, 38], [48, 26], [HASK, BK, BK], [PK, PK, CW, PK, PK]), forParty: 4 },
+      { ...box([37, 21, 57, 38], [48, 26], [HASK, BK, BK], [PK, BK, CW, PK, PK]), forParty: 4 },
     ],
     route: [0, 1, 2, 3, 4, 5, 6],
     respawnMs: 90000, pullDist: 1.5, groupFit: 'party',
     densityMax: [8, 8, 8, 8],
+    /* THE GATHER SLIDER (inert until the hunt-gathering engine lands; tests/hunt-core/forest-cave.mjs gather-nodes): the field's few
+       standing oaks, as the Slake's (refKillMs the Slake's 12000). Stand-ins: the March kit keeps the Greenhaven oak out and has no
+       alder node kind yet (hunt-grounds.js GROUND_NODE_KINDS), so they swap when one exists. */
+    gather: gather(12000, [['oak_tree', 4, 13, 0], ['oak_tree', 15, 14, 0], ['oak_tree', 22, 18, 3], ['oak_tree', 33, 24, 3]]),
   },
   monsters: {
     barrow_pikeman: {
@@ -117,7 +130,7 @@ export default definePack({
         { id: 'rune_boots', ch: 0.01, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.01, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.01, band: 'scarce' },
         { id: 'rune_helm', ch: 0.01, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.01, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.01, band: 'scarce' },
         { id: 'rune_sword', ch: 0.01, band: 'scarce' }],
-      hp: 191, atk: 23, baseAcc: 1.04, def: 21, xp: 1309, gp: [21, 64], formula: true },
+      hp: 191, atk: 23, baseAcc: 1.04, def: 21, xp: 1217, gp: [21, 64], formula: true },
     cairn_wight: {
       name: 'Cairn Wight', icon: '🪦', tier: 4, level: 60, cls: 'undead', family: 'Undead', speed: 4000,
       /* the glass, quick enough to reach the back line: the dead who were in this field before the company dug into it, cloth and
@@ -128,7 +141,7 @@ export default definePack({
         { id: 'rune_platelegs', ch: 0.03, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.03, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.03, band: 'scarce' },
         { id: 'yew_staff', ch: 0.03, band: 'scarce' },
         { id: 'yew_wand', ch: 0.002, band: 'rare' }, { id: 'yew_spellbook', ch: 0.002, band: 'rare' }],
-      hp: 188, atk: 31, baseAcc: 1.03, def: 22, xp: 1578, gp: [21, 63], formula: true },
+      hp: 188, atk: 31, baseAcc: 1.03, def: 22, xp: 1468, gp: [21, 63], formula: true },
     muster_knight: {
       name: 'Barrow Knight', icon: '⚔️', tier: 5, level: 66, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser: the company's mounted sergeants, buried armed in the round barrows of the Row with a sword set before each and
@@ -139,17 +152,16 @@ export default definePack({
         { id: 'rune_platebody', ch: 0.03, band: 'scarce' }, { id: 'wyvernhide_body', ch: 0.03, band: 'scarce' }, { id: 'sorcerer_body', ch: 0.03, band: 'scarce' },
         { id: 'rune_warhammer', ch: 0.03, band: 'scarce' },
         { id: 'rune_gauntlets', ch: 0.002, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.002, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.002, band: 'rare' }],
-      hp: 440, atk: 41, baseAcc: 0.9, def: 44, xp: 3677, gp: [49, 147], formula: true },
+      hp: 440, atk: 41, baseAcc: 0.9, def: 44, xp: 3420, gp: [49, 147], formula: true },
     captain_hask: {
       name: 'Captain Hask', icon: '👑', tier: 5, level: 75, cls: 'undead', family: 'Undead', speed: 2800, boss: true,
       /* THE BOSS: the Banded Company's captain, who sold the crossing to Lord Krell and was buried by the men he sold, in his cloak
          and with the price still on him. The class as written (no override): a hammer and fire both answer him. His belts and the
-         bow are the Rares, his Mantle the Trophy. His phases are in the header: this row is what a ground's engine plays today. */
+         bow are the Rares. His Trophy waits on its icon (the header). His phases are in the header: this row is what a ground's engine plays today. */
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'hasks_coin', ch: 0.15, band: 'uncommon' },
         { id: 'rune_belt', ch: 0.01, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.01, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.01, band: 'rare' },
-        { id: 'yew_bow', ch: 0.01, band: 'rare' },
-        { id: 'hasks_mantle', ch: 0.0012, band: 'trophy' }],
-      hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 14281, gp: [173, 520], formula: true },
+        { id: 'yew_bow', ch: 0.01, band: 'rare' }],
+      hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 13281, gp: [173, 520], formula: true },
   },
   roster: {
     barrow_pikeman: 'swarm',   // the common majority
@@ -157,21 +169,18 @@ export default definePack({
     muster_knight: 'elite',    // the bruiser in plate
     captain_hask: 'boss',
   },
-  /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, its tier and book value from its dropper's Level, raw), and
-     Hask's Trophy (a collector's piece like the Crown and the Cauldron until the Trophy Room hangs boss trophies). */
+  /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, its tier and book value from its dropper's Level, raw). */
   items: {
     coffin_nail: { n: 'Coffin Nail', icon: '🔩', v: 114, raw: true, imbue: { kind: 'ward', tier: 2 } },
     urn_shard: { n: 'Urn Shard', icon: '🏺', v: 120, raw: true, imbue: { kind: 'mana_leech', tier: 2 } },
     sergeant_spur: { n: 'Sergeant\'s Spur', icon: '⚙️', v: 132, raw: true, imbue: { kind: 'keen', tier: 2 } },
     hasks_coin: { n: 'Hask\'s Coin', icon: '🪙', v: 150, raw: true, imbue: { kind: 'life_leech', tier: 2 } },
-    hasks_mantle: { n: 'Hask\'s Mantle', icon: '🧥', v: 11000, type: 'trophy', tag: 'trophy', rarity: 'legendary' },
   },
   itemText: {
     coffin_nail: 'An iron nail out of a coffin lid in the Long Barrows. The Barrow Pikeman under it pushed it out himself',
     urn_shard: 'A piece of a burial urn older than the Banded Company. The Cairn Wights were in this field first',
     sergeant_spur: 'The spur off a Barrow Knight\'s boot. The company buried its sergeants armed, with their horses beside them',
     hasks_coin: 'One coin of the price Lord Krell paid Captain Hask for the ford. Hask was buried with all of it',
-    hasks_mantle: 'The captain\'s cloak Hask wore the day he sold the crossing. The men he sold buried him in it',
   },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the March's store food and drink, and Chalked Fire Runes (the unburned dead
      take 15% more fire). */
@@ -179,8 +188,29 @@ export default definePack({
     melee: { heal: { id: 'cooked_lobster', qty: 100 } },
     ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
+  /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks two things of a party-built ground's Normal at the band middle (65): the
+     four a head within 0.90-1.10 of the pace contract, and 1.15-1.25 of the median lone way. On the formula's rows the median lone way
+     read 0.94-0.96 of the contract (quick grade, 1 seed x 1 h), so a four paid 1.15 of it sat at 1.10, on the edge. At 0.93 the lone
+     way reads about 0.91 and the four about 1.07. */
+  xpFit: { k: 0.93, why: 'at the formula XP the median lone way read 0.94-0.96 of the pace contract at the band middle (65), so a four paid 1.15 of it read 1.10, the top of the band the sheet allows' },
+  /* THE HARDER TIERS (TIER_PULL_OVERRIDES' shape since one difficulty: ONE pull for every group). Dangerous brings the full box, 8, not
+     the table's 5: on 5 a Melee and Healer pair two under the floor netted +2.9k gold an hour a head and five under +0.5k, where the
+     weight-class ruling (11-06) asks them to lose gold. On 8 they lose 15.6k and 28.8k (quick grade, 1 seed x 1 h). So here the two
+     harder tiers differ by their blows and their pay, not their pull. OPEN, ONE ROW OF THE GRADE: five under on Dangerous the sheet
+     also asks that pair to die, and it never did in the hour, on a pull of 5, 7 or 8 (its tank's typical low 44%). The next step up
+     in the monsters' own blows is Deadly's, where it died 8 times. The pair pays in gold here, not in deaths.
+     Deadly pays +35% a kill, not the table's +25%: a tank and Healer pair holding it at the floor earned 1.17 of its Normal (its
+     kills are held by its damage, and a Deadly monster has 10% more HP), where the sheet asks 1.25 of whoever holds it. */
+  tierOverride: { dangerous: 8, dials: { deadly: { xpPm: 1350 } },
+    why: 'on the table pull of 5 a Melee and Healer pair two to five Levels under the floor still made gold on Dangerous, so it brings the full box. At +25% a kill a pair holding Deadly at the floor earned 17% over its Normal, so it pays +35%' },
+  /* PARTY LEVEL XP (party-class-xp.js's row shape: a share of the kill by how many classes stand, not a difficulty row). With no row a
+     party pays the even share of a whole kill, and on the quick grade a tank and Healer pair read 0.78-0.81 of the median lone way and
+     the four-class four 0.85-0.86, where 10-25 asks a pair 1.05-1.15 and a four 1.15-1.25. The mixed cells are those readings scaled
+     (a cell is a straight factor on the share): at 1360 the pair read 1.01-1.05 and at 1400 the four 1.11-1.13, so 1440 and 1485. The
+     three's cells are set between them and the one-class cells are the Warrens': both unmeasured here (tests/party-class-xp-line.mjs). */
+  partyClassXp: { 2: [990, 1440], 3: [990, 1440, 1470], 4: [970, 1300, 1440, 1485] },
   /* THE PACK'S TEST FACTS. Hask holds his barrow (no spawn weight). dropRef: the four the ground is built for, at the floor in their
      own-tier set (tests/hunt-core/drop-tables.mjs, as the Warrens'). */
-  checks: { holders: [HASK], dropRef: { roles: ['tank', 'healer', 'bow', 'mage'], full: true } },
+  checks: { holders: [HASK], dropRef: { roles: ['tank', 'ranger', 'mage', 'healer'], full: true } },
   map,
 });

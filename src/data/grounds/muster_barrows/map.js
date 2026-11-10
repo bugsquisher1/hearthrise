@@ -93,6 +93,8 @@ export default Object.freeze({
     { id: 'bone_pile', x: 41, y: 33 }, { id: 'skull', x: 46, y: 24 },
     /* the Wet Hollow */
     { id: 'bones', x: 8, y: 35 },
+    /* the gather nodes (pack.js ground.gather): standing oaks, to swap for a March tree kind */
+    { id: 'oak', x: 4, y: 13 }, { id: 'oak', x: 15, y: 14 }, { id: 'oak', x: 22, y: 18 }, { id: 'oak', x: 33, y: 24 },
   ]),
   buildings: Object.freeze([]),
   /* the patrol loop, on the road in */
@@ -109,5 +111,5 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 0, y: 9, to: 'town_common' }]),
   start: Object.freeze([1, 9]),
-  maskHash: '6bfb7141',
+  maskHash: '2e94b101',
 });

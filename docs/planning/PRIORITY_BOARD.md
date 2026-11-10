@@ -30,6 +30,226 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-10 Combat training (designer, lane/d-training-and-wards; Tyler 2026-11-08: "training dummies and stuff to train skills (for gold)", "Make the training area look cool too", "Wildly expensive gold sink is going to be a personal training dummy for houses"): DESIGN ONLY, the numbers MEASURED on the real engine at Levels 20 and 50, Level 80 NOT measured, nothing built. **The server half is a §1 money surface and goes on the pre-EA Security list (§3.7)**
+**What it is.** A hero who is not hunting can stand in the Training Yard and train Melee, Ranged, Magic or Defense. It costs gold by the minute and gives skill XP only. It gives no Level XP, no gold and no loot, so a hunt always pays more. The house dummy does the same thing with no fee, for one hero at a time, and costs a million gold a skill.
+
+**The purpose test** (`DESIGN_STANDARDS.md` §4). It passes, on these answers.
+| Question | Answer |
+|---|---|
+| Which player problem | Three. A hero out of stamina has no way to get stronger. A hero who changes weapon starts that skill at 1 (measured below: a Level 50 hammer hero who picks up a bow earns 61% of a bow hero's Level XP). A hero who is rarely hit has low Defense when the harder tiers start to hit everyone (a Level 49 bow career ends at Defense 27, a mage at 19, `level-pace.json`) |
+| What decision | What a resting hero does. Gathering and benches earn gold (1,100 to 2,500 an hour, `b1120-summary.json` wage). Training spends it. Then which skill, and how much gold to keep back |
+| What it plugs into | Source: the account purse. Consumer: the four combat skills the engine already reads. It uses the town activity the server already runs (`player_state.active_kind`), the yard station that already exists (`stations.js` `training_yard`), and the hunt-end rule that sends a hero back to its last town job (10-14) |
+| The tradeoff | Gold now against power later, and against Tempering, linings and the house |
+| Hour 100 and hour 1,000 | Yes. The skill curve grows 4% a level on top of the square, so the gold for one more level never stops climbing. Skill 50 to 51 is 256,250 XP. Skill 80 to 81 is 2,127,673 |
+| Depth or complexity | One rule and two numbers. No new currency, item or meter |
+
+**The rules** (mine, each with its reason).
+| Rule | What | Why |
+|---|---|---|
+| Who | Any hero at Level 10 or more who is in town and not hunting | Under 10 the first grounds teach the game and gold is short |
+| Skills | Melee, Ranged, Magic, Defense. One at a time. Not Inner Flame | Inner Flame is trained at the Hearth (10-25) |
+| What it gives | Skill XP an hour = 400 x the hero's Level | Measured below. It is 38 to 49% of what a hunt pays the hero's main skill at Levels 20 and 50. The rate reads the Level and not the skill, so a low skill on a high hero catches up fast, which is what a weapon change needs |
+| What it costs | Gold an hour = 50 x the hero's Level, taken by the minute as it runs, from the account purse | That is 8 XP for 1 gold at every Level. A higher Level only trains faster. Scaled hunts already charge 40 x Level an hour (11-07), so the two prices read alike |
+| Stopping | The player sets two things once and they are remembered for the hero. "Stop after" 1 to 24 hours or "until I stop it". "Keep at least" an amount of gold. Training stops when either is reached, or when a hunt starts | First principle. A hero left training for a weekend can't empty the purse |
+| After a hunt | "Go back to training after a hunt" is a switch, remembered, off by default | The 10-14 rule resumes the last town job. Training costs gold, so the player has to say yes once |
+| Stamina | Training uses none. Stamina comes back while a hero trains | It is the thing to do while stamina refills |
+| Gear | None needed. The yard lends a practice weapon, and Magic costs no mana or runes | The fee is the whole price. A player can read one number |
+| Caps | None but gold, the clock and the curve | A cap by Level would make the house dummy worthless after a week. The curve is the cap (see hour 1,000 above) |
+| The house dummy | One unlock a skill, 1,000,000 gold each, bought in any order, owned by the account. A hero trains that skill at home with no fee. One hero at a time | Tyler: "wildly expensive", "multiple unlocks for each combat skill", "you don't have to pay per hour". It gives the same XP as the yard. Money buys no faster training than a poor hero gets, only cheaper |
+| Where the dummy stands | In the home's Trophy Room, where a plain dummy already stands at rung 4 (`house-layouts.js`). The room must be at rung 4. Each skill bought adds a part the art lane has already cut. Arms for Melee, plates for Defense, the target for Ranged, the stone circle for Magic | The purchase shows. A full dummy is the home's showpiece |
+| Premium's daily training weapon | It is one free yard hour in the skill the player picks (10-17: the 1 h tier, 1,800 swings at 2.0 s). My reading, for the premium lane. Not part of this build | One system, not two XP sources |
+| Skill boards | Trained XP counts on the Honor Roll's skill boards (`honor-roll.js`) | A skill is the hero's skill however it was earned. Flagged for Security below |
+
+**What others see.** The yard kit on `origin/lane/a-import-town-art` puts each skill in its own corner. Melee heroes work the straw dummies and the two pells on the north row. Defense heroes take the quintain and the sparring pad. Hit the shield, the sandbag comes round, take it on your guard. Ranged heroes stand between the range posts and shoot the two butts. Magic heroes stand at the ward ring and the lectern in the south corner. Each hero uses their own outfit and weapon style, and the target they hit shudders (the kit's reaction clips). A tap on a training hero shows their name, their Level and "Training Defense". No XP numbers float over heads (10-22). The yard has 24 stands today, three to a dummy. The data lane re-cuts them by corner. A hero past the last stand sits on the benches and still trains, because the server never refuses training for lack of room. The Arms Master stands by the sword rack and opens the Training tab. He has no name yet and I have not made one up.
+
+**Player text** (plain, for the Training tab of the Hunts window, which the yard already opens).
+- "Train a skill here. It costs gold by the hour and gives skill XP. You get no Level XP and no loot."
+- "Defense 36. Next level in 5 hours 40 minutes. That costs 14,200 gold."
+- "Stop after 4 hours." "Keep at least 20,000 gold."
+- "Your own dummy. No hourly fee. One hero at a time."
+- "Mira stopped training. You are down to the gold you chose to keep."
+
+**Measured** (`tools/balance-sim/cell.mjs` on this branch's rows, v0.2.112, the real engine, a lone hero on Normal, 1 seed x 1 h a cell, skills set to what a career really holds at that Level). One seed for one hour is a rough read. Differences under about 3% are noise.
+| Hero | Level XP an hour | Main skill XP an hour | Defense XP an hour | Net gold an hour | Damage taken an hour |
+|---|---|---|---|---|---|
+| Glade, Level 20, hammer, Melee 27, Defense 18 | 83,958 | 19,183 | 5,488 | 7,280 | 18,214 |
+| the same, Melee 32 | 84,293 | | | 7,088 | |
+| the same, Melee 37 | 87,634 (+4.4%) | | | 7,363 | |
+| the same, Defense 28 | 83,778 | | | 7,443 | 14,052 (-23%) |
+| Glade, Level 20, mage, Magic 28, Defense 10 | 91,225 | 16,530 | 878 | 8,127 | 3,763 |
+| the same, Defense 20 | 90,960 | | | 8,054 | 3,395 (-10%) |
+| Warrens, Level 50, hammer, Melee 51, Defense 36 | 239,771 | 52,987 | 19,207 | 5,092 (food 6,480) | 27,266 |
+| the same, Melee 56 | 250,104 (+4.3%) | | | 6,981 | |
+| the same, Melee 61 | 259,138 (+8.1%) | | | 6,151 | |
+| the same, Defense 51 | 239,771 | | | 9,565 (food 1,260) | 10,933 (-60%) |
+| Warrens, Level 50, bow, Ranged 51, Defense 27 | 182,855 | 40,524 | 3,924 | 6,958 | 8,084 |
+| the same, Defense 47 | 181,373 | | | 9,082 | 2,494 (-69%) |
+| Warrens, Level 50, bow, Ranged 1 (a hammer hero who changed weapon) | 112,468 (61%) | 24,925 | | 4,808 | |
+| the same, Ranged 30 | 142,342 (78%) | | | 5,988 | |
+
+**The yard against a hunt.** At Level 20 the yard pays 8,000 XP an hour and a hunt pays the main skill 16,530 to 19,183. At Level 50 the yard pays 20,000 and a hunt pays 40,524 to 52,987. So the yard is never more than half of a hunt on the skill the hero fights with, and a hunt also pays the Level, the gold and the loot. The one place the yard is faster is a skill the hunt barely trains. A mage's hunt pays 878 Defense XP an hour and a bow hero's 3,924. That gap is what is for sale. A hammer hero at the Warrens already earns 19,207 Defense XP an hour from being hit, about what the yard pays.
+
+**The prices against gold an hour.**
+| Level | Yard XP an hour | Yard gold an hour | A hunting hour nets | The fee as a share of it | 16 hours of training | The dummy pays for itself after |
+|---|---|---|---|---|---|---|
+| 20 | 8,000 | 1,000 | 7,280 to 8,127 (measured) | 12 to 14% | 16,000 | 1,000 hours of training |
+| 50 | 20,000 | 2,500 | 5,092 to 6,958 (measured). 6,100 for a lone tank at the Slake's floor (the staged pack's note) | 36 to 49% | 40,000 | 400 hours |
+| 80 | 32,000 | 4,000 | NOT measured. The Pyre Field is a staged pack | unknown | 64,000 | 250 hours |
+
+A Level 50 hero who hunts 8 hours a day nets about 41,000 to 56,000 gold. Training the other 16 hours costs 40,000. So training around the clock takes most of a day's income, and that is the sink. A million gold is about what a hero has earned in total by Level 50 (161 hunting hours on the pace of record at 6,000 to 7,000 an hour).
+
+**The walk** (what each hero pays and gets).
+| Hero | Buys | XP | Hours | Gold | Gets (measured above) | Worth it |
+|---|---|---|---|---|---|---|
+| Level 20 mage | Defense 10 to 20 | 58,411 | 7.3 | 7,301 | 10% less damage taken. No change in XP or gold on Normal | No. On Normal a mage is barely hit. It is for the harder tiers, which are not measured |
+| Level 20 hammer | Defense 18 to 28 | 185,590 | 23.2 | 23,199 | 23% less damage taken, about 160 more gold an hour | A comfort buy. It costs three hunting hours of gold |
+| Level 20 hammer | Melee 27 to 37 | 509,714 | 63.7 | 63,714 | 4.4% more Level XP | No. At 20 the hunt trains Melee fast enough |
+| Level 50 hammer | Defense 36 to 51 | 2,288,036 | 114.4 | 286,005 | Food 6,480 down to 1,260 an hour. Net up 4,473 an hour | Yes. It pays back in 64 hunting hours, about 8 days |
+| Level 50 bow | Defense 27 to 47 | 1,808,520 | 90.4 | 226,065 | 69% less damage taken. Net up 2,124 an hour | Yes, slowly. 106 hunting hours |
+| Level 50 hammer | Melee 51 to 56 | 1,627,815 | 81.4 | 203,477 | 4.3% more Level XP | Only for a player with gold to burn. That is the point of it |
+| Level 50, new bow | Ranged 1 to 30 | 300,743 | 15.0 | 37,593 | 61% to 78% of a bow hero's Level XP | Yes. This is the cheap way to change weapon |
+| Level 80, any | One skill level, 80 to 81 | 2,127,673 | 66.5 | 265,959 | NOT measured | Unknown until the Pyre Field ships |
+| Level 80, new style | A skill from 1 to 50 | 2,663,480 | 83.2 | 332,935 | NOT measured | Likely yes. Five days of rest time to carry a second weapon |
+
+**The steps** (a Level 50 hammer hero's first night at the yard. "New" means this design).
+| Step | The player | Holds, from the steps before | Doable |
+|---|---|---|---|
+| 1 | Ends a hunt. The hero is back in town with stamina spent | A Level 50 hero, Defense 36, a purse | Yes, today |
+| 2 | Taps the Training Yard. The Hunts window opens on Training | Step 1 | The tap and the window exist (`stations.js` `training_yard` opens `hunts`). The tab is new |
+| 3 | Picks Defense. Reads "20,000 XP an hour. 2,500 gold an hour." | Step 2 | New |
+| 4 | Sets "Stop after 8 hours" and "Keep at least 30,000 gold". Taps Train | A purse over 50,000 | New (`hr_training_start`). Refused in a hunt or under Level 10 |
+| 5 | The hero walks to the quintain and trains. The player closes the browser | Step 4 | The yard, its stands and the walk exist. The quintain is on the art lane. The settle is new |
+| 6 | Comes back 8 hours later. The hero is idle. Defense gained 160,000 XP and the purse is 20,000 lighter. Stamina is full | Step 5 | New. The server stopped it at 8 hours |
+| 7 | Starts a hunt. The settings are still there next time | Step 6 | Hunting exists. The remembered settings are new |
+
+So training is a luxury at 20 and a real choice from about 50. That is the right shape for a gold sink. Level 20 gold should go to gear and Tempering.
+
+**Balance and exploit review.**
+- **Gold buys power.** Tyler accepted that on 11-04 ("paying for power has to live somewhere"). It is indirect and it is slow. Ten Melee levels at 50 cost 499,841 gold and 200 hours for 8% more Level XP.
+- **The Level pace.** A hero who trains every resting hour will level a few percent faster than the 168 hour contract to 50. Not measured as a career. The pace re-measure should add one full-time trainer.
+- **Alts.** The purse is the account's, so a rich account can train a new hero. The rate reads the new hero's Level, so a Level 10 trains at 4,000 XP an hour. Slow by design.
+- **Defense.** The 10-18 rule (no AFK trap training) holds. Nothing in a hunt changes. The yard is the paid way and it is the same price as any skill.
+- **A death** still takes skill progress (11-09). Training can buy it back, which adds to the sink.
+- **For the pre-EA Security review.** A purchase that writes skill XP. The skill boards rank it. The fee and the XP both come from one server row and one server clock.
+
+**Server shape** (for the backend lane. §1: the client sends an intent and renders the envelope).
+| Piece | Shape |
+|---|---|
+| Data | New `src/data/training.js`. `xpPerLevelPerHour: 400`, `feePerLevelPerHour: 50`, `minLevel: 10`, `skills`, `dummy: { price: 1000000, room: 'trophy', rung: 4 }`. A generator writes it to `hr_training_rules` and its `--check` fails a stale copy, like `gen-gold-sinks` |
+| Activity | `player_state.active_kind` gains `'training'` (the CHECK is `idle, gather, artisan, combat` today. `last_activity_kind` already allows it). `active_id` is `yard:<skill>` or `home:<skill>` |
+| Intents | `train_start { skill, place, stopAfterH, keepGold }` and `train_stop`, through `hr-accrue` like every town job. RPCs `hr_training_start` and `hr_training_stop`, `SECURITY DEFINER`, rate bucket 6 a minute |
+| Settle | Inside the town job settle that already runs gather and bench work with the browser closed. Elapsed = server now minus `accrued_to`, clamped by `hr_accrue_cap_ms`. XP = elapsed x 400 x Level, whole XP only, the rest carried as time. The fee is in milligold with a carry column, the bench tax's pattern (`bench_tax_carry_mg`), so a run costs the same however it is cut. Level is read on the server at each settle |
+| Stops | The settle stops the job at `stopAfterH`, or when the purse would fall under `keepGold`, and writes why. The hero goes idle and the envelope says so |
+| Refusals | In a hunt, under Level 10, an unknown skill, `home:` without that skill's dummy, a second hero on the home dummy (a partial unique index on the account) |
+| The dummy | Four `hr_unlocks` rows, `dummy:<skill>`, max 1, with four `hr_unlock_offers` rows at 1,000,000 gold, sold by the existing `hr_unlock_buy`. No new spend RPC. The offer needs the Trophy Room at rung 4 |
+| Ledger | `player_ledger` rows `training_fee` (gold out) and `training_xp` (skill, XP), one pair a settle. The dummy is an `unlock` row as every ladder is |
+| Projection | `hr_state_of` adds `training`: skill, place, since, the two settings, XP and gold this run. The client draws nothing it was not sent (§6) |
+| Tests | Both paths (§4). Train with the tab open and with the browser closed for 6 hours, same XP and gold to the unit. A self-check that no settle pays more than 400 x Level an hour |
+
+**Build lanes, in order.** (1) `lane/a-import-town-art` lands the yard kit. (2) Lane C backend: the data file, generator, migration and tests above. (3) Edge and session: the two intents and the projection. (4) Lane B client: the Training tab, the stands by corner, the reaction clips, the dummy's parts in the home. Art Director reads the yard with four heroes training. (5) Balance: a full-time trainer in the pace plan, and Level 80 once the Slake and the Pyre Field are open.
+
+**Not measured.** Anything at Level 80. Any tier but Normal. A tank and a healer. Parties. More than one seed. A career with training in it. What share of all gold the yard will take. **Not played.** Nothing is built, so nothing was played in the browser.
+
+### 2026-11-10 Resistance and imbuements (designer, lane/d-training-and-wards; Tyler 2026-11-08: "add some elemental resistance to gear and imbuements in order for the party to survive", "make later hunts require some resistances or higher levels to advance to the harder tiers", "show the player what is happening to their heros"): DESIGN ONLY, a sample of five, real ingredient rows, nothing built. **This replaces the "Next phase (spec only)" table in the area spells section, which is on `origin/lane/d-area-spells` and not yet on main. The server half is a §1 money and combat surface and goes on the pre-EA Security list (§3.7)**
+**What it is.** A **lining** is the first imbuement. A crafter sews one from a monster's piece and runes. A hero has it fitted for gold and then takes less damage from one element for 20 hours of hunting. Linings go from 10% to 30%. One cape a ground adds 10%. The engine stops at 40% (`HERO_RESIST_PM`, `origin/lane/b-area-engine`). After every hunt the summary says what hit the hero and which lining cuts it.
+
+**Why "lining" and not "ward".** Ward is already cloth armor's line (10-18), a flat imbuement kind and a spell (Protective Ward). A fourth thing called Ward would be a clarity bug. The data kind stays `element_ward`.
+
+**The purpose test.** It passes.
+| Question | Answer |
+|---|---|
+| Which player problem | Monster group spells hit every hero and can't be dodged. On Deadly a four loses 13%, 72% and 107% of its profit at Wickstead, the Glade and the Warrens (area spells 4J, measured). Without a counter the only answer is more Levels |
+| What decision | Which element to guard against on this ground. Whether a harder tier is worth the fitting fee. Make the lining or buy it from a crafter |
+| What it plugs into | Source: the imbuement item every monster already drops (10-14), and Runecrafting's runes. Maker: the Crafting bench. Consumer: the resistance seam the area engine lane already built. Market: a lining is a plain stack and trades |
+| The tradeoff | One lining worn at a time. Gold and pieces every 20 hunting hours against food and deaths |
+| Hour 100 and hour 1,000 | Yes. Every new ground brings an element and a tier, and the hours burn down forever |
+| Depth or complexity | One number a hero (percent off one element). One window. Everything after the first choice is remembered |
+
+**The rules** (mine, each with its reason).
+| Rule | What | Why |
+|---|---|---|
+| Where resistance comes from | Two places. A fitted lining (10, 20 or 30%). A cape row with 10% of one element. Crafted jewelry may add its own later, on the jewelry lane, inside the same cap | Tyler: "gear and imbuements". The cape ladder has holes at 5 of 7 tiers (`items.js` header), so element capes fill a gap that exists. More sources than this is sprawl |
+| The cap | 40% off one element, all sources added. Never an immunity (11-06) | The engine's own number |
+| What a lining is | A crafted item, a stack like any other. It trades and it sits in Storage | Items are stacks by id, so nothing can hang on one piece of gear. Tempering solved the same thing by putting the rung on the hero (11-05). **This is my reading of the 10-15 ruling "per gear piece, untradable until expiry".** The made item trades. The fitted lining can't |
+| How it is made | At the Crafting benches (`stations.js` `smithy_benches`). Six pieces from a monster, or two from a boss, and 30 runes of that element. Crafting 1 for Stitched, 25 for Corded, 50 for Sealed | Gather, craft, hunt, trade. Combat players pay crafters (11-04). Stitched needs no skill so nobody's first lining waits on the market |
+| How it is worn | "Fit" at the bench eats one lining and the fee. The hero gains 20 hunting hours of it. It shows on the chest slot. It belongs to the hero, so changing armor never loses it | No re-doing it for every gear change |
+| How long | 20 hours of hunting, counted on the server only while the hero is in a hunt with that lining worn. A hero can bank 40 hours of each lining | Timed, so pieces and gold keep leaving the game. Town time and offline rest burn nothing |
+| One at a time | A hero wears one lining. The others keep their hours | 10-15: each kind stacks once per character. It makes the element a choice |
+| Remembered per ground | "Wear on this ground" is saved per hero and ground, like the tier. Starting a hunt puts that lining on. No cost to switch | First principle. Pick once per ground |
+| Running out | Saved per hero. "Fit a new one from my bag or Storage" on or off. Then "When I have none left" keep hunting or leave the hunt | The same shape as the rune supply rule (11-08). A hero on Deadly can choose to walk out and not die |
+| The gold | Fitting costs 3,000 for Stitched, 12,000 for Corded, 40,000 for Sealed, from the account purse | Below |
+| A party | Each hero wears their own. The party card shows every member's lining for the leader's ground, or "No lining" | A group spell hits all four. The leader should see who is bare before entering Deadly |
+| Which piece makes which element | A creature's piece guards against what that creature shrugs off or lives in. The ground before sells the lining for the ground after. A ground's own officer or boss drops the best one for its harder tiers | Lore and loot connect (`DESIGN_STANDARDS.md` §1). It sends players back through earlier grounds and to the market for a reason |
+| The other four kinds | Keen, Life Leech, Mana Leech and flat Ward wait. Their pieces keep dropping and stay sell-only until each is designed | No mass generation. The tables below are built so they slot in |
+
+**The first five** (the sample. Ingredient ids checked in `src/data/items.js`, `imbuements.js`, `monsters.js` and `stonecraft.js` on this branch, or in the staged packs where marked).
+| Lining | Does | Pieces | Runes | Crafting | Fitting | Made for |
+|---|---|---|---|---|---|---|
+| **Stitched Fire Lining** | 10% less fire damage | 6 Torn Company Badge (`torn_company_badge`. Turncoat, Wickstead, Level 16, 10% a kill) | 30 Chalked Fire Rune | 1 | 3,000 | Wickstead's Smoke Pot on Dangerous and Deadly. The Warrens' Blasting Charge |
+| **Stitched Poison Lining** | 10% less poison damage | 6 Cistern Venom Gland (`cistern_venom_gland`. Cistern Spider, the Sewer, Level 20, 10%). Or 2 Rook's Moss Charm (`rooks_moss_charm`, Rook the Poacher, the Glade's boss, 15%). Or 2 Knotted Tails (`knotted_tails`, the Rat King, 15%) | 30 Chalked Poison Rune | 1 | 3,000 | The Glade's Spore Cloud. The Rat King's Squeal. Wickstead's Venom Spray |
+| **Corded Frost Lining** | 20% less frost damage | 2 Coppercap's Tallow (`coppercaps_tallow`. Chief Coppercap, the Warrens' boss, Level 52, 15%. "It is why frost slides off him") | 30 Scored Ice Rune (Runecrafting 15) | 25 | 12,000 | The Slake's Cold Bilge, a seed row on the area spells board |
+| **Corded Fire Lining** | 20% less fire damage | 6 Color Cord (`color_cord`. Color Sergeant, the Slake, Level 60, 10%. STAGED pack, not on main) | 30 Scored Fire Rune | 25 | 12,000 | The Pyre Field on Normal and Dangerous. The Warrens on Deadly |
+| **Sealed Fire Lining** | 30% less fire damage | 6 Warrant Seal (`warrant_seal`. Provost, the Pyre Field, Level 82, 10%. STAGED pack. "The paper burned and the seal did not") | 30 Etched Fire Rune (Runecrafting 30) | 50 | 40,000 | The Pyre Field on Deadly |
+
+Tier words say how it is fixed in. Stitched, then Corded, then Sealed. The Slake's cord and the Pyre's seal give the two upper tiers their names. Chalked runes are the rune shop's or Runecrafting 1 (`bind_chalked_*_runes`). **Left out on purpose.** Sticky Core (`sticky_core`, the Cellar's Slime) is an `element_ward` piece with no lining. A Level 50 hero would farm slimes for every first-tier lining. It stays sell-only until a use is found. No Stitched Frost Lining either. No ground under Level 50 casts frost, so it would be an item with no use.
+
+**Reaching 30%.** At the Slake a hero wears Corded Frost (20%) and the ground's frost cape (10%). At the Pyre Field Sealed Fire (30%) and a cape reach the 40% cap. Before Level 50 a hero reaches 10%, which trims a Deadly food bill and decides nothing. Normal needs none on any ground (area spells 4I: no death and no close call with the spells in). The capes are not rows yet. They are the next data batch, one a ground, after this sample is played.
+
+**How a player learns the element.** Three places, all from data, never a hand list.
+1. **Before.** The Hunts page already shows each monster. Its stat card (ruled 11-09) lists its spell and element. A ground whose monsters cast a group spell gets one line on its Dangerous and Deadly notes. "The Turncoats here burn the whole party. A Fire Lining helps."
+2. **After.** The hunt summary's "What hit you" lists damage taken by source and element (ruled 11-08). When one element is a quarter or more of it and the hero's resistance to it is under 30%, one line and one button follow. "Smoke Pot did 41% of the damage you took. It is fire. A Fire Lining cuts it." The button opens Linings on that recipe. If the hero already holds one it reads "Wear it here" and one tap saves it for the ground.
+3. **On a death.** The death line names the spell and its element.
+
+**Why it is not a chore.** The lining is chosen once per ground. It goes on by itself when the hunt starts. It refits itself from the bag, then Storage, then the purse. Hours burn only in a hunt. Changing gear changes nothing. The Linings window counts pieces in the bag and Storage together ("Torn Company Badge 4 of 6") and names the monster and ground that drops them. **Repeated decisions I could not remove.** Farming or buying the pieces every 20 hunting hours is the sink, and it is meant.
+
+**The prices against gold an hour.**
+| Lining | Fitting | Per hunting hour | A hunting hour nets | The fee as a share | What 30% is known to buy |
+|---|---|---|---|---|---|
+| Stitched, Level 20 | 3,000 | 150 | 7,280 to 8,127 (measured, the training section) | 2% | A Deadly four at the Glade: 1,493 up to 3,573 a head an hour, close calls 189 down to 6 (4J). 10% is NOT played |
+| Corded, Level 50 | 12,000 | 600 | 5,092 to 6,958 (measured) | 9 to 12% | A Deadly four at the Warrens: -445 up to 4,957 a head an hour (4J). 20% is NOT played |
+| Sealed, Level 80 | 40,000 | 2,000 | NOT measured | unknown | NOT measured |
+
+The pieces cost time on top. From spawn share x kills an hour x drop chance, a Wickstead hour gives about 4 Torn Company Badges and a Warrens hour about 1 Coppercap's Tallow. **Estimated, not counted on the engine.** So a Stitched lining is about an hour and a half of an easy ground every 20 hunting hours, and a Corded Frost about two hours of the Warrens' boss. The boss can also be called for gold (11-05), which feeds that sink too.
+
+**The walk** (a Level 20 hero's first lining. "New" means this design or a staged lane).
+| Step | The player | Holds, from the steps before | Doable |
+|---|---|---|---|
+| 1 | Hunts the Glade (`mosslight_glade`, 16 to 31) on Dangerous in a four. The Walking Vines cast Spore Cloud | A Level 20 hero, a party | The ground is live. The spell is staged (`origin/lane/b-area-data` `spore_cloud`, poison) |
+| 2 | Reads the summary. "Spore Cloud did 38% of the damage you took. It is poison. A Poison Lining cuts it." Taps the button | Step 1's hunt | New (the breakdown is the area client lane's. The hint and button are this design) |
+| 3 | Linings opens on Stitched Poison Lining. "Cistern Venom Gland 0 of 6. Cistern Spiders drop it in the Sewer." | Step 2 | New window. `cistern_venom_gland` and its dropper `cistern_spider` (Level 20, 10%) exist |
+| 4 | Hunts the Sewer (`millrace_sewer`, 8 to 25) until six glands drop. Or kills Rook twice in the Glade | A hero in the Sewer's band | Yes, today. The glands already drop and file under Materials |
+| 5 | Buys 30 Chalked Poison Runes at the rune shop, or makes them | Gold. Runecrafting 1 | Yes, today (`chalked_poison_rune`, `bind_chalked_poison_runes`) |
+| 6 | Sews the lining at a Crafting bench | Steps 4 and 5. Crafting 1 | New recipe row and item row. The bench exists |
+| 7 | Taps Fit. Pays 3,000 gold | Step 6's lining. A Level 20 hero nets about 7,000 an hour | New (`hr_lining_fit`) |
+| 8 | "Wear it here" saves it for the Glade | Step 7 | New |
+| 9 | Back on Dangerous the hero takes 10% less from Spore Cloud. 20 hunting hours later it refits itself if a lining is in Storage | Steps 7 and 8 | New (the engine seam exists at 0 on the area engine lane) |
+
+**Level 50.** The hero is leaving the Warrens for the Slake. The Chief has dropped Tallow along the way (15% a kill). Two of them, 30 Scored Ice Runes and Crafting 25, or a crafter on the market, make a Corded Frost Lining. Fitting is 12,000 gold, about two hunting hours of net. With the Slake's cape that is 30%. Worth it for Dangerous and Deadly if the Slake's spell is tuned as planned. Not needed on Normal. **Level 80.** The hero farms Warrant Seals from Provosts on Normal, sews a Sealed Fire Lining at Crafting 50 and pays 40,000 to fit it. Whether that is a fair price is NOT measured. The Pyre Field's income is a staged pack's and its spell is not designed.
+
+**Balance and exploit review.**
+- **The wall.** "Dangerous and Deadly on later grounds need about 30%" is a tuning target for the balance lane, not a fact yet. The Slake's and the Pyre's group spells get sized so a four at the floor on Dangerous loses gold bare and holds at 30%. A new row on `BALANCE_SHEET.tiers` holds it.
+- **Linings and Defense training do different jobs.** Defense stops blows. A group spell is not dodged. Neither replaces the other.
+- **Trade.** A made lining trades. A fitted one is hours on a hero and can't move. No gold is refunded, so nothing can be laundered through fitting.
+- **A lone hero.** 30% barely helps alone (4J: 42 to 33 deaths an hour at Wickstead on Deadly). The text must not promise that a lining makes Deadly safe alone.
+- **For the pre-EA Security review.** Fitting moves gold and items and changes combat. The recipe, the percent, the hours and the fee are server rows. The client names only a lining id.
+
+**Server shape** (for the backend lane).
+| Piece | Shape |
+|---|---|
+| Data | `src/data/imbuements.js` gains `IMBUE_LININGS`: id, element, tier, `resistPm` (100, 200, 300), `hoursMs` (72,000,000), `bankMs` (144,000,000), `gold`. Each `element_ward` piece gains `element`. A generator writes `hr_imbue_linings`. The five lining items, their recipes and their text are plain rows in `items.js`, `recipes.js` and `item-descriptions.js`. Five icons from the asset lane |
+| Making | The existing bench job. No new server code. The bench tax applies as on any craft |
+| Tables | `player_imbues` (user, hero, lining id, `remaining_ms`). One row a lining a hero. `player_state.imbue_worn` (a lining id or null). The hero's lining for a ground is stored beside the tier it picked there (`hr_hunt_tier_set` writes that today and `hr_hunt_tier_view` reads it). Two hero settings, refit on or off and keep hunting or leave |
+| Intents | `lining_fit { lining }`, `lining_wear { lining or none }`, `lining_rule { ground, lining, refit, onEmpty }`. RPCs `hr_lining_fit`, `hr_lining_wear`, `hr_lining_rule`, `SECURITY DEFINER`, town only, 10 a minute |
+| `hr_lining_fit` | One advisory lock on the account. Takes one lining from the hero's bag, then Storage (`hr_materials_take`). Takes the fee from the purse. Adds `hoursMs`, never past `bankMs`, and refuses a fit that would waste hours. The price is re-read on the server. A changed price answers `quote_changed` |
+| The hunt | At hunt start the server reads the ground's rule, sets `imbue_worn` and puts `resistPm` on the hero's snapshot. That is the worn lining plus the worn gear rows' `resistPm`, clamped to 400 (`combat.js` and `member.js` on `origin/lane/b-area-engine` already carry it). Each settle takes the hunted time off `remaining_ms`. At zero it refits inside the same settle if the rule says so and the stock is there. If not it either ends the hunt with a new END_ORDER reason `lining_out` or hunts on with the snapshot rebuilt at 0 |
+| Ledger | `player_ledger` rows `lining_fit` (gold out, item out, hours in) and `lining_refit` for the automatic one |
+| Projection | `hr_state_of` adds `imbues`: worn, hours left for each, the rule for each ground. Hours left draws from the envelope and is replaced by each one (§6) |
+| Tests | Both paths. A lining that runs out mid-hunt with the tab open and with the browser closed gives the same hunt. A forged lining id, a fit in a hunt and a fit past the bank are refused. No snapshot ever carries more than 400 |
+
+**Build lanes, in order.** (1) The area spells set ships (`lane/b-area-engine`, `b-area-data`, `b-area-client`). The seam and the "What hit you" breakdown come with it. (2) Data: the five linings, their recipes, the `element` on each piece, five icons. Catalogue-coherence moves those pieces out of the sell-only list. (3) Lane C backend: the tables and three RPCs. (4) Engine, systems-engineer at xhigh, in one combat batch: the snapshot, the burn, the refit and `lining_out`. (5) Lane B client: the Linings window at the bench, the summary hint and button, the Hunts page line, the party card. (6) Balance: play 10%, 20% and 30% on the Glade and the Warrens, then size the Slake's and the Pyre's spells to the wall. (7) The capes, one a ground, as their own sample.
+
+**Not measured.** Any point between 0 and 30% resistance. Anything at the Slake or the Pyre Field. Piece drops an hour (estimated from spawn shares). The hours to reach Crafting 25 and 50. Whether 20 hours is the right life for a lining. **Not played.** Nothing is built.
+
 ### 2026-11-07 Scaled hunts (designer, lane/b-scaled-hunts, Tyler 2026-11-07 "an option to 'scale' early game hunts up with gold", "party would scale to the leader", "+x% exp +x% more damage from monsters +x% more gold from monsters", "make it a per hour slider", "up to 24 hours", "the time only ticks down while in the spawn"): DESIGNED as data, MEASURED on the real engine, nothing wired, the feature stays hidden. **The server half is a §1 money surface (a gold purchase) and goes on the pre-EA Security list (§3.7)**
 **What it is.** A hero who has outgrown an early ground can pay gold to fight it at their own Level. The ground keeps its map, its monsters and its loot, and its monsters come up to the leader. It is for finishing an early bestiary at XP worth having, and it is a gold sink. It is never the best grind. At every tested gap the free right-Level ground pays more Level XP, and the best free ground pays more gold, so gold never buys faster leveling (the Crowns link, Tyler's 11-04 avoid list). The rules and numbers live in `src/data/scaled-hunts.js`. `tests/scaled-hunts.mjs` plays them on the real settle.
 

@@ -102,6 +102,25 @@ export function weaponWarning(a, disc, role, skills) {
   return t('bar.cast_wrong_weapon', { weapons: weaponsFor(r.disciplines[0]) });
 }
 
+/* THE ALONE CALLOUT (Tyler 2026-11-09: "Make that callout clear to the player"): a spell marked `alone` (src/data/abilities.js)
+   casts only while no other living hero shares its hunt. Said on its card, its slot's tooltip and, in a party, on the slot (bar.alone). */
+
+/**
+ * WHY AN ALONE SPELL'S SLOT WAITS (the engine's own rule, src/core/hunt/abilities.js aloneIn): `alone` is false when another
+ * hero shares the hunt (slot-waits.js whyFacts: the running prediction's world, else the server's party), so the slot greys.
+ * Null for any other slot, or while the hero hunts alone.
+ */
+export function aloneReason(sl, alone) {
+  const r = sl && !sl.empty && sl.action && sl.action.type === 'ability' ? ABILITIES[sl.action.id] : null;
+  return r && r.alone && alone === false ? { code: 'alone', text: t('bar.alone'), glyph: 'uiPeople', strike: true } : null;
+}
+
+/** Configure action's line for a draft of an alone spell in a party of `party` heroes (bar.alone_party), else ''. */
+export function aloneNote(action, party) {
+  const r = action && action.type === 'ability' ? ABILITIES[action.id] : null;
+  return r && r.alone && party > 1 ? t('bar.alone_party') : '';
+}
+
 /* The line for each spell target (bar.target_<target>). */
 const TARGET_LINE = Object.freeze({
   taunt: 'bar.target_taunt', mark: 'bar.target_mark', enemy: 'bar.target_enemy', area: 'bar.target_area',
@@ -126,6 +145,7 @@ function damageLine(r, pm) {
  * causes. A spell's mana and numbers are the version its slot casts at the hero's level (cast-facts.js castOf: the rune
  * it would spend, own first, then the store rune the slot names), and its cost line is the same cast's (costLine). `ctx` =
  * { bag, store, skills, set, worn }, all the server's; without them the numbers are version I's at level 1, as `version` says.
+ * `alone` is an alone spell's callout (bar.alone), else null.
  */
 export function factsOf(a, ctx) {
   const none = { type: null, cost: null, cooldown: null, numbers: [], effect: [], requires: null };
@@ -142,7 +162,7 @@ export function factsOf(a, ctx) {
     /* (an ally shield is a ward, not a heal; the universal self-heal needs no particular weapon) */
     const type = r.target === 'ally' && r.shield ? t('bar.target_ward') : own(TARGET_LINE, r.target) ? t(TARGET_LINE[r.target]) : null;
     return { type, cost: costLine(a, ctx), cooldown: t('bar.cooldown', { secs: secs(r.cdMs) }), numbers, effect,
-      requires: r.universal ? t('bar.requires_any') : t('bar.requires', { weapons: weaponsFor(r.disciplines[0]) }) };
+      requires: r.universal ? t('bar.requires_any') : t('bar.requires', { weapons: weaponsFor(r.disciplines[0]) }), alone: r.alone ? t('bar.alone') : null };
   }
   const cost = costLine(a, ctx) || null;
   if (a.type === 'consume') {
@@ -159,14 +179,16 @@ export function factsOf(a, ctx) {
 /**
  * THE BAR HOVER (Tyler 2026-11-08: "all of this should be decided in the configure actions, and simplified when hovering
  * the skill on the bar"): short and read-only, a SUBSET of Configure action's facts (factsOf, the same cast), never other
- * numbers. [{ text, cls }] in order: why it can't fire (only when it can't), the cost line, its numbers for this hero and
+ * numbers. [{ text, cls }] in order: why it can't fire (only when it can't), an alone spell's callout, the cost line, its numbers for this hero and
  * version, its cooldown, one When line (only when it has conditions), and the slot that always fires first (only when one
  * does). `w` is the wire slot (wireSlot), `ctx` factsOf's, `why` slot-waits.js slotWhy's, `conflict` conflictsOf's entry.
  */
 export function hoverLines(w, ctx, why, conflict) {
   const f = factsOf(w.action, ctx);
   const line = (text, cls) => (text ? { text, cls: cls || '' } : null);
-  return [why ? line(why.text, why.quiet ? 'is-why' : 'is-warn is-why') : null, line(f.cost)]
+  /* an alone spell says so before the hunt starts (Tyler 2026-11-09), once: in a party the why line already says it */
+  const alone = f.alone && !(why && why.code === 'alone') ? line(f.alone, 'is-why') : null;
+  return [why ? line(why.text, why.quiet ? 'is-why' : 'is-warn is-why') : null, alone, line(f.cost)]
     .concat(f.numbers.map((n) => line(n)), [line(f.cooldown), w.conditions.length ? line(setupWords(w), 'is-setup') : null, conflict ? line(conflict.why, 'is-warn') : null])
     .filter(Boolean);
 }

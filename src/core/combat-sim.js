@@ -53,7 +53,7 @@ import { MONSTERS } from '../data/monsters.js?v=0.2.112';
 import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../data/scaled-hunts.js?v=0.2.112';
 import { stepSwing } from './hunt/world-step.js?v=0.2.112';
 import { makeEvent, trackStep } from './hunt/events.js?v=0.2.112';
-import { newHuntWorld, joinHero, leaveHero, scaleRoomFor } from './hunt-spawn.js?v=0.2.112';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.112';
 import { pullLeader } from './hunt/pull-cycle.js?v=0.2.112';
 import { rewardSwing } from './hunt-rewards.js?v=0.2.112';
 import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.112';
@@ -323,8 +323,6 @@ export function simulateHuntInstance(inst, ctx) {
           const tier = play.tierOf(tierPick(standing));
           world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],
             { density: densityFor(ctx.ground, standing.length, pickOf(standing)), tier, monsters: play.monsters });
-          /* The room's one spawn is for the party walking in, not the first hero through the door: he never comes back at their size. */
-          if (call) scaleRoomFor(world, ctx.ground, standing.length, tier, play.monsters);
           fresh = true;
           /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
           world.swing = Math.max(0, Math.floor(Number(inst.worldSwing) || 0));

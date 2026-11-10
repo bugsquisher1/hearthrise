@@ -215,10 +215,10 @@ export async function coreAnchorGuard() {
     if (xp.xpForLevel(99) !== 13034431) problems.push('xpForLevel(99) drifted');
     if (xp.xpForLevel(120) !== xp.xpForLevel(99)) problems.push('xpForLevel must clamp above 99');
     if (xp.xpToNext(13034431) !== 0) problems.push('xpToNext at cap must be 0');
-    /* The core rebuild's curves (CORE_MODEL.md §2): Level from 0 XP is 1, Level 10 costs 176,197 (Levels 4-8 eased for the one hunt formula, 2027-03-20-ground-formula-level-curve; 177,932 when Levels 1-9 were re-shaped by the final pace re-measure, 2027-03-15-pace-final-level-curve; 177,499 re-fitted for the walk-on, report #69, 2027-02-09-walk-on-level-curve; 157,965 for the boar and bear, v0.2.64, 2027-02-08-unsourced-level-curve; 158,938 for Wickstead,
+    /* The core rebuild's curves (CORE_MODEL.md §2): Level from 0 XP is 1, Level 10 costs 182,805 (re-fitted after one pack for every group, 2027-03-23-one-difficulty-level-curve; 176,197 when Levels 4-8 were eased for the one hunt formula, 2027-03-20-ground-formula-level-curve; 177,932 when Levels 1-9 were re-shaped by the final pace re-measure, 2027-03-15-pace-final-level-curve; 177,499 re-fitted for the walk-on, report #69, 2027-02-09-walk-on-level-curve; 157,965 for the boar and bear, v0.2.64, 2027-02-08-unsourced-level-curve; 158,938 for Wickstead,
        v0.2.63, 2027-02-07-level-curve-wickstead; was 137,918 on the 10-25 pace curve, 21,591 on the old quartic), and a
        combat skill is uncapped (the full JS = SQL parity is tests/core-curves.mjs). */
-    if (xp.charLevelFromXp(0) !== 1 || xp.charXpForLevel(10) !== 176197) problems.push('the Level curve anchors drifted (L1 at 0, L10 at 176,197)');
+    if (xp.charLevelFromXp(0) !== 1 || xp.charXpForLevel(10) !== 182805) problems.push('the Level curve anchors drifted (L1 at 0, L10 at 182,805)');
     if (xp.skillLevelFromXp('melee', xp.skillXpForLevel('melee', 150)) !== 150) problems.push('a combat skill no longer climbs past 99');
     if (xp.skillLevelFromXp('mining', 99999999) !== 99) problems.push('a gathering skill no longer caps at 99');
 

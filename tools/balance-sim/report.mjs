@@ -359,7 +359,7 @@ async function audit() {
     vitals: CM.VITALS, armourMitigation: CM.ARMOUR_MITIGATION, oocRegenPermillePerS: HUNT_TUNING.oocRegenPermillePerS,
     food: { rules: CONSUMABLE_RULES, store: SB.BASIC_SUPPLIES.filter((b) => b.kind === 'heal' || b.kind === 'mana').map((b) => ({ id: b.id, kind: b.kind, price: b.price,
       amount: b.heals || b.mana, perSecondAtLane: round((b.heals || b.mana) / (CONSUMABLE_RULES.laneMs / 1000), 1), goldPerPoint: round(b.price / (b.heals || b.mana), 3) })) },
-    party: { scale: G.PARTY_SCALE, yieldBySize: [1, 2, 3, 4].map((n) => G.yieldPermille(n)), xpSplit: 'kill XP / living heroes x each hero\'s multiplier (xp-share.js; no party bonus)',
+    party: { scale: 'none since 2026-11-08: every monster has its row\'s HP and pays its whole kill for any party size', xpSplit: 'kill XP / living heroes x each hero\'s multiplier (xp-share.js; no party bonus)',
       gold: 'coin split evenly among heroes present, commons round-robin, rares by the 1-100 roll with rotation (party-split.js); store supplies paid by each hero (one purse per account)' },
     death: { loss: HS.DEATH_XP_LOSS, base: HS.DEATH_XP_BASE, blessings: BLESSING_TIERS }, stamina: HS.STAMINA_MAX_MS,
     gearTiers: GT.MATERIAL_TIERS.map((t) => ({ tier: t.tier, level: t.level })), gearReach: reachTier,

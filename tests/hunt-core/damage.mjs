@@ -71,7 +71,8 @@ const cases = {
     const bare = blowsAtLevel(M, 32, T, true);
     if (!(top(bare) > M.C.monsterMaxHit(row)) || top(bare) > M.C.monsterMaxHit({ ...row, atk: row.atk * 1.5 })) return 'on Deadly, in no armor, the foreman tops out at ' + top(bare) + '; his row\'s biggest blow is ' + M.C.monsterMaxHit(row);
     for (const lv of [1, 16, 60]) if (swings(T, lv).join() !== hard.join()) return 'a Level ' + lv + ' hero is struck differently on Deadly: a tier reads no hero';
-    /* the kill: the row's XP on the tier, its coin and drops aren't this file's (hunt-tiers.mjs harder-tier-costs) */
+    /* the kill: the row's XP on the tier, before the party factor (a lone hero's small boost, Tyler 2026-11-08: party-class-xp.js, the xp event's `raw`);
+       its coin and drops aren't this file's (hunt-tiers.mjs harder-tier-costs) */
     const killXp = (tier) => {
       const k = H(M, 1, 12, 3, 'tank', { hp: 1000, maxHp: 1000, target: 2 });
       const m = E(M, 2, 0, 13, 3, 1, { kind: 'goblin_scavenger', hp: 5, maxHp: 5 });
@@ -79,7 +80,7 @@ const cases = {
       inst.tier = tier;
       const sc = sc2(M, 7);
       M.damage.landHit(inst, sc, k, m, 1000, null, null, false);
-      return sc.events.filter((e) => e.type === 'xp').reduce((s, e) => s + e.amount, 0);
+      return sc.events.filter((e) => e.type === 'xp').reduce((s, e) => s + e.raw, 0);
     };
     const xp = M.MONSTERS.goblin_scavenger.xp;
     if (killXp(null) !== xp) return 'a Normal kill pays ' + killXp(null) + ', the row says ' + xp;

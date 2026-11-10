@@ -4,7 +4,7 @@
 //                          world map, and every spawn is also listed in the map's `spawns`
 //   formation-rows         the six sewer rows pass the roster audit on the formation band,
 //                          walk at their own speed, and only the Rat King is a boss
-//   party-scale            550 / 700 / 850 / 1000 permille
+//   one-king               the Rat King's hall is built for a party of two and stands on every hero's route
 //   sewer-full-party-loop  a four-hero party plays the real core (stepSwing) on the real map:
 //                          every pocket is pulled in route order, the Rat King dies, nobody wipes
 //   tutorial-walk-through  each step is doable from the start kit plus the steps before it; one hero walks the whole
@@ -334,7 +334,7 @@ const cases = {
       ['the Glade walked, 41k: the hero, never the Farmstead', 17, { gold: 41172, visited: new Set([THICKET, WICK, GLADE, WARRENS]), home: { owned: true, next: { name: 'Fieldworth Farmstead', gold: 2500, items: [{ id: 'normal_log', qty: 40 }] } } }, 'A third hero costs 50,000 gp, and you have 41,172 gp. That\'s another hero hunting while this one does.'],
       ['the purse is there', 18, { gold: 50000, visited: new Set([THICKET, WICK, GLADE]) }, 'You can pay for a third hero (50,000 gp). Press Characters, and it hunts while this one does.'],
       ['the Warrens fifteen Levels up, unwalked', 17, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Next step up: Coppercap Warrens, built for Level 32. You can go now for more XP and better loot, but the food bill is bigger and you could die. Press Hunts.'],
-      ['sixteen Levels under names no dare', 16, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'The Sewer is right for your Level if you bring a party. Right-click your other hero\'s tab (on a phone, Heroes, then Invite) and choose Invite to party.'],
+      ['sixteen Levels under names no dare', 16, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'The Sewer is at your Level. Its monsters are tough, and a group kills them faster. Right-click your other hero\'s tab (on a phone, Heroes, then Invite) and choose Invite to party.'],
       ['out of stamina, gold in hand', 20, { gold: 9000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), staminaMs: 60000, refill: { available: true, price: 6000, restoreMs: 14400000 } }, 'Your stamina is nearly out. 4 more hours of hunting cost 6,000 gp. Press the + beside your stamina.'],
       ['no task held, past the Sewer', 27, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), tally: { held: 0, paid: 0, weight: true } }, 'Tamsin pays for kills, in armor too. Open her tally (Q) and take a task.'],
       /* THE GLADE'S RUNG: the longest stretch with nothing new to wear ends at Level 22, on a piece made from what the Glade drops */
@@ -421,13 +421,13 @@ const cases = {
     }
     return M.MONSTERS.rat_king.drops.some((d) => d.id === 'crown_shard') ? null : 'the Rat King does not drop the Crown Shard';
   },
-  'party-scale': (M) => {
-    const got = [1, 2, 3, 4].map((n) => M.grounds.packScalePermille(n)).join(',');
-    if (got !== '550,700,850,1000') return 'party scale ' + got;
-    /* his row's HP at the solo 550 permille, read off the row (the formula moved it, 600 -> 556: lane/b-ground-formula-2) */
-    const solo = Math.floor((M.MONSTERS.rat_king.hp * 550) / 1000);
-    if (M.grounds.scaledHp(M.MONSTERS.rat_king, 1) !== solo) return 'a solo Rat King has ' + M.grounds.scaledHp(M.MONSTERS.rat_king, 1) + ' HP, not ' + solo;
-    return null;
+  /* THE KING'S HALL IS BUILT FOR A PARTY, AND WALKED BY ANYONE (Tyler 2026-11-08: one difficulty for every group): his pocket carries forParty 2 (the
+     Hunts window's warning, the advice's party ground) and stands on the route every hero walks; he spawns at his row's HP for any party (conditions.mjs one-pack). */
+  'one-king': (M) => {
+    const sewer = M.grounds.HUNT_GROUNDS.millrace_sewer;
+    const hall = sewer.pockets.findIndex((p) => p.spawns.some((s) => s.monster === 'rat_king'));
+    if (hall < 0 || sewer.pockets[hall].forParty !== 2) return 'the Rat King\'s hall is not marked built for a party of two';
+    return sewer.route.includes(hall) ? null : 'the Rat King\'s hall is off the route';
   },
   'sewer-full-party-loop': (M) => {
     /* The mechanics claim (route order, the boss dies, nobody dies) at Level 30. Measured 2026-10-19 on the
@@ -571,7 +571,7 @@ const cases = {
       } else if (d.kind === 'pull') {
         if (can.inHunt !== M.grounds.HUNT_GROUNDS[d.ground].hunt) return s.id + ': not hunting ' + d.ground;
         const pk = M.grounds.HUNT_GROUNDS[d.ground].pockets[d.pocket];
-        if (pk && (pk.minParty || 1) > 1) return s.id + ': pocket ' + d.pocket + ' of ' + d.ground + ' needs a party of ' + pk.minParty;
+        if (pk && (pk.forParty || 1) > 1) return s.id + ': pocket ' + d.pocket + ' of ' + d.ground + ' is built for a party of ' + pk.forParty;
         const route = M.grounds.HUNT_GROUNDS[d.ground].route;
         const prev = can.pulled.length ? route.indexOf(can.pulled[can.pulled.length - 1]) : -1;
         if (route.indexOf(d.pocket) <= prev) return s.id + ': pocket ' + d.pocket + ' comes before one already reached';
@@ -1230,7 +1230,7 @@ const cases = {
     if (next && !html.includes(next.name)) return 'the what-next line does not name ' + next.name + ': ' + html;
     /* THE PARTY PITCH, NOT A PARTY WALL (playtest 2026-10-24): a solo hero hears of the party ground its Level fits and
        how to make a party; a hero in a party does not. */
-    const pitch = 'The Sewer is right for your Level if you bring a party. Invite a friend, or make a second hero. Up to four of yours can hunt at once.';
+    const pitch = 'The Sewer is at your Level. Its monsters are tough, and a group kills them faster. Invite a friend, or make a second hero. Up to four of yours can hunt at once.';
     if (!html.includes(pitch)) return 'a solo Level ' + L + ' hero hears no party pitch: ' + html;
     const partyEnv = { ...sewerEnv, party: { id: '0a47c0de-0000-4000-a000-00000000aa01', members: [{ seat: 0, name: 'Mira' }, { seat: 1, name: 'Tyler' }], self_seat: 0, leader_seat: 0 } };
     const withParty = renderLaunchers({ character: { read: (k) => partyEnv[k] }, glyphs: {}, hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
@@ -1788,8 +1788,8 @@ const mutants = [
     edits: [['src/data/monsters.js', "family: 'Vermin', formation: true, boss: true,", "family: 'Vermin', formation: true,"]] },
   { name: 'the cellar pocket holds a monster a fresh hero cannot kill', case: 'cellar-solo-first-kill',
     edits: [['src/data/hunt-grounds.js', "pocket([15, 5, 21, 10], ['rat', 18, 7], ['rat', 19, 6]),", "pocket([15, 5, 21, 10], ['rat_king', 18, 7]),"]] },
-  { name: 'the party scale is flat', case: 'party-scale',
-    edits: [['src/data/hunt-grounds.js', 'perHeroPermille: 150', 'perHeroPermille: 0']] },
+  { name: 'the King\'s hall loses its party mark', case: 'one-king',
+    edits: [['src/data/hunt-grounds.js', "['drain_rat', 54, 21], ['drain_rat', 54, 25]), forParty: 2 }),", "['drain_rat', 54, 21], ['drain_rat', 54, 25]) }),"]] },
   /* THE FIRST HOUR (lane/b-first-hour, 2026-10-28) */
   /* THE PANEL, ROUND 2 (2026-11-01): the coach's load before hunt 2, a return's stale cards, What next's goals */
   { name: 'Decide once is back before the second hunt', case: 'tutorial-town-chain',

@@ -11,7 +11,7 @@
 //   BC-ROW     a called row is xp 0, gp [0, 0], no drops, no yield trick; it stands in its own room and nowhere else: no ground list, no roster, no Bestiary, no activity
 //   BC-TIER    a difficulty tier can't reach the room (when src/data/hunt-tiers.js is on the tree)
 //   BC-PAY     a kill pays nothing by any path: a lone seat, a pair, a four, Tempering, a bestiary boost: every window's delta is the settle's allowlist, and the kill reaches only the title's counter
-//   BC-HP      the boss's one spawn is scaled for the party that walked in, not the first hero through the door
+//   BC-HP      the boss's one spawn is his row's HP for any party that walks in (no party scale since 2026-11-08)
 //   BC-FELLED  the kill ends the fight for everyone, the same instant however the windows are cut (the hunt viewed, the browser closed)
 //   BC-DEATH   a death ends it for everyone, box ticked or not, and costs what a death costs
 //   BC-TIME    the limit ends a fight nobody can finish, for everyone, and no hunt is left open, with his adds standing too
@@ -112,12 +112,9 @@ async function guard(X) {
     if (m.xp !== 0) bad.push('BC-ROW ' + id + ' pays XP ' + m.xp);
     if (!(m.gp && m.gp[0] === 0 && m.gp[1] === 0)) bad.push('BC-ROW ' + id + ' pays coin ' + JSON.stringify(m.gp));
     if (!(Array.isArray(m.drops) && m.drops.length === 0)) bad.push('BC-ROW ' + id + ' drops ' + JSON.stringify(m.drops));
-    if (m.yieldPm !== undefined) bad.push('BC-ROW ' + id + ' carries a yield: yieldOf reads 0 as full yield');
     if (!/_called$/.test(id)) bad.push('BC-ROW ' + id + ' id does not end _called');
     if (id in BE.BESTIARY) bad.push('BC-ROW ' + id + ' has a Bestiary entry');
   }
-  /* yieldOf's trap, read: the rule the row's zeros exist for. If it ever reads 0 as nothing, this file's reason moved: say so. */
-  if (X.D.yieldOf({ yieldPm: 0 }) !== 1000) bad.push('BC-ROW yieldOf no longer reads yieldPm 0 as full yield: the header is out of date');
   for (const c of calls) {
     const g = G.CALLED_GROUNDS[c.hunt];
     if (!g || g.call !== c.id) { bad.push('BC-ROW ' + c.id + ' has no room'); continue; }
@@ -184,12 +181,12 @@ async function guard(X) {
     if (f.totals.levelXp || f.totals.xp || f.totals.coin) bad.push('BC-PAY a relic on the boss paid ' + JSON.stringify(f.totals));
   }
 
-  /* BC-HP: the one spawn is the party's size, read from the first window's unit book. */
-  for (const [roles, pm] of [[['tank', 'healer'], 700], [['tank', 'healer', 'mage'], 850], [['tank', 'healer', 'mage', 'melee_dps'], 1000]]) {
+  /* BC-HP: the one spawn is his row's HP for a party of 2, 3 or 4, read from the first window's unit book. */
+  for (const roles of [['tank', 'healer'], ['tank', 'healer', 'mage'], ['tank', 'healer', 'mage', 'melee_dps']]) {
     const f = fight(X, king, roles, {});
     const book = f.windows[0].units || {};
     const boss = Object.values(book).find((u) => u[0] === king.monster);
-    const want = Math.floor((X.EM[king.monster].hp * pm) / 1000);
+    const want = X.EM[king.monster].hp;
     if (!boss || boss[1] !== want) bad.push('BC-HP ' + roles.length + ' heroes meet ' + (boss && boss[1]) + ' HP, want ' + want);
   }
 
@@ -205,13 +202,16 @@ async function guard(X) {
     if (Object.keys(cuts[0].ended).length !== 2) bad.push('BC-FELLED ' + Object.keys(cuts[0].ended).length + ' of 2 ended');
   }
 
-  /* BC-PHASE: the world's shape, against the last catalogue APPLIED before this lane: neither line is a stored field. */
+  /* BC-PHASE: the world's shape, against the last catalogue APPLIED before the boss lane: neither line is a stored field (the boss lane's catalogue
+     wrote the same shape). Since then the shape moved once, by a field taken OUT (lane/b-one-difficulty: a monster's yield share), so the engine's
+     shape is the newest catalogue's (tools/gen-hunt-sessions.mjs OUT_NAME), and the boss's lines are still no field of it. */
   {
     const shapeOf = (file) => Number((/insert into public\.hr_hunt_world_shape \(id, version, shape, fields\) values \(true, 1, (\d+),/.exec(readFileSync(join(REPO, 'supabase/migrations', file), 'utf8')) || [])[1]);
     const applied = shapeOf('2027-02-24-gold-matters-hunt-sessions-catalogue.generated.sql');
+    if (shapeOf('2027-03-12-boss-call-hunt-sessions-catalogue.generated.sql') !== applied) bad.push('BC-PHASE the boss lane\'s catalogue wrote another shape');
+    const { OUT_NAME } = await import(pathToFileURL(join(REPO, 'tools/gen-hunt-sessions.mjs')).href);
     const WS = await import(pathToFileURL(join(X.root, 'src/core/hunt/world-state.js')).href + V);
-    if (!(applied > 0) || WS.SHAPE !== applied) bad.push('BC-PHASE the world\'s shape moved: ' + WS.SHAPE + ', applied ' + applied + ' (a stored flag, or a new field)');
-    if (shapeOf('2027-03-12-boss-call-hunt-sessions-catalogue.generated.sql') !== applied) bad.push('BC-PHASE this lane\'s catalogue writes another shape');
+    if (!(shapeOf(OUT_NAME) > 0) || WS.SHAPE !== shapeOf(OUT_NAME)) bad.push('BC-PHASE the world\'s shape is ' + WS.SHAPE + ', the newest catalogue ' + shapeOf(OUT_NAME) + ' (a stored flag, or a new field)');
   }
   /* BC-PHASE: the lines, once each, at their HP; no Challenge on the bar, so every blow an add lands is its first aim. */
   const NO_CHALLENGE = (role) => (role === 'tank' ? [{ action: { type: 'ability', id: 'power_strike' }, conditions: [], join: 'and' }] : []);
@@ -351,13 +351,13 @@ async function guard(X) {
 
   /* BC-TIME: nobody can finish him and he can't finish anybody: the limit ends it for everyone, one swing after it falls at most, and nothing stays open. */
   for (const inst of [X.EM[king.monster], X.play.MONSTERS[king.monster]]) { inst.hp = 100000000; inst.atk = 1; inst.baseAcc = 0; }
-  /* (Measured: what a pair deals in ten minutes. A pair meets 700 permille of his row, so a row of 1.5 times that puts his first line well inside the limit and the kill past it, and his adds, who never die, stand when it falls.) */
+  /* (Measured: what a pair deals in ten minutes. A pair meets his whole row (no party scale since 2026-11-08), so a row of 1.5 times that puts his first line well inside the limit and the kill past it, and his adds, who never die, stand when it falls.) */
   {
     const measure = fight(X, king, ['tank', 'healer']);
     const k = kinds(measure);
     const dealt = eventsOf(measure).filter((e) => e.type === 'dmg' && k[e.t] === king.monster).reduce((a, e) => a + e.amount, 0);
     if (!dealt) bad.push('BC-TIME CONTROL: nothing was dealt in ten minutes');
-    setRow(king.monster, { hp: Math.floor((dealt * 1.5 * 1000) / 700) });
+    setRow(king.monster, { hp: Math.floor(dealt * 1.5) });
     setRow(addOf(king), { hp: 10000000, atk: 1, baseAcc: 0 });
     const f = fight(X, king, ['tank', 'healer']);
     const kk = kinds(f);
@@ -391,7 +391,6 @@ const MUTANTS = [
   { name: 'a drop row planted on a called row', edits: [['src/data/monsters.js', ROW_KING, ROW_KING.replace('drops: []', "drops: [{ id: 'bones', ch: 1, band: 'common' }]")]], want: /BC-ROW/ },
   { name: 'XP planted on a called row', edits: [['src/data/monsters.js', ROW_KING, ROW_KING.replace('xp: 0', 'xp: 500')]], want: /BC-ROW/ },
   { name: 'coin planted on a called row', edits: [['src/data/monsters.js', ROW_KING, ROW_KING.replace('gp: [0, 0]', 'gp: [1, 5]')]], want: /BC-ROW/ },
-  { name: 'a yield of 0 instead of the zeros', edits: [['src/data/monsters.js', ROW_KING, ROW_KING.replace('drops: []', 'drops: [], yieldPm: 0')]], want: /BC-ROW/ },
   { name: 'the engine has no door: a called swing pays like any other', edits: [['src/core/hunt-rewards.js', '  if (ctx.call) return calledSwing(members, events, unitOf, ctx.call.monster);\n', '']], want: /BC-PAY/ },
   { name: 'the sim forgets to hand the rewards the call', edits: [['src/core/combat-sim.js', 'hearthfind: ctx.hearthfind, call,', 'hearthfind: ctx.hearthfind,']], want: /BC-PAY/ },
   { name: 'a called kill counts as a kill', edits: [['src/core/hunt-rewards.js', "for (const m of members.values()) call(m.fx, 'updateQuest', 'kill_monster', 1, { target: t.kind });", "for (const m of members.values()) { m.hs.tally.kills += 1; call(m.fx, 'updateQuest', 'kill_any', 1, { target: t.kind }); call(m.fx, 'updateQuest', 'kill_monster', 1, { target: t.kind }); }"]], want: /BC-PAY/ },
@@ -400,7 +399,7 @@ const MUTANTS = [
   { name: 'the kill ends only the window it fell in', edits: [['src/core/combat-sim.js', "typeof m.hs.runesOut === 'string' || m.hs.died === true || m.hs.bossFelled === true) {", "typeof m.hs.runesOut === 'string' || m.hs.died === true) {"]], want: /BC-FELLED/ },
   { name: 'a death leaves the unticked friend in the room', edits: [['src/core/combat-sim.js', 'm.hero = Object.assign({}, m.hero, { leaveTogether: true });', '']], want: /BC-DEATH/ },
   { name: 'the limit never falls', edits: [['src/core/action-rules.js', 'boss_time: (hs, t) => at(hs.callEndsAtMs, t),', 'boss_time: () => false,']], want: /BC-TIME/ },
-  { name: 'the boss spawns at one hero\'s HP', edits: [['src/core/combat-sim.js', 'if (call) scaleRoomFor(world, ctx.ground, standing.length, tier, play.monsters);', '']], want: /BC-HP/ },
+  { name: 'the boss spawns scaled down for a small party', edits: [['src/core/hunt/pull-cycle.js', '  const hp = Math.max(1, atTier(row, inst.tier).hp || 1);', '  const hp = Math.max(1, Math.floor((atTier(row, inst.tier).hp || 1) * 0.7));']], want: /BC-HP/ },
   { name: 'a called boss in the Bestiary', edits: [['src/data/bestiary.js', "if (!m || typeof m !== 'object' || m.called === true) continue;", "if (!m || typeof m !== 'object') continue;"]], want: /BC-ROW/ },
   /* THE ADDS PAY NOTHING EITHER (the brief's core rule: "any add that pays goes red"). */
   { name: 'XP planted on an add', edits: [['src/data/monsters.js', ROW_ADD, ROW_ADD.replace('xp: 0', 'xp: 500')]], want: /BC-ROW/ },

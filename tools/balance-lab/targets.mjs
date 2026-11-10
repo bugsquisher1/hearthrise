@@ -113,27 +113,20 @@ export function grade(run, ctx, extra) {
   const inBand = run.heroes.every((h) => h.level >= band[0] && h.level <= band[1]);
   if (!inBand) notes.push('The tier lines read heroes inside the band (' + band[0] + '-' + band[1] + ').');
   const nx = x.normal && x.normal.heroes;
-  const vsNormal = (h, i) => (nx && nx[i] && nx[i].levelXpPerH > 0 ? h.levelXpPerH / nx[i].levelXpPerH : null);
   const needNormal = 'tick "Also play Normal" to read it';
-  if (inBand && n === 1) {
-    const h = run.heroes[0], who = whoOf(h), r = vsNormal(h, 0);
-    if (tier === 'dangerous') {
-      rows.push(row('tier', 'Level XP vs the same hero on Normal', who, pctTxt(r), '>= ' + pct(TT.xpVsNormalMin) + '%', r === null ? null : r >= TT.xpVsNormalMin, r === null ? needNormal : null));
-      rows.push(row('tier', 'Holds alone (no death in the sample)', who, h.deaths, '0 for most ways (' + TT.loneHeldMin + ' of 8)', h.deaths === 0));
-    }
-    if (tier === 'deadly' && TT.loneMustCost) {
-      rows.push(row('tier', 'Costs a lone hero (a death or a gold loss)', who, h.deaths + ' deaths, ' + Math.round(h.profitPerH) + ' g/h', 'a death or net < 0', h.deaths > 0 || h.profitPerH < 0));
-    }
-  }
-  if (inBand && n === 4 && tier === 'deadly') {
-    const head = run.heroes.reduce((s, h) => s + h.levelXpPerH, 0) / 4;
+  /* ONE DIFFICULTY FOR EVERY GROUP (RULED 2026-11-08): the same line for one hero or four, read only when the group held the tier */
+  const held = run.heroes.every((h) => h.deaths === 0);
+  if (inBand && held) {
+    const head = run.heroes.reduce((s, h) => s + h.levelXpPerH, 0) / n;
     const base = nx ? nx.reduce((s, h) => s + h.levelXpPerH, 0) / nx.length : null;
     const r = base > 0 ? head / base : null;
-    rows.push(row('tier', 'Level XP a head vs the same four on Normal', 'party of 4', pctTxt(r), '>= ' + pct(TT.fourXpVsNormalMin) + '%', r === null ? null : r >= TT.fourXpVsNormalMin, r === null ? needNormal : null));
+    rows.push(row('tier', 'Level XP a head vs the same group on Normal (it held)', n === 1 ? whoOf(run.heroes[0]) : 'party of ' + n, pctTxt(r), '>= ' + pct(TT.xpVsNormalMin) + '%', r === null ? null : r >= TT.xpVsNormalMin, r === null ? needNormal : null));
+  }
+  if (inBand && n === 4 && tier === 'deadly') {
     const deaths = run.heroes.reduce((s, h) => s + h.deaths, 0), hours = run.party.hours || 1e-9;
     const per16 = (16 * deaths) / hours;
     rows.push(row('tier', 'The four\'s deaths per 16 h', 'party of 4', Math.round(per16 * 100) / 100, '<= ' + TT.fourDeathsPer16hMax, per16 <= TT.fourDeathsPer16hMax));
   }
-  if (!rows.length) notes.push('No tier line covers this party on ' + TIER_NAME[tier] + ' (the sheet reads a lone hero, and a four on Deadly).');
+  if (!rows.length) notes.push('No tier line covers this run on ' + TIER_NAME[tier] + ' (the sheet reads a group that held the tier in the band, and a four\'s deaths on Deadly).');
   return { source: sheetSource(), notes, rows };
 }

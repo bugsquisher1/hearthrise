@@ -27,7 +27,7 @@ import { VITALS } from '../../data/core-model.js?v=0.2.112';
 import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.112';
 import { atTier } from '../../data/hunt-tiers.js?v=0.2.112';
 import { AI_REPATH_MS, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.112';
-import { HUNT_GROUNDS, packHpFor, yieldPermille, routeFor, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.112';
+import { HUNT_GROUNDS, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.112';
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.112';
 import { monsterMaxHit } from '../combat.js?v=0.2.112';
 import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.112';
@@ -39,9 +39,8 @@ import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.112';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
-/* yieldPm: the share (permille) of its row's kill yield a monster pays: its HP scale at spawn. */
 export const PERSISTED = Object.freeze({
-  unit: Object.freeze([['deadMs', 'int'], ['hpMilli', 'int'], ['yieldPm', 'int']]),
+  unit: Object.freeze([['deadMs', 'int'], ['hpMilli', 'int']]),
   world: Object.freeze([['phase', 'str'], ['routeIdx', 'int'], ['phaseMs', 'int'], ['regroupNext', 'bool'], ['runs', 'int'], ['nextId', 'int'],
     ['density', 'int']]),
   pack: Object.freeze([['alive', 'bool'], ['respawnAtMs', 'int']]),
@@ -50,29 +49,25 @@ export const PERSISTED = Object.freeze({
 export const PHASE = Object.freeze({ TRAVEL: 'travel', FIGHT: 'fight', REGROUP: 'regroup' });
 
 const cycling = (inst) => inst.world.phase !== '';
-/* THE ROUTE THIS PARTY WALKS (hunt-grounds.js routeFor): a pocket whose `minParty` the
-   party misses is skipped (the Rat King wants two). The index wraps if the party shrank. */
-const routeOf = (inst) => routeFor(inst.ground, partySize(inst));
+/* THE ROUTE: every pocket for every party size, a lone hero's too (Tyler 2026-11-08: one difficulty for every group). */
+const routeOf = (inst) => inst.ground.route;
 const pocketNow = (inst) => { const r = routeOf(inst); return r[inst.world.routeIdx % r.length]; };
 const packMonsters = (inst, p) => inst.world.units.filter((u) => u.side === 'mon' && u.alive && u.pocket === p);
 const heroes = (inst) => inst.world.units.filter((u) => u.side === 'hero');
 
-/** The instance's party size: its hero units (hunt-grounds.js scales by it). */
-export const partySize = (inst) => inst.world.units.filter((u) => u.side === 'hero').length;
 
 /**
- * THE BIGGEST BLOW A HUNT CAN LAND on a party of `partySize` (designer ruling 2026-10-21): the
- * largest monsterMaxHit (combat.js, the one the engine swings with) of every monster that party can
- * meet: a walked ground's route for that size (hunt-grounds.js monstersOn: a `minParty` pocket counts
- * only for a party big enough) plus the hunt's weighted spawns. Before mitigation: a catalogue fact.
+ * THE BIGGEST BLOW A HUNT CAN LAND (designer ruling 2026-10-21): the largest monsterMaxHit (combat.js, the one the engine
+ * swings with) of every monster on it: its ground's whole route (hunt-grounds.js monstersOn, the same for every party size
+ * since 2026-11-08) plus the hunt's weighted spawns. Before mitigation: a catalogue fact.
  * On `tier` (a hunt-tiers.js row), that tier's blows. { monster, name, hit } or null for an unknown hunt. The Configure action heal warning and the
  * blow-share guard (tests/hunt-core/hunt-data.mjs) both read THIS, never a copy.
  */
-export function biggestBlowOn(huntId, size, tier) {
+export function biggestBlowOn(huntId, tier) {
   const h = HUNT_INDEX[huntId];
   if (!h) return null;
   const ids = new Set(h.spawns.map((s) => s.monster));
-  for (const g of Object.values(HUNT_GROUNDS)) if (g.hunt === huntId) for (const id of monstersOn(g, size)) ids.add(id);
+  for (const g of Object.values(HUNT_GROUNDS)) if (g.hunt === huntId) for (const id of monstersOn(g)) ids.add(id);
   let best = null;
   for (const id of [...ids].sort()) {
     const row = MONSTERS[id];
@@ -83,19 +78,16 @@ export function biggestBlowOn(huntId, size, tier) {
 }
 
 /* One spawn row as a unit on the first free tile near its spot, at this party's HP on the hunt's tier, or null with no tile: the pack's path and a called boss's adds'. */
-function placeRow(inst, p, s, heroes, sc) {
+function placeRow(inst, p, s, sc) {
   const w = inst.world;
   const taken = (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)) || inst.occ.hero.has(tileKey(inst.grid, x, y)) || !inArea(inst, p, x, y);
   const at = freeNear(inst.grid, s.x, s.y, 3, taken);
   /* the instance's own rows (world-step.js inst.monsters: a scaled hunt's), the catalogue for a bare caller */
   const row = (inst.monsters || MONSTERS)[s.monster];
   if (!at || !row) return null;
-  /* THE TIER'S HEALTH (hunt-tiers.js hpPm) under the party scale; the yield below is the party scale's alone, so more health pays no more. */
-  const hp = packHpFor(inst.ground, atTier(row, inst.tier), heroes);
-  /* SCALING IS PAID IN REWARD (designer ruling 2026-10-18): a monster at s/1000 of its HP pays s/1000
-     of its kill yield (hunt-rewards.js, damage.landHit), so yield per HOUR holds at every party size. */
-  const yieldPm = inst.ground.partyScale === true ? yieldPermille(heroes) : 1000;
-  const u = inst.makeUnit({ id: w.nextId, side: 'mon', kind: s.monster, pocket: p, alive: true, hp, maxHp: hp, yieldPm,
+  /* THE ROW'S HEALTH ON THE HUNT'S TIER (hunt-tiers.js hpPm), the same for every party size (Tyler 2026-11-08): it pays its row's whole kill. */
+  const hp = Math.max(1, atTier(row, inst.tier).hp || 1);
+  const u = inst.makeUnit({ id: w.nextId, side: 'mon', kind: s.monster, pocket: p, alive: true, hp, maxHp: hp,
     target: null, home: at, x: at[0], y: at[1], fx: at[0], fy: at[1], speed: monsterSpeedOf(row) });
   w.nextId += 1;
   w.units.push(u);
@@ -105,10 +97,7 @@ function placeRow(inst, p, s, heroes, sc) {
 }
 
 /**
- * Spawn pocket `p`'s pack (PC-02). On a ground that opts in (`partyScale`) each
- * monster's HP is the party scale's (hunt-grounds.js packHpFor: 550 / 700 / 850 /
- * 1000 permille for 1-4 heroes) at the size the instance has WHEN the pack spawns; a hero joining later meets the
- * next respawn at the new size. The DENSITY (world.density, the settle's
+ * Spawn pocket `p`'s pack (PC-02), each monster at its row's HP for every party size. The DENSITY (world.density, the settle's
  * clamped pick: hunt-grounds.js densityFor) is the pack's SIZE: that many
  * monsters, the rows hunt-grounds.js pullRows gives (the pocket's authored rows,
  * then its non-boss fill rows round again: a boss never repeats inside a pull;
@@ -117,9 +106,8 @@ function placeRow(inst, p, s, heroes, sc) {
  */
 export function spawnPack(inst, p, sc) {
   const w = inst.world;
-  const heroes = partySize(inst);
   occupancy(inst);
-  for (const s of pullRows(inst.ground, p, w.density)) placeRow(inst, p, s, heroes, sc);
+  for (const s of pullRows(inst.ground, p, w.density)) placeRow(inst, p, s, sc);
   w.packs[p].alive = true;
   w.packs[p].aggro = false;
   w.packs[p].holder = null;
@@ -137,7 +125,7 @@ export function spawnAdds(inst, p, sc) {
   const on = off.length ? off : standing;
   occupancy(inst);
   (inst.ground.pockets[p].adds || []).forEach((s, i) => {
-    const u = placeRow(inst, p, s, partySize(inst), sc);
+    const u = placeRow(inst, p, s, sc);
     if (u && on.length) u.target = on[i % on.length].id;
   });
 }

@@ -47,22 +47,29 @@
    EASED 2026-11-07 (lane/b-ground-formula-2): the formula's Cellar pays a Level 4 hero 1.2% more an hour than a Level 3 (was 2.1%) and its Thicket a
    Level 5 23,066 (was 24,624), so C6 read 2.00x at Level 4 -> 5 and 2.14x at 5 -> 6. By hand, each step under 2x the minutes before it: 4 -> 5
    1,015 XP (was 1,035), 5 -> 6 5,980 (6,437), 6 -> 7 12,100 (12,795), 7 -> 8 24,800 (25,363); Level 8 -> 9 on costs what it did, every total from 9
-   on 1,715 XP less. Forward file 2027-03-20-ground-formula-level-curve. */
+   on 1,715 XP less. Forward file 2027-03-20-ground-formula-level-curve.
+   RE-FITTED 2026-11-08 (lane/b-one-difficulty, Tyler "Same monsters, re-tune"): with one pack for every group a lone hero takes
+   the whole kill, and a career that stays on the Glade past its band (16 to 50, where the Hunts window sends a lone hero) earned
+   10-15% more an hour from 30 on, so Level 25 fell to 32.0 h and Level 50 to 144.7 h (targets 36 and 168), and Level 5 -> 6 read
+   2.30x Level 4 -> 5 (C6). Re-measured (plans pace + ladder) and re-fitted by pace.mjs --fit (minimax 2.8%): then by hand each step from
+   Level 4 to 8 a little under 2x the minutes before it (C6: 4 -> 5 1,135 XP, 5 -> 6 5,800, 6 -> 7 12,080, 7 -> 8 25,450). Level 10 at 182,805 XP in
+   all (was 176,197), Level 25 at 1,981,795, Level 50 at 16,018,945. Past the ceiling the brackets re-fitted (--fit --fit-past) to the
+   re-pinned contract below, so Levels 100-1,000 keep their targets. Forward file 2027-03-23-one-difficulty-level-curve. */
 export const LEVEL_CURVE = Object.freeze({
-  first: 128,
+  first: 143,
   brackets: Object.freeze([
-    Object.freeze({ from: 1, rise: 128, bend: 0 }),
-    Object.freeze({ from: 2, rise: 255, bend: 0 }),
-    Object.freeze({ from: 3, rise: 504, bend: 0 }),
-    Object.freeze({ from: 4, rise: 4965, bend: 0 }),
-    Object.freeze({ from: 5, rise: 6120, bend: 0 }),
-    Object.freeze({ from: 6, rise: 12700, bend: 0 }),
-    Object.freeze({ from: 7, rise: 34563, bend: 0 }),
-    Object.freeze({ from: 8, rise: 12681, bend: 0 }),
+    Object.freeze({ from: 1, rise: 143, bend: 0 }),
+    Object.freeze({ from: 2, rise: 286, bend: 0 }),
+    Object.freeze({ from: 3, rise: 563, bend: 0 }),
+    Object.freeze({ from: 4, rise: 4665, bend: 0 }),
+    Object.freeze({ from: 5, rise: 6280, bend: 0 }),
+    Object.freeze({ from: 6, rise: 13370, bend: 0 }),
+    Object.freeze({ from: 7, rise: 33843, bend: 0 }),
+    Object.freeze({ from: 8, rise: 18753, bend: 0 }),
     Object.freeze({ from: 9, rise: 1, bend: 0 }),
-    Object.freeze({ from: 10, rise: 0, bend: 504 }),
-    Object.freeze({ from: 50, rise: 87981, bend: 161 }),
-    Object.freeze({ from: 300, rise: 209508, bend: 742 }),
+    Object.freeze({ from: 10, rise: 0, bend: 619 }),
+    Object.freeze({ from: 50, rise: 95603, bend: 188 }),
+    Object.freeze({ from: 300, rise: 393248, bend: 516 }),
   ]),
 });
 
@@ -88,7 +95,10 @@ export const LEVEL_PACE = Object.freeze({
     .map((t) => Object.freeze(t))),
   tolerance: 0.1,
   early: Object.freeze({ level: 5, hours: Object.freeze([0.15, 0.35]), aim: 0.25 }),
-  contract: Object.freeze({ a: 1019, b: 1.365 }),
+  /* RE-PINNED 2026-11-08 (lane/b-one-difficulty) to the measured ladder on the re-tuned rows (plan ladder: the Cellar at 4.5 8,774, the Thicket at
+     10 24,883, Wickstead at 13 33,760, the Glade at 23.5 84,781, the Warrens at 47.5 222,774): was 1019 x L^1.365, which read the Glade's and the
+     Warrens' band middles 1.12x and the Cellar's 1.10x (C5: -10.6% against the ladder at Level 100). Each now reads 0.93-1.05x. */
+  contract: Object.freeze({ a: 1049, b: 1.383 }),
   smooth: Object.freeze({ from: 1, ratio: 2 }),
 });
 

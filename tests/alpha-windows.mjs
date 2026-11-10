@@ -214,7 +214,7 @@ const HUNTS = (await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href)
 const LEVEL_30_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(30);
 const LEVEL_5_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(5);
 const CELLAR_ODDS = (await import(pathToFileURL(join(ROOT, 'src/render/format.js')).href)).chance(
-  (await import(pathToFileURL(join(ROOT, 'src/shell/hunt-ground-facts.js')).href)).scarceSetOf('mill_cellar', 'medium', 1)[0].chance);
+  (await import(pathToFileURL(join(ROOT, 'src/shell/hunt-ground-facts.js')).href)).scarceSetOf('mill_cellar', 'medium')[0].chance);
 /* A Level 1 hero in town (no hunt, no party, no bests yet), 30 min of stamina, two setups the server can put
    on and a third set it cannot (no setup row): the Hunts window's fresh hero (AW-25 .. AW-29). */
 function levelOne(e) {
@@ -473,20 +473,19 @@ async function huntsPure(imp) {
     if (tierPull(glade, 'dangerous', 1) !== 4 || tierPull(glade, 'dangerous', 4) !== 6 || tierPull(glade, 'deadly', 1) !== 8 || tierPull(glade, 'deadly', 4) !== 8) fails.push('AW-25 a harder tier does not read its row');
     if (tierPull(thicketR, 'deadly', 1) !== 0 || tierPull(thicketR, 'deadly', 4) !== 6) fails.push('AW-25 a row with no more monsters does not read the ground as it stands: ' + tierPull(thicketR, 'deadly', 1) + ' / ' + tierPull(thicketR, 'deadly', 4));
     if (tierWords(glade, 'normal', 1) !== '' || tierChoiceWords(glade, 'normal', 1) !== '') fails.push('AW-25 Normal says more than the ground\'s page: ' + tierWords(glade, 'normal', 1));
-    if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: 8 monsters a pull, hitting 50% harder.') fails.push('AW-25 the line beside Enter reads: ' + tierChoiceWords(glade, 'deadly', 1));
-    if (tierChoiceWords(thicketR, 'deadly', 1) !== 'Deadly: the same monsters, hitting 3 times as hard.') fails.push('AW-25 a row with no more monsters reads: ' + tierChoiceWords(thicketR, 'deadly', 1));
-    /* THE HP DIAL IN WORDS: said only when the tier moves it, beside the damage, alone, and doubled. */
-    TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 1500, 1250, 1200);
-    if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: 8 monsters a pull, hitting 50% harder, with 25% more HP.') fails.push('AW-25 a tier with more HP reads: ' + tierChoiceWords(glade, 'deadly', 1));
-    if (!/^8 monsters a pull, hitting 50% harder, with 25% more HP, and the biggest blow here is (\d+), not (?!\1\.)\d+\. /.test(tierWords(glade, 'deadly', 1))) fails.push('AW-25 the tier note with a harder blow reads: ' + tierWords(glade, 'deadly', 1));
-    TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 1000, 2000, 1200);
-    if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: 8 monsters a pull, with twice the HP.') fails.push('AW-25 a tier with HP alone reads: ' + tierChoiceWords(glade, 'deadly', 1));
-    /* a sheet's multiple is not round (Wickstead's 2261 and 2847): one decimal, never "2.261 times" */
+    /* THE PLAIN LINE (Tyler 2026-11-08: the old numbers note was 'way too exact'; hunt-tiers.js TIER_LINES): a tier that brings more monsters at once than
+       this group's Normal reads its 'more' line, one that brings no more its 'same' line, each with the one death line and never a number. */
+    const W = (t, k) => TV.TIER_LINES[t][k] + ' ' + TV.TIER_DEATH_LINE;
+    if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: big groups that hit hard.') fails.push('AW-25 the line beside Enter reads: ' + tierChoiceWords(glade, 'deadly', 1));
+    if (tierWords(glade, 'deadly', 1) !== W('deadly', 'more')) fails.push('AW-25 the Deadly note reads: ' + tierWords(glade, 'deadly', 1));
+    if (tierChoiceWords(glade, 'dangerous', 4) !== 'Dangerous: more monsters at once, and they hit harder.') fails.push('AW-25 a four on a bigger pull reads: ' + tierChoiceWords(glade, 'dangerous', 4));
+    if (tierChoiceWords(thicketR, 'deadly', 1) !== 'Deadly: the monsters hit much harder.' || tierWords(thicketR, 'dangerous', 4) !== W('dangerous', 'same')) fails.push('AW-25 a row with no more monsters reads: ' + tierChoiceWords(thicketR, 'deadly', 1) + ' / ' + tierWords(thicketR, 'dangerous', 4));
+    /* a pull no bigger than this group's Normal (a pair's 3 on the Glade) is no more monsters */
+    TV.GROUND_TIERS.mosslight_glade.dangerous = tierRow('dangerous', [4, 3, 3, 4], 1200, 1000, 1100);
+    if (tierWords(glade, 'dangerous', 2) !== W('dangerous', 'same') || tierWords(glade, 'dangerous', 1) !== W('dangerous', 'more')) fails.push('AW-25 the pull read against Normal: ' + tierWords(glade, 'dangerous', 2));
+    /* every dial at a sheet's odd multiple still reads no number, on every tier and group size */
     TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 2261, 2847, 1400);
-    if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: 8 monsters a pull, hitting 2.3 times as hard, with 2.8 times the HP.') fails.push('AW-25 a sheet multiple reads: ' + tierChoiceWords(glade, 'deadly', 1));
-    TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 1000, 2000, 1200);
-    /* the same blow is no news: the note never says "72, not 72" */
-    if (!tierWords(glade, 'deadly', 1).startsWith('8 monsters a pull, with twice the HP. Each kill earns 20% more Level XP, with the same gold and drops.')) fails.push('AW-25 the tier note with HP alone reads: ' + tierWords(glade, 'deadly', 1));
+    for (const r of [glade, thicketR]) for (const t of ['dangerous', 'deadly']) for (const n of [1, 2, 3, 4]) if (/\d/.test(tierWords(r, t, n) + tierChoiceWords(r, t, n))) fails.push('AW-25 a tier note carries a number: ' + tierWords(r, t, n));
   } finally { TV.GROUND_TIERS.mosslight_glade = kept.glade; TV.GROUND_TIERS.meadowbrook_thicket = kept.thicket; }
   /* Who lives here: each creature's share of the ground's spawn points (Tyler 10-18: a common majority, some uncommon, a rare). */
   const cellar = residentsOf('mill_cellar').map((m) => m.id + ':' + m.band + ':' + m.level).join();
@@ -510,32 +509,30 @@ async function huntsPure(imp) {
   if (wick !== 'helmets and boots|bodies, legs and Bramble Blade') fails.push('AW-25 Wickstead\'s drop lines read ' + wick);
   if (sets('mosslight_glade', null) !== 'Iron,Studded,Adept:helmets,bodies,legs,boots:Longbow') fails.push('AW-25 the glade\'s gear for no worn weight reads ' + sets('mosslight_glade', null));
   /* THE ODDS (Tyler 2026-10-24: "a % drop chance or nothing at all"): each line's chance per kill is the engine's rows
-     (monsters.js, the catalogue hr-accrue rolls) at the yield share the settle spawns a party-scaled monster with. Worked
-     here from the rows on the Sewer (a party-only boss pocket, two tiers), alone and as four: a tier line = any piece of
-     it on one kill of the ground's mix (the pockets that party walks, as built), a Rare = per kill of its carrier (the
-     Rat King by the smallest party he meets). */
-  const { HUNT_GROUNDS, routeFor, yieldPermille } = await imp('src/data/hunt-grounds.js');
+     (monsters.js, the catalogue hr-accrue rolls), the whole kill's for every party size since 2026-11-08. Worked here from the
+     rows on the Sewer (a hall built for a party, two tiers): a tier line = any piece of it on one kill of the ground's mix (every
+     pocket on its route, as built), a Rare = per kill of its carrier. */
+  const { HUNT_GROUNDS } = await imp('src/data/hunt-grounds.js');
   const { ITEMS } = await imp('src/data/items.js');
   const { chance } = await imp('src/render/format.js');
   const { detailHtml } = await imp('src/shell/windows/hunt-detail.js');
   const sewer = Object.values(HUNT_GROUNDS).find((g) => g.hunt === 'millrace_sewer');
-  for (const n of [1, 4]) {
-    const y = (size) => yieldPermille(size) / 1000;
+  {
     const pts = {};
-    for (const i of routeFor(sewer, n)) for (const s of sewer.pockets[i].spawns) pts[s.monster] = (pts[s.monster] || 0) + 1;
+    for (const i of sewer.route) for (const s of sewer.pockets[i].spawns) pts[s.monster] = (pts[s.monster] || 0) + 1;
     const all = Object.values(pts).reduce((t, k) => t + k, 0);
     const tierOdds = (tier) => Object.entries(pts).reduce((t, [id, k]) => {
       const rows = MONSTERS[id].drops.filter((d) => d.band === 'scarce' && (Number(ITEMS[d.id].tier) || 1) === tier);
-      return t + (k / all) * (1 - rows.reduce((p, d) => p * (1 - Math.min(0.95, d.ch * y(n))), 1));
+      return t + (k / all) * (1 - rows.reduce((p, d) => p * (1 - Math.min(0.95, d.ch)), 1));
     }, 0);
-    const shown = scarceSetOf('millrace_sewer', 'medium', n).map((e) => chance(e.chance)).join('|');
+    const shown = scarceSetOf('millrace_sewer', 'medium').map((e) => chance(e.chance)).join('|');
     const want = [1, 2].map((t) => chance(tierOdds(t))).join('|');
-    if (shown !== want || /under|^0%/.test(want)) fails.push('AW-25 the Sewer\'s gear odds for ' + n + ' read ' + shown + ', the rows say ' + want);
-    const rr = raresOf('millrace_sewer', n).map((x) => x.name + ' ' + chance(x.chance)).join('|');
+    if (shown !== want || /under|^0%/.test(want)) fails.push('AW-25 the Sewer\'s gear odds read ' + shown + ', the rows say ' + want);
+    const rr = raresOf('millrace_sewer').map((x) => x.name + ' ' + chance(x.chance)).join('|');
     const rw = residentsOf('millrace_sewer').flatMap((m) => MONSTERS[m.id].drops.filter((d) => d.band === 'rare' || d.band === 'trophy')
-      .map((d) => ({ t: d.band === 'trophy', s: ITEMS[d.id].n + ' ' + chance(Math.min(0.95, d.ch * y(Math.max(n, m.id === 'rat_king' ? 2 : 1)))) })))
+      .map((d) => ({ t: d.band === 'trophy', s: ITEMS[d.id].n + ' ' + chance(Math.min(0.95, d.ch)) })))
       .sort((a, b) => Number(a.t) - Number(b.t)).map((x) => x.s).join('|');
-    if (rr !== rw) fails.push('AW-25 the Sewer\'s rare odds for ' + n + ' read ' + rr + ', the rows say ' + rw);
+    if (rr !== rw) fails.push('AW-25 the Sewer\'s rare odds read ' + rr + ', the rows say ' + rw);
   }
   const fmt = [0.0035, 0.021, 0.12, 0.00009, 0.0001].map(chance).join('|');
   if (fmt !== '0.35%|2.1%|12%|under 0.01%|0.01%') fails.push('AW-25 the odds read ' + fmt + ' (two significant figures, "under 0.01%" below it)');
@@ -972,7 +969,7 @@ async function planRules(base) {
   if (/Tamsin/.test(say(sess({ tally: TASK }), { hunt: 'mill_cellar' }))) fails.push('AW-27 a task that counts here is warned about');
   const { heroWords, huntRows } = await imp('src/shell/hunt-list.js');
   const sewer = huntRows().find((r) => r.hunt === 'millrace_sewer');
-  if (heroWords(sewer) !== 'Best with 2 to ' + sewer.heroes + ', and a lone hero can enter') fails.push('AW-27 the Sewer reads ' + JSON.stringify(heroWords(sewer)));
+  if (heroWords(sewer) !== 'Alone or with up to ' + (sewer.heroes - 1) + ' more') fails.push('AW-27 the Sewer reads ' + JSON.stringify(heroWords(sewer)));
   const { pickWords } = await imp('src/session/tally-sections.js');
   const picked = [['iron_boots', 'Iron Boots'], ['iron_helmet', 'an Iron Helm']].map(([item]) => pickWords({ pick: 'piece', item, qty: 1 }, (id) => ({ iron_boots: 'Iron Boots', iron_helmet: 'Iron Helm' }[id]))).join('|');
   if (picked !== 'Iron Boots|an Iron Helm') fails.push('AW-27 her pick reads ' + picked);
@@ -2141,13 +2138,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const list = await page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-hunt')).map((li) => [li.dataset.hunt, li.classList.contains('is-picked') ? 'picked' : '',
           li.querySelector('.hw-hunt-lv').textContent, li.querySelector('.hw-hunt-fit').getAttribute('data-tone'), li.querySelector('.hw-hunt-fit').textContent,
           li.querySelector('.hw-hunt-fits').textContent, li.querySelector('.hw-hunt-bestline').textContent, li.querySelector('.hw-hunt-glyph').title].join(':')), W);
-        const want = ['mill_cellar:picked:Level 1–8:in:In your range:Right for your level:No best yet:Built for one hero',
-          'meadowbrook_thicket::Level 5–15:above:Above your level::No best yet:Built for one hero',
-          'millrace_sewer::Level 8–25:above:Above your level::No best yet:Built for a party',
+        const want = ['mill_cellar:picked:Level 1–8:in:In your range:Right for your level:No best yet:Alone or with up to 3 more',
+          'meadowbrook_thicket::Level 5–15:above:Above your level::No best yet:Alone or with up to 3 more',
+          'millrace_sewer::Level 8–25:above:Above your level::No best yet:Alone or with up to 3 more',
           /* Wickstead, Greenhaven's sixth (lane b-greenhaven-6, opened on its art v0.2.63): the second solo door for 8-18 */
-          'wickstead::Level 8–18:above:Above your level::No best yet:Built for one hero',
-          'mosslight_glade::Level 16–31:far:Far above your level::No best yet:Built for one hero',
-          'coppercap_warrens::Level 32–50:far:Far above your level::No best yet:Built for a party'];
+          'wickstead::Level 8–18:above:Above your level::No best yet:Alone or with up to 3 more',
+          'mosslight_glade::Level 16–31:far:Far above your level::No best yet:Alone or with up to 3 more',
+          'coppercap_warrens::Level 32–50:far:Far above your level::No best yet:Alone or with up to 3 more'];
         if (list.join('|') !== want.join('|')) fails.push('AW-25 the list lines read ' + JSON.stringify(list));
         /* The picked ground's page: who lives here as the world draws them, at a whole-number scale on one ground line. */
         const page1 = () => page.evaluate((w) => {
@@ -2274,7 +2271,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (sewer.name !== 'The Sewer' || !sewer.rares.includes('Crown Shard / Rat King') || sewer.rares[sewer.rares.length - 1] !== 'Rat King\'s Crown / Rat King (trophy)'
           || sewer.sets.length !== 2 || !sewer.mons.some((m) => m.id === 'rat_king' && m.carrier && m.how === 'Level 25 · boss')) fails.push('AW-25 the Sewer page reads ' + JSON.stringify({ name: sewer.name, sets: sewer.sets, rares: sewer.rares, mons: sewer.mons.map((m) => m.id + ':' + m.how) }));
         const pp = await party();
-        if (!pp || pp[0] !== 'Best with a party of 2–4.' || pp[1] !== 'Find a party' || !/^Your other heroes can come too/.test(pp[2])) fails.push('AW-28 the Sewer page\'s party path reads ' + JSON.stringify(pp));
+        if (!pp || pp[0] !== 'Alone or with up to 3 more.' || pp[1] !== 'Find a party' || !/^Your other heroes can come too/.test(pp[2])) fails.push('AW-28 the Sewer page\'s party path reads ' + JSON.stringify(pp));
         if (shots) { await page.evaluate((w) => { const b = document.querySelector(w + '.hs-win-body'); b.scrollTop = 0; }, W); await shot(page, 'hunts-1440x900-sewer'); }
         if (shots) { await page.evaluate((w) => { const b = document.querySelector(w + '.hs-win-body'); b.scrollTop = b.scrollHeight; }, W); await shot(page, 'hunts-1440x900-sewer-foot'); }
         /* Find a party: the Party window, on its finder, on this ground and this hero's weapon: ONE read with p_hunt. */

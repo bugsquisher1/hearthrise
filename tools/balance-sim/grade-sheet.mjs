@@ -43,7 +43,7 @@ export const SHEET = Object.freeze({
 /**
  * The formula lane's src/data/balance-sheet.js BALANCE_SHEET (lane/b-ground-formula, 2026-11-07) read as grader rules, each line in
  * its own scope: Normal at the floor (lone, the 8 ways in the Level's gear), the fresh hero (practice set, first-day grounds), the
- * weight class (pairs 2-3 and 5 under), the harder tiers at the floor (lone and four), the four against solo, the largest blows.
+ * weight class (pairs 2-3 and 5 under), the harder tiers at the floor (whoever holds them, and a four's deaths on Deadly), the four against solo, the largest blows.
  * A line the sheet calls "a report line" is advisory; every other line is binding (off it, the grader exits 1).
  */
 export function sheetFromBalanceSheet(BS) {
@@ -72,11 +72,11 @@ export function sheetFromBalanceSheet(BS) {
       { id: 'wc-dangerous-under', why: why('weightClass.dangerousUnder (RULED 11-06): 2-3 under on Dangerous loses gold'), tiers: ['dangerous'], offsets: ['under2', 'under3'], sizes: [2], metric: 'net', max: W.dangerousUnder.netMax, binding: true },
       { id: 'wc-deadly-under-dies', why: why('weightClass.deadlyUnder: 2-3 under on Deadly, 5 under on either harder tier, dies'), ...deadlyUnder, metric: 'deaths', min: W.deadlyUnder.deathsMin },
       { id: 'wc-deadly-under-loses', why: why('weightClass.deadlyUnder: and loses gold'), ...deadlyUnder, metric: 'net', max: W.deadlyUnder.netMax },
-      { id: 'tier-dangerous-xp', why: why('tiers.dangerous.xpVsNormalMin, lone at the floor, the median way'), tiers: ['dangerous'], offsets: ['floor'], sizes: [1], aggregate: 'xpVsNormal', min: T.dangerous.xpVsNormalMin, binding: true },
-      { id: 'tier-dangerous-held', why: why('tiers.dangerous.loneHeldMin of the 8 ways hold at the floor'), tiers: ['dangerous'], offsets: ['floor'], sizes: [1], aggregate: 'heldCount', min: T.dangerous.loneHeldMin, binding: true },
-      { id: 'tier-deadly-lone-cost', why: why('tiers.deadly.loneMustCost (RULED 11-06): the median lone way dies or loses gold'), tiers: ['deadly'], offsets: ['floor'], sizes: [1], aggregate: 'medianCost', min: T.deadly.loneMustCost ? 1 : 0, binding: true },
+      /* ONE DIFFICULTY FOR EVERY GROUP (RULED 2026-11-08): no line asks a group size to fare a set way; each judges what the tier pays whoever
+         holds it at the floor (no death in the cell), the same way on Normal beside it, and the one ceiling, a four at the floor holding Deadly. */
+      { id: 'tier-dangerous-xp', why: why('tiers.dangerous.xpVsNormalMin, held at the floor, any group, against the same way on Normal'), tiers: ['dangerous'], offsets: ['floor'], heldOnly: true, metric: 'xpVsNormal', min: T.dangerous.xpVsNormalMin, binding: true },
+      { id: 'tier-deadly-xp', why: why('tiers.deadly.xpVsNormalMin, held at the floor, any group, against the same way on Normal'), tiers: ['deadly'], offsets: ['floor'], heldOnly: true, metric: 'xpVsNormal', min: T.deadly.xpVsNormalMin, binding: true },
       { id: 'tier-deadly-four-held', why: why('tiers.deadly.fourDeathsPer16hMax, a four at the floor'), tiers: ['deadly'], offsets: ['floor'], sizes: [4], metric: 'deathsPer16h', max: T.deadly.fourDeathsPer16hMax, binding: true },
-      { id: 'tier-deadly-four-xp', why: why('tiers.deadly.fourXpVsNormalMin, a four at the floor a head'), tiers: ['deadly'], offsets: ['floor'], sizes: [4], metric: 'xpVsNormal', min: T.deadly.fourXpVsNormalMin, binding: true },
       { id: 'four-xp', why: why('party.fourVsSolo (RULED 10-25)'), tiers: ['normal'], offsets: ['floor', 'middle', 'top'], sizes: [4], metric: 'xpVsSolo', min: P.fourVsSolo[0], max: P.fourVsSolo[1], binding: true },
     ]),
   });

@@ -100,6 +100,10 @@ export const BAR_TEXT = Object.freeze({
   blocked_by: 'Blocked by {action} (slot {slot}): the same action, and it fires first whenever this one could.',
   shared_cooldown: 'Shares a cooldown with {action} (slot {slot}), which fires first when both are ready.',
   holding: 'Holding the pack: nothing to Challenge.',
+  /* A spell that casts only while its hero hunts alone (abilities.js `alone`, Undertow): its card, its tooltip, its greyed slot in a
+     party, and Configure action's line in a party (Tyler 2026-11-09: "Make that callout clear to the player"). */
+  alone: 'Only when you hunt alone.',
+  alone_party: 'Only when you hunt alone. In your party this slot never fires.',
 
   /* Why a slot cannot fire now. */
   waiting: { one: '{n} waits in your backpack. Press this slot to carry it in.', other: '{n} wait in your backpack. Press this slot to carry them in.' },

@@ -140,7 +140,7 @@ import { ABILITIES, ABILITY_LANES, ABILITY_RULES } from '../src/data/abilities.j
 import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, roleWeaponOf } from '../src/data/hunt-roles.js';
 import { isShield } from '../src/data/shields.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
-import { OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
+import { OPEN_GROUNDS, DENSITY_PICK, MAX_HEROES, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
 import { CALLED_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
 import { PARTY } from '../src/data/party.js';
@@ -232,7 +232,13 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* RUNE SUPPLY PER SLOT (lane/b-rune-supply, Tyler 2026-11-08): 2027-03-20-ground-formula is APPLIED history; END_ORDER's runes_out (a spell slot set to "Leave the hunt"
    with none of its ticked runes left; RESUME_AFTER_END too) lands in hr_hunt_end_reasons and hunt_sessions.end_reason's CHECK in this forward file, the same full replace,
    applied right before 2027-03-24-rune-supply.sql (its §0 and the settle's proof arm read the reason). No kill bound, spawn, limit, bid or shape moves. */
-export const OUT_NAME = '2027-03-24-rune-supply-hunt-sessions-catalogue.generated.sql';
+/* ONE PACK FOR EVERY GROUP (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged"):
+   2027-03-24-rune-supply is APPLIED history. The party scale is gone, so a monster unit no longer carries its yield share (pull-cycle.js PERSISTED
+   loses yieldPm): hr_hunt_world_shape moves (its shape and fields), the same full replace. The re-tune moves the most one kill pays (hr_hunt_kill_bounds)
+   for 26 monsters, and hr_hunt_abilities gains Undertow, the Healer's strike when it hunts alone (Tyler 2026-11-09; abilities.js `alone`, read by the
+   engine only; no column carries it). No spawn, limit or bid. THE SHAPE MOVES, so the old engine refuses every stored world once this applies: the
+   hr-accrue deploy carrying the same src/core follows AT ONCE (each running hunt's world restarts once, as on any shape change). */
+export const OUT_NAME = '2027-03-26-one-difficulty-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -281,9 +287,9 @@ export function groundRows(grounds, refs = {}) {
       }
     }
     if (!n) throw new Error(`ground ${id} spawns nothing`);
-    /* THE MOST A HERO MAY PICK here, per party size 1..PARTY_SCALE.maxHeroes (densityFor's clamp, the one
+    /* THE MOST A HERO MAY PICK here, per party size 1..MAX_HEROES (densityFor's clamp, the one
        rule): hr_hunt_density_set refuses a pick over the largest, the instance's freeze clamps to it. */
-    const dmax = Array.from({ length: PARTY_SCALE.maxHeroes }, (_, i) => densityFor(g, i + 1, DENSITY_PICK.max));
+    const dmax = Array.from({ length: MAX_HEROES }, (_, i) => densityFor(g, i + 1, DENSITY_PICK.max));
     if (!dmax.every((v, i) => whole(v) && v >= 0 && v <= DENSITY_PICK.max && (i === 0 || v >= dmax[i - 1]))) {
       throw new Error(`ground ${id} density max ${dmax} is not 0..${DENSITY_PICK.max}, never falling as the party grows`);
     }
@@ -640,7 +646,7 @@ function calledRows(S) {
     if (!(m.xp === 0)) throw new Error(`called row ${id} pays XP (${m.xp}): a called row pays nothing`);
     if (!(Array.isArray(m.gp) && m.gp[0] === 0 && m.gp[1] === 0)) throw new Error(`called row ${id} pays coin (${JSON.stringify(m.gp)}): a called row pays nothing`);
     if (!(Array.isArray(m.drops) && m.drops.length === 0)) throw new Error(`called row ${id} drops something: a called row pays nothing`);
-    if (m.yieldPm !== undefined || m.dropBonus !== undefined) throw new Error(`called row ${id} carries a yield: damage.js yieldOf reads 0 as full yield`);
+    if (m.dropBonus !== undefined) throw new Error(`called row ${id} carries a drop bonus: a called row drops nothing`);
     if (m.boss !== true && m.add !== true) throw new Error(`called row ${id} is neither a boss nor his add`);
     if (m.boss === true && m.add === true) throw new Error(`called row ${id} is both a boss and an add: "target is a boss" tells them apart`);
     if (m.boss === true && !(m.phases && whole(m.phases.addsPm) && whole(m.phases.enragePm) && whole(m.phases.enrageAtkPm) && m.phases.addsPm > m.phases.enragePm && m.phases.enragePm > 0 && m.phases.addsPm < 1000 && m.phases.enrageAtkPm > 1000)) throw new Error(`called boss ${id} has no two lines: ${JSON.stringify(m.phases)}`);
@@ -1385,7 +1391,7 @@ function selftest() {
     'a called row that pays XP': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, xp: 1 } } }),
     'a called row that pays coin': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, gp: [0, 1] } } }),
     'a called row that drops': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, drops: [{ id: 'bones', ch: 1, band: 'common' }] } } }),
-    'a called row with a yield of nothing': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, yieldPm: 0 } } }),
+    'a called row with a drop bonus': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, dropBonus: 2 } } }),
     'a paying row named as a called one': () => ({ monsters: { ...MONSTERS, rat_called: { ...MONSTERS.rat } } }),
     'a called row with an ordinary id': () => ({ monsters: { ...MONSTERS, rat_king_copy: { ...MONSTERS.rat_king_called } } }),
     'a called room fielding a row that pays': () => ({ calledGrounds: { ...CALLED_GROUNDS, millrace_sewer_called: { ...CALLED_GROUNDS.millrace_sewer_called,

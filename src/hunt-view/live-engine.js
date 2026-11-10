@@ -45,6 +45,7 @@ import { stepCost } from '../core/hunt/grid.js?v=0.2.112';
 import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.112';
 import { holderTank, roleOf, engaged, challengeable } from '../core/hunt/targeting.js?v=0.2.112';
 import { testSlot, aimsAtMonsters, ignores } from '../core/hunt/conditions.js?v=0.2.112';
+import { aloneIn } from '../core/hunt/abilities.js?v=0.2.112';
 import { xpMultFor } from '../core/live-events.js?v=0.2.112';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
@@ -383,6 +384,11 @@ export function createLiveEngine(o) {
     tankTurns: () => (st && st.world && !st.ended ? tankTurnsOf(st.world) : null),
     /** Does tank `unit` hold every engaged monster in the world this prediction runs (holdsPackOf)? False when none runs. */
     holdsPack: (unit) => !!st && !!st.world && !st.ended && holdsPackOf(st.world, unit),
+    /** Does hero `unit` hunt alone in the world this prediction runs (the engine's own aloneIn: an alone spell's gate)? Null when none runs. */
+    alone(unit) {
+      const u = st && st.world && !st.ended ? st.world.units.find((x) => x.id === unit) : null;
+      return u ? aloneIn(st.world, u) : null;
+    },
     /** The engine's test of a bar slot for hero `unit`, in the world this prediction runs (slotTesterOf). Null when none runs. */
     slotTester(unit) {
       const side = st && st.world && !st.ended ? st.sides.find((x) => x.member.unitId === unit) : null;

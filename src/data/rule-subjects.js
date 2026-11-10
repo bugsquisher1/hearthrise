@@ -88,6 +88,9 @@ const slot = (id, conditions, join) => Object.freeze({ id: 'd_' + id,
    nearest gate that lands, not a fine tuning (CONFLICTS.md 2026-11-05). At 70 the Warrens' total-value was red (5,748 g against 5,735). Full mana at the top of a fight still fires it first. */
 const SPARE_MANA = Object.freeze([{ metric: 'self_mana_pct', op: 'gte', value: 70 }]);
 const SICKNESS_WHEN = Object.freeze([{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }, { metric: 'self_mana_pct', op: 'gte', value: 78 }]);
+/* UNDERTOW, the Healer's strike when it hunts alone (abilities.js `alone`; in a party the slot never fires): like Green
+   Sickness it waits while the Healer itself is under 70%, so Greater Mend has the mana first. */
+const UNDERTOW_WHEN = Object.freeze([{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }]);
 /* OFF THE DEFAULT BARS, measured with their store runes on: Flame Volley (ranger-floor: a crossbow Ranger buying every shot
    +3.3% over its bill at the Sewer floor, three shots a Volley; +30.1% without it) and Rend (weapon-rungs: axes at Level 45
    read +4% from a rung; about +1% XP at the Thicket for 23 casts an hour). Sword Flame Strike likewise (playtest 2026-10-29
@@ -99,7 +102,7 @@ export const ROLE_RULES = Object.freeze({
   melee_dps: Object.freeze([slot('power_strike'), slot('cleave')]),
   ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot')]),
   mage: Object.freeze([slot('fireball'), slot('frost_lance', SPARE_MANA), slot('arcane_barrier')]),
-  healer: Object.freeze([slot('greater_mend'), slot('circle_of_renewal'), slot('green_sickness', SICKNESS_WHEN)]),
+  healer: Object.freeze([slot('greater_mend'), slot('circle_of_renewal'), slot('green_sickness', SICKNESS_WHEN), slot('undertow', UNDERTOW_WHEN)]),
 });
 
 /* An action set: up to `presets` per character, each a bar of up to `slots`

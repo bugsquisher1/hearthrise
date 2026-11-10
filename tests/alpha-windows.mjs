@@ -329,6 +329,22 @@ async function openWin(page, key, id) {
   await page.keyboard.press(key);
   return wait(page, (w) => document.querySelector('[data-hs-win="' + w + '"] [data-hs-built]'), id, 3000);
 }
+/* A PRESS IS CHECKED, NOT CLICKED BLIND (runs 42678595702 and 42735492394: a 6 s click timeout read as HARNESS, never as
+   the catch it was). Why the control `sel` would not take a player's press, '' when it would: it is on screen, on, and,
+   once scrolled into view the way a player scrolls (nearest), the topmost thing at its middle. The caller fails its own
+   rule BY NAME with this reason and stops that arm. */
+const pressBlock = (page, sel) => page.evaluate((q) => {
+  const b = document.querySelector(q);
+  if (!b) return 'it is not on screen';
+  if (!b.getClientRects().length) return 'it is hidden';
+  if (b.disabled) return 'it is off';
+  b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  const r = b.getBoundingClientRect();
+  const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  if (!top || top === b || b.contains(top)) return '';
+  const cls = typeof top.className === 'string' ? top.className.trim() : '';
+  return 'it lies under ' + top.tagName.toLowerCase() + (cls ? '.' + cls.split(/\s+/).join('.') : '') + (top.textContent ? ' ("' + top.textContent.trim().slice(0, 40) + '")' : '');
+}, sel);
 const count = (page, id) => page.evaluate((i) => { const li = document.querySelector('.hw-pocket[data-item="' + i + '"]'); return li ? li.querySelector('.hw-count').textContent : null; }, id);
 const sent = (s, name, verb) => s.calls.filter((c) => c.name === name && (!verb || c.body.verb === verb));
 
@@ -1874,7 +1890,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 
     { // AW-9 fail safe without the new sections
       const { ctx, page, up } = await open({ mutateEnv: (e) => { delete e.bag_rules; delete e.shop; } });
-      if (up) {
+      if (up) aw9: {
         await openWin(page, 'b', 'inventory');
         await page.click('.hw-pocket[data-item="rat_tail"]', { button: 'right' });
         await page.waitForTimeout(150);
@@ -1882,8 +1898,15 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           rules: Array.from(document.querySelectorAll('[data-hs-act="m-rule"]')).every((b) => b.disabled),
           dispatch: document.querySelector('[data-hs-act="dispatch"]').disabled, value: document.querySelector('.hw-value').textContent }));
         if (!st.lock || !st.rules || !st.dispatch || st.value !== 'Reading the shop prices…') fails.push('AW-9 without the server’s sections the bag offered ' + JSON.stringify(st));
-        /* The reason is a loading line (audit 11-09 F11): bag_rules IS projected, so "switch on when the server starts keeping them" was false. */
-        await page.click('.hw-pocket[data-item="rat_tail"]');
+        /* The reason is a loading line (audit 11-09 F11): bag_rules IS projected, so "switch on when the server starts keeping them" was false.
+           The player's way: Esc puts the menu away, then the press lands on the stack. It was clicked through the open menu, which lies on the
+           stack's middle (the press point): only Playwright's scroll-and-retry ever reached it, and on a runner that ran out at 6 s (HARNESS on
+           nightly 42678595702 and main 42735492394, the Equip upgrades mutant's taller foot). Checked, not clicked blind. */
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(100);
+        const ratBlock = await pressBlock(page, '[data-hs-win="inventory"] .hw-pocket[data-item="rat_tail"]');
+        if (ratBlock) { fails.push('AW-9 the rat tails cannot be pressed once Esc put the item menu away: ' + ratBlock); break aw9; }
+        await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="rat_tail"]');
         await page.keyboard.press('l');
         await page.waitForTimeout(150);
         const lockSaid = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);

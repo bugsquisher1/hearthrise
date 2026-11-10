@@ -1,0 +1,245 @@
+{
+ "south": {
+  "clip": "attack",
+  "bright": [
+   23,
+   58,
+   35,
+   7,
+   3,
+   3
+  ],
+  "still_bright": 2,
+  "clean": [
+   3,
+   4,
+   5
+  ],
+  "blow": 3,
+  "order": [
+   3,
+   3,
+   3,
+   3,
+   4,
+   5
+  ],
+  "dropped": [
+   0,
+   1,
+   2
+  ]
+ },
+ "south-east": {
+  "clip": "attack",
+  "bright": [
+   0,
+   0,
+   0,
+   58,
+   56,
+   8
+  ],
+  "still_bright": 0,
+  "clean": [
+   0,
+   1,
+   2,
+   5
+  ],
+  "blow": 5,
+  "order": [
+   0,
+   1,
+   2,
+   5,
+   1,
+   2
+  ],
+  "dropped": [
+   3,
+   4
+  ]
+ },
+ "east": {
+  "clip": "attack-r3",
+  "bright": [
+   5,
+   0,
+   6,
+   5,
+   7,
+   2
+  ],
+  "still_bright": 0,
+  "clean": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "blow": 2,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ],
+  "dropped": []
+ },
+ "north-east": {
+  "clip": "attack",
+  "bright": [
+   1,
+   1,
+   0,
+   1,
+   1,
+   1
+  ],
+  "still_bright": 1,
+  "clean": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "blow": 4,
+  "order": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   3
+  ],
+  "dropped": []
+ },
+ "north": {
+  "clip": "attack-r3",
+  "bright": [
+   1,
+   0,
+   1,
+   1,
+   1,
+   1
+  ],
+  "still_bright": 1,
+  "clean": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "blow": 5,
+  "order": [
+   2,
+   3,
+   4,
+   5,
+   3,
+   4
+  ],
+  "dropped": []
+ },
+ "north-west": {
+  "clip": "attack-r3",
+  "bright": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "still_bright": 0,
+  "clean": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "blow": 5,
+  "order": [
+   2,
+   3,
+   4,
+   5,
+   3,
+   4
+  ],
+  "dropped": []
+ },
+ "west": {
+  "clip": "attack",
+  "bright": [
+   1,
+   38,
+   21,
+   38,
+   38,
+   25
+  ],
+  "still_bright": 0,
+  "clean": [
+   0
+  ],
+  "blow": 0,
+  "order": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "dropped": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "south-west": {
+  "clip": "attack-r3",
+  "bright": [
+   1,
+   1,
+   2,
+   1,
+   1,
+   2
+  ],
+  "still_bright": 1,
+  "clean": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "blow": 4,
+  "order": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   3
+  ],
+  "dropped": []
+ }
+}

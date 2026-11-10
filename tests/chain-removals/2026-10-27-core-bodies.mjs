@@ -129,6 +129,12 @@ export const HR_APPLY = Object.freeze([
   "        end if;",
   "    --",
   "",
+  /* ADDED 2026-11-10 (lane/a-sql-tests-red). The file's hr_apply reads a requirement's skill level on
+     that skill's own curve: `hr_level_from_xp(s.xp)` became `hr_skill_level(i.req_skill, s.xp)` in the
+     equip gate and `hr_skill_level(a.req_skill, s.xp)` in the activity gate. Both lines were replaced,
+     neither was listed, and nothing ran the diff (run-sql-tests was in no CI job), so the freeze above
+     was never checked. Same edit as hr_state_of's skills cell below; both gates are still there. */
+  "             and coalesce((select public.hr_level_from_xp(s.xp) from public.player_skills s",
 ]);
 export const HR_STATE_OF = Object.freeze([
   "  return jsonb_build_object(",

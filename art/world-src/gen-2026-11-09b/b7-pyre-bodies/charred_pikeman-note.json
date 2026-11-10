@@ -1,0 +1,18 @@
+{
+  "asset": "round 2 B7p: charred_pikeman r3 (fb184755-3ad1-4430-8836-30e78134d2cc) clips",
+  "status": "for the art director's read. Not imported",
+  "generations": 49,
+  "clips": {
+    "idle": "the r3 S group f4480677-92a2-435c-bddb-46165e62d3e6 extended to the 7 other facings (its words); idle/lay.json = each facing's still, a, b, a from frames within 1 px of the still's box",
+    "walk": "group 76be4eb5-d668-4f0f-a0a2-da34e432e84a, \"a stiff marching shuffle, both feet lift in turn, the pole stays held upright, nothing else appears in the frame\", 6 frames",
+    "attack": "group 5871eef2-939a-4c51-8ea7-79399d2edbe6, \"jabs the pole forward in a short thrust, then pulls it back to his stance, feet planted, the pole and its blade stay the same\" + the attack ending (no fire ... no light, nothing else appears in the frame); attack-lay.json drops every frame with bright pixels over the still's + 10 and lays the most-changed clean frame on index 3",
+    "death": "group cc43cbd3-9717-43c1-bf2f-b7ddea1e6e72, \"falls forward onto his face, the pole beside him, and lies still, nothing else appears in the frame\"; E, NE and SW REFUSED (still standing at the end) and redone by the pose route (edits ee3c359c, f02568b6, f3cd7c43 on the rotations: \"... fallen forward flat on his face, the pole lying flat on the ground beside him\"; animate_image 269d5063, 3506d8ff, c85d3f17); all deaths seated"
+  },
+  "flags": [
+    "attack SE: frames 0-2 carry a bright trail (149, 85, 41 px), so only frames 3-5 are left; NW frames 1-3 (22-38 px) dropped, leaving 0, 4, 5; E frame 2 (26 px) dropped",
+    "S, SW and NE attacks have no bright pixels at all",
+    "N death lies with the pole standing north-south (upright from above, the kobold's spear ruling)"
+  ],
+  "layout": "charred_pikeman/<facing>.png; idle|walk|attack|death|deathpose/<facing>/; *-seated/; attack-lay.json; idle/lay.json",
+  "review_strip": "art/review/gen-2026-11-09b/r2-b7p-charred_pikeman.png (x2, 48 cells; deaths grey-barred, pose routes amber)"
+}

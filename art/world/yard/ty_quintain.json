@@ -1,0 +1,42 @@
+{
+  "id": "ty_quintain",
+  "class": "fixture",
+  "style": "s1",
+  "material": "wood",
+  "source": "ty_quintain.png",
+  "frame": [
+    59,
+    45
+  ],
+  "anchor_px": [
+    27,
+    44
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    },
+    {
+      "name": "hit",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 5
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "PixelLab create_image_pro_flash, brief 13 Y1 (art/world-src/gen-2026-11-09b/y1-yard-kit), style 1; cut by blob, no pixel redrawn + animate_image (B1)",
+    "image": "840ee2bb-5aeb-439d-a9ae-60fe06b63158"
+  },
+  "notes": "The quintain: the crossarm swings, the shield lifts and the sandbag squashes round (laid 0 4 3 4 0 at 12 fps as the verdict ruled). Its `hit` clip answers a blow."
+}

@@ -1,0 +1,34 @@
+{
+  "id": "crop_watered_3",
+  "class": "decal",
+  "style": "s1",
+  "material": "terrain",
+  "source": "crop_watered_3.png",
+  "frame": [
+    22,
+    20
+  ],
+  "anchor_px": [
+    11,
+    19
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash 128x96 sheet (brief 13 B11)",
+    "image": "24aae9d1-febb-4f6e-82c8-f0a107412635"
+  },
+  "notes": "A watered-soil overlay (damp earth on transparency). Imported as art only: the server's plot data carries no watered flag yet, so no scene places it."
+}

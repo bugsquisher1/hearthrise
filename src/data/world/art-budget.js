@@ -102,6 +102,9 @@ export const CLASSES = Object.freeze({
   wreck: row({ body: [28, 44], measure: 'h', maxW: 64, contact: 'touch', shadow: 'ellipse', layer: 'prop' }),
   // A trunk lying on the ground (the Meadowbrook's fallen log): long and low, it rests along its length.
   log: row({ body: [14, 24], measure: 'h', maxW: 64, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
+  // A LAYER of a composite prop drawn over its base at the base's anchor (the house training dummy's plates, arms and target):
+  // it hangs on the base, so it never meets the floor itself, casts no shadow of its own and may be any size the base is.
+  part: row({ body: [4, 72], measure: 'max', raw: true, contact: 'raised', shadow: null, layer: 'prop' }),
   hanging: row({ body: [6, 40], measure: 'h', raw: true, contact: 'raised', shadow: null, layer: 'wall' }),
   // A combat effect (a slash, a heal, a cast): one non-directional clip in its own cropped
   // frame (the sidecar's `frame`), its anchor the point it centres on (the target's chest,

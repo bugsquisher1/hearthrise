@@ -1,0 +1,16 @@
+{
+  "asset": "brief 13 Q6 (brief 12 P7) the pyre wraith's S idle again SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt Q6",
+  "status": "SAMPLE for the art director's one read; idle 7, walk 8, attack 8, death 8 wait for it. Not imported",
+  "made": "2026-11-08 (the brief's 11-09 samples)",
+  "generations": 1,
+  "object": "0270f103-104f-41d8-802e-e45ed6f4c212 (the approved rotations)",
+  "idle": { "group": "69bf3b6d-412c-4722-af5e-11e8b049d99d", "tool": "animate_object v3, south, frame_count 8, keep_first_frame true", "action": "standing, the bony hands stay hidden inside the shroud, only the hem stirs by one pixel, the head stays level, nothing else appears in the frame" },
+  "layout": "pyre_wraith/south.png the rotation; pyre_wraith/idle/south/frame_000..008",
+  "measured": "every frame changes 500-530 px over rows 5-46 (the whole figure, not only the hem); the hood tip rises y8 -> y5 at frames 3-6; the width narrows 2 px; ring-contrast (locked) on the target ash 4.03:1 S, 5.44:1 E",
+  "flags": [
+    "the pale curled hands at the sides are in the still itself and stay the same through all 9 frames: no hands APPEAR (the 11-09 fault)",
+    "but the whole shroud redraws each frame and the hood rises 3 px: more than 'only the hem stirs'. The calmest frames are 0-2 and 7-8"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/q6-pyre-wraith-idle-sample.png (x4 on the target ash: the new idle S 0-8; red row = the refused 11-09 idle, from the object's own group b5b256e8)"
+}

@@ -10,13 +10,13 @@
 // A GIFT THE PURSE CAN'T PAY IS OFF BEFORE THE PRESS, AND SAYS WHY (the house style; v0.2.97 gate: a 500 gp purse saw three live buttons that only said "Not enough gold."
 // after the press): the purse is the envelope's (goldOf), the room today the server's read, and the last button gives the smaller of the two. The server still judges.
 // ════════════════════════════════════════════════════════════════════════
-import { readWorks, giveToWorks } from '../../../session/town-intents.js?v=0.2.113';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.113';
-import { TOWN_WORKS } from '../../../data/town-works.js?v=0.2.113';
-import { text, cls, attr, prop, style, rows, element } from '../../../render/paint.js?v=0.2.113';
-import { whole, gold } from '../../../render/format.js?v=0.2.113';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.113';
-import { runIntent, refusalText } from '../../intent-words.js?v=0.2.113';
+import { readWorks, giveToWorks } from '../../../session/town-intents.js?v=0.2.114';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.114';
+import { TOWN_WORKS } from '../../../data/town-works.js?v=0.2.114';
+import { text, cls, attr, prop, style, rows, element } from '../../../render/paint.js?v=0.2.114';
+import { whole, gold } from '../../../render/format.js?v=0.2.114';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.114';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.114';
 
 const ASK_MS = 15000;
 const RETRY_MS = 5000;

@@ -10,6 +10,7 @@
 //   targetOf(place)          a place (item-lore.js wherePlaces / usePlaces) -> { win, tab?, find? }, or null when it has
 //                            no window (a ground no one can walk, a skill with no bench door)
 //   linkHtml(words, target)  the link's markup; plain words when there is no target
+//   gotoAttr(target)         the same link as an attribute, for a row pressed whole (a creature on a hunt's page)
 //   placesParts(places)      places as sentences, each a link: "Made with Crafting 21. Sold at the shop."
 //   patchParts(el, parts)    a line of words and links (strings, and { words, target } pieces), rewritten only when it changed
 //   followGoto(ctx, el)      a pressed link: goTo, then repaint that window
@@ -17,10 +18,10 @@
 //   ownsKey(ev)              Enter on a focused link presses it (the shell's Enter opens Chat everywhere else)
 // Display only: a link sends nothing; the window it opens reads the server's numbers as it always does.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.113';
-import { revealInWindow } from './widgets/bits.js?v=0.2.113';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.113';
-import { GATHER_INDEX, BENCH_INDEX } from './town-work.js?v=0.2.113';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.114';
+import { revealInWindow } from './widgets/bits.js?v=0.2.114';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.114';
+import { GATHER_INDEX, BENCH_INDEX } from './town-work.js?v=0.2.114';
 
 const ATTR = 'data-hs-goto';
 const FIND = 'data-hs-find';
@@ -58,6 +59,9 @@ export function linkHtml(words, target) {
   if (!target || !WIN.test(target.win)) return esc(words);
   return '<button type="button" class="hs-goto" ' + ATTR + '="' + esc(keyOf(target)) + '">' + esc(words) + '</button>';
 }
+
+/** The attribute that makes any element a link to `target` ('' with no target): a row that is pressed whole, around its own real button. */
+export const gotoAttr = (target) => (target && WIN.test(target.win) ? ' ' + ATTR + '="' + esc(keyOf(target)) + '"' : '');
 
 /** A place's words as a link to its window (or plain words): the piece patchParts takes. */
 export const placeLink = (p) => ({ words: p.words, target: targetOf(p.place) });

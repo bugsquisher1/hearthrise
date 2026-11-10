@@ -252,7 +252,7 @@ const cases = {
     const stray = Object.keys(M.AD.ABILITIES).filter((id) => id !== 'undertow' && M.F.factsOf({ type: 'ability', id }).alone);
     if (stray.length) return 'a spell that casts in a party says it does not: ' + stray.join(', ');
     const draft = { action: { type: 'ability', id: 'undertow' }, conditions: [], join: 'and' };
-    if (M.W.setupNote(draft, 2) !== WORDS + ' In your party this slot never fires.') return 'Configure action in a party reads ' + JSON.stringify(M.W.setupNote(draft, 2));
+    if (M.W.setupNote(draft, 2) !== WORDS + ' It does nothing in a party.') return 'Configure action in a party reads ' + JSON.stringify(M.W.setupNote(draft, 2));
     return M.W.setupNote(draft, 1) === '' ? null : 'Configure action alone reads ' + JSON.stringify(M.W.setupNote(draft, 1));
   },
   'configure-note': (M) => {

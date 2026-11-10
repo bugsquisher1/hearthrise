@@ -1,0 +1,1400 @@
+{
+  "version": 1,
+  "set": "yard",
+  "palette": "hr-world-56-v2",
+  "T": 32,
+  "image": "atlas-yard.png",
+  "size": [512,240],
+  "pixels": "c0fea1047754a6f3ceea9f1bcf5bbf7da4c73d63f91b34ea1eb7c33c65f90f4c",
+  "sprites": {
+    "crop_carrot_0": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [14,18],
+      "anchor": [7,17],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 15,
+      "contact": [5,7],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[135,219]]
+          }
+        }
+      }
+    },
+    "crop_carrot_1": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [22,24],
+      "anchor": [11,23],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 22,
+      "contact": [9,11],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[269,190]]
+          }
+        }
+      }
+    },
+    "crop_carrot_2": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [24,26],
+      "anchor": [12,25],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 25,
+      "contact": [8,15],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[98,190]]
+          }
+        }
+      }
+    },
+    "crop_carrot_3": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [25,27],
+      "anchor": [12,26],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 25,
+      "contact": [8,16],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[21,190]]
+          }
+        }
+      }
+    },
+    "crop_emberfruit_0": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [16,15],
+      "anchor": [8,14],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 13,
+      "contact": [6,9],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[304,219]]
+          }
+        }
+      }
+    },
+    "crop_emberfruit_1": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [20,19],
+      "anchor": [10,18],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 18,
+      "contact": [4,14],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[95,219]]
+          }
+        }
+      }
+    },
+    "crop_emberfruit_2": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [22,21],
+      "anchor": [11,20],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 19,
+      "contact": [3,15],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[479,190]]
+          }
+        }
+      }
+    },
+    "crop_emberfruit_3": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [24,21],
+      "anchor": [12,20],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 19,
+      "contact": [3,21],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[454,190]]
+          }
+        }
+      }
+    },
+    "crop_goldenroot_0": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [15,15],
+      "anchor": [7,14],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 13,
+      "contact": [6,9],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[321,219]]
+          }
+        }
+      }
+    },
+    "crop_goldenroot_1": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [21,19],
+      "anchor": [10,18],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 17,
+      "contact": [8,11],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[73,219]]
+          }
+        }
+      }
+    },
+    "crop_goldenroot_2": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [22,23],
+      "anchor": [11,22],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 23,
+      "contact": [5,15],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[338,190]]
+          }
+        }
+      }
+    },
+    "crop_goldenroot_3": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [23,25],
+      "anchor": [11,24],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 22,
+      "contact": [6,18],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[167,190]]
+          }
+        }
+      }
+    },
+    "crop_moonbloom_0": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [11,10],
+      "anchor": [5,9],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 9,
+      "contact": [1,9],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[392,219]]
+          }
+        }
+      }
+    },
+    "crop_moonbloom_1": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [14,18],
+      "anchor": [7,17],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 16,
+      "contact": [1,12],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[150,219]]
+          }
+        }
+      }
+    },
+    "crop_moonbloom_2": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [18,23],
+      "anchor": [9,22],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 22,
+      "contact": [4,14],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[402,190]]
+          }
+        }
+      }
+    },
+    "crop_moonbloom_3": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [22,24],
+      "anchor": [11,23],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 23,
+      "contact": [4,16],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[292,190]]
+          }
+        }
+      }
+    },
+    "crop_potato_0": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [16,17],
+      "anchor": [8,16],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 15,
+      "contact": [6,8],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[212,219]]
+          }
+        }
+      }
+    },
+    "crop_potato_1": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [22,24],
+      "anchor": [11,23],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 21,
+      "contact": [5,15],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[315,190]]
+          }
+        }
+      }
+    },
+    "crop_potato_2": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [24,30],
+      "anchor": [12,29],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 30,
+      "contact": [5,18],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[422,157]]
+          }
+        }
+      }
+    },
+    "crop_potato_3": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [25,31],
+      "anchor": [12,30],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 30,
+      "contact": [6,18],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[396,157]]
+          }
+        }
+      }
+    },
+    "crop_pumpkin_0": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [16,11],
+      "anchor": [8,10],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 11,
+      "contact": [5,11],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[363,219]]
+          }
+        }
+      }
+    },
+    "crop_pumpkin_1": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [25,14],
+      "anchor": [12,13],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 14,
+      "contact": [2,24],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[337,219]]
+          }
+        }
+      }
+    },
+    "crop_pumpkin_2": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [26,19],
+      "anchor": [13,18],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 19,
+      "contact": [1,22],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[46,219]]
+          }
+        }
+      }
+    },
+    "crop_pumpkin_3": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [32,21],
+      "anchor": [16,20],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 21,
+      "contact": [7,26],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[421,190]]
+          }
+        }
+      }
+    },
+    "crop_tomato_0": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [11,11],
+      "anchor": [5,10],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 8,
+      "contact": [1,9],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[380,219]]
+          }
+        }
+      }
+    },
+    "crop_tomato_1": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [18,19],
+      "anchor": [9,18],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 17,
+      "contact": [4,13],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[116,219]]
+          }
+        }
+      }
+    },
+    "crop_tomato_2": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [19,26],
+      "anchor": [9,25],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 24,
+      "contact": [8,11],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[147,190]]
+          }
+        }
+      }
+    },
+    "crop_tomato_3": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [20,28],
+      "anchor": [10,27],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 25,
+      "contact": [9,11],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,190]]
+          }
+        }
+      }
+    },
+    "crop_turnip_0": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [18,15],
+      "anchor": [9,14],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 14,
+      "contact": [6,11],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[285,219]]
+          }
+        }
+      }
+    },
+    "crop_turnip_1": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [22,20],
+      "anchor": [11,19],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 19,
+      "contact": [7,13],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,219]]
+          }
+        }
+      }
+    },
+    "crop_turnip_2": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [24,24],
+      "anchor": [12,23],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 24,
+      "contact": [7,16],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[244,190]]
+          }
+        }
+      }
+    },
+    "crop_turnip_3": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [25,26],
+      "anchor": [12,25],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 25,
+      "contact": [8,16],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[72,190]]
+          }
+        }
+      }
+    },
+    "crop_watered_1": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [19,16],
+      "anchor": [9,15],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 16,
+      "contact": [3,15],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[242,219]]
+          }
+        }
+      }
+    },
+    "crop_watered_2": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [22,15],
+      "anchor": [11,14],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 15,
+      "contact": [4,19],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[262,219]]
+          }
+        }
+      }
+    },
+    "crop_watered_3": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [22,20],
+      "anchor": [11,19],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 20,
+      "contact": [5,17],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[23,219]]
+          }
+        }
+      }
+    },
+    "crop_watered_4": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [20,23],
+      "anchor": [10,22],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 23,
+      "contact": [4,11],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[361,190]]
+          }
+        }
+      }
+    },
+    "crop_wheat_0": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [12,17],
+      "anchor": [6,16],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 14,
+      "contact": [2,8],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[229,219]]
+          }
+        }
+      }
+    },
+    "crop_wheat_1": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [19,23],
+      "anchor": [9,22],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 20,
+      "contact": [4,14],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[382,190]]
+          }
+        }
+      }
+    },
+    "crop_wheat_2": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [23,26],
+      "anchor": [11,25],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 24,
+      "contact": [5,16],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[123,190]]
+          }
+        }
+      }
+    },
+    "crop_wheat_3": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [24,27],
+      "anchor": [12,26],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 25,
+      "contact": [6,18],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[47,190]]
+          }
+        }
+      }
+    },
+    "npc_arms_master": {
+      "class": "character",
+      "layer": "unit",
+      "frame": [64,64],
+      "anchor": [32,58],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 34,
+      "contact": [25,38],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 19,
+        "h": 7,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 5,
+          "loop": true,
+          "dirs": {
+            "s": [[0,0],[65,0],[130,0],[65,0]]
+          }
+        }
+      }
+    },
+    "npc_gate_sergeant": {
+      "class": "character",
+      "layer": "unit",
+      "frame": [64,64],
+      "anchor": [32,58],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 40,
+      "contact": [23,40],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 26,
+        "h": 9,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 5,
+          "loop": true,
+          "dirs": {
+            "s": [[195,0],[260,0],[325,0],[260,0]]
+          }
+        }
+      }
+    },
+    "ty_archery_butt": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [43,46],
+      "anchor": [9,45],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 46,
+      "contact": [8,34],
+      "shadow": {
+        "kind": "cast",
+        "height": 46,
+        "base": [8,34]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,65]]
+          }
+        },
+        "hit": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[0,65],[418,0],[462,0],[0,65]]
+          }
+        }
+      }
+    },
+    "ty_arrow_stand": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [27,44],
+      "anchor": [13,43],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 43,
+      "contact": [5,21],
+      "shadow": {
+        "kind": "cast",
+        "height": 43,
+        "base": [5,21]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,112]]
+          }
+        }
+      }
+    },
+    "ty_banner": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [27,59],
+      "anchor": [12,58],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 59,
+      "contact": [7,18],
+      "shadow": {
+        "kind": "cast",
+        "height": 59,
+        "base": [7,18]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[390,0]]
+          }
+        }
+      }
+    },
+    "ty_bench": {
+      "class": "bench",
+      "layer": "prop",
+      "frame": [46,17],
+      "anchor": [4,16],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 17,
+      "contact": [2,42],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 26,
+        "h": 9,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[165,219]]
+          }
+        }
+      }
+    },
+    "ty_butt_small": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [32,37],
+      "anchor": [5,36],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 36,
+      "contact": [2,27],
+      "shadow": {
+        "kind": "cast",
+        "height": 36,
+        "base": [2,27]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[324,112]]
+          }
+        },
+        "hit": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[324,112],[258,112],[291,112],[324,112]]
+          }
+        }
+      }
+    },
+    "ty_pell": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [18,42],
+      "anchor": [8,41],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 42,
+      "contact": [0,17],
+      "shadow": {
+        "kind": "cast",
+        "height": 42,
+        "base": [0,17]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[165,112]]
+          }
+        },
+        "hit": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[165,112],[127,112],[146,112],[165,112]]
+          }
+        }
+      }
+    },
+    "ty_quintain": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [59,45],
+      "anchor": [27,44],
+      "footprint": [2,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 43,
+      "contact": [20,35],
+      "shadow": {
+        "kind": "cast",
+        "height": 43,
+        "base": [20,35]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[207,65]]
+          }
+        },
+        "hit": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[207,65],[87,65],[147,65],[87,65],[207,65]]
+          }
+        }
+      }
+    },
+    "ty_range_marker": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [18,37],
+      "anchor": [8,36],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 35,
+      "contact": [3,15],
+      "shadow": {
+        "kind": "cast",
+        "height": 35,
+        "base": [3,15]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[357,112]]
+          }
+        }
+      }
+    },
+    "ty_rune_lectern": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [38,39],
+      "anchor": [18,38],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 39,
+      "contact": [8,29],
+      "shadow": {
+        "kind": "cast",
+        "height": 39,
+        "base": [8,29]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[219,112]]
+          }
+        }
+      }
+    },
+    "ty_scorch": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [47,29],
+      "anchor": [18,28],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 23,
+      "contact": [15,36],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[447,157]]
+          }
+        }
+      }
+    },
+    "ty_sparring_pad": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [42,46],
+      "anchor": [3,45],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 46,
+      "contact": [1,40],
+      "shadow": {
+        "kind": "cast",
+        "height": 46,
+        "base": [1,40]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[44,65]]
+          }
+        }
+      }
+    },
+    "ty_straw_dummy": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [32,43],
+      "anchor": [15,42],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 43,
+      "contact": [9,21],
+      "shadow": {
+        "kind": "cast",
+        "height": 43,
+        "base": [9,21]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[94,112]]
+          }
+        },
+        "hit": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[94,112],[28,112],[61,112],[28,112],[94,112]]
+          }
+        }
+      }
+    },
+    "ty_straw_dummy_helm": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [32,45],
+      "anchor": [16,44],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 42,
+      "contact": [11,22],
+      "shadow": {
+        "kind": "cast",
+        "height": 42,
+        "base": [11,22]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[380,65]]
+          }
+        },
+        "hit": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[380,65],[314,65],[347,65],[314,65],[380,65]]
+          }
+        }
+      }
+    },
+    "ty_straw_dummy_split": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [30,45],
+      "anchor": [14,44],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 40,
+      "contact": [9,20],
+      "shadow": {
+        "kind": "cast",
+        "height": 40,
+        "base": [9,20]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[475,65]]
+          }
+        },
+        "hit": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[475,65],[413,65],[444,65],[413,65],[475,65]]
+          }
+        }
+      }
+    },
+    "ty_sword_rack": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [34,40],
+      "anchor": [2,39],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 39,
+      "contact": [0,33],
+      "shadow": {
+        "kind": "cast",
+        "height": 39,
+        "base": [0,33]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[184,112]]
+          }
+        }
+      }
+    },
+    "ty_trough": {
+      "class": "log",
+      "layer": "prop",
+      "frame": [52,24],
+      "anchor": [6,23],
+      "footprint": [2,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 24,
+      "contact": [1,50],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 51,
+        "h": 18,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[191,190]]
+          }
+        }
+      }
+    },
+    "ty_ward_ring": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [46,45],
+      "anchor": [22,44],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 45,
+      "contact": [14,32],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[267,65]]
+          }
+        }
+      }
+    }
+  },
+  "terrain": {
+    "havora_earth_sand": {
+      "kind": "wang16",
+      "lower": "earth",
+      "upper": "sand",
+      "tiles": {
+        "1000": [[132,157]],
+        "1001": [[165,157]],
+        "1010": [[198,157]],
+        "1011": [[231,157]],
+        "1100": [[264,157]],
+        "1101": [[297,157]],
+        "1110": [[330,157]],
+        "1111": [[363,157]],
+        "0000": [[376,112]],
+        "0001": [[409,112]],
+        "0010": [[442,112]],
+        "0011": [[475,112]],
+        "0100": [[0,157]],
+        "0101": [[33,157]],
+        "0110": [[66,157]],
+        "0111": [[99,157]]
+      }
+    }
+  }
+}

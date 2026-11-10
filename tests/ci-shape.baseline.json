@@ -41,6 +41,8 @@
     "node tools/mutant-gate.mjs node tests/tally-window.mjs --mutate": "in-page-20",
     "node tests/honor-window.mjs": "in-page-20",
     "node tools/mutant-gate.mjs node tests/honor-window.mjs --mutate": "in-page-20",
+    "node tests/monster-facts.mjs": "in-page-20",
+    "node tools/mutant-gate.mjs node tests/monster-facts.mjs --mutate": "in-page-20",
     "node tools/gen-outfits.mjs --check": "in-page-20",
     "node tools/mutant-gate.mjs node tools/gen-outfits.mjs --selftest": "in-page-20",
     "node tests/character-sheet-core.mjs": "in-page-20",

@@ -28,6 +28,8 @@ import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-li
 import { residentsOf, scarceSetOf, raresOf, bigPullLine, materialsOf } from '../hunt-ground-facts.js?v=0.2.112';
 import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.112';
 import { chance, listWords } from '../../render/format.js?v=0.2.112';
+import { gotoAttr } from '../goto.js?v=0.2.112';
+import { factsTarget } from './monster.js?v=0.2.112';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
@@ -54,8 +56,9 @@ export function detailHtml() {
     + '<p class="hw-hd-best hw-hunt-best-solo"></p><p class="hw-hd-best hw-hunt-best-party"></p><p class="hw-hd-best hw-hunt-best-none"></p></section>';
 }
 
-const monHtml = (m) => '<li class="hw-hd-mon" data-monster="' + esc(m.id) + '"><span class="hw-hd-stand"><canvas class="hw-hd-sprite" aria-hidden="true"></canvas></span>'
-  + '<b class="hw-hd-mon-name"></b><small class="hw-hd-mon-how"></small></li>';
+/* A creature opens its facts (windows/monster.js): the whole figure is the link, and its name is the button a key presses. */
+const monHtml = (m) => '<li class="hw-hd-mon" data-monster="' + esc(m.id) + '"' + gotoAttr(factsTarget(m.id)) + '><span class="hw-hd-stand"><canvas class="hw-hd-sprite" aria-hidden="true"></canvas></span>'
+  + '<button type="button" class="hw-hd-mon-name mf-open"></button><small class="hw-hd-mon-how"></small></li>';
 
 /**
  * The page's going-hunting part, after the pull size: Go as (A #1), Before you go (A #5) and, on a party

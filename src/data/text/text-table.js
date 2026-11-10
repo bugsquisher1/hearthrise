@@ -14,6 +14,7 @@ import { HEROES_TEXT } from './heroes.js?v=0.2.112';
 import { HOUSE_TEXT } from './house.js?v=0.2.112';
 import { HUNTS_TEXT } from './hunts.js?v=0.2.112';
 import { ITEM_TEXT } from './item.js?v=0.2.112';
+import { MONSTER_TEXT } from './monster.js?v=0.2.112';
 import { PREP_TEXT } from './prep.js?v=0.2.112';
 import { SHOP_TEXT } from './shop.js?v=0.2.112';
 import { TEMPER_TEXT } from './temper.js?v=0.2.112';
@@ -25,6 +26,7 @@ export const TEXT = Object.freeze({
   house: HOUSE_TEXT,
   hunts: HUNTS_TEXT,
   item: ITEM_TEXT,
+  monster: MONSTER_TEXT,
   prep: PREP_TEXT,
   shop: SHOP_TEXT,
   temper: TEMPER_TEXT,

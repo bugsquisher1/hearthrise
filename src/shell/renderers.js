@@ -41,6 +41,7 @@ import { renderTally } from './windows/tally.js?v=0.2.112';
 import { renderHonor } from './windows/honor.js?v=0.2.112';
 import { renderHavora } from './windows/havora/index.js?v=0.2.112';
 import { renderTallyHud } from './widgets/tally-hud.js?v=0.2.112';
+import { renderMonster } from './windows/monster.js?v=0.2.112';
 import { renderGameMaster } from './windows/game-master.js?v=0.2.112';
 
 /* A renderer with `.patch` is a component: built once, then patched in place (src/shell/shell.js). */
@@ -71,6 +72,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   settings: renderSettings,
   report: renderReport,
   'game-master': renderGameMaster,
+  monster: renderMonster,
 });
 
 export const WIDGET_RENDERERS = Object.freeze({

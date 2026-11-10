@@ -30,6 +30,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
+import { bootLane } from './_server-debt.mjs';
 
 const FILE = '2027-04-02-rate-refusals-recorded.sql';
 const PREV = '2027-03-26-signout-presence.sql';
@@ -206,9 +207,8 @@ async function main() {
   /* ONE MUTANT, IN ITS OWN PROCESS (the parent's --mutate spawns this): exit 0 caught, 10 escaped, 20 a harness fault, 30 the wrong reason */
   if (process.argv.includes('--mutant')) {
     const m = MUTANTS[Number(process.argv[process.argv.indexOf('--mutant') + 1])];
-    const mig = m.file.split('/').pop();
     let fails;
-    try { fails = await rules((await bootReplay({ patches: new Map([[mig, [[m.from, m.to]]]]), upTo: FILE })).db); }
+    try { fails = await rules((await bootLane({ upTo: FILE, mutant: m })).db); }
     catch (e) {
       /* a HARNESS fault (the anchor moved, the patch did not land) proves nothing: red, never "caught" */
       if (e && e.harness) { console.log('harness: ' + String(e.message).split('\n')[0]); process.exit(20); }
@@ -220,11 +220,9 @@ async function main() {
     process.exit(0);
   }
   if (process.argv.includes('--mutate')) {
-    const clean = await rules((await bootReplay({ upTo: FILE })).db);
+    const clean = await rules((await bootLane({ upTo: FILE })).db);
     if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
     console.log('  ✓ clean control green');
-    /* the chain up to the migration under test, on disk once, so every mutant's process restores it instead of replaying it */
-    await bootReplay({ upTo: PREV });
     let bad = 0, ran = 0;
     for (const [i, m] of MUTANTS.entries()) {
       if (only && !m.name.includes(only)) continue;

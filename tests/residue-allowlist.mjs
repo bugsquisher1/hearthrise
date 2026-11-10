@@ -33,6 +33,7 @@ import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
+import { bootLane } from './_server-debt.mjs';
 import { OUT_FILE as LIST } from '../tools/gen-residue-fields.mjs';
 
 const FILE = '2027-04-02-residue-allowlist.sql';
@@ -295,9 +296,8 @@ async function main() {
   /* ONE MUTANT, IN ITS OWN PROCESS: exit 0 caught, 10 escaped, 20 a harness fault, 30 the wrong reason */
   if (process.argv.includes('--mutant')) {
     const mu = MUTANTS[Number(process.argv[process.argv.indexOf('--mutant') + 1])];
-    const mig = mu.file.split('/').pop();
     let fails;
-    try { fails = await rules((await bootReplay({ patches: new Map([[mig, [[mu.from, mu.to]]]]), upTo: FILE })).db); }
+    try { fails = await rules((await bootLane({ upTo: FILE, mutant: mu })).db); }
     catch (e) {
       if (e && e.harness) { console.log('harness: ' + String(e.message).split('\n')[0]); process.exit(20); }
       fails = ['replay refused it: ' + String(e.message).split('\n')[1]];
@@ -309,7 +309,7 @@ async function main() {
   }
   const client = await clientRules();
   if (process.argv.includes('--mutate')) {
-    const clean = [...client.fails, ...await rules((await bootReplay({ upTo: FILE })).db)];
+    const clean = [...client.fails, ...await rules((await bootLane({ upTo: FILE })).db)];
     if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
     console.log('  ✓ clean control green');
     let bad = 0, ran = 0;

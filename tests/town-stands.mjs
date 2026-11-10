@@ -251,6 +251,10 @@ async function load(db) {
   await db.query("insert into public.hr_town_maps (map_id, zone_id, w, h, players, heroes, view_w, view_h, margin, view_cap, main) values ('zz_load', 'zz_load', 40, 40, 120, 2, 22, 14, 8, 120, false) on conflict (map_id) do nothing");
   await db.query("insert into public.hr_town_stations (map_id, station_id, role, face_x, face_y, ord) values ('zz_load', 'zz_square', 'idle', null, null, 1) on conflict do nothing");
   await db.query("insert into public.hr_town_stands (map_id, station_id, stand_no, x, y, dir, overflow) select 'zz_load', 'zz_square', g + 1, 2 + g % 20, 2 + g / 20, 's', false from generate_series(0, 299) g on conflict do nothing");
+  /* the probe town has no painted map: every tile open, or each steered publish below is refused for want of a walk mask
+     (2027-04-02-town-walk-mask.sql) and the delta reads measure a town nobody walks in */
+  if (await one(db, "select to_regclass('public.hr_town_walk') is not null"))
+    await db.query("insert into public.hr_town_walk (map_id, w, h, open, mask_hash, mask) values ('zz_load', 40, 40, 1600, '00000000', decode(repeat('ff', 200), 'hex')) on conflict (map_id) do nothing");
   const N = 120;
   await people(db, N, [0, 1]);
   const t0 = Date.now();
@@ -267,7 +271,8 @@ async function load(db) {
     /* 12 heroes walk this tick (a steered publish each) */
     for (let k = 0; k < 12; k++) {
       const i = 1 + ((round * 12 + k) % N);
-      await as(db, U(i), "select public.hr_town_move(0, 'zz_load', $1, $2, $1, $2, 's')", [2 + ((round + k) % 20), 2 + ((round * 3 + k) % 12)]);
+      const walked = await as(db, U(i), "select public.hr_town_move(0, 'zz_load', $1, $2, $1, $2, 's')", [2 + ((round + k) % 20), 2 + ((round * 3 + k) % 12)]);
+      if (walked && (walked.error === 'catalogue_missing' || walked.error === 'off_mask')) throw new Error('LOAD: a steered publish was refused by the walk mask: ' + JSON.stringify(walked).slice(0, 200));
     }
     for (let v = 1; v <= 60; v++) {
       const c = cursors.get(v) || null;

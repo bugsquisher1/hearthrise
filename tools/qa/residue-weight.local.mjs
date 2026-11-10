@@ -90,7 +90,11 @@ try {
   out.allowlist = { fields: RESIDUE_FIELDS.length, ceilingBytesWithoutSummaries: bytes(kept),
     byField: Object.fromEntries(Object.entries(kept).map(([k, v]) => [k, bytes(v)]).sort((a, b) => b[1] - a[1])),
     note: 'huntSummaries is left out of the ceiling (its cards are built from server sections; the main baseline reports their real size)' };
-  out.serverCapBytes = 262144;
+  /* 256 KiB under the deny list; the allowlist's own total from 2027-04-02-residue-allowlist.sql on (there a key on no
+     allowlist is refused whole, and `puts` above records that answer instead of a stored weight) */
+  const listed = (await world.db.query("select to_regprocedure('public.hr_residue_total_bytes()') is not null as y")).rows[0].y;
+  out.serverCapBytes = listed ? Number((await world.db.query('select public.hr_residue_total_bytes() as n')).rows[0].n) : 262144;
+  out.serverRule = listed ? 'allowlist' : 'denylist';
   out.offsite = [...world.offsite];
 } catch (e) {
   code = 1;

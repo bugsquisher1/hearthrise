@@ -170,13 +170,17 @@ select x.day, x.code, min(x.severity) as severity, sum(x.n) as n,
 // REFUSALS. retired_field arrives with
 // 2026-09-23-client-state-retired-fields.sql; before it is applied this simply
 // returns no rows for that code, which is the honest answer and not an error.
+// FROM 2027-04-02-residue-allowlist.sql ON the put answers neither: a key no list
+// names is unknown_field (the whole patch refused, the key in whys) and a value
+// over its bound is field_too_large. A stale tab then reads as unknown_field, so
+// those two join this per-tab view; the old codes stay for the days before it.
 const REFUSAL_TABS = `
 with x as (
   select h.day, h.code, h.severity, h.n, h.user_id, h.slot, h.last_at, h.intent,
          coalesce((to_jsonb(h) ->> 'whys')::jsonb, '{}'::jsonb) as whys
     from public.hr_rejections h
    where h.day >= ((now() at time zone 'UTC')::date - 1)
-     and h.code in ('forbidden_field', 'retired_field')),
+     and h.code in ('forbidden_field', 'retired_field', 'unknown_field', 'field_too_large')),
 w as (
   select x.day, x.code, x.user_id, x.slot, e.key as why, sum(e.value::bigint) as wn
     from x, lateral jsonb_each_text(x.whys) e group by 1, 2, 3, 4, 5)
@@ -823,6 +827,8 @@ if (selftestMode) {
     console.log('a whole-patch refusal on an AUTHORITY key; retired_field is a key STRIPPED from an');
     console.log('otherwise honest patch (2026-09-23-client-state-retired-fields.sql; no rows before it');
     console.log('is applied). whys names WHICH key, which is what says which build the tab is running.');
+    console.log('Once 2027-04-02-residue-allowlist.sql is applied the same tab reads unknown_field (a key');
+    console.log('no list names: the whole patch refused) or field_too_large (a value over its bound).');
     console.log(tc.map((c) => (tw[c] ? String(c).padStart(tw[c]) : `  ${c}`)).join(' '));
     for (const row of tabs) {
       console.log(tc.map((c) => (tw[c] ? String(row[c] ?? '').padStart(tw[c]) : `  ${String(row[c] ?? '')}`)).join(' '));

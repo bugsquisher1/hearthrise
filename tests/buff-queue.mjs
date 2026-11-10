@@ -1553,6 +1553,14 @@ async function run(mutate, blind) {
   ok(!resNames.includes('buffs'),
     '[13] `buffs` is in RESIDUE_FIELDS while the server denies it — the server strips it from every patch, '
     + 'so the client would believe it saved a queue the server never kept');
+  /* TWO RULES, BY WHERE THE CHAIN UNDER TEST ENDS (2026-11-10). Up to 2026-09-23-client-state-retired-fields.sql the put
+     keeps a deny list and STRIPS a retired `buffs` (the arms below it, and this file's mutants, replay to there). From
+     2027-04-02-residue-allowlist.sql on the put is an ALLOWLIST (hr_residue_fields, generated from RESIDUE_FIELDS): a
+     `buffs` key is on no list, so the whole patch is refused and nothing is stored. Either way the shadow copy never
+     lands, which is this arm's claim; tests/residue-allowlist.mjs owns the allowlist's own rules. */
+  const allowlist = (await db.query("select to_regclass('public.hr_residue_fields') is not null as a")).rows[0].a;
+  const honestWith = allowlist ? { panelAlpha: 80 } : { lootFilter: ['junk'] };
+  const honestAlone = allowlist ? { townZoom: { z: 2, at: 1 } } : { lockedItems: { bronze_sword: true } };
   await db.exec(`select set_config('request.jwt.claim.sub', '${U}', false)`);
   await db.exec('set role authenticated');
   let put = null; let putOk = null;
@@ -1563,28 +1571,39 @@ async function run(mutate, blind) {
        the assertion below is the only place this guard would have seen it. */
     put = (await db.query(
       `select public.hr_put_client_state(0, $1::jsonb, gen_random_uuid()) as r`,
-      [JSON.stringify({ buffs: [{ type: 'damage', magnitude: 9999, remainingMs: 9e9 }],
-        lootFilter: ['junk'] })])).rows[0].r;
+      [JSON.stringify({ buffs: [{ type: 'damage', magnitude: 9999, remainingMs: 9e9 }], ...honestWith })])).rows[0].r;
     putOk = (await db.query(
       `select public.hr_put_client_state(0, $1::jsonb, gen_random_uuid()) as r`,
-      [JSON.stringify({ lockedItems: { bronze_sword: true } })])).rows[0].r;
+      [JSON.stringify(honestAlone)])).rows[0].r;
   } catch (e) { put = { ok: false, error: '__threw__', message: String(e && e.message) }; }
   await db.exec('reset role');
-  ok(!!put && put.ok === true && Array.isArray(put.stripped) && put.stripped.includes('buffs'),
-    `[13] a client_state PUT carrying a forged buff queue was not answered ok with buffs STRIPPED — got `
-    + `${JSON.stringify(put).slice(0, 140)}. A retired key is not an authority key: refusing the whole `
-    + 'patch cost one player nine days of saves.');
+  if (allowlist) {
+    ok(!!put && put.ok === false && put.error === 'unknown_field' && put.field === 'buffs',
+      `[13] a client_state PUT carrying a forged buff queue was not refused whole as unknown_field/buffs — got `
+      + `${JSON.stringify(put).slice(0, 140)}. No list names \`buffs\`: the server owns the queue.`);
+  } else {
+    ok(!!put && put.ok === true && Array.isArray(put.stripped) && put.stripped.includes('buffs'),
+      `[13] a client_state PUT carrying a forged buff queue was not answered ok with buffs STRIPPED — got `
+      + `${JSON.stringify(put).slice(0, 140)}. A retired key is not an authority key: refusing the whole `
+      + 'patch cost one player nine days of saves.');
+  }
   ok(!!putOk && putOk.ok === true,
-    `[13] an HONEST residue PUT was refused (${JSON.stringify(putOk).slice(0, 140)}) — a deny-list that `
+    `[13] an HONEST residue PUT was refused (${JSON.stringify(putOk).slice(0, 140)}) — a list that `
     + 'eats legitimate patches is worse than none');
   const stored = (await db.query(
     'select client_state from public.player_state where user_id = $1 and slot = 0', [U])).rows[0].client_state;
   ok(!stored || !Object.prototype.hasOwnProperty.call(stored, 'buffs'),
     `[13] client_state stored a buffs key anyway: ${JSON.stringify(stored).slice(0, 120)} — the forgeable `
     + 'shadow copy must never land, whichever mechanism keeps it out');
-  ok(!!stored && JSON.stringify(stored.lootFilter) === JSON.stringify(['junk']),
-    `[13] the honest key that travelled with the forged buff queue was NOT stored `
-    + `(${JSON.stringify(stored).slice(0, 120)}) — that is the 927-955-refusals-a-day outage`);
+  if (allowlist) {
+    ok(!!stored && !Object.prototype.hasOwnProperty.call(stored, 'panelAlpha') && stored.townZoom && stored.townZoom.z === 2,
+      `[13] under the allowlist the refused patch's honest key was stored, or the honest put alone was not `
+      + `(${JSON.stringify(stored).slice(0, 120)}): a refused put writes nothing, an honest one is kept`);
+  } else {
+    ok(!!stored && JSON.stringify(stored.lootFilter) === JSON.stringify(['junk']),
+      `[13] the honest key that travelled with the forged buff queue was NOT stored `
+      + `(${JSON.stringify(stored).slice(0, 120)}) — that is the 927-955-refusals-a-day outage`);
+  }
 
   /* ── [21] THE CELLAR SCALES THE CLOCK, SERVER-SIDE (step 3) ───────────────
      2026-09-13-buff-cellar-scale.sql makes a perk the player BOUGHT reach the

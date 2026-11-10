@@ -22,19 +22,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
+import { PREV, FILES, laneText as text } from './_server-debt.mjs';
 
-const PREV = '2027-03-26-signout-presence.sql';
-export const FILES = [
-  '2027-04-02-rate-refusals-recorded.sql',
-  '2027-04-02-town-walk-mask.generated.sql',
-  '2027-04-02-town-walk-mask.sql',
-  '2027-04-02-residue-fields.generated.sql',
-  '2027-04-02-residue-allowlist.sql',
-  '2027-04-02-level-xp-ceiling.generated.sql',
-  '2027-04-02-level-xp-ceiling.sql',
-  '2027-04-02-dead-doors.sql',
-];
-const text = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 
 const IMAGE = `
 select jsonb_build_object(

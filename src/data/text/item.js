@@ -44,7 +44,7 @@ export const ITEM_TEXT = Object.freeze({
 
   /* A tool, and who won't buy it. */
   tool_effect: '{skill} {speed} faster, {xp} more XP, {extra} extra yield',
-  tool_words: '{effect} while it\'s in your bag. There\'s nothing to equip, and your best one counts. In Storage it does nothing',
+  tool_words: '{effect} while it\'s in your bag. You don\'t need to equip it. Only your best one counts, and it does nothing in Storage',
   own_use: 'For your own use. The shop and the Weighhouse won\'t take it',
   kit_unlisted: 'The shop buys it, but every new hero starts with some, so the Weighhouse won\'t list it',
   qty_item: '{qty} {item}',
@@ -69,10 +69,10 @@ export const ITEM_TEXT = Object.freeze({
   place_house: 'the House',
   place_tempering: 'Tempering',
   sell_it: 'Sell it at the shop',
-  keep_only: 'Nothing but keeping: the shop won\'t buy it',
+  keep_only: 'The shop won\'t buy it, so it\'s yours to keep',
   ammo_rune: 'Spent by spells that call for it',
   ammo_whetstone: 'Goes in the ammo slot and sharpens a melee weapon. One wears out every {swings} swings',
-  ammo_shot: 'Fired from a bow or crossbow, one per shot',
+  ammo_shot: 'Fired from a bow or crossbow. Each shot uses one',
   ammo_endless: 'Fired from a bow or crossbow. They never run out',
 
   /* A requirement, against the server's number. */

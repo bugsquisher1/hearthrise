@@ -12,7 +12,7 @@
 //                         cheapest per point, unpriced last, ties the bigger first
 //   sentenceOf(action)    the slot read as words ("Eat", "Cast", "Shoot with")
 //   compareLines(a, b)    the hovered row against the picked one, in signed words
-//   wasteLine(row, …)     "At 45% you are missing 121 HP; 167 of its 288 would be wasted."
+//   wasteLine(row, …)     "At 45% you’re only missing 121 HP, so 167 of its 288 goes to waste."
 // No DOM, no clock, no state. Nothing here gates or spends anything.
 // ════════════════════════════════════════════════════════════════════════
 import { ABILITIES } from '../data/abilities.js?v=0.2.111';
@@ -173,7 +173,7 @@ export function compareLines(row, picked) {
 }
 
 /**
- * The honest cost of a big heal: "At 45% you are missing 121 HP; 167 of its 288 would be wasted."
+ * The honest cost of a big heal: "At 45% you’re only missing 121 HP, so 167 of its 288 goes to waste."
  * `pct` is the slot's own "at or below N%" (its first HP / mana test), `max` the server's max pool.
  */
 export function wasteLine(row, pct, max) {

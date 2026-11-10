@@ -458,13 +458,9 @@ function chainSql(root) {
    src/data/text/ (lane/b-text-home) may not change them, so it waits for Tyler's
    wording review. A waiver that no longer matches is stale and fails the gate,
    so it is deleted the day its fix lands. */
-const WAIVERS = [
-  /* Uncovered by the move: "Needs a Fire rune for each cast: you carry none." ("' for each cast: '" was its own literal). */
-  { file: 'src/data/text/bar.js', rule: 'colon-join', text: 'Needs a § for each cast: you carry none.' },
-  { file: 'src/data/text/bar.js', rule: 'colon-join', text: 'Needs an § for each cast: you carry none.' },
-  { file: 'src/data/text/bar.js', rule: 'colon-join', text: 'Needs a § for each cast: none in this hunt, and §' },
-  { file: 'src/data/text/bar.js', rule: 'colon-join', text: 'Needs an § for each cast: none in this hunt, and §' },
-];
+/* (The four bar.js rune_needs_* rows, "Needs a Fire rune for each cast: you carry none.", were rewritten in the 2026-11-09
+   voice sweep: "Each cast uses a Fire rune, and you have none.") */
+const WAIVERS = [];
 const usedWaivers = new Set();
 function waived(root, f, rule, text) {
   const rel = relative(root, f).split(sep).join('/');

@@ -53,8 +53,8 @@ export const HUNTS_TEXT = Object.freeze({
   /* The band, and a ground above the hero. */
   band: 'Level {lo} to {hi}',
   band_you: 'Level {lo} to {hi}, you are {level}',
-  above_level: 'Its monsters are stronger than you. Expect to spend more on supplies, or to die. More XP and better loot.',
-  far_above_level: 'Its monsters are far stronger than you. Expect to spend much more on supplies, or to die. More XP and better loot.',
+  above_level: 'Its monsters are stronger than you. You’ll spend more on supplies and you might die, but you get more XP and better loot.',
+  far_above_level: 'Its monsters are far stronger than you. You’ll spend a lot more on supplies and you might die, but you get more XP and better loot.',
   range_under: { one: 'You\'re {count} Level under this ground.', other: 'You\'re {count} Levels under this ground.' },
   range_die: 'If you die, the hunt ends and you lose {loss}% of your XP.',
   seat_level: '{name} (Level {level})',
@@ -79,7 +79,7 @@ export const HUNTS_TEXT = Object.freeze({
   best_rate: '{xp} Level XP per hour · balance {gold} per hour',
   best_alone: 'Best alone: {rate}',
   best_party: 'Best in a party: {rate}',
-  best_none: 'No best here yet. A hunt of {min} min or more sets your best.',
+  best_none: 'No best here yet. Hunt here for {min} minutes or more to set one.',
   best_line: 'Best {xp} Level XP/h',
   best_line_none: 'No best yet',
 

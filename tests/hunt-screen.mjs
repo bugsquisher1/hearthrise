@@ -1367,10 +1367,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(300);
         const want = [
           [0, 'mana', /^Needs 6 mana, you have 2\.$/, false],
-          [1, 'rune', /^Needs a Fire rune for each cast: you carry none. Pick the store’s rune/, true],
-          [2, 'none left', /^None left: you carry no Wheat Bread\. The next food or drink slot fires instead\.$/, true],
-          [5, 'store off', /^This hero is set to end the hunt rather than buy from the store\.$/, true],
-          [7, 'server', /^The server says this cannot fire now\.$/, true],
+          [1, 'rune', /^Each cast uses a Fire rune, and you have none\. Pick the store’s rune/, true],
+          [2, 'none left', /^You’re out of Wheat Bread\. Your next food or drink slot takes over\.$/, true],
+          [5, 'store off', /^You chose to leave the hunt instead of buying from the store\.$/, true],
+          [7, 'server', /^This can’t fire right now\.$/, true],
         ];
         /* EVERY struck or waiting slot on the bar, not only the ones named: a glyph on it, the reason as its tooltip's first line. */
         const sweep = async (label) => {
@@ -1437,7 +1437,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           fails.push('HS-24 the picker does not show the server’s personal bests: ' + JSON.stringify(a));
         }
         const none = await card('meadowbrook_thicket');
-        if (!none || none.line !== 'No best yet' || none.page.join('|') !== 'No best here yet. A hunt of 10 min or more sets your best.') fails.push('HS-24 a ground with no best does not say so once: ' + JSON.stringify(none));
+        if (!none || none.line !== 'No best yet' || none.page.join('|') !== 'No best here yet. Hunt here for 10 minutes or more to set one.') fails.push('HS-24 a ground with no best does not say so once: ' + JSON.stringify(none));
         /* The next envelope REPLACES the bests (a better party hunt landed, the solo one is gone from this read). */
         s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { party: { xp_h: 20500, balance_h: -450 } } } };
         await pushEnvelope(page, s);
@@ -1590,8 +1590,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (firstLocked < 1 || sp.rows.slice(firstLocked).some((r) => !r.locked) || sp.rows.some((r) => r.locked !== r.lock)) fails.push('HS-8 the Spells list is not castable first, then locked with the lock showing: ' + JSON.stringify(sp.rows));
       else {
         await page.click('.ca-run[data-run="spells"] .ca-row[data-id="' + sp.rows[firstLocked].id + '"]');
-        const why = await wait(page, () => /^Your weapon can’t cast this. The slot stays struck until you wield a .+.$/.test((document.querySelector('.ca-weapon') || {}).textContent || ''), null);
-        if (!why) fails.push('HS-8 a locked spell picked does not say why the slot will stay struck: ' + JSON.stringify(await page.evaluate(() => document.querySelector('.ca-weapon').textContent)));
+        const why = await wait(page, () => /^Your weapon can’t cast this\. It works once you hold a .+\.$/.test((document.querySelector('.ca-weapon') || {}).textContent || ''), null);
+        if (!why) fails.push('HS-8 a locked spell picked does not say which weapon casts it: ' + JSON.stringify(await page.evaluate(() => document.querySelector('.ca-weapon').textContent)));
       }
       await page.click('.ca-tab[data-tab="food"]');
       const food = await page.$$eval('.ca-run[data-run="food"] .ca-list .ca-row', (n) => n.map((b) => ({ id: b.getAttribute('data-id'),

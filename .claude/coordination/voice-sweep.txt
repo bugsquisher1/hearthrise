@@ -1,0 +1,152 @@
+VOICE SWEEP (lane/a-player-read-gate, 2026-11-09). Tyler's voice: docs/DESIGN_STANDARDS.md §3. The gate: tests/copy-lint.mjs
+PERSON rules + tools/player-read.local.mjs. Rows pinned in tests/copy-lint-voice.baseline.json leave it as each batch lands
+(node tests/copy-lint.mjs --prune-voice). {name} is a placeholder the game fills in.
+
+BATCH 1: THE 40 REWRITTEN (ranked by how early and how often a player meets them)
+#   key                        before                                                                                  after
+1   bar.target_enemy           Attack spell: casts on your current target.                                             Hits your target.
+2   bar.requires               Requires: {weapons}.                                                                    Works with {weapons}.
+3   bar.requires_any           Requires: any weapon.                                                                   Works with any weapon.
+4   bar.target_area            Area spell: hits the monsters round your target.                                        Hits the monsters around your target.
+5   bar.target_self            Self spell: casts on yourself.                                                          Works on you only.
+6   bar.target_ally            Heal: casts on the ally who needs it most.                                              Goes to the ally who needs it most.
+7   bar.target_party           Group heal: heals everyone near you.                                                    You and everyone near you get it.
+8   bar.target_taunt           Taunt: pulls the monsters near you onto you.                                            Makes the monsters near you attack you.
+9   bar.target_mark            Mark: marks your current target.                                                        Marks your target.
+10  bar.target_cleave          Cleave: hits the monsters in front of you.                                              Hits the monsters in front of you.
+11  bar.target_ward            Ward: shields the ally who needs it most.                                               Shields the ally who needs it most.
+12  bar.effect_shield          A {points}-point shield.                                                                Blocks the next {points} damage.
+13  bar.rune_needs_a           Needs a {rune} for each cast: you carry none. Pick the store's rune for this slot to buy one as used.   Each cast uses a {rune}, and you have none. Pick the store's rune for this slot to buy them as you go.
+14  bar.rune_needs_an          (the same, "an")                                                                        (the same, "an")
+15  bar.rune_needs_a_packed    Needs a {rune} for each cast: none in this hunt, and {waiting}                          Each cast uses a {rune}. You have none in this hunt, and {waiting}
+16  bar.rune_needs_an_packed   (the same, "an")                                                                        (the same, "an")
+17  bar.none_left              None left: you carry no {item}. The next food or drink slot fires instead.              You're out of {item}. Your next food or drink slot takes over.
+18  bar.none_in_hunt           None in this hunt: {waiting}                                                            You have none in this hunt, and {waiting}
+19  bar.store_off              This hero is set to end the hunt rather than buy from the store.                        You chose to leave the hunt instead of buying from the store.
+20  bar.out_store_off          Out of stock, and this hero is set to end the hunt rather than buy from the store.       You're out, and you chose to leave the hunt instead of buying more.
+21  bar.out_no_store           Out of stock, and the store does not sell it.                                           You're out, and the store doesn't sell it.
+22  bar.holding                Holding the pack: nothing to Challenge.                                                 You're holding the pack, so there's nothing to Challenge.
+23  bar.blocked_by             Blocked by {action} (slot {slot}): the same action, and it fires first whenever this one could.   {action} in slot {slot} does the same thing and always goes first, so this one never fires.
+24  bar.no_weapon_any          No weapon worn: abilities come from the weapon you wield. Needs any weapon.             You have no weapon on. Put on any weapon to use this.
+25  bar.no_weapon              No weapon worn: abilities come from the weapon you wield. Needs {weapons}.              You have no weapon on, and your spells come from your weapon. This one needs {weapons}.
+26  bar.cast_wrong_weapon      Your weapon can't cast this. The slot stays struck until you wield a {weapons}.         Your weapon can't cast this. It works once you hold a {weapons}.
+27  bar.shot_wrong_weapon      Your weapon can't shoot this. The slot stays struck until you wield a {weapons}.        Your weapon can't shoot this. It works once you hold a {weapons}.
+28  bar.shot_no_weapon         No weapon worn. The slot stays struck until you wield a {weapons}.                      You have no weapon on. This works once you hold a {weapons}.
+29  bar.rune_level             Your {runes} are a higher tier than your level can cast. Carry a lower tier, or pick the store's rune for this slot.   You can't cast with your {runes} yet. Carry a lower tier, or pick the store's rune for this slot.
+30  bar.store_level            The store rune on this slot is a higher tier than your level can cast. This slot waits until then. Pick a lower rune for it, or carry your own.   You can't cast with the store rune on this slot yet. Pick a lower one, or carry your own.
+31  bar.server_refused         The server says this cannot fire now.                                                   This can't fire right now.
+32  bar.unknown_ability        The server does not know this ability.                                                  This ability isn't in the game.
+33  bar.waste_hp               At {pct}% you are missing {missing} HP, so {lost} of its {amount} would be wasted.       At {pct}% you're only missing {missing} HP, so {lost} of its {amount} goes to waste.
+34  bar.waste_mana             (the same, mana)                                                                        (the same, mana)
+35  hunts.above_level          Its monsters are stronger than you. Expect to spend more on supplies, or to die. More XP and better loot.   Its monsters are stronger than you. You'll spend more on supplies and you might die, but you get more XP and better loot.
+36  hunts.far_above_level      Its monsters are far stronger than you. Expect to spend much more on supplies, or to die. More XP and better loot.   Its monsters are far stronger than you. You'll spend a lot more on supplies and you might die, but you get more XP and better loot.
+37  hunts.best_none            No best here yet. A hunt of {min} min or more sets your best.                           No best here yet. Hunt here for {min} minutes or more to set one.
+38  item.keep_only             Nothing but keeping: the shop won't buy it                                              The shop won't buy it, so it's yours to keep
+39  item.ammo_shot             Fired from a bow or crossbow, one per shot                                              Fired from a bow or crossbow. Each shot uses one
+40  item.tool_words            {effect} while it's in your bag. There's nothing to equip, and your best one counts. In Storage it does nothing   {effect} while it's in your bag. You don't need to equip it. Only your best one counts, and it does nothing in Storage
+
+BATCH 2: THE NEXT 100 (worst first; text table keys as surface.key, other files as file:line key). P = pinned in the voice baseline.
+1   src/data/how-to-play.js:45 (shoot)          "Better ammo costs a little per shot." Hero creation, minute one. P
+2   src/shell/windows/configure-action.js:80    "Your bar loads from the server…" P
+3   src/shell/slot-waits.js:73                  "Waiting: this slot ignores the monster you're fighting." P
+4   src/shell/hunt-go.js:310                    "Weapon: none on, so your hero fights bare-handed." P
+5   src/data/refusal-words.js:265 store_off     same words as bar.store_off before batch 1; make them match. P
+6   bar.setup_any                               "Any of: {conditions}." P
+7   bar.shot_waits                              "{need}. This slot waits until then, and your next ammo fires."
+8   bar.store_level_named                       "...This slot waits until then. Pick a lower rune for it..."
+9   bar.mana_short                              "Needs {mana} mana, you have {have}." (comma splice)
+10  bar.shared_cooldown                         "(slot {slot}), which fires first when both are ready."
+11  bar.note_loaded                             "(the ammo you wear shoots first, and the store sells a shot only once...)"
+12  bar.note_shot                               "(after the ammo you wear, unless you give this slot conditions...)"
+13  bar.no_shot                                 "Put arrows or bolts on the bar (Ammo), and this spell casts them."
+14  bar.inactive                                "Not in the game yet: {ability} waits on its rune."
+15  bar.weapon_cant_use                         "Your weapon can't use this. Needs {weapons}."
+16  bar.shot_whetstone                          "A whetstone is not a shot..."
+17  bar.shot_rune                               "A rune isn't a shot. It fuels your spells..."
+18  bar.shot_nobody                             "No weapon shoots this, so this slot never fires."
+19  bar.type_drink                              "Drink: restores mana." Never shown (configure-action shows f.type for spells only): cut. P
+20  bar.type_food                               (the same) P
+21  bar.type_loaded                             (the same) P
+22  bar.type_ammo                               (the same) P
+23  bar.numbers_for                             cut on lane/a-cut-numbers-line; drop its row when that lands. P
+24  bar.numbers_at                              (the same) P
+25  src/data/condition-metrics.js:102           "of this slot's item left" (the condition picker). P
+26  hunts.band_you                              "Level {lo} to {hi}, you are {level}"
+27  hunts.best_rate                             "{xp} Level XP per hour · balance {gold} per hour" ("balance")
+28  hunts.nearest_below                         "{ground} (Level {lo} to {hi}) is the nearest below."
+29  hunts.packs                                 "{count} packs of {size} · back in {secs} s"
+30  hunts.packs_boss                            (the same)
+31  hunts.share_you                             "You earn {pct}% of a full share... so far under Level {top}." (rule cut 11-08: goes with lane/c-risk-ladder)
+32  hunts.share_seat                            (the same)
+33  src/shell/hunt-go.js:252                    "Tamsin's tasks: nothing here counts toward them." P
+34  src/shell/windows/shop.js:216               "Prices load from the server." P
+35  shop.junk_keeps                             "Sell all junk keeps {count} stack worth {worth}. It is a Material..."
+36  shop.junk_keeps_it                          "Sell all junk keeps it"
+37  item.ammo_rune                              "Spent by spells that call for it"
+38  item.kit_once                               "Nothing sells the {kit} that makes another {item}."
+39  item.sells_rares                            "This sells rare finds: {items}."
+40  item.kit_unlisted                           "The shop buys it, but every new hero starts with some, so the Weighhouse won't list it"
+41  item.own_use                                "For your own use. The shop and the Weighhouse won't take it"
+42  item.burn_trains_level                      "...to train {skill} ({skill} {level})"
+43  item.burn_flame_level                       (the same)
+44  src/shell/windows/character/sheet.js:36     "Medium armor: the chance a blow misses you completely." P
+45  src/shell/windows/character/sheet.js:37     "Heavy armor: the share of every blow that lands which your armor takes." P
+46  src/shell/windows/character/sheet.js:38     "Light armor: a flat amount taken off every blow that lands." P
+47  src/shell/windows/character/deaths.js:34    "The server keeps the deaths of your recent hunts." P
+48  src/shell/windows/character/titles.js:22    "A title stands beside this hero's name..." P
+49  src/shell/windows/character/titles.js:71    "Titles load from the server." P
+50  src/shell/loot-dispatch.js:59               "Nothing is set to Deposit or Sell yet." P
+51  src/shell/windows/services.js:59            "Stamina loads from the server." P
+52  src/shell/windows/services.js:62            "The server has not priced a refill yet." P
+53  src/shell/windows/services.js:85            "Blessings load from the server." P
+54  src/shell/widgets/stamina-buy.js:53         "The server has not priced a refill yet." P
+55  heroes.rename_unpriced                      "The server has not priced a new name yet." P
+56  heroes.name_same                            "That is already this hero's name." (and refusal-words.js:230, the same line) P
+57  heroes.renamed                              "Done: this hero is now {name}." P
+58  heroes.rename_quote                         "...paid from your gold. The first name was free, and every change after it costs gold."
+59  heroes.rename_today                         "{name} changed name today. One change a day."
+60  heroes.rename_cant                          "{name} cannot change name right now."
+61  heroes.invite_failed                        "That did not work. Try again."
+62  src/data/refusal-words.js:291               "This hero's setup slots are full." P
+63  src/shell/setup-words.js:20                 "This hero's 1 setup slot is full." P
+64  src/data/refusal-words.js:294               "Those are already this hero's colors." P
+65  prep.setups_reading                         "Reading your saved setups…"
+66  prep.slots_reading                          "Reading your setup slots…"
+67  src/data/refusal-words.js:249               "The server refused this condition." P
+68  src/data/refusal-words.js:256               "The server refused this slot." P
+69  src/data/refusal-words.js:250               "The server does not know this test." P
+70  src/data/refusal-words.js:282               "The server does not know that hunt." P
+71  src/data/refusal-words.js:309               "The server does not know that weapon." P
+72  src/data/refusal-words.js:416               "The server does not know that ..." P
+73  src/data/refusal-words.js:148               "The server does not take this yet." P
+74  src/data/refusal-words.js:160               (the same) P
+75  src/data/refusal-words.js:200               "The server does not know that chest." P
+76  src/data/boss-calls.js:61                   "The server hasn't said yet whether he can be called." P
+77  src/shell/windows/inventory/advanced.js:58  "Role: the server has not named a role for your..." P
+78  src/shell/windows/hallmark-pane.js:81       "The Hallmark step loads from the server." P
+79  farm.loading                                "Your field loads from the server." P
+80  farm.why_reading                            "Reading your Farming level…"
+81  farm.not_replanted_price                    "Not planted again: a seed costs {price}." P
+82  farm.not_replanted                          "Not planted again: {why}"
+83  farm.land_extra                             "{count} extra plot goes once harvested."
+84  farm.note_extra                             "Extra plot: gone once harvested"
+85  farm.shared                                 "The hero you are playing plants their own seeds..."
+86  farm.planted_stopped                        "Stopped at plot {n}: {why}"
+87  farm.refused_plot_tier_locked               "Your plots need a higher tier for that crop."
+88  shop.seed_needs_tier                        "Needs plot tier {tier} to plant"
+89  house.loading                               "Reading your house from the server…" P
+90  house.head_note                             "One house for all your characters... this hero's bag first, then Storage." P
+91  house.head_note_named                       (the same, {name}'s bag) P
+92  house.confirm_cost_mats                     "...and {mats} from this hero's bag first, then Storage." P
+93  house.deed_next_home                        "The next home." P
+94  house.deed_after                            "After the {tier}."
+95  house.room_next_after                       "{now}. Next: {next}, after the {tier}." P
+96  house.room_next_after_does                  (the same, with {does}) P
+97  house.chest_after_first                     "After the one before." P
+98  house.chest_after                           "After the {name}."
+99  temper.way_smith                            "{name}: Smithing {req} makes them from {inputs}, and any of your heroes can use them from Storage."
+100 temper.way_smith_short                      (the same, "(yours is {level})")
+
+IN OTHER LANES (read them with player-read once they land): hunts.tier_* and the tier head rows, party_boss/party_hall,
+no_ground_*, bring_party, best_with_party, heroes_solo_from, heroes_lone_ok (lane/b-one-difficulty rewrites or cuts them);
+tier_cost, range_die and the new death/slots surfaces (lane/c-death-and-slots); the rune supply rows (v0.2.112).

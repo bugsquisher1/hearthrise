@@ -177,7 +177,7 @@ begin
   execute replace(v_def, $a$${from}$a$, $a$${to}$a$);
 end $plant$;`;
 /* Planted in the database, inside a transaction that is rolled back: [name, sql]. */
-const ENV_MUTANTS = [
+const ENV_DRIFTS = [
   ['the envelope reads the Level one XP late at each boundary', `create or replace function public.hr_level_block(p_xp bigint)
      returns jsonb language sql stable set search_path = public, pg_catalog as $f$
        select jsonb_build_object('xp', x, 'level', lv, 'into', x - public.hr_char_xp_for_level(lv),
@@ -209,7 +209,7 @@ async function main() {
       if (!caught) missed++;
     }
     /* THE ENVELOPE ARM'S OWN DRIFTS, planted in the DATABASE (the block is the server's) and rolled back: each must be named. */
-    for (const [name, plant] of ENV_MUTANTS) {
+    for (const [name, plant] of ENV_DRIFTS) {
       await db.exec('begin');
       let said = [];
       try { await db.exec(plant); said = compareEnvelope(JS, await readEnvelopeLevels(db)); } finally { await db.exec('rollback'); }
@@ -218,7 +218,7 @@ async function main() {
       if (!caught) missed++;
     }
     if (compareEnvelope(JS, await readEnvelopeLevels(db)).length) { console.error('core-curves --selftest: the envelope arm is red after its plants were rolled back'); missed++; }
-    const total = MUTANTS.length + ENV_MUTANTS.length;
+    const total = MUTANTS.length + ENV_DRIFTS.length;
     console.log(missed ? `core-curves --selftest: ${missed} drift(s) not caught` : `core-curves --selftest: all ${total} drifts caught`);
     process.exit(missed ? 1 : 0);
   }

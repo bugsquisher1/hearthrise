@@ -126,7 +126,9 @@ export function check({ files, formulas, evaluators, pending = PENDING, ceiling 
     /* typed-again */
     const policed = [...names.map(([n]) => n), ...(r.retired || []), ...(r.keys || [])];
     for (const name of policed) {
-      const re = new RegExp('(?<![\\w$.])["\'`]?' + esc(name) + '["\'`]?\\s*[:=](?!=)\\s*(?:Object\\.freeze\\(\\s*)?[\\[{]?\\s*[-+]?\\.?\\d', 'g');
+      /* `NAME = 5` anywhere, or `NAME: 5` as an object key (after `{`, `,` or at the start of a line: `x ? NAME : 0` is not a definition) */
+      const value = '\\s*(?:Object\\.freeze\\(\\s*)?[\\[{]?\\s*[-+]?\\.?\\d';
+      const re = new RegExp('(?:(?<![\\w$.])' + esc(name) + '\\s*=(?!=)|(?<=[{,]\\s*|^\\s*)["\'`]?' + esc(name) + '["\'`]?\\s*:)' + value, 'gm');
       for (const [f, t] of code) {
         if (f === REGISTRY) continue;
         for (const m of t.matchAll(re)) {
@@ -137,8 +139,8 @@ export function check({ files, formulas, evaluators, pending = PENDING, ceiling 
     }
 
     /* bound */
-    const ev = /^(src\/core\/\S+\.js) (\w+)$/.exec(r.evaluator || '');
-    if (!ev) say('bound', at + ': evaluator is not "<file under src/core> <function>"');
+    const ev = /^(src\/(?:core|data)\/\S+\.js) (\w+)$/.exec(r.evaluator || '');
+    if (!ev) say('bound', at + ': evaluator is not "<file under src/core or src/data> <function>"');
     else {
       const t = code.get(ev[1]);
       if (!t || !new RegExp('\\bexport\\s+function\\s+' + ev[2] + '\\s*\\(').test(t)) say('bound', at + ': ' + ev[1] + ' exports no function ' + ev[2]);
@@ -200,6 +202,10 @@ const MUTANTS = [
     find: 'export function maxHpFor(level, heavy) {', repl: 'const own = { hpBase: 150, hpPerLevel: 10 };\nexport function maxHpFor(level, heavy) {' },
   { name: 'core types the capped XP table again', rule: 'typed-again', file: 'src/core/xp.js',
     find: 'const XP_TABLE = CAPPED_CURVE.totals;', repl: 'const XP_TABLE = [0, 83, 174];' },
+  { name: 'the edge types the death share', rule: 'typed-again', file: 'supabase/functions/hr-accrue/catalogue.js',
+    find: 'export const SHOP_UNIT_PRICE = ', repl: 'const DEATH_XP_LOSS = 0.02;\nexport const SHOP_UNIT_PRICE = ' },
+  { name: 'core types the temper rung', rule: 'typed-again', file: 'src/core/temper.js',
+    find: 'export function temperRung(temper, track, tier) {', repl: 'const TEMPER_RUNG_PM = 10;\nexport function temperRung(temper, track, tier) {' },
   { name: 'a pending copy is deleted and stays listed', rule: 'pending', file: 'src/data/shops.js',
     find: '      "VENDOR_RAW_RATE": 0.2,\n', repl: '' },
 ];

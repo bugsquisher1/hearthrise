@@ -17,7 +17,9 @@
 //              the same way (`rawRate`); a common word (`base`, `perLevel`) is not listed
 //   retired    names the numbers used to carry in code. Nothing may give one a number again.
 //   evaluator  'file function': the ONE pure function that computes it (src/core/formulas/evaluators.js EVALUATORS
-//              binds the id to it; data never imports core)
+//              binds the id to it; data never imports core). In src/core, or in the system's own data file when
+//              it is the small function that prices that file's rows (blessings.js blessingPrice): the server
+//              prices those in SQL from the generated rows and the client draws the server's number.
 //   readers    `file: function`: who must CALL the evaluator instead of working the number out again
 //
 // WHERE A FORMULA'S NUMBERS LIVE. In the system's own data module when it has one (core-model.js, blessings.js,
@@ -36,6 +38,13 @@ import {
 } from '../loot-bands.js?v=0.2.114';
 import { VITALS, ARMOUR_SLOTS, FLAME_REGEN, LEVEL_CURVE, SKILL_CURVE, CAPPED_CURVE } from '../core-model.js?v=0.2.114';
 import { HUNT_TUNING } from '../hunt-tuning.js?v=0.2.114';
+import { DEATH_XP_LOSS, STAMINA_MAX_MS } from '../hunt-sessions.js?v=0.2.114';
+import { BLESSING_RULES, BLESSING_CUT_PERMILLE, BLESSING_TIERS } from '../blessings.js?v=0.2.114';
+import { STAMINA_REFILL } from '../stamina-refill.js?v=0.2.114';
+import { SCALED_HUNTS } from '../scaled-hunts.js?v=0.2.114';
+import { TEMPER_RUNGS, TEMPER_RUNG_PM, TEMPER_TIERS } from '../temper.js?v=0.2.114';
+import { BENCH_TAX, BENCH_TAX_FREE_UNDER_MG } from '../bench-tax.js?v=0.2.114';
+import { HERO_RENAME } from '../hero-rename.js?v=0.2.114';
 
 const row = (r) => Object.freeze({ ...r, expr: Object.freeze(r.expr), params: Object.freeze(r.params), consts: Object.freeze(r.consts),
   keys: Object.freeze(r.keys || []), retired: Object.freeze(r.retired || []), readers: Object.freeze(r.readers || {}) });
@@ -150,7 +159,89 @@ export const FORMULAS = Object.freeze([
     retired: ['XP_TABLE'],
     evaluator: 'src/core/xp.js xpForLevel',
   }),
-]);
 
-/** The registry by id. */
-export const FORMULA_INDEX = Object.freeze(FORMULAS.reduce((acc, r) => { acc[r.id] = r; return acc; }, Object.create(null)));
+  /* ── DEATH AND WHAT GOLD BUYS (each system's own data file; every server copy is generated from these rows) ── */
+  row({
+    id: 'death.share',
+    title: 'What a death costs',
+    expr: [
+      'Level XP lost = total Level XP x share, rounded down. It can take a Level, never below Level 1',
+      'each combat skill loses share of its progress toward its next level, never a level',
+      'Blessings cut the loss by blessingCutPermille / 1000, by how many are held',
+    ],
+    params: { share: DEATH_XP_LOSS, blessingCutPermille: BLESSING_CUT_PERMILLE },
+    consts: { 'src/data/hunt-sessions.js': ['DEATH_XP_LOSS'], 'src/data/blessings.js': ['BLESSING_CUT_PERMILLE'] },
+    evaluator: 'src/core/action-rules.js deathXpLoss',
+  }),
+  row({
+    id: 'blessing.price',
+    title: 'Blessing prices',
+    expr: [
+      'free under Level freeUntilLevel',
+      'from there each Blessing costs its base + its perLevel x (Level - freeUntilLevel)',
+    ],
+    params: { freeUntilLevel: BLESSING_RULES.freeUntilLevel, tiers: BLESSING_TIERS },
+    consts: { 'src/data/blessings.js': ['BLESSING_RULES', 'BLESSING_TIERS'] },
+    keys: ['freeUntilLevel'],
+    evaluator: 'src/data/blessings.js blessingPrice',
+  }),
+  row({
+    id: 'stamina.refill',
+    title: 'Stamina refill price',
+    expr: [
+      'the day\'s first full refill costs base + perLevel x Level',
+      'refill n of the day costs (stepDen + stepNum x (n - 1)) / stepDen of that',
+      'a part refill pays for the minutes it restores out of maxMinPerBuy, rounded up',
+      'at most perDay refills a day, and never past the cap (capMs, free and premium)',
+    ],
+    params: { base: STAMINA_REFILL.base, perLevel: STAMINA_REFILL.perLevel, stepNum: STAMINA_REFILL.stepNum, stepDen: STAMINA_REFILL.stepDen,
+      maxMinPerBuy: STAMINA_REFILL.maxMinPerBuy, perDay: STAMINA_REFILL.perDay, capMs: STAMINA_MAX_MS },
+    consts: { 'src/data/stamina-refill.js': ['STAMINA_REFILL'], 'src/data/hunt-sessions.js': ['STAMINA_MAX_MS'] },
+    keys: ['maxMinPerBuy'],
+    evaluator: 'src/data/stamina-refill.js refillPrice',
+  }),
+  row({
+    id: 'scaled.price',
+    title: 'Scaled hunt price',
+    expr: [
+      'gold for a banked hour = perLevel x the Level the ground is scaled to',
+      'bought in whole hours, minHours to maxHours a purchase',
+      'a hero holds at most bankMaxHours a ground and buys at most buyMaxHoursPerDay a day',
+    ],
+    params: { perLevel: SCALED_HUNTS.price.perLevel, minHours: SCALED_HUNTS.minHours, maxHours: SCALED_HUNTS.maxHours,
+      bankMaxHours: SCALED_HUNTS.bankMaxHours, buyMaxHoursPerDay: SCALED_HUNTS.buyMaxHoursPerDay },
+    consts: { 'src/data/scaled-hunts.js': ['SCALED_HUNTS'] },
+    evaluator: 'src/data/scaled-hunts.js pricePerHour',
+  }),
+  row({
+    id: 'temper.effect',
+    title: 'Tempering',
+    expr: [
+      'each rung adds rungPm / 1000 to the blows and heals of a weapon of that tier, or takes it off every blow at armor of that tier',
+      'armor counts piece by piece, by the armor each piece wears',
+      'at most rungs rungs a tier. A rung costs the gold in goldByTier, by tier and rung',
+    ],
+    params: { rungs: TEMPER_RUNGS, rungPm: TEMPER_RUNG_PM, goldByTier: TEMPER_TIERS },
+    consts: { 'src/data/temper.js': ['TEMPER_RUNGS', 'TEMPER_RUNG_PM', 'TEMPER_TIERS'] },
+    evaluator: 'src/core/temper.js blowsPmOf',
+  }),
+  row({
+    id: 'bench.tax',
+    title: 'Bench tax',
+    expr: [
+      'fee for a job = what the shop pays for the finished item x how many it makes x permille / 1000, by the bench\'s skill',
+      'no fee when that is under freeUnderMg thousandths of a gold',
+    ],
+    params: { permille: BENCH_TAX, freeUnderMg: BENCH_TAX_FREE_UNDER_MG },
+    consts: { 'src/data/bench-tax.js': ['BENCH_TAX', 'BENCH_TAX_FREE_UNDER_MG'] },
+    evaluator: 'src/core/bench-tax.js feeMgOf',
+  }),
+  row({
+    id: 'rename.price',
+    title: 'Name change price',
+    expr: ['base + perLevel x Level', 'at most perDay a day'],
+    params: { base: HERO_RENAME.base, perLevel: HERO_RENAME.perLevel, perDay: HERO_RENAME.perDay },
+    consts: { 'src/data/hero-rename.js': ['HERO_RENAME'] },
+    evaluator: 'src/data/hero-rename.js renamePrice',
+  }),
+]);

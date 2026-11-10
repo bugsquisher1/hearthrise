@@ -2264,7 +2264,7 @@ jobs:
       # no --env refuses, staging's ref can never be production's, the project is asked its own name before a write,
       # the token stays a file, and production refuses bytes staging has not run. Each tool's own main() runs on a
       # fake home and a fake network: no credential and no socket in this job. The staging site's commit (the release's
-      # tree, the staging CNAME, no workflows) is built with git plumbing and never pushed here. --mutate: 29 mutants.
+      # publish set with the staging CNAME) is built with git plumbing and never pushed here. --mutate: 31 mutants.
       - name: Tool env — a write names its project, staging and production never cross
         if: ${{ !cancelled() }}
         run: |

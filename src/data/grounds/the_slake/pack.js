@@ -106,7 +106,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'copper_ore', ch: 0.4, band: 'common' }, { id: 'green_rivet', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_boots', ch: 0.0057, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.0057, band: 'scarce' }, { id: 'warlock_boots', ch: 0.0057, band: 'scarce' },
         { id: 'mithril_sword', ch: 0.0057, band: 'scarce' }],
-      hp: 68, atk: 28, baseAcc: 1.1, def: 17, xp: 636, gp: [14, 43], formula: true },
+      hp: 68, atk: 28, baseAcc: 1.1, def: 17, xp: 674, gp: [14, 43], formula: true },
     bargeman: {
       name: 'Bargeman', icon: '🧟', tier: 4, level: 54, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank, the slowest thing on the flat: the barge's crew. Where the Fordsunk's bloat swallows arrows, the crew's cracked
@@ -117,7 +117,7 @@ export default definePack({
         { id: 'mithril_platelegs', ch: 0.0475, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0475, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0475, band: 'scarce' },
         { id: 'mithril_warhammer', ch: 0.0475, band: 'scarce' },
         { id: 'mithril_belt', ch: 0.0032, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0032, band: 'rare' }, { id: 'warlock_belt', ch: 0.0032, band: 'rare' }],
-      hp: 109, atk: 28, baseAcc: 1.12, def: 30, xp: 1156, gp: [23, 69], formula: true },
+      hp: 109, atk: 28, baseAcc: 1.12, def: 30, xp: 1226, gp: [23, 69], formula: true },
     mudlark: {
       name: 'Mudlark', icon: '🪝', tier: 4, level: 52, cls: 'undead', family: 'Undead', speed: 4400,
       /* the skirmisher: the river scavengers who picked the dead and drowned among them. Small, crouched and quick enough to catch
@@ -128,7 +128,7 @@ export default definePack({
         { id: 'mithril_helm', ch: 0.021, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.021, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.021, band: 'scarce' },
         { id: 'maple_bow', ch: 0.021, band: 'scarce' },
         { id: 'mithril_gauntlets', ch: 0.0014, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0014, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0014, band: 'rare' }],
-      hp: 66, atk: 37, baseAcc: 1.05, def: 18, xp: 752, gp: [14, 41], formula: true },
+      hp: 66, atk: 37, baseAcc: 1.05, def: 18, xp: 798, gp: [14, 41], formula: true },
     color_sergeant: {
       name: 'Color Sergeant', icon: '🚩', tier: 4, level: 58, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier, who holds the grounded barge with the company's colors. No override: the one body on the
@@ -137,18 +137,20 @@ export default definePack({
         { id: 'mithril_platebody', ch: 0.05, band: 'scarce' }, { id: 'snakeskin_body', ch: 0.05, band: 'scarce' }, { id: 'warlock_body', ch: 0.05, band: 'scarce' },
         { id: 'maple_staff', ch: 0.05, band: 'scarce' },
         { id: 'maple_wand', ch: 0.0033, band: 'rare' }, { id: 'maple_spellbook', ch: 0.0033, band: 'rare' }],
-      hp: 156, atk: 37, baseAcc: 1.12, def: 38, xp: 1780, gp: [33, 98], formula: true },
+      hp: 156, atk: 37, baseAcc: 1.12, def: 38, xp: 1888, gp: [33, 98], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (58) for 0.90-1.10 of the
      pace contract (288,135 an hour at 58). Measured as opened in the tier-4 set, the 8 ways, 4 seeds x 1 h each: at 1.05 the middle
-     read 0.89, at 1.15 it reads 0.98 (281,700), the floor 1.16 and the band's top 0.87. It was 1.4 before one difficulty, when a
-     lone hero fought 55% of a body's HP for 55% of its kill. */
-  xpFit: { k: 1.15, why: 'at 1.05 the median lone way read 0.89 of the pace contract at the band middle (58), measured as opened over the 8 ways, 4 seeds x 1 h. At 1.15 it reads 0.98' },
+     read 0.89, at 1.15 0.98, and at 1.22 it reads 1.04 (298,700), the floor 1.23 and the band's top 0.92. 1.22 and not 1.15: the
+     Ford's fit rose to 1.28 to stay level with the Warrens at 45, and at 1.22 the Slake still pays about a tenth more Level XP
+     than the Ford for a hero of the same Level (at 50, a lone tank 236k against 213k, a four 358k against 314k a head). It was 1.4
+     before one difficulty, when a lone hero fought 55% of a body's HP for 55% of its kill. */
+  xpFit: { k: 1.22, why: 'at 1.05 the median lone way read 0.89 of the pace contract at the band middle (58), measured as opened over the 8 ways, 4 seeds x 1 h. At 1.22 it reads 1.04, about a tenth over the Ford at the same Level' },
   /* DANGEROUS BRINGS SIX, one more than the table's five, for every group (TIER_PULL_OVERRIDES' shape: one number). On five a Melee
      and Healer pair two or three Levels under the floor made 2.3k to 5.5k gold an hour a head on Dangerous, and 1.2k five under,
      where the weight-class ruling (11-06) asks them to lose gold. On six they lose 2.2k, 3.1k and 5.7k (as opened, 2 seeds x 1 h).
      What six costs a lone hero at the floor: 24 deaths in 16 hours where five gave 1, for the same XP. A four holds it with no
-     death at 433k XP a head. OPEN, ONE ROW OF THE GRADE: five under on Dangerous the sheet also asks that pair to die. It never
+     death at 465k XP a head. OPEN, ONE ROW OF THE GRADE: five under on Dangerous the sheet also asks that pair to die. It never
      did. Every solo ground fails that row today. */
   tierOverride: { dangerous: 6, why: 'on the table pull of 5 a Melee and Healer pair two to five Levels under the floor still made gold on Dangerous. On 6 they lose it' },
   roster: {
@@ -174,15 +176,15 @@ export default definePack({
   /* PARTY LEVEL XP (party-class-xp.js's row shape: heroes alive -> permille at 1, 2, ... classes): better only with different
      classes (Tyler 10-31), and since one difficulty the mixed cells are the lever (Tyler 11-08, "Same monsters, re-tune"). Measured
      as opened with every cell at 1000 (the full grid in 1 h cells, 2 seeds): against the median lone way a mixed four read
-     0.74-0.81, a three 0.70-0.83 and a pair 0.84-0.89. At these cells a four reads 1.16-1.24 at the floor, the middle and the top
+     0.74-0.81, a three 0.70-0.83 and a pair 0.84-0.89. At these cells a four reads 1.16 to 1.24 at the floor, the middle and the top
      (the ruling's 1.15-1.25) and a pair 1.07-1.13. A fourth class pays a little more than three (tests/hunt-core/xp-share.mjs
      party-class-every-cell). The one-class cells hold every one-class party under its heroes alone: the best reads 0.93
      (tests/party-class-xp-line.mjs, four bows). */
-  partyClassXp: { 2: [990, 1270], 3: [1150, 1400, 1510], 4: [1150, 1400, 1565, 1575] },
+  partyClassXp: { 2: [990, 1270], 3: [1150, 1400, 1510], 4: [1150, 1400, 1565, 1570] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives.
      Measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10). One class is the
      mean of its five one-class parties (pairs 0.83-0.89, threes 0.81-0.92, fours 0.81-0.93). Two of two is the mean of three mixes
-     (1.04-1.10), three of three of two (1.09 each), four of four the one played (1.12 at the 1555 cell, 1.13 at 1575). The cells
+     (1.04-1.10), three of three of two (1.09 each), four of four the one played (1.12 at the 1555 cell, 1.13 at 1570). The cells
      between are the size's mix times the cell ratio. */
   partyVsAlone: { 2: [-15, 10], 3: [-15, 0, 10], 4: [-15, 0, 15, 15] },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Warrens' tier-3 store food, the cheapest heal an HP (Salted Lobster, 0.83 g

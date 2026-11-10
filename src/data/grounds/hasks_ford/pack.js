@@ -33,9 +33,9 @@
 // row in src/data/hearth.js, which a pack can't add. It comes back when a pack can carry a fuel row.
 // NO SPELL ROW WAITS HERE: no Ford body has a monster area spell designed.
 //
-// WHAT OPENING IT MOVES (not this pack's file): a lone hero at 45-49 is sent here from the Glade, and earns about 240k Level XP
+// WHAT OPENING IT MOVES (not this pack's file): a lone hero at 45-49 is sent here from the Glade, and earns about 250k Level XP
 // an hour where the pace of record reads 105-107k (tools/balance-sim/level-pace.json). Computed from the curve's XP, Levels 45 to
-// 50 then take about 19 hours and not 43.5, and Level 50 comes at about 146 hours, outside the 168 h target's 10%. That is an
+// 50 then take about 18.5 hours and not 43.5, and Level 50 comes at about 145 hours, outside the 168 h target's 10%. That is an
 // estimate: no career was played with the Ford open. So the Ford opens WITH a re-measured pace
 // and a re-fit of the Level curve from 45 up (tools/balance-sim/pace.mjs --fit, tools/gen-level-curve.mjs): the Coordinator's
 // world move, listed in the lane's report.
@@ -103,7 +103,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'pike_band', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_boots', ch: 0.0064, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.0064, band: 'scarce' }, { id: 'warlock_boots', ch: 0.0064, band: 'scarce' },
         { id: 'mithril_helm', ch: 0.0064, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.0064, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.0064, band: 'scarce' }],
-      hp: 61, atk: 26, baseAcc: 1.04, def: 14, xp: 580, gp: [13, 38], formula: true },
+      hp: 61, atk: 26, baseAcc: 1.04, def: 14, xp: 609, gp: [13, 38], formula: true },
     fordsunk: {
       name: 'Fordsunk', icon: '🌊', tier: 4, level: 50, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank: the dead who went into the ford, bloated and slow. Arrows sink into the bloat (the bestiary's words). The
@@ -111,7 +111,7 @@ export default definePack({
       weaponResist: ['ranged'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.16, band: 'common' }, { id: 'ford_weed', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_platelegs', ch: 0.026, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.026, band: 'scarce' }, { id: 'warlock_pants', ch: 0.026, band: 'scarce' }],
-      hp: 101, atk: 26, baseAcc: 1.08, def: 27, xp: 1102, gp: [21, 64], formula: true },
+      hp: 101, atk: 26, baseAcc: 1.08, def: 27, xp: 1156, gp: [21, 64], formula: true },
     ledger_wight: {
       name: 'Ledger Wight', icon: '🪦', tier: 4, level: 51, cls: 'undead', family: 'Undead', speed: 3200,
       /* the glass: the company's dead quartermasters, still keeping the books by the stores. It hits hard and breaks fast. A
@@ -120,7 +120,7 @@ export default definePack({
       weaponResist: ['magic'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'ledger_leaf', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_platebody', ch: 0.05, band: 'scarce' }, { id: 'snakeskin_body', ch: 0.05, band: 'scarce' }, { id: 'warlock_body', ch: 0.05, band: 'scarce' }],
-      hp: 65, atk: 36, baseAcc: 1.05, def: 18, xp: 780, gp: [14, 41], formula: true },
+      hp: 65, atk: 36, baseAcc: 1.05, def: 18, xp: 818, gp: [14, 41], formula: true },
     bannerman: {
       name: 'Bannerman', icon: '🚩', tier: 4, level: 56, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier: the company's dead sergeant, still holding the colors at the Toll Stone. The gloves
@@ -129,12 +129,15 @@ export default definePack({
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'toll_token', ch: 0.1, band: 'uncommon' },
         { id: 'mithril_gauntlets', ch: 0.0033, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0033, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0033, band: 'rare' },
         { id: 'mithril_belt', ch: 0.0033, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0033, band: 'rare' }, { id: 'warlock_belt', ch: 0.0033, band: 'rare' }],
-      hp: 151, atk: 36, baseAcc: 1.1, def: 36, xp: 1802, gp: [32, 95], formula: true },
+      hp: 151, atk: 36, baseAcc: 1.1, def: 36, xp: 1891, gp: [32, 95], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (53) for 0.90-1.10 of the
      pace contract (254,360 an hour at 53). Measured as opened in the tier-4 set, the 8 ways, 4 seeds x 1 h each: at 1.15 the middle
-     read 0.92, at 1.22 it reads 0.98 (249,300), the floor 1.17 and the band's top 0.84. */
-  xpFit: { k: 1.22, why: 'at 1.15 the median lone way read 0.92 of the pace contract at the band middle (53), measured as opened over the 8 ways, 4 seeds x 1 h. At 1.22 it reads 0.98' },
+     read 0.92, at 1.22 0.98, and at 1.28 it reads 1.03 (261,500), the floor 1.23 and the band's top 0.88. 1.28 and not 1.22: at
+     1.22 the Warrens' Normal paid a lone tank, hammer and wand 2-5% more Level XP at 45 than the Ford did (204k, 282k and 350k
+     against 194k, 277k and 334k, 2 seeds x 1 h), and the ground the Hunts window sends a lone hero to should not pay less than
+     the party ground beside it. */
+  xpFit: { k: 1.28, why: 'at 1.15 the median lone way read 0.92 of the pace contract at the band middle (53), measured as opened over the 8 ways, 4 seeds x 1 h. At 1.28 it reads 1.03, level with the Warrens for a lone hero at 45' },
   roster: {
     banded_pikeman: 'swarm',   // the common majority
     fordsunk: 'heavy',         // the tank: slow (2400), thick
@@ -158,7 +161,7 @@ export default definePack({
   /* PARTY LEVEL XP (party-class-xp.js's row shape: heroes alive -> permille at 1, 2, ... classes): better only with different
      classes (Tyler 10-31), and since one difficulty the mixed cells are the lever (Tyler 11-08, "Same monsters, re-tune"). Measured
      as opened with every cell at 1000 (the full grid in 1 h cells, 2 seeds): against the median lone way a mixed four read
-     0.75-0.80, a three 0.71-0.82 and a pair 0.85-0.93. At these cells a four reads 1.16-1.23 at the floor, the middle and the top
+     0.75-0.80, a three 0.71-0.82 and a pair 0.85-0.93. At these cells a four reads 1.165 to 1.226 at the floor, the middle and the top
      (the ruling's 1.15-1.25) and a pair 1.06-1.16. A fourth class pays a little more than three (tests/hunt-core/xp-share.mjs
      party-class-every-cell). The one-class cells hold every one-class party under its heroes alone: the best reads 0.91
      (tests/party-class-xp-line.mjs, two wands). */

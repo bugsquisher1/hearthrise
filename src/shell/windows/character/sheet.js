@@ -92,7 +92,7 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   const role = (c && c.role) || roleIdOf(cs);
   text(root.querySelector('.hw-cs-role'), role && HUNT_ROLES[role] ? HUNT_ROLES[role].label : '');
   /* Level, max HP and max mana: heroVitalsOf, the one reader the HUD draws them from (r09), so the
-     tab and the HUD can never show two numbers. Level is the server's Level XP on the shared curve. */
+     tab and the HUD can never show two numbers. The Level and its two XP marks are the server's own (the envelope's `level` block). */
   const lv = hv.level !== null ? hv : null;
   const lvEl = root.querySelector('.hw-cs-level');
   cls(lvEl, 'is-on', !!lv);

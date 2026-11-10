@@ -78,7 +78,8 @@ export const REGION_KITS = Object.freeze({
 
   /* THE BARROW MARCH, the 45-110 region (docs/planning/PRIORITY_BOARD.md, the ground pack plan): the Banded Company's dead
      below Hask's Ford, where the Meadowbrook's river slows. Its art was made on lane/b-hasks-ford-art and
-     lane/b-muster-barrows-art (sets march and muster, not loaded until the ground pack's Phase 0 merges them). One tile
+     lane/b-muster-barrows-art. Loaded since lane/a-import-ford-art (2026-11-10): `march` (the kit's hf_ props and four of its
+     bodies) and `ford` (Hask's Ford's painted ground and its two signature pieces). `muster` waits on its own import. One tile
      family, eight terrains in thirteen chained pro tilesets (read from PixelLab 2026-11-07): the Ford and the Slake paint
      the river, the Muster Barrows the mounds. Props: the Ford's and the Muster's war-dead sheets, and the Greenhaven
      clutter the Ford already places. */
@@ -111,7 +112,7 @@ export const REGION_KITS = Object.freeze({
       barrel_broken barrels bone_pile bones cart_wheel coins_scattered sack_pile skull
       mb_fallen_log mb_reeds mb_stepping_stones westwood_ash`),
     units: ids('banded_pikeman bannerman fordsunk wight barrow_knight'),
-    sets: ids('march muster'),
+    sets: ids('march ford muster'),
     grounds: Object.freeze({
       hasks_ford: Object.freeze({ family: 'march', signature: ids('hf_toll_stone hf_ford_marker') }),
       muster_barrows: Object.freeze({ family: 'march', signature: ids('mu_barrow_door') }),

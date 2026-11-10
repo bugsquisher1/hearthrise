@@ -21,11 +21,19 @@
 // ════════════════════════════════════════════════════════════════════════
 import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.113';
 import { loadAtlasManifest, loadAtlasImage } from '../world/atlas.js?v=0.2.113';
+import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.113';
 
 /** The direction a creature's portrait faces: front, toward the player. */
 export const PORTRAIT_DIR = 's';
 
 const ART = new Map();
+/** `by` (sprite id -> row) with every aliased body added under its own id, wearing the row its alias names (monster-art.js
+    HUNT_ART_ALIAS): the lineup asks by monster id, and the Ford's Ledger Wight is drawn as the kit's wight. */
+export function withWorn(by, alias = HUNT_ART_ALIAS) {
+  for (const [body, sprite] of Object.entries(alias)) if (!by.has(body) && by.has(sprite)) by.set(body, by.get(sprite));
+  return by;
+}
+
 let rows = null;   // Promise<Map<id, { set, row }>>: every unit sprite with an idle clip (the first set that carries it)
 
 function unitRows(doc, version) {
@@ -37,7 +45,7 @@ function unitRows(doc, version) {
           if (!by.has(id) && row.layer === 'unit' && row.anims && row.anims.idle) by.set(id, { set, row });
         }
       }
-      return by;
+      return withWorn(by);
     });
   }
   return rows;

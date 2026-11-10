@@ -109,7 +109,7 @@ export function tierWords(r, id, size = 1) {
 export function tierChoiceWords(r, id, size = 1) {
   const tier = tierRowOf(r.hunt, id);
   if (tier.id === DEFAULT_TIER) return '';
-  const first = tierLine(r, tier, size).split('. ')[0].replace(/.$/, '');
+  const first = tierLine(r, tier, size).split('. ')[0].replace(/\.$/, '');
   return t('hunts.tier_choice', { tier: TIER_NAME[tier.id], head: first.charAt(0).toLowerCase() + first.slice(1) });
 }
 

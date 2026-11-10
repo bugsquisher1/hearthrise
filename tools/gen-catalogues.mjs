@@ -110,7 +110,8 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* THE RUNE LADDER (lane/c-rune-ladder, Tyler 2026-11-05): 2027-02-28-temper-craft-items-catalogue is the file before this one and this one carries it; the deeper runes' book values (hr_items.value, read by the market's ceiling) land in ONE forward file, the same full delete+insert replace. */
 /* CRAFTED JEWELRY (lane/c-jewelry-sample, Tyler 2026-11-05): 2027-03-08-rune-ladder-items-catalogue is APPLIED history; the Banded Signet's Fine and Hallmarked rows, the Road Carnelian (hr_items) and the two rolled Crafting jobs (hr_activities) land in ONE forward file, the same full delete+insert replace. */
 /* ONE FORMULA FOR EVERY HUNT (lane/b-ground-formula, Tyler 2026-11-07): 2027-03-14-jewelry-items-catalogue is APPLIED history; the open grounds' monsters' max HP (hr_activities combat rows) land in ONE forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-03-20-ground-formula-items-catalogue.generated.sql');
+/* TIER 4'S MADE RUNGS (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-20-ground-formula-items-catalogue is APPLIED history; the Mithril Hatchets' and Maple Crossbow's hr_items rows and their Smithing and Crafting recipes in hr_activities land in ONE forward file, the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-03-27-phase0-tier4-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -1264,7 +1265,8 @@ const { ARTISAN_RECIPES: BENCH_RECIPES } = await imp('src/data/recipes.js');
 /* THE GLADE'S RUNG (lane/c-pre-wipe, 2026-11-04): 2027-02-23-klappa is APPLIED history; the cloak's twelve pelts and a Bear Pelt. */
 /* TEMPERING'S MATERIAL (lane/c-temper-craft, 2026-11-05): 2027-02-25-houndskin is APPLIED history; the mixes' bars and bones. */
 /* CRAFTED JEWELRY (lane/c-jewelry-sample, 2026-11-05): 2027-02-28-temper-craft is APPLIED history; the two rolled jobs' inputs. */
-const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-03-14-jewelry-bench-inputs.generated.sql');
+/* TIER 4'S MADE RUNGS (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-14-jewelry-bench-inputs is APPLIED history; the Mithril Hatchets' and Maple Crossbow's benches land in ONE forward file. */
+const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-03-27-phase0-tier4-bench-inputs.generated.sql');
 const benchInputs = {};
 {
   const known = new Set(itemIds);

@@ -241,8 +241,13 @@ export const WORLD_FIELDS_READ = Object.freeze({
    for 25 monsters, and hr_hunt_abilities gains Undertow, the Healer's strike when it hunts alone (Tyler 2026-11-09; abilities.js `alone`, read by the
    engine only; no column carries it). No spawn, limit or bid. THE SHAPE MOVES, so the old engine refuses every stored world once this applies: the
    hr-accrue deploy carrying the same src/core follows AT ONCE (each running hunt's world restarts once, as on any shape change). */
-/* AREA SPELLS (lane/b-area-set, Tyler 2026-11-08: "start giving some monsters some aoe spells and our heros some more aoe spells"): 2027-03-26-one-difficulty is the file before
-   this one and this one carries it whole (its kill bounds, Undertow, death_xp_permille 60, no death_xp_base, runes_out). hr_hunt_abilities gains the four hero area abilities
+/* THE GEAR SALE LADDER (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-26-one-difficulty is the file before this one and this file carries it whole (its world shape, kill bounds
+   and Undertow; the death share's rows and rune supply's runes_out with it). hr_hunt_vendor_value, the bid Dispatch loot pays, the Shop shows, the Weighhouse floors on and the bench tax
+   reads, moves for gear of tier 4 and up (loot-bands.js VENDOR_GEAR_RATES 0.075 / 0.033 / 0.015, tiers 7 and 8 at tier 6's), every such bid DOWN from tier 3's 0.14; the made Mithril Hatchets and
+   Maple Crossbow join it and hr_hunt_weapons. No kill bound, spawn, limit, ability or shape moves. AFTER 2027-03-27-phase0-tier4-items-catalogue (the self-check wants both weapons in
+   hr_items), then the hr-accrue carrying the same loot-bands.js at once: vendor_sell is priced by the edge, so until it deploys the Sell tab pays the old bid this table no longer shows. */
+/* AREA SPELLS (lane/b-area-set, Tyler 2026-11-08: "start giving some monsters some aoe spells and our heros some more aoe spells"): 2027-03-27-phase0-tier4 is the file before
+   this one and this one carries it whole (the gear sale ladder's bids and its two weapons, and under it one difficulty's kill bounds, Undertow, death_xp_permille 60, no death_xp_base, runes_out). hr_hunt_abilities gains the four hero area abilities
    (Turning Cut, Raking Shot, Hoarfrost, Spring Tide); a monster unit carries its spell cooldowns and its live cast (monster-spells.js PERSISTED: spellCds, cast), so
    hr_hunt_world_shape moves; and hr_hunt_limits gains spell_windup_min_ms (monster-spells.js SPELL_BOUNDS), the number the settle's Defense bound leans on: a spell's landing is a
    blow taken at the plain rate, once a windup, and the bound prices a block every swing interval, so it holds while the least windup x block_mult covers the swing interval
@@ -766,16 +771,26 @@ export function render(src) {
 -- spell_windup_min_ms, the least windup a monster's spell may have, which the settle's Defense bound leans on (the self-check below executes it).
 -- Postgres reads no spell row: the engine casts them, and the settle bounds what they can pay. No kill bound, spawn, bid, end reason or ground
 -- moves. Every row the files before it set is carried (tests/area-spells-server.mjs AS-ROWS executes the comparison on the replayed chain): one difficulty's kill bounds
--- and Undertow, the death share's death_xp_permille 60 with no death_xp_base, rune supply's runes_out. ORDER: after
--- 2027-03-26-one-difficulty-hunt-sessions-catalogue.generated.sql and its batch (APPLIED with v0.2.114), right before
+-- and Undertow, the death share's death_xp_permille 60 with no death_xp_base, rune supply's runes_out, Phase 0's gear bids and weapons. ORDER: after
+-- 2027-03-27-phase0-tier4-hunt-sessions-catalogue.generated.sql and its batch (v0.2.115), right before
 -- 2027-03-28-area-spells-rune-spells.generated.sql (its self-check compares hr_hunt_abilities), THEN the hr-accrue carrying the same src/core AT ONCE:
 -- the shape moves, so the old engine refuses every stored world until it deploys, and each running hunt's world restarts once. The client that
 -- draws the spells' warning marks goes live with that edge, never after it by more than the push (a spell must not land unwarned).
 --
+-- CARRIED FROM 2027-03-27-phase0-tier4-hunt-sessions-catalogue (lane/b-phase0-tier4, designer 2026-11-08: one sale ladder from tier 4 up, src/data/loot-bands.js VENDOR_GEAR_RATES
+-- [0.5, 0.5, 0.14, 0.075, 0.033, 0.015]): hr_hunt_vendor_value moves for worn gear of tier 4 and up, every such bid DOWN (tier 4 sold at tier 3's
+-- 0.14 of book; tiers 7 and 8 read tier 6's rate), and gains the made Mithril Hatchets and Maple Crossbow, which join hr_hunt_weapons too. This table is
+-- the bid Dispatch loot pays, the Shop shows, the Weighhouse floors on and the bench tax reads. Nothing else moves: no kill bound, spawn, limit,
+-- ability or shape (no world_shape_pending from this file). ORDER: AFTER 2027-03-26-one-difficulty-hunt-sessions-catalogue.generated.sql (carried
+-- whole below; applied before it this file IS that shape move) and AFTER 2027-03-27-phase0-tier4-items-catalogue.generated.sql (the self-check
+-- wants both weapons in hr_items), THEN the hr-accrue carrying the same loot-bands.js at once: vendor_sell is priced by the edge.
+--
 -- CARRIED FROM 2027-03-26-one-difficulty-hunt-sessions-catalogue (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged"):
 -- hr_hunt_world_shape moved (a monster unit carries no yield share: one pack for every group), hr_hunt_kill_bounds moved for the re-tuned
--- monsters, and hr_hunt_abilities gained Undertow. It carried the death share's rows (death_xp_permille 60, no death_xp_base) and rune supply's
--- runes_out, after the six APPLIED 2027-03-25 files (the precondition below still asks for 2027-03-25-death-share.sql).
+-- monsters, and hr_hunt_abilities gained Undertow. Every row the files before it set is carried: the death share's (death_xp_permille 60, no
+-- death_xp_base) and rune supply's runes_out. That file applied AFTER the six APPLIED 2027-03-25 files (the precondition below still asks for
+-- 2027-03-25-death-share.sql); its shape move wants the hr-accrue carrying the same src/core AT ONCE (the old engine refuses every stored
+-- world until it deploys, and each running hunt's world restarts once).
 --
 -- CARRIED FROM 2027-03-25-death-share-hunt-sessions-catalogue (APPLIED; lane/c-death-and-slots, Tyler 2026-11-09: "Death needs to be more than 2% I think, and losing a level should be possible"):
 -- hr_hunt_limits.death_xp_permille 20 -> 60 (src/data/hunt-sessions.js DEATH_XP_LOSS 0.06), and the death_xp_base row is CUT (one public formula:

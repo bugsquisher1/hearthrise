@@ -16,12 +16,14 @@
 //        doors Turning Cut and Hoarfrost deal damage, Hoarfrost buys only the Plain Ice Rune it names, Spring Tide heals.
 //   AS-3 THE DEFENSE BOUND HAS ROOM: each hero's Defense XP over the hunt is inside the Defense term hr_hunt_apply_member allows for the same span
 //        (computed from the chain's own rows), a shield tank standing in every spell included; the largest share is printed.
-//   AS-4 ONLY THE AREA ROWS DIFFER: on the chain as it stands after one difficulty, every table, constraint and function is read, the three files
+//   AS-4 ONLY THE AREA ROWS DIFFER: on the chain as it stands before the three files (Phase 0's 2027-03-27 files its end), every table, constraint and function is read, the three files
 //        are applied, and all of it is read again. What moved is exactly: five condition metrics and Chill; four abilities (the older rows' `ord`
 //        only); the world's shape and its two unit fields; the limit spell_windup_min_ms; two rune spells. Named, because an apply must not roll
 //        them back: death_xp_permille 60 with no death_xp_base row, runes_out, Undertow, and every kill bound.
 //   AS-5 BEFORE AND AFTER: on the chain before the three files the same slots are refused (the regression this lane closes); after them, accepted.
 //   AS-6 A SECOND APPLY of the three files, in order, self-checks included, moves nothing.
+//   AS-7 THE FIRST CAST'S STAGGER, BOTH PATHS (SPELL_STAGGER as shipped): the two doors store the same world from one anchor (AS-1), and on the
+//        viewer's answers the casters' first casts start at different instants, not all at once; a door that staggers otherwise stores another world.
 //
 // The text mutants patch a file's SQL before it is applied (its own self-check may be what refuses it: that counts, by name).
 import { isMain } from './_is-main.mjs';
@@ -41,7 +43,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* THE SPELLS ARE THIS GUARD'S SUBJECT: the switch on (the engine's own instance of the row: src/core imports src/data with the build's ?v=),
    whichever way it ships. Off, AS-1 would have nothing to land. */
-(await import(pathToFileURL(join(ROOT, 'src', 'data', 'monster-spells.js')).href + '?v=' + BUILD.cache)).SPELL_SWITCH.live = true;
+const ENGINE_SPELLS = await import(pathToFileURL(join(ROOT, 'src', 'data', 'monster-spells.js')).href + '?v=' + BUILD.cache);
+ENGINE_SPELLS.SPELL_SWITCH.live = true;
 const COND = '2027-03-28-area-conditions.sql';
 const RUNES = '2027-03-28-area-spells-rune-spells.generated.sql';
 const FILES = Object.freeze([COND, CAT, RUNES]);
@@ -78,7 +81,13 @@ const SLOT = Object.freeze({
 const BARS = [null, [SLOT.turning_cut, ab('power_strike'), food, drink], [SLOT.hoarfrost, food, drink], [SLOT.spring_tide, food, drink]];
 
 /* One door over the four: what the chain holds after it. A window that does not land throws inside prepare's doors. */
-async function door(db, which) {
+async function door(db, which, noStagger) {
+  /* a mutant's door: this one alone plays with no first-cast wait (the engine's own row, put back after) */
+  const span = ENGINE_SPELLS.SPELL_STAGGER.spanPm;
+  if (noStagger) ENGINE_SPELLS.SPELL_STAGGER.spanPm = 0;
+  try { return await doorRun(db, which); } finally { ENGINE_SPELLS.SPELL_STAGGER.spanPm = span; }
+}
+async function doorRun(db, which) {
   const refusedBars = [];
   const run = await prepare({ heroes: 4, windows: WINDOWS, windowMs: WINDOW_MS, hunt: WARRENS, door: which, db, level: 38, anchorMs: ANCHOR, gear: (i) => GEAR[i],
     beforeEnter: async ({ db: d, uids, asUser, one: ask, idem }) => {
@@ -121,11 +130,11 @@ const ember = (s) => Number(((s.taken || {}).byElement || {}).ember || 0);
 const by = (s, id) => Number(((s.dealt || {}).byAbility || {})[id] || 0);
 
 /* AS-1, AS-2, AS-3 over both doors. `boot` answers a fresh chain (a mutant's, patched). `only`: one door (a mutant that needs no comparison). */
-async function bothPaths(boot, only) {
+async function bothPaths(boot, only, noStaggerAt) {
   const problems = [];
   const names = only ? [only] : ['fire', 'viewed'];
   const got = {};
-  for (const which of names) got[which] = await door((await boot()).db, which);
+  for (const which of names) got[which] = await door((await boot()).db, which, noStaggerAt === which);
   let share = 0;
   for (const which of names) {
     const r = got[which], name = which === 'fire' ? 'browser closed' : 'hunt viewed';
@@ -155,10 +164,16 @@ async function bothPaths(boot, only) {
     if (!marks.length) problems.push('AS-1 hunt viewed: no answer carried a spell\'s warning mark');
     const odd = marks.filter((m) => !MONSTER_SPELLS[m.spell] || typeof m.shape !== 'string' || !(m.ms >= SPELL_BOUNDS.windupMs[0]));
     if (odd.length) problems.push('AS-1 hunt viewed: a mark the client cannot draw: ' + short(odd[0]));
+    /* AS-7: each caster's first cast, and how many different instants they start at (a pack that opens at once shares one) */
+    const first = new Map();
+    for (const m of marks.slice().sort((a, b) => a.atMs - b.atMs)) if (!first.has(m.u)) first.set(m.u, m.atMs);
+    const instants = new Set(first.values());
+    if (!(ENGINE_SPELLS.SPELL_STAGGER.spanPm > 0)) problems.push('AS-7 the stagger ships off (SPELL_STAGGER.spanPm ' + ENGINE_SPELLS.SPELL_STAGGER.spanPm + ')');
+    if (first.size < 6 || instants.size * 5 < first.size * 4) problems.push('AS-7 hunt viewed: ' + first.size + ' casters\' first casts start at ' + instants.size + ' different instants (a pack opened at once, or too few cast)');
     if (!marks.some((m) => m.shape === 'group') || !marks.some((m) => m.shape !== 'group')) problems.push('AS-1 hunt viewed: the marks hold ' + [...new Set(marks.map((m) => m.shape))].join() + ', want a whole-group spell and a marked one');
   }
   if (got.fire && got.viewed) {
-    if (got.fire.world !== got.viewed.world) problems.push('AS-1 the two doors stored different worlds');
+    if (got.fire.world !== got.viewed.world) problems.push('AS-1 the two doors stored different worlds (AS-7: the same seed must give the same casts on both)');
     const a = JSON.stringify(got.fire.seats), b = JSON.stringify(got.viewed.seats);
     if (a !== b) problems.push('AS-1 browser closed and hunt viewed wrote different tallies: ' + a.slice(0, 200) + ' vs ' + b.slice(0, 200));
   }
@@ -177,7 +192,7 @@ async function image(db) {
 const byKey = (rows, k) => Object.fromEntries(rows.map((r) => [r[k], r]));
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-/* AS-4, AS-5, AS-6 on the chain as one difficulty leaves it. `patch(file, sql)`: a mutant's edit to a file's text. */
+/* AS-4, AS-5, AS-6 on the chain as it stands before the three files. `patch(file, sql)`: a mutant's edit to a file's text. */
 async function rowsOnly(patch) {
   const problems = [];
   const order = (await manifest()).order;
@@ -185,7 +200,7 @@ async function rowsOnly(patch) {
   if (at < 1 || order.slice(at).join() !== FILES.join()) return ['AS-4 HARNESS: the three area files are not the chain\'s last three, in order: ' + order.slice(-4).join()];
   const { db } = await bootReplay({ upTo: order[at - 1] });
   const check = (slot) => one(db, 'select public.hr_hunt_slot_check($1::jsonb)', [JSON.stringify(slot)]);
-  /* AS-5, before: the server as one difficulty leaves it knows neither the abilities nor the conditions */
+  /* AS-5, before: the server before the three files knows neither the abilities nor the conditions */
   for (const [id, slot] of Object.entries(SLOT)) {
     const r = await check(slot);
     if (r && r.ok === true) problems.push('AS-5 before the area files the server already accepts a ' + id + ' slot: the control is dead');
@@ -254,6 +269,9 @@ async function rowsOnly(patch) {
     if (!mv || Number(mv.shape) !== SHAPE || Number(mv.prev_shape) !== Number(b.shape)) problems.push('AS-4 the shape move is journalled ' + short(mv) + ', want ' + b.shape + ' -> ' + SHAPE);
   }
   { // the rows an apply must not roll back, by name
+    /* Phase 0's rows (2027-03-27): the gear sale ladder's bids and its two made weapons */
+    if (!same(before.data.hr_hunt_vendor_value, after.data.hr_hunt_vendor_value) || !before.data.hr_hunt_vendor_value.length) problems.push('AS-4 a vendor value moved (Phase 0\'s gear bids)');
+    if (!same(before.data.hr_hunt_weapons, after.data.hr_hunt_weapons) || !['mithril_hatchets', 'maple_crossbow'].every((id) => after.data.hr_hunt_weapons.some((w) => w.item_id === id))) problems.push('AS-4 hr_hunt_weapons moved or lost Phase 0\'s two weapons');
     if (!same(before.data.hr_hunt_kill_bounds, after.data.hr_hunt_kill_bounds) || !before.data.hr_hunt_kill_bounds.length) problems.push('AS-4 a kill bound moved (one difficulty\'s)');
     if (!after.data.hr_hunt_end_reasons.some((r) => r.reason === 'runes_out')) problems.push('AS-4 runes_out is gone from the end reasons');
     if (!/runes_out/.test(after.checks)) problems.push('AS-4 runes_out is gone from hunt_sessions.end_reason\'s CHECK');
@@ -301,6 +319,8 @@ const MUTANTS = [
   { name: 'Hoarfrost is no rune spell on the server', patch: swap(RUNES, '"hoarfrost":{', '"hoarfrost_x":{'), want: /AS-4 .* does not apply: .*hr_hunt_abilities/ },
   { name: 'the conditions forget the fight', patch: swap(COND, "  ('in_fight', 'bool', array['eq']::text[], null, null, '{}'::text[], false, '{}'::text[]),\n", ''), want: /AS-4 .* does not apply: .*VERIFY/ },
   /* the settle's side: a server that keeps the old shape refuses every world this engine stores */
+  /* the stagger's side: a door that plays the first casts otherwise stores another world from the same seed */
+  { name: 'the tick\'s door opens every pack at once (no stagger on that door)', stagger: 'fire', want: /AS-1 the two doors stored different worlds|AS-1 browser closed and hunt viewed wrote different tallies/ },
   { name: 'the server keeps the old world shape', boot: { file: CAT, find: '(true, 1, ' + SHAPE + ', ', repl: '(true, 1, 95703826, ' }, want: /AS-1 browser closed: window 1 of/ },
 ];
 
@@ -310,7 +330,8 @@ async function main() {
     for (const m of MUTANTS) {
       let got = [];
       try {
-        if (m.boot) got = (await bothPaths(() => bootReplay({ patches: new Map([[m.boot.file, [[m.boot.find, m.boot.repl]]]]), upTo: RUNES }), 'fire')).problems;
+        if (m.stagger) got = (await bothPaths(() => bootReplay(), null, m.stagger)).problems;
+        else if (m.boot) got = (await bothPaths(() => bootReplay({ patches: new Map([[m.boot.file, [[m.boot.find, m.boot.repl]]]]), upTo: RUNES }), 'fire')).problems;
         else got = await rowsOnly(m.patch);
       } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
       const hit = got.some((p) => m.want.test(p));

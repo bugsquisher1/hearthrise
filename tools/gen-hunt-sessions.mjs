@@ -770,7 +770,7 @@ export function render(src) {
 -- one is accepted); hr_hunt_world_shape MOVES (a monster unit carries its spell cooldowns and its live cast: spellCds, cast); hr_hunt_limits gains
 -- spell_windup_min_ms, the least windup a monster's spell may have, which the settle's Defense bound leans on (the self-check below executes it).
 -- Postgres reads no spell row: the engine casts them, and the settle bounds what they can pay. No kill bound, spawn, bid, end reason or ground
--- moves. Every row the files before it set is carried (tests/area-spells-server.mjs AS-ROWS executes the comparison on the replayed chain): one difficulty's kill bounds
+-- moves. Every row the files before it set is carried (tests/area-spells-server.mjs AS-4 executes the comparison on the replayed chain): one difficulty's kill bounds
 -- and Undertow, the death share's death_xp_permille 60 with no death_xp_base, rune supply's runes_out, Phase 0's gear bids and weapons. ORDER: after
 -- 2027-03-27-phase0-tier4-hunt-sessions-catalogue.generated.sql and its batch (v0.2.115), right before
 -- 2027-03-28-area-spells-rune-spells.generated.sql (its self-check compares hr_hunt_abilities), THEN the hr-accrue carrying the same src/core AT ONCE:

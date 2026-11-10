@@ -283,7 +283,7 @@ The baseline's table again, clean runs on this branch. Before is the table in Pa
 | ENGINE ms a settle, the engine's own (med / p95) | 41 / 52 -> 30 / 36 | 111 / 157 -> 134 / 196 | 20 / 32 -> 22 / 40 | 69 / 114 -> 84 / 130 |
 | engine ms per simulated second (med / p95) | 0.4 / 0.5 -> 0.3 / 0.4 | 1.2 / 1.6 -> 1.4 / 1.9 | 0.2 / 0.3 -> 0.2 / 0.4 | 0.7 / 1.2 -> 0.9 / 1.4 |
 
-Engine time: no engine file is in the diff (nothing under `src/core/` or `supabase/functions/`), so the engine is the same code. The after runs shared the PC with other lanes' mutation sweeps and this lane's own tests (two thirds of its 20 cores busy), which is the likely cause of the party runs' 20%. It was not re-measured on a quiet machine.
+Engine time: no engine file is in the diff (nothing under `src/core/` or `supabase/functions/`), so the engine is the same code. The after runs shared the PC with other lanes' mutation sweeps and this lane's own tests (two thirds of its 20 cores busy). The four-hero 10 min run again, with this lane's tests finished: 79 / 98 ms a settle, 0.8 a simulated second. So 79 to 134 against the baseline's 111 is the PC's load, not the engine.
 
 Still dead after this, for the engine batch: the three reads on the watched ask (`hr_bestiary_of`, `hr_trophy_of`, `hr_collection_of`), `hr_perks_of`'s call to `hr_renown_of` once a member a settle, and the `ev:loot` ops themselves (the engine still sends them and the server drops them).
 

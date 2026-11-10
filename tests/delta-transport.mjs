@@ -1006,15 +1006,13 @@ async function run(mutate) {
       const beforeLedger = Number((await db.query(
         'select count(*) as n from public.player_ledger where user_id=$1 and slot=$2',
         [USER, SLOT])).rows[0].n);
-      /* The renown high-water BEFORE the night. `2026-09-12-renown-high-projection`
-         patched `hr_apply` to ratchet `player_state.renown_high` from
-         `hr_renown_of` on every successful apply — raise-only in the WHERE, so
-         `found` means EXACTLY "the high-water moved" — and to write ONE
-         `renown`/`renown_ratchet` row `if found`. A night that levels the fixture
-         can therefore leave the accrual aggregate PLUS that single row. Reading
-         the high-water on both sides lets the assertion below state the real
-         relation (the row exists IFF the high-water rose) instead of filtering
-         renown out, which would go blind to a ratchet writing per tick. */
+      /* The renown high-water BEFORE the night. From 2026-09-12 to 2027-03-30
+         `hr_apply` raised `player_state.renown_high` from `hr_renown_of` on every
+         apply and journalled one `renown`/`renown_ratchet` row a raise, as the
+         audit trail of the rank claim. The claim was cut on 2026-12-02 and
+         2027-03-30-dead-writes.sql stopped both writes (14.9% of the live ledger,
+         read by nothing). The mark is read on both sides so the assertion below
+         states that: it does not move, and no renown row is journalled. */
       const renownBefore = Number((await db.query(
         'select coalesce(renown_high, 0) as r from public.player_state where user_id=$1 and slot=$2',
         [USER, SLOT])).rows[0]?.r ?? 0);
@@ -1086,19 +1084,15 @@ async function run(mutate) {
         + `nor the renown ratchet: ${JSON.stringify(strays.map((r) => `${r.kind}/${r.intent}`))}. `
         + `Rows by kind: ${kindCensus}. Every kind hr_apply journals is a ceiling the day budget is `
         + 'derived from, so an unaccounted row is either a second aggregate or a per-action log.');
-      /* THE RATCHET IS RAISE-ONLY, AND SO IS ITS JOURNAL (migration section C2).
-         Asserted as a RELATION, not an exemption: the row is present if and only
-         if `player_state.renown_high` actually rose across this night. A ratchet
-         that logged every apply (the pre-C2 greatest() shape) fails the `rose ===
-         false` arm; one that raises silently fails the `rose === true` arm. */
-      const renownRose = Number(after.renown_high) > renownBefore;
-      ok(ratchet.length === (renownRose ? 1 : 0),
-        `T8: renown_high went ${renownBefore} -> ${after.renown_high} across the night but the `
-        + `ledger holds ${ratchet.length} renown/renown_ratchet row(s) (expected `
-        + `${renownRose ? 1 : 0}). hr_apply journals ONE row per REAL raise and none when the `
-        + 'high-water does not move; hr_claim_rank pays up to 1,000,000 gold against that '
-        + 'high-water, so an unjournalled raise is an undetectable, irreversible inflation and a '
-        + `per-apply row is the 229 MB failure again. Rows by kind: ${kindCensus}.`);
+      /* NO RATCHET, NO JOURNAL ROW (2027-03-30-dead-writes.sql). The two go
+         together, which is Security's C2 the other way round: a mark that rose
+         with no row would be an unjournalled raise for whatever claim came next,
+         and a row with no reader is the per-settle log this arm exists to refuse. */
+      ok(ratchet.length === 0 && Number(after.renown_high) === renownBefore,
+        `T8: renown_high went ${renownBefore} -> ${after.renown_high} across the night and the `
+        + `ledger holds ${ratchet.length} renown/renown_ratchet row(s) (expected no move and no row). `
+        + 'hr_apply stopped raising and journalling renown on 2027-03-30: nothing reads either, and '
+        + `the rows were 14.9% of the live ledger. Rows by kind: ${kindCensus}.`);
       const led = accrual[0];
       ok(led.kind === 'gather' && led.intent === 'accrue',
         `T8: the ledger row is ${led.kind}/${led.intent}, expected gather/accrue`);

@@ -400,11 +400,12 @@ export class AccountSession {
     cs.subscribe((s, why) => { if (why === 'empty' && s.record && this._chars.get(slot) === s) { this.close(slot); this._emit('hero-gone', slot); } });
     this._emit('opening', slot);   // watchers (the alerts) hear the first load's events too
     /* THE ROSTER JUST READ THIS HERO (hr_load, whole): its answer is the first read, spent once, while it is seconds old (a list
-       left standing reads again). The join's hello below still settles and re-reads, so nothing is older than it was. */
+       left standing reads again). The join's hello below still settles; it reads the hero a second time only when the server
+       holds a newer version or the answer was already wholeFreshMs old (its age goes with it: character-session.js _helloOnce). */
     const read = this._rosterReads.get(slot);
     this._rosterReads.delete(slot);
     const age = read ? this._nowMs() - read.at : Infinity;
-    await cs.load(read && read.ans.ok && age <= this.config.rosterReadFreshMs ? agedBy(read.ans.body, age) : null);
+    await cs.load(read && read.ans.ok && age <= this.config.rosterReadFreshMs ? agedBy(read.ans.body, age) : null, age);
     if (cs.status !== 'ready') {
       const reason = cs.status;
       this.close(slot);

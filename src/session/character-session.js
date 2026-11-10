@@ -90,7 +90,7 @@ export class CharacterSession {
     this._listeners = new Set();
     this._leave = null; this._attempt = 0; this._retry = null;
     this._residueTimer = null;
-    this._leaveAsk = null; this._asking = null; this._wholeAt = -1; this._fed = false;   // the hello in flight; the version known whole; re-read last armed by a frame
+    this._leaveAsk = null; this._asking = null; this._wholeAt = -1; this._wholeMs = -Infinity; this._fed = false;   // the hello in flight; the version known whole and when the server gave it (display clock); re-read last armed by a frame
     this._pending = {}; this._sent = {}; this._putAt = -Infinity;   // residue to put; put and not yet seen back (residue.js unconfirmedResidue); the last put
     this._closed = false; this._viewed = o.viewed !== false; this._away = false;   // shown (AccountSession.view): only it streams live (setViewed); away: setAway
     this.lastVerdict = null;
@@ -125,13 +125,13 @@ export class CharacterSession {
   notePurse() { if (!this._closed) this._emit('purse'); }   // a newer ACCOUNT purse, read by another hero (goldOf)
   noteStorage() { if (!this._closed) this._emit('storage'); }   // a newer ACCOUNT Storage, read by another hero (bankOf)
   _emit(why) { for (const fn of Array.from(this._listeners)) { try { fn(this, why); } catch (e) { console.error('[character] a listener failed', e); } } }
-  /** Apply a full envelope from the server; false when it was refused. */
-  _take(body, why) {
+  /** Apply a full envelope from the server (`ageMs`: how old the answer already is, the roster's); false when it was refused. */
+  _take(body, why, ageMs) {
     if (this._closed) return false;
     const r = applyEnvelope(this._record, body);
     this.lastVerdict = r.verdict;
     if (!r.applied) return false;
-    this._record = r.record; this._wholeAt = r.record.version;   // a full envelope: every key known at its version
+    this._record = r.record; this._wholeAt = r.record.version; this._wholeMs = this._now() - (ageMs > 0 ? ageMs : 0);   // a full envelope: every key known at its version
     /* A residue field set here and not yet put, or put and not yet seen back, is newer than the copy this envelope
        carried (it may predate the put): it stays until the server echoes it (the summary card never blinks out). */
     this._sent = unconfirmedResidue(this._sent, this._record.residue);
@@ -472,8 +472,8 @@ export class CharacterSession {
     if (!this._record) { this._status = 'error'; this._emit('error'); }
   }
 
-  /** The full read, single-flight (`held`: a whole hr_load answer the account just got: read only if it does not land); resync: ONE bounded re-read after a refusal (read-gate.js). True when the record was replaced. */
-  load(held) { return this._closed ? Promise.resolve(false) : held && this._take(held, 'load') ? Promise.resolve(true) : this._reads.load(); }
+  /** The full read, single-flight (`held`: a whole hr_load answer the account just got, `heldMs` old: read only if it does not land); resync: ONE bounded re-read after a refusal (read-gate.js). True when the record was replaced. */
+  load(held, heldMs) { return this._closed ? Promise.resolve(false) : held && this._take(held, 'load', heldMs) ? Promise.resolve(true) : this._reads.load(); }
   resync() { return this._closed ? Promise.resolve(false) : this._reads.resync(); }
   async _loadOnce() {
     if (this._closed) return false;
@@ -507,8 +507,10 @@ export class CharacterSession {
        is, with the live start point (take it). A refusal to settle (refusal.js) stands until the next answer (town ticker). */
     if (ans.ok) this.settleRefusal = settleRefusalOf(ans);
     if (ans.ok && ans.body && ans.body.accrued !== true && ans.body.hunt_live && ans.body.state && this._take(ans.body, 'hello')) return true;
-    const v = ans.ok && ans.body ? ans.body.version : null;   // a hunter's idle answer at a version held WHOLE: no re-read
-    if (Number.isSafeInteger(v) && ans.body.accrued !== true && this._huntOpen() && v <= this._wholeAt) return false;
+    /* An idle answer at a version held WHOLE is not re-read: a hunter's (its next ask restates it), and a copy the server gave under
+       wholeFreshMs before this ask left (the join right after the roster's read). Older in town it is always read: a party invite moves no version. */
+    const v = ans.ok && ans.body ? ans.body.version : null, held = this._huntOpen() || this._askedAt - this._wholeMs <= SESSION_CONFIG.wholeFreshMs;
+    if (Number.isSafeInteger(v) && ans.body.accrued !== true && held && v <= this._wholeAt) return false;
     if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();
     if (ans.ok && this._take(ans.body, 'hello')) return true;
     this._answerFailed(ans);

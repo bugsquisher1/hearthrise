@@ -699,6 +699,8 @@ export const MONSTERS = {
     drops: [{ id: 'silk_thread', ch: .3, band: 'common' }, { id: 'dry_husk', ch: .5, band: 'common' }, { id: 'cistern_venom_gland', ch: .1, band: 'uncommon' }, { id: 'longbow', ch: .0055, band: 'rare' }, { id: 'oak_crossbow', ch: .0055, band: 'rare' }] },
   kobold_tosher: { name: 'Kobold Tosher', icon: '🦎', tier: 1, level: 13, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 63, atk: 7, baseAcc: 0.37, def: 1, xp: 144, gp: [10, 31], formula: true, speed: 3200,
+    /* its spell: a fistful of outfall muck thrown at its target's tile, which a ranged hero steps off (lane/d-spell-tuning) */
+    spells: ['muck_fling'],
     /* junk: the Bone Chips it sifts out of the outfalls (the reachable source of Iron Fitting's chips, and a Hearth fuel) */
     drops: [{ id: 'bones', ch: 1, band: 'common' }, { id: 'bone_chips', ch: .5, band: 'common' }, { id: 'kobold_scale', ch: .08, band: 'uncommon' },
       { id: 'iron_boots', ch: .05, band: 'scarce' }, { id: 'studded_boots', ch: .05, band: 'scarce' }, { id: 'adept_boots', ch: .05, band: 'scarce' }, { id: 'iron_sword', ch: .05, band: 'scarce' },
@@ -709,7 +711,7 @@ export const MONSTERS = {
     hp: 556, atk: 7, baseAcc: 0.76, def: 11, xp: 1983, gp: [90, 269], formula: true, speed: 2800,
     /* his spells (monster-spells.js): the Tail Lash his tank stands in, and the Squeal the whole party takes */
     spells: ['tail_lash', 'squeal'],
-    drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'knotted_tails', ch: .15, band: 'uncommon' }, { id: 'crown_shard', ch: .014, band: 'rare' }, { id: 'kingsgrate', ch: .017, band: 'rare' }, { id: 'rat_kings_knot', ch: .014, band: 'rare' }, { id: 'rat_kings_crown', ch: .00141, band: 'trophy' }] },
+    drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'knotted_tails', ch: .15, band: 'uncommon' }, { id: 'crown_shard', ch: .014, band: 'rare' }, { id: 'kingsgrate', ch: .016, band: 'rare' }, { id: 'rat_kings_knot', ch: .014, band: 'rare' }, { id: 'rat_kings_crown', ch: .00141, band: 'trophy' }] },
 
   /* ══ Meadowbrook Thicket: the gray wolves (one family, five roles; a solo ground).
      Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS' SAMPLE (designer 2026-10-23): one
@@ -773,6 +775,8 @@ export const MONSTERS = {
       { id: 'steel_belt', ch: .00238, band: 'rare' }, { id: 'boarhide_belt', ch: .00238, band: 'rare' }, { id: 'scholar_belt', ch: .00238, band: 'rare' }] },
   hobgoblin_foreman: { name: 'Hobgoblin Foreman', icon: '👹', tier: 3, level: 46, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 312, atk: 23, baseAcc: 0.86, def: 28, xp: 2257, gp: [35, 104], formula: true, speed: 3000,
+    /* his spell: the lash he drops (foremans_lash), swept across the two tiles in front of him (lane/d-spell-tuning) */
+    spells: ['lash_sweep'],
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'iron_ore', ch: .6, band: 'common' }, { id: 'coal', ch: .6, band: 'common' }, { id: 'foremans_lash', ch: .08, band: 'uncommon' },
       { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' },
       { id: 'steel_hatchets', ch: .0109, band: 'rare' }] },
@@ -816,6 +820,9 @@ export const MONSTERS = {
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */
     hp: 26, atk: 14, baseAcc: 0.85, def: 1, xp: 134, gp: [5, 17], formula: true, speed: 3400,
+    /* its spell: a volley down one line of tiles, through its target and on behind it. On the glass poacher, not on Rook: a caster that
+       dies fast casts in few fights on Normal and in most of a full box (lane/d-spell-tuning, measured on the Glade's floor) */
+    spells: ['poachers_volley'],
     drops: [{ id: 'wolf_pelt', ch: .3, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'snare_wire', ch: .08, band: 'uncommon' },
       { id: 'iron_platelegs', ch: .028, band: 'scarce' }, { id: 'studded_pants', ch: .028, band: 'scarce' }, { id: 'adept_pants', ch: .028, band: 'scarce' }, { id: 'longbow', ch: .028, band: 'scarce' }, { id: 'houndskin_cloak', ch: .0018, band: 'rare' }] },
   walking_vine: { name: 'Walking Vine', icon: '🌿', tier: 2, level: 22, cls: 'plant', family: 'Plant',

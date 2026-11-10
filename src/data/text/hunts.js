@@ -79,7 +79,7 @@ export const HUNTS_TEXT = Object.freeze({
   best_rate: '{xp} Level XP per hour · balance {gold} per hour',
   best_alone: 'Best alone: {rate}',
   best_party: 'Best in a party: {rate}',
-  best_none: 'No best here yet. Hunt here for {min} minutes or more to set one.',
+  best_none: 'No best here yet. Hunt {min} minutes or more to set one.',
   best_line: 'Best {xp} Level XP/h',
   best_line_none: 'No best yet',
 

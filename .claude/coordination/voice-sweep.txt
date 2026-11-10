@@ -40,7 +40,7 @@ BATCH 1: THE 40 REWRITTEN (ranked by how early and how often a player meets them
 34  bar.waste_mana             (the same, mana)                                                                        (the same, mana)
 35  hunts.above_level          Its monsters are stronger than you. Expect to spend more on supplies, or to die. More XP and better loot.   Its monsters are stronger than you. You'll spend more on supplies and you might die, but you get more XP and better loot.
 36  hunts.far_above_level      Its monsters are far stronger than you. Expect to spend much more on supplies, or to die. More XP and better loot.   Its monsters are far stronger than you. You'll spend a lot more on supplies and you might die, but you get more XP and better loot.
-37  hunts.best_none            No best here yet. A hunt of {min} min or more sets your best.                           No best here yet. Hunt here for {min} minutes or more to set one.
+37  hunts.best_none            No best here yet. A hunt of {min} min or more sets your best.                           No best here yet. Hunt {min} minutes or more to set one.
 38  item.keep_only             Nothing but keeping: the shop won't buy it                                              The shop won't buy it, so it's yours to keep
 39  item.ammo_shot             Fired from a bow or crossbow, one per shot                                              Fired from a bow or crossbow. Each shot uses one
 40  item.tool_words            {effect} while it's in your bag. There's nothing to equip, and your best one counts. In Storage it does nothing   {effect} while it's in your bag. You don't need to equip it. Only your best one counts, and it does nothing in Storage
@@ -150,3 +150,9 @@ BATCH 2: THE NEXT 100 (worst first; text table keys as surface.key, other files 
 IN OTHER LANES (read them with player-read once they land): hunts.tier_* and the tier head rows, party_boss/party_hall,
 no_ground_*, bring_party, best_with_party, heroes_solo_from, heroes_lone_ok (lane/b-one-difficulty rewrites or cuts them);
 tier_cost, range_die and the new death/slots surfaces (lane/c-death-and-slots); the rune supply rows (v0.2.112).
+
+FOUND WHILE PLAYING BATCH 1 (local world, a new Level 1 hero, every spell in Configure action):
+- {weapons} reads "Two axes or Axes" (src/data/hunt-hud.js WEAPON_WORDS: dual_axe 'Two axes', axe 'Axes'), so the
+  lines say "Works with Two axes or Axes." and "It works once you hold a Two axes or Axes." One word for the dual-axe
+  set, and "a" only before a single weapon, fixes every bar line that names a weapon.
+- "Numbers for the Plain Fire Rune at Melee 1." still closes every rune spell's detail until lane/a-cut-numbers-line lands.

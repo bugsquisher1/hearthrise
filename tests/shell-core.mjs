@@ -12,7 +12,10 @@
 //      then the escape row), focus order, the phone's single sheet, keys
 //      (B/C/K/H/L/M/Enter on the spec catalogue; ignored while typing or chorded),
 //      the 120 ms close and reduced motion, float/dock, no window in the camera inset,
-//      a home-bl window (Chat) floating at the bottom-left and a resizable one's size
+//      a home-bl window (Chat) floating at the bottom-left and a resizable one's size;
+//      W16 GO TO (Tyler 2026-11-08, "a direct line to click from here and get to the shop"): a link's
+//      goTo opens the window on its tab and holds the row it asked for until the shell finds it,
+//      a closed window forgets it, a phone's sheet is replaced, an unknown window is refused
 //   H  HUD: defaults per size class, show/hide (never the launchers), opacity
 //      clamp, persisted per size class, Reset touches only this class, a saved
 //      layout survives a reload, `when: hunt`, placement by anchor; MOVE (a drop
@@ -242,6 +245,30 @@ async function runTests(mods) {
       [{ id: 'a', label: 'A', key: 'a', width: 1, escape: true }, { id: 'b', label: 'B', key: 'b', width: 1, escape: true }],
     ];
     for (const rows of bad) { let threw = false; try { WM.validateWindowRows(rows); } catch (e) { threw = true; } ok(threw, 'must refuse ' + JSON.stringify(rows)); }
+  });
+
+  t('W16 a link opens its window on its tab and asks for its row', () => {
+    const { wm, flush } = harness(WM, { reduced: true });
+    wm.open('equip');
+    ok(wm.goTo('market', { tab: 'buy', find: 'carrot_seed' }) === true, 'goTo refused a known window');
+    ok(wm.isOpen('market') && wm.openIds().slice(-1)[0] === 'market', 'the window is not open on top: ' + wm.openIds());
+    eq(wm.takeTab('market'), 'buy', 'its tab');
+    eq(wm.wantsFind('market'), 'carrot_seed', 'the row it asked for');
+    eq(wm.wantsFind('market'), 'carrot_seed', 'the wish is spent by a look');
+    eq(wm.takeFind('market'), 'carrot_seed', 'the shell takes it');
+    eq(wm.wantsFind('market'), null, 'a found row is asked for again');
+    wm.goTo('market', { find: 'turnip_seed' });
+    ok(wm.isOpen('market') && wm.wantsFind('market') === 'turnip_seed', 'an open window is not asked for a second row');
+    wm.goTo('market', {});
+    eq(wm.wantsFind('market'), null, 'a link with no row keeps the last link\'s wish');
+    wm.goTo('market', { find: 'x' });
+    wm.close('market'); flush();
+    eq(wm.wantsFind('market'), null, 'a closed window still wants its row');
+    ok(wm.goTo('nope', { find: 'x' }) === false && wm.wantsFind('nope') === null, 'goTo opened an unknown window');
+    const phone = harness(WM, { phone: true, reduced: true });
+    phone.wm.open('bag');
+    phone.wm.goTo('market', { tab: 'buy' });
+    eq(phone.wm.openIds(), ['market'], 'the phone keeps the sheet the link was pressed in');
   });
 
   /* ── H: the HUD contract ── */
@@ -742,6 +769,9 @@ const MUTANTS = [
   { test: 'W13', file: WM_FILE, from: "else Object.assign(e, { docked: true, right: slot.has(id) ? slot.get(id) : DOCK_EDGE,", to: "else Object.assign(e, { docked: true, right: DOCK_EDGE + open.slice(i + 1).filter((d) => !floating.has(d)).reduce((s, d) => s + width(d) + DOCK_GAP, 0)," },
   { test: 'W15', file: WM_FILE, from: "      } else if (!was && isHome(id)) floating.set(id, { home: true });\n", to: '      }\n' },
   { test: 'W15', file: WM_FILE, from: "    if (keepBottom && f && !f.home) f.y = Math.max(0, f.y - (now.h - before.h));", to: '' },
+  { test: 'W16', file: WM_FILE, from: '    if (find) findWanted.set(id, find); else findWanted.delete(id);', to: '' },
+  { test: 'W16', file: WM_FILE, from: '    findWanted.delete(id);\n', to: '' },
+  { test: 'W16', file: WM_FILE, from: '    const done = tab ? openTab(id, tab) : openWindow(id);', to: '    const done = openWindow(id);' },
   { test: 'W15', file: WM_FILE, from: "      w: Math.round(Math.max(RESIZE_MIN.w, Math.min(Math.max(RESIZE_MIN.w, wd.width - 2 * DOCK_EDGE), w))),", to: '      w: Math.round(w),' },
   { test: 'H12', file: HUD_FILE, from: '  return cap >= DOCK_CAP_MIN_PX ? cap : null;', to: '  return null;' },
   { test: 'H12', file: HUD_FILE, from: "  return { bottom: Math.max(bottom, Math.round(boxHeight - top + gap)), max: Math.max(0, Math.round(top - 2 * gap)) };", to: '  return { bottom, max: null };' },

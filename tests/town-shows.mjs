@@ -8,7 +8,7 @@
 //   node tests/town-shows.mjs --selftest  every planted defect must turn its arm red
 //   node tests/town-shows.mjs --mutate=<id>
 //
-// mutant-anchors: supabase/migrations/2027-02-27-gold-sinks-seams.sql, supabase/migrations/2027-02-27-town-shows.sql, supabase/migrations/2027-02-27-gold-given.sql
+// mutant-anchors: supabase/migrations/2027-02-27-gold-sinks-seams.sql, supabase/migrations/2027-02-27-town-shows.sql, supabase/migrations/2027-02-27-gold-given.sql, supabase/migrations/2027-03-23-town-visit-hold.sql
 //
 // The real chain replayed (PGlite), the real client modules; production untouched:
 //   TS-RULES   hr_sink_rules holds exactly the data file's rows; setup slots are one row: free + prices = the hero's setup limit
@@ -26,6 +26,8 @@
 //   TS-REFUSE  a show that loses the queue race rolls back whole: purse, journal, intent, row, line, board; the same key then buys it once
 //   TS-QUOTE   a stale or forged price gets quote_changed, never a charge at the client's number
 //   TS-LEDGER  exactly one ledger row per purchase, kind shop, intent town_show:<show>:<price>; a replayed key charges once
+//   TS-VISIT   a woodcutter's powder: the server holds him at the fire for the walk from his tree and the throw (the data's rule), a gather
+//              tick leaves him there, the visit's end walks him back to his tree; the World throws on arrival 40 s on, never at a stand moved on
 //   TS-HUNT    a hunting hero is refused in town words and charged nothing
 //   TS-QUIET   a quiet hero pays and shows with no name and no line
 //   TS-LINES   a powder's line in Local and a round's in System hold only the server's sentence and the stamped name
@@ -101,7 +103,7 @@ export const MUTANTS = {
   walker_keeps_junk: { arm: 'TS-CLIENT', why: 'a title that is not plain words reaches the plate',
     js: ['src/session/town-presence.js', [["    title: typeof w.title === 'string' && TITLE.test(w.title) ? w.title : null,", '    title: w.title,']]] },
   plate_no_title: { arm: 'TS-CLIENT', why: 'the town label drops the title',
-    js: ['src/world/town-scene.js', [["w.name + (w.title ? ' ' + w.title : '') + (w.level", 'w.name + (w.level']]] },
+    js: ['src/world/town-scene.js', [["title: w.title || null, kind:", 'title: null, kind:']]] },
   line_no_title: { arm: 'TS-CLIENT', why: 'a chat line drops the title',
     js: ['src/social/chat-lines.js', [["    title: !whisper && typeof row.from_title === 'string' && TITLE.test(row.from_title) ? row.from_title : null,", '    title: null,']]] },
   extras_merged: { arm: 'TS-CLIENT', why: 'an answer with no extras keeps the last ones',
@@ -188,6 +190,12 @@ export const MUTANTS = {
   show_every_frame: { arm: 'TS-SHOW', why: 'a shell moves on every frame, so a show repaints the town at the screen\'s rate', js: ['src/world/town-shows.js', [['const t = Math.floor((now - round.startedAt) / beatMs) * beatMs;', 'const t = now - round.startedAt;']]] },
   hearth_claims_the_square: { arm: 'TS-WINDOW', why: 'the Hearth tab promises a color the square never shows', js: ['src/shell/windows/havora/index.js', [["It burns that color for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone in ' + esc(TOWN_NAME) + ' sees", "Its color fills ' + esc(TOWN_NAME) + '\\'s square for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone there sees"]]] },
   powder_over_purse_on: { arm: 'TS-WINDOW', why: 'a powder the purse can\'t pay stays live and is refused after the press', js: ['src/shell/windows/havora/index.js', [["prop(buyPowder, 'disabled', sc.pending || pPrice === null || pShort > 0);", "prop(buyPowder, 'disabled', sc.pending || pPrice === null);"]]] },
+  visit_job_write_moves: { arm: 'TS-VISIT', why: 'a gather tick\'s pointer write takes the woodcutter off the fire mid-walk',
+    db: ['public.hr_town_moves_settle(text,integer,uuid,integer)', "and b.why = 'visit' and b.visit_until > now()) then", 'and false) then'] },
+  visit_never_ends: { arm: 'TS-VISIT', why: 'a woodcutter stays at the fire for good once he threw a powder',
+    db: ['public.hr_town_moves_settle(text,integer,uuid,integer)', "      perform public.hr_town_place(r.user_id, r.slot, p_map, public.hr_town_station_for(p_map, v_kind, v_id), 'work');\n    end if;", '      null;\n    end if;'] },
+  visit_throw_kept_30s: { arm: 'TS-VISIT', why: 'the World drops a throw the hero reaches after 30 s (the Westwood\'s walk is 37 s)',
+    js: ['src/world/hearth-burn.js', [['there && burnsHere(e.burn, me) && chunkOfNamed', 'there && now - e.burn.at < 30000 && chunkOfNamed']]] },
   round_short_unsaid: { arm: 'TS-WINDOW', why: 'nothing under the round says why it is off', js: ['src/shell/windows/havora/index.js', [["  text(root.querySelector('.hv-why[data-of=\"round\"]'), needWords(rShort));\n", '']]] },
   foot_in_the_pane: { arm: 'TS-WINDOW', why: 'the answer to a press sits outside the foot, under the fold of a short window', js: ['src/shell/windows/havora/index.js', [["    + '<p class=\"hh-intent-msg\" role=\"status\" aria-live=\"polite\"></p></div></div>';", "    + '</div><p class=\"hh-intent-msg\" role=\"status\" aria-live=\"polite\"></p></div>';"]]] },
 };
@@ -601,6 +609,69 @@ const ARMS = {
     return out;
   },
 
+  /* Tyler 2026-11-08: "Fingerguns didn't run all the way to the hearth to throw his borax in". He was woodcutting the Normal Tree:
+     the walk from the Westwood to the fire is 37 s (3.2 tiles/s), the World kept a throw 30 s, and the server never ended the visit. */
+  'TS-VISIT': async (db, X) => {
+    const out = [];
+    await hero(db, A, 0, 'Fingerguns');
+    await rich(db, A);
+    await db.query("update public.hr_flags set enabled = true where key = 'town_presence'");
+    const read = () => as(db, A, 'select public.hr_town_view(0, $1, null, null, null, null, null)', [THE_MAP]);
+    const body = () => q(db, `select b.station_id, b.stand_no, b.why, b.from_x, b.from_y, extract(epoch from (b.visit_until - now()))::float8 as left_s, s.x, s.y
+        from public.town_bodies b left join public.hr_town_stands s on s.map_id = b.map_id and s.station_id = b.station_id and s.stand_no = b.stand_no
+       where b.user_id = $1 and b.slot = 0`, [A]).then((r) => r[0] || null);
+    const job = await one(db, "select public.hr_town_station_for($1, 'gather', 'normal_tree')", [THE_MAP]);
+    /* WOODCUTTING IN TOWN: the settle's pointer write; the town's read sets him down at the Westwood */
+    await db.query("update public.player_state set active_kind = 'gather', active_id = 'normal_tree', active_since = now() where user_id = $1 and slot = 0", [A]);
+    await read();
+    const working = await body();
+    if (!working || working.station_id !== job || working.why !== 'work') return ['the woodcutter is not at ' + job + ': ' + JSON.stringify(working)];
+    /* THE BORAX: the server sends him to a Hearth fuel stand and holds him there for the walk from his tree and the throw */
+    await calm(db);
+    const price = (await as(db, A, 'select public.hr_town_sinks_view(0)')).powder.price;
+    const ans = await bought(db, A, 0, 'borax', price);
+    if (!ans || ans.ok !== true || !ans.me || ans.me.station !== 'hearth') return ['the powder answered ' + JSON.stringify(ans)];
+    const at = await body();
+    const tiles = Math.hypot(at.x - at.from_x, at.y - at.from_y);
+    const V = X.TPD.TOWN_VISIT, walkS = tiles / X.SL.WALK_TILES_PER_S;
+    if (at.why !== 'visit' || at.from_x !== working.x || at.from_y !== working.y) out.push('the visit does not walk from his tree: ' + JSON.stringify(at));
+    /* the twin: the server's hold is the data's rule (src/data/town-presence.js TOWN_VISIT at the client's walking speed) */
+    if (!(Math.abs(at.left_s - (walkS * V.pathFactor + V.holdS)) < 0.01) || !(at.left_s > walkS + V.holdS)) out.push(`the hold is ${at.left_s} s for a ${walkS.toFixed(1)} s walk`);
+    /* A GATHER TICK FOLLOWS: the settle's write, and a pointer write the trigger notes; the town reads: he still stands at the fire */
+    await db.query('update public.player_state set accrued_to = now(), active_kind = \'gather\', active_id = \'normal_tree\' where user_id = $1 and slot = 0', [A]);
+    await db.query('insert into public.town_moves (user_id, slot, from_hunt, at) values ($1, 0, null, now())', [A]);
+    await calm(db);
+    await read();
+    const held = await body();
+    if (!held || held.station_id !== 'hearth' || held.stand_no !== at.stand_no || held.why !== 'visit') out.push('a gather tick took him off the fire mid-visit: ' + JSON.stringify(held));
+    /* THE VISIT ENDS (its whole hold passes: one transaction's clock stands still, so the visit is moved back by it): he walks back to his tree from the fire */
+    await db.query("update public.town_bodies set since = since - (visit_until - now()) - interval '1 second', visit_until = now() - interval '1 second' where user_id = $1 and slot = 0", [A]);
+    const back = await read();
+    const after = await body();
+    if (!after || after.station_id !== job || after.why !== 'work' || after.left_s !== null || after.from_x !== at.x || after.from_y !== at.y) out.push('the ended visit left him ' + JSON.stringify(after));
+    if (!back || !back.me || back.me.station !== job || back.me.work !== true) out.push('the read after the visit says me = ' + JSON.stringify(back && back.me));
+    /* THE WORLD THROWS ON ARRIVAL, 40 s after the press (the 37 s walk), at the stand the answer named; once the server moves him on, never */
+    let clock = 1000000;
+    const tp = new X.TP.TownPresence({ server: { rpc: async () => ({ ok: true, body: { ok: true, walkers: [], gone: [] } }) }, slot: 0, timers: { setTimer: () => 1, clearTimer: () => {} }, now: () => clock });
+    tp.show(THE_MAP);
+    tp.noteStand(ans.me);
+    tp.noteBurn('borax');
+    const me = tp.me();
+    const burn = tp.lastBurn();
+    tp.destroy();
+    if (!me || !burn || !burn.stand) return out.concat(['the presence kept no stand for the burn: ' + JSON.stringify(burn)]);
+    const map = { T: 32, ambient: [{ id: 'hearth_fire', x: me.at[0], y: me.at[1] - 2, lift: 0 }] };
+    const sprites = { hearth_fire: {}, hearth_flare: {}, [X.GS.POWDER_CHUNK]: {} };
+    const stood = { station: me.station, stand: me.stand, since: me.since, x: me.at[0], y: me.at[1] };
+    const there = { x: me.at[0], y: me.at[1], gx: me.at[0], gy: me.at[1] };
+    const env = (m) => ({ place: there, units: [], walkers: [], me: m, active: null, burn, flame: null, xp: null, hero: { x: there.x, y: there.y } });
+    const thrown = X.HB.createHearthView(map, { sprites }).frame(env(stood), clock + 40000).fx.map((f) => f.id);
+    if (!thrown.includes(X.GS.POWDER_CHUNK)) out.push('40 s after the press the hero reached the fire and threw nothing: ' + JSON.stringify(thrown));
+    const moved = X.HB.createHearthView(map, { sprites }).frame(env({ ...stood, since: stood.since + 60000 }), clock + 40000).fx.map((f) => f.id);
+    if (moved.includes(X.GS.POWDER_CHUNK)) out.push('a burn was thrown at a stand its answer did not name');
+    return out;
+  },
+
   'TS-HUNT': async (db, X) => {
     const out = [];
     await hero(db, A, 0, 'Marlow');
@@ -904,8 +975,9 @@ const ARMS = {
     if (X.TP.walkerOf(W({ colors: { head: -1, body: 2, legs: 3, feet: 4 } })).colors !== null) out.push('a negative dye passed');
     if (X.TP.walkerOf(W({})).title !== null || X.TP.walkerOf(W({})).colors !== null) out.push('a walker from an older answer does not read null');
 
-    const plates = [X.TS.plateTextOf(X.TP.walkerOf(W({ title: 'the Wolfer' }))), X.TS.plateTextOf(X.TP.walkerOf(W({ id: B, name: 'Tamsel' })))];
-    if (plates[0] !== 'Marlow the Wolfer · 18' || plates[1] !== 'Tamsel · 18') out.push('the plates read ' + JSON.stringify(plates));
+    /* the title under the name (Tyler 2026-11-08: "Fingerguns / The Rat catcher") */
+    const plates = [X.TS.plateOf(X.TP.walkerOf(W({ title: 'the Wolfer' }))), X.TS.plateOf(X.TP.walkerOf(W({ id: B, name: 'Tamsel' })))];
+    if (plates[0].text !== 'Marlow · 18' || plates[0].title !== 'the Wolfer' || plates[1].text !== 'Tamsel · 18' || plates[1].title !== null) out.push('the plates read ' + JSON.stringify(plates));
 
     const row = (o) => ({ id: 'aaaaaaaa-0000-4000-8000-0000000000a1', channel: 'global', from_id: A, from_name: 'Marlow', from_slot: 0, from_level: 18, from_weapon: null, from_role: null, body: 'hi', created_at: '2026-11-04T09:00:00Z', ...o });
     const line = X.CL.lineOf(row({ from_title: 'the Wolfer' }), { tz: 'utc' });
@@ -964,6 +1036,7 @@ async function loadReaders(root) {
     engineFiles: ENGINE_FILES,
     edgeFiles: EDGE_FILES,
     TP: await import(u('src/session/town-presence.js')),
+    TPD: await import(u('src/data/town-presence.js')),
     TS: await import(u('src/world/town-scene.js')),
     CL: await import(u('src/social/chat-lines.js')),
   };

@@ -34,13 +34,14 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ownHeroSlots, asOldLadder } from './_slots.mjs';
+import { OUT_FILE } from '../tools/gen-title-catalogue.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const A = '000000c0-0000-4000-a000-0000901d7c01';
 const B = '000000c0-0000-4000-a000-0000901d7c02';
 const idem = () => crypto.randomUUID();
 const MIG = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
-const CATALOGUE = '2027-03-12-boss-call-titles-catalogue.generated.sql';
+const CATALOGUE = OUT_FILE;   // the generator's current forward file: an older catalogue file is applied history and re-running it after its successor would roll the words back
 const FILE = '2027-02-28-titles.sql';
 const COLORS = '2027-03-05-hero-colors.sql';   // restates hr_title_wear: a second apply of this file is followed by that one's, as the chain orders them
 const BUY = 'public.hr_title_buy(integer,text,bigint,uuid)';
@@ -133,8 +134,8 @@ const ARMS = {
       if (!d) continue;
       if (r.words !== d.words || r.price !== d.price || r.kills !== d.kills || r.monsters.join() !== d.monsters.join()) out.push(`${r.title_id} differs from the data file: ` + JSON.stringify(r));
       /* the words survive the seam's own filters */
-      const plate = X.TS.plateTextOf(X.TP.walkerOf({ id: A, slot: 0, name: 'Marlow', x: 1, y: 1, gx: 1, gy: 1, dir: 's', level: 18, title: d.words }));
-      if (plate !== `Marlow ${d.words} · 18`) out.push(`${r.title_id}'s plate reads ${plate}`);
+      const plate = X.TS.plateOf(X.TP.walkerOf({ id: A, slot: 0, name: 'Marlow', x: 1, y: 1, gx: 1, gy: 1, dir: 's', level: 18, title: d.words }));
+      if (plate.text !== 'Marlow · 18' || plate.title !== d.words) out.push(`${r.title_id}'s plate reads ${JSON.stringify(plate)}`);
       const line = X.CL.lineOf({ id: 'aaaaaaaa-0000-4000-8000-0000000000a1', channel: 'global', from_id: A, from_name: 'Marlow', from_slot: 0, from_level: 18, from_weapon: null, from_role: null, from_title: d.words, body: 'hi', created_at: '2026-11-04T09:00:00Z' }, { tz: 'utc' });
       if (!line || line.title !== d.words) out.push(`${r.title_id}'s chat line lost its title`);
       if (d.words.length > 40) out.push(`${r.title_id}'s words are over 40 letters`);

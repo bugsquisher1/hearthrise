@@ -20,18 +20,19 @@
 // answers, and the ledger changes only from the re-read envelope. A refusal is
 // said in plain words. A room whose rungs do nothing yet offers no purchase.
 // ════════════════════════════════════════════════════════════════════════
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.110';
-import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.110';
-import { bagOf, bankOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.110';
-import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.110';
-import { ROOM_PERKS } from '../../data/perks.js?v=0.2.110';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.110';
-import { whole, gold } from '../../render/format.js?v=0.2.110';
-import { itemName } from '../widgets/bits.js?v=0.2.110';
-import { runIntent } from '../intent-words.js?v=0.2.110';
-import { whereToGet } from '../item-lore.js?v=0.2.110';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.110';
-import { t } from '../../render/player-text.js?v=0.2.110';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.111';
+import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.111';
+import { bagOf, bankOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.111';
+import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.111';
+import { ROOM_PERKS } from '../../data/perks.js?v=0.2.111';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.111';
+import { whole, gold } from '../../render/format.js?v=0.2.111';
+import { itemName } from '../widgets/bits.js?v=0.2.111';
+import { runIntent } from '../intent-words.js?v=0.2.111';
+import { wherePlaces } from '../item-lore.js?v=0.2.111';
+import { patchParts, placesParts } from '../goto.js?v=0.2.111';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.111';
+import { t } from '../../render/player-text.js?v=0.2.111';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']);
 const SCRATCH = new WeakMap();
@@ -69,7 +70,7 @@ function heldWords(inBag, storage) {
 }
 
 /* A step's cost against the building hero's bag and the account's Storage, which the server takes in that order
-   ('Oak Log 40 (12 in your bag + 30 in Storage)'): [{ key, label, where, short }] (`where`: a short material's source) and whether all of it is there. A count
+   ('Oak Log 40 (12 in your bag + 30 in Storage)'): [{ key, label, where, places, short }] (`where`: a short material's source, `places` the same piece by piece for its links) and whether all of it is there. A count
    the server did not send is not invented: no bag means every line is short; no Storage means the bag alone. */
 export function costLines(step, purse, bag, bank) {
   const held = new Map((bag || []).map((r) => [r.id, r.qty]));
@@ -80,10 +81,11 @@ export function costLines(step, purse, bag, bank) {
     const inBag = bag ? held.get(it.id) || 0 : null;
     const inStorage = stored ? stored.get(it.id) || 0 : null;
     const short = inBag === null || inBag + (inStorage || 0) < it.qty;
-    /* A short material says where it comes from, here, where the player is looking for it (a creature that needs a bigger pull too). */
-    const where = short ? whereToGet(it.id) : '';
+    /* A short material says where it comes from, here, where the player is looking for it (a creature that needs a bigger pull too),
+       each place a link to its window (Tyler 2026-11-08). */
+    const places = short ? wherePlaces(it.id) : [];
     lines.push({ key: it.id, label: inBag === null ? t('house.cost_item', { item: itemName(it.id), qty: whole(it.qty) })
-      : t('house.cost_item_held', { item: itemName(it.id), qty: whole(it.qty), held: heldWords(inBag, inStorage) }), where: where ? t('house.cost_where', { where }) : '', short });
+      : t('house.cost_item_held', { item: itemName(it.id), qty: whole(it.qty), held: heldWords(inBag, inStorage) }), where: places.map((p) => p.words).join('. '), places, short });
   }
   return { lines, afford: !lines.some((l) => l.short) };
 }
@@ -94,7 +96,7 @@ function patchCost(ctx, ul, step, purse, bag, bank) {
   rows(ul, c.lines, {
     key: (l) => l.key,
     build: () => element(ctx.doc, '<li class="hw-mat"><span></span> <small class="hw-mat-where"></small></li>'),
-    patch: (li, l) => { text(li.querySelector('span'), l.label); text(li.querySelector('small'), l.where || ''); cls(li, 'is-short', l.short); },
+    patch: (li, l) => { text(li.querySelector('span'), l.label); patchParts(li.querySelector('small'), placesParts(l.places || [])); cls(li, 'is-short', l.short); },
   });
   return c.afford;
 }
@@ -149,7 +151,7 @@ renderHouse.patch = function patchHouse(body, ctx) {
       text(li.querySelector('small'), tier.owned ? (tier.tier === home.tier ? t('house.deed_yours_home') : t('house.deed_yours'))
         : isNext ? (opens.length ? t('house.deed_opens', { rooms: opens.join(', ') }) : t('house.deed_next_home')) : t('house.deed_after', { tier: tierName(tier.tier - 1) }));
       const afford = patchCost(ctx, li.querySelector('.hw-mats'), isNext ? tier : null, purse, bag, bank);
-      patchAsk(li.querySelector('button'), 'home', isNext ? tier.offer : null, t('house.buy'), isNext && afford && !sc.pending);
+      patchAsk(li.querySelector('[data-hs-act="house-ask"]'), 'home', isNext ? tier.offer : null, t('house.buy'), isNext && afford && !sc.pending);
       cls(li, 'is-held', tier.owned);
       cls(li, 'is-next', isNext);
     },
@@ -177,7 +179,7 @@ renderHouse.patch = function patchHouse(body, ctx) {
       text(li.querySelector('small'), capital(line));
       const buyable = open && useful && n && !gated;
       const afford = patchCost(ctx, li.querySelector('.hw-mats'), buyable ? n : null, purse, bag, bank);
-      patchAsk(li.querySelector('button'), 'home', buyable ? n.offer : null, r.level ? t('house.upgrade') : t('house.build'), buyable && afford && !sc.pending);
+      patchAsk(li.querySelector('[data-hs-act="house-ask"]'), 'home', buyable ? n.offer : null, r.level ? t('house.upgrade') : t('house.build'), buyable && afford && !sc.pending);
       cls(li, 'is-locked', !open);
     },
   });
@@ -195,7 +197,7 @@ renderHouse.patch = function patchHouse(body, ctx) {
       text(li.querySelector('small'), t('house.chest_stacks', { stacks: whole(c.stacks) }) + ' ' + (c.built ? t('house.chest_built')
         : isNext ? (can ? t('house.chest_next') : t('house.chest_needs', { tier: tierName(c.tier) })) : prev ? t('house.chest_after', { name: prev.name }) : t('house.chest_after_first')));
       const afford = patchCost(ctx, li.querySelector('.hw-mats'), can ? c : null, purse, bag, bank);
-      patchAsk(li.querySelector('button'), 'chest', can ? c.chest : null, t('house.build'), can && afford && !sc.pending);
+      patchAsk(li.querySelector('[data-hs-act="house-ask"]'), 'chest', can ? c.chest : null, t('house.build'), can && afford && !sc.pending);
       cls(li, 'is-held', c.built);
     },
   });

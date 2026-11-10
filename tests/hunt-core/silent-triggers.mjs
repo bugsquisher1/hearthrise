@@ -134,14 +134,14 @@ const cases = {
     const sl = slotOf('frost_lance', bar[1].conditions);
     const f = fight(M, 'mage', [sl], { mons: [[13, 3]], mana: 200, maxMana: 500 });
     const said = M.W.waitReason(sl, 1, f.test());
-    if (!said || !said.rest || said.need || said.text !== 'Waiting until my mana is at or above 70%.') return 'Frost Lance under 70% mana reads ' + JSON.stringify(said);
+    if (!said || !said.rest || said.need || said.text !== 'Waiting until my mana is at least 70%.') return 'Frost Lance under 70% mana reads ' + JSON.stringify(said);
     if (casts(M, f, 100).frost_lance) return 'CONTROL: Frost Lance fired under 70% mana';
     const full = fight(M, 'mage', [sl], { mons: [[13, 3]], mana: 400, maxMana: 500 });
     if (M.W.waitReason(sl, 1, full.test()) !== null || !casts(M, full, 100).frost_lance) return 'Frost Lance over 70% mana does not simply fire';
     /* A count that isn't an "at least" (the player's own test) reads as it is, words only: never "2 or more". */
     const exact = slotOf('fireball', [{ metric: 'enemies_in_aoe', op: 'eq', value: 2 }]);
     const reads = M.W.waitReason(exact, 1, fight(M, 'mage', [exact], { mons: [[13, 3]] }).test());
-    return reads && reads.rest && reads.text === 'Waiting until the number of monsters it would hit is 2.' ? null : 'exactly 2 reads ' + JSON.stringify(reads);
+    return reads && reads.rest && reads.text === 'Waiting until it would hit exactly 2 monsters.' ? null : 'exactly 2 reads ' + JSON.stringify(reads);
   },
   'every-suggestion': (M) => {
     const bad = [];

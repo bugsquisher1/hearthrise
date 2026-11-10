@@ -1163,7 +1163,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const mid = await page.evaluate(() => Array.from(document.querySelectorAll('.ca-form button, .ca-form select, .ca-form input')).every((b) => b.disabled));
           if (!mid) fails.push('HS-7 Configure action stayed on while its intent was in flight');
           /* ...as a plain sentence, the words Configure action uses (core-loop play 2026-10-30: "When My HP % below 50%.") */
-          if (!/When my HP is at or below 50%\./.test(tipBefore)) fails.push('HS-7 the slot tooltip did not show the server’s setup in plain words: ' + tipBefore);
+          if (!/When my HP is at most 50%\./.test(tipBefore)) fails.push('HS-7 the slot tooltip did not show the server’s setup in plain words: ' + tipBefore);
           await until(() => s.sent('hr_action_set_options').length >= 1);
           s.release('options');
           const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
@@ -1933,7 +1933,7 @@ const MUTANTS = [
   ['the analyzer keeps the last numbers when the section goes', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],
   ['the metric picker is a hard-coded list', 'src/shell/windows/configure-action.js', "options(METRICS.map((m) => [m.id, m.say]))", "options([['self_hp_pct', 'My HP %'], ['self_mana_pct', 'My mana %']])"],
   ['the controls stay on while a bar intent is in flight', 'src/shell/windows/configure-action.js', '  const off = s.pending;', '  const off = false;'],
-  ['a slot tooltip words its test as a form label', 'src/shell/bar-draft.js', "  const op = OPERATORS[c.op] ? OPERATORS[c.op].say : c.op;", "  const op = OPERATORS[c.op] ? OPERATORS[c.op].label : c.op;"],
+  ['a slot tooltip reads its number with no unit (Tyler 2026-11-08: "at or above 2 what?")', 'src/shell/bar-draft.js', " + c.value + unitWords(m, c.value) + (m.subjectAfter ? subject : '');", " + c.value + (m.subjectAfter ? subject : '');"],
   ['a server validation error is not shown inline', 'src/shell/bar-draft.js', '  else { s.error = r;', '  else { s.error = null;'],
   ['the bar hides in town', 'src/data/hud-widgets.js', "removable: true, when: 'always',\n    phone: Object.freeze({ dy: 2 }),", "removable: true, when: 'hunt',\n    phone: Object.freeze({ dy: 2 }),"],
   ['the Food run is sorted by name, not gold per point', 'src/shell/action-table.js', "const byValue = (a, b) => ((a.per === null) - (b.per === null)) || ((a.per || 0) - (b.per || 0))", "const byValue = (a, b) => 0 || 0"],

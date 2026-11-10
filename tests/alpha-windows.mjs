@@ -98,7 +98,7 @@
 //         raw food with a one-input Cooking recipe to food offers Cook all, the same ONE
 //         set_activity { kind:'artisan', id:'cook_wolf_meat' }; the Cooking line reads the
 //         server's pointer; Stop says what the server made and burnt; the tooltip says it
-//         cooks; Sell all loot keeps it; a level under the recipe's says so in words
+//         cooks; Sell all junk keeps it; a level under the recipe's says so in words
 //   AW-21 EQUIP UPGRADES: ONE equip intent naming every strictly better piece (the weapon only within its family and grip, never the off-hand or ammo; never the weapon's style
 //         or a piece above the hero's skill), its slots and stacks marked until the answer, a
 //         refusal in words with nothing moved, the Shop's offer after a gear purchase, a reload agrees;
@@ -360,11 +360,10 @@ async function pure() {
   const { usesOf } = await imp('src/shell/item-lore.js');
   const sold = lootToSell([{ id: 'bones', qty: 15 }, { id: 'rat_tail', qty: 4 }, { id: 'razor_claw', qty: 1 }, { id: 'lamp_jelly', qty: 3 }, { id: 'den_knot', qty: 1 }]);
   if (sold.join(',') !== 'rat_tail') fails.push('AW-0 Sell all loot would sell ' + sold.join(', ') + ' (bones and every Hearth fuel are kept for the Great Hearth)');
-  /* board 2026-10-25 #22: Sell all loot sold Silk Thread, the first Crafting recipes' thread: a material a recipe the hero
-     can make NOW spends is kept (the server's skill level); one only a far higher level spends is sold */
-  const crafter = lootToSell([{ id: 'silk_thread', qty: 6 }, { id: 'slime_gel', qty: 3 }, { id: 'rat_tail', qty: 2 }], { crafting: { xp: 0, level: 1 } });
-  if (crafter.join(',') !== 'slime_gel,rat_tail') fails.push('AW-0 a Crafting 1 hero\'s Sell all loot sells ' + crafter.join(', ') + ' (want slime_gel, rat_tail: Silk Thread is its Crafting 1 thread)');
-  if (lootToSell([{ id: 'slime_gel', qty: 3 }], { crafting: { xp: 0, level: 30 } }).length) fails.push('AW-0 a Crafting 30 hero\'s Sell all loot sells its Slime Gel');
+  /* board 2026-10-25 #22: Sell all loot sold Silk Thread, the first Crafting recipes' thread. Tyler 2026-11-08: a bulk sale never
+     sweeps a Material, whatever the hero's level: Slime Gel (a Crafting 30 input) stays too, and only the Junk is sold */
+  const crafter = lootToSell([{ id: 'silk_thread', qty: 6 }, { id: 'slime_gel', qty: 3 }, { id: 'rat_tail', qty: 2 }]);
+  if (crafter.join(',') !== 'rat_tail') fails.push('AW-0 Sell all junk sells ' + crafter.join(', ') + ' (want rat_tail only: Silk Thread and Slime Gel are Materials)');
   /* WHAT THE PRICE LEAVES OUT (blind playtest 2026-10-31: "Sell all loot · 423 gp" over a list worth 1,215; "×2,004 · 1 gp
      each · Sell · 1,000 gp"): the loot the button keeps is named with its worth, and a stack past one sale's limit is marked. */
   {
@@ -597,7 +596,8 @@ async function itemTruthRules(base) {
     if (it.slot === 'ammo' && it.reqSkill === 'magic' && !/^Rune/.test(kindWords(id))) fails.push('AW-60 the rune ' + id + ' is headed ' + kindWords(id));
     if (/Sell it at the shop/.test(said) && !(Number(it.v) > 0)) fails.push('AW-60 ' + id + ' says to sell it, and the shop bids nothing on it');
     if (it.seed && !/Plant it on the Farm/.test(said)) fails.push('AW-60 the seed ' + id + ' reads ' + said);
-    if (kindWords(id) === 'Monster loot' && /(Made|Gathered|Grown) with/.test(srcs)) fails.push('AW-60 ' + id + ' is headed Monster loot and reads ' + srcs);
+    if (kindWords(id) === 'Junk' && /(Made|Gathered|Grown) with/.test(srcs)) fails.push('AW-60 ' + id + ' is headed Junk and reads ' + srcs);
+    if (kindWords(id) === 'Junk' && /^Used in /.test(said)) fails.push('AW-60 ' + id + ' is headed Junk and reads ' + said);
     if (it.type === 'tool') {
       const pc = Math.round(it.toolSpeed * 100) + '%';
       if (/Sell it at the shop/.test(said) || !said.includes(pc + ' faster') || !/while it's in your bag/.test(said) || !/In Storage it does nothing/.test(said)) fails.push('AW-60 the tool ' + id + ' reads ' + said);
@@ -609,23 +609,26 @@ async function itemTruthRules(base) {
     if (Number(it.v) > 0 && !it.bop && isStartKit(id) !== /Weighhouse won't list/.test(sale)) fails.push('AW-60 ' + id + ' (kit ' + isStartKit(id) + ') says of its buyers: ' + JSON.stringify(sale));
   }
   /* Bug 7 and worse: what a hero makes or gathers is a material, whoever else drops it. */
-  for (const id of ['copper_ore', 'oak_log', 'iron_bar', 'steel_bar', 'timber_beam', 'iron_fitting']) if (kindWords(id) !== 'Material') fails.push('AW-60 ' + id + ' is headed ' + kindWords(id));
+  for (const id of ['copper_ore', 'oak_log', 'iron_bar', 'steel_bar', 'timber_beam', 'iron_fitting', 'gold_bar']) if (kindWords(id) !== 'Material') fails.push('AW-60 ' + id + ' is headed ' + kindWords(id));
   /* SELL ALL LOOT: Slime Gel at Crafting 1 with deed III next (Timber Beam -> Slime Gel); Timber Beam itself; the next deed's Silk Thread. */
   const skills = { crafting: { xp: 0, level: 1 }, smithing: { xp: 0, level: 1 } };
   const bag = ['slime_gel', 'silk_thread', 'timber_beam', 'iron_ore', 'copper_ore', 'normal_log', 'rat_tail', 'bat_wing'].map((id) => ({ id, qty: 5 }));
   const step = (items) => ({ gold: 1, items: items.map((id) => ({ id, qty: 1 })) });
   const manor = { tier: 2, rooms: [], tiers: [{ tier: 1, owned: true, ...step([]) }, { tier: 2, owned: true, ...step([]) }, { tier: 3, owned: false, ...step(['iron_ore', 'silk_thread', 'timber_beam', 'iron_fitting', 'willow_plank']) }] };
   const needs = upgradeNeeds(manor, null);
-  const sold = lootToSell(bag, skills, needs);
-  if (sold.includes('slime_gel') || sold.includes('timber_beam') || sold.includes('iron_ore') || !sold.includes('rat_tail')) fails.push('AW-60 with deed III next, Sell all loot sells ' + sold.join(', '));
-  if (!lootToSell(bag, skills, upgradeNeeds({ tier: 5, rooms: [], tiers: [{ tier: 5, owned: true, ...step([]) }] }, null)).includes('slime_gel')) fails.push('AW-60 Slime Gel stays kept after the House stops asking');
-  if (lootToSell(bag, skills, upgradeNeeds(null, null)).includes('slime_gel')) fails.push('AW-60 a House not yet read sells a recipe\'s material on a guess');
+  const sold = lootToSell(bag, needs);
+  if (sold.includes('slime_gel') || sold.includes('timber_beam') || sold.includes('iron_ore') || !sold.includes('rat_tail')) fails.push('AW-60 with deed III next, Sell all junk sells ' + sold.join(', '));
+  if (lootToSell(bag, upgradeNeeds({ tier: 5, rooms: [], tiers: [{ tier: 5, owned: true, ...step([]) }] }, null)).includes('slime_gel')) fails.push('AW-60 Sell all junk sells Slime Gel, a Material, once the House stops asking');
+  if (lootToSell(bag, upgradeNeeds(null, null)).includes('slime_gel')) fails.push('AW-60 a House not yet read sells a recipe\'s material on a guess');
+  /* the House's own word keeps even Junk: a next step the server prices names it (its catalogue can run ahead of this client's) */
+  const asked = upgradeNeeds({ tier: 1, rooms: [], tiers: [{ tier: 2, owned: false, ...step(['rat_tail']) }] }, null);
+  if (lootToSell(bag, asked).includes('rat_tail')) fails.push('AW-60 Sell all junk sells the Rat Tail the House\'s next step names');
   const roomed = upgradeNeeds({ tier: 2, tiers: [], rooms: [{ opens: 2, next: { need: 2, ...step(['bat_wing']) } }, { opens: 3, next: { need: 3, ...step(['rat_tail']) } }] }, { next: { canBuild: true, ...step(['venom_sac']) } });
   if (!roomed.has('bat_wing') || !roomed.has('venom_sac') || roomed.has('rat_tail')) fails.push('AW-60 upgradeNeeds reads rooms and chests as ' + [...roomed].join(', '));
   const bids = new Map(bag.map((r) => [r.id, 2]));
   const shop = { bids };
-  const onePress = lootSale(bag, { locked: new Set() }, shop, skills, needs);
-  const kept = lootKept(bag, { locked: new Set() }, shop, skills, needs);
+  const onePress = lootSale(bag, { locked: new Set() }, shop, needs);
+  const kept = lootKept(bag, { locked: new Set() }, shop, needs);
   if (onePress.lines.some((l) => l.item === 'slime_gel') || !kept.ids.includes('slime_gel')) fails.push('AW-60 the button sells ' + JSON.stringify(onePress.lines) + ' and says it keeps ' + kept.ids.join());
   /* TOOLS: the row, where it counts, and moving one away. */
   const hero = (inv, bank, offers) => { const e = { inventory: inv, skills, shop: { offers: offers || [], bids: {} }, bank: bank || {} }; return { read: (k) => e[k], account: { read: (k) => e[k] } }; };
@@ -833,7 +836,7 @@ async function planRules(base) {
   /* the rune ladder: a named deeper rune is said at its own price; one above the level is no promise: the spell will not fire, and the fix is the family's Plain */
   const SCORED_ROW = { ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_scored_fire_rune', partner: 'scored_fire_rune', price: 8 };
   const deep = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('fireball', 'plain_scored_fire_rune')], store: RUNES.concat([SCORED_ROW]) } }));
-  if (!deep.startsWith('Runes: Plain Scored Fire Rune from the store, 8 gp a cast |')) fails.push('AW-27 a deeper store rune reads ' + JSON.stringify(deep));
+  if (!deep.startsWith('Runes: Scored Fire Rune from the store, 8 gp a cast |')) fails.push('AW-27 a deeper store rune reads ' + JSON.stringify(deep));
   const short = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [{ ...stored('fireball', 'plain_scored_fire_rune'), usable: false, why: 'store_level' }], store: RUNES.concat([SCORED_ROW]) } }));
   if (!short.startsWith('Runes: no Fire runes of yours. Fireball will not fire. To cast it, press its slot and pick Plain Fire Rune (1 gp a cast)')) fails.push('AW-27 a store rune above the level reads ' + JSON.stringify(short));
   const WATER = RUNES.concat([{ ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_water_rune', partner: 'chalked_water_rune' }]);
@@ -916,13 +919,21 @@ async function planRules(base) {
   /* AW-27 A MOVE THE WORN WEAPON CAN'T USE SPENDS NOTHING: a club hero is not warned about Flame Volley's runes (QA 2026-11-04) */
   const clubSay = say(sess({ hunt_settings: { preset: 0, presets: [], discipline: 'club', slots: [slot('ability', 'flame_volley', 0), slot('ability', 'power_strike', 0)], store: RUNES } }));
   if (/Flame Volley|Fire rune|^Runes:/.test(clubSay)) fails.push('AW-27 a club hero is told about another weapon\'s runes: ' + JSON.stringify(clubSay));
-  /* AW-27 A WEAPON SWAP LEAVES NO MOVE BEHIND (QA 2026-11-04: bow to club kept Hunter's Mark, Flame Volley and Precision Shot struck in 1-3, Power Strike in 7): they come off, the new moves step up, food never moves */
+  /* AW-27 A WEAPON SWAP PUTS THE WORN WEAPON'S MOVES IN FRONT (QA 2026-11-04: bow to club kept Hunter's Mark, Flame Volley and Precision Shot struck in 1-3, Power Strike in 7)
+     AND TAKES NONE OFF (report #79, 2026-11-09: staff to spellbook deleted a Healer's four staff spells, and the staff again brought none back): the moves trade places, food never moves */
   const { barAfterSwap } = await imp('src/shell/bar-assign.js');
   const barSlot = (type, id) => ({ action: { type, id }, conditions: [], join: 'and' });
   const swapped = barAfterSwap({ discipline: 'club', slots: [barSlot('ability', 'hunters_mark'), barSlot('ability', 'flame_volley'), barSlot('ability', 'precision_shot'), barSlot('consume', 'cooked_shrimp'), barSlot('consume', 'salted_shrimp'), barSlot('consume', 'thin_turnip_juice'), barSlot('ability', 'power_strike'), barSlot('ability', 'cleave')] });
   const swapRead = (swapped || []).slice(0, 9).map((w) => (w ? w.action.id : '-')).join(' ');
-  if (swapRead !== 'power_strike cleave - cooked_shrimp salted_shrimp thin_turnip_juice - - -') fails.push('AW-27 the bar after bow to club reads ' + JSON.stringify(swapRead));
+  if (swapRead !== 'power_strike cleave hunters_mark cooked_shrimp salted_shrimp thin_turnip_juice flame_volley precision_shot -') fails.push('AW-27 the bar after bow to club reads ' + JSON.stringify(swapRead));
   if (barAfterSwap({ discipline: 'club', slots: [barSlot('ability', 'power_strike'), barSlot('consume', 'cooked_shrimp')] }) !== null) fails.push('AW-27 a bar with nothing left behind is restated anyway');
+  /* the Healer's round trip, as Marigold played it: staff (restoration) to spellbook (destruction) and back gives the bar she had */
+  const healerBar = [barSlot('ability', 'mend'), barSlot('ability', 'greater_mend'), barSlot('ability', 'circle_of_renewal'), barSlot('ability', 'green_sickness'), barSlot('ability', 'protective_ward'), null, barSlot('consume', 'cooked_shrimp')];
+  const ids = (w) => (w || []).slice(0, 8).map((x) => (x ? x.action.id : '-')).join(' ');
+  const onBook = barAfterSwap({ discipline: 'destruction', slots: healerBar });
+  const back = barAfterSwap({ discipline: 'restoration', slots: onBook || healerBar });
+  if (ids(onBook || healerBar).split(' ').filter((x) => /mend|renewal|sickness|ward/.test(x)).length !== 5) fails.push('AW-27 a swap to the spellbook took moves off the bar: ' + JSON.stringify(ids(onBook)));
+  if (ids(back || onBook || healerBar) !== ids(healerBar)) fails.push('AW-27 staff to spellbook and back reads ' + JSON.stringify(ids(back || onBook)) + ', want the bar as it was, ' + JSON.stringify(ids(healerBar)));
   /* AW-27 A BOW WITH NOTHING LOADED WON'T ATTACK, AND THE PAGE SAYS SO BEFORE ENTER (the kit's bow: 0 kills in 7 minutes) */
   const bowSet = (o) => sess({ hunt_settings: { preset: 0, presets: [], role: 'ranger', slots: [], store: STORE }, inventory: { bronze_arrows: 50 }, ...o });
   const empty = say(bowSet({ equipment: { weapon: 'practice_bow' } }));
@@ -980,7 +991,7 @@ async function planRules(base) {
   const { BASIC_SUPPLIES } = await imp('src/data/supply-basics.js');
   const { ABILITIES: SPELLS } = await imp('src/data/abilities.js');
   const { itemName: nameOfItem, runeWords: runeWordsOf } = await imp('src/shell/widgets/bits.js');
-  const { supplyLines } = await imp('src/shell/action-facts.js');
+  const { factsOf: factsOfSlot } = await imp('src/shell/action-facts.js');
   const LIVE = BASIC_SUPPLIES.map((b) => ({ id: b.id, kind: b.kind, partner: b.partner, heals: b.heals || null, mana: b.mana || null, price: b.price }));
   const barOf = (role, slots) => ({ preset: 0, presets: [], role, slots, store: LIVE, supply_source: 'mine', on_empty: 'switch' });
   const inHunt = (name, role, slots, packed, equipment) => sess({ name, hunt_settings: barOf(role, slots), equipment, inventory: {},
@@ -1043,12 +1054,13 @@ async function planRules(base) {
     if (prepOf(cs, 'ammo') !== text) fails.push('AW-64 ' + what + ', Hunt prep reads ' + JSON.stringify(prepOf(cs, 'ammo')));
   }
   if (readinessLine(readinessOf(inHunt('Fremulon', 'ranger', ...FREMULON))) !== 'Fremulon: ready') fails.push('AW-64 Fremulon is not ready: ' + readinessLine(readinessOf(inHunt('Fremulon', 'ranger', ...FREMULON))));
-  /* the slot's tooltip says the same of the loaded ammo: what is worn, what it costs, and no store behind a free arrow */
-  const loadedSays = (worn, bag) => supplyLines({ type: 'attack_with_item', id: 'loaded' }, { role: 'ranger', store: LIVE, supplySource: 'mine', onEmpty: 'switch' }, bag, worn).join(' ');
+  /* the slot's cost line says the same of the loaded ammo (Tyler 2026-11-08, "Yes, cost line only"): what one shot of the worn
+     ammo costs, own first, then the store's, and no store behind a free arrow */
+  const loadedSays = (worn, bag) => factsOfSlot({ type: 'attack_with_item', id: 'loaded' }, { store: LIVE, bag, worn, set: { role: 'ranger', supplySource: 'mine', onEmpty: 'switch' } }).cost;
   for (const [worn, bag, text] of [
-    ['steel_arrows', [{ id: 'bronze_arrows', qty: 2600 }], 'You carry no Steel Arrows. Your other ammo fires first, then the store’s Plain Steel Arrows, 1 g each, paid as used.'],
-    ['iron_arrows', [{ id: 'iron_arrows', qty: 9 }], 'You carry 9 Iron Arrows. Own stock first, then the store’s Plain Iron Arrows, 1 g each, paid as used.'],
-    ['bronze_arrows', [{ id: 'bronze_arrows', qty: 2600 }], 'Bronze Arrows loaded. They never run out.'],
+    ['steel_arrows', [{ id: 'bronze_arrows', qty: 2600 }], 'Cost: 1 shot of Plain Steel Arrows (1 g)'],
+    ['iron_arrows', [{ id: 'iron_arrows', qty: 9 }], 'Cost: 1 shot of Iron Arrows (you have 9)'],
+    ['bronze_arrows', [{ id: 'bronze_arrows', qty: 2600 }], 'Cost: 1 shot of Bronze Arrows (they never run out)'],
   ]) if (loadedSays(worn, bag) !== text) fails.push('AW-64 the loaded slot on ' + worn + ' reads ' + JSON.stringify(loadedSays(worn, bag)));
   }
   /* AW-8 Hunt prep says HOW MUCH stamina, and in town the supply rate is the LAST hunt's (core-loop play 2026-10-30:
@@ -1159,7 +1171,7 @@ async function planRules(base) {
   ]) if (spareIds(stack([id]), worn, rules, o)) fails.push('AW-70 Sell spare gear would sell ' + what + ': ' + id);
   const clubs = stack(['practice_club', 'klappas_club']);
   const { lootSale, madeFromKit } = await imp('src/shell/bag-model.js');
-  if (lootSale(clubs, rulesAre(), bidsOn(clubs), lv1, null).lines.length) fails.push('AW-70 Sell all loot would sell a club: ' + JSON.stringify(lootSale(clubs, rulesAre(), bidsOn(clubs), lv1, null).lines));
+  if (lootSale(clubs, rulesAre(), bidsOn(clubs), null).lines.length) fails.push('AW-70 Sell all junk would sell a club: ' + JSON.stringify(lootSale(clubs, rulesAre(), bidsOn(clubs), null).lines));
   if (madeFromKit('klappas_club') !== 'practice_club' || madeFromKit('cooked_shrimp') || madeFromKit('bronze_helm')) fails.push('AW-70 made from the kit reads ' + [madeFromKit('klappas_club'), madeFromKit('cooked_shrimp'), madeFromKit('bronze_helm')].join());
   const saleWords = (await imp('src/shell/item-lore.js')).rareSaleWords;
   if (saleWords([{ item: 'klappas_club', qty: 1 }]) !== 'Nothing sells the Practice Club that makes another Klappa\'s Club.' || saleWords([{ item: 'bronze_helm', qty: 3 }])) fails.push('AW-70 a hand sale of the club says ' + JSON.stringify(saleWords([{ item: 'klappas_club', qty: 1 }])));
@@ -1208,7 +1220,7 @@ async function planRules(base) {
     /* THE RUNE LADDER (2027-03-08-rune-ladder-slots.sql): a store rune above the hero's level says which rune and what it needs, not "the server says". */
     const SCORED = STORE.concat([{ ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_scored_fire_rune', partner: 'scored_fire_rune', price: 8 }]);
     const over = reasonOf({ ...spell, action: { ...spell.action, store: 'plain_scored_fire_rune' }, usable: false, why: 'store_level' }, { slots: bar, store: SCORED, discipline: 'destruction', supplySource: 'mine', onEmpty: 'switch' }, [], null, null, { magic: { xp: 1, level: 14 } }, null);
-    if (!over || over.code !== 'store_level' || !over.strike || !/^Plain Scored Fire Rune needs Magic 15\. This slot waits until then/.test(over.text)) fails.push('AW-65 a store rune above the level reads ' + JSON.stringify(over));
+    if (!over || over.code !== 'store_level' || !over.strike || !/^Scored Fire Rune needs Magic 15\. This slot waits until then/.test(over.text)) fails.push('AW-65 a store rune above the level reads ' + JSON.stringify(over));
     /* ...and a slot the server calls ready is not struck by the browser, whatever the backpack says (the hunt bag holds its runes). */
     const ready = reasonOf({ ...spell, usable: true }, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [{ id: 'chalked_fire_rune', qty: 2 }], null, null, null, []);
     if (ready) fails.push('AW-65 a spell with runes in the hunt bag and none in the backpack reads ' + JSON.stringify(ready));
@@ -2434,24 +2446,28 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 40 });
         e.bank = {};
-        e.inventory = { slime_gel: 12, rat_tail: 31, iron_axe: 1, bronze_axe: 1, chalked_fire_rune: 40, turnip_juice: 9, cooked_shrimp: 5 };
+        e.inventory = { slime_gel: 12, rat_tail: 31, venom_sac: 3, iron_axe: 1, bronze_axe: 1, chalked_fire_rune: 40, turnip_juice: 9, cooked_shrimp: 5 };
         e.skills = Object.assign({}, e.skills, { crafting: { xp: 0, level: 1, frac: 0 }, runecrafting: { xp: 0, level: 1, frac: 0 } });
-        e.shop = Object.assign({}, e.shop, { bids: { slime_gel: 5, rat_tail: 6, iron_axe: 250, bronze_axe: 60, turnip_juice: 6, cooked_shrimp: 3 } });
-        e.home = { tier: 2, rooms: [], tiers: [{ offer: 'property.manor', name: 'Stonecross Manor', tier: 3, need: 2, owned: false, gold: 10000, items: { timber_beam: 6, silk_thread: 8 } }] };
+        e.shop = Object.assign({}, e.shop, { bids: { slime_gel: 5, rat_tail: 6, venom_sac: 40, iron_axe: 250, bronze_axe: 60, turnip_juice: 6, cooked_shrimp: 3 } });
+        /* the deed names Venom Sac, a Junk drop no recipe spends: only the House's own word keeps it from Sell all junk */
+        e.home = { tier: 2, rooms: [], tiers: [{ offer: 'property.manor', name: 'Stonecross Manor', tier: 3, need: 2, owned: false, gold: 10000, items: { timber_beam: 6, silk_thread: 8, venom_sac: 2 } }] };
       };
       const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
       s.onCall = (name, b) => { if (name === 'hr_bank_move' && s.reply.ok !== false) { s.env.bank[b.p_item] = b.p_qty; delete s.env.inventory[b.p_item]; } };
       const say = (q) => page.evaluate((x) => { const el = document.querySelector(x); return el ? el.textContent : null; }, q);
       if (!up) fails.push('AW-60 the town did not mount');
       else {
-        /* The Shop: Slime Gel is what deed III's Timber Beam is made from, at Crafting 1. */
+        /* The Shop: Slime Gel is a Material (Timber Beam is made from it); Venom Sac is Junk the House's next deed names;
+           Rat Tail is Junk nothing wants. Only the first two are kept, and the button's price is the Rat Tails alone. */
         await openWin(page, 'v', 'shop');
         await page.click('[data-hs-win="shop"] .hw-tab[data-tab="sell"]');
         await page.waitForTimeout(200);
         const gel = await say('[data-hs-win="shop"] .hw-sell-list .hw-line[data-item="slime_gel"] small');
         const tail = await say('[data-hs-win="shop"] .hw-sell-list .hw-line[data-item="rat_tail"] small');
-        if (!/Sell all loot keeps it/.test(gel || '') || /keeps it/.test(tail || '')) fails.push('AW-60 the Shop: Slime Gel ' + gel + ' / Rat Tail ' + tail);
-        if (!/· 186 gp$/.test(await say('[data-hs-win="shop"] [data-hs-act="sell-loot"]') || '')) fails.push('AW-60 Sell all loot is priced ' + await say('[data-hs-win="shop"] [data-hs-act="sell-loot"]'));
+        const sac = await say('[data-hs-win="shop"] .hw-sell-list .hw-line[data-item="venom_sac"] small');
+        if (!/Sell all junk keeps it/.test(gel || '') || /keeps it/.test(tail || '')) fails.push('AW-60 the Shop: Slime Gel ' + gel + ' / Rat Tail ' + tail);
+        if (!/Sell all junk keeps it/.test(sac || '')) fails.push('AW-60 the Shop forgets the deed that names Venom Sac: ' + sac);
+        if (!/· 186 gp$/.test(await say('[data-hs-win="shop"] [data-hs-act="sell-loot"]') || '')) fails.push('AW-60 Sell all junk is priced ' + await say('[data-hs-win="shop"] [data-hs-act="sell-loot"]'));
         /* Selling the counting tool warns in the sale's own confirmation. */
         await page.click('[data-hs-win="shop"] .hw-line[data-item="iron_axe"] [data-hs-act="sell"]');
         await page.waitForTimeout(150);
@@ -2972,11 +2988,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const WANT = '{"belt":"bronze_belt","body":"iron_platebody","gloves":"leather_gloves","helmet":"iron_helm","ring2":"copper_ring","weapon":"steel_sword"}';
       const sorted = (o) => JSON.stringify(Object.fromEntries(Object.entries(o || {}).sort(([a], [b]) => (a < b ? -1 : 1))));
       const msg = () => page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);
-      if (up) {
+      if (up) aw21: {
         await openWin(page, 'b', 'inventory');
         await page.waitForTimeout(250);
         const pre = await page.evaluate(() => { const l = document.querySelector('.hw-inv .hw-upgrade'); return { on: l.classList.contains('is-on'), q: l.querySelector('.hw-upgrade-q').textContent, off: l.querySelector('button').disabled }; });
-        if (!pre.on || pre.off || !/^Wear Iron Helm \(\+\d+ Defense/.test(pre.q) || /Steel|Mithril/.test(pre.q)) fails.push('AW-21 the preview line is wrong before the press: ' + JSON.stringify(pre));
+        /* Every step below presses or reads this line: when it is already wrong the catch is made, so stop here rather than click a line a mutant
+           reshaped (nightly run 42678595702: a 6 s click timeout on a loaded runner read as HARNESS, not the catch it was). */
+        if (!pre.on || pre.off || !/^Wear Iron Helm \(\+\d+ Defense/.test(pre.q) || /Steel|Mithril/.test(pre.q)) { fails.push('AW-21 the preview line is wrong before the press: ' + JSON.stringify(pre)); break aw21; }
         /* A REQUIREMENT THE SERVER'S NUMBERS SAY IS UNMET (Tyler 2026-10-24, "Gear swapping isn't working": Fingerguns
            was offered Equip on a helm he could not wear, and the refusal said nothing on screen; gear is worn by Level
            since): the picked line's Equip is off and says why, and a press sends nothing. */
@@ -3607,13 +3625,12 @@ const MUTANTS = [
   ['item truth: a tool says sell it again', 'src/shell/item-lore.js', "  if (tool) out.push(tool);\n", ''],
   ['item truth: a kit stone says sell it', 'src/shell/item-lore.js', "Number(it.v) > 0 ? t('item.sell_it') : ", "true ? t('item.sell_it') : "],
   ['item truth: a seed says sell it', 'src/shell/item-lore.js', "  if (it.seed) out.push(t('item.plant_it'));\n", ''],
-  ['item truth: copper ore is monster loot again', 'src/shell/bag-model.js', "if (dropSet().has(id) && !made) return 'loot';", "if (dropSet().has(id)) return 'loot';"],
+  ['item truth: a bar a hero makes files as junk', 'src/shell/bag-model.js', "if (dropSet().has(id) && !made) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';", "if (dropSet().has(id)) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';"],
   ['item truth: a tool files as a material', 'src/shell/bag-model.js', "const made = it.type !== 'tool' && madeSet().has(id);", 'const made = madeSet().has(id);'],
   ['item truth: the shop\'s raw flag files a tool as a material', 'src/shell/bag-model.js', "if (it.type === 'tool') return 'other';", ''],
   ['item truth: Sell all loot ignores the House', 'src/shell/bag-model.js', ' && !(needs && needs.has(r.id))', ''],
-  ['item truth: the House need stops at the Timber Beam', 'src/shell/bag-model.js', 'for (const input of madeFrom().get(id) || []) add(input);', ''],
   ['item truth: a gated room counts as a next step', 'src/shell/bag-model.js', 'if (r.next && r.opens <= home.tier && r.next.need <= home.tier) step(r.next);', 'if (r.next) step(r.next);'],
-  ['item truth: no House read sells on a guess', 'src/shell/bag-model.js', 'const know = needs === null ? null : (skills === undefined ? null : skills);', 'const know = skills === undefined ? null : skills;'],
+  ['item truth: Sell all junk sweeps a Material', 'src/shell/bag-model.js', "return (items || []).filter((r) => kindOf(r.id) === 'junk' && ", "return (items || []).filter((r) => kindOf(r.id) !== 'gear' && "],
   ['item truth: a storage move of the counting tool is silent', 'src/shell/town-work.js', "if (!before || before.id !== id) return '';", "return '';"],
   ['item truth: storing one of two warns', 'src/shell/town-work.js', "  if (left > 0) return '';\n", ''],
   ['item truth: no tool line', 'src/shell/town-work.js', "  const inBag = pick(skill, invOf(cs));\n", "  if (skill) return '';\n  const inBag = pick(skill, invOf(cs));\n"],
@@ -3716,7 +3733,8 @@ const MUTANTS = [
   ['plans: AW-27 three spells read as a fallback ("then")', 'src/shell/hunt-go.js', "+ ' gp a cast').join('. ');", "+ ' gp a cast').join(', then ');"],
   ['plans: AW-27 each store rune is said on its own', 'src/shell/hunt-go.js', "    if (same) same.names.push(p.store.name);\n    else spends.push(", "    spends.push("],
   ['plans: AW-27 a family\'s store rune said twice behind its own runes', 'src/shell/hunt-go.js', "    if (said.has(p.store.name)) continue;\n", ''],
-  ['plans: AW-27 a weapon swap leaves its moves struck on the bar', 'src/shell/bar-assign.js', 'moveOffWeapon(set.discipline, wire[i].action.id)) {', 'false) {'],
+  ['plans: AW-27 a weapon swap leaves its moves struck on the bar', 'src/shell/bar-assign.js', '  const off = (w) => moveOffWeapon(set.discipline, w.action.id);', '  const off = (w) => false;'],
+  ['plans: AW-27 a weapon swap takes the other weapon moves off the bar (report #79)', 'src/shell/bar-assign.js', '  const order = moves.filter((w) => !off(w)).concat(moves.filter(off));', '  const order = moves.filter((w) => !off(w)).concat(moves.filter(off).map(() => null));'],
   ['plans: Hunt prep calls an empty food slot short', 'src/shell/hunt-go.js', "(spare ? '. ' + spare : ''), short: false });", "(spare ? '. ' + spare : ''), short: !usable });"],
   ['plans: AW-64 Hunt prep reads the bag in a hunt', 'src/shell/readiness.js', '  const carried = carriedOf(cs);', "  const inv = cs.read('inventory');\n  const carried = inv ? Object.entries(inv).map(([id, qty]) => ({ id, qty })) : null;"],
   ['plans: AW-64 a free arrow is said with the store behind it', 'src/shell/hunt-go.js', '    if (free && !o.ruled) { endless = true; break; }\n', ''],
@@ -3738,7 +3756,8 @@ const MUTANTS = [
   ['plans: AW-64 a worn slot with none left is not said', 'src/shell/hunt-go.js', 'const parts = (dry ? [dry] : [])', 'const parts = []'],
   ['plans: AW-64 a stack no shot reaches is not said', 'src/shell/hunt-go.js', "(spare ? ' You carry ' + whole(spare.qty) + ' ' + itemName(spare.id) + ': put them on the bar to shoot them.' : '')", "''"],
   ['plans: AW-64 a whetstone reads as a spare arrow', 'src/shell/hunt-go.js', ': carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot', ': carried.filter((r) => r.qty > 0 && ammoPerShot'],
-  ['plans: AW-64 the loaded slot names a store shot it never buys', 'src/shell/bar-draft.js', "const id = a.type === 'attack_with_item' && a.id === 'loaded' ? worn : a.id;", "const id = a.type === 'attack_with_item' && a.id === 'loaded' ? 'steel_arrows' : a.id;"],
+  /* the loaded slot's shot is read where its cost line is (cast-facts.js stockOf since v0.2.111; bar-draft storeOf no longer sees `worn`) */
+  ['plans: AW-64 the loaded slot names a store shot it never buys', 'src/shell/cast-facts.js', "const id = Object.prototype.hasOwnProperty.call(ATTACK_KINDS, a.id) ? worn : a.id;", "const id = Object.prototype.hasOwnProperty.call(ATTACK_KINDS, a.id) ? 'steel_arrows' : a.id;"],
   ['plans: AW-64 ammo under its skill is said as what flies', 'src/shell/hunt-go.js', "    if (short) { if (!locked.some((l) => l.id === id)) locked.push({ id, text: short.text }); continue; }\n", ''],
   ['plans: AW-64 a stack under its skill is offered as a spare', 'src/shell/hunt-go.js', ' && !plan.order.includes(r.id) && !shortOf(r.id, skills, null));', ' && !plan.order.includes(r.id));'],
   ['plans: AW-70 spare gear sells the start kit', 'src/shell/bag-model.js', "kindOf(r.id) === 'gear' && !isStartKit(r.id) && ", "kindOf(r.id) === 'gear' && "],
@@ -3799,7 +3818,7 @@ const MUTANTS = [
   ['coach: the sale\'s confirmation is never ringed (AW-31)', 'src/shell/windows/shop.js', ' data-coach-hook="sell-confirm"', ''],
   ['coach: R opens nothing once Services left the icon row (AW-31)', 'src/data/shell-windows.js', ", tabKeys: Object.freeze({ r: 'services' }) }),", ' }),'],
   ['coach: "Decide once" rings Bones for the shop (AW-31)', 'src/shell/windows/inventory/grid.js', "attr(sel, 'data-coin', coin.has(l.item) ? '' : null);", "attr(sel, 'data-coin', '');"],
-  ['coach: R over the open Shop never switches it to Services (AW-31)', 'src/shell/shell.js', '    for (const id of wm.openIds()) if (wm.wantsTab(id)) refresh(id);\n', ''],
+  ['coach: R over the open Shop never switches it to Services (AW-31)', 'src/shell/shell.js', '    for (const id of wm.openIds()) if (wm.wantsTab(id) || wm.wantsFind(id)) refresh(id);\n', ''],
   ['coach: an ended hunt\'s bar stays over its open summary (AW-31)', 'src/shell/shell.js', " && !wm.isOpen('hunt-summary');", ';'],
   /* The Hunts window, master-detail (designer plan 2026-10-22): AW-25 .. AW-29. */
   ['AW-25 every creature reads common', 'src/shell/hunt-ground-facts.js', "  if (share >= SHARE_BANDS.common) return 'common';", "  return 'common';"],

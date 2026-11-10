@@ -33,6 +33,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { ownHeroSlots, asOldLadder } from './_slots.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const A = '000000c0-0000-4000-a000-0000901d7c01';
@@ -106,6 +107,7 @@ const wear = (db, slot, title, key, uid = A) => as(db, uid, 'select public.hr_ti
 async function hero(db, uid, slot, name) {
   await db.query('insert into auth.users (id) values ($1) on conflict (id) do nothing', [uid]);
   await db.query(`insert into public.hr_access_allowlist (user_id, note) values ($1, 'titles guard') on conflict (user_id) do nothing`, [uid]);
+  if (slot > 0) await ownHeroSlots((sql, p) => db.query(sql, p), uid, slot);   // one slot to start (2027-03-25-hero-slots-one.sql)
   const dye = await one(db, 'select min(idx) from public.hr_outfit_dyes');
   const r = await as(db, uid, 'select public.hr_create_hero($1::int, $2, $3::jsonb, $4::uuid)', [slot, name, JSON.stringify({ head: dye, body: dye, legs: dye, feet: dye }), idem()]);
   if (!r || r.ok !== true) throw Object.assign(new Error(`hr_create_hero(${slot}, ${name}): ` + JSON.stringify(r)), { harness: true });
@@ -458,8 +460,8 @@ const ARMS = {
     await db.exec('savepoint again');
     try {
       await db.exec(MIG(CATALOGUE));
-      await db.exec(text);
-      await db.exec(MIG(COLORS));
+      /* both files' own self-checks make a second hero unpaid: re-applied on the ladder they were written against (tests/_slots.mjs) */
+      await asOldLadder((sql) => db.exec(sql), async () => { await db.exec(text); await db.exec(MIG(COLORS)); });
     } catch (e) {
       out.push('the second apply refused: ' + String(e.message).split('\n')[0].slice(0, 180));
       await db.exec('rollback to savepoint again');

@@ -17,6 +17,11 @@
 //                    (src/core/vitals.js: armour weight against the Level)
 //   strictly better  no number lower and at least one higher, over the WHOLE worn
 //                    set (so breaking a set bonus or a -1 accuracy penalty counts)
+//   jewelry perks    a crafted piece's perks (src/data/jewelry.js) are numbers too, as the
+//                    worn set plays them (combat.js jewelPerksOf: each perk once, the largest
+//                    worn): a Follow-through ring beats a plain one, a second Keen ring beside
+//                    a Keen ring adds nothing, and Keen against Surge is the player's pick
+//                    (played 2026-11-09: a plain Banded Signet stayed on over a perked one)
 //   a tier step      a higher material tier of the weight worn is judged with the
 //                    set bonus left out of both sides, and the line says which set
 //                    bonus it ends (designer ruling 2026-10-31, played: Marlow, Level
@@ -44,10 +49,13 @@
 import { ITEMS } from '../data/items.js?v=0.2.111';
 import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.111';
 import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.111';
+import { JEWEL_PERKS, perkWords } from '../data/jewelry.js?v=0.2.111';
 import { loadoutOf } from '../core/member.js?v=0.2.111';
+import { jewelPerksOf } from '../core/combat.js?v=0.2.111';
 import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.111';
 import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.111';
 import { itemName } from './widgets/bits.js?v=0.2.111';
+import { t } from '../render/player-text.js?v=0.2.111';
 import { reqHave } from './item-lore.js?v=0.2.111';
 import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.111';
 import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.111';
@@ -84,19 +92,23 @@ function numbersOf(worn, level, set = true) {
   }
   const w = armourWeights(worn, ITEMS);
   return { acc, dmg, def: num(eq.defB), steady: num(eq.steadyPm), crit: num(eq.critB) + (set && setBonus ? num(setBonus.critB) : 0),
-    hp: maxHpFor(level, w.heavy), mana: maxManaFor(level, w.light), style: profile.accuracySkill };
+    hp: maxHpFor(level, w.heavy), mana: maxManaFor(level, w.light), style: profile.accuracySkill, perks: jewelPerksOf(worn, ITEMS) || {} };
 }
 
 /* A worn armour piece, and in the bag one of its weight from a higher material tier. */
 const tierStep = (it, cur) => !!cur && it.type === 'armor' && cur.type === 'armor' && num(it.tier) > num(cur.tier);
 
 const DIMS = Object.freeze(['acc', 'dmg', 'def', 'steady', 'crit', 'hp', 'mana']);
+/* The perks either side plays, in the catalogue's order, and one side's size of one (permille, 0 when it plays none). */
+const perksIn = (a, b) => Object.keys(JEWEL_PERKS).filter((p) => p in a.perks || p in b.perks);
+const perkOf = (n, p) => num(n.perks[p]);
 function dominates(a, b) {
   let more = false;
   for (const k of DIMS) { if (a[k] < b[k] - EPS) return false; if (a[k] > b[k] + EPS) more = true; }
+  for (const p of perksIn(a, b)) { if (perkOf(a, p) < perkOf(b, p)) return false; if (perkOf(a, p) > perkOf(b, p)) more = true; }
   return more;
 }
-const same = (a, b) => DIMS.every((k) => Math.abs(a[k] - b[k]) < EPS);
+const same = (a, b) => DIMS.every((k) => Math.abs(a[k] - b[k]) < EPS) && perksIn(a, b).every((p) => perkOf(a, p) === perkOf(b, p));
 
 const STYLE_WORDS = Object.freeze({ melee: 'Melee', ranged: 'Ranged', magic: 'Magic' });
 /* What one pick adds, in words, in reading order: [{ label, text }]. */
@@ -109,6 +121,8 @@ function gainsOf(before, after) {
     if (d < EPS) continue;
     out.push({ label: label[k], text: (k === 'steady' ? '-' + d / 10 + '%' : '+' + (k === 'crit' ? (Math.round(d * 1000) / 10) + '%' : Math.round(d))) + ' ' + label[k] });
   }
+  /* a perk gained or raised, named as the tooltip and the Hallmark bench say it, at the size the hero then plays */
+  for (const p of perksIn(after, before)) if (perkOf(after, p) > perkOf(before, p)) out.push({ label: JEWEL_PERKS[p].name, text: perkWords(p, perkOf(after, p)) });
   return out;
 }
 
@@ -207,7 +221,8 @@ export function upgradeWords(plan, names = 2, gains = 1) {
   if (!plan.picks.length) {
     if (!Array.isArray(plan.choices) || !plan.choices.length) return '';
     const ties = plan.choices.map((c) => ((EQUIP_SLOT_META[c.slot] || {}).label || c.slot) + ': ' + listWords(c.ids.map(itemName), ' or '));
-    return 'Nothing goes on by itself, since each piece is better at something. ' + ties.join('. ') + '. Pick on the doll, or pick an armor weight at Tamsin\'s.';
+    const weights = plan.choices.some((c) => new Set(c.ids.map((id) => weightOf(ITEMS[id]))).size > 1);
+    return t(weights ? 'shop.upgrade_tie_weights' : 'shop.upgrade_tie', { ties: ties.join('. ') });
   }
   const byId = new Map();
   for (const p of plan.picks) { const g = byId.get(p.id); if (g) g.n++; else byId.set(p.id, { p, n: 1 }); }

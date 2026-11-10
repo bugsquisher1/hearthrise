@@ -28,20 +28,22 @@
 
 import { advanceToolCarry } from './tools.js?v=0.2.114';
 import { rollOdds, perksFor, jewelId, ODDS_SCALE } from '../data/jewelry.js?v=0.2.114';
+import { BURN } from '../data/formulas/town-work.js?v=0.2.114';
 
 /* ── Burn (open-fire cooking) ─────────────────────────────────────────
    Values unchanged from b225 / b227. Documented at length in
    src/features/cooking-fire.js, which still owns the player-facing copy;
    only the numbers and the rate function live here. */
-export const BURN_BASE = 0.25;              // burn chance at the recipe's req level
-export const BURN_PER_LEVEL_RELIEF = 0.01;  // -1pp per cooking level above req
-export const BURN_XP_SHARE = 0.25;          // consolation XP as a share of recipe XP
+/* The numbers are data (src/data/formulas/town-work.js BURN, moved out of this file 2026-11-10); the old names stay exported for their readers. */
+export const BURN_BASE = BURN.base;                           // burn chance at the recipe's req level
+export const BURN_PER_LEVEL_RELIEF = BURN.perLevelRelief;     // -1pp per cooking level above req
+export const BURN_XP_SHARE = BURN.xpShare;                    // consolation XP as a share of recipe XP
 export const BURNT_ITEM = 'burnt_food';
 
 /* One entry per Kitchen rung. L4/L5 restate 0.25 because a rung's bonus map
    REPLACES the rung below it — an L4 that omitted noBurn would silently
    un-burn-proof a player as a reward for upgrading. */
-export const KITCHEN_NO_BURN = [0.13, 0.19, 0.25, 0.25, 0.25];
+export const KITCHEN_NO_BURN = BURN.kitchenNoBurn;
 
 /**
  * The odds this cook is ruined.

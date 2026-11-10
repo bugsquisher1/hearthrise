@@ -10,11 +10,15 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
+import { PACING, SPEED_FUSE, MIN_ACTION_MS } from '../data/formulas/town-work.js?v=0.2.114';
+
 /* b226 (docs/design/pacing-overhaul.md). PACE.xp multiplies every EARNED
    XP grant; PACE.actionMs multiplies every gathering/artisan action
    duration. FARMING is exempt — growth is wall-clock, so actionMs cannot
    reach it and scaling its XP would only deepen an existing hole. */
-export const PACE = { xp: 0.39, actionMs: 1.60 };
+/* The numbers are data (src/data/formulas/town-work.js, moved out of this file 2026-11-10); the old names stay exported for their readers. */
+export const PACE = PACING;
+export { SPEED_FUSE, MIN_ACTION_MS };
 /* Farming, and the combat skills trained in a fight: their XP is paid as the core
    model states it (src/data/core-model.js COMBAT_XP; the skill curve was fitted to
    it as paid). Inner Flame is trained at a bench (fuelling the Great Hearth) and stays on the
@@ -30,14 +34,12 @@ export const SPEED_KEYS = { cookSpeed: 1, smithSpeed: 1, craftSpeed: 1, flameSpe
    0.70 is derived: the largest legal reading is gatherSpeed at the 0.30
    budget peak plus the 0.35 tool ladder = 0.65, so the fuse sits five
    points clear of any legitimate stack and never silently nerfs one. */
-export const SPEED_FUSE = 0.70;
 
 /* Returns the MULTIPLIER, not the bonus: `ms * speedClamp(speed)`.
    A negative total (a debuff) passes through untouched — the fuse is a
    ceiling on how fast you may go, never a floor on how slow. */
 export function speedClamp(speed) { return 1 - Math.min(SPEED_FUSE, (+speed || 0)); }
 
-export const MIN_ACTION_MS = 500;
 
 /** The XP a grant is actually worth after the pacing dial. */
 export function pacedXp(skillId, amt) {

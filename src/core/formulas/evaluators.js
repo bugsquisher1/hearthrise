@@ -22,6 +22,8 @@ import { charXpForLevel, skillXpForLevel, xpForLevel } from '../xp.js?v=0.2.114'
 import { deathXpLoss } from '../action-rules.js?v=0.2.114';
 import { blowsPmOf } from '../temper.js?v=0.2.114';
 import { feeMgOf } from '../bench-tax.js?v=0.2.114';
+import { actionIntervalMs } from '../pacing.js?v=0.2.114';
+import { burnChance } from '../artisan.js?v=0.2.114';
 import { blessingPrice } from '../../data/blessings.js?v=0.2.114';
 import { refillPrice } from '../../data/stamina-refill.js?v=0.2.114';
 import { pricePerHour } from '../../data/scaled-hunts.js?v=0.2.114';
@@ -44,4 +46,6 @@ export const EVALUATORS = Object.freeze({
   'rename.price': renamePrice,
   'shop.price': premiumPriceOf,
   'supply.price': supplyPriceOf,
+  'work.pace': actionIntervalMs,
+  'cooking.burn': burnChance,
 });

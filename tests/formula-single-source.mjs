@@ -210,6 +210,10 @@ const MUTANTS = [
     find: '    const want = supplyPriceOf(b, items[o.item]);', repl: '    const want = Math.ceil(b.price * Number(items[o.item].heals) / b.heals);' },
   { name: 'the generator types the shop premium', rule: 'typed-again', file: 'tools/gen-alpha-catalogue.mjs',
     find: "const SHOP_KIND = Object.freeze({ heal: 'food', mana: 'drink', ammo: 'ammo' });", repl: 'const SHOP_PREMIUM = 2;' },
+  { name: 'core types the speed fuse again', rule: 'typed-again', file: 'src/core/pacing.js',
+    find: 'export { SPEED_FUSE, MIN_ACTION_MS };', repl: 'export const SPEED_FUSE = 0.70;' },
+  { name: 'core types the Kitchen rungs again', rule: 'typed-again', file: 'src/core/artisan.js',
+    find: 'export const KITCHEN_NO_BURN = BURN.kitchenNoBurn;', repl: 'export const BURN = { kitchenNoBurn: [0.13, 0.19] };' },
   { name: 'a pending copy is deleted and stays listed', rule: 'pending', file: 'src/data/shops.js',
     find: '      "VENDOR_RAW_RATE": 0.2,\n', repl: '' },
 ];

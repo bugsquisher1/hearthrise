@@ -45,6 +45,7 @@ import { SCALED_HUNTS } from '../scaled-hunts.js?v=0.2.114';
 import { TEMPER_RUNGS, TEMPER_RUNG_PM, TEMPER_TIERS } from '../temper.js?v=0.2.114';
 import { BENCH_TAX, BENCH_TAX_FREE_UNDER_MG } from '../bench-tax.js?v=0.2.114';
 import { HERO_RENAME } from '../hero-rename.js?v=0.2.114';
+import { PACING, SPEED_FUSE, MIN_ACTION_MS, BURN } from './town-work.js?v=0.2.114';
 import { SHOP_PREMIUM, SHOP_SOLD_KINDS, SHOP_GEAR_SLOTS, BASIC_EFFECT_SHARE, STORE_RUNE_PRICE } from '../supply-basics.js?v=0.2.114';
 
 const row = (r) => Object.freeze({ ...r, expr: Object.freeze(r.expr), params: Object.freeze(r.params), consts: Object.freeze(r.consts),
@@ -273,5 +274,32 @@ export const FORMULAS = Object.freeze([
     consts: { 'src/data/supply-basics.js': ['BASIC_EFFECT_SHARE', 'STORE_RUNE_PRICE'] },
     evaluator: 'src/core/formulas/shop.js supplyPriceOf',
     readers: { 'tools/gen-alpha-catalogue.mjs': 'supplyPriceOf' },
+  }),
+
+  /* ── TOWN WORK (numbers: ./town-work.js) ── */
+  row({
+    id: 'work.pace',
+    title: 'How long town work takes and what its XP is worth',
+    expr: [
+      'an action takes its row\'s time x actionMs x (1 - your speed bonus), rounded down',
+      'a speed bonus never takes more than speedFuse off, and no action is shorter than minActionMs',
+      'the XP a gathering or bench action pays is its row\'s XP x xp',
+      'Farming and the combat skills are paid as written',
+    ],
+    params: { xp: PACING.xp, actionMs: PACING.actionMs, speedFuse: SPEED_FUSE, minActionMs: MIN_ACTION_MS },
+    consts: { 'src/data/formulas/town-work.js': ['PACING', 'SPEED_FUSE', 'MIN_ACTION_MS'] },
+    evaluator: 'src/core/pacing.js actionIntervalMs',
+  }),
+  row({
+    id: 'cooking.burn',
+    title: 'Burning a cook',
+    expr: [
+      'chance = base - perLevelRelief x (your Cooking level - the recipe\'s level) - your Kitchen\'s kitchenNoBurn, never under 0',
+      'a burnt cook pays xpShare of the recipe\'s XP',
+    ],
+    params: { base: BURN.base, perLevelRelief: BURN.perLevelRelief, xpShare: BURN.xpShare, kitchenNoBurn: BURN.kitchenNoBurn },
+    consts: { 'src/data/formulas/town-work.js': ['BURN'] },
+    keys: ['perLevelRelief', 'kitchenNoBurn'],
+    evaluator: 'src/core/artisan.js burnChance',
   }),
 ]);

@@ -256,7 +256,7 @@ const MUTANTS = [
   ['Health is the monster\'s attack', 'src/shell/monster-facts.js', '    hp: Math.max(1, fights.hp || 1),', '    hp: Math.max(1, fights.atk || 1),'],
   ['the blow\'s ceiling is the row\'s attack, not the engine\'s largest blow', 'src/shell/monster-facts.js', '  const top = monsterMaxHit(fights);', '  const top = row.atk;'],
   ['a kill\'s Level XP is cut to a lone hero\'s old share', 'src/shell/monster-facts.js', '    xp: Math.round(fights.xp || 0),', '    xp: Math.round((fights.xp || 0) * 0.55),'],
-  ['a drop\'s chance is cut to a lone hero\'s old share', 'src/shell/monster-facts.js', '{ dropMult: lone.dropMult }', '{ dropMult: lone.dropMult, yieldMult: 0.55 }'],
+  ['a drop\'s chance is cut to a lone hero\'s old share', 'src/shell/monster-facts.js', '      chance: effectiveDropChance(d, { dropMult: lone.dropMult }),', '      chance: effectiveDropChance(d, { dropMult: lone.dropMult }) * 0.55,'],
   ['a drop\'s chance forgets the monster\'s own drop bonus', 'src/shell/monster-facts.js', '{ dropMult: lone.dropMult }', '{}'],
   ['a boss built for a group says nothing of it', 'src/shell/monster-facts.js', "warn: grouped ? partyNote(g.hunt) : '' });", "warn: '' });"],
   ['the page writes Health where the Level XP goes', 'src/shell/windows/monster.js', "  set('xp', whole(f.xp));", "  set('xp', whole(f.hp));"],

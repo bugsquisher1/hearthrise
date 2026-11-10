@@ -132,9 +132,9 @@ export const spellsOf = (m) => (m && Array.isArray(m.spells) ? m.spells.filter(o
    A data row like any other: the edge and the client both carry it, so flipping it is an edge deploy and a client push, never a
    migration (Postgres reads no spell row). The heroes' area abilities are not behind it: a player puts those on the bar.
    MUTABLE LIKE THE ROWS: a test or a balance what-if that needs casts turns it on for its own run and puts it back.
-   IT SHIPS OFF (2026-11-10): with the spells on, the Glade's floor earns +5% over its store bill and two more money and rung guards
-   go red (hunt-core drop-tables profit-floor, forest-cave glade-between, first-week-bands weapon-rungs: CONFLICTS.md 2026-11-10), so
-   the monsters' spells stay dark until the designer's tuning turns those green. Turning it on is this one word, in the lane that tunes. */
+   IT IS ON (lane/d-spell-tuning, 2026-11-10). It shipped off while three money and rung guards were red with the spells on (hunt-core
+   drop-tables profit-floor, forest-cave glade-between, first-week-bands weapon-rungs); the rows above are the tuning that turned them
+   green, measured on the priority board ("2026-11-10 Spell tuning"). Off again is this one word. */
 export const SPELL_SWITCH = { live: true };
 /** The spell ids monster row `m` casts NOW: its list while the switch is on, none while it is off. The engine's one read. */
 export const castsOf = (m) => (SPELL_SWITCH.live === true ? spellsOf(m) : []);

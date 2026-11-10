@@ -30,6 +30,58 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-10 Spell tuning (designer, lane/d-spell-tuning; Tyler 2026-11-08 "AOE DENSITY": "more monsters = more aoe spells", "show the player what is happening to their heros"): BUILT and MEASURED on the real engine. The monsters' spells are ON. **The harder tiers are not yet a wall for a four: that needs one new tier dial, sized below, not built**
+
+**What changed.**
+| What | Before | Now | Why (measured) |
+|---|---|---|---|
+| A caster's first cast (engine) | Every spell ready as the fight starts, so a pack opened with all its casts and repeated in step | Each spell waits a drawn share of its own cooldown, 0 to all of it, from the moment its monster joins the fight (`SPELL_STAGGER`, the swing's own dice) | Casts spread over the cooldown. No cap on casts. No new stored field. Same result viewed or with the browser closed |
+| Spore Cloud, Blasting Charge | 1.5x, 16 s | 1.0x, 32 s | The Glade's lone tank in plate earned +1% over its bill on its worst seed (bar +10%). Now +14% |
+| Smoke Pot | 16 s | 8 s | The Turncoat is one pack in six and dies in seconds. At 16 s a four never met one in an hour |
+| Dodgeable spells on regulars | The Barn Spider only | plus **Muck Fling** (Kobold Tosher, Sewer: a blast on its target's tile, thrown from 4 tiles, poison, 1.5x, 14 s), **Poacher's Volley** (Glade Poacher: a line of 4 through its target, 1.2x, 16 s), **Lash Sweep** (Hobgoblin Foreman, Warrens: a cone of 2, 1.0x, 20 s) | One a ground, one shape each. The Thicket and the Cellar keep none. Rook carried the volley first and cost the lone tank 57 hits an hour, so it went to the glass poacher |
+| Spring Tide | 160 mana. Rule: two allies under 60%, fight on | **120 mana. Rule: the party's HP under 85%, fight on, my mana at 50% or more** | Deadly fours buying every rune and drink (Warrens 32, Glade 24, 2 seeds x 1 h): old rule 0 casts an hour. Under 75%: 0. Fight alone: 59 an hour, 37 to 75% more drinks. New rule: 6.5 and 13.5 an hour, drinks within 15% of none, the Warrens four +578 g an hour a head. The Chief's fight with it is not re-measured (no sim bar carries it) |
+| Steel Hatchets | 14/14 | 14/16 | The rung over Iron read +5.3 to +5.5% on a +5% bar, so any new dice turned it red (+4.5% with the spells). Now +7.4%. 14/15 lands the same biggest hit as 14/14 |
+| Kingsgrate | 1.7% | 1.6% | Read every 9.80 h on a 10-20 h bar once the Rat King's first casts moved |
+
+**How often a pack casts (the wiki's words).** Each spell's first cast comes at a random moment within its cooldown after the monster joins the fight. So a caster casts in about (fight length / cooldown) of its fights: a short Normal fight sees a few casts, a full box's long fight sees most casters cast. More monsters, more spells.
+
+**Deaths an hour at each ground's floor, spells on.** Alone is tank, hammer, bow and mage pooled (4 hero-hours a cell, 1 seed x 1 h). Four is tank, healer, bow, mage (4 hero-hours). "→" is the same cell with 30% resistance simulated (each elemental spell row at 0.7x). A zero here reads as under about 0.75 an hour.
+| Ground | Normal, alone / four | Dangerous, alone / four | Deadly, alone / four |
+|---|---|---|---|
+| Wickstead 8 | 0 / 0 | 0 → 0 / 0 → 0 | 3.0 → 0 / 0 → 0 |
+| Sewer 8 | 0 / 0 | 0 → 0 / 0 → 0 | 0 → 0 / 0 → 0 |
+| Glade 16 | 0 / 0 | 0 → 0.5 / 0 → 0 | 40 → 39 / 0 → 0 |
+| Warrens 32 | 0 / 0 | 0 → 0 / 0 → 0 | 1.75 → 1.25 / 0 → 0 |
+The Thicket and the Mill Cellar have no caster and play as they did. Normal is safe everywhere, alone and as a four. Alone on Deadly the pull is the wall, not the spells (the Glade reads 40 with or without resistance). Only Wickstead's lone Deadly is decided by resistance.
+
+**The wall for a four is not there, and one dial would put it there (not built).** A four at its floor holds Deadly on every ground with no resistance, and the spells cost it little (Glade Deadly: bill 517 → 638 g a head). One row cannot be gentle enough for the Glade's Normal floor and a wall on Deadly. Tiers are percent dials (Tyler 11-07), so the answer is a tier dial for spell strength, `spellPm`, beside `dmgPm`. Fours, 2 seeds x 1 h, deaths an hour and net a head, no resistance → 30%:
+| Spells at | Glade 16 Dangerous | Glade 16 Deadly | Warrens 32 Dangerous | Warrens 32 Deadly |
+|---|---|---|---|---|
+| 1x (today) | 0, 5,062 | 0, 4,180 | 0, 5,776 | 0, 5,041 |
+| 2x | 0, 4,564 → 5,010 | 0, 2,619 → 2,954 | 0, 5,340 → 5,676 | 0, 1,279 → 3,992 |
+| 3x | 0, 3,576 → 4,501 | **0.75, 872 → 0, 2,534** | 0, 768 → 4,705 | **0, -5,574 → 0, 704** |
+| 4x | 0.13, 3,185 → 0, 3,934 | 3.9, 801 → 0.75, 1,542 | 0, -1,976 → 2,552 | 0.25, -12,465 → 0, -3,129 |
+My pick when it is built: Dangerous 2x, Deadly 3x on the Glade and later. At 3x a Deadly four with no resistance dies or loses its profit, and 30% turns it back into a paying hunt. It should land with the linings, since a wall whose answer does not exist yet is only a tax. Needs: the dial on the tier sheet and its generated catalogue (lane C), and one read in `monster-spells.js` `land`.
+
+**Guards, spells on, each run one at a time (exit codes).** `drop-tables --no-mutate` green: the Glade's floor +38% (was +5%), Kingsgrate inside its band. `forest-cave` green, 16 cases and 28 mutants: the Glade's lone tank min +14% on six seeds, the coin-doubled mutant caught again. `first-week-bands --only weapon-rungs` green, 3 mutants: the two hammer mutants now sit two points under the unmoved +5% bar (7/9 reads +3.0%, 9/18 +2.9%), because the old rows sat inside the dice (7/12: +4.4% with no casting, +5.8% with it). `area-spells-normal`, `spell-rows` (13 mutants), `monster-spells` (51 mutants) green. Earlier reds: the Sewer four nets 1,875 against the Thicket's 1,853.5 (green). A Level 1 carried at the Warrens is not re-measured.
+
+**What hit you: the tally and the lines (spec; the server already keeps most of it).** `hunt_analyzer.taken` holds `total`, `byMonster` and `byElement` per hero per hunt today, written by the settle, so it works with the browser closed. Add one map:
+```
+taken: { total, byMonster: { kind: n }, byElement: { ember | frost | poison | physical: n }, bySpell: { spell_id: n } }
+```
+`bySpell` counts a monster spell's hits only (a `dmg` event from a monster whose `ability` is not `basic`). Normal blows are `total` less its sum.
+| Lane | What it adds |
+|---|---|
+| Engine | `src/core/hunt/tally.js`: one line in the `dmg` branch and the empty map, with its `tally.mjs` case. Not built here: the server refuses a map it does not know, so the engine half cannot ship first |
+| Server (lane C) | `hr_hunt_apply_member` and `hr_hunt_analyzer_view`: `bySpell` joins the `taken` maps `hr_hunt_tally_ok` allows (keys are spell ids, 32 at most). Apply before the edge |
+| Client | `hunt-sections.js` `takenBySpell`. The analyzer's Taken tab gets "Taken from spells" (spell, element, damage, share). The hunt summary gets one line a hero and one hint, below |
+| Text (new rows, `src/data/text/`) | `summary.hit_most`: "{spell} hit you hardest. That's {pct}% of the damage you took." · `summary.hint_resist`: "{element} resistance would cut this." · `summary.hint_marked`: "You can step out of this one. A shield takes 30% off it." · `summary.hint_group`: "It hits everyone in the fight, wherever they stand." |
+The hint reads the top spell's own row: an element gives the resistance line, a marked spell with no element the step-out line. One open point for the Coordinator: the Taken tab is premium (Tyler 10-19) and "show the player what is happening" (11-08) reads as everyone. My pick is the one summary line and hint for everyone, the full table premium.
+
+**Played on the local world, switch on (2026-11-10).** See the lane report for what was watched and what was not.
+
+**Not done here.** `2027-03-28-area-spells-hunt-sessions-catalogue.generated.sql` is stale (`gen-hunt-sessions --check`): three new spell rows on the roster and Spring Tide's row. It regenerates at integration. The no-spell digest's harness is not in the tree, so 342a5481 is held here by `monster-spells` `switch-off` and `no-spell-no-trace` (a span with the switch off plays byte for byte the span with no spell row) and by the stagger drawing nothing when no monster casts. Two guards read one seed's dice and went red on a reroll, then green on another (`drop-tables` rare-pace on one played hour of Rat King kills, gear-pace on one six-hour run): they should read a mean.
+
 ### 2026-11-08 One difficulty for every group, and a small solo boost (designer, lane/b-one-difficulty; **Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged. Either they are strong enough to do the harder content or they aren't simple as that"**, then **"Same monsters, re-tune"**): BUILT and RE-TUNED as data, measured on the real engine, four files STAGED (tiers, hunt-sessions, scaled hunts, the Level curve), the edge moves. **Tyler: four reds below are a bar the rule moves, each his call**
 **The call.** A tier is now the same fight for one hero or four: one pull a tier, the same damage and HP. A hero hunting alone earns +5% Level XP (`src/data/party-class-xp.js` `SOLO_XP_PM`), and every mixed-class cell carries the same +5%, so a mixed party keeps its measured lead over the same heroes alone while a one-class party falls 5% further under one. The bigger pulls start at the Glade's floor (`TIER_PULL_FROM_FLOOR` 16): on the Thicket, Wickstead and the Sewer the harder tiers bring no more monsters, for anyone. The lone-hero tier targets are retired (`loneMustCost`, `loneHeldMin`): the sheet now judges what a tier pays whoever holds it, and keeps one ceiling, a four at the floor holds Deadly.
 

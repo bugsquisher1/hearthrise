@@ -854,3 +854,11 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Spring Tide can cost a fight: at the Chief (his damage lands on the tank) 160 mana on the party starved Greater Mend (75% to 65% wins). A big party heal is a decision, not a free win.
 - A boss group pulse is a hard check on a bad bar (0.8x: 95% good, 0-5% bad). 0.4x kept the bad bar near Tyler's 30%.
 - This PC slowed any process about 60x after 3 s of steady load tonight (a JS loop: 2,259 to 35 M adds a second), so balance-sim pools crawled. One cell per fresh process, with rests, ran at full speed. Check with a 8-second loop before a long plan.
+## 2026-11-10 lane/d-spell-tuning (the tuning pass that turned the monsters' spells on)
+- A cooldown is two things once the first cast is staggered over it: how often a caster repeats, and how likely it casts at all in a short fight (about fight length over cooldown). That one number is the density knob: 32 s is rare on Normal and common in a full box.
+- A new spell belongs on a monster that dies fast. The same volley cost a lone tank 57 hits an hour on Rook (81 HP) and almost nothing on the glass poacher.
+- A gentle spell can raise profit: a windup costs the caster its swings. The Glade's lone tank earned more with a 1.0x, 32 s Spore Cloud than with none.
+- One row cannot be safe on Normal and a wall on Deadly for a four. Measure the wall with a multiplier on the tier before proposing it (3x here), and ship the wall with its counter.
+- Three guards sat on their bar with no room (a rung at +5.3% on +5%, a drop at 9.8 h on 10 h, a min-of-six margin). Any change to the fight's dice turns those red. Give the row room, or the guard reads a mean.
+- A rung mutant must sit outside the dice: two seeds by one hour read a rung to about a point and a half.
+- The sim's slotsByRole replaces EVERY role's default lane, not only the role named. Give every role its slots or the bills are fiction.

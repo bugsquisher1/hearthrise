@@ -77,7 +77,8 @@ const VENDOR = 'src/vendor/';   // third-party bundles, pinned by hash: they loa
 const FLOORS = Object.freeze({ 'SITE-1': 100, 'SITE-2': 300, 'SITE-3': 10, 'SITE-4': 5, 'SITE-5': 100 });
 
 // ── THE PLAN ─────────────────────────────────────────────────────────────
-const globRe = (g) => new RegExp('^' + g.split('**/').map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*')).join('(?:[^/]+/)*') + '$');
+/* exported: tools/deploy-staging-site.local.mjs reads the same rows against a release branch's own file list */
+export const globRe = (g) => new RegExp('^' + g.split('**/').map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*')).join('(?:[^/]+/)*') + '$');
 
 /** Every file under `root` as a posix path from it; with `tops`, the root's own files and those folders only. */
 function walk(root, tops) {

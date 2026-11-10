@@ -27,8 +27,8 @@
 //   TE-8  the bootstrap writes staging and nothing else, in the chain's order, schema.sql only into an empty
 //         database, secrets by name only; production is only ever read
 //   TE-9  live-hash-drift never records or explains production's bodies from staging, and grades staging by the replay
-//   TE-10 the staging site is the release's own tree with the staging CNAME and no workflows, one commit, pushed only
-//         to a repository that says staging and only to its `site` branch
+//   TE-10 the staging site is the release's publish set (tools/build-site.mjs PUBLISH) with the staging CNAME: no workflow,
+//         test or tool in it, one commit, pushed only to a repository that says staging and only to its `site` branch
 // Exit: 0 green · 1 a rule red · 2 harness error.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
@@ -370,9 +370,12 @@ async function checks(overrides) {
         if (!w.lines[0].startsWith('[env: staging · site staging.hearthrise.net]')) fails.push('TE-10 the first line is not the staging site: ' + w.lines[0]);
         if (git()(['show', sha + ':CNAME']) !== 'staging.hearthrise.net') fails.push('TE-10 the staging site carries a CNAME that is not the staging host');
         if (git()(['show', 'HEAD:CNAME']) !== 'hearthrise.net') fails.push('TE-10 the harness expected the release\'s own CNAME to be production\'s');
-        const differ = git()(['diff-tree', '-r', '--name-only', 'HEAD', sha]).split('\n').filter(Boolean);
-        if (differ.some((p) => p !== 'CNAME' && !p.startsWith('.github/')) || !differ.includes('CNAME')) fails.push('TE-10 the staging site differs from the release outside CNAME and .github: ' + differ.slice(0, 4).join(', '));
-        if (git()(['ls-tree', '-r', '--name-only', sha, '.github'])) fails.push('TE-10 the staging site carries workflows');
+        const changed = git()(['diff-tree', '-r', '--name-only', '--diff-filter=AMT', 'HEAD', sha]).split('\n').filter(Boolean);
+        if (changed.join() !== 'CNAME') fails.push('TE-10 the staging site holds bytes that are not the release\'s, CNAME apart: ' + changed.slice(0, 4).join(', '));
+        const held = git()(['ls-tree', '-r', '--name-only', sha]).split('\n').filter(Boolean);
+        for (const need of ['play.html', 'index.html', 'src/build-info.js', 'src/app/boot.js', '.nojekyll']) if (!held.includes(need)) fails.push('TE-10 the staging site lacks ' + need);
+        const stray = held.filter((p) => /^(\.github|tests|tools|supabase|docs|\.claude)\//.test(p));
+        if (stray.length || held.length < 500) fails.push(`TE-10 the staging site is not the publish set: ${held.length} files, ${stray.length} outside it (${stray.slice(0, 3).join(', ')})`);
         if (git()(['rev-list', '--count', sha]) !== '1') fails.push('TE-10 the staging site commit drags history with it');
       }
       if (pushes.length) fails.push('TE-10 a dry run pushed: ' + pushes[0]);
@@ -438,7 +441,8 @@ const MUTANTS = [
   ['the engine\'s password is printed (TE-8)', 'tools/staging-bootstrap.local.mjs', "log('engine: role hr_engine_login (login, noinherit, 20 connections, member of hr_engine) has a new password');", "log('engine: role hr_engine_login has the password ' + pw);"],
   ['a failed file does not stop the replay (TE-8)', 'tools/staging-bootstrap.local.mjs', '          return 1;\n        }\n      }\n      noteStagingApply', '          break;\n        }\n      }\n      noteStagingApply'],
   ['the staging site keeps production\'s CNAME (TE-10)', 'tools/deploy-staging-site.local.mjs', "git(['update-index', '--add', '--cacheinfo', `100644,${blob},CNAME`], { env });", ''],
-  ['the staging site carries the workflows (TE-10)', 'tools/deploy-staging-site.local.mjs', "git(['rm', '-r', '-q', '--cached', '--ignore-unmatch', '.github'], { env });", ''],
+  ['the staging site carries the whole repository (TE-10)', 'tools/deploy-staging-site.local.mjs', "if (drop.length) git(['update-index', '-z', '--force-remove', '--stdin'], { env, input: drop.join('\\0') + '\\0' });", ''],
+  ['the staging site drops .nojekyll (TE-10)', 'tools/deploy-staging-site.local.mjs', "p && p !== '.nojekyll' && !rows.some(", 'p && !rows.some('],
   ['the site goes to a repository that does not say staging (TE-10)', 'tools/deploy-staging-site.local.mjs', "if (!repo.toLowerCase().includes('staging')) throw new EnvRefusal(", 'if (false) throw new EnvRefusal('],
   ['another version than the branch\'s is published (TE-10)', 'tools/deploy-staging-site.local.mjs', 'if (built !== ver) throw new EnvRefusal(', 'if (false) throw new EnvRefusal('],
 ];

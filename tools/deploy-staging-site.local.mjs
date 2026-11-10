@@ -6,12 +6,14 @@
 //   options: --ref <git ref>   another source than release/vX.Y.Z      --remote <name>   another remote than `staging`
 //
 // The staging site is a second GitHub Pages site (a second repo, served from its `site` branch on
-// https://staging.hearthrise.net; .claude/coordination/staging-2026-11-10.md §3). What it serves is the release's
-// own tree with TWO differences, both outside the client:
+// https://staging.hearthrise.net; .claude/coordination/staging-2026-11-10.md §3). What it serves is THE PUBLISH SET
+// of the release (tools/build-site.mjs PUBLISH: the same rows production's Pages artifact is built from, about 10 MB
+// of the repository's 253), taken from the release branch's own tree, with two differences outside the client:
 //   CNAME      names the staging host. The tree's own CNAME says hearthrise.net, and a Pages branch that carries
 //              production's CNAME asks GitHub to move production's domain onto the staging repo.
-//   .github/   is left out, so the staging repo holds no workflow: no second CI, nothing scheduled there.
-// Every other byte is the release's (the commit's tree is checked against the source tree before anything is said).
+//   .nojekyll  is kept: the staging repo deploys from a branch, and a branch deploy without it runs Jekyll.
+// No workflow, test, tool or migration is in it: the staging repo runs no CI and nothing scheduled.
+// Every byte it does hold is the release's (checked against the source tree before anything is said).
 // One commit with no parent each time: the staging repo is a shop window, not a history.
 //
 // It never pushes anywhere but a remote whose repository name says staging, and never to a branch named main.
@@ -22,6 +24,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 import { resolveEnv, runTool, EnvRefusal, STAGING_SITE, isStagingHost } from './lib/env.mjs';
+import { PUBLISH, globRe } from './build-site.mjs';
 
 const BRANCH = 'site';
 const gitReal = (args, o = {}) => execFileSync('git', args, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], ...o }).trim();
@@ -55,7 +58,10 @@ export async function main(argv, deps = {}) {
   let commit;
   try {
     git(['read-tree', src], { env });
-    git(['rm', '-r', '-q', '--cached', '--ignore-unmatch', '.github'], { env });
+    /* only what the site publishes: production's own rows, read against this branch's file list */
+    const rows = PUBLISH.map(globRe);
+    const drop = git(['ls-files', '-z'], { env }).split('\0').filter((p) => p && p !== '.nojekyll' && !rows.some((r) => r.test(p)));
+    if (drop.length) git(['update-index', '-z', '--force-remove', '--stdin'], { env, input: drop.join('\0') + '\0' });
     const blob = git(['hash-object', '-w', '--stdin'], { input: host + '\n' });
     git(['update-index', '--add', '--cacheinfo', `100644,${blob},CNAME`], { env });
     const tree = git(['write-tree'], { env });
@@ -64,11 +70,13 @@ export async function main(argv, deps = {}) {
     commit = git(['commit-tree', tree, '-m', `staging site: v${ver} (${src.slice(0, 9)})`], { env: { ...process.env, ...who } });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 
-  /* What differs from the release must be CNAME and .github, and nothing else. */
-  const moved = git(['diff-tree', '-r', '--name-only', src, commit]).split('\n').filter(Boolean);
-  const stray = moved.filter((p) => p !== 'CNAME' && !p.startsWith('.github/'));
-  if (stray.length || git(['show', `${commit}:CNAME`]) !== host) throw new Error(`the site commit is not the release's tree: ${stray.slice(0, 3).join(', ') || 'CNAME is wrong'}`);
-  log(`site commit ${commit.slice(0, 12)} = ${ref} (${src.slice(0, 9)}, v${ver}) with CNAME ${host} and no .github (${moved.length} path(s) differ, none in the client)`);
+  /* Nothing in the site may be new or changed against the release, CNAME apart; and the game's page must be in it. */
+  const changed = git(['diff-tree', '-r', '--name-only', '--diff-filter=AMT', src, commit]).split('\n').filter(Boolean);
+  const held = git(['ls-tree', '-r', '--name-only', commit]).split('\n').filter(Boolean);
+  if (changed.join() !== 'CNAME' || git(['show', `${commit}:CNAME`]) !== host || !held.includes('play.html') || !held.includes('src/build-info.js')) {
+    throw new Error(`the site commit is not the release's publish set: ${changed.filter((p) => p !== 'CNAME').slice(0, 3).join(', ') || 'CNAME or play.html is wrong'}`);
+  }
+  log(`site commit ${commit.slice(0, 12)} = the publish set of ${ref} (${src.slice(0, 9)}, v${ver}): ${held.length} files, CNAME ${host}, every other byte the release's`);
 
   if (!argv.includes('--push')) { log(`Dry run. Add --push to send it to ${remote}/${BRANCH}.`); return 0; }
   const url = git(['remote', 'get-url', remote]);

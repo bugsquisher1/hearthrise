@@ -125,13 +125,13 @@ export class CharacterSession {
   notePurse() { if (!this._closed) this._emit('purse'); }   // a newer ACCOUNT purse, read by another hero (goldOf)
   noteStorage() { if (!this._closed) this._emit('storage'); }   // a newer ACCOUNT Storage, read by another hero (bankOf)
   _emit(why) { for (const fn of Array.from(this._listeners)) { try { fn(this, why); } catch (e) { console.error('[character] a listener failed', e); } } }
-  /** Apply a full envelope from the server (`ageMs`: how old the answer already is, the roster's); false when it was refused. */
-  _take(body, why, ageMs) {
+  /** Apply a full envelope from the server; false when it was refused. */
+  _take(body, why) {
     if (this._closed) return false;
     const r = applyEnvelope(this._record, body);
     this.lastVerdict = r.verdict;
     if (!r.applied) return false;
-    this._record = r.record; this._wholeAt = r.record.version; this._wholeMs = this._now() - (ageMs > 0 ? ageMs : 0);   // a full envelope: every key known at its version
+    this._record = r.record; this._wholeAt = r.record.version; this._wholeMs = this._now();   // a full envelope: every key known at its version, as of now
     /* A residue field set here and not yet put, or put and not yet seen back, is newer than the copy this envelope
        carried (it may predate the put): it stays until the server echoes it (the summary card never blinks out). */
     this._sent = unconfirmedResidue(this._sent, this._record.residue);
@@ -473,7 +473,8 @@ export class CharacterSession {
   }
 
   /** The full read, single-flight (`held`: a whole hr_load answer the account just got, `heldMs` old: read only if it does not land); resync: ONE bounded re-read after a refusal (read-gate.js). True when the record was replaced. */
-  load(held, heldMs) { return this._closed ? Promise.resolve(false) : held && this._take(held, 'load', heldMs) ? Promise.resolve(true) : this._reads.load(); }
+  load(held, heldMs) { return this._closed ? Promise.resolve(false) : held && this._take(held, 'load') ? this._heldFor(heldMs) : this._reads.load(); }
+  _heldFor(ms) { this._wholeMs -= ms > 0 ? ms : 0; return Promise.resolve(true); }   // the account's answer was already `ms` old when it was taken
   resync() { return this._closed ? Promise.resolve(false) : this._reads.resync(); }
   async _loadOnce() {
     if (this._closed) return false;

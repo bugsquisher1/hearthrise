@@ -2009,7 +2009,7 @@ const MUTANTS = [
   ['a reload reads each hero again over the roster\'s answer', 'src/session/account-session.js', 'await cs.load(read && read.ans.ok && age <= this.config.rosterReadFreshMs ? agedBy(read.ans.body, age) : null, age);', 'await cs.load();'],
   ['a character list left standing opens on its old answer', 'src/session/account-session.js', 'read && read.ans.ok && age <= this.config.rosterReadFreshMs ?', 'read && read.ans.ok ?'],
   ['a roster answer sets the server clock back by its age', 'src/session/account-session.js', '? agedBy(read.ans.body, age) : null', '? read.ans.body : null'],
-  ['a roster answer that is no hero is taken, not read', 'src/session/character-session.js', "held && this._take(held, 'load', heldMs) ? Promise.resolve(true) : this._reads.load();", "held ? Promise.resolve(this._take(held, 'load', heldMs)) : this._reads.load();"],
+  ['a roster answer that is no hero is taken, not read', 'src/session/character-session.js', "held && this._take(held, 'load') ? this._heldFor(heldMs) : this._reads.load();", "held ? Promise.resolve(this._take(held, 'load')) : this._reads.load();"],
   ['a roster answer is spent more than once', 'src/session/account-session.js', '    this._rosterReads.delete(slot);\n', ''],
   ['[tick-span] a mid-hunt verb refused settle_first is not caught up', 'src/session/catch-up.js', '    if (!catchingUp(ans) || !o.hunting()) return ans;', '    return ans;'],
   ['[RES-HIDE] a flickering page writes on every hide', 'src/session/character-session.js', "if (hidden && this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;", ''],
@@ -2109,7 +2109,8 @@ const MUTANTS = [
   /* JOIN-READ (hunt-path baseline 2026-11-10: every hero read twice on the way in) */
   ['the join reads again a hero the roster just read', 'src/session/character-session.js', 'held = this._huntOpen() || this._askedAt - this._wholeMs <= SESSION_CONFIG.wholeFreshMs;', 'held = this._huntOpen();'],
   ['a roster answer\'s age is forgotten at the join', 'src/session/account-session.js', '? agedBy(read.ans.body, age) : null, age);', '? agedBy(read.ans.body, age) : null);'],
-  ['a whole copy never grows old', 'src/session/character-session.js', 'this._wholeMs = this._now() - (ageMs > 0 ? ageMs : 0);', 'this._wholeMs = Infinity;'],
+  ['a whole copy never grows old', 'src/session/character-session.js', 'this._wholeMs = this._now();', 'this._wholeMs = Infinity;'],
+  ['the session drops the age the account handed it', 'src/session/character-session.js', '_heldFor(ms) { this._wholeMs -= ms > 0 ? ms : 0; return', '_heldFor(ms) { return'],
   ['the close is asked every 2 s past leave_at', 'src/session/hunt-leave.js', 'Math.max(SESSION_CONFIG.leaveRetryMs, Math.ceil(-left))', 'SESSION_CONFIG.leaveRetryMs'],
   ['an ended hunt keeps re-reading', 'src/session/character-session.js', "typeof h.session_id === 'string' && h.ended !== true;", "typeof h.session_id === 'string';"],
   ['a pending leave waits for the world tick', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.load();"],

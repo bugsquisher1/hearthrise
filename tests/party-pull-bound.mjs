@@ -90,9 +90,14 @@ const AGAIN_MUTANT = { name: 'the catalogue moves a kill bound on every apply',
 
 async function main() {
   if (process.argv.includes('--mutate')) {
-    /* The as-built spawns back on the row, in the row and in the self-check that pins it. */
-    const { db } = await bootReplay({ patches: new Map([[CATALOGUE, [["('mill_cellar', 'mill_cellar', 2, 15, 32000,", "('mill_cellar', 'mill_cellar', 2, 5, 32000,"],
-      ["('mill_cellar', 2, 15)", "('mill_cellar', 2, 5)"]]]]), upTo: CATALOGUE });
+    /* The as-built spawns back on the row, in the row and in the self-check that pins it, ON THE CATALOGUE THAT OWNS THE ROWS TODAY
+       (tools/gen-hunt-sessions.mjs OUT_NAME: every hunt-sessions catalogue is a full replace, so the newest one decides the bound and
+       the world's shape), and the chain stops there. It planted on CATALOGUE and stopped at it until 2026-11-10: one difficulty moved
+       the world's shape, so today's engine answered world_shape_pending on that old chain and no kill was ever counted (run
+       42785532468). The same plant, one file later each time the catalogue moves, with no name to update. */
+    const { OUT_NAME } = await import('../tools/gen-hunt-sessions.mjs');
+    const { db } = await bootReplay({ patches: new Map([[OUT_NAME, [["('mill_cellar', 'mill_cellar', 2, 15, 32000,", "('mill_cellar', 'mill_cellar', 2, 5, 32000,"],
+      ["('mill_cellar', 2, 15)", "('mill_cellar', 2, 5)"]]]]), upTo: OUT_NAME });
     const got = await play(db, 'mill_cellar');
     const hit = got.some((p) => /kills_over/.test(p));
     console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' the as-built spawns on the Cellar: ' + (got[0] || 'every window landed').slice(0, 160));

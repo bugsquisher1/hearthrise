@@ -77,9 +77,6 @@ export const BAR_TEXT = Object.freeze({
   cost_shot_free: '1 shot of {item} (they never run out)',
   /* a spell's rune when no tier of it can be had: the family's ("1 Earth Rune (none left)") */
   family_rune: '{family} Rune',
-  /* Which numbers a spell's lines are for (cast-facts.js versionWords). */
-  numbers_for: 'Numbers for the {rune} at {skill} {level}.',
-  numbers_at: 'Numbers at {skill} {level}.',
 
   /* A slot's setup, and what another slot does to it. */
   setup_any: 'Any of: {conditions}.',

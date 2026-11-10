@@ -272,7 +272,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const st = named && named === d.action ? null : named && storeDefault(named, set.store);
   const f = named ? factsOf(st ? Object.assign({}, named, { store: st }) : named, facts) : null;
   text(root.querySelector('.ca-src'), f && f.cost ? f.cost : '');
-  text(root.querySelector('.ca-eff'), f && named.type === 'ability' ? [f.type].concat(f.effect, [f.version]).filter(Boolean).join(' ') : effectLine(shown));
+  text(root.querySelector('.ca-eff'), f && named.type === 'ability' ? [f.type].concat(f.effect).filter(Boolean).join(' ') : effectLine(shown));
   text(root.querySelector('.ca-req'), f && f.requires ? f.requires : '');
   /* A rune spell's store choice: carried runes only, or a store rune of its family at the server's price a cast. */
   const runes = storeChoices(d.action, set.store, skillsOf(cs));

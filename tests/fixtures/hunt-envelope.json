@@ -10,6 +10,12 @@
     "gold": 1200,
     "level_xp": 21591
   },
+  "level": {
+    "xp": 21591,
+    "level": 7,
+    "into": 1575,
+    "need": 25450
+  },
   "skills": {},
   "inventory": {},
   "hero_slots": [

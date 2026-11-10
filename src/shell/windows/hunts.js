@@ -81,7 +81,7 @@ export function pickHunt(cs, hunt) {
   if (huntRows().some((r) => r.hunt === hunt)) { sc.pick = hunt; sc.auto = false; sc.msg = ''; sc.paged = true; }
 }
 
-/* The character's Level (the server's Level XP on the shared curve), or null. */
+/* The character's Level as the server states it (the envelope's `level` block), or null. */
 function levelOf(cs) {
   const lv = levelRowOf(cs);
   return lv ? lv.level : null;

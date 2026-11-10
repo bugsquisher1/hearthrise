@@ -12,6 +12,8 @@ import { basename } from 'node:path';
 const files = process.argv.slice(2);
 if (!files.length) { console.error('usage: node tools/qa/hunt-path-table.local.mjs <run.json> [...]'); process.exit(2); }
 const runs = files.map((f) => ({ name: basename(f, '.json'), j: JSON.parse(readFileSync(f, 'utf8')) }));
+/* An --ab run counts every commit's rolled-back A half in its tuple counters: its proof is its own `ab` block, never this table. */
+for (const r of runs) if (r.j.ab) { console.error(r.name + ' is an --ab run: its row counts are not a baseline. Read its `ab` block.'); process.exit(2); }
 const U = 'UNMEASURED';
 const n = (v, d = 0) => (Number.isFinite(v) ? (d ? v.toFixed(d) : String(Math.round(v))) : U);
 const st = (s, k = 'median', d = 0) => (s && Number.isFinite(s[k]) ? n(s[k], d) : U);
@@ -35,8 +37,13 @@ const ROWS = [
   ['ROW WRITES a settle, the commit (med / p95)', (j) => pair(j.closed && j.closed.perSettle && j.closed.perSettle.rowsWritten)],
   ['  of them inserts / updates (mean)', (j) => (j.closed && j.closed.writesByTablePerSettle ? n(sumWrites(j.closed.writesByTablePerSettle, 0), 1) + ' / ' + n(sumWrites(j.closed.writesByTablePerSettle, 1), 1) : U)],
   ['  player_ledger rows a settle (mean)', (j) => { const w = j.closed && j.closed.writesByTablePerSettle && j.closed.writesByTablePerSettle['public.player_ledger']; return w ? n(w[0], 2) : U; }],
+  /* a hero-hour: the party's seats times the hunt time the settles covered (simSecondsTotal is the instance's) */
+  ['  player_ledger rows a hero-hour of hunt', (j) => { const c = j.closed, w = c && c.writesByTablePerSettle && c.writesByTablePerSettle['public.player_ledger']; return w && c.simSecondsTotal > 0 ? n(w[0] * c.settles / (j.scenario.party * c.simSecondsTotal / 3600), 1) : U; }],
+  ['  of them renown rows, whole run', (j) => { const l = j.closed && j.closed.ledgerRows; return Array.isArray(l) ? n(l.filter((r) => r.kind === 'renown').reduce((a, r) => a + r.n, 0)) + ' of ' + n(l.reduce((a, r) => a + r.n, 0)) : U; }],
   ['  player_progress writes a settle (mean)', (j) => { const w = j.closed && j.closed.writesByTablePerSettle && j.closed.writesByTablePerSettle['public.player_progress']; return w ? n(w[0] + w[1], 2) : U; }],
-  ['  of them the collection counter, ev:loot ops (mean)', (j) => { const p = j.closed && j.closed.progressOpsPerSettle; return p ? n(p['ev:loot'] || 0, 2) : U; }],
+  ['  player_state updates a settle (mean)', (j) => { const w = j.closed && j.closed.writesByTablePerSettle && j.closed.writesByTablePerSettle['public.player_state']; return w ? n(w[1], 2) : U; }],
+  /* the ops the ENGINE sends; with the `collection_log` switch off hr_apply stores none of them (2027-03-30-dead-writes.sql) */
+  ['  collection counter ops the engine sends a settle, ev:loot (mean)', (j) => { const p = j.closed && j.closed.progressOpsPerSettle; return p ? n(p['ev:loot'] || 0, 2) : U; }],
   ['row writes a fire by the cron body', (j) => st(j.closed && j.closed.perSettle && j.closed.perSettle.cronRowsWritten)],
   ['frames pushed a settle (browser closed)', (j) => st(j.closed && j.closed.perSettle && j.closed.perSettle.framesPushed)],
   ['commit payload the edge sends (med)', (j) => kb(j.closed && j.closed.perSettle && j.closed.perSettle.commitPayloadBytes && j.closed.perSettle.commitPayloadBytes.median)],

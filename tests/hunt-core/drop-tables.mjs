@@ -774,8 +774,8 @@ const bigPullMutants = [
 ];
 /* Planted trees (src/data, src/core, the settle), played on the ground the rule names. */
 const plantMutants = [
-  { name: 'worn gear sells at full book again', rule: 'gear-faucet: meadowbrook_thicket', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14]);', 'export const VENDOR_GEAR_RATES = Object.freeze([1, 1, 1]);']] },
-  { name: 'tier-3 gear sells at the tier-1 rate', rule: 'gear-faucet: coppercap_warrens', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.5]);']] },
+  { name: 'worn gear sells at full book again', rule: 'gear-faucet: meadowbrook_thicket', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015]);', 'export const VENDOR_GEAR_RATES = Object.freeze([1, 1, 1, 1, 1, 1]);']] },
+  { name: 'tier-3 gear sells at the tier-1 rate', rule: 'gear-faucet: coppercap_warrens', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.5, 0.075, 0.033, 0.015]);']] },
   { name: 'the roller reveals nothing (a Rare credited with no hint)', rule: 'reveal-path: meadowbrook_thicket', fresh: true,
     edits: [['src/core/drops.js', 'rare: REVEAL_BANDS.includes(band) });', 'rare: false });']] },
   { name: 'a party\'s Rare skips the rare roll (round-robin instead)', rule: 'reveal-path: millrace_sewer (party of 4)', fresh: true,
@@ -828,6 +828,15 @@ const engineMutants = [
     edits: [['src/core/drops.js', '  if (row && LOOT_BANDS.includes(row.band)) return row.band;\n', '']] },
   { name: 'a Trophy is no reveal', case: 'band-is-the-reveal',
     edits: [['src/data/loot-bands.js', "export const REVEAL_BANDS = Object.freeze(['rare', 'trophy']);", "export const REVEAL_BANDS = Object.freeze(['rare']);"]] },
+  /* THE SALE LADDER FROM TIER 4 UP (lane/b-phase0-tier4, designer 2026-11-08): each new rate one notch under the floor its twin rule sets
+     (0.0747 the Mithril Sword over the Steel, 0.025 the Rune Helm over the Mithril, 0.0127 the Ember Sword over the Rune). The high side is
+     gold-intents G1's pin on the whole ladder, and the faucet cap of each ground that drops the tier. */
+  { name: 'tier-4 gear sells at 0.07 of book (a Mithril Sword under the Steel one)', case: 'sale-ladder',
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.07, 0.033, 0.015]);']] },
+  { name: 'tier-5 gear sells at 0.02 of book (a Rune Helm under the Mithril one)', case: 'sale-ladder',
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.02, 0.015]);']] },
+  { name: 'tier-6 gear sells at 0.012 of book (an Ember Sword under the Rune one)', case: 'sale-ladder',
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.012]);']] },
 ];
 
 const R = makeReport('hunt-core/drop-tables');

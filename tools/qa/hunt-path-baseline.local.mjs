@@ -34,9 +34,20 @@
 // ratios, not the milliseconds. Levels, gear, stamina and the purse are LOCAL fixtures written to this in-memory
 // database (as tools/qa/party-soak.mjs does). The dice secret is pinned (--seed) but the instance id and the wall
 // clock are not: a rerun reproduces the shape, never the same rolls.
+//
+// --ab  THE SAME COMMIT, TWO BODIES (lane/c-dead-writes, 2026-11-10). Two runs never roll the same dice, so "the deltas are
+//   identical before and after" cannot be read off two runs. With --ab every hunt commit of the scenario (watched and tick)
+//   is run TWICE inside its own transaction, from the same state, with the engine's own statement and parameters:
+//     A  under a savepoint, with hr_apply as the chain held it BEFORE 2027-03-30-dead-writes.sql (read off a replay to the
+//        file before it; its md5 must be production's, pinned below), then rolled back: rows, body and role
+//     B  the body this branch installs, kept
+//   and every public table A wrote is compared with B row for row (to_jsonb, ordered). The only differences let through
+//   are the ones the migration is for, named in AB_EXEMPT: the renown ledger rows, the `ev:loot:` progress rows,
+//   player_state.renown_high, and row ids (a sequence does not roll back). The commit's own answer is compared too.
+//   A run with --ab counts A's rolled-back writes in its tuple counters: never feed its JSON to hunt-path-table.
 // mutant-anchors: none — a manual measuring tool, not a CI guard
 // ════════════════════════════════════════════════════════════════════════
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import { charXpForLevel, skillXpForLevel } from '../../src/core/xp.js';
@@ -52,6 +63,7 @@ const STEP_S = Number(opt('--step', 95));
 const VIEWED_S = Number(opt('--viewed', 70));
 const ENTER = String(opt('--enter', 'screen'));   // 'rpc': skip the screen press (a ground past the hero's range asks a confirm the driver does not press)
 const SEED = String(opt('--seed', 'hunt-path-baseline:1'));
+const AB = args.includes('--ab');
 const JSON_OUT = opt('--json', null);
 const PASSWORD = 'local-world-password';   // local-world's own throwaway
 const ACCOUNT = 'baseline';
@@ -110,11 +122,114 @@ const LABELS = [
 const labelOf = (sql) => { const s = String(sql); const hit = LABELS.find(([re]) => re.test(s)); return hit ? hit[1] : 'other: ' + s.replace(/\s+/g, ' ').trim().slice(0, 60); };
 const OVERHEAD = new Set(['role', 'self-marker', 'rest-claims', 'rest-pre-request', 'savepoint']);
 
-function installTaps(world) {
+// ── --ab: ONE COMMIT, TWO BODIES ─────────────────────────────────────────
+const AB_FILE = '2027-03-30-dead-writes.sql';
+const AB_SIG = 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)';
+/* md5(pg_get_functiondef(hr_apply)) on production, read SELECT-only on 2026-11-10 09:33 UTC. The A body must be this one. */
+const AB_PRODUCTION_MD5 = 'a6b41ad4d99b9f2a4168dd48d5d6e05e';
+/* WHAT MAY DIFFER, and nothing else: the two stopped writes, the mark they moved, and ids (a sequence does not roll back). */
+const AB_EXEMPT = {
+  'public.player_ledger': { cols: ['id'], where: "kind <> 'renown'", why: 'the renown journal row is not written; ids come off a sequence' },
+  'public.player_progress': { cols: [], where: "key not like 'ev:loot:%'", why: 'the collection counter is not stored with its switch off' },
+  'public.player_state': { cols: ['renown_high'], where: null, why: 'the renown mark is not raised' },
+  'public.hunt_session_tally': { cols: ['ledger_hwm'], where: null, why: 'the fold\'s high-water mark is a ledger id' },
+  'public.hunt_session_events': { cols: ['id'], where: null, why: 'ids come off a sequence' },
+  'public.town_moves': { cols: ['id'], where: null, why: 'ids come off a sequence' },
+  /* a rare drop's broadcast (2026-11-24-rare-broadcast.sql): the notice's own id, the event row's id and the chat line's uuid */
+  'public.hr_world_notices': { cols: ['id', 'event_id', 'message_id'], where: null, why: 'its id, the event row\'s id (sequences) and the chat line\'s uuid' },
+  'public.chat_messages': { cols: ['id'], where: null, why: 'gen_random_uuid()' },
+};
+const md5 = (s) => createHash('md5').update(s).digest('hex');
+/* The commit's answer, in one canonical string, without the same two things: the mark (`renown_high`) and the sequence id of a
+   projected hunt_session_events row (an object with type, at, session and a numeric id). */
+const abSkip = (o, k) => k === 'renown_high' || (k === 'id' && typeof o.id === 'number' && 'type' in o && 'at' in o && 'session' in o);
+const canon = (v) => (Array.isArray(v) ? '[' + v.map(canon).join(',') + ']'
+  : v && typeof v === 'object' ? '{' + Object.keys(v).filter((k) => !abSkip(v, k)).sort().map((k) => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}'
+    : JSON.stringify(v === undefined ? null : v));
+async function abBodies(db) {
+  const { bootReplay, chainFiles } = await import('../../tests/schema-replay.mjs');
+  const files = (await chainFiles()).map(([name]) => name);
+  const at = files.indexOf(AB_FILE);
+  if (at < 1) throw new Error('--ab: ' + AB_FILE + ' is not in the chain');
+  const pre = await bootReplay({ upTo: files[at - 1] });
+  const preDef = String((await pre.db.query(`select pg_get_functiondef('${AB_SIG}'::regprocedure) as d`)).rows[0].d);
+  await pre.db.close().catch(() => {});
+  const postDef = String((await db.query(`select pg_get_functiondef('${AB_SIG}'::regprocedure) as d`)).rows[0].d);
+  const o = { before: files[at - 1], preMd5: md5(preDef), postMd5: md5(postDef), productionMd5: AB_PRODUCTION_MD5 };
+  o.preIsProduction = o.preMd5 === AB_PRODUCTION_MD5;
+  if (!o.preIsProduction) throw new Error('--ab: hr_apply before ' + AB_FILE + ' is md5 ' + o.preMd5 + ', not production\'s ' + AB_PRODUCTION_MD5);
+  if (o.postMd5 === o.preMd5 || !postDef.includes('DEAD-WRITES')) throw new Error('--ab: this world does not run ' + AB_FILE + '\'s hr_apply');
+  return { preDef, info: o };
+}
+/* Every row of the tables a commit wrote, as one digest a table (the rows themselves are kept only to name a difference). */
+async function abDigest(tx, tables, ledgerFrom) {
+  const out = {};
+  for (const t of tables) {
+    const ex = AB_EXEMPT[t] || { cols: [], where: null };
+    const where = [ex.where, t === 'public.player_ledger' ? 'id > ' + ledgerFrom : null].filter(Boolean).join(' and ');
+    const r = await tx.query(`select coalesce(array_agg(x order by x), '{}') as rows from (select (to_jsonb(t) - $1::text[])::text as x from ${t} t${where ? ' where ' + where : ''}) q`, [ex.cols]);
+    const rows = r.rows[0].rows;
+    out[t] = { n: rows.length, md5: md5(rows.join('\n')), rows };
+  }
+  return out;
+}
+
+function installTaps(world, ab) {
   const db = world.db;
   const rawQuery = db.query.bind(db);
   const rawTx = db.transaction.bind(db);
-  const T = { phase: 'boot', fires: [], engine: [], rest: [], frames: [], fire: null, group: null, raw: rawQuery, lastEnd: null };
+  const T = { phase: 'boot', fires: [], engine: [], rest: [], frames: [], fire: null, group: null, raw: rawQuery, lastEnd: null, ab: [] };
+  const pub = (w) => Object.fromEntries(Object.entries(w).filter(([t]) => t.startsWith('public.')));
+  /* THE COMMIT, TWICE. A runs inside a savepoint with production's hr_apply and is rolled back whole (rows, body, role); B is
+     the engine's own statement, untouched. The reads between run as the owner, each inside a savepoint that puts the engine's
+     role back. Tuple counters do not roll back, so A's and B's writes are each a difference of two reads. */
+  async function abCommit(tx, text, params, opts, runB) {
+    const rec = { phase: T.phase, identical: false, diff: [] };
+    const counters = async () => snapOf((await tx.query(SNAP_SQL)).rows);
+    await tx.query('savepoint hpb_a');
+    await tx.query('reset role');
+    const ledgerFrom = Number((await tx.query('select coalesce(max(id), 0)::bigint as i from public.player_ledger')).rows[0].i);
+    await tx.exec(ab.preDef);
+    await tx.query('set local role hr_engine');
+    const c0 = await counters();
+    let ra = null;
+    try { ra = (await tx.query(text, params, opts)).rows; } catch (e) { rec.errorA = String(e.message).split('\n')[0]; }
+    let snapA = null, wA = {};
+    if (!rec.errorA) {
+      wA = pub(writesBetween(c0, await counters()));
+      await tx.query('reset role');
+      snapA = await abDigest(tx, Object.keys(wA).sort(), ledgerFrom);
+      rec.deadA = { renownRows: Number((await tx.query(`select count(*)::int as n from public.player_ledger where id > $1 and kind = 'renown'`, [ledgerFrom])).rows[0].n) };
+    }
+    await tx.query('rollback to savepoint hpb_a');
+    await tx.query('release savepoint hpb_a');
+    const c2 = await counters();
+    const rb = await runB();
+    const wB = pub(writesBetween(c2, await counters()));
+    await tx.query('savepoint hpb_b');
+    await tx.query('reset role');
+    const snapB = await abDigest(tx, Object.keys(wA).sort(), ledgerFrom);
+    rec.deadB = { renownRows: Number((await tx.query(`select count(*)::int as n from public.player_ledger where id > $1 and kind = 'renown'`, [ledgerFrom])).rows[0].n) };
+    await tx.query('rollback to savepoint hpb_b');
+    await tx.query('release savepoint hpb_b');
+    rec.rowsA = rowsOf(wA); rec.rowsB = rowsOf(wB); rec.writesA = wA; rec.writesB = wB;
+    if (rec.errorA) rec.diff.push('A raised: ' + rec.errorA);
+    else {
+      for (const t of Object.keys(wB)) if (!(t in wA)) rec.diff.push(t + ': written by B only');
+      for (const t of Object.keys(snapA)) {
+        if (snapA[t].md5 === snapB[t].md5) continue;
+        const a = new Set(snapA[t].rows), b = new Set(snapB[t].rows);
+        rec.diff.push(t + ': ' + snapA[t].n + ' rows under A, ' + snapB[t].n + ' under B; only in A: ' + String(snapA[t].rows.find((x) => !b.has(x))).slice(0, 400)
+          + ' | only in B: ' + String(snapB[t].rows.find((x) => !a.has(x))).slice(0, 400));
+      }
+      const ca = canon(ra), cb = canon(rb.rows);
+      if (ca !== cb) { let i = 0; while (i < ca.length && ca[i] === cb[i]) i++; rec.diff.push('the commit answered differently at char ' + i + ': A …' + ca.slice(Math.max(0, i - 160), i + 120) + ' | B …' + cb.slice(Math.max(0, i - 160), i + 120)); }
+      rec.tables = Object.fromEntries(Object.entries(snapA).map(([t, v]) => [t, v.n]));
+    }
+    rec.identical = rec.diff.length === 0;
+    T.ab.push(rec);
+    return rb;
+  }
   let lastSnap = null, dirty = true;   // the last counters read, and whether anything ran since
 
   db.transaction = (fn) => rawTx(async (tx) => {
@@ -143,8 +258,10 @@ function installTaps(world) {
           rec.commit = c;
         }
         const t = performance.now(), c = cpuMs();
-        try { return await tx.query(text, params, opts); }
-        finally { rec.stmts.push({ label: labelOf(s), ms: performance.now() - t, cpuMs: cpuMs() - c }); }
+        try {
+          if (ab && /hr_hunt_apply_instance/.test(s)) return await abCommit(tx, text, params, opts, () => tx.query(text, params, opts));
+          return await tx.query(text, params, opts);
+        } finally { rec.stmts.push({ label: labelOf(s), ms: performance.now() - t, cpuMs: cpuMs() - c }); }
       },
     };
     let ok = false;
@@ -304,7 +421,13 @@ say(`scenario: party ${PARTY}, ${MINUTES} min, ${HUNT} L${LEVEL}, ${STEP_S} s wi
 const world = await openWorld({ tickMs: false });
 out.bootSeconds = Math.round((Date.now() - t00) / 1000);
 say('world up in ' + out.bootSeconds + ' s');
-const T = installTaps(world);
+let ab = null;
+if (AB) {
+  try { ab = await abBodies(world.db); } catch (e) { console.error(String(e.message)); await world.close().catch(() => {}); process.exit(2); }
+  out.ab = { ...ab.info, exempt: Object.fromEntries(Object.entries(AB_EXEMPT).map(([t, x]) => [t, x.why])), note: 'tuple counters in this file include A\'s rolled-back writes: not a baseline run' };
+  say('--ab: A is hr_apply before ' + AB_FILE + ' (md5 ' + ab.info.preMd5 + ', production\'s), B is this branch\'s (md5 ' + ab.info.postMd5 + ')');
+}
+const T = installTaps(world, ab);
 const q = async (sql, p) => (await T.raw(sql, p)).rows;
 /* NOT MEASURED HERE: time per SQL function. PGlite's per-function counters do not survive a transaction the way its tuple counters do (tried
    2026-11-10: they read 0.1 hr_hunt_apply_instance calls a settle, where there is exactly one), so a split read off them would be wrong.
@@ -583,6 +706,26 @@ try {
   out.error = String((e && e.stack) || e);
   console.error('hunt-path-baseline: ' + out.error);
 } finally {
+  if (ab) {
+    const recs = T.ab;
+    const col = (which, t, cols) => recs.reduce((n, r) => n + cols.reduce((m, c) => m + ((r[which] && r[which][t] && r[which][t][c]) || 0), 0), 0);
+    const both = (f) => ({ A: f('writesA', 'deadA', 'rowsA'), B: f('writesB', 'deadB', 'rowsB') });
+    const per = (v) => (recs.length ? Math.round(v / recs.length * 100) / 100 : null);
+    Object.assign(out.ab, {
+      commits: recs.length, byPhase: recs.reduce((m, r) => { m[r.phase] = (m[r.phase] || 0) + 1; return m; }, {}),
+      identical: recs.filter((r) => r.identical).length,
+      differing: recs.filter((r) => !r.identical).slice(0, 5).map((r) => ({ phase: r.phase, diff: r.diff })),
+      tablesCompared: [...new Set(recs.flatMap((r) => Object.keys(r.tables || {})))].sort(),
+      rowWrites: both((w, d, k) => recs.reduce((n, r) => n + (r[k] || 0), 0)),
+      rowWritesACommit: both((w, d, k) => per(recs.reduce((n, r) => n + (r[k] || 0), 0))),
+      ledgerInserts: both((w) => col(w, 'public.player_ledger', [0])),
+      renownRows: both((w, d) => recs.reduce((n, r) => n + ((r[d] && r[d].renownRows) || 0), 0)),
+      progressWrites: both((w) => col(w, 'public.player_progress', [0, 1])),
+      playerStateUpdates: both((w) => col(w, 'public.player_state', [1])),
+    });
+    if (!recs.length || out.ab.identical !== recs.length) code = 1;
+    say('--ab: ' + out.ab.identical + ' of ' + recs.length + ' commits identical; row writes A ' + out.ab.rowWrites.A + ', B ' + out.ab.rowWrites.B);
+  }
   out.totalRealSeconds = Math.round((Date.now() - t00) / 1000);
   if (JSON_OUT) writeFileSync(JSON_OUT, JSON.stringify(out, null, 1));
   console.log(JSON.stringify(out, null, 1));

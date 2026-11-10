@@ -27,6 +27,7 @@
 //   THE WATCHER  SND-16 each moment sounds once: a monster's death under a second id, a hero's death by two roads, a level by two roads
 //                SND-17 a new view is not news: what a hero, the alerts and the chat already hold makes no sound
 //                SND-18 the envelope's edges, the alerts, the ledger, the chat and the windows each raise their sound
+//   THE PAGE     SND-19 off, nothing is mounted; a tap, a click or a key unlocks (phones: touchend); a press ticks; a hidden page is quiet
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, cpSync, rmSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -431,10 +432,53 @@ async function check(base) {
     w.alert({ key: 'invite:late', kind: 'invite', slot: 1 });
     must(w.took() === '' && b.listeners() === 0 && w.beds.ambience === null && w.beds.music === null, 'SND-18 destroyed, the watcher hears nothing more and its beds are let go');
   }
+
+  /* ── SND-19: the page (src/audio/mount.js) over a stand-in window ── */
+  {
+    const { mountSound } = await import(u('src/audio/mount.js'));
+    const page = (search) => {
+      const audio = fakeAudio();
+      const handlers = new Map();
+      const doc = { hidden: false,
+        addEventListener: (type, fn) => { if (!handlers.has(type)) handlers.set(type, new Set()); handlers.get(type).add(fn); },
+        removeEventListener: (type, fn) => { if (handlers.has(type)) handlers.get(type).delete(fn); } };
+      const win = { document: doc, location: { search }, AudioContext: audio.Ctx, performance: { now: () => 1000 }, fetch: () => Promise.resolve({ ok: false }) };
+      const account = { viewed: null, userId: 'me', subscribe: () => () => {}, character: () => null, characters: () => [] };
+      const fire = (type, target) => { for (const fn of Array.from(handlers.get(type) || [])) fn({ type, target: target || null }); };
+      return { audio, doc, win, account, fire, listening: () => Array.from(handlers.values()).reduce((n, s) => n + s.size, 0) };
+    };
+    const off = page('');
+    const none = await mountSound(off.win, off.account, null);
+    must(B.SOUND.shipped || (none === null && off.listening() === 0 && off.audio.made.length === 0), 'SND-19 with sound off the page must mount nothing and listen to nothing');
+    for (const gesture of ['touchend', 'pointerup', 'click', 'keydown']) {
+      const p = page('?sound=tones');
+      const s = await mountSound(p.win, p.account, null);
+      const before = p.audio.made.length;
+      p.fire(gesture);
+      must(!!s && before === 0 && p.audio.made.length === 1 && s.manager.unlocked(), 'SND-19 a ' + gesture + ' must unlock audio (a phone\'s first tap is a touchend), and nothing before it');
+      if (s) s.destroy();
+      must(p.listening() === 0, 'SND-19 destroyed, the page must hold no listener of the sound\'s');
+    }
+    const p = page('?sound=tones');
+    const s = await mountSound(p.win, p.account, null);
+    const button = { disabled: false, getAttribute: () => null, closest() { return this; } }, dead = { disabled: true, getAttribute: () => null, closest() { return this; } };
+    p.fire('click', button);
+    const pressed = s.manager.stats().played;
+    p.fire('click', { closest: () => null });
+    p.fire('click', dead);
+    must(pressed === 1 && s.manager.stats().played === 1, 'SND-19 a press on a control ticks once; a click on nothing, or on a disabled control, does not');
+    p.doc.hidden = true;
+    p.fire('visibilitychange');
+    must(p.audio.made[0].gains[0].gain.value === 0 && p.audio.made[0].state === 'suspended', 'SND-19 a hidden page must go quiet');
+    s.destroy();
+  }
   return errs;
 }
 
 const MUTANTS = [
+  { name: 'a phone\'s tap does not unlock audio', file: 'src/audio/mount.js', from: "const GESTURES = Object.freeze(['pointerup', 'touchend', 'click', 'keydown']);", to: "const GESTURES = Object.freeze(['pointerup', 'click', 'keydown']);", want: 'SND-19 a touchend' },
+  { name: 'the page never tells the mixer it is hidden', file: 'src/audio/mount.js', from: "doc.addEventListener('visibilitychange', onHidden);", to: '', want: 'SND-19 a hidden page' },
+  { name: 'a disabled control ticks', file: 'src/audio/mount.js', from: "if (t && !t.disabled && t.getAttribute('aria-disabled') !== 'true') cue('ui_press');", to: "if (t) cue('ui_press');", want: 'SND-19 a press on a control' },
   { name: 'off still makes an audio context', file: 'src/audio/manager.js', from: "if (!on() || typeof o.AudioContext !== 'function') return false;", to: "if (typeof o.AudioContext !== 'function') return false;", want: 'SND-1' },
   { name: 'boot loads the audio home with sound off', file: 'src/app/boot.js', from: "if (soundModeOf(win.location.search) !== 'off') {", to: 'if (true) {', want: 'SND-1 boot.js' },
   { name: 'boot reaches the audio home with a literal import', file: 'src/app/boot.js', from: 'import(SOUND_URL).then(', to: "import('../audio/mount.js?v=0.2.114').then(", want: 'SND-2' },

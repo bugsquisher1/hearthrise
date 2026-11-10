@@ -33,11 +33,12 @@ const gainOf = (level) => (level && !level.mute ? Math.pow(Math.max(0, Math.min(
  * @param {object} o.sounds   src/data/sounds.js SOUNDS
  * @param {object} o.limits   src/data/sounds.js SOUND_LIMITS
  * @param {string[]} o.buses  bus ids, master first
- * @param {Function} [o.AudioContext]  the constructor (window.AudioContext)
- * @param {Function} [o.fetch]         (url) => Promise<Response>
+ * @param {new () => any} [o.AudioContext]  the constructor (window.AudioContext)
+ * @param {(url: string) => Promise<any>} [o.fetch]
  * @param {(file: string) => string} [o.urlOf]
  * @param {() => number} [o.now]       ms
  * @param {() => number} [o.random]    0..1
+ * @param {(fn: () => void, ms: number) => any} [o.setTimer]  the duck's way back (tests hold it)
  * @param {object} [o.tones]           src/audio/tones.js (mode 'tones')
  */
 export function createSoundManager(o) {

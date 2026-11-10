@@ -2,7 +2,7 @@
 // Hearthrise — THE PRICE CATALOGUE (HAND-AUTHORED since lane S2, 2026-10-18: gen-shops.mjs + legacy.js are gone; the `supply.*` rows spread in from supply-basics.js SUPPLY_SHOP_OFFERS, the source hr_shop_supply_offers is generated from)
 //
 //   catalogue digest: 3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07
-//   89 offers · 187 cost lines · 4 prices that are formulas, not data
+//   89 offers · 187 cost lines
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
@@ -31,10 +31,8 @@
 //   debit every cost line, credit every grant line, one transaction. The
 //   client sends an OFFER ID and never a price.
 //
-// ⚠ DERIVED_PRICES IS NOT DECORATION. These spend sites compute their price at
-//   call time and are NOT in SHOP_OFFERS. A consumer that cannot find an
-//   offer id must REFUSE, never default — a server that invents a price is
-//   worse than a server that has none.
+// PRICES THAT ARE FORMULAS are not in this file: src/data/formulas/registry.js (what the shop pays is `sale.price`). A consumer that
+//   cannot find an offer id must REFUSE, never default: a server that invents a price is worse than a server that has none.
 //
 // CURRENCIES AND WHERE THEY LIVE SERVER-SIDE
 //   gold           player_state.gold
@@ -525,55 +523,3 @@ export const SHOP_TABLES = [
   }
 ];
 
-/**
- * Prices that are FORMULAS, not literals — deliberately absent from
- * SHOP_OFFERS. Listed so nothing downstream mistakes this catalogue for
- * complete. Each says what the server would need in order to own it.
- */
-export const DERIVED_PRICES = [
-  {
-    "id": "bank.gold",
-    "name": "Bank space (gold rung)",
-    "where": "src/legacy.js bankGoldCost() → buyBankSpaceGold()",
-    "currency": "gold",
-    "formula": "round(BANK_SPACE.gold.base * BANK_SPACE.gold.growth ^ G.bank.goldBuys)",
-    "params": {
-      "base": 3000,
-      "growth": 1.32,
-      "slots": 20
-    },
-    "server_needs": "player_state must hold the purchase COUNT; the server recomputes the price from it. Unbounded — the client has no cap, so the server needs one before it authorizes this."
-  },
-  {
-    "id": "vendor.sell",
-    "name": "Vendor sell-back price",
-    "where": "src/screens/shop-counter.js vendorPrice() = supabase/functions/hr-accrue/catalogue.js vendorPriceOf()",
-    "currency": "gold",
-    "formula": "v = gear (weapon/armor/offhand/jewelry) ? max(1, floor(book * gearSaleRate(item))) : book; min(ITEMS[id].raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v, max(1, floor(SHOP_BUYBACK_RATE * cheapest shop unit price)))   (cap only if the shop sells it)",
-    "params": {
-      "VENDOR_RAW_RATE": 0.2,
-      "VENDOR_GEAR_RATES": [0.5, 0.5, 0.14, 0.075, 0.033, 0.015],
-      "VENDOR_HOURLY_ARMOR_T2_RATE": 0.3,
-      "SHOP_BUYBACK_RATE": 0.5
-    },
-    "server_needs": "CLOSED — the edge prices every sale with vendorPriceOf from ITEMS and this catalogue (src/core/shop-buyback.js derives the cheapest unit price for both sides)."
-  },
-  {
-    "id": "vendor.buyback",
-    "name": "Vendor buy-back price",
-    "where": "src/legacy.js repurchase()",
-    "currency": "gold",
-    "formula": "buyback[i].unit * buyback[i].qty — the unit price RECORDED at sale time",
-    "params": {},
-    "server_needs": "a server-side buyback ledger. The price is a property of a past transaction, not of the catalogue, so it can never be a static row — and a client-supplied unit price is a mint."
-  },
-  {
-    "id": "market.*",
-    "name": "Player market prices",
-    "where": "src/market.js",
-    "currency": "gold",
-    "formula": "seller-chosen ask, per listing",
-    "params": {},
-    "server_needs": "market-v2 owns these. A market price is not catalogue data and must never be added to SHOP_OFFERS."
-  }
-];

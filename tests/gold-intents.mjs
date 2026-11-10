@@ -582,7 +582,8 @@ async function run(mutate) {
       `G1: the server pays raws at ${SALE.rawRate} of book value; the ruling (b226) is 0.20`);
     ok(SALE.buybackRate === 0.5,
       `G1: the server caps buy-back at ${SALE.buybackRate} of the shop price; the ruling (b565) is 0.5`);
-    const LB = await import('../src/data/loot-bands.js');
+    /* the gear ladder's one home since 2026-11-10: its rows (data) and gearSaleRate (core) */
+    const LB = { ...(await import('../src/data/formulas/sale.js')), ...(await import('../src/core/formulas/sale.js')) };
     /* tiers 4-6 joined as one ladder (designer 2026-11-08, lane/b-phase0-tier4): at tier 3's 0.14 the Slake's hourly tier-4 set sold for 57% of its
        coin and the Pyre Field's tier-5 set for 151%; each tier now sells for about 1.3x its twin */
     ok(JSON.stringify(LB.VENDOR_GEAR_RATES) === '[0.5,0.5,0.14,0.075,0.033,0.015]',

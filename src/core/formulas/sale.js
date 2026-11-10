@@ -5,7 +5,7 @@
 //   bid   = raw material ? max(1, floor(worth x rawRate)) : worth
 //   price = the shop sells it ? min(bid, max(1, floor(buybackRate x its cheapest shop price))) : bid
 //
-// Numbers: src/data/formulas/sale.js SALE and src/data/loot-bands.js (the gear ladder). None is typed here
+// Numbers: src/data/formulas/sale.js (SALE and the gear ladder). None is typed here
 // (tests/formula-single-source.mjs). Readers: the edge's sell verbs through catalogue.js vendorPriceOf, which
 // only looks the item and its shop price up; tools/gen-hunt-sessions.mjs, which copies every bid into
 // hr_hunt_vendor_value so Postgres re-proves a hunt's sales; the balance tools. The client draws the server's
@@ -18,7 +18,16 @@
 // ============================================================
 
 import { SALE } from '../../data/formulas/sale.js?v=0.2.114';
-import { VENDOR_GEAR_TYPES, gearSaleRate } from '../../data/loot-bands.js?v=0.2.114';
+import { VENDOR_GEAR_RATES, VENDOR_GEAR_TYPES, VENDOR_HOURLY_ARMOR_SLOTS, VENDOR_HOURLY_ARMOR_T2_RATE, VENDOR_HOURLY_ARMOR_TIER } from '../../data/formulas/sale.js?v=0.2.114';
+
+/** The share of book value the shop pays for `item` if it is worn gear, else 1: its tier's rate on the ladder (a tier past the ladder reads the
+    last rate, a piece with no tier the first), and the hourly armor's own rate for that tier's helmet, body, legs and boots. */
+export function gearSaleRate(item) {
+  if (!item || !VENDOR_GEAR_TYPES.includes(item.type)) return 1;
+  const t = Math.max(1, Math.floor(Number(item.tier) || 1));
+  if (t === VENDOR_HOURLY_ARMOR_TIER && item.type === 'armor' && VENDOR_HOURLY_ARMOR_SLOTS.includes(item.slot)) return VENDOR_HOURLY_ARMOR_T2_RATE;
+  return VENDOR_GEAR_RATES[Math.min(t, VENDOR_GEAR_RATES.length) - 1];
+}
 
 /**
  * Gold the shop pays for ONE of `item`. 0 means the shop does not buy it, which is a refusal, never a free sale.

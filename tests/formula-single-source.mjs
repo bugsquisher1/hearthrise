@@ -40,17 +40,11 @@ const REGISTRY = 'src/data/formulas/registry.js';
 /* The numbers an evaluator may type: floors, "at least 1", and permille arithmetic. Anything else is tuning and is a data row. */
 const STRUCTURAL = new Set(['0', '1', '1000']);
 
-/* KNOWN COPIES THAT WAIT FOR ANOTHER LANE. Shrink-only: delete an entry when its copy is gone (the guard goes red until you do).
-   `text` is where the copy starts, as typed. All four are src/data/shops.js DERIVED_PRICES, a table no code reads: lane/b-area-set
-   edits its gear line (tiers 4-6), so deleting the table now would hand that lane a conflict. It goes in the first slice after
-   area spells land (.claude/coordination/formula-home-2026-11-10.md, slice 9). */
-const PENDING = [
-  { file: 'src/data/shops.js', text: '"VENDOR_RAW_RATE": 0', why: 'DERIVED_PRICES restates the raw rate' },
-  { file: 'src/data/shops.js', text: '"VENDOR_GEAR_RATES": [', why: 'DERIVED_PRICES restates the gear ladder' },
-  { file: 'src/data/shops.js', text: '"VENDOR_HOURLY_ARMOR_T2_RATE": 0', why: 'DERIVED_PRICES restates the hourly armor rate' },
-  { file: 'src/data/shops.js', text: '"SHOP_BUYBACK_RATE": 0', why: 'DERIVED_PRICES restates the buy-back cap' },
-];
-const PENDING_CEILING = 4;
+/* KNOWN COPIES THAT WAIT FOR ANOTHER LANE. Shrink-only: `{ file, text, why }`, `text` being where the copy starts, as typed. Delete an entry when
+   its copy is gone (the guard goes red until you do). EMPTY since the Phase 0 merge (2026-11-10): the four copies in src/data/shops.js
+   DERIVED_PRICES went with that table. */
+const PENDING = [];
+const PENDING_CEILING = 0;
 
 class HarnessError extends Error {}
 const posix = (p) => p.split('\\').join('/');
@@ -94,6 +88,8 @@ export function check({ files, formulas, evaluators, pending = PENDING, ceiling 
   const bad = [];
   const say = (rule, msg) => bad.push({ rule, msg });
   const code = new Map([...files].map(([f, t]) => [f, strip(t)]));
+  /* the same text with what is inside quotes blanked: a definition is never inside a string (a mutation plant's `find` text is) */
+  const bare = new Map([...code].map(([f, t]) => [f, noStrings(t)]));
   const ids = new Set();
   const waived = new Set();
   const hits = [];
@@ -117,7 +113,7 @@ export function check({ files, formulas, evaluators, pending = PENDING, ceiling 
       for (const name of r.consts[home]) {
         names.push([name, home]);
         const re = new RegExp('\\bexport\\s+const\\s+' + esc(name) + '\\b', 'g');
-        const per = [...code].map(([f, t]) => [f, (t.match(re) || []).length]).filter(([, k]) => k > 0);
+        const per = [...bare].map(([f, t]) => [f, (t.match(re) || []).length]).filter(([, k]) => k > 0);
         const n = per.reduce((s, [, k]) => s + k, 0);
         if (n !== 1 || per[0][0] !== home) say('one-home', at + ': ' + name + ' is exported ' + n + ' time(s) (' + (per.map(([f]) => f).join(', ') || 'nowhere') + '), not once from ' + home);
       }
@@ -128,10 +124,12 @@ export function check({ files, formulas, evaluators, pending = PENDING, ceiling 
     for (const name of policed) {
       /* `NAME = 5` anywhere, or `NAME: 5` as an object key (after `{`, `,` or at the start of a line: `x ? NAME : 0` is not a definition) */
       const value = '\\s*(?:Object\\.freeze\\(\\s*)?[\\[{]?\\s*[-+]?\\.?\\d';
-      const re = new RegExp('(?:(?<![\\w$.])' + esc(name) + '\\s*=(?!=)|(?<=[{,]\\s*|^\\s*)["\'`]?' + esc(name) + '["\'`]?\\s*:)' + value, 'gm');
+      const assign = new RegExp('(?<![\\w$.])' + esc(name) + '\\s*=(?!=)' + value, 'g');
+      const key = new RegExp('(?<=[{,]\\s*|^\\s*)["\'`]?' + esc(name) + '["\'`]?\\s*:' + value, 'gm');
       for (const [f, t] of code) {
         if (f === REGISTRY) continue;
-        for (const m of t.matchAll(re)) {
+        /* `NAME =` is read with strings blanked (same offsets), a key with them kept: a quoted key is a string */
+        for (const m of [...bare.get(f).matchAll(assign), ...t.matchAll(key)]) {
           const own = homes.includes(f) && (r.consts[f].includes(name) ? /export\s+const\s+$/.test(t.slice(0, m.index)) : (r.keys || []).includes(name));
           if (!own) hits.push({ at, name, file: f, index: m.index, line: lineOf(t, m.index) });
         }
@@ -214,8 +212,12 @@ const MUTANTS = [
     find: 'export { SPEED_FUSE, MIN_ACTION_MS };', repl: 'export const SPEED_FUSE = 0.70;' },
   { name: 'core types the Kitchen rungs again', rule: 'typed-again', file: 'src/core/artisan.js',
     find: 'export const KITCHEN_NO_BURN = BURN.kitchenNoBurn;', repl: 'export const BURN = { kitchenNoBurn: [0.13, 0.19] };' },
-  { name: 'a pending copy is deleted and stays listed', rule: 'pending', file: 'src/data/shops.js',
-    find: '      "VENDOR_RAW_RATE": 0.2,\n', repl: '' },
+  { name: 'the edge types the gear ladder', rule: 'typed-again', file: 'supabase/functions/hr-accrue/vendor-sell.js',
+    find: "import { vendorPriceOf } from './catalogue.js';", repl: "import { vendorPriceOf } from './catalogue.js';\nconst VENDOR_GEAR_RATES = [0.5, 0.5, 0.14];" },
+  { name: 'the catalogue generator types the gear ladder', rule: 'typed-again', file: 'tools/gen-hunt-sessions.mjs',
+    find: "import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';", repl: "import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';\nconst VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015]);" },
+  { name: 'the loot bands export the ladder again', rule: 'one-home', file: 'src/data/loot-bands.js',
+    find: 'export const SLOT_LIMITS = ', repl: 'export const VENDOR_GEAR_RATES = Object.freeze([]);\nexport const SLOT_LIMITS = ' },
 ];
 /* Breaches of the registry itself (rows and bindings are modules, not text). */
 const ROW_MUTANTS = [
@@ -227,7 +229,8 @@ const ROW_MUTANTS = [
     edit: (a) => ({ ...a, formulas: a.formulas.map((r, i) => (i ? r : { ...r, params: Object.freeze({ ...r.params, table: [1, 2] }) })) }) },
   { name: 'a row names a home outside src/data', rule: 'one-home',
     edit: (a) => ({ ...a, formulas: a.formulas.map((r, i) => (i ? r : { ...r, consts: { 'src/core/shop-buyback.js': ['SALE'] } })) }) },
-  { name: 'the pending list grows', rule: 'pending', edit: (a) => ({ ...a, ceiling: PENDING.length - 1 }) },
+  { name: 'the pending list grows', rule: 'pending', edit: (a) => ({ ...a, pending: [{ file: 'src/data/formulas/sale.js', text: 'rawRate: 0', why: 'planted' }] }) },
+  { name: 'a pending entry outlives its copy', rule: 'pending', edit: (a) => ({ ...a, ceiling: 1, pending: [{ file: 'src/data/shops.js', text: 'export const SHOP_OFFERS = [', why: 'planted' }] }) },
 ];
 
 async function load() {

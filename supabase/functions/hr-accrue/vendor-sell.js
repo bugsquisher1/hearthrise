@@ -26,8 +26,8 @@
 //     understate its own consumption.
 //
 // ── WHY THE PRICE IS COMPUTED HERE AND NOT IN SQL ──────────────────────────
-// `vendor.sell` is one of the six DERIVED_PRICES in src/data/shops.js — a
-// formula, not a row — and the catalogue's own header says it is "DERIVABLE
+// What the shop pays is a formula, not a row (src/data/formulas/registry.js `sale.price`,
+// src/core/formulas/sale.js) and the catalogue's own header says it is "DERIVABLE
 // TODAY... the cheapest of the six to close". Both inputs are already vendored
 // into this payload: `ITEMS[id].v` and `ITEMS[id].raw`, the latter DERIVED in
 // items.js from every tree/rock/fishing-spot/crop `prod` plus an explicit

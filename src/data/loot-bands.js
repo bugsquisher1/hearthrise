@@ -63,38 +63,5 @@ export const LOOT_GROUPS = Object.freeze({
 /* None waits now: the Kingsgrate (src/data/shields.js, lane b-spell-roles 2026-10-23) rides the Rat King, after his Crown Shard. */
 export const PENDING_ROWS = Object.freeze([]);
 
-/* WHAT WORN GEAR SELLS FOR (Tyler 2026-10-23: keep the Scarce pace and meet the value caps through what dropped gear
-   sells for). The trader pays a share of a weapon's, armour's, off-hand's or jewel's book value (`v`), floored at 1,
-   by the piece's TIER, one price per item wherever it came from; the shop buy-back cap still applies on top
-   (supabase/functions/hr-accrue/catalogue.js vendorPriceOf). Book value itself is untouched. By tier because the pace is
-   the same on every ground (about a piece an hour per slot per weight) while book value climbs 2-4x a tier and coin
-   barely moves (DM-16): tier 3 sells at 0.14 so the Warrens' gear stays under half its coin, as tiers 1-2 do at 0.5,
-   and every piece still sells for at least its lower-tier twin (drop-tables sale-ladder; the designer, 2026-10-23).
-   A tier above the table (no ground drops one yet) sells at its last rate; a piece with no tier at tier 1's. Measured
-   against the caps by tests/hunt-core/drop-tables.mjs. PROVISIONAL. */
-/* TIER 4 (designer 2026-11-08, lane/b-phase0-tier4; the 10-29 plan's 0.075): the Slake, the first tier-4 ground, drops its set in three weights
-   about hourly, and tier-4 book is 3x tier 3's. Measured on the real settle (drop-tables, a lone tank at the Slake's floor): at tier 3's 0.14 its
-   gear sold for 57% of its coin and the hour totalled +36% over its pin; the window that holds both caps and the sale ladder is 0.047-0.107,
-   and 0.075 sits in its middle.
-   TIERS 5 AND 6 (designer 2026-11-08, the same lane, for the Pyre Field: tier-5 armor hourly, tier-6 weapons as its Provost's Rares). ONE LADDER
-   from tier 4 up: each tier's piece sells for about 1.3x its lower-tier twin while book climbs about 3x a tier (tier 5 45/15, tier 6 130/45), so
-   the rate is the last one x 1.3 / that climb: tier 5 0.033 (the twin rule's floor is 0.025, the Pyre Field's faucet cap 0.05), tier 6 0.015
-   (its window about 0.01-0.016). Tier 7 reads tier 6's until a ground drops it (2.8x the book, so its piece still sells above its twin). */
-export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015]);
-export const VENDOR_GEAR_TYPES = Object.freeze(['weapon', 'armor', 'offhand', 'jewelry']);
-/* THE GLADE'S ARMOR SELLS UNDER THE WARRENS' (designer 2026-11-03, lane/c-gold-matters; Tyler the same day: harder monsters pay more).
-   Tier 2's helmet, body, legs and boots come about hourly in three weights on Wickstead, the Sewer and the Glade, and at 0.5 of book an Iron
-   Platebody sold for 200 g against a Steel one's 210 g: the flood of the hours when gold goes dead, and no reward for the harder ground. At 0.3
-   the plate line reads 90 / 120 / 210 and every piece still clears its lower-tier twin (drop-tables sale-ladder). Tier 2's weapons, shield,
-   jewels, gloves and belts keep the table: a player forges those to sell (tests/craft-wages.mjs W-FORGE) and the outfitter's belt and gloves
-   hold those twins' bids up. Tiers 1 and 3 keep it too, so the starter grounds keep their gold (Tyler 10-20) and the Warrens pay what they paid. */
-export const VENDOR_HOURLY_ARMOR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots']);
-export const VENDOR_HOURLY_ARMOR_T2_RATE = 0.3;
-
-/** The share of book value the trader pays for `item` if it is worn gear, else 1. */
-export function gearSaleRate(item) {
-  if (!item || !VENDOR_GEAR_TYPES.includes(item.type)) return 1;
-  const t = Math.max(1, Math.floor(Number(item.tier) || 1));
-  if (t === 2 && item.type === 'armor' && VENDOR_HOURLY_ARMOR_SLOTS.includes(item.slot)) return VENDOR_HOURLY_ARMOR_T2_RATE;
-  return VENDOR_GEAR_RATES[Math.min(t, VENDOR_GEAR_RATES.length) - 1];
-}
+/* WHAT WORN GEAR SELLS FOR is one row with the rest of the sale formula since lane/b-formula-home (2026-11-10): src/data/formulas/sale.js
+   VENDOR_GEAR_RATES (the ladder by tier) and VENDOR_HOURLY_ARMOR_*; the function that reads them is src/core/formulas/sale.js gearSaleRate. */

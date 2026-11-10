@@ -32,10 +32,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SALE } from './sale.js?v=0.2.114';
 import {
-  VENDOR_GEAR_RATES, VENDOR_GEAR_TYPES, VENDOR_HOURLY_ARMOR_SLOTS, VENDOR_HOURLY_ARMOR_T2_RATE,
-} from '../loot-bands.js?v=0.2.114';
+  SALE, VENDOR_GEAR_RATES, VENDOR_GEAR_TYPES, VENDOR_HOURLY_ARMOR_SLOTS, VENDOR_HOURLY_ARMOR_T2_RATE, VENDOR_HOURLY_ARMOR_TIER,
+} from './sale.js?v=0.2.114';
 import { VITALS, ARMOUR_SLOTS, FLAME_REGEN, LEVEL_CURVE, SKILL_CURVE, CAPPED_CURVE } from '../core-model.js?v=0.2.114';
 import { HUNT_TUNING } from '../hunt-tuning.js?v=0.2.114';
 import { DEATH_XP_LOSS, STAMINA_MAX_MS } from '../hunt-sessions.js?v=0.2.114';
@@ -58,7 +57,7 @@ export const FORMULAS = Object.freeze([
     expr: [
       'worth = book value',
       'worn gear (gearTypes): worth = book value x the gearRate of its tier, at least 1',
-      'tier 2 armor in hourlyArmorSlots: worth = book value x hourlyArmorT2Rate, at least 1',
+      'armor of tier hourlyArmorTier in hourlyArmorSlots: worth = book value x hourlyArmorRate, at least 1',
       'raw material: worth = worth x rawRate, at least 1',
       'the shop also sells it: never more than its cheapest shop price x buybackRate, at least 1',
     ],
@@ -67,17 +66,17 @@ export const FORMULAS = Object.freeze([
       buybackRate: SALE.buybackRate,
       gearTypes: VENDOR_GEAR_TYPES,
       gearRate: VENDOR_GEAR_RATES,
+      hourlyArmorTier: VENDOR_HOURLY_ARMOR_TIER,
       hourlyArmorSlots: VENDOR_HOURLY_ARMOR_SLOTS,
-      hourlyArmorT2Rate: VENDOR_HOURLY_ARMOR_T2_RATE,
+      hourlyArmorRate: VENDOR_HOURLY_ARMOR_T2_RATE,
     },
     consts: {
-      'src/data/formulas/sale.js': ['SALE'],
-      'src/data/loot-bands.js': ['VENDOR_GEAR_RATES', 'VENDOR_GEAR_TYPES', 'VENDOR_HOURLY_ARMOR_SLOTS', 'VENDOR_HOURLY_ARMOR_T2_RATE'],
+      'src/data/formulas/sale.js': ['SALE', 'VENDOR_GEAR_RATES', 'VENDOR_GEAR_TYPES', 'VENDOR_HOURLY_ARMOR_SLOTS', 'VENDOR_HOURLY_ARMOR_T2_RATE', 'VENDOR_HOURLY_ARMOR_TIER'],
     },
     keys: ['rawRate', 'buybackRate'],
     retired: ['VENDOR_RAW_RATE', 'SHOP_BUYBACK_RATE'],
     evaluator: 'src/core/formulas/sale.js salePriceOf',
-    readers: { 'supabase/functions/hr-accrue/catalogue.js': 'salePriceOf' },
+    readers: { 'supabase/functions/hr-accrue/catalogue.js': 'salePriceOf', 'tools/gen-hunt-sessions.mjs': 'vendorPriceOf' },
   }),
 
   /* ── VITALS (numbers: core-model.js VITALS, Tyler 2026-10-19 "10 and 10"; the armor shares are his too). armorSlots is the length of

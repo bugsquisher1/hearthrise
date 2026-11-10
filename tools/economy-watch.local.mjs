@@ -117,7 +117,7 @@ const SINK_RULE_KEYS = Object.freeze({ powder: 'shop:town_show.powder', round: '
 
 /* WHAT A COIN BRINGS WITH IT, as the most the sheet's loot and tasks add to monster coin an hour:
      commons 1.15  src/data/supply-basics.js: a measured hour, 691 g of coins against 793 g of common drops
-     gear    0.50  src/data/loot-bands.js VENDOR_GEAR_RATES: gear sells so a ground's gear stays under half its coin
+     gear    0.50  src/data/formulas/sale.js VENDOR_GEAR_RATES: gear sells so a ground's gear stays under half its coin
      rares   0.25  the loot redesign (Tyler 2026-10-23): rare items' total value at most +25% over coin
      tasks   0.35  src/data/tally-tasks.js: a kill task is about an hour and pays about 35% of that hour's coin */
 const INCOME_PARTS = Object.freeze({ coin: 1, commons: 1.15, gear: 0.5, rares: 0.25, tasks: 0.35 });

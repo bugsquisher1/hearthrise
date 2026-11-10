@@ -1539,6 +1539,9 @@ async function nodeRules(M) {
     const tables = [LM.ENGINE_MONSTERS, LM.MONSTERS, M.MONSTERS];
     const keep = kinds.map((k) => tables.map((t) => [Object.prototype.hasOwnProperty.call(t[k], 'spells'), t[k].spells]));
     LM.ENGINE_SPELLS[SID] = SPELL;
+    /* the spells are this rule's subject: the switch on, whichever way the row ships */
+    const wasLive = LM.ENGINE_SPELL_SWITCH.live;
+    LM.ENGINE_SPELL_SWITCH.live = true;
     for (const k of kinds) for (const t of tables) t[k].spells = [SID];
     try {
       /* THE WINDUPS, browser closed (the world does not depend on who watches): each cast's [spell, spell_end) */
@@ -1569,6 +1572,7 @@ async function nodeRules(M) {
       }
     } finally {
       delete LM.ENGINE_SPELLS[SID];
+      LM.ENGINE_SPELL_SWITCH.live = wasLive;
       kinds.forEach((k, i) => tables.forEach((t, j) => { const [had, v] = keep[i][j]; if (had) t[k].spells = v; else delete t[k].spells; }));
     }
   }

@@ -33,11 +33,15 @@ import { MONSTER_SPELLS, SPELL_BOUNDS } from '../src/data/monster-spells.js';
 import { METRICS } from '../src/data/condition-metrics.js';
 import { DEATH_XP_LOSS } from '../src/data/hunt-sessions.js';
 import { SHAPE, FIELDS } from '../src/core/hunt/world-state.js';
+import { BUILD } from '../src/build-info.js';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+/* THE SPELLS ARE THIS GUARD'S SUBJECT: the switch on (the engine's own instance of the row: src/core imports src/data with the build's ?v=),
+   whichever way it ships. Off, AS-1 would have nothing to land. */
+(await import(pathToFileURL(join(ROOT, 'src', 'data', 'monster-spells.js')).href + '?v=' + BUILD.cache)).SPELL_SWITCH.live = true;
 const COND = '2027-03-28-area-conditions.sql';
 const RUNES = '2027-03-28-area-spells-rune-spells.generated.sql';
 const FILES = Object.freeze([COND, CAT, RUNES]);

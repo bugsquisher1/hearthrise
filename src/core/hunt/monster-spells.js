@@ -4,7 +4,8 @@
 // design: docs/planning/PRIORITY_BOARD.md "2026-11-08 Area spells" §3)
 //
 // A monster whose row lists spells (src/data/monster-spells.js) casts them; every other monster is untouched: no field
-// moves and no die is drawn, so a ground with no spell plays exactly as it did.
+// moves and no die is drawn, so a ground with no spell plays exactly as it did. With the switch off (SPELL_SWITCH, the
+// one row that turns every monster's spells on or off) no monster casts, and every ground plays that way.
 //
 // THE CAST, server-authoritative and drawn on the swing's own dice in the one settle (CLAUDE.md §6), so the browser's
 // live view predicts the same warning the settle lands:
@@ -32,7 +33,7 @@
 import { MONSTERS } from '../../data/monsters.js?v=0.2.113';
 import { atTier } from '../../data/hunt-tiers.js?v=0.2.113';
 import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.113';
-import { spellRow, spellsOf, specOf, spellHit, marked, SHIELD_BRACE } from '../../data/monster-spells.js?v=0.2.113';
+import { spellRow, castsOf, specOf, spellHit, marked, SHIELD_BRACE } from '../../data/monster-spells.js?v=0.2.113';
 import { monsterMaxHit } from '../combat.js?v=0.2.113';
 import { cheb, los } from './grid.js?v=0.2.113';
 import { atRest, unitById, dirOf } from './movement.js?v=0.2.113';
@@ -103,12 +104,14 @@ function land(inst, sc, u, sp) {
 export function castSpells(inst, sc) {
   for (const u of inst.world.units) {
     if (u.side !== 'mon') continue;
+    /* what it casts now (data/monster-spells.js castsOf: its row's list, or nothing while the switch is off) */
+    const list = castsOf(MONSTERS[u.kind]);
     if (u.cast) {
-      const why = outOf(u) || (spellRow(u.cast.s) ? null : 'reset');
+      /* a cast its caster no longer casts (its row gone, off its list, the switch off) lands nothing: a stored windup never outlives a deploy */
+      const why = outOf(u) || (spellRow(u.cast.s) && list.includes(u.cast.s) ? null : 'reset');
       if (why) { drop(u, sc, why); continue; }
     }
     if (!u.alive) continue;
-    const list = spellsOf(MONSTERS[u.kind]);
     if (!list.length && !u.cast && !u.spellCds) continue;
     if (u.spellCds) {
       const next = {};

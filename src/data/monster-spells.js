@@ -104,6 +104,20 @@ export const spellRow = (id) => (own(id) ? MONSTER_SPELLS[id] : null);
 /** The spell ids monster row `m` casts, in its own order (a name no row holds is skipped; validate refuses it). */
 export const spellsOf = (m) => (m && Array.isArray(m.spells) ? m.spells.filter(own) : []);
 
+/* THE SWITCH (lane/b-area-set): ONE ROW turns every monster's spells on or off, so the feature can ship dark while its balance is
+   tuned and be turned on without touching a monster row. Off, `castsOf` answers none: the engine starts no cast, drops one still winding
+   up, reads nothing and draws nothing (src/core/hunt/monster-spells.js castSpells), and every hunt plays exactly as it did before the
+   spells. The rows stay as written: `spellsOf` still names them, so the design's guards, the bestiary and the wiki read the same table.
+   A data row like any other: the edge and the client both carry it, so flipping it is an edge deploy and a client push, never a
+   migration (Postgres reads no spell row). The heroes' area abilities are not behind it: a player puts those on the bar.
+   MUTABLE LIKE THE ROWS: a test or a balance what-if that needs casts turns it on for its own run and puts it back.
+   IT SHIPS OFF (2026-11-10): with the spells on, the Glade's floor earns +5% over its store bill and two more money and rung guards
+   go red (hunt-core drop-tables profit-floor, forest-cave glade-between, first-week-bands weapon-rungs: CONFLICTS.md 2026-11-10), so
+   the monsters' spells stay dark until the designer's tuning turns those green. Turning it on is this one word, in the lane that tunes. */
+export const SPELL_SWITCH = { live: false };
+/** The spell ids monster row `m` casts NOW: its list while the switch is on, none while it is off. The engine's one read. */
+export const castsOf = (m) => (SPELL_SWITCH.live === true ? spellsOf(m) : []);
+
 /** The shape spec a row casts ({ shape, r }, { shape, len } or { shape } for a group spell). */
 export const specOf = (row) => {
   const p = SHAPE_KINDS[row.shape] && SHAPE_KINDS[row.shape].param;

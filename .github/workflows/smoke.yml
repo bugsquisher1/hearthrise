@@ -3868,6 +3868,7 @@ jobs:
       # land on a party of four with the browser closed and the hunt viewed, the same world and tallies; Turning Cut, Hoarfrost and
       # Spring Tide are saved through the real bar check and cast on both doors; the Defense bound has room; against the chain as one
       # difficulty leaves it only the area rows differ (nothing an apply could roll back); a second apply moves nothing.
+      # Measured locally 2026-11-10 on a cached chain: plain 18 s, --mutate 108 s (8 mutants).
       - name: Area spells — both paths, only the area rows differ, the Defense bound
         if: ${{ !cancelled() }}
         run: |

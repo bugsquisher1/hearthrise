@@ -67,6 +67,8 @@ const playGround = (key) => async (RUN, root) => {
   const g = GROUNDS[key], L = floorOf(g);
   const groups = await groupSpellsOn(root, g);
   if (!groups.length) return g + ' has no regular casting a group spell';
+  /* THE SPELLS ARE THIS GUARD'S SUBJECT: played with the switch on (the engine's own instance of the row), whichever way it ships */
+  (await import(pathToFileURL(join(root, 'src/data/monster-spells.js')).href + V)).SPELL_SWITCH.live = true;
   for (const s of ALONE) {
     const why = judge(RUN.runCell({ id: 'as:' + g + ':' + s, ground: g, party: [s], level: L, hours: HOURS, seeds: SEEDS }), groups, g + ' alone,');
     if (why) return why;

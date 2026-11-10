@@ -51,7 +51,7 @@ import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.113';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.113';
 import { levelOf, wornTitleOf } from '../session/character-sections.js?v=0.2.113';
 import { createSpellMarks } from './spell-marks.js?v=0.2.113';
-import { fxAlphaOf, ownerAlpha } from './fx-prefs.js?v=0.2.113';
+import { fxAlphaOf, ownerAlpha, ownerOf } from './fx-prefs.js?v=0.2.113';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {
@@ -510,8 +510,7 @@ export function createHuntScene(o) {
     const tgt = read.viewed !== null ? target.get(read.viewed) : undefined;
     for (const d of units) if (d.unit === tgt && !d.under) d.target = true;
     /* VW-06: the viewed hero's shield bubble while the server says it holds one. */
-    const alphaOf = (by) =>   // THE EFFECTS SLIDERS (fx-prefs.js): an effect's opacity is its owner's, the viewed hero, another hero or a monster
-      ownerAlpha(read.fx, by === undefined ? null : by === read.viewed ? 'self' : isHero(by) ? 'peer' : 'monster');
+    const alphaOf = (by) => ownerAlpha(read.fx, ownerOf(by, read.viewed, isHero));   // THE EFFECTS SLIDERS (fx-prefs.js): an effect's opacity is its owner's
     const shields = read.viewedShield > 0 && hero ? [{ id: 'fx_arcane_barrier', x: hero.x, y: hero.y, age: now, lift: EVENT_FX.shield.lift, on: hero.id, alpha: alphaOf(read.viewed) }] : [];
     fx = fx.filter((e) => now - e.start < e.life);
     floats = floats.filter((e) => now - e.start < e.life);

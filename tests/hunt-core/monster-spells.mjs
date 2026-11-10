@@ -18,6 +18,8 @@
 //                        least windup a row may have never pays more than the settle's Defense bound for one foe (lane/b-area-set)
 //   split-parity         a span with casts cut anywhere (inside windups too) equals the one span
 //   no-spell-no-trace    with no spell row, a span never writes a cast, a cooldown or a spell event
+//   switch-off-no-cast   the one row that turns every monster's spells off (SPELL_SWITCH): off, a ground whose monsters list spells plays
+//                        the no-spell span byte for byte, the rows are still named, and a windup in flight lands nothing
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -46,15 +48,19 @@ const RING = Object.freeze({ id: 't_ring', n: 'Test Ring', shape: 'ring', r: 1, 
 const BLAST = Object.freeze({ id: 't_blast', n: 'Test Blast', shape: 'blast', r: 1, range: 4, windupMs: 1600, cdMs: 14000, hitPm: 1800, element: null });
 const GROUP = Object.freeze({ id: 't_group', n: 'Test Group', shape: 'group', range: 1, windupMs: 1600, cdMs: 10000, hitPm: 1500, element: 'frost' });
 
-/** Run `fn` with spell rows planted (keyed by their id) and monster kinds listing them ({ kind: id | [ids] }); all put back after. */
+/** Run `fn` with spell rows planted (keyed by their id) and monster kinds listing them ({ kind: id | [ids] }); all put back after.
+    The switch is ON for the run whatever the shipped row says (data/monster-spells.js SPELL_SWITCH): these cases prove the engine. */
 function withSpells(M, rows, kinds, fn) {
   const T = M.MS.MONSTER_SPELLS; const keep = [];
+  const was = M.MS.SPELL_SWITCH.live;
+  M.MS.SPELL_SWITCH.live = true;
   for (const r of rows) T[r.id] = Object.assign({}, r);
   for (const [k, ids] of Object.entries(kinds)) {
     keep.push([k, Object.prototype.hasOwnProperty.call(M.MONSTERS[k], 'spells'), M.MONSTERS[k].spells]);
     M.MONSTERS[k].spells = Array.isArray(ids) ? ids : [ids];
   }
   try { return fn(); } finally {
+    M.MS.SPELL_SWITCH.live = was;
     for (const r of rows) delete T[r.id];
     for (const [k, had, v] of keep) { if (had) M.MONSTERS[k].spells = v; else delete M.MONSTERS[k].spells; }
   }
@@ -465,6 +471,34 @@ const cases = {
     if (text.events.some((e) => e.type === 'spell' || e.type === 'spell_end')) return 'a span with no spell row cast one';
     return fx.world.units.some((u) => u.cast !== null || u.spellCds !== null) ? 'a unit carries a cast or a cooldown with no spell row' : null;
   },
+  /* THE SWITCH (data/monster-spells.js SPELL_SWITCH; lane/b-area-set): one row turns every monster's spells off. Off, a ground whose
+     monsters list spells plays byte for byte the span it plays with no spell row at all; the rows are still named (spellsOf: the design's
+     guards and the wiki read on); and a cast winding up as it goes off lands nothing. */
+  'switch-off-no-cast': (M) => {
+    const bare = runSpan(M, spanFixture(M, 7), [T0 + 31337]);
+    return withSpells(M, [{ ...RING, cdMs: 6000 }, BLAST], { rat: 't_ring', slime: 't_blast' }, () => {
+      const on = runSpan(M, spanFixture(M, 7), [T0 + 31337]);
+      if (on === bare || !JSON.parse(on).events.some((e) => e.type === 'spell')) return 'the fixture casts nothing with the switch on: it proves nothing';
+      M.MS.SPELL_SWITCH.live = false;
+      const off = runSpan(M, spanFixture(M, 7), [T0 + 31337]);
+      if (off !== bare) return 'with the switch off a ground whose monsters list spells does not play the no-spell span';
+      if (M.MS.castsOf(M.MONSTERS.rat).length || M.MS.spellsOf(M.MONSTERS.rat).join() !== 't_ring') return 'off, the rat casts ' + M.MS.castsOf(M.MONSTERS.rat) + ' and lists ' + M.MS.spellsOf(M.MONSTERS.rat);
+      /* a windup in flight as the switch goes off: dropped where it stands, nobody struck */
+      M.MS.SPELL_SWITCH.live = true;
+      const k = H(M, 1, 13, 3, 'tank');
+      const r = mon(M, 10, 0, 14, 3, { target: 1, hp: 9999, maxHp: 9999, swingLeftMs: 99999 });
+      const inst = fightOf(M, [k, r]);
+      const sc = recorder(M, 31);
+      const step = (i) => { sc.atMs = i * 100; M.movement.occupancy(inst); M.spells.castSpells(inst, sc); M.spells.dropCasts(inst, sc); };
+      for (let i = 0; i <= 5; i++) step(i);
+      if (!r.cast) return 'the rat started no cast: the fixture proves nothing';
+      M.MS.SPELL_SWITCH.live = false;
+      for (let i = 6; i <= 40; i++) step(i);
+      const ends = of(sc, 'spell_end');
+      if (r.cast || ends.length !== 1 || ends[0].why !== 'reset' || ends[0].hits !== 0 || of(sc, 'dmg').length) return 'a windup in flight as the switch went off: ' + JSON.stringify(ends) + ', ' + of(sc, 'dmg').length + ' hit(s)';
+      return of(sc, 'spell').length === 1 ? null : 'the rat started ' + of(sc, 'spell').length + ' casts, one of them with the switch off';
+    });
+  },
 };
 
 const S = 'src/core/hunt/monster-spells.js';
@@ -512,6 +546,10 @@ const mutants = [
   { name: 'a resist past the 40% cap', case: 'resist-takes-less', edits: [['src/data/elements.js', 'export const HERO_RESIST_PM = Object.freeze({ min: 0, max: 400 });', 'export const HERO_RESIST_PM = Object.freeze({ min: -1000, max: 750 });']] },
   { name: 'the combat seam reads past the cap', case: 'resist-takes-less', edits: [['src/core/elements.js', '  return Number.isFinite(v) ? 1000 - Math.min(HERO_RESIST_PM.max, Math.max(HERO_RESIST_PM.min, v)) : 1000;', '  return Number.isFinite(v) ? 1000 - v : 1000;']] },
   { name: 'gear never sums its resistPm', case: 'resist-takes-less', edits: [['src/core/combat.js', '  if (resist) Object.assign(s, { resistPm: resist });\n', '']] },
+  { name: 'the engine never reads the switch', case: 'switch-off-no-cast', edits: [[S, '    const list = castsOf(MONSTERS[u.kind]);', '    const list = (MONSTERS[u.kind].spells || []).filter((id) => spellRow(id));']] },
+  { name: 'the switch is always on', case: 'switch-off-no-cast', edits: [['src/data/monster-spells.js', 'export const castsOf = (m) => (SPELL_SWITCH.live === true ? spellsOf(m) : []);', 'export const castsOf = (m) => spellsOf(m);']] },
+  { name: 'a windup outlives the switch going off', case: 'switch-off-no-cast', edits: [[S, "(spellRow(u.cast.s) && list.includes(u.cast.s) ? null : 'reset')", "(spellRow(u.cast.s) ? null : 'reset')"]] },
+  { name: 'off, the rows are no longer named', case: 'switch-off-no-cast', edits: [['src/data/monster-spells.js', 'export const spellsOf = (m) => (m && Array.isArray(m.spells) ? m.spells.filter(own) : []);', 'export const spellsOf = (m) => (SPELL_SWITCH.live === true && m && Array.isArray(m.spells) ? m.spells.filter(own) : []);']] },
   { name: 'the cast record is not persisted (a cut forgets the mark)', case: 'split-parity', edits: [[S, "  unit: Object.freeze([['spellCds', 'json'], ['cast', 'json']]),", "  unit: Object.freeze([['spellCds', 'json']]),"]] },
 ];
 

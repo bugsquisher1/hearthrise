@@ -8,6 +8,7 @@
 // residue (the envelope's client_state). Display only: nothing gates or spends on them (CLAUDE.md §6).
 //
 //   fxAlphaOf(cs, peers)     { self, peer, monster, marks } as opacities
+//   ownerOf(by, viewed, isHero)  whose effect a unit's is: 'self' | 'peer' | 'monster' | null
 //   ownerAlpha(a, owner)     the opacity for an effect whose owner is 'self' | 'peer' | 'monster' | null
 //                            (null: a reward, a Level or a rare drop, never dimmed)
 // ════════════════════════════════════════════════════════════════════════
@@ -25,6 +26,12 @@ export function fxAlphaOf(cs, peers) {
   const out = /** @type {any} */ ({});
   for (const r of FX_ALPHA) out[r.id] = switchValue(heroes, r) / 100;
   return out;
+}
+
+/** Whose effect it is, for the sliders: the unit `by` is the viewed hero ('self'), another hero ('peer') or a monster; an effect
+    nobody owns (a reward, `by` undefined) is null. `isHero(unit)` is the scene's own test. */
+export function ownerOf(by, viewed, isHero) {
+  return by === undefined ? null : by === viewed ? 'self' : isHero(by) ? 'peer' : 'monster';
 }
 
 /** The opacity an effect owned by `owner` draws at (a: fxAlphaOf's answer). */

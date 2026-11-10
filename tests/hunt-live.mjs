@@ -79,6 +79,10 @@
 //   LV-SPELL A MONSTER'S GROUP STRIKE (Tyler 2026-11-08, lane/b-area-engine): every hero of a party of four, and a lone hero, is struck
 //         at every landing wherever it stands, on the server's commits (browser closed); viewed, every commit matches and the browser
 //         plays the server's own marks; a frost-resisting tank (gear resistPm, carried to a peer's browser in its frozen row) takes half.
+//   LV-AREA A HERO'S AREA ABILITY, BOTH PATHS (Tyler 2026-11-08, lane/b-area-set): a sword alone with Turning Cut beside a tank, watched by
+//         the TANK, so the caster is the browser's frozen peer. Browser closed: the server's commits cast it and it strikes for a share of
+//         the caster's own blow; a hero under its unlock level never casts it. Viewed: every commit matches the prediction both ways (the
+//         peer's level and its largest blow reach the browser in its frozen row).
 //   LV-RR THE PARTY'S RARE ROLL IS THE SERVER'S (Tyler L8; rulings: loot rolls use a server-only
 //         stream): with every monster carrying rare rows, the server's commits roll rares
 //         (`rare_roll`, each Crown Shard to its winner) and the browser's prediction, which
@@ -143,9 +147,13 @@ async function load(base) {
     ENGINE_MONSTERS: (await import(pathToFileURL(join(base, 'src/data/monsters.js')).href + V)).MONSTERS,
     /* the engine's own spell table (LV-SPELL plants a test row and takes it back) */
     ENGINE_SPELLS: (await import(pathToFileURL(join(base, 'src/data/monster-spells.js')).href + V)).MONSTER_SPELLS,
+    /* the engine's own switch (the one row that turns every monster's spells on or off): LV-SPELL plays with it on, whichever way it ships */
+    ENGINE_SPELL_SWITCH: (await import(pathToFileURL(join(base, 'src/data/monster-spells.js')).href + V)).SPELL_SWITCH,
     ENGINE_ELEMENTS: await import(pathToFileURL(join(base, 'src/core/elements.js')).href + V),
     /* the engine's own tier rows (LV-DIAL swaps one for a what-if and puts it back) */
     ENGINE_TIERS: (await import(pathToFileURL(join(base, 'src/data/hunt-tiers.js')).href + V)).GROUND_TIERS,
+    /* the engine's own ability rows (LV-AREA reads Turning Cut's unlock and share off them) */
+    ENGINE_ABILITIES: (await import(pathToFileURL(join(base, 'src/data/abilities.js')).href + V)).ABILITIES,
     /* the engine's own blow and to-hit (deadlyRows builds its rows with them) */
     ENGINE_COMBAT: await import(pathToFileURL(join(base, 'src/core/combat.js')).href + V),
     /* the engine's own scaled-hunt play (LV-SCALE reads the rows a scaled Cellar fights with) */
@@ -1689,6 +1697,8 @@ function rules(M) {
     const keep = kinds.map((k) => rows.map((t) => [Object.prototype.hasOwnProperty.call(t[k], 'spells'), t[k].spells]));
     const shield = M.ITEMS.practice_shield, hadResist = Object.prototype.hasOwnProperty.call(shield, 'resistPm'), oldResist = shield.resistPm;
     M.ENGINE_SPELLS[SID] = SPELL;
+    const wasLive = M.ENGINE_SPELL_SWITCH.live;
+    M.ENGINE_SPELL_SWITCH.live = true;
     for (const k of kinds) for (const t of rows) t[k].spells = [SID];
     /* asked 50%, worn at the 40% cap (data/elements.js HERO_RESIST_PM) */
     shield.resistPm = { frost: 500 };
@@ -1720,8 +1730,37 @@ function rules(M) {
       }
     } finally {
       delete M.ENGINE_SPELLS[SID];
+      M.ENGINE_SPELL_SWITCH.live = wasLive;
       kinds.forEach((k, i) => rows.forEach((t, j) => { const [had, v] = keep[i][j]; if (had) t[k].spells = v; else delete t[k].spells; }));
       if (hadResist) shield.resistPm = oldResist; else delete shield.resistPm;
+    }
+  }
+
+  { // LV-AREA: A HERO'S AREA ABILITY, BOTH PATHS (Tyler 2026-11-08: "our heros some more aoe spells"; lane/b-area-set). A sword alone
+    // with Turning Cut on its bar (a ring round the hero: each monster struck for a share of the hero's own largest blow, unlocked at a
+    // level in its skill) beside a tank, WATCHED BY THE TANK: the caster is the browser's frozen peer, so its level (the unlock) and its
+    // largest blow (the share) reach the prediction only through its frozen row (member.js frozenOf: lv, snap.maxHit).
+    const row = M.ENGINE_ABILITIES.turning_cut;
+    const slot = { action: { type: 'ability', id: 'turning_cut' }, conditions: [], join: 'and' };
+    const pair = (level) => {
+      const a = memberOf(M, 'a', 0, 'tank', level), b = memberOf(M, 'b', 1, 'melee_dps', level);
+      b.equipment = { weapon: 'bronze_sword' };
+      b.hero = M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [slot], partyRoles: ['tank', 'melee_dps'], leaveTogether: true });
+      return [a, b];
+    };
+    ok('LV-AREA', row && Number.isInteger(row.unlock) && row.unlock > 2 && row.target === 'ring' && Number.isInteger(row.hitPm), 'Turning Cut is no longer a ring with an unlock and a share: ' + JSON.stringify(row));
+    for (const [name, level, casts] of [['at its unlock', row.unlock, true], ['under its unlock', row.unlock - 1, false]]) {
+      const mis = pair(level);
+      const r = withoutSpells(M, () => run(M, mis, 96000, { viewer: { user: 'a', slot: 0 } }));
+      const server = r.verdicts.flatMap((x) => x.tl.hunt_events);
+      const caster = mis[1].unitId;
+      const cast = server.filter((e) => e.type === 'cast' && e.ability === 'turning_cut' && e.u === caster);
+      const hits = server.filter((e) => e.type === 'dmg' && e.ability === 'turning_cut' && e.u === caster);
+      const off = r.verdicts.filter((x) => x.v !== 'match');
+      console.log(`  LV-AREA ${name} (Melee ${level}): ${cast.length} Turning Cuts on the server's commits, ${hits.length} monsters struck; ${r.verdicts.length - off.length} of ${r.verdicts.length} commits matched`);
+      if (casts) ok('LV-AREA', cast.length >= 3 && hits.length >= cast.length, `${name}: browser closed: ${cast.length} casts struck ${hits.length} monsters in 96 s (the rule needs some)`);
+      else ok('LV-AREA', cast.length === 0 && hits.length === 0, `${name}: browser closed: a hero at Melee ${level} cast Turning Cut ${cast.length} time(s) under its unlock ${row.unlock}`);
+      ok('LV-AREA', r.verdicts.length >= 5 && off.length === 0, `${name}: viewed: ${off.length} of ${r.verdicts.length} commits did not match the prediction (first at +${off.length ? off[0].t - T0 : 0} ms)`);
     }
   }
   return fails;
@@ -1780,6 +1819,8 @@ const MUTANTS = [
     '    const where = huntGroundOf(String(live.instance.hunt));\n',
     '    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { leashMargin: 0 }) };\n', /^LV-OPEN: viewed/],
   ['a second tank holds where it stands (LV-T)', 'src/core/hunt/roles.js', "  if (!onMe.length) { h.spot = null; closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }\n", '', /^LV-T/],
+  ['a frozen peer row drops the levels its abilities read (LV-AREA)', 'src/core/member.js', '  for (const k of engineSkillsOf(m.hero.slots)) lv[k] = levelOf(m.state.skills, k);\n', '', /^LV-AREA: at its unlock: viewed/],
+  ['an ability casts under its unlock (LV-AREA)', 'src/core/hunt/abilities.js', "    if (row.unlock && h.skills && skillLevel(h, row) < row.unlock) return { why: 'level' };\n", '', /^LV-AREA: under its unlock: browser closed/],
   ['a frozen peer row drops its resistance (LV-SPELL)', 'src/core/member.js', '  ...(snap.resistPm ? { resistPm: snap.resistPm } : {}) });', '  });', /^LV-SPELL: four: viewed/],
   ['a group strike lands only on its target (LV-SPELL)', 'src/core/hunt/shapes.js', "    case 'group': return true;", "    case 'group': return d === 0;", /^LV-SPELL: four: browser closed/],
   ['gear never sums its resistance (LV-SPELL)', 'src/core/combat.js', '  if (resist) Object.assign(s, { resistPm: resist });\n', '', /^LV-SPELL: four: the frost-resisting tank/],

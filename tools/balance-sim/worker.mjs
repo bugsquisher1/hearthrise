@@ -19,6 +19,9 @@ const ENG = {
      ({ spells: { venom_spray: { hitPm: 3000 } } }); a monster casts the rows its own `spells` list names ({ monsters: { id: { spells: [] } } }
      plays it with none) */
   spells: [(await import(pathToFileURL(join(root, 'src/data/monster-spells.js')).href + v)).MONSTER_SPELLS],
+  /* the one row that turns every monster's spells on or off (SPELL_SWITCH): { spellSwitch: { live: false } } plays a cell with no monster
+     casting, { live: true } with them on, whichever way the row ships (the designer's with / without pair) */
+  spellSwitch: [(await import(pathToFileURL(join(root, 'src/data/monster-spells.js')).href + v)).SPELL_SWITCH],
 };
 const { DIALS: TIER_DIALS } = await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + v);
 /* THE GAME'S OWN HUNT ADVICE (the Hunts window's default pick): a career hunts where the game tells it to */
@@ -40,7 +43,8 @@ function applyWhatIf(w) {
       if (stray.length || !TIER_DIALS.every((k) => row[k] === undefined || Number.isInteger(row[k]))) throw new Error('whatIf tiers ' + g + ' ' + id + ': ' + (stray.join() || 'a dial is not whole'));
     }
     for (const inst of ENG[table] || []) {
-      if (table === 'combat') { for (const [k, val] of Object.entries(rows)) set(inst, k, val); continue; }
+      /* one row, not a table of rows: the combat constants, and the spells' switch ({ spellSwitch: { live: false } }: a cell with no monster casting) */
+      if (table === 'combat' || table === 'spellSwitch') { for (const [k, val] of Object.entries(rows)) set(inst, k, val); continue; }
       for (const [id, fields] of Object.entries(rows)) {
         const ids = id === '*' ? Object.keys(inst) : [id];
         for (const x of ids) if (inst[x]) for (const [k, val] of Object.entries(fields)) set(inst[x], k, val);

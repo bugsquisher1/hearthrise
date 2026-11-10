@@ -66,8 +66,7 @@ export async function buildGrid(root, mode, opts = {}) {
   const T = await import(u('src/data/hunt-tiers.js'));
   const wi = opts.whatIf || null, tag = wi ? ',w=' + createHash('sha256').update(JSON.stringify(wi)).digest('hex').slice(0, 8) : '';
   const jobs = [];
-  for (const g of Object.values(G.OPEN_GROUNDS)) {
-    if (opts.grounds && !opts.grounds.includes(g.id)) continue;
+  for (const g of groundsOf(G, opts.grounds)) {
     const band = HUNT_INDEX[g.hunt].band;
     for (const tier of T.tiersOf(g.id).filter((t) => !opts.tiers || opts.tiers.includes(t))) {
       const row = T.tierRowOf(g.id, tier);
@@ -89,9 +88,16 @@ export async function buildGrid(root, mode, opts = {}) {
   return jobs;
 }
 
+/** The grounds a run plays: every open one, or exactly the ones named, a STAGED one included (a ground pack is graded before it opens,
+    tools/pack.mjs check). A name that is no ground is refused, so a typo can't grade nothing and exit 0. */
+export function groundsOf(G, names) {
+  if (!names) return Object.values(G.OPEN_GROUNDS);
+  return names.map((id) => { const g = Object.prototype.hasOwnProperty.call(G.HUNT_GROUNDS, id) ? G.HUNT_GROUNDS[id] : null; if (!g) throw new Error('grade: no ground ' + id); return g; });
+}
+
 /** A ground's fit: party where a pocket needs a party or the ground says so (tools/balance-sim plans.mjs loadAxes), else solo (a both ground sends a lone hero). */
 export const fitOf = (g) => ((g.pockets || []).some((p) => p.forParty) || g.groupFit === 'party' ? 'party' : 'solo');
-export async function fitsOf(root) { const G = await import(pathToFileURL(join(root, 'src/data/hunt-grounds.js')).href); return Object.fromEntries(Object.values(G.OPEN_GROUNDS).map((g) => [g.id, fitOf(g)])); }
+export async function fitsOf(root) { const G = await import(pathToFileURL(join(root, 'src/data/hunt-grounds.js')).href); return Object.fromEntries(Object.values(G.HUNT_GROUNDS).map((g) => [g.id, fitOf(g)])); }
 
 /* ── THE METRICS OF ONE CELL (hour-weighted per head) ── */
 export function metricsOf(c) {
@@ -227,7 +233,7 @@ export async function loadSheet(root, sheetArg, ref) {
 
 /** THE LARGEST BLOWS (a sheet's `blows`): every regular on an open ground, its largest blow (combat.js monsterMaxHit) against the base
     HP of a hero of its own Level (VITALS), at most `regularMaxShare`. Static: read off the rows, no play. */
-export async function blowVerdicts(root, sheet) {
+export async function blowVerdicts(root, sheet, grounds = null) {
   if (!sheet.blows) return [];
   const u = (p) => pathToFileURL(join(root, p)).href;
   const { BUILD } = await import(u('src/build-info.js'));
@@ -235,7 +241,7 @@ export async function blowVerdicts(root, sheet) {
   const G = await import(u('src/data/hunt-grounds.js') + v), { MONSTERS } = await import(u('src/data/monsters.js') + v);
   const { monsterMaxHit } = await import(u('src/core/combat.js') + v), { VITALS } = await import(u('src/data/core-model.js') + v);
   const out = [];
-  for (const g of Object.values(G.OPEN_GROUNDS)) {
+  for (const g of groundsOf(G, grounds)) {
     const ids = new Set();
     for (const p of g.pockets || []) for (const s of [...(p.pack || []), ...(p.spawns || [])]) ids.add(s.monster);
     for (const id of ids) {
@@ -377,7 +383,7 @@ if (isMain(import.meta.url)) {
   const cells = existsSync(join(out, 'cells.jsonl')) ? readFileSync(join(out, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
   const graded = gradeCells(cells, SHEET, await loadPace(ROOT), await fitsOf(ROOT));
   for (const v of feelVerdicts(cells, await fitsOf(ROOT))) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'unproven']++; }
-  for (const v of await blowVerdicts(ROOT, SHEET)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'ok']++; }
+  for (const v of await blowVerdicts(ROOT, SHEET, arg('grounds', null) ? arg('grounds').split(',') : null)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'ok']++; }
   writeFileSync(join(out, 'grade.json'), JSON.stringify({ sheet: SHEET.source, cells: cells.length, ...graded }, null, 1));
   console.log('GRADE (' + SHEET.source + '), ' + cells.length + ' cells from ' + out + '\n' + report(graded, Number(arg('limit', '60'))));
   process.exit(graded.verdicts.some((v) => v.verdict === 'FAIL') ? 1 : 0);

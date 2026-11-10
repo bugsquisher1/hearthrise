@@ -22,22 +22,22 @@
 // (bar-draft.js), every control stays off until the server has answered, and a refusal
 // keeps the draft and outlines its condition. On a phone (922×423) it is a full sheet.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.109';
-import { STATUSES } from '../../data/statuses.js?v=0.2.109';
-import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.109';
-import { vitalsOf } from '../../session/party-sections.js?v=0.2.109';
-import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.109';
-import { carriedOf, skillsOf } from '../../session/item-sections.js?v=0.2.109';
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.109';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.109';
-import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.109';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.109';
-import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning } from '../action-facts.js?v=0.2.109';
-import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.109';
-import { glyphSvg } from '../launcher.js?v=0.2.109';
-import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, sourceLine, effectLine } from '../action-table.js?v=0.2.109';
-import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.109';
-import { whole } from '../../render/format.js?v=0.2.109';
+import { METRICS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.111';
+import { STATUSES } from '../../data/statuses.js?v=0.2.111';
+import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.111';
+import { vitalsOf } from '../../session/party-sections.js?v=0.2.111';
+import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.111';
+import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.111';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.111';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.111';
+import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.111';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault, serverBar, opWords, unitWords } from '../bar-draft.js?v=0.2.111';
+import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.111';
+import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.111';
+import { glyphSvg } from '../launcher.js?v=0.2.111';
+import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine } from '../action-table.js?v=0.2.111';
+import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.111';
+import { whole } from '../../render/format.js?v=0.2.111';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
@@ -51,16 +51,19 @@ function tool(x, label, extra) {
   return '<button type="button" class="hh-tool' + (extra || '') + '" data-hs-act="cfg" data-x="' + x + '">' + label + '</button>';
 }
 
-/* One condition line: "when|and [metric] [whose] [comparison] [− value +] [effect] ×". */
+/* One condition line, read as the sentence the slot's summary repeats word for word (bar-draft.js conditionWords; Tyler
+   2026-11-08, "at or above 2 what?"): "when|and [metric] [whose] [comparison] [− value +] [noun] [whose, read after] [effect] ×",
+   so "when [my HP] [is at most] [− 50% +]", "when [it would hit] [at least] [− 2 +] monsters". */
 function condHtml(i) {
   const b = (x, label, body) => '<button type="button" class="hh-seg ca-step" data-hs-act="cfg" data-x="' + x + '" data-i="' + i + '" aria-label="' + label + '">' + body + '</button>';
+  const whose = (cls) => '<select class="ca-token ' + cls + '" data-hs-act="cfg-f" data-f="subject" data-i="' + i + '" aria-label="Whose"></select>';
   return '<li class="ca-cond" data-cond="' + i + '"><span class="ca-glue">' + (i ? 'and' : 'when') + '</span> '
     + '<select class="ca-token" data-hs-act="cfg-f" data-f="metric" data-i="' + i + '" aria-label="Test ' + (i + 1) + '">' + options(METRICS.map((m) => [m.id, m.say])) + '</select>'
-    + '<select class="ca-token" data-hs-act="cfg-f" data-f="subject" data-i="' + i + '" aria-label="Whose"></select>'
+    + whose('ca-whose')
     + '<select class="ca-token" data-hs-act="cfg-f" data-f="op" data-i="' + i + '" aria-label="Comparison"></select>'
     + '<span class="ca-num">' + b('dec', 'Lower', '−')
     + '<input class="ca-token ca-val" type="number" inputmode="numeric" data-hs-act="cfg-f" data-f="value" data-i="' + i + '" aria-label="Value"><span class="ca-unit"></span>'
-    + b('inc', 'Higher', '+') + '</span>'
+    + b('inc', 'Higher', '+') + '</span><span class="ca-unit ca-noun" hidden></span>' + whose('ca-whose-after')
     + '<select class="ca-token" data-hs-act="cfg-f" data-f="effect" data-i="' + i + '" aria-label="Effect">' + options(Object.values(STATUSES).map((s) => [s.id, s.name])) + '</select>'
     + '<button type="button" class="hh-tool ca-drop" data-hs-act="cfg" data-x="drop" data-i="' + i + '" aria-label="Remove this condition">×</button></li>';
 }
@@ -119,19 +122,28 @@ function patchCond(row, c, i, s, doc) {
   if (!c) return;
   const m = METRIC.get(c.metric) || METRICS[0];
   prop(row.querySelector('[data-f="metric"]'), 'value', m.id);
-  const subj = row.querySelector('[data-f="subject"]');
-  fill(subj, m.subject ? Object.entries(m.subject) : []);
-  cls(subj, 'is-on', !!m.subject);
-  if (m.subject) prop(subj, 'value', c.subject || Object.keys(m.subject)[0]);
+  /* whose: before the comparison ("the HP of [the lowest ally]"), or after the number as its unit ("2 heroes under [half health]") */
+  for (const [sel, here] of [['.ca-whose', !!m.subject && !m.subjectAfter], ['.ca-whose-after', !!m.subject && !!m.subjectAfter]]) {
+    const subj = row.querySelector(sel);
+    fill(subj, here ? Object.entries(m.subject) : []);
+    cls(subj, 'is-on', here);
+    if (here) prop(subj, 'value', c.subject || Object.keys(m.subject)[0]);
+  }
   const op = row.querySelector('[data-f="op"]');
-  fill(op, m.ops.map((o) => [o, OPERATORS[o] ? OPERATORS[o].say : o]));
+  fill(op, m.ops.map((o) => [o, opWords(o, m)]));
   prop(op, 'value', c.op);
+  /* a yes/no test has one comparison, already in its words ("when my target is a boss") */
+  prop(op, 'hidden', m.value === 'bool');
   const numeric = m.value === 'pct' || m.value === 'count';
   cls(row.querySelector('.ca-num'), 'is-on', numeric);
   const num = row.querySelector('[data-f="value"]');
   if (m.range) { attr(num, 'min', m.range[0]); attr(num, 'max', m.range[1]); }
   if (numeric && doc.activeElement !== num) prop(num, 'value', String(c.value));
-  text(row.querySelector('.ca-unit'), m.value === 'pct' ? '%' : '');
+  /* the unit, from the registry: a percent's % inside the number box, a count's noun after it */
+  text(row.querySelector('.ca-num .ca-unit'), m.value === 'pct' ? unitWords(m, c.value) : '');
+  const noun = m.value === 'count' ? unitWords(m, c.value).trim() : '';
+  text(row.querySelector('.ca-noun'), noun);
+  prop(row.querySelector('.ca-noun'), 'hidden', !noun);
   const eff = row.querySelector('[data-f="effect"]');
   cls(eff, 'is-on', m.value === 'effect');
   if (m.value === 'effect') prop(eff, 'value', String(c.value));
@@ -180,7 +192,9 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const bag = carriedOf(cs);
   const v = viewOf(cs);
   const tab = v.tab || (d.action.id ? tabOf(d.action) : LAST_TAB.get(cs) || 'spells');
-  const table = tableOf(tab, { discipline: set.discipline, role: set.role, bag, store: set.store, skills: skillsOf(cs), picked: d.action });
+  /* What a use costs and lands is this hero's (cast-facts.js): its bag, the server's store rows, its skills, its supply setting, its worn ammo. */
+  const facts = { bag, store: set.store, skills: skillsOf(cs), set, worn: /** @type {{ ammo?: string }} */ (equipmentOf(cs) || {}).ammo };
+  const table = tableOf(tab, { discipline: set.discipline, role: set.role, bag, store: set.store, skills: facts.skills, set, picked: d.action });
   const picked = rowIn(table, d.action);
   /* THE TOP LINE */
   text(root.querySelector('.ca-rank'), 'Slot ' + (s.open + 1) + (s.open === 0 ? ' · tried first' : ' · tried after slot ' + s.open));
@@ -201,7 +215,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   }
   for (const b of root.querySelectorAll('.ca-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === tab));
   /* THE SENTENCE */
-  const say = sentenceOf(d.action, set.store);
+  const say = sentenceOf(d.action);
   const lead = root.querySelector('.ca-lead');
   cls(lead, 'is-blank', !d.action.id);
   text(root.querySelector('.ca-verb'), d.action.id ? say.verb : 'Choose what this slot does.');
@@ -214,7 +228,10 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const h = huntOf(cs), p = partyOf(cs);
   const blow = h && h.huntId ? biggestBlowOn(h.huntId) : null;
   /* ...and what the slot's conditions will mean in a fight (slot-waits.js): a player setting it up reads it here, in town too. */
-  const warn = [healWarning(d, set, blow, vitalsOf(cs).hpMax), setupNote(d, p ? p.members.length : 1)].filter(Boolean).join(' ');
+  /* (and the earlier slot it shares a cooldown with: the bar's hover no longer says it, Tyler 2026-11-08) */
+  const wires = serverBar(cs);
+  if (wires) wires[s.open] = d.action.id ? d : null;
+  const warn = [healWarning(d, set, blow, vitalsOf(cs).hpMax), setupNote(d, p ? p.members.length : 1), wires ? sharedCooldownOf(wires, s.open) : null].filter(Boolean).join(' ');
   text(root.querySelector('.ca-warn'), warn);
   /* On a phone the sentence's warning is one line with an ellipsis; the detail pane says it whole. */
   text(root.querySelector('.ca-d-warn'), warn);
@@ -249,9 +266,13 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   rows(root.querySelector('.ca-cmp'), cmp, { key: (x) => x, build: () => element(ctx.doc, '<li></li>'), patch: (li, x) => text(li, x) });
   const max = shown && shown.kind === 'drink' ? vitalsOf(cs).manaMax : vitalsOf(cs).hpMax;
   text(root.querySelector('.ca-waste'), shown ? wasteLine(shown, threshold(d, shown.kind), max) : '');
-  text(root.querySelector('.ca-src'), shown ? sourceLine(shown) : '');
-  text(root.querySelector('.ca-eff'), effectLine(shown));
-  const f = shown ? factsOf(shown.action) : null;
+  /* The facts the bar's hover shows a subset of (action-facts.js factsOf): the cost line, then what it does, for THIS hero.
+     The pick is the draft's own action (the store rune it names); another rune spell's row is what a pick starts with. */
+  const named = shown && picked && keyOf(shown.action) === keyOf(picked.action) ? d.action : shown ? shown.action : null;
+  const st = named && named === d.action ? null : named && storeDefault(named, set.store);
+  const f = named ? factsOf(st ? Object.assign({}, named, { store: st }) : named, facts) : null;
+  text(root.querySelector('.ca-src'), f && f.cost ? f.cost : '');
+  text(root.querySelector('.ca-eff'), f && named.type === 'ability' ? [f.type].concat(f.effect, [f.version]).filter(Boolean).join(' ') : effectLine(shown));
   /* The spell card's requirement, and an alone spell's callout beside it (Tyler 2026-11-09: "Make that callout clear to the player"). */
   text(root.querySelector('.ca-req'), f && f.requires ? f.requires + (f.alone ? ' ' + f.alone : '') : '');
   /* A rune spell's store choice: carried runes only, or a store rune of its family at the server's price a cast. */

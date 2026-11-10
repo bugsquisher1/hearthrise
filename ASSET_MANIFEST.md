@@ -728,3 +728,5 @@ own wired path even when the art is shared — so they were not deduplicated.
 - Network log: `wolf_pup.png` and `hawk.png` both `200`, fetched from
   `assets/icons-bundle/painted/companions/`; 0 non-2xx across the full asset
   set for the whole walk. Console clean (no errors/warnings).
+
+**Hero idles (2026-11-08, lane/b-hero-idles).** The eight hero outfits moved from the `hunt` atlas to their own `heroes` set (`art/world/heroes`, `assets/world/atlas-heroes.*`; the dye masks `hunt-masks` now mask `heroes`). `hunt` fell from 2048x1972 to 2048x1012. Each outfit and the two town NPCs (`npc_crier`, `npc_smith`, `common`) carry a generated idle (ping-pong of the still and two calm frames, frame 0 the shipped still): knight, witch, brute, dawnward, berserker, sorcerer all 8 facings, ranger 7 (S keeps its still), druid 3 (E, W, NE), crier 8, smith 7 (NE keeps its still). Raw frames: `art/world-src/gen-2026-11-07/<asset>-idle/`. Review shots: `art/review/hero-idles/`.

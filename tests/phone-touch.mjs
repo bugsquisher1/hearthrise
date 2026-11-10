@@ -1725,7 +1725,7 @@ const MUTANTS = [
   ['PH-11 no way to sign out on a phone', 'src/shell/windows/characters.js', '    + ACCOUNT_HTML\n', ''],
   ['PH-11 the phone\'s routes show on a desktop', 'src/styles/windows.css', '.hw-phone-only, .hw-char-invite { display: none; }', '.hw-phone-only { display: block; } .hw-char-invite { display: none; }'],
   ['PH-12 no Invite on the other hero', 'src/shell/windows/characters.js', "prop(inv, 'hidden', !can);", "prop(inv, 'hidden', true);"],
-  ['PH-12 the sheet still says right-click', 'src/shell/windows/characters.js', "(ctx.isPhone && ctx.isPhone() ? 'Press Invite", "(false ? 'Press Invite"],
+  ['PH-12 the sheet still says right-click', 'src/shell/windows/characters.js', "(ctx.isPhone && ctx.isPhone() ? t('heroes.parties_how_phone')", "(false ? t('heroes.parties_how_phone')"],
   ['PH-13 no page press', 'src/shell/widgets/action-bar.js', "    prop(press, 'hidden', !over);\n", ''],
   ['PH-13 the page press goes nowhere', 'src/shell/widgets/action-bar.js', "  grid.scrollLeft = atEnd(grid) ? 0 : grid.scrollWidth;\n", ''],
   ['PH-13 the chat\'s box starts below the screen', 'src/styles/hunt.css', '  .hs-win[data-hs-win="chat"] .hc-chat { flex: 1; min-height: 0; }\n', '  .hs-win[data-hs-win="chat"] .hc-chat { min-height: 520px; }\n'],

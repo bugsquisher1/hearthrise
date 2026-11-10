@@ -1,0 +1,106 @@
+{
+  "id": "outfit_brute",
+  "class": "character",
+  "style": "s1",
+  "material": "unit",
+  "source": "outfit_brute.png",
+  "anchor_px": [
+    32,
+    58
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 5,
+      "loop": true,
+      "dirs": {
+        "s": 4,
+        "e": 4,
+        "n": 4,
+        "w": 4,
+        "se": 4,
+        "sw": 4,
+        "ne": 4,
+        "nw": 4
+      }
+    },
+    {
+      "name": "walk",
+      "fps": 7,
+      "loop": true,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6,
+        "se": 6,
+        "sw": 6,
+        "ne": 6,
+        "nw": 6
+      }
+    }
+  ],
+  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from prototypes/hunt-sim-assets/brute (PixelLab style-1, 2026-10-15) by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels.",
+  "pixellab": {
+    "idle": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "picked": {
+        "s": [
+          0,
+          8,
+          1,
+          8
+        ],
+        "e": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "n": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "w": [
+          0,
+          8,
+          7,
+          8
+        ],
+        "se": [
+          0,
+          7,
+          4,
+          7
+        ],
+        "sw": [
+          0,
+          8,
+          7,
+          8
+        ],
+        "ne": [
+          0,
+          7,
+          6,
+          7
+        ],
+        "nw": [
+          0,
+          8,
+          7,
+          8
+        ]
+      }
+    }
+  }
+}

@@ -36,8 +36,12 @@ const WORKER_ENTRY = 'tools/balance-lab/worker-main.mjs';
 /* GENERATED MODULES (no file on disk): the target sheet is src/data/balance-sheet.js when the tree has it
    (lane/b-ground-formula), else an empty module (the lab grades on the 10-25 ruling and offers no scale preview) */
 const SHEET_FILE = 'src/data/balance-sheet.js';
+/* the game's scaled hunts (src/data/scaled-hunts.js, lane/b-scaled-hunts): the Lab's scale preview reads it, never a ratio of its own */
+const SCALED_FILE = 'src/data/scaled-hunts.js';
+const optional = (file) => () => (existsSync(join(ROOT, file)) ? "export * from '../../../" + file + "';\n" : 'export {};\n');
 const VIRTUAL = {
-  'tools/balance-lab/virtual/sheet.mjs': () => (existsSync(join(ROOT, SHEET_FILE)) ? "export * from '../../../" + SHEET_FILE + "';\n" : 'export {};\n'),
+  'tools/balance-lab/virtual/sheet.mjs': optional(SHEET_FILE),
+  'tools/balance-lab/virtual/scaled.mjs': optional(SCALED_FILE),
 };
 /* the trees a bundled module may come from (anything else is a mistake in the graph: the client, the network, secrets) */
 const ALLOWED = [/^src\/core\//, /^src\/data\//, /^src\/build-info\.js$/, /^supabase\/functions\/hr-accrue\/[\w-]+\.js$/,

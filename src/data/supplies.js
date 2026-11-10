@@ -31,8 +31,10 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS, foodClassOf } from './items.js?v=0.2.109';
-import { isRune as isRuneItem } from './runes.js?v=0.2.109';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.111';
+import { foldRows } from './grounds/shape.js?v=0.2.111';
+import { ITEMS, foodClassOf } from './items.js?v=0.2.111';
+import { isRune as isRuneItem } from './runes.js?v=0.2.111';
 
 export const SUPPLY_KINDS = Object.freeze(['heal', 'mana', 'ammo', 'buff']);
 
@@ -102,7 +104,7 @@ export function supplyKindOf(item) {
     (designer 2026-10-21, Bible §18; Tyler 2026-10-23: runes fuel spells, caster basics cost mana):
     its store row is bought when a spell's slot names it (src/core/hunt/conditions.js storeFits),
     never by a basic shot, and no attack slot may name a rune. */
-export { isRune } from './runes.js?v=0.2.109';
+export { isRune } from './runes.js?v=0.2.111';
 
 /** id -> { id, kind, essential, heals, buff }. Null prototype; values from ITEMS. */
 export const SUPPLIES = Object.freeze(SUPPLY_ROWS.reduce((acc, [kind, id, essential]) => {
@@ -164,7 +166,7 @@ const magic = (heal, qty, drink, dq, ammo, aq) => Object.freeze({
   heal: Object.freeze({ id: heal, qty }), mana: Object.freeze({ id: drink, qty: dq }), ammo: Object.freeze({ id: ammo, qty: aq }),
 });
 
-export const BAG_GUIDE_BY_HUNT = Object.freeze({
+const BASE_BAG_GUIDES = Object.freeze({
   mill_cellar: Object.freeze({ tier: 1,
     melee: melee('cooked_shrimp', 105),
     ranged: ranged('cooked_shrimp', 145, 'bronze_arrows', 0),
@@ -223,6 +225,8 @@ export const BAG_GUIDE_BY_HUNT = Object.freeze({
     ranged: ranged('cooked_shrimp', 200, 'bronze_arrows', 0),
     magic: magic('cooked_shrimp', 180, 'turnip_juice', 90, 'chalked_fire_rune', 600) }),
 });
+/* A ground pack names its own bag (src/data/grounds/<id>/pack.js `bagGuide`: { tier, melee, ranged, magic }, this table's row shape). */
+export const BAG_GUIDE_BY_HUNT = Object.freeze(foldRows('bag guide', BASE_BAG_GUIDES, GROUND_PACKS, (p) => (p.bagGuide ? { [p.id]: p.bagGuide } : {})));
 
 /* A single-monster fight is guided by its monster's tier (melee measured:
    heals an hour at entry level, tier 2 Wolf lv 15 10.6, tier 3 Dire Wolf lv 30

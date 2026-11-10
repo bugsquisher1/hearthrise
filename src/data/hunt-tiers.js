@@ -34,9 +34,9 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.109';
-import { HUNT_INDEX } from './hunts.js?v=0.2.109';
-import { TIER_PULL_OVERRIDES, tierRowFor } from './balance-sheet.js?v=0.2.109';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.111';
+import { HUNT_INDEX } from './hunts.js?v=0.2.111';
+import { TIER_PULL_OVERRIDES, tierRowFor } from './balance-sheet.js?v=0.2.111';
 
 export const TIER_IDS = Object.freeze(['normal', 'dangerous', 'deadly']);
 export const DEFAULT_TIER = 'normal';
@@ -67,16 +67,17 @@ const normalOnly = (groundId) => !!(Object.prototype.hasOwnProperty.call(TIER_PU
 /* Who a ground is built for, as the sheet's tools read it (tools/gen-ground-stats.mjs fitOf): a party ground's tiers lift nothing. */
 const fitOf = (ground) => (ground.pockets.some((p) => p.forParty) ? 'party' : ground.groupFit || 'both');
 
-/* Every open ground's harder rows from the sheet, at its floor and fit, its per-ground dials included (tierRowFor reads the
+/* Every ground's harder rows from the sheet (a STAGED one too, so a ground pack is graded on its tiers before it opens; the server is
+   served only open grounds, tools/gen-ground-tiers.mjs), at its floor and fit, its per-ground dials included (tierRowFor reads the
    sheet's named exceptions: the Thicket's tiers pay 1050 and 1080 XP on no HP dial). A fresh pull array a row, so a what-if moves one ground. */
 function resolve() {
   const out = {};
-  for (const g of Object.keys(OPEN_GROUNDS)) {
+  for (const g of Object.keys(HUNT_GROUNDS)) {
     if (normalOnly(g)) continue;
-    const floor = HUNT_INDEX[OPEN_GROUNDS[g].hunt].band[0];
+    const floor = HUNT_INDEX[HUNT_GROUNDS[g].hunt].band[0];
     out[g] = {};
     for (const id of TIER_IDS) if (id !== DEFAULT_TIER) {
-      const r = tierRowFor(floor, id, { ground: g, fit: fitOf(OPEN_GROUNDS[g]) });
+      const r = tierRowFor(floor, id, { ground: g, fit: fitOf(HUNT_GROUNDS[g]) });
       out[g][id] = { id, pull: [...r.pull], dmgPm: r.dmgPm, hpPm: r.hpPm, xpPm: r.xpPm };
     }
   }

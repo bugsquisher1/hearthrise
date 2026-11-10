@@ -137,14 +137,14 @@ const cases = {
     const sl = slotOf('frost_lance', bar[1].conditions);
     const f = fight(M, 'mage', [sl], { mons: [[13, 3]], mana: 200, maxMana: 500 });
     const said = M.W.waitReason(sl, 1, f.test());
-    if (!said || !said.rest || said.need || said.text !== 'Waiting until my mana is at or above 70%.') return 'Frost Lance under 70% mana reads ' + JSON.stringify(said);
+    if (!said || !said.rest || said.need || said.text !== 'Waiting until my mana is at least 70%.') return 'Frost Lance under 70% mana reads ' + JSON.stringify(said);
     if (casts(M, f, 100).frost_lance) return 'CONTROL: Frost Lance fired under 70% mana';
     const full = fight(M, 'mage', [sl], { mons: [[13, 3]], mana: 400, maxMana: 500 });
     if (M.W.waitReason(sl, 1, full.test()) !== null || !casts(M, full, 100).frost_lance) return 'Frost Lance over 70% mana does not simply fire';
     /* A count that isn't an "at least" (the player's own test) reads as it is, words only: never "2 or more". */
     const exact = slotOf('fireball', [{ metric: 'enemies_in_aoe', op: 'eq', value: 2 }]);
     const reads = M.W.waitReason(exact, 1, fight(M, 'mage', [exact], { mons: [[13, 3]] }).test());
-    return reads && reads.rest && reads.text === 'Waiting until the number of monsters it would hit is 2.' ? null : 'exactly 2 reads ' + JSON.stringify(reads);
+    return reads && reads.rest && reads.text === 'Waiting until it would hit exactly 2 monsters.' ? null : 'exactly 2 reads ' + JSON.stringify(reads);
   },
   'every-suggestion': (M) => {
     const bad = [];
@@ -315,9 +315,9 @@ const MUTANTS = [
   { name: '[alone] the slot in a party says nothing', case: 'alone-only',
     edits: [['src/shell/slot-waits.js', '  if (a) return a;\n', '']] },
   { name: '[alone] the card loses the callout', case: 'alone-only',
-    edits: [['src/shell/action-facts.js', '      alone: r.alone ? ALONE_WORDS : null };', '      alone: null };']] },
+    edits: [['src/shell/action-facts.js', "alone: r.alone ? t('bar.alone') : null };", 'alone: null };']] },
   { name: '[alone] Configure action says nothing in a party', case: 'alone-only',
-    edits: [['src/shell/slot-waits.js', "  if (r && r.alone && party > 1) return ALONE_WORDS + ' In your party this slot never fires.';\n", '']] },
+    edits: [['src/shell/slot-waits.js', '  if (alone) return alone;\n', '']] },
   { name: 'an ability whose target rule stops finding a target, and no words say so', case: 'every-suggestion',
     edits: [['src/core/hunt/abilities.js', "    case 'mark': {\n", "    case 'mark': return null;\n    case 'mark_old': {\n"]] },
 ];

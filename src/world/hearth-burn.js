@@ -20,8 +20,8 @@
 // the plain fire (never a missing sprite).
 // PURE: no DOM, no window, no clock of its own (the caller passes `now`).
 // ════════════════════════════════════════════════════════════════════════
-import { FLAMES as NAMED_FLAMES, BURN_SHOW, HEARTH_FUELS, NAMED_FUELS, fuelRecipeId } from '../data/hearth.js?v=0.2.109';
-import { SHOW_FLAMES, POWDER_CHUNK } from '../data/gold-sinks.js?v=0.2.109';
+import { FLAMES as NAMED_FLAMES, BURN_SHOW, HEARTH_FUELS, NAMED_FUELS, fuelRecipeId } from '../data/hearth.js?v=0.2.111';
+import { SHOW_FLAMES, POWDER_CHUNK } from '../data/gold-sinks.js?v=0.2.111';
 
 /* The named colors and the bought powders, one table to draw from. A bought flame stays out of src/data/hearth.js, which the edge bundles. */
 const FLAMES = Object.freeze({ ...NAMED_FLAMES, ...SHOW_FLAMES });
@@ -111,8 +111,10 @@ function createHearthBurn(map, o) {
 }
 
 const XP_FLOAT_MS = 1500;
-const BURN_KEEP_MS = 30000;   // a named burn the hero has not reached the fire for in this long is not thrown
 const atStand = (place, me) => !!place && !!me && place.x === me.x && place.y === me.y && place.gx === me.x && place.gy === me.y;
+/* A burn is thrown at the stand its answer set the hero on, and only while the server still holds it there: the visit lasts the
+   walk from anywhere in town and the throw (2027-03-23-town-visit-hold.sql), and its end moves the stand (no clock of ours). */
+const burnsHere = (burn, me) => !!burn.stand && burn.stand.station === me.station && burn.stand.stand === me.stand && burn.stand.since === me.since;
 
 /**
  * THE HEARTH AS THE TOWN FRAME DRAWS IT: who throws, the colour, and the hero's "+N Inner Flame" when a settle paid.
@@ -151,7 +153,7 @@ export function createHearthView(map, o) {
         if (p && working.has(p.id + ':' + p.slot)) peers.push({ key: p.id + ':' + p.slot, x: u.x, y: u.y });
       }
       /* your named fuel, thrown once you stand at the fire (from the server's yes, never before) */
-      const b = e.burn && there && now - e.burn.at < BURN_KEEP_MS && chunkOfNamed(e.burn.item)
+      const b = e.burn && there && burnsHere(e.burn, me) && chunkOfNamed(e.burn.item)
         ? { x: hero.x, y: hero.y, chunk: chunkOfNamed(e.burn.item), at: Math.max(e.burn.at, arrivedAt) } : null;
       const out = burn.frame({ me: chunk ? { key: 'me', x: hero.x, y: hero.y, chunk, since: arrivedAt } : null, burn: b, peers, flame: e.flame }, now);
       /* "+N Inner Flame": only what a settle PAID (the server's XP rising), over the hero while it is at the fire */

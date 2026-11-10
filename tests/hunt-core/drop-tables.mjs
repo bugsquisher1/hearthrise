@@ -135,6 +135,7 @@ async function load(root) {
     ITEMS: (await imp(root, 'src/data/items.js')).ITEMS,
     HUNTS: (await imp(root, 'src/data/hunts.js')).HUNT_INDEX,
     G: await imp(root, 'src/data/hunt-grounds.js'),
+    packs: (await imp(root, 'src/data/grounds/index.js')).GROUND_PACKS,
     TIERS: await imp(root, 'src/data/hunt-tiers.js'),
     IMB: await imp(root, 'src/data/imbuements.js'),
     LB: await imp(root, 'src/data/loot-bands.js'),
@@ -450,14 +451,18 @@ function revealPath(M, P, monsters, R, gid, first) {
   return n + ' hunt(s): ' + only.filter((id) => got[id] > 0).map((id) => id + ' x' + got[id] + ' (' + count(id) + ' hint)').join(', ');
 }
 
+/* A GROUND PACK'S OWN FACTS (lane/b-ground-pack phase 2): `key` of its checks, or the pack itself (key null) when it is one; undefined for a base ground. */
+const packCheck = (M, gid, key) => { const p = (M.packs || []).find((x) => x.id === gid); return p ? (key ? (p.checks || {})[key] : p) : undefined; };
+
 /* `only` (a mutant's ground list) plays just those grounds' floor hours; `fresh` adds their fresh-hero and party
    hunts (the realized gear-pace and the reveal-path). */
 async function plays(M, P, monsters, R, print, only, fresh = !only) {
   const rows = [];
   for (const gid of Object.keys(M.G.HUNT_GROUNDS)) {
     if (only && !only.includes(gid)) continue;
-    const ref = REFERENCE[gid];
-    if (!ref) { R.ok(false, 'profit-floor: ' + gid + ' has no REFERENCE group'); continue; }
+    /* a ground pack states its own reference group and value pin (src/data/grounds/<id>/pack.js checks.dropRef, checks.valueToday) */
+    const ref = REFERENCE[gid] || packCheck(M, gid, 'dropRef');
+    if (!ref) { R.ok(false, 'profit-floor: ' + gid + ' has no REFERENCE group' + (packCheck(M, gid, null) ? ' (its pack\'s checks.dropRef: { roles, full })' : '')); continue; }
     const floor = M.HUNTS[M.G.HUNT_GROUNDS[gid].hunt].band[0];
     const n = ref.roles.length;
     const x = P.run(gid, Math.max(1, floor), ref.roles, { spanMs: H, fullSet: ref.full, monsters });
@@ -473,7 +478,7 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
     const vFull = ref.valueFull === undefined ? ref.full : ref.valueFull;
     const xv = vFull === ref.full ? x : P.run(gid, Math.max(1, floor), ref.roles, { spanMs: H, fullSet: vFull, monsters });
     const refKills = bossKillsOf(M, monsters, gid, xv, (secret) => P.run(gid, Math.max(1, floor), ref.roles, { spanMs: H, fullSet: vFull, monsters, secret }));
-    row.bands = bandRules(M, P, monsters, R, gid, xv, n, TOTAL_TODAY[gid], '', refKills);
+    row.bands = bandRules(M, P, monsters, R, gid, xv, n, TOTAL_TODAY[gid] ?? packCheck(M, gid, 'valueToday'), '', refKills);
     /* A PARTY GROUND's second group (the Sewer's party at the floor, the Warrens' lone hero at soloFrom) holds the bands too. */
     const alt = BAND_ALT[gid];
     if (alt) {

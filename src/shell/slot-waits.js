@@ -16,14 +16,13 @@
 // tooltip and on Configure action's first line, or every food slot on the bar would look broken at full health.
 // Display only: an answer is worth one frame, and nothing spends it.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS } from '../data/condition-metrics.js?v=0.2.109';
-import { areaTopOf } from '../core/hunt/conditions.js?v=0.2.109';
-import { huntOf, settingsOf, partyOf } from '../session/hunt-sections.js?v=0.2.109';
-import { carriedOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.109';
-import { conditionWords } from './bar-draft.js?v=0.2.109';
-import { reasonOf, holdingReason, aloneReason, ALONE_WORDS } from './action-facts.js?v=0.2.109';
-import { ABILITIES } from '../data/abilities.js?v=0.2.109';
-import { carryRows } from './carry-in.js?v=0.2.109';
+import { METRICS } from '../data/condition-metrics.js?v=0.2.111';
+import { areaTopOf } from '../core/hunt/conditions.js?v=0.2.111';
+import { huntOf, settingsOf, partyOf } from '../session/hunt-sections.js?v=0.2.111';
+import { carriedOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.111';
+import { conditionWords } from './bar-draft.js?v=0.2.111';
+import { reasonOf, holdingReason, aloneReason, aloneNote } from './action-facts.js?v=0.2.111';
+import { carryRows } from './carry-in.js?v=0.2.111';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 /* The tests that mark a slot, and the glyph each marks it with. */
@@ -86,8 +85,8 @@ export function waitReason(sl, party, test) {
     An alone spell in a party says so first: it never fires there, whatever its conditions (abilities.js `alone`). */
 export function setupNote(d, party) {
   if (!d || !d.action || !d.action.id) return '';
-  const r = d.action.type === 'ability' ? ABILITIES[d.action.id] : null;
-  if (r && r.alone && party > 1) return ALONE_WORDS + ' In your party this slot never fires.';
+  const alone = aloneNote(d.action, party);
+  if (alone) return alone;
   for (const c of d.conditions) {
     if (!canHold(c, d, party)) return neverWords(c, d, party);
     const need = c.metric === 'enemies_in_aoe' ? atLeast(c) : null;

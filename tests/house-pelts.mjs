@@ -318,8 +318,8 @@ const WORD_TREES = ['src/shell', 'src/render', 'src/session', 'src/utils', 'src/
 const WORD_MUTANTS = [
   { name: 'the source lists every catalogue creature again', edits: [['src/shell/hunt-ground-facts.js', "return 'Dropped by ' + listWords(first.names) + ' at '", "return 'Dropped by ' + listWords(Object.values(MONSTERS).filter((m) => (m.drops || []).some((d) => d && d.id === item)).map((m) => m.name), 99) + ' at '"]] },
   { name: 'the tip drops the harder hunt', edits: [['src/shell/hunt-ground-facts.js', "return 'The ' + MONSTERS[best.id].name + ' only comes to a party or a harder hunt at '", "return '' && ' only comes to a party or a harder hunt at '"]] },
-  { name: 'the House\'s short line drops the source', edits: [['src/shell/windows/house.js', "const where = short ? whereToGet(it.id) : '';", "const where = '';"]] },
-  { name: 'the House tells everyone', edits: [['src/shell/windows/house.js', "const where = short ? whereToGet(it.id) : '';", 'const where = whereToGet(it.id);']] },
+  { name: 'the House\'s short line drops the source', edits: [['src/shell/windows/house.js', "const places = short ? wherePlaces(it.id) : [];", "const places = [];"]] },
+  { name: 'the House tells everyone', edits: [['src/shell/windows/house.js', "const places = short ? wherePlaces(it.id) : [];", 'const places = wherePlaces(it.id);']] },
   { name: 'the source names no ground', edits: [['src/shell/hunt-ground-facts.js', "' at ' + groundName(first.g) + (more.length", "(more.length"]] },
   { name: 'a material with no drop on Materials: gear-only Drops again', edits: [['src/shell/hunt-ground-facts.js', "!isSpentMaterial(d.id)) continue;", "true) continue;"]] },
   { name: 'Materials lists a pure sell item', edits: [['src/shell/hunt-ground-facts.js', "|| isRare(d) || !isSpentMaterial(d.id)) continue;", "|| isRare(d)) continue;"]] },

@@ -98,7 +98,12 @@ async function run(base) {
   ok('G5', open({ huntId: 'coppercap_warrens', endReason: 'died' }) === 'mosslight_glade', 'a hero the Warrens killed opens on ' + open({ huntId: 'coppercap_warrens', endReason: 'died' }));
   ok('G5', open({ huntId: 'wickstead', endReason: 'left' }) === 'mosslight_glade', 'a hero who has outgrown its last ground opens on ' + open({ huntId: 'wickstead', endReason: 'left' }));
   /* G6: the list's two tags, on the advice and the ground above it; a note means the advice's band doesn't hold, so no Fits. */
-  const tagged = (lv) => { const rec = HL.recommendation(lv, 1, rows), step = STEP.nextStepUp(rows, lv, true); return rows.filter((r) => HL.adviceTag(r, rec, step, false)).map((r) => r.hunt + ':' + HL.adviceTag(r, rec, step, false)).join(); };
+  /* the lines below are the BASE world's advice (the literal anchor); a ground pack (src/data/grounds) is read without, so a new
+     ground above the top can't turn "nothing above" red outside its lane (lane/b-ground-pack phase 2) */
+  const { GROUND_PACKS } = await import(pathToFileURL(join(base, 'src/data/grounds/index.js')).href + '?t=' + Math.random());
+  const packIds = new Set(GROUND_PACKS.map((p) => p.id));
+  const baseRows = rows.filter((r) => !packIds.has(r.hunt));
+  const tagged = (lv) => { const rec = HL.recommendation(lv, 1, baseRows), step = STEP.nextStepUp(baseRows, lv, true); return baseRows.filter((r) => HL.adviceTag(r, rec, step, false)).map((r) => r.hunt + ':' + HL.adviceTag(r, rec, step, false)).join(); };
   ok('G6', tagged(1) === 'mill_cellar:Right for your level', 'Level 1 reads ' + tagged(1));
   ok('G6', tagged(11) === 'wickstead:Right for your level,mosslight_glade:Next step up', 'Level 11 reads ' + tagged(11));
   ok('G6', tagged(17) === 'mosslight_glade:Right for your level,coppercap_warrens:Next step up', 'Level 17 reads ' + tagged(17));
@@ -147,7 +152,7 @@ async function run(base) {
   /* W4 in plain words (Tyler 2026-11-08, the tier note "way too exact"): every harder tier's line says you can die here, Deadly's says to bring food, and the note ends on the death line. */
   const tierData = read('src/data/hunt-tiers.js');
   ok('W4', (tierData.match(/You can die here\./g) || []).length === 4 && (tierData.match(/Bring plenty of food\./g) || []).length === 2
-    && read('src/shell/hunt-list.js').includes("tierLine(r, t, size) + ' ' + TIER_DEATH_LINE") && win.includes('tierWords(r, tier, size)'), 'the tier no longer says what a harder tier costs (first-week-bands.mjs bigger-pulls-words plays it)');
+    && read('src/shell/hunt-list.js').includes("[tierLine(r, tier, size), TIER_DEATH_LINE].join(' ')") && win.includes('tierWords(r, tier, size)'), 'the tier no longer says what a harder tier costs (first-week-bands.mjs bigger-pulls-words plays it)');
   ok('W2', !/prop\([^)]*'disabled'[^)]*(short|rangeWords)/.test(win), 'Enter must never be disabled by the level warning');
   ok('W2', win.includes("if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {") && win.includes("armed ? 'Enter anyway' : 'Enter'"), 'a lone hero above its level walks in with no confirm press');
   ok('W2', /res && res\.belowRange \? ' ' \+ ABOVE_LEVEL_WORDS/.test(win), 'a below_range enter does not repeat the warning');
@@ -175,16 +180,16 @@ const MUTANTS = [
   ['the gap falls back to a party ground in band', 'src/shell/hunt-list.js', "    return { row: below, note };\n", ''],
   ['the gap is not said', 'src/shell/hunt-list.js', 'return { row: below, note };', 'return { row: below, note: null };'],
   ['a party is recommended by its own hero\'s level', 'src/shell/windows/hunts.js', 'recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list)', 'recommendation(level, size, list)'],
-  ['a ground says who it is for again (Tyler 2026-11-08: no ground is solo or party)', 'src/shell/hunt-list.js', "  return r.heroes > 1 ? 'Alone or with up to ' + (r.heroes - 1) + ' more' : 'One hero';", "  return r.band[0] >= 32 ? 'Best with a party of 2 to 4' : r.heroes > 1 ? 'Alone or with up to ' + (r.heroes - 1) + ' more' : 'One hero';"],
+  ['a ground says who it is for again (Tyler 2026-11-08: no ground is solo or party)', 'src/shell/hunt-list.js', "  return r.heroes > 1 ? t('hunts.heroes_up_to', { n: r.heroes - 1 }) : t('hunts.heroes_one');", "  return r.band[0] >= 32 ? t('hunts.heroes_one') : r.heroes > 1 ? t('hunts.heroes_up_to', { n: r.heroes - 1 }) : t('hunts.heroes_one');"],
   ['the warning words are dropped', 'src/shell/hunt-list.js', "  if (!Number.isInteger(level) || level >= r.band[0]) return null;\n  const gap", "  return null;\n  const gap"],
-  ['the note sends a lone hero to bring a party again', 'src/shell/hunt-list.js', "' is at your level. Its monsters are tough, so alone it costs more than it pays.'", "' is right for your level if you bring a party.'"],
+  ['the note sends a lone hero to bring a party again', 'src/data/text/hunts.js', "'{ground} is at your level. Its monsters are tough, so alone it costs more than it pays.'", "'{ground} is right for your level if you bring a party.'"],
   /* "the Warrens forgets its solo break-even" retired with the words it guarded (Tyler 2026-11-08: no ground is solo or party; the card no longer
      says "alone it pays from Level 45"). soloFrom stays data: drop-tables reads a lone 45 there as its second sample, printed, not judged. */
   ['far under reads as near (the words never lean harder)', 'src/shell/hunt-list.js', "(gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS)", 'ABOVE_LEVEL_WORDS'],
-  ['the words forget what dying costs', 'src/shell/hunt-list.js', "    + ' If you die, the hunt ends and you lose ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';", "    + '';"],
+  ['the words forget what dying costs', 'src/shell/hunt-list.js', ",\n    t('hunts.range_die', { loss: Math.round(DEATH_XP_LOSS * 100) })]", "]"],
   ['the fight reads a hero Level again (S2)', 'src/core/hunt/damage.js', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow));', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow) + (t.heroLv ? 0 : 0));'],
   ['a gap row comes back in the data (S2)', 'src/data/hunt-tuning.js', '  partyShareRangePm: 667,', '  partyShareRangePm: 667,\n  underFloorAtkPm: 50,'],
-  ['the warning claims a penalty again', 'src/shell/hunt-list.js', "'Its monsters are stronger than you. Expect to spend more on supplies, or to die. More XP and better loot.'", "'More XP and better loot, but its monsters hit harder.'"],
+  ['the warning claims a penalty again', 'src/data/text/hunts.js', "'Its monsters are stronger than you. Expect to spend more on supplies, or to die. More XP and better loot.'", "'More XP and better loot, but its monsters hit harder.'"],
   ['a margin comes back in the data', 'src/data/hunt-sessions.js', '  bagLines: 10,\n', '  bagLines: 10,\n  belowRangeRefuse: 15,\n'],
   ['a lone hero walks in with no confirm press', 'src/shell/windows/hunts.js', "if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {", 'if (false) {'],
   ['the tier says nothing of what it costs', 'src/data/hunt-tiers.js', "The most XP for each kill. Bring plenty of food. You can die here.' }),", "The most XP for each kill.' }),"],

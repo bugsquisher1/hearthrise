@@ -121,7 +121,10 @@ const cases = {
     }
     const { PARTY_CLASS_XP, validate } = await pc(M);
     const { HUNT_GROUNDS } = await import(new URL('src/data/hunt-grounds.js', rootUrl(M)).href + M.V);
-    const named = Object.keys(PARTY_CLASS_XP).sort().join();
+    /* a ground pack's own row (src/data/grounds) is the pack's to state and party-class-xp-line's to measure; the literal table is the base six */
+    const { GROUND_PACKS } = await import(new URL('src/data/grounds/index.js', rootUrl(M)).href + M.V);
+    const packs = new Set(GROUND_PACKS.map((p) => p.id));
+    const named = Object.keys(PARTY_CLASS_XP).filter((g) => !packs.has(g)).sort().join();
     if (named !== Object.keys(PARTY_TABLE).sort().join()) return 'the table has rows for ' + named;
     const bad = validate(Object.values(HUNT_GROUNDS).map((g) => g.id));
     return bad.length ? bad.join('; ') : null;

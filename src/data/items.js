@@ -1,17 +1,19 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.109';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.109';
-import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.109';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.109';
-import { LIB2_ITEMS } from './library2-items.js?v=0.2.109';
-import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.109';
-import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.109';
-import { CHAMPION_ITEMS } from './champions.js?v=0.2.109';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.109';
-import { IMBUE_ITEMS } from './imbuements.js?v=0.2.109';
-import { SHIELD_ITEMS } from './shields.js?v=0.2.109';
-import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.109';
+import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.111';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.111';
+import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.111';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.111';
+import { LIB2_ITEMS } from './library2-items.js?v=0.2.111';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.111';
+import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.111';
+import { CHAMPION_ITEMS } from './champions.js?v=0.2.111';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.111';
+import { IMBUE_ITEMS } from './imbuements.js?v=0.2.111';
+import { SHIELD_ITEMS } from './shields.js?v=0.2.111';
+import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.111';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.111';
+import { foldRows } from './grounds/shape.js?v=0.2.111';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -784,6 +786,12 @@ export const ITEMS={
   deepvein_lodestar: {n:'Deepvein Lodestar',  icon:'💎',   v:0, bop:true, rarity:'mythic', tag:'trophy', type:'trophy', hearthfind:true},
   tidecallers_pearl: {n:"Tidecaller's Pearl", icon:'🫧',   v:0, bop:true, rarity:'mythic', tag:'trophy', type:'trophy', hearthfind:true},
 };
+
+/* GROUND PACKS (src/data/grounds): each pack's NEW items join the table, a copy each. An id already taken is refused: a pack adds. */
+for (const [id, row] of Object.entries(foldRows('item', {}, GROUND_PACKS, (p) => p.items))) {
+  if (Object.prototype.hasOwnProperty.call(ITEMS, id)) throw new Error('ground pack: item ' + id + ' is already taken; a pack only adds');
+  ITEMS[id] = { ...row };
+}
 
 /* b215: backfill tier + rarity onto the hand-authored pieces that sit on the
    generated ladder (bronze_sword, iron_warhammer, shortbow, oak_staff …).

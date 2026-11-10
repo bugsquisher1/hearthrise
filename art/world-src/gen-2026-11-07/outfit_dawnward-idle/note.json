@@ -1,0 +1,213 @@
+{
+  "asset": "outfit_dawnward-idle",
+  "brief": "art/briefs/gen-2026-11-07/05-hero-idles.txt, run per 07-next-batch.txt (batches 1-4)",
+  "status": "NOT imported; waits on the art director's read",
+  "made": "2026-11-07",
+  "object_id": "478371a8-809e-4ee5-8722-96b008a3fa87",
+  "set": "hunt",
+  "layout": "<facing>/frame_000..008.png = the chosen roll (frame_000 the still); alt/<roll>/<facing>/ = every other roll",
+  "rolls": {
+    "r1": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "group": "48c55d45-19f6-4a44-9543-7d91b1812a73",
+      "action": "standing at rest, breathing slowly, chest rises and falls, a slight shift of weight, feet planted, the weapon and shield stay still, stays in place, nothing else appears in the frame",
+      "directions": "all 8",
+      "note": "east and south-east started from the rotation, which is not the shipped still there (missed 34 and 55 px)"
+    },
+    "r2": {
+      "tool": "animate_object v3 with custom_start_frame_base64 = the shipped still (the sheet's idle cell, 64x64), so frame_000 is the still pixel for pixel",
+      "action": "standing still at rest, only the chest rises and falls by one pixel, the head stays level, both feet stay exactly where they are, both arms and everything held in the hands stay completely still, stays in place, nothing else appears in the frame",
+      "groups": {
+        "east": "e4aa0067-02ba-47d7-86db-0e9c4d6b1528",
+        "south-east": "80e0b956-8883-4d79-8f46-e0718b1a6f86"
+      }
+    },
+    "r3": {
+      "tool": "animate_object v3 with custom_start_frame_base64 = the shipped still (the sheet's idle cell, 64x64), so frame_000 is the still pixel for pixel",
+      "action": "standing very still at rest, only the chest rises and falls by one pixel, the cape hangs straight and does not move, the head stays level, both feet stay exactly where they are, both arms and everything held in the hands stay completely still, nothing else appears in the frame",
+      "groups": {
+        "south-east": "ab820fb7-5879-4b71-bd19-cb7d8a236a0b"
+      }
+    }
+  },
+  "chosen": {
+    "south": "r1",
+    "north": "r1",
+    "west": "r1",
+    "south-west": "r1",
+    "north-east": "r1",
+    "north-west": "r1",
+    "east": "r2",
+    "south-east": "r3"
+  },
+  "loop_preview": {
+    "how": "idle-clip.mjs idleFrames(shipped still, frames, 58), as port-pixellab.mjs idle lays it; feet = foot-row mask px moved, detached = px of the picked frames 3+ px off the still's body",
+    "facings": {
+      "south": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          30,
+          60
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          112,
+          138
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north": {
+        "roll": "r1",
+        "picks": [
+          0,
+          3,
+          5,
+          3
+        ],
+        "steps": [
+          139,
+          33
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "steps": [
+          51,
+          51
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-east": {
+        "roll": "r3",
+        "picks": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "steps": [
+          30,
+          86
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 2,
+        "missed": 0
+      },
+      "south-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          34,
+          78
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-east": {
+        "roll": "r1",
+        "picks": [
+          0,
+          2,
+          8,
+          2
+        ],
+        "steps": [
+          122,
+          94
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          8,
+          1,
+          8
+        ],
+        "steps": [
+          44,
+          51
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      }
+    }
+  },
+  "generations": 11,
+  "flags": [
+    "south-east: r2 flared the cape; r3 is calm (30/86) but 2 stray pixels stand off the body in one frame; retry limit",
+    "north: the mace moves about 1 px in frame a"
+  ],
+  "review_strip": "art/review/gen-2026-11-07/outfit_dawnward-idle.png (per facing: knight walk, raw clip, change from frame 0, the laid loop) and outfit_dawnward-idle-loops.png (per facing s e n w se sw ne nw: own walk frame 0 or idle still, then the 4-frame loop)",
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set hunt --id outfit_dawnward --clip art/world-src/gen-2026-11-07/outfit_dawnward-idle",
+  "hand_passes": {
+    "south-east": {
+      "id": "H6",
+      "change": "cleared the 2 stray pixels at (18,45) and (18,46) of frame_008; none in 001",
+      "frames": "001, 008",
+      "laid": {
+        "picks_raw": "000,001,008,001",
+        "steps": [
+          30,
+          84
+        ],
+        "feet": 0,
+        "detached": 0
+      },
+      "flag": "clean",
+      "brief": "08-next-batch.txt",
+      "how": "local script on the raw frames (copy frame_000 inside the box; 0 gens); the other raw frames moved to alt/unpicked/south-east"
+    }
+  }
+}

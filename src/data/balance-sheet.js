@@ -21,7 +21,9 @@
 // PURE ESM. Data and pure functions only: no DOM, no clock, no randomness. The engine reads only the tier rows (hunt-tiers.js builds GROUND_TIERS from tierRowFor, lane/b-tier-dials).
 // ════════════════════════════════════════════════════════════════════════
 
-import { LEVEL_PACE, VITALS } from './core-model.js?v=0.2.109';
+import { LEVEL_PACE, VITALS } from './core-model.js?v=0.2.111';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.111';
+import { foldRows } from './grounds/shape.js?v=0.2.111';
 
 /* ── THE TARGET SHEET ─────────────────────────────────────────────────────
    Judged per ground on the real engine, store supplies bought per use (the store bill is the whole
@@ -193,7 +195,7 @@ export const ROLE_IDS = Object.freeze(Object.keys(MONSTER_ROLES));
 /* THE ROSTER: each monster's role on its ground (designer input; the reason is the row's own comment in
    monsters.js). Its Level, art tier and class are on the row; its ground gives the floor and the fit. A monster
    on two grounds keeps one role. tools/gen-ground-stats.mjs writes the numbers from these. */
-export const GROUND_ROSTER = Object.freeze({
+const BASE_ROSTER = Object.freeze({
   mill_cellar: Object.freeze({
     rat: 'swarm',             // the tutorial's first kills
     slime: 'heavy',           // slow (2400), a blob
@@ -237,6 +239,8 @@ export const GROUND_ROSTER = Object.freeze({
     chief_coppercap: 'boss',
   }),
 });
+/* A ground pack's roster is its own (src/data/grounds/<id>/pack.js `roster`). */
+export const GROUND_ROSTER = Object.freeze(foldRows('roster', BASE_ROSTER, GROUND_PACKS, (p) => ({ [p.id]: Object.freeze({ ...p.roster }) })));
 /* A GROUND'S XP FIT: Level XP a kill on one ground, x this, where its layout (pockets, walks) kills faster than its Levels
    pay for. Measured, each with its reason (lane/b-ground-formula-2): the Meadowbrook Thicket x0.9: at Wickstead's floor (8) its
    Normal paid within 0-12% of Wickstead's for every way to fight (a four 33.3k against 33.6k), so no harder tier fitted under
@@ -248,7 +252,7 @@ export const GROUND_ROSTER = Object.freeze({
 /* The Sewer x0.9 (lane/b-one-difficulty, 2026-11-08): its party-built monsters die to area blows in packs, so with one pack for every
    group a lone hammer at the Glade's floor earned 131k on its Deadly against the Glade's Normal 108k (the ladder rule); the floor fit alone
    leaves it about 4% over. */
-export const GROUND_XP_FIT = Object.freeze({ mill_cellar: 1.25, meadowbrook_thicket: 0.9, wickstead: 1.1, millrace_sewer: 0.9 });
+export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.25, meadowbrook_thicket: 0.9, wickstead: 1.1, millrace_sewer: 0.9 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));
 
 /* NAMED EXCEPTIONS: { monster: { field: 'the reason' } }, a field a row keeps by hand. Empty: none has earned one. */
 export const FORMULA_EXCEPTIONS = Object.freeze({});
@@ -361,7 +365,7 @@ export const TIER_SIZES = 4;
 /* A GROUND'S OWN TIER RULE, only where its place in the world demands one, each with a reason a player could read in the wiki:
    normalOnly, a tier's own pull ({ tier: ONE number for every group }), or its own XP and HP dials ({ dials: { tier: { hpPm, xpPm } } }).
    No ground carries a pull of its own since 2026-11-08 (TIER_PULL_FROM_FLOOR says it for all); grounds not listed take TIER_DIALS whole. */
-export const TIER_PULL_OVERRIDES = Object.freeze({
+const BASE_TIER_OVERRIDES = Object.freeze({
   mill_cellar: Object.freeze({ normalOnly: true, why: 'the first ground: a choice adds nothing to the first minutes (Coordinator 2026-11-05)' }),
   /* The Thicket sits just under Wickstead: its Normal at Wickstead's floor (8) pays 6-12% under Wickstead's, so the table's x1.2 and x1.25 a kill on its
      harder tiers beat Wickstead's Normal for every way to fight (tests/hunt-core/hunt-tiers.mjs ladder; lane/b-ground-formula-2: a lone tank 25.8k against
@@ -375,6 +379,8 @@ export const TIER_PULL_OVERRIDES = Object.freeze({
   millrace_sewer: Object.freeze({ dials: Object.freeze({ deadly: Object.freeze({ xpPm: 1220 }) }),
     why: 'at +25% a kill the Sewer\'s Deadly out-earned the Glade for a hammer at Level 16, so it pays +22%' }),
 });
+/* A ground pack's own tier row, when its shape demands one (src/data/grounds/<id>/pack.js `tierOverride`, with its why). */
+export const TIER_PULL_OVERRIDES = Object.freeze(foldRows('tier override', BASE_TIER_OVERRIDES, GROUND_PACKS, (p) => (p.tierOverride ? { [p.id]: p.tierOverride } : {})));
 
 /* What one swing is worth at a same-Level hero: its to-hit times its blow share, a tier's atk scaling `k` applied the engine's way
    (atk x k: the blow x k, the to-hit up 2% a point of atk added). The reference monster is a regular at the floor, tier-1 damage scale. */

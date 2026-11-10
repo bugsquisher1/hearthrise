@@ -17,6 +17,8 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
+import { packIds } from '../../tools/pack/files.mjs';
+import { foldedPacks } from '../../tools/pack/whole.mjs';
 
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const { loadCellRunner } = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/cell.mjs')).href);
@@ -51,7 +53,7 @@ const cases = {
     if (Object.keys(S.TIER_DIALS).join() !== T.TIER_IDS.join()) return 'the sheet\'s tiers are ' + Object.keys(S.TIER_DIALS) + ', the game\'s ' + T.TIER_IDS;
     if (T.DIALS.some((k) => S.TIER_DIALS.normal[k] !== 1000) || S.TIER_DIALS.normal.pull !== 0) return 'the sheet\'s Normal is not the ground as it stands: ' + JSON.stringify(S.TIER_DIALS.normal);
     for (const [g, over] of Object.entries(S.TIER_PULL_OVERRIDES)) {
-      if (!G.OPEN_GROUNDS[g]) return 'an override for ' + g + ', which is no open ground';
+      if (!G.HUNT_GROUNDS[g]) return 'an override for ' + g + ', which is no ground';
       if (!(typeof over.why === 'string' && over.why.length > 10)) return 'the override for ' + g + ' gives no reason';
       for (const [k, v] of Object.entries(over)) {
         if (k === 'why' || (k === 'normalOnly' && v === true)) continue;
@@ -68,12 +70,12 @@ const cases = {
        them (tools/gen-ground-stats.mjs floorOf, fitOf), per-ground dials included, digit for digit. */
     const fitOf = (gr) => (gr.pockets.some((p) => p.forParty) ? 'party' : gr.groupFit || 'both');
     for (const [g, rows] of Object.entries(T.GROUND_TIERS)) for (const t of HARDER) {
-      const want = S.tierRowFor(HUNTS.HUNT_INDEX[G.OPEN_GROUNDS[g].hunt].band[0], t, { ground: g, fit: fitOf(G.OPEN_GROUNDS[g]) }), r = rows[t];
+      const want = S.tierRowFor(HUNTS.HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band[0], t, { ground: g, fit: fitOf(G.HUNT_GROUNDS[g]) }), r = rows[t];
       if (!r || r.pull.join() !== want.pull.join() || T.DIALS.some((k) => r[k] !== want[k])) return g + ' ' + t + ' plays ' + JSON.stringify(r) + ', the sheet answers ' + JSON.stringify(want);
     }
     for (const [id, rows] of Object.entries(T.GROUND_TIERS)) {
-      const g = GR.OPEN_GROUNDS[id];
-      if (!g) return id + ' offers tiers but is no open ground';
+      const g = GR.HUNT_GROUNDS[id];
+      if (!g) return id + ' offers tiers but is no ground';
       let was = N;
       for (const t of HARDER) {
         const r = rows[t];
@@ -103,7 +105,13 @@ const cases = {
     const sql = readFileSync(join(ROOT, 'supabase', 'migrations', CATALOGUE), 'utf8');
     const got = [...sql.matchAll(/\('([a-z_]+)', '([a-z]+)', '\{([0-9,]+)\}'::int\[\], (\d+), (\d+), (\d+)\)/g)].map((m) => [m[1], m[2], m[3], m[4], m[5], m[6]].join('|')).sort();
     const want = [];
-    for (const [g, rows] of Object.entries(T.GROUND_TIERS)) for (const id of HARDER) { const t = rows[id]; want.push([g, id, t.pull.join(), t.dmgPm, t.hpPm, t.xpPm].join('|')); }
+    /* the file serves the OPEN grounds its whole view carries: a ground pack not folded into it ships its rows in its own file
+       (tools/pack/whole.mjs, tests/ground-pack.mjs GP-3), so a new ground never re-issues this one (lane/b-ground-pack) */
+    const unfolded = new Set(packIds().filter((id) => !foldedPacks(CATALOGUE).includes(id)));
+    for (const [g, rows] of Object.entries(T.GROUND_TIERS)) {
+      if (!G.OPEN_GROUNDS[g] || unfolded.has(g)) continue;
+      for (const id of HARDER) { const t = rows[id]; want.push([g, id, t.pull.join(), t.dmgPm, t.hpPm, t.xpPm].join('|')); }
+    }
     want.sort();
     return got.join(';') === want.join(';') ? null : 'the catalogue says ' + got.join(';') + ' and the data ' + want.join(';');
   },
@@ -231,7 +239,7 @@ const mutants = [
   { name: 'the Glade\'s Dangerous under a party\'s Normal pull', case: 'rows', edits: [['src/data/hunt-grounds.js', "partyPull: Object.freeze([0, 3, 3, 4]),\n    gather: gather(9000, [\n      /* P0 the Crow Field", "partyPull: Object.freeze([0, 3, 3, 7]),\n    gather: gather(9000, [\n      /* P0 the Crow Field"]] },
   { name: 'Deadly pays more than slightly more XP', case: 'rows', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1250', 'xpPm: 1300')]] },
   { name: 'a ground\'s dial names no dial', case: 'rows', edits: [[SH, THICKET_DIALS, THICKET_DIALS.replace('xpPm: 1080', 'xpPM: 1080')]] },
-  { name: 'a party ground lifts its tiers', case: 'rows', edits: [[D, '{ ground: g, fit: fitOf(OPEN_GROUNDS[g]) }', '{ ground: g }']] },
+  { name: 'a party ground lifts its tiers', case: 'rows', edits: [[D, '{ ground: g, fit: fitOf(HUNT_GROUNDS[g]) }', '{ ground: g }']] },
   { name: 'the dial reader drops the health dial', case: 'dials', edits: [[D, 'hp: hp === 1000 ? row.hp : Math.max(1, Math.round(((row.hp || 1) * hp) / 1000))', 'hp: row.hp']] },
   { name: 'the dial reader drops the XP dial', case: 'harder-tier-costs', edits: [[D, 'xp: ((row.xp || 0) * xp) / 1000 };', 'xp: row.xp || 0 };']] },
   { name: 'health is no dial: a row on damage and XP alone is the row', case: 'dials', edits: [[D, "if (!row || (dmg === 1000 && hp === 1000 && xp === 1000)) return row;", "if (!row || (dmg === 1000 && xp === 1000)) return row;"]] },

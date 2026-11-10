@@ -10,9 +10,9 @@
 //           purchase, "Equip upgrades" offers to put on what is now better (ONE
 //           `equip`, src/shell/widgets/upgrade-line.js).
 //   Sell    every unlocked bag stack the shop bids on, loot first, one Sell per
-//           line and "Sell all loot" — each a confirmation with the total, then
+//           line and "Sell all junk" — each a confirmation with the total, then
 //           ONE `vendor_sell_many`. Locked stacks are listed as kept. The
-//           confirmation stands right under Sell all loot and is brought into view
+//           confirmation stands right under Sell all junk and is brought into view
 //           inside the window as it opens (board 2026-10-25 #6: below the fold at
 //           1350x862 it looked as if the press did nothing).
 //   Services  stamina and Blessings (src/shell/windows/services.js; Tyler 2026-10-25:
@@ -21,25 +21,26 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.109';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.109';
-import { whole, gold } from '../../render/format.js?v=0.2.109';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.109';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.109';
-import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.109';
-import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.109';
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.109';
-import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.109';
-import { toolLossWords } from '../town-work.js?v=0.2.109';
-import { runIntent } from '../intent-words.js?v=0.2.109';
-import { showTip, hideTip } from './item-tip.js?v=0.2.109';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.109';
-import { gearLocked } from '../gear-gate.js?v=0.2.109';
-import { revealInWindow } from '../widgets/bits.js?v=0.2.109';
-import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.109';
-import { CROPS } from '../../data/gathering.js?v=0.2.109';
-import { requiredPlotLevel } from '../../core/farm.js?v=0.2.109';
-import { farmFieldOf } from '../../session/farm-sections.js?v=0.2.109';
+import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.111';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.111';
+import { whole, gold } from '../../render/format.js?v=0.2.111';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.111';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.111';
+import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.111';
+import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.111';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.111';
+import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.111';
+import { toolLossWords } from '../town-work.js?v=0.2.111';
+import { runIntent } from '../intent-words.js?v=0.2.111';
+import { showTip, hideTip } from './item-tip.js?v=0.2.111';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.111';
+import { gearLocked } from '../gear-gate.js?v=0.2.111';
+import { revealInWindow } from '../widgets/bits.js?v=0.2.111';
+import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.111';
+import { CROPS } from '../../data/gathering.js?v=0.2.111';
+import { requiredPlotLevel } from '../../core/farm.js?v=0.2.111';
+import { farmFieldOf } from '../../session/farm-sections.js?v=0.2.111';
+import { t } from '../../render/player-text.js?v=0.2.111';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell'], ['services', 'Services']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
@@ -62,10 +63,10 @@ function seedNeedWords(cs, item) {
   const crop = CROP_OF_SEED.get(item);
   if (!crop) return '';
   const sk = /** @type {Record<string, { level: number }> | null} */ (skillsOf(cs)), field = farmFieldOf(cs);
-  const needs = [];
-  if ((CROPS[crop].req || 1) > (sk && sk.farming ? sk.farming.level : 1)) needs.push('Farming ' + CROPS[crop].req);
-  if (requiredPlotLevel(crop) > (field ? field.plotLevel : 1)) needs.push('plot tier ' + requiredPlotLevel(crop));
-  return needs.length ? 'Needs ' + needs.join(' and ') + ' to plant' : '';
+  const level = (CROPS[crop].req || 1) > (sk && sk.farming ? sk.farming.level : 1) ? CROPS[crop].req : 0;
+  const tier = requiredPlotLevel(crop) > (field ? field.plotLevel : 1) ? requiredPlotLevel(crop) : 0;
+  return level && tier ? t('shop.seed_needs_both', { level, tier })
+    : level ? t('shop.seed_needs_farming', { level }) : tier ? t('shop.seed_needs_tier', { tier }) : '';
 }
 /* A piece of gear is bought one or two at a time (two rings); tools by the stack. */
 const QTYS_BY_KIND = Object.freeze({ gear: Object.freeze([1, 2]) });
@@ -95,7 +96,7 @@ export function renderShop() {
 
 function offerRow(ctx, o) {
   const qtys = QTYS_BY_KIND[o.kind] || QTYS;
-  return element(ctx.doc, '<li class="hw-line" data-hs-act="line" data-item="' + esc(o.item) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, o.item) + '</span>'
+  return element(ctx.doc, '<li class="hw-line" data-hs-act="line" data-item="' + esc(o.item) + '" data-hs-find="' + esc(o.item) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, o.item) + '</span>'
     + '<span class="hw-line-name"><b>' + esc(itemName(o.item)) + '</b><small></small></span>'
     + '<select class="hh-select hw-qty" data-hs-act="qty" data-offer="' + esc(o.offer) + '" aria-label="How many">' + qtys.map((n) => '<option value="' + n + '">' + n + '</option>').join('') + '</select>'
     + '<button type="button" class="hh-tool" data-hs-act="buy" data-offer="' + esc(o.offer) + '"></button></li>');
@@ -140,11 +141,11 @@ function spareOf(cs, items, rules, shop) {
   const wanted = new Set([...up.picks.map((p) => p.id), ...up.choices.flatMap((c) => c.ids)]);
   return { ...spareSale(items, equipmentOf(cs) || {}, rules, shop, { wanted, isRare: isRareOnly }), spare: true };
 }
-/* What Sell all loot leaves out and why, so its price and the list under it add up (say-why). */
+/* What Sell all junk leaves out and why, so its price and the list under it add up (say-why). */
 function sellNote(plan, kept, spare) {
   const parts = [];
   if (spare.lines.length) parts.push('Sell spare gear keeps what you wear, anything of a higher tier and Rare pieces.');
-  if (kept.ids.length) parts.push('It keeps ' + whole(kept.ids.length) + (kept.ids.length === 1 ? ' stack' : ' stacks') + ' worth ' + gold(kept.worth) + ' you can use, like fuel, food to cook and materials for your recipes or your next House step. Sell those by hand if you want the gold.');
+  if (kept.ids.length) parts.push(t('shop.junk_keeps', { count: kept.ids.length, worth: gold(kept.worth) }));
   if (plan.capped) parts.push('One sale takes up to ' + whole(sellQty(Infinity)) + ' of a stack.');
   return parts.join(' ');
 }
@@ -154,12 +155,12 @@ function patchSell(root, st, ctx) {
   const locked = st.rules ? st.rules.locked : new Set();
   const bids = st.shop ? st.shop.bids : new Map();
   const needs = upgradeNeeds(homeOf(st.cs), chestsOf(st.cs));
-  const plan = lootSale(st.items, st.rules, st.shop, skillsOf(st.cs), needs);
-  const kept = lootKept(st.items, st.rules, st.shop, skillsOf(st.cs), needs);
+  const plan = lootSale(st.items, st.rules, st.shop, needs);
+  const kept = lootKept(st.items, st.rules, st.shop, needs);
   const keptLoot = new Set(kept.ids);
   const spare = spareOf(st.cs, st.items, st.rules, st.shop);
   const spares = new Set(spare.lines.map((l) => l.item));
-  const list = st.items.filter((r) => bids.has(r.id)).sort((a, b) => (kindOf(b.id) === 'loot') - (kindOf(a.id) === 'loot') || bids.get(b.id) * b.qty - bids.get(a.id) * a.qty);
+  const list = st.items.filter((r) => bids.has(r.id)).sort((a, b) => (kindOf(b.id) === 'junk') - (kindOf(a.id) === 'junk') || bids.get(b.id) * b.qty - bids.get(a.id) * a.qty);
   rows(root.querySelector('.hw-sell-list'), list, {
     key: (r) => r.id,
     build: (r) => element(ctx.doc, '<li class="hw-line" data-hs-act="line" data-item="' + esc(r.id) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, r.id) + '</span>'
@@ -167,7 +168,7 @@ function patchSell(root, st, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="sell" data-item="' + esc(r.id) + '"></button></li>'),
     patch: (li, r) => {
       const isLocked = locked.has(r.id);
-      text(li.querySelector('small'), '×' + whole(r.qty) + ' · ' + gold(bids.get(r.id)) + ' each' + (isLocked ? ' · locked' : keptLoot.has(r.id) ? ' · Sell all loot keeps it' : spares.has(r.id) ? ' · spare' : madeFromKit(r.id) ? ' · Sell spare gear keeps it' : ''));
+      text(li.querySelector('small'), '×' + whole(r.qty) + ' · ' + gold(bids.get(r.id)) + ' each' + (isLocked ? ' · locked' : keptLoot.has(r.id) ? ' · ' + t('shop.junk_keeps_it') : spares.has(r.id) ? ' · spare' : madeFromKit(r.id) ? ' · Sell spare gear keeps it' : ''));
       const b = li.querySelector('button');
       /* One sale takes up to the server's limit of a stack: a bigger stack's button says how many, so its price adds up. */
       const take = sellQty(r.qty);
@@ -177,7 +178,7 @@ function patchSell(root, st, ctx) {
   });
   cls(root.querySelector('.hw-sell-none'), 'is-on', !list.length);
   const lb = root.querySelector('[data-hs-act="sell-loot"]');
-  text(lb, 'Sell all loot' + (plan.lines.length ? ' · ' + gold(plan.total) : ''));
+  text(lb, plan.lines.length ? t('shop.sell_junk_for', { total: gold(plan.total) }) : t('shop.sell_junk'));
   prop(lb, 'disabled', sc.pending || !plan.lines.length);
   const sb = root.querySelector('[data-hs-act="sell-spare"]');
   prop(sb, 'hidden', !spare.lines.length);
@@ -225,29 +226,29 @@ renderShop.patch = function patchShop(body, ctx) {
 
 renderShop.events = Object.freeze(['mouseover', 'mouseout']);
 
-renderShop.act = function actShop(ctx, body, action, ev, t) {
+renderShop.act = function actShop(ctx, body, action, ev, el) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => renderShop.patch(body, ctx);
   const shop = shopOf(cs);
   if (ev.type === 'mouseover' && action === 'line') {
-    const id = t.getAttribute('data-item');
+    const id = el.getAttribute('data-item');
     const bag = bagOf(cs) || [];
     const have = bag.find((r) => r.id === id);
-    showTip(ctx.doc, t, id, { qty: have ? have.qty : 0, bid: shop ? (shop.bids.has(id) ? shop.bids.get(id) : null) : undefined, offers: shop ? shop.offers : null });
+    showTip(ctx.doc, el, id, { qty: have ? have.qty : 0, bid: shop ? (shop.bids.has(id) ? shop.bids.get(id) : null) : undefined, offers: shop ? shop.offers : null });
     return false;
   }
-  if (ev.type === 'mouseout') { if (!t.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
+  if (ev.type === 'mouseout') { if (!el.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
   if (ev.type === 'change') {
-    if (action === 'qty') { sc.qty[t.getAttribute('data-offer')] = Number(t.value) || 1; repaint(); }
+    if (action === 'qty') { sc.qty[el.getAttribute('data-offer')] = Number(el.value) || 1; repaint(); }
     return false;
   }
   if (ev.type !== 'click') return false;
-  if (sc.tab === 'services' && actServicesPane(ctx, body, action, ev, t)) return true;
-  /* A tab opens at its top: the Buy list's scroll carried over and laid Sell all loot, ringed, behind the stuck tabs on a phone (door panel 2026-11-04). */
-  if (action === 'tab') { sc.tab = t.getAttribute('data-tab'); sc.confirm = null; sc.msg = ''; sc.msgAt = null; sc.wear = false; body.scrollTop = 0; repaint(); return true; }
+  if (sc.tab === 'services' && actServicesPane(ctx, body, action, ev, el)) return true;
+  /* A tab opens at its top: the Buy list's scroll carried over and laid Sell all junk, ringed, behind the stuck tabs on a phone (door panel 2026-11-04). */
+  if (action === 'tab') { sc.tab = el.getAttribute('data-tab'); sc.confirm = null; sc.msg = ''; sc.msgAt = null; sc.wear = false; body.scrollTop = 0; repaint(); return true; }
   if (action === 'buy') {
-    const offer = t.getAttribute('data-offer');
+    const offer = el.getAttribute('data-offer');
     const o = shop ? shop.offers.find((x) => x.offer === offer) : null;
     sc.wear = false;
     sc.msgAt = null;
@@ -259,9 +260,9 @@ renderShop.act = function actShop(ctx, body, action, ev, t) {
   if (action === 'sell' || action === 'sell-loot' || action === 'sell-spare') {
     const items = bagOf(cs) || [];
     const rules = rulesOf(cs);
-    const plan = action === 'sell' ? sellPlan(items, [t.getAttribute('data-item')], { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null })
+    const plan = action === 'sell' ? sellPlan(items, [el.getAttribute('data-item')], { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null })
       : action === 'sell-spare' ? spareOf(cs, items, rules, shop)
-        : lootSale(items, rules, shop, skillsOf(cs), upgradeNeeds(homeOf(cs), chestsOf(cs)));
+        : lootSale(items, rules, shop, upgradeNeeds(homeOf(cs), chestsOf(cs)));
     sc.confirm = plan.lines.length ? plan : null;
     repaint();
     return true;

@@ -30,6 +30,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { basename } from 'node:path';
+import { wholeViewOrRerun } from './pack/whole.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 /* DEMOLITION REGEN (2026-10-14): the catalogue is emitted into a NEW, LAST-registered
@@ -1563,6 +1565,8 @@ end $$;
 `;
 
 // ── 5. Write or check ────────────────────────────────────────────────────
+/* GROUND PACKS: a whole file carries the base and the folded packs only (tools/pack/whole.mjs), so a new pack re-issues nothing */
+wholeViewOrRerun(import.meta.url, basename(OUT));
 const CHECK = process.argv.includes('--check');
 if (CHECK) {
   const existing = await readFile(OUT, 'utf8').catch(() => null);

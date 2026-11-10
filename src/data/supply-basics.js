@@ -53,9 +53,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName } from './runes.js?v=0.2.109';
-import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.109';
-import { JEWEL_SHOP_PRICE } from './jewelry.js?v=0.2.109';
+import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName } from './runes.js?v=0.2.111';
+import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.111';
+import { JEWEL_SHOP_PRICE } from './jewelry.js?v=0.2.111';
 
 /* A basic heal or drink gives this share of its crafted partner (floored); a
    basic arrow gives this share of its partner's ammo bonus. */
@@ -81,8 +81,10 @@ const shot = (id, n, partner, price) => Object.freeze({ id, kind: 'ammo', n, par
    so Plain can move only with a coin change. Each deeper price stands above what a crafter can list at (tests/craft-wages.mjs W-RUNE).
    A deeper rune is the player's own pick on a slot: no default bar names one, and nothing rewrites a saved bar. */
 export const STORE_RUNE_PRICE = Object.freeze([1, 8, 12, 16, 24]);
+/* A deeper store rune is called by its tier's own name, "Scored Fire Rune" (Tyler 2026-11-08: "Plain Scored Fire Rune" read wrong
+   beside "the store's"); Plain names only the tier-1 row, the store's own cheap rune. The ids keep their `plain_` prefix. */
 const storeRune = (family, t) => shot(t.tier === 1 ? 'plain_' + family + '_rune' : 'plain_' + runeId(family, t.tier),
-  t.tier === 1 ? 'Plain ' + RUNE_FAMILIES[family].label + ' Rune' : 'Plain ' + runeName(family, t.tier), runeId(family, t.tier), STORE_RUNE_PRICE[t.tier - 1]);
+  t.tier === 1 ? 'Plain ' + RUNE_FAMILIES[family].label + ' Rune' : runeName(family, t.tier), runeId(family, t.tier), STORE_RUNE_PRICE[t.tier - 1]);
 
 /* id -> row. `price` is gold per use (per shot for ammo, per cast for a rune). */
 export const BASIC_SUPPLIES = Object.freeze([

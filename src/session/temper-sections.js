@@ -5,13 +5,13 @@
 // rung's offer at the server's price, gold and material. Every envelope replaces it and nothing here holds a number of its own: what a rung is
 // worth is the one rule the fight uses (src/core/temper.js), read over the server's rungs and the server's worn set.
 // ════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.109';
-import { TEMPER_TIERS, temperUnlockId } from '../data/temper.js?v=0.2.109';
-import { armourLineWord } from '../data/gear-tiers.js?v=0.2.109';
-import { armorLineOf, armorPmOf, blowsPmOf } from '../core/temper.js?v=0.2.109';
-import { equipmentOf, bankOf, skillsOf } from './item-sections.js?v=0.2.109';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.109';
-import { recipeInputs } from '../core/artisan.js?v=0.2.109';
+import { ITEMS } from '../data/items.js?v=0.2.111';
+import { TEMPER_TIERS, temperUnlockId } from '../data/temper.js?v=0.2.111';
+import { armourLineWord } from '../data/gear-tiers.js?v=0.2.111';
+import { armorLineOf, armorPmOf, blowsPmOf } from '../core/temper.js?v=0.2.111';
+import { equipmentOf, bankOf, skillsOf } from './item-sections.js?v=0.2.111';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.111';
+import { recipeInputs } from '../core/artisan.js?v=0.2.111';
 
 const count = (n) => (Number.isSafeInteger(n) && n >= 0 ? n : null);
 
@@ -52,7 +52,7 @@ function needsOf(cs, ladder) {
     const storage = row ? row.qty : 0;
     const recipe = ARTISAN_RECIPES.smithing.find((r) => r.output === id) || null;
     return { id, name: ITEMS[id] ? ITEMS[id].n : id, need, bag, storage, held: bag + storage, short: Math.max(0, need - bag - storage),
-      smith: recipe ? { req: recipe.req, level: levels.smithing ? levels.smithing.level : 1, from: Object.entries(recipeInputs(recipe)).map(inputOf) } : null };
+      smith: recipe ? { id: recipe.id, req: recipe.req, level: levels.smithing ? levels.smithing.level : 1, from: Object.entries(recipeInputs(recipe)).map(inputOf) } : null };
   });
 }
 

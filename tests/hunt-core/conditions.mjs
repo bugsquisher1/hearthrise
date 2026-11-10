@@ -1007,6 +1007,9 @@ const mutants = [
   { name: 'a pull ignores the ground\'s clamp', case: 'party-pull', edits: [['src/data/hunt-grounds.js', 'return Math.max(0, Math.min(max, p, DENSITY_PICK.max));\n}\n\n/** THE PULL\'S PICK', 'return Math.max(0, Number.isInteger(pick) && pick > 0 ? Math.min(max, p, DENSITY_PICK.max) : p);\n}\n\n/** THE PULL\'S PICK']] },
   { name: 'a row\'s pull for a lone hero passes validation', case: 'party-pull', edits: [['src/data/hunt-grounds.js', 'row.partyPull.length === MAX_HEROES && row.partyPull[0] === 0', 'row.partyPull.length === MAX_HEROES']] },
   { name: 'a metric row with no evaluator', case: 'registry', edits: [['src/core/hunt/conditions.js', '  target_is_boss: (cx) => {', '  target_is_boss_x: (cx) => {']] },
+  /* (Tyler 2026-11-08, "at or above 2 what?": a count reads its noun after the number, the picker and the summary alike) */
+  { name: 'a count with no noun passes the registry', case: 'registry', edits: [['src/data/condition-metrics.js', "say: 'it would hit', unit: noun('monster', 'monsters'), value: 'count',", "say: 'it would hit', value: 'count',"]] },
+  { name: 'a comparison with no words for a count passes the registry', case: 'registry', edits: [['src/data/condition-metrics.js', "  gte: Object.freeze({ pct: 'is at least', count: 'at least' }),", "  gte: Object.freeze({ pct: 'is at least' }),"]] },
   { name: 'an unknown metric is accepted', case: 'validation', edits: [['src/core/hunt/conditions.js', "  if (!m || (stop && m.slotOnly)) return 'bad_metric';", "  if (stop && m && m.slotOnly) return 'bad_metric';\n  if (!m) return null;"]] },
   { name: 'a value out of range is accepted', case: 'validation', edits: [['src/core/hunt/conditions.js', ' || c.value < m.range[0] || c.value > m.range[1]) return', ') return']] },
   { name: 'a slot may join or', case: 'validation', edits: [['src/core/hunt/conditions.js', "(!JOINS.includes(join) || (!stop && join !== 'and'))", '!JOINS.includes(join)']] },
@@ -1105,7 +1108,7 @@ const mutants = [
     edits: [['src/core/elements.js', '  if (!monster || !isElement(element)) return 1000;', "  if (element === 'poison' && monster && monster.elements && monster.elements.poison === 50) return 0;\n  if (!monster || !isElement(element)) return 1000;"],
       ['src/core/hunt/damage.js', '  const el = elementOn(target, element);\n', '  const el = elementOn(target, element);\n  if (el === 0) return { dmg: 0, absorbed: 0, killed: false };\n'],
       ['src/data/rule-subjects.js', ", slot('undertow', UNDERTOW_WHEN)]),", ']),']] },
-  { name: 'a migration row drifts from the registry', case: 'sql-rows', edits: [['src/data/condition-metrics.js', "label: 'My target is a boss', say: 'my target being a boss', value: 'bool', ops: Object.freeze(['eq'])", "label: 'My target is a boss', say: 'my target being a boss', value: 'bool', ops: Object.freeze(['eq', 'ne'])"]] },
+  { name: 'a migration row drifts from the registry', case: 'sql-rows', edits: [['src/data/condition-metrics.js', "say: 'my target is a boss', value: 'bool', ops: Object.freeze(['eq'])", "say: 'my target is a boss', value: 'bool', ops: Object.freeze(['eq', 'ne'])"]] },
   { name: 'the start kit bar drifts from the server one', case: 'sql-rows', edits: [['src/data/start-kit.js', "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 30)", "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 35)"]] },
   { name: 'a store food is no slot item', case: 'sql-rows', edits: [['src/data/consumables.js', "    .map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),", "    .filter(() => false).map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),"]] },
 ];

@@ -794,6 +794,16 @@ jobs:
           node tests/honor-window.mjs
           node tools/mutant-gate.mjs node tests/honor-window.mjs --mutate
 
+      # A MONSTER'S PAGE (lane/b-monster-facts, Tyler 2026-11-09: every monster's stats are
+      # visible): a creature on a hunt's page opens it beside Hunts; every number equals its
+      # data row, worked out in the test with plain arithmetic; uses link to their windows;
+      # a sheet on the phone with a way back. --mutate plants nine.
+      - name: Monster facts page (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/monster-facts.mjs
+          node tools/mutant-gate.mjs node tests/monster-facts.mjs --mutate
+
       # THE CHARACTER WINDOW (2026-10-25): the outfit catalogue is GENERATED
       # (gen-outfits --check); one XP formula, the sheet reads only what its
       # fingerprint covers, every put carries the engine version

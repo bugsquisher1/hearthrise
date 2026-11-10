@@ -384,7 +384,9 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await late.ctx.close();
       /* THE GAME SCREEN'S OWN MODULES (boot.js asks for src/app/world-pane.js when an account starts; hunt-path baseline 2026-11-10: every
          module of the page ran before sign-in was drawn). One of them held on the wire holds back neither the sign-in screen nor the
-         characters list; failing behind them it gets the same second go: the hero's Play reloads by itself, and the hero stands in the World. */
+         characters list. A Play pressed meanwhile waits, marked as sending, and opens NO hero before they have run (what they set up as
+         they run, the hunt summary's recorder, must be there for a session's first envelope: death-popup DP-4). Failing, they get the
+         same second go: the Play reloads by itself, and the hero stands in the World. */
       const game = await fresh({ heroes: { 0: 'Tester' }, created: [] });
       const gameDocs = docsOf(game.page);
       let gameFree = null;
@@ -397,10 +399,14 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         await game.page.fill('input[name=password]', 'not-a-real-password');
         await game.page.click('.auth-submit');
         if (!(await wait(game.page, () => document.querySelector('[data-app="play"][data-slot="0"]')))) fails.push('B-19 the characters list waited on the game screen\'s modules');
-        gameFree();
-        await game.page.waitForTimeout(2500);   // past the first reload's pause, as above
-        if (gameDocs.n !== 1) fails.push('B-19 a game-screen preload failing behind the first screen reloaded the page under the player');
         await game.page.click('[data-app="play"][data-slot="0"]');
+        await game.page.waitForTimeout(600);
+        const waiting = await game.page.evaluate(() => ({ topics: Object.keys(window.__hub.channels).filter((t) => /^hr:[0-9a-f-]+:\d$/.test(t)),
+          busy: (document.querySelector('[data-app="play"][data-slot="0"]') || { getAttribute: () => null }).getAttribute('aria-busy') }));
+        if (waiting.topics.length) fails.push('B-19 a hero was opened before the game screen\'s modules had run (joined ' + waiting.topics.join(', ') + ')');
+        if (waiting.busy !== 'true') fails.push('B-19 a Play waiting on the game screen\'s modules does not read as sending (aria-busy ' + waiting.busy + ')');
+        if (gameDocs.n !== 1) fails.push('B-19 a Play waiting on a held module reloaded the page (' + gameDocs.n + ' document loads)');
+        gameFree();
         if (!(await until(game.page, () => document.querySelector('#panel-world canvas')))) fails.push('B-19 a game-screen module failing once left the hero out of the World: ' + JSON.stringify((await game.page.evaluate(() => document.body.innerText)).slice(0, 160)));
         else if (gameDocs.n !== 2) fails.push('B-19 the game screen\'s module took ' + gameDocs.n + ' document load(s), want 2');
       }
@@ -1309,6 +1315,10 @@ const MUTANTS = [
   ['a failure behind the first screen reloads under the player (B-19)', 'src/platform/load-shell.js', [['    if (!shell.parentNode) return;\n    if (!win.HearthriseRetryLoad', '    if (!win.HearthriseRetryLoad'], ['if (failed || !t || !shell.parentNode || (t.tagName', 'if (failed || !t || (t.tagName']]],
   ['the World\'s module gets no second go (B-19)', 'src/app/world-pane.js', "reloading = typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad();", 'void win;'],
   ['the game screen\'s module gets no second go (B-19)', 'src/app/boot.js', "const again = typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad();", 'const again = false;'],
+  ['a Play the page could not load is forgotten by its reload (B-19)', 'src/app/boot.js', '        if (again) a.keepPlay(slot, others);\n', ''],
+  ['a hero is opened before the game screen\'s modules have run (B-19)', 'src/app/boot.js', "    if (!game) {\n      const got = await a.intents.track('open_character', async () => {", "    if (!game && a.open(slot)) {\n      const got = await a.intents.track('open_character', async () => {"],
+  ['a Play waiting on the game screen is not an ask (B-19)', 'src/app/boot.js', "const got = await a.intents.track('open_character', async () => {\n        try { game = await askGame(); return { ok: true }; } catch (e) { console.error('[boot] the game screen failed to load', e); return { ok: false, error: 'network' }; }\n      });",
+    "const got = await (async () => {\n        try { game = await askGame(); return { ok: true }; } catch (e) { console.error('[boot] the game screen failed to load', e); return { ok: false, error: 'network' }; }\n      })();"],
   /* a second copy of the pane under another module key (no cache-buster): the entry waits on its whole graph again */
   ['the first screen waits on the game screen again (B-19)', 'src/app/boot.js', "import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=", "import './world-pane.js';\nimport { mountCharacterStrip, stripTargetOf } from './character-strip.js?v="],
   ['a script that fails before the store is up is lost (B-19)', 'src/platform/load-shell.js', "if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', failedNow); else failedNow();", 'failedNow();'],

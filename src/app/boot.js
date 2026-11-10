@@ -119,7 +119,7 @@ function startApp(win) {
      widget; 126 of this page's 399 modules, hunt-path baseline 2026-11-10). Nothing uses them before the pane is mounted, so the
      page no longer waits on them to start: sign-in is drawn and the roster's read leaves that much sooner, and they run while the
      server answers. Their files still arrive with the page (play.html's preload block). Asked for once, when an account starts. */
-  let game = null;        // the module, once it has run: the pane is never mounted before it (showGame)
+  let game = null;        // the module, once it has run: no hero is opened and no pane mounted before it (play)
   let gameAsked = null;
   const askGame = () => gameAsked || (gameAsked = import('./world-pane.js?v=0.2.112'));
 
@@ -321,6 +321,24 @@ function startApp(win) {
      open). False when it could not open. */
   async function play(slot, others = rosterSlots) {
     const a = account;
+    /* THE GAME SCREEN'S MODULES BEFORE ANY HERO IS OPENED: what they set up as they run is in place when a session is made, as it was
+       when the page ran every module before it started (the hunt summary's recorder hears each session from its first envelope:
+       src/shell/windows/hunt-summary.js; opened first, a reload in town stood the "Last hunt" bar back up, tests/death-popup.mjs DP-4).
+       The press waits on them as on the open itself (an ask in the intent ledger). A file that did not load stays failed in this page:
+       its own second go (src/platform/load-shell.js), which plays this hero, as the World's gets; else the list says so. */
+    if (!game) {
+      const got = await a.intents.track('open_character', async () => {
+        try { game = await askGame(); return { ok: true }; } catch (e) { console.error('[boot] the game screen failed to load', e); return { ok: false, error: 'network' }; }
+      });
+      if (a !== account) return false;
+      if (!got.ok) {
+        const again = typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad();
+        if (again) a.keepPlay(slot, others);
+        const m = root.querySelector('.auth-message');
+        if (m && !again) m.textContent = 'The world could not load. Reload the page to try again.';
+        return false;
+      }
+    }
     const r = await a.open(slot);
     if (!r.ok) {
       const m = root.querySelector('.auth-message');
@@ -330,15 +348,6 @@ function startApp(win) {
     }
     if (a !== account) return false;
     a.view(slot);
-    /* A file of the game screen's that did not load stays failed in this page: its own second go (src/platform/load-shell.js), as the World's gets, else the list says so. */
-    try { game = game || await askGame(); } catch (e) {
-      console.error('[boot] the game screen failed to load', e);
-      const again = typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad();
-      const m = root.querySelector('.auth-message');
-      if (m && !again) m.textContent = 'The world could not load. Reload the page to try again.';
-      return false;
-    }
-    if (a !== account) return false;
     await showGame();
     timing.drawn('game');
     /* the account's other characters play too (in town for everyone), unviewed */

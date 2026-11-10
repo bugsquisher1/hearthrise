@@ -3,14 +3,14 @@
 // tools/build-site.mjs — THE SITE IS WHAT THE GAME LOADS, NOT THE REPOSITORY.
 //
 //   node tools/build-site.mjs [--out DIR]   copy the publish set into _site/ (or DIR), check the copy, print its size
-//   node tools/build-site.mjs --check       check the publish set where it lies, nothing copied (the smoke.yml guard)
+//   node tools/build-site.mjs --check       the same build into a scratch folder, removed after (the smoke.yml guard)
 //   node tools/build-site.mjs --left-out    what stays behind under assets/, by folder (--all: every file)
 //   node tools/build-site.mjs --selftest    planted holes must go RED by their own rule, the real set GREEN
 //
 // WHY (2026-11-10). GitHub Pages published the whole repository from main: 472 MB, then 253 MB once art/review left
 // it. v0.2.114's deploy ran past GitHub's 10-minute limit four times, so a release whose server half was live sat
-// undeployed for over an hour. The game asks for about a twentieth of that. .github/workflows/pages.yml builds this
-// folder and deploys it as the Pages artifact; nothing else in the repository is served.
+// undeployed for over an hour. The game asks for 10 MB of that. .github/workflows/pages.yml builds this folder and
+// deploys it as the Pages artifact; nothing else in the repository is served.
 //
 // PUBLISH below is the whole list. A file the game asks for that is not in it FAILS THE BUILD, so a hole is a red
 // deploy (the site keeps serving the last good one) and never a 404 for a player:
@@ -28,9 +28,11 @@
 // No dotfile is published: a workflow deploy runs no Jekyll, so .nojekyll is not needed there (it stays in the
 // repository for a rollback to the branch source), and actions/upload-pages-artifact leaves dotfiles out.
 // Exit: 0 green · 1 a hole · 2 a harness or usage problem.
-// mutant-anchors: none — the proof plants into in-memory copies of the publish plan and its readers, never a tree file
+// The proof plants into in-memory copies of the plan and its readers, never a tree file. Its art cases are drawn from:
+// mutant-anchors: src/data/item-art.js src/data/items.js src/data/supply-basics.js src/data/world/atlas-sets.js src/data/world/art-budget.js
 // ════════════════════════════════════════════════════════════════════════
-import { readFileSync, readdirSync, statSync, existsSync, mkdirSync, copyFileSync, rmSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync, mkdirSync, mkdtempSync, copyFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, dirname, posix, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { lex } from './guard-anchors.mjs';
@@ -38,7 +40,7 @@ import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-// THE PUBLISH SET. One row per reason a browser asks for it. A star stays inside one folder; two stars and a slash are any depth.
+// THE PUBLISH SET: one row per reason a browser asks. A star stays inside one folder; two stars and a slash are any depth.
 export const PUBLISH = Object.freeze([
   '*.html',                                                  // the pages at the root: the notice and the game
   'CNAME',                                                   // the custom domain (a branch deploy reads it; kept for the rollback)
@@ -54,7 +56,7 @@ export const PUBLISH = Object.freeze([
   'legal/PRIVACY_POLICY.md', 'legal/TERMS_OF_SERVICE.md',    // read by the sign-in screens
 ]);
 
-/* NAMED BY THE CODE, LEFT OUT ON PURPOSE: the painted item and monster sets (590 files, 25 MB). Their folders are
+/* NAMED BY THE CODE, LEFT OUT ON PURPOSE: the painted item and monster sets (590 files, 22 MB). Their folders are
    constants in the two art manifests, but ITEM_ART_SET is 'pixel' and no module imports a name that builds a painted
    path, so no screen asks for one. SITE-6 holds exactly that: wire one back and the build is red until its folder is
    a PUBLISH row. `names` are the exports of each manifest that never reach a painted folder. */
@@ -66,7 +68,7 @@ export const LEFT_OUT = Object.freeze({
   }),
 });
 
-/* Measured 2026-11-10: 10.5 MB. GitHub's limits are a 1 GB site and a 10-minute deploy; 253 MB took 77 s to 17 min
+/* Measured 2026-11-10: 10.2 MB. GitHub's limits are a 1 GB site and a 10-minute deploy; 253 MB took 77 s to 17 min
    and 472 MB never finished. Raise this only with the new size and a deploy time beside it. */
 export const SITE_BUDGET_BYTES = 25 * 1024 * 1024;
 
@@ -75,9 +77,9 @@ const VENDOR = 'src/vendor/';   // third-party bundles, pinned by hash: they loa
 const FLOORS = Object.freeze({ 'SITE-1': 100, 'SITE-2': 300, 'SITE-3': 10, 'SITE-4': 5, 'SITE-5': 100 });
 
 // ── THE PLAN ─────────────────────────────────────────────────────────────
-const globRe = (g) => new RegExp('^' + g.split('**/').map((part) => part.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*')).join('(?:[^/]+/)*') + '$');
+const globRe = (g) => new RegExp('^' + g.split('**/').map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*')).join('(?:[^/]+/)*') + '$');
 
-/** Every file under `dir` (posix paths from `root`), or under the root's listed `tops` only. */
+/** Every file under `root` as a posix path from it; with `tops`, the root's own files and those folders only. */
 function walk(root, tops) {
   const out = [];
   const into = (rel) => {
@@ -144,7 +146,8 @@ function scanJs(file, src, tops) {
 /** A page or stylesheet reference as a site path, or null when it leaves the site (another host, data:, #). */
 function local(ref, dir) {
   if (!ref || /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(ref)) return null;
-  return posix.normalize(posix.join(dir, ref.split(/[?#]/)[0]));
+  const path = ref.split(/[?#]/)[0];
+  return posix.normalize(path.startsWith('/') ? path.slice(1) : posix.join(dir, path));   // the site sits at its domain's root
 }
 
 // ── THE CHECK ────────────────────────────────────────────────────────────
@@ -263,23 +266,23 @@ async function selftest() {
     return (mine.find((n) => !others.has(n.path)) || mine[0] || {}).path;
   };
   const without = (path) => { const files = new Map(plan.files); files.delete(path); return { ...plan, files, read }; };
-  const grown = (file, more) => ({ ...plan, read: (p) => (p === file ? read(p) + more : read(p)) });
+  const grown = (file, more, repo = plan.repo) => ({ ...plan, repo, read: (p) => (p === file ? read(p) + more : read(p)) });
   const host = clean.needs.find((n) => n.rule === 'SITE-2' && n.via === 'import').by;   // any real module to plant a line into
+  const near = posix.dirname(host) + '/';
   const toArt = posix.relative(posix.dirname(host), 'src/data/item-art.js').replace(/^(?!\.)/, './');
-  /* a file the repository holds and the site does not, in a folder with nothing published and no LEFT_OUT row */
-  const spare = plan.repo.find((f) => f.startsWith('assets/') && !LEFT_OUT.prefixes.some((x) => f.startsWith(x))
-    && !Array.from(plan.files.keys()).some((p) => p.startsWith(posix.dirname(f) + '/')));
+  /* an art family no PUBLISH row has heard of, as if a lane had just added its first file to the repository */
+  const HORN = 'assets/sfx/horn.ogg', withHorn = plan.repo.concat(HORN);
   const hole = (name, rule, via) => { const path = pick(rule, via); return [name + (path ? ': ' + path : ''), path && without(path), facts, undefined, rule, path]; };
   const cases = [
     ['the real publish set', { ...plan, read }, facts, undefined, null],
     hole('a file a page tag names is missing', 'SITE-1', 'tag'),
     hole('a statically imported module is missing', 'SITE-2', 'import'),
-    hole('a module behind a literal import() is missing', 'SITE-2', 'import()'),
-    hole('a module behind new URL(…, import.meta.url) is missing', 'SITE-2', 'new URL'),
+    ['a module behind a literal import() is missing', grown(host, "\nimport('./never-built.js');\n"), facts, undefined, 'SITE-2', near + 'never-built.js'],
+    ['a module behind new URL(…, import.meta.url) is missing', grown(host, "\nexport const BODY = new URL('./never-built.js?v=1', import.meta.url).href;\n"), facts, undefined, 'SITE-2', near + 'never-built.js'],
     hole('a stylesheet url() is missing', 'SITE-3', 'url()'),
     hole('a file a module names in a string is missing', 'SITE-4', 'string'),
-    ['a module names an unpublished file: ' + spare, spare && grown(host, "\nexport const NEW_ART = '<img src=\"" + spare + "?v=1\">';\n"), facts, undefined, 'SITE-4', spare],
-    ['a module names a folder the allowlist has not heard of', spare && grown(host, "\nexport const NEW_DIR = '" + posix.dirname(spare) + "/';\n"), facts, undefined, 'SITE-4', posix.dirname(spare || '') + '/'],
+    ['a module names a new file the allowlist has not heard of', grown(host, "\nexport const HORN = '<audio src=\"" + HORN + "?v=1\">';\n", withHorn), facts, undefined, 'SITE-4', HORN],
+    ['a module names a new folder the allowlist has not heard of', grown(host, "\nexport const SFX_DIR = 'assets/sfx/';\n", withHorn), facts, undefined, 'SITE-4', 'assets/sfx/'],
     hole('an item icon is missing', 'SITE-5', 'item'),
     hole('a basic supply icon is missing', 'SITE-5', 'supply'),
     hole('an ability tile is missing', 'SITE-5', 'ability'),
@@ -289,8 +292,8 @@ async function selftest() {
     ['the site is a byte over its budget', { ...plan, read }, facts, clean.bytes - 1, 'SITE-7', 'budget'],
     ['a PUBLISH row that matches nothing', { ...publishSet(ROOT, PUBLISH.concat('assets/sfx/*.ogg')), read }, facts, undefined, 'SITE-8', 'assets/sfx/*.ogg'],
     ['a module reader that reads nothing', { ...plan, read: (p) => (p.endsWith('.js') ? '' : read(p)) }, facts, undefined, 'SITE-8', 'SITE-2'],
-    ['CONTROL a comment that names the unpublished file', spare && grown(host, "\n// the raws stay in '" + spare + "'\n/* and `" + posix.dirname(spare) + "/` */\n"), facts, undefined, null],
-    ['CONTROL a string that names a file the repository does not hold', grown(host, "\nexport const ORIGIN = ['src/never-was.js', 'assets/sfx/none.ogg'];\n"), facts, undefined, null],
+    ['CONTROL a comment that names the new file', grown(host, "\n// the horn is '" + HORN + "'\n/* under `assets/sfx/` */\n", withHorn), facts, undefined, null],
+    ['CONTROL a string that names what the repository does not hold', grown(host, "\nexport const ORIGIN = ['src/never-was.js', '" + HORN + "', 'assets/voice/'];\n"), facts, undefined, null],
     ['CONTROL one more published file nothing asks for', { ...plan, files: new Map(plan.files).set('assets/ui/spare.png', 64), read }, facts, undefined, null],
   ];
   let bad = 0;
@@ -313,9 +316,10 @@ if (isMain(import.meta.url)) {
     if (args.includes('--selftest')) process.exit(await selftest());
     if (args.includes('--left-out')) { leftOut(args.includes('--all')); process.exit(0); }
     const checkOnly = args.includes('--check');
-    const out = resolve(args.includes('--out') ? String(args[args.indexOf('--out') + 1] || '') : join(ROOT, '_site'));
-    const plan = checkOnly ? publishSet() : null;
-    const got = checkOnly ? { ...audit({ ...plan, read: reader(ROOT) }, await artFacts()), files: plan.files } : await build(out);
+    const out = checkOnly ? mkdtempSync(join(tmpdir(), 'hr-site-'))
+      : resolve(args.includes('--out') ? String(args[args.indexOf('--out') + 1] || '') : join(ROOT, '_site'));
+    let got;
+    try { got = await build(out); } finally { if (checkOnly) rmSync(out, { recursive: true, force: true }); }
     for (const p of got.problems) console.error('✗ ' + p);
     if (got.problems.length) { console.error('✗ build-site: ' + got.problems.length + ' problem(s); the site is not fit to deploy'); process.exit(1); }
     const tops = new Map();

@@ -71,6 +71,9 @@ import { bootChain, ROOT } from './pglite-chain.mjs';
 
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
+/* The sale formula's one home since lane/b-formula-home (2026-11-10): its rows and its function, out of the edge. */
+const SALE_ROWS = join(ROOT, 'src', 'data', 'formulas', 'sale.js');
+const SALE_FN = join(ROOT, 'src', 'core', 'formulas', 'sale.js');
 
 /* The same EXTRA chain tests/activity-intent.mjs appends, plus this slice's own
    staged migration LAST — it is the third file to `create or replace`
@@ -102,38 +105,38 @@ const EXTRA = [
 const MUTATIONS = {
   // ── the price is the server's ───────────────────────────────────────────
   vendor_rate_drift: {
-    file: FN('catalogue.js'),
+    file: SALE_ROWS,
     why: 'the vendor rate drifts off the ruled 20% — the server pays 25% for raws, silently, on '
        + 'every sale in the game',
-    find: 'export const VENDOR_RAW_RATE = 0.20;',
-    repl: 'export const VENDOR_RAW_RATE = 0.25;',
+    find: '  rawRate: 0.20,',
+    repl: '  rawRate: 0.25,',
   },
   vendor_ignores_raw: {
-    file: FN('catalogue.js'),
+    file: SALE_FN,
     why: 'the raw-material discount vanishes, so a maxed gatherer vendors at 5x the intended rate — '
        + 'the exact inflation b226 was written to close',
-    find: '  const bid = it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;',
+    find: '  const bid = item.raw ? Math.max(1, Math.floor(v * SALE.rawRate)) : v;',
     repl: '  const bid = v;',
   },
   vendor_ignores_gear_rate: {
-    file: FN('catalogue.js'),
+    file: SALE_FN,
     why: 'the loot bands\' gear sell rate vanishes (Tyler 2026-10-23), so every dropped piece sells at full book and '
        + 'the hour\'s gear value runs past the caps the drop odds were measured against',
-    find: '  const v = VENDOR_GEAR_TYPES.includes(it.type) ? Math.max(1, Math.floor(book * gearSaleRate(it))) : book;',
+    find: '  const v = VENDOR_GEAR_TYPES.includes(item.type) ? Math.max(1, Math.floor(book * gearSaleRate(item))) : book;',
     repl: '  const v = book;',
   },
   vendor_ignores_shop_cap: {
-    file: FN('catalogue.js'),
+    file: SALE_FN,
     why: 'b565 — the shop buy-back cap vanishes, so steel_platebody round-trips at 1500/1500 again '
        + 'and the bag (which still caps) shows a price the server does not pay',
-    find: '  return unit > 0 ? Math.min(bid, Math.max(1, Math.floor(SHOP_BUYBACK_RATE * unit))) : bid;',
+    find: '  return shopUnit > 0 ? Math.min(bid, Math.max(1, Math.floor(SALE.buybackRate * shopUnit))) : bid;',
     repl: '  return bid;',
   },
   buyback_rate_drift: {
-    file: FN('catalogue.js'),
+    file: SALE_ROWS,
     why: 'b565 — the server buy-back rate drifts off the ruled 0.5',
-    find: 'export const SHOP_BUYBACK_RATE = 0.5;',
-    repl: 'export const SHOP_BUYBACK_RATE = 0.6;',
+    find: '  buybackRate: 0.5,',
+    repl: '  buybackRate: 0.6,',
   },
   shop_sells_unlisted: {
     file: FN('catalogue.js'),
@@ -569,13 +572,16 @@ async function run(mutate) {
   // ── G1. THE VENDOR BID IS THE RULING'S ──────────────────────────────────
   // Until the client reset (2026-10-17) the shop counter carried its own copy of
   // the two rates and the bid formula, and this pinned the copy to the server's.
-  // The copy is gone with that client; the server's catalogue.js is the only
-  // place the bid lives, so it is pinned to the ruled numbers directly.
+  // The copy is gone with that client. Since lane/b-formula-home (2026-11-10) the rates are one data row
+  // (src/data/formulas/sale.js SALE), read here from the tree that RAN (fnDir: a mutant's copy under --mutate),
+  // and pinned to the ruled numbers directly.
   {
-    ok(cat.VENDOR_RAW_RATE === 0.20,
-      `G1: the server pays raws at ${cat.VENDOR_RAW_RATE} of book value; the ruling (b226) is 0.20`);
-    ok(cat.SHOP_BUYBACK_RATE === 0.5,
-      `G1: the server caps buy-back at ${cat.SHOP_BUYBACK_RATE} of the shop price; the ruling (b565) is 0.5`);
+    const { pathToFileURL } = await import('node:url');
+    const { SALE } = await import(pathToFileURL(join(fnDir, '..', '..', '..', 'src', 'data', 'formulas', 'sale.js')).href + `?t=${Date.now()}${Math.random()}`);
+    ok(SALE.rawRate === 0.20,
+      `G1: the server pays raws at ${SALE.rawRate} of book value; the ruling (b226) is 0.20`);
+    ok(SALE.buybackRate === 0.5,
+      `G1: the server caps buy-back at ${SALE.buybackRate} of the shop price; the ruling (b565) is 0.5`);
     const LB = await import('../src/data/loot-bands.js');
     ok(JSON.stringify(LB.VENDOR_GEAR_RATES) === '[0.5,0.5,0.14]',
       `G1: the trader pays worn gear ${JSON.stringify(LB.VENDOR_GEAR_RATES)} of book value by tier; the ruling (Tyler 2026-10-23, loot bands) is [0.5, 0.5, 0.14]`);

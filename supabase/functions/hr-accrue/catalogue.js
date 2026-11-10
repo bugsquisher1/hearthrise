@@ -43,7 +43,7 @@ export const SHOP_LISTED_OFFERS = SHOP_LISTED_OFFER_IDS;
 import { ITEMS } from '../../../src/data/items.js';
 import { catalogueGet } from './intents.js';
 import { cheapestShopUnitPrice } from '../../../src/core/shop-buyback.js';
-import { VENDOR_GEAR_TYPES, gearSaleRate } from '../../../src/data/loot-bands.js';
+import { salePriceOf } from '../../../src/core/formulas/sale.js';
 
 /**
  * `{ [nodeId]: { skill, node } }` over all 23 gathering nodes.
@@ -276,51 +276,17 @@ export const OFFER_REFUSALS = Object.freeze(offerRefusals);
 /** Every authored offer id, eligible or not. Used only by the guards. */
 export const ALL_OFFER_IDS = Object.freeze(offerIds);
 
-/* ── WHAT THE VENDOR BIDS ───────────────────────────────────────────────────
-   `vendor.sell` is one of the six DERIVED_PRICES in src/data/shops.js — a
-   FORMULA rather than a row, so it is deliberately absent from SHOP_OFFERS and
-   the catalogue's own header says so: "DERIVABLE TODAY — needs `raw` added and
-   the rate as a constant. This is the cheapest of the six to close."
+/* ── WHAT THE SHOP PAYS ─────────────────────────────────────────────────────
+   The sale price is a FORMULA, not a row, and it is not written here: the one function is
+   src/core/formulas/sale.js salePriceOf and its numbers are data (src/data/formulas/sale.js SALE: the raw
+   rate and the buy-back cap; src/data/loot-bands.js: the gear ladder). Until lane/b-formula-home (2026-11-10)
+   both rates and the function were typed in this file, where only the server's payload could read them.
 
-   It is closed here rather than in SQL because both inputs are already
-   vendored: `ITEMS[id].v` (book value) and `ITEMS[id].raw` (is it unprocessed
-   material), the latter DERIVED in items.js from every tree/rock/spot/crop
-   `prod` plus an explicit monster-drop list. Restating either in PL/pgSQL
-   would be the second copy this whole program exists to prevent.
-
-   ⚠ THIS CONSTANT IS THE ONE NUMBER IN THIS FILE THAT IS NOT IMPORTED, because
-     the authority for it is `VENDOR_RAW_RATE` in src/legacy.js — a classic
-     script that ESM and Deno cannot import, which is exactly why
-     src/data/shops.js exists as a generated second copy in the first place.
-     tests/gold-intents.mjs reads BOTH the rate and the formula out of
-     legacy.js's `vendorPrice()` and fails the build if either moves, so the
-     second statement is guarded rather than trusted — the same bargain
-     shops.js struck, mutation-proven the same way.
-
-   Why 20%: gathering throughput is roughly flat (~300 items/h at every tier)
-   while `v` climbs 2.77x per material tier, so a maxed miner vendoring
-   Dawnstone out-earned an entire renown rank every 32 minutes WHILE ASLEEP.
-   The rate puts gathering back to being the material faucet and the player
-   market back to being the best price for raws. It is a BALANCE number and it
-   belongs to the Game Designer; it is mirrored here, never chosen here. */
-export const VENDOR_RAW_RATE = 0.20;
-
-/* ── THE SHOP BUY-BACK CAP (game-designer ruling, b565) ─────────────────────
-   The NPC vendor buys back anything the NPC shop also sells for AT MOST HALF
-   the cheapest shop unit price:
-
-       bid = min(book bid, max(1, floor(SHOP_BUYBACK_RATE × cheapest unit)))
-
-   Before this, `steel_platebody` was sold for 1,500 and bought back for 1,500,
-   and every seed packet round-tripped at par — a buy→sell loop with zero loss
-   is a laundering channel and a price floor nobody chose. The cap is applied
-   HERE, once, as a formula over the catalogue; `v` and `hr_items.value` are
-   untouched, so market listings, chest payouts and the Hunt Analyzer keep
-   reading book value. Mirrored in src/screens/shop-counter.js vendorPrice()
-   and pinned equal by tests/gold-intents.mjs G1; the strict margin (vendor ≤
-   0.5 × shop unit) is tests/vendor-shop-arbitrage.mjs. A BALANCE number — the
-   Game Designer's, mirrored here, never chosen here. */
-export const SHOP_BUYBACK_RATE = 0.5;
+   What stays here is the LOOKUP, because both inputs are this payload's catalogues: the item's row (book value
+   `v`, `raw`, type and tier) and the cheapest price the shop sells one for. tools/gen-hunt-sessions.mjs calls
+   the same door to write hr_hunt_vendor_value, the copy Postgres re-proves a hunt's sales against.
+   tests/gold-intents.mjs G1 pins the ruled numbers and tests/vendor-shop-arbitrage.mjs the strict margin
+   (the shop never pays more than half of what it charges). */
 
 /** `{ [itemId]: cheapest gold per unit }` over every single-item gold offer, plus the supply price
     list the Shop no longer sells (Tyler 2026-10-20: no supplies in the Shop). Retiring those offers
@@ -328,8 +294,7 @@ export const SHOP_BUYBACK_RATE = 0.5;
 export const SHOP_UNIT_PRICE = cheapestShopUnitPrice([...SHOP_OFFERS, ...SUPPLY_PRICE_LIST]);
 
 /**
- * What the NPC vendor pays for ONE `id`. 0 means "the vendor does not buy it",
- * which is a refusal, not a free sale.
+ * What the shop pays for ONE `id`. 0 means "the shop does not buy it", which is a refusal, not a free sale.
  *
  * @param items  the item catalogue, passed in rather than closed over — the
  *               exploit surface of a pricing function is its inputs, and an
@@ -337,15 +302,6 @@ export const SHOP_UNIT_PRICE = cheapestShopUnitPrice([...SHOP_OFFERS, ...SUPPLY_
  *               audit. Same rule computeAccrual follows.
  */
 export function vendorPriceOf(items, id) {
-  const it = catalogueGet(items, id);
-  if (!it || typeof it !== 'object') return 0;
-  const book = Number(it.v) || 0;
-  if (!(book > 0)) return 0;
-  /* WORN GEAR sells at its tier's share of book value (src/data/loot-bands.js gearSaleRate, Tyler 2026-10-23), floored at 1. */
-  const v = VENDOR_GEAR_TYPES.includes(it.type) ? Math.max(1, Math.floor(book * gearSaleRate(it))) : book;
-  /* Floored at 1: a raw worth anything at all is still worth something, and a
-     0g bid reads as "this item is broken" rather than "this is cheap". */
-  const bid = it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;
   const unit = catalogueGet(SHOP_UNIT_PRICE, id);
-  return unit > 0 ? Math.min(bid, Math.max(1, Math.floor(SHOP_BUYBACK_RATE * unit))) : bid;
+  return salePriceOf(catalogueGet(items, id), unit);
 }

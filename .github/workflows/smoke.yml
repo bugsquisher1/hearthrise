@@ -4996,6 +4996,19 @@ jobs:
           node tests/token-single-source.mjs --report
           node tools/mutant-gate.mjs node tests/token-single-source.mjs --selftest
 
+      # ONE HOME FOR A FORMULA'S NUMBERS (lane/b-formula-home, 2026-11-10; audit
+      # 2026-11-09 S1; Tyler 2026-11-08: formulas are public and live in one data
+      # source). src/data/formulas/index.js is the registry the wiki will read.
+      # This holds every row to it: its constants are exported once, from src/data,
+      # nothing else types them, the edge and the tools call the one evaluator, and
+      # the list of known copies that wait for another lane only shrinks. Static,
+      # about a second.
+      - name: One home for a formula's numbers
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/formula-single-source.mjs --report
+          node tools/mutant-gate.mjs node tests/formula-single-source.mjs --selftest
+
 
 
       # slice 3 — deletions proven dead (derived censuses, never hand-pinned).

@@ -42,7 +42,8 @@ import { fileURLToPath } from 'node:url';
 import * as CAT from '../supabase/functions/hr-accrue/catalogue.js';
 import { writeFileSync, unlinkSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-const { GOLD_OFFERS, VENDOR_RAW_RATE, SHOP_BUYBACK_RATE, SHOP_UNIT_PRICE } = CAT;
+const { GOLD_OFFERS, SHOP_UNIT_PRICE } = CAT;
+import { salePriceOf } from '../src/core/formulas/sale.js';
 import { ITEMS } from '../src/data/items.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { recipeInputs } from '../src/core/artisan.js';
@@ -141,14 +142,15 @@ export function sqlItemValues(order = ORDER, read = readMig) {
   return val;
 }
 
-/** The SQL-side bid: same formula as vendorPriceOf, `value` from the database. */
+/** The SQL-side bid: THE formula (src/core/formulas/sale.js salePriceOf, the one the edge's vendorPriceOf calls) on the item's row with
+    `value` from the database as its book value. Until lane/b-formula-home (2026-11-10) this retyped the formula and had lost the gear
+    ladder, so the database arm bid worn gear at full book. */
 function sqlBid(sqlVal, items, id) {
   const v = sqlVal.get(id) || 0;
   if (!(v > 0)) return 0;
   const it = Object.prototype.hasOwnProperty.call(items, id) ? items[id] : null;
-  const bid = it && it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;
   const unit = Object.prototype.hasOwnProperty.call(SHOP_UNIT_PRICE, id) ? SHOP_UNIT_PRICE[id] : 0;
-  return unit > 0 ? Math.min(bid, Math.max(1, Math.floor(SHOP_BUYBACK_RATE * unit))) : bid;
+  return salePriceOf({ ...(it || {}), v }, unit);
 }
 
 /** The STRICT margin. Never read from the module under test, so a mutant that
@@ -249,15 +251,21 @@ function report({ bad, priced, total }) {
   return bad.length ? 1 : 0;
 }
 
-/** Import catalogue.js with ONE textual patch, from a sibling temp file so its
+/** Import a module with ONE textual patch, from a sibling temp file so its
     relative imports resolve. The anchor must match exactly once. */
-async function mutantCatalogue(find, repl) {
-  const src = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'catalogue.js');
-  const text = readFileSync(src, 'utf8');
+async function mutantModule(dir, file, find, repl) {
+  const text = readFileSync(join(ROOT, ...dir, file), 'utf8').replace(/\r\n/g, '\n');
   if (text.split(find).length !== 2) throw new HarnessError(`mutant anchor matched ${text.split(find).length - 1}x: ${find}`);
-  const tmp = join(ROOT, 'supabase', 'functions', 'hr-accrue', `.catalogue.mutant-${process.pid}-${Date.now()}.js`);
+  const tmp = join(ROOT, ...dir, `.${file.replace(/\.js$/, '')}.mutant-${process.pid}-${Date.now()}.js`);
   writeFileSync(tmp, text.replace(find, repl));
   try { return await import(pathToFileURL(tmp).href); } finally { unlinkSync(tmp); }
+}
+const mutantCatalogue = (find, repl) => mutantModule(['supabase', 'functions', 'hr-accrue'], 'catalogue.js', find, repl);
+/** The edge's vendorPriceOf over a patched copy of THE sale formula (src/core/formulas/sale.js): the same lookup, the mutant's arithmetic. */
+async function mutantSale(find, repl) {
+  const m = await mutantModule(['src', 'core', 'formulas'], 'sale.js', find, repl);
+  const own = (o, k) => (Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined);
+  return { vendorPriceOf: (items, id) => m.salePriceOf(own(items, id), own(SHOP_UNIT_PRICE, id)) };
 }
 
 async function selftest() {
@@ -274,13 +282,13 @@ async function selftest() {
   const caught = (r) => r.bad.some((b) => b.offer === target.id);
 
   // M1 — the edge cap removed: vendorPriceOf bids book value again.
-  const m1 = await mutantCatalogue(
-    '  return unit > 0 ? Math.min(bid, Math.max(1, Math.floor(SHOP_BUYBACK_RATE * unit))) : bid;',
+  const m1 = await mutantSale(
+    '  return shopUnit > 0 ? Math.min(bid, Math.max(1, Math.floor(SALE.buybackRate * shopUnit))) : bid;',
     '  return bid;');
   if (!caught(findArbitrage({ sqlVal, vendorPriceOf: m1.vendorPriceOf }))) fails.push('M1 buy-back cap removed: not caught by name');
 
   // M2 — the rate drifts above the ruling (0.5 -> 0.6).
-  const m2 = await mutantCatalogue('export const SHOP_BUYBACK_RATE = 0.5;', 'export const SHOP_BUYBACK_RATE = 0.6;');
+  const m2 = await mutantSale('Math.floor(SALE.buybackRate * shopUnit)', 'Math.floor(0.6 * shopUnit)');
   if (!caught(findArbitrage({ sqlVal, vendorPriceOf: m2.vendorPriceOf }))) fails.push('M2 SHOP_BUYBACK_RATE=0.6: not caught by name');
 
   // M3 — the cheapest-unit index loses the item (cap silently skipped).

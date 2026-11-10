@@ -1,0 +1,17 @@
+{
+  "asset": "brief 13 Q9 (brief 12 P6) four icons again, 2 candidates each",
+  "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt Q9",
+  "status": "SAMPLE for the art director's one read (the line is complete at this size). Not imported; not palette-snapped (the import's lock.mjs snaps)",
+  "made": "2026-11-08 (the brief's 11-09 samples)",
+  "generations": 8,
+  "tool": "create_image_pixen 32x32, transparent, single color black outline, seeds 7 (c1) and 8 (c2), \"<line>, game item icon, drawn on the diagonal, centred with space around it\" (the seal without 'on the diagonal')",
+  "jobs": { "pike_ferrule": ["fb6bda8a", "3d043906"], "rake_tine": ["1b6e4fb2", "45b60b2b"], "shroud_pin": ["9a858b72", "605971a2"], "warrant_seal": ["06fc5553", "989f5a72"] },
+  "measured": "boxes (c1, c2): pike_ferrule 32x31 (100%), 27x29 (88%); rake_tine 25x31 (94% tall), 28x28 (88%); shroud_pin 32x32 (100%), 28x28 (88%); warrant_seal 32x32 (100%), 30x31 (94%)",
+  "flags": [
+    "pike_ferrule c1: a black iron cone cap on a charred wooden stub, reads as a ferrule, but it fills the frame (100%). c2: a pale tube with a bracket, unreadable",
+    "rake_tine c1: one black spike curled into a hook at the tip with a small collar, the closest; c2: a spiked mace head on a short handle",
+    "shroud_pin: both read as BONES (c1 a dog bone tied with cord, c2 a plain straight bone with knobs at both ends); no pin head. c2 is the closer, no face",
+    "warrant_seal c2: a grey disc stamped with a shield crest and a red cord through a hole at its top, as asked (94%); c1 the same disc with red studs, the cord a red loop, 100%"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/q9-icons-sample.png (x4 on slate: blue = the approved kennel_tag; then pike_ferrule c1 c2, rake_tine c1 c2, shroud_pin c1 c2, warrant_seal c1 c2)"
+}

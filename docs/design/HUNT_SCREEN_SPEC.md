@@ -272,7 +272,7 @@ Inputs, outputs, envelope section, tests. "inst" = one hunt instance (solo or pa
 3. **Bestiary-ready.** `xp-share.js` takes a per-hero multiplier function. Today it returns 1. Account-wide bestiary (Tyler 10-15) plugs in later. DECIDED shape.
 4. **Grouped "+XP" events.** Kills within 1 s of the first are one number, shown at the centre of the kills. It shows the VIEWED hero's own amount. DECIDED (Tyler 10-16).
 5. **Magic XP** = mana spent x 1.5 x the ability's multiplier. Wand and staff basics cost mana and train Magic. DECIDED (Tyler 10-15 wand rule; designer ruling 10-15 for 1.5).
-6. **Death XP loss** = `DEATH_XP_LOSS` (2%) in `src/data/hunt-sessions.js`. DECIDED (C2 data).
+6. **Death XP loss** = `DEATH_XP_LOSS` (6% of the total Level XP, can take a Level, Tyler 2026-11-09) in `src/data/hunt-sessions.js`. DECIDED (C2 data).
 7. The sim's level curve (`HERO_XP_PER_LEVEL`) is a placeholder. Levels come from `src/core/progression.js`. DECIDED (no client level).
 
 ### 3.6 Analyzer: server-side session stats

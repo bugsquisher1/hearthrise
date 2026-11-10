@@ -37,17 +37,16 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.112';
-import { levelAtTier } from '../data/hunt-tiers.js?v=0.2.112';
-import { rollDropTable } from './drops.js?v=0.2.112';
-import { yieldOf } from './hunt/damage.js?v=0.2.112';
-import { applyGoldFind } from './pacing.js?v=0.2.112';
-import { COMBAT_XP } from '../data/core-model.js?v=0.2.112';
-import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.112';
-import { resolveHearthfind } from './hearthfind.js?v=0.2.112';
-import { magicXpFor } from './hunt/xp-share.js?v=0.2.112';
-import { splitEven, itemOwner, rareRoll } from './party-split.js?v=0.2.112';
-import { makeEvent } from './hunt/events.js?v=0.2.112';
+import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.114';
+import { levelAtTier } from '../data/hunt-tiers.js?v=0.2.114';
+import { rollDropTable } from './drops.js?v=0.2.114';
+import { applyGoldFind } from './pacing.js?v=0.2.114';
+import { COMBAT_XP } from '../data/core-model.js?v=0.2.114';
+import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.114';
+import { resolveHearthfind } from './hearthfind.js?v=0.2.114';
+import { magicXpFor } from './hunt/xp-share.js?v=0.2.114';
+import { splitEven, itemOwner, rareRoll } from './party-split.js?v=0.2.114';
+import { makeEvent } from './hunt/events.js?v=0.2.114';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
 
@@ -74,14 +73,12 @@ function countKill(m, kind) {
 /* A monster kill's gold and drops, split across `present` (members in unit-id
    order; `ids` their unit ids), and the Hearthfind for `killer`. A rare unit
    goes to the rare roll, its rotation kept on `world.rareWon`. */
-function payKill(present, ids, killer, kind, ctx, yieldPm, world, atMs, monId) {
+function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
   const row = (ctx.monsters || MONSTERS)[kind];
   if (!row) return;
   const rng = ctx.rng;
-  /* THE YIELD SHARE (hunt-grounds.js yieldPermille): coin, every drop chance and the Hearthfind
-     roll pay `y` of the row's, the same draws in the same order. */
-  const y = yieldPm / 1000;
-  const gp = Array.isArray(row.gp) ? Math.round(rng.int(row.gp[0], row.gp[1]) * y) : 0;
+  /* THE ROW'S WHOLE KILL for every party size (Tyler 2026-11-08: one difficulty for every group), shared by who was there. */
+  const gp = Array.isArray(row.gp) ? rng.int(row.gp[0], row.gp[1]) : 0;
   /* The remainder's first seat moves with the kill: the dead monster's unit and the swing, both on the stored world, so
      any cut of the windows pays the same shares, and no die is drawn (the loot stream below stays where it was). */
   const shares = splitEven(Math.max(0, gp), present.length, (Number(monId) || 0) + (Number(world.swing) || 0));
@@ -90,7 +87,7 @@ function payKill(present, ids, killer, kind, ctx, yieldPm, world, atMs, monId) {
     if (g > 0) { m.state.gold = (m.state.gold || 0) + g; call(m.fx, 'onLoot', g, row); }
   });
   const lead = killer || present[0];
-  const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate'), yieldMult: y }, rng);
+  const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate') }, rng);
   const offset = present.length > 1 && rolled.events.length ? rng.int(0, present.length - 1) : 0;
   let k = 0;
   for (const ev of rolled.events) {
@@ -118,11 +115,6 @@ function payKill(present, ids, killer, kind, ctx, yieldPm, world, atMs, monId) {
   for (const m of present) countKill(m, kind);
   /* THE HEARTHFIND: LAST, after every other draw this kill makes, for the hero
      who landed it. The grant is hr_apply's, from its own catalogue. */
-  /* A scaled kill's Hearthfind is THINNED, never boosted, and never inside the roll
-     (tests/hearthfind-mint-guard.mjs: rollHearthfind takes no modifier): a kill paying
-     y < 1 of its yield first passes a y chance, then makes the untouched roll, so the
-     find lands at y / oneIn. A full-yield kill draws exactly as before. */
-  if (y < 1 && !rng.chance(y)) return;
   const roll = { rng, fx: lead.fx, hearthfind: ctx.hearthfind };
   resolveHearthfind(lead.state, 'monster', kind, roll);
 }
@@ -200,7 +192,7 @@ export function rewardSwing(members, events, world, ctx) {
         if (!t) break;
         if (t.side === 'mon') {
           const ids = presentIds();
-          if (ids.length) payKill(ids.map((id) => members.get(id)), ids, members.get(ev.u) || null, t.kind, ctx, yieldOf(t), world, ev.atMs, ev.t);
+          if (ids.length) payKill(ids.map((id) => members.get(id)), ids, members.get(ev.u) || null, t.kind, ctx, world, ev.atMs, ev.t);
         } else if (members.has(ev.t)) {
           const k = unitOf(ev.u);
           deaths.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });

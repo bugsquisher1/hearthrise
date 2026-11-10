@@ -156,6 +156,8 @@ export const CLIENT_RPCS = Object.freeze({
   hr_social_state: 'friends, asks and blocks, and this account’s presence stamp, a read (SocialSession.reread)',
   hr_inspect: 'another player’s worn items, a read (inspectOf)',
   hr_social_poll: 'the social read plus stamping this account’s own open characters present (slots only) and how many characters are playing, a count only, in one request (SocialSession._presence; 2027-02-17-social-poll.sql)',
+  /* Report #78 (2027-03-26-signout-presence.sql): no argument at all; the server reads the account from the token. */
+  hr_presence_leave: 'sign-out says this account’s client is gone, so the players-online count and the friends’ dot drop it at once; names no slot, player or time (AccountSession._leavePresence)',
   /* Town presence (2026-10-25-town-walk.sql): this character's own tile, goal tile and facing, catalogue-bounded; never a user or a time.
      The stands (2027-01-28-town-stands.sql): the SERVER places every body; the client names its slot, a map, a station id,
      a window centre and the last answer's cursor, never a stand, a tile of a parked body, a user or a time. */

@@ -206,7 +206,7 @@ Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the
 | XP-05 | Level-up event + effect | sim.js:337-338 | core/xp-share.js + view/fx-layer.js | S-edge, C | progression curve (src/core/progression.js) | hc/xp-share#level-event | TODO |
 | XP-06 | Sim level curve (start 20, 12,000 per level) is a placeholder | combat-data.js:29 | src/core/progression.js | S-edge | real curve | hc/xp-share#no-sim-curve | DO-NOT-PORT |
 | XP-07 | Bestiary multiplier plugs in; bestiary is account-wide | T10-15 L86; T10-16 L148 | core/xp-share.js | S-edge | bestiary stage rows (later) | hc/xp-share#multiplier-hook | TODO |
-| XP-08 | Death XP loss 2% | data/hunt-sessions.js `DEATH_XP_LOSS` | S-pg + core/xp-share.js | S-pg | `DEATH_XP_LOSS` | sql§4 death-xp-loss | LIVE-SERVER |
+| XP-08 | Death XP loss 6% of the total, can take a Level | data/hunt-sessions.js `DEATH_XP_LOSS` | S-pg + core/xp-share.js | S-pg | `DEATH_XP_LOSS` | sql§4 death-xp-loss | LIVE-SERVER |
 
 ## 12. Analyzer and tallies — `core/tally.js`, S-pg `hr_hunt_analyzer`
 

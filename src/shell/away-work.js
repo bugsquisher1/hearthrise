@@ -15,15 +15,15 @@
 // past the stamp the line waits (awayWorkSettled), and so does the stamp. "It stopped about 25 min in" is the actions the server paid
 // times the action time for the tool the server says the hero holds: display only, and worded as an estimate.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.112';
-import { recipeInputs } from '../core/artisan.js?v=0.2.112';
-import { skillLevelFromXp } from '../core/xp.js?v=0.2.112';
-import { whole } from '../render/format.js?v=0.2.112';
-import { itemName } from './widgets/bits.js?v=0.2.112';
-import { heldOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.112';
-import { serverNowOf } from '../session/hunt-sections.js?v=0.2.112';
-import { townWorkRunning } from '../session/town-poll.js?v=0.2.112';
-import { actionMs, leftOf, productOf, runsOf, workOf, workRow, yieldOf } from './town-work.js?v=0.2.112';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.114';
+import { recipeInputs } from '../core/artisan.js?v=0.2.114';
+import { skillLevelFromXp } from '../core/xp.js?v=0.2.114';
+import { whole } from '../render/format.js?v=0.2.114';
+import { itemName } from './widgets/bits.js?v=0.2.114';
+import { heldOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.114';
+import { serverNowOf } from '../session/hunt-sections.js?v=0.2.114';
+import { townWorkRunning } from '../session/town-poll.js?v=0.2.114';
+import { actionMs, leftOf, productOf, runsOf, workOf, workRow, yieldOf } from './town-work.js?v=0.2.114';
 
 const TOWN_STAMP = /^town:(gather|artisan):([A-Za-z0-9_.-]+)$/;
 /* A record settled this recently is the return's answer; an older one waits for the sign-in's settle. */

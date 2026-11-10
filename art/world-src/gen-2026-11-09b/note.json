@@ -1,0 +1,23 @@
+{
+  "lane": "lane/a-gen-2026-11-09 (from origin/lane/a-art-brief-11 4b8d49d3c)",
+  "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt",
+  "what": "brief 13's SAMPLE of every line (Y1-Y5 training first, then Q1-Q11), for the art director's one read; the batches follow on 11-10 to 11-13. Raw PixelLab output only: nothing imported, nothing chained, no refs re-saved",
+  "made": "2026-11-08 (the brief's 11-09 day)",
+  "balance": { "before": 1034.4, "after": 822.4, "spent": 212, "credits": "$0.00 before and after" },
+  "assets": {
+    "y1-yard-kit": 9, "y2-sand-ring": 45, "y3-npc_arms_master": 7, "y4-reactions": 2, "y5-house-dummy": 10,
+    "q1-first-fights-sample": 28, "q2-flames-sample": 2, "q3-ash-pair1": 30, "q4-fall-diagonals-sample": 11,
+    "q5-pyre-bodies-sample": 15, "q6-pyre-wraith-idle": 1, "q7-great-pyre-wide-sample": 30, "q8-barrow-knight-death-diagonals-sample": 1,
+    "q9-icons-sample": 8, "q10-npc_gate_sergeant": 7, "q11-crop-beds-sheet2": 6
+  },
+  "strips": "art/review/gen-2026-11-09b/<asset>-sample.png, one per asset; each asset's note.json names its strip's row order",
+  "ring_contrast": "measured on LOCKED pixels (brief 13's rule): lock(fill,'terrain'), lock(body,'monster' or 'unit'), then tools/world-art/ring-contrast.mjs; results in q5, q6, y3, q10 and y2 notes",
+  "verdict_batch": {
+    "what": "brief 13 VERDICTS 2026-11-09 'Next batch', section A then section B, run as written; the free passes scripted (free-passes-note.json)",
+    "balance": { "before": 822.4, "after": 241.4, "spent": 581, "credits": "$0.00 throughout" },
+    "section_A": { "note": "a-rerolls-note.json", "A1 y1 sheet 2 + dummy retry": 15, "A2 arms master r2": 7, "A3 pikeman r3": 7, "A4 lurcher r3 + NE fix": 17, "A5 ash r3": 15, "A6 shroud pins": 2 },
+    "section_B": { "B1 b1-reactions": 4, "B2 y5-house-dummy/parts": 30, "B3 b3-first-fights": 201, "B4 b4-flames": 2, "B5": "not run: A5 locked flat, so pairs 2-6 move to the next cycle and their 75 join the reserve (the verdict's rule)", "B6 b6-fall-diagonals": 157, "B7 b7-pyre-bodies (stoker)": 37, "B8 b8-pyre-wraith": 37, "B9 b9-great-pyre": 36, "B10 b10-barrow-knight-deaths": 3, "B11 b11-crop-beds-sheet3": 12 },
+    "waiting_on_the_read": "B1's two dummy-variant reactions (after A1's pick, about 2); B7's pikeman and lurcher clips (after the read of A3 and A4, about 74)",
+    "reserve": "241.4 left: the coordinator's 115 held for re-rolls to the evening of 11-12 (then N1's keepers and M3's Cellar and Sewer hits), plus B5's 75 moved to the reserve by the verdict, plus about 51 spare after the two waiting B items"
+  }
+}

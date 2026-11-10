@@ -1,0 +1,114 @@
+{
+  "id": "havora_earth_sand",
+  "class": "terrain",
+  "kind": "wang16",
+  "style": "s1",
+  "material": "native",
+  "source": "havora_earth_sand.png",
+  "lower": "earth",
+  "upper": "sand",
+  "tiles": {
+    "1000": [
+      [
+        0,
+        1
+      ]
+    ],
+    "1001": [
+      [
+        1,
+        1
+      ]
+    ],
+    "1010": [
+      [
+        2,
+        1
+      ]
+    ],
+    "1011": [
+      [
+        3,
+        1
+      ]
+    ],
+    "1100": [
+      [
+        4,
+        1
+      ]
+    ],
+    "1101": [
+      [
+        5,
+        1
+      ]
+    ],
+    "1110": [
+      [
+        6,
+        1
+      ]
+    ],
+    "1111": [
+      [
+        7,
+        1
+      ]
+    ],
+    "0000": [
+      [
+        0,
+        0
+      ]
+    ],
+    "0001": [
+      [
+        1,
+        0
+      ]
+    ],
+    "0010": [
+      [
+        2,
+        0
+      ]
+    ],
+    "0011": [
+      [
+        3,
+        0
+      ]
+    ],
+    "0100": [
+      [
+        4,
+        0
+      ]
+    ],
+    "0101": [
+      [
+        5,
+        0
+      ]
+    ],
+    "0110": [
+      [
+        6,
+        0
+      ]
+    ],
+    "0111": [
+      [
+        7,
+        0
+      ]
+    ]
+  },
+  "pixellab": {
+    "tool": "create_topdown_tileset pro, 32 px (brief 13 Y2 r3), locked to the terrain grade then SNAPPED at import",
+    "tileset": "0edd6ad0-2b4c-471c-9c7a-638678a5adf3",
+    "lower_base_tile_id": "97e71544-5fcf-4e48-94b7-c809721a12be"
+  },
+  "notes": "Raked training sand on the town dirt. Y2 r3 locked (terrain), then a 4-connected flood fill seeded on the #dcae86 rake pixels through #a88457 and #dcae86 moves every #a88457 inside it to #c49a5c (6,799 px: one value step lighter than the dirt, bounded by the dark rim line). The dirt side stays byte-identical to the locked town dirt. `native` because the pixels are already on the palette."
+}

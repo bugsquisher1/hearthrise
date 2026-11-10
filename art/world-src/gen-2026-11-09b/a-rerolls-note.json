@@ -1,0 +1,41 @@
+{
+  "what": "brief 13 VERDICTS 2026-11-09, section A: the re-rolls (one read), run as written. Raw output only; nothing imported",
+  "made": "2026-11-08 (the brief's 11-09 day)",
+  "generations": 68,
+  "A1 Y1 sheet 2": {
+    "gens": 15, "files": "y1-yard-kit/sheet2.png + cells2/ (blob cut); y1-yard-kit/sheet2b-dummies.png + cells2b/ (the dummy retry)",
+    "call": "create_image_pro_flash 256x256, seed 3102, style the shipped dummy (upload e2841b2a), the verdict's words row by row (job 32c9ce4e-2dfb-4010-a649-b46eb509d519)",
+    "retry": "row 4's four dummies came out 55-56 px tall (the pass is 48 or less), so ONE retry of row 4 alone: create_image_pro_flash 128x128 (2x2 cells of 64), seed 3103, the same style image, \"exactly as tall as the style image's dummy (43 pixels including its post and base), never taller\" (job 06ca96be-a89c-49de-96c6-69058049c017, 6 gens)",
+    "measured": "sparring pad 42x46 x4; rune post 36x46 x4; ward ring 46x45 x4 (flat); sheet 2 dummies 36-37 x 55-56 (OVER 48, red row in the strip); retry: helm c3/c4 32x42, split c3/c4 30x40",
+    "flags": ["the four cells of each row are near copies of each other (pixel counts within 1%)", "rune post: ONE large chalk rune per stone, not three", "ward ring: the flagstones carry chalk runes and a few moss tufts; a thin pale line runs round the inner edge", "split dummy: the split is a small straw tuft at one side, the rope a thin line"]
+  },
+  "A2 Y3 npc_arms_master r2": {
+    "gens": 7, "object": "eb44b804-cfb1-4c1d-9d96-da29ca12dfc1", "seed": 3302, "idle_group": "ad17086e-fdd2-45c6-9e88-73298426f84d", "files": "y3-npc_arms_master/r2/",
+    "description": "a grizzled arms master in a padded quilted gambeson and leather bracers, a blunt steel practice sword held upright point-down in front of him, its wide crossguard at his chest, both hands resting on the pommel, a scarred face and a grey beard, town npc sprite, standing upright at full adult height, single black outline, basic shading, muted cloth colours",
+    "idle": "standing at rest, breathing slowly, chest rises and falls, a slight shift of weight, feet planted, the sword stays planted point-down, both hands stay on the pommel, stays in place, nothing else appears in the frame",
+    "measured": "S box 18x35 (y9-43): 1 px under the character class's 36", "flags": ["the crossguard shows in S at x2: a sword", "the idle holds the sword planted"]
+  },
+  "A3 Q5 charred_pikeman r3": {
+    "gens": 7, "object": "fb184755-3ad1-4430-8836-30e78134d2cc", "seed": 3704, "idle_group": "f4480677-92a2-435c-bddb-46165e62d3e6", "style": "the approved stoker's S still, a 48 crop (upload abb99f13)", "files": "q5-pyre-bodies-sample/charred_pikeman_r3/",
+    "measured": "S 19x43, E 23x43 (the pole's head over the skull); locked ring 0.014 S and E (cap 0.045), 4.54:1 on the target ash",
+    "flags": ["no bow in any facing", "the weapon is a full-length pole TALLER than him with an axe-like blade on the head in the side views, not an arm-length stub with a leaf spearhead", "the skull reads as a dark bald head at x2, the ribs as dark stripes"]
+  },
+  "A4 Q5 lurcher r3, and the fallback": {
+    "gens": 17, "object_r3": "5e9d6062-cace-459e-9264-30359850a34c", "seed": 3703, "idle_group_r3": "9db9918d-3ea2-4708-950e-1b0a6edd3c7b", "files": "q5-pyre-bodies-sample/lurcher_r3/ and lurcher/ne-fix/",
+    "measured_r3": "locked ring 0.043 S, 0.013 E; E 48 px wide (at the cap)",
+    "r3_flags": ["NE and NW still rear up on the hind legs (the same fault as r2)", "NEW: a bright yellow ring outline round the chest in S (the brass of the collar drawn as a loop)"],
+    "fallback": "r3 is not better, so the verdict's fallback ran: keep 997e815e (r2), fix NE by edit_image_pro_flash, mirror to NW. Edit 1 (text, job ebbfdd49) kept the rearing pose and only recoloured the collar (alt/). Edit 2 (method reference with r2's E still as the reference, job aa0061dd-c89d-4729-b5b8-304ca36f4fbf): on four paws, back level, seen from behind-right; mirrored to NW. 5 + 5 gens",
+    "fallback_flags": ["the fixed NE carries its head up, not low", "B7's lurcher clips on NE and NW would need this still as their start frame (animate_image from it, not the object's rotation)"]
+  },
+  "A5 Q3 ash pair 1 r3": {
+    "gens": 15, "tileset": "78845280-bff6-421d-b1cf-db44f924b12c", "ash_base": "538c23a6-4976-43e5-9c0b-04201f4915c8", "scorched_base": "ab607f09-da9a-4ddc-935e-a4581d225e70", "files": "q3-ash-pair1/r3-78845280-*",
+    "measured": "ash raw median L 0.205 (outside the 0.28-0.45 window), LOCKED #6a6865 87.3% + #8a867d 6.0%: flat again, a step too dark. Scorched raw L 0.027, LOCKED #2f2723 75.2% (near black, far under #6a6865)",
+    "verdict_rule_applied": "it locks flat again, so STOP: no value multiplier, nothing chains, pairs 2-6 (B5) move to the next cycle and their 75 gens join the reserve"
+  },
+  "A6 Q9 shroud_pin": {
+    "gens": 2, "files": "q9-icons-sample/shroud_pin-c3.png (seed 9, job bc27f055), shroud_pin-c4.png (seed 10, job 249f0f89)",
+    "measured": "c3 26x25: 81% by the longest side; c4 31x31: 97%",
+    "flags": ["c3: a thin pale pin with a round knob at one end and a point at the other", "c4: a bone crossed with a dark needle (two objects)"]
+  },
+  "strips": "art/review/gen-2026-11-09b/a1-yard-kit-sheet2.png (blue row = shipped dummy and sheet 1's dummy, board, rune post, ring; rows: pads, rune posts, rings; red row = sheet 2's tall dummies; last row the retry), a2-a4-bodies.png (on the target ash: arms master r2 8 rotations + idle S; pikeman r3 8 + idle S; lurcher r3 8 + idle S), a5-ash-pair1-r3.png (sheet | raw ash | LOCKED ash | raw scorched | LOCKED scorched | target), a6-shroud-pin.png (red = c1 c2 refused; c3 c4)"
+}

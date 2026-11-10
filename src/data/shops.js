@@ -10,8 +10,8 @@
 //                         with the old rune ladder, 2026-10-23)
 //   equip              8  src/legacy.js (5 rows moved to the outfitter, 2026-10-22)
 //   property           5  src/features/homestead.js
-//   character_slot     2  src/multi-character.js (slot 1 is a starter: owned, never sold, 2026-10-26; slot 4, the
-//                         fifth hero, is no longer sold: four heroes an account, Tyler 2026-11-07)
+//   character_slot     3  src/multi-character.js (an account starts with slot 0 only and buys 1-3, Tyler 2026-11-09;
+//                         slot 4, the fifth hero, is no longer sold: four heroes an account, Tyler 2026-11-07)
 //   companion          4  src/data/companions.js
 //   (the four `plot` buildings and the six `worker` hires were cut 2026-11-07, lane/c-dead-plot-deed: the engine
 //    refused every one and nothing read what they granted; tests/catalogue-coherence.mjs C14 keeps them out)
@@ -43,8 +43,8 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.112';
-import { ITEMS } from './items.js?v=0.2.112';
+import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.114';
+import { ITEMS } from './items.js?v=0.2.114';
 
 export const SHOPS_DIGEST = "3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07";
 
@@ -56,16 +56,26 @@ function supplyOffer(s) {
 /** Every offer whose price is data. shop_buy sells only what a Shop tab lists (supply-basics.js SHOP_SOLD_KINDS; the rest
     is refused not_listed, catalogue.js offerRefusal): the legacy equip.* and seed.* rows are a vendor price list only. */
 export const SHOP_OFFERS = [
+  /* THE HERO-SLOT LADDER (Tyler 2026-11-09, "like a week to afford the first alt"; the designer's prices, PRIORITY_BOARD
+     "2026-11-09 Death share and alt price"): an account starts with ONE slot, the second costs about a week of one daily
+     login's hunting. The server charges public.hr_hero_slots (2027-03-25-hero-slots-one.sql), bound to these rows by
+     tests/hero-slot-buy.mjs. */
+  {
+    id: "character_slot.1", table: "character_slot",
+    name: "Character slot 2",
+    cost: [{ kind: "currency", id: "gold", amount: 300000 }],
+    grant: [{ kind: "unlock", id: "character_slot:1", amount: 1 }],
+  },
   {
     id: "character_slot.2", table: "character_slot",
     name: "Character slot 3",
-    cost: [{ kind: "currency", id: "gold", amount: 25000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 750000 }],
     grant: [{ kind: "unlock", id: "character_slot:2", amount: 1 }],
   },
   {
     id: "character_slot.3", table: "character_slot",
     name: "Character slot 4",
-    cost: [{ kind: "currency", id: "gold", amount: 75000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 1500000 }],
     grant: [{ kind: "unlock", id: "character_slot:3", amount: 1 }],
   },
   {

@@ -1,0 +1,31 @@
+{
+  "asset": "brief 13 Q5 (brief 12 P2) the re-rolled charred_pikeman and lurcher: rotations and the S idle SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt Q5",
+  "status": "SAMPLE for the art director's one read; the three bodies' clips (idle 7, walk 8, attack 8, death 8) wait for it. Not imported",
+  "made": "2026-11-08 (the brief's 11-09 samples)",
+  "generations": 15,
+  "tool": "create_object_pro_flash 8 directions, high top-down, style image refs/style-glade-poacher-s-48.png (upload 48783d17) \"match palette, outline, shading\"; idles animate_object v3 frame_count 8 keep_first_frame true",
+  "charred_pikeman": {
+    "object": "b29e998c-e2ad-46d2-97fa-5ec9bf4bc1ae", "canvas": 48, "seed": 3701, "idle_group": "ce4075c0-5d75-4d08-97f3-560a30ea53be",
+    "description": "a charred undead foot soldier, a bare blackened skull with no hood and no hair, a charred black ribcage showing through burnt scraps of mail, dull ember in the cracks of the bones, a few burnt scraps of a red armband, the broken stub of a pike with its iron head, soot black and charcoal grey, game enemy sprite, single black outline, basic shading",
+    "idle": "standing guard, the chest rises and falls, the head stays level, both feet stay where they are, the pike stub stays upright, nothing else appears in the frame",
+    "measured": "box 26x39 S, 13x42 E (character 36-40: E is 2 over); locked ring 0.027 S / 0.032 E (cap 0.045); ring-contrast on the target ash #8a867d 3.74 / 3.52:1, on Q3 r1's locked ash 5.48 / 5.16, on Q3 r2's 2.44 / 2.30 UNDER; idle frames change 88-490 px, the feet never move"
+  },
+  "lurcher": {
+    "object": "997e815e-6954-401c-8fc9-7e677848023a", "canvas": 56, "seed": 3702, "idle_group": "719a6477-4b15-467e-8985-d73301368d17", "idle_r2_group": "624e579f-6dcf-4a82-a531-1dc962fba621",
+    "description": "a lean gaunt lurcher hound, long legs and a narrow head, a near-black soot-coated coat, darker than charcoal, matted with ash, a leather collar with a small brass tag, head carried low, the tail held low and still, game enemy sprite, single black outline, basic shading",
+    "idle": "standing with its head low, the flanks rise and fall, all four paws planted, the tail stays low and still, nothing else appears in the frame",
+    "idle_r2": "standing still with its head low, only breathing: the flanks slowly rise and fall, all four paws stay planted, the tail hangs down behind the back legs and never moves or rises, the head stays low, nothing else appears in the frame",
+    "measured": "box 17x42 S, 42x34 E (beast 40-48 by width: 42, inside); locked ring 0.043 S and E (at most 0.045: PASSES); ring-contrast on the target ash 3.12:1, on Q3 r1's 4.58, on Q3 r2's 2.04 UNDER. Idle r1: the top rises y10 -> y4 at frames 3-5 and the feet lift 2 px at frames 3-4; idle r2: the top rises y10 -> y4 at frames 3-6, the feet stay"
+  },
+  "layout": "<body>/<facing>.png the 8 rotations; <body>/idle/south/frame_000..008 (frame_000 the rotation); lurcher/idle_r2/south/ the retry",
+  "flags": [
+    "pikeman: a bare skull with no hood and a ribcage showing, the red armband scraps: no longer the hooded soldier. The skull reads olive-brown rather than blackened",
+    "pikeman: the weapon reads as a short curved BOW at x2 in most facings (the poacher style image holds a bow), not a pike stub with an iron head",
+    "pikeman idle: one hand pokes out 3 px at frame 2",
+    "lurcher: near-black coat, passes the ring cap now; but the NE and NW rotations REAR UP on the hind legs (an 8-direction drift)",
+    "lurcher idle: BOTH rolls raise the tail tip 6 px over the back at frames 3-6 (the S view is head-on, so the tail shows above the head). Calm frames for a ping-pong: r2 0, 1, 8 (top within 1 px)",
+    "neither body passes on Q3 r2's dark ash; both pass on the target colour"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/q5-pyre-bodies-sample.png (x3 on the target ash #8a867d: blue row = knight, the approved stoker S and E; pikeman 8 rotations S SE E NE N NW W SW; its idle S 0-8; red row = the refused 11-09 pikeman S, E; lurcher 8 rotations; idle S 0-8; idle_r2 S 0-8; red row = the refused 11-09 lurcher S, E)"
+}

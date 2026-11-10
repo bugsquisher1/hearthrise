@@ -44,22 +44,22 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.112';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.112';
-import { createRng } from './rng.js?v=0.2.112';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.112';
-import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.112';
-import { MONSTERS } from '../data/monsters.js?v=0.2.112';
-import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../data/scaled-hunts.js?v=0.2.112';
-import { stepSwing } from './hunt/world-step.js?v=0.2.112';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.112';
-import { newHuntWorld, joinHero, leaveHero, scaleRoomFor } from './hunt-spawn.js?v=0.2.112';
-import { pullLeader } from './hunt/pull-cycle.js?v=0.2.112';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.112';
-import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.112';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.114';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.114';
+import { createRng } from './rng.js?v=0.2.114';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.114';
+import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.114';
+import { MONSTERS } from '../data/monsters.js?v=0.2.114';
+import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../data/scaled-hunts.js?v=0.2.114';
+import { stepSwing } from './hunt/world-step.js?v=0.2.114';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.114';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.114';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.114';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.114';
+import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.114';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.112';
+export { stepSwing } from './hunt/world-step.js?v=0.2.114';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -323,8 +323,6 @@ export function simulateHuntInstance(inst, ctx) {
           const tier = play.tierOf(tierPick(standing));
           world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],
             { density: densityFor(ctx.ground, standing.length, pickOf(standing)), tier, monsters: play.monsters });
-          /* The room's one spawn is for the party walking in, not the first hero through the door: he never comes back at their size. */
-          if (call) scaleRoomFor(world, ctx.ground, standing.length, tier, play.monsters);
           fresh = true;
           /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
           world.swing = Math.max(0, Math.floor(Number(inst.worldSwing) || 0));

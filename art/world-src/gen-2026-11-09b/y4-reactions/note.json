@@ -1,0 +1,24 @@
+{
+  "asset": "brief 13 Y4 the reactions SAMPLE: ty_straw_dummy rocks back",
+  "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt Y4",
+  "status": "SAMPLE for the art director's one read; the quintain, pell, archery butt and the vfx particles wait for it and for Y1's pick. Not imported",
+  "made": "2026-11-08 (the brief's 11-09 samples)",
+  "generations": 2,
+  "source": "Y1 sheet 1's ty_straw_dummy cut (y1-yard-kit/cells/ty_straw_dummy.png, 32x43) bottom-centred at x8 y4 in a 48x48 canvas (room to rock), upload 703af422",
+  "tool": "animate_image frame_count 4 (5 stored, frame_000 the input byte for byte), 12 fps per §6's hit",
+  "rolls": {
+    "r1": { "job": "a04fc928-1e95-40b9-86c4-c2f6beb2c017", "seed": 3401, "action": "the straw dummy rocks back on its post as if struck and then settles upright again, the post stays planted in the ground, the same colours throughout, nothing else appears in the frame",
+      "why_alt": "REFUSED by the generator's rule (gear that vanishes): frames 1-4 drop the buckler and the arm stubs, and the body is redrawn rather than rocked" },
+    "r2": { "job": "718d17c1-e367-4a30-82c6-4777f0fbcadb", "seed": 3402, "action": "the whole straw dummy tilts back by two pixels at the top as if struck, then sways forward and settles upright again; its round buckler stays strapped to its arm and both arms stay on, the post and its base stay planted on the ground, the same shape and colours throughout, nothing else appears in the frame" }
+  },
+  "chosen": "r2",
+  "layout": "ty_straw_dummy/react/south/frame_000..004 = r2 CUT (rows 34-47, the post and its base, taken from frame_000 so they never move); react/raw/ = r2 as generated; alt/r1/raw/ = the refused roll",
+  "measured": "r2 changes rows 2-35 only (34-111 px a row over all frames); the post and base rows 36-47 do not change even raw. Box top y4 -> y4, y4, y3, y2: the head rises 1-2 px at frames 3-4",
+  "flags": [
+    "r2 keeps the buckler; frame 2 tips the body and drops the buckler 2 px (the struck pose), frames 3-4 come back up",
+    "frames 3-4 rise 1-2 px above the still's top before the loop returns to frame 0: a bounce more than a settle (a 0 1 2 1 0 order would avoid it)",
+    "the left arm stub shortens at frames 2 and 4",
+    "no particles yet: the straw puff is a vfx_workbench part for the batch"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/y4-reaction-straw-dummy-sample.png (x4 on the town dirt, 48 frames as is: row 1 r2 cut 0-4, row 2 r2 raw 0-4, red-barred row 3 r1 raw 0-4 refused)"
+}

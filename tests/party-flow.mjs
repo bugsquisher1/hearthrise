@@ -59,6 +59,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
+import { ownHeroSlots } from './_slots.mjs';
 
 const MUTATE = process.argv.includes('--mutate');
 /* The real client modules PF-MENU drives (the town walker reader, the menu, its providers). */
@@ -130,6 +131,7 @@ async function world(db) {
     await db.query('insert into public.profiles (id, display_name) values ($1, $2) on conflict (id) do update set display_name = excluded.display_name', [uid, 'Flow ' + 'ABC'[i]]);
     await db.query("insert into public.hr_access_allowlist (user_id, note) values ($1, 'party-flow') on conflict (user_id) do nothing", [uid]);
     for (const slot of uid === B ? [0] : [0, 1]) {
+      if (slot > 0) await ownHeroSlots((sql, p) => db.query(sql, p), uid, slot);   // one slot to start (2027-03-25-hero-slots-one.sql)
       const c = await as(db, uid, 'select public.hr_create_character($1)', [slot]);
       if (!c || c.ok !== true) throw new Error('HARNESS: hr_create_character refused: ' + JSON.stringify(c));
       await db.query("update public.player_state set active_kind = 'idle', active_id = null where user_id = $1 and slot = $2", [uid, slot]);

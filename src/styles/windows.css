@@ -933,3 +933,46 @@
   .ht-tally, .ht-offer { flex-wrap: wrap; }
   .ht-tally > .hh-tool, .ht-offer > .hh-tool { min-height: 36px; }
 }
+/* ── A monster's page (src/shell/windows/monster.js): a page of the encyclopedia, not a card grid. The creature on its ground
+   shadow (x2, facing front) beside its name, the grounds it lives on as links, a two-column table of facts, then its drops as
+   lines: icon, name and band, the chance per kill at the right, what the item is for under it. ── */
+.mf-head { display: flex; align-items: flex-end; gap: 14px; margin: 2px 2px 0; }
+.mf-stand { display: flex; align-items: flex-end; justify-content: center; flex: none; min-width: 72px; min-height: 52px; padding: 0 0 4px;
+  background: url('../../assets/ui/ground-shadow.png') 50% 100% / 48px 10px no-repeat; image-rendering: pixelated; }
+.mf-sprite { display: block; image-rendering: pixelated; }
+.mf-stand:not(.is-drawn) .mf-sprite { width: 0; height: 0; }
+.mf-id { min-width: 0; padding-bottom: 2px; }
+.mf-name { margin: 0; font-family: var(--f-display); font-size: var(--t-h2); font-weight: 700; line-height: 1.15; letter-spacing: .05em; color: var(--gold-2); }
+.mf-kind { margin: 2px 0 0; font-size: var(--t-small); color: var(--ink-2); }
+.mf-homes, .mf-drops { margin: 0; padding: 0; list-style: none; }
+.mf-home { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; margin: 0 2px 4px; font-size: var(--t-small); line-height: 1.5; }
+.mf-home small { font-size: var(--t-micro); color: var(--ink-2); }
+.mf-home small:empty { display: none; }
+.mf-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 16px; row-gap: 6px; margin: 0 2px; }
+.mf-fact { display: contents; }
+.mf-fact[hidden] { display: none; }
+.mf-fact dt { font-size: var(--t-small); line-height: 1.35; color: var(--ink-2); }
+.mf-fact dd { margin: 0; font-size: var(--t-small); font-weight: 700; line-height: 1.35; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.mf-note { margin: 8px 2px 0; font-size: var(--t-micro); line-height: 1.4; color: var(--ink-3); }
+.mf-note:empty { display: none; }
+.mf-drop { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; column-gap: 10px; row-gap: 2px; align-items: center; margin: 0 2px 10px; }
+.mf-drop .hw-ico { grid-row: 1 / 3; align-self: start; width: 40px; height: 40px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.mf-drop .hw-ico .hh-icon { width: 32px; height: 32px; }
+.mf-drop-what { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; min-width: 0; }
+.mf-drop-name { font-size: var(--t-small); font-weight: 700; color: var(--ink); }
+.mf-drop-band { font-size: var(--t-micro); color: var(--ink-3); }
+.mf-drop[data-band="uncommon"] .mf-drop-name { color: var(--rar-uncommon); }
+.mf-drop[data-band="rare"] .mf-drop-name { color: var(--rar-rare); }
+.mf-drop[data-band="trophy"] .mf-drop-name { color: var(--rar-legendary); }
+.mf-drop-use { grid-column: 2 / 4; margin: 0; font-size: var(--t-micro); line-height: 1.4; color: var(--ink-2); }
+/* A creature on a hunt's page opens its page: the figure is pressed whole, and its name is the button a key reaches. */
+.hw-hd-mon[data-hs-goto] { cursor: pointer; }
+/* The name clips a long one (overflow hidden), so the underline gets its own room under the line. */
+.mf-open { padding-bottom: 4px; border: 0; background: none; font-family: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 3px; }
+.hw-hd-mon[data-hs-goto]:hover .mf-open { text-decoration-color: var(--gold-2); }
+.mf-open:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .mf-head { gap: 10px; }
+  .mf-name { font-size: var(--t-lead); }
+  .mf-home { line-height: 1.9; }
+}

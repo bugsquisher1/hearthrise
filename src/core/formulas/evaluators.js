@@ -16,6 +16,7 @@
 // ============================================================
 
 import { salePriceOf } from './sale.js?v=0.2.114';
+import { premiumPriceOf, supplyPriceOf } from './shop.js?v=0.2.114';
 import { maxHpFor, maxManaFor, regenPermille } from '../vitals.js?v=0.2.114';
 import { charXpForLevel, skillXpForLevel, xpForLevel } from '../xp.js?v=0.2.114';
 import { deathXpLoss } from '../action-rules.js?v=0.2.114';
@@ -41,4 +42,6 @@ export const EVALUATORS = Object.freeze({
   'temper.effect': blowsPmOf,
   'bench.tax': feeMgOf,
   'rename.price': renamePrice,
+  'shop.price': premiumPriceOf,
+  'supply.price': supplyPriceOf,
 });

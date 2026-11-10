@@ -34,6 +34,7 @@ import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { CROPS } from '../src/data/gathering.js';
 import { STAMINA_REFILL, validate as validateRefill } from '../src/data/stamina-refill.js';
+import { premiumPriceOf, supplyPriceOf } from '../src/core/formulas/shop.js';
 import { BLESSING_RULES, BLESSING_TIERS, validate as validateBlessings } from '../src/data/blessings.js';
 import { JEWEL_PIECES, JEWEL_SHOP_PRICE, JEWEL_SHOP_PREMIUM } from '../src/data/jewelry.js';
 import { isMain } from '../tests/_is-main.mjs';
@@ -60,14 +61,8 @@ const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* The shop's word for a supply kind (what the Shop window files it under). */
 const SHOP_KIND = Object.freeze({ heal: 'food', mana: 'drink', ammo: 'ammo' });
 
-/** The designer's rate for a packed item: its basic's gold per point times the item's own
-    points (heal or mana); a shot costs its basic's per-shot price. */
-export function designerPrice(b, item) {
-  if (b.kind === 'ammo') return b.price;
-  const per = b.kind === 'heal' ? b.heals : b.mana;
-  const own = b.kind === 'heal' ? Number(item.heals) : Number(item.mana);
-  return Math.ceil(b.price * own / per);
-}
+/* THE PRICE RULES are not written here (lane/b-formula-home, 2026-11-10): src/core/formulas/shop.js premiumPriceOf (a tool or an outfitter
+   piece) and supplyPriceOf (the designer's rate for a packed item). This file holds every row to them and writes the rows. */
 
 /** Validated supply offer rows, or throw. */
 export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplies = SUPPLIES, basics = BASIC_INDEX, monsters = MONSTERS, crops = CROPS } = {}) {
@@ -84,7 +79,7 @@ export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplie
       /* A tier-1 gathering tool (Tyler 10-18), at the premium floor over its book value. */
       const it = items[o.item];
       if (it.type !== 'tool' || it.toolTier !== 1 || o.basic !== null) throw new Error(`tool offer ${o.item} is not a tier-1 gathering tool with no basic`);
-      if (o.price !== SHOP_PREMIUM * Number(it.v)) throw new Error(`tool offer ${o.item} at ${o.price} g is not ${SHOP_PREMIUM} x its book value ${it.v}`);
+      if (o.price !== premiumPriceOf(it)) throw new Error(`tool offer ${o.item} at ${o.price} g is not ${SHOP_PREMIUM} x its book value ${it.v}`);
       return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
     }
     if (o.kind === 'gear' && own(JEWEL_SHOP_PRICE, o.item)) {
@@ -104,7 +99,7 @@ export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplie
       if ((Number(it.reqLv) || 1) > 1 || (Number(it.tier) || 1) > 1) throw new Error(`gear offer ${o.item} is above tier 1 / Level 1: better pieces come from drops and crafting`);
       if (it.bop || !(Number(it.v) > 0)) throw new Error(`gear offer ${o.item} is bound or has no book value`);
       if (salvaged.has(o.item)) throw new Error(`gear offer ${o.item} is a field-salvage find (${salvaged.get(o.item)}): never shop stock (tests/field-salvage.mjs (a))`);
-      if (o.price !== SHOP_PREMIUM * Number(it.v)) throw new Error(`gear offer ${o.item} at ${o.price} g is not ${SHOP_PREMIUM} x its book value ${it.v}`);
+      if (o.price !== premiumPriceOf(it)) throw new Error(`gear offer ${o.item} at ${o.price} g is not ${SHOP_PREMIUM} x its book value ${it.v}`);
       return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
     }
     if (o.kind === 'seed') {
@@ -122,7 +117,7 @@ export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplie
     const b = basics[o.basic];
     if (!b || b.partner !== o.item) throw new Error(`supply offer ${o.item} names basic ${o.basic}, which is not its partner`);
     if (!Number.isSafeInteger(o.price) || o.price < 1) throw new Error(`supply offer ${o.item} has no positive integer price`);
-    const want = designerPrice(b, items[o.item]);
+    const want = supplyPriceOf(b, items[o.item]);
     if (o.price !== want) throw new Error(`supply offer ${o.item} at ${o.price} g is not the designer's rate (${b.id}: ${want} g)`);
     return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
   });
@@ -281,7 +276,7 @@ function gearCases(base) {
   const at = base.findIndex((o) => o.kind === 'gear');
   if (at < 0) return [['no gear row to plant on', null]];
   const g = (patch) => base.map((o, i) => (i === at ? { ...o, ...patch } : o));
-  const v = (id) => SHOP_PREMIUM * Number(ITEMS[id].v);
+  const v = (id) => premiumPriceOf(ITEMS[id]);
   return [
     ['gear for a slot a ground drops (a helmet)', g({ item: 'leather_helmet', offer: 'supply.leather_helmet', price: v('leather_helmet') })],
     ['gear above Level 1', g({ item: 'studded_belt', offer: 'supply.studded_belt', price: v('studded_belt') })],

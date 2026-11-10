@@ -206,6 +206,10 @@ const MUTANTS = [
     find: 'export const SHOP_UNIT_PRICE = ', repl: 'const DEATH_XP_LOSS = 0.02;\nexport const SHOP_UNIT_PRICE = ' },
   { name: 'core types the temper rung', rule: 'typed-again', file: 'src/core/temper.js',
     find: 'export function temperRung(temper, track, tier) {', repl: 'const TEMPER_RUNG_PM = 10;\nexport function temperRung(temper, track, tier) {' },
+  { name: 'the generator works a supply price out itself', rule: 'reader', file: 'tools/gen-alpha-catalogue.mjs',
+    find: '    const want = supplyPriceOf(b, items[o.item]);', repl: '    const want = Math.ceil(b.price * Number(items[o.item].heals) / b.heals);' },
+  { name: 'the generator types the shop premium', rule: 'typed-again', file: 'tools/gen-alpha-catalogue.mjs',
+    find: "const SHOP_KIND = Object.freeze({ heal: 'food', mana: 'drink', ammo: 'ammo' });", repl: 'const SHOP_PREMIUM = 2;' },
   { name: 'a pending copy is deleted and stays listed', rule: 'pending', file: 'src/data/shops.js',
     find: '      "VENDOR_RAW_RATE": 0.2,\n', repl: '' },
 ];

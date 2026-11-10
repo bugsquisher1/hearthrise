@@ -45,6 +45,7 @@ import { SCALED_HUNTS } from '../scaled-hunts.js?v=0.2.114';
 import { TEMPER_RUNGS, TEMPER_RUNG_PM, TEMPER_TIERS } from '../temper.js?v=0.2.114';
 import { BENCH_TAX, BENCH_TAX_FREE_UNDER_MG } from '../bench-tax.js?v=0.2.114';
 import { HERO_RENAME } from '../hero-rename.js?v=0.2.114';
+import { SHOP_PREMIUM, SHOP_SOLD_KINDS, SHOP_GEAR_SLOTS, BASIC_EFFECT_SHARE, STORE_RUNE_PRICE } from '../supply-basics.js?v=0.2.114';
 
 const row = (r) => Object.freeze({ ...r, expr: Object.freeze(r.expr), params: Object.freeze(r.params), consts: Object.freeze(r.consts),
   keys: Object.freeze(r.keys || []), retired: Object.freeze(r.retired || []), readers: Object.freeze(r.readers || {}) });
@@ -243,5 +244,34 @@ export const FORMULAS = Object.freeze([
     params: { base: HERO_RENAME.base, perLevel: HERO_RENAME.perLevel, perDay: HERO_RENAME.perDay },
     consts: { 'src/data/hero-rename.js': ['HERO_RENAME'] },
     evaluator: 'src/data/hero-rename.js renamePrice',
+  }),
+
+  /* ── THE SHOP AND THE STORE (rows: supply-basics.js SUPPLY_SHOP_OFFERS and BASIC_SUPPLIES; the server's copies are generated from them) ── */
+  row({
+    id: 'shop.price',
+    title: 'Shop prices',
+    expr: [
+      'a tool or an outfitter piece (gearSlots) costs premium x its book value',
+      'a seed and a plain jewelry piece cost their own row\'s price',
+      'the Shop sells only soldKinds. Food, drink, shots and runes are bought by the action bar, one use at a time',
+    ],
+    params: { premium: SHOP_PREMIUM, soldKinds: SHOP_SOLD_KINDS, gearSlots: SHOP_GEAR_SLOTS },
+    consts: { 'src/data/supply-basics.js': ['SHOP_PREMIUM', 'SHOP_SOLD_KINDS', 'SHOP_GEAR_SLOTS'] },
+    evaluator: 'src/core/formulas/shop.js premiumPriceOf',
+    readers: { 'tools/gen-alpha-catalogue.mjs': 'premiumPriceOf' },
+  }),
+  row({
+    id: 'supply.price',
+    title: 'Store prices of food, drink, shots and runes',
+    expr: [
+      'a plain store item restores effectShare of its made partner',
+      'made food or drink is priced at its plain partner\'s gold per point x its own points, rounded up',
+      'a made shot is priced at its plain partner\'s shot',
+      'a store rune costs runePrice gold, by its tier',
+    ],
+    params: { effectShare: BASIC_EFFECT_SHARE, runePrice: STORE_RUNE_PRICE },
+    consts: { 'src/data/supply-basics.js': ['BASIC_EFFECT_SHARE', 'STORE_RUNE_PRICE'] },
+    evaluator: 'src/core/formulas/shop.js supplyPriceOf',
+    readers: { 'tools/gen-alpha-catalogue.mjs': 'supplyPriceOf' },
   }),
 ]);

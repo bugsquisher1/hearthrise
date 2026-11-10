@@ -231,7 +231,7 @@ const AUTHORED = {
      Turnip Mash is the starter cook (Cooking 1), so a brand-new farmer/cook can
      actually cook their first harvest. */
   turnip_mash: {
-    n:'Turnip Mash', icon:'🥣', v:14, heals:60, foodTier:1, foodClass:'healing',
+    n:'Turnip Mash', icon:'🥣', v:14, heals:60, foodClass:'healing',
   },
   /* ── THE ROWS THE LOCAL SHOP SELLS (Designer ruling 2026-09-08; pack 9) ─
      Cooked Shrimp, Trout and Lobster are the only cooked food an NPC counter
@@ -254,19 +254,19 @@ const AUTHORED = {
        and Cooking XP — which is what keeps the fire the standard answer and
        the counter the emergency one. */
   cooked_shrimp: {
-    n:'Cooked Shrimp', icon:'🍤', v:3, heals:96, foodTier:1, foodClass:'healing',
+    n:'Cooked Shrimp', icon:'🍤', v:3, heals:96, foodClass:'healing',
     buff:{type:'gather_speed', magnitude:1,  durationMs:120000},
   },
   cooked_trout: {
-    n:'Cooked Trout', icon:'🐠', v:8, heals:168, foodTier:2, foodClass:'healing',
+    n:'Cooked Trout', icon:'🐠', v:8, heals:168, foodClass:'healing',
     buff:{type:'all_xp', magnitude:2,  durationMs:180000},
   },
   cooked_lobster: {
-    n:'Cooked Lobster', icon:'🦞', v:16, heals:300, foodTier:3, foodClass:'healing',
+    n:'Cooked Lobster', icon:'🦞', v:16, heals:300, foodClass:'healing',
     buff:{type:'drop_rate', magnitude:3,  durationMs:300000},
   },
   cooked_shark: {
-    n:'Cooked Shark', icon:'🍣', v:48, heals:528, foodTier:4, foodClass:'healing',
+    n:'Cooked Shark', icon:'🍣', v:48, heals:528, foodClass:'healing',
     buff:{type:'damage', magnitude:4, durationMs:360000},
   },
 
@@ -366,10 +366,10 @@ const AUTHORED = {
   duskwood_plank: {n:'Duskwood Plank', icon:'🪵', v:250},
   /* Fishing gap-fillers (10 / 66) */
   herring:         {n:'Raw Herring', icon:'🐟', v:14, heals:48},
-  cooked_herring:  {n:'Cooked Herring', icon:'🐟', v:5, heals:72, foodTier:1, foodClass:'healing',
+  cooked_herring:  {n:'Cooked Herring', icon:'🐟', v:5, heals:72, foodClass:'healing',
     buff:{type:'gather_speed', magnitude:1, durationMs:120000}},
   frostfin:        {n:'Raw Frostfin', icon:'❄️', v:70, heals:216},
-  cooked_frostfin: {n:'Frostfin Supper', icon:'🍲', v:35, heals:456, foodTier:4, foodClass:'healing',
+  cooked_frostfin: {n:'Frostfin Supper', icon:'🍲', v:35, heals:456, foodClass:'healing',
     buff:{type:'defense', magnitude:5, durationMs:360000}},
   /* ── "Reed & Tide" (game-designer ruling, 2026-09-13) ─────────────────
      The four fish that close the Trout(20)→Lobster(40) silence, their cooked
@@ -383,18 +383,18 @@ const AUTHORED = {
      auto-eat pool gains rungs rather than a cliff. `river_chowder` heals 30
      and `fishers_pie` is the one Feast of the batch (foodClass 'buff'). */
   pikeperch:             {n:'Raw Pikeperch', icon:'🐟', v:15, heals:96},
-  cooked_pikeperch:      {n:'Grilled Pikeperch', icon:'🐠', v:9, heals:192, foodTier:2, foodClass:'healing',
+  cooked_pikeperch:      {n:'Grilled Pikeperch', icon:'🐠', v:9, heals:192, foodClass:'healing',
     buff:{type:'gather_speed', magnitude:2, durationMs:180000}},
   copper_crab:           {n:'Copper Crab', icon:'🦞', v:15, heals:108},
-  cooked_copper_crab:    {n:'Steamed Copper Crab', icon:'🦞', v:10, heals:216, foodTier:2, foodClass:'healing',
+  cooked_copper_crab:    {n:'Steamed Copper Crab', icon:'🦞', v:10, heals:216, foodClass:'healing',
     buff:{type:'all_xp', magnitude:2, durationMs:180000}},
   silverfin:             {n:'Raw Silverfin', icon:'🐠', v:20, heals:120},
-  cooked_silverfin:      {n:'Silverfin Fillet', icon:'🍥', v:13, heals:252, foodTier:3, foodClass:'healing',
+  cooked_silverfin:      {n:'Silverfin Fillet', icon:'🍥', v:13, heals:252, foodClass:'healing',
     buff:{type:'damage', magnitude:2, durationMs:240000}},
   goldgill:              {n:'Raw Goldgill', icon:'🐟', v:20, heals:132},
-  cooked_goldgill:       {n:'Goldgill Steak', icon:'🍣', v:16, heals:276, foodTier:3, foodClass:'healing',
+  cooked_goldgill:       {n:'Goldgill Steak', icon:'🍣', v:16, heals:276, foodClass:'healing',
     buff:{type:'drop_rate', magnitude:2, durationMs:300000}},
-  river_chowder:         {n:'River Chowder', icon:'🍲', v:380, heals:360, foodTier:3, foodClass:'healing',
+  river_chowder:         {n:'River Chowder', icon:'🍲', v:380, heals:360, foodClass:'healing',
     buff:{type:'defense', magnitude:3, durationMs:300000}},
   fishers_pie:           {n:"Fisher's Pie", icon:'🥧', v:520, heals:408, foodClass:'buff',
     buff:{type:'damage', magnitude:2, durationMs:600000}},
@@ -416,12 +416,12 @@ const AUTHORED = {
           River Chowder to Cooked Swordfish. Accepted: a late-game auto-eater
           who stocks Moonfish pays more per meal for fewer meals; the chooser
           still prefers the CHEAPEST food that covers the deficit first.
-     v / foodTier / foodClass / buff are unchanged. */
+     v / foodClass / buff are unchanged. */
   swordfish:        {n:'Raw Swordfish', icon:'🐠', v:40, heals:168},
-  cooked_swordfish: {n:'Swordfish Steak', icon:'🍥', v:22, heals:384, foodTier:3, foodClass:'healing',
+  cooked_swordfish: {n:'Swordfish Steak', icon:'🍥', v:22, heals:384, foodClass:'healing',
     buff:{type:'damage', magnitude:3, durationMs:300000}},
   moonfish:         {n:'Raw Moonfish', icon:'🌙', v:110, heals:288},
-  cooked_moonfish:  {n:'Moonfish Fillet', icon:'🍣', v:54, heals:600, foodTier:4, foodClass:'healing',
+  cooked_moonfish:  {n:'Moonfish Fillet', icon:'🍣', v:54, heals:600, foodClass:'healing',
     buff:{type:'all_xp', magnitude:3, durationMs:420000}},
   /* Farming (62 / 75 / 88) */
   goldenroot:      {n:'Goldenroot', icon:'🥕', v:260, heals:144},
@@ -431,11 +431,11 @@ const AUTHORED = {
   moonbloom:       {n:'Moonbloom', icon:'🌸', v:850, heals:240},
   moonbloom_seed:  {n:'Moonbloom Seed', icon:'🌱', v:280, seed:'moonbloom'},
   /* Late-game cooking — gives the new crops a real sink */
-  goldenroot_roast: {n:'Goldenroot Roast', icon:'🍠', v:700, heals:312, foodTier:3, foodClass:'buff',
+  goldenroot_roast: {n:'Goldenroot Roast', icon:'🍠', v:700, heals:312, foodClass:'buff',
     buff:{type:'gather_speed', magnitude:4, durationMs:360000}},
-  ember_tart:       {n:'Ember Tart', icon:'🥧', v:1300, heals:360, foodTier:4, foodClass:'buff',
+  ember_tart:       {n:'Ember Tart', icon:'🥧', v:1300, heals:360, foodClass:'buff',
     buff:{type:'combat_xp', magnitude:4, durationMs:360000}},
-  moonbloom_elixir: {n:'Moonbloom Elixir', icon:'🍶', v:2600, heals:480, foodTier:5, foodClass:'buff',
+  moonbloom_elixir: {n:'Moonbloom Elixir', icon:'🍶', v:2600, heals:480, foodClass:'buff',
     buff:{type:'all_xp', magnitude:5, durationMs:480000}},
 
   /* Tool ladder, tiers 6-7 — the best owned tool auto-applies, so these are
@@ -451,23 +451,23 @@ const AUTHORED = {
      pumpkin pie / carrot stew recipes. Defined with placeholder buffs
      so that even a partial cooking unlock has working buff foods. */
   baked_potato: {
-    n:'Baked Potato', icon:'🥔', v:150, heals:240, foodTier:2, foodClass:'healing',
+    n:'Baked Potato', icon:'🥔', v:150, heals:240, foodClass:'healing',
     buff:{type:'gather_speed', magnitude:3, durationMs:240000},
   },
   pumpkin_pie: {
-    n:'Pumpkin Pie', icon:'🥧', v:420, heals:420, foodTier:3, foodClass:'buff',
+    n:'Pumpkin Pie', icon:'🥧', v:420, heals:420, foodClass:'buff',
     buff:{type:'all_xp', magnitude:3, durationMs:300000},
   },
   carrot_stew: {
-    n:'Carrot Stew', icon:'🍲', v:200, heals:288, foodTier:2, foodClass:'buff',
+    n:'Carrot Stew', icon:'🍲', v:200, heals:288, foodClass:'buff',
     buff:{type:'farm_yield', magnitude:1, durationMs:360000},
   },
   tomato_soup: {
-    n:'Tomato Soup', icon:'🍅', v:260, heals:336, foodTier:2, foodClass:'buff',
+    n:'Tomato Soup', icon:'🍅', v:260, heals:336, foodClass:'buff',
     buff:{type:'drop_rate', magnitude:2, durationMs:240000}, // b238: was dead monster_respawn
   },
   wheat_bread: {
-    n:'Wheat Bread', icon:'🍞', v:120, heals:216, foodTier:1, foodClass:'healing',
+    n:'Wheat Bread', icon:'🍞', v:120, heals:216, foodClass:'healing',
     buff:{type:'drop_rate', magnitude:1, durationMs:180000},
   },
 
@@ -519,12 +519,12 @@ const AUTHORED = {
      every boot once the b137 fix made the check actually work. Now in
      sync. Keep both this file and legacy.js's NEW_ITEMS aligned until
      legacy.js's block is deleted. */
-  raw_wolf_meat:    {n:'Raw Wolf Meat',    icon:'🍖', v:5,  cookedFrom:null},
-  raw_panther_meat: {n:'Raw Panther Meat', icon:'🍖', v:8,  cookedFrom:null},
-  raw_bear_meat:    {n:'Raw Bear Meat',    icon:'🍖', v:15, cookedFrom:null},
-  cooked_wolf_meat:    {n:'Cooked Wolf Meat',    icon:'🥩', v:12, heals:72,  foodClass:'healing', cookedFrom:'raw_wolf_meat'},
-  cooked_panther_meat: {n:'Cooked Panther Meat', icon:'🥩', v:22, heals:108,  foodClass:'healing', cookedFrom:'raw_panther_meat'},
-  cooked_bear_meat:    {n:'Cooked Bear Meat',    icon:'🥩', v:42, heals:156, foodClass:'healing', cookedFrom:'raw_bear_meat'},
+  raw_wolf_meat:    {n:'Raw Wolf Meat',    icon:'🍖', v:5},
+  raw_panther_meat: {n:'Raw Panther Meat', icon:'🍖', v:8},
+  raw_bear_meat:    {n:'Raw Bear Meat',    icon:'🍖', v:15},
+  cooked_wolf_meat:    {n:'Cooked Wolf Meat',    icon:'🥩', v:12, heals:72,  foodClass:'healing'},
+  cooked_panther_meat: {n:'Cooked Panther Meat', icon:'🥩', v:22, heals:108,  foodClass:'healing'},
+  cooked_bear_meat:    {n:'Cooked Bear Meat',    icon:'🥩', v:42, heals:156, foodClass:'healing'},
   // Tier 2 buff foods
   roasted_carrot:  {n:'Roasted Carrot', icon:'🥕', v:12,  heals:60,  foodClass:'buff', buff:{type:'gather_speed', magnitude:1,  durationMs:180000}},
   roasted_pumpkin: {n:'Roasted Pumpkin',icon:'🎃', v:90,  heals:264, foodClass:'buff', buff:{type:'farm_yield',   magnitude:1,  durationMs:600000}},

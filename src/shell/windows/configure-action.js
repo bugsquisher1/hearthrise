@@ -3,7 +3,8 @@
 //
 // Tyler 2026-10-18 (the flow) and 2026-10-21 (a slot names ONE item; the game never
 // picks one), built to the art direction spec of 2026-10-21 (Charcoal & Gold):
-//   top       "Slot 3 · tried after slot 2", the Spells | Runes | Food & drink | Ammo tabs, Earlier / Later
+//   top       "Slot 3 · tried after slot 2", the Spells | Food & drink | Ammo tabs (a rune spell is a spell, Tyler
+//             2026-11-08), Earlier / Later
 //   sentence  the slot read as one editable sentence: "Eat [Salted Trout] when [my HP]
 //             [is at or below] [−45+]%", then "and …" for each further condition (all
 //             must match), "+ Add a condition", and the heal warning under it (the
@@ -15,7 +16,8 @@
 //             (action-table.js tableOf); the picked row gold and pinned at the top
 //   detail    the hovered or focused row against the pick (signed differences, the
 //             waste at the slot's own threshold), where its uses come from, food's rule;
-//             a rune spell's choice: carried runes only, or any store rune of its family, each at its price, mana and power
+//             a rune spell's supply (configure-runes.js, Tyler 2026-11-08): which carried runes it spends, then
+//             what it does when they run out, buy from the rune shop or leave the hunt
 //   foot      the status line (pending, the server's refusal in words), Empty slot,
 //             Cancel, Save
 // Nothing applies until Save; Save, Empty slot and a move each send ONE intent
@@ -31,7 +33,9 @@ import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js
 import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.111';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.111';
 import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.111';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault, serverBar, opWords, unitWords } from '../bar-draft.js?v=0.2.111';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, serverBar, opWords, unitWords } from '../bar-draft.js?v=0.2.111';
+import { startSupply } from '../rune-supply.js?v=0.2.111';
+import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.111';
 import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.111';
 import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.111';
 import { glyphSvg } from '../launcher.js?v=0.2.111';
@@ -100,7 +104,7 @@ export function renderConfigureAction(ctx) {
     + '<div class="ca-d-head"><span class="ca-d-icon"></span><b class="ca-d-name"></b></div>'
     + '<p class="ca-vs"></p><ul class="ca-cmp"></ul><p class="ca-waste"></p>'
     + '<p class="ca-src"></p><p class="ca-eff"></p><p class="ca-req"></p><p class="ca-d-warn"></p>'
-    + '<div class="ca-runestore"><p class="ca-rs-q">When your runes run out:</p><ul class="ca-rs-list" role="listbox" aria-label="Rune from the store"></ul></div>'
+    + runesHtml()
     + '<div class="ca-move-phone">' + tool('up', 'Earlier') + tool('down', 'Later') + '</div>'
     + '</div></div></div>'
     + '<p class="hh-intent-msg ca-msg" role="status" aria-live="polite"></p>'
@@ -163,7 +167,7 @@ function patchRow(el, r, picked, off) {
   cls(el, 'is-on', picked);
   cls(el, 'is-none', !!r.none || !!r.unpriced);
   cls(el, 'is-store', r.carry === 'store');
-  cls(el, 'is-mana', r.kind === 'drink' || r.kind === 'spells' || r.kind === 'runes');
+  cls(el, 'is-mana', r.kind === 'drink' || r.kind === 'spells');
   cls(el, 'is-locked', !!r.locked);
   attr(el, 'title', r.locked ? (r.lockWhy || (r.kind === 'ammo' ? 'Your weapon can’t shoot this' : 'Your weapon can’t cast this')) : '');
   prop(el, 'disabled', off);
@@ -267,26 +271,14 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const max = shown && shown.kind === 'drink' ? vitalsOf(cs).manaMax : vitalsOf(cs).hpMax;
   text(root.querySelector('.ca-waste'), shown ? wasteLine(shown, threshold(d, shown.kind), max) : '');
   /* The facts the bar's hover shows a subset of (action-facts.js factsOf): the cost line, then what it does, for THIS hero.
-     The pick is the draft's own action (the store rune it names); another rune spell's row is what a pick starts with. */
-  const named = shown && picked && keyOf(shown.action) === keyOf(picked.action) ? d.action : shown ? shown.action : null;
-  const st = named && named === d.action ? null : named && storeDefault(named, set.store);
-  const f = named ? factsOf(st ? Object.assign({}, named, { store: st }) : named, facts) : null;
+     The pick is the draft's own action (its rune supply); another rune spell's row is what a pick starts with (startSupply). */
+  const named = shown && picked && keyOf(shown.action) === keyOf(picked.action) ? d.action : shown ? startSupply(shown.action, set.store) : null;
+  const f = named ? factsOf(named, facts) : null;
   text(root.querySelector('.ca-src'), f && f.cost ? f.cost : '');
   text(root.querySelector('.ca-eff'), f && named.type === 'ability' ? [f.type].concat(f.effect, [f.version]).filter(Boolean).join(' ') : effectLine(shown));
   text(root.querySelector('.ca-req'), f && f.requires ? f.requires : '');
-  /* A rune spell's store choice: carried runes only, or a store rune of its family at the server's price a cast. */
-  const runes = storeChoices(d.action, set.store, skillsOf(cs));
-  cls(root.querySelector('.ca-runestore'), 'is-on', runes.length > 0);
-  rows(root.querySelector('.ca-rs-list'), runes, {
-    key: (c) => c.id || '-',
-    build: (c) => element(ctx.doc, '<li><button type="button" class="ca-rs" role="option" data-hs-act="cfg" data-x="store" data-store="' + esc(c.id || '') + '"></button></li>'),
-    patch: (li, c) => {
-      const sel = (d.action.store || null) === c.id;
-      const b = li.firstElementChild;
-      attr(b, 'aria-selected', String(sel)); cls(b, 'is-on', sel); prop(b, 'disabled', off);
-      text(b, storeChoiceWords(c));
-    },
-  });
+  /* A rune spell's supply (configure-runes.js): the carried runes it may spend, then the rune shop or leaving the hunt. */
+  patchRunes(root, d, { doc: ctx.doc, bag, store: set.store, skills: facts.skills, off });
   /* THE FOOT */
   const msg = root.querySelector('.ca-msg');
   text(msg, s.msg);
@@ -332,12 +324,11 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
     const x = t.getAttribute('data-x');
     if (x === 'tab') { v.tab = t.getAttribute('data-tab'); v.hover = null; repaint(); listToTop(body); return; }
     else if (x === 'pick') {
-      d.action = { type: t.getAttribute('data-type'), id: t.getAttribute('data-id') };
+      /* a rune spell starts with every rune of its family ticked and the rune shop's Plain on empty (rune-supply.js startSupply) */
+      d.action = startSupply({ type: t.getAttribute('data-type'), id: t.getAttribute('data-id') }, (settingsOf(cs) || {}).store);
       v.hover = null;
       v.pickedAt = { x: ev.clientX, y: ev.clientY };
       LAST_TAB.set(cs, tabOf(d.action));
-      const st = storeDefault(d.action, (settingsOf(cs) || {}).store);
-      if (st) d.action.store = st;
       /* A slot with no condition yet starts with its action's own, written on it: food at HP below 50%, drink at
          mana below 30%, a heal or a shield under its threshold, an area at two monsters (nothing hidden behind it). */
       if (!d.conditions.length) d.conditions = startConditions(d.action);
@@ -348,10 +339,7 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
       if (row && row.scrollIntoView) { row.scrollIntoView({ block: 'nearest' }); row.focus(); }
       return;
     }
-    else if (x === 'store') {
-      const id = t.getAttribute('data-store');
-      d.action = Object.assign({ type: d.action.type, id: d.action.id }, id ? { store: id } : {});
-    }
+    else if (x === 'store') d.action = runesEdit(d, t, (settingsOf(cs) || {}).store) || d.action;
     else if (x === 'add' && d.conditions.length < MAX_CONDITIONS) d.conditions.push(blankCondition());
     else if (x === 'drop' && c) d.conditions.splice(Number(t.getAttribute('data-i')), 1);
     else if ((x === 'inc' || x === 'dec') && c) nudge(c, x === 'inc' ? 1 : -1);
@@ -370,6 +358,7 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
   }
   if (action !== 'cfg-f' || ev.type !== 'change') return;
   const f = t.getAttribute('data-f');
+  if (f === 'rn-own' || f === 'rn-tick' || f === 'rn-empty') { d.action = runesEdit(d, t, (settingsOf(cs) || {}).store) || d.action; repaint(); return; }
   if (c && f === 'metric') { const n = conditionFor(t.value); if (n) d.conditions[Number(t.getAttribute('data-i'))] = n; }
   else if (c && f === 'op') c.op = t.value;
   else if (c && f === 'subject') c.subject = t.value;

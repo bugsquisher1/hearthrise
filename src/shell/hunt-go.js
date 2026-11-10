@@ -29,12 +29,13 @@ import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.
 import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.111';
 import { ITEMS } from '../data/items.js?v=0.2.111';
 import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.111';
-import { attackOrder, DEFAULT_ATTACK_ROW } from '../core/hunt/conditions.js?v=0.2.111';
+import { attackOrder, DEFAULT_ATTACK_ROW, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.111';
 import { ammoPerShot } from '../core/ammo.js?v=0.2.111';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.111';
 import { ABILITIES } from '../data/abilities.js?v=0.2.111';
 import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.111';
-import { itemName, runeWords, familyCount } from './widgets/bits.js?v=0.2.111';
+import { itemName, runeWords } from './widgets/bits.js?v=0.2.111';
+import { ownCount } from './rune-supply.js?v=0.2.111';
 import { shortOf } from './item-lore.js?v=0.2.111';
 import { whole, gold } from '../render/format.js?v=0.2.111';
 
@@ -93,11 +94,15 @@ function slotSupply(sl, s, carried) {
   if (a.type === 'ability' && ABILITIES[a.id] && ABILITIES[a.id].rune) {
     /* a move the worn weapon can't use never fires, so it spends nothing (a club hero warned about Flame Volley's runes, QA 2026-11-04) */
     if (moveOffWeapon(s.discipline, a.id)) return null;
-    /* a rune spell spends any tier of its family: count them all, say the family */
-    const r = ABILITIES[a.id].rune, n = familyCount(r, carried);
-    /* the store's rune of that family, the way to fix a slot that casts own runes only (starter bars, 2026-10-29) */
+    /* a rune spell spends the runes its slot ticked (Tyler 2026-11-08, RUNE SUPPLY PER SLOT: rune-supply.js ownCount), and buys only
+       when the slot says so, the shop rune it names or its family's tier-1 one (conditions.js runeSupplyOf, the engine's rule) */
+    const sup = /** @type {{ onEmpty: string, store: string|null }} */ (runeSupplyOf(a));
+    const r = ABILITIES[a.id].rune, n = ownCount(a, carried);
+    const bought = sup.onEmpty === 'store' ? storeOf({ ...a, store: sup.store || undefined }, s.store) : null;
+    const buys = bought && bought.price !== null ? { name: bought.name, price: bought.price, each: 'a cast' } : null;
+    /* the store's rune of that family, the way to fix a slot that leaves the hunt when its runes run out */
     const fam = Array.isArray(s.store) ? s.store.find((x) => x && x.partner === r && Number.isInteger(x.price)) : null;
-    return { kind: 'rune', spell: ABILITIES[a.id].n, own: { id: r, n, name: runeWords(r, n) }, store: off ? null : store, off,
+    return { kind: 'rune', spell: ABILITIES[a.id].n, own: { id: r, n, name: runeWords(r, n) }, store: off ? null : buys, off,
       fix: fam ? { name: storeName(fam.id), price: fam.price } : null };
   }
   return null;

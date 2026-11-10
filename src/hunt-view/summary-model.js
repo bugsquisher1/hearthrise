@@ -37,6 +37,7 @@ export const END_WORDS = Object.freeze({
   party_member_left: 'A party member left the hunt, so your hero came home too.',
   heals_out: 'You ran out of healing supplies.',
   ammo_out: 'You ran out of ammunition.',
+  runes_out: END_REASON_COPY.runes_out.one,
   gold_out: 'Ran out of gold for supplies, returned to town.',
   rule: 'One of your stop rules was met, so you headed home.',
   stamina: 'Your stamina ran out, so your hero came home. It comes back hour for hour while you aren\'t hunting.',

@@ -3,10 +3,10 @@
 //
 // One home for the words the Configure action window and the bar's slot
 // tooltip both show, so they can never disagree:
-//   TABS / choicesFor   Spells (the abilities the worn weapon gives, by the
-//                       server's `role`), Runes (the spells a rune fuels), Food &
-//                       drink (own, or the store's behind it) and Ammo (its own
-//                       tab, Tyler 2026-10-25)
+//   TABS / choicesFor   Spells (every spell, a rune spell with its rune on its row:
+//                       Tyler 2026-11-08 merged the Runes tab in), Food & drink
+//                       (own, or the store's behind it) and Ammo (its own tab,
+//                       Tyler 2026-10-25)
 //                       — the same ids the server accepts (src/core/hunt/
 //                       conditions.js actionKnown), never a typed list
 //   factsOf             type line, cost line, cooldown, effect, requirement, for THIS hero: the rune
@@ -19,14 +19,15 @@
 // ════════════════════════════════════════════════════════════════════════
 import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.111';
 import { ABILITIES } from '../data/abilities.js?v=0.2.111';
-import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.111';
+import { aimsAtMonsters, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.111';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.111';
 import { STATUSES } from '../data/statuses.js?v=0.2.111';
 import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.111';
 import { ITEMS } from '../data/items.js?v=0.2.111';
 import { isRune } from '../data/supplies.js?v=0.2.111';
 import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.111';
-import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.111';
+import { itemName, abilityName, runeWords } from './widgets/bits.js?v=0.2.111';
+import { ownCount } from './rune-supply.js?v=0.2.111';
 import { shortOf } from './item-lore.js?v=0.2.111';
 import { storeOf, storeChoices, conditionWords } from './bar-draft.js?v=0.2.111';
 import { castOf, costLine, landed, versionWords } from './cast-facts.js?v=0.2.111';
@@ -36,13 +37,14 @@ import { t } from '../render/player-text.js?v=0.2.111';
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
 
-/** The four tabs of the Configure action window: spells, the spells that spend a rune, food and drink, and ammo
-    (Tyler 2026-10-25: ammo keeps its own tab, never mixed in with food and drink). */
-export const TABS = Object.freeze([['spells', t('bar.tab_spells')], ['runes', t('bar.tab_runes')], ['food', t('bar.tab_food')], ['ammo', t('bar.tab_ammo')]]);
+/** The three tabs of the Configure action window: spells (a rune spell among them: Tyler 2026-11-08, "why bother having a
+    'spells' and 'runes' section if rune selection already exists in the spells tab?"), food and drink, and ammo (Tyler
+    2026-10-25: ammo keeps its own tab, never mixed in with food and drink). */
+export const TABS = Object.freeze([['spells', t('bar.tab_spells')], ['food', t('bar.tab_food')], ['ammo', t('bar.tab_ammo')]]);
 
-/** The tab an action belongs to (a rune spell under Runes; a shot under Ammo; food and drink under Food & drink). */
+/** The tab an action belongs to (a spell under Spells; a shot under Ammo; food and drink under Food & drink). */
 export function tabOf(a) {
-  if (!a || a.type === 'ability') return a && ABILITIES[a.id] && ABILITIES[a.id].rune ? 'runes' : 'spells';
+  if (!a || a.type === 'ability') return 'spells';
   return a.type === 'attack_with_item' ? 'ammo' : 'food';
 }
 
@@ -285,9 +287,14 @@ export function reasonOf(sl, set, bag, hero, worn, skills, pack) {
     if (!disc) return { code: 'weapon', text: r.universal ? t('bar.no_weapon_any') : t('bar.no_weapon', { weapons: weaponsFor(r.disciplines[0]) }), glyph: 'uiLock', strike: true };
     if (!r.universal && !r.disciplines.includes(disc)) return { code: 'weapon', text: t('bar.weapon_cant_use', { weapons: weaponsFor(r.disciplines[0]) }), glyph: 'uiLock', strike: true };
     const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
-    if (r.rune && !(familyCount(r.rune, bag) > 0) && !(storeOn && storeOf(a, set && set.store))) {
+    /* RUNE SUPPLY PER SLOT (Tyler 2026-11-08): only the runes the slot ticked count, and the shop only when it buys on empty */
+    const sup = r.rune ? runeSupplyOf(a) : null;
+    const packed = sup ? waiting(ownCount(a, (pack || []).map((x) => ({ id: x.id, qty: x.have })))) : null;
+    if (sup && sup.onEmpty === 'leave' && !(ownCount(a, bag) > 0)) {
+      return { code: 'runes_out', text: packed ? t('bar.rune_leaves_packed', { waiting: packed }) : t('bar.rune_leaves'), glyph: 'uiChest', strike: true };
+    }
+    if (sup && !(ownCount(a, bag) > 0) && !(storeOn && sup.onEmpty === 'store' && storeOf({ ...a, store: sup.store }, set && set.store))) {
       const rune = runeWords(r.rune, 1);
-      const packed = waiting(familyCount(r.rune, (pack || []).map((x) => ({ id: x.id, qty: x.have }))));
       const an = /^[aeiou]/i.test(rune) ? 'an' : 'a';
       return { code: 'rune', text: packed ? t('bar.rune_needs_' + an + '_packed', { rune, waiting: packed }) : t('bar.rune_needs_' + an, { rune }), glyph: 'uiChest', strike: true };
     }
@@ -301,6 +308,7 @@ export function reasonOf(sl, set, bag, hero, worn, skills, pack) {
       const c = storeChoices(a, set && set.store, skills).find((x) => x.id === a.store);
       return { code: 'store_level', text: c ? t('bar.store_level_named', { name: c.name, needs: c.needs }) : t('bar.store_level'), glyph: 'uiLock', strike: true };
     }
+    if (sl.usable === false && sl.why === 'runes_out') return { code: 'runes_out', text: t('bar.rune_leaves'), glyph: 'uiChest', strike: true };
     if (sl.usable === false) return SERVER;
     /* the mana of the version this slot casts (castOf: the rune it would spend), never version I's */
     const need = /** @type {{ mana: number }} */ (castOf(a, { bag, store: set && set.store, skills, set })).mana;

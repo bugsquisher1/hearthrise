@@ -126,8 +126,15 @@
 //   RUNE-LADDER  the rune ladder (Tyler 2026-11-05; 2027-03-08-rune-ladder-slots.sql): a slot naming a store rune of any tier, no carried rune: the server
 //              reads it usable, the engine buys exactly that row, the ledger's price is the view's and Configure action's, the debit is qty x price, browser
 //              closed and viewed write the same rows. Under the tier's level it reads store_level, casts nothing and buys nothing, never Plain. Another
-//              family's row is refused bad_store. A saved Plain slot reads, keeps its rule id and spends as before.
+//              family's row is refused bad_store. A saved Plain slot reads and spends as before; its rule id is the md5 of what the
+//              door stores (its rune supply too, since 2027-03-24-rune-supply.sql) and does not move when it is saved again.
 //   RUNE-LADDER-IDEM  a second apply of the five 2027-03-08-rune-ladder files, in order, self-checks included, is byte-identical: bodies, grants, the store's rows, the bids.
+//   RUNE-SUPPLY  rune supply per slot (Tyler 2026-11-08; 2027-03-24-rune-supply.sql), the server settle only, browser closed and viewed
+//              writing the same rows: a slot that says nothing reads every rune of its family ticked and the shop's tier-1 rune
+//              bought; it casts its carried runes first, buys none while one is left, then buys every cast at the catalogue price
+//              and hunts on; one settle key charges once. A slot set to "Leave the hunt" casts only the runes it ticks, buys
+//              nothing and ends runes_out, re-proved by the server (none packed: the view says runes_out and it leaves at once); a forged
+//              runes_out (its runes left, or a buying slot) is refused end_not_proven.
 //   NO-FIGHT   a hero who can't fight goes home (designer 10-31): a bare bow with the store shut ends no_fight at its hunt
 //              start + the limit's minutes, a town-side automatic end, nothing bought, browser closed and viewed; the
 //              database refuses that end before the minutes and with a kill in its window.
@@ -2085,10 +2092,16 @@ const DB_ARMS = {
         'state', md5(replace(pg_get_functiondef('public.hr_hunt_rune_state(uuid,integer,uuid,text)'::regprocedure), chr(13), '')),
         'state_acl', (select proacl::text from pg_proc where oid = 'public.hr_hunt_rune_state(uuid,integer,uuid,text)'::regprocedure),
         'baseline', (select jsonb_agg(to_jsonb(b) order by b.grantee) from public.hr_client_rpc_baseline b where b.proname = 'hr_hunt_restock'))`);
-    /* The view moved on (2027-03-08-rune-ladder-slots.sql): this file's §0 accepts only its own two images, so its own image goes back first, inside this rolled-back transaction. */
+    /* The view moved on (2027-03-08-rune-ladder-slots.sql): this file's §0 accepts only its own two images, so its own image goes back first, inside this rolled-back transaction.
+       Its 4-argument hr_hunt_rune_state was dropped by 2027-03-24-rune-supply.sql (the ticked runes' 5-argument form replaced it), so it goes back the same way. */
     const carryIn = readFileSync(join(ROOT, 'supabase', 'migrations', '2027-02-21-hunt-carry-in.sql'), 'utf8').replace(/\r\n/g, '\n');
-    const from = carryIn.indexOf('create or replace function public.hr_hunt_settings_view(p_user uuid, p_slot int)');
-    await db.exec(carryIn.slice(from, carryIn.indexOf('end $$;', from) + 'end $$;'.length));
+    for (const head of ['create or replace function public.hr_hunt_rune_state(p_user uuid, p_slot int, p_session uuid, p_ability text)',
+      'create or replace function public.hr_hunt_settings_view(p_user uuid, p_slot int)']) {
+      const from = carryIn.indexOf(head);
+      if (from < 0) return ['HARNESS: 2027-02-21-hunt-carry-in.sql no longer creates ' + head];
+      await db.exec(carryIn.slice(from, carryIn.indexOf('end $$;', from) + 'end $$;'.length));
+    }
+    await db.exec('revoke execute on function public.hr_hunt_rune_state(uuid, int, uuid, text) from public, anon, authenticated, service_role');
     await db.exec('revoke execute on function public.hr_hunt_settings_view(uuid, int) from public, anon, authenticated, service_role');
     const before = await image();
     try { await db.exec(carryIn); }
@@ -2319,7 +2332,9 @@ const DB_ARMS = {
       }
     });
 
-    /* (3) WHAT A SLOT MAY NAME: another family's row, any tier of it, an unknown row and a spell with no rune are refused; a saved Plain slot's rule id does not move. */
+    /* (3) WHAT A SLOT MAY NAME: another family's row, any tier of it, an unknown row and a spell with no rune are refused; a saved Plain slot's rule id does not move
+       when it is saved again. Since 2027-03-24-rune-supply.sql the door stores a rune spell's supply whole (own, onEmpty), so the id is the md5 of what it
+       STORES (the backfill re-keyed every saved rune slot once, Tyler 2026-11-08); what it read back and sent again keeps that id. */
     await inTx(db, async () => {
       for (const [ability, store] of [['fireball', 'plain_ice_rune'], ['fireball', 'plain_scored_ice_rune'], ['fireball', 'plain_nothing_rune'], ['fireball', 'salted_shrimp'], ['challenge', 'plain_fire_rune']]) {
         const r = await one(db, 'select public.hr_hunt_slot_check($1::jsonb) v', [JSON.stringify({ action: { type: 'ability', id: ability, store }, conditions: [], join: 'and' })]);
@@ -2327,9 +2342,170 @@ const DB_ARMS = {
       }
       const content = { action: { id: 'fireball', type: 'ability', store: 'plain_fire_rune' }, conditions: [], join: 'and' };
       const plain = await one(db, 'select public.hr_hunt_slot_check($1::jsonb) v', [JSON.stringify(content)]);
-      const want = await one(db, "select 'r' || substr(md5($1::jsonb::text), 1, 8) as id", [JSON.stringify(content)]);
-      if (!plain || plain.ok !== true || plain.slot.id !== want) problems.push(`a saved Plain slot's rule id moved: ${JSON.stringify(plain)} vs ${want}`);
+      const { id: _was, ...stored } = (plain && plain.slot) || {};
+      const want = await one(db, "select 'r' || substr(md5($1::jsonb::text), 1, 8) as id", [JSON.stringify(stored)]);
+      if (!plain || plain.ok !== true || plain.slot.id !== want) problems.push(`a saved Plain slot's rule id is not the md5 of what it stores: ${JSON.stringify(plain)} vs ${want}`);
+      const again = await one(db, 'select public.hr_hunt_slot_check($1::jsonb) v', [JSON.stringify(stored)]);
+      if (!again || again.ok !== true || !plain || again.slot.id !== plain.slot.id || canon(again.slot) !== canon(plain.slot)) problems.push(`a saved Plain slot sent again moved: ${JSON.stringify(again)} vs ${JSON.stringify(plain)}`);
     });
+    return problems;
+  },
+  /* RUNE SUPPLY PER SLOT (Tyler 2026-11-08; 2027-03-24-rune-supply.sql), the server settle only, BOTH PATHS. A Fireball slot that says
+     nothing spends the runes it ticks (every Fire rune) first, then BUYS the shop's tier-1 Fire rune and keeps casting; one settle key
+     charges once. A slot set to "Leave the hunt" spends only what it ticks and ends runes_out, which the server re-proves; a forged one is refused. */
+  'RUNE-SUPPLY': async (db, M) => {
+    const problems = [];
+    const FROM = Date.UTC(2026, 9, 29, 12, 0, 0);
+    const pinNow = (ms) => db.query(`select set_config('hr.test_now', $1, true)`, [new Date(ms).toISOString()]);
+    const exec = makeExec(db);
+    const CHALKED = M.RUNES.runeId('fire', 1);
+    const SCORED = M.RUNES.runeId('fire', 2);
+    const SHOP = 'plain_fire_rune';
+    const price = M.SB.BASIC_INDEX[SHOP] && M.SB.BASIC_INDEX[SHOP].price;
+    if (!(price > 0) || M.SB.BASIC_INDEX[SHOP].partner !== CHALKED) return [`CONTROL: the shop's tier-1 Fire rune is ${JSON.stringify(M.SB.BASIC_INDEX[SHOP])}`];
+    const FIRE = M.RUNES.RUNE_TIERS.map((t) => M.RUNES.runeId('fire', t.tier));
+    const CUTS = { closed: Array.from({ length: 12 }, (_, i) => (i + 1) * 30000), viewed: [17345, 41111, 77777, 120000, 151515, 199999, 243210, 300000, 333333, 360000] };
+    const doors = { closed: { mode: 'tick' }, viewed: { mode: 'settle', bucket: null, project: true, live: true } };
+    const slot0 = async () => (await one(db, 'select public.hr_hunt_settings_view($1::uuid, 0) v', [UID])).slots[0];
+    const said = (x) => JSON.stringify({ usable: x && x.usable, why: x && x.why, own: x && x.action && x.action.own, onEmpty: x && x.action && x.action.onEmpty, store: x && x.action && x.action.store });
+    const ownSpent = (sid, item) => one(db, "select coalesce(sum((meta->'items'->>$2)::int), 0)::int from public.player_ledger where session_id = $1 and intent = 'supply_own'", [sid, item]);
+    const bought = async (sid) => {
+      const out = { uses: 0, gold: 0, rows: 0, other: [] };
+      for (const r of await q(db, "select meta->'items' as items, (meta->>'gold')::bigint as gold from public.player_ledger where session_id = $1 and intent = 'supply_buy'", [sid])) {
+        out.rows++; out.gold += Number(r.gold);
+        for (const [k, it] of Object.entries(r.items || {})) {
+          if (k !== SHOP) out.other.push(k);
+          else { out.uses += Number(it.qty); if (Number(it.price) !== price) out.other.push(`${k}@${it.price}`); }
+        }
+      }
+      return out;
+    };
+    const left = (sid, item) => one(db, 'select coalesce((select qty_left from public.hunt_bag where session_id = $1 and item_id = $2), 0)::int', [sid, item]);
+    /* Settle the cuts through one door; `each` runs after every landed window. True when the hunt was settled through (or ended). */
+    const settle = async (path, h, each) => {
+      for (const t of CUTS[path]) {
+        await pinNow(h.from + t);
+        const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: h.from + t, ...(path === 'closed' ? { ...doors.closed, session: h.sid } : doors.viewed) });
+        if (r && r.outcome === 'none' && r.reason === 'no_hunt') return true;
+        if (!r || r.outcome !== 'paid') { problems.push(`${path}: the window to +${t} ms answered ${r && r.outcome}/${r && r.reason} ${JSON.stringify(r && r.body).slice(0, 200)}`); return false; }
+        if (each) await each(t);
+      }
+      return true;
+    };
+    const mage = (action, inv, bag) => ({ fromMs: FROM, gold: 100000, level: 20, inv: { practice_wand: 1, ...inv }, bag,
+      options: { supply_source: 'mine', on_empty: 'switch', gold_floor: 0, slots: [{ action, conditions: [], join: 'and' }] },
+      beforeEnter: () => admin(db, UID, { equip: { weapon: 'practice_wand', shield: null, ammo: null } }) });
+    const BARE = { type: 'ability', id: 'fireball' };
+    const LEAVE = { type: 'ability', id: 'fireball', own: [CHALKED], onEmpty: 'leave' };
+    const CARRIED = 4;
+
+    /* (1) BUY ON EMPTY, THE DEFAULT: the bare slot is stored and read as ticking every Fire rune and buying the shop's tier-1 one; the carried
+       Chalked runes go first, no rune is bought while one is left, then every cast is bought at the catalogue's price and the hunt hunts on. */
+    const seen = {};
+    await inTx(db, async () => {
+      await pinNow(FROM);
+      const h = await hunter(db, M, mage(BARE, { [CHALKED]: CARRIED }, [{ item: CHALKED, qty: CARRIED }]));
+      await db.query('savepoint rune_supply');
+      for (const path of Object.keys(doors)) {
+        const v0 = await slot0();
+        if (v0.usable !== true || v0.why || canon(v0.action.own) !== canon(FIRE) || v0.action.onEmpty !== 'store' || v0.action.store !== SHOP) {
+          problems.push(`${path}: a Fireball slot that says nothing reads ${said(v0)}, want every Fire rune ticked and ${SHOP} bought`);
+        }
+        let buys = 0; let mixed = false; const buyWindows = [];
+        const ok = await settle(path, h, async (t) => {
+          const b = await bought(h.sid);
+          if (b.uses > buys) {
+            const rest = await left(h.sid, CHALKED);
+            if (rest > 0) problems.push(`${path}: the window to +${t} ms bought ${b.uses - buys} ${SHOP} with ${rest} ticked ${CHALKED} still in the hunt bag`);
+            buyWindows.push(t);
+          } else if (buys === 0 && (await left(h.sid, CHALKED)) > 0 && (await ownSpent(h.sid, CHALKED)) > 0) mixed = true;
+          buys = b.uses;
+        });
+        if (ok) {
+          const spent = await ownSpent(h.sid, CHALKED);
+          const b = await bought(h.sid);
+          const s = await snapshot(db, h.sid);
+          if (!mixed) problems.push(`${path}: CONTROL: no window cast a carried rune and ended with one left (the carried-first order is never seen)`);
+          if (spent !== CARRIED) problems.push(`${path}: the slot cast ${spent} of its ${CARRIED} carried ${CHALKED} before the hunt's end`);
+          if (!(b.uses > 0)) problems.push(`${path}: its ticked runes ran out and the slot bought nothing (it stopped casting)`);
+          if (b.other.length) problems.push(`${path}: the hunt bought ${b.other.join(', ')}, not ${SHOP} at ${price} g`);
+          if (b.gold !== b.uses * price) problems.push(`${path}: ${b.uses} bought casts debited ${b.gold} g at ${price} g a cast`);
+          /* (casts come with the pulls, so a window may cast none: three windows that buy, the last a minute past the first, is "keeps casting") */
+          if (buyWindows.length < 3 || buyWindows[buyWindows.length - 1] - buyWindows[0] < 60000) problems.push(`${path}: after its ticked runes ran out it bought only in the windows to +${buyWindows.join(", +")} ms (it stopped casting)`);
+          if (s.session.ended_at) problems.push(`${path}: a buying slot ended the hunt ${s.session.end_reason}`);
+          seen[path] = s;
+        }
+        await db.query('rollback to savepoint rune_supply');
+      }
+    });
+    if (seen.closed && seen.viewed && canon(seen.closed) !== canon(seen.viewed)) problems.push(`buy on empty: browser closed vs viewed wrote different rows ${firstDiff(canon(seen.closed), canon(seen.viewed))}`);
+
+    /* (2) ONE KEY CHARGES ONCE: the same settle keys re-committed answer replayed and move no gold, no rune, no row. */
+    await inTx(db, async () => {
+      await pinNow(FROM);
+      const h = await hunter(db, M, mage(BARE, {}, []));
+      await pinNow(h.from + 60000);
+      const a = await settleTo(db, M, h.from + 60000);
+      const b = await bought(h.sid);
+      if (!(b.uses > 0)) { problems.push('one key: CONTROL: a slot with no carried rune bought nothing in its first minute'); return; }
+      const s1 = canon(await snapshot(db, h.sid));
+      const again = await M.HS.commitHuntSettle(exec, { ...a.commit, project: null });
+      if (!again || again.ok !== true || again.stage !== 'replayed') problems.push(`one key: the same keys re-committed answered ${JSON.stringify(again).slice(0, 200)}`);
+      const b2 = await bought(h.sid);
+      if (b2.rows !== b.rows || b2.gold !== b.gold) problems.push(`one key: a replay charged again (${b.rows} row(s) ${b.gold} g, then ${b2.rows} row(s) ${b2.gold} g)`);
+      if (canon(await snapshot(db, h.sid)) !== s1) problems.push('one key: a replay moved the hunt');
+    });
+
+    /* (3) LEAVE ON EMPTY: a slot ticking Chalked only, the hunt bag holding Scored too (Magic 20 casts it): every Chalked rune is cast, no
+       Scored, nothing bought, and the hunt ends runes_out, the server proving it from its own bar and bag (the proposal names the spell). */
+    const seen3 = {};
+    await inTx(db, async () => {
+      await pinNow(FROM);
+      const h = await hunter(db, M, mage(LEAVE, { [CHALKED]: CARRIED, [SCORED]: 40 }, [{ item: CHALKED, qty: CARRIED }, { item: SCORED, qty: 40 }]));
+      await db.query('savepoint rune_leave');
+      for (const path of Object.keys(doors)) {
+        const v0 = await slot0();
+        if (v0.usable !== true || v0.why || canon(v0.action.own) !== canon([CHALKED]) || v0.action.onEmpty !== 'leave' || v0.action.store) problems.push(`${path}: a leaving slot with its rune carried reads ${said(v0)}`);
+        if (await settle(path, h)) {
+          const s = await snapshot(db, h.sid);
+          if (s.session.end_reason !== 'runes_out') problems.push(`${path}: a leaving slot out of its ticked runes ended ${s.session.end_reason} (${JSON.stringify(s.session).slice(0, 200)})`);
+          const ev = (s.events || []).find((e) => e[0] === 'ended');
+          if (!ev || !ev[2] || ev[2].reason !== 'runes_out') problems.push(`${path}: the ended event reads ${JSON.stringify(ev)}`);
+          if ((await ownSpent(h.sid, CHALKED)) !== CARRIED) problems.push(`${path}: it ended with ${CARRIED - (await ownSpent(h.sid, CHALKED))} ticked ${CHALKED} unspent`);
+          if (await ownSpent(h.sid, SCORED)) problems.push(`${path}: the slot cast ${SCORED}, a rune it never ticked`);
+          if ((await bought(h.sid)).rows) problems.push(`${path}: a leaving slot bought from the shop`);
+          seen3[path] = s;
+        }
+        await db.query('rollback to savepoint rune_leave');
+      }
+    });
+    if (seen3.closed && seen3.viewed && canon(seen3.closed) !== canon(seen3.viewed)) problems.push(`leave on empty: browser closed vs viewed wrote different rows ${firstDiff(canon(seen3.closed), canon(seen3.viewed))}`);
+
+    /* (4) NO TICKED RUNE PACKED: the view says runes_out before the first settle, and the engine leaves at once, the Scored untouched. */
+    await inTx(db, async () => {
+      await pinNow(FROM);
+      const h = await hunter(db, M, mage(LEAVE, { [SCORED]: 40 }, [{ item: SCORED, qty: 40 }]));
+      const v0 = await slot0();
+      if (v0.usable !== false || v0.why !== 'runes_out') problems.push(`a leaving slot with none of its ticked runes packed reads ${said(v0)}, want runes_out`);
+      if (await settle('closed', h)) {
+        const s = await snapshot(db, h.sid);
+        if (s.session.end_reason !== 'runes_out') problems.push(`a leaving slot with none of its ticked runes packed ended ${s.session.end_reason}`);
+        if (await ownSpent(h.sid, SCORED)) problems.push(`a leaving slot with none of its ticked runes packed cast ${SCORED}`);
+      }
+    });
+
+    /* (5) A FORGED runes_out: a leaving slot with its ticked runes still in the bag, and a buying slot out of runes: both refused, nothing moved. */
+    const forge = (c) => { c.members[0].hunt.ended = { reason: 'runes_out', at: c.members[0].hunt.to, ability: 'fireball' }; };
+    for (const [name, o] of [['a leaving slot with its ticked runes left', mage(LEAVE, { [CHALKED]: 200 }, [{ item: CHALKED, qty: 200 }])],
+      ['a buying slot with no rune in the bag', mage(BARE, {}, [])]]) {
+      await inTx(db, async () => {
+        await pinNow(FROM);
+        const h = await hunter(db, M, o);
+        await pinNow(h.from + 30000);
+        const x = await settleTo(db, M, h.from + 30000, { tamper: forge });
+        if (!x.res || x.res.error !== 'end_not_proven') problems.push(`a forged runes_out on ${name} answered ${JSON.stringify(x.res).slice(0, 200)}, want end_not_proven`);
+      });
+    }
     return problems;
   },
   'NO-FIGHT': async (db, M) => inTx(db, async () => {
@@ -4236,6 +4412,10 @@ const MUTANTS = [
     from: "  if (version && lv < versionLevel(version)) return { why: 'level', short: false };\n", to: "" },
   { arm: 'RUNE-LADDER', name: '[rune ladder] the engine charges every store rune Plain (the row named is not the row bought)', file: 'src/core/hunt/abilities.js',
     from: "  const s = version ? storeLine(h.hs, b.partner, store) : { why: 'none' };", to: "  const s = version ? storeLine(h.hs, row.rune, 'plain_fire_rune') : { why: 'none' };" },
+  { arm: 'RUNE-SUPPLY', name: '[rune supply] the proposal\'s runes_out end names no spell (the server cannot re-prove it)', file: join(FN, 'accrual.js'),
+    from: "      ...(hs.endedReason === 'runes_out' && typeof hs.runesOut === 'string' ? { ability: hs.runesOut } : {}) } : null,", to: "      } : null," },
+  { arm: 'RUNE-SUPPLY', name: '[rune supply] the engine spends every rune of the family, ticked or not', file: 'src/core/hunt/abilities.js',
+    from: "  for (const id of sup.own) {", to: "  for (const id of sup.runes) {" },
   { arm: 'NO-FIGHT', name: 'the no_fight end never fires', file: 'src/core/action-rules.js',
     from: '  no_fight: (hs, t) => Number.isInteger(hs.fightAtMs) && t - Math.max(hs.fightAtMs, Number(hs.huntFromMs) || 0) >= NO_FIGHT_END_MIN * 60000,', to: '  no_fight: () => false,' },
   { arm: 'QUIVER', name: 'the free rung is spent like a paid one', file: 'src/core/hunt/abilities.js',
@@ -4329,13 +4509,13 @@ const DB_MUTANTS = [
     find: '  if v_s.leave_at is not null or v_s.change_at is not null then', replace: '  if false then' },
   { arm: 'CARRY-IN', name: '[carry-in] a carry lands in a hunt minutes behind its settle', fn: 'public.hr_hunt_restock(integer,text,bigint,uuid)',
     find: '  if public.hr_hunt_gap_ms(v_s) > c_slack_ms then', replace: '  if false then' },
-  { arm: 'RUNE-TRUTH', name: '[rune-truth] a hunting hero\'s runes are read from the backpack (the false strike)', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text)',
+  { arm: 'RUNE-TRUTH', name: '[rune-truth] a hunting hero\'s runes are read from the backpack (the false strike)', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text,jsonb)',
     find: '  if p_session is not null then', replace: '  if false then' },
-  { arm: 'RUNE-TRUTH', name: '[rune-truth] a rune above the hero\'s level reads ready', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text)',
+  { arm: 'RUNE-TRUTH', name: '[rune-truth] a rune above the hero\'s level reads ready', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text,jsonb)',
     find: "case when coalesce(v_lv, 1) >= v_min then 'ready' else 'locked' end", replace: "'ready'" },
-  { arm: 'RUNE-TRUTH', name: '[rune-truth] a weapon ability\'s version is read on Magic', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text)',
+  { arm: 'RUNE-TRUTH', name: '[rune-truth] a weapon ability\'s version is read on Magic', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text,jsonb)',
     find: "k.skill_id = v_row->>'skill'", replace: "k.skill_id = 'magic'" },
-  { arm: 'RUNE-TRUTH', name: '[rune-truth] only the family\'s Chalked rune counts', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text)',
+  { arm: 'RUNE-TRUTH', name: '[rune-truth] only the family\'s Chalked rune counts', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text,jsonb)',
     find: "and b.qty_left > 0 and v_row->'runes' ? b.item_id", replace: "and b.qty_left > 0 and b.item_id like 'chalked_%'" },
   { arm: 'RUNE-TRUTH', name: '[rune-truth] the view says nothing of a rune above the level', fn: 'public.hr_hunt_settings_view(uuid,integer)',
     find: "when v_can is false and v_rune = 'locked' then 'rune_level' end", replace: "when false then 'rune_level' end" },
@@ -4352,6 +4532,19 @@ const DB_MUTANTS = [
     find: "if v_store is null or v_type <> 'ability' or not coalesce(public.hr_hunt_rune_spells()->v_id->'store' ? v_store, false)", replace: "if false" },
   { arm: 'RUNE-LADDER', name: '[rune ladder] the settle charges a store rune at another row\'s price', fn: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)',
     find: "select q.price, q.kind into v_price, v_kind from public.hr_hunt_basic_supplies q where q.basic_id = v_k;", replace: "select q.price + 1, q.kind into v_price, v_kind from public.hr_hunt_basic_supplies q where q.basic_id = v_k;" },
+  /* RUNE SUPPLY PER SLOT (2027-03-24-rune-supply.sql): each server rule goes red on its own defect; the engine's are tests/hunt-core/abilities.mjs's. */
+  { arm: 'RUNE-SUPPLY', name: '[rune supply] a slot naming no shop rune buys nothing when its runes run out (the old stop)', fn: 'public.hr_hunt_rune_supply(jsonb)',
+    find: "if v_on = 'store' and v_store is null then", replace: "if false then" },
+  { arm: 'RUNE-SUPPLY', name: '[rune supply] the settle refuses a true runes_out', fn: SS,
+    find: "when 'runes_out' then exists", replace: "when 'runes_out' then false and exists" },
+  { arm: 'RUNE-SUPPLY', name: '[rune supply] a forged runes_out is proved with the slot\'s ticked runes still in the bag', fn: SS,
+    find: "and b.qty_left - coalesce((p_delta->'uses'->>b.item_id)::bigint, 0) > 0))", replace: "and false))" },
+  { arm: 'RUNE-SUPPLY', name: '[rune supply] a buying slot\'s forged runes_out is proved', fn: SS,
+    find: "and x.rs->>'onEmpty' = 'leave'", replace: "" },
+  { arm: 'RUNE-SUPPLY', name: '[rune supply] the proof counts runes the slot never ticked', fn: SS,
+    find: "where b.session_id = p_session and x.rs->'own' @> jsonb_build_array(b.item_id)", replace: "where b.session_id = p_session and x.rs->'runes' @> jsonb_build_array(b.item_id)" },
+  { arm: 'RUNE-SUPPLY', name: '[rune supply] a hunting hero\'s view counts runes the slot never ticked', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text,jsonb)',
+    find: "and b.qty_left > 0 and v_row->'runes' ? b.item_id and v_own @> jsonb_build_array(b.item_id)", replace: "and b.qty_left > 0 and v_row->'runes' ? b.item_id" },
   /* A FULL BAG NEVER STOPS A HUNT (2027-02-11-hunt-loot-past-bag-cap.sql): the settle is fused again. */
   { arm: 'BAG-CAP', name: '[bag cap] a hunt\'s settle is refused bank_full at a full bag', fn: 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)',
     find: "if coalesce(current_setting('hr.hunt_session', true), '') = '' and v_stacks > v_st.bank_cap and v_stacks > v_stacks_before then",

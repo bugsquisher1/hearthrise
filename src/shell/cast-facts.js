@@ -5,9 +5,10 @@
 // damage while the engine casts version II at 30 mana and about 1.7 times as hard. Every screen that shows
 // what a slot costs or lands reads it here, by the engine's own rule (src/core/hunt/abilities.js runeFor,
 // suppliesFor, firstUsable) on the engine's own data functions (abilities.js versionOf and outputPm):
-//   the rune      of the spell's family: the highest tier the hero carries whose version its level in the
-//                 spell's skill has unlocked; else, only when the slot names it and the store is on, exactly
-//                 that store rune (cast at the store's share, BASIC_EFFECT_SHARE)
+//   the rune      of the runes the slot ticked (Tyler 2026-11-08, RUNE SUPPLY PER SLOT; conditions.js runeSupplyOf):
+//                 the highest tier the hero carries whose version its level in the spell's skill has unlocked;
+//                 else, only when the slot buys on empty and the store is on, exactly the store rune it names
+//                 (cast at the store's share, BASIC_EFFECT_SHARE)
 //   the version   the rune's tier: its mana (never more with level) and its output, permille of the row's
 //                 numbers at the hero's level (outputPm), the store's share on top
 //   the cost line "Cost: 30 mana · 1 Scored Fire Rune (8 g)", "(you have 12)" or "(none left)" (Tyler
@@ -21,9 +22,9 @@ import { RUNE_FAMILIES, runeTierOf, versionLevel } from '../data/runes.js?v=0.2.
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.111';
 import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.111';
 import { ITEMS } from '../data/items.js?v=0.2.111';
-import { isRune } from '../data/supplies.js?v=0.2.111';
 import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.111';
 import { ammoPerShot } from '../core/ammo.js?v=0.2.111';
+import { runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.111';
 import { itemName, skillName } from './widgets/bits.js?v=0.2.111';
 import { whole } from '../render/format.js?v=0.2.111';
 import { t } from '../render/player-text.js?v=0.2.111';
@@ -51,25 +52,37 @@ export function castOf(a, ctx) {
   const lv = level === null ? 1 : level;
   let version = 1; let share = 1000; let rune = null;
   if (row.rune) {
-    const fam = ITEMS[row.rune] ? ITEMS[row.rune].family : null;
-    /* own runes first: the highest tier unlocked (a tie in tier to the lower id, as the engine walks the sorted bag) */
+    /* the slot's rune supply (conditions.js runeSupplyOf, the engine's rule): only the runes it ticked, lowest tier first */
+    const sup = /** @type {{ family: string, own: string[], store: string|null, onEmpty: string }} */ (runeSupplyOf(a));
+    const fam = sup.family;
+    /* own runes first: the highest ticked tier unlocked (a tie in tier to the lower id, as the engine walks the ticked list) */
     let best = null;
-    for (const l of (c.bag || []).slice().sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0))) {
-      const tier = l && l.qty > 0 ? runeTierOf(ITEMS[l.id]) : 0;
-      if (!tier || ITEMS[l.id].family !== fam || (level !== null && level < versionLevel(tier))) continue;
-      if (!best || tier > best.tier) best = { id: l.id, tier };
+    for (const id of sup.own) {
+      const tier = qtyOf(c.bag, id) > 0 ? runeTierOf(ITEMS[id]) : 0;
+      if (!tier || (level !== null && level < versionLevel(tier))) continue;
+      if (!best || tier > best.tier) best = { id, tier };
     }
-    /* then exactly the store rune the slot names, of the family, while the store is on (never a cheaper one) */
-    const named = !best && storeOn(c.set) && typeof a.store === 'string' ? (c.store || []).find((r) => r.id === a.store) : null;
+    /* then, when the slot buys on empty, exactly the store rune it names, of the family, while the store is on (never a cheaper one) */
+    const named = !best && sup.onEmpty === 'store' && storeOn(c.set) && typeof sup.store === 'string' ? (c.store || []).find((r) => r.id === sup.store) : null;
     const tier = named && priced(named) && ITEMS[named.partner] && ITEMS[named.partner].family === fam ? runeTierOf(ITEMS[named.partner]) : 0;
     if (best) { version = best.tier; rune = { id: best.id, name: itemName(best.id), source: 'own', have: qtyOf(c.bag, best.id), price: null }; }
     else if (tier) { version = tier; share = STORE_PM; rune = { id: named.id, name: itemName(named.id), source: 'store', have: 0, price: named.price }; }
     else {
-      const have = (c.bag || []).filter((l) => l && isRune(ITEMS[l.id]) && ITEMS[l.id].family === fam).reduce((n, l) => n + (Number(l.qty) || 0), 0);
+      const have = sup.own.reduce((n, id) => n + qtyOf(c.bag, id), 0);
       rune = { id: null, name: fam && RUNE_FAMILIES[fam] ? t('bar.family_rune', { family: RUNE_FAMILIES[fam].label }) : itemName(row.rune), source: 'none', have, price: null };
     }
   }
   return { row, version, level, skill, pm: Math.floor((outputPm(row, version, lv) * share) / 1000), mana: versionOf(row, version).mana, rune };
+}
+
+/** A cast's numbers for THIS hero in a few words (Tyler 2026-11-08, "75% what?": Configure action's rune choices show what each
+    lands, never a share): "13–23 damage", "heals 13–23", "shields 40", or '' for a spell with none (a taunt, a mark). `k` is castOf's. */
+export function outputWords(k) {
+  const r = k && k.row;
+  if (!r) return '';
+  if (r.dmg) return t('bar.out_dmg', { lo: landed(r.dmg[0], k.pm), hi: landed(r.dmg[1], k.pm) });
+  if (r.heal) return t('bar.out_heal', { lo: landed(r.heal[0], k.pm), hi: landed(r.heal[1], k.pm) });
+  return r.shield ? t('bar.out_shield', { points: landed(r.shield, k.pm) }) : '';
 }
 
 /** A row's number `n` at `pm` permille, exactly as the engine lands it (abilities.js effect `scaled`, damage.js `mult`). */

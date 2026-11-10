@@ -302,8 +302,10 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* ── B. The first hunt, the bar while it fights ────────────────────── */
   /* In the cellar wait (designer 2026-10-24: dead minutes from minute 2 to Level 5); hr_farm_plant does not refuse a hunter. */
   step('plant_land', 'Plant your land',
-    'While your hero hunts, open the Farm and plant a Turnip Seed in each empty plot. Turnips are ready in '
-      + CROPS.turnip.hours + ' hours and cook into Turnip Juice, a drink.',
+    /* THE HOOK, SHOWN (designer 2026-11-10, lane/d-first-ten-minutes, played): the first thing a new player does while the hero fights
+       without them. The card says so first, then the job. */
+    'Your hero doesn\'t need you watching. While it fights, open the Farm and plant a Turnip Seed in each empty plot. Turnips take '
+      + CROPS.turnip.hours + ' hours to grow and cook into Turnip Juice, a drink.',
     'farm', orGotIt({ kind: 'planted', crop: 'turnip' }), { gotIt: true, when: [LESSON], ring: { crop: 'turnip' }, inWindow: 'Press Plant on an empty plot, then Plant on Turnip. Do it again for each empty plot.' }),
   step('bar_intro', 'Your action bar',
     'Your hero uses this bar on its own. It checks the slots in order and uses the first one that\'s ready and whose conditions are all met.',
@@ -341,8 +343,10 @@ export const HUNT_TUTORIAL = Object.freeze([
     'The gear icon at the top right opens Settings, and its Help page explains hunting, supplies, loot, gear and dying in plain words. It\'s there whenever you want it.',
     'settings', READ, { knowledge: true, gotIt: true, when: [HUNTING, THICKET_BEHIND], hooks: ['[data-hs-win="settings"] .st-tab[data-cat="help"]'] }),
   step('earn_the_thicket', 'Out to the brook',
-    'Keep hunting here until Level ' + HUNT_INDEX[THICKET].band[0] + ', about fifteen minutes into your first hunt. Then a tougher challenge awaits in '
-      + HUNT_INDEX[THICKET].name + '. You can close the game and your hero keeps hunting until its stamina runs out. Everything it earns will be waiting for you.',
+    /* Played 2026-11-10 (lane/d-first-ten-minutes): Level 5 at 15 min 45 s of a fresh sword hero's first hunt. The wait is the hook, so the
+       card leads with it: you don't have to watch. */
+    'Level ' + HUNT_INDEX[THICKET].band[0] + ' opens ' + HUNT_INDEX[THICKET].name + '. That\'s about fifteen minutes of hunting here, and you don\'t have to watch. '
+      + 'Close the game and your hero keeps hunting until its stamina runs out. Everything it earns will be waiting for you.',
     'hud_vitals', { kind: 'unlock', hunt: THICKET }, { hooks: ['[data-coach-hook="stamina"]'] }),
   step('leave_cellar', 'Cash in',
     'Leave the hunt to go back to town. Your loot is already in your bag.',

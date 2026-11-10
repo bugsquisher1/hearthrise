@@ -978,7 +978,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
       /* The sign-in says what the game is, once, under the crest (newcomer panel 2026-11-01). */
       const pitch = await page.evaluate(() => { const p = document.querySelector('.auth-brand .auth-pitch'); return p && p.getClientRects().length ? p.textContent : null; });
-      if (pitch !== 'Your heroes hunt, gather and craft, even while you\'re away.') fails.push('B-9 the sign-in screen pitches ' + JSON.stringify(pitch));
+      if (pitch !== 'Your hero keeps hunting after you close the game.') fails.push('B-9 the sign-in screen pitches ' + JSON.stringify(pitch));
       /* THE PRESS MOVES ON (friends' panel 2026-11-01): off with its words while the server is out; a lost answer's retry keeps its key; once made, no press asks again. */
       const press = await page.evaluate(async () => {
         const { renderHeroCreate } = await import(location.origin + '/src/app/hero-create.js');

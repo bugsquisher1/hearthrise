@@ -30,6 +30,126 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-10 The first ten minutes (designer, lane/d-first-ten-minutes; Tyler 2026-11-10 approved "one-sentence hook on the first ten minutes + Steam page"): PLAYED on the local world at v0.2.114, three text lines CHANGED, the rest is a build list. Nothing else built
+
+**Method.** The real `play.html` on `tools/qa/local-world.mjs serve`, a brand-new account from the sign-in screen, one sword and shield hero (Odalys), 30 minutes by hand in real time in the browser pane (1355x846), then the page closed and `wait 480 --away`, then back. Session minutes count from the sign-in screen. A second measure ran on a separate headless world: three fresh heroes who took Tamsin's rats at Level 1 before their first hunt, read once a minute for 12 minutes of skipped time. Shots: `art/review/first-ten-minutes-2026-11-10/` (22, untracked). **Not played:** a phone, a death, sound, the email link a live sign-up needs, and other players. The local world held one account, so everything below about other people is what an empty server shows, which is also what live shows most hours today.
+
+**The play, minute by minute**
+
+| Min | What the game told me | What I did | How it felt | Shot |
+|---|---|---|---|---|
+| 0:00 | Crest and "Your heroes hunt, gather and craft, even while you're away." | Made an account | Fine. The line is every idle game's line | 00 |
+| 0:40 | "You own 1 hero slot, and up to 4 heroes can play at once." | Create hero | 1 and 4 in one sentence. I didn't know what it meant | 01 |
+| 0:50 | Name, four colors, five fighting styles in about 120 words | Typed a name, Enter town | Read two of the five | 02 |
+| 1:00 | Havora. The Great Hearth burning, Tamsin at her board, 18 icons with no labels, "1 online". Card "Every weapon is a style" | Got it | The town looks like a place. The card gave me nothing to do | 03 |
+| 1:15 | "Rats in the mill", the Hunts icon ringed. Mill Cellar already picked | Hunts, Enter | Two presses. Knew exactly what to do | 04 |
+| 1:35 | "Your hero fights on its own" | Watched | | |
+| 2:15 | 5 kills, 93 XP, the ring at 65%, nothing pressed | Watched | **First moment that felt good** | 05 |
+| 2:47 | Level 2. "Plant your land" | Farm, Plant 2 empty plots (one press) | "+23 XP" popped behind the Farm window. **Second good moment**, and the card never said that was the point | 06, 07 |
+| 3:20 | "Your action bar" | Got it | The bar came set. Nothing to change | |
+| 3:30 | "Out to the brook": Level 5, about fifteen minutes. You can close the game | Nothing to do | The game stops asking for 14 minutes | 08 |
+| 4:40 | Nothing | Watched the hero stand in an empty room between respawns | | 09 |
+| 5:00 | Chat: "Nothing said here yet." Counter: "1 online". Havora's Works: "0 of 1,000,000 gp", gold button "Give the 526 gp you have" | Opened windows looking for other people | Found nobody, and a button that would have taken all my gold | 10, 11 |
+| 9:00 | Level 4, XP 1%. With Chat open the coach card is gone, so the screen says nothing at all | Nothing | **The minute I would have quit** | 12 |
+| 17:20 | Level 5. "Cash in" | Leave hunt (25 s) | Never ate once. Nothing rare. Loot was tails and gel | 13 |
+| 18:20 | Hunt summary: 123 monsters, 2,285 Level XP, 123 gp, 364 gp of loot. "Next: Feed the Hearth" | Pressed it | Clean. One window, one next step | 14 |
+| 19:00 | "Press the Bones, then Fuel all" | Did | The hero walked over the bridge to the Hearth and burned them one by one. Good | 15 |
+| 20:00 | "Before the wolves" | Shop, Services, Bless three times | Three presses for one decision | |
+| 21:00 | "Sell what only pays coin" | Sell all junk, 61 gp | The Sell list held an Apprentice Hat. A piece of gear had dropped and nothing told me | 16 |
+| 22:00 | "Tamsin's wolves" | Took 200 Gray Wolves | Her board also lists "120 Giant Rats, Mill Cellar". I had just killed about 75 of them for nothing | 17 |
+| 22:30 | "Into the Thicket" | Hunts, Enter | | 18 |
+| 29:30 | Thicket: 39 kills, 1,926 Level XP, wolves 15 of 200, 5 food eaten. "Taking a beating?" | Closed the page with the hunt running | The Thicket is a real hunt. The hero walks, eats and gets hurt | 19 |
+| +8 h | Characters screen: "Odalys, Level 9 · Hunting in Meadowbrook Thicket" | Play | | |
+| +8 h | "While you were away (8 h 6 min), Odalys hunted Meadowbrook Thicket: Level 5 to 9, +158,926 Level XP, +12,536 gold, 3,216 kills. Still hunting, with 3 h 32 min of stamina left." | Read it twice | **The best moment of the whole play.** It is one small gray box | 20 |
+| +8 h | Bag: about 100 pieces of armor in all three weights, 1,498 Bones. Nothing on the hero's body for the whole night | Opened the bag | A good ten minutes of town work waiting. The Summary button showed the old Mill Cellar hunt, not the night | 21 |
+
+**The quit minute is 9.** Level 4 has just landed, Level 5 is eight more minutes of the same three rats, the last instruction was five minutes ago, the only loot is junk, and the one sign of other people is a counter that says I'm alone. The game's best moment is the return, and nothing in the first ten minutes makes a stranger believe it is coming.
+
+**What works and stays.** Two presses from town to a fight. The ringed coach cards. The Hunts window (ground picked, "Right for your level"). Plant 2 empty plots in one press. The summary's one Next button. The walk to the Hearth. The away line's numbers.
+
+**The hook.** Three candidates, each held against the play.
+
+| # | Hook | What the play said | Verdict |
+|---|---|---|---|
+| A | A shared live world. Other players in town, a party made of your own heroes | "1 online". "Nothing said here yet." One hero slot, and the second costs 300,000 gold, "after about a week" (Tyler 11-09, alts take longer). The first ten minutes can't show any of it, and the first week can't show the party | A lie today. The Coordinator's read is overruled on "shared", kept on "live" |
+| B | You build how your hero fights, then it plays itself | The bar came set, I pressed Got it, and the hero never ate in the Cellar. The first real bar decision came at minute 29 | True, but not felt in ten minutes. It is the depth, not the hook |
+| C | Your hero keeps hunting after you close the game | Planting while the fight went on at minute 3. The return after 8 hours: four Levels, 12,536 gold, a bag of armor, still hunting | **Picked.** The first ten minutes deliver half of it today and can deliver all of it |
+
+The sentence a stranger repeats: **"It's an online RPG where your hero keeps hunting after you log off."** Steam capsule line under the logo: **"Log off. Your hero keeps hunting."** First line of the store page: **"Hearthrise is an online RPG where your hero keeps hunting on a live server after you close the game. Come back to new Levels, a bag of loot and a full purse, or to find out what killed you."** "Shared world" goes in the second paragraph, as what you grow into (the town, the market, parties with other players), never as the promise of minute one.
+
+**The first ten minutes, redesigned.** No new system. Every beat is something that exists today, moved or reworded. The Hunts window, the action bar and the ringed cards are untouched.
+
+| Min | The player sees | The player does | The player learns | Delivered by |
+|---|---|---|---|---|
+| 0:00 | The crest and "Your hero keeps hunting after you close the game." | Makes an account | The hook, before anything else | Sign-in pitch. **Changed in this lane** |
+| 0:45 | Create your hero | Name, colors | The weapon is the style | As today |
+| 1:15 | Havora, the Hearth, Tamsin at her board. Card "Every weapon is a style" | Got it | | As today |
+| 1:30 | Card "Tamsin's rats", her icon ringed, then Take ringed | Takes 25 Giant Rats | Kills pay. There is a person in this town who wants something | Tamsin's tally (exists). New card, and her count moves 120 to 25. **Build 1** |
+| 2:00 | Card "Rats in the mill" | Hunts, Mill Cellar, Enter | | As today |
+| 2:15 | The fight. The tally on screen counts "Giant Rats 4/25" | Watches | The hero fights alone. Level 2 inside 75 seconds | As today, plus the tally widget (exists) |
+| 3:30 | Card "Plant your land", now leading with "Your hero doesn't need you watching." | Farm, Plant 2 empty plots | **The hook, shown.** XP keeps popping while the Farm is open | Farm (exists). **Words changed in this lane** |
+| 4:15 | Card "Your action bar" | Got it | The bar is the hero's brain | As today |
+| 7:45 | The tally reads 25/25. Card "Tamsin owes you", Leave hunt ringed | Leave hunt | A hunt ends when you say so, and somebody is waiting | New card. **Build 1** |
+| 8:15 | Town. The summary. Tamsin has paid 25 gp and a Bronze Helm. Card "Wear what you found" | Bag, Equip upgrades | **The first reward that's worn.** Gear goes on in town | Tamsin's pay on return (exists), "Wear what you found" (exists) |
+| 9:15 | Card "Back down for Level 5" | Hunts, Mill Cellar, Enter | | New card. **Build 1** |
+| 9:45 | The card goes on: "Level 5 is about ten minutes away, and you don't have to watch. Close the game. Your hero keeps hunting." | Closes the game, or watches | **The hook, as an invitation**, at the minute I would have quit | "Out to the brook". **Words changed in this lane**, its place in Build 1 |
+| ~20 | Back. "While you were away (11 min), Odalys hunted Mill Cellar: Level 4 to 5, 70 kills..." then "Cash in" | Reads, leaves, goes on to the Thicket | **The return, inside the first session** | The away line (exists, speaks from 10 minutes). Build 3 lets it speak from 3 for a new hero |
+
+New player lines (for the reader gate, none shipped yet). "Tamsin's rats": "Tamsin pays for kills. Open her tally and take the Giant Rats. Kill 25 and she pays you gold and a helmet." "Tamsin owes you": "That's 25 rats. Leave the hunt and she pays you in town." "Back down for Level 5": "Send your hero back to the Mill Cellar. Level 5 is about ten minutes away, and you don't have to watch. Close the game. Your hero keeps hunting."
+
+**Other players, honestly.** No card can put people in an empty town. What exists is enough when people are there (walkers in the square, Chat, the Works, the Hearth's colors), so the fix is the playtest's shape, not a system: bring strangers in at the same hour, in batches, so each one's first town has bodies in it. Until then the store page must not promise a crowd.
+
+**Walk-through against real data.** Level curve from `src/core/xp.js charXpForLevel` (Level 2 at 143 XP, 3 at 429, 4 at 1,001, 5 at 2,136). Each step uses only the start kit (`src/data/start-kit.js`) and the steps before it.
+
+| # | Step | Holds and can reach | Number | Measured or assumed |
+|---|---|---|---|---|
+| 1 | Take Tamsin's Giant Rats at Level 1, no hunt yet | In town, her icon on the row, task `cellar_giant_rats` (`tally-tasks.js`). No weight picked: the first Take asks for heavy | Take is on, the task reads "Giant Rats 0/120" | **Measured**, 3 of 3 fresh heroes |
+| 2 | Enter the Mill Cellar | Sword and shield worn, 20 Cooked Shrimp | In the hunt about 40 s after the first town frame | **Measured** (hand play) |
+| 3 | 25 rats | Rats are 61% of kills (`hunt-grounds.js`: 3 of the room's 5 spawns) | 24 to 29 rats at hunt minute 5 to 6. Level 3 with 720 to 870 XP | **Measured**, 3 heroes |
+| 4 | Leave, back in town | Leave hunt on the hunt bar | 25 s to leave | **Measured** (hand play) |
+| 5 | Tamsin pays a Bronze Helm | Her Cellar piece for heavy is the Bronze Helm (the board read "100 gp + a Bronze Helm"). Pay lands on return to town | Bronze Helm, worn from Level 1 (`items.js`) | Board line **measured**. The pay on return at 25 rats is **assumed**: not played, the count is still 120 |
+| 6 | Equip upgrades wears it | An empty head slot takes the picked weight (`upgrade-plan.js`) | | **Assumed** from the code. Unplayed |
+| 7 | Back down to Level 5 | Level 3, about 800 XP, 1,336 to go | About 135 XP a minute at Levels 3 to 4, so about 10 minutes. Level 5 came at 15 min 45 s of one unbroken hunt | Pace **measured**. The split trip is **computed** |
+| 8 | The away line on return | Speaks after 10 minutes away (`away-recap.js AWAY_MIN_MS`) | A player who comes back at minute 5 gets nothing | Rule read from code. The 8-hour line was **measured** |
+| 9 | A gear drop before minute ten | Helms drop only from the Hive Wasp, 1.2% each | 1 of 3 heroes found one in 12 minutes. I found one in 16 | **Measured.** Too rare to plan on, which is why Tamsin's helm carries the beat |
+
+Does the timing work? Yes with the count at 25: the helm is on the hero at about 9:00 to 9:30, and the invitation to leave lands at the minute I quit. It does not work at today's 120, which takes 27 minutes of a ground the game sends you out of at 16. That task fails the purpose test as it stands. Money check for the count change: 25 gp per 25 rats is the same gold per rat as today's 100 per 120, her three pays a day cap it at 75 gp, and the helm is given once. It is a catalogue row, so it rides lane C.
+
+**Build list, by first-session value**
+
+| # | Item | Kind | Files |
+|---|---|---|---|
+| 1 | **Tamsin first.** Her Cellar count 120 to 25, gold 100 to 25. Cards "Tamsin's rats" (before the first hunt), "Tamsin owes you" (count done, in the Cellar), "Back down for Level 5". "Out to the brook" shows only on the second trip. Play the walk above to the end | Needs a build lane (C for the row, B for the cards) | `src/data/tally-tasks.js`, its generated catalogue (`tools/gen-tally-tasks.mjs`), `src/data/hunt-tutorial.js`, `src/session/tutorial-sections.js`, `tests/hunt-core/sewer.mjs` (tutorial-walk-through), `tests/tally-window.mjs` TW-1 |
+| 2 | **The coach stays up with Chat open.** Any open window hides the card, Chat too, and Chat is the window a new player leaves open | Needs a build lane, small | `src/shell/launcher.js:46` (pointerFor) |
+| 3 | **A new hero's first return speaks at 3 minutes**, not 10, until Level 5 | Needs a build lane, small | `src/shell/away-recap.js`, `src/shell/alerts.js`, pins in `tests/client-boot.mjs` B-17 and `tests/hunt-core/sewer.mjs` |
+| 4 | **A gear find says so.** The first time a piece of gear drops, one line: "Odalys found an Apprentice Hat." And the summary's Top loot leads with the best find, not the biggest pile (it read "Rat Tail ×31") | Needs a build lane, small | `src/data/alerts.js`, `src/shell/alerts.js`, `src/hunt-view/summary-model.js` |
+| 5 | **On a return, Summary shows the hunt that's running**, not the last one that ended | Needs a build lane, small | `src/shell/widgets/hunt-topbar.js`, `src/hunt-view/summary-model.js` |
+| 6 | **Bless all three in one press** (the first principle: one decision, three presses) | Needs a build lane, small | `src/shell/windows/services.js` |
+| 7 | **The Works' gold button isn't "Give the 526 gp you have"** for a hero in its first hour. The small gift leads | Needs a build lane, small | `src/shell/windows/havora/works.js` |
+| 8 | **The funnel's three missing events** (below) | Needs a build lane, small | `src/net/observability.js`, `src/shell/alerts.js` |
+| 9 | Sign-in pitch, "Plant your land", "Out to the brook" | **Data and text. Done in this lane** | `src/app/sign-in.js`, `src/data/hunt-tutorial.js`, `tests/client-boot.mjs` B-9 |
+
+Changed in this lane, three lines. The pitch: "Your hero keeps hunting after you close the game." Plant your land: "Your hero doesn't need you watching. While it fights, open the Farm and plant a Turnip Seed in each empty plot. Turnips take 4 hours to grow and cook into Turnip Juice, a drink." Out to the brook: "Level 5 opens Meadowbrook Thicket. That's about fifteen minutes of hunting here, and you don't have to watch. Close the game and your hero keeps hunting until its stamina runs out. Everything it earns will be waiting for you." They are mine, so the release's reader judges them (`tools/player-read.local.mjs`).
+
+**What to measure with strangers.** One funnel for the first session, one for the first return. "Sent" means the client sends it today (`src/net/observability.js`).
+
+| Step | Event | Sent today | The number that says the hook works |
+|---|---|---|---|
+| S1 | `signup_done` | Yes | The base |
+| S2 | `first_town` | Yes | 90% of S1 |
+| S3 | `hunt_started`, the first | Yes | 90% of S2, median under 90 s after `first_town` (my play: 40 s) |
+| S4 | `level_reached` with level 4, the quit minute | Yes | 75% of S3. Under 60% says minute 9 still loses them |
+| S5 | `first_gear_equipped` | Yes | 60% of S3 inside 12 minutes, once Build 1 ships |
+| R1 | Left the page with a hunt running | **Missing**: `left_with_hunt_running` (hunt, level, session minutes) | 60% of first sessions end this way. This is the hook, counted |
+| R2 | The away line came up | **Missing**: `away_recap_shown` (minutes away, still hunting, Levels gained). `session_return` fires only when the hunt is over, so my 8-hour return sent nothing | 50% of R1 inside 24 hours |
+| R3 | `session_return` (the hunt ended while away) | Yes | Read beside R2, never alone |
+| R4 | `first_sale` or `first_gear_equipped` after the return | Yes | 70% of R2 |
+| R5 | `hunt_started` inside 10 minutes of the return | Yes | 80% of R2 |
+
+Also missing: `first_gear_found` (the drop in Build 4). `tutorial_card` already carries every card by id, so Tamsin's cards need no new event.
+
+**Checklist** (`QUALITY_CHECKLIST.md` §1). Done and verified: the play and its numbers, the Take at Level 1, the rat pace, copy-lint on the three lines (exit 0). Done and not verified: the three lines on screen (edited after the play, not re-read in the game). Assumptions: steps 5 to 7 of the walk, every funnel target (no stranger has played yet, so each is a first guess to correct after the first batch).
+
 ### 2026-11-08 One difficulty for every group, and a small solo boost (designer, lane/b-one-difficulty; **Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged. Either they are strong enough to do the harder content or they aren't simple as that"**, then **"Same monsters, re-tune"**): BUILT and RE-TUNED as data, measured on the real engine, four files STAGED (tiers, hunt-sessions, scaled hunts, the Level curve), the edge moves. **Tyler: four reds below are a bar the rule moves, each his call**
 **The call.** A tier is now the same fight for one hero or four: one pull a tier, the same damage and HP. A hero hunting alone earns +5% Level XP (`src/data/party-class-xp.js` `SOLO_XP_PM`), and every mixed-class cell carries the same +5%, so a mixed party keeps its measured lead over the same heroes alone while a one-class party falls 5% further under one. The bigger pulls start at the Glade's floor (`TIER_PULL_FROM_FLOOR` 16): on the Thicket, Wickstead and the Sewer the harder tiers bring no more monsters, for anyone. The lone-hero tier targets are retired (`loneMustCost`, `loneHeldMin`): the sheet now judges what a tier pays whoever holds it, and keeps one ceiling, a four at the floor holds Deadly.
 

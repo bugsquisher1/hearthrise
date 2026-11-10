@@ -1899,9 +1899,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           dispatch: document.querySelector('[data-hs-act="dispatch"]').disabled, value: document.querySelector('.hw-value').textContent }));
         if (!st.lock || !st.rules || !st.dispatch || st.value !== 'Reading the shop prices…') fails.push('AW-9 without the server’s sections the bag offered ' + JSON.stringify(st));
         /* The reason is a loading line (audit 11-09 F11): bag_rules IS projected, so "switch on when the server starts keeping them" was false.
-           The player's way: Esc puts the menu away, then the press lands on the stack. It was clicked through the open menu, which lies on the
-           stack's middle (the press point): only Playwright's scroll-and-retry ever reached it, and on a runner that ran out at 6 s (HARNESS on
-           nightly 42678595702 and main 42735492394, the Equip upgrades mutant's taller foot). Checked, not clicked blind. */
+           The player's way: Esc puts the menu away, then the stack is pressed, checked, not clicked blind. It was clicked through the open menu,
+           whose corner stands on the stack's middle (the press point): Playwright reached it only on its 4th try, after scrolling the bag, and a
+           loaded runner can spend its 6 s first. The Equip upgrades mutant's HARNESS (nightly 42678595702, main 42735492394) came with this
+           step (a33a2a080) and threw at the time it runs. */
         await page.keyboard.press('Escape');
         await page.waitForTimeout(100);
         const ratBlock = await pressBlock(page, '[data-hs-win="inventory"] .hw-pocket[data-item="rat_tail"]');
@@ -3817,6 +3818,8 @@ const MUTANTS = [
   ['the Storage chip and sort are not applied', 'src/shell/windows/storage.js', '  const o = { cat: prefs.cat, query: sc.query, sort: prefs.sort,', "  const o = { cat: 'all', query: sc.query, sort: 'name',"],
   ['the amount picker sends the whole stack', 'src/shell/widgets/amount.js', "  return n ? clampAmount(n.value, n.getAttribute('data-max')) : 1;", "  return n ? clampAmount(n.getAttribute('data-max'), n.getAttribute('data-max')) : 1;"],
   ['Enter in the amount picker does nothing', 'src/shell/windows/float-menu.js', "      if (e.key === 'Enter' && def) { e.preventDefault(); e.stopPropagation(); def.click(); }\n", ''],
+  /* AW-9's press is checked: a menu Esc leaves open lies on the stack, and that is AW-9 red by name, never a 6 s click timeout */
+  ['Esc leaves the item menu over the stack (AW-9)', 'src/shell/windows/float-menu.js', "    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFloatMenu(doc); return; }", "    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); return; }"],
   ['bones offer no Bury', 'src/shell/windows/inventory/state.js', "  if (br) return ['bury', buryLabel(br, buryQty(st.cs, id), st.cs)];\n", ''],
   ['Bury debits the bag before the server answers', 'src/shell/windows/inventory/bury.js', "  const qty = buryQty(cs, id);\n", "  const qty = buryQty(cs, id);\n  delete cs.read('inventory')[id];\n"],
   ['Stop does not collect', 'src/shell/town-work.js', "cs.edgeIntent('set_activity', { activity: { kind: 'idle' } })", "Promise.resolve({ ok: true })"],

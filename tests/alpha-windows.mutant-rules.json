@@ -64,6 +64,7 @@
   "Equip upgrades marks nothing in flight": "AW-21",
   "Equip upgrades sends one intent per piece": "AW-21",
   "Equip upgrades wears what the hero cannot use yet": "AW-67",
+  "Esc leaves the item menu over the stack (AW-9)": "AW-9",
   "Stop does not collect": "AW-19",
   "a Shift-press in Storage moves one at a time": "AW-16",
   "a bag icon draws at 1.5x in its well": "AW-33",

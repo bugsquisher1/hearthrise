@@ -493,6 +493,8 @@
     "node tools/mutant-gate.mjs node tools/gen-town-works.mjs --selftest": "client-guards",
     "node tests/town-works.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/town-works.mjs --selftest": "client-guards",
+    "node tests/town-yard-farm.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/town-yard-farm.mjs --selftest": "client-guards",
     "node tests/setup-slots.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/setup-slots.mjs --selftest": "client-guards",
     "node tools/gen-title-catalogue.mjs --check": "client-guards",

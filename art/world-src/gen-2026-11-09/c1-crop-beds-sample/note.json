@@ -1,0 +1,15 @@
+{
+  "asset": "brief 11 line 7 C1 SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/11-next-batch.txt",
+  "status": "SAMPLE for the art director's one-pass read; the line's batch waits for it. Not imported",
+  "made": "2026-11-08",
+  "generations": 6,
+  "made_how": "sheet 1: create_image_pro_flash 128x128, 4x4 cells of 32, transparent, seed 1501, style = a 32x32 crop of cabbage_crate (upload 86a64235), rows turnip, carrot, wheat, potato (job 3dcd99f2)",
+  "findings": [
+    "all 16 cells hold one plant each, no soil drawn, no glow; the four rows are readable as their crops",
+    "the stages run sprout, young, ripe, ripe-larger rather than ripe and a ripe variant (columns 3 and 4 are both ripe, 4 bigger)",
+    "the potato's ripe cells show white flowers and tubers above ground (the art director decides if a ripe potato should show its tubers)",
+    "the ripe wheat in column 4 reaches the cell edge"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/c1-crop-beds-sample.png (left: the sheet at x3; right: each cell at x2 over a 32 px crop of havora_grass_tilled)"
+}

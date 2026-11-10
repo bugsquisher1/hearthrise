@@ -150,3 +150,37 @@ yard is a wide bare dirt field. PixelLab: 620 subscription generations (4319.4 �
   hr_state_sections_of's 30 EXECUTEs are ~8 % of a projection on PostgreSQL 17.
 - **every perf lane:** PGlite is PostgreSQL 18, which caches SQL-function plans production (17) re-plans; time server changes
   with `node tools/pg-replay.mjs` + `tools/settle-cost.mjs --pg` (a local PostgreSQL 17, HR_PG_BIN); call counts on either.
+
+## 2026-11-08 · art-director (lane/a-art-brief-11) → systems-engineer, asset director · two things brief 11 needs
+- **systems-engineer:** src/world/core/compose.js draws every placed map object with `place(id, x, y, { fp })`, so book.frame
+  returns idle frame 0 facing south. A placed sprite whose idle has fps > 0 (the station NPCs) should play it on state.t from
+  its own place in the loop (as hunt-view/scene.js idleFrame), facing south. Without it the crier's and smith's approved
+  idles (brief 09), brief 10's N1 keepers and brief 11's gate guards stand still. One test: a placed NPC's frame changes
+  with state.t, a prop with an fps 0 idle does not.
+- **asset director (the import of brief 11 line 1):** the 7 drawn attack and death clips replace derive-combat.mjs output;
+  delete each unit from its UNITS as it lands and retire the tool with the last (it is in no CI job). The corpse is the
+  death's last frame in every facing.
+
+## 2026-11-09 · art-director (lane/a-gen-2026-11-09) → game designer, asset director · brief 13's sample read
+- **game designer (pyre_field map.js):** the wide Great Pyre's plinth is 297 px on every row (t1), so its footprint must
+  grow from 8x5 to 10x5: 'P' at x25-34 on rows 16-20, the burn lines at x24 and x35 stay the ring path. Its import waits
+  for it. The training yard's archery butts face south, so the range lane runs north-south with archers south of them.
+- **asset director (every import from art/world-src/gen-2026-11-09b/):** a corpse lies on the floor. Re-seat each death's
+  last frame onto the still's foot row by whole-frame shifts (a vermin_flier's down to y43), the fall eased, and measure
+  M1's and M2's approved deaths the same way. kobold_tosher attack E is laid 3 2 1 0 1 2 (the sidecar's `hit: 3` is per
+  clip). Classes: ty_trough log, ty_bench bench, ty_ward_ring and ty_scorch decal, the other yard props fixture.
+
+## 2026-11-08 · art-director (lane/a-gen-2026-11-09, round 2) → asset director, systems-engineer · import rules
+- **asset director:** brief 13's round 2 READY list names what imports now. New free passes at import: the pell and both
+  archery butts shudder by moving the rows above the cut's freeze row 1 px right then left (0 r l 0, 12 fps); a detached
+  near-white island of 6 px or fewer goes (glints); the rat king E and SE re-lays; the barn_wasp corpse is seated on y43
+  of its 48 frame after placement; the Pyre ash fill is P1 r1's base x0.86 at import (next cycle, with its pairs).
+- **systems-engineer (hook lane):** placed idles with only one calm frame are laid 0 0 1 1 (the stoker S, the wraith SW);
+  nothing in an attack clip may carry light, so impact effects stay the engine's (§11).
+
+## 2026-11-09 · asset-director (lane/a-import-town-art) → game designer, systems-engineer, art-director · what the town import left
+- **game designer:** the `training_yard` station has stands but no hero can be on it: `player_state_active_kind_check` allows idle, gather, artisan, combat only, so the new yard is a showpiece with nobody in it. Either a training activity is born or the yard is dressing. The house dummy parts (hd_circle, hd_base, hd_plates, hd_arms, hd_target, set cottage, class `part`) are art only; their system (prices, unlocks) is yours.
+- **systems-engineer:** every target carries a `hit` clip (quintain, pell, both butts, the three dummies, 12 fps) that nothing plays: a town has no strike event. The farm shows a crop per plot tile from `farm_land` (src/world/town-farm.js); the four `crop_watered_<n>` overlays wait for a watered flag in the plot projection (it has `waterable` only).
+- **art-director:** `ty_rune_post` is not imported (A1e waits for your read of y1-yard-kit/rune-post-edit), so the magic corner is the lectern, the ward ring and the scorch. The yard lays out in sites.js: melee row north, archery lane west (butts north, archers south), rune corner south.
+- **next lanes (Tyler: the 64 px sandbox becomes the new Training Ground on the current art grid, the 64 px set retires):** when the yard moves, take the whole `art/world/yard` kit with it (the `ty_*` props and their `hit` clips, the three dummies, `npc_arms_master`, `havora_earth_sand`) and the layout comment in `src/data/world/town/sites.js`. The kit is already on the base grid, so it needs a map and a set row, not redrawing.
+- **Coordinator (which branch):** merge `lane/a-import-town-art-clean` (main plus this lane only). The old `lane/a-import-town-art` carries `lane/b-pyre-field` and `lane/b-the-slake` whole (they rode in on the `lane/a-gen-2026-11-09` merge, d6e0e091f) and would serve both grounds with no server rows (gold-intents G16 red): never merge it.

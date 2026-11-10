@@ -1,0 +1,17 @@
+{
+  "asset": "round 2 H1d: the hero flinch diagonals for 7 outfits (not the druid)",
+  "status": "for the art director's read. Not imported (heroes set, then outfit-masks.mjs)",
+  "generations": 25,
+  "made": "knight ne sw nw (se approved in the sample); ranger se ne nw (sw approved); sorcerer se sw ne (nw approved); witch, brute, berserker, dawnward all four diagonals",
+  "tool": "animate_object v3 on brief 05's objects (knight e6b1bc58, ranger 0934ce5c, sorcerer e60aff3a, witch 85ae81a0, brute 26e7de23, berserker 6e27fec6, dawnward 478371a8), frame_count 6, keep_first_frame false (frames 0-4 kept at import)",
+  "words": "H1's held wording (brief 10 H1 r3): \"only the upper body tips back by one pixel as if pushed from the side it faces, then returns, the legs and feet do not move, it keeps facing the same way, everything held in the hands stays where it is and moves only with the body, the same colours throughout, nothing else appears in the frame\"; the knight's names its gear: \"... the shield stays on its arm and the sword stays in its hand, both move only with the body ...\"",
+  "measured": "hitcheck.json: box shift per frame against the still and bright pixels over the still's",
+  "flags": [
+    "KNIGHT: all three swing the sword (NE raises it overhead at frames 2-4, box +9 px; NW and SW thrust it out at frames 3-5): they read as attacks, the H1 problem again even with the held words. Re-roll from the hold after the read",
+    "dawnward NE: box +5-6 px at frames 2-3 (the mace or shield moves out)",
+    "ranger SE: 16 bright px at frames 3-4; sorcerer NE: 11 at frame 0 (its staff orb)",
+    "brute SW, berserker NE and SW, witch SE: box +4 at one frame; the rest stay within 3 px"
+  ],
+  "layout": "<outfit>/<facing>.png the rotation; <outfit>/hit/<facing>/frame_000..005",
+  "review_strips": "art/review/gen-2026-11-09b/r2-h1d-<outfit>.png, one per outfit (x2, 64 cells, the still then the 6 frames)"
+}

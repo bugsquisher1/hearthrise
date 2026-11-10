@@ -16,12 +16,12 @@
 //                                 "leave" with nothing ticked; bad_store: "buy" with no shop rune)
 // Every count is the server's bag, every price the server's store rows; nothing here spends anything.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.110';
-import { ITEMS } from '../data/items.js?v=0.2.110';
-import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.110';
-import { runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.110';
-import { storeDefault } from './bar-draft.js?v=0.2.110';
-import { itemName, skillName } from './widgets/bits.js?v=0.2.110';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.111';
+import { ITEMS } from '../data/items.js?v=0.2.111';
+import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.111';
+import { runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.111';
+import { storeDefault } from './bar-draft.js?v=0.2.111';
+import { itemName, skillName } from './widgets/bits.js?v=0.2.111';
 
 const qtyOf = (bag, id) => (bag || []).reduce((n, l) => (l && l.id === id ? n + (Number(l.qty) || 0) : n), 0);
 

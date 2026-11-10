@@ -156,3 +156,10 @@ FOUND WHILE PLAYING BATCH 1 (local world, a new Level 1 hero, every spell in Con
   lines say "Works with Two axes or Axes." and "It works once you hold a Two axes or Axes." One word for the dual-axe
   set, and "a" only before a single weapon, fixes every bar line that names a weapon.
 - "Numbers for the Plain Fire Rune at Melee 1." still closes every rune spell's detail until lane/a-cut-numbers-line lands.
+
+ADDED BY THE COORDINATOR (2026-11-09), FIRST HOUR (the bag's Equip upgrades), for batch 2 once lane/a-ring-perks-upgrade is on main:
+- Equip upgrades' preview (src/shell/upgrade-plan.js upgradeWords, moving to src/data/text/shop.js upgrade_* rows on that lane)
+  can read "Wear Banded Signet (Follow-through) (+2 Melee accuracy) and Banded Signet (+2 Melee accuracy)." The name carries
+  its perk in brackets and the gain adds a second set. Rewrite: each piece named once, its gain said as words, no stacked
+  brackets: "Put on the Banded Signet with Follow-through for +2 Melee accuracy, and another Banded Signet for +2 more."
+  On main today the same function says "Wear Leather Gloves (+1 Melee accuracy) and Bronze Belt (+2 Defense)."

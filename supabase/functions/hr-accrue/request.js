@@ -245,7 +245,7 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
     which is the direction that matters. */
 export const INTENT_KEYS = Object.freeze(
   ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty',
-    'equip', 'auto', 'trophy', 'lines', 'market', 'gmStop'],
+    'equip', 'auto', 'trophy', 'lines', 'market', 'gmStop', 'have'],
 );
 
 /** The `market` object's own vocabulary (readMarket), exported so a test reads it instead of restating it. */

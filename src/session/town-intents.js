@@ -11,8 +11,8 @@
 // re-quotes under its lock and answers quote_changed if the price moved (2027-02-27-town-shows.sql). On ok the character is RE-READ, so the purse changes
 // only from the envelope. Each ask goes in the account's intent ledger (askVia), so the pressed control waits.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.111';
-import { SHOW_FLAMES, ROUND_OFFER } from '../data/gold-sinks.js?v=0.2.111';
+import { askVia } from './intent-ledger.js?v=0.2.112';
+import { SHOW_FLAMES, ROUND_OFFER } from '../data/gold-sinks.js?v=0.2.112';
 
 const usable = (account, cs) => !!account && !!account.server && !!cs && cs.status !== 'closed' && Number.isInteger(cs.slot);
 const int = (v) => (Number.isSafeInteger(v) ? v : null);

@@ -1542,6 +1542,10 @@ async function nodeRules(M) {
     /* the spells are this rule's subject: the switch on, whichever way the row ships */
     const wasLive = LM.ENGINE_SPELL_SWITCH.live;
     LM.ENGINE_SPELL_SWITCH.live = true;
+    /* and no first-cast wait (SPELL_STAGGER, lane/d-spell-tuning): the rule pauses the page at fixed instants and needs a windup open
+       past each; the stagger's own rules are hunt-live LV-STAGGER and hunt-core monster-spells first-cast-staggered */
+    const wasSpan = LM.ENGINE_SPELL_STAGGER.spanPm;
+    LM.ENGINE_SPELL_STAGGER.spanPm = 0;
     for (const k of kinds) for (const t of tables) t[k].spells = [SID];
     try {
       /* THE WINDUPS, browser closed (the world does not depend on who watches): each cast's [spell, spell_end) */
@@ -1573,6 +1577,7 @@ async function nodeRules(M) {
     } finally {
       delete LM.ENGINE_SPELLS[SID];
       LM.ENGINE_SPELL_SWITCH.live = wasLive;
+      LM.ENGINE_SPELL_STAGGER.spanPm = wasSpan;
       kinds.forEach((k, i) => tables.forEach((t, j) => { const [had, v] = keep[i][j]; if (had) t[k].spells = v; else delete t[k].spells; }));
     }
   }

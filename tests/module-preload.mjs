@@ -160,10 +160,16 @@ export function check(html, read, version) {
   return problems.concat(behind);
 }
 
+/* Each file is read from disk once a run: a check walks the graph four times and --selftest runs seventeen checks, which was
+   some 50,000 reads (13 minutes on this PC when it throttles a process; the tree does not change under a run). */
+const READ = new Map();
 const readFile = (f) => {
+  if (READ.has(f)) return READ.get(f);
   const p = join(ROOT, f);
   if (!existsSync(p)) throw new Error(f + ' is imported but does not exist');
-  return readFileSync(p, 'utf8');
+  const text = readFileSync(p, 'utf8');
+  READ.set(f, text);
+  return text;
 };
 const versionOf = () => (/cache:\s*'([^']+)'/.exec(readFile('src/build-info.js')) || [])[1];
 

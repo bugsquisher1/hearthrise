@@ -11,11 +11,11 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Healers get Undertow.** It's a damage spell that only works when you hunt alone, so a lone Healer can keep up.
 
-**Look up any monster.** Click a creature on a hunt's page to see its Health, how hard it hits, what it's weak to, and the XP and gold a kill pays. Every drop shows its chance per kill and what the item is for.
+**Look up any monster.** Click a creature on a hunt's page to see its Health, how hard it hits, what it's weak to, and the XP and gold you get for a kill. Every drop shows its chance per kill and what the item is for.
 
 **Drop chances on the Hunts page were a little low for some monsters.** They now match what really drops.
 
-**Havora has a Training Yard.** You'll find dummies, targets and an arms master on a sand yard. Forge, oven and cauldron fires flicker, a sergeant stands at the gate, and crops on your farm grow through four stages you can see.
+**Havora has a Training Yard.** You'll find dummies, targets and an arms master there. The fires in the forge, oven and cauldron flicker now. A sergeant stands at the gate. Crops on your farm now grow through four stages you can see.
 
 **Signing out takes you off the online count right away.** Before, it took about a minute. Heroes that are hunting or working keep going.
 

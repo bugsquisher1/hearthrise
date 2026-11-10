@@ -4,6 +4,15 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-09 · qa-engineer (lane/a-aw-harness-step) · the Equip upgrades mutant's HARNESS in alpha-windows (tests only)
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P1 (red nightly) · nightly 42678595702 and main 42735492394: "Equip upgrades wears what the hero cannot use yet" HARNESS, `page.click: Timeout 6000ms exceeded.`, 41 to 44 s in, and no word of which click. | `tests/_mutant-verdict.mjs` | Done: harnessFail adds the guard's own stack lines (throwing line < caller) and Playwright's last wait (`p.hh-intent-msg intercepts pointer events`, `element is not enabled`, `nothing matched locator(...)`). --selftest plants a nameless HARNESS and catches it. |
+| 2 | P1 · the likeliest step: AW-9's left press on the rat tails THROUGH its own open item menu (the menu's corner stands on the stack's middle, the press point). Playwright reached it only on its 4th try, after scrolling the bag (pw:api log). The step came with a33a2a080 (11-08). The 11-08 nightly caught this mutant at AW-21 with the same mutant before it. Both runs since threw at the time the step runs. NOT reproduced on the old step: 4 local copies at once, page CPU 4x, the CI order locally (3 at once, and after the item-truth mutants), and two CI rehearsals (42752016353, 42753252717) all caught it at AW-21. | `tests/alpha-windows.mjs` | Done: Esc puts the menu away, then a checked press (`pressBlock`: on screen, on, topmost at its middle once scrolled the player's way) that fails AW-9 by name. New mutant "Esc leaves the item menu over the stack (AW-9)" is caught AW-9. |
+| 3 | P3 player · Hunt prep, 1440x900: after "Carried 25 Cooked Shrimp into this hunt." the sticky answer line lies on that row's own Carry press (button y 660 to 690, line 646 to 677). press-ack's clearOfAnswer passes it by: the ask is bound to the amount menu's press, outside the window. Same class as AW-65/AW-67. The test's second Carry gets through only on Playwright's 3rd try (the next most fragile click this mutant passes). | `src/shell/carry-in.js`, `src/shell/press-ack.js` | Route: lane-A client fix (bring the row clear of the answer after a carry) + an AW-65 rule on it. Not changed here. |
+| 4 | P3 player · Inventory, 1440x900, hunting with three better pieces in the bag (the mutant's Equip upgrades line, the same words a real Level 30 hero gets): "Sell selected" opens its confirmation wholly below the column fold (y 690 to 730, fold 677). Nothing reveals it, so the player sees no answer to the press. | `src/shell/windows/inventory/*` | Route: lane-A client fix (reveal `.hw-confirm` when it opens, as the Shop does) + an AW-6 "in view" rule. Not changed here. |
+
 ## 2026-11-06 · qa-engineer · chat-social CW-CRIER/CW-3 flake on main run 42253408437 (lane a-chat-flake, tests only)
 
 | # | Found | Affected | Action |

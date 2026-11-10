@@ -871,7 +871,7 @@
   "hr_blessing_tiers": {
    "class": "seeded",
    "replay": 3,
-   "note": "Generated catalogue (2026-10-25-alpha-catalogue.generated.sql from src/data/blessings.js): the three tiers (protection, price). Rebuilt from repo, never restored."
+   "note": "Generated catalogue (2026-10-25-alpha-catalogue.generated.sql from src/data/blessings.js): the three tiers (protection, price). The same three rows; the protection reads 250 / 500 / 750 permille since 2027-03-25-death-share-alpha-catalogue.generated.sql (Tyler 2026-11-10; 320 / 630 / 950 before), so the count does not move. Rebuilt from repo, never restored."
   },
   "hr_boss_calls": {
    "class": "seeded",
@@ -1126,7 +1126,7 @@
   "hr_hero_slots": {
    "class": "seeded",
    "replay": 3,
-   "note": "The hero-slot PRICE LADDER — three authored rows since 2027-03-22-four-slots.sql (Tyler 2026-11-07: four heroes an account): slot_id 1 the starter (owned by every account, never sold), 2 and 3 the 3rd and 4th hero at 25,000 / 75,000 gold (2027-02-26-slots-lower-hero-slots.sql); slot_id 4 (the 5th hero) is deleted, so hero_slots_max is 4. Seeded by 2026-09-08-hero-slot-buy.sql §1 with `delete` then `insert` and moved only by pinned later files, so the chain owns the whole table and a rebuild reproduces it byte-for-byte. NOT player value and deliberately NOT in player_value_tables: it carries no user_id and no per-player row — ownership of a bought slot lives in player_progress (kind='flag', period_key='', key='character_slot:<n>') and in player_state.slot, both already classified restore_only, and hr_hero_slots_of joins this catalogue to those rows. If it came back empty the loss is bounded and LOUD, not silent: hr_buy_hero_slot answers `unknown_slot` for every slot and hr_hero_slots_of grants nothing, so every account is capped at its free slot 0 until the catalogue is reseeded — the cap is data, by design (the migration's own header: 'the cap is data, not a constant somebody has to remember to move'). Nobody is overcharged and no entitlement is destroyed. Content additionally cross-guarded against src/data/shops.js by tests/hero-slot-buy.mjs (BIND) and tests/four-hero-slots.mjs. Production measured 2026-11-07: 4 rows before 2027-03-22-four-slots.sql, 3 after. Rebuilt from repo, never restored."
+   "note": "The hero-slot PRICE LADDER — three authored rows since 2027-03-22-four-slots.sql (Tyler 2026-11-07: four heroes an account). Since 2027-03-25-hero-slots-one.sql (Tyler 2026-11-09: one hero to start) NO row is a starter: slot_id 1, 2 and 3 are the 2nd, 3rd and 4th hero at 300,000 / 750,000 / 1,500,000 gold, the same three rows re-priced (the count does not move); slot_id 4 (the 5th hero) is deleted, so hero_slots_max is 4. Seeded by 2026-09-08-hero-slot-buy.sql §1 with `delete` then `insert` and moved only by pinned later files, so the chain owns the whole table and a rebuild reproduces it byte-for-byte. NOT player value and deliberately NOT in player_value_tables: it carries no user_id and no per-player row — ownership of a bought slot lives in player_progress (kind='flag', period_key='', key='character_slot:<n>') and in player_state.slot, both already classified restore_only, and hr_hero_slots_of joins this catalogue to those rows. If it came back empty the loss is bounded and LOUD, not silent: hr_buy_hero_slot answers `unknown_slot` for every slot and hr_hero_slots_of grants nothing, so every account is capped at its free slot 0 until the catalogue is reseeded — the cap is data, by design (the migration's own header: 'the cap is data, not a constant somebody has to remember to move'). Nobody is overcharged and no entitlement is destroyed. Content additionally cross-guarded against src/data/shops.js by tests/hero-slot-buy.mjs (BIND), tests/four-hero-slots.mjs and tests/hero-slots-one.mjs (HS-1). Production measured 2026-11-07: 4 rows before 2027-03-22-four-slots.sql, 3 after. Rebuilt from repo, never restored."
   },
   "hr_hunt_abilities": {
    "class": "seeded",
@@ -1201,7 +1201,7 @@
   },
   "hr_hunt_limits": {
    "class": "seeded",
-   "replay": 47,
+   "replay": 46,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the session limits (presets, slots, conditions, bag lines, falls and hours ranges, cooldowns, vigour_low threshold, sessions kept). Every RPC reads them; a missing key fails the RPC closed. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_resumable_kinds": {
@@ -1655,7 +1655,7 @@
   },
   "hr_unlock_offers": {
    "class": "seeded",
-   "replay": 101,
+   "replay": 102,
    "note": "Generated catalogue (2026-08-16-unlock-offers.generated.sql, tools/gen-unlock-offers.mjs --check as a smoke preflight): every purchasable unlock offer with its namespace, rung and price. 142 rows, and it is a PRICE LIST — a rebuild producing a different set sells different things at different prices than the ledger's recorded purchases were made at. Rebuilt from repo, never restored."
   },
   "hr_unlocks": {

@@ -36,6 +36,7 @@
 //     query, not a replay.
 // ════════════════════════════════════════════════════════════════════════
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { ownHeroSlots } from './_slots.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -382,6 +383,7 @@ export async function guard() {
      The defect: the view was slot 0 of each ACCOUNT under profiles.display_name, so a second hero never
      ranked and every row read "Adventurer". The second hero gets a character name and the strongest Mining
      XP; it must rank FIRST among the fixture, by that name, while the first hero keeps its own row. */
+  await ownHeroSlots((sql, p) => db.query(sql, p), HONEST, 1);   // one slot to start (2027-03-25-hero-slots-one.sql)
   const second = (await db.query("select set_config('request.jwt.claim.sub',$1,false)", [HONEST]),
     (await db.query('select hr_create_character(1) r')).rows[0].r);
   ok(second && second.ok === true, `LB-13 (the FIXTURE control): a second hero could not be made — ${JSON.stringify(second)}`);

@@ -8,10 +8,22 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: e865c205e65584dc3c8e474046e8eb1aa612f241243f0dc1ec1939595e660e88
---   82 supplies, 130 hunts (named + training), 47 limits, 16 end reasons,
+--   digest: eabd2c0018561347f854da65fb06e8067a56feed0f91a35c5e7072f0f1938c62
+--   82 supplies, 130 hunts (named + training), 46 limits, 16 end reasons,
 --   557 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 17 abilities, 10 action-set options, 8 hunt grounds
+--
+-- NEW IN THIS FILE (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged"):
+-- hr_hunt_world_shape MOVES (a monster unit carries no yield share: one pack for every group), hr_hunt_kill_bounds moves for the re-tuned
+-- monsters, and hr_hunt_abilities gains Undertow. Every row the files before it set is carried: the death share's (death_xp_permille 60, no
+-- death_xp_base) and rune supply's runes_out. ORDER: AFTER the six APPLIED 2027-03-25 files (the precondition below still asks for
+-- 2027-03-25-death-share.sql), THEN the hr-accrue carrying the same src/core AT ONCE: the shape moves, so the old engine refuses every stored
+-- world until it deploys, and each running hunt's world restarts once.
+--
+-- CARRIED FROM 2027-03-25-death-share-hunt-sessions-catalogue (APPLIED; lane/c-death-and-slots, Tyler 2026-11-09: "Death needs to be more than 2% I think, and losing a level should be possible"):
+-- hr_hunt_limits.death_xp_permille 20 -> 60 (src/data/hunt-sessions.js DEATH_XP_LOSS 0.06), and the death_xp_base row is CUT (one public formula:
+-- a share of the TOTAL Level XP, no alternative base). That file moved nothing else and applied AFTER 2027-03-25-death-share.sql (the precondition
+-- below refuses a catalogue while a body still reads death_xp_base) and before the hr-accrue carrying DEATH_XP_LOSS 0.06.
 --
 -- NEW IN THIS FILE (lane/c-rune-ladder, Tyler 2026-11-05: "let start with your calls"): hr_hunt_basic_supplies gains one store rune a
 -- family a tier above Plain (src/data/supply-basics.js STORE_RUNE_PRICE), and hr_hunt_vendor_value moves the deeper runes' bids to their new
@@ -160,6 +172,8 @@ begin
               and p.proname in ('hr_char_level', 'hr_char_xp_for_level') and p.prosrc like '%level_quartic%')
      or to_regclass('public.hr_level_curve') is null then
     raise exception 'PRECONDITION: apply 2027-02-01-level-curve.generated.sql first (a Level curve function still reads hr_hunt_limits)'; end if;
+  if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosrc like '%death_xp_base%') then
+    raise exception 'PRECONDITION: apply 2027-03-25-death-share.sql first (a hunt body still reads hr_hunt_limits.death_xp_base)'; end if;
 end $$;
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
@@ -1028,8 +1042,7 @@ insert into public.hr_hunt_limits (key, value) values
   ('armour_slots', 6),
   ('bag_lines', 10),
   ('block_mult', 2),
-  ('death_xp_base', 0),
-  ('death_xp_permille', 20),
+  ('death_xp_permille', 60),
   ('defense_xp_level_permille', 200),
   ('density_max', 16),
   ('density_min', 0),
@@ -1686,7 +1699,7 @@ declare v_role text; v_t text;
 begin
   if (select count(*) from public.hr_hunt_supplies) <> 82
      or (select count(*) from public.hr_hunt_travel) <> 130
-     or (select count(*) from public.hr_hunt_limits) <> 47
+     or (select count(*) from public.hr_hunt_limits) <> 46
      or (select count(*) from public.hr_hunt_end_reasons) <> 16
      or (select count(*) from public.hr_hunt_vendor_value) <> 557
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49

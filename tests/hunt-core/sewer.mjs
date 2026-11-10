@@ -956,7 +956,7 @@ const cases = {
     /* Level 31, past the guide: the paid Blessings card, the server's prices */
     const paid = died(deathEnv(31, null, false), { read: [] });
     const total = M.blessings.BLESSING_TIERS.reduce((n, t) => n + M.blessings.blessingPrice(t.tier, 31), 0);
-    if (paid.id !== 'bless_paid' || !paid.text.includes('At Level 31, all three come to ' + total + ' gp') || !paid.text.includes('up to 95%')) return 'at Level 31 the Blessing card reads ' + JSON.stringify(paid.text) + ' (' + paid.id + ')';
+    if (paid.id !== 'bless_paid' || !paid.text.includes('At Level 31, all three come to ' + total + ' gp') || !paid.text.includes('up to 75%')) return 'at Level 31 the Blessing card reads ' + JSON.stringify(paid.text) + ' (' + paid.id + ')';
     /* the day-one cards wait for the chain: Level 9, a task held, in town: Tamsin's card, not the house */
     const homeNext = { owned: false, next: { name: 'Hearthside Homestead', gold: 400, items: [{ id: 'normal_log', qty: 30 }, { id: 'copper_ore', qty: 20 }] } };
     const L9 = (f) => ({ ...f, levelXp: M.xp.charXpForLevel(9), charLevel: 9 });
@@ -1713,7 +1713,7 @@ const cases = {
     if ((card(a0, acct([a0, a1h], rows2, 4)) || {}).id === 'party_own') return 'Hunt together is up while the other hero is out hunting';
 
     /* THE SERVICES TAB (Tyler 2026-10-25): a Blessing card rings the Shop's icon, then its Services tab, then the next Bless */
-    const bl = M.tut.cardFor(M.tut.HUNT_TUTORIAL.find((r) => r.id === 'bless'), { blessings: { held: 0, of: 3, freeUntil: 30, best: 950, prices: [0, 0, 0] } });
+    const bl = M.tut.cardFor(M.tut.HUNT_TUTORIAL.find((r) => r.id === 'bless'), { blessings: { held: 0, of: 3, freeUntil: 30, best: 750, prices: [0, 0, 0] } });
     if (L.ringPlan(bl, at(null))[0] !== '.hs-launchers [data-hs-open="shop"]') return 'the Blessing card rings ' + L.ringPlan(bl, at(null))[0] + ', want the Shop icon';
     const inShop = L.ringPlan(bl, at('shop'));
     if (!inShop[0].includes('[data-hs-act="bless"]:not([disabled])') || !inShop[1].includes('.hw-tab[data-tab="services"]')) return 'in the Shop the Blessing card rings ' + JSON.stringify(inShop);

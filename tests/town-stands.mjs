@@ -43,6 +43,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
+import { ownHeroSlots } from './_slots.mjs';
 import { OUT_FILE as CATALOGUE } from '../tools/gen-town-stations.mjs';
 
 const FILE = '2027-01-28-town-stands.sql';
@@ -67,6 +68,7 @@ async function people(db, n, slots = [0]) {
     await db.query('insert into public.profiles (id, display_name) values ($1, $2) on conflict (id) do update set display_name = excluded.display_name', [uid, 'Stand ' + i]);
     await db.query("insert into public.hr_access_allowlist (user_id, note) values ($1, 'town-stands test') on conflict (user_id) do nothing", [uid]);
     for (const slot of slots) {
+      if (slot > 0) await ownHeroSlots((sql, p) => db.query(sql, p), uid, slot);   // one slot to start (2027-03-25-hero-slots-one.sql)
       const c = await as(db, uid, 'select public.hr_create_character($1)', [slot]);
       if (!c || c.ok !== true) throw new Error('HARNESS: hr_create_character refused: ' + JSON.stringify(c));
     }

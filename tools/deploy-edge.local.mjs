@@ -39,8 +39,10 @@ export async function main(argv, deps = {}) {
 
   const want = (run('node', ['tools/pack-edge.mjs', 'hr-accrue', '--hash']).match(/[0-9a-f]{64}/) || [])[0];
   if (!want) { err('pack-edge gave no hash'); return 1; }
-  /* The key the gateway wants for this project: the one the client ships for it, else the one envs.json names. */
-  const key = clientKeyOf(read('src/net/supabase-bootstrap.js'), env.name) || env.publishableKey;
+  /* The key the gateway wants for this project. Production's is the first the client ships (tests/legacy-keys.mjs holds this
+     read to a publishable key); staging's is its own entry's, else the one envs.json names. */
+  const boot = read('src/net/supabase-bootstrap.js');
+  const key = env.name === 'production' ? (boot.match(/sb_publishable_[A-Za-z0-9_-]+/) || [])[0] || '' : clientKeyOf(boot, env.name) || env.publishableKey;
   const EDGE = env.fn('hr-accrue');
   const live = async () => { try { return (await (await fetchImpl(EDGE, { headers: { Authorization: 'Bearer ' + key, apikey: key } })).json()).payload_sha256 || ''; } catch (e) { return ''; } };
   const before = await live();

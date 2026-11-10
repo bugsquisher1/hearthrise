@@ -59,7 +59,9 @@ export async function main(argv, deps = {}) {
     const blob = git(['hash-object', '-w', '--stdin'], { input: host + '\n' });
     git(['update-index', '--add', '--cacheinfo', `100644,${blob},CNAME`], { env });
     const tree = git(['write-tree'], { env });
-    commit = git(['commit-tree', tree, '-m', `staging site: v${ver} (${src.slice(0, 9)})`]);
+    /* Its own name on the commit: a machine with no git identity (CI) can build it, and nobody's address lands in a public repo. */
+    const who = { GIT_AUTHOR_NAME: 'Hearthrise staging site', GIT_AUTHOR_EMAIL: 'staging-site@hearthrise.invalid', GIT_COMMITTER_NAME: 'Hearthrise staging site', GIT_COMMITTER_EMAIL: 'staging-site@hearthrise.invalid' };
+    commit = git(['commit-tree', tree, '-m', `staging site: v${ver} (${src.slice(0, 9)})`], { env: { ...process.env, ...who } });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 
   /* What differs from the release must be CNAME and .github, and nothing else. */

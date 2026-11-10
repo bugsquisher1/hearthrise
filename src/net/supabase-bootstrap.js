@@ -48,7 +48,7 @@ export function isStagingHost(host) {
 }
 
 /** 'staging' for a staging site; 'unknown' for a host that says staging and is not one; else 'production'. Pure. */
-export function envOfOrigin(origin) {
+function envOfOrigin(origin) {
   const o = String(origin || '');
   if (STAGING_ORIGINS.includes(o)) return 'staging';
   let host = '';

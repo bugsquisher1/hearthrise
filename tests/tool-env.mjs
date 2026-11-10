@@ -172,7 +172,8 @@ async function checks(overrides) {
       if (!refusal(() => env(['--env', 'staging'], false, world({ envs: { staging: { ref: 'short' } } })))) fails.push('TE-2 a malformed staging ref did not refuse');
       if (!/staging/.test(refusal(() => env(['--env', 'staging'], false, world({ envs: { staging: { ref: STAGE, site: 'https://beta.hearthrise.net' } } }))) || '')) fails.push('TE-2 a staging site with no "staging" in its name did not refuse');
       if (!refusal(() => env(['--env', 'staging'], false, world({ envs: { staging: { ref: STAGE, site: 'http://staging.hearthrise.net' } } })))) fails.push('TE-2 an http staging site did not refuse');
-      const secretKey = 'sb_secret_THIS_MUST_NOT_ECHO_12345';
+      /* built here, so no secret-shaped literal sits in the repo (tests/legacy-keys.mjs LK-2) */
+      const secretKey = ['sb', 'secret', 'THIS_MUST_NOT_ECHO_12345'].join('_');
       const r = refusal(() => env(['--env', 'staging'], false, world({ envs: { staging: { ref: STAGE, publishableKey: secretKey } } })));
       if (!r) fails.push('TE-2 a non-publishable key in envs.json did not refuse');
       else if (r.includes(secretKey)) fails.push('TE-2 the refusal echoed the key it refused');

@@ -10,7 +10,9 @@
 //
 // ART: STAGED. The painted ground `hasks_ford_ground` and the hf_ props are on origin/lane/b-hasks-ford-art (art/world/march)
 // and are not in this tree, so this row places only props that are loaded today. THE ART IMPORT PUTS THESE BACK, each on its
-// tile, and re-pins maskHash (the fixtures block a step; the pull tiles and pack rings were checked clear of them on 10-29):
+// tile, and re-pins maskHash (the fixtures block a step; the pull tiles and pack rings were checked clear of them on 10-29).
+// Today's hash 7abd1b42 is the grid without them. With them it was 0ebf56a5 on the old lane. The oaks are stand-ins too: the
+// March kit keeps oak out, so the import swaps them for a March tree (the art lane's note names westwood_ash or mu_dead_hawthorn).
 //   P0 the Pike Files     hf_pyre_unlit 9,34 · hf_pike_stakes 5,27 and 14,33 · hf_pikes_fallen 11,28 · hf_banded_shield 13,36
 //   P1 the Toll Stone     hf_toll_stone 23,26 · hf_ford_marker 32,26 · hf_helm_heap 21,33 · hf_pike_stakes 35,28 · hf_rowboat_sunk 22,19
 //   P3 the Company Stores hf_tent_torn 25,5 · hf_stores_heap 33,7 · hf_wagon_tipped 35,12
@@ -105,5 +107,5 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 0, y: 30, to: 'town_common' }]),
   start: Object.freeze([1, 30]),
-  maskHash: '0ebf56a5',
+  maskHash: '7abd1b42',
 });

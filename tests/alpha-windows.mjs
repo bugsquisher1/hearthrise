@@ -534,7 +534,35 @@ async function huntsPure(imp) {
       .sort((a, b) => Number(a.t) - Number(b.t)).map((x) => x.s).join('|');
     if (rr !== rw) fails.push('AW-25 the Sewer\'s rare odds read ' + rr + ', the rows say ' + rw);
   }
-  const fmt = [0.0035, 0.021, 0.12, 0.00009, 0.0001].map(chance).join('|');
+  /* A MONSTER'S OWN DROP BONUS IS IN EVERY ODDS LINE (2026-11-10: the page left it out, so the Cellar's Slime, x1.15, read its Slime Gel 13% under
+     what the server rolls). A FIXED ROW, NOT TODAY'S BALANCE: the Sump Slime is given a bonus on the very rows the page reads (the build's ?v=
+     instance), put back after. What a row must read is the roller's own chance (drops.js rollDropTable, on a die that reports its chance and never
+     lands) at the multiplier the settle hands it (hunt-rewards.js payKill: weakness(row).dropMult, combat.js weaknessInfo, the monster's own). */
+  {
+    const { materialsOf } = await imp('src/shell/hunt-ground-facts.js');
+    const MV = (await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version)).MONSTERS;
+    const { rollDropTable } = await imp('src/core/drops.js');
+    const { weaknessInfo } = await imp('src/core/combat.js');
+    const rolls = (id) => { const seen = []; rollDropTable(MV[id].drops, { dropMult: weaknessInfo(MV[id], null).dropMult }, { chance: (c) => { seen.push(c); return false; } }); return MV[id].drops.map((d, i) => ({ d, c: seen[i] })); };
+    const pts = {};
+    for (const i of sewer.route) for (const s of sewer.pockets[i].spawns) pts[s.monster] = (pts[s.monster] || 0) + 1;
+    const all = Object.values(pts).reduce((t, k) => t + k, 0);
+    const near = (a, b) => Math.abs(a - b) < 1e-12;
+    const SLIME = 'sump_slime', had = MV[SLIME].dropBonus;
+    try {
+      MV[SLIME].dropBonus = 1.5;
+      const tierOdds = (tier) => Object.entries(pts).reduce((t, [id, k]) => t + (k / all) * (1 - rolls(id).filter((r) => r.d.band === 'scarce' && (Number(ITEMS[r.d.id].tier) || 1) === tier).reduce((p, r) => p * (1 - r.c), 1)), 0);
+      const gear = scarceSetOf('millrace_sewer', 'medium');
+      if (gear.length !== 2 || gear.some((e) => !near(e.chance, tierOdds(e.tier)))) fails.push('AW-25 a monster\'s own drop bonus is not in the gear odds: ' + gear.map((e) => e.chance).join(' | ') + ', the roller says ' + [1, 2].map(tierOdds).join(' | '));
+      const mine = rolls(SLIME);
+      const rares = raresOf('millrace_sewer').filter((x) => x.carrier.id === SLIME);
+      if (!rares.length || rares.some((x) => !near(x.chance, mine.find((r) => r.d.id === x.id).c))) fails.push('AW-25 a monster\'s own drop bonus is not in its Rare odds: ' + rares.map((x) => x.name + ' ' + x.chance).join(' | '));
+      /* the materials only it drops here (its Lamp Jelly; its Slime Gel sits at the roller's 95% cap either way) */
+      const mats = materialsOf('millrace_sewer').filter((e) => e.carriers.length === 1 && e.carriers[0] === MV[SLIME].name);
+      if (mats.length < 2 || mats.some((e) => !near(e.chance, (pts[SLIME] / all) * mine.find((r) => r.d.id === e.id).c))) fails.push('AW-25 a monster\'s own drop bonus is not in the Materials odds: ' + mats.map((e) => e.name + ' ' + e.chance).join(' | '));
+    } finally { if (had === undefined) delete MV[SLIME].dropBonus; else MV[SLIME].dropBonus = had; }
+  }
+  const fmt =[0.0035, 0.021, 0.12, 0.00009, 0.0001].map(chance).join('|');
   if (fmt !== '0.35%|2.1%|12%|under 0.01%|0.01%') fails.push('AW-25 the odds read ' + fmt + ' (two significant figures, "under 0.01%" below it)');
   /* THE LINEUP FACES THE PLAYER (Tyler 2026-10-24): the page's sprite options draw each creature's idle frame facing
      south, never the side-on east frame (a stub atlas row whose directions sit at different columns). */

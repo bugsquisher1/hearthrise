@@ -27,14 +27,16 @@
 //   materialsOf(hunt)  what this ground drops that a recipe or the House spends, with its carriers and its chance.
 //   THE ODDS (Tyler 2026-10-24: "either give like a % drop chance or nothing at all") are the
 //   server's own: src/data/monsters.js is the catalogue the hr-accrue engine rolls (bundled
-//   into it), and each row's chance on one kill is the roller's (drops.js effectiveDropChance), the
-//   same for every party size (Tyler 2026-11-08: one difficulty for every group), before any hero's bonus. Never a number typed here (ART_DIRECTION §8).
+//   into it), and each row's chance on one kill is the roller's (drops.js effectiveDropChance) at the monster's own drop bonus
+//   (combat.js weaknessInfo, what the settle hands the roller: hunt-rewards.js payKill), the same for every party size (Tyler 2026-11-08:
+//   one difficulty for every group), before any hero's bonus. Never a number typed here (ART_DIRECTION §8).
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, pullRows } from '../data/hunt-grounds.js?v=0.2.112';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.112';
 import { MONSTERS } from '../data/monsters.js?v=0.2.112';
 import { ITEMS } from '../data/items.js?v=0.2.112';
 import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.112';
+import { weaknessInfo } from '../core/combat.js?v=0.2.112';
 import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.112';
 import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.112';
 import { armourLineWord } from '../data/gear-tiers.js?v=0.2.112';
@@ -165,8 +167,11 @@ export function wornWeightOf(eq) {
   return n[best] ? best : null;
 }
 
-/* That one kill drops ANY of `rows` (every row rolls on its own: drops.js rollDropTable), each at the roller's own chance before any hero's bonus. */
-const anyOf = (rows) => 1 - rows.reduce((p, d) => p * (1 - effectiveDropChance(d)), 1);
+/* One row's chance on ONE kill of `monster` (its id): the roller's own, at the monster's own drop bonus and before any hero's (2026-11-10: the page left
+   the bonus out, so the Cellar's Slime read its Slime Gel 13% under what the server rolls). */
+const rowChance = (monster, d) => effectiveDropChance(d, { dropMult: weaknessInfo(MONSTERS[monster], null).dropMult });
+/* That one kill of `monster` drops ANY of `rows` (every row rolls on its own: drops.js rollDropTable). */
+const anyOf = (monster, rows) => 1 - rows.reduce((p, d) => p * (1 - rowChance(monster, d)), 1);
 
 /* THE KILLS A HUNT MAKES HERE: each creature's share of the spawn points on the route (every pocket, for every party size), the ground as built. */
 function killMixOf(g) {
@@ -205,7 +210,7 @@ export function scarceSetOf(hunt, worn) {
     weapons: e.weapons,
     /* one list, never "bodies, legs; Bramble Blade" (v0.2.100 played on Wickstead) */
     what: listWords([...slots, ...e.weapons], Infinity),
-    chance: Array.from(e.rows, ([id, rows]) => (mix.get(id) || 0) * anyOf(rows)).reduce((t, c) => t + c, 0),
+    chance: Array.from(e.rows, ([id, rows]) => (mix.get(id) || 0) * anyOf(id, rows)).reduce((t, c) => t + c, 0),
   }; });
 }
 
@@ -224,7 +229,7 @@ export function materialsOf(hunt) {
       if (!found.has(d.id)) found.set(d.id, { id: d.id, name: nameOf(d.id), carriers: [], chance: 0 });
       const e = found.get(d.id);
       e.carriers.push(MONSTERS[id].name);
-      e.chance += share * effectiveDropChance(d);
+      e.chance += share * rowChance(id, d);
     }
   }
   return [...found.values()].filter((e) => e.chance > 0).sort((a, b) => b.chance - a.chance || (a.name < b.name ? -1 : 1));
@@ -240,7 +245,7 @@ export function raresOf(hunt) {
   for (const r of [...residentsOf(hunt), ...bigPullOf(hunt)]) {
     for (const d of ((MONSTERS[r.id] || {}).drops || []).filter(isRare)) {
       if (!out.some((x) => x.id === d.id && x.carrier.id === r.id)) {
-        out.push({ id: d.id, name: nameOf(d.id), trophy: bandOf(d) === 'trophy', carrier: { id: r.id, name: r.name }, chance: effectiveDropChance(d) });
+        out.push({ id: d.id, name: nameOf(d.id), trophy: bandOf(d) === 'trophy', carrier: { id: r.id, name: r.name }, chance: rowChance(r.id, d) });
       }
     }
   }

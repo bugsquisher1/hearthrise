@@ -20,6 +20,13 @@ const HOUR = 3600000, GLADE = 'mosslight_glade', WARRENS = 'coppercap_warrens';
 const MAX = Object.freeze({ 'temper:blows:2': 5, 'temper:armor:2': 5, 'temper:blows:3': 5, 'temper:armor:3': 5 });
 const BLOWS = Object.freeze({ 'temper:blows:2': 5, 'temper:blows:3': 5 });
 const SEEDS = ['-4611686018427387904', '77'];
+/* A THIN ROW OF next-tier-wins IS READ ON EIGHT SEEDS (lane/b-one-difficulty, 2026-11-09). The thinnest row is the Glade's Level 24 bow: a full ladder pays +3.1%
+   Level XP and the next tier's kit +4.6%, a real 1.5% between them, on main and here alike (eight seeds each). One seed's hour moves about 1.9% either way, so
+   two seeds read that row as a coin: 8 of 8 seeds agreed on main, 7 of 8 here, where one pack for every group made a kill fewer and bigger (390 an hour, not
+   554), and the first two summed to the ladder ahead by 0.4%. So a row whose two seeds stand under THIN clear plays six more, and all eight are judged (that
+   row pools to 1.4%); every other row stands 3% to 22% clear on eight. The bar is the same: the next tier pays more, and lands more a blow. */
+const MORE_SEEDS = Object.freeze(['1', '2', '3', '4', '5', '6']), THIN = 0.03;
+const plus = (a, b) => Object.fromEntries(Object.keys(a).map((k) => [k, a[k] + b[k]]));
 /* The ladder's own pieces at a tier, by role (gear-tiers.js). The harness's kit gives a Level 24 Ranger a tier 3 bow, so a test about tiers names them. */
 const LINES = {
   plate: { 2: ['iron_helm', 'iron_platebody', 'iron_platelegs', 'iron_boots'], 3: ['steel_helm', 'steel_platebody', 'steel_platelegs', 'steel_boots'], 4: ['mithril_helm', 'mithril_platebody', 'mithril_platelegs', 'mithril_boots'] },
@@ -49,7 +56,7 @@ function play(P, ground, L, roles, o = {}) {
     } });
   return { r, dealt, blows, whole: JSON.stringify(sorted([r.totals, r.members, r.items, r.heroXp])) + JSON.stringify(events) };
 }
-const across = (fn) => SEEDS.map(fn).reduce((a, x) => ({ dealt: a.dealt + x.dealt, blows: a.blows + x.blows, kills: a.kills + x.r.totals.kills, xp: a.xp + x.r.totals.levelXp, falls: a.falls + x.r.totals.falls }),
+const across = (fn, seeds = SEEDS) => seeds.map(fn).reduce((a, x) => ({ dealt: a.dealt + x.dealt, blows: a.blows + x.blows, kills: a.kills + x.r.totals.kills, xp: a.xp + x.r.totals.levelXp, falls: a.falls + x.r.totals.falls }),
   { dealt: 0, blows: 0, kills: 0, xp: 0, falls: 0 });
 
 const cases = {
@@ -89,11 +96,15 @@ const cases = {
   'next-tier-wins': (P) => {
     for (const [ground, L, tier] of [[GLADE, 24, 2], [GLADE, 29, 2], [WARRENS, 40, 3]]) {
       for (const role of ['tank', 'ranger', 'mage', 'healer']) {
-        const base = across((secret) => play(P, ground, L, [role], { tier, secret }));
-        const full = across((secret) => play(P, ground, L, [role], { tier, secret, temper: BLOWS }));
-        const next = across((secret) => play(P, ground, L, [role], { tier: tier + 1, secret }));
-        if (process.argv.includes('--verbose')) console.log('  ' + ground + ' L' + L + ' ' + role + ' tier ' + tier + ': rung 0 ' + base.xp + ' XP, ' + base.falls + ' falls; full Blows XP ' + (100 * (full.xp / base.xp - 1)).toFixed(1) + '%, dealt a blow ' + (100 * (full.dealt / full.blows / (base.dealt / base.blows) - 1)).toFixed(1) + '%; next tier XP ' + (100 * (next.xp / base.xp - 1)).toFixed(1) + '%, dealt a blow ' + (100 * (next.dealt / next.blows / (base.dealt / base.blows) - 1)).toFixed(1) + '%');
-        if (!(next.xp > full.xp)) return role + ' at Level ' + L + ': a full Blows ladder earns ' + full.xp + ' XP, the next tier\'s kit ' + next.xp + ' (rung 0 ' + base.xp + ')';
+        const fullOn = (seeds) => across((secret) => play(P, ground, L, [role], { tier, secret, temper: BLOWS }), seeds);
+        const nextOn = (seeds) => across((secret) => play(P, ground, L, [role], { tier: tier + 1, secret }), seeds);
+        let full = fullOn(SEEDS), next = nextOn(SEEDS), seeds = SEEDS;
+        if (!(next.xp > full.xp * (1 + THIN))) { full = plus(full, fullOn(MORE_SEEDS)); next = plus(next, nextOn(MORE_SEEDS)); seeds = [...SEEDS, ...MORE_SEEDS]; }
+        /* rung 0 is only the words' third number: played when a line needs it */
+        const won = next.xp > full.xp, verbose = process.argv.includes('--verbose');
+        const base = won && !verbose ? null : across((secret) => play(P, ground, L, [role], { tier, secret }), seeds);
+        if (verbose) console.log('  ' + ground + ' L' + L + ' ' + role + ' tier ' + tier + ' (' + seeds.length + ' seeds): rung 0 ' + base.xp + ' XP, ' + base.falls + ' falls; full Blows XP ' + (100 * (full.xp / base.xp - 1)).toFixed(1) + '%, dealt a blow ' + (100 * (full.dealt / full.blows / (base.dealt / base.blows) - 1)).toFixed(1) + '%; next tier XP ' + (100 * (next.xp / base.xp - 1)).toFixed(1) + '%, dealt a blow ' + (100 * (next.dealt / next.blows / (base.dealt / base.blows) - 1)).toFixed(1) + '%');
+        if (!won) return role + ' at Level ' + L + ': a full Blows ladder earns ' + full.xp + ' XP, the next tier\'s kit ' + next.xp + ' (rung 0 ' + base.xp + ')';
         if (!(next.dealt / next.blows > full.dealt / full.blows)) return role + ' at Level ' + L + ': a full ladder lands ' + (full.dealt / full.blows).toFixed(2) + ' a blow, the next tier ' + (next.dealt / next.blows).toFixed(2);
       }
     }

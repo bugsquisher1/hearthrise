@@ -783,11 +783,13 @@ const casterMutants = [
     ['src/data/supply-basics.js', "'goldenroot_tea', 396, 138)", "'goldenroot_tea', 33, 138)"],
     ['src/data/supply-basics.js', "'emberfruit_cordial', 480, 233)", "'emberfruit_cordial', 40, 233)"],
     ['src/data/drinks.js', "v: 6, mana: 96 ", "v: 6, mana: 8 "]] },
-  /* Fireball is a Fire rune spell (Tyler 2026-10-23): a Mage with no runes casts it on the store's rune its default
-     slot names. With no store rune on the default slots the floor Mage casts nothing. */
-  { name: 'the default rune spells name no store rune (the Mage casts nothing)', edits: [
-    ['src/data/rule-subjects.js', "  action: Object.freeze(Object.assign({ type: 'ability', id }, storeOf(id) ? { store: storeOf(id) } : {})),",
-      "  action: Object.freeze({ type: 'ability', id }),"]] },
+  /* Fireball is a Fire rune spell (Tyler 2026-10-23): a Mage with no runes casts it on the store's rune. Since RUNE SUPPLY
+     PER SLOT (Tyler 2026-11-08) a slot that says nothing buys from the shop when its runes run out (conditions.js
+     runeSupplyOf; one naming no store rune buys the family's tier-1 one), so dropping the default slots' store rune
+     changes nothing. The defect that leaves the floor Mage casting nothing is the default turning off the shop. */
+  { name: 'the default rune spells buy nothing when their runes run out (the Mage casts nothing)', edits: [
+    ['src/core/hunt/conditions.js', "  const onEmpty = RUNE_ON_EMPTY.includes(action.onEmpty) ? action.onEmpty : 'store';",
+      "  const onEmpty = RUNE_ON_EMPTY.includes(action.onEmpty) ? action.onEmpty : 'leave';"]] },
 ];
 /* The Warrens floor's levers (src/data + the tier table in src/core/combat.js): each plays on a planted copy. */
 const warrensMutants = [

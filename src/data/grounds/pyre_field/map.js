@@ -1,19 +1,19 @@
-// src/data/grounds/pyre_field/map.js — THE PYRE FIELD: the high field above the Muster Barrows where Ebbe's Chantry burned the
+// src/data/grounds/pyre_field/map.js — THE PYRE FIELD: the high field above the Muster Barrows where Lord Krell's Binders burned the
 // Banded Company's dead. Row shape and lint: src/world/core/map-compile.js. Rebuild the hash with `node tests/world-core.mjs --hashes`
 // after changing what blocks a step. Shape of the pack: src/data/grounds/shape.js.
 //
 // THE GRID (designer 2026-11-08, lane/b-pyre-field). The Ford is two banks and one crossing; the Slake three silt bars and two
 // channels. The Pyre Field is one burnt field cut into three strips by two long rows of unlit pyres, the Great Pyre standing in the
 // middle strip. Five gaps cross the rows, so the route is a ring round the Great Pyre and shutting any one gap strands nothing
-// (checked: 1,623 open tiles, every one reachable from the road, every pull tile with a full box). The road comes in from the
+// (checked: 1,613 open tiles, every one reachable from the road, every pull tile with a full box). The road comes in from the
 // Muster Barrows at the south, x28-31.
 //   '.' ash (earth: a burnt field, not a meadow, so the outdoor tree rule does not ask for trees on it)
 //   ':' scorched earth, walked (earth; the painter lays the ash family's scorched-earth tiles here): the burn lines the Stokers
 //       walked, the gaps in the pyre rows and the ring round the Great Pyre
 //   '#' charred wood and the two pyre rows (thicket: blocks a step and a shot)
 //   'o' a cinder pit, where a pyre burned all the way down (chasm: flat, blocks a step, hides nothing)
-//   'P' THE GREAT PYRE, x26-33 y16-20, the ground's signature 1 (footprint 8x5). Blocked in the rows until its sprite loads; the art
-//       import then swaps these cells to ash and places pf_great_pyre at (26,16), whose footprint blocks the same 40 tiles, so the
+//   'P' THE GREAT PYRE, x25-34 y16-20, the ground's signature 1 (footprint 10x5). Blocked in the rows until its sprite loads; the art
+//       import then swaps these cells to ash and places pf_great_pyre at (25,16), whose footprint blocks the same 50 tiles, so the
 //       mask hash does not move.
 //
 // ART: STAGED. The ground `pyre_field_ground` is painted from these rows on the Barrow March kit's NEW ash family (the art plan's
@@ -52,11 +52,11 @@ export default Object.freeze({
     '######:::::#############::::###################::::::#######', //    the north pyre row
     '######:::::#############::::###################::::::#######',
     '###.....................::::::::::::....................####', // 15
-    '###.....................:.PPPPPPPP.:....................####',
-    '###...........##........:.PPPPPPPP.:.......oo...........####',
-    '###...........##........:.PPPPPPPP.:.......oo............###',
-    '###.....................:.PPPPPPPP.:.....................###',
-    '###.....................:.PPPPPPPP.:.....................###', // 20 P1 the Shroud Rows, the Great Pyre, P4 the Ash Heaps
+    '###.....................:PPPPPPPPPP:....................####',
+    '###...........##........:PPPPPPPPPP:.......oo...........####',
+    '###...........##........:PPPPPPPPPP:.......oo............###',
+    '###.....................:PPPPPPPPPP:.....................###',
+    '###.....................:PPPPPPPPPP:.....................###', // 20 P1 the Shroud Rows, the Great Pyre, P4 the Ash Heaps
     '###.....................::::::::::::.....................###',
     '###..........................::..........................###',
     '###..........................::......##..................###',
@@ -85,7 +85,7 @@ export default Object.freeze({
     /* P1 the Shroud Rows: the dead laid out in their shrouds for a pyre that never came */
     { id: 'bone_pile', x: 5, y: 17 }, { id: 'bones', x: 12, y: 23 }, { id: 'skull', x: 19, y: 16 }, { id: 'sack_pile', x: 6, y: 24 },
     { id: 'bones', x: 17, y: 21 },
-    /* P2 the Stokers' Yard: the Chantry's wood and the block the Stokers split it on */
+    /* P2 the Stokers' Yard: the Hold's wood and the block the Stokers split it on */
     { id: 'woodpile', x: 8, y: 10 }, { id: 'woodpile', x: 9, y: 10 }, { id: 'woodpile', x: 18, y: 3 }, { id: 'chopping_block', x: 11, y: 4 },
     { id: 'barrels', x: 23, y: 10 }, { id: 'sack_pile', x: 6, y: 6 },
     /* P3 the Kennels: the burnt-out pits the company's dogs den in, and what they dragged there */
@@ -109,10 +109,10 @@ export default Object.freeze({
     [14, 6], [15, 7], [14, 8], [13, 7], [15, 6], [15, 8], [13, 8], [13, 6],
     [45, 6], [46, 7], [45, 8], [44, 7], [46, 6], [46, 8], [44, 8], [44, 6],
     [51, 20], [52, 21], [51, 22], [50, 21], [52, 20], [52, 22], [50, 22], [50, 20],
-    [30, 23], [31, 24], [30, 25], [29, 24], [31, 23], [31, 25], [29, 25], [29, 23],
+    [32, 23], [33, 24], [32, 25], [31, 24], [33, 23], [33, 25], [31, 25], [31, 23],
   ]),
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 29, y: 39, to: 'town_common' }]),
   start: Object.freeze([29, 38]),
-  maskHash: 'd4a6b03b',
+  maskHash: '0482efed',
 });

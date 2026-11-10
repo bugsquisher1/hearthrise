@@ -29,8 +29,8 @@
 // tier-3 rate (loot-bands.js VENDOR_GEAR_RATES stops at tier 3) until Phase 0's ruled tier-4 0.075 lands; at 0.14 the hour's gear
 // sells for more than half its coin (drop-tables gear-faucet), so this pack ships with or after that rate. Commons feed the Hearth (Grave Dust at 46, Bone Chips at 40, Big Bones) and the forge (Coal, Copper Ore). Each body
 // drops its own imbuement item, kept for the imbuer (catalogue-coherence.js VENDOR_TRASH until imbuing is built).
-import { definePack, box, gather } from '../shape.js?v=0.2.106';
-import map from './map.js?v=0.2.106';
+import { definePack, box, gather } from '../shape.js?v=0.2.112';
+import map from './map.js?v=0.2.112';
 
 const PK = 'greened_pikeman', BG = 'bargeman', ML = 'mudlark', CS = 'color_sergeant';
 

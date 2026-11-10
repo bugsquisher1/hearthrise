@@ -50,19 +50,13 @@ export function itemName(id) {
 }
 
 /* A RUNE SPELL spends any tier of its family (src/data/runes.js; src/core/hunt/abilities.js runeFor), so the screen
-   names and counts the FAMILY, never the one tier its row keys: "Fire rune", "12 Fire runes". */
+   names the FAMILY, never the one tier its row keys: "Fire rune", "12 Fire runes". */
 const familyOf = (id) => (ITEMS[id] && RUNE_FAMILIES[ITEMS[id].family] ? ITEMS[id].family : null);
 /** The family words of rune item `id` for `n` runes ("Fire rune" / "Fire runes"); a non-rune's item name. */
 export function runeWords(id, n) {
   const f = familyOf(id);
   return f ? RUNE_FAMILIES[f].label + (n === 1 ? ' rune' : ' runes') : itemName(id);
 }
-/** How many runes of `id`'s family the inventory rows `lines` ({ id, qty }) hold, every tier (the server's counts). */
-export function familyCount(id, lines) {
-  const f = familyOf(id);
-  return (lines || []).filter((l) => l && (f ? familyOf(l.id) === f : l.id === id)).reduce((n, l) => n + (Number(l.qty) || 0), 0);
-}
-
 
 /** A monster's name from the bestiary rows. */
 export function monsterName(id) { return (MONSTERS[id] && MONSTERS[id].name) || spelled(id); }

@@ -163,3 +163,9 @@ ADDED BY THE COORDINATOR (2026-11-09), FIRST HOUR (the bag's Equip upgrades), fo
   its perk in brackets and the gain adds a second set. Rewrite: each piece named once, its gain said as words, no stacked
   brackets: "Put on the Banded Signet with Follow-through for +2 Melee accuracy, and another Banded Signet for +2 more."
   On main today the same function says "Wear Leather Gloves (+1 Melee accuracy) and Bronze Belt (+2 Defense)."
+
+FOUND READING v0.2.112 (2026-11-09), for batch 2:
+- The rune supply control says "Buy from the rune shop", and four older bar lines still say "the store’s rune"
+  (rune_needs_a, rune_needs_an, rune_level, store_level). One word for the place, and each line should name the control
+  the player presses: "Set this slot to buy from the rune shop."
+- runes_use "Use carried runes" and runes_needs "Needs {needs}" pass as control labels. Read them in the game next to the list.

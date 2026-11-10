@@ -4629,3 +4629,11 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 2. *Prove the path with content you already trust.* Every shipped ground, cloned under new ids as a pack, must write exactly its own rows renamed (GP-5), and six such packs applied to the replayed chain must equal the whole files folding them (GP-6). The first run caught the fixture, not the system: a ground's tier override lives on a shared table, so a clone without it wrote other tier rows.
 3. *A fingerprint covers what was measured.* The pace fingerprint read every ground and the pick to the top band, so a ground past the content forced a 2-3 h re-measure. Careers stop at the ceiling: the grounds under it and the pick under it are the whole of what they played.
 4. *The first PGlite template in a fresh worktree costs ~30 min under load.* Budget for it once before a fold proof; later boots restore it.
+## 2026-11-08 · lane/b-area-engine (monster spells, area shapes, Chill, the five conditions, the resist seam)
+1. *A registry row and its server mirror are one unit.* The five metrics and Chill moved the ⟦metrics⟧ block that conditions.mjs sql-rows pins, so the catalogue rows were staged in the lane (2027-03-22-area-conditions.sql) rather than left red for the server lane.
+2. *A settle window ends at a swing boundary.* A cut lands inside a windup only when the windup outlasts the swing: the "cast not persisted" mutant escaped until the cuts went 1 ms after each cast start with a 2.4 s windup.
+3. *A redundant check is a dead path.* slowPmOf's `left > 0` could never fail (tickStatuses drops a stack the sub-step it runs out); its mutant escaped, so the code went.
+4. *Key a landing by its caster.* Two monsters landed in one instant and the both-paths check read eight hits on four heroes.
+5. *A unit holds only its persisted fields.* makeUnit dropped a fixture's resistPm; unpersisted numbers (armour, resistPm, shieldWorn) ride the unit from syncUnit at every boundary, and a peer's from its frozen snap.
+6. *Quotes in a `node -e` replacement break the file three edits later.* Test edits with apostrophes go through a script file or the Edit tool.
+7. *One rule of a long harness, run alone.* hunt-live runs every rule per mutant; a scratch copy whose rules() holds only LV-SPELL proved the rule and its three mutants in minutes, and the full file stays the gate.

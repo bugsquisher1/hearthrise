@@ -226,6 +226,307 @@ The Level, and the to-hit on a solo ground, agree. The fix for the Lab's owner i
 | `hr_scaled_hunt_switch(p_slot, p_hunt, p_on, p_idem)` | The switch, the hero's own row. Refusals: not_scalable, bad_switch |
 | `hunt_live.instance.scale` | { level } or null: the live view plays the same rows (live-engine.js passes it to the engine) |
 The calls I made where the plan left room. The leader must be hunting in the instance (a solo hunt's hero is its own leader). A party whose leader is in town plays the ground's own rows and spends nothing. A window stops where the banked swings end, so hours never overrun, and the next settle restarts the world on the ground's own rows. A remembered Deadly plays Normal's dials and Normal's pull while scaled. The day's 48 hours are counted from the ledger, not a counter column.
+### 2026-11-08 Area spells (designer, lane/d-area-spells; Tyler 2026-11-08: "start giving some monsters some aoe spells and our heros some more aoe spells", "make sure we are including settings/opacity sliders for on screen effects", then "instead of a healer area spell lets just do a party heal with a long cooldown" and "and expensive, and make sure the conditions are available that make sense". UPDATED the same day for "the point of Monsters having aoe spells is so the whole party takes damage", "the tank absorbing the boss hits and the casters dodging it", "the difficulty should be unchanged" for a solo hero, and "transparent about the damage and other formulas ... in an in game wiki"): DESIGNED and MEASURED on the real engine. Nothing built, nothing shipped
+**The call.** Most spellcasting monsters get a **whole-group spell**: a 2 second warning, then one hit on every hero in the fight that nobody can step out of (Tyler 11-08: "so the whole party takes damage to make the hunts feel engaging"). Bosses add a **marked heavy hit** that the tank stands in while ranged heroes and casters step off, and a worn shield now takes 30% off it. A spell is the same alone or in a four (Tyler 11-08, one difficulty). Heroes get three area spells (a frost area for the wand, an arrow line with no element for the bow, a ring for the sword alone) and the healer gets Spring Tide, one big, expensive party heal on a 60 second cooldown, beside Circle of Renewal. Measured on the real engine (4I-4L): Normal stays near zero alone and in a four on every ground. On Deadly the whole party takes damage and wastes a lot of supplies (a Glade four loses 72% of its profit, a Warrens four all of it) until 30% element resistance brings it back to a 23-33% loss, which is why resistance on gear and imbuements is the next phase. A group spell is also the first thing that reaches a lone kiter on Deadly.
+
+#### 1. Purpose test
+| Part | The player problem it solves | The decision it adds | What it plugs into |
+|---|---|---|---|
+| Hero area spells | Two of the three area damage spells are fire, and slimes take half from every element, so a Ranger or a Mage at the Sewer has no good area (Andy, 11-06). A sword alone has no area at all | Which element and shape this ground wants: fire burns hardest, frost slows the pack and its casts, an arrow line ignores elements, a ring for a full box. Then where it sits on the bar, and on what condition | Rune families (Ice exists), `enemies_in_aoe`, the weapon disciplines, every monster's element percentages, the version ladder (skill 15/30/45/60) |
+| Spring Tide (healer) | When a spell lands on several heroes at once, a healer's one-target heals can't keep up | When to spend a big, rare, costly heal, and what to keep in reserve for it | Circle of Renewal and Greater Mend, the Water runes, drinks (mana is gold per use), `allies_below` |
+| Monster area spells | Dangerous and Deadly read as bigger numbers. Nothing in a fight asks the tank, the healer or the bar a question | Set up once for it: heals and Spring Tide, eat or shield on "A monster is casting at...", Defensive stance, a shield for the tank, and next phase element resistance on gear and imbuements | The tier dials (a spell is a share of its monster's own blow, so a tier moves it), the bestiary page, the death popup, party roles |
+| The warning and the idle answer | Nobody clicks during a hunt, so a hidden burst would be a death the player couldn't see coming | None in the moment. The answer is the setup, and the rule is one line: melee hold, ranged step off | Hero positioning (`roles.js`), the condition engine |
+| Effect settings | Four heroes casting area spells beside monster spells is a lot of light on one screen, worse on a phone | How much of each kind of effect to see. A danger mark can't be hidden | The Settings registry (Interface), the one-pick-for-every-hero storage, the hunt scene's draw |
+Still useful at hour 100 and 1,000: yes, because monster spells ride the tiers and hero spells ride the version ladder or the hero's own blow. Depth, not count: four hero rows, eight monster rows, five conditions, one geometry for both sides.
+
+#### 2. Hero area spells, and the healer's line
+| Spell | Weapon | Unlocks at (about) | Lane, cooldown, mana | Rune | Shape and target rule | Effect | Element |
+|---|---|---|---|---|---|---|---|
+| **Hoarfrost** | wand (Mage) | Magic 14 (near Level 7, hour 2-3) | attack, 10 s, 22 | Ice | 3x3 on the best aim, Fireball's footprint | 5-9, then **Chill** 4 s: the monster's swings and its spell windups run 30% slower. No stacking | frost |
+| **Raking Shot** | bow or crossbow (Ranger) | Ranged 10 (near Level 5, hour 1) | attack, 8 s, 10, 2 shots | none | a line 4 tiles from the hero through its aim (new target `line`) | 80% of the hero's own largest blow, on each monster in the line | none |
+| **Turning Cut** | sword alone (Melee) | Melee 10 (near Level 5, hour 1) | attack, 8 s, 8 | none | every monster beside the hero, up to 8 (new target `ring`) | 60% of the hero's own largest blow, each. Worse than Power Strike on one or two, better from three | none |
+| **Spring Tide** | staff (Healer) | Magic 20 (near Level 10, hour 6-7) | heal, **60 s, 160 mana** | Water, one a cast | every hero within 8 tiles (target `party`, Circle of Renewal's reach) | heals **120-180** each | |
+- **Spring Tide sits beside Circle of Renewal, not over it.** Circle is the steady top-up a healer already plays (12 s, 50 mana, 20-30). Spring Tide is the once-a-minute save. Replacing Circle would leave the healer nothing between saves, and upgrading it would change a spell players have already set (Circle's version ladder already upgrades it). Two spells make two decisions: the top-up, and what to keep in reserve.
+- **Expensive:** 160 mana is 59% of a fresh healer's pool at Magic 20 (about 270 mana in light armor at Level 10), 47% at the Glade's floor (337, measured) and 34% at Level 25. Mana is the price because mana is drinks and drinks cost gold per use: measured, the healer drinks 17% more on the Warrens' Deadly with it (198 to 232 an hour). It spends one Water rune a cast like every Water spell. No extra supply cost: at one cast a minute a rune is 1-24 g, noise, and a three-rune cast would need a new engine field for nothing.
+- **Its numbers came from the measure (4G):** at 80-120 heal for 120 mana it moved nothing at the Glade and the Rat King. At 120-180 for 160 mana it lifts the King's win rate from 62% to 75% under a heavy Squeal and the Warrens' Deadly four's net by a third, and it never fires with no spell in the room (0 casts an hour on every ground and tier without one).
+
+The rows (provisional numbers, the build lane's sim fits them):
+```js
+// src/data/abilities.js
+ab({ id: 'hoarfrost', n: 'Hoarfrost', disciplines: ['destruction'], lane: 'offense', cdMs: 10000, mana: 22, rune: 'chalked_ice_rune', unlock: 14,
+  target: 'area', dmg: [5, 9], element: 'frost', status: 'chill', magicXpMult: 1600,
+  versions: [[22, 1000], [26, 1740], [32, 2520], [38, 3310], [46, 4100]], lvPm: LV_PM }),
+ab({ id: 'raking_shot', n: 'Raking Shot', disciplines: ['ranged'], lane: 'offense', cdMs: 8000, mana: 10, ammo: 2, unlock: 10, target: 'line', len: 4, hitPm: 800 }),
+ab({ id: 'turning_cut', n: 'Turning Cut', disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10, target: 'ring', maxHits: 8, hitPm: 600 }),
+ab({ id: 'spring_tide', n: 'Spring Tide', disciplines: ['restoration'], lane: 'heal', cdMs: 60000, mana: 160, rune: 'chalked_water_rune', unlock: 20,
+  target: 'party', heal: [120, 180], radius: 8, magicXpMult: 1600,
+  trigger: [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_60' }, { metric: 'in_fight', op: 'eq', value: true }],
+  versions: [[160, 1000], [192, 1740], [230, 2520], [276, 3310], [332, 4100]], lvPm: LV_PM }),
+// src/data/statuses.js
+chill: Object.freeze({ id: 'chill', name: 'Chill', durationMs: 4000, maxStacks: 1, slowPm: 300 }),
+```
+- **`unlock`** is a level in the row's own skill (`abilitySkill`), the rule supplies and runes keep (Tyler 10-24: only gear moved to Level). A slot set up early is kept and waits with "Unlocks at Ranged 10", the `level` wait rune versions already use. The hours are estimates read off the pace careers (`level-pace.json`: a hero's main skill is 19-22 at Level 10 and 33 at Level 25). When a spell unlocks, the coach line offers it with one press ("New at Magic 20: Spring Tide. Add it to your bar?") and the press writes its default rule on the slot. Past hour 7 the rune spells climb the version ladder, and the two physical ones grow with the weapon.
+- **`hitPm`** (new): the two physical rows hit for a share of the hero's own largest blow (the unit's `maxHit`), the rule a monster spell uses. Today's physical abilities are flat (Cleave 6-11, Power Strike 7-13, Precision Shot 7-12) and never grow with skill or gear. Moving those three to `hitPm` moves XP an hour, so it waits for a pace re-measure (unmeasured here).
+- **`trigger`** (new, optional): a row may name the conditions a new slot of it starts with, when `suggestedTrigger`'s generic one isn't right. Spring Tide needs "the fight is on" so it is never spent between pulls.
+- **The healer's area damage stays as it is.** Green Sickness (poison, Restoration) is untouched. Tyler's ruling adds no new healer damage spell.
+- **The tank gets nothing new.** Its job is holding. Turning Cut on the shield would speed up a lone tank in a full box: measure that first if wanted.
+- **On screen:** Hoarfrost bursts ice up out of the 3x3, then a pale rime sits under each chilled monster for 4 s. Raking Shot is one long streak down the line, a hit on each monster it passes. Turning Cut is a ring of steel round the hero. Spring Tide is a wave of water rolling out from the healer across the party, then the heal motes on each hero.
+
+#### 2b. The conditions a player can set (Configure action builds its pickers from `src/data/condition-metrics.js`, and the slot sentence from `bar-draft.js` `conditionWords`)
+| Condition | Metric | Words on the slot (rendered by `conditionWords` in the worktree) | Today | Test case (tests/hunt-core/conditions.mjs) |
+|---|---|---|---|---|
+| Allies under X% health, a count | `allies_below` (subjects under_50 ... under_90) | "the number of allies under 60% health is at or above 2" | exists | 4 heroes, 2 at 55%: passes at 2, fails at 3 |
+| The party's health | `party_hp_pct` **new**: the living heroes' HP over their max HP, pooled | "the party’s HP is below 60%" | add | 100/200 and 300/400: 67%, passes "below 70", fails "below 60" |
+| The lowest ally under X% | `ally_hp_pct` subject `lowest` | "the HP of the lowest ally is below 50%" | exists | |
+| A monster spell winding up | `enemy_casting` **new**: monsters mid-windup whose mark covers me / anyone (subjects `self`, `any`) | "the number of monsters casting at me is at or above 1" | add | A ring on hero A's tile: A's count 1, B's 0, anyone 1, and 0 the sub-step after the hit |
+| A spell just landed | covered by the health ones: a spell's hit lowers HP in the same sub-step, so "allies under 60%" sees it at once. No extra metric | | | |
+| In a fight | `in_fight` **new**: the hunt is in its fight phase with a monster on the party | "the fight is on" / "the fight is not on" | add | A pull with a monster holding a target: true. Walking between pockets: false |
+| Mana above X% | `self_mana_pct` with "above" | "my mana is above 60%" | exists | |
+| Monsters the area would hit | `enemies_in_aoe`, read through `shapes.js` for the line and the ring | "the number of monsters it would hit is at or above 3" | exists | Raking Shot through 3 rats in a row counts 3. Turning Cut with 5 beside counts 5 |
+| The target is weak to the spell | `target_weak` **new**, slot only: the slot's element against its aim (else the hero's target) | "my target is weak to it" | add | Fireball at a Gray Wolf (ember 15% more): true. Raking Shot (no element): false |
+| The target resists the spell | `target_resists` **new**, slot only | "my target is not resistant to it" | add | Fireball at a Slime (half from fire): true. At a Gray Wolf: false |
+| An effect on the target | `effect_missing` (Chill joins its list by itself, from `statuses.js`) | "my target lacks Chill" | exists | |
+`enemy_casting` and `in_fight` ran in the measure below (the prototype). The other three only rendered: the build lane writes the tests. **Default rules** written on a new slot: Spring Tide "allies under 60% at or above 2, and the fight is on" (measured 4G: 70% fires more, saves nothing more). Hoarfrost and Raking Shot "it would hit at least 2". Turning Cut "at least 3". Nothing changes on the role default bars (the game never adds a slot behind the player). One fix found on the way: a true/false metric's words come from lowercasing its label and swapping " is " for " is not ", so a label without " is " can't be denied ("I am in a fight" read "i am in a fight"). Every true/false label must hold " is ".
+
+#### 3. Monster spells: whole-group first, marked hits for bosses
+Tyler 2026-11-08: "the point of Monsters having aoe spells is so the whole party takes damage to make the hunts feel engaging", and "I do like the idea of the tank absorbing the boss hits and the casters dodging it". So there are two kinds, and **a spell is the same alone or in a four** (Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged"): one damage, one cooldown, one windup.
+
+**Whole-group spells (the main kind, on most casters).** A warning, then one hit on every hero in the fight. Nobody steps out of it, so the answer is the setup: heals and Spring Tide, food on "A monster is casting at anyone", Defensive stance, and next phase, element resistance (below).
+| Monster (ground) | Spell | Warning | Top hit (x its own biggest hit) | Cooldown | Element | Measured |
+|---|---|---|---|---|---|---|
+| Turncoat (Wickstead) | **Smoke Pot** (he burned the house, P4) | 2.0 s | 2.5x | 16 s | fire | 4I |
+| Walking Vine (the Glade) | **Spore Cloud** ("the vines in the glowing moss") | 2.0 s | 1.5x | 16 s | poison | 4I |
+| Goblin Digger (the Warrens) | **Blasting Charge** (diggers blast the seams) | 2.0 s | 1.5x | 16 s | fire | 4I |
+| Rat King (the Sewer, called) | **Squeal** | 2.0 s | 0.4x | 20 s | poison | 4L |
+| Chief Coppercap (the Warrens, called) | **Slag Rain** | 2.0 s | 0.4x | 20 s | fire | 4L |
+| Bargeman (the Slake) | **Cold Bilge** (river water) | 2.0 s | 1.5x | 16 s | frost | no, rows are seeds |
+| The Pyre Field's ash caster (not designed yet) | **Ash Bloom** | 2.0 s | 1.5x | 16 s | fire | no, waits for the rows |
+**Marked spells (the second kind: the heavy hit a tank stands in).** A mark fills on the tiles it will hit. Melee heroes hold their tile and take it, ranged heroes and casters step off when no monster holds them in melee. **A worn shield takes 30% off a marked spell** (new, the shield's "brace"), so the tank is the right one to stand in it (4K).
+| Monster | Spell | Shape | Warning | Top hit | Cooldown | Element | Measured |
+|---|---|---|---|---|---|---|---|
+| Barn Spider (Wickstead) | **Venom Spray** | ring r1 round itself | 1.6 s | 2x | 12 s | poison | 4A, 4B, 4H |
+| Rat King (called) | **Tail Lash** | cone 2 at his target | 1.6 s | 2x | 12 s | none | as a ring r2 (Squeal before the change): 4F |
+| Chief Coppercap (called) | **Slag Toss** | cone 4 at his target | 1.8 s | 1.2x | 14 s | fire | 4F |
+A boss carries one of each (the build's monster row names a list). The prototype played each kind alone, so the two together on one boss are unmeasured.
+Rows in `src/data/monster-spells.js`, keyed by spell id (lane 2's rows, section 7). A monster row names its spells (`spells: ['venom_spray']`). The bestiary says each in a line ("Casts Smoke Pot: hits everyone in the fight with fire").
+
+**The hit, both kinds.** Its top is the spell's multiple of the caster's own largest blow at the hunt's tier, rolled from half the top to the top with no to-hit roll, then the hero's armor chain as any blow (dodge, absorb, resistances, ward). A tier moves it, and Normal's gentle-ground cap holds it: on Normal at Wickstead a Venom Spray tops out at 20% of the floor hero's HP. It's a blow taken, so it trains Defense (Tyler 10-22: area hits count). **Measured: a windup costs the caster its swings.** Squeal at 1.5x made the King easier on a good bar (93% wins against 88% with no spell), so a spell must be big enough to beat the swings it replaces. That is why a regular's marked spell sits at 1.8-2x. A group spell hits everyone, so it sits lower on the busy casters (1.5x) and higher on a rare one (the Turncoat is in one pack in six alone, 2.5x). A boss pulse lands on a party built for his room, so 0.4x is enough (4L).
+
+**The cast.** A monster starts one standing on a tile, holding a living hero target in range (a group spell reaches 6 tiles with line of sight, a marked one its own range), with its cooldown up. A marked spell's tiles are fixed then. The caster stands still and doesn't swing for the windup, then the spell lands: a group spell once on every hero in the fight, a marked one once on every hero on its tiles. A caster killed in its windup does nothing.
+
+**The idle hero's answer**, all in the engine, the same viewed or with the browser closed:
+1. **Melee hold, ranged step off** (marked spells only, since nobody steps out of a group spell). A new mark resets every hero's re-aim clock. A ranged or caster hero that no monster holds in melee treats marked tiles as no place to stand and walks off. From a 3x3's middle that is 2 tiles, 0.63 s at 3.2 tiles a second, so no windup is under 1.2 s (1.6 s for a radius 2). A Melee hero keeps its tile, because contact is its job.
+2. **The bar:** eat, Mend, Arcane Barrier or Protective Ward on "A monster is casting at me" (a group spell is casting at everyone), and Spring Tide on its own rule.
+3. **Defensive stance** (exists): the strongest answer measured (4H).
+4. **A shield's brace:** a worn shield takes 30% off a marked spell (4K). Hoarfrost's chill stretches a windup by 30%. Armor and, next phase, element resistance as for any blow.
+**Measured and cut: a "Casting first" Target choice.** Killing the caster before it finishes changed nothing (16.3 deaths an hour against 17.2 in 4H) because a 25-30 HP caster outlives a 1.6 s windup. Windups are sized for stepping off, not for killing.
+
+**Server-authoritative.** The spells are server catalogue rows, the cast is drawn on the swing's own dice in the one engine, so the browser's live view predicts the same mark the settle lands. A Leave or a bar change takes effect at the next settle (Tyler 10-20), so seeing a mark early buys nothing.
+
+#### How area spells work (the in-game wiki's words, Tyler 2026-11-08: "transparent about the damage and other formulas")
+Some monsters cast spells. You always see one coming. The caster glows, and a warning fills on the ground for 1.4 to 2 seconds before the spell lands.
+
+There are two kinds.
+- **Group spells** hit every hero in the fight. The warning is a ring closing in on every hero, and nobody can step out of one. Most spellcasting monsters have one.
+- **Marked spells** hit only the tiles they mark: a ring round the caster, a blast on one hero's spot, or a cone in front of it. Melee heroes hold their ground and take it. Ranged heroes and casters step off the mark when no monster is holding them in melee. Bosses use these for their big hits, so the tank takes them.
+
+Each spell has a number, shown on its bestiary page. Its top hit is that number times the caster's own biggest normal hit, and each hit lands somewhere between half the top and the top. A Venom Spray (2) from a Barn Spider whose biggest hit is 21 lands for 21 to 42. Spells never miss, but your armor works on them like any hit (dodge, absorb, ward), and so does Defensive stance (15% less). A shield takes 30% off a marked spell. Every spell has an element (fire, frost, poison or none). Your resistance to that element takes its share off: with 20% fire resistance, a fire spell that would hit you for 100 hits for 80. No resistance goes above 40%, so nothing is ever immune. Dangerous and Deadly raise a monster's hits, so its spells rise by the same percentage. Each spell has its own cooldown in seconds, and a spell you take trains Defense like any hit.
+
+(Numbers in that paragraph are the build's data rows. The shield's 30% is measured in 4K. If the build lane changes a number, the wiki row changes with it.)
+
+#### 4. Measured on the real engine
+**How.** `tools/balance-sim` cells (the settle the world tick runs), 2 seeds x 2 h a cell, 32 hero-hours a row for a lone hero (all 8 ways: tank, sword, hammer, axes, bow, crossbow, mage, healer), 16 for a four, the start bar on the ground's guide food. A death starts the next hunt at once, as in the tier lanes. Bosses through `boss-call-table.mjs`, 60 tries a row. The spells ran through a sim-only engine path in the lane's worktree, never committed (Proof below).
+
+**A-H measure the MARKED spells** (the design before Tyler's 11-08 whole-group ruling, on today's lone pulls). They stand for marked hits. **I-L measure the whole-group spells and the counters.**
+
+**A. A lone hero at Wickstead, without → with the Barn Spider's Venom Spray (2x).** Median of the 8 ways, deaths pooled.
+| Tier | Level | Deaths an hour | Close calls in 12 h | Net gold an hour | Level XP an hour | Melee food an hour | Melee typical low |
+|---|---|---|---|---|---|---|---|
+| Normal | 8 (floor) | 0 → 0 | 0 → 0 | 3,048 → 3,125 | 31.7k → 31.5k | 124 → 119 g | 95% → 93% |
+| Normal | 11 | 0 → 0 | 0 → 0 | 3,111 → 3,104 | 32.1k → 32.1k | 83 → 82 g | 96% → 95% |
+| Dangerous | 8 | 0 → 0 | 0.8 → 2.3 | 2,758 → 2,760 | 36.5k → 36.4k | 271 → 355 g | 80% → 73% |
+| Dangerous | 11 | 0 → 0 | 0 → 0.4 | 2,930 → 3,009 | 37.3k → 37.0k | 141 → 203 g | 83% → 77% |
+| Deadly | 8 | 0 → 0 | 10.9 → 14.3 | 2,677 → 2,508 | 38.0k → 38.0k | 536 → 951 g | 73% → 67% |
+| Deadly | 11 | 0 → 0 | 3.0 → 4.1 | 2,899 → 2,831 | 38.8k → 38.8k | 278 → 550 g | 76% → 70% |
+**Normal stays near zero:** no death and no close call in 64 hero-hours, and the typical low moves 1-2 points. The Turncoat's Firepot and both spells together read the same on Normal (0 deaths, 0 close calls, low 95-97%). On Deadly the spell lands only on melee and costs them 77% more food at the floor (18 close calls in 12 h against 9). Ranged heroes and casters step off and pay nothing.
+
+**B. Could a bigger lone pull plus a spell deliver lone deaths at Wickstead?** Deadly. Today's lone pull is 0 (the ground as it stands: two monsters).
+| Lone Deadly at Wickstead | Melee, 4 ways: deaths an hour at 8 / 11, net at 8 / 11 | Ranged and casters, 4 ways: deaths, net, XP at 8 |
+|---|---|---|
+| Pull 0, Venom Spray 2x (today plus the spell) | 0 / 0, 2,159 / 2,611 | 0, 2,611, 38k (1.2x Normal) |
+| Pull 3, no spell | 0 / 0, 2,320 / 3,224 | 0, 3,855, 49k (1.55x Normal) |
+| Pull 3, Venom Spray 2x | 0.25 (the sword) / 0, 689 / 1,414 | 0, 3,684, 49k |
+| Pull 3, Venom Spray 3x | 18 / 3.3, -1,610 / -372 | 0, 3,684, 49k |
+| Pull 3, Venom Spray 3x and Firepot 3x | 20 / 4.0 | 0, 3,784, 50k |
+At pull 0 nothing I tried kills a lone hero (Venom Spray up to 3x, Firepot up to 3x, both at 2x: 0 deaths in 32 hero-hours a row). The third monster is what lets two sprays land together. Its cost: a lone kiter takes none of it and earns 1.55x Normal's XP and more gold, the free gain the tier lane closed with pull 0 (11-06).
+
+**C. What reaches a lone kiter?** Deadly, Wickstead's floor, the 4 ranged and caster ways.
+| Try | Kiter deaths in 16 hero-hours | Why |
+|---|---|---|
+| Any spell with a fair warning | 0 | A free hero always gets off a 3x3 inside 1.2 s |
+| Every monster 25% faster (a tier dial) | 1 (a crossbow) | Kiters still keep their gap |
+| The Turncoat throws (a 4-tile basic) | 0 at pull 0, 1 at pull 3 | One pack in six, and it dies first |
+Nothing fair I tried with a MARKED spell makes a lone kiter at Wickstead pay. **The answer came with Tyler's whole-group spells (4I):** nobody steps out of one, so a kiter takes it too.
+
+**D. A lone hero at the Glade's floor (16), without → with the Walking Vine's Spore Burst (1.8x).** 8 ways.
+| Tier | Deaths an hour | Close calls in 12 h | Net an hour (melee median) | XP an hour |
+|---|---|---|---|---|
+| Normal | 0 → 0 | 0.4 → 1.1 (2.5x: 0.8) | 5,634 → 5,813 (4,430 → 4,606) | 73.2k → 73.4k |
+| Dangerous | 0 → 0 | 7.9 → 6.0 | 4,210 → 3,494 (605 → -701) | 93.8k → 94.4k |
+| Deadly | 27 → 28 | a wall either way | -16.2k → -15.6k | 102k → 101k |
+On Normal the close calls sit at the ruled 1 in 12 h with or without it (the ranged ways, which the spell never touches, moved 0.8 to 1.5 on the changed dice, so that is the noise). Dangerous costs the melee ways 1.3k gold an hour more. Deadly alone was already a wall (the formula lane: 0 of 8 held).
+
+**E. A party of four at its floor, without → with one spell.** Deaths in 16 hero-hours (all the tank's).
+| Ground, four | Normal | Dangerous | Deadly | Deadly XP a head, net a head |
+|---|---|---|---|---|
+| Glade 16, tank + healer + bow + mage, Spore Burst 1.8x | 0 → 0, close calls 0 → 0 | 0 → 0 | 0 → 4 | 129.7k → 127.7k (1.44x Normal), 5,555 → 5,361 |
+| Glade 16, tank + hammer + bow + mage (no healer) | 0 → 0 | 0 → 0 | **9 → 22** | 133.1k → 130.1k, 7,291 → 7,006 |
+| Warrens 32, tank + healer + bow + mage, Blasting Charge 1.8x | 0 → 0, close calls 0 → 0 | 0 → 0 | 0 → 0 | 276.9k → 276.0k, 6,425 → 6,467 |
+| Warrens 32, tank + hammer + bow + mage | 0 → 0 | 0 → 0 | 0 → 0 | 269.2k → 268.9k, **8,408 → 4,182** |
+Normal stays safe for both fours on both grounds. On Deadly the spell asks for a healer: the healer four holds (0 to 4 deaths, under the sheet's 9), the four with none goes from 9 to 22 at the Glade and loses half its gold at the Warrens. **That breaks one sheet line** ("Deadly, a four at the floor: 9 deaths or fewer in 16 hero-hours"), which today passes both fours. My call: read that line on a four with a healer. A Deadly four with no healer should feel the missing healer, and that is what the healer is for. Lane 2 changes the grader's comp.
+
+**F. The bosses, good bar → bad bar (Tyler 11-05 ship bar: about 85% and 30%), 60 tries a row.**
+| Fight | No spell | With its spell | Pick |
+|---|---|---|---|
+| Rat King, Squeal (ring r2) | 88% / 33% | 1.5x: 93% / 22%. 2x: 95% / 12%. 2.5x: 82% / 2% | **1.5x**: the good bar wins more, the bad bar less. The spell widens the gap the phases were built for |
+| Chief Coppercap, Slag Toss (cone 4) | 95% / 37% | **1.2x: 85% / 32%**. 1.5x: 73% / 17%. 2x: 50% | **1.2x**: lands on the ship bar exactly, where today's Chief sits 10 points over it |
+
+**G. Spring Tide** (tank + hammer + healer + bow, so two melee stand in a ring. Casts an hour, deaths, net a head).
+| Where | Without | With Spring Tide at 120-180 heal, 160 mana |
+|---|---|---|
+| Every ground and tier with no monster spell | | 0 casts: it waits for a spell to land |
+| Glade 16 Deadly, Spore Burst 1.8x | 0 deaths, 4,808 | 0 casts, 4,808 (Greater Mend covers two melee) |
+| Warrens 32 Deadly, Blasting Charge 1.8x | 0 deaths, 2,916, 198 drinks | 19 casts, 0 deaths, **3,890**, 232 drinks |
+| Warrens 32 Deadly, Blasting Charge 2.5x | 0 deaths, -90 | 23 casts, 0 deaths, **1,056** |
+| Rat King, good bar, Squeal 3x | 62% wins, 23 deaths in 60 tries | **75%**, 15 deaths |
+| Rat King, good bar, Squeal 1.5x | 93% | 93% |
+| (the first size, 80-120 heal at 120 mana) | | Glade 3 casts an hour, nothing saved. Rat King at 3x: 72%. Warrens 3,508 |
+The rule at 70% fired more (16-40 an hour) and saved nothing more. A cone on the tank alone never wakes it (one hero hurt): that's Greater Mend's and Protective Ward's job.
+
+**H. What a player sets once.** Wickstead Deadly, the 4 melee ways, a lone pull of 4 with Venom Spray at 3x (the harshest case measured. The design ships neither).
+| Setup | Deaths an hour at 8 / 11 | Net an hour at 8 |
+|---|---|---|
+| The start bar as shipped | 16.3 / 4.8 | -3,068 |
+| Target "Casting first" (cut) | 17.2 / 4.1 | -3,051 |
+| Eat at 80% | 12.4 / 4.1 | -5,830 |
+| Eat when "a monster is casting at me" (new) | 10.2 / 2.4 | -3,441 |
+| Defensive stance | 1.25 / 0.13 | -1,535 |
+| **Defensive, and eat when a monster is casting at me** | **0.31 / 0** | -1,443 |
+An optimized hero survives what kills the default one (Tyler 11-04, "allow the player to take them if they think their character or party is optimized"). At the Glade alone on Deadly no setup is enough (28 deaths an hour, 12 with every answer): Deadly alone there stays a wall.
+
+**I. Whole-group spells, a lone hero and a mixed four side by side** (plan `group3`: 1 seed x 1 h a cell, 4 ways alone (tank, hammer, bow, mage), the four tank, healer, bow, mage, the table's lone pulls Dangerous 3 and Deadly 8 as lane/b-one-difficulty leaves them. Without → with the spell)
+| Ground, tier | Alone: deaths an hour, net an hour, typical low | Four: deaths, close calls in 12 h, net a head, food a head |
+|---|---|---|
+| Wickstead 8 Normal, Smoke Pot 2.5x | 0 → 0, 3,042 → 2,901, 95% → 95% | 0 → 0, 0 → 0, 2,992 → 2,923, 144 → 139 g |
+| Wickstead 8 Dangerous | 0 → 0, 4,070 → 3,194, close calls 0 → 18 | |
+| Wickstead 8 Deadly | 29 → **42** (the mage, which held, now dies too), -3,101 → -3,333 | 0 → 0, 15 → 108, 2,852 → 2,472, 1,183 → 2,130 g |
+| Wickstead 11 Deadly | 11.6 → **24.6** (the bow and the mage die too) | |
+| Glade 16 Normal, Spore Cloud 1.5x | 0 → 0, 5,323 → 5,438, 79% → 77% | 0 → 0, 0 → 0, 6,173 → 5,329, 125 → 858 g, typical low 100% → 83% |
+| Glade 16 Deadly | 25 → 29, -16.7k → -19.8k | 0 → 0, 12 → 189, **5,365 → 1,493**, 1,899 → 5,883 g |
+| Warrens 32 Normal, Blasting Charge 1.5x | 0 → 0, 723 → -2,846, 71% → 61% (a party ground: "alone from 45") | 0 → 0, 0 → 0, 6,959 → 6,999, typical low 100% → 89% |
+| Warrens 32 Deadly | 1.5 → 2.3, -66k → -81k | 0 → 0, 0 → 24, **6,416 → -445**, 1,725 → 8,388 g |
+The four-hour Wickstead cells (plan `group` before the PC slowed, 8 ways, 32 hero-hours a row) read the same on Normal: Smoke Pot at 1.5x and 2.5x, 0 deaths, 0 close calls, typical low 95-97% alone and 100% in a four.
+**What it answers.** Normal stays near zero alone and in a four on every ground: no death and no close call in any cell, and a four now feels the fight (its typical low falls from 100% to 83-89%). On Deadly the whole party takes damage, as Tyler asked: the four's close calls climb 7x at Wickstead and 16x at the Glade (none to 24 at the Warrens) and its food bill 1.8-4.9x, and at the Glade and the Warrens it loses most or all of its profit. That is his "waste a ton of supplies" until resistance lands (J). And a group spell is the first thing that reaches a lone kiter: on Deadly at Wickstead the mage, and at floor+3 the bow, go from holding to dying. Alone, the table's pull of 8 already makes Deadly a wall with no spell at all (29 deaths an hour at the floor), which is the one-difficulty lane's change, not the spell's.
+
+**J. The counter: 30% element resistance on every hero, the same group spell, Deadly** (the prototype takes 30% off the spell's hit, the share the resist seam will apply).
+| Deadly four | No spell | The spell | The spell, 30% resistance | The spell, Spring Tide on the healer |
+|---|---|---|---|---|
+| Wickstead 8, Smoke Pot | net 2,852, food 1,183, close calls 15 | 2,472, 2,130, 108 | **2,795, 1,428, 15** | (a Level 8 healer can't fund 160 mana, and it unlocks at Magic 20) |
+| Glade 16, Spore Cloud | 5,365, 1,899, 12 | 1,493, 5,883, 189 | **3,573, 3,660, 6** | 2,901, 4,799, 147 |
+| Warrens 32, Blasting Charge | 6,416, 1,725, 0 | -445, 8,388, 24 | **4,957, 3,391, 0** | 1,273, 6,517, 33 |
+30% resistance takes a Deadly four from losing 13% / 72% / 107% of its profit to losing 2% / 33% / 23%, and its close calls back to where they were with no spell. Spring Tide alone recovers about a quarter to a third of the loss. Alone it barely helps (Wickstead 42 to 33 deaths an hour, the Glade 29 to 26): resistance is a party's answer to a group spell, not a way to solo Deadly.
+
+**K. The tank's brace: a shield takes 30% off a marked spell** (Deadly, tank + hammer + healer + bow, the marked versions: Spore Burst ring 1.8x, Blasting Charge blast 1.8x).
+| Four | Without the brace | With it |
+|---|---|---|
+| Warrens 32, Blasting Charge (marked) | close calls 6, net 3,050, food 5,192 | **0, 3,519 (+15%), 4,389 (-15%)** |
+| Glade 16, Spore Burst (marked) | 3, 4,522, 2,322 | 3, 4,436, 2,305 (no change: the healer already covers a ring on two melee) |
+The brace makes the tank the right hero to stand in a boss's marked hit, and it pays where the hit is big. Defensive stance stays the answer for anyone (15% less from everything, 4H).
+
+**L. The bosses' group pulse** (good bar / bad bar / good bar with Spring Tide, 40 tries a row, one row a fresh process).
+| Fight | No spell | Group pulse 0.4x | 0.8x | 1.2x |
+|---|---|---|---|---|
+| Rat King, Squeal (poison) | 85% / 28% | **95% / 15%** (Tide 95%) | 95% / 5% (Tide 95%) | 90% / 0% (Tide **98%**) |
+| Chief Coppercap, Slag Rain (fire) | 93% / 30% | **95% / 43%** (Tide 95%) | 95% / 0% (Tide 90%) | 75% / 0% (Tide 65%) |
+The ship bar is about 85% with a good bar and 30% with a bad one (Tyler 11-05), 40 tries a row reads within about 8 points. A group pulse is a hard check on the bad bar (its healer waits for 40% and has no party heal), so it sits at **0.4x**. Like the marked hits (4F), a windup costs the boss his swings, so a small pulse makes a good bar win a little more. Spring Tide saves the King's fight under a heavy pulse (90% to 98%) and costs the Chief's (75% to 65%): his damage lands on the tank, and 160 mana spent on the party is 160 mana Greater Mend doesn't have. That is the healer's decision the spell was built to give. **Each boss carries both kinds** (his marked hit and his pulse), and the prototype played them one at a time: the build lane plays them together and fits both to the ship bar.
+
+#### 5. Effect settings (Tyler's ask)
+**Interface, four sliders,** each a Settings row like Window opacity (`ui.windowOpacity`), kept as one pick for every hero (`src/session/player-switch.js` from lane/b-idle-toggle, given a number as well as on/off: `{ v, at }`, the newest pick any open hero holds wins).
+| Row | Range | Default | Help line (player text) |
+|---|---|---|---|
+| Your spell effects | 0-100%, steps of 10 | 100% | How strong your hero's attacks, spells and heals look. Lower lets you see the fight through them. |
+| Other heroes' spell effects | 0-100% | 100% | The same for everyone else in the hunt, your other heroes too. |
+| Monster spell effects | 0-100% | 100% | How strong a monster's hits and spells look when they land. |
+| Danger marks | 50-100% | 100% | The marks on the ground where a monster's spell is about to land. They never go below half, so you can always see them coming. |
+- **The warning rule:** a danger mark's outline is always solid and its fill never goes under 50%. "Monster spell effects" at 0 still draws every mark. A mark never blinks: it fills over the windup.
+- **Data:** `src/data/fx-alpha.js` (four rows: field, label, min, max, step, initial, like `panel-alpha.js`), four allowlisted residue fields (`RESIDUE_FIELDS`), rows bound `{ store: 'switch', field, sw }` with `type: 'slider'` (the settings model reads a value pick for a slider), and one reader in the hunt scene that multiplies each effect's alpha by its owner's slider: the viewed hero, any other hero, a monster. Display only: nothing reads them to gate or spend (CLAUDE.md §6).
+- **Damage numbers:** they already have a toggle per type, over monsters and over bosses (`combat-text.js`: Damage you deal, Damage you take, Healing ...). One gap: Turning Cut in a full box puts 8 numbers up at once, plus everyone else's. Add one toggle, "Area hits as one number" (off by default): an area spell that hits several monsters shows one total over its aim.
+- **Screen motion:** there is no screen shake today, only a 1 art-pixel recoil per hit (`scene.js`), and spells add none. If a boss impact ever wants a shake, it ships with a "Screen shake" switch (a player switch with `reducedOn: false`, like Idle animations). Anything that repeats stays under 3 flashes a second (the glance spark's rule).
+- **Phones:** the same rows in the Settings sheet, no separate ones. A 3x3 mark is 192 CSS px at the phone's 2x, so it reads. The "Other heroes" slider matters most on a phone in a party of four.
+
+#### 6. Art
+| Effect | Kind | How | Count |
+|---|---|---|---|
+| Danger marks: ring r1 (3x3), cone 2, cone 4 for marked spells, and the group warning (a ring that closes on every hero over the 2 s windup) | ground decal, fills over the windup (8 frames), one look for every monster | `vfx_workbench` (free) | 4 |
+| Windup glow at the caster's chest | shared loop, one per element (poison, ember, frost, none) | `vfx_workbench` | 4 |
+| Monster impacts: group (Smoke Pot, Spore Cloud, Blasting Charge, Squeal, Slag Rain, Cold Bilge, Ash Bloom) on each hero, marked (Venom Spray, Tail Lash, Slag Toss) over its tiles | a burst | `vfx_workbench` | 10 |
+| Hero spells: Hoarfrost burst, Chill rime, Raking Shot streak, Turning Cut ring, Spring Tide wave | burst, status loop, projectile, ring, wave | `vfx_workbench` | 5 |
+| Boss cast poses: Rat King, Chief Coppercap | a special animation (Tyler 10-15: bosses get attack and special animations) | PixelLab subscription, only if the art director wants more than the shared glow | about 16 generations (2 bosses x 8 facings) |
+23 effects at 0 generations, plus at most 16 subscription generations. A mark is 96-160 art px across, wider than the `vfx` class allows (72), so the art director adds a ground-decal class to `art-budget.js` first (it is law). Sample first (§9): the r1 mark and its fill, the Venom Spray impact and the Hoarfrost burst, read at 1x in the real hunt, then the rest. Briefs for the art director to approve: **AS-1** marks and windups, **AS-2** monster impacts, **AS-3** hero spells, **AS-4** boss cast poses (subscription, read the balance first).
+
+#### 7. Build plan
+| Lane | Owner | Files | Done when |
+|---|---|---|---|
+| 1. Engine | systems-engineer (xhigh). Already adding `shape: 'group'` and a per-hero resist seam (Coordinator 11-08) | new `src/core/hunt/shapes.js` (ring, blast, cone, line, group), `src/core/hunt/monster-spells.js` (cast, mark, hit, PERSISTED fields), `src/data/monster-spells.js`. Hooks in `damage.js` (a casting monster doesn't swing), `movement.js` (it stands its windup), `roles.js` (marked ground isn't a spot for a free ranged or caster hero, a new mark resets re-aim), `conditions.js` + `condition-metrics.js` (the five new metrics, footprints from shapes), `abilities.js` (targets `line` and `ring`, `unlock`, `hitPm`, `trigger`), `statuses.js` (Chill read by the swing clock and the windup), `events.js` (`EVENT_VERSION` 6: a `spell` event at the cast's start with its shape) | Tests per module, both paths (the hunt viewed and the browser closed), a cast across a settle cut (world-step split-parity), the 2b test cases, mutation proofs |
+| 2. Data | game-designer | `abilities.js` rows, `monsters.js` `spells` lists, `monster-spells.js` rows (below), `hunt-vfx.js` rows, a spell line on the balance sheet (on a gentle ground a spell's top stays under 20% of the floor hero's HP), the Deadly-four line read on a healer four (4E) | `balance-sheet --mutate`, `sheet-check`, one pace re-measure for the set |
+| 3. Server | backend-architect (lane C) | the `gen-hunt-sessions` catalogue: `hr_hunt_abilities` (4 rows), `hr_hunt_condition_metrics` (5 rows), `hr_hunt_kill_bounds` (Defense XP headroom: more blows taken a kill), the roster's spell rows | §4 self-check, `schema-drift`, applied BEFORE the edge deploy |
+| 4. Client | systems-engineer + art director | `src/hunt-view/scene.js` (marks from the `spell` event, alpha by owner), `death-explain.js` (names the spell: "the Barn Spider's Venom Spray, 124"), the combat log line, the bestiary line, Configure action (the shapes, the new conditions, the unlock wait), the coach's unlock offer | Visual gate on the hunt and Configure action |
+| 5. Settings | systems-engineer | `src/data/fx-alpha.js`, `player-switch.js` value picks, `residue.js`, `settings.js` rows, `settings-model.js`, `tests/settings-registry.mjs` | `settings-registry --selftest` |
+| 6. Art | art-director, asset-director | AS-1..AS-4, the `tools/world-art` port, the `art-budget.js` decal class, `world-assets` | The art director reads the sample in the hunt |
+**Lane 2's spell rows** (`src/data/monster-spells.js`, `hitPm` = the multiple of the caster's own largest hit, permille, the wiki's number):
+```js
+smoke_pot:       { n: 'Smoke Pot',       shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 2500, element: 'ember' },  // Turncoat
+spore_cloud:     { n: 'Spore Cloud',     shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 1500, element: 'poison' }, // Walking Vine
+blasting_charge: { n: 'Blasting Charge', shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 1500, element: 'ember' },  // Goblin Digger
+squeal:          { n: 'Squeal',          shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: 'poison' }, // Rat King
+slag_rain:       { n: 'Slag Rain',       shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: 'ember' },  // Chief Coppercap
+cold_bilge:      { n: 'Cold Bilge',      shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 1500, element: 'frost' },  // Bargeman, unmeasured
+ash_bloom:       { n: 'Ash Bloom',       shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 1500, element: 'ember' },  // Pyre Field caster, unmeasured
+venom_spray:     { n: 'Venom Spray',     shape: 'ring', r: 1, range: 1, windupMs: 1600, cdMs: 12000, hitPm: 2000, element: 'poison' }, // Barn Spider
+tail_lash:       { n: 'Tail Lash',       shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 12000, hitPm: 2000, element: null },     // Rat King, unmeasured as a cone
+slag_toss:       { n: 'Slag Toss',       shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 1200, element: 'ember' },  // Chief Coppercap
+// monsters.js: turncoat spells ['smoke_pot'], walking_vine ['spore_cloud'], goblin_digger ['blasting_charge'], barn_spider ['venom_spray'],
+//   rat_king(_called) ['tail_lash', 'squeal'], chief_coppercap(_called) ['slag_toss', 'slag_rain']. A shield's brace: 300 off a marked hit.
+```
+**Order.** 1, 2, 5 and 6 run side by side (no shared files). 3 follows 2's rows. Then the Coordinator applies 3, deploys the edge with 1 and 2 in ONE combat-engine batch (the world-tick parity rule. The world's field list changes, so every running hunt's world restarts once, no migration), then ships 4, 5 and 6 as one lane B release. **For the pre-EA Security review (§3.7):** (1) `hr_hunt_kill_bounds`' XP headroom covers Defense XP from spell hits. (2) spells and shapes come only from the server catalogue, radius at most 2 and length at most 4, so a bad row can't strike a whole ground. (3) the 16-seed lookahead now shows a mark early, and a Leave still applies at the next settle. (4) the bar check refuses an unknown metric.
+
+#### Next phase (spec only): resistance, so a group spell becomes manageable with the right gear
+**Where it lives.**
+| Source | Slots | Per piece, by tier (percent off that element) | Built by | Gold sink |
+|---|---|---|---|---|
+| Crafted jewelry perk "Fire Ward", "Frost Ward", "Poison Ward" (a perk roll on the crafted-jewelry rows, lane/d-crafted-jewelry) | necklace, ring, earrings | Tier 1 (Crafting 15) 5%, tier 2 (30) 8%, tier 3 (45) 12% | The jewelry bench | The bench tax and the Hallmark fee already ruled (11-05). Crafters sell them on the market (Tyler 11-04: combat players pay crafters) |
+| Capes | cape | a cape row may carry one element's 5-12% beside its `steadyPm` | Drops and Smithing, as capes are today | none new |
+| Imbuement "Element Ward" (one per character, Tyler 10-15: each kind stacks once), the player picks the element | any armor piece | I 10%, II 15%, III 20% | The Imbuer (L4, not built): an imbuing station in the house or town | I 1,500 g + 5 tier-1 ward items, II 8,000 g + 10 tier-2, III 30,000 g + 15 tier-3. Lasts 20 hunting hours on the server clock |
+| Cap | | 40% off any one element in total | | |
+The ward items already drop: tier 1 Sticky Core (the Cellar), Cistern Venom Gland and Knotted Tails (the Sewer), Torn Company Badge (Wickstead), Rook's Moss Charm (the Glade), Coppercap's Tallow (the Warrens), tier 2 Color Cord (the Slake) and tier 3 Warrant Seal (the Pyre Field), all `element_ward` in `imbuements.js` or the packs. Green Rivet and Pike Ferrule are `ward` (flat), and Shroud Pin is `mana_leech`, not a ward (the brief listed it as one). Rook's charm is already "worn against the spring water's green sickness": the Glade's poison spell and its counter come from the same hollow.
+**What a tier buys, measured** (4J, the one point played): 30% resistance takes a Deadly four from losing 13% / 72% / 107% of its profit at Wickstead / the Glade / the Warrens to losing 2% / 33% / 23%, and its close calls back to where they were with no spell. So the tiers above are sized to reach about 30% where the group spells bite: by the Glade a tier-1 imbue (10%) and two tier-2 jewelry pieces (16%) make 26%, by the Warrens a tier-2 imbue (15%) and three tier-2 pieces (24%) make 39%. Points between 0 and 30% are not played yet.
+**Engine seam:** `elementOn(hero, element)` in `targeting.js` answers 1000 for every hero today ("heroes take every element in full"). The resistance is that seam reading the hero's worn total (`1000 - resistPm`), which `mitigate` already applies after absorb and before ward. Lane 1 adds the seam now, at 0 for everyone, so the gear lane only writes numbers.
+
+#### Walk-through: a player's first monster spell (ids grepped on `origin/main` c3834be8e. "New" means this design, not built)
+| Step | The player | What they hold, from steps before and the start kit | Doable? |
+|---|---|---|---|
+| 1 | Opens Hunts and picks Wickstead (Level 8-18, "Rats in the granary, turncoats in the house") | A hero near Level 8 from the Thicket, the start bar (`START_BAR`: Salted Shrimp under 60% HP, Thin Turnip Juice) | Yes: `hunts.js` `wickstead`, band [8, 18] |
+| 2 | The hero walks the route to P2, the Barn: a Barn Spider and a Granary Rat | Step 1's hunt | Yes: `hunt-grounds.js` P2 spawns `barn_spider`, `granary_rat` |
+| 3 | The spider casts: a ring fills round it for 1.6 s, the log reads "The Barn Spider is casting Venom Spray" | | New (lanes 1, 4) |
+| 4 | A melee hero holds and takes it (on Normal at most 20% of its HP), a bow hero steps off. The coach says once: "That ring was the spider's spell. Melee heroes stand in it. Set your bar to eat or turn Defensive when a monster casts at you." | Step 3's hit | New (lane 4, the coach line in `hunt-tutorial.js`) |
+| 5 | Opens Configure action on the Salted Shrimp slot and adds "A monster is casting at me" | The start bar's slot from step 1, Configure action (exists) | The window exists. The condition is new (lane 1) |
+| 6 | Sets the bar's stance to Defensive for Deadly | The bar's right panel (exists: stance, Chase, Distance, Target) | Yes, today |
+| 7 | Back at P2 on Deadly, the hero eats as the ring fills and takes 15% less | Steps 5 and 6 | Measured 4H: melee deaths 16.3 to 0.31 an hour in the harshest case |
+
+#### What a lone hero meets (the separate Wickstead target is retired)
+Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged. Either they are strong enough to do the harder content or they aren't". So the spells are one size for everyone, lane/b-one-difficulty removes the lone pull rows, and my earlier pick (keep Wickstead's lone pull at 0) is withdrawn with them. **As data** (4I, the table's pulls): on Normal a lone hero meets no risk on any ground (no death, no close call, the typical low moves 0-2 points). On Deadly at Wickstead's floor a lone hero dies 29 times an hour with no spell (tank, hammer and bow, the mage held) and 42 with Smoke Pot (all four ways, the mage too). At floor+3 it is 11.6 and 24.6, and the bow and the mage join. So the pull of 8 is what makes Deadly a wall alone, and the group spell is what reaches the kiter. Element resistance helps a lone hero only a little (42 to 33 deaths an hour): it is a party's answer.
+
+**Proof.** The sim-only engine path lives in the lane's worktree, uncommitted and marked PROTOTYPE on every line: `src/core/hunt/monster-spells.js` (marked shapes, `group`, and two sim-only dials: `heroResistPm` for the resistance point and `tankCutPm` for the brace), hooks in `damage.js` (the cast step, a thrown basic `reach`), `movement.js` (stand through the windup), `targeting.js` and `rule-subjects.js` (the cut Casting first), `conditions.js` and `condition-metrics.js` (`enemy_casting`, `in_fight`, `party_hp_pct`, `target_weak`, `target_resists`), `abilities.js` (`spring_tide`), and in `tools/balance-sim`: `cell.mjs` (spell tallies, eat on a cast) and `boss-call-table.mjs` (`--spells`, `--group`, the Spring Tide bar). Driver, reader, runners and the patch are in the lane's scratchpad. Plans run: wick (288 cells), wickpull (192), speed (192), reach (144), the final Wickstead table (192), glade (72), party (36), answers (120), answers2 (32), tide (58), group (41 four-hour Wickstead cells), group3 (98 one-hour cells) and 34 boss rows of 24-60 tries. **A finding for the Coordinator:** tonight this PC slows any process about 60x after 3 seconds of steady load (a plain JS loop: 2,259 to 35 million additions a second), so `tools/balance-sim` pools crawled (2 s cells took 100-300 s). group3 ran one cell per fresh process with rests. **Measured:** every number above. **Assumed:** that sparing a hero in place is close to a built step. That one seed x 1 h (group3) reads deaths and money roughly (it bounds a death rate only under about 3 an hour). That 4 ways stand for 8 in group3. The unlock hours. **Not verified:** the three hero area spells' numbers, Cold Bilge, Ash Bloom and Tail Lash, a boss with both kinds at once, resistance between 0 and 30%, every rendering and setting, the three conditions that only rendered.
 
 ### 2026-11-07 One formula for every hunt (designer, lane/b-ground-formula; Tyler 2026-11-07 "is there a formula you can start following?", then "Yes, start there", then "fleshing this system out perfectly and applying it to all current hunts"): BUILT as data, a generator and a grader; the sample MEASURED on the real engine; Wickstead's and the Glade's rows WRITTEN by the formula
 **The call.** Every ground is now built and graded by three things in one data module, `src/data/balance-sheet.js`: a **target sheet** (what a ground must measure), a **stat formula** (a monster's numbers from its Level, its role and its ground's floor) and **one tier table** (Normal, Dangerous, Deadly as dials). `tools/gen-ground-stats.mjs` writes the rows (`formula: true` on each), `tools/balance-sim/sheet-check.mjs` plays a ground and grades it line by line, and `tests/balance-sheet.mjs` holds every written row to the formula digit for digit. A balance complaint becomes a dial to move, not a hand re-fit. The formula keeps the XP the hand rows already paid (about 1.8 x Level^0.4 a HP point on every open ground) and their coin (about 0.3 g a point), plus 30% coin on a ground that bites in full, so the food its danger costs comes back (harder pays more). What it fixes is danger, which now climbs by one rule instead of by ground.

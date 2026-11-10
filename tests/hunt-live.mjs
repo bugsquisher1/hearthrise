@@ -6,7 +6,7 @@
 //   node tests/hunt-live.mjs --mutate   every planted defect must turn its rule RED
 //   node tests/hunt-live.mjs --mutate --only LV-HOLD   just the mutants whose name holds that text
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js src/core/hunt/boss-phases.js src/core/hunt/damage.js
+// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/monster-spells.js src/core/hunt/marks.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
 // mutant-rule-functions: rules
 // mutant-runner-functions: mutate main
@@ -76,6 +76,9 @@
 //         casts on them, on the server's commits (browser closed) and in the prediction (viewed).
 //   LV-NOFIGHT A HERO WHO CAN'T FIGHT GOES HOME (designer 10-31): a bare bow with the store shut ends no_fight at its
 //         span on the server's commits; viewed, the prediction stops there too and every commit before it matches.
+//   LV-SPELL A MONSTER'S GROUP STRIKE (Tyler 2026-11-08, lane/b-area-engine): every hero of a party of four, and a lone hero, is struck
+//         at every landing wherever it stands, on the server's commits (browser closed); viewed, every commit matches and the browser
+//         plays the server's own marks; a frost-resisting tank (gear resistPm, carried to a peer's browser in its frozen row) takes half.
 //   LV-RR THE PARTY'S RARE ROLL IS THE SERVER'S (Tyler L8; rulings: loot rolls use a server-only
 //         stream): with every monster carrying rare rows, the server's commits roll rares
 //         (`rare_roll`, each Crown Shard to its winner) and the browser's prediction, which
@@ -138,6 +141,9 @@ async function load(base) {
   const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(base, 'src/build-info.js'), 'utf8')) || [, ''])[1];
   return {
     ENGINE_MONSTERS: (await import(pathToFileURL(join(base, 'src/data/monsters.js')).href + V)).MONSTERS,
+    /* the engine's own spell table (LV-SPELL plants a test row and takes it back) */
+    ENGINE_SPELLS: (await import(pathToFileURL(join(base, 'src/data/monster-spells.js')).href + V)).MONSTER_SPELLS,
+    ENGINE_ELEMENTS: await import(pathToFileURL(join(base, 'src/core/elements.js')).href + V),
     /* the engine's own tier rows (LV-DIAL swaps one for a what-if and puts it back) */
     ENGINE_TIERS: (await import(pathToFileURL(join(base, 'src/data/hunt-tiers.js')).href + V)).GROUND_TIERS,
     /* the engine's own blow and to-hit (deadlyRows builds its rows with them) */
@@ -1647,6 +1653,55 @@ function rules(M) {
     ok('LV-CLASS', closedXp.join() === viewedXp.join() && closedXp.every((x) => x > 0), 'pull: viewed the server paid ' + viewedXp + ', with the browser closed ' + closedXp);
     ok('LV-CLASS', off === 0, 'pull: ' + off + ' of ' + r.verdicts.length + ' commits did not match the prediction');
   }
+
+  { // LV-SPELL: A MONSTER'S GROUP STRIKE, BOTH PATHS (Tyler 2026-11-08: "for the full group to take some damage"; lane/b-area-engine).
+    // Every Cellar monster casts a group frost strike (a test row planted on the engine's own table, put back after): every
+    // hero of a party of four, and a lone hero, is struck at every landing wherever it stands. The tank wears frost resistance
+    // (a test resistPm on its shield) and takes at most half of what the others can. Browser closed: the server's commits.
+    // Viewed: every commit matches the prediction, the marks (spell / spell_end) the browser plays are the server's, and the
+    // tank's resistance reaches the browser through its frozen row (a peer's in the party).
+    const SPELL = { n: 'Test Squall', shape: 'group', range: 6, windupMs: 2000, cdMs: 6000, hitPm: 2000, element: 'frost' }, SID = 'lv_squall';
+    const kinds = [...new Set(M.HG.huntGroundOf('mill_cellar').ground.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((s) => s.monster || s)))]
+      .filter((k) => M.ENGINE_MONSTERS[k]);
+    const rows = [M.ENGINE_MONSTERS, M.MONSTERS];
+    const keep = kinds.map((k) => rows.map((t) => [Object.prototype.hasOwnProperty.call(t[k], 'spells'), t[k].spells]));
+    const shield = M.ITEMS.practice_shield, hadResist = Object.prototype.hasOwnProperty.call(shield, 'resistPm'), oldResist = shield.resistPm;
+    M.ENGINE_SPELLS[SID] = SPELL;
+    for (const k of kinds) for (const t of rows) t[k].spells = [SID];
+    /* asked 50%, worn at the 40% cap (data/elements.js HERO_RESIST_PM) */
+    shield.resistPm = { frost: 500 };
+    try {
+      for (const [name, mis] of [['four', [memberOf(M, 'a', 0, 'tank', 6), memberOf(M, 'b', 1, 'melee_dps', 6), memberOf(M, 'c', 2, 'ranger', 6), memberOf(M, 'd', 3, 'melee_dps', 6)]],
+        ['lone', [memberOf(M, 'a', 0, 'tank', 6)]]]) {
+        const r = run(M, mis, 96000, { viewer: { user: mis[mis.length - 1].user, slot: 0 } });
+        const server = r.verdicts.flatMap((x) => x.tl.hunt_events);
+        const ends = server.filter((e) => e.type === 'spell_end' && e.why === 'landed');
+        const heroes = mis.map((m) => m.unitId);
+        /* (two casters may land in one instant: each landing is its own caster's hits) */
+        const hitAt = (at, u) => server.filter((e) => e.type === 'dmg' && e.ability === SID && e.atMs === at && e.u === u).map((e) => e.t).sort((a, b) => a - b);
+        const missed = ends.filter((e) => e.hits !== heroes.length || JSON.stringify(hitAt(e.atMs, e.u)) !== JSON.stringify(heroes.slice().sort((a, b) => a - b)));
+        console.log(`  LV-SPELL ${name}: ${ends.length} group strikes landed on the server's commits, ${missed.length} missed a hero; ${r.verdicts.filter((x) => x.v === 'match').length} of ${r.verdicts.length} commits matched`);
+        ok('LV-SPELL', ends.length >= 3, `${name}: browser closed: ${ends.length} group strikes landed in 96 s (the rule needs some)`);
+        ok('LV-SPELL', missed.length === 0, `${name}: browser closed: a group strike missed a hero of ${heroes.length} at ${missed.map((e) => e.atMs - T0)}`);
+        const off = r.verdicts.filter((x) => x.v !== 'match');
+        ok('LV-SPELL', r.verdicts.length >= 5 && off.length === 0, `${name}: viewed: ${off.length} of ${r.verdicts.length} commits did not match the prediction`);
+        const fed = new Set(r.fed.events.filter((e) => e.type === 'spell' || e.type === 'spell_end').map((e) => JSON.stringify(e)));
+        const marks = server.filter((e) => e.type === 'spell' || e.type === 'spell_end');
+        ok('LV-SPELL', marks.length > 0 && marks.every((e) => fed.has(JSON.stringify(e))), `${name}: viewed: ${marks.filter((e) => !fed.has(JSON.stringify(e))).length} of the server's ${marks.length} marks were not the browser's`);
+        /* the tank's resistance: its hits stay inside the capped share of the strike's top (balanced stance, no armor worn), the others' go past it */
+        const tank = mis[0].unitId;
+        const amounts = (pred) => server.filter((e) => e.type === 'dmg' && e.ability === SID && pred(e.t)).map((e) => e.amount);
+        const T = amounts((t) => t === tank), O = amounts((t) => t !== tank);
+        const top = Math.max(...kinds.map((k) => Math.floor((M.ENGINE_COMBAT.monsterMaxHit(M.ENGINE_MONSTERS[k]) * SPELL.hitPm) / 1000)));
+        const cap = Math.floor((top * M.ENGINE_ELEMENTS.heroElementPermille({ frost: 500 }, 'frost')) / 1000);
+        ok('LV-SPELL', T.length > 0 && Math.max(...T) <= cap && (name === 'lone' || Math.max(...O) > cap), `${name}: the frost-resisting tank took ${Math.max(...T, 0)} at most (cap ${cap} of the top ${top}), the rest ${Math.max(...O, 0)}`);
+      }
+    } finally {
+      delete M.ENGINE_SPELLS[SID];
+      kinds.forEach((k, i) => rows.forEach((t, j) => { const [had, v] = keep[i][j]; if (had) t[k].spells = v; else delete t[k].spells; }));
+      if (hadResist) shield.resistPm = oldResist; else delete shield.resistPm;
+    }
+  }
   return fails;
 }
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
@@ -1703,6 +1758,9 @@ const MUTANTS = [
     '    const where = huntGroundOf(String(live.instance.hunt));\n',
     '    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { leashMargin: 0 }) };\n', /^LV-OPEN: viewed/],
   ['a second tank holds where it stands (LV-T)', 'src/core/hunt/roles.js', "  if (!onMe.length) { h.spot = null; closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }\n", '', /^LV-T/],
+  ['a frozen peer row drops its resistance (LV-SPELL)', 'src/core/member.js', '  ...(snap.resistPm ? { resistPm: snap.resistPm } : {}) });', '  });', /^LV-SPELL: four: viewed/],
+  ['a group strike lands only on its target (LV-SPELL)', 'src/core/hunt/shapes.js', "    case 'group': return true;", "    case 'group': return d === 0;", /^LV-SPELL: four: browser closed/],
+  ['gear never sums its resistance (LV-SPELL)', 'src/core/combat.js', '  if (resist) Object.assign(s, { resistPm: resist });\n', '', /^LV-SPELL: four: the frost-resisting tank/],
   ['the swing runs on after a hero dies (LV-Q, live v0.2.23)', 'src/core/hunt/world-step.js', '    if (heroes.some((u) => !u.alive)) break;\n', '', /^LV-Q/],
   ['an ended instance keeps the prediction swinging (LV-E)', 'src/hunt-view/live-engine.js', 'if (!(sim.nextSwingAtMs > at)) {', 'if (false) {', /^LV-E/],
   ['a fresh world counts from 0, not the instance swing (LV-W)', 'src/hunt-view/live-engine.js', '      worldSwing: s.worldSwing },', '      worldSwing: 0 },', /^LV-W/],

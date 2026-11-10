@@ -44,6 +44,8 @@ export const EVENT_FX = Object.freeze({
   rare_drop: row({ fx: 'fx_loot_sparkle', at: 'viewed', lift: CHEST }),
   rare_roll: null,   // a party's roll: its rare_drop (same instant, the winner) plays the sparkle; the roll is a log line
   ended: null, death: null, slot_dry: null, pack_reset: null, pull: null, respawn: null, wipe: null, boss_phase: null,
+  /* a monster's spell: its mark on the ground is drawn from marks.js (the server's tiles), not a sprite row here */
+  spell: null, spell_end: null,
   miss: null,  // GLANCE_FX, below
   target: null, status_on: null, status_off: null,
   eat: null, drink: null, xp: null, xp_group: null, rule_stop: null, shot: null, rule_wait: null,

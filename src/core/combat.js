@@ -21,7 +21,7 @@ import { levelOf } from './xp.js?v=0.2.113';
 import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
 } from './bane.js?v=0.2.113';
-import { elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=0.2.113';
+import { elementMultFor, MAX_TOTAL_DAMAGE_MULT, resistProfile } from './elements.js?v=0.2.113';
 import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.113';
 /* The bestiary CHARM and TROPHY combat multipliers are gone (closed rebuild,
    demolition safety review item 9: trophies stay as claims and display; the
@@ -178,7 +178,25 @@ export function equipmentStats(equipment, items) {
   /* CRAFTED JEWELRY'S PERKS (src/data/jewelry.js): present only on a hero that wears one, so every other hero's stats are what they were. */
   const jewel = jewelPerksOf(equipment, items);
   if (jewel) Object.assign(s, { jewel });
+  /* ELEMENTAL RESISTANCE (Tyler 2026-11-08: gear and imbuements answer a monster's group spell): the worn pieces' `resistPm`
+     { element: permille less taken }, summed and bounded (elements.js resistProfile); present only on a hero whose gear
+     carries any, which no item does yet, so every hero's stats are what they were. */
+  const resist = resistOf(equipment, items);
+  if (resist) Object.assign(s, { resistPm: resist });
   return s;
+}
+
+/* The summed `resistPm` of a worn set, normalised (elements.js resistProfile), or null. */
+function resistOf(equipment, items) {
+  /** @type {Record<string, number>} */
+  const sum = {};
+  let any = false;
+  for (const id of Object.values(equipment || {})) {
+    const p = id && items && Object.prototype.hasOwnProperty.call(items, id) && items[id] ? items[id].resistPm : null;
+    if (!p || typeof p !== 'object') continue;
+    for (const k of Object.keys(p)) { sum[k] = (sum[k] || 0) + (Math.trunc(Number(p[k])) || 0); any = true; }
+  }
+  return any ? resistProfile(sum) : null;
 }
 
 /**

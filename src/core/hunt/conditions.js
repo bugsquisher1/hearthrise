@@ -53,7 +53,7 @@
 // ============================================================
 
 import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.113';
-import { ABILITIES, suggestedTrigger } from '../../data/abilities.js?v=0.2.113';
+import { ABILITIES, suggestedTrigger, areaSpec } from '../../data/abilities.js?v=0.2.113';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.113';
 import { SUPPLIES } from '../../data/supplies.js?v=0.2.113';
 import { ITEMS } from '../../data/items.js?v=0.2.113';
@@ -64,6 +64,9 @@ import { makeEvent } from './events.js?v=0.2.113';
 import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.113';
 import { START_BAR } from '../../data/start-kit.js?v=0.2.113';
 import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.113';
+import { footprint, inFootprint, place, covers, tilesMax } from './shapes.js?v=0.2.113';
+import { castsCovering } from './marks.js?v=0.2.113';
+import { elementPermille } from '../elements.js?v=0.2.113';
 import { RUNE_ON_EMPTY, isRune, runeTierOf } from '../../data/runes.js?v=0.2.113';
 
 /* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
@@ -111,7 +114,7 @@ export function normalizeSlot(s) {
 export const ignores = (slot, m) => !!(slot && Array.isArray(slot.ignore) && slot.ignore.length && m && m.side === 'mon' && slot.ignore.includes(m.kind));
 
 /* The ability targets that are MONSTERS (abilities.js TARGETS): the only ones an ignore list can mean. */
-const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'cleave']);
+const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'line', 'ring', 'cleave']);
 /** Does `slot` aim at monsters (an attack item, or an ability whose target is a monster)? An IGNORE LIST
     binds only these (Coordinator 2026-10-23): a food, a drink, a heal or a shield aims at a hero, so a hero
     fighting an ignored monster still eats, drinks and heals. */
@@ -396,18 +399,8 @@ export function slotsFor(h, lane) {
 
 /* ── THE FOOTPRINT ────────────────────────────────────────────────────── */
 
-/** The [lo, hi] tile offsets of an n x n footprint round its aim (an even n reaches south-east). */
-export function footprint(n) {
-  const size = Math.max(1, int(n) || 1);
-  const lo = size % 2 ? -(size - 1) / 2 : -(size / 2 - 1);
-  return [lo, lo + size - 1];
-}
-/** Is unit `t` inside the n x n footprint aimed at `aim`? */
-export function inFootprint(aim, n, t) {
-  const [lo, hi] = footprint(n);
-  const dx = t.x - aim.x; const dy = t.y - aim.y;
-  return dx >= lo && dx <= hi && dy >= lo && dy <= hi;
-}
+/* The n x n footprint is the one geometry's square (src/core/hunt/shapes.js), named here as it always was. */
+export { footprint, inFootprint };
 
 /** The item row an id names: the injected catalogue (the server's), else the static one. */
 export const itemRow = (h, id) => (h && h.items && h.items[id]) || ITEMS[id] || null;
@@ -416,7 +409,7 @@ export const itemRow = (h, id) => (h && h.items && h.items[id]) || ITEMS[id] || 
    attack item its row's `area` (1 = one target), everything else 1. */
 export function footprintOf(slot, h) {
   const a = slot.action;
-  if (a.type === 'ability') return ABILITIES[a.id] && ABILITIES[a.id].target === 'area' ? 3 : 1;
+  if (a.type === 'ability') return ABILITIES[a.id] && ABILITIES[a.id].target === 'area' ? areaSpec(ABILITIES[a.id]).n : 1;
   if (a.type === 'attack_with_item') { const r = itemRow(h, a.id); return Math.max(1, int(r && r.area) || 1); }
   return 1;
 }
@@ -443,12 +436,49 @@ function cleaveReach(inst, hero, range, row, slot) {
 }
 const cleaveRow = (slot) => (slot && slot.action.type === 'ability' && ABILITIES[slot.action.id] && ABILITIES[slot.action.id].target === 'cleave' ? ABILITIES[slot.action.id] : null);
 
-/** The most monsters `slot`'s action can hit at once: a Cleave's maxHits, else every tile of its footprint (src/shell/slot-waits.js). */
+/* An ability slot whose row strikes a line or a ring round its hero (abilities.js areaSpec): its row, else null. The
+   3x3 'area' keeps its footprint (footprintOf); both are shapes.js shapes. */
+const shapedRow = (slot) => {
+  const row = slot && slot.action.type === 'ability' ? ABILITIES[slot.action.id] : null;
+  return row && (row.target === 'line' || row.target === 'ring') ? row : null;
+};
+
+/** The most monsters `slot`'s action can hit at once: a Cleave's maxHits, a line's length, a ring's tiles (up to its
+    maxHits), else every tile of its footprint (src/shell/slot-waits.js). */
 export function areaTopOf(slot, h) {
   const cl = cleaveRow(slot);
   if (cl) return cl.maxHits;
+  const sh = shapedRow(slot);
+  if (sh) return Math.min(tilesMax(areaSpec(sh)), Number.isInteger(sh.maxHits) ? sh.maxHits : Infinity);
   const n = footprintOf(slot, h);
   return n * n;
+}
+
+/**
+ * THE BEST AIM FOR A SHAPE ROUND ITS HERO (abilities.js areaSpec: a line through an aim, a ring round the hero):
+ * { aim, count } or null. A RING needs no aim: it counts every engaged monster it covers (up to the row's maxHits), and
+ * its aim is the hero's own target when the ring holds it, else the lowest id. A LINE is tried through every engaged
+ * monster the hero can reach (its own target first, then by id) that the line reaches, and the one covering the most
+ * wins. A monster `slot` ignores is never the aim; it is still counted when the shape covers it (bestAim's rule).
+ */
+export function shapedAim(inst, hero, range, row, slot) {
+  const spec = areaSpec(row);
+  const mons = engagedMons(inst);
+  const own = (a, b) => (Number(b.id === hero.target) - Number(a.id === hero.target)) || a.id - b.id;
+  if (spec.shape === 'ring') {
+    const s = place(spec, hero, hero);
+    const hit = mons.filter((m) => covers(s, m.x, m.y));
+    const aim = hit.filter((m) => !ignores(slot, m)).sort(own)[0];
+    return aim ? { aim, count: Math.min(hit.length, Number.isInteger(row.maxHits) ? row.maxHits : hit.length) } : null;
+  }
+  let best = null; let bc = -1;
+  for (const c of mons.filter((m) => reaches(inst, hero, range, m) && !ignores(slot, m)).sort(own)) {
+    const s = place(spec, hero, c);
+    if (!covers(s, c.x, c.y)) continue;
+    const count = mons.filter((m) => covers(s, m.x, m.y)).length;
+    if (count > bc) { bc = count; best = c; }
+  }
+  return best ? { aim: best, count: bc } : null;
 }
 
 /** The best aim for an n-footprint: { aim, count } over every reachable engaged monster, or null. A
@@ -504,6 +534,19 @@ function slotStock(cx) {
   return row && row.rune ? leftOf(hs, row.rune) : 0;
 }
 
+/* THE SLOT'S ELEMENT AGAINST ITS AIM, permille (core/elements.js elementPermille, never 0), or null when the slot strikes
+   with no element or has no monster to judge. An ability strikes with its row's element; an attack slot's shot with the
+   hero's own (damage.js: every shot lands as the unit's element). Its aim: the one an earlier condition of the slot found
+   (enemies_in_aoe), else the hero's own target. */
+function elementVs(cx) {
+  const a = cx.slot && cx.slot.action;
+  const el = !a ? null : a.type === 'ability' ? (ABILITIES[a.id] && ABILITIES[a.id].element) || null
+    : a.type === 'attack_with_item' ? cx.u.element || null : null;
+  const t = cx.aim && cx.aim.alive ? cx.aim : Number.isInteger(cx.u.target) ? cx.inst.world.units.find((x) => x.id === cx.u.target) : null;
+  if (!el || !t || t.side !== 'mon' || !MONSTERS[t.kind]) return null;
+  return elementPermille(MONSTERS[t.kind], el);
+}
+
 const EVAL = Object.freeze({
   self_hp_pct: (cx) => share(cx.u.hp, cx.u.maxHp),
   self_mana_pct: (cx) => share(cx.u.mana, cx.u.maxMana),
@@ -512,6 +555,12 @@ const EVAL = Object.freeze({
   enemies_in_aoe: (cx) => {
     const cl = cleaveRow(cx.slot);
     if (cl) return cleaveReach(cx.inst, cx.u, cx.h && cx.h.range, cl, cx.slot);
+    const sh = shapedRow(cx.slot);
+    if (sh) {
+      const s = shapedAim(cx.inst, cx.u, cx.h && cx.h.range, sh, cx.slot);
+      if (s) cx.aim = s.aim;
+      return s ? s.count : 0;
+    }
     const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, footprintOf(cx.slot, cx.h), cx.slot);
     if (b) cx.aim = b.aim;
     return b ? b.count : 0;
@@ -520,6 +569,18 @@ const EVAL = Object.freeze({
     const t = Number.isInteger(cx.u.target) ? cx.inst.world.units.find((x) => x.id === cx.u.target) : null;
     return !!(t && t.side === 'mon' && MONSTERS[t.kind] && MONSTERS[t.kind].boss === true);
   },
+  /* THE AREA SPELLS' CONDITIONS (Tyler 2026-11-08: "make sure the conditions are available that make sense"). */
+  /* The party's health, pooled: every living hero's HP over every living hero's max HP. */
+  party_hp_pct: (cx) => { const hs = heroesOf(cx.inst); return share(hs.reduce((a, h) => a + int(h.hp), 0), hs.reduce((a, h) => a + int(h.maxHp), 0)); },
+  /* How many monsters are winding up a spell whose mark covers this hero (`self`) or any living hero (`any`): the marks
+     the screen shows (marks.js), so "eat when a monster is casting at me" reads exactly what the player sees. */
+  enemy_casting: (cx, c) => castsCovering(cx.inst, c.subject === 'any' ? heroesOf(cx.inst) : [cx.u]).length,
+  /* The fight is on: the hunt is in its fight phase and a monster holds one of the party. */
+  in_fight: (cx) => cx.inst.world.phase === 'fight' && engagedMons(cx.inst).length > 0,
+  /* What the slot's own element does to its aim (an earlier condition's, else the hero's target): weak = it takes more
+     from it, resists = it takes less (core/elements.js: never 0). A slot with no element is neither. */
+  target_weak: (cx) => { const pm = elementVs(cx); return pm !== null && pm > 1000; },
+  target_resists: (cx) => { const pm = elementVs(cx); return pm !== null && pm < 1000; },
   item_qty: (cx, c) => {
     const s = c.subject || 'item';
     const hs = cx.h && cx.h.hs;

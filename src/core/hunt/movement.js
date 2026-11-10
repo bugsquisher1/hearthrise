@@ -186,6 +186,8 @@ export function moveAll(inst, sc) {
       u.path = plan(inst, u, u.goal[0], u.goal[1]) || [];
       u.repathMs = HUNT_TUNING.blockedRepathMs;
     }
+    /* A MONSTER WINDING UP A SPELL stands until it lands (monster-spells.js: it starts only at rest). */
+    if (u.cast) continue;
     stepUnit(inst, u, sc);
   }
 }

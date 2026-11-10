@@ -842,3 +842,15 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - An XP bonus's pace cost is its share of hunting hours x its percent. +25% on every hour reads x0.805 at Level 50 and x0.81-0.82 at 10-25 (skills lag a little).
 - +10% is below what a player feels. At the Glade at 24 the gap between a hammer (83k) and a mage (91k) is wider than +10% on either.
 - Lane branches that insert at the top of the Decisions list collide. Insert a same-day section lower down (before the next dated heading) when another lane is writing the top.
+## 2026-11-08 lane/d-area-spells (area spells, the party heal, effect settings: design and measure)
+- A fair telegraph is one a free hero can step off, and a kiter is always free. So monster area spells are a melee and tank threat by construction: they can't make a lone kiter pay, and no dial I tried (2-3x spells, monsters 25% faster, a thrown basic) did. Ask what reaches each way to fight before promising risk for all eight.
+- A windup costs the caster its swings. A spell under about 2x its blow makes a monster weaker (Squeal at 1.5x lifted a good bar 88% to 93%). Size spells against the swings they replace.
+- Kill-the-caster-first is a fake decision when a caster outlives its windup (25-30 HP vs 1.6 s): measured no change, cut. Defensive stance is the strongest setup answer (16.3 to 1.25 deaths an hour), eat-on-cast adds to it (0.31).
+- With melee hold, ranged step off, a party heal on 2+ hurt allies only wakes when two melee stand in the ring. Measure a party heal on a four with two melee, never on tank, healer, bow, mage (it never fires there).
+- Slot conditions join with AND only (OR is for stop rules): an or-rule is two slots. A true/false metric negates by swapping " is " in its label, so every bool label must hold " is ".
+- Bash guard blocks rm -rf inside a worktree (even tools/balance-sim/out): give a re-run a new out tag instead.
+- (update, the same day) Whole-group spells are what reach a kiter: nobody steps out of one. On the table's lone pulls (lane/b-one-difficulty) a lone mage at Wickstead Deadly goes from holding to dying. Normal stayed at zero alone and in a four on every ground.
+- Tyler's "waste a ton of supplies" is measurable: a Deadly four at the Glade lost 72% of its profit to a 1.5x group spell, and 30% element resistance took it back to -33%. Size group spells against the resistance a gear tier will give, and play the resistance point before the spell ships.
+- Spring Tide can cost a fight: at the Chief (his damage lands on the tank) 160 mana on the party starved Greater Mend (75% to 65% wins). A big party heal is a decision, not a free win.
+- A boss group pulse is a hard check on a bad bar (0.8x: 95% good, 0-5% bad). 0.4x kept the bad bar near Tyler's 30%.
+- This PC slowed any process about 60x after 3 s of steady load tonight (a JS loop: 2,259 to 35 M adds a second), so balance-sim pools crawled. One cell per fresh process, with rests, ran at full speed. Check with a 8-second loop before a long plan.

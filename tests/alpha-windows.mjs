@@ -329,6 +329,22 @@ async function openWin(page, key, id) {
   await page.keyboard.press(key);
   return wait(page, (w) => document.querySelector('[data-hs-win="' + w + '"] [data-hs-built]'), id, 3000);
 }
+/* A PRESS IS CHECKED, NOT CLICKED BLIND (runs 42678595702 and 42735492394: a 6 s click timeout read as HARNESS, never as
+   the catch it was). Why the control `sel` would not take a player's press, '' when it would: it is on screen, on, and,
+   once scrolled into view the way a player scrolls (nearest), the topmost thing at its middle. The caller fails its own
+   rule BY NAME with this reason and stops that arm. */
+const pressBlock = (page, sel) => page.evaluate((q) => {
+  const b = document.querySelector(q);
+  if (!b) return 'it is not on screen';
+  if (!b.getClientRects().length) return 'it is hidden';
+  if (b.disabled) return 'it is off';
+  b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  const r = b.getBoundingClientRect();
+  const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  if (!top || top === b || b.contains(top)) return '';
+  const cls = typeof top.className === 'string' ? top.className.trim() : '';
+  return 'it lies under ' + top.tagName.toLowerCase() + (cls ? '.' + cls.split(/\s+/).join('.') : '') + (top.textContent ? ' ("' + top.textContent.trim().slice(0, 40) + '")' : '');
+}, sel);
 const count = (page, id) => page.evaluate((i) => { const li = document.querySelector('.hw-pocket[data-item="' + i + '"]'); return li ? li.querySelector('.hw-count').textContent : null; }, id);
 const sent = (s, name, verb) => s.calls.filter((c) => c.name === name && (!verb || c.body.verb === verb));
 
@@ -818,20 +834,22 @@ async function planRules(base) {
   /* before a hero walks away: how long this stamina lasts, game closed or not (panel 2026-11-01: 5 h 46 idle with no word before leaving) */
   const lasts = say(sess({ stamina: { ms: 3 * 3600000 + 17 * 60000, max_ms: 43200000 } }));
   if (!lasts.includes('Stamina: 3 h 17 min. Your hero hunts that long, even with the game closed, then comes home.')) fails.push('AW-27 a long stamina reads ' + JSON.stringify(lasts));
-  /* A rune spell with no rune and no store behind it loses that spell only (named, not a stop); no food is said. */
-  const spell = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'flame_strike', 0)], store: STORE } }));
+  /* A rune spell with none of its ticked runes and no store behind it (its slot set to "Leave the hunt": a slot that says nothing
+     buys from the shop, Tyler 2026-11-08) loses that spell only (named, not a stop); no food is said. */
+  const leaving = (id) => ({ action: { type: 'ability', id, onEmpty: 'leave' }, conditions: [], join: 'and', usable: true, count: 0 });
+  const spell = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [leaving('flame_strike')], store: STORE } }));
   /* (a rune spell spends any tier of its family, so the line names and counts the family: lane b-spell-content) */
   /* ...and says the fix: a style's default bar meets a new hero here first (designer 2026-10-29, lane/a-starter-bars) */
   if (spell !== 'Runes: no Fire runes of yours. Flame Strike will not fire. To cast it, press its slot and pick Plain Fire Rune (1 gp a cast) under "When your runes run out" | Your bar eats and drinks nothing: HP and mana come back only between fights. | Stamina: 8 h 0 min. Your hero hunts that long, even with the game closed, then comes home.') fails.push('AW-27 a spell with no rune reads ' + JSON.stringify(spell));
   /* two spells of two families (the Mage's default Frost Lance and Arcane Barrier): both named, each family's store rune */
   const RUNES = STORE.concat([['plain_ice_rune', 'chalked_ice_rune'], ['plain_earth_rune', 'chalked_earth_rune']].map(([id, partner]) => ({ ...STORE.find((r) => r.id === 'plain_fire_rune'), id, partner })));
-  const two = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'frost_lance', 0), slot('ability', 'arcane_barrier', 1)], store: RUNES } }));
+  const two = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [leaving('frost_lance'), leaving('arcane_barrier')], store: RUNES } }));
   if (!/^Runes: no Ice runes of yours, no Earth runes of yours\. Frost Lance and Arcane Barrier will not fire\. To cast them, press each slot and pick Plain Ice Rune \(1 gp a cast\) or Plain Earth Rune \(1 gp a cast\) under "When your runes run out"/.test(two))
     fails.push('AW-27 two struck spells read ' + JSON.stringify(two));
   /* AW-27 what casts, then what won't (first-hour play 2026-10-31: "no Fire runes of yours, then Plain Fire Rune from the store,
      then no Ice runes of yours, then no Earth runes of yours"); two spells of one family name its store rune once */
   const stored = (id, store) => ({ action: { type: 'ability', id, store }, conditions: [], join: 'and', usable: true, count: 0 });
-  const mix = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('fireball', 'plain_fire_rune'), slot('ability', 'frost_lance', 0)], store: RUNES } }));
+  const mix = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('fireball', 'plain_fire_rune'), leaving('frost_lance')], store: RUNES } }));
   if (!mix.startsWith('Runes: Plain Fire Rune from the store, 1 gp a cast. Frost Lance will not fire. To cast it, press its slot and pick Plain Ice Rune (1 gp a cast)')) fails.push('AW-27 a live spell beside a struck one reads ' + JSON.stringify(mix));
   /* the rune ladder: a named deeper rune is said at its own price; one above the level is no promise: the spell will not fire, and the fix is the family's Plain */
   const SCORED_ROW = { ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_scored_fire_rune', partner: 'scored_fire_rune', price: 8 };
@@ -1108,6 +1126,9 @@ async function planRules(base) {
     const unsaid = { picks: follow.picks.map((p) => ({ ...p, id: 'banded_signet' })), choices: [] };
     if (ops2(follow) !== '{"ring2":"banded_signet_follow"}' || UP.upgradeWords(follow) !== 'Wear Banded Signet (Follow-through).' || UP.upgradeWords(unsaid) !== 'Wear Banded Signet (adds Follow-through).')
       fails.push('AW-21 a Follow-through ring in the bag beside a worn Keen ring reads ' + ops2(follow) + ' / ' + UP.upgradeWords(follow) + ' / ' + UP.upgradeWords(unsaid));
+    /* a perked ring that also adds a number keeps ONE bracket (voice lane 2026-11-09: "(Follow-through) (+1 Melee accuracy)" read wrong) */
+    const both = { picks: follow.picks.map((p) => ({ ...p, gains: [{ label: 'Melee accuracy', text: '+1 Melee accuracy' }, ...p.gains] })), choices: [] };
+    if (UP.upgradeWords(both) !== 'Wear Banded Signet (Follow-through, +1 Melee accuracy).') fails.push('AW-21 a perked ring that adds a number reads ' + UP.upgradeWords(both));
     if (Object.keys(rings('banded_signet_follow', 'banded_signet', ['banded_signet_follow']).ops).length) fails.push('AW-21 a second Follow-through ring goes on, though a perk plays once');
     if (Object.keys(rings('banded_signet_follow', 'banded_signet_keen', ['banded_signet_surge']).ops).length) fails.push('AW-21 a Surge ring silently takes a Keen ring\'s place');
     const pick = rings('banded_signet_follow', 'banded_signet', ['banded_signet_keen', 'banded_signet_surge']);
@@ -1886,7 +1907,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 
     { // AW-9 fail safe without the new sections
       const { ctx, page, up } = await open({ mutateEnv: (e) => { delete e.bag_rules; delete e.shop; } });
-      if (up) {
+      if (up) aw9: {
         await openWin(page, 'b', 'inventory');
         await page.click('.hw-pocket[data-item="rat_tail"]', { button: 'right' });
         await page.waitForTimeout(150);
@@ -1894,8 +1915,16 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           rules: Array.from(document.querySelectorAll('[data-hs-act="m-rule"]')).every((b) => b.disabled),
           dispatch: document.querySelector('[data-hs-act="dispatch"]').disabled, value: document.querySelector('.hw-value').textContent }));
         if (!st.lock || !st.rules || !st.dispatch || st.value !== 'Reading the shop prices…') fails.push('AW-9 without the server’s sections the bag offered ' + JSON.stringify(st));
-        /* The reason is a loading line (audit 11-09 F11): bag_rules IS projected, so "switch on when the server starts keeping them" was false. */
-        await page.click('.hw-pocket[data-item="rat_tail"]');
+        /* The reason is a loading line (audit 11-09 F11): bag_rules IS projected, so "switch on when the server starts keeping them" was false.
+           The player's way: Esc puts the menu away, then the stack is pressed, checked, not clicked blind. It was clicked through the open menu,
+           whose corner stands on the stack's middle (the press point): Playwright reached it only on its 4th try, after scrolling the bag, and a
+           loaded runner can spend its 6 s first. The Equip upgrades mutant's HARNESS (nightly 42678595702, main 42735492394) came with this
+           step (a33a2a080) and threw at the time it runs. */
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(100);
+        const ratBlock = await pressBlock(page, '[data-hs-win="inventory"] .hw-pocket[data-item="rat_tail"]');
+        if (ratBlock) { fails.push('AW-9 the rat tails cannot be pressed once Esc put the item menu away: ' + ratBlock); break aw9; }
+        await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="rat_tail"]');
         await page.keyboard.press('l');
         await page.waitForTimeout(150);
         const lockSaid = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);
@@ -3760,7 +3789,7 @@ const MUTANTS = [
   ['plans: AW-65 a carry offers gear and loot', 'src/shell/carry-in.js', '  return bag.filter((r) => SUPPLIES[r.id] && r.qty > 0)', '  return bag.filter((r) => r.qty > 0)'],
   ['plans: AW-65 a hunt on its way home still offers a carry', 'src/shell/carry-in.js', '!s.ended_at && !s.leave_at && !s.change_at', '!s.ended_at'],
   ['plans: AW-65 one carry offers past the server\'s per-call max', 'src/shell/carry-in.js', 'max: Math.min(r.qty, CARRY_MAX)', 'max: r.qty'],
-  ['plans: AW-65 a rune spell offers no rune of its family', 'src/shell/carry-in.js', '  return !!r && familyCount(r, [{ id, qty: 1 }]) > 0;', '  return false;'],
+  ['plans: AW-65 a rune spell offers no rune of its family', 'src/shell/carry-in.js', '  return !!sup && sup.own.includes(id);', '  return false;'],
   ['plans: AW-65 the loaded shot offers nothing of the worn ammo', 'src/shell/carry-in.js', "return (a.id === 'loaded' ? worn : a.id) === id;", 'return a.id === id;'],
   ['plans: AW-65 a struck slot never says its stock waits in the bag', 'src/shell/action-facts.js', '  const inPack = (id) => ((pack || []).find((r) => r.id === id) || {}).have || 0;', '  const inPack = () => 0;'],
   ['plans: AW-65 a shot waiting for its level is carried in with no word of the wait', 'src/shell/carry-in.js', "  return need ? need.text + ', so it can’t be shot until then.' : null;", '  return null;'],
@@ -3807,6 +3836,8 @@ const MUTANTS = [
   ['the Storage chip and sort are not applied', 'src/shell/windows/storage.js', '  const o = { cat: prefs.cat, query: sc.query, sort: prefs.sort,', "  const o = { cat: 'all', query: sc.query, sort: 'name',"],
   ['the amount picker sends the whole stack', 'src/shell/widgets/amount.js', "  return n ? clampAmount(n.value, n.getAttribute('data-max')) : 1;", "  return n ? clampAmount(n.getAttribute('data-max'), n.getAttribute('data-max')) : 1;"],
   ['Enter in the amount picker does nothing', 'src/shell/windows/float-menu.js', "      if (e.key === 'Enter' && def) { e.preventDefault(); e.stopPropagation(); def.click(); }\n", ''],
+  /* AW-9's press is checked: a menu Esc leaves open lies on the stack, and that is AW-9 red by name, never a 6 s click timeout */
+  ['Esc leaves the item menu over the stack (AW-9)', 'src/shell/windows/float-menu.js', "    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFloatMenu(doc); return; }", "    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); return; }"],
   ['bones offer no Bury', 'src/shell/windows/inventory/state.js', "  if (br) return ['bury', buryLabel(br, buryQty(st.cs, id), st.cs)];\n", ''],
   ['Bury debits the bag before the server answers', 'src/shell/windows/inventory/bury.js', "  const qty = buryQty(cs, id);\n", "  const qty = buryQty(cs, id);\n  delete cs.read('inventory')[id];\n"],
   ['Stop does not collect', 'src/shell/town-work.js', "cs.edgeIntent('set_activity', { activity: { kind: 'idle' } })", "Promise.resolve({ ok: true })"],

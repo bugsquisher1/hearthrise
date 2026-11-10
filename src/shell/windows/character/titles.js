@@ -7,14 +7,14 @@
 // Each press is ONE intent (src/session/title-intents.js), and the row changes only from the re-read envelope.
 // Per hero: the purse pays, but the kills and the title are this hero's.
 // ════════════════════════════════════════════════════════════════════════
-import { TITLES } from '../../../data/titles.js?v=0.2.111';
-import { MIN_PARTY_NOTE } from '../../../data/hunt-grounds.js?v=0.2.111';
-import { titlesOf } from '../../../session/character-sections.js?v=0.2.111';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.111';
-import { buyTitle, wearTitle } from '../../../session/title-intents.js?v=0.2.111';
-import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.111';
-import { whole, gold } from '../../../render/format.js?v=0.2.111';
-import { runIntent } from '../../intent-words.js?v=0.2.111';
+import { TITLES } from '../../../data/titles.js?v=0.2.112';
+import { MIN_PARTY_NOTE } from '../../../data/hunt-grounds.js?v=0.2.112';
+import { titlesOf } from '../../../session/character-sections.js?v=0.2.112';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.112';
+import { buyTitle, wearTitle } from '../../../session/title-intents.js?v=0.2.112';
+import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.112';
+import { whole, gold } from '../../../render/format.js?v=0.2.112';
+import { runIntent } from '../../intent-words.js?v=0.2.112';
 
 /** The Titles tab's skeleton. */
 export function titlesHtml() {

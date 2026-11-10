@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-11-08",
+ "generated": "2026-11-09",
  "production": {
   "measured": "2026-08-30",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -1176,8 +1176,8 @@
   },
   "hr_hunt_end_reasons": {
    "class": "seeded",
-   "replay": 15,
-   "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): END_ORDER (src/data/hunt-sessions.js): the reasons the settle applier may end a hunt with. Rebuilt from repo, never restored; nothing player-owned."
+   "replay": 16,
+   "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): END_ORDER (src/data/hunt-sessions.js): the reasons the settle applier may end a hunt with. Since 2027-03-24-rune-supply-hunt-sessions-catalogue.generated.sql: runes_out (15 -> 16). Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_ground_spawns": {
    "class": "seeded",

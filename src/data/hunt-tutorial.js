@@ -65,27 +65,27 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.111';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.111';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.111';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.111';
-import { SKILLS_DEF } from './skills.js?v=0.2.111';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.111';
-import { tallyTask } from './tally-tasks.js?v=0.2.111';
-import { ITEMS } from './items.js?v=0.2.111';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.111';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.111';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.111';
-import { isShield } from './shields.js?v=0.2.111';
-import { deriveProfile } from '../core/member.js?v=0.2.111';
-import { ABILITIES } from './abilities.js?v=0.2.111';
-import { CONSUMABLES } from './consumables.js?v=0.2.111';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.111';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.111';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.111';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.111';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.111';
-import { regenPermille } from '../core/vitals.js?v=0.2.111';
+import { HUNT_INDEX } from './hunts.js?v=0.2.112';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.112';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.112';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.112';
+import { SKILLS_DEF } from './skills.js?v=0.2.112';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.112';
+import { tallyTask } from './tally-tasks.js?v=0.2.112';
+import { ITEMS } from './items.js?v=0.2.112';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.112';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.112';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.112';
+import { isShield } from './shields.js?v=0.2.112';
+import { deriveProfile } from '../core/member.js?v=0.2.112';
+import { ABILITIES } from './abilities.js?v=0.2.112';
+import { CONSUMABLES } from './consumables.js?v=0.2.112';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.112';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.112';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.112';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.112';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.112';
+import { regenPermille } from '../core/vitals.js?v=0.2.112';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -335,7 +335,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'action_bar', { kind: 'any', of: [READ, { kind: 'rune_spell_on' }] }, { knowledge: true, gotIt: true, when: [HUNTING, THICKET_BEHIND, { kind: 'rune_spell_none' }],
       /* deepest first: the first on screen is ringed (launcher.js ringPlan), so the ring walks tab -> spell -> rune */
       hooks: ['[data-hs-win="configure-action"] .ca-rs[data-store="{store}"]', '[data-hs-win="configure-action"] .ca-row[data-id="{spell}"]',
-        '[data-hs-win="configure-action"] .ca-tab[data-tab="runes"]'] }),
+        '[data-hs-win="configure-action"] .ca-tab[data-tab="spells"]'] }),
   /* THE HELP PAGE, POINTED AT (the panel: "the best thing you've written, buried behind a gear icon"). */
   step('help_page', 'The whole picture',
     'The gear icon at the top right opens Settings, and its Help page explains hunting, supplies, loot, gear and dying in plain words. It\'s there whenever you want it.',

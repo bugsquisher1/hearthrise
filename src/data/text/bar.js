@@ -8,9 +8,8 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const BAR_TEXT = Object.freeze({
-  /* The Configure action window's tabs, and the loaded-ammo slot's name. */
+  /* The Configure action window's tabs (a rune spell is a spell: Tyler 2026-11-08), and the loaded-ammo slot's name. */
   tab_spells: 'Spells',
-  tab_runes: 'Runes',
   tab_food: 'Food & drink',
   tab_ammo: 'Ammo',
   loaded_ammo: 'The loaded ammo',
@@ -77,9 +76,21 @@ export const BAR_TEXT = Object.freeze({
   cost_shot_free: '1 shot of {item} (they never run out)',
   /* a spell's rune when no tier of it can be had: the family's ("1 Earth Rune (none left)") */
   family_rune: '{family} Rune',
-  /* Which numbers a spell's lines are for (cast-facts.js versionWords). */
-  numbers_for: 'Numbers for the {rune} at {skill} {level}.',
-  numbers_at: 'Numbers at {skill} {level}.',
+  /* A rune spell's supply in Configure action (src/shell/rune-supply.js; Tyler 2026-11-08, RUNE SUPPLY PER SLOT). */
+  runes_use: 'Use carried runes',
+  runes_none: 'You carry no {family} runes.',
+  runes_needs: 'Needs {needs}',
+  runes_when: 'When your runes run out',
+  runes_buy: 'Buy from the rune shop',
+  runes_leave: 'Leave the hunt',
+  runes_shop_only: 'Every cast buys from the rune shop.',
+  shop_rune: '{name} · {price} g each · {out}',
+  shop_rune_plain: '{name} · {price} g each',
+  shop_rune_short: '{name} · {price} g each · needs {needs}',
+  /* What one cast lands for this hero (cast-facts.js outputWords). */
+  out_dmg: '{lo}–{hi} damage',
+  out_heal: 'heals {lo}–{hi}',
+  out_shield: 'shields {points}',
 
   /* A slot's setup, and what another slot does to it. */
   setup_any: 'Any of: {conditions}.',
@@ -102,6 +113,8 @@ export const BAR_TEXT = Object.freeze({
   rune_needs_an: 'Needs an {rune} for each cast: you carry none. Pick the store’s rune for this slot to buy one as used.',
   rune_needs_a_packed: 'Needs a {rune} for each cast: none in this hunt, and {waiting}',
   rune_needs_an_packed: 'Needs an {rune} for each cast: none in this hunt, and {waiting}',
+  rune_leaves: 'You carry none of the runes ticked on this slot. When it comes to cast, your hero leaves the hunt.',
+  rune_leaves_packed: 'None of the runes ticked on this slot is in this hunt, and {waiting}',
   no_shot: 'Nothing loaded to shoot. Put arrows or bolts on the bar (Ammo), and this spell casts them.',
   rune_level: 'Your {runes} are a higher tier than your level can cast. Carry a lower tier, or pick the store’s rune for this slot.',
   store_level: 'The store rune on this slot is a higher tier than your level can cast. This slot waits until then. Pick a lower rune for it, or carry your own.',
@@ -126,12 +139,10 @@ export const BAR_TEXT = Object.freeze({
   col_per_shot: 'g per shot, cheapest first',
   col_cooldown: 'Cooldown',
   col_rune: 'Rune',
-  col_per_cast: 'g per cast, cheapest first',
   run_food: 'Food',
   run_drink: 'Drink',
   run_ammo: 'Arrows and bolts',
   secs: '{secs} s',
-  no_rune_spells: 'No rune spells in the game yet.',
   no_spells: 'No spells in the game yet.',
   no_food: 'No food or drink in the game yet.',
   cell_store: 'store',

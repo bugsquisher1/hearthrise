@@ -48,6 +48,7 @@ import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.114';
 import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.114';
 import { catchUpLink, newIdem } from './catch-up.js?v=0.2.114';
 import { pageAway } from './page-away.js?v=0.2.114';
+import { askBody, slimFloor, takeSlim } from './hunt-ask.js?v=0.2.114';
 import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.114';
 
 export const FRAME_EVENT = 'frame';
@@ -498,9 +499,7 @@ export class CharacterSession {
   }
 
   async _helloOnce() {
-    /* A HUNTER'S ASK SAYS WHICH VERSION ITS RECORD HOLDS WHOLE (`have`). At exactly that version the settle floor answers
-       the live start point without the character (hunt_slim, below); at any other, the whole character as before. */
-    const ans = await this._server.accrue(this._huntOpen() && this._wholeAt >= 0 ? { slot: this.slot, have: this._wholeAt } : { slot: this.slot });
+    const ans = await this._server.accrue(askBody(this.slot, this._huntOpen(), this._wholeAt));
     if (this._closed) return false;
     if (ans.status > 0 && ans.status !== 429) this._answeredAt = this._now();   // the server's word (a 429 or a lost network is not)
     /* the account's budget is spent: hold a look-ahead margin, then ONE catch-up (a hunt's own re-read retries it) */
@@ -509,17 +508,7 @@ export class CharacterSession {
        is, with the live start point (take it). A refusal to settle (refusal.js) stands until the next answer (town ticker). */
     if (ans.ok) this.settleRefusal = settleRefusalOf(ans);
     if (ans.ok && ans.body && ans.body.accrued !== true && ans.body.hunt_live && ans.body.state && this._take(ans.body, 'hello')) return true;
-    /* THE FLOOR'S ANSWER WITHOUT THE CHARACTER (hunt_slim): the server's row is at the version this record holds whole, so
-       only the start point and the clock are news; they are played as a full answer's are. At any other version it is not
-       taken: the lines below re-read in full (behind) or keep the newer record (a frame landed meanwhile). */
-    if (ans.ok && ans.body && ans.body.hunt_slim === true && ans.body.accrued !== true && ans.body.hunt_live && !ans.body.state
-      && this._record && this._huntOpen() && ans.body.version === this._wholeAt) {
-      this.receivedAt = this._now();
-      this._play(Object.assign({}, ans.body, { hunt: this.read('hunt') }));
-      this._emit('hello');
-      this._armHuntPoll();
-      return true;
-    }
+    if (ans.ok && this._record && this._huntOpen() && slimFloor(ans.body, this._wholeAt)) return takeSlim(this, ans.body);   // the floor without the character (hunt-ask.js)
     const v = ans.ok && ans.body ? ans.body.version : null;   // a hunter's idle answer at a version held WHOLE: no re-read
     if (Number.isSafeInteger(v) && ans.body.accrued !== true && this._huntOpen() && v <= this._wholeAt) return false;
     if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();

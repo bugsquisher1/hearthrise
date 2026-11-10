@@ -228,6 +228,44 @@ Today about 15 heroes play a day for 48 hunt hours. The ledger takes 16,146 rows
 
 The disk is 8.4 GB. At 10 times today's play the ledger alone passes it at the 90-day line. Findings 1 and 2 together remove about 48% of ledger rows at today's mix. That moves the line and does not remove it. No spend is needed now and none is asked for.
 
+## Part 4. The watched settle, made cheaper (lane `lane/c-watched-settle-cost`, 2026-11-10)
+
+Tyler's answer to finding 1 was that the 16 s confirm cadence stays. So the commits stay and each one has to cost less.
+
+### What the extra commits are
+
+Production, read only, 2026-11-10 11:45 UTC. Each watched commit is a real window: 26,725 member settles in 7 days, 18.4 s and 4.9 kills on average, 45 of them (0.17%) with no value. The tick never settles a watched hunt, so nothing is committed twice. A floor ask (0.43 for every commit) writes two rows, the rate counter and the presence stamp.
+
+The cost is not the commit. It is the whole character rebuilt beside it. `hr_state_of` is 42 ms and 75 KB. A commit builds it once for the asker's answer and once more as a frame for every other member open in a client. In one hour one account's party of four made 180 commits and 540 frames, 41 MB, every frame to one of its own three heroes that was not on screen. Modelled for that party: 42 ms answer, 127 ms frames, 110 ms for the four members' rows, 35 ms of reads, 315 ms a commit. `hr_hunt_apply_instance` is 192 ms a call across all hunts and 18.7% of database time.
+
+Killed with numbers: reading committed state when the tick already settled (the tick never settles a watched hunt), writing nothing on a zero settle (0.17%), moving the per-settle writes to the tick (the rows are a third of the path, and it is the money path), one round trip instead of several statements (saves transactions, not database time).
+
+### What this lane ships
+
+1. `hr_perks_of` no longer scores renown (migration `2027-03-31-watched-settle-cost.sql`). It called `hr_renown_of` on every read to price a field the engine has not read since 2026-10-14. No player-visible change.
+2. The floor's answer without the character (edge `hunt-settle.js`, `request.js`, one line of `index.ts`; client `character-session.js`). A hunter's ask names the version its record holds whole, `have`. When the row is at exactly that version the floor answers the live start point, the clock and the version, and builds no envelope. At any other version, or with no `have`, it answers the whole character as before, so a client is never left on an old version. One honest limit: a section that can move without the hero's version moving (the account purse spent by a hero in town on another device, a party invite) now arrives with the next commit's answer or frame, at most one window later than a floor answer would have brought it. A hunter's idle answers already worked this way (session-core ASK-3).
+3. A dial for the frames to the asker's own off-screen heroes, shipped at today's value. `hr_tick_config.frame_own_s`, 0 = a frame every commit. At N the commit holds the frame to a hero of the asker's own account that is not the asker until the window crosses a multiple of N seconds. Never held: the hunt's end (a death, stamina, supplies, gold, a leave), its Level rising, a rare drop, a supply running dry, stamina running low, any other account's member, the tick.
+
+### The dial: the number proposed, and what a player sees
+
+Proposed: 40. Not 60: the client re-reads an unviewed hero 60 s after its last frame (`unviewedPollMs`), so a frame held a full minute would be met by an `hr_load` of 91 ms each time. The migration caps the dial at 40 for that reason and `tests/watched-settle-cost.mjs` CAP holds the cap to the client's setting. At 40 an off-screen hero of the same account gets a frame every 22 to 58 s, 40 s on average, instead of every 18 s.
+
+What changes on screen at 40, for a hero that is hunting in the same party as the hero on screen and is not on screen itself: its three thin bars on the hero strip (HP, mana, stamina) and its row on the All characters screen (the same bars and its bag's worth) step every 40 s or so instead of every 18 s. What does not change: the hero on screen, the hunt view, the party panel (it reads the on-screen hero's own record), gold, any other account's heroes, and the moment its hunt ends, it dies, its Level rises, a rare drop falls or an alert fires. Switching to that hero asks the server at once, as today.
+
+To turn it: `update public.hr_tick_config set frame_own_s = 40 where id;`. To turn it back: the same with 0. Nothing is lost either way, a frame is a copy.
+
+### The next lane: a settle envelope that carries only what a settle changes
+
+Not built here. It overlaps the `hr_state_of` projection work of `lane/c-level-from-server` (2027-03-29) and the envelope contract, so it should be the lane after that one lands. Size of the prize: the sections a settle can move are about 41% of the 75 KB, so about 59% fewer bytes on every commit answer and frame, and about a quarter of the watched path's database time.
+
+What a delta contains. `{ ok, version, base, delta: true, now }` and, whole, every top-level section a hunt settle can move: `state`, `skills`, the bag and inventory, `hunt`, `hunt_analyzer`, `party`, the tally and progress sections. A section is replaced whole or is absent. No field is ever merged, which keeps rule E1 as it is, one level down. Which sections can move is declared on the server, one boolean column on `hr_state_sections` plus one list for the inline keys, and `hr_state_delta_of` projects exactly those.
+
+How the client proves it holds the base. The ask already names `have`. The commit knows the version it applied on (the member version it checks). The answer is a delta only when `have` equals that version, and it says so in `base`. A frame carries `base` too. The client applies a delta only when its record is whole at exactly `base`. Its version then becomes the delta's and it is whole there.
+
+The fallback to a whole envelope. No `have`, or `have` not equal to the base: whole. Any commit that carries news (a hunt's end, a death, a Level, the first settle of a hunt): whole. A frame whose `base` is not the record's version: the client drops it and asks once, and that ask's `have` is behind, so the answer is whole. One whole frame per topic at each mark of the dial above, so a client that missed a delta heals within a minute with no read. A feature switch, `settle_delta`, shipped off and turned on for one account first.
+
+The tests. An envelope-contract rule E7 beside E1 and E2: a delta applies only on its exact base, replaces sections whole, and otherwise changes nothing and asks. Session-core arms for the same three cases. A coverage guard on the replay, the one that makes the declared list true: across a kill, loot, a Level, a death, a stamina end, a store cover, a supply buy, a tally payment, a scaled hunt and a member leaving, diff the whole envelope before and after each commit and fail if a changed key is not declared. Both paths: the viewed answer is a delta, and a client that comes back after the tick settled gets the whole character. The identical-rows proof of this lane again (a delta is projection only, no row may differ). A byte budget on the four baseline hunts. Mutants: a section dropped from the declared list, a field-level merge in the client, a delta applied on the wrong base.
+
 ## The next decision
 
 How old may the confirmed numbers on a watched hunt be: 16 s as today, 45 s or 90 s? That one answer sets the size of finding 1, which is the largest saving here. It is a feel question, so it is Tyler's or the designer's. Everything else above can be briefed without him.

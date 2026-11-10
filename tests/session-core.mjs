@@ -2143,9 +2143,9 @@ const MUTANTS = [
   ['an idle answer at the record\'s version is re-read in full', 'src/session/character-session.js', "    if (Number.isSafeInteger(v) && ans.body.accrued !== true && this._huntOpen() && v <= this._wholeAt) return false;\n", ''],
   ['an idle answer in town is not re-read', 'src/session/character-session.js', '&& this._huntOpen() && v <= this._wholeAt)', '&& v <= this._wholeAt)'],
   /* ASK-4 (lane/c-watched-settle-cost: the floor's answer without the character) */
-  ['a slim floor answer is taken at any version', 'src/session/character-session.js', ' && ans.body.version === this._wholeAt) {', ') {'],
-  ['the ask never says which version it holds', 'src/session/character-session.js', 'this._huntOpen() && this._wholeAt >= 0 ? { slot: this.slot, have: this._wholeAt } : { slot: this.slot }', '{ slot: this.slot }'],
-  ['a slim floor answer\'s start point is dropped', 'src/session/character-session.js', "      this._play(Object.assign({}, ans.body, { hunt: this.read('hunt') }));\n", ''],
+  ['a slim floor answer is taken at any version', 'src/session/hunt-ask.js', ' && !body.state && body.version === wholeAt;', ' && !body.state;'],
+  ['the ask never says which version it holds', 'src/session/hunt-ask.js', 'return huntOpen && Number.isSafeInteger(wholeAt) && wholeAt >= 0 ? { slot, have: wholeAt } : { slot }; }', 'return { slot }; }'],
+  ['a slim floor answer\'s start point is dropped', 'src/session/hunt-ask.js', "  cs._play(Object.assign({}, body, { hunt: cs.read('hunt') }));\n", ''],
   ['the close is asked every 2 s past leave_at', 'src/session/hunt-leave.js', 'Math.max(SESSION_CONFIG.leaveRetryMs, Math.ceil(-left))', 'SESSION_CONFIG.leaveRetryMs'],
   ['an ended hunt keeps re-reading', 'src/session/character-session.js', "typeof h.session_id === 'string' && h.ended !== true;", "typeof h.session_id === 'string';"],
   ['a pending leave waits for the world tick', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.load();"],

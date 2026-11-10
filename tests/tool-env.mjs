@@ -5,8 +5,8 @@
 //   node tests/tool-env.mjs            the guard
 //   node tests/tool-env.mjs --mutate   mutation proof: each planted defect must turn its rule red
 //
-// mutant-anchors: tools/lib/env.mjs tools/apply-migration.mjs tools/deploy-edge.local.mjs tools/hunt-health.local.mjs tools/char-state.local.mjs tools/staging-bootstrap.local.mjs tools/release-check.local.mjs
-// mutant-writes-tree: no — mutants are planted into a temp copy of the tools; the fake home is never on disk
+// mutant-anchors: tools/lib/env.mjs tools/apply-migration.mjs tools/deploy-edge.local.mjs tools/hunt-health.local.mjs tools/char-state.local.mjs tools/staging-bootstrap.local.mjs tools/release-check.local.mjs tools/deploy-staging-site.local.mjs
+// mutant-writes-tree: no — mutants are planted into a temp copy of the tools; the fake home is never on disk (TE-10 writes loose git objects only: no ref, no index, no file)
 //
 // WHY (2026-11-10). There are two projects now, production and staging, and one token that can write to both.
 // A tool that guesses which one it talks to will, one tired night, apply a rehearsal to production or grade
@@ -27,10 +27,12 @@
 //   TE-8  the bootstrap writes staging and nothing else, in the chain's order, schema.sql only into an empty
 //         database, secrets by name only; production is only ever read
 //   TE-9  live-hash-drift never records or explains production's bodies from staging, and grades staging by the replay
+//   TE-10 the staging site is the release's own tree with the staging CNAME and no workflows, one commit, pushed only
+//         to a repository that says staging and only to its `site` branch
 // Exit: 0 green · 1 a rule red · 2 harness error.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, normalize, dirname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -39,7 +41,7 @@ import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const TOOLS = ['tools/lib/env.mjs', 'tools/apply-migration.mjs', 'tools/deploy-edge.local.mjs', 'tools/hunt-health.local.mjs',
-  'tools/char-state.local.mjs', 'tools/staging-bootstrap.local.mjs', 'tools/release-check.local.mjs'];
+  'tools/char-state.local.mjs', 'tools/staging-bootstrap.local.mjs', 'tools/release-check.local.mjs', 'tools/deploy-staging-site.local.mjs'];
 const PROD = 'nezapsylztqbbwuwembx';
 const STAGE = 'stgprojectfakerefabc';
 const TOKEN = 'sbp_FAKE_TOKEN_tool_env_0123456789';
@@ -350,6 +352,38 @@ async function checks(overrides) {
       const twice = B.wireTexts(wired.boot, wired.play, `https://${STAGE}.supabase.co`, KEY);
       if (twice.boot !== wired.boot || twice.play !== wired.play) fails.push('TE-8 wiring twice is not the same as wiring once');
     }
+    { // TE-10: the staging site's commit, built with real git plumbing in this repo (objects only: no ref, no checkout, no push)
+      const pushes = [];
+      const git = (fakeUrl) => (args, o = {}) => {
+        if (args[0] === 'push') { pushes.push(args.join(' ')); return ''; }
+        if (fakeUrl && args[0] === 'remote') return fakeUrl;
+        return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], ...o }).trim();
+      };
+      const site = (argv, w, fakeUrl) => E.runTool(mods['tools/deploy-staging-site.local.mjs'].main, argv, { ...w.deps, git: git(fakeUrl) });
+      const ver = (/version:\s*'([^']+)'/.exec(git()(['show', 'HEAD:src/build-info.js'])) || [])[1];
+      let w = world();
+      let code = await site([ver, '--ref', 'HEAD'], w);
+      const sha = (/site commit ([0-9a-f]{12})/.exec(printed(w)) || [])[1];
+      if (code !== 0 || !sha) fails.push('TE-10 the staging site commit was not built: exit ' + code + ' ' + printed(w).slice(0, 200));
+      else {
+        if (!w.lines[0].startsWith('[env: staging · site staging.hearthrise.net]')) fails.push('TE-10 the first line is not the staging site: ' + w.lines[0]);
+        if (git()(['show', sha + ':CNAME']) !== 'staging.hearthrise.net') fails.push('TE-10 the staging site carries a CNAME that is not the staging host');
+        if (git()(['show', 'HEAD:CNAME']) !== 'hearthrise.net') fails.push('TE-10 the harness expected the release\'s own CNAME to be production\'s');
+        const differ = git()(['diff-tree', '-r', '--name-only', 'HEAD', sha]).split('\n').filter(Boolean);
+        if (differ.some((p) => p !== 'CNAME' && !p.startsWith('.github/')) || !differ.includes('CNAME')) fails.push('TE-10 the staging site differs from the release outside CNAME and .github: ' + differ.slice(0, 4).join(', '));
+        if (git()(['ls-tree', '-r', '--name-only', sha, '.github'])) fails.push('TE-10 the staging site carries workflows');
+        if (git()(['rev-list', '--count', sha]) !== '1') fails.push('TE-10 the staging site commit drags history with it');
+      }
+      if (pushes.length) fails.push('TE-10 a dry run pushed: ' + pushes[0]);
+      w = world();
+      if (await site(['0.0.1', '--ref', 'HEAD'], w) !== 2) fails.push('TE-10 a version that is not the branch\'s own was built');
+      w = world();
+      code = await site([ver, '--ref', 'HEAD', '--push', '--remote', 'origin'], w, 'https://github.com/bugsquisher1/hearthrise.git');
+      if (code !== 2 || pushes.length) fails.push(`TE-10 the site was pushed to a repository that does not say staging: exit ${code}, ${pushes.length} push(es)`);
+      w = world();
+      code = await site([ver, '--ref', 'HEAD', '--push'], w, 'git@github.com:bugsquisher1/hearthrise-staging.git');
+      if (code !== 0 || pushes.length !== 1 || !/^push staging \+[0-9a-f]{40}:refs\/heads\/site$/.test(pushes[0] || '')) fails.push('TE-10 the push is not one commit to the staging remote\'s site branch: ' + JSON.stringify(pushes));
+    }
     if (!overrides) { // TE-9: the real guard file, a real (temp) home, no network before its refusal
       const home = mkdtempSync(join(tmpdir(), 'hr-tool-env-home-'));
       try {
@@ -401,13 +435,17 @@ const MUTANTS = [
   ['arming copies production\'s tick URL (TE-8)', 'tools/staging-bootstrap.local.mjs', "const skip = new Set(['id', 'edge_url', ", "const skip = new Set(['id', "],
   ['the engine\'s password is printed (TE-8)', 'tools/staging-bootstrap.local.mjs', "log('engine: role hr_engine_login (login, noinherit, 20 connections, member of hr_engine) has a new password');", "log('engine: role hr_engine_login has the password ' + pw);"],
   ['a failed file does not stop the replay (TE-8)', 'tools/staging-bootstrap.local.mjs', '          return 1;\n        }\n      }\n      noteStagingApply', '          break;\n        }\n      }\n      noteStagingApply'],
+  ['the staging site keeps production\'s CNAME (TE-10)', 'tools/deploy-staging-site.local.mjs', "git(['update-index', '--add', '--cacheinfo', `100644,${blob},CNAME`], { env });", ''],
+  ['the staging site carries the workflows (TE-10)', 'tools/deploy-staging-site.local.mjs', "git(['rm', '-r', '-q', '--cached', '--ignore-unmatch', '.github'], { env });", ''],
+  ['the site goes to a repository that does not say staging (TE-10)', 'tools/deploy-staging-site.local.mjs', "if (!repo.toLowerCase().includes('staging')) throw new EnvRefusal(", 'if (false) throw new EnvRefusal('],
+  ['another version than the branch\'s is published (TE-10)', 'tools/deploy-staging-site.local.mjs', 'if (built !== ver) throw new EnvRefusal(', 'if (false) throw new EnvRefusal('],
 ];
 
 async function main() {
   if (!process.argv.includes('--mutate')) {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'tool-env: ' + fails.length + ' check(s) RED' : 'tool-env: a write names its project, staging and production never cross, the token stays a file, staging goes first (TE-1..TE-9)');
+    console.log(fails.length ? 'tool-env: ' + fails.length + ' check(s) RED' : 'tool-env: a write names its project, staging and production never cross, the token stays a file, staging goes first (TE-1..TE-10)');
     process.exitCode = fails.some((f) => f.startsWith('HARNESS')) ? 2 : fails.length ? 1 : 0;
     return;
   }

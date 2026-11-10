@@ -2,6 +2,14 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-10 · lane/b-one-difficulty (the last reds, two base merges, the Hunts page's odds)
+1. *A thin margin read on two seeds is a coin, on both trees.* temper-play's Level 24 bow stands 1.5% clear with or without this lane; two seeds passed on main by luck (8 of 8 seeds agree there, 7 of 8 here, where a kill is fewer and bigger). Measure the baseline on more seeds before calling a red the lane's or the guard's. A row under 3% clear now plays eight.
+2. *A fingerprint has a definition, and a merge can change it under a pinned value.* level-curve C1 went red with no data moved: main read the pick to the Level under the ceiling, the lane's snapshot was stamped the old way. The proof is the old function on the new tree giving the old value; then re-stamp, no re-measure.
+3. *A pinned digest needs every cause named.* xp-frac-carry X4 moved for two reasons (the Slime's row, the solo boost). Putting back one of them did not restore the old hash; putting back both did. "Only that row" is a claim to run, not to write.
+4. *Two lanes can merge with no conflict and not load.* lane/b-monster-facts imports the party scale this lane deletes (CONFLICTS.md 2026-11-10). A removed export is a link error git cannot see: grep the other open lanes for every name a lane deletes.
+5. *The session's scratchpad is shared.* Another lane overwrote run-list.mjs there mid-run, and the scratch PostgreSQL 17 cluster on port 55417 is one data directory for every lane (it lost base/1/4171, so no new chain template builds; HR_PG_PORT and HR_PG_DATA give a private one). Name scratch files after the lane.
+6. *A generated file's header is generated too.* After the death-share merge the catalogue's header still said "the world's shape is unchanged" above a file that moves it. Read the header of a regenerated forward file as the person applying it will.
+
 ## 2026-10-21 · lane/b-death-equip-online (death popup r15, instant equip + players online r16)
 1. *The engine's answer IS the envelope.* Every hr-accrue intent returns hr_state_of after its commit, yet the client re-read hr_load after each: two round trips per equip. edgeIntent now applies the answer (envelope.js still refuses stale/malformed); RPC answers always re-read (session-core EQUIP-1 pins both).
 2. *A counter must not stamp the world tick's signal.* player_state.last_seen_at changes how often hunts flush; the prior WIP stamped it. Presence for a count gets its own home (character_presence) and a shared 15 s cached count, so 10x players costs one row read per ask.

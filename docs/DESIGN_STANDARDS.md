@@ -23,6 +23,55 @@ The aim: a thoughtfully authored indie MMORPG that players recognise from a scre
 - Lore is environmental first: a broken bridge, a drop note, a bestiary entry. Long scrolls of backstory come last, if at all.
 - Plain English in all UI copy (`tests/copy-lint.mjs`). Text that sounds like a robot wrote it is a bug.
 
+### Tyler's voice (Tyler, 2026-11-09)
+Every line a player reads should sound like Tyler talking to a friend across the table. He said it after a Configure action line read "Numbers for the Plain Fire Rune at Melee 1.": "Most things would be better if it sounded like it came from my voice", and "I'm sick of reading shit that sounds like a AI developer or a god damn broken english mess".
+
+How he talks, in his own words (his chat typos are not the voice; game text keeps correct spelling, capitals and American spelling):
+- "Either they are strong enough to do the harder content or they aren't simple as that" (11-08)
+- "if you are fighting outside your weight class even in a party, you're gonna waste money but get more exp and possibly die a few times" (11-06)
+- "They are just simply harder. That is the risk" (11-04)
+- "Nah no bound gear in this game." (10-23)
+- "We should just make it easy" (11-08)
+- "Just leaderboards is fine" (11-01)
+- "Randomization makes it fun to experiment." (11-09)
+
+So: the point first, in short sentences and everyday words (harder, waste money, die). "You" and contractions. Say what happens to the player, never what the system does. One idea per sentence. Cut any line the player wouldn't miss.
+
+**Do**
+- Lead with what happens to the player or what they can do: "You're out of Bread. Your next food or drink slot takes over."
+- Say "you" and "your", and use contractions where a person would (you're, can't, doesn't, there's).
+- Use everyday verbs: hits, heals, blocks, works with, uses, leaves, goes first.
+- Say "each cast", "a shot", "an hour".
+- Name the thing: "your bag", "Mira's bag", never "this hero's bag".
+- On a card or a hover, a few plain words. Exact numbers live in the wiki and the analyzer (TIER NOTES, 11-08).
+
+**Don't**
+- Label a field inside a sentence: "Requires: any weapon.", "Drink: restores mana.", "Done: this hero is now Mira."
+- Narrate the machinery: "The server says…", "loads from the server", "Numbers for…", "reads as", "the version the slot casts", "this slot's".
+- Reach for stiff connectors: "as used", "upon", "via", "thus", "therefore", "in order to", "is set to".
+- Use designer jargon: "a pull", "a four", "holds Deadly", "floor", "out of your league", "stays struck".
+- Write a sentence with no verb: "After the one before.", "The next home."
+- Use semicolons, em dashes, clauses glued with a colon, "pays" for XP, or "fits you" (copy-lint already holds these).
+
+**Before and after** (12 real lines from `src/data/text/`, rewritten in lane/a-player-read-gate):
+
+| Key | Before | After |
+|---|---|---|
+| `bar.target_enemy` | Attack spell: casts on your current target. | Hits your target. |
+| `bar.requires_any` | Requires: any weapon. | Works with any weapon. |
+| `bar.effect_shield` | A {points}-point shield. | Blocks the next {points} damage. |
+| `bar.rune_needs_a` | Needs a {rune} for each cast: you carry none. Pick the store's rune for this slot to buy one as used. | Each cast uses a {rune}, and you have none. Pick the store's rune for this slot to buy them as you go. |
+| `bar.none_left` | None left: you carry no {item}. The next food or drink slot fires instead. | You're out of {item}. Your next food or drink slot takes over. |
+| `bar.store_off` | This hero is set to end the hunt rather than buy from the store. | You chose to leave the hunt instead of buying from the store. |
+| `bar.holding` | Holding the pack: nothing to Challenge. | You're holding the pack, so there's nothing to Challenge. |
+| `bar.blocked_by` | Blocked by {action} (slot {slot}): the same action, and it fires first whenever this one could. | {action} in slot {slot} does the same thing and always goes first, so this one never fires. |
+| `bar.no_weapon` | No weapon worn: abilities come from the weapon you wield. Needs {weapons}. | You have no weapon on, and your spells come from your weapon. This one needs {weapons}. |
+| `bar.server_refused` | The server says this cannot fire now. | This can't fire right now. |
+| `hunts.above_level` | Its monsters are stronger than you. Expect to spend more on supplies, or to die. More XP and better loot. | Its monsters are stronger than you. You'll spend more on supplies and you might die, but you get more XP and better loot. |
+| `item.keep_only` | Nothing but keeping: the shop won't buy it | The shop won't buy it, so it's yours to keep |
+
+**How it is held.** `tests/copy-lint.mjs` names the robotic shapes it can catch exactly (its PERSON rules: numbers-for, reads-as, the-version, this-slots, per-unit, server-talk, stiff-word, set-to, jargon, label-sentence, and in the text table no-verb and noun-stack); today's older hits are pinned in `tests/copy-lint-voice.baseline.json`, which only shrinks. The rest needs a reader. Before every release, `node tools/player-read.local.mjs <base-ref>` lists every new or changed player line, a fresh reader judges each one against `--rubric` (this section as yes/no questions), and a flagged line blocks the release until it is rewritten. Never approve copy you wrote yourself.
+
 ## 4. Every system earns its place
 Before building or keeping a substantial feature, answer in the lane brief:
 1. Which player problem does it solve?

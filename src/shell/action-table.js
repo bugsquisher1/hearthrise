@@ -12,19 +12,19 @@
 //                         cheapest per point, unpriced last, ties the bigger first
 //   sentenceOf(action)    the slot read as words ("Eat", "Cast", "Shoot with")
 //   compareLines(a, b)    the hovered row against the picked one, in signed words
-//   wasteLine(row, …)     "At 45% you are missing 121 HP; 167 of its 288 would be wasted."
+//   wasteLine(row, …)     "At 45% you’re only missing 121 HP, so 167 of its 288 goes to waste."
 // No DOM, no clock, no state. Nothing here gates or spends anything.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES } from '../data/abilities.js?v=0.2.112';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.112';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.112';
-import { ITEMS } from '../data/items.js?v=0.2.112';
-import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.112';
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.112';
-import { itemName, abilityName, runeWords } from './widgets/bits.js?v=0.2.112';
-import { shortOf } from './item-lore.js?v=0.2.112';
-import { castOf } from './cast-facts.js?v=0.2.112';
-import { t } from '../render/player-text.js?v=0.2.112';
+import { ABILITIES } from '../data/abilities.js?v=0.2.113';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.113';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.113';
+import { ITEMS } from '../data/items.js?v=0.2.113';
+import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.113';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.113';
+import { itemName, abilityName, runeWords } from './widgets/bits.js?v=0.2.113';
+import { shortOf } from './item-lore.js?v=0.2.113';
+import { castOf } from './cast-facts.js?v=0.2.113';
+import { t } from '../render/player-text.js?v=0.2.113';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -167,7 +167,7 @@ export function compareLines(row, picked) {
 }
 
 /**
- * The honest cost of a big heal: "At 45% you are missing 121 HP; 167 of its 288 would be wasted."
+ * The honest cost of a big heal: "At 45% you’re only missing 121 HP, so 167 of its 288 goes to waste."
  * `pct` is the slot's own "at or below N%" (its first HP / mana test), `max` the server's max pool.
  */
 export function wasteLine(row, pct, max) {

@@ -505,6 +505,8 @@
     "node tools/mutant-gate.mjs node tests/hero-colors.mjs --selftest": "client-guards",
     "node tests/four-hero-slots.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/four-hero-slots.mjs --mutate": "client-guards",
+    "node tests/hero-slots-one.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/hero-slots-one.mjs --mutate": "client-guards",
     "node tools/mutant-gate.mjs node tests/supplies-catalogue.mjs --selftest": "client-guards",
     "node tests/supplies-catalogue.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/refusal-words.mjs --mutate": "client-guards",

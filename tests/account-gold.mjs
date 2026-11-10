@@ -70,6 +70,7 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { bootReplay, ROOT, inventory, manifest } from './schema-replay.mjs';
 import { HARNESS } from './hunt-sessions-settle.mjs';
+import { ownHeroSlots } from './_slots.mjs';
 import { WORLD_VERSION, SHAPE, FIELDS } from '../src/core/hunt/world-state.js';
 
 const MIG = '2026-12-15-account-gold.sql';
@@ -259,6 +260,7 @@ function drivers(db) {
     await as(uid);
     for (const slot of slots) {
       await gate();
+      if (slot > 0) await ownHeroSlots(q, uid, slot);   // one slot to start (2027-03-25-hero-slots-one.sql); after the slot-0 hero (its FK)
       const r = await one('select public.hr_create_character($1)', [slot]);
       if (!r || r.ok !== true) throw harness(`hr_create_character(${slot}) refused: ${JSON.stringify(r)}`);
       await q("update public.player_state set active_kind = 'idle', active_id = null where user_id = $1 and slot = $2", [uid, slot]);

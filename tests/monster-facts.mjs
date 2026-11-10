@@ -13,13 +13,13 @@
 // in town, in no party. What the page must read is worked out HERE from the raw rows (src/data/monsters.js)
 // and the engine's own constants with plain arithmetic, never through src/shell/monster-facts.js.
 //   MF-1  a creature on a hunt's page opens its page with zero console errors, and the Hunts window stays open
-//   MF-2  the Briarcoat Wolf's page equals its row: name, family and Level, Health and what a kill pays at a lone
-//         hero's share, the blow's floor and ceiling, the one attack interval, its weakness and elements, every
+//   MF-2  the Briarcoat Wolf's page equals its row: name, family and Level, Health and what a kill pays (the row's own,
+//         the same for every group size: Tyler 2026-11-08), the blow's floor and ceiling, the one attack interval, its weakness and elements, every
 //         drop in the row's order with its chance per kill, and the ground it lives on
 //   MF-3  the creature's name is a real button: focus and Enter open the page (Enter is not taken for Chat)
 //   MF-4  a drop says what it is for, and a use that a window does is a link that opens that window
-//   MF-5  the Slime's drops carry its own drop bonus; the Rat King, met only by a party, reads at the smallest
-//         party that reaches him and says so
+//   MF-5  the Slime's drops carry its own drop bonus, and the Sump Slime's Rares read the same chance as on the Hunts
+//         page; the Rat King reads his row's numbers and carries the Hunts list's own group warning, never a gate
 //   MF-6  the phone (922x423): the page is a sheet no wider than 400 px, nothing overflows sideways, no text is
 //         under 12 px, and a ground's link goes back to that ground's Hunts page
 //   MF-7  (no browser) every monster on an open ground has a page, and every word its row can ask for exists
@@ -35,7 +35,7 @@ import { pinFonts } from './_test-fonts.mjs';
 const src = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { MONSTERS } = await src('src/data/monsters.js');
 const { ITEMS } = await src('src/data/items.js');
-const { OPEN_GROUNDS, PARTY_SCALE } = await src('src/data/hunt-grounds.js');
+const { OPEN_GROUNDS } = await src('src/data/hunt-grounds.js');
 const { HUNT_INDEX } = await src('src/data/hunts.js');
 const { COMBAT_BALANCE, WEAKNESS_BONUS } = await src('src/core/combat.js');
 const { ELEMENTS } = await src('src/data/elements.js');
@@ -50,25 +50,24 @@ const TOWN = { hunt: null, state: Object.assign(clone(BASE_ENV.state), { active_
 const wait = (page, fn, arg, ms = 20000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 const W = '[data-hs-win="monster"]';
 
-/* WHAT THE PAGE MUST READ for monster `id` met by `size` heroes on `hunt`: plain arithmetic on the raw row. */
-function expected(id, hunt, size) {
+/* WHAT THE PAGE MUST READ for monster `id` on `hunt`: plain arithmetic on the raw row, the same for every group size. */
+function expected(id, hunt) {
   const row = MONSTERS[id];
-  const share = (PARTY_SCALE.basePermille + PARTY_SCALE.perHeroPermille * size) / 1000;
   const scale = COMBAT_BALANCE.monsterDamageScaleByTier[row.tier] || COMBAT_BALANCE.monsterAttackDamageScale;
-  const gp = [Math.round(row.gp[0] * share), Math.round(row.gp[1] * share)];
+  const gp = row.gp;
   const els = ELEMENTS.filter((e) => row.elements && row.elements[e]).map((e) => t(row.elements[e] > 0 ? 'monster.el_less' : 'monster.el_more',
     { pct: Math.abs(row.elements[e]), element: t('monster.el_' + e) }));
   return {
     name: row.name,
     kind: t(row.boss ? 'monster.kind_boss' : 'monster.kind', { family: row.className, level: row.level }),
-    hp: whole(Math.max(1, Math.floor(row.hp * share))),
+    hp: whole(row.hp),
     blow: t('monster.blow_value', { min: '1', max: whole(Math.max(1, Math.floor(row.atk * scale))) }),
     swing: t('monster.swing_value', { secs: COMBAT_BALANCE.tickMs / 1000 }),
     weak: t('monster.weak_' + row.weaponWeak, { pct: Math.round((WEAKNESS_BONUS.damage - 1) * 100), acc: Math.round((WEAKNESS_BONUS.accuracy - 1) * 100) }),
     takes: els.length ? (els.length > 1 ? els.slice(0, -1).join(', ') + ' and ' + els.at(-1) : els[0]) : t('monster.takes_all'),
-    xp: whole(Math.round(row.xp * share)),
+    xp: whole(row.xp),
     gold: gp[0] === gp[1] ? t('monster.gold_one', { lo: whole(gp[0]) }) : t('monster.gold_value', { lo: whole(gp[0]), hi: whole(gp[1]) }),
-    drops: row.drops.map((d) => [d.id, ITEMS[d.id].n, t('monster.band_' + d.band), chance(d.ch >= 1 ? Math.min(1, d.ch * share) : Math.min(0.95, d.ch * (row.dropBonus || 1) * share))].join(' / ')),
+    drops: row.drops.map((d) => [d.id, ITEMS[d.id].n, t('monster.band_' + d.band), chance(d.ch >= 1 ? 1 : Math.min(0.95, d.ch * (row.dropBonus || 1)))].join(' / ')),
     home: HUNT_INDEX[hunt].name,
   };
 }
@@ -104,7 +103,7 @@ const readPage = (page) => page.evaluate((w) => {
     size: el.querySelector('.mf-for').textContent, pay: el.querySelector('.mf-pay').textContent, per: el.querySelector('.mf-per').textContent,
     drops: Array.from(el.querySelectorAll('.mf-drop')).map((li) => [li.dataset.item, li.querySelector('.mf-drop-name').textContent, li.querySelector('.mf-drop-band').textContent, li.querySelector('.mf-odds').textContent].join(' / ')),
     uses: Object.fromEntries(Array.from(el.querySelectorAll('.mf-drop')).map((li) => [li.dataset.item, li.querySelector('.mf-drop-use').textContent])),
-    homes: Array.from(el.querySelectorAll('.mf-home')).map((li) => ({ name: li.querySelector('.mf-home-go').textContent, how: li.querySelector('.mf-home-how').textContent, party: li.querySelector('.mf-home-party').textContent })),
+    homes: Array.from(el.querySelectorAll('.mf-home')).map((li) => ({ name: li.querySelector('.mf-home-go').textContent, how: li.querySelector('.mf-home-how').textContent, warn: li.querySelector('.mf-home-party').textContent })),
     drawn: !!el.querySelector('.mf-stand.is-drawn') };
 }, W);
 
@@ -135,7 +134,7 @@ async function checks(overrides, shots) {
     const met = new Set();
     for (const g of Object.values(OPEN_GROUNDS)) for (const p of g.pockets) for (const s of (p.pack || []).concat(p.spawns)) met.add(s.monster);
     for (const id of met) {
-      const f = monsterFactsOf(id, 1);
+      const f = monsterFactsOf(id);
       if (!f) { fails.push('MF-7 ' + id + ' stands on an open ground and has no page'); continue; }
       const words = ['monster.weak_' + MONSTERS[id].weaponWeak, 'monster.el_' + f.deals, ...f.elements.map((e) => 'monster.el_' + e.element), ...f.drops.map((d) => 'monster.band_' + d.band), ...f.homes.map((h) => 'monster.how_' + h.how)];
       for (const w of words) if (!hasText(w)) fails.push('MF-7 ' + id + ' asks for the word ' + w + ', which the text home does not have');
@@ -168,10 +167,10 @@ async function checks(overrides, shots) {
         if (!(await page.evaluate(() => !!document.querySelector('[data-hs-win="hunts"] .hw-hd-lineup')))) fails.push('MF-1 opening the page closed the Hunts window');
         await wait(page, (w) => document.querySelector(w + ' .mf-stand.is-drawn'), W, 6000);
         const got = await readPage(page);
-        const want = expected('briarcoat_wolf', 'meadowbrook_thicket', 1);
+        const want = expected('briarcoat_wolf', 'meadowbrook_thicket');
         compare(fails, 'MF-2', got, want);
         if (got && !got.drawn) fails.push('MF-2 the creature was not drawn');
-        if (got && (got.size !== t('monster.for_alone', { tier: 'Normal' }) || got.pay !== t('monster.pay_alone') || got.per !== t('monster.per_alone'))) fails.push('MF-2 a lone hero\'s page reads ' + JSON.stringify([got.size, got.pay, got.per]));
+        if (got && (got.size !== t('monster.on_tier', { tier: 'Normal' }) || got.pay !== t('monster.pay_shared') || got.per !== t('monster.per_kill') || /party of \d/.test(got.size + got.pay + got.per))) fails.push('MF-2 the page\'s headings read ' + JSON.stringify([got.size, got.pay, got.per]));
         if (got && got.deals !== t('monster.el_physical')) fails.push('MF-2 its damage reads ' + got.deals);
         if (shots) {
           await page.waitForTimeout(400);
@@ -196,13 +195,26 @@ async function checks(overrides, shots) {
       if (!(await openFacts(page, 'mill_cellar', 'slime', 'key'))) fails.push('MF-3 Enter on the Slime\'s name did not open its page');
       else {
         if (await page.evaluate(() => !!document.querySelector('[data-hs-win="chat"] input:focus, [data-hs-win="chat"] textarea:focus'))) fails.push('MF-3 Enter on a creature\'s name went to Chat');
-        compare(fails, 'MF-5', await readPage(page), expected('slime', 'mill_cellar', 1));
+        compare(fails, 'MF-5', await readPage(page), expected('slime', 'mill_cellar'));
+      }
+      if (!(await openFacts(page, 'millrace_sewer', 'sump_slime'))) fails.push('MF-5 the Sump Slime\'s page did not open');
+      else {
+        const slime = await readPage(page);
+        compare(fails, 'MF-5', slime, expected('sump_slime', 'millrace_sewer'));
+        /* the Hunts page beside it: each Rare's chance per kill of its creature is the same number */
+        const hunts = await page.evaluate(() => Object.fromEntries(Array.from(document.querySelectorAll('[data-hs-win="hunts"] .hw-hd-rares .hw-hd-rare')).map((li) => [li.dataset.item + ':' + li.querySelector('.hw-hd-rare-by').textContent, li.querySelector('.hw-hd-odds').textContent])));
+        for (const d of MONSTERS.sump_slime.drops.filter((x) => x.band === 'rare')) {
+          const mine = slime ? (slime.drops.find((x) => x.startsWith(d.id + ' / ')) || '').split(' / ').pop() : '';
+          const theirs = hunts[d.id + ':' + MONSTERS.sump_slime.name];
+          if (!mine || mine !== theirs) fails.push('MF-5 the Sump Slime\'s ' + d.id + ' reads ' + mine + ' on its page and ' + theirs + ' on the Hunts page');
+        }
       }
       if (!(await openFacts(page, 'millrace_sewer', 'rat_king'))) fails.push('MF-5 the Rat King\'s page did not open');
       else {
         const king = await readPage(page);
-        compare(fails, 'MF-5', king, expected('rat_king', 'millrace_sewer', 2));
-        if (king && (king.size !== t('monster.for_party', { n: 2, tier: 'Normal' }) || !king.homes.some((h) => h.party === t('monster.home_party', { n: 2 })))) fails.push('MF-5 the Rat King\'s page does not say he is met by a party of 2: ' + JSON.stringify([king.size, king.homes]));
+        compare(fails, 'MF-5', king, expected('rat_king', 'millrace_sewer'));
+        const said = king ? king.homes.map((h) => h.warn).join('') : '';
+        if (king && (!/built for a group/.test(said) || /wants a party|party of \d/.test(JSON.stringify(king)))) fails.push('MF-5 the Rat King\'s page does not carry the group warning as a warning: ' + JSON.stringify(king.homes));
       }
       if (errors.length) fails.push('MF-1 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
@@ -241,12 +253,12 @@ async function checks(overrides, shots) {
 
 /* Each plants one defect the rules above exist for. [name, file, from, to] */
 const MUTANTS = [
-  ['Health is the row\'s, not what a lone hero meets', 'src/shell/monster-facts.js', '    hp: packHpFor(home.ground, row, met),', '    hp: row.hp,'],
-  ['the blow\'s ceiling is the row\'s attack, not the engine\'s largest blow', 'src/shell/monster-facts.js', '  const top = monsterMaxHit(row);', '  const top = row.atk;'],
-  ['a kill\'s Level XP ignores the yield share', 'src/shell/monster-facts.js', '    xp: Math.round(((row.xp || 0) * yieldPm) / 1000),', '    xp: row.xp || 0,'],
-  ['a drop\'s chance ignores the yield share', 'src/shell/monster-facts.js', '{ dropMult: lone.dropMult, yieldMult: yieldPm / 1000 }', '{ dropMult: lone.dropMult }'],
-  ['a drop\'s chance forgets the monster\'s own drop bonus', 'src/shell/monster-facts.js', '{ dropMult: lone.dropMult, yieldMult: yieldPm / 1000 }', '{ yieldMult: yieldPm / 1000 }'],
-  ['a party-only boss reads as if a lone hero met him', 'src/shell/monster-facts.js', '  const met = Math.max(Math.max(1, Math.floor(Number(size) || 1)), home.minParty);', '  const met = Math.max(1, Math.floor(Number(size) || 1));'],
+  ['Health is the monster\'s attack', 'src/shell/monster-facts.js', '    hp: Math.max(1, fights.hp || 1),', '    hp: Math.max(1, fights.atk || 1),'],
+  ['the blow\'s ceiling is the row\'s attack, not the engine\'s largest blow', 'src/shell/monster-facts.js', '  const top = monsterMaxHit(fights);', '  const top = row.atk;'],
+  ['a kill\'s Level XP is cut to a lone hero\'s old share', 'src/shell/monster-facts.js', '    xp: Math.round(fights.xp || 0),', '    xp: Math.round((fights.xp || 0) * 0.55),'],
+  ['a drop\'s chance is cut to a lone hero\'s old share', 'src/shell/monster-facts.js', '{ dropMult: lone.dropMult }', '{ dropMult: lone.dropMult, yieldMult: 0.55 }'],
+  ['a drop\'s chance forgets the monster\'s own drop bonus', 'src/shell/monster-facts.js', '{ dropMult: lone.dropMult }', '{}'],
+  ['a boss built for a group says nothing of it', 'src/shell/monster-facts.js', "warn: grouped ? partyNote(g.hunt) : '' });", "warn: '' });"],
   ['the page writes Health where the Level XP goes', 'src/shell/windows/monster.js', "  set('xp', whole(f.xp));", "  set('xp', whole(f.hp));"],
   ['a use is plain words, never a link', 'src/shell/windows/monster.js', "      patchParts(li.querySelector('.mf-drop-use'), placesParts(d.uses));", "      text(li.querySelector('.mf-drop-use'), d.uses.map((u) => u.words).join('. ') + '.');"],
   ['a creature on a hunt\'s page opens nothing', 'src/shell/windows/hunt-detail.js', "esc(m.id) + '\"' + gotoAttr(factsTarget(m.id)) + '><span", "esc(m.id) + '\"><span"],
@@ -260,7 +272,7 @@ async function main() {
     const fails = await checks(null, shots);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'monster-facts: ' + fails.length + ' rule(s) RED'
-      : 'monster-facts: a creature opens its page beside Hunts; every number equals its data row; the name is a button; uses link to their windows; the drop bonus and a party-only boss read true; a sheet on the phone with a way back; every met monster has a page');
+      : 'monster-facts: a creature opens its page beside Hunts; every number equals its data row; the name is a button; uses link to their windows; the drop bonus reads true and agrees with the Hunts page; a boss built for a group warns and never gates; a sheet on the phone with a way back; every met monster has a page');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await checks(null);

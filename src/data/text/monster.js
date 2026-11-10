@@ -24,12 +24,10 @@ export const MONSTER_TEXT = Object.freeze({
   how_rare: 'rare',
   how_boss: 'boss',
   how_pull: 'only with a party or a harder hunt',
-  home_party: 'It wants a party of {n} or more.',
 
   /* In a fight. */
   h_fight: 'In a fight',
-  for_alone: 'hunting alone, on {tier}',
-  for_party: 'for a party of {n}, on {tier}',
+  on_tier: 'on {tier}, alone or in a party',
   hp: 'Health',
   blow: 'A blow',
   blow_value: '{min} to {max}, before your armor',
@@ -50,12 +48,10 @@ export const MONSTER_TEXT = Object.freeze({
   el_poison: 'Poison',
   el_physical: 'Physical',
   harder: 'A harder hunt changes these numbers. The hunt\'s page says by how much.',
-  scale: 'A bigger party meets it with more Health, and each kill pays more, up to a party of {max}.',
 
   /* A kill. */
   h_kill: 'A kill pays',
-  pay_alone: 'hunting alone',
-  pay_party: 'for a party of {n}, shared between them',
+  pay_shared: 'shared by the heroes who were there',
   xp: 'Level XP',
   gold: 'Gold',
   gold_value: '{lo} to {hi} gp',
@@ -63,8 +59,7 @@ export const MONSTER_TEXT = Object.freeze({
 
   /* Its drops. */
   h_drops: 'Drops',
-  per_alone: 'chance per kill, hunting alone',
-  per_party: 'chance per kill, for a party of {n}. Each drop goes to one hero',
+  per_kill: 'chance per kill. In a party, each drop goes to one hero',
   no_drops: 'It drops nothing.',
   band_common: 'Common',
   band_uncommon: 'Uncommon',

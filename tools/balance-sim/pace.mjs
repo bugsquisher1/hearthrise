@@ -59,7 +59,7 @@ export function paceFingerprint(D, ceiling = null) {
   const g = grounds.map((x) => {
     for (const p of x.pockets) for (const s of [...(p.pack || []), ...(p.spawns || [])]) ids.add(s.monster);
     return { id: x.id, hunt: x.hunt, band: D.HUNT_INDEX[x.hunt].band, groupFit: x.groupFit, soloFrom: x.soloFrom || null, respawnMs: x.respawnMs,
-      pockets: x.pockets.map((p) => ({ minParty: p.minParty || null, pack: (p.pack || []).map((s) => [s.monster, s.n]), spawns: (p.spawns || []).map((s) => [s.monster, s.n]) })) };
+      pockets: x.pockets.map((p) => ({ forParty: p.forParty || null, pack: (p.pack || []).map((s) => [s.monster, s.n]), spawns: (p.spawns || []).map((s) => [s.monster, s.n]) })) };
   });
   const m = [...ids].sort().map((id) => { const r = D.MONSTERS[id] || {}; return [id, r.xp, r.hp, r.level, r.atk, r.def]; });
   const pick = Array.from({ length: cap - 1 }, (_, i) => D.recommend(i + 1));
@@ -263,6 +263,7 @@ async function main() {
   const AR = await import(u('src/core/action-rules.js') + '?v=' + BUILD.version);
   const { LEVEL_CURVE, LEVEL_PACE } = await import(u('src/data/core-model.js'));
   const { BLESSING_TIERS } = await import(u('src/data/blessings.js'));
+  const HS = await import(u('src/data/hunt-sessions.js') + '?v=' + BUILD.version);
   const D = await loadPaceData();
   const PACE = resolve(arg('pace', join(HERE, 'out', 'pace')));
   const careers = readRows(PACE).filter((r) => r.kind === 'career' && r.party.length === 1 && !Number.isInteger(r.density));
@@ -313,7 +314,7 @@ async function main() {
     prevL = L; prevH = h;
   }
   console.log('measured (median of styles): ' + Object.entries(measured).map(([L, h]) => 'L' + L + ' ' + (h == null ? '-' : h.toFixed(2) + ' h')).join(', '));
-  /* WHAT AN UNBLESSED DEATH COSTS mid-Level (2% of total Level XP, never below the Level's start), in hours at the
+  /* WHAT AN UNBLESSED DEATH COSTS mid-Level (DEATH_XP_LOSS of the total Level XP, which can take a Level), in hours at the
      reference rate, and with each Blessing */
   const death = [10, 25, 50, 100, 200, 500, 1000].map((L) => {
     const x0 = XP.charXpForLevel(L), mid = x0 + Math.floor((XP.charXpForLevel(L + 1) - x0) / 2);
@@ -386,16 +387,17 @@ async function main() {
       gap: LEVEL_PACE.targets.every(([L]) => Math.abs(tgt(L).err) <= LEVEL_PACE.tolerance) ? 'OK' : 'Major',
       proposal: 'Shipped: every target within ' + Math.round(Math.max(...LEVEL_PACE.targets.map(([L]) => Math.abs(tgt(L).err))) * 1000) / 10 + '% (tests/level-curve.mjs pins it). New grounds past L50 must pay the contract.',
       decides: 'Done (layer 1); grounds past L50 are the designer\'s' });
-      /* the first Level where a mid-Level death's 2% of total reaches the Level's start (the never-de-level floor binds) */
-      let capFrom = null;
-      for (let L = 2; L <= 1000 && capFrom === null; L++) {
+      /* the first Level where a mid-Level death's share of the total is more than the Level's own progress (it takes a Level; Tyler 2026-11-09) */
+      let takesFrom = null;
+      for (let L = 2; L <= 1000 && takesFrom === null; L++) {
         const x0 = XP.charXpForLevel(L), mid = x0 + Math.floor((XP.charXpForLevel(L + 1) - x0) / 2);
-        if (AR.levelDeathLoss(mid) >= mid - x0) capFrom = L;
+        if (AR.levelDeathLoss(mid) > mid - x0) takesFrom = L;
       }
       const d9 = f.find((x) => x.id === 'D9');
       const dc = (L) => death.find((x) => x.level === L);
       if (d9) Object.assign(d9, { measured: 'Unblessed death mid-Level: L10 ' + dc(10).unblessedHours + ' h, L50 ' + dc(50).unblessedHours + ' h, L100 ' + dc(100).unblessedHours + ' h, L200 '
-        + dc(200).unblessedHours + ' h, L500 ' + dc(500).unblessedHours + ' h. From L' + capFrom + ' a mid-Level death\'s 2% of total XP is more than the Level\'s own progress, so the never-de-level floor decides it (at most one Level\'s hours).' });
+        + dc(200).unblessedHours + ' h, L500 ' + dc(500).unblessedHours + ' h. A death takes ' + Math.round(HS.DEATH_XP_LOSS * 100) + '% of the total Level XP and can take a Level'
+        + (takesFrom ? ' (mid-Level, from L' + takesFrom + ')' : '') + ', never below Level 1.' });
       /* what the slower curve does to the systems tied to Level (measured on the same careers) */
       const main = (c, L) => { const s = (snap.careers[c.party[0]].skillsAt || {})[L]; return s ? Math.max(s.melee, s.ranged, s.magic) : null; };
       const skillAt = (L) => median(careers.map((c) => main(c, L)));

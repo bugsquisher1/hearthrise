@@ -54,7 +54,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    both read the table, so this file restates neither (a SQL copy would turn tests/settle-budget.mjs SB-3 red) and its §0
    refuses to run before 02-11. */
 /* 2027-03-15-pace-final is APPLIED history; the ground formula's Cellar eased Level 4 -> 5 by 20 XP (C6), rows only, the same table (lane/b-ground-formula-2). */
-export const OUT_NAME = '2027-03-20-ground-formula-level-curve.generated.sql';
+/* 2027-03-20-ground-formula-level-curve.generated.sql is APPLIED history; the re-fit after the re-tune (lane/b-one-difficulty) is a new dated file. */
+export const OUT_NAME = '2027-03-23-one-difficulty-level-curve.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /* The Levels the self-check pins: every bracket's edge, Tyler's target Levels and a deep one. */

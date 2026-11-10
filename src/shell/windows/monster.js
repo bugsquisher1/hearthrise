@@ -13,19 +13,17 @@
 //
 // DISPLAY ONLY (CLAUDE.md §6): catalogue facts, nothing a player can spend, no intent and no residue.
 // Every number is src/shell/monster-facts.js's, read from the rows the server's catalogue is generated
-// from; this module types none. The party's size (the server's seat count) only picks which size the
-// facts are shown for. Every word is a row of src/data/text/monster.js.
+// from; this module types none. One set of numbers for every group size (Tyler 2026-11-08). Every word is a row of src/data/text/monster.js.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, prop, attr, cls, element } from '../../render/paint.js?v=0.2.112';
-import { chance, whole, listWords } from '../../render/format.js?v=0.2.112';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.112';
-import { t, hasText } from '../../render/player-text.js?v=0.2.112';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.112';
-import { itemIconHtml } from '../widgets/bits.js?v=0.2.112';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.112';
-import { TIER_NAME, DEFAULT_TIER } from '../../data/hunt-tiers.js?v=0.2.112';
-import { monsterFactsOf, isMet } from '../monster-facts.js?v=0.2.112';
-import { targetOf, placesParts, patchParts } from '../goto.js?v=0.2.112';
+import { rows, text, prop, attr, cls, element } from '../../render/paint.js?v=0.2.113';
+import { chance, whole, listWords } from '../../render/format.js?v=0.2.113';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.113';
+import { t, hasText } from '../../render/player-text.js?v=0.2.113';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.113';
+import { itemIconHtml } from '../widgets/bits.js?v=0.2.113';
+import { TIER_NAME, DEFAULT_TIER } from '../../data/hunt-tiers.js?v=0.2.113';
+import { monsterFactsOf, isMet } from '../monster-facts.js?v=0.2.113';
+import { targetOf, placesParts, patchParts } from '../goto.js?v=0.2.113';
 
 const WIN = 'monster';
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px, facing the player. */
@@ -35,8 +33,8 @@ let ART = null;
 const asked = new Set();
 
 const SCRATCH = new WeakMap();
-/* `id`: the monster on this character's page. `facts`: its facts as last worked out, for `size`. */
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { id: null, size: 0, facts: null }; SCRATCH.set(cs, s); } return s; };
+/* `id`: the monster on this character's page. `facts`: its facts as last worked out. */
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { id: null, facts: null }; SCRATCH.set(cs, s); } return s; };
 
 /** The link that opens monster `id`'s page (src/shell/goto.js linkHtml, gotoAttr). */
 export const factsTarget = (id) => ({ win: WIN, tab: id, find: null });
@@ -55,7 +53,7 @@ export function renderMonster() {
     + head('monster.h_fight', 'mf-for') + '<dl class="mf-facts">'
     + fact('hp', 'monster.hp') + fact('blow', 'monster.blow') + fact('swing', 'monster.swing') + fact('deals', 'monster.deals')
     + fact('weak', 'monster.weak') + fact('takes', 'monster.takes') + '</dl>'
-    + '<p class="mf-note mf-harder"></p><p class="mf-note mf-scale"></p>'
+    + '<p class="mf-note mf-harder"></p>'
     + head('monster.h_kill', 'mf-pay') + '<dl class="mf-facts">' + fact('xp', 'monster.xp') + fact('gold', 'monster.gold') + '</dl>'
     + head('monster.h_drops', 'mf-per') + '<ul class="mf-drops"></ul><p class="mf-note mf-nodrops"></p>'
     + '</div></article>';
@@ -95,9 +93,7 @@ renderMonster.patch = function patchMonster(body, ctx) {
   /* a creature's link named a monster (goto.js): only one a player can meet gets a page */
   const want = ctx.wm && typeof ctx.wm.takeTab === 'function' ? ctx.wm.takeTab(WIN) : null;
   if (want && isMet(want) && want !== sc.id) { sc.id = want; sc.facts = null; body.scrollTop = 0; }
-  const party = partyMembershipOf(cs);
-  const size = party ? party.seats.length : 1;
-  if (sc.id && (!sc.facts || sc.size !== size)) { sc.facts = monsterFactsOf(sc.id, size); sc.size = size; }
+  if (sc.id && !sc.facts) sc.facts = monsterFactsOf(sc.id);
   const f = sc.id ? sc.facts : null;
   const root = body.querySelector('.mf');
   prop(root.querySelector('.mf-none'), 'hidden', !!f);
@@ -117,12 +113,11 @@ renderMonster.patch = function patchMonster(body, ctx) {
     patch: (li, h) => {
       patchParts(li.querySelector('.mf-home-go'), [{ words: h.name, target: targetOf({ kind: 'hunt', hunt: h.hunt }) }]);
       text(li.querySelector('.mf-home-how'), h.band ? t('monster.home', { lo: h.band[0], hi: h.band[1], how: howWord(h.how) }) : howWord(h.how));
-      text(li.querySelector('.mf-home-party'), h.minParty > 1 ? t('monster.home_party', { n: h.minParty }) : '');
+      text(li.querySelector('.mf-home-party'), h.warn);
     },
   });
-  const alone = f.size <= 1, tier = TIER_NAME[DEFAULT_TIER];
   const set = (key, words) => text(root.querySelector('[data-fact="' + key + '"]'), words);
-  text(root.querySelector('.mf-for'), alone ? t('monster.for_alone', { tier }) : t('monster.for_party', { n: f.size, tier }));
+  text(root.querySelector('.mf-for'), t('monster.on_tier', { tier: TIER_NAME[DEFAULT_TIER] }));
   set('hp', whole(f.hp));
   set('blow', t('monster.blow_value', { min: whole(f.blow.min), max: whole(f.blow.max) }));
   set('swing', t('monster.swing_value', { secs: f.swingMs / 1000 }));
@@ -132,11 +127,10 @@ renderMonster.patch = function patchMonster(body, ctx) {
   prop(root.querySelector('[data-fact="weak"]').parentElement, 'hidden', !weak);
   set('takes', takesWords(f.elements));
   text(root.querySelector('.mf-harder'), t('monster.harder'));
-  text(root.querySelector('.mf-scale'), f.scaled ? t('monster.scale', { max: f.maxParty }) : '');
-  text(root.querySelector('.mf-pay'), alone ? t('monster.pay_alone') : t('monster.pay_party', { n: f.size }));
+  text(root.querySelector('.mf-pay'), t('monster.pay_shared'));
   set('xp', whole(f.xp));
   set('gold', f.gold[0] === f.gold[1] ? t('monster.gold_one', { lo: whole(f.gold[0]) }) : t('monster.gold_value', { lo: whole(f.gold[0]), hi: whole(f.gold[1]) }));
-  text(root.querySelector('.mf-per'), !f.drops.length ? '' : alone ? t('monster.per_alone') : t('monster.per_party', { n: f.size }));
+  text(root.querySelector('.mf-per'), f.drops.length ? t('monster.per_kill') : '');
   rows(root.querySelector('.mf-drops'), f.drops, {
     key: (d) => f.id + ':' + d.id,
     build: (d) => element(ctx.doc, dropHtml(ctx, d)),

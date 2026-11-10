@@ -32,8 +32,9 @@ import { isMain } from '../tests/_is-main.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 2026-12-23-tally-catalogue.generated.sql is APPLIED history (5 tasks). Wickstead's task (lane/b-core-loop-20h,
    2026-10-31) lands in this forward file, which rewrites the same tables: it must follow 2027-02-06's Wickstead hunt
-   catalogue, or the chain has no ground to name. */
-export const OUT_FILE = '2027-02-21-tally-glade-steel.generated.sql';
+   catalogue, or the chain has no ground to name. 2027-02-21-tally-glade-steel.generated.sql is APPLIED history too (the
+   Glade's Steel). The Cellar's count of 25 (lane/b-first-ten-build, 2026-11-10) lands in this one, with the held-row step. */
+export const OUT_FILE = '2027-04-03-tally-first-rats.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 const lit = (s) => "'" + String(s).replace(/'/g, "''") + "'";
@@ -104,11 +105,14 @@ export function buildSql(D) {
 -- the rules, the materials) and the loot bands (src/data/monsters.js Scarce rows on
 -- each ground of src/data/hunt-grounds.js). Do not hand-edit:
 --   Any hand edit FAILS \`node tools/gen-tally-tasks.mjs --check\`.
--- STAGED (lane/c-tally-tasks). Tamsin's tally: the kill tasks, her limits, the
--- pieces each ground can give and the materials after them. Read by
--- 2026-12-23-tally-tasks.sql, which applies AFTER this file. hr_tally_tasks rows
+-- Tamsin's tally: the kill tasks, her limits, the pieces each ground can give and
+-- the materials after them, read by 2026-12-23-tally-tasks.sql. hr_tally_tasks rows
 -- are UPSERTED (held tasks point at them; a removed task REFUSES while a hero holds
--- it, loudly, by design); pieces and materials are replaced whole. No begin/commit.
+-- it, loudly, by design); pieces and materials are replaced whole. A HELD task keeps
+-- the count it was taken at, so when a task's count is CUT, every held copy above the
+-- new count comes down to it: one already past it is done now and pays on the hero's
+-- next return, as any done task does. A count that is RAISED leaves held copies alone.
+-- Touches no function body. No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 create table if not exists public.hr_tally_config (
@@ -165,6 +169,14 @@ ${tasks.join(',\n')}
     target = excluded.target, gold = excluded.gold, party = excluded.party;
 delete from public.hr_tally_tasks where task_id <> all (${arr(TALLY_TASKS.map((t) => t.id))});
 
+-- A CUT COUNT NEVER STRANDS A HELD TASK (the migration's work, not a self-check): hero_tally_tasks is 2026-12-23-tally-tasks.sql's,
+-- applied long before this file. Idempotent: a second apply finds no held row above its task's count.
+update public.hero_tally_tasks h
+   set target = c.target, kills = least(h.kills, c.target),
+       done_at = case when h.kills >= c.target then coalesce(h.done_at, now()) end
+  from public.hr_tally_tasks c
+ where c.task_id = h.task_id and h.target > c.target;
+
 delete from public.hr_tally_pieces;
 insert into public.hr_tally_pieces (hunt_id, item_id, weight, equip_slot, tier) values
 ${prow.join(',\n')};
@@ -199,6 +211,9 @@ begin
   select m.item_id into v_bad from public.hr_tally_materials m
    where not exists (select 1 from public.hr_items i where i.item_id = m.item_id) limit 1;
   if v_bad is not null then raise exception 'tally-catalogue: material % is not in hr_items', v_bad; end if;
+  select h.task_id into v_bad from public.hero_tally_tasks h join public.hr_tally_tasks c using (task_id)
+   where h.target > c.target or h.kills > h.target or ((h.done_at is null) <> (h.kills < h.target)) limit 1;
+  if v_bad is not null then raise exception 'tally-catalogue: a held % still counts past the catalogue''s target', v_bad; end if;
   foreach v_role in array array['anon', 'authenticated'] loop
     if has_table_privilege(v_role, 'public.hr_tally_tasks', 'select,insert,update,delete')
        or has_table_privilege(v_role, 'public.hr_tally_pieces', 'select,insert,update,delete')
@@ -240,6 +255,10 @@ async function selftest() {
   const sql = buildSql(D);
   if (!/on conflict \(task_id\) do update/.test(sql)) { console.error('  MISSED  the tasks are not upserted'); bad++; }
   if (/'iron_sword'|'longbow'|'steel_sword'/.test(sql.split('insert into public.hr_tally_pieces')[1].split(';')[0])) { console.error('  MISSED  a weapon is a piece'); bad++; }
+  /* a cut count brings the held copies down with it, and only those above it (a raised count leaves them) */
+  if (!/\nupdate public\.hero_tally_tasks h\s+set target = c\.target, kills = least\(h\.kills, c\.target\),\s+done_at = case when h\.kills >= c\.target then coalesce\(h\.done_at, now\(\)\) end\s+from public\.hr_tally_tasks c\s+where c\.task_id = h\.task_id and h\.target > c\.target;/.test(sql)) {
+    console.error('  MISSED  a cut count strands the held tasks'); bad++;
+  }
   if (bad) { console.error('gen-tally-tasks --selftest: ' + bad + ' refusal(s) did not bite'); process.exit(1); }
   console.log('gen-tally-tasks --selftest: every refusal bites');
 }

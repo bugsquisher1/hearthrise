@@ -44,6 +44,10 @@
 //   tutorial_card      the coach moved to a card ({ card, state: 'shown' | 'done' })              per hero and card
 //   level_reached      the hero's Level rose between two server answers                           per hero and level
 //   session_return     a hero's first read finds its last hunt over: minutes since it ended, by the server's clock  per hero
+//   left_with_hunt_running  the page was hidden or closed over an open hunt ({ hunt, level, minutes, how })       per hero, once hidden and once closed
+//   away_recap_shown   "While you were away" came up ({ minutes, still_hunting, levels })                          per line
+//   first_gear_found   a piece of gear landed in the open hunt's loot, in view ({ hunt, item, level })             per hero
+//                      (these three from src/shell/alerts.js, which sees the page go and the line come up)
 // Every event is bounded: EVENT_MAX named events per load, CLICK_MAX of each click kind (a loop cannot spend the quota).
 // ════════════════════════════════════════════════════════════════════════
 

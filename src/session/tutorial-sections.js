@@ -159,7 +159,10 @@ export function tutorialFactsOf(cs, sh) {
     land: field ? { ready, empty: Math.max(0, field.cap - Array.from(field.plots.values()).filter((p) => !p.extra && p.i < field.cap).length) } : null,
     home: homeFacts(cs), gold: goldOf(cs), chest: chestFact(cs),
     staminaMs: stamina ? stamina.msLeft : null,
-    tally: tally ? { held: tally.held.length, paid: tally.recent.length, weight: !!tally.weight } : null,
+    /* `tasks`: the held rows by task, each the server's count and whether it is done. `paidTasks`: the tasks she paid in the last day. */
+    tally: tally ? { held: tally.held.length, paid: tally.recent.length, weight: !!tally.weight,
+      tasks: Object.fromEntries(tally.held.map((h) => [h.task, { kills: h.kills, target: h.target, done: h.done }])),
+      paidTasks: Array.from(new Set(tally.recent.map((p) => p.task))) } : null,
     temper: temperFirstRungOf(cs),
     inParty: !!party && party.seats.length >= 2,
     partied: !!bests && Object.values(bests.grounds).some((g) => !!g.party),

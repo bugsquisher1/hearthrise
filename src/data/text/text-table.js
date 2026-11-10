@@ -9,6 +9,7 @@
 // still written in code down to none.
 // ════════════════════════════════════════════════════════════════════════
 import { BAR_TEXT } from './bar.js?v=0.2.114';
+import { COACH_TEXT } from './coach.js?v=0.2.114';
 import { DEATH_TEXT } from './death.js?v=0.2.114';
 import { FARM_TEXT } from './farm.js?v=0.2.114';
 import { HEROES_TEXT } from './heroes.js?v=0.2.114';
@@ -23,6 +24,7 @@ import { TEMPER_TEXT } from './temper.js?v=0.2.114';
 
 export const TEXT = Object.freeze({
   bar: BAR_TEXT,
+  coach: COACH_TEXT,
   death: DEATH_TEXT,
   farm: FARM_TEXT,
   heroes: HEROES_TEXT,

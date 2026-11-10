@@ -85,6 +85,8 @@ export function validateWindowRows(rows) {
     if (r.modal !== undefined && r.modal !== true) throw new Error('shell windows: ' + r.id + ' modal is true or absent');
     if (r.home !== undefined && r.home !== 'bl') throw new Error('shell windows: ' + r.id + " home is 'bl' or absent");
     if (r.resizable !== undefined && r.resizable !== true) throw new Error('shell windows: ' + r.id + ' resizable is true or absent');
+    /* a window the coach's card stays up beside sits home in the far corner: a docked one would take the card's place */
+    if (r.besideCoach !== undefined && !(r.besideCoach === true && r.home === 'bl')) throw new Error('shell windows: ' + r.id + ' besideCoach is true on a home window, or absent');
     if ((r.home || r.resizable) && !(r.height > 0)) throw new Error('shell windows: ' + r.id + ' needs a positive height to sit home or resize');
     if ((r.home || r.resizable) && r.modal) throw new Error('shell windows: ' + r.id + ' a modal neither sits home nor resizes');
     if (r.escape) escapes++;

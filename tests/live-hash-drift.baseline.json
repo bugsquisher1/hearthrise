@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-10",
- "replay_ms": 10142,
+ "replay_ms": 6907,
  "counts": {
-  "tracked_names": 822,
-  "entries": 674
+  "tracked_names": 823,
+  "entries": 675
  },
  "functions": [
   {
@@ -3789,17 +3789,41 @@
     "2026-10-25-character-sheet.sql",
     "2026-10-27-core-bodies.sql",
     "2026-11-07-death-popup-blessing.sql",
-    "2027-02-10-settle-plan-cache.generated.sql"
+    "2027-02-10-settle-plan-cache.generated.sql",
+    "2027-03-25-death-share.sql"
    ],
    "live": {
-    "md5": "d7d83c4aae0992664a2a412f59f80ef8",
-    "norm_len": 1832,
+    "md5": "fcd64380f8c80acdadd0cafe66c66d9e",
+    "norm_len": 2382,
     "measured": "2026-11-10",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "d7d83c4aae0992664a2a412f59f80ef8",
-    "norm_len": 1832,
+    "md5": "fcd64380f8c80acdadd0cafe66c66d9e",
+    "norm_len": 2382,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_death_xp_max(p_skill text, p_xp bigint)",
+   "name": "hr_death_xp_max",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-25-death-share.sql"
+   ],
+   "live": {
+    "md5": "ef0f624182b0f6131490672deab42f51",
+    "norm_len": 601,
+    "measured": "2026-11-10",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "ef0f624182b0f6131490672deab42f51",
+    "norm_len": 601,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5975,17 +5999,18 @@
     "2027-01-31-inner-flame.sql",
     "2027-03-12-boss-call.sql",
     "2027-03-21-scaled-hunts.sql",
-    "2027-03-22-live-events.sql"
+    "2027-03-22-live-events.sql",
+    "2027-03-25-death-share.sql"
    ],
    "live": {
-    "md5": "fcd02cce2deb56e7e62cc2294bec14e4",
-    "norm_len": 33643,
+    "md5": "08f063d34d560f794709263a860c0124",
+    "norm_len": 33850,
     "measured": "2026-11-10",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "fcd02cce2deb56e7e62cc2294bec14e4",
-    "norm_len": 33643,
+    "md5": "08f063d34d560f794709263a860c0124",
+    "norm_len": 33850,
     "source": "computed-from-replay"
    },
    "agree": true

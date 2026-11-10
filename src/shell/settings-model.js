@@ -8,14 +8,16 @@
 //   write(ctx, row, v)     display rows -> residue (or the HUD layout; a
 //                          player switch, the session recording or idle
 //                          animations, into every open hero's residue,
-//                          src/session/player-switch.js); a
+//                          src/session/player-switch.js; the sound
+//                          volumes likewise, as one pick of four); a
 //                          'server' row calls its existing intent and keeps
 //                          nothing locally (the next envelope is the truth)
 //   categoriesFor(ctx, rows, cats)   the categories that have a visible row
 //   search(rows, q)        rows whose label or help holds every word of q
 // ════════════════════════════════════════════════════════════════════════
 import { floatShown, withFloat } from '../hunt-view/float-prefs.js?v=0.2.114';
-import { switchOn, setSwitch } from '../session/player-switch.js?v=0.2.114';
+import { switchOn, setSwitch, playerPick, setPlayerPick } from '../session/player-switch.js?v=0.2.114';
+import { soundLevelsOf, withSoundLevel } from '../data/sound-buses.js?v=0.2.114';
 import { serverNowOf } from '../session/hunt-sections.js?v=0.2.114';
 
 const residueOf = (ctx) => (ctx.character && ctx.character.record && ctx.character.record.residue) || {};
@@ -36,6 +38,8 @@ export function read(ctx, row) {
   if (b.store === 'residue') { const v = residueOf(ctx)[b.field]; return v === undefined ? row.default : v; }
   /* a player switch: the newest pick any open hero holds, else its default (another when the device asks for reduced motion) */
   if (b.store === 'switch') return switchOn(peersOf(ctx), b.sw, typeof ctx.reducedMotion === 'function' && ctx.reducedMotion() === true);
+  /* a sound volume or mute: the player's one pick for every hero (src/data/sound-buses.js) */
+  if (b.store === 'sound') return soundLevelsOf(playerPick(peersOf(ctx), b.field))[b.bus][b.key];
   if (row.scope === 'server' && ctx.character && typeof ctx.character.settingOf === 'function') {
     const v = ctx.character.settingOf(row.id);
     return v === undefined ? row.default : v;
@@ -55,6 +59,7 @@ export function write(ctx, row, value) {
   if (b.store === 'hud') return ctx.hud.setVisible(b.id, value);
   if (b.store === 'residue') return ctx.character.setResidue(b.field, value);
   if (b.store === 'switch') return setSwitch(peersOf(ctx), b.sw, value, serverNowOf(ctx.character));
+  if (b.store === 'sound') return setPlayerPick(peersOf(ctx), b.field, (was, at) => withSoundLevel(was, b.bus, b.key, value, at), serverNowOf(ctx.character));
   return false;
 }
 

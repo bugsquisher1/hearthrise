@@ -56,6 +56,8 @@ const PLATFORM = new Set([
   'indexedDB', 'caches', 'WebSocket', 'Worker', 'URL', 'Blob', 'Image', 'Event', 'CustomEvent', 'AbortController',
   'BroadcastChannel', 'CompressionStream', 'TextEncoder', 'TextDecoder', 'structuredClone', 'isSecureContext', 'origin',
   'Deno', 'process', 'globalThis', 'open', 'close', 'focus', 'print', 'name',
+  /* Web Audio (src/audio/mount.js): the constructor, and Safari's older name for it */
+  'AudioContext', 'webkitAudioContext',
 ]);
 /* Globals a <script> in src/vendor/** publishes (UMD builds; their minified
    assignment shapes are not worth parsing). Each is loaded by a root page. */

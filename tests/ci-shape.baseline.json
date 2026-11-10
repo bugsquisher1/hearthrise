@@ -573,6 +573,8 @@
     "node tests/shell-renderers.mjs": "client-guards-2",
     "node tools/mutant-gate.mjs node tests/settings-registry.mjs --selftest": "client-guards-2",
     "node tests/settings-registry.mjs": "client-guards-2",
+    "node tools/mutant-gate.mjs node tests/sound.mjs --selftest": "client-guards-2",
+    "node tests/sound.mjs": "client-guards-2",
     "node tools/mutant-gate.mjs node tests/hunt-floor-warning.mjs --selftest": "client-guards-2",
     "node tests/hunt-floor-warning.mjs": "client-guards-2",
     "node tools/mutant-gate.mjs node tests/hunt-summary.mjs --selftest": "client-guards-2",

@@ -70,6 +70,11 @@ import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.114
 import { mountNewVersion } from './new-version.js?v=0.2.114';
 import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.114';
 import { coachFactsOf } from '../shell/launcher.js?v=0.2.114';
+import { soundModeOf } from '../data/sound-buses.js?v=0.2.114';
+
+/* SOUND (src/audio/**; Tyler 2026-11-10). Asked for only when sound is on (the switch SOUND.shipped, or the page's ?sound=tones), and never
+   with a literal import(): play.html's preload block (tests/module-preload.mjs) names every literal one, and every page would fetch it. */
+const SOUND_URL = new URL('../audio/mount.js?v=0.2.114', import.meta.url).href;
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -108,6 +113,7 @@ function startApp(win) {
   let alerts = null;
   let watchers = [];   // the account's page-level watchers: the press acknowledgement, ?debug=live
   let pane = null;
+  let sound = null;    // the sound watcher (src/audio/mount.js), one of `watchers`, or null while sound is off
   let strip = null;
   let paneSeq = 0;
   let openAfter = null;
@@ -165,7 +171,7 @@ function startApp(win) {
     if (m) m.textContent = AUTH_COPY.signedOut;
   }
 
-  function endWatchers() { for (const w of watchers) w.destroy(); watchers = []; }
+  function endWatchers() { for (const w of watchers) w.destroy(); watchers = []; sound = null; }
 
   async function signOut() {
     endWatchers();
@@ -203,6 +209,16 @@ function startApp(win) {
     /* Every press answers at once (src/shell/press-ack.js); ?debug=live adds the corner (live-overlay.js). */
     watchers = [mountPressAck(doc, account.intents), mountConnectionLine(doc), mountOffWhy(doc), mountLauncherNames(doc), mountMarketWatch(win, account, alerts), mountSocialWatch(account, alerts)];
     if (liveOverlayWanted(win.location.search)) watchers.push(mountLiveOverlay(win, account));
+    if (soundModeOf(win.location.search) !== 'off') {
+      const acc = account, heard = alerts;
+      import(SOUND_URL).then((m) => m.mountSound(win, acc, heard)).then((snd) => {
+        if (!snd) return;
+        if (account !== acc) { snd.destroy(); return; }   // signed out while it loaded
+        sound = snd;
+        watchers.push(snd);
+        if (pane) snd.followShell(pane.shell);
+      }, () => {});   // the game plays without sound rather than not at all
+    }
     account.social.chat.followAlerts(alerts);   // the alerts are also the chat's System lines
     if (!resume) account.forgetOpen();
     await showCharacters(null, resume ? account.lastOpen() : null);
@@ -367,6 +383,7 @@ function startApp(win) {
     /* The strip's tabs open the viewed shell's one player menu (Invite to party / Leave party for own characters). */
     const nav = root.querySelector('nav.char-strip');
     if (nav && p.shell && p.shell.menu) p.shell.menu.attach(nav, stripTargetOf);
+    if (sound) sound.followShell(p.shell);
     if (strip) strip.patch();
     if (want) pane.shell.open(want);
   }

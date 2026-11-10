@@ -5625,6 +5625,17 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/settings-registry.mjs
 
+      # Sound (src/audio/**, src/data/sounds.js): off and silent by its switch, never on
+      # the first screen; the mixer's gesture, voices, cooldowns, volumes and hidden tab;
+      # every raised id is in the map and every row of the map is raised.
+      - name: Sound - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/sound.mjs --selftest
+
+      - name: Sound - base run
+        if: ${{ !cancelled() }}
+        run: node tests/sound.mjs
+
       # A hunt's level floor is a warning (Tyler 10-18): the picker warns, the
       # server refuses only 15+ levels under it (the data margin), and the
       # enter answer's below_range reaches the window.

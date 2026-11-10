@@ -18,6 +18,11 @@
 //
 //   switchOn(heroes, sw, reduced)    the newest pick's answer, else the default
 //   setSwitch(heroes, sw, on, now)   the press: one pick, newer than any held, into every hero
+//
+// A PICK OF ANOTHER SHAPE (the sound volumes, src/data/sound-buses.js: { at, vol, mute }) follows the same rule
+// through playerPick / setPlayerPick: any object stamped `at`, the newest any open hero holds, put into every hero.
+//   playerPick(heroes, field)                the newest stamped pick, or null
+//   setPlayerPick(heroes, field, make, now)  make(was, at) is the next pick, stamped after any held
 // ════════════════════════════════════════════════════════════════════════
 
 const pickOf = (cs, field) => {
@@ -49,5 +54,25 @@ export function setSwitch(heroes, sw, on, now) {
   const pick = { on: on === true, at: Math.max(Number.isFinite(now) ? Math.floor(now) : 0, was ? was.at + 1 : 0) };
   let kept = false;
   for (const cs of open) if (typeof cs.setResidue === 'function' && cs.setResidue(sw.field, pick)) kept = true;
+  return kept;
+}
+
+/** The newest stamped pick ({ at, ... }) any of these heroes holds in residue `field`, or null. */
+export function playerPick(heroes, field) {
+  let best = null;
+  for (const cs of heroes || []) {
+    const p = cs && cs.record && cs.record.residue ? cs.record.residue[field] : null;
+    if (p && typeof p === 'object' && Number.isSafeInteger(p.at) && (!best || p.at > best.at)) best = p;
+  }
+  return best;
+}
+
+/** The press: `make(was, at)` is the next pick, stamped after any pick held, put into every open hero. True when one hero kept it. */
+export function setPlayerPick(heroes, field, make, now) {
+  const open = (heroes || []).filter(Boolean);
+  const was = playerPick(open, field);
+  const pick = make(was, Math.max(Number.isFinite(now) ? Math.floor(now) : 0, was ? was.at + 1 : 0));
+  let kept = false;
+  for (const cs of open) if (typeof cs.setResidue === 'function' && cs.setResidue(field, pick)) kept = true;
   return kept;
 }

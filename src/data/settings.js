@@ -25,6 +25,8 @@
 //                | { store: 'switch', field, sw } (a player switch, sw its data row { field,
 //                  defaultOn, reducedOn? }: one pick for every open hero, the newest wins;
 //                  src/session/player-switch.js. The row's default is sw.defaultOn)
+//                | { store: 'sound', field, bus, key } (a volume or a mute of one sound bus, src/data/sound-buses.js:
+//                  the player's one pick for every open hero, like a switch)
 //                | { store: 'none' } (hotkeys, actions, notes)
 //   options      choice: [{ value, label }];  slider: { min, max, step, unit? } (the unit follows the value shown)
 //   key          hotkey rows: the key;  action rows: `run` names a
@@ -34,7 +36,8 @@
 //                category with no visible row, is not drawn
 //
 // Categories are data too, in the order the window lists them. Gameplay,
-// Chat & Social and Account stay hidden until a feature registers a row there.
+// Chat & Social and Account stay hidden until a feature registers a row there;
+// Sound stays hidden until sound is switched on (SOUND.shipped).
 // ════════════════════════════════════════════════════════════════════════
 import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.114';
 import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.114';
@@ -45,6 +48,7 @@ import { HELP_NOTES } from './how-to-play.js?v=0.2.114';
 import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.114';
 import { REPLAY } from './privacy.js?v=0.2.114';
 import { IDLE_MOTION } from './world/motion.js?v=0.2.114';
+import { SOUND, SOUND_BUSES, soundModeOf } from './sound-buses.js?v=0.2.114';
 
 export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action', 'note']);
 export const SETTING_SCOPES = Object.freeze(['residue', 'server']);
@@ -53,6 +57,7 @@ const cat = (id, label, blurb) => Object.freeze({ id, label, blurb });
 export const SETTING_CATEGORIES = Object.freeze([
   cat('gameplay', 'Gameplay', 'Hunt defaults and alerts.'),
   cat('interface', 'Interface', 'Which panels show and how windows behave.'),
+  cat('sound', 'Sound', 'How loud the game, its effects, the world and the music are.'),
   cat('combat_text', 'Combat text', 'What pops up over monsters and heroes.'),
   cat('chat_social', 'Chat & Social', 'Chat filters, blocked players and friend requests.'),
   cat('controls', 'Controls', 'Keys.'),
@@ -96,6 +101,18 @@ const LOOK_ROWS = [row({
   bind: Object.freeze({ store: 'switch', field: IDLE_MOTION.field, sw: IDLE_MOTION }),
 })];
 
+/* ── Sound (Tyler 2026-11-10): a volume and a mute per bus, the player's for every hero. HIDDEN while sound is off (no file exists
+   yet: a slider that changes nothing is a broken promise); the page's ?sound=tones shows them, since the tones obey them. ── */
+const soundShown = (ctx) => soundModeOf(ctx && ctx.doc && ctx.doc.defaultView ? ctx.doc.defaultView.location.search : '') !== 'off';
+const SOUND_ROWS = SOUND_BUSES.flatMap((b) => [row({
+  id: 'sound.' + b.id + '.vol', category: 'sound', label: b.label, help: b.help, type: 'slider', default: b.initial,
+  options: Object.freeze({ min: SOUND.volume.min, max: SOUND.volume.max, step: SOUND.volume.step, unit: '%' }),
+  bind: Object.freeze({ store: 'sound', field: SOUND.field, bus: b.id, key: 'vol' }), visibleWhen: soundShown,
+}), row({
+  id: 'sound.' + b.id + '.mute', category: 'sound', label: b.muteLabel, help: b.muteHelp, type: 'toggle', default: false,
+  bind: Object.freeze({ store: 'sound', field: SOUND.field, bus: b.id, key: 'mute' }), visibleWhen: soundShown,
+})]);
+
 /* ── Interface: show or hide each HUD panel, then the HUD layout window (fade, put back a moved panel, reset) ── */
 const LAYOUT_ROW = row({
   id: 'ui.hudWindow', category: 'interface', label: 'HUD layout',
@@ -138,7 +155,7 @@ const HELP_ROWS = [...HELP_NOTES.map((n) => row({ id: 'help.' + n.id, category: 
   bind: Object.freeze({ store: 'switch', field: REPLAY.field, sw: REPLAY }),
 })];
 
-export const SETTINGS = Object.freeze([...LOOK_ROWS, ...PANEL_ROWS, LAYOUT_ROW, ...FLOAT_ROWS, ...HOTKEY_ROWS, ...SOCIAL_SETTINGS.map(row), ...HELP_ROWS]);
+export const SETTINGS = Object.freeze([...LOOK_ROWS, ...PANEL_ROWS, LAYOUT_ROW, ...SOUND_ROWS, ...FLOAT_ROWS, ...HOTKEY_ROWS, ...SOCIAL_SETTINGS.map(row), ...HELP_ROWS]);
 
 /** Throws on the first broken row; the guard and the window both rely on it. */
 export function validateSettings(rows = SETTINGS, cats = SETTING_CATEGORIES) {
@@ -155,6 +172,7 @@ export function validateSettings(rows = SETTINGS, cats = SETTING_CATEGORIES) {
     if (r.scope === 'server' && r.bind && r.bind.store === 'residue') throw new Error(where + ': a server setting is never kept in residue');
     if (r.type === 'toggle' && typeof r.default !== 'boolean') throw new Error(where + ': a toggle defaults to a boolean');
     if (r.bind && r.bind.store === 'switch' && !(r.type === 'toggle' && r.bind.sw && r.bind.sw.field === r.bind.field && r.bind.sw.defaultOn === r.default)) throw new Error(where + ': a switch is a toggle with its data row\'s field and default');
+    if (r.bind && r.bind.store === 'sound' && !(r.bind.field === SOUND.field && SOUND_BUSES.some((b) => b.id === r.bind.bus) && ((r.bind.key === 'vol' && r.type === 'slider') || (r.bind.key === 'mute' && r.type === 'toggle')))) throw new Error(where + ': a sound row is a slider (vol) or a toggle (mute) of a known bus');
     if (r.type === 'choice' && !(Array.isArray(r.options) && r.options.some((o) => o.value === r.default))) throw new Error(where + ': a choice default must be one of its options');
     if (r.type === 'slider' && !(r.options && r.options.min < r.options.max && typeof r.default === 'number')) throw new Error(where + ': a slider needs min < max and a numeric default');
     if (r.type === 'hotkey' && !r.key) throw new Error(where + ': a hotkey row names its key');

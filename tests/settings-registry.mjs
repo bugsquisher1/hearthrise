@@ -110,6 +110,33 @@ async function check(base) {
     .sprites.map((d) => d.id + ':' + d.sx).join(' ');
   must(folk(false, 250) === 'breather:8 lamp:8 post:0' && folk(false, 500) === 'breather:16 lamp:16 post:0', 'idle switch: on, townsfolk and a prop with a looping idle must play it on the clock (and a still prop must not), got ' + folk(false, 250) + ' / ' + folk(false, 500));
   must(ages.every((a) => folk(off, a) === 'breather:0 lamp:0 post:0'), 'idle switch: off must hold townsfolk and fires on frame 0 at any time, got ' + ages.map((a) => folk(off, a)).join(' / '));
+  /* SOUND (Tyler 2026-11-10; src/data/sound-buses.js): a volume and a mute per bus under Sound. The rows are HIDDEN while sound is off
+     (no file exists yet, and a slider that changes nothing is a broken promise) and shown by the page's ?sound=tones; a press is the
+     player's, so it goes to every open hero as ONE pick of all four buses, the newest any open hero holds wins, and a second press
+     keeps what the first set. */
+  const SB = await import(u('src/data/sound-buses.js'));
+  const srows = D.SETTINGS.filter((r) => r.category === 'sound');
+  must(srows.length === SB.SOUND_BUSES.length * 2 && SB.SOUND_BUSES.every((b) => srows.some((r) => r.id === 'sound.' + b.id + '.vol' && r.type === 'slider' && r.default === b.initial)
+    && srows.some((r) => r.id === 'sound.' + b.id + '.mute' && r.type === 'toggle' && r.default === false)), 'sound rows: every bus needs a volume slider at its default and a mute that starts off');
+  must(srows.length > 0 && srows.every((r) => r.bind.store === 'sound' && r.bind.field === SB.SOUND.field && RESIDUE_FIELDS.includes(r.bind.field)), 'sound rows: the pick must be kept in an allowlisted residue field');
+  const pageOf = (search) => ({ defaultView: { location: { search } } });
+  const quiet = Object.assign({}, ctx, { doc: pageOf('') }), toned = Object.assign({}, ctx, { doc: pageOf('?sound=tones') });
+  const sectionShown = (c) => M.categoriesFor(c, D.SETTINGS, D.SETTING_CATEGORIES).some((x) => x.id === 'sound');
+  must(SB.SOUND.shipped || (srows.every((r) => !M.visible(quiet, r)) && !sectionShown(quiet) && !sectionShown(ctx)), 'sound rows: they must stay hidden while sound is off');
+  must(srows.length > 0 && srows.every((r) => M.visible(toned, r)) && sectionShown(toned), 'sound rows: ?sound=tones must show them');
+  const s1 = heroOf({}), s2 = heroOf({});
+  const sound = { character: s1, peers: () => [s1, s2], hud: ctx.hud };
+  const vol = srows.find((r) => r.id === 'sound.music.vol'), mute = srows.find((r) => r.id === 'sound.effects.mute');
+  must(vol && mute && M.read(sound, vol) === vol.default && M.read(sound, mute) === false, 'sound rows: with no pick anywhere a row reads its default');
+  must(vol && M.write(sound, vol, 20) && M.read(sound, vol) === 20 && s2.puts.length === 1 && s2.puts[0][0] === 'sound' && s2.puts[0][1].vol.music === 20
+    && JSON.stringify(s1.puts[0][1]) === JSON.stringify(s2.puts[0][1]), 'sound rows: a volume press must reach every open hero');
+  must(mute && M.write(sound, mute, true) && M.read(sound, mute) === true && M.read(sound, vol) === 20 && !!s2.puts[1] && s2.puts[1][1].at > s2.puts[0][1].at, 'sound rows: a second press keeps the first and is newer');
+  must(!!s2.puts[1] && JSON.stringify(sanitizeResidueField('sound', Object.assign({ x: 1 }, s2.puts[1][1]))) === JSON.stringify(s2.puts[1][1]) && sanitizeResidueField('sound', { vol: { music: 20 } }) === undefined
+    && (sanitizeResidueField('sound', { at: 1, vol: { music: 33 } }) || { vol: {} }).vol.music === 35,
+    'sound rows: a pick must round-trip through the residue sanitizer, and a thing with no stamp is no pick');
+  const quietOld = heroOf({ sound: { at: 5, vol: { music: 10 }, mute: [] } }), loudNew = heroOf({ sound: { at: 9, vol: { music: 90 }, mute: [] } });
+  must(vol && M.read({ character: quietOld, peers: () => [quietOld, loudNew], hud: ctx.hud }, vol) === 90 && M.read({ character: loudNew, peers: () => [loudNew, quietOld], hud: ctx.hud }, vol) === 90, 'sound rows: the newest pick any open hero holds must win, whichever hero is viewed');
+  try { D.validateSettings([Object.assign({}, vol, { bind: Object.assign({}, vol.bind, { bus: 'kazoo' }) })]); errs.push('sound rows: a row naming an unknown bus must fail validation'); } catch { /* expected */ }
   /* The Privacy Policy names the switch by its words and says it is on by default (the page players read must match the row). */
   const policy = readFileSync(join(ROOT, 'legal/PRIVACY_POLICY.md'), 'utf8');
   must(policy.includes('**' + REPLAY.label + '**') && /on by default/i.test(policy) && /Settings/.test(policy), 'replay switch: legal/PRIVACY_POLICY.md must name the switch by its exact words and say it is on by default');
@@ -127,7 +154,7 @@ async function check(base) {
   must(shown.length > 0 && shown.length < D.SETTING_CATEGORIES.length, 'categories with no rows must stay hidden');
   const hidden = Object.assign({}, srv, { category: 'account', visibleWhen: () => false });
   must(!M.categoriesFor(ctx, [hidden], D.SETTING_CATEGORIES).length, 'a category whose rows are all hidden must not show');
-  must(D.SETTING_CATEGORIES.map((c) => c.id).join() === 'gameplay,interface,combat_text,chat_social,controls,account,help', 'categories keep the ruled order (Help, last: the problem report)');
+  must(D.SETTING_CATEGORIES.map((c) => c.id).join() === 'gameplay,interface,sound,combat_text,chat_social,controls,account,help', 'categories keep the ruled order (Sound after Interface, 2026-11-10; Help, last: the problem report)');
   /* HELP SAYS HOW THE GAME WORKS (designer 2026-10-22: Help held only "Report a problem", and nothing told a newcomer
      the hero keeps hunting with the game closed). Read-only notes, found by search, the idle promise among them. */
   const notes = D.SETTINGS.filter((r) => r.category === 'help' && r.type === 'note');
@@ -156,6 +183,12 @@ const MUTANTS = [
   { name: 'fires stand as stills (only a unit plays its idle)', file: 'src/world/core/compose.js', from: 'folk[i] = s.anims && s.anims.idle && s.anims.idle.fps', to: "folk[i] = s.layer === 'unit' && s.anims && s.anims.idle && s.anims.idle.fps", want: 'a looping idle must play it on the clock' },
   { name: 'the World never reads the idle switch', file: 'src/world/world-boot.js', from: ', stillIdle: idleMotion.still() }, cast));', to: ' }, cast));', want: 'every frame it draws' },
   { name: 'reduced motion is ignored', file: 'src/session/player-switch.js', from: "return reduced === true && typeof sw.reducedOn === 'boolean' ? sw.reducedOn : sw.defaultOn === true;", to: 'return sw.defaultOn === true;', want: 'reduced motion must make the default off' },
+  { name: 'a sound press writes one hero only', file: 'src/shell/settings-model.js', from: 'setPlayerPick(peersOf(ctx), b.field,', to: 'setPlayerPick([ctx.character], b.field,', want: 'a volume press must reach every open hero' },
+  { name: 'the sound pick is not allowlisted', file: 'src/session/residue.js', from: '  sound: sanitizeSoundPick,', to: '', want: 'allowlisted residue field' },
+  { name: 'sound rows show while sound is off', file: 'src/data/settings.js', from: "key: 'vol' }), visibleWhen: soundShown,", to: "key: 'vol' }),", want: 'stay hidden while sound is off' },
+  { name: 'a second sound press forgets the first', file: 'src/data/sound-buses.js', from: 'const next = { at, vol: Object.assign({}, p.vol), mute: p.mute.slice() };', to: 'const next = { at, vol: {}, mute: [] };', want: 'a second press keeps the first' },
+  { name: 'an older sound pick beats a newer one', file: 'src/session/player-switch.js', from: 'Number.isSafeInteger(p.at) && (!best || p.at > best.at)) best = p;', to: 'Number.isSafeInteger(p.at) && (!best || p.at < best.at)) best = p;', want: 'sound rows: the newest pick' },
+  { name: 'a volume off the setting\'s steps is kept', file: 'src/data/sound-buses.js', from: 'return Math.max(min, Math.min(max, Math.round(v / step) * step));', to: 'return v;', want: 'round-trip' },
   { name: 'the idle pick is not allowlisted', file: 'src/session/residue.js', from: '  idleMotion: sanitizeSwitch,', to: '', want: 'round-trip' },
 ];
 

@@ -13,6 +13,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.114';
 import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.114';
+import { sanitizeSoundPick } from '../data/sound-buses.js?v=0.2.114';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -230,6 +231,7 @@ const SANITIZERS = Object.freeze({
   townZoom: sanitizeTownZoom,       // display preference: the viewer's town zoom, one for every hero (src/world/town-zoom.js); gates and spends nothing
   shareReplay: sanitizeSwitch,      // display preference: whether the screen may be recorded, one for every hero (src/session/replay-pref.js); gates and spends nothing
   idleMotion: sanitizeSwitch,       // display preference: whether standing units breathe, one for every hero (src/world/idle-motion.js); gates and spends nothing
+  sound: sanitizeSoundPick,         // display preference: the four volumes and mutes, one for every hero (src/data/sound-buses.js); gates and spends nothing
 });
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));

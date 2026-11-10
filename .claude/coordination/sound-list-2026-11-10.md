@@ -96,6 +96,6 @@ A freelance game sound designer, briefed with this list.
 The three are not exclusive. The usual indie path is B for the bulk, C for the five signature sounds and the music, and A only to hear the game while the others arrive. No choice has to be made to merge this lane: the system runs today on generated test tones (`play.html?sound=tones`) and on nothing at all without that flag.
 
 ## How to switch it on, once files exist
-1. Put the files under `assets/audio/` at the paths above, with the licence text beside them.
+1. Put the files under `assets/audio/` at the paths above, with the licence text beside them. Add `assets/audio/**/*.ogg` to the publish list in `tools/build-site.mjs` (Pages serves only what that list names; the build fails on a file the game asks for that is not in it) and `.ogg` to the local world's file types (`tools/qa/local-world.mjs`).
 2. Set `SOUND.shipped` to `true` in `src/data/sound-buses.js`. `tests/sound.mjs` rule SND-3 then fails for any file the map names that is missing.
 3. Play it, tune `vol`, `cooldownMs` and `voices` per row in `src/data/sounds.js`, and have the art director listen before release.

@@ -71,32 +71,42 @@ F11 is not a home problem: shop prices are already rows a generator reads. The g
 
 ## 3. Slices
 
-Each slice is one commit: guards green, digests equal, `git merge-tree` against `origin/lane/b-area-set` clean (exit 0 at ed963151e).
+Each slice is one commit with the guard green and the digests equal.
 
-**Built** (base digests, `tools/qa/same-numbers.mjs`: formulas 80dfdc0b, 18 combat plays e9a2bc31, all c97cbb1a; equal after every slice. The 18 plays are this tool's, not the lost harness behind 342a5481.)
-1. DONE 0eff06d3d. Registry, guard, same-numbers tool, and SALE: both rates and the function out of the edge (`data/formulas/sale.js`, `core/formulas/sale.js`). The edge keeps the lookup. `vendor-shop-arbitrage`'s database arm calls the formula (its copy had lost the gear ladder).
-2. DONE. VITALS registered (max HP, max mana, regen). No move.
-3. DONE 5c51045a8. XP_TABLE is `core-model.js` CAPPED_CURVE; Level, combat skill and capped curves registered.
-5. DONE 72ed0a17e. Death share, Blessings, stamina refill, scaled hunts, tempering, bench tax, rename registered. 14 rows in all.
+**The digests** (`node tools/qa/same-numbers.mjs`; `--selftest` proves it sees a moved number, 5 plants, and runs in CI):
+| Tree | Formulas (`--no-combat` ALL) | 18 combat plays | ALL |
+|---|---|---|---|
+| main 18c34c8e7 (v0.2.114), and this lane through slice 6 | 80dfdc0b | e9a2bc31 | c97cbb1a (with `--plays`) |
+| lane/b-phase0-tier4 ea4416e74, and this lane with it merged and the ladder moved | dddde3b9 | e9a2bc31 | a7f60045 |
+The 18 plays are this tool's (six open grounds x a lone tank, a lone mage, a mixed four, ten minutes at the floor), not the lost harness behind 342a5481.
 
-**Not built, still safe before area spells**
-4. SHOP BUY PRICE: the rule (`SHOP_PREMIUM` x book, the per-point supply rate) moves from `tools/gen-alpha-catalogue.mjs:87-126` into `core/formulas/shop.js`; the generator calls it. No SQL moves.
-6. Numbers out of non-hunt core: `pacing.js` PACE and SPEED_FUSE, `artisan.js` burn, `farm.js` tables, each to its data file. Check `mutant-anchors` first: tests patch those lines.
+**Built**
+1. Registry, guard, same-numbers, and SALE: both rates and the function out of the edge (`data/formulas/sale.js`, `core/formulas/sale.js`). The edge keeps the lookup.
+2. VITALS registered (max HP, max mana, regen). No move.
+3. XP_TABLE is `core-model.js` CAPPED_CURVE; Level, combat skill and capped curves registered.
+4. SHOP AND STORE PRICE RULES out of `tools/gen-alpha-catalogue.mjs` into `core/formulas/shop.js`; the generator calls them.
+5. Death share, Blessings, stamina refill, scaled hunts, tempering, bench tax, rename registered.
+6. PACING and BURN numbers out of `core/pacing.js` and `core/artisan.js` into `data/formulas/town-work.js`. **The farm tables are not moved** (see below).
+9. (brought forward by the Phase 0 merge) THE GEAR LADDER `[0.5, 0.5, 0.14, 0.075, 0.033, 0.015]` is one row in `data/formulas/sale.js`; `gearSaleRate` is in `core/formulas/sale.js`; `shops.js` DERIVED_PRICES is deleted and the guard's PENDING list is empty. The edge's sell verbs and `gen-hunt-sessions` (which writes `hr_hunt_vendor_value`: Dispatch loot, Shop bids, the Weighhouse floor, the bench tax) price through the one `salePriceOf`. `gen-hunt-sessions --check` exit 0: Phase 0's generated SQL regenerates byte for byte from the moved row.
+18 rows in the registry. Guard `--selftest`: 25 planted breaches, each caught by its rule.
 
-**After area spells** (v0.2.116; these touch `core/combat.js`, `elements.js`, `member.js`, `core/hunt/*`, or lines that lane edits):
-7. COMBAT: COMBAT_BALANCE, weakness, bane and element ceilings to `data/formulas/combat.js`; `playerCombatRolls` reads its table; `balance-sheet.js` restatements deleted.
-8. DROPS: the 0.95 cap, bands and relic cap to data.
-9. SALE, the rest: delete `shops.js` DERIVED_PRICES and the guard's four PENDING entries (line 555 is edited there).
-10. REGEN: one integer step function for `pull-cycle.js` and the HUD line (`session/hunt-sections.js:94-100`, whose mutant in `hunt-scene-live.mjs:1704` moves with it). XP share registered; `underFloorSharePm` cut with lane/c-risk-ladder.
+**Not built**
+- FARM TABLES (`core/farm.js` PLOT_TIERS, PLOT_TIER_PRICES, REGROW_LIMITS, WATER_*, MAX_WATERINGS): `tests/plot-tier-parity.mjs:98` parses that file's text and its `--mutate` moves it, `gen-farm-catalogues` and `catalogue-regrow-limit` import from it, and `c_plant_xp 28` lives only in SQL. One slice of its own, with a forward farm catalogue if plant XP becomes a row.
+- 7 COMBAT, 8 DROPS, 10 REGEN and the XP share: after area spells (v0.2.116), as planned above.
 
-**Other lanes.** #22 book values (S2, item rows: designer picks the winner, then a catalogue file). F11 re-prove and #31 plant XP: lane/c-server-debt. #15 table and #33 SQL twins: a generator each, lane C.
+**Book values (inventory #22).** lane/b-client-debt ac6be050d already made the data carry one value per item (ITEMS deep-equal before and after, 582 rows), so this lane does not touch those rows. The server uses the winning value: `hr_items.value` is generated from the joined ITEMS (`gen-catalogues`), which is the hand row for the 14 gear ids (iron_sword 200, steel_sword 800, bronze_belt 110) and `stonecraft.js` for the 8 whetstone and blank ids. No screen showed the other number: the losing tables (GEAR_ITEMS, LIB2_ITEMS, STONECRAFT_ITEMS) are imported by `items.js` only, and every reader, client and edge, reads ITEMS. No §6 bug.
+
+**Other lanes.** F11 re-prove and plant XP: lane/c-server-debt. The capped curve's table and the rename and trophy SQL twins: a generator each, lane C. `refHp`: left for the designer's ruling.
 
 ## 4. Found while building
 
-- **The edge bundle moved** (`catalogue.js`, `xp.js`, `core-model.js`): this lane needs an edge deploy and the one local `run-smoke` before it. Hash at ed963151e: `pack-edge --hash`.
-- `ARMOUR_SLOTS` is exported twice: `core-model.js:129` (the six slot ids) and `gear-tiers.js:63` (the six armor lines). The guard caught it. Audit S2, for a lane that may edit `gear-tiers.js`.
-- The HUD's HP regen is the plain product; the engine floors it every 100 ms step, so the HUD can read up to about 2% over what the fight adds. Display only. Decide in slice 10.
+- **The edge bundle moved**: an edge deploy, and the one local `run-smoke` before it. Hash at the lane head: `pack-edge --hash` dda65b30.
+- The generated `2027-03-27-phase0-tier4-hunt-sessions-catalogue` still says "src/data/loot-bands.js VENDOR_GEAR_RATES" in its SQL comment. Changing it would move the file's bytes; the next forward file corrects it (`tools/gen-hunt-sessions.mjs:742`).
+- `ARMOUR_SLOTS` is exported twice: `core-model.js` (the six slot ids) and `gear-tiers.js` (the six armor lines). The guard caught it. Audit S2.
+- `gearSaleRate` typed its tier (`t === 2`) in code; it is `VENDOR_HOURLY_ARMOR_TIER` now (core-clean caught it on the move).
+- The HUD's HP regen is the plain product; the engine floors it every 100 ms step, so the HUD can read up to about 2% over what the fight adds. Display only. Decide with slice 10.
 - A registry file named `index.js` made `tools/guards-for` pick about 150 tests for one edit (it matches by basename). Renamed.
 - An anchor that holds a `?v=` goes stale at the next bump. None of this lane's anchors has one.
-- The guard's first regex read `x ? NAME : 0` as a definition. It now reads `NAME =` and object keys only.
-- `tools/gen-scaled-hunts.mjs:233` plants `bankMaxHours: 12` in its own selftest, so common key names are not policed (`keys` lists distinctive ones only).
+- The guard reads definitions only: `x ? NAME : 0` is not one, and neither is text inside a string (a mutation plant's `find`).
+- Common key names are not policed (`tools/gen-scaled-hunts.mjs:233` plants `bankMaxHours: 12` in its own selftest); `keys` lists distinctive ones.
+- The configured browser preview serves another checkout (it answered v0.2.48), so this worktree was checked by importing the client modules in Node, not in a browser.

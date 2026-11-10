@@ -196,6 +196,8 @@ const MUTANTS = [
     find: '  return salePriceOf(catalogueGet(items, id), unit);', repl: '  const it = catalogueGet(items, id); return it ? Math.min(it.v, unit || it.v) : 0;' },
   { name: 'the evaluator is renamed under the row', rule: 'bound', file: 'src/core/formulas/sale.js',
     find: 'export function salePriceOf(item, shopUnit) {', repl: 'export function priceOfSale(item, shopUnit) {' },
+  { name: 'core types max HP from its own numbers', rule: 'typed-again', file: 'src/core/vitals.js',
+    find: 'export function maxHpFor(level, heavy) {', repl: 'const own = { hpBase: 150, hpPerLevel: 10 };\nexport function maxHpFor(level, heavy) {' },
   { name: 'a pending copy is deleted and stays listed', rule: 'pending', file: 'src/data/shops.js',
     find: '      "VENDOR_RAW_RATE": 0.2,\n', repl: '' },
 ];

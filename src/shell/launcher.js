@@ -338,6 +338,7 @@ export function actCoach(ctx, el, action, ev) {
   const hadFocus = !!doc && !!doc.activeElement && el.contains(doc.activeElement);
   /* Opening clears the mark: the card the player now sees is the one they have seen. The reads stay. */
   const read = coachReadOf(cs);
+  /** @type {{ read?: string[], back?: string, backAt?: number }} */
   const keep = read && read.size ? { read: Array.from(read) } : {};
   const r = cs.record && cs.record.residue && cs.record.residue.coach;
   if (r && r.back) { keep.back = r.back; if (Number.isSafeInteger(r.backAt)) keep.backAt = r.backAt; }

@@ -1775,7 +1775,7 @@ const mutants = [
   { name: 'a bow with nothing loaded says nothing', case: 'first-hour-never-walls',
     edits: [['src/data/hunt-tutorial.js', "no_shot: (p, f) => (f.ammo === undefined || !Array.isArray(f.slots) || !f.carried ? null : !canShoot(f)),", 'no_shot: () => false,']] },
   { name: 'the coach rings the Runes tab for ever', case: 'first-hour-never-walls',
-    edits: [['src/data/hunt-tutorial.js', "hooks: ['[data-hs-win=\"configure-action\"] .ca-rs[data-store=\"{store}\"]', '[data-hs-win=\"configure-action\"] .ca-row[data-id=\"{spell}\"]',\n        '[data-hs-win=\"configure-action\"] .ca-tab[data-tab=\"runes\"]'] }),", "hooks: ['[data-hs-win=\"configure-action\"] .ca-tab[data-tab=\"runes\"]', '[data-hs-win=\"configure-action\"] .ca-row[data-id=\"{spell}\"]',\n        '[data-hs-win=\"configure-action\"] .ca-rs[data-store=\"{store}\"]'] }),"]] },
+    edits: [['src/data/hunt-tutorial.js', "hooks: ['[data-hs-win=\"configure-action\"] .ca-rs[data-store=\"{store}\"]', '[data-hs-win=\"configure-action\"] .ca-row[data-id=\"{spell}\"]',\n        '[data-hs-win=\"configure-action\"] .ca-tab[data-tab=\"spells\"]'] }),", "hooks: ['[data-hs-win=\"configure-action\"] .ca-tab[data-tab=\"spells\"]', '[data-hs-win=\"configure-action\"] .ca-row[data-id=\"{spell}\"]',\n        '[data-hs-win=\"configure-action\"] .ca-rs[data-store=\"{store}\"]'] }),"]] },
   { name: 'the card never advances past the first unmet step', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', '    if (judge(r.done, facts, { openedIn, id: r.id }) !== false) continue;\n', '']] },
   { name: 'the first kill does not finish its card', case: 'tutorial-walk-through',

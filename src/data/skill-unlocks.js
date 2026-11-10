@@ -17,14 +17,14 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SKILLS_DEF } from './skills.js?v=0.2.114';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.114';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.114';
-import { ITEMS } from './items.js?v=0.2.114';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.114';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.114';
-import { reachableSources } from './catalogue-coherence.js?v=0.2.114';
-import { itemUse, nodeUse } from './item-uses.js?v=0.2.114';
+import { SKILLS_DEF } from './skills.js?v=0.2.115';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.115';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.115';
+import { ITEMS } from './items.js?v=0.2.115';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.115';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.115';
+import { reachableSources } from './catalogue-coherence.js?v=0.2.115';
+import { itemUse, nodeUse } from './item-uses.js?v=0.2.115';
 
 /* How many things one unlock line names before "and N more". */
 const NAMED = 3;

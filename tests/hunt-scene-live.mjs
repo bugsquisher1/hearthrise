@@ -47,6 +47,8 @@
 //   LV-34 A LIVING HERO NEVER READS 0 HP, AND THE BAR IS THE ENGINE'S HP (Andy 11-06, "my tank at 0 hp"): regen moves HP
 //         with no event, so the book spreads it between bases and a living unit reads at least 1; a bleed tick is booked
 //         once. On the real engine: viewed (every swing end), a catch-up, and the browser closed (the server's windows).
+//   LV-36 A RELOAD MID-HUNT NEVER READS 1 HP (live v0.2.114, "1 / 415" for up to a minute): the first window after a reload ends at
+//         the snapshot's HP (timeline.js T14), viewed until the reload (a 16 s window) and with the browser closed (a late two minutes).
 //   LV-35 A LEVEL-UP THE PLAYBACK HAS NOT SEEN (smoke 11-06, 150/150 at Level 4): the action bar, the party frame (own row and
 //         a party-mate's) and the bars over the heroes read the server's latest max HP, never the playback book's old one.
 //   LV-20 EVERY PARTY MEMBER WEARS ITS OUTFIT: your other hero its session's server `outfit`, another
@@ -103,6 +105,7 @@ async function load(base) {
     C: await u('src/session/character-session.js'),
     CFG: await u('src/session/config.js'),
     HSX: await u('src/session/hunt-sections.js'),
+    CSX: await u('src/session/character-sections.js'),
     HUB: await u('src/shell/widgets/vitals-hub.js'),
     PP: await u('src/shell/widgets/party-panel.js'),
     S: await u('src/hunt-view/scene.js'),
@@ -929,6 +932,52 @@ async function nodeRules(M) {
     }
   }
 
+  { // LV-36 A RELOAD MID-HUNT NEVER READS "1 / 415" (live v0.2.114, Corliss alone at Mosslight, up to a minute a reload).
+    // The real session over the real engine, a Level 21 tank alone at Mosslight. The page loads (a read), then asks its
+    // first settle, whose window runs from the last commit: 16 s when the page was open until the reload, two minutes
+    // when it was closed or frozen and the server settled late. No start point has landed yet (the 1 HP span).
+    const reload = async (spanMs) => {
+      const mk = () => { const m = LIVE_H.memberOf(LM, 'a', 0, 'tank', 21); m.huntId = 'mosslight_glade'; return m; };
+      const mis = [mk()], twinMis = [mk()];
+      const srv = LIVE_H.server(LM, mis, { hunt: 'mosslight_glade' }), twin = LIVE_H.server(LM, twinMis, { hunt: 'mosslight_glade' });
+      const heroOf = (s) => LM.WS.decodeStored(JSON.parse(s.inst.world)).units.find((u) => u.side === 'hero');
+      const FROM = LIVE_H.T0 + 60000, TO = FROM + spanMs, OFF = 3000000;
+      srv.commit(FROM); twin.commit(FROM);
+      /* the engine's own HP through the window, swing by swing (a twin server that commits every swing) */
+      let low = Infinity;
+      for (let t = FROM + LM.CB.tickMs; t <= TO; t += LM.CB.tickMs) { twin.commit(t); low = Math.min(low, heroOf(twin).hp); }
+      const clock = { t: TO - OFF };
+      let version = LIVE.version;
+      const env = () => {
+        const e = Object.assign(envFor(clock.t + OFF, LIVE_H.T0 - TRAVEL_MS, [{ unit: mis[0].unitId, name: 'Corliss', weapon: 'sword' }], LIVE_H.T0), { version: ++version });
+        const h = heroOf(srv);
+        e.hunt.pose = poseOf(LM, srv.inst);
+        Object.assign(e.hunt.hero, { unit: mis[0].unitId, hp: h.hp, hp_max: h.maxHp });
+        Object.assign(e.party.members[0], { hp: h.hp, hp_max: h.maxHp, hunting: true });
+        return e;
+      };
+      const server = { rpc: async () => ({ ok: true, body: env() }),
+        accrue: async () => { const c = srv.commit(clock.t + OFF); return { ok: true, body: Object.assign(env(), { accrued: true, settled: true, hunt_check: c.check }, c.tl) }; } };
+      const cs = new M.C.CharacterSession({ slot: 0, uid: '11111111-2222-3333-4444-555555555555', server, setTimer: () => 0, clearTimer: () => {}, now: () => clock.t });
+      await cs.load();
+      const start = heroOf(srv).hp;
+      await cs.hello();
+      const panel = () => { const me = M.PP.liveRoster(cs, M.PP.rosterOf(cs)).members.find((m) => m.unit === mis[0].unitId); return me ? me.hp : null; };
+      const hub = () => { const v = M.CSX.heroVitalsOf(cs); return v ? v.hp : null; };
+      const first = panel(), delay = cs.timeline.delayMs();
+      let floor = 0, apart = 0;
+      for (let s = 0; s <= delay; s += 250) { clock.t = TO - OFF + s; const p = panel(); if (p !== null && p <= 1) floor++; if (p !== hub()) apart++; }
+      clock.t = srv.inst.settled_to_ms - OFF + delay;
+      return { first, start, low, floor, apart, end: panel(), truth: heroOf(srv).hp, max: heroOf(srv).maxHp, running: cs.live.running() };
+    };
+    const open = await reload(16000), closed = await reload(120000);
+    ok('LV-36', !open.running && !closed.running && closed.low > 100, `CONTROL: the start point had landed (${open.running}, ${closed.running}), or the engine held the hero at ${closed.low} HP in the window (the case is not exercised)`);
+    ok('LV-36', open.first === open.start && open.floor === 0 && open.end === open.truth && open.apart === 0,
+      `viewed until the reload: the party panel read ${open.first} HP at once (the server's ${open.start}), ${open.floor} reading(s) at 1, ${open.end} at the window's end (the server's ${open.truth}), ${open.apart} apart from the action bar`);
+    ok('LV-36', closed.floor === 0 && closed.end === closed.truth && closed.apart === 0,
+      `browser closed: after the reload the party panel read 1 HP ${closed.floor} time(s) in ${closed.max} (the engine never held the hero under ${closed.low}), and ${closed.end} at the window's end (the server's ${closed.truth}), ${closed.apart} apart from the action bar`);
+  }
+
   { // LV-31 ANDY'S OWN PARTY SWITCHED BACK (#65, live v0.2.45: four heroes of one account at Coppercap Warrens, toggled
     // between). The viewer (the tank) is away 40 s to 70 s; the heroes viewed meanwhile settle and push frames (`unview`).
     // A monster an earlier pose placed alive and the newest snapshot holds dead must not stand once the screen reaches the
@@ -1623,6 +1672,8 @@ async function pageRules() {
 }
 
 const MUTANTS = [
+  /* Live v0.2.114 ("1 / 415" after a reload): the snapshot's HP is the base a server window ends at (LV-36). */
+  ["the snapshot's HP is never booked (LV-36)", 'src/hunt-view/timeline.js', '    noteUnits(rows, pose.at_ms);\n', '', /^LV-36: browser closed/],
   /* Smoke 11-06 (150/150 at Level 4): every hunt readout's max HP is the server's latest, never the playback book's (LV-35). */
   ["an HP readout's max is the playback's (LV-35)", 'src/session/hunt-sections.js', '  const maxHp = Number.isFinite(serverMax) && serverMax > 0 ? serverMax : r.maxHp;', '  const maxHp = r.maxHp;', /^LV-35: after a Level-up/],
   ["the action bar never passes the server's max (LV-35)", 'src/session/character-sections.js', 'liveHpOf(cs, hero.unit, hero.hpMax)', 'liveHpOf(cs, hero.unit)', /^LV-35: after a Level-up/],

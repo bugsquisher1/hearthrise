@@ -21,20 +21,20 @@
 // A boss whose hall is built for a group says so in the Hunts list's own words (hunt-list.js partyNote). A harder hunt's dials are the Hunts page's to say. A server-revealed surprise row
 // (`lucky`, `salvage`) stays unlisted, as on the ground's page.
 // ════════════════════════════════════════════════════════════════════════
-import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.114';
-import { ITEMS } from '../data/items.js?v=0.2.114';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.114';
-import { OPEN_GROUNDS } from '../data/hunt-grounds.js?v=0.2.114';
-import { DEFAULT_TIER, atTier, tierRowOf } from '../data/hunt-tiers.js?v=0.2.114';
-import { partyNote } from './hunt-list.js?v=0.2.114';
-import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.114';
-import { elementPermille } from '../core/elements.js?v=0.2.114';
-import { COMBAT_BALANCE, WEAKNESS_BONUS, monsterMaxHit, rollAttack, weaknessInfo } from '../core/combat.js?v=0.2.114';
-import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.114';
-import { residentsOf, bigPullOf } from './hunt-ground-facts.js?v=0.2.114';
-import { usePlaces, usesOf } from './item-lore.js?v=0.2.114';
-import { skillName } from './widgets/bits.js?v=0.2.114';
-import { t } from '../render/player-text.js?v=0.2.114';
+import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.115';
+import { ITEMS } from '../data/items.js?v=0.2.115';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.115';
+import { OPEN_GROUNDS } from '../data/hunt-grounds.js?v=0.2.115';
+import { DEFAULT_TIER, atTier, tierRowOf } from '../data/hunt-tiers.js?v=0.2.115';
+import { partyNote } from './hunt-list.js?v=0.2.115';
+import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.115';
+import { elementPermille } from '../core/elements.js?v=0.2.115';
+import { COMBAT_BALANCE, WEAKNESS_BONUS, monsterMaxHit, rollAttack, weaknessInfo } from '../core/combat.js?v=0.2.115';
+import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.115';
+import { residentsOf, bigPullOf } from './hunt-ground-facts.js?v=0.2.115';
+import { usePlaces, usesOf } from './item-lore.js?v=0.2.115';
+import { skillName } from './widgets/bits.js?v=0.2.115';
+import { t } from '../render/player-text.js?v=0.2.115';
 
 const pctOf = (mult) => Math.round((mult - 1) * 100);
 /* The roller's own two ends: a blow that lands, drawn at its lowest and at its highest. */

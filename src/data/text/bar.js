@@ -103,7 +103,7 @@ export const BAR_TEXT = Object.freeze({
   /* A spell that casts only while its hero hunts alone (abilities.js `alone`, Undertow): its card, its tooltip, its greyed slot in a
      party, and Configure action's line in a party (Tyler 2026-11-09: "Make that callout clear to the player"). */
   alone: 'Only when you hunt alone.',
-  alone_party: 'Only when you hunt alone. In your party this slot never fires.',
+  alone_party: 'Only when you hunt alone. It does nothing in a party.',
 
   /* Why a slot cannot fire now. */
   waiting: { one: '{n} waits in your backpack. Press this slot to carry it in.', other: '{n} wait in your backpack. Press this slot to carry them in.' },

@@ -1,7 +1,7 @@
 -- ════════════════════════════════════════════════════════════════════════
 -- 2027-03-30-dead-writes.sql — TWO WRITES NOTHING READS STOP RIDING EVERY SETTLE (lane/c-dead-writes, reliability-engineer,
---   2026-11-10; Tyler 2026-11-09 audit priority: stop dead systems that run every settle, switch off what a plan still
---   needs, cut only what no plan uses). Evidence: .claude/coordination/hunt-path-baseline-2026-11-10.md, finding 2.
+--   2026-11-10; Tyler's audit priority, 2026-11-08, as the Coordinator briefed it: stop dead systems that run every settle,
+--   switch off what a plan still needs, cut only what no plan uses). Evidence: .claude/coordination/hunt-path-baseline-2026-11-10.md, finding 2.
 --
 -- STATUS: STAGED, NOT APPLIED. The Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit).
 -- Pre-EA: applies on its passing §4. ON THE EA SECURITY LIST (hr_apply, the economy's one write path). DB-ONLY: no hr-accrue
@@ -22,7 +22,7 @@
 --    the history stay.
 -- 2. THE COLLECTION COUNTER: SWITCHED OFF, NOT CUT. The engine sends one `stat ev:loot:<item>` progress op a looted item
 --    kind (src/core/goals.js collectionProgressOps): 3.6 of a lone settle's 33 row writes, 14.7 of a party's 132 (11%),
---    1,641 of player_progress's 2,477 rows and most of its 452,225 updates. Its readers are hr_collection_of (the edge
+--    1,641 of player_progress's 2,477 rows and 26 to 37% of its writes in the local runs. Its readers are hr_collection_of (the edge
 --    counts it into an answer key no client file reads) and hr_renown_of (item 1). The 2026-10-22 cut KEPT every `ev:`
 --    counter for a redesigned reward, so the write goes behind a feature switch, `collection_log`, seeded OFF: hr_apply
 --    still checks the op like any other and stores it only while the switch is on for the account. Turning it on is one
@@ -31,8 +31,8 @@
 -- ── WHAT DOES NOT CHANGE ───────────────────────────────────────────────────
 -- Gold, Level XP, skill XP, items, the hunt bag, stamina, deaths, every other progress row, every refusal and every other
 -- ledger row. Proved on the four baseline scenarios by running each commit twice from the same state, production's
--- hr_apply against this file's (tools/qa/hunt-path-baseline.local.mjs --ab): every table the commit writes is identical
--- row for row apart from the two writes above, renown_high and row ids.
+-- hr_apply against this file's (tools/qa/hunt-path-baseline.local.mjs --ab): 938 commits, every table each one writes
+-- identical row for row apart from the two writes above, renown_high and generated row ids.
 -- EXISTING ROWS ARE NOT TOUCHED. No delete, no update of history: the ledger's 90-day prune (hr_ledger_prune) retires the
 -- renown rows on its own schedule, and the ev:loot rows stay as the counter's starting point if the switch comes on.
 --

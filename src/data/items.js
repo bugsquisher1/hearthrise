@@ -19,7 +19,12 @@ import { foldRows } from './grounds/shape.js?v=0.2.114';
    nothing overrides anything. Until 2026-11-10 the sources were spread into one literal, the last spread won, and 28
    ids were written twice with values that disagreed (iron_sword v 130 and v 200). `where` names each source in the
    refusal. tests/catalogue-coherence.mjs C15 holds it (and reads this file for a key typed twice in AUTHORED). */
+/**
+ * @param {ReadonlyArray<readonly [string, Record<string, any>]>} sources  [where, { id: row }], in table order
+ * @returns {Record<string, any>}
+ */
 export function oneRowPerId(sources) {
+  /** @type {Record<string, any>} */
   const out = {};
   const from = {};
   for (const [where, rows] of sources) for (const id of Object.keys(rows)) {
@@ -747,6 +752,7 @@ const AUTHORED = {
    (jewelry.js), the Library 2 catalogue, Runecrafting's essence, blanks, runes and the whetstones (stonecraft.js),
    the boss-forged body pieces, the field champions' relics, the six mana drinks, the imbuement items (one per
    monster) and the five shields. */
+/** @type {ReadonlyArray<readonly [string, Record<string, any>]>} */
 export const ITEM_SOURCES = Object.freeze([
   ['gear-tiers.js', GEAR_ITEMS],
   ['wave3-uniques.js', WAVE3_ITEMS],

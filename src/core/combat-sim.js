@@ -58,7 +58,7 @@ import { pullLeader } from './hunt/pull-cycle.js?v=0.2.114';
 import { rewardSwing } from './hunt-rewards.js?v=0.2.114';
 import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.114';
 
-/* The engine's front door (src/core/index.js `combatSim`). */
+/* The engine's front door. */
 export { stepSwing } from './hunt/world-step.js?v=0.2.114';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract

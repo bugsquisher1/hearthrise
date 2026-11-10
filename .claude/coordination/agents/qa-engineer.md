@@ -11,6 +11,13 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 
 ## Log
 
+### 2026-11-09 · alpha-windows Equip upgrades HARNESS (lane/a-aw-harness-step)
+1. *A HARNESS must say where.* harnessFail now carries the guard's stack lines and Playwright's last wait. Read those before theorising. A first lane fixed AW-21 on a guess and the red stayed.
+2. *Count Playwright's tries, not its verdict.* `DEBUG=pw:api` shows every "intercepts pointer events" retry. A click that only lands on its 3rd or 4th try (scroll alternation) is green locally and a 6 s timeout on a loaded runner. Grep a run for retried clicks before calling a step safe.
+3. *Never press through the test's own overlay.* Close a menu the way a player does (Esc), then check the control (`pressBlock`) and fail by name.
+4. *A rehearsal cannot always replay a full shard's state.* Two dispatched rehearsals (the mutant alone, then after the clean control) caught it at AW-21 while both full runs threw. `gh workflow run smoke.yml --ref <lane> -f rehearse_range=A..B` with B touching only the MUTANTS rows scopes a run to those mutants. A `main()` edit adds canaries and no-rule-on-record rows.
+5. *The bash guard refuses `$(gh ...)` and loops naming gh* (it reads them as git). Write a small node script in the scratchpad instead.
+
 ### 2026-11-06 · chat-social CW-CRIER/CW-3 flake (lane/a-chat-flake)
 1. *press-ack binds a press's follow-up reads.* Any ask that begins in the microtasks after a press's ask settles (a re-quote, a re-read) keeps that control aria-busy, and press-ack swallows a press on a busy control. A test that presses the same control twice waits for `aria-busy` to clear first (`answered()` in chat-social), never for the answer's text alone.
 2. *A cascade hides the cause.* CW-3's red ("selling ratwasd tails") was CW-CRIER's unsent line still in the field. Each page case sets its own precondition; what the earlier case left behind is asserted in that case.

@@ -50,10 +50,14 @@ const GROUP = Object.freeze({ id: 't_group', n: 'Test Group', shape: 'group', ra
 
 /** Run `fn` with spell rows planted (keyed by their id) and monster kinds listing them ({ kind: id | [ids] }); all put back after.
     The switch is ON for the run whatever the shipped row says (data/monster-spells.js SPELL_SWITCH): these cases prove the engine. */
-function withSpells(M, rows, kinds, fn) {
+function withSpells(M, rows, kinds, fn, spanPm = 0) {
   const T = M.MS.MONSTER_SPELLS; const keep = [];
   const was = M.MS.SPELL_SWITCH.live;
   M.MS.SPELL_SWITCH.live = true;
+  /* THE FIRST CAST'S WAIT is off (0) for the cases whose subject is the cast itself, so each starts at a known instant;
+     'first-cast-staggered' plays it at the shipped span. Put back with the rows. */
+  const span = M.MS.SPELL_STAGGER.spanPm;
+  M.MS.SPELL_STAGGER.spanPm = spanPm;
   for (const r of rows) T[r.id] = Object.assign({}, r);
   for (const [k, ids] of Object.entries(kinds)) {
     keep.push([k, Object.prototype.hasOwnProperty.call(M.MONSTERS[k], 'spells'), M.MONSTERS[k].spells]);
@@ -61,6 +65,7 @@ function withSpells(M, rows, kinds, fn) {
   }
   try { return fn(); } finally {
     M.MS.SPELL_SWITCH.live = was;
+    M.MS.SPELL_STAGGER.spanPm = span;
     for (const r of rows) delete T[r.id];
     for (const [k, had, v] of keep) { if (had) M.MONSTERS[k].spells = v; else delete M.MONSTERS[k].spells; }
   }
@@ -465,6 +470,58 @@ const cases = {
     const cut = runSpan(M, spanFixture(M, 7), inside.concat(lcg));
     return cut === one ? null : 'a span cut inside windups differs from the one span';
   }),
+  /* THE FIRST CAST IS STAGGERED (Tyler 2026-11-08: a pack must not open with every cast at once and repeat in step; lane/d-spell-tuning).
+     Four casters join one fight in the same sub-step. Each waits its own drawn share of the cooldown, so the pack's first casts are spread,
+     none later than the cooldown, and each caster's second comes one cooldown after its first. The same seed plays the same waits (the
+     settle is replayable), another seed plays others, a caster out of the fight forgets its wait, and a span cut anywhere (the browser
+     closed, the world stored between settles) is the one span (the wait is the persisted cooldown). No cap: all four cast. */
+  'first-cast-staggered': (M) => {
+    const SPAN = M.MS.SPELL_STAGGER.spanPm;
+    if (SPAN !== 1000) return 'the shipped span is ' + SPAN + ' permille of the cooldown, and this case is written for the whole of it';
+    const G = { ...GROUP, cdMs: 10000 };
+    if (M.MS.firstCastSteps(G) !== 100 || M.MS.firstCastSteps({ cdMs: 2050 }) !== 20) return 'firstCastSteps is not floor(cdMs x spanPm / 1000 / stepMs)';
+    const play = (seed, steps, lose) => withSpells(M, [G], { rat: 't_group' }, () => {
+      const k = H(M, 1, 13, 3, 'tank', { hp: 99999, maxHp: 99999 });
+      const rats = [[10, 14, 3], [11, 12, 3], [12, 13, 2], [13, 13, 4]].map(([id, x, y]) => mon(M, id, 0, x, y, { target: 1, hp: 9999, maxHp: 9999 }));
+      const inst = fightOf(M, [k, ...rats]);
+      const sc = recorder(M, seed);
+      for (let i = 0; i <= steps; i++) {
+        sc.atMs = i * 100;
+        if (lose && i === lose) { rats[0].target = null; }
+        if (lose && i === lose + 1) { if (rats[0].spellCds !== null) return { why: 'a caster out of the fight kept its waits: ' + JSON.stringify(rats[0].spellCds) }; rats[0].target = 1; }
+        M.movement.occupancy(inst); M.damage.resolveAttacks(inst, sc); M.spells.castSpells(inst, sc); M.spells.dropCasts(inst, sc);
+      }
+      const by = {};
+      for (const e of of(sc, 'spell')) (by[e.u] = by[e.u] || []).push(e.atMs);
+      return { by, rats };
+    }, SPAN);
+    const a = play(21, 260);
+    const firsts = [10, 11, 12, 13].map((id) => (a.by[id] || [])[0]);
+    if (firsts.some((t) => !Number.isInteger(t))) return 'a caster of the four never cast (no cap on casts): ' + JSON.stringify(a.by);
+    if (new Set(firsts).size < 3) return 'the pack opened in step: first casts at ' + firsts.join(', ');
+    if (Math.max(...firsts) > G.cdMs) return 'a first cast waited past its cooldown: ' + firsts.join(', ');
+    if (Math.max(...firsts) - Math.min(...firsts) < 2000) return 'the first casts sit within 2 s of each other: ' + firsts.join(', ');
+    for (const id of [10, 11, 12, 13]) {
+      const t = a.by[id];
+      if (t.length < 2 || t[1] - t[0] !== G.cdMs) return 'caster ' + id + ' cast at ' + t.join(', ') + ': its second is not one cooldown after its first';
+    }
+    if (JSON.stringify(play(21, 260).by) !== JSON.stringify(a.by)) return 'the same seed played other waits: the settle is not replayable';
+    if (JSON.stringify(play(22, 260).by) === JSON.stringify(a.by)) return 'another seed played the same waits: they are not drawn';
+    /* a caster that leaves the fight forgets its wait and draws again as it joins the next */
+    const b = play(21, 260, 3);
+    if (b.why) return b.why;
+    if (!b.rats[0].spellCds) return 'a caster back in the fight drew no first cast';
+    /* BOTH PATHS: the span in one piece, and cut inside windups and at fixed instants (each cut stores the world and reads it back, as the
+       server does between settles with the browser closed), play the same events with the wait on */
+    return withSpells(M, [{ ...RING, cdMs: 6000 }, BLAST], { rat: 't_ring', slime: 't_blast' }, () => {
+      const one = runSpan(M, spanFixture(M, 7), []);
+      const ev = JSON.parse(one).events.filter((e) => e.type === 'spell');
+      if (ev.length < 2) return 'the staggered fixture cast ' + ev.length + ' spell(s): the parity proves nothing';
+      let s = 7; const cuts = ev.slice(0, 4).map((e) => e.atMs + 1);
+      for (let i = 0; i < 9; i++) { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; cuts.push(T0 + 1 + (s % 59998)); }
+      return runSpan(M, spanFixture(M, 7), cuts) === one ? null : 'a staggered span cut between settles differs from the one span';
+    }, SPAN);
+  },
   'no-spell-no-trace': (M) => {
     const fx = spanFixture(M, 7);
     const text = JSON.parse(runSpan(M, fx, [T0 + 31337]));
@@ -550,6 +607,9 @@ const mutants = [
   { name: 'the switch is always on', case: 'switch-off-no-cast', edits: [['src/data/monster-spells.js', 'export const castsOf = (m) => (SPELL_SWITCH.live === true ? spellsOf(m) : []);', 'export const castsOf = (m) => spellsOf(m);']] },
   { name: 'a windup outlives the switch going off', case: 'switch-off-no-cast', edits: [[S, "(spellRow(u.cast.s) && list.includes(u.cast.s) ? null : 'reset')", "(spellRow(u.cast.s) ? null : 'reset')"]] },
   { name: 'off, the rows are no longer named', case: 'switch-off-no-cast', edits: [['src/data/monster-spells.js', 'export const spellsOf = (m) => (m && Array.isArray(m.spells) ? m.spells.filter(own) : []);', 'export const spellsOf = (m) => (SPELL_SWITCH.live === true && m && Array.isArray(m.spells) ? m.spells.filter(own) : []);']] },
+  { name: 'a pack opens with every cast at once (no first-cast wait)', case: 'first-cast-staggered', edits: [[S, '    if (!u.spellCds) u.spellCds = firstCasts(sc, list);', '    if (!u.spellCds) u.spellCds = {};']] },
+  { name: 'every caster waits the same (the wait is not drawn)', case: 'first-cast-staggered', edits: [[S, 'const wait = steps > 0 ? sc.rng.int(0, steps) * sc.dtMs : 0;', 'const wait = steps > 0 ? Math.floor(steps / 2) * sc.dtMs : 0;']] },
+  { name: 'a caster out of the fight keeps its waits', case: 'first-cast-staggered', edits: [[S, '    if (!u.cast && !Number.isInteger(u.target)) { u.spellCds = null; continue; }\n', '']] },
   { name: 'the cast record is not persisted (a cut forgets the mark)', case: 'split-parity', edits: [[S, "  unit: Object.freeze([['spellCds', 'json'], ['cast', 'json']]),", "  unit: Object.freeze([['spellCds', 'json']]),"]] },
 ];
 

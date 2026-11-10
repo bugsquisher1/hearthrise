@@ -1690,7 +1690,9 @@ function rules(M) {
     // (a test resistPm on its shield) and takes at most half of what the others can. Browser closed: the server's commits.
     // Viewed: every commit matches the prediction, the marks (spell / spell_end) the browser plays are the server's, and the
     // tank's resistance reaches the browser through its frozen row (a peer's in the party).
-    const SPELL = { n: 'Test Squall', shape: 'group', range: 6, windupMs: 2000, cdMs: 6000, hitPm: 2000, element: 'frost' }, SID = 'lv_squall';
+    /* THE FIRST CAST IS STAGGERED over the cooldown (SPELL_STAGGER, lane/d-spell-tuning) and plays here as shipped: a four fells a Cellar pack in seconds, so the row's
+       warning and cooldown are short enough that some casts start before their caster falls (at 2 s and 6 s the four saw none in 96 s). */
+    const SPELL = { n: 'Test Squall', shape: 'group', range: 6, windupMs: 1200, cdMs: 2400, hitPm: 2000, element: 'frost' }, SID = 'lv_squall';
     const kinds = [...new Set(M.HG.huntGroundOf('mill_cellar').ground.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((s) => s.monster || s)))]
       .filter((k) => M.ENGINE_MONSTERS[k]);
     const rows = [M.ENGINE_MONSTERS, M.MONSTERS];

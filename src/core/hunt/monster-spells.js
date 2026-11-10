@@ -25,7 +25,14 @@
 //           'killed' or 'reset', in the very sub-step it happened (dropCasts runs after every blow of the sub-step).
 // Each spell keeps its own cooldown, from one cast's start to its next earliest start (`spellCds`).
 //
-// DICE: one `sc.rng.int` per hero struck (and landHit's own), casters in id order; a start draws nothing.
+// THE FIRST CAST IS STAGGERED (Tyler 2026-11-08: a pack must not open with every cast at once and repeat in step). As a
+// monster joins the fight (the first sub-step it holds a target) each of its spells draws a whole number of sub-steps from 0
+// to firstCastSteps(row) (data/monster-spells.js SPELL_STAGGER) and waits that long before its first start, as a cooldown.
+// The draw is the swing's own dice, so the settle and the live view stagger alike, viewed or with the browser closed. A
+// monster out of the fight (its pack reset) forgets its waits and draws again when it next joins one.
+//
+// DICE: joining a fight, one `sc.rng.int` per spell whose firstCastSteps is above 0, casters in id order, spells in list
+// order; one `sc.rng.int` per hero struck (and landHit's own); a start draws nothing.
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
@@ -33,7 +40,7 @@
 import { MONSTERS } from '../../data/monsters.js?v=0.2.114';
 import { atTier } from '../../data/hunt-tiers.js?v=0.2.114';
 import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.114';
-import { spellRow, castsOf, specOf, spellHit, marked, SHIELD_BRACE } from '../../data/monster-spells.js?v=0.2.114';
+import { spellRow, castsOf, specOf, spellHit, marked, SHIELD_BRACE, firstCastSteps } from '../../data/monster-spells.js?v=0.2.114';
 import { monsterMaxHit } from '../combat.js?v=0.2.114';
 import { cheb, los } from './grid.js?v=0.2.114';
 import { atRest, unitById, dirOf } from './movement.js?v=0.2.114';
@@ -43,7 +50,8 @@ import { castShape } from './marks.js?v=0.2.114';
 import { landHit, restart, slowed } from './damage.js?v=0.2.114';
 import { swingRow } from './boss-phases.js?v=0.2.114';
 
-/* spellCds: { spell id: ms until it may start again } (null = every spell ready). cast: its live cast (marks.js), or null. */
+/* spellCds: { spell id: ms until it may start } while the monster is in a fight, a spell it does not name being ready ({} = every
+   spell ready); null = not in a fight, its first casts not drawn yet. cast: its live cast (marks.js), or null. */
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['spellCds', 'json'], ['cast', 'json']]),
   world: Object.freeze([]),
@@ -99,6 +107,17 @@ function land(inst, sc, u, sp) {
   for (const h of struck) if (h.alive) landHit(inst, sc, u, h, sc.rng.int(lo, top), sp.element || null, marked(sp) && h.shieldWorn === true ? braced : plain, false);
 }
 
+/* THE FIRST CASTS of a monster joining a fight: { spell id: ms to wait }, each a drawn whole number of sub-steps (header). */
+function firstCasts(sc, list) {
+  const cds = {};
+  for (const id of list) {
+    const steps = firstCastSteps(spellRow(id));
+    const wait = steps > 0 ? sc.rng.int(0, steps) * sc.dtMs : 0;
+    if (wait > 0) cds[id] = wait;
+  }
+  return cds;
+}
+
 /** The spell hook (world-step.js, after the swings: a landing restarts the swing clock as a swing does, so the next swing
     comes a full interval after it): every monster's cooldowns, windup and landing, in id order. */
 export function castSpells(inst, sc) {
@@ -113,11 +132,13 @@ export function castSpells(inst, sc) {
     }
     if (!u.alive) continue;
     if (!list.length && !u.cast && !u.spellCds) continue;
-    if (u.spellCds) {
+    /* out of the fight with nothing winding up: its waits are forgotten, and it draws its first casts again when it joins one */
+    if (!u.cast && !Number.isInteger(u.target)) { u.spellCds = null; continue; }
+    if (!u.spellCds) u.spellCds = firstCasts(sc, list);
+    else {
       const next = {};
-      let any = false;
-      for (const [k, ms] of Object.entries(u.spellCds)) { const left = ms - sc.dtMs; if (left > 0) { next[k] = left; any = true; } }
-      u.spellCds = any ? next : null;
+      for (const [k, ms] of Object.entries(u.spellCds)) { const left = ms - sc.dtMs; if (left > 0) next[k] = left; }
+      u.spellCds = next;
     }
     if (u.cast) {
       u.cast.left = Math.max(0, u.cast.left - sc.dtMs);

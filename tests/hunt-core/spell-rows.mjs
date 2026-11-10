@@ -80,7 +80,12 @@ const cases = {
     if (!save) return 'no party heal carries its own rule (Tyler 2026-11-08: "make sure the conditions are available that make sense")';
     const on = (metric) => save.trigger.find((c) => c.metric === metric);
     if (save.lane !== 'heal' || !on('in_fight') || on('in_fight').value !== true || on('in_fight').op !== 'eq') return save.id + ' may fire between pulls: ' + JSON.stringify(save.trigger);
-    if (!on('allies_below') || on('allies_below').op !== 'gte' || !(on('allies_below').value >= 2)) return save.id + ' waits for no two hurt allies: ' + JSON.stringify(save.trigger);
+    /* ITS RULE READS THE WHOLE PARTY AND KEEPS MANA BACK (Tyler 2026-11-08, lane/d-spell-tuning: "two allies under 60%" never fired, and the
+       fight alone fired every minute and starved the healer at the Chief). So: the party's pooled HP under a line, and the healer's own mana
+       at half or more, with the fight on. At most three conditions a slot (conditions.js). */
+    if (!on('party_hp_pct') || on('party_hp_pct').op !== 'lt' || !(on('party_hp_pct').value >= 50 && on('party_hp_pct').value <= 85)) return save.id + ' does not wait for a hurt party: ' + JSON.stringify(save.trigger);
+    if (!on('self_mana_pct') || on('self_mana_pct').op !== 'gte' || !(on('self_mana_pct').value >= 50)) return save.id + ' may spend the mana the single heals need: ' + JSON.stringify(save.trigger);
+    if (save.trigger.length > 3) return save.id + ' starts with ' + save.trigger.length + ' conditions, and a slot holds three';
     for (const top of heals.filter((r) => r !== save)) {
       if (!(save.mana > top.mana && save.cdMs > top.cdMs)) return save.id + ' (' + save.mana + ' mana, ' + save.cdMs + ' ms) is no dearer and slower than ' + top.id + ' (' + top.mana + ', ' + top.cdMs + '): "expensive" and "a long cooldown"';
     }
@@ -95,16 +100,20 @@ const mutants = [
   { name: 'a caster names a row that is not there', case: 'rows-validate', edits: [[MON, "    spells: ['smoke_pot'],\n", "    spells: ['smoke_pots'],\n"]] },
   { name: 'a spell no monster casts', case: 'rows-validate', edits: [[MON, "    spells: ['venom_spray'],\n", '']] },
   { name: 'a mark with no fair warning', case: 'rows-validate', edits: [[MS, "shape: 'ring', r: 1, range: 1, windupMs: 1600,", "shape: 'ring', r: 1, range: 1, windupMs: 1000,"]] },
-  { name: 'a cone that reads a radius', case: 'rows-validate', edits: [[MS, "shape: 'cone', len: 2, range: 1,", "shape: 'cone', len: 2, r: 1, range: 1,"]] },
+  { name: 'a cone that reads a radius', case: 'rows-validate', edits: [[MS, "n: 'Tail Lash', shape: 'cone', len: 2, range: 1,", "n: 'Tail Lash', shape: 'cone', len: 2, r: 1, range: 1,"]] },
   { name: 'a spell on a monster no ground spawns', case: 'every-caster-plays',
     edits: [[MON, "  bog_vine: {", "  bog_vine: { spells: ['spore_cloud'],"]] },
   { name: 'the Rat King leads with his pulse', case: 'boss-kits', edits: [[MON, "party takes */\n    spells: ['tail_lash', 'squeal'],", "party takes */\n    spells: ['squeal', 'tail_lash'],"]] },
   { name: 'the called Rat King casts nothing', case: 'boss-kits', edits: [[MON, "    spells: ['tail_lash', 'squeal'],\n    hp: 2000,", '    hp: 2000,']] },
   { name: 'a regular carries two spells', case: 'boss-kits', edits: [[MON, "    spells: ['spore_cloud'],\n", "    spells: ['spore_cloud', 'venom_spray'],\n"]] },
   { name: 'Spring Tide fires between pulls', case: 'hero-area-rows',
-    edits: [[AB, ", { metric: 'in_fight', op: 'eq', value: true }],\n    versions: [[160,", "],\n    versions: [[160,"]] },
+    edits: [[AB, ", { metric: 'in_fight', op: 'eq', value: true }, { metric: 'self_mana_pct'", ", { metric: 'self_mana_pct'"]] },
+  { name: 'Spring Tide waits for two allies under 60% again (the rule that never fired)', case: 'hero-area-rows',
+    edits: [[AB, "trigger: [{ metric: 'party_hp_pct', op: 'lt', value: 85 },", "trigger: [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_60' },"]] },
+  { name: 'Spring Tide spends the last of the mana (no mana floor)', case: 'hero-area-rows',
+    edits: [[AB, ", { metric: 'self_mana_pct', op: 'gte', value: 50 }],\n    versions: [[120,", "],\n    versions: [[120,"]] },
   { name: 'Spring Tide is as cheap as Circle of Renewal', case: 'hero-area-rows',
-    edits: [[AB, "lane: 'heal', cdMs: 60000, mana: 160,", "lane: 'heal', cdMs: 60000, mana: 50,"], [AB, 'versions: [[160, 1000], [192, 1740]', 'versions: [[50, 1000], [192, 1740]']] },
+    edits: [[AB, "lane: 'heal', cdMs: 60000, mana: 120,", "lane: 'heal', cdMs: 60000, mana: 50,"], [AB, 'versions: [[120, 1000], [144, 1740]', 'versions: [[50, 1000], [144, 1740]']] },
   { name: "Turning Cut's rule names a metric the server does not know", case: 'hero-area-rows',
     edits: [[AB, "    trigger: [{ metric: 'enemies_in_aoe', op: 'gte', value: 3 }] }),", "    trigger: [{ metric: 'enemies_around', op: 'gte', value: 3 }] }),"]] },
 ];

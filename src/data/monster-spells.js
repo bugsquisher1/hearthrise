@@ -48,6 +48,18 @@ export const SPELL_ROLL = Object.freeze({ lowPm: 500 });
 /* THE SHIELD'S BRACE (the design's 4K): a hero wearing a shield takes markedPm permille off a MARKED spell's hit, so the
    tank is the right hero to stand in a boss's heavy hit. A group spell is not braced. */
 export const SHIELD_BRACE = Object.freeze({ markedPm: 300 });
+/* THE FIRST CAST (Tyler 2026-11-08: more monsters means more spells, but a pack must not open with every cast at once and then
+   repeat in step): a monster joining a fight waits a random share of each spell's cooldown, from none of it to spanPm permille
+   of it, before that spell's first cast. So a pack's casts are spread over the cooldown and each one can be read. No cap on how
+   many monsters cast: a bigger pull is more spells. 0 turns the wait off (every spell ready as the fight starts).
+   MUTABLE LIKE THE ROWS: a test or a balance what-if sets it for its own run and puts it back. */
+export const SPELL_STAGGER = { spanPm: 1000 };
+/** THE FIRST CAST (a wiki formula): the most sub-steps a spell's first cast waits, the wait itself a whole number drawn from 0
+    to it:  steps = floor(cdMs x SPELL_STAGGER.spanPm / 1000 / stepMs). */
+export function firstCastSteps(row) {
+  const pm = Number.isInteger(SPELL_STAGGER.spanPm) ? Math.min(1000, Math.max(0, SPELL_STAGGER.spanPm)) : 0;
+  return row && Number.isInteger(row.cdMs) ? Math.floor((row.cdMs * pm) / 1000 / HUNT_TUNING.stepMs) : 0;
+}
 /* How many spells one monster may carry (a boss: its marked hit and its group pulse). */
 export const MAX_SPELLS = 2;
 
@@ -85,15 +97,24 @@ export function spellHit(maxHit, row) {
    tune one in place and put it back (header). */
 export const MONSTER_SPELLS = {
   /* WHOLE-GROUP: a 2 s warning on every hero, then one hit each that nobody steps out of. */
-  smoke_pot: { n: 'Smoke Pot', shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 2500, element: 'ember' },        // the Turncoat (Wickstead): he burned the house. 4I
-  spore_cloud: { n: 'Spore Cloud', shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 1500, element: 'poison' },   // the Walking Vine (the Glade). 4I
-  blasting_charge: { n: 'Blasting Charge', shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 1500, element: 'ember' }, // the Goblin Digger (the Warrens): diggers blast the seams. 4I
+  smoke_pot: { n: 'Smoke Pot', shape: 'group', range: 6, windupMs: 2000, cdMs: 8000, hitPm: 2500, element: 'ember' },         // the Turncoat (Wickstead): he burned the house. 8 s: he is one pack in six and falls in seconds, and at 16 s a four never saw one in an hour
+  /* THE COOLDOWN IS HOW OFTEN A PACK CASTS (lane/d-spell-tuning): a first cast waits a drawn share of it (SPELL_STAGGER), so a caster casts
+     in about fight length / cooldown of its fights. 32 s on these two: few casts in a short Normal fight, most casters in a full box's long
+     one. At 16 s and 1.5x the Glade's lone tank in plate earned +1% over its bill on its worst seed (the floor's bar is +10%); here +14%. */
+  spore_cloud: { n: 'Spore Cloud', shape: 'group', range: 6, windupMs: 2000, cdMs: 32000, hitPm: 1000, element: 'poison' },   // the Walking Vine (the Glade)
+  blasting_charge: { n: 'Blasting Charge', shape: 'group', range: 6, windupMs: 2000, cdMs: 32000, hitPm: 1000, element: 'ember' }, // the Goblin Digger (the Warrens): diggers blast the seams
   squeal: { n: 'Squeal', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: 'poison' },             // the Rat King's pulse. 4L
   slag_rain: { n: 'Slag Rain', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: 'ember' },        // Chief Coppercap's pulse. 4L
   /* MARKED: the tiles fill first; Melee holds and takes it, a free ranged hero or caster steps off, a shield braces it. */
-  venom_spray: { n: 'Venom Spray', shape: 'ring', r: 1, range: 1, windupMs: 1600, cdMs: 12000, hitPm: 2000, element: 'poison' }, // the Barn Spider (Wickstead). 4A, 4B, 4H
+  venom_spray: { n: 'Venom Spray', shape: 'ring', r: 1, range: 1, windupMs: 1600, cdMs: 12000, hitPm: 2000, element: 'poison' }, // the Barn Spider (Wickstead)
   tail_lash: { n: 'Tail Lash', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 12000, hitPm: 2000, element: null },     // the Rat King. Measured as a ring r2 (4F), not yet as this cone
   slag_toss: { n: 'Slag Toss', shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 1200, element: 'ember' },  // Chief Coppercap. 4F
+  /* DODGEABLE ON REGULARS (Tyler 2026-11-08: more spells a hero can step out of, and dodging is where you stand, never a roll):
+     one a ground, each a different shape so a ground reads by its mark. The Thicket and the Mill Cellar keep none: a first
+     ground teaches the plain fight. 1.5x, under the Spider's 2x: these monsters hit harder to begin with. */
+  muck_fling: { n: 'Muck Fling', shape: 'blast', r: 1, range: 4, windupMs: 1600, cdMs: 14000, hitPm: 1500, element: 'poison' },   // the Kobold Tosher (the Sewer): thrown from up to 4 tiles at its target's tile
+  poachers_volley: { n: "Poacher's Volley", shape: 'line', len: 4, range: 4, windupMs: 1600, cdMs: 16000, hitPm: 1200, element: null }, // the Glade Poacher: through its target and the heroes lined up behind it
+  lash_sweep: { n: 'Lash Sweep', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 20000, hitPm: 1000, element: null },      // the Hobgoblin Foreman (the Warrens): the two tiles in front of him
   /* WAITING on their monsters (not on this branch): Cold Bilge (the Bargeman, the Slake: group, frost, 1.5x, 16 s) and Ash
      Bloom (the Pyre Field's ash caster, not designed yet: group, fire, 1.5x, 16 s). validate refuses a row no monster casts. */
 };
@@ -111,10 +132,10 @@ export const spellsOf = (m) => (m && Array.isArray(m.spells) ? m.spells.filter(o
    A data row like any other: the edge and the client both carry it, so flipping it is an edge deploy and a client push, never a
    migration (Postgres reads no spell row). The heroes' area abilities are not behind it: a player puts those on the bar.
    MUTABLE LIKE THE ROWS: a test or a balance what-if that needs casts turns it on for its own run and puts it back.
-   IT SHIPS OFF (2026-11-10): with the spells on, the Glade's floor earns +5% over its store bill and two more money and rung guards
-   go red (hunt-core drop-tables profit-floor, forest-cave glade-between, first-week-bands weapon-rungs: CONFLICTS.md 2026-11-10), so
-   the monsters' spells stay dark until the designer's tuning turns those green. Turning it on is this one word, in the lane that tunes. */
-export const SPELL_SWITCH = { live: false };
+   IT IS ON (lane/d-spell-tuning, 2026-11-10). It shipped off while three money and rung guards were red with the spells on (hunt-core
+   drop-tables profit-floor, forest-cave glade-between, first-week-bands weapon-rungs); the rows above are the tuning that turned them
+   green, measured on the priority board ("2026-11-10 Spell tuning"). Off again is this one word. */
+export const SPELL_SWITCH = { live: true };
 /** The spell ids monster row `m` casts NOW: its list while the switch is on, none while it is off. The engine's one read. */
 export const castsOf = (m) => (SPELL_SWITCH.live === true ? spellsOf(m) : []);
 

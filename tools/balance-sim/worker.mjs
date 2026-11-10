@@ -22,6 +22,8 @@ const ENG = {
   /* the one row that turns every monster's spells on or off (SPELL_SWITCH): { spellSwitch: { live: false } } plays a cell with no monster
      casting, { live: true } with them on, whichever way the row ships (the designer's with / without pair) */
   spellSwitch: [(await import(pathToFileURL(join(root, 'src/data/monster-spells.js')).href + v)).SPELL_SWITCH],
+  /* the first cast's wait (SPELL_STAGGER): { stagger: { spanPm: 0 } } plays a cell with every spell ready as the fight starts */
+  stagger: [(await import(pathToFileURL(join(root, 'src/data/monster-spells.js')).href + v)).SPELL_STAGGER],
 };
 const { DIALS: TIER_DIALS } = await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + v);
 /* THE GAME'S OWN HUNT ADVICE (the Hunts window's default pick): a career hunts where the game tells it to */
@@ -44,7 +46,7 @@ function applyWhatIf(w) {
     }
     for (const inst of ENG[table] || []) {
       /* one row, not a table of rows: the combat constants, and the spells' switch ({ spellSwitch: { live: false } }: a cell with no monster casting) */
-      if (table === 'combat' || table === 'spellSwitch') { for (const [k, val] of Object.entries(rows)) set(inst, k, val); continue; }
+      if (table === 'combat' || table === 'spellSwitch' || table === 'stagger') { for (const [k, val] of Object.entries(rows)) set(inst, k, val); continue; }
       for (const [id, fields] of Object.entries(rows)) {
         const ids = id === '*' ? Object.keys(inst) : [id];
         for (const x of ids) if (inst[x]) for (const [k, val] of Object.entries(fields)) set(inst[x], k, val);

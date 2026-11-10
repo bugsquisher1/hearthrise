@@ -132,9 +132,13 @@ export const WEAPON_FAMILIES = [
      bow of its tier (the practice crossbow's 4/4 against the bow's 5/3). */
   {
     key: 'hatchets', label: 'Hatchets', weaponType: 'axe', skill: 'smithing', mat: 'bar', twoHanded: true,
-    /* tiers 2 to 4 as the warhammer's note above; the pair stays about even. Tier 4's 18/16 -> 19/21 (lane/b-phase0-tier4): at 18/16 the
-       made Mithril pair paid +2.7% over the Steel at Level 45 in the Warrens (first-week-bands weapon-rungs, the bar is +5%) */
-    atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 14, 21, 22, 29, 38],
+    /* tiers 2 to 4 as the warhammer's note above; the pair stays about even. Steel is 14/16 (was 14/14, lane/d-spell-tuning; 14/15 lands the
+       same biggest hit as 14/14): its rung over Iron read +5.3 to +5.5% Level XP an hour at the Warrens against a +5% bar, so any change to
+       the fight's dice turned it red (+4.2 to +4.5% with the monsters' spells); two points of strength read +7.4% on the same dice.
+       Tier 4 is 19/21 (was 18/16, lane/b-phase0-tier4): at 18/16 the made Mithril pair paid +2.7% over the Steel at Level 45 in the Warrens
+       (first-week-bands weapon-rungs, the bar is +5%). MERGED 2026-11-10 (lane/b-area-set): the two lanes moved tier 4's strength apart
+       (18 to stay above the new Steel, 21 for its own rung); 21 holds both reasons, and weapon-rungs judges the pair on these numbers. */
+    atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 16, 21, 22, 29, 38],
     vmul: 100,
     names: [null, 'Iron Hatchets', 'Steel Hatchets', 'Mithril Hatchets'],
     ids:   [null, 'iron_hatchets', 'steel_hatchets', 'mithril_hatchets'],

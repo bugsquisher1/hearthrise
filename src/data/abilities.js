@@ -186,16 +186,18 @@ export const ABILITIES = Object.freeze([
     versions: [[50, 1000], [60, 1740], [72, 2520], [86, 3310], [104, 4100]], lvPm: LV_PM }),
   /* SPRING TIDE (Tyler 2026-11-08: "instead of a healer area spell lets just do a party heal with a long cooldown", "and
      expensive, and make sure the conditions are available that make sense"): the once-a-minute save beside Circle of
-     Renewal's steady top-up, a WATER rune spell on every hero within 8 tiles. 160 mana is 59% of a fresh healer's pool at Magic
-     20, and mana is drinks (gold per use). Its own rule (trigger): two or more allies under 60% AND the fight is on, so it is
-     never spent between pulls and never fires when no spell landed (measured 4G: 0 casts an hour on every ground and tier with
-     no monster spell; the rule at 70% fired more and saved nothing more). Its numbers are the measure's (4G: 80-120 for 120
-     mana moved nothing). On this branch's tiers it waited the whole half hour at the Warrens' Deadly in a four (lane/b-area-data,
-     0 casts; on "the fight is on" alone it fires 58 an hour), so its rule is re-read once the tiers settle. */
-  ab({ id: 'spring_tide', n: 'Spring Tide', disciplines: ['restoration'], lane: 'heal', cdMs: 60000, mana: 160, rune: 'chalked_water_rune', unlock: 20,
+     Renewal's steady top-up, a WATER rune spell on every hero within 8 tiles.
+     ITS RULE AND ITS COST (lane/d-spell-tuning, Tyler 2026-11-08: its first rule never fired, and it starved the healer at the
+     Chief). A group spell hurts every hero a little, so "two allies under 60%" almost never came true. The rule now reads the
+     whole party: the party's HP under 85%, the fight on, and the healer's own mana at 50% or more, so it is never the cast that
+     leaves Greater Mend dry. Measured in Deadly fours buying every rune and drink (Warrens 32, Glade 24, 2 seeds x 1 h): the old rule 0 casts
+     an hour, and under 75% 0 too; "the fight is on" alone 59 an hour for 37 to 75% more drinks; this rule 6.5 and 13.5 an hour, the drinks
+     within 15% of none, and the Warrens four 578 g an hour a head better off. 120 mana (was 160): 44% of a fresh healer's pool at Magic 20, still 2.4 times Circle of Renewal's
+     cost on five times its cooldown. Each number is measured in the lane's board section. */
+  ab({ id: 'spring_tide', n: 'Spring Tide', disciplines: ['restoration'], lane: 'heal', cdMs: 60000, mana: 120, rune: 'chalked_water_rune', unlock: 20,
     target: 'party', heal: [120, 180], radius: 8, magicXpMult: 1600,
-    trigger: [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_60' }, { metric: 'in_fight', op: 'eq', value: true }],
-    versions: [[160, 1000], [192, 1740], [230, 2520], [276, 3310], [332, 4100]], lvPm: LV_PM }),
+    trigger: [{ metric: 'party_hp_pct', op: 'lt', value: 85 }, { metric: 'in_fight', op: 'eq', value: true }, { metric: 'self_mana_pct', op: 'gte', value: 50 }],
+    versions: [[120, 1000], [144, 1740], [173, 2520], [207, 3310], [249, 4100]], lvPm: LV_PM }),
   /* GREEN SICKNESS (was Nature's Wrath; Tyler 2026-10-23: a POISON rune spell, its element poison): Restoration's
      lower-power area spell, and every monster it hits takes more from every blow for a while (statuses.js sickness,
      Bible §17: a fixed, non-stacking vulnerability that no rune tier raises). */

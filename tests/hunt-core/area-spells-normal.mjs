@@ -86,7 +86,7 @@ const mutants = [
   { name: 'the Turncoat throws no Smoke Pot', case: 'wickstead', edits: [[MON, "    spells: ['smoke_pot'],\n", '']] },
   /* the death bar: a Blasting Charge at four times the Digger's blow every 2.1 s kills on Normal */
   { name: 'Blasting Charge made deadly on Normal', case: 'warrens',
-    edits: [[MS, "range: 6, windupMs: 2000, cdMs: 16000, hitPm: 1500, element: 'ember' }, // the Goblin Digger", "range: 6, windupMs: 2000, cdMs: 2100, hitPm: 4000, element: 'ember' }, // the Goblin Digger"]] },
+    edits: [[MS, "range: 6, windupMs: 2000, cdMs: 32000, hitPm: 1000, element: 'ember' }, // the Goblin Digger", "range: 6, windupMs: 2000, cdMs: 2100, hitPm: 4000, element: 'ember' }, // the Goblin Digger"]] },
 ];
 
 const R = makeReport('hunt-core/area-spells-normal');

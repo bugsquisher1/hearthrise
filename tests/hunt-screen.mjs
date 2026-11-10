@@ -1574,8 +1574,14 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (priced.length !== heals.length || !priced.every(rowOk)) fails.push('HS-8 the Food run is not the catalogue\'s HP / gold / gold a point: ' + JSON.stringify(priced));
       else if (priced.some((r, k) => k && Number(r.cells[2]) < Number(priced[k - 1].cells[2]))) fails.push('HS-8 the Food run is not cheapest per point first: ' + JSON.stringify(priced.map((r) => r.cells[2])));
       if (food.slice(0, priced.length).some((r) => r.cells[2] === '—')) fails.push('HS-8 an unpriced row sorts above a priced one');
-      /* Hover compares against the pick; the pick is the gold row, pinned. */
+      /* Hover compares against the pick; the pick is the gold row, pinned. A new pick takes its own starting rule (bar-draft.js
+         conditionsAfterPick), so the sentence above the list changes height and the list slides: measured 2026-11-10, Salted Trout is
+         clicked at 584,614 and Salted Lobster then stands at 584,619, under the pointer. The browser's mouseover for it carries the
+         click's own point, which Configure action passes over by design (pickedAt: Details never describes a row nobody aimed at), and
+         a move inside the same row fires no second one. So the pointer travels over another row first, as a hand does. */
       await page.click('.ca-run[data-run="food"] .ca-row[data-id="salted_trout"]');
+      const other = food.map((r) => r.id).find((id) => id !== 'salted_trout' && id !== 'salted_lobster');
+      await page.hover('.ca-run[data-run="food"] .ca-row[data-id="' + other + '"]');
       await page.hover('.ca-run[data-run="food"] .ca-row[data-id="salted_lobster"]');
       const cmp = await page.evaluate(() => ({ vs: document.querySelector('.ca-vs').textContent, lines: Array.from(document.querySelectorAll('.ca-cmp li')).map((l) => l.textContent),
         pinned: (document.querySelector('.ca-pinned.is-on .ca-name') || {}).textContent, lead: document.querySelector('.ca-lead').textContent }));

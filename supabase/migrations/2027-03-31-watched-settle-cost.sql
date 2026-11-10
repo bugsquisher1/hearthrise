@@ -21,7 +21,8 @@
 -- 2. A DIAL, SHIPPED AT TODAY'S VALUE: hr_tick_config.frame_own_s (0 = off). When it is N > 0, the commit point holds the
 --    frame to a hero of THE ASKER'S OWN ACCOUNT that is not the asker (not on screen in the asking client) unless the
 --    window crossed a multiple of N seconds on the server clock, or the settle carried that hero's news: its hunt ended
---    (a death, stamina, supplies, gold, a leave), its Level rose, or a rare drop fell. So such a hero gets one frame
+--    (a death, stamina, supplies, gold, a leave), its Level rose, a rare drop fell, a supply ran dry or its stamina ran
+--    low (the hunt events the strip's alerts are made of). So such a hero gets one frame
 --    every N seconds instead of one a commit, and its news at once. Other accounts' members, the tick and every other
 --    frame sender are untouched. hr_hunt_apply_instance takes ONE inserted line; the rule is
 --    hr_frame_own_held. N is capped at 40: the client re-reads an unviewed hero 60 s after its last frame
@@ -106,10 +107,11 @@ begin
   if v_session is null or not exists (select 1 from public.hunt_sessions h
                                        where h.id = v_session and h.user_id = v_user and h.slot = v_slot and h.ended_at is null) then
     return false; end if;
-  -- (5) THE SETTLE WROTE ITS NEWS: its Level rose, a rare drop fell, it died. Never held (the events this window wrote).
+  -- (5) THE SETTLE WROTE ITS NEWS: its Level rose, a rare drop fell, it died, a supply ran dry, its stamina ran low.
+  --     Never held (the events this window wrote; a skill's level and a store cover are not news).
   if exists (select 1 from public.hunt_session_events e
               where e.session_id = v_session and e.at > p_from and e.at <= p_to
-                and (e.type in ('rare_drop', 'death', 'ended') or (e.type = 'level_up' and e.data->>'skill' = 'level'))) then
+                and (e.type in ('rare_drop', 'death', 'ended', 'slot_dry', 'stamina_low') or (e.type = 'level_up' and e.data->>'skill' = 'level'))) then
     return false; end if;
   return true;
 exception when others then
@@ -212,7 +214,8 @@ grant execute on function public.hr_perks_of(uuid, integer) to hr_engine;
 --       names no renown score
 --   (b) the dial: NOT NULL DEFAULT 0, refuses -1 and 41
 --   (c) the rule, executed on a hunting probe hero: held only for the asker's own other hero, with the dial on, inside
---       one mark, while its hunt is open and the window wrote none of its news (its Level, a rare drop, a death)
+--       one mark, while its hunt is open and the window wrote none of its news (its Level, a rare drop, a death, a dry
+--       supply, low stamina)
 --   (d) the perk read, executed: the same keys as before, renownAllXp 0 for a hero the old read gave 0.01
 --   (e) grants: nobody reaches the rule; the settle and the perk read are the engine's alone
 do $chk$
@@ -300,7 +303,7 @@ begin
              (v_sess, c_u, 0, 'rare_drop', c_t - interval '9 seconds', '{}'::jsonb);   -- an earlier window's
     if not public.hr_frame_own_held(v_me, c_u, 1, c_t, c_t + interval '18 seconds') then
       raise exception 'watched-settle-cost §6(c): a skill level or an earlier window''s rare drop released the frame'; end if;
-    foreach r in array array['level_up', 'rare_drop', 'death'] loop
+    foreach r in array array['level_up', 'rare_drop', 'death', 'slot_dry', 'stamina_low'] loop
       insert into public.hunt_session_events (session_id, user_id, slot, type, at, data)
         values (v_sess, c_u, 0, r, c_t + interval '18 seconds', case when r = 'level_up' then jsonb_build_object('skill', 'level', 'level', 2) else '{}'::jsonb end)
         returning id into v_ev;

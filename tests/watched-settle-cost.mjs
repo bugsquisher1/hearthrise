@@ -311,7 +311,7 @@ const MUTANTS = [
   ['the hold ignores the marks (always held)', 'DIAL-30', HELD, [['\n     or floor(extract(epoch from p_from) / v_n) <> floor(extract(epoch from p_to) / v_n) then return false; end if;', ' then return false; end if;']]],
   ['the commit point never asks the hold', 'DIAL-30', INST, [['      continue when public.hr_frame_own_held(v_m, p_project_user, p_project_slot, v_i.settled_to, v_to);\n', '']]],
   ['the hold reaches another account\'s ask', 'OTHER', HELD, [['\n     or v_user <> p_project_user or v_slot = p_project_slot then return false; end if;', ' then return false; end if;']]],
-  ['a hunt\'s end waits for a mark', 'END', HELD, [[' and h.ended_at is null) then', ') then'], ["e.type in ('rare_drop', 'death', 'ended')", "e.type in ('rare_drop')"]]],
+  ['a hunt\'s end waits for a mark', 'END', HELD, [[' and h.ended_at is null) then', ') then'], ["e.type in ('rare_drop', 'death', 'ended', 'slot_dry', 'stamina_low')", "e.type in ('rare_drop')"]]],
   ['a Level waits for a mark', 'LEVEL', HELD, [[" or (e.type = 'level_up' and e.data->>'skill' = 'level')", '']]],
 ];
 const EDGE_MUTANTS = [

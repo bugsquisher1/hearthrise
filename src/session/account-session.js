@@ -39,7 +39,9 @@
 //   findItems(q)  where an item is across this account's characters
 //                 (hr_account_items: bags and worn sets by character, and the
 //                 account's one storage, slot null; read by the server)
-//   signOut()     close every character, then auth.signOut() (every copy)
+//   signOut()     close every character, tell the server this client is gone
+//                 (hr_presence_leave: the players-online count and the friends'
+//                 dot drop the account at once), then auth.signOut() (every copy)
 //   social        the account's chat, whispers, friends and blocks: what the
 //                 `social` factory made for it (src/social/social-session.js,
 //                 handed in by src/app/boot.js), started once a character is
@@ -62,6 +64,11 @@ import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.112';
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */
 const SHARED_KINDS = new Set(['farm']);   // 'bank' (the depot) is read through _noteStorage, not re-read
+
+/* How long a sign-out waits for the server to hear that this client is gone (_leavePresence): a healthy answer takes a
+   few hundred ms; past this the login is forgotten anyway and the server's own 75 s window ends the presence. A wait on
+   this page only, no rule of the game, so it is not a SESSION_CONFIG knob (the hunt catalogue is generated from those). */
+const SIGN_OUT_LEAVE_MS = 2500;
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
@@ -500,15 +507,35 @@ export class AccountSession {
     return true;
   }
 
-  /** Close every character, then forget the login everywhere on this device. */
+  /** Close every character, tell the server this client is gone, then forget the login everywhere on this device. */
   async signOut() {
     this._ending = true;   // the closes below are not what this tab had open; auth.signOut removes the record
     if (this._awayTimer !== null) { (this._timers.clearTimer || ((t) => clearTimeout(t)))(this._awayTimer); this._awayTimer = null; }
     /* the social side first: its chat re-reads for whichever hero is shown, and nothing is shown while every hero closes */
     if (this.social) { this.social.destroy(); this.social = null; }
     for (const slot of Array.from(this._chars.keys())) this.close(slot);
+    await this._leavePresence();
     await this.auth.signOut();
     this._emit('signed-out');
     this._listeners.clear();
+  }
+
+  /* SIGNED OUT IS NOT ONLINE (report #78; 2027-03-26-signout-presence.sql). The server holds this account's heroes "open in a
+     client" and the account "online" for 75 s after its last social poll, so the players-online count and a friend's dot outlived
+     a sign-out by a minute. ONE ask with no argument (the server reads who asks from the token), after the poll has stopped (a
+     later one would stamp the heroes again) and before the login is forgotten. A hero that hunts or works keeps playing: the
+     server reads that from the hero's own state, never from this stamp.
+     IT NEVER HOLDS THE SIGN-OUT: a refusal, a network failure or a throw is what happened before this existed (the stamps age
+     out), and an answer that has not come in SIGN_OUT_LEAVE_MS is not waited for. */
+  _leavePresence() {
+    const set = this._timers.setTimer || ((fn, ms) => setTimeout(fn, ms));
+    const clear = this._timers.clearTimer || ((t) => clearTimeout(t));
+    return new Promise((done) => {
+      const bound = set(() => done(false), SIGN_OUT_LEAVE_MS);
+      const end = (ok) => { clear(bound); done(ok); };
+      let ask;
+      try { ask = this.server.rpc('hr_presence_leave', {}); } catch (e) { end(false); return; }
+      Promise.resolve(ask).then((ans) => end(!!(ans && ans.ok)), () => end(false));
+    });
   }
 }

@@ -56,6 +56,8 @@ yarn-error.log
 # Build output / scratch
 dist/
 build/
+# The Pages artifact (tools/build-site.mjs): built on every deploy, never committed
+_site/
 *.log
 
 # Document working files (the .docx + .xlsx live in repo for reference,

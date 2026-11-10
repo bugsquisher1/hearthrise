@@ -51,7 +51,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    in this forward file, the same full delete+insert replace. No shop, seed or Blessing row moves. */
 /* CRAFTED JEWELRY (lane/c-jewelry-sample, Tyler 2026-11-05, call 5): 2027-02-24 is APPLIED history; the plain Banded Signet joins the outfitter at
    its premium (src/data/jewelry.js JEWEL_SHOP_PRICE) in this forward file, the same full delete+insert replace. No other row moves. */
-export const OUT_NAME = '2027-03-14-jewelry-alpha-catalogue.generated.sql';
+/* THE BLESSING CUT (lane/c-death-and-slots, Tyler 2026-11-10): 2027-03-14-jewelry is APPLIED history; hr_blessing_tiers.permille moves 320 / 630 / 950 ->
+   250 / 500 / 750 (src/data/blessings.js BLESSING_CUT_PERMILLE) in this forward file, the same full delete+insert replace. No shop, seed or refill row moves.
+   hr_blessing_take reads the row at the death, so no body and no edge waits on it: either order against the 2027-03-25 death pair and the hr-accrue. */
+export const OUT_NAME = '2027-03-25-death-share-alpha-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* The shop's word for a supply kind (what the Shop window files it under). */
@@ -165,6 +168,12 @@ export function render(offers = supplyRows(), r = rules()) {
 -- file (the v0.2.30 integration collapsed the never-applied 11-20 and 11-21 files).
 -- hr_shop_view lists them: 2026-11-24-shop-outfitter.sql, 2026-11-25-shop-seeds.sql.
 -- ORDER: after the v0.2.29 chain (needs hr_items, hr_hunt_supplies, hr_crops); first of v0.2.30.
+-- NEW IN THIS FILE (lane/c-death-and-slots, Tyler 2026-11-10: Blessings cut a death by 25 / 50 / 75%, the
+-- designer's numbers, replacing 32 / 63 / 95): hr_blessing_tiers.permille ${r.tiers.map((t) => t.xpLossReductionPermille).join(' / ')}
+-- (src/data/blessings.js BLESSING_CUT_PERMILLE). Prices and every shop, seed and refill row are carried
+-- unchanged from 2027-03-14-jewelry-alpha-catalogue.generated.sql (applied history). hr_blessing_take reads the
+-- row at the death and hr_blessings_view projects it, so no body moves and the hr-accrue does not wait on it.
+-- A Blessing already held cuts by the new row at the hero's next death (no wipe is planned, Tyler 2026-11-09).
 -- No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -252,6 +261,9 @@ begin
   if exists (select 1 from public.hr_blessing_tiers a join public.hr_blessing_tiers b on b.tier = a.tier + 1
               where b.permille <= a.permille or b.base <= a.base) then
     raise exception 'VERIFY: a blessing tier does not protect more and cost more than the one below it'; end if;
+  if (select string_agg(tier || ':' || permille || ':' || base || ':' || per_level, ',' order by tier) from public.hr_blessing_tiers)
+       is distinct from ${sq([...r.tiers].sort((a, b) => a.tier - b.tier).map((t) => `${t.tier}:${t.xpLossReductionPermille}:${t.base}:${t.perLevel}`).join(','))} then
+    raise exception 'VERIFY: the blessing tiers are not the data''s cut and prices (src/data/blessings.js)'; end if;
   foreach v_role in array array['anon', 'authenticated'] loop
     if has_table_privilege(v_role, 'public.hr_shop_supply_offers', 'select,insert,update,delete')
        or has_table_privilege(v_role, 'public.hr_stamina_refill_rule', 'select,insert,update,delete')

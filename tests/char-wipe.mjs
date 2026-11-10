@@ -100,15 +100,19 @@ async function scenario(db, wipeSql) {
     await db.query('insert into auth.users (id) values ($1) on conflict (id) do nothing', [C]);
 
     /* A PLAYED ACCOUNT: three heroes (one in a slot it bought), gold, a bag, Storage, a house and land, an open hunt, a party with a friend, a market listing, chat. */
+    /* One slot to start (2027-03-25-hero-slots-one.sql): A's second and third heroes stand in slots it bought with gold. */
     await hero(A, 0, 'Marlow');
-    await hero(A, 1, 'Sorrel');
     await hero(B, 0, 'Tamsel');
     await db.query('update public.account_wallet set gold = 90000000 where user_id = $1', [A]);
+    const buys = (await db.query('select slot_id from public.hr_hero_slots where not starter and slot_id > 0 order by slot_id limit 2')).rows.map((r) => r.slot_id);
+    for (const id of buys) {
+      const bought = await ask(A, 'select public.hr_buy_hero_slot($1::int, 0, $2::uuid)', [id, key()]);
+      if (!bought || bought.ok !== true) throw Object.assign(new Error('hr_buy_hero_slot: ' + js(bought)), { harness: true });
+    }
+    const slotId = buys[0];
+    await hero(A, buys[0], 'Sorrel');
+    await hero(A, buys[1], 'Wrenna');
     await db.query('update public.player_state set level_xp = public.hr_char_xp_for_level((select min_level from public.hr_market_config) + 1), stamina_ms = 28800000, stamina_at = now() where user_id in ($1, $2)', [A, B]);
-    const slotId = await one('select min(slot_id) from public.hr_hero_slots where not starter and slot_id > 0');
-    const bought = await ask(A, 'select public.hr_buy_hero_slot($1::int, 0, $2::uuid)', [slotId, key()]);
-    if (!bought || bought.ok !== true) throw Object.assign(new Error('hr_buy_hero_slot: ' + js(bought)), { harness: true });
-    await hero(A, slotId, 'Wrenna');
     const hunt = await one(`select g.hunt_id from public.hr_hunt_grounds g left join public.hr_hunts h on h.hunt_id = g.hunt_id order by coalesce(h.band_min, 0), g.hunt_id limit 1`);
     const item = (await db.query(`select m.item_id, m.floor_each::text f from public.hr_market_items m where m.listable and m.floor_each > 1 and m.ceiling_each < 1000000000
       and m.item_id not in (select item_id from public.hr_item_slots) order by m.item_id limit 1`)).rows[0];
@@ -271,7 +275,7 @@ async function scenario(db, wipeSql) {
     /* CW-SLOTS */
     const slotsA = await one('select public.hr_hero_slots_of($1::uuid)', [A]);
     const starters = await one(`select jsonb_agg(s order by s) from (select 0 as s union select slot_id from public.hr_hero_slots where starter) q`);
-    arm('CW-SLOTS', js(slotsA) === js(starters) && starters.length === 2 && !starters.includes(slotId), `the slot it bought went; it owns ${js(slotsA)}, the catalogue's starters`, js({ slotsA, starters, slotId }));
+    arm('CW-SLOTS', js(slotsA) === js(starters) && starters.includes(0) && !starters.includes(slotId), `the slot it bought went; it owns ${js(slotsA)}, the catalogue's starters`, js({ slotsA, starters, slotId }));
 
     /* CW-STALE: what a tab or a settle that began before the wipe can still send. */
     const staleApply = await attempt(() => one('select public.hr_hunt_apply_instance($1::uuid, 0::bigint, $2::jsonb, $3::jsonb, $4::uuid, 0)', [inst, '{}', '[]', key()]));

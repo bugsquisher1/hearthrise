@@ -361,7 +361,7 @@ async function audit() {
       amount: b.heals || b.mana, perSecondAtLane: round((b.heals || b.mana) / (CONSUMABLE_RULES.laneMs / 1000), 1), goldPerPoint: round(b.price / (b.heals || b.mana), 3) })) },
     party: { scale: G.PARTY_SCALE, yieldBySize: [1, 2, 3, 4].map((n) => G.yieldPermille(n)), xpSplit: 'kill XP / living heroes x each hero\'s multiplier (xp-share.js; no party bonus)',
       gold: 'coin split evenly among heroes present, commons round-robin, rares by the 1-100 roll with rotation (party-split.js); store supplies paid by each hero (one purse per account)' },
-    death: { loss: HS.DEATH_XP_LOSS, base: HS.DEATH_XP_BASE, blessings: BLESSING_TIERS }, stamina: HS.STAMINA_MAX_MS,
+    death: { loss: HS.DEATH_XP_LOSS, of: 'total Level XP (it can take a Level)', blessings: BLESSING_TIERS }, stamina: HS.STAMINA_MAX_MS,
     gearTiers: GT.MATERIAL_TIERS.map((t) => ({ tier: t.tier, level: t.level })), gearReach: reachTier,
     gearRows: census.length, gearUnreachable: census.filter((r) => !r.source).length,
   };

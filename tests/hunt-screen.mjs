@@ -1672,7 +1672,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const gdBlowNow = PULL_CYCLE.biggestBlowOn(picked, 1, GLADE_DANGEROUS), gdBlowWas = PULL_CYCLE.biggestBlowOn(picked, 1);
       const gdBlow = gdBlowNow && gdBlowWas && gdBlowNow.hit !== gdBlowWas.hit ? ', and the biggest blow here is ' + gdBlowNow.hit + ', not ' + gdBlowWas.hit : '';
       if (!gdBlow) fails.push('HS-8 HARNESS: the Glade’s Dangerous no longer moves its biggest blow, so this case cannot see the blow clause; pick a ground whose tier moves it');
-      if (!new RegExp(gdHead + gdBlow + '\\. Each kill earns ' + gdXp + '% more Level XP, with the same gold and drops\\. Expect a bigger food bill, and you can die\\. A death ends the hunt and costs 2% of your XP\\.').test(d0.note)) fails.push('HS-8 the tier note reads: ' + d0.note);
+      if (!new RegExp(gdHead + gdBlow + '\\. Each kill earns ' + gdXp + '% more Level XP, with the same gold and drops\\. Expect a bigger food bill, and you can die\\. A death ends the hunt and costs 6% of your Level XP\\.').test(d0.note)) fails.push('HS-8 the tier note reads: ' + d0.note);
       /* A pick kept from last time is said at the press: the line beside Enter. */
       if (d0.press !== 'Dangerous: ' + gdHead + '.') fails.push('HS-8 the line beside Enter reads: ' + d0.press);
       /* the save answers Dangerous (not the Deadly asked, s.onTier): what shows afterwards is the server's. The answer

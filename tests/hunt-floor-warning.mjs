@@ -42,7 +42,7 @@ async function run(base) {
   const { SESSION_LIMITS, DEATH_XP_LOSS } = await import(pathToFileURL(join(base, 'src/data/hunt-sessions.js')).href + '?t=' + Math.random());
   ok('W1', !('belowRangeRefuse' in SESSION_LIMITS), 'the data still holds a refuse margin: ' + SESSION_LIMITS.belowRangeRefuse);
   const row = { band: [40, 60] };
-  const lost = 'If you die, the hunt ends and you lose ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';
+  const lost = 'If you die, the hunt ends and you lose ' + Math.round(DEATH_XP_LOSS * 100) + '% of your Level XP.';
   const one = HL.rangeWords(row, 39), near = HL.rangeWords(row, 34), far = HL.rangeWords(row, 28), at = HL.rangeWords(row, 40);
   ok('W1', typeof one === 'string' && one.startsWith('You\'re 1 Level under this ground. '), 'one Level under reads ' + JSON.stringify(one));
   ok('W1', near === 'You\'re 6 Levels under this ground. ' + HL.ABOVE_LEVEL_WORDS + ' ' + lost && /more XP and better loot/.test(near) && !/expect losses/.test(near), 'six Levels under reads ' + JSON.stringify(near));

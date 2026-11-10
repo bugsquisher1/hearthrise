@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.113 — 2026-11-10 (A Death That Counts)
+
+**Dying costs more.** A death now takes 6% of your Level XP, up from 2%, and it can take a Level. You never drop below Level 1.
+
+**Blessings matter more.** They cut the loss by 25%, 50% or 75%. Before, they cut 32%, 63% and 95% of a much smaller loss.
+
+**More heroes cost real gold.** New accounts start with one hero slot. More slots cost 300,000, then 750,000, then 1,500,000 gold. If your second slot was empty, it is gone. Heroes you made and slots you bought stay.
+
 ## v0.2.112 — 2026-11-10 (Runes on Hand)
 
 **Spells keep casting when your runes run out.** A spell slot now uses the runes you carry first. When those are gone, it buys runes from the shop for each cast and keeps going. Before, a slot that named no shop rune just stopped casting. In Configure action you can turn off using your carried runes, or have the hunt end when your runes run out.

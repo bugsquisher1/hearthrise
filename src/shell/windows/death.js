@@ -3,20 +3,20 @@
 //
 // A centred modal (the `death` row) that death-popup.js opens when the
 // character dies: where, what killed the hero, what happened in its last
-// seconds (when the hunt was watched), the XP dying cost and what a Blessing
-// kept, back in town.
+// seconds (when the hunt was watched), the XP dying cost, the Level it took (a
+// death can take one, Tyler 2026-11-09) and what a Blessing kept, back in town.
 //   Blessings      (while the hero lacks one) closes it and opens the Shop on its Services tab
 //   Hunt summary   closes it and opens the hunt summary (windows/hunt-summary.js)
 //   OK             closes it
 // Closing it any way records the dismissal (death-popup.js followDeaths). Every
 // line is the server's death row; built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, prop } from '../../render/paint.js?v=0.2.112';
-import { deathPopupOf, deathWords, blessingsMissing } from '../death-popup.js?v=0.2.112';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.112';
-import { deathLogOf } from '../../session/character-sections.js?v=0.2.112';
+import { text, cls, prop } from '../../render/paint.js?v=0.2.113';
+import { deathPopupOf, deathWords, blessingsMissing } from '../death-popup.js?v=0.2.113';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.113';
+import { deathLogOf } from '../../session/character-sections.js?v=0.2.113';
 
-const LINES = Object.freeze(['killed', 'what', 'why', 'lost', 'saved', 'town']);
+const LINES = Object.freeze(['killed', 'what', 'why', 'lost', 'level', 'saved', 'town']);
 const line = (k) => '<p class="hdeath-line hdeath-' + k + '"></p>';
 
 /** The skeleton (built once): who fell where and to what, then what dying cost (and what a Blessing kept) set
@@ -26,7 +26,7 @@ export function renderDeath() {
     + '<p class="hs-note hdeath-none">No death to show.</p>'
     + '<section class="hdeath-card"><h3 class="hdeath-title"></h3>'
     + line('killed') + line('what') + line('why')
-    + '<div class="hdeath-cost">' + line('lost') + line('saved') + '</div>'
+    + '<div class="hdeath-cost">' + line('lost') + line('level') + line('saved') + '</div>'
     + line('town')
     + '<div class="hsum-actions hdeath-actions">'
     /* the way to the Blessings a death used up (the Shop's Services tab), while the hero lacks one */

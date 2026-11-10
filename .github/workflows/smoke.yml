@@ -794,6 +794,16 @@ jobs:
           node tests/honor-window.mjs
           node tools/mutant-gate.mjs node tests/honor-window.mjs --mutate
 
+      # A MONSTER'S PAGE (lane/b-monster-facts, Tyler 2026-11-09: every monster's stats are
+      # visible): a creature on a hunt's page opens it beside Hunts; every number equals its
+      # data row, worked out in the test with plain arithmetic; uses link to their windows;
+      # a sheet on the phone with a way back. --mutate plants nine.
+      - name: Monster facts page (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/monster-facts.mjs
+          node tools/mutant-gate.mjs node tests/monster-facts.mjs --mutate
+
       # THE CHARACTER WINDOW (2026-10-25): the outfit catalogue is GENERATED
       # (gen-outfits --check); one XP formula, the sheet reads only what its
       # fingerprint covers, every put carries the engine version
@@ -2267,6 +2277,20 @@ jobs:
         run: |
           node tests/apply-order-honesty.mjs
           node tools/mutant-gate.mjs node tests/apply-order-honesty.mjs --selftest
+
+      # THE SERVER TIER'S STATIC LINTS, REGISTERED 2026-11-10. tests/run-sql-tests.mjs
+      # (grant hygiene, rate-limit refusals recorded, the hr_apply / hr_state_of
+      # derivation chains, every delta key classified) ran in NO job: it sat red on
+      # main with 77 fails for two weeks and four lanes reported it "pre-existing".
+      # Read: 56 were the lint behind the schema (29 in-place restatements, 24 Game
+      # Master journal, 1 undeclared chain line, 2 delta keys); 21 were 11 real
+      # findings, pinned by name in its OPEN_SERVER_FINDINGS (printed every run,
+      # stale pins fail). No database, about 2 s; --selftest plants 12 defects.
+      - name: Server-tier static lints — grants, rate refusals, derivation chains, delta keys
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/run-sql-tests.mjs
+          node tools/mutant-gate.mjs node tests/run-sql-tests.mjs --selftest
 
       # (BACK IN db-replay-2 2026-10-24, with the five steps above it: see the note
       # where they left db-replay.) MOVED TO db-replay FROM db-replay-2, 2026-09-26 CI
@@ -5142,6 +5166,14 @@ jobs:
         run: |
           node tests/four-hero-slots.mjs
           node tools/mutant-gate.mjs node tests/four-hero-slots.mjs --mutate
+
+      # ONE HERO SLOT TO START (Tyler 2026-11-09, lane/c-death-and-slots): 300,000 / 750,000 / 1,500,000 in order at
+      # exactly their prices; the characters screen says so; live heroes and held slots untouched by the apply.
+      - name: Hero slots - one to start, the second about a week away
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hero-slots-one.mjs
+          node tools/mutant-gate.mjs node tests/hero-slots-one.mjs --mutate
 
       # HUNT SESSIONS DATA (ruling HR-2026-10-14, lane D): every bag supply is
       # crafted or sold, the action-bar vocabulary is the ruling's, every hunt

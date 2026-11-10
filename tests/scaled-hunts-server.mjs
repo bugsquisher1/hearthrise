@@ -130,9 +130,17 @@ const statOf = async (db, uid) => (await q(db, `select ps.level_xp::text as lx,
 
 /* A Level 20 hero on the real Cellar, `minutesAgo` back, with `hours` banked there (bought through the verb, before it enters). */
 const HERO = { level: 20, inv: { cooked_shrimp: 60 }, bag: [{ item: 'cooked_shrimp', qty: 50 }], gold: 1000000, realGround: true };
+/* THE KIT A LEVEL 20 MELEE WEARS (tools/balance-sim/gear.mjs kitOf('tank', 20)): since one pack for every group (lane/b-one-difficulty, 2026-11-08) a
+   scaled monster has its row's HP against a lone hero too, and a Level 20 hero in the start kit died in the scaled Cellar inside six minutes (the span
+   never settled). Either strong enough or not (Tyler 11-08): every hero here wears the smiths' iron. */
+const KIT_20 = Object.freeze([['weapon', 'iron_sword'], ['shield', 'ironbound_shield'], ['helmet', 'iron_helm'], ['body', 'iron_platebody'], ['pants', 'iron_platelegs'],
+  ['boots', 'iron_boots'], ['gloves', 'iron_gauntlets'], ['belt', 'iron_belt']]);
 async function scaledHunter(db, M, o = {}) {
   return H.hunter(db, M, { ...HERO, level: o.level || HERO.level, minutesAgo: o.minutesAgo || 8, ...(o.party ? { party: o.party.map((p) => ({ ...HERO, ...p })) } : {}),
     beforeEnter: async () => {
+      for (const uid of UIDS.slice(0, o.party ? o.party.length : 1)) for (const [slot, item] of KIT_20) {
+        await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3) on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id', [uid, slot, item]);
+      }
       for (const [uid, hunt, hours] of o.buys || []) {
         const r = await buy(db, uid, hunt, hours);
         if (!r || r.ok !== true) throw new Error('harness: the purchase refused: ' + JSON.stringify(r));

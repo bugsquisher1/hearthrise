@@ -24,24 +24,24 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS, monsterLevelOf } from '../../data/monsters.js?v=0.2.112';
-import { atTier, levelAtTier } from '../../data/hunt-tiers.js?v=0.2.112';
-import { STATUSES } from '../../data/statuses.js?v=0.2.112';
-import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.112';
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.112';
-import { cheb } from './grid.js?v=0.2.112';
-import { atRest, unitById } from './movement.js?v=0.2.112';
-import { makeEvent } from './events.js?v=0.2.112';
-import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.112';
-import { fallen } from './pull-cycle.js?v=0.2.112';
-import { shareKillXp } from './xp-share.js?v=0.2.112';
-import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.112';
-import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.112';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.112';
-import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.112';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.112';
-import { temperedAmount } from '../temper.js?v=0.2.112';
-import { swingRow, crossLines, guardPmOf } from './boss-phases.js?v=0.2.112';
+import { MONSTERS, monsterLevelOf } from '../../data/monsters.js?v=0.2.113';
+import { atTier, levelAtTier } from '../../data/hunt-tiers.js?v=0.2.113';
+import { STATUSES } from '../../data/statuses.js?v=0.2.113';
+import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.113';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.113';
+import { cheb } from './grid.js?v=0.2.113';
+import { atRest, unitById } from './movement.js?v=0.2.113';
+import { makeEvent } from './events.js?v=0.2.113';
+import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.113';
+import { fallen } from './pull-cycle.js?v=0.2.113';
+import { shareKillXp } from './xp-share.js?v=0.2.113';
+import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.113';
+import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.113';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.113';
+import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.113';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.113';
+import { temperedAmount } from '../temper.js?v=0.2.113';
+import { swingRow, crossLines, guardPmOf } from './boss-phases.js?v=0.2.113';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -67,8 +67,6 @@ function takenPmOf(u) {
   return best;
 }
 
-/** The permille of its row's kill yield a monster pays (pull-cycle.js spawnPack stamps it; unstamped = all). */
-export const yieldOf = (m) => (Number.isInteger(m && m.yieldPm) && m.yieldPm > 0 ? m.yieldPm : 1000);
 const stanceOf = (u) => HUNT_STANCES[u && u.stance] || HUNT_STANCES[DEFAULT_STANCE];
 /* A MONSTER'S ROW, through the instance's one door (world-step.js inst.monsters: a scaled hunt's table, combat-sim.js huntPlayOf), the catalogue for a bare caller. */
 const rowOf = (inst, kind) => (inst.monsters || MONSTERS)[kind];
@@ -141,7 +139,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   if (r.killed) {
     sc.emit(makeEvent('kill', sc.atMs, { u, t: target.id }));
     fallen(inst, target, sc);
-    if (target.side === 'mon') shareKillXp(inst, { t: target.id, u, xp: Math.round((atTier(rowOf(inst, target.kind), inst.tier).xp * yieldOf(target)) / 1000) }, sc);
+    if (target.side === 'mon') shareKillXp(inst, { t: target.id, u, xp: Math.round(atTier(rowOf(inst, target.kind), inst.tier).xp) }, sc);
   }
   return r;
 }

@@ -23,17 +23,17 @@ const cases = {
   },
   'party-defaults': (M) => {
     const g = M.grounds, all = Object.values(g.HUNT_GROUNDS);
-    if (!all.every((r) => r.partyScale === true)) return 'a shipped ground does not state partyScale: true';
+    /* ONE PACK FOR EVERY GROUP (Tyler 2026-11-08): no ground carries the old party scale, and the King's hall is built for a party but walked by anyone */
+    if (all.some((r) => 'partyScale' in r)) return 'a shipped ground still carries a party scale';
     const sewer = g.HUNT_GROUNDS.millrace_sewer;
-    if (g.routeFor(sewer, 1).includes(5) || !g.routeFor(sewer, 2).includes(5)) return 'the Rat King pocket is not party-only';
-    if (g.routeFor(g.HUNT_GROUNDS.mill_cellar, 1).length !== 2) return 'the cellar lost a pocket solo';
-    if (g.yieldPermille(1) !== 550 || g.yieldPermille(4) !== 1000 || !g.MIN_PARTY_NOTE) return 'yield does not follow the pack scale';
+    if (!(sewer.pockets[5] && sewer.pockets[5].forParty === 2 && sewer.route.includes(5))) return 'the Rat King\'s hall is not built for a party, or not on the route';
+    if (g.HUNT_GROUNDS.mill_cellar.route.length !== 2) return 'the cellar lost a pocket';
     return null;
   },
   /* THE BLOW-SHARE RULE (designer ruling 2026-10-21, after Andy died to a 108 Rat King blow): no
      monster, bosses included, can hit for more than 35% of a hero's max HP at the floor of any hunt it
-     appears in (combat.js: "bosses <= ~35%"). The blow is pull-cycle.js biggestBlowOn at the largest
-     party (every pocket, minParty included), the HP vitals.js maxHpFor at band[0], no armour. Read as
+     appears in (combat.js: "bosses <= ~35%"). The blow is pull-cycle.js biggestBlowOn (every pocket, for
+     every party size since 2026-11-08), the HP vitals.js maxHpFor at band[0], no armour. Read as
      a WHOLE percent, the precision the ruling was given in (the Warrens' 162 of 460 is its 35%). */
   'blow-share': (M) => {
     const MAX_PCT = 35;
@@ -41,24 +41,15 @@ const cases = {
     for (const h of Object.values(M.HUNTS)) {
       /* A called room's blow is the warned exam (src/data/boss-calls.js), not a hunt's floor: its Level-ready bands are tests/boss-call.mjs's table. */
       if (h.called === true) continue;
-      const b = M.hunt['pull-cycle'].biggestBlowOn(h.id, M.grounds.PARTY_SCALE.maxHeroes);
+      const b = M.hunt['pull-cycle'].biggestBlowOn(h.id);
       const hp = M.vitals.maxHpFor(h.band[0], 0);
       if (!b) { out.push(h.id + ' has no blow to read'); continue; }
       const pct = Math.round((100 * b.hit) / hp);
       if (pct > MAX_PCT) out.push(h.id + ': ' + b.monster + ' hits ' + b.hit + ' = ' + pct + '% of the floor hero\'s ' + hp + ' HP (max ' + MAX_PCT + '%)');
     }
-    /* the party filter is live: alone you never meet the King, so the Sewer's solo blow is a commoner's. Read off the rows, not the blows
-       (lane/a-v106-reds): the reshaped Sewer gave its Cistern Spider the King's 37, so the biggest blow alone and in a pair is the same
-       monster and could no longer show who a pair meets. The monsters a pair meets and a lone hero never does (hunt-grounds.js monstersOn,
-       the read biggestBlowOn makes) must exist, and the solo blow must be none of them. */
+    /* every hero meets the King (Tyler 2026-11-08): the monsters a hunt can meet on the Sewer include its hall's boss */
     const sewerGrounds = Object.values(M.grounds.HUNT_GROUNDS).filter((g) => g.hunt === 'millrace_sewer');
-    const spawns = Object.values(M.HUNTS).find((h) => h.id === 'millrace_sewer').spawns.map((s) => s.monster);
-    const met = (size) => new Set([...spawns, ...sewerGrounds.flatMap((g) => [...M.grounds.monstersOn(g, size)])]);
-    const partyOnly = [...met(2)].filter((id) => !met(1).has(id));
-    const sewer1 = M.hunt['pull-cycle'].biggestBlowOn('millrace_sewer', 1);
-    if (!partyOnly.length || !sewer1 || partyOnly.includes(sewer1.monster)) {
-      out.push('the Sewer blow ignores minParty: a pair alone meets ' + JSON.stringify(partyOnly) + ', the solo blow is ' + JSON.stringify(sewer1));
-    }
+    if (!sewerGrounds.some((g) => M.grounds.monstersOn(g).has('rat_king'))) out.push('the Sewer\'s monsters leave out the Rat King');
     return out.length ? out.join('; ') : null;
   },
   /* THE ANALYZER RATE WINDOW: the client's "per hour after N min" is the server's own window. */
@@ -76,7 +67,7 @@ const cases = {
       || refused({ pockets: [{ room: [10, 1, 18, 6], spawns: [{ monster: 'no_such_monster', x: 12, y: 2 }] }], route: [0] }, 'an unknown monster passed')
       || refused({ route: [0, 0] }, 'a repeated route pocket passed')
       || refused({ respawnMs: 90050 }, 'a respawn off the sub-step grid passed')
-      || refused({ pockets: [{ room: [10, 1, 18, 6], spawns: [{ monster: 'rat', x: 12, y: 2 }], minParty: 2 }], route: [0] }, 'a ground with nothing to walk solo passed')
+      || refused({ pockets: [{ room: [10, 1, 18, 6], spawns: [{ monster: 'rat', x: 12, y: 2 }], forParty: 9 }], route: [0] }, 'a hall built for more heroes than a party holds passed')
       || refused({ start: [] }, 'a ground with no entrance passed');
   },
 };
@@ -90,8 +81,8 @@ const mutants = [
     edits: [['src/data/hunt-grounds.js', '(pk.pack || pk.spawns).concat(pk.spawns)', '[]']] },
   { name: 'Chief Coppercap swings 54 again (63% of the Warrens floor)', case: 'blow-share',
     edits: [['src/data/monsters.js', 'hp: 1096, atk: 28, baseAcc: 0.88, def: 33,', 'hp: 1096, atk: 69, baseAcc: 0.88, def: 33,']] },
-  { name: 'the blow ignores the party size (solo meets the King)', case: 'blow-share',
-    edits: [['src/data/hunt-grounds.js', '  for (const i of routeFor(ground, partySize)) {\n    const pk', '  for (const i of ground.route) {\n    const pk']] },
+  { name: 'the King\'s hall is left off the monsters a hunt meets', case: 'blow-share',
+    edits: [['src/data/hunt-grounds.js', '  for (const i of ground.route) {\n    const pk', '  for (const i of ground.route.filter((j) => !ground.pockets[j].forParty)) {\n    const pk']] },
   { name: 'the client says per hour after 5 min (the server waits 10)', case: 'analyzer-rate-window',
     edits: [['src/data/hunt-sessions.js', 'export const ANALYZER_RATE_AFTER_MS = 10 * 60000;', 'export const ANALYZER_RATE_AFTER_MS = 5 * 60000;']] },
   { name: 'spawns are not checked against their room', case: 'grounds-refuse-bad-rows',

@@ -24,24 +24,24 @@
 // (bar-draft.js), every control stays off until the server has answered, and a refusal
 // keeps the draft and outlines its condition. On a phone (922×423) it is a full sheet.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.112';
-import { STATUSES } from '../../data/statuses.js?v=0.2.112';
-import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.112';
-import { vitalsOf } from '../../session/party-sections.js?v=0.2.112';
-import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.112';
-import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.112';
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.112';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.112';
-import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.112';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, serverBar, opWords, unitWords } from '../bar-draft.js?v=0.2.112';
-import { startSupply } from '../rune-supply.js?v=0.2.112';
-import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.112';
-import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.112';
-import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.112';
-import { glyphSvg } from '../launcher.js?v=0.2.112';
-import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine } from '../action-table.js?v=0.2.112';
-import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.112';
-import { whole } from '../../render/format.js?v=0.2.112';
+import { METRICS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.113';
+import { STATUSES } from '../../data/statuses.js?v=0.2.113';
+import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.113';
+import { vitalsOf } from '../../session/party-sections.js?v=0.2.113';
+import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.113';
+import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.113';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.113';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.113';
+import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.113';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, serverBar, opWords, unitWords } from '../bar-draft.js?v=0.2.113';
+import { startSupply } from '../rune-supply.js?v=0.2.113';
+import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.113';
+import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.113';
+import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.113';
+import { glyphSvg } from '../launcher.js?v=0.2.113';
+import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine } from '../action-table.js?v=0.2.113';
+import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.113';
+import { whole } from '../../render/format.js?v=0.2.113';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
@@ -228,9 +228,9 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   text(root.querySelector('.ca-ready'), d.action.id && !d.conditions.length ? ' whenever it is ready.' : '');
   root.querySelectorAll('.ca-cond').forEach((row, i) => patchCond(row, d.conditions[i], i, s, ctx.doc));
   text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.discipline, set.role, skillsOf(cs)));
-  /* The heal warning: the hero's hunt (running, else the last one) at the party's size, the server's max HP. */
+  /* The heal warning: the hero's hunt (running, else the last one), its biggest blow for any party size (2026-11-08), the server's max HP. */
   const h = huntOf(cs), p = partyOf(cs);
-  const blow = h && h.huntId ? biggestBlowOn(h.huntId, p ? p.members.length : 1) : null;
+  const blow = h && h.huntId ? biggestBlowOn(h.huntId) : null;
   /* ...and what the slot's conditions will mean in a fight (slot-waits.js): a player setting it up reads it here, in town too. */
   /* (and the earlier slot it shares a cooldown with: the bar's hover no longer says it, Tyler 2026-11-08) */
   const wires = serverBar(cs);
@@ -276,7 +276,8 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const f = named ? factsOf(named, facts) : null;
   text(root.querySelector('.ca-src'), f && f.cost ? f.cost : '');
   text(root.querySelector('.ca-eff'), f && named.type === 'ability' ? [f.type].concat(f.effect).filter(Boolean).join(' ') : effectLine(shown));
-  text(root.querySelector('.ca-req'), f && f.requires ? f.requires : '');
+  /* The spell card's requirement, and an alone spell's callout beside it (Tyler 2026-11-09: "Make that callout clear to the player"). */
+  text(root.querySelector('.ca-req'), f && f.requires ? f.requires + (f.alone ? ' ' + f.alone : '') : '');
   /* A rune spell's supply (configure-runes.js): the carried runes it may spend, then the rune shop or leaving the hunt. */
   patchRunes(root, d, { doc: ctx.doc, bag, store: set.store, skills: facts.skills, off });
   /* THE FOOT */

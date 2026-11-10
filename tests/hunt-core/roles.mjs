@@ -39,7 +39,7 @@ function boxFight(M, gid, p, at, o = {}) {
   const w = M.hs.newHuntWorld(ground, grid, [hero], { density: o.density || 8 });
   const k = w.units[0];
   for (const m of w.units) if (m.side === 'mon') { m.hp = 1e9; m.maxHp = 1e9; }
-  w.routeIdx = M.grounds.routeFor(ground, 1).indexOf(p);
+  w.routeIdx = ground.route.indexOf(p);
   if (at) {
     k.x = k.fx = at[0]; k.y = k.fy = at[1];
     w.phase = 'fight'; w.leader = k.id; w.packs[p].aggro = true; w.packs[p].holder = k.id;

@@ -74,17 +74,21 @@ const CASES = {
   },
   tiers: (B) => {
     const bad = [], T = B.TIER_DIALS;
-    if (T.normal.dmgPm !== 1000 || T.normal.hpPm !== 1000 || T.normal.xpPm !== 1000 || T.normal.pull.some((p) => p !== 0)) bad.push('Normal is not the ground as it stands');
+    if (T.normal.dmgPm !== 1000 || T.normal.hpPm !== 1000 || T.normal.xpPm !== 1000 || T.normal.pull !== 0) bad.push('Normal is not the ground as it stands');
     let was = T.normal;
     for (const id of ['dangerous', 'deadly']) {
       const t = T[id];
-      if (t.pull.length !== 4 || t.pull.some((p, i) => p < was.pull[i] && p !== 0)) bad.push(id + ' pulls fewer than the tier before');
+      /* ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08): a tier's pull is one number, for one hero or four */
+      if (!Number.isInteger(t.pull) || t.pull < 0) bad.push(id + ' pull is not one number for every group: ' + JSON.stringify(t.pull));
+      else if (t.pull < was.pull && t.pull !== 0) bad.push(id + ' pulls fewer than the tier before');
+      for (const [g, o] of Object.entries(B.TIER_PULL_OVERRIDES)) if (o[id] !== undefined && !Number.isInteger(o[id])) bad.push(g + ' ' + id + ' pull is not one number for every group: ' + JSON.stringify(o[id]));
       if (!(t.dmgPm >= was.dmgPm && t.hpPm >= was.hpPm && t.xpPm > was.xpPm)) bad.push(id + ' is not harder and better paid than the tier before');
       if ('gpPm' in t || 'coinPm' in t) bad.push(id + ' moves coin (Tyler 2026-11-07: never)');
       was = t;
     }
     if (!(B.TIER_PULL_OVERRIDES.mill_cellar && B.TIER_PULL_OVERRIDES.mill_cellar.normalOnly)) bad.push('the Mill Cellar offers a harder tier');
     for (const [g, o] of Object.entries(B.TIER_PULL_OVERRIDES)) if (!o.why) bad.push(g + '\'s override has no reason');
+    if (bad.length) return bad; /* (tierRowFor refuses a pull a party size, so the rows below can't be read) */
     /* the engine row a ground gets: never softer than the table, the table's own on a full ground, harder the gentler the ground */
     for (const id of ['dangerous', 'deadly']) {
       let above = Infinity;
@@ -124,7 +128,7 @@ const CASES = {
 const GEN_D = await (async () => {
   const { HUNT_GROUNDS } = await import(u('src/data/hunt-grounds.js'));
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
-  return { floorOf: (g) => HUNT_INDEX[HUNT_GROUNDS[g].hunt].band[0], fitOf: (g) => (HUNT_GROUNDS[g].pockets.some((p) => p.minParty) ? 'party' : HUNT_GROUNDS[g].groupFit || 'both') };
+  return { floorOf: (g) => HUNT_INDEX[HUNT_GROUNDS[g].hunt].band[0], fitOf: (g) => (HUNT_GROUNDS[g].pockets.some((p) => p.forParty) ? 'party' : HUNT_GROUNDS[g].groupFit || 'both') };
 })();
 
 /* THE MUTANTS: a planted copy of the module with one rule broken; the named case must go red on it. */
@@ -142,6 +146,8 @@ const MUTANTS = [
   ['curves-climb', 'coin falling past Level 100', () => { const B = plant({}); B.formulaStats = (spec, o) => { const f = REAL.formulaStats(spec, o); return { ...f, gp: spec.level > 100 ? [f.gp[0] - 1, f.gp[1] - spec.level] : f.gp }; }; return B; }],
   ['tiers', 'Deadly paying coin', () => plant({ TIER_DIALS: { ...REAL.TIER_DIALS, deadly: { ...REAL.TIER_DIALS.deadly, gpPm: 1200 } } })],
   ['tiers', 'Dangerous hitting softer than Normal', () => plant({ TIER_DIALS: { ...REAL.TIER_DIALS, dangerous: { ...REAL.TIER_DIALS.dangerous, dmgPm: 900 } } })],
+  ['tiers', 'Dangerous pulling by party size again (a lone hero 3, a four 6)', () => plant({ TIER_DIALS: { ...REAL.TIER_DIALS, dangerous: { ...REAL.TIER_DIALS.dangerous, pull: [3, 5, 5, 6] } } })],
+  ['tiers', 'a ground giving a lone hero its own Deadly pull again', () => plant({ TIER_PULL_OVERRIDES: { ...REAL.TIER_PULL_OVERRIDES, wickstead: { deadly: [0, 8, 8, 8], why: 'a lone hero keeps the ground as it stands' } } })],
 ];
 
 /* a roster with one ground written by the formula, then one of its rows nudged off it, or one row left behind */

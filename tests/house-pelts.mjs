@@ -49,7 +49,11 @@ async function gladeHunter(db, H, M, uid) {
   await H.character(db, M, uid, { level: 24, gold: 5000000, inv: {} });
   /* IN THE IRON PLATE A LEVEL 24 HERO HAS WORN SINCE 15 (Tyler's harder Glade, 2026-11-02): in the practice set alone it now dies at a pull of 3, which is the
      ground's own words ("in weak armor ... or die"), not this guard's claim. A local fixture, like the Level above. */
-  for (const [equipSlot, item] of [['helmet', 'iron_helm'], ['body', 'iron_platebody'], ['pants', 'iron_platelegs'], ['boots', 'iron_boots']]) {
+  /* AND THE REST OF THAT KIT (lane/b-one-difficulty, 2026-11-08): since a monster has its row's HP for one hero or four, a Level 24 hero alone with the
+     start kit's weapon in iron plate died on the Glade's Dangerous at 66 min (closed) and 6 min (viewed). Either strong enough or not (Tyler 11-08): it
+     wears the smiths' ladder kit a Level 24 Melee wears (tools/balance-sim/gear.mjs kitOf('tank', 24)), weapon, shield, gauntlets and belt too. */
+  for (const [equipSlot, item] of [['weapon', 'iron_sword'], ['shield', 'ironbound_shield'], ['helmet', 'iron_helm'], ['body', 'iron_platebody'], ['pants', 'iron_platelegs'],
+    ['boots', 'iron_boots'], ['gloves', 'iron_gauntlets'], ['belt', 'iron_belt']]) {
     await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3) on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id', [uid, equipSlot, item]);
   }
   await db.query('update public.hr_hunt_config set enabled = true where id');

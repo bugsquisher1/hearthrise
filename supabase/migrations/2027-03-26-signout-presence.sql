@@ -151,19 +151,23 @@ begin
       insert into public.hr_access_allowlist (user_id, note) values (v_u, 'signout-presence §3 probe') on conflict (user_id) do nothing;
       perform set_config('request.jwt.claim.sub', v_u::text, true);
       perform set_config('request.jwt.claims', jsonb_build_object('sub', v_u, 'role', 'authenticated')::text, true);
-      if coalesce(public.hr_create_character(0)->>'ok', '') <> 'true' or coalesce(public.hr_create_character(1)->>'ok', '') <> 'true' then
-        raise exception 'signout-presence §3-harness: hr_create_character refused for %', v_u; end if;
+      -- ONE hero an account: the slot every account owns whatever the slot ladder says (a second is bought, not given,
+      -- since 2027-03-25-hero-slots-one.sql), so this probe does not move with the ladder.
+      v := public.hr_create_character(0);
+      if coalesce(v->>'ok', '') <> 'true' then raise exception 'signout-presence §3-harness: hr_create_character(0) refused for %: %', v_u, v; end if;
       update public.player_state set active_kind = 'idle', active_id = null where user_id = v_u;
     end loop;
     insert into public.friend_links (user_lo, user_hi) values (least(c_a, c_b), greatest(c_a, c_b));
 
-    -- BOTH HAVE THE GAME OPEN, by the poll every client sends: A two idle heroes, B one.
+    -- BOTH HAVE THE GAME OPEN, by the poll every client sends: each its idle hero. A also holds the row a SECOND open hero
+    -- would have (planted: the probe buys no slot), so "every row of the caller" is executed, not one.
     perform set_config('request.jwt.claim.sub', c_a::text, true);
     perform set_config('request.jwt.claims', jsonb_build_object('sub', c_a, 'role', 'authenticated')::text, true);
-    v := public.hr_social_poll(0, array[0, 1]);
+    v := public.hr_social_poll(0, array[0]);
+    insert into public.character_presence (user_id, slot, seen_at) values (c_a, 1, now());
     if coalesce(v->>'ok', '') <> 'true' or (select count(*) from public.character_presence where user_id = c_a) <> 2
        or not exists (select 1 from public.social_presence where user_id = c_a and slot = 0) then
-      raise exception 'signout-presence §3-harness: A''s poll answered % and stamped % hero(es)', v, (select count(*) from public.character_presence where user_id = c_a); end if;
+      raise exception 'signout-presence §3-harness: A''s poll answered % and % hero row(s) stand', v, (select count(*) from public.character_presence where user_id = c_a); end if;
     perform set_config('request.jwt.claim.sub', c_b::text, true);
     perform set_config('request.jwt.claims', jsonb_build_object('sub', c_b, 'role', 'authenticated')::text, true);
     v := public.hr_social_poll(0, array[0]);
@@ -201,7 +205,7 @@ begin
     perform set_config('request.jwt.claims', jsonb_build_object('sub', c_b, 'role', 'authenticated')::text, true);
     update public.hr_players_online_cache set at = '-infinity' where id;
     v_n1 := (public.hr_players_online(null)->>'online')::bigint;
-    if v_n1 <> v_n0 - 2 then raise exception 'signout-presence §3(b): the count read % after the sign-out, wanted % (two idle heroes fewer)', v_n1, v_n0 - 2; end if;
+    if v_n1 <> v_n0 - 2 then raise exception 'signout-presence §3(b): the count read % after the sign-out, wanted % (A''s two open heroes fewer)', v_n1, v_n0 - 2; end if;
     v := public.hr_social_state(0)->'friends'->0;
     if v->>'online' is distinct from 'false' then raise exception 'signout-presence §3(b): the friend still reads online: %', v; end if;
     if v->'slot' is distinct from v_who->'slot' or v->>'name' is distinct from v_who->>'name' or v->>'id' is distinct from c_a::text then
@@ -224,36 +228,45 @@ begin
        or (select ctid from public.social_presence where user_id = c_b) is distinct from v_b_soc then
       raise exception 'signout-presence §3(c): a second leave wrote a row'; end if;
 
-    -- (d) SIGNING BACK IN: the next poll stamps the account and its open heroes at once (no floor holds a left account out).
-    v := public.hr_social_poll(0, array[0, 1]);
-    if coalesce(v->>'ok', '') <> 'true' or (select count(*) from public.character_presence where user_id = c_a and seen_at = now()) <> 2
+    -- (d) SIGNING BACK IN: the next poll stamps the account and its open hero at once (no floor holds a left account out).
+    v := public.hr_social_poll(0, array[0]);
+    if coalesce(v->>'ok', '') <> 'true' or (select count(*) from public.character_presence where user_id = c_a and seen_at = now()) <> 1
        or (select seen_at from public.social_presence where user_id = c_a) is distinct from now() then
       raise exception 'signout-presence §3(d): an account back after a sign-out is not stamped by its first poll: %', v; end if;
 
-    -- (e) ★ SIGN-OUT ENDS NOBODY'S PLAY. A's hero 0 hunts and hero 1 works a bench; both are open in the client (d); A signs
-    --     out. Nobody has them open, so their stamps go (as they did 75 s later); they still PLAY: the hunt is open and
-    --     unwritten, the job stands, the worker still stands in town for everyone, and a hunter is never away to its party.
+    -- (e) ★ SIGN-OUT ENDS NOBODY'S PLAY. A's hero is open in the client (d) and plays; A signs out. Nobody has it open, so its
+    --     stamp goes (as it did 75 s later), and it still PLAYS, by the two ways a hero plays on the server.
+    --     WORKING A BENCH: the job stands, and the hero still stands in town for everyone.
     delete from public.hr_rate_counters where user_id in (c_a, c_b);
-    v := public.hr_hunt_enter(0, v_hunt, '[]'::jsonb, 0, null, (k || '5160e001')::uuid);
-    if coalesce(v->>'ok', '') <> 'true' then raise exception 'signout-presence §3-harness: entering % answered %', v_hunt, v; end if;
     update public.player_state
        set active_kind = 'artisan', active_id = (select a.activity_id from public.hr_activities a where a.kind = 'artisan' order by a.activity_id limit 1),
            active_since = now(), accrued_to = now()
-     where user_id = c_a and slot = 1;
-    select h.id, h.version into v_sess, v_ver from public.hunt_sessions h where h.user_id = c_a and h.slot = 0 and h.ended_at is null;
-    if v_sess is null or not public.hr_playing(c_a, 0) or not public.hr_playing(c_a, 1) then
-      raise exception 'signout-presence §3-harness: A''s heroes do not hunt and work before the sign-out'; end if;
+     where user_id = c_a and slot = 0;
+    if not public.hr_playing(c_a, 0) or not public.hr_town_live(c_a, 0) then
+      raise exception 'signout-presence §3-harness: A''s hero does not work in town before the sign-out'; end if;
     v := public.hr_presence_leave();
-    if coalesce(v->>'ok', '') <> 'true' then raise exception 'signout-presence §3(e): the leave of a playing account answered %', v; end if;
+    if coalesce(v->>'ok', '') <> 'true' then raise exception 'signout-presence §3(e): the leave of a working account answered %', v; end if;
     if exists (select 1 from public.character_presence where user_id = c_a) then
-      raise exception 'signout-presence §3(e): a hero nobody has open is still stamped open'; end if;
-    if not public.hr_playing(c_a, 0) or not public.hr_playing(c_a, 1) then
-      raise exception 'signout-presence §3(e): a sign-out stopped a hero playing'; end if;
+      raise exception 'signout-presence §3(e): a working hero nobody has open is still stamped open'; end if;
+    if not public.hr_playing(c_a, 0) then raise exception 'signout-presence §3(e): a sign-out stopped a hero playing'; end if;
+    if (select ps.active_kind from public.player_state ps where ps.user_id = c_a and ps.slot = 0) is distinct from 'artisan'
+       or not public.hr_town_live(c_a, 0) then
+      raise exception 'signout-presence §3(e): the working hero lost its job or its place in town'; end if;
+    --     HUNTING: the hunt stays open and unwritten, and a hunter is never away to its party.
+    update public.player_state set active_kind = 'idle', active_id = null where user_id = c_a and slot = 0;
+    v := public.hr_hunt_enter(0, v_hunt, '[]'::jsonb, 0, null, (k || '5160e001')::uuid);
+    if coalesce(v->>'ok', '') <> 'true' then raise exception 'signout-presence §3-harness: entering % answered %', v_hunt, v; end if;
+    v := public.hr_social_poll(0, array[0]);
+    select h.id, h.version into v_sess, v_ver from public.hunt_sessions h where h.user_id = c_a and h.slot = 0 and h.ended_at is null;
+    if v_sess is null or not public.hr_playing(c_a, 0) or (select count(*) from public.character_presence where user_id = c_a) <> 1 then
+      raise exception 'signout-presence §3-harness: A''s hero does not hunt, open in its client, before the sign-out: %', v; end if;
+    v := public.hr_presence_leave();
+    if coalesce(v->>'ok', '') <> 'true' then raise exception 'signout-presence §3(e): the leave of a hunting account answered %', v; end if;
+    if exists (select 1 from public.character_presence where user_id = c_a) then
+      raise exception 'signout-presence §3(e): a hunting hero nobody has open is still stamped open'; end if;
+    if not public.hr_playing(c_a, 0) then raise exception 'signout-presence §3(e): a sign-out stopped a hunter playing'; end if;
     if not exists (select 1 from public.hunt_sessions h where h.id = v_sess and h.ended_at is null and h.leave_at is null and h.version = v_ver) then
       raise exception 'signout-presence §3(e): a sign-out wrote the open hunt'; end if;
-    if (select ps.active_kind from public.player_state ps where ps.user_id = c_a and ps.slot = 1) is distinct from 'artisan'
-       or not public.hr_town_live(c_a, 1) then
-      raise exception 'signout-presence §3(e): the working hero lost its job or its place in town'; end if;
     if public.hr_party_away(c_a, 0, now() - interval '1 hour') then
       raise exception 'signout-presence §3(e): a hunter reads away to its party after its account signed out'; end if;
 

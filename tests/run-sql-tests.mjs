@@ -668,6 +668,9 @@ const ALSO_LINTED = [
   /* THE DEAD SURFACES CUT (lane c-dead-surfaces, 2026-10-24): HR_STATE_OF_CHAIN's newest link; its revokes
      (the crew doors dropped, the 23 clan doors closed) are linted here. */
   '2027-01-18-dead-surfaces-cut.sql',
+  /* THE RATE REFUSALS RECORDED (lane/c-server-debt, 2026-11-10): hr_rate_refused (server-only) and the 25 verbs
+     restated with it, so PART 1c-iii judges the bodies the chain ends with (DISCOVERIES 2026-11-10 row 2). */
+  '2027-04-02-rate-refusals-recorded.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -1116,17 +1119,33 @@ const SQL_MUTANTS = [
     from: "return public.hr_gm_close(v_uid, 'online', null, null, null, null, jsonb_build_object('ok', false, 'error', 'rate_limited')); end if;",
     to: "return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;",
     expect: 'hr_gm_online() refuses \'gm:read\' as rate_limited without hr_record_rejection (C2)' },
+  /* PART 1c-iii judges the statement the chain ENDS with: since 2027-04-02-rate-refusals-recorded.sql that is its restatement,
+     so the rate mutants are planted there (the old one, on core-bodies' hr_inspect, would be planted in a replaced body). */
   { name: 'a new rate limit is refused unrecorded',
-    file: 'supabase/migrations/2026-10-27-core-bodies.sql',
-    from: "if not public.hr_rate_ok(v_uid, 'inspect', 30, interval '1 minute') then",
-    to: "if not public.hr_rate_ok(v_uid, 'inspect_deep', 30, interval '1 minute') then",
-    expect: 'hr_inspect() refuses \'inspect_deep\' as rate_limited without hr_record_rejection (C2)' },
+    file: 'supabase/migrations/2027-04-02-rate-refusals-recorded.sql',
+    from: "    perform public.hr_rate_refused(v_uid, p_slot, 'inspect', 30, interval '1 minute');  -- RATE-JOURNAL\n",
+    to: '',
+    expect: '2027-04-02-rate-refusals-recorded.sql: hr_inspect() refuses \'inspect\' as rate_limited without hr_record_rejection (C2)' },
+  { name: 'a refusal is recorded under another bucket',
+    file: 'supabase/migrations/2027-04-02-rate-refusals-recorded.sql',
+    from: "perform public.hr_rate_refused(v_uid, p_slot, 'whisper:send', 20, interval '1 minute');",
+    to: "perform public.hr_rate_refused(v_uid, p_slot, 'whisper:burst', 20, interval '1 minute');",
+    expect: "hr_whisper_send() records (v_uid, p_slot, 'whisper:burst', 20, interval '1 minute') for a refusal of (v_uid, 'whisper:send', 20, interval '1 minute')" },
+  { name: 'the one recorder stops sampling',
+    file: 'supabase/migrations/2027-04-02-rate-refusals-recorded.sql',
+    from: '  if v_weight > 0 then\n    perform public.hr_record_rejection(p_user, case when p_slot',
+    to: '  if true then\n    perform public.hr_record_rejection(p_user, case when p_slot',
+    expect: 'hr_rate_refused() records without the sample gate (S6)' },
+  { name: 'the last file stops restating a body, so the unrecorded one stands again',
+    file: 'supabase/migrations/2027-04-02-rate-refusals-recorded.sql',
+    from: 'CREATE OR REPLACE FUNCTION public.hr_inspect(p_target text, p_slot integer)',
+    to: 'CREATE OR REPLACE FUNCTION public.hr_inspect_two(p_target text, p_slot integer)',
+    expect: '2026-10-27-core-bodies.sql: hr_inspect() refuses \'inspect\' as rate_limited without hr_record_rejection (C2)' },
   { name: 'a pinned finding is fixed and still pinned',
-    file: 'supabase/migrations/2026-10-27-core-bodies.sql',
-    from: "if not public.hr_rate_ok(v_uid, 'inspect', 30, interval '1 minute') then",
-    to: "if not public.hr_rate_ok(v_uid, 'inspect', 30, interval '1 minute') then\n"
-      + "    if public.hr_rate_sample_weight(1) > 0 then perform public.hr_record_rejection(v_uid, p_slot, 'inspect', 'rate_limited'); end if;",
-    expect: 'OPEN_SERVER_FINDINGS pins "unrecorded|2026-10-27-core-bodies.sql|hr_inspect|inspect"' },
+    file: 'supabase/migrations/2026-12-15-account-gold.sql',
+    from: 'grant execute on function public.clan_contribute__ungated(uuid, bigint, integer) to service_role;',
+    to: '',
+    expect: 'OPEN_SERVER_FINDINGS pins "service_role|2026-12-15-account-gold.sql|clan_contribute__ungated"' },
   { name: 'hr_apply loses a line nobody declared',
     file: 'supabase/migrations/2026-10-27-core-bodies.sql',
     from: "perform public.hr_reject('requirement_not_met', jsonb_build_object('item_id', v_item));",
@@ -1183,24 +1202,14 @@ if (process.argv.includes('--selftest')) {
 // build; anything else of the same shape still fails, and a key whose finding is
 // gone fails as stale, so the list can only shrink. Filed in
 // .claude/coordination/DISCOVERIES.md (2026-11-10).
-const UNRECORDED_SOCIAL = 'a rate-limited chat, whisper or inspect call returns rate_limited and writes no '
-  + 'hr_rejections row, so vitals --refusals cannot see spam or scraping (C2). Origin: 2026-10-25-chat-channels.sql, '
-  + '2026-10-25-social.sql; restated here. Owner: backend-architect; P3, not player-visible';
+/* The ten `unrecorded|…` pins (a rate-limited chat, whisper, inspect or town-walk call wrote no hr_rejections row) left
+   on 2026-11-10: 2027-04-02-rate-refusals-recorded.sql restates those bodies with the recorder, and PART 1c-iii judges
+   the statement the chain ends with. */
 const OPEN_SERVER_FINDINGS = new Map([
   ['service_role|2026-12-15-account-gold.sql|clan_contribute__ungated',
     'restates the ACL 2026-08-27-clan-economy-sinks.sql left (revoked from public, anon, authenticated; never from '
     + 'service_role). The clan doors are closed and service_role is the server key, so nothing a player holds reaches '
     + 'it. Owner: security-engineer, for the Early Access review; P4'],
-  ['unrecorded|2026-10-27-core-bodies.sql|hr_chat_send|chat:burst', UNRECORDED_SOCIAL],
-  ['unrecorded|2026-10-27-core-bodies.sql|hr_chat_send|chat:send', UNRECORDED_SOCIAL],
-  ['unrecorded|2026-10-27-core-bodies.sql|hr_whisper_send|whisper:burst', UNRECORDED_SOCIAL],
-  ['unrecorded|2026-10-27-core-bodies.sql|hr_whisper_send|whisper:send', UNRECORDED_SOCIAL],
-  ['unrecorded|2026-10-27-core-bodies.sql|hr_inspect|inspect', UNRECORDED_SOCIAL],
-  ['unrecorded|2026-10-27-core-bodies.sql|hr_town_walkers|town_walk', UNRECORDED_SOCIAL],
-  ['unrecorded|2027-03-13-gm-tools.sql|hr_chat_send|chat:burst', UNRECORDED_SOCIAL],
-  ['unrecorded|2027-03-13-gm-tools.sql|hr_chat_send|chat:send', UNRECORDED_SOCIAL],
-  ['unrecorded|2027-03-13-gm-tools.sql|hr_whisper_send|whisper:burst', UNRECORDED_SOCIAL],
-  ['unrecorded|2027-03-13-gm-tools.sql|hr_whisper_send|whisper:send', UNRECORDED_SOCIAL],
 ]);
 const findingsSeen = new Set();
 const openFinding = (key, msg) => {
@@ -1728,21 +1737,85 @@ say('── to_regproc vs to_regprocedure');
 // The rate limit returns before the intent claim, so without an explicit
 // hr_record_rejection the loudest automation signal the server produces
 // vanishes: no ledger row, no intent row, nothing. Same defect class as R4.
+//
+// WHICH BODY IS JUDGED (2026-11-10, lane/c-server-debt). A function restated by a later
+// file is the later file's: `create or replace` leaves one body in the database, so a
+// refusal in an earlier statement of it is history, not a finding. Each block is placed
+// in the function whose dollar-quoted body holds it, and only the LAST statement of that
+// function in apply order (tests/schema-apply-order.json) is judged. A block in no
+// function body (a self-check's `do` block, a pattern in a string) is not a refusal.
+// Before this, 2027-04-02-rate-refusals-recorded.sql could not close the ten findings it
+// fixes: the old text still stands in 2026-10-27-core-bodies.sql and 2027-03-13-gm-tools.sql.
+//
+// THE ONE RECORDER. A block may record through public.hr_rate_refused(user, slot, bucket,
+// limit, window) instead of spelling the sampled hr_record_rejection out, when (a) a linted
+// file states that function with hr_record_rejection behind an hr_rate_sample_weight gate,
+// and (b) the call names the user, bucket, limit and window its hr_rate_ok was asked: the
+// sample weight is read from that bucket's counter, so a call under another bucket would
+// sample from a counter that did not move.
 say('── rate-limit rejections are observable (C2) and sampled (S6)');
 {
-  let bad = 0, seen = 0, gm = 0, known = 0;
+  const rank = (f) => { const i = APPLY_ORDER.indexOf(f); return i < 0 ? APPLY_ORDER.length : i; };
+  /* Every statement of a public function in the linted files: where its header starts and where its body's dollar quote closes. */
+  const extents = new Map();   // file -> [{ fn, start, end }]
+  const last = new Map();      // fn -> { file, start }
   for (const [file, sql] of code) {
-    const defs = [...sql.matchAll(/create\s+or\s+replace\s+function\s+public\.([a-z0-9_]+)\s*\(/gi)];
+    const list = [];
+    for (const d of sql.matchAll(/create\s+or\s+replace\s+function\s+public\.([a-z0-9_]+)\s*\(/gi)) {
+      const tagM = /\$[A-Za-z_]*\$/.exec(sql.slice(d.index));
+      if (!tagM) continue;
+      const open = d.index + tagM.index + tagM[0].length;
+      const close = sql.indexOf(tagM[0], open);
+      if (close < 0) continue;
+      /* Keyed on the name AND the argument types: `create or replace` replaces one signature, an overload stands beside it. */
+      const a = argsAt(sql, d.index + d[0].length - 1);
+      const key = `${d[1]}(${a === null ? '' : defTypes(a) ?? ''})`;
+      list.push({ fn: d[1], key, start: d.index, end: close });
+      const was = last.get(key);
+      if (!was || rank(file) > rank(was.file) || (file === was.file && d.index > was.start)) last.set(key, { file, start: d.index });
+    }
+    extents.set(file, list);
+  }
+  /* Top-level arguments of a call: a comma inside quotes or brackets does not split. */
+  const callArgs = (s) => {
+    const out = []; let depth = 0, q = false, cur = '';
+    for (const ch of s) {
+      if (ch === "'") q = !q;
+      if (!q && (ch === '(' || ch === '[')) depth++;
+      if (!q && (ch === ')' || ch === ']')) depth--;
+      if (!q && depth === 0 && ch === ',') { out.push(cur); cur = ''; } else cur += ch;
+    }
+    out.push(cur);
+    return out.map((a) => a.replace(/\s+/g, ' ').trim());
+  };
+  /* (a) the recorder, wherever the linted files last state it */
+  let recorderOk = false;
+  {
+    const at = last.get('hr_rate_refused(uuid,integer,text,integer,interval)');
+    const e = at && extents.get(at.file).find((x) => x.fn === 'hr_rate_refused' && x.start === at.start);
+    const body = e ? code.get(at.file).slice(e.start, e.end) : '';
+    recorderOk = /hr_rate_sample_weight\([\s\S]*\bif\s+[a-z_]+\s*>\s*0\s+then[\s\S]*hr_record_rejection\(/.test(body);
+    if (at && !recorderOk) {
+      fail(`${at.file}: hr_rate_refused() records without the sample gate (S6): hr_record_rejection must sit behind `
+         + '`if <the hr_rate_sample_weight> > 0 then`');
+    }
+  }
+  let bad = 0, seen = 0, gm = 0, known = 0, superseded = 0;
+  for (const [file, sql] of code) {
     // Each `if not …hr_rate_ok(…) then … end if;` block must mention
     // hr_record_rejection before it returns.
     for (const m of sql.matchAll(/if\s+not\s+public\.hr_rate_ok\([\s\S]*?end if;/gi)) {
+      const list = extents.get(file);
+      const def = list.filter((x) => x.start < m.index && m.index < x.end).pop();   // the nearest statement that holds it
+      if (!def) continue;                                                            // in no function body
+      const at = last.get(def.key);
+      if (at.file !== file || at.start !== def.start) { superseded++; continue; }    // a later statement is the body
       seen++;
-      const def = defs.filter((d) => d.index < m.index).pop();
-      const next = defs.find((d) => d.index > m.index);
-      const fn = def ? def[1] : '?';
+      const next = list.find((x) => x.start > m.index);
+      const fn = def.fn;
       const bucket = (m[0].match(/hr_rate_ok\(\s*[a-z_]+\s*,\s*'([^']+)'/i) || [null, '?'])[1];
-      const before = def ? sql.slice(def.index, m.index) : '';
-      const after = sql.slice(m.index + m[0].length, next ? next.index : sql.length);
+      const before = sql.slice(def.start, m.index);
+      const after = sql.slice(m.index + m[0].length, next ? next.start : sql.length);
       /* THE GAME MASTER JOURNAL (2027-03-13-gm-tools.sql, read 2026-11-10). A GM verb answers every
          outcome through hr_gm_close, which writes one hr_gm_log row: that IS the durable trace C2
          asks for, in the journal a GM's actions belong in. It is one row per refused call, which S6
@@ -1765,6 +1838,21 @@ say('── rate-limit rejections are observable (C2) and sampled (S6)');
         gm++;
         continue;
       }
+      /* THE ONE RECORDER (see the header): told exactly what hr_rate_ok was asked. */
+      const told = m[0].match(/public\.hr_rate_refused\(([^;]*)\)\s*;/i);
+      if (told) {
+        const asked = callArgs((m[0].match(/hr_rate_ok\(([\s\S]*?)\)\s*then/i) || [null, ''])[1]);
+        const t = callArgs(told[1]);
+        if (!recorderOk) {
+          fail(`${file}: ${fn}() records a '${bucket}' rate refusal through hr_rate_refused, which no linted file states with its sample gate (C2/S6)`);
+          bad++;
+        } else if (t.length !== 5 || asked.length !== 4 || t[0] !== asked[0] || t[2] !== asked[1] || t[3] !== asked[2] || t[4] !== asked[3]) {
+          fail(`${file}: ${fn}() records (${t.join(', ')}) for a refusal of (${asked.join(', ')}): hr_rate_refused must be told the `
+             + 'user, bucket, limit and window its hr_rate_ok was asked');
+          bad++;
+        }
+        continue;
+      }
       if (!/hr_record_rejection/.test(m[0])) {
         const msg = `${file}: ${fn}() refuses '${bucket}' as rate_limited without hr_record_rejection (C2)`;
         if (openFinding(`unrecorded|${file}|${fn}|${bucket}`, msg)) known++;
@@ -1782,8 +1870,8 @@ say('── rate-limit rejections are observable (C2) and sampled (S6)');
     }
   }
   if (!bad) {
-    pass(`${seen} rate-limit refusals: ${seen - gm - known} recorded and sampled, ${gm} in the Game Master journal, `
-       + `${known} unrecorded and pinned as open server findings`);
+    pass(`${seen} rate-limit refusals in the bodies the chain ends with: ${seen - gm - known} recorded and sampled, ${gm} in the Game Master journal, `
+       + `${known} unrecorded and pinned as open server findings (${superseded} more stand in statements a later file replaced)`);
   }
 }
 

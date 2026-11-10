@@ -234,6 +234,37 @@ const SANITIZERS = Object.freeze({
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));
 
+/* THE SERVER'S BOUND ON EACH FIELD, in bytes of its JSON text (hr_put_client_state refuses a larger value `field_too_large`
+   and stores nothing). The server's allowlist is GENERATED from this table (tools/gen-residue-fields.mjs -> hr_residue_fields),
+   so a field with no row here is not on the server's list and is refused `unknown_field`. Each bound holds the largest value
+   its sanitizer above lets through when built from the game's real ids (tests/residue-allowlist.mjs builds each and fails when
+   one no longer fits: a raised sanitizer limit, or more content, moves the number here in the same change). */
+export const RESIDUE_BYTES = Object.freeze({
+  hudLayout: 4096,
+  combatText: 1024,
+  combatLog: 512,
+  bagSeen: 24576,
+  bagView: 256,
+  storeView: 256,
+  storeSeen: 16384,
+  alerts: 10240,
+  huntSummaries: 32768,
+  awaySeen: 512,
+  winSize: 1024,
+  panelAlpha: 16,
+  coach: 10240,
+  marketView: 256,
+  marketSeen: 64,
+  townZoom: 64,
+  shareReplay: 64,
+  idleMotion: 64,
+});
+/* The whole stored bag (`state_too_large` past it). A full late-game bag fits (every bag mark, every Storage mark, eight hunt
+   cards and every other field at its largest: about 66 KB, tests/residue-allowlist.mjs RA-0), and it is under the sum of the
+   bounds above, so it bounds something. It was 256 KiB of anything not on a deny list; the live bags measured 9.9 KB at the
+   median and 18.8 KB at the largest (2026-11-09). */
+export const RESIDUE_TOTAL_BYTES = 81920;
+
 /** One field, bounded; undefined for a field that is not on the allowlist. */
 export function sanitizeResidueField(field, v) {
   const fn = Object.prototype.hasOwnProperty.call(SANITIZERS, field) ? SANITIZERS[field] : null;

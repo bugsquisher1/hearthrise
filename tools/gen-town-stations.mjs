@@ -410,8 +410,12 @@ export async function inputs(root) {
   return { stations, maps, gathering, recipes, hunts, skills };
 }
 
-/** (mapId) -> (x, y) -> walkable and reachable from the start, from the compiled collision mask (the World's own). */
-export async function walkableFrom(root) {
+/**
+ * (mapId) -> the map as the World compiles it (src/world/core/map-compile.js compileMap) plus `reach`, 1 per tile a hero
+ * can walk to from the map's start. One reading of the collision mask for every server catalogue cut from it (the stands
+ * here, the walk mask in tools/gen-town-walk.mjs).
+ */
+export async function compiledFrom(root) {
   const u = (p) => pathToFileURL(join(root, ...p.split('/'))).href;
   const [mapc, bookm, terrain, sets, maps, path] = await Promise.all(['src/world/core/map-compile.js', 'src/world/core/book.js',
     'src/data/world/terrain.js', 'src/data/world/atlas-sets.js', 'src/data/world/maps/index.js', 'src/world/core/path.js'].map((p) => import(u(p))));
@@ -425,8 +429,20 @@ export async function walkableFrom(root) {
     if (!cache.has(mapId)) {
       const row = maps.WORLD_MAPS.find((m) => m.id === mapId);
       const m = mapc.compileMap(row, tables);
-      const seen = path.reachFrom(m.mask, m.w, m.h, m.start);
-      cache.set(mapId, (x, y) => path.walkable(m.mask, m.w, m.h, x, y) && !!seen[y * m.w + x]);
+      cache.set(mapId, Object.assign({}, m, { reach: path.reachFrom(m.mask, m.w, m.h, m.start), rowHash: row.maskHash }));
+    }
+    return cache.get(mapId);
+  };
+}
+
+/** (mapId) -> (x, y) -> walkable and reachable from the start, from the compiled collision mask (the World's own). */
+export async function walkableFrom(root) {
+  const compiled = await compiledFrom(root);
+  const cache = new Map();
+  return (mapId) => {
+    if (!cache.has(mapId)) {
+      const m = compiled(mapId);
+      cache.set(mapId, (x, y) => x >= 0 && y >= 0 && x < m.w && y < m.h && m.mask[y * m.w + x] === 0 && !!m.reach[y * m.w + x]);
     }
     return cache.get(mapId);
   };

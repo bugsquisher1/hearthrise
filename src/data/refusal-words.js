@@ -310,6 +310,8 @@ export const REFUSAL_WORDS = Object.freeze({
   too_many_lines: 'Too many kinds of supplies packed.',
   bad_weapon: 'The server does not know that weapon.',
   no_character: 'Pick a character first.',
+  /* A town tile nobody can stand on (hr_town_move, 2027-04-02-town-walk-mask.sql). The walk is drawn by the client, so a player only reads this from a stale map. */
+  off_mask: 'You can\'t stand there.',
   /* The party. */
   already_in_party: 'You are already in a party with someone. Press Leave party in the Party window, then try again.',
   party_full: 'That party is full.',

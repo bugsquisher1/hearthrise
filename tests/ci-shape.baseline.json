@@ -351,6 +351,8 @@
     "node tools/mutant-gate.mjs node tests/level-xp-ceiling.mjs --mutate": "db-replay-debt",
     "node tests/dead-doors.mjs": "db-replay-debt",
     "node tools/mutant-gate.mjs node tests/dead-doors.mjs --mutate": "db-replay-debt",
+    "node tests/server-debt-second-apply.mjs": "db-replay-debt",
+    "node tools/mutant-gate.mjs node tests/server-debt-second-apply.mjs --selftest": "db-replay-debt",
     "node tools/mutant-gate.mjs node tests/artisan-accrual.mjs --selftest": "artisan-selftest",
     "node tests/hunt-live.mjs": "artisan-selftest",
     "node tools/mutant-gate.mjs node tests/hunt-live.mjs --mutate": "artisan-selftest",

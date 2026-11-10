@@ -30,7 +30,7 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
-### 2026-11-10 Server debt (backend-architect, lane/c-server-debt; the architecture audit's server findings and the SQL lint's): nine 2027-04-02 files STAGED, two items designed, what waits on which lane
+### 2026-11-10 Server debt (backend-architect, lane/c-server-debt; the architecture audit's server findings and the SQL lint's): eight 2027-04-02 files STAGED, two items designed, what waits on which lane
 
 | Item | State | Files, in apply order | Waits on |
 |---|---|---|---|

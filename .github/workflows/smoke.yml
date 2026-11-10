@@ -3961,6 +3961,14 @@ jobs:
         run: |
           node tests/dead-doors.mjs
           node tools/mutant-gate.mjs node tests/dead-doors.mjs --mutate
+
+      # THE EIGHT FILES, IN THEIR ORDER, EACH TWICE (CLAUDE.md §4): judged as of each file, since a later file of the lane
+      # restates a body an earlier one pins. A second apply raises nothing and moves no body, grant, policy or catalogue row.
+      - name: Server debt - the eight files apply in order, a second apply moves nothing
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/server-debt-second-apply.mjs
+          node tools/mutant-gate.mjs node tests/server-debt-second-apply.mjs --selftest
   artisan-selftest:
     runs-on: ubuntu-latest
     timeout-minutes: 56

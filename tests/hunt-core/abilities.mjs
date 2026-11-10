@@ -723,6 +723,53 @@ const cases = {
     const src = readFileSync(join(M.root, 'src/core/hunt/abilities.js'), 'utf8').replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
     return /press/i.test(src) ? 'abilities.js reads a press' : null;
   },
+  /* THE AREA ABILITIES' WORDS (lane/b-area-client; the board's "2026-11-08 Area spells" §2, §2b): Configure action's detail, the
+     bar's tooltip and the in-game wiki read one row's lines (action-facts.js factsOf). A line and a ring say what they strike, a
+     hitPm row its share of the hero's own blow (abilities.js blowShare), an `unlock` row its level, and a slot under that level
+     waits in the same words (reasonOf), never refused; every ability has a target line; the five area conditions pick plainly. */
+  'configure-words': (M) => {
+    if (!M.shell) return null;
+    const { factsOf, reasonOf } = M.shell.facts;
+    const { conditionFor, conditionWords } = M.shell.draft;
+    const f = (id) => factsOf({ type: 'ability', id });
+    const has = (x, type, effect, unlock) => x.type === type && effect.every((e) => x.effect.includes(e)) && x.unlock === unlock;
+    /* (the words are the text home's, src/data/text/bar.js: the shipped target lines, a line's and a ring's own beside them) */
+    const rows = [
+      ['raking_shot', 'Hits every monster on a line 4 tiles long, from you through your target.', ['Each monster on the line takes 40% to 80% of your biggest normal hit.'], 'Unlocks at Ranged 10.'],
+      ['turning_cut', 'Hits up to 8 monsters beside you.', ['Each monster it reaches takes 30% to 60% of your biggest normal hit.'], 'Unlocks at Melee 10.'],
+      ['hoarfrost', 'Hits the monsters around your target.', ['Deals 5–9 frost damage to each monster hit.', 'Causes chill for 4 s, so its swings and spell windups run 30% slower.'], 'Unlocks at Magic 14.'],
+      ['spring_tide', 'You and everyone near you get it.', ['Heals 120–180.'], 'Unlocks at Magic 20.'],
+    ];
+    for (const [id, type, effect, unlock] of rows) if (!has(f(id), type, effect, unlock)) return id + ' reads ' + JSON.stringify(f(id));
+    if (f('power_strike').unlock !== null) return 'a row with no unlock reads one: ' + f('power_strike').unlock;
+    /* a status with no slow and no mark still says how long it lasts, and Sickness what it does */
+    if (!f('rend').effect.includes('Causes bleed for 6 s.') || !f('green_sickness').effect.includes('Causes sickness for 6 s, so it takes 10% more from every blow.')) return 'the old statuses read ' + JSON.stringify([f('rend').effect, f('green_sickness').effect]);
+    /* a shot spell's cost line says what each cast shoots (Raking Shot looses two of the bar's ammo), a plain one only mana */
+    const src = ['raking_shot', 'power_strike'].map((id) => f(id).cost);
+    if (src.join('|') !== 'Cost: 10 mana · 2 ammo|Cost: 6 mana') return 'the cost lines read ' + JSON.stringify(src);
+    const blind = Object.keys(M.AD.ABILITIES).filter((id) => !f(id).type);
+    if (blind.length) return 'abilities with no target line: ' + blind;
+    /* the slot under its unlock waits, in the same words, from the server's skills; at the level it does not */
+    const set = { discipline: 'ranged', role: 'ranger', slots: [], store: [], supplySource: 'store', onEmpty: 'switch' };
+    const sl = { action: { type: 'ability', id: 'raking_shot' }, conditions: [], join: 'and', usable: true };
+    const bag = [{ id: 'bronze_arrows', qty: 50 }];
+    const under = reasonOf(sl, set, bag, null, 'bronze_arrows', { ranged: { level: 7, xp: 0 } }, null);
+    if (!under || under.code !== 'unlock' || under.text !== 'Unlocks at Ranged 10, and you have 7. This slot waits until then.') return 'a slot under its unlock reads ' + JSON.stringify(under);
+    const at = reasonOf(sl, set, bag, null, 'bronze_arrows', { ranged: { level: 10, xp: 0 } }, null);
+    if (at && at.code === 'unlock') return 'a slot at its unlock still waits: ' + JSON.stringify(at);
+    if (reasonOf(sl, set, bag, null, 'bronze_arrows', null, null)) return 'with no skills read the slot claims a wait: ' + JSON.stringify(reasonOf(sl, set, bag, null, 'bronze_arrows', null, null));
+    /* a new pick takes its own starting rule when the slot still holds the last pick's untouched (Turning Cut, then a food), never
+       the player's own edits */
+    const { conditionsAfterPick, startConditions } = M.shell.draft;
+    const cutA = { type: 'ability', id: 'turning_cut' }, fish = { type: 'consume', id: 'cooked_shrimp' };
+    const after = conditionsAfterPick(startConditions(cutA), cutA, fish), mine = [{ metric: 'enemies_in_aoe', op: 'gte', value: 4 }];
+    if (JSON.stringify(after) !== JSON.stringify(startConditions(fish)) || startConditions(fish)[0].metric !== 'self_hp_pct') return 'a food picked after Turning Cut keeps ' + JSON.stringify(after);
+    if (conditionsAfterPick(mine, cutA, fish) !== mine) return 'a pick threw away the player’s own conditions';
+    /* the area conditions, picked: each starts on a test that can hold, in plain words */
+    const said = ['party_hp_pct', 'enemy_casting', 'in_fight', 'target_weak', 'target_resists'].map((id) => conditionWords(conditionFor(id)));
+    const want = ['the party’s HP is below 50%', 'the pack has at least 1 monster casting at me', 'the fight is on', 'my target is weak to it', 'my target is resistant to it'];
+    return JSON.stringify(said) === JSON.stringify(want) ? null : 'the area conditions read ' + JSON.stringify(said);
+  },
   /* HERO AREA ABILITIES BY SHAPE (lane/b-area-engine; Tyler 2026-11-08 "our heros some more aoe spells"): a LINE from the hero
      through its best aim, a RING round the hero up to maxHits, a hitPm row hitting for a share of the hero's own largest blow,
      `unlock` waiting on the row's skill, a row's own `trigger`, and the boss set skipping both shapes. The designer's rows are
@@ -989,6 +1036,26 @@ const mutants = [
     edits: [['src/data/abilities.js', "export const AREA_TARGETS = Object.freeze(['area', 'line', 'ring']);", "export const AREA_TARGETS = Object.freeze(['area']);"]] },
   { name: '[area-engine] a line counts like a 3x3', case: 'hero-area-shapes',
     edits: [['src/core/hunt/conditions.js', "  return row && (row.target === 'line' || row.target === 'ring') ? row : null;", '  return null;']] },
+  { name: '[area-client] a line strikes nothing in words', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', "  if (spec && spec.shape === 'line') return t('bar.target_line', { len: spec.len });\n", '']] },
+  { name: '[area-client] a ring reads the line\'s words', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', "(r.maxHits ? '_max' : '')", "''"]] },
+  { name: '[area-client] a hitPm row says nothing of its damage', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', '    if (Number.isInteger(r.hitPm)) numbers.push(blowShareLine(r));\n', '']] },
+  { name: '[area-client] the share reads its top only', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', 'const hi = r.hitPm / 10, lo = Math.round((hi * ABILITY_RULES.hitLowPm) / 1000);', 'const hi = r.hitPm / 10, lo = hi;']] },
+  { name: '[area-client] no unlock wording', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', 'effect, unlock: unlockLine(r),', 'effect, unlock: null,']] },
+  { name: '[area-client] a slot under its unlock reads ready', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', "    if (have !== null && have < r.unlock) return { code: 'unlock',", "    if (false) return { code: 'unlock',"]] },
+  { name: '[area-client] a shot spell reads mana only', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/cast-facts.js', "k.row.ammo ? [t('bar.cost_ammo', { ammo: k.row.ammo })] : []", '[]']] },
+  { name: '[area-client] Chill says nothing of what it does', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', "const does = st.slowPm ? ['_slow', st.slowPm]", "const does = false ? ['_slow', st.slowPm]"]] },
+  { name: '[area-client] a new pick keeps the last pick’s rule', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/bar-draft.js', "  return !conds || !conds.length || untouched ? startConditions(next) : conds;", '  return !conds || !conds.length ? startConditions(next) : conds;']] },
+  { name: '[area-client] a picked count starts below 0', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/bar-draft.js', "  const any = m.value === 'count' && m.ops.includes('gte');", '  const any = false;']] },
   { name: 'the lanes are not persisted', case: 'clocks-survive-a-cut',
     edits: [['src/core/hunt/abilities.js', "['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],", "['regenPm', 'int'], ['cds', 'json'],"]] },
 ];

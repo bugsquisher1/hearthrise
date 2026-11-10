@@ -164,6 +164,7 @@ export function createCanvasBackend(o) {
     for (const e of list.fx || []) {
       if (!e.set || !images[e.set]) continue;
       g.globalCompositeOperation = e.blend === 'add' ? 'lighter' : 'source-over';
+      g.globalAlpha = e.alpha == null ? 1 : e.alpha;   // its owner's Effects slider (src/hunt-view/fx-prefs.js)
       if (e.angle) {
         g.save();
         g.translate(e.cx - view.ox, e.cy - view.oy);
@@ -175,6 +176,41 @@ export function createCanvasBackend(o) {
       }
     }
     g.globalCompositeOperation = 'source-over';
+    g.globalAlpha = 1;
+  }
+
+  /* DANGER MARKS (core/mark-shapes.js), on the ground under every actor: the wash, the hazard hatch over it, then the solid line.
+     Hard pixels only: the hatch is an 8 art px tile of 2 px diagonals, anchored to the world so it never swims as the camera walks. */
+  let hatch = null;
+  function hatchOf(g, view) {
+    const col = tone('mark-line');
+    if (!hatch || hatch.col !== col) {
+      const c = doc.createElement('canvas');
+      c.width = c.height = 8;
+      const h = c.getContext('2d');
+      h.fillStyle = col;
+      for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if ((x + y) % 8 < 2) h.fillRect(x, y, 1, 1);
+      hatch = { col, p: g.createPattern(c, 'repeat') };
+    }
+    if (hatch.p && typeof hatch.p.setTransform === 'function' && typeof DOMMatrix === 'function') hatch.p.setTransform(new DOMMatrix([1, 0, 0, 1, -view.ox, -view.oy]));
+    return hatch.p;
+  }
+  function dangerMarks(g, list, view) {
+    for (const m of list.marks || []) {
+      g.fillStyle = tone('mark-fill');
+      g.globalAlpha = m.fillAlpha;
+      for (const r of m.fill) g.fillRect(r[0] - view.ox, r[1] - view.oy, r[2], r[3]);
+      const p = hatchOf(g, view);
+      if (p) {
+        g.fillStyle = p;
+        g.globalAlpha = m.hatchAlpha;
+        for (const r of m.fill) g.fillRect(r[0] - view.ox, r[1] - view.oy, r[2], r[3]);
+      }
+      g.fillStyle = tone('mark-line');
+      g.globalAlpha = 1;
+      for (const r of m.line) g.fillRect(r[0] - view.ox, r[1] - view.oy, r[2], r[3]);
+    }
+    g.globalAlpha = 1;
   }
 
   /* A mask's signature: the view, its colour, and every shape (a cast by its frame and its sheet being in) or lamp (the hero's moves). */
@@ -493,6 +529,7 @@ export function createCanvasBackend(o) {
     g.globalCompositeOperation = 'source-over';
     groundLayer(g, list.decals, view);
     shadows(g, list, view);
+    dangerMarks(g, list, view);
     for (const d of list.sprites) {
       if (d.kind === 'unit' && d.grey) blitUnit(g, d, view);
       else { g.globalAlpha = d.alpha == null ? 1 : d.alpha; blit(g, d, view); }

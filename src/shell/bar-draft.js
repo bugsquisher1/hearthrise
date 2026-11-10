@@ -79,17 +79,29 @@ export function startConditions(a) {
   return suggestedConditions(a);
 }
 
+/**
+ * The conditions a slot keeps when its pick changes from `was` to `next`: the player's own, unless they are none or still
+ * exactly `was`'s starting conditions untouched, which become `next`'s. A food picked after Turning Cut never keeps "the
+ * monsters it would hit is at or above 3", a rule written for the spell and never read by a food (area spells, 2026-11-08).
+ */
+export function conditionsAfterPick(conds, was, next) {
+  const untouched = JSON.stringify(conds || []) === JSON.stringify(startConditions(was));
+  return !conds || !conds.length || untouched ? startConditions(next) : conds;
+}
+
 /** A fresh condition on the registry's first test. */
 export function blankCondition() {
   const m = METRICS[0];
   return { metric: m.id, op: m.ops[0], value: startValue(m) };
 }
 
-/** A condition re-pointed at another test: that test's first comparison, first subject and lowest value. */
+/** A condition re-pointed at another test: that test's first comparison, first subject and lowest value. A count starts at
+    "at least 1" (any at all: "the pack has at least 1 monster casting at me"), never "fewer than 0", which never holds. */
 export function conditionFor(metric) {
   const m = METRIC.get(metric);
   if (!m) return null;
-  const c = { metric: m.id, op: m.ops[0], value: m.value === 'effect' ? Object.keys(STATUSES)[0] : startValue(m) };
+  const any = m.value === 'count' && m.ops.includes('gte');
+  const c = { metric: m.id, op: any ? 'gte' : m.ops[0], value: m.value === 'effect' ? Object.keys(STATUSES)[0] : any ? Math.max(1, m.range[0]) : startValue(m) };
   if (m.subject) c.subject = Object.keys(m.subject)[0];
   return c;
 }

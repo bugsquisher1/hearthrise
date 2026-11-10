@@ -33,7 +33,7 @@ import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js
 import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.113';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.113';
 import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.113';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, serverBar, opWords, unitWords } from '../bar-draft.js?v=0.2.113';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, serverBar, opWords, unitWords, conditionsAfterPick } from '../bar-draft.js?v=0.2.113';
 import { startSupply } from '../rune-supply.js?v=0.2.113';
 import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.113';
 import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.113';
@@ -276,8 +276,9 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const f = named ? factsOf(named, facts) : null;
   text(root.querySelector('.ca-src'), f && f.cost ? f.cost : '');
   text(root.querySelector('.ca-eff'), f && named.type === 'ability' ? [f.type].concat(f.effect).filter(Boolean).join(' ') : effectLine(shown));
-  /* The spell card's requirement, and an alone spell's callout beside it (Tyler 2026-11-09: "Make that callout clear to the player"). */
-  text(root.querySelector('.ca-req'), f && f.requires ? f.requires + (f.alone ? ' ' + f.alone : '') : '');
+  /* The spell card's requirement, the level it unlocks at (an area ability's `unlock`), and an alone spell's callout beside it
+     (Tyler 2026-11-09: "Make that callout clear to the player"). */
+  text(root.querySelector('.ca-req'), f && f.requires ? [f.requires, f.unlock, f.alone].filter(Boolean).join(' ') : '');
   /* A rune spell's supply (configure-runes.js): the carried runes it may spend, then the rune shop or leaving the hunt. */
   patchRunes(root, d, { doc: ctx.doc, bag, store: set.store, skills: facts.skills, off });
   /* THE FOOT */
@@ -325,14 +326,16 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
     const x = t.getAttribute('data-x');
     if (x === 'tab') { v.tab = t.getAttribute('data-tab'); v.hover = null; repaint(); listToTop(body); return; }
     else if (x === 'pick') {
+      const was = d.action;
       /* a rune spell starts with every rune of its family ticked and the rune shop's Plain on empty (rune-supply.js startSupply) */
       d.action = startSupply({ type: t.getAttribute('data-type'), id: t.getAttribute('data-id') }, (settingsOf(cs) || {}).store);
       v.hover = null;
       v.pickedAt = { x: ev.clientX, y: ev.clientY };
       LAST_TAB.set(cs, tabOf(d.action));
-      /* A slot with no condition yet starts with its action's own, written on it: food at HP below 50%, drink at
-         mana below 30%, a heal or a shield under its threshold, an area at two monsters (nothing hidden behind it). */
-      if (!d.conditions.length) d.conditions = startConditions(d.action);
+      /* A slot with no condition yet, or still holding the last pick's own untouched, starts with its action's own, written
+         on it: food at HP below 50%, drink at mana below 30%, a heal or a shield under its threshold, an area at two monsters
+         (nothing hidden behind it). Conditions the player changed are theirs and stay (bar-draft.js conditionsAfterPick). */
+      d.conditions = conditionsAfterPick(d.conditions, was, d.action);
     }
     else if (x === 'find') {
       /* The item token names the pick: bring its row into view. */

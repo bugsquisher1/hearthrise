@@ -42,7 +42,7 @@ export const LOG_TYPES = Object.freeze([
   Object.freeze({ id: 'loot', label: 'Loot', events: Object.freeze(['kill', 'rare_drop']) }),
   Object.freeze({ id: 'supply', label: 'Supplies', events: Object.freeze(['eat', 'drink']) }),
   Object.freeze({ id: 'death', label: 'Deaths', events: Object.freeze(['fall', 'kill']) }),
-  Object.freeze({ id: 'status', label: 'Effects', events: Object.freeze(['status_on', 'status_off', 'boss_phase']) }),
+  Object.freeze({ id: 'status', label: 'Effects', events: Object.freeze(['status_on', 'status_off', 'boss_phase', 'spell']) }),
   /* Tamsin's tally done (the server's count reached its target in a settle: src/hunt-view/combat-log.js). */
   Object.freeze({ id: 'tally', label: 'Tally', events: Object.freeze(['tally_done']) }),
 ]);

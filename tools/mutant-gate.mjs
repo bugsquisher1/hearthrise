@@ -604,11 +604,19 @@ async function selftest() {
       const s = ruleRun(fn, { headSource: head, baseSource: edited13 });
       const wanted = list.filter((m, i) => i > 0 && (i - 1) % 2).map((m) => m[0]);
       const others = s.all ? list.length : list.filter((m, i) => i > 0 && !((i - 1) % 2) && s.keep.has(m[0])).length;
+      /* THE CANARY ARM NEEDS ITS OWN FIXTURE (2026-11-10, main run 42815689973 and release run 42802974372 red here).
+         The three canaries are a hash of the guard's own text over ALL names, so with half the list recorded on the
+         edited rule they all fall inside that half about one text in eight, `others` reads 0 and this arm fails on a
+         gate that is right: v0.2.114's three new mutants re-rolled the hash onto that case. Here ONE mutant is on the
+         edited rule, so at most two of the three canaries can be it or the unrecorded one: at least one stands outside. */
+      const lone = Object.fromEntries(list.slice(1).map((m, i) => [m[0], i ? 'HS-999' : 'HS-13']));
+      const c = ruleRun(fn, { headSource: head, baseSource: edited13, rules: lone });
+      const outside = c.all ? 0 : list.slice(2).filter((m) => c.keep.has(m[0])).length;
       return [
         [!s.all && wanted.every((n) => s.keep.has(n)), 'a rule edit runs every mutant that rule catches'],
         [!s.all && s.keep.has(list[0][0]), 'a rule edit runs a mutant with no rule on record'],
         [!s.all && others <= 3, 'a rule edit leaves other rules\' mutants to the nightly, bar the canaries'],
-        [!s.all && others >= 1, 'a rule edit runs canaries from outside the rule'],
+        [!c.all && outside >= 1 && outside <= 3, 'a rule edit runs canaries from outside the rule'],
         [ruleRun(fn, { headSource: head, baseSource: helperEdit }).all, 'a helper above mutant-rules-start runs every mutant'],
         [ruleRun(fn, { headSource: statementEdit, baseSource: head }).all, 'a new top-level statement runs every mutant'],
         [ruleRun(fn, { headSource: noHeader, baseSource: noHeader.replace(ruleLine, `${ruleLine} `) }).all, 'a guard with no opt-in header runs every mutant'],

@@ -3725,7 +3725,7 @@ const MUTANTS = [
   ['the Shop lists supplies again', 'src/data/supply-basics.js', "export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear', 'seed']);", "export const SHOP_SOLD_KINDS = Object.freeze(['food', 'drink', 'ammo', 'tool', 'gear', 'seed']);"],
   ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slots: [slot], items: id ? [id] : [] };\n', ''],
   ['plans: AW-21 Equip upgrades puts a shield on', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['shield', 'ammo']);", "const STYLE_SLOTS = new Set(['ammo']);"],
-  ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
+  ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true; '],
   ['plans: AW-21 a hero with no weight stays bare (played 2026-11-04)', 'src/shell/upgrade-plan.js', "return chosen || wornWeightOf(equipment || {}) || WEIGHT_FOR_ROLE[role] || null;", "return chosen || null;"],
   ['plans: AW-21 a bare slot waits for a weight the bag doesn\'t hold', 'src/shell/upgrade-plan.js', "else if (!curIt) front = [front.reduce(", "else if (false) front = [front.reduce("],
   ['plans: AW-21 the window never reads the role', 'src/shell/widgets/upgrade-line.js', "prefer: preferredWeight(t ? t.weight : null, eq, s ? s.role : null) });", "prefer: t ? t.weight : null });"],

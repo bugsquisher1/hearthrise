@@ -35,7 +35,7 @@
 //   CW-9  THE TITLES TAB (Tyler 2026-11-04, 2027-02-28-titles.sql; every number from the data's rows): a locked row reads "Wolves: 3,214 of 5,000" with
 //         nothing to press; an earned one's "Claim for 3,000 gp" sends ONE hr_title_buy with the QUOTE and no count; Wear and Take off are ONE
 //         hr_title_wear; each changes only from the re-read; a short purse is off and says how much more; a refusal says the server's numbers;
-//         the sheet's header and the party-only note show
+//         the sheet's header shows (no title row says party-only: a lone hero walks the King's hall too, 2026-11-08)
 //   CW-6  THE SKILLS: Gathering and crafting lists no combat skill; the combat
 //         ledger is the Character window's; an unlock line names each thing and
 //         its kind ("Bronze Axe (woodcutting tool)")
@@ -347,10 +347,9 @@ async function checks(overrides, shots) {
       const { ctx, page, errors, s, up } = await open();
       const ids = Object.keys(TITLES);
       const [earned, locked, claimable] = [ids[0], ids[1], ids[2]];
-      const party = ids.find((id) => TITLES[id].partyOnly);
       const row = (id, o) => ({ id, words: TITLES[id].words, price: TITLES[id].price, kills: TITLES[id].kills, have: 0, held: false, worn: false, ...o });
       s.env.state = Object.assign({}, s.env.state, { gold: 10000000, gold_v: 1 });
-      s.env.titles = { worn: null, rows: [row(earned, { have: TITLES[earned].kills + 7 }), row(locked, { have: 3214 }), row(claimable, { have: TITLES[claimable].kills }), row(party, { have: 3 })] };
+      s.env.titles = { worn: null, rows: [row(earned, { have: TITLES[earned].kills + 7 }), row(locked, { have: 3214 }), row(claimable, { have: TITLES[claimable].kills })] };
       s.env.name = 'Marlow';
       const gp = (n) => n.toLocaleString('en-US') + ' gp';
       /* an accepted press changes the record, as the server would */
@@ -380,7 +379,6 @@ async function checks(overrides, shots) {
         /* LOCKED: the count, and nothing to press */
         const d = TITLES[locked];
         if (!t[locked] || t[locked].small !== `${d.label}: 3,214 of ${d.kills.toLocaleString('en-US')}` || t[locked].press !== null) fails.push('CW-9 the locked row reads ' + JSON.stringify(t[locked]));
-        if (!t[party] || !/party/.test(t[party].small)) fails.push('CW-9 the party-only row does not say so: ' + JSON.stringify(t[party]));
         /* EARNED: one claim, with the quote, and the row moves only from the re-read */
         const e = TITLES[earned];
         if (!t[earned] || t[earned].press !== `Claim for ${gp(e.price)}` || t[earned].off) fails.push('CW-9 the earned row reads ' + JSON.stringify(t[earned]));
@@ -512,12 +510,11 @@ const MUTANTS = [
   ['the tab reads the sheet section max HP again (r09)', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"hp\"]', hv.hpMax !== null ? whole(hv.hpMax) : null);", "line(root, '[data-vital=\"hp\"]', sh && sh.fresh !== undefined ? whole(cs.read('character_sheet').max_hp) : null);"],
   ['the tab reads the engine sheet max mana again (r09)', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"mana\"]', hv.manaMax !== null ? whole(hv.manaMax) : null);", "line(root, '[data-vital=\"mana\"]', c && c.role ? whole(cs.read('character_sheet').combat.max_mana) : hv.manaMax !== null ? whole(hv.manaMax) : null);"],
   ['a leech line the engine does not have', 'src/shell/windows/character/sheet.js', "const COMBAT = Object.freeze([['damage', 'Damage'],", "const COMBAT = Object.freeze([['leech', 'Life Leech'], ['damage', 'Damage'],"],
-  ['a locked title can be pressed', 'src/shell/windows/character/titles.js', "if (r.have < r.kills) return { small: count + (note ? ' · ' + note : ''), press: null, off: true };", "if (r.have < r.kills) return { small: count + (note ? ' · ' + note : ''), press: 'Claim', off: false };"],
+  ['a locked title can be pressed', 'src/shell/windows/character/titles.js', "if (r.have < r.kills) return { small: count, press: null, off: true };", "if (r.have < r.kills) return { small: count, press: 'Claim', off: false };"],
   ['a claim sends a price of its own', 'src/shell/windows/character/titles.js', 'buyTitle(ctx.account, cs, r.id, r.price)', 'buyTitle(ctx.account, cs, r.id, 1)'],
   ['Take off wears it again', 'src/shell/windows/character/titles.js', 'wearTitle(ctx.account, cs, r.worn ? null : r.id)', 'wearTitle(ctx.account, cs, r.id)'],
   ['a title stays pressable in flight', 'src/shell/windows/character/titles.js', "prop(b, 'disabled', sc.pending || w.off);", "prop(b, 'disabled', w.off);"],
   ['a short purse can press Claim', 'src/shell/windows/character/titles.js', "off: short > 0 };", "off: false };"],
-  ['the party-only note is lost', 'src/shell/windows/character/titles.js', "note: d && d.partyOnly ? MIN_PARTY_NOTE : '',", "note: '',"],
   ['a refusal does not name the hero', 'src/shell/windows/character/titles.js', "() => name + ' is yours. Press Wear to show it.', cs);", "() => name + ' is yours. Press Wear to show it.');"],
   ['the sheet header drops the title', 'src/shell/windows/character/sheet.js', "(nameOf(cs) || '') + (worn ? ' ' + worn : '')", "(nameOf(cs) || '')"],
   ['the sheet is asked for every paint', 'src/shell/windows/character/index.js', "  if (!sh || sc.sheetAsking || v === null) return;\n  if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "  if (!sh) return;"],

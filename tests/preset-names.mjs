@@ -31,11 +31,15 @@
 //   PN-8  SETUPS CHANGE IN TOWN: with a hunt open, Use, Save here and Save current
 //         setup are off and the window says why; once the hunt has ended, Save
 //         current setup sends ONE hr_hunt_preset_save on the first free number
-//   PN-9  FIVE AT MOST: with ACTION_SET_LIMITS.presets setups, Save current setup is off
+//   PN-9  FIVE AT MOST: with ACTION_SET_LIMITS.presets setups, Save current setup is off, also when the server's
+//         setup_slots counts past that limit (the window then says the limit's number)
 //   PN-11 THE SLOT IS BOUGHT (Tyler 2026-11-04; every number from the row, src/data/gold-sinks.js): past the server's count Save is off, the
 //         window says so in the design's words, and Buy sends ONE hr_setup_slot_buy with the QUOTE; the next slot opens only from the re-read,
 //         and the save lands on the bought number; a short purse says how much more; past the top there is no button; A SETUP ALREADY SAVED
 //         past the count keeps every control; a save the server refuses says the server's numbers
+//   PN-12 NO COUNT, NO FREE SLOT (audit 11-09 F5, §6 fail safe): with no setup_slots section and one setup saved, Save current setup
+//         is off, nothing is for sale and the window says "Reading your setup slots…"; with no hunt_presets the none line says
+//         "Reading your saved setups…" (both are projected: never "switch on when the server starts keeping them")
 //   PN-10 A BAR RENAME THE SERVER NEVER ANSWERS (lane/b-action-bar-fix: renameSet called an undefined function on
 //         the timeout, so the line stuck on "Renaming…" and the page threw): after BAR_ANSWER_MS the plaque says the
 //         server has not answered, keeps the server's name and turns its name control back on, with no page error
@@ -94,20 +98,24 @@ async function stub(page, s) {
   });
 }
 
+/* A (re)load waits for DOMContentLoaded and its STATE, never the `load` event (alpha-windows' LOAD-PROOF): no rule here is
+   about how fast a page boots, and on a busy machine the default 6 s ran out on the boot itself (2026-11-09, base and lane alike). */
+const BOOTED = 'domcontentloaded';
+const BOOT_MS = 60000;
 async function play(page) {
-  await wait(page, () => document.querySelector('.hs-launchers') || document.querySelector('[data-app="play"][data-slot="0"]'));
+  await wait(page, () => document.querySelector('.hs-launchers') || document.querySelector('[data-app="play"][data-slot="0"]'), null, BOOT_MS);
   if (!(await page.$('.hs-launchers'))) await page.click('[data-app="play"][data-slot="0"]');
-  return wait(page, () => document.querySelector('.hs-launchers'));
+  return wait(page, () => document.querySelector('.hs-launchers'), null, BOOT_MS);
 }
 async function signIn(page, base) {
-  await page.goto(base + '/play.html', { waitUntil: 'load' });
-  await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+  await page.goto(base + '/play.html', { waitUntil: BOOTED, timeout: BOOT_MS });
+  await wait(page, () => document.querySelector('form[data-auth="sign-in"]'), null, BOOT_MS);
   await page.fill('input[name=email]', 'qa@example.test');
   await page.fill('input[name=password]', 'not-a-real-password');
   await page.click('.auth-submit');
   return play(page);
 }
-async function reload(page) { await page.reload({ waitUntil: 'load' }); return play(page); }
+async function reload(page) { await page.reload({ waitUntil: BOOTED, timeout: BOOT_MS }); return play(page); }
 async function openPrep(page) {
   if (await page.$('[data-hs-win="hunt-prep"] [data-hs-built]')) return true;
   await page.keyboard.press('p');
@@ -240,6 +248,18 @@ async function checks(overrides) {
     await openPrep(page);
     await page.waitForTimeout(300);
     if (!(await page.evaluate(() => document.querySelector('[data-hs-win="hunt-prep"] [data-hs-act="save-new"]').disabled))) fails.push('PN-9 a sixth setup can be saved');
+    /* The data's limit holds even where the server's count says more (the fixture's count is the limit, so only this reaches it). */
+    {
+      const lim = ACTION_SET_LIMITS.presets, was = s.env.setup_slots;
+      s.env.setup_slots = { count: lim + 1, free: lim + 1, bought: 0, max: lim + 1, price: null };
+      await reload(page);
+      await openPrep(page);
+      await page.waitForTimeout(300);
+      const past = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-prep"]');
+        return { save: w.querySelector('[data-hs-act="save-new"]').disabled, why: w.querySelector('.hw-slot-why').hidden ? '' : w.querySelector('.hw-slot-why').textContent }; });
+      if (!past.save || past.why !== `This hero's ${lim} setup slots are full. Delete one to save a new setup.`) fails.push('PN-9 a sixth setup can be saved when the server counts past the limit: ' + JSON.stringify(past));
+      s.env.setup_slots = was;
+    }
     // PN-11
     {
       const R = SINK_RULES.setup_slot, max = ACTION_SET_LIMITS.presets;
@@ -308,6 +328,16 @@ async function checks(overrides) {
       await at();
       p = await prep();
       if (p.buy !== null || !p.save || p.why !== `This hero's ${max} setup slots are full. Delete one to save a new setup.`) fails.push('PN-11 at the top: ' + JSON.stringify(p));
+      // PN-12
+      delete s.env.setup_slots;
+      s.env.hunt_presets = setups([0]);
+      await at();
+      p = await prep();
+      if (!p.save || p.buy !== null || p.why !== 'Reading your setup slots…') fails.push('PN-12 with no setup_slots section the window reads ' + JSON.stringify(p));
+      delete s.env.hunt_presets;
+      await at();
+      const none = await page.evaluate(() => document.querySelector('[data-hs-win="hunt-prep"] .hw-presets-none.is-on')?.textContent || '');
+      if (none !== 'Reading your saved setups…') fails.push('PN-12 with no hunt_presets section the none line reads ' + JSON.stringify(none));
     }
     if (errors.length) fails.push('PN-6 console errors: ' + errors.slice(0, 3).join(' | '));
   } catch (e) {
@@ -324,7 +354,7 @@ const MUTANTS = [
   /* An optimistic rename: the window keeps the typed name and shows it over the server's (two plants, one file). */
   ['the new name shows before the server', 'src/shell/windows/hunt-prep.js', "      text(li.querySelector('.hs-name-t'), p.name);",
     "      text(li.querySelector('.hs-name-t'), (sc.typed && sc.typed[p.preset]) || p.name);",
-    '  sc.naming = null;\n  repaint();\n  t.blur();', '  sc.naming = null;\n  sc.typed = { [preset]: name.trim() };\n  repaint();\n  t.blur();'],
+    '  sc.naming = null;\n  repaint();\n  el.blur();', '  sc.naming = null;\n  sc.typed = { [preset]: name.trim() };\n  repaint();\n  el.blur();'],
   ['the setup stays pressable while a rename is in flight', 'src/shell/windows/hunt-prep.js', "for (const b of li.querySelectorAll('button, input')) prop(b, 'disabled', sc.pending);", "for (const b of li.querySelectorAll('button, input')) prop(b, 'disabled', false);"],
   ['Delete sends at the first press', 'src/shell/windows/hunt-prep.js', '    if (sc.arming !== setup.preset) { sc.arming = setup.preset; repaint(); return true; }\n', ''],
   ['Escape sends the rename', 'src/shell/inline-name.js', "ev.key === 'Escape' ? 'cancel'", "ev.key === 'Escape' ? 'commit'"],
@@ -335,14 +365,15 @@ const MUTANTS = [
     "prop(el, 'disabled', sc.pending || !presets || full || hunting);", "prop(el, 'disabled', sc.pending || !presets || full);"],
   ['a new setup takes a used number', 'src/shell/windows/hunt-prep.js', 'while (used.has(free) && free < MAX_PRESETS) free++;', 'free = used.size;'],
   ['a sixth setup can be saved', 'src/shell/windows/hunt-prep.js', 'const MAX_PRESETS = ACTION_SET_LIMITS.presets;', 'const MAX_PRESETS = 8;'],
-  ['the count is the limit again', 'src/shell/windows/hunt-prep.js', 'const count = slots ? slots.count : MAX_PRESETS;', 'const count = MAX_PRESETS;'],
+  ['the count is the limit again', 'src/shell/windows/hunt-prep.js', 'const count = Math.min(slots ? slots.count : 0, MAX_PRESETS);', 'const count = MAX_PRESETS;'],
+  ['with no server count every slot is free (PN-12)', 'src/shell/windows/hunt-prep.js', 'const count = Math.min(slots ? slots.count : 0, MAX_PRESETS);', 'const count = Math.min(slots ? slots.count : MAX_PRESETS, MAX_PRESETS);'],
   ['Buy sends a price of its own', 'src/shell/windows/hunt-prep.js', 'buySetupSlot(ctx.account, cs, q.price)', 'buySetupSlot(ctx.account, cs, 1)'],
   ['Buy stays on with a short purse', 'src/shell/windows/hunt-prep.js', "prop(buy, 'disabled', sc.pending || short > 0);", "prop(buy, 'disabled', sc.pending);"],
   ['Buy stays on while it is in flight', 'src/shell/windows/hunt-prep.js', "prop(buy, 'disabled', sc.pending || short > 0);", "prop(buy, 'disabled', short > 0);"],
   ['a setup past the count loses its controls', 'src/shell/windows/hunt-prep.js', "prop(b, 'disabled', sc.pending || hunting);", "prop(b, 'disabled', sc.pending || hunting || p.preset >= count0(cs));", "const SCRATCH = new WeakMap();", "const SCRATCH = new WeakMap();\nconst count0 = (cs) => { const q = setupSlotsOf(cs); return q ? q.count : 99; };"],
   ['the button hides past the free count', 'src/shell/windows/hunt-prep.js', "prop(buy, 'hidden', price === null);", "prop(buy, 'hidden', true);"],
-  ['the window says the old full line', 'src/shell/windows/hunt-prep.js', "const why = full && !hunting ? setupFullWords(count, price) + ", "const why = full && !hunting ? 'All ' + MAX_PRESETS + ' setup slots are used.' + "],
-  ['an answer hides why Save is off', 'src/shell/windows/hunt-prep.js', "const why = full && !hunting ? setupFullWords", "const why = !sc.msg && full && !hunting ? setupFullWords"],
+  ['the window says the old full line', 'src/shell/windows/hunt-prep.js', ": full ? setupFullWords(count, price) + ", ": full ? 'All ' + MAX_PRESETS + ' setup slots are used.' + "],
+  ['an answer hides why Save is off', 'src/shell/windows/hunt-prep.js', "const why = hunting || !presets ? ''", "const why = sc.msg || hunting || !presets ? ''"],
   ['a bar rename that times out throws (PN-10)', 'src/shell/widgets/action-bar.js', "    text(msg, r.ok ? '' : refusalWords(r.error));", "    text(msg, r.ok ? '' : r.error === 'timeout' ? barRefusalWords(r.error) : refusalWords(r.error));"],
   ['the plaque renames another set','src/shell/widgets/action-bar.js', 'renameActionSet(ctx.account, ctx.character, s.preset, name)', 'renameActionSet(ctx.account, ctx.character, s.preset + 1, name)'],
 ];

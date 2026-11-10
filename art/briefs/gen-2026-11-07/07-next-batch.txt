@@ -1,0 +1,76 @@
+BRIEF 07: THE NEXT BATCHES, after the art director's read of the three samples (2026-11-07, lane/a-region-kit)
+Samples: lane/a-gen-2026-11-07 5405d92f1, 25 gens (2,123.4 -> 2,098.4), $0 credits. Read the balance before each batch,
+stop at zero, never buy credits. One batch = 20 calls or fewer (CLAUDE.md §10). Hand me each batch's strip before the
+next batch of the SAME line starts; different lines may run side by side. About 300 gens a day through 11-13 (00-plan).
+
+THE VERDICTS
+  outfit_knight idle, S + SE   APPROVED as the import lays it. Laid through idle-clip.mjs (my run): S loop raw 0,1,8,1,
+                               SE 0,1,4,1, steps 12-52 px, feet still, nothing lifted. The flattened plume (S 3-7) and
+                               the shifted shield edge (SE 8) are not in the loop.
+  banded_pikeman idle, S       APPROVED as picked (0,4,1,4). The armband does NOT blink in the laid loop: idle-clip
+                               lays every frame in the still's colours, and the band counts 15/14/14/14 px across the
+                               loop (the raw frame 4 lost it; the laid one has it).
+  banded_pikeman idle, SE      APPROVED (0,2,7,2; steps 31-65 px, feet still).
+  banded_pikeman idle, E       RE-ROLL. Every pick of this clip moves the feet (4-6 px of the foot rows at best, 9 when
+                               frames are dropped) and the first step changes 221 px: the head bows and the body
+                               lurches each loop. One call, new action text (below).
+  mudlark                      RE-ROLL THE ROTATIONS (then the clips). Height is fine (36-37 px, in the vermin budget;
+                               my 30-36 was tighter than the class), the death and the attack are good. What fails is
+                               the law, not the pose: its body is mud-brown, and the ring inside its outline measures
+                               1.14:1 against the March mud it will live on (ART_DIRECTION §4 asks 3:1 for new art;
+                               tools/world-art/ring-contrast.mjs). On the Slake's flats it would vanish. It must read
+                               PALE: bleached drowned skin and washed-out rags, the sack and the outline dark. The walk
+                               rising to 44 px and the idle standing up are fixed by the action text below; the idle
+                               picker already avoids standing frames (0,1,8,1 at 38-40 px) when calm frames exist.
+  Measured on the same mud for scale: the shipped banded_pikeman 1.00:1, fordsunk 1.31:1, the Glade poacher 1.00:1,
+  the knight 2.16:1. Shipped bodies are not redone (Tyler 10-22); every NEW Slake body passes 3:1 before import.
+
+CHECK BEFORE HANDING IN (free, any candidate):
+  node tools/world-art/ring-contrast.mjs art/briefs/gen-2026-11-07/refs/floor-ford-mud-64.png <frame.png>   (3:1 or more)
+  the idle as the import lays it: tools/world-art/idle-clip.mjs idleFrames(still, frames, 58) (the picks, steps, feet)
+
+DAY 1 OF 6 (11-08): IDLES, the lines that need nothing (brief 05 and 02 text unchanged unless named here)
+  Batch 1  (20 calls, ~20 gens)  outfit_knight e, n, w, sw, ne, nw (6) · outfit_ranger all 8 · outfit_sorcerer s, e, n, w, se, sw (6)
+  Batch 2  (20 calls, ~20 gens)  outfit_sorcerer ne, nw (2) · outfit_druid 8 · outfit_witch 8 · outfit_dawnward s, e (2)
+  Batch 3  (20 calls, ~20 gens)  outfit_dawnward n, w, se, sw, ne, nw (6) · outfit_berserker 8 · outfit_brute s, e, n, w, se, sw (6)
+  Batch 4  (18 calls, ~18 gens)  outfit_brute ne, nw (2) · npc_crier 8 · npc_smith 8
+  Batch 5  (20 calls, ~20 gens)  banded_pikeman E re-roll (1) + n, w, sw, ne, nw (5) · bannerman 8 · fordsunk s, e, n, w, se, sw (6)
+           pikeman E action, a NEW animation group: "standing guard, the chest rises and falls, the head stays level and
+           does not bow, both feet stay exactly where they are, the pike stays upright, stays in place, nothing else
+           appears in the frame"
+  Batch 6  (20 calls, ~20 gens)  fordsunk ne, nw (2) · wight 8 · barrow_knight 8 · captain_hask s, e (2)
+  Batch 7  (6 calls, ~6 gens)    captain_hask n, w, se, sw, ne, nw
+  Re-rolls: up to 2 per facing, each in a NEW group worded as above. Idles total about 124 calls, ~150 gens with re-rolls.
+  An outfit idle may only ship with its dye masks re-run (tools/world-art/outfit-masks.mjs) and the outfits moved to a
+  set of their own (brief 05: the hunt atlas overflows). Those are the import lane's steps, not the generator's.
+
+DAY 1, SIDE BY SIDE: THE MUDLARK SAMPLE (10 calls, ~16 gens), then my read
+  create_object_pro_flash, as brief 01 and the accepted settings (48x48, high top-down, seed 11, the poacher crop as
+  style image with "match palette, outline, shading only; the creature is smaller and crouches lower than this figure"):
+  prompt "small hunched undead river scavenger squatting low on deeply bent knees, compact crouched body, head sunk low
+  between the shoulders, pale bleached grey-white drowned skin, washed-out pale grey rags, a dark brown lumpy sack of
+  scavenged scraps tied on its back, a short dark iron boathook with green copper stains in one hand, dark outline, game
+  enemy sprite". Reject a rotation whose ring is under 3:1 on the mud, whose body is over 38 px, or that stands up.
+  Then SOUTH only: idle "crouched, only the shoulders and the sack rise and fall by one pixel, the knees stay bent, the
+  head stays low, feet planted, nothing else appears in the frame"; walk "a quick low scuttle, stays crouched the whole
+  cycle, the head stays at the same height, short steps, both feet lift in turn, nothing else appears in the frame";
+  attack and death as accepted (the lunge with the hook; falls face down, the sack spills).
+  After my yes: the other 7 facings of idle, walk, attack (21 calls) and death e, n, w (3): two batches, 20 + 4.
+
+DAY 2 (11-09): THE SLAKE'S SIGNATURE PIECES AND FLOOR (need nothing; briefs 03 and 04)
+  Batch 8  (3 calls, ~30 gens)   the Grounded Barge, 3 candidates (brief 03)
+  Batch 9  (2 calls, ~12 gens)   the Stake Nets sheet, 2 tries (brief 04 part 1)
+  Batch 10 (2 calls, ~30 gens)   the copper silt pair (brief 04 part 2). Add to its upper prompt: "a mid value, no lighter
+           than the wet mud". The Slake's bodies are made pale to read on it; a pale floor would sink the hero instead
+           (the knight's steel is 2.16:1 on the mud and would drop further on a pale silt).
+DAY 2, after the Mudlark is accepted: GREENED PIKEMAN AND BARGEMAN (brief 01's second section), same gate as the Mudlark:
+  sample rotations + south clips (2 x 10 calls), my read, then the rest (2 x 24 calls in batches of 20 or fewer).
+  Change both prompts for readability: the pikeman's verdigris crust "pale green-white copper crust" on helmet and
+  breastplate; the bargeman "cracked pale grey drowned skin, a dark leather apron". Each passes 3:1 on the mud.
+
+DAYS 3-6: as 00-plan.txt (B and C), each line opening with a sample of about 5 calls. B1, B4 and B5 wait on the
+designer's rows; if they are not in by the morning of their day, that day goes to B3 (hit clips: art first, inert until
+the client plays them) and C2 (town and ground life, needs nothing).
+
+WHERE IT GOES: as before, art/world-src/gen-2026-11-07/<asset>/ + note.json, a strip per batch in
+art/review/gen-2026-11-07/. Nothing is imported or wired by the generator.

@@ -6,20 +6,20 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.107';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.107';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.107';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.107';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.107';
-import { gmOf, levelOf } from '../session/character-sections.js?v=0.2.107';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.107';
-import { COACH_READ_MAX } from '../session/residue.js?v=0.2.107';
-import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.107';
-import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.107';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.107';
-import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.107';
-import { draftOf, serverBar } from './bar-draft.js?v=0.2.107';
-import { trackOnce } from '../net/observability.js?v=0.2.107';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.113';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.113';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.113';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.113';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf } from '../session/item-sections.js?v=0.2.113';
+import { gmOf, levelOf } from '../session/character-sections.js?v=0.2.113';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.113';
+import { COACH_READ_MAX } from '../session/residue.js?v=0.2.113';
+import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.113';
+import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.113';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.113';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.113';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.113';
+import { trackOnce } from '../net/observability.js?v=0.2.113';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -126,7 +126,7 @@ export function coachFactsOf(cs, account) {
     roster,
     slotsOwned: rows ? rows.length : null,
     playLimit: account && typeof account.statedLimit === 'function' ? account.statedLimit() : null,
-    sellable: bag && shop ? lootSale(bag, rulesOf(cs), shop, skillsOf(cs), upgradeNeeds(homeOf(cs), chestsOf(cs))).lines.length : null,
+    sellable: bag && shop ? lootSale(bag, rulesOf(cs), shop, upgradeNeeds(homeOf(cs), chestsOf(cs))).lines.length : null,
     upgrades: bag && eq ? upgradeOf(cs).picks.map((p) => p.id) : null,
     back: (cs.record && cs.record.residue && cs.record.residue.coach && cs.record.residue.coach.back) || null,
     slotCost: account && account.slotOffer ? account.slotOffer.cost : null,

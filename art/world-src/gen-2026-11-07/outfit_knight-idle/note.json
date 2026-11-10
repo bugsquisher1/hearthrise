@@ -1,0 +1,186 @@
+{
+  "asset": "outfit_knight-idle",
+  "brief": "art/briefs/gen-2026-11-07/05-hero-idles.txt, run per 07-next-batch.txt (batches 1-4)",
+  "status": "NOT imported; waits on the art director's read",
+  "made": "2026-11-07",
+  "object_id": "e6b1bc58-8481-40c0-b361-77f9eed15927",
+  "set": "hunt",
+  "layout": "<facing>/frame_000..008.png = the chosen roll (frame_000 the still); alt/<roll>/<facing>/ = every other roll",
+  "rolls": {
+    "r1": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "group": "6807b38c-d6fa-47ce-b4f4-4086bee3d076",
+      "action": "standing at rest, breathing slowly, chest rises and falls, a slight shift of weight, feet planted, the weapon and shield stay still, stays in place, nothing else appears in the frame",
+      "directions": "all 8 (s, se in the sample)"
+    },
+    "r2": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "group": "471b5d00-1f8d-4bdd-b742-427501664583",
+      "action": "standing at rest, only the chest rises and falls by one pixel, the head stays level, both feet stay exactly where they are, both arms and everything held in the hands stay completely still, stays in place, nothing else appears in the frame",
+      "directions": "e n w ne"
+    }
+  },
+  "chosen": {
+    "south": "r1",
+    "south-east": "r1",
+    "south-west": "r1",
+    "north-west": "r1",
+    "east": "r2",
+    "north": "r2",
+    "west": "r2",
+    "north-east": "r2"
+  },
+  "loop_preview": {
+    "how": "idle-clip.mjs idleFrames(shipped still, frames, 58), as port-pixellab.mjs idle lays it; feet = foot-row mask px moved, detached = px of the picked frames 3+ px off the still's body",
+    "facings": {
+      "south": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "steps": [
+          25,
+          45
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          16,
+          179
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north": {
+        "roll": "r2",
+        "picks": [
+          0,
+          8,
+          1,
+          8
+        ],
+        "steps": [
+          20,
+          87
+        ],
+        "feet": 1,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "west": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          90,
+          104
+        ],
+        "feet": 1,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-east": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          4,
+          1
+        ],
+        "steps": [
+          12,
+          52
+        ],
+        "feet": 1,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          7,
+          1
+        ],
+        "steps": [
+          17,
+          24
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          12,
+          124
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          21,
+          144
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      }
+    }
+  },
+  "generations": 12,
+  "flags": [
+    "r1 moved the sword in e, n, w, ne (2-3 px, the blade turning): re-rolled with the calmer text; r2 still moves the blade about 1 px in its far frame b"
+  ],
+  "review_strip": "art/review/gen-2026-11-07/outfit_knight-idle.png (per facing: knight walk, raw clip, change from frame 0, the laid loop) and outfit_knight-idle-loops.png (per facing s e n w se sw ne nw: own walk frame 0 or idle still, then the 4-frame loop)",
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set hunt --id outfit_knight --clip art/world-src/gen-2026-11-07/outfit_knight-idle"
+}

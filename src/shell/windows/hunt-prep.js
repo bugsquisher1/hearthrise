@@ -29,19 +29,20 @@
 // Built once, patched in place; every control is off while an intent is in
 // flight, and changes show only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { presetsOf, setupSlotsOf, goldOf } from '../../session/item-sections.js?v=0.2.107';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.107';
-import { runIntent } from '../intent-words.js?v=0.2.107';
-import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.107';
-import { itemName } from '../widgets/bits.js?v=0.2.107';
-import { whole, gold } from '../../render/format.js?v=0.2.107';
-import { readinessOf, readinessLine } from '../readiness.js?v=0.2.107';
-import { settingsOf, huntOf } from '../../session/hunt-sections.js?v=0.2.107';
-import { ACTION_SET_LIMITS } from '../../data/rule-subjects.js?v=0.2.107';
-import { renameSetup, deleteSetup, buySetupSlot } from '../../session/preset-intents.js?v=0.2.107';
-import { setupBuyWords, setupFullWords } from '../setup-words.js?v=0.2.107';
-import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.107';
-import { settleTownActivity } from '../../session/party-intents.js?v=0.2.107';
+import { presetsOf, setupSlotsOf, goldOf } from '../../session/item-sections.js?v=0.2.113';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.113';
+import { runIntent } from '../intent-words.js?v=0.2.113';
+import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.113';
+import { itemName } from '../widgets/bits.js?v=0.2.113';
+import { whole, gold } from '../../render/format.js?v=0.2.113';
+import { readinessOf, readinessLine } from '../readiness.js?v=0.2.113';
+import { settingsOf, huntOf } from '../../session/hunt-sections.js?v=0.2.113';
+import { ACTION_SET_LIMITS } from '../../data/rule-subjects.js?v=0.2.113';
+import { renameSetup, deleteSetup, buySetupSlot } from '../../session/preset-intents.js?v=0.2.113';
+import { setupBuyWords, setupFullWords } from '../setup-words.js?v=0.2.113';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.113';
+import { settleTownActivity } from '../../session/party-intents.js?v=0.2.113';
+import { t } from '../../render/player-text.js?v=0.2.113';
 
 const MAX_PRESETS = ACTION_SET_LIMITS.presets;
 const SCRATCH = new WeakMap();
@@ -131,10 +132,11 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
   });
   const none = root.querySelector('.hw-presets-none');
   cls(none, 'is-on', !presets || !presets.length);
-  text(none, presets ? 'No saved setups yet.' : 'Saved setups switch on when the server starts keeping them.');
-  /* The server says how many this hero may open; with no such section it is the limit and the server's refusal still speaks. */
+  text(none, presets ? 'No saved setups yet.' : t('prep.setups_reading'));
+  /* The server says how many this hero may open (`setup_slots`). Until it has, none is free (§6: fail safe to not unlocked),
+     and never more than the data's limit: past it Save stays off and says so, as the press would send nothing. */
   const slots = setupSlotsOf(cs);
-  const count = slots ? slots.count : MAX_PRESETS;
+  const count = Math.min(slots ? slots.count : 0, MAX_PRESETS);
   const full = presets && firstFree(presets) >= count;
   for (const el of root.querySelectorAll('.hw-add input, .hw-add button')) prop(el, 'disabled', sc.pending || !presets || full || hunting);
   cls(root.querySelector('.hw-town-only'), 'is-on', hunting);
@@ -147,7 +149,8 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
   text(buy, price === null ? '' : setupBuyWords(count, price));
   prop(buy, 'disabled', sc.pending || short > 0);
   /* Saving a new setup is off when every slot is used: said, not only greyed (say-why), on a line of its own so an answer's news never hides it. */
-  const why = full && !hunting ? setupFullWords(count, price) + (short ? ' You need ' + gold(short) + ' more.' : '') : '';
+  const why = hunting || !presets ? '' : !slots ? t('prep.slots_reading')
+    : full ? setupFullWords(count, price) + (short ? ' You need ' + gold(short) + ' more.' : '') : '';
   const whyEl = root.querySelector('.hw-slot-why');
   prop(whyEl, 'hidden', !why);
   text(whyEl, why);
@@ -179,26 +182,26 @@ function patchCarry(root, ctx, cs, sc) {
   text(none, carry && !carry.length ? 'Nothing in your backpack can be carried into a hunt.' : '');
 }
 
-renderHuntPrep.act = function actHuntPrep(ctx, body, action, ev, t) {
+renderHuntPrep.act = function actHuntPrep(ctx, body, action, ev, el) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => renderHuntPrep.patch(body, ctx);
-  if (action === 'rename-key') return renameKey(ctx, ev, t, sc, repaint);
+  if (action === 'rename-key') return renameKey(ctx, ev, el, sc, repaint);
   if (ev.type !== 'click') return false;
   if (action === 'carry') {
-    const row = (carryRows(cs) || []).find((r) => r.id === t.getAttribute('data-item'));
-    const at = t.getBoundingClientRect();
+    const row = (carryRows(cs) || []).find((r) => r.id === el.getAttribute('data-item'));
+    const at = el.getBoundingClientRect();
     if (row && !sc.pending) askCarry(ctx, body, sc, repaint, row, { x: at.left, y: at.bottom });
     return true;
   }
-  const preset = Number(t.getAttribute('data-preset'));
+  const preset = Number(el.getAttribute('data-preset'));
   const setup = (presetsOf(cs) || []).find((x) => x.preset === preset);
   if (action !== 'delete' && sc.arming !== null) { sc.arming = null; repaint(); }
   if (action === 'rename') {
     if (!setup || sc.pending) return true;
     sc.naming = setup.preset;
     repaint();
-    openNameEditor(t.closest('.hw-setup'), setup.name, () => { if (sc.naming === setup.preset) { sc.naming = null; repaint(); } });
+    openNameEditor(el.closest('.hw-setup'), setup.name, () => { if (sc.naming === setup.preset) { sc.naming = null; repaint(); } });
     return true;
   }
   if (action === 'keep') return true;
@@ -239,14 +242,14 @@ renderHuntPrep.events = Object.freeze(['keydown']);
 
 /* A key in a setup's name field: Enter sends ONE rename (the field closes; the new name shows from the
    re-read), Escape puts the name back. Any other key is the player typing. */
-function renameKey(ctx, ev, t, sc, repaint) {
+function renameKey(ctx, ev, el, sc, repaint) {
   const k = nameKey(ev);
   if (!k) return false;
-  const preset = Number(t.getAttribute('data-preset'));
-  const name = t.value;
+  const preset = Number(el.getAttribute('data-preset'));
+  const name = el.value;
   sc.naming = null;
   repaint();
-  t.blur();
+  el.blur();
   const setup = (presetsOf(ctx.character) || []).find((x) => x.preset === preset);
   if (k === 'commit' && setup && name.trim() && name.trim() !== setup.name) {
     runIntent(sc, repaint, () => renameSetup(ctx.account, ctx.character, preset, name), 'Renaming…', () => 'Renamed to ' + name.trim() + '.');

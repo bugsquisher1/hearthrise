@@ -13,7 +13,8 @@
 //     node tools/mutant-gate.mjs node tests/x.mjs --mutate
 // and this decides, per command:
 //   plain run (no --mutate/--selftest)   ALWAYS runs — the gate never skips a guard
-//   schedule / workflow_dispatch / local runs everything (the full sweep)
+//   schedule / workflow_dispatch / local runs everything (the full sweep); a release or next
+//                                        started by hand is gated like its push (MODE)
 //   push / pull_request                  runs when the diff touches the guard file, a
 //                                        file it loads (tools/lib/guard-deps.mjs — the
 //                                        mapping guards-for uses) or a file one of its
@@ -39,6 +40,7 @@
 // A REHEARSAL. `gh workflow run smoke.yml --ref <lane> -f rehearse_range=<sha>..<sha>` (not
 // on main) runs this branch's guards under the plan an old release's diff gets: how to
 // measure a change to this gate without touching release/** or main. It gates nothing.
+// `-f rehearse_range=full` is the full sweep on any branch.
 //
 // THE BASE. release/**, next and pull requests: the merge base with main (for a
 // release, the previous release on main). main: the push's `before` (the previous tip
@@ -84,6 +86,12 @@ export function decideMode(env) {
   if (env.GITHUB_ACTIONS !== 'true') return { full: true, why: 'not a GitHub Actions run — local runs prove everything' };
   const ev = env.GITHUB_EVENT_NAME || '';
   if (ev === 'push' || ev === 'pull_request') return { full: false, event: ev };
+  /* A release or next started by hand because its push started no run (an existing SHA on a new ref): the
+     gate its push would have had. v0.2.101-103 were dispatched and ran as full sweeps, 76-78 min each against
+     35-53 for a push. `-f rehearse_range=full` still asks for the sweep. */
+  const shipRef = /^release\//.test(env.GITHUB_REF_NAME || '') || env.GITHUB_REF_NAME === 'next';
+  if (ev === 'workflow_dispatch' && env.HR_MUTANT_GATE_RANGE === 'full') return { full: true, why: 'the dispatch asked for the full sweep' };
+  if (ev === 'workflow_dispatch' && shipRef && !env.HR_MUTANT_GATE_RANGE) return { full: false, event: ev, asPush: true };
   if (ev === 'workflow_dispatch' && env.HR_MUTANT_GATE_RANGE && env.GITHUB_REF_NAME !== 'main') return { full: false, event: ev, rehearsal: true };
   return { full: true, why: `the ${ev || 'unknown'} event is the full sweep` };
 }
@@ -396,6 +404,10 @@ function properties(impl, proofs) {
   const gh = (ev) => impl.decideMode({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: ev });
   expect(gh('schedule').full && gh('workflow_dispatch').full, 'schedule and workflow_dispatch are the full sweep');
   expect(!gh('push').full && !gh('pull_request').full, 'push and pull_request are gated');
+  const byHand = (ref, range = '') => impl.decideMode({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF_NAME: ref, HR_MUTANT_GATE_RANGE: range });
+  expect(!byHand('release/v0.2.101').full && !byHand('next').full, 'a release or next started by hand, no range, is gated like its push');
+  expect(byHand('main').full && byHand('lane/x').full, 'a dispatch on main or a lane with no range is the full sweep');
+  expect(byHand('release/v0.2.101', 'full').full && byHand('main', 'full').full, 'rehearse_range=full asks for the full sweep anywhere');
   expect(impl.decideMode({}).full, 'outside GitHub Actions everything runs');
   const full = gh('schedule');
   expect(proofs.every((p) => impl.decide(p.cmd, full).run), 'the full sweep runs every registered proof');
@@ -516,6 +528,11 @@ async function selftest() {
     ['the map goes blind (nothing is ever touched)', { ...real, selectGuards: () => new Map() }],
     ['the gate runs every proof whatever the diff', { ...real, decide: () => ({ run: true, why: 'mutant' }) }],
     ['the nightly is gated like a push', { ...real, decideMode: (env) => ({ ...decideMode(env), full: env.GITHUB_ACTIONS !== 'true' }) }],
+    ['a release started by hand is the full sweep again (v0.2.101-103, 77 min each)',
+      { ...real, decideMode: (env) => (env.GITHUB_EVENT_NAME === 'workflow_dispatch' && !env.HR_MUTANT_GATE_RANGE ? { full: true, why: 'mutant' } : decideMode(env)) }],
+    ['every dispatch is gated, main too', { ...real, decideMode: (env) => (env.GITHUB_EVENT_NAME === 'workflow_dispatch' && env.HR_MUTANT_GATE_RANGE !== 'full'
+      ? { full: false, event: 'workflow_dispatch', asPush: true } : decideMode(env)) }],
+    ['rehearse_range=full is read as a range', { ...real, decideMode: (env) => decideMode(env.HR_MUTANT_GATE_RANGE === 'full' ? { ...env, HR_MUTANT_GATE_RANGE: 'x..y' } : env) }],
     ['a plain run is gated like a proof', { ...real, decide: (cmd, plan, g) => (PROOF_FLAG.test(unwrapGate(cmd)) || plan.full
       ? decide(cmd, plan, g) : { run: !!plan.selected[guardFileOf(cmd)], why: 'mutant' }) }],
     ['a change under tests/ is ignored (a guard\'s own edit never re-proves it)',
@@ -545,11 +562,14 @@ async function selftest() {
     const commentEdit = head.replace('async function main() {', '// an older comment\nasync function main() {');
     const run = (fn, changed, baseSource) => fn({ guard: HS, root: ROOT, changed, base: null, headSource: head, baseSource, sources });
     const same = (s, names) => !s.all && s.keep.size === names.length && names.every((n) => s.keep.has(n));
+    /* what a runner edit ran besides its canaries: a mutant renamed or added with no row in the sidecar (v0.2.111) */
+    const beyond = (s) => (s.all || !s.why ? [] : [...s.why].filter(([, w]) => !/^a canary/.test(w)).map(([n, w]) => `"${n}" (${w})`));
+    const runnerSays = (s) => (beyond(s).length ? ` — it also ran ${beyond(s).join(', ')}: give it its row in ${HS.replace(/\.mjs$/, '.mutant-rules.json')}` : '');
     const scopeChecks = (fn) => [
       [want.length > 0 && same(run(fn, [ANALYZER]), want), `an edit to ${ANALYZER} runs only its ${want.length} analyzer mutant(s) of ${list.length}`],
       [same(run(fn, [HS], edited), [victim[0]]), 'an edited (renamed) mutant entry runs that mutant alone'],
       [run(fn, [HS], harnessEdit).all, 'an edit to a hunt-screen helper runs every mutant'],
-      [(({ all, keep }) => !all && keep.size === 3)(run(fn, [HS], runnerEdit)), 'an edit to the loop that plants and judges runs the three canaries'],
+      ((s) => [!s.all && s.keep.size === 3, `an edit to the loop that plants and judges runs the three canaries${runnerSays(s)}`])(run(fn, [HS], runnerEdit)),
       [run(fn, ['tests/_client-harness.mjs']).all, 'an edit to tests/_client-harness.mjs (the harness it imports) runs every mutant'],
       [run(fn, null).all, 'no scope (nightly, manual, local) runs every mutant'],
       [same(run(fn, ['src/shell/chat.js']), []), 'an edit no mutant patches runs none'],

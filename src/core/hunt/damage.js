@@ -13,7 +13,7 @@
 // `resolveAttacks` swings every unit whose swing is due, on the universal
 // COMBAT_BALANCE.tickMs (the one basic-attack interval). A hero swings with the combat snapshot on its unit
 // (acc permille, maxHit, element, def), which the settle writes from the
-// character's own gear and skills; a monster swings from its MONSTERS row.
+// character's own gear and skills; a monster swings from its row (rowOf: the instance's table, a scaled hunt's or the catalogue).
 // Melee swing only standing on a tile; ranged also while moving (RO-19).
 // Dice: the swing's `s` stream, units in id order (engine contract #3).
 //
@@ -24,24 +24,24 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS, monsterLevelOf } from '../../data/monsters.js?v=0.2.107';
-import { atTier, levelAtTier } from '../../data/hunt-tiers.js?v=0.2.107';
-import { STATUSES } from '../../data/statuses.js?v=0.2.107';
-import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.107';
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.107';
-import { cheb } from './grid.js?v=0.2.107';
-import { atRest, unitById } from './movement.js?v=0.2.107';
-import { makeEvent } from './events.js?v=0.2.107';
-import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.107';
-import { fallen } from './pull-cycle.js?v=0.2.107';
-import { shareKillXp } from './xp-share.js?v=0.2.107';
-import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.107';
-import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.107';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.107';
-import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.107';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.107';
-import { temperedAmount } from '../temper.js?v=0.2.107';
-import { swingRow, crossLines, guardPmOf } from './boss-phases.js?v=0.2.107';
+import { MONSTERS, monsterLevelOf } from '../../data/monsters.js?v=0.2.113';
+import { atTier, levelAtTier } from '../../data/hunt-tiers.js?v=0.2.113';
+import { STATUSES } from '../../data/statuses.js?v=0.2.113';
+import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.113';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.113';
+import { cheb } from './grid.js?v=0.2.113';
+import { atRest, unitById } from './movement.js?v=0.2.113';
+import { makeEvent } from './events.js?v=0.2.113';
+import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.113';
+import { fallen } from './pull-cycle.js?v=0.2.113';
+import { shareKillXp } from './xp-share.js?v=0.2.113';
+import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.113';
+import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.113';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.113';
+import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.113';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.113';
+import { temperedAmount } from '../temper.js?v=0.2.113';
+import { swingRow, crossLines, guardPmOf } from './boss-phases.js?v=0.2.113';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -67,13 +67,13 @@ function takenPmOf(u) {
   return best;
 }
 
-/** The permille of its row's kill yield a monster pays (pull-cycle.js spawnPack stamps it; unstamped = all). */
-export const yieldOf = (m) => (Number.isInteger(m && m.yieldPm) && m.yieldPm > 0 ? m.yieldPm : 1000);
 const stanceOf = (u) => HUNT_STANCES[u && u.stance] || HUNT_STANCES[DEFAULT_STANCE];
+/* A MONSTER'S ROW, through the instance's one door (world-step.js inst.monsters: a scaled hunt's table, combat-sim.js huntPlayOf), the catalogue for a bare caller. */
+const rowOf = (inst, kind) => (inst.monsters || MONSTERS)[kind];
 
 /* WHAT THE HERO'S ARMOUR DOES TO THIS BLOW (mitigation.js): its values against the attacker's own level, the ground's tier on it (hunt-tiers.js). A status tick whose dealer has left the world has no level to read: 1. */
 const armourVs = (inst, target, source) => (target.armour
-  ? mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(MONSTERS[source.kind]), inst.tier) : 1) : NO_MITIGATION);
+  ? mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier) : 1) : NO_MITIGATION);
 
 /**
  * Apply `amount` from `source` to `target`; answers what landed:
@@ -86,7 +86,7 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
   /* A monster's defence comes off a hero's blow after its element. A blow AT A HERO keeps its
      element for the armour chain below (ruling K7). */
   let n = Math.max(0, Math.floor(amount));
-  if (target.side === 'mon') n = Math.floor((n * el) / 1000) - defenceReduction(MONSTERS[target.kind]);
+  if (target.side === 'mon') n = Math.floor((n * el) / 1000) - defenceReduction(rowOf(inst, target.kind));
   if (ability && Number.isInteger(ability.mult)) n = Math.floor((n * ability.mult) / 1000);
   /* A CALLED BOSS BEHIND HIS ADDS takes his guard's share of every blow (boss-phases.js); any other monster all of it. */
   if (target.side === 'mon') n = Math.floor((n * guardPmOf(inst, target)) / 1000);
@@ -139,7 +139,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   if (r.killed) {
     sc.emit(makeEvent('kill', sc.atMs, { u, t: target.id }));
     fallen(inst, target, sc);
-    if (target.side === 'mon') shareKillXp(inst, { t: target.id, u, xp: Math.round((atTier(MONSTERS[target.kind], inst.tier).xp * yieldOf(target)) / 1000) }, sc);
+    if (target.side === 'mon') shareKillXp(inst, { t: target.id, u, xp: Math.round(atTier(rowOf(inst, target.kind), inst.tier).xp) }, sc);
   }
   return r;
 }
@@ -187,7 +187,7 @@ export function resolveAttacks(inst, sc) {
     if (!t || !t.alive) continue;
     if (u.side === 'mon') {
       if (cheb(u, t) > 1 || !atRest(u)) continue;
-      const row = atTier(MONSTERS[u.kind], inst.tier);
+      const row = atTier(rowOf(inst, u.kind), inst.tier);
       /* A called boss under his enrage line swings that row raised (boss-phases.js). */
       const blowRow = swingRow(u, row);
       /* The monster's own stats against the hero's own stats, whatever the hero's Level (Tyler 2026-11-04: "They are just simply harder"). The tier the party picked is the monster's stats too (hunt-tiers.js). */
@@ -245,11 +245,11 @@ export function resolveAttacks(inst, sc) {
 function blow(inst, sc, u, h, t, price, sharePm) {
   const basic = Number.isInteger(sharePm) && sharePm < 1000;
   if (h && t.side === 'mon' && price !== undefined && (price !== h.ammo || basic) && typeof h.shotRolls === 'function') {
-    const base = h.shotRolls(null, price, sharePm), spent = h.shotRolls(MONSTERS[t.kind], price, sharePm);
+    const base = h.shotRolls(null, price, sharePm), spent = h.shotRolls(rowOf(inst, t.kind), price, sharePm, t.kind);
     return roll(inst, sc, u, t, spent.accuracy, Math.max(1, Math.floor(Math.max(1, base.maxHit) * ((spent.weak && spent.weak.damageMult) || 1))),
       Number(spent.critChance) || 0);
   }
-  const vs = h && t.side === 'mon' && typeof h.rollsVs === 'function' ? h.rollsVs(MONSTERS[t.kind]) : null;
+  const vs = h && t.side === 'mon' && typeof h.rollsVs === 'function' ? h.rollsVs(rowOf(inst, t.kind), t.kind) : null;
   return roll(inst, sc, u, t, vs ? vs.accuracy : u.acc / 1000,
     vs ? Math.max(1, Math.floor(Math.max(1, u.maxHit) * ((vs.weak && vs.weak.damageMult) || 1))) : Math.max(1, u.maxHit),
     vs ? Number(vs.critChance) || 0 : 0);

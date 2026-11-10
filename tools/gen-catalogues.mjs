@@ -30,6 +30,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { basename } from 'node:path';
+import { wholeViewOrRerun } from './pack/whole.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 /* DEMOLITION REGEN (2026-10-14): the catalogue is emitted into a NEW, LAST-registered
@@ -109,7 +111,7 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* CRAFTED JEWELRY (lane/c-jewelry-sample, Tyler 2026-11-05): 2027-03-08-rune-ladder-items-catalogue is APPLIED history; the Banded Signet's Fine and Hallmarked rows, the Road Carnelian (hr_items) and the two rolled Crafting jobs (hr_activities) land in ONE forward file, the same full delete+insert replace. */
 /* ONE FORMULA FOR EVERY HUNT (lane/b-ground-formula, Tyler 2026-11-07): 2027-03-14-jewelry-items-catalogue is APPLIED history; the open grounds' monsters' max HP (hr_activities combat rows) land in ONE forward file, the same full delete+insert replace. */
 /* TIER 4'S MADE RUNGS (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-20-ground-formula-items-catalogue is APPLIED history; the Mithril Hatchets' and Maple Crossbow's hr_items rows and their Smithing and Crafting recipes in hr_activities land in ONE forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-03-22-phase0-tier4-items-catalogue.generated.sql');
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-03-27-phase0-tier4-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -1264,7 +1266,7 @@ const { ARTISAN_RECIPES: BENCH_RECIPES } = await imp('src/data/recipes.js');
 /* TEMPERING'S MATERIAL (lane/c-temper-craft, 2026-11-05): 2027-02-25-houndskin is APPLIED history; the mixes' bars and bones. */
 /* CRAFTED JEWELRY (lane/c-jewelry-sample, 2026-11-05): 2027-02-28-temper-craft is APPLIED history; the two rolled jobs' inputs. */
 /* TIER 4'S MADE RUNGS (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-14-jewelry-bench-inputs is APPLIED history; the Mithril Hatchets' and Maple Crossbow's benches land in ONE forward file. */
-const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-03-22-phase0-tier4-bench-inputs.generated.sql');
+const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-03-27-phase0-tier4-bench-inputs.generated.sql');
 const benchInputs = {};
 {
   const known = new Set(itemIds);
@@ -1466,8 +1468,10 @@ end $$;
 const { ABILITIES: RUNE_ABILITIES, abilitySkill } = await imp('src/data/abilities.js');
 const { isRune, runeTierOf, versionLevel } = await imp('src/data/runes.js');
 const { BASIC_SUPPLIES: RUNE_STORE } = await imp('src/data/supply-basics.js');
-/* THE RUNE LADDER (lane/c-rune-ladder, Tyler 2026-11-05): 2027-02-21-rune-spells is APPLIED history; a spell gains `store`, the store rows its slot may name, in a forward file. */
-const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '2027-03-08-rune-ladder-rune-spells.generated.sql');
+/* THE RUNE LADDER (lane/c-rune-ladder, Tyler 2026-11-05): 2027-02-21-rune-spells is APPLIED history; a spell gains `store`, the store rows its slot may name, in a forward file.
+   UNDERTOW (lane/b-one-difficulty, Tyler 2026-11-09: the Healer's strike when it hunts alone): 2027-03-08-rune-ladder-rune-spells is APPLIED history; the
+   eleventh rune spell lands in this forward file, the same create or replace. */
+const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '2027-03-24-undertow-rune-spells.generated.sql');
 const runeSpells = {};
 for (const id of Object.keys(RUNE_ABILITIES).sort()) {
   const row = RUNE_ABILITIES[id];
@@ -1503,10 +1507,12 @@ const sqlRuneSpells = `-- ══════════════════
 -- WHAT THIS IS FOR. hr_hunt_rune_state (2027-02-21-hunt-carry-in.sql) and hr_hunt_rune_store_state + hr_hunt_slot_check
 -- (2027-03-08-rune-ladder-slots.sql), which hr_hunt_settings_view's \`usable\` reads: { ability: { skill,
 -- runes: { item: the level in that skill its version needs }, store: { store row: the level its version needs } } }.
--- Server-only. The key \`store\` is new in this file; \`runes\` does not move.
+-- Server-only. New in this file: Undertow, the Healer's strike when it hunts alone (Tyler 2026-11-09), on the Water
+-- family; no other spell's runes or store rows move.
 --
--- APPLY ORDER: after 2027-03-08-rune-ladder-hunt-sessions-catalogue.generated.sql (the store rows it names), BEFORE
---              2027-03-08-rune-ladder-slots.sql, whose §0 refuses without it. SAFE TO RE-RUN (create or replace).
+-- APPLY ORDER: after 2027-03-26-one-difficulty-hunt-sessions-catalogue.generated.sql (hr_hunt_abilities carries Undertow,
+--              and this file's self-check compares the two), BEFORE 2027-03-24-undertow-bar.sql, whose default slot names
+--              the Plain Water Rune through hr_hunt_slot_check. SAFE TO RE-RUN (create or replace).
 -- ══════════════════════════════════════════════════════════════
 
 create or replace function public.hr_hunt_rune_spells()
@@ -1561,6 +1567,8 @@ end $$;
 `;
 
 // ── 5. Write or check ────────────────────────────────────────────────────
+/* GROUND PACKS: a whole file carries the base and the folded packs only (tools/pack/whole.mjs), so a new pack re-issues nothing */
+wholeViewOrRerun(import.meta.url, basename(OUT));
 const CHECK = process.argv.includes('--check');
 if (CHECK) {
   const existing = await readFile(OUT, 'utf8').catch(() => null);

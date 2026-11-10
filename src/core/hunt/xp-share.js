@@ -29,18 +29,19 @@
 // Draws nothing. PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_XP } from '../../data/hunt-xp.js?v=0.2.107';
-import { partyClassXp } from '../../data/party-class-xp.js?v=0.2.107';
-import { underFloorSharePm } from '../../data/hunt-grounds.js?v=0.2.107';
-import { skillLevelFromXp, charLevelFromXp } from '../xp.js?v=0.2.107';
-import { makeEvent } from './events.js?v=0.2.107';
+import { HUNT_XP } from '../../data/hunt-xp.js?v=0.2.113';
+import { partyClassXp } from '../../data/party-class-xp.js?v=0.2.113';
+import { underFloorSharePm } from '../../data/hunt-grounds.js?v=0.2.113';
+import { skillLevelFromXp, charLevelFromXp } from '../xp.js?v=0.2.113';
+import { makeEvent } from './events.js?v=0.2.113';
 
 export const PERSISTED = Object.freeze({ unit: Object.freeze([]), world: Object.freeze([['xpGroup', 'json']]), pack: Object.freeze([]) });
 
-/* A hero's multiplier: the injected hook's answer, refused (never clamped) when it is not a number >= 0. */
+/* A hero's multiplier at the kill's own combat time (`sc.atMs`: a live event's window, src/core/live-events.js), the injected hook's
+   answer, refused (never clamped) when it is not a number >= 0. */
 function multOf(sc, hero) {
   const f = sc && typeof sc.xpMultOf === 'function' ? sc.xpMultOf : null;
-  const m = f ? f(hero) : 1;
+  const m = f ? f(hero, sc.atMs) : 1;
   if (typeof m !== 'number' || !Number.isFinite(m) || m < 0) throw new Error('xp-share: xpMultOf answered ' + m + ' for hero ' + (hero && hero.id));
   return m;
 }
@@ -53,7 +54,8 @@ const xpOf = (kill) => {
 
 /**
  * THE SPLIT. `heroes` are the living heroes (objects with an integer `id`, a `role` and, on a settled hunt, `heroLv`), `ground` the ground fought on.
- * Answers { [id]: { xp, raw } }; nobody alive is nobody paid.
+ * Answers { [id]: { xp, raw, ev } }; nobody alive is nobody paid. `ev`: the part of `xp` the hero's multiplier added (a live event's, its
+ * only user), so a personal best can leave it out (hunt_session_tally.xp_event); 0 when the multiplier is 1.
  */
 function splitKillXp(xp, heroes, sc, ground) {
   const out = {};
@@ -65,7 +67,9 @@ function splitKillXp(xp, heroes, sc, ground) {
   for (const h of heroes) {
     const paid = (raw * party * multOf(sc, h)) / 1000;
     const seat = underFloorSharePm(ground, h.heroLv, top);
-    out[h.id] = { xp: Math.floor((seat === 1000 ? paid : (paid * seat) / 1000) + 1e-9), raw: Math.floor(raw + 1e-9) };
+    const at = (p) => Math.floor((seat === 1000 ? p : (p * seat) / 1000) + 1e-9);
+    const amount = at(paid), plain = (raw * party) / 1000;
+    out[h.id] = { xp: amount, raw: Math.floor(raw + 1e-9), ev: paid === plain ? 0 : Math.max(0, amount - at(plain)) };
   }
   return out;
 }
@@ -87,7 +91,7 @@ export function shareKillXp(inst, kill, sc) {
   if (inst && inst.world) flushXpGroup(inst, sc);
   for (const id of ids) {
     answer[id] = paid[id].xp;
-    sc.emit(makeEvent('xp', sc.atMs, { u: Number(id), amount: paid[id].xp, raw: paid[id].raw }));
+    sc.emit(makeEvent('xp', sc.atMs, { u: Number(id), amount: paid[id].xp, raw: paid[id].raw, ...(paid[id].ev > 0 ? { ev: paid[id].ev } : {}) }));
   }
   if (inst && inst.world) {
     const dead = units.find((u) => u.id === kill.t) || null;

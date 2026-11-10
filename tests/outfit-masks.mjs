@@ -19,7 +19,7 @@
 //                  BASE_REGIONS order: head, body, legs, feet) with alpha 255; every other pixel has alpha 0
 //   OM-4 repeat    two runs of the script write byte-identical files, and the committed sources are a fresh run
 //                  (pixels and sidecars)
-//   OM-5 on need   the mask set is its MASK_SETS row for `hunt` and in no list the world loads at first open
+//   OM-5 on need   the mask set is its MASK_SETS row for `heroes` and in no list the world loads at first open
 //                  (ATLAS_SETS, LOADED_SETS, GRID_SETS): the game's first load does not grow
 //
 // mutant-anchors: none — every --selftest mutant edits an in-memory copy of what it reads
@@ -140,7 +140,7 @@ function repeat(t) {
 
 function onNeed(t) {
   const out = [];
-  if (t.sets.masks[MASK_SET] !== 'hunt') out.push(`OM-5 MASK_SETS has no row ${MASK_SET} -> hunt`);
+  if (t.sets.masks[MASK_SET] !== 'heroes') out.push(`OM-5 MASK_SETS has no row ${MASK_SET} -> heroes`);
   for (const [list, sets] of [['ATLAS_SETS', t.sets.atlas], ['LOADED_SETS', t.sets.loaded], ['GRID_SETS', t.sets.grid]]) if (sets.includes(MASK_SET)) out.push(`OM-5 ${MASK_SET} is in ${list}: it would load on the first open, not on need`);
   return out;
 }

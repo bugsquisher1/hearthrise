@@ -1213,6 +1213,9 @@ async function shellGuard() {
        member's session) and the ground the edge builds, never hr_state_of;
        `huntOpen` is hr_hunt_open_of on the accrue/collect paths. */
     'instance', 'window', 'secret', 'ground', 'grid', 'members', 'huntOpen',
+    /* SCALED HUNTS (2027-03-21-scaled-hunts.sql): the Level a window plays, the instance read's `scale` (hr_scaled_hunt_of: the
+       leader's banked hours and the switch), through hunt-settle.js scalePlanOf, never hr_state_of. */
+    'scale',
     /* accrueHunt's world bound: HUNT_TUNING.worldMaxBytes. This key is a TEST seam that
        can only TIGHTEN it (hunt-settle.js passes o.worldMaxBytes, which production never sets). */
     'worldMaxBytes',

@@ -63,7 +63,7 @@ async function load() {
   /* a ground's floor: its hunt's band floor (src/data/hunts.js) */
   const floorOf = (gid) => { const g = HUNT_GROUNDS[gid]; if (!g || !HUNT_INDEX[g.hunt]) throw new Error('gen-ground-stats: no ground ' + gid); return HUNT_INDEX[g.hunt].band[0]; };
   /* who a ground is built for: a pocket that needs a party makes it a party ground (tools/balance-sim plans.mjs reads it the same way) */
-  const fitOf = (gid) => { const g = HUNT_GROUNDS[gid]; return g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit || 'both'; };
+  const fitOf = (gid) => { const g = HUNT_GROUNDS[gid]; return g.pockets.some((p) => p.forParty) ? 'party' : g.groupFit || 'both'; };
   return { MONSTERS, formulaStats, tierRowFor, floorOf, fitOf };
 }
 const fmt = (r) => r.hp + ' hp, atk ' + r.atk + ' @' + r.baseAcc + ', def ' + r.def + ', xp ' + r.xp + ', gp ' + r.gp.join('-');
@@ -82,6 +82,16 @@ function selftest(D) {
   refuse('an unknown role', () => proposeGround('x', D, { roster: { x: { [id]: 'wizard' } } }));
   refuse('an unknown monster', () => proposeGround('x', D, { roster: { x: { no_such_monster: 'swarm' } } }));
   refuse('an unknown ground', () => proposeGround('no_such_ground', D));
+  /* --write finds a row at monsters.js's indent and at a ground pack's (one level deeper), and moves only its stat line */
+  const tmp = join(ROOT, 'tools', 'balance-sim', 'out', 'gen-ground-stats-selftest.js');
+  mkdirSync(dirname(tmp), { recursive: true });
+  const src = readFileSync(join(ROOT, 'src', 'data', 'monsters.js'), 'utf8');
+  for (const [where, text] of [['monsters.js', src], ['a pack file', src.split('\n').map((l) => (l.startsWith('  ') ? '  ' + l : l)).join('\n')]]) {
+    writeFileSync(tmp, text);
+    const moved = writeRows([{ id, formula: { ...f, atk: f.atk + 1 } }], tmp);
+    const diff = readFileSync(tmp, 'utf8').split('\n').filter((l, i) => l !== text.split('\n')[i]);
+    if (moved !== 1 || diff.length !== 1 || !diff[0].includes('atk: ' + (f.atk + 1))) bad.push('--write on ' + where + ' moved ' + moved + ' row(s), ' + diff.length + ' line(s)');
+  }
   if (bad.length) { console.error('gen-ground-stats --selftest: RED\n  ' + bad.join('\n  ')); process.exit(1); }
   console.log('gen-ground-stats --selftest: green (drift caught, unknown role / monster / ground refused)');
 }
@@ -125,14 +135,16 @@ async function main() {
 /* THE ROW'S STAT LINE in monsters.js: `hp: N, atk: N, [baseAcc: N, ]def: N, xp: N, gp: [a, b]` (one line, the house style), with
    `formula: true` after it once the formula owns it (monster-classes.js auditRoster then holds the row to the formula, not to TIER_BANDS). */
 const STAT_LINE = /hp: \d+, atk: \d+, (?:baseAcc: [\d.]+, )?def: \d+, xp: \d+, gp: \[\d+, \d+\](?:, formula: true)?/;
-/** Write each proposed row's formula numbers into src/data/monsters.js, in place. Answers how many rows moved. */
+/** Write each proposed row's formula numbers into src/data/monsters.js (or a ground pack's file, src/data/grounds/<id>/pack.js,
+    where the row sits one level deeper: the row is found at any indent), in place. Answers how many rows moved. */
 export function writeRows(rows, file = join(ROOT, 'src', 'data', 'monsters.js')) {
   const lines = readFileSync(file, 'utf8').split('\n');
   let moved = 0;
   for (const r of rows) {
-    const at = lines.findIndex((l) => l.startsWith('  ' + r.id + ': {'));
-    if (at < 0) throw new Error('gen-ground-stats --write: no row ' + r.id + ' in monsters.js');
-    const end = lines.findIndex((l, i) => i > at && /^ {2}[a-z0-9_]+: \{/.test(l));
+    const at = lines.findIndex((l) => new RegExp('^ +' + r.id + ': \\{').test(l));
+    if (at < 0) throw new Error('gen-ground-stats --write: no row ' + r.id + ' in ' + file);
+    const indent = lines[at].match(/^ +/)[0];
+    const end = lines.findIndex((l, i) => i > at && new RegExp('^' + indent + '[a-z0-9_]+: \\{').test(l));
     const i = lines.findIndex((l, j) => j >= at && (end < 0 || j < end) && STAT_LINE.test(l));
     if (i < 0) throw new Error('gen-ground-stats --write: ' + r.id + ' has no stat line in the house style');
     const f = r.formula;

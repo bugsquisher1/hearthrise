@@ -33,11 +33,11 @@
 // none of them (map-compile.js L-GRID).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=0.2.107';
-import { heroBuilding } from './roofs.js?v=0.2.107';
-import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.107';
-import { vertexGrid, tileKey } from './wang.js?v=0.2.107';
-import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.107';
+import { ySort } from './zsort.js?v=0.2.113';
+import { heroBuilding } from './roofs.js?v=0.2.113';
+import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.113';
+import { vertexGrid, tileKey } from './wang.js?v=0.2.113';
+import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.113';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -312,8 +312,15 @@ function standingOf(map, book, tables, T) {
     for (let x = 0; x < map.w; x++) { const m = tables.materials[map.ground[y * map.w + x]]; if (m && m.solid && !m.flat) cells.push(x, y); }
   }
   const boxes = new Float64Array(map.objects.length * 4);
-  map.objects.forEach((o, i) => { const b = frameBox(book, o.id, o.x, o.y, { fp: [o.fw, o.fh] }, T); boxes.set([b.x, b.y, b.w, b.h], i * 4); });
-  const made = { book, materials: tables.materials, T, n: map.objects.length, cells: Int32Array.from(cells), boxes };
+  /* a placed TOWNSFOLK (a unit sprite standing as a map object: the crier, the smith) breathes on its idle clip; every frame of a
+     sprite shares its size and anchor, so the box below holds for all of them */
+  const folk = new Uint8Array(map.objects.length);
+  map.objects.forEach((o, i) => {
+    const b = frameBox(book, o.id, o.x, o.y, { fp: [o.fw, o.fh] }, T); boxes.set([b.x, b.y, b.w, b.h], i * 4);
+    const s = book.sprite(o.id);
+    folk[i] = s.layer === 'unit' && s.anims && s.anims.idle && s.anims.idle.fps ? 1 : 0;
+  });
+  const made = { book, materials: tables.materials, T, n: map.objects.length, cells: Int32Array.from(cells), boxes, folk };
   STANDING.set(map, made);
   return made;
 }
@@ -321,9 +328,10 @@ function standingOf(map, book, tables, T) {
 /**
  * @param {object} map       compileMap() output
  * @param {object} book      createBook()
- * @param {{hero: {x:number,y:number}|null, name?: string, roofAlpha?: object, t?: number,
- *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null, objectSwap?: Object<string, string>|null}} state
- *                           hero in tile coords (fractional while moving); t = ms clock for idle clips
+ * @param {{hero: {x:number,y:number}|null, name?: string, title?: string|null, roofAlpha?: object, t?: number,
+ *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null, objectSwap?: Object<string, string>|null,
+ *          stillIdle?: boolean}} state
+ *                           hero in tile coords (fractional while moving); t = ms clock for idle clips; stillIdle: idle clips hold frame 0
  * @param {{ox:number, oy:number, w:number, h:number}} view  compose region, art px
  * @param {{materials: object}} tables
  */
@@ -335,7 +343,12 @@ export function composeFrame(map, book, state, view, tables, T) {
   const decals = [], shadows = [], stand = [], raised = [];
   let seq = 0;
 
+  /** @param {string} id @param {number} tx @param {number} ty
+      @param {{anim?: string, dir?: string, i?: number, kind?: string, alpha?: number, ref?: any, bias?: number, raised?: boolean, shadow?: boolean,
+        fp?: number[], crop?: number[], dx?: number, lift?: number}} [o] */
   function place(id, tx, ty, o = {}) {
+    /* IDLE ANIMATIONS OFF (state.stillIdle, src/world/idle-motion.js): every idle clip, any unit's in any scene, holds its first frame */
+    if (state.stillIdle === true && o.anim === 'idle' && o.i) o = Object.assign({}, o, { i: 0 });
     const { s, set, sx, sy, w, h, ax, ay, x, y, fh, air } = frameBox(book, id, tx, ty, o, T);
     const ground = s.class === 'flier' ? air : 0;
     const d = { id, set, sx, sy, w, h, x, y, row: ty * T + fh * T - 1 + (o.bias || 0), seq: seq++, alpha: o.alpha == null ? 1 : o.alpha,
@@ -411,7 +424,10 @@ export function composeFrame(map, book, state, view, tables, T) {
     const o = map.objects[i];
     /* state.objectSwap draws another sprite in a placed object's place ({ havora_weighhouse_staked: 'havora_weighhouse_framed' }: a Town Works stage, src/world/town-works.js).
        The tiles it blocks are the object's own, and a sprite swapped in shares its frame and anchor (tests/town-works.mjs), so the box above still holds. */
-    place((state.objectSwap && state.objectSwap[o.id]) || o.id, o.x, o.y, { fp: [o.fw, o.fh] });
+    const swap = state.objectSwap && state.objectSwap[o.id];
+    /* townsfolk breathe through place() as an idle unit does, on the state's clock, so the Idle animations switch holds them too */
+    if (!swap && standing.folk[i]) place(o.id, o.x, o.y, { fp: [o.fw, o.fh], anim: 'idle', dir: 's', i: clipFrame(book, o.id, 'idle', 's', state.t || 0) });
+    else place(swap || o.id, o.x, o.y, { fp: [o.fw, o.fh] });
   }
 
   const plates = [], bars = [], floats = [], bubbles = [], badges = [], effects = [], points = map.lights.map((l) => ({ x: l.x * T, y: l.y * T, r: l.radius * T, tint: l.tint }));
@@ -423,14 +439,15 @@ export function composeFrame(map, book, state, view, tables, T) {
     return { cx, foot, top: foot - (s.height || 20) - (s.class === 'flier' ? s.hover || 0 : 0) };
   };
   /* PROPS come from state, not the map row (a home's furniture follows the rooms
-     you own): { id, x, y, ref, plate:{text,kind} }, placed exactly like objects. */
+     you own): { id, x, y, ref, plate:{text,kind} }, placed exactly like objects. A plate's `text` is its name line and
+     its `title` (a hero's worn title, or none) the line under it (core/plates.js). */
   for (const o of state.props || []) {
     const d = place(o.id, o.x, o.y, { ref: o.ref });
     if (o.plate) { const hd = head(d); plates.push({ text: o.plate.text, kind: o.plate.kind, x: hd.cx, y: hd.top, alpha: 1, id: o.id, ref: o.ref || null }); }
   }
   /* A unit: { id, x, y, anim, dir, diag, age (ms into the clip) | frame (the clip frame itself, a
      walk chosen by distance), alpha, grey (0..1 toward its corpse tone), recoil ([dx, dy] art px), under (drawn
-     beneath the standing: a corpse), plate:{text,kind,alpha?}, bar, barKind, mana, badge, target, dye }.
+     beneath the standing: a corpse), plate:{text,title?,kind,alpha?}, bar, barKind, mana, badge, target, dye }.
      dir is the cardinal; diag the diagonal of a diagonal step, drawn when the clip has it (core/facing.js). */
   function unit(u, isHero) {
     const anim = u.anim || 'idle';
@@ -443,7 +460,7 @@ export function composeFrame(map, book, state, view, tables, T) {
     const { cx, foot, top } = head(d);
     /* After head(): a recoil moves the art alone, so a full box's blows never shake a name, a bar or the lamp. */
     if (u.recoil) { d.x += u.recoil[0]; d.y += u.recoil[1]; }
-    if (u.plate) plates.push({ text: u.plate.text, kind: u.plate.kind, x: cx, y: top - (u.bar == null ? 0 : 4), alpha: u.plate.alpha != null ? u.plate.alpha : u.alpha == null ? 1 : u.alpha,
+    if (u.plate) plates.push({ text: u.plate.text, title: u.plate.title || null, kind: u.plate.kind, x: cx, y: top - (u.bar == null ? 0 : 4), alpha: u.plate.alpha != null ? u.plate.alpha : u.alpha == null ? 1 : u.alpha,
       /* the plate names its owner, so a right-click on the NAME picks the unit too */ id: u.id, ref: u.ref || null });
     if (u.bar != null) {
       const pct = Math.max(0, Math.min(1, u.bar));
@@ -465,7 +482,7 @@ export function composeFrame(map, book, state, view, tables, T) {
   if (hero) {
     /* The hero is drawn in its style-1 outfit (src/session/hero-look.js); the knight's when none is named. */
     const h = unit(Object.assign({ id: OUTFITS.knight, anim: 'idle', dir: 's' }, hero, {
-      plate: hero.plate || (state.name ? { text: state.name, kind: 'self' } : null) }), true);
+      plate: hero.plate || (state.name ? { text: state.name, title: state.title || null, kind: 'self' } : null) }), true);
     if (map.light === 'cellar') points.push({ x: h.cx, y: h.foot - 18, r: HERO_LIGHT_TILES * T, tint: 'hero' });
   }
   for (const u of state.units || []) unit(u, false);

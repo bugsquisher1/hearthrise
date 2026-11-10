@@ -13,24 +13,24 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.107';
-import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.107';
-import { companionBonus } from './companion-perk.js?v=0.2.107';
-import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.107';
-import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.107';
-import { charLevelFromXp, levelsOf, levelOf, skillXpForLevel } from './xp.js?v=0.2.107';
-import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.107';
-import { newHuntSession, takeLine } from './action-rules.js?v=0.2.107';
-import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.107';
-import { MONSTERS } from '../data/monsters.js?v=0.2.107';
-import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.107';
-import { armourValues, steadyPmOf } from './mitigation.js?v=0.2.107';
-import { isRune } from '../data/runes.js?v=0.2.107';
-import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.107';
-import { STATUSES } from '../data/statuses.js?v=0.2.107';
-import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.107';
-import { LANE_OF } from './hunt/conditions.js?v=0.2.107';
-import { blowsPmOf, armorPmOf } from './temper.js?v=0.2.107';
+import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.113';
+import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.113';
+import { companionBonus } from './companion-perk.js?v=0.2.113';
+import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.113';
+import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.113';
+import { charLevelFromXp, levelsOf, levelOf, skillXpForLevel } from './xp.js?v=0.2.113';
+import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.113';
+import { newHuntSession, takeLine } from './action-rules.js?v=0.2.113';
+import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.113';
+import { MONSTERS } from '../data/monsters.js?v=0.2.113';
+import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.113';
+import { armourValues, steadyPmOf } from './mitigation.js?v=0.2.113';
+import { isRune } from '../data/runes.js?v=0.2.113';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.113';
+import { STATUSES } from '../data/statuses.js?v=0.2.113';
+import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.113';
+import { LANE_OF } from './hunt/conditions.js?v=0.2.113';
+import { blowsPmOf, armorPmOf } from './temper.js?v=0.2.113';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -215,9 +215,12 @@ export function memberSide(mi, ctx) {
     },
     /* LEVEL XP: the kill share xp-share.js already split, whole (Level comes from
        kills only). A Level raises max HP and max mana from the next swing. */
-    addLevelXp(amt, raw) {
+    addLevelXp(amt, raw, ev) {
       const n = Math.max(0, Math.floor(Number(amt) || 0));
       if (!n) return;
+      /* A LIVE EVENT'S PART (xp-share.js `ev`): Level XP like the rest, kept apart so a personal best leaves it out (accrual.js xp_event). */
+      const e = Math.min(n, Math.max(0, Math.floor(Number(ev) || 0)));
+      if (e > 0) hs.tally.xpEvent = (hs.tally.xpEvent || 0) + e;
       /* "Before bonuses": the kill's even share (xp-share.js `raw`), before the party factor and the hero's multiplier. */
       hs.tally.rawLevelXp = (hs.tally.rawLevelXp || 0) + Math.max(0, Math.floor(Number(raw ?? n) || 0));
       const lv0 = charLevelFromXp(state.levelXp);
@@ -422,14 +425,16 @@ function shotItemsOf(hero) {
 /* A peer's jewelry perks, as numbers like its rungs (combat-sim.js syncUnit), so the browser lands its blows and casts as the server does. */
 const jewelSnap = (snap) => ({ ...(snap.followPm ? { followPm: snap.followPm } : {}), ...(snap.surgePm ? { surgePm: snap.surgePm } : {}) });
 
-/** The frozen numbers of an assembled member side at server instant `atMs`, against the monster `kinds`. */
-export function frozenOf(side, kinds, atMs) {
+/** The frozen numbers of an assembled member side at server instant `atMs`, against the monster `kinds` as the instance plays them
+    (`monsters`: a scaled hunt's table, combat-sim.js huntPlayOf; the catalogue when absent). */
+export function frozenOf(side, kinds, atMs, monsters) {
+  const rows = monsters || MONSTERS;
   const m = side.member;
   if (typeof m.buffsAt === 'function') m.buffsAt(atMs);
   const snap = m.snapshot(m.state);
   const vs = {};
   for (const k of kinds) {
-    const row = MONSTERS[k];
+    const row = rows[k];
     const r = row ? m.rollsVs(row) : null;
     if (r) vs[k] = vsRow(r);
   }
@@ -444,7 +449,7 @@ export function frozenOf(side, kinds, atMs) {
         const share = pm < 1000 ? pm : undefined;
         const base = m.shotRolls(null, id, share);
         const per = {};
-        for (const k of kinds) if (MONSTERS[k]) per[k] = vsRow(m.shotRolls(MONSTERS[k], id, share));
+        for (const k of kinds) if (rows[k]) per[k] = vsRow(m.shotRolls(rows[k], id, share));
         shots[shotKey(id, share)] = { maxHit: finiteOr(base && base.maxHit, 1), vs: per };
       }
     }
@@ -457,7 +462,7 @@ export function frozenOf(side, kinds, atMs) {
     shield: m.shield === true, hero: m.hero, session, lv, shots };
 }
 
-/* A monster ROW back to its kind (damage.js hands rollsVs the row). */
+/* A monster ROW back to its kind, for a caller that hands only the row (damage.js hands its kind too: a scaled hunt's row is not the catalogue's). */
 const KIND_OF = new Map(Object.entries(MONSTERS).map(([k, row]) => [row, k]));
 
 /** The engine member of a frozen row (the browser's peer): its numbers, an inert fx, an unbounded purse. */
@@ -478,16 +483,17 @@ export function frozenSide(row) {
     key: row.key, seat: row.seat, unitId: Number.isInteger(row.unitId) ? row.unitId : null, hs, state, fx: {},
     family: f.family, armoured: f.armoured === true, shield: f.shield === true,
     bonus: () => 0, weakness: () => ({ dropMult: 1, damageMult: 1 }), relicMult: () => 1,
-    rollsVs: (r) => {
-      const v = vs[KIND_OF.get(r)];
+    rollsVs: (r, kind) => {
+      const v = vs[kind || KIND_OF.get(r)];
       return v ? rolled(v) : null;
     },
     /* A blow priced by a shot the frozen row holds (frozenOf `shots`); one it does not hold is the worn
        rolls, as before (the server's commit then reconciles it). `m` null = the neutral foe: the max hit. */
-    shotRolls: (m, ammo, sharePm) => {
+    shotRolls: (m, ammo, sharePm, kind) => {
       const s = shots[shotKey(ammo, sharePm)];
       if (m === null || m === undefined) return { maxHit: s ? s.maxHit : snap.maxHit };
-      const v = s ? s.vs[KIND_OF.get(m)] : vs[KIND_OF.get(m)];
+      const k = kind || KIND_OF.get(m);
+      const v = s ? s.vs[k] : vs[k];
       return v ? rolled(v) : { accuracy: snap.acc / 1000, critChance: 0, weak: { damageMult: 1 } };
     },
     snapshot: () => snap,

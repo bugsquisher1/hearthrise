@@ -11,18 +11,19 @@
 // until the server has answered and the re-read envelope has replaced
 // hunt_settings (CLAUDE.md §6). A refusal names its slot and condition.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.107';
-import { STATUSES } from '../data/statuses.js?v=0.2.107';
-import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.107';
-import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.107';
-import { isRune } from '../data/supplies.js?v=0.2.107';
-import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.107';
-import { ITEMS } from '../data/items.js?v=0.2.107';
-import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.107';
-import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.107';
-import { ABILITIES, abilitySkill, versionOf, outputPm } from '../data/abilities.js?v=0.2.107';
-import { refusalWords } from './intent-words.js?v=0.2.107';
-import { skillName } from './widgets/bits.js?v=0.2.107';
+import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.113';
+import { STATUSES } from '../data/statuses.js?v=0.2.113';
+import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.113';
+import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.113';
+import { isRune } from '../data/supplies.js?v=0.2.113';
+import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.113';
+import { ITEMS } from '../data/items.js?v=0.2.113';
+import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.113';
+import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.113';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.113';
+import { refusalWords } from './intent-words.js?v=0.2.113';
+import { skillName } from './widgets/bits.js?v=0.2.113';
+import { t } from '../render/player-text.js?v=0.2.113';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
@@ -100,13 +101,13 @@ export function conditionFor(metric) {
  * copy: with no rows read yet the answer is null. What one use buys:
  *   a store food or drink   that row, per use (it is the slot's item)
  *   a crafted food or drink nothing: own stock only (null)
- *   an ammo line            an arrow's plain partner once yours are gone; the loaded ammo, the partner of
- *                           `worn` (what is in the ammo slot: the free rung has none, nor does an empty slot);
- *                           a rune nothing (its store row feeds spells only: supplies.js isRune)
+ *   an ammo line            an arrow's plain partner once yours are gone; a rune nothing (its store row
+ *                           feeds spells only: supplies.js isRune); the loaded ammo nothing here: it names
+ *                           no item until its caller reads the worn ammo (cast-facts.js stockOf, hunt-go.js shotPlan)
  *   a rune spell            the store rune the slot names; with none, carried runes only
  * { id, name, price, amount } or null.
  */
-export function storeOf(a, rows, worn) {
+export function storeOf(a, rows) {
   if (!a || !a.id || !Array.isArray(rows)) return null;
   const row = (b) => ({ id: b.id, name: storeName(b.id), price: b.price, amount: b.amount });
   if (a.type === 'consume') { const b = rows.find((r) => r.id === a.id); return b ? row(b) : null; }
@@ -114,9 +115,8 @@ export function storeOf(a, rows, worn) {
     const b = a.store ? rows.find((r) => r.id === a.store) : null;
     return b ? row(b) : null;
   }
-  const id = a.type === 'attack_with_item' && a.id === 'loaded' ? worn : a.id;
-  if (!id || (a.type === 'attack_with_item' && isRune(ITEMS[id]))) return null;
-  const b = rows.find((r) => r.partner === id);
+  if (a.type === 'attack_with_item' && (a.id === 'loaded' || isRune(ITEMS[a.id]))) return null;
+  const b = rows.find((r) => r.partner === a.id);
   return b ? row(b) : null;
 }
 
@@ -126,11 +126,12 @@ export function storeName(id) {
 }
 
 /**
- * A RUNE SPELL'S STORE CHOICE (designer 2026-11-05: every default rune slot starts with its store rune on, shown, and the player can change it; the rune ladder, Tyler
- * 2026-11-05): "Carried runes only" (`id` null), then every store row of the spell's family, Plain first, at the
- * server's price a cast. Each row is what the player compares: `mana` a cast, `times` the power against Plain's
- * at the hero's own level (`skills`, the server's; null until it has said), `needs` the level its version takes and
- * `short` when the hero is under it (the engine's rule, abilities.js runeFor: it waits, it never casts a cheaper one).
+ * A RUNE SPELL'S SHOP CHOICE (designer 2026-11-05: every default rune slot starts with its store rune on, shown, and the player can change it; the rune ladder, Tyler
+ * 2026-11-05; RUNE SUPPLY PER SLOT, Tyler 2026-11-08: the shop is what "Buy from the rune shop" buys once the ticked runes run out, and
+ * "Leave the hunt" is its own choice, src/shell/rune-supply.js): every store row of the spell's family, Plain first, at the
+ * server's price a cast. Each row says `needs`, the level its version takes in the spell's skill, and `short` when the
+ * hero (`skills`, the server's; null until it has said) is under it (the engine's rule, abilities.js runeFor: it waits,
+ * it never casts a cheaper one).
  * [] for every other action (a food or drink slot names its one item).
  */
 export function storeChoices(a, rows, skills) {
@@ -143,61 +144,57 @@ export function storeChoices(a, rows, skills) {
   const list = rows.filter((r) => ITEMS[r.partner] && ITEMS[r.partner].family === family && runeTierOf(ITEMS[r.partner]))
     .map((r) => {
       const tier = runeTierOf(ITEMS[r.partner]);
-      return { id: r.id, name: storeName(r.id), price: r.price, tier, mana: versionOf(spell, tier).mana,
-        times: have === null ? null : outputPm(spell, tier, have) / outputPm(spell, 1, have),
+      return { id: r.id, name: storeName(r.id), price: r.price, tier,
         needs: skillName(skill) + ' ' + versionLevel(tier), short: have !== null && have < versionLevel(tier) };
     }).sort((x, y) => x.tier - y.tier);
-  return list.length ? [{ id: null, name: 'Carried runes only', price: null, tier: 0, mana: 0, times: null, needs: '', short: false }].concat(list) : [];
+  return list;
 }
 
-/** A rune choice in words: "Plain Scored Fire Rune · 8 g a cast · 30 mana · 1.6x the power", or what it waits for. */
-export function storeChoiceWords(c) {
-  if (c.price === null) return c.name;
-  const power = c.tier > 1 && c.times !== null ? ' · ' + (Math.round(c.times * 10) / 10) + 'x the power' : '';
-  return c.name + ' · ' + c.price + ' g a cast · ' + c.mana + ' mana' + (c.short ? ' · needs ' + c.needs : power);
+/** A shop rune in words: "Scored Fire Rune · 8 g each · 10–17 damage" (`out`: what one cast lands for this hero, cast-facts.js
+    outputWords; Tyler 2026-11-08, never a share), or the level it waits for. */
+export function storeChoiceWords(c, out) {
+  return t(c.short ? 'bar.shop_rune_short' : out ? 'bar.shop_rune' : 'bar.shop_rune_plain', { name: c.name, price: c.price, needs: c.needs, out: out || '' });
 }
 
-/** The store choice a freshly picked rune spell starts with: Plain, its family's cheapest row (shown, changeable), else
+/** The shop rune a freshly picked rune spell starts with: Plain, its family's cheapest row (shown, changeable), else
     none. Never a deeper tier: that is the player's own pick (Tyler 2026-10-21, the game never decides which supply is best). */
 export function storeDefault(a, rows) {
   const c = storeChoices(a, rows);
-  return c.length > 1 ? c[1].id : null;
+  return c.length ? c[0].id : null;
 }
 
-/** The store line in words: "then the store's, from 14 g each, paid as used". */
-export function storeWords(st) {
-  return st ? 'then the store’s ' + st.name + ', ' + st.price + ' g each, paid as used' : '';
+/** A comparison in the words of metric `m`'s kind (condition-metrics.js OPERATORS): "is at most" for a percent, "at least"
+    for a count, "has" for an effect. Configure action's picker and the slot's summary both read it. */
+export function opWords(op, m) {
+  const o = OPERATORS[op];
+  return (o && (m && (m.value === 'pct' || m.value === 'count') ? o[m.value] : o.say)) || op;
 }
 
-function valueWords(c, m) {
-  if (m.value === 'pct') return c.value + '%';
-  if (m.value === 'effect') return (STATUSES[c.value] && STATUSES[c.value].name) || String(c.value);
-  return String(c.value);
+/** A number's unit, read right after it: '%' for a percent ("50%"), a count's noun by the number (" monster", " monsters"), else ''. */
+export function unitWords(m, value) {
+  if (!m || !m.unit) return '';
+  return Array.isArray(m.unit) ? ' ' + m.unit[value === 1 ? 0 : 1] : m.unit;
 }
 
 /* Whose effect, as the subject of a sentence (an effect test reads "my target lacks Burn", "I have Shielded"). */
 const EFFECT_WHO = Object.freeze({ target: 'my target', self: 'I', ally: 'the ally I would heal' });
 
-/** One condition as a plain sentence, in the words Configure action uses (the registry's `say`): "my HP is at or
-    below 50%", "the HP of the lowest ally is below 60%", "the number of allies under half health is above 1". Never
-    the picker's labels ("My HP % below 50%" read like a form field on every slot's tooltip, core-loop play 2026-10-30). */
+/** One condition as a plain sentence, word for word what Configure action's picker reads (Tyler 2026-11-08, "at or above 2
+    what?"): "my HP is at most 50%", "the HP of the lowest ally is below 60%", "it would hit at least 2 monsters", "the party
+    has at least 2 heroes under half health". A count names its noun after the number; never a form label. */
 export function conditionWords(c) {
   const m = METRIC.get(c.metric);
   if (!m) return c.metric;
-  const op = OPERATORS[c.op] ? OPERATORS[c.op].say : c.op;
-  if (m.value === 'bool') {
-    const what = m.label.charAt(0).toLowerCase() + m.label.slice(1);
-    return (c.op === 'eq') === (c.value === true) ? what : what.replace(' is ', ' is not ');
-  }
+  if (m.value === 'bool') return (c.op === 'eq') === (c.value === true) ? m.say : m.say.replace(' is ', ' is not ');
   if (m.value === 'effect') {
     const who = EFFECT_WHO[c.subject] || EFFECT_WHO.target;
-    const verb = who === 'I' ? (c.op === 'has_effect' ? 'have' : 'lack') : op;
-    return who + ' ' + verb + ' ' + valueWords(c, m);
+    const verb = who === 'I' ? (c.op === 'has_effect' ? 'have' : 'lack') : opWords(c.op, m);
+    return who + ' ' + verb + ' ' + ((STATUSES[c.value] && STATUSES[c.value].name) || String(c.value));
   }
-  const whose = c.subject && m.subject ? ' ' + (m.subject[c.subject] || c.subject) : '';
-  /* a count of things reads as "the number of ..." (allies, monsters); a count left in the bag already says "what" */
-  const what = m.value === 'count' && !/^what /.test(m.say) ? 'the number of ' + m.say.replace(/^the /, '') : m.say;
-  return what + whose + ' ' + op + ' ' + valueWords(c, m);
+  /* the subject the picker shows: the condition's, else the first (conditionFor's default) */
+  const key = m.subject ? (c.subject && Object.prototype.hasOwnProperty.call(m.subject, c.subject) ? c.subject : Object.keys(m.subject)[0]) : null;
+  const subject = key ? ' ' + m.subject[key] : '';
+  return m.say + (m.subjectAfter ? '' : subject) + ' ' + opWords(c.op, m) + ' ' + c.value + unitWords(m, c.value) + (m.subjectAfter ? subject : '');
 }
 
 

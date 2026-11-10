@@ -21,6 +21,9 @@
 //            printed as the data rows to paste; the fit is never written into src/data by this tool
 //   --fit-past  with --fit: hold `first` and every bracket starting under the ceiling as they are, re-fit only the
 //            brackets past it (a new contract): the careers never pass the ceiling, so nothing needs re-measuring
+//   --fit-from L  with --fit: the same hold from Level L, the floor of a new ground UNDER the ceiling (lane/b-ground-pack phase 3):
+//            every bracket starting under its floor keeps what it costs, so a ground fits the curve from its own floor up and
+//            never re-prices the Levels under it (re-measure first: the careers play it)
 //   --write  the committed snapshot tools/balance-sim/level-pace.json that tests/level-curve.mjs judges the curve with
 //   --dash   the Balance Dashboard's level data (level-pace.json, findings.json, balance-cells.csv) into DIR
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
@@ -40,18 +43,26 @@ const u = (p) => pathToFileURL(join(ROOT, p)).href;
    of it makes the measured pace stale (tests/level-curve.mjs C1). Monsters on the open grounds: xp, hp, level, atk,
    def (never loot); every open ground: its hunt, band, group fit, solo Level, respawn and pockets (spawns and packs);
    and the Hunts window's default pick for a lone hero at every Level to the ceiling (its behaviour, not its source:
-   a comment edit to the recommendation trips nothing, a new pick does). ── */
-export function paceFingerprint(D) {
-  const grounds = Object.values(D.OPEN_GROUNDS).sort((a, b) => (a.id < b.id ? -1 : 1));
+   a comment edit to the recommendation trips nothing, a new pick does).
+   PER GROUND, UNDER THE CEILING (lane/b-ground-pack, phase 3): `ceiling` is the snapshot's (the top of the content it measured).
+   Only the grounds whose floor sits under it are what the careers played, and the pick is read to it; a ground from the ceiling
+   up (a new pack past the content, Level 50-65) moves neither, so it needs no re-measure and no re-fit below its floor (the pick
+   is read to the Level under the ceiling: a career stops AT the ceiling, so where the window sends a hero of that Level is never
+   played, and a pack from the ceiling up is exactly what it would send there): the
+   brackets past the ceiling follow LEVEL_PACE.contract, which the pack's own check grades it against (tools/pack.mjs check). A
+   ground under the ceiling still moves it, and a new pick at any Level to the ceiling does. With no ceiling, the top of every band. ── */
+export function paceFingerprint(D, ceiling = null) {
+  const all = Object.values(D.OPEN_GROUNDS).sort((a, b) => (a.id < b.id ? -1 : 1));
+  const cap = ceiling == null ? Math.max(...all.map((x) => D.HUNT_INDEX[x.hunt].band[1])) : ceiling;
+  const grounds = all.filter((x) => D.HUNT_INDEX[x.hunt].band[0] < cap);
   const ids = new Set();
   const g = grounds.map((x) => {
     for (const p of x.pockets) for (const s of [...(p.pack || []), ...(p.spawns || [])]) ids.add(s.monster);
     return { id: x.id, hunt: x.hunt, band: D.HUNT_INDEX[x.hunt].band, groupFit: x.groupFit, soloFrom: x.soloFrom || null, respawnMs: x.respawnMs,
-      pockets: x.pockets.map((p) => ({ minParty: p.minParty || null, pack: (p.pack || []).map((s) => [s.monster, s.n]), spawns: (p.spawns || []).map((s) => [s.monster, s.n]) })) };
+      pockets: x.pockets.map((p) => ({ forParty: p.forParty || null, pack: (p.pack || []).map((s) => [s.monster, s.n]), spawns: (p.spawns || []).map((s) => [s.monster, s.n]) })) };
   });
   const m = [...ids].sort().map((id) => { const r = D.MONSTERS[id] || {}; return [id, r.xp, r.hp, r.level, r.atk, r.def]; });
-  const top = Math.max(...grounds.map((x) => D.HUNT_INDEX[x.hunt].band[1]));
-  const pick = Array.from({ length: top }, (_, i) => D.recommend(i + 1));
+  const pick = Array.from({ length: cap - 1 }, (_, i) => D.recommend(i + 1));
   return createHash('sha256').update(JSON.stringify({ g, m, pick })).digest('hex').slice(0, 16);
 }
 export async function loadPaceData(root = ROOT) {
@@ -252,6 +263,7 @@ async function main() {
   const AR = await import(u('src/core/action-rules.js') + '?v=' + BUILD.version);
   const { LEVEL_CURVE, LEVEL_PACE } = await import(u('src/data/core-model.js'));
   const { BLESSING_TIERS } = await import(u('src/data/blessings.js'));
+  const HS = await import(u('src/data/hunt-sessions.js') + '?v=' + BUILD.version);
   const D = await loadPaceData();
   const PACE = resolve(arg('pace', join(HERE, 'out', 'pace')));
   const careers = readRows(PACE).filter((r) => r.kind === 'career' && r.party.length === 1 && !Number.isInteger(r.density));
@@ -271,7 +283,7 @@ async function main() {
     commit: (() => { try { return execSync('git rev-parse --short HEAD', { cwd: ROOT }).toString().trim(); } catch { return null; } })(),
     version: BUILD.version,
     curve: JSON.parse(JSON.stringify(LEVEL_CURVE)),
-    fingerprint: paceFingerprint(D),
+    fingerprint: paceFingerprint(D, ceiling),
     ceiling,
     reference: 'median of ' + careers.length + ' solo styles, Level 1 to ' + ceiling + ', where the Hunts window recommends, as built (tools/balance-sim plan pace)',
     styles: careers.map((c) => c.party[0]),
@@ -302,7 +314,7 @@ async function main() {
     prevL = L; prevH = h;
   }
   console.log('measured (median of styles): ' + Object.entries(measured).map(([L, h]) => 'L' + L + ' ' + (h == null ? '-' : h.toFixed(2) + ' h')).join(', '));
-  /* WHAT AN UNBLESSED DEATH COSTS mid-Level (2% of total Level XP, never below the Level's start), in hours at the
+  /* WHAT AN UNBLESSED DEATH COSTS mid-Level (DEATH_XP_LOSS of the total Level XP, which can take a Level), in hours at the
      reference rate, and with each Blessing */
   const death = [10, 25, 50, 100, 200, 500, 1000].map((L) => {
     const x0 = XP.charXpForLevel(L), mid = x0 + Math.floor((XP.charXpForLevel(L + 1) - x0) / 2);
@@ -323,7 +335,9 @@ async function main() {
     const froms = holdLevel ? [...arg('froms', '1').split(',').map(Number), ...LEVEL_CURVE.brackets.filter((b) => b.from >= holdLevel).map((b) => b.from)]
       : LEVEL_CURVE.brackets.map((b) => b.from);
     /* --fit-past: re-fit only the brackets from the ceiling on (a new contract, no re-measure: the careers never pass it) */
-    const hold = flag('fit-past') ? { ...LEVEL_CURVE, below: ceiling } : null;
+    const fitFrom = Number(arg('fit-from', 0)) || null;
+    if (fitFrom && flag('fit-past')) { console.error('pace --fit: --fit-past and --fit-from are one hold, pick one'); process.exit(2); }
+    const hold = flag('fit-past') ? { ...LEVEL_CURVE, below: ceiling } : fitFrom ? { ...LEVEL_CURVE, below: fitFrom } : null;
     const holdFrom = holdLevel ? { level: holdLevel, curve: LEVEL_CURVE, step: XP.charXpForLevel(holdLevel + 1) - XP.charXpForLevel(holdLevel) } : null;
     /* the guard's rule (LEVEL_PACE.smooth: no Level below the ceiling more than `ratio` times the hours of the one before)
        plus --bands "from:to:lo:hi,..." (e.g. "5:9:1.4:1.8": Levels 5-10 each 1.4-1.8x the one before) */
@@ -373,16 +387,17 @@ async function main() {
       gap: LEVEL_PACE.targets.every(([L]) => Math.abs(tgt(L).err) <= LEVEL_PACE.tolerance) ? 'OK' : 'Major',
       proposal: 'Shipped: every target within ' + Math.round(Math.max(...LEVEL_PACE.targets.map(([L]) => Math.abs(tgt(L).err))) * 1000) / 10 + '% (tests/level-curve.mjs pins it). New grounds past L50 must pay the contract.',
       decides: 'Done (layer 1); grounds past L50 are the designer\'s' });
-      /* the first Level where a mid-Level death's 2% of total reaches the Level's start (the never-de-level floor binds) */
-      let capFrom = null;
-      for (let L = 2; L <= 1000 && capFrom === null; L++) {
+      /* the first Level where a mid-Level death's share of the total is more than the Level's own progress (it takes a Level; Tyler 2026-11-09) */
+      let takesFrom = null;
+      for (let L = 2; L <= 1000 && takesFrom === null; L++) {
         const x0 = XP.charXpForLevel(L), mid = x0 + Math.floor((XP.charXpForLevel(L + 1) - x0) / 2);
-        if (AR.levelDeathLoss(mid) >= mid - x0) capFrom = L;
+        if (AR.levelDeathLoss(mid) > mid - x0) takesFrom = L;
       }
       const d9 = f.find((x) => x.id === 'D9');
       const dc = (L) => death.find((x) => x.level === L);
       if (d9) Object.assign(d9, { measured: 'Unblessed death mid-Level: L10 ' + dc(10).unblessedHours + ' h, L50 ' + dc(50).unblessedHours + ' h, L100 ' + dc(100).unblessedHours + ' h, L200 '
-        + dc(200).unblessedHours + ' h, L500 ' + dc(500).unblessedHours + ' h. From L' + capFrom + ' a mid-Level death\'s 2% of total XP is more than the Level\'s own progress, so the never-de-level floor decides it (at most one Level\'s hours).' });
+        + dc(200).unblessedHours + ' h, L500 ' + dc(500).unblessedHours + ' h. A death takes ' + Math.round(HS.DEATH_XP_LOSS * 100) + '% of the total Level XP and can take a Level'
+        + (takesFrom ? ' (mid-Level, from L' + takesFrom + ')' : '') + ', never below Level 1.' });
       /* what the slower curve does to the systems tied to Level (measured on the same careers) */
       const main = (c, L) => { const s = (snap.careers[c.party[0]].skillsAt || {})[L]; return s ? Math.max(s.melee, s.ranged, s.magic) : null; };
       const skillAt = (L) => median(careers.map((c) => main(c, L)));

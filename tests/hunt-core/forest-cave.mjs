@@ -50,6 +50,11 @@ import { makeReport, ROOT } from './fixtures/h1.js';
 
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const NEW = ['meadowbrook_thicket', 'coppercap_warrens', 'mosslight_glade', 'wickstead'];
+/* THE WALKED GROUNDS, LOOPED (lane/b-ground-pack phase 2): the base four above stay the literal anchor, and every ground pack
+   (src/data/grounds) is walked by definition, so a new ground is checked here with no edit. Its one-tile choke, when it has
+   one, is its own fact (the pack's checks.bridge); a ground with no single choke (The Slake's four crossings) makes no claim. */
+const walkedOf = (M) => [...NEW, ...M.packs.filter((p) => !NEW.includes(p.id)).map((p) => p.id)];
+const bridgeOf = (M, id) => BRIDGE[id] || ((M.packs.find((p) => p.id === id) || {}).checks || {}).bridge || null;
 const BRIDGE = { meadowbrook_thicket: [[28, 5], [29, 5], [30, 5], [31, 5], [32, 5]], coppercap_warrens: [[51, 20], [51, 21], [51, 22]],
   mosslight_glade: [[44, 19], [44, 20], [44, 21], [44, 22], [44, 23]], wickstead: [[28, 8], [29, 8], [30, 8], [31, 8]] };
 const MID_DENSITY = 4;
@@ -57,6 +62,9 @@ const RING8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1,
 /* The designer's six hunt seeds (pass 2026-10-21) and the margin floor (+25%, a minimum: Tyler 10-18/10-20). */
 const STARTER_SEEDS = Object.freeze(['-4611686018427387904', '1234567890123', '-987654321987', '42', '7777777777777', '-31415926535']);
 const STARTER_MARGIN_MIN = 25;
+/* THE GLADE'S FLOOR MAY BE THIN (Tyler 2026-11-09, on its +15-25% over its bill in four plate pieces: "fine"; a ruled bar, not a loosened one):
+   it must still pay its way, at least this much over its bill on every seed. */
+const GLADE_MARGIN_MIN = 10;
 const BILL_SHARE_FOR_MARGIN = 0.25;   // the margin floor applies where store >= 25% of income
 /* The start flow's grounds in order: [ground, roles], each played at its floor in the reference (ladder) kit. */
 const FIRST_CHAIN = Object.freeze([['mill_cellar', ['tank']], ['meadowbrook_thicket', ['tank']],
@@ -70,7 +78,7 @@ async function load(root) {
     grounds: await imp('src/data/hunt-grounds.js'), hunts: await imp('src/data/hunts.js'), MONSTERS: (await imp('src/data/monsters.js')).MONSTERS,
     maps: await imp('src/data/world/maps/index.js'), terrain: await imp('src/data/world/terrain.js'), mapc: await imp('src/world/core/map-compile.js'),
     sets: await imp('src/data/world/atlas-sets.js'), gathering: await imp('src/data/gathering.js'), budget: await imp('src/data/world/art-budget.js'),
-    kit: await imp('src/data/start-kit.js'),
+    kit: await imp('src/data/start-kit.js'), packs: (await imp('src/data/grounds/index.js')).GROUND_PACKS,
   };
 }
 
@@ -135,7 +143,7 @@ const BOSSES = new Set(['rat_king', 'grayjaw', 'chief_coppercap', 'rook_poacher'
 
 const cases = {
   'packs-on-the-map': (M) => {
-    for (const id of NEW) {
+    for (const id of walkedOf(M)) {
       const g = M.grounds.HUNT_GROUNDS[id];
       const m = maskOf(M, g.map);
       if (!m) return id + ': no world map';
@@ -156,11 +164,12 @@ const cases = {
     return null;
   },
   'one-choke': (M) => {
-    for (const id of NEW) {
+    for (const id of walkedOf(M)) {
       const g = M.grounds.HUNT_GROUNDS[id];
       const m = maskOf(M, g.map);
-      const br = new Set(BRIDGE[id].map((t) => t.join(',')));
-      for (const [x, y] of BRIDGE[id]) if (!m.open(x, y)) return id + ': the bridge tile ' + x + ',' + y + ' is not open';
+      if (!bridgeOf(M, id)) continue;
+      const br = new Set(bridgeOf(M, id).map((t) => t.join(',')));
+      for (const [x, y] of bridgeOf(M, id)) if (!m.open(x, y)) return id + ': the bridge tile ' + x + ',' + y + ' is not open';
       /* the passages are the GROUND's (props against a wall leave nooks, not passages); props are held
          to never cutting the walk: everything open on the ground, less the props' own tiles, is reached */
       const ground = (x, y) => x >= 0 && y >= 0 && x < m.map.w && y < m.map.h && !(M.terrain.MATERIALS[m.map.ground[y * m.map.w + x]] || {}).solid;
@@ -183,14 +192,14 @@ const cases = {
       }
       /* the route leans on it: some leg of the route walks over the bridge, and without it that leg is cut or longer */
       const legs = g.route.map((p, i) => [g.pockets[p].pull, g.pockets[g.route[(i + 1) % g.route.length]].pull]);
-      if (!legs.some(([a, b]) => { const w = dist(m, a, b, []), wo = dist(m, a, b, BRIDGE[id]); return w !== null && (wo === null || wo > w); })) {
+      if (!legs.some(([a, b]) => { const w = dist(m, a, b, []), wo = dist(m, a, b, bridgeOf(M, id)); return w !== null && (wo === null || wo > w); })) {
         return id + ': no leg of the route crosses the bridge, so it is no choke';
       }
     }
     return null;
   },
   'route-walk-through': (M) => {
-    for (const id of NEW) {
+    for (const id of walkedOf(M)) {
       const g = M.grounds.HUNT_GROUNDS[id];
       const m = maskOf(M, g.map);
       const all = reach(m, m.row.start, []);
@@ -202,7 +211,7 @@ const cases = {
     return null;
   },
   'density-full-box': (M) => {
-    for (const id of NEW) {
+    for (const id of walkedOf(M)) {
       const g = M.grounds.HUNT_GROUNDS[id];
       for (const [i] of g.pockets.entries()) {
         if (packAt(M, g, i, 8).length !== 8) return id + ' pocket ' + i + ': no full box';
@@ -213,11 +222,12 @@ const cases = {
   },
   'spawn-mix': (M) => {
     const RANK = { common: 3, uncommon: 2, rare: 1 };
-    for (const id of ['mill_cellar', 'millrace_sewer', ...NEW]) {
+    for (const id of ['mill_cellar', 'millrace_sewer', ...walkedOf(M)]) {
       const h = M.hunts.HUNT_INDEX[id];
       const g = M.grounds.HUNT_GROUNDS[id];
       const n = headCount(M, g);
-      for (const b of BOSSES) delete n[b];
+      /* a room holder is no weight: the base ones by name, a pack's from its own checks.holders */
+      for (const b of [...BOSSES, ...M.packs.flatMap((p) => ((p.checks || {}).holders || []))]) delete n[b];
       const w = Object.fromEntries(h.spawns.map((s) => [s.monster, s.w]));
       for (const k of new Set([...Object.keys(n), ...Object.keys(w)])) {
         if (n[k] !== w[k]) return id + ': ' + k + ' weighs ' + w[k] + ' but its packs hold ' + (n[k] || 0);
@@ -237,7 +247,7 @@ const cases = {
   'gather-nodes': (M) => {
     const rows = Object.fromEntries([...M.gathering.TREES.map((r) => [r.id, ['woodcutting', r]]), ...M.gathering.ROCKS.map((r) => [r.id, ['mining', r]])]);
     const spr = sprites(M);
-    for (const id of NEW) {
+    for (const id of walkedOf(M)) {
       const g = M.grounds.HUNT_GROUNDS[id];
       const h = M.hunts.HUNT_INDEX[id];
       const m = maskOf(M, g.map);
@@ -298,7 +308,7 @@ const cases = {
   },
   'walk-art': (M) => {
     const spr = sprites(M);
-    for (const id of NEW) {
+    for (const id of walkedOf(M)) {
       if (M.hunts.HUNT_INDEX[id].staged === true) continue;   // staged: no art yet, held by staged-until-art
       const g = M.grounds.HUNT_GROUNDS[id];
       const kinds = new Set(g.pockets.flatMap((p, i) => packAt(M, g, i, 8).map((s) => s.monster)));
@@ -451,16 +461,16 @@ cases['glade-between'] = async (M) => {
     for (const secret of STARTER_SEEDS) {
       const x = P.run(gid, floor, roles, { spanMs: 3600000, secret, fullSet });
       nets.push(x.income - x.store); xps.push(x.levelXp);
-      if (gid === GLADE && x.store >= BILL_SHARE_FOR_MARGIN * x.income && (x.income / x.store - 1) * 100 < STARTER_MARGIN_MIN) {
-        bad.push(gid + ' seed ' + secret + ' in its four plate pieces: ' + Math.round((x.income / x.store - 1) * 100) + '% over its bill, under +' + STARTER_MARGIN_MIN + '%');
+      if (gid === GLADE && x.store >= BILL_SHARE_FOR_MARGIN * x.income && (x.income / x.store - 1) * 100 < GLADE_MARGIN_MIN) {
+        bad.push(gid + ' seed ' + secret + ' in its four plate pieces: ' + Math.round((x.income / x.store - 1) * 100) + '% over its bill, under +' + GLADE_MARGIN_MIN + '%');
       }
     }
     rows.push({ gid, floor, net: median(nets), xp: median(xps) });
   }
   console.log('    per hero-hour at the floor (6-seed median), net g | Level XP: ' + rows.map((r) => r.gid + ' L' + r.floor + ' ' + r.net + ' | ' + r.xp).join(' -> '));
+  /* THE STEP UP PAYS MORE GOLD OR MORE XP (Tyler 2026-11-09: grounds may differ, gold against XP; a ruled bar, not a loosened one), never less of both. */
   for (let i = 1; i < rows.length; i++) {
-    if (!(rows[i].net > rows[i - 1].net)) bad.push(rows[i].gid + ' nets ' + rows[i].net + ' g/h, not above ' + rows[i - 1].gid + "'s " + rows[i - 1].net);
-    if (!(rows[i].xp > rows[i - 1].xp)) bad.push(rows[i].gid + ' gives ' + rows[i].xp + ' Level XP/h, not above ' + rows[i - 1].gid + "'s " + rows[i - 1].xp);
+    if (!(rows[i].net > rows[i - 1].net || rows[i].xp > rows[i - 1].xp)) bad.push(rows[i].gid + ' nets ' + rows[i].net + ' g/h and gives ' + rows[i].xp + ' Level XP/h, neither above ' + rows[i - 1].gid + "'s " + rows[i - 1].net + ' and ' + rows[i - 1].xp);
   }
   return bad.length ? bad.join('; ') : null;
 };
@@ -478,28 +488,36 @@ cases['harder-pays-more'] = async (M) => {
   const { effectiveDropChance } = await imp('src/core/drops.js');
   const bad = [], ids = new Set();
   for (const g of Object.values(M.grounds.OPEN_GROUNDS)) for (const p of g.pockets) for (const s of [...(p.pack || []), ...(p.spawns || [])]) ids.add(s.monster);
-  const bid = (d, y) => effectiveDropChance(d, { dropMult: 1, yieldMult: y }) * P.vendorPriceOf(P.ITEMS, d.id);
-  const coinOf = (m, y) => { let t = 0; for (let v = m.gp[0]; v <= m.gp[1]; v++) t += Math.round(v * y); return t / (m.gp[1] - m.gp[0] + 1); };
-  const kill = (m, y) => coinOf(m, y) + (m.drops || []).reduce((s, d) => s + bid(d, y), 0);
+  const bid = (d) => effectiveDropChance(d, { dropMult: 1 }) * P.vendorPriceOf(P.ITEMS, d.id);
+  const coinOf = (m) => (m.gp[0] + m.gp[1]) / 2;
+  const kill = (m) => coinOf(m) + (m.drops || []).reduce((s, d) => s + bid(d), 0);
   const sum = HARDNESS_BANDS.concat(Infinity).map(() => ({ n: 0, g: 0 }));
   for (const id of ids) {
     const m = M.MONSTERS[id], b = sum[HARDNESS_BANDS.concat(Infinity).findIndex((top) => m.hp * m.atk < top)];
-    b.n++; b.g += kill(m, 1);
+    b.n++; b.g += kill(m);
   }
   const means = sum.map((b) => (b.n ? b.g / b.n : 0));
   console.log('    a kill\'s gold by hp x attack, under ' + HARDNESS_BANDS.join(' / ') + ' / above: ' + means.map((v) => Math.round(v)).join(' -> '));
   for (let i = 1; i < means.length; i++) if (!(means[i] > means[i - 1])) bad.push('a kill past hp x attack ' + HARDNESS_BANDS[i - 1] + ' pays ' + Math.round(means[i]) + ' g, not above ' + Math.round(means[i - 1]) + ' g below it');
+  /* AN HOUR ABOVE PAYS MORE GOLD OR MORE XP (Tyler 2026-11-09: "it doesn't all need to be uniform, people should figure out which hunts are good for exp and
+     which are good for gold"; a ruled bar, not a loosened one): staying on the weaker ground may pay more gold, never more of both. */
   const hour = (gid, L, roles, fullSet) => {
     const x = P.run(gid, L, roles, { spanMs: 1800000, fullSet, secret: STARTER_SEEDS[0] });
-    const y = M.grounds.yieldPermille(roles.length) / 1000, h = x.playedMs / 3600000;
+    const h = x.playedMs / 3600000;
     let g = 0;
-    for (const [id, k] of Object.entries(x.killsBy)) g += k * kill(M.MONSTERS[id], y);
-    return Math.round((g - x.totals.store) / roles.length / h);
+    for (const [id, k] of Object.entries(x.killsBy)) g += k * kill(M.MONSTERS[id]);
+    return { gold: Math.round((g - x.totals.store) / roles.length / h), xp: Math.round(x.levelXp / h) };
   };
-  for (const [L, roles, low, high, fullSet] of CLIMB) {
+  /* a ground pack climbs from the open ground under it by floor (band order, from the data), a lone tank in its own-tier set at its floor */
+  const floorOf = (g) => M.hunts.HUNT_INDEX[M.grounds.OPEN_GROUNDS[g].hunt].band[0];
+  const climbs = [...CLIMB, ...M.packs.filter((p) => M.grounds.OPEN_GROUNDS[p.id]).map((p) => {
+    const below = Object.keys(M.grounds.OPEN_GROUNDS).filter((g) => g !== p.id && floorOf(g) < floorOf(p.id)).sort((a, b) => floorOf(b) - floorOf(a))[0];
+    return below ? [floorOf(p.id), ['tank'], below, p.id, true] : null;
+  }).filter(Boolean)];
+  for (const [L, roles, low, high, fullSet] of climbs) {
     const a = hour(low, L, roles, fullSet), b = hour(high, L, roles, fullSet), who = roles.length > 1 ? 'a party of ' + roles.length : 'a lone ' + roles[0];
-    console.log('    ' + who + ' at L' + L + ', gold an hour, all sold: ' + low + ' ' + a + ' -> ' + high + ' ' + b);
-    if (!(b > a)) bad.push(who + ' at L' + L + ' earns ' + a + ' g/h on ' + low + ' and ' + b + ' g/h on ' + high + ': staying on the weaker ground pays');
+    console.log('    ' + who + ' at L' + L + ', gold an hour, all sold | Level XP an hour: ' + low + ' ' + a.gold + ' | ' + a.xp + ' -> ' + high + ' ' + b.gold + ' | ' + b.xp);
+    if (!(b.gold > a.gold || b.xp > a.xp)) bad.push(who + ' at L' + L + ' earns ' + a.gold + ' g/h and ' + a.xp + ' XP/h on ' + low + ', ' + b.gold + ' and ' + b.xp + ' on ' + high + ': staying on the weaker ground pays more of both');
   }
   return bad.length ? bad.join('; ') : null;
 };
@@ -533,8 +551,8 @@ cases['wickstead-solo-floor'] = async (M) => {
 
 /* The glade put back to STAGED as a whole (flag + map), so the two leak mutants below have a staged hunt to leak. */
 const RESTAGE = [['src/data/hunts.js', "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000,", "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000, staged: true,"],
-  ['src/data/world/maps/index.js', 'meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, sandboxHd64]);', 'meadowbrookThicket, coppercapWarrens, wickstead, sandboxHd64]);'],
-  ['src/data/world/maps/index.js', 'export const STAGED_MAPS = Object.freeze([]);', 'export const STAGED_MAPS = Object.freeze([mosslightGlade]);']];
+  ['src/data/world/maps/index.js', "meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, sandboxHd64, ...packMaps('open')]);", "meadowbrookThicket, coppercapWarrens, wickstead, sandboxHd64, ...packMaps('open')]);"],
+  ['src/data/world/maps/index.js', "export const STAGED_MAPS = Object.freeze([...packMaps('staged')]);", "export const STAGED_MAPS = Object.freeze([mosslightGlade, ...packMaps('staged')]);"]];
 const mutants = [
   /* the glade is OPEN on its art (lane b-mosslight-art): it must stay open only while its painted ground ships */
   { name: 'the glade open on a ground no atlas carries', case: 'staged-until-art',
@@ -546,43 +564,43 @@ const mutants = [
   { name: 'the server catalogue serves a staged ground', case: 'staged-until-art',
     edits: [...RESTAGE, ['tools/gen-hunt-sessions.mjs', "    grounds: OPEN_GROUNDS, worldMaxBytes:", "    grounds: HUNT_GROUNDS, worldMaxBytes:"],
       ['tools/gen-hunt-sessions.mjs', "hunts: OPEN_HUNTS, monsters: MONSTERS, items: ITEMS,", "hunts: HUNTS, monsters: MONSTERS, items: ITEMS,"],
-      ['tools/gen-hunt-sessions.mjs', "import { OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf }", "import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf }"]] },
+      ['tools/gen-hunt-sessions.mjs', "import { OPEN_GROUNDS, DENSITY_PICK, MAX_HEROES, densityFor, reachableOf }", "import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, MAX_HEROES, densityFor, reachableOf }"]] },
   /* Recalibrated (designer 2026-10-22, armour weights K7 + tier-3 blows at 4.0 + store-by-slot bars): a ladder-kit
      floor hero now LIVES Warrens-strength hits (atk 26, 30, 36, 42, 50 all lived six seeds of six, eating 3-8k g/h),
      so "like the Warrens" no longer proves lethality. The floor still bites: at atk 60 three seeds of six die, at
      72 all six (1.4-30 min). The rule is unchanged; the mutant is the lethal ground it must catch. */
   { name: 'the glade\'s sluicer and Rook hit four times as hard (atk 21-22 -> 84-88)', case: 'glade-solo-floor',
-    edits: [['src/data/monsters.js', 'hp: 74, atk: 21, baseAcc: 0.8, def: 11, xp: 533,', 'hp: 74, atk: 84, baseAcc: 0.8, def: 11, xp: 533,'], ['src/data/monsters.js', 'hp: 81, atk: 22, baseAcc: 0.84, def: 14,', 'hp: 81, atk: 88, baseAcc: 0.84, def: 14,']] },
+    edits: [['src/data/monsters.js', 'hp: 74, atk: 21, baseAcc: 0.8, def: 11, xp: 415,', 'hp: 74, atk: 84, baseAcc: 0.8, def: 11, xp: 415,'], ['src/data/monsters.js', 'hp: 81, atk: 22, baseAcc: 0.84, def: 14,', 'hp: 81, atk: 88, baseAcc: 0.84, def: 14,']] },
   { name: 'the fixture back on the client\'s compiled collision mask', case: 'sim-plays-the-server-map',
     edits: [['tests/hunt-core/fixtures/play-ground.mjs', "const { gridOfMap } = await import(u('src/core/hunt-ground.js'));",
       "const [MAPS, TER, MC, SETS, GRID, FS] = await Promise.all(['src/data/world/maps/index.js', 'src/data/world/terrain.js', 'src/world/core/map-compile.js', 'src/data/world/atlas-sets.js', 'src/core/hunt/grid.js'].map((p) => import(u(p))).concat(import('node:fs'))); const sprites = {}; for (const s of SETS.ATLAS_SETS) Object.assign(sprites, JSON.parse(FS.readFileSync(join(root, 'assets/world/atlas-' + s + '.json'), 'utf8')).sprites); const gridOfMap = (mapId) => { const map = MC.compileMap(MAPS.mapRowOf(mapId), { materials: TER.MATERIALS, sprites, openClasses: TER.OPEN_CLASSES, lights: {} }); return GRID.makeGrid(map.w, map.h, (x, y) => map.mask[y * map.w + x] === 0, (x, y) => { const m = TER.MATERIALS[map.ground[y * map.w + x]]; return !!(m && m.solid && !m.flat); }); };"]] },
   { name: 'one walkable tile short on the map the run plays', case: 'sim-plays-the-server-map',
     edits: [['tests/hunt-core/fixtures/play-ground.mjs', "grid = gridOfMap(ground.map);", "grid = (() => { const g = gridOfMap(ground.map), walk = g.walk.slice(); walk[walk.indexOf(1)] = 0; return { ...g, walk }; })();"]] },
-  { name: 'the glade\'s coin doubled (it out-earns the Warrens)', case: 'glade-between',
-    edits: [['src/data/monsters.js', 'xp: 155, gp: [6, 19]', 'xp: 155, gp: [12, 38]'], ['src/data/monsters.js', 'xp: 172, gp: [5, 17]', 'xp: 172, gp: [10, 34]'],
-      ['src/data/monsters.js', 'xp: 309, gp: [10, 30]', 'xp: 309, gp: [20, 60]'], ['src/data/monsters.js', 'xp: 533, gp: [16, 46]', 'xp: 533, gp: [32, 92]'],
-      ['src/data/monsters.js', 'xp: 609, gp: [17, 51]', 'xp: 609, gp: [34, 102]'], ['src/data/monsters.js', 'xp: 481, gp: [14, 44]', 'xp: 481, gp: [28, 88]']] },
-  { name: 'the glade\'s coin halved (it pays under the Sewer\'s party)', case: 'glade-between',
-    edits: [['src/data/monsters.js', 'xp: 155, gp: [6, 19]', 'xp: 155, gp: [3, 10]'], ['src/data/monsters.js', 'xp: 172, gp: [5, 17]', 'xp: 172, gp: [2, 9]'],
-      ['src/data/monsters.js', 'xp: 309, gp: [10, 30]', 'xp: 309, gp: [5, 15]'], ['src/data/monsters.js', 'xp: 533, gp: [16, 46]', 'xp: 533, gp: [8, 23]'],
-      ['src/data/monsters.js', 'xp: 609, gp: [17, 51]', 'xp: 609, gp: [8, 26]'], ['src/data/monsters.js', 'xp: 481, gp: [14, 44]', 'xp: 481, gp: [7, 22]']] },
+  { name: 'the glade\'s coin doubled and its XP x5 (it out-earns the Warrens in both)', case: 'glade-between',
+    edits: [['src/data/monsters.js', 'xp: 121, gp: [6, 19]', 'xp: 605, gp: [12, 38]'], ['src/data/monsters.js', 'xp: 134, gp: [5, 17]', 'xp: 670, gp: [10, 34]'],
+      ['src/data/monsters.js', 'xp: 241, gp: [10, 30]', 'xp: 1205, gp: [20, 60]'], ['src/data/monsters.js', 'xp: 415, gp: [16, 46]', 'xp: 2075, gp: [32, 92]'],
+      ['src/data/monsters.js', 'xp: 475, gp: [17, 51]', 'xp: 2375, gp: [34, 102]'], ['src/data/monsters.js', 'xp: 375, gp: [14, 44]', 'xp: 1875, gp: [28, 88]']] },
+  { name: 'the glade\'s coin halved and its XP a third (it pays under the Sewer\'s party in both)', case: 'glade-between',
+    edits: [['src/data/monsters.js', 'xp: 121, gp: [6, 19]', 'xp: 40, gp: [3, 10]'], ['src/data/monsters.js', 'xp: 134, gp: [5, 17]', 'xp: 45, gp: [2, 9]'],
+      ['src/data/monsters.js', 'xp: 241, gp: [10, 30]', 'xp: 80, gp: [5, 15]'], ['src/data/monsters.js', 'xp: 415, gp: [16, 46]', 'xp: 138, gp: [8, 23]'],
+      ['src/data/monsters.js', 'xp: 475, gp: [17, 51]', 'xp: 158, gp: [8, 26]'], ['src/data/monsters.js', 'xp: 375, gp: [14, 44]', 'xp: 125, gp: [7, 22]']] },
   { name: 'the glade\'s blows x2 (its four plate pieces under +25%)', case: 'glade-between',
     edits: [['src/data/monsters.js', 'hp: 30, atk: 11, baseAcc: 0.8,', 'hp: 30, atk: 22, baseAcc: 0.8,'], ['src/data/monsters.js', 'hp: 26, atk: 14, baseAcc: 0.85,', 'hp: 26, atk: 28, baseAcc: 0.85,'],
       ['src/data/monsters.js', 'hp: 48, atk: 11, baseAcc: 0.82,', 'hp: 48, atk: 22, baseAcc: 0.82,'], ['src/data/monsters.js', 'hp: 74, atk: 21, baseAcc: 0.8,', 'hp: 74, atk: 42, baseAcc: 0.8,'],
       ['src/data/monsters.js', 'hp: 81, atk: 22, baseAcc: 0.84,', 'hp: 81, atk: 44, baseAcc: 0.84,'], ['src/data/monsters.js', 'hp: 69, atk: 20, baseAcc: 0.78,', 'hp: 69, atk: 40, baseAcc: 0.78,']] },
   { name: 'Wickstead\'s Turncoats and spiders hit six times as hard (atk 8 -> 48, 5 -> 30)', case: 'wickstead-solo-floor',
-    edits: [['src/data/monsters.js', 'hp: 23, atk: 4, baseAcc: 0.69, def: 1, xp: 156,', 'hp: 23, atk: 48, baseAcc: 0.69, def: 1, xp: 156,'], ['src/data/monsters.js', 'hp: 25, atk: 4, baseAcc: 0.48, def: 3, xp: 143,', 'hp: 25, atk: 30, baseAcc: 0.48, def: 3, xp: 143,']] },
+    edits: [['src/data/monsters.js', 'hp: 23, atk: 4, baseAcc: 0.69, def: 1, xp: 105,', 'hp: 23, atk: 48, baseAcc: 0.69, def: 1, xp: 105,'], ['src/data/monsters.js', 'hp: 25, atk: 4, baseAcc: 0.48, def: 3, xp: 96,', 'hp: 25, atk: 30, baseAcc: 0.48, def: 3, xp: 96,']] },
   { name: 'Wickstead\'s coin cut to a third (it pays under the Thicket)', case: 'wickstead-solo-floor',
-    edits: [['src/data/monsters.js', 'xp: 68, gp: [2, 7]', 'xp: 68, gp: [1, 2]'], ['src/data/monsters.js', 'xp: 143, gp: [4, 12]', 'xp: 143, gp: [1, 4]'],
-      ['src/data/monsters.js', 'xp: 156, gp: [4, 11]', 'xp: 156, gp: [1, 4]'], ['src/data/monsters.js', 'xp: 100, gp: [3, 8]', 'xp: 100, gp: [1, 3]']] },
-  { name: 'the Warrens\' coin halved (the Glade out-earns the harder ground)', case: 'harder-pays-more',
-    edits: [['src/data/monsters.js', 'xp: 819, gp: [16, 49]', 'xp: 819, gp: [8, 25]'], ['src/data/monsters.js', 'xp: 853, gp: [14, 40]', 'xp: 853, gp: [7, 20]'],
-      ['src/data/monsters.js', 'xp: 1348, gp: [23, 69]', 'xp: 1348, gp: [12, 35]'], ['src/data/monsters.js', 'xp: 2257, gp: [35, 104]', 'xp: 2257, gp: [18, 52]'],
-      ['src/data/monsters.js', 'xp: 8688, gp: [122, 366]', 'xp: 8688, gp: [61, 183]']] },
-  { name: 'the Thicket\'s Gray Wolf pays three times over (staying in the wood pays more than Wickstead)', case: 'harder-pays-more',
-    edits: [['src/data/monsters.js', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 60, gp: [2, 7]', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 60, gp: [6, 21]']] },
+    edits: [['src/data/monsters.js', 'xp: 45, gp: [2, 6]', 'xp: 45, gp: [1, 2]'], ['src/data/monsters.js', 'xp: 96, gp: [3, 11]', 'xp: 96, gp: [1, 4]'],
+      ['src/data/monsters.js', 'xp: 105, gp: [3, 10]', 'xp: 105, gp: [1, 4]'], ['src/data/monsters.js', 'xp: 67, gp: [2, 7]', 'xp: 67, gp: [1, 3]']] },
+  { name: 'the Warrens\' coin halved and its XP a fifth (the Glade out-earns the harder ground in both)', case: 'harder-pays-more',
+    edits: [['src/data/monsters.js', 'xp: 819, gp: [16, 49]', 'xp: 164, gp: [8, 25]'], ['src/data/monsters.js', 'xp: 853, gp: [14, 40]', 'xp: 171, gp: [7, 20]'],
+      ['src/data/monsters.js', 'xp: 1348, gp: [23, 69]', 'xp: 270, gp: [12, 35]'], ['src/data/monsters.js', 'xp: 2257, gp: [35, 104]', 'xp: 451, gp: [18, 52]'],
+      ['src/data/monsters.js', 'xp: 8688, gp: [122, 366]', 'xp: 1738, gp: [61, 183]']] },
+  { name: 'the Thicket\'s Gray Wolf pays three times the coin and five times the XP (staying in the wood pays more of both)', case: 'harder-pays-more',
+    edits: [['src/data/monsters.js', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 40, gp: [2, 6]', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 200, gp: [6, 18]']] },
   { name: 'a whelp pays like a Chief (a kill stops climbing with the monster)', case: 'harder-pays-more',
-    edits: [['src/data/monsters.js', 'hp: 10, atk: 4, baseAcc: 0.38, def: 0, xp: 29, gp: [1, 5]', 'hp: 10, atk: 4, baseAcc: 0.38, def: 0, xp: 29, gp: [3000, 4167]']] },
+    edits: [['src/data/monsters.js', 'hp: 10, atk: 4, baseAcc: 0.38, def: 0, xp: 20, gp: [1, 3]', 'hp: 10, atk: 4, baseAcc: 0.38, def: 0, xp: 20, gp: [3000, 4167]']] },
   { name: 'the Shop sells a helmet the Thicket wolves drop', case: 'shop-outfits-defense',
     edits: [['src/data/supply-basics.js', "  sell('copper_studs', 'gear', null, 120),", "  sell('copper_studs', 'gear', null, 120),\n  sell('leather_helmet', 'gear', null, 120),"]] },
   { name: 'the Shop stops selling gloves (no neutral first armour piece)', case: 'shop-outfits-defense',
@@ -591,15 +609,15 @@ const mutants = [
     edits: [['src/data/core-model.js', "export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']);",
       "export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots']);"]] },
   { name: 'the Thicket wolves hit like a Sewer spider (atk 4 -> 13)', case: 'thicket-solo-starter-kit',
-    edits: [['src/data/monsters.js', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 60, gp: [2, 7], formula: true, speed: 4200,', 'hp: 17, atk: 16, baseAcc: 0.48, def: 1, xp: 60, gp: [2, 7], formula: true, speed: 4200,']] },
+    edits: [['src/data/monsters.js', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 40, gp: [2, 6], formula: true, speed: 4200,', 'hp: 17, atk: 16, baseAcc: 0.48, def: 1, xp: 40, gp: [2, 6], formula: true, speed: 4200,']] },
   /* The whole Sewer roster's coin back to its pre-x1.8 rows (the drop-tables play mutant's /1.8): the party nets under the Thicket. */
   { name: 'the Sewer coin back to its pre-x1.8 rows (the party nets under the Thicket)', case: 'first-grounds-net-chain',
-    edits: [['src/data/monsters.js', 'hp: 41, atk: 6, baseAcc: 0.31, def: 0, xp: 140, gp: [7, 19]', 'hp: 41, atk: 6, baseAcc: 0.31, def: 0, xp: 140, gp: [4, 11]'],
-      ['src/data/monsters.js', 'hp: 51, atk: 5, baseAcc: 0.29, def: 2, xp: 192, gp: [8, 25]', 'hp: 51, atk: 5, baseAcc: 0.29, def: 2, xp: 192, gp: [4, 14]'],
-      ['src/data/monsters.js', 'hp: 53, atk: 7, baseAcc: 0.44, def: 1, xp: 256, gp: [9, 25]', 'hp: 53, atk: 7, baseAcc: 0.44, def: 1, xp: 256, gp: [5, 14]'],
-      ['src/data/monsters.js', 'hp: 110, atk: 7, baseAcc: 0.51, def: 6, xp: 570, gp: [18, 53]', 'hp: 110, atk: 7, baseAcc: 0.51, def: 6, xp: 570, gp: [10, 31]'],
-      ['src/data/monsters.js', 'hp: 63, atk: 7, baseAcc: 0.37, def: 1, xp: 239, gp: [10, 31]', 'hp: 63, atk: 7, baseAcc: 0.37, def: 1, xp: 239, gp: [6, 18]'],
-      ['src/data/monsters.js', 'hp: 556, atk: 7, baseAcc: 0.76, def: 11, xp: 3288, gp: [90, 268]', 'hp: 556, atk: 7, baseAcc: 0.76, def: 11, xp: 3288, gp: [51, 154]']] },
+    edits: [['src/data/monsters.js', 'hp: 41, atk: 6, baseAcc: 0.31, def: 0, xp: 84, gp: [7, 19]', 'hp: 41, atk: 6, baseAcc: 0.31, def: 0, xp: 84, gp: [4, 11]'],
+      ['src/data/monsters.js', 'hp: 51, atk: 5, baseAcc: 0.29, def: 2, xp: 116, gp: [8, 25]', 'hp: 51, atk: 5, baseAcc: 0.29, def: 2, xp: 116, gp: [4, 14]'],
+      ['src/data/monsters.js', 'hp: 53, atk: 7, baseAcc: 0.44, def: 1, xp: 154, gp: [9, 25]', 'hp: 53, atk: 7, baseAcc: 0.44, def: 1, xp: 154, gp: [5, 14]'],
+      ['src/data/monsters.js', 'hp: 110, atk: 7, baseAcc: 0.51, def: 6, xp: 344, gp: [18, 53]', 'hp: 110, atk: 7, baseAcc: 0.51, def: 6, xp: 344, gp: [10, 31]'],
+      ['src/data/monsters.js', 'hp: 63, atk: 7, baseAcc: 0.37, def: 1, xp: 144, gp: [10, 31]', 'hp: 63, atk: 7, baseAcc: 0.37, def: 1, xp: 144, gp: [6, 18]'],
+      ['src/data/monsters.js', 'hp: 556, atk: 7, baseAcc: 0.76, def: 11, xp: 1983, gp: [90, 269]', 'hp: 556, atk: 7, baseAcc: 0.76, def: 11, xp: 1983, gp: [51, 155]']] },
   { name: 'a pack tile moved into the thicket', case: 'packs-on-the-map',
     edits: [['src/data/hunt-grounds.js', "box([5, 13, 21, 24], [15, 19],", "box([5, 13, 21, 24], [21, 15],"]] },
   { name: 'a prop dropped into a full box', case: 'packs-on-the-map',
@@ -608,7 +626,7 @@ const mutants = [
     edits: [['src/data/world/maps/coppercap_warrens.js', "'#######...#####################################~~~~=~~~~~~##',\n    '#######...#####################################~~~~=~~~~~~##',\n    '#######...#####################################~~~~=~~~~~~##',",
       "'#######...#####################################~~~==~~~~~~##',\n    '#######...#####################################~~~==~~~~~~##',\n    '#######...#####################################~~~==~~~~~~##',"]] },
   { name: 'the full box cut to six', case: 'density-full-box',
-    edits: [['src/data/hunt-grounds.js', 'export const FULL_BOX = 8;', 'export const FULL_BOX = 6;']] },
+    edits: [['src/data/grounds/shape.js', 'export const FULL_BOX = 8;', 'export const FULL_BOX = 6;']] },
   { name: 'a weight that lies about the packs', case: 'spawn-mix',
     edits: [['src/data/hunts.js', "{ monster: 'gray_wolf', w: 10, rarity: 'common' }", "{ monster: 'gray_wolf', w: 5, rarity: 'common' }"]] },
   { name: 'a rare spawn as common as the commons', case: 'spawn-mix',
@@ -623,7 +641,7 @@ function plant(edits) {
   const root = mkdtempSync(join(tmpdir(), 'hunt-forest-cave-'));
   /* src/shell, src/session, the two generators and _is-main: staged-until-art reads the Hunts window and the generators */
   for (const d of ['src/core', 'src/data', 'src/world', 'src/shell', 'src/session', 'assets/world', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures/play-ground.mjs',
-    'tools/gen-hunts.mjs', 'tools/gen-hunt-sessions.mjs', 'tests/_is-main.mjs']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
+    'tools/gen-hunts.mjs', 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tests/_is-main.mjs']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
   cpSync(join(ROOT, 'src/build-info.js'), join(root, 'src/build-info.js'));
   for (const [file, from, to] of edits) {
     const f = join(root, file);

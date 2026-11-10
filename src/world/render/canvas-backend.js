@@ -16,12 +16,13 @@
 // no pixels. THE GROUND IS KEPT WHILE THE CAMERA STANDS (groundLayer); moving, a frame composes it directly.
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.107';
-import { composeFrame } from '../core/compose.js?v=0.2.107';
-import { castBox } from '../core/shadows.js?v=0.2.107';
-import { createGroundChunks } from './ground-chunks.js?v=0.2.107';
-import { createFrameSig } from './frame-sig.js?v=0.2.107';
-import { paintStub } from '../stub-atlas.js?v=0.2.107';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.113';
+import { composeFrame } from '../core/compose.js?v=0.2.113';
+import { layPlates } from '../core/plates.js?v=0.2.113';
+import { castBox } from '../core/shadows.js?v=0.2.113';
+import { createGroundChunks } from './ground-chunks.js?v=0.2.113';
+import { createFrameSig } from './frame-sig.js?v=0.2.113';
+import { paintStub } from '../stub-atlas.js?v=0.2.113';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const CHUNK_KEEP = 24;   // baked ground chunks kept (LRU): a 192 x 116 town is 96 of ~1 MB each
@@ -304,7 +305,7 @@ export function createCanvasBackend(o) {
     /* VW-08: a bleed badge with its stack count, right of the bar. */
     for (const k of list.badges || []) {
       const [x, y] = at(k.x, k.y);
-      const px = Math.max(Math.round(4.5 * zs), Math.round(11 * dpr));
+      const px = Math.max(Math.round(4.5 * zs), Math.round(12 * dpr));
       ctx.font = '800 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
       const text = '×' + k.n, w = Math.ceil(ctx.measureText(text).width) + Math.round(px * 0.6), h = px + 2;
       ctx.fillStyle = tone('bar-back');
@@ -341,27 +342,22 @@ export function createCanvasBackend(o) {
       ctx.ellipse(x, y, 9 * zs, 4 * zs, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
-    /* Names never print over each other: yours first, then each plate that would
-       touch one already placed steps up a line until it is clear. */
-    const placed = [];
+    /* Names never print over each other, and a title stands under its name (core/plates.js lays them out: yours first,
+       each plate that would touch one already placed steps up a line until it is clear). */
     plateHits = [];
-    for (const p of platesOf(list)) {
-      const px = font(p.kind === 'self' ? 5 : 4.5);
-      ctx.font = '700 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
+    const plateFont = (px) => '700 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
+    const laid = layPlates(platesOf(list).map((p) => { const [x, y] = at(p.x, p.y - 3); return Object.assign({}, p, { x, y }); }), {
+      measure: (s, px) => { ctx.font = plateFont(px); return ctx.measureText(s).width; },
+      px: (kind) => font(kind === 'self' ? 5 : 4.5), width: W, edge: 16 * zs });
+    for (const { plate: p, x, px, lines, box } of laid) {
+      ctx.font = plateFont(px);
       ctx.lineWidth = Math.max(2, Math.round(px / 6));
       ctx.globalAlpha = p.alpha == null ? 1 : p.alpha;
-      const [ax, y0] = at(p.x, p.y - 3);
-      const half = ctx.measureText(p.text).width / 2 + px / 3;
-      /* a name whose owner is (even half) on the canvas slides in from the edge rather than being cut */
-      const x = ax >= -16 * zs && ax <= W + 16 * zs ? Math.max(half, Math.min(W - half, ax)) : ax;
-      let y = y0;
-      for (let k = 0; k < 6 && placed.some((q) => x - half < q.r && x + half > q.l && y - px < q.b && y > q.t); k++) y -= px + 2;
-      placed.push({ l: x - half, r: x + half, t: y - px, b: y });
-      if (p.ref) plateHits.push({ l: x - half, r: x + half, t: y - px, b: y, id: p.id, ref: p.ref });
+      if (p.ref) plateHits.push(Object.assign({ id: p.id, ref: p.ref }, box));
       ctx.strokeStyle = tone('plate-line');
-      ctx.strokeText(p.text, x, y);
+      for (const l of lines) ctx.strokeText(l.text, x, l.y);
       ctx.fillStyle = tone('plate-' + (p.kind || 'self'));
-      ctx.fillText(p.text, x, y);
+      for (const l of lines) ctx.fillText(l.text, x, l.y);
     }
     ctx.globalAlpha = 1;
     for (const b of list.bubbles || []) bubble(b, at, font(4.2));

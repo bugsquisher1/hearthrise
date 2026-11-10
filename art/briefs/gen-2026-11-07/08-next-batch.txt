@@ -1,0 +1,78 @@
+BRIEF 08: VERDICTS ON BATCHES 1-4 + THE NEXT ~300 GENS (art director, 2026-11-08, lane/a-region-kit)
+Read: lane/a-gen-2026-11-07 cc25388ca (157 gens, 2,098.4 -> 1,941.4, $0 credits). Every facing was laid the way the import
+lays it (tools/world-art/idle-clip.mjs idleFrames on the chosen roll) and read at x3 beside its still, with a diff.
+Thresholds I held: feet at most 3 px of the foot rows (a weight shift) unless it is cloth; a held weapon may move 1 px with
+the arm, never redraw; no whole-body 1 px shift (a pop). A hero or NPC facing with no calm loop KEEPS ITS STILL (rule [live]
+binds live monsters only); a March body may not (it will be live), so it gets a hand pass instead.
+
+THE VERDICTS (laid picks are raw frame numbers)
+  outfit_knight     all 8  APPROVE. E, W, NE: the sword drops 1 px with the arm on the out-breath; that is breathing.
+  outfit_witch      all 8  APPROVE.
+  outfit_brute      all 8  APPROVE (the maul hangs and swings 1 px in N; natural).
+  outfit_dawnward   7      APPROVE. SE: APPROVE after hand pass H6 (the 2 stray pixels).
+  outfit_berserker  6      APPROVE. S, NE: hand passes H4, H5 (each hatchet head redraws in the far frame; hold them).
+  outfit_ranger     7      APPROVE (NW: 9 px at one boot, a weight shift). S: hand pass H2 (the crossbow moves in all 3
+                           rolls, and S is the facing a hero stands in most; hold the crossbow).
+  outfit_sorcerer   6      APPROVE. The orb's own sparkles from the still twinkle in the loop: kept, it reads as the orb
+                           alive (3-8 px). E: hand pass H3 (feet 6-10 px and the orb). NE: RE-ROLL once (a 1 px
+                           whole-body shift, 192 px first step: a pop); no calm roll, NE keeps its still.
+  outfit_druid      E      APPROVE E. The other 7: RE-ROLL from the shipped stills (R1): the staff grows, glows or
+                           vanishes (NE loses it). A facing with no calm roll after 2 keeps its still.
+  npc_crier         all 8  APPROVE (NW's 4 px is the cloak hem swaying: cloth, not feet).
+  npc_smith         7      APPROVE. NE: hand pass H7 (one boot shifts in every roll).
+  banded_pikeman    S, SE  APPROVED before. E (re-roll): head level now, but the whole pike shifts 1 px both ways (the
+                           226 px step, and 10 px at its butt on the floor): hand pass H1.
+  mudlark (pale r3) ACCEPT r3, object b0f9bca5. S at 2.81:1 is accepted and logged: its darkest ring pixels are the
+                           hook's iron and the eye hollows, which must stay dark for the face and the hook to read; 7 facings
+                           are 3.24-4.15:1 (the brown body was 1.14:1). NW at 39 px stands (the class allows up to 44; my 38
+                           was tighter than the budget). Its clips are next (C1 below).
+
+HAND PASSES (free: pixelart_workbench or a few lines of script; no generation)
+Each is "copy frame_000's pixels inside BOX over frame N", on the RAW frames in art/world-src/gen-2026-11-07/<asset>-idle/
+<facing>/, BOX inclusive in that raw frame's own pixels (I turned the sheet boxes into raw ones with each facing's register).
+Then move every other raw frame of that facing (all but 000 and the two named) to alt/unpicked/, so the import picks the same
+two. Re-lay and hand me a strip of the facing's loop; check the box edges for a 1 px seam (a moved limb cut at the box line).
+  H1 banded_pikeman  east        frames 002, 008   BOX x32-42, y0-57      the pike and the hand on it (raw 64x64)
+  H2 outfit_ranger   south       frames 003, 005   BOX x23-36, y9-27      the crossbow (raw 48x48)
+  H3 outfit_sorcerer east        frames 001, 002   BOX x9-32, y35-43      the hem and feet; and BOX x24-32, y2-18  the orb
+  H4 outfit_berserker south      frames 001, 007   BOX x10-17, y24-37 and BOX x30-36, y24-37   both hatchet heads
+  H5 outfit_berserker north-east frames 001, 008   BOX x15-18, y24-37 and BOX x30-37, y24-37   both hatchet heads
+  H6 outfit_dawnward south-east  frames 001, 008   delete the 2 stray pixels you flagged (make them transparent) if they
+                                                    are in either frame; nothing else
+  H7 npc_smith       north-east  frames 001, 002   BOX x27-30, y30-40     the right boot
+
+RE-ROLLS (a NEW animation group each; at most 2 rolls a facing)
+  R1 outfit_druid    s, n, w, se, sw, ne, nw (7 calls). Its PixelLab object is not the shipped druid, so animate from an
+     upload of each shipped still (art/world/hunt/outfit_druid.png, idle row, order s e n w se sw ne nw, 64x64). Action:
+     "standing at rest, only the hood and shoulders rise and fall by one pixel, the staff is held perfectly still and does
+     not grow, glow, sway or vanish, its leaves do not move, feet planted, stays in place, nothing else appears in the frame"
+  R2 outfit_sorcerer ne (1 call): "standing at rest, the whole body stays exactly in place, only the beard and the robe's
+     hem stir by one pixel, the staff and orb stay still, nothing else appears in the frame"
+
+C1 THE MUDLARK'S CLIPS, on object b0f9bca5 (brief 01's clip text with 07's crouch wording, unchanged)
+  Batch C1a (4 calls)  SOUTH only: idle, walk, attack, death. Hand me the strip, then:
+  Batch C1b (20 calls) idle and walk in e, n, w, se, sw, ne, nw (14) + attack e, n, w, se, sw, ne (6)
+  Batch C1c (4 calls)  attack nw + death e, n, w
+  Its idle and walk must hold the ring at 3:1 or more on the mud (S 2.81 accepted) and stay at 40 px or less.
+
+A3 THE OTHER FIVE MARCH BODIES (brief 02, its action text; pikeman with 07's E wording for every facing)
+  Batch A3a (20 calls)  banded_pikeman n, w, sw, ne, nw (5) · bannerman all 8 · fordsunk s, e, n, w, se, sw, ne (7)
+  Batch A3b (20 calls)  fordsunk nw (1) · wight all 8 · barrow_knight all 8 · captain_hask s, e, n (3)
+  Batch A3c (5 calls)   captain_hask w, se, sw, ne, nw
+  Each must pass without a hand pass where it can (a March body cannot keep a still); a facing that needs one, flag it
+  with the frames and the moving part, as H1-H7 above, and I write the box.
+
+A4 THE SLAKE'S PIECES (need nothing: briefs 03 and 04 as written, plus 07's note on the silt's value)
+  Batch A4b (3 calls, ~30 gens)  the Grounded Barge, 3 candidates
+  Batch A4c (2 calls, ~12 gens)  the Stake Nets sheet
+  Batch A4d (2 calls, ~30 gens)  the copper silt pair, "a mid value, no lighter than the wet mud"
+
+THE GENS: R1 + R2 ~10 · C1 ~35 with re-rolls · A3 ~55 with re-rolls · A4 ~72 · hand passes 0 = about 172 planned. The rest
+of today's ~300 is held for re-rolls of these lines; if it is unused by evening, open B3 (hit clips, art first) with a
+5-call sample: the south hit of rat, gray_wolf, goblin_digger, glade_poacher and drain_rat, action "flinches back one pixel
+from a blow in front of it and recovers, feet planted, nothing else appears in the frame", 5 frames. A4e (icons) and A4f
+(the Greened Pikeman and the Bargeman) wait for lane/b-the-slake's roster.
+
+IMPORT (not the generator's job): the outfits move to a set of their own first (brief 05: the hunt atlas overflows), then
+port-pixellab.mjs idle per asset, outfit-masks.mjs, build. A facing marked "keeps its still" is simply left out of the clip
+folder, and the import leaves its row as it is.

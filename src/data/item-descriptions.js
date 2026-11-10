@@ -3,15 +3,17 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.107';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.107';
-import { LIB2_DESC } from './library2-items.js?v=0.2.107';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.107';
-import { CHAMPION_DESC } from './champions.js?v=0.2.107';
-import { DRINK_DESC } from './drinks.js?v=0.2.107';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.107';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.107';
-import { SHIELD_DESC } from './shields.js?v=0.2.107';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.113';
+import { foldRows } from './grounds/shape.js?v=0.2.113';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.113';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.113';
+import { LIB2_DESC } from './library2-items.js?v=0.2.113';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.113';
+import { CHAMPION_DESC } from './champions.js?v=0.2.113';
+import { DRINK_DESC } from './drinks.js?v=0.2.113';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.113';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.113';
+import { SHIELD_DESC } from './shields.js?v=0.2.113';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -499,3 +501,9 @@ export const ITEM_DESC = {
   'yew_rod': 'Strong yew rod that hauls in the fish lesser lines would lose',
   'yew_staff': 'Prized yew staff, a deep channel for a skilled healer',
 };
+
+/* GROUND PACKS (src/data/grounds): each pack's items say their line here too (`itemText`). An id already said is refused. */
+for (const [id, text] of Object.entries(foldRows('item text', {}, GROUND_PACKS, (p) => p.itemText))) {
+  if (Object.prototype.hasOwnProperty.call(ITEM_DESC, id)) throw new Error('ground pack: item text ' + id + ' is already said; a pack only adds');
+  ITEM_DESC[id] = text;
+}

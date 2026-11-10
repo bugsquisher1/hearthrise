@@ -344,7 +344,7 @@ export const PIXEL_DIR = 'assets/icons-bundle/pixel/items/';
    in that family by tools/world-art/ability-tiles.mjs). A new ability with no tile is a tests/pixel-icons.mjs finding. */
 export const ABILITY_DIR = 'assets/icons-bundle/pixel/abilities/';
 export const ABILITY_ART = Object.freeze(['challenge', 'flame_strike', 'power_strike', 'cleave', 'rend', 'hunters_mark', 'flame_volley', 'precision_shot',
-  'fireball', 'frost_lance', 'arcane_barrier', 'greater_mend', 'circle_of_renewal', 'green_sickness', 'protective_ward', 'mend']);
+  'fireball', 'frost_lance', 'arcane_barrier', 'greater_mend', 'circle_of_renewal', 'green_sickness', 'protective_ward', 'undertow', 'mend']);
 
 /* THE SHOP'S BASIC SUPPLIES (salted food, thin drinks, plain ammo) are not items, so they are not under
    items/: one 32x32 pixel icon per row of src/data/supply-basics.js BASIC_SUPPLIES, <id>.png, same

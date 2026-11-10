@@ -147,7 +147,7 @@ const MUTANTS = [
   ['RW3', 'the requirement is not said with its numbers', 'src/shell/intent-words.js', '    const w = requirementWords(r.item, cs, r.counts);', '    const w = null;'],
   ['RW3', 'the refusal\'s own number is not read', 'src/shell/intent-words.js', '  if (it && it.reqSkill && counts && Number.isInteger(counts.have) && counts.need === it.reqLv) {', '  if (false) {'],
   ['RW3', 'the hero\'s own level is not read', 'src/shell/intent-words.js', '  const need = it ? needOf(item, cs ? skillsOf(cs) : null, lv ? lv.level : null) : null;', '  const need = it ? needOf(item, null, null) : null;'],
-  ['RW3', 'a Level requirement reads as a skill', 'src/shell/item-lore.js', "  return 'Needs ' + (level ? 'Level' : skillName(req)) + ' ' + lv", "  return 'Needs ' + skillName(req) + ' ' + lv"],
+  ['RW3', 'a Level requirement reads as a skill', 'src/shell/item-lore.js', "  return level ? t(known ? 'item.need_level_have'", "  return false ? t(known ? 'item.need_level_have'"],
   ['RW5', 'an equip mid-hunt reads as the generic hunt line', 'src/shell/intent-words.js', '  return refusalWords(r && r.error, r && r.verb);', '  return refusalWords(r && r.error);'],
   ['RW5', 'the session drops the verb', 'src/session/refusal.js', "    verb: typeof b.verb === 'string' && /^[a-z_]{1,32}$/.test(b.verb) ? b.verb : null,\n", ''],
   ['RW4', 'the session drops the item', 'src/session/refusal.js', '    field: typeof b.field === \'string\' ? b.field.slice(0, 32) : null, item,\n', '    field: typeof b.field === \'string\' ? b.field.slice(0, 32) : null,\n'],

@@ -1,0 +1,31 @@
+{
+  "asset": "the silt/reeds Wang pair (brief 09 S1), chained on the March reeds and the kept silt",
+  "brief": "art/briefs/gen-2026-11-07/09-next-batch.txt S1",
+  "status": "CANDIDATE for the art director; not imported",
+  "made": "2026-11-08",
+  "tool": "create_topdown_tileset",
+  "settings": { "mode": "pro", "tile_size": 32, "view": "high top-down", "transition_size": 0.25 },
+  "files": "<tileset id>.png (the 16-tile sheet) and <tileset id>.json (GET /mcp/tilesets/<id>/metadata)",
+  "sets": {
+    "ec6c96ef-8da7-4437-ab0c-a7b38cd44755": {
+      "role": "reeds <-> silt",
+      "lower_base_tile_id": "8a61041f-fe25-4585-be53-4afbbdd5a45e (the March reeds)",
+      "upper_base_tile_id": "330d6904-4e64-4737-b6a4-6239f79e74d1 (the kept silt)",
+      "lower": "marsh reed bed at the water's edge seen from above, dense tall brown and dull green reeds and rushes standing in wet mud, muted (the reeds' own words, from tileset 01014c39)",
+      "upper": "dark wet river silt flat seen from above, a deep grey-brown as dark as the wet mud, never lighter, smooth with soft patches of dull green copper staining and faint ripple marks, muted, calm low contrast, low value (the kept silt's words, from c62a50a3)",
+      "transition": "a soft low wet edge where the silt flat meets the reed bed",
+      "measured": {
+        "reeds_fill": "wang_0 sha1 7045bdef66a7, BYTE-IDENTICAL to the reeds fill of 01014c39 (reeds/shallows); median luminance 0.078",
+        "silt_fill": "wang_15 sha1 f2d4616eadff, BYTE-IDENTICAL to the silt fill of c62a50a3 (mud/silt) and so of 168be062; median luminance 0.026"
+      },
+      "gens": 15
+    }
+  },
+  "generations": 15,
+  "flags": [
+    "the silt shows as a raised slab with a lit rim where it meets the reeds, as in the two accepted pairs (09: right where it meets water or reeds)",
+    "no copper green in the fill, as in the kept silt (09: the green comes from the mr_silt_stain decals)"
+  ],
+  "review": "art/review/gen-2026-11-08/silt-reeds-s1.png (x4: the new reeds/silt sheet; the kept mud/silt c62a50a3; the March reeds/shallows 01014c39)",
+  "import_after_yes": "the id joins region-kits.js barrow_march.families.march tilesets; port with port-pixellab.mjs paint"
+}

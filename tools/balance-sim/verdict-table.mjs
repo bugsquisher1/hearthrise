@@ -196,7 +196,7 @@ async function facts() {
   const path = (n) => { const out = []; for (let L = 1; L <= 25; L++) { const r = recommendedHunt(Array(n).fill(L), n); const h = r && r.hunt; if (!out.length || out[out.length - 1][1] !== h) out.push([L, h]); } return out; };
   const recAt = {};
   for (let L = 1; L <= 60; L++) { const r = recommendedHunt([L], 1); recAt[L] = r && r.hunt; }
-  /* who a ground is for, as the Hunts window says it (a minParty hall makes it a party ground: the Sewer) */
+  /* who a ground is for, as the Hunts window says it (a forParty hall makes it a party ground: the Sewer) */
   const groupFit = Object.fromEntries(huntRows().map((r) => [Object.values(G.OPEN_GROUNDS).find((g) => g.hunt === r.hunt).id, r.groupFit]));
   return { recAt, groupFit, soloFrom: Object.fromEntries(Object.values(G.OPEN_GROUNDS).map((g) => [g.id, Number.isInteger(g.soloFrom) ? g.soloFrom : null])), densityMax: Object.fromEntries(Object.values(G.OPEN_GROUNDS).map((g) => [g.id, Math.min(...(g.densityMax || [G.DENSITY_FULL_BOX]))])),
     starterSets: Object.fromEntries(Object.entries(SK.STARTER_SETS).map(([k, ids]) => [k, ids.every((id) => owned.has(id))])),

@@ -35,6 +35,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { ownHeroSlots } from './_slots.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const A = '000000c0-0000-4000-a000-0000901d8a01';
@@ -139,7 +140,7 @@ export const MUTANTS = {
   oak_back: { arm: 'TW-MAP', why: 'the oak still stands on the lot',
     js: ['src/data/world/town/greenery.js', [["export const GREENERY = Object.freeze([\n", "export const GREENERY = Object.freeze([\n  ['oak', 98, 58],\n"]]] },
   compose_ignores_swap: { arm: 'TW-MAP', why: 'the stage\'s art is never drawn',
-    js: ['src/world/core/compose.js', [["place((state.objectSwap && state.objectSwap[o.id]) || o.id, o.x, o.y, { fp: [o.fw, o.fh] });", 'place(o.id, o.x, o.y, { fp: [o.fw, o.fh] });']]] },
+    js: ['src/world/core/compose.js', [["place(swap || o.id, o.x, o.y, { fp: [o.fw, o.fh] });", 'place(o.id, o.x, o.y, { fp: [o.fw, o.fh] });']]] },
   lot_is_an_effect: { arm: 'TW-MAP', why: 'the lot draws over everyone, as the fire does',
     js: ['src/data/world/town/sites.js', [["export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 86 })]);", "export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 86 }), Object.freeze({ id: 'havora_weighhouse_staked', x: 98, y: 60, lift: 0 })]);"]]] },
   /* THE TAPS */
@@ -194,6 +195,7 @@ async function hero(db, uid, slot, name) {
   await db.query('insert into auth.users (id) values ($1) on conflict (id) do nothing', [uid]);
   await db.query(`insert into public.hr_access_allowlist (user_id, note) values ($1, 'town-works guard') on conflict (user_id) do nothing`, [uid]);
   const dye = await one(db, 'select min(idx) from public.hr_outfit_dyes');
+  if (slot > 0) await ownHeroSlots((sql, p) => db.query(sql, p), uid, slot);   // one slot to start (2027-03-25-hero-slots-one.sql)
   const r = await as(db, uid, 'select public.hr_create_hero($1::int, $2, $3::jsonb, $4::uuid)', [slot, name, JSON.stringify({ head: dye, body: dye, legs: dye, feet: dye }), idem()]);
   if (!r || r.ok !== true) throw Object.assign(new Error(`hr_create_hero(${slot}, ${name}): ` + JSON.stringify(r)), { harness: true });
 }

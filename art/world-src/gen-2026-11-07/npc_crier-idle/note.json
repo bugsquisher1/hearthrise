@@ -1,0 +1,196 @@
+{
+  "asset": "npc_crier-idle",
+  "brief": "art/briefs/gen-2026-11-07/05-hero-idles.txt, run per 07-next-batch.txt (batches 1-4)",
+  "status": "NOT imported; waits on the art director's read",
+  "made": "2026-11-07",
+  "object_id": "9fee956c-6e70-4e56-9d7d-9012b5806b9d",
+  "set": "common",
+  "layout": "<facing>/frame_000..008.png = the chosen roll (frame_000 the still); alt/<roll>/<facing>/ = every other roll",
+  "rolls": {
+    "r1": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "group": "ffba8898-99c3-4de7-95aa-d92d8a92499f",
+      "action": "standing at rest, breathing slowly, chest rises and falls, a slight shift of weight, feet planted, the weapon and shield stay still, stays in place, nothing else appears in the frame",
+      "directions": "all 8"
+    },
+    "r2": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "group": "3be11147-0ffb-4e9a-82cf-df100ef2c199",
+      "action": "standing at rest, only the chest rises and falls by one pixel, the head stays level, both feet stay exactly where they are, both arms and everything held in the hands stay completely still, stays in place, nothing else appears in the frame",
+      "directions": "e n ne nw"
+    },
+    "r3": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "group": "58908eab-3211-4343-80c3-7d949c49aad6",
+      "action": "standing still at rest, only the chest rises and falls by one pixel, the head stays level, both feet stay exactly where they are, both arms and everything held in the hands stay completely still, stays in place, nothing else appears in the frame",
+      "directions": "e ne nw"
+    }
+  },
+  "chosen": {
+    "south": "r1",
+    "west": "r1",
+    "south-east": "r1",
+    "south-west": "r1",
+    "north": "r2",
+    "north-west": "r2",
+    "east": "r3",
+    "north-east": "r3"
+  },
+  "loop_preview": {
+    "how": "idle-clip.mjs idleFrames(shipped still, frames, 58), as port-pixellab.mjs idle lays it; feet = foot-row mask px moved, detached = px of the picked frames 3+ px off the still's body",
+    "facings": {
+      "south": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          84,
+          71
+        ],
+        "feet": 2,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "east": {
+        "roll": "r3",
+        "picks": [
+          0,
+          7,
+          8,
+          7
+        ],
+        "steps": [
+          64,
+          65
+        ],
+        "feet": 2,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          70,
+          69
+        ],
+        "feet": 3,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          6,
+          5,
+          6
+        ],
+        "steps": [
+          49,
+          18
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-east": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          29,
+          124
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          8,
+          1,
+          8
+        ],
+        "steps": [
+          17,
+          49
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-east": {
+        "roll": "r3",
+        "picks": [
+          0,
+          6,
+          7,
+          6
+        ],
+        "steps": [
+          13,
+          88
+        ],
+        "feet": 2,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-west": {
+        "roll": "r2",
+        "picks": [
+          0,
+          8,
+          7,
+          8
+        ],
+        "steps": [
+          38,
+          38
+        ],
+        "feet": 4,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      }
+    }
+  },
+  "generations": 15,
+  "flags": [
+    "north-west: the cloak hem moves 4 px of the foot rows in every roll (feet do not slide); retry limit",
+    "the hand bell swings about 1 px in north and north-east"
+  ],
+  "review_strip": "art/review/gen-2026-11-07/npc_crier-idle.png (per facing: knight walk, raw clip, change from frame 0, the laid loop) and npc_crier-idle-loops.png (per facing s e n w se sw ne nw: own walk frame 0 or idle still, then the 4-frame loop)",
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set common --id npc_crier --clip art/world-src/gen-2026-11-07/npc_crier-idle"
+}

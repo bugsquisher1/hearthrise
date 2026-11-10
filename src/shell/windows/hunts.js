@@ -27,7 +27,7 @@
 // with their own saved setup, or nobody, and the answer names who was not
 // ready. A member's Enter stays off ("the leader starts the hunt"). The party
 // size is the server's seat count; the picked ground's party rule (its row's
-// minParty pocket and boss) shows on its page.
+// forParty pocket and boss) shows on its page.
 //
 // THE TIER is chosen with the hunt, before Enter (Tyler 2026-11-04; hunt-tiers.js): Normal, Dangerous or
 // Deadly, three buttons on the picked ground's page where it offers more than Normal. It sets how many monsters
@@ -41,30 +41,30 @@
 // read-only ("Set by <leader>: Dangerous", the server's `leader_tiers`) with no buttons, and the server refuses a
 // member's pick (hr_hunt_tier_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js?v=0.2.107';
-import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.107';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.107';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.107';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.107';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.107';
-import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.107';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.107';
-import { whole } from '../../render/format.js?v=0.2.107';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.107';
-import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.107';
-import { glyphSvg } from '../launcher.js?v=0.2.107';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.107';
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.107';
-import { TIER_IDS, TIER_NAME, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.107';
-import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.107';
-import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.107';
-import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.107';
-import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.107';
-import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.107';
-import { openFinderOn } from './party-finder.js?v=0.2.107';
-import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.107';
-import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.107';
-import { callFromGround } from '../../data/boss-calls.js?v=0.2.107';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js?v=0.2.113';
+import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.113';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.113';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.113';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.113';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.113';
+import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.113';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.113';
+import { whole } from '../../render/format.js?v=0.2.113';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.113';
+import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.113';
+import { glyphSvg } from '../launcher.js?v=0.2.113';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.113';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.113';
+import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.113';
+import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.113';
+import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.113';
+import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.113';
+import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.113';
+import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.113';
+import { openFinderOn } from './party-finder.js?v=0.2.113';
+import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.113';
+import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.113';
+import { callFromGround } from '../../data/boss-calls.js?v=0.2.113';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the tier shown before the server has it ({ hunt, tier }), `timer` its coalescing
@@ -196,11 +196,11 @@ export function renderHunts(ctx) {
     + '</section></div></div>';
 }
 
-/* One ground's line: the solo / party glyph, the name, the band in words, the advice and the best. */
+/* One ground's line: who may come, the name, the band in words, the advice and the best. Every ground takes one hero or a group
+   (Tyler 2026-11-08: no ground is solo or party), so the glyph is the same on every line. */
 function lineHtml(r, glyphs) {
-  const party = r.groupFit === 'party';
   return '<li class="hw-hunt" role="option" data-hs-act="pick" data-hunt="' + esc(r.hunt) + '" tabindex="-1">'
-    + '<span class="hw-hunt-glyph" title="' + (party ? 'Built for a party' : 'Built for one hero') + '">' + glyphSvg(glyphs, party ? 'uiPeople' : 'navProfile') + '</span>'
+    + '<span class="hw-hunt-glyph" title="' + esc(heroWords(r)) + '">' + glyphSvg(glyphs, 'uiPeople') + '</span>'
     + '<span class="hw-hunt-main"><b class="hw-hunt-name">' + esc(r.name) + '</b>'
     + '<small class="hw-hunt-band"><span class="hw-hunt-lv">Level ' + r.band[0] + '–' + r.band[1] + '</span><span class="hw-hunt-fit"></span></small>'
     + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span><span class="hw-hunt-bestline"></span></small>'
@@ -210,6 +210,9 @@ function lineHtml(r, glyphs) {
 renderHunts.patch = function patchHunts(body, ctx) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
+  /* a link that named a ground (src/shell/goto.js: "Dropped by Rat at Mill Cellar") picks it */
+  const want = ctx.wm && typeof ctx.wm.takeTab === 'function' ? ctx.wm.takeTab('hunts') : null;
+  if (want) pickHunt(cs, want);
   const root = body.querySelector('.hw-hunts');
   const list = huntRows();
   const h = huntOf(cs);
@@ -297,7 +300,7 @@ function patchPage(det, ctx, sc, v) {
     setups, chosen, off: sc.pending || !!now || follower,
     before: now ? [] : beforeLines(cs, { hunt: r.hunt, other: other ? other.name : null }),
     partyBlock: !follower && (r.groupFit === 'party' || (party && party.isLeader)) ? {
-      why: party ? 'You lead a party of ' + party.seats.length + '.' : (groupWords(r, size) || heroWords(r)) + '.',
+      why: party ? 'You lead a party of ' + party.seats.length + '.' : heroWords(r) + '.',
       find: party ? 'Open the party finder' : 'Find a party',
       bring: freeHeroes(cs, ctx.peers()), full: !!party && party.full,
     } : null,
@@ -334,8 +337,10 @@ function patchPage(det, ctx, sc, v) {
     attr(b, 'data-pending', String(id === tier && !!(sc.draft || sc.saving)));
   }
   text(det.querySelector('.hw-tier-read'), follower && tier ? 'Set by ' + (party.leaderName || 'your leader') + ': ' + TIER_NAME[tier] : '');
+  /* Normal says it is safe only where it is: under the ground's floor the warning above says what the hero risks. */
+  const safe = rangeWords(r, level) ? '' : TIER_LINES.normal + ' ';
   text(det.querySelector('.hw-tier-note'), !choice ? '' : tierWords(r, tier, size) || (follower ? 'Your party leader picks how hard the hunt is.'
-    : size > 1 ? 'The ground as it stands. As the leader, your pick holds for everyone, and it\'s kept for this ground.' : 'The ground as it stands. Your pick is kept for this ground.'));
+    : size > 1 ? safe + 'As the leader, your pick holds for everyone, and it\'s kept for this ground.' : safe + 'Your pick is kept for this ground.'));
 }
 
 renderHunts.act = function actHunts(ctx, body, action, ev, t) {

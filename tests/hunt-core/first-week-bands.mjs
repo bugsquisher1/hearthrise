@@ -109,7 +109,7 @@ cases['first-day-grounds'] = () => (SOLO.length >= 2 && PAIR ? null : 'the Hunts
 /* THE WORDS, PLAYED: a Level 11 sword and shield in the Glade against Wickstead, the ground that fits it, and a hero not ready for it */
 cases['above-your-level-words'] = (R) => {
   const words = HL.ABOVE_LEVEL_WORDS;
-  if (!/More XP/.test(words) || !/stronger than you/.test(words) || !/spend more on supplies/.test(words) || !/or to die/.test(words)) return 'the words claim something this case does not play: ' + words;
+  if (!/more XP/.test(words) || !/stronger than you/.test(words) || !/spend more on supplies/.test(words) || !/you might die/.test(words)) return 'the words claim something this case does not play: ' + words;
   const L = 11, fits = recommendedHunt([L], 1);
   const above = G.OPEN_GROUNDS.mosslight_glade;
   if (!String(HL.rangeWords(HL.huntRows().find((r) => r.hunt === above.hunt), L)).includes(words)) return 'a Level ' + L + ' hero is not warned on ' + above.hunt;
@@ -180,8 +180,10 @@ cases['risk-ladder'] = (R) => {
    stays under 5.5. Cloth is over the band on its second rung and stays: its flat ward is worth more against bigger blows, and that step lands it level with leather on its own ground (board 2026-11-05). */
 const RUNG_BAR = Object.freeze({ plate: [3, 5.5], leather: [3, 5.5], cloth: [3, 9.5] });
 const STANDS_STILL = Object.freeze(['cloth:1:boots', 'cloth:1:gloves', 'cloth:1:belt']);
+/* EIGHT SEEDS (lane/b-one-difficulty, 2026-11-08): one hour's cut swings 0.8-10.4% seed by seed at the Warrens (seeds 0-7, the same seed bare and caped), so four
+   seeds read a 7% cloak anywhere from about 3.5% to 8%; eight pool to 6.1%. The bar is the same 4-10%. */
 cases['cape-cut'] = (R) => {
-  const play = (o) => R.runCell({ id: 'cape:' + JSON.stringify(o), ground: 'coppercap_warrens', party: ['tank'], level: 40, hours: 1, seeds: 4, windowMs: 120000, ...o }).heroes[0];
+  const play = (o) => R.runCell({ id: 'cape:' + JSON.stringify(o), ground: 'coppercap_warrens', party: ['tank'], level: 40, hours: 1, seeds: 8, windowMs: 120000, ...o }).heroes[0];
   const CAPED = { gear: { also: { cape: 'houndskin_cloak' } } };
   const bare = play({}), caped = play(CAPED);
   const cut = 1 - caped.takenPerH / bare.takenPerH;
@@ -191,7 +193,7 @@ cases['cape-cut'] = (R) => {
   /* A FOOD'S CUT REACHES THE FIGHT, the same hook. An hour's dice hide 3-5% (a hero with a cut draws differently, four seeds read -0.3% for a 5% buff), so reach is a buff they cannot hide, on a hero in no armor (in plate a 40% buff meets the 60% cap); the exact mean is temper.mjs's. Both paths on a real size. */
   const buffed = (magnitude) => ({ buffs: [{ type: 'defense', magnitude, until: new Date(Date.UTC(2026, 9, 18, 13, 0, 0)).toISOString() }] });
   const NAKED = { gear: { noArmour: true } };
-  const fedCut = 1 - play({ ...NAKED, ...buffed(40) }).takenPerH / play(NAKED).takenPerH;
+  const fedCut = 1 - play({ ...NAKED, ...buffed(40), seeds: 4 }).takenPerH / play({ ...NAKED, seeds: 4 }).takenPerH;
   if (!(fedCut > 0.25 && fedCut < 0.55)) return 'a 40% food moved damage taken by ' + (fedCut * 100).toFixed(1) + '% at the Warrens';
   const fedViewed = play({ ...buffed(5), seeds: 1, windowMs: 10000 }), fedClosed = play({ ...buffed(5), seeds: 1, windowMs: 600000 });
   for (const k of ['deaths', 'levelXpPerH', 'takenPerH', 'storePerH']) if (fedViewed[k] !== fedClosed[k]) return 'fed, ' + k + ': viewed ' + fedViewed[k] + ', browser closed ' + fedClosed[k];
@@ -210,7 +212,7 @@ cases['armor-rungs'] = (R) => {
 };
 
 /* "LEVEL XP BEFORE BONUSES" IS THE EVEN SHARE (blind party test 2026-11-01: it always equalled what was paid). A mixed party was paid above it, a one-class
-   Sewer party under it; alone the two are one number. Both paths: the same totals in 30 s and 10 min cuts. */
+   Sewer party under it; alone the paid is the solo boost over it (Tyler 2026-11-08, party-class-xp.js SOLO_XP_PM). Both paths: the same totals in 30 s and 10 min cuts. */
 cases['before-bonuses'] = () => {
   const totals = (ground, roles, windowMs) => {
     const sum = { raw: 0, paid: 0 };
@@ -221,10 +223,15 @@ cases['before-bonuses'] = () => {
   if (!(mixed.raw > 0 && mixed.paid > mixed.raw)) return 'a mixed party was paid ' + mixed.paid + ' on a share of ' + mixed.raw;
   const again = totals('wickstead', ['tank', 'healer'], 600000);
   if (again.raw !== mixed.raw || again.paid !== mixed.paid) return 'browser closed reads ' + JSON.stringify(again) + ', viewed ' + JSON.stringify(mixed);
-  const cut = totals('millrace_sewer', ['tank', 'tank'], 30000);
-  if (!(cut.paid < cut.raw)) return 'a one-class Sewer party was paid ' + cut.paid + ' on a share of ' + cut.raw;
-  const lone = totals('wickstead', ['tank'], 30000);
-  if (Math.abs(lone.raw - lone.paid) > lone.paid * 0.01) return 'a lone hero reads ' + lone.raw + ' before bonuses and ' + lone.paid + ' paid';
+  /* one class: paid its own cell over the even share, never the even share itself (since the lane/b-one-difficulty re-tune a one-class cell sits
+     over 1000 and under the mixed one), so "before bonuses" still differs from what was paid */
+  const cut = totals('millrace_sewer', ['tank', 'tank'], 30000), oneCell = PCX.partyClassXp('millrace_sewer', ['tank', 'tank']).permille;
+  if (!(cut.raw > 0 && cut.paid !== cut.raw && cut.paid <= Math.ceil((cut.raw * oneCell) / 1000))) return 'a one-class Sewer party was paid ' + cut.paid + ' on a share of ' + cut.raw + ' (its cell ' + oneCell + ')';
+  /* alone: over the share by the boost, never past it, and at least half of it (each kill's share floors: a Wickstead kill of a few dozen XP keeps about 3.5 of the 5%) */
+  const lone = totals('wickstead', ['tank'], 30000), boost = PCX.SOLO_XP_PM / 1000;
+  if (!(lone.paid >= lone.raw * (1 + (boost - 1) / 2) && lone.paid <= Math.ceil(lone.raw * boost))) return 'a lone hero reads ' + lone.raw + ' before bonuses and ' + lone.paid + ' paid, the solo boost says up to ' + Math.round(lone.raw * boost);
+  const loneClosed = totals('wickstead', ['tank'], 600000);
+  if (loneClosed.raw !== lone.raw || loneClosed.paid !== lone.paid) return 'alone, browser closed reads ' + JSON.stringify(loneClosed) + ', viewed ' + JSON.stringify(lone);
   return null;
 };
 
@@ -281,35 +288,35 @@ cases['glade-harder'] = (R) => {
   return null;
 };
 
-const GLADE_SOFT = [['hp: 30, atk: 11, baseAcc: 0.8, def: 1, xp: 155', 'hp: 30, atk: 2, def: 1, xp: 155'], ['hp: 26, atk: 14, baseAcc: 0.85, def: 1, xp: 172', 'hp: 26, atk: 2, def: 1, xp: 172'],
-  ['hp: 48, atk: 11, baseAcc: 0.82, def: 6, xp: 309', 'hp: 48, atk: 2, def: 6, xp: 309'], ['hp: 74, atk: 21, baseAcc: 0.8, def: 11, xp: 533', 'hp: 74, atk: 2, def: 11, xp: 533'],
-  ['hp: 81, atk: 22, baseAcc: 0.84, def: 14, xp: 609', 'hp: 81, atk: 2, def: 14, xp: 609'], ['hp: 69, atk: 20, baseAcc: 0.78, def: 10, xp: 481', 'hp: 69, atk: 2, def: 10, xp: 481']].map(([a, b]) => ['src/data/monsters.js', a, b]);
+const GLADE_SOFT = [['hp: 30, atk: 11, baseAcc: 0.8, def: 1, xp: 121', 'hp: 30, atk: 2, def: 1, xp: 121'], ['hp: 26, atk: 14, baseAcc: 0.85, def: 1, xp: 134', 'hp: 26, atk: 2, def: 1, xp: 134'],
+  ['hp: 48, atk: 11, baseAcc: 0.82, def: 6, xp: 241', 'hp: 48, atk: 2, def: 6, xp: 241'], ['hp: 74, atk: 21, baseAcc: 0.8, def: 11, xp: 415', 'hp: 74, atk: 2, def: 11, xp: 415'],
+  ['hp: 81, atk: 22, baseAcc: 0.84, def: 14, xp: 475', 'hp: 81, atk: 2, def: 14, xp: 475'], ['hp: 69, atk: 20, baseAcc: 0.78, def: 10, xp: 375', 'hp: 69, atk: 2, def: 10, xp: 375']].map(([a, b]) => ['src/data/monsters.js', a, b]);
 /* THE MUTANTS: each breaks one first-week way to fight, the way a data row would */
 const mutants = [
   { name: 'the Glade hits at the old accuracy: its floor is not felt', case: 'glade-harder',
     edits: [['src/core/combat.js', 'const base = monster && Number.isFinite(monster.baseAcc) ? monster.baseAcc : b.monsterBaseAccuracy;', 'const base = b.monsterBaseAccuracy;'], ...GLADE_SOFT.map(([f, a]) => [f, a, a.replace(/atk: \d+/, 'atk: 2')])] },
   { name: 'armor reads the hero\'s Level again: a push on the default food pays for itself', case: 'risk-ladder',
-    edits: [['src/core/hunt/damage.js', "mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(MONSTERS[source.kind]), inst.tier) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
+    edits: [['src/core/hunt/damage.js', "mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
   { name: 'Studded Boots stop no more than Leather Boots again', case: 'armor-rungs', edits: [['src/data/items.js', "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:1},", "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:2},"]] },
   { name: 'leather is thin as cloth: its rungs stop being worth finding', case: 'armor-rungs', edits: [['src/data/gear-tiers.js', "{ key: 'leather', vmul: 0.70, defMul: 0.55,", "{ key: 'leather', vmul: 0.70, defMul: 0.25,"]] },
   { name: 'an Iron Platebody is barely over Bronze: plate\'s first rung goes flat', case: 'armor-rungs', edits: [['src/data/gear-tiers.js', "def: [6, 12, 22, 34, 50, 68, 90], bars: 5,", "def: [6, 6, 22, 34, 50, 68, 90], bars: 5,"]] },
   { name: 'the level share is gone: a Level 1 earns what its friends earn', case: 'risk-ladder', edits: [['src/core/hunt/xp-share.js', 'const seat = underFloorSharePm(ground, h.heroLv, top);', 'const seat = 1000;']] },
   { name: 'the level share cuts every seat under the floor: a party that pushes is punished', case: 'risk-ladder',
     edits: [['src/data/hunt-grounds.js', "level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;", "level >= band[0]) return 1000;\n  if (level < band[0]) return 500;"]] },
-  { name: 'the Thicket pays the old 1.52 on its wider pull, and the window still says 20%', case: 'vs-alone',
-    edits: [['src/data/party-class-xp.js', 'row([930, 1290], [880, 1180, 1310], [940, 1100, 1150, 1180])', 'row([930, 1290], [880, 1180, 1310], [940, 1100, 1150, 1520])']] },
+  { name: 'a mixed Thicket four is paid x1.29, and the window still says what x1.00 measured', case: 'vs-alone',
+    edits: [['src/data/party-class-xp.js', 'row([1045, 1735], [1015, 1620, 1800], [1190, 1735, 1815, 1860])', 'row([1045, 1735], [1015, 1620, 1800], [1190, 1735, 1815, 2400])']] },
   { name: 'the Iron Warhammer is back at 7/12: its upgrade pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:12},"]] },
   { name: 'the Steel Warhammer is back at 9/19: over the Iron it pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/gear-tiers.js', 'str: [7, 16, 23, 28, 39, 52, 68],', 'str: [7, 16, 19, 28, 39, 52, 68],']] },
   { name: 'the Iron Hatchets are back at 7/7: their upgrade pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 14, 21, 22, 29, 38],', 'atk: [4, 7, 14, 19, 25, 33, 42], str: [4, 7, 14, 21, 22, 29, 38],']] },
-  { name: 'a Thicket four of one weapon is paid 0.85, and the window still tells a four of wands it earns more than alone', case: 'vs-alone',
-    edits: [['src/data/party-class-xp.js', 'row([930, 1290], [880, 1180, 1310], [940, 1100, 1150, 1180])', 'row([930, 1290], [880, 1180, 1310], [850, 1100, 1150, 1180])']] },
+  { name: 'a Thicket four of one weapon is paid x0.85, and the window still says what its old cell measured', case: 'vs-alone',
+    edits: [['src/data/party-class-xp.js', 'row([1045, 1735], [1015, 1620, 1800], [1190, 1735, 1815, 1860])', 'row([1045, 1735], [1015, 1620, 1800], [1010, 1735, 1815, 1860])']] },
   { name: '"before bonuses" reads what was paid again', case: 'before-bonuses',
     edits: [['supabase/functions/hr-accrue/accrual.js', 'if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;', '']] },
   { name: 'a full box brings no more kills than the room as built, and the words still say bigger pulls pay', case: 'bigger-pulls-words',
-    edits: [['src/data/hunt-grounds.js', 'const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;', 'const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = 1;']] },
+    edits: [['src/data/hunt-grounds.js', 'const n = Math.min(MAX_HEROES, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;', 'const n = Math.min(MAX_HEROES, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = 1;']] },
   { name: 'a cape reads nothing on the hook, so it does nothing in a fight', case: 'cape-cut', edits: [['src/core/mitigation.js', 'nat(eq && eq.steadyPm) + ', '']] },
   { name: 'a food reads nothing on the hook, so it does nothing in a fight', case: 'cape-cut', edits: [['src/core/mitigation.js', " + Math.round((Number(bonus && bonus('steady')) || 0) * 1000);", ";"]] },
   { name: 'a cape guards again: damage taken falls by half', case: 'cape-cut', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, defB: 4,']] },
@@ -325,19 +332,19 @@ const mutants = [
     edits: [['src/data/supply-basics.js', "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 14)", "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 1)"],
       ['src/data/supply-basics.js', "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 40)", "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 1)"]] },
   { name: 'the Cellar\'s rats, slimes and wasps armoured like a Coppercap foreman (def 0 -> 60): a fresh hero cannot clear it', case: 'solo-mill_cellar',
-    edits: [['src/data/monsters.js', 'hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 23, gp: [1, 2], formula: true, speed: 3400,', 'hp: 6, atk: 3, baseAcc: 0.34, def: 60, xp: 23, gp: [1, 2], formula: true, speed: 3400,'],
-      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 33, gp: [1, 3], formula: true, speed: 2400,', 'hp: 8, atk: 3, baseAcc: 0.28, def: 60, xp: 33, gp: [1, 3], formula: true, speed: 2400,'],
-      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.47, def: 0, xp: 36, gp: [1, 3],', 'hp: 8, atk: 5, baseAcc: 0.43, def: 60, xp: 36, gp: [1, 3],']] },
+    edits: [['src/data/monsters.js', 'hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 15, gp: [1, 1], formula: true, speed: 3400,', 'hp: 6, atk: 3, baseAcc: 0.34, def: 60, xp: 15, gp: [1, 1], formula: true, speed: 3400,'],
+      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 22, gp: [1, 1], formula: true, speed: 2400,', 'hp: 8, atk: 3, baseAcc: 0.28, def: 60, xp: 22, gp: [1, 1], formula: true, speed: 2400,'],
+      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.47, def: 0, xp: 24, gp: [1, 1],', 'hp: 8, atk: 5, baseAcc: 0.43, def: 60, xp: 24, gp: [1, 1],']] },
   { name: 'Thin Turnip Juice costs six times as much (a fresh Mage in the Thicket pays more than it earns)', case: 'solo-meadowbrook_thicket',
     edits: [['src/data/supply-basics.js', "mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 10)", "mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 60)"]] },
   { name: 'Wickstead\'s Granary Rats bite like a Rat King (atk 5 -> 14)', case: 'solo-wickstead',
-    edits: [['src/data/monsters.js', 'hp: 15, atk: 4, baseAcc: 0.46, def: 0, xp: 68, gp: [2, 7], formula: true, speed: 3400', 'hp: 15, atk: 14, baseAcc: 0.46, def: 0, xp: 68, gp: [2, 7], formula: true, speed: 3400']] },
+    edits: [['src/data/monsters.js', 'hp: 15, atk: 4, baseAcc: 0.46, def: 0, xp: 45, gp: [2, 6], formula: true, speed: 3400', 'hp: 15, atk: 14, baseAcc: 0.46, def: 0, xp: 45, gp: [2, 6], formula: true, speed: 3400']] },
   /* THE UNIQUE CATCH (proved when written): at atk 12 drop-tables (profit-floor, caster-floor, ranger-floor), sewer,
      conditions and forest-cave all stay green, since their heroes wear the ladder kit's armour; only a fresh party in the
      practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. RE-AIMED on the formula's bat (atk 6 at
      to-hit 0.63, lane/b-ground-formula-2): at 12 the duo's tank dips once (the bar allows one), at 14 three times in 2 h, as the old 12 did. */
   { name: 'the Sewer\'s Culvert Bats bite more than twice as hard (atk 6 -> 14): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',
-    edits: [['src/data/monsters.js', 'hp: 53, atk: 7, baseAcc: 0.44, def: 1, xp: 256, gp: [9, 25], formula: true, speed: 4400', 'hp: 53, atk: 14, baseAcc: 0.44, def: 1, xp: 256, gp: [9, 25], formula: true, speed: 4400']] },
+    edits: [['src/data/monsters.js', 'hp: 53, atk: 7, baseAcc: 0.44, def: 1, xp: 154, gp: [9, 25], formula: true, speed: 4400', 'hp: 53, atk: 14, baseAcc: 0.44, def: 1, xp: 154, gp: [9, 25], formula: true, speed: 4400']] },
 ];
 
 const R = makeReport('hunt-core/first-week-bands');

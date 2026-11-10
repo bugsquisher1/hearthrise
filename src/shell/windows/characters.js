@@ -19,26 +19,28 @@
 // the server refuses rather than charge another sum. Refusals in plain words.
 // Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.107';
-import { summaryOf } from '../command-model.js?v=0.2.107';
-import { alertShown, setAlertShown } from '../alerts.js?v=0.2.107';
-import { huntName } from '../../session/party-sections.js?v=0.2.107';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.107';
-import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.107';
-import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.107';
-import { gmOf } from '../../session/character-sections.js?v=0.2.107';
-import { runIntent } from '../intent-words.js?v=0.2.107';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.107';
-import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.107';
-import { glyphSvg } from '../launcher.js?v=0.2.107';
-import { entriesFor } from '../context-menu.js?v=0.2.107';
-import { menuProvidersOf } from '../menu-providers.js?v=0.2.107';
+import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.113';
+import { summaryOf } from '../command-model.js?v=0.2.113';
+import { alertShown, setAlertShown } from '../alerts.js?v=0.2.113';
+import { huntName } from '../../session/party-sections.js?v=0.2.113';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.113';
+import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.113';
+import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.113';
+import { gmOf } from '../../session/character-sections.js?v=0.2.113';
+import { runIntent } from '../intent-words.js?v=0.2.113';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.113';
+import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.113';
+import { glyphSvg } from '../launcher.js?v=0.2.113';
+import { entriesFor } from '../context-menu.js?v=0.2.113';
+import { menuProvidersOf } from '../menu-providers.js?v=0.2.113';
+import { t } from '../../render/player-text.js?v=0.2.113';
 
 /* The rename panel's scratch, per viewed character: which hero, the typed name, the confirm step. */
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { slot: null, typed: '', confirm: false, pending: false, msg: '', inviting: false, partyMsg: '' }; SCRATCH.set(cs, s); } return s; };
 const cleanName = (v) => String(v || '').trim().replace(/\s+/g, ' ');
-const RENAME_WHY = Object.freeze({ hunt_open: ' is hunting. Rename once the hunt ends.', renamed_today: ' changed name today. One change a day.' });
+/* Why a hero can't be renamed now, by the server's reason (else heroes.rename_cant). */
+const RENAME_WHY = Object.freeze({ hunt_open: 'heroes.rename_hunting', renamed_today: 'heroes.rename_today' });
 
 /* THE PHONE'S ROUTES (playtest 2026-10-31, shown under the phone query only, windows.css): a hero's Invite button (the
    right-click menu's own entry, so its rule and its words stay in one place); every icon of the top row by name, each a
@@ -47,13 +49,13 @@ const RENAME_WHY = Object.freeze({ hunt_open: ' is hunting. Rename once the hunt
 const iconNames = (ctx, rows) => rows.map((r) => '<li><button type="button" class="hw-icon-name" data-hs-open="' + esc(r.id) + '">'
   + glyphSvg(ctx.glyphs, r.glyph) + '<span>' + esc(r.label) + '</span></button></li>').join('');
 const iconRows = (ctx) => ctx.wm.rows().filter((r) => r.launcher !== false && (r.gm !== true || gmOf(ctx.character)));
-const iconListHtml = (ctx) => '<div class="hw-phone-only"><h3 class="hw-ledger-head is-on">What the icons open</h3><ul class="hw-icon-names">'
+const iconListHtml = (ctx) => '<div class="hw-phone-only"><h3 class="hw-ledger-head is-on">' + esc(t('heroes.icons_head')) + '</h3><ul class="hw-icon-names">'
   + iconNames(ctx, iconRows(ctx).filter((r) => r.phoneIcon !== false)) + '</ul></div>';
 /* "Also here" is the sheet's first row: these have no icon on a phone, so a long scroll hid them (panel 2026-11-01: ~700 px down). */
-const alsoHereHtml = (ctx) => '<div class="hw-phone-only"><ul class="hw-icon-names is-more" aria-label="Also here">'
+const alsoHereHtml = (ctx) => '<div class="hw-phone-only"><ul class="hw-icon-names is-more" aria-label="' + esc(t('heroes.also_here_aria')) + '">'
   + iconNames(ctx, iconRows(ctx).filter((r) => r.phoneIcon === false)) + '</ul></div>';
-const ACCOUNT_HTML = '<div class="hw-phone-only hw-account"><button type="button" class="hh-tool" data-app="characters">Character list</button>'
-  + '<button type="button" class="hh-tool" data-app="sign-out">Sign out</button></div>';
+const ACCOUNT_HTML = '<div class="hw-phone-only hw-account"><button type="button" class="hh-tool" data-app="characters">' + esc(t('heroes.character_list')) + '</button>'
+  + '<button type="button" class="hh-tool" data-app="sign-out">' + esc(t('heroes.sign_out')) + '</button></div>';
 
 /** The Invite entry for one of this account's other heroes, or null (the viewed hero, or one already in a party). */
 function inviteEntry(ctx, x) {
@@ -70,14 +72,14 @@ export function renderCharacters(ctx) {
     + '<ul class="hw-chars"></ul>'
     + '<div class="hw-rename"><h3 class="hs-sub hw-rename-head"></h3>'
     + '<p class="hs-note hw-rename-quote"></p>'
-    + '<div class="hw-add"><input type="text" class="hh-num hw-rename-in" maxlength="20" placeholder="New name" aria-label="New name">'
+    + '<div class="hw-add"><input type="text" class="hh-num hw-rename-in" maxlength="20" placeholder="' + esc(t('heroes.new_name')) + '" aria-label="' + esc(t('heroes.new_name')) + '">'
     + '<button type="button" class="hh-tool" data-hs-act="rename-ask"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="rename-close">Close</button></div>'
-    + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the new name"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
+    + '<button type="button" class="hh-tool" data-hs-act="rename-close">' + esc(t('heroes.close')) + '</button></div>'
+    + '<div class="hw-confirm" role="alertdialog" aria-label="' + esc(t('heroes.confirm_aria')) + '"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="rename-yes"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="rename-no">Cancel</button></div></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="rename-no">' + esc(t('heroes.cancel')) + '</button></div></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
-    + '<h3 class="hw-ledger-head is-on">Parties</h3>'
+    + '<h3 class="hw-ledger-head is-on">' + esc(t('heroes.parties_head')) + '</h3>'
     + '<p class="hs-note hw-parties-line"></p><p class="hh-intent-msg hw-parties-msg" role="status" aria-live="polite"></p>'
     + iconListHtml(ctx)
     + '<h3 class="hw-ledger-head is-on hw-alerts-head"></h3>'
@@ -91,11 +93,11 @@ function charRow(ctx) {
   return element(ctx.doc, '<li class="hw-char">'
     + '<span class="hw-ico hw-roleglyph" aria-hidden="true"></span>'
     + '<div class="hw-char-main"><p class="hw-char-line"><b class="hw-char-name"></b><span class="hw-char-doing"></span>'
-    + '<span class="hw-badge" aria-label="Alerts waiting"></span></p><p class="hw-char-waits"></p>'
-    + '<div class="hw-char-gauges">' + gaugeHtml('hp', 'Health') + gaugeHtml('mana', 'Mana') + gaugeHtml('stamina', 'Stamina') + '</div>'
+    + '<span class="hw-badge" aria-label="' + esc(t('heroes.alerts_waiting_aria')) + '"></span></p><p class="hw-char-waits"></p>'
+    + '<div class="hw-char-gauges">' + gaugeHtml('hp', t('heroes.gauge_health')) + gaugeHtml('mana', t('heroes.gauge_mana')) + gaugeHtml('stamina', t('heroes.gauge_stamina')) + '</div>'
     + '<p class="hw-char-facts"><span class="hw-char-bag"></span><span class="hw-char-ready"></span><span class="hw-char-party"></span></p></div>'
-    + '<span class="hw-char-do"><button type="button" class="hh-tool hw-char-show" data-hs-act="show">Show</button>'
-    + '<button type="button" class="hh-tool hw-char-rename" data-hs-act="rename">Rename</button>'
+    + '<span class="hw-char-do"><button type="button" class="hh-tool hw-char-show" data-hs-act="show">' + esc(t('heroes.show')) + '</button>'
+    + '<button type="button" class="hh-tool hw-char-rename" data-hs-act="rename">' + esc(t('heroes.rename')) + '</button>'
     + '<button type="button" class="hh-tool hw-char-invite" data-hs-act="invite" hidden></button></span></li>');
 }
 
@@ -110,19 +112,19 @@ function patchRow(li, x, ctx) {
   /* What the red count is waiting for: the newest of this hero's alerts, in its own words (panel 2026-11-01). */
   const wait = x.alerts && ctx.alerts ? ctx.alerts.list().find((a) => a.slot === x.slot) : null;
   text(li.querySelector('.hw-char-waits'), wait ? wait.text : '');
-  patchGauge(li.querySelector('.is-hp'), v.hp, v.hpMax, v.hp === null ? 'HP –' : whole(v.hp) + ' / ' + whole(v.hpMax));
-  patchGauge(li.querySelector('.is-mana'), v.mana, v.manaMax, v.mana === null ? 'Mana –' : whole(v.mana) + ' / ' + whole(v.manaMax));
+  patchGauge(li.querySelector('.is-hp'), v.hp, v.hpMax, v.hp === null ? t('heroes.hp_unknown') : whole(v.hp) + ' / ' + whole(v.hpMax));
+  patchGauge(li.querySelector('.is-mana'), v.mana, v.manaMax, v.mana === null ? t('heroes.mana_unknown') : whole(v.mana) + ' / ' + whole(v.manaMax));
   patchGauge(li.querySelector('.is-stamina'), v.staminaMs, v.staminaCapMs, hoursMinutes(v.staminaMs));
   /* What this hero's bag would fetch at the shop, never gold it holds: the purse is the account's (optimizer panel 11-03: "Bag 19,369 gp" beside "Your gold 51.7k" read as two purses). */
-  text(li.querySelector('.hw-char-bag'), 'Bag worth ' + gold(x.bagValue));
+  text(li.querySelector('.hw-char-bag'), t('heroes.bag_worth', { gold: gold(x.bagValue) }));
   text(li.querySelector('.hw-char-ready'), x.readyLine);
   cls(li.querySelector('.hw-char-ready'), 'is-short', x.loaded && !x.ready);
-  text(li.querySelector('.hw-char-party'), x.party ? 'Party: ' + huntName(x.party.hunt) + (x.party.isLeader ? ', leads' : '') : 'No party');
+  text(li.querySelector('.hw-char-party'), x.party ? t(x.party.isLeader ? 'heroes.party_leads' : 'heroes.party_in', { hunt: huntName(x.party.hunt) }) : t('heroes.no_party'));
   cls(li, 'is-shown', x.slot === ctx.character.slot);
   const show = li.querySelector('.hw-char-show');
   show.setAttribute('data-slot', String(x.slot));
   prop(show, 'disabled', x.slot === ctx.character.slot || !ctx.goTo);
-  text(show, x.slot === ctx.character.slot ? 'On screen' : 'Show');
+  text(show, x.slot === ctx.character.slot ? t('heroes.on_screen') : t('heroes.show'));
   const ren = li.querySelector('.hw-char-rename');
   ren.setAttribute('data-slot', String(x.slot));
   prop(ren, 'disabled', scratchOf(ctx.character).pending);
@@ -145,16 +147,15 @@ function patchRename(root, ctx, peers) {
   const name = summaryOf(target).name;
   const q = renameOf(target);
   const purse = goldOf(target);
-  text(panel.querySelector('.hw-rename-head'), 'Rename ' + name);
+  text(panel.querySelector('.hw-rename-head'), t('heroes.rename_head', { name }));
   const short = !!q && purse !== null && purse < q.price;
-  text(panel.querySelector('.hw-rename-quote'), !q ? 'The server has not priced a new name yet.'
-    : 'A new name costs ' + gold(q.price) + ' at Level ' + whole(q.level) + ', paid from your gold. The first name was free, and every change after it costs gold.'
-      + (!q.available ? ' ' + name + (RENAME_WHY[q.why] || ' cannot change name right now.')
-        : short ? ' You have ' + gold(purse) + '.' : ''));
+  const why = q && !q.available ? t(Object.prototype.hasOwnProperty.call(RENAME_WHY, q.why) ? RENAME_WHY[q.why] : 'heroes.rename_cant', { name }) : '';
+  text(panel.querySelector('.hw-rename-quote'), !q ? t('heroes.rename_unpriced')
+    : [t('heroes.rename_quote', { price: gold(q.price), level: whole(q.level) }), why || (short ? t('heroes.rename_short', { gold: gold(purse) }) : '')].filter(Boolean).join(' '));
   const can = !!q && q.available && !short && !sc.pending;
   if (sc.confirm && !can) sc.confirm = false;
   const ask = panel.querySelector('[data-hs-act="rename-ask"]');
-  text(ask, q ? 'Rename · ' + gold(q.price) : 'Rename');
+  text(ask, q ? t('heroes.rename_price', { price: gold(q.price) }) : t('heroes.rename'));
   prop(ask, 'disabled', !can || sc.confirm);
   prop(panel.querySelector('.hw-rename-in'), 'disabled', sc.pending || sc.confirm);
   const cf = panel.querySelector('.hw-confirm');
@@ -162,9 +163,9 @@ function patchRename(root, ctx, peers) {
   const yes = panel.querySelector('[data-hs-act="rename-yes"]');
   cls(yes, 'is-on', sc.confirm);
   if (sc.confirm && q) {
-    text(cf.querySelector('.hw-confirm-q'), 'Change ' + name + ' to ' + sc.typed + ' for ' + gold(q.price) + '?');
-    text(cf.querySelector('.hw-confirm-note'), 'The gold is gone for good, and the name ' + name + ' is free for anyone to take.');
-    text(yes, 'Pay ' + gold(q.price));
+    text(cf.querySelector('.hw-confirm-q'), t('heroes.confirm_q', { name, typed: sc.typed, price: gold(q.price) }));
+    text(cf.querySelector('.hw-confirm-note'), t('heroes.confirm_note', { name }));
+    text(yes, t('heroes.pay', { price: gold(q.price) }));
   }
   prop(yes, 'disabled', sc.pending);
   text(panel.querySelector('.hh-intent-msg'), sc.msg);
@@ -180,28 +181,27 @@ renderCharacters.patch = function patchCharacters(body, ctx) {
     patch: (li, x) => patchRow(li, x, ctx),
   });
   const inParty = peers.filter((cs) => summaryOf(cs).party).length;
-  text(root.querySelector('.hw-parties-line'), (inParty ? inParty + ' of your ' + peers.length + ' characters ' + (inParty === 1 ? 'is' : 'are') + ' in a party. '
-    : 'None of your characters is in a party. ') + (ctx.isPhone && ctx.isPhone() ? 'Press Invite on a hero to bring it into your party, or hold a player’s name. The Party window finds open parties.'
-      : 'Right-click a player, or one of your character tabs, to invite. Party (Y) finds open parties.'));
+  text(root.querySelector('.hw-parties-line'), (inParty ? t('heroes.parties_some', { count: inParty, total: peers.length }) : t('heroes.parties_none'))
+    + ' ' + (ctx.isPhone && ctx.isPhone() ? t('heroes.parties_how_phone') : t('heroes.parties_how')));
   text(root.querySelector('.hw-parties-msg'), scratchOf(ctx.character).partyMsg);
   patchRename(root, ctx, peers);
-  text(root.querySelector('.hw-alerts-head'), 'Alerts from ' + summaryOf(ctx.character).name);
+  text(root.querySelector('.hw-alerts-head'), t('heroes.alerts_from', { name: summaryOf(ctx.character).name }));
   for (const box of root.querySelectorAll('[data-hs-act="alert-kind"]')) prop(box, 'checked', alertShown(ctx.character, box.getAttribute('data-kind')));
 };
 
-renderCharacters.act = function actCharacters(ctx, body, action, ev, t) {
-  if (action === 'alert-kind' && ev.type === 'change') { setAlertShown(ctx.character, t.getAttribute('data-kind'), t.checked); return true; }
+renderCharacters.act = function actCharacters(ctx, body, action, ev, el) {
+  if (action === 'alert-kind' && ev.type === 'change') { setAlertShown(ctx.character, el.getAttribute('data-kind'), el.checked); return true; }
   if (ev.type !== 'click') return false;
-  if (action === 'show') { if (ctx.goTo) ctx.goTo(Number(t.getAttribute('data-slot'))); return true; }
+  if (action === 'show') { if (ctx.goTo) ctx.goTo(Number(el.getAttribute('data-slot'))); return true; }
   const sc = scratchOf(ctx.character);
   const repaint = () => renderCharacters.patch(body, ctx);
   if (action === 'invite') {
-    const x = ctx.peers().map((cs) => summaryOf(cs, ctx.alerts)).find((p) => p.slot === Number(t.getAttribute('data-slot')));
+    const x = ctx.peers().map((cs) => summaryOf(cs, ctx.alerts)).find((p) => p.slot === Number(el.getAttribute('data-slot')));
     const can = x && inviteEntry(ctx, x);
     if (!can || sc.inviting) return true;
-    sc.inviting = true; sc.partyMsg = 'Sending…';
+    sc.inviting = true; sc.partyMsg = t('heroes.sending');
     repaint();
-    Promise.resolve(can.entry.run(can.target, { open: (id) => ctx.show(id) })).then((r) => r, () => ({ say: 'That did not work. Try again.' })).then((r) => {
+    Promise.resolve(can.entry.run(can.target, { open: (id) => ctx.show(id) })).then((r) => r, () => ({ say: t('heroes.invite_failed') })).then((r) => {
       sc.inviting = false; sc.partyMsg = (r && (r.say || r.done)) || '';
       repaint();
     });
@@ -209,7 +209,7 @@ renderCharacters.act = function actCharacters(ctx, body, action, ev, t) {
   }
   if (action === 'rename') {
     if (sc.pending) return true;
-    sc.slot = Number(t.getAttribute('data-slot')); sc.confirm = false; sc.msg = '';
+    sc.slot = Number(el.getAttribute('data-slot')); sc.confirm = false; sc.msg = '';
     body.querySelector('.hw-rename-in').value = '';
     repaint();
     return true;
@@ -219,8 +219,8 @@ renderCharacters.act = function actCharacters(ctx, body, action, ev, t) {
   const target = sc.slot === null ? null : ctx.peers().find((cs) => cs.slot === sc.slot) || null;
   if (action === 'rename-ask' && target) {
     const n = cleanName(body.querySelector('.hw-rename-in').value);
-    if (n.length < 3 || n.length > 20) { sc.msg = 'Names are 3 to 20 letters, numbers and spaces.'; repaint(); return true; }
-    if (n === summaryOf(target).name) { sc.msg = 'That is already this hero\u2019s name.'; repaint(); return true; }
+    if (n.length < 3 || n.length > 20) { sc.msg = t('heroes.name_length'); repaint(); return true; }
+    if (n === summaryOf(target).name) { sc.msg = t('heroes.name_same'); repaint(); return true; }
     sc.typed = n; sc.confirm = true; sc.msg = '';
     repaint();
     return true;
@@ -230,9 +230,9 @@ renderCharacters.act = function actCharacters(ctx, body, action, ev, t) {
     sc.confirm = false;
     if (!q || !q.available) { repaint(); return true; }
     const n = sc.typed;
-    runIntent(sc, repaint, () => target.renameHero(n, q.price), 'Renaming\u2026', () => {
+    runIntent(sc, repaint, () => target.renameHero(n, q.price), t('heroes.renaming'), () => {
       body.querySelector('.hw-rename-in').value = '';
-      return 'Done: this hero is now ' + n + '.';
+      return t('heroes.renamed', { name: n });
     }, target);
     return true;
   }

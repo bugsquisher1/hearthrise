@@ -184,7 +184,7 @@ async function stubServer(page, o) {
       const slot = name === 'hr_load' ? body.p_slot : body.slot;
       const slots = o.slots || [0, 1];
       const next = o.ladder ? Object.keys(o.ladder).map(Number).find((k) => !slots.includes(k)) : undefined;
-      const account = Object.assign({ max_concurrent: 4 }, o.ladder ? { hero_slots_max: 5, hero_slot_offer: next === undefined ? null : { slot_id: next, cost_gold: o.ladder[next] } } : {});
+      const account = Object.assign({ max_concurrent: 4 }, o.ladder ? { hero_slots_max: 4, hero_slot_offer: next === undefined ? null : { slot_id: next, cost_gold: o.ladder[next] } } : {});
       if (name === 'hr_load' || name === 'hr-accrue') {
         const b = o.heroes[slot] ? envelope(slot, 1, { name: o.heroes[slot], hero_slots: slots, account,
           /* THE ACCOUNT PURSE (one per account): every hero states it; a lagging hero states an older version. */
@@ -1089,7 +1089,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
 
     { // B-11 buy a hero slot with the account's gold, at the server's price; none at the cap
       const o = { heroes: { 0: 'Tester', 1: 'Fennick' }, created: [], bought: [], slots: [0, 1], purse: 14100, goldV: 7,
-        lag: { 1: { gold: 90000, v: 3 } }, ladder: { 2: 15000, 3: 40000, 4: 120000 } };
+        lag: { 1: { gold: 90000, v: 3 } }, ladder: { 2: 15000, 3: 40000 } };   // four heroes an account (Tyler 2026-11-07): slots 2 and 3 are sold, no fifth
       const { ctx, page, errors } = await fresh(o);
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
@@ -1103,7 +1103,8 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       const b0 = shown ? await btn() : null;
       /* "Up to 4" beside two slots says how the other two come, at the server's price (blind playtest 2026-10-31). */
       const lead = await page.evaluate(() => (document.querySelector('.auth-lead') || {}).textContent || '');
-      if (!/You own 2 hero slots, and up to 4 heroes can play at once\. More slots cost gold: the third is 15,000\./.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
+      /* The price is the offer block's own (the server's quote), so the line names none (designer 2026-11-09). */
+      if (!/You own 2 hero slots\. Up to 4 heroes can play at once, and more slots cost gold\./.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
       /* 14,100 at wallet version 7 is the purse; Fennick's older answer (90,000 at version 3) is not. */
       if (!b0 || b0.text !== 'Buy a hero slot for 15,000 gold' || !b0.off || b0.pay !== '0' || b0.picker
         || b0.purse !== 'Your gold: 14,100' || !/^You need 900 more gold./.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Your gold: 14,100, 900 short, off, no payer to pick)');
@@ -1129,10 +1130,10 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         const b3 = await btn();
         /* The new slot stands empty, so no other is on sale until a hero is in it (newcomer panel 2026-11-01); the third hero brings the fourth slot's price. */
         if (!reread || b3) fails.push('B-11 after the purchase the roster reads ' + JSON.stringify(b3) + (reread ? ' beside the new empty slot' : ' with no new empty slot'));
-        o.slots.push(3, 4);
+        o.slots.push(3);
         await page.reload({ waitUntil: 'load' });
-        await wait(page, () => document.querySelectorAll('.char-row').length === 5);
-        if ((await page.$$('.char-row')).length !== 5 || await page.$('[data-app="buy-slot"]')) fails.push('B-11 at five slots the roster still offers a slot, or does not list five');
+        await wait(page, () => document.querySelectorAll('.char-row').length === 4);
+        if ((await page.$$('.char-row')).length !== 4 || await page.$('[data-app="buy-slot"]')) fails.push('B-11 at four slots the roster still offers a slot, or does not list four');
       }
       if (errors.length) fails.push('B-11 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();

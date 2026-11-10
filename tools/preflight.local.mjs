@@ -9,6 +9,8 @@
 //   node tools/preflight.local.mjs --proofs     instead: the proofs this diff touches in every job with no browser, narrowed
 //                                               as GitHub narrows them, one at a time (10-20 min, no Chrome)
 //   node tools/preflight.local.mjs --proofs --pages   the same with the page guards' proofs (one Chrome, a minute a mutant)
+//   node tools/preflight.local.mjs --proofs --plant   in a LANE's own worktree: the proofs that plant into the tree too (party-flow,
+//                                               hunt-live: 3 of the 18 proof reds since 11-04); refuses a dirty tree, checks it after
 //   node tools/preflight.local.mjs --selftest   the plan and the verdict, each proved by a planted mutant
 //
 // WHY (lane r-release-gate, 2026-11-04). Of the 79 causes behind the last 30 red release runs, 24 were a forgotten pin or
@@ -61,10 +63,24 @@ export const SLOW = new Map([
   ['node tests/plot-tier-parity.mjs', '48-88 s (one replay); no red in the last 30 runs'],
 ]);
 
+/* Reddened a release on GitHub, and slower here than COMMAND_LIMIT_S, so a run never judged it (lane r-green-first,
+   2026-11-07): inner command -> [its own limit in seconds, why]. Each starts first, in a slot of its own, and runs to its own
+   limit even past RUN_LIMIT_S: the minutes it costs are the hour a red run costs. */
+export const LONG = new Map([
+  ['node tests/typecheck-ratchet.mjs', [420, 'red on GitHub in v0.2.90, v0.2.104 and v0.2.106 (42394831391); 112-195 s on the Coordinator\'s PC at 41% CPU, 8-17 s on GitHub, so the 120 s limit killed it every time']],
+]);
+
+/* The quick pins that reddened release runs on GitHub (r-release-gate's 30 runs to 11-04, and the 22 red runs since): they start
+   right after LONG, before workflow order. On a loaded PC a 180 s run judged 32 of 121 commands, and module-preload (1 s, v0.2.106's
+   MP-1) was among the 88 it never reached. */
+export const FIRST = new Set(['node tests/module-preload.mjs', 'node tests/comment-ratio-ratchet.mjs --report', 'node tests/client-module-size.mjs',
+  'node tests/copy-lint.mjs --report', 'node tests/item-flavour-coverage.mjs', 'bash bump-version.sh --check']);
+
 /* Measured 13-120 s here, the rest under 10 s. They go last so a busy machine judges the most commands inside the limit: 124 s for all 71
    at 54% CPU, but 45 of 72 at the limit on a busier one, when two of these ate a slot each. */
 export const LATE = new Set(['node tests/w0e-ammo-runecraft-prayer.mjs', 'node tests/selfcheck-no-global-dml.bypass.mjs', 'node tests/world-assets.mjs',
-  'node tests/world-town-home.mjs', 'node tests/parse-check.mjs', 'node tests/restore-census.mjs', 'node tests/rpc-resolution.mjs', 'node tests/level-curve.mjs']);
+  'node tests/world-town-home.mjs', 'node tests/parse-check.mjs', 'node tests/restore-census.mjs', 'node tests/rpc-resolution.mjs', 'node tests/level-curve.mjs',
+  'node tests/core-curves.mjs', 'node tests/lucky-finds.mjs']);
 
 /* From the jobs that replay the chain, when their inputs moved: each was a red in the last 30 runs. */
 const CHAIN = (f) => f.startsWith('supabase/') || f === 'tests/schema-apply-order.json';
@@ -80,6 +96,9 @@ export const EXTRAS = [
   ['node tests/say-why.mjs', (f) => f.startsWith('src/shell/') || f.startsWith('src/app/'), 'a control off for a rule with no reason on screen (41973095820)'],
   ['bash bump-version.sh --check', () => true, 'the three version strings agree'],
   ['node tests/level-curve.mjs', (f) => /^src\/data\/(monsters|hunts|core-model|level)/.test(f), 'a ground or a monster moved: the curve is re-measured (40772818413)'],
+  /* v0.2.89 and v0.2.99: the pace was not re-measured, then four called monsters had no SQL row; 2-4 s on GitHub, found 7-13 min in. */
+  ['node tests/core-curves.mjs', (f) => CHAIN(f) || /^src\/data\/(monsters|hunts|core-model|level)/.test(f), 'a monster or ground moved and SQL or the pace did not follow (41922216241, 42146852443)'],
+  ['node tests/lucky-finds.mjs', (f) => CHAIN(f) || /^src\/data\/(monsters|items|bosses|hearthfind|shops)\.js$/.test(f), 'a tier\'s lucky rows (42146852443)'],
   ['node tests/core-purity.mjs', (f) => f.startsWith('src/core/') || /^src\/data\/core-model/.test(f), 'run-smoke\'s curve anchors (40789905806)'],
 ];
 
@@ -89,13 +108,15 @@ const isSkipped = (name) => SKIP.some(([n]) => n === name);
  * The plan, from the workflow's text and a diff. Pure.
  * @returns {{ run: {cmd,why,proof,guard}[], left: {cmd,why}[], errors: string[] }}
  */
-export function buildPlan(text, { changed = [], selected = new Set(), solo = new Set(), slow = SLOW, extras = EXTRAS, job = CHEAP_JOB, smokeText = '', skip = isSkipped } = {}) {
+export function buildPlan(text, { changed = [], selected = new Set(), solo = new Set(), slow = SLOW, long = LONG, first = FIRST, extras = EXTRAS, job = CHEAP_JOB, smokeText = '', skip = isSkipped } = {}) {
   const steps = flatSteps(parseWorkflow(text));
   const errors = [];
   const run = [];
   const left = [];
   const all = new Set(steps.flatMap((s) => s.run.map(unwrapGate)));
   for (const name of slow.keys()) if (!all.has(name)) errors.push(`SLOW names "${name}", which smoke.yml no longer runs`);
+  for (const name of long.keys()) if (!all.has(name)) errors.push(`LONG names "${name}", which smoke.yml no longer runs`);
+  for (const name of first) if (!all.has(name)) errors.push(`FIRST names "${name}", which smoke.yml no longer runs`);
   const seen = new Set();
   const cheap = steps.filter((s) => job.test(s.job) && !skip(s.name));
   for (const s of cheap) {
@@ -123,11 +144,11 @@ export function buildPlan(text, { changed = [], selected = new Set(), solo = new
 }
 
 /** --proofs: the touched proofs of every job that installs no browser, read from the workflow. Pure. */
-export function proofsPlan(text, { selected = new Set(), solo = new Set(), pages = false } = {}) {
+export function proofsPlan(text, { selected = new Set(), solo = new Set(), pages = false, plant = false } = {}) {
   const jobs = parseWorkflow(text);
   const browser = new Set(jobs.filter((j) => j.steps.some((s) => /playwright-chromium/.test(s.uses || ''))).map((j) => j.name));
   /* (run-ci-local's skips are for a machine with no browser; with --pages only the installs stay out.) */
-  const plan = buildPlan(text, { selected, solo, slow: new Map(), extras: [], job: { test: (name) => pages || !browser.has(name) }, skip: pages ? (name) => /^Install /.test(name) : isSkipped });
+  const plan = buildPlan(text, { selected, solo: plant ? new Set() : solo, slow: new Map(), long: new Map(), first: new Set(), extras: [], job: { test: (name) => pages || !browser.has(name) }, skip: pages ? (name) => /^Install /.test(name) : isSkipped });
   return { run: plan.run.filter((r) => r.proof), left: plan.left.filter((l) => PROOF_FLAG.test(l.cmd)), errors: plan.errors };
 }
 
@@ -152,7 +173,7 @@ function runOne(cmd, { cwd = ROOT, limitS = COMMAND_LIMIT_S, env = {} } = {}) {
 }
 
 /** The pool. Everything still unstarted past the run limit is NOT JUDGED. Returns one result per command, in order. */
-export async function runAll(cmds, { jobs = 3, runLimitS = RUN_LIMIT_S, limitS = COMMAND_LIMIT_S, cwd = ROOT, one = runOne, env = {}, onDone = () => {} } = {}) {
+export async function runAll(cmds, { jobs = 3, runLimitS = RUN_LIMIT_S, limitS = COMMAND_LIMIT_S, limits = new Map(), cwd = ROOT, one = runOne, env = {}, onDone = () => {} } = {}) {
   const results = new Array(cmds.length);
   const t0 = Date.now();
   let next = 0;
@@ -161,12 +182,21 @@ export async function runAll(cmds, { jobs = 3, runLimitS = RUN_LIMIT_S, limitS =
       const i = next++;
       const room = runLimitS - (Date.now() - t0) / 1000;
       if (room <= 0) { results[i] = { cmd: cmds[i].cmd, status: null, seconds: 0, out: '', notRun: true }; continue; }
-      results[i] = { cmd: cmds[i].cmd, ...(await one(cmds[i].cmd, { cwd, env, limitS: Math.min(limitS, room) })) };
+      /* A LONG command keeps its own limit: it was started inside the run's, and judging it is the point. */
+      const own = limits.get(cmds[i].cmd);
+      results[i] = { cmd: cmds[i].cmd, ...(await one(cmds[i].cmd, { cwd, env, limitS: own ?? Math.min(limitS, room) })) };
       onDone(results[i]);
     }
   };
   await Promise.all(Array.from({ length: Math.max(1, jobs) }, worker));
   return results;
+}
+
+/** The order commands start in: LONG (each in a slot of its own), the FIRST pins, the quick plain commands, LATE, then the
+    proofs, so a plain red reads first and is the cheap one to fix. Stable within a rank. Pure. */
+export function ordered(run, { long = LONG, first = FIRST, late = LATE } = {}) {
+  const rank = (r) => (long.has(r.cmd) ? -2 : first.has(r.cmd) ? -1 : r.proof ? 2 : late.has(r.cmd) ? 1 : 0);
+  return [...run].sort((a, b) => rank(a) - rank(b));
 }
 
 /** 0 only when every command was judged and exited 0; a red outranks the unjudged. Pure. */
@@ -240,7 +270,9 @@ async function selftest() {
   const ok = (c, m) => { console.log(`  ${c ? 'ok      ' : 'FAILED  '} ${m}`); if (!c) fails.push(m); };
   const X = [['node tests/census.mjs', (f) => f.startsWith('supabase/'), 'census']];
   const S = new Map([['node tests/slow.mjs', 'slow']]);
-  const plan = (o = {}, text = FIXTURE, impl = buildPlan) => impl(text, { slow: S, extras: X, ...o });
+  const L = new Map([['node tests/plain-b.mjs', [60, 'long']]]);
+  const F = new Set(['node tests/plain-a.mjs']);
+  const plan = (o = {}, text = FIXTURE, impl = buildPlan) => impl(text, { slow: S, long: L, first: F, extras: X, ...o });
   const names = (p) => p.run.map((r) => r.cmd);
 
   const planChecks = (impl) => {
@@ -251,6 +283,8 @@ async function selftest() {
     const gone = plan({}, FIXTURE.replace('run: node tests/slow.mjs', 'run: node tests/renamed.mjs'), impl);
     const noExtra = plan({ changed: ['supabase/x.sql'] }, FIXTURE.replace('node tests/census.mjs\n', 'node tests/other.mjs\n'), impl);
     const third = plan({}, FIXTURE.replace('  db-replay-2:\n', '  client-guards-3:\n    steps:\n      - name: New shard\n        run: node tests/plain-c.mjs\n  db-replay-2:\n'), impl);
+    const goneLong = plan({}, FIXTURE.replace('          node tests/plain-b.mjs\n', '          node tests/plain-renamed.mjs\n'), impl);
+    const goneFirst = plan({}, FIXTURE.replace('          node tests/plain-a.mjs\n', '          node tests/plain-renamed.mjs\n'), impl);
     return [
       [names(none).includes('node tests/plain-a.mjs') && names(none).includes('node tests/plain-b.mjs'), 'every plain command of the client-guards jobs runs'],
       [!names(none).some((c) => PROOF_FLAG.test(c)), 'an untouched proof does not run'],
@@ -265,6 +299,9 @@ async function selftest() {
       [names(third).includes('node tests/plain-c.mjs'), 'a new client-guards shard job is read'],
       [gone.errors.some((e) => /SLOW names/.test(e)), 'a SLOW name smoke.yml dropped is a harness error'],
       [noExtra.errors.some((e) => /EXTRAS names/.test(e)), 'an EXTRA smoke.yml dropped is a harness error'],
+      [goneLong.errors.some((e) => /LONG names/.test(e)), 'a LONG name smoke.yml dropped is a harness error'],
+      [goneFirst.errors.some((e) => /FIRST names/.test(e)), 'a FIRST name smoke.yml dropped is a harness error'],
+      [names(none).includes('node tests/plain-b.mjs'), 'a LONG command runs here (it is not left for GitHub)'],
       [new Set(names(plan({ selected: new Set(['tests/plain-a.mjs']) }, FIXTURE, impl))).size === names(plan({ selected: new Set(['tests/plain-a.mjs']) }, FIXTURE, impl)).length, 'nothing runs twice'],
     ];
   };
@@ -281,6 +318,9 @@ async function selftest() {
     ['extras never run', (t, o) => buildPlan(t, { ...o, extras: [] })],
     ['a gone SLOW name is silent', wrap((p) => ({ ...p, errors: p.errors.filter((e) => !/SLOW/.test(e)) }))],
     ['a gone EXTRA is silent', wrap((p) => ({ ...p, errors: p.errors.filter((e) => !/EXTRAS/.test(e)) }))],
+    ['a gone LONG name is silent', wrap((p) => ({ ...p, errors: p.errors.filter((e) => !/LONG/.test(e)) }))],
+    ['a gone FIRST name is silent', wrap((p) => ({ ...p, errors: p.errors.filter((e) => !/FIRST/.test(e)) }))],
+    ['a LONG command is left for GitHub like a SLOW one', (t, o) => buildPlan(t, { ...o, slow: new Map([...(o.slow || []), ...[...(o.long || [])].map(([c, [, w]]) => [c, w])]) })],
     ['the list is frozen, not read', () => ({ run: [{ cmd: 'node tests/plain-a.mjs' }, { cmd: 'node tests/plain-b.mjs' }], left: [{ cmd: 'node tests/slow.mjs' }], errors: [] })],
   ]) {
     const missed = planChecks(impl).every(([c]) => c);
@@ -298,9 +338,9 @@ async function selftest() {
     const judge = async (cmds, o = {}) => verdict(await runAll(cmds.map((cmd) => ({ cmd })), { cwd: dir, ...o }));
     const v0 = await judge([green, green]);
     const v1 = await judge([green, red]);
-    const v2 = await judge([green, hang], { limitS: 2 });
+    const v2 = await judge([green, hang], { limitS: 10 });
     const v3 = await judge([green, green, green], { jobs: 1, runLimitS: 0 });
-    const v4 = await judge([red, hang], { limitS: 2 });
+    const v4 = await judge([red, hang], { limitS: 10 });
     const checks = (v) => [
       [v(v0).exit === 0 && v(v0).green === 2, 'all green exits 0'],
       [v(v1).exit === 1 && v(v1).red.length === 1 && /the words a fix needs/.test(v(v1).red[0].out), 'a red exits 1 and keeps the words'],
@@ -320,11 +360,35 @@ async function selftest() {
       console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} verdict mutant: ${label}`);
       if (missed) fails.push(`verdict mutant missed: ${label}`);
     }
+    /* LONG (v0.2.90, v0.2.104, v0.2.106): the type ratchet ran 112-195 s here against a 120 s limit and was never judged.
+       A LONG command starts first and runs to its own limit, past the run's. */
+    const slowRed = script('slow-red.mjs', 'setTimeout(() => { console.log("the long guard\'s words"); process.exit(1); }, 4000);');
+    const longChecks = async (order, run) => {
+      const list = [{ cmd: green, proof: false }, { cmd: 'node p.mjs --mutate', proof: true }, { cmd: 'node late.mjs', proof: false }, { cmd: 'node pin.mjs', proof: false }, { cmd: slowRed, proof: false }];
+      const o = order(list, { long: new Map([[slowRed, [60, 'x']]]), first: new Set(['node pin.mjs']), late: new Set(['node late.mjs']) }).map((r) => r.cmd);
+      const v = verdict(await run([{ cmd: slowRed }], { cwd: dir, jobs: 1, limitS: 1, runLimitS: 1, limits: new Map([[slowRed, 60]]) }));
+      return [
+        [o.join() === [slowRed, 'node pin.mjs', green, 'node late.mjs', 'node p.mjs --mutate'].join(), 'LONG starts first, then the FIRST pins, then plain, then LATE, then the proofs'],
+        [v.exit === 1 && v.unjudged.length === 0 && /the long guard's words/.test(v.red[0]?.out || ''), 'a LONG command runs past the run\'s limit to its own and is judged'],
+      ];
+    };
+    for (const [c, m] of await longChecks(ordered, runAll)) ok(c, m);
+    for (const [label, ord, run] of [
+      ['LONG starts with the plain commands', (r, o) => ordered(r, { ...o, long: new Map() }), runAll],
+      ['the FIRST pins wait their turn in workflow order', (r, o) => ordered(r, { ...o, first: new Set() }), runAll],
+      ['a LONG command is cut at the run\'s limit', ordered, (c, o) => runAll(c, { ...o, limits: new Map() })],
+    ]) {
+      const missed = (await longChecks(ord, run)).every(([c]) => c);
+      console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} LONG mutant: ${label}`);
+      if (missed) fails.push(`LONG mutant missed: ${label}`);
+    }
   } finally { rmSync(dir, { recursive: true, force: true }); }
 
   /* The real workflow: SLOW and EXTRAS name real commands, and the plan holds the guards the last 30 reds needed. */
   const real = buildPlan(readFileSync(WORKFLOW, 'utf8'), { changed: ['supabase/migrations/x.sql', 'src/data/items.js'], smokeText: readFileSync(join(ROOT, 'tests', 'run-smoke.mjs'), 'utf8') });
-  ok(!real.errors.length, `SLOW and EXTRAS name commands smoke.yml runs (${real.errors.join('; ') || 'all of them'})`);
+  ok(!real.errors.length, `SLOW, LONG and EXTRAS name commands smoke.yml runs (${real.errors.join('; ') || 'all of them'})`);
+  ok(ordered(real.run)[0]?.cmd === 'node tests/typecheck-ratchet.mjs', 'the real plan starts the type ratchet first');
+  ok(ordered(real.run).slice(1, 1 + FIRST.size).every((r) => FIRST.has(r.cmd)), 'the real plan starts the FIRST pins next (module-preload among them)');
   for (const need of ['node tests/module-preload.mjs', 'node tests/comment-ratio-ratchet.mjs --report', 'node tests/client-module-size.mjs', 'node tests/mutant-anchors.mjs',
     'node tests/copy-lint.mjs --report', 'node tests/dead-exports.mjs', 'node tests/patch-chain-guard.mjs --report', 'bash bump-version.sh --check', 'node tests/restore-census.mjs']) {
     ok(names(real).includes(need), `the real plan runs ${need}`);
@@ -340,6 +404,7 @@ async function selftest() {
       [!impl(FIXTURE, { selected: new Set() }).run.length, '--proofs on an untouched diff runs nothing'],
       [!n.includes('node tests/page.mjs --mutate'), '--proofs leaves a job with a browser alone'],
       [impl(FIXTURE, { selected: new Set(['tests/page.mjs']), pages: true }).run.some((r) => r.cmd === 'node tests/page.mjs --mutate'), '--proofs --pages reads it'],
+      [impl(FIXTURE, { selected: new Set(['tests/plants.mjs']), solo: new Set(['tests/plants.mjs']), plant: true }).run.some((r) => r.cmd === 'node tests/plants.mjs --selftest'), '--proofs --plant runs a proof that plants (a lane\'s own tree)'],
     ];
   };
   for (const [c, m] of proofChecks(proofsPlan)) ok(c, m);
@@ -350,6 +415,7 @@ async function selftest() {
     ['--proofs runs whatever the diff', (t, o) => proofsPlan(t, { ...o, selected: { has: () => true } })],
     ['--proofs reads the browser jobs too', (t, o) => proofsPlan(t, { ...o, pages: true })],
     ['--pages does nothing', (t, o) => proofsPlan(t, { ...o, pages: false })],
+    ['--plant does nothing', (t, o) => proofsPlan(t, { ...o, plant: false })],
   ]) {
     const missed = proofChecks(impl).every(([c]) => c);
     console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} --proofs mutant: ${label}`);
@@ -363,9 +429,14 @@ async function selftest() {
 /* One at a time, each narrowed by the same plan GitHub hands its guards (HR_MUTANT_SCOPE), each printed as it ends. */
 async function deepProofs(text, d, allProofs, read, solo, argv) {
   const selected = new Set(selectGuards(d.files, { base: d.sha, extraGuards: allProofs, regions: d.regions, read }).keys());
-  const plan = proofsPlan(text, { selected, solo, pages: argv.includes('--pages') });
-  console.log(`preflight --proofs: ${d.files.length} changed file(s) since ${d.sha.slice(0, 9)}; ${plan.run.length} proof(s) to run, ${plan.left.length} that plant into the tree stay on GitHub`);
+  const plant = argv.includes('--plant');
+  const plan = proofsPlan(text, { selected, solo, pages: argv.includes('--pages'), plant });
+  console.log(`preflight --proofs: ${d.files.length} changed file(s) since ${d.sha.slice(0, 9)}; ${plan.run.length} proof(s) to run, ${plan.left.length} that plant into the tree stay on GitHub${plant ? ' (--plant: none)' : ''}`);
   if (argv.includes('--list')) { for (const r of plan.run) console.log(`  run   ${r.cmd}`); for (const l of plan.left) console.log(`  left  ${l.cmd}`); return 0; }
+  /* A plant interrupted mid-run stays in the tree (11-05: guard-anchors' plant in src/session/envelope.js). On a dirty tree it
+     could not be told from the lane's own edits, so --plant refuses one, and names any file a proof left changed. */
+  const status = () => spawnSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf8' }).stdout || '';
+  if (plant && d.dirty) { console.error('preflight --proofs --plant: the tree has uncommitted changes; commit them first, so a plant left behind can be seen'); return 2; }
   const dir = mkdtempSync(join(tmpdir(), 'hr-preflight-plan-'));
   const scope = join(dir, 'plan.json');
   writeFileSync(scope, JSON.stringify({ full: false, base: d.sha, tip: d.head, changed: d.files, selected: Object.fromEntries([...selected].map((g) => [g, 'preflight --proofs'])) }));
@@ -378,6 +449,8 @@ async function deepProofs(text, d, allProofs, read, solo, argv) {
     } });
     const v = verdict(results);
     console.log(`\npreflight --proofs: ${v.green} green, ${v.red.length} red, ${v.unjudged.length} not judged, ${Math.round((Date.now() - t0) / 1000)} s`);
+    const left = plant ? status().trim() : '';
+    if (left) { console.error(`preflight --proofs --plant: a proof left the tree changed; restore it before committing:\n${left}`); return 2; }
     return v.exit;
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
@@ -405,10 +478,9 @@ async function main(argv) {
   }
   const jobs = Number(at('-j')) || Math.min(3, Math.max(1, Math.floor(availableParallelism() / 4)));
   const t0 = Date.now();
-  /* The quick plain commands, then the slow ones, then the proofs: a plain red reads first and is the cheap one to fix. */
-  const rank = (r) => (r.proof ? 2 : LATE.has(r.cmd) ? 1 : 0);
-  const ordered = [...plan.run].sort((a, b) => rank(a) - rank(b));
-  const results = await runAll(ordered, { jobs });
+  const order = ordered(plan.run);
+  const longs = order.filter((r) => LONG.has(r.cmd)).length;
+  const results = await runAll(order, { jobs: jobs + longs, limits: new Map([...LONG].map(([c, [s]]) => [c, s])) });
   const v = verdict(results);
   for (const r of v.red) {
     console.log(`\n  RED  ${r.cmd}  (exit ${r.status}, ${Math.round(r.seconds)} s)`);
@@ -416,7 +488,7 @@ async function main(argv) {
   }
   for (const r of v.unjudged) console.log(`\n  NOT JUDGED  ${r.cmd}  (${r.notRun ? 'the run ran out of time' : `over its limit at ${Math.round(r.seconds)} s`}; GitHub will judge it)`);
   const slowest = [...results].sort((a, b) => b.seconds - a.seconds).slice(0, 3).map((r) => `${r.cmd.replace(/^node /, '')} ${Math.round(r.seconds)} s`).join(', ');
-  console.log(`\npreflight: ${v.green} green, ${v.red.length} red, ${v.unjudged.length} not judged, ${Math.round((Date.now() - t0) / 1000)} s (${jobs} at a time). Slowest: ${slowest}`);
+  console.log(`\npreflight: ${v.green} green, ${v.red.length} red, ${v.unjudged.length} not judged, ${Math.round((Date.now() - t0) / 1000)} s (${jobs} at a time${longs ? `, + ${longs} LONG in a slot of its own` : ''}). Slowest: ${slowest}`);
   if (argv.includes('--times')) for (const r of [...results].sort((a, b) => b.seconds - a.seconds).slice(0, 25)) console.log(`  ${String(Math.round(r.seconds)).padStart(4)} s  ${r.cmd}`);
   return v.exit;
 }

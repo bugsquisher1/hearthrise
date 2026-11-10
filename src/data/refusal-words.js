@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.107';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.113';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -255,6 +255,8 @@ export const REFUSAL_WORDS = Object.freeze({
   bad_join: 'Choose all or any.',
   bad_slot: 'The server refused this slot.',
   bad_store: 'That store item does not fit this slot.',
+  bad_own: 'Those runes do not fit this spell.',
+  bad_on_empty: 'Choose what happens when your runes run out.',
   choose_item: 'Pick the food or drink this slot uses. The game never chooses one for you.',
   none_left: 'None left, so the next food or drink slot fires instead.',
   too_many_slots: 'The bar is full.',

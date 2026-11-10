@@ -71,7 +71,8 @@ const cases = {
     const bare = blowsAtLevel(M, 32, T, true);
     if (!(top(bare) > M.C.monsterMaxHit(row)) || top(bare) > M.C.monsterMaxHit({ ...row, atk: row.atk * 1.5 })) return 'on Deadly, in no armor, the foreman tops out at ' + top(bare) + '; his row\'s biggest blow is ' + M.C.monsterMaxHit(row);
     for (const lv of [1, 16, 60]) if (swings(T, lv).join() !== hard.join()) return 'a Level ' + lv + ' hero is struck differently on Deadly: a tier reads no hero';
-    /* the kill: the row's XP on the tier, its coin and drops aren't this file's (hunt-tiers.mjs harder-tier-costs) */
+    /* the kill: the row's XP on the tier, before the party factor (a lone hero's small boost, Tyler 2026-11-08: party-class-xp.js, the xp event's `raw`);
+       its coin and drops aren't this file's (hunt-tiers.mjs harder-tier-costs) */
     const killXp = (tier) => {
       const k = H(M, 1, 12, 3, 'tank', { hp: 1000, maxHp: 1000, target: 2 });
       const m = E(M, 2, 0, 13, 3, 1, { kind: 'goblin_scavenger', hp: 5, maxHp: 5 });
@@ -79,7 +80,7 @@ const cases = {
       inst.tier = tier;
       const sc = sc2(M, 7);
       M.damage.landHit(inst, sc, k, m, 1000, null, null, false);
-      return sc.events.filter((e) => e.type === 'xp').reduce((s, e) => s + e.amount, 0);
+      return sc.events.filter((e) => e.type === 'xp').reduce((s, e) => s + e.raw, 0);
     };
     const xp = M.MONSTERS.goblin_scavenger.xp;
     if (killXp(null) !== xp) return 'a Normal kill pays ' + killXp(null) + ', the row says ' + xp;
@@ -395,14 +396,14 @@ const blowsAtLevel = (M, heroLv, tier, bare) => {
 };
 
 const mutants = [
-  { name: 'a tier does not raise the blow', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'const row = atTier(MONSTERS[u.kind], inst.tier);', 'const row = MONSTERS[u.kind];']] },
-  { name: 'armor ignores the tier', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'levelAtTier(monsterLevelOf(MONSTERS[source.kind]), inst.tier)', 'monsterLevelOf(MONSTERS[source.kind])']] },
-  { name: 'a kill pays no tier XP', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'atTier(MONSTERS[target.kind], inst.tier).xp', 'MONSTERS[target.kind].xp']] },
-  { name: 'a tier reads the hero: Deadly is gentler on a low Level', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'const row = atTier(MONSTERS[u.kind], inst.tier);', 'const row = atTier(MONSTERS[u.kind], (t.heroLv || 32) < 16 ? null : inst.tier);']] },
+  { name: 'a tier does not raise the blow', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'const row = atTier(rowOf(inst, u.kind), inst.tier);', 'const row = MONSTERS[u.kind];']] },
+  { name: 'armor ignores the tier', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier)', 'monsterLevelOf(MONSTERS[source.kind])']] },
+  { name: 'a kill pays no tier XP', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'atTier(rowOf(inst, target.kind), inst.tier).xp', 'MONSTERS[target.kind].xp']] },
+  { name: 'a tier reads the hero: Deadly is gentler on a low Level', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'const row = atTier(rowOf(inst, u.kind), inst.tier);', 'const row = atTier(MONSTERS[u.kind], (t.heroLv || 32) < 16 ? null : inst.tier);']] },
   { name: 'armor reads the hero\'s Level again', case: 'same-blow-at-any-level',
-    edits: [[D, "mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(MONSTERS[source.kind]), inst.tier) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
+    edits: [[D, "mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
   { name: 'armor ignores who struck: every blow reads level 1', case: 'armour-reads-the-attacker',
-    edits: [[D, "mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(MONSTERS[source.kind]), inst.tier) : 1)", 'mitigationOf(target.armour, 1)']] },
+    edits: [[D, "mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier) : 1)", 'mitigationOf(target.armour, 1)']] },
   { name: 'a level term on the blow: a hero under the floor is hit twice as hard', case: 'same-blow-at-any-level',
     edits: [[D, 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow));', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow) * (t.heroLv < 32 ? 2 : 1));']] },
   { name: 'a level term on the to-hit roll: a hero under the floor is hit more often', case: 'same-blow-at-any-level',
@@ -411,7 +412,7 @@ const mutants = [
     edits: [[D, 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow));', 'const foe = Object.assign({}, blowRow, { atk: blowRow.atk * (1 + 0.05 * Math.max(0, 32 - (t.heroLv || 32))) }); swing(inst, sc, u, t, monsterAccuracy(foe, t.def), monsterMaxHit(foe));']] },
   { name: 'the element is ignored', case: 'weak-resist-half', edits: [[D, '  const el = elementOn(target, element);', '  const el = 1000;']] },
   { name: 'a slime is immune to ember again', case: 'weak-resist-half', edits: [[D, '  const el = elementOn(target, element);', "  const el = element === 'ember' && target.kind === 'slime' ? 0 : elementOn(target, element);\n  if (el === 0) return { dmg: 0, absorbed: 0, killed: false, immune: true };"]] },
-  { name: 'defence is ignored', case: 'def-reduction', edits: [[D, " - defenceReduction(MONSTERS[target.kind]);", ';']] },
+  { name: 'defence is ignored', case: 'def-reduction', edits: [[D, " - defenceReduction(rowOf(inst, target.kind));", ';']] },
   { name: 'the dealer\'s stance is ignored', case: 'stance-dealt-and-taken', edits: [[D, '  n = Math.floor((n * stanceOf(source).dealt) / 1000);\n', '']] },
   { name: 'the target\'s stance is ignored', case: 'stance-dealt-and-taken', edits: [[D, '  n = Math.floor((n * stanceOf(target).taken) / 1000);\n', '']] },
   { name: 'the shield is ignored', case: 'shield-absorbs-first', edits: [[D, '  if (absorbed) target.shield -= absorbed;', '  if (false) target.shield -= absorbed;']] },

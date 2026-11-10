@@ -22,20 +22,20 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.115';
-import { VITALS } from '../../data/core-model.js?v=0.2.115';
-import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.115';
-import { atTier } from '../../data/hunt-tiers.js?v=0.2.115';
-import { AI_REPATH_MS, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.115';
-import { HUNT_GROUNDS, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.115';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.115';
-import { monsterMaxHit } from '../combat.js?v=0.2.115';
-import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.115';
-import { inArea, resetPack } from './leash.js?v=0.2.115';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.115';
-import { makeEvent, trackStep } from './events.js?v=0.2.115';
-import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.115';
-import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.115';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.116';
+import { VITALS } from '../../data/core-model.js?v=0.2.116';
+import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.116';
+import { atTier } from '../../data/hunt-tiers.js?v=0.2.116';
+import { AI_REPATH_MS, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.116';
+import { HUNT_GROUNDS, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.116';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.116';
+import { monsterMaxHit } from '../combat.js?v=0.2.116';
+import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.116';
+import { inArea, resetPack } from './leash.js?v=0.2.116';
+import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.116';
+import { makeEvent, trackStep } from './events.js?v=0.2.116';
+import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.116';
+import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.116';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */

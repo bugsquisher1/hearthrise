@@ -76,7 +76,7 @@ async function run(base) {
     const r = HL.recommendation(lv, 1, rows);
     if (!r.row || !HL.fitsGroup(r.row, 1)) { ok('G2', false, 'a lone Level-' + lv + ' hero is recommended ' + (r.row && r.row.hunt)); break; }
     const inBand = r.row.band[0] <= lv && lv <= r.row.band[1];
-    if (!inBand && !(r.row.band[1] < lv && typeof r.note === 'string' && r.note.startsWith('No ground fits Level ' + lv + ' as well yet. ' + r.row.name))) {
+    if (!inBand && !(r.row.band[1] < lv && typeof r.note === 'string' && r.note.startsWith('There’s no good hunt for Level ' + lv + ' yet. ' + r.row.name))) {
       ok('G2', false, 'a lone Level-' + lv + ' hero is sent to ' + r.row.hunt + ' [' + r.row.band + '] with the note ' + JSON.stringify(r.note)); break;
     }
     if (inBand && r.note !== null) { ok('G2', false, 'a fitting ground still carries a note at Level ' + lv); break; }
@@ -85,7 +85,7 @@ async function run(base) {
   ok('G2', !!duo.row && HL.fitsGroup(duo.row, 2) && duo.row.band[0] <= 12 && 20 <= duo.row.band[1] && duo.note === null, 'a party at Levels 12 and 20 is recommended ' + (duo.row && duo.row.hunt));
   /* G4: where the advice stands until the pace is re-measured (level-curve reads it: a pair sent to the Glade and a lone 45 sent to the Warrens re-land together, 2026-11-04): the Warrens is a party's, and a pair's first ground is the Sewer. */
   const lone = (lv) => HL.recommendation(lv, 1, rows);
-  ok('G4', lone(44).row.hunt === 'mosslight_glade' && /Coppercap Warrens is at your level\. Its monsters are tough, so alone it costs more than it pays\./.test(lone(44).note || '')
+  ok('G4', lone(44).row.hunt === 'mosslight_glade' && /Coppercap Warrens is at your level\. Its monsters are tough, so alone you’ll spend more than you earn\./.test(lone(44).note || '')
     && !/party|one hero|solo/i.test(lone(44).note || ''), 'a lone Level 44 reads ' + JSON.stringify(lone(44).note));
   const sewerPair = HL.recommendation([12, 12], 2, rows);
   ok('G4', sewerPair.row.hunt === 'millrace_sewer', 'the first party ground moved: a pair at Level 12 is sent to ' + sewerPair.row.hunt);
@@ -182,7 +182,7 @@ const MUTANTS = [
   ['a party is recommended by its own hero\'s level', 'src/shell/windows/hunts.js', 'recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list)', 'recommendation(level, size, list)'],
   ['a ground says who it is for again (Tyler 2026-11-08: no ground is solo or party)', 'src/shell/hunt-list.js', "  return r.heroes > 1 ? t('hunts.heroes_up_to', { n: r.heroes - 1 }) : t('hunts.heroes_one');", "  return r.band[0] >= 32 ? t('hunts.heroes_one') : r.heroes > 1 ? t('hunts.heroes_up_to', { n: r.heroes - 1 }) : t('hunts.heroes_one');"],
   ['the warning words are dropped', 'src/shell/hunt-list.js', "  if (!Number.isInteger(level) || level >= r.band[0]) return null;\n  const gap", "  return null;\n  const gap"],
-  ['the note sends a lone hero to bring a party again', 'src/data/text/hunts.js', "'{ground} is at your level. Its monsters are tough, so alone it costs more than it pays.'", "'{ground} is right for your level if you bring a party.'"],
+  ['the note sends a lone hero to bring a party again', 'src/data/text/hunts.js', "'{ground} is at your level. Its monsters are tough, so alone you’ll spend more than you earn.'", "'{ground} is right for your level if you bring a party.'"],
   /* "the Warrens forgets its solo break-even" retired with the words it guarded (Tyler 2026-11-08: no ground is solo or party; the card no longer
      says "alone it pays from Level 45"). soloFrom stays data: drop-tables reads a lone 45 there as its second sample, printed, not judged. */
   ['far under reads as near (the words never lean harder)', 'src/shell/hunt-list.js', "(gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS)", 'ABOVE_LEVEL_WORDS'],

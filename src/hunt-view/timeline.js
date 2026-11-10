@@ -228,7 +228,12 @@ export function createTimeline(o) {
   /**
    * The snapshot's pose: every unit whose timeline ends somewhere else gets one
    * step toward the pose, after its last step (T4).
-   * @param {{at_ms: number, units: {u:number, x:number, y:number}[]}} pose
+   * A pose unit is hr_hunt_section's row (2026-10-27-core-bodies.sql), built from the packed world
+   * through jsonb_strip_nulls: `hp`, `hp_max` and `alive` are packed for every unit (WORLD_SHAPE.unit:
+   * int, int, bool) but a null one is stripped, so each is optional here. A unit missing `hp` or
+   * `hp_max` books no base (T14 never invents a number); one missing `alive` is read as standing,
+   * as the snapshot reads it (src/session/hunt-sections.js unitsOf).
+   * @param {{at_ms: number, units: {u:number, x:number, y:number, hp?:number, hp_max?:number, alive?:boolean}[]}} pose
    */
   function reconcile(pose) {
     if (!pose || !isInt(pose.at_ms) || !Array.isArray(pose.units)) return 0;

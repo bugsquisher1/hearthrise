@@ -224,7 +224,7 @@ export const REASONS = Object.freeze({
   'src/shell/windows/shop.js': [
     { cond: 'short > 0', words: "' · You need ' + gold(short) + ' more.'", where: 'the offer row: "You need 40 gp more."' },
     { cond: 'isLocked', words: "isLocked ? 'Locked'", where: 'the button reads Locked and the row says locked' },
-    { cond: '!plan.lines.length', words: "'Sell all loot'", where: 'the label carries the total only when there is loot' },
+    { cond: '!plan.lines.length', words: "t('shop.sell_junk')", where: 'the label carries the total only when there is junk' },
   ],
   'src/shell/windows/storage.js': [
     { cond: 'sc.pending || !!dWhy', words: "text(root.querySelector('.hw-store-do .hw-why'), away ? '' : dWhy);", where: 'Dispatch loot in Storage: its own line (the store note says a hunt)' },
@@ -287,7 +287,7 @@ export const REASONS = Object.freeze({
     { cond: '!t', words: "'Loading her board…'", where: 'the board says it is loading' },
   ],
   'src/shell/windows/work.js': [
-    { cond: '(!running && !!why)', words: ".hw-work-why'), why", where: 'the row\'s own line (workBlock: "You need Smithing 3 to make Bronze Axe. You have 1.")' },
+    { cond: '(!running && !!why)', words: ": [why || (running ? 'Working on it now · '", where: 'the row\'s own line, a short input\'s places linked (workBlock: "You need Smithing 3 to make Bronze Axe. You have 1.")' },
     { cond: 'running', words: "'Working on it now · '", where: 'the row says it is running' },
   ],
   'src/shell/windows/party-finder.js': [

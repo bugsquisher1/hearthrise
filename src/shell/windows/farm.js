@@ -35,17 +35,18 @@
 // on the server's `ready`, never on the clock. Every control is off while an
 // intent is in flight; the field changes only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.110';
-import { plantCrop, waterPlot, harvestPlot, clearPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.110';
-import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.110';
-import { CROPS } from '../../data/gathering.js?v=0.2.110';
-import { requiredPlotLevel, unlockedCrops, emptyPlotIndices } from '../../core/farm.js?v=0.2.110';
-import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.110';
-import { whole, gold } from '../../render/format.js?v=0.2.110';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.110';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.110';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.110';
-import { t, hasText } from '../../render/player-text.js?v=0.2.110';
+import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.112';
+import { plantCrop, waterPlot, harvestPlot, clearPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.112';
+import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.112';
+import { CROPS } from '../../data/gathering.js?v=0.2.112';
+import { requiredPlotLevel, unlockedCrops, emptyPlotIndices } from '../../core/farm.js?v=0.2.112';
+import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.112';
+import { whole, gold } from '../../render/format.js?v=0.2.112';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.112';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.112';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.112';
+import { t, hasText } from '../../render/player-text.js?v=0.2.112';
+import { patchParts, targetOf } from '../goto.js?v=0.2.112';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '', asked: null }; SCRATCH.set(cs, s); } return s; };
@@ -159,9 +160,11 @@ function patchSow(root, st, ctx) {
     const c = CROPS[id];
     const held = st.seeds.get(c.seed) || 0;
     const why = st.farming === null ? t('farm.why_reading') : st.farming < c.req ? t('farm.why_farming', { level: c.req })
-      : !tier.has(id) ? t('farm.why_tier', { tier: requiredPlotLevel(id) }) : held < 1
-        ? (st.prices.has(c.seed) ? t('farm.why_no_seeds_shop', { price: gold(st.prices.get(c.seed)) }) : t('farm.why_no_seeds')) : '';
-    return { id, c, held, why };
+      : !tier.has(id) ? t('farm.why_tier', { tier: requiredPlotLevel(id) }) : held < 1 ? t(st.prices.has(c.seed) ? 'farm.why_no_seeds_head' : 'farm.why_no_seeds') : '';
+    /* Only short of the seed, and the Shop sells it: the price is a link to the Shop's row for it (Tyler 2026-11-08) */
+    const buy = why === t('farm.why_no_seeds_head')
+      ? { words: t('farm.shop_sells_seeds', { price: gold(st.prices.get(c.seed)) }), target: targetOf({ kind: 'shop', item: c.seed }) } : null;
+    return { id, c, held, why, buy };
   }).sort((a, b) => Number(!!a.why) - Number(!!b.why));
   const free = emptyOf(st.land).length;
   rows(root.querySelector('.hw-seeds'), list, {
@@ -171,10 +174,10 @@ function patchSow(root, st, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="sow" data-crop="' + esc(r.id) + '">' + esc(t('farm.plant')) + '</button>'
       + '<button type="button" class="hh-tool hw-sow-all" data-hs-act="sowall" data-crop="' + esc(r.id) + '"></button></li>'),
     patch: (li, r) => {
-      text(li.querySelector('small'), t('farm.seed_line', { hours: r.c.hours,
-        status: r.why || t(st.seedsWhere, { count: r.held, held: whole(r.held) }) }));
+      patchParts(li.querySelector('small'), [t('farm.seed_line', { hours: r.c.hours, status: r.why || t(st.seedsWhere, { count: r.held, held: whole(r.held) }) })]
+        .concat(r.buy ? [' ', r.buy] : []));
       cls(li, 'is-locked', !!r.why);
-      prop(li.querySelector('button'), 'disabled', !!r.why || st.sc.pending);
+      prop(li.querySelector('[data-hs-act="sow"]'), 'disabled', !!r.why || st.sc.pending);
       const all = li.querySelector('.hw-sow-all');
       text(all, t('farm.sow_all', { n: free }));
       cls(all, 'is-on', !r.why && free > 1);
@@ -283,7 +286,7 @@ renderFarm.act = function actFarm(ctx, body, action, ev, el) {
   const repaint = () => renderFarm.patch(body, ctx);
   const plot = Number(el.getAttribute('data-plot'));
   const land = farmLandOf(cs, typeof ctx.now === 'function' ? ctx.now() : 0);
-  if (action === 'shop') { if (ctx.wm) ctx.wm.open('shop'); return true; }
+  if (action === 'shop') { if (ctx.wm) ctx.wm.goTo('shop', { tab: 'buy' }); return true; }
   if (action === 'unpick') { sc.pick = null; repaint(); return true; }
   if (!land || sc.pending) return true;
   if (action === 'plot' || action === 'plant') {

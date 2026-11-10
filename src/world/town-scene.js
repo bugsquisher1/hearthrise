@@ -20,18 +20,19 @@
 // ref.player so a right-click opens the shared player menu for that account.
 // PURE: no DOM, no window, no G — the caller passes the walkers and the clock.
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_PRESENCE } from '../data/town-presence.js?v=0.2.110';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.110';
-import { createSteer, standOn, walkClip } from './steer-local.js?v=0.2.110';
-import { pickFacing } from './core/facing.js?v=0.2.110';
-import { GRIDS } from '../data/world/art-budget.js?v=0.2.110';
+import { TOWN_PRESENCE } from '../data/town-presence.js?v=0.2.112';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.112';
+import { createSteer, standOn, walkClip } from './steer-local.js?v=0.2.112';
+import { pickFacing } from './core/facing.js?v=0.2.112';
+import { GRIDS } from '../data/world/art-budget.js?v=0.2.112';
 
 /** A tile coordinate on the whole art pixel of a `T` px grid. */
 const onPixelOf = (T) => (v) => Math.round(v * T) / T;
 /** The same report as before (the server re-sends a walker unchanged until it moves). */
 const sameSpot = (a, b) => a.x === b.x && a.y === b.y && a.gx === b.gx && a.gy === b.gy && a.dir === b.dir;
-/** A peer's plate, from what the server said: "Marlow the Wolfer · 18". */
-export const plateTextOf = (w) => w.name + (w.title ? ' ' + w.title : '') + (w.level !== null ? ' · ' + w.level : '');
+/** A peer's plate, from what the server said: "Marlow · 18" with "the Wolfer" under it (Tyler 2026-11-08). A Game Master's
+    plate says GM in words, and its gold repeats it (ART_DIRECTION: color is never the only cue). */
+export const plateOf = (w) => ({ text: (w.gm ? 'GM ' : '') + w.name + (w.level !== null ? ' · ' + w.level : ''), title: w.title || null, kind: w.gm ? 'gm' : 'peer' });
 
 /**
  * The town's people, frame by frame, for ONE map. frame(walkers, now) → units.
@@ -88,8 +89,7 @@ export function createTownCast(map, o) {
           id, x: onPixel(at.x), y: onPixel(at.y), dir: at.moving ? at.dir : p.dir, diag: at.moving ? at.diag : null, anim, age,
           /* its own colors, as the server's walker named them (dye indices, src/world/hero-dye.js draws them) */
           dye: p.w.dye,
-          /* A Game Master's plate: the words are the cue, the gold repeats it (ART_DIRECTION: color is never the only cue). */
-          plate: { text: (p.w.gm ? 'GM ' : '') + plateTextOf(p.w), kind: p.w.gm ? 'gm' : 'peer' },
+          plate: plateOf(p.w),
           /* who this is, for the player menu: the server's account id and slot */
           ref: { player: { id: p.w.id, name: p.w.name, slot: p.w.slot, gm: p.w.gm === true } },
         });

@@ -22,10 +22,10 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS } from './items.js?v=0.2.110';
-import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.110';
-import { STARTER_SETS } from './start-kit.js?v=0.2.110';
-import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.110';
+import { ITEMS } from './items.js?v=0.2.112';
+import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.112';
+import { STARTER_SETS } from './start-kit.js?v=0.2.112';
+import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.112';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 
@@ -65,7 +65,7 @@ export const HELP_NOTES = Object.freeze([
   note('bar', 'The action bar',
     'Each slot is one spell, food or drink, with up to three conditions such as My HP % below 60. The first slot that can fire, fires, so put the most important one first.'),
   note('loot', 'Selling and keeping loot',
-    'Loot lands in your bag as it drops, even while the hunt runs. In the Shop, Sell all loot sells what is only worth gold and keeps Bones (fuel for the Great Hearth, which raises your Inner Flame), food you can cook, and materials your recipes or your next House step need. Sell spare gear sells the armor and weapons you have outgrown, and keeps what you wear, anything of a higher tier and Rare pieces. Give a thing a plan once (Sell, or Deposit in storage) from its menu in your bag, and Dispatch loot does every plan in one press when you are back in town.'),
+    'Loot lands in your bag as it drops, even while the hunt runs. Your bag files what a recipe, the House or Tempering uses under Materials, and the rest under Junk. In the Shop, Sell all junk sells only the Junk, so Bones (fuel for the Great Hearth, which raises your Inner Flame), food you can cook and parts for your recipes stay. Sell spare gear sells the armor and weapons you have outgrown, and keeps what you wear, anything of a higher tier and Rare pieces. Give a thing a plan once (Sell, or Deposit in storage) from its menu in your bag, and Dispatch loot does every plan in one press when you are back in town.'),
   note('gold', 'What gold is for',
     'Store supplies cost gold as your hero uses them. In town the Shop sells gloves, belts, jewelry and tools, and its Services tab sells extra stamina and Blessings. Save up and you can buy another hero slot.'),
   note('armour', 'Armor and Defense',

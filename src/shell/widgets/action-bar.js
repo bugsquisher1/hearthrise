@@ -16,8 +16,9 @@
 //            opens Configure action, centred; dragging a slot onto another moves
 //            it there (ONE intent, the whole bar restated); a bag stack dropped
 //            on a slot puts it there (src/shell/bar-assign.js)
-//   tooltip  hover, focus or a long press: name, cost, type, cooldown, effect,
-//            then the slot's setup and any conflict (action-facts.js)
+//   tooltip  hover, focus or a long press: a short summary, a subset of Configure
+//            action's facts (action-facts.js hoverLines): why it waits, the cost
+//            line, its numbers, cooldown, When line and any conflict
 //   panel    the fight panel on the bar's right, always in view (Tyler 10-19,
 //            10-25): the setup in use (a setup owns this bar; Saved setups
 //            switch it, designer ruling 2026-10-22), target, stance, chase and
@@ -27,27 +28,27 @@
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.110';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.110';
-import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.110';
-import { text, cls, attr, element, keyedChild, prop, style } from '../../render/paint.js?v=0.2.110';
-import { whole } from '../../render/format.js?v=0.2.110';
-import { glyphSvg } from '../launcher.js?v=0.2.110';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.110';
-import { actionIconHtml } from './bits.js?v=0.2.110';
-import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.110';
-import { staminaBuyHtml, patchStaminaBuy, actStaminaBuy } from './stamina-buy.js?v=0.2.110';
-import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.110';
-import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, sharedCooldownOf } from '../action-facts.js?v=0.2.110';
-import { whyFacts, slotWhy } from '../slot-waits.js?v=0.2.110';
-import { resetConfigureView } from '../windows/configure-action.js?v=0.2.110';
-import { assignToBar, barKind } from '../bar-assign.js?v=0.2.110';
-import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.110';
-import { refusalWords } from '../intent-words.js?v=0.2.110';
-import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.110';
-import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.110';
-import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.110';
-import { renameActionSet } from '../../session/preset-intents.js?v=0.2.110';
+import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.112';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.112';
+import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.112';
+import { text, cls, attr, element, keyedChild, prop, style } from '../../render/paint.js?v=0.2.112';
+import { whole } from '../../render/format.js?v=0.2.112';
+import { glyphSvg } from '../launcher.js?v=0.2.112';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.112';
+import { actionIconHtml } from './bits.js?v=0.2.112';
+import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.112';
+import { staminaBuyHtml, patchStaminaBuy, actStaminaBuy } from './stamina-buy.js?v=0.2.112';
+import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.112';
+import { actionName, carried, hoverLines, conflictsOf } from '../action-facts.js?v=0.2.112';
+import { whyFacts, slotWhy } from '../slot-waits.js?v=0.2.112';
+import { resetConfigureView } from '../windows/configure-action.js?v=0.2.112';
+import { assignToBar, barKind } from '../bar-assign.js?v=0.2.112';
+import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.112';
+import { refusalWords } from '../intent-words.js?v=0.2.112';
+import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.112';
+import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.112';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.112';
+import { renameActionSet } from '../../session/preset-intents.js?v=0.2.112';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
@@ -170,25 +171,16 @@ function patchSlot(li, s, w, ctx, bag, conflict, why) {
   attr(li, 'aria-label', 'Slot ' + (li.getAttribute('data-slot') * 1 + 1) + ': ' + (s.empty ? 'empty, press to configure' : actionName(s.action) + (why ? ': ' + why.text : '') + (conflict ? ', never fires' : '')));
 }
 
-/* The tooltip's lines for slot i (Tyler's spec): what the action is, then its setup and any conflict. */
+/* The hover for slot i: a short read-only summary (Tyler 2026-11-08), the same facts Configure action shows (hoverLines). */
 function tipHtml(i, ctx) {
   const set = settingsOf(ctx.character);
   const s = set && set.slots[i];
   if (!s || s.empty) return '<b>Slot ' + (i + 1) + '</b><p>Empty. Press to choose a spell, rune or item for it.</p>';
-  const w = wireSlot(s);
-  const f = factsOf(s.action);
   const wires = Array.from({ length: SLOTS }, (_, k) => wireSlot(set.slots[k]));
-  const conflict = conflictsOf(wires, set).get(i);
   const facts = whyFacts(ctx.character);
-  const why = slotWhy(s, facts);
-  const shared = sharedCooldownOf(wires, i);
-  const lines = [f.cost ? (f.cost.includes('mana') ? 'Cost: ' + f.cost : f.cost) : null, f.type, f.cooldown].concat(f.effect, supplyLines(s.action, set, facts.bag, facts.worn)).filter(Boolean);
+  const lines = hoverLines(wires[i], { bag: facts.bag, store: set.store, skills: facts.skills, set, worn: facts.worn }, slotWhy(s, facts), conflictsOf(wires, set).get(i));
   return '<b>' + esc(actionName(s.action)) + '</b><small class="hb-tip-n">Slot ' + (i + 1) + '</small>'
-    + (why ? '<p class="' + (why.quiet ? 'is-why' : 'is-warn is-why') + '">' + esc(why.text) + '</p>' : '')
-    + lines.map((l) => '<p>' + esc(l) + '</p>').join('')
-    + '<hr><p class="is-setup">' + esc(setupWords(w)) + '</p>'
-    + (shared ? '<p class="is-setup">' + esc(shared) + '</p>' : '')
-    + (conflict ? '<p class="is-warn">' + esc(conflict.why) + '</p>' : '');
+    + lines.map((l) => (l.cls === 'is-setup' ? '<hr>' : '') + '<p' + (l.cls ? ' class="' + l.cls + '"' : '') + '>' + esc(l.text) + '</p>').join('');
 }
 
 /* THE SLOTS' PAGE PRESS (phone playtest 2026-10-31: at 667 px slots 5-10 and 15-20 read as gone, a swipe nobody tries): on

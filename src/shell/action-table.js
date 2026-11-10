@@ -10,21 +10,21 @@
 //                         row its numbers; store numbers are the SERVER's rows
 //                         (hunt_settings.store), never a client copy; sorted
 //                         cheapest per point, unpriced last, ties the bigger first
-//   sentenceOf(action)    the slot read as words ("Eat", "Cast … (uses 1 Fire Rune)")
+//   sentenceOf(action)    the slot read as words ("Eat", "Cast", "Shoot with")
 //   compareLines(a, b)    the hovered row against the picked one, in signed words
 //   wasteLine(row, …)     "At 45% you are missing 121 HP; 167 of its 288 would be wasted."
-//   sourceLine(row, ctx)  where its uses come from
 // No DOM, no clock, no state. Nothing here gates or spends anything.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES } from '../data/abilities.js?v=0.2.110';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.110';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.110';
-import { ITEMS } from '../data/items.js?v=0.2.110';
-import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.110';
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.110';
-import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.110';
-import { shortOf } from './item-lore.js?v=0.2.110';
-import { t } from '../render/player-text.js?v=0.2.110';
+import { ABILITIES } from '../data/abilities.js?v=0.2.112';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.112';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.112';
+import { ITEMS } from '../data/items.js?v=0.2.112';
+import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.112';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.112';
+import { itemName, abilityName, runeWords } from './widgets/bits.js?v=0.2.112';
+import { shortOf } from './item-lore.js?v=0.2.112';
+import { castOf } from './cast-facts.js?v=0.2.112';
+import { t } from '../render/player-text.js?v=0.2.112';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -37,7 +37,6 @@ export const RUN_COLUMNS = Object.freeze({
   drink: cols('bar.col_mana', 'bar.col_gold', 'bar.col_per_mana', 'bar.col_carry'),
   ammo: cols('bar.col_damage', 'bar.col_gold', 'bar.col_per_shot', 'bar.col_carry'),
   spells: cols('bar.col_mana', 'bar.col_cooldown', 'bar.col_rune', ''),
-  runes: cols('bar.col_rune', '', 'bar.col_per_cast', 'bar.col_carry'),
 });
 const RUN_LABEL = Object.freeze({ food: t('bar.run_food'), drink: t('bar.run_drink'), ammo: t('bar.run_ammo') });
 
@@ -76,28 +75,28 @@ const byValue = (a, b) => ((a.per === null) - (b.per === null)) || ((a.per || 0)
 /**
  * The runs a tab shows: [{ kind, label, cols, rows }], plus `empty` (why there is
  * nothing to pick) when no run has a row. `ctx` = { discipline, role (the server's, hunt_settings), bag (the server's
- * inventory rows), store (the server's store rows: settingsOf(cs).store), picked (the slot's action: the spell it holds shows
- * the price of the store rune it names, never Plain's) }.
+ * inventory rows), store (the server's store rows: settingsOf(cs).store), skills and set (the server's skills and
+ * hunt_settings: a spell's mana is the version it would cast, cast-facts.js castOf), picked (the slot's action: the spell it
+ * holds shows the price of the store rune it names, never Plain's) }.
  */
 export function tableOf(tab, ctx) {
   const c = ctx || {};
   const disc = c.discipline || null;
-  if (tab === 'spells' || tab === 'runes') {
-    const runes = tab === 'runes';
-    /* Every spell in the game, the weapon's own first (castable, then the catalogue's order; runes cheapest
-       per cast): one the weapon cannot cast is still listed and can be picked, LOCKED (art spec §5, §8). */
-    const rows = Object.values(ABILITIES).filter((a) => a.active && (!runes || a.rune)).map((a) => {
+  if (tab === 'spells') {
+    /* Every spell in the game, a rune spell with its rune on its row (Tyler 2026-11-08: one Spells tab), the weapon's own first
+       (castable, then the catalogue's order): one the weapon cannot cast is still listed and can be picked, LOCKED (art spec §5, §8). */
+    const rows = Object.values(ABILITIES).filter((a) => a.active).map((a) => {
       const p = a.rune ? partnerRow(c.store, a.rune) : null;
-      const named = c.picked && c.picked.id === a.id && c.picked.store ? (c.store || []).find((r) => r.id === c.picked.store) : null;
-      const pays = named || p;
-      return { action: { type: 'ability', id: a.id }, kind: runes ? 'runes' : 'spells', name: abilityName(a.id), store: false,
-        amount: a.mana, price: pays ? pays.price : null, per: pays ? pays.price : null, carry: a.rune ? familyCount(a.rune, c.bag) : null,
+      const picked = c.picked && c.picked.id === a.id ? c.picked : null;
+      /* its mana is the version it would cast for this hero (cast-facts.js castOf): the pick's own supply, else what a pick starts with */
+      const cast = castOf(picked || { type: 'ability', id: a.id, ...(p ? { store: p.id } : {}) }, c);
+      return { action: { type: 'ability', id: a.id }, kind: 'spells', name: abilityName(a.id), store: false,
+        amount: cast ? cast.mana : a.mana, price: null, per: null, carry: null,
         cooldown: t('bar.secs', { secs: secs(a.cdMs) }), rune: a.rune ? t('bar.cost_rune', { rune: runeWords(a.rune, 1) }) : '—', unpriced: false, none: false,
         locked: !disc || !(a.universal || a.disciplines.includes(disc)) };
     });
-    rows.sort((a, b) => (a.locked - b.locked) || (runes ? byValue(a, b) : 0));
-    const empty = rows.length ? null : runes ? t('bar.no_rune_spells') : t('bar.no_spells');
-    return { runs: rows.length ? [{ kind: tab, label: null, cols: RUN_COLUMNS[tab], rows }] : [], empty };
+    rows.sort((a, b) => a.locked - b.locked);
+    return { runs: rows.length ? [{ kind: tab, label: null, cols: RUN_COLUMNS[tab], rows }] : [], empty: rows.length ? null : t('bar.no_spells') };
   }
   const runs = [];
   if (tab === 'food') {
@@ -136,21 +135,15 @@ export function cellsOf(r) {
   const dash = (v) => (v === null || v === undefined ? '—' : v);
   const carry = r.carry === 'store' ? t('bar.cell_store') : r.carry === null ? '—' : r.carry > 0 ? '×' + r.carry : t('bar.cell_none');
   if (r.kind === 'spells') return [String(r.amount), r.cooldown, r.rune, ''];
-  if (r.kind === 'runes') return [r.rune, '', r.per === null ? '—' : String(r.per), carry];
   if (r.kind === 'ammo') return [r.amount ? '+' + r.amount : '—', dash(r.price), r.per === null ? '—' : String(r.per), carry];
   return [dash(r.amount), dash(r.price), r.per === null ? '—' : fixed(r.per), carry];
 }
 
 /** The slot's verb and object, as the sentence starts: { verb, item, note }. */
-export function sentenceOf(action, store) {
+export function sentenceOf(action) {
   if (!action || !action.id) return { verb: '', item: '', note: '' };
-  if (action.type === 'ability') {
-    const a = ABILITIES[action.id];
-    if (!a || !a.rune) return { verb: t('bar.verb_cast'), item: abilityName(action.id), note: '' };
-    const p = action.store ? (store || []).find((r) => r.id === action.store) : null;
-    return { verb: t('bar.verb_cast'), item: abilityName(action.id),
-      note: p ? t('bar.note_rune_store', { rune: runeWords(a.rune, 1), item: itemName(p.id), price: p.price }) : t('bar.note_rune_own', { rune: runeWords(a.rune, 1) }) };
-  }
+  /* (a spell's rune is its cost line's, in the detail pane: "Cost: 30 mana · 1 Scored Fire Rune (8 g)", Tyler 2026-11-08) */
+  if (action.type === 'ability') return { verb: t('bar.verb_cast'), item: abilityName(action.id), note: '' };
   /* WHICH ARROWS FIRE (Andy #63; src/core/hunt/conditions.js attackOrder, the engine's one order): what you carry
      first, the worn ammo ahead of the bar's other ammo unless a slot has conditions, the store last. */
   if (action.type === 'attack_with_item') {
@@ -182,19 +175,6 @@ export function wasteLine(row, pct, max) {
   const missing = Math.round((max * (100 - pct)) / 100);
   const lost = row.amount - missing;
   return lost > 0 ? t(row.kind === 'food' ? 'bar.waste_hp' : 'bar.waste_mana', { pct, missing, lost, amount: row.amount }) : '';
-}
-
-/** Where a row's uses come from, in one sentence. */
-export function sourceLine(row) {
-  if (!row) return '';
-  if (row.kind === 'spells' || row.kind === 'runes') return row.rune === '—' ? t('bar.source_mana_only') : t('bar.source_cast_uses', { rune: row.rune });
-  if (row.action.type === 'attack_with_item' && row.carry === null) return t('bar.source_loaded');
-  if (row.store) return row.unpriced ? t('bar.source_unpriced') : t('bar.source_store', { price: row.price });
-  const n = row.carry > 0 ? row.carry : 0;
-  if (row.kind === 'ammo') return row.price !== null
-    ? (n ? t('bar.source_shot_then_store', { n, price: row.price }) : t('bar.source_shot_store', { price: row.price }))
-    : (n ? t('bar.source_shot_own', { n }) : t('bar.source_shot_none'));
-  return n ? t('bar.source_use_own', { n }) : t('bar.source_use_none');
 }
 
 /** Food and drink's shared rule, in words. */

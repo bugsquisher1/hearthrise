@@ -562,11 +562,14 @@ async function selftest() {
     const commentEdit = head.replace('async function main() {', '// an older comment\nasync function main() {');
     const run = (fn, changed, baseSource) => fn({ guard: HS, root: ROOT, changed, base: null, headSource: head, baseSource, sources });
     const same = (s, names) => !s.all && s.keep.size === names.length && names.every((n) => s.keep.has(n));
+    /* what a runner edit ran besides its canaries: a mutant renamed or added with no row in the sidecar (v0.2.111) */
+    const beyond = (s) => (s.all || !s.why ? [] : [...s.why].filter(([, w]) => !/^a canary/.test(w)).map(([n, w]) => `"${n}" (${w})`));
+    const runnerSays = (s) => (beyond(s).length ? ` — it also ran ${beyond(s).join(', ')}: give it its row in ${HS.replace(/\.mjs$/, '.mutant-rules.json')}` : '');
     const scopeChecks = (fn) => [
       [want.length > 0 && same(run(fn, [ANALYZER]), want), `an edit to ${ANALYZER} runs only its ${want.length} analyzer mutant(s) of ${list.length}`],
       [same(run(fn, [HS], edited), [victim[0]]), 'an edited (renamed) mutant entry runs that mutant alone'],
       [run(fn, [HS], harnessEdit).all, 'an edit to a hunt-screen helper runs every mutant'],
-      [(({ all, keep }) => !all && keep.size === 3)(run(fn, [HS], runnerEdit)), 'an edit to the loop that plants and judges runs the three canaries'],
+      ((s) => [!s.all && s.keep.size === 3, `an edit to the loop that plants and judges runs the three canaries${runnerSays(s)}`])(run(fn, [HS], runnerEdit)),
       [run(fn, ['tests/_client-harness.mjs']).all, 'an edit to tests/_client-harness.mjs (the harness it imports) runs every mutant'],
       [run(fn, null).all, 'no scope (nightly, manual, local) runs every mutant'],
       [same(run(fn, ['src/shell/chat.js']), []), 'an edit no mutant patches runs none'],

@@ -29,20 +29,20 @@
 // Built once, patched in place; every control is off while an intent is in
 // flight, and changes show only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { presetsOf, setupSlotsOf, goldOf } from '../../session/item-sections.js?v=0.2.110';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.110';
-import { runIntent } from '../intent-words.js?v=0.2.110';
-import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.110';
-import { itemName } from '../widgets/bits.js?v=0.2.110';
-import { whole, gold } from '../../render/format.js?v=0.2.110';
-import { readinessOf, readinessLine } from '../readiness.js?v=0.2.110';
-import { settingsOf, huntOf } from '../../session/hunt-sections.js?v=0.2.110';
-import { ACTION_SET_LIMITS } from '../../data/rule-subjects.js?v=0.2.110';
-import { renameSetup, deleteSetup, buySetupSlot } from '../../session/preset-intents.js?v=0.2.110';
-import { setupBuyWords, setupFullWords } from '../setup-words.js?v=0.2.110';
-import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.110';
-import { settleTownActivity } from '../../session/party-intents.js?v=0.2.110';
-import { t } from '../../render/player-text.js?v=0.2.110';
+import { presetsOf, setupSlotsOf, goldOf } from '../../session/item-sections.js?v=0.2.112';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.112';
+import { runIntent } from '../intent-words.js?v=0.2.112';
+import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.112';
+import { itemName } from '../widgets/bits.js?v=0.2.112';
+import { whole, gold } from '../../render/format.js?v=0.2.112';
+import { readinessOf, readinessLine } from '../readiness.js?v=0.2.112';
+import { settingsOf, huntOf } from '../../session/hunt-sections.js?v=0.2.112';
+import { ACTION_SET_LIMITS } from '../../data/rule-subjects.js?v=0.2.112';
+import { renameSetup, deleteSetup, buySetupSlot } from '../../session/preset-intents.js?v=0.2.112';
+import { setupBuyWords, setupFullWords } from '../setup-words.js?v=0.2.112';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.112';
+import { settleTownActivity } from '../../session/party-intents.js?v=0.2.112';
+import { t } from '../../render/player-text.js?v=0.2.112';
 
 const MAX_PRESETS = ACTION_SET_LIMITS.presets;
 const SCRATCH = new WeakMap();
@@ -133,9 +133,10 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
   const none = root.querySelector('.hw-presets-none');
   cls(none, 'is-on', !presets || !presets.length);
   text(none, presets ? 'No saved setups yet.' : t('prep.setups_reading'));
-  /* The server says how many this hero may open (`setup_slots`). Until it has, none is free (§6: fail safe to not unlocked). */
+  /* The server says how many this hero may open (`setup_slots`). Until it has, none is free (§6: fail safe to not unlocked),
+     and never more than the data's limit: past it Save stays off and says so, as the press would send nothing. */
   const slots = setupSlotsOf(cs);
-  const count = slots ? slots.count : 0;
+  const count = Math.min(slots ? slots.count : 0, MAX_PRESETS);
   const full = presets && firstFree(presets) >= count;
   for (const el of root.querySelectorAll('.hw-add input, .hw-add button')) prop(el, 'disabled', sc.pending || !presets || full || hunting);
   cls(root.querySelector('.hw-town-only'), 'is-on', hunting);

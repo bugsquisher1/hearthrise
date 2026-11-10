@@ -52,18 +52,19 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.110';
-import { ABILITIES, suggestedTrigger } from '../../data/abilities.js?v=0.2.110';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.110';
-import { SUPPLIES } from '../../data/supplies.js?v=0.2.110';
-import { ITEMS } from '../../data/items.js?v=0.2.110';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.110';
-import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.110';
-import { cheb, dist2, los } from './grid.js?v=0.2.110';
-import { makeEvent } from './events.js?v=0.2.110';
-import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.110';
-import { START_BAR } from '../../data/start-kit.js?v=0.2.110';
-import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.110';
+import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.112';
+import { ABILITIES, suggestedTrigger } from '../../data/abilities.js?v=0.2.112';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.112';
+import { SUPPLIES } from '../../data/supplies.js?v=0.2.112';
+import { ITEMS } from '../../data/items.js?v=0.2.112';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.112';
+import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.112';
+import { cheb, dist2, los } from './grid.js?v=0.2.112';
+import { makeEvent } from './events.js?v=0.2.112';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.112';
+import { START_BAR } from '../../data/start-kit.js?v=0.2.112';
+import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.112';
+import { RUNE_ON_EMPTY, isRune, runeTierOf } from '../../data/runes.js?v=0.2.112';
 
 /* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
    ruleWait: the last `rule_wait` reported, per lane ('ruleId:why'), so it is reported once.
@@ -94,7 +95,10 @@ export function normalizeSlot(s) {
   return {
     id: typeof s.id === 'string' && RULE_ID.test(s.id) ? s.id : null,
     action: { type: String(s.action.type), id: String(s.action.id),
-      ...(typeof s.action.store === 'string' ? { store: s.action.store } : {}) },
+      ...(typeof s.action.store === 'string' ? { store: s.action.store } : {}),
+      /* a spell's rune supply (runeSupplyOf), as stored: slotProblem refuses a bad one */
+      ...(s.action.own !== undefined ? { own: Array.isArray(s.action.own) ? s.action.own.slice() : s.action.own } : {}),
+      ...(s.action.onEmpty !== undefined ? { onEmpty: s.action.onEmpty } : {}) },
     conditions: Array.isArray(s.conditions) ? s.conditions.map((c) => (isObj(c) ? { metric: c.metric, op: c.op, value: c.value,
       ...(c.subject !== undefined && c.subject !== null ? { subject: c.subject } : {}) } : null)) : [],
     join: s.join === 'or' ? 'or' : 'and',
@@ -150,6 +154,58 @@ function storeFits(type, id, store) {
   return !!family && !!ITEMS[b.partner] && ITEMS[b.partner].family === family;
 }
 
+/* Every rune of `family` in the catalogue, lowest tier first (a tie to the lower id): the order a slot's ticked list is
+   stored in, the same rows as the server's hr_hunt_rune_spells() `runes` (tools/gen-catalogues.mjs). */
+const FAMILY_RUNES = new Map();
+function familyRunes(family) {
+  if (!FAMILY_RUNES.has(family)) {
+    FAMILY_RUNES.set(family, Object.freeze(Object.keys(ITEMS).filter((id) => isRune(ITEMS[id]) && ITEMS[id].family === family && runeTierOf(ITEMS[id]))
+      .sort((a, b) => (runeTierOf(ITEMS[a]) - runeTierOf(ITEMS[b])) || (a < b ? -1 : 1))));
+  }
+  return FAMILY_RUNES.get(family);
+}
+
+/**
+ * THE RUNE SUPPLY OF A SPELL'S SLOT (Tyler 2026-11-08, RUNE SUPPLY PER SLOT; src/data/runes.js RUNE_ON_EMPTY):
+ * { family, runes (every rune of the family, lowest tier first), own (the carried runes the player ticked, in that
+ * order: none = "Use carried runes" is off), store (the store rune it buys, or null), onEmpty ('store' | 'leave') },
+ * or null for an action that spends no rune. A slot that says nothing ticks every rune of the family and buys from the
+ * rune shop (Tyler 2026-11-08: "Yes make the default to buy from the shop"), the store rune it names, else the family's
+ * tier-1 one: the server's hr_hunt_slot_check stores the same, so one rule reads a slot everywhere (the engine's runeFor,
+ * the bar's cost line and Configure action).
+ */
+export function runeSupplyOf(action) {
+  const row = action && action.type === 'ability' ? ABILITIES[action.id] : null;
+  const family = row && row.rune && ITEMS[row.rune] ? ITEMS[row.rune].family : null;
+  if (!family) return null;
+  const runes = familyRunes(family);
+  const own = Array.isArray(action.own) ? runes.filter((id) => action.own.includes(id)) : runes.slice();
+  const onEmpty = RUNE_ON_EMPTY.includes(action.onEmpty) ? action.onEmpty : 'store';
+  const named = typeof action.store === 'string' ? action.store : null;
+  const store = named || (onEmpty === 'store' ? plainRuneOf(runes) : null);
+  return { family, runes, own, store, onEmpty };
+}
+
+/* The rune shop's tier-1 rune of a family: the store row partnering its lowest-tier rune (supply-basics.js; every family has one,
+   tools/gen-catalogues.mjs refuses a family without). */
+function plainRuneOf(runes) {
+  const b = Object.values(BASIC_INDEX).find((x) => x && x.partner === runes[0]);
+  return b ? b.id : null;
+}
+
+/** Why a slot's rune supply is refused, or null (the server's hr_hunt_slot_check, the same rule): what runeSupplyOf reads
+    off the slot must be what the slot says, so `own` lists runes of the spell's family, each once, and `onEmpty` is a
+    RUNE_ON_EMPTY word; "buy" names a store rune and "leave" names none; and "leave" needs a ticked rune to run out of.
+    A slot that spends no rune carries neither. */
+function runeSupplyProblem(a) {
+  const sup = runeSupplyOf(a);
+  if (!sup) return a.own !== undefined ? { error: 'bad_own' } : a.onEmpty !== undefined ? { error: 'bad_on_empty' } : null;
+  if (a.own !== undefined && (!Array.isArray(a.own) || a.own.length !== sup.own.length)) return { error: 'bad_own' };
+  if (a.onEmpty !== undefined && a.onEmpty !== sup.onEmpty) return { error: 'bad_on_empty' };
+  if ((sup.onEmpty === 'store') !== !!sup.store) return { error: 'bad_store' };
+  return sup.onEmpty === 'leave' && !sup.own.length ? { error: 'bad_on_empty' } : null;
+}
+
 /** Why a condition is refused, or null. `stop` = in a stop rule (no slot to read). */
 function conditionProblem(c, stop) {
   if (!isObj(c)) return 'bad_condition';
@@ -201,9 +257,9 @@ export function slotProblem(s) {
   /* The retired "Any food" / "Any drink": the player names the item (refused in plain words). */
   if (s.action.type === 'consume' && (s.action.id === 'food' || s.action.id === 'drink')) return { error: 'choose_item' };
   if (!ACTION_TYPES[s.action.type] || typeof s.action.id !== 'string' || !actionKnown(s.action.type, s.action.id)) return { error: 'bad_action' };
-  if (Object.keys(s.action).some((k) => !['type', 'id', 'store'].includes(k))) return { error: 'bad_action' };
+  if (Object.keys(s.action).some((k) => !['type', 'id', 'store', 'own', 'onEmpty'].includes(k))) return { error: 'bad_action' };
   if (s.action.store !== undefined && !storeFits(s.action.type, s.action.id, s.action.store)) return { error: 'bad_store' };
-  return conditionsProblem(s.conditions, s.join, false);
+  return runeSupplyProblem(s.action) || conditionsProblem(s.conditions, s.join, false);
 }
 
 /** Why a whole bar is refused, or null. `max` = the slot cap (ACTION_SET_LIMITS.slots). */

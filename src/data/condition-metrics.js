@@ -29,9 +29,15 @@
 //
 // A METRIC ROW:
 //   id       the wire name
-//   label    what the editor shows
-//   say      the same test as words inside the slot sentence ("Eat Salted Trout
-//            when my HP is at or below 45%": Configure action, art direction 2026-10-21)
+//   label    the test as a yes/no statement (a bool reads it: "My target is a boss")
+//   say      how the test's sentence starts, in the picker and in the slot's summary,
+//            which repeat each other word for word ("when my HP is at most 45%",
+//            "when it would hit at least 2 monsters": Configure action, Tyler 2026-11-08
+//            "at or above 2 what?")
+//   unit     a number test's unit, read after the number: '%' for a percent, a count's
+//            noun as [one, other] ("monster", "monsters")
+//   subjectAfter  true = the subject reads after the number, as part of its unit
+//            ("the party has at least 2 heroes under half health")
 //   value    'pct' | 'count' | 'bool' | 'effect' — which value picker
 //   ops      the operators it takes (keys of OPERATORS)
 //   range    [min, max] for a number value (inclusive, whole)
@@ -44,8 +50,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_ROLES } from './hunt-roles.js?v=0.2.110';
-import { STATUSES } from './statuses.js?v=0.2.110';
+import { HUNT_ROLES } from './hunt-roles.js?v=0.2.112';
+import { STATUSES } from './statuses.js?v=0.2.112';
 
 /* Three, all of which must match (Tyler's ruling, 2026-10-19 audit C2; a stop rule may still join
    "any"). The `pass` bitmask is one bit a condition. Server: 2026-10-26-bar-three-conditions.sql. */
@@ -57,16 +63,18 @@ export const MAX_IGNORED = 8;
 /* A stop rule's hold, in ms: whole sub-steps, at most ten minutes. */
 export const STOP_HOLD_MS = Object.freeze({ min: 0, max: 600000, step: 100 });
 
-/* `say`: the comparison inside the slot sentence ("my HP is at or below 45%"). */
+/* The comparison in plain words, by what it compares (Tyler 2026-11-08): a percent after "is" ("my HP is at most 45%"), a
+   count before its noun ("it would hit at least 2 monsters"), a yes/no or an effect by `say`. */
+/** @type {Readonly<Record<string, Readonly<{ say?: string, pct?: string, count?: string }>>>} */
 export const OPERATORS = Object.freeze({
-  eq: Object.freeze({ label: 'is', say: 'is' }),
-  ne: Object.freeze({ label: 'is not', say: 'is not' }),
-  gt: Object.freeze({ label: 'above', say: 'is above' }),
-  gte: Object.freeze({ label: 'at or above', say: 'is at or above' }),
-  lt: Object.freeze({ label: 'below', say: 'is below' }),
-  lte: Object.freeze({ label: 'at or below', say: 'is at or below' }),
-  has_effect: Object.freeze({ label: 'has', say: 'has' }),
-  lacks_effect: Object.freeze({ label: 'lacks', say: 'lacks' }),
+  eq: Object.freeze({ say: 'is', pct: 'is exactly', count: 'exactly' }),
+  ne: Object.freeze({ say: 'is not', pct: 'is not', count: 'any number but' }),
+  gt: Object.freeze({ pct: 'is above', count: 'more than' }),
+  gte: Object.freeze({ pct: 'is at least', count: 'at least' }),
+  lt: Object.freeze({ pct: 'is below', count: 'fewer than' }),
+  lte: Object.freeze({ pct: 'is at most', count: 'at most' }),
+  has_effect: Object.freeze({ say: 'has' }),
+  lacks_effect: Object.freeze({ say: 'lacks' }),
 });
 
 const NUM = Object.freeze(['lt', 'lte', 'gt', 'gte', 'eq', 'ne']);
@@ -75,18 +83,24 @@ const NUM = Object.freeze(['lt', 'lte', 'gt', 'gte', 'eq', 'ne']);
 const ALLY = Object.freeze(Object.assign({ lowest: 'the lowest ally', self: 'yourself' },
   Object.fromEntries(Object.entries(HUNT_ROLES).map(([id, r]) => [id, 'the ' + r.label]))));
 
+const PCT = '%';
+const noun = (one, other) => Object.freeze([one, other]);
+/** @typedef {{ id: string, say: string, unit?: string | readonly string[], subjectAfter?: boolean, value: string, ops: readonly string[],
+    range?: readonly number[], subject?: Readonly<Record<string, string>>, slotOnly?: boolean }} Metric */
+/** @type {readonly Metric[]} */
 export const METRICS = Object.freeze([
-  Object.freeze({ id: 'self_hp_pct', label: 'My HP %', say: 'my HP', value: 'pct', ops: NUM, range: Object.freeze([0, 100]) }),
-  Object.freeze({ id: 'self_mana_pct', label: 'My mana %', say: 'my mana', value: 'pct', ops: NUM, range: Object.freeze([0, 100]) }),
-  Object.freeze({ id: 'ally_hp_pct', label: 'An ally’s HP %', say: 'the HP of', value: 'pct', ops: NUM, range: Object.freeze([0, 100]), subject: ALLY }),
-  Object.freeze({ id: 'ally_mana_pct', label: 'An ally’s mana %', say: 'the mana of', value: 'pct', ops: NUM, range: Object.freeze([0, 100]), subject: ALLY }),
-  Object.freeze({ id: 'allies_below', label: 'Allies under', say: 'allies under', value: 'count', ops: NUM, range: Object.freeze([0, 5]),
+  Object.freeze({ id: 'self_hp_pct', say: 'my HP', unit: PCT, value: 'pct', ops: NUM, range: Object.freeze([0, 100]) }),
+  Object.freeze({ id: 'self_mana_pct', say: 'my mana', unit: PCT, value: 'pct', ops: NUM, range: Object.freeze([0, 100]) }),
+  Object.freeze({ id: 'ally_hp_pct', say: 'the HP of', unit: PCT, value: 'pct', ops: NUM, range: Object.freeze([0, 100]), subject: ALLY }),
+  Object.freeze({ id: 'ally_mana_pct', say: 'the mana of', unit: PCT, value: 'pct', ops: NUM, range: Object.freeze([0, 100]), subject: ALLY }),
+  Object.freeze({ id: 'allies_below', say: 'the party has', unit: noun('hero under', 'heroes under'), subjectAfter: true, value: 'count', ops: NUM, range: Object.freeze([0, 5]),
     subject: Object.freeze({ under_50: 'half health', under_60: '60% health', under_70: '70% health', under_80: '80% health', under_90: '90% health' }) }),
-  Object.freeze({ id: 'enemies_in_aoe', label: 'Monsters the area would hit', say: 'the monsters it would hit', value: 'count', ops: NUM, range: Object.freeze([0, 25]), slotOnly: true }),
-  Object.freeze({ id: 'target_is_boss', label: 'My target is a boss', say: 'my target being a boss', value: 'bool', ops: Object.freeze(['eq']) }),
-  Object.freeze({ id: 'item_qty', label: 'Left in the bag', say: 'what is left in the bag', value: 'count', ops: NUM, range: Object.freeze([0, 100000]),
-    subject: Object.freeze({ item: 'of this slot’s item', food: 'of food', drink: 'of drink', ammo: 'of the loaded ammo' }) }),
-  Object.freeze({ id: 'effect_missing', label: 'An effect', say: 'an effect', value: 'effect', ops: Object.freeze(['has_effect', 'lacks_effect']),
+  Object.freeze({ id: 'enemies_in_aoe', say: 'it would hit', unit: noun('monster', 'monsters'), value: 'count', ops: NUM, range: Object.freeze([0, 25]), slotOnly: true }),
+  Object.freeze({ id: 'target_is_boss', say: 'my target is a boss', value: 'bool', ops: Object.freeze(['eq']) }),
+  /* (its subject is its unit: "I have at most 5 of my food left") */
+  Object.freeze({ id: 'item_qty', say: 'I have', subjectAfter: true, value: 'count', ops: NUM, range: Object.freeze([0, 100000]),
+    subject: Object.freeze({ item: 'of this slot’s item left', food: 'of my food left', drink: 'of my drinks left', ammo: 'of the loaded ammo left' }) }),
+  Object.freeze({ id: 'effect_missing', say: 'an effect', value: 'effect', ops: Object.freeze(['has_effect', 'lacks_effect']),
     /* Whose effect: my target, me, or the ally this slot's conditions picked (its heal target; else the lowest ally).
        The effect ids are the status registry's (statuses.js), never invented here. */
     subject: Object.freeze({ target: 'on my target', self: 'on me', ally: 'on the ally I would heal' }) }),
@@ -124,8 +138,13 @@ export function validate() {
     if (m.value === 'effect' && m.ops.some((o) => !o.endsWith('_effect'))) out.push(at + 'an effect takes has_effect / lacks_effect only');
     if (m.subject && !Object.keys(m.subject).every((k) => /^[a-z0-9_]{1,32}$/.test(k))) out.push(at + 'bad subject key');
     if (typeof m.say !== 'string' || !m.say) out.push(at + 'no words for the slot sentence (say)');
+    /* A number has its unit, read after it ("50%", "2 monsters"): a percent's %, a count's noun, or a subject read as its unit. */
+    if (m.value === 'pct' && m.unit !== PCT) out.push(at + 'a percent reads its % after the number (unit)');
+    if (m.value === 'count' && !(Array.isArray(m.unit) && m.unit.length === 2 && m.unit.every((w) => typeof w === 'string' && w)) && !(m.subjectAfter && m.subject)) out.push(at + 'a count names its noun (unit [one, other]) or reads its subject after the number');
+    if (m.subjectAfter && !(numeric && m.subject)) out.push(at + 'only a number test with a subject reads it after the number');
+    /* Every comparison it takes has words for its kind of value. */
+    for (const o of m.ops) if (OPERATORS[o] && typeof OPERATORS[o][numeric ? m.value : 'say'] !== 'string') out.push(at + 'operator ' + o + ' has no words for a ' + m.value);
   }
-  for (const [k, o] of Object.entries(OPERATORS)) if (typeof o.say !== 'string' || !o.say) out.push('operator ' + k + ': no words for the slot sentence (say)');
   if (!EFFECT_IDS.length) out.push('no effect ids');
   return out;
 }

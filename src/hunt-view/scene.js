@@ -37,19 +37,19 @@
 //      Switched back to a hero, the monsters killed meanwhile stood (at their last drawn
 //      HP, or at 0: an empty bar) until a restart felled them anew (e-20261021-mobs, Andy #65).
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.110';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.110';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.110';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.110';
-import { floatShown } from './float-prefs.js?v=0.2.110';
-import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.110';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.110';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.110';
-import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.110';
-import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.110';
-import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.110';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.110';
-import { levelOf } from '../session/character-sections.js?v=0.2.110';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.112';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.112';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.112';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.112';
+import { floatShown } from './float-prefs.js?v=0.2.112';
+import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.112';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.112';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.112';
+import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.112';
+import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.112';
+import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.112';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.112';
+import { levelOf, wornTitleOf } from '../session/character-sections.js?v=0.2.112';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {
@@ -154,6 +154,8 @@ export function readHunt(cs, peers) {
     dye: heroDye(cs),
     /* the viewed hero's Level as the server's envelope says it (the level-up moment watches it rise) */
     level: (levelOf(cs) || {}).level ?? null,
+    /* the viewed hero's worn title, under its name (Tyler 2026-11-08); the party section carries no member's title yet */
+    title: wornTitleOf(cs),
     shown: (type, boss) => floatShown(cs, type, boss ? 'boss' : 'regular'),
   };
 }
@@ -416,7 +418,7 @@ export function createHuntScene(o) {
       const mpPct = Number.isFinite(mana) && manaMax > 0 ? Math.max(0, Math.min(1, mana / manaMax)) : null;
       /* VW-07: shown only when not full. */
       if (hpPct !== null && (hpPct < 1 || (mpPct !== null && mpPct < 1))) { out.bar = hpPct; out.barKind = 'pct'; if (mpPct !== null) out.mana = mpPct; }
-      if (hero) out.plate = { text: (m && m.name) || 'Hero', kind: u === read.viewed ? 'self' : 'peer' };
+      if (hero) out.plate = { text: (m && m.name) || 'Hero', title: u === read.viewed ? read.title : null, kind: u === read.viewed ? 'self' : 'peer' };
       /* WHO THIS IS, for the player menu (a right-click on the sprite): the server's party_people by seat. */
       if (hero && m && u !== read.viewed) {
         const who = Number.isInteger(m.seat) ? read.people.get(m.seat) : null;

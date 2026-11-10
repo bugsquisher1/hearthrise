@@ -32,8 +32,8 @@
 //   leaves the game; and it counts only sinks with a daily cap, carries no prize and resets monthly. It ranks accounts, each shown as its lead hero.
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from './skills.js?v=0.2.110';
-import { SKILL_GUIDE } from './skill-guide.js?v=0.2.110';
+import { SKILLS_DEF } from './skills.js?v=0.2.112';
+import { SKILL_GUIDE } from './skill-guide.js?v=0.2.112';
 
 /* A skill board: its name from SKILLS_DEF, where it is trained from SKILL_GUIDE (one wording, the Skills window's). */
 const skill = (id, group) => Object.freeze({

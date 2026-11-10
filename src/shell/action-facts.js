@@ -3,45 +3,48 @@
 //
 // One home for the words the Configure action window and the bar's slot
 // tooltip both show, so they can never disagree:
-//   TABS / choicesFor   Spells (the abilities the worn weapon gives, by the
-//                       server's `role`), Runes (the spells a rune fuels), Food &
-//                       drink (own, or the store's behind it) and Ammo (its own
-//                       tab, Tyler 2026-10-25)
+//   TABS / choicesFor   Spells (every spell, a rune spell with its rune on its row:
+//                       Tyler 2026-11-08 merged the Runes tab in), Food & drink
+//                       (own, or the store's behind it) and Ammo (its own tab,
+//                       Tyler 2026-10-25)
 //                       — the same ids the server accepts (src/core/hunt/
 //                       conditions.js actionKnown), never a typed list
-//   factsOf             type line, cost, cooldown, effect, requirement
-//   supplyLines         own stock first, then the store per use at its price
+//   factsOf             type line, cost line, cooldown, effect, requirement, for THIS hero: the rune
+//                       version its slot casts at its level (cast-facts.js castOf, the engine's rule)
+//   hoverLines          the bar hover: a short read-only subset of those facts (Tyler 2026-11-08)
 //   conflictsOf         a slot that can NEVER fire because an earlier slot always
 //                       wins, by the engine's own rule (pickSlot: slots in order,
 //                       the first whose conditions pass AND that can act fires)
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.110';
-import { ABILITIES } from '../data/abilities.js?v=0.2.110';
-import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.110';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.110';
-import { STATUSES } from '../data/statuses.js?v=0.2.110';
-import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.110';
-import { ITEMS } from '../data/items.js?v=0.2.110';
-import { isRune } from '../data/supplies.js?v=0.2.110';
-import { ammoPerShot } from '../core/ammo.js?v=0.2.110';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.110';
-import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.110';
-import { shortOf } from './item-lore.js?v=0.2.110';
-import { storeOf, storeWords, storeChoices, conditionWords } from './bar-draft.js?v=0.2.110';
-import { listWords, whole } from '../render/format.js?v=0.2.110';
-import { t } from '../render/player-text.js?v=0.2.110';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.112';
+import { ABILITIES } from '../data/abilities.js?v=0.2.112';
+import { aimsAtMonsters, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.112';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.112';
+import { STATUSES } from '../data/statuses.js?v=0.2.112';
+import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.112';
+import { ITEMS } from '../data/items.js?v=0.2.112';
+import { isRune } from '../data/supplies.js?v=0.2.112';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.112';
+import { itemName, abilityName, runeWords } from './widgets/bits.js?v=0.2.112';
+import { ownCount } from './rune-supply.js?v=0.2.112';
+import { shortOf } from './item-lore.js?v=0.2.112';
+import { storeOf, storeChoices, conditionWords } from './bar-draft.js?v=0.2.112';
+import { castOf, costLine, landed } from './cast-facts.js?v=0.2.112';
+import { listWords, whole } from '../render/format.js?v=0.2.112';
+import { t } from '../render/player-text.js?v=0.2.112';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
 
-/** The four tabs of the Configure action window: spells, the spells that spend a rune, food and drink, and ammo
-    (Tyler 2026-10-25: ammo keeps its own tab, never mixed in with food and drink). */
-export const TABS = Object.freeze([['spells', t('bar.tab_spells')], ['runes', t('bar.tab_runes')], ['food', t('bar.tab_food')], ['ammo', t('bar.tab_ammo')]]);
+/** The three tabs of the Configure action window: spells (a rune spell among them: Tyler 2026-11-08, "why bother having a
+    'spells' and 'runes' section if rune selection already exists in the spells tab?"), food and drink, and ammo (Tyler
+    2026-10-25: ammo keeps its own tab, never mixed in with food and drink). */
+export const TABS = Object.freeze([['spells', t('bar.tab_spells')], ['food', t('bar.tab_food')], ['ammo', t('bar.tab_ammo')]]);
 
-/** The tab an action belongs to (a rune spell under Runes; a shot under Ammo; food and drink under Food & drink). */
+/** The tab an action belongs to (a spell under Spells; a shot under Ammo; food and drink under Food & drink). */
 export function tabOf(a) {
-  if (!a || a.type === 'ability') return a && ABILITIES[a.id] && ABILITIES[a.id].rune ? 'runes' : 'spells';
+  if (!a || a.type === 'ability') return 'spells';
   return a.type === 'attack_with_item' ? 'ammo' : 'food';
 }
 
@@ -105,11 +108,12 @@ const TARGET_LINE = Object.freeze({
   cleave: 'bar.target_cleave', self: 'bar.target_self', ally: 'bar.target_ally', party: 'bar.target_party',
 });
 
-/* "Deals 4–9 fire damage to each monster hit." by the spell's shape: area, a cap on monsters, repeated hits, or one. */
-function damageLine(r) {
+/* "Deals 4–9 fire damage to each monster hit." by the spell's shape: area, a cap on monsters, repeated hits, or one;
+   its numbers at the cast's `pm` (cast-facts.js castOf), landed as the engine lands them. */
+function damageLine(r, pm) {
   const shape = r.target === 'area' ? '_area' : r.maxHits ? '_max' : r.hits ? '_hits' : '';
   /** @type {Record<string, number|string>} */
-  const v = { lo: r.dmg[0], hi: r.dmg[1] };
+  const v = { lo: landed(r.dmg[0], pm), hi: landed(r.dmg[1], pm) };
   if (r.element) v.element = r.element;
   if (shape === '_max') v.max = r.maxHits;
   if (shape === '_hits') v.hits = r.hits;
@@ -117,36 +121,54 @@ function damageLine(r) {
 }
 
 /**
- * What an action is: { type, cost, cooldown, effect[], requires } (absent fields
- * are null). All from catalogue rows.
+ * What an action is FOR THIS HERO: { type, cost, cooldown, numbers[], effect[], version, requires } (absent fields are
+ * null). `numbers` are the lines a hover shows (damage, heal, shield, mark); `effect` is those and the status a cast
+ * causes. A spell's mana and numbers are the version its slot casts at the hero's level (cast-facts.js castOf: the rune
+ * it would spend, own first, then the store rune the slot names), and its cost line is the same cast's (costLine). `ctx` =
+ * { bag, store, skills, set, worn }, all the server's; without them the numbers are version I's at level 1, as `version` says.
  */
-export function factsOf(a) {
+export function factsOf(a, ctx) {
+  const none = { type: null, cost: null, cooldown: null, numbers: [], effect: [], requires: null };
   if (a.type === 'ability') {
-    const r = ABILITIES[a.id];
-    if (!r) return { type: null, cost: null, cooldown: null, effect: [], requires: null };
-    const effect = [];
-    if (r.target === 'mark') effect.push(t('bar.effect_mark', { pct: r.bonusPct, secs: secs(r.durMs) }));
-    if (r.dmg) effect.push(damageLine(r));
-    if (r.heal) effect.push(t('bar.effect_heal', { lo: r.heal[0], hi: r.heal[1] }));
-    if (r.shield) effect.push(t('bar.effect_shield', { points: r.shield }));
-    if (r.status && STATUSES[r.status]) effect.push(t('bar.effect_status', { status: STATUSES[r.status].name.toLowerCase() }));
-    const cost = [r.mana ? t('bar.cost_mana', { mana: r.mana }) : t('bar.cost_no_mana')]
-      .concat(r.rune ? [t('bar.cost_rune', { rune: runeWords(r.rune, 1) })] : [], r.ammo ? [t('bar.cost_ammo', { ammo: r.ammo })] : []).join(' · ');
+    const k = castOf(a, ctx);
+    if (!k) return none;
+    const r = k.row;
+    const numbers = [];
+    if (r.target === 'mark') numbers.push(t('bar.effect_mark', { pct: r.bonusPct, secs: secs(r.durMs) }));
+    if (r.dmg) numbers.push(damageLine(r, k.pm));
+    if (r.heal) numbers.push(t('bar.effect_heal', { lo: landed(r.heal[0], k.pm), hi: landed(r.heal[1], k.pm) }));
+    if (r.shield) numbers.push(t('bar.effect_shield', { points: landed(r.shield, k.pm) }));
+    const effect = numbers.concat(r.status && STATUSES[r.status] ? [t('bar.effect_status', { status: STATUSES[r.status].name.toLowerCase() })] : []);
     /* (an ally shield is a ward, not a heal; the universal self-heal needs no particular weapon) */
     const type = r.target === 'ally' && r.shield ? t('bar.target_ward') : own(TARGET_LINE, r.target) ? t(TARGET_LINE[r.target]) : null;
-    return { type, cost, cooldown: t('bar.cooldown', { secs: secs(r.cdMs) }), effect,
+    return { type, cost: costLine(a, ctx), cooldown: t('bar.cooldown', { secs: secs(r.cdMs) }), numbers, effect,
       requires: r.universal ? t('bar.requires_any') : t('bar.requires', { weapons: weaponsFor(r.disciplines[0]) }) };
   }
+  const cost = costLine(a, ctx) || null;
   if (a.type === 'consume') {
-    const spread = t('bar.spread', { secs: secs(CONSUMABLE_RULES.overTimeMs) });
     const r = CONSUMABLES[a.id];
-    if (!r) return { type: null, cost: null, cooldown: null, effect: [], requires: null };
-    return { type: r.kind === 'drink' ? t('bar.type_drink') : t('bar.type_food'), cost: null, cooldown: null,
-      effect: [t(r.kind === 'drink' ? 'bar.restores_mana' : 'bar.restores_health', { amount: r.amount }), spread], requires: null };
+    if (!r) return none;
+    const restores = t(r.kind === 'drink' ? 'bar.restores_mana' : 'bar.restores_health', { amount: r.amount });
+    return Object.assign({}, none, { type: r.kind === 'drink' ? t('bar.type_drink') : t('bar.type_food'), cost,
+      numbers: [restores], effect: [restores, t('bar.spread', { secs: secs(CONSUMABLE_RULES.overTimeMs) })] });
   }
-  if (own(ATTACK_KINDS, a.id)) return { type: t('bar.type_loaded'), cost: null, cooldown: null, effect: [], requires: null };
   /* (A rune is no ammo: it fuels spells only, Tyler 2026-10-23, so no attack slot names one.) */
-  return { type: t('bar.type_ammo'), cost: null, cooldown: null, effect: [], requires: null };
+  return Object.assign({}, none, { type: own(ATTACK_KINDS, a.id) ? t('bar.type_loaded') : t('bar.type_ammo'), cost });
+}
+
+/**
+ * THE BAR HOVER (Tyler 2026-11-08: "all of this should be decided in the configure actions, and simplified when hovering
+ * the skill on the bar"): short and read-only, a SUBSET of Configure action's facts (factsOf, the same cast), never other
+ * numbers. [{ text, cls }] in order: why it can't fire (only when it can't), the cost line, its numbers for this hero and
+ * version, its cooldown, one When line (only when it has conditions), and the slot that always fires first (only when one
+ * does). `w` is the wire slot (wireSlot), `ctx` factsOf's, `why` slot-waits.js slotWhy's, `conflict` conflictsOf's entry.
+ */
+export function hoverLines(w, ctx, why, conflict) {
+  const f = factsOf(w.action, ctx);
+  const line = (text, cls) => (text ? { text, cls: cls || '' } : null);
+  return [why ? line(why.text, why.quiet ? 'is-why' : 'is-warn is-why') : null, line(f.cost)]
+    .concat(f.numbers.map((n) => line(n)), [line(f.cooldown), w.conditions.length ? line(setupWords(w), 'is-setup') : null, conflict ? line(conflict.why, 'is-warn') : null])
+    .filter(Boolean);
 }
 
 /** How many of an action's ONE item the bag holds, from the server's inventory; null = not counted (a spell, the loaded ammo, a store item). */
@@ -155,45 +177,11 @@ export function carried(a, bag) {
   return (bag.find((l) => l.id === a.id) || { qty: 0 }).qty;
 }
 
-/* The loaded-ammo slot's words, by what is in the ammo slot (`worn`) and what the hero carries. The free rung never runs out, so
-   the store never sells behind it; with none left the hero's other ammo flies before the store (conditions.js attackOrder).
-   Null for a weapon that shoots nothing (a Melee swing and a caster's basic spend no ammo: damage.js pickShot). */
-function loadedLine(worn, set, bag, st) {
-  const role = set && set.role;
-  if (!shootsItem(role, { slot: 'ammo', reqSkill: 'ranged' })) return null;
-  if (!worn || !shootsItem(role, ITEMS[worn])) return t('bar.nothing_loaded');
-  const n = (bag || []).reduce((sum, l) => (l && l.id === worn ? sum + l.qty : sum), 0);
-  if (n > 0 && ammoPerShot(ITEMS[worn]) === 0) return t('bar.loaded_endless', { item: itemName(worn) });
-  if (n > 0) return st ? t('bar.loaded_carry_store', { n, item: itemName(worn), store: storeWords(st) }) : t('bar.loaded_carry', { n, item: itemName(worn) });
-  return st ? t('bar.loaded_none_store', { item: itemName(worn), store: storeWords(st) }) : t('bar.loaded_none', { item: itemName(worn) });
-}
-
-/** Where an action's uses come from: own stock first, then the store per use, and the supply setting. `worn` is the ammo slot's item. */
-export function supplyLines(a, set, bag, worn) {
-  const st = storeOf(a, set && set.store, worn);
-  if (a.type === 'ability') {
-    const r = ABILITIES[a.id];
-    if (!r || !r.rune) return [];
-    const have = familyCount(r.rune, bag);
-    return [st ? t('bar.runes_carry_store', { n: have, rune: runeWords(r.rune, have), store: storeWords(st) }) : t('bar.runes_carry', { n: have, rune: runeWords(r.rune, have) })];
-  }
-  const n = carried(a, bag);
-  const out = [];
-  /* ONE item a slot (Tyler 2026-10-21): a store item is bought per use; a crafted one is your own stock only. */
-  if (own(ATTACK_KINDS, a.id)) { const said = loadedLine(worn, set, bag, st); if (said) out.push(said); }
-  else if (a.type === 'consume' && st && n === null) out.push(t('bar.bought_per_use', { price: st.price }));
-  else if (n !== null && n > 0) out.push(st && a.type !== 'consume' ? t('bar.stock_carry_store', { n, store: storeWords(st) }) : t('bar.stock_carry', { n }));
-  else if (n !== null) out.push(st && a.type !== 'consume' ? t('bar.stock_none_store', { store: storeWords(st, false) }) : t('bar.stock_none'));
-  if (st && set && set.supplySource !== 'store' && set.onEmpty !== 'switch') out.push(t('bar.store_stays_off'));
-  return out;
-}
-
-/** A slot's setup in words: its conditions, exactly as the engine tests them (none: whenever it is ready,
-    Tyler 2026-10-23: nothing hidden stands behind a slot). */
-export function setupWords(w) {
-  if (!w.conditions.length) return t('bar.setup_always');
+/* A slot's conditions in words, exactly as the engine tests them and as Configure action's picker reads them ("When it would
+   hit at least 2 monsters."). Only a slot with conditions has the line: one with none fires whenever it is ready. */
+function setupWords(w) {
   const conditions = listWords(w.conditions.map(conditionWords), Infinity, w.join === 'or' ? 'or' : 'and');
-  return t(w.conditions.length > 1 ? (w.join === 'or' ? 'bar.setup_any' : 'bar.setup_all') : 'bar.setup_when', { conditions });
+  return t(w.conditions.length > 1 && w.join === 'or' ? 'bar.setup_any' : 'bar.setup_when', { conditions });
 }
 
 /* A slot that heals its own hero: a food, or a self spell that heals. */
@@ -299,9 +287,14 @@ export function reasonOf(sl, set, bag, hero, worn, skills, pack) {
     if (!disc) return { code: 'weapon', text: r.universal ? t('bar.no_weapon_any') : t('bar.no_weapon', { weapons: weaponsFor(r.disciplines[0]) }), glyph: 'uiLock', strike: true };
     if (!r.universal && !r.disciplines.includes(disc)) return { code: 'weapon', text: t('bar.weapon_cant_use', { weapons: weaponsFor(r.disciplines[0]) }), glyph: 'uiLock', strike: true };
     const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
-    if (r.rune && !(familyCount(r.rune, bag) > 0) && !(storeOn && storeOf(a, set && set.store))) {
+    /* RUNE SUPPLY PER SLOT (Tyler 2026-11-08): only the runes the slot ticked count, and the shop only when it buys on empty */
+    const sup = r.rune ? runeSupplyOf(a) : null;
+    const packed = sup ? waiting(ownCount(a, (pack || []).map((x) => ({ id: x.id, qty: x.have })))) : null;
+    if (sup && sup.onEmpty === 'leave' && !(ownCount(a, bag) > 0)) {
+      return { code: 'runes_out', text: packed ? t('bar.rune_leaves_packed', { waiting: packed }) : t('bar.rune_leaves'), glyph: 'uiChest', strike: true };
+    }
+    if (sup && !(ownCount(a, bag) > 0) && !(storeOn && sup.onEmpty === 'store' && storeOf({ ...a, store: sup.store }, set && set.store))) {
       const rune = runeWords(r.rune, 1);
-      const packed = waiting(familyCount(r.rune, (pack || []).map((x) => ({ id: x.id, qty: x.have }))));
       const an = /^[aeiou]/i.test(rune) ? 'an' : 'a';
       return { code: 'rune', text: packed ? t('bar.rune_needs_' + an + '_packed', { rune, waiting: packed }) : t('bar.rune_needs_' + an, { rune }), glyph: 'uiChest', strike: true };
     }
@@ -315,8 +308,11 @@ export function reasonOf(sl, set, bag, hero, worn, skills, pack) {
       const c = storeChoices(a, set && set.store, skills).find((x) => x.id === a.store);
       return { code: 'store_level', text: c ? t('bar.store_level_named', { name: c.name, needs: c.needs }) : t('bar.store_level'), glyph: 'uiLock', strike: true };
     }
+    if (sl.usable === false && sl.why === 'runes_out') return { code: 'runes_out', text: t('bar.rune_leaves'), glyph: 'uiChest', strike: true };
     if (sl.usable === false) return SERVER;
-    if (hero && Number.isFinite(hero.mana) && r.mana > hero.mana) return { code: 'mana', text: t('bar.mana_short', { mana: r.mana, have: Math.floor(hero.mana) }), glyph: 'uiPotion', strike: false };
+    /* the mana of the version this slot casts (castOf: the rune it would spend), never version I's */
+    const need = /** @type {{ mana: number }} */ (castOf(a, { bag, store: set && set.store, skills, set })).mana;
+    if (hero && Number.isFinite(hero.mana) && need > hero.mana) return { code: 'mana', text: t('bar.mana_short', { mana: need, have: Math.floor(hero.mana) }), glyph: 'uiPotion', strike: false };
     return null;
   }
   /* A food or drink's struck state is the SERVER's (hr_hunt_settings_view `usable` + `why`), never the browser's own count. */

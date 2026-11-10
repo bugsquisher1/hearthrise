@@ -1,17 +1,15 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/data/text/bar.js — THE ACTION BAR'S WORDS: what a slot is, what it costs,
-// where its uses come from and why it waits (src/shell/action-facts.js, the
-// store line of src/shell/bar-draft.js).
+// src/data/text/bar.js — THE ACTION BAR'S WORDS: what a slot is, what it costs
+// and why it waits (src/shell/action-facts.js, src/shell/cast-facts.js).
 //
 // One row per sentence, read by t('bar.<key>'). {weapons} is a weapon list
-// ("Bow or Crossbow"), {store} the store's line (store_then / store_plain),
-// {waiting} the waiting_* sentence about a stock the backpack holds.
+// ("Bow or Crossbow"), {waiting} the waiting_* sentence about a stock the
+// backpack holds.
 // ════════════════════════════════════════════════════════════════════════
 
 export const BAR_TEXT = Object.freeze({
-  /* The Configure action window's tabs, and the loaded-ammo slot's name. */
+  /* The Configure action window's tabs (a rune spell is a spell: Tyler 2026-11-08), and the loaded-ammo slot's name. */
   tab_spells: 'Spells',
-  tab_runes: 'Runes',
   tab_food: 'Food & drink',
   tab_ammo: 'Ammo',
   loaded_ammo: 'The loaded ammo',
@@ -66,28 +64,36 @@ export const BAR_TEXT = Object.freeze({
   type_loaded: 'Ammo: your attacks use whatever you have loaded.',
   type_ammo: 'Ammo: your attacks use it, one per shot.',
 
-  /* Where a slot's uses come from. */
-  store_then: 'then the store’s {name}, {price} g each, paid as used',
-  store_plain: 'the store’s {name}, {price} g each, paid as used',
-  nothing_loaded: 'Nothing loaded: your weapon shoots the ammo on your bar, then waits.',
-  loaded_endless: '{item} loaded. They never run out.',
-  loaded_carry: 'You carry {n} {item}. When they run out, your other ammo fires.',
-  loaded_carry_store: 'You carry {n} {item}. Own stock first, {store}.',
-  loaded_none: 'You carry no {item}. Your other ammo fires first.',
-  loaded_none_store: 'You carry no {item}. Your other ammo fires first, {store}.',
-  runes_carry: 'You carry {n} {rune}. Carried runes only: once they are gone this slot waits.',
-  runes_carry_store: 'You carry {n} {rune}. Own runes first, {store}.',
-  bought_per_use: 'Bought from the store at {price} g each, paid as used.',
-  stock_carry: 'You carry {n}. When they run out, this slot waits and the next slot fires.',
-  stock_carry_store: 'You carry {n}. Own stock first, {store}.',
-  stock_none: 'You carry none, so this slot waits and the next slot fires.',
-  stock_none_store: 'You carry none: {store}.',
-  store_stays_off: 'This hero is set to end the hunt when its own stock runs out, so the store stays off.',
+  /* WHAT ONE USE COSTS, its one line (Tyler 2026-11-08, "Yes, cost line only"; src/shell/cast-facts.js costLine): the mana, then
+     the rune, food, drink or shot the next use spends, at the store's price, as many as you have, or none left. */
+  cost_line: 'Cost: {parts}',
+  cost_price: '1 {item} ({price} g)',
+  cost_have: '1 {item} (you have {n})',
+  cost_none: '1 {item} (none left)',
+  cost_shot_price: '1 shot of {item} ({price} g)',
+  cost_shot_have: '1 shot of {item} (you have {n})',
+  cost_shot_none: '1 shot of {item} (none left)',
+  cost_shot_free: '1 shot of {item} (they never run out)',
+  /* a spell's rune when no tier of it can be had: the family's ("1 Earth Rune (none left)") */
+  family_rune: '{family} Rune',
+  /* A rune spell's supply in Configure action (src/shell/rune-supply.js; Tyler 2026-11-08, RUNE SUPPLY PER SLOT). */
+  runes_use: 'Use carried runes',
+  runes_none: 'You carry no {family} runes.',
+  runes_needs: 'Needs {needs}',
+  runes_when: 'When your runes run out',
+  runes_buy: 'Buy from the rune shop',
+  runes_leave: 'Leave the hunt',
+  runes_shop_only: 'Every cast buys from the rune shop.',
+  shop_rune: '{name} · {price} g each · {out}',
+  shop_rune_plain: '{name} · {price} g each',
+  shop_rune_short: '{name} · {price} g each · needs {needs}',
+  /* What one cast lands for this hero (cast-facts.js outputWords). */
+  out_dmg: '{lo}–{hi} damage',
+  out_heal: 'heals {lo}–{hi}',
+  out_shield: 'shields {points}',
 
   /* A slot's setup, and what another slot does to it. */
-  setup_always: 'Always: whenever it is ready (no conditions).',
   setup_any: 'Any of: {conditions}.',
-  setup_all: 'All of: {conditions}.',
   setup_when: 'When {conditions}.',
   heal_warning_eat: 'The {monster} can hit for {hit}. At {pct}% you have {hp} HP, so one hit can kill you before you eat.',
   heal_warning_heal: 'The {monster} can hit for {hit}. At {pct}% you have {hp} HP, so one hit can kill you before you heal.',
@@ -107,6 +113,8 @@ export const BAR_TEXT = Object.freeze({
   rune_needs_an: 'Needs an {rune} for each cast: you carry none. Pick the store’s rune for this slot to buy one as used.',
   rune_needs_a_packed: 'Needs a {rune} for each cast: none in this hunt, and {waiting}',
   rune_needs_an_packed: 'Needs an {rune} for each cast: none in this hunt, and {waiting}',
+  rune_leaves: 'You carry none of the runes ticked on this slot. When it comes to cast, your hero leaves the hunt.',
+  rune_leaves_packed: 'None of the runes ticked on this slot is in this hunt, and {waiting}',
   no_shot: 'Nothing loaded to shoot. Put arrows or bolts on the bar (Ammo), and this spell casts them.',
   rune_level: 'Your {runes} are a higher tier than your level can cast. Carry a lower tier, or pick the store’s rune for this slot.',
   store_level: 'The store rune on this slot is a higher tier than your level can cast. This slot waits until then. Pick a lower rune for it, or carry your own.',
@@ -131,12 +139,10 @@ export const BAR_TEXT = Object.freeze({
   col_per_shot: 'g per shot, cheapest first',
   col_cooldown: 'Cooldown',
   col_rune: 'Rune',
-  col_per_cast: 'g per cast, cheapest first',
   run_food: 'Food',
   run_drink: 'Drink',
   run_ammo: 'Arrows and bolts',
   secs: '{secs} s',
-  no_rune_spells: 'No rune spells in the game yet.',
   no_spells: 'No spells in the game yet.',
   no_food: 'No food or drink in the game yet.',
   cell_store: 'store',
@@ -146,8 +152,6 @@ export const BAR_TEXT = Object.freeze({
   verb_drink: 'Drink',
   verb_eat: 'Eat',
   the_loaded_ammo: 'the loaded ammo',
-  note_rune_store: '(uses 1 {rune}. Once yours are gone, {item} from the store at {price} g a cast)',
-  note_rune_own: '(uses 1 {rune}, carried runes only)',
   note_loaded: '(the ammo you wear shoots first, and the store sells a shot only once everything you carry is gone)',
   note_shot: '(after the ammo you wear, unless you give this slot conditions. The store sells a shot only once everything you carry is gone.)',
   cmp_hp_use: '{diff} HP a use',
@@ -157,17 +161,6 @@ export const BAR_TEXT = Object.freeze({
   cmp_gold_per_mana: '{ratio}× the gold per mana',
   waste_hp: 'At {pct}% you are missing {missing} HP, so {lost} of its {amount} would be wasted.',
   waste_mana: 'At {pct}% you are missing {missing} mana, so {lost} of its {amount} would be wasted.',
-  source_mana_only: 'Costs only mana.',
-  source_cast_uses: 'Each cast uses {rune}.',
-  source_loaded: 'Uses whatever ammo you have loaded.',
-  source_unpriced: 'The store has no price for this right now.',
-  source_store: 'The store sells it at {price} g each, paid as used.',
-  source_shot_then_store: 'Uses your {n} first, then the store at {price} g a shot.',
-  source_shot_store: 'You carry none. The store sells it at {price} g a shot.',
-  source_shot_own: 'You carry {n}. The store does not sell it, so after {n} shots this slot waits.',
-  source_shot_none: 'You carry none, and the store does not sell it.',
-  source_use_own: 'You carry {n}. The store does not sell it, so after {n} uses this slot waits. Put a store item in a later slot to carry on.',
-  source_use_none: 'You carry none, so this slot waits. The store does not sell it.',
   effect_food: 'Half heals at once, the rest over {secs} s. Food and drink share a {lane} s cooldown.',
   effect_drink: 'Half restores at once, the rest over {secs} s. Food and drink share a {lane} s cooldown.',
 });

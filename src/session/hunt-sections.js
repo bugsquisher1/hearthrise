@@ -18,11 +18,12 @@
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.110';
-import { VITALS } from '../data/core-model.js?v=0.2.110';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.110';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.110';
-import { TIER_IDS } from '../data/hunt-tiers.js?v=0.2.110';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.112';
+import { VITALS } from '../data/core-model.js?v=0.2.112';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.112';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.112';
+import { TIER_IDS } from '../data/hunt-tiers.js?v=0.2.112';
+import { RUNE_ON_EMPTY } from '../data/runes.js?v=0.2.112';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -112,6 +113,12 @@ function conditionOf(c) {
   return { metric: c.metric, op: c.op, value, subject: str(c.subject) };
 }
 
+/* A slot's action in the wire shape: its type and id, the store row it names, a rune spell's ticked runes and what it does when they run out. */
+function actionOf(a) {
+  return Object.assign({ type: a.type, id: a.id }, str(a.store) ? { store: a.store } : {},
+    Array.isArray(a.own) ? { own: a.own.filter((id) => str(id)).slice(0, 8) } : {}, RUNE_ON_EMPTY.includes(a.onEmpty) ? { onEmpty: a.onEmpty } : {});
+}
+
 /* One bar slot: the server's action + conditions (the wire shape the editor sends back,
    src/data/condition-metrics.js), plus its display fields (usable, why, mana, count). */
 function slotOf(s) {
@@ -120,8 +127,9 @@ function slotOf(s) {
   return {
     /* `id`: the rule's STABLE id (the server's; the hunt summary names a decision by it). */
     empty: false, id: str(s.id), item: s.action.id,
-    /* `store`: the store row the PLAYER chose to back this slot (Tyler 2026-10-19), when it names one. */
-    action: Object.assign({ type: s.action.type, id: s.action.id }, str(s.action.store) ? { store: s.action.store } : {}),
+    /* `store`: the store row the PLAYER chose to back this slot (Tyler 2026-10-19), when it names one. A rune spell's supply (Tyler
+       2026-11-08): `own`, the carried runes it may spend, and `onEmpty`, 'store' or 'leave' (the server projects both whole). */
+    action: actionOf(s.action),
     conditions, join: JOIN.test(String(s.join)) ? s.join : 'and',
     /* ON / OFF and the monsters it IGNORES (the slot format, Tyler 2026-10-19; the server's stored values):
        a slot switched Off never fires, so it shows struck. */
@@ -136,7 +144,7 @@ function slotOf(s) {
     monsters ride along, so an edit never drops them). */
 export function wireSlot(s) {
   if (!s || s.empty) return null;
-  return { action: Object.assign({ type: s.action.type, id: s.action.id }, s.action.store ? { store: s.action.store } : {}),
+  return { action: actionOf(s.action),
     conditions: s.conditions.map((c) => Object.assign({ metric: c.metric, op: c.op, value: c.value }, c.subject ? { subject: c.subject } : {})),
     join: s.join,
     ...(s.enabled === false ? { enabled: false } : {}),

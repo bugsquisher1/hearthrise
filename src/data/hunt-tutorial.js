@@ -65,27 +65,27 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.110';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.110';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.110';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.110';
-import { SKILLS_DEF } from './skills.js?v=0.2.110';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.110';
-import { tallyTask } from './tally-tasks.js?v=0.2.110';
-import { ITEMS } from './items.js?v=0.2.110';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.110';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.110';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.110';
-import { isShield } from './shields.js?v=0.2.110';
-import { deriveProfile } from '../core/member.js?v=0.2.110';
-import { ABILITIES } from './abilities.js?v=0.2.110';
-import { CONSUMABLES } from './consumables.js?v=0.2.110';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.110';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.110';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.110';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.110';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.110';
-import { regenPermille } from '../core/vitals.js?v=0.2.110';
+import { HUNT_INDEX } from './hunts.js?v=0.2.112';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.112';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.112';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.112';
+import { SKILLS_DEF } from './skills.js?v=0.2.112';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.112';
+import { tallyTask } from './tally-tasks.js?v=0.2.112';
+import { ITEMS } from './items.js?v=0.2.112';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.112';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.112';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.112';
+import { isShield } from './shields.js?v=0.2.112';
+import { deriveProfile } from '../core/member.js?v=0.2.112';
+import { ABILITIES } from './abilities.js?v=0.2.112';
+import { CONSUMABLES } from './consumables.js?v=0.2.112';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.112';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.112';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.112';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.112';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.112';
+import { regenPermille } from '../core/vitals.js?v=0.2.112';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -101,7 +101,7 @@ export const TUTORIAL_ANCHORS = Object.freeze({
   crafting: anchor('Gathering and crafting (src/shell/windows/work.js), its icon, ring.skill, then ring.work\'s Start', 'skills-trade', true),
   tally: anchor('Tamsin\'s tally (src/shell/windows/tally.js), her icon, the armor weight, then ring.task\'s Take', 'tally', true),
   inventory: anchor('the bag (src/shell/windows/inventory), its icon, then the control the card names', 'inventory', true),
-  shop: anchor('the Shop (src/shell/windows/shop.js), its icon, the Sell tab, then Sell all loot', 'shop', true),
+  shop: anchor('the Shop (src/shell/windows/shop.js), its icon, the Sell tab, then Sell all junk', 'shop', true),
   /* Services is the Shop's third tab (Tyler 2026-10-25), the Shop's icon, its Services tab, then the next Bless */
   services: anchor('the Shop\'s Services tab (src/shell/windows/services.js), the Shop\'s icon, the Services tab, then the control', 'shop', true, 'services'),
   storage: anchor('Storage (src/shell/windows/storage.js), its icon', 'storage', true),
@@ -335,7 +335,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'action_bar', { kind: 'any', of: [READ, { kind: 'rune_spell_on' }] }, { knowledge: true, gotIt: true, when: [HUNTING, THICKET_BEHIND, { kind: 'rune_spell_none' }],
       /* deepest first: the first on screen is ringed (launcher.js ringPlan), so the ring walks tab -> spell -> rune */
       hooks: ['[data-hs-win="configure-action"] .ca-rs[data-store="{store}"]', '[data-hs-win="configure-action"] .ca-row[data-id="{spell}"]',
-        '[data-hs-win="configure-action"] .ca-tab[data-tab="runes"]'] }),
+        '[data-hs-win="configure-action"] .ca-tab[data-tab="spells"]'] }),
   /* THE HELP PAGE, POINTED AT (the panel: "the best thing you've written, buried behind a gear icon"). */
   step('help_page', 'The whole picture',
     'The gear icon at the top right opens Settings, and its Help page explains hunting, supplies, loot, gear and dying in plain words. It\'s there whenever you want it.',
@@ -355,9 +355,9 @@ export const HUNT_TUTORIAL = Object.freeze([
     'services', orGotIt({ kind: 'blessed' }), { gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
       inWindow: 'Press Services, then Bless on each of the three Blessings.', hooks: TO_BLESS }),
   step('sell_loot', 'Sell what only pays coin',
-    'Open the Shop and press Sell. Sell all loot sells the parts that are only worth gold, and keeps fuel for the Great Hearth (it raises your Inner Flame), food you can cook, and materials your recipes or your next House step need. Point at anything to see what it\'s for.',
+    'Open the Shop and press Sell. Sell all junk sells what is only worth gold. Your Materials stay, like fuel for the Great Hearth (it raises your Inner Flame), food you can cook and parts for your recipes and your House. Point at anything to see what it\'s for.',
     'shop', { kind: 'any', asks: true, of: [READ, { kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },
-    { gotIt: true, when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all loot. It keeps fuel for the Great Hearth, food you can cook, and materials you need.',
+    { gotIt: true, when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all junk. Your Materials stay in your bag.',
       hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="sell"]', '[data-hs-win="shop"] [data-hs-act="sell-loot"]', '[data-hs-win="shop"] [data-coach-hook="sell-confirm"]'] }),
   /* One decision, not a form (panel 2026-11-01: a 14-dropdown list at hour one, "I don't know what I don't need yet"): after the
      Thicket the bag knows what piles up, and a plan once set is kept for every hunt after (the first principle). */

@@ -1446,7 +1446,9 @@ export function huntProposal(hs, swingFrom, settledToMs, summary, tickMs) {
     paid_ms: Math.max(0, Math.floor(Number(t.paidMs) || 0)),
     raw_xp: rawXp,
     hints,
-    ended: hs.endedReason ? { reason: hs.endedReason, at: huntIso(hs.endedAtMs) } : null,
+    /* `ability`: the spell whose slot left the hunt out of its ticked runes (runes_out), which the server's re-proof reads. */
+    ended: hs.endedReason ? { reason: hs.endedReason, at: huntIso(hs.endedAtMs),
+      ...(hs.endedReason === 'runes_out' && typeof hs.runesOut === 'string' ? { ability: hs.runesOut } : {}) } : null,
     buys: pos(t.bought),
     cover: pos(t.covered),
     /* THE STAMINA POOL AT `to`, walked swing by swing from the database's own

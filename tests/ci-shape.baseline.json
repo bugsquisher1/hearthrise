@@ -593,6 +593,8 @@
     "node tools/mutant-gate.mjs node tests/client-intent-surface.mjs --selftest": "client-guards-2",
     "node tests/client-module-size.mjs": "client-guards-2",
     "node tools/mutant-gate.mjs node tests/client-module-size.mjs --selftest": "client-guards-2",
+    "node tests/hero-limit-literals.mjs": "client-guards-2",
+    "node tools/mutant-gate.mjs node tests/hero-limit-literals.mjs --selftest": "client-guards-2",
     "node tests/module-preload.mjs": "client-guards-2",
     "node tools/mutant-gate.mjs node tests/module-preload.mjs --selftest": "client-guards-2",
     "node tools/mutant-gate.mjs node tests/guard-hygiene.mjs --selftest": "client-guards-2",

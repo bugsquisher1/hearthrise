@@ -33,10 +33,10 @@
 // ════════════════════════════════════════════════════════════════════════
 import { partyMembershipOf } from './party-sections.js?v=0.2.114';
 import { askVia } from './intent-ledger.js?v=0.2.114';
+import { SESSION_CONFIG } from './config.js?v=0.2.114';
 
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const MAX_SLOT = 5;
 const newIdem = () => globalThis.crypto.randomUUID();
 
 /** The account's open characters seated in the same party as `cs` (cs included), by the server's party id. */
@@ -115,7 +115,7 @@ export async function disbandParty(account, cs) {
 
 /** One of this account's own characters joins `cs`'s party at once (the party is made if `cs` has none). */
 export async function inviteOwn(account, cs, otherSlot) {
-  if (!usable(account, cs) || !Number.isInteger(otherSlot) || otherSlot < 0 || otherSlot > MAX_SLOT || otherSlot === cs.slot) {
+  if (!usable(account, cs) || !Number.isInteger(otherSlot) || otherSlot < 0 || otherSlot > SESSION_CONFIG.maxSlot || otherSlot === cs.slot) {
     return { ok: false, error: 'bad_intent', seats: [] };
   }
   const other = typeof account.character === 'function' ? account.character(otherSlot) : null;
@@ -129,7 +129,7 @@ export async function inviteOwn(account, cs, otherSlot) {
  * with no claimed name, whom no name can find (live v0.2.11).
  */
 export async function invitePlayer(account, cs, userId, slot) {
-  if (!usable(account, cs) || !UUID.test(String(userId)) || (slot !== null && slot !== undefined && !(Number.isInteger(slot) && slot >= 0 && slot <= MAX_SLOT))) {
+  if (!usable(account, cs) || !UUID.test(String(userId)) || (slot !== null && slot !== undefined && !(Number.isInteger(slot) && slot >= 0 && slot <= SESSION_CONFIG.maxSlot))) {
     return { ok: false, error: 'bad_intent', seats: [] };
   }
   const peers = partyPeersOf(account, cs);

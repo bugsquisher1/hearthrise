@@ -6,6 +6,8 @@
 // per-IP cap) is a value change, never a code hunt.
 // ════════════════════════════════════════════════════════════════════════
 
+import { HERO_LIMITS } from '../data/hero-limits.js?v=0.2.114';
+
 export const SESSION_CONFIG = Object.freeze({
   /** The hosts the game is served from. hr-accrue's CORS allowlist (cors.js
       ALLOWED_ORIGINS) must be exactly these (tests/cors-preflight.mjs C3). */
@@ -13,11 +15,11 @@ export const SESSION_CONFIG = Object.freeze({
   /** Characters one login may play at the same time (WEEK_PLAN 2026-10-17: up to 4). The SERVER enforces it, per
       account and per network (2027-01-19-play-cap.sql, through the generated `max_concurrent` row); here it only
       bounds the tab's connections. */
-  maxConcurrentCharacters: 4,
+  maxConcurrentCharacters: HERO_LIMITS.playAtOnce,
   /** The server's slot-id SHAPE bound: hr_load / hr-accrue clamp `slot` to 0..5 (request.js MAX_SLOT, the player_state
       CHECK). Not the hero count: an account holds four heroes (Tyler 2026-11-07), and that cap is the server's
       `account.hero_slots_max`, read from hr_hero_slots. A hero already in slot 4 (bought before the cap fell) stays listed. */
-  maxSlot: 5,
+  maxSlot: HERO_LIMITS.slotIdMax,
   /** Where the sign-in token lives: 'device' (survives a closed tab) or 'tab' (one login per tab). */
   authStore: 'device',
   /** The storage key the auth client keeps its session under. */

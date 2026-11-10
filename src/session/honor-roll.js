@@ -15,6 +15,7 @@
 // heroes (`mine`, with their slot) and nobody else's.
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.114';
+import { SESSION_CONFIG } from './config.js?v=0.2.114';
 import { HONOR_TOP, honorBoard } from '../data/honor-roll.js?v=0.2.114';
 
 const count = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : null);
@@ -25,7 +26,7 @@ function rowOf(r) {
   if (!r || typeof r !== 'object' || Array.isArray(r)) return null;
   const rank = count(r.rank), place = count(r.place), level = count(r.level), score = count(r.score);
   if (!rank || !place || level === null || score === null || typeof r.name !== 'string' || !r.name) return null;
-  const mine = r.mine === true && Number.isInteger(r.slot) && r.slot >= 0 && r.slot <= 5;
+  const mine = r.mine === true && Number.isInteger(r.slot) && r.slot >= 0 && r.slot <= SESSION_CONFIG.maxSlot;
   return Object.freeze({ rank, place, name: r.name.slice(0, NAME_MAX), level, score, mine, slot: mine ? r.slot : null });
 }
 const rowsOf = (a) => Object.freeze((Array.isArray(a) ? a : []).map(rowOf).filter(Boolean).sort((x, y) => x.rank - y.rank));

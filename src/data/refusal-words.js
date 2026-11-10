@@ -15,6 +15,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.114';
+import { HERO_LIMITS, countWord } from './hero-limits.js?v=0.2.114';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -277,10 +278,10 @@ export const REFUSAL_WORDS = Object.freeze({
   activity_running: 'Your hero is busy with something else. Stop it first.',
   same_hunt: 'You are already hunting there.',
   /* The play cap (2027-01-19-play-cap.sql; Tyler 2026-10-17): at most four heroes play at once per account and per
-     internet connection. The number is SESSION_CONFIG.maxConcurrentCharacters (tests/play-cap.mjs holds the words to it). */
+     internet connection. The number is HERO_LIMITS.playAtOnce (src/data/hero-limits.js; tests/play-cap.mjs holds the words to it). */
   /* These two open the centered popup (src/shell/windows/play-cap.js), never a window's foot line. */
-  too_many_playing: 'Four of your heroes are already playing. Stop one to start this one.',
-  too_many_playing_here: 'Four heroes are already playing from this internet connection. They can be on any account here. Stop one to start this one.',
+  too_many_playing: countWord(HERO_LIMITS.playAtOnce, true) + ' of your heroes are already playing. Stop one to start this one.',
+  too_many_playing_here: countWord(HERO_LIMITS.playAtOnce, true) + ' heroes are already playing from this internet connection. They can be on any account here. Stop one to start this one.',
   unknown_hunt: 'The server does not know that hunt.',
   unknown_preset: 'That setup is gone. Pick another under Saved setups.',
   /* hr_hunt_preset_apply: a piece the setup wears is no longer in the bag (Go as on the Hunts window stops there). */

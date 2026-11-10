@@ -5713,6 +5713,14 @@ jobs:
           node tests/client-module-size.mjs
           node tools/mutant-gate.mjs node tests/client-module-size.mjs --selftest
 
+      # The hero limits (slots an account holds, heroes at once) are read from
+      # src/data/hero-limits.js, never typed: 0 in the client, the edge ratcheted.
+      - name: Hero limits are read, never typed
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hero-limit-literals.mjs
+          node tools/mutant-gate.mjs node tests/hero-limit-literals.mjs --selftest
+
       # play.html's generated modulepreload block IS the page's module graph, so every
       # module is asked for at once (10-23: eight import levels, 1.61 s of a cold boot).
       # After adding or dropping an import: node tests/module-preload.mjs --write

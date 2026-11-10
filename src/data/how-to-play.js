@@ -16,8 +16,9 @@
 // HELP_NOTES     the Settings > Help page (src/data/settings.js, type 'note'):
 //                one short heading and one or two sentences each, searchable.
 //
-// No number is restated that the game holds elsewhere except the ruled ones
-// (8 h free stamina, 4 heroes at once, 1 starting slot); copy only. The armor
+// No number is restated that the game holds elsewhere except the ruled 8 h of
+// free stamina; the hero slots and how many play at once are read from
+// src/data/hero-limits.js; copy only. The armor
 // weights' words and numbers are read from src/data/armour-weights.js, the
 // death's share from src/data/hunt-sessions.js DEATH_XP_LOSS.
 // PURE ESM. Data only.
@@ -28,6 +29,7 @@ import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.114'
 import { STARTER_SETS } from './start-kit.js?v=0.2.114';
 import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.114';
 import { DEATH_XP_LOSS } from './hunt-sessions.js?v=0.2.114';
+import { START_SLOTS_WORDS, BOUGHT_SLOTS_WORD, ALL_PLAY_WORDS } from './hero-limits.js?v=0.2.114';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 
@@ -35,7 +37,7 @@ const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role,
    START_EQUIPMENT); a player can make more heroes and play several at once (1 slot to start, Tyler 2026-11-09; up to 4 at once). */
 export const HOW_YOU_FIGHT_LEAD = 'There\'s no class to pick, and nothing to choose here. Your hero owns every weapon below, and the one in your hand decides how you fight. You start with the sword and shield on, and the rest are in your bag. To switch, equip another in town, any time.';
 /* The lead's last sentence: not about fighting, so a phone's short card leaves it to the Help page (app.css). */
-export const HOW_YOU_FIGHT_SLOTS = 'You start with one hero slot, and gold buys up to three more. All four heroes can play at once.';
+export const HOW_YOU_FIGHT_SLOTS = 'You start with ' + START_SLOTS_WORDS + ', and gold buys up to ' + BOUGHT_SLOTS_WORD + ' more. ' + ALL_PLAY_WORDS + ' at once.';
 
 export const HOW_YOU_FIGHT = Object.freeze([
   style('hold', 'tank', ['practice_sword', 'practice_shield'], 'Sword and shield',
@@ -80,7 +82,7 @@ export const HELP_NOTES = Object.freeze([
   note('town', 'Work in town',
     'Between hunts your hero can chop, mine, fish, cook, smith, craft and bind runes. Open Gathering and crafting (G), press a skill and choose what to do. Gathering keeps going with the game closed. Making something uses what is in your bag. Starting a hunt stops either one.'),
   note('heroes', 'Several heroes at once',
-    'Your account starts with one hero slot, and gold buys up to three more. All four heroes can play at the same time. Your own heroes join your party straight away, so one can hold the monsters while another heals.'),
+    'Your account starts with ' + START_SLOTS_WORDS + ', and gold buys up to ' + BOUGHT_SLOTS_WORD + ' more. ' + ALL_PLAY_WORDS + ' at the same time. Your own heroes join your party straight away, so one can hold the monsters while another heals.'),
   note('death', 'If your hero dies',
     'The hunt ends and your hero wakes in town. A death costs ' + Math.round(DEATH_XP_LOSS * 100) + '% of your Level XP, and that can take a Level. Blessings from the Shop\'s Services tab cut the loss, and they are free below Level 30.'),
 ]);

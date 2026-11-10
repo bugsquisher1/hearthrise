@@ -90,10 +90,11 @@ function openOf(tab, uid, cfg = SESSION_CONFIG) {
   return slots.includes(v.viewed) ? { slots, viewed: v.viewed } : null;
 }
 
-/** `account.max_concurrent`, the server's concurrent-play limit, from one read key, or null when unstated. Pure. */
-export function accountLimitOf(read) {
+/** `account.max_concurrent`, the server's concurrent-play limit, from one read key, or null when unstated (or outside
+ *  1..one per slot id, the bound its generator holds it to: tools/gen-hunt-sessions.mjs). Pure. */
+export function accountLimitOf(read, cfg = SESSION_CONFIG) {
   const a = read('account');
-  return a && typeof a === 'object' && Number.isInteger(a.max_concurrent) && a.max_concurrent >= 1 && a.max_concurrent <= 8 ? a.max_concurrent : null;
+  return a && typeof a === 'object' && Number.isInteger(a.max_concurrent) && a.max_concurrent >= 1 && a.max_concurrent <= cfg.maxSlot + 1 ? a.max_concurrent : null;
 }
 
 /* An answer taken `ms` after it came: the session measures the server's clock off `now` as it takes it, and that first measure

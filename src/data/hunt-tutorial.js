@@ -86,6 +86,7 @@ import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.
 import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.114';
 import { HEARTH_FUELS } from './hearth.js?v=0.2.114';
 import { regenPermille } from '../core/vitals.js?v=0.2.114';
+import { PLAY_AT_ONCE_WORD } from './hero-limits.js?v=0.2.114';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -1196,7 +1197,7 @@ function topUpLine(f) {
 }
 
 /* How a hero who hunts alone makes a party (the go_below card's lesson, said on the What next line instead). */
-const PARTY_HOW = 'Invite a friend, or make a second hero. Up to four of yours can hunt at once.';
+const PARTY_HOW = 'Invite a friend, or make a second hero. Up to ' + PLAY_AT_ONCE_WORD + ' of yours can hunt at once.';
 /* A hero with another hero of its own already needs only the press. */
 const PARTY_HOW_OWN = 'Right-click your other hero\'s tab (on a phone, Heroes, then Invite) and choose Invite to party.';
 const partyHow = (f) => (Array.isArray(f.roster) && f.roster.length > 1 ? PARTY_HOW_OWN : PARTY_HOW);

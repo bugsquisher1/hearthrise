@@ -69,6 +69,8 @@ const STEPS = [
   ['node', ['tests/window-globals-exist.mjs']],
   ['node', ['tests/token-single-source.mjs']],
   ['node', ['tests/css-literal-ratchet.mjs']],
+  // The hero limits are read from src/data/hero-limits.js, never typed (audit S10). Milliseconds.
+  ['node', ['tests/hero-limit-literals.mjs']],
   ['node', ['tests/breakpoint-guard.mjs']],
   // The server projects it, the client must not keep its own copy (Tyler, 2026-09-14).
   // Text-only here; the executed hr_state_of key set is pinned in the db-replay-3 job

@@ -1,0 +1,8 @@
+{
+  "_generated_by": "node tests/hero-limit-literals.mjs --write",
+  "_note": "the edge's typed hero limits, per file; it only falls. The client holds none.",
+  "edge": {
+    "supabase/functions/hr-accrue/frame-self.js": 1,
+    "supabase/functions/hr-accrue/request.js": 1
+  }
+}

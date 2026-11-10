@@ -2,8 +2,8 @@
 // src/app/slot-offer.js — BUY A HERO SLOT, ON "YOUR CHARACTERS" (tracker r45).
 //
 // Tyler 2026-11-09: every account starts with ONE hero slot; the second costs
-// about a week of play (300,000 gold, then 750,000 and 1,500,000), up to four
-// heroes in all (Tyler 2026-11-07: the fifth slot is gone). Gold
+// about a week of play, and the ladder ends at the last slot there is
+// (src/data/shops.js character_slot rows; src/data/hero-limits.js counts them). Gold
 // is the ACCOUNT's (Tyler 2026-10-23, one purse for every hero:
 // 2026-12-15-account-gold.sql), so there is nobody to pick: the
 // slot is paid from "your gold". Every number shown is the server's: the price

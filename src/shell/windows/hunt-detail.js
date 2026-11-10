@@ -24,6 +24,8 @@ import { rows, text, cls, prop, attr, style, element } from '../../render/paint.
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.114';
 import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.114';
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.114';
+import { HERO_LIMITS } from '../../data/hero-limits.js?v=0.2.114';
+import { t } from '../../render/player-text.js?v=0.2.114';
 import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.114';
 import { residentsOf, scarceSetOf, raresOf, bigPullLine, materialsOf } from '../hunt-ground-facts.js?v=0.2.114';
 import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.114';
@@ -120,7 +122,7 @@ export function patchGo(det, ctx, v) {
     patch: (b, h) => { text(b, 'Bring ' + h.name); prop(b, 'disabled', v.off || v.partyBlock.full); },
   });
   const none = pb.querySelector('.hw-bring-none');
-  text(none, v.partyBlock.bring.length ? '' : 'Your other heroes can come too. Play one from Characters and it shows here. Up to four play at once.');
+  text(none, v.partyBlock.bring.length ? '' : t('hunts.bring_none', { n: t('hunts.count_' + HERO_LIMITS.playAtOnce) }));
 }
 
 /* "Level 2 · common"; a boss says so in place of its share. */

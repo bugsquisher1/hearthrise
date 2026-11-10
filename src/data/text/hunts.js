@@ -21,6 +21,9 @@ export const HUNTS_TEXT = Object.freeze({
   count_7: 'seven',
   count_8: 'eight',
 
+  /* The party block with no other hero of yours playing. {n} is a number word: how many play at once (src/data/hero-limits.js). */
+  bring_none: 'Your other heroes can come too. Play one from Characters and it shows here. Up to {n} play at once.',
+
   /* How crowded a ground is. {size} is a count or pack_range. */
   pack_range: '{min} to {max}',
   packs: { one: '{count} pack of {size} · back in {secs} s', other: '{count} packs of {size} · back in {secs} s' },

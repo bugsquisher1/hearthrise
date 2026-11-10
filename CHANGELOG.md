@@ -7,7 +7,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.115 — 2026-11-10 (Honest Health)
 
-**Your Health reads right after a reload.** If you reloaded in the middle of a hunt, your Health could show 1 for up to a minute. It was never really 1. The bar now starts from what the server says. Party members, monsters and the boss bar had the same problem and are fixed too.
+**Your Health reads right after a reload.** If you reloaded in the middle of a hunt, your Health could show 1 for up to a minute. It was never really 1. The bar shows your real Health right away now. Party members, monsters and the boss bar had the same problem and are fixed too.
 
 ## v0.2.114 — 2026-11-10 (One Fight for Everyone)
 

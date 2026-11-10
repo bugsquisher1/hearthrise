@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-11-09",
+ "generated": "2026-11-10",
  "production": {
   "measured": "2026-08-30",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -1010,7 +1010,7 @@
   },
   "hr_feature_switches": {
    "class": "operator_tunable",
-   "replay": 3,
+   "replay": 4,
    "wiped_at_cutover": false,
    "live_value": {
     "measured": "2026-11-07",

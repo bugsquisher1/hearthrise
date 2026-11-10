@@ -109,7 +109,7 @@ cases['first-day-grounds'] = () => (SOLO.length >= 2 && PAIR ? null : 'the Hunts
 /* THE WORDS, PLAYED: a Level 11 sword and shield in the Glade against Wickstead, the ground that fits it, and a hero not ready for it */
 cases['above-your-level-words'] = (R) => {
   const words = HL.ABOVE_LEVEL_WORDS;
-  if (!/More XP/.test(words) || !/stronger than you/.test(words) || !/spend more on supplies/.test(words) || !/or to die/.test(words)) return 'the words claim something this case does not play: ' + words;
+  if (!/more XP/.test(words) || !/stronger than you/.test(words) || !/spend more on supplies/.test(words) || !/you might die/.test(words)) return 'the words claim something this case does not play: ' + words;
   const L = 11, fits = recommendedHunt([L], 1);
   const above = G.OPEN_GROUNDS.mosslight_glade;
   if (!String(HL.rangeWords(HL.huntRows().find((r) => r.hunt === above.hunt), L)).includes(words)) return 'a Level ' + L + ' hero is not warned on ' + above.hunt;

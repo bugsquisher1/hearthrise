@@ -589,7 +589,7 @@ async function huntsPure(imp) {
   const lines = [bestLine(null, 'mill_cellar'), bestLine(bests, 'mill_cellar'), bestLine(bests, 'millrace_sewer')].join('|');
   if (lines !== '|Best 9,000 Level XP/h|No best yet') fails.push('AW-25 the list bests read ' + lines);
   const none = bestWords({ minMs: 600000, grounds: {} }, 'mill_cellar');
-  if (none.solo || none.party || none.none !== 'No best here yet. A hunt of 10 min or more sets your best.') fails.push('AW-25 a ground with no best reads ' + JSON.stringify(none));
+  if (none.solo || none.party || none.none !== 'No best here yet. Hunt 10 minutes or more to set one.') fails.push('AW-25 a ground with no best reads ' + JSON.stringify(none));
   /* A session over plain sections, the way the envelope projects them. */
   const slot = (type, id, count) => ({ action: { type, id }, conditions: [], join: 'and', usable: true, count });
   const START = [slot('ability', 'power_strike'), slot('consume', 'cooked_shrimp', 20), slot('consume', 'salted_shrimp', null), slot('consume', 'thin_turnip_juice', null)];
@@ -643,7 +643,7 @@ async function itemTruthRules(base) {
     if (kindWords(id) === 'Junk' && /^Used in /.test(said)) fails.push('AW-60 ' + id + ' is headed Junk and reads ' + said);
     if (it.type === 'tool') {
       const pc = Math.round(it.toolSpeed * 100) + '%';
-      if (/Sell it at the shop/.test(said) || !said.includes(pc + ' faster') || !/while it's in your bag/.test(said) || !/In Storage it does nothing/.test(said)) fails.push('AW-60 the tool ' + id + ' reads ' + said);
+      if (/Sell it at the shop/.test(said) || !said.includes(pc + ' faster') || !/while it's in your bag/.test(said) || !/it does nothing in Storage/.test(said)) fails.push('AW-60 the tool ' + id + ' reads ' + said);
       if (kindWords(id) !== 'Tool') fails.push('AW-60 the tool ' + id + ' is headed ' + kindWords(id));
     }
     /* who buys it: the row's book value is what the server's bid and the market's rule read */
@@ -1010,7 +1010,7 @@ async function planRules(base) {
   const { ABILITIES } = await imp('src/data/abilities.js');
   for (const id of Object.keys(ABILITIES)) {
     const req = factsOf({ type: 'ability', id }).requires || '';
-    const said = req.replace(/^Requires: |\.$/g, '').toLowerCase().split(' or ');
+    const said = req.replace(/^Works with |\.$/g, '').toLowerCase().split(' or ');
     if (new Set(said).size !== said.length) fails.push('AW-27 ' + id + ' reads ' + JSON.stringify(req));
   }
   const { HOW_YOU_FIGHT } = await imp('src/data/how-to-play.js');
@@ -1145,6 +1145,23 @@ async function planRules(base) {
     /* the club's own climb: the reforge beats the kit from its Level, the Iron Warhammer beats the reforge from its own */
     if (ops2(plan({ weapon: 'practice_club' }, [['klappas_club']], lv1, 5)) !== '{"weapon":"klappas_club"}' || Object.keys(plan({ weapon: 'practice_club' }, [['klappas_club']], lv1, 4).ops).length
       || ops2(plan({ weapon: 'klappas_club' }, [['iron_warhammer']], lv1, 15)) !== '{"weapon":"iron_warhammer"}' || Object.keys(plan({ weapon: 'iron_warhammer' }, [['klappas_club']], lv1, 15).ops).length) fails.push('AW-21 the club\'s climb is broken');
+    /* A RING'S PERKS ARE WORTH WEARING (Andy, live 2026-11-09: a plain Banded Signet stayed on Ring 2 beside a perked ring, over a perked one in the bag). A perk plays once (combat.js
+       jewelPerksOf), so a second ring of a worn perk adds nothing; Keen against Surge trades off, so it is never a silent swap, and both over a plain ring are the player's pick. */
+    const rings = (ring1, ring2, bag) => plan({ weapon: 'practice_sword', ring1, ring2 }, bag.map((id) => [id]), lv1, 20);
+    const follow = rings('banded_signet_keen', 'banded_signet', ['banded_signet_follow']);
+    /* the ring's name says its perk, so the line names the piece only; a perk a name does not say is said in a few words */
+    const unsaid = { picks: follow.picks.map((p) => ({ ...p, id: 'banded_signet' })), choices: [] };
+    if (ops2(follow) !== '{"ring2":"banded_signet_follow"}' || UP.upgradeWords(follow) !== 'Wear Banded Signet (Follow-through).' || UP.upgradeWords(unsaid) !== 'Wear Banded Signet (adds Follow-through).')
+      fails.push('AW-21 a Follow-through ring in the bag beside a worn Keen ring reads ' + ops2(follow) + ' / ' + UP.upgradeWords(follow) + ' / ' + UP.upgradeWords(unsaid));
+    /* a perked ring that also adds a number keeps ONE bracket (voice lane 2026-11-09: "(Follow-through) (+1 Melee accuracy)" read wrong) */
+    const both = { picks: follow.picks.map((p) => ({ ...p, gains: [{ label: 'Melee accuracy', text: '+1 Melee accuracy' }, ...p.gains] })), choices: [] };
+    if (UP.upgradeWords(both) !== 'Wear Banded Signet (Follow-through, +1 Melee accuracy).') fails.push('AW-21 a perked ring that adds a number reads ' + UP.upgradeWords(both));
+    if (Object.keys(rings('banded_signet_follow', 'banded_signet', ['banded_signet_follow']).ops).length) fails.push('AW-21 a second Follow-through ring goes on, though a perk plays once');
+    if (Object.keys(rings('banded_signet_follow', 'banded_signet_keen', ['banded_signet_surge']).ops).length) fails.push('AW-21 a Surge ring silently takes a Keen ring\'s place');
+    const pick = rings('banded_signet_follow', 'banded_signet', ['banded_signet_keen', 'banded_signet_surge']);
+    if (ops2(pick) !== '{}' || JSON.stringify(pick.choices) !== '[{"slot":"ring2","ids":["banded_signet_keen","banded_signet_surge"]}]'
+      || UP.upgradeWords(pick) !== 'Nothing goes on by itself, since each piece is better at something. Ring 2: Banded Signet (Keen) or Banded Signet (Surge). Pick on the doll.')
+      fails.push('AW-21 Keen and Surge rings over a plain one read ' + ops2(pick) + ' / ' + JSON.stringify(pick.choices) + ' / ' + UP.upgradeWords(pick));
   }
   /* A tie between armor weights goes to the weight the hero chose at Tamsin's (playtest 2026-10-29: a tank paid in
      heavy came home from the Thicket with a Bronze Platebody and a Leather Body and wore neither). No weight known: the
@@ -1256,12 +1273,12 @@ async function planRules(base) {
     if (!big || big[0].max !== 100000 || big[0].have !== 250000) fails.push('AW-65 a stack past one carry offers ' + JSON.stringify(big));
     const pack = carryRows(hunting(open));
     const food = reasonOf(bar[0], { slots: bar, store: STORE }, [], null, null, null, pack);
-    if (!food || !food.strike || food.text !== 'None in this hunt: 40 Cooked Shrimp wait in your backpack. Press this slot to carry them in.') fails.push('AW-65 the struck food slot reads ' + JSON.stringify(food));
+    if (!food || !food.strike || food.text !== 'You have none in this hunt, and 40 Cooked Shrimp wait in your backpack. Press this slot to carry them in.') fails.push('AW-65 the struck food slot reads ' + JSON.stringify(food));
     const rune = reasonOf(spell, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [], null, null, null, pack);
-    if (!rune || rune.text !== 'Needs a Fire rune for each cast: none in this hunt, and 14 wait in your backpack. Press this slot to carry them in.') fails.push('AW-65 the struck rune spell reads ' + JSON.stringify(rune));
+    if (!rune || rune.text !== 'Each cast uses a Fire rune. You have none in this hunt, and 14 wait in your backpack. Press this slot to carry them in.') fails.push('AW-65 the struck rune spell reads ' + JSON.stringify(rune));
     /* RUNE-TRUTH (2027-02-21-hunt-carry-in.sql): the server struck a spell whose runes are all above the hero's level: the slot says that, not "the server says". */
     const locked = reasonOf({ ...spell, usable: false, why: 'rune_level' }, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [{ id: 'graven_fire_rune', qty: 2 }], null, null, null, null);
-    if (!locked || locked.code !== 'rune_level' || !locked.strike || !/^Your Fire runes are a higher tier than your level can cast\./.test(locked.text)) fails.push('AW-65 a spell whose runes are above the level reads ' + JSON.stringify(locked));
+    if (!locked || locked.code !== 'rune_level' || !locked.strike || !/^You can’t cast with your Fire runes yet\./.test(locked.text)) fails.push('AW-65 a spell whose runes are above the level reads ' + JSON.stringify(locked));
     /* THE RUNE LADDER (2027-03-08-rune-ladder-slots.sql): a store rune above the hero's level says which rune and what it needs, not "the server says". */
     const SCORED = STORE.concat([{ ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_scored_fire_rune', partner: 'scored_fire_rune', price: 8 }]);
     const over = reasonOf({ ...spell, action: { ...spell.action, store: 'plain_scored_fire_rune' }, usable: false, why: 'store_level' }, { slots: bar, store: SCORED, discipline: 'destruction', supplySource: 'mine', onEmpty: 'switch' }, [], null, null, { magic: { xp: 1, level: 14 } }, null);
@@ -1282,9 +1299,9 @@ async function planRules(base) {
     const [atLevel] = carryFor(archer(45), waitSlot.action) || [];
     if (!atLevel || atLevel.wait !== null) fails.push('AW-65 a shot at its level still says it waits: ' + JSON.stringify(atLevel));
     const woke = reasonOf(waitSlot, shotSet, [], null, null, { ranged: { xp: 1, level: 45 } }, carryRows(archer(45)));
-    if (!woke || woke.code !== 'stock' || woke.text !== 'None in this hunt: 40 Mithril Arrows wait in your backpack. Press this slot to carry them in.') fails.push('AW-65 at its level the shot in the backpack reads ' + JSON.stringify(woke));
+    if (!woke || woke.code !== 'stock' || woke.text !== 'You have none in this hunt, and 40 Mithril Arrows wait in your backpack. Press this slot to carry them in.') fails.push('AW-65 at its level the shot in the backpack reads ' + JSON.stringify(woke));
     const none = reasonOf(bar[0], { slots: bar, store: STORE }, [], null, null, null, null);
-    if (!none || none.text !== 'None left: you carry no Cooked Shrimp. The next food or drink slot fires instead.') fails.push('AW-65 with nothing in the bag the food slot reads ' + JSON.stringify(none));
+    if (!none || none.text !== 'You’re out of Cooked Shrimp. Your next food or drink slot takes over.') fails.push('AW-65 with nothing in the bag the food slot reads ' + JSON.stringify(none));
   }
   return fails;
 }
@@ -2203,7 +2220,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (p.sets.join('|') !== 'Leather, Bronze, Apprentice: helmets · ' + CELLAR_ODDS || p.per !== 'chance per kill, hunting alone'
           || p.rares.join('|') !== "Queen's Comb / Hive Wasp" || !p.raresShown)
           fails.push('AW-25 the Cellar\'s drops read ' + JSON.stringify([p.sets, p.per, p.rares, p.raresShown]));
-        if (p.bests.join('|') !== 'No best here yet. A hunt of 10 min or more sets your best.') fails.push('AW-25 with no best the page reads ' + JSON.stringify(p.bests));
+        if (p.bests.join('|') !== 'No best here yet. Hunt 10 minutes or more to set one.') fails.push('AW-25 with no best the page reads ' + JSON.stringify(p.bests));
         if (shots) await shot(page, 'hunts-1440x900-cellar-level1');
         /* The server's best arrives: the line and the page take it (replaced, never kept from before). */
         s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { solo: { xp_h: 7141, balance_h: 1859 } } } };
@@ -3781,6 +3798,7 @@ const MUTANTS = [
   ['plans: AW-21 a bare slot waits for a weight the bag doesn\'t hold', 'src/shell/upgrade-plan.js', "else if (!curIt) front = [front.reduce(", "else if (false) front = [front.reduce("],
   ['plans: AW-21 the window never reads the role', 'src/shell/widgets/upgrade-line.js', "prefer: preferredWeight(t ? t.weight : null, eq, s ? s.role : null) });", "prefer: t ? t.weight : null });"],
   ['plans: Equip upgrades lets a set bonus hold a hero below the next tier', 'src/shell/upgrade-plan.js', '  const set = !fits.some((id) => tierStep(ITEMS[id], curIt));', '  const set = true;'],
+  ['plans: Equip upgrades sees no worth in a ring\'s perks', 'src/shell/upgrade-plan.js', '  for (const p of perksIn(a, b)) { if (perkOf(a, p) < perkOf(b, p)) return false; if (perkOf(a, p) > perkOf(b, p)) more = true; }\n', ''],
   ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? '. To cast '", "(fixes.length > 9 ? '. To cast '"],
   ['plans: AW-27 a club hero is warned about another weapon', 'src/shell/hunt-go.js', 'if (moveOffWeapon(s.discipline, a.id)) return null;', ''],
   ['plans: AW-27 three spells read as a fallback ("then")', 'src/shell/hunt-go.js', "+ ' gp a cast').join('. ');", "+ ' gp a cast').join(', then ');"],

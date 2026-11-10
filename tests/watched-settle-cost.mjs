@@ -226,7 +226,11 @@ const ARMS = {
       const s = (await q(db, `select end_reason, floor(extract(epoch from ended_at) * 1000)::bigint as at from public.hunt_sessions where id = $1`, [F.sids[1]]))[0];
       const p = [];
       if (!s || s.end_reason !== 'stamina' || !(Number(s.at) > F.fromMs + 2 * WIN && Number(s.at) <= F.fromMs + 3 * WIN)) return [`CONTROL: the off-screen hero's hunt did not end on stamina inside window 3: ${JSON.stringify(s)}`];
-      if (r.sent[0].a1 !== 0) p.push('CONTROL: window 1 (no mark, no news) was not held');
+      /* 45 s of stamina is already low: the window that says so is news too (the strip's alert), and goes at once */
+      const low = await q(db, `select floor(extract(epoch from at) * 1000)::bigint as at from public.hunt_session_events where session_id = $1 and type = 'stamina_low'`, [F.sids[1]]);
+      const lowIn = low.length ? Math.ceil((Number(low[0].at) - F.fromMs) / WIN) : 0;
+      if (lowIn >= 1 && lowIn <= 3 && r.sent[lowIn - 1].a1 !== 1) p.push(`the commit that wrote the off-screen hero's low stamina (window ${lowIn}) sent it ${r.sent[lowIn - 1].a1} frame(s)`);
+      if (lowIn !== 1 && r.sent[0].a1 !== 0) p.push('CONTROL: window 1 (no mark, no news) was not held');
       if (r.sent[2].a1 !== 1) p.push(`the commit in which the off-screen hero's hunt ended sent it ${r.sent[2].a1} frame(s): its end waited for a mark`);
       const f = (await q(db, 'select payload from realtime.bench_frames where topic = $1 order by n desc limit 1', [F.topics.a1]))[0];
       const h = f && f.payload && f.payload.env && f.payload.env.hunt;

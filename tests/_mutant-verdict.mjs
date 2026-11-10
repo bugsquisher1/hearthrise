@@ -26,8 +26,47 @@ import { isMain } from './_is-main.mjs';
 export const HARNESS = 'HARNESS';
 const firstLine = (e) => String(e && e.message !== undefined ? e.message : e).split('\n')[0];
 
-/** The fail line for an exception a catch-all swallowed: it names where, and is never a rule. */
-export const harnessFail = (where, e) => `${HARNESS} ${where} threw: ${firstLine(e)}`;
+/* WHICH STEP THREW (2026-11-09, runs 42678595702 and 42735492394: "a page step threw: page.click: Timeout 6000ms
+   exceeded." for one alpha-windows mutant, on the runner only, and nothing said which of its hundreds of clicks).
+   The guard's own lines in the stack, innermost first, at most two: the throwing line, then its caller (a helper
+   such as openWin, then the step that called it). A guard is a tests/*.mjs whose name has no leading `_`
+   (the `_` files are the shared harness); Playwright's errors carry the caller's frames. */
+const GUARD_FRAME = /[\\/]tests[\\/]([A-Za-z0-9][\w.-]*\.mjs):(\d+):\d+/;
+export function guardLines(e) {
+  const frames = [];
+  for (const l of String((e && e.stack) || '').split('\n')) {
+    const m = /^\s+at /.test(l) && GUARD_FRAME.exec(l);
+    if (m && !frames.some(([f, n]) => f === m[1] && n === m[2])) frames.push([m[1], m[2]]);
+    if (frames.length === 2) break;
+  }
+  const why = stuckOn(e);
+  if (!frames.length) return why ? ' (' + why + ')' : '';
+  const [[file, line], caller] = frames;
+  return ' (at tests/' + file + ':' + line + (caller ? ' < ' + (caller[0] === file ? '' : caller[0] + ':') + caller[1] : '') + (why ? '; ' + why : '') + ')';
+}
+
+/* What a timed-out action last waited on, from Playwright's call log: the element over the press ("p.hh-intent-msg
+   intercepts pointer events"), the state it never reached ("element is not enabled"), or a locator that never
+   matched. '' for any other error. */
+const STUCK = /intercepts pointer events|element is not (?:visible|enabled|stable|attached|editable)|element is outside of the viewport/;
+export function stuckOn(e) {
+  const msg = String(e && e.message !== undefined ? e.message : '');
+  if (!/Timeout \d+ms exceeded/.test(msg)) return '';
+  const log = msg.split('\n').slice(1).map((l) => l.replace(/\u001b\[[0-9;]*m/g, '').trim().replace(/^- /, ''));
+  const last = log.filter((l) => STUCK.test(l)).pop();
+  if (last) {
+    const open = /^<([a-z][\w-]*)\b[^>]*>/.exec(last);
+    const cls = open ? /\sclass="([^"]*)"/.exec(open[0]) : null;
+    const who = open ? open[1] + (cls && cls[1].trim() ? '.' + cls[1].trim().split(/\s+/).join('.') : '') + ' ' : '';
+    return (who + last.match(STUCK)[0]).slice(0, 90);
+  }
+  const wanted = log.find((l) => /^waiting for locator\(/.test(l));
+  return wanted && !log.some((l) => /^locator resolved to /.test(l)) ? ('nothing matched ' + wanted.slice(12)).slice(0, 90) : '';
+}
+
+/** The fail line for an exception a catch-all swallowed: it names where, the guard line that threw (and what it waited
+    on), and is never a rule. */
+export const harnessFail = (where, e) => `${HARNESS} ${where} threw: ${firstLine(e)}${guardLines(e)}`;
 
 /** The rule id a fail line starts with, or null. `AW-x` / `UI-?` (the old catch-all ids) are not rules. */
 export function ruleOf(line) {
@@ -92,7 +131,8 @@ function miniChecks({ throwBefore = false, ruleFails = false, throwOut = false, 
   };
 }
 
-async function selftest(v = { judge, verdict, cleanControl }) {
+async function selftest(v = { judge, verdict, cleanControl, harnessFail }) {
+  const hf = v.harnessFail || harnessFail;
   const cases = [
     ['a mutant whose page throws before its rule runs', await v.judge(miniChecks({ throwBefore: true })), 'harness'],
     ['an exception thrown out of the run', await v.judge(miniChecks({ throwOut: true })), 'harness'],
@@ -104,6 +144,29 @@ async function selftest(v = { judge, verdict, cleanControl }) {
   ];
   const fails = [];
   for (const [label, got, want] of cases) if (got.kind !== want) fails.push(`${label}: ${got.kind}, want ${want}`);
+  /* A HARNESS names the guard line that threw, then its caller; a harness (`_`) file and Playwright's own frames are passed by. */
+  const at = (stack) => Object.assign(new Error('page.click: Timeout 6000ms exceeded.'), { stack: 'page.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting\n' + stack });
+  for (const [label, stack, want] of [
+    ['a click in a helper', '    at openWin (file:///R:/a%20b/tests/alpha-windows.mjs:812:16)\n    at checks (file:///R:/a%20b/tests/alpha-windows.mjs:1571:9)\n    at async main (file:///R:/a%20b/tests/alpha-windows.mjs:3934:3)', '(at tests/alpha-windows.mjs:812 < 1571)'],
+    ['a click through the shared harness', '    at signInAndPlay (/home/r/w/tests/_client-harness.mjs:90:5)\n    at open (/home/r/w/tests/hunt-screen.mjs:40:22)\n    at checks (/home/r/w/tests/hunt-screen.mjs:40:22)', '(at tests/hunt-screen.mjs:40)'],
+    ['a Windows path', '    at checks (R:\\the game\\tests\\party-ui.mjs:77:3)', '(at tests/party-ui.mjs:77)'],
+  ]) {
+    const line = hf('a page step', at(stack));
+    if (!line.endsWith(want)) fails.push(`${label}: "${line}", want it to end ${want}`);
+  }
+  if (hf('a page step', 'a string').includes('(at ')) fails.push('a thrown string named a guard line it does not have');
+  /* ...and, for a timed-out action, what it waited on (Playwright's call log, colours and all). */
+  const log = (lines) => Object.assign(new Error('x'), { message: 'page.click: Timeout 6000ms exceeded.\nCall log:\n' + lines.map((l) => '\u001b[2m  - ' + l + '\u001b[22m').join('\n'),
+    stack: 'page.click: Timeout 6000ms exceeded.\n    at checks (/w/tests/alpha-windows.mjs:1886:20)' });
+  for (const [label, lines, want] of [
+    ['a press under the answer line', ['waiting for locator(\'.x\')', 'locator resolved to <button class="hh-tool">Carry 15</button>', '<p role="status" class="hh-intent-msg">Carried 25.</p> intercepts pointer events', 'retrying click action'],
+      '(at tests/alpha-windows.mjs:1886; p.hh-intent-msg intercepts pointer events)'],
+    ['a press that stays off', ['waiting for locator(\'.y\')', 'locator resolved to <button disabled>Go</button>', 'element is not enabled', 'retrying click action'], '(at tests/alpha-windows.mjs:1886; element is not enabled)'],
+    ['a control that never came', ['waiting for locator(\'.hw-gone\')'], '(at tests/alpha-windows.mjs:1886; nothing matched locator(\'.hw-gone\'))'],
+  ]) {
+    const line = hf('a page step', log(lines));
+    if (!line.endsWith(want)) fails.push(`${label}: "${line}", want it to end ${want}`);
+  }
   const cc = await v.cleanControl(miniChecks({ throwBefore: true }));
   if (cc.code !== 2) fails.push(`a clean control that throws: code ${cc.code}, want 2 (HARNESS)`);
   const cg = await v.cleanControl(miniChecks());
@@ -167,10 +230,13 @@ if (isMain(import.meta.url) && process.argv.includes('--selftest')) {
   /* the shard's skip must fail it both ways: every shard skips, or none does */
   const always = await selftest({ judge, verdict, cleanControl: (run, o) => (o ? cleanControl(run, { env: { HR_MUTANT_SCOPE: 'x' }, argv: ['--shard=1/2'] }) : cleanControl(run)) });
   const never = await selftest({ judge, verdict, cleanControl: (run) => cleanControl(run, { env: {}, argv: [] }) });
+  /* a HARNESS that names no step (runs 42678595702, 42735492394) must fail it */
+  const nameless = await selftest({ judge, verdict, cleanControl, harnessFail: (where, e) => `${HARNESS} ${where} threw: ${firstLine(e)}` });
+  console.log(nameless.length ? '  caught  planted: a HARNESS that names no step' : '  MISSED  planted: a HARNESS that names no step');
   console.log(always.length ? '  caught  planted: every run skips its clean control' : '  MISSED  planted: every run skips its clean control');
   console.log(never.length ? '  caught  planted: no gated shard leans on the plain run' : '  MISSED  planted: no gated shard leans on the plain run');
   console.log(old.length ? `  caught  planted: the old "any fail line is a catch" rule — ${old[0]}` : '  MISSED  planted: the old "any fail line is a catch" rule passed');
-  const bad = real.length + (old.length ? 0 : 1) + (always.length ? 0 : 1) + (never.length ? 0 : 1);
-  console.log(bad ? `_mutant-verdict --selftest: ${bad} FAILED` : '_mutant-verdict --selftest: a throw before the rule, a thrown run, an unnamed fail and AW-x are HARNESS; a named rule is a catch; the old any-fail rule is caught');
+  const bad = real.length + (old.length ? 0 : 1) + (always.length ? 0 : 1) + (never.length ? 0 : 1) + (nameless.length ? 0 : 1);
+  console.log(bad ? `_mutant-verdict --selftest: ${bad} FAILED` : '_mutant-verdict --selftest: a throw before the rule, a thrown run, an unnamed fail and AW-x are HARNESS, each naming the guard line that threw; a named rule is a catch; the old any-fail rule is caught');
   process.exit(bad ? 1 : 0);
 }

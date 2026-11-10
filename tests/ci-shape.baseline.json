@@ -331,6 +331,8 @@
     "node tools/mutant-gate.mjs node tools/gen-live-events.mjs --selftest": "db-replay-11",
     "node tests/live-events.mjs": "db-replay-11",
     "node tools/mutant-gate.mjs node tests/live-events.mjs --mutate": "db-replay-11",
+    "node tests/area-spells-server.mjs": "db-replay-11",
+    "node tools/mutant-gate.mjs node tests/area-spells-server.mjs --mutate": "db-replay-11",
     "node tools/mutant-gate.mjs node tests/artisan-accrual.mjs --selftest": "artisan-selftest",
     "node tests/hunt-live.mjs": "artisan-selftest",
     "node tools/mutant-gate.mjs node tests/hunt-live.mjs --mutate": "artisan-selftest",

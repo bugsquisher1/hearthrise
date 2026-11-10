@@ -49,7 +49,7 @@ const LABELS = [
 const labelOf = (sql) => (LABELS.find(([k]) => k(sql)) || [null, 'tick: ' + sql.replace(/\s+/g, ' ').trim().slice(0, 50)])[1];
 
 export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer', windowMs = 90000, door = 'fire', db: given,
-  upTo, edgeRoot, pg = false, helloState = null, anchorMs = null, level = 20, tier = null, gear = null } = {}) {
+  upTo, edgeRoot, pg = false, helloState = null, anchorMs = null, level = 20, tier = null, gear = null, beforeEnter = null } = {}) {
   if (!['fire', 'player', 'pieces', 'viewed'].includes(door)) throw new Error('door is fire | player | pieces | viewed');
   if (pg && upTo) throw new Error('--pg replays this tree\'s whole chain; --upto is PGlite only');
   const H = (await import('../tests/hunt-sessions-settle.mjs')).HARNESS;
@@ -70,13 +70,15 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
      runs in its own, as on production. */
   await db.query('begin');
 
-  /* THE PARTY: `heroes` characters (one account each, the settle test's fixture), Level 20 unless told, a bag of food, gold. `tier`: the leader's pick on the ground, `gear`: { equip slot: item } worn by every hero (tests/hunt-tiers-db.mjs). */
+  /* THE PARTY: `heroes` characters (one account each, the settle test's fixture), Level 20 unless told, a bag of food, gold. `tier`: the leader's pick on the ground, `gear`: { equip slot: item } worn by every hero
+     (tests/hunt-tiers-db.mjs), or a function of the seat answering each hero's own (an item of null: that slot bare; tests/area-spells-server.mjs: a shield tank, a sword alone, a wand, a staff). */
   const uids = H.UIDS.slice(0, heroes);
   const kit = { level, inv: { cooked_shrimp: 400 }, bag: [{ item: 'cooked_shrimp', qty: 300 }], gold: 200000 };
-  for (const uid of uids) {
+  for (const [i, uid] of uids.entries()) {
     await H.character(db, M, uid, kit);
-    for (const [slot, item] of Object.entries(gear || {})) {
-      await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3) on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id', [uid, slot, item]);
+    for (const [slot, item] of Object.entries((typeof gear === 'function' ? gear(i) : gear) || {})) {
+      if (item === null) await db.query('delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot = $2', [uid, slot]);
+      else await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3) on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id', [uid, slot, item]);
     }
   }
   if (heroes > 1) {
@@ -103,6 +105,8 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
     const p = await one(db, 'select public.hr_hunt_tier_set(0, $1, $2, $3::uuid)', [hunt, tier, idem()]);
     if (!p || p.ok !== true) throw new Error('tier refused: ' + JSON.stringify(p));
   }
+  /* A caller's town-only seeding through the real verbs (a bar is saved in town), inside the fixture's transaction, before anyone enters. */
+  if (typeof beforeEnter === 'function') await beforeEnter({ db, uids, asUser, one, idem });
   const sids = [];
   for (const uid of uids) {
     await asUser(uid);
@@ -275,6 +279,8 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
       return M.HS.commitHuntSettle(exec, { ...p.commit, project: null });
     },
     users: uids,
+    /* the hunt's sessions (seat order), its instance and its start instant */
+    sessions: sids, instance: inst, fromMs: from,
     /* the measured settles' bytes, for a before/after diff: the ledger rows, the frames pushed, the viewer's answers */
     async evidence() {
       const ledger = await H.q(db, `select user_id, slot, kind, intent, gold, qty, item_id, meta, purse from public.player_ledger

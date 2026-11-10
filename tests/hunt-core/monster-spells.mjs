@@ -14,6 +14,8 @@
 //                        no ground, and every hero counts it as casting at them
 //   resist-takes-less    a hero's resistPm takes its share off an elemental blow (never a physical one), clamped; gear sums it; the
 //                        settle carries it from the snapshot to the unit, and the frozen peer row carries it to the browser
+//   spell-trains-defense-plain  a spell's landing on a shield tank pays Defense XP at the plain rate, braced or not, and a caster at the
+//                        least windup a row may have never pays more than the settle's Defense bound for one foe (lane/b-area-set)
 //   split-parity         a span with casts cut anywhere (inside windups too) equals the one span
 //   no-spell-no-trace    with no spell row, a span never writes a cast, a cooldown or a spell event
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
@@ -35,6 +37,7 @@ async function load(root) {
   M.AD = await imp('src/data/abilities.js');
   M.ST = await imp('src/data/statuses.js');
   M.memberMod = await imp('src/core/member.js');
+  M.monLevelOf = (await imp('src/data/monsters.js')).monsterLevelOf;
   return M;
 }
 
@@ -387,6 +390,52 @@ const cases = {
       return off !== null && on !== null && on < off ? null : 'the settle did not brace the worn shield: ' + off + ' bare, ' + on + ' with it';
     });
   },
+  /* THE DEFENSE BOUND AND A SPELL (lane/b-area-set; hr_hunt_apply_member's v_def prices every foe at one BLOCK every swing interval). A spell's
+     landing on a shield tank is a blow taken at the PLAIN rate, braced or not, never a block's; and a monster casting as fast as a row may be
+     written (the least windup, two spells back to back) with every swing between them blocked still earns the tank no more Defense XP than
+     that bound's rate. The generator's refusal and the catalogue's self-check hold the same line (tools/gen-hunt-sessions.mjs). */
+  'spell-trains-defense-plain': (M) => {
+    const CX = M.coreModel.COMBAT_XP, tick = M.C.COMBAT_BALANCE.tickMs, least = M.MS.SPELL_BOUNDS.windupMs[0];
+    if (!(least * CX.blockMult >= tick)) return 'the least windup ' + least + ' x blockMult ' + CX.blockMult + ' is under the swing interval ' + tick;
+    const lv = M.monLevelOf(M.MONSTERS.rat), plain = (lv * CX.defenseXpPerLevelPermille) / 1000;
+    const SPAN = 60000;
+    /* One rat that never falls on a shield tank it can never land a swing on (every swing a block), casting two spells of the least windup
+       on cooldown cdMs: back to back at the shortest a row may have, and at longer ones where its swings fall between its casts. */
+    const play = (cdMs) => {
+      const row = (id, shape) => ({ id, n: 'Test ' + id, shape, ...(shape === 'ring' ? { r: 1 } : {}), range: 1, windupMs: least, cdMs, hitPm: 1000, element: null });
+      const rows = [row('t_fast_ring', 'ring'), row('t_fast_group', 'group')];
+      return withSpells(M, rows, { rat: rows.map((r) => r.id) }, () => {
+        const bad = rows.flatMap((r) => M.MS.validateSpell(r, r.id));
+        if (bad.length) return { why: 'the row is no valid row: ' + bad[0] };
+        const k = H(M, 1, 13, 3, 'tank', { hp: 999999, maxHp: 999999, def: 100000 });
+        k.shieldWorn = true;
+        const r = mon(M, 10, 0, 14, 3, { target: 1, hp: 999999, maxHp: 999999 });
+        const inst = fightOf(M, [k, r]);
+        const sc = recorder(M, 21);
+        for (let i = 0; i < SPAN / 100; i++) { sc.atMs = i * 100; M.movement.occupancy(inst); M.damage.resolveAttacks(inst, sc); M.spells.castSpells(inst, sc); M.spells.dropCasts(inst, sc); }
+        const got = { defense: 0 };
+        const members = new Map([[1, { armoured: true, shield: true, family: 'sword', state: { stats: {} }, hs: { tally: {} }, fx: { addXp: (skill, n) => { got[skill] = (got[skill] || 0) + n; } }, bonus: () => 0, weakness: () => ({ dropMult: 1 }) }]]);
+        M.rewards.rewardSwing(members, sc.events, inst.world, { rng: null });
+        const hits = of(sc, 'dmg').filter((e) => e.t === 1);
+        return { spells: hits.filter((e) => M.MS.spellRow(e.ability)), swings: hits.filter((e) => !M.MS.spellRow(e.ability)).length,
+          blocks: of(sc, 'miss').filter((e) => e.t === 1 && e.dodge !== true).length, defense: got.defense };
+      });
+    };
+    /* the settle's term for the same span and this one foe: a block every swing interval, one interval of slack */
+    const bound = (Math.floor(SPAN / tick) + 1) * plain * CX.blockMult;
+    for (const cdMs of [M.MS.SPELL_BOUNDS.cdMs[0], 3500, 5000, 7300]) {
+      const x = play(cdMs);
+      if (x.why) return x.why;
+      if (x.spells.length < 8 || !x.spells.some((e) => e.ability === 't_fast_ring') || !x.spells.some((e) => e.ability === 't_fast_group')) return 'cooldown ' + cdMs + ': the fixture landed ' + x.spells.length + ' spell hits: it proves nothing';
+      /* (two spells at 3.5 s leave the rat no time to swing: it only casts. From 5 s its blocked swings fall between its casts.) */
+      if (cdMs >= 5000 && !(x.blocks > 3)) return 'cooldown ' + cdMs + ': the rat blocked ' + x.blocks + ' swings between its casts: the fixture proves nothing';
+      /* each spell landing pays the plain rate once, whatever the shield did to its damage */
+      const want = plain * (x.spells.length + x.swings) + plain * CX.blockMult * x.blocks;
+      if (Math.abs(x.defense - want) > 1e-6) return 'cooldown ' + cdMs + ': the tank earned ' + x.defense + ' Defense XP for ' + x.spells.length + ' spell hits, ' + x.swings + ' swings and ' + x.blocks + ' blocks, want ' + want + ' (a spell hit pays the plain rate)';
+      if (!(x.defense <= bound)) return 'cooldown ' + cdMs + ': one caster paid ' + x.defense + ' Defense XP in ' + SPAN / 1000 + ' s (' + x.spells.length + ' spell hits, ' + x.blocks + ' blocks), over the settle\'s ' + bound + ' for one foe';
+    }
+    return null;
+  },
   'two-spells-own-cooldowns': (M) => withSpells(M, [RING, { ...GROUP, windupMs: 1600, cdMs: 10000 }], { rat: ['t_ring', 't_group'] }, () => {
     const k = H(M, 1, 13, 3, 'tank', { hp: 99999, maxHp: 99999 });
     const r = mon(M, 10, 0, 14, 3, { target: 1, hp: 9999, maxHp: 9999 });
@@ -424,6 +473,9 @@ const mutants = [
   { name: 'a casting monster walks', case: 'telegraph-then-land', edits: [['src/core/hunt/movement.js', '    if (u.cast) continue;\n    stepUnit(inst, u, sc);', '    stepUnit(inst, u, sc);']] },
   { name: 'the landing leaves the swing clock', case: 'telegraph-then-land', edits: [[S, '  u.cast = null;\n  restart(u);\n', '  u.cast = null;\n']] },
   { name: 'the cooldown is never set', case: 'telegraph-then-land', edits: [[S, '  u.spellCds = Object.assign({}, u.spellCds || {}, { [id]: sp.cdMs });\n', '']] },
+  { name: 'a spell hit on a shield-holder pays the block rate', case: 'spell-trains-defense-plain', edits: [['src/core/hunt-rewards.js', 'const d = hit ? defenseXp(hit, unitOf(ev.u), false, ctx) : 0;', "const d = hit ? defenseXp(hit, unitOf(ev.u), !!ev.ability && ev.ability !== 'basic', ctx) : 0;"]] },
+  { name: 'a casting monster swings through its windup (its blows outrun the Defense bound)', case: 'spell-trains-defense-plain', edits: [['src/core/hunt/damage.js', '    if (u.cast) continue;\n    if (u.swingLeftMs > 0 || !Number.isInteger(u.target)) continue;', '    if (u.swingLeftMs > 0 || !Number.isInteger(u.target)) continue;']] },
+  { name: 'the least windup falls under the swing interval over the block multiple', case: 'spell-trains-defense-plain', edits: [['src/data/monster-spells.js', 'export const FAIR_WARNING = Object.freeze({ baseMs: 1200, perRadiusMs: 400 });', 'export const FAIR_WARNING = Object.freeze({ baseMs: 800, perRadiusMs: 400 });']] },
   { name: 'one cooldown for every spell', case: 'two-spells-own-cooldowns', edits: [[S, '      if (u.spellCds && u.spellCds[id] > 0) continue;', '      if (u.spellCds) continue;']] },
   { name: 'a monster casts only its first spell', case: 'two-spells-own-cooldowns', edits: [[S, '    for (const id of list) {', '    for (const id of list.slice(0, 1)) {']] },
   { name: 'no brace', case: 'shield-braces-marked', edits: [[S, 'marked(sp) && h.shieldWorn === true ? braced : plain', 'plain']] },

@@ -52,8 +52,8 @@
 //   LV-20 EVERY PARTY MEMBER WEARS ITS OUTFIT: your other hero its session's server `outfit`, another
 //         player's hero the party section's member `outfit` (2026-11-04-party-outfits.sql), never the role's.
 //   LV-22 THE CHALLENGE SLOT READS AS WORKING (bug #61): a tank holding every engaged monster in the live
-//         engine's world shows its Challenge slot in the quiet Holding state ("Holding the pack: nothing to
-//         Challenge"); a monster on another hero ends it.
+//         engine's world shows its Challenge slot in the quiet Holding state ("You’re holding the pack, so
+//         there’s nothing to Challenge"); a monster on another hero ends it.
 //   LV-26 PUSHED FRAMES COST THE WATCHED HUNT NOTHING: a party member settles first and each settle reaches this
 //         session as a frame: the prediction never runs dry, and it asks and reads no more than with no frames.
 //   LV-27 A HERO SWITCH (Andy #65, "freezing/catchup sprinting and jumping when toggling"): viewed again
@@ -1516,7 +1516,7 @@ async function nodeRules(M) {
     if (!seed(me)) { ok('LV-22', false, 'CONTROL: the live engine did not take the start point'); }
     else {
       const held = read();
-      ok('LV-22', held.wait && !held.off && held.why === 'holding' && /Holding the pack: nothing to Challenge/.test(held.label || ''),
+      ok('LV-22', held.wait && !held.off && held.why === 'holding' && /holding the pack, so there’s nothing to Challenge/.test(held.label || ''),
         `a tank holding every engaged monster: its Challenge slot reads ${JSON.stringify(held)}, want the quiet Holding state`);
       seed(me + 1);
       const loose = read();

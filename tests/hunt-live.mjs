@@ -290,6 +290,23 @@ function run(M, mis, spanMs, opt) {
   return { srv, E, fed, verdicts, heroesSeen, starvedMs };
 }
 
+/* A MONSTER'S SWINGS, NEVER ITS SPELLS (lane/b-area-data: the monsters' spells on the real grounds). A spell's hits land in the
+   sub-step its `spell_end` (why 'landed') closes, from its caster (monster-spells.js land: the caster swings in no sub-step of
+   its windup), so `events` less every dmg and miss at that caster in that sub-step. A group spell strikes every hero by design
+   (Tyler 2026-11-08): it is no swing off the lap's holder. */
+function swingsOnly(events) {
+  const landed = new Set(events.filter((e) => e.type === 'spell_end' && e.why === 'landed').map((e) => e.u + '@' + e.atMs));
+  return events.filter((e) => !((e.type === 'dmg' || e.type === 'miss') && landed.has(e.u + '@' + e.atMs)));
+}
+
+/* Run `fn` with no monster casting (the engine's own rows: LV-SPELL's table, put back after), for an arm whose subject is not
+   the spells and whose party cannot live through them. */
+function withoutSpells(M, fn) {
+  const kept = Object.entries(M.ENGINE_MONSTERS).filter(([, m]) => Object.prototype.hasOwnProperty.call(m, 'spells')).map(([k, m]) => [k, m.spells]);
+  for (const [k] of kept) delete M.ENGINE_MONSTERS[k].spells;
+  try { return fn(); } finally { for (const [k, s] of kept) M.ENGINE_MONSTERS[k].spells = s; }
+}
+
 function rules(M) {
   const fails = [];
   const ok = (id, cond, msg) => { if (!cond) fails.push(id + ': ' + msg); };
@@ -853,7 +870,7 @@ function rules(M) {
       for (let t = T0 + M.CB.tickMs; t <= T0 + 120000; t += M.CB.tickMs) {
         const c = srv.commit(t);
         if (!c) break;
-        for (const e of c.tl.hunt_events) {
+        for (const e of swingsOnly(c.tl.hunt_events)) {
           if (e.type === 'dmg') hits[e.u] = (hits[e.u] || 0) + 1;
           if (e.type === 'pull' && e.pocket === route0) lap++;
           /* a monster's swing at a tank (landed or missed: what trains its Defense), on or off the lap's holder
@@ -891,7 +908,7 @@ function rules(M) {
     const ids = [mis[0].unitId, mis[1].unitId];
     const route0 = M.HG.huntGroundOf('millrace_sewer').ground.route[0];
     const laps = [];
-    for (const e of v.fed.events.slice().sort((x, y) => x.atMs - y.atMs)) {
+    for (const e of swingsOnly(v.fed.events).sort((x, y) => x.atMs - y.atMs)) {
       if (e.type === 'pull' && e.pocket === route0) laps.push({ swings: {}, casts: 0 });
       const lap = laps[laps.length - 1];
       if (!lap) continue;
@@ -924,7 +941,7 @@ function rules(M) {
     };
     const swingsAt = (evs, ids) => {
       const out = { pick: 0, other: 0 };
-      for (const e of evs) if ((e.type === 'dmg' || e.type === 'miss') && !ids.includes(e.u) && ids.includes(e.t)) out[e.t === ids[1] ? 'pick' : 'other']++;
+      for (const e of swingsOnly(evs)) if ((e.type === 'dmg' || e.type === 'miss') && !ids.includes(e.u) && ids.includes(e.t)) out[e.t === ids[1] ? 'pick' : 'other']++;
       return out;
     };
     /* browser closed: the server's commits alone, with the change to "Take turns" at 1,000 s (two laps begun by then: since 2026-11-08 a pack carries its row's whole HP for a pair, a lap about 450 s) */
@@ -1002,6 +1019,10 @@ function rules(M) {
       }
       return laps;
     };
+    /* SPELLS OFF HERE (lane/b-area-data): the bug #61 party in its 10-22 gear (bronze bodies, Practice Shields, Offensive) cannot
+       live 600 s through the Warrens' spells (Fremulon falls at 516 s under Take turns, and a fallen holder ends the laps this arm
+       reads). Who pulls and holds is spell-blind; LV-SPELL and LV-4P play the spells on both paths. */
+    withoutSpells(M, () => {
     for (const [mode, hold] of [['Take turns', null], ['One tank holds: Fremulon', 1]]) {
       /* the holder of lap i (by `runs`): the lap's turn, or Fremulon every lap */
       const holderOf = (ids, i) => (hold === null ? ids[i % 2] : ids[1]);
@@ -1040,6 +1061,7 @@ function rules(M) {
       console.log(`  LV-PULL ${mode}, viewed: ${vlaps.length} lap(s), ${vCasts} Challenge cast(s), ${vOff} swing(s) off the holder; ${unmatched} of ${v.verdicts.length} commits off the prediction`);
       ok('LV-PULL', vlaps.length >= 3 && vCasts === 0 && vOff === 0 && unmatched === 0 && v.verdicts.length >= 30, `${mode}, viewed: ${vlaps.length} lap(s), ${vCasts} cast(s), ${vOff} swing(s) off the holder, ${unmatched} of ${v.verdicts.length} commits off (want 3+, 0, 0, 0)`);
     }
+    });
   }
 
   { // LV-TGT: "STRONGEST" AND "FOLLOW" ON A MIXED PACK, BOTH PATHS (Andy a08, live v0.2.33: "Strongest and Follow

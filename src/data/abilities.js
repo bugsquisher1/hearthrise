@@ -131,6 +131,13 @@ export const ABILITIES = Object.freeze([
     versions: [[10, 1000], [12, 1740], [14, 2520], [17, 3310], [21, 4100]], lvPm: LV_PM }),
   ab({ id: 'power_strike', n: 'Power Strike', disciplines: ['shield', 'sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 6000, mana: 6,
     target: 'enemy', dmg: [7, 13] }),
+  /* TURNING CUT (the area-spells design, lane/b-area-data; Tyler 2026-11-08: "our heros some more aoe spells"): a sword ALONE's
+     area, every monster beside the hero, each for 60% of the hero's own largest blow (hitPm), so it grows with the weapon. Worse
+     than Power Strike on one or two, better from three: a new slot starts "when it would hit at least 3". The tank gets nothing
+     new (its job is holding). PROVISIONAL: played once (lane/b-area-data, Wickstead, a lone sword at 18 in a full box: 336 casts
+     an hour, its largest damage line; none in the ground's own pull of two), never balanced. */
+  ab({ id: 'turning_cut', n: 'Turning Cut', disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10, target: 'ring', maxHits: 8, hitPm: 600,
+    trigger: [{ metric: 'enemies_in_aoe', op: 'gte', value: 3 }] }),
   /* dual axes — Melee DPS (bleed); the club shares the sweep, never the bleed */
   ab({ id: 'cleave', n: 'Cleave', disciplines: ['dual_axe', 'club'], lane: 'offense', cdMs: 6000, mana: 8, target: 'cleave', dmg: [6, 11], maxHits: 3 }),
   /* Rend spends the RUPTURE family (Tyler 2026-10-23: its old Life rune is the Rupture rune); a deeper rune also
@@ -145,6 +152,10 @@ export const ABILITIES = Object.freeze([
     versions: [[15, 1000], [18, 1740], [22, 2520], [26, 3310], [31, 4100]], lvPm: LV_PM }),
   ab({ id: 'precision_shot', n: 'Precision Shot', disciplines: ['ranged'], lane: 'offense', cdMs: 6000, mana: 6, ammo: 1,
     target: 'enemy', dmg: [7, 12] }),
+  /* RAKING SHOT (the area-spells design): an arrow line with no element, 4 tiles from the hero through its aim, each monster on
+     it hit for 80% of the hero's own largest blow (hitPm). Two shots of the bar's ammo a cast. The Ranger's area that a slime's
+     element resistance never touches (Andy 11-06: every Ranger area was fire). PROVISIONAL, unmeasured. */
+  ab({ id: 'raking_shot', n: 'Raking Shot', disciplines: ['ranged'], lane: 'offense', cdMs: 8000, mana: 10, ammo: 2, unlock: 10, target: 'line', len: 4, hitPm: 800 }),
   /* staff — Mage (destruction) */
   /* Fireball is a FIRE rune spell (Tyler 2026-10-23, the approved spell map: "gold per cast covers heroes without
      runes"): a hero with no Fire Rune casts it on the store's, which the Mage's default slot names (rule-subjects.js). */
@@ -154,6 +165,12 @@ export const ABILITIES = Object.freeze([
   ab({ id: 'frost_lance', n: 'Frost Lance', disciplines: ['destruction'], lane: 'offense', cdMs: 6000, mana: 20, rune: 'chalked_ice_rune',
     target: 'enemy', dmg: [12, 18], element: 'frost', magicXpMult: 1600,
     versions: [[20, 1000], [24, 1740], [29, 2520], [35, 3310], [41, 4100]], lvPm: LV_PM }),
+  /* HOARFROST (the area-spells design): an ICE rune spell on Fireball's 3x3, and every monster it hits is Chilled (statuses.js:
+     its swings and spell windups run 30% slower for 4 s), so frost slows a pack and its casts where fire burns hardest.
+     PROVISIONAL, unmeasured. */
+  ab({ id: 'hoarfrost', n: 'Hoarfrost', disciplines: ['destruction'], lane: 'offense', cdMs: 10000, mana: 22, rune: 'chalked_ice_rune', unlock: 14,
+    target: 'area', dmg: [5, 9], element: 'frost', status: 'chill', magicXpMult: 1600,
+    versions: [[22, 1000], [26, 1740], [32, 2520], [38, 3310], [46, 4100]], lvPm: LV_PM }),
   /* An EARTH rune spell (a shell of stone, the approved spell map). Self-only (Tyler 2026-10-23, Andy's report);
      recast while its shell still stands, the unused part comes back as mana (abilities.js barrierRefund). */
   ab({ id: 'arcane_barrier', n: 'Arcane Barrier', disciplines: ['destruction'], lane: 'support', cdMs: 20000, mana: 30, rune: 'chalked_earth_rune', target: 'self',
@@ -167,6 +184,18 @@ export const ABILITIES = Object.freeze([
   ab({ id: 'circle_of_renewal', n: 'Circle of Renewal', disciplines: ['restoration'], lane: 'heal', cdMs: 12000, mana: 50, rune: 'chalked_water_rune', target: 'party',
     heal: [20, 30], whenBelowPct: 80, minHurt: 2, radius: 8, magicXpMult: 1600,
     versions: [[50, 1000], [60, 1740], [72, 2520], [86, 3310], [104, 4100]], lvPm: LV_PM }),
+  /* SPRING TIDE (Tyler 2026-11-08: "instead of a healer area spell lets just do a party heal with a long cooldown", "and
+     expensive, and make sure the conditions are available that make sense"): the once-a-minute save beside Circle of
+     Renewal's steady top-up, a WATER rune spell on every hero within 8 tiles. 160 mana is 59% of a fresh healer's pool at Magic
+     20, and mana is drinks (gold per use). Its own rule (trigger): two or more allies under 60% AND the fight is on, so it is
+     never spent between pulls and never fires when no spell landed (measured 4G: 0 casts an hour on every ground and tier with
+     no monster spell; the rule at 70% fired more and saved nothing more). Its numbers are the measure's (4G: 80-120 for 120
+     mana moved nothing). On this branch's tiers it waited the whole half hour at the Warrens' Deadly in a four (lane/b-area-data,
+     0 casts; on "the fight is on" alone it fires 58 an hour), so its rule is re-read once the tiers settle. */
+  ab({ id: 'spring_tide', n: 'Spring Tide', disciplines: ['restoration'], lane: 'heal', cdMs: 60000, mana: 160, rune: 'chalked_water_rune', unlock: 20,
+    target: 'party', heal: [120, 180], radius: 8, magicXpMult: 1600,
+    trigger: [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_60' }, { metric: 'in_fight', op: 'eq', value: true }],
+    versions: [[160, 1000], [192, 1740], [230, 2520], [276, 3310], [332, 4100]], lvPm: LV_PM }),
   /* GREEN SICKNESS (was Nature's Wrath; Tyler 2026-10-23: a POISON rune spell, its element poison): Restoration's
      lower-power area spell, and every monster it hits takes more from every blow for a while (statuses.js sickness,
      Bible §17: a fixed, non-stacking vulnerability that no rune tier raises). */

@@ -6,7 +6,8 @@
 // One row per spell, keyed by its id. A MONSTERS row names its spells as a list (`spells: ['venom_spray']`, a boss one of
 // each kind); a monster with none fights exactly as it always has (src/core/hunt/monster-spells.js reads nothing and
 // draws nothing for it). The rows are the designer's (lane 2): this file holds the shape of a row, its bounds and the
-// formulas the in-game wiki prints, and the engine plays whatever it lists.
+// formulas the in-game wiki prints, and the engine plays whatever it lists. tests/hunt-core/spell-rows.mjs holds the rows to the
+// design (every row valid, every monster's ids real, each caster where the design put it).
 //
 // THE ROW: { n, shape, r? | len?, range, windupMs, cdMs, hitPm, element }
 //   n          the spell's name, as the combat log and the bestiary say it
@@ -75,7 +76,27 @@ export function spellHit(maxHit, row) {
   return [Math.max(1, Math.ceil((top * SPELL_ROLL.lowPm) / 1000)), top];
 }
 
-export const MONSTER_SPELLS = {};
+/* THE ROWS (lane/b-area-data, the design's §7 rows as written; its §4 tables are the measures). Whole-group spells are the
+   main kind (Tyler 2026-11-08: "so the whole party takes damage"): one on most casters, sized lower on the busy ones (1.5x),
+   higher on a rare one (the Turncoat, one pack in six), 0.4x as a boss's pulse on a party built for his room (4L). The
+   marked ones are the heavy hits a tank stands in (Tyler 2026-11-08: "the tank absorbing the boss hits and the casters
+   dodging it"); a windup costs the caster its swings, so a marked hit on a regular sits at 2x (4F). A boss lists his marked
+   hit first, then his pulse (castSpells starts the first one ready). Plain mutable rows: tests and the balance sim's what-ifs
+   tune one in place and put it back (header). */
+export const MONSTER_SPELLS = {
+  /* WHOLE-GROUP: a 2 s warning on every hero, then one hit each that nobody steps out of. */
+  smoke_pot: { n: 'Smoke Pot', shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 2500, element: 'ember' },        // the Turncoat (Wickstead): he burned the house. 4I
+  spore_cloud: { n: 'Spore Cloud', shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 1500, element: 'poison' },   // the Walking Vine (the Glade). 4I
+  blasting_charge: { n: 'Blasting Charge', shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 1500, element: 'ember' }, // the Goblin Digger (the Warrens): diggers blast the seams. 4I
+  squeal: { n: 'Squeal', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: 'poison' },             // the Rat King's pulse. 4L
+  slag_rain: { n: 'Slag Rain', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: 'ember' },        // Chief Coppercap's pulse. 4L
+  /* MARKED: the tiles fill first; Melee holds and takes it, a free ranged hero or caster steps off, a shield braces it. */
+  venom_spray: { n: 'Venom Spray', shape: 'ring', r: 1, range: 1, windupMs: 1600, cdMs: 12000, hitPm: 2000, element: 'poison' }, // the Barn Spider (Wickstead). 4A, 4B, 4H
+  tail_lash: { n: 'Tail Lash', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 12000, hitPm: 2000, element: null },     // the Rat King. Measured as a ring r2 (4F), not yet as this cone
+  slag_toss: { n: 'Slag Toss', shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 1200, element: 'ember' },  // Chief Coppercap. 4F
+  /* WAITING on their monsters (not on this branch): Cold Bilge (the Bargeman, the Slake: group, frost, 1.5x, 16 s) and Ash
+     Bloom (the Pyre Field's ash caster, not designed yet: group, fire, 1.5x, 16 s). validate refuses a row no monster casts. */
+};
 
 const own = (id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(MONSTER_SPELLS, id);
 /** The spell row of id `id`, or null. */
@@ -123,7 +144,7 @@ export function validate(monsters) {
   for (const [key, row] of Object.entries(MONSTER_SPELLS)) out.push(...validateSpell(row, key));
   const cast = new Set();
   for (const [id, m] of Object.entries(monsters || {})) {
-    if (m.spell !== undefined) out.push('monster ' + id + ' names `spell`; a monster lists its `spells`');
+    if (m.spell !== undefined) out.push('monster ' + id + ' names `spell`, where a monster lists its `spells`');
     if (m.spells === undefined) continue;
     const list = m.spells;
     if (!Array.isArray(list) || !list.length || list.length > MAX_SPELLS || new Set(list).size !== list.length) {

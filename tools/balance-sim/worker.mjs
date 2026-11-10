@@ -16,7 +16,8 @@ const ENG = {
   combat: [(await import(pathToFileURL(join(root, 'src/core/combat.js')).href + v)).COMBAT_BALANCE],
   tiers: [(await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + v)).GROUND_TIERS],
   /* the monsters' area spells (src/data/monster-spells.js, lane/b-area-engine): a what-if tunes a row's fields
-     ({ spells: { venom_spray: { dmgPm: 3000 } } }); a monster casts the row its own `spell` names ({ monsters: { id: { spell } } }) */
+     ({ spells: { venom_spray: { hitPm: 3000 } } }); a monster casts the rows its own `spells` list names ({ monsters: { id: { spells: [] } } }
+     plays it with none) */
   spells: [(await import(pathToFileURL(join(root, 'src/data/monster-spells.js')).href + v)).MONSTER_SPELLS],
 };
 const { DIALS: TIER_DIALS } = await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + v);

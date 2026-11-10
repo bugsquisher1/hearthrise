@@ -46,19 +46,19 @@
 //     takes the weight preferredWeight names, so no hero stays bare (designer 2026-11-04)
 // Display and intent NAMES only: nothing here is a gate the server trusts.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.113';
-import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.113';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.113';
-import { JEWEL_PERKS } from '../data/jewelry.js?v=0.2.113';
-import { loadoutOf } from '../core/member.js?v=0.2.113';
-import { jewelPerksOf } from '../core/combat.js?v=0.2.113';
-import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.113';
-import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.113';
-import { itemName } from './widgets/bits.js?v=0.2.113';
-import { t } from '../render/player-text.js?v=0.2.113';
-import { reqHave } from './item-lore.js?v=0.2.113';
-import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.113';
-import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.113';
+import { ITEMS } from '../data/items.js?v=0.2.114';
+import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.114';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.114';
+import { JEWEL_PERKS } from '../data/jewelry.js?v=0.2.114';
+import { loadoutOf } from '../core/member.js?v=0.2.114';
+import { jewelPerksOf } from '../core/combat.js?v=0.2.114';
+import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.114';
+import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.114';
+import { itemName } from './widgets/bits.js?v=0.2.114';
+import { t } from '../render/player-text.js?v=0.2.114';
+import { reqHave } from './item-lore.js?v=0.2.114';
+import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.114';
+import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.114';
 
 /* The off-hand and the quiver: the player's own choice, never this one. */
 const STYLE_SLOTS = new Set(['shield', 'ammo']);

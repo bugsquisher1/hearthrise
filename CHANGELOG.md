@@ -5,6 +5,20 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.114 — 2026-11-10 (One Fight for Everyone)
+
+**Every hunt is the same fight, alone or in a party.** Monsters don't change with your group size anymore. Hunting alone pays 5% more Level XP. A mixed party still earns more than a party of one class.
+
+**Healers get Undertow.** It's a damage spell that only works when you hunt alone, so a lone Healer can keep up.
+
+**Look up any monster.** Click a creature on a hunt's page to see its Health, how hard it hits, what it's weak to, and the XP and gold a kill pays. Every drop shows its chance per kill and what the item is for.
+
+**Drop chances on the Hunts page were a little low for some monsters.** They now match what really drops.
+
+**Havora has a Training Yard.** You'll find dummies, targets and an arms master on a sand yard. Forge, oven and cauldron fires flicker, a sergeant stands at the gate, and crops on your farm grow through four stages you can see.
+
+**Signing out takes you off the online count right away.** Before, it took about a minute. Heroes that are hunting or working keep going.
+
 ## v0.2.113 — 2026-11-10 (A Death That Counts)
 
 **Dying costs more.** A death now takes 6% of your Level XP, up from 2%, and you can lose a Level. You never drop below Level 1.
@@ -31,7 +45,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Your bag splits Junk from Materials.** The Loot tab is now Junk. Anything a recipe, a craft or the House can use is a Material, and "Sell all junk" never sells one.
 
-**Spell numbers match what your slot casts.** A spell's tooltip shows the rune your slot will really use. The cost line reads like "Cost: 30 mana · 1 Scored Fire Rune (8 g)". Shop runes no longer say "Plain", and conditions that count things say what they count.
+**Spell numbers match what your slot casts.** A spell's tooltip shows the rune your slot will really use. The cost line reads like "Cost: 30 mana · 1 Scored Fire Rune (8 g)". Deeper shop runes no longer say "Plain", and conditions that count things say what they count.
 
 **Five titles have new names.** Wolfer is now Wolfslayer, Gamekeeper is Warden, Knotcutter is Crownbreaker, Grate Thief is Sewerlord and Cauldron Thief is Slagbreaker. A title you own keeps working under its new name. Titles now sit on their own line under your hero's name.
 

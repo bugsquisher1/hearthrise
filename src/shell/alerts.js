@@ -82,7 +82,7 @@ const AWAY_READ_MS = 8000;
      first_gear_found        a piece of gear landed in the open hunt's loot, in view    per hero */
 const GEAR_TYPES = new Set(['armor', 'weapon', 'offhand', 'jewelry']);
 /** The gear ids in this hero's open hunt's loot (the server's `hunt.loot`), or null with no open hunt or no loot sent. */
-export function huntGearOf(cs) {
+function huntGearOf(cs) {
   const h = huntOf(cs), loot = huntLootOf(cs);
   if (!h || h.ended || !loot) return null;
   return loot.filter((l) => l.count > 0 && ITEMS[l.item] && GEAR_TYPES.has(ITEMS[l.item].type)).map((l) => l.item);

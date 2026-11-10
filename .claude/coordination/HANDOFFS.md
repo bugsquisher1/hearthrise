@@ -178,8 +178,11 @@ Nothing server-side was changed here. Baseline finding 3 ("the whole character r
 - **Sent on every paid ask and not changed by a hunt (the baseline measured these three):** hunt_settings 6.2 KB, home 2.5 KB,
   shop 1.6 KB, a third of the answer. Not checked for change: depot, titles, temper, blessings.
 - **Left for the next client lane, measured:** on a reload the hero waits for the roster's SECOND round trip (the account's
-  other slots, an empty one included: `hr_load` 6958-7295 ms, then `hr_load` 7300-7590 ms at 60 ms latency, before any hero
+  other slots, an empty one included: `hr_load` 6012-6352 ms, then `hr_load` 6354-6524 ms at 60 ms latency, before any hero
   opens). Opening the shown hero on slot 0's answer saves that round trip (src/session/account-session.js roster, src/app/boot.js
-  showCharacters). And `src/session/live-link.js` holds 21 modules (232 KB) that only a hunt on screen needs.
+  showCharacters). `src/session/live-link.js` holds 21 modules (232 KB) that only a hunt on screen needs. And the game screen
+  still needs all 442 scripts: this lane moved the first read 12 to 30% sooner and left the hero's arrival where it was (474 and
+  467 ms, main and lane back to back). The windows (64 modules) behind their own import() would cut what the game screen needs,
+  and needs src/shell/shell.js to paint a window whose module is still on its way (tests/perf-budget.mjs probes those lines).
 - **Rerun the census:** capture any `hr-accrue` answer in the browser, then grep each key as a quoted name or `.key` in those
   directories with comments stripped.

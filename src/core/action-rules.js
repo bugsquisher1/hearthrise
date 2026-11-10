@@ -20,10 +20,10 @@
 // ============================================================
 
 import { SUPPLIES } from '../data/supplies.js?v=0.2.112';
-import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, DEATH_XP_BASE, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.112';
+import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.112';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.112';
 import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.112';
-import { skillLevelFromXp, skillXpForLevel, charLevelFromXp, charXpForLevel } from './xp.js?v=0.2.112';
+import { skillLevelFromXp, skillXpForLevel } from './xp.js?v=0.2.112';
 
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };
 
@@ -295,22 +295,19 @@ export function staminaStep(ms, intervalMs, hunting, maxMs) {
   return Math.max(v, Math.min(Math.floor(Number(maxMs) || 0), v + d));
 }
 
-/* ── THE PRICE OF A DEATH (Tyler 2026-10-19; hunt-sessions.js DEATH_XP_LOSS) ──
-   LEVEL: the fraction of the character's TOTAL Level XP (DEATH_XP_BASE 'total')
-   or of its current Level's span ('level'), never below the start of its
-   current Level (a death never de-levels; 0 at a Level floor).
+/* ── THE PRICE OF A DEATH (Tyler 2026-11-09; hunt-sessions.js DEATH_XP_LOSS) ──
+   LEVEL: the fraction of the character's TOTAL Level XP. It may cross a Level
+   (a death can take one), never below 0 XP, which is Level 1.
    SKILLS: every combat skill (src/data/skills.js COMBAT_SKILLS) loses the same
    fraction of its PROGRESS toward its next level, never a level.
    Integer XP, floored. PURE: it draws no random number, and it is read off the
-   state, not applied (the caller debits the same numbers it journals). */
-export function levelDeathLoss(levelXp, fraction = DEATH_XP_LOSS, base = DEATH_XP_BASE) {
+   state, not applied (the caller debits the same numbers it journals). The
+   server's bound is hr_death_xp_max (2027-03-25-death-share.sql), the same rule. */
+export function levelDeathLoss(levelXp, fraction = DEATH_XP_LOSS) {
   const x = Math.max(0, Math.floor(Number(levelXp) || 0));
   const f = Number(fraction);
   if (!(f > 0)) return 0;
-  const lv = charLevelFromXp(x);
-  const floor = charXpForLevel(lv);
-  const of = base === 'level' ? charXpForLevel(lv + 1) - floor : x;
-  return Math.max(0, Math.min(Math.floor(of * f), x - floor));
+  return Math.max(0, Math.min(Math.floor(x * f), x));
 }
 export function skillDeathLoss(skillId, xp, fraction = DEATH_XP_LOSS) {
   const x = Math.max(0, Math.floor(Number(xp) || 0));

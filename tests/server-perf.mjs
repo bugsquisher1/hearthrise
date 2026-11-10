@@ -32,6 +32,7 @@
 // Exit: 0 green · 1 a finding · 2 a harness problem.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile } from 'node:fs/promises';
+import { ownHeroSlots } from './_slots.mjs';
 import { join } from 'node:path';
 import { bootReplay, ROOT, LAST_PATCHED } from './schema-replay.mjs';
 
@@ -60,6 +61,7 @@ async function perHero(db) {
     await db.query(`insert into public.hr_access_allowlist (user_id, note) values ($1, 'server-perf G1') on conflict (user_id) do nothing`, [A]);
     await db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [A]);
     for (const slot of [0, 1]) {
+      if (slot > 0) await ownHeroSlots((sql, p) => db.query(sql, p), A, slot);   // one slot to start (2027-03-25-hero-slots-one.sql)
       const c = (await one('select public.hr_create_character($1) as r', [slot])).r;
       if (!c || !(c.created === true || c.ok === true)) throw Object.assign(new Error('probe hero refused: ' + JSON.stringify(c)), { harness: true });
     }

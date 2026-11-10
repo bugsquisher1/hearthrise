@@ -61,7 +61,7 @@ function index() {
   const recipe = (skill, r) => {
     /* every grade a rolled job can make is made by it (src/data/jewelry.js) */
     for (const id of recipeOutcomes(r)) { at(id).made.push(skill); lowest(at(id), skill, r.req, r.id); }
-    const ins = Object.assign({}, r.inputs || {}, r.input ? { [r.input]: 1 } : {}, r.secondary || {});
+    const ins = r.inputs || {};
     /* a gem roll never makes the piece it is named for: its inputs name the job (a piece's own rolled job is named for the piece it makes) */
     for (const id of Object.keys(ins)) if (r.output) at(id).inputOf.push([skill, r.output, r.roll === 'gem' ? r.name : null, r.id || null, Math.max(1, Number(r.req) || 1)]);
   };

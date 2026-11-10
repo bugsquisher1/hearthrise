@@ -1,17 +1,9 @@
 // Artisan recipes (cooking/smithing/crafting/runecrafting, and Inner Flame's fuels)
 //
-// b139 (QA sweep §1.1): consolidated from legacy.js's Phase A.1 NEW_RECIPES
-// IIFE. Now uses the modern multi-input schema (`inputs: {id: qty}`) for
-// new recipes; legacy single-input recipes (`input: id, secondary: {...}`)
-// stay in their original form because the runtime helper
-// `getInputs(recipe)` in legacy.js handles BOTH shapes.
-//
-// Why this consolidation matters: legacy.js's `add(skill, recipe)` calls
-// pushed into `window.ARTISAN_RECIPES` BEFORE main.js ran its
-// `Object.assign(window, { ARTISAN_RECIPES })` overwrite. So Phase A.1
-// recipes were silently dropped on every boot. Cooked-meat / buff-food /
-// new-bar / gated-recipe chains were all dead. This module is now the
-// single source of truth.
+// ONE ROW SHAPE: every row states what it spends as `inputs: { id: qty }`, a one-input row too. (Until 2026-11-10
+// 25 rows wrote `input: id` with an optional `secondary: {...}`, a second dialect kept for the old client's reader;
+// four readers each handled both and two of them forgot `secondary`.) A row with no `output` is a rite: it spends
+// its one input and makes nothing (Inner Flame's fuels). src/core/artisan.js recipeInputs is the reader.
 
 /* The fletching ladder (arrows). Crafted gear — the generated gear-tiers
    recipes, the wave-3 uniques, the library-2 sets, the boss forge and the
@@ -27,27 +19,24 @@ import { JEWELRY_RECIPES } from './jewelry.js?v=0.2.114';
 const BASE_RECIPES = {
   cooking: [
     // Fish — original starter chain
-    {id:'cook_shrimp',  name:'Cook Shrimp',  icon:'🦐', input:'shrimp',  output:'cooked_shrimp',  xp:30,  req:1,  ms:2400},
-    {id:'cook_trout',   name:'Cook Trout',   icon:'🐟', input:'trout',   output:'cooked_trout',   xp:50,  req:15, ms:3000},
-    {id:'cook_lobster', name:'Cook Lobster', icon:'🦞', input:'lobster', output:'cooked_lobster', xp:100, req:30, ms:3600},
-    {id:'cook_shark',   name:'Cook Shark',   icon:'🦈', input:'shark',   output:'cooked_shark',   xp:200, req:60, ms:5000},
+    {id:'cook_shrimp',  name:'Cook Shrimp',  icon:'🦐', inputs:{shrimp:1},  output:'cooked_shrimp',  xp:30,  req:1,  ms:2400},
+    {id:'cook_trout',   name:'Cook Trout',   icon:'🐟', inputs:{trout:1},   output:'cooked_trout',   xp:50,  req:15, ms:3000},
+    {id:'cook_lobster', name:'Cook Lobster', icon:'🦞', inputs:{lobster:1}, output:'cooked_lobster', xp:100, req:30, ms:3600},
+    {id:'cook_shark',   name:'Cook Shark',   icon:'🦈', inputs:{shark:1},   output:'cooked_shark',   xp:200, req:60, ms:5000},
     /* b215: new fish + late crops so cooking has a rung every ~10 levels to 99 */
-    {id:'cook_herring',   name:'Cook Herring',   icon:'🐟', input:'herring',   output:'cooked_herring',   xp:40,  req:8,  ms:2600},
-    {id:'cook_frostfin',  name:'Cook Frostfin',  icon:'❄️', input:'frostfin',  output:'cooked_frostfin',  xp:260, req:70, ms:5400},
-    {id:'cook_swordfish', name:'Cook Swordfish', icon:'🐠', input:'swordfish', output:'cooked_swordfish', xp:150, req:45, ms:4200},
-    {id:'cook_moonfish',  name:'Cook Moonfish',  icon:'🌙', input:'moonfish',  output:'cooked_moonfish',  xp:420, req:88, ms:6000},
+    {id:'cook_herring',   name:'Cook Herring',   icon:'🐟', inputs:{herring:1},   output:'cooked_herring',   xp:40,  req:8,  ms:2600},
+    {id:'cook_frostfin',  name:'Cook Frostfin',  icon:'❄️', inputs:{frostfin:1},  output:'cooked_frostfin',  xp:260, req:70, ms:5400},
+    {id:'cook_swordfish', name:'Cook Swordfish', icon:'🐠', inputs:{swordfish:1}, output:'cooked_swordfish', xp:150, req:45, ms:4200},
+    {id:'cook_moonfish',  name:'Cook Moonfish',  icon:'🌙', inputs:{moonfish:1},  output:'cooked_moonfish',  xp:420, req:88, ms:6000},
     /* "Reed & Tide" — the cooking half of the four new fishing rungs, plus
        two multi-input dishes that make late cooking want river crops.
-       SHAPE: the four singles use the SINGULAR `input` like every fish sibling
-       above; the two combos use `inputs:{}` like cook_veg_stew / cook_bear_pie.
-       Both shapes are read by the ONE helper — src/core/artisan.js
-       `recipeInputs` (`if (recipe.input) i[recipe.input] = recipe.inputQty||1`)
-       — which is also what the edge engine imports, so away accrual debits the
-       combos correctly without a second code path. */
-    {id:'cook_pikeperch',   name:'Grill Pikeperch',    icon:'🐠', input:'pikeperch',   output:'cooked_pikeperch',   xp:57, req:18, ms:3100},
-    {id:'cook_copper_crab', name:'Steam Copper Crab',  icon:'🦞', input:'copper_crab', output:'cooked_copper_crab', xp:66, req:21, ms:3200},
-    {id:'cook_silverfin',   name:'Cook Silverfin',     icon:'🍥', input:'silverfin',   output:'cooked_silverfin',   xp:76, req:24, ms:3350},
-    {id:'cook_goldgill',    name:'Sear Goldgill',      icon:'🍣', input:'goldgill',    output:'cooked_goldgill',    xp:88, req:27, ms:3500},
+       Read by the ONE helper, src/core/artisan.js `recipeInputs`, which is also
+       what the edge engine imports, so away accrual debits the combos correctly
+       without a second code path. */
+    {id:'cook_pikeperch',   name:'Grill Pikeperch',    icon:'🐠', inputs:{pikeperch:1},   output:'cooked_pikeperch',   xp:57, req:18, ms:3100},
+    {id:'cook_copper_crab', name:'Steam Copper Crab',  icon:'🦞', inputs:{copper_crab:1}, output:'cooked_copper_crab', xp:66, req:21, ms:3200},
+    {id:'cook_silverfin',   name:'Cook Silverfin',     icon:'🍥', inputs:{silverfin:1},   output:'cooked_silverfin',   xp:76, req:24, ms:3350},
+    {id:'cook_goldgill',    name:'Sear Goldgill',      icon:'🍣', inputs:{goldgill:1},    output:'cooked_goldgill',    xp:88, req:27, ms:3500},
     {id:'cook_river_chowder',name:'River Chowder',     icon:'🍲', inputs:{silverfin:2, potato:2, carrot:1}, output:'river_chowder', xp:198, req:52, ms:4600},
     {id:'cook_fishers_pie', name:"Fisher's Pie",       icon:'🥧', inputs:{goldgill:2, wheat:3, potato:1},  output:'fishers_pie',   xp:218, req:56, ms:4700},
     // Combat-meat chain (Phase A.1 — needs raw_*_meat drops from beasts)
@@ -83,7 +72,7 @@ const BASE_RECIPES = {
   ],
   smithing: [
     // Bar smelting — full chain so steel_bar + rune_bar exist as ingredients for forging.
-    {id:'smelt_copper',  name:'Copper Bar',  icon:'🟤', input:'copper_ore',  output:'copper_bar',  xp:15,  req:1,  ms:2400},
+    {id:'smelt_copper',  name:'Copper Bar',  icon:'🟤', inputs:{copper_ore:1},  output:'copper_bar',  xp:15,  req:1,  ms:2400},
     /* Game-design ruling, found by playing: THE BRONZE WALL. Bronze bar
        used to cost 1 coal at Smithing 8, and the only coal source in the game is
        Coal Rock at MINING 30 (or a mid-tier monster drop). So the tier-1 armour
@@ -108,7 +97,7 @@ const BASE_RECIPES = {
        Mining-52 rich seam lose no demand — they lose only the demand they could
        not legally serve. */
     {id:'smelt_bronze',  name:'Bronze Bar',  icon:'🟫', inputs:{copper_ore:2},                                output:'bronze_bar',  xp:20,  req:1,  ms:2600},
-    {id:'smelt_iron',    name:'Iron Bar',    icon:'⬜', input:'iron_ore',    output:'iron_bar',    xp:30,  req:15, ms:3000},
+    {id:'smelt_iron',    name:'Iron Bar',    icon:'⬜', inputs:{iron_ore:1},    output:'iron_bar',    xp:30,  req:15, ms:3000},
     /* ── THE SELF-SUPPLY RULING (game-designer, 2026-09-13, final) ─────────
        THE RULE, in one line: **a material is made where its tier opens, and no
        rung may ask for a tier the player cannot yet open** — formally, for every
@@ -162,7 +151,7 @@ const BASE_RECIPES = {
        exactly where Coal Rock opens at Mining 30 — the two ladders finally meet
        on the same rung — and it keeps every sink above that (steel 2, mithril 3,
        rune 4, ember 4, dawn 5, deathsteel 6 and the forge lines). */
-    {id:'smelt_gold',    name:'Gold Bar',    icon:'🟡', input:'gold_ore',    output:'gold_bar',    xp:60,  req:25, ms:4000},
+    {id:'smelt_gold',    name:'Gold Bar',    icon:'🟡', inputs:{gold_ore:1},    output:'gold_bar',    xp:60,  req:25, ms:4000},
     {id:'smelt_steel',   name:'Steel Bar',   icon:'⬜', inputs:{iron_bar:1, coal:2},                          output:'steel_bar',   xp:70,  req:30, ms:3600},
     /* ── "DEEP SEAM" — the Steel(35)→Mithril(55) bar silence ───────────────
        Verdite is the one bar between them, and it does NOT eat coal: it eats
@@ -174,7 +163,7 @@ const BASE_RECIPES = {
        new metal its own supply line, and the smelt pays 22.6 xp/s against
        steel's 19.4 and mithril's 24.0 — seated, not a new best. */
     {id:'smelt_verdite', name:'Verdite Bar', icon:'🟩', inputs:{verdite_ore:2, flux_salt:1}, output:'verdite_bar', xp:95, req:42, ms:4200},
-    {id:'smelt_mithril', name:'Mithril Bar', icon:'🔵', input:'mithril_ore', output:'mithril_bar', xp:120, req:45, ms:5000, secondary:{coal:3}},
+    {id:'smelt_mithril', name:'Mithril Bar', icon:'🔵', inputs:{mithril_ore:1,coal:3}, output:'mithril_bar', xp:120, req:45, ms:5000},
     {id:'smelt_rune',    name:'Rune Bar',    icon:'🔷', inputs:{mithril_bar:1, magic_essence:1, coal:4},      output:'rune_bar',    xp:240, req:60, ms:6000},
     /* b215: the last two bars — smithing had nothing new between 75 and 99. */
     {id:'smelt_ember',   name:'Emberforged Bar', icon:'🟧', inputs:{emberstone_ore:1, coal:4},                output:'ember_bar',   xp:340, req:75, ms:6400},
@@ -220,11 +209,11 @@ const BASE_RECIPES = {
   ],
   crafting: [
     // Plank sawing
-    {id:'saw_normal', name:'Normal Plank', icon:'🪵', input:'normal_log', output:'normal_plank', xp:10,  req:1,  ms:2400},
-    {id:'saw_oak',    name:'Oak Plank',    icon:'🪵', input:'oak_log',    output:'oak_plank',    xp:25,  req:15, ms:3000},
-    {id:'saw_willow', name:'Willow Plank', icon:'🪵', input:'willow_log', output:'willow_plank', xp:50,  req:30, ms:3600},
-    {id:'saw_maple',  name:'Maple Plank',  icon:'🍁', input:'maple_log',  output:'maple_plank',  xp:90,  req:45, ms:4500},
-    {id:'saw_yew',    name:'Yew Plank',    icon:'🌲', input:'yew_log',    output:'yew_plank',    xp:160, req:60, ms:6000},
+    {id:'saw_normal', name:'Normal Plank', icon:'🪵', inputs:{normal_log:1}, output:'normal_plank', xp:10,  req:1,  ms:2400},
+    {id:'saw_oak',    name:'Oak Plank',    icon:'🪵', inputs:{oak_log:1},    output:'oak_plank',    xp:25,  req:15, ms:3000},
+    {id:'saw_willow', name:'Willow Plank', icon:'🪵', inputs:{willow_log:1}, output:'willow_plank', xp:50,  req:30, ms:3600},
+    {id:'saw_maple',  name:'Maple Plank',  icon:'🍁', inputs:{maple_log:1},  output:'maple_plank',  xp:90,  req:45, ms:4500},
+    {id:'saw_yew',    name:'Yew Plank',    icon:'🌲', inputs:{yew_log:1},    output:'yew_plank',    xp:160, req:60, ms:6000},
     /* ⚠ THE BATCH STAYS AT 50. DO NOT RAISE IT TO MATCH THE `fletch_*` LADDER.
        This was tried on 2026-08-18 and the accrual guard caught it: at ×500 a
        15-hour absence moves 4,821,000 units of one item against the server's
@@ -250,14 +239,14 @@ const BASE_RECIPES = {
     {id:'fletch_iron_bolts',      name:'Fletch Iron Bolts ×50',   icon:'🏹', inputs:{iron_bar:3, oak_plank:3},             output:'iron_bolts', outputQty:50, xp:150, req:18, ms:3400},
     {id:'craft_iron_arrows',      name:'Craft Iron Arrows ×50',   icon:'🏹', inputs:{iron_bar:1, normal_plank:6},          output:'iron_arrows', outputQty:50, xp:120, req:20, ms:3500},
     /* b215: the last two planks — crafting stopped at 78 before this. */
-    {id:'saw_runewood', name:'Runewood Plank', icon:'🪵', input:'runewood_log', output:'runewood_plank', xp:260, req:75, ms:6500},
+    {id:'saw_runewood', name:'Runewood Plank', icon:'🪵', inputs:{runewood_log:1}, output:'runewood_plank', xp:260, req:75, ms:6500},
     /* SELF-SUPPLY RULING (2026-09-13): 90 → 88, the Dawnsteel tier's own craft
        gate (MATERIAL_TIERS.dawn.craft). Every other plank already sits exactly on
        its tier's gate (normal 1, oak 15, willow 30, maple 45, yew 60, runewood
        75); duskwood alone was pinned to the TREE's Woodcutting level (90), two
        above the tier. The LOG is still Woodcutting 90, the same way the ore stays on the Mining
        ladder above its bar. */
-    {id:'saw_duskwood', name:'Duskwood Plank', icon:'🪵', input:'duskwood_log', output:'duskwood_plank', xp:380, req:88, ms:7200},
+    {id:'saw_duskwood', name:'Duskwood Plank', icon:'🪵', inputs:{duskwood_log:1}, output:'duskwood_plank', xp:380, req:88, ms:7200},
     /* b222 — Castle Stores (clan-overhaul v2 §4.3). Slime Gel is the binder:
        it is a resin, it is an 80% drop from tier-1 Slimes, it was worth 5g and
        used by NOTHING — and it is now the thing that holds the castle
@@ -284,7 +273,7 @@ const BASE_RECIPES = {
      FUELLING IS FAST (designer 2026-10-21, Andy live: 700 bones took 22.4 min): 400 ms x PACE.actionMs 1.6 =
      640 ms a bone (7.5 min for 700); XP per bone from the curve (core-model.js FLAME_FUEL). */
   inner_flame: HEARTH_FUELS.map((f) => ({
-    id: fuelRecipeId(f.item), name: (ITEMS[f.item] && ITEMS[f.item].n) || f.item, input: f.item, output: null, xp: f.xp, req: f.req, ms: f.ms,
+    id: fuelRecipeId(f.item), name: (ITEMS[f.item] && ITEMS[f.item].n) || f.item, inputs: { [f.item]: 1 }, output: null, xp: f.xp, req: f.req, ms: f.ms,
   })),
 };
 
@@ -303,6 +292,21 @@ export const ARTISAN_RECIPES = {
   inner_flame: byReq(BASE_RECIPES.inner_flame),
   runecrafting: byReq(STONECRAFT_RECIPES.runecrafting),
 };
+
+/* THE RETIRED SHAPE FAILS CLOSED. recipeInputs reads `inputs` and nothing else, so a row still written as
+   `input: id` (with `inputQty` or `secondary`) would spend NOTHING: a free craft, on the server too. Such a row
+   throws here, at load, wherever the table is imported. tests/catalogue-coherence.mjs C16 runs it over the live rows. */
+export function retiredShapeRows(table) {
+  const bad = [];
+  for (const [skill, rows] of Object.entries(table)) for (const r of rows || []) {
+    if (r && ('input' in r || 'inputQty' in r || 'secondary' in r)) bad.push(skill + ':' + r.id);
+  }
+  return bad;
+}
+{
+  const bad = retiredShapeRows(ARTISAN_RECIPES);
+  if (bad.length) throw new Error('recipes: ' + bad.join(', ') + ' still write input / inputQty / secondary; a row states what it spends as inputs: { id: qty }');
+}
 
 /* ══════════════════════════════════════════════════════════════════════
    b220 — ARTISAN CATEGORIES (crafting-cooking-taxonomy §§3-5)
@@ -398,7 +402,7 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
   if (skillId === 'runecrafting') {
     if (type === 'ammo') return 'staff';
     /* The self-supply lane: the input-free essence rung and every blank cut. */
-    const rcInputs = recipe.inputs || (recipe.input ? { [recipe.input]: 1 } : {});
+    const rcInputs = recipe.inputs || {};
     if (Object.keys(rcInputs).length === 0 || /_blank$/.test(outId)) return 'essence';
     return null;
   }

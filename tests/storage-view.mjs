@@ -58,7 +58,7 @@ async function runTests({ B, S, R, H, REC, MON, ITM }) {
   /* V6 (first, before the bag files anything): a new recipe's input files itself. The Goblin Totem drops and nothing spends it;
      a Crafting row that takes it, added to the rows, makes it a Material with no other edit. */
   const NEW = 'goblin_totem';
-  REC.ARTISAN_RECIPES.crafting.push({ id: 'v6_totem_charm', name: 'Totem Charm', input: NEW, inputQty: 1, output: 'copper_ring', req: 1, xp: 1 });
+  REC.ARTISAN_RECIPES.crafting.push({ id: 'v6_totem_charm', name: 'Totem Charm', inputs: { [NEW]: 1 }, output: 'copper_ring', req: 1, xp: 1 });
   ok('V6', B.kindOf(NEW) === 'material', 'a drop a new recipe spends files under ' + B.kindOf(NEW) + ', not material');
   for (const [id, k] of Object.entries({ big_bones: 'material', bat_wing: 'material', silk_thread: 'material', raw_wolf_meat: 'material', rat_tail: 'junk', gold_bar: 'material', rat_kings_crown: 'rare' }))
     ok('V6', B.kindOf(id) === k, id + ' files under ' + B.kindOf(id) + ', not ' + k);

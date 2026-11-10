@@ -16,7 +16,7 @@
 // times the action time for the tool the server says the hero holds: display only, and worded as an estimate.
 // ════════════════════════════════════════════════════════════════════════
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.114';
-import { recipeInputs } from '../core/artisan.js?v=0.2.114';
+import { recipeInputs, riteInputOf } from '../core/artisan.js?v=0.2.114';
 import { skillLevelFromXp } from '../core/xp.js?v=0.2.114';
 import { whole } from '../render/format.js?v=0.2.114';
 import { itemName } from './widgets/bits.js?v=0.2.114';
@@ -71,7 +71,7 @@ function didWords(w) {
   const out = productOf(w);
   if (out && w.skill === 'cooking') return 'cooked ' + itemName(Object.keys(recipeInputs(w.row))[0] || out);
   if (out) return 'made ' + itemName(out);
-  return 'fed the Great Hearth with ' + itemName(w.row.input);
+  return 'fed the Great Hearth with ' + itemName(riteInputOf(w.row));
 }
 
 /* Why a bench stopped, from the record: its run counted out, or an input ran out; a gatherer's stop names no reason it cannot know. */

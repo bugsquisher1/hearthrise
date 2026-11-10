@@ -298,14 +298,9 @@ function push(map, id, label) {
 }
 function addSet(map, ids, label) { for (const id of ids) push(map, id, label); }
 
-/** Every input id one recipe row spends (the three historical row shapes). */
+/** Every input id one recipe row spends, a copy (src/data/recipes.js: every row writes `inputs`). */
 export function recipeInputs(r) {
-  const out = {};
-  if (!r) return out;
-  if (r.inputs) Object.keys(r.inputs).forEach((k) => { out[k] = r.inputs[k]; });
-  if (r.input) out[r.input] = (out[r.input] || 0) + (r.inputQty || 1);
-  if (r.secondary) Object.keys(r.secondary).forEach((k) => { out[k] = (out[k] || 0) + r.secondary[k]; });
-  return out;
+  return Object.assign({}, r && r.inputs);
 }
 
 /** id -> [source labels]. */

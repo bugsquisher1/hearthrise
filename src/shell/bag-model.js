@@ -34,7 +34,7 @@ import { SHOP_OFFERS } from '../data/shops.js?v=0.2.114';
 import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.114';
 import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.114';
 import { TEMPER_MATERIALS } from '../data/temper.js?v=0.2.114';
-import { recipeInputs } from '../core/artisan.js?v=0.2.114';
+import { recipeInputs, riteInputOf } from '../core/artisan.js?v=0.2.114';
 import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.114';
 import { itemName } from './widgets/bits.js?v=0.2.114';
 
@@ -203,13 +203,16 @@ export function view(items, o) {
 
 let RITES = null;
 /**
- * The recipe a skill spends this item on WITHOUT making anything (a recipe row with an `input` and no `output`:
+ * The recipe a skill spends this item on WITHOUT making anything (a recipe row with one input and no `output`:
  * Inner Flame's fuels, fuel_bones, fuel_lamp_jelly...), or null. From the recipe rows, so a new fuel needs no code.
  */
 export function riteOf(id) {
   if (!RITES) {
     RITES = new Map();
-    for (const [skill, rows] of Object.entries(ARTISAN_RECIPES)) for (const r of rows || []) if (r && r.input && !r.output && !RITES.has(r.input)) RITES.set(r.input, { skill, recipe: r, input: r.input, need: r.inputQty || 1 });
+    for (const [skill, rows] of Object.entries(ARTISAN_RECIPES)) for (const r of rows || []) {
+      const input = riteInputOf(r);
+      if (input && !RITES.has(input)) RITES.set(input, { skill, recipe: r, input, need: r.inputs[input] });
+    }
   }
   return RITES.get(id) || null;
 }

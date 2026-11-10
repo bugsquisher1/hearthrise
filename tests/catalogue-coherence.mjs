@@ -83,6 +83,9 @@
 //       C15b ITEMS is that join and nothing else: no spread inside the hand-written rows, and no whole row written
 //            into ITEMS after it but the ground packs' fold (which refuses a taken id itself);
 //       C15c no key is typed twice among the hand-written rows (JavaScript keeps the last one and says nothing).
+//   C16 a recipe row has ONE shape (audit 2026-11-09, S4: 25 rows wrote `input` + `secondary`, a second dialect kept for
+//       the old client): no row of ARTISAN_RECIPES carries `input`, `inputQty` or `secondary`. The one reader
+//       (src/core/artisan.js recipeInputs) reads `inputs` only, so such a row would be a free craft.
 //
 // THE PENDING LIST is shrink-only. It names the few gaps the audit assigned to
 // OTHER W0 lanes, with the lane. An id that gains a use must be removed from it
@@ -113,6 +116,7 @@ import { PROPERTY_TIERS, ROOM_RUNGS, STORAGE_CHESTS, HELD_HOME_OFFERS } from '..
 import { latestBodies, clientRpcNames, serverEntryNames, reachedFunctions } from './_sql-bodies.mjs';
 import { GOLD_LADDER_OFFERS, GOLD_LADDER_UNLOCKS } from '../src/data/gold-ladders.js';
 import { oneRowPerId, ITEM_SOURCES } from '../src/data/items.js';
+import { retiredShapeRows } from '../src/data/recipes.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 /* C9's start kit: the shipped one, or a planted one (mutate() only; the data is frozen). */
@@ -354,6 +358,9 @@ export function check({ read = realRead, unreachable = UNREACHABLE } = {}) {
   fails.push(...cutCapabilityFails());
   // C15 — an item id has one row.
   fails.push(...oneRowFails(read));
+  // C16 — a recipe row has one shape.
+  const oldShape = retiredShapeRows(ARTISAN_RECIPES);
+  if (oldShape.length) fails.push('C16 recipe row(s) in the retired input / secondary shape (recipeInputs reads `inputs` only, so they craft for free): ' + oldShape.join(', '));
   return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length, pendingSource: Object.keys(PENDING_SOURCE).length, awaiting: AWAITING_ROSTER.length, ...far.counts } };
 }
 
@@ -750,6 +757,16 @@ function mutate() {
   run('a source is spread into the hand-written rows', 'C15b', () => swap('const AUTHORED = {', 'const AUTHORED = {\n  ...GEAR_ITEMS,'));
   run('a module writes a whole row over a joined one', 'C15b', () => readItems(itemsText + "\nITEMS['iron_sword'] = { n: 'Iron Sword', v: 200 };\n"));
   run('a hand-written row is typed a second time', 'C15c', () => swap('const AUTHORED = {', "const AUTHORED = {\n  coal:{n:'Coal',v:99},"));
+  /* C16 — one recipe shape (audit 2026-11-09 S4). */
+  run('a recipe row is written in the retired input shape', 'C16', () => {
+    ARTISAN_RECIPES.smithing.push({ id: '__mut_old_shape', name: 'Old Shape', input: 'coal', output: 'iron_bar', xp: 1, req: 1, ms: 1000 });
+    return { restore: () => { ARTISAN_RECIPES.smithing.pop(); } };
+  });
+  run('a recipe row adds a secondary beside its inputs', 'C16', () => {
+    const r = ARTISAN_RECIPES.smithing.find((x) => x.id === 'smelt_mithril');
+    r.secondary = { coal: 3 };
+    return { restore: () => { delete r.secondary; } };
+  });
 
   let bad = 0;
   for (const [name, hit] of results) {

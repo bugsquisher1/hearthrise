@@ -60,26 +60,6 @@ export const MAX_BANE_MULT = 1.40;
 /** The ceiling on weapon-weakness × bane combined. Also applied by the formula. */
 export const MAX_COMBINED_DAMAGE_MULT = 1.68;
 
-/**
- * Legacy `family` labels → the eleven-class taxonomy of Library 1.
- *
- * The monster workstream re-points `family` on every row; until that lands (and
- * for any save/content that predates it) these keep bane gear honest rather
- * than silently inert.
- *
- * `Mythic` is DELIBERATELY ABSENT. It covers both `lesser_demon` (→ Demon) and
- * `dragon` (→ Dragon) in the live table, so there is no single correct answer
- * and guessing one would make Dragonrib Bow fire at demons. An unmapped family
- * yields NO bane match, which is the strict direction. See the report note.
- */
-export const CLASS_ALIAS = Object.freeze({
-  beast: 'mammal',
-  goblinoid: 'humanoid',
-  arcane: 'human',
-  // vermin / undead / plant / human / dragon / demon / elemental / construct /
-  // extra_dimensional need no alias — they normalise to themselves.
-});
-
 /** The eleven classes bane gear may target (Library 1 §1A). */
 export const MONSTER_CLASSES = Object.freeze([
   'mammal', 'vermin', 'plant', 'humanoid', 'human', 'undead',
@@ -106,8 +86,7 @@ export function normalizeClass(raw) {
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
   if (!k) return null;
-  const mapped = CLASS_ALIAS[k] || k;
-  return CLASS_SET.has(mapped) ? mapped : null;
+  return CLASS_SET.has(k) ? k : null;
 }
 
 /** The class a monster row belongs to. `class` wins over `family` if present. */

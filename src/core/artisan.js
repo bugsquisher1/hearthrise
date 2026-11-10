@@ -89,16 +89,18 @@ export function rollJewel(recipe, level, rng) {
 }
 
 /* ── Recipe shape helpers ─────────────────────────────────────────────
-   Two recipe dialects ship side by side: the modern `inputs:{id:qty}` dict
-   and the legacy `input` + `inputQty` + `secondary`. One reader, so a new
-   consumer (the server) cannot learn only half the schema. */
+   What a row spends: its `inputs: { id: qty }`, the one shape every row is written in (src/data/recipes.js).
+   Answered by reference and never mutated; a row with none spends nothing. */
+const NO_INPUTS = Object.freeze({});
 export function recipeInputs(recipe) {
-  if (!recipe) return {};
-  if (recipe.inputs) return recipe.inputs;   // by reference, as legacy.js did — never mutated
-  const i = {};
-  if (recipe.input) i[recipe.input] = recipe.inputQty || 1;
-  if (recipe.secondary) Object.keys(recipe.secondary).forEach((k) => { i[k] = recipe.secondary[k]; });
-  return i;
+  return (recipe && recipe.inputs) || NO_INPUTS;
+}
+
+/** A RITE's one item: a row that makes nothing spends its single input (Inner Flame's fuels). Null for any other row. */
+export function riteInputOf(recipe) {
+  if (!recipe || recipe.output) return null;
+  const ids = Object.keys(recipeInputs(recipe));
+  return ids.length === 1 ? ids[0] : null;
 }
 
 /** The first input the bag cannot cover, or null. Naming it is what lets the

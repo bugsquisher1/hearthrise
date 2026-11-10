@@ -43,7 +43,7 @@ import { SKILLS_DEF } from '../data/skills.js?v=0.2.114';
 import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.114';
 import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.114';
 import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.114';
-import { recipeInputs } from '../core/artisan.js?v=0.2.114';
+import { recipeInputs, riteInputOf } from '../core/artisan.js?v=0.2.114';
 import { pacedXp } from '../core/pacing.js?v=0.2.114';
 import { whole } from '../render/format.js?v=0.2.114';
 import { itemName } from './widgets/bits.js?v=0.2.114';
@@ -185,7 +185,7 @@ function workWords(w) {
   if (out && isDish(w)) return 'cooking ' + itemName(Object.keys(recipeInputs(w.row))[0] || out);
   if (out) return 'making ' + itemName(out);
   /* A fuel makes nothing: the Great Hearth burns it (src/data/hearth.js; every output-less row is a fuel) */
-  return 'fueling the Great Hearth with ' + itemName(w.row.input);
+  return 'fueling the Great Hearth with ' + itemName(riteInputOf(w.row));
 }
 
 /** The action as "You need … to ___" says it: "cook Raw Wolf Meat", "make Bronze Bar", "chop the Oak Tree", "burn Big Bones in the Great Hearth". */
@@ -194,7 +194,7 @@ export function doWords(w) {
   const out = productOf(w);
   if (out && isDish(w)) return 'cook ' + itemName(Object.keys(recipeInputs(w.row))[0] || out);
   if (out) return 'make ' + itemName(out);
-  return 'burn ' + itemName(w.row.input) + ' in the Great Hearth';
+  return 'burn ' + itemName(riteInputOf(w.row)) + ' in the Great Hearth';
 }
 
 /* The server's skill level for a row's skill, or null (not sent yet). */

@@ -347,7 +347,7 @@ export async function coreAnchorGuard() {
 
     /* ── Phase A: the artisan bench ───────────────────────────────────── */
     const art = await load('artisan.js');
-    const shrimp = { id: 'cook_shrimp', req: 1, xp: 100, input: 'shrimp', output: 'cooked_shrimp' };
+    const shrimp = { id: 'cook_shrimp', req: 1, xp: 100, inputs: { shrimp: 1 }, output: 'cooked_shrimp' };
     if (art.burnChance(shrimp, 1, 0) !== 0.25) problems.push('the open-fire burn rate drifted from 25%');
     if (Math.abs(art.burnChance(shrimp, 1, 0.13) - 0.12) > 1e-9) problems.push('Kitchen L1 no longer buys 12%');
     if (art.burnChance(shrimp, 26, 0) !== 0) problems.push('25 levels of mastery must burn-proof the open fire');
@@ -356,9 +356,12 @@ export async function coreAnchorGuard() {
     if (art.burnXp({ xp: 1 }) !== 1) problems.push('a burn must never pay 0 XP');
     if (art.KITCHEN_NO_BURN.length !== 5) problems.push('the Kitchen ladder is no longer 5 rungs');
 
-    /* Both recipe dialects read by ONE reader. */
-    if (JSON.stringify(art.recipeInputs({ input: 'ore', inputQty: 3, secondary: { coal: 2 } })) !== '{"ore":3,"coal":2}') {
-      problems.push('the legacy input+secondary dialect is no longer understood');
+    /* ONE recipe shape (2026-11-10): a row spends its `inputs`; the retired `input` + `secondary` dialect is not read
+       (src/data/recipes.js refuses such a row at load, so none reaches this reader). A rite is a row with one input and no output. */
+    if (JSON.stringify(art.recipeInputs({ inputs: { ore: 3, coal: 2 } })) !== '{"ore":3,"coal":2}') problems.push('recipeInputs no longer answers a row\'s inputs');
+    if (Object.keys(art.recipeInputs({ input: 'ore', inputQty: 3, secondary: { coal: 2 } })).length !== 0) problems.push('the retired input+secondary dialect is read again: one shape, one reader');
+    if (art.riteInputOf({ inputs: { bones: 1 }, output: null }) !== 'bones' || art.riteInputOf({ inputs: { ore: 1 }, output: 'bar' }) !== null || art.riteInputOf({ inputs: { a: 1, b: 1 } }) !== null) {
+      problems.push('riteInputOf: a rite is a row with no output and exactly one input');
     }
     if (art.missingInput({ inputs: { ore: 3 } }, { ore: 2 }) !== 'ore') problems.push('missingInput must name the shortfall');
     if (art.missingInput({ inputs: { ore: 3 } }, { ore: 3 }) !== null) problems.push('an affordable recipe must report no shortfall');

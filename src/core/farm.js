@@ -198,14 +198,9 @@ export function normalizePlot(plot, now) {
     plot.waterings = [];
     return plot;
   }
-  if (!Array.isArray(plot.waterings)) {
-    /* Legacy shape: a boolean flag. `true` retro-credits one window from
-       planting (strictly better for the player); `false` becomes "dry",
-       which un-sticks the plot instead of stalling it forever. b222: nothing
-       WRITES `watered` any more — this is its last reader, kept because
-       pre-b220 saves and old cloud snapshots still carry it. */
-    plot.waterings = plot.watered ? [plot.plantedAt] : [];
-  }
+  /* A plot row with no list has never been watered (the server writes `waterings` as a list; the old boolean
+     `watered` and its reader left 2026-11-10: no row has carried it since the server took the farm). */
+  if (!Array.isArray(plot.waterings)) plot.waterings = [];
   if (plot.waterings.length > MAX_WATERINGS) {
     plot.waterings = plot.waterings.slice(-MAX_WATERINGS);
   }

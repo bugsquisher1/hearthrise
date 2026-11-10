@@ -1229,7 +1229,7 @@ function madeWords(lv, said, role) {
     for (const r of list || []) {
       const it = r.output ? ITEMS[r.output] : null;
       if (!it || it.reqSkill !== LEVEL_REQ || it.reqLv !== lv || !it.n || !said.includes(it.n) || (role && !wornByRole(r.output, role))) continue;
-      const ins = Object.entries(r.inputs || (r.input ? { [r.input]: 1 } : {}));
+      const ins = Object.entries(r.inputs || {});
       if (!ins.length || !SKILLS_DEF[skill] || ins.some(([id]) => !name(id))) continue;
       return it.n + ' is made ' + (r.req > 1 ? 'at ' + SKILLS_DEF[skill].name + ' ' + r.req : 'in ' + SKILLS_DEF[skill].name)
         + ' from ' + listed(ins.map(([id, n]) => name(id) + ' ×' + n)) + '.';

@@ -93,7 +93,7 @@ const { SESSION_CONFIG } = await import(pathToFileURL(join(ROOT, 'src/session/co
 const PARTY_NOTES = Object.fromEntries(Object.values(HUNT_GROUNDS).map((g) => {
   const p = g.pockets.find((q) => q.forParty);
   const boss = p && p.spawns.map((x) => MONSTERS[x.monster]).find((m) => m && m.boss);
-  return [g.hunt, p && boss ? 'The ' + boss.name + ' is built for a party of ' + ['', 'one', 'two', 'three', 'four'][p.forParty] + ' or more. Alone, you still fight him, and he can kill you.' : ''];
+  return [g.hunt, p && boss ? 'The ' + boss.name + ' is built for a group of ' + ['', 'one', 'two', 'three', 'four'][p.forParty] + ' or more. Alone, you still fight him, and he can kill you.' : ''];
 }));
 if (!PARTY_NOTES.millrace_sewer || PARTY_NOTES.coppercap_warrens !== '') throw new Error('party-ui: UI-5 needs a party-gated ground and one without');
 const PARTY_RPCS = ['hr_hunt_party_join', 'hr_hunt_party_leave', 'hr_hunt_party_kick', 'hr_hunt_party_invite',

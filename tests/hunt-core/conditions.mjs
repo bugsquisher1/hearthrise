@@ -1100,9 +1100,11 @@ const mutants = [
     edits: [['src/core/hunt/pull-cycle.js', ' || arrived || walled)) {', ' || arrived)) {']] },
   { name: 'the settle never clamps the stored pick', case: 'density-settle', edits: [['src/core/combat-sim.js', '      world.density = densityFor(ctx.ground,', '      world.density = Math.max(...members.map((m) => m.hero.density), 1) || densityFor(ctx.ground,']] },
   /* the P1 as it shipped: a first room that shrugs off her poison whole (the immunity Tyler removed 2026-11-06); packs are the row's own since 2026-11-08 */
+  /* (As it shipped the Healer's bar had no Undertow, its strike with no element since 2026-11-09: the bar goes back to that too.) */
   { name: 'the solo healer fights behind a poison wall (the P1 as it shipped)', case: 'solo-healer',
     edits: [['src/core/elements.js', '  if (!monster || !isElement(element)) return 1000;', "  if (element === 'poison' && monster && monster.elements && monster.elements.poison === 50) return 0;\n  if (!monster || !isElement(element)) return 1000;"],
-      ['src/core/hunt/damage.js', '  const el = elementOn(target, element);\n', '  const el = elementOn(target, element);\n  if (el === 0) return { dmg: 0, absorbed: 0, killed: false };\n']] },
+      ['src/core/hunt/damage.js', '  const el = elementOn(target, element);\n', '  const el = elementOn(target, element);\n  if (el === 0) return { dmg: 0, absorbed: 0, killed: false };\n'],
+      ['src/data/rule-subjects.js', ", slot('undertow', UNDERTOW_WHEN)]),", ']),']] },
   { name: 'a migration row drifts from the registry', case: 'sql-rows', edits: [['src/data/condition-metrics.js', "label: 'My target is a boss', say: 'my target being a boss', value: 'bool', ops: Object.freeze(['eq'])", "label: 'My target is a boss', say: 'my target being a boss', value: 'bool', ops: Object.freeze(['eq', 'ne'])"]] },
   { name: 'the start kit bar drifts from the server one', case: 'sql-rows', edits: [['src/data/start-kit.js', "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 30)", "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 35)"]] },
   { name: 'a store food is no slot item', case: 'sql-rows', edits: [['src/data/consumables.js', "    .map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),", "    .filter(() => false).map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),"]] },

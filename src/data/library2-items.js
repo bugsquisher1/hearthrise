@@ -212,74 +212,12 @@ const ARMOUR_SETS = {
   // ITEM-NEW-44 · Void-Chitin Weave — one endgame target for three orphans.
 };
 
-/* ══════════════════════════════════════════════════════════════════════════
-   4 · THE THREE CONSUMABLE SUPPLY CHAINS — ITEM-PLAN-02/03/04/05/06
-                                                    STATE: pendingSkill
-
-   Every id, stat, level gate and value below is TAKEN FROM
-   docs/design/consumable-economy.md §6.2 (runes), §6.3 (whetstones), §8.2
-   (castle goods), §8.4 + §9.5 (stone), §11.3 (elements) — not re-derived. The
-   Designer pinned those numbers against two inequalities (the 4–10% of gross
-   supply cost, and the ≤2× anti-faucet rule); re-deriving them here would be a
-   second authority for one fact.
-
-   ⚠ LANE NOTE (parallel work, 2026-08-16): the SKILLS workstream owns the
-   Runecrafting RECIPES in src/data/recipes.js and the
-   SKILLS_DEF rows. This file lands the ITEM rows only — no recipe below
-   produces any of them. When `runecrafting` / `fletching` enter
-   SKILLS_DEF, the `pendingSkill` exemption expires automatically and the
-   reachability guard will demand the recipes. That is the handshake.
-
-   One rename applied from the review book: the Designer's `rune_of_blight`
-   becomes `rune_of_poison` — "*Blight* is **Poison** throughout" (§2C taxonomy
-   sweep). Elemental arrow/whetstone ids use the same `_of_<element>` shape so
-   the three element lines read as one family and cannot be confused with the
-   MATERIAL rung `emberhead_arrows` (tier 6, a different axis entirely).
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/* R7: the ammo-slot ladders share ONE stat curve, because they are one slot (the rune ladder left it: runes
-   are spell reagents, src/data/stonecraft.js, Tyler 2026-10-23). */
-const AMMO_STR = [2, 3, 5, 8, 11, 14, 18];
-const AMMO_REQ = [1, 15, 30, 45, 60, 75, 88];
-const AMMO_RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'legendary', 'mythic'];
-
-/* Whetstones burn 0.02/swing (§7.2 — charges on the consumption channel, not a
-   timer) and carry `strB` ONLY: critB would leak to every style through
-   equipmentStats, and spdB is closed by the b343 ruling. */
-const whet = (id, name, i, v) => [id, {
-  n: name, icon: '🪨', v, type: 'ammo', slot: 'ammo', tier: i + 1,
-  rarity: AMMO_RARITY[i], reqSkill: 'melee', reqLv: AMMO_REQ[i],
-  strB: AMMO_STR[i], ammoPerShot: i === 0 ? 0 : 0.02,
-  pendingSkill: 'smithing',
-}];
-
-const SUPPLY_CHAINS = Object.fromEntries([
-  /* ITEM-PLAN-04 · the graded blanks, cut at Runecrafting. (Quarried stone,
-     blocks and ashlar were deleted with Stonemason in the 2026-10-14 demolition.) */
-  ['rune_blank',      { n: 'Blank Rune',      icon: '⬜', v: 5,  tier: 1, pendingSkill: 'runecrafting' }],
-
-  /* ITEM-PLAN-02 · the bound rune ladder (§6.2) became the family x tier runes (src/data/stonecraft.js,
-     lane b-spell-content 2026-10-23). */
-
-  /* ITEM-PLAN-03 · the whetstone ladder (§6.3). Values are the Designer's
-     derived band — the steel rung at 130 gives 10 × 130 / 660 = 1.97×, just
-     inside the anti-faucet rule; 200 would have been a 3.03× faucet. */
-  whet('coarse_whetstone',  'Coarse Whetstone',    0, 5),
-  whet('copper_whetstone',  'Copper Whetstone',    1, 20),
-  whet('iron_whetstone',    'Iron Whetstone',      2, 55),
-  whet('steel_whetstone',   'Steel Whetstone',     3, 130),
-  whet('mithril_whetstone', 'Mithril Whetstone',   4, 300),
-  whet('rune_whetstone',    'Rune Whetstone',      5, 700),
-  whet('dawn_whetstone',    'Dawnsteel Whetstone', 6, 1600),
-
-  /* W0 (2026-10-10): the six elemental arrow/whetstone variants and the two
-     artisan tool ladders (fletching knives, mason's rules) were CUT. Their
-     transfer recipes and their skills never landed, so they had no source and
-     no use; the wipe made removing them free. */
-]);
+/* (Section 4, the consumable supply chains, is gone: the Blank Rune and the seven whetstones are written once, in
+   src/data/stonecraft.js, the rows the game has read since 2026-10-23. The copies here still said v 55 for the Iron
+   Whetstone against 3 there and were replaced at the join, 2026-11-10.) */
 
 export const LIB2_ITEMS = {
-  ...BANE_GEAR, ...ARMOUR_SETS, ...SUPPLY_CHAINS,
+  ...BANE_GEAR, ...ARMOUR_SETS,
 };
 
 /* ══════════════════════════════════════════════════════════════════════════

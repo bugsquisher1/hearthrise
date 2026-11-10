@@ -15,45 +15,22 @@ import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.114';
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.114';
 import { foldRows } from './grounds/shape.js?v=0.2.114';
 
-export const ITEMS={
-  /* b215: the generated tier ladder (7 material tiers × every armour slot ×
-     four weapon families) is spread FIRST, so any hand-authored entry below
-     with the same id wins and keeps its historical stats/values. */
-  ...GEAR_ITEMS,
+/* ONE ROW PER ITEM ID. The table is joined from its sources in order, and an id two sources name THROWS at load:
+   nothing overrides anything. Until 2026-11-10 the sources were spread into one literal, the last spread won, and 28
+   ids were written twice with values that disagreed (iron_sword v 130 and v 200). `where` names each source in the
+   refusal. tests/catalogue-coherence.mjs C15 holds it (and reads this file for a key typed twice in AUTHORED). */
+export function oneRowPerId(sources) {
+  const out = {};
+  const from = {};
+  for (const [where, rows] of sources) for (const id of Object.keys(rows)) {
+    if (Object.prototype.hasOwnProperty.call(out, id)) throw new Error('items: ' + id + ' is defined in ' + from[id] + ' and again in ' + where + '; an item has one row');
+    out[id] = rows[id]; from[id] = where;
+  }
+  return out;
+}
 
-  /* b247 (Wave 3): 14 curated unique items that route ~26 orphan boss/mid
-     drops into real gear. New ids only — no collision with hand entries. */
-  ...WAVE3_ITEMS,
-
-  /* b343: the four structurally-incomplete equipment lanes — ammo (1 item),
-     earrings (0), cape (holes at 5 of 7 tiers) and jewelry (no capstone).
-     New ids only. See src/data/slot-ladders.js for the stat rationale. */
-  ...SLOT_ITEMS,
-  /* CRAFTED JEWELRY (src/data/jewelry.js): each Fine and Hallmarked grade of a crafted piece, its own row, built from the plain
-     piece above it. New ids only. */
-  ...JEWELRY_ITEMS,
-
-  /* b356: the approved review-book catalogue (Library 2 — every surviving
-     ITEM-NEW-* card and every ITEM-PLAN-* group). New ids only; spread here
-     with the other generated blocks so a hand-authored entry below could still
-     override one. See src/data/library2-items.js for the derivation, the three
-     landing states, and the power-budget accounting. */
-  ...LIB2_ITEMS,
-  /* Runecrafting: rune essence, blank runes, the 7-tier rune ladder and the
-     7-tier whetstone ladder (smithed since Stonemason was cut, 2026-10-14).
-     New ids only. See src/data/stonecraft.js for every ruling behind them. */
-  ...STONECRAFT_ITEMS,
-  /* W0 (2026-10-10): the three boss-forged body pieces (src/data/boss-forge.js)
-     and the five field champions' relics (src/data/champions.js). New ids only. */
-  ...BOSS_FORGE_ITEMS,
-  ...CHAMPION_ITEMS,
-  /* The six mana drinks (src/data/drinks.js), live with the hunt's mana engine (lane S2, 2026-10-18). */
-  ...DRINK_ITEMS,
-  /* The imbuement slot's items, one per monster (src/data/imbuements.js, designer 2026-10-21). New ids only. */
-  ...IMBUE_ITEMS,
-  /* The five shields (src/data/shields.js, Tyler 2026-10-23): the Shop's, two made, a drop and its reforge. New ids only. */
-  ...SHIELD_ITEMS,
-
+/* The rows written by hand in this file. Every other source is a module of its own (ITEM_SOURCES below). */
+const AUTHORED = {
   /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
      type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool
      auto-applies to its skill (Melvor-style, no equip juggling):
@@ -140,9 +117,6 @@ export const ITEMS={
   razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:1800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:19,strB:15,reqSkill:'level',reqLv:30},
   hollow_sigil:{n:'Hollow Sigil',icon:'🔯',v:1400},void_core:{n:'Void Core',icon:'⚫',v:2200},war_crown:{n:'War Crown',icon:'👑',v:2500},
   ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',atkB:13,strB:11,reqSkill:'level',reqLv:15},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',steadyPm: 90,atkB:2,reqSkill:'level',reqLv:30},
-  /* defB 2 -> 1, its ladder value: at 2 the tier-2 Studded Boots stopped no more damage (balance ruling 2026-10-25 §9; tests/hunt-core/first-week-bands.mjs armor-rungs).
-     v 90 -> 35, its ladder value (gear-tiers.js leather boots, tier 1): at 90 it outsold the tier-2 Studded Boots (75). */
-  leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:1},
   /* THE SEVEN LAST UNGATED EQUIPPABLES. The 2026-09-12 sweep closed the 34 rows that
      carried a `tier`; these seven carry none, so neither reader had anything to
      gate on — `gearWieldReq` returned null AND `hr_items.req_lv` was NULL, which
@@ -169,11 +143,6 @@ export const ITEMS={
      out the thin jewelry lane. Stats are read by getEquipmentStats (real combat). */
   gold_ring:{n:'Gold Ring',icon:'💍',v:600,type:'jewelry',slot:'ring',atkB:3,strB:3,reqSkill:'level',reqLv:30},
   gold_amulet:{n:'Gold Amulet',icon:'📿',v:1100,type:'jewelry',slot:'necklace',atkB:4,reqSkill:'level',reqLv:30},
-  leather_gloves:{n:'Leather Gloves',icon:'🧤',v:80,type:'armor',slot:'gloves',atkB:1,defB:1},
-  bronze_belt:{n:'Bronze Belt',icon:'🟫',v:110,type:'armor',slot:'belt',defB:2},
-  /* No piece sells under its lower-tier twin (drop-tables sale-ladder): the outfitter's belt and gloves carry their Shop book,
-     so these undropped twins are lifted to match (ladder 105 / 65 / 245); the backfill below fills their other fields. */
-  iron_belt:{n:'Iron Belt',icon:'🛡️',v:110},studded_gloves:{n:'Studded Leather Vambraces',icon:'🎽',v:80},boarhide_gloves:{n:'Boarhide Vambraces',icon:'🎽',v:290},
   /* ⚠ v:1, NOT v:60 — DO NOT "RESTORE" THE OLD NUMBER (2026-08-18, reported as
      "you get 500-ish arrows per craft"; the arrows were fine, this was not).
 
@@ -223,7 +192,6 @@ export const ITEMS={
   turnip_seed:{n:'Turnip Seed',icon:'🌱',v:5,seed:'turnip'},carrot_seed:{n:'Carrot Seed',icon:'🌱',v:10,seed:'carrot'},
   wheat_seed:{n:'Wheat Seed',icon:'🌱',v:15,seed:'wheat'},potato_seed:{n:'Potato Seed',icon:'🌱',v:20,seed:'potato'},
   tomato_seed:{n:'Tomato Seed',icon:'🌱',v:30,seed:'tomato'},pumpkin_seed:{n:'Pumpkin Seed',icon:'🌱',v:50,seed:'pumpkin'},
-  bronze_sword:{n:'Bronze Sword',icon:'⚔️',v:50,type:'weapon',slot:'weapon',weaponType:'sword',atkB:4,strB:3},
   // The premium login reward (premium.js): weaker than Bronze, v:0 so it mints no gold (no gear binds: Tyler 2026-10-23).
   oak_practice_blade:{n:'Oak Practice Blade',icon:'🗡️',v:0,type:'weapon',slot:'weapon',weaponType:'sword',atkB:2,strB:1,reqSkill:'level',reqLv:1},
   /* THE PRACTICE KIT (Tyler 2026-10-20: every new hero starts with all six starter sets, so
@@ -243,20 +211,6 @@ export const ITEMS={
   practice_staff:{n:'Practice Staff',icon:'🔮',v:0,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'restoration',twoHanded:true,atkB:3,strB:5,magicAtkB:3,magicStrB:5,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   /* Klappa's Club (Tyler 2026-11-03, the tribute to Andy; style-gear.js holds the reforge): the club hero's rung between the Practice Club and the Iron Warhammer. */
   klappas_club:{n:'Klappa\'s Club',icon:'🏏',v:100,type:'weapon',slot:'weapon',weaponType:'hammer',twoHanded:true,atkB:3,strB:16,tier:1,rarity:'uncommon',reqSkill:'level',reqLv:5},
-  iron_sword:{n:'Iron Sword',icon:'⚔️',v:200,type:'weapon',slot:'weapon',weaponType:'sword',atkB:7,strB:6},
-  steel_sword:{n:'Steel Sword',icon:'⚔️',v:800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:12,strB:10},
-  rune_sword:{n:'Rune Sword',icon:'⚔️',v:5000,type:'weapon',slot:'weapon',weaponType:'sword',atkB:25,strB:20},
-  apprentice_staff:{n:'Apprentice Staff',icon:'🔮',v:80,type:'weapon',slot:'weapon',weaponType:'magic',atkB:3,strB:5,magicAtkB:3,magicStrB:5},
-  /* v: the ladder's generated value (designer 2026-10-22, style-gear.js SG-4: a made piece sells for no more than its inputs' book). */
-  oak_staff:{n:'Oak Staff',icon:'🪄',v:130,type:'weapon',slot:'weapon',weaponType:'magic',atkB:6,strB:9,magicAtkB:6,magicStrB:9},
-  shortbow:{n:'Shortbow',icon:'🏹',v:90,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,atkB:5,strB:3,rangeAtkB:5,rangeStrB:3},
-  longbow:{n:'Longbow',icon:'🏹',v:135,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,atkB:9,strB:6,rangeAtkB:9,rangeStrB:6},
-  stone_maul:{n:'Stone Maul',icon:'🔨',v:110,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:3,strB:7},
-  iron_warhammer:{n:'Iron Warhammer',icon:'🔨',v:145,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:7,strB:16},
-  iron_helm:{n:'Iron Helm',icon:'⛑️',v:150,type:'armor',slot:'helmet',defB:5},
-  steel_helm:{n:'Steel Helm',icon:'⛑️',v:600,type:'armor',slot:'helmet',defB:10},
-  iron_platebody:{n:'Iron Platebody',icon:'🦺',v:400,type:'armor',slot:'body',defB:12},
-  steel_platebody:{n:'Steel Platebody',icon:'🦺',v:1500,type:'armor',slot:'body',defB:22},
 
   /* ── Recipe outputs: cooking ──
      Each cooked food heals more than its raw form AND grants a stacking buff
@@ -787,52 +741,34 @@ export const ITEMS={
   tidecallers_pearl: {n:"Tidecaller's Pearl", icon:'🫧',   v:0, bop:true, rarity:'mythic', tag:'trophy', type:'trophy', hearthfind:true},
 };
 
+/* The sources, in the order their rows have always sat in the table (the generated tier ladder first). Each is the
+   ONE home of its ids: the tier ladder (gear-tiers.js, with its LADDER_EXCEPTIONS), the 14 Wave 3 uniques, the
+   ammo / earring / cape / jewelry ladders (slot-ladders.js), each Fine and Hallmarked grade of a crafted piece
+   (jewelry.js), the Library 2 catalogue, Runecrafting's essence, blanks, runes and the whetstones (stonecraft.js),
+   the boss-forged body pieces, the field champions' relics, the six mana drinks, the imbuement items (one per
+   monster) and the five shields. */
+export const ITEM_SOURCES = Object.freeze([
+  ['gear-tiers.js', GEAR_ITEMS],
+  ['wave3-uniques.js', WAVE3_ITEMS],
+  ['slot-ladders.js', SLOT_ITEMS],
+  ['jewelry.js', JEWELRY_ITEMS],
+  ['library2-items.js', LIB2_ITEMS],
+  ['stonecraft.js', STONECRAFT_ITEMS],
+  ['boss-forge.js', BOSS_FORGE_ITEMS],
+  ['champions.js', CHAMPION_ITEMS],
+  ['drinks.js', DRINK_ITEMS],
+  ['imbuements.js', IMBUE_ITEMS],
+  ['shields.js', SHIELD_ITEMS],
+  ['items.js', AUTHORED],
+]);
+
+export const ITEMS = oneRowPerId(ITEM_SOURCES);
+
 /* GROUND PACKS (src/data/grounds): each pack's NEW items join the table, a copy each. An id already taken is refused: a pack adds. */
 for (const [id, row] of Object.entries(foldRows('item', {}, GROUND_PACKS, (p) => p.items))) {
   if (Object.prototype.hasOwnProperty.call(ITEMS, id)) throw new Error('ground pack: item ' + id + ' is already taken; a pack only adds');
   ITEMS[id] = { ...row };
 }
-
-/* b215: backfill tier + rarity onto the hand-authored pieces that sit on the
-   generated ladder (bronze_sword, iron_warhammer, shortbow, oak_staff …).
-   Those entries predate the tier system and override their generated twin
-   wholesale, so without this they'd be the only rungs with no rarity border —
-   a visibly inconsistent ladder. Their stats and values are left untouched.
-
-   ⚠ b542 — reqSkill/reqLv ARE PART OF THE SAME BACKFILL, and leaving them out
-   for 27 builds was a real hole rather than an omission of polish. The generated
-   twin carries the tier's gate (gear-tiers.js: every piece → the hero's Level at
-   mat.level, LEVEL_REQ since 2026-10-24), the hand-authored override does not, and the two
-   readers disagree about what that means:
-     · the CLIENT (legacy.js `gearWieldReq`) falls back to `_TIER_WIELD_LV[tier]`
-       when `reqLv` is absent, so it gated these 17 anyway — invisibly, from a
-       second copy of the ladder;
-     · the SERVER (hr_items.req_lv, mirrored by tools/gen-catalogues.mjs) reads
-       ONLY this field, so hr_apply §EQUIPMENT saw NULL and refused nothing.
-   A client-only gate is not a gate (§1: nothing is authored by the client), and
-   `_TIER_WIELD_LV` has no index 8 — so the six hand-authored tier-8 rows below
-   (regent_helm … wyrmgilt_mantle, all tradeable) were ungated on BOTH sides and
-   a level-1 buyer could wear a 120-def platebody straight off the market.
-   Copying the twin's two fields fixes the 17 that HAVE a twin; the other 14 are
-   hand-authored at their own rung beside their stats, since a jewelry or cape id
-   the ladder never generated has no twin to copy from. Game-designer ruling
-   2026-09-12: tier 1/2/3/4/5/6/7/8 → 1/15/30/45/60/75/88/88 (tier 8 shares 88
-   rather than opening a new rung — two shipped tier-8 rows already sit at 82/88
-   and raising it would nerf a live wearer); the requirement names the hero's
-   Level (LEVEL_REQ, Tyler 2026-10-24). `== null` only: a hand-authored gate always wins. */
-Object.keys(GEAR_ITEMS).forEach((id) => {
-  const generated = GEAR_ITEMS[id];
-  const live = ITEMS[id];
-  if (!live || live === generated) return;
-  /* EVERY field of the generated rung the hand-authored row leaves unset (2026-10-21);
-     the row's own values always win. A field-by-field list forgot armourClass (vitals.js
-     reads it: iron plate gave LESS max HP than bronze) and the style fields (plate's
-     rangeAtkB/magicAtkB penalty, leather's rangeAtkB/critB). tests/catalogue-coherence.mjs
-     C8 holds every rung to its line. */
-  for (const k of Object.keys(generated)) {
-    if (live[k] == null && generated[k] != null) live[k] = generated[k];
-  }
-});
 
 /* ══════════════════════════════════════════════════════════════════════
    b220 — foodClassOf(item): the single answer to "what is this food FOR?"

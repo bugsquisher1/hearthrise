@@ -35,14 +35,14 @@
 //       hand-authored rows had no armourClass so vitals.js counted no armour):
 //       C8a every armour row in an ARMOUR_SLOTS slot carries an armourClass with
 //           an armour weight (core-model.js ARMOUR_WEIGHT);
-//       C8b every rung of the crafted ladder (gear-tiers.js GEAR_ITEMS ids, the
-//           hand-authored overrides included) keeps its line's class, and defB
+//       C8b every rung of the crafted ladder (gear-tiers.js GEAR_ITEMS ids, its
+//           LADDER_EXCEPTIONS included) keeps its line's class, and defB
 //           never falls as the tier rises inside a (class, slot);
 //       C8c a full set of tier t of a class gives at least the max HP, max mana
 //           and defence of the tier t-1 set, at tier t's Level (vitals.js).
-//       C8d a hand-authored rung keeps every field its generated rung carries
+//       C8d a live rung keeps every field its generated rung carries
 //           (the line's style fields: plate's rangeAtkB/magicAtkB penalty,
-//           leather's rangeAtkB/critB) — its own values win, a dropped one fails.
+//           leather's rangeAtkB/critB): a dropped one fails.
 //   C9  the start kit's farm plots equal the first property rung's (the Camp's 2;
 //       designer 2026-10-22: the property ladder grants more, the kit never does).
 //   C10 one price per property tier: src/data/shops.js property.<id> sells each tier above
@@ -76,6 +76,13 @@
 //       gold ladders were sold to a hand-made unlock_buy for gold while nothing read the rung):
 //       C14a no SHOP_OFFERS row sits in a cut table (plot, worker) or grants a cut unlock (plot:*, worker, worker_hire);
 //       C14b no gold-ladder rung or ladder row (src/data/gold-ladders.js) names a cut unlock.
+//   C15 an item id has ONE row (architecture audit 2026-11-09, S2: 28 ids were written twice, the tier ladder's rungs
+//       again by hand in items.js and the whetstones in two modules, and the spread order picked; iron_sword read v 130
+//       in one and v 200 in the other):
+//       C15a the sources join with no id named twice (src/data/items.js oneRowPerId over ITEM_SOURCES, which throws);
+//       C15b ITEMS is that join and nothing else: no spread inside the hand-written rows, and no whole row written
+//            into ITEMS after it but the ground packs' fold (which refuses a taken id itself);
+//       C15c no key is typed twice among the hand-written rows (JavaScript keeps the last one and says nothing).
 //
 // THE PENDING LIST is shrink-only. It names the few gaps the audit assigned to
 // OTHER W0 lanes, with the lane. An id that gains a use must be removed from it
@@ -105,6 +112,7 @@ import { START_CURRENCY } from '../src/data/start-kit.js';
 import { PROPERTY_TIERS, ROOM_RUNGS, STORAGE_CHESTS, HELD_HOME_OFFERS } from '../src/data/homestead-tiers.js';
 import { latestBodies, clientRpcNames, serverEntryNames, reachedFunctions } from './_sql-bodies.mjs';
 import { GOLD_LADDER_OFFERS, GOLD_LADDER_UNLOCKS } from '../src/data/gold-ladders.js';
+import { oneRowPerId, ITEM_SOURCES } from '../src/data/items.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 /* C9's start kit: the shipped one, or a planted one (mutate() only; the data is frozen). */
@@ -119,6 +127,8 @@ let BODIES_PLANT = null;
 let DEBT_PLANT = null;
 /* C14b's gold-ladder rungs: the shipped (frozen) ones, or planted ones (mutate() only). */
 let LADDER_PLANT = null;
+/* C15a's sources: the shipped ones, or planted ones (mutate() only). */
+let SOURCES_PLANT = null;
 const realRead = (rel) => readFileSync(join(ROOT, rel), 'utf8');
 
 /* C13: item ids a server function the game reaches still compares the bag against, with no ITEMS row and so no source.
@@ -194,6 +204,59 @@ export const PENDING_CONSUMER = Object.freeze({
 });
 
 const EQUIP_TYPES = { weapon: 1, armor: 1, jewelry: 1, ammo: 1 };
+
+/* C15's reader: the keys of an object literal at its own depth, in order, and how many spreads sit beside them. `at`
+   is the index of the literal's opening brace. Strings, templates and comments are stepped over, so a brace or a colon
+   inside a name or a note is never counted. */
+export function literalKeys(text, at) {
+  const keys = []; let spreads = 0; let depth = 0; let i = at; let fresh = false;
+  while (i < text.length) {
+    const c = text[i]; const two = text.slice(i, i + 2);
+    if (two === '//') { i = text.indexOf('\n', i); if (i < 0) break; continue; }
+    if (two === '/*') { i = text.indexOf('*/', i) + 2; if (i < 2) break; continue; }
+    if (c === "'" || c === '"' || c === '`') {
+      let j = i + 1;
+      while (j < text.length && text[j] !== c) j += text[j] === '\\' ? 2 : 1;
+      if (depth === 1 && fresh && /^\s*:/.test(text.slice(j + 1, j + 40))) keys.push(text.slice(i + 1, j));
+      fresh = false; i = j + 1; continue;
+    }
+    if (c === '{' || c === '[' || c === '(') { depth++; fresh = depth === 1; i++; continue; }
+    if (c === '}' || c === ']' || c === ')') { depth--; if (depth === 0) break; fresh = false; i++; continue; }
+    if (c === ',') { fresh = depth === 1; i++; continue; }
+    if (/\s/.test(c)) { i++; continue; }
+    if (depth === 1 && fresh) {
+      if (text.startsWith('...', i)) { spreads++; fresh = false; i += 3; continue; }
+      const m = /^[A-Za-z_$][\w$]*/.exec(text.slice(i, i + 80));
+      if (m && /^\s*:/.test(text.slice(i + m[0].length, i + m[0].length + 40))) { keys.push(m[0]); fresh = false; i += m[0].length; continue; }
+    }
+    fresh = false; i++;
+  }
+  return { keys, spreads };
+}
+
+/* C15. One row per item id. */
+export function oneRowFails(read = realRead) {
+  const out = [];
+  try { oneRowPerId(SOURCES_PLANT || ITEM_SOURCES); } catch (e) { out.push('C15a ' + e.message); }
+  const file = 'src/data/items.js';
+  const text = read(file);
+  if (!/export const ITEMS = oneRowPerId\(ITEM_SOURCES\);/.test(text)) out.push('C15b ' + file + ': ITEMS is no longer oneRowPerId(ITEM_SOURCES), the join that refuses a second row');
+  const writes = (text.match(/\bITEMS\[[^\]]+\]\s*=(?!=)/g) || []).length;
+  if (writes !== 1) out.push('C15b ' + file + ': ' + writes + ' whole-row write(s) into ITEMS after the join; only the ground packs\' fold writes one');
+  const head = 'const AUTHORED = {';
+  const at = text.indexOf(head);
+  if (at < 0) { out.push('C15b ' + file + ': the hand-written rows (const AUTHORED) are gone'); return out; }
+  const lit = literalKeys(text, at + head.length - 1);
+  if (lit.spreads) out.push('C15b ' + file + ': ' + lit.spreads + ' spread(s) inside the hand-written rows; a source joins through ITEM_SOURCES, where a second row is refused');
+  const seen = new Set(); const twice = new Set();
+  for (const k of lit.keys) { if (seen.has(k)) twice.add(k); seen.add(k); }
+  if (twice.size) out.push('C15c ' + file + ': typed twice among the hand-written rows (the last one silently wins): ' + [...twice].join(', '));
+  /* The reader is held to the module: it must count the rows the module really holds, or it has lost the literal. */
+  const authored = ITEM_SOURCES.find(([where]) => where === 'items.js');
+  const n = authored ? Object.keys(authored[1]).length : -1;
+  if (read === realRead && seen.size !== n) out.push('C15c ' + file + ': the reader counts ' + seen.size + ' hand-written rows and the module holds ' + n);
+  return out;
+}
 
 export function check({ read = realRead, unreachable = UNREACHABLE } = {}) {
   const fails = [];
@@ -289,6 +352,8 @@ export function check({ read = realRead, unreachable = UNREACHABLE } = {}) {
   fails.push(...serverItemFails());
   // C14 — nothing sells a cut capability.
   fails.push(...cutCapabilityFails());
+  // C15 — an item id has one row.
+  fails.push(...oneRowFails(read));
   return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length, pendingSource: Object.keys(PENDING_SOURCE).length, awaiting: AWAITING_ROSTER.length, ...far.counts } };
 }
 
@@ -672,6 +737,19 @@ function mutate() {
     LADDER_PLANT = [...GOLD_LADDER_OFFERS, { offer_id: 'farm_land.1', table_name: 'plot', unlock_id: 'plot:farm_land', value: 1, gold: 100 }];
     return { restore: () => { LADDER_PLANT = null; } };
   });
+
+  /* C15 — one row per item id (audit 2026-11-09 S2). */
+  const itemsText = realRead('src/data/items.js');
+  const readItems = (text) => ({ read: (rel) => (rel === 'src/data/items.js' ? text : realRead(rel)) });
+  const swap = (a, b) => { if (!itemsText.includes(a)) throw new Error('C15 mutant: anchor gone: ' + a); return readItems(itemsText.replace(a, () => b)); };
+  run('a second module writes a rung the tier ladder already holds', 'C15a', () => {
+    SOURCES_PLANT = [...ITEM_SOURCES, ['plant.js', { iron_sword: { n: 'Iron Sword', v: 130 } }]];
+    return { restore: () => { SOURCES_PLANT = null; } };
+  });
+  run('the join goes back to a spread that lets the last row win', 'C15b', () => swap('export const ITEMS = oneRowPerId(ITEM_SOURCES);', 'export const ITEMS = Object.assign({}, ...ITEM_SOURCES.map((s) => s[1]));'));
+  run('a source is spread into the hand-written rows', 'C15b', () => swap('const AUTHORED = {', 'const AUTHORED = {\n  ...GEAR_ITEMS,'));
+  run('a module writes a whole row over a joined one', 'C15b', () => readItems(itemsText + "\nITEMS['iron_sword'] = { n: 'Iron Sword', v: 200 };\n"));
+  run('a hand-written row is typed a second time', 'C15c', () => swap('const AUTHORED = {', "const AUTHORED = {\n  coal:{n:'Coal',v:99},"));
 
   let bad = 0;
   for (const [name, hit] of results) {

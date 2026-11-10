@@ -16,9 +16,9 @@
 //   • The top two tiers are original to Hearthrise: EMBERFORGED and DAWNSTEEL
 //     — the game's own name read as a promise (hearth → ember, rise → dawn).
 //
-// Hand-authored entries in items.js intentionally WIN over anything
-// generated here (they're spread first), so historical ids keep their exact
-// stats and values and old saves stay valid.
+// A rung is written ONCE, here. A rung whose value is not the formula's is a
+// row of LADDER_EXCEPTIONS below, never a second row in items.js: items.js
+// refuses an id it is handed twice (oneRowPerId).
 // ============================================================
 
 /* ── GEAR IS WORN BY LEVEL (Tyler 2026-10-24: "I think all gear should just be hero level"; then "Supplies/runes
@@ -219,6 +219,33 @@ const ARMOUR_LINES = [
     fields: (def, i) => ({ magicAtkB: Math.round(def * 0.6), magicStrB: Math.round(def * 0.4), atkB: -Math.round(def * 0.25), rangeAtkB: -Math.round(def * 0.2) }) },
 ];
 
+/* THE RUNGS THE FORMULA DOES NOT WRITE: id -> the fields that differ from the generated row, and nothing else.
+   Until 2026-11-10 these were whole second rows in items.js that replaced their generated twin (iron_sword read
+   v 130 here and v 200 there, and the spread order picked). The values are the ones the server already held:
+   hr_items is generated from the joined table, so this list changes no number. Each is a designer value: the early
+   Shop pieces keep their Shop book, and no piece sells under its lower-tier twin (drop-tables sale-ladder), so the
+   undropped iron_belt / studded_gloves / boarhide_gloves are lifted to match the outfitter's belt and gloves.
+   An id that is not a rung throws at load. tests/catalogue-coherence.mjs C8 holds every rung to its line. */
+export const LADDER_EXCEPTIONS = Object.freeze({
+  iron_helm:        { icon: '⛑️', v: 150 },
+  steel_helm:       { icon: '⛑️' },
+  iron_platebody:   { icon: '🦺', v: 400 },
+  steel_platebody:  { icon: '🦺' },
+  bronze_belt:      { icon: '🟫', v: 110 },
+  iron_belt:        { v: 110 },
+  leather_boots:    { icon: '🥾' },
+  leather_gloves:   { n: 'Leather Gloves', icon: '🧤', v: 80, atkB: 1 },
+  studded_gloves:   { v: 80 },
+  boarhide_gloves:  { v: 290 },
+  bronze_sword:     { v: 50 },
+  iron_sword:       { v: 200 },
+  steel_sword:      { v: 800 },
+  rune_sword:       { v: 5000 },
+  stone_maul:       { v: 110 },
+  shortbow:         { v: 90 },
+  apprentice_staff: { icon: '🔮', v: 80 },
+});
+
 // ── Generate the gear items ──────────────────────────────────────────
 export const GEAR_ITEMS = (() => {
   const out = {};
@@ -290,6 +317,10 @@ export const GEAR_ITEMS = (() => {
     };
   });
 
+  for (const [id, fields] of Object.entries(LADDER_EXCEPTIONS)) {
+    if (!Object.prototype.hasOwnProperty.call(out, id)) throw new Error('gear-tiers: LADDER_EXCEPTIONS names ' + id + ', which is not a rung');
+    Object.assign(out[id], fields);
+  }
   return out;
 })();
 

@@ -967,7 +967,8 @@
 .mf-drop-use { grid-column: 2 / 4; margin: 0; font-size: var(--t-micro); line-height: 1.4; color: var(--ink-2); }
 /* A creature on a hunt's page opens its page: the figure is pressed whole, and its name is the button a key reaches. */
 .hw-hd-mon[data-hs-goto] { cursor: pointer; }
-.mf-open { border: 0; background: none; font-family: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--ink-3); text-underline-offset: 3px; }
+/* The name clips a long one (overflow hidden), so the underline gets its own room under the line. */
+.mf-open { padding-bottom: 4px; border: 0; background: none; font-family: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 3px; }
 .hw-hd-mon[data-hs-goto]:hover .mf-open { text-decoration-color: var(--gold-2); }
 .mf-open:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {

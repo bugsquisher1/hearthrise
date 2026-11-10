@@ -65,13 +65,15 @@ const homeHtml = () => '<li class="mf-home"><span class="mf-home-go"></span><sma
 const dropHtml = (ctx, d) => '<li class="mf-drop" data-item="' + esc(d.id) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, d.id) + '</span>'
   + '<span class="mf-drop-what"><b class="mf-drop-name"></b><small class="mf-drop-band"></small></span><span class="hw-hd-odds mf-odds"></span><p class="mf-drop-use"></p></li>';
 
-/* A row keyed by a data value ('monster.weak_sword'), or '' when the table has no word for it yet. */
-const keyed = (prefix, key, vars) => (hasText(prefix + key) ? t(prefix + key, vars) : '');
+/* A word keyed by a data value (an element, a share of the spawns, a loot band), or '' when the table has no row for it yet. */
+const elWord = (e) => (hasText('monster.el_' + e) ? t('monster.el_' + e) : '');
+const howWord = (h) => (hasText('monster.how_' + h) ? t('monster.how_' + h) : '');
+const bandWord = (b) => (hasText('monster.band_' + b) ? t('monster.band_' + b) : '');
 
 /* "25% less from Fire and 15% more from Ice", or that it takes every element in full. */
 function takesWords(els) {
   if (!els.length) return t('monster.takes_all');
-  return listWords(els.map((e) => t(e.pct > 0 ? 'monster.el_less' : 'monster.el_more', { pct: Math.abs(e.pct), element: keyed('monster.el_', e.element) })), Infinity);
+  return listWords(els.map((e) => t(e.pct > 0 ? 'monster.el_less' : 'monster.el_more', { pct: Math.abs(e.pct), element: elWord(e.element) })), Infinity);
 }
 
 /* The creature's picture, once per monster; its art is asked for once and the page patched again when it lands. */
@@ -114,7 +116,7 @@ renderMonster.patch = function patchMonster(body, ctx) {
     build: () => element(ctx.doc, homeHtml()),
     patch: (li, h) => {
       patchParts(li.querySelector('.mf-home-go'), [{ words: h.name, target: targetOf({ kind: 'hunt', hunt: h.hunt }) }]);
-      text(li.querySelector('.mf-home-how'), h.band ? t('monster.home', { lo: h.band[0], hi: h.band[1], how: keyed('monster.how_', h.how) }) : keyed('monster.how_', h.how));
+      text(li.querySelector('.mf-home-how'), h.band ? t('monster.home', { lo: h.band[0], hi: h.band[1], how: howWord(h.how) }) : howWord(h.how));
       text(li.querySelector('.mf-home-party'), h.minParty > 1 ? t('monster.home_party', { n: h.minParty }) : '');
     },
   });
@@ -124,8 +126,8 @@ renderMonster.patch = function patchMonster(body, ctx) {
   set('hp', whole(f.hp));
   set('blow', t('monster.blow_value', { min: whole(f.blow.min), max: whole(f.blow.max) }));
   set('swing', t('monster.swing_value', { secs: f.swingMs / 1000 }));
-  set('deals', keyed('monster.el_', f.deals));
-  const weak = f.weak ? keyed('monster.weak_', f.weak.weapon, { pct: f.weak.damagePct, acc: f.weak.accuracyPct }) : '';
+  set('deals', elWord(f.deals));
+  const weak = f.weak && hasText('monster.weak_' + f.weak.weapon) ? t('monster.weak_' + f.weak.weapon, { pct: f.weak.damagePct, acc: f.weak.accuracyPct }) : '';
   set('weak', weak);
   prop(root.querySelector('[data-fact="weak"]').parentElement, 'hidden', !weak);
   set('takes', takesWords(f.elements));
@@ -140,7 +142,7 @@ renderMonster.patch = function patchMonster(body, ctx) {
     build: (d) => element(ctx.doc, dropHtml(ctx, d)),
     patch: (li, d) => {
       text(li.querySelector('.mf-drop-name'), d.name);
-      text(li.querySelector('.mf-drop-band'), keyed('monster.band_', d.band));
+      text(li.querySelector('.mf-drop-band'), bandWord(d.band));
       attr(li, 'data-band', d.band);
       text(li.querySelector('.mf-odds'), chance(d.chance));
       patchParts(li.querySelector('.mf-drop-use'), placesParts(d.uses));

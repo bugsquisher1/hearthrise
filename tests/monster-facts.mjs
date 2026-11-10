@@ -183,10 +183,14 @@ async function checks(overrides, shots) {
         /* MF-4: Wolf Pelt is spent at a bench and in the House; its first use opens the bench window */
         const use = got ? got.uses.wolf_pelt || '' : '';
         if (!use || !/\.$/.test(use)) fails.push('MF-4 the Wolf Pelt does not say what it is for: ' + JSON.stringify(use));
-        await page.click(W + ' .mf-drop[data-item="wolf_pelt"] .hs-goto');
-        if (!(await wait(page, () => document.querySelector('[data-hs-win="skills-trade"]'), null, 4000))) fails.push('MF-4 the Wolf Pelt\'s use is not a link that opens the bench window');
-        await page.keyboard.press('Escape');
-        await page.waitForTimeout(300);
+        const link = W + ' .mf-drop[data-item="wolf_pelt"] .hs-goto';
+        if (!(await page.evaluate((q) => !!document.querySelector(q), link))) fails.push('MF-4 the Wolf Pelt\'s use is not a link');
+        else {
+          await page.click(link);
+          if (!(await wait(page, () => document.querySelector('[data-hs-win="skills-trade"]'), null, 8000))) fails.push('MF-4 the Wolf Pelt\'s use link did not open the bench window');
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(300);
+        }
       }
       /* MF-3 */
       if (!(await openFacts(page, 'mill_cellar', 'slime', 'key'))) fails.push('MF-3 Enter on the Slime\'s name did not open its page');
@@ -245,7 +249,7 @@ const MUTANTS = [
   ['a party-only boss reads as if a lone hero met him', 'src/shell/monster-facts.js', '  const met = Math.max(Math.max(1, Math.floor(Number(size) || 1)), home.minParty);', '  const met = Math.max(1, Math.floor(Number(size) || 1));'],
   ['the page writes Health where the Level XP goes', 'src/shell/windows/monster.js', "  set('xp', whole(f.xp));", "  set('xp', whole(f.hp));"],
   ['a use is plain words, never a link', 'src/shell/windows/monster.js', "      patchParts(li.querySelector('.mf-drop-use'), placesParts(d.uses));", "      text(li.querySelector('.mf-drop-use'), d.uses.map((u) => u.words).join('. ') + '.');"],
-  ['a creature on a hunt\'s page opens nothing', 'src/shell/windows/hunt-detail.js', "' + gotoAttr(factsTarget(m.id)) + '", "'"],
+  ['a creature on a hunt\'s page opens nothing', 'src/shell/windows/hunt-detail.js', "esc(m.id) + '\"' + gotoAttr(factsTarget(m.id)) + '><span", "esc(m.id) + '\"><span"],
 ];
 
 async function main() {

@@ -62,8 +62,10 @@ const at = (table, req) => table.filter(([l]) => l <= req).pop()[1];
 const huntingAt = (req) => at(HUNTING, req);
 const RAW_CAP = (req) => Math.round(at(HUNTING_FOR_RAW, req) * 0.6);
 const CHAIN_CAP = (req) => Math.round(huntingAt(req) * 0.9);
-/* Tier 3 sells at 0.14 of book by the 10-23 ruling, one price per item however it came: these are made to be carried. */
-const TIER_3_USE = Object.freeze({ forge_coppercap_shield: 'the Warrens-tier shield', reforge_steelgrate: 'a Rare Kingsgrate reforged' });
+/* Tier 3 sells at 0.14 of book by the 10-23 ruling and tier 4 at 0.075 (designer 2026-11-08), one price per item however it came: these are
+   made to be carried. */
+const TIER_3_USE = Object.freeze({ forge_coppercap_shield: 'the Warrens-tier shield', reforge_steelgrate: 'a Rare Kingsgrate reforged',
+  forge_mithril_hatchets: 'the tier-4 pair no ground drops', string_maple_crossbow: 'the tier-4 crossbow no ground drops' });
 const SELF_USE = Object.freeze(['bronze_arrows', 'coarse_whetstone', 'chalked_earth_rune', 'chalked_water_rune', 'chalked_fire_rune',
   'chalked_ice_rune', 'chalked_poison_rune', 'chalked_rupture_rune']);
 

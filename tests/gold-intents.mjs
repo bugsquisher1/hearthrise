@@ -583,8 +583,10 @@ async function run(mutate) {
     ok(SALE.buybackRate === 0.5,
       `G1: the server caps buy-back at ${SALE.buybackRate} of the shop price; the ruling (b565) is 0.5`);
     const LB = await import('../src/data/loot-bands.js');
-    ok(JSON.stringify(LB.VENDOR_GEAR_RATES) === '[0.5,0.5,0.14]',
-      `G1: the trader pays worn gear ${JSON.stringify(LB.VENDOR_GEAR_RATES)} of book value by tier; the ruling (Tyler 2026-10-23, loot bands) is [0.5, 0.5, 0.14]`);
+    /* tiers 4-6 joined as one ladder (designer 2026-11-08, lane/b-phase0-tier4): at tier 3's 0.14 the Slake's hourly tier-4 set sold for 57% of its
+       coin and the Pyre Field's tier-5 set for 151%; each tier now sells for about 1.3x its twin */
+    ok(JSON.stringify(LB.VENDOR_GEAR_RATES) === '[0.5,0.5,0.14,0.075,0.033,0.015]',
+      `G1: the trader pays worn gear ${JSON.stringify(LB.VENDOR_GEAR_RATES)} of book value by tier; the ruling (Tyler 2026-10-23, loot bands; tiers 4-6 designer 2026-11-08) is [0.5, 0.5, 0.14, 0.075, 0.033, 0.015]`);
     ok(LB.VENDOR_HOURLY_ARMOR_T2_RATE === 0.3 && JSON.stringify(LB.VENDOR_HOURLY_ARMOR_SLOTS) === '["helmet","body","pants","boots"]',
       `G1: tier 2's hourly armor sells at ${LB.VENDOR_HOURLY_ARMOR_T2_RATE} of book in ${JSON.stringify(LB.VENDOR_HOURLY_ARMOR_SLOTS)}; the ruling (designer 2026-11-03, lane/c-gold-matters) is 0.3 in helmet, body, pants, boots`);
     const { ITEMS } = await import('../src/data/items.js');

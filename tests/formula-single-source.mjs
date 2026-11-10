@@ -9,7 +9,7 @@
 // WHY (architecture audit 2026-11-09, S1; Tyler 2026-11-08: every formula is public, lives in ONE data source,
 // and the wiki renders it from data). The sale formula was typed in the edge, its rates in two layers and a
 // third time in src/data/shops.js, held together by a test that pinned the copies equal. A pin keeps copies
-// equal; it does not make them one. src/data/formulas/index.js is now the registry of every published formula,
+// equal; it does not make them one. src/data/formulas/registry.js is now the registry of every published formula,
 // and this guard is what keeps each row's numbers in one place: the next person who types a rate into the
 // file they happen to be in gets a red build with the file and line.
 //
@@ -36,7 +36,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SCAN_DIRS = ['src', 'supabase/functions', 'tools'];
 const EVALUATOR_DIR = 'src/core/formulas/';
-const REGISTRY = 'src/data/formulas/index.js';
+const REGISTRY = 'src/data/formulas/registry.js';
 /* The numbers an evaluator may type: floors, "at least 1", and permille arithmetic. Anything else is tuning and is a data row. */
 const STRUCTURAL = new Set(['0', '1', '1000']);
 
@@ -169,7 +169,7 @@ export function check({ files, formulas, evaluators, pending = PENDING, ceiling 
 
   /* core-clean */
   for (const [f, t] of code) {
-    if (!f.startsWith(EVALUATOR_DIR) || f.endsWith('/index.js')) continue;
+    if (!f.startsWith(EVALUATOR_DIR) || f.endsWith('/evaluators.js')) continue;
     const s = noStrings(t);
     for (const m of s.matchAll(/(?<![\w$.])\d+(?:\.\d+)?(?![\w$])/g)) {
       if (!STRUCTURAL.has(m[0])) say('core-clean', f + ':' + lineOf(s, m.index) + ' types ' + m[0] + '. An evaluator reads its numbers from src/data');
@@ -213,8 +213,8 @@ const ROW_MUTANTS = [
 ];
 
 async function load() {
-  const { FORMULAS } = await import('../src/data/formulas/index.js');
-  const { EVALUATORS } = await import('../src/core/formulas/index.js');
+  const { FORMULAS } = await import('../src/data/formulas/registry.js');
+  const { EVALUATORS } = await import('../src/core/formulas/evaluators.js');
   return { files: readTree(), formulas: FORMULAS, evaluators: EVALUATORS };
 }
 

@@ -68,7 +68,7 @@ const STEPS = [
   ['node', ['tests/platform-seam.mjs']],
   ['node', ['tests/window-globals-exist.mjs']],
   ['node', ['tests/token-single-source.mjs']],
-  // One home for a formula's numbers (src/data/formulas/index.js). About a second.
+  // One home for a formula's numbers (src/data/formulas/registry.js). About a second.
   ['node', ['tests/formula-single-source.mjs']],
   ['node', ['tests/css-literal-ratchet.mjs']],
   ['node', ['tests/breakpoint-guard.mjs']],

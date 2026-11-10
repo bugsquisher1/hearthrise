@@ -4998,7 +4998,7 @@ jobs:
 
       # ONE HOME FOR A FORMULA'S NUMBERS (lane/b-formula-home, 2026-11-10; audit
       # 2026-11-09 S1; Tyler 2026-11-08: formulas are public and live in one data
-      # source). src/data/formulas/index.js is the registry the wiki will read.
+      # source). src/data/formulas/registry.js is the registry the wiki will read.
       # This holds every row to it: its constants are exported once, from src/data,
       # nothing else types them, the edge and the tools call the one evaluator, and
       # the list of known copies that wait for another lane only shrinks. Static,

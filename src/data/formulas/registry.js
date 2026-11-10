@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/data/formulas/index.js — THE FORMULA REGISTRY: one row per formula the game publishes.
+// src/data/formulas/registry.js — THE FORMULA REGISTRY: one row per formula the game publishes.
 //
 // Tyler 2026-11-08: "I do plan on being transparent about the damage and other formulas for our systems in an
 // in game wiki". Every formula lives in ONE data source, carries no hidden case, and the wiki renders it from
@@ -16,7 +16,7 @@
 //   keys       (optional) the row's own key names inside a constant, when they are distinctive enough to police
 //              the same way (`rawRate`); a common word (`base`, `perLevel`) is not listed
 //   retired    names the numbers used to carry in code. Nothing may give one a number again.
-//   evaluator  'file function': the ONE pure function that computes it (src/core/formulas/index.js EVALUATORS
+//   evaluator  'file function': the ONE pure function that computes it (src/core/formulas/evaluators.js EVALUATORS
 //              binds the id to it; data never imports core)
 //   readers    `file: function`: who must CALL the evaluator instead of working the number out again
 //

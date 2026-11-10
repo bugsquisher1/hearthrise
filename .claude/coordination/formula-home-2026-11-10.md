@@ -55,10 +55,10 @@ F11 is not a home problem: shop prices are already rows a generator reads. The g
 **One rule.** A formula's numbers live in exactly one `src/data` module. `src/core`, the edge, the tools and SQL hold none: core evaluates, the generators copy rows into SQL, the edge and the client import the same core function.
 
 **Layout.**
-- `src/data/formulas/index.js`: THE REGISTRY, one row per published formula: `{ id, title, says, expr, params, where, evaluator }`. `params` are live references to the frozen data rows (never retyped), `expr` is the expression in the wiki's words, `where` names the one module that holds the numbers, `evaluator` names the core function.
+- `src/data/formulas/registry.js`: THE REGISTRY, one row per published formula: `{ id, title, says, expr, params, where, evaluator }`. `params` are live references to the frozen data rows (never retyped), `expr` is the expression in the wiki's words, `where` names the one module that holds the numbers, `evaluator` names the core function.
 - `src/data/formulas/<system>.js`: rows for formulas with no data home today (`sale.js` now, `combat.js` and `drops.js` after area spells).
 - Systems that already have one data home keep it (`core-model.js`, `blessings.js`, `stamina-refill.js`, `scaled-hunts.js`, `temper.js`, `bench-tax.js`, `party-class-xp.js`, `balance-sheet.js`). The registry points at them. Moving twelve working modules would re-aim hundreds of imports and mutant anchors and change no number.
-- `src/core/formulas/<system>.js`: evaluators that live in the wrong layer today (the edge's sale price, the tool's shop price rule, the client's regen line). `src/core/formulas/index.js` binds each registry id to its function (`EVALUATORS`), so data never imports core.
+- `src/core/formulas/<system>.js`: evaluators that live in the wrong layer today (the edge's sale price, the tool's shop price rule, the client's regen line). `src/core/formulas/evaluators.js` binds each registry id to its function (`EVALUATORS`), so data never imports core.
 - Both trees are dual-runtime: `?v=` imports under `src/`, none outside (`versionQueryGuard`), pure (`core-purity`), packed into the edge by `pack-edge`.
 
 **Authority.** The server computes. The client calls an evaluator only to draw a number the envelope also carries or the server will re-prove. No evaluator output is ever sent as an intent value.
@@ -67,7 +67,7 @@ F11 is not a home problem: shop prices are already rows a generator reads. The g
 
 **Same numbers.** `tools/qa/same-numbers.mjs` prints one digest per formula over a fixed grid (every item's sale price, vitals for Levels 1-300 x armor, curve totals, death and blessing and refill prices) plus a combat digest of real `accrueHunt` plays. A slice runs it before and after. Generated SQL must be byte-identical (`git diff --stat supabase/migrations` empty, each `--check` exit 0). The pack-edge hash is stated.
 
-**The wiki.** It imports `src/data/formulas/index.js` only. Each page is a row: `title`, `says`, `expr`, and a table of `params` read live, so a designer's edit shows up with no wiki edit. A calculator ("your hero") calls `EVALUATORS[id]`, the function the engine runs. Per-ground exceptions (F3) are rows too.
+**The wiki.** It imports `src/data/formulas/registry.js` only. Each page is a row: `title`, `says`, `expr`, and a table of `params` read live, so a designer's edit shows up with no wiki edit. A calculator ("your hero") calls `EVALUATORS[id]`, the function the engine runs. Per-ground exceptions (F3) are rows too.
 
 ## 3. Slices
 

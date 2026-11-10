@@ -15,7 +15,7 @@
 //
 // The gear ladder (what worn gear sells for by tier) is the loot bands' own row, src/data/loot-bands.js
 // VENDOR_GEAR_RATES. The formula that reads all of them is src/core/formulas/sale.js salePriceOf; its public row
-// is `sale.price` in ./index.js. BALANCE numbers: the Game Designer's.
+// is `sale.price` in ./registry.js. BALANCE numbers: the Game Designer's.
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════

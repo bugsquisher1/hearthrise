@@ -1,8 +1,8 @@
 // ============================================================
-// src/core/formulas/index.js — THE EVALUATORS: each published formula's id bound to the one pure function
+// src/core/formulas/evaluators.js — THE EVALUATORS: each published formula's id bound to the one pure function
 // that computes it.
 //
-// The rows (what the wiki prints) are src/data/formulas/index.js FORMULAS; this is the other half, kept in core
+// The rows (what the wiki prints) are src/data/formulas/registry.js FORMULAS; this is the other half, kept in core
 // so data never imports core. A wiki calculator ("what does my hero get") calls EVALUATORS[id], which is the
 // function the engine, the edge and the SQL generators run: the page cannot disagree with the game.
 // tests/formula-single-source.mjs holds the two files to each other (every row has a function, every function

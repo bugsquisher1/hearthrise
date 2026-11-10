@@ -154,7 +154,10 @@ const ACCEPTED = [
   ['hr_block_set', "select public.hr_block_set('Nobody By That Name', true)"],
   ['hr_inspect', "select public.hr_inspect('Nobody By That Name', 0)"],
 ];
-const scrub = (v) => JSON.stringify(v, (k, x) => (typeof x === 'string' && /^\d{4}-\d\d-\d\dT/.test(x) ? 'T' : x));
+/* The two asks are seconds apart (the file applies between them): a clock the answer carries is not a difference. A
+   timestamp reads 'T', and so does a number within a day of now in epoch milliseconds (hr_town_sinks_view's now_ms). */
+const scrub = (v) => JSON.stringify(v, (k, x) => ((typeof x === 'string' && /^\d{4}-\d\d-\d\dT/.test(x))
+  || (typeof x === 'number' && Math.abs(x - Date.now()) < 86400000) ? 'T' : x));
 async function acceptedPath() {
   const fails = [];
   const { db } = await bootReplay({ upTo: PREV });

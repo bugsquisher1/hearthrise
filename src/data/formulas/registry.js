@@ -34,7 +34,7 @@ import { SALE } from './sale.js?v=0.2.114';
 import {
   VENDOR_GEAR_RATES, VENDOR_GEAR_TYPES, VENDOR_HOURLY_ARMOR_SLOTS, VENDOR_HOURLY_ARMOR_T2_RATE,
 } from '../loot-bands.js?v=0.2.114';
-import { VITALS, ARMOUR_SLOTS, FLAME_REGEN } from '../core-model.js?v=0.2.114';
+import { VITALS, ARMOUR_SLOTS, FLAME_REGEN, LEVEL_CURVE, SKILL_CURVE, CAPPED_CURVE } from '../core-model.js?v=0.2.114';
 import { HUNT_TUNING } from '../hunt-tuning.js?v=0.2.114';
 
 const row = (r) => Object.freeze({ ...r, expr: Object.freeze(r.expr), params: Object.freeze(r.params), consts: Object.freeze(r.consts),
@@ -110,6 +110,45 @@ export const FORMULAS = Object.freeze([
     consts: { 'src/data/core-model.js': ['VITALS', 'FLAME_REGEN'], 'src/data/hunt-tuning.js': ['HUNT_TUNING'] },
     keys: ['inFightRegenPermillePerS', 'oocRegenPermillePerS'],
     evaluator: 'src/core/vitals.js regenPermille',
+  }),
+
+  /* ── THE CURVES (numbers: core-model.js; the server's hr_level_curve is generated from LEVEL_CURVE by tools/gen-level-curve.mjs) ── */
+  row({
+    id: 'level.curve',
+    title: 'Level XP',
+    expr: [
+      'the step from a Level to the next costs first + rise x m + bend x m x m XP',
+      'm = how many Levels past the start of its bracket (from) the Level is',
+      'first is the curve\'s own for the first bracket, and for each later one the step the bracket before it would have charged next',
+      'the last bracket runs forever',
+    ],
+    params: { first: LEVEL_CURVE.first, brackets: LEVEL_CURVE.brackets },
+    consts: { 'src/data/core-model.js': ['LEVEL_CURVE'] },
+    evaluator: 'src/core/xp.js charXpForLevel',
+  }),
+  row({
+    id: 'skill.combat_curve',
+    title: 'Melee, Ranged, Magic, Defense and Inner Flame XP',
+    expr: [
+      'the step from a level to the next costs base x level x level x (1 + growthPermille / 1000) to the power (level - 1), rounded down',
+      'no cap',
+    ],
+    params: { base: SKILL_CURVE.base, growthPermille: SKILL_CURVE.growthPermille },
+    consts: { 'src/data/core-model.js': ['SKILL_CURVE'] },
+    keys: ['growthPermille'],
+    evaluator: 'src/core/xp.js skillXpForLevel',
+  }),
+  row({
+    id: 'skill.capped_curve',
+    title: 'Gathering and crafting XP',
+    expr: [
+      'the total XP that reaches a level is that level\'s row in totals (level 1 is the first row)',
+      'the last level is maxLevel',
+    ],
+    params: { maxLevel: CAPPED_CURVE.maxLevel, totals: CAPPED_CURVE.totals },
+    consts: { 'src/data/core-model.js': ['CAPPED_CURVE'] },
+    retired: ['XP_TABLE'],
+    evaluator: 'src/core/xp.js xpForLevel',
   }),
 ]);
 

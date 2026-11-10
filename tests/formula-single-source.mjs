@@ -198,6 +198,8 @@ const MUTANTS = [
     find: 'export function salePriceOf(item, shopUnit) {', repl: 'export function priceOfSale(item, shopUnit) {' },
   { name: 'core types max HP from its own numbers', rule: 'typed-again', file: 'src/core/vitals.js',
     find: 'export function maxHpFor(level, heavy) {', repl: 'const own = { hpBase: 150, hpPerLevel: 10 };\nexport function maxHpFor(level, heavy) {' },
+  { name: 'core types the capped XP table again', rule: 'typed-again', file: 'src/core/xp.js',
+    find: 'const XP_TABLE = CAPPED_CURVE.totals;', repl: 'const XP_TABLE = [0, 83, 174];' },
   { name: 'a pending copy is deleted and stays listed', rule: 'pending', file: 'src/data/shops.js',
     find: '      "VENDOR_RAW_RATE": 0.2,\n', repl: '' },
 ];

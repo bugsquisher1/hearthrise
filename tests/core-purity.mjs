@@ -206,7 +206,8 @@ export async function coreAnchorGuard() {
   const load = (n) => import(pathToFileURL(join(CORE_DIR, n)).href);
   try {
     const xp = await load('xp.js');
-    if (xp.XP_TABLE.length !== 99) problems.push(`XP_TABLE has ${xp.XP_TABLE.length} entries, expected 99`);
+    const { CAPPED_CURVE } = await import('../src/data/core-model.js');
+    if (CAPPED_CURVE.totals.length !== 99 || xp.MAX_LEVEL !== 99) problems.push(`CAPPED_CURVE has ${CAPPED_CURVE.totals.length} rows and xp.js caps at ${xp.MAX_LEVEL}, expected 99 and 99`);
     const anchors = [[0, 1], [82, 1], [83, 2], [13034430, 98], [13034431, 99], [99999999, 99]];
     for (const [x, lv] of anchors) {
       if (xp.levelFromXp(x) !== lv) problems.push(`levelFromXp(${x}) = ${xp.levelFromXp(x)}, expected ${lv}`);

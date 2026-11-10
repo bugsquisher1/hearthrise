@@ -16,10 +16,14 @@
 
 import { salePriceOf } from './sale.js?v=0.2.114';
 import { maxHpFor, maxManaFor, regenPermille } from '../vitals.js?v=0.2.114';
+import { charXpForLevel, skillXpForLevel, xpForLevel } from '../xp.js?v=0.2.114';
 
 export const EVALUATORS = Object.freeze({
   'sale.price': salePriceOf,
   'vitals.max_hp': maxHpFor,
   'vitals.max_mana': maxManaFor,
   'vitals.regen': regenPermille,
+  'level.curve': charXpForLevel,
+  'skill.combat_curve': skillXpForLevel,
+  'skill.capped_curve': xpForLevel,
 });

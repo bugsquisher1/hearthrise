@@ -5,7 +5,7 @@
 //
 // Level comes from kills only and is endless; Melee, Ranged, Magic, Defense and
 // Inner Flame train by use with no cap; gathering and crafting skills cap at 99
-// (src/core/xp.js owns every curve; the server twins are pinned to these rows
+// (src/core/xp.js evaluates every curve; the server twins are pinned to these rows
 // by tests/core-curves.mjs). Every number here is ONE data constant, so a
 // ruling is a data edit, never a code change.
 //
@@ -107,6 +107,24 @@ export const LEVEL_PACE = Object.freeze({
    the power walked in exact integers (src/core/xp.js), so the browser, the edge
    and Postgres agree to the unit. No cap. */
 export const SKILL_CURVE = Object.freeze({ base: 15, growthPermille: 40 });
+
+/* THE CAPPED SKILL CURVE: gathering and crafting skills, 99 levels. totals[i] is the total XP that reaches level i + 1 (level 1 is 0).
+   The one copy of the table since 2026-11-10 (lane/b-formula-home; until then it was typed in src/core/xp.js). b215: the level-98 row
+   (11,805,606) was missing for a long time, which capped the curve at 98. The server's twin is hr_xp_table (2026-08-11-player-state.sql),
+   held equal by tests/core-curves.mjs; it has no generator yet. */
+export const CAPPED_CURVE = Object.freeze({
+  maxLevel: 99,
+  totals: Object.freeze([
+  0, 83, 174, 276, 388, 512, 650, 801, 969, 1154, 1358, 1584, 1833, 2107, 2411, 2746, 3115, 3523,
+  3973, 4470, 5018, 5624, 6291, 7028, 7842, 8740, 9730, 10824, 12031, 13363, 14833, 16456, 18247,
+  20224, 22406, 24815, 27473, 30408, 33648, 37224, 41171, 45529, 50339, 55649, 61512, 67983, 75127,
+  83014, 91721, 101333, 111945, 123660, 136594, 150872, 166636, 184040, 203254, 224466, 247886,
+  273742, 302288, 333804, 368599, 407015, 449428, 496254, 547953, 605032, 668051, 737627, 814445,
+  899257, 992895, 1096278, 1210421, 1336443, 1475581, 1629200, 1798808, 1986068, 2192818, 2421087,
+  2673114, 2951373, 3258594, 3597792, 3972294, 4385776, 4842295, 5346332, 5902831, 6517253, 7195629,
+  7944614, 8771558, 9684577, 10692629, 11805606, 13034431,
+  ]),
+});
 
 /* VITALS FROM LEVEL AND ARMOUR WEIGHT (Q3; the armour shares are Tyler's:
    heavy up to +28% HP, light up to +35% mana, blended by the share of armour

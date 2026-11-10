@@ -2,8 +2,8 @@
 // src/core/xp.js — EVERY XP CURVE and every level derived from one
 // (docs/design/CORE_MODEL.md §2).
 //
-//   XP_TABLE / levelFromXp / xpForLevel   the CAPPED curve: gathering and
-//                       crafting skills, 99 levels.
+//   levelFromXp / xpForLevel   the CAPPED curve: gathering and crafting skills,
+//                       99 levels (src/data/core-model.js CAPPED_CURVE).
 //   skill curve         Melee, Ranged, Magic, Defense, Inner Flame: no cap
 //                       (src/data/core-model.js SKILL_CURVE), whole XP.
 //   Level curve         the character's Level, from kills only, endless
@@ -15,25 +15,18 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { LEVEL_CURVE, SKILL_CURVE } from '../data/core-model.js?v=0.2.114';
+import { LEVEL_CURVE, SKILL_CURVE, CAPPED_CURVE } from '../data/core-model.js?v=0.2.114';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.114';
 
-/* Threshold XP for level i+1. b215: the level-98 threshold (11,805,606)
-   was missing for a long time, which capped levelFromXp at 98 and made
-   the skill header read "/ NaN" at the top of the curve. 99 entries. */
-export const XP_TABLE = [
-  0, 83, 174, 276, 388, 512, 650, 801, 969, 1154, 1358, 1584, 1833, 2107, 2411, 2746, 3115, 3523,
-  3973, 4470, 5018, 5624, 6291, 7028, 7842, 8740, 9730, 10824, 12031, 13363, 14833, 16456, 18247,
-  20224, 22406, 24815, 27473, 30408, 33648, 37224, 41171, 45529, 50339, 55649, 61512, 67983, 75127,
-  83014, 91721, 101333, 111945, 123660, 136594, 150872, 166636, 184040, 203254, 224466, 247886,
-  273742, 302288, 333804, 368599, 407015, 449428, 496254, 547953, 605032, 668051, 737627, 814445,
-  899257, 992895, 1096278, 1210421, 1336443, 1475581, 1629200, 1798808, 1986068, 2192818, 2421087,
-  2673114, 2951373, 3258594, 3597792, 3972294, 4385776, 4842295, 5346332, 5902831, 6517253, 7195629,
-  7944614, 8771558, 9684577, 10692629, 11805606, 13034431,
-];
+/* The capped curve's table is data (src/data/core-model.js CAPPED_CURVE, moved out of this file 2026-11-10, lane/b-formula-home):
+   totals[i] is the total XP that reaches level i + 1. A table that does not hold one row a level throws here, at load. */
+const XP_TABLE = CAPPED_CURVE.totals;
+if (!Array.isArray(XP_TABLE) || XP_TABLE.length !== CAPPED_CURVE.maxLevel || XP_TABLE[0] !== 0 || XP_TABLE.some((v, i) => !Number.isSafeInteger(v) || (i > 0 && v <= XP_TABLE[i - 1]))) {
+  throw new Error('CAPPED_CURVE: totals must be ' + CAPPED_CURVE.maxLevel + ' rising whole numbers starting at 0');
+}
 
 /* The cap of a CAPPED skill (gathering and crafting); the combat skills have none. */
-export const MAX_LEVEL = 99;
+export const MAX_LEVEL = CAPPED_CURVE.maxLevel;
 
 export function levelFromXp(xp) {
   for (let i = XP_TABLE.length - 1; i >= 0; i--) if (xp >= XP_TABLE[i]) return Math.min(i + 1, MAX_LEVEL);

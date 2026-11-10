@@ -7,7 +7,7 @@
 //          the Great Hearth in Havora's square, src/data/hearth.js)
 //          (src/core/xp.js skill curve). There is no Hitpoints, Attack or
 //          Strength skill.
-// gather / artisan   capped at 99 (src/core/xp.js XP_TABLE).
+// gather / artisan   capped at 99 (src/data/core-model.js CAPPED_CURVE).
 //
 // LEVEL IS NOT A SKILL: it comes from kills only and lives in
 // player_state.level_xp (src/core/xp.js charLevelFromXp), so no skill list,

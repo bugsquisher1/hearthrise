@@ -1,0 +1,14 @@
+{
+  "_generated_by": "node tests/client-module-size.mjs --write",
+  "_note": "World and edge modules over 600 lines on 2026-11-10, each at its size as its ceiling. A ceiling only falls; a new file gets none.",
+  "ceilings": {
+    "src/world/render/canvas-backend.js": 645,
+    "supabase/functions/hr-accrue/accrual.js": 2795,
+    "supabase/functions/hr-accrue/hunt-settle.js": 697,
+    "supabase/functions/hr-accrue/index.ts": 1473,
+    "supabase/functions/hr-accrue/intents.js": 1391,
+    "supabase/functions/hr-accrue/request.js": 717,
+    "supabase/functions/hr-accrue/set-activity.js": 899,
+    "supabase/functions/hr-accrue/tick.js": 1384
+  }
+}

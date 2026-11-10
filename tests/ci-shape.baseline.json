@@ -135,6 +135,8 @@
     "node tools/mutant-gate.mjs node tests/live-hash-drift.mjs --mutate": "db-replay-2",
     "node tests/apply-order-honesty.mjs": "db-replay-2",
     "node tools/mutant-gate.mjs node tests/apply-order-honesty.mjs --selftest": "db-replay-2",
+    "node tests/run-sql-tests.mjs": "db-replay-2",
+    "node tools/mutant-gate.mjs node tests/run-sql-tests.mjs --selftest": "db-replay-2",
     "node tests/readonly-rpc.mjs": "db-replay-2",
     "node tools/mutant-gate.mjs node tests/readonly-rpc.mjs --selftest": "db-replay-2",
     "node tools/mutant-gate.mjs node tests/readonly-rpc.mjs --mutate": "db-replay-2",

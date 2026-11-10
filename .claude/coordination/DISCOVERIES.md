@@ -4,6 +4,16 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-10 · qa-engineer (lane/a-sql-tests-red) · `tests/run-sql-tests.mjs` was red on main (77) and ran in no job
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P2 process · the server tier's static lints ran in NO CI job (guard-hygiene counted the file "reached" because `tests/live-settlement.mjs` READS it). 77 fails since 2026-10-27, reported "pre-existing" by four lanes. 56 were the lint behind the schema, 21 were 11 real findings (rows 2, 3). | `tests/run-sql-tests.mjs`, `.github/workflows/smoke.yml` | Done: lints updated with 12 planted defects (`--selftest`), registered in smoke.yml. Real findings are pinned by name in `OPEN_SERVER_FINDINGS` (printed every run; a stale pin fails). |
+| 2 | P3 server · a rate-limited call returns `rate_limited` and writes no `hr_rejections` row (C2), so `vitals --refusals` cannot see chat spam, scraping or a hammered gold sink. The lint reads 10 (hr_chat_send, hr_whisper_send, hr_inspect, hr_town_walkers in `2026-10-27-core-bodies.sql:4867-4972` and `2027-03-13-gm-tools.sql:505-550`). At chain end it is 26 direct `hr_rate_ok` refusals of 56, incl. the gold verbs hr_crier_send, hr_hearth_burn, hr_town_works_give. `hr_rpc_gate` callers record; direct `hr_rate_ok` callers since 2026-10-25 do not. | chat, social, town, gold sinks | backend-architect: one migration that records and samples them (the `hr_apply` shape, core-bodies:625-643), then delete the pins. Not written here. |
+| 3 | P4 server · `clan_contribute__ungated(uuid,bigint,integer)` is executable by `service_role`: `2026-08-27-clan-economy-sinks.sql:376` revoked only public, anon, authenticated; `2026-12-15-account-gold.sql:3792` restates that grant. No player key reaches it (clan doors closed, service key server-only). | grants | security-engineer, Early Access review: revoke it. Pinned. |
+| 4 | For the EA Security review · `level_xp` (ranked Level XP) is an hr_apply delta key with a per-call clamp, a hunt-only gate and a kills x per-kill-XP bound, but no `*_in` ledger column and no daily dimension. Classified 'bounded' in DELTA_KEY_CLASS with that said. | `2026-10-27-core-bodies.sql:930-945, 2845` | security-engineer decides whether a ranked key wants a daily ceiling. |
+| 5 | P2 coverage · run-sql-tests reads a hand-kept file list: 286 of the 385 migrations that create a public function are not on it (157 dated 2026-10-25 or later), so its grant and rate lints never see them. The replay's `hr_assert_grant_hygiene` covers ACLs; nothing covers row 2 for them. | `ALSO_LINTED` | A follow-up lane: read the whole apply order, pin what surfaces. Not done here (it will surface findings in files this lane did not read). |
+
 ## 2026-11-09 · qa-engineer (lane/a-aw-harness-step) · the Equip upgrades mutant's HARNESS in alpha-windows (tests only)
 
 | # | Found | Affected | Action |

@@ -87,7 +87,7 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));
   const details = el.querySelector('[data-hs-act="details"]');
   prop(details, 'hidden', over);
-  attr(details, 'aria-pressed', String(!!ctx.hud && ctx.hud.isShown('analyzer')));
+  attr(details, 'aria-pressed', String(analyzerOpen(ctx)));
   prop(el.querySelector('.ht-clock'), 'hidden', over);
   /* The tutorial card hangs UNDER this bar while a hunt is open (the launcher's would cover Leave hunt). */
   /* Nothing while the leave runs: "Cash in, leave the hunt" popped up during its countdown (the panel 2026-10-31). */
@@ -96,12 +96,24 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   placeCoach(el, callOfHunt(h && h.huntId) && !over ? '' : html);
 };
 
+/** Hunt details is pressed while the analyzer shows open: shown, and not folded to its title. */
+function analyzerOpen(ctx) {
+  return !!ctx.hud && ctx.hud.isShown('analyzer') && !ctx.hud.layoutOf('analyzer').folded;
+}
+
 renderHuntTopbar.act = async function actHuntTopbar(ctx, el, action, ev, btn) {
   if (actCoach(ctx, el, action, ev)) return;
   if (ev.type !== 'click') return;
   if (action === 'summary') { ctx.show('hunt-summary'); return; }
-  /* A TOGGLE (QA phone playtest 10-24: one press showed the analyzer over the bar for good): shows it, or hides it. */
-  if (action === 'details') { ctx.hud.setVisible('analyzer', !ctx.hud.isShown('analyzer')); return; }
+  /* A TOGGLE (QA phone playtest 10-24: one press showed the analyzer over the bar for good): shows it, or hides it.
+     A folded analyzer (it starts so below --hud-fold-below) opens on the press: hiding its title would read as nothing happening. */
+  if (action === 'details') {
+    const hud = ctx.hud;
+    if (analyzerOpen(ctx)) { hud.setVisible('analyzer', false); return; }
+    if (!hud.isShown('analyzer')) hud.setVisible('analyzer', true);
+    if (hud.layoutOf('analyzer').folded) hud.setFolded('analyzer', false);
+    return;
+  }
   if (action !== 'leave' || btn.hasAttribute('data-pending') || btn.hasAttribute('data-leaving')) return;
   track('leave_hunt_clicked');
   attr(btn, 'data-pending', true);

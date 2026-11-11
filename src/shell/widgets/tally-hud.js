@@ -21,7 +21,7 @@ import { foldButtonHtml } from '../widget-move.js?v=0.2.122';
 export function renderTallyHud() {
   return '<section class="hs-tally" aria-label="Your tallies"><div class="hs-tally-head">'
     + '<button type="button" class="hs-tally-open" data-hs-act="tally-open" data-hs-wdrag title="Open the Tally (drag to move)">'
-    + '<b>Tally</b><span class="hs-tally-none"></span></button>' + foldButtonHtml('Tally') + '</div><ul class="hs-tally-list"></ul></section>';
+    + '<b>Tally</b><span class="hs-tally-sum"></span><span class="hs-tally-none"></span></button>' + foldButtonHtml('Tally') + '</div><ul class="hs-tally-list"></ul></section>';
 }
 
 renderTallyHud.patch = function patchTallyHud(el, ctx) {
@@ -36,6 +36,9 @@ renderTallyHud.patch = function patchTallyHud(el, ctx) {
   const met = !!t && (!!t.weight || t.recent.length > 0);
   cls(el, 'is-quiet', !t || (!held.length && (hunting || !met)));
   text(el.querySelector('.hs-tally-none'), !t || held.length ? '' : 'Tamsin has kill tasks at her board in ' + TALLY_KEEPER.board + '.');
+  /* Folded (it starts so below --hud-fold-below), the title keeps the first open task's server count: "Tally 17/25". */
+  const lead = held.find((x) => !x.done);
+  text(el.querySelector('.hs-tally-sum'), lead ? lead.kills + '/' + lead.target : held.length ? 'Done' : '');
   rows(el.querySelector('.hs-tally-list'), held, {
     key: (x) => x.task,
     build: () => element(ctx.doc, '<li class="hs-tally-row"><span></span><span class="ht-stick" aria-hidden="true"><i></i></span><small class="hs-tally-wait"></small></li>'),

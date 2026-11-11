@@ -127,23 +127,24 @@ export const WEAPON_FAMILIES = [
   /* THE STYLE LADDER (designer 2026-10-22, src/data/style-gear.js). Dual axes (bleed) and the crossbow had no
      rung above the practice kit. A `null` id is a rung the PRACTICE KIT holds (tier 1: the practice
      weapon), so no tier-1 copy of it is generated. A rung ships only with a source: tier 2 is made (style-gear.js),
-     tier 3 a Warrens Rare (the loot bands, 2026-10-23). Hatchets: a pair, two-handed, even accuracy and damage
+     tier 3 a Warrens Rare (the loot bands, 2026-10-23), tier 4 made at Smithing or Crafting 45 (lane/b-phase0-tier4). Hatchets: a pair, two-handed, even accuracy and damage
      (the practice pair's 4/4 shape). Crossbow: a little less accuracy and a little more damage than the
      bow of its tier (the practice crossbow's 4/4 against the bow's 5/3). */
   {
     key: 'hatchets', label: 'Hatchets', weaponType: 'axe', skill: 'smithing', mat: 'bar', twoHanded: true,
-    /* tiers 2 and 3 as the warhammer's note above; the pair stays about even */
-    atk: [4, 9, 14, 18, 25, 33, 42], str: [4, 11, 14, 16, 22, 29, 38],
+    /* tiers 2 to 4 as the warhammer's note above; the pair stays about even. Tier 4's 18/16 -> 19/21 (lane/b-phase0-tier4): at 18/16 the
+       made Mithril pair paid +2.7% over the Steel at Level 45 in the Warrens (first-week-bands weapon-rungs, the bar is +5%) */
+    atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 14, 21, 22, 29, 38],
     vmul: 100,
-    names: [null, 'Iron Hatchets', 'Steel Hatchets'],
-    ids:   [null, 'iron_hatchets', 'steel_hatchets'],
+    names: [null, 'Iron Hatchets', 'Steel Hatchets', 'Mithril Hatchets'],
+    ids:   [null, 'iron_hatchets', 'steel_hatchets', 'mithril_hatchets'],
   },
   {
     key: 'crossbow', label: 'Crossbow', weaponType: 'ranged', skill: 'crafting', mat: 'plank',   // wood-named, as the bow line is
     atk: [4, 8, 13, 19, 26, 34, 43], str: [4, 7, 11, 16, 22, 29, 37],
     vmul: 100,
-    names: [null, 'Oak Crossbow', 'Willow Crossbow'],
-    ids:   [null, 'oak_crossbow', 'willow_crossbow'],
+    names: [null, 'Oak Crossbow', 'Willow Crossbow', 'Maple Crossbow'],
+    ids:   [null, 'oak_crossbow', 'willow_crossbow', 'maple_crossbow'],
   },
 ];
 

@@ -17,9 +17,10 @@
 // THE ARMS
 //   SB-0  index.ts's accrue read takes its state from hr_accrue_read (2027-02-10-settle-reads.sql): the statement
 //         tools/settle-cost.mjs restates and runs is the one index.ts sends.
-//   SB-1  hr_state_of <= 16 calls over the 3 settles (5.33 a settle: the 1.33 live asks' early answers, the commit's
-//         projection, one frame for each of the 3 other members). Was 23 (7.67) before the lane: every hello built the
-//         hunter's whole envelope first and dropped it. CONTROL: 9 frames pushed and 4 early asks answered.
+//   SB-1  hr_state_of <= 12 calls over the 3 settles (4 a settle: the commit's projection and one frame for each of the
+//         3 other members). Was 16 until lane/c-watched-settle-cost (2026-11-10): each of the 1.33 live asks under the
+//         floor rebuilt the character its client already held (the ask now names that version, hunt-settle.js). Was 23
+//         before lane/c-settle-cost-2. CONTROL: 9 frames pushed and 4 early asks answered.
 //   SB-2  ONE hr_hunt_weapon_of a role read: hr_hunt_role_of and hr_role_view, called for every hero with index scans
 //         OFF (the plan PostgreSQL 17 gives the 12-row hr_hunt_weapon_roles, and why a watched settle called it 414
 //         times there), read the worn weapon once each, not once per row their filter scans. PGlite's planner probes the
@@ -38,7 +39,7 @@ import { isMain } from './_is-main.mjs';
 import { ROOT } from './schema-replay.mjs';
 
 const WINDOWS = 3;
-export const BUDGET = Object.freeze({ stateOf: 16, frames: 9, asks: 4 });
+export const BUDGET = Object.freeze({ stateOf: 12, frames: 9, asks: 4 });
 /* The SQL helpers a watched settle may still call, each with its why (tools/gen-plan-cache.mjs's exclusions). A full-chain
    mutant patches each in its own file (tests/settle-hooks.mjs H-COVER in 2026-11-07-store-by-slot.sql; tests/alpha-server.mjs's
    shop arms in 2026-11-25-shop-seeds.sql), and a later restatement's pin would refuse the mutated pre-image before the

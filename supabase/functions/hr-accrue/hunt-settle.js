@@ -522,8 +522,15 @@ export async function readHuntSettle(o, mode) {
   /* Below the floor a player door that asked for the live view gets the instance's start point
      instead of a settle: nothing is priced or written. */
   if (below) {
+    /* THE FLOOR ANSWER WITHOUT THE CHARACTER THE CLIENT HOLDS (lane/c-watched-settle-cost, 2026-11-10: this exit rebuilt
+       the whole character, 43 ms and 75 KB, 4,904 times in ten days for clients that already held it). The ask says which
+       version its client holds whole (`have`, request.js readHave); when the row this read just saw is at EXACTLY that
+       version, the answer is the start point, the clock and that version, marked hunt_slim. Any other `have` (behind,
+       ahead, absent, an older client) gets the whole character as before: a client is never left on an old version. */
+    const held = Number.isSafeInteger(o.have) && o.have === Number(mine.state.version);
+    const env = held ? { hunt_slim: true, version: o.have, now: new Date(read.now).toISOString() } : await envOf();
     return { answer: { outcome: 'nothing', reason: 'below_min_span', status: 200,
-      body: { ok: true, settled: false, reason: 'below_min_span', ...(await envOf()), hunt_live: huntLive(inst, members, user, slot) } } };
+      body: { ok: true, settled: false, reason: 'below_min_span', ...env, hunt_live: huntLive(inst, members, user, slot) } } };
   }
   const endMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
   const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS, inst.play.stopMs);

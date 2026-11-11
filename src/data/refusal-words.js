@@ -317,7 +317,6 @@ export const REFUSAL_WORDS = Object.freeze({
   not_leader: 'Only the party leader can do that.',
   not_party_leader: 'Only the party leader can do that.',
   /* Call out (2027-03-12-boss-call.sql). The press's own section reads src/data/boss-calls.js, with the boss's name; these are the codes' lines anywhere else. */
-  call_party: 'The boss wants a party of two or more.',
   call_leader: 'Only your party\'s leader can call him out.',
   call_limit: 'You\'ve called 3 times today. More after midnight UTC.',
   call_unknown: 'Nobody here answers that call, so you weren\'t charged.',

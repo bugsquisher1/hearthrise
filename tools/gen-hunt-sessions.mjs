@@ -49,7 +49,7 @@
 //   hr_hunt_end_reasons    hunt-sessions.js END_ORDER (reason, position) + RESUME_AFTER_END
 //   hr_hunt_kill_bounds    the most ONE kill of each monster can pay (the value bound)
 //   hr_hunt_vendor_value   vendorPriceOf (supabase/functions/hr-accrue/catalogue.js)
-//   hr_boss_calls          boss-calls.js BOSS_CALLS + BOSS_CALL_RULES: which rooms, what fee (Call out). A called row and its room
+//   hr_boss_calls          boss-calls.js BOSS_CALLS + BOSS_CALL_RULES: which rooms, what fee, how many a day, how long (Call out). A called row and its room
 //                          are refused here unless they pay NOTHING: xp 0, gp [0, 0], no drops; never in hr_hunt_roster
 //   hr_premium_login_reward premium.js PREMIUM_LOGIN_REWARD
 //   + CHECKS GENERATED FROM DATA on tables other files own: hunt_sessions
@@ -240,7 +240,17 @@ export const WORLD_FIELDS_READ = Object.freeze({
    for 25 monsters, and hr_hunt_abilities gains Undertow, the Healer's strike when it hunts alone (Tyler 2026-11-09; abilities.js `alone`, read by the
    engine only; no column carries it). No spawn, limit or bid. THE SHAPE MOVES, so the old engine refuses every stored world once this applies: the
    hr-accrue deploy carrying the same src/core follows AT ONCE (each running hunt's world restarts once, as on any shape change). */
-export const OUT_NAME = '2027-03-26-one-difficulty-hunt-sessions-catalogue.generated.sql';
+/* THE GEAR SALE LADDER (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-26-one-difficulty is the file before this one and this file carries it whole (its world shape, kill bounds
+   and Undertow; the death share's rows and rune supply's runes_out with it). hr_hunt_vendor_value, the bid Dispatch loot pays, the Shop shows, the Weighhouse floors on and the bench tax
+   reads, moves for gear of tier 4 and up (loot-bands.js VENDOR_GEAR_RATES 0.075 / 0.033 / 0.015, tiers 7 and 8 at tier 6's), every such bid DOWN from tier 3's 0.14; the made Mithril Hatchets and
+   Maple Crossbow join it and hr_hunt_weapons. No kill bound, spawn, limit, ability or shape moves. AFTER 2027-03-27-phase0-tier4-items-catalogue (the self-check wants both weapons in
+   hr_items), then the hr-accrue carrying the same loot-bands.js at once: vendor_sell is priced by the edge, so until it deploys the Sell tab pays the old bid this table no longer shows. */
+/* A HERO ALONE MAY CALL OUT A BOSS (lane/c-call-out-and-bear, the designer's ruling 2, 2026-11-10): BOSS_CALL_RULES.partyMin is gone, so hr_boss_calls loses
+   party_min (dropped here, if it exists). 2027-03-27-phase0-tier4 is the file before this one and this file carries it whole; against it only hr_boss_calls's
+   column, its insert, the digest and the header differ. AFTER 2027-04-05-call-out-alone.sql, which restates the one body that read the column
+   (hr_boss_call_quote): applied before it, the live quote would read a dropped column until that file landed. No kill bound, spawn, limit, ability, bid
+   or shape moves, so no hunt pauses and the edge needs no order with it. */
+export const OUT_NAME = '2027-04-05-call-out-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -680,10 +690,11 @@ function calledRows(S) {
   const hs = S.hunts.filter((h) => h.called === true && !rows.some((c) => c.hunt === h.id));
   if (hs.length) throw new Error(`called hunt ${hs[0].id} has no call: it would have no door`);
   const rules = S.callRules;
-  if (!(whole(rules.perDay) && rules.perDay >= 1 && whole(rules.partyMin) && rules.partyMin >= 2 && whole(rules.limitMs) && rules.limitMs >= 60000 && rules.limitMs <= 3600000)) {
-    throw new Error(`BOSS_CALL_RULES ${JSON.stringify(rules)}: a whole per-day count, a party of two or more, a limit of 1 to 60 minutes`);
+  /* No party size (the designer's ruling 2, 2026-11-10): a hero alone may call, so a rule that names one is refused rather than ignored. */
+  if (!(whole(rules.perDay) && rules.perDay >= 1 && whole(rules.limitMs) && rules.limitMs >= 60000 && rules.limitMs <= 3600000 && !('partyMin' in rules))) {
+    throw new Error(`BOSS_CALL_RULES ${JSON.stringify(rules)}: a whole per-day count, a limit of 1 to 60 minutes, and no party size (a hero alone may call)`);
   }
-  return rows.map((c) => ({ ...c, perDay: rules.perDay, partyMin: rules.partyMin, limitMs: rules.limitMs }));
+  return rows.map((c) => ({ ...c, perDay: rules.perDay, limitMs: rules.limitMs }));
 }
 
 export function render(src) {
@@ -712,7 +723,7 @@ export function render(src) {
   const resumableValues = r.resumable.map((k) => `  (${sq(k)})`).join(',\n');
   const endList = r.ends.map((e) => sq(e.r)).join(', ');
   const vendorValues = r.vendor.map((v) => `  (${sq(v.id)}, ${v.unit})`).join(',\n');
-  const callValues = r.bossCalls.map((c) => `  (${sq(c.id)}, ${sq(c.hunt)}, ${sq(c.from)}, ${sq(c.monster)}, ${c.fee}, ${c.perDay}, ${c.partyMin}, ${c.limitMs})`).join(',\n');
+  const callValues = r.bossCalls.map((c) => `  (${sq(c.id)}, ${sq(c.hunt)}, ${sq(c.from)}, ${sq(c.monster)}, ${c.fee}, ${c.perDay}, ${c.limitMs})`).join(',\n');
   const nLim = Object.keys(r.lim).length;
   const CATALOGUE = ['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value',
     'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes',
@@ -734,12 +745,20 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged"):
--- hr_hunt_world_shape MOVES (a monster unit carries no yield share: one pack for every group), hr_hunt_kill_bounds moves for the re-tuned
--- monsters, and hr_hunt_abilities gains Undertow. Every row the files before it set is carried: the death share's (death_xp_permille 60, no
--- death_xp_base) and rune supply's runes_out. ORDER: AFTER the six APPLIED 2027-03-25 files (the precondition below still asks for
--- 2027-03-25-death-share.sql), THEN the hr-accrue carrying the same src/core AT ONCE: the shape moves, so the old engine refuses every stored
--- world until it deploys, and each running hunt's world restarts once.
+-- NEW IN THIS FILE (lane/b-phase0-tier4, designer 2026-11-08: one sale ladder from tier 4 up, src/data/loot-bands.js VENDOR_GEAR_RATES
+-- [0.5, 0.5, 0.14, 0.075, 0.033, 0.015]): hr_hunt_vendor_value moves for worn gear of tier 4 and up, every such bid DOWN (tier 4 sold at tier 3's
+-- 0.14 of book; tiers 7 and 8 read tier 6's rate), and gains the made Mithril Hatchets and Maple Crossbow, which join hr_hunt_weapons too. This table is
+-- the bid Dispatch loot pays, the Shop shows, the Weighhouse floors on and the bench tax reads. Nothing else moves: no kill bound, spawn, limit,
+-- ability or shape (no world_shape_pending from this file). ORDER: AFTER 2027-03-26-one-difficulty-hunt-sessions-catalogue.generated.sql (carried
+-- whole below; applied before it this file IS that shape move) and AFTER 2027-03-27-phase0-tier4-items-catalogue.generated.sql (the self-check
+-- wants both weapons in hr_items), THEN the hr-accrue carrying the same loot-bands.js at once: vendor_sell is priced by the edge.
+--
+-- CARRIED FROM 2027-03-26-one-difficulty-hunt-sessions-catalogue (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged"):
+-- hr_hunt_world_shape moved (a monster unit carries no yield share: one pack for every group), hr_hunt_kill_bounds moved for the re-tuned
+-- monsters, and hr_hunt_abilities gained Undertow. Every row the files before it set is carried: the death share's (death_xp_permille 60, no
+-- death_xp_base) and rune supply's runes_out. That file applied AFTER the six APPLIED 2027-03-25 files (the precondition below still asks for
+-- 2027-03-25-death-share.sql); its shape move wants the hr-accrue carrying the same src/core AT ONCE (the old engine refuses every stored
+-- world until it deploys, and each running hunt's world restarts once).
 --
 -- CARRIED FROM 2027-03-25-death-share-hunt-sessions-catalogue (APPLIED; lane/c-death-and-slots, Tyler 2026-11-09: "Death needs to be more than 2% I think, and losing a level should be possible"):
 -- hr_hunt_limits.death_xp_permille 20 -> 60 (src/data/hunt-sessions.js DEATH_XP_LOSS 0.06), and the death_xp_base row is CUT (one public formula:
@@ -1110,9 +1129,10 @@ create table if not exists public.hr_boss_calls (
   monster_id text   not null check (monster_id ~ '^[a-z0-9_]{1,64}$'),
   fee        bigint not null check (fee between 1 and 1000000000),
   per_day    int    not null check (per_day between 1 and 100),
-  party_min  int    not null check (party_min between 2 and 8),
   limit_ms   int    not null check (limit_ms between 60000 and 3600000)
 );
+-- A HERO ALONE MAY CALL (2027-04-05-call-out-alone.sql restates the quote that read it first): no party size.
+alter table public.hr_boss_calls drop column if exists party_min;
 comment on table public.hr_boss_calls is
   'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms and their fees (Call out, lane/c-boss-call). Names no player; character wipe c_no_player.';
 do $$
@@ -1210,7 +1230,7 @@ delete from public.hr_hunt_vendor_value;
 insert into public.hr_hunt_vendor_value (item_id, unit) values
 ${vendorValues};
 delete from public.hr_boss_calls;
-insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, fee, per_day, party_min, limit_ms) values
+insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, fee, per_day, limit_ms) values
 ${callValues};
 
 -- ── SELF-CHECK (CLAUDE.md §4): the rows the generator wrote, and nothing more ──
@@ -1416,7 +1436,7 @@ function selftest() {
     'a call with no room': () => ({ calls: { ...BOSS_CALLS, ghost: { ...BOSS_CALLS.rat_king, id: 'ghost', hunt: 'nowhere_called' } } }),
     'a called hunt with no call': () => ({ calls: { rat_king: BOSS_CALLS.rat_king } }),
     'a free call': () => ({ calls: { ...BOSS_CALLS, rat_king: { ...BOSS_CALLS.rat_king, fee: 0 } } }),
-    'a call for one hero': () => ({ callRules: { ...BOSS_CALL_RULES, partyMin: 1 } }),
+    'a party size on the call (a hero alone may call)': () => ({ callRules: { ...BOSS_CALL_RULES, partyMin: 2 } }),
     'no shield arm (no worn set plays the tank)': () => ({ shieldArm: {} }),
   };
   /* The fixture ground itself must pass (the arm proves the ground path is live). */

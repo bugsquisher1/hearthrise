@@ -34,9 +34,11 @@
 // tier-6 gloves (Picket) and belts (Warder), and the Binders' wand and codex. Tier 6 is worn from 75, so every piece is wearable the hour it
 // drops: this is the game's only source of tier-6 armor. Each body drops one imbuement item, one of each of the five kinds. Each has one
 // product of its own: the Levy's tithe wheat, the Picket's bolt iron, the Warder's grave dust, the Binder's pyre coal, and the toll gold the
-// Castellan keeps. The Hall Key is the Castellan's last row (batch 2).
-// THE CHANCES ARE MEASURED, NOT GUESSED: each was set from the floor hour's kills on the real settle (tests/hunt-core/drop-tables.mjs). The
-// numbers in the comments beside them are that read.
+// Castellan keeps. The Hall Key is the Castellan's last row, in its own band (loot-bands.js `key`, about one every two hours).
+// THE CHANCES ARE FITTED, NOT GUESSED: each was set from the floor hour's kills on the real settle (tests/hunt-core/drop-tables.mjs, a lone
+// tank in its tier-6 set, 2026-11-10): Scarce 0.88-1.17 h a piece, Rare 14.6-15.0 h, the Hall Key about every 2.0 h (19 Castellans an hour).
+// NOT FITTED, the designer's (CONFLICTS 2026-11-10): that tank earns -39% over its food on drop-tables' profit floor (+25% ruled), and the
+// full grade as opened reads the shieldless melee ways under it too, the parties under the lone median and Deadly's four over its deaths.
 import { definePack, box } from '../shape.js?v=0.2.116';
 import map from './map.js?v=0.2.116';
 

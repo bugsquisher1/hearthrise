@@ -120,6 +120,7 @@ select,button{background:var(--panel);color:var(--ink);border:1px solid var(--li
  <label>From <select id="from"><option value="auto">detect</option></select></label>
  <label>To <select id="to"></select></label>
  <button id="swap">⇄</button>
+ <button id="run">Translate</button>
  <span id="status">checking Chrome's on-device translator…</span>
 </div>
 <textarea id="src" placeholder="Paste text here. Translation runs on this PC, nothing leaves it."></textarea>
@@ -137,7 +138,8 @@ async function detect(text){
   if(!('LanguageDetector' in self))return 'en';
   const d=await LanguageDetector.create();const r=await d.detect(text);return (r[0]&&r[0].detectedLanguage)||'en';
 }
-async function go(){
+async function go(){try{await run()}catch(e){status('error: '+(e&&e.message||e))}}
+async function run(){
   const text=$('src').value.trim();if(!text||!('Translator' in self))return;
   let from=$('from').value;if(from==='auto')from=await detect(text);
   const to=$('to').value;if(from===to){$('dst').value=text;status('same language');return}
@@ -148,10 +150,12 @@ async function go(){
     translator=await Translator.create({sourceLanguage:from,targetLanguage:to,monitor(m){m.addEventListener('downloadprogress',e=>status('downloading '+Math.round(e.loaded*100)+'%'))}});key=k}
   const t0=performance.now();$('dst').value=await translator.translate(text);status(k+' · '+Math.round(performance.now()-t0)+' ms · on device');
 }
-$('src').addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(go,400)});
+$('src').addEventListener('input',()=>{clearTimeout(timer);if(translator)timer=setTimeout(go,400);else status('press Translate once to load the model, then it follows your typing')});
+$('run').onclick=go;
+$('src').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.ctrlKey)go()});
 $('from').onchange=$('to').onchange=go;
 $('swap').onclick=()=>{const f=$('from').value,t=$('to').value;if(f==='auto')return;$('from').value=t;$('to').value=f;$('src').value=$('dst').value;go()};
-if('Translator' in self)status('ready · on-device, no network');
+if('Translator' in self)status('ready · paste text, press Translate (Ctrl+Enter) · on-device, no network');
 </script></body></html>`;
 
 /* ── main ───────────────────────────────────────────────────────────────── */

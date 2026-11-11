@@ -11,7 +11,7 @@ export const WAVE3_ITEMS = {
   panthers_eye_pendant: {n:'Panther\'s Eye Pendant',icon:'📿',v:13600,type:'jewelry',slot:'necklace',critB:0.05,atkB:2,rarity:'rare',tier:5,reqSkill:'level',reqLv:68},
   wraithsilk_shroud: {n:'Wraithsilk Shroud',icon:'🛡️',v:10400,type:'armor',slot:'body',armourClass:'cloth',defB:20,magicAtkB:8,rarity:'epic',tier:5,reqSkill:'level',reqLv:52},
   widows_fang: {n:'Widow\'s Fang',icon:'🗡️',v:7600,type:'weapon',slot:'weapon',weaponType:'sword',atkB:16,strB:12,critB:0.06,rarity:'rare',tier:3,reqSkill:'level',reqLv:38},
-  plaguewarden_greaves: {n:'Plaguewarden Greaves',icon:'🛡️',v:10800,type:'armor',slot:'pants',armourClass:'plate',defB:26,strB:4,rarity:'rare',tier:5,reqSkill:'level',reqLv:54},
+  plaguewarden_greaves: {n:'Plaguewarden Leg Plates',icon:'🛡️',v:10800,type:'armor',slot:'pants',armourClass:'plate',defB:26,strB:4,rarity:'rare',tier:5,reqSkill:'level',reqLv:54},
   hollow_sigil_ring: {n:'Hollow Sigil Ring',icon:'💍',v:7000,type:'jewelry',slot:'ring',magicAtkB:5,magicStrB:3,rarity:'rare',tier:3,reqSkill:'level',reqLv:35},
   fangdart_recurve: {n:'Fangdart Recurve',icon:'🏹',v:7200,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,rangeAtkB:15,rangeStrB:10,critB:0.04,rarity:'rare',tier:3,reqSkill:'level',reqLv:36},
   alphaheart_longbow: {n:'Alphaheart Longbow',icon:'🏹',v:10000,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,rangeAtkB:24,rangeStrB:18,critB:0.05,rarity:'epic',tier:4,reqSkill:'level',reqLv:50},

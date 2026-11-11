@@ -134,9 +134,9 @@ export const SLOT_ITEMS = {
   dawnlit_mantle:  { n: 'Dawnlit Mantle',  icon: '🦸', v: priced(240, 7), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 7, rarity: 'mythic',    reqSkill: 'level', reqLv: 88, steadyPm: 255, strB: 3, critB: 0.01 },
 
   /* ══ NECKLACE — accuracy low, damage high ═══════════════════════════════ */
-  wolfbone_torc:     { n: 'Wolfbone Torc',     icon: '📿', v: priced(200, 2), type: 'jewelry', slot: 'necklace', tier: 2, rarity: 'uncommon', reqSkill: 'level', reqLv: 15, atkB: 3},
+  wolfbone_torc:     { n: 'Wolfbone Necklace', icon: '📿', v: priced(200, 2), type: 'jewelry', slot: 'necklace', tier: 2, rarity: 'uncommon', reqSkill: 'level', reqLv: 15, atkB: 3},
   spidersilk_choker: { n: 'Spidersilk Choker', icon: '📿', v: priced(200, 3), type: 'jewelry', slot: 'necklace', tier: 3, rarity: 'rare',     reqSkill: 'level', reqLv: 34, atkB: 5, critB: 0.01 },
-  warlords_torc:     { n: "Warlord's Torc",    icon: '📿', v: priced(200, 4), type: 'jewelry', slot: 'necklace', tier: 4, rarity: 'epic',     reqSkill: 'level', reqLv: 52, atkB: 6, strB: 5},
+  warlords_torc:     { n: "Warlord's Necklace",icon: '📿', v: priced(200, 4), type: 'jewelry', slot: 'necklace', tier: 4, rarity: 'epic',     reqSkill: 'level', reqLv: 52, atkB: 6, strB: 5},
   dawnbound_amulet:  { n: 'Dawnbound Amulet',  icon: '📿', v: priced(200, 7), type: 'jewelry', slot: 'necklace', tier: 7, rarity: 'mythic',   reqSkill: 'level', reqLv: 86, atkB: 8, strB: 7},
 
   /* ══ RING — the hybrid, and remember BOTH ring slots take one ═══════════

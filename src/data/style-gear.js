@@ -19,7 +19,7 @@
 // a style's rung has one door, and a second door is only added where it adds a decision.
 //   Silk Thread  Hive Wasp (Cellar, 15%), Cistern Spider (Sewer, 30%)   cloth, wand grips, strings
 //   Bat Wing     Culvert Bat (Sewer, 70%)                               spellbook vellum, adept lining
-//   Bone Chips   Kobold Tosher (Sewer, 50%)                             the staff's bone cap
+//   Bone Chips   Sewer Kobold (Sewer, 50%)                              the staff's bone cap
 //   Oak Plank    Woodcutting 15 oak, sawn at Crafting 15                 the tier-2 wand, book, staff and bows
 //   Normal Plank Woodcutting 1, sawn at Crafting 1                       the hafts: a smith needs no Crafting 15
 //   Iron Bar     Mining 15 iron, smelted at Smithing 15                  hatchets and the club's head

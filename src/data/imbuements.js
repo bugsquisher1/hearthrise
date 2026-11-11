@@ -69,10 +69,10 @@ const row = (n, icon, level, kind) => Object.freeze({ n, icon, v: imbueValueFor(
 /* One per monster; the dropper's Level (src/data/monsters.js) sets value and tier. */
 export const IMBUE_ITEMS = Object.freeze({
   /* Meadowbrook Thicket: the gray wolves */
-  whelp_milk_tooth: row('Whelp Milk Tooth', '🦷', 5, 'life_leech'),
+  whelp_milk_tooth: row('Pup Milk Tooth', '🦷', 5, 'life_leech'),
   gray_dewclaw: row('Gray Dewclaw', '🐾', 8, 'keen'),
   briar_burr: row('Briar Burr', '🌰', 10, 'ward'),
-  dire_hackle: row('Dire Gray Hackle', '🐺', 13, 'ward'),
+  dire_hackle: row('Dire Gray Neck Fur', '🐺', 13, 'ward'),
   grayjaw_whisker: row('Grayjaw Whisker', '〰️', 15, 'keen'),
   /* The Mill Cellar (designer 2026-10-23): the tutorial's three, so its rows read like every other ground's */
   sticky_core: row('Sticky Core', '🟢', 2, 'element_ward'),
@@ -111,14 +111,14 @@ export const IMBUE_ITEMS = Object.freeze({
 
 /* The flavour lines (src/data/item-descriptions.js): what it is, where it comes from. */
 export const IMBUE_DESC = Object.freeze({
-  whelp_milk_tooth: 'A milk tooth a Gray Whelp lost in a bite. Only the whelps of Meadowbrook Thicket shed them',
+  whelp_milk_tooth: 'A milk tooth a Gray Wolf Pup lost in a bite. Only the pups of Meadowbrook Thicket shed them',
   gray_dewclaw: 'The hooked fifth claw from a Gray Wolf\'s foreleg, sharp enough to hold a wolf\'s grip',
   briar_burr: 'A burr pulled from a Briarcoat Wolf\'s coat, the kind that catches arrows',
   dire_hackle: 'A tuft of the stiff neck fur a Dire Gray raises before it charges',
   grayjaw_whisker: 'A long gray whisker from Old Grayjaw, the den mother under the hollow oak',
   rat_incisor: 'An orange front tooth from a Drain Rat, worn sharp on the sewer\'s grates',
   sump_membrane: 'The skin of a Sump Slime. Fire, ice and poison don\'t do much to it',
-  kobold_scale: 'A shed scale from a Kobold Tosher, scuffed from crawling through the outfalls',
+  kobold_scale: 'A shed scale from a Sewer Kobold, scuffed from crawling through the outfalls',
   culvert_bat_fang: 'A needle fang from a Culvert Bat, the bats that roost over the channel',
   cistern_venom_gland: 'The venom gland of a Cistern Spider, still heavy with poison',
   knotted_tails: 'A knot of tails cut from the Rat King, tied too tight for any rat to pull free',

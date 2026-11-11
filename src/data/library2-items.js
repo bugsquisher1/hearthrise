@@ -159,13 +159,13 @@ const watch = (slot, base, vmul) => ({
 
 const SL = {
   helmet: { slot: 'helmet', label: 'Helm' }, body: { slot: 'body', label: 'Cuirass' },
-  pants: { slot: 'pants', label: 'Greaves' }, boots: { slot: 'boots', label: 'Boots' },
+  pants: { slot: 'pants', label: 'Leg Plates' }, boots: { slot: 'boots', label: 'Boots' },
   gloves: { slot: 'gloves', label: 'Gauntlets' }, belt: { slot: 'belt', label: 'Belt' },
 };
 const SLC = {
-  helmet: { slot: 'helmet', label: 'Coif' }, body: { slot: 'body', label: 'Body' },
+  helmet: { slot: 'helmet', label: 'Hood' }, body: { slot: 'body', label: 'Body' },
   pants: { slot: 'pants', label: 'Chaps' }, boots: { slot: 'boots', label: 'Boots' },
-  gloves: { slot: 'gloves', label: 'Vambraces' }, belt: { slot: 'belt', label: 'Belt' },
+  gloves: { slot: 'gloves', label: 'Bracers' }, belt: { slot: 'belt', label: 'Belt' },
 };
 
 const ARMOUR_SETS = {

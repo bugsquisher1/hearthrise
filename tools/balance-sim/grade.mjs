@@ -137,7 +137,8 @@ export function gradeCells(cells, sheet, pace, fits = {}) {
   const find = (m, pred) => rows.filter((r) => r.m.ground === m.ground && pred(r.m));
   const verdicts = [];
   const push = (rule, m, value, extra, ci) => {
-    const binding = rule.binding && !(m.size === 1 && m.groupFit === 'party');
+    /* the pace contract is fitted on lone heroes (pace.mjs, the ladder plan), so its lone reading binds on a party ground too (Coordinator ruling 2026-11-11, lane/d-solo-fifteen) */
+    const binding = rule.binding && !(m.size === 1 && m.groupFit === 'party' && rule.aggregate !== 'xpVsContract');
     let verdict = 'ok', o = 0;
     if (ci) {
       if (rule.max != null && ci.lo > rule.max) { verdict = binding ? 'FAIL' : 'OFF'; o = (ci.lo - rule.max) / Math.max(rule.max, 1e-9); }
@@ -165,8 +166,10 @@ export function gradeCells(cells, sheet, pace, fits = {}) {
       const groups = new Map();
       for (const r of rows) if (scoped(rule, r.m)) { const k = [r.m.ground, r.m.tier, r.m.offset, r.m.size].join('|'); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
       if (rule.aggregate === 'xpVsContract') {
-        /* a party ground reads its fours a head; a solo ground its lone heroes */
-        for (const k of [...groups.keys()]) { const m = groups.get(k)[0].m; if (m.size !== (m.groupFit === 'party' ? 4 : 1)) groups.delete(k); }
+        /* the lone median on EVERY ground, party grounds included: the contract is fitted on lone heroes (tools/balance-sim/pace.mjs, the ladder plan), and a
+           four is ruled 1.15-1.25x a lone hero (party.fourVsSolo), so the four a head always read about 1.2x it (Coordinator ruling 2026-11-11, lane/d-solo-fifteen:
+           the Sewer's 1.19 and the Warrens' 1.52 were the party bonus, not a pace miss) */
+        for (const k of [...groups.keys()]) if (groups.get(k)[0].m.size !== 1) groups.delete(k);
       }
       for (const g of groups.values()) {
         const m = g[0].m, L = g[0].c.cell.level;
@@ -195,7 +198,7 @@ export function gradeCells(cells, sheet, pace, fits = {}) {
         case 'xpVsNormal': { const n = find(m, (o) => o.tier === 'normal' && o.offset === m.offset && o.comp === m.comp && (o.gear || 'ladder') === 'ladder')[0]; v = n && n.x.xp > 0 ? x.xp / n.x.xp : null; break; }
         case 'xpVsPace': { const L = r.c.cell.level, p = pace(Array.isArray(L) ? Math.max(...L) : L); v = p > 0 ? x.xp / p : null; break; }
         case 'netMinusFloor': { const f = find(m, (o) => o.tier === m.tier && o.offset === 'floor' && o.comp === m.comp)[0]; v = f ? x.net - f.x.net : null; break; }
-        case 'xpVsSolo': case 'netVsSolo': { const solo = median(find(m, (o) => o.tier === m.tier && o.offset === m.offset && o.size === 1).map((o) => (rule.metric === 'xpVsSolo' ? o.x.xp : o.x.net)));
+        case 'xpVsSolo': case 'netVsSolo': { const solo = median(find(m, (o) => o.tier === m.tier && o.offset === m.offset && o.size === 1 && (o.gear || 'ladder') === (m.gear || 'ladder')).map((o) => (rule.metric === 'xpVsSolo' ? o.x.xp : o.x.net)));
           v = solo > 0 ? (rule.metric === 'xpVsSolo' ? x.xp : x.net) / solo : null; break; }
         case 'xpVsTierBelow': { const below = m.tier === 'deadly' ? 'dangerous' : 'normal'; const b = find(m, (o) => o.tier === below && o.offset === m.offset && o.comp === m.comp)[0]; v = b && b.x.xp > 0 ? x.xp / b.x.xp : null; break; }
         default: throw new Error('grade: no metric ' + rule.metric);
@@ -347,6 +350,9 @@ export function synthSet(mut = {}) {
   if (mut.four) for (const h of pick('normal', 'floor', 4).heroes) h.levelXpPerH = 70000 * 1.6;
   if (mut.tier) for (const h of pick('deadly', 'top', 4).heroes) h.levelXpPerH = 70000;
   if (mut.lowpoint) pick('normal', 'floor', 1).heroes[0].encMinHpPct.p50 = 40;
+  /* fresh heroes in the practice kit at the floor (buildGrid's first-week cells): a four in the ladder kit is judged against solos in the
+     same kit (10-25 §5 "same levels, gear quality"), so these must not drag the solo median down (lane/d-party-xp-cells, 2026-11-11) */
+  if (mut.practice) for (const comp of ['hammer', 'bow', 'mage']) cells.push(synthCell({ tier: 'normal', offset: 'floor', size: 1, comp, gear: 'practice' }, { level: 16, hours: 2000, xp: 20000, income: 5000, store: 1500, hp: 70, coin: 3000 }));
   return cells;
 }
 

@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-11-10",
+ "generated": "2026-11-11",
  "production": {
   "measured": "2026-08-30",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -1519,7 +1519,7 @@
   },
   "hr_state_sections": {
    "class": "seeded",
-   "replay": 40,
+   "replay": 41,
    "note": "The X7 state-section registry (2026-10-23-character-premium.sql and the S1 files): one row per hr_state_of section and its projector. Seeded by the migrations that register a section; rebuilt from repo, never restored."
   },
   "hr_storage_chests": {
@@ -1546,6 +1546,11 @@
    "class": "seeded",
    "replay": 6,
    "note": "Generated catalogue (2026-12-23-tally-catalogue.generated.sql from src/data/tally-tasks.js TALLY_TASKS): each kill task's ground, monster, count and gold. UPSERTED; hero_tally_tasks references it. Rebuilt from repo, never restored."
+  },
+  "hr_tally_tiers": {
+   "class": "seeded",
+   "replay": 154,
+   "note": "Generated catalogue (2027-04-08-tally-worn.generated.sql by tools/gen-tally-tasks.mjs from src/data/items.js and gear-tiers.js): the gear tier of every item a hero can wear in one of Tamsin's slots, read by hr_tally_pick to skip a slot the hero already wears at the piece's tier or better. Rebuilt from repo, never restored. Empty, her pick fails open to paying a piece the hero wears (the pre-2027-04-08 behaviour, no extra mint)."
   },
   "hr_tick_cohort": {
    "class": "operator_tunable",

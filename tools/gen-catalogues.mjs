@@ -111,7 +111,8 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* CRAFTED JEWELRY (lane/c-jewelry-sample, Tyler 2026-11-05): 2027-03-08-rune-ladder-items-catalogue is APPLIED history; the Banded Signet's Fine and Hallmarked rows, the Road Carnelian (hr_items) and the two rolled Crafting jobs (hr_activities) land in ONE forward file, the same full delete+insert replace. */
 /* ONE FORMULA FOR EVERY HUNT (lane/b-ground-formula, Tyler 2026-11-07): 2027-03-14-jewelry-items-catalogue is APPLIED history; the open grounds' monsters' max HP (hr_activities combat rows) land in ONE forward file, the same full delete+insert replace. */
 /* TIER 4'S MADE RUNGS (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-20-ground-formula-items-catalogue is APPLIED history; the Mithril Hatchets' and Maple Crossbow's hr_items rows and their Smithing and Crafting recipes in hr_activities land in ONE forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-03-27-phase0-tier4-items-catalogue.generated.sql');
+/* PLAIN GEAR NAMES (lane/c-plain-gear-names, Tyler 2026-11-11): 2027-03-27-phase0-tier4-items-catalogue is APPLIED history; hr_items.name takes the plain names (23 rows: Coif -> Hood, Vambraces -> Bracers, Torc -> Necklace, Greaves -> Leg Plates, Hackle -> Neck Fur, Whelp -> Pup) in ONE forward file, the same full delete+insert replace, ids unchanged. The emitted self-check pins every landed name to the source by digest. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-11-plain-gear-names-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -165,6 +166,9 @@ const { START_CURRENCY, START_SKILL_XP, START_INVENTORY, START_EQUIPMENT }
    is the byte-for-byte proof. */
 const { deriveCatalogueRows } = await import('./catalogue-rows.mjs');
 const { itemIds, items, itemSlots, activities } = await deriveCatalogueRows();
+
+/* The landed names' digest (the self-check's), in the same order Postgres reads them: item_id under the C collation. */
+const ITEM_NAMES_MD5 = createHash('md5').update([...items].sort((x, y) => (x.item_id < y.item_id ? -1 : x.item_id > y.item_id ? 1 : 0)).map((r) => r.item_id + '=' + r.name).join('\n')).digest('hex');
 
 const equipSlots = EQUIP_SLOTS.map((s, i) => ({ equip_slot: s, ord: i }));
 
@@ -688,6 +692,11 @@ declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
   if v_n <> ${items.length} then raise exception 'hr_items has % rows, generator emitted ${items.length}', v_n; end if;
+  -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
+  -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '${ITEM_NAMES_MD5}' then
+    raise exception 'hr_items names differ from src/data (expected digest ${ITEM_NAMES_MD5})';
+  end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> ${items.filter((r) => !r.tradeable).length} then
     raise exception 'untradeable count is %, generator emitted ${items.filter((r) => !r.tradeable).length}', v_n;

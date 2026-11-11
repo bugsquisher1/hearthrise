@@ -795,7 +795,7 @@ async function pureRules(M, base) {
     const left = M.AL.cameHomeLine({ endReason: 'party_member_left', endBy: 'Mira' }, 'Tyler');
     const fell = M.AL.cameHomeLine({ endReason: 'party_member_died', endBy: 'Mira' }, 'Tyler');
     const anon = M.AL.cameHomeLine({ endReason: 'party_member_left', endBy: null }, 'Tyler');
-    if (left !== 'Mira left the hunt, so Tyler came home too.' || fell !== 'Mira fell, so Tyler came home too.' || anon !== 'A party member left the hunt, so Tyler came home too.') {
+    if (left !== 'Mira left the hunt, so Tyler came home too.' || fell !== 'Mira died, so Tyler came home too.' || anon !== 'A party member left the hunt, so Tyler came home too.') {
       return 'the came-home lines read ' + JSON.stringify([left, fell, anon]);
     }
     const sum = [M.SM.endWords('party_member_left', false, 'Mira', 'Tyler'), M.SM.endWords('party_member_died', false, 'Mira', 'Tyler')];
@@ -826,41 +826,44 @@ async function pureRules(M, base) {
     return tboxes() === 'on,-' || 'after starting again the rows read ' + tboxes();
   });
 
-  /* PR-CLASS (Tyler 2026-10-31; designer's words 2026-11-02): the Your party tab's line states the measured answer against hunting alone for that party on
-     that ground, in the designer's words, on every row and cell (PARTY_VS_ALONE; first-week-bands vs-alone plays it). */
+  /* PR-CLASS (Tyler 2026-10-31; designer's words 2026-11-02, re-said in Tyler's voice 2026-11-11): the Your party tab's line states the measured answer
+     against hunting alone for that party on that ground, on every row and cell (PARTY_VS_ALONE; first-week-bands vs-alone plays it). Since one pack on
+     Normal for every group (Tyler 2026-11-11) a one-class party loses a lot there, so its line says how to get more (lane/d-party-xp-cells). */
   await t('PR-CLASS', async () => {
     const L = M.PRO.classXpLine;
-    const end = ' Melee, Ranger, Mage and Healer each count.';
+    const head = (k) => 'Your party has ' + k + ' of 4 classes. ';
+    const more = (k, vs, place) => head(k) + 'Each of you gets about ' + vs + '% more Level XP than hunting alone in ' + place + '.';
+    const less = (k, vs, place) => head(k) + 'Each of you gets about ' + vs + '% less Level XP than hunting alone in ' + place + '. Mix Melee, Ranger, Mage and Healer to get more.';
     for (const [roles, hunt, want] of [
-      [['tank', 'ranger'], 'meadowbrook_thicket', 'Your party has 2 of 4 classes: about 45% more Level XP each than hunting alone in Meadowbrook Thicket.'],
-      /* one class: a one-class party loses a little against a hero alone (Tyler 11-02 "about 6-15%"; the lane's fifth commit), measured */
-      [['tank', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['tank', 'melee_dps'], 'millrace_sewer', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in The Sewer.'],
-      [['tank', 'mage', 'healer'], 'coppercap_warrens', 'Your party has 3 of 4 classes: about 20% more Level XP each than hunting alone in Coppercap Warrens.'],
-      [['tank', 'ranger'], 'millrace_sewer', 'Your party has 2 of 4 classes: about 40% more Level XP each than hunting alone in The Sewer.'],
-      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', 'Your party has 4 of 4 classes: about 35% more Level XP each than hunting alone in The Sewer.'],
+      [['tank', 'ranger'], 'meadowbrook_thicket', more(2, 45, 'Meadowbrook Thicket')],
+      /* one class: with one pack for every group a one-class party loses a lot on Normal, measured */
+      [['tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 30, 'Meadowbrook Thicket')],
+      [['tank', 'melee_dps'], 'millrace_sewer', less(1, 15, 'The Sewer')],
+      [['tank', 'mage', 'healer'], 'coppercap_warrens', more(3, 25, 'Coppercap Warrens')],
+      [['tank', 'ranger'], 'millrace_sewer', more(2, 40, 'The Sewer')],
+      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', more(4, 45, 'The Sewer')],
       /* a seat with no weapon fights bare-handed, a Melee (hunt-roles.js ROLE_KEYS.neutral): it holds the Melee class */
-      [[null, 'ranger'], 'wickstead', 'Your party has 2 of 4 classes: about 40% more Level XP each than hunting alone in Wickstead.'],
-      [[null, 'tank'], 'wickstead', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in Wickstead.'],
-      /* A Thicket four who all share one role reads its own measured line (ONE_ROLE_VS_ALONE, CLAUDE.md §6): a four of wands loses least, shields and axes most. */
-      [['mage', 'mage', 'mage', 'mage'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 10% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['tank', 'tank', 'tank', 'tank'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 25% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['melee_dps', 'melee_dps', 'melee_dps', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 25% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['ranger', 'ranger', 'ranger', 'ranger'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 20% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['healer', 'healer', 'healer', 'healer'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in Meadowbrook Thicket.'],
+      [[null, 'ranger'], 'wickstead', more(2, 45, 'Wickstead')],
+      [[null, 'tank'], 'wickstead', less(1, 35, 'Wickstead')],
+      /* A Thicket four who all share one role reads its own measured line (ONE_ROLE_VS_ALONE, CLAUDE.md §6). */
+      [['mage', 'mage', 'mage', 'mage'], 'meadowbrook_thicket', less(1, 60, 'Meadowbrook Thicket')],
+      [['tank', 'tank', 'tank', 'tank'], 'meadowbrook_thicket', less(1, 50, 'Meadowbrook Thicket')],
+      [['melee_dps', 'melee_dps', 'melee_dps', 'melee_dps'], 'meadowbrook_thicket', less(1, 60, 'Meadowbrook Thicket')],
+      [['ranger', 'ranger', 'ranger', 'ranger'], 'meadowbrook_thicket', less(1, 55, 'Meadowbrook Thicket')],
+      [['healer', 'healer', 'healer', 'healer'], 'meadowbrook_thicket', less(1, 50, 'Meadowbrook Thicket')],
       /* one class of two roles reads the ground's row, and another ground's wands keep theirs */
-      [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 20% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['mage', 'mage', 'mage', 'mage'], 'wickstead', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in Wickstead.'],
+      [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 55, 'Meadowbrook Thicket')],
+      [['mage', 'mage', 'mage', 'mage'], 'wickstead', less(1, 50, 'Wickstead')],
     ]) {
-      if (L(roles, hunt) !== want + end) return JSON.stringify(roles) + ' on ' + hunt + ' reads ' + JSON.stringify(L(roles, hunt));
+      if (L(roles, hunt) !== want) return JSON.stringify(roles) + ' on ' + hunt + ' reads ' + JSON.stringify(L(roles, hunt));
     }
     const all = ['tank', 'ranger', 'mage', 'healer'];
     for (const [g, row] of Object.entries(M.PCX.PARTY_VS_ALONE)) for (const [n, cells] of Object.entries(row)) cells.forEach((vs, i) => {
       /* the row's one-class cell is read by one class of two roles: a four of one role may read its own line (pinned above) */
       const roles = Array.from({ length: Number(n) }, (_, s) => (i === 0 && s % 2 ? 'melee_dps' : all[Math.min(s, i)]));
-      const pay = vs > 0 ? 'about ' + vs + '% more Level XP each than hunting alone in ' : vs < 0 ? 'about ' + -vs + '% less Level XP each than hunting alone in ' : 'about the same Level XP each as hunting alone in ';
+      const pay = vs > 0 ? 'about ' + vs + '% more Level XP than hunting alone in ' : vs < 0 ? 'about ' + -vs + '% less Level XP than hunting alone in ' : 'about the same Level XP as hunting alone in ';
       const hunt = Object.values(HUNT_GROUNDS).find((x) => x.id === g).hunt;
-      if (!L(roles, hunt).includes((i + 1) + ' of 4 classes: ' + pay)) throw new Error(g + ' ' + roles + ' reads ' + L(roles, hunt) + ', the cell is ' + vs);
+      if (!L(roles, hunt).includes((i + 1) + ' of 4 classes. Each of you gets ' + pay)) throw new Error(g + ' ' + roles + ' reads ' + L(roles, hunt) + ', the cell is ' + vs);
     });
     /* On the tab: shown before a hunt starts, gone once anyone hunts, none alone. */
     const seat = (s, weapon, hunting) => ({ seat: s, unit: null, name: 'H' + s, level: 6, weapon, hunting: hunting === true, hp: 100, hp_max: 100 });
@@ -869,11 +872,11 @@ async function pureRules(M, base) {
       return M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs));
     };
     const shown = tab([seat(0, 'shield'), seat(1, 'ranged')], 'mill_cellar');
-    if (shown !== 'Your party has 2 of 4 classes: about 15% more Level XP each than hunting alone in Mill Cellar.' + end) return 'in town the tab reads ' + JSON.stringify(shown);
+    if (shown !== more(2, 20, 'Mill Cellar')) return 'in town the tab reads ' + JSON.stringify(shown);
     if (tab([seat(0, 'shield', true), seat(1, 'ranged', true)], 'mill_cellar') !== '') return 'the line stayed once the party hunts';
     if (tab([seat(0, 'shield')], 'mill_cellar') !== '') return 'a party of one reads a class line';
     const fresh = tab([seat(0, 'shield'), seat(1, 'wand')], null);
-    return (fresh && /2 of 4 classes: about (\d+% (more|less)|the same) Level XP each /.test(fresh)) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
+    return (fresh && /2 of 4 classes\. Each of you gets about (\d+% (more|less)|the same) Level XP /.test(fresh)) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
   });
 
   /* PR-TRUTH (blind panel 2026-11-01): what the server knows, said. A swapped weapon changes the role, the class line and the panel; a friend's
@@ -885,12 +888,12 @@ async function pureRules(M, base) {
     const look = (p) => { const cs = { read: (k) => (k === 'party' ? p : undefined) }; return [M.PP.rosterOf(cs).members.map((m) => m.role).join(), M.PS.partyMembershipOf(cs).seats.map((s) => s.role).join(), M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs))]; };
     const before = look(party('shield', 'shield')), after = look(party('shield', 'ranged'));
     if (before[0] !== 'tank,tank' || !/has 1 of 4 classes/.test(before[2])) return 'two shields read ' + JSON.stringify(before);
-    if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || !/has 2 of 4 classes: about 45% more Level XP each than hunting alone in Meadowbrook Thicket/.test(after[2])) return 'a swap to a bow reads ' + JSON.stringify(after);
+    if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || !/has 2 of 4 classes\. Each of you gets about 45% more Level XP than hunting alone in Meadowbrook Thicket/.test(after[2])) return 'a swap to a bow reads ' + JSON.stringify(after);
     /* (2) WHY A FRIEND CAME HOME, on both surfaces. */
     const why = (r, by, w) => M.AL.cameHomeLine({ endReason: r, endBy: by, endWhy: w }, 'Wrenna');
     if (why('party_member_left', 'Bramwell', 'stamina') !== 'Bramwell ran out of stamina, so Wrenna came home too.') return 'a stamina end reads ' + why('party_member_left', 'Bramwell', 'stamina');
     if (why('party_member_left', 'Bramwell', 'left') !== 'Bramwell left the hunt, so Wrenna came home too.') return 'a plain leave reads ' + why('party_member_left', 'Bramwell', 'left');
-    if (why('party_member_died', 'Bramwell', 'died') !== 'Bramwell fell, so Wrenna came home too.') return 'a death reads ' + why('party_member_died', 'Bramwell', 'died');
+    if (why('party_member_died', 'Bramwell', 'died') !== 'Bramwell died, so Wrenna came home too.') return 'a death reads ' + why('party_member_died', 'Bramwell', 'died');
     if (why('party_member_left', 'Bramwell', 'no_such_reason') !== 'Bramwell left the hunt, so Wrenna came home too.') return 'an unknown reason reads ' + why('party_member_left', 'Bramwell', 'no_such_reason');
     if (M.SM.reasonWords({ reason: 'party_member_left', by: 'Bramwell', why: 'stamina' }, 'Wrenna') !== 'Bramwell ran out of stamina, so Wrenna came home too.') return 'the summary reads ' + M.SM.reasonWords({ reason: 'party_member_left', by: 'Bramwell', why: 'stamina' }, 'Wrenna');
     if (M.SM.endedSessionOf({ read: (k) => (k === 'hunt' ? { session_id: 's', ended: true, session: { id: 's', end_reason: 'party_member_left', end_by: 'Bramwell', end_by_why: 'stamina', ended_at: '2026-10-17T12:30:00Z' } } : null) }).why !== 'stamina') return 'the ended session drops end_by_why';
@@ -1342,7 +1345,7 @@ async function pageRules(overrides, shots) {
           if (v.tab !== 'party' || names !== 'Tyler*:In town|Mira (you):In town' || !v.seats.every((x) => x.shown) || !v.leave || v.memberPicks
             || v.next !== 'Waiting for Tyler to pick a hunt.') fails.push('UI-9 [' + tag + '] the Party window in town reads ' + JSON.stringify(v));
           /* PR-CLASS on the page: the fixture's shield and bow, on the party's Sewer row (2 heroes of 2 classes). */
-          if (v.classLine !== 'Your party has 2 of 4 classes: about 40% more Level XP each than hunting alone in The Sewer. Melee, Ranger, Mage and Healer each count.') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
+          if (v.classLine !== 'Your party has 2 of 4 classes. Each of you gets about 40% more Level XP than hunting alone in The Sewer.') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
           if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword · Melee') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
             fails.push('UI-9 [' + tag + '] the finder’s weapon words read ' + JSON.stringify(v.opts));
           await shot('party-town');
@@ -1366,7 +1369,7 @@ async function pageRules(overrides, shots) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const PURE_MUTANTS = [
-  ['the class line promises the bonus whatever the table says (PR-CLASS)', 'src/shell/windows/party-roster.js', "const pay = vs === null ? 'no extra Level XP in ' + huntName(hunt)", "const pay = classes.length > 1 ? 'about 20% more Level XP each than hunting alone in ' + huntName(hunt) : vs === null ? 'no extra Level XP in ' + huntName(hunt)"],
+  ['the class line promises the bonus whatever the table says (PR-CLASS)', 'src/shell/windows/party-roster.js', "if (vs === null) return have + t('party.class_none', { place });", "if (classes.length > 1) return have + t('party.class_more', { pct: 20, place });\n  if (vs === null) return have + t('party.class_none', { place });"],
   ['a seat with no weapon holds no class on the class line (PR-CLASS)', 'src/shell/windows/party-roster.js', "roles.map((r) => r || roleForWeapon('neutral'))", 'roles'],
   ['the class line stays on while the party hunts (PR-CLASS)', 'src/shell/windows/party-roster.js', "if (r.anyHunting || r.members.length < 2) return '';", "if (r.members.length < 2) return '';"],
   ['the class line needs a ground the party has hunted (PR-CLASS)', 'src/shell/windows/party-roster.js', 'const hunt = p.hunt || (recommendation(r.members.map((m) => m.level), r.members.length).row || {}).hunt;', 'const hunt = p.hunt;'],

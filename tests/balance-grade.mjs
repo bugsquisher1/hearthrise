@@ -40,6 +40,21 @@ for (const [mut, rule] of [['deaths', 'normal-deaths'], ['dips', 'normal-dips'],
   check(failsOf(synthSet({ [mut]: true })).some((v) => v.rule === rule), 'mutants: ' + mut + ' FAILS ' + rule);
 }
 check(cli(synthSet({ profit: true })) === 1, 'mutants: grade.mjs --in exits 1 on the +25% mutant');
+/* a four is judged against solos in its own kit: practice-kit fresh heroes at the floor don't drag the median (10-25 §5 "same gear quality") */
+const kitFails = failsOf(synthSet({ practice: true })).filter((v) => v.rule === 'four-xp');
+check(kitFails.length === 0, 'same-kit: practice-kit solos leave the four at 1.2' + (kitFails.length ? ' (' + kitFails.map((v) => v.key + ' ' + v.value).join('; ') + ')' : ''));
+
+/* THE PACE CONTRACT READS THE LONE MEDIAN ON EVERY GROUND (Coordinator ruling 2026-11-11, lane/d-solo-fifteen): the contract is fitted on lone heroes, and a four
+   is ruled 1.15-1.25x a lone hero, so on a party ground the four a head read about 1.2x it (the Sewer 1.19, the Warrens 1.52) while its lone median sat in band.
+   A party ground at its middle: the lone way at 1.0x the contract and the four at 1.5x grades ok; the lone way at 1.3x FAILS, binding, party ground or not. */
+const BS0 = await import('../src/data/balance-sheet.js');
+const middle = (loneX) => synthSet().filter((c) => c.cell.grade.tier === 'normal' && c.cell.grade.offset === 'floor').map((c) => {
+  const size = c.cell.grade.size, xp = size === 1 ? 70000 * loneX : 70000 * 1.5;
+  return { ...c, cell: { ...c.cell, grade: { ...c.cell.grade, offset: 'middle' } }, heroes: c.heroes.map((h) => ({ ...h, levelXpPerH: xp })) };
+});
+const contract = (loneX) => gradeCells(middle(loneX), { ...sheetFromBalanceSheet(BS0.BALANCE_SHEET), contract: flat }, flat, { g: 'party' }).verdicts.filter((v) => v.rule === 'normal-xp-contract');
+check(contract(1.0).length === 1 && contract(1.0)[0].verdict === 'ok' && contract(1.0)[0].key.includes('size 1'), 'lone-contract: a party ground reads its lone median, the four at 1.5x is not the pace (' + JSON.stringify(contract(1.0).map((v) => [v.key, v.verdict])) + ')');
+check(contract(1.3)[0].verdict === 'FAIL' && contract(1.3)[0].binding === true, 'lone-contract: the lone median at 1.3x FAILS, binding, on a party ground (' + contract(1.3)[0].verdict + ')');
 
 /* rare events: one Normal floor cell of 2,000 h holds the whole pooled group's hours (synthSet's floor solo is one cell) */
 const withDeaths = (k) => { const cells = synthSet(); const c = cells.find((x) => x.cell.grade.tier === 'normal' && x.cell.grade.offset === 'floor' && x.cell.grade.size === 1); c.heroes[0].deaths = k; return cells; };

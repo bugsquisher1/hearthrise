@@ -1,19 +1,19 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.118';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.118';
-import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.118';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.118';
-import { LIB2_ITEMS } from './library2-items.js?v=0.2.118';
-import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.118';
-import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.118';
-import { CHAMPION_ITEMS } from './champions.js?v=0.2.118';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.118';
-import { IMBUE_ITEMS } from './imbuements.js?v=0.2.118';
-import { SHIELD_ITEMS } from './shields.js?v=0.2.118';
-import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.118';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.118';
-import { foldRows } from './grounds/shape.js?v=0.2.118';
+import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.121';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.121';
+import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.121';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.121';
+import { LIB2_ITEMS } from './library2-items.js?v=0.2.121';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.121';
+import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.121';
+import { CHAMPION_ITEMS } from './champions.js?v=0.2.121';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.121';
+import { IMBUE_ITEMS } from './imbuements.js?v=0.2.121';
+import { SHIELD_ITEMS } from './shields.js?v=0.2.121';
+import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.121';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.121';
+import { foldRows } from './grounds/shape.js?v=0.2.121';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -173,7 +173,7 @@ export const ITEMS={
   bronze_belt:{n:'Bronze Belt',icon:'🟫',v:110,type:'armor',slot:'belt',defB:2},
   /* No piece sells under its lower-tier twin (drop-tables sale-ladder): the outfitter's belt and gloves carry their Shop book,
      so these undropped twins are lifted to match (ladder 105 / 65 / 245); the backfill below fills their other fields. */
-  iron_belt:{n:'Iron Belt',icon:'🛡️',v:110},studded_gloves:{n:'Studded Leather Vambraces',icon:'🎽',v:80},boarhide_gloves:{n:'Boarhide Vambraces',icon:'🎽',v:290},
+  iron_belt:{n:'Iron Belt',icon:'🛡️',v:110},studded_gloves:{n:'Studded Leather Bracers',icon:'🎽',v:80},boarhide_gloves:{n:'Boarhide Bracers',icon:'🎽',v:290},
   /* ⚠ v:1, NOT v:60 — DO NOT "RESTORE" THE OLD NUMBER (2026-08-18, reported as
      "you get 500-ish arrows per craft"; the arrows were fine, this was not).
 
@@ -544,7 +544,7 @@ export const ITEMS={
          flavour has an actual reader rather than being a dead field.        */
   burnt_food: {
     n:'Burnt Food', icon:'🔥', v:1,
-    note:'Charcoal with ambitions. Nobody will eat this, so sell it and cook better.',
+    note:'You burned this one. Nobody\'s going to eat it, so sell it and keep cooking until you get better.',
   },
 
   /* ── Farmer's Deed (b136 — Batch C) ────────────────────────────
@@ -717,7 +717,7 @@ export const ITEMS={
      array, and gen-catalogues mirrors it into hr_items for hr_apply §EQUIPMENT. */
   regent_helm:           {n:'Hollow Regent Helm',  icon:'⛑️', v:108000, type:'armor', slot:'helmet', defB:59, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
   slagheart_platebody:   {n:'Slagheart Platebody', icon:'🦺', v:270000, type:'armor', slot:'body',   defB:120,armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
-  abyssal_greaves:       {n:'Abyssal Greaves',     icon:'🦿', v:198000, type:'armor', slot:'pants',  defB:85, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
+  abyssal_greaves:       {n:'Abyssal Leg Plates',  icon:'🦿', v:198000, type:'armor', slot:'pants',  defB:85, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
   choirbone_gauntlets:   {n:'Choirbone Gauntlets', icon:'🧤', v:63000,  type:'armor', slot:'gloves', defB:31, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
   warden_girdle:         {n:"Warden's Girdle",     icon:'🟫', v:72000,  type:'armor', slot:'belt',   defB:40, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
   wyrmgilt_mantle:       {n:'Wyrmgilt Mantle',     icon:'🦸', v:90000,  type:'armor', slot:'cape',   steadyPm: 285, atkB:6, rarity:'unique', tier:8, reqSkill:'level', reqLv:88},

@@ -35,7 +35,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 /* The element vocabulary is src/data/elements.js's, the one copy (re-exported). */
-import { ELEMENTS, elementProfileProblems } from './elements.js?v=0.2.118';
+import { ELEMENTS, elementProfileProblems } from './elements.js?v=0.2.121';
 export { ELEMENTS };
 
 /** The weapon triangle axis. NOTE: 'neutral' is deliberately absent. */
@@ -61,69 +61,69 @@ export const WEAPON_AXES = Object.freeze(['sword', 'hammer', 'ranged', 'magic'])
 export const MONSTER_CLASSES = Object.freeze({
   mammal: {
     id: 'mammal', name: 'Mammal', order: 1,
-    line: 'Ordinary animals, fast and unarmoured. The first foes most heroes meet.',
+    line: 'These are ordinary animals. They\'re quick and wear no armor, and they\'re the first thing most new heroes fight.',
     weaponWeak: 'ranged', weaponResist: ['magic'],
     elements: { ember: -15 },
   },
   vermin: {
     id: 'vermin', name: 'Vermin', order: 2,
-    line: 'Small, many, and it does not care how sharp your sword is.',
+    line: 'Rats, bugs and other pests come at you in big numbers. Hammers work best on them, and they shrug off most poison.',
     weaponWeak: 'hammer', weaponResist: ['ranged'],
     elements: { frost: -15, poison: 50 },
   },
   plant: {
     id: 'plant', name: 'Plant', order: 3,
-    line: 'Rooted, patient, and it burns. Poison is something plants make.',
+    line: 'Plants don\'t move much, and they burn well. Poison doesn\'t do much to them, since plenty of plants make their own.',
     weaponWeak: 'sword', weaponResist: ['ranged'],
     elements: { ember: -15, poison: 25 },
   },
   humanoid: {
     id: 'humanoid', name: 'Humanoid', order: 4,
-    line: 'Goblins, trolls, ogres, giants. Armored, drops gear, hits hard.',
+    line: 'Goblins, trolls, ogres and giants wear armor and hit hard, and they\'re the ones that drop gear.',
     weaponWeak: 'sword', weaponResist: [],
     elements: { poison: -15 },
   },
   human: {
     id: 'human', name: 'Human', order: 5,
-    line: 'People, bandits and casters both. Glass, and they hit like a cart.',
+    line: 'These are people, from bandits to casters. They go down fast, but they hit really hard.',
     weaponWeak: 'ranged', weaponResist: ['magic'],
     elements: { poison: -15 },
   },
   undead: {
     id: 'undead', name: 'Undead', order: 6,
-    line: 'Bones and grief. Crush them. Poison does little to the dead.',
+    line: 'These are dead things that got back up. A hammer or fire works well on them, and poison hardly hurts them at all.',
     weaponWeak: 'hammer', weaponResist: [],
     elements: { ember: -15, frost: 25, poison: 50 },
   },
   demon: {
     id: 'demon', name: 'Demon', order: 7,
-    line: 'Things that came up. Magic-shy, and fire is their native language.',
+    line: 'Demons came up from below. Magic hurts them the most, and fire barely touches them.',
     weaponWeak: 'magic', weaponResist: [],
     elements: { ember: 50, frost: -15 },
   },
   dragon: {
     id: 'dragon', name: 'Dragon', order: 8,
-    line: 'Wyrms, drakes, wyverns. Scaled against blades, open to a good shot.',
+    line: 'Wyrms, drakes and wyverns have scales that turn a blade, so you\'re better off shooting them.',
     weaponWeak: 'ranged', weaponResist: ['sword'],
     elementPerMonster: true,
     elements: {},
   },
   elemental: {
     id: 'elemental', name: 'Elemental', order: 9,
-    line: 'It is the element. Its own does it little harm, and its opposite ruins it.',
+    line: 'An elemental is made of its element. That element barely hurts it, and the opposite one hurts it a lot.',
     weaponWeak: 'magic', weaponResist: ['sword'],
     elementPerMonster: true,
     elements: {},
   },
   construct: {
     id: 'construct', name: 'Construct', order: 10,
-    line: 'Stone, clay, clockwork. No blood to spill, and little for poison to eat.',
+    line: 'Constructs are built out of stone, clay or gears. They don\'t bleed, and poison does very little to them.',
     weaponWeak: 'hammer', weaponResist: ['ranged'],
     elements: { ember: 25, frost: -15, poison: 50 },
   },
   extradimensional: {
     id: 'extradimensional', name: 'Extra Dimensional', order: 11,
-    line: 'Endgame only. Its element weakness is not printed until you have killed enough of it.',
+    line: 'You\'ll only meet these at the very end of the game. You won\'t see which element hurts them until you\'ve killed enough of them.',
     weaponWeak: 'sword', weaponResist: [],
     elementPerMonster: true, hiddenElement: true,
     elements: {},

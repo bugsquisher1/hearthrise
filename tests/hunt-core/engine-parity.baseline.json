@@ -1,0 +1,283 @@
+{
+ "note": "tests/hunt-core/engine-parity.mjs --write. Re-pin only for a change meant to move what a hunt does, and say why in the commit.",
+ "window": 100000,
+ "seed": "-4611686018427387904",
+ "scenarios": {
+  "warrens-4": {
+   "settles": 12,
+   "kills": 221,
+   "world": "e278fb62396d",
+   "timeline": "1174d65963ff",
+   "tally": "0eee950a0cfe",
+   "each": [
+    {
+     "world": "8e95d620c63f",
+     "timeline": "64062d13eeec",
+     "tally": "3216029d43f1"
+    },
+    {
+     "world": "bb65ab2f83e2",
+     "timeline": "253055f95559",
+     "tally": "aa6d0986071f"
+    },
+    {
+     "world": "bf0e3c872050",
+     "timeline": "20dd28771c0b",
+     "tally": "e46b6a09c7d7"
+    },
+    {
+     "world": "9a2301bd229f",
+     "timeline": "cbd1804ca7f4",
+     "tally": "b4005468409b"
+    },
+    {
+     "world": "f85a816ab47a",
+     "timeline": "a69f73d8b07a",
+     "tally": "c891ab1d5cd7"
+    },
+    {
+     "world": "5d6d3f2ae68f",
+     "timeline": "1803537224f7",
+     "tally": "d19220863b36"
+    },
+    {
+     "world": "f0862665bd82",
+     "timeline": "758ed3d17785",
+     "tally": "78e7baa58b05"
+    },
+    {
+     "world": "7ba018ae68bb",
+     "timeline": "812ae81d2707",
+     "tally": "0718db8d06cb"
+    },
+    {
+     "world": "6a427f0d7c72",
+     "timeline": "eacc082ae3f8",
+     "tally": "91855d6fa136"
+    },
+    {
+     "world": "b2af17fc8931",
+     "timeline": "2f5799ebb1e2",
+     "tally": "1588c6bd1a2d"
+    },
+    {
+     "world": "2852e605f151",
+     "timeline": "b1c75fd7709c",
+     "tally": "7b08c6c5f38d"
+    },
+    {
+     "world": "6117498c1299",
+     "timeline": "c51f05cd61ff",
+     "tally": "53175689e0e3"
+    }
+   ]
+  },
+  "glade-4": {
+   "settles": 12,
+   "kills": 500,
+   "world": "de40e237351c",
+   "timeline": "2255db4c248e",
+   "tally": "7a7491ca7049",
+   "each": [
+    {
+     "world": "e44f1ffc0971",
+     "timeline": "4fbd130e5b44",
+     "tally": "c789e55c1ee5"
+    },
+    {
+     "world": "4a8cd8d47578",
+     "timeline": "ea13cdae2685",
+     "tally": "0bcff6881fc0"
+    },
+    {
+     "world": "e394e663f53f",
+     "timeline": "f16219d798f0",
+     "tally": "8e06b038618b"
+    },
+    {
+     "world": "09b9f5bb38fc",
+     "timeline": "9b630ac1bcef",
+     "tally": "f649174b49a7"
+    },
+    {
+     "world": "aaa446605d70",
+     "timeline": "b0aed373e5e5",
+     "tally": "f7cc351c6a00"
+    },
+    {
+     "world": "4dc455662d51",
+     "timeline": "507ba64468dc",
+     "tally": "be9cea64121a"
+    },
+    {
+     "world": "7fe0dbea579b",
+     "timeline": "a9fbb1ecab55",
+     "tally": "1ae79f0f9cee"
+    },
+    {
+     "world": "7025210a0912",
+     "timeline": "526f14a25b8b",
+     "tally": "e092bfe3555e"
+    },
+    {
+     "world": "d8b35e62ddc9",
+     "timeline": "004a1dbfc346",
+     "tally": "7f1fd6dbe381"
+    },
+    {
+     "world": "3dd1089024ef",
+     "timeline": "10ff5af08828",
+     "tally": "9a9333965ce2"
+    },
+    {
+     "world": "418fa71a9a3e",
+     "timeline": "0332aa4699d1",
+     "tally": "553745e0f890"
+    },
+    {
+     "world": "c075ada9424b",
+     "timeline": "26407e0e2726",
+     "tally": "35422d7d070f"
+    }
+   ]
+  },
+  "glade-1-kite": {
+   "settles": 12,
+   "kills": 137,
+   "world": "42d36ce26499",
+   "timeline": "18560cd6deab",
+   "tally": "4cf26703b2c9",
+   "each": [
+    {
+     "world": "6af4e73e3da8",
+     "timeline": "3f1f646fa1f5",
+     "tally": "8d63696d0396"
+    },
+    {
+     "world": "df78597df7ce",
+     "timeline": "aca8695c4368",
+     "tally": "3d5ad7751ff3"
+    },
+    {
+     "world": "3b87ca7cdfce",
+     "timeline": "42d474ea9141",
+     "tally": "5ce942d02f7f"
+    },
+    {
+     "world": "f36b4bba6d8a",
+     "timeline": "1eee11d4370f",
+     "tally": "f8be9d5327a1"
+    },
+    {
+     "world": "70bf5028a27d",
+     "timeline": "f2e8415a7d74",
+     "tally": "2dbb8f38ea4c"
+    },
+    {
+     "world": "30991f6caa61",
+     "timeline": "30018a305641",
+     "tally": "2c20e0aa071a"
+    },
+    {
+     "world": "aa06ed853812",
+     "timeline": "915def653c4f",
+     "tally": "142d7af96225"
+    },
+    {
+     "world": "f9d30afbb207",
+     "timeline": "ea7057d73f62",
+     "tally": "98164a239df7"
+    },
+    {
+     "world": "915ded57c646",
+     "timeline": "106efc961fcb",
+     "tally": "2dd761c58a88"
+    },
+    {
+     "world": "f9acdf539048",
+     "timeline": "65b5e18b80a0",
+     "tally": "d0d018ae8af3"
+    },
+    {
+     "world": "95a5dabed262",
+     "timeline": "1af26276d542",
+     "tally": "eac50f8f18dd"
+    },
+    {
+     "world": "c5829337dedf",
+     "timeline": "2ca269d00b1f",
+     "tally": "280cb7e8d485"
+    }
+   ]
+  },
+  "sewer-2": {
+   "settles": 12,
+   "kills": 114,
+   "world": "8815f32b0d71",
+   "timeline": "01248f1f5686",
+   "tally": "839397d58131",
+   "each": [
+    {
+     "world": "05fcac3dce36",
+     "timeline": "69f1e6772ce8",
+     "tally": "5927b13e1fbf"
+    },
+    {
+     "world": "21c3fe1139a2",
+     "timeline": "f252af33100a",
+     "tally": "6010efdfa4f1"
+    },
+    {
+     "world": "4723751d0277",
+     "timeline": "491c94a585ca",
+     "tally": "fc29335b9ee7"
+    },
+    {
+     "world": "5c33a67b75cc",
+     "timeline": "abcbde23197a",
+     "tally": "b49c96d45f78"
+    },
+    {
+     "world": "6f0e2525873e",
+     "timeline": "315408f4f768",
+     "tally": "f15ce33f36a2"
+    },
+    {
+     "world": "84a0b52fc812",
+     "timeline": "83562e1c2991",
+     "tally": "994b52109d10"
+    },
+    {
+     "world": "f9ff896fae1f",
+     "timeline": "459acc83c244",
+     "tally": "579a896d3bff"
+    },
+    {
+     "world": "940a1364bede",
+     "timeline": "81eef2085b99",
+     "tally": "3b06dab6b64a"
+    },
+    {
+     "world": "b76f7e3b387e",
+     "timeline": "5491322929c1",
+     "tally": "ee5825cf0d71"
+    },
+    {
+     "world": "34860a27264e",
+     "timeline": "642636b586a1",
+     "tally": "6354171ccc76"
+    },
+    {
+     "world": "b2dc7795282a",
+     "timeline": "43e256e0684c",
+     "tally": "4d6eafce7dff"
+    },
+    {
+     "world": "11e4b6dccb6a",
+     "timeline": "aba6a44a2181",
+     "tally": "44709e7234e8"
+    }
+   ]
+  }
+ }
+}

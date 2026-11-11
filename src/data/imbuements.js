@@ -69,10 +69,10 @@ const row = (n, icon, level, kind) => Object.freeze({ n, icon, v: imbueValueFor(
 /* One per monster; the dropper's Level (src/data/monsters.js) sets value and tier. */
 export const IMBUE_ITEMS = Object.freeze({
   /* Meadowbrook Thicket: the gray wolves */
-  whelp_milk_tooth: row('Whelp Milk Tooth', '🦷', 5, 'life_leech'),
+  whelp_milk_tooth: row('Pup Milk Tooth', '🦷', 5, 'life_leech'),
   gray_dewclaw: row('Gray Dewclaw', '🐾', 8, 'keen'),
   briar_burr: row('Briar Burr', '🌰', 10, 'ward'),
-  dire_hackle: row('Dire Gray Hackle', '🐺', 13, 'ward'),
+  dire_hackle: row('Dire Gray Neck Fur', '🐺', 13, 'ward'),
   grayjaw_whisker: row('Grayjaw Whisker', '〰️', 15, 'keen'),
   /* The Mill Cellar (designer 2026-10-23): the tutorial's three, so its rows read like every other ground's */
   sticky_core: row('Sticky Core', '🟢', 2, 'element_ward'),
@@ -111,14 +111,14 @@ export const IMBUE_ITEMS = Object.freeze({
 
 /* The flavour lines (src/data/item-descriptions.js): what it is, where it comes from. */
 export const IMBUE_DESC = Object.freeze({
-  whelp_milk_tooth: 'A milk tooth a Gray Whelp lost in a bite. Only the whelps of Meadowbrook Thicket shed them',
+  whelp_milk_tooth: 'A milk tooth a Gray Wolf Pup lost in a bite. Only the pups of Meadowbrook Thicket shed them',
   gray_dewclaw: 'The hooked fifth claw from a Gray Wolf\'s foreleg, sharp enough to hold a wolf\'s grip',
   briar_burr: 'A burr pulled from a Briarcoat Wolf\'s coat, the kind that catches arrows',
   dire_hackle: 'A tuft of the stiff neck fur a Dire Gray raises before it charges',
   grayjaw_whisker: 'A long gray whisker from Old Grayjaw, the den mother under the hollow oak',
   rat_incisor: 'An orange front tooth from a Drain Rat, worn sharp on the sewer\'s grates',
-  sump_membrane: 'The skin of a Sump Slime, which nothing in the sump can burn, freeze or poison',
-  kobold_scale: 'A shed scale from a Kobold Tosher, scuffed from crawling through the outfalls',
+  sump_membrane: 'The skin of a Sump Slime. Fire, ice and poison don\'t do much to it',
+  kobold_scale: 'A shed scale from a Sewer Kobold, scuffed from crawling through the outfalls',
   culvert_bat_fang: 'A needle fang from a Culvert Bat, the bats that roost over the channel',
   cistern_venom_gland: 'The venom gland of a Cistern Spider, still heavy with poison',
   knotted_tails: 'A knot of tails cut from the Rat King, tied too tight for any rat to pull free',
@@ -131,13 +131,13 @@ export const IMBUE_DESC = Object.freeze({
   hive_wasp_stinger: 'The barbed stinger of a Hive Wasp from the mill cellar, still sharp enough to draw blood',
   glowing_copper_fleck: 'A fleck of copper from the Warrens that still glows from the spring water, picked out by a scavenger',
   skulkers_shiv: 'The thin blade a Goblin Skulker carries for the back of a party, sharpened on the gallery walls',
-  granary_whisker: 'A stiff whisker off a Granary Rat, the rats grown fat on what Wickstead left in its granary',
+  granary_whisker: 'A stiff whisker off a Granary Rat. They got fat on the grain Wickstead left behind',
   barn_wasp_sting: 'The sting of a Barn Wasp from the Wickstead orchard, where the wasps nest in the old trees',
   loft_web: 'A wad of the thick web the Barn Spiders spin across the Wickstead hay loft',
-  orchard_boar_tusk: 'A short yellowed tusk off an Orchard Boar, the boars grown fat on the Wickstead windfalls',
+  orchard_boar_tusk: 'A short yellow tusk off an Orchard Boar. They got fat eating the fallen apples at Wickstead',
   brook_bear_tooth: 'A worn tooth from a Brook Bear, the bears that fish the Meadowbrook where it rises',
-  torn_company_badge: 'A free company\'s badge a Turncoat cut off his coat when he deserted. The threads still hang from it',
-  dented_copper_pot: 'The copper pot a Goblin Digger wears over its eyes, dented by every blade that ever rang off it',
+  torn_company_badge: 'The Banded Company badge a Turncoat cut off his coat when he ran. The loose threads are still hanging off it',
+  dented_copper_pot: 'The copper pot a Goblin Digger wears as a helmet. It\'s dented from every blade that\'s ever hit it',
   foremans_lash: 'The knotted lash a Hobgoblin Foreman keeps the diggers working with',
-  coppercaps_tallow: 'The tallow Chief Coppercap rubs into his skin. It is why frost slides off him',
+  coppercaps_tallow: 'The tallow Chief Coppercap rubs into his skin. That\'s why frost doesn\'t hurt him as much',
 });

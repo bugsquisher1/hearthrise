@@ -152,6 +152,13 @@ function contract(R, cs, body, tl) {
   need('equipment', R.IS.equipmentOf(cs) !== null, 'equipmentOf reads no equipment');
   const sk = R.IS.skillsOf(cs);
   need('skills', !!sk && Object.keys(sk).length >= 4 && !!sk.melee, 'skillsOf yields ' + JSON.stringify(sk).slice(0, 160) + ' from ' + JSON.stringify(body.skills).slice(0, 160));
+  /* A SKILL'S BAR IS THE SERVER'S SECTION (lane/c-skills-from-server): every skill the ledgers draw, whole, its level the one
+     `skills` states, its two marks holding its XP (the settled hunt has moved Melee off zero) */
+  const sl = R.IS.skillLevelsOf(cs);
+  const slBad = sl ? Object.keys(sk || {}).filter((id) => !sl[id] || sl[id].level !== sk[id].level || sl[id].xp !== sk[id].xp
+    || !(sl[id].need === 0 || sl[id].into < sl[id].need)) : ['(no section)'];
+  need('skill_levels', !!sl && Object.keys(sl).length >= 13 && !slBad.length && !!sl.melee && sl.melee.xp > 0 && sl.melee.need > 0,
+    'skillLevelsOf yields ' + JSON.stringify(sl && sl.melee) + ' (cells off `skills`: ' + slBad.join(',') + ') from ' + JSON.stringify(body.skill_levels).slice(0, 200));
   need('state', R.IS.goldOf(cs) !== null, 'goldOf reads no state.gold');
   const v = R.PS.vitalsOf(cs);
   need('state', !missing(v, ['hp', 'hpMax', 'mana', 'manaMax', 'staminaMs', 'staminaCapMs']).length, 'vitalsOf misses ' + missing(v, ['hp', 'hpMax', 'mana', 'manaMax', 'staminaMs', 'staminaCapMs']).join(', '));
@@ -289,7 +296,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'gm', 'hallmark', 'level', 'live_events']);
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -474,6 +481,10 @@ const DB_MUTANTS = [
   ['level', 'public.hr_level_block(bigint)', "jsonb_build_object('xp', x, 'level', lv,", "jsonb_build_object('xp', x, 'lv', lv,"],
   ['level', 'public.hr_level_block(bigint)', "'into', x - public.hr_char_xp_for_level(lv),", "'in_to', x - public.hr_char_xp_for_level(lv),"],
   ['level', 'public.hr_state_of(uuid,integer)', "'level', public.hr_level_block(v_st.level_xp),", "'level_block', public.hr_level_block(v_st.level_xp),"],
+  /* lane/c-skills-from-server: the skill ledgers draw each field of hr_skill_block and nothing of their own */
+  ['skill_levels', 'public.hr_skill_block(text,bigint)', "jsonb_build_object('xp', x, 'level', lv, 'into', x - lo,", "jsonb_build_object('xp', x, 'lv', lv, 'into', x - lo,"],
+  ['skill_levels', 'public.hr_skill_block(text,bigint)', "'into', x - lo, 'need',", "'in_to', x - lo, 'need',"],
+  ['skill_levels', 'public.hr_skill_block(text,bigint)', "'need', public.hr_skill_xp_for_level(p_skill, lv + 1) - lo);", "'needs', public.hr_skill_xp_for_level(p_skill, lv + 1) - lo);"],
   /* lane/b-live-events-client: the plate and the Hunts lines read each event's window and dial from the section */
   ['live_events', 'public.hr_live_events_view(uuid,integer)', "'starts', x.starts,", "'start', x.starts,"],
   ['live_events', 'public.hr_live_events_view(uuid,integer)', "'dial', x.dial, 'pm', x.pm,", "'dial', x.dial, 'permille', x.pm,"],

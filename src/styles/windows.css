@@ -545,6 +545,9 @@
 .hw-work-n { align-self: flex-start; margin-top: 4px; }
 .hw-work-n .hh-seg { min-width: 32px; min-height: 24px; padding: 0 6px; }
 .hw-work-row.is-locked .hw-work-n { display: none; }
+/* A crafting station's Sort menu (src/shell/station-sort.js): the bag's own label and select, at the list's top right. */
+.hw-work-sort { display: flex; justify-content: flex-end; margin: 4px 0; }
+.hw-work-sort[hidden] { display: none; }
 
 /* ── The shop and hunt prep ── */
 .hw-qty { width: 64px; }

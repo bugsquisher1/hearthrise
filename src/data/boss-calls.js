@@ -71,8 +71,8 @@ export const BOSS_CALL_WORDS = Object.freeze({
   shout: Object.freeze({ adds: 'Adds!', enrage: 'Enraged!' }),
   /* THE LOSING LINE (src/hunt-view/boss-loss.js): where it was lost, what this hero's bar did there, what answers it. {pct} his HP at the end; {times} the server's count. */
   loss: Object.freeze({
-    fell: Object.freeze({ first: 'Fell before his adds came, at {pct}%', adds: 'Fell in the add wave at {pct}%', enrage: 'Fell in the enrage at {pct}%' }),
-    time: Object.freeze({ first: 'Time ran out before his adds came, at {pct}%', adds: 'Time ran out in the add wave at {pct}%', enrage: 'Time ran out in the enrage at {pct}%' }),
+    fell: Object.freeze({ first: 'You lost before his adds came, with him at {pct}%', adds: 'You lost while his adds were up, with him at {pct}%', enrage: 'You lost after he got enraged, with him at {pct}%' }),
+    time: Object.freeze({ first: 'Time ran out before his adds came, with him at {pct}%', adds: 'Time ran out while his adds were up, with him at {pct}%', enrage: 'Time ran out after he got enraged, with him at {pct}%' }),
     fact: Object.freeze({ challenge: 'your Challenge fired {times}', heals: 'your heals fired {times}', area: 'your area slots fired {times}', ate: 'you ate {times}' }),
     answer: Object.freeze({
       first: 'His plain blows beat your healing. Bring a healer, eat earlier, or come back a gear tier up.',

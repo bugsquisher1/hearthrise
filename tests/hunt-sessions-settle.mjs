@@ -3864,13 +3864,8 @@ const DB_ARMS = {
     try {
       const h = await hunter(db, M, { realGround: true, minutesAgo: 22, level: 2, density: 8,
         inv: { cooked_shrimp: 30 }, bag: [{ item: 'cooked_shrimp', qty: 25 }], gold: 1000 });
-      /* THE DENSITY TERM ALONE (v_pass = spawns + pockets x the frozen pick). hr_hunt_grounds.spawns also carries pockets x a party's
-         largest default pull (gen-hunt-sessions.mjs), which on the Cellar is room enough to hide a bound that drops the pick: this
-         arm holds the row at the as-built rows, for this transaction, so only the pick can admit these kills. The pull's own term
-         is tests/party-pull-bound.mjs's. */
-      const { HUNT_GROUNDS: REAL } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href);
-      const pullSpawns = REAL.mill_cellar.pockets.length * Math.max(0, ...(REAL.mill_cellar.partyPull || []));
-      await db.query("update public.hr_hunt_grounds set spawns = spawns - $1::int where hunt_id = 'mill_cellar'", [pullSpawns]);
+      /* THE DENSITY TERM ALONE (v_pass = spawns + pockets x the frozen pick). hr_hunt_grounds.spawns is the Cellar's rows as built (a party's
+         own Normal pull, which once widened it, is retired: Tyler 2026-11-11), so only the pick can admit these kills. */
       /* Hank's weapon: the club's cleave clears a full pack at once. */
       await db.query("delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot in ('shield', 'weapon')", [UID]);
       await db.query("insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'weapon', 'practice_club')", [UID]);
@@ -4854,8 +4849,9 @@ const DB_MUTANTS = [
     find: 'kills = t.kills + v_kills,', replace: 'kills = t.kills + v_kills + 1,' },
   { arm: 'TALLY', name: 'the fold drops the own-supply rows', fn: SS,
     find: 'supplies = public.hr_jsonb_add(t.supplies, v_sup)', replace: 'supplies = t.supplies' },
+  /* the tally's one write a member (2027-04-08-member-write-once.sql folds the store bill into it; each column keeps its own condition) */
   { arm: 'ANALYZER', name: 'the analyzer tally is not folded', fn: AM,
-    find: '           dealt = public.hr_hunt_tally_add(t.dealt, coalesce(p_analyzer->\'dealt\', \'{}\'::jsonb)),', replace: '           dealt = t.dealt,' },
+    find: 'then public.hr_hunt_tally_add(t.dealt, coalesce(p_analyzer->\'dealt\', \'{}\'::jsonb)) else t.dealt end,', replace: 'then t.dealt else t.dealt end,' },
   /* 'a free character reads the analyzer' RETIRED 2026-10-19: 2026-10-26-hunt-analyzer-basic.sql gives every
      character the basic analyzer, so the live body has no premium gate to remove. */
   { arm: 'DEATHXP', name: 'the applier stops bounding the Level\'s death price', fn: AM,

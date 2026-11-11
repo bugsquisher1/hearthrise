@@ -10,15 +10,15 @@
 // The answer takes the question's place, in the flow (.hw-temper-msg), never the tab's line stuck to the sheet's foot: on a phone that line lay over the
 // note saying where the next rung's material comes from, for the 30 s an answer stands (lane/c-temper-craft's play, 2026-11-05).
 // ════════════════════════════════════════════════════
-import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.118';
-import { goldOf } from '../../session/item-sections.js?v=0.2.118';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.118';
-import { gold, whole, listWords } from '../../render/format.js?v=0.2.118';
-import { runIntent } from '../intent-words.js?v=0.2.118';
-import { huntedOnly, saleWords } from '../item-lore.js?v=0.2.118';
-import { dropWhereWords, dropHuntOf } from '../hunt-ground-facts.js?v=0.2.118';
-import { patchParts, targetOf } from '../goto.js?v=0.2.118';
-import { t } from '../../render/player-text.js?v=0.2.118';
+import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.121';
+import { goldOf } from '../../session/item-sections.js?v=0.2.121';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.121';
+import { gold, whole, listWords } from '../../render/format.js?v=0.2.121';
+import { runIntent } from '../intent-words.js?v=0.2.121';
+import { huntedOnly, saleWords } from '../item-lore.js?v=0.2.121';
+import { dropWhereWords, dropPlaceOf } from '../hunt-ground-facts.js?v=0.2.121';
+import { patchParts, targetOf } from '../goto.js?v=0.2.121';
+import { t } from '../../render/player-text.js?v=0.2.121';
 
 const TRACKS = Object.freeze([
   { id: 'blows', label: 'Blows', effect: 'your blows and heals land', worse: 'harder', none: 'Wield a weapon to temper it.' },
@@ -59,7 +59,7 @@ function wayParts(rows) {
     said.set(n.id, [{ words: n.smith.level < n.smith.req
       ? t('temper.way_smith_short', { name: n.name, req: n.smith.req, level: n.smith.level, inputs })
       : t('temper.way_smith', { name: n.name, req: n.smith.req, inputs }), target: targetOf({ kind: 'work', skill: 'smithing', row: n.smith.id }) },
-    ...n.smith.from.map((f) => ({ words: dropWords(f), target: targetOf({ kind: 'hunt', hunt: dropHuntOf(f.id) }) })),
+    ...n.smith.from.map((f) => ({ words: dropWords(f), target: targetOf(dropPlaceOf(f.id)) })),
     { words: saleWords(n.id) ? '' : t('temper.way_weighhouse'), target: targetOf({ kind: 'market' }) }].filter((p) => p.words));
   }
   return [...said.values()].flat().flatMap((p, i) => (i ? [' ', p] : [p]));

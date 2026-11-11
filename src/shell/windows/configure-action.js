@@ -24,24 +24,24 @@
 // (bar-draft.js), every control stays off until the server has answered, and a refusal
 // keeps the draft and outlines its condition. On a phone (922×423) it is a full sheet.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.118';
-import { STATUSES } from '../../data/statuses.js?v=0.2.118';
-import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.118';
-import { vitalsOf } from '../../session/party-sections.js?v=0.2.118';
-import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.118';
-import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.118';
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.118';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.118';
-import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.118';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, serverBar, opWords, unitWords } from '../bar-draft.js?v=0.2.118';
-import { startSupply } from '../rune-supply.js?v=0.2.118';
-import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.118';
-import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.118';
-import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.118';
-import { glyphSvg } from '../launcher.js?v=0.2.118';
-import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine } from '../action-table.js?v=0.2.118';
-import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.118';
-import { whole } from '../../render/format.js?v=0.2.118';
+import { METRICS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.121';
+import { STATUSES } from '../../data/statuses.js?v=0.2.121';
+import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.121';
+import { vitalsOf } from '../../session/party-sections.js?v=0.2.121';
+import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.121';
+import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.121';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.121';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.121';
+import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.121';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, serverBar, opWords, unitWords } from '../bar-draft.js?v=0.2.121';
+import { startSupply } from '../rune-supply.js?v=0.2.121';
+import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.121';
+import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.121';
+import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.121';
+import { glyphSvg } from '../launcher.js?v=0.2.121';
+import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine } from '../action-table.js?v=0.2.121';
+import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.121';
+import { whole } from '../../render/format.js?v=0.2.121';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');

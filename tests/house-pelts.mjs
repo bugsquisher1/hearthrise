@@ -9,7 +9,8 @@
 //
 // Real RPCs and the REAL hunt settle (hunt-settle.js over the replayed chain, the tests/hunt-sessions-settle.mjs harness),
 // on the real Glade and the real tables, production untouched:
-//   HP-1 CLOSED + THE BUY  browser closed (the world tick): a Level 24 hero at Mosslight Glade with a pull of 3 kills Brook
+//   HP-1 CLOSED + THE BUY  browser closed (the world tick): a Level 24 hero ALONE at Mosslight Glade on NORMAL, the room as built
+//                (the bear stands in Vine Hollow since lane/c-brook-bear, the designer's ruling 3, 2026-11-10), kills Brook
 //                Bears and is credited 5 Bear Pelts by the settle, never refused (the 10-29 raw_bear_meat refusal: bound 0,
 //                value_over). Those pelts, and only the rest of the price seeded, buy the ladder to the Keep through
 //                hr_unlock_buy; then the Trophy Room to its top visible rung.
@@ -19,10 +20,14 @@
 //   HP-4 SELF-CHECK the two 2027-02-16 files refuse their own apply on a visible rung with a dead item, a sold Castle, and a
 //                bear whose kill bound forgets the pelt; a second apply of both, on the chain as of the later of them, is
 //                byte-identical (later full replaces own these rows at the chain end).
-//   HP-5 THE WORDS (no database) no Brook Bear below a pull of 3 (the pull's own rows: a lone hero asks for it, and a Glade
-//                party's default of 3 meets it, hunt-grounds.js partyPull), and the player reading for a pelt is told: the item tip's
-//                "Comes from" names the bear and not the six monsters no ground spawns, the House's short cost line and the
-//                Glade's page say a bigger pull brings it, a held-enough line and an as-built creature's item say nothing.
+//   HP-5 THE WORDS (no database) the Brook Bear stands in the Glade as built (the pull's own rows: a hero alone on Normal meets
+//                it), and the player reading for a pelt is told: the item tip's "Comes from" and the House's short cost line name the
+//                bear at the Glade (and not the six monsters no ground spawns), the Glade's page lists it with the creatures there and
+//                says no bigger pull is needed for it, a held-enough line says nothing, and no word says a party brings it (Tyler
+//                2026-11-11: one pack on Normal for every group). The words for a creature ONLY a harder hunt summons (no open ground has one
+//                since the bear moved) are played on a planted tree with the bear back in the fill rows: "Only a harder hunt at Mosslight
+//                Glade summons the Brook Bear", its link the creature's facts, and the page's "A harder hunt summons the Brook Bear.", the
+//                name a link, no drop list (Tyler 2026-11-11).
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -44,7 +49,7 @@ const asUser = (db, uid) => db.query("select set_config('request.jwt.claim.sub',
 const calm = (db) => db.query('delete from public.hr_rate_counters');
 const bagOf = async (db, uid, item) => Number(await one(db, 'select coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2), 0)::text', [uid, item]));
 
-/* A hero on the real Glade MAX_HOURS + 1 ago, its pull at 3 (the smallest that brings the bear). */
+/* A hero alone on the real Glade MAX_HOURS + 1 ago, on Normal: the room as built, where the bear now stands (lane/c-brook-bear). */
 async function gladeHunter(db, H, M, uid) {
   await H.character(db, M, uid, { level: 24, gold: 5000000, inv: {} });
   /* IN THE IRON PLATE A LEVEL 24 HERO HAS WORN SINCE 15 (Tyler's harder Glade, 2026-11-02): in the practice set alone it now dies at a pull of 3, which is the
@@ -59,9 +64,10 @@ async function gladeHunter(db, H, M, uid) {
   await db.query('update public.hr_hunt_config set enabled = true where id');
   await asUser(db, uid);
   await calm(db);
-  /* The bear comes to a harder hunt alone (hunt-tiers.js). */
-  const d = await one(db, "select public.hr_hunt_tier_set(0, $1, 'dangerous', $2::uuid)", [GLADE, idem()]);
-  if (!d || d.ok !== true) throw new Error('tier refused: ' + JSON.stringify(d));
+  /* NORMAL: a hero alone meets the bear in the room as built (the designer's ruling 3, 2026-11-10; it stood only in the fill rows before, so this hunt
+     was on Dangerous). Picked through the RPC, as the Hunts window picks it. */
+  const d = await one(db, "select public.hr_hunt_tier_set(0, $1, 'normal', $2::uuid)", [GLADE, idem()]);
+  if (!d || d.ok !== true || d.tier !== 'normal') throw new Error('tier refused: ' + JSON.stringify(d));
   const e = await one(db, "select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, $2::uuid)", [GLADE, idem()]);
   if (!e || e.ok !== true) throw new Error('enter refused: ' + JSON.stringify(e));
   await asUser(db, '');
@@ -268,8 +274,14 @@ const AGAIN_MUTANTS = [
   { name: 'the offers file moves a price on every apply', again: (sql, f) => (f === OFFERS ? sql + "\nupdate public.hr_unlock_offers set gold = gold + 1 where offer_id = 'property.keep';\n" : sql) },
 ];
 
-/* HP-5, on the tree at `root` (a planted copy for its mutants). */
-async function wordsFails(root) {
+/* THE BEAR BACK IN THE FILL ROWS, as it stood before lane/c-brook-bear: no open ground has a creature only a bigger pull brings since it moved, so
+   the words for one are played on a planted tree with this edit (wordsFails `fill`). */
+const FILL_BEAR = [['src/data/hunt-grounds.js', "['walking_vine', 'brook_bear'], ['carrion_crow', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']",
+  "['walking_vine', 'carrion_crow'], ['brook_bear', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']"]];
+
+/* HP-5, on the tree at `root` (a planted copy for its mutants). `fill`: the tree carries FILL_BEAR, and only the words for a
+   creature a bigger pull brings are read (the rest of HP-5 reads the shipped tree). */
+async function wordsFails(root, fill = false) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
   const F = await imp('src/shell/hunt-ground-facts.js');
   const { sourcesOf } = await imp('src/shell/item-lore.js');
@@ -278,17 +290,40 @@ async function wordsFails(root) {
   const out = [];
   const glade = G.HUNT_GROUNDS[GLADE];
   const at = (n) => glade.pockets.some((_, p) => G.pullRows(glade, p, n).some((s) => s.monster === 'brook_bear'));
-  if (at(2) || !at(3)) out.push('CONTROL: the engine brings the bear at pull 2 ' + at(2) + ', at pull 3 ' + at(3) + ': the words below state 3');
-  const told = /The Brook Bear only comes to a party or a harder hunt at Mosslight Glade/;
-  const src = sourcesOf('bear_pelt').join('. ');
-  if (!told.test(src)) out.push('the tip\'s Comes from reads: ' + src);
   const step = { gold: 40000, items: [{ id: 'bear_pelt', qty: 5 }, { id: 'oak_log', qty: 1 }] };
   const shortLine = costLines(step, 50000, [], []).lines.find((l) => l.key === 'bear_pelt');
-  if (!told.test(shortLine.where) || !shortLine.short) out.push('the House\'s short pelt line reads: ' + shortLine.where);
+  const src = sourcesOf('bear_pelt').join('. ');
+  const page = F.bigPullLine(GLADE);
+  /* NO PARTY WORDS (Tyler 2026-11-11: one pack on Normal for every group): nothing a player reads for the bear says a party brings it */
+  for (const [what, words] of [['the tip', src], ['the House', shortLine.where], ['the page', page]]) if (/party/i.test(words)) out.push((fill ? 'fill: ' : '') + what + ' says a party changes Normal: ' + words);
+  if (fill) {
+    if (at(0) || at(2) || !at(3)) out.push('CONTROL: on the fill tree the engine brings the bear as built ' + at(0) + ', at pull 2 ' + at(2) + ', at pull 3 ' + at(3) + ': the words below state 3');
+    /* Tyler 2026-11-11: "just link the monster fact, don't do the parenthesis", then "say summons": one plain sentence, the name a link to its facts */
+    const told = /^Only a harder hunt at Mosslight Glade summons the Brook Bear$/;
+    if (!told.test(src)) out.push('fill: the tip\'s Comes from reads: ' + src);
+    if (!told.test(shortLine.where) || !shortLine.short) out.push('fill: the House\'s short pelt line reads: ' + shortLine.where);
+    const place = F.dropPlaceOf('bear_pelt');
+    if (!place || place.kind !== 'monster' || place.id !== 'brook_bear') out.push('fill: the source line\'s link opens ' + JSON.stringify(place) + ', not the Brook Bear\'s facts');
+    if (page !== 'A harder hunt summons the Brook Bear.') out.push('fill: the Glade\'s page reads: ' + page);
+    const parts = F.bigPullParts(GLADE, (id) => ({ win: 'monster', tab: id }));
+    const link = parts.find((p) => typeof p === 'object');
+    if (!link || link.words !== 'Brook Bear' || !link.target || link.target.tab !== 'brook_bear' || parts.map((p) => (typeof p === 'string' ? p : p.words)).join('') !== page) out.push('fill: the page\'s line is not the sentence with the name a link to its facts: ' + JSON.stringify(parts));
+    if (F.residentsOf(GLADE).some((x) => x.id === 'brook_bear')) out.push('fill: the Glade\'s page lists the bear with the creatures that stand there');
+    return out;
+  }
+  /* THE BEAR STANDS AS BUILT (the designer's ruling 3, 2026-11-10): a hero alone on Normal meets it, and every word says it is simply there. */
+  if (!at(0)) out.push('CONTROL: the engine does not bring the bear in the Glade as built: a hero alone on Normal never meets it');
+  const there = /^Dropped by (?:.*\b)?Brook Bear\b.* at Mosslight Glade/;
+  if (!there.test(src)) out.push('the tip\'s Comes from reads: ' + src);
+  if (!there.test(shortLine.where) || !shortLine.short) out.push('the House\'s short pelt line reads: ' + shortLine.where);
   const heldLine = costLines(step, 50000, [{ id: 'bear_pelt', qty: 5 }], []).lines.find((l) => l.key === 'bear_pelt');
   if (heldLine.where) out.push('the House tells a hero holding the pelts where to get them: ' + heldLine.where);
-  const page = F.bigPullLine(GLADE);
-  if (!/A party or a harder hunt also brings the Brook Bear/.test(page) || !/Bear Pelt/.test(page)) out.push('the Glade\'s page reads: ' + page);
+  if (page !== '' || F.bigPullParts(GLADE, () => null).length) out.push('the Glade\'s page still says a harder hunt summons the bear: ' + page);
+  const { ITEM_DESC } = await imp('src/data/item-descriptions.js');
+  if (/party/i.test(ITEM_DESC.bear_pelt || '')) out.push('the Bear Pelt\'s description says a party brings it: ' + ITEM_DESC.bear_pelt);
+  const { MONSTER_TEXT } = await imp('src/data/text/monster.js');
+  if (/party/i.test((MONSTER_TEXT || {}).how_pull || '')) out.push('the monster page says a party brings a creature: ' + MONSTER_TEXT.how_pull);
+  if (!F.residentsOf(GLADE).some((x) => x.id === 'brook_bear')) out.push('the Glade\'s page leaves the bear out of the creatures that stand there');
   if (F.raresOf(GLADE).every((x) => x.id !== 'bear_claw')) out.push('the Glade\'s Rare list leaves out the Bear Claw');
   if (/pull/.test(F.dropWhereWords('wolf_pelt'))) out.push('an as-built creature\'s item is told to pull more: ' + F.dropWhereWords('wolf_pelt'));
   /* PANEL 2026-11-01: the source line names creatures on open grounds and the ground, for every monster material. */
@@ -317,16 +352,22 @@ async function wordsFails(root) {
 const WORD_TREES = ['src/shell', 'src/render', 'src/session', 'src/utils', 'src/net', 'src/platform', 'src/app', 'src/social', 'src/world', 'src/hunt-view'];
 const WORD_MUTANTS = [
   { name: 'the source lists every catalogue creature again', edits: [['src/shell/hunt-ground-facts.js', "return 'Dropped by ' + listWords(first.names) + ' at '", "return 'Dropped by ' + listWords(Object.values(MONSTERS).filter((m) => (m.drops || []).some((d) => d && d.id === item)).map((m) => m.name), 99) + ' at '"]] },
-  { name: 'the tip drops the harder hunt', edits: [['src/shell/hunt-ground-facts.js', "return 'The ' + MONSTERS[best.id].name + ' only comes to a party or a harder hunt at '", "return '' && ' only comes to a party or a harder hunt at '"]] },
+  { name: 'the tip drops the harder hunt (the bear in the fill rows)', fill: true, edits: [...FILL_BEAR, ['src/shell/hunt-ground-facts.js', "return 'Only a harder hunt at ' + groundName(best.g) + ' summons the '", "return '' && ' summons the '"]] },
+  { name: 'the tip says a party summons it again (the bear in the fill rows)', fill: true, edits: [...FILL_BEAR, ['src/shell/hunt-ground-facts.js', "return 'Only a harder hunt at ' + groundName(best.g)", "return 'Only a party or a harder hunt at ' + groundName(best.g)"]] },
+  { name: 'the source line links the hunt, not the creature it summons (the bear in the fill rows)', fill: true, edits: [...FILL_BEAR, ['src/shell/hunt-ground-facts.js', ": best ? { kind: 'monster', id: best.id } : null;", ": best ? { kind: 'hunt', hunt: best.g.hunt } : null;"]] },
   { name: 'the House\'s short line drops the source', edits: [['src/shell/windows/house.js', "const places = short ? wherePlaces(it.id) : [];", "const places = [];"]] },
   { name: 'the House tells everyone', edits: [['src/shell/windows/house.js', "const places = short ? wherePlaces(it.id) : [];", 'const places = wherePlaces(it.id);']] },
   { name: 'the source names no ground', edits: [['src/shell/hunt-ground-facts.js', "' at ' + groundName(first.g) + (more.length", "(more.length"]] },
   { name: 'a material with no drop on Materials: gear-only Drops again', edits: [['src/shell/hunt-ground-facts.js', "!isSpentMaterial(d.id)) continue;", "true) continue;"]] },
   { name: 'Materials lists a pure sell item', edits: [['src/shell/hunt-ground-facts.js', "|| isRare(d) || !isSpentMaterial(d.id)) continue;", "|| isRare(d)) continue;"]] },
-  { name: 'the page names no bear', edits: [['src/shell/hunt-ground-facts.js', "return said.length ? 'A party or a harder hunt also brings '", "return said.length > 9 ? 'A party or a harder hunt also brings '"]] },
-  { name: 'the bear moves back a row: a pull of 3 no longer brings it', edits: [
-    ['src/data/hunt-grounds.js', "['brook_bear', 'walking_vine', 'carrion_crow', 'goblin_sluicer', 'walking_vine', 'carrion_crow']", "['walking_vine', 'brook_bear', 'carrion_crow', 'goblin_sluicer', 'walking_vine', 'carrion_crow']"],
-    ['src/data/hunt-grounds.js', "['brook_bear', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']", "['walking_vine', 'brook_bear', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']"]] },
+  { name: 'the page names no bear (the bear in the fill rows)', fill: true, edits: [...FILL_BEAR, ['src/shell/hunt-ground-facts.js', "return said.length ? SUMMONS + listWords(said, Infinity) + '.' : '';", "return said.length > 9 ? SUMMONS + listWords(said, Infinity) + '.' : '';"]] },
+  { name: 'the page lists the drops in parentheses again (the bear in the fill rows)', fill: true, edits: [...FILL_BEAR, ['src/shell/hunt-ground-facts.js', "const said = bigPullOf(hunt).map((m) => 'the ' + m.name);", "const said = bigPullOf(hunt).map((m) => 'the ' + m.name + ' (Bear Pelt)');"]] },
+  { name: 'the page\'s name is no link (the bear in the fill rows)', fill: true, edits: [...FILL_BEAR, ['src/shell/hunt-ground-facts.js', "{ words: m.name, target: link ? link(m.id) : null }", "m.name"]] },
+  { name: 'the Bear Pelt\'s description says a party brings it again', edits: [['src/data/item-descriptions.js', "heavy pelt, from Mosslight Glade.", "heavy pelt, from a party or a harder hunt at Mosslight Glade."]] },
+  { name: 'the monster page says a party brings a creature again', edits: [['src/data/text/monster.js', "how_pull: 'only a harder hunt summons it',", "how_pull: 'only with a party or a harder hunt',"]] },
+  /* lane/c-brook-bear: the ruling's own claim, and the page that has to follow it by itself */
+  { name: 'the bear back in the fill rows: a hero alone on Normal meets none', edits: FILL_BEAR },
+  { name: 'the page sends a hero to a party for a creature that stands there', edits: [['src/shell/hunt-ground-facts.js', '.filter((id) => !standsAsBuilt(g, id)).sort()', '.filter(() => true).sort()']] },
 ];
 
 /* THE PLANTED DEFECTS: each runs inside its arm's transaction, before the arm. `js` plants on the edge's own data. */
@@ -374,7 +415,7 @@ async function main() {
     for (const mu of WORD_MUTANTS) {
       const p = plant(mu.edits, WORD_TREES);
       let f;
-      try { f = await wordsFails(p.root); } catch (e) { f = ['threw: ' + String(e && e.message).slice(0, 200)]; } finally { p.done(); }
+      try { f = await wordsFails(p.root, mu.fill === true); } catch (e) { f = ['threw: ' + String(e && e.message).slice(0, 200)]; } finally { p.done(); }
       console.log(`  ${f.length ? 'CAUGHT' : 'MISSED'} ${mu.name} [HP-5]${f.length ? ' (' + f[0].slice(0, 110) + ')' : ''}`);
       if (!f.length) missed++;
     }
@@ -398,6 +439,9 @@ async function main() {
   }
   if (!only || only.split(',').includes('HP-5')) {
     const f = await wordsFails(H.ROOT);
+    /* the words for a creature only a bigger pull brings, on a planted tree with the bear back in the fill rows */
+    const p = plant(FILL_BEAR, WORD_TREES);
+    try { f.push(...await wordsFails(p.root, true)); } catch (e) { f.push('fill tree threw: ' + String(e && e.message).slice(0, 200)); } finally { p.done(); }
     if (f.length) { bad++; for (const m of f) console.error(`✗ HP-5: ${m}`); } else console.log('✓ HP-5');
   }
   console.log(bad ? `house-pelts: ${bad} arm(s) red` : 'house-pelts: green');

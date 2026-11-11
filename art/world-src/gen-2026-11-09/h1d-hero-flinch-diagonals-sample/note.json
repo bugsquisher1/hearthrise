@@ -1,0 +1,14 @@
+{
+  "asset": "brief 11 line 5 H1d SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/11-next-batch.txt",
+  "status": "SAMPLE for the art director's one-pass read; the line's batch waits for it. Not imported",
+  "made": "2026-11-08",
+  "generations": 5,
+  "made_how": "hit in diagonals with H1's words (\"... feet planted, the weapon and shield move only with the body, ...\") on H1's groups: knight se, ne (46a97055), ranger sw (effed39d), sorcerer nw (630d7577); druid se by animate_image from the upload of its shipped se still (job 2d1ea706)",
+  "findings": [
+    "knight se, ranger sw, sorcerer nw: clean",
+    "knight ne: the shield swings out at frames 3-5 (the H1 problem): the batch should use H1's \"only the upper body tips back ... the legs and feet do not move, it keeps facing the same way\" wording, which is the one that held for the heroes",
+    "druid se: a green crescent slash at frames 4-5: REFUSED (the druid paints magic on every roll; brief 10 H1 E and N have no clean roll either)"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/h1d-hero-flinch-diagonals-sample.png"
+}

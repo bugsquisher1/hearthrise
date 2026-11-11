@@ -288,9 +288,9 @@ cases['glade-harder'] = (R) => {
   return null;
 };
 
-const GLADE_SOFT = [['hp: 30, atk: 11, baseAcc: 0.8, def: 1, xp: 121', 'hp: 30, atk: 2, def: 1, xp: 121'], ['hp: 26, atk: 14, baseAcc: 0.85, def: 1, xp: 134', 'hp: 26, atk: 2, def: 1, xp: 134'],
-  ['hp: 48, atk: 11, baseAcc: 0.82, def: 6, xp: 241', 'hp: 48, atk: 2, def: 6, xp: 241'], ['hp: 74, atk: 21, baseAcc: 0.8, def: 11, xp: 415', 'hp: 74, atk: 2, def: 11, xp: 415'],
-  ['hp: 81, atk: 22, baseAcc: 0.84, def: 14, xp: 475', 'hp: 81, atk: 2, def: 14, xp: 475'], ['hp: 69, atk: 20, baseAcc: 0.78, def: 10, xp: 375', 'hp: 69, atk: 2, def: 10, xp: 375']].map(([a, b]) => ['src/data/monsters.js', a, b]);
+const GLADE_SOFT = [['hp: 30, atk: 11, baseAcc: 0.8, def: 1, xp: 109', 'hp: 30, atk: 2, def: 1, xp: 109'], ['hp: 26, atk: 14, baseAcc: 0.85, def: 1, xp: 121', 'hp: 26, atk: 2, def: 1, xp: 121'],
+  ['hp: 48, atk: 11, baseAcc: 0.82, def: 6, xp: 217', 'hp: 48, atk: 2, def: 6, xp: 217'], ['hp: 74, atk: 21, baseAcc: 0.8, def: 11, xp: 374', 'hp: 74, atk: 2, def: 11, xp: 374'],
+  ['hp: 81, atk: 22, baseAcc: 0.84, def: 14, xp: 427', 'hp: 81, atk: 2, def: 14, xp: 427'], ['hp: 69, atk: 20, baseAcc: 0.78, def: 10, xp: 338', 'hp: 69, atk: 2, def: 10, xp: 338']].map(([a, b]) => ['src/data/monsters.js', a, b]);
 /* THE MUTANTS: each breaks one first-week way to fight, the way a data row would */
 const mutants = [
   { name: 'the Glade hits at the old accuracy: its floor is not felt', case: 'glade-harder',
@@ -304,15 +304,17 @@ const mutants = [
   { name: 'the level share cuts every seat under the floor: a party that pushes is punished', case: 'risk-ladder',
     edits: [['src/data/hunt-grounds.js', "level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;", "level >= band[0]) return 1000;\n  if (level < band[0]) return 500;"]] },
   { name: 'a mixed Thicket four is paid x1.29, and the window still says what x1.00 measured', case: 'vs-alone',
-    edits: [['src/data/party-class-xp.js', 'row([1045, 1735], [1015, 1620, 1800], [1190, 1735, 1815, 1860])', 'row([1045, 1735], [1015, 1620, 1800], [1190, 1735, 1815, 2400])']] },
-  { name: 'the Iron Warhammer is back at 7/12: its upgrade pays under +5%', case: 'weapon-rungs',
-    edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:12},"]] },
+    edits: [['src/data/party-class-xp.js', 'row([1145, 2375], [1110, 2750, 3055], [1305, 3510, 3675, 3760])', 'row([1145, 2375], [1110, 2750, 3055], [1305, 3510, 3675, 4850])']] },
+  /* RE-AIMED (lane/c-brook-bear): with the Brook Bear in Vine Hollow as built a Glade kill takes longer, so the rung pays more (the shipped 7/16 +10.2%, was
+     +8.5%) and the old 7/12 reads +7.0%, a passing rung. 7/10 reads +3.9% (2 seeds x 1 h at 16), the nearest strength under the bar. */
+  { name: 'the Iron Warhammer at 7/10: its upgrade pays under +5%', case: 'weapon-rungs',
+    edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:10},"]] },
   { name: 'the Steel Warhammer is back at 9/19: over the Iron it pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/gear-tiers.js', 'str: [7, 16, 23, 28, 39, 52, 68],', 'str: [7, 16, 19, 28, 39, 52, 68],']] },
   { name: 'the Iron Hatchets are back at 7/7: their upgrade pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 14, 21, 22, 29, 38],', 'atk: [4, 7, 14, 19, 25, 33, 42], str: [4, 7, 14, 21, 22, 29, 38],']] },
   { name: 'a Thicket four of one weapon is paid x0.85, and the window still says what its old cell measured', case: 'vs-alone',
-    edits: [['src/data/party-class-xp.js', 'row([1045, 1735], [1015, 1620, 1800], [1190, 1735, 1815, 1860])', 'row([1045, 1735], [1015, 1620, 1800], [1010, 1735, 1815, 1860])']] },
+    edits: [['src/data/party-class-xp.js', 'row([1145, 2375], [1110, 2750, 3055], [1305, 3510, 3675, 3760])', 'row([1145, 2375], [1110, 2750, 3055], [1105, 3510, 3675, 3760])']] },
   { name: '"before bonuses" reads what was paid again', case: 'before-bonuses',
     edits: [['supabase/functions/hr-accrue/accrual.js', 'if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;', '']] },
   { name: 'a full box brings no more kills than the room as built, and the words still say bigger pulls pay', case: 'bigger-pulls-words',
@@ -333,8 +335,8 @@ const mutants = [
       ['src/data/supply-basics.js', "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 40)", "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 1)"]] },
   { name: 'the Cellar\'s rats, slimes and wasps armoured like a Coppercap foreman (def 0 -> 60): a fresh hero cannot clear it', case: 'solo-mill_cellar',
     edits: [['src/data/monsters.js', 'hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 15, gp: [1, 1], formula: true, speed: 3400,', 'hp: 6, atk: 3, baseAcc: 0.34, def: 60, xp: 15, gp: [1, 1], formula: true, speed: 3400,'],
-      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 22, gp: [1, 1], formula: true, speed: 2400,', 'hp: 8, atk: 3, baseAcc: 0.28, def: 60, xp: 22, gp: [1, 1], formula: true, speed: 2400,'],
-      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.47, def: 0, xp: 24, gp: [1, 1],', 'hp: 8, atk: 5, baseAcc: 0.43, def: 60, xp: 24, gp: [1, 1],']] },
+      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 23, gp: [1, 1], formula: true, speed: 2400,', 'hp: 8, atk: 3, baseAcc: 0.28, def: 60, xp: 23, gp: [1, 1], formula: true, speed: 2400,'],
+      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.47, def: 0, xp: 25, gp: [1, 1],', 'hp: 8, atk: 5, baseAcc: 0.43, def: 60, xp: 25, gp: [1, 1],']] },
   { name: 'Thin Turnip Juice costs six times as much (a fresh Mage in the Thicket pays more than it earns)', case: 'solo-meadowbrook_thicket',
     edits: [['src/data/supply-basics.js', "mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 10)", "mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 60)"]] },
   { name: 'Wickstead\'s Granary Rats bite like a Rat King (atk 5 -> 14)', case: 'solo-wickstead',

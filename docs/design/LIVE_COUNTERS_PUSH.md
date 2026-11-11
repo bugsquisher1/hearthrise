@@ -620,3 +620,22 @@ delivery moves to Broadcast; history stays a table read.
 
 **Moved to the client:** the per-subscriber `hr_chat_hide_blocked` filter for PUBLIC lines (a public topic is
 authorized per join, not per row). Blocks stay server-enforced for whispers, party lines and every history read.
+
+## 13. The nudge (`2027-02-11-party-nudge.sql`, `2027-04-09-own-hunt-nudge.sql`)
+
+A hero idle in town asks the server nothing, so a change another client made reaches its screen only as a push.
+A nudge is that push with no state in it: "read yourself".
+
+| Item | Value |
+|---|---|
+| Topic, event | the hero's frame topic `hr:<uid>:<slot>`, event `frame`, payload `{ t: 'nudge' }` (no version, no value) |
+| The one sender | `hr_hero_nudge(user, slot)`: frames on, Realtime present, the hero open in a client (`character_presence` within 75 s, never the future); no caller test and no self-echo test; a failure is "no nudge", never a refused verb or a rolled-back settle |
+| Hunt open / close | `hr_hunt_nudge_open` (AFTER INSERT on `hunt_sessions`) and `hr_hunt_nudge_close` (AFTER UPDATE OF `ended_at`, null to set): the session's own hero, WHOEVER caused it, so the account's other tabs and devices hear a start or an end made anywhere |
+| Party verbs | `hr_party_nudge` (through `hr_hero_nudge`): invites, seats, the leader's ground, a gear swap, a decline or warning notice reach the OTHER accounts' heroes; the acting account re-reads its own (`party-intents.js` settled) |
+| Client (`account-session.js` `_nudged`) | one `hr_load` of that hero per `SESSION_CONFIG.nudgeMs` (400 ms), however many came; a real frame on the same topic is still the session's |
+| Rate | a nudge rides only a gated write: at most two per hunt session per hero; every session opens through `hr_rpc_gate('hunt')` (30 a minute per account: the enter, a restart, the leader's Start of at most four seats); party verbs spend `party` (12 a minute) |
+
+**Why not the frame.** A frame is the whole character and is not echoed to the engine's requester (the 2026-10-09
+rule). That requester shares the topic with every other client of the same hero, so a hunt a phone settled to its
+end, or started, never reached the PC tab. A state-free nudge has nothing to echo: the requester reads once more, and
+every other client reads for the first time.

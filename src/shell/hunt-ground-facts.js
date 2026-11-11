@@ -18,11 +18,13 @@
 //                      (src/core/drops.js bandOf, REVEAL_BANDS), never a server-revealed
 //                      surprise (`lucky`, `salvage`).
 //   wornWeightOf(eq)   the armour weight a hero wears most (heavy, medium, light), or null.
-//   bigPullOf(hunt)    the creatures only a bigger pull brings (a pocket's fill rows, hunt-grounds.js pullRows, the rows the
-//                      engine spawns), with the smallest pull that does and their everyday drops; bigPullLine(hunt) says so
-//                      on the ground's page (Andy's report, 2026-10-31: no Brook Bear, so no Bear Pelt, below a pull of 3).
+//   bigPullOf(hunt)    the creatures only a harder tier's bigger pull brings (a pocket's fill rows, hunt-grounds.js pullRows, the
+//                      rows the engine spawns), with the smallest pull that does; bigPullLine(hunt) / bigPullParts(hunt, link) say
+//                      so on the ground's page, the name a link to its facts (Tyler 2026-11-11: "just link the monster fact, don't
+//                      do the parenthesis", "say summons"). Since one pack on Normal for every group (Tyler 2026-11-11) only a
+//                      harder hunt brings one: no ground has such a creature today (the Brook Bear stands in Vine Hollow as built).
 //   dropWhereWords(item)  the creatures on open grounds that drop it, and where: the one source line for a monster material
-//   dropHuntOf(item)      the hunt that line names first, for the link that opens it
+//   dropPlaceOf(item)     the place that line's link opens: the hunt it names first, or a summoned creature's facts
 //                      (panel 2026-11-01: the House and the recipes named a shortage and never where to end it).
 //   materialsOf(hunt)  what this ground drops that a recipe or the House spends, with its carriers and its chance.
 //   THE ODDS (Tyler 2026-10-24: "either give like a % drop chance or nothing at all") are the
@@ -31,17 +33,17 @@
 //   (combat.js weaknessInfo, what the settle hands the roller: hunt-rewards.js payKill), the same for every party size (Tyler 2026-11-08:
 //   one difficulty for every group), before any hero's bonus. Never a number typed here (ART_DIRECTION §8).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, pullRows } from '../data/hunt-grounds.js?v=0.2.118';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.118';
-import { MONSTERS } from '../data/monsters.js?v=0.2.118';
-import { ITEMS } from '../data/items.js?v=0.2.118';
-import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.118';
-import { weaknessInfo } from '../core/combat.js?v=0.2.118';
-import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.118';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.118';
-import { armourLineWord } from '../data/gear-tiers.js?v=0.2.118';
-import { listWords } from '../render/format.js?v=0.2.118';
-import { isSpentMaterial } from './bag-model.js?v=0.2.118';
+import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, pullRows } from '../data/hunt-grounds.js?v=0.2.121';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.121';
+import { MONSTERS } from '../data/monsters.js?v=0.2.121';
+import { ITEMS } from '../data/items.js?v=0.2.121';
+import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.121';
+import { weaknessInfo } from '../core/combat.js?v=0.2.121';
+import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.121';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.121';
+import { armourLineWord } from '../data/gear-tiers.js?v=0.2.121';
+import { listWords } from '../render/format.js?v=0.2.121';
+import { isSpentMaterial } from './bag-model.js?v=0.2.121';
 
 /* How common a creature is, by its share of the ground's spawn points: at least `common` is common,
    under `rare` is rare, between is uncommon (Tyler 10-18: a common majority, some uncommon, one or two rare). */
@@ -79,21 +81,30 @@ function pullThatBrings(g, id) {
   return 0;
 }
 const standsAsBuilt = (g, id) => g.pockets.some((p) => p.spawns.some((s) => s.monster === id));
-const everyday = (id) => ((MONSTERS[id] || {}).drops || []).filter((d) => d.band === 'common').map((d) => nameOf(d.id));
 
-/** The creatures on a ground only a bigger pull brings: [{ id, name, pull, drops: [item names] }]. [] for none. */
+/** The creatures on a ground only a harder tier's bigger pull brings: [{ id, name, pull }]. [] for none. */
 export function bigPullOf(hunt) {
   const g = groundOf(hunt);
   if (!g) return [];
   const ids = new Set(g.pockets.flatMap((p) => (p.pack || []).map((s) => s.monster)));
-  return [...ids].filter((id) => !standsAsBuilt(g, id)).sort().map((id) => (
-    { id, name: (MONSTERS[id] || {}).name || id, pull: pullThatBrings(g, id), drops: everyday(id) }));
+  return [...ids].filter((id) => !standsAsBuilt(g, id)).sort().map((id) => ({ id, name: (MONSTERS[id] || {}).name || id, pull: pullThatBrings(g, id) }));
 }
 
-/** The ground page's line: "A party or a harder hunt also brings the Brook Bear (Raw Bear Meat, Bear Pelt).", or ''. A lone hero on Normal hunts the room as built; a party's own pull, Dangerous and Deadly bring more of its rows. */
+/* THE SUMMONS LINE (Tyler 2026-11-11: "just link the monster fact, don't do the parenthesis", then 'or say "summons" the brook bear'): one plain
+   sentence, every name a link to its facts, no drop list. Normal is the room as built for every group, so only a harder hunt summons one. */
+const SUMMONS = 'A harder hunt summons ';
+/** The ground page's line as words: "A harder hunt summons the Brook Bear.", or '' when no creature waits for a harder hunt. */
 export function bigPullLine(hunt) {
-  const said = bigPullOf(hunt).map((m) => 'the ' + m.name + (m.drops.length ? ' (' + m.drops.join(', ') + ')' : ''));
-  return said.length ? 'A party or a harder hunt also brings ' + listWords(said, Infinity) + '.' : '';
+  const said = bigPullOf(hunt).map((m) => 'the ' + m.name);
+  return said.length ? SUMMONS + listWords(said, Infinity) + '.' : '';
+}
+/** The same line as patchParts pieces (src/shell/goto.js), each name { words, target: link(id) }: [] when there is none. */
+export function bigPullParts(hunt, link) {
+  const big = bigPullOf(hunt);
+  if (!big.length) return [];
+  /** @type {Array<string | { words: string, target: any }>} */ const out = [SUMMONS];
+  big.forEach((m, i) => out.push((i ? (i === big.length - 1 ? ' and ' : ', ') : '') + 'the ', { words: m.name, target: link ? link(m.id) : null }));
+  return out.concat(['.']);
 }
 
 const groundName = (g) => (HUNT_INDEX[g.hunt] || {}).name || g.hunt;
@@ -118,8 +129,9 @@ function dropsAt(item) {
 /**
  * WHERE A MONSTER MATERIAL COMES FROM, the one answer the tip, the House and the recipe rows give. Only creatures on grounds
  * a player can walk today, the lowest ground first: "Dropped by Briarcoat Wolf and Old Grayjaw at Meadowbrook Thicket, and at
- * Wickstead and Mosslight Glade". A creature only a bigger pull brings says that: "The Brook Bear only comes to a party or a
- * harder hunt at Mosslight Glade". '' when no open ground has it (the catalogue keeps rows for creatures no open ground spawns).
+ * Wickstead and Mosslight Glade". A creature only a harder hunt brings says that, in Tyler's verb: "Only a harder hunt at Mosslight
+ * Glade summons the Brook Bear" (its link opens the creature's facts: dropPlaceOf). '' when no open ground has it (the catalogue keeps
+ * rows for creatures no open ground spawns).
  */
 export function dropWhereWords(item) {
   const { standing, best } = dropsAt(item);
@@ -128,13 +140,14 @@ export function dropWhereWords(item) {
     return 'Dropped by ' + listWords(first.names) + ' at ' + groundName(first.g) + (more.length ? ', and at ' + listWords(more.map((x) => groundName(x.g))) : '');
   }
   if (!best) return '';
-  return 'The ' + MONSTERS[best.id].name + ' only comes to a party or a harder hunt at ' + groundName(best.g);
+  return 'Only a harder hunt at ' + groundName(best.g) + ' summons the ' + MONSTERS[best.id].name;
 }
 
-/** The hunt dropWhereWords names first (its lowest open ground, else the pull's), or null: where "take me there" opens the Hunts window. */
-export function dropHuntOf(item) {
+/** Where dropWhereWords' link goes (src/shell/goto.js targetOf): the hunt it names first, { kind: 'hunt', hunt }; for a creature only a harder
+    hunt summons, its facts, { kind: 'monster', id }; null with no line. */
+export function dropPlaceOf(item) {
   const { standing, best } = dropsAt(item);
-  return standing.length ? standing[0].g.hunt : best ? best.g.hunt : null;
+  return standing.length ? { kind: 'hunt', hunt: standing[0].g.hunt } : best ? { kind: 'monster', id: best.id } : null;
 }
 
 /* A Rare row: a revealed band (a Rare or Trophy row), not a server-only surprise. */

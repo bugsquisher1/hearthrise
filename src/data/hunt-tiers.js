@@ -17,7 +17,7 @@
 // A ROW { id, pull, dmgPm, hpPm, xpPm }:
 //   pull   monsters a pull: the instance's frozen density (hr_hunt_density_freeze). One entry per party size 1..4 because the
 //          server's catalogue reads it by size, and every entry is the tier's ONE number (balance-sheet.js TIER_DIALS; the rows
-//          case holds it). 0 = no more than Normal brings that group (as built alone, its row's partyPull in a party).
+//          case holds it). 0 = no more than Normal brings: the room as built, for every group (Tyler 2026-11-11).
 //   dmgPm  a monster's atk and its Level, permille of its row. Atk is its accuracy and its blow (combat.js); its Level is what
 //          armor reads (mitigation.js) and what a blow trains Defense by (hunt-rewards.js).
 //   hpPm   a monster's HP, permille of its row, the same for every party size. A kill still pays the
@@ -34,9 +34,9 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.118';
-import { HUNT_INDEX } from './hunts.js?v=0.2.118';
-import { TIER_PULL_OVERRIDES, tierRowFor } from './balance-sheet.js?v=0.2.118';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.121';
+import { HUNT_INDEX } from './hunts.js?v=0.2.121';
+import { TIER_PULL_OVERRIDES, tierRowFor } from './balance-sheet.js?v=0.2.121';
 
 export const TIER_IDS = Object.freeze(['normal', 'dangerous', 'deadly']);
 export const DEFAULT_TIER = 'normal';

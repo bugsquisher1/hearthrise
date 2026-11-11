@@ -21,17 +21,17 @@
 // Enter sits at the page's foot. This module draws; it holds no state and sends
 // nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.118';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.118';
-import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.118';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.118';
-import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.118';
-import { residentsOf, scarceSetOf, raresOf, bigPullLine, materialsOf } from '../hunt-ground-facts.js?v=0.2.118';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.118';
-import { chance, listWords } from '../../render/format.js?v=0.2.118';
-import { gotoAttr } from '../goto.js?v=0.2.118';
-import { factsTarget } from './monster.js?v=0.2.118';
-import { groundLines } from '../live-events-view.js?v=0.2.118';
+import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.121';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.121';
+import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.121';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.121';
+import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.121';
+import { residentsOf, scarceSetOf, raresOf, bigPullLine, materialsOf } from '../hunt-ground-facts.js?v=0.2.121';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.121';
+import { chance, listWords } from '../../render/format.js?v=0.2.121';
+import { gotoAttr } from '../goto.js?v=0.2.121';
+import { factsTarget } from './monster.js?v=0.2.121';
+import { groundLines } from '../live-events-view.js?v=0.2.121';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
@@ -58,8 +58,8 @@ export function detailHtml() {
     + '<p class="hw-hd-best hw-hunt-best-solo"></p><p class="hw-hd-best hw-hunt-best-party"></p><p class="hw-hd-best hw-hunt-best-none"></p></section>';
 }
 
-/* A creature opens its facts (windows/monster.js): the whole figure is the link, and its name is the button a key presses. */
-const monHtml = (m) => '<li class="hw-hd-mon" data-monster="' + esc(m.id) + '"' + gotoAttr(factsTarget(m.id)) + '><span class="hw-hd-stand"><canvas class="hw-hd-sprite" aria-hidden="true"></canvas></span>'
+/* A creature opens its facts (windows/monster.js) on this ground: the whole figure is the link, and its name is the button a key presses. */
+const monHtml = (m, hunt) => '<li class="hw-hd-mon" data-monster="' + esc(m.id) + '"' + gotoAttr(factsTarget(m.id, hunt)) + '><span class="hw-hd-stand"><canvas class="hw-hd-sprite" aria-hidden="true"></canvas></span>'
   + '<button type="button" class="hw-hd-mon-name mf-open"></button><small class="hw-hd-mon-how"></small></li>';
 
 /**
@@ -172,7 +172,7 @@ export function patchGround(det, ctx, r, o) {
   const lineup = det.querySelector('.hw-hd-lineup');
   rows(lineup, residents, {
     key: (m) => r.hunt + ':' + m.id,
-    build: (m) => element(ctx.doc, monHtml(m)),
+    build: (m) => element(ctx.doc, monHtml(m, r.hunt)),
     patch: (li, m) => {
       text(li.querySelector('.hw-hd-mon-name'), m.name);
       text(li.querySelector('.hw-hd-mon-how'), howWords(m));
@@ -184,10 +184,10 @@ export function patchGround(det, ctx, r, o) {
   /* One ground line: every creature stands at the height of the tallest drawn here, feet on the same row. */
   const tallest = Math.max(0, ...Array.from(lineup.querySelectorAll('.hw-hd-mon.is-drawn canvas'), (c) => c.height));
   style(lineup, '--stand-h', tallest ? tallest + 'px' : null);
-  /* Who the line above leaves out: a creature only a bigger pull brings, and what it drops (the Brook Bear's Bear Pelt). */
-  const bigPull = det.querySelector('.hw-hd-bigpull'), bigSaid = bigPullLine(r.hunt);
-  text(bigPull, bigSaid);
-  prop(bigPull, 'hidden', !bigSaid);
+  /* Who the line above leaves out: a creature only a harder hunt summons, its name a link to its facts (Tyler 2026-11-11: no drop list). */
+  const bigPull = det.querySelector('.hw-hd-bigpull'), bigParts = bigPullParts(r.hunt, factsTarget);
+  patchParts(bigPull, bigParts);
+  prop(bigPull, 'hidden', !bigParts.length);
   /* What drops here and how often (Tyler 2026-10-24: "a % drop chance or nothing at all"): the gear a line a tier, the
      hero's own armour weight first ("Iron, Studded, Adept: helmets, boots and Iron Sword") with the chance a kill here drops
      any piece of it, then each Rare and Trophy, item and carrier, with its chance per kill of that creature. The odds

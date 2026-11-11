@@ -18,10 +18,10 @@
 //   ownsKey(ev)              Enter on a focused link presses it (the shell's Enter opens Chat everywhere else)
 // Display only: a link sends nothing; the window it opens reads the server's numbers as it always does.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.118';
-import { revealInWindow } from './widgets/bits.js?v=0.2.118';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.118';
-import { GATHER_INDEX, BENCH_INDEX } from './town-work.js?v=0.2.118';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.121';
+import { revealInWindow } from './widgets/bits.js?v=0.2.121';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.121';
+import { GATHER_INDEX, BENCH_INDEX } from './town-work.js?v=0.2.121';
 
 const ATTR = 'data-hs-goto';
 const FIND = 'data-hs-find';
@@ -42,6 +42,8 @@ export function targetOf(place) {
   if (place.kind === 'temper') return { win: 'shop', tab: 'services', find: null };
   if (place.kind === 'market') return { win: 'market', tab: 'browse', find: null };
   if (place.kind === 'hunt') return place.hunt ? { win: 'hunts', tab: place.hunt, find: null } : null;
+  /* a creature's facts (windows/monster.js factsTarget reads this one row) */
+  if (place.kind === 'monster') return place.id ? { win: 'monster', tab: place.id, find: null } : null;
   if (place.kind === 'farm' || place.kind === 'house') return { win: place.kind, tab: null, find: null };
   return null;
 }

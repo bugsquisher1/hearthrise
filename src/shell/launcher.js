@@ -431,7 +431,13 @@ export function ringPlan(card, at) {
   const g = card.ring || {};
   const open = (id) => !!at && typeof at.open === 'function' && at.open(id);
   const icon = coachIcon(card, open);
-  if (icon) return ['.hs-launchers [data-hs-open="' + icon + '"]'];
+  if (icon) {
+    /* A CARD ABOUT THE RETURN RINGS ITS ROW ON THE OPEN HUNT SUMMARY (UX flow audit 2026-11-11, flow C: "Sell what only pays coin" rings the
+       summary's Sell step, never the summary's gold press and not the Shop's icon while that row is on screen): of the card's hooks, those
+       inside a window that is OPEN come before the icon of the closed window its way starts in, deepest first. */
+    const near = (card.hooks || []).filter((q) => { const m = /^\[data-hs-win="([a-z0-9-]+)"\]/.exec(q); return !!m && open(m[1]); }).reverse();
+    return near.concat(['.hs-launchers [data-hs-open="' + icon + '"]']);
+  }
   switch (card.anchor) {
     case 'hunt_picker': {
       const hunt = card.done && card.done.hunt;

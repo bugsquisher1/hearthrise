@@ -273,8 +273,8 @@ export function lootSale(items, rules, shop, needs) {
   return sellPlan(items || [], lootToSell(items, needs), { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null });
 }
 
-/* The lines one sale may carry (edge-intents.js EDGE_LIMITS.sellLines, the engine's MAX_SELL_LINES). */
-const SELL_LINES_MAX = 64;
+/** The lines one sale may carry (edge-intents.js EDGE_LIMITS.sellLines, the engine's MAX_SELL_LINES); the summary's Sell step takes one sale's worth. */
+export const SELL_LINES_MAX = 64;
 /* Worth keeping against what is worn: an empty slot it could fill, or a higher tier than the piece there (an item with no tier: the safe side). */
 function aboveWorn(id, worn) {
   const it = ITEMS[id];

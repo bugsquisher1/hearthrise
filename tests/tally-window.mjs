@@ -567,8 +567,8 @@ const MUTANTS = [
   ['the tally sits at its anchor, over the analyzer', 'src/shell/shell.js', '      const top = stackBelow(at, above, DOCK_EDGE);', '      const top = Math.round(at.top);'],
   ['her greeting is the riddle again', 'src/data/tally-tasks.js', "greeting: 'Take a task from my board and go hunting. When the count\\'s done, I\\'ll pay you in town with gold, plus the armor or materials my board shows.',",
     "greeting: 'Bring me your half of the stick when the count is done, and I pay. Coin, and a piece for your back.',"],
-  ['a tally with nothing to show keeps its box', 'src/shell/widgets/tally-hud.js', "  cls(el, 'is-quiet', !t || (!held.length && (hunting || !met)));", "  cls(el.querySelector('.hs-tally'), 'is-quiet', !t || (!held.length && (hunting || !met)));"],
-  ['a new hero\'s first screen carries Tamsin\'s line beside the coach', 'src/shell/widgets/tally-hud.js', '  const met = !!t && (!!t.weight || t.recent.length > 0);', '  const met = !!t;'],
+  ['a tally with nothing to show keeps its box', 'src/shell/widgets/tally-hud.js', "  cls(el, 'is-quiet', !tl || (!held.length && (hunting || !met)));", "  cls(el.querySelector('.hs-tally'), 'is-quiet', !tl || (!held.length && (hunting || !met)));"],
+  ['a new hero\'s first screen carries Tamsin\'s line beside the coach', 'src/shell/widgets/tally-hud.js', '  const met = !!tl && (!!tl.weight || tl.recent.length > 0);', '  const met = !!tl;'],
   /* TW-11: move and fold (Tyler 2026-10-25) */
   ['a folded analyzer keeps its full minimum height', 'src/shell/shell.js', "      el.style.minHeight = L.folded ? '' : row.min[1] + 'px';", "      el.style.minHeight = row.min[1] + 'px';"],
   ['the fold press does nothing', 'src/shell/widget-move.js', '    hud.setFolded(id, !hud.layoutOf(id).folded);', ''],

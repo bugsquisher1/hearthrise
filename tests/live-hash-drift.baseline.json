@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-11",
- "replay_ms": 57329,
+ "replay_ms": 3871,
  "counts": {
-  "tracked_names": 832,
-  "entries": 684
+  "tracked_names": 835,
+  "entries": 687
  },
  "functions": [
   {
@@ -1314,17 +1314,62 @@
     "2026-09-28-settle-before-mutate.sql",
     "2026-11-27-account-depot.sql",
     "2026-11-28-storage-chests.sql",
-    "2027-01-12-market-account.sql"
+    "2027-01-12-market-account.sql",
+    "2027-04-13-bank-move-many.sql"
    ],
    "live": {
-    "md5": "9a2f4c0dfe2528f8eda1f0f7126f7c1b",
-    "norm_len": 8200,
+    "md5": "3fc6d06eb528e1bf7e8beb285d4d3c1c",
+    "norm_len": 5011,
     "measured": "2026-11-11",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "9a2f4c0dfe2528f8eda1f0f7126f7c1b",
-    "norm_len": 8200,
+    "md5": "3fc6d06eb528e1bf7e8beb285d4d3c1c",
+    "norm_len": 5011,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_bank_move_many(p_slot integer, p_items jsonb, p_idem uuid)",
+   "name": "hr_bank_move_many",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-13-bank-move-many.sql"
+   ],
+   "live": {
+    "md5": "fb5356da9d615e2d6dd33dcf9ccb18d0",
+    "norm_len": 7203,
+    "measured": "2026-11-11",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "fb5356da9d615e2d6dd33dcf9ccb18d0",
+    "norm_len": 7203,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_bank_move_stack(p_user uuid, p_slot integer, p_item text, p_qty bigint, p_dir text, p_bag_cap integer)",
+   "name": "hr_bank_move_stack",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-13-bank-move-many.sql"
+   ],
+   "live": {
+    "md5": "4d9192c9a31f1818fee1fabf8bceb95f",
+    "norm_len": 3729,
+    "measured": "2026-11-11",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "4d9192c9a31f1818fee1fabf8bceb95f",
+    "norm_len": 3729,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8543,6 +8588,28 @@
    "replay": {
     "md5": "5404ddd09f552cc920faae8d90bd6d92",
     "norm_len": 2252,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_item_lock_many(p_slot integer, p_items jsonb, p_locked boolean, p_idem uuid)",
+   "name": "hr_item_lock_many",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-13-bank-move-many.sql"
+   ],
+   "live": {
+    "md5": "7b61b99783ba76a00fac31e63357cdec",
+    "norm_len": 3239,
+    "measured": "2026-11-11",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "7b61b99783ba76a00fac31e63357cdec",
+    "norm_len": 3239,
     "source": "computed-from-replay"
    },
    "agree": true

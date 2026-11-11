@@ -10,8 +10,8 @@
 //
 //   createIdleMotion({ win, character, peers }).still()   true: draw every idle clip still
 // ════════════════════════════════════════════════════════════════════════
-import { IDLE_MOTION } from '../data/world/motion.js?v=0.2.117';
-import { switchOn } from '../session/player-switch.js?v=0.2.117';
+import { IDLE_MOTION } from '../data/world/motion.js?v=0.2.118';
+import { switchOn } from '../session/player-switch.js?v=0.2.118';
 
 /**
  * @param {{win: Window, character?: object|null, peers?: () => object[]}} o  peers: the account's open heroes

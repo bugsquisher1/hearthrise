@@ -9,8 +9,8 @@
 //              options) and the gear it wears; at most ACTION_SET_LIMITS.presets.
 //              The hero is always on one (hunt_settings.preset, marked "In use":
 //              the bar shows it and edits it). Use = ONE hr_hunt_preset_apply
-//              (the server wears the gear and switches the bar); Save here /
-//              Save current setup = ONE hr_hunt_preset_save (what the hero has on,
+//              (the server wears the gear and switches the bar); Use equipped /
+//              New setup = ONE hr_hunt_preset_save (what the hero has on,
 //              gear and bar, becomes that setup and the hero is on it). Use and
 //              Save are town-only (the server refuses hunt_open): off in a hunt.
 //              The name renames in place (inline-name.js: ONE
@@ -68,7 +68,7 @@ export function renderHuntPrep() {
     + '<ul class="hw-ledger hw-presets"></ul><p class="hh-empty hw-presets-none"></p>'
     + '<p class="hs-note hw-town-only">Setups change in town. This hunt keeps the bar it set off with.</p>'
     + '<div class="hw-add"><input type="text" class="hh-num hw-preset-name" maxlength="24" placeholder="Name this setup" aria-label="Setup name" data-hs-act="preset-name">'
-    + '<button type="button" class="hh-tool" data-hs-act="save-new" data-coach-hook="setup-save">Save current setup</button></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="save-new" data-coach-hook="setup-save">' + t('controls.new_setup') + '</button></div>'
     + '<button type="button" class="hh-tool hw-slot-buy" data-hs-act="buy-slot" hidden></button>'
     + '<p class="hs-note hw-slot-why" hidden></p>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
@@ -81,10 +81,10 @@ function readyRow(ctx) {
 function setupRow(ctx, p) {
   const at = ' data-preset="' + p.preset + '"';
   return element(ctx.doc, '<li class="hw-line hw-setup"><span class="hw-line-name">' + nameEditorHtml('rename', at, 'New name for this setup') + '<small></small></span>'
-    + '<button type="button" class="hh-tool" data-hs-act="save-over"' + at + '>Save here</button>'
-    + '<button type="button" class="hh-tool hw-use" data-hs-act="apply"' + at + '>Use</button>'
-    + '<button type="button" class="hh-tool hw-del" data-hs-act="delete"' + at + '>Delete</button>'
-    + '<button type="button" class="hh-tool hw-keep" data-hs-act="keep"' + at + '>Keep</button></li>');
+    + '<button type="button" class="hh-tool" data-hs-act="save-over"' + at + '>' + t('controls.use_equipped') + '</button>'
+    + '<button type="button" class="hh-tool hw-use" data-hs-act="apply"' + at + '>' + t('controls.use') + '</button>'
+    + '<button type="button" class="hh-tool hw-del" data-hs-act="delete"' + at + '>' + t('controls.delete') + '</button>'
+    + '<button type="button" class="hh-tool hw-keep" data-hs-act="keep"' + at + '>' + t('controls.cancel') + '</button></li>');
 }
 
 renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
@@ -125,7 +125,7 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
       /* Delete asks once on the same button ("Delete it?", with Keep beside it); the second press sends. */
       const armed = sc.arming === p.preset;
       cls(li, 'is-arming', armed);
-      text(li.querySelector('.hw-del'), armed ? 'Delete it?' : 'Delete');
+      text(li.querySelector('.hw-del'), armed ? t('controls.delete_confirm') : t('controls.delete'));
       for (const b of li.querySelectorAll('button, input')) prop(b, 'disabled', sc.pending);
       for (const b of li.querySelectorAll('.hw-use, [data-hs-act="save-over"]')) prop(b, 'disabled', sc.pending || hunting);
     },

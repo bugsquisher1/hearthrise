@@ -80,8 +80,8 @@ export function renderHuntSummary() {
     /* a tutorial card's next step is a press here, never the gold one (Tyler 2026-11-11: after 4 h the summary's gold button was still
        the first card); the gold press is the first open Back in town step, else "Hunt again" */
     + '<button type="button" class="hh-tool" data-hs-act="coach-next" hidden></button>'
-    + '<button type="button" class="hh-tool is-primary" data-hs-act="again">Hunt again</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="bag">Open bag</button></div>'
+    + '<button type="button" class="hh-tool is-primary" data-hs-act="again">' + t('controls.hunt_again') + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="bag">' + t('controls.open_bag') + '</button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
     + '<h4 class="hw-ledger-head hsum-h-loot">Top loot</h4><ul class="hsum-list hsum-loot"></ul>'
     + '<h4 class="hw-ledger-head hsum-h-sup">Supplies used</h4><ul class="hsum-list hsum-sup"></ul>'
@@ -94,8 +94,8 @@ const li = (doc, markup) => element(doc, markup);
 const dayTime = (at) => (at === null ? '' : new Date(at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }));
 
 function lines(host, doc, items) {
-  rows(host, items.map((s, i) => ({ s, i })), {
-    key: (x) => String(x.i), build: () => li(doc, '<li></li>'), patch: (el, x) => text(el, x.s),
+  rows(host, items.map((row, i) => ({ t: row, i })), {
+    key: (x) => String(x.i), build: () => li(doc, '<li></li>'), patch: (el, x) => text(el, x.t),
   });
 }
 
@@ -185,7 +185,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
   rows(root.querySelector('.hsum-past'), past, {
     key: (s) => s.id,
     build: (s) => li(ctx.doc, '<li class="hw-line"><span class="hw-line-name"><b></b><small></small></span>'
-      + '<button type="button" class="hh-tool" data-hs-act="pick" data-id="' + s.id.replace(/[^a-z0-9-]/gi, '') + '">Show</button></li>'),
+      + '<button type="button" class="hh-tool" data-hs-act="pick" data-id="' + s.id.replace(/[^a-z0-9-]/gi, '') + '">' + t('controls.show') + '</button></li>'),
     patch: (el, s) => {
       text(el.querySelector('b'), groundTitle(s));
       text(el.querySelector('small'), [dayTime(s.at), s.kills !== null ? whole(s.kills) + ' kills' : '', s.reason ? endWords(s.reason, s.forfeit, s.by, nameOf(cs), s.why).split('. ')[0].replace(/\.$/, '') : ''].filter(Boolean).join(' · '));

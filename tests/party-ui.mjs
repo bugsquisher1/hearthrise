@@ -47,14 +47,14 @@
 //         names the picked hunt, Disband and an own invite by slot are each ONE rpc (slot, hunt,
 //         own slot only); a refusal re-reads nobody and `not_ready` names each seat in words;
 //         an ok re-reads every own character the verb touched; a malformed one sends nothing
-//   UI-3  the Hunts window is where a party starts: the leader's Enter reads "Start with party"
+//   UI-3  the Hunts window is where a party starts: the leader's Enter reads "Enter with party"
 //         and is ONE hr_hunt_party_start naming the picked hunt, off until the server
 //         answered, and a refusal names who was not ready; a member's Enter stays off. The
 //         Party window is Invites + Find a party: Invites opens first while one waits, Join is
 //         ONE hr_hunt_party_accept; the finder defaults to this character's weapon (no ground
 //         filter) and Join is ONE hr_hunt_party_join
 //   UI-5  the party note is the PICKED ground's, from its catalogue row, on its Hunts line
-//   UI-6  an invite reaches the player as an alert line with Join / No thanks; Join is ONE
+//   UI-6  an invite reaches the player as an alert line with Join / Decline; Join is ONE
 //         hr_hunt_party_accept for that character, off until the server answered
 //   UI-7  a character tab's right-click: Invite to party for an own character in no party (ONE
 //         hr_hunt_party_invite_own naming the viewed slot and that slot), Leave party for one
@@ -1162,10 +1162,10 @@ async function pageRules(overrides, shots) {
         if (got.cards.length !== 1 || card.type !== 'image/png' || card.w !== 840 || card.h !== 400 || !/Card copied/.test(got.line))
           fails.push('SH-1 [' + tag + '] Share made ' + JSON.stringify(got));
       }
-      /* UI-6: the invite toast answers in place: Join / No thanks; Join is ONE accept, off while in flight. */
+      /* UI-6: the invite toast answers in place: Join / Decline; Join is ONE accept, off while in flight. */
       const toast = '.hw-alert[data-kind="invite"]';
       const no = await page.evaluate((q) => { const b = document.querySelector(q + ' [data-hs-act="alert-no"]'); return b && !b.hidden ? b.textContent : null; }, toast);
-      if (no !== 'No thanks') fails.push('UI-6 [' + tag + '] the invite line offers ' + JSON.stringify(no) + ', not No thanks');
+      if (no !== 'Decline') fails.push('UI-6 [' + tag + '] the invite line offers ' + JSON.stringify(no) + ', not Decline');
       const acc0 = sent(s, 'hr_hunt_party_accept').length;
       /* The press and the read in ONE turn: the button must be off from the press itself, not from some later paint. */
       const toastOff = await page.evaluate((q) => { const b = document.querySelector(q + ' [data-hs-act="alert-do"]'); b.click(); return b.disabled; }, toast);
@@ -1217,19 +1217,19 @@ async function pageRules(overrides, shots) {
         }
         const go = W + '.hw-hunt-detail [data-hs-act="enter"]';
         const label = await page.evaluate((q) => document.querySelector(q).textContent, go);
-        if (label !== 'Start with party') fails.push('UI-3 [' + tag + '] the leader’s button reads ' + JSON.stringify(label));
+        if (label !== 'Enter with party') fails.push('UI-3 [' + tag + '] the leader’s button reads ' + JSON.stringify(label));
         await shot('hunts-leader');
         s.startReplies.push({ ok: false, error: 'not_ready', seats: [{ seat: 1, name: 'Mira', error: 'away' }] });
         const before = sent(s, 'hr_hunt_party_start').length;
         await page.click(go);
-        if (!(await page.evaluate((q) => document.querySelector(q).disabled, go))) fails.push('UI-3 [' + tag + '] Start with party stayed on while the intent was in flight');
+        if (!(await page.evaluate((q) => document.querySelector(q).disabled, go))) fails.push('UI-3 [' + tag + '] Enter with party stayed on while the intent was in flight');
         await page.waitForTimeout(700);
         const st = sent(s, 'hr_hunt_party_start').slice(before);
         if (st.length !== 1 || Object.keys(st[0].body).sort().join() !== 'p_hunt,p_idem,p_slot' || st[0].body.p_slot !== 0 || st[0].body.p_hunt !== 'millrace_sewer') fails.push('UI-3 [' + tag + '] Start sent ' + JSON.stringify(st.map((c) => c.body)));
         const said = await page.evaluate((q) => document.querySelector(q).textContent, W + '.hh-intent-msg');
         if (said !== 'Nobody went in. Mira is away.') fails.push('UI-3 [' + tag + '] a refused start says ' + JSON.stringify(said));
         /* UI-TRUTH (panel 2026-11-01): a seat under the floor hears first: the first press is ONE hr_hunt_party_warn and no start,
-           the words name the seat, the button reads Start anyway, and only the second press starts. */
+           the words name the seat, the button reads Enter anyway, and only the second press starts. */
         const mira = s.env[0].party.members.find((m) => m.name === 'Mira');
         const hadLevel = mira.level;
         mira.level = 3;
@@ -1240,7 +1240,7 @@ async function pageRules(overrides, shots) {
         const w1 = sent(s, 'hr_hunt_party_warn').slice(warned0);
         if (w1.length !== 1 || w1[0].body.p_hunt !== 'millrace_sewer' || sent(s, 'hr_hunt_party_start').length !== started0) fails.push('UI-TRUTH [' + tag + '] the first press sent warn ' + JSON.stringify(w1.map((c) => c.body)) + ', starts ' + (sent(s, 'hr_hunt_party_start').length - started0));
         const warnSaid = await page.evaluate((q) => [document.querySelector(q + '.hh-intent-msg').textContent, document.querySelector(q + '.hw-hunt-warn').textContent, document.querySelector(q + '.hw-hunt-detail [data-hs-act="enter"]').textContent], W);
-        if (!/^Mira \(Level 3\) is under this ground’s Level \d+\..*They have been told\./.test(warnSaid[0]) || !/^Mira \(Level 3\) is under/.test(warnSaid[1]) || warnSaid[2] !== 'Start anyway') fails.push('UI-TRUTH [' + tag + '] the warning reads ' + JSON.stringify(warnSaid));
+        if (!/^Mira \(Level 3\) is under this ground’s Level \d+\..*They have been told\./.test(warnSaid[0]) || !/^Mira \(Level 3\) is under/.test(warnSaid[1]) || warnSaid[2] !== 'Enter anyway') fails.push('UI-TRUTH [' + tag + '] the warning reads ' + JSON.stringify(warnSaid));
         /* Someone sits down under the floor after that warning: this press tells them too, and still starts nothing. */
         const late = Object.assign(clone(mira), { seat: 2, unit: null, name: 'Oren', level: 3 });
         s.env[0].party.members.push(late);
@@ -1268,7 +1268,7 @@ async function pageRules(overrides, shots) {
         const P = '[data-hs-win="hunt-party"] ';
         await page.click(P + '.hw-tab[data-tab="find"]');
         const sw = await page.evaluate((q) => { const d = document.querySelector(q + '.hw-list-party'); return d && { hidden: d.hidden, text: d.querySelector('button').textContent }; }, P);
-        if (!sw || sw.hidden || sw.text !== 'Show in the finder') fails.push('UI-8 [' + tag + '] the leader’s listing switch reads ' + JSON.stringify(sw));
+        if (!sw || sw.hidden || sw.text !== 'Show in finder') fails.push('UI-8 [' + tag + '] the leader’s listing switch reads ' + JSON.stringify(sw));
         else {
           const before = sent(s, 'hr_hunt_party_list').length;
           const off = await page.evaluate((q) => { const b = document.querySelector(q + '[data-hs-act="list-party"]'); b.click(); return b.disabled; }, P);
@@ -1458,8 +1458,8 @@ const PAGE_MUTANTS = [
   ['the leader\'s Start walks a seat under the floor in with no word (UI-TRUTH)', 'src/shell/windows/hunts.js', 'if (low.under.length && sc.warned !== warnKey(hunt, low.under)) {', 'if (false) {'],
   ['a seat that sits down after the warning is never told (UI-TRUTH)', 'src/shell/windows/hunts.js', "const warnKey = (hunt, seats) => hunt + ':' + seats.map((s) => s.seat).join();", "const warnKey = (hunt) => hunt;"],
   ['the warning is said and the seat is never told (UI-TRUTH)', 'src/shell/windows/hunts.js', '() => warnPartyGround(ctx.account, cs, hunt)', '() => Promise.resolve({ ok: true })'],
-  ['the button never says Start anyway (UI-TRUTH)', 'src/shell/windows/hunts.js', "(armed ? 'Start anyway' : 'Start with party')", "'Start with party'"],
-  ['Start with party stays on while in flight', 'src/shell/windows/hunts.js', "for (const b of det.querySelectorAll('.hw-hd-foot button:not(.hw-hd-back), .hw-tiers button')) prop(b, 'disabled', sc.pending || !!now);", "for (const b of det.querySelectorAll('.hw-hd-foot button:not(.hw-hd-back), .hw-tiers button')) prop(b, 'disabled', !!now);"],
+  ['the button never says Enter anyway (UI-TRUTH)', 'src/shell/windows/hunts.js', "(armed ? t('controls.enter_anyway') : t('controls.enter_with_party'))", "t('controls.enter_with_party')"],
+  ['Enter with party stays on while in flight', 'src/shell/windows/hunts.js', "for (const b of det.querySelectorAll('.hw-hd-foot button:not(.hw-hd-back), .hw-tiers button')) prop(b, 'disabled', sc.pending || !!now);", "for (const b of det.querySelectorAll('.hw-hd-foot button:not(.hw-hd-back), .hw-tiers button')) prop(b, 'disabled', !!now);"],
   ['a member may press Start', 'src/shell/windows/hunts.js', '  if (off) prop(enter, \'disabled\', true);\n', ''],
   ['the strip tab is no menu target', 'src/app/character-strip.js', '  markPlayer(b, uid ? { id: uid, name: x.name, slot: x.slot } : null);', '  markPlayer(b, null);'],
   ['the invite toast cannot answer', 'src/shell/widgets/alerts.js', "  if (a.action === 'join') { if (a.invite) await settle(ctx, el, a, (cs) => cs.answerInvite(a.invite, action === 'alert-do')); return; }", "  if (a.action === 'join') return;"],

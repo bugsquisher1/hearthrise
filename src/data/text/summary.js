@@ -11,10 +11,7 @@
 export const SUMMARY_TEXT = Object.freeze({
   town_head: 'Back in town',
   done: 'Done',
-  /* The one press of each row, the glossary's words. */
-  equip: 'Equip',
-  sell: 'Sell',
-  deposit: 'Deposit',
+  /* The one press of each row: the glossary's words (src/data/text/controls.js: Equip, Sell, Deposit); Bless is the Services tab's own word. */
   bless: 'Bless',
   /* Equip: what Equip upgrades would put on (src/shell/upgrade-plan.js), its words under the count. */
   equip_n: { one: 'Equip 1 better piece', other: 'Equip {count} better pieces' },

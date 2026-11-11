@@ -66,7 +66,7 @@ export function orderStation(open, ahead, sort, canMake) {
 
 /** The Sort menu over a station's recipes (hidden until a bench skill is open). */
 export function sortMenuHtml() {
-  return '<div class="hw-work-sort" hidden><label class="hw-sort"><span>' + esc(t('work.sort')) + '</span>'
+  return '<div class="hw-work-sort" hidden><label class="hw-sort"><span>' + esc(t('controls.sort')) + '</span>'
     + '<select class="hh-select" data-hs-act="station-sort">'
     + STATION_SORTS.map((id) => '<option value="' + id + '">' + esc(t(LABELS[id])) + '</option>').join('')
     + '</select></label></div>';

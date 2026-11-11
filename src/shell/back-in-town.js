@@ -60,19 +60,19 @@ export function townSteps(o) {
   const plan = o && o.plan;
   const picks = plan && Array.isArray(plan.picks) ? plan.picks : [];
   add({ id: 'equip', count: picks.length, title: t('summary.equip_n', { count: picks.length }), words: picks.length ? upgradeWords(plan) : '',
-    verb: t('summary.equip'), icon: picks.length ? picks[0].id : null, ops: plan && plan.ops ? Object.assign({}, plan.ops) : {} });
+    verb: t('controls.equip'), icon: picks.length ? picks[0].id : null, ops: plan && plan.ops ? Object.assign({}, plan.ops) : {} });
   /* sell: the plan's Sell stacks at the shop's bids (a stack with no bid is not sold: nothing could show what it brings), one sale's worth of lines */
   const bag = (o && o.bag) || [], rules = (o && o.rules) || null, bids = (o && o.bids) || null;
   const sale = sellPlan(bag, planned(bag, rules, 'sell').map((r) => r.id), { locked: rules ? rules.locked : null, bids });
   const lines = sale.lines.slice(0, SELL_LINES_MAX);
   const total = lines.reduce((n, l) => n + (bids && bids.has(l.item) ? bids.get(l.item) * l.qty : 0), 0);
   add({ id: 'sell', count: lines.length, title: t('summary.sell_n', { count: lines.length, total: gold(total) }),
-    words: lines.length ? t('summary.sell_words', { names: names(lines.map((l) => l.item)) }) : '', verb: t('summary.sell'), icon: lines.length ? lines[0].item : null, lines });
+    words: lines.length ? t('summary.sell_words', { names: names(lines.map((l) => l.item)) }) : '', verb: t('controls.sell'), icon: lines.length ? lines[0].item : null, lines });
   /* deposit: the plan's Deposit stacks, whole, with their worth when the shop bids on any */
   const dep = planned(bag, rules, 'deposit');
   const worth = dep.reduce((n, r) => n + (bids && bids.has(r.id) ? bids.get(r.id) * r.qty : 0), 0);
   add({ id: 'deposit', count: dep.length, title: t(worth > 0 ? 'summary.deposit_worth' : 'summary.deposit_n', worth > 0 ? { count: dep.length, worth: gold(worth) } : { count: dep.length }),
-    words: dep.length ? t('summary.deposit_words', { count: dep.length, names: names(dep.map((r) => r.id)) }) : '', verb: t('summary.deposit'), icon: dep.length ? dep[0].id : null,
+    words: dep.length ? t('summary.deposit_words', { count: dep.length, names: names(dep.map((r) => r.id)) }) : '', verb: t('controls.deposit'), icon: dep.length ? dep[0].id : null,
     lines: dep.map((r) => ({ item: r.id, qty: r.qty })) });
   /* bless: the tiers not on, while the purse covers the next (the server prices each as it is bought); a purse not read yet reads as enough */
   const b = o && o.blessings;

@@ -611,6 +611,8 @@
     "node tools/mutant-gate.mjs node tests/four-hero-slots.mjs --mutate": "client-guards-3",
     "node tests/hero-slots-one.mjs": "client-guards-3",
     "node tools/mutant-gate.mjs node tests/hero-slots-one.mjs --mutate": "client-guards-3",
+    "node tests/imports-resolve.mjs": "client-guards-3",
+    "node tools/mutant-gate.mjs node tests/imports-resolve.mjs --selftest": "client-guards-3",
     "node tests/edge-jwt-gate.mjs --strict": "edge",
     "node tests/edge-body-cap.mjs": "edge",
     "node tools/mutant-gate.mjs node tests/edge-body-cap.mjs --mutate": "edge",

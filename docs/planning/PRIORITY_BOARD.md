@@ -404,7 +404,7 @@ Then Krell cleaned up, and each ground is one piece of the cleaning.
 | Ground | Its place in the story | In the data |
 |---|---|---|
 | Wickstead, 8-18 | The Turncoats in the farmhouse are the company's last deserters. Their Torn Company Badge is the first piece of this story a new hero holds | Live |
-| Hask's Ford, 45-60 | The foot died in their files and nobody burned them. The Bannerman still holds the Company Colors at the toll stone | lane/b-hasks-ford |
+| Hask's Ford, 45-60 | Krell's men killed Hask's soldiers at the river crossing and left the bodies where they fell, and the soldiers came back as undead. The Bannerman was the one who carried their flag, and he's at the toll stone with it (rewritten 11-11 to Tyler's voice rule; the Pyre Field row below still has the old words) | lane/b-slake-and-ford, staged |
 | The Slake, 50-65 | The river took the rest, and the company's supply barge, and dropped them on the mudflat | lane/b-the-slake |
 | Muster Barrows, 55-75 | Krell buried the officers with honors so it would look like a lost battle. Hask is in there with them | Art on lane/b-muster-barrows-art |
 | The Pyre Field, 70-90 | The foot were too many to bury. Krell's Binders burned them, and the rite tied them to the fire. The Stokers still feed the pyres | lane/b-pyre-field |

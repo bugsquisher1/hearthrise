@@ -6,6 +6,10 @@
 // NAMING VOICE (the Barrow March's, written here first): a free company's soldier words (banded, pike, muster, colors, sergeant,
 // toll), the river's words (ford, sunk, weed) and the March's place words (barrow, ford). People get one short name (Hask,
 // Krell). Never Ancient, Shadow, Dark, Eternal or Forgotten. American spelling (colors).
+// THOSE WORDS ARE FOR NAMES ONLY (Tyler 2026-11-11, on "The foot died in their files at the toll stone": "Fix your voice"). A
+// sentence a player reads is plain everyday English, the way Tyler talks to a friend: what happened, in full sentences. No old or
+// military words in a sentence (foot, files, colors, rite), no fragments, no "nobody X them" or "still holds", no lists of three,
+// no mood words. The story itself goes in the wiki, sample first, never into these rows.
 // THE STORY (Tyler 2026-11-09, the arc of record): Havora hired the Banded Company to hold the March. Its captain, Hask, took a
 // toll at this ford and then sold the crossing to Lord Krell. Krell's men killed the company here, and nobody burned them. The
 // river took some down to the Slake. The officers and Hask lie in the Muster Barrows. Wickstead's Turncoats are the company's
@@ -39,6 +43,10 @@
 // estimate: no career was played with the Ford open. So the Ford opens WITH a re-measured pace
 // and a re-fit of the Level curve from 45 up (tools/balance-sim/pace.mjs --fit, tools/gen-level-curve.mjs): the Coordinator's
 // world move, listed in the lane's report.
+// IT OPENS WITH THE SLAKE (lane/b-slake-and-ford, systems, 2026-11-10; graded as it ships, its own drops on the gear ladder). The
+// tier-4 weapons are the Slake's, so opened alone a sword alone at 45 swings its tier-3 sword and nets +5% over its store bill
+// (`node tools/pack.mjs check hasks_ford --mode full`, 6 seeds x 4 h), where the rule is +25% for every way. With the Slake's
+// mithril sword gettable it nets +45% (the same check `--with the_slake`). Every other way and every party passes either way.
 import { definePack, box, gather } from '../shape.js?v=0.2.116';
 import map from './map.js?v=0.2.116';
 
@@ -51,7 +59,7 @@ export default definePack({
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 12 Pikemen, 6 Fordsunk, 4 Ledger Wights and
      the 2 Bannermen. */
   hunt: {
-    name: 'Hask\'s Ford', theme: 'The Banded Company died holding this ford, and nobody burned them.',
+    name: 'Hask\'s Ford', theme: 'Hask\'s soldiers were killed at this river crossing and came back as undead.',
     band: [45, 60],
     spawns: [{ monster: PK, w: 12, rarity: 'common' }, { monster: FS, w: 6, rarity: 'uncommon' },
       { monster: LW, w: 4, rarity: 'uncommon' }, { monster: BN, w: 2, rarity: 'rare' }],
@@ -153,10 +161,10 @@ export default definePack({
     toll_token: { n: 'Toll Token', icon: '🪙', v: 112, raw: true, imbue: { kind: 'ward', tier: 2 } },
   },
   itemText: {
-    pike_band: 'The iron band off a Banded Pikeman\'s pike shaft. It has the company\'s mark stamped on it',
-    ford_weed: 'River weed that grew through a Fordsunk\'s coat in the years it lay in Hask\'s Ford',
-    ledger_leaf: 'A page from a Ledger Wight\'s stores book. Every line is a debt the company was never paid',
-    toll_token: 'A lead token Hask\'s men gave for a paid crossing. The Bannerman still carries a pouch of them',
+    pike_band: 'It\'s the iron ring from a Banded Pikeman\'s spear, stamped with Hask\'s mark',
+    ford_weed: 'This river weed grew through a Fordsunk while it lay at the bottom of Hask\'s Ford',
+    ledger_leaf: 'It\'s a page from a Ledger Wight\'s account book, listing the pay Hask\'s soldiers never got',
+    toll_token: 'Hask\'s men gave these lead tokens to people who paid to cross the river. Bannermen carry a bag of them',
   },
   /* PARTY LEVEL XP (party-class-xp.js's row shape: heroes alive -> permille at 1, 2, ... classes): better only with different
      classes (Tyler 10-31), and since one difficulty the mixed cells are the lever (Tyler 11-08, "Same monsters, re-tune"). Measured
@@ -164,8 +172,12 @@ export default definePack({
      0.75-0.80, a three 0.71-0.82 and a pair 0.85-0.93. At these cells a four reads 1.165 to 1.226 at the floor, the middle and the top
      (the ruling's 1.15-1.25) and a pair 1.06-1.16. A fourth class pays a little more than three (tests/hunt-core/xp-share.mjs
      party-class-every-cell). The one-class cells hold every one-class party under its heroes alone: the best reads 0.91
-     (tests/party-class-xp-line.mjs, two wands). */
-  partyClassXp: { 2: [990, 1230], 3: [1150, 1400, 1510], 4: [1150, 1400, 1545, 1555] },
+     (tests/party-class-xp-line.mjs, two wands).
+     RE-READ 2026-11-10 (systems) on the grader's own full grid, played as it ships (pairs and fours 2 seeds x 2 h, the lone ways
+     6 x 4 h). At 1545 and 1555 the four of three classes (tank, hammer, bow, wand) read 1.14 at the middle and the top. The four's
+     two cells now 1565 and 1570, held for both ways it can open: alone, the four of three reads 1.15-1.17 and of four 1.19-1.21; with
+     the Slake (its weapons on the ladder, the faster party kills) 1.18-1.20 and 1.22-1.24. Pairs 1.01-1.12 alone, 1.06-1.16 with it. */
+  partyClassXp: { 2: [990, 1230], 3: [1150, 1400, 1510], 4: [1150, 1400, 1565, 1570] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives.
      Measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10). One class is the
      mean of its five one-class parties (pairs 0.80-0.91, threes 0.77-0.88, fours 0.75-0.89). Two of two is the mean of three mixes

@@ -9,7 +9,8 @@
 //                                                    --write puts them into the rows, in monsters.js or the pack's own file
 //   node tools/pack.mjs check <ground> [--mode quick|full] [--workers N]
 //                                                    lint (the ground row, its roster, the formula) and then the grader on the real
-//                                                    engine (tools/balance-sim/grade.mjs --grounds <ground>, a STAGED one included):
+//                                                    engine (tools/balance-sim/grade.mjs --grounds <ground>, a STAGED one included,
+//                                                    played as it ships: its own drops on the gear ladder, as every open ground's are):
 //                                                    exit 1 on a binding FAIL, as the grader's
 //   node tools/pack.mjs new <id> --like <ground> [--band lo,hi]
 //                                                    a STAGED pack in src/data/grounds/<id>, copied from a shipped ground under new

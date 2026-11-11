@@ -11,6 +11,11 @@
 // `tierOffset` (-1 = one tier behind on that slot group) and `only` (which slot group the offset moves:
 // 'weapon' | 'armour' | any one armour slot | 'shield' | 'all') let a cell measure one upgrade step with everything else equal
 // (the ruling's weapon and armour targets, §8-§9).
+//
+// `openAlso` (a list of ground ids) adds those grounds' drops to (b), as if they were open: a STAGED ground graded by name
+// (tools/pack.mjs check) is played as it ships, the same ladder every open ground is graded on. Without it a staged ground at a
+// tier's first Level was graded one tier under, because that tier's pieces drop only there (Hask's Ford at 45 in the tier-3
+// set, 2026-11-10); the ship step ends that state, so the check would flip green on shipping with nothing changed.
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 
@@ -38,12 +43,26 @@ export async function loadGear(root) {
   const { SHIELD_ITEMS } = await import(u('src/data/shields.js') + v);
   const { STARTER_SETS, START_EQUIPMENT } = await import(u('src/data/start-kit.js') + v);
   const CC = await import(u('src/data/catalogue-coherence.js') + v);
+  const { OPEN_GROUNDS, HUNT_GROUNDS } = await import(u('src/data/hunt-grounds.js') + v);
   const reach = CC.reachableSources();
+  /* the reachable set with `also` grounds opened (one per distinct list, built once) */
+  const reaches = new Map();
+  const reachWith = (also) => {
+    const ids = [...new Set(also || [])].filter((g) => !Object.prototype.hasOwnProperty.call(OPEN_GROUNDS, g)).sort();
+    if (!ids.length) return reach;
+    const key = ids.join(',');
+    if (!reaches.has(key)) {
+      for (const g of ids) if (!Object.prototype.hasOwnProperty.call(HUNT_GROUNDS, g)) throw new Error('balance-sim gear: openAlso names no ground ' + g);
+      reaches.set(key, CC.reachableSources({ grounds: { ...OPEN_GROUNDS, ...Object.fromEntries(ids.map((g) => [g, HUNT_GROUNDS[g]])) } }));
+    }
+    return reaches.get(key);
+  };
   const ladder = Object.fromEntries(GT.GEAR_LADDERS.map((l) => [l.key, l.ids]));
   const starters = new Set([...Object.values(STARTER_SETS).flat(), ...Object.values(START_EQUIPMENT)]);
   const tierOf = (id) => (ITEMS[id] && Number(ITEMS[id].tier)) || 1;
   const lvOf = (id) => (ITEMS[id] && Number(ITEMS[id].reqLv)) || 1;
-  const can = (id, L) => !!id && !!ITEMS[id] && reach.has(id) && lvOf(id) <= L;
+  const canIn = (R) => (id, L) => !!id && !!ITEMS[id] && R.has(id) && lvOf(id) <= L;
+  const can = canIn(reach);
   /* the practice piece that plays a ladder's family at tier 1 (same weaponType and discipline, or the spellbook) */
   const practiceFor = (key) => {
     const ids = ladder[key] || [];
@@ -56,9 +75,9 @@ export async function loadGear(root) {
     }) || null;
   };
   /* the best piece of a ladder at Level L, `off` tiers behind the best (never below tier 1) */
-  const pick = (ids, L, off, fallback) => {
-    const ok = ids.filter((id) => can(id, L)).sort((a, b) => tierOf(a) - tierOf(b));
-    if (fallback && can(fallback, L) && !ok.some((id) => tierOf(id) === tierOf(fallback))) ok.unshift(fallback);
+  const pick = (ids, L, off, fallback, ok0 = can) => {
+    const ok = ids.filter((id) => ok0(id, L)).sort((a, b) => tierOf(a) - tierOf(b));
+    if (fallback && ok0(fallback, L) && !ok.some((id) => tierOf(id) === tierOf(fallback))) ok.unshift(fallback);
     if (!ok.length) return null;
     return ok[Math.max(0, ok.length - 1 + (off || 0))];
   };
@@ -69,7 +88,7 @@ export async function loadGear(root) {
   /**
    * The worn set of `style` at Level `L`. opts: { tierOffset, only, heavyShield, line (another armour line),
    * armourSlots (default all six; the reachable ones are filled), noArmour, ammo (an item for the ammo slot),
-   * starter (the start kit's pieces only) }.
+   * starter (the start kit's pieces only), openAlso (ground ids played as open: see the header) }.
    */
   function kitOf(style, L, opts = {}) {
     const S = STYLES[style];
@@ -85,19 +104,20 @@ export async function loadGear(root) {
       return set;
     }
     const off = (group) => (opts.only === group || opts.only === 'all' ? (opts.tierOffset || 0) : 0);
+    const ok = opts.openAlso ? canIn(reachWith(opts.openAlso)) : can;
     const set = {};
-    set.weapon = pick(ladder[S.weapon] || [], L, off('weapon'), practiceFor(S.weapon));
+    set.weapon = pick(ladder[S.weapon] || [], L, off('weapon'), practiceFor(S.weapon), ok);
     if (S.offhand === 'shield') {
       const ids = shieldIds(opts.heavyShield === true);
-      set.shield = pick(ids, L, off('shield'), ITEMS.practice_shield ? 'practice_shield' : null);
+      set.shield = pick(ids, L, off('shield'), ITEMS.practice_shield ? 'practice_shield' : null, ok);
     } else if (S.offhand === 'spellbook') {
-      set.shield = pick(ladder.spellbook || [], L, off('weapon'), practiceFor('spellbook'));
+      set.shield = pick(ladder.spellbook || [], L, off('weapon'), practiceFor('spellbook'), ok);
     }
     if (opts.noArmour !== true) {
       const line = opts.line || S.line;
       for (const slot of opts.armourSlots || ARMOUR_SLOT_KEYS) {
         const o = off(slot) || off('armour');
-        const id = pick(armourLadder(line, slot), L, o, null);
+        const id = pick(armourLadder(line, slot), L, o, null, ok);
         if (id) set[slot] = id;
       }
     }
@@ -118,5 +138,5 @@ export async function loadGear(root) {
     }
     return rows;
   }
-  return { kitOf, gearCensus, ITEMS, reach, ladder };
+  return { kitOf, gearCensus, ITEMS, reach, reachWith, ladder };
 }

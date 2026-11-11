@@ -13,7 +13,10 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { gradeCells, synthSet, levelsOf, ranked, feelVerdicts } from '../tools/balance-sim/grade.mjs';
+import { gradeCells, synthSet, levelsOf, ranked, feelVerdicts, buildGrid } from '../tools/balance-sim/grade.mjs';
+import { loadGear } from '../tools/balance-sim/gear.mjs';
+import { monstersOfGround } from '../tools/pack.mjs';
+import { MONSTERS } from '../src/data/monsters.js';
 import { SHEET, sheetFromBalanceSheet } from '../tools/balance-sim/grade-sheet.mjs';
 import { worse } from '../tools/balance-sim/grade-compare.mjs';
 
@@ -81,6 +84,25 @@ check(wc([pairCell(1000)]).some((v) => v.rule === 'wc-deadly-under-loses' && v.v
 check(wc(lone(0)).some((v) => v.rule === 'wc-under-lone-dies' && v.verdict === 'OFF'), 'weight-class: every lone way holding five under on Dangerous reads OFF on wc-under-lone-dies, never FAIL');
 check(wc(lone(2)).some((v) => v.rule === 'wc-under-lone-dies' && v.verdict === 'ok'), 'weight-class: lone heroes dying five under reads ok');
 check(!WC.rules.some((r) => r.metric === 'deaths' && r.min != null && r.binding), 'weight-class: no binding line asks a group to die');
+
+/* A STAGED GROUND IS GRADED AS IT SHIPS (lane/b-slake-and-ford 2026-11-10): its jobs put its own drops on the gear ladder and say so in
+   the cell id; an open ground's jobs carry neither. Without it a staged ground at a tier's first Level is graded one tier under. */
+{
+  const G = await import('../src/data/hunt-grounds.js');
+  const staged = Object.keys(G.HUNT_GROUNDS).filter((g) => !Object.prototype.hasOwnProperty.call(G.OPEN_GROUNDS, g));
+  const open = Object.keys(G.OPEN_GROUNDS)[0];
+  const jobs = await buildGrid(ROOT, 'quick', { grounds: [...staged, open] });
+  const of = (g) => jobs.filter((j) => j.ground === g);
+  check(of(open).length > 0 && of(open).every((j) => !(j.gear && j.gear.openAlso) && !j.id.includes(',open')), 'as it ships: an open ground (' + open + ') is played on the open ladder');
+  if (!staged.length) console.log('  --   as it ships: no staged ground today, the staged half reads nothing');
+  for (const g of staged) {
+    check(of(g).length > 0 && of(g).every((j) => j.gear && j.gear.openAlso && j.gear.openAlso.join() === g && j.id.includes(',open')), 'as it ships: staged ' + g + ' plays with its own drops, and its cell ids say so');
+    const gear = await loadGear(ROOT), own = monstersOfGround(G.HUNT_GROUNDS[g]).flatMap((m) => (MONSTERS[m].drops || []).map((d) => d.id));
+    const only = own.filter((id) => !gear.reach.has(id));
+    if (!only.length) { console.log('  --   as it ships: every drop of ' + g + ' is gettable elsewhere, nothing to open'); continue; }
+    check(only.every((id) => gear.reachWith([g]).has(id)), 'as it ships: ' + only.length + ' drops found only on ' + g + ' are on its ladder with openAlso, and off it without');
+  }
+}
 
 const L = levelsOf([5, 15], ['under5', 'under3', 'under2', 'floor', 'plus10', 'top']);
 check(JSON.stringify(L) === JSON.stringify([{ offset: 'under3', level: 2 }, { offset: 'under2', level: 3 }, { offset: 'floor', level: 5 }, { offset: 'plus10', level: 15 }]),

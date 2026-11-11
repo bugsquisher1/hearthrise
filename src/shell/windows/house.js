@@ -20,19 +20,19 @@
 // answers, and the ledger changes only from the re-read envelope. A refusal is
 // said in plain words. A room whose rungs do nothing yet offers no purchase.
 // ════════════════════════════════════════════════════════════════════════
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.122';
-import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.122';
-import { bagOf, bankOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.122';
-import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.122';
-import { ROOM_PERKS } from '../../data/perks.js?v=0.2.122';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.122';
-import { whole, gold } from '../../render/format.js?v=0.2.122';
-import { itemName } from '../widgets/bits.js?v=0.2.122';
-import { runIntent } from '../intent-words.js?v=0.2.122';
-import { wherePlaces } from '../item-lore.js?v=0.2.122';
-import { patchParts, placesParts } from '../goto.js?v=0.2.122';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.122';
-import { t } from '../../render/player-text.js?v=0.2.122';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.123';
+import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.123';
+import { bagOf, bankOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.123';
+import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.123';
+import { ROOM_PERKS } from '../../data/perks.js?v=0.2.123';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.123';
+import { whole, gold } from '../../render/format.js?v=0.2.123';
+import { itemName } from '../widgets/bits.js?v=0.2.123';
+import { runIntent } from '../intent-words.js?v=0.2.123';
+import { wherePlaces } from '../item-lore.js?v=0.2.123';
+import { patchParts, placesParts } from '../goto.js?v=0.2.123';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.123';
+import { t } from '../../render/player-text.js?v=0.2.123';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']);
 const SCRATCH = new WeakMap();

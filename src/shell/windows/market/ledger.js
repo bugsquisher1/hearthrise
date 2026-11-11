@@ -7,15 +7,15 @@
 // came back and Buy again on anything bought. The other party is never named: the server's
 // rows hold no name to show.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, element } from '../../../render/paint.js?v=0.2.122';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.122';
-import { whole } from '../../../render/format.js?v=0.2.122';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.122';
-import { nameOf } from '../../../session/item-sections.js?v=0.2.122';
-import { listingWords, historyWords } from '../../market-model.js?v=0.2.122';
-import { offerForSale, readItem, setView } from './state.js?v=0.2.122';
-import { cancelListing } from './browse.js?v=0.2.122';
-import { t } from '../../../render/player-text.js?v=0.2.122';
+import { rows, text, cls, prop, element } from '../../../render/paint.js?v=0.2.123';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.123';
+import { whole } from '../../../render/format.js?v=0.2.123';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.123';
+import { nameOf } from '../../../session/item-sections.js?v=0.2.123';
+import { listingWords, historyWords } from '../../market-model.js?v=0.2.123';
+import { offerForSale, readItem, setView } from './state.js?v=0.2.123';
+import { cancelListing } from './browse.js?v=0.2.123';
+import { t } from '../../../render/player-text.js?v=0.2.123';
 
 /** The two ledger panes' skeletons. */
 export function ledgerHtml() {

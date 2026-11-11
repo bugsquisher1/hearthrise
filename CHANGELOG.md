@@ -19,6 +19,10 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **One word per button.** Every window uses the same word for the same action: Equip and Unequip on the doll and for outfits and titles, Deposit and Withdraw in Storage and the loot plan, Back instead of "Back to the list", Enter with party instead of "Start with party", New setup and Use equipped in Hunt prep, Cancel, Decline and Abandon where it used to say "Forget it", "No thanks" and "Give up".
 
+**Hunt prep is a setup builder now.** Pick a setup on the left, change its stance, target, chase, distance and gold to keep, drag slots to move them or drop one on another to swap, press a slot to set what it does and when, press Sort to lay the bar out the way your hero reads it, then press Save or Save and use. Use puts any saved setup on with one press, Use equipped copies what you have on into the picked setup, and New setup saves a fresh one.
+
+**Windows no longer open with their bottom cut off on smaller screens.** Hunts, the bag, the Market and the rest fit what they show, and a list never stops halfway through a row. The Hunts advice names the ground that's right for your Level.
+
 **On smaller screens (under 1280 px wide) the hunt analyzer, the Tally and your Party panel start minimized,** so you can see the fight. The Tally still shows your count, and Hunt details opens the analyzer.
 
 ## v0.2.122 — 2026-11-11 (Hunting Alone Pays)

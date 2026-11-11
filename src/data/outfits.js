@@ -25,7 +25,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { OUTFITS } from './hunt-outfits.js?v=0.2.122';
+import { OUTFITS } from './hunt-outfits.js?v=0.2.123';
 
 const row = (label, premium, parts, plain) => Object.freeze({
   label, premium, regions: Object.freeze(Object.keys(parts)), parts: Object.freeze(parts), plain: plain || null,

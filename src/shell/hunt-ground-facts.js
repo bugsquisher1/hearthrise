@@ -33,17 +33,17 @@
 //   (combat.js weaknessInfo, what the settle hands the roller: hunt-rewards.js payKill), the same for every party size (Tyler 2026-11-08:
 //   one difficulty for every group), before any hero's bonus. Never a number typed here (ART_DIRECTION §8).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, pullRows } from '../data/hunt-grounds.js?v=0.2.122';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.122';
-import { MONSTERS } from '../data/monsters.js?v=0.2.122';
-import { ITEMS } from '../data/items.js?v=0.2.122';
-import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.122';
-import { weaknessInfo } from '../core/combat.js?v=0.2.122';
-import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.122';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.122';
-import { armourLineWord } from '../data/gear-tiers.js?v=0.2.122';
-import { listWords } from '../render/format.js?v=0.2.122';
-import { isSpentMaterial } from './bag-model.js?v=0.2.122';
+import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, pullRows } from '../data/hunt-grounds.js?v=0.2.123';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.123';
+import { MONSTERS } from '../data/monsters.js?v=0.2.123';
+import { ITEMS } from '../data/items.js?v=0.2.123';
+import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.123';
+import { weaknessInfo } from '../core/combat.js?v=0.2.123';
+import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.123';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.123';
+import { armourLineWord } from '../data/gear-tiers.js?v=0.2.123';
+import { listWords } from '../render/format.js?v=0.2.123';
+import { isSpentMaterial } from './bag-model.js?v=0.2.123';
 
 /* How common a creature is, by its share of the ground's spawn points: at least `common` is common,
    under `rare` is rare, between is uncommon (Tyler 10-18: a common majority, some uncommon, one or two rare). */

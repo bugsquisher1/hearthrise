@@ -30,6 +30,11 @@ export const box = (room, pull, base, more) => {
   return Object.freeze({ room: Object.freeze(room), pull: Object.freeze(pull), spawns: Object.freeze(pack.slice(0, base.length)), pack: Object.freeze(pack) });
 };
 
+/** A BOSS'S WAVE: a pocket's `adds` rows, [monster, x, y] each, the shape of its spawns (pull-cycle.js spawnAdds places them when his
+    `phases` line is crossed, src/core/hunt/boss-phases.js). Only a pocket holding a boss with phases may carry them (hunt-grounds.js
+    validateGround). On a ground they are monsters like any other and pay their kill; in a called room they are called rows. */
+export const addRows = (...rows) => Object.freeze(rows.map(([monster, x, y]) => Object.freeze({ monster, x, y })));
+
 /* THE GATHER SLIDER (Tyler 10-18): `shares` are the steps of the time between pulls a hero spends
    on a node, in permille of the hunt (0 = None, the default: REVIEW amendment). `refKillMs` is the
    reference hero's time to clear one pack here (spec §2): the engine sizes a gap from it, so a hero
@@ -57,11 +62,44 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
      bagGuide  the hunt's suggested bag { tier, melee, ranged, magic } (src/data/supplies.js BAG_GUIDE_BY_HUNT's row shape)
      checks    (optional) the pack's own test facts, read only by the guards that loop over every ground: bridge [[x, y], ...]
                (its one-tile choke, tests/hunt-core/forest-cave.mjs), holders [monster, ...] (its room holders, no spawn weight), dropRef { roles, full } and valueToday (its measured value pin,
-               tests/hunt-core/drop-tables.mjs). Measured once, then frozen here, so a guard never needs a row typed for a new ground */
+               tests/hunt-core/drop-tables.mjs). Measured once, then frozen here, so a guard never needs a row typed for a new ground
+     hall      (optional, lane/b-krells-hold-pack) a KEYED BOSS ROOM on the ground's own map, behind a key that drops on the ground:
+               { key, words { boss, Boss }, hunt, ground, monsters, prize }. `key` is one of the pack's items and `opens` the pack; `hunt` a
+               hunts.js CALLED_HUNTS row less its id and `called`; `ground` a hunt-grounds.js CALLED_GROUNDS row less its id, hunt, map and call
+               (one pocket: the boss in `spawns`, his adds in `adds`); `monsters` the room's own called rows (ids ending _called, boss or add,
+               never a MONSTERS id); `prize` what the room pays a kill. NOT folded into CALLED_HUNTS / CALLED_GROUNDS / BOSS_CALLS: a keyed
+               room that pays is a new room kind (the Krell's Hold design's engine piece 5), so the fold lands with it. tools/pack.mjs
+               lintHall (on lane/b-krells-hold-pack) checks it against the data */
 export const PACK_STATUS = Object.freeze(['staged', 'open']);
 const ID = /^[a-z0-9_]{1,40}$/;
 const isObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
-const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide']);
+const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide', 'hall']);
+const HALL_KEYS = Object.freeze(['key', 'words', 'hunt', 'ground', 'monsters', 'prize']);
+const isSpot = (s) => isObj(s) && ID.test(String(s.monster)) && Number.isInteger(s.x) && Number.isInteger(s.y);
+
+/** A pack's `hall`, checked for shape: answers why it is malformed, or null. The data half (the key item, the rows) is tools/pack.mjs lintHall. */
+function hallWhy(p) {
+  const h = p.hall;
+  if (!isObj(h)) return 'hall is not an object';
+  for (const k of Object.keys(h)) if (!HALL_KEYS.includes(k)) return 'hall has an unknown field ' + k;
+  if (typeof h.key !== 'string' || !(p.items && h.key in p.items)) return 'hall.key is not one of the pack\'s own items';
+  if (p.items[h.key].opens !== p.id) return 'hall.key ' + h.key + ' does not open ' + p.id + ' (its item\'s `opens`)';
+  if (!isObj(h.words) || typeof h.words.boss !== 'string' || typeof h.words.Boss !== 'string') return 'hall.words is not { boss, Boss }';
+  if (!isObj(h.hunt) || 'id' in h.hunt || 'called' in h.hunt || typeof h.hunt.name !== 'string') return 'hall.hunt is not a CALLED_HUNTS row less its id and called';
+  const g = h.ground;
+  if (!isObj(g) || ['id', 'hunt', 'map', 'call'].some((k) => k in g)) return 'hall.ground is not a CALLED_GROUNDS row less its id, hunt, map and call';
+  if (!Array.isArray(g.pockets) || g.pockets.length !== 1) return 'hall.ground has not exactly one pocket';
+  const pk = g.pockets[0];
+  if (!Array.isArray(pk.spawns) || pk.spawns.length !== 1 || !pk.spawns.every(isSpot)) return 'hall.ground\'s pocket stands not exactly one boss';
+  if (!Array.isArray(pk.adds) || !pk.adds.length || !pk.adds.every(isSpot)) return 'hall.ground\'s pocket has no adds';
+  if (!isObj(h.monsters) || !Object.keys(h.monsters).length) return 'hall.monsters is empty';
+  for (const [id, m] of Object.entries(h.monsters)) {
+    if (!/^[a-z0-9_]+_called$/.test(id) || !isObj(m) || m.called !== true) return 'hall row ' + id + ' must be a called row, its id ending _called and its row marked called';
+    if ((m.boss === true) === (m.add === true)) return 'hall row ' + id + ' is not exactly one of boss or add';
+  }
+  if (!Array.isArray(h.prize) || !h.prize.every((r) => isObj(r) && typeof r.id === 'string' && typeof r.band === 'string')) return 'hall.prize is not a list of { id, band }';
+  return null;
+}
 
 /** A pack, checked for shape and frozen at its top. Throws on a malformed one, naming the pack and the field. */
 export function definePack(p) {
@@ -84,6 +122,7 @@ export function definePack(p) {
   if (p.checks !== undefined && !isObj(p.checks)) no('checks is not an object');
   if (p.bagGuide !== undefined && !(isObj(p.bagGuide) && Number.isInteger(p.bagGuide.tier))) no('bagGuide is not { tier, melee, ranged, magic }');
   for (const k of ['partyClassXp', 'partyVsAlone']) if (p[k] !== undefined && !(isObj(p[k]) && [2, 3, 4].every((n) => Array.isArray(p[k][n]) && p[k][n].length === n))) no(k + ' is not { 2: [2], 3: [3], 4: [4] }');
+  if (p.hall !== undefined) { const why = hallWhy(p); if (why) no(why); }
   return Object.freeze({ monsters: {}, roster: {}, items: {}, itemText: {}, sql: null, ...p });
 }
 

@@ -9,6 +9,8 @@
 //
 //   node tools/balance-sim/grade.mjs --mode quick [--grounds a,b] [--workers 4]     a subset in minutes, for any lane
 //   node tools/balance-sim/grade.mjs --mode full  [--grounds a,b] [--tiers t,u]     the whole grid (about 17k hero-hours)
+//   ... [--open-also a,b]                                                          staged grounds that ship with these: their drops on
+//                                                                                   the gear ladder too (a staged graded ground's own always are)
 //   node tools/balance-sim/grade.mjs --in DIR                                       grade cells already played (no play)
 //   node tools/balance-sim/grade.mjs --mode quick --what-if '{"monsters":{"*":{"atk":"*3"}}}'   a candidate on the same dice
 //   node tools/balance-sim/grade.mjs --selftest                                     every rule bites a synthetic mutant
@@ -66,20 +68,28 @@ export async function buildGrid(root, mode, opts = {}) {
   const T = await import(u('src/data/hunt-tiers.js'));
   const wi = opts.whatIf || null, tag = wi ? ',w=' + createHash('sha256').update(JSON.stringify(wi)).digest('hex').slice(0, 8) : '';
   const jobs = [];
+  const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  for (const x of opts.openAlso || []) if (!own(G.HUNT_GROUNDS, x)) throw new Error('grade: --open-also names no ground ' + x);
   for (const g of groundsOf(G, opts.grounds)) {
     const band = HUNT_INDEX[g.hunt].band;
+    /* A STAGED GROUND IS PLAYED AS IT SHIPS (lane/b-slake-and-ford 2026-11-10): its own drops gettable, the ladder every open ground
+       is graded on (gear.mjs openAlso). `opts.openAlso` opens other staged grounds with it (a pair that ships together: the Ford's
+       armor and the Slake's weapons). The cell id says so, so a cell played on another ladder is never resumed as this one. */
+    const extra = (opts.openAlso || []).filter((x) => x !== g.id && !own(G.OPEN_GROUNDS, x));
+    const opens = [...(own(G.OPEN_GROUNDS, g.id) ? [] : [g.id]), ...extra];
+    const og = opens.length ? ',open' + (extra.length ? '=' + opens.join('+') : '') : '', ogear = opens.length ? { openAlso: opens } : null;
     for (const tier of T.tiersOf(g.id).filter((t) => !opts.tiers || opts.tiers.includes(t))) {
       const row = T.tierRowOf(g.id, tier);
       for (const { offset, level } of levelsOf(band, OFFSETS[mode])) for (const [size, comps] of Object.entries(COMPS[mode])) for (const comp of comps) {
         const n = Number(size), pull = tier === 'normal' ? 0 : row.pull[n - 1], { seeds, hours } = dice(mode, n, tier, offset);
-        const id = ['grade', 'g=' + g.id, 't=' + tier, 'o=' + offset, 'p=' + comp.join('+'), 'L=' + level, 's=' + seeds, 'h=' + hours].join(',') + tag;
-        jobs.push({ id, ground: g.id, party: comp, level, ...(pull ? { density: pull } : {}), hours, seeds, ...(tier === 'normal' ? {} : { options: { tier } }),
+        const id = ['grade', 'g=' + g.id, 't=' + tier, 'o=' + offset, 'p=' + comp.join('+'), 'L=' + level, 's=' + seeds, 'h=' + hours].join(',') + og + tag;
+        jobs.push({ id, ground: g.id, party: comp, level, ...(ogear ? { gear: ogear } : {}), ...(pull ? { density: pull } : {}), hours, seeds, ...(tier === 'normal' ? {} : { options: { tier } }),
           windowMs: 120000, ...(wi ? { whatIf: wi } : {}), grade: { ground: g.id, band, groupFit: fitOf(g), tier, offset, size: n, comp: comp.join('+'), gear: 'ladder' } });
       }
       /* THE FRESH HERO (first-week bars): the practice set alone at a first-day solo floor (Level 15 or under), Normal, every way */
       if (tier === 'normal' && band[0] <= 15 && fitOf(g) === 'solo') for (const [s] of COMPS[mode][1]) {
         const { seeds, hours } = dice(mode, 1, tier, 'floor');
-        const id = ['grade', 'g=' + g.id, 't=normal', 'o=floor', 'p=' + s, 'L=' + band[0], 'gear=practice', 's=' + seeds, 'h=' + hours].join(',') + tag;
+        const id = ['grade', 'g=' + g.id, 't=normal', 'o=floor', 'p=' + s, 'L=' + band[0], 'gear=practice', 's=' + seeds, 'h=' + hours].join(',') + og + tag;
         jobs.push({ id, ground: g.id, party: [s], level: band[0], gear: { starter: true }, hours, seeds, windowMs: 120000, ...(wi ? { whatIf: wi } : {}),
           grade: { ground: g.id, band, groupFit: 'solo', tier, offset: 'floor', size: 1, comp: s, gear: 'practice' } });
       }
@@ -380,7 +390,8 @@ if (isMain(import.meta.url)) {
   if (!inDir) {
     const whatIf = arg('what-if', null) ? JSON.parse(arg('what-if')) : null;
     const grounds = arg('grounds', null) ? arg('grounds').split(',') : null, tiers = arg('tiers', null) ? arg('tiers').split(',') : null;
-    const jobs = await buildGrid(ROOT, mode, { whatIf, grounds, tiers });
+    const openAlso = arg('open-also', null) ? arg('open-also').split(',') : null;
+    const jobs = await buildGrid(ROOT, mode, { whatIf, grounds, tiers, openAlso });
     if (process.argv.includes('--estimate')) { console.log('grade ' + mode + ': ' + jobs.length + ' cells, ' + jobs.reduce((s, j) => s + j.seeds * j.hours * j.party.length, 0) + ' hero-hours'); process.exit(0); }
     const { runPool } = await import('./pool.mjs');
     mkdirSync(out, { recursive: true });

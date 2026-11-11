@@ -6,7 +6,7 @@
 // new ground is a data row and shows up here with nothing else to edit.
 //   huntRows()          [{ hunt, name, theme, band, heroes, packs, packMin,
 //                          packMax, respawnS, boss }] in band order
-//   packWords(row, n)   "6 packs of 7 · back in 60 s": the pull size the
+//   packWords(row, n)   "6 packs of 7 · respawns every 60 seconds": the pull size the
 //                        server spawns on the shown tier; the room as built only at 0
 //   tierPull(row, tier, size)  how many monsters a pull brings on a tier for this group
 //   tierWords(row, tier, size)  what a tier does, in plain words (hunt-tiers.js TIER_LINES; the numbers are the wiki's)
@@ -28,15 +28,15 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, partyPullOf, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.114';
-import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier } from '../data/hunt-tiers.js?v=0.2.114';
-import { PARTY } from '../data/party.js?v=0.2.114';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.114';
-import { MONSTERS } from '../data/monsters.js?v=0.2.114';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.114';
-import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.114';
-import { whole, gold } from '../render/format.js?v=0.2.114';
-import { t, hasText } from '../render/player-text.js?v=0.2.114';
+import { HUNT_GROUNDS, partyPullOf, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.119';
+import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier } from '../data/hunt-tiers.js?v=0.2.119';
+import { PARTY } from '../data/party.js?v=0.2.119';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.119';
+import { MONSTERS } from '../data/monsters.js?v=0.2.119';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.119';
+import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.119';
+import { whole, gold } from '../render/format.js?v=0.2.119';
+import { t, hasText } from '../render/player-text.js?v=0.2.119';
 
 const PACK_QTY_MAX = 100000;
 /* A party size in words (hunts.count_<n>, "two"), else the number. */
@@ -127,11 +127,16 @@ export const ABOVE_LEVEL_WORDS = t('hunts.above_level');
 /* FAR under a floor: the words and the list line lean harder. Display only. */
 const FAR_UNDER_LEVELS = 10;
 const FAR_WORDS = t('hunts.far_above_level');
-export function rangeWords(r, level) {
+/** cutPermille: the share of a death's XP loss the held Blessings remove, the server's (item-sections.js blessingsOf permille, hr_blessing_view);
+    0 or absent says the unblessed share (designer re-read 2026-11-11: "lose 6%" with 3 of 3 on, where a death took 1.5%). */
+export function rangeWords(r, level, cutPermille) {
   if (!Number.isInteger(level) || level >= r.band[0]) return null;
   const gap = r.band[0] - level;
+  const cut = Number.isInteger(cutPermille) && cutPermille > 0 ? Math.min(1000, cutPermille) : 0;
+  /* one decimal at most: 6% x (1 - 750/1000) = 1.5% */
+  const loss = Math.round(DEATH_XP_LOSS * (1000 - cut) / 10 * 10) / 10;
   return [t('hunts.range_under', { count: gap }), (gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS),
-    t('hunts.range_die', { loss: Math.round(DEATH_XP_LOSS * 100) })].join(' ');
+    cut ? t('hunts.range_die_blessed', { loss }) : t('hunts.range_die', { loss })].join(' ');
 }
 
 /**

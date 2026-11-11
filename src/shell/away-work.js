@@ -15,15 +15,14 @@
 // past the stamp the line waits (awayWorkSettled), and so does the stamp. "It stopped about 25 min in" is the actions the server paid
 // times the action time for the tool the server says the hero holds: display only, and worded as an estimate.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.114';
-import { recipeInputs } from '../core/artisan.js?v=0.2.114';
-import { skillLevelFromXp } from '../core/xp.js?v=0.2.114';
-import { whole } from '../render/format.js?v=0.2.114';
-import { itemName } from './widgets/bits.js?v=0.2.114';
-import { heldOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.114';
-import { serverNowOf } from '../session/hunt-sections.js?v=0.2.114';
-import { townWorkRunning } from '../session/town-poll.js?v=0.2.114';
-import { actionMs, leftOf, productOf, runsOf, workOf, workRow, yieldOf } from './town-work.js?v=0.2.114';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.119';
+import { recipeInputs } from '../core/artisan.js?v=0.2.119';
+import { whole } from '../render/format.js?v=0.2.119';
+import { itemName } from './widgets/bits.js?v=0.2.119';
+import { heldOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.119';
+import { serverNowOf } from '../session/hunt-sections.js?v=0.2.119';
+import { townWorkRunning } from '../session/town-poll.js?v=0.2.119';
+import { actionMs, leftOf, productOf, runsOf, workOf, workRow, yieldOf } from './town-work.js?v=0.2.119';
 
 const TOWN_STAMP = /^town:(gather|artisan):([A-Za-z0-9_.-]+)$/;
 /* A record settled this recently is the return's answer; an older one waits for the sign-in's settle. */
@@ -52,7 +51,8 @@ export function workStampOf(cs) {
   if (!w || !Number.isFinite(at)) return null;
   const sk = (skillsOf(cs) || {})[w.skill];
   const made = productOf(w);
-  return { s: keyOf(w), at: Math.floor(at), ...(sk ? { sx: sk.xp } : {}), ...(made ? { n: qtyOf(cs, made) } : {}) };
+  /* `sl`: the skill level the server said with that XP (the return compares two server levels, never a curve of this build's) */
+  return { s: keyOf(w), at: Math.floor(at), ...(sk ? { sx: sk.xp, sl: sk.level } : {}), ...(made ? { n: qtyOf(cs, made) } : {}) };
 }
 
 /** Has the job in this stamp been paid since it was stamped? False only while the line must wait for the settle. Pure. */
@@ -99,7 +99,7 @@ export function awayWorkLineOf(cs, was, awayWords) {
   const sk = (skillsOf(cs) || {})[w.skill];
   const skill = (SKILLS_DEF[w.skill] && SKILLS_DEF[w.skill].name) || w.skill;
   const xp = sk && Number.isSafeInteger(was.sx) ? sk.xp - was.sx : 0;
-  if (xp > 0) { const from = skillLevelFromXp(w.skill, was.sx); parts.push(sk.level > from ? skill + ' ' + from + ' to ' + sk.level : '+' + whole(xp) + ' ' + skill + ' XP'); }
+  if (xp > 0) { const from = Number.isSafeInteger(was.sl) && was.sl >= 1 ? was.sl : null; parts.push(from !== null && sk.level > from ? skill + ' ' + from + ' to ' + sk.level : '+' + whole(xp) + ' ' + skill + ' XP'); }
   if (!parts.length) return null;
   const goes = runningWork(cs);
   const still = !!goes && keyOf(goes) === was.s;

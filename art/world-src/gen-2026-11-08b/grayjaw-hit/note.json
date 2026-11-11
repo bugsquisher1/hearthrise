@@ -1,0 +1,286 @@
+{
+  "asset": "grayjaw hit clip (brief 10 B3), Meadowbrook Thicket",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B3 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "forest",
+  "object_id": "6cbec90d-34bd-4056-a4c0-546a98637161",
+  "name": "Old Grayjaw (64 canvas, the Thicket den)",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); hit/<facing>/0..N.png = the kept roll; alt/<roll>/hit/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the object, frame_count 6, keep_first_frame false; south and the side facings are separate groups (their action texts differ)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "a8f4136e-f0d8-4d82-9ab3-cf7d3894c0f9",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "36e18e9f-ddf3-48c0-b5f6-dbe7724306f3",
+        "directions": "e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r2": [
+      {
+        "group": "042a70c3-3524-4db3-83f1-44b561de423e",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, all four paws planted, stays low, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "bdc78e37-bbd1-4921-a399-b9321af21914",
+        "directions": "n",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, all four paws planted, stays low, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r3": [
+      {
+        "group": "8ebdb786-cf4c-4e5f-9809-460d859c2a97",
+        "directions": "s",
+        "action": "rocks back by one pixel as if pushed from the front, then returns to its stance, all four paws stay on the ground, the body keeps its height, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "efb10127-308b-4340-9cb9-478d21189c1f",
+        "directions": "n",
+        "action": "rocks back by one pixel as if pushed from the side it faces, then returns to its stance, all four paws stay on the ground, the body keeps its height, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r3",
+    "east": "r1",
+    "north": "r3",
+    "west": "r1"
+  },
+  "refused": {
+    "south r1": "the whole body rises 6-7 px (frames 2-3)",
+    "south r2": "rises 4-5 px with the feet",
+    "north r1": "the hind legs lift 6 px and go pale (frames 2-3)",
+    "north r2": "the hind legs lift 5 px"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r3",
+      "xor": [
+        48,
+        128,
+        187,
+        182,
+        165,
+        76
+      ],
+      "alien": [
+        0,
+        0,
+        15,
+        20,
+        20,
+        9
+      ],
+      "dx": [
+        0,
+        -0.1,
+        0,
+        0,
+        0.1,
+        0
+      ],
+      "dy": [
+        -0.8,
+        -2.2,
+        -3.5,
+        -2.9,
+        -2.3,
+        -0.4
+      ],
+      "top": [
+        -1,
+        -3,
+        -5,
+        -5,
+        -4,
+        -2
+      ],
+      "bottom": [
+        0,
+        -1,
+        -4,
+        -3,
+        -3,
+        0
+      ],
+      "auto_flags": [
+        "shift f2 (0,-3.5)",
+        "top f2 (-5)",
+        "top f3 (-5)"
+      ]
+    },
+    "east": {
+      "roll": "r1",
+      "xor": [
+        67,
+        80,
+        125,
+        94,
+        43,
+        63
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "dx": [
+        0,
+        -0.2,
+        -0.3,
+        -0.1,
+        0.2,
+        0
+      ],
+      "dy": [
+        0.3,
+        0.3,
+        0.7,
+        0.5,
+        0.2,
+        -0.1
+      ],
+      "top": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "north": {
+      "roll": "r3",
+      "xor": [
+        81,
+        140,
+        224,
+        210,
+        175,
+        92
+      ],
+      "alien": [
+        0,
+        0,
+        2,
+        1,
+        3,
+        0
+      ],
+      "dx": [
+        0,
+        0,
+        0.1,
+        0.2,
+        0.4,
+        0.3
+      ],
+      "dy": [
+        -1,
+        -2.3,
+        -3.7,
+        -3.2,
+        -2.2,
+        -0.3
+      ],
+      "top": [
+        0,
+        -1,
+        -2,
+        -1,
+        0,
+        1
+      ],
+      "bottom": [
+        0,
+        -1,
+        -4,
+        -4,
+        -4,
+        -1
+      ],
+      "auto_flags": [
+        "shift f2 (0.1,-3.7)",
+        "shift f3 (0.2,-3.2)",
+        "feet f4 (bot -4, dy -2.2)"
+      ]
+    },
+    "west": {
+      "roll": "r1",
+      "xor": [
+        100,
+        193,
+        195,
+        179,
+        126,
+        127
+      ],
+      "alien": [
+        0,
+        2,
+        0,
+        3,
+        0,
+        0
+      ],
+      "dx": [
+        0.3,
+        0.4,
+        0.1,
+        -0.1,
+        -0.1,
+        0.1
+      ],
+      "dy": [
+        0.2,
+        0,
+        -0.6,
+        -0.8,
+        -0.7,
+        -0.8
+      ],
+      "top": [
+        1,
+        1,
+        0,
+        0,
+        -1,
+        -1
+      ],
+      "bottom": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        0
+      ],
+      "auto_flags": []
+    }
+  },
+  "generations": 8,
+  "flags": [
+    "SOUTH: no clean roll after 2 retries. Kept r3 as the least bad: the body rises 3.5 px at frame 2 (feet 3-4 px with it) and a pale tail tip pokes up behind the back at frames 3-5",
+    "NORTH: no clean roll after 2 retries. Kept r3: the whole body rises 3-4 px with the feet at frames 2-4 (a hop more than a lean)"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/grayjaw-hit.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)"
+}

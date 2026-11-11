@@ -7,13 +7,13 @@
 // Each press is ONE intent (src/session/title-intents.js), and the row changes only from the re-read envelope.
 // Per hero: the purse pays, but the kills and the title are this hero's.
 // ════════════════════════════════════════════════════════════════════════
-import { TITLES } from '../../../data/titles.js?v=0.2.114';
-import { titlesOf } from '../../../session/character-sections.js?v=0.2.114';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.114';
-import { buyTitle, wearTitle } from '../../../session/title-intents.js?v=0.2.114';
-import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.114';
-import { whole, gold } from '../../../render/format.js?v=0.2.114';
-import { runIntent } from '../../intent-words.js?v=0.2.114';
+import { TITLES } from '../../../data/titles.js?v=0.2.119';
+import { titlesOf } from '../../../session/character-sections.js?v=0.2.119';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.119';
+import { buyTitle, wearTitle } from '../../../session/title-intents.js?v=0.2.119';
+import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.119';
+import { whole, gold } from '../../../render/format.js?v=0.2.119';
+import { runIntent } from '../../intent-words.js?v=0.2.119';
 
 /** The Titles tab's skeleton. */
 export function titlesHtml() {

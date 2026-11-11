@@ -16,12 +16,13 @@
 // The Inventory (its item menu, its This hunt tab, its tools row) and the Storage
 // window read this; the bag and Storage change only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { isStartKit } from './bag-model.js?v=0.2.114';
-import { bagOf, rulesOf } from '../session/item-sections.js?v=0.2.114';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.114';
-import { whole, gold } from '../render/format.js?v=0.2.114';
-import { dispatchLoot } from '../session/loot-intents.js?v=0.2.114';
-import { runIntent, refusalWords } from './intent-words.js?v=0.2.114';
+import { isStartKit } from './bag-model.js?v=0.2.119';
+import { bagOf, rulesOf } from '../session/item-sections.js?v=0.2.119';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.119';
+import { whole, gold } from '../render/format.js?v=0.2.119';
+import { dispatchLoot } from '../session/loot-intents.js?v=0.2.119';
+import { runIntent, refusalWords } from './intent-words.js?v=0.2.119';
+import { t } from '../render/player-text.js?v=0.2.119';
 
 /** The three plans, then the pickup filter: [rule, words, group]. The rule is the server's word (player_item_rules.loot_rule). */
 export const LOOT_CHOICES = Object.freeze([
@@ -55,8 +56,10 @@ export function dispatchBlock(cs) {
   const rules = rulesOf(cs), bag = bagOf(cs);
   if (!rules || !bag) return 'Reading your bag…';
   const planned = bag.some((r) => MOVES.has(rules.loot[r.id]) && !rules.locked.has(r.id) && !(rules.loot[r.id] === 'sell' && isStartKit(r.id)));
-  /* The words on the item menu, and no "in the Inventory (B)" said inside the Inventory (core-loop play 2026-10-30). */
-  return planned ? '' : 'Nothing is set to Deposit or Sell yet. Set it in an item’s menu.';
+  if (planned) return '';
+  /* A plan that has run is not "nothing set" (designer re-read 2026-11-11: that line stood right under "Sold 17 for 5,407 gp."). The words on the
+     item menu, and no "in the Inventory (B)" said inside the Inventory (core-loop play 2026-10-30). */
+  return Object.values(rules.loot).some((v) => MOVES.has(v)) ? t('shop.dispatch_all_moved') : t('shop.dispatch_none_set');
 }
 
 const stacks = (n) => whole(n) + (n === 1 ? ' stack' : ' stacks');
@@ -70,7 +73,7 @@ export function dispatchWords(a) {
   const kept = a.kept || {};
   const did = [];
   if (stored) did.push('stored ' + stacks(stored));
-  if (sold) did.push('sold ' + whole(sold) + ' for ' + gold(g));
+  if (sold) did.push('sold ' + stacks(sold) + ' for ' + gold(g));
   let line = did.length ? did.join(', ').replace(/^./, (c) => c.toUpperCase()) + '.' : 'Nothing moved.';
   if (typeof a.sell_refused === 'string' && a.sell_refused) line += ' Nothing sold: ' + refusalWords(a.sell_refused, 'loot_dispatch');
   if (unplaced) line += ' ' + whole(unplaced) + ' didn\'t fit: Storage is full.';

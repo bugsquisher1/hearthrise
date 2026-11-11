@@ -35,7 +35,12 @@
 //   ASK-2  a four-hero leave-together: a not-due answer at the record's version is not re-read in full, the close
 //          is backed off past leave_at; no refusal, at most 7 asks and 2 full reads a hero, every hero sees its end
 //   ASK-3  a hunter's idle answer at a version its record holds WHOLE (a load, a settle answer, or ANY pushed frame:
-//          a frame is the whole character) is not re-read in full; in town it always is (a party invite moves no version)
+//          a frame is the whole character) is not re-read in full; in town a copy older than wholeFreshMs always is (a
+//          party invite moves no version)
+//   JOIN-READ a hero opened on the roster's answer is read ONCE on the way in: its join's settle answers "nothing to
+//          pay" at the version just read whole and asks no second hr_load (baseline 2026-11-10: two a hero, eight for
+//          four). A version the server moved, a roster answer wholeFreshMs old by the time the ask leaves, and a
+//          re-join later all still read
 //   HELLO-1 an idle settle answer ({accrued:false}) is never applied as the character: the full read follows
 //   HUNT-1 while the server holds a hunt open the character asks the hunter's settle every huntPollMs
 //          (attended): the track reaches the timeline; the envelope that says it ended stops the asking
@@ -94,8 +99,21 @@
 //   TOK-7  A THROWN ERROR IS NOT A REFUSAL (a lock that failed, say): the session stays and nobody hears 'expired';
 //          an auth error the server threw still ends it
 //   VIEW-1 the world view reads only the character's record and its own scratch
+//   LVL-0  outside src/core and its data no module takes a level curve from src/core/xp.js or reads level_xp
+//          (CURVE_USE, empty since lane/c-skills-from-server: an exception needs its why): the browser cannot work a
+//          Level or a skill's level or bar out
+//   LVL-1  the Level, its XP marks, the roster's Level and a Level gate are the envelope's `level` block
+//          (hr_level_block), fed a block that DISAGREES with this build's curve for the same Level XP
+//   LVL-2  no `level` block (or a broken one) draws no Level anywhere: never this build's curve as a fallback
+//   LVL-3  a hunt on screen: the pushed frame's Level replaces the load's at once, the Level XP unmoved
+//   LVL-4  the browser closed: the stamp keeps the server's Level, and the return line names the two
+//          Levels the server said (the hunt ran on the server meanwhile)
+//   SKL-1  a skill's bar (fill, pending segment, 'N XP to L+1', 'Mastered') draws the envelope's `skill_levels` cell
+//          (hr_skill_block), fed one that DISAGREES with this build's curve for the same XP (lane/c-skills-from-server)
+//   SKL-2  no section (or a broken cell) draws no bar, never this build's curve; a pushed frame's marks replace the load's
+//   SKL-3  the town-work burn check reads the server's Cooking level, never one worked out of the XP
 // ════════════════════════════════════════════════════════════════════════
-import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, cpSync, readFileSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -124,6 +142,18 @@ async function load(base) {
     FI: await import(u('src/session/farm-intents.js')),
     FS: await import(u('src/session/farm-sections.js')),
     XP: await import(u('src/core/xp.js')),
+    /* the Level's readers and three of its surfaces (LVL-0 .. LVL-4), and the tree the modules came from (LVL-0 reads its imports) */
+    CS: await import(u('src/session/character-sections.js')),
+    GG: await import(u('src/shell/gear-gate.js')),
+    AWAY: await import(u('src/shell/away-recap.js')),
+    ITEMS: (await import(u('src/data/items.js'))).ITEMS,
+    LEVEL_REQ: (await import(u('src/data/gear-tiers.js'))).LEVEL_REQ,
+    /* a skill's bar and the town-work burn check (SKL-1 .. SKL-3) */
+    SW: await import(u('src/shell/windows/skills.js')),
+    TT: await import(u('src/shell/town-ticker.js')),
+    RCP: (await import(u('src/data/recipes.js'))).ARTISAN_RECIPES,
+    ARTISAN: await import(u('src/core/artisan.js')),
+    BASE: base,
   };
 }
 
@@ -172,7 +202,7 @@ const timers = { setTimer: () => 0, clearTimer: () => {} };
 async function rules(M) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
-  const { E, R, C, A, S, AU, NB, AR, SI, CFG, TP, TW, PS, HB, I, FI, FS, XP } = M;
+  const { E, R, C, A, S, AU, NB, AR, SI, CFG, TP, TW, PS, HB, I, FI, FS, XP, CS, GG, AWAY, ITEMS, LEVEL_REQ, SW, TT, RCP, ARTISAN } = M;
 
   await t('ENV-1', () => {
     const a = E.applyEnvelope(null, env(3, { skills: { mining: 5 }, buffs: [1] })).record;
@@ -597,29 +627,128 @@ async function rules(M) {
   });
   /* ASK-3 (the version a hunter's idle answer is checked against): a frame is the WHOLE character
      (2026-12-25-frame-push-revive.sql), so a record raised by any frame, one that skipped versions included, is
-     whole at its version and an idle answer at it asks nothing more (no hr_load). In town it always is re-read. */
+     whole at its version and an idle answer at it asks nothing more (no hr_load), however old the copy. In town a
+     copy older than wholeFreshMs is always re-read. */
   await t('ASK-3', async () => {
     const calls = [];
-    let ver = 10, ended = false;
+    let ver = 10, ended = false, now = 1000;
     const body = () => env(ver, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended } });
     const srv = {
       rpc: async (name) => { calls.push(name); return { ok: true, status: 200, body: body(), closed: false }; },
       accrue: async () => { calls.push('accrue'); return { ok: true, status: 200, body: Object.assign(body(), { accrued: false, settled: false, reason: 'not_due' }), closed: false }; },
     };
     const hub = fakeHub();
-    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers });
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers, now: () => now });
     await cs.load(); cs.connect();
     const topic = C.frameTopic(UID, 0);
     const ask = async () => { calls.length = 0; await cs.hello(); await new Promise((r) => setImmediate(r)); return calls.join(','); };
     if ((await ask()) !== 'accrue') return 'an idle answer at the version just read whole was re-read';
+    now += 60000;
+    if ((await ask()) !== 'accrue') return 'a hunter\'s idle answer at a version held whole for a minute was re-read (its next ask restates it): ' + calls.join(',');
     ver = 12; hub.send(topic, { t: 'state', frame: 12, env: body() });
     if (cs.record.version !== 12) return 'the frame that skipped a version was not applied: ' + cs.lastVerdict;
     if ((await ask()) !== 'accrue') return 'an idle answer after a (whole) frame that skipped a version was re-read: ' + calls.join(',');
     ver = 13; hub.send(topic, { t: 'state', frame: 13, env: body() });
     if ((await ask()) !== 'accrue') return 'an idle answer after a consecutive frame was re-read: ' + calls.join(',');
-    /* in town an idle answer is always read in full (what no version moves, a party invite, still arrives) */
+    /* in town an idle answer to a copy past wholeFreshMs is always read in full (what no version moves, a party invite, still arrives) */
     ended = true; await cs.load();
-    return (await ask()) === 'accrue,hr_load' || 'an idle answer in town was not re-read in full: ' + calls.join(',');
+    now += CFG.SESSION_CONFIG.wholeFreshMs + 1;
+    return (await ask()) === 'accrue,hr_load' || 'an idle answer in town, to a copy ' + (CFG.SESSION_CONFIG.wholeFreshMs + 1) + ' ms old, was not re-read in full: ' + calls.join(',');
+  });
+  /* JOIN-READ (hunt-path baseline 2026-11-10, finding 3: "each idle hero is read twice", the roster's hr_load and a second one
+     because the join's idle settle always re-read; four heroes home cost eight). The hero is opened through the account,
+     as boot.js does, and its topic joined; the engine's answer is the real idle one (hr-accrue index.ts: no state, only
+     the version the hero stands at). The reads of each hero are COUNTED. */
+  await t('JOIN-READ', async () => {
+    const FRESH = CFG.SESSION_CONFIG.wholeFreshMs;
+    if (!(FRESH > 0 && FRESH < CFG.SESSION_CONFIG.rosterReadFreshMs)) return 'wholeFreshMs ' + FRESH + ' is not inside the roster answer\'s own window (' + CFG.SESSION_CONFIG.rosterReadFreshMs + ')';
+    const tick = () => new Promise((r) => setImmediate(r));
+    /* one account, two heroes in town: the roster, `listMs` on the characters screen, both opened, `joinMs` to the join */
+    const scene = async (listMs, joinMs, before) => {
+      let now = 5000;
+      const ver = { 0: 7, 1: 3 }, calls = [], hub = fakeHub();
+      const srv = {
+        rpc: async (name, a) => {
+          if (name !== 'hr_load') return { ok: true, status: 200, body: { ok: true }, closed: false };
+          calls.push('hr_load:' + a.p_slot);
+          return { ok: true, status: 200, closed: false, body: env(ver[a.p_slot], a.p_slot === 0 ? { hero_slots: [0, 1], name: 'Ada', account: { max_concurrent: 4 } } : { name: 'Bram' }) };
+        },
+        accrue: async (b) => { calls.push('accrue:' + b.slot); return { ok: true, status: 200, closed: false, body: { ok: true, accrued: false, reason: 'no_activity', version: ver[b.slot], now: new Date(now).toISOString() } }; },
+      };
+      const acc = new A.AccountSession({ auth: { userId: () => UID, token: () => 'jwt', signOut: async () => {} }, server: srv, tab: memStore(), channel: hub.channel,
+        timers: { setTimer: () => 0, clearTimer: () => {}, now: () => now } });
+      const join = async (s) => { hub.topics.get(C.frameTopic(UID, s)).onStatus('SUBSCRIBED'); await tick(); await tick(); };
+      const n = (what, s) => calls.filter((c) => c === what + ':' + s).length;
+      await acc.roster();
+      now += listMs;
+      const r = await acc.open(0); await acc.openOthers([1]);
+      if (!r.ok || calls.length !== 2) return { err: 'the heroes did not open on the roster\'s two answers: ' + calls.join(',') };
+      now += joinMs;
+      if (before) before(ver);
+      await join(0); await join(1);
+      return { reads: () => [n('hr_load', 0), n('hr_load', 1)].join(), asks: () => [n('accrue', 0), n('accrue', 1)].join(), calls, acc, join, step: (ms) => { now += ms; } };
+    };
+    /* a reload: opened at once on what the roster read, joined a moment later */
+    const a = await scene(0, 400);
+    if (a.err) return a.err;
+    if (a.asks() !== '1,1') return 'a join did not ask its one settle a hero: ' + a.calls.join(',');
+    if (a.reads() !== '1,1') return 'a hero in town was read ' + a.reads() + ' times on the way in, want the roster\'s one each: ' + a.calls.join(',');
+    if (a.acc.character(0).record.version !== 7 || a.acc.character(0).status !== 'ready') return 'the hero is not standing on the roster\'s answer';
+    /* ...and a re-join long after (a dropped channel, a page back from away) reads it again: frames and nudges may have been missed */
+    a.step(60000);
+    await a.join(0);
+    if (a.reads() !== '2,1') return 'a re-join a minute later did not read the hero again (' + a.reads() + '): ' + a.calls.join(',');
+    /* the server moved the hero between the roster and the join (a settle, another device): read again */
+    const b = await scene(0, 400, (ver) => { ver[0] = 8; });
+    if (b.err) return b.err;
+    if (b.reads() !== '2,1') return 'a hero the server moved to a newer version: reads ' + b.reads() + ', want 2,1';
+    if (b.acc.character(0).record.version !== 8) return 'the newer version did not reach the record';
+    /* the list stood a few seconds (still fresh enough to open on): the join reads again, as it always did */
+    const c = await scene(FRESH + 1000, 0);
+    if (c.err) return c.err;
+    if (c.reads() !== '2,2') return 'a roster answer ' + (FRESH + 1000) + ' ms old at the join was not read again (' + c.reads() + '): its age was forgotten';
+    /* the age runs from the roster's answer to the ask leaving, not from the open */
+    const d = await scene(FRESH - 100, 200);
+    if (d.err) return d.err;
+    return d.reads() === '2,2' || 'a roster answer ' + (FRESH + 100) + ' ms old when the join asked was not read again (' + d.reads() + ')';
+  });
+  /* ASK-4 (lane/c-watched-settle-cost): the ask says which version the record holds whole (`have`). The settle floor's
+     answer at exactly that version carries no character (hunt_slim): its start point is played with the record's own
+     hunt, nothing is re-read and the record stands. A slim answer at any other version is never the character: behind
+     it the full read follows (a client is never left on an old version). A full floor answer still replaces. */
+  await t('ASK-4', async () => {
+    const calls = [], asked = [], played = [];
+    let ver = 10, slim = null, heard = 0;
+    const body = () => env(ver, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: false, pose: { units: [] } } });
+    const live = { instance: { settled_to_ms: 1000 } };
+    const srv = {
+      rpc: async (name) => { calls.push(name); return { ok: true, status: 200, body: body(), closed: false }; },
+      accrue: async (b) => {
+        calls.push('accrue'); asked.push(b);
+        const a = slim === null ? Object.assign(body(), { hunt_live: live })
+          : { ok: true, hunt_slim: true, version: slim, now: new Date(5000).toISOString(), hunt_live: live };
+        return { ok: true, status: 200, body: Object.assign(a, { accrued: false, settled: false, reason: 'below_min_span' }), closed: false };
+      },
+    };
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, ...timers });
+    cs.liveLink.from = (b) => { played.push(b); };   // the live view's intake (live-link.js from), observed
+    cs.subscribe((_, why) => { if (why === 'hello') heard++; });
+    await cs.load();
+    const ask = async () => { calls.length = 0; await cs.hello(); await new Promise((r) => setImmediate(r)); return calls.join(','); };
+    slim = 10; played.length = 0;
+    if ((await ask()) !== 'accrue') return 'a slim floor answer at the held version was re-read: ' + calls.join(',');
+    if (asked[asked.length - 1].have !== 10) return 'the ask did not say which version the record holds whole: ' + JSON.stringify(asked[asked.length - 1]);
+    if (cs.record.version !== 10 || heard !== 1) return 'the slim answer moved the record or told nobody (version ' + cs.record.version + ', ' + heard + ' hello)';
+    if (played.length !== 1 || played[0].hunt_live !== live || !played[0].hunt || played[0].hunt.session_id !== 'h1' || played[0].state) {
+      return 'the slim answer\'s start point was not played with the record\'s own hunt: ' + JSON.stringify(played).slice(0, 200);
+    }
+    /* the server moved on and the client never heard: a slim answer at the newer version is not the character */
+    ver = 11; slim = 11;
+    if ((await ask()) !== 'accrue,hr_load') return 'a slim answer ahead of the record was not re-read in full: ' + calls.join(',');
+    if (cs.record.version !== 11) return 'the client stayed on version ' + cs.record.version + ' after a slim answer ahead of it';
+    ver = 12; slim = null;
+    if ((await ask()) !== 'accrue' || cs.record.version !== 12) return 'a full floor answer was not applied as the character: ' + calls.join(',') + ' at ' + cs.record.version;
+    return asked[asked.length - 1].have === 11 || 'the ask after a full read named version ' + asked[asked.length - 1].have;
   });
   await t('HELLO-1', async () => {
     const calls = [];
@@ -1296,14 +1425,20 @@ async function rules(M) {
     /* gold is the ACCOUNT purse each hero's answer states, with the wallet version it was read at (goldV) */
     /* ...and what a hero is doing when it is more than idle in town: the picker said only "Level 2 · Play" over a
        hero mid-hunt (core-loop play 2026-10-30). Slot 0 hunts; slot 2 stands idle and says nothing. */
+    /* THE LEVEL IS THE ANSWER'S OWN `level` BLOCK (lane/c-level-from-server): the server says 9 for XP this build's curve calls 10 */
     const srv = fakeServer({ 0: env(1, { hero_slots: [0, 2, 3, 99, -1, 'x'], name: 'Tester', state: { gold: 1, gold_v: 4, level_xp: XP.charXpForLevel(10) },
+      level: { xp: XP.charXpForLevel(10), level: 9, into: 70000, need: 78046 },
       hunt: { session_id: 'sess-1', hunt_id: 'mill_cellar', ended: false } }), 2: env(1),
       3: { ok: false, error: 'needs_name', hero_slots: [0, 2, 3] } });
     const acc = mkAccount(srv);
     const r = await acc.roster();
-    if (JSON.stringify(r) !== JSON.stringify([{ slot: 0, exists: true, unnamed: false, name: 'Tester', level: 10, gold: 1, goldV: 4, doing: 'Hunting in Mill Cellar' },
+    if (JSON.stringify(r) !== JSON.stringify([{ slot: 0, exists: true, unnamed: false, name: 'Tester', level: 9, gold: 1, goldV: 4, doing: 'Hunting in Mill Cellar' },
       { slot: 2, exists: true, unnamed: false, name: null, level: null, gold: 1, goldV: null, doing: null },
       { slot: 3, exists: false, unnamed: true, name: null, level: null, gold: null, goldV: null, doing: null }])) return 'roster was ' + JSON.stringify(r);
+    /* NOT OPEN HERE (Andy 2026-11-09, lane/a-strip-all-heroes): every hero the roster read, minus those this tab has open, and never
+       a slot still to be named, with the server's name, Level and doing; the strip lists them as one-press opens */
+    if (JSON.stringify(acc.notOpen()) !== JSON.stringify([{ slot: 0, name: 'Tester', level: 9, doing: 'Hunting in Mill Cellar' },
+      { slot: 2, name: null, level: null, doing: null }])) return 'notOpen before any open read ' + JSON.stringify(acc.notOpen());
     srv.calls.length = 0;
     const ok = await acc.create(3, 'Fennick', { head: 1, body: 2, legs: 3, feet: 4 });
     const no = await acc.create(3, 'Taken', { head: 1, body: 2, legs: 3, feet: 4 });
@@ -1315,7 +1450,7 @@ async function rules(M) {
   });
   /* ACC-READ (panel 10-31: hr_load x3 on a reload): the roster's own answer is the hero's first read while it is seconds
      old, spent once; the list left standing, an answer that was no hero, a close and reopen read again; the join's hello
-     still settles and re-reads, so nothing a number relies on is older than it was. */
+     still settles, and reads again whatever may have changed since (JOIN-READ). */
   await t('ACC-READ', async () => {
     let now = 1000;
     const mk = (srv) => new A.AccountSession({ auth: { userId: () => UID, token: () => 'jwt', signOut: async () => {} }, server: srv, tab: memStore(), channel: fakeHub().channel,
@@ -1330,6 +1465,8 @@ async function rules(M) {
     const r = await acc.open(0);
     if (!r.ok || r.session.record.version !== 7) return 'the hero did not open on the roster\'s answer: ' + JSON.stringify(r.reason);
     if (loads(0) !== 1) return 'opening on a fresh roster read hero 0 ' + loads(0) + ' times, want the roster\'s one';
+    /* NOT OPEN HERE (lane/a-strip-all-heroes): the strip lists Bram, whom this tab has not opened, and no longer Ada */
+    if (acc.notOpen().map((h) => h.name).join() !== 'Bram') return 'with Ada open, the heroes not open read ' + JSON.stringify(acc.notOpen());
     /* the server's clock is measured as of now, not as of when the roster heard it (timeline.js T3: the first measure stands) */
     const clock = r.session.serverNow();
     if (clock !== SAID + CFG.SESSION_CONFIG.rosterReadFreshMs) return 'the server clock after a roster answer ' + CFG.SESSION_CONFIG.rosterReadFreshMs + ' ms old reads ' + (clock - SAID) + ' ms past what it said';
@@ -1339,6 +1476,7 @@ async function rules(M) {
     now += 1;
     await acc.open(1);
     if (loads(1) !== 2) return 'a roster answer older than rosterReadFreshMs was spent (' + loads(1) + ' reads of hero 1)';
+    if (acc.notOpen().length) return 'with both open, the heroes not open read ' + JSON.stringify(acc.notOpen());
     /* a slot the roster found empty, then made: it reads the hero it now holds */
     const made = { 0: env(1, { hero_slots: [0, 1], account: { max_concurrent: 4 } }) };
     const srv2 = fakeServer(made);
@@ -1975,8 +2113,209 @@ async function rules(M) {
     await refused.auth.renewToken('A');
     return (refused.heard.join() === 'expired' && refused.auth.userId() === null) || 'an auth error the server threw did not end the session: ' + JSON.stringify(refused.heard);
   });
+
+  /* ── THE LEVEL IS THE SERVER'S (lane/c-level-from-server) ─────────────────────────────────────────────────
+     2026-11-10: the Level curve was re-fitted on the server and the browser, a release behind, printed "Lv 20" for a
+     hero the server fought as Level 19. hr_state_of states the Level itself (`level` = hr_level_block: xp, level, into,
+     need) and the client reads only that. Every case below hands the client an envelope whose `level` block DISAGREES
+     with this build's curve for the same Level XP, so a Level worked out in the browser is the wrong answer. */
+  const iron = Object.entries(ITEMS).find(([, it]) => it.reqSkill === LEVEL_REQ && it.reqLv >= 10);
+  const NEED_LV = iron[1].reqLv;
+  /* The XP this build's curve calls NEED_LV + 1; the server (another curve) says NEED_LV - 1, 40 XP into a 9,000 XP Level. */
+  const SRV_XP = XP.charXpForLevel(NEED_LV + 1) + 3;
+  const srvLevel = (level, xp = SRV_XP) => ({ xp, level, into: 40, need: 9000 });
+  const lvEnv = (version, level, extra) => env(version, Object.assign({ name: 'Tester', now: '2026-11-10T12:00:00Z',
+    state: { gold: 1, gold_v: 1, level_xp: SRV_XP, hp: 50, max_hp: 60 }, level: srvLevel(level), vitals: { max_hp: 60, max_mana: 30 },
+    skills: {}, inventory: {}, equipment: {} }, extra || {}));
+  const asCs = (body) => ({ slot: 0, read: (k) => body[k], record: { residue: {} } });
+  await t('LVL-1', () => {
+    if (XP.charLevelFromXp(SRV_XP) === NEED_LV - 1) return 'HARNESS: this build\'s curve agrees with the server\'s block, so the case proves nothing';
+    const cs = asCs(lvEnv(1, NEED_LV - 1));
+    const lv = CS.levelOf(cs);
+    if (JSON.stringify(lv) !== JSON.stringify({ xp: SRV_XP, level: NEED_LV - 1, into: 40, need: 9000 })) return 'levelOf reads ' + JSON.stringify(lv) + ', the server said ' + JSON.stringify(srvLevel(NEED_LV - 1));
+    /* the HUD medallion and its XP ring, the Character sheet's "40 / 9,000 XP to Level N", the party panel's own seat, the bag's hero line */
+    const v = CS.heroVitalsOf(cs);
+    if (v.level !== NEED_LV - 1 || v.into !== 40 || v.need !== 9000 || Math.abs(v.xpPct - 40 / 9000) > 1e-12) return 'heroVitalsOf reads ' + JSON.stringify([v.level, v.into, v.need, v.xpPct]);
+    /* the Characters screen and the hero strip's rows (one hr_load answer each) */
+    const row = A.heroOf(lvEnv(1, NEED_LV - 1));
+    if (row.level !== NEED_LV - 1) return 'the roster says Level ' + row.level + ', the server ' + (NEED_LV - 1);
+    /* A GATE READS THE SERVER'S LEVEL: this build's curve would call the hero NEED_LV + 1 and offer a press the server refuses */
+    const block = GG.wearBlock(cs, iron[0]);
+    if (!block || !block.includes(String(NEED_LV))) return 'the gear gate lets a Level ' + (NEED_LV - 1) + ' hero put on ' + iron[0] + ' (needs ' + NEED_LV + '): ' + JSON.stringify(block);
+    if (GG.wearBlock(asCs(lvEnv(1, NEED_LV)), iron[0]) !== '') return 'the gear gate refuses a hero the server says is Level ' + NEED_LV;
+    return true;
+  });
+  await t('LVL-2', () => {
+    /* NO BLOCK, NO LEVEL: never this build's curve over state.level_xp, on any reader (a missing or broken block draws nothing) */
+    const bare = lvEnv(1, 5); delete bare.level;
+    for (const [what, body] of [['no level block', bare], ['a block with no Level', lvEnv(1, 0)], ['a Level that is not a number', lvEnv(1, '19')],
+      ['a block with no XP across the Level', Object.assign(lvEnv(1, 5), { level: { xp: SRV_XP, level: 5, into: 0, need: 0 } })],
+      ['a block that is a list', Object.assign(lvEnv(1, 5), { level: [5] })]]) {
+      const cs = asCs(body);
+      const v = CS.heroVitalsOf(cs);
+      if (CS.levelOf(cs) !== null || v.level !== null || v.into !== null || v.need !== null || v.xpPct !== null) return what + ': a Level was drawn anyway: ' + JSON.stringify([CS.levelOf(cs), v.level]);
+      if (A.heroOf(body).level !== null) return what + ': the roster drew Level ' + A.heroOf(body).level;
+      /* the rest of the hero still reads: the server's HP is not held back by a missing Level */
+      if (v.hp !== 50 || v.hpMax !== 60) return what + ': the hero\'s HP went with the Level: ' + JSON.stringify([v.hp, v.hpMax]);
+    }
+    return true;
+  });
+  await t('LVL-3', async () => {
+    /* A HUNT ON SCREEN: the load says Level N-1; the settle's pushed frame (the whole character) says N. The Level XP is the
+       same in both, so nothing the browser could work out of it moves: only the server's block does. */
+    const hunt = { session_id: 'sess-lv', hunt_id: 'mill_cellar', ended: false, session: {}, hero: {}, pose: { units: [] } };
+    const srv = fakeServer({ 0: lvEnv(1, NEED_LV - 1, { hunt }) });
+    const hub = fakeHub();
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers });
+    await cs.load(); cs.connect();
+    if ((CS.levelOf(cs) || {}).level !== NEED_LV - 1) return 'the hunting hero\'s first read says Level ' + JSON.stringify(CS.levelOf(cs));
+    hub.send(C.frameTopic(UID, 0), { t: 'state', frame: 2, env: lvEnv(2, NEED_LV, { hunt }) });
+    if (cs.record.version !== 2) return 'HARNESS: the frame was refused: ' + cs.lastVerdict;
+    const up = CS.heroVitalsOf(cs);
+    if (up.level !== NEED_LV) return 'after the frame the hunting hero reads Level ' + up.level + ', the server said ' + NEED_LV;
+    return GG.wearBlock(cs, iron[0]) === '' || 'the gate still refuses the Level the frame brought: ' + GG.wearBlock(cs, iron[0]);
+  });
+  await t('LVL-4', async () => {
+    /* THE BROWSER CLOSED: a hunt stamped at the server's Level N-1, the page gone, the hunt run on by the server. A new page's
+       first read, two hours on, says Level N+2: the return line names the two Levels the SERVER said, and the hero reads N+2. */
+    const T0 = Date.parse('2026-11-10T12:00:00Z'), H2 = 2 * 3600 * 1000;
+    const hunt = { session_id: 'sess-away', hunt_id: 'mill_cellar', ended: false, session: {}, hero: {}, pose: { units: [] } };
+    const before = new C.CharacterSession({ slot: 0, uid: UID, server: fakeServer({ 0: lvEnv(1, NEED_LV - 1, { hunt }) }), channel: fakeHub().channel, ...timers });
+    await before.load();
+    const writes = [];
+    const stamping = { slot: 0, record: before.record, read: (k) => before.read(k), serverNow: () => T0, setResidue: (f, v) => { writes.push([f, v]); return true; } };
+    if (AWAY.stampAway(stamping) !== true || writes.length !== 1 || writes[0][1].lv !== NEED_LV - 1 || writes[0][1].xp !== SRV_XP) return 'the stamp did not keep the server\'s Level: ' + JSON.stringify(writes);
+    /* the reopened browser: a new session, the residue the server kept, the hunt still running */
+    const laterXp = SRV_XP + 5000;
+    const back = lvEnv(9, NEED_LV + 2, { hunt, now: new Date(T0 + H2).toISOString(), client_state: { awaySeen: writes[0][1] },
+      state: { gold: 1, gold_v: 1, level_xp: laterXp, hp: 50, max_hp: 60 } });
+    back.level = srvLevel(NEED_LV + 2, laterXp);
+    const after = new C.CharacterSession({ slot: 0, uid: UID, server: fakeServer({ 0: back }), channel: fakeHub().channel, ...timers });
+    await after.load();
+    if ((CS.levelOf(after) || {}).level !== NEED_LV + 2) return 'the first read back says Level ' + JSON.stringify(CS.levelOf(after));
+    const line = AWAY.awayRecapOf({ slot: 0, record: after.record, read: (k) => after.read(k), serverNow: () => T0 + H2 });
+    const want = 'Level ' + (NEED_LV - 1) + ' to ' + (NEED_LV + 2);
+    return (!!line && line.text.includes(want) && line.text.includes('+5,000 Level XP')) || 'the return line does not say "' + want + '": ' + JSON.stringify(line && line.text);
+  });
+
+  /* ── A SKILL'S BAR IS THE SERVER'S (lane/c-skills-from-server) ─────────────────────────────────────────────
+     The skill ledgers (the Character window's combat skills, Gathering and crafting, the work head) drew each bar, its fill,
+     "N XP to L+1" and "Mastered" off this build's copy of the skill curves (src/core/xp.js), the Level's 2026-11-10 class.
+     hr_state_of states each skill's two marks itself (`skill_levels` = hr_skill_block: xp, level, into, need), and every case
+     below hands the client a cell that DISAGREES with this build's curve for the same XP: a bar worked out here is wrong. */
+  const SK_XP = XP.skillXpForLevel('mining', 40) + 7;            // this build's curve: Mining 40, 7 XP into it
+  const srvSkill = (level, into, need, xp = SK_XP) => ({ xp, level, into, need });
+  /* one ledger entry's parts as paint.js writes them (fill and pending segment widths, the meter, the words) */
+  const fakeBar = () => {
+    const node = () => {
+      const st = new Map(), at = new Map(), cl = new Set();
+      return { textContent: '', style: { getPropertyValue: (k) => st.get(k) || '', setProperty: (k, v) => st.set(k, v), removeProperty: (k) => st.delete(k) },
+        classList: { contains: (c) => cl.has(c), toggle: (c, on) => (on ? cl.add(c) : cl.delete(c)) },
+        hasAttribute: (k) => at.has(k), getAttribute: (k) => (at.has(k) ? at.get(k) : null), setAttribute: (k, v) => at.set(k, String(v)), removeAttribute: (k) => at.delete(k) };
+    };
+    const p = { '.hw-skill-fill': node(), '.hw-skill-ahead': node(), '.hw-skill-bar': node(), '.hw-skill-xp': node() };
+    const el = { querySelector: (s) => p[s] || null };
+    el.read = () => ({ fill: p['.hw-skill-fill'].style.getPropertyValue('width'), segAt: p['.hw-skill-ahead'].style.getPropertyValue('left'),
+      seg: p['.hw-skill-ahead'].style.getPropertyValue('width'), now: p['.hw-skill-bar'].getAttribute('aria-valuenow'),
+      words: p['.hw-skill-xp'].textContent, ahead: p['.hw-skill-xp'].classList.contains('is-ahead') });
+    return el;
+  };
+  const skEnv = (version, mining, extra) => env(version, Object.assign({ skills: { mining: { xp: mining.xp, level: mining.level } },
+    skill_levels: { mining } }, extra || {}));
+  await t('SKL-1', () => {
+    if (XP.skillLevelFromXp('mining', SK_XP) === 31) return 'HARNESS: this build\'s curve agrees with the server\'s cell, so the case proves nothing';
+    /* the server: Mining 31, 250 of 1,000 XP into it (this build's curve would say 40, 7 XP in) */
+    const sl = I.skillLevelsOf(asCs(skEnv(1, srvSkill(31, 250, 1000))));
+    if (!sl || JSON.stringify(sl.mining) !== JSON.stringify(srvSkill(31, 250, 1000))) return 'skillLevelsOf reads ' + JSON.stringify(sl);
+    const el = fakeBar();
+    SW.patchSkillProgress(el, sl.mining, 0);
+    let got = el.read();
+    if (got.fill !== '25%' || got.now !== '25' || got.words !== '750 XP to 32' || got.seg !== '0%' || got.ahead)
+      return 'the Mining bar draws ' + JSON.stringify(got) + ', the server said 250 of 1,000 XP into level 31';
+    /* town work's certain XP (town-ticker.js) is pending after the fill, against the SERVER's marks, and stops at its level */
+    SW.patchSkillProgress(el, sl.mining, 100);
+    got = el.read();
+    if (got.fill !== '25%' || got.segAt !== '25%' || got.seg !== '10%' || got.words !== '650 XP to 32' || !got.ahead) return 'with 100 XP pending the bar draws ' + JSON.stringify(got);
+    SW.patchSkillProgress(el, sl.mining, 5000);
+    got = el.read();
+    if (got.seg !== '75%' || got.words !== '0 XP to 32') return 'pending XP past the level runs the bar on: ' + JSON.stringify(got);
+    /* "Mastered" is the server's word (no XP across the level), never this build's cap: Cooking 99 with none across reads
+       Mastered and takes no pending XP; a skill the server takes on past 99 (its curve, not this build's) is not Mastered */
+    const top = fakeBar();
+    SW.patchSkillProgress(top, srvSkill(99, 5, 0, XP.skillXpForLevel('cooking', 99) + 5), 300);
+    got = top.read();
+    if (got.fill !== '100%' || got.words !== 'Mastered' || got.seg !== '0%' || got.ahead) return 'a skill at its last level draws ' + JSON.stringify(got);
+    const past = fakeBar();
+    SW.patchSkillProgress(past, srvSkill(99, 10, 500, XP.skillXpForLevel('cooking', 99) + 10), 0);
+    got = past.read();
+    return (got.fill !== '2%' || got.words !== '490 XP to 100') ? 'a level the server goes on past draws ' + JSON.stringify(got) : true;
+  });
+  await t('SKL-2', async () => {
+    /* NO SECTION, NO BAR; A BROKEN CELL, NO BAR FOR THAT SKILL: never this build's curve over `skills` (whose level the gates
+       still read) */
+    const bare = skEnv(1, srvSkill(31, 250, 1000)); delete bare.skill_levels;
+    if (I.skillLevelsOf(asCs(bare)) !== null) return 'with no skill_levels section the ledger reads ' + JSON.stringify(I.skillLevelsOf(asCs(bare)));
+    if ((I.skillsOf(asCs(bare)) || {}).mining.level !== 31) return 'HARNESS: the gates lost the skills key';
+    for (const [what, cell] of [['no level', { xp: SK_XP, into: 1, need: 9 }], ['a level that is not a number', srvSkill('31', 250, 1000)],
+      ['XP into the level past the XP across it', srvSkill(31, 1000, 1000)], ['no XP across a level that has a next', srvSkill(31, 250, null)],
+      ['negative XP into it', srvSkill(31, -1, 1000)], ['a cell that is a list', [31, 250, 1000]]]) {
+      const sl = I.skillLevelsOf(asCs(skEnv(1, cell)));
+      if (!sl || sl.mining !== undefined) return what + ': the cell was drawn anyway: ' + JSON.stringify(sl);
+    }
+    /* A HUNT OR A JOB ON SCREEN: the pushed frame (the whole character) brings the next level's marks, the XP the same in both */
+    const srv = fakeServer({ 0: skEnv(1, srvSkill(31, 999, 1000)) });
+    const hub = fakeHub();
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers });
+    await cs.load(); cs.connect();
+    if ((I.skillLevelsOf(cs) || {}).mining.into !== 999) return 'the first read draws ' + JSON.stringify(I.skillLevelsOf(cs));
+    hub.send(C.frameTopic(UID, 0), { t: 'state', frame: 2, env: skEnv(2, srvSkill(32, 0, 1100)) });
+    if (cs.record.version !== 2) return 'HARNESS: the frame was refused: ' + cs.lastVerdict;
+    const el = fakeBar();
+    SW.patchSkillProgress(el, I.skillLevelsOf(cs).mining, 0);
+    return el.read().words === '1,100 XP to 33' || 'after the frame the bar says ' + JSON.stringify(el.read());
+  });
+  await t('SKL-3', () => {
+    /* THE TOWN-WORK BURN CHECK READS THE SERVER'S COOKING LEVEL: the XP this build's curve calls Cooking 99 (no burns), the server
+       says Cooking 1 (a quarter burn): the cooked shrimp is unsure, in no stack; and the other way round, certain. */
+    const row = RCP.cooking.find((r) => r.id === 'cook_shrimp');
+    if (!row || !(ARTISAN.burnChance(row, 1, 0) > 0) || ARTISAN.burnChance(row, 99, 0) !== 0) return 'HARNESS: cook_shrimp does not burn at 1 and not at 99';
+    const t0 = Date.UTC(2026, 10, 10, 12, 0, 0), at = new Date(t0).toISOString();
+    const tick = (xp, level) => TT.predictTown({ w: { kind: 'artisan', id: row.id, skill: 'cooking', row },
+      state: { active_kind: 'artisan', active_id: row.id, accrued_to: at, active_since: at }, nowMs: t0 + 20000,
+      skills: { cooking: { xp, level } }, inventory: { shrimp: 50 }, equipment: {} });
+    const low = tick(XP.skillXpForLevel('cooking', 99), 1), high = tick(0, 99);
+    if (!low || !(low.unsure > 0) || (low.items[row.output] || 0) > 0) return 'the server says Cooking 1 and the ticker counts the cooking certain: ' + JSON.stringify(low);
+    return (!!high && high.unsure === 0 && (high.items[row.output] || 0) > 0) || 'the server says Cooking 99 and the ticker counts it unsure: ' + JSON.stringify(high);
+  });
+  await t('LVL-0', () => {
+    /* THE CLASS, HELD SHUT: outside the engine (src/core) and its data, no module takes a level curve from src/core/xp.js or reads
+       `level_xp`. A Level a window needs comes from character-sections.js levelOf; a skill's level from the envelope's `skills`,
+       its bar from `skill_levels` (item-sections.js skillLevelsOf). CURVE_USE lists each exception, with the names it may take and why. */
+    const found = {}, xpReads = [];
+    const walk = (dir) => { for (const e of readdirSync(join(M.BASE, dir), { withFileTypes: true })) {
+      const rel = dir + '/' + e.name;
+      if (e.isDirectory()) { if (!/^src\/(core|data|vendor|styles)$/.test(rel)) walk(rel); continue; }
+      if (!e.name.endsWith('.js')) continue;
+      const text = readFileSync(join(M.BASE, rel), 'utf8');
+      for (const m of text.matchAll(/import\s*(\{[^}]*\}|\*\s*as\s+\w+)\s*from\s*'[^']*core\/(?:xp|index)\.js[^']*'/g)) {
+        found[rel] = (found[rel] || []).concat(m[1].startsWith('{') ? m[1].slice(1, -1).split(',').map((s) => s.trim().split(/\s+as\s+/)[0]).filter(Boolean) : ['*']).sort();
+      }
+      /* comments say `level_xp` freely (block comments, then line comments not inside a URL or a string's `//`) */
+      const code = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`\\])\/\/[^\n]*/g, '$1');
+      if (/\blevel_xp\b/.test(code)) xpReads.push(rel);
+    } };
+    walk('src');
+    const sorted = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, o[k]]));
+    if (sorted(found) !== sorted(CURVE_USE)) return 'modules outside src/core take a level curve from src/core/xp.js: ' + sorted(found) + ' (allowed: ' + sorted(CURVE_USE) + ')';
+    return xpReads.length === 0 || 'client code reads level_xp (the Level and its XP are the envelope\'s `level` block): ' + xpReads.join(', ');
+  });
   return fails;
 }
+
+/* The modules outside src/core that may take a curve from src/core/xp.js, each with the names it takes and why (LVL-0). Sorted names. */
+/* None since lane/c-skills-from-server (2026-11-10): the skill bars read the server's two XP marks (`skill_levels`) and the
+   town-work burn check the server's Cooking level, where they took this build's curves. A new row needs its why here. */
+const CURVE_USE = Object.freeze({});
 
 async function viewRules(base) {
   const fails = [];
@@ -1993,12 +2332,15 @@ async function viewRules(base) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const MUTANTS = [
+  ['the strip lists a hero this tab has open as not open (lane/a-strip-all-heroes)', 'src/session/account-session.js', 'filter((r) => r.exists && !this._chars.has(r.slot))', 'filter((r) => r.exists)'],
+  ['the strip lists a slot still to be named as a hero (lane/a-strip-all-heroes)', 'src/session/account-session.js', 'filter((r) => r.exists && !this._chars.has(r.slot))', 'filter((r) => !this._chars.has(r.slot))'],
+  ['a hero not open here shows no Level (lane/a-strip-all-heroes)', 'src/session/account-session.js', 'level: r.level, doing: r.doing }));', 'level: null, doing: r.doing }));'],
   ['a tab keeps playing a hero the server no longer holds', 'src/session/account-session.js', "if (why === 'empty' && s.record && this._chars.get(slot) === s) { this.close(slot); this._emit('hero-gone', slot); }", "if (false) { this.close(slot); this._emit('hero-gone', slot); }"],
   ['a slot empty on its first read counts as a hero gone', 'src/session/account-session.js', "if (why === 'empty' && s.record && this._chars.get(slot) === s) {", "if (why === 'empty' && this._chars.get(slot) === s) {"],
-  ['a reload reads each hero again over the roster\'s answer', 'src/session/account-session.js', 'await cs.load(read && read.ans.ok && age <= this.config.rosterReadFreshMs ? agedBy(read.ans.body, age) : null);', 'await cs.load();'],
+  ['a reload reads each hero again over the roster\'s answer', 'src/session/account-session.js', 'await cs.load(read && read.ans.ok && age <= this.config.rosterReadFreshMs ? agedBy(read.ans.body, age) : null, age);', 'await cs.load();'],
   ['a character list left standing opens on its old answer', 'src/session/account-session.js', 'read && read.ans.ok && age <= this.config.rosterReadFreshMs ?', 'read && read.ans.ok ?'],
   ['a roster answer sets the server clock back by its age', 'src/session/account-session.js', '? agedBy(read.ans.body, age) : null', '? read.ans.body : null'],
-  ['a roster answer that is no hero is taken, not read', 'src/session/character-session.js', "held && this._take(held, 'load') ? Promise.resolve(true) : this._reads.load();", "held ? Promise.resolve(this._take(held, 'load')) : this._reads.load();"],
+  ['a roster answer that is no hero is taken, not read', 'src/session/character-session.js', "held && this._take(held, 'load') ? this._heldFor(heldMs) : this._reads.load();", "held ? Promise.resolve(this._take(held, 'load')) : this._reads.load();"],
   ['a roster answer is spent more than once', 'src/session/account-session.js', '    this._rosterReads.delete(slot);\n', ''],
   ['[tick-span] a mid-hunt verb refused settle_first is not caught up', 'src/session/catch-up.js', '    if (!catchingUp(ans) || !o.hunting()) return ans;', '    return ans;'],
   ['[RES-HIDE] a flickering page writes on every hide', 'src/session/character-session.js', "if (hidden && this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;", ''],
@@ -2102,8 +2444,17 @@ const MUTANTS = [
   ['a page that never goes away', 'src/session/account-session.js', '    for (const cs of this._chars.values()) cs.setAway(on);\n', ''],
   ['a switch never tells the sessions', 'src/session/account-session.js', '    if (was) was.setViewed(false);\n    this._chars.get(slot).setViewed(true);\n', ''],
   /* ASK-2 (perf audit 10-23, the leave-together storm) */
-  ['an idle answer at the record\'s version is re-read in full', 'src/session/character-session.js', "    if (Number.isSafeInteger(v) && ans.body.accrued !== true && this._huntOpen() && v <= this._wholeAt) return false;\n", ''],
-  ['an idle answer in town is not re-read', 'src/session/character-session.js', '&& this._huntOpen() && v <= this._wholeAt)', '&& v <= this._wholeAt)'],
+  ['an idle answer at the record\'s version is re-read in full', 'src/session/character-session.js', "    if (Number.isSafeInteger(v) && ans.body.accrued !== true && held && v <= this._wholeAt) return false;\n", ''],
+  ['an idle answer in town is not re-read', 'src/session/character-session.js', 'held = this._huntOpen() || this._askedAt - this._wholeMs <= SESSION_CONFIG.wholeFreshMs;', 'held = true;'],
+  /* JOIN-READ (hunt-path baseline 2026-11-10: every hero read twice on the way in) */
+  ['the join reads again a hero the roster just read', 'src/session/character-session.js', 'held = this._huntOpen() || this._askedAt - this._wholeMs <= SESSION_CONFIG.wholeFreshMs;', 'held = this._huntOpen();'],
+  ['a roster answer\'s age is forgotten at the join', 'src/session/account-session.js', '? agedBy(read.ans.body, age) : null, age);', '? agedBy(read.ans.body, age) : null);'],
+  ['a whole copy never grows old', 'src/session/character-session.js', 'this._wholeMs = this._now();', 'this._wholeMs = Infinity;'],
+  ['the session drops the age the account handed it', 'src/session/character-session.js', '_heldFor(ms) { this._wholeMs -= ms > 0 ? ms : 0; return', '_heldFor(ms) { return'],
+  /* ASK-4 (lane/c-watched-settle-cost: the floor's answer without the character) */
+  ['a slim floor answer is taken at any version', 'src/session/hunt-ask.js', ' && !body.state && body.version === wholeAt;', ' && !body.state;'],
+  ['the ask never says which version it holds', 'src/session/hunt-ask.js', 'return huntOpen && Number.isSafeInteger(wholeAt) && wholeAt >= 0 ? { slot, have: wholeAt } : { slot }; }', 'return { slot }; }'],
+  ['a slim floor answer\'s start point is dropped', 'src/session/hunt-ask.js', "  cs._play(Object.assign({}, body, { hunt: cs.read('hunt') }));\n", ''],
   ['the close is asked every 2 s past leave_at', 'src/session/hunt-leave.js', 'Math.max(SESSION_CONFIG.leaveRetryMs, Math.ceil(-left))', 'SESSION_CONFIG.leaveRetryMs'],
   ['an ended hunt keeps re-reading', 'src/session/character-session.js', "typeof h.session_id === 'string' && h.ended !== true;", "typeof h.session_id === 'string';"],
   ['a pending leave waits for the world tick', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.load();"],
@@ -2149,6 +2500,36 @@ const MUTANTS = [
   ['the town re-read asks every display tick', 'src/session/town-poll.js', '  return nowMs - since >= SESSION_CONFIG.townPollMs;', '  return true;'],
   ['two town re-reads in flight', 'src/session/town-poll.js', '  if (!running || busy) return false;', '  if (!running) return false;'],
   ['a hunter is re-read as town work', 'src/session/town-poll.js', "  return !(hunt && typeof hunt === 'object' && typeof hunt.session_id === 'string' && hunt.ended !== true);", '  return true;'],
+  /* lane/c-level-from-server: the 2026-11-10 bug itself, then each way back to it */
+  ['the Level is worked out of Level XP on this build\'s curve (the 2026-11-10 bug)', 'src/session/character-sections.js',
+    "export function levelOf(cs) {\n  const b = read(cs, 'level');\n",
+    "import { charLevelFromXp as mutLv, charXpForLevel as mutXp } from '../core/xp.js';\nexport function levelOf(cs) {\n  const mutSt = read(cs, 'state'); const mutX = isObj(mutSt) ? nat(mutSt.level_xp) : null;\n"
+    + "  const b = mutX === null ? null : { xp: mutX, level: mutLv(mutX), into: mutX - mutXp(mutLv(mutX)), need: mutXp(mutLv(mutX) + 1) - mutXp(mutLv(mutX)) };\n"],
+  ['a missing Level falls back to this build\'s curve', 'src/session/character-sections.js',
+    "export function levelOf(cs) {\n  const b = read(cs, 'level');\n  if (!isObj(b)) return null;\n",
+    "import { charLevelFromXp as mutLv, charXpForLevel as mutXp } from '../core/xp.js';\nexport function levelOf(cs) {\n  let b = read(cs, 'level');\n  const mutSt = read(cs, 'state'); const mutX = isObj(mutSt) ? nat(mutSt.level_xp) : null;\n"
+    + "  if (!isObj(b) && mutX !== null) b = { xp: mutX, level: mutLv(mutX), into: mutX - mutXp(mutLv(mutX)), need: mutXp(mutLv(mutX) + 1) - mutXp(mutLv(mutX)) };\n  if (!isObj(b)) return null;\n"],
+  ['a Level block with no Level in it is drawn', 'src/session/character-sections.js', '  if (xp === null || !level || into === null || !need) return null;\n', '  if (xp === null) return null;\n'],
+  ['the XP ring is filled from the Level XP, not the server\'s two marks', 'src/session/character-sections.js', 'xpPct: lv && lv.need > 0 ? Math.max(0, Math.min(1, lv.into / lv.need)) : null,', 'xpPct: lv && lv.need > 0 ? Math.max(0, Math.min(1, (lv.xp % lv.need) / lv.need)) : null,'],
+  ['the roster works the Level out of Level XP', 'src/session/account-session.js', '  const lv = levelOf({ read: (k) => body[k] });\n', "  const lv = Number.isSafeInteger(st.level_xp) ? { level: 1 + Math.floor(st.level_xp / 1000) } : null;\n"],
+  ['the residue drops the stamp\'s Level (the return line names none)', 'src/session/residue.js', "for (const k of ['xp', 'lv', 'gold', 'kills', 'sx', 'sl', 'n'])", "for (const k of ['xp', 'gold', 'kills', 'sx', 'sl', 'n'])"],
+  ['a client module takes the Level curve again', 'src/session/party-sections.js', "import { heroVitalsOf } from './character-sections.js", "import { charLevelFromXp } from '../core/xp.js';\nimport { heroVitalsOf } from './character-sections.js"],
+  ['a client module reads level_xp again', 'src/session/tutorial-sections.js', '  const lv = levelOf(cs);\n  if (!lv) return null;\n', "  const lv = levelOf(cs);\n  if (!lv || !(cs.read('state').level_xp >= 0)) return null;\n"],
+  /* lane/c-skills-from-server: the skill bars' bug itself (the client curve restored in the caller), then each way back to it */
+  ['a skill bar is filled from its XP on this build\'s curve (the bug)', 'src/shell/windows/skills.js',
+    'const levelProgress = (r, extra) => (mastered(r) ? 1 : Math.max(0, Math.min(1, (r.into + extra) / r.need)));',
+    "import { xpForLevel as mutXp } from '../../core/xp.js';\nconst levelProgress = (r, extra) => (mastered(r) ? 1 : Math.max(0, Math.min(1, (r.xp + extra - mutXp(r.level)) / (mutXp(r.level + 1) - mutXp(r.level)))));"],
+  ['a skill\'s "XP to" words are worked out of its XP, not the server\'s marks', 'src/shell/windows/skills.js', 'whole(Math.max(0, r.need - r.into - a))', 'whole(Math.max(0, r.need - (r.xp % r.need) - a))'],
+  ['"Mastered" is this build\'s cap, not the server\'s word', 'src/shell/windows/skills.js', 'const mastered = (r) => r.need === 0;', 'const mastered = (r) => r.level >= 99;'],
+  ['pending XP runs a skill bar past the server\'s level', 'src/shell/windows/skills.js', 'Math.min(1, (r.into + extra) / r.need)', '(r.into + extra) / r.need'],
+  ['the ledger\'s reader works the marks out of `skills` on this build\'s curve', 'src/session/item-sections.js',
+    "export function skillLevelsOf(cs) {\n  const sk = read(cs, 'skill_levels');\n",
+    "import { skillXpForLevel as mutXp, skillLevelFromXp as mutLv } from '../core/xp.js';\nexport function skillLevelsOf(cs) {\n  const mutSk = read(cs, 'skills');\n"
+    + "  const sk = isObj(mutSk) ? Object.fromEntries(Object.entries(mutSk).map(([id, r]) => { const lv = mutLv(id, r.xp); return [id, { xp: r.xp, level: lv, into: r.xp - mutXp(id, lv), need: mutXp(id, lv + 1) - mutXp(id, lv) }]; })) : null;\n"],
+  ['a broken skill cell is drawn', 'src/session/item-sections.js', ' || !Number.isInteger(r.level) || r.level < 1 || (need > 0 && into >= need)) continue;', ') continue;'],
+  ['the burn check reads no server Cooking level', 'src/shell/town-ticker.js', '? o.skills.cooking.level : 1;', '? 99 : 1;'],
+  ['the skill ledger takes a curve from src/core/xp.js again', 'src/shell/windows/skills.js', "import { nextUnlock } from '../../data/skill-unlocks.js", "import { skillXpForLevel } from '../../core/xp.js';\nimport { nextUnlock } from '../../data/skill-unlocks.js"],
+  ['the town ticker takes a curve from src/core/xp.js again', 'src/shell/town-ticker.js', "import { ITEMS } from '../data/items.js", "import { levelOf } from '../core/xp.js';\nimport { ITEMS } from '../data/items.js"],
 ];
 
 /* The WHOLE src tree at its own layout: the session graph reaches across src/** by relative path
@@ -2163,7 +2544,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (44 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (52 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(async () => rules(await load(ROOT)));

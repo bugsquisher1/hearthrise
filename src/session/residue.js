@@ -11,8 +11,9 @@
 // way IN (envelope) and on the way OUT (put), so a malformed or oversized value
 // can never reach a renderer or the server.
 // ════════════════════════════════════════════════════════════════════════
-import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.114';
-import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.114';
+import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.119';
+import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.119';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.119';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -74,8 +75,8 @@ function sanitizeCombatLog(v) {
   return out;
 }
 
-import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.114';
-import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.114';
+import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.119';
+import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.119';
 
 const ITEM_ID = /^[a-z0-9_]{1,64}$/;
 export const BAG_SEEN_MAX = 512;
@@ -152,7 +153,8 @@ function sanitizeAlerts(v) {
 function sanitizeAwaySeen(v) {
   if (!isObj(v) || typeof v.s !== 'string' || !/^[A-Za-z0-9_:.-]{1,64}$/.test(v.s) || !Number.isSafeInteger(v.at) || v.at < 0) return {};
   const out = { s: v.s, at: v.at };
-  for (const k of ['xp', 'gold', 'kills', 'sx', 'n']) if (Number.isSafeInteger(v[k]) && v[k] >= 0) out[k] = v[k];
+  /* lv / sl: the Level and the skill level the server said with xp / sx (away-recap.js, away-work.js) */
+  for (const k of ['xp', 'lv', 'gold', 'kills', 'sx', 'sl', 'n']) if (Number.isSafeInteger(v[k]) && v[k] >= 0) out[k] = v[k];
   return out;
 }
 
@@ -212,6 +214,17 @@ function sanitizeSwitch(v) {
   return isObj(v) && typeof v.on === 'boolean' && Number.isSafeInteger(v.at) && v.at >= 0 ? { on: v.on, at: v.at } : undefined;
 }
 
+/* The order picked at each crafting station (src/shell/station-sort.js): skill -> sort id, for skills the data
+   defines only (so the count is bounded by the catalogue); the window reads an unknown sort as its default. */
+function sanitizeStationSort(v) {
+  const out = {};
+  if (!isObj(v)) return out;
+  for (const id of Object.keys(v)) {
+    if (ID.test(id) && Object.prototype.hasOwnProperty.call(SKILLS_DEF, id) && typeof v[id] === 'string' && ID.test(v[id])) out[id] = v[id];
+  }
+  return out;
+}
+
 /** field -> sanitizer. The keys ARE the allowlist. */
 const SANITIZERS = Object.freeze({
   hudLayout: sanitizeHudLayout,     // display preference: the HUD layout (show, fade, place, fold); gates and spends nothing
@@ -232,6 +245,7 @@ const SANITIZERS = Object.freeze({
   townZoom: sanitizeTownZoom,       // display preference: the viewer's town zoom, one for every hero (src/world/town-zoom.js); gates and spends nothing
   shareReplay: sanitizeSwitch,      // display preference: whether the screen may be recorded, one for every hero (src/session/replay-pref.js); gates and spends nothing
   idleMotion: sanitizeSwitch,       // display preference: whether standing units breathe, one for every hero (src/world/idle-motion.js); gates and spends nothing
+  stationSort: sanitizeStationSort, // display preference: each crafting station's recipe order (src/shell/station-sort.js); gates and spends nothing
 });
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));

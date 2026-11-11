@@ -310,7 +310,7 @@ const mutants = [
   { name: 'the Steel Warhammer is back at 9/19: over the Iron it pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/gear-tiers.js', 'str: [7, 16, 23, 28, 39, 52, 68],', 'str: [7, 16, 19, 28, 39, 52, 68],']] },
   { name: 'the Iron Hatchets are back at 7/7: their upgrade pays under +5%', case: 'weapon-rungs',
-    edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 18, 25, 33, 42], str: [4, 11, 14, 16, 22, 29, 38],', 'atk: [4, 7, 14, 18, 25, 33, 42], str: [4, 7, 14, 16, 22, 29, 38],']] },
+    edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 14, 21, 22, 29, 38],', 'atk: [4, 7, 14, 19, 25, 33, 42], str: [4, 7, 14, 21, 22, 29, 38],']] },
   { name: 'a Thicket four of one weapon is paid x0.85, and the window still says what its old cell measured', case: 'vs-alone',
     edits: [['src/data/party-class-xp.js', 'row([1045, 1735], [1015, 1620, 1800], [1190, 1735, 1815, 1860])', 'row([1045, 1735], [1015, 1620, 1800], [1010, 1735, 1815, 1860])']] },
   { name: '"before bonuses" reads what was paid again', case: 'before-bonuses',

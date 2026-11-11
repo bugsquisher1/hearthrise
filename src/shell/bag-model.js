@@ -23,20 +23,20 @@
 //   upgradeNeeds(h, c)    what the House's next steps need, and what those are made from: Sell all loot keeps it
 //   isSpentMaterial(id)   does any recipe, House price or Tempering rung spend this?
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.114';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.114';
-import { MONSTERS } from '../data/monsters.js?v=0.2.114';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.114';
-import { NAMED_FUELS } from '../data/hearth.js?v=0.2.114';
-import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.114';
-import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.114';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.114';
-import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.114';
-import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.114';
-import { TEMPER_MATERIALS } from '../data/temper.js?v=0.2.114';
-import { recipeInputs } from '../core/artisan.js?v=0.2.114';
-import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.114';
-import { itemName } from './widgets/bits.js?v=0.2.114';
+import { ITEMS } from '../data/items.js?v=0.2.119';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.119';
+import { MONSTERS } from '../data/monsters.js?v=0.2.119';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.119';
+import { NAMED_FUELS } from '../data/hearth.js?v=0.2.119';
+import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.119';
+import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.119';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.119';
+import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.119';
+import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.119';
+import { TEMPER_MATERIALS } from '../data/temper.js?v=0.2.119';
+import { recipeInputs } from '../core/artisan.js?v=0.2.119';
+import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.119';
+import { itemName } from './widgets/bits.js?v=0.2.119';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([

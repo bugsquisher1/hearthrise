@@ -56,6 +56,14 @@
 //      A bleed tick is booked once: its `dmg` event carries what landed, the `status_tick` only the roll.
 //      A unit alive at the instant (the base in force holds it above 0 HP and no kill naming it lies between
 //      that base and the instant) reads at least 1 HP: the engine kills at 0, so a living 0 is always drift.
+//   T14 THE SNAPSHOT'S HP IS A BASE (live v0.2.114: "1 / 415" for up to a minute after a reload, the hero alive and well).
+//      A server window names each unit's HP at its START only. One longer than the playback delay (a hunt the server
+//      settled late: the page was closed or frozen) is played from deep inside, where its blows had all landed and none
+//      of its regen had, and no later base was known until the live view's start point landed: the bar sank to T13's
+//      floor. The pose (the hunt section, replaced by every envelope) holds every unit's HP at `at_ms`, the instant the
+//      window ends at, so reconcile() books it as a base for each unit the book holds: the window's end is known the
+//      moment it lands, and a hero nobody views (plain reads, no windows) reads each read's HP, not its last viewed one.
+//   T15 upcoming(now, aheadMs): the queued events of the next moments, read-only (a swing winds up before its blow).
 //
 // Rendering, simulation and persistence run on independent clocks: the caller
 // asks positionAt()/advance() with its own frame clock; the server ticks at its
@@ -221,10 +229,19 @@ export function createTimeline(o) {
   /**
    * The snapshot's pose: every unit whose timeline ends somewhere else gets one
    * step toward the pose, after its last step (T4).
-   * @param {{at_ms: number, units: {u:number, x:number, y:number}[]}} pose
+   * A pose unit is hr_hunt_section's row (2026-10-27-core-bodies.sql), built from the packed world
+   * through jsonb_strip_nulls: `hp`, `hp_max` and `alive` are packed for every unit (WORLD_SHAPE.unit:
+   * int, int, bool) but a null one is stripped, so each is optional here. A unit missing `hp` or
+   * `hp_max` books no base (T14 never invents a number); one missing `alive` is read as standing,
+   * as the snapshot reads it (src/session/hunt-sections.js unitsOf).
+   * @param {{at_ms: number, units: {u:number, x:number, y:number, hp?:number, hp_max?:number, alive?:boolean}[]}} pose
    */
   function reconcile(pose) {
     if (!pose || !isInt(pose.at_ms) || !Array.isArray(pose.units)) return 0;
+    /* T14: the pose's HP is a base at its instant, for every unit the book already holds */
+    const rows = {};
+    for (const p of pose.units) { const r = p && book.get(p.u); if (r && isInt(p.hp) && isInt(p.hp_max)) rows[p.u] = [r.kind, p.hp_max, p.hp]; }
+    noteUnits(rows, pose.at_ms);
     let n = 0;
     const listed = new Set(pose.units.map((p) => p && p.u));
     for (const [u, a] of steps) if (!listed.has(u) && a[a.length - 1].atMs < pose.at_ms - cfg.forgetMs) steps.delete(u);
@@ -303,6 +320,19 @@ export function createTimeline(o) {
     return true;
   }
 
+  /**
+   * T15 THE NEXT MOMENTS: the queued events (not yet played) whose instant is at most `aheadMs` past the instant shown
+   * at client time `now`, oldest first. Read-only: a swing's wind-up is drawn from them (clip-hook.js), so a blow a
+   * rebase drops (T8) takes its wind-up with it, and nothing plays that the timeline does not hold.
+   */
+  function upcoming(now, aheadMs) {
+    const t = serverAt(now);
+    const out = [];
+    if (t === null || !(aheadMs > 0)) return out;
+    for (const ev of queue) { if (ev.atMs > t + aheadMs) break; out.push(ev); }
+    return out;
+  }
+
   /** The unit's kind from the book (T6), or null. */
   function kindOf(u) { const r = book.get(u); return r ? r.kind : null; }
   /** { hp, maxHp } of a booked unit at the server instant shown at client time `now` (T6), or null. */
@@ -333,7 +363,7 @@ export function createTimeline(o) {
   function clear() { steps.clear(); queue.length = 0; book.clear(); gone.clear(); }
 
   return {
-    ingest, reconcile, advance, positionAt, clientAt, kindOf, hpAt, serverNowAt, rebase, clear, forget,
+    ingest, reconcile, advance, positionAt, clientAt, kindOf, hpAt, serverNowAt, rebase, clear, forget, upcoming,
     /** T9: play `ms` behind the server from now on. */
     setDelay(ms) { if (Number.isFinite(ms) && ms >= 0) cfg.delayMs = ms; },
     delayMs: () => cfg.delayMs,

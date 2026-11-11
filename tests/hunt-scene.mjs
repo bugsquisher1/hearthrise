@@ -51,8 +51,9 @@
 //         hero draw the spark on the side the blow came from, a hero's miss the scuff on the monster, and none of them
 //         a float; one shows at a time on a unit under a full box's blows; 150 ms and gone; its toggle hides it
 //         (the log's line for it all: tests/hunt-view-core.mjs LOG-4; nothing is immune since Tyler 2026-11-06)
-//   SC-15 A HIT MOVES THE SPRITE, IT NEVER REPAINTS IT (ART_DIRECTION §2, §11): the struck unit's draw entry is the entry it has once
-//         the hit has passed, 1 art px away from the blow; its name, bar and everything else stand
+//   SC-15 A HIT NEVER REPAINTS THE SPRITE (ART_DIRECTION §2, §11): facing a way its flinch is drawn, the struck unit plays its hit
+//         clip in place; facing a way it is not, its draw entry is the entry it has once the hit has passed, 1 art px away from
+//         the blow; either way its name, bar and tone stand (the hook itself: tests/hunt-clips.mjs)
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -69,6 +70,7 @@ async function load(base) {
   const M = {
     C: await u('src/session/character-session.js'),
     S: await u('src/hunt-view/scene.js'),
+    H: await u('src/hunt-view/clip-hook.js'),
     F: await u('src/hunt-view/float-prefs.js'),
     X: await u('src/data/hunt-vfx.js'),
     R: await u('src/data/hunt-roles.js'),
@@ -409,16 +411,19 @@ async function rules(M) {
     ok('SC-14', !hidden.some((id) => /glance/.test(id)), 'the toggle hides the spark as it hid the word, got ' + JSON.stringify(hidden));
   }
 
-  { // SC-15: the ranger on 8,9 shoots the rat on 14,9, so it gives east
+  { // SC-15: the ranger on 8,9 shoots the rat on 14,9, so it gives east. The rat walked up from 14,10: it faces NORTH,
+    // where its flinch is not drawn (the verdict dropped it, and no NE or NW is drawn), so the hook plays the recoil.
     const clock = { t: C0 };
-    const cs = session(M, clock, [envelope(7, S0)]);
+    const body = envelope(7, S0);
+    body.hunt_track = body.hunt_track.filter((st) => st.u !== 101).concat([{ u: 101, x: 14, y: 10, atMs: S0 - 2000 }, { u: 101, x: 14, y: 9, atMs: S0 - 1000 }]);
+    const cs = session(M, clock, [body]);
     await cs.load();
     const v = viewer(M, cs);
     const view = { ox: 0, oy: 0, w: M.map.w * 32, h: M.map.h * 32 };
     const list = (s) => M.K.composeFrame(M.map, M.book, Object.assign({ t: at(s), roofAlpha: {} }, v.at(at(s))), view, M.tables, 32);
     const rat = (l) => l.sprites.find((d) => d.id === 'rat' && d.tx === 14 && d.ty === 9);
     const landed = S0 - 350 + M.X.PROJECTILE.flightMs;
-    const struck = list(landed + 40), passed = list(landed + M.S.SCENE_TIMING.recoilMs + 10);
+    const struck = list(landed + 40), passed = list(landed + M.H.CLIP_RULES.recoilMs + 10);
     const a = rat(struck), b = rat(passed);
     ok('SC-15', a && b && a.x === b.x + 1 && a.y === b.y, 'the struck rat stands 1 art px east of its spot, got ' + JSON.stringify([a && [a.x, a.y], b && [b.x, b.y]]));
     /* the idle turns on the clock, hit or no hit (SC-IDLE): the struck frame is the one that clock names, and everything else stands */
@@ -429,6 +434,21 @@ async function rules(M) {
     ok('SC-15', a && named && a.sx === named.sx && a.sy === named.sy, 'a hit changes no frame: the struck rat draws its idle at that instant, got ' + JSON.stringify([a && [a.sx, a.sy], named && [named.sx, named.sy]]));
     const cx = b && b.x + M.book.sprite('rat').anchor[0];
     ok('SC-15', struck.bars.some((x) => x.x === cx) && passed.bars.some((x) => x.x === cx), 'a recoil leaves the bar where it stands: ' + JSON.stringify([cx, struck.bars, passed.bars]));
+
+    /* ...and facing SOUTH (the fixture's own track), where its flinch is drawn, the rat plays it in place: the clip is the
+       reaction, so nothing slides, no tone changes, and the frame is the hit clip's own (clip-hook.js H2) */
+    const clock2 = { t: C0 };
+    const cs2 = session(M, clock2, [envelope(7, S0)]);
+    await cs2.load();
+    const v2 = viewer(M, cs2);
+    const list2 = (s) => M.K.composeFrame(M.map, M.book, Object.assign({ t: at(s), roofAlpha: {} }, v2.at(at(s))), view, M.tables, 32);
+    const f0 = list2(landed + 40), u0 = unitOf(v2.at(at(landed + 40)), 101), after = list2(landed + M.H.CLIP_RULES.recoilMs + 10);
+    const c = rat(f0), d = rat(after), hit0 = M.book.frame('rat', 'hit', 's', 0);
+    ok('SC-15', u0 && u0.anim === 'hit' && u0.frame === 0 && u0.dir === 's' && !u0.recoil, 'the struck rat facing south must play its hit clip from frame 0, no recoil: ' + JSON.stringify(u0 && [u0.anim, u0.frame, u0.dir, u0.recoil]));
+    ok('SC-15', c && d && c.x === d.x && c.y === d.y && c.sx === hit0.sx && c.sy === hit0.sy && still(c) === still(d), 'a flinch draws the clip in place, no slide or tint: ' + JSON.stringify([c, d]));
+    /* the tank's power strike lands at S0 + 100 inside the first flinch: the latest blow starts the flinch again */
+    const u1 = unitOf(v2.at(at(S0 + 100 + 40)), 101);
+    ok('SC-15', u1 && u1.anim === 'hit' && u1.frame === 0, 'the next blow flinches the rat from frame 0 again: ' + JSON.stringify(u1 && [u1.anim, u1.frame]));
   }
 
   { // SC-11: the rat starts a step 50 ms before the blow that kills it
@@ -460,7 +480,8 @@ async function rules(M) {
 
   { // SC-12: the level-up moment plays once when the SERVER's Level rises, never on a mount, and obeys its toggle
     const xpAt = (L) => M.XP.charXpForLevel(L);
-    const lv = (version, serverNow, L) => { const e = envelope(version, serverNow); e.state = Object.assign({}, e.state, { level_xp: xpAt(L) }); return e; };
+    /* the server's Level rides its own `level` block; the Level XP stands still, so only the server's word moves the Level (lane/c-level-from-server) */
+    const lv = (version, serverNow, L) => { const e = envelope(version, serverNow); e.state = Object.assign({}, e.state, { level_xp: xpAt(3) }); e.level = { xp: xpAt(3), level: L, into: 0, need: 100 }; return e; };
     const levelFloats = (f) => f.floats.filter((x) => /^Level \d+$/.test(x.text));
     const run = async (off) => {
       const clock = { t: C0 };
@@ -507,7 +528,7 @@ async function rules(M) {
 }
 
 const MUTANTS = [
-  ['the walk frame counts frames drawn', 'src/hunt-view/scene.js', 'const frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : idleFrame(clips.idle, now, u);', 'globalThis.__n = (globalThis.__n || 0) + 1;\n    const frame = corpse ? corpse.frame : moving ? globalThis.__n % 6 : idleFrame(clips.idle, now, u);'],
+  ['the walk frame counts frames drawn', 'src/hunt-view/scene.js', 'let frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : idleFrame(clips.idle, now, u);', 'globalThis.__n = (globalThis.__n || 0) + 1;\n    let frame = corpse ? corpse.frame : moving ? globalThis.__n % 6 : idleFrame(clips.idle, now, u);'],
   ['a standing unit is held on its first idle frame (SC-IDLE)', 'src/hunt-view/scene.js', ': idleFrame(clips.idle, now, u);', ': 0;'],
   ['a pack breathes in step (SC-IDLE)', 'src/hunt-view/scene.js', 'Math.floor((now * idle.fps) / 1000) + u : 0;', 'Math.floor((now * idle.fps) / 1000) : 0;'],
   ['each unit turns on an edge of its own, so a held hunt paints once per unit (SC-IDLE)', 'src/hunt-view/scene.js', 'Math.floor((now * idle.fps) / 1000) + u : 0;', 'Math.floor(((now + u * 37) * idle.fps) / 1000) + u : 0;'],
@@ -521,8 +542,8 @@ const MUTANTS = [
   ["a wand's basic hit shows nothing", 'src/data/hunt-vfx.js', "mage: 'fx_wand_bolt_impact'", 'mage: null'],
   ["a staff's bolt is missing", 'src/data/hunt-vfx.js', "healer: 'fx_staff_bolt' }", 'healer: null }'],
   ['the diagonal is dropped', 'src/hunt-view/scene.js', 'const diag = ax && ay && ', 'const diag = false && '],
-  ['no recoil on a hit (SC-15)', 'src/hunt-view/scene.js', '    if (a && b) recoil.set(ev.t, ', '    if (false) recoil.set(ev.t, '],
-  ['a recoil goes toward the blow (SC-15)', 'src/hunt-view/scene.js', 'dx: Math.round((b.x - a.x) / d)', 'dx: Math.round((a.x - b.x) / d)'],
+  ['no flinch on a hit (SC-15)', 'src/hunt-view/scene.js', '    if (struckBy(ev) !== null) hook.hit(ev.t, ', '    if (false) hook.hit(ev.t, '],
+  ['a recoil goes toward the blow (SC-15)', 'src/hunt-view/scene.js', 'a && b ? Math.round((b.x - a.x) / d) : 0,', 'a && b ? Math.round((a.x - b.x) / d) : 0,'],
   ['a hit tints the sprite again (SC-15)', 'src/world/core/compose.js', 'if (u.recoil) { ', 'if (u.recoil) { d.grey = 0.7; '],
   ['a recoil shakes the name and the bar too (SC-15)', 'src/world/core/compose.js', 'const d = place(u.id, u.x, u.y, {', 'const d = place(u.id, u.x + (u.recoil ? u.recoil[0] / 32 : 0), u.y, {'],
   ['a corpse stands among the living', 'src/world/core/compose.js', "bias: u.under ? -UNDER : 0,", 'bias: 0,'],
@@ -532,8 +553,8 @@ const MUTANTS = [
   ['bars from the events, not the snapshot', 'src/hunt-view/scene.js', 'const hp = played ? played.hp : hero ? m && m.hp : (read.units.get(u) || {}).hp;', 'const hp = 1;'],
   ["only a ranger's shot flies (a caster's bolt is dropped)", 'src/hunt-view/scene.js', 'const bolt = Object.hasOwn(PROJECTILE.ability, ev.ability) ? PROJECTILE.ability[ev.ability] : PROJECTILE.role[role] || null;', "const bolt = role === 'ranger' ? PROJECTILE.role.ranger : null;"],
   ['the hunt draws the role default, not the chosen outfit', 'src/hunt-view/scene.js', '    if (u === read.viewed && read.look) return read.look;', 'if (false) return read.look;'],
-  ['a standing hero turns back to its walk heading after a swing', 'src/hunt-view/scene.js', 'if (!p.moving && s && now - s.at >= 0) {', 'if (!p.moving && s && now - s.at >= 0 && now - s.at < 700) {'],
-  ['a corpse greys its idle instead of its death clip', 'src/hunt-view/scene.js', '          corpse = corpseFrame(id, clips, dir, age);', '          corpse = null;'],
+  ['a standing hero turns back to its walk heading after a swing', 'src/hunt-view/scene.js', 'if (!p.moving && s && (act || now - s.at >= 0)) {', 'if (!p.moving && s && (act || now - s.at >= 0) && now - s.at < 700) {'],
+  ['a corpse greys its idle instead of its death clip', 'src/hunt-view/scene.js', '          corpse = hook.fallAt(id, age, fell);', '          corpse = null;'],
   ['a Level rise plays no moment', 'src/hunt-view/scene.js', '    if (p) floats.push({ text: \'Level \' + lv,', '    if (false) floats.push({ text: \'Level \' + lv,'],
   ['a mount plays a level-up it never saw', 'src/hunt-view/scene.js', 'const up = lastLevel !== null && lv > lastLevel;', 'const up = lv > (lastLevel || 0);'],
   ['the level-up ignores its toggle', 'src/hunt-view/scene.js', "!read.shown('level', false)", 'false'],

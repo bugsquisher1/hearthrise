@@ -33,22 +33,23 @@
 // It authors no number: the record changes only from a server answer, and it sends of its own only the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.114';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.114';
-import { LiveLink } from './live-link.js?v=0.2.114';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.114';
-import { SESSION_CONFIG } from './config.js?v=0.2.114';
-import { edgeBody, edgeRead, withReceipt } from './edge-intents.js?v=0.2.114';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.114';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.114';
-import { AskPacer } from './ask-pacer.js?v=0.2.114';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.114';
-import { ReadGate } from './read-gate.js?v=0.2.114';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.114';
-import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.114';
-import { catchUpLink, newIdem } from './catch-up.js?v=0.2.114';
-import { pageAway } from './page-away.js?v=0.2.114';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.114';
+import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.119';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.119';
+import { LiveLink } from './live-link.js?v=0.2.119';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.119';
+import { SESSION_CONFIG } from './config.js?v=0.2.119';
+import { edgeBody, edgeRead, withReceipt } from './edge-intents.js?v=0.2.119';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.119';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.119';
+import { AskPacer } from './ask-pacer.js?v=0.2.119';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.119';
+import { ReadGate } from './read-gate.js?v=0.2.119';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.119';
+import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.119';
+import { catchUpLink, newIdem } from './catch-up.js?v=0.2.119';
+import { pageAway } from './page-away.js?v=0.2.119';
+import { askBody, slimFloor, takeSlim } from './hunt-ask.js?v=0.2.119';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.119';
 
 export const FRAME_EVENT = 'frame';
 
@@ -90,7 +91,7 @@ export class CharacterSession {
     this._listeners = new Set();
     this._leave = null; this._attempt = 0; this._retry = null;
     this._residueTimer = null;
-    this._leaveAsk = null; this._asking = null; this._wholeAt = -1; this._fed = false;   // the hello in flight; the version known whole; re-read last armed by a frame
+    this._leaveAsk = null; this._asking = null; this._wholeAt = -1; this._wholeMs = -Infinity; this._fed = false;   // the hello in flight; the version known whole and when the server gave it (display clock); re-read last armed by a frame
     this._pending = {}; this._sent = {}; this._putAt = -Infinity;   // residue to put; put and not yet seen back (residue.js unconfirmedResidue); the last put
     this._closed = false; this._viewed = o.viewed !== false; this._away = false;   // shown (AccountSession.view): only it streams live (setViewed); away: setAway
     this.lastVerdict = null;
@@ -131,7 +132,7 @@ export class CharacterSession {
     const r = applyEnvelope(this._record, body);
     this.lastVerdict = r.verdict;
     if (!r.applied) return false;
-    this._record = r.record; this._wholeAt = r.record.version;   // a full envelope: every key known at its version
+    this._record = r.record; this._wholeAt = r.record.version; this._wholeMs = this._now();   // a full envelope: every key known at its version, as of now
     /* A residue field set here and not yet put, or put and not yet seen back, is newer than the copy this envelope
        carried (it may predate the put): it stays until the server echoes it (the summary card never blinks out). */
     this._sent = unconfirmedResidue(this._sent, this._record.residue);
@@ -472,8 +473,9 @@ export class CharacterSession {
     if (!this._record) { this._status = 'error'; this._emit('error'); }
   }
 
-  /** The full read, single-flight (`held`: a whole hr_load answer the account just got: read only if it does not land); resync: ONE bounded re-read after a refusal (read-gate.js). True when the record was replaced. */
-  load(held) { return this._closed ? Promise.resolve(false) : held && this._take(held, 'load') ? Promise.resolve(true) : this._reads.load(); }
+  /** The full read, single-flight (`held`: a whole hr_load answer the account just got, `heldMs` old: read only if it does not land); resync: ONE bounded re-read after a refusal (read-gate.js). True when the record was replaced. */
+  load(held, heldMs) { return this._closed ? Promise.resolve(false) : held && this._take(held, 'load') ? this._heldFor(heldMs) : this._reads.load(); }
+  _heldFor(ms) { this._wholeMs -= ms > 0 ? ms : 0; return Promise.resolve(true); }   // the account's answer was already `ms` old when it was taken
   resync() { return this._closed ? Promise.resolve(false) : this._reads.resync(); }
   async _loadOnce() {
     if (this._closed) return false;
@@ -498,7 +500,7 @@ export class CharacterSession {
   }
 
   async _helloOnce() {
-    const ans = await this._server.accrue({ slot: this.slot });
+    const ans = await this._server.accrue(askBody(this.slot, this._huntOpen(), this._wholeAt));
     if (this._closed) return false;
     if (ans.status > 0 && ans.status !== 429) this._answeredAt = this._now();   // the server's word (a 429 or a lost network is not)
     /* the account's budget is spent: hold a look-ahead margin, then ONE catch-up (a hunt's own re-read retries it) */
@@ -507,8 +509,11 @@ export class CharacterSession {
        is, with the live start point (take it). A refusal to settle (refusal.js) stands until the next answer (town ticker). */
     if (ans.ok) this.settleRefusal = settleRefusalOf(ans);
     if (ans.ok && ans.body && ans.body.accrued !== true && ans.body.hunt_live && ans.body.state && this._take(ans.body, 'hello')) return true;
-    const v = ans.ok && ans.body ? ans.body.version : null;   // a hunter's idle answer at a version held WHOLE: no re-read
-    if (Number.isSafeInteger(v) && ans.body.accrued !== true && this._huntOpen() && v <= this._wholeAt) return false;
+    if (ans.ok && this._record && this._huntOpen() && slimFloor(ans.body, this._wholeAt)) return takeSlim(this, ans.body);   // the floor without the character (hunt-ask.js)
+    /* An idle answer at a version held WHOLE is not re-read: a hunter's (its next ask restates it), and a copy the server gave under
+       wholeFreshMs before this ask left (the join right after the roster's read). Older in town it is always read: a party invite moves no version. */
+    const v = ans.ok && ans.body ? ans.body.version : null, held = this._huntOpen() || this._askedAt - this._wholeMs <= SESSION_CONFIG.wholeFreshMs;
+    if (Number.isSafeInteger(v) && ans.body.accrued !== true && held && v <= this._wholeAt) return false;
     if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();
     if (ans.ok && this._take(ans.body, 'hello')) return true;
     this._answerFailed(ans);

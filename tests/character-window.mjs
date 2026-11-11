@@ -49,6 +49,7 @@ import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { withServerLevel } from './_server-level.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* Level totals on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
@@ -75,7 +76,8 @@ function withSections(env, o = {}) {
 
 function scripted(o) {
   const s = { env: withSections(clone(FIXTURE), o), version: 1, calls: [], residue: {}, sheetFresh: o && o.fresh === false ? false : true };
-  s.next = () => Object.assign(clone(s.env), { version: ++s.version, client_state: clone(s.residue) });
+  /* The server states the Level itself (hr_state_of's `level` block): the stub states it for the XP a case set (./_server-level.mjs). */
+  s.next = () => withServerLevel(Object.assign(clone(s.env), { version: ++s.version, client_state: clone(s.residue) }));
   return s;
 }
 
@@ -86,7 +88,7 @@ async function stub(page, s) {
     const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
     s.calls.push({ name, body });
-    const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
+    const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(withServerLevel(b)) });
     /* A read restates the record at the server's version (a sheet put moves no version). */
     if (name === 'hr_load') return json(Object.assign(clone(s.env), { version: s.version, client_state: clone(s.residue) }));
     if (name === 'hr-accrue') {

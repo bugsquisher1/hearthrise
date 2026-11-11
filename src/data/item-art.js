@@ -354,6 +354,15 @@ export const SUPPLY_DIR = 'assets/icons-bundle/pixel/supplies/';
    the day its row ships: the row itself then carries it. tests/pixel-icons.mjs requires the file for each. */
 export const SUPPLY_ART_AHEAD = Object.freeze([]);   // plain_fire_rune's row landed (supply-basics.js)
 
+/* ICONS DRAWN BEFORE THEIR ITEM ROW LANDS (the Krell's Hold, Muster Barrows and Hask's Ford drops, the tier 7 slakehide and
+   shroudweave sets, the Pyre Field's shroud pin), imported from art/world-src/gen-2026-11-12 by
+   tools/world-art/import-heads-icons-2026-11-12.mjs. They sit under items/ like every item icon; tests/pixel-icons.mjs
+   requires the file for each and does not call it an orphan. Delete an id here the day its row ships (the row carries it). */
+export const ITEM_ART_AHEAD = Object.freeze([
+  'hall_key', 'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain', 'coffin_nail', 'urn_shard', 'toll_token', 'shroud_pin',
+  'slakehide_helmet', 'slakehide_body', 'slakehide_pants', 'slakehide_boots', 'slakehide_gloves', 'slakehide_belt',
+  'shroudweave_helmet', 'shroudweave_body', 'shroudweave_pants', 'shroudweave_boots', 'shroudweave_gloves', 'shroudweave_belt']);
+
 /** `<PIXEL_DIR><id>.png` for every id given. */
 export function pixelIconMap(ids) {
   const out = {};

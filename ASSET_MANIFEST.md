@@ -20,6 +20,7 @@ since been executed.
 | Pixel item icons | `assets/icons-bundle/pixel/items/` | 573 (one per ITEMS key) | **live** (`src/shell/widgets/bits.js`, `itemIconHtml`) |
 | Shop supply icons | `assets/icons-bundle/pixel/supplies/` | 25 | **live** |
 | Ability tiles | `assets/icons-bundle/pixel/abilities/` | 16 | **live** (`ABILITY_ART`) |
+| Creature heads | `assets/icons-bundle/pixel/heads/` | 43 (30 live creatures + 13 ahead: Krell's six, the seven March bodies) | **live** (`HEAD_ART`, `headPathFor` in `src/data/monster-art.js`; the Tally entry row). Imported by `tools/world-art/import-heads-icons-2026-11-12.mjs` (`--check` for drift); pyre_priest's brow smear is applied there. 22 more item icons (Hold, Muster, Ford toll_token, tier 7 slakehide/shroudweave, hall_key, shroud_pin) sit in `pixel/items/` under `ITEM_ART_AHEAD` until their rows land |
 | UI frames and plates | `assets/ui/`, `assets/brand/` | 13, 6 | **live** |
 | Painted Hearthfire set, painted portraits, resources, buildings, backgrounds | `assets/icons-bundle/{hearthfire,painted,resources,buildings,medieval,backgrounds}/` | 488 + 148, about 28 MB | **no** (retired; `ITEM_ART_SET = 'pixel'`; never beside style-1 art, Tyler 10-18) |
 | Recraft raws, avatars, pilot output | `assets/items/`, `assets/avatars/`, `assets/art-pilot/` | 71, 22, 33; about 107 MB | **no** (only `tools/art-wave2-*` read `assets/items`; nothing reads `avatars`) |

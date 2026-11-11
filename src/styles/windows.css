@@ -1054,6 +1054,12 @@
 .ht-count b { font-weight: 800; font-size: var(--t-lead); color: var(--ink); }
 .ht-count small { margin-left: 3px; font-weight: 400; font-size: var(--t-micro); color: var(--ink-3); }
 .ht-entry .ht-pocket { grid-column: 2; grid-row: 1 / span 2; }
+.ht-face { display: none; }
+/* The creature's head (art brief 15): the bag's sunk well, no frame of its own, the bust at its one 32 px density; no head, no well and the two columns stay. */
+.ht-entry.has-face { grid-template-columns: 44px minmax(0, 1fr) 44px; }
+.ht-entry.has-face .ht-face { display: grid; grid-column: 1; grid-row: 1 / span 2; width: 44px; height: 44px; place-items: center; background: var(--bg-1); box-shadow: var(--hw-well); }
+.ht-entry.has-face .ht-entry-top, .ht-entry.has-face .ht-marks { grid-column: 2; }
+.ht-entry.has-face .ht-pocket { grid-column: 3; }
 .ht-get, .ht-once { grid-column: 1 / -1; margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
 .ht-get:empty, .ht-once:empty { display: none; }
 .ht-entry .ht-once { color: var(--gold-2); }

@@ -19,8 +19,8 @@
 //
 // A frame's use: want(...) for every dyed unit it will draw, pump(), then source(...) while painting. PURE of globals: the document, the tokens and the clock are handed in.
 // ════════════════════════════════════════════════════════════════════════
-import { BASE_REGIONS, MASK_COLOURS } from '../data/outfits.js?v=0.2.117';
-import { loadAtlasSet } from './atlas.js?v=0.2.117';
+import { BASE_REGIONS, MASK_COLOURS } from '../data/outfits.js?v=0.2.118';
+import { loadAtlasSet } from './atlas.js?v=0.2.118';
 
 /** How many dyed looks stay in memory: past this, heroes draw undyed. */
 export const DYE_LOOKS = 24;

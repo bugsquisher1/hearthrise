@@ -29,8 +29,8 @@ export const MONSTER_TEXT = Object.freeze({
   h_fight: 'In a fight',
   on_tier: 'on {tier}, alone or in a party',
   hp: 'Health',
-  blow: 'One hit',
-  blow_value: '{min} to {max}, before your armor',
+  /* The game's own label for a monster's biggest hit, and its number only (Tyler 2026-11-11: "it should just say Max Hit"). */
+  max_hit: 'Max Hit',
   swing: 'It attacks',
   swing_value: 'every {secs} s',
   deals: 'Its damage',

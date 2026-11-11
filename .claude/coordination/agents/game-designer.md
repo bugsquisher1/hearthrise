@@ -842,3 +842,12 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - An XP bonus's pace cost is its share of hunting hours x its percent. +25% on every hour reads x0.805 at Level 50 and x0.81-0.82 at 10-25 (skills lag a little).
 - +10% is below what a player feels. At the Glade at 24 the gap between a hammer (83k) and a mage (91k) is wider than +10% on either.
 - Lane branches that insert at the top of the Decisions list collide. Insert a same-day section lower down (before the next dated heading) when another lane is writing the top.
+
+## 2026-11-10 lane/d-party-pull-options (four party-pull options measured for Tyler; ruled (b) on (a))
+- The engine is fast now: a lone 2 h cell takes about 1 s, a four's 10-20 s, a 170 h career 65-125 s. Plans pace + ladder re-measure in about 5 minutes on 4 workers, not the header's 2-3 h.
+- `tools/balance-sim/cell.mjs` takes a per-job `groundPatch` ({ ...ground, ...patch }). A pocket or `partyPull` what-if needs no data commit: build `grade.mjs` `buildGrid` jobs, add the patch, key the id by the patch, run `runPool`. Only the party XP cells need a scratch commit (`whatIf` has no table for them).
+- On walk-bound grounds a party's lead comes only from more monsters a lap or more XP a kill, and it fades with Level (the Glade's four without the party pull: 0.82 at the floor, 0.71 at the top). The pull holds it flat. One bonus can't hold a 1.15-1.25 band across a ground's Levels.
+- A party XP cell pays on every tier, a party pull only on Normal. Moving Normal's work into the cell over-pays the tiers where pulls are already equal: the Glade's four on Dangerous 1.16 -> 1.81 of alone, and its Deadly at 32 out-earns the Warrens (`hunt-tiers` ladder exit 1).
+- Lap XP arithmetic over-reads a roster swap: the bear for a crow is +9.7% XP a lap, but +3.4-4.5% an hour, since the bear takes longer to kill.
+- The Warrens' ladder point is +8.7% over the 11-09 pin on today's tree (other lanes), so the next `pace.mjs --write` needs the contract re-fit (C5) whatever moves the Glade.
+- `hunt-tiers --only rows` throws in a mutant's plant on a tree without the Glade's `partyPull` row. That is the fixture's anchor, not a verdict: read `--only ladder`.

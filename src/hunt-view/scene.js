@@ -36,6 +36,9 @@
 //      held of it: drawn standing on a current frame it falls there, else it is gone (S7).
 //      Switched back to a hero, the monsters killed meanwhile stood (at their last drawn
 //      HP, or at 0: an empty bar) until a restart felled them anew (e-20261021-mobs, Andy #65).
+//   S10 THE ANIMATION HOOK (clip-hook.js H1-H4): a standing unit swings on its own blow event,
+//      flinches on a blow that landed on it, and a dead one falls, each only on a facing its
+//      clip has; no clip ever plays without the event that caused it.
 // ════════════════════════════════════════════════════════════════════════
 import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.119';
 import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.119';
@@ -50,6 +53,7 @@ import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.119';
 import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.119';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.119';
 import { levelOf, wornTitleOf } from '../session/character-sections.js?v=0.2.119';
+import { createClipHook, struckBy } from './clip-hook.js?v=0.2.119';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {
@@ -62,7 +66,6 @@ export const SCENE_TIMING = Object.freeze({
   deathFadeMs: 400,     // VW-05: colour to a grey corpse
   corpseMs: 10000,      // how long a corpse lies
   corpseFadeMs: 2000,   // it fades out over its last 2 s
-  recoilMs: 120,        // a hit's 1-art-px recoil (ART_DIRECTION §11)
   riseMs: 400,          // a unit a reconcile finds alive after its drawn death fades back in, never pops up
   staleMs: 1000,        // a scene not drawn for this long (another character viewed, a hidden tab) shows no one fall on its return
   floatMs: 1000,        // a floating number's life
@@ -172,10 +175,12 @@ export function createHuntScene(o) {
   const tl = o.timeline, book = o.book;
   const keys = new Set();
   let fx = [], floats = [];
-  const recoil = new Map(), dead = new Map(), swing = new Map(), bleed = new Map(), cycle = new Map(), target = new Map(), risen = new Map();
+  const dead = new Map(), bleed = new Map(), cycle = new Map(), target = new Map(), risen = new Map();
   const lie = new Map();   // S6: unit -> { dir, diag }, the facing a unit fell with
   const glanced = new Map();   // unit -> the instant its last glance shows (GLANCE_FX.gapMs apart)
-  const perUnit = [recoil, dead, swing, bleed, cycle, target, risen, lie, glanced];
+  const perUnit = [dead, bleed, cycle, target, risen, lie, glanced];
+  /* THE ANIMATION HOOK (clip-hook.js): a blow swings, a landed blow flinches, a kill falls, each on its own event */
+  const hook = createClipHook({ book, timeline: tl, foes: (u, t) => isHero(u) !== isHero(t) });
   /* S7: the client instant of the last frame drawn and the units it drew standing */
   let drawnAt = null;
   const standing = new Set();
@@ -250,17 +255,16 @@ export function createHuntScene(o) {
     if (flies && a && b) addFx(bolt, start, { x: a.x, y: a.y, tx: b.x, ty: b.y }, PROJECTILE.lift, PROJECTILE.flightMs, ev.u);
     const id = HIT_FX.ability[ev.ability] || HIT_FX.element[ev.element] || HIT_FX.role[role] || null;
     addFx(id, land, at(ev.t), HIT_FX.lift);
-    /* The struck sprite gives 1 art px away from the blow. It is never tinted: ART_DIRECTION §2, and a white body hid its armor and the miss spark. */
+    /* The struck unit flinches as the blow lands (its hit clip, else 1 art px away from the blow). It is never tinted:
+       ART_DIRECTION §2, and a white body hid its armor and the miss spark. A status tick is no blow. */
     const d = a && b ? Math.hypot(b.x - a.x, b.y - a.y) || 1 : 1;
-    if (a && b) recoil.set(ev.t, { at: land, dx: Math.round((b.x - a.x) / d), dy: Math.round((b.y - a.y) / d) });
-    swing.set(ev.u, { t: ev.t, at: start });
+    if (struckBy(ev) !== null) hook.hit(ev.t, land, a && b ? Math.round((b.x - a.x) / d) : 0, a && b ? Math.round((b.y - a.y) / d) : 0);
     return land;
   }
 
   /* A BLOW THAT DID NO HARM: a spark at the struck unit's edge, on the side the blow came from, and no word. It follows
      the unit, and its toggle is the one the word had. A blow inside gapMs of the last spark on that unit shows none. */
   function glance(ev, start) {
-    swing.set(ev.u, { t: ev.t, at: start });
     if (!read.shown('miss', isBoss(ev.t))) return;
     const last = glanced.get(ev.t);
     if (last !== undefined && Math.abs(start - last) < GLANCE_FX.gapMs) return;
@@ -280,6 +284,7 @@ export function createHuntScene(o) {
     if (keys.size > MAX_KEYS) keys.delete(keys.values().next().value);
     const start = tl.clientAt(ev.atMs) ?? now;
     const num = (u, n, land) => addFloat(u, isHero(u) ? 'taken' : 'dealt', String(n), isHero(u) ? 'hurt' : 'hit', land);
+    hook.played(ev, start);
     switch (ev.type) {
       /* every landed blow on a monster deals at least 1, so a 0 is a hero whose barrier took all of it: no harm, no number */
       case 'dmg': if (ev.amount === 0 && isHero(ev.t)) glance(ev, start); else num(ev.t, ev.amount, hit(ev, start)); break;
@@ -290,14 +295,15 @@ export function createHuntScene(o) {
         const r = CAST_FX.ability[ev.ability] || CAST_FX.role[roleOf(ev.u)];
         if (r) addFx(r.fx, start, at(ev.u), r.lift, Math.min(CAST_FX.maxMs, r.lifeMs || CAST_FX.maxMs));
         addFloat(ev.u, 'ability', abilityName(ev.ability), 'ability', start);
-        if (Number.isInteger(ev.t) && ev.t !== ev.u) swing.set(ev.u, { t: ev.t, at: start });
         break;
       }
-      case 'kill':
-        /* S6: a unit dies once. A restart re-runs a death the screen already played under another id. */
-        if (!isHero(ev.t) && dead.has(ev.t)) return true;
+      case 'kill': {
+        /* S6: a unit dies once. A restart re-runs a death the screen already played under another id. A hero falls only
+           in a fall its art has (clip-hook.js H2); with none it stands as it always has. */
+        const falls = !isHero(ev.t) || !!hook.fallAt(spriteOf(ev.t), 0, { dir: 's', diag: null });
+        if (falls && dead.has(ev.t)) return true;
+        if (falls) dead.set(ev.t, start);
         if (!isHero(ev.t)) {
-          dead.set(ev.t, start);
           const loot = ev.loot && typeof ev.loot === 'object' ? Object.entries(ev.loot) : [];
           if (loot.length) {
             addFx(LOOT_FX.fx, start, fixed(ev.t, start) || at(ev.t), LOOT_FX.lift, undefined, ev.t);
@@ -305,6 +311,7 @@ export function createHuntScene(o) {
           }
         }
         break;
+      }
       case 'xp_group': {
         const v = read.viewed;
         const mine = ev.by && v !== null && Number.isFinite(ev.by[v]) ? ev.by[v] : ev.amount;
@@ -362,10 +369,12 @@ export function createHuntScene(o) {
     const m = read.heroes.get(u);
     const sp = book.sprite(id);
     const clips = sp.anims || {};
-    /* Facing: the way it walks; standing, toward what it last swung at; else its last heading. */
+    /* Facing: the way it walks; standing, toward the blow it is winding up or swinging, else what it last acted on (no
+       turning back between swings); else its last heading. */
     let hx = p.hx, hy = p.hy;
-    const s = swing.get(u);
-    if (!p.moving && s && now - s.at >= 0) {   // standing, it keeps facing what it last swung at (no turning back between swings)
+    const act = p.moving ? null : hook.swingAt(u, id, now);
+    const s = act || hook.last(u);
+    if (!p.moving && s && (act || now - s.at >= 0)) {
       const q = tl.positionAt(s.t, now);
       if (q && (q.x !== p.x || q.y !== p.y)) { hx = q.x - p.x; hy = q.y - p.y; }
     }
@@ -387,10 +396,12 @@ export function createHuntScene(o) {
              dead frame. A step the timeline holds past the death (a walk the live engine draws rolling on from the
              last one, a restart dropping the steps after its instant) never moves it (Andy a16, v0.2.33: a corpse
              glided 1.5 tiles after the kill). */
-          if (!lie.has(u)) { const at = tl.positionAt(u, died) || p; lie.set(u, { dir, diag, x: at.x, y: at.y }); }
-          ({ dir, diag, x, y } = lie.get(u));
-          /* VW-05: the sprite's own death clip, then its corpse frame; only art without them greys. */
-          corpse = corpseFrame(id, clips, dir, age);
+          if (!lie.has(u)) { const at = tl.positionAt(u, died) || p; lie.set(u, { dir, diag, hx, hy, x: at.x, y: at.y }); }
+          const fell = lie.get(u);
+          ({ x, y } = fell);
+          /* VW-05: the sprite's own death clip in the nearest facing it has, then its corpse frame; only art without them greys. */
+          corpse = hook.fallAt(id, age, fell);
+          if (corpse) ({ dir, diag } = corpse); else ({ dir, diag } = fell);
           if (!corpse) grey = Math.min(1, age / SCENE_TIMING.deathFadeMs);
           alpha = (1 - 0.45 * grey) * Math.min(1, (SCENE_TIMING.corpseMs - age) / SCENE_TIMING.corpseFadeMs);
         }
@@ -399,12 +410,14 @@ export function createHuntScene(o) {
     const walk = clips.walk;
     const moving = p.moving && !under && !!walk;
     /* VW-11: the walk frame advances with distance walked, at the clip's fps when moving at the playback speed. */
-    const frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : idleFrame(clips.idle, now, u);
-    const anim = corpse ? corpse.anim : moving ? 'walk' : clips.idle ? 'idle' : walk ? 'walk' : 'idle';
-    const r = recoil.get(u);
+    let frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : idleFrame(clips.idle, now, u);
+    let anim = corpse ? corpse.anim : moving ? 'walk' : clips.idle ? 'idle' : walk ? 'walk' : 'idle';
+    /* A STANDING unit plays the one-shot its events give it (clip-hook.js): a swing, a flinch, or 1 art px of recoil. */
+    const shot = !under && !p.moving ? hook.clipAt(u, id, now, act, { dir, diag, hx, hy }) : null;
+    if (shot && shot.anim) ({ anim, frame, dir, diag } = shot);
     /** @type {Record<string, any>} */
     const out = { id, unit: u, x, y, anim, dir, diag, frame, alpha, grey, under, dye: dyeOf(u) };
-    if (!under && r && now >= r.at && now - r.at < SCENE_TIMING.recoilMs) out.recoil = [r.dx, r.dy];
+    if (shot && shot.recoil) out.recoil = shot.recoil;
     if (!under) {
       /* Every bar is the HP AT THE INSTANT SHOWN (timeline.js T6: heroes too, so it moves live), the snapshot's only as a fallback. */
       const played = typeof tl.hpAt !== 'function' ? null : tl.hpAt(u, now);
@@ -435,18 +448,6 @@ export function createHuntScene(o) {
     return out;
   }
 
-  /* VW-05: a corpse `age` ms old plays its sprite's death clip once, then lies as its corpse frame;
-     null when the art has neither (it greys instead). */
-  function corpseFrame(id, clips, dir, age) {
-    const d = clips.death;
-    if (d && d.fps) {
-      const n = book.frames(id, 'death', dir);
-      const i = Math.floor((age * d.fps) / 1000);
-      if (i < n || !clips.corpse) return { anim: 'death', frame: Math.min(i, n - 1) };
-    }
-    return clips.corpse ? { anim: 'corpse', frame: 0 } : null;
-  }
-
   /* THE LEVEL-UP MOMENT (designer 2026-10-22: Levels 2 to 5 changed one number in the medallion and
      nothing else). When the SERVER's Level for the viewed hero rises, "Level N" rises over the hero, in
      the Level XP gold, bigger and slower than a "+XP". The first Level seen is the baseline, so a mount,
@@ -473,10 +474,12 @@ export function createHuntScene(o) {
     const units = [];
     const ids = tl.units();
     /* S4: per-unit state never outlives the unit's track (a long hunt respawns thousands). */
-    if (perUnit.reduce((n, m) => n + m.size, 0) > PRUNE_AT) {
+    if (perUnit.reduce((n, m) => n + m.size, 0) + hook.size() > PRUNE_AT) {
       const live = new Set(ids);
       for (const m of perUnit) for (const k of m.keys()) if (!live.has(k)) m.delete(k);
+      for (const k of hook.keys()) if (!live.has(k)) hook.forget(k);
     }
+    hook.look(now);
     /* S9: what the snapshot holds dead at an instant on screen is dead here; it falls only if the last frame (still
        current) drew it standing. */
     const server = typeof tl.serverNowAt === 'function' ? tl.serverNowAt(now) : null;
@@ -490,7 +493,7 @@ export function createHuntScene(o) {
       if (!d) {
         /* S8: a corpse that has lain its time is finished: forgotten here and by the timeline */
         const died = dead.get(u);
-        if (died !== undefined && now - died >= SCENE_TIMING.corpseMs && tl.forget(u, now)) for (const m of perUnit) m.delete(u);
+        if (died !== undefined && now - died >= SCENE_TIMING.corpseMs && tl.forget(u, now)) { for (const m of perUnit) m.delete(u); hook.forget(u); }
         continue;
       }
       if (!d.under) standing.add(u);
@@ -546,7 +549,7 @@ export function createHuntScene(o) {
       const t = Number.isFinite(now) ? now : null;
       for (const u of alive) {
         if (!dead.has(u)) continue;
-        dead.delete(u); recoil.delete(u); lie.delete(u);
+        dead.delete(u); hook.stand(u); lie.delete(u);
         if (t !== null) risen.set(u, t);
       }
       if (t === null) return;

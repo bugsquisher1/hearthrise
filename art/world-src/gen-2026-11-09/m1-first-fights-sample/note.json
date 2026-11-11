@@ -1,0 +1,18 @@
+{
+  "asset": "brief 11 line 1 M1 SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/11-next-batch.txt",
+  "status": "SAMPLE for the art director's one-pass read; the line's batch waits for it. Not imported",
+  "made": "2026-11-08",
+  "generations": 18,
+  "made_how": "rat attack S r1 (group 46d6f41c-9551-49a8-9092-aefa9ce0d78e, \"lunges forward low and bites, then returns to its stance, feet planted, nothing else appears in the frame\") and r2 (group 3207212b, \"lunges forward low toward the viewer and bites, its head and front paws come forward and down, ...\"); rat attack E r1; slime attack S r1 (group d6efc7b7, \"rears up and slaps forward with its whole body, then returns ...\") and r2 (group 48edc340, \"... settles back into its shape, its base stays flat on the floor, the same colours throughout ...\"); rat death S with end pose; cistern_spider death S with end pose; rat death S plain (group 4dcdfacc)",
+  "end_poses": "edit_image_pro_flash on each S rotation, \"the same creature lying dead on the ground, on its back, legs curled up\" (rat job d6186758, spider job b95263f8, 5 gens each). The interpolation could not go through animate_object end_frame_base64 (the inline base64 corrupted in the call), so it ran as animate_image first_frame = the S rotation upload, last_frame = the pose upload, frame_count 6 (rat job 8758f2f2, spider job 8b4fb5bc): 7 stored frames, frame 0 the rotation, frame 6 the pose. The batch can keep this route (same pixels in and out, no object needed)",
+  "layout": "<creature>/<roll>/<clip>/south|east/0..N.png; <creature>/<facing>.png the rotation. m1atk = r1, m1atk2 = r2, m1deathpose, m1deathplain",
+  "findings": [
+    "THE PLAIN DEATH FAILS: rat death S without an end pose never falls (it sits and dims its eyes, 6 frames). With the pose it rolls onto its back and lands the pose (reads dead at x2). The 41 edits are needed: they stay in the line",
+    "cistern_spider death S with its pose: spins and lands on its back, legs curled (reads dead)",
+    "rat attack S: r1 barely moves (a 1 px head dip, the same weakness as the derived clip); r2 rears the head up instead of lunging toward the viewer. A south-facing lunge toward the camera is the hard facing: the art director may want an end pose for S attacks too, or accept the dip",
+    "rat attack E r1: a clear 2 px lunge with the head down at frame 3, no effect",
+    "slime attack S: r1 grew legs and stood up (\"feet planted\"), r2 stretched into a tall ghost shape with sweat specks at frames 1-2. Neither is clean: the slime needs the B3 slime wording (no feet) plus a squash-forward pose, or an end-pose interpolation"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/m1-first-fights-sample.png (blue-barred rows first = shipped references: drain_rat drawn attack S, drain_rat drawn death S, the derived rat attack S, the derived rat death S; then rat attack S r1, rat attack S r2, rat attack E, slime attack S r1, slime attack S r2, rat death S (pose), rat death S plain, spider death S (pose))"
+}

@@ -142,7 +142,7 @@ export function refusalText(r, cs) {
   /* "That many" of WHAT (blind playtest 2026-10-31): the item the server's refusal named. */
   if (r && (r.error === 'insufficient_item' || r.error === 'bag_short') && r.item && own(ITEMS, r.item)) return 'You no longer have that many ' + ITEMS[r.item].n + '.';
   /* The locked stack that stopped a bulk deposit (hr_bank_move_many names it): "Wolf Pelt is locked. Unlock it first." */
-  if (r && r.error === 'item_locked' && r.item && own(ITEMS, r.item)) return t('bag.stack_locked', { item: ITEMS[r.item].n });
+  if (r && r.error === 'item_locked' && r.item && own(ITEMS, r.item)) return t('item.locked_unlock_first', { item: ITEMS[r.item].n });
   return refusalWords(r && r.error, r && r.verb);
 }
 

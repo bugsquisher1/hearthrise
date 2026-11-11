@@ -199,12 +199,12 @@ export const REASONS = Object.freeze({
   ],
   'src/shell/windows/market/browse.js': [
     { cond: '!plan.qty', words: "'You need ' + goldWords(-left) + ' more.'", where: 'Buy: the line under it says what the purse is short of, and data-off-why says it on a press; with nothing to buy the page says none are for sale' },
-    { cond: 'v.off || !!g', words: "No answer from the Weighhouse. Press again", where: 'while a lost answer is out, only Try again and Forget it stay on; the window\'s line says why' },
+    { cond: 'v.off || !!g', words: "No answer from the Weighhouse. Press again", where: 'while a lost answer is out, only Try again and Cancel stay on; the window\'s line says why' },
   ],
   'src/shell/windows/market/sell.js': [
     { cond: 'sug === null', words: "!s ? '…'", where: 'Suggested: off only until the server has said the item\'s floor and ceiling; the facts read … until then' },
     { cond: '!s || !!why || !!shortFee', words: "text(foot.querySelector('.hw-mk-why'), why || shortFee || f.msg);", where: 'List: its own line says the reason (locked, how many, under the shop, over the most, short of the fee)' },
-    { cond: 'v.off || !!g', words: "No answer from the Weighhouse. Press again", where: 'while a lost answer is out, only Try again and Forget it stay on; the window\'s line says why' },
+    { cond: 'v.off || !!g', words: "No answer from the Weighhouse. Press again", where: 'while a lost answer is out, only Try again and Cancel stay on; the window\'s line says why' },
   ],
   'src/shell/windows/inventory/actions.js': [
     { cond: 'on && !sc.pending', words: "'<small class=\"hw-mi-why\" data-why=\"'", where: 'every item-menu entry that is off: its own line under it (Cook all, Equip, Sell, Lock, Put on the bar, Link in chat)' },
@@ -276,7 +276,7 @@ export const REASONS = Object.freeze({
     { cond: 'can.entry.off', words: 'text(inv, can ? can.entry.label', where: 'the phone\'s Invite: an off entry reads its reason as its label ("Party full")' },
   ],
   'src/shell/windows/character/outfit.js': [
-    { cond: '!owned || (o.worn || null) === d.outfit', words: "'Premium · not owned'", where: 'the outfit tile says not owned; Wear needs another outfit' },
+    { cond: '!owned || (o.worn || null) === d.outfit', words: "'Premium · not owned'", where: 'the outfit tile says not owned; Equip needs another outfit' },
     { cond: '!offer', words: "cls(save, 'is-on', offer)", where: 'with nothing to pay for the button isn\'t shown at all, and the line above the picker says what this outfit shows or why it has no colors' },
     { cond: 'short > 0', words: "text(root.querySelector('.hw-of-why'), short ? 'You need ' + gold(short) + ' more.' : '')", where: 'Save colors over the envelope\'s purse: the line under it says how much more, and data-off-why on a press' },
   ],

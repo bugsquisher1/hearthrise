@@ -1247,7 +1247,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await drag(0, 2);
         const menu = await page.evaluate(() => ({ on: document.querySelector('.hb-drop').classList.contains('is-on'), title: document.querySelector('.hb-drop-t').textContent,
           swap: document.querySelector('.hb-drop [data-x="swap"]').textContent, insert: document.querySelector('.hb-drop [data-x="insert"]').textContent }));
-        if (!menu.on || menu.title !== 'Power Strike' || menu.swap !== 'Swap with Wheat Bread' || menu.insert !== 'Insert here (shift the rest)') fails.push('HS-19 the drop menu reads ' + JSON.stringify(menu));
+        if (!menu.on || menu.title !== 'Power Strike' || menu.swap !== 'Swap with Wheat Bread' || menu.insert !== 'Insert here') fails.push('HS-19 the drop menu reads ' + JSON.stringify(menu));
         await page.keyboard.press('Escape');
         await page.waitForTimeout(400);
         if (await menuOn() || sent().length !== 1) fails.push('HS-19 Escape did not cancel the drop (menu or an intent left)');
@@ -1915,9 +1915,9 @@ const MUTANTS = [
   ['the store price is not shown in the Food run (HS-8)', 'src/shell/action-table.js', '  const price = srv ? srv.price : null;', '  const price = null;'],
   ['the tier press sends no intent', 'src/shell/windows/hunts.js', '    try { r = await cs.setHuntTier(d.hunt, d.tier); } catch (e) { r = null; }', '    try { r = { ok: true }; } catch (e) { r = null; }'],
   ['one tier pick shows on every ground', 'src/shell/windows/hunts.js', '  return g && tiersOf(g.id).includes(picks[hunt]) ? picks[hunt] : DEFAULT_TIER;', '  const any = Object.values(picks)[0]; return g && tiersOf(g.id).includes(any) ? any : DEFAULT_TIER;'],
-  ['a ground\'s draft shows on every ground', 'src/shell/windows/hunts.js', '  return t && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : t;', '  return t && sc.draft ? sc.draft.tier : t;'],
+  ['a ground\'s draft shows on every ground', 'src/shell/windows/hunts.js', '  return tier && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : tier;', '  return tier && sc.draft ? sc.draft.tier : tier;'],
   ['every tier press sends its own intent', 'src/shell/windows/hunts.js', '      sc.timer = setTimeout(() => saveTier(cs, sc, repaint), TIER_SAVE_MS);', '      saveTier(cs, sc, repaint);'],
-  ['the tier waits for the server before it moves', 'src/shell/windows/hunts.js', '  return t && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : t;', '  return t;'],
+  ['the tier waits for the server before it moves', 'src/shell/windows/hunts.js', '  return tier && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : tier;', '  return tier;'],
   ['the tier draft outlives the server answer', 'src/shell/windows/hunts.js', '    if (sc.draft === d) { sc.draft = null;', '    if (sc.draft === d) { sc.draft = r.ok ? d : null;'],
   ['the facts line ignores the tier', 'src/shell/windows/hunts.js', "packWords(r, tier ? tierPull(r, tier, size) : null)", "packWords(r, null)"],
   /* Tyler 2026-11-08: the tier note is the plain line for its tier, no numbers (HS-8). */

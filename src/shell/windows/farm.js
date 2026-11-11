@@ -84,7 +84,7 @@ export function renderFarm() {
     + '<p class="hh-empty hw-farm-wait">' + esc(t('farm.loading')) + '</p>'
     + '<section class="hw-sow"><h3 class="hw-ledger-head is-on hw-sow-head"></h3><ul class="hw-ledger hw-seeds"></ul>'
     + '<p class="hs-note hw-sow-none"></p><div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="shop">' + esc(t('farm.open_shop')) + '</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="unpick">' + esc(t('farm.close')) + '</button></div></section>'
+    + '<button type="button" class="hh-tool" data-hs-act="unpick">' + esc(t('controls.close')) + '</button></div></section>'
     + '<h3 class="hw-ledger-head is-on">' + esc(t('farm.tier_head')) + '</h3><p class="hs-note hw-tier"></p>'
     + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="upgrade"></button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';

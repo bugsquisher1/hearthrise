@@ -58,15 +58,15 @@ const bagSeenOf = (cs, bag) => residueOf(cs).bagSeen || Object.fromEntries(bag.m
 export function renderStorage(ctx) {
   const g = ctx.glyphs;
   return '<div class="hw-store">'
-    + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="search" placeholder="Find an item" aria-label="Find an item" autocomplete="off"></span>'
-    + '<label class="hw-sort"><span>Sort</span><select class="hh-select" data-hs-act="sort">' + BAG_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div>'
+    + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="search" placeholder="Search items" aria-label="Search items" autocomplete="off"></span>'
+    + '<label class="hw-sort"><span>' + t('controls.sort') + '</span><select class="hh-select" data-hs-act="sort">' + BAG_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div>'
     + '<div class="hw-cats" role="group" aria-label="Show">' + BAG_CATS.map(([id, l]) => '<button type="button" class="hw-cat" data-hs-act="cat" data-cat="' + id + '" aria-pressed="false">' + esc(l) + '</button>').join('') + '</div>'
     + '<p class="hs-note hw-store-note"></p>'
     + '<h3 class="hw-ledger-head is-on">In storage <small class="hw-store-n" data-n="bank"></small></h3>'
     + '<ul class="hw-pockets" data-side="bank" role="listbox" aria-label="In storage"></ul><p class="hh-empty hw-store-none" data-none="bank"></p>'
     + '<p class="hs-note hw-store-room"></p>'
     + '<h3 class="hw-ledger-head is-on">In your bag <small class="hw-store-n" data-n="bag"></small></h3>'
-    + '<div class="hw-tools hw-store-do"><button type="button" class="hh-tool" data-hs-act="dispatch">Dispatch loot</button><p class="hw-why"></p></div>'
+    + '<div class="hw-tools hw-store-do"><button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button><p class="hw-why"></p></div>'
     + '<ul class="hw-pockets" data-side="bag" role="listbox" aria-label="In your bag"></ul><p class="hh-empty hw-store-none" data-none="bag"></p>'
     /* The press's answer: "Putting it away…", then the result or the refusal. At the foot, it stands in view however the window is scrolled
        (windows.css, sticky), and its coming moves no stack from under the hand. Above the grids, a bag scrolled into reach left it out of sight, and a
@@ -158,10 +158,10 @@ function move(cs, sc, repaint, id, qty, dir) {
     () => (dir === 'withdraw' ? 'Took out ' : 'Put away ') + whole(qty) + ' ' + itemName(id) + '.' + (slower ? ' ' + slower : ''));
 }
 
-/* "How many?" beside the stack: Store X / Take X, up to the stack the server last sent. */
+/* "How many?" beside the stack: Deposit X / Withdraw X, up to the stack the server last sent. */
 function askAmount(ctx, body, cs, sc, repaint, row, dir, at) {
   hideTip(ctx.doc);
-  const verb = dir === 'withdraw' ? 'Take' : 'Store';
+  const verb = dir === 'withdraw' ? t('controls.withdraw') : t('controls.deposit');
   openFloatMenu(ctx.doc, amountHtml({ title: verb + ' how many ' + itemName(row.id) + '?', verb, max: row.qty, value: row.qty, act: 'amt-go' }), at, {
     label: verb + ' how many',
     onAct: (action) => {

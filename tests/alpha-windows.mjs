@@ -180,7 +180,7 @@
 //         the confirmation's Sell, and the confirmation is in view inside the window (it sat under a long list); no
 //         Services icon, and R opens the Shop on its Services tab (stamina and Blessings), closed or open
 //   AW-32 DISPATCH LOOT (Tyler 2026-10-25, 2027-01-23-loot-dispatch.sql): mid-hunt the Bag's Dispatch loot is off with
-//         "out hunting" in view; in town the item menu offers the loot plan (Keep in bag pressed, Deposit in storage,
+//         "out hunting" in view; in town the item menu offers the loot plan (Keep pressed, Deposit,
 //         Sell) and the pickup filter (Don't pick up); Deposit is ONE hr_loot_rule_set {slot, item, rule, key}; the
 //         starting kit's Sell is off (Deposit on); Dispatch loot is ONE hr_loot_dispatch {slot, key}, off in flight,
 //         its line the server's answer ("Stored 1 stack, sold 2 stacks for 246 gp. 1 stack locked, so kept."), the bag and
@@ -609,7 +609,7 @@ async function selectRules(base) {
   if (lock.join() !== 'Unlock,Lock,Lock,Lock') fails.push('AW-77 the lock tool reads ' + lock.join());
   /* the help line names the keys read above, and is the line the grid shows */
   const keys = t('bag.keys');
-  for (const k of ['Ctrl+A select all or none', 'Esc clear', 'Shift+click', 'Shift+arrows', 'Ctrl+click']) if (!keys.includes(k)) fails.push('AW-77 the help line leaves out "' + k + '": ' + keys);
+  for (const k of ['Ctrl+A select all, again deselect all', 'Esc clear', 'Shift+click', 'Shift+arrows', 'Ctrl+click']) if (!keys.includes(k)) fails.push('AW-77 the help line leaves out "' + k + '": ' + keys);
   if (!/KEYS = t\('bag\.keys'\)/.test(readFileSync(join(base, 'src/shell/windows/inventory/grid.js'), 'utf8'))) fails.push('AW-77 the grid shows a help line of its own, not bag.keys');
   return fails;
 }
@@ -2233,7 +2233,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             rules: Array.from(document.querySelectorAll('.hw-menu [data-hs-act="m-rule"]')).map((b) => [b.getAttribute('data-rule'), b.textContent, b.getAttribute('aria-pressed'), b.disabled]) }));
         };
         const m = await menuOf('wolf_pelt');
-        const want = [['keep', 'Keep in bag', 'true', false], ['deposit', 'Deposit in storage', 'false', false], ['sell', 'Sell', 'false', false], ['ignore', 'Don\'t pick up', 'false', false]];
+        const want = [['keep', 'Keep', 'true', false], ['deposit', 'Deposit', 'false', false], ['sell', 'Sell', 'false', false], ['ignore', 'Don\'t pick up', 'false', false]];
         if (JSON.stringify(m.rules) !== JSON.stringify(want) || !m.subs.includes('Loot plan') || !m.subs.includes('On pickup')) fails.push('AW-32 the item menu offers ' + JSON.stringify(m));
         if (shots) await shot(page, 'dispatch-1440x900-item-menu');
         s.onCall = (name, body) => {
@@ -2247,7 +2247,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(600);
         const rs = sent(s, 'hr_loot_rule_set');
         if (rs.length !== 1 || rs[0].body.p_item !== 'wolf_pelt' || rs[0].body.p_rule !== 'deposit' || Object.keys(rs[0].body).sort().join() !== 'p_idem,p_item,p_rule,p_slot') {
-          fails.push('AW-32 Deposit in storage sent ' + JSON.stringify(rs.map((c) => c.body)));
+          fails.push('AW-32 Deposit sent ' + JSON.stringify(rs.map((c) => c.body)));
         }
         /* the starting kit may be deposited but takes no Sell plan (the server's start_kit), said before the press */
         const k = await menuOf('cooked_shrimp');
@@ -3949,8 +3949,8 @@ const MUTANTS = [
   ['select: Shift only ever adds (a range never shrinks)', 'src/shell/windows/inventory/selection.js', '  const next = new Set(o && o.ctrl && sc.base ? sc.base : []);', '  const next = new Set(sc.sel);'],
   ['select: the line leaves out the value', 'src/shell/windows/inventory/selection.js', "  if (!bids) return t('bag.selected', { count: n });", "  return t('bag.selected', { count: n });"],
   ['select: the line counts a stack the bag no longer holds', 'src/shell/windows/inventory/selection.js', '  return Array.from(sc.sel).filter((id) => have.has(id));', '  return Array.from(sc.sel);'],
-  ['select: Lock reads Lock over a locked selection', 'src/shell/windows/inventory/selection.js', "  return ids.length && locked && ids.every((id) => locked.has(id)) ? t('bag.unlock') : t('bag.lock');", "  return t('bag.lock');"],
-  ['select: the help line forgets the keys', 'src/data/text/bag.js', ' · Ctrl+A select all or none · Esc clear', ' · Ctrl+A select all'],
+  ['select: Lock reads Lock over a locked selection', 'src/shell/windows/inventory/selection.js', "  return ids.length && locked && ids.every((id) => locked.has(id)) ? t('controls.unlock') : t('controls.lock');", "  return t('controls.lock');"],
+  ['select: the help line forgets the keys', 'src/data/text/bag.js', ' · Ctrl+A select all, again deselect all · Esc clear', ' · Ctrl+A select all'],
   ['select: a refused bulk press clears the selection', 'src/shell/windows/inventory/selection.js', '  if (went) clearSelection(sc);', '  clearSelection(sc);'],
   ['select: Deposit puts stacks away one at a time again', 'src/shell/windows/inventory/actions.js', "  bulk(st, repaint, () => moveStorageMany(st.account, st.cs, ids, 'deposit'), t('bag.putting_away'), 'bag.put_away');",
     "  bulk(st, repaint, () => ids.reduce((p, id) => p.then(() => st.cs.moveStorage(id, st.qty.get(id), 'deposit')), Promise.resolve({ ok: true })), t('bag.putting_away'), 'bag.put_away');"],
@@ -3978,7 +3978,7 @@ const MUTANTS = [
   ['item truth: no-book-value says nothing', 'src/shell/item-lore.js', "if (!(Number(it.v) > 0) || it.bop) return t('item.own_use')", "if (false) return t('item.own_use')"],
   ['item truth: a kit item says the Weighhouse lists it', 'src/shell/item-lore.js', "return isStartKit(id) ? t('item.kit_unlisted')", "return false ? t('item.kit_unlisted')"],
   ['item truth: the Weighhouse has one vague reason', 'src/shell/market-words.js', "(Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.')", "'.'"],
-  ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !t.weight ? (suggest ? suggest.words : NO_WEIGHT_WHY) : t.held.length >= t.heldMax ? FULL_WHY : '';", "  return '';"],
+  ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !tally.weight ? (suggest ? suggest.words : NO_WEIGHT_WHY) : tally.held.length >= tally.heldMax ? FULL_WHY : '';", "  return '';"],
   ['item truth: panel: Fuel all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';\n", ''],
   ['item truth: panel: the sale hides its rares', 'src/shell/item-lore.js', "rare.length ? t('item.sells_rares', { items: listWords(rare) }) : ''", "''"],
   ['item truth: panel: a slot on sale beside an empty one', 'src/app/slot-offer.js', "if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "if (!offer || !purse || actor === null) return '';"],
@@ -4231,12 +4231,12 @@ const COMPANION = { 'the doll wears the item before the server confirms': ['src/
     `    /* the confirmation beside the press, never under the list (the coach rings its Sell: data-coach-hook) */
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes" data-coach-hook="sell-confirm"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">Cancel</button></div></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">' + t('controls.cancel') + '</button></div></div>'
     + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing in your bag that the shop buys.</p></section>'`,
     `    + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing in your bag that the shop buys.</p>'
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes" data-coach-hook="sell-confirm"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">Cancel</button></div></div></section>'`] };
+    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">' + t('controls.cancel') + '</button></div></div></section>'`] };
 
 async function main() {
   const at = process.argv.indexOf('--shots');

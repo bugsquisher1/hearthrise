@@ -12,18 +12,11 @@ export const BAG_TEXT = Object.freeze({
   selected: '{count} selected',
   selected_worth: '{count} selected · value {worth}',
   selected_worth_unpriced: '{count} selected · value {worth} ({unpriced} with no shop price)',
-  /* The bulk tools beside it. */
-  sell: 'Sell',
-  deposit: 'Deposit',
-  lock: 'Lock',
-  unlock: 'Unlock',
-  clear: 'Clear',
+  /* (The bulk tools beside it say the glossary's words: controls.sell_selected, deposit, lock / unlock, clear.) */
   /* Deposit: ONE storage move of every selected stack, whole (all or nothing); the count is the server's. */
   putting_away: 'Putting them away…',
   put_away: { one: 'Put away {count} stack.', other: 'Put away {count} stacks.' },
   storage_away: 'Your storage is at home and your hero is out hunting. Leave the hunt to use it.',
-  /* The locked stack that stopped a bulk deposit (hr_bank_move_many names it; src/shell/intent-words.js refusalText). */
-  stack_locked: '{item} is locked. Unlock it first.',
   /* Lock and Unlock: ONE lock of every selected stack (all or nothing). */
   locking: 'Locking…',
   unlocking: 'Unlocking…',
@@ -31,5 +24,5 @@ export const BAG_TEXT = Object.freeze({
   unlocked_n: { one: 'Unlocked {count} stack.', other: 'Unlocked {count} stacks.' },
   locks_reading: 'Reading your locks…',
   /* The key help line under the grid. */
-  keys: '/ search · arrows move · Enter use · Space or Ctrl+click select · Shift+click or Shift+arrows select a range · Ctrl+A select all or none · Esc clear · Delete sell · L lock',
+  keys: '/ search · arrows move · Enter use · Space or Ctrl+click select · Shift+click or Shift+arrows select a range · Ctrl+A select all, again deselect all · Esc clear · Delete sell · L lock',
 });

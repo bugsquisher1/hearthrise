@@ -111,5 +111,5 @@ export function selectionWords(ids, items, bids) {
 
 /** The Lock tool's word: Unlock over a selection that is locked through, else Lock. */
 export function lockLabel(ids, locked) {
-  return ids.length && locked && ids.every((id) => locked.has(id)) ? t('bag.unlock') : t('bag.lock');
+  return ids.length && locked && ids.every((id) => locked.has(id)) ? t('controls.unlock') : t('controls.lock');
 }

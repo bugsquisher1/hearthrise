@@ -9,7 +9,7 @@
 // Take grey until a paragraph was read, with no advice): the weight the hero wears most,
 // else its role's. The line over the board says which, with a press to the picker.
 //   Take        ONE hr_tally_accept (in town only; a first Take names the weight)
-//   Give up     ONE hr_tally_drop (the count is lost; said on the button's line)
+//   Abandon     ONE hr_tally_drop (the count is lost; said on the button's line)
 //   Keep        ONE hr_tally_set { task, keep }: taken again the moment it pays
 //   Weight      ONE hr_tally_set { weight }; Move up ONE hr_tally_set { order }
 //   Being paid  automatic in the settle that brings the hero home; when the window
@@ -33,6 +33,7 @@ import { whole, gold } from '../../render/format.js?v=0.2.122';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.122';
 import { itemName } from '../widgets/bits.js?v=0.2.122';
 import { runIntent, refusalText } from '../intent-words.js?v=0.2.122';
+import { t } from '../../render/player-text.js?v=0.2.122';
 
 const SCRATCH = new WeakMap();
 /* `board` is her last answer (null until it comes), `asking` the read in flight, `stale` asks again,
@@ -44,9 +45,9 @@ const scratchOf = (cs) => {
 };
 const WEIGHT_WORDS = Object.freeze({ heavy: 'Heavy', medium: 'Medium', light: 'Light' });
 const SLOT_WORDS = Object.freeze({ helmet: 'Head', body: 'Body', pants: 'Legs', boots: 'Feet', gloves: 'Hands', belt: 'Waist' });
-const labelOf = (task) => { const t = tallyTask(task); return t ? t.label.charAt(0).toUpperCase() + t.label.slice(1) : task; };
+const labelOf = (task) => { const row = tallyTask(task); return row ? row.label.charAt(0).toUpperCase() + row.label.slice(1) : task; };
 /* "120 Giant Rats"; one named creature reads "The Rat King, 5 times". */
-const titleOf = (task, n) => { const t = tallyTask(task); return t && /^the /.test(t.label) ? labelOf(task) + ', ' + whole(n) + ' times' : whole(n) + ' ' + labelOf(task); };
+const titleOf = (task, n) => { const row = tallyTask(task); return row && /^the /.test(row.label) ? labelOf(task) + ', ' + whole(n) + ' times' : whole(n) + ' ' + labelOf(task); };
 
 /* "480 gp + a Bronze Platebody": her answer's line for a task, what the server pays if it were paid now. */
 const payWords = (r) => gold(r.gold) + (r.pick ? ' + ' + pickWords(r.pick, itemName) : '');
@@ -74,9 +75,9 @@ export function suggestedWeight(worn, role) {
 }
 
 /** The line over her board, or '': what holds every Take off, or what a first Take will ask for (`suggest`: suggestedWeight). A row's own Held says its own; hunting has its own line. Pure. */
-export function takeWhyOf(t, hunting, suggest) {
-  if (!t || hunting) return '';
-  return !t.weight ? (suggest ? suggest.words : NO_WEIGHT_WHY) : t.held.length >= t.heldMax ? FULL_WHY : '';
+export function takeWhyOf(tally, hunting, suggest) {
+  if (!tally || hunting) return '';
+  return !tally.weight ? (suggest ? suggest.words : NO_WEIGHT_WHY) : tally.held.length >= tally.heldMax ? FULL_WHY : '';
 }
 
 /** The skeleton (built once per opening): her board is asked for afresh. */
@@ -89,7 +90,7 @@ export function renderTally(ctx) {
     + '<h3 class="hw-ledger-head is-on">Your tasks</h3><ul class="hw-ledger ht-held"></ul>'
     + '<p class="hh-empty ht-none">You don\'t have a task from her yet. Take one from her board.</p>'
     + '<h3 class="hw-ledger-head is-on">Her board</h3><p class="hh-empty ht-wait">Loading her board…</p>'
-    + '<p class="hs-note ht-take-why"><span></span><button type="button" class="hh-tool" data-hs-act="to-weight" hidden>Pick a weight</button></p><ul class="hw-ledger ht-board"></ul>'
+    + '<p class="hs-note ht-take-why"><span></span><button type="button" class="hh-tool" data-hs-act="to-weight" hidden>' + t('controls.pick_weight') + '</button></p><ul class="hw-ledger ht-board"></ul>'
     + '<h3 class="hw-ledger-head is-on ht-pick-head">The armor she pays you in</h3>'
     + '<p class="hs-note ht-pick-note"></p>'
     + '<div class="ht-weights" role="group" aria-label="The armor weight she pays you in">'
@@ -104,12 +105,12 @@ function stickHtml() { return '<span class="ht-stick" role="meter" aria-valuemin
 function heldHtml(h) {
   return '<li class="hw-line ht-tally" data-task="' + esc(h.task) + '"><span class="hw-line-name"><b></b>' + stickHtml() + '<small></small></span>'
     + '<label class="ht-keep"><input type="checkbox" data-hs-act="keep" data-task="' + esc(h.task) + '"> Keep this task</label>'
-    + '<button type="button" class="hh-tool" data-hs-act="drop" data-task="' + esc(h.task) + '">Give up</button></li>';
+    + '<button type="button" class="hh-tool" data-hs-act="drop" data-task="' + esc(h.task) + '">' + t('controls.abandon') + '</button></li>';
 }
 
 function boardHtml(r) {
   return '<li class="hw-line ht-offer" data-task="' + esc(r.task) + '"><span class="hw-line-name"><b></b><small></small></span>'
-    + '<button type="button" class="hh-tool" data-hs-act="take" data-task="' + esc(r.task) + '">Take</button></li>';
+    + '<button type="button" class="hh-tool" data-hs-act="take" data-task="' + esc(r.task) + '">' + t('controls.take') + '</button></li>';
 }
 
 function patchHeld(li, h, st) {
@@ -128,9 +129,9 @@ function patchHeld(li, h, st) {
 }
 
 function patchOffer(li, r, st) {
-  const t = tallyTask(r.task);
+  const def = tallyTask(r.task);
   text(li.querySelector('b'), titleOf(r.task, r.target));
-  const where = huntName(r.hunt) + (r.bandMin ? ' (Level ' + r.bandMin + ' ground)' : '') + (t && t.party ? ', best with a party' : '');
+  const where = huntName(r.hunt) + (r.bandMin ? ' (Level ' + r.bandMin + ' ground)' : '') + (def && def.party ? ', best with a party' : '');
   const once = r.pick && st.shared.has(r.pick.item) ? ' (she gives it once, to the first of these she pays)' : '';
   text(li.querySelector('small'), where + ' · ' + payWords(r) + once);
   const btn = li.querySelector('button');
@@ -157,31 +158,31 @@ renderTally.patch = function patchTally(body, ctx) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const root = body.querySelector('.hw-tally');
-  const t = tallyOf(cs);
+  const tally = tallyOf(cs);
   const h = huntOf(cs);
   const board = sc.board ? sc.board.board : [];
-  const suggest = t && !t.weight ? suggestedWeight(equipmentOf(cs), (settingsOf(cs) || {}).role) : null;
-  const st = { t, sc, doc: ctx.doc, hunting: !!h && !h.ended, board, shared: sharedPieces(board), suggest };
+  const suggest = tally && !tally.weight ? suggestedWeight(equipmentOf(cs), (settingsOf(cs) || {}).role) : null;
+  const st = { t: tally, sc, doc: ctx.doc, hunting: !!h && !h.ended, board, shared: sharedPieces(board), suggest };
   cls(root, 'is-pending', sc.pending);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
   const purse = goldOf(cs);
   text(root.querySelector('.hw-gold'), purse === null ? '' : 'Your gold ' + gold(purse));
-  text(root.querySelector('.ht-today'), t ? 'Paid today: ' + t.paidToday + ' of ' + t.perDay : '');
-  rows(root.querySelector('.ht-held'), t ? t.held : [], { key: (x) => x.task, build: (x) => element(ctx.doc, heldHtml(x)), patch: (li, x) => patchHeld(li, x, st) });
-  cls(root.querySelector('.ht-none'), 'is-on', !!t && !t.held.length);
-  text(root.querySelector('.ht-pick-note'), !t ? '' : !t.weight ? (suggest ? suggest.words : 'Pick the armor weight she pays you in. You can change it later.') + ' ' + WEIGHT_ORDER.map(weightSentence).join(' ')
-    : 'Each task pays what its line says, its gold and the next ' + WEIGHT_WORDS[t.weight].toLowerCase() + ' armor piece from that ground she hasn\'t given you, in the slot order below. She skips a slot where you\'re already wearing that tier or better. Armor in your bag doesn\'t count. '
+  text(root.querySelector('.ht-today'), tally ? 'Paid today: ' + tally.paidToday + ' of ' + tally.perDay : '');
+  rows(root.querySelector('.ht-held'), tally ? tally.held : [], { key: (x) => x.task, build: (x) => element(ctx.doc, heldHtml(x)), patch: (li, x) => patchHeld(li, x, st) });
+  cls(root.querySelector('.ht-none'), 'is-on', !!tally && !tally.held.length);
+  text(root.querySelector('.ht-pick-note'), !tally ? '' : !tally.weight ? (suggest ? suggest.words : 'Pick the armor weight she pays you in. You can change it later.') + ' ' + WEIGHT_ORDER.map(weightSentence).join(' ')
+    : 'Each task pays what its line says, its gold and the next ' + WEIGHT_WORDS[tally.weight].toLowerCase() + ' armor piece from that ground she hasn\'t given you, in the slot order below. She skips a slot where you\'re already wearing that tier or better. Armor in your bag doesn\'t count. '
       + 'Where she has no piece left to give, she pays in crafting materials instead.');
   for (const b of root.querySelectorAll('[data-hs-act="weight"]')) {
-    attr(b, 'aria-pressed', String(!!t && t.weight === b.getAttribute('data-weight')));
-    prop(b, 'disabled', sc.pending || !t);
+    attr(b, 'aria-pressed', String(!!tally && tally.weight === b.getAttribute('data-weight')));
+    prop(b, 'disabled', sc.pending || !tally);
   }
   patchOrder(root, st);
   /* The line over her board: why every Take is off, where the eye goes after a grey button. */
-  const takeWhy = sc.board ? takeWhyOf(t, st.hunting, suggest) : '';
+  const takeWhy = sc.board ? takeWhyOf(tally, st.hunting, suggest) : '';
   cls(root.querySelector('.ht-take-why'), 'is-on', !!takeWhy);
   text(root.querySelector('.ht-take-why span'), takeWhy);
-  prop(root.querySelector('[data-hs-act="to-weight"]'), 'hidden', !takeWhy || !t || !!t.weight);
+  prop(root.querySelector('[data-hs-act="to-weight"]'), 'hidden', !takeWhy || !tally || !!tally.weight);
   rows(root.querySelector('.ht-board'), board, { key: (r) => r.task, build: (r) => element(ctx.doc, boardHtml(r)), patch: (li, r) => patchOffer(li, r, st) });
   /* Hunting, the line stands however much of her board is loaded: every Take is off for this reason (phone playtest 10-31). */
   cls(root.querySelector('.ht-wait'), 'is-on', !sc.board || st.hunting);
@@ -197,7 +198,7 @@ renderTally.patch = function patchTally(body, ctx) {
     });
   }
   /* VISITING HER IN TOWN: a done task due today is paid by her answer to ONE ask (the server decides what). */
-  const due = t && !st.hunting && t.paidToday < t.perDay ? t.held.filter((x) => x.done && x.wait !== 'bag_full') : [];
+  const due = tally && !st.hunting && tally.paidToday < tally.perDay ? tally.held.filter((x) => x.done && x.wait !== 'bag_full') : [];
   const key = due.map((x) => x.task + '@' + x.doneAt).join(',');
   if (due.length && sc.collected !== key && !sc.pending && ctx.account) {
     sc.collected = key;
@@ -206,16 +207,16 @@ renderTally.patch = function patchTally(body, ctx) {
   }
 };
 
-renderTally.act = function actTally(ctx, body, action, ev, t) {
+renderTally.act = function actTally(ctx, body, action, ev, el) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const tally = tallyOf(cs);
   if (!tally || sc.pending || !ctx.account) return false;
   const repaint = () => ctx.refresh('tally');
   const run = (send, busy, done) => runIntent(sc, repaint, send, busy, (r) => { sc.stale = true; return done(r); }, cs);
-  const task = t.getAttribute('data-task');
+  const task = el.getAttribute('data-task');
   if (action === 'keep' && ev.type === 'change') {
-    const on = !!t.checked;
+    const on = !!el.checked;
     run(() => setTally(ctx.account, cs, { task, keep: on }), 'Saving…', () => (on ? 'You get this task again as soon as she pays for it.' : 'Once she pays for it, it won\'t come back by itself.'));
     return true;
   }
@@ -230,12 +231,12 @@ renderTally.act = function actTally(ctx, body, action, ev, t) {
   }
   if (action === 'drop') { run(() => dropTask(ctx.account, cs, task), 'Giving it up…', () => labelOf(task) + ': given up. Its count is gone.'); return true; }
   if (action === 'weight') {
-    const w = t.getAttribute('data-weight');
+    const w = el.getAttribute('data-weight');
     run(() => setTally(ctx.account, cs, { weight: w }), 'Saving…', () => 'She\'ll pay you in ' + WEIGHT_WORDS[w].toLowerCase() + ' armor from now on.');
     return true;
   }
   if (action === 'earlier') {
-    const s = t.getAttribute('data-slot-name');
+    const s = el.getAttribute('data-slot-name');
     const order = tally.order.slice();
     const i = order.indexOf(s);
     if (i <= 0) return true;

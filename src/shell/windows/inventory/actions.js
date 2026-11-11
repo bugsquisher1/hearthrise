@@ -157,7 +157,7 @@ function doPrimary(st, id, repaint) {
     send(st, repaint, () => assignToBar(cs, id), 'Putting it on the bar…');
   } else if (buryRecipeOf(id)) doBury(st, id, repaint);
   else if (namedFuelOf(id)) doNamed(st, id, repaint);
-  else askSell(st, [id], 'Sell', repaint);
+  else askSell(st, [id], t('controls.sell'), repaint);
 }
 
 /* Bury or cook the whole stack (bury.js): refused here only for what the screen already knows (a hunt, the level, one running). */
@@ -259,7 +259,7 @@ function openMenu(ctx, body, st, id, at, repaint) {
     + (!on && why ? '<small class="hw-mi-why" data-why="' + act + '">' + esc(why) + '</small>' : '');
   let h = '<b class="hw-menu-title">' + esc(itemName(id)) + '</b>';
   const block = k === 'gear' ? wearBlock(st.cs, id) || (equipSlotFor(id, st.eq) ? '' : itemName(id) + ' does not go in any slot.') : '';
-  if (k === 'gear') h += item('m-equip', 'Equip', !block, '', block);
+  if (k === 'gear') h += item('m-equip', t('controls.equip'), !block, '', block);
   const eatWhy = k === 'food' ? eatBlock(st.cs, id) : '';
   if (k === 'food') h += item('m-eat', 'Eat', !eatWhy, '', eatWhy);
   const br = buryRecipeOf(id);
@@ -272,10 +272,10 @@ function openMenu(ctx, body, st, id, at, repaint) {
   if (nf) h += item('m-hearth', 'Fuel the hearth', !nfWhy, '', nfWhy);
   if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'The bar is still loading.');
   const sellWhy = locked ? '' : !st.shop ? 'The shop is still loading.' : st.shop.bids.has(id) ? '' : 'The shop does not buy this.';
-  h += item('m-sell', locked ? 'Sell (unlock it first)' : 'Sell…', !locked && !sellWhy, '', sellWhy);
-  h += item('m-market', 'List on the market…', !locked, '', locked ? 'This is locked. Unlock it in your bag to list it.' : '');
-  h += item('m-lock', locked ? 'Unlock' : 'Lock', !!st.rules);
-  h += item('m-select', sc.sel.has(id) ? 'Unselect' : 'Select', true);
+  h += item('m-sell', t('controls.sell'), !locked && !sellWhy, '', locked ? 'Unlock it first.' : sellWhy);
+  h += item('m-market', t('controls.list_on_market'), !locked, '', locked ? 'Unlock it first.' : '');
+  h += item('m-lock', locked ? t('controls.unlock') : t('controls.lock'), !!st.rules);
+  h += item('m-select', sc.sel.has(id) ? t('controls.deselect') : t('controls.select'), true);
   h += item('m-link', 'Link in chat', !!(ctx.account && ctx.account.social));
   /* The loot plan (what Dispatch loot does with it), then the pickup filter: the current one pressed, a plan the
      server would refuse for this item off with its reason on its own visible line (loot-dispatch.js planBlock). */
@@ -345,7 +345,7 @@ function onKey(ctx, body, st, ev, el, repaint) {
   if (!id) return false;
   if (k === 'Enter') { if (sc.confirm) doSell(st, repaint); else doPrimary(st, id, repaint); return true; }
   if (k === ' ') { toggleSelect(sc, id); repaint(); return true; }
-  if (k === 'Delete') { const sel = selectedIds(sc, st.items); askSell(st, sel.length ? sel : [id], sel.length ? 'Sell selected' : 'Sell', repaint); return true; }
+  if (k === 'Delete') { const sel = selectedIds(sc, st.items); askSell(st, sel.length ? sel : [id], sel.length ? t('controls.sell_selected') : t('controls.sell'), repaint); return true; }
   if (k === 'l' || k === 'L') { doLock(st, id, repaint); return true; }
   if (k === 'ContextMenu') { const r = el.getBoundingClientRect(); openMenu(ctx, body, st, id, { x: r.right, y: r.top }, repaint); return true; }
   return false;
@@ -460,7 +460,7 @@ export function actInventory(ctx, body, action, ev, el, repaint) {
     case 'cat': setPref(st.cs, 'cat', el.getAttribute('data-cat')); return true;
     case 'primary': if (cur) doPrimary(st, cur, repaint); return true;
     case 'more': if (cur) { const r = el.getBoundingClientRect(); openMenu(ctx, body, st, cur, { x: r.left, y: r.bottom + 4 }, repaint); } return true;
-    case 'sell-sel': askSell(st, selectedIds(sc, st.items), 'Sell selected', repaint); return true;
+    case 'sell-sel': askSell(st, selectedIds(sc, st.items), t('controls.sell_selected'), repaint); return true;
     case 'deposit-sel': doDeposit(st, repaint); return true;
     case 'lock-sel': doLockMany(st, repaint); return true;
     case 'clear-sel': clearSelection(sc); repaint(); return true;
@@ -481,7 +481,7 @@ export function actInventory(ctx, body, action, ev, el, repaint) {
     case 'm-fuel-one': doBury(st, id, repaint, 1); return true;
     case 'm-hearth': doNamed(st, id, repaint); return true;
     case 'm-bar': send(st, repaint, () => assignToBar(st.cs, id), 'Putting it on the bar…'); return true;
-    case 'm-sell': askSell(st, [id], 'Sell', repaint); return true;
+    case 'm-sell': askSell(st, [id], t('controls.sell'), repaint); return true;
     case 'm-market': closeMenu(ctx, st); offerForSale(ctx, id, 'bag'); return true;
     case 'm-lock': doLock(st, id, repaint); return true;
     case 'm-select': toggleSelect(sc, id); sc.menu = null; repaint(); return true;

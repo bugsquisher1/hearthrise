@@ -10,9 +10,9 @@
 //     ring     legs     ring
 //     gloves   boots    earrings
 //     ammo     belt
-// A slot press opens its line under the window: what is worn there (Take off)
+// A slot press opens its line under the window: what is worn there (Unequip)
 // and every bag stack that fits it with the change against the worn piece, best
-// first (Wear). A bag stack dragged onto a slot wears it; a worn piece dragged
+// first (Equip). A bag stack dragged onto a slot wears it; a worn piece dragged
 // onto the grid takes it off. Hovering shows the compare tooltip. Each is ONE
 // `equip` intent; the doll changes only when the re-read envelope replaces
 // `equipment`.
@@ -31,6 +31,7 @@ import { gearLocked, GEAR_HUNT_WORDS } from '../../gear-gate.js?v=0.2.122';
 import { whyLine } from '../../widgets/why-line.js?v=0.2.122';
 import { levelOf } from '../../../session/character-sections.js?v=0.2.122';
 import { showTip } from '../item-tip.js?v=0.2.122';
+import { t } from '../../../render/player-text.js?v=0.2.122';
 
 /* Body order, row by row: [slot, label, empty glyph]. */
 export const DOLL = Object.freeze([
@@ -72,7 +73,7 @@ export function patchWeights(root, st) {
 /** The open slot's line's skeleton (under both columns). */
 export function slotLineHtml() {
   return '<div class="hw-slotline"><h3 class="hw-slothead"></h3>'
-    + '<div class="hw-worn"><span class="hw-ico"></span><span class="hw-worn-name"></span><button type="button" class="hh-tool" data-hs-act="unequip">Take off</button></div>'
+    + '<div class="hw-worn"><span class="hw-ico"></span><span class="hw-worn-name"></span><button type="button" class="hh-tool" data-hs-act="unequip">' + t('controls.unequip') + '</button></div>'
     + '<p class="hw-why hw-slot-why" role="status" aria-live="polite"></p>'
     + '<ul class="hw-fits"></ul><p class="hh-empty hw-nofit">Nothing in your bag fits here.</p></div>';
 }
@@ -133,7 +134,7 @@ export function patchSlotLine(root, st, ctx) {
     key: (f) => f.id,
     build: (f) => element(ctx.doc, '<li class="hw-fit" data-hs-act="fit-row" data-item="' + esc(f.id) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, f.id) + '</span>'
       + '<span class="hw-fit-name"><b>' + esc(itemName(f.id)) + '</b><small class="hw-fit-delta"></small><small class="hw-fit-need"></small></span>'
-      + '<button type="button" class="hh-tool" data-hs-act="wear" data-item="' + esc(f.id) + '">Wear</button></li>'),
+      + '<button type="button" class="hh-tool" data-hs-act="wear" data-item="' + esc(f.id) + '">' + t('controls.equip') + '</button></li>'),
     patch: (li, f) => {
       const dl = li.querySelector('.hw-fit-delta');
       const sig = f.delta.map((d) => d.text + d.label).join('|');
@@ -141,7 +142,7 @@ export function patchSlotLine(root, st, ctx) {
         attr(dl, 'data-sig', sig);
         dl.innerHTML = f.delta.length ? f.delta.map((d) => '<span class="' + (d.delta > 0 ? 'is-gain' : 'is-loss') + '">' + esc(d.text + ' ' + d.label) + '</span>').join(', ') : 'No change';
       }
-      /* a requirement the server's numbers say is unmet: the row says it, and its Wear is off */
+      /* a requirement the server's numbers say is unmet: the row says it, and its Equip is off */
       const need = needOf(f.id, skills, lv ? lv.level : null);
       const short = !!need && need.short;
       text(li.querySelector('.hw-fit-need'), short ? need.text : '');
@@ -153,12 +154,12 @@ export function patchSlotLine(root, st, ctx) {
 }
 
 /** The compare tooltip for a worn slot or a fitting stack. */
-export function dollTip(ctx, st, t, action) {
-  const id = t.getAttribute('data-item');
+export function dollTip(ctx, st, el, action) {
+  const id = el.getAttribute('data-item');
   if (!id) return;
-  const slot = action === 'slot' ? t.getAttribute('data-slot') : st.sc.slot;
+  const slot = action === 'slot' ? el.getAttribute('data-slot') : st.sc.slot;
   const shop = shopOf(st.cs);
   const lv = levelOf(st.cs);
-  showTip(ctx.doc, t, id, { worn: action === 'slot' ? id : (st.eq[slot] || null), skills: skillsOf(st.cs), level: lv ? lv.level : null,
+  showTip(ctx.doc, el, id, { worn: action === 'slot' ? id : (st.eq[slot] || null), skills: skillsOf(st.cs), level: lv ? lv.level : null,
     bid: shop ? (shop.bids.has(id) ? shop.bids.get(id) : null) : undefined });
 }

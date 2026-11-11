@@ -519,6 +519,8 @@ const cases = {
     const off = fresh(floor + 1, { huntId: 'meadowbrook_thicket', visited: new Set(['mill_cellar', 'meadowbrook_thicket']), read: new Set(seen) });
     const offer = M.tut.cardFor(M.tut.currentCard(off), off);
     if (offer.id !== 'first_spell' || !/data-store/.test(offer.hooks[0]) || !/data-id/.test(offer.hooks[1]) || !/data-tab/.test(offer.hooks[2])) return 'A spell costs runes rings ' + JSON.stringify(offer.hooks);
+    /* the press it names is a tab Configure action has (Spells, Food & drink, Ammo): "then Runes" named none (designer re-read 2026-11-11) */
+    if (!offer.text.includes(', then Spells, ') || /then Runes/.test(offer.text)) return 'the spell offer names a tab that is not there: ' + offer.text;
     return null;
   },
   'tutorial-walk-through': async (M) => {

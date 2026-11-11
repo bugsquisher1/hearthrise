@@ -5,7 +5,7 @@
 // THE GRID (lane/b-krells-hold-pack, from the designer's "2026-11-10 Krell's Hold" section 1). A small gray castle in good repair. The
 // cart road comes up the hill from the Pyre Field at the south (x27-31) and in through the gatehouse. The route is the castle's five
 // rooms in order and out the back: 1 the Cart Gate (the gate court), 2 the Drill Yard (the big yard, the woodyard that fed the pyres),
-// 3 the Chapel (where the Fire Priests wrote the rite), 4 the Crypt (the cellar where the dug-up officers stand), 5 the Tower Stairs (the
+// 3 the Chapel (where the Pyre Priests wrote the rite), 4 the Crypt (the cellar where the dug-up officers stand), 5 the Tower Stairs (the
 // way up into the keep), then down the back gate and round the outside of the east wall to the gate. Every corridor is at least
 // three tiles wide, so no tile is a choke (checked: every open tile lies in an open 3x3) and the pack declares no bridge.
 //   '#' the castle's dressed stone and the hill (rock: blocks a step and a shot)

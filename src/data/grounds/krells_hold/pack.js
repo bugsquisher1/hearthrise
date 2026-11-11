@@ -5,31 +5,31 @@
 // formula's (`node tools/pack.mjs propose krells_hold --write`): tier 6, floor 85, fit both.
 //
 // STAGED, AND IT STAYS STAGED UNTIL THE ENGINE CAN PLAY IT (the design's section 3, "Engine pieces that do not exist yet"). The Lookout
-// shoots from range (piece 2), the Fire Priest mends the dead in his pull (piece 3) and the Grave Guard's shield slam is a marked heavy hit (piece 1).
+// shoots from range (piece 2), the Pyre Priest mends the dead in his pull (piece 3) and the Grave Guard's shield slam is a marked heavy hit (piece 1).
 // None of those exists, so the grader plays all five as plain melee bodies. That is fine for a staged pack's numbers and wrong for a player:
-// the design says the Lookout and the Fire Priest must not ship as plain melee bodies, because that is a reskin. Open it only with pieces 1-3.
+// the design says the Lookout and the Pyre Priest must not ship as plain melee bodies, because that is a reskin. Open it only with pieces 1-3.
 //
-// NAMES (the Barrow March's): the monsters and items keep their names (Farmhand, Hask's Lookout, Grave Guard, Fire Priest, Gatekeeper, Hall Key). THE PLAYER'S
+// NAMES (the Barrow March's): the monsters and items keep their names (Farmhand, Hask's Lookout, Grave Guard, Pyre Priest, Gatekeeper, Hall Key). THE PLAYER'S
 // LINES (item text, the hunt's line) are Tyler's voice (11-11): short, plain, everyday words that say what happened. No old or military
 // words in a sentence (the foot, files, colors, rite, warders, binders), nothing poetic, no story paragraphs here. The story is the board's
 // "2026-11-10 The living world" and goes to the wiki, sample first. Never Ancient, Shadow, Dark, Eternal, Void or Forgotten. American spelling.
 // Who each body is, in one line: the Farmhands are farmhands Krell forced to guard his castle, the Lookouts are Hask's lookouts who took Krell's
-// pay, the Grave Guards are the company's officers he dug up from the Barrows, the Fire Priests are his priests, and the Gatekeeper keeps his keys.
+// pay, the Grave Guards are the company's officers he dug up from the Barrows, the Pyre Priests are his priests, and the Gatekeeper keeps his keys.
 //
 // THE LESSON IS THE KRELL FIGHT, ONE QUESTION A CREATURE. The Farmhand says Krell is a living man and an undead kit is wrong for him: the March's
 // first living enemy, so poison works again (Human: weak to arrows, poison does 15% more). The Lookout is his adds going for the back line. The
-// Grave Guard is his marked hit. The Fire Priest is "kill the helpers first". The Gatekeeper is the key. Weak-to at density 4: 13 heads to an arrow
-// (7 Farmhands, 3 Lookouts, 3 Fire Priests), 7 to a hammer (5 Grave Guards, 2 Gatekeepers): the Ranger's ground, as the Slake is the sword's and the Pyre
+// Grave Guard is his marked hit. The Pyre Priest is "kill the helpers first". The Gatekeeper is the key. Weak-to at density 4: 13 heads to an arrow
+// (7 Farmhands, 3 Lookouts, 3 Pyre Priests), 7 to a hammer (5 Grave Guards, 2 Gatekeepers): the Ranger's ground, as the Slake is the sword's and the Pyre
 // Field the hammer's. The Drill Yard is all living (a lone bow's room) and the Crypt nearly all dead (a lone hammer's room).
 // THE HEAD COUNT, against the design's 8 / 4 / 3 / 3 / 2. Five pockets of four can't give the Crypt its ranks of dead, the Chapel a Grave Guard
-// for its Fire Priests and the Stair its Grave Guard out of only four Grave Guards. So one Farmhand became a Grave Guard: 7 / 5 / 3 / 3 / 2 (13 arrow, 7 hammer
-// against the design's 14 and 6), and a Fire Priest kneels among the Crypt's dead.
+// for its Pyre Priests and the Stair its Grave Guard out of only four Grave Guards. So one Farmhand became a Grave Guard: 7 / 5 / 3 / 3 / 2 (13 arrow, 7 hammer
+// against the design's 14 and 6), and a Pyre Priest kneels among the Crypt's dead.
 //
 // THE LOOT (src/data/loot-bands.js). Scarce, about hourly a piece per hero at the floor: the whole TIER-6 armor set in three weights, one slot a
 // body (Farmhand boots, Lookout helmets, Grave Guard legs, Gatekeeper bodies), and one tier-6 weapon on four bodies. Rare, each about every 10-20 h: the
-// tier-6 gloves (Lookout) and belts (Grave Guard), and the Fire Priests' wand and codex. Tier 6 is worn from 75, so every piece is wearable the hour it
+// tier-6 gloves (Lookout) and belts (Grave Guard), and the Pyre Priests' wand and codex. Tier 6 is worn from 75, so every piece is wearable the hour it
 // drops: this is the game's only source of tier-6 armor. Each body drops one imbuement item, one of each of the five kinds. Each has one
-// product of its own: the Farmhand's tithe wheat, the Lookout's bolt iron, the Grave Guard's grave dust, the Fire Priest's pyre coal, and the toll gold the
+// product of its own: the Farmhand's tithe wheat, the Lookout's bolt iron, the Grave Guard's grave dust, the Pyre Priest's pyre coal, and the toll gold the
 // Gatekeeper keeps. The Hall Key is the Gatekeeper's last row, in its own band (loot-bands.js `key`, about one every two hours).
 // THE CHANCES ARE FITTED, NOT GUESSED: each was set from the floor hour's kills on the real settle (tests/hunt-core/drop-tables.mjs, a lone
 // tank in its tier-6 set, 2026-11-10): Scarce 0.88-1.17 h a piece, Rare 14.6-15.0 h, the Hall Key about every 2.0 h (19 Gatekeepers an hour).
@@ -38,13 +38,13 @@
 import { definePack, box, gather } from '../shape.js?v=0.2.118';
 import map from './map.js?v=0.2.118';
 
-const LV = 'farmhand', PK = 'hasks_lookout', WD = 'grave_guard', BD = 'fire_priest', CS = 'gatekeeper';
+const LV = 'farmhand', PK = 'hasks_lookout', WD = 'grave_guard', BD = 'pyre_priest', CS = 'gatekeeper';
 
 export default definePack({
   id: 'krells_hold',
   status: 'staged',
   sql: null,
-  /* Weights are the pockets' head-count at density 4 (the first four of each box): 7 Farmhands, 5 Grave Guards, 3 Lookouts, 3 Fire Priests, 2 Gatekeepers. */
+  /* Weights are the pockets' head-count at density 4 (the first four of each box): 7 Farmhands, 5 Grave Guards, 3 Lookouts, 3 Pyre Priests, 2 Gatekeepers. */
   hunt: {
     name: 'Krell\'s Hold', theme: 'Lord Krell lives here. His men guard the walls, and the officers he dug up from the Barrows guard the cellar.',
     band: [85, 110],
@@ -63,9 +63,9 @@ export default definePack({
       box([22, 30, 36, 37], [29, 33], [LV, LV], [PK, LV, LV, PK, LV, LV]),
       /* P1 the Drill Yard: all living, the bow's room and the poison rune's. Farmhands at the pells, Lookouts down off the wall walk */
       box([4, 14, 24, 28], [14, 21], [LV, PK], [LV, LV, PK, LV, LV, PK]),
-      /* P2 the Chapel: where the rite was written. A Fire Priest beside the dead he mends, so who dies first matters */
+      /* P2 the Chapel: where the rite was written. A Pyre Priest beside the dead he mends, so who dies first matters */
       box([4, 3, 18, 11], [11, 7], [BD, WD], [BD, LV, WD, BD, LV, WD]),
-      /* P3 the Crypt: the officers Krell dug out of the Barrows, standing in ranks, and a Fire Priest kneeling among them. The hammer's room */
+      /* P3 the Crypt: the officers Krell dug out of the Barrows, standing in ranks, and a Pyre Priest kneeling among them. The hammer's room */
       box([24, 4, 38, 12], [31, 8], [WD, WD], [BD, WD, WD, BD, WD, WD]),
       /* P4 the Tower Stairs: the hardest pull. The Gatekeeper holds the stair to his lord's door, a Lookout above him and a Grave Guard at his side */
       box([42, 10, 54, 20], [48, 15], [CS, PK], [CS, WD, PK, WD, WD, PK]),
@@ -88,7 +88,7 @@ export default definePack({
       /* the swarm, the common majority: farmhands Krell pressed off the March's fields to hold his walls, in quilted jacks with a bill hook. Young
          and scared. Living, so the Human class with no override: weak to arrows, poison does 15% more. Their tithe grain, the press token they
          showed at the gate, the tier-6 boots and the Emberforged sword off the gate rack. */
-      drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'wheat', ch: 0.3, band: 'common' }, { id: 'gate_token', ch: 0.08, band: 'uncommon' },
+      drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'wheat', ch: 0.3, band: 'common' }, { id: 'farmhands_tag', ch: 0.08, band: 'uncommon' },
         { id: 'ember_boots', ch: 0.02, band: 'scarce' }, { id: 'dragonhide_boots', ch: 0.02, band: 'scarce' }, { id: 'archmage_boots', ch: 0.02, band: 'scarce' },
         { id: 'ember_sword', ch: 0.02, band: 'scarce' }],
       hp: 114, atk: 78, baseAcc: 0.82, def: 36, xp: 1151, gp: [24, 72], formula: true },
@@ -113,10 +113,10 @@ export default definePack({
         { id: 'ember_warhammer', ch: 0.017, band: 'scarce' },
         { id: 'ember_belt', ch: 0.0012, band: 'rare' }, { id: 'dragonhide_belt', ch: 0.0012, band: 'rare' }, { id: 'archmage_belt', ch: 0.0012, band: 'rare' }],
       hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 2077, gp: [38, 115], formula: true },
-    fire_priest: {
-      name: 'Fire Priest', icon: '📿', tier: 6, level: 95, cls: 'human', family: 'Human', speed: 3000,
+    pyre_priest: {
+      name: 'Pyre Priest', icon: '📿', tier: 6, level: 95, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: one of Krell's priests, the men who said the rite over the Pyre Field and tied the dead to his fire. Hooded, ash-gray,
-         a knotted cord at his belt. Living, Human, no override. The pyre coal on his hands, his cord, the Runewood Staff, and the Fire Priests' own
+         a knotted cord at his belt. Living, Human, no override. The pyre coal on his hands, his cord, the Runewood Staff, and the Pyre Priests' own
          wand and codex. He mends the dead in his pull, so the Grave Guards beside him take far longer to drop: engine piece 3 (unbuilt). */
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'priests_cord', ch: 0.08, band: 'uncommon' },
         { id: 'runewood_staff', ch: 0.045, band: 'scarce' },
@@ -138,13 +138,13 @@ export default definePack({
     farmhand: 'swarm',          // the common majority
     hasks_lookout: 'glass',     // shoots the back line (piece 2), fragile, lands often
     grave_guard: 'heavy',       // the shield: slow (2400), thick
-    fire_priest: 'regular',     // the middle weight, the mender (piece 3)
+    pyre_priest: 'regular',     // the middle weight, the mender (piece 3)
     gatekeeper: 'elite',        // the bruiser and the rare carrier
   },
   /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, its tier and book value from its dropper's Level, raw): one of each of the
      five kinds, kept for the imbuer like every ground's (catalogue-coherence.js VENDOR_TRASH until imbuing is built). */
   items: {
-    gate_token: { n: 'Gate Token', icon: '🪙', v: 172, raw: true, imbue: { kind: 'life_leech', tier: 3 } },
+    farmhands_tag: { n: 'Farmhand\'s Tag', icon: '🪙', v: 172, raw: true, imbue: { kind: 'life_leech', tier: 3 } },
     lookouts_whistle: { n: 'Lookout\'s Whistle', icon: '📯', v: 176, raw: true, imbue: { kind: 'keen', tier: 3 } },
     barrow_nail: { n: 'Barrow Nail', icon: '📌', v: 184, raw: true, imbue: { kind: 'ward', tier: 3 } },
     priests_cord: { n: 'Priest\'s Cord', icon: '🧶', v: 190, raw: true, imbue: { kind: 'mana_leech', tier: 3 } },
@@ -156,7 +156,7 @@ export default definePack({
     hall_key: { n: 'Hall Key', icon: '🗝️', v: 800, opens: 'krells_hold' },
   },
   itemText: {
-    gate_token: 'Krell\'s men gave this wooden token to every farmhand they forced to guard his castle',
+    farmhands_tag: 'Krell\'s men gave this wooden tag to every farmhand they forced to guard his castle',
     lookouts_whistle: 'A tin whistle from Hask\'s company. His lookouts were supposed to blow it when Krell\'s men came, and they didn\'t',
     barrow_nail: 'A coffin nail from the Muster Barrows. Krell\'s men pulled it out when they dug the company\'s officers back up',
     priests_cord: 'Krell\'s priests tied this cord around the dead before they burned them. They put a knot in it for every name',

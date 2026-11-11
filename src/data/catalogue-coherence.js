@@ -110,7 +110,7 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   /* the boar and the bear (lane b-unsourced-items): their imbuement items, and the boar's bristles */
   'orchard_boar_tusk', 'brook_bear_tooth', 'boar_bristle',
   /* Krell's Hold's five (lane/b-krells-hold-pack), the same promise */
-  'gate_token', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain',
+  'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -189,13 +189,13 @@ export const UNREACHABLE_FATES = Object.freeze({
    other fate is held under UNREACHABLE_CEILING. */
 export const UNREACHABLE = Object.freeze({
   /* KRELL'S HOLD (lane/b-krells-hold-pack, staged until its art and engine pieces 1-3 land): its tier-6 armor in three weights, four tier-6
-     weapons, the Fire Priests' wand and codex, the Grave Guards' grave dust, and its five imbuement items. (Wickstead emptied this row when it opened.) */
+     weapons, the Pyre Priests' wand and codex, the Grave Guards' grave dust, and its five imbuement items. (Wickstead emptied this row when it opened.) */
   staged: Object.freeze([
     'archmage_belt', 'archmage_body', 'archmage_boots', 'archmage_gloves', 'archmage_helmet', 'archmage_pants', 'dragonhide_belt',
     'dragonhide_body', 'dragonhide_boots', 'dragonhide_gloves', 'dragonhide_helmet', 'dragonhide_pants', 'ember_belt', 'ember_boots',
     'ember_gauntlets', 'ember_helm', 'ember_platebody', 'ember_platelegs', 'ember_sword', 'ember_warhammer', 'grave_dust', 'runewood_bow',
     'runewood_codex', 'runewood_staff', 'runewood_wand',
-    'gate_token', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain', 'hall_key',
+    'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain', 'hall_key',
   ]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next

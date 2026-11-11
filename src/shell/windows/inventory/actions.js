@@ -329,6 +329,9 @@ function onKey(ctx, body, st, ev, el, repaint) {
   }
   if (sc.menu && k === 'Escape') { closeMenu(ctx, st); focusCursor(body, st, ctx); return true; }
   const mods = { ctrl: ev.ctrlKey || ev.metaKey, shift: ev.shiftKey };
+  /* Ctrl+A anywhere in the window but the search box is the selection's, never the page's text: the browser's own
+     select-all is stopped here (visual gate v0.2.123: the item column and the Dispatch lines went blue). */
+  if (mods.ctrl && k.toLowerCase() === 'a') { ev.preventDefault(); selectKey(sc, k, mods, st.shown); repaint(); return true; }
   /* A button or a select keeps its own keys (Enter, Space); only Escape is the Inventory's: the confirmation, then the selection. */
   if (!el.classList.contains('hw-pocket') && !el.classList.contains('hw-inv')) {
     if (sc.confirm && k === 'Escape') { sc.confirm = null; repaint(); return true; }
@@ -340,7 +343,7 @@ function onKey(ctx, body, st, ev, el, repaint) {
   if (selectKey(sc, k, mods, st.shown)) { repaint(); return true; }   // Escape: none; Ctrl+A: all shown, or none
   if (ev.ctrlKey || ev.metaKey || ev.altKey || sc.menu) return false;
   /* an arrow moves the cursor; with Shift it also takes the range from the anchor (or the cursor it left) to there */
-  if (/^Arrow/.test(k)) { const from = sc.cursor; moveCursor(body, st, k); if (mods.shift && sc.cursor) rangeTo(sc, sc.cursor, st.shown, { from }); repaint(); focusCursor(body, st, ctx); return true; }
+  if (/^Arrow/.test(k)) { ev.preventDefault(); const from = sc.cursor; moveCursor(body, st, k); if (mods.shift && sc.cursor) rangeTo(sc, sc.cursor, st.shown, { from }); repaint(); focusCursor(body, st, ctx); return true; }
   const id = sc.cursor && st.qty.has(sc.cursor) ? sc.cursor : null;
   if (!id) return false;
   if (k === 'Enter') { if (sc.confirm) doSell(st, repaint); else doPrimary(st, id, repaint); return true; }

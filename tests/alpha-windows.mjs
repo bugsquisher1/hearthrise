@@ -822,6 +822,31 @@ async function selectRules(base) {
   const bids = new Map([['a', 10], ['b', 5]]);
   const line = [S.selectionWords(['a', 'b'], shown, bids), S.selectionWords(['a', 'c'], shown, bids), S.selectionWords(['a'], shown, null)];
   if (line.join(' | ') !== '2 selected · value 30 gp | 2 selected · value 20 gp (1 with no shop price) | 1 selected') fails.push('AW-77 the selection line reads ' + JSON.stringify(line));
+  if (S.selectionWords([], shown, bids) !== '') fails.push('AW-77 nothing selected still reads ' + JSON.stringify(S.selectionWords([], shown, bids)));
+  /* THE KEY IS CONSUMED (visual gate v0.2.123: Ctrl+A also selected the page's text): the window's handler takes Ctrl+A from a pocket
+     and from a bulk button, stops the browser's own select-all, and selects every shown stack; the search box keeps its own Ctrl+A */
+  {
+    const A = await imp('src/shell/windows/inventory/actions.js');
+    /* the same state.js instance actions.js holds (its ?v= query names the module): one scratch per character */
+    const v = (/\.\/state\.js\?v=([0-9.]+)'/.exec(readFileSync(join(base, 'src/shell/windows/inventory/actions.js'), 'utf8')) || [])[1];
+    const { scratchOf } = await import(pathToFileURL(join(base, 'src/shell/windows/inventory/state.js')).href + '?v=' + v);
+    const env = { inventory: { rat_tail: 3, bones: 2 }, state: { gold: 5 }, bag_rules: { locked: [], loot: {} } };
+    const cs = { slot: 0, status: 'open', record: { residue: {} }, read: (k) => (Object.prototype.hasOwnProperty.call(env, k) ? env[k] : null), setResidue() {}, clock: 0 };
+    const ctx = { character: cs, account: null, doc: { activeElement: null }, glyphs: {} };
+    const body = { querySelector: () => null, isConnected: true };
+    const press = (classes, key, o) => {
+      const ev = Object.assign({ type: 'keydown', key, ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, prevented: 0, preventDefault() { this.prevented++; } }, o || {});
+      const el = { classList: { contains: (n) => classes.includes(n) }, getAttribute: () => null, value: '' };
+      return { took: A.actInventory(ctx, body, classes[0] === 'hw-pocket' ? 'pocket' : 'sell-sel', ev, el, () => {}), prevented: ev.prevented };
+    };
+    const sc = scratchOf(cs);
+    const fromPocket = press(['hw-pocket'], 'a');
+    if (fromPocket.took !== true || fromPocket.prevented !== 1 || [...sc.sel].sort().join() !== 'bones,rat_tail') fails.push('AW-77 Ctrl+A on a pocket reads ' + JSON.stringify([fromPocket, [...sc.sel]]));
+    const fromButton = press(['hh-tool'], 'a');
+    if (fromButton.took !== true || fromButton.prevented !== 1 || sc.sel.size !== 0) fails.push('AW-77 Ctrl+A from a bulk button reads ' + JSON.stringify([fromButton, [...sc.sel]]));
+    const inSearch = press(['hh-num', 'hw-q'], 'a');
+    if (inSearch.took !== false || inSearch.prevented !== 0 || sc.sel.size !== 0) fails.push('AW-77 Ctrl+A in the search box was taken from it: ' + JSON.stringify([inSearch, [...sc.sel]]));
+  }
   /* the selection names only the server's rows (a sold stack drops out of the count) */
   sc = fresh();
   for (const id of ['a', 'gone']) sc.sel.add(id);
@@ -4288,6 +4313,8 @@ const MUTANTS = [
   ['select: Lock reads Lock over a locked selection', 'src/shell/windows/inventory/selection.js', "  return ids.length && locked && ids.every((id) => locked.has(id)) ? t('controls.unlock') : t('controls.lock');", "  return t('controls.lock');"],
   ['select: the help line forgets the keys', 'src/data/text/bag.js', ' · Ctrl+A select all, again deselect all · Esc clear', ' · Ctrl+A select all'],
   ['select: a refused bulk press clears the selection', 'src/shell/windows/inventory/selection.js', '  if (went) clearSelection(sc);', '  clearSelection(sc);'],
+  ['select: Ctrl+A also selects the page\'s text', 'src/shell/windows/inventory/actions.js', "  if (mods.ctrl && k.toLowerCase() === 'a') { ev.preventDefault(); selectKey(sc, k, mods, st.shown); repaint(); return true; }\n", ''],
+  ['select: the line reads 0 selected with nothing selected', 'src/shell/windows/inventory/selection.js', "  if (!n) return '';\n", ''],
   ['select: Deposit puts stacks away one at a time again', 'src/shell/windows/inventory/actions.js', "  bulk(st, repaint, () => moveStorageMany(st.account, st.cs, ids, 'deposit'), t('bag.putting_away'), 'bag.put_away');",
     "  bulk(st, repaint, () => ids.reduce((p, id) => p.then(() => st.cs.moveStorage(id, st.qty.get(id), 'deposit')), Promise.resolve({ ok: true })), t('bag.putting_away'), 'bag.put_away');"],
   ['station sort: a sort drops the locked rows', 'src/shell/station-sort.js', '  const all = open.concat(ahead);', '  const all = open.slice();'],

@@ -51,18 +51,25 @@ async function main() {
   green = say(live0.rows[0].n === 0,
     `after the chain, hearthfind_log holds ${live0.rows[0].n} live (src_ledger_id NULL) find row(s) — expected 0`) && green;
 
+  // 2026-11-11 re-aim: this file is a ONE-SHOT, and on the END of the chain it is un-re-appliable even with no live finds: its
+  // PRECONDITIONS name a world later migrations moved (hr_claim_bounty__ungated was dropped by 2026-10-23-demolition-bounty-gems-close.sql,
+  // hr_apply's body has been restated since). That is the safe direction, and it is the fact this proof now asserts: a second apply must
+  // REFUSE with a PRECONDITION, never run. (It used to assert "a clean second apply is green", true only before 2026-10-23.)
   let reErr = null;
   try { await db.exec(sql); } catch (e) { reErr = e; }
-  green = say(reErr === null,
-    `a second apply with no live finds ${reErr ? `FAILED: ${reErr.message}` : 'is green'}`) && green;
+  const preRefused = !!reErr && /PRECONDITION/.test(String(reErr.message || reErr));
+  green = say(preRefused,
+    preRefused
+      ? `a second apply at the end of the chain refuses at its PRECONDITIONS (the file is one-shot): ${String(reErr.message).split('\n')[0].slice(0, 100)}`
+      : `a second apply at the end of the chain did NOT refuse at a PRECONDITION (${reErr ? String(reErr.message).slice(0, 110) : 'it succeeded'})`) && green;
 
-  // ── (2) ONE LIVE FIND CLOSES THE FILE. Exactly the row hr_apply writes when
-  //        a player finds a trophy: src_ledger_id NULL, nth_ever ALLOCATED.
+  // ── (2) ONE LIVE FIND CLOSES THE BACKFILL. Exactly the row hr_apply writes when a player finds a trophy: src_ledger_id NULL, nth_ever
+  //        ALLOCATED. (player_state.gold moved to account_wallet.gold in 2026-12-15-account-gold.sql; the find needs only the slot row.)
   await db.exec(`
     insert into auth.users (id) values ('000005ec-0000-0000-0000-0000000005ec')
       on conflict (id) do nothing;
-    insert into public.player_state (user_id, slot, gold, version)
-      values ('000005ec-0000-0000-0000-0000000005ec', 0, 0, 0)
+    insert into public.player_state (user_id, slot, version)
+      values ('000005ec-0000-0000-0000-0000000005ec', 0, 0)
       on conflict (user_id, slot) do nothing;
     insert into public.hearthfind_ordinal as o (item_id, found_total, updated_at)
       values ('sec_live_trophy', 1, now())
@@ -71,14 +78,19 @@ async function main() {
       values ('000005ec-0000-0000-0000-0000000005ec', 0, 'sec_live_trophy', 1);
   `);
 
+  // The file still cannot apply (it never succeeds with a live find)...
   let err = null;
   try { await db.exec(sql); } catch (e) { err = e; }
-  const refused = !!err && /REFUSING/.test(String(err.message || err));
+  green = say(!!err, err ? 're-applying with a live find fails (never runs)' : 're-applying with a live find SUCCEEDED') && green;
+
+  // ...and the S-LF-1 guard itself, the function §2 calls, refuses by name.
+  let bErr = null;
+  try { await db.query('select public.hr_backfill_lifetime_facts()'); } catch (e) { bErr = e; }
+  const refused = !!bErr && /REFUSING/.test(String(bErr.message || bErr));
   green = say(refused,
     refused
-      ? `one live find makes the file un-re-appliable — §2 raises: ${String(err.message).split('\n')[0].slice(0, 110)}`
-      : `a re-apply with a live find did NOT refuse (${err ? String(err.message).slice(0, 110) : 'it succeeded'}) — `
-        + 'the backfill window guard (S-LF-1) is not biting');
+      ? `one live find makes the backfill refuse (S-LF-1): ${String(bErr.message).split('\n')[0].slice(0, 110)}`
+      : `hr_backfill_lifetime_facts did NOT refuse with a live find (${bErr ? String(bErr.message).slice(0, 110) : 'it succeeded'}) — the S-LF-1 guard is not biting`) && green;
 
   // ── (3) THE REFUSAL IS §2's, NOT A SELF-CHECK's — so it is NOT inside the
   //        HR_ROLLBACK_SENTINEL block and NOT a gate the Coordinator can read

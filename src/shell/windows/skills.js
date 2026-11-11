@@ -6,24 +6,25 @@
 // Character window (src/shell/windows/character/sheet.js), beside the combat
 // numbers they make. skillsWindow(groups) makes each from its SKILLS_DEF
 // categories, so a new skill joins the ledger of its category with nothing
-// else to edit. One compact entry per skill, two to a
-// row: its glyph and name, the server's level, the progress to the next level
-// on the skill's own curve (src/core/xp.js skillXpForLevel: the combat skills climb
-// the uncapped curve, the rest stop at 99; the curves hr_skill_level uses), the
-// XP still to go, and its NEXT UNLOCK (src/data/skill-unlocks.js: the lowest
-// recipe, node or gear requirement above the current level, from the catalogues). What the
-// skill is for and where it is trained (src/data/skill-guide.js) is the
-// entry's tooltip. Every level and XP number is the envelope's `skills`,
-// replaced on each envelope; the windows send nothing. While town work runs, a
+// else to edit. One compact entry per skill the SERVER states, two to a
+// row: its glyph and name, the server's level, the progress to the next level,
+// the XP still to go (or "Mastered" at the last level), and its NEXT UNLOCK
+// (src/data/skill-unlocks.js: the lowest recipe, node or gear requirement above
+// the current level, from the catalogues). What the skill is for and where it
+// is trained (src/data/skill-guide.js) is the entry's tooltip. Every level and
+// XP number is the envelope's `skill_levels` section (skillLevelsOf: the
+// server's level and its two XP marks on the server's own curve, hr_skill_block),
+// replaced on each envelope; nothing here works a level or a mark out of XP
+// (lane/c-skills-from-server: this build's copy of the curves can be a release
+// away from the server's). The windows send nothing. While town work runs, a
 // bar also shows the XP the server's engine has certainly earned since its last
 // payout (src/shell/town-ticker.js) as a pending segment: the level stays the
 // server's and the bar fills no further than its level.
 // ════════════════════════════════════════════════════════════════════════
 import { SKILLS_DEF } from '../../data/skills.js?v=0.2.115';
 import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.115';
-import { skillXpForLevel, skillCapOf } from '../../core/xp.js?v=0.2.115';
 import { nextUnlock } from '../../data/skill-unlocks.js?v=0.2.115';
-import { skillsOf } from '../../session/item-sections.js?v=0.2.115';
+import { skillLevelsOf } from '../../session/item-sections.js?v=0.2.115';
 import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.115';
 import { whole } from '../../render/format.js?v=0.2.115';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.115';
@@ -32,15 +33,11 @@ import { tickOf } from '../town-work.js?v=0.2.115';
 import { aheadXp } from '../town-ticker.js?v=0.2.115';
 import { characterSheetOf } from '../../session/character-sections.js?v=0.2.115';
 
-/* Is `level` the skill's last (a capped skill at its cap)? Combat skills have none. */
-const mastered = (id, level) => { const cap = skillCapOf(id); return cap !== null && level >= cap; };
+/* Is this the skill's last level? The server says so: no XP across it (need 0, a capped skill at 99). */
+const mastered = (r) => r.need === 0;
 
-/** Progress inside the current level, 0..1, from the server's XP and level, on the skill's own curve. */
-function levelProgress(id, xp, level) {
-  if (mastered(id, level)) return 1;
-  const lo = skillXpForLevel(id, level), hi = skillXpForLevel(id, level + 1);
-  return hi > lo ? Math.max(0, Math.min(1, (xp - lo) / (hi - lo))) : 0;
-}
+/** Progress inside the server's level, 0..1: its XP into the level plus `extra`, over the XP across it. */
+const levelProgress = (r, extra) => (mastered(r) ? 1 : Math.max(0, Math.min(1, (r.into + extra) / r.need)));
 
 const pct = (f) => (Math.round(f * 1000) / 10) + '%';
 
@@ -51,21 +48,22 @@ export function skillBarHtml(label) {
 }
 
 /**
- * One skill's progress inside `el` (its .hw-skill-bar and .hw-skill-xp) from the server's { xp, level }, plus the
- * XP running town work has certainly earned and the server has not paid yet (`ahead`): a pending segment after the
- * fill and the "XP to" words counting down, marked `is-ahead`. The level is the server's: the segment stops at it.
+ * One skill's progress inside `el` (its .hw-skill-bar and .hw-skill-xp) from the server's { level, into, need }
+ * (skillLevelsOf), plus the XP running town work has certainly earned and the server has not paid yet (`ahead`): a
+ * pending segment after the fill and the "XP to" words counting down, marked `is-ahead`. The level is the server's:
+ * the segment stops at it.
  */
-export function patchSkillProgress(el, id, r, ahead) {
-  const a = mastered(id, r.level) ? 0 : Math.max(0, Number(ahead) || 0);
-  const f = levelProgress(id, r.xp, r.level);
-  const g = a ? levelProgress(id, r.xp + a, r.level) : f;
+export function patchSkillProgress(el, r, ahead) {
+  const a = mastered(r) ? 0 : Math.max(0, Number(ahead) || 0);
+  const f = levelProgress(r, 0);
+  const g = a ? levelProgress(r, a) : f;
   style(el.querySelector('.hw-skill-fill'), 'width', pct(f));
   const seg = el.querySelector('.hw-skill-ahead');
   style(seg, 'left', pct(f));
   style(seg, 'width', pct(g - f));
   attr(el.querySelector('.hw-skill-bar'), 'aria-valuenow', Math.round(f * 100));
   const xp = el.querySelector('.hw-skill-xp');
-  text(xp, mastered(id, r.level) ? 'Mastered' : whole(Math.max(0, skillXpForLevel(id, r.level + 1) - r.xp - a)) + ' XP to ' + (r.level + 1));
+  text(xp, mastered(r) ? 'Mastered' : whole(Math.max(0, r.need - r.into - a)) + ' XP to ' + (r.level + 1));
   cls(xp, 'is-ahead', a > 0);
 }
 
@@ -91,7 +89,7 @@ function skillsWindow(groups) {
       + '<p class="hh-empty hw-skill-none">Reading your skills…</p></div>';
   };
   render.patch = function patchSkills(body, ctx) {
-    const sk = skillsOf(ctx.character);
+    const sk = skillLevelsOf(ctx.character);
     const tick = tickOf(ctx.character);
     /* Inner Flame's payoff, the SERVER's engine sheet (regen_pct, the Character sheet's Regeneration line), or nothing */
     const sheet = characterSheetOf(ctx.character);
@@ -100,13 +98,14 @@ function skillsWindow(groups) {
     cls(root.querySelector('.hw-skill-none'), 'is-on', !sk);
     for (const [cat] of groups) {
       const ids = Object.keys(SKILLS_DEF).filter((id) => SKILLS_DEF[id].cat === cat);
-      rows(root.querySelector('.hw-skill-list[data-cat="' + cat + '"]'), sk ? ids : [], {
+      /* the skills the server states, in this build's order; one it does not state draws no entry (never a level 1 of ours) */
+      rows(root.querySelector('.hw-skill-list[data-cat="' + cat + '"]'), sk ? ids.filter((id) => sk[id]) : [], {
         key: (id) => id,
         build: (id) => element(ctx.doc, entryHtml(ctx.glyphs, id)),
         patch: (li, id) => {
-          const r = sk[id] || { xp: 0, level: 1 };
+          const r = sk[id];
           text(li.querySelector('.hw-skill-lv'), String(r.level));
-          patchSkillProgress(li, id, r, aheadXp(tick, id));
+          patchSkillProgress(li, r, aheadXp(tick, id));
           /* Inner Flame's payoff on its own line (lane/b-first-hour): the recovery the server's sheet says it gives now,
              before its next fuel; nothing until the server has said. */
           const flame = id === 'inner_flame' && regen !== null && regen > 100 ? 'Recovery +' + Math.round((regen - 100) * 10) / 10 + '%' : '';

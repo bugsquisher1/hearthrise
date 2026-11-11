@@ -1,0 +1,276 @@
+{
+  "asset": "outfit_knight hit clip (brief 10 H1), every hunt (the hero)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt H1 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "hunt (heroes)",
+  "object_id": "e6b1bc58-8481-40c0-b361-77f9eed15927",
+  "name": "S1 knight v3 (sword and shield)",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); hit/<facing>/0..N.png = the kept roll; alt/<roll>/hit/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the object, frame_count 6, keep_first_frame false; south and the side facings are separate groups (their action texts differ)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "34dc1aa3-86d3-4bab-a719-fdf8a177fbd1",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, feet planted, the weapon and shield move only with the body, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "46a97055-637e-460a-8ba6-08cb4d880b23",
+        "directions": "e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the weapon and shield move only with the body, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r2": [
+      {
+        "group": "61f77b97-7fc0-4f2b-9e71-f5c6f12086cf",
+        "directions": "n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, it keeps facing the same way, both arms and everything held in the hands stay where they are and move only with the body, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r3": [
+      {
+        "group": "c2ae45dc-b902-489c-bfaf-e54b54b84e23",
+        "directions": "n",
+        "action": "only the upper body tips back by one pixel as if pushed from the side it faces, then returns, the legs and feet do not move, it keeps facing the same way, the shield stays on its back and the sword stays in its hand, both move only with the body, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r1",
+    "east": "r1",
+    "north": "r3",
+    "west": "r2"
+  },
+  "refused": {
+    "north r1": "the shield and sword flare out sideways like wings (frames 3-5)",
+    "north r2": "the shield swings out to the left again (frames 3-6)",
+    "west r1": "the sword swings up on its own (frames 2-5)"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r1",
+      "xor": [
+        27,
+        82,
+        180,
+        212,
+        99,
+        39
+      ],
+      "alien": [
+        0,
+        0,
+        2,
+        16,
+        0,
+        0
+      ],
+      "dx": [
+        0,
+        -0.5,
+        -1.1,
+        -1,
+        -0.6,
+        -0.1
+      ],
+      "dy": [
+        0.3,
+        0.7,
+        1.6,
+        1.9,
+        0.8,
+        -0.3
+      ],
+      "top": [
+        1,
+        1,
+        3,
+        4,
+        2,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "east": {
+      "roll": "r1",
+      "xor": [
+        96,
+        177,
+        243,
+        271,
+        230,
+        100
+      ],
+      "alien": [
+        0,
+        17,
+        42,
+        64,
+        39,
+        3
+      ],
+      "dx": [
+        -0.7,
+        -1.2,
+        -1.6,
+        -2.1,
+        -1.5,
+        -0.4
+      ],
+      "dy": [
+        -0.2,
+        -0.4,
+        -0.5,
+        -0.6,
+        -0.5,
+        -0.6
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (42)",
+        "colour f3 (64)",
+        "bright f3 (26)",
+        "colour f4 (39)"
+      ]
+    },
+    "north": {
+      "roll": "r3",
+      "xor": [
+        75,
+        152,
+        205,
+        207,
+        150,
+        94
+      ],
+      "alien": [
+        8,
+        9,
+        14,
+        14,
+        9,
+        10
+      ],
+      "dx": [
+        -0.8,
+        -1.4,
+        -1.9,
+        -2.1,
+        -1,
+        -0.4
+      ],
+      "dy": [
+        0.2,
+        0,
+        0,
+        0.2,
+        0.4,
+        0.1
+      ],
+      "top": [
+        1,
+        2,
+        2,
+        2,
+        2,
+        1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "west": {
+      "roll": "r2",
+      "xor": [
+        85,
+        180,
+        190,
+        172,
+        156,
+        127
+      ],
+      "alien": [
+        0,
+        4,
+        43,
+        53,
+        17,
+        3
+      ],
+      "dx": [
+        -0.5,
+        -0.5,
+        0.3,
+        1,
+        0.7,
+        0.6
+      ],
+      "dy": [
+        0.5,
+        0.6,
+        0,
+        0.2,
+        -0.3,
+        -0.4
+      ],
+      "top": [
+        1,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (43)",
+        "colour f3 (53)"
+      ]
+    }
+  },
+  "generations": 7,
+  "flags": [
+    "NORTH: retry limit reached; kept r3: the shield still eases 2-3 px out to the left at frames 2-4, the legs hold",
+    "east r1: the plume swings and the body turns a little toward the viewer at frames 3-4 (64 px new colour)"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/outfit_knight-hit.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)",
+  "import_note": "brief 10 H1: the import re-runs tools/world-art/outfit-masks.mjs (the heroes set dye masks follow each frame)"
+}

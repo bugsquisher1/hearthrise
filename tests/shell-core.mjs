@@ -628,6 +628,12 @@ async function runTests(mods) {
       && /Level 5 to 10/.test(back.text) && /\+1,142 gold/.test(back.text) && !/99,185|98,185/.test(back.text) && /544 kills/.test(back.text) && /Still hunting\./.test(back.text),
       'the return line: ' + JSON.stringify(back));
     ok(back && back.id === 'away:s-1:' + T0, 'the line is shown once: its id carries the stamp ' + (back && back.id));
+    ok(back && !/best find/.test(back.text), 'no loot tally, no best find: ' + JSON.stringify(back && back.text));
+    /* THE AWAY CARD NAMES THE BEST FIND (designer re-read 2026-11-11): gear or a Rare from the server's loot tally, never the Bones it has most of */
+    const found = env(T0 + H2); const fr = found.read;
+    found.read = (k) => (k === 'hunt_analyzer' ? { hero: { kills: 644, coins: 1956, loot: { bones: 900, iron_platebody: 1 } } } : fr(k));
+    const finds = AR.awayRecapOf(found);
+    ok(finds && /544 kills\. Your best find this hunt was the Iron Platebody\. Still hunting\./.test(finds.text), 'the best find on the return line: ' + JSON.stringify(finds && finds.text));
     /* a stamp from a build that kept no Level says the XP and names no Levels: never a Level worked out from the stamped XP */
     const old = env(T0 + H2); old.record = { residue: { awaySeen: { s: 's-1', at: T0, xp: stamp.xp, gold: 814, kills: 100 } } };
     const oldLine = AR.awayRecapOf(old);

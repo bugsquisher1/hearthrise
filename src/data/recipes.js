@@ -16,14 +16,14 @@
 /* The fletching ladder (arrows). Crafted gear — the generated gear-tiers
    recipes, the wave-3 uniques, the library-2 sets, the boss forge and the
    jewellery/cape rows — was deleted in the 2026-10-14 demolition. */
-import { SLOT_RECIPES } from './slot-ladders.js?v=0.2.121';
-import { ITEMS, foodClassOf } from './items.js?v=0.2.121';
-import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.121';
-import { DRINK_RECIPES } from './drinks.js?v=0.2.121';
-import { HEARTH_FUELS, fuelRecipeId } from './hearth.js?v=0.2.121';
-import { STYLE_GEAR_RECIPES } from './style-gear.js?v=0.2.121';
-import { SHIELD_RECIPES } from './shields.js?v=0.2.121';
-import { JEWELRY_RECIPES } from './jewelry.js?v=0.2.121';
+import { SLOT_RECIPES } from './slot-ladders.js?v=0.2.122';
+import { ITEMS, foodClassOf } from './items.js?v=0.2.122';
+import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.122';
+import { DRINK_RECIPES } from './drinks.js?v=0.2.122';
+import { HEARTH_FUELS, fuelRecipeId } from './hearth.js?v=0.2.122';
+import { STYLE_GEAR_RECIPES } from './style-gear.js?v=0.2.122';
+import { SHIELD_RECIPES } from './shields.js?v=0.2.122';
+import { JEWELRY_RECIPES } from './jewelry.js?v=0.2.122';
 const BASE_RECIPES = {
   cooking: [
     // Fish — original starter chain
@@ -51,7 +51,7 @@ const BASE_RECIPES = {
     {id:'cook_river_chowder',name:'River Chowder',     icon:'🍲', inputs:{silverfin:2, potato:2, carrot:1}, output:'river_chowder', xp:198, req:52, ms:4600},
     {id:'cook_fishers_pie', name:"Fisher's Pie",       icon:'🥧', inputs:{goldgill:2, wheat:3, potato:1},  output:'fishers_pie',   xp:218, req:56, ms:4700},
     // Combat-meat chain (Phase A.1 — needs raw_*_meat drops from beasts)
-    {id:'cook_wolf_meat',    name:'Cook Wolf Meat',    icon:'🥩', inputs:{raw_wolf_meat:1},    output:'cooked_wolf_meat',    xp:35,  req:5,  ms:2400},
+    {id:'cook_wolf_meat',    name:'Cook Wolf Meat',    icon:'🥩', inputs:{raw_wolf_meat:1},    output:'cooked_wolf_meat',    xp:35,  req:1,  ms:2400},  // req 5 -> 1 (designer 2026-11-11, lane/d-small-calls): the Thicket's meat is the first food a hunter makes; the kit's 10 shrimp reach Cooking 2, and 1,100 meat sat uncookable
     {id:'cook_panther_meat', name:'Cook Panther Meat', icon:'🥩', inputs:{raw_panther_meat:1}, output:'cooked_panther_meat', xp:60,  req:25, ms:2800},
     {id:'cook_bear_meat',    name:'Cook Bear Meat',    icon:'🥩', inputs:{raw_bear_meat:1},    output:'cooked_bear_meat',    xp:120, req:40, ms:3400},
     // Crops — starter cook (Wave 2: turnip was the only crop with no recipe)

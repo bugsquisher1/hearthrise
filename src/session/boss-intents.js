@@ -2,17 +2,18 @@
 // src/session/boss-intents.js — CALL OUT: THE READ AND THE PRESS (src/data/boss-calls.js; supabase/migrations/2027-03-12-boss-call.sql).
 //
 // One ask, naming this hero's slot, a catalogue id and the price the player was shown:
-//   callOut(account, cs, call, price)   hr_boss_call: the leader pays the server's fee and the party enters the room,
-//                                       every member or none. A moved price answers quote_changed with the new quote.
+//   callOut(account, cs, call, price)   hr_boss_call: the caller pays the server's fee and enters the room, a hero in no
+//                                       party alone, a party's leader with every member or none (2027-04-05-call-out-alone.sql).
+//                                       A moved price answers quote_changed with the new quote.
 // (The read of the quote is src/session/boss-quote.js.)
 // Nothing here prices or gates anything. A press re-reads every one of this account's heroes in the party: the screen
 // shows only the server's answer. A refusal keeps the server's code and its quote.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.121';
-import { refusalOf } from './refusal.js?v=0.2.121';
-import { partyPeersOf, settleTownActivity } from './party-intents.js?v=0.2.121';
-import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.121';
-import { quoteOf } from './boss-quote.js?v=0.2.121';
+import { askVia } from './intent-ledger.js?v=0.2.122';
+import { refusalOf } from './refusal.js?v=0.2.122';
+import { partyPeersOf, settleTownActivity } from './party-intents.js?v=0.2.122';
+import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.122';
+import { quoteOf } from './boss-quote.js?v=0.2.122';
 
 const VERB = 'boss_call';
 const newIdem = () => globalThis.crypto.randomUUID();
@@ -20,7 +21,8 @@ const usable = (account, cs, call) => !!account && !!account.server && !!cs && c
 
 /** ONE call at the price the player saw. @returns {Promise<{ok:true}|{ok:false, error:string, quote:object|null, seats?:Array}>} */
 export function callOut(account, cs, call, price) {
-  if (!usable(account, cs, call) || !Number.isSafeInteger(price) || price < 1) return Promise.resolve({ ok: false, error: 'bad_intent', quote: null });
+  /* 0 is a price (an Open Halls call is free, 2027-03-22-live-events.sql §4): the server compares it with its own quote, like any other */
+  if (!usable(account, cs, call) || !Number.isSafeInteger(price) || price < 0) return Promise.resolve({ ok: false, error: 'bad_intent', quote: null });
   const peers = partyPeersOf(account, cs);
   return askVia(cs, VERB, async () => {
     for (const o of peers) await settleTownActivity(o);

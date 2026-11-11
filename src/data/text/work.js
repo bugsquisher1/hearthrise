@@ -9,7 +9,6 @@
 
 export const WORK_TEXT = Object.freeze({
   /* The menu's label, and its three orders: what the bag can make first (the default), the required level low to high, the name A to Z. */
-  sort: 'Sort',
   sort_can: 'Can make',
   sort_level: 'Level',
   sort_name: 'Name',

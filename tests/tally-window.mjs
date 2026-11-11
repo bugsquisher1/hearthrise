@@ -12,8 +12,19 @@
 // the character is tests/fixtures/alpha-envelope.json plus a `tally` section
 // (2026-12-23-tally-tasks.sql): Gray Wolves 112/200 held, Giant Rats done (120/120),
 // light armour, 1 paid today of 3. Her board is hr_tally_view's answer.
-//   TW-1  Q opens her window with zero console errors; it draws the SERVER's tallies
-//         ("Gray Wolves 112/200", the done one saying how she pays) and her board
+//   TW-1  Q opens her window with zero console errors; it draws the SERVER's tallies as her
+//         ledger entries (Gray Wolves 112 / 200, five of ten marks cut, the piece in its pocket,
+//         "You'll get 480 gp and …", the done one lifted and saying what happens next), her
+//         day count with its reset, and her board of the tasks you don't hold (two lines a row,
+//         the ground a take-me-there link, the pay piece, a real Take)
+//   TW-14 HER LINE PER STATE (mocks 2026-11-11): first visit, just taken, counting while hunting
+//         (and "counting here" on that ground), done while hunting, done in town, just paid (an
+//         older pay is not), the day's pay used up; her pick folded to one line, Change opens the
+//         weights and her slot chips, a chip sends ONE hr_tally_set with that slot first
+//   TW-15 SHE GIVES IT ONCE: a piece on two rows says so on both (the 11-11 bug: sharedPieces read
+//         pick.pick while tally-intents.js hands over pick.kind, so the note never showed); the
+//         pure helpers (sharedPieces, cutMarks, resetWords, keeperSay)
+//   TW-16 TAKE ME THERE: an entry's ground link opens the Hunts window on that ground
 //   TW-2  IN TOWN a done task due today is handed in by ONE hr_tally_collect naming
 //         only the slot and a key, then the character is re-read
 //   TW-3  Take sends ONE hr_tally_accept with catalogue ids only (no count, no price)
@@ -43,6 +54,7 @@ import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
@@ -56,7 +68,8 @@ const TALLY = {
   held: [
     { place: 1, task: 'thicket_gray_wolves', hunt: 'meadowbrook_thicket', monster: 'gray_wolf', kills: 112, target: 200, keep: false, done: false, done_at: null, wait: null },
     { place: 2, task: 'cellar_giant_rats', hunt: 'mill_cellar', monster: 'rat', kills: 120, target: 120, keep: true, done: true, done_at: '2026-10-23T10:00:00.000Z', wait: null }],
-  paid_today: 1, per_day: 3, held_max: 3, weight: 'light', order: ORDER, recent: [], day_ends_at: '2026-10-24T00:00:00.000Z',
+  /* the fixture's server clock is its hunt_server_now_ms, 2025-10-17T12:00Z (its `now` string says 2026), so the day resets in 6 h */
+  paid_today: 1, per_day: 3, held_max: 3, weight: 'light', order: ORDER, recent: [], day_ends_at: '2025-10-17T18:00:00.000Z',
 };
 /* TW-8: her three tasks held at once (held_max), so the HUD's tally is as tall as it gets. */
 const TALLY3 = Object.assign(clone(TALLY), { held: TALLY.held.concat([
@@ -64,7 +77,9 @@ const TALLY3 = Object.assign(clone(TALLY), { held: TALLY.held.concat([
 const BOARD = { ok: true, hunting: false, tally: TALLY, board: [
   { task: 'cellar_giant_rats', hunt: 'mill_cellar', monster: 'rat', target: 120, gold: 100, party: false, band_min: 1, held: true, pick: { pick: 'material', item: 'slime_gel', qty: 4 } },
   { task: 'thicket_gray_wolves', hunt: 'meadowbrook_thicket', monster: 'gray_wolf', target: 200, gold: 480, party: false, band_min: 5, held: true, pick: { pick: 'piece', item: 'apprentice_body', qty: 1 } },
-  { task: 'glade_poachers', hunt: 'mosslight_glade', monster: 'glade_poacher', target: 60, gold: 920, party: false, band_min: 16, held: false, pick: { pick: 'piece', item: 'adept_helmet', qty: 1 } }] };
+  { task: 'glade_poachers', hunt: 'mosslight_glade', monster: 'glade_poacher', target: 60, gold: 920, party: false, band_min: 16, held: false, pick: { pick: 'piece', item: 'adept_helmet', qty: 1 } },
+  /* the same piece on two rows (she gives it once): TW-15 */
+  { task: 'wickstead_turncoats', hunt: 'wickstead', monster: 'turncoat', target: 50, gold: 780, party: false, band_min: 8, held: false, pick: { pick: 'piece', item: 'adept_helmet', qty: 1 } }] };
 const TOWN = { hunt: null, state: Object.assign(clone(BASE_ENV.state), { active_kind: 'idle', active_id: null }), tally: TALLY };
 const RPCS = ['hr_tally_accept', 'hr_tally_drop', 'hr_tally_set', 'hr_tally_collect'];
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
@@ -159,12 +174,19 @@ async function signInAndPlay(page, base) {
   return wait(page, () => document.querySelector('.hs-launchers'));
 }
 
-/* TW-9 THE WORDS (Tyler 2026-10-24: "this is weird dialogue"): her greeting says what happens, and no line a player
-   reads from her (data, window, HUD, refusals, alerts, the log) keeps the riddles it replaced. */
-const GREETING = 'Take a task from my board and go hunting. When the count\'s done, I\'ll pay you in town with gold, plus the armor or materials my board shows.';
+/* TW-9 THE WORDS (Tyler 2026-10-24: "this is weird dialogue"; 2026-11-11: Tamsin in the first person, one line per state,
+   src/data/text/tally.js): her first-visit line is her story, and no line a player reads from her (data, window, HUD,
+   refusals, alerts, the log) keeps the riddles it replaced. */
+const FIRST_LINE = 'I kept the mill\'s rats down myself for thirty years. Then they got a king, so now I pay people to do it. Take one off my board.';
 const OLD_WORDS = /half of the stick|piece for your back|tally-keeper|picks for|her pick for you|tallies a day|you hold no tally|loads from the server|Tamsin has work/i;
-const COPY_FILES = ['src/data/tally-tasks.js', 'src/shell/windows/tally.js', 'src/session/tally-sections.js', 'src/shell/widgets/tally-hud.js',
+const COPY_FILES = ['src/data/tally-tasks.js', 'src/data/text/tally.js', 'src/shell/windows/tally.js', 'src/session/tally-sections.js', 'src/shell/widgets/tally-hud.js',
   'src/data/refusal-words.js', 'src/data/alerts.js', 'src/shell/alerts.js', 'src/hunt-view/combat-log.js'];
+/* TW-14: what she says and shows in one state, read off her window. */
+const STATE = () => { const w = document.querySelector('[data-hs-win="tally"]'); const e = w.querySelector('.ht-entry');
+  return { voice: w.querySelector('.ht-voice').textContent, day: w.querySelector('.ht-day-paid').textContent, full: w.querySelector('.ht-day').classList.contains('is-full'),
+    entries: w.querySelectorAll('.ht-entry').length, rows: w.querySelectorAll('.ht-row').length, why: w.querySelector('.ht-board-why').classList.contains('is-on') ? w.querySelector('.ht-board-why span').textContent : '',
+    first: e && { task: e.getAttribute('data-task'), cut: e.querySelectorAll('.ht-five i.is-cut').length, done: e.classList.contains('is-done'), get: e.querySelector('.ht-get').textContent, where: e.querySelector('.ht-where').textContent },
+    takes: Array.from(w.querySelectorAll('.ht-take')).map((b) => b.disabled) }; };
 
 async function checks(overrides, shots) {
   const fails = [];
@@ -204,23 +226,39 @@ async function checks(overrides, shots) {
       const opened = up && await show(page);
       if (!opened) fails.push('TW-1 her window did not open from Q');
       else {
-        await wait(page, () => document.querySelectorAll('[data-hs-win="tally"] .ht-offer').length === 3, null, 4000);
+        /* the two held tasks leave her board: of the four rows she answered, the two not held are listed */
+        await wait(page, () => document.querySelectorAll('[data-hs-win="tally"] .ht-row').length === 2, null, 4000);
         if (errors.length) fails.push('TW-1 console errors: ' + errors.join(' | ').slice(0, 300));
-        const lines = await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="tally"] .ht-tally')].map((li) => li.querySelector('b').textContent + '|' + li.querySelector('small').textContent));
-        if (lines.length !== 2 || lines[0] !== 'Gray Wolves 112/200|Only Gray Wolves in Meadowbrook Thicket count, even while you\'re away. Pays 480 gp + an Apprentice Robe Top.' || !/^Giant Rats 120\/120\|Done\./.test(lines[1])) fails.push('TW-1 her tallies read ' + JSON.stringify(lines));
-        /* TW-9 her words on screen say what happens, in plain English (Tyler 2026-10-24: "this is weird dialogue") */
-        const said = await page.evaluate(() => ({ hi: (document.querySelector('[data-hs-win="tally"] .ht-keeper .hs-note') || {}).textContent,
-          all: (document.querySelector('[data-hs-win="tally"]') || {}).textContent + ' ' + (document.querySelector('.hs-tally') || {}).textContent }));
-        if (said.hi !== GREETING) fails.push('TW-9 her greeting reads ' + JSON.stringify(said.hi));
-        if (OLD_WORDS.test(said.all)) fails.push('TW-9 her window still says "' + OLD_WORDS.exec(said.all)[0] + '"');
-        const offer = await txt(page, W + '.ht-offer[data-task="glade_poachers"] small');
-        if (!/^Mosslight Glade \(Level 16 ground\) · 920 gp \+ an Adept /.test(offer || '')) fails.push('TW-1 the board line reads ' + JSON.stringify(offer));
+        const entries = await page.evaluate((cut) => [...document.querySelectorAll('[data-hs-win="tally"] .ht-entry')].map((li) => ({
+          task: li.getAttribute('data-task'), name: li.querySelector('.ht-entry-top > b').textContent, count: li.querySelector('.ht-count b').textContent + ' ' + li.querySelector('.ht-count small').textContent,
+          get: li.querySelector('.ht-get').textContent, done: li.classList.contains('is-done'), cut: li.querySelectorAll('.ht-five i.is-cut').length, icon: !!li.querySelector('.ht-pocket .hh-icon'),
+          where: li.querySelector('.ht-where').textContent, go: li.querySelector('.ht-where .hs-goto')?.getAttribute('data-hs-goto') || null })));
+        const wolves = entries[0], rats = entries[1];
+        if (entries.length !== 2 || wolves.task !== 'thicket_gray_wolves' || wolves.name !== 'Gray Wolves' || wolves.count !== '112 / 200' || wolves.cut !== 5 || wolves.done
+          || wolves.get !== 'You\'ll get 480 gp and an Apprentice Robe Top.' || !wolves.icon || wolves.where !== 'Meadowbrook Thicket' || wolves.go !== 'hunts|meadowbrook_thicket|') fails.push('TW-1 the wolves\' entry reads ' + JSON.stringify(wolves));
+        if (!rats || rats.count !== '120 / 120' || rats.cut !== 10 || !rats.done || !/^Done\. I'll pay you now\. You'll get 100 gp and 4 Slime Gel\.$/.test(rats.get)) fails.push('TW-1 the done entry reads ' + JSON.stringify(rats));
+        const head = await page.evaluate(() => ({ day: document.querySelector('[data-hs-win="tally"] .ht-day-paid').textContent, reset: document.querySelector('[data-hs-win="tally"] .ht-day-new').textContent,
+          who: document.querySelector('[data-hs-win="tally"] .ht-who').textContent, mine: document.querySelector('[data-hs-win="tally"] .ht-mine-head small').textContent, voice: document.querySelector('[data-hs-win="tally"] .ht-voice').textContent }));
+        if (head.who !== 'Tamsin Reeve' || head.day !== 'Paid today 1 of 3' || head.reset !== 'resets in 6 h' || head.mine !== '2 of 3') fails.push('TW-1 her line\'s head reads ' + JSON.stringify(head));
+        if (head.voice !== 'That\'s all 120. Let me get your pay.') fails.push('TW-14 with a done task in town she says ' + JSON.stringify(head.voice));
+        /* TW-9 no line on screen keeps the riddles (Tyler 2026-10-24: "this is weird dialogue") */
+        const all = await page.evaluate(() => (document.querySelector('[data-hs-win="tally"]') || {}).textContent + ' ' + (document.querySelector('.hs-tally') || {}).textContent);
+        if (OLD_WORDS.test(all)) fails.push('TW-9 her window still says "' + OLD_WORDS.exec(all)[0] + '"');
+        const row = await page.evaluate(() => { const li = document.querySelector('[data-hs-win="tally"] .ht-row[data-task="glade_poachers"]'); return li && { name: li.querySelector('.ht-row-name b').textContent,
+          go: li.querySelector('.ht-row-go .hs-goto')?.getAttribute('data-hs-goto'), ground: li.querySelector('.ht-row-go').textContent, lvl: li.querySelector('.ht-row-lvl').textContent,
+          gold: li.querySelector('.ht-pay b').textContent, piece: li.querySelector('.ht-pay-name').textContent, once: li.querySelector('.ht-once').textContent, icon: !!li.querySelector('.ht-pocket .hh-icon'), take: li.querySelector('.ht-take').textContent }; });
+        if (!row || row.name !== '60 Glade Poachers' || row.go !== 'hunts|mosslight_glade|' || row.ground !== 'Mosslight Glade' || row.lvl !== 'Level 16' || row.gold !== '920 gp' || row.piece !== 'Adept Hat' || !row.icon || row.take !== 'Take') fails.push('TW-1 the board row reads ' + JSON.stringify(row));
+        /* TW-15 SHE GIVES IT ONCE (the mock lane 2026-11-11): the Adept Hat is on two rows, so both say so. sharedPieces read `pick.pick` while
+           tally-intents.js hands it over as `pick.kind`, so the note never showed. */
+        const once = await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="tally"] .ht-row')].map((li) => li.getAttribute('data-task') + '|' + li.querySelector('.ht-once').textContent));
+        if (once.join(';') !== 'glade_poachers|She gives it once, to the first of these she pays.;wickstead_turncoats|She gives it once, to the first of these she pays.') fails.push('TW-15 the once note reads ' + JSON.stringify(once));
         // TW-2: the visit hands the done task in, once
         await idle(page);
         const cl = sent(s, 'hr_tally_collect');
         if (cl.length !== 1 || Object.keys(cl[0].body).sort().join() !== 'p_idem,p_slot' || cl[0].body.p_slot !== 0) fails.push('TW-2 the visit sent ' + JSON.stringify(cl.map((c) => c.body)));
+        if ((await txt(page, W + '.hh-intent-msg')) !== 'Tamsin paid you for 1 task.') fails.push('TW-2 after the visit the line reads ' + JSON.stringify(await txt(page, W + '.hh-intent-msg')));
         // TW-3: Take
-        await press(page, W + '.ht-offer[data-task="glade_poachers"] button', 'TW-3');
+        await press(page, W + '.ht-row[data-task="glade_poachers"] .ht-take', 'TW-3');
         await page.waitForTimeout(60);
         if (!(await off(page, W + '[data-hs-act="weight"]'))) fails.push('TW-3 a control stayed on while the take was in flight');
         await idle(page);
@@ -247,9 +285,9 @@ async function checks(overrides, shots) {
       const { ctx, page, up } = await open(clone(TOWN), { hr_tally_accept: { ok: false, error: 'tally_full', held_max: 3 } });
       if (!(up && await show(page))) fails.push('TW-4 her window did not open');
       else {
-        await wait(page, () => document.querySelectorAll('[data-hs-win="tally"] .ht-offer').length === 3, null, 4000);
+        await wait(page, () => document.querySelectorAll('[data-hs-win="tally"] .ht-row').length === 2, null, 4000);
         await idle(page);
-        await press(page, W + '.ht-offer[data-task="glade_poachers"] button', 'TW-4');
+        await press(page, W + '.ht-row[data-task="glade_poachers"] .ht-take', 'TW-4');
         await idle(page);
         const line = await txt(page, W + '.hh-intent-msg');
         if (!/as many of her tasks as she gives at once/.test(line || '')) fails.push('TW-4 a refused take reads ' + JSON.stringify(line));
@@ -260,10 +298,18 @@ async function checks(overrides, shots) {
       const { ctx, page, s, up } = await open({ tally: clone(TALLY) }, null, Object.assign(clone(BOARD), { hunting: true }));
       if (!(up && await show(page))) fails.push('TW-5 her window did not open while hunting');
       else {
-        await wait(page, () => document.querySelectorAll('[data-hs-win="tally"] .ht-offer').length === 3, null, 4000);
+        await wait(page, () => document.querySelectorAll('[data-hs-win="tally"] .ht-row').length === 2, null, 4000);
         await page.waitForTimeout(500);
-        if (!(await off(page, W + '.ht-offer[data-task="glade_poachers"] button'))) fails.push('TW-5 Take is on while hunting');
+        if (!(await off(page, W + '.ht-row[data-task="glade_poachers"] .ht-take'))) fails.push('TW-5 Take is on while hunting');
         if (sent(s, 'hr_tally_collect').length) fails.push('TW-5 a done task was handed in mid-hunt');
+        const hunting = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"]'); const why = w.querySelector('.ht-board-why');
+          return { why: why.classList.contains('is-on') ? why.querySelector('span').textContent : '', voice: w.querySelector('.ht-voice').textContent,
+            done: w.querySelector('.ht-entry[data-task="cellar_giant_rats"] .ht-get').textContent, where: w.querySelector('.ht-entry[data-task="thicket_gray_wolves"] .ht-where').textContent }; });
+        if (hunting.why !== 'You can take more when you\'re back in town.') fails.push('TW-5 hunting, her board reads ' + JSON.stringify(hunting.why));
+        if (hunting.voice !== 'That\'s all 120. Come back to town and I\'ll pay you.') fails.push('TW-14 done while hunting she says ' + JSON.stringify(hunting.voice));
+        if (!/^Done\. I'll pay you when you're back in town\. You'll get/.test(hunting.done)) fails.push('TW-5 the done entry reads ' + JSON.stringify(hunting.done));
+        /* hunting the Cellar, the wolves' entry says its ground is not this one */
+        if (hunting.where !== 'Meadowbrook Thicket · Not here') fails.push('TW-5 the wolves\' entry reads ' + JSON.stringify(hunting.where));
       }
       await ctx.close();
     }
@@ -342,19 +388,23 @@ async function checks(overrides, shots) {
       const { ctx, page, s, up } = await open(Object.assign(clone(TOWN), { tally: fresh }));
       if (!(up && await show(page))) fails.push('TW-13 her window did not open');
       else {
-        await wait(page, () => document.querySelector('[data-hs-win="tally"] .ht-offer'), null, 4000);
+        await wait(page, () => document.querySelector('[data-hs-win="tally"] .ht-row'), null, 4000);
         const seen = await page.evaluate(() => {
-          const w = document.querySelector('[data-hs-win="tally"]'), why = w.querySelector('.ht-take-why');
-          return { first: !!(w.querySelector('.ht-board').compareDocumentPosition(w.querySelector('.ht-weights')) & Node.DOCUMENT_POSITION_FOLLOWING),
-            why: why.classList.contains('is-on') ? why.querySelector('span').textContent : '', off: Array.from(w.querySelectorAll('[data-hs-act="take"]')).every((b) => b.disabled), toPicker: !w.querySelector('[data-hs-act="to-weight"]').hidden };
+          const w = document.querySelector('[data-hs-win="tally"]'), why = w.querySelector('.ht-board-why');
+          return { first: !!(w.querySelector('.ht-list').compareDocumentPosition(w.querySelector('.ht-weights')) & Node.DOCUMENT_POSITION_FOLLOWING),
+            why: why.classList.contains('is-on') ? why.querySelector('span').textContent : '', off: Array.from(w.querySelectorAll('[data-hs-act="take"]')).every((b) => b.disabled), toPicker: !w.querySelector('[data-hs-act="to-weight"]').hidden,
+            voice: w.querySelector('.ht-voice').textContent, mine: w.querySelector('.ht-mine-head').getClientRects().length > 0, folded: w.querySelector('.ht-pick-open').hidden, pick: w.querySelector('.ht-pick-line').textContent };
         });
         if (!seen.first) fails.push('TW-13 the weight picker stands over her board');
         if (seen.off || seen.why !== 'Your first Take asks her for medium armor, the weight you wear most. Change it below any time.' || !seen.toPicker) fails.push('TW-13 with no weight her board reads ' + JSON.stringify(seen));
+        /* TW-14 FIRST VISIT: her story, no Your tallies section, the picker folded to one line */
+        if (seen.voice !== FIRST_LINE) fails.push('TW-14 on a first visit she says ' + JSON.stringify(seen.voice));
+        if (seen.mine || !seen.folded || seen.pick !== 'Your first Take picks the armor weight for you, or pick it here.') fails.push('TW-14 a first visit shows ' + JSON.stringify({ mine: seen.mine, folded: seen.folded, pick: seen.pick }));
         if (seen.toPicker) { // no press to make when it is hidden: that is already a named fail above, never a page.click timeout that kills the run
           await page.click('[data-hs-win="tally"] [data-hs-act="to-weight"]');
           await page.waitForTimeout(200);
-          const inView = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"] .hs-win-body').getBoundingClientRect(), p = document.querySelector('[data-hs-win="tally"] .ht-weights').getBoundingClientRect(); return p.top >= w.top && p.bottom <= w.bottom; });
-          if (!inView) fails.push('TW-13 Pick a weight did not bring the picker into view');
+          const inView = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"] .hs-win-body').getBoundingClientRect(), p = document.querySelector('[data-hs-win="tally"] .ht-weights').getBoundingClientRect(); return p.height > 0 && p.top >= w.top && p.bottom <= w.bottom; });
+          if (!inView) fails.push('TW-13 Change did not open the picker and bring it into view');
         }
         if (sent(s, 'hr_tally_accept').length) fails.push('TW-13 a task was taken before a press');
         const task = await page.evaluate(() => document.querySelector('[data-hs-win="tally"] [data-hs-act="take"]:not([disabled])')?.getAttribute('data-task') || 'none open');
@@ -371,8 +421,8 @@ async function checks(overrides, shots) {
       const { ctx, page, s, up } = await open(env);
       if (!(up && await show(page))) fails.push('TW-13 her window did not open with nothing worn');
       else {
-        await wait(page, () => document.querySelector('[data-hs-win="tally"] .ht-offer'), null, 4000);
-        const seen = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"]'), why = w.querySelector('.ht-take-why');
+        await wait(page, () => document.querySelector('[data-hs-win="tally"] .ht-row'), null, 4000);
+        const seen = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"]'), why = w.querySelector('.ht-board-why');
           return { why: why.querySelector('span').textContent, off: Array.from(w.querySelectorAll('[data-hs-act="take"]')).every((b) => b.disabled), role: !!w }; });
         if (!seen.off || !/^Pick the armor weight she pays you in first/.test(seen.why)) fails.push('TW-13 with no worn weight and no role her board reads ' + JSON.stringify(seen));
       }
@@ -528,15 +578,82 @@ async function checks(overrides, shots) {
       }
       await ctx.close();
     }
+    { // TW-14 HER LINE PER STATE (mocks 2026-11-11, Tyler: "plain / confusing / boring"): just taken, counting while hunting, just paid, the day's pay used up
+      const held = (kills, target, task, hunt, monster, done = false) => ({ place: 1, task, hunt, monster, kills, target, keep: false, done, done_at: done ? '2025-10-17T11:00:00.000Z' : null, wait: null });
+      const wolves = (kills, done) => held(kills, 200, 'thicket_gray_wolves', 'meadowbrook_thicket', 'gray_wolf', done);
+      const boardHeld = (...tasks) => Object.assign(clone(BOARD), { board: BOARD.board.map((r) => Object.assign({}, r, { held: tasks.includes(r.task) })) });
+      const cases = [
+        ['taken', clone(TOWN), { held: [wolves(0)], paid_today: 0 }, boardHeld('thicket_gray_wolves'), (st) => st.voice === '200 Gray Wolves in Meadowbrook Thicket. Every kill counts, even while you\'re away, so off you go.'
+          && st.entries === 1 && st.first.cut === 0 && st.rows === 3 && st.takes.every((d) => !d) && st.why === ''],
+        ['hunting', { tally: null }, { held: [wolves(112)], paid_today: 0 }, Object.assign(boardHeld('thicket_gray_wolves'), { hunting: true }), (st) => st.voice === '112 down, 88 to go. Every one counts, even while you\'re away.'
+          && st.first.cut === 5 && st.first.where === 'Meadowbrook Thicket · Not here' && st.why === 'You can take more when you\'re back in town.' && st.takes.every((d) => d)],
+        /* hunting the Cellar with the rats held: the entry says it counts here */
+        ['here', { tally: null }, { held: [held(9, 25, 'cellar_giant_rats', 'mill_cellar', 'rat')], paid_today: 0 }, Object.assign(boardHeld('cellar_giant_rats'), { hunting: true }),
+          (st) => st.voice === '9 down, 16 to go. Every one counts, even while you\'re away.' && st.first.cut === 3 && st.first.where === 'Counting here in Mill Cellar.'],
+        ['paid', clone(TOWN), { held: [], paid_today: 1, recent: [{ claim: 'c9', at: '2025-10-17T11:40:00.000Z', task: 'cellar_giant_rats', gold: 100, item: 'slime_gel', qty: 4, pick: 'material' }] }, boardHeld(),
+          (st) => st.voice === 'There you go, 100 gold and 4 Slime Gel. Want another?' && st.entries === 0 && st.rows === 4],
+        /* a pay from an older day is not "just paid": her board line */
+        ['none', clone(TOWN), { held: [], paid_today: 0, recent: [{ claim: 'c8', at: '2025-10-16T11:40:00.000Z', task: 'cellar_giant_rats', gold: 100, item: 'slime_gel', qty: 4, pick: 'material' }] }, boardHeld(),
+          (st) => st.voice === 'Board\'s full of work. Take one and go hunt, and I\'ll pay you when you\'re back.' && st.rows === 4],
+        ['capped', clone(TOWN), { held: [held(50, 50, 'wickstead_turncoats', 'wickstead', 'turncoat', true), wolves(140)], paid_today: 3 }, boardHeld('wickstead_turncoats', 'thicket_gray_wolves'),
+          (st) => st.voice === 'That\'s three today, and three\'s all I pay for. Bring the Turncoats back tomorrow.' && st.day === 'Paid today 3 of 3' && st.full && st.first.done
+            && st.first.get === 'Done. I\'ll pay you for this one tomorrow. You\'ll get 780 gp and an Adept Hat.' && st.first.cut === 10],
+      ];
+      for (const [name, env, tally, board, want] of cases) {
+        const { ctx, page, s, up } = await open(Object.assign(env, { tally: Object.assign(clone(TALLY), tally) }), null, board);
+        if (!(up && await show(page))) { fails.push('TW-14 [' + name + '] her window did not open'); await ctx.close(); continue; }
+        await wait(page, () => document.querySelector('[data-hs-win="tally"] .ht-row'), null, 4000);
+        await page.waitForTimeout(300);
+        const st = await page.evaluate(STATE);
+        if (!want(st)) fails.push('TW-14 [' + name + '] her window reads ' + JSON.stringify(st));
+        if (name === 'capped' && sent(s, 'hr_tally_collect').length) fails.push('TW-14 [capped] a done task was handed in over the day\'s cap');
+        await ctx.close();
+      }
+    }
+    { // TW-14 HER PICK behind Change: the weights, the chosen weight's sentence, her slot order as chips; a chip sends ONE hr_tally_set with that slot first
+      const { ctx, page, s, up } = await open(clone(TOWN));
+      if (!(up && await show(page))) fails.push('TW-14 [pick] her window did not open');
+      else {
+        await wait(page, () => document.querySelector('[data-hs-win="tally"] .ht-row'), null, 4000);
+        await idle(page);
+        const line = await txt(page, W + '.ht-pick-line');
+        if (line !== 'She pays you in light armor, head first, then body and legs.') fails.push('TW-14 [pick] her pick line reads ' + JSON.stringify(line));
+        await press(page, W + '[data-hs-act="pick-toggle"]', 'TW-14 [pick]');
+        await page.waitForTimeout(100);
+        const open = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"]');
+          return { shown: !w.querySelector('.ht-pick-open').hidden, toggle: w.querySelector('[data-hs-act="pick-toggle"]').textContent, on: w.querySelector('.ht-weights [aria-pressed="true"]')?.getAttribute('data-weight'),
+            words: w.querySelector('.ht-weight-words').textContent, chips: Array.from(w.querySelectorAll('.ht-slots button')).map((b) => b.textContent + (b.disabled ? '*' : '')) }; });
+        if (!open.shown || open.toggle !== 'Close' || open.on !== 'light' || !/^Light armor /.test(open.words) || open.chips.join(',') !== '1Head*,2Body,3Legs,4Feet,5Hands,6Waist') fails.push('TW-14 [pick] Change opened ' + JSON.stringify(open));
+        await press(page, W + '.ht-slots [data-slot-name="pants"]', 'TW-14 [pick]');
+        await idle(page);
+        const set = sent(s, 'hr_tally_set');
+        if (set.length !== 1 || JSON.stringify(set[0].body.p_order) !== JSON.stringify(['pants', 'helmet', 'body', 'boots', 'gloves', 'belt']) || set[0].body.p_weight !== null || set[0].body.p_task !== null) fails.push('TW-14 [pick] the chip sent ' + JSON.stringify(set.map((c) => c.body)));
+        /* TW-16 TAKE ME THERE: the ground on an entry is a link that opens the Hunts window on that ground */
+        await press(page, W + '.ht-entry[data-task="thicket_gray_wolves"] .ht-where .hs-goto', 'TW-16');
+        const picked = await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="meadowbrook_thicket"].is-picked'), null, 4000);
+        if (!picked) fails.push('TW-16 the ground link did not open the Hunts window on Meadowbrook Thicket');
+      }
+      await ctx.close();
+    }
+    { // TW-15 the pure half of the once note: her answer's rows carry pick.kind (tally-intents.js boardRow), and sharedPieces reads that
+      const { sharedPieces, cutMarks, resetWords, keeperSay } = await import(pathToFileURL(join(ROOT, 'src/shell/windows/tally.js')).href);
+      const both = sharedPieces([{ pick: { kind: 'piece', item: 'adept_helmet', qty: 1 } }, { pick: { kind: 'piece', item: 'adept_helmet', qty: 1 } }, { pick: { kind: 'material', item: 'slime_gel', qty: 4 } }, { pick: { kind: 'material', item: 'slime_gel', qty: 4 } }]);
+      if (both.size !== 1 || !both.has('adept_helmet')) fails.push('TW-15 sharedPieces over kind rows gives ' + JSON.stringify([...both]));
+      if ([cutMarks(112, 200, false), cutMarks(0, 25, false), cutMarks(24, 25, false), cutMarks(24, 25, true), cutMarks(9, 25, false)].join() !== '5,0,9,10,3') fails.push('TW-15 the marks cut ' + [cutMarks(112, 200, false), cutMarks(24, 25, false), cutMarks(24, 25, true)].join());
+      const now = Date.parse('2026-10-17T12:00:00Z');
+      if ([resetWords('2026-10-17T18:00:00Z', now), resetWords('2026-10-17T12:20:00Z', now), resetWords('2026-10-17T11:00:00Z', now), resetWords(null, now)].join('|') !== '6 h|20 m||') fails.push('TW-15 the reset reads ' + resetWords('2026-10-17T12:20:00Z', now));
+      if (keeperSay(null, false, false) !== '') fails.push('TW-15 with no tally she speaks');
+    }
     { // TW-7
       const { ctx, page, s, up } = await open({ hunt: null }, null, { ok: true, hunting: false, tally: null, board: BOARD.board });
       if (!(up && await show(page))) fails.push('TW-7 her window did not open without the section');
       else {
         await page.waitForTimeout(600);
-        if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="tally"] .ht-tally').length) !== 0) fails.push('TW-7 tallies were invented');
-        if (!(await off(page, W + '.ht-offer[data-task="glade_poachers"] button'))) fails.push('TW-7 Take is on with no tally from the server');
+        if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="tally"] .ht-entry').length) !== 0) fails.push('TW-7 tallies were invented');
+        if (!(await off(page, W + '.ht-row[data-task="glade_poachers"] .ht-take'))) fails.push('TW-7 Take is on with no tally from the server');
         if (!(await off(page, W + '[data-hs-act="weight"]'))) fails.push('TW-7 a weight can be chosen with no tally from the server');
-        const today = await txt(page, W + '.ht-today');
+        if (await txt(page, W + '.ht-voice')) fails.push('TW-7 she speaks with no tally from the server: ' + JSON.stringify(await txt(page, W + '.ht-voice')));
+        const today = await txt(page, W + '.ht-day-paid');
         if (today) fails.push('TW-7 the day\'s count reads ' + JSON.stringify(today) + ' with no tally from the server');
         if (sent(s, 'hr_tally_collect').length) fails.push('TW-7 a visit was sent with no tally from the server');
       }
@@ -550,8 +667,21 @@ async function checks(overrides, shots) {
 }
 
 const MUTANTS = [
-  ['Take stays on while hunting', 'src/shell/windows/tally.js', "prop(btn, 'disabled', !!why || st.sc.pending || st.hunting || !st.t || (!st.t.weight && !st.suggest));", "prop(btn, 'disabled', !!why || st.sc.pending || !st.t || !st.t.weight);"],
-  ['a done task is handed in mid-hunt', 'src/shell/windows/tally.js', "const due = t && !st.hunting && t.paidToday < t.perDay", 'const due = t && t.paidToday < t.perDay'],
+  ['Take stays on while hunting', 'src/shell/windows/tally.js', "prop(btn, 'disabled', r.held || full || st.sc.pending || st.hunting || !tally || (!tally.weight && !st.suggest));", "prop(btn, 'disabled', r.held || full || st.sc.pending || !tally || !tally.weight);"],
+  ['a done task is handed in mid-hunt', 'src/shell/windows/tally.js', "const due = tally && !hunting && tally.paidToday < tally.perDay", 'const due = tally && tally.paidToday < tally.perDay'],
+  /* TW-14, TW-15, TW-16: her ledger (mocks 2026-11-11) */
+  ['her line counts one kill more than the server', 'src/shell/windows/tally.js', "{ down: whole(open.kills), left: whole(open.target - open.kills) }", "{ down: whole(open.kills + 1), left: whole(open.target - open.kills - 1) }"],
+  ['her line is the same in every state', 'src/shell/windows/tally.js', "  const capped = tally.paidToday >= tally.perDay;\n  const done = tally.held.find((h) => h.done);", "  return t('tally.say_none');\n  const capped = tally.paidToday >= tally.perDay;\n  const done = tally.held.find((h) => h.done);"],
+  ['a pay from yesterday reads as just paid', 'src/shell/windows/tally.js', "const justPaid = sc.paidNow || !!(paid && paid.at && nowMs - Date.parse(paid.at) < PAID_FRESH_MS);", "const justPaid = sc.paidNow || !!paid;"],
+  ['the marks cut a stroke ahead of the count', 'src/shell/windows/tally.js', "Math.floor((kills / target) * MARKS)", "Math.ceil((kills / target) * MARKS)"],
+  ['sharedPieces reads pick.pick again (the 11-11 bug)', 'src/shell/windows/tally.js', "if (!r.pick || r.pick.kind !== 'piece') continue;", "if (!r.pick || r.pick.pick !== 'piece') continue;"],
+  ['the once note never shows on her board', 'src/shell/windows/tally.js', "  text(li.querySelector('.ht-once'), onceWords(r, st));", "  text(li.querySelector('.ht-once'), '');"],
+  ['the ground link goes nowhere', 'src/shell/windows/tally.js', "const groundLink = (hunt) => ({ words: huntName(hunt), target: targetOf({ kind: 'hunt', hunt }) });", "const groundLink = (hunt) => ({ words: huntName(hunt), target: null });"],
+  ['a slot chip sends the old order', 'src/shell/windows/tally.js', "    order.splice(i, 1);\n    order.unshift(s);", "    order.splice(i, 1);\n    order.push(s);"],
+  ['the day count hides its reset', 'src/shell/windows/tally.js', "text(root.querySelector('.ht-day-new'), left ? t('tally.day_resets', { left }) : '');", "text(root.querySelector('.ht-day-new'), '');"],
+  ['held tasks stay on her board', 'src/shell/windows/tally.js', "rows(root.querySelector('.ht-list'), board.filter((r) => !r.held),", "rows(root.querySelector('.ht-list'), board,"],
+  ['a done entry is not lifted', 'src/shell/windows/tally.js', "  cls(li, 'is-done', h.done);", "  cls(li, 'is-done', false);"],
+  ['an entry says its ground counts here while hunting elsewhere', 'src/shell/windows/tally.js', "const here = st.hunting && st.huntId === h.hunt;", "const here = st.hunting;"],
   ['the visit is sent on every repaint', 'src/shell/windows/tally.js', '  if (due.length && sc.collected !== key && !sc.pending && ctx.account) {', '  if (due.length && !sc.pending && ctx.account) {'],
   ['the reader invents a tally', 'src/session/tally-sections.js', "  if (!isObj(raw)) return null;\n  const had", "  if (!isObj(raw)) raw = { held: [], paid_today: 0, per_day: 3, held_max: 3, order: [] };\n  const had"],
   ['take carries a count', 'src/session/tally-intents.js', "{ p_slot: cs.slot, p_task: task, p_weight: weight == null ? null : weight, p_idem: newIdem() }", "{ p_slot: cs.slot, p_task: task, p_weight: weight == null ? null : weight, p_count: 1, p_idem: newIdem() }"],
@@ -559,16 +689,16 @@ const MUTANTS = [
   ['a refusal reads as a generic line', 'src/shell/windows/tally.js', "  const run = (send, busy, done) => runIntent(sc, repaint, send, busy, (r) => { sc.stale = true; return done(r); }, cs);", "  const run = (send, busy, done) => runIntent(sc, repaint, async () => { const r = await send(); if (!r.ok) r.error = 'refused'; return r; }, busy, (r) => { sc.stale = true; return done(r); }, cs);"],
   ['the hunt list drops the tally line', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(' · '));", "text(li.querySelector('.hw-hunt-tally'), '');"],
   ['the Tally is held at its capped height', 'src/shell/hud-room.js', 'phone ? rel(el) : Object.assign(rel(el), { height: wholeHeight(el) })', 'rel(el)'],
-  ['her board says nothing of a missing weight', 'src/shell/windows/tally.js', "const takeWhy = sc.board ? takeWhyOf(t, st.hunting, suggest) : '';", "const takeWhy = '';"],
-  ['every Take stays grey until a weight is picked', 'src/shell/windows/tally.js', "st.hunting || !st.t || (!st.t.weight && !st.suggest));", "st.hunting || !st.t || !st.t.weight);"],
+  ['her board says nothing of a missing weight', 'src/shell/windows/tally.js', "const why = !sc.board ? '' : hunting ? t('tally.board_hunting') : takeWhyOf(tally, hunting, suggest);", "const why = !sc.board ? '' : hunting ? t('tally.board_hunting') : '';"],
+  ['every Take stays grey until a weight is picked', 'src/shell/windows/tally.js', "st.hunting || !tally || (!tally.weight && !st.suggest));", "st.hunting || !tally || !tally.weight);"],
   ['a first Take names no weight', 'src/shell/windows/tally.js', "takeTask(ctx.account, cs, task, first ? first.weight : null)", "takeTask(ctx.account, cs, task, null)"],
   ['a first Take guesses with nothing to go on', 'src/shell/windows/tally.js', "const weight = wears || WEIGHT_FOR_ROLE[role] || null;", "const weight = wears || WEIGHT_FOR_ROLE[role] || 'heavy';"],
-  ['the weight picker stands over her board again', 'src/shell/windows/tally.js', "    + '<h3 class=\"hw-ledger-head is-on\">Her board</h3><p class=\"hh-empty ht-wait\">Loading her board…</p>'", "    + '<div class=\"ht-weights\"></div><h3 class=\"hw-ledger-head is-on\">Her board</h3><p class=\"hh-empty ht-wait\">Loading her board…</p>'"],
+  ['the weight picker stands over her board again', 'src/shell/windows/tally.js', "    + '<h3 class=\"hw-ledger-head is-on ht-head ht-board-head\"><span></span></h3>'", "    + '<div class=\"ht-weights\"></div><h3 class=\"hw-ledger-head is-on ht-head ht-board-head\"><span></span></h3>'"],
   ['the tally sits at its anchor, over the analyzer', 'src/shell/shell.js', '      const top = stackBelow(at, above, DOCK_EDGE);', '      const top = Math.round(at.top);'],
-  ['her greeting is the riddle again', 'src/data/tally-tasks.js', "greeting: 'Take a task from my board and go hunting. When the count\\'s done, I\\'ll pay you in town with gold, plus the armor or materials my board shows.',",
-    "greeting: 'Bring me your half of the stick when the count is done, and I pay. Coin, and a piece for your back.',"],
-  ['a tally with nothing to show keeps its box', 'src/shell/widgets/tally-hud.js', "  cls(el, 'is-quiet', !t || (!held.length && (hunting || !met)));", "  cls(el.querySelector('.hs-tally'), 'is-quiet', !t || (!held.length && (hunting || !met)));"],
-  ['a new hero\'s first screen carries Tamsin\'s line beside the coach', 'src/shell/widgets/tally-hud.js', '  const met = !!t && (!!t.weight || t.recent.length > 0);', '  const met = !!t;'],
+  ['her first line is the riddle again', 'src/data/text/tally.js', "say_first: 'I kept the mill\\'s rats down myself for thirty years. Then they got a king, so now I pay people to do it. Take one off my board.',",
+    "say_first: 'Bring me your half of the stick when the count is done, and I pay. Coin, and a piece for your back.',"],
+  ['a tally with nothing to show keeps its box', 'src/shell/widgets/tally-hud.js', "  cls(el, 'is-quiet', !tl || (!held.length && (hunting || !met)));", "  cls(el.querySelector('.hs-tally'), 'is-quiet', !tl || (!held.length && (hunting || !met)));"],
+  ['a new hero\'s first screen carries Tamsin\'s line beside the coach', 'src/shell/widgets/tally-hud.js', '  const met = !!tl && (!!tl.weight || tl.recent.length > 0);', '  const met = !!tl;'],
   /* TW-11: move and fold (Tyler 2026-10-25) */
   ['a folded analyzer keeps its full minimum height', 'src/shell/shell.js', "      el.style.minHeight = L.folded ? '' : row.min[1] + 'px';", "      el.style.minHeight = row.min[1] + 'px';"],
   ['the fold press does nothing', 'src/shell/widget-move.js', '    hud.setFolded(id, !hud.layoutOf(id).folded);', ''],
@@ -587,7 +717,7 @@ async function main() {
     const fails = await checks(null, shots);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'tally-window: ' + fails.length + ' rule(s) RED'
-      : 'tally-window: opens on Q; the server\'s tallies and her board; a due tally handed in once in town; Take sends ids only, controls off in flight; refusals in words; nothing taken or handed in mid-hunt; HUD and hunt list read the server; fails safe; the analyzer and the tally move and fold');
+      : 'tally-window: opens on Q; the server\'s tallies and her board; a due tally handed in once in town; Take sends ids only, controls off in flight; refusals in words; nothing taken or handed in mid-hunt; HUD and hunt list read the server; fails safe; the analyzer and the tally move and fold; her line per state, the marks, the once note, the ground link, a chip puts a slot first');
     process.exit(fails.length ? 1 : 0);
   }
   /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */

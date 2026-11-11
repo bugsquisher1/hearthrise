@@ -5,17 +5,20 @@
 //   node tests/boss-call-db.mjs            the guard
 //   node tests/boss-call-db.mjs --mutate   every planted defect must turn it red
 //
-// mutant-anchors: supabase/migrations/2027-03-12-boss-call.sql supabase/migrations/2027-03-22-live-events.sql
+// mutant-anchors: supabase/migrations/2027-03-12-boss-call.sql supabase/migrations/2027-03-22-live-events.sql supabase/migrations/2027-04-05-call-out-alone.sql
 //
-//   BD-WORDS   every refusal: a party of one, a member, a stale price, an unknown call, each in its code, each charging nothing and opening nothing
+//   BD-WORDS   a hero alone and a party of one are quoted, alone; every refusal: a member, a stale price, an unknown call, each in its code, each charging nothing and opening nothing
+//   BD-ALONE   a hero in no party calls (designer's ruling 2, 2026-11-10): the same fee, one shop row, ONE seat in the room on an instance of its own, no party; a replay
+//              charges once; a hero already hunting, or already in the room, is refused uncharged; the limit counts it
 //   BD-CHARGE  the leader pays the server's price, one ledger row kind shop; the member pays nothing; a replayed key charges once and answers the same
 //   BD-PURSE   a purse that can't pay refuses and rolls every seat back out; the door shuts behind it
 //   BD-LIMIT   3 a UTC day across this account's heroes; midnight UTC opens the next three
 //   BD-DOOR    no other door reaches the room: enter, Start, Hunt again, a move mid-hunt, a member's join: none opens a session; a normal ground is untouched
 //   BD-FORGED  a window on a called room that pays anything is refused whole, by the settle, whatever the engine proposed: coin, an item, XP, Level XP, a kill, a Hearthfind
-//   BD-BOTH    the kill, a death and the limit, each with the browser closed (the tick) and the hunt viewed (index.ts's settle): the same end on the same instant, no hunt left open
+//   BD-BOTH    the kill, a death and the limit, each with the browser closed (the tick) and the hunt viewed (index.ts's settle): the same end on the same instant, no hunt left open;
+//              a hero ALONE, the kill and a death, on both doors the same
 //   BD-PAID    after each: no XP, no coin but the fee and the store's bill, no loot, no kill in the tally, no Bestiary row, the Bestiary's total unmoved, the party on its ground
-//   BD-PRIZE   the kill reaches the title's counter for each hero present; price 0, once; one System line a fight; nothing without the kill
+//   BD-PRIZE   the kill reaches the title's counter for each hero present; price 0, once; one System line a fight (alone: it says so); nothing without the kill
 //   BD-RECORD  each hero's session keeps the fight's record (hunt_session_tally.fight, read through hr_hunt_view): where he stood at the end, what that hero's bar fired, the same through both doors; a forged record is refused; every other hunt's section has no such key
 //   BD-AGAIN   every file of the lane applied a second time moves nothing: the schema's inventory, every spliced body and the catalogue rows, byte for byte
 //
@@ -38,7 +41,7 @@ const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
 const { one, q } = H;
 const KING = BOSS_CALLS.rat_king;
 const FEE = KING.fee;
-const UIDS = Array.from({ length: 10 }, (_, i) => '00000000-0000-4000-8000-0000000bc0' + String(i + 10));
+const UIDS = Array.from({ length: 14 }, (_, i) => '00000000-0000-4000-8000-0000000bc0' + String(i + 10));
 const WINDOW = 90000;
 const GEAR = Object.freeze({ helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots', weapon: 'steel_sword', shield: 'coppercap_shield' });
 const STAFF = Object.freeze({ helmet: 'scholar_helmet', body: 'scholar_body', pants: 'scholar_pants', boots: 'scholar_boots', weapon: 'willow_staff' });
@@ -87,12 +90,14 @@ async function verbArms(db, M) {
   await db.query('begin');
   await H.character(db, M, a, { level: 20, gold: 100000 });
   await db.query('commit');
-  /* BD-WORDS: a hero with no party, then a party of one */
-  let v = await call(db, a, FEE);
-  if (v.error !== 'call_party') bad.push('BD-WORDS no party answered ' + JSON.stringify(v));
+  /* BD-WORDS: a hero with no party, then a party of one: each is quoted, alone, at the fee (a warning, never a refusal: the designer's ruling 2, 2026-11-10) */
+  const alone = (q) => !!q && q.ok === true && q.quote.available === true && q.quote.why === null && q.quote.alone === true && q.quote.seats === 1 && q.quote.price === FEE && !('party_min' in q.quote);
+  let quoted = await as(db, a, `select public.hr_boss_call_view(0, 'rat_king')`);
+  if (!alone(quoted)) bad.push('BD-WORDS a hero alone is quoted ' + JSON.stringify(quoted));
   await db.query(`select public.hr_party_open($1::uuid, 0)`, [a]);
-  v = await call(db, a, FEE);
-  if (v.error !== 'call_party') bad.push('BD-WORDS a party of one answered ' + JSON.stringify(v));
+  quoted = await as(db, a, `select public.hr_boss_call_view(0, 'rat_king')`);
+  if (!alone(quoted)) bad.push('BD-WORDS a party of one is quoted ' + JSON.stringify(quoted));
+  let v;
   await db.query('begin');
   await H.character(db, M, b, { level: 20, gold: 100000 });
   await db.query('commit');
@@ -100,6 +105,8 @@ async function verbArms(db, M) {
   await db.query('select public.hr_party_seat_into($1::uuid, $2::uuid, 0)', [pid, b]);
   v = await call(db, b, FEE);
   if (v.error !== 'call_leader') bad.push('BD-WORDS a member answered ' + JSON.stringify(v));
+  quoted = await as(db, a, `select public.hr_boss_call_view(0, 'rat_king')`);
+  if (!quoted.ok || quoted.quote.alone !== false || quoted.quote.seats !== 2 || quoted.quote.available !== true) bad.push('BD-WORDS the leader of two is quoted ' + JSON.stringify(quoted));
   v = await call(db, a, FEE + 1);
   if (v.error !== 'quote_changed' || !v.boss_call || Number(v.boss_call.price) !== FEE) bad.push('BD-WORDS a stale price answered ' + JSON.stringify(v));
   v = await call(db, a, 1);
@@ -124,6 +131,33 @@ async function verbArms(db, M) {
   if (v.ok !== true) bad.push('BD-DOOR a normal ground refused a lone hero: ' + JSON.stringify(v));
   v = await as(db, c, 'select public.hr_hunt_change(0, $1, $2::uuid)', [KING.hunt, idem()]);
   if (v.error !== 'call_only') bad.push('BD-DOOR a move mid-hunt answered ' + JSON.stringify(v));
+
+  /* BD-ALONE: a hero in no party calls one seat, at the same fee, on the same key rules */
+  const d = UIDS[12];
+  await db.query('begin');
+  await H.character(db, M, d, { level: 20, gold: 100000 });
+  await db.query('commit');
+  const dKey = idem();
+  v = await call(db, d, FEE, dKey);
+  if (v.ok !== true || v.entered !== 1 || v.party !== null) bad.push('BD-ALONE the lone call answered ' + JSON.stringify(v));
+  if (await purse(db, d) !== 100000 - FEE) bad.push('BD-ALONE the purse reads ' + await purse(db, d) + ', want ' + (100000 - FEE));
+  const room = await q(db, 'select id, instance_id from public.hunt_sessions where user_id = $1 and slot = 0 and hunt_id = $2 and ended_at is null', [d, KING.hunt]);
+  if (room.length !== 1) bad.push('BD-ALONE ' + room.length + ' of the caller\'s sessions in the room, want 1');
+  else {
+    if (Number(await one(db, 'select count(*) from public.hunt_sessions where instance_id = $1', [room[0].instance_id])) !== 1) bad.push('BD-ALONE the room holds more than its caller');
+    if (Number(await one(db, 'select count(*) from public.hunt_parties where id = $1', [room[0].instance_id]))) bad.push('BD-ALONE the room is a party\'s');
+  }
+  const dRows = await q(db, `select kind, intent from public.player_ledger where user_id = $1 and intent like 'boss\\_call:%'`, [d]);
+  if (dRows.length !== 1 || dRows[0].kind !== 'shop' || dRows[0].intent !== `boss_call:rat_king:${FEE}`) bad.push('BD-ALONE the ledger reads ' + JSON.stringify(dRows));
+  const dAgain = await call(db, d, FEE, dKey);
+  if (await purse(db, d) !== 100000 - FEE || Number(await one(db, `select count(*) from public.player_ledger where user_id = $1 and intent like 'boss\\_call:%'`, [d])) !== 1) bad.push('BD-ALONE a replay charged again: ' + JSON.stringify(dAgain));
+  v = await call(db, d, FEE);
+  if (v.ok === true || await purse(db, d) !== 100000 - FEE) bad.push('BD-ALONE a hero in the room called again: ' + JSON.stringify(v));
+  /* a hero hunting elsewhere (c, on the Cellar since BD-DOOR) is refused by the start, charged nothing, and stays where it was */
+  const cPurse = await purse(db, c);
+  v = await call(db, c, FEE);
+  if (v.ok === true || await purse(db, c) !== cPurse
+      || Number(await one(db, `select count(*) from public.hunt_sessions where user_id = $1 and ended_at is null and hunt_id = 'mill_cellar'`, [c])) !== 1) bad.push('BD-ALONE a hero hunting elsewhere answered ' + JSON.stringify(v));
 
   /* BD-CHARGE */
   const key = idem();
@@ -202,7 +236,22 @@ const JOBS = [
   /* THE PHASES: a death with the wave up, and the limit with the wave up (a row that takes 1 a blow, so his first line falls inside ten minutes and his last HP doesn't). */
   { name: 'a death in the add wave', want: ['died', 'party_member_died'], level: 60, uids: [6, 7], row: { hp: 2000, atk: 1, baseAcc: 0 }, add: { hp: 100000, atk: 800, baseAcc: 3 }, stood: [1, 500] },
   { name: 'the limit with the wave up', want: ['boss_time'], level: 60, uids: [8, 9], row: { hp: 410, atk: 1, baseAcc: 0, def: 100000 }, add: { hp: 10000000, atk: 1, baseAcc: 0 }, stood: [1, 500] },
+  /* A HERO ALONE (the designer's ruling 2, 2026-11-10): the same room and the same fight for one seat, through both doors. */
+  { name: 'a lone kill', want: ['boss_felled'], level: 60, uids: [10], lone: true, felled: true, row: null, stood: [0, 0] },
+  { name: 'a lone death', want: ['died'], level: 2, uids: [11], lone: true, gear: [{}], row: null },
 ];
+
+/* A hero in no party, named, in its kit: the lone caller. */
+async function solo(db, M, uid, { level = 60, gold = 200000, gear = GEAR, name = 'Lonea' } = {}) {
+  await db.query('begin');
+  await H.character(db, M, uid, { level, inv: { cooked_shrimp: 400 }, gold });
+  await db.query('commit');
+  for (const [slot, item] of Object.entries(gear || {})) {
+    await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3) on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id', [uid, slot, item]);
+  }
+  const named = await as(db, uid, 'select public.hr_character_name_set(0, $1, $2::uuid)', [name, idem()]);
+  if (!named || named.ok !== true) throw new Error('harness: name refused: ' + JSON.stringify(named));
+}
 
 async function bothDoors(door, boot) {
   const bad = [];
@@ -218,14 +267,19 @@ async function bothDoors(door, boot) {
   for (const job of JOBS) {
     const uids = job.uids.map((i) => UIDS[i]);
     const anchorMs = Date.UTC(2026, 9, 25, 12, 0, 0);
-    const pid = await party(db, M, uids, { level: job.level, gold: 200000, names: 'Boss' + job.uids[0], gear: job.gear });
+    const lone = job.lone === true;
+    const party0 = lone ? null : await party(db, M, uids, { level: job.level, gold: 200000, names: 'Boss' + job.uids[0], gear: job.gear });
+    if (lone) await solo(db, M, uids[0], { level: job.level, gear: job.gear ? job.gear[0] : GEAR, name: 'Lone' + job.uids[0] + 'a' });
     const lx0 = await q(db, 'select user_id, level_xp from public.player_state where user_id = any($1::uuid[]) and slot = 0 order by user_id', [uids]);
     const sk0 = await q(db, 'select user_id, skill_id, xp from public.player_skills where user_id = any($1::uuid[]) and slot = 0 order by user_id, skill_id', [uids]);
     const inv0 = await q(db, `select user_id, item_id, qty from public.player_inventory where user_id = any($1::uuid[]) and slot = 0 and item_id <> 'cooked_shrimp' order by user_id, item_id`, [uids]);
     const sheet0 = await q(db, 'select public.hr_character_sheet_view(u, 0)->$2 as b from unnest($1::uuid[]) u', [uids, 'bestiary']);
     const made = await call(db, uids[0], FEE);
     if (made.ok !== true) { bad.push(`BD-BOTH ${door} ${job.name}: the call answered ${JSON.stringify(made)}`); continue; }
-    if (await one(db, 'select hunt_id from public.hunt_parties where id = $1', [pid]) !== KING.hunt) bad.push(`BD-BOTH ${door} ${job.name}: the party is not on the room`);
+    /* the room's instance: the party's, or a lone hero's own session (a solo session is its own instance) */
+    const pid = lone ? await one(db, 'select instance_id from public.hunt_sessions where user_id = $1 and slot = 0 and hunt_id = $2 and ended_at is null', [uids[0], KING.hunt]) : party0;
+    if (lone ? !pid || made.entered !== 1 || made.party !== null : await one(db, 'select hunt_id from public.hunt_parties where id = $1', [pid]) !== KING.hunt) bad.push(`BD-BOTH ${door} ${job.name}: the ${lone ? 'hero is not alone in' : 'party is not on'} the room: ${JSON.stringify(made).slice(0, 160)}`);
+    if (!pid) continue;
     await backdate(db, pid, anchorMs);
     if (job.row) for (const inst of [row, PM[KING.monster]]) Object.assign(inst, job.row);
     if (job.add) for (const inst of [ADD, PM[ADD_ID]]) Object.assign(inst, job.add);
@@ -240,7 +294,8 @@ async function bothDoors(door, boot) {
     /* BD-RECORD: each hero's, and the view says what the row says. */
     const recs = await q(db, `select t.fight, public.hr_hunt_view(h.id)->'tally'->'fight' as seen from public.hunt_sessions h join public.hunt_session_tally t on t.session_id = h.id where h.instance_id = $1 order by h.seat`, [pid]);
     if (recs.length !== uids.length) bad.push(`BD-RECORD ${door} ${job.name}: ${recs.length} sessions`);
-    const [lo, hi] = job.stood || (job.name === 'the kill' ? [0, 0] : [1, 1000]);
+    const felled = job.name === 'the kill' || job.felled === true;
+    const [lo, hi] = job.stood || (felled ? [0, 0] : [1, 1000]);
     for (const r of recs) {
       if (!r.fight) { bad.push(`BD-RECORD ${door} ${job.name}: no record`); continue; }
       if (JSON.stringify(r.seen) !== JSON.stringify(r.fight)) bad.push(`BD-RECORD ${door} ${job.name}: the view reads ${JSON.stringify(r.seen)}, the row ${JSON.stringify(r.fight)}`);
@@ -272,13 +327,19 @@ async function bothDoors(door, boot) {
     }
     const sheet1 = await q(db, 'select public.hr_character_sheet_view(u, 0)->$2 as b from unnest($1::uuid[]) u', [uids, 'bestiary']);
     if (JSON.stringify(sheet1) !== JSON.stringify(sheet0)) bad.push(`BD-PAID ${door} ${job.name}: the Bestiary read moved: ${JSON.stringify(sheet1)}`);
-    if (await one(db, 'select hunt_id from public.hunt_parties where id = $1', [pid]) !== KING.from) bad.push(`BD-PAID ${door} ${job.name}: the party stands on ${await one(db, 'select hunt_id from public.hunt_parties where id = $1', [pid])}`);
+    if (lone) {
+      if (await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [uids[0]]) !== null) bad.push(`BD-PAID ${door} ${job.name}: a lone call left the hero in a party`);
+    } else if (await one(db, 'select hunt_id from public.hunt_parties where id = $1', [pid]) !== KING.from) bad.push(`BD-PAID ${door} ${job.name}: the party stands on ${await one(db, 'select hunt_id from public.hunt_parties where id = $1', [pid])}`);
     /* BD-PRIZE */
     const counters = await q(db, `select user_id, value from public.player_progress where user_id = any($1::uuid[]) and slot = 0 and kind = 'stat' and period_key = '' and key = 'ev:kill_monster:' || $2`, [uids, KING.monster]);
-    const felled = job.name === 'the kill';
     if (felled ? !(counters.length === uids.length && counters.every((c) => Number(c.value) === 1)) : counters.length) bad.push(`BD-PRIZE ${door} ${job.name}: the counters read ${JSON.stringify(counters)}`);
     const lines = Number(await one(db, `select count(*) from public.chat_messages m where m.channel = 'system' and m.from_id = any($1::uuid[]) and m.body like '%called out the Rat King%'`, [uids]));
     if (lines !== (felled ? 1 : 0)) bad.push(`BD-PRIZE ${door} ${job.name}: ${lines} System lines`);
+    /* the line says who brought him down: a party, or a hero alone */
+    const said = lone ? 'called out the Rat King alone and brought him down.' : 'and party called out the Rat King and brought him down.';
+    if (felled && Number(await one(db, `select count(*) from public.chat_messages m where m.channel = 'system' and m.from_id = any($1::uuid[]) and m.body = $2`, [uids, said])) !== 1) {
+      bad.push(`BD-PRIZE ${door} ${job.name}: the System line reads ${JSON.stringify(await q(db, `select body from public.chat_messages m where m.channel = 'system' and m.from_id = any($1::uuid[])`, [uids]))}, want "${said}"`);
+    }
     const before = await purse(db, uids[0]);
     const claim = await as(db, uids[0], `select public.hr_title_buy(0, 'grate_thief', 0, $1::uuid)`, [idem()]);
     if (felled ? claim.ok !== true : claim.error !== 'title_kills') bad.push(`BD-PRIZE ${door} ${job.name}: the claim answered ${JSON.stringify(claim)}`);
@@ -370,8 +431,12 @@ const MUTANTS = [
   { name: 'a stale price is taken', fn: FN.verb, find: "if (v_q->>'price')::bigint <> p_price then", repl: 'if false then', arm: 'verb', want: /BD-WORDS/ },
   { name: 'the verb charges the client\'s number', fn: FN.verb, find: "(case when p_price > 0 then jsonb_build_object('gold', -p_price) else '{}'::jsonb end)",
     repl: "(case when p_price > 0 then jsonb_build_object('gold', -least(p_price, 1)) else '{}'::jsonb end)", arm: 'verb', want: /BD-CHARGE/ },
-  { name: 'a member may call', fn: FN.quote, find: "when not (v_p.leader_user = p_user and v_p.leader_slot = p_slot) then 'call_leader'", repl: "when false then 'call_leader'", arm: 'verb', want: /BD-WORDS/ },
-  { name: 'a party of one may call', fn: FN.quote, find: 'or v_seats < r.party_min then', repl: 'then', arm: 'verb', want: /BD-WORDS/ },
+  { name: 'a member may call', fn: FN.quote, find: "when v_party is not null and not (v_p.leader_user = p_user and v_p.leader_slot = p_slot) then 'call_leader'", repl: "when false then 'call_leader'", arm: 'verb', want: /BD-WORDS/ },
+  /* THE LOCK, BACK (the designer's ruling 2, 2026-11-10, retired it): a hero alone is refused again. */
+  { name: 'a lone call is refused', fn: FN.quote, find: 'v_why := case when v_party is not null', repl: "v_why := case when v_party is null then 'call_party' when v_party is not null", arm: 'verb', want: /BD-WORDS|BD-ALONE/ },
+  { name: 'the quote never says alone', fn: FN.quote, find: "'alone', v_seats = 1,", repl: "'alone', false,", arm: 'verb', want: /BD-WORDS/ },
+  { name: 'a lone call takes the party door', fn: FN.verb, find: '    if v_party is null then', repl: '    if false then', arm: 'verb', want: /BD-ALONE/ },
+  { name: 'a lone fight is called a party\'s', fn: FN.felled, find: 'case when exists (select 1 from public.hunt_sessions h where h.instance_id = new.instance_id and h.id <> new.id)', repl: 'case when true', arm: 'doors', want: /BD-PRIZE/ },
   { name: 'the limit is per hero', fn: FN.quote, find: "where l.user_id = p_user and l.kind = 'shop'", repl: "where l.user_id = p_user and l.slot = p_slot and l.kind = 'shop'", arm: 'verb', want: /BD-LIMIT/ },
   { name: 'the limit never turns over', fn: FN.quote, find: "and l.at >= public.hr_utc_day_start(now()))::int", repl: ')::int', arm: 'verb', want: /BD-LIMIT/ },
   { name: 'a short purse keeps the seats', fn: FN.verb, find: "v_no := v_a || jsonb_build_object('ok', false); raise exception using errcode = 'HR879', message = 'call_refused'; end if;", repl: "return v_a || jsonb_build_object('ok', false); end if;", arm: 'verb', want: /BD-PURSE/ },

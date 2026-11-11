@@ -11,23 +11,28 @@
 // until the server has answered and the re-read envelope has replaced
 // hunt_settings (CLAUDE.md §6). A refusal names its slot and condition.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.121';
-import { STATUSES } from '../data/statuses.js?v=0.2.121';
-import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.121';
-import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.121';
-import { isRune } from '../data/supplies.js?v=0.2.121';
-import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.121';
-import { ITEMS } from '../data/items.js?v=0.2.121';
-import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.121';
-import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.121';
-import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.121';
-import { refusalWords } from './intent-words.js?v=0.2.121';
-import { skillName } from './widgets/bits.js?v=0.2.121';
-import { t } from '../render/player-text.js?v=0.2.121';
+import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.122';
+import { STATUSES } from '../data/statuses.js?v=0.2.122';
+import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.122';
+import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.122';
+import { isRune } from '../data/supplies.js?v=0.2.122';
+import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.122';
+import { ITEMS } from '../data/items.js?v=0.2.122';
+import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.122';
+import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.122';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.122';
+import { refusalWords } from './intent-words.js?v=0.2.122';
+import { skillName } from './widgets/bits.js?v=0.2.122';
+import { t } from '../render/player-text.js?v=0.2.122';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const SCRATCH = new WeakMap();   // CharacterSession -> { open: index|null, draft, error, pending, msg }
+/* THE HOST (the Hunt prep builder, windows/hunt-prep/builder.js): while it has Configure action open on one of ITS draft's
+   slots, the window reads and writes that draft instead of the server's bar, and nothing is sent: the builder's Save sends
+   the whole setup as ONE intent later. { bar(): the draft's slots (wire, a copy), set(): the setup's settings-shaped view,
+   write(i, slot|null), move(i, j), after() }. The HUD's own press (openSlot) clears it. */
+const HOST = new WeakMap();      // CharacterSession -> the host
 
 /** A move the worn weapon (`discipline`, the server's hunt_settings) can't use: the engine drops it (conditions.js heroSlots), so it never fires and spends nothing. */
 export function moveOffWeapon(discipline, abilityId) {
@@ -48,10 +53,20 @@ export function serverBar(cs) {
   return set ? Array.from({ length: SLOTS }, (_, i) => wireSlot(set.slots[i])) : null;
 }
 
-/** Open slot `i` for editing: the draft starts as the server's slot (or a blank one). */
+/** Open slot `i` for editing: the draft starts as the server's slot (or a blank one). The HUD's own path: no host. */
 export function openSlot(cs, i) {
+  HOST.delete(cs);
+  openSlotFrom(cs, i, serverBar(cs));
+}
+
+/** Open slot `i` of a builder's draft (the host's bar) for editing: Save and Empty slot write back to the host, nothing is sent. */
+export function openSlotIn(cs, i, host) {
+  HOST.set(cs, host);
+  openSlotFrom(cs, i, host.bar());
+}
+
+function openSlotFrom(cs, i, bar) {
   const s = draftOf(cs);
-  const bar = serverBar(cs);
   s.open = Number.isInteger(i) && i >= 0 && i < SLOTS ? i : null;
   const cur = bar && s.open !== null ? bar[s.open] : null;
   s.draft = cur ? Object.assign(JSON.parse(JSON.stringify(cur)), { join: 'and' }) : { action: { type: 'consume', id: null }, conditions: [], join: 'and' };
@@ -59,9 +74,25 @@ export function openSlot(cs, i) {
   s.msg = '';
 }
 
-/** Close the open slot and drop its draft. */
+/** The bar the open slot belongs to, in the wire shape: the host's draft, else the server's bar. */
+export function editBar(cs) {
+  const h = HOST.get(cs);
+  return h ? h.bar() : serverBar(cs);
+}
+
+/** The settings-shaped view the open slot is edited against: the host's setup, else the envelope's hunt_settings. */
+export function editSet(cs) {
+  const h = HOST.get(cs);
+  return h ? h.set() : settingsOf(cs);
+}
+
+/** Is Configure action editing a builder's draft (a host) rather than the server's bar? */
+export function hosted(cs) { return HOST.has(cs); }
+
+/** Close the open slot and drop its draft (and let go of any host). */
 export function closeSlot(cs) {
   const s = draftOf(cs);
+  HOST.delete(cs);
   s.open = null; s.draft = null; s.error = null; s.msg = '';
 }
 
@@ -244,20 +275,33 @@ export function slotForSave(d) {
   return out;
 }
 
-/** Save the open slot's draft into the server's bar (one intent); the slot closes on ok. */
+/* A host takes the slot as written and the window closes: the builder's Save sends it later, with the whole setup. */
+function writeToHost(cs, slot, onOk) {
+  const h = HOST.get(cs), s = draftOf(cs);
+  h.write(s.open, slot);
+  closeSlot(cs);
+  if (onOk) onOk();
+  h.after();
+}
+
+/** Save the open slot's draft into the server's bar (one intent); the slot closes on ok. Into a host's draft: no intent. */
 export function saveOpen(cs, repaint, onOk) {
   const s = draftOf(cs);
+  if (s.open === null || !s.draft) return;
+  if (HOST.has(cs)) { writeToHost(cs, slotForSave(s.draft), onOk); return; }
   const bar = serverBar(cs);
-  if (!bar || s.open === null || !s.draft) return;
+  if (!bar) return;
   bar[s.open] = slotForSave(s.draft);
   sendBar(cs, bar, repaint, () => { closeSlot(cs); if (onOk) onOk(); });
 }
 
-/** Empty the open slot on the server (one intent); the slot closes on ok. */
+/** Empty the open slot on the server (one intent); the slot closes on ok. In a host's draft: no intent. */
 export function emptyOpen(cs, repaint, onOk) {
   const s = draftOf(cs);
+  if (s.open === null) return;
+  if (HOST.has(cs)) { writeToHost(cs, null, onOk); return; }
   const bar = serverBar(cs);
-  if (!bar || s.open === null) return;
+  if (!bar) return;
   bar[s.open] = null;
   sendBar(cs, bar, repaint, () => { closeSlot(cs); if (onOk) onOk(); });
 }
@@ -308,13 +352,17 @@ export function sendPlan(cs, plan, repaint) {
   return sendBar(cs, bar, repaint, () => closeSlot(cs));
 }
 
-/** Move slot `i` one place earlier (by -1) or later (+1) on the server; an open slot's draft follows it. */
+/** Move slot `i` one place earlier (by -1) or later (+1) on the server; an open slot's draft follows it. In a host's draft: no intent. */
 export function moveSlot(cs, i, by, repaint) {
-  const bar = serverBar(cs);
   const j = i + by;
-  if (!bar || !(i >= 0 && i < SLOTS) || j < 0 || j >= SLOTS) return false;
-  [bar[i], bar[j]] = [bar[j], bar[i]];
+  if (!(i >= 0 && i < SLOTS) || j < 0 || j >= SLOTS) return false;
   const s = draftOf(cs);
-  sendBar(cs, bar, repaint, () => { if (s.open === i) s.open = j; else if (s.open === j) s.open = i; });
+  const follow = () => { if (s.open === i) s.open = j; else if (s.open === j) s.open = i; };
+  const h = HOST.get(cs);
+  if (h) { h.move(i, j); follow(); repaint(); h.after(); return true; }
+  const bar = serverBar(cs);
+  if (!bar) return false;
+  [bar[i], bar[j]] = [bar[j], bar[i]];
+  sendBar(cs, bar, repaint, follow);
   return true;
 }

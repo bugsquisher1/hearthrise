@@ -15,16 +15,17 @@
 // server's answer held as window scratch — never the record, and nothing can
 // spend them: Join is the server's own check under its lock.
 // ════════════════════════════════════════════════════════════════════════
-import { WEAPON_ROLES, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.121';
-import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.121';
-import { finderRows, huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.121';
-import { roleOf } from '../../session/item-sections.js?v=0.2.121';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.121';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.121';
-import { refusalWords, runIntent } from '../intent-words.js?v=0.2.121';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.121';
-import { listParty } from '../../session/party-intents.js?v=0.2.121';
-import { huntRows } from '../hunt-list.js?v=0.2.121';
+import { WEAPON_ROLES, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.122';
+import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.122';
+import { finderRows, huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.122';
+import { roleOf } from '../../session/item-sections.js?v=0.2.122';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.122';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.122';
+import { refusalWords, runIntent } from '../intent-words.js?v=0.2.122';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.122';
+import { listParty } from '../../session/party-intents.js?v=0.2.122';
+import { huntRows } from '../hunt-list.js?v=0.2.122';
+import { t } from '../../render/player-text.js?v=0.2.122';
 
 const SCRATCH = new WeakMap();
 
@@ -61,7 +62,7 @@ export function finderHtml() {
     + '<div class="hw-add hw-find-party">'
     + '<select class="hh-select" data-hs-act="find-ground" aria-label="Ground"><option value="">Any ground</option>' + grounds + '</select>'
     + '<select class="hh-select" data-hs-act="find-weapon" aria-label="Parties with"><option value="">Any party</option>' + weapons + '</select>'
-    + '<button type="button" class="hh-tool" data-hs-act="find">Search</button></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="find">' + t('controls.search') + '</button></div>'
     + '<p class="hs-note hw-find-why"></p>'
     + '<ul class="hw-ledger hw-found"></ul><p class="hh-empty hw-found-none"></p>';
 }
@@ -69,7 +70,7 @@ export function finderHtml() {
 function foundRow(ctx, r) {
   return element(ctx.doc, '<li class="hw-line hw-found-row"><span class="hw-line-name"><b></b><small></small></span>'
     + '<span class="hw-found-roles"></span>'
-    + '<button type="button" class="hw-primary is-on" data-hs-act="join" data-party="' + esc(r.id) + '">Join</button></li>');
+    + '<button type="button" class="hw-primary is-on" data-hs-act="join" data-party="' + esc(r.id) + '">' + t('controls.join') + '</button></li>');
 }
 
 /* The weapon filter's start: this character's own weapon (the server's `role` section), else any. */
@@ -92,7 +93,7 @@ export function patchFinder(root, ctx, sc) {
   const sw = root.querySelector('.hw-list-party');
   prop(sw, 'hidden', !(mine && mine.isLeader));
   text(sw.querySelector('.hw-list-why'), listed ? 'Your party shows in the finder.' : 'Your party is private. Only players you invite can join.');
-  text(sw.querySelector('button'), listed ? 'Hide from the finder' : 'Show in the finder');
+  text(sw.querySelector('button'), listed ? t('controls.hide_from_finder') : t('controls.show_in_finder'));
   prop(sw.querySelector('button'), 'disabled', sc.pending);
   const why = root.querySelector('.hw-find-why');
   text(why, inParty ? 'You are in a party. Leave it to join another.' : '');
@@ -145,7 +146,7 @@ export function openFinderOn(ctx, cs, hunt) {
 }
 
 /** The finder's controls. Returns true when the action was the finder's. */
-export function actFinder(ctx, body, action, t, repaint) {
+export function actFinder(ctx, body, action, el, repaint) {
   const cs = ctx.character;
   const sc = partyScratch(cs);
   if (action === 'find') {
@@ -161,7 +162,7 @@ export function actFinder(ctx, body, action, t, repaint) {
     return true;
   }
   if (action === 'join') {
-    runIntent(sc, repaint, () => cs.joinParty(t.getAttribute('data-party')), 'Joining…', () => { sc.found = null; return 'You joined the party.'; });
+    runIntent(sc, repaint, () => cs.joinParty(el.getAttribute('data-party')), 'Joining…', () => { sc.found = null; return 'You joined the party.'; });
     return true;
   }
   return false;

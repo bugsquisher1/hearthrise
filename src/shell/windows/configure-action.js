@@ -24,24 +24,24 @@
 // (bar-draft.js), every control stays off until the server has answered, and a refusal
 // keeps the draft and outlines its condition. On a phone (922×423) it is a full sheet.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.121';
-import { STATUSES } from '../../data/statuses.js?v=0.2.121';
-import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.121';
-import { vitalsOf } from '../../session/party-sections.js?v=0.2.121';
-import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.121';
-import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.121';
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.121';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.121';
-import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.121';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, serverBar, opWords, unitWords } from '../bar-draft.js?v=0.2.121';
-import { startSupply } from '../rune-supply.js?v=0.2.121';
-import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.121';
-import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.121';
-import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.121';
-import { glyphSvg } from '../launcher.js?v=0.2.121';
-import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine } from '../action-table.js?v=0.2.121';
-import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.121';
-import { whole } from '../../render/format.js?v=0.2.121';
+import { METRICS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.122';
+import { STATUSES } from '../../data/statuses.js?v=0.2.122';
+import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.122';
+import { vitalsOf } from '../../session/party-sections.js?v=0.2.122';
+import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.122';
+import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.122';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.122';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.122';
+import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.122';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, editBar, editSet, hosted, opWords, unitWords } from '../bar-draft.js?v=0.2.122';
+import { startSupply } from '../rune-supply.js?v=0.2.122';
+import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.122';
+import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.122';
+import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.122';
+import { glyphSvg } from '../launcher.js?v=0.2.122';
+import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine } from '../action-table.js?v=0.2.122';
+import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.122';
+import { whole } from '../../render/format.js?v=0.2.122';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
@@ -182,7 +182,8 @@ function threshold(d, kind) {
 
 renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const cs = ctx.character;
-  const set = settingsOf(cs);
+  /* The setup the slot belongs to: the Hunt prep builder's draft while it hosts this window (bar-draft.js HOST), else the envelope's hunt_settings. */
+  const set = editSet(cs);
   const s = draftOf(cs);
   /* Opened by its key with no slot picked: the first empty slot (else slot 1). */
   if (set && (s.open === null || !s.draft)) { const e = set.slots.findIndex((x) => !x || x.empty); openSlot(cs, e >= 0 && e < SLOTS ? e : 0); }
@@ -204,7 +205,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   text(root.querySelector('.ca-rank'), 'Slot ' + (s.open + 1) + (s.open === 0 ? ' · tried first' : ' · tried after slot ' + s.open));
   /* Why this slot's action will not fire, as the bar's tooltip says it: a phone has no hover and a press on a slot opens
      this window, so the words are here, first (shown on a phone only, hunt.css). */
-  const saved = set.slots[s.open];
+  const saved = hosted(cs) ? null : set.slots[s.open];
   const fireWhy = saved && !saved.empty ? slotWhy(saved, whyFacts(cs)) : null;
   text(root.querySelector('.ca-why'), fireWhy ? fireWhy.text : '');
   /* CARRY IN: the most of this action's supply the bag holds while the hunt runs (every tier of a rune spell's family). */
@@ -233,7 +234,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const blow = h && h.huntId ? biggestBlowOn(h.huntId) : null;
   /* ...and what the slot's conditions will mean in a fight (slot-waits.js): a player setting it up reads it here, in town too. */
   /* (and the earlier slot it shares a cooldown with: the bar's hover no longer says it, Tyler 2026-11-08) */
-  const wires = serverBar(cs);
+  const wires = editBar(cs);
   if (wires) wires[s.open] = d.action.id ? d : null;
   const warn = [healWarning(d, set, blow, vitalsOf(cs).hpMax), setupNote(d, p ? p.members.length : 1), wires ? sharedCooldownOf(wires, s.open) : null].filter(Boolean).join(' ');
   text(root.querySelector('.ca-warn'), warn);
@@ -326,7 +327,7 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
     if (x === 'tab') { v.tab = t.getAttribute('data-tab'); v.hover = null; repaint(); listToTop(body); return; }
     else if (x === 'pick') {
       /* a rune spell starts with every rune of its family ticked and the rune shop's Plain on empty (rune-supply.js startSupply) */
-      d.action = startSupply({ type: t.getAttribute('data-type'), id: t.getAttribute('data-id') }, (settingsOf(cs) || {}).store);
+      d.action = startSupply({ type: t.getAttribute('data-type'), id: t.getAttribute('data-id') }, (editSet(cs) || {}).store);
       v.hover = null;
       v.pickedAt = { x: ev.clientX, y: ev.clientY };
       LAST_TAB.set(cs, tabOf(d.action));
@@ -340,7 +341,7 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
       if (row && row.scrollIntoView) { row.scrollIntoView({ block: 'nearest' }); row.focus(); }
       return;
     }
-    else if (x === 'store') d.action = runesEdit(d, t, (settingsOf(cs) || {}).store) || d.action;
+    else if (x === 'store') d.action = runesEdit(d, t, (editSet(cs) || {}).store) || d.action;
     else if (x === 'add' && d.conditions.length < MAX_CONDITIONS) d.conditions.push(blankCondition());
     else if (x === 'drop' && c) d.conditions.splice(Number(t.getAttribute('data-i')), 1);
     else if ((x === 'inc' || x === 'dec') && c) nudge(c, x === 'inc' ? 1 : -1);
@@ -359,7 +360,7 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
   }
   if (action !== 'cfg-f' || ev.type !== 'change') return;
   const f = t.getAttribute('data-f');
-  if (f === 'rn-own' || f === 'rn-tick' || f === 'rn-empty') { d.action = runesEdit(d, t, (settingsOf(cs) || {}).store) || d.action; repaint(); return; }
+  if (f === 'rn-own' || f === 'rn-tick' || f === 'rn-empty') { d.action = runesEdit(d, t, (editSet(cs) || {}).store) || d.action; repaint(); return; }
   if (c && f === 'metric') { const n = conditionFor(t.value); if (n) d.conditions[Number(t.getAttribute('data-i'))] = n; }
   else if (c && f === 'op') c.op = t.value;
   else if (c && f === 'subject') c.subject = t.value;

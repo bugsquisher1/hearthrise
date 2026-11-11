@@ -75,10 +75,13 @@ export const CLIENT_RPCS = Object.freeze({
   /* Tyler's first playtest (10-18): going hunting and the home storage, both live, reviewed server verbs. */
   hr_hunt_enter: 'go hunting with names and counts of own supplies; band, stamina and stock are the server’s (CharacterSession.enterHunt; CharacterSession.huntAgain, the Hunt again card)',
   hr_bank_move: 'move a stack between the bag and the home storage, value-neutral (CharacterSession.moveStorage)',
+  /* The UX flow audit 2026-11-11 (2027-04-13-bank-move-many.sql): ids and a direction, WHOLE stacks at the server's own count, all or nothing. */
+  hr_bank_move_many: 'move many whole stacks between the bag and the home storage in one call, value-neutral, all or nothing (storage-intents.js moveStorageMany)',
   /* Tyler 2026-11-02 "Yes, add a press" (2027-02-21-hunt-carry-in.sql): an item id and a count; catalogue, stock and the open hunt are the server's. */
   hr_hunt_restock: 'carry a hunt supply from this hero\'s bag into its running hunt, value-neutral, one key moves once (carry-intents.js carryIntoHunt)',
   /* The alpha windows (2026-10-18; CONFLICTS.md): staged for the server lane, refused as http_404 until it lands. */
   hr_item_lock: 'lock or unlock an item so no bulk sale can name it (CharacterSession.lockItem)',
+  hr_item_lock_many: 'lock or unlock many items in one call, all or nothing; moves no value (storage-intents.js lockItems)',
   hr_loot_rule_set: "an item's loot plan (keep in bag / deposit in storage / sell) or its pickup filter (do not pick up); a name and a word, the server validates it (CharacterSession.setLootRule)",
   /* Tyler 2026-10-25 (2027-01-23-loot-dispatch.sql): a slot and a key; the plans, bag, bid and Storage room are the server's. */
   hr_loot_dispatch: "run this hero's loot plans in town: deposit and sell the planned stacks; names no item, count or price (loot-intents.js dispatchLoot)",
@@ -86,6 +89,8 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_preset_apply: 'put a saved setup back on (CharacterSession.applyPreset)',
   /* Ruling C4 (2026-11-15-preset-names.sql): a slot, a preset number and a name; the server owns the name rule. */
   hr_hunt_preset_rename: 'rename one of this character’s saved setups (preset-intents.js renameSetup)',
+  /* The Hunt prep builder (2027-04-13-hunt-preset-read.sql): a slot and a preset number, a read of that setup's bar and options, 60 a minute. */
+  hr_hunt_preset_read: 'one saved setup’s bar and options, the hr_hunt_settings_view shape, a read (preset-read.js readPreset)',
   hr_hunt_preset_delete: 'remove one of this character’s saved setups (preset-intents.js deleteSetup)',
   hr_action_set_rename: 'name the action set the bar shows (preset-intents.js renameActionSet)',
   hr_account_items: 'where an item is across this account, a read (AccountSession.findItems)',

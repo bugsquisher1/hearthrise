@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// mutant-rule-functions: checks pure huntsPure itemTruthRules panelLeftovers planRules armourWordRules tickerRules stationSortRules
+// mutant-rule-functions: checks pure huntsPure itemTruthRules panelLeftovers planRules armourWordRules tickerRules stationSortRules prepBuilderRules selectRules
 // mutant-runner-functions: main shardOf tickerMutant pureMutant
 // ════════════════════════════════════════════════════════════════════════
 // tests/alpha-windows.mjs — THE ALPHA WINDOWS' RULES, IN A REAL CHROMIUM.
@@ -12,7 +12,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js src/shell/windows/inventory/elsewhere.js src/shell/station-sort.js src/shell/window-fit.js src/shell/window-manager.js src/styles/market.css
+// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/shell-hud.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js src/shell/windows/inventory/elsewhere.js src/shell/station-sort.js src/shell/windows/inventory/selection.js src/data/text/bag.js src/shell/prep-draft.js src/shell/windows/hunt-prep/builder.js src/shell/windows/hunt-prep/setups.js src/session/preset-read.js src/shell/window-fit.js src/shell/window-manager.js src/styles/market.css
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -119,7 +119,14 @@
 //         too); the pick is ONE residue put naming stationSort, kept per station, and after a reload the menu and
 //         the order come back from the server; gathering has no menu. Pure half: every bench skill at several
 //         levels, each order worked out here from the raw rows, and the residue round trip through the allowlist
-//   AW-77 A WINDOW OPENS WHOLE (Tyler 2026-11-11, the Hunts window at 1014x652: "when I open a menu, part of it shouldn't
+//   AW-77 THE BAG'S SELECTION BEHAVES LIKE A FILE LIST (Tyler 2026-11-11: "I can hit ctrl+A to select all, but hitting
+//         it again doesn't deselect all"; src/shell/windows/inventory/selection.js, pure): Ctrl+A selects every
+//         shown stack and, with every shown stack selected, none; Escape clears; a plain press with a selection
+//         active selects only that stack (none active: only the cursor moves); Ctrl+press toggles; Shift+press and
+//         Shift+arrow take the range from the anchor, growing and shrinking, Ctrl+Shift adding it; the line reads
+//         "N selected · value X gp" at the shop's bids (the count alone with no shop) and Lock reads Unlock over a
+//         locked selection; the help line names those keys and is the line the grid shows
+//   AW-93 A WINDOW OPENS WHOLE (Tyler 2026-11-11, the Hunts window at 1014x652: "when I open a menu, part of it shouldn't
 //         automatically be cut off"): at 1014x652, 1024x768 and 922x423, a Level 36 hero in town, Hunts, Inventory, Shop and Market each
 //         open inside the World, lose no word or press to a box that hides its overflow or to the frame, and every scroll
 //         region ends at rest on a whole row (no line, slot or creature card cut by its foot or by a sticky Enter/Save foot);
@@ -178,7 +185,7 @@
 //         the confirmation's Sell, and the confirmation is in view inside the window (it sat under a long list); no
 //         Services icon, and R opens the Shop on its Services tab (stamina and Blessings), closed or open
 //   AW-32 DISPATCH LOOT (Tyler 2026-10-25, 2027-01-23-loot-dispatch.sql): mid-hunt the Bag's Dispatch loot is off with
-//         "out hunting" in view; in town the item menu offers the loot plan (Keep in bag pressed, Deposit in storage,
+//         "out hunting" in view; in town the item menu offers the loot plan (Keep pressed, Deposit,
 //         Sell) and the pickup filter (Don't pick up); Deposit is ONE hr_loot_rule_set {slot, item, rule, key}; the
 //         starting kit's Sell is off (Deposit on); Dispatch loot is ONE hr_loot_dispatch {slot, key}, off in flight,
 //         its line the server's answer ("Stored 1 stack, sold 2 stacks for 246 gp. 1 stack locked, so kept."), the bag and
@@ -226,7 +233,7 @@ const HUNTS = (await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href)
 const LEVEL_30_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(30);
 const LEVEL_5_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(5);
 const LEVEL_36_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(36);
-/* AW-77: what a window loses at rest, measured in the page (window id): the frame past the World, a shown word or press past a box that
+/* AW-93: what a window loses at rest, measured in the page (window id): the frame past the World, a shown word or press past a box that
    hides its overflow or past the frame, and a row (a list's line, a slot, a creature card) cut by its scroll region's foot line
    (the region's bottom, or the top of a sticky foot stuck there). [] when it opens whole. */
 const CLIPPED = (id) => {
@@ -453,12 +460,13 @@ async function pure() {
   if (cooks.join() !== 'cook_wolf_meat,cook_shrimp,cook_turnip,cook_wheat_bread,,') fails.push('AW-20 cookOf reads ' + cooks.join());
   if (lootToSell([{ id: 'raw_wolf_meat', qty: 4 }, { id: 'rat_tail', qty: 1 }]).join() !== 'rat_tail') fails.push('AW-20 Sell all loot would sell the raw meat');
   const meat = usesOf('raw_wolf_meat');
-  if (!meat.includes('Cook it into food (Cooking 5)')) fails.push('AW-20 the raw meat tooltip reads ' + JSON.stringify(meat));
+  /* Cook Wolf Meat opens at Cooking 1 (designer 2026-11-11, lane/d-small-calls), so the level refusal is probed on Raw Panther Meat (Cooking 25). */
+  if (!meat.includes('Cook it into food (Cooking 1)')) fails.push('AW-20 the raw meat tooltip reads ' + JSON.stringify(meat));
   const cs = (lv, inv, st) => ({ read: (k) => (k === 'skills' ? { cooking: { xp: 0, level: lv } } : k === 'inventory' ? inv : k === 'state' ? st || { active_kind: 'idle', active_id: null } : null) });
-  const wolf = buryRecipeOf('raw_wolf_meat');
-  const words = [buryBlock(cs(1, { raw_wolf_meat: 3 }), wolf), buryBlock(cs(5, { raw_wolf_meat: 3 }), wolf), buryBlock(cs(30, { wheat: 2 }), buryRecipeOf('wheat')),
+  const wolf = buryRecipeOf('raw_wolf_meat'), panther = buryRecipeOf('raw_panther_meat');
+  const words = [buryBlock(cs(1, { raw_panther_meat: 3 }), panther), buryBlock(cs(1, { raw_wolf_meat: 3 }), wolf), buryBlock(cs(30, { wheat: 2 }), buryRecipeOf('wheat')),
     buryBlock(cs(5, { raw_wolf_meat: 3 }, { active_kind: 'artisan', active_id: 'cook_shrimp' }), wolf), buryLabel(wolf, 3)];
-  if (words.join('|') !== 'You need Cooking 5 to cook Raw Wolf Meat. You have 1.||You need 3 Wheat for one. You have 2.|Already cooking. Stop it first.|Cook all') fails.push('AW-20 the bench says ' + JSON.stringify(words));
+  if (words.join('|') !== 'You need Cooking 25 to cook Raw Panther Meat. You have 1.||You need 3 Wheat for one. You have 2.|Already cooking. Stop it first.|Cook all') fails.push('AW-20 the bench says ' + JSON.stringify(words));
   /* AW-21 PURE: "Equip upgrades" by the core's numbers for the CURRENT style (src/shell/upgrade-plan.js). */
   const { upgradePlan, upgradeWords } = await imp('src/shell/upgrade-plan.js');
   const lv1 = { defense: { level: 1 }, melee: { level: 1 }, ranged: { level: 1 }, magic: { level: 1 } };
@@ -496,7 +504,7 @@ async function pure() {
     workBlock(wcs(1, {}), workRow('artisan', 'forge_bronze_axe'), false), workBlock(wcs(1, { copper_ore: 2 }), bronze, false), String(runsOf(bronze.row, { copper_ore: 11 })),
     workBlock(wcs(1, {}), bronze, false)];
   if (said.join('|') !== 'Needs 2 Copper Ore (you have 1). Gathered with Mining.|Not while a hunt is running.|You need Smithing 3 to make Bronze Axe. You have 1.||5|No Copper Ore in your bag. Gathered with Mining.') fails.push('AW-22 the work rows say ' + JSON.stringify(said));
-  return fails.concat(await huntsPure(imp), await tickerRules(ROOT), await armourWordRules(ROOT), await planRules(ROOT), await itemTruthRules(ROOT), await stationSortRules(ROOT));
+  return fails.concat(await huntsPure(imp), await tickerRules(ROOT), await armourWordRules(ROOT), await planRules(ROOT), await itemTruthRules(ROOT), await stationSortRules(ROOT), await prepBuilderRules(ROOT), await selectRules(ROOT));
 }
 
 /* AW-76 PURE: A CRAFTING STATION'S SORT, over the src at `base` (the 'station sort:' mutants judge a planted copy).
@@ -564,6 +572,279 @@ async function stationSortRules(base) {
   return fails;
 }
 
+/* AW-85 .. AW-92 PURE: THE HUNT PREP BUILDER (lane/b-hunt-prep-builder, Tyler 2026-11-11), over the src at `base` (the
+   'prep builder:' mutants judge a planted copy). A fake CharacterSession records every intent; no DOM: the rules drive the
+   builder's exported pieces (prep-draft.js, builder.js saveDraft / actBuilder / fightsLine, setups.js actSetups,
+   preset-read.js) with the fixture's own hunt_settings, and every expected value is worked out here from the raw rows.
+     AW-85  THE COPY IS THE SERVER'S ROW AND SAVE IS ONE INTENT WITH EVERY KEY: the draft reads the fixture's bar, stance, target,
+            distance, chase and gold floor; Save sends ONE hr_action_set_options(preset, { slots, stance, target_mode, distance,
+            chase, gold_floor }); an option the server never sent is left out, never sent as null
+     AW-86  A DROP MOVES OR SWAPS: onto an empty slot the action moves, onto a filled one the two swap, nothing else moves
+     AW-87  SAVE AND USE: the save, then ONE hr_hunt_preset_apply of that setup; a refused save puts nothing on; a stale copy sends nothing
+     AW-88  USE EQUIPPED ASKS ONCE: the first press sends nothing, the second ONE hr_hunt_preset_save over the picked setup
+     AW-89  NEW SAVES ON THE FIRST FREE NUMBER, named from the field (else Setup N)
+     AW-90  FIGHTS AS: a press on a dim role says how to get it ("Wear a bow or a crossbow to fight as a Ranger."); the worn role's
+            line names the weapon and the shield; no hint shows for the role already worn
+     AW-91  SORT AND CLEAR edit the copy: Sort lays the lanes out, Clear empties all twenty; neither sends
+     AW-92  THE READ: the setup in use is the envelope's projection (no RPC); another is ONE hr_hunt_preset_read(p_slot, p_preset),
+            parsed as hunt_settings is, with the store rows filled in from the envelope when the answer has none; a refusal reads as one */
+async function prepBuilderRules(base) {
+  const fails = [];
+  const imp = (p) => import(pathToFileURL(join(base, p)).href);
+  const D = await imp('src/shell/prep-draft.js');
+  const B = await imp('src/shell/windows/hunt-prep/builder.js');
+  const S = await imp('src/shell/windows/hunt-prep/setups.js');
+  const R = await imp('src/session/preset-read.js');
+  const H = await imp('src/session/hunt-sections.js');
+  const { TEXT } = await imp('src/data/text/text-table.js');
+  const fx = clone(FIXTURE);
+  /* two saved setups, 0 (in use) and 2, so the first free number is 1 */
+  fx.hunt_presets = [Object.assign(clone(fx.hunt_presets[0]), { preset: 0, name: 'Cellar rats', gear: { weapon: 'iron_sword', shield: 'wooden_shield' } }),
+    Object.assign(clone(fx.hunt_presets[0]), { preset: 2, name: 'Boss nights', gear: { weapon: 'shortbow' } })];
+  fx.hunt_settings = Object.assign({}, fx.hunt_settings, { preset: 0, gold_floor: 250 });
+  fx.state = Object.assign({}, fx.state, { active_kind: 'idle', active_id: null });
+  const calls = [];
+  const fakeCs = (env, answer = () => ({ ok: true })) => ({
+    slot: 0, status: 'open', read: (k) => (Object.prototype.hasOwnProperty.call(env, k) ? env[k] : null),
+    savePreset: async (p, n) => { calls.push(['hr_hunt_preset_save', p, n]); return answer('hr_hunt_preset_save'); },
+    applyPreset: async (p) => { calls.push(['hr_hunt_preset_apply', p]); return answer('hr_hunt_preset_apply'); },
+    setHuntOptions: async (p, o) => { calls.push(['hr_action_set_options', p, o]); return answer('hr_action_set_options'); },
+    edgeIntent: async () => ({ ok: true }),
+  });
+  const scratch = () => ({ pending: false, msg: '', naming: null, arming: null, armingEquipped: false, adding: false, readyOpen: false, picked: 0, draft: null, draftFor: null, base: '', read: null, stale: false, sorted: false, cleared: false, roleHint: null, drag: null });
+  const el = (attrs, extra) => Object.assign({ getAttribute: (k) => (Object.prototype.hasOwnProperty.call(attrs, k) ? attrs[k] : null), closest: () => null, blur() {} }, extra || {});
+  const click = { type: 'click' };
+  const noop = () => {};
+  const settle = () => new Promise((ok) => setTimeout(ok, 20));
+  const sent = (name) => calls.filter((c) => c[0] === name);
+
+  // AW-85: the copy from the server's row, and the one intent with every key
+  const set = H.settingsView(fx.hunt_settings);
+  const draft = D.draftFrom(set);
+  const wantSlots = Array.from({ length: 20 }, (_, i) => H.wireSlot(set.slots[i]));
+  if (!draft || JSON.stringify(draft.slots) !== JSON.stringify(wantSlots) || draft.stance !== 'balanced' || draft.targetMode !== 'nearest' || draft.distance !== 1 || draft.chase !== true || draft.goldFloor !== 250)
+    fails.push('AW-85 the copy reads ' + JSON.stringify(draft).slice(0, 200));
+  const opts = D.optionsOf(draft);
+  if (Object.keys(opts).sort().join() !== 'chase,distance,gold_floor,slots,stance,target_mode' || opts.stance !== 'balanced' || opts.target_mode !== 'nearest' || opts.distance !== 1 || opts.chase !== true || opts.gold_floor !== 250 || JSON.stringify(opts.slots) !== JSON.stringify(wantSlots))
+    fails.push('AW-85 Save would send ' + Object.keys(opts).sort().join() + ' = ' + JSON.stringify(opts).slice(0, 160));
+  const unset = D.optionsOf(D.draftFrom(H.settingsView(Object.assign({}, fx.hunt_settings, { gold_floor: null, chase: undefined }))));
+  if ('gold_floor' in unset || 'chase' in unset || !('stance' in unset)) fails.push('AW-85 an option the server never sent is sent back: ' + Object.keys(unset).sort().join());
+  {
+    const cs = fakeCs(fx), sc = scratch();
+    sc.draft = D.draftFrom(set); sc.base = D.draftKey(sc.draft); sc.draftFor = 0;
+    sc.draft.stance = 'offensive';
+    B.saveDraft({ character: cs, account: {} }, sc, noop, false);
+    await settle();
+    const o = sent('hr_action_set_options');
+    if (o.length !== 1 || o[0][1] !== 0 || o[0][2].stance !== 'offensive' || Object.keys(o[0][2]).sort().join() !== 'chase,distance,gold_floor,slots,stance,target_mode') fails.push('AW-85 Save sent ' + JSON.stringify(o.map((c) => [c[1], Object.keys(c[2]).sort().join()])));
+    if (sent('hr_hunt_preset_apply').length) fails.push('AW-85 Save put the setup on');
+    if (sc.draft !== null) fails.push('AW-85 the copy was kept after the save (the next patch must show the server\'s row)');
+  }
+  // AW-86: a drop moves or swaps
+  {
+    const bar = wantSlots.slice();
+    const a = bar[0], b = bar[1];
+    const moved = D.dropPlan(bar, 0, 7);
+    if (!moved || moved[7] !== a || moved[0] !== null || moved[1] !== b || moved.length !== 20) fails.push('AW-86 a drop on an empty slot did not move: ' + JSON.stringify((moved || []).map((s) => (s ? s.action.id : '-'))));
+    const swapped = D.dropPlan(bar, 0, 1);
+    if (!swapped || swapped[0] !== b || swapped[1] !== a || swapped.slice(2).some((s, i) => s !== bar[i + 2])) fails.push('AW-86 a drop on a filled slot did not swap the two: ' + JSON.stringify((swapped || []).map((s) => (s ? s.action.id : '-'))));
+    if (D.dropPlan(bar, 0, 0) !== null || D.dropPlan(bar, 7, 0) !== null) fails.push('AW-86 a drop on itself, or of an empty slot, changes the bar');
+    if (JSON.stringify(bar) !== JSON.stringify(wantSlots)) fails.push('AW-86 a plan changed the bar it was planned over');
+  }
+  // AW-87: Save and use, a refused save, a stale copy
+  {
+    calls.length = 0;
+    const cs = fakeCs(fx), sc = scratch();
+    sc.picked = 2; sc.draft = D.draftFrom(set); sc.base = D.draftKey(sc.draft); sc.draftFor = 2;
+    sc.draft.chase = false;
+    B.saveDraft({ character: cs, account: {} }, sc, noop, true);
+    await settle();
+    if (calls.map((c) => c[0] + ':' + c[1]).join() !== 'hr_action_set_options:2,hr_hunt_preset_apply:2') fails.push('AW-87 Save and use sent ' + JSON.stringify(calls.map((c) => c[0] + ':' + c[1])));
+    calls.length = 0;
+    const cs2 = fakeCs(fx, (name) => (name === 'hr_action_set_options' ? { ok: false, error: 'bad_slot', slot: 3 } : { ok: true })), sc2 = scratch();
+    sc2.picked = 2; sc2.draft = D.draftFrom(set); sc2.base = D.draftKey(sc2.draft); sc2.draftFor = 2; sc2.draft.chase = false;
+    B.saveDraft({ character: cs2, account: {} }, sc2, noop, true);
+    await settle();
+    if (calls.map((c) => c[0]).join() !== 'hr_action_set_options' || sc2.draft === null) fails.push('AW-87 a refused save sent ' + calls.map((c) => c[0]).join() + (sc2.draft === null ? ' and dropped the copy' : ''));
+    calls.length = 0;
+    const sc3 = scratch();
+    sc3.draft = D.draftFrom(set); sc3.base = D.draftKey(sc3.draft); sc3.draftFor = 0; sc3.draft.chase = false; sc3.stale = true;
+    B.saveDraft({ character: fakeCs(fx), account: {} }, sc3, noop, false);
+    await settle();
+    if (calls.length) fails.push('AW-87 a stale copy (the bar changed under it) was sent: ' + calls.map((c) => c[0]).join());
+  }
+  // AW-88: Use equipped asks once; AW-89: New on the first free number
+  {
+    calls.length = 0;
+    const cs = fakeCs(fx), ctx = { character: cs, account: {} }, sc = scratch();
+    sc.picked = 2;
+    const body = { querySelector: () => null };
+    S.actSetups(ctx, body, sc, noop, 'use-equipped', click, el({}));
+    await settle();
+    if (calls.length || !sc.armingEquipped) fails.push('AW-88 the first Use equipped press sent ' + calls.map((c) => c[0]).join() + (sc.armingEquipped ? '' : ' and did not ask'));
+    S.actSetups(ctx, body, sc, noop, 'use-equipped', click, el({}));
+    await settle();
+    const over = sent('hr_hunt_preset_save');
+    if (over.length !== 1 || over[0][1] !== 2 || over[0][2] !== 'Boss nights' || calls.length !== 1) fails.push('AW-88 the second Use equipped press sent ' + JSON.stringify(calls));
+    calls.length = 0;
+    const input = { value: '  Thicket solo ', disabled: false, focus() { input.focused = true; } };
+    const body2 = { querySelector: (q) => (q === '.hw-preset-name' ? input : null) };
+    const sc2 = scratch();
+    S.actSetups(ctx, body2, sc2, noop, 'new', click, el({}));
+    if (!sc2.adding || !input.focused || calls.length) fails.push('AW-89 New did not open the name field (or sent something)');
+    S.actSetups(ctx, body2, sc2, noop, 'save-new', click, el({}));
+    await settle();
+    const fresh = sent('hr_hunt_preset_save');
+    if (fresh.length !== 1 || fresh[0][1] !== 1 || fresh[0][2] !== 'Thicket solo') fails.push('AW-89 New saved ' + JSON.stringify(fresh) + ' (want number 1, the first free, named Thicket solo)');
+    if (sc2.picked !== 1 || sc2.adding) fails.push('AW-89 the new setup is not the one picked, or the field stayed open');
+    calls.length = 0;
+    input.value = '';
+    S.actSetups(ctx, body2, scratch(), noop, 'save-new', click, el({}));
+    await settle();
+    if (sent('hr_hunt_preset_save').map((c) => c[2]).join() !== 'Setup 2') fails.push('AW-89 an empty name saved as ' + JSON.stringify(sent('hr_hunt_preset_save')));
+    if (S.firstFree([{ preset: 0 }, { preset: 1 }, { preset: 2 }, { preset: 3 }, { preset: 4 }]) !== 5) fails.push('AW-89 with every number taken the first free is not the limit');
+  }
+  // AW-90: Fights as
+  {
+    const ranger = B.fightsLine('ranger', 'tank', { weapon: 'iron_sword', shield: 'wooden_shield' });
+    if (ranger !== 'Wear a bow or a crossbow to fight as a Ranger.') fails.push('AW-90 the Ranger hint reads ' + JSON.stringify(ranger));
+    const worn = B.fightsLine('tank', 'tank', { weapon: 'iron_sword', shield: 'wooden_shield' });
+    if (!/Iron Sword/.test(worn) || !/Wooden shield/i.test(worn) || /Wear a/.test(worn)) fails.push('AW-90 the worn role\'s line reads ' + JSON.stringify(worn));
+    if (!/bare hands/.test(B.fightsLine(null, 'melee_dps', {}))) fails.push('AW-90 no weapon does not read as bare hands');
+    for (const r of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) if (typeof TEXT.prep['fights_' + r] !== 'string') fails.push('AW-90 no hint row for ' + r);
+  }
+  // AW-91: Sort and Clear edit the copy and send nothing
+  {
+    calls.length = 0;
+    const cs = fakeCs(fx), ctx = { character: cs, account: {} }, sc = scratch();
+    sc.draft = D.draftFrom(set); sc.base = D.draftKey(sc.draft); sc.draftFor = 0;
+    /* the fixture's bar: power_strike, flame_strike (moves), wheat_bread, goldenroot_tea (food and drink); put the bread first by hand */
+    sc.draft.slots = D.dropPlan(sc.draft.slots, 2, 7) || sc.draft.slots;
+    sc.draft.slots = D.dropPlan(sc.draft.slots, 7, 0) || sc.draft.slots;   /* (a drop that cannot apply is AW-86's to judge) */
+    /* now bread (slot 1), flame_strike (2), tea (4), power_strike (8): every one ruled, so Sort keeps each lane's order: the moves, then the food and drink */
+    const pre = sc.draft.slots.slice();
+    B.actBuilder(ctx, {}, sc, noop, 'sort', click, el({}));
+    const ids = sc.draft.slots.map((s) => (s ? s.action.id : '-')).join(' ');
+    const { sortBar } = await imp('src/shell/bar-sort.js');
+    if (!/^flame_strike power_strike wheat_bread goldenroot_tea( -){16}$/.test(ids) || !sc.sorted) fails.push('AW-91 Sort reads ' + ids + (sc.sorted ? '' : ' and the line is not shown'));
+    if (JSON.stringify(sc.draft.slots) !== JSON.stringify(sortBar(pre))) fails.push('AW-91 Sort is not bar-sort.js over the copy');
+    B.actBuilder(ctx, {}, sc, noop, 'clear', click, el({}));
+    if (sc.draft.slots.length !== 20 || sc.draft.slots.some(Boolean) || !sc.cleared) fails.push('AW-91 Clear left ' + sc.draft.slots.filter(Boolean).length + ' slots');
+    B.actBuilder(ctx, {}, sc, noop, 'd-stance', click, el({ 'data-val': 'defensive' }));
+    B.actBuilder(ctx, {}, sc, noop, 'd-chase', click, el({}));
+    B.actBuilder(ctx, {}, sc, noop, 'd-dist', click, el({ 'data-val': '1' }));
+    B.actBuilder(ctx, {}, sc, noop, 'd-target', { type: 'change' }, el({}, { value: 'strongest' }));
+    B.actBuilder(ctx, {}, sc, noop, 'd-gold', { type: 'change' }, el({}, { value: '500' }));
+    const d = sc.draft;
+    if (d.stance !== 'defensive' || d.chase !== false || d.distance !== 2 || d.targetMode !== 'strongest' || d.goldFloor !== 500) fails.push('AW-91 the controls wrote ' + JSON.stringify([d.stance, d.chase, d.distance, d.targetMode, d.goldFloor]));
+    if (calls.length) fails.push('AW-91 editing the copy sent ' + calls.map((c) => c[0]).join());
+    if (!B.draftDirty(sc)) fails.push('AW-91 an edited copy does not read as not saved');
+  }
+  // AW-92: the read
+  {
+    const rpcs = [];
+    const server = { rpc: async (name, args) => { rpcs.push([name, args]); return { ok: true, status: 200, body: Object.assign({ ok: true }, clone(fx.hunt_settings), { preset: args.p_preset, stance: 'offensive', store: [] }) }; } };
+    const account = { server };
+    const cs = fakeCs(fx);
+    const live = await R.readPreset(account, cs, 0);
+    if (!live.ok || !live.live || rpcs.length || live.set.preset !== 0 || live.set.stance !== 'balanced') fails.push('AW-92 the setup in use was read from the server, or not from the envelope: ' + JSON.stringify([live.ok, live.live, rpcs.length]));
+    const other = await R.readPreset(account, cs, 2);
+    if (rpcs.length !== 1 || rpcs[0][0] !== 'hr_hunt_preset_read' || JSON.stringify(rpcs[0][1]) !== '{"p_slot":0,"p_preset":2}') fails.push('AW-92 another setup asked ' + JSON.stringify(rpcs));
+    if (!other.ok || other.live || other.set.preset !== 2 || other.set.stance !== 'offensive' || other.set.slots.length !== 20 || !other.set.store.length) fails.push('AW-92 the read parsed as ' + JSON.stringify(other).slice(0, 200));
+    const refused = await R.readPreset({ server: { rpc: async () => ({ ok: false, status: 404, error: 'http_404', body: null }) } }, cs, 2);
+    if (refused.ok || !refused.error) fails.push('AW-92 a refused read reads ' + JSON.stringify(refused));
+    const limited = await R.readPreset({ server: { rpc: async () => ({ ok: true, status: 200, body: { ok: false, error: 'rate_limited' } }) } }, cs, 2);
+    if (limited.ok || limited.error !== 'rate_limited') fails.push('AW-92 the refusal code the server sent is lost: ' + JSON.stringify(limited));
+    const bad = await R.readPreset(account, cs, 9);
+    if (bad.ok || rpcs.length !== 1) fails.push('AW-92 a preset past the limit was asked');
+  }
+  return fails;
+}
+
+/* AW-77 PURE: THE BAG'S SELECTION, over the src at `base` (the 'select:' mutants judge a planted copy). The scratch is the
+   Inventory's own shape (state.js scratchOf); the shown rows stand in for the grid's order. */
+async function selectRules(base) {
+  const fails = [];
+  const imp = (p) => import(pathToFileURL(join(base, p)).href);
+  const S = await imp('src/shell/windows/inventory/selection.js');
+  const { t } = await imp('src/render/player-text.js');
+  const shown = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ id, qty: 2 }));
+  const fresh = () => ({ sel: new Set(), anchor: null, base: null, cursor: null });
+  const has = (sc) => [...sc.sel].sort().join();
+  /* Ctrl+A: a partial selection → every shown stack; pressed again with every shown stack selected → none, a hidden one too */
+  let sc = fresh();
+  sc.sel.add('z');   // selected, then filtered out of view
+  S.pressSelect(sc, 'b', shown, { ctrl: true });
+  S.selectKey(sc, 'a', { ctrl: true }, shown);
+  if (has(sc) !== 'a,b,c,d,e,z') fails.push('AW-77 Ctrl+A over a partial selection reads ' + has(sc));
+  S.selectKey(sc, 'A', { ctrl: true }, shown);
+  if (has(sc) !== '') fails.push('AW-77 Ctrl+A over every shown stack keeps ' + has(sc) + ' (it should clear)');
+  S.selectAll(sc, []);
+  if (has(sc) !== '') fails.push('AW-77 Ctrl+A over an empty grid selects ' + has(sc));
+  /* Escape: none; with none selected it is not the selection's key */
+  sc = fresh();
+  S.pressSelect(sc, 'c', shown, { ctrl: true });
+  if (!S.selectKey(sc, 'Escape', {}, shown) || has(sc) !== '') fails.push('AW-77 Escape leaves ' + has(sc));
+  if (S.selectKey(sc, 'Escape', {}, shown)) fails.push('AW-77 Escape with nothing selected was taken as the selection\'s');
+  /* Shift: the range from the anchor, growing and shrinking; Ctrl+Shift adds it to what stood when the anchor was set */
+  sc = fresh();
+  S.pressSelect(sc, 'b', shown, { ctrl: true });
+  S.pressSelect(sc, 'd', shown, { shift: true });
+  const grew = has(sc);
+  S.pressSelect(sc, 'e', shown, { shift: true });
+  const grewMore = has(sc);
+  S.pressSelect(sc, 'c', shown, { shift: true });
+  if (grew !== 'b,c,d' || grewMore !== 'b,c,d,e' || has(sc) !== 'b,c') fails.push('AW-77 Shift ranges read ' + [grew, grewMore, has(sc)].join(' | ') + ' (want b,c,d | b,c,d,e | b,c)');
+  S.pressSelect(sc, 'e', shown, { ctrl: true });
+  S.pressSelect(sc, 'c', shown, { shift: true, ctrl: true });
+  if (has(sc) !== 'b,c,d,e') fails.push('AW-77 Ctrl+Shift reads ' + has(sc) + ' (want the range c..e added to b,c,e)');
+  S.pressSelect(sc, 'd', shown, { shift: true });
+  if (has(sc) !== 'd,e' || sc.cursor !== 'd') fails.push('AW-77 Shift after Ctrl+Shift reads ' + has(sc) + ' at ' + sc.cursor);
+  /* Shift+arrow with no anchor on screen: from the cursor the arrow left, which becomes the anchor */
+  sc = fresh();
+  sc.cursor = 'c';
+  S.rangeTo(sc, 'e', shown, { from: 'c' });
+  S.rangeTo(sc, 'd', shown, { from: 'e' });
+  if (has(sc) !== 'c,d' || sc.anchor !== 'c') fails.push('AW-77 Shift+arrow reads ' + has(sc) + ' from ' + sc.anchor);
+  /* a plain press: with a selection active, only that stack; with none, none (the cursor picks it); Ctrl toggles it off again */
+  sc = fresh();
+  for (const id of ['a', 'b', 'c']) sc.sel.add(id);
+  S.pressSelect(sc, 'b', shown, {});
+  if (has(sc) !== 'b' || sc.cursor !== 'b') fails.push('AW-77 a plain press over a,b,c reads ' + has(sc) + ' (want b alone)');
+  S.pressSelect(sc, 'b', shown, { ctrl: true });
+  if (has(sc) !== '') fails.push('AW-77 Ctrl+press on the one selected stack keeps ' + has(sc));
+  S.pressSelect(sc, 'd', shown, {});
+  if (has(sc) !== '' || sc.cursor !== 'd') fails.push('AW-77 a plain press with nothing selected reads ' + has(sc) + ' at ' + sc.cursor);
+  S.toggleSelect(sc, 'd');
+  S.toggleSelect(sc, 'd');
+  if (has(sc) !== '') fails.push('AW-77 Space twice keeps ' + has(sc));
+  /* the line: the count and the shop's bids; a stack with no bid is said; no shop, the count alone */
+  const bids = new Map([['a', 10], ['b', 5]]);
+  const line = [S.selectionWords(['a', 'b'], shown, bids), S.selectionWords(['a', 'c'], shown, bids), S.selectionWords(['a'], shown, null)];
+  if (line.join(' | ') !== '2 selected · value 30 gp | 2 selected · value 20 gp (1 with no shop price) | 1 selected') fails.push('AW-77 the selection line reads ' + JSON.stringify(line));
+  /* the selection names only the server's rows (a sold stack drops out of the count) */
+  sc = fresh();
+  for (const id of ['a', 'gone']) sc.sel.add(id);
+  if (S.selectedIds(sc, shown).join() !== 'a') fails.push('AW-77 the selection counts a stack the bag no longer holds: ' + S.selectedIds(sc, shown).join());
+  /* after a bulk press: ONE server ask, all or nothing: ok is done with the selection; a refusal moved nothing, so it stands */
+  sc = fresh();
+  for (const id of ['a', 'b']) sc.sel.add(id);
+  if (S.settleSelection(sc, { ok: false, error: 'item_locked', verb: 'bank_move_many', item: 'b' }) || has(sc) !== 'a,b') fails.push('AW-77 a refused bulk press leaves ' + has(sc) + ' (want a,b kept)');
+  if (!S.settleSelection(sc, { ok: true, count: 2 }) || has(sc) !== '') fails.push('AW-77 an ok bulk press keeps ' + has(sc));
+  /* ...and the bag's Deposit and Lock ARE one ask each (storage-intents.js), never a stack at a time */
+  const acts = readFileSync(join(base, 'src/shell/windows/inventory/actions.js'), 'utf8');
+  if (!/moveStorageMany\(st\.account, st\.cs, ids, 'deposit'\)/.test(acts) || /\.moveStorage\(/.test(acts)) fails.push('AW-77 Deposit is not one hr_bank_move_many');
+  if (!/lockItems\(st\.account, st\.cs, todo, on\)/.test(acts) || /lockItem\(id, on\)[^)]*\)\s*\)\s*,\s*t\('bag\./.test(acts)) fails.push('AW-77 Lock over the selection is not one hr_item_lock_many');
+  /* Lock reads Unlock only over a selection locked through */
+  const lock = [S.lockLabel(['a', 'b'], new Set(['a', 'b'])), S.lockLabel(['a', 'b'], new Set(['a'])), S.lockLabel(['a'], null), S.lockLabel([], new Set())];
+  if (lock.join() !== 'Unlock,Lock,Lock,Lock') fails.push('AW-77 the lock tool reads ' + lock.join());
+  /* the help line names the keys read above, and is the line the grid shows */
+  const keys = t('bag.keys');
+  for (const k of ['Ctrl+A select all, again deselect all', 'Esc clear', 'Shift+click', 'Shift+arrows', 'Ctrl+click']) if (!keys.includes(k)) fails.push('AW-77 the help line leaves out "' + k + '": ' + keys);
+  if (!/KEYS = t\('bag\.keys'\)/.test(readFileSync(join(base, 'src/shell/windows/inventory/grid.js'), 'utf8'))) fails.push('AW-77 the grid shows a help line of its own, not bag.keys');
+  return fails;
+}
+
 /* AW-25 .. AW-28 PURE: the Hunts page's facts from the data rows and its lines from the server's sections. */
 async function huntsPure(imp) {
   const fails = [];
@@ -572,7 +853,7 @@ async function huntsPure(imp) {
   const { huntRows, fitWords, bestLine, bestWords, tierPull, tierWords, tierChoiceWords } = await imp('src/shell/hunt-list.js');
   const { setupsOf, beforeLines, freeHeroes } = await imp('src/shell/hunt-go.js');
   const STORE = FIXTURE.hunt_settings.store;
-  /* THE PULL EACH TIER BRINGS: Normal is the ground as it stands (as built alone, 0; a party's own pull), a harder tier its own row's number for the group's size, and a row of 0 the ground as it stands too. */
+  /* THE PULL EACH TIER BRINGS: Normal is the pack as built for EVERY group size (0; Tyler 2026-11-11 ONE PACK ON NORMAL, partyPull is gone), a harder tier its own row's number for the group's size, and a row of 0 the pack as built too. */
   const rowOf = (hunt) => huntRows().find((x) => x.hunt === hunt);
   const glade = rowOf('mosslight_glade'), thicketR = rowOf('meadowbrook_thicket');
   /* FIXED ROWS, NOT TODAY'S BALANCE (lane/b-tier-dials): the page's words and pulls are read off rows set here on the very rows the page reads
@@ -584,9 +865,9 @@ async function huntsPure(imp) {
     TV.GROUND_TIERS.mosslight_glade = { dangerous: tierRow('dangerous', [4, 5, 5, 6], 1200, 1000, 1100), deadly: tierRow('deadly', [8, 8, 8, 8], 1500, 1000, 1200) };
     TV.GROUND_TIERS.meadowbrook_thicket = { dangerous: tierRow('dangerous', [0, 0, 0, 0], 1500, 1000, 1050), deadly: tierRow('deadly', [0, 0, 0, 0], 3000, 1000, 1080) };
     if (tierPull(glade, 'normal', 1) !== 0) fails.push('AW-25 a lone hero moved off the room as built: ' + tierPull(glade, 'normal', 1));
-    if (tierPull(glade, 'normal', 2) !== 3 || tierPull(glade, 'normal', 4) !== 4) fails.push('AW-25 a party on Normal does not read its own pull: ' + tierPull(glade, 'normal', 2) + ' / ' + tierPull(glade, 'normal', 4));
+    if (tierPull(glade, 'normal', 2) !== 0 || tierPull(glade, 'normal', 4) !== 0) fails.push('AW-25 a party on Normal does not read the pack as built (Tyler 2026-11-11): ' + tierPull(glade, 'normal', 2) + ' / ' + tierPull(glade, 'normal', 4));
     if (tierPull(glade, 'dangerous', 1) !== 4 || tierPull(glade, 'dangerous', 4) !== 6 || tierPull(glade, 'deadly', 1) !== 8 || tierPull(glade, 'deadly', 4) !== 8) fails.push('AW-25 a harder tier does not read its row');
-    if (tierPull(thicketR, 'deadly', 1) !== 0 || tierPull(thicketR, 'deadly', 4) !== 6) fails.push('AW-25 a row with no more monsters does not read the ground as it stands: ' + tierPull(thicketR, 'deadly', 1) + ' / ' + tierPull(thicketR, 'deadly', 4));
+    if (tierPull(thicketR, 'deadly', 1) !== 0 || tierPull(thicketR, 'deadly', 4) !== 0) fails.push('AW-25 a row with no more monsters does not read the ground as it stands: ' + tierPull(thicketR, 'deadly', 1) + ' / ' + tierPull(thicketR, 'deadly', 4));
     if (tierWords(glade, 'normal', 1) !== '' || tierChoiceWords(glade, 'normal', 1) !== '') fails.push('AW-25 Normal says more than the ground\'s page: ' + tierWords(glade, 'normal', 1));
     /* THE PLAIN LINE (Tyler 2026-11-08: the old numbers note was 'way too exact'; hunt-tiers.js TIER_LINES): a tier that brings more monsters at once than
        this group's Normal reads its 'more' line, one that brings no more its 'same' line, each with the one death line and never a number. */
@@ -595,8 +876,8 @@ async function huntsPure(imp) {
     if (tierWords(glade, 'deadly', 1) !== W('deadly', 'more')) fails.push('AW-25 the Deadly note reads: ' + tierWords(glade, 'deadly', 1));
     if (tierChoiceWords(glade, 'dangerous', 4) !== 'Dangerous: more monsters at once, and they hit harder.') fails.push('AW-25 a four on a bigger pull reads: ' + tierChoiceWords(glade, 'dangerous', 4));
     if (tierChoiceWords(thicketR, 'deadly', 1) !== 'Deadly: the monsters hit much harder.' || tierWords(thicketR, 'dangerous', 4) !== W('dangerous', 'same')) fails.push('AW-25 a row with no more monsters reads: ' + tierChoiceWords(thicketR, 'deadly', 1) + ' / ' + tierWords(thicketR, 'dangerous', 4));
-    /* a pull no bigger than this group's Normal (a pair's 3 on the Glade) is no more monsters */
-    TV.GROUND_TIERS.mosslight_glade.dangerous = tierRow('dangerous', [4, 3, 3, 4], 1200, 1000, 1100);
+    /* a pull no bigger than this group's Normal (the pack as built, 0 for a pair too since Tyler 2026-11-11) is no more monsters */
+    TV.GROUND_TIERS.mosslight_glade.dangerous = tierRow('dangerous', [4, 0, 3, 4], 1200, 1000, 1100);
     if (tierWords(glade, 'dangerous', 2) !== W('dangerous', 'same') || tierWords(glade, 'dangerous', 1) !== W('dangerous', 'more')) fails.push('AW-25 the pull read against Normal: ' + tierWords(glade, 'dangerous', 2));
     /* every dial at a sheet's odd multiple still reads no number, on every tier and group size */
     TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 2261, 2847, 1400);
@@ -928,7 +1209,7 @@ async function panelLeftovers(base) {
   for (const [w, r, want] of bySuggest) if ((suggestedWeight(w, r) || {}).weight !== want) fails.push('AW-62 a first Take for ' + r + ' in ' + JSON.stringify(w) + ' asks for ' + JSON.stringify(suggestedWeight(w, r)));
   if (suggestedWeight({}, null) !== null) fails.push('AW-62 with nothing said a first Take still guesses ' + JSON.stringify(suggestedWeight({}, null)));
   if (takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')) !== 'Your first Take asks her for heavy armor, which suits a shield tank. Change it below any time.') fails.push('AW-62 the line over her board with a suggestion reads ' + takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')));
-  if (!/^Pick the armor weight/.test(takeWhyOf({ weight: null, held: [], heldMax: 3 }, false)) || !/^You hold as many/.test(takeWhyOf({ weight: 'heavy', held: [1, 2, 3], heldMax: 3 }, false))
+  if (!/^Pick the armor weight/.test(takeWhyOf({ weight: null, held: [], heldMax: 3 }, false)) || !/^You have three of mine already/.test(takeWhyOf({ weight: 'heavy', held: [1, 2, 3], heldMax: 3 }, false))
     || takeWhyOf({ weight: 'heavy', held: [], heldMax: 3 }, false) !== '' || takeWhyOf({ weight: null, held: [], heldMax: 3 }, true) !== '') fails.push('AW-62 the line over her board is wrong');
   const { buryLabel, buryRecipeOf } = await imp('src/shell/windows/inventory/bury.js');
   const bones = buryRecipeOf('bones');
@@ -1091,9 +1372,12 @@ async function planRules(base) {
   /* AW-27 BEFORE YOU GO SAYS THE BLESSINGS (board 11-04: nothing said them before the risk), every number the server's */
   const blessed = (held, price) => say(sess({ blessings: { permille: [0, 250, 500, 750][held.length], free_until: 30, tiers: [1, 2, 3].map((tier) => ({ tier, permille: 250 * tier, price, held: held.includes(tier) })) } }));
   const noneFree = blessed([], 0), oneOn = blessed([1], 450), allOn = blessed([1, 2, 3], 450);
-  if (!noneFree.endsWith("Blessings: none on. A death takes less XP with them: free for now, in the Shop's Services tab.")) fails.push('AW-27 no Blessings, free, reads ' + JSON.stringify(noneFree));
-  if (!oneOn.endsWith("Blessings: 1 of 3 on. A death takes 25% less XP. More: the next is 450 gp, in the Shop's Services tab.")) fails.push('AW-27 one Blessing reads ' + JSON.stringify(oneOn));
-  if (!allOn.endsWith('Blessings: 3 of 3 on. A death takes 75% less XP.')) fails.push('AW-27 every Blessing reads ' + JSON.stringify(allOn));
+  if (!noneFree.endsWith("You have no Blessings on. They cut the XP you lose when you die, and they're free until Level 30. Get them in the Shop's Services tab.")) fails.push('AW-27 no Blessings, free, reads ' + JSON.stringify(noneFree));
+  if (!oneOn.endsWith("You have 1 of 3 Blessings on. You lose 25% less XP when you die. The next one costs 450 gp in the Shop's Services tab.")) fails.push('AW-27 one Blessing reads ' + JSON.stringify(oneOn));
+  if (!allOn.endsWith('You have all 3 Blessings on. You lose 75% less XP when you die.')) fails.push('AW-27 every Blessing reads ' + JSON.stringify(allOn));
+  const nonePaid = blessed([], 450), oneFree = blessed([1], 0);
+  if (!nonePaid.endsWith("You have no Blessings on. They cut the XP you lose when you die. The first one costs 450 gp in the Shop's Services tab.")) fails.push('AW-27 no Blessings, priced, reads ' + JSON.stringify(nonePaid));
+  if (!oneFree.endsWith("You have 1 of 3 Blessings on. You lose 25% less XP when you die. The rest are free until Level 30 in the Shop's Services tab.")) fails.push('AW-27 one Blessing, the rest free, reads ' + JSON.stringify(oneFree));
   /* AW-27 A MOVE THE WORN WEAPON CAN'T USE SPENDS NOTHING: a club hero is not warned about Flame Volley's runes (QA 2026-11-04) */
   const clubSay = say(sess({ hunt_settings: { preset: 0, presets: [], discipline: 'club', slots: [slot('ability', 'flame_volley', 0), slot('ability', 'power_strike', 0)], store: RUNES } }));
   if (/Flame Volley|Fire rune|^Runes:/.test(clubSay)) fails.push('AW-27 a club hero is told about another weapon\'s runes: ' + JSON.stringify(clubSay));
@@ -1265,6 +1549,14 @@ async function planRules(base) {
     const bane = plan({ weapon: 'practice_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
     if (ops2(bane) !== '{"weapon":"bramble_blade"}' || UP.upgradeWords(bane, 2, 3) !== 'Wear Bramble Blade (+2 Melee accuracy, +2 Melee damage, +40% damage to Plant monsters).') fails.push('AW-21 a sword hero with Bramble Blades at Level 16 reads ' + ops2(bane) + ' / ' + UP.upgradeWords(bane, 2, 3));
     if ('weapon' in plan({ weapon: 'bramble_blade' }, [['iron_sword']], lv1, 16).ops) fails.push('AW-21 Equip upgrades traded a worn bane away for plain numbers');
+    /* A WORN BANE AGAINST A PLAIN STRONGER BLADE IS SAID, NEVER SWAPPED (designer small call 2, 2026-11-11): the slot is a choice and the line says the trade in the
+       engine's numbers (Iron Sword +7/+6 over Bramble +6/+5, the bane's clamped +40%); a hand swap to the Iron Sword sticks, since the Bramble does not dominate it. */
+    const kept = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['iron_sword', 3]], lv1, 16);
+    if (ops2(kept) !== '{}' || JSON.stringify(kept.choices) !== '[{"slot":"weapon","ids":["iron_sword"],"keeps":"bramble_blade","lost":[{"cls":"plant","pct":40}]}]'
+      || UP.upgradeWords(kept) !== 'Nothing goes on by itself, since each piece is better at something. Iron Sword hits harder, Bramble Blade does +40% damage to Plant monsters. Pick on the doll.')
+      fails.push('AW-21 a worn Bramble Blade with Iron Swords in the bag reads ' + ops2(kept) + ' / ' + JSON.stringify(kept.choices) + ' / ' + UP.upgradeWords(kept));
+    const swapped = plan({ weapon: 'iron_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
+    if (ops2(swapped) !== '{}' || swapped.choices.length || UP.upgradeWords(swapped) !== '') fails.push('AW-21 a hand swap to the Iron Sword does not stick: ' + ops2(swapped) + ' / ' + JSON.stringify(swapped.choices));
     if ((await imp('src/shell/item-lore.js')).baneWords('bramble_blade').join() !== '+40% damage to Plant monsters') fails.push('AW-21 the Bramble Blade tooltip bane reads ' + (await imp('src/shell/item-lore.js')).baneWords('bramble_blade'));
     const steelOverIron = plan({ weapon: 'practice_sword' }, [['iron_sword'], ['steel_sword']], lv1, 30);
     if (ops2(steelOverIron) !== '{"weapon":"steel_sword"}') fails.push('AW-21 of two better swords it would put on ' + ops2(steelOverIron));
@@ -1890,6 +2182,83 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
+    { // AW-78 ONE GOLD PRESS ON THE WAY HOME (UX flow audit 2026-11-11, flow C; Tyler: after 4 h the summary's gold button was still the first tutorial card)
+      /* The AW-31 hero (Level 5, no gear in the bag, the bar's lessons read) comes home from the Cellar with the fixture's loot plan: Rat Tail and
+         Slime Gel marked Sell, Sticky Core marked Sell but locked. The card waiting is "Sell what only pays coin". */
+      const home5 = (e) => {
+        e.state = Object.assign({}, e.state, { level_xp: LEVEL_5_XP });
+        e.skills = Object.assign({}, e.skills, { farming: { xp: 28, level: 1, frac: 0 } });
+        for (const id of ['bronze_sword', 'steel_sword', 'iron_helm', 'iron_platebody', 'shortbow']) delete e.inventory[id];
+        e.hunt_settings = Object.assign({}, e.hunt_settings, { slots: [], bar: [] });
+      };
+      const { ctx, page, s, errors, up } = await open({ mutateEnv: home5, residue: { coach: { read: ['bar_intro'] } } });
+      if (!up) fails.push('AW-78 the page did not mount');
+      else {
+        s.env.hunt = Object.assign({}, s.env.hunt, { ended: true, session: { end_reason: 'left', ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
+        s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
+        await pushEnvelope(page, s);
+        await wait(page, () => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-built]'), null, 3000);
+        await page.waitForTimeout(300);
+        const look = () => page.evaluate(() => {
+          const w = document.querySelector('[data-hs-win="hunt-summary"]');
+          const shown = (b) => !b.hidden && b.getClientRects().length > 0;
+          const q = (sel) => w.querySelector(sel);
+          const row = q('.hsum-step[data-step="sell"]');
+          return {
+            gold: Array.from(w.querySelectorAll('button.is-primary')).filter(shown).map((b) => b.getAttribute('data-hs-act') + ':' + (b.getAttribute('data-step') || '')),
+            steps: Array.from(w.querySelectorAll('.hsum-step')).map((li) => li.getAttribute('data-step') + (li.classList.contains('is-done') ? ':done' : '')),
+            title: row ? row.querySelector('b').textContent : null, words: row ? row.querySelector('small').textContent : null,
+            done: row ? (row.querySelector('.hsum-done').hidden ? '' : row.querySelector('.hsum-done').textContent) : null,
+            next: q('[data-hs-act="coach-next"]') && shown(q('[data-hs-act="coach-next"]')) ? q('[data-hs-act="coach-next"]').textContent : null,
+            ring: Array.from(document.querySelectorAll('[data-coach-ring]')).map((e) => (e.getAttribute('data-hs-act') || '') + ':' + (e.getAttribute('data-step') || '')),
+          };
+        });
+        const before = await look();
+        /* the Sell step is the one gold press: its count and value are the server's (31 Rat Tail at 6, 12 Slime Gel at 5), the locked Sticky Core left out;
+           the coach's next step is a press, not the gold one, and the card rings the row it is about */
+        if (JSON.stringify(before.gold) !== '["town:sell"]' || JSON.stringify(before.steps) !== '["sell"]') fails.push('AW-78 the gold presses on the summary are ' + JSON.stringify(before));
+        if (before.title !== 'Sell 2 stacks for 246 gp' || before.words !== 'Your loot plan marks Rat Tail and Slime Gel for the shop.') fails.push('AW-78 the Sell row reads ' + JSON.stringify([before.title, before.words]));
+        if (before.next !== 'Next: Sell what only pays coin') fails.push('AW-78 the card\'s next step is not a press on the summary: ' + JSON.stringify(before.next));
+        if (JSON.stringify(before.ring) !== '["town:sell"]') fails.push('AW-78 the return card rings ' + JSON.stringify(before.ring) + ', want the summary\'s Sell row');
+        if (shots) await shot(page, 'alpha-1440x900-back-in-town');
+        /* the press: ONE vendor_sell_many naming the plan's stacks whole; the server's answer (the stacks gone) turns the row to Done, and Hunt again is gold */
+        s.onEdge = (body) => { if (body.verb === 'vendor_sell_many') { delete s.env.inventory.rat_tail; delete s.env.inventory.slime_gel; } };
+        await page.click('[data-hs-win="hunt-summary"] [data-hs-act="town"][data-step="sell"]');
+        await wait(page, () => { const w = document.querySelector('[data-hs-win="hunt-summary"]'); return w && w.querySelector('.hsum-step[data-step="sell"].is-done'); }, null, 4000);
+        await page.waitForTimeout(200);
+        const sales = sent(s, 'hr-accrue', 'vendor_sell_many');
+        if (sales.length !== 1 || JSON.stringify(sales[0].body.lines) !== '[{"item":"rat_tail","qty":31},{"item":"slime_gel","qty":12}]') fails.push('AW-78 the Sell step sent ' + JSON.stringify(sales.map((c) => c.body.lines)));
+        const after = await look();
+        if (JSON.stringify(after.steps) !== '["sell:done"]' || after.done !== 'Done' || after.title !== 'Sell 2 stacks for 246 gp') fails.push('AW-78 after the sale the row reads ' + JSON.stringify(after));
+        if (JSON.stringify(after.gold) !== '["again:"]') fails.push('AW-78 after the sale the gold presses are ' + JSON.stringify(after.gold) + ', want Hunt again alone');
+        if (shots) await shot(page, 'alpha-1440x900-back-in-town-done');
+        if (errors.length) fails.push('AW-78 console errors: ' + errors.join(' | ').slice(0, 300));
+      }
+      await ctx.close();
+      /* on a phone the same list, stacked: the first open step's gold press stands under the reason, before the numbers, in view as the sheet opens */
+      const phone = await open({ viewport: { width: 922, height: 423 }, mutateEnv: home5, residue: { coach: { read: ['bar_intro'] } } });
+      if (!phone.up) fails.push('AW-78 the phone page did not mount');
+      else {
+        phone.s.env.hunt = Object.assign({}, phone.s.env.hunt, { ended: true, session: { end_reason: 'left', ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
+        phone.s.env.state = Object.assign({}, phone.s.env.state, { active_kind: 'idle', active_id: null });
+        await pushEnvelope(phone.page, phone.s);
+        await wait(phone.page, () => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-built]'), null, 3000);
+        await phone.page.waitForTimeout(300);
+        const sheet = await phone.page.evaluate(() => {
+          const w = document.querySelector('[data-hs-win="hunt-summary"]');
+          const box = w.querySelector('[data-hs-body]').getBoundingClientRect();
+          const gold = Array.from(w.querySelectorAll('button.is-primary')).filter((b) => !b.hidden && b.getClientRects().length);
+          const r = gold.length === 1 ? gold[0].getBoundingClientRect() : null;
+          const stats = w.querySelector('.hsum-stats').getBoundingClientRect(), reason = w.querySelector('.hsum-reason').getBoundingClientRect();
+          return { gold: gold.map((b) => b.getAttribute('data-hs-act') + ':' + (b.getAttribute('data-step') || '')), inView: !!r && r.top >= box.top && r.bottom <= Math.min(box.bottom, window.innerHeight),
+            order: !!r && r.top >= reason.bottom && r.bottom <= stats.top };
+        });
+        if (JSON.stringify(sheet.gold) !== '["town:sell"]' || !sheet.inView || !sheet.order) fails.push('AW-78 on a phone the Sell step reads ' + JSON.stringify(sheet) + ', want its gold press alone, in view, under the reason and before the numbers');
+        if (shots) await shot(phone.page, 'alpha-922x423-back-in-town');
+      }
+      await phone.ctx.close();
+    }
+
     { // AW-5 AW-6 the locked stack and the confirmation
       const { ctx, page, s, up } = await open();
       if (up) {
@@ -2172,7 +2541,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             rules: Array.from(document.querySelectorAll('.hw-menu [data-hs-act="m-rule"]')).map((b) => [b.getAttribute('data-rule'), b.textContent, b.getAttribute('aria-pressed'), b.disabled]) }));
         };
         const m = await menuOf('wolf_pelt');
-        const want = [['keep', 'Keep in bag', 'true', false], ['deposit', 'Deposit in storage', 'false', false], ['sell', 'Sell', 'false', false], ['ignore', 'Don\'t pick up', 'false', false]];
+        const want = [['keep', 'Keep', 'true', false], ['deposit', 'Deposit', 'false', false], ['sell', 'Sell', 'false', false], ['ignore', 'Don\'t pick up', 'false', false]];
         if (JSON.stringify(m.rules) !== JSON.stringify(want) || !m.subs.includes('Loot plan') || !m.subs.includes('On pickup')) fails.push('AW-32 the item menu offers ' + JSON.stringify(m));
         if (shots) await shot(page, 'dispatch-1440x900-item-menu');
         s.onCall = (name, body) => {
@@ -2186,7 +2555,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(600);
         const rs = sent(s, 'hr_loot_rule_set');
         if (rs.length !== 1 || rs[0].body.p_item !== 'wolf_pelt' || rs[0].body.p_rule !== 'deposit' || Object.keys(rs[0].body).sort().join() !== 'p_idem,p_item,p_rule,p_slot') {
-          fails.push('AW-32 Deposit in storage sent ' + JSON.stringify(rs.map((c) => c.body)));
+          fails.push('AW-32 Deposit sent ' + JSON.stringify(rs.map((c) => c.body)));
         }
         /* the starting kit may be deposited but takes no Sell plan (the server's start_kit), said before the press */
         const k = await menuOf('cooked_shrimp');
@@ -2601,8 +2970,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const town = await look();
         /* ...and no hunt bar: with the summary open it would hold only a Summary press for it (first-hour playtest 10-29 #10) */
         if (town.analyzer || town.party || town.bar || town.toast || !town.summary) fails.push('AW-31 back in town the screen holds more than the summary: ' + JSON.stringify(town));
-        /* the card's next step is the summary's main press, Hunt again the second */
-        if (town.next !== 'Next: Sell what only pays coin' || town.againMain !== false) fails.push('AW-31 the summary\'s main press is ' + JSON.stringify(town) + ', want "Next: Sell what only pays coin" over Hunt again');
+        /* the card's next step is a press on the summary, never its gold one (AW-78): the Back in town Sell step is gold here, Hunt again is not */
+        if (town.next !== 'Next: Sell what only pays coin' || town.againMain !== false) fails.push('AW-31 the summary\'s presses read ' + JSON.stringify(town) + ', want "Next: Sell what only pays coin" shown and Hunt again not gold');
         if (shots) await shot(page, 'alpha-1440x900-return-summary');
         /* pressed: the summary goes, the hunt bar leaves with it, and the Shop opens with the card inside it, the Sell tab ringed */
         await page.click('[data-hs-win="hunt-summary"] [data-hs-act="coach-next"]');
@@ -2912,7 +3281,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const on = (n) => !!n && (n === b || b.contains(n));
         return { hit: on(top) && on(low), top: top && (top.className || top.tagName), low: low && (low.className || low.tagName) };
       }, sel);
-      /* 560 tall: on a short World a window now rises over the bar to fit (AW-77), so the columns these controls need to overflow do so only here */
+      /* 560 tall: on a short World a window now rises over the bar to fit (AW-93), so the columns these controls need to overflow do so only here */
       const { ctx, page, errors, s, up } = await open({ viewport: { width: 1366, height: 560 }, mutateEnv: town });
       s.onCall = (name, b) => { if (name === 'hr-accrue' && b.verb === 'set_activity') Object.assign(s.env.state, b.activity && b.activity.kind ? { active_kind: b.activity.kind, active_id: b.activity.id } : { active_kind: 'idle', active_id: null }); };
       if (!up) fails.push('AW-67 the town did not mount');
@@ -3826,23 +4195,23 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
-    { // AW-77 a window opens whole: the short Worlds Tyler plays on (1014x652), a 1024x768 laptop and a phone held sideways
+    { // AW-93 a window opens whole: the short Worlds Tyler plays on (1014x652), a 1024x768 laptop and a phone held sideways
       const lv36 = (e) => { for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: LEVEL_36_XP }); };
       for (const viewport of [{ width: 1014, height: 652 }, { width: 1024, height: 768 }, { width: 922, height: 423 }]) {
         const { ctx, page, up } = await open({ viewport, mutateEnv: lv36 });
         const at = viewport.width + 'x' + viewport.height;
-        if (!up) { fails.push('AW-77 the ' + at + ' screen did not mount'); await ctx.close(); continue; }
+        if (!up) { fails.push('AW-93 the ' + at + ' screen did not mount'); await ctx.close(); continue; }
         for (const [key, id] of [['h', 'hunts'], ['b', 'inventory'], ['v', 'shop'], ['m', 'market']]) {
-          if (!(await openWin(page, key, id))) { fails.push('AW-77 the ' + key.toUpperCase() + ' key did not open ' + id + ' at ' + at); continue; }
+          if (!(await openWin(page, key, id))) { fails.push('AW-93 the ' + key.toUpperCase() + ' key did not open ' + id + ' at ' + at); continue; }
           await page.waitForTimeout(400);
           const lost = await page.evaluate(CLIPPED, id);
-          if (lost.length) fails.push('AW-77 at ' + at + ' ' + id + ' opens cut off: ' + lost.slice(0, 3).join(' | '));
+          if (lost.length) fails.push('AW-93 at ' + at + ' ' + id + ' opens cut off: ' + lost.slice(0, 3).join(' | '));
           if (id === 'hunts' && viewport.height > 540) { // the phone's sheet shows the list, then the page
             const card = await page.evaluate(() => { const p = document.querySelector('.hw-hd-page'), c = document.querySelector('.hw-hd-lineup > li');
               if (!p || !c) return 'no page or no creature'; const a = p.getBoundingClientRect(), b = c.getBoundingClientRect();
               return b.top >= a.top - 1 && b.bottom <= a.bottom + 1 ? '' : 'the page shows ' + Math.round(a.height) + ' px and its first creature card ends ' + Math.round(b.bottom - a.bottom) + ' px below it'; });
-            if (card) fails.push('AW-77 at ' + at + ' the Hunts page hides Who lives here: ' + card);
+            if (card) fails.push('AW-93 at ' + at + ' the Hunts page hides Who lives here: ' + card);
           }
           if (shots) await shot(page, 'whole-' + at + '-' + id);
         }
@@ -3892,9 +4261,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
-  ['AW-77 a docked window stops above the bar on a short World again', 'src/shell/window-manager.js', 'return Number.isFinite(cap) && cap < DOCK_ROOM_PX && need > cap;', 'return false && need > cap;'],
-  ['AW-77 a scroll region ends on a cut row again', 'src/shell/window-fit.js', "  if (!frame || frame.classList.contains('is-sized')) return;", '  return;'],
-  ['AW-77 the empty Market hides its press again', 'src/styles/market.css', 'flex: 1; min-height: 0; overflow-y: auto; flex-direction: column;', 'flex: 1; flex-direction: column;'],
+  ['AW-93 a docked window stops above the bar on a short World again', 'src/shell/window-manager.js', 'return Number.isFinite(cap) && cap < DOCK_ROOM_PX && need > cap;', 'return false && need > cap;'],
+  ['AW-93 a scroll region ends on a cut row again', 'src/shell/window-fit.js', "  if (!frame || frame.classList.contains('is-sized')) return;", '  return;'],
+  ['AW-93 the empty Market hides its press again', 'src/styles/market.css', 'flex: 1; min-height: 0; overflow-y: auto; flex-direction: column;', 'flex: 1; flex-direction: column;'],
   ['armor weight: the doll line never shows', 'src/shell/windows/inventory/doll.js', "  cls(p, 'is-on', !!eq);", "  cls(p, 'is-on', false);"],
   ['armor weight: the doll line counts the bag, not the worn set', 'src/shell/windows/inventory/doll.js', "for (const x of wornWeights(eq))", "for (const x of wornWeights(Object.fromEntries((bagOf(st.cs) || []).map((r, i) => [i, r.id]))))"],
   ['armor weight: the tooltip drops the weight line', 'src/shell/windows/item-tip.js', '  if (wt) h +=', '  if (wt && false) h +='],
@@ -3908,12 +4277,39 @@ const MUTANTS = [
   ['item truth: a seed says sell it', 'src/shell/item-lore.js', "  if (it.seed) out.push(t('item.plant_it'));\n", ''],
   ['station sort: Level runs high to low', 'src/shell/station-sort.js', "if (sort === 'level') return all.sort((a, b) => reqOf(a) - reqOf(b));", "if (sort === 'level') return all.sort((a, b) => reqOf(b) - reqOf(a));"],
   ['station sort: Name is not a sort', 'src/shell/station-sort.js', "  if (sort === 'name') return all.sort(byName);\n", ''],
+  /* AW-77 the bag's selection: `select:` mutants are judged by selectRules on a temp copy of src. */
+  ['select: Ctrl+A never clears', 'src/shell/windows/inventory/selection.js', '  if (ids.every((id) => sc.sel.has(id))) sc.sel.clear();\n  else for (const id of ids) sc.sel.add(id);', '  for (const id of ids) sc.sel.add(id);'],
+  ['select: Escape leaves the selection', 'src/shell/windows/inventory/selection.js', "  if (key === 'Escape') { if (!sc.sel.size) return false; clearSelection(sc); return true; }\n", ''],
+  ['select: a plain press toggles again (the selection never ends)', 'src/shell/windows/inventory/selection.js', '  else if (sc.sel.size) { sc.sel.clear(); sc.sel.add(id); }', '  else if (sc.sel.size) toggle(sc, id);'],
+  ['select: Shift ranges from the cursor, not the anchor', 'src/shell/windows/inventory/selection.js', '  const from = held ? sc.anchor : o && o.from && ids.includes(o.from) ? o.from : id;', '  const from = o && o.from && ids.includes(o.from) ? o.from : id;'],
+  ['select: Shift only ever adds (a range never shrinks)', 'src/shell/windows/inventory/selection.js', '  const next = new Set(o && o.ctrl && sc.base ? sc.base : []);', '  const next = new Set(sc.sel);'],
+  ['select: the line leaves out the value', 'src/shell/windows/inventory/selection.js', "  if (!bids) return t('bag.selected', { count: n });", "  return t('bag.selected', { count: n });"],
+  ['select: the line counts a stack the bag no longer holds', 'src/shell/windows/inventory/selection.js', '  return Array.from(sc.sel).filter((id) => have.has(id));', '  return Array.from(sc.sel);'],
+  ['select: Lock reads Lock over a locked selection', 'src/shell/windows/inventory/selection.js', "  return ids.length && locked && ids.every((id) => locked.has(id)) ? t('controls.unlock') : t('controls.lock');", "  return t('controls.lock');"],
+  ['select: the help line forgets the keys', 'src/data/text/bag.js', ' · Ctrl+A select all, again deselect all · Esc clear', ' · Ctrl+A select all'],
+  ['select: a refused bulk press clears the selection', 'src/shell/windows/inventory/selection.js', '  if (went) clearSelection(sc);', '  clearSelection(sc);'],
+  ['select: Deposit puts stacks away one at a time again', 'src/shell/windows/inventory/actions.js', "  bulk(st, repaint, () => moveStorageMany(st.account, st.cs, ids, 'deposit'), t('bag.putting_away'), 'bag.put_away');",
+    "  bulk(st, repaint, () => ids.reduce((p, id) => p.then(() => st.cs.moveStorage(id, st.qty.get(id), 'deposit')), Promise.resolve({ ok: true })), t('bag.putting_away'), 'bag.put_away');"],
   ['station sort: a sort drops the locked rows', 'src/shell/station-sort.js', '  const all = open.concat(ahead);', '  const all = open.slice();'],
   ['station sort: Can make no longer puts what the bag makes first', 'src/shell/station-sort.js', 'can(b) - can(a) || reqOf(b) - reqOf(a)', 'reqOf(b) - reqOf(a)'],
   ['station sort: the default is Level', 'src/shell/station-sort.js', "export const DEFAULT_SORT = 'can';", "export const DEFAULT_SORT = 'level';"],
   ['station sort: a pick forgets the other stations', 'src/shell/station-sort.js', "const out = Object.assign({}, own(residue, 'stationSort')", "const out = Object.assign({}, false && own(residue, 'stationSort')"],
   ['station sort: the pick is not kept on the server', 'src/session/residue.js', '  stationSort: sanitizeStationSort,', '  stationSortX: sanitizeStationSort,'],
   ['station sort: a forged key is kept', 'src/session/residue.js', "if (ID.test(id) && Object.prototype.hasOwnProperty.call(SKILLS_DEF, id) && ", 'if (ID.test(id) && '],
+  /* THE HUNT PREP BUILDER (AW-85 .. AW-92): the copy, its one intent, the drop, Save and use, Use equipped, New setup, Fights as, Sort, Clear, the read. */
+  ['prep builder: Save drops the stance', 'src/shell/prep-draft.js', '  if (known(d.stance)) o.stance = d.stance;\n', ''],
+  ['prep builder: Save sends a null for an option the server never sent', 'src/shell/prep-draft.js', '  if (known(d.goldFloor)) o.gold_floor = d.goldFloor;', '  o.gold_floor = d.goldFloor;'],
+  ['prep builder: a drop on a filled slot does nothing', 'src/shell/prep-draft.js', '  return bar[to] ? swapPlan(bar, from, to) : movePlan(bar, from, to);', '  return bar[to] ? null : movePlan(bar, from, to);'],
+  ['prep builder: Save and use never puts the setup on', 'src/shell/windows/hunt-prep/builder.js', '    await settleTownActivity(cs);\n    return cs.applyPreset(preset);', '    return r;'],
+  ['prep builder: a refused save still puts the setup on', 'src/shell/windows/hunt-prep/builder.js', '    if (!r.ok || !andUse) return r;', '    if (!andUse) return r;'],
+  ['prep builder: a stale copy still saves', 'src/shell/windows/hunt-prep/builder.js', '  if (!sc.draft || sc.pending || sc.stale) return;', '  if (!sc.draft || sc.pending) return;'],
+  ['prep builder: Use equipped sends at the first press', 'src/shell/windows/hunt-prep/setups.js', '    if (!sc.armingEquipped) { sc.armingEquipped = true; repaint(); return true; }\n', ''],
+  ['prep builder: New saves over a used number', 'src/shell/windows/hunt-prep/setups.js', '  const free = firstFree(presetsOf(cs));', '  const free = (presetsOf(cs) || []).length;'],
+  ['prep builder: the hint shows for the role already worn', 'src/shell/windows/hunt-prep/builder.js', "  if (roleHint && roleHint !== role && HUNT_ROLES[roleHint]) return t('prep.fights_' + roleHint);", "  if (roleHint && HUNT_ROLES[roleHint]) return t('prep.fights_' + roleHint);"],
+  ['prep builder: Sort changes nothing', 'src/shell/windows/hunt-prep/builder.js', "  if (action === 'sort' && click) { d.slots = sortBar(d.slots); sc.sorted = true;", "  if (action === 'sort' && click) { sc.sorted = true;"],
+  ['prep builder: Clear leaves the bar', 'src/shell/windows/hunt-prep/builder.js', "  if (action === 'clear' && click) { d.slots = clearedBar(); sc.cleared = true;", "  if (action === 'clear' && click) { sc.cleared = true;"],
+  ['prep builder: the setup in use is read from the server', 'src/session/preset-read.js', '  if (live && live.preset === preset) return { ok: true, set: live, live: true, name: null };\n', ''],
+  ['prep builder: the read asks for another number', 'src/session/preset-read.js', "{ p_slot: cs.slot, p_preset: preset }", "{ p_slot: cs.slot, p_preset: preset + 1 }"],
   ['AW-76 the window ignores the station\'s pick', 'src/shell/windows/work.js', 'rowsFor(skill, lv, heldOf(cs), sort)', 'rowsFor(skill, lv, heldOf(cs))'],
   ['item truth: a bar a hero makes files as junk', 'src/shell/bag-model.js', "if (dropSet().has(id) && !made) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';", "if (dropSet().has(id)) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';"],
   ['item truth: a tool files as a material', 'src/shell/bag-model.js', "const made = it.type !== 'tool' && madeSet().has(id);", 'const made = madeSet().has(id);'],
@@ -3932,7 +4328,7 @@ const MUTANTS = [
   ['item truth: no-book-value says nothing', 'src/shell/item-lore.js', "if (!(Number(it.v) > 0) || it.bop) return t('item.own_use')", "if (false) return t('item.own_use')"],
   ['item truth: a kit item says the Weighhouse lists it', 'src/shell/item-lore.js', "return isStartKit(id) ? t('item.kit_unlisted')", "return false ? t('item.kit_unlisted')"],
   ['item truth: the Weighhouse has one vague reason', 'src/shell/market-words.js', "(Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.')", "'.'"],
-  ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !t.weight ? (suggest ? suggest.words : NO_WEIGHT_WHY) : t.held.length >= t.heldMax ? FULL_WHY : '';", "  return '';"],
+  ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !tally.weight ? (suggest ? suggest.words : t('tally.no_weight')) : tally.held.length >= tally.heldMax ? t('tally.board_full', { n: countWord(tally.heldMax) }) : '';", "  return '';"],
   ['item truth: panel: Fuel all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';\n", ''],
   ['item truth: panel: the sale hides its rares', 'src/shell/item-lore.js', "rare.length ? t('item.sells_rares', { items: listWords(rare) }) : ''", "''"],
   ['item truth: panel: a slot on sale beside an empty one', 'src/app/slot-offer.js', "if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "if (!offer || !purse || actor === null) return '';"],
@@ -3982,6 +4378,12 @@ const MUTANTS = [
   ['AW-61 a window title clips again', 'src/styles/shell.css', '.hs-win-title { margin: 0; flex: 1; min-width: 0;', '.hs-win-title { margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'],
   ['AW-61 Shop names are cut again', 'src/styles/windows.css', '  .hw-shop .hw-line { flex-wrap: wrap; justify-content: flex-end; }', ''],
   ['AW-61 the summary ignores who may press', 'src/shell/windows/hunt-summary.js', "prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);", "prop(go, 'disabled', sc.pending || huntOpen || !again);"],
+  /* lane/b-back-in-town (AW-78): one gold press on the way home */
+  ['AW-78 Hunt again stays gold beside an open step', 'src/shell/windows/hunt-summary.js', "cls(go, 'is-primary', town.primary === 'again');", "cls(go, 'is-primary', true);"],
+  ['AW-78 the coach takes the gold press again', 'src/shell/windows/hunt-summary.js', '<button type="button" class="hh-tool" data-hs-act="coach-next" hidden>', '<button type="button" class="hh-tool is-primary" data-hs-act="coach-next" hidden>'],
+  ['AW-78 a step pressed never reads Done', 'src/shell/windows/hunt-summary.js', 'const mark = (r) => { if (r && (r.ok || r.moved > 0)) {', 'const mark = (r) => { if (false) {'],
+  ['AW-78 the steps are not the newest card\'s', 'src/shell/windows/hunt-summary.js', "const town = cur === list[0] && !huntOpen ? townStepsOf(cs, didOf(sc, cur.id)) : { steps: [], primary: 'again' };", "const town = { steps: [], primary: 'again' };"],
+  ['AW-78 the return card rings the Shop, never the summary\'s row', 'src/data/hunt-tutorial.js', "      hooks: ['[data-hs-win=\"hunt-summary\"] [data-hs-act=\"town\"][data-step=\"sell\"]',\n        '[data-hs-win=\"shop\"] .hw-tab[data-tab=\"sell\"]',", "      hooks: ['[data-hs-win=\"shop\"] .hw-tab[data-tab=\"sell\"]',"],
   ['AW-61 the leader enters alone', 'src/shell/windows/hunt-summary.js', "if (how === 'party') leadAgain(ctx, cs, sc, repaint, args.hunt);\n    else if (how === 'enter')", "if (how)"],
   ['item truth: Before you go hides the spare juice', 'src/shell/hunt-go.js', "const spare = usable && HEADS_UP_KINDS.has(kind) ? spareWords(kind, carried, barNames(s)) : '';", "const spare = '';"],
   ['item truth: Before you go nags about what is on the bar', 'src/shell/hunt-go.js', "const barNames = (s) => new Set(s.slots.filter((sl) => !sl.empty && sl.enabled !== false && sl.action.type === 'consume').map((sl) => sl.action.id));", 'const barNames = () => new Set();'],
@@ -4019,7 +4421,8 @@ const MUTANTS = [
   ['plans: AW-21 the window never reads the role', 'src/shell/widgets/upgrade-line.js', "prefer: preferredWeight(t ? t.weight : null, eq, s ? s.role : null) });", "prefer: t ? t.weight : null });"],
   ['plans: Equip upgrades lets a set bonus hold a hero below the next tier', 'src/shell/upgrade-plan.js', '  const set = !fits.some((id) => tierStep(ITEMS[id], curIt));', '  const set = true;'],
   ['plans: AW-21 a bane is a reason to skip the blade again', 'src/shell/upgrade-plan.js', "it.effects.some((e) => e !== 'bane')", 'it.effects.length'],
-  ['plans: AW-21 a worn bane is traded for plain numbers', 'src/shell/upgrade-plan.js', '  for (const c of MONSTER_CLASSES) { if (a.banes[c] < b.banes[c] - EPS) return false; if (a.banes[c] > b.banes[c] + EPS) more = true; }\n', ''],
+  ['plans: AW-21 a worn bane is traded for plain numbers', 'src/shell/upgrade-plan.js', '  if (banes) for (const c of MONSTER_CLASSES) { if (a.banes[c] < b.banes[c] - EPS) return false; if (a.banes[c] > b.banes[c] + EPS) more = true; }\n', ''],
+  ['plans: AW-21 a worn bane keeps the blade in silence (designer small call 2, 2026-11-11)', 'src/shell/upgrade-plan.js', '  if (!front.length) return baneTrade(slot, cur, now, fits, worn, o, set);', '  if (!front.length) return null;'],
   ['plans: AW-25 the death line ignores the Blessings', 'src/shell/hunt-list.js', '  const cut = Number.isInteger(cutPermille) && cutPermille > 0 ?', '  const cut = false ?'],
   ['plans: AW-32 a plan that ran reads nothing set', 'src/shell/loot-dispatch.js', "Object.values(rules.loot).some((v) => MOVES.has(v)) ? t('shop.dispatch_all_moved')", "false ? t('shop.dispatch_all_moved')"],
   ['plans: AW-27 a shared cooldown reads as never firing', 'src/data/text/bar.js', "  shared_cooldown: 'Waits for {action} (slot {slot}) when both are ready.',", "  shared_cooldown: 'Shares a cooldown with {action} (slot {slot}), which fires first when both are ready.',"],
@@ -4110,7 +4513,7 @@ const MUTANTS = [
   ['coach: the ring is on a control nobody can see (AW-17b)', 'src/shell/launcher.js', "const shown = (el) => el.getClientRects().length > 0 && !el.closest('[hidden]');", 'const shown = () => true;'],
   ['coach: the Hunts window stays over the hunt it entered (AW-29)', 'src/shell/windows/hunts.js', "  const thenClose = (r) => { if (r && r.ok) { sc.closeOnHunt = true; repaint(); } };\n", '  const thenClose = () => {};\n'],
   /* lane/b-tutorial-rings (AW-31): the clean return, the card's next step, the sale in view, Services in the Shop */
-  ['coach: the analyzer and the party panel stay in town after the hunt (AW-31)', 'src/shell/shell.js', '    if (!h || !h.ended) return true;\n', '    return true;\n'],
+  ['coach: the analyzer and the party panel stay in town after the hunt (AW-31)', 'src/shell/shell-hud.js', '    if (!h || !h.ended) return true;\n', '    return true;\n'],
   ['coach: the hunt\'s "has ended" toast shows over its summary (AW-31)', 'src/shell/alerts.js', '    if (c.quiet) return false;\n', ''],
   ['coach: Hunt again stays the summary\'s main press over the card (AW-31)', 'src/shell/windows/hunt-summary.js', 'const card = huntOpen ? null : nextStepOf(ctx);', 'const card = null;'],
   ['coach: the sale\'s confirmation sits under the list, out of view (AW-31)', 'src/shell/windows/shop.js', '  if (opening) revealInWindow(cf);\n', ''],
@@ -4118,7 +4521,7 @@ const MUTANTS = [
   ['coach: R opens nothing once Services left the icon row (AW-31)', 'src/data/shell-windows.js', ", tabKeys: Object.freeze({ r: 'services' }) }),", ' }),'],
   ['coach: "Decide once" rings Bones for the shop (AW-31)', 'src/shell/windows/inventory/grid.js', "attr(sel, 'data-coin', coin.has(l.item) ? '' : null);", "attr(sel, 'data-coin', '');"],
   ['coach: R over the open Shop never switches it to Services (AW-31)', 'src/shell/shell.js', '    for (const id of wm.openIds()) if (wm.wantsTab(id) || wm.wantsFind(id)) refresh(id);\n', ''],
-  ['coach: an ended hunt\'s bar stays over its open summary (AW-31)', 'src/shell/shell.js', " && !wm.isOpen('hunt-summary');", ';'],
+  ['coach: an ended hunt\'s bar stays over its open summary (AW-31)', 'src/shell/shell-hud.js', " && !wm.isOpen('hunt-summary');", ';'],
   /* The Hunts window, master-detail (designer plan 2026-10-22): AW-25 .. AW-29. */
   ['AW-25 every creature reads common', 'src/shell/hunt-ground-facts.js', "  if (share >= SHARE_BANDS.common) return 'common';", "  return 'common';"],
   ['AW-25 a Scarce piece reads as the ground\'s Rare (odds, not the band)', 'src/shell/hunt-ground-facts.js', 'd.ch < 1 && REVEAL_BANDS.includes(bandOf(d));', 'd.ch < 1 && d.ch <= 0.05;'],
@@ -4184,12 +4587,12 @@ const COMPANION = { 'the doll wears the item before the server confirms': ['src/
     `    /* the confirmation beside the press, never under the list (the coach rings its Sell: data-coach-hook) */
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes" data-coach-hook="sell-confirm"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">Cancel</button></div></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">' + t('controls.cancel') + '</button></div></div>'
     + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing in your bag that the shop buys.</p></section>'`,
     `    + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing in your bag that the shop buys.</p>'
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes" data-coach-hook="sell-confirm"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">Cancel</button></div></div></section>'`] };
+    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">' + t('controls.cancel') + '</button></div></div></section>'`] };
 
 async function main() {
   const at = process.argv.indexOf('--shots');
@@ -4198,7 +4601,7 @@ async function main() {
   if (process.argv.includes('--pure') && !process.argv.includes('--mutate')) {
     const fails = await pure();
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'alpha-windows --pure: ' + fails.length + ' rule(s) RED' : 'alpha-windows --pure: the pure rules hold (AW-0, AW-19..AW-22, AW-24 the town ticker, AW-25..AW-28 the Hunts page, AW-76 the station sort)');
+    console.log(fails.length ? 'alpha-windows --pure: ' + fails.length + ' rule(s) RED' : 'alpha-windows --pure: the pure rules hold (AW-0, AW-19..AW-22, AW-24 the town ticker, AW-25..AW-28 the Hunts page, AW-76 the station sort, AW-77 the bag\'s selection, AW-85..AW-92 the Hunt prep builder)');
     process.exit(fails.length ? 1 : 0);
   }
   if (!process.argv.includes('--mutate')) {
@@ -4218,7 +4621,7 @@ async function main() {
   const shard = (process.argv.find((x) => x.startsWith('--shard=')) || '').slice(8);
   const mine = scopedMutants('tests/alpha-windows.mjs', picked, { companion: Object.fromEntries(Object.entries(COMPANION).map(([k, v]) => [k, [v[0]]])), tag: shard ? ' (shard ' + shard + ')' : '' });
   if (!mine.length) process.exit(0);
-  const pureOnly = mine.every(([n]) => n.startsWith('ticker:') || n.startsWith('armor words:') || n.startsWith('plans:') || n.startsWith('item truth:') || n.startsWith('station sort:'));
+  const pureOnly = mine.every(([n]) => n.startsWith('ticker:') || n.startsWith('armor words:') || n.startsWith('plans:') || n.startsWith('item truth:') || n.startsWith('station sort:') || n.startsWith('select:') || n.startsWith('prep builder:'));
   const clean = await cleanControl(() => (pureOnly ? pure() : checks(null, null)));
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
@@ -4233,7 +4636,7 @@ async function main() {
       over[f] = text.replace(x, y);
     }
     if (missing) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + missing); counts.harness++; continue; }
-    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : name.startsWith('item truth:') ? tickerMutant(over, itemTruthRules) : name.startsWith('plans:') ? tickerMutant(over, planRules) : name.startsWith('station sort:') ? tickerMutant(over, stationSortRules) : checks(over, null, { stopAtFirst: true })));
+    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : name.startsWith('item truth:') ? tickerMutant(over, itemTruthRules) : name.startsWith('plans:') ? tickerMutant(over, planRules) : name.startsWith('station sort:') ? tickerMutant(over, stationSortRules) : name.startsWith('select:') ? tickerMutant(over, selectRules) : name.startsWith('prep builder:') ? tickerMutant(over, prepBuilderRules) : checks(over, null, { stopAtFirst: true })));
     console.log(report(name, v, counts));
   }
   console.log(exitOf(counts) ? 'alpha-windows --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'alpha-windows --mutate: ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule' + (mine === MUTANTS ? '' : ' (' + (only ? '--only=' + only + ', ' : '') + 'of ' + MUTANTS.length + ')'));

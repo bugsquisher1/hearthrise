@@ -9,18 +9,19 @@
 // (src/shell/menu-providers.js), never a copy of their logic.
 //   Add a friend   by claimed name (the server resolves it; a block refuses it)
 //   Asks for you   Accept / Decline
-//   Your asks      Withdraw
+//   Your asks      Cancel (the request you sent)
 //   Blocked        the block list with Unblock (./block-list.js; Settings'
 //                  `social.blocked` row opens this window)
 // Every button is ONE rpc and stays off until the server answered.
 // ════════════════════════════════════════════════════════════════════════
-import { refusalWords } from '../intent-words.js?v=0.2.121';
-import { huntName } from '../../session/party-sections.js?v=0.2.121';
-import { menuProvidersOf } from '../menu-providers.js?v=0.2.121';
-import { entriesFor, markPlayer, playerTargetOf } from '../context-menu.js?v=0.2.121';
-import { blocksHtml, patchBlocks, actBlocks } from './block-list.js?v=0.2.121';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.121';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.121';
+import { refusalWords } from '../intent-words.js?v=0.2.122';
+import { huntName } from '../../session/party-sections.js?v=0.2.122';
+import { menuProvidersOf } from '../menu-providers.js?v=0.2.122';
+import { entriesFor, markPlayer, playerTargetOf } from '../context-menu.js?v=0.2.122';
+import { blocksHtml, patchBlocks, actBlocks } from './block-list.js?v=0.2.122';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.122';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.122';
+import { t } from '../../render/player-text.js?v=0.2.122';
 
 const STATE = new WeakMap();
 const stateOf = (body) => { let s = STATE.get(body); if (!s) { s = { pending: false, msg: '', asked: false }; STATE.set(body, s); } return s; };
@@ -77,14 +78,14 @@ renderFriends.patch = function patchFriends(body, ctx) {
   rows(body.querySelector('.hf-list.is-in'), f.incoming(), {
     key: (p) => p.id,
     build: (p) => element(ctx.doc, '<li class="hf-row"><b class="hf-who"></b><span class="hf-acts">'
-      + '<button type="button" class="hh-tool" data-hs-act="accept" data-id="' + esc(p.id) + '">Accept</button>'
-      + '<button type="button" class="hh-tool" data-hs-act="decline" data-id="' + esc(p.id) + '">Decline</button></span></li>'),
+      + '<button type="button" class="hh-tool" data-hs-act="accept" data-id="' + esc(p.id) + '">' + t('controls.accept') + '</button>'
+      + '<button type="button" class="hh-tool" data-hs-act="decline" data-id="' + esc(p.id) + '">' + t('controls.decline') + '</button></span></li>'),
     patch: (el, p) => { patchPerson(el, p); for (const b of el.querySelectorAll('button')) prop(b, 'disabled', st.pending); },
   });
   rows(body.querySelector('.hf-list.is-out'), f.outgoing(), {
     key: (p) => p.id,
     build: (p) => element(ctx.doc, '<li class="hf-row"><b class="hf-who"></b><small class="hf-doing">Waiting for an answer</small>'
-      + '<span class="hf-acts"><button type="button" class="hh-tool" data-hs-act="withdraw" data-id="' + esc(p.id) + '">Withdraw</button></span></li>'),
+      + '<span class="hf-acts"><button type="button" class="hh-tool" data-hs-act="withdraw" data-id="' + esc(p.id) + '">' + t('controls.cancel') + '</button></span></li>'),
     patch: (el, p) => { patchPerson(el, p); for (const b of el.querySelectorAll('button')) prop(b, 'disabled', st.pending); },
   });
   cls(body.querySelector('.hf-head.is-in'), 'is-on', f.incoming().length > 0);
@@ -118,12 +119,12 @@ export function answerWords(r, done) {
     : typeof done === 'function' ? done(r) || '' : done || '';
 }
 
-renderFriends.act = function actFriends(ctx, body, action, ev, t) {
+renderFriends.act = function actFriends(ctx, body, action, ev, el) {
   const st = stateOf(body);
   const social = ctx.account && ctx.account.social;
   if (!social || st.pending) return false;
   /* Unblock: ONE hr_block_set; its refusal reads on this window's line. */
-  if (action === 'unblock' && ev.type === 'click') { settle(ctx, body, st, actBlocks(ctx, body, t), ''); return true; }
+  if (action === 'unblock' && ev.type === 'click') { settle(ctx, body, st, actBlocks(ctx, body, el), ''); return true; }
   const ask = () => {
     const field = body.querySelector('.hf-name');
     const name = field.value.trim();
@@ -133,15 +134,15 @@ renderFriends.act = function actFriends(ctx, body, action, ev, t) {
   };
   if (action === 'ask-name') { if (ev.type === 'keydown' && ev.key === 'Enter') { ask(); return true; } return false; }
   if (ev.type !== 'click') return false;
-  const id = t.getAttribute('data-id');
+  const id = el.getAttribute('data-id');
   if (action === 'ask') ask();
   else if (action === 'accept') settle(ctx, body, st, social.friends.answer(id, true), 'You are friends now.');
   else if (action === 'decline') settle(ctx, body, st, social.friends.answer(id, false), '');
   else if (action === 'withdraw') settle(ctx, body, st, social.friends.remove(id), '');
   else if (action === 'run') {
     /* The row's own hero (its patched name and slot), exactly the target its right-click menu gets. */
-    const who = playerTargetOf(t);
-    const e = who && entriesFor(who, menuProvidersOf(ctx)).find((x) => x.id === t.getAttribute('data-entry'));
+    const who = playerTargetOf(el);
+    const e = who && entriesFor(who, menuProvidersOf(ctx)).find((x) => x.id === el.getAttribute('data-entry'));
     if (e) settle(ctx, body, st, Promise.resolve(e.run(who, { open: (w) => ctx.show(w) })), '');
   } else return false;
   return true;

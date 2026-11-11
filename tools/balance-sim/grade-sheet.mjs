@@ -43,7 +43,7 @@ export const SHEET = Object.freeze({
 /**
  * The formula lane's src/data/balance-sheet.js BALANCE_SHEET (lane/b-ground-formula, 2026-11-07) read as grader rules, each line in
  * its own scope: Normal at the floor (lone, the 8 ways in the Level's gear), the fresh hero (practice set, first-day grounds), the
- * weight class (pairs 2-3 and 5 under), the harder tiers at the floor (whoever holds them, and a four's deaths on Deadly), the four against solo, the largest blows.
+ * weight class (pairs 2-3 and 5 under lose gold; heroes alone 5 under are read for deaths), the harder tiers at the floor (whoever holds them, and a four's deaths on Deadly), the four against solo, the largest blows.
  * A line the sheet calls "a report line" is advisory; every other line is binding (off it, the grader exits 1).
  */
 export function sheetFromBalanceSheet(BS) {
@@ -62,7 +62,7 @@ export function sheetFromBalanceSheet(BS) {
       { id: 'normal-profit', why: why('normal.marginMin, every way (RULED 10-18)'), ...floor1, metric: 'margin', min: N.marginMin, binding: true },
       { id: 'normal-supplies-max', why: why('normal.supplyShare.max, the median way (DESIGNER)'), ...floor1, aggregate: 'supplyShare', max: N.supplyShare.max, binding: true },
       { id: 'normal-supplies-min', why: why('normal.supplyShare.min from Level ' + N.supplyShare.fromLevel + ', the median way (DESIGNER, Tyler 11-07)'), ...floor1, floorFrom: N.supplyShare.fromLevel, aggregate: 'supplyShare', min: N.supplyShare.min, binding: true },
-      { id: 'normal-xp-contract', why: why('normal.xpVsContract at the band middle, the median way (a party ground: the four a head)'), tiers: ['normal'], offsets: ['middle'], aggregate: 'xpVsContract', min: N.xpVsContract.min, max: N.xpVsContract.max, binding: true },
+      { id: 'normal-xp-contract', why: why('normal.xpVsContract at the band middle, the median lone way on every ground (the contract is fitted on lone heroes)'), tiers: ['normal'], offsets: ['middle'], aggregate: 'xpVsContract', min: N.xpVsContract.min, max: N.xpVsContract.max, binding: true },
       { id: 'fresh-deaths', why: why('freshHero.deaths, the practice set at a first-day floor'), ...fresh, metric: 'deaths', max: F.deaths },
       { id: 'fresh-dips', why: why('freshHero.closeCalls'), ...fresh, metric: 'dips', max: F.closeCalls },
       { id: 'fresh-low-point', why: why('freshHero.typicalMinHpPct'), ...fresh, metric: 'minHpP50', min: F.typicalMinHpPct },
@@ -70,8 +70,13 @@ export function sheetFromBalanceSheet(BS) {
       { id: 'fresh-pace', why: why('freshHero.xpVsPaceMin'), ...fresh, metric: 'xpVsPace', min: F.xpVsPaceMin },
       { id: 'wc-normal-under', why: why('weightClass.normalUnder (a report line): 2-3 under earns more XP a head than the floor hero'), tiers: ['normal'], offsets: ['under2', 'under3'], sizes: [2], metric: 'xpVsFloorSolo', min: W.normalUnder.xpVsFloorMin, binding: false },
       { id: 'wc-dangerous-under', why: why('weightClass.dangerousUnder (RULED 11-06): 2-3 under on Dangerous loses gold'), tiers: ['dangerous'], offsets: ['under2', 'under3'], sizes: [2], metric: 'net', max: W.dangerousUnder.netMax, binding: true },
-      { id: 'wc-deadly-under-dies', why: why('weightClass.deadlyUnder: 2-3 under on Deadly, 5 under on either harder tier, dies'), ...deadlyUnder, metric: 'deaths', min: W.deadlyUnder.deathsMin },
-      { id: 'wc-deadly-under-loses', why: why('weightClass.deadlyUnder: and loses gold'), ...deadlyUnder, metric: 'net', max: W.deadlyUnder.netMax },
+      /* OUTSIDE YOUR WEIGHT CLASS, RESTATED (designer ruling 2026-11-10, PRIORITY_BOARD "2026-11-10 Rulings" 1). Tyler 11-06: "you're gonna
+         waste money but get more exp and possibly die a few times". Wasting money is the promise, so gold is the binding line, for the same
+         pairs as before. Dying is "possibly", so no binding line asks a group to die: `wc-deadly-under-dies` (every pair, a death in the
+         sample) is retired. It was red on four staged grounds for a tank and Healer pair that lost 19.4k g an hour a head and held.
+         Deaths are read where they happen, on heroes alone five under (a report line): at most half the ways to fight alone hold. */
+      { id: 'wc-deadly-under-loses', why: why('weightClass.deadlyUnder (RULED 11-06): 2-3 under on Deadly, 5 under on either harder tier, loses gold'), ...deadlyUnder, metric: 'net', max: W.deadlyUnder.netMax },
+      { id: 'wc-under-lone-dies', why: why('weightClass (a report line, designer 2026-11-10): alone and 5 under on a harder tier, at most 4 of 8 ways hold the sample with no death'), tiers: ['dangerous', 'deadly'], offsets: ['under5'], sizes: [1], aggregate: 'heldCount', max: 4, binding: false },
       /* ONE DIFFICULTY FOR EVERY GROUP (RULED 2026-11-08): no line asks a group size to fare a set way; each judges what the tier pays whoever
          holds it at the floor (no death in the cell), the same way on Normal beside it, and the one ceiling, a four at the floor holding Deadly. */
       { id: 'tier-dangerous-xp', why: why('tiers.dangerous.xpVsNormalMin, held at the floor, any group, against the same way on Normal'), tiers: ['dangerous'], offsets: ['floor'], heldOnly: true, metric: 'xpVsNormal', min: T.dangerous.xpVsNormalMin, binding: true },

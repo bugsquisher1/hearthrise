@@ -14,7 +14,7 @@
 //   node tests/hunt-screen.mjs --shots <dir>  also write the visual-gate screenshots
 //                                             (1440x900 and 922x423)
 //
-// mutant-anchors: src/render/images.js src/world/atlas.js src/hunt-view/summary-model.js src/session/character-session.js src/session/hunt-leave.js src/session/hunt-poll.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js src/shell/action-facts.js src/shell/hud.js
+// mutant-anchors: src/render/images.js src/world/atlas.js src/hunt-view/summary-model.js src/session/character-session.js src/session/hunt-leave.js src/session/hunt-poll.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/shell-hud.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js src/shell/action-facts.js src/shell/hud.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/hunt-envelope.json.
@@ -60,6 +60,10 @@
 //         above the bar); each is ONE intent, shows the server value (the gold field keeps it
 //         while in flight and after a refusal), survives a reload; no Hunt settings window
 //   HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop, nor with a window docked
+//   HS-28 THE FIGHT STAYS CLEAR AT 1024x768 (designer 2026-11-11): a lone hero with a kill task; below the fold width
+//         (tokens.css --hud-fold-below) the analyzer, the Tally and the Party panel start folded and no widget crosses
+//         the centre two thirds of the World between the hunt bar and the action bar; Hunt details opens the folded
+//         analyzer; at 1440x900 all three start open
 //   HS-14 THE LEADER CHOOSES (Tyler 2026-10-20): a party member's hunt picker shows
 //         the leader's tier read-only ("Set by Fingerguns: Dangerous", the server's
 //         leader_tiers, per ground) with no buttons and sends nothing; the leader keeps its buttons
@@ -294,7 +298,7 @@ async function stub(page, s) {
   });
 }
 
-async function signInAndPlay(page, base, town) {
+async function signInAndPlay(page, base, town, heroes = 2) {
   if (base) await page.goto(base + '/play.html', { waitUntil: 'load' });
   /* A reload keeps the signed-in session: the sign-in form, the character list or the World, whichever comes. */
   await wait(page, () => document.querySelector('form[data-auth="sign-in"], [data-app="play"][data-slot="0"], .hb-bar'));
@@ -306,9 +310,9 @@ async function signInAndPlay(page, base, town) {
   await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"], .hb-bar'));
   if (await page.$('[data-app="play"][data-slot="0"]')) await page.click('[data-app="play"][data-slot="0"]');
   if (town) return wait(page, () => document.querySelector('.hb-bar') && document.querySelectorAll('.hb-slot[data-item]').length === 20);
-  /* Mounted = the party lists both heroes and the analyzer (where the size class shows it) has its numbers. */
-  return wait(page, () => document.querySelectorAll('.hp-m').length === 2 && (!document.querySelector('.ha-analyzer')
-    || document.querySelector('.ha-stats dd[data-stat="kills"]').textContent !== ''));
+  /* Mounted = the party lists its heroes (both, unless a rule made the hero alone) and the analyzer (where the size class shows it) has its numbers. */
+  return wait(page, (n) => document.querySelectorAll('.hp-m').length === n && (!document.querySelector('.ha-analyzer')
+    || document.querySelector('.ha-stats dd[data-stat="kills"]').textContent !== ''), heroes);
 }
 
 /**
@@ -366,7 +370,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       s.env.state = Object.assign({}, s.env.state, { active_kind: null, active_id: null });
     }
     await stub(page, s);
-    const up = await signInAndPlay(page, base, !!o.town);
+    const up = await signInAndPlay(page, base, !!o.town, o.heroes);
     return { ctx, page, errors, s, up };
   };
   /* mutant-rules-start */
@@ -1046,6 +1050,56 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
+    for (const vp of [{ width: 1024, height: 768 }, { width: 1440, height: 900 }]) { // HS-28 THE FIGHT STAYS CLEAR AT 1024x768
+      // (designer re-read 2026-11-11: the Party card, the analyzer and the Tally hid the fight). A lone hero holding a kill task:
+      // below the fold width (tokens.css --hud-fold-below) the analyzer, the Tally and the Party panel start folded to their
+      // titles, so no widget crosses the centre two thirds (both ways) of the playfield, the World between the hunt bar's foot
+      // and the action bar's top; Hunt details opens the folded analyzer. At 1440x900 (CONTROL: the fold is the narrow screen's,
+      // not everyone's) the three start open. The coach card has its own clock (it rests to its title, launcher.js restsNow).
+      const tag = vp.width + 'x' + vp.height, narrow = vp.width < 1280;
+      const { ctx, page, up } = await open({ viewport: vp, heroes: 1, prep: (sv) => {
+        sv.env.party = Object.assign({}, sv.env.party, { members: [sv.env.party.members[0]] });
+        sv.env.tally = { held: [{ place: 1, task: 'cellar_giant_rats', hunt: sv.env.hunt.hunt_id, monster: 'rat', kills: 4, target: 120, keep: false, done: false }],
+          paid_today: 0, per_day: 3, held_max: 3, order: [], recent: [] };
+      } });
+      if (up) {
+        const read = () => page.evaluate(() => {
+          const R = (e) => { const r = e && e.getBoundingClientRect(); return r && r.width > 0 && r.height > 0 ? { l: r.left, t: r.top, r: r.right, b: r.bottom } : null; };
+          const w = (id) => document.querySelector('[data-hs-widget="' + id + '"]');
+          const scene = R(document.querySelector('.world-stage canvas')), bar = R(w('hunt-topbar')), act = R(w('action-bar'));
+          const folded = {}, cross = [];
+          for (const id of ['party', 'analyzer', 'tally']) folded[id] = w(id) ? w(id).classList.contains('is-folded') : null;
+          if (!scene || !bar || !act) return { folded, cross, field: null };
+          const top = bar.b, bot = act.t, f = { l: scene.l + (scene.r - scene.l) / 6, r: scene.r - (scene.r - scene.l) / 6, t: top + (bot - top) / 6, b: bot - (bot - top) / 6 };
+          for (const e of document.querySelectorAll('[data-hs-widget]')) {
+            const id = e.getAttribute('data-hs-widget'), r = R(e);
+            /* an empty box (the alerts' stack with no alert) paints nothing */
+            if (id === 'hunt-topbar' || id === 'action-bar' || !r || getComputedStyle(e).display === 'none' || !e.textContent.trim()) continue;
+            if (r.l < f.r && r.r > f.l && r.t < f.b && r.b > f.t) cross.push(id + ' ' + JSON.stringify([r.l, r.t, r.r, r.b].map(Math.round)));
+          }
+          return { folded, cross, field: [f.l, f.t, f.r, f.b].map(Math.round) };
+        });
+        /* placement settles over a few frames (a fold resizes the widget, the stack follows): read once it has */
+        let got = await read();
+        for (const end = Date.now() + LOAD_MS; Date.now() < end && (got.folded.tally === null || (narrow && got.cross.length)); got = await read()) await sleep(100);
+        if (got.folded.tally === null) fails.push('HS-28 [' + tag + '] CONTROL: the held task put no Tally on screen');
+        if (!got.field) fails.push('HS-28 [' + tag + '] no World, hunt bar or action bar to measure');
+        const want = narrow ? true : false;
+        for (const id of ['party', 'analyzer', 'tally']) if (got.folded[id] !== want) fails.push('HS-28 [' + tag + '] the ' + id + ' starts ' + (got.folded[id] ? 'folded' : 'open') + ' (want ' + (want ? 'folded' : 'open') + ')');
+        if (narrow && got.cross.length) fails.push('HS-28 [' + tag + '] widgets cross the centre of the fight ' + JSON.stringify(got.field) + ': ' + got.cross.join(', '));
+        if (narrow) {
+          /* folded, the Tally's title still says the server's count */
+          const sum = await page.evaluate(() => { const e = document.querySelector('[data-hs-widget="tally"] .hs-tally-sum'); return e && e.getClientRects().length ? e.textContent : null; });
+          if (sum !== '4/120') fails.push('HS-28 [' + tag + '] the folded Tally\'s title reads ' + JSON.stringify(sum) + ' (want the server\'s 4/120)');
+          await page.click('.ht-bar [data-hs-act="details"]');
+          const opened = await wait(page, () => { const a = document.querySelector('[data-hs-widget="analyzer"]'); return !!a && !a.classList.contains('is-folded'); }, null, 4000);
+          if (!opened) fails.push('HS-28 [' + tag + '] Hunt details did not open the folded analyzer');
+        }
+        if (shots) await page.screenshot({ path: join(shots, 'hunt-' + tag + '-alone.png') });
+      } else fails.push('HS-28 [' + tag + '] the screen did not mount');
+      await ctx.close();
+    }
+
     for (const vp of [{ width: 1920, height: 1080 }, { width: 1440, height: 900 }, { width: 922, height: 423 }]) { // HS-26 a docked window never covers the analyzer (r11)
       const phone = vp.width < 1000, tag = vp.width + 'x' + vp.height;
       /* The phone hides the analyzer by default: this player shows it (a display preference, residue hudLayout). */
@@ -1247,7 +1301,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await drag(0, 2);
         const menu = await page.evaluate(() => ({ on: document.querySelector('.hb-drop').classList.contains('is-on'), title: document.querySelector('.hb-drop-t').textContent,
           swap: document.querySelector('.hb-drop [data-x="swap"]').textContent, insert: document.querySelector('.hb-drop [data-x="insert"]').textContent }));
-        if (!menu.on || menu.title !== 'Power Strike' || menu.swap !== 'Swap with Wheat Bread' || menu.insert !== 'Insert here (shift the rest)') fails.push('HS-19 the drop menu reads ' + JSON.stringify(menu));
+        if (!menu.on || menu.title !== 'Power Strike' || menu.swap !== 'Swap with Wheat Bread' || menu.insert !== 'Insert here') fails.push('HS-19 the drop menu reads ' + JSON.stringify(menu));
         await page.keyboard.press('Escape');
         await page.waitForTimeout(400);
         if (await menuOn() || sent().length !== 1) fails.push('HS-19 Escape did not cancel the drop (menu or an intent left)');
@@ -1891,6 +1945,13 @@ const MUTANTS = [
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
   ['the Hunts window stays over the hunt it entered (HS-9b, playtest 2026-10-24)', 'src/shell/windows/hunts.js', "  if (sc.closeOnHunt && now) { sc.closeOnHunt = false; queueMicrotask(() => ctx.wm.close('hunts')); }\n", ''],
   ['an edge panel never steps out of the hunt bar’s way', 'src/shell/shell.js', "        for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';\n", ''],
+  /* HS-28 (designer 2026-11-11): the fight stays clear at 1024x768. */
+  ['the analyzer starts open over the fight at 1024 (HS-28)', 'src/data/hud-widgets.js', "when: 'hunt', folded: 'narrow',", "when: 'hunt',"],
+  ['a lone hero\'s Party panel starts open at 1024 (HS-28)', 'src/data/hud-widgets.js', "when: 'hunt', folded: 'narrow-alone',", "when: 'hunt',"],
+  ['the fold width is never read (HS-28)', 'src/shell/shell-hud.js', 'narrow: () => host.innerWidth <', 'narrow: () => false && host.innerWidth <'],
+  ['every desktop folds the analyzer (HS-28)', 'src/styles/tokens.css', '--hud-fold-below: 1280px;', '--hud-fold-below: 4000px;'],
+  ['the folded Tally hides its count (HS-28)', 'src/styles/shell.css', '.hs-widget.is-folded .hs-tally-sum:not(:empty) { display: inline; }', '.hs-widget.is-folded .hs-tally-sum:not(:empty) { }'],
+  ['Hunt details leaves a folded analyzer folded (HS-28)', 'src/shell/widgets/hunt-topbar.js', "    if (hud.layoutOf('analyzer').folded) hud.setFolded('analyzer', false);\n", ''],
   ['the hunt bar never slides clear of the edge panels', 'src/shell/shell.js', "        e.style.left = at.left + 'px';\n", ''],
   ['the hunt bar draws no tutorial card under itself', 'src/shell/widgets/hunt-topbar.js', "const html = leaving && !over ? '' : pointerFor(ctx, !over);", "const html = '';"],
   ['the tutorial card hangs over the hunt bar', 'src/styles/shell.css', '.hs-widget > .hs-pointer { left: 0; width: min(260px, 100%); }', '.hs-widget > .hs-pointer { left: 0; top: 0; width: min(260px, 100%); }'],
@@ -1915,9 +1976,9 @@ const MUTANTS = [
   ['the store price is not shown in the Food run (HS-8)', 'src/shell/action-table.js', '  const price = srv ? srv.price : null;', '  const price = null;'],
   ['the tier press sends no intent', 'src/shell/windows/hunts.js', '    try { r = await cs.setHuntTier(d.hunt, d.tier); } catch (e) { r = null; }', '    try { r = { ok: true }; } catch (e) { r = null; }'],
   ['one tier pick shows on every ground', 'src/shell/windows/hunts.js', '  return g && tiersOf(g.id).includes(picks[hunt]) ? picks[hunt] : DEFAULT_TIER;', '  const any = Object.values(picks)[0]; return g && tiersOf(g.id).includes(any) ? any : DEFAULT_TIER;'],
-  ['a ground\'s draft shows on every ground', 'src/shell/windows/hunts.js', '  return t && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : t;', '  return t && sc.draft ? sc.draft.tier : t;'],
+  ['a ground\'s draft shows on every ground', 'src/shell/windows/hunts.js', '  return tier && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : tier;', '  return tier && sc.draft ? sc.draft.tier : tier;'],
   ['every tier press sends its own intent', 'src/shell/windows/hunts.js', '      sc.timer = setTimeout(() => saveTier(cs, sc, repaint), TIER_SAVE_MS);', '      saveTier(cs, sc, repaint);'],
-  ['the tier waits for the server before it moves', 'src/shell/windows/hunts.js', '  return t && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : t;', '  return t;'],
+  ['the tier waits for the server before it moves', 'src/shell/windows/hunts.js', '  return tier && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : tier;', '  return tier;'],
   ['the tier draft outlives the server answer', 'src/shell/windows/hunts.js', '    if (sc.draft === d) { sc.draft = null;', '    if (sc.draft === d) { sc.draft = r.ok ? d : null;'],
   ['the facts line ignores the tier', 'src/shell/windows/hunts.js', "packWords(r, tier ? tierPull(r, tier, size) : null)", "packWords(r, null)"],
   /* Tyler 2026-11-08: the tier note is the plain line for its tier, no numbers (HS-8). */

@@ -23,20 +23,20 @@
 //   upgradeNeeds(h, c)    what the House's next steps need, and what those are made from: Sell all loot keeps it
 //   isSpentMaterial(id)   does any recipe, House price or Tempering rung spend this?
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.121';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.121';
-import { MONSTERS } from '../data/monsters.js?v=0.2.121';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.121';
-import { NAMED_FUELS } from '../data/hearth.js?v=0.2.121';
-import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.121';
-import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.121';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.121';
-import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.121';
-import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.121';
-import { TEMPER_MATERIALS } from '../data/temper.js?v=0.2.121';
-import { recipeInputs } from '../core/artisan.js?v=0.2.121';
-import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.121';
-import { itemName } from './widgets/bits.js?v=0.2.121';
+import { ITEMS } from '../data/items.js?v=0.2.122';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.122';
+import { MONSTERS } from '../data/monsters.js?v=0.2.122';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.122';
+import { NAMED_FUELS } from '../data/hearth.js?v=0.2.122';
+import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.122';
+import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.122';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.122';
+import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.122';
+import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.122';
+import { TEMPER_MATERIALS } from '../data/temper.js?v=0.2.122';
+import { recipeInputs } from '../core/artisan.js?v=0.2.122';
+import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.122';
+import { itemName } from './widgets/bits.js?v=0.2.122';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([
@@ -273,8 +273,8 @@ export function lootSale(items, rules, shop, needs) {
   return sellPlan(items || [], lootToSell(items, needs), { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null });
 }
 
-/* The lines one sale may carry (edge-intents.js EDGE_LIMITS.sellLines, the engine's MAX_SELL_LINES). */
-const SELL_LINES_MAX = 64;
+/** The lines one sale may carry (edge-intents.js EDGE_LIMITS.sellLines, the engine's MAX_SELL_LINES); the summary's Sell step takes one sale's worth. */
+export const SELL_LINES_MAX = 64;
 /* Worth keeping against what is worn: an empty slot it could fill, or a higher tier than the piece there (an item with no tier: the safe side). */
 function aboveWorn(id, worn) {
   const it = ITEMS[id];

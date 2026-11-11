@@ -15,7 +15,7 @@
 //            bag, 'restart' sends the restart intent, 'show'
 //            switches to the character, 'join' accepts a party invite,
 //            'party' opens the Party window, 'chat' the conversation, 'friends' the Friends window
-//   decline  a second button's words (the invite's No thanks), or none
+//   decline  a second button's words (the invite's Decline), or none
 //   share    a Share button's words: the rare find's card (src/shell/share-card.js)
 //   button   the button's words
 //   fadeMs   a line that only says what happened leaves by itself after this long (the panel 2026-10-31: Tamsin's
@@ -31,8 +31,8 @@ export const ALERT_KINDS = Object.freeze([
   Object.freeze({ id: 'ended', label: 'Hunt ended', glyph: 'uiHourglass', action: 'restart', button: 'Start again' }),
   /* "While you were away" on return (src/shell/away-recap.js, designer 2026-10-22): what the hunt did meanwhile. */
   Object.freeze({ id: 'away', label: 'While you were away', glyph: 'uiHourglass', action: 'show', button: 'See the hunt' }),
-  /* PARTY_SPEC §1.3: an invite reaches a stranger anywhere in the game, Join / No thanks (the server's party_invites). */
-  Object.freeze({ id: 'invite', label: 'Party invites', glyph: 'uiPeople', action: 'join', button: 'Join', decline: 'No thanks' }),
+  /* PARTY_SPEC §1.3: an invite reaches a stranger anywhere in the game, Join / Decline (the server's party_invites). */
+  Object.freeze({ id: 'invite', label: 'Party invites', glyph: 'uiPeople', action: 'join', button: 'Join', decline: 'Decline' }),
   /* What another player's move did to this hero (2027-02-18-party-truth.sql party_notices): said no, removed it, closed the party, left. */
   Object.freeze({ id: 'party', label: 'Party news', glyph: 'uiPeople', action: 'party', button: 'Open your party', fadeMs: 30000 }),
   /* A friend's stamina running low, and the leader about to take the party somewhere above this hero's level. */

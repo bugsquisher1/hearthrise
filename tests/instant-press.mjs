@@ -302,7 +302,7 @@ async function checks(overrides) {
       const { ctx, page, s } = await inTown(null, env);
       s.rpcNo = { hr_hunt_party_start: { ok: false, error: 'not_ready', seats: [{ seat: 1, name: 'Mira', error: 'too_many_playing_here' }] } };
       await page.keyboard.press('h');
-      await wait(page, () => /Start with party/.test((document.querySelector('.hw-hunt-enter') || {}).textContent || ''), null, 4000);
+      await wait(page, () => /Enter with party/.test((document.querySelector('.hw-hunt-enter') || {}).textContent || ''), null, 4000);
       await press(page, '.hw-hunt-enter');
       await answered(page, POPUP);
       await sleep(50);

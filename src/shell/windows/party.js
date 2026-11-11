@@ -6,7 +6,7 @@
 //               tabs) -> Invite to party; the first invite makes the party
 //   the roster  the Party panel (src/shell/widgets/party-panel.js) in a hunt, with Leave /
 //               Kick / Disband; in town, this window's Your party tab (same roster, same Leave)
-//   start       the leader's "Start with party" in the Hunts window, where the
+//   start       the leader's "Enter with party" in the Hunts window, where the
 //               ground is chosen
 // So this window holds what has no other home, as three tabs:
 //   Your party    shown only while THIS character sits in a party, and the tab
@@ -14,19 +14,20 @@
 //                 formed in town had no screen, the board being a hunt widget):
 //                 every seat, the next step, Leave party / Disband
 //   Invites       invites waiting for THIS character (the server's
-//                 `party_invites`): Join / No thanks (the toast offers the same
+//                 `party_invites`): Join / Decline (the toast offers the same
 //                 two answers anywhere in the game)
 //   Find a party  the finder (./party-finder.js), filtered by the weapon a
 //                 party lacks, defaulting to this character's own
 // Every control is one intent, off from the press until the server answered;
 // the window changes only from the re-read envelope. Nothing is predicted.
 // ════════════════════════════════════════════════════════════════════════
-import { invitesOf, partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.121';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.121';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.121';
-import { runIntent } from '../intent-words.js?v=0.2.121';
-import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.121';
-import { rosterHtml, patchRoster, actRoster } from './party-roster.js?v=0.2.121';
+import { invitesOf, partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.122';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.122';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.122';
+import { runIntent } from '../intent-words.js?v=0.2.122';
+import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.122';
+import { rosterHtml, patchRoster, actRoster } from './party-roster.js?v=0.2.122';
+import { t } from '../../render/player-text.js?v=0.2.122';
 
 const TABS = Object.freeze([['party', 'Your party'], ['invites', 'Invites'], ['find', 'Find a party']]);
 
@@ -56,7 +57,7 @@ function patchInvites(root, ctx, sc, inv) {
     key: (i) => i.id,
     build: (i) => element(ctx.doc, '<li class="hw-line"><span class="hw-line-name"><b></b><small></small></span>'
       + '<button type="button" class="hw-primary is-on" data-hs-act="accept" data-invite="' + esc(i.id) + '">Join</button>'
-      + '<button type="button" class="hh-tool" data-hs-act="decline" data-invite="' + esc(i.id) + '">No thanks</button></li>'),
+      + '<button type="button" class="hh-tool" data-hs-act="decline" data-invite="' + esc(i.id) + '">' + t('controls.decline') + '</button></li>'),
     patch: (li, i) => {
       const w = inviteWords(i);
       text(li.querySelector('b'), w.who);
@@ -103,12 +104,12 @@ renderParty.patch = function patchParty(body, ctx) {
   text(root.querySelector('.hh-intent-msg'), sc.msg);
 };
 
-renderParty.act = function actParty(ctx, body, action, ev, t) {
+renderParty.act = function actParty(ctx, body, action, ev, el) {
   if (ev.type !== 'click') return false;
   const cs = ctx.character;
   const sc = partyScratch(cs);
   const repaint = () => renderParty.patch(body, ctx);
-  if (action === 'party-tab') { sc.tab = t.getAttribute('data-tab'); sc.msg = ''; repaint(); return true; }
+  if (action === 'party-tab') { sc.tab = el.getAttribute('data-tab'); sc.msg = ''; repaint(); return true; }
   if (action === 'invite-name') {
     const box = body.querySelector('.hw-invite-in');
     const name = box.value.trim();
@@ -118,9 +119,9 @@ renderParty.act = function actParty(ctx, body, action, ev, t) {
   }
   if (action === 'accept' || action === 'decline') {
     const yes = action === 'accept';
-    runIntent(sc, repaint, () => cs.answerInvite(t.getAttribute('data-invite'), yes).then((r) => (r.ok ? r : { ...r, verb: 'party_join' })), yes ? 'Joining…' : 'Declining…',
+    runIntent(sc, repaint, () => cs.answerInvite(el.getAttribute('data-invite'), yes).then((r) => (r.ok ? r : { ...r, verb: 'party_join' })), yes ? 'Joining…' : 'Declining…',
       () => (yes ? 'You joined the party.' : 'Invite declined.'));
     return true;
   }
-  return actRoster(ctx, action, repaint, sc) || actFinder(ctx, body, action, t, repaint);
+  return actRoster(ctx, action, repaint, sc) || actFinder(ctx, body, action, el, repaint);
 };

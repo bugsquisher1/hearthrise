@@ -42,6 +42,12 @@ export const SESSION_CONFIG = Object.freeze({
   /** The roster's own hr_load answer is a hero's first read while it is this fresh (account-session.js _open): a reload
       opens at once on what it just read, a character list left standing reads again. */
   rosterReadFreshMs: 10000,
+  /** A hero in town whose settle answers "nothing to pay" at the version it holds whole is not read a second time when the
+      server gave that whole copy under this long before the ask left (character-session.js _helloOnce): the join right after
+      a reload's roster read, which cost every hero two hr_load (hunt-path baseline 2026-11-10). Kept short on purpose: a
+      party invite moves no version, so one sent inside this window shows at the hero's next read, and an older copy
+      is always read again (tests/session-core.mjs ASK-3, JOIN-READ). */
+  wholeFreshMs: 3000,
   /** A page hidden this long stops asking (AccountSession.setPageHidden; old-laptop player 10-31: 64 calls and 1.45 MB in
       2 minutes hidden, for hunts the server runs anyway), and asks ONE catch-up per character when it is shown again. A
       glance at another tab, under this, changes nothing. Under the look-ahead (liveRefillMs + its seeds) on purpose. */

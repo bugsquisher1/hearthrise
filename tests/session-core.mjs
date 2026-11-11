@@ -35,7 +35,12 @@
 //   ASK-2  a four-hero leave-together: a not-due answer at the record's version is not re-read in full, the close
 //          is backed off past leave_at; no refusal, at most 7 asks and 2 full reads a hero, every hero sees its end
 //   ASK-3  a hunter's idle answer at a version its record holds WHOLE (a load, a settle answer, or ANY pushed frame:
-//          a frame is the whole character) is not re-read in full; in town it always is (a party invite moves no version)
+//          a frame is the whole character) is not re-read in full; in town a copy older than wholeFreshMs always is (a
+//          party invite moves no version)
+//   JOIN-READ a hero opened on the roster's answer is read ONCE on the way in: its join's settle answers "nothing to
+//          pay" at the version just read whole and asks no second hr_load (baseline 2026-11-10: two a hero, eight for
+//          four). A version the server moved, a roster answer wholeFreshMs old by the time the ask leaves, and a
+//          re-join later all still read
 //   HELLO-1 an idle settle answer ({accrued:false}) is never applied as the character: the full read follows
 //   HUNT-1 while the server holds a hunt open the character asks the hunter's settle every huntPollMs
 //          (attended): the track reaches the timeline; the envelope that says it ended stops the asking
@@ -622,29 +627,90 @@ async function rules(M) {
   });
   /* ASK-3 (the version a hunter's idle answer is checked against): a frame is the WHOLE character
      (2026-12-25-frame-push-revive.sql), so a record raised by any frame, one that skipped versions included, is
-     whole at its version and an idle answer at it asks nothing more (no hr_load). In town it always is re-read. */
+     whole at its version and an idle answer at it asks nothing more (no hr_load), however old the copy. In town a
+     copy older than wholeFreshMs is always re-read. */
   await t('ASK-3', async () => {
     const calls = [];
-    let ver = 10, ended = false;
+    let ver = 10, ended = false, now = 1000;
     const body = () => env(ver, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended } });
     const srv = {
       rpc: async (name) => { calls.push(name); return { ok: true, status: 200, body: body(), closed: false }; },
       accrue: async () => { calls.push('accrue'); return { ok: true, status: 200, body: Object.assign(body(), { accrued: false, settled: false, reason: 'not_due' }), closed: false }; },
     };
     const hub = fakeHub();
-    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers });
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers, now: () => now });
     await cs.load(); cs.connect();
     const topic = C.frameTopic(UID, 0);
     const ask = async () => { calls.length = 0; await cs.hello(); await new Promise((r) => setImmediate(r)); return calls.join(','); };
     if ((await ask()) !== 'accrue') return 'an idle answer at the version just read whole was re-read';
+    now += 60000;
+    if ((await ask()) !== 'accrue') return 'a hunter\'s idle answer at a version held whole for a minute was re-read (its next ask restates it): ' + calls.join(',');
     ver = 12; hub.send(topic, { t: 'state', frame: 12, env: body() });
     if (cs.record.version !== 12) return 'the frame that skipped a version was not applied: ' + cs.lastVerdict;
     if ((await ask()) !== 'accrue') return 'an idle answer after a (whole) frame that skipped a version was re-read: ' + calls.join(',');
     ver = 13; hub.send(topic, { t: 'state', frame: 13, env: body() });
     if ((await ask()) !== 'accrue') return 'an idle answer after a consecutive frame was re-read: ' + calls.join(',');
-    /* in town an idle answer is always read in full (what no version moves, a party invite, still arrives) */
+    /* in town an idle answer to a copy past wholeFreshMs is always read in full (what no version moves, a party invite, still arrives) */
     ended = true; await cs.load();
-    return (await ask()) === 'accrue,hr_load' || 'an idle answer in town was not re-read in full: ' + calls.join(',');
+    now += CFG.SESSION_CONFIG.wholeFreshMs + 1;
+    return (await ask()) === 'accrue,hr_load' || 'an idle answer in town, to a copy ' + (CFG.SESSION_CONFIG.wholeFreshMs + 1) + ' ms old, was not re-read in full: ' + calls.join(',');
+  });
+  /* JOIN-READ (hunt-path baseline 2026-11-10, finding 3: "each idle hero is read twice", the roster's hr_load and a second one
+     because the join's idle settle always re-read; four heroes home cost eight). The hero is opened through the account,
+     as boot.js does, and its topic joined; the engine's answer is the real idle one (hr-accrue index.ts: no state, only
+     the version the hero stands at). The reads of each hero are COUNTED. */
+  await t('JOIN-READ', async () => {
+    const FRESH = CFG.SESSION_CONFIG.wholeFreshMs;
+    if (!(FRESH > 0 && FRESH < CFG.SESSION_CONFIG.rosterReadFreshMs)) return 'wholeFreshMs ' + FRESH + ' is not inside the roster answer\'s own window (' + CFG.SESSION_CONFIG.rosterReadFreshMs + ')';
+    const tick = () => new Promise((r) => setImmediate(r));
+    /* one account, two heroes in town: the roster, `listMs` on the characters screen, both opened, `joinMs` to the join */
+    const scene = async (listMs, joinMs, before) => {
+      let now = 5000;
+      const ver = { 0: 7, 1: 3 }, calls = [], hub = fakeHub();
+      const srv = {
+        rpc: async (name, a) => {
+          if (name !== 'hr_load') return { ok: true, status: 200, body: { ok: true }, closed: false };
+          calls.push('hr_load:' + a.p_slot);
+          return { ok: true, status: 200, closed: false, body: env(ver[a.p_slot], a.p_slot === 0 ? { hero_slots: [0, 1], name: 'Ada', account: { max_concurrent: 4 } } : { name: 'Bram' }) };
+        },
+        accrue: async (b) => { calls.push('accrue:' + b.slot); return { ok: true, status: 200, closed: false, body: { ok: true, accrued: false, reason: 'no_activity', version: ver[b.slot], now: new Date(now).toISOString() } }; },
+      };
+      const acc = new A.AccountSession({ auth: { userId: () => UID, token: () => 'jwt', signOut: async () => {} }, server: srv, tab: memStore(), channel: hub.channel,
+        timers: { setTimer: () => 0, clearTimer: () => {}, now: () => now } });
+      const join = async (s) => { hub.topics.get(C.frameTopic(UID, s)).onStatus('SUBSCRIBED'); await tick(); await tick(); };
+      const n = (what, s) => calls.filter((c) => c === what + ':' + s).length;
+      await acc.roster();
+      now += listMs;
+      const r = await acc.open(0); await acc.openOthers([1]);
+      if (!r.ok || calls.length !== 2) return { err: 'the heroes did not open on the roster\'s two answers: ' + calls.join(',') };
+      now += joinMs;
+      if (before) before(ver);
+      await join(0); await join(1);
+      return { reads: () => [n('hr_load', 0), n('hr_load', 1)].join(), asks: () => [n('accrue', 0), n('accrue', 1)].join(), calls, acc, join, step: (ms) => { now += ms; } };
+    };
+    /* a reload: opened at once on what the roster read, joined a moment later */
+    const a = await scene(0, 400);
+    if (a.err) return a.err;
+    if (a.asks() !== '1,1') return 'a join did not ask its one settle a hero: ' + a.calls.join(',');
+    if (a.reads() !== '1,1') return 'a hero in town was read ' + a.reads() + ' times on the way in, want the roster\'s one each: ' + a.calls.join(',');
+    if (a.acc.character(0).record.version !== 7 || a.acc.character(0).status !== 'ready') return 'the hero is not standing on the roster\'s answer';
+    /* ...and a re-join long after (a dropped channel, a page back from away) reads it again: frames and nudges may have been missed */
+    a.step(60000);
+    await a.join(0);
+    if (a.reads() !== '2,1') return 'a re-join a minute later did not read the hero again (' + a.reads() + '): ' + a.calls.join(',');
+    /* the server moved the hero between the roster and the join (a settle, another device): read again */
+    const b = await scene(0, 400, (ver) => { ver[0] = 8; });
+    if (b.err) return b.err;
+    if (b.reads() !== '2,1') return 'a hero the server moved to a newer version: reads ' + b.reads() + ', want 2,1';
+    if (b.acc.character(0).record.version !== 8) return 'the newer version did not reach the record';
+    /* the list stood a few seconds (still fresh enough to open on): the join reads again, as it always did */
+    const c = await scene(FRESH + 1000, 0);
+    if (c.err) return c.err;
+    if (c.reads() !== '2,2') return 'a roster answer ' + (FRESH + 1000) + ' ms old at the join was not read again (' + c.reads() + '): its age was forgotten';
+    /* the age runs from the roster's answer to the ask leaving, not from the open */
+    const d = await scene(FRESH - 100, 200);
+    if (d.err) return d.err;
+    return d.reads() === '2,2' || 'a roster answer ' + (FRESH + 100) + ' ms old when the join asked was not read again (' + d.reads() + ')';
   });
   await t('HELLO-1', async () => {
     const calls = [];
@@ -1342,7 +1408,7 @@ async function rules(M) {
   });
   /* ACC-READ (panel 10-31: hr_load x3 on a reload): the roster's own answer is the hero's first read while it is seconds
      old, spent once; the list left standing, an answer that was no hero, a close and reopen read again; the join's hello
-     still settles and re-reads, so nothing a number relies on is older than it was. */
+     still settles, and reads again whatever may have changed since (JOIN-READ). */
   await t('ACC-READ', async () => {
     let now = 1000;
     const mk = (srv) => new A.AccountSession({ auth: { userId: () => UID, token: () => 'jwt', signOut: async () => {} }, server: srv, tab: memStore(), channel: fakeHub().channel,
@@ -2223,10 +2289,10 @@ async function viewRules(base) {
 const MUTANTS = [
   ['a tab keeps playing a hero the server no longer holds', 'src/session/account-session.js', "if (why === 'empty' && s.record && this._chars.get(slot) === s) { this.close(slot); this._emit('hero-gone', slot); }", "if (false) { this.close(slot); this._emit('hero-gone', slot); }"],
   ['a slot empty on its first read counts as a hero gone', 'src/session/account-session.js', "if (why === 'empty' && s.record && this._chars.get(slot) === s) {", "if (why === 'empty' && this._chars.get(slot) === s) {"],
-  ['a reload reads each hero again over the roster\'s answer', 'src/session/account-session.js', 'await cs.load(read && read.ans.ok && age <= this.config.rosterReadFreshMs ? agedBy(read.ans.body, age) : null);', 'await cs.load();'],
+  ['a reload reads each hero again over the roster\'s answer', 'src/session/account-session.js', 'await cs.load(read && read.ans.ok && age <= this.config.rosterReadFreshMs ? agedBy(read.ans.body, age) : null, age);', 'await cs.load();'],
   ['a character list left standing opens on its old answer', 'src/session/account-session.js', 'read && read.ans.ok && age <= this.config.rosterReadFreshMs ?', 'read && read.ans.ok ?'],
   ['a roster answer sets the server clock back by its age', 'src/session/account-session.js', '? agedBy(read.ans.body, age) : null', '? read.ans.body : null'],
-  ['a roster answer that is no hero is taken, not read', 'src/session/character-session.js', "held && this._take(held, 'load') ? Promise.resolve(true) : this._reads.load();", "held ? Promise.resolve(this._take(held, 'load')) : this._reads.load();"],
+  ['a roster answer that is no hero is taken, not read', 'src/session/character-session.js', "held && this._take(held, 'load') ? this._heldFor(heldMs) : this._reads.load();", "held ? Promise.resolve(this._take(held, 'load')) : this._reads.load();"],
   ['a roster answer is spent more than once', 'src/session/account-session.js', '    this._rosterReads.delete(slot);\n', ''],
   ['[tick-span] a mid-hunt verb refused settle_first is not caught up', 'src/session/catch-up.js', '    if (!catchingUp(ans) || !o.hunting()) return ans;', '    return ans;'],
   ['[RES-HIDE] a flickering page writes on every hide', 'src/session/character-session.js', "if (hidden && this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;", ''],
@@ -2330,8 +2396,13 @@ const MUTANTS = [
   ['a page that never goes away', 'src/session/account-session.js', '    for (const cs of this._chars.values()) cs.setAway(on);\n', ''],
   ['a switch never tells the sessions', 'src/session/account-session.js', '    if (was) was.setViewed(false);\n    this._chars.get(slot).setViewed(true);\n', ''],
   /* ASK-2 (perf audit 10-23, the leave-together storm) */
-  ['an idle answer at the record\'s version is re-read in full', 'src/session/character-session.js', "    if (Number.isSafeInteger(v) && ans.body.accrued !== true && this._huntOpen() && v <= this._wholeAt) return false;\n", ''],
-  ['an idle answer in town is not re-read', 'src/session/character-session.js', '&& this._huntOpen() && v <= this._wholeAt)', '&& v <= this._wholeAt)'],
+  ['an idle answer at the record\'s version is re-read in full', 'src/session/character-session.js', "    if (Number.isSafeInteger(v) && ans.body.accrued !== true && held && v <= this._wholeAt) return false;\n", ''],
+  ['an idle answer in town is not re-read', 'src/session/character-session.js', 'held = this._huntOpen() || this._askedAt - this._wholeMs <= SESSION_CONFIG.wholeFreshMs;', 'held = true;'],
+  /* JOIN-READ (hunt-path baseline 2026-11-10: every hero read twice on the way in) */
+  ['the join reads again a hero the roster just read', 'src/session/character-session.js', 'held = this._huntOpen() || this._askedAt - this._wholeMs <= SESSION_CONFIG.wholeFreshMs;', 'held = this._huntOpen();'],
+  ['a roster answer\'s age is forgotten at the join', 'src/session/account-session.js', '? agedBy(read.ans.body, age) : null, age);', '? agedBy(read.ans.body, age) : null);'],
+  ['a whole copy never grows old', 'src/session/character-session.js', 'this._wholeMs = this._now();', 'this._wholeMs = Infinity;'],
+  ['the session drops the age the account handed it', 'src/session/character-session.js', '_heldFor(ms) { this._wholeMs -= ms > 0 ? ms : 0; return', '_heldFor(ms) { return'],
   ['the close is asked every 2 s past leave_at', 'src/session/hunt-leave.js', 'Math.max(SESSION_CONFIG.leaveRetryMs, Math.ceil(-left))', 'SESSION_CONFIG.leaveRetryMs'],
   ['an ended hunt keeps re-reading', 'src/session/character-session.js', "typeof h.session_id === 'string' && h.ended !== true;", "typeof h.session_id === 'string';"],
   ['a pending leave waits for the world tick', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.load();"],

@@ -4,6 +4,13 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-10 · qa-engineer (lane/a-preflight-race) · preflight ran a proof that plants into src/ beside one that copies it (tools only)
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P2 process (false red) · set/v0.2.116's preflight: `no-client-copy-of-projection --selftest` red, "selftest anchor missing in src/session/envelope.js"; green alone. Cause: `tools/guard-anchors.mjs --selftest` arm E writes a doubled space into that exact anchor line of the REAL `src/session/envelope.js` (then runs lane-done on it). Watched here: the real file held the mutant for 2.70 s; a copy of src/ made in that window (planted()'s first step) throws the reported error. Both proofs anchor on envelope.js, so a diff that moves it starts both, 4 apart in a 3-slot pool. guard-anchors was not SOLO: its solo test matched only `'./mutation-safety.mjs'`, and it imports `'../tests/mutation-safety.mjs'` from tools/ (and it also uses mkdtemp, so "writes without a temp dir" missed it). | `tools/guard-anchors.mjs`, `tools/preflight.local.mjs`, `tools/lane-done.mjs` (same race in its pool) | Done: the regex takes the tools/ path; guard-anchors declares `mutant-writes-tree: yes`. Preflight now leaves it for GitHub; lane-done runs it alone. Static scan of tests/ and tools/: it was the only pool proof that writes the real tree. Regression: guard-anchors M4, X5; a preflight --selftest real-plan check. All three were red against the old regex. |
+| 2 | P3 process · `// mutant-writes-tree: no — <reason>` (19 guards: session-core, hunt-live, party-flow, chat-social, phone-touch, town-walk...) is read as YES. `directives()` tests `^\s*//\s*mutant-writes-tree\b` and ignores the "no". So all 19 run SOLO in lane-done, and preflight never runs them ("plants into the tree"). guard-anchors M2 asserts session-core is SOLO although session-core says it plants into a temp copy. preflight's header says party-flow and hunt-live DO plant. | `tools/guard-anchors.mjs` directives(), the 19 headers | Route: systems-engineer / tooling lane. Check each "no" against its code, then honour `: no` (or delete the stale headers). Un-soloing 19 proofs changes preflight's load, so it was not done here. |
+
 ## 2026-11-10 · qa-engineer (lane/a-sql-tests-red) · `tests/run-sql-tests.mjs` was red on main (77) and ran in no job
 
 | # | Found | Affected | Action |

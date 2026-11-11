@@ -88,12 +88,21 @@ runs:
           fi
         fi
         echo "apt archive seeded with ${#seed[@]} of ${#cached[@]} cached .deb file(s) (exact cache hit: '${HIT}')"
+        # THE RUNNER'S OWN apt HOLDS THE LOCK (release/v0.2.120 runs 43036176366 and 43047648773, 2026-11-11):
+        # every browser job died in seconds with "Could not get lock /var/lib/dpkg/lock-frontend. It is held by
+        # process NNNN (apt-get)" (exit 100): the ubuntu image's unattended apt was still running when Playwright's
+        # --with-deps called apt-get, and the second try came too soon. So apt is told to wait for the lock
+        # (DPkg::Lock::Timeout, honoured by the apt-get Playwright runs), each try first waits for the lock to
+        # free, and a failed try rests before the next.
+        echo 'DPkg::Lock::Timeout "300";' | sudo tee /etc/apt/apt.conf.d/99hr-lock-wait > /dev/null
         for try in 1 2; do
+          timeout 300 bash -c 'while sudo fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock > /dev/null 2>&1; do sleep 5; done' || echo "::warning::the dpkg lock was still held after 300 s; trying anyway"
           rc=0
           timeout -k 30 600 npx playwright install --with-deps chromium || rc=$?
           if [ "$rc" -eq 0 ]; then break; fi
           if [ "$try" -eq 2 ]; then echo "::error::npx playwright install failed twice (exit $rc; 124 is its 600 s deadline)"; exit "$rc"; fi
           echo "::warning::npx playwright install exited $rc (124 is its 600 s deadline): one more try"
+          sleep 30
           timeout 120 sudo dpkg --configure -a || true
         done
 

@@ -136,7 +136,7 @@ function nowWords(cs, h, now) {
      waited in town and the one thing that would have filled that time. A wait says the time itself, so "ago" is not said twice. */
   const state = h.ended && typeof cs.read === 'function' ? cs.read('state') : null;
   const after = h.ended ? afterHuntOf(state, h, now) : null;
-  const waited = !!after && Number.isFinite(after.idleMs) && after.idleMs >= WAITED_FROM_MS;
+  const waited = !!after && after.kind === 'waited' && after.idleMs >= WAITED_FROM_MS;
   const ago = h.ended && !waited && Number.isFinite(h.endedAtMs) && now - h.endedAtMs >= AWAY_MIN_MS ? ' ' + awayWords(now - h.endedAtMs) + ' ago' : '';
   const then = after ? ' ' + afterHuntWords(state, h, now, name) : '';
   return h.ended

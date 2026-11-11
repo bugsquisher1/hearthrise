@@ -113,8 +113,8 @@ function outranked(inst, u, cur) {
 
 /** The basic attack's target: the first in order it can hit. */
 export function basicTarget(inst, u) {
-  const inR = pickTargets(inst, u).filter((m) => inRange(inst, u, m));
-  return inR[0] || null;
+  /* the first in order that is in range: no line of sight is traced past it (inRange is pure) */
+  return pickTargets(inst, u).find((m) => inRange(inst, u, m)) || null;
 }
 
 function retarget(m, id, sc) {

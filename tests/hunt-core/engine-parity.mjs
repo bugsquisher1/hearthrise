@@ -105,6 +105,20 @@ const mutants = [
     edits: [['src/core/hunt/damage.js', '  let amount = rollAttack(sc.rng, accuracy, maxHit);\n',
       "  let amount = rollAttack(sc.rng, accuracy, maxHit);\n  if (amount > 0 && t.side === 'mon' && t.hp > 2 * amount + 20 && ++globalThis.__parityRolls === 1) amount += 5;\n"]],
     before: () => { globalThis.__parityRolls = 0; } },
+  /* the optimizations, each broken (lane/r-engine-profile): every one must move the pin, or the pin does not hold it */
+  { name: 'a ranged hero\'s spot search forgets the monsters beside a tile (roles.js besideNear)', only: ['glade-4'],
+    edits: [['src/core/hunt/roles.js', 'const near = mons.filter((m) => cheb(m, c) <= r + 1);', 'const near = [];']] },
+  { name: 'a spot search reads no other hero\'s claimed spot (movement.js claimsOf)', only: ['warrens-4', 'glade-4'],
+    edits: [['src/core/hunt/movement.js', "if (v !== hero && v.alive && v.side === 'hero' && v.spot) out.push(v.spot);", "if (v !== hero && v.alive && v.side === 'hero' && v.spot) out.length = 0;"]] },
+  { name: 'the band asked first is a step closer than the spot rule\'s (roles.js onBand)', only: ['glade-4'],
+    edits: [['src/core/hunt/roles.js', 'const onBand = (x, y) => inBand((x - tgt.x) * (x - tgt.x) + (y - tgt.y) * (y - tgt.y), want);',
+      'const onBand = (x, y) => inBand((x - tgt.x) * (x - tgt.x) + (y - tgt.y) * (y - tgt.y), want - 1);']] },
+  { name: 'A* breaks a tie by the newest entry (grid.js heap)', only: ['warrens-4', 'glade-4'],
+    edits: [['src/core/hunt/grid.js', '(a[1] === b[1] && a[2] < b[2])', '(a[1] === b[1] && a[2] > b[2])']] },
+  { name: 'A* takes "too big to tell" for "sealed off" (grid.js sealedOff)', only: ['warrens-4', 'glade-4'],
+    edits: [['src/core/hunt/grid.js', '      if (seen.size >= budget) return false;', '      if (seen.size >= budget) return true;']] },
+  { name: 'the basic attack takes the last monster in range (targeting.js basicTarget)', only: ['glade-4'],
+    edits: [['src/core/hunt/targeting.js', 'return pickTargets(inst, u).find((m) => inRange(inst, u, m)) || null;', 'return pickTargets(inst, u).findLast((m) => inRange(inst, u, m)) || null;']] },
 ];
 
 const PICK = process.argv.includes('--no-mutants') ? [] : mutants;

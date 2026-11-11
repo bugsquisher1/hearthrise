@@ -232,22 +232,39 @@ export function spotTaken(inst, hero, x, y) {
   return inst.world.units.some((v) => v !== hero && v.alive && v.side === 'hero' && v.spot && v.spot[0] === x && v.spot[1] === y);
 }
 
+/* THE SPOTS THE OTHER LIVING HEROES HOLD (spotTaken's list), read once for a whole tile search: candidateTiles asks
+   standable of up to (2r + 1)^2 tiles, and spotTaken walked every unit for each (lane/r-engine-profile: a tenth of
+   a party's engine time). Nothing a search asks moves a spot, so the answer is spotTaken's, tile for tile. */
+function claimsOf(inst, hero) {
+  const out = [];
+  for (const v of inst.world.units) if (v !== hero && v.alive && v.side === 'hero' && v.spot) out.push(v.spot);
+  return out;
+}
+const claimed = (claims, x, y) => { for (const s of claims) if (s[0] === x && s[1] === y) return true; return false; };
+
 /**
  * May `hero` choose (x, y) to stand on while fighting pocket `pocket`? Walkable,
  * no monster on it, INSIDE THE PACK AREA (the hard filter of spec §3.1 #9 —
- * nothing deals damage from outside the leash) and nobody else's spot.
+ * nothing deals damage from outside the leash) and nobody else's spot
+ * (`claims`: the other heroes' spots as claimsOf read them, else spotTaken asks).
  */
-export function standable(inst, hero, pocket, x, y) {
+export function standable(inst, hero, pocket, x, y, claims = null) {
   if (!inst.occ) occupancy(inst);
   return walkable(inst.grid, x, y) && !inst.occ.mon.has(tileKey(inst.grid, x, y))
-    && inArea(inst, pocket, x, y) && !spotTaken(inst, hero, x, y);
+    && inArea(inst, pocket, x, y) && !(claims ? claimed(claims, x, y) : spotTaken(inst, hero, x, y));
 }
 
-/** Every standable tile within Chebyshev r of (cx, cy), in scan order: the only kite / spot candidates. */
-export function candidateTiles(inst, hero, pocket, cx, cy, r) {
+/**
+ * Every standable tile within Chebyshev r of (cx, cy), in scan order: the only kite / spot candidates.
+ * `keep(x, y)`, when given, is the caller's own pure test of a tile, asked first: a tile it refuses is not a
+ * candidate, so a caller that would refuse it anyway (roles.js rangedPos: off its distance band) skips the
+ * standable test of most of the square, and the list is exactly the old one filtered by `keep`.
+ */
+export function candidateTiles(inst, hero, pocket, cx, cy, r, keep = null) {
+  const claims = claimsOf(inst, hero);
   const out = [];
   for (let y = cy - r; y <= cy + r; y++) {
-    for (let x = cx - r; x <= cx + r; x++) if (standable(inst, hero, pocket, x, y)) out.push([x, y]);
+    for (let x = cx - r; x <= cx + r; x++) if ((!keep || keep(x, y)) && standable(inst, hero, pocket, x, y, claims)) out.push([x, y]);
   }
   return out;
 }

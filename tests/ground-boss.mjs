@@ -9,7 +9,7 @@
 //
 // mutant-anchors: src/core/hunt/boss-phases.js src/core/hunt/leash.js src/core/hunt/pull-cycle.js src/core/hunt/damage.js src/data/grounds/muster_barrows/pack.js src/data/hunt-grounds.js tools/gen-hunt-sessions.mjs
 //
-//   GB-ROW    Hask carries both lines and his barrow names his wave: the ground's own Barrow Knights, who pay. A wave with no boss to
+//   GB-ROW    Hask carries both lines and his barrow names his wave: the ground's own monsters (his file of Pikemen), who pay. A wave with no boss to
 //             call it, a boss in a wave and an add outside its room are refused (hunt-grounds.js validateGround); the catalogue generator
 //             takes a ground's boss with lines (tools/gen-hunt-sessions.mjs catalogueRows)
 //   GB-LINES  his fight on the real settle: the adds come at half his health and the enrage at a quarter, once each, the wave in full and
@@ -61,7 +61,7 @@ function hallOf(X) {
 function fight(X, o = {}) {
   const windows = [];
   const res = X.play.run(GROUND, o.L || 75, o.roles || ['tank', 'ranger', 'mage', 'healer'], { ground: hallOf(X), spanMs: o.spanMs || 2 * MINUTE,
-    windowMs: o.cut || 30000, dropEnded: true, ...(o.bar ? { bar: o.bar } : {}), onWindow: (w) => windows.push(w) });
+    windowMs: o.cut || 30000, dropEnded: true, ...(o.bar ? { bar: o.bar } : {}), ...(o.equipment ? { equipment: o.equipment } : {}), onWindow: (w) => windows.push(w) });
   const kinds = {};
   for (const w of windows) for (const [id, r] of Object.entries(w.units || {})) kinds[id] = r[0];
   return { res, windows, kinds, ev: windows.flatMap((w) => w.events || []) };
@@ -133,18 +133,20 @@ async function guard(X) {
     for (const u of came) if (!(firstAt(f, u) >= addsAt)) bad.push('GB-LINES an add acted before his first line');
     /* THE WAVE PAYS (a ground's adds are its own monsters; a called room's pay nothing): the as-built Knights and his wave all die and count. */
     const killed = (f.res.killsBy || {})[holds[0] ? holds[0].adds[0].monster : ''] || 0;
-    if (killed !== built + wave) bad.push('GB-LINES ' + killed + ' Knights paid their kill, the barrow had ' + built + ' and his wave ' + wave);
+    if (killed !== built + wave) bad.push('GB-LINES ' + killed + ' of the kind his wave is paid their kill, the barrow had ' + built + ' and his wave ' + wave);
     if (!((f.res.killsBy || {})[BOSS] === 1)) bad.push('GB-LINES CONTROL: he did not fall in the try: ' + JSON.stringify(f.res.killsBy));
   }
 
   /* GB-RAGE: a pair, his blows sure and small, his enrage tripled: the largest before the line stays under his row's, after it passes it.
      No Challenge on the bars, so an add's first blow is its first aim (the Healer's id comes first, so a wave aimed round the whole
      party would land one add on the tank): GB-LINES' "whoever isn't holding him". His Knights can't hurt, so nobody falls before him. */
-  setRow(X, BOSS, { atk: 10, baseAcc: 1, phases: { ...EM[BOSS].phases, enrageAtkPm: 3000 } });
+  setRow(X, BOSS, { hp: 4000, atk: 10, baseAcc: 3, phases: { ...EM[BOSS].phases, enrageAtkPm: 3000 } });
   if (holds[0]) setRow(X, holds[0].adds[0].monster, { atk: 1, baseAcc: 0 });
   {
     const NO_CHALLENGE = (role) => (role === 'tank' ? [{ action: { type: 'ability', id: 'power_strike' }, conditions: [], join: 'and' }] : []);
-    const f = fight(X, { roles: ['tank', 'healer'], bar: NO_CHALLENGE, spanMs: 4 * MINUTE }), hask = bossUnit(f);
+    /* a Level 50 tank in steel, so his blows land and the armor does not swallow the raise (at Level 75 in the ladder kit nine in ten miss) */
+    const STEEL = { weapon: 'steel_sword', shield: 'practice_shield', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' };
+    const f = fight(X, { L: 50, roles: ['tank', 'healer'], bar: NO_CHALLENGE, spanMs: 8 * MINUTE, equipment: (role) => (role === 'tank' ? STEEL : { weapon: 'oak_staff' }) }), hask = bossUnit(f);
     const kind = holds[0] ? holds[0].adds[0].monster : '', built = holds[0] ? holds[0].spawns.filter((s) => s.monster === kind).length : 0;
     const came = idsOf(f, kind).slice(built, built + wave);
     if (came.length !== wave) bad.push('GB-LINES CONTROL: ' + came.length + ' adds came to the pair');
@@ -218,7 +220,7 @@ async function guard(X) {
 
 async function restoring(root, fn) {
   const X = await loadAll(root);
-  const ids = [BOSS, 'muster_knight'];
+  const ids = [BOSS, 'muster_knight', 'barrow_pikeman'];
   const keep = ids.map((id) => [id, { ...X.EM[id] }]);
   try { return await fn(X); } finally {
     for (const [id, row] of keep) { Object.assign(X.EM[id], row); Object.assign(X.play.MONSTERS[id], row); }

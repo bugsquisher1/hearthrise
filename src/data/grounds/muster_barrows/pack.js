@@ -38,14 +38,16 @@
 // CAPTAIN HASK IS THE GAME'S FIRST GROUND BOSS BUILT TO TYLER'S BOSS RULES (2026-11-05: adds at 50% health, an enrage at 25%, a
 // real boss bar). His row carries the same `phases` a called boss does and his pocket the same `adds`, played by the one engine
 // (src/core/hunt/boss-phases.js), viewed or with the browser closed (tests/ground-boss.mjs):
-//   At half health two Barrow Knights come out of the Sergeants' Row for whoever isn't holding him (Challenge and an area slot
-//   answer it). Under a quarter he hits 15% harder (the eat lines and the Healer's slots decide the finish). MEASURED, quick grade
-//   (1 seed x 1 h, Normal): at +20% and above a lone Ranger at the floor (Level 55) died to him in the hour, which the sheet's
-//   "in range is safe" (11-04) forbids for every group size; at +15% none did. With his wave and no enrage he killed nobody either.
-// ON A GROUND, NOT IN A ROOM: his adds are the ground's own Barrow Knights and pay a Knight's kill (a called room's pay nothing).
+//   At half health two Barrow Pikemen of his file stand up out of the barrows on the north edge and go for whoever isn't holding
+//   him (Challenge and an area slot answer it). Under a quarter he hits 15% harder (the eat lines and the Healer's slots decide the
+//   finish). MEASURED, because one difficulty sends a lone hero into his barrow and the sheet's "in range is safe" (11-04) grades
+//   that hero: quick grade (1 seed x 1 h, Normal), a lone Ranger at the floor (Level 55) died to him at +20% and above, none at +15%;
+//   full grade (6 seeds x 4 h a lone way), with a wave of two Barrow Knights a lone sword, hammer and axes at the floor died 13 times
+//   in 576 h (none without his lines), so the wave is his file, the swarm an area slot answers, not his sergeants.
+// ON A GROUND, NOT IN A ROOM: his adds are the ground's own Barrow Pikemen and pay a Pikeman's kill (a called room's pay nothing).
 // A wipe or a holder walking out resets his barrow: he heals and his adds leave (leash.js isAdd), so every try brings one wave.
 // His bar is the called boss's (src/shell/widgets/boss-bar.js), shown on a ground once he is hurt. No guard (`guardPm`): his
-// sergeants fight for him, they don't stand in front of him. Unmeasured as a fight: the grader plays the lap, not a boss try.
+// file fights for him, it doesn't stand in front of him. Unmeasured as a fight: the grader plays the lap, not a boss try.
 // STILL OPEN: the losing line that names the phase (src/hunt-view/boss-loss.js reads the server's record of a CALLED fight only);
 // the tank's dodgeable heavy hit and the whole-group pulse (Tyler 2026-11-08; lane/d-area-spells is a spec); the ship bar (same
 // gear about 30% with a bad bar, 85% with a good one) has no grader cell.
@@ -110,8 +112,8 @@ export default definePack({
       box([46, 3, 58, 15], [51, 12], [BK, PK, PK], [BK, CW, BK, PK, PK]),
       /* P6 the Captain's Barrow: Captain Hask in the forecourt of the great mound, two of his sergeants with him. BUILT FOR FOUR
          (`forParty`, a warning before Enter and never a gate, Tyler 2026-11-08). HIS WAVE (`adds`, his `phases` line at half
-         health): two more Barrow Knights out of the Sergeants' Row barrows on the pocket's north edge, the walk down to him. */
-      { ...box([37, 21, 57, 38], [48, 26], [HASK, BK, BK], [PK, BK, CW, PK, PK]), forParty: 4, adds: addRows([BK, 44, 24], [BK, 52, 24]) },
+         health): two Barrow Pikemen of his file out of the barrows on the pocket's north edge, the walk down to him (the header). */
+      { ...box([37, 21, 57, 38], [48, 26], [HASK, BK, BK], [PK, BK, CW, PK, PK]), forParty: 4, adds: addRows([PK, 44, 24], [PK, 52, 24]) },
     ],
     route: [0, 1, 2, 3, 4, 5, 6],
     respawnMs: 90000, pullDist: 1.5, groupFit: 'party',
@@ -159,8 +161,8 @@ export default definePack({
       /* THE BOSS: the Banded Company's captain, who sold the crossing to Lord Krell and was buried by Krell with the men he sold, in his cloak
          and with the price still on him. The class as written (no override): a hammer and fire both answer him. His belts and the
          bow are the Rares. His Trophy waits on its icon (the header).
-         HIS TWO LINES (boss-phases.js, the header): at half his health he calls his sergeants (the pocket's `adds`), and under a
-         quarter he hits 15% harder (measured, the header). No guard: his Knights fight beside him, they don't shield him. */
+         HIS TWO LINES (boss-phases.js, the header): at half his health he calls up his file (the pocket's `adds`), and under a
+         quarter he hits 15% harder (measured, the header). No guard: his men fight beside him, they don't shield him. */
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'hasks_coin', ch: 0.15, band: 'uncommon' },
         { id: 'rune_belt', ch: 0.0133, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.0133, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.0133, band: 'rare' },
         { id: 'yew_bow', ch: 0.0133, band: 'rare' }],
@@ -213,8 +215,11 @@ export default definePack({
      party pays the even share of a whole kill, and on the quick grade a tank and Healer pair read 0.78-0.81 of the median lone way and
      the four-class four 0.85-0.86, where 10-25 asks a pair 1.05-1.15 and a four 1.15-1.25. The mixed cells are those readings scaled
      (a cell is a straight factor on the share): at 1360 the pair read 1.01-1.05 and at 1400 the four 1.11-1.13, so 1440 and 1485. The
-     three's cells are set between them. The one-class cells are the Warrens' and hold here (the line below). */
-  partyClassXp: { 2: [990, 1440], 3: [990, 1440, 1470], 4: [970, 1300, 1440, 1485] },
+     three's cells are set between them. The one-class cells are the Warrens' and hold here (the line below).
+     THE FULL GRADE'S SECOND FOUR (2026-11-10, 2 seeds x 2 h a cell): a tank, a hammer, a bow and a mage is THREE classes (Melee twice),
+     and at 1440 it read 1.15 / 1.13 / 1.13 of the median lone way at the floor, middle and top (1.10 at the middle without Hask's
+     lines), where 10-25 asks 1.15-1.25; the four-class four read 1.22 / 1.21 / 1.19. So 1510 and 1520 (more classes still pay more). */
+  partyClassXp: { 2: [990, 1440], 3: [990, 1440, 1470], 4: [970, 1300, 1510, 1520] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-09). One class is the mean
      of its five one-class parties: pairs 0.85-0.94, threes 0.72-0.90, fours 0.71-0.84 (no one-class party beats its heroes alone, the

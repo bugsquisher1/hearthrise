@@ -15,7 +15,7 @@
 //   BW-4  NO ANSWER, NO PRESS, NO HAMMER: a server that won't quote leaves the press off and is not asked again on the repaint its own answer causes
 //   BW-5  NO FREE WAY BACK: Hunt again has nothing to send from a called room, and says why; a normal hunt's still does; both ends have their words
 //   BW-6  THE LOSING LINE: names the phase and his HP from the server's record, this hero's own count, and what answers it; a won fight, a walk-out and a normal hunt have none; it survives the residue's bounds
-//   BW-7  THE BOSS BAR: his name, a mark on each line where the row puts it, his HP at the instant shown, what each line brought; quiet on any other hunt, and once the fight is over
+//   BW-7  THE BOSS BAR: his name, a mark on each line where the row puts it, his HP at the instant shown, what each line brought; quiet on any other hunt, and once the fight is over. A ground's boss with lines (Captain Hask) gets the same bar once he is hurt, none before
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════

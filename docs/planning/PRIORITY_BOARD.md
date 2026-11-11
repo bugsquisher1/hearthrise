@@ -281,7 +281,7 @@ Level 110, Human, an old man in Dawnsteel plate who has sat with that fire at hi
 
 **Why players will talk about it.** Hask comes back. Everyone who got here killed him in the Muster Barrows, and now the man who bought him calls him by name and he has to come. The fire is the second thing. It is on the boss bar with its own countdown, so a loss reads "Fell in the enrage at 12%, the Hall Fire had just flared". The third is the end. You take a page of the Muster Roll home and burn it at Havora's Hearth, and the square's fire changes for everyone standing there.
 
-**The boss bar.** Krell's health with lines drawn at 50 and 25, the phase words under it, and one more line for the next flare. That bar exists for called rooms (`src/shell/widgets/boss-bar.js`). The flare line is new.
+**The boss bar.** Krell's health with lines drawn at 50 and 25, the phase words under it, and one more line for the next flare. That bar exists for called rooms and a ground's boss with lines (`src/shell/widgets/boss-bar.js`). The flare line is new.
 
 **Ship bar (Tyler 11-05).** The same gear wins about 30% with a bad bar and 85% with a good one, measured at 40 tries a row, or the fight is cut back until it does. His hall row starts from the formula's boss row (party fit, 2,256 HP, atk 94) and is fitted to that bar. Proposed, unmeasured.
 
@@ -292,7 +292,7 @@ Level 110, Human, an old man in Dawnsteel plate who has sat with that fire at hi
 | 2 | A monster that attacks from range | No row in `monsters.js` has a range | Systems |
 | 3 | A monster that heals its pull | None | Systems |
 | 4 | A Target mode that names a kind first | Modes are nearest, weakest, strongest, follow | Systems. Remembered per ground, so it is set once |
-| 5 | A keyed boss room that pays XP and drops | `boss-phases.js` reads only in a called room, and `tests/boss-call.mjs` holds that a called room pays nothing. This is a new room kind. That guard is not loosened | Systems, Backend. A money surface, so it is on the Security list |
+| 5 | A keyed boss room that pays XP and drops | `boss-phases.js` plays a boss's lines in a called room and, since lane/b-muster-barrows, on a ground (Captain Hask: his wave pays, a reset sends it away; `tests/ground-boss.mjs`), and `tests/boss-call.mjs` holds that a called room pays nothing. This is a new room kind. That guard is not loosened | Systems, Backend. A money surface, so it is on the Security list |
 | 6 | Adds that are a named boss with his own kit | Adds are plain rows marked `add` | Systems |
 | 7 | A spell that speeds up under a phase line, and its countdown on the boss bar | None | Systems, Art Director for the bar line |
 | 8 | Element resistance on gear and imbuements | The area-spell spec's next phase | Systems |
@@ -1728,7 +1728,7 @@ It counts as proved only if played, read by the art director and shipped. A miss
 | Now | **The Warrens' Dangerous and Deadly** (lane/c-difficulty-tiers) | Past 50 | Risk, more XP, no gear | Done | Review, ship | Andy can use it first. Warrens 60: lone sword Deadly 232k at +5k, a four 352k against 241k on Normal (M). Doesn't give him gear |
 | 1 | **The Slake** | 50-65, solo | T4 weapons, off-hand, Grave Dust, named fuel | Kit + about 60 gens | Phases 0-4, then 3 h | Floor at the measured ceiling, so no Level under 50 moves. The proof |
 | 2 | **Hask's Ford, imported** | 45-60, solo | T4 armor, Keystone inputs, Colors | Done | Tyler's word lifts the hold. Effective attack raised, tier and party rows, re-fit from 45 up | Without it the Slake gives weapons and no armor. It's the first thing the pack's commuting lets us stop rebasing |
-| 3 | **Muster Barrows** | 55-75, party | Barrow Knight, Captain Hask's boss rows, **T5 armor (spec gap)** | Done (`aac5732b1`, 323 gens) | First party pack, first boss row | T5 opens at 60 and the spec gives it no home; Pyre Field at 70 is too late. Fix: T5 Scarce here |
+| 3 | **Muster Barrows** | 55-75, party | Barrow Knight, Captain Hask's boss rows, **T5 armor (spec gap)** | Done (`aac5732b1`, 323 gens) | Staged on lane/b-muster-barrows: quick grade passes; Hask's lines on a ground (adds at 50%, +15% at 25%, his bar). Waits on icons for Coffin Nail and Urn Shard, the art lane's merge, then `pack.mjs ship`. The boss's ship bar is unmeasured | T5 opens at 60 and the spec gives it no home; Pyre Field at 70 is too late. Fix: T5 Scarce here |
 | 4 | **The Pyre Field** | 70-90, solo | Razor Claw, Pyre Ash, Wraith Veil, T6 at 75 | None | Ground, 3 creatures | The kit's second family (ash field) |
 | 5 | **Krell's Hold** (was Ebbe's Chantry, retired by Tyler 2026-11-09) | 85-110, one difficulty for every group size | Tier 6 armor, the Hall Key, Lord Krell's tier 7 and the Roll Page. Design: "2026-11-10 Krell's Hold" | None | Ground, five creatures, the keyed hall | The region's end, about when Open Beta ends |
 | Watch | A lone hero at 32-45 | | | | Nothing yet | Warrens at 32, a lone sword: 129.7k, -761 g/h, 69% HP, held (M). Thin, not empty, and **after a wipe every player meets it long before 50.** If testers stall here, a kit-built solo door jumps the queue |

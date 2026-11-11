@@ -7,12 +7,14 @@
 // NAMING VOICE (the Barrow March's; Hask's Ford wrote it first): a free company's soldier words (banded, pike, muster, file, colors,
 // sergeant, spur) and the grave's working words (barrow, cairn, kerb, bier, urn, coffin nail). People get one short name (Hask,
 // Krell). Never Ancient, Shadow, Dark, Eternal or Forgotten. American spelling (colors, armor).
-// THE STORY (Tyler 2026-11-09, the arc of record): Captain Hask sold the crossing to Lord Krell, and Krell's men killed the Banded
-// Company at the Ford. The river took some (the Slake). The company's own survivors carried the officers and what they could of the
-// files into the old barrow field in the alder wood behind the ford, buried them armed and never burned them. They buried Hask too,
-// under the biggest mound, in his captain's cloak and with Krell's price in his purse: nobody knew yet. Krell's priests burned the
-// rest on the Pyre Field, and Krell's Hold ends the region. The field was old before the company dug into it: the Cairn Wights
-// were there first. The Hearth lays the dead to rest: their Bone Chips burn at Inner Flame 40 and Grave Dust at 46.
+// THE STORY (Tyler 2026-11-09, the arc of record; the board's 2026-11-10 Barrow March arc, "Then Krell cleaned up, and each ground is
+// one piece of the cleaning"): Havora hired the Banded Company under Captain Hask to hold the ford; Lord Krell bought its captain,
+// Hask sold the crossing, and Krell's men killed the company where it stood. The river took some (the Slake). Krell buried the
+// officers here with honors, armed and in their plate, so it would look like a lost battle, and he buried Hask with them, under the
+// biggest mound in his captain's cloak with Krell's price still in his purse, to keep him quiet. Hask still answers to Krell: in
+// Krell's Hold he stands up out of the floor when Krell reads the company's Muster Roll (the board's Lord Krell, his 50% line).
+// Krell's Binders burned the foot on the Pyre Field, and Krell's Hold ends the region. The field was old before Krell dug into it:
+// the Cairn Wights were there first. The Hearth lays the dead to rest: their Bone Chips burn at Inner Flame 40 and Grave Dust at 46.
 //
 // ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08; lane/b-one-difficulty, which this lane sits on). There is no party-size row
 // here: no partyPull, no per-size tier pull, no party pay cells, no soloFrom. A monster has its row's HP and pays its whole kill
@@ -37,7 +39,9 @@
 // real boss bar). His row carries the same `phases` a called boss does and his pocket the same `adds`, played by the one engine
 // (src/core/hunt/boss-phases.js), viewed or with the browser closed (tests/ground-boss.mjs):
 //   At half health two Barrow Knights come out of the Sergeants' Row for whoever isn't holding him (Challenge and an area slot
-//   answer it). Under a quarter he hits 40% harder (the eat lines and the Healer's slots decide the finish).
+//   answer it). Under a quarter he hits 15% harder (the eat lines and the Healer's slots decide the finish). MEASURED, quick grade
+//   (1 seed x 1 h, Normal): at +20% and above a lone Ranger at the floor (Level 55) died to him in the hour, which the sheet's
+//   "in range is safe" (11-04) forbids for every group size; at +15% none did. With his wave and no enrage he killed nobody either.
 // ON A GROUND, NOT IN A ROOM: his adds are the ground's own Barrow Knights and pay a Knight's kill (a called room's pay nothing).
 // A wipe or a holder walking out resets his barrow: he heals and his adds leave (leash.js isAdd), so every try brings one wave.
 // His bar is the called boss's (src/shell/widgets/boss-bar.js), shown on a ground once he is hurt. No guard (`guardPm`): his
@@ -73,7 +77,7 @@ export default definePack({
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 16 Pikemen, 6 Wights and 5 Knights, who stand only
      on the Sergeants' Row and with their captain. Hask holds his barrow and has no weight (checks.holders). */
   hunt: {
-    name: 'The Muster Barrows', theme: 'The Banded Company buried its officers here. It buried Captain Hask too, who sold them.',
+    name: 'The Muster Barrows', theme: 'Lord Krell buried the Banded Company\'s officers here with honors, to make it look like a lost battle. He buried Captain Hask with them, to keep him quiet.',
     band: [55, 75],
     spawns: [{ monster: PK, w: 16, rarity: 'common' }, { monster: CW, w: 6, rarity: 'uncommon' }, { monster: BK, w: 5, rarity: 'rare' }],
     family: 'Undead', art: BK, travelS: 0, pull: 4, respawnMs: 90000,
@@ -152,16 +156,16 @@ export default definePack({
       hp: 440, atk: 41, baseAcc: 0.9, def: 44, xp: 3420, gp: [49, 147], formula: true },
     captain_hask: {
       name: 'Captain Hask', icon: '👑', tier: 5, level: 75, cls: 'undead', family: 'Undead', speed: 2800, boss: true,
-      /* THE BOSS: the Banded Company's captain, who sold the crossing to Lord Krell and was buried by the men he sold, in his cloak
+      /* THE BOSS: the Banded Company's captain, who sold the crossing to Lord Krell and was buried by Krell with the men he sold, in his cloak
          and with the price still on him. The class as written (no override): a hammer and fire both answer him. His belts and the
          bow are the Rares. His Trophy waits on its icon (the header).
          HIS TWO LINES (boss-phases.js, the header): at half his health he calls his sergeants (the pocket's `adds`), and under a
-         quarter he hits 40% harder. No guard: his Knights fight beside him, they don't shield him. */
+         quarter he hits 15% harder (measured, the header). No guard: his Knights fight beside him, they don't shield him. */
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'hasks_coin', ch: 0.15, band: 'uncommon' },
         { id: 'rune_belt', ch: 0.0133, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.0133, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.0133, band: 'rare' },
         { id: 'yew_bow', ch: 0.0133, band: 'rare' }],
       hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 13281, gp: [173, 520], formula: true,
-      phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400 } },
+      phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1150 } },
   },
   roster: {
     barrow_pikeman: 'swarm',   // the common majority
@@ -179,7 +183,7 @@ export default definePack({
   itemText: {
     coffin_nail: 'An iron nail out of a coffin lid in the Long Barrows. The Barrow Pikeman under it pushed it out himself',
     urn_shard: 'A piece of a burial urn older than the Banded Company. The Cairn Wights were in this field first',
-    sergeant_spur: 'The spur off a Barrow Knight\'s boot. The company buried its sergeants armed, with their horses beside them',
+    sergeant_spur: 'The spur off a Barrow Knight\'s boot. Krell buried the company\'s sergeants armed, with their horses beside them',
     hasks_coin: 'One coin of the price Lord Krell paid Captain Hask for the ford. Hask was buried with all of it',
   },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the March's store food and drink, and Chalked Fire Runes (the unburned dead

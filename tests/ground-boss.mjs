@@ -225,7 +225,7 @@ async function restoring(root, fn) {
   }
 }
 
-const PHASES = '      phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400 } },';
+const PHASES = '      phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1150 } },';
 const MUTANTS = [
   /* THE LINES (the brief: a mutant that removes a phase is caught) */
   { name: 'Hask loses his lines', edits: [['src/data/grounds/muster_barrows/pack.js', 'formula: true,\n' + PHASES, 'formula: true },']], want: /GB-ROW|GB-LINES/ },

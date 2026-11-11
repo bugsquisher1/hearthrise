@@ -17,7 +17,6 @@ export const TRAINING_TEXT = Object.freeze({
 
   /* The three choices. */
   skill_head: 'Skill',
-  next_level: '{skill} is {level}. The next level takes about {time} here.',
   hours_head: 'How long',
   hours_none: 'Until I stop it',
   keep_head: 'Keep at least',
@@ -29,7 +28,9 @@ export const TRAINING_TEXT = Object.freeze({
   busy_start: 'Heading to the yard…',
   busy_stop: 'Stopping…',
   /* the run itself is said above the press: this only says the hero is on the way */
-  started: '{name} heads to the yard.',
+  started: '{name} is on the way to the yard.',
+  /* a town job pressed while the hero trains: {what} is "training Defense" */
+  left_for_job: 'You stopped {what}.',
 
   /* While it runs: the section's run, settled by the server about once a minute. */
   run_now: '{name} is training {skill}.',

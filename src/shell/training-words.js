@@ -12,7 +12,7 @@ import { TRAINING } from '../data/training.js?v=0.2.118';
 import { STOP_REASONS } from '../session/training-sections.js?v=0.2.118';
 
 const num = (v) => Number.isSafeInteger(v);
-const HOUR = 3600000, MINUTE = 60000;
+const MINUTE = 60000;
 
 /** A skill's player name ("Defense"); an id the catalogue doesn't know reads as itself. */
 export const skillWord = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || String(id);
@@ -28,11 +28,9 @@ export function timeWords(ms) {
   return h && r ? t('training.time_both', { hours, minutes }) : hours || minutes;
 }
 
-/** "about 6 hours", "about 40 minutes": a rough span, for how long a level takes (whole hours from an hour up). */
-export function aboutWords(ms) {
-  const v = Math.max(0, Number(ms) || 0);
-  if (v >= HOUR) return t('training.time_hours', { count: Math.max(1, Math.round(v / HOUR)) });
-  return timeWords(v);
+/** "You stopped training Defense.": a town job pressed while the hero trains (town-work.js jobReplacedWords); '' with no words. */
+export function leftYardWords(what) {
+  return typeof what === 'string' && what ? t('training.left_for_job', { what }) : '';
 }
 
 /**

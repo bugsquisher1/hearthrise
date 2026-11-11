@@ -251,8 +251,6 @@ async function checks(overrides) {
       const skills = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="training"] .tw-skill'), (b) => b.getAttribute('data-skill') + ':' + b.querySelector('.tw-skill-level').textContent));
       if (skills.join(' ') !== 'melee:20 ranged:5 magic:1 defense:19') fails.push('TR-2 the skills read ' + skills.join(' '));
       await press(page, '[data-hs-win="training"] .tw-skill[data-skill="defense"]', 'TR-2');
-      const next = await q(page, '.tw-next');
-      if (!/^Defense is 19\. The next level takes about .+ here\.$/.test(next || '')) fails.push('TR-2 the next level reads ' + JSON.stringify(next));
       await press(page, '[data-hs-win="training"] .tw-hour[data-hours="4"]', 'TR-2');
       await page.fill('[data-hs-win="training"] .tw-keep', '1000');
       await page.waitForTimeout(150);

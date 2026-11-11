@@ -218,6 +218,9 @@ function contract(R, cs, body, tl) {
     'staminaRefillOf yields ' + JSON.stringify(sr) + ' from ' + JSON.stringify(body.stamina_refill));
   /* The Game Master's section (2027-03-13-gm-tools.sql): the key stands on every envelope, and a real hero reads false. */
   need('gm', 'gm' in body && body.gm === null && R.CS.gmOf(cs) === false, 'gmOf yields ' + JSON.stringify(R.CS.gmOf(cs)) + ' from ' + JSON.stringify(body.gm));
+  /* The training yard (2027-04-06-training-yard.sql): its switch is seeded off, so the key stands null and the client shows none of the yard
+     (the Training window and its icon are hidden; src/shell/launcher.js rowOffered). The switch on is tests/training-window.mjs's. */
+  need('training', 'training' in body && body.training === null && R.TR.trainingOf(cs) === null, 'trainingOf yields ' + JSON.stringify(R.TR.trainingOf(cs)) + ' from ' + JSON.stringify(body.training));
   /* the Characters window's Rename (2026-12-04-hero-rename.sql): what a new name costs this hero now */
   const rn = R.IS.renameOf(cs);
   need('rename', !!rn && isNum(rn.price) && rn.price > 0 && isNum(rn.level) && typeof rn.available === 'boolean',
@@ -283,7 +286,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'gm', 'hallmark', 'level']);
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'gm', 'hallmark', 'level', 'training']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -342,6 +345,7 @@ async function readers(root) {
     CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), HO: await import(u('src/session/home-sections.js')),
     TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TP: await import(u('src/session/temper-sections.js')),
     JW: await import(u('src/session/jewelry-sections.js')),
+    TR: await import(u('src/session/training-sections.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')), SHOP: await import(u('src/data/shops.js')),
   };

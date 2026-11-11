@@ -19,18 +19,16 @@ import { startTraining, stopTraining, keepOk } from '../../session/training-inte
 import { goldOf, nameOf, skillsOf } from '../../session/item-sections.js?v=0.2.118';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.118';
 import { TRAINING } from '../../data/training.js?v=0.2.118';
-import { skillXpForLevel } from '../../core/xp.js?v=0.2.118';
 import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.118';
 import { whole } from '../../render/format.js?v=0.2.118';
 import { t } from '../../render/player-text.js?v=0.2.118';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.118';
 import { runIntent } from '../intent-words.js?v=0.2.118';
-import { skillWord, timeWords, aboutWords, endedWords } from '../training-words.js?v=0.2.118';
+import { skillWord, timeWords, endedWords } from '../training-words.js?v=0.2.118';
 
 /* The "How long" picks, in hours, inside the server's bounds; "until I stop it" is the last. */
 const HOUR_PICKS = Object.freeze([1, 2, 4, 8, 12, 24]);
 const DEFAULT_HOURS = 4;
-const HOUR = 3600000;
 const SCRATCH = new WeakMap();
 /* Display scratch per CharacterSession: the picks before Start (null: the server's remembered settings), the typed keep, the press. */
 const scratchOf = (cs) => {
@@ -74,14 +72,6 @@ export function keepTyped(textValue) {
   return Number.isSafeInteger(n) ? n : null;
 }
 
-/** "Defense is 19. The next level takes about 2 hours here.": the server's skill and the yard's server rate. '' when unknown. Pure. */
-function nextLevelWords(skill, row, xpH) {
-  if (!row || !Number.isInteger(row.level) || !Number.isSafeInteger(row.xp) || !(xpH > 0)) return '';
-  const need = skillXpForLevel(skill, row.level + 1) - row.xp;
-  if (!(need > 0)) return '';
-  return t('training.next_level', { skill: skillWord(skill), level: row.level, time: aboutWords((need / xpH) * HOUR) });
-}
-
 /**
  * Why Start is off now, said above it, or '' when the server is to judge. Only what the screen already knows from the
  * server's own record: out hunting, under the yard's Level, no skill on offer, a typed keep that isn't a number or is more than the purse.
@@ -116,7 +106,6 @@ export function renderTraining(ctx) {
     + '<div class="tw-form">'
     + '<h3 class="hs-sub">' + esc(t('training.skill_head')) + '</h3>'
     + '<div class="tw-skills" role="radiogroup" aria-label="' + esc(t('training.skill_head')) + '"></div>'
-    + '<p class="hs-note tw-next"></p>'
     + '<h3 class="hs-sub">' + esc(t('training.hours_head')) + '</h3>'
     + '<div class="tw-hours" role="radiogroup" aria-label="' + esc(t('training.hours_head')) + '"></div>'
     + '<h3 class="hs-sub">' + esc(t('training.keep_head')) + '</h3>'
@@ -198,8 +187,6 @@ renderTraining.patch = function patchTraining(body, ctx) {
   prop(form, 'hidden', !!run);
   const skill = skillPicked(sc, tr), hours = hoursPicked(sc, tr);
   patchSkills(root.querySelector('.tw-skills'), cs, tr, skill);
-  const levels = skillsOf(cs) || {};
-  text(root.querySelector('.tw-next'), skill ? nextLevelWords(skill, levels[skill], tr.xpH) : '');
   patchHours(root.querySelector('.tw-hours'), tr, hours);
   const input = root.querySelector('.tw-keep');
   if (sc.keep === null) sc.keep = String(tr.settings ? tr.settings.keep : 0);

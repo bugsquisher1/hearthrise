@@ -998,8 +998,6 @@
 .tw-skill[aria-checked="true"] .tw-skill-level { color: var(--gold-2); }
 .tw-skill:focus-visible, .tw-hour:focus-visible, .tw-keep:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 .tw-skill:disabled, .tw-hour:disabled { opacity: .5; cursor: default; }
-.tw-next { margin: 0 2px 4px; }
-.tw-next:empty { display: none; }
 .tw-keep { width: 100%; min-height: 36px; margin: 0 0 4px; font-variant-numeric: lining-nums tabular-nums; }
 .tw-go, .tw-stop { display: block; width: 100%; min-height: 40px; margin: 6px 0; }
 .tw-foot { position: sticky; bottom: -12px; margin-bottom: -12px; padding: 4px 0 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }

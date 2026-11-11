@@ -54,6 +54,7 @@ import { townWorkRunning } from '../session/town-poll.js?v=0.2.118';
 import { townActivityWords } from '../session/party-sections.js?v=0.2.118';
 import { leaveTraining } from '../session/training-intents.js?v=0.2.118';
 import { trainingNow } from '../session/training-sections.js?v=0.2.118';
+import { leftYardWords } from './training-words.js?v=0.2.118';
 import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.118';
 import { skillShortWords } from './intent-words.js?v=0.2.118';
 import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.118';
@@ -308,8 +309,9 @@ const skillRefusal = (cs, w) => (r) => (r && !r.ok && r.error === 'activity_lock
     press that ends one says so (newcomer panel 2026-11-01: a craft ended the woodcutting in silence). Read before the press lands. */
 export function jobReplacedWords(cs, w) {
   const now = workOf(cs), st = stateOf(cs);
-  /* the yard's run ends for any job ("You stopped training Defense.") */
-  if (!trainingNow(cs) && (!now || now.id === w.id || !townWorkRunning(st, typeof cs.read === 'function' ? cs.read('hunt') : null))) return '';
+  /* the yard's run ends for any job ("You stopped training Defense."); a town job only for another one */
+  if (trainingNow(cs)) return leftYardWords(townActivityWords(st));
+  if (!now || now.id === w.id || !townWorkRunning(st, typeof cs.read === 'function' ? cs.read('hunt') : null)) return '';
   const what = townActivityWords(st);
   return what ? 'You stopped ' + what + '.' : '';
 }

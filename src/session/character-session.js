@@ -17,9 +17,9 @@
 //   setHuntTier(h, t)    the tier picked on one ground (hr_hunt_tier_set), re-read
 //   enterHunt(h, b, p) the go-hunting INTENT (hr_hunt_enter), re-read the same way
 //   leaveHunt()        the leave INTENT (hr_hunt_leave), re-read the same way
-//   moveStorage(i,n,d) the ACCOUNT storage INTENT (hr_bank_move), re-read (every hero shows it: bankOf); refused: resync()
+//   moveStorage(i,n,d) the ACCOUNT storage INTENT (hr_bank_move), re-read (every hero shows it: bankOf); refused: resync(); many whole stacks at once: storage-intents.js
 //   edgeIntent(v, f)   an item intent through the engine (equip, sell, buy, eat; edge-intents.js): names and counts only
-//   lockItem / setLootRule / savePreset / applyPreset   the bag rules and the hunt presets: one intent each, re-read
+//   lockItem / setLootRule / savePreset / applyPreset   the bag rules and the hunt presets: one intent each, re-read (many locks at once: storage-intents.js)
 //   joinParty / leaveParty / kickSeat / inviteByName / answerInvite / restartHunt   the party and hunt-again intents, re-read the same way (party-intents.js startPartyHunt re-reads every own seat)
 //   saveOutfit(o, c) / findParties   the outfit INTENT (hr_outfit_set), re-read the same way; the party finder, a read whose rows are never the record
 //   hunt re-read       while a hunt is open, one hello per hunt-poll.js (the hunter's settle: state, track, events) until it ended, paced (ask-pacer.js); a frame defers it

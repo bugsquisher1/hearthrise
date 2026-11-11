@@ -1632,11 +1632,14 @@ function rules(M) {
       ok('LV-CLASS', shownXp.join() === closedXp.join(), name + ': the prediction shows ' + shownXp + ', the server pays ' + closedXp);
       ok('LV-CLASS', !!next && aheadXp.join() === nextXp.join(), name + ': the prediction past the last commit shows ' + aheadXp + ', the next commit pays ' + nextXp);
       ok('LV-CLASS', off === 0, name + ': ' + off + ' of ' + r.verdicts.length + ' commits did not match the prediction');
-      /* Whole shares floor: the cell moves each share before its floor, so the sum sits within a floor of it. One class reads its own
-         cell, exactly (since the lane/b-one-difficulty re-tune a one-class cell sits over the even share and always under the mixed one). */
+      /* Whole shares floor: the cell moves each share before its floor, and the event's raw is the even share floored too (xp-share.js), so a kill of odd XP
+         split two ways hides a half: the paid sum sits between the cell on the floored shares and the cell on those shares plus the hidden (n-1)/n. One class
+         reads its own cell (read from the data, never typed: lane/d-solo-fifteen scaled every cell x1150/1050 with the +15% solo boost, Tyler 2026-11-11) and
+         always sits under the mixed one (since the lane/b-one-difficulty re-tune a one-class cell is over the even share). */
       const cell = M.PCX.partyClassXp('mill_cellar', roles).permille, mixedCell = M.PCX.partyClassXp('mill_cellar', cast.mixed).permille;
       const want = evs.reduce((s, e) => s + Math.floor((e.raw * cell) / 1000 + 1e-9), 0);
-      ok('LV-CLASS', name === 'same' ? paid === want && cell < mixedCell : paid >= want && paid > raw, name + ': ' + paid + ' Level XP on ' + raw + ' even shares (the cell ' + cell + ')');
+      const most = evs.reduce((s, e) => s + Math.floor(((e.raw + (roles.length - 1) / roles.length) * cell) / 1000 + 1e-9), 0);
+      ok('LV-CLASS', name === 'same' ? paid >= want && paid <= most && cell < mixedCell : paid >= want && paid > raw, name + ': ' + paid + ' Level XP on ' + raw + ' even shares (the cell ' + cell + ', ' + want + '-' + most + ' on the whole shares)');
     }
     /* A PARTY'S DEFAULT PULL (designer 2026-11-01), both paths: a Thicket pair with no pick stands at 3 each in the server's world
        and in the browser's, every commit matching; the same XP viewed and with the browser closed. */
@@ -1669,7 +1672,7 @@ const MUTANTS = [
   ['the start point drops the scale (LV-SCALE)', 'supabase/functions/hr-accrue/hunt-settle.js', '      scale: play.level === null ? null : { level: play.level },', '      scale: null,', /^LV-SCALE: (solo|party): \d+ of/],
   ["a peer is frozen against the catalogue's rows (LV-SCALE)", 'supabase/functions/hr-accrue/hunt-settle.js', 'Number(inst.next_swing_at_ms), rows) };', 'Number(inst.next_swing_at_ms)) };', /^LV-SCALE: party: \d+ of/],
   ['a spawn reads the catalogue row (LV-SCALE)', 'src/core/hunt/pull-cycle.js', 'const row = (inst.monsters || MONSTERS)[s.monster];', 'const row = MONSTERS[s.monster];', /^LV-SCALE: .*scaled rows' health/],
-  ['a kill pays the catalogue Level XP (LV-SCALE)', 'src/core/hunt/damage.js', 'xp: Math.round(atTier(rowOf(inst, target.kind), inst.tier).xp', 'xp: Math.round(atTier(MONSTERS[target.kind], inst.tier).xp', /^LV-SCALE: a scaled kill paid .* Level XP/],
+  ['a kill pays the catalogue Level XP (LV-SCALE)', 'src/core/hunt/damage.js', 'xp: Math.round(atTier(row, inst.tier).xp', 'xp: Math.round(atTier(MONSTERS[target.kind], inst.tier).xp', /^LV-SCALE: a scaled kill paid .* Level XP/],
   ["a kill's coin is the catalogue's (LV-SCALE)", 'src/core/combat-sim.js', 'monsters: play.monsters || ctx.monsters, tier,', 'monsters: ctx.monsters, tier,', /^LV-SCALE: a scaled kill paid .* coin/],
   ['a monster swings its catalogue row (LV-SCALE)', 'src/core/hunt/damage.js', 'const row = atTier(rowOf(inst, u.kind), inst.tier);', 'const row = atTier(MONSTERS[u.kind], inst.tier);', /^LV-SCALE: a scaled monster's hardest blow/],
   ['the prediction never answers why a slot waits (LV-WAITS)', 'src/hunt-view/live-engine.js', 'return side ? slotTesterOf(st.world, st.where.grid, side.member, items) : null;', 'return null;', /^LV-WAITS: CONTROL: the prediction never read/],

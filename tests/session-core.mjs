@@ -1387,6 +1387,10 @@ async function rules(M) {
     if (JSON.stringify(r) !== JSON.stringify([{ slot: 0, exists: true, unnamed: false, name: 'Tester', level: 9, gold: 1, goldV: 4, doing: 'Hunting in Mill Cellar' },
       { slot: 2, exists: true, unnamed: false, name: null, level: null, gold: 1, goldV: null, doing: null },
       { slot: 3, exists: false, unnamed: true, name: null, level: null, gold: null, goldV: null, doing: null }])) return 'roster was ' + JSON.stringify(r);
+    /* NOT OPEN HERE (Andy 2026-11-09, lane/a-strip-all-heroes): every hero the roster read, minus those this tab has open, and never
+       a slot still to be named, with the server's name, Level and doing; the strip lists them as one-press opens */
+    if (JSON.stringify(acc.notOpen()) !== JSON.stringify([{ slot: 0, name: 'Tester', level: 9, doing: 'Hunting in Mill Cellar' },
+      { slot: 2, name: null, level: null, doing: null }])) return 'notOpen before any open read ' + JSON.stringify(acc.notOpen());
     srv.calls.length = 0;
     const ok = await acc.create(3, 'Fennick', { head: 1, body: 2, legs: 3, feet: 4 });
     const no = await acc.create(3, 'Taken', { head: 1, body: 2, legs: 3, feet: 4 });
@@ -1413,6 +1417,8 @@ async function rules(M) {
     const r = await acc.open(0);
     if (!r.ok || r.session.record.version !== 7) return 'the hero did not open on the roster\'s answer: ' + JSON.stringify(r.reason);
     if (loads(0) !== 1) return 'opening on a fresh roster read hero 0 ' + loads(0) + ' times, want the roster\'s one';
+    /* NOT OPEN HERE (lane/a-strip-all-heroes): the strip lists Bram, whom this tab has not opened, and no longer Ada */
+    if (acc.notOpen().map((h) => h.name).join() !== 'Bram') return 'with Ada open, the heroes not open read ' + JSON.stringify(acc.notOpen());
     /* the server's clock is measured as of now, not as of when the roster heard it (timeline.js T3: the first measure stands) */
     const clock = r.session.serverNow();
     if (clock !== SAID + CFG.SESSION_CONFIG.rosterReadFreshMs) return 'the server clock after a roster answer ' + CFG.SESSION_CONFIG.rosterReadFreshMs + ' ms old reads ' + (clock - SAID) + ' ms past what it said';
@@ -1422,6 +1428,7 @@ async function rules(M) {
     now += 1;
     await acc.open(1);
     if (loads(1) !== 2) return 'a roster answer older than rosterReadFreshMs was spent (' + loads(1) + ' reads of hero 1)';
+    if (acc.notOpen().length) return 'with both open, the heroes not open read ' + JSON.stringify(acc.notOpen());
     /* a slot the roster found empty, then made: it reads the hero it now holds */
     const made = { 0: env(1, { hero_slots: [0, 1], account: { max_concurrent: 4 } }) };
     const srv2 = fakeServer(made);
@@ -2192,6 +2199,9 @@ async function viewRules(base) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const MUTANTS = [
+  ['the strip lists a hero this tab has open as not open (lane/a-strip-all-heroes)', 'src/session/account-session.js', 'filter((r) => r.exists && !this._chars.has(r.slot))', 'filter((r) => r.exists)'],
+  ['the strip lists a slot still to be named as a hero (lane/a-strip-all-heroes)', 'src/session/account-session.js', 'filter((r) => r.exists && !this._chars.has(r.slot))', 'filter((r) => !this._chars.has(r.slot))'],
+  ['a hero not open here shows no Level (lane/a-strip-all-heroes)', 'src/session/account-session.js', 'level: r.level, doing: r.doing }));', 'level: null, doing: r.doing }));'],
   ['a tab keeps playing a hero the server no longer holds', 'src/session/account-session.js', "if (why === 'empty' && s.record && this._chars.get(slot) === s) { this.close(slot); this._emit('hero-gone', slot); }", "if (false) { this.close(slot); this._emit('hero-gone', slot); }"],
   ['a slot empty on its first read counts as a hero gone', 'src/session/account-session.js', "if (why === 'empty' && s.record && this._chars.get(slot) === s) {", "if (why === 'empty' && this._chars.get(slot) === s) {"],
   ['a reload reads each hero again over the roster\'s answer', 'src/session/account-session.js', 'await cs.load(read && read.ans.ok && age <= this.config.rosterReadFreshMs ? agedBy(read.ans.body, age) : null, age);', 'await cs.load();'],

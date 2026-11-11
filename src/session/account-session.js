@@ -16,6 +16,9 @@
 //                 (its name and combat level), read from the server (hr_load
 //                 per owned slot; `hero_slots`: slot 0 and the starter slots
 //                 every account owns, plus any bought)
+//   notOpen()     the roster's heroes this tab has not open (the character strip
+//                 lists them as one-press opens, so no hero seems missing after a
+//                 reload that reopened only the tab's own: Andy 2026-11-09)
 //   slotOffer     the next hero slot the server sells this account ({ slotId, cost,
 //                 max }, from the envelope's `account.hero_slot_offer`), null at the
 //                 cap or before the roster has read it
@@ -270,6 +273,15 @@ export class AccountSession {
       before the first read. A copy: the coach's facts (src/shell/launcher.js coachFactsOf) read it. */
   lastRoster() { return this._roster ? this._roster.map((r) => Object.assign({}, r)) : null; }
 
+  /** The account's heroes this tab does NOT have open, as the roster last read them: [{ slot, name, level, doing }] in
+      slot order, the server's rows (a hero still to be named is no hero yet), [] before the first read. A reload reopens only
+      what this tab had open (lastOpen), so the strip lists these as one-press opens (src/app/character-strip.js): "only
+      showed 3 chars" (Andy 2026-11-09, a work PC whose tab had never opened the fourth). */
+  notOpen() {
+    return (this._roster || []).filter((r) => r.exists && !this._chars.has(r.slot))
+      .map((r) => ({ slot: r.slot, name: r.name, level: r.level, doing: r.doing }));
+  }
+
   /** What this tab had open when it last stood, for this login ({ slots, viewed }), or null. */
   lastOpen() { return openOf(this._tab, this.userId, this.config); }
   forgetOpen() { if (this._tab) this._tab.remove(this.config.openKey); }
@@ -329,6 +341,7 @@ export class AccountSession {
         unnamed: !!(ans.ok && ans.body && ans.body.error === 'needs_name') }, heroOf(ans.ok ? ans.body : null));
     });
     this._roster = rows;
+    this._emit('roster');   // the strip's not-open heroes are read from it (notOpen)
     return rows;
   }
 

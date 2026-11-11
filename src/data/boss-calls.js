@@ -2,8 +2,9 @@
 // src/data/boss-calls.js — CALL OUT: A PAID PROOF, NEVER A FARM (Tyler 2026-11-04; designer's verdict,
 // PRIORITY_BOARD "The boss call").
 //
-// A party presses Call out on a ground's page and fights a stronger copy of that ground's boss in one room. The
-// party leader pays, whatever the dice say. The fight ends on `boss_felled`, on a death, or at the limit.
+// A hero alone, or a party's leader, presses Call out on a ground's page and fights a stronger copy of that ground's boss in
+// one room. The caller pays, whatever the dice say. The fight ends on `boss_felled`, on a death, or at the limit. A hero alone
+// is warned, never refused (designer's ruling 2, PRIORITY_BOARD "2026-11-10 Rulings"; Tyler 11-04 and 11-08: a warning, not a gate).
 //
 // THE RULE THIS TABLE EXISTS FOR: a called row (monsters.js `called: true`) has `xp: 0`, `gp: [0, 0]`, `drops: []`,
 // and the room pays nothing on any route (hunt-rewards.js, hr_hunt_apply_member). Tyler ruled out buying rare drops.
@@ -15,11 +16,9 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const BOSS_CALL_RULES = Object.freeze({
-  /* Per account, per UTC day, whichever hero leads. */
+  /* Per account, per UTC day, whichever hero calls. */
   perDay: 3,
-  /* A party of at least this many to CALL (pay for) the fight. Since 2026-11-08 a lone hero walks the King's hall on the ground itself. */
-  partyMin: 2,
-  /* The fight's limit from the party's first swing: nobody sits in the room for ever. */
+  /* The fight's limit from the first swing: nobody sits in the room for ever. */
   limitMs: 10 * 60000,
 });
 
@@ -53,8 +52,13 @@ export const BOSS_CALL_WORDS = Object.freeze({
   ]),
   /* A boss whose adds shield him (monsters.js phases.guardPm): the warning's {guard}, empty for one whose adds don't. */
   warnGuard: ' They shield him until they fall.',
+  /* The warning's one more line when the room will hold the caller alone (the server's quote says `alone`). */
+  warnAlone: '{Boss} is built for a party. Alone, you still fight him, and he can kill you.',
   confirm: 'Call him out: {fee} gp',
   cancel: 'Not yet',
+  /* The status line while the call is out, and once he answers (alone: no party walks in with you). */
+  calling: 'Calling {boss} out…',
+  answered: Object.freeze({ party: '{Boss} answers. Your party is on its way.', alone: '{Boss} answers. You\'re on your way.' }),
   left: Object.freeze({ one: '1 call left today.', other: '{n} calls left today.', none: 'No calls left today.' }),
   hunting: 'Not while you\'re hunting. Come back to town first.',
   noQuote: 'The server hasn\'t said yet whether he can be called.',
@@ -78,7 +82,6 @@ export const BOSS_CALL_WORDS = Object.freeze({
   }),
   /* The verb's own refusals (src/data/refusal-words.js holds them for the table's walker; this is the worded row). */
   refused: Object.freeze({
-    call_party: '{Boss} wants a party of two or more.',
     call_leader: 'Only your party\'s leader can call him out.',
     call_limit: 'You\'ve called 3 times today. More after midnight UTC.',
     quote_changed: 'The price moved, so you weren\'t charged. Look again.',

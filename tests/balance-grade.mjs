@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { gradeCells, synthSet, levelsOf, ranked, feelVerdicts } from '../tools/balance-sim/grade.mjs';
-import { SHEET } from '../tools/balance-sim/grade-sheet.mjs';
+import { SHEET, sheetFromBalanceSheet } from '../tools/balance-sim/grade-sheet.mjs';
 import { worse } from '../tools/balance-sim/grade-compare.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -63,6 +63,24 @@ check(feel(two).includes('feel-gold-order'), 'feel: a higher floor netting less 
 check(worse(synthSet(), synthSet()).length === 0, 'compare: a run against itself is worse nowhere');
 check(worse(synthSet(), synthSet({ deaths: true })).some((x) => x.what === 'feel-normal-deaths'), 'compare: a new Normal death is worse');
 check(worse(synthSet(), seat).some((x) => x.what === 'seat-vs-solo'), 'compare: a seat sliding under solo is worse');
+
+/* THE WEIGHT CLASS ON THE SHEET THE PACK CHECK READS (designer ruling 2026-11-10; Tyler 11-06: "you're gonna waste money but get
+   more exp and possibly die a few times"). The binding half is gold. Deaths are a report line on heroes alone, never a red.
+   The pair below is the four staged grounds' red cell: tank and Healer, five under, Dangerous, losing gold, no death in the hour. */
+const BS = await import('../src/data/balance-sheet.js');
+const WC = sheetFromBalanceSheet(BS.BALANCE_SHEET);
+const pairCell = (store) => { const c = structuredClone(synthSet().find((x) => x.cell.grade.tier === 'dangerous' && x.cell.grade.offset === 'under5' && x.cell.grade.size === 1));
+  const h = { ...c.heroes[0], hours: 1, deaths: 0, storePerH: store, profitPerH: c.heroes[0].incomePerH - store };
+  return { ...c, cell: { ...c.cell, grade: { ...c.cell.grade, size: 2, comp: 'tank+healer' } }, heroes: [h, { ...h, style: 'healer' }] }; };
+const lone = (deaths) => synthSet().filter((x) => x.cell.grade.tier === 'dangerous' && x.cell.grade.offset === 'under5' && x.cell.grade.size === 1)
+  .map((c) => { const k = structuredClone(c); k.heroes[0].deaths = deaths; return k; });
+const wc = (cells) => gradeCells(cells, WC, flat).verdicts.filter((v) => v.rule.startsWith('wc-'));
+check(!wc([pairCell(6000)]).some((v) => v.verdict === 'FAIL'), 'weight-class: a pair five under on Dangerous that loses gold and never dies is not a FAIL ('
+  + wc([pairCell(6000)]).filter((v) => v.verdict === 'FAIL').map((v) => v.rule).join(', ') + ')');
+check(wc([pairCell(1000)]).some((v) => v.rule === 'wc-deadly-under-loses' && v.verdict === 'FAIL'), 'weight-class mutant: the same pair in profit FAILS wc-deadly-under-loses');
+check(wc(lone(0)).some((v) => v.rule === 'wc-under-lone-dies' && v.verdict === 'OFF'), 'weight-class: every lone way holding five under on Dangerous reads OFF on wc-under-lone-dies, never FAIL');
+check(wc(lone(2)).some((v) => v.rule === 'wc-under-lone-dies' && v.verdict === 'ok'), 'weight-class: lone heroes dying five under reads ok');
+check(!WC.rules.some((r) => r.metric === 'deaths' && r.min != null && r.binding), 'weight-class: no binding line asks a group to die');
 
 const L = levelsOf([5, 15], ['under5', 'under3', 'under2', 'floor', 'plus10', 'top']);
 check(JSON.stringify(L) === JSON.stringify([{ offset: 'under3', level: 2 }, { offset: 'under2', level: 3 }, { offset: 'floor', level: 5 }, { offset: 'plus10', level: 15 }]),

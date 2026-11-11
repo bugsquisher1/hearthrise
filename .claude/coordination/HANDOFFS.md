@@ -151,6 +151,42 @@ yard is a wide bare dirt field. PixelLab: 620 subscription generations (4319.4 �
 - **every perf lane:** PGlite is PostgreSQL 18, which caches SQL-function plans production (17) re-plans; time server changes
   with `node tools/pg-replay.mjs` + `tools/settle-cost.mjs --pg` (a local PostgreSQL 17, HR_PG_BIN); call counts on either.
 
+## 2026-11-10 · systems-engineer (lane/b-return-weight) → backend-architect (the edge lane that trims the ask) · what the client reads from an ask answer
+Measured on the local world: a fresh hero mid-hunt in Mill Cellar, one paid ask (`hr-accrue {slot}`), 84 top-level keys, 30,051 B.
+Nothing server-side was changed here. Baseline finding 3 ("the whole character rides every ask") stands as it was.
+- **How the answer is taken:** `_helloOnce` -> `_take` -> `applyEnvelope` (src/session/envelope.js E1). It REPLACES the record, and a
+  key the answer lacks is gone. So no key can leave an ask answer today without a window losing its section until the next
+  `hr_load`. Trimming needs one contract first, made by the edge and the client together: the answer names what it left out as
+  unchanged at the version the client holds, and envelope.js carries those keys over from that version only. The guards that
+  move with it: tests/session-core.mjs ENV-1..ENV-4 and the frame rule (E2: a frame is the whole character).
+- **Read by the ask itself, never kept in the record:** `ok`, `accrued`, `version`, `now`, `reason`, `state` (must be an object
+  or the answer is refused 'incomplete'), `hunt_live`, `hunt_check`, `hunt_track`, `hunt_events`, `hunt_units`, `hunt_from_ms`,
+  `hunt_server_now_ms`, `instance` (src/session/live-link.js), and `client_state` through the residue allowlist.
+- **Named by the client as a quoted key (51 keys, 27.8 KB of the 30 KB; some of the ask's own keys above are among them):** hunt_settings 6,234 · hunt_events 5,090 ·
+  hunt_analyzer 2,780 · home 2,498 · hunt 1,682 · shop 1,615 · hunt_track 1,002 · session 894 · depot 791 · titles 754 ·
+  state 613 · skills 510 · party 509 · temper 455 · client_state 391 · blessings 197 · inventory 191 · tally 177 · outfit 157 ·
+  stamina_refill 155 · premium 108 · character_sheet 105 · account 89 · stamina 85 · rename 83 · farm_land 80 · bench_tax 66 ·
+  vitals 55 · equipment 54 · setup_slots 53 · level 40 · hallmark 36 · bag_rules 36 · now · role · hunt_tier · hunt_bests ·
+  skill_inputs · bench_run · name · gm · bank · buffs · death_log · hunt_presets · party_people · party_invites · party_notices.
+  Named only as a property: bestiary 37 (character sheet), place 35, hero_slots 5.
+- **Named nowhere under src/{app,session,shell,hunt-view,social,world,render,net} (24 keys, 579 B on a fresh hero):**
+  hunt_settle 178 · progress 145 (grows with play) · login 94 · companions 46 · hunt_cut 22 · hunt_setup 17 · gem_unlocks 17 ·
+  collection 11 · must_rename · progress_truncated · bounty · party_seek · live_events · scaled_hunts · inventory_complete ·
+  settled · traits · enchant · features · renown_high · total_level · unlocked_recipes · dungeon_cooldowns · hunt_behind_ms.
+  The client cannot miss them. The edge's own readers are yours to check (src/core names progress, collection, companions,
+  hunt_cut, inventory_complete, total_level and progress_truncated).
+- **Sent on every paid ask and not changed by a hunt (the baseline measured these three):** hunt_settings 6.2 KB, home 2.5 KB,
+  shop 1.6 KB, a third of the answer. Not checked for change: depot, titles, temper, blessings.
+- **Left for the next client lane, measured:** on a reload the hero waits for the roster's SECOND round trip (the account's
+  other slots, an empty one included: `hr_load` 6012-6352 ms, then `hr_load` 6354-6524 ms at 60 ms latency, before any hero
+  opens). Opening the shown hero on slot 0's answer saves that round trip (src/session/account-session.js roster, src/app/boot.js
+  showCharacters). `src/session/live-link.js` holds 21 modules (232 KB) that only a hunt on screen needs. And the game screen
+  still needs all 442 scripts. This lane tried a seam (boot.js asked for the World pane with import(), the preload block listed
+  first-screen-first): the first read left sooner and the hero reached the HUD LATER (776 -> 879 ms, median of 5, the old PC), so
+  it was taken out (Coordinator 11-10) and only the one-read fix shipped; fbff5bc27's message says what is suspected. The windows (64 modules) behind their own import() would cut what the game screen needs,
+  and needs src/shell/shell.js to paint a window whose module is still on its way (tests/perf-budget.mjs probes those lines).
+- **Rerun the census:** capture any `hr-accrue` answer in the browser, then grep each key as a quoted name or `.key` in those
+  directories with comments stripped.
 ## 2026-11-08 · art-director (lane/a-art-brief-11) → systems-engineer, asset director · two things brief 11 needs
 - **systems-engineer:** src/world/core/compose.js draws every placed map object with `place(id, x, y, { fp })`, so book.frame
   returns idle frame 0 facing south. A placed sprite whose idle has fps > 0 (the station NPCs) should play it on state.t from

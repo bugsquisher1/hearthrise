@@ -1,0 +1,35 @@
+{
+  "id": "sl_grounded_barge",
+  "class": "building",
+  "style": "s1",
+  "material": "wood",
+  "source": "sl_grounded_barge.png",
+  "frame": [
+    312,
+    95
+  ],
+  "anchor_px": [
+    156,
+    94
+  ],
+  "footprint": [
+    10,
+    3
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "12c09824-0d54-598d-8c49-65decaf80dce",
+    "name": "S1 Grounded Barge"
+  },
+  "notes": "Ported from PixelLab object 12c09824-0d54-598d-8c49-65decaf80dce (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

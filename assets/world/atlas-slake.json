@@ -1,0 +1,494 @@
+{
+  "version": 1,
+  "set": "slake",
+  "palette": "hr-world-56-v2",
+  "T": 32,
+  "image": "atlas-slake.png",
+  "size": [1024,480],
+  "pixels": "baec01b5e93b2ae95c5c80b5b22e91edfeaac8f1065f98786a4aeb95a3422e0a",
+  "sprites": {
+    "mr_drowned_pikes": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [38,48],
+      "anchor": [19,47],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 46,
+      "contact": [5,33],
+      "shadow": {
+        "kind": "cast",
+        "height": 46,
+        "base": [5,33]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[490,390]]
+          }
+        }
+      }
+    },
+    "mr_eel_trap": {
+      "class": "wreck",
+      "layer": "prop",
+      "frame": [50,40],
+      "anchor": [25,39],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 38,
+      "contact": [21,46],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 26,
+        "h": 9,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[754,390]]
+          }
+        }
+      }
+    },
+    "mr_green_harness": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [54,43],
+      "anchor": [27,42],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 43,
+      "contact": [10,44],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[599,390]]
+          }
+        }
+      }
+    },
+    "mr_greened_shield": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [52,43],
+      "anchor": [26,42],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 43,
+      "contact": [9,40],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[654,390]]
+          }
+        }
+      }
+    },
+    "mr_mooring_post": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [40,44],
+      "anchor": [20,43],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 43,
+      "contact": [0,39],
+      "shadow": {
+        "kind": "cast",
+        "height": 43,
+        "base": [0,39]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[558,390]]
+          }
+        }
+      }
+    },
+    "mr_silt_ripples": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [48,38],
+      "anchor": [24,37],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 38,
+      "contact": [11,31],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[956,390]]
+          }
+        }
+      }
+    },
+    "mr_silt_stain": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [44,32],
+      "anchor": [22,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 23,
+      "contact": [4,13],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[94,439]]
+          }
+        }
+      }
+    },
+    "mr_silt_stain_small": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [50,26],
+      "anchor": [25,25],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 25,
+      "contact": [5,32],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[139,439]]
+          }
+        }
+      }
+    },
+    "mudlark": {
+      "class": "vermin",
+      "layer": "unit",
+      "frame": [48,48],
+      "anchor": [24,40],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 38,
+      "contact": [11,32],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 26,
+        "h": 9,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 5,
+          "loop": true,
+          "dirs": {
+            "s": [[490,243],[539,243],[588,243],[539,243]],
+            "e": [[882,194],[931,194],[0,243],[931,194]],
+            "n": [[49,243],[98,243],[147,243],[98,243]],
+            "w": [[931,243],[0,292],[49,292],[0,292]],
+            "se": [[637,243],[686,243],[735,243],[686,243]],
+            "sw": [[784,243],[833,243],[882,243],[833,243]],
+            "ne": [[196,243],[245,243],[294,243],[245,243]],
+            "nw": [[343,243],[392,243],[441,243],[392,243]]
+          }
+        },
+        "walk": {
+          "fps": 10,
+          "loop": true,
+          "dirs": {
+            "s": [[294,341],[343,341],[392,341],[441,341],[490,341],[539,341]],
+            "e": [[98,292],[147,292],[196,292],[245,292],[294,292],[343,292]],
+            "n": [[392,292],[441,292],[490,292],[539,292],[588,292],[637,292]],
+            "w": [[196,390],[245,390],[294,390],[343,390],[392,390],[441,390]],
+            "se": [[588,341],[637,341],[686,341],[735,341],[784,341],[833,341]],
+            "sw": [[882,341],[931,341],[0,390],[49,390],[98,390],[147,390]],
+            "ne": [[686,292],[735,292],[784,292],[833,292],[882,292],[931,292]],
+            "nw": [[0,341],[49,341],[98,341],[147,341],[196,341],[245,341]]
+          }
+        },
+        "attack": {
+          "fps": 10,
+          "loop": false,
+          "hit": 3,
+          "dirs": {
+            "s": [[490,96],[539,96],[588,96],[637,96],[686,96],[735,96]],
+            "e": [[362,0],[411,0],[460,0],[509,0],[558,0],[607,0]],
+            "n": [[656,0],[705,0],[754,0],[803,0],[852,0],[901,0]],
+            "w": [[392,145],[441,145],[490,145],[539,145],[588,145],[637,145]],
+            "se": [[784,96],[833,96],[882,96],[931,96],[0,145],[49,145]],
+            "sw": [[98,145],[147,145],[196,145],[245,145],[294,145],[343,145]],
+            "ne": [[950,0],[0,96],[49,96],[49,96],[98,96],[147,96]],
+            "nw": [[196,96],[245,96],[294,96],[343,96],[392,96],[441,96]]
+          }
+        },
+        "death": {
+          "fps": 10,
+          "loop": false,
+          "dirs": {
+            "s": [[294,194],[343,194],[392,194],[441,194],[490,194],[539,194]],
+            "e": [[686,145],[735,145],[784,145],[833,145],[882,145],[931,145]],
+            "n": [[0,194],[49,194],[98,194],[147,194],[196,194],[245,194]],
+            "w": [[588,194],[637,194],[686,194],[735,194],[784,194],[833,194]]
+          }
+        },
+        "corpse": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[539,194]],
+            "e": [[931,145]],
+            "n": [[245,194]],
+            "w": [[833,194]]
+          }
+        }
+      }
+    },
+    "sl_grounded_barge": {
+      "class": "building",
+      "layer": "unit",
+      "frame": [312,95],
+      "anchor": [156,94],
+      "footprint": [10,3],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 93,
+      "contact": [49,188],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,0]]
+          }
+        }
+      }
+    },
+    "sl_grounded_barge_coal": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [46,39],
+      "anchor": [23,38],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 39,
+      "contact": [14,32],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[909,390]]
+          }
+        }
+      }
+    },
+    "sl_grounded_barge_pitch": {
+      "class": "wreck",
+      "layer": "prop",
+      "frame": [46,41],
+      "anchor": [23,40],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 41,
+      "contact": [12,28],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 26,
+        "h": 9,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[707,390]]
+          }
+        }
+      }
+    },
+    "sl_grounded_barge_plank": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [46,38],
+      "anchor": [23,37],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 38,
+      "contact": [8,36],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,439]]
+          }
+        }
+      }
+    },
+    "sl_grounded_barge_spar": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [52,39],
+      "anchor": [26,38],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 38,
+      "contact": [4,26],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[805,390]]
+          }
+        }
+      }
+    },
+    "sl_stake_nets": {
+      "class": "wreck",
+      "layer": "prop",
+      "frame": [46,38],
+      "anchor": [23,37],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 37,
+      "contact": [3,41],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 26,
+        "h": 9,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[47,439]]
+          }
+        }
+      }
+    },
+    "sl_stake_nets_end": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [28,45],
+      "anchor": [14,44],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 43,
+      "contact": [0,15],
+      "shadow": {
+        "kind": "cast",
+        "height": 43,
+        "base": [0,15]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[529,390]]
+          }
+        }
+      }
+    },
+    "sl_stake_nets_snag": {
+      "class": "wreck",
+      "layer": "prop",
+      "frame": [48,51],
+      "anchor": [24,50],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 47,
+      "contact": [2,28],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 26,
+        "h": 9,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[313,0]]
+          }
+        }
+      }
+    },
+    "sl_stake_nets_torn": {
+      "class": "wreck",
+      "layer": "prop",
+      "frame": [50,39],
+      "anchor": [25,38],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 39,
+      "contact": [28,48],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 26,
+        "h": 9,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[858,390]]
+          }
+        }
+      }
+    }
+  },
+  "terrain": {}
+}

@@ -9,16 +9,12 @@
 // None of those exists, so the grader plays all five as plain melee bodies. That is fine for a staged pack's numbers and wrong for a player:
 // the design says the Picket and the Binder must not ship as plain melee bodies, because that is a reskin. Open it only with pieces 1-3.
 //
-// NAMING VOICE (the Barrow March's, with the Hold's words): the free company's soldier words (picket, muster, colors, roll), the castle's
-// working words (levy, warder, castellan, ward, chain, gate), and the rite's (binder, cord, shroud). People get one short name (Hask, Krell).
-// Never Ancient, Shadow, Dark, Eternal, Void or Forgotten. American spelling (armor, colors).
-//
-// THE STORY, each creature one piece of it. Lord Krell held the March before Havora hired the Banded Company to hold the ford, and he wanted
-// the toll back. He bought Captain Hask, and his men killed the company at the Ford. His Binders burned the dead on the Pyre Field, and the rite
-// tied them to the Hall Fire in his castle. He is old now and keeps that fire lit. The Levies are farmhands he pressed to hold his walls, the
-// Pickets are Hask's own sentries who took Krell's pay too, the Warders are the company's officers he dug back out of the Muster Barrows and
-// set at his doors, the Binders are the priests who said the rite, and the Castellan keeps the castle and its keys. Krell is not on the route.
-// He sits in his hall behind a door a Hall Key opens (`hall` below), and the Castellan carries the key.
+// NAMES (the Barrow March's): the monsters and items keep their names (Levy, Hask's Picket, Warder, Binder, Castellan, Hall Key). THE PLAYER'S
+// LINES (item text, the hunt's line) are Tyler's voice (11-11): short, plain, everyday words that say what happened. No old or military
+// words in a sentence (the foot, files, colors, rite, warders, binders), nothing poetic, no story paragraphs here. The story is the board's
+// "2026-11-10 The living world" and goes to the wiki, sample first. Never Ancient, Shadow, Dark, Eternal, Void or Forgotten. American spelling.
+// Who each body is, in one line: the Levies are farmhands Krell forced to guard his castle, the Pickets are Hask's lookouts who took Krell's
+// pay, the Warders are the company's officers he dug up from the Barrows, the Binders are his priests, and the Castellan keeps his keys.
 //
 // THE LESSON IS THE KRELL FIGHT, ONE QUESTION A CREATURE. The Levy says Krell is a living man and an undead kit is wrong for him: the March's
 // first living enemy, so poison works again (Human: weak to arrows, poison does 15% more). The Picket is his adds going for the back line. The
@@ -50,7 +46,7 @@ export default definePack({
   sql: null,
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 7 Levies, 5 Warders, 3 Pickets, 3 Binders, 2 Castellans. */
   hunt: {
-    name: 'Krell\'s Hold', theme: 'Lord Krell\'s castle. His men hold the walls, and the officers he dug out of the Barrows hold his cellar.',
+    name: 'Krell\'s Hold', theme: 'Lord Krell lives here. His men guard the walls, and the officers he dug up from the Barrows guard the cellar.',
     band: [85, 110],
     spawns: [{ monster: LV, w: 7, rarity: 'common' }, { monster: WD, w: 5, rarity: 'uncommon' },
       { monster: PK, w: 3, rarity: 'uncommon' }, { monster: BD, w: 3, rarity: 'uncommon' }, { monster: CS, w: 2, rarity: 'rare' }],
@@ -156,12 +152,12 @@ export default definePack({
     hall_key: { n: 'Hall Key', icon: '🗝️', v: 800, opens: 'krells_hold' },
   },
   itemText: {
-    press_token: 'The wooden token Krell\'s men gave a farmhand when they pressed him into the levy. He had to show it at the gate',
-    picket_whistle: 'A sentry\'s tin whistle on its company cord. Hask\'s pickets were supposed to blow it the night of the Ford',
-    barrow_nail: 'A coffin nail from the Muster Barrows, pulled when Krell\'s men dug the company\'s officers back up',
-    binders_cord: 'The knotted cord a Binder ties round a shroud while he says the rite. One knot for every name on the Roll',
-    castellans_chain: 'A link off the chain the Castellan hangs his keys on. He keeps every key in the Hold, the toll box\'s too',
-    hall_key: 'Opens Krell\'s Hall for you and your party, once. It\'s used up whether you win or lose. The Castellan kept it on his ring',
+    press_token: 'Krell\'s men gave this wooden token to every farmhand they forced to guard his castle',
+    picket_whistle: 'A tin whistle from Hask\'s company. His lookouts were supposed to blow it when Krell\'s men came, and they didn\'t',
+    barrow_nail: 'A coffin nail from the Muster Barrows. Krell\'s men pulled it out when they dug the company\'s officers back up',
+    binders_cord: 'Krell\'s priests tied this cord around the dead before they burned them. They put a knot in it for every name',
+    castellans_chain: 'A link off the Castellan\'s key chain. He keeps every key in the castle, including the one to the toll box',
+    hall_key: 'Opens Krell\'s Hall once for you and your party. It\'s used up whether you win or lose',
   },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Pyre Field's store food, and Chalked Poison Runes in place of its ice. These are
      living men (poison does 15% more), and the dead in the cellar shrug poison off, so a caster brings a second family for the Undercroft.
@@ -190,7 +186,7 @@ export default definePack({
   hall: {
     key: 'hall_key',
     words: { boss: 'Lord Krell', Boss: 'Lord Krell' },
-    hunt: { name: 'Krell\'s Hall', theme: 'The Hall Fire burns the length of the north wall. Krell sits in front of it with the Muster Roll in his lap.',
+    hunt: { name: 'Krell\'s Hall', theme: 'Krell sits by the long fire at the back of his hall, holding the list of every soldier his men killed.',
       band: [85, 110], family: 'Human', art: 'lord_krell_called', travelS: 0, pull: 1, respawnMs: 600000 },
     ground: {
       /* in through the door off the Keep Stair, Krell in his high seat across the hall, the fire behind him */

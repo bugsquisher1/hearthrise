@@ -89,7 +89,7 @@ function hallWhy(p) {
   if (!Array.isArray(pk.adds) || !pk.adds.length || !pk.adds.every(isSpot)) return 'hall.ground\'s pocket has no adds';
   if (!isObj(h.monsters) || !Object.keys(h.monsters).length) return 'hall.monsters is empty';
   for (const [id, m] of Object.entries(h.monsters)) {
-    if (!/^[a-z0-9_]+_called$/.test(id) || !isObj(m) || m.called !== true) return 'hall row ' + id + ' is not a called row (an id ending _called, called: true)';
+    if (!/^[a-z0-9_]+_called$/.test(id) || !isObj(m) || m.called !== true) return 'hall row ' + id + ' must be a called row, its id ending _called and its row marked called';
     if ((m.boss === true) === (m.add === true)) return 'hall row ' + id + ' is not exactly one of boss or add';
   }
   if (!Array.isArray(h.prize) || !h.prize.every((r) => isObj(r) && typeof r.id === 'string' && typeof r.band === 'string')) return 'hall.prize is not a list of { id, band }';

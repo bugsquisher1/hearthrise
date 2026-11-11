@@ -95,7 +95,7 @@ async function checks(overrides) {
       const { ctx, page, errors, s } = await open({}, QUOTE({ seats: 1, alone: true }));
       if (!/2 calls left today\./.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-1 alone reads ' + JSON.stringify(await txt(page, '.hw-call-line')));
       if (await off(page) !== false) fails.push('BW-1 alone, the press is off');
-      if (!/Call out the Rat King: 10,000 gp/.test(await txt(page, '.hw-call-press') || '')) fails.push('BW-1 the press reads ' + JSON.stringify(await txt(page, '.hw-call-press')));
+      if (!/Call out the Rat King for 10,000 gp/.test(await txt(page, '.hw-call-press') || '')) fails.push('BW-1 the press reads ' + JSON.stringify(await txt(page, '.hw-call-press')));
       await press(page, '[data-hs-act="call-warn"]', 'BW-1');
       await page.waitForTimeout(150);
       if (sent(s, 'hr_boss_call').length) fails.push('BW-1 the first press charged');

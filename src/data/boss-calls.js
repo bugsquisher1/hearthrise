@@ -44,7 +44,9 @@ export function callFromGround(huntId) { return rows.find((c) => c.from === hunt
 
 /* ── THE WORDS (designer's table; `{Boss}` and `{boss}` from the row) ───────────────────────────────────────────────── */
 export const BOSS_CALL_WORDS = Object.freeze({
-  press: 'Call out {boss}: {fee} gp',
+  /* "for {fee} gp", never a colon-joined price (the copy rules; mocks 2026-11-10 SPEC §2 gap 3). A free call reads its event's words
+     (src/data/live-events.js WORDS.open_halls: "Call out {boss} for free", "Call him out for free"). */
+  press: 'Call out {boss} for {fee} gp',
   warnTitle: 'Call out {boss}?',
   warn: Object.freeze([
     '{Boss} hits harder here than on the ground. At half his health his adds come for whoever isn\'t your tank.{guard} At a quarter he rages and hits harder still. A death ends the fight for the whole party.',
@@ -54,7 +56,7 @@ export const BOSS_CALL_WORDS = Object.freeze({
   warnGuard: ' They shield him until they fall.',
   /* The warning's one more line when the room will hold the caller alone (the server's quote says `alone`). */
   warnAlone: '{Boss} is built for a party. Alone, you still fight him, and he can kill you.',
-  confirm: 'Call him out: {fee} gp',
+  confirm: 'Call him out for {fee} gp',
   cancel: 'Not yet',
   /* The status line while the call is out, and once he answers (alone: no party walks in with you). */
   calling: 'Calling {boss} out…',

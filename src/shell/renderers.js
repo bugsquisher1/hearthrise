@@ -35,6 +35,7 @@ import { renderReport } from './windows/report.js?v=0.2.116';
 import { renderDeath } from './windows/death.js?v=0.2.116';
 import { renderPlayCap } from './windows/play-cap.js?v=0.2.116';
 import { renderOnline } from './widgets/online.js?v=0.2.116';
+import { renderEventPlate } from './widgets/event-plate.js?v=0.2.116';
 import { renderHouse } from './windows/house.js?v=0.2.116';
 import { renderFarm } from './windows/farm.js?v=0.2.116';
 import { renderTally } from './windows/tally.js?v=0.2.116';
@@ -84,5 +85,6 @@ export const WIDGET_RENDERERS = Object.freeze({
   analyzer: renderAnalyzer,
   'action-bar': renderActionBar,
   online: renderOnline,
+  events: renderEventPlate,
   tally: renderTallyHud,
 });

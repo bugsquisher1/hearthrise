@@ -65,6 +65,7 @@ import { openFinderOn } from './party-finder.js?v=0.2.116';
 import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.116';
 import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.116';
 import { callFromGround } from '../../data/boss-calls.js?v=0.2.116';
+import { rowLines } from '../live-events-view.js?v=0.2.116';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the tier shown before the server has it ({ hunt, tier }), `timer` its coalescing
@@ -204,7 +205,7 @@ function lineHtml(r, glyphs) {
     + '<span class="hw-hunt-main"><b class="hw-hunt-name">' + esc(r.name) + '</b>'
     + '<small class="hw-hunt-band"><span class="hw-hunt-lv">Level ' + r.band[0] + '–' + r.band[1] + '</span><span class="hw-hunt-fit"></span></small>'
     + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span><span class="hw-hunt-bestline"></span></small>'
-    + '<small class="hw-hunt-tally"></small></span></li>';
+    + '<small class="hw-hunt-tally"></small><span class="hw-hunt-events"></span></span></li>';
 }
 
 renderHunts.patch = function patchHunts(body, ctx) {
@@ -266,6 +267,12 @@ renderHunts.patch = function patchHunts(body, ctx) {
       text(li.querySelector('.hw-hunt-bestline'), bestLine(bests, r.hunt) || '');
       /* Tamsin's tallies held on this ground, the server's count ("Gray Wolves 112/200"). */
       text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(' · '));
+      /* A live event on this ground or its boss, the server's (live-events-view.js rowLines): Open Halls frees its call out. */
+      rows(li.querySelector('.hw-hunt-events'), rowLines(cs, r.hunt), {
+        key: (l) => l.id,
+        build: () => element(ctx.doc, '<small class="hw-hunt-event"><b></b></small>'),
+        patch: (s, l) => text(s.querySelector('b'), l.words),
+      });
     },
   });
   /* The line the window opens on stands in view: it can be the last on the list (openingPick). */

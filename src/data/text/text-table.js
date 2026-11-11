@@ -10,6 +10,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { BAR_TEXT } from './bar.js?v=0.2.116';
 import { DEATH_TEXT } from './death.js?v=0.2.116';
+import { EVENTS_TEXT } from './events.js?v=0.2.116';
 import { FARM_TEXT } from './farm.js?v=0.2.116';
 import { HEROES_TEXT } from './heroes.js?v=0.2.116';
 import { HOUSE_TEXT } from './house.js?v=0.2.116';
@@ -24,6 +25,7 @@ import { TEMPER_TEXT } from './temper.js?v=0.2.116';
 export const TEXT = Object.freeze({
   bar: BAR_TEXT,
   death: DEATH_TEXT,
+  events: EVENTS_TEXT,
   farm: FARM_TEXT,
   heroes: HEROES_TEXT,
   house: HOUSE_TEXT,

@@ -4,8 +4,9 @@
 // Master-detail (designer plan 2026-10-22, B #1; Monster Hunter's quest board,
 // mechanics only): the Hunts list is lines, and the picked ground gets ONE page,
 // read top to bottom the way the decision is made:
-//   the ground      name, its band against the hero's Level, who may come, the
-//                   level warning (the floor is a warning: the server decides)
+//   the ground      name, its band against the hero's Level, who may come, a live
+//                   event that reaches it (the server's, src/shell/live-events-view.js),
+//                   the level warning (the floor is a warning: the server decides)
 //   its theme
 //   who lives here  each creature as the world draws it (style-1 idle frame at ×2,
 //                   src/render/creature-sprite.js) on one ground line, with how
@@ -30,6 +31,7 @@ import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-s
 import { chance, listWords } from '../../render/format.js?v=0.2.116';
 import { gotoAttr } from '../goto.js?v=0.2.116';
 import { factsTarget } from './monster.js?v=0.2.116';
+import { groundLines } from '../live-events-view.js?v=0.2.116';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
@@ -45,7 +47,7 @@ const asked = new Set();
 export function detailHtml() {
   return '<header class="hw-hd-head">'
     + '<h3 class="hw-hd-name"></h3><p class="hw-hd-band"><span class="hw-hd-levels"></span><span class="hw-hunt-fit"></span></p>'
-    + '<p class="hw-hd-who"></p><p class="hw-hunt-warn"></p></header>'
+    + '<p class="hw-hd-who"></p><div class="hw-hd-events"></div><p class="hw-hunt-warn"></p></header>'
     + '<p class="hw-hd-theme"></p>'
     + '<h4 class="hw-hd-h">Who lives here</h4><ul class="hw-hd-lineup" aria-label="Who lives here"></ul><p class="hs-note hw-hd-bigpull" hidden></p>'
     + '<h4 class="hw-hd-h">Drops <small class="hw-hd-per hw-hd-per-size"></small></h4><ul class="hw-hd-sets" aria-label="Drops"></ul>'
@@ -156,6 +158,12 @@ export function patchGround(det, ctx, r, o) {
   text(fitEl, fit && (fit.tone === 'in' || fit.tone === 'below') ? fit.words : '');
   attr(fitEl, 'data-tone', fit ? fit.tone : null);
   text(det.querySelector('.hw-hd-who'), heroWords(r) + '.');
+  /* A live event that reaches this ground, the server's (live-events-view.js): nothing at all while every switch is off. */
+  rows(det.querySelector('.hw-hd-events'), groundLines(ctx.character, r.hunt), {
+    key: (l) => l.id,
+    build: () => element(ctx.doc, '<p class="hw-hd-event"><b></b> <span></span></p>'),
+    patch: (p, l) => { text(p.querySelector('b'), l.head); text(p.querySelector('span'), l.tail); cls(p, 'is-plain', l.plain); },
+  });
   text(det.querySelector('.hw-hd-theme'), (HUNT_INDEX[r.hunt] && HUNT_INDEX[r.hunt].theme) || r.theme);
   const residents = residentsOf(r.hunt);
   wantArt(ctx.doc, residents.map((m) => m.id), repaint);

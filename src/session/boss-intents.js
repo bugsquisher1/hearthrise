@@ -21,7 +21,8 @@ const usable = (account, cs, call) => !!account && !!account.server && !!cs && c
 
 /** ONE call at the price the player saw. @returns {Promise<{ok:true}|{ok:false, error:string, quote:object|null, seats?:Array}>} */
 export function callOut(account, cs, call, price) {
-  if (!usable(account, cs, call) || !Number.isSafeInteger(price) || price < 1) return Promise.resolve({ ok: false, error: 'bad_intent', quote: null });
+  /* 0 is a price (an Open Halls call is free, 2027-03-22-live-events.sql §4): the server compares it with its own quote, like any other */
+  if (!usable(account, cs, call) || !Number.isSafeInteger(price) || price < 0) return Promise.resolve({ ok: false, error: 'bad_intent', quote: null });
   const peers = partyPeersOf(account, cs);
   return askVia(cs, VERB, async () => {
     for (const o of peers) await settleTownActivity(o);

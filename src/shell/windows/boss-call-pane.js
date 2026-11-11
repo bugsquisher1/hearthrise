@@ -5,6 +5,9 @@
 // warning with its one confirm (the 11-04 risk ruling: a warned choice, one confirm press). Every number is the server's
 // quote (hr_boss_call_view, read when the page opens on it; a stale price only earns quote_changed). The press stays off
 // until a quote says yes, and says why when it doesn't. hunts.js owns the window, its status line and the run of the press.
+// A LIVE EVENT (Open Halls, 2027-03-22-live-events.sql §4) moves only the server's quote: a quote of 0 that names its event reads
+// that event's words (live-events-view.js callEventWords): its line before today's, "for free" on the press and the confirm, its
+// warning in place of the fee's. The event coming on or going off on the server's clock reads the quote again (feeKey).
 // ════════════════════════════════════════════════════════════════════════
 import { text, prop, cls } from '../../render/paint.js?v=0.2.116';
 import { whole } from '../../render/format.js?v=0.2.116';
@@ -12,6 +15,7 @@ import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround, isGuarded } from '../
 import { MONSTERS } from '../../data/monsters.js?v=0.2.116';
 import { callOut } from '../../session/boss-intents.js?v=0.2.116';
 import { readCall } from '../../session/boss-quote.js?v=0.2.116';
+import { callEventWords, feeKey } from '../live-events-view.js?v=0.2.116';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { call: null, key: '', quote: null, asking: false, warned: false }; SCRATCH.set(cs, s); } return s; };
@@ -50,7 +54,8 @@ export function patchCall(det, ctx, v) {
   if (!call) return;
   const cs = ctx.character;
   const sc = scratchOf(cs);
-  const key = call.id + ':' + (v.party ? v.party.id + ':' + v.party.seats.length : '');
+  /* A fee event coming on or going off moves the price: the key changes with it, so the quote is read again at once. */
+  const key = call.id + ':' + (v.party ? v.party.id + ':' + v.party.seats.length : '') + ':' + feeKey(cs, call);
   if (sc.key !== key) { sc.key = key; sc.quote = null; sc.at = 0; sc.warned = false; }
   sc.call = call;
   const now = Date.now();
@@ -64,10 +69,13 @@ export function patchCall(det, ctx, v) {
   }
   const q = sc.quote;
   const open = !!q && q.available && !v.now && !v.pending;
+  /* The quote's event, when it set the price (null: today's words). Its line goes first; today's reasons still follow it. */
+  const ev = v.now ? null : callEventWords(cs, call, q);
+  const said = v.now ? BOSS_CALL_WORDS.hunting : !q ? BOSS_CALL_WORDS.noQuote : q.available ? leftWords(q) : (callRefusal({ error: q.why }, call) || BOSS_CALL_WORDS.noQuote);
   /* No quote yet: the press names him at the data's fee, off, until the server has said; off, it always says why, beside it. */
-  text(box.querySelector('.hw-call-line'), v.now ? BOSS_CALL_WORDS.hunting : !q ? BOSS_CALL_WORDS.noQuote : q.available ? leftWords(q) : (callRefusal({ error: q.why }, call) || BOSS_CALL_WORDS.noQuote));
+  text(box.querySelector('.hw-call-line'), ev && ev.line ? ev.line + ' ' + said : said);
   const press = box.querySelector('.hw-call-press');
-  text(press, callWords(BOSS_CALL_WORDS.press, call, q ? q.price : undefined));
+  text(press, callWords(ev ? ev.press : BOSS_CALL_WORDS.press, call, q ? q.price : undefined));
   prop(press, 'disabled', !open);
   prop(press, 'hidden', sc.warned && open);
   const warn = box.querySelector('.hw-call-warn');
@@ -79,8 +87,8 @@ export function patchCall(det, ctx, v) {
     prop(alone, 'hidden', !q.alone);
     text(alone, q.alone ? callWords(BOSS_CALL_WORDS.warnAlone, call, q.price) : '');
     text(warn.querySelector('.hw-call-note-a'), callWords(BOSS_CALL_WORDS.warn[0], call, q.price));
-    text(warn.querySelector('.hw-call-note-b'), callWords(BOSS_CALL_WORDS.warn[1], call, q.price));
-    text(warn.querySelector('[data-hs-act="call-go"]'), callWords(BOSS_CALL_WORDS.confirm, call, q.price));
+    text(warn.querySelector('.hw-call-note-b'), callWords(ev ? ev.warn : BOSS_CALL_WORDS.warn[1], call, q.price));
+    text(warn.querySelector('[data-hs-act="call-go"]'), callWords(ev ? ev.confirm : BOSS_CALL_WORDS.confirm, call, q.price));
     text(warn.querySelector('[data-hs-act="call-no"]'), BOSS_CALL_WORDS.cancel);
   }
 }

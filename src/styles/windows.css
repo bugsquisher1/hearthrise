@@ -372,6 +372,16 @@
 .hw-hd-band::before { content: ''; position: absolute; z-index: 1; left: calc(50% - 7px); bottom: 4px; width: 14px; height: 14px;
   background: url('../../assets/ui/steel-diamond.png') 0 0 / 14px 14px no-repeat; image-rendering: pixelated; }
 .hw-hd-who { margin: 0; font-size: var(--t-small); color: var(--ink-2); }
+/* A live event that reaches this ground (src/shell/live-events-view.js groundLines): what it adds in bold, then when it ends.
+   Green only for a gain (Level XP, ART_DIRECTION §10); Open Halls moves a fee, so its bold is plain ink. */
+.hw-hd-event { margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-hd-event b { font-weight: 700; color: var(--green); }
+.hw-hd-event.is-plain b { color: var(--ink); }
+.hw-hd-events:empty { display: none; }
+/* The same on a Hunts line (rowLines): one bold line under the best. */
+.hw-hunt-event { display: block; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-hunt-event b { color: var(--ink); }
+.hw-hunt-events:empty { display: none; }
 .hw-hunt-warn { margin: 1px 0 0; font-size: var(--t-micro); color: var(--red); }
 .hw-hunt-warn:empty { display: none; }
 .hw-hd-theme { margin: 2px 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink); }

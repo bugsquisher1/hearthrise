@@ -137,7 +137,7 @@ export default definePack({
         { id: 'rune_boots', ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.016, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.016, band: 'scarce' },
         { id: 'rune_helm', ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.016, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.016, band: 'scarce' },
         { id: 'rune_sword', ch: 0.016, band: 'scarce' }],
-      hp: 191, atk: 23, baseAcc: 1.04, def: 21, xp: 1217, gp: [21, 64], formula: true },
+      hp: 191, atk: 23, baseAcc: 1.04, def: 21, xp: 942, gp: [21, 64], formula: true },
     cairn_wight: {
       name: 'Cairn Wight', icon: '🪦', tier: 4, level: 60, cls: 'undead', family: 'Undead', speed: 4000,
       /* the glass, quick enough to reach the back line: the dead who were in this field before the company dug into it, cloth and
@@ -148,7 +148,7 @@ export default definePack({
         { id: 'rune_platelegs', ch: 0.048, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.048, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.048, band: 'scarce' },
         { id: 'yew_staff', ch: 0.048, band: 'scarce' },
         { id: 'yew_wand', ch: 0.0033, band: 'rare' }, { id: 'yew_spellbook', ch: 0.0033, band: 'rare' }],
-      hp: 188, atk: 31, baseAcc: 1.03, def: 22, xp: 1468, gp: [21, 63], formula: true },
+      hp: 188, atk: 31, baseAcc: 1.03, def: 22, xp: 1136, gp: [21, 63], formula: true },
     muster_knight: {
       name: 'Barrow Knight', icon: '⚔️', tier: 5, level: 66, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser: the company's mounted sergeants, buried armed in the round barrows of the Row with a sword set before each and
@@ -159,7 +159,7 @@ export default definePack({
         { id: 'rune_platebody', ch: 0.048, band: 'scarce' }, { id: 'wyvernhide_body', ch: 0.048, band: 'scarce' }, { id: 'sorcerer_body', ch: 0.048, band: 'scarce' },
         { id: 'rune_warhammer', ch: 0.048, band: 'scarce' },
         { id: 'rune_gauntlets', ch: 0.0033, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0033, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0033, band: 'rare' }],
-      hp: 440, atk: 41, baseAcc: 0.9, def: 44, xp: 3420, gp: [49, 147], formula: true },
+      hp: 440, atk: 41, baseAcc: 0.9, def: 44, xp: 2648, gp: [49, 147], formula: true },
     captain_hask: {
       name: 'Captain Hask', icon: '👑', tier: 5, level: 75, cls: 'undead', family: 'Undead', speed: 2800, boss: true,
       /* THE BOSS: the Banded Company's captain, who sold the crossing to Lord Krell and was buried by Krell with the men he sold, in his cloak
@@ -170,7 +170,7 @@ export default definePack({
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'hasks_coin', ch: 0.15, band: 'uncommon' },
         { id: 'rune_belt', ch: 0.0133, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.0133, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.0133, band: 'rare' },
         { id: 'yew_bow', ch: 0.0133, band: 'rare' }],
-      hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 13281, gp: [173, 520], formula: true,
+      hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 10282, gp: [173, 520], formula: true,
       phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1150 } },
   },
   roster: {
@@ -202,7 +202,11 @@ export default definePack({
      four a head within 0.90-1.10 of the pace contract, and 1.15-1.25 of the median lone way. On the formula's rows the median lone way
      read 0.94-0.96 of the contract (quick grade, 1 seed x 1 h), so a four paid 1.15 of it sat at 1.10, on the edge. At 0.93 the lone
      way reads about 0.91 and the four about 1.07. */
-  xpFit: { k: 0.93, why: 'at the formula XP the median lone way read 0.94-0.96 of the pace contract at the band middle (65), so a party of four paid 1.15 of it read 1.10, the top of the band the sheet allows' },
+  /* RE-FITTED (lane/d-packs-retune, 2026-11-12). The pace contract reads the LONE median on a party ground too (Coordinator 2026-11-11), the contract
+     was re-pinned flatter (core-model.js LEVEL_PACE.contract 1378 x L^1.298: 311k an hour at 65) and a hero alone earns +15% (Tyler 2026-11-11). At
+     0.93 the median lone way read 1.30 of the contract at the band middle (quick grade, the Ford's and the Slake's tier-4 gear on the ladder, 1 seed
+     x 1 h). 0.93 x 1.00 / 1.30 = 0.72, the Warrens' own road (1 -> 0.76 the same day). A fit scales a four and a hero alone alike. */
+  xpFit: { k: 0.72, why: 'at 0.93 the median lone way read 1.30 of the pace contract at the band middle (65) under solo +15% and the re-pinned contract, which reads the lone median on a party ground too (quick grade, 1 seed x 1 h). At 0.72 it reads about 1.00' },
   /* THE HARDER TIERS (TIER_PULL_OVERRIDES' shape since one difficulty: ONE pull for every group). Dangerous brings the full box, 8, not
      the table's 5: on 5 a Melee and Healer pair two under the floor netted +2.9k gold an hour a head and five under +0.5k, where the
      weight-class ruling (11-06) asks them to lose gold. On 8 they lose 15.6k and 28.8k (quick grade, 1 seed x 1 h). So here the two
@@ -223,7 +227,10 @@ export default definePack({
      THE FULL GRADE'S SECOND FOUR (2026-11-10, 2 seeds x 2 h a cell): a tank, a hammer, a bow and a mage is THREE classes (Melee twice),
      and at 1440 it read 1.15 / 1.13 / 1.13 of the median lone way at the floor, middle and top (1.10 at the middle without Hask's
      lines), where 10-25 asks 1.15-1.25; the four-class four read 1.22 / 1.21 / 1.19. So 1510 and 1520 (more classes still pay more). */
-  partyClassXp: { 2: [990, 1440], 3: [990, 1440, 1470], 4: [970, 1300, 1510, 1520] },
+  /* ONE PACK ON NORMAL (Tyler 2026-11-11; lane/d-packs-retune, 2026-11-12): this ground never carried a party pull, so the cells barely move. Under
+     solo +15% the four of four classes read 1.18 / 1.17 of the median lone way at the floor and middle (quick grade, the tier-4 gear on the ladder)
+     and the tank and Healer pair 1.10 / 1.14: the four's cells go 1510 / 1520 -> 1540 / 1550 (about 1.20), the pair stays. */
+  partyClassXp: { 2: [990, 1440], 3: [990, 1440, 1470], 4: [970, 1325, 1540, 1550] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10, with Hask's lines and
      the cells above). One class is the mean of its five one-class parties: pairs 0.88-0.94 (0.91), threes 0.80-0.89 (0.84), fours

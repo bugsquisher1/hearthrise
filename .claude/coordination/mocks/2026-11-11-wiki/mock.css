@@ -169,6 +169,10 @@
 .wk-stop .wk-piece .hw-ico .hh-icon { width: 32px; height: 32px; }
 .wk-stop.is-sealed p { color: var(--ink-3); }
 
+/* A STORY PAGE: told, not listed. Paragraphs at the reading size with room between them; nothing else on the page competes. */
+.wk-story { max-width: 68ch; margin: 4px 0 6px; }
+.wk-story p { margin: 0 0 12px; font-size: var(--t-body); line-height: 1.6; color: var(--ink); }
+
 /* THE FRONT PAGE: the shelves as a book's contents, two columns of headed indexes, and one thing from the world. */
 .wk-toc { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 30px; }
 .wk-toc .hw-hd-h { margin: 16px 0 6px; }

@@ -21,6 +21,10 @@ Base: today's game, main v0.2.116, captured from a local world (`tools/qa/local-
 | Search (wolf) | monster, item, title and ground names and ground themes, singular and plural |
 | Story | the designer's 11-10 lore section (lane/d-krells-hold) under Tyler's 11-09 Krell ruling, Levels from that board |
 
+**Labels (Tyler 11-11, "it should just say Max Hit").** Stat labels are the plain game term and nothing else: Health, Max Hit, Attack Speed, Damage Type, Weak to, Elements, Level XP, Tiers. "Its Level, for your armor" is cut. The build renames today's `monster.blow` "One hit" / "…, before your armor" the same way.
+
+**The story (Tyler 11-11, "tell it like a story").** `png/page-lore-road.png` is the one story page rewritten so far, 399 words, told out loud in order. Its new details, for Tyler to keep or strike: the dead only rest if burned at the Great Hearth, the pyres were lit from the fire in Krell's hall, Hask was buried to keep him quiet, and the dead come for Krell if his fire goes out. The older lore page (Lord Krell and the Banded Company) keeps the first draft's words until Tyler reads this one.
+
 **New words** (rows in `src/data/text`, then a player-read pass): a monster's one-line `about` (no field exists; the Turncoat's is mine), pocket names (the six yards live only in `hunt-grounds.js` comments), the front page, the chain's link words, the story page.
 
 ## What building it showed up

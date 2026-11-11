@@ -181,14 +181,17 @@ const levelsWords = (lo, hi) => (lo === hi ? t('hunts.level_one', { level: lo })
  * rows alone. `levels` is the hero's Level, or every known Level in its party; `partySize` 1 = alone.
  * Among the grounds whose groupFit suits the group, highest floor first:
  *   1. one whose band holds every level;  2. one whose band holds the lowest level;
- *   3. none holds it: the nearest one BELOW the lowest level, with a note that says so plainly
- *      (and names a ground in band that wants a party, for a lone hero);
+ *   3. none holds it: the nearest one BELOW the lowest level. The note says so plainly: when a ground
+ *      built otherwise holds the Level, it names THAT ground as right for the Level (the list reads
+ *      "In your range" on it) and says what makes the one below the easier pick: its monsters are tough,
+ *      or, from the server's `bests` (hunt_bests), that this hero lost gold there alone. "No good hunt"
+ *      only when no ground holds the Level at all (Tyler 2026-11-11: the line contradicted the row);
  *   4. no ground suits the group at all: the highest-floor ground in band, else the first ground.
  * A lone hero is never pointed at a party ground while a solo one exists. Advice only: every
  * ground stays enterable, the server decides.
  * @returns {{ row: object|null, note: string|null }}
  */
-export function recommendation(levels, partySize = 1, rows = huntRows()) {
+export function recommendation(levels, partySize = 1, rows = huntRows(), bests = null) {
   const lv = [].concat(levels).filter(Number.isInteger);
   const best = (l) => l.slice().sort((x, y) => y.band[0] - x.band[0] || (x.name < y.name ? -1 : 1))[0] || null;
   if (!lv.length) return { row: rows[0] || null, note: null };
@@ -200,12 +203,16 @@ export function recommendation(levels, partySize = 1, rows = huntRows()) {
   const alone = (Number(partySize) || 1) < 2;
   const below = fit.filter((r) => r.band[1] < lo).sort((x, y) => y.band[1] - x.band[1] || y.band[0] - x.band[0])[0];
   if (below) {
-    const party = alone ? best(rows.filter((r) => !fitsGroup(r, 1) && holds(r, lo, lo))) : null;
     /* NO GROUND IS SOLO OR PARTY TO THE PLAYER (Tyler 2026-11-08: "So some of those are solo only and party only? That isn't really matching up
        with how we are planning the game"): the note says where the Levels are and what the tough ground costs, never who it is for. */
-    const note = [t('hunts.no_ground', { levels: levelsWords(lo, hi) }), t('hunts.nearest_below', { ground: below.name, lo: below.band[0], hi: below.band[1] })]
-      .concat(party ? [t('hunts.tough_at_level', { ground: party.name })] : []).join(' ');
-    return { row: below, note };
+    const inBand = best(rows.filter((r) => !fitsGroup(r, partySize) && holds(r, lo, lo)));
+    const easier = { easier: below.name, lo: below.band[0], hi: below.band[1] };
+    if (!inBand) return { row: below, note: [t('hunts.no_ground', { levels: levelsWords(lo, hi) }), t('hunts.nearest_below', { ground: below.name, lo: below.band[0], hi: below.band[1] })].join(' ') };
+    const levels2 = holds(inBand, lo, hi) ? levelsWords(lo, hi) : levelsWords(lo, lo);
+    const was = alone && bests && bests.grounds && bests.grounds[inBand.hunt] && bests.grounds[inBand.hunt].solo;
+    const lost = was && Number.isFinite(was.balanceH) && was.balanceH < 0 ? gold(-was.balanceH) : null;
+    const key = lost ? 'hunts.right_but_lost' : alone ? 'hunts.right_but_tough' : 'hunts.right_easier';
+    return { row: below, note: t(key, Object.assign({ ground: inBand.name, levels: levels2, gold: lost }, easier)) };
   }
   return { row: best(rows.filter((r) => holds(r, lo, lo))) || rows[0] || null, note: null };
 }

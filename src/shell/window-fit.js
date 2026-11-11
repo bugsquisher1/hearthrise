@@ -1,0 +1,160 @@
+// ════════════════════════════════════════════════════════════════════════
+// src/shell/window-fit.js — A WINDOW OPENS WHOLE: NOTHING IN IT IS CUT OFF BY THE FRAME, THE BAR OR THE SCREEN.
+//
+// Tyler 2026-11-11, the Hunts window at 1014x652: "when I open a menu, part of it shouldn't automatically be cut off
+// like this." The shell's one rule for every window (docked, floating, modal or a phone's sheet), applied here after
+// each layout pass and each repaint:
+//   1. HEIGHT. A window is as tall as its content, up to the World less its margins, never taller. A docked window
+//      ends above the bottom bar (hud.js dockCap, so a window that grows never moves the bar) only while that leaves
+//      it DOCK_ROOM_PX or more; on a shorter World a window whose content needs more rises over the bar, which stays
+//      where it is, under it (window-manager.js overBar). A floating window is held wholly inside the World.
+//   2. A STICKY FOOT TAKES ITS OWN ROOM. A foot that sticks to a scroll region's bottom (Enter, Save, Send) is measured
+//      out of that region's visible height, so the row it would lie on counts as cut.
+//   3. A WHOLE ROW AT THE FOOT. At rest a scroll region shows no row cut through: it ends on the top of the row its
+//      foot line crosses (that row starts below, whole, one scroll away). Rows are found, not declared: the deepest box
+//      the line crosses that is repeated beside its like (a list's line, a bag's slot, a creature grid's card, a
+//      paragraph among paragraphs), so no window lists its rows. Display only: nothing here reads or writes the game.
+// mutant-anchors: tests/alpha-windows.mjs AW-90
+// ════════════════════════════════════════════════════════════════════════
+import { dockCap } from './hud.js?v=0.2.121';
+import { overBar } from './window-manager.js?v=0.2.121';
+
+const TRIM = 'data-hs-trim';
+/* A row hidden by this little is whole to the eye (its border, its pad). */
+const CUT_MIN_PX = 4;
+/* A region never gives up more than this share of its height to end on a whole row (a row that tall is read by scrolling). */
+const ROW_SHARE = 0.5;
+const FLOW_OUT = /^(sticky|absolute|fixed)$/;
+
+/** The height a docked window counts for the widgets beside it: over the bar, only the part above it (the bar stays put). */
+export function dockedHeight(w) {
+  const cap = Number(w.getAttribute('data-hs-over'));
+  return cap > 0 ? Math.min(cap, w.offsetHeight) : w.offsetHeight;
+}
+
+/** Rule 1 for the docked windows in `layer` (desktop): each one's max height, from the bottom bars under it (`bars`, the shell's px). */
+export function fitDocked(layer, bars, gap) {
+  for (const w of layer.querySelectorAll('.hs-win:not(.is-floating):not(.is-modal)')) {
+    const cap = bars.length ? dockCap({ left: w.offsetLeft, top: w.offsetTop, width: w.offsetWidth, height: w.offsetHeight }, bars, gap) : null;
+    let over = false;
+    if (cap !== null && overBar(cap, Infinity)) {
+      /* what it needs: its height with no cap and no trims (the frame's own CSS still holds it inside the World) */
+      clearTrims(w);
+      if (w.style.maxHeight) w.style.maxHeight = '';
+      over = overBar(cap, w.offsetHeight);
+    }
+    const v = cap === null || over ? '' : cap + 'px';
+    if (w.style.maxHeight !== v) w.style.maxHeight = v;
+    if (over) w.setAttribute('data-hs-over', String(cap)); else w.removeAttribute('data-hs-over');
+    trimEnds(w);
+  }
+  for (const w of layer.querySelectorAll('.hs-win.is-floating:not(.is-home)')) holdInside(w, layer, gap);
+  for (const w of layer.querySelectorAll('.hs-win.is-modal')) trimEnds(w);
+}
+
+/* Rule 1 for a floating window: its foot inside the World, its head first (the place the manager keeps is unchanged). */
+function holdInside(w, layer, gap) {
+  const room = layer.clientHeight - gap;
+  if (w.offsetTop + w.offsetHeight > room) w.style.top = Math.max(0, room - w.offsetHeight) + 'px';
+  trimEnds(w);
+}
+
+/** Undo every trim inside `root`, so the frame is measured as its content draws it. */
+function clearTrims(root) {
+  for (const e of root.querySelectorAll('[' + TRIM + ']')) { e.style.maxHeight = ''; e.removeAttribute(TRIM); }
+}
+
+/** Rules 2 and 3 for one window: each scroll region in it ends on a whole row. Run after a layout pass and a repaint. */
+export function trimEnds(frame) {
+  if (!frame || frame.classList.contains('is-sized')) return;   // a window the player sized (Chat) keeps the size it was given
+  const view = frame.ownerDocument.defaultView;
+  clearTrims(frame);
+  /* outer regions first (document order): a region that a nested one crosses gives the nested one the cut */
+  for (const s of frame.querySelectorAll('*')) {
+    if (!scrolls(s, view)) continue;
+    const at = restCut(s, view);
+    if (at) shrink(at.el, at.cut, view);
+  }
+}
+
+/* Does `e` scroll on y, with more than it shows? */
+function scrolls(e, view) {
+  if (!e.clientHeight || e.scrollHeight <= e.clientHeight + 1 || /^(TEXTAREA|SELECT|INPUT)$/.test(e.tagName)) return false;
+  const oy = view.getComputedStyle(e).overflowY;
+  return oy === 'auto' || oy === 'scroll';
+}
+
+/* The boxes laid out inside `node`: its children, a `display: contents` child's own children in its place. */
+function boxesIn(node, view) {
+  const out = [];
+  for (const k of node.children) {
+    if (view.getComputedStyle(k).display === 'contents') out.push(...boxesIn(k, view));
+    else out.push(k);
+  }
+  return out;
+}
+
+/* Does `el` draw something itself (words of its own, a picture, a control), not only boxes? */
+function drawsItself(el) {
+  return /^(IMG|CANVAS|svg|BUTTON|INPUT|SELECT|TEXTAREA)$/.test(el.tagName) || ownWords(el);
+}
+/* Is `el` a block of its own words (a paragraph), not a control? */
+function ownWords(el) {
+  return !/^(BUTTON|INPUT|SELECT|TEXTAREA)$/.test(el.tagName) && Array.prototype.some.call(el.childNodes, (n) => n.nodeType === 3 && n.textContent.trim() !== '');
+}
+
+/* `el` gives up `cut` px of its height (a max height in its own box sizing), marked so the next pass starts from its CSS. */
+function shrink(el, cut, view) {
+  const cs = view.getComputedStyle(el);
+  const box = cs.boxSizing === 'border-box' ? el.offsetHeight : el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  el.style.maxHeight = Math.max(0, Math.floor(box - cut)) + 'px';
+  el.setAttribute(TRIM, '');
+}
+
+/* What region `s` must give up so that, at rest, no row is cut at its foot line: { el, cut }, or null when none is.
+   `el` is `s`, or the nested scroll region the line crosses (it ends at the line; its own rows are its own pass). */
+function restCut(s, view) {
+  const r = s.getBoundingClientRect();
+  const edge = r.top + s.clientTop;                  // the region's visible top, in the view
+  const origin = edge - s.scrollTop;                 // its content's y 0, in the view (= the visible top at rest)
+  /* rule 2: a foot stuck to the region's bottom (Enter, Save, Send: sticky, three levels deep at most) takes its own room */
+  let line = s.clientHeight;
+  for (const f of s.querySelectorAll(':scope > *, :scope > * > *, :scope > * > * > *')) {
+    const fs = view.getComputedStyle(f);
+    if (fs.position !== 'sticky' || fs.bottom === 'auto') continue;
+    const q = f.getBoundingClientRect();
+    if (q.height && q.bottom >= edge + s.clientHeight - 2) line = Math.min(line, q.top - edge);
+  }
+  /* rule 3: the row the line crosses. A row is a box repeated beside its like (a list's line, a grid's card, a paragraph
+     among paragraphs; same tag, same first class), the deepest such one; a crossing section that is no row is looked into.
+     With none, the deepest crossing box when it draws something there itself (its own words, a picture, a control): a lone
+     paragraph cut through its lines. A line through a gap between boxes cuts nothing. */
+  let node = s, row = null, last = null;
+  for (let depth = 0; depth < 12; depth++) {
+    let into = null, top = Infinity, bot = 0;
+    const kids = boxesIn(node, view);
+    for (const k of kids) {
+      if (FLOW_OUT.test(view.getComputedStyle(k).position)) continue;
+      const q = k.getBoundingClientRect();
+      if (!q.height) continue;
+      const t = q.top - origin, b = q.bottom - origin;
+      if (t < line - CUT_MIN_PX && b > line + CUT_MIN_PX && t < top) { top = t; bot = b; into = k; }
+    }
+    if (!into) break;
+    if (scrolls(into, view)) return bot - line <= into.clientHeight * ROW_SHARE ? { el: into, cut: Math.ceil(bot - line) } : null;
+    if (kids.some((o) => o !== into && o.tagName === into.tagName && o.classList[0] === into.classList[0])) row = { top, el: into };
+    node = into;
+    last = { top, el: into };
+  }
+  if (!row && last && node !== s && drawsItself(node)) row = last;
+  if (!row) return null;
+  /* words end on a whole line, not a whole paragraph; a row of boxes ends whole */
+  let cut = Math.ceil(line - row.top);
+  if (ownWords(row.el)) {
+    const rs = view.getComputedStyle(row.el);
+    const lh = parseFloat(rs.lineHeight) || parseFloat(rs.fontSize) * 1.2;
+    const first = row.top + parseFloat(rs.borderTopWidth) + parseFloat(rs.paddingTop);
+    if (lh > 0 && line > first) cut = Math.ceil((line - first) % lh);
+  }
+  return cut > CUT_MIN_PX && cut <= s.clientHeight * ROW_SHARE ? { el: s, cut } : null;
+}

@@ -227,12 +227,12 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const size = party ? party.seats.length : 1;
   const follower = !!party && !party.isLeader;
   /* The advice reads the server's levels: this hero's, or every seat's in its party (the party's levels pick). */
-  const rec = recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list);
+  /* This hero's personal bests, the server's (hunt_bests); null = the server sent none, the lines stay empty. */
+  const bests = huntBestsOf(cs);
+  const rec = recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list, bests);
   /* Until the player picks a line by hand the pick FOLLOWS the advice (lane/b-first-hour: the Cellar, picked for a
      Level 1 hero, stayed picked at Level 5 for the rest of the session while the coach sent the hero to the Thicket). */
   if ((!sc.pick || sc.auto) && list.length) { sc.pick = openingPick(rec, list, h ? { huntId: h.huntId, endReason: h.ended ? h.endReason : null } : null).hunt; sc.auto = true; }
-  /* This hero's personal bests, the server's (hunt_bests); null = the server sent none, the lines stay empty. */
-  const bests = huntBestsOf(cs);
   const tally = tallyOf(cs);
   /* "On the way to …" is the intent's answer, not the hunt's state: once the server's hunt section
      says the hero is hunting (or the hunt is over), the line below speaks for it (Tyler 10-19). */

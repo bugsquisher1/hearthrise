@@ -12,7 +12,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js src/shell/windows/inventory/elsewhere.js src/shell/station-sort.js
+// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js src/shell/windows/inventory/elsewhere.js src/shell/station-sort.js src/shell/window-fit.js src/shell/window-manager.js src/styles/market.css
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -119,6 +119,11 @@
 //         too); the pick is ONE residue put naming stationSort, kept per station, and after a reload the menu and
 //         the order come back from the server; gathering has no menu. Pure half: every bench skill at several
 //         levels, each order worked out here from the raw rows, and the residue round trip through the allowlist
+//   AW-77 A WINDOW OPENS WHOLE (Tyler 2026-11-11, the Hunts window at 1014x652: "when I open a menu, part of it shouldn't
+//         automatically be cut off"): at 1014x652, 1024x768 and 922x423, a Level 36 hero in town, Hunts, Inventory, Shop and Market each
+//         open inside the World, lose no word or press to a box that hides its overflow or to the frame, and every scroll
+//         region ends at rest on a whole row (no line, slot or creature card cut by its foot or by a sticky Enter/Save foot);
+//         the Hunts page shows its first creature card whole without a scroll (it had 107 px: the window stopped above the bar)
 //   AW-24 TOWN WORK COUNTS UP BETWEEN PAYOUTS (Tyler 2026-10-23; src/shell/town-ticker.js runs the
 //         server's own span loop on the envelope's numbers, display only). Pure rules:
 //         TK-1  one action at a time on the engine's interval: the logs and XP, and the line
@@ -220,6 +225,43 @@ const HUNTS = (await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href)
 /* The Level XP a hero at Level 30 holds (src/core/xp.js): gear is worn by the hero's Level (Tyler 2026-10-24). */
 const LEVEL_30_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(30);
 const LEVEL_5_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(5);
+const LEVEL_36_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(36);
+/* AW-77: what a window loses at rest, measured in the page (window id): the frame past the World, a shown word or press past a box that
+   hides its overflow or past the frame, and a row (a list's line, a slot, a creature card) cut by its scroll region's foot line
+   (the region's bottom, or the top of a sticky foot stuck there). [] when it opens whole. */
+const CLIPPED = (id) => {
+  const win = document.querySelector('.hs-win[data-hs-win="' + id + '"]');
+  if (!win) return ['not open'];
+  const out = [], cs = (e) => getComputedStyle(e), w = win.getBoundingClientRect();
+  const nm = (e) => (e.classList[0] || e.tagName) + ' "' + (e.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 24) + '"';
+  if (w.bottom > innerHeight + 1 || w.top < -1) out.push('the frame runs past the screen (' + Math.round(w.top) + '-' + Math.round(w.bottom) + ')');
+  const shown = (e) => { const q = e.getBoundingClientRect(); return q.width > 0 && q.height > 0 && e.checkVisibility({ visibilityProperty: true }); };
+  const all = Array.from(win.querySelectorAll('*')).filter((e) => !e.closest('.hs-win-coach, .hw-tip, .hw-menu') && shown(e));
+  const scrolls = (e) => /(auto|scroll)/.test(cs(e).overflowY) && e.scrollHeight > e.clientHeight + 1;
+  const regions = all.filter(scrolls);
+  const regionOf = (e) => { for (let a = e.parentElement; a && a !== win; a = a.parentElement) if (regions.includes(a)) return a; return null; };
+  for (const e of all) {
+    if (!(/^(IMG|BUTTON|INPUT|SELECT)$/.test(e.tagName) || Array.from(e.childNodes).some((n) => n.nodeType === 3 && n.textContent.trim()))) continue;
+    const q = e.getBoundingClientRect();
+    for (let a = e.parentElement; a; a = a.parentElement) {
+      const b = a.getBoundingClientRect();
+      if (a === win) { if (q.bottom > b.bottom + 1) out.push('lost past the frame: ' + nm(e)); break; }
+      if (regions.includes(a)) break;
+      if (/(hidden|clip)/.test(cs(a).overflowY) && q.top < b.bottom && q.bottom > b.bottom + 1) { out.push('lost under ' + (a.classList[0] || a.tagName) + ': ' + nm(e)); break; }
+    }
+  }
+  for (const r of regions) {
+    const b = r.getBoundingClientRect();
+    let line = b.top + r.clientTop + r.clientHeight;
+    for (const f of r.querySelectorAll('*')) { const fs = cs(f); if (fs.position === 'sticky' && fs.bottom !== 'auto') { const q = f.getBoundingClientRect(); if (q.height && q.bottom >= line - 2) line = Math.min(line, q.top); } }
+    for (const e of r.querySelectorAll('li, [class*="-row"], .hw-hunt, .hw-slot, .hw-pocket, .hw-hd-mon')) {
+      if (regionOf(e) !== r || !shown(e) || /^(sticky|absolute|fixed)$/.test(cs(e).position)) continue;
+      const q = e.getBoundingClientRect();
+      if (q.top < line - 4 && q.bottom > line + 4) { out.push('cut at rest in ' + (r.classList[0] || r.tagName) + ': ' + nm(e) + ' (' + Math.round(q.bottom - line) + ' px hidden)'); break; }
+    }
+  }
+  return out;
+};
 const CELLAR_ODDS = (await import(pathToFileURL(join(ROOT, 'src/render/format.js')).href)).chance(
   (await import(pathToFileURL(join(ROOT, 'src/shell/hunt-ground-facts.js')).href)).scarceSetOf('mill_cellar', 'medium')[0].chance);
 /* A Level 1 hero in town (no hunt, no party, no bests yet), 30 min of stamina, two setups the server can put
@@ -3783,6 +3825,30 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
+    { // AW-77 a window opens whole: the short Worlds Tyler plays on (1014x652), a 1024x768 laptop and a phone held sideways
+      const lv36 = (e) => { for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
+        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: LEVEL_36_XP }); };
+      for (const viewport of [{ width: 1014, height: 652 }, { width: 1024, height: 768 }, { width: 922, height: 423 }]) {
+        const { ctx, page, up } = await open({ viewport, mutateEnv: lv36 });
+        const at = viewport.width + 'x' + viewport.height;
+        if (!up) { fails.push('AW-77 the ' + at + ' screen did not mount'); await ctx.close(); continue; }
+        for (const [key, id] of [['h', 'hunts'], ['b', 'inventory'], ['v', 'shop'], ['m', 'market']]) {
+          if (!(await openWin(page, key, id))) { fails.push('AW-77 the ' + key.toUpperCase() + ' key did not open ' + id + ' at ' + at); continue; }
+          await page.waitForTimeout(400);
+          const lost = await page.evaluate(CLIPPED, id);
+          if (lost.length) fails.push('AW-77 at ' + at + ' ' + id + ' opens cut off: ' + lost.slice(0, 3).join(' | '));
+          if (id === 'hunts' && viewport.height > 540) { // the phone's sheet shows the list, then the page
+            const card = await page.evaluate(() => { const p = document.querySelector('.hw-hd-page'), c = document.querySelector('.hw-hd-lineup > li');
+              if (!p || !c) return 'no page or no creature'; const a = p.getBoundingClientRect(), b = c.getBoundingClientRect();
+              return b.top >= a.top - 1 && b.bottom <= a.bottom + 1 ? '' : 'the page shows ' + Math.round(a.height) + ' px and its first creature card ends ' + Math.round(b.bottom - a.bottom) + ' px below it'; });
+            if (card) fails.push('AW-77 at ' + at + ' the Hunts page hides Who lives here: ' + card);
+          }
+          if (shots) await shot(page, 'whole-' + at + '-' + id);
+        }
+        await ctx.close();
+      }
+    }
+
     if (shots) { // the phone size class
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 } });
       if (up) {
@@ -3825,6 +3891,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
+  ['AW-77 a docked window stops above the bar on a short World again', 'src/shell/window-manager.js', 'return Number.isFinite(cap) && cap < DOCK_ROOM_PX && need > cap;', 'return false && need > cap;'],
+  ['AW-77 a scroll region ends on a cut row again', 'src/shell/window-fit.js', "  if (!frame || frame.classList.contains('is-sized')) return;", '  return;'],
+  ['AW-77 the empty Market hides its press again', 'src/styles/market.css', 'flex: 1; min-height: 0; overflow-y: auto; flex-direction: column;', 'flex: 1; flex-direction: column;'],
   ['armor weight: the doll line never shows', 'src/shell/windows/inventory/doll.js', "  cls(p, 'is-on', !!eq);", "  cls(p, 'is-on', false);"],
   ['armor weight: the doll line counts the bag, not the worn set', 'src/shell/windows/inventory/doll.js', "for (const x of wornWeights(eq))", "for (const x of wornWeights(Object.fromEntries((bagOf(st.cs) || []).map((r, i) => [i, r.id]))))"],
   ['armor weight: the tooltip drops the weight line', 'src/shell/windows/item-tip.js', '  if (wt) h +=', '  if (wt && false) h +='],

@@ -55,6 +55,12 @@ export const MOTION_MS = 120;
 export const RESIZE_MIN = Object.freeze({ w: 280, h: 160 });
 /* A home-bl window's bottom edge above the World's: clear of the bottom-left widgets (Players online). */
 export const HOME_BOTTOM = 44;
+/* A docked window ends above the bottom bar while that leaves it this tall; on a shorter World (1280x720, 1024x768) a window whose
+   content needs more rises over the bar to the World's height (Tyler 2026-11-11: "when I open a menu, part of it shouldn't
+   automatically be cut off"; the Hunts window had 338 px of a 652 px screen). src/shell/window-fit.js applies it. */
+export const DOCK_ROOM_PX = 480;
+/** Does a docked window with `cap` px above the bar and `need` px of content rise over the bar? Pure. */
+export function overBar(cap, need) { return Number.isFinite(cap) && cap < DOCK_ROOM_PX && need > cap; }
 
 const KEY_RE = /^([a-z]|enter|escape)$/;
 

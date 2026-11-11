@@ -43,8 +43,9 @@ import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.121';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.121';
 import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.121';
 import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.121';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.121';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt, stackBelow } from './hud.js?v=0.2.121';
 import { createHudRoom } from './hud-room.js?v=0.2.121';
+import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.121';
 import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.121';
 import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.121';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.121';
@@ -175,6 +176,7 @@ export function mountShell(root, o) {
     if (!render.patch) body.innerHTML = render(ctx);
     else { if (!body.hasAttribute('data-hs-built')) { body.innerHTML = render(ctx); body.setAttribute('data-hs-built', ''); } render.patch(body, ctx); }
     seekRow(wm, id, body);   // a "take me there" link's row, once drawn (goto.js)
+    trimEnds(el);   // what was drawn ends on a whole row (window-fit.js)
   }
 
   function paintWindows() {
@@ -336,7 +338,7 @@ export function mountShell(root, o) {
      player's own and never move a widget; a window sliding out is already gone. */
   function dockRects() {
     return Array.from(layer.querySelectorAll('.hs-win:not(.is-floating):not(.is-modal):not(.is-leaving)'))
-      .map((w) => ({ left: w.offsetLeft, top: w.offsetTop, width: w.offsetWidth, height: w.offsetHeight }))
+      .map((w) => ({ left: w.offsetLeft, top: w.offsetTop, width: w.offsetWidth, height: dockedHeight(w) }))
       .filter((q) => q.width > 0 && q.height > 0);
   }
   /* Desktop: a docked window whose column crosses the bottom bar's home ends above it (hud.js dockCap), so a window
@@ -347,11 +349,7 @@ export function mountShell(root, o) {
     const bars = phoneMq.matches ? [] : Array.from(worldHud.querySelectorAll('[data-hs-widget]'))
       .filter((e) => hud.layoutOf(e.getAttribute('data-hs-widget')).anchor === 'bc')
       .map((e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; });
-    for (const w of layer.querySelectorAll('.hs-win:not(.is-floating):not(.is-modal)')) {
-      const cap = bars.length ? dockCap({ left: w.offsetLeft, top: w.offsetTop, width: w.offsetWidth, height: w.offsetHeight }, bars, DOCK_EDGE) : null;
-      const v = cap === null ? '' : cap + 'px';
-      if (w.style.maxHeight !== v) w.style.maxHeight = v;
-    }
+    fitDocked(layer, bars, DOCK_EDGE);   // a short World: a window whose content needs it rises over the bar; scroll regions end on a whole row (window-fit.js)
     /* The home window (Chat) stands above the bar where its column crosses it and below the widgets over its
        column (a four-seat party panel), never over either: it shrinks, or slides right past them (hud.js homeAt).
        Measured from its home column every time, so it comes back when the panel gets shorter. */

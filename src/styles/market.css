@@ -89,8 +89,9 @@
 .hw-mk-kept { flex: 1 1 200px; margin: 0 0 0 10px; text-align: right; }
 .hw-mk-kept:empty { display: none; }
 
-/* The empty market, and an empty book: said plainly, with the way forward. */
-.hw-mk-invite { display: none; flex: 1; flex-direction: column; align-items: flex-start; justify-content: center; gap: 10px; padding: 20px 24px; background: var(--fill-1); border: 2px solid var(--steel-edge); }
+/* The empty market, and an empty book: said plainly, with the way forward. In a short window it scrolls (safe centring): the
+   window's body hides its overflow, so this box was cut through "List something" at 1014x652 (Tyler 2026-11-11). */
+.hw-mk-invite { display: none; flex: 1; min-height: 0; overflow-y: auto; flex-direction: column; align-items: flex-start; justify-content: safe center; gap: 10px; padding: 20px 24px; background: var(--fill-1); border: 2px solid var(--steel-edge); }
 .hw-mk-invite.is-on { display: flex; }
 .hw-mk-invite-p { margin: 0; max-width: 52ch; line-height: 1.45; color: var(--ink); }
 .hw-mk-none { display: none; flex-direction: column; align-items: flex-start; gap: 8px; }

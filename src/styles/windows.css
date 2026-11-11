@@ -462,7 +462,7 @@
 .hw-call-line:empty { display: none; }
 .hw-call-press { min-height: 36px; padding: 0 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
 .hw-call-press[hidden] { display: none; }
-.hw-hd-foot { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 18px 8px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
+.hw-hd-foot { flex: none; margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 6px 18px 8px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
 .hw-hd-foot .hh-intent-msg { flex: 1; min-width: 0; margin: 0; }
 .hw-enter-why { flex: 1; min-width: 0; margin: 0; font-size: var(--t-small); color: var(--ink); }
 .hw-enter-why:empty { display: none; }

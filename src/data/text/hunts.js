@@ -51,7 +51,11 @@ export const HUNTS_TEXT = Object.freeze({
   levels_range: 'Levels {lo} to {hi}',
   no_ground: 'There’s no good hunt for {levels} yet.',
   nearest_below: '{ground} (Level {lo} to {hi}) is the nearest below.',
-  tough_at_level: '{ground} is at your level. Its monsters are tough, so alone you’ll spend more than you earn.',
+  /* A ground whose band holds the Level but is built tough (Tyler 2026-11-11: "no good hunt" over a row reading "In your range" was a lie). */
+  right_but_tough: '{ground} is right for {levels}, but its monsters are tough. {easier} (Level {lo} to {hi}) is the easier hunt.',
+  right_easier: '{ground} is right for {levels}. {easier} (Level {lo} to {hi}) is the easier hunt.',
+  /* the same, when the server's best alone there lost gold (hunt_bests balanceH < 0) */
+  right_but_lost: '{ground} is right for {levels}, but alone you lost {gold} an hour there. {easier} (Level {lo} to {hi}) is the easier hunt.',
   tag_right_party: 'Right for your party',
   tag_right_level: 'Right for your level',
   tag_next_step: 'Next step up',

@@ -69,10 +69,11 @@ export function renderHuntSummary() {
     + '<section class="hsum-live"><h3 class="hw-ledger-head is-on">Just now</h3><ul class="hsum-falls hsum-live-falls"></ul></section>'
     + '<section class="hsum-card">'
     + '<header class="hsum-head"><h3 class="hsum-title"></h3><p class="hsum-when"></p></header><p class="hsum-reason"></p><p class="hsum-loss" hidden></p>'
-    + '<dl class="hsum-stats">' + STATS.map(([k, label]) => '<div class="hsum-stat"><dt>' + label + '</dt><dd data-stat="' + k + '"></dd></div>').join('') + '</dl>'
-    /* BACK IN TOWN (UX flow audit 2026-11-11, flow C): the trip home as steps under the numbers, each one press with its count and
-       value (../back-in-town.js); the first open one is the card's one gold press, and a done one stays, ticked. */
+    /* BACK IN TOWN (UX flow audit 2026-11-11, flow C): the trip home as steps right under the reason, each one press with its count and
+       value (../back-in-town.js); the first open one is the card's one gold press, and a done one stays, ticked. Above the numbers, so the
+       first step's press is in view as the window opens (under them it sat behind the sticky foot at 1440x900). */
     + '<section class="hsum-town"><h4 class="hw-ledger-head hsum-h-town is-on">' + esc(t('summary.town_head')) + '</h4><ul class="hsum-steps"></ul></section>'
+    + '<dl class="hsum-stats">' + STATS.map(([k, label]) => '<div class="hsum-stat"><dt>' + label + '</dt><dd data-stat="' + k + '"></dd></div>').join('') + '</dl>'
     /* The presses and their answer stay in reach: the reason and the numbers pushed them under a 1366x768 window's fold, so a hunt that
        ran out of stamina opened with no press in sight (door panel 2026-11-04). */
     + '<div class="hsum-foot"><div class="hsum-actions">'

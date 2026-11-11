@@ -1913,6 +1913,28 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (errors.length) fails.push('AW-77 console errors: ' + errors.join(' | ').slice(0, 300));
       }
       await ctx.close();
+      /* on a phone the same list, stacked: the first open step's gold press stands under the reason, before the numbers, in view as the sheet opens */
+      const phone = await open({ viewport: { width: 922, height: 423 }, mutateEnv: home5, residue: { coach: { read: ['bar_intro'] } } });
+      if (!phone.up) fails.push('AW-77 the phone page did not mount');
+      else {
+        phone.s.env.hunt = Object.assign({}, phone.s.env.hunt, { ended: true, session: { end_reason: 'left', ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
+        phone.s.env.state = Object.assign({}, phone.s.env.state, { active_kind: 'idle', active_id: null });
+        await pushEnvelope(phone.page, phone.s);
+        await wait(phone.page, () => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-built]'), null, 3000);
+        await phone.page.waitForTimeout(300);
+        const sheet = await phone.page.evaluate(() => {
+          const w = document.querySelector('[data-hs-win="hunt-summary"]');
+          const box = w.querySelector('[data-hs-body]').getBoundingClientRect();
+          const gold = Array.from(w.querySelectorAll('button.is-primary')).filter((b) => !b.hidden && b.getClientRects().length);
+          const r = gold.length === 1 ? gold[0].getBoundingClientRect() : null;
+          const stats = w.querySelector('.hsum-stats').getBoundingClientRect(), reason = w.querySelector('.hsum-reason').getBoundingClientRect();
+          return { gold: gold.map((b) => b.getAttribute('data-hs-act') + ':' + (b.getAttribute('data-step') || '')), inView: !!r && r.top >= box.top && r.bottom <= Math.min(box.bottom, window.innerHeight),
+            order: !!r && r.top >= reason.bottom && r.bottom <= stats.top };
+        });
+        if (JSON.stringify(sheet.gold) !== '["town:sell"]' || !sheet.inView || !sheet.order) fails.push('AW-77 on a phone the Sell step reads ' + JSON.stringify(sheet) + ', want its gold press alone, in view, under the reason and before the numbers');
+        if (shots) await shot(phone.page, 'alpha-922x423-back-in-town');
+      }
+      await phone.ctx.close();
     }
 
     { // AW-5 AW-6 the locked stack and the confirmation
@@ -3984,7 +4006,7 @@ const MUTANTS = [
   ['AW-77 the coach takes the gold press again', 'src/shell/windows/hunt-summary.js', '<button type="button" class="hh-tool" data-hs-act="coach-next" hidden>', '<button type="button" class="hh-tool is-primary" data-hs-act="coach-next" hidden>'],
   ['AW-77 a step pressed never reads Done', 'src/shell/windows/hunt-summary.js', 'const mark = (r) => { if (r && (r.ok || r.moved > 0)) {', 'const mark = (r) => { if (false) {'],
   ['AW-77 the steps are not the newest card\'s', 'src/shell/windows/hunt-summary.js', "const town = cur === list[0] && !huntOpen ? townStepsOf(cs, didOf(sc, cur.id)) : { steps: [], primary: 'again' };", "const town = { steps: [], primary: 'again' };"],
-  ['AW-77 the return card rings the Shop, never the summary\'s row', 'src/data/hunt-tutorial.js', "        '[data-hs-win=\"hunt-summary\"] [data-hs-act=\"town\"][data-step=\"sell\"]'] }),", '      ] }),'],
+  ['AW-77 the return card rings the Shop, never the summary\'s row', 'src/data/hunt-tutorial.js', "      hooks: ['[data-hs-win=\"hunt-summary\"] [data-hs-act=\"town\"][data-step=\"sell\"]',\n        '[data-hs-win=\"shop\"] .hw-tab[data-tab=\"sell\"]',", "      hooks: ['[data-hs-win=\"shop\"] .hw-tab[data-tab=\"sell\"]',"],
   ['AW-61 the leader enters alone', 'src/shell/windows/hunt-summary.js', "if (how === 'party') leadAgain(ctx, cs, sc, repaint, args.hunt);\n    else if (how === 'enter')", "if (how)"],
   ['item truth: Before you go hides the spare juice', 'src/shell/hunt-go.js', "const spare = usable && HEADS_UP_KINDS.has(kind) ? spareWords(kind, carried, barNames(s)) : '';", "const spare = '';"],
   ['item truth: Before you go nags about what is on the bar', 'src/shell/hunt-go.js', "const barNames = (s) => new Set(s.slots.filter((sl) => !sl.empty && sl.enabled !== false && sl.action.type === 'consume').map((sl) => sl.action.id));", 'const barNames = () => new Set();'],

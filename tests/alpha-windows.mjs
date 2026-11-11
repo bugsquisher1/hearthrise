@@ -531,7 +531,7 @@ async function huntsPure(imp) {
   const { huntRows, fitWords, bestLine, bestWords, tierPull, tierWords, tierChoiceWords } = await imp('src/shell/hunt-list.js');
   const { setupsOf, beforeLines, freeHeroes } = await imp('src/shell/hunt-go.js');
   const STORE = FIXTURE.hunt_settings.store;
-  /* THE PULL EACH TIER BRINGS: Normal is the ground as it stands (as built alone, 0; a party's own pull), a harder tier its own row's number for the group's size, and a row of 0 the ground as it stands too. */
+  /* THE PULL EACH TIER BRINGS: Normal is the pack as built for EVERY group size (0; Tyler 2026-11-11 ONE PACK ON NORMAL, partyPull is gone), a harder tier its own row's number for the group's size, and a row of 0 the pack as built too. */
   const rowOf = (hunt) => huntRows().find((x) => x.hunt === hunt);
   const glade = rowOf('mosslight_glade'), thicketR = rowOf('meadowbrook_thicket');
   /* FIXED ROWS, NOT TODAY'S BALANCE (lane/b-tier-dials): the page's words and pulls are read off rows set here on the very rows the page reads
@@ -543,9 +543,9 @@ async function huntsPure(imp) {
     TV.GROUND_TIERS.mosslight_glade = { dangerous: tierRow('dangerous', [4, 5, 5, 6], 1200, 1000, 1100), deadly: tierRow('deadly', [8, 8, 8, 8], 1500, 1000, 1200) };
     TV.GROUND_TIERS.meadowbrook_thicket = { dangerous: tierRow('dangerous', [0, 0, 0, 0], 1500, 1000, 1050), deadly: tierRow('deadly', [0, 0, 0, 0], 3000, 1000, 1080) };
     if (tierPull(glade, 'normal', 1) !== 0) fails.push('AW-25 a lone hero moved off the room as built: ' + tierPull(glade, 'normal', 1));
-    if (tierPull(glade, 'normal', 2) !== 3 || tierPull(glade, 'normal', 4) !== 4) fails.push('AW-25 a party on Normal does not read its own pull: ' + tierPull(glade, 'normal', 2) + ' / ' + tierPull(glade, 'normal', 4));
+    if (tierPull(glade, 'normal', 2) !== 0 || tierPull(glade, 'normal', 4) !== 0) fails.push('AW-25 a party on Normal does not read the pack as built (Tyler 2026-11-11): ' + tierPull(glade, 'normal', 2) + ' / ' + tierPull(glade, 'normal', 4));
     if (tierPull(glade, 'dangerous', 1) !== 4 || tierPull(glade, 'dangerous', 4) !== 6 || tierPull(glade, 'deadly', 1) !== 8 || tierPull(glade, 'deadly', 4) !== 8) fails.push('AW-25 a harder tier does not read its row');
-    if (tierPull(thicketR, 'deadly', 1) !== 0 || tierPull(thicketR, 'deadly', 4) !== 6) fails.push('AW-25 a row with no more monsters does not read the ground as it stands: ' + tierPull(thicketR, 'deadly', 1) + ' / ' + tierPull(thicketR, 'deadly', 4));
+    if (tierPull(thicketR, 'deadly', 1) !== 0 || tierPull(thicketR, 'deadly', 4) !== 0) fails.push('AW-25 a row with no more monsters does not read the ground as it stands: ' + tierPull(thicketR, 'deadly', 1) + ' / ' + tierPull(thicketR, 'deadly', 4));
     if (tierWords(glade, 'normal', 1) !== '' || tierChoiceWords(glade, 'normal', 1) !== '') fails.push('AW-25 Normal says more than the ground\'s page: ' + tierWords(glade, 'normal', 1));
     /* THE PLAIN LINE (Tyler 2026-11-08: the old numbers note was 'way too exact'; hunt-tiers.js TIER_LINES): a tier that brings more monsters at once than
        this group's Normal reads its 'more' line, one that brings no more its 'same' line, each with the one death line and never a number. */
@@ -554,8 +554,8 @@ async function huntsPure(imp) {
     if (tierWords(glade, 'deadly', 1) !== W('deadly', 'more')) fails.push('AW-25 the Deadly note reads: ' + tierWords(glade, 'deadly', 1));
     if (tierChoiceWords(glade, 'dangerous', 4) !== 'Dangerous: more monsters at once, and they hit harder.') fails.push('AW-25 a four on a bigger pull reads: ' + tierChoiceWords(glade, 'dangerous', 4));
     if (tierChoiceWords(thicketR, 'deadly', 1) !== 'Deadly: the monsters hit much harder.' || tierWords(thicketR, 'dangerous', 4) !== W('dangerous', 'same')) fails.push('AW-25 a row with no more monsters reads: ' + tierChoiceWords(thicketR, 'deadly', 1) + ' / ' + tierWords(thicketR, 'dangerous', 4));
-    /* a pull no bigger than this group's Normal (a pair's 3 on the Glade) is no more monsters */
-    TV.GROUND_TIERS.mosslight_glade.dangerous = tierRow('dangerous', [4, 3, 3, 4], 1200, 1000, 1100);
+    /* a pull no bigger than this group's Normal (the pack as built, 0 for a pair too since Tyler 2026-11-11) is no more monsters */
+    TV.GROUND_TIERS.mosslight_glade.dangerous = tierRow('dangerous', [4, 0, 3, 4], 1200, 1000, 1100);
     if (tierWords(glade, 'dangerous', 2) !== W('dangerous', 'same') || tierWords(glade, 'dangerous', 1) !== W('dangerous', 'more')) fails.push('AW-25 the pull read against Normal: ' + tierWords(glade, 'dangerous', 2));
     /* every dial at a sheet's odd multiple still reads no number, on every tier and group size */
     TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 2261, 2847, 1400);

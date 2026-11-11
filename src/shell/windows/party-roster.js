@@ -25,6 +25,7 @@ import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/pa
 import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.121';
 import { glyphSvg } from '../launcher.js?v=0.2.121';
 import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.121';
+import { t } from '../../render/player-text.js?v=0.2.121';
 
 /** The tab's skeleton (built once with the window). */
 export function rosterHtml() {

@@ -26,10 +26,10 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.121';
 import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.121';
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.121';
 import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.121';
-import { residentsOf, scarceSetOf, raresOf, bigPullLine, materialsOf } from '../hunt-ground-facts.js?v=0.2.121';
+import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.121';
 import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.121';
 import { chance, listWords } from '../../render/format.js?v=0.2.121';
-import { gotoAttr } from '../goto.js?v=0.2.121';
+import { gotoAttr, patchParts } from '../goto.js?v=0.2.121';
 import { factsTarget } from './monster.js?v=0.2.121';
 import { groundLines } from '../live-events-view.js?v=0.2.121';
 

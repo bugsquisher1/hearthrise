@@ -1129,6 +1129,9 @@
   background: url('../../assets/ui/ground-shadow.png') 50% 100% / 48px 10px no-repeat; image-rendering: pixelated; }
 .mf-sprite { display: block; image-rendering: pixelated; }
 .mf-stand:not(.is-drawn) .mf-sprite { width: 0; height: 0; }
+/* The creature's head (art brief 15): the Tally's sunk well, the bust at its one 32 px density; no head, no well. */
+.mf-face { display: grid; flex: none; width: 44px; height: 44px; place-items: center; align-self: center; background: var(--bg-1); box-shadow: var(--hw-well); }
+.mf-face[hidden] { display: none; }
 .mf-id { min-width: 0; padding-bottom: 2px; }
 .mf-name { margin: 0; font-family: var(--f-display); font-size: var(--t-h2); font-weight: 700; line-height: 1.15; letter-spacing: .05em; color: var(--gold-2); }
 .mf-kind { margin: 2px 0 0; font-size: var(--t-small); color: var(--ink-2); }

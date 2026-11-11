@@ -28,6 +28,9 @@
 //         page; the Rat King reads his row's numbers and carries the Hunts list's own group warning, never a gate
 //   MF-6  the phone (922x423): the page is a sheet no wider than 400 px, nothing overflows sideways, no text is
 //         under 12 px, and a ground's link goes back to that ground's Hunts page
+//   MF-8  the page's title row (its own, as a page of Hunts) draws the creature's 32 px head in a well beside the name when the head
+//         set has one (HEAD_ART, the Briarcoat Wolf), and no well at all for a creature it has none for (the same page with the
+//         wolf's head taken out of the set); the Hunts window's header never carries it
 //   MF-7  (no browser) every monster on an open ground has a page, and every word its row can ask for exists; on each of
 //         its grounds its harder tiers are that ground's dials, and every dial raises a number (a tier that lowered one
 //         would go unsaid)
@@ -50,6 +53,7 @@ const { ELEMENTS } = await src('src/data/elements.js');
 const { chance, whole } = await src('src/render/format.js');
 const { t, hasText } = await src('src/render/player-text.js');
 const { LOOT_BANDS } = await src('src/data/loot-bands.js');
+const { headPathFor } = await src('src/data/monster-art.js');
 const { GROUND_TIERS, TIER_NAME } = await src('src/data/hunt-tiers.js');
 
 /* WHAT EACH HARDER TIER CHANGES on the ground `hunt`, from that ground's dials (the engine's own rows) by plain arithmetic: Health
@@ -136,7 +140,9 @@ const readPage = (page) => page.evaluate((w) => {
     drops: Array.from(el.querySelectorAll('.mf-drop')).map((li) => [li.dataset.item, li.querySelector('.mf-drop-name').textContent, li.querySelector('.mf-drop-band').textContent, li.querySelector('.mf-odds').textContent].join(' / ')),
     uses: Object.fromEntries(Array.from(el.querySelectorAll('.mf-drop')).map((li) => [li.dataset.item, li.querySelector('.mf-drop-use').textContent])),
     homes: Array.from(el.querySelectorAll('.mf-home')).map((li) => ({ name: li.querySelector('.mf-home-go').textContent, how: li.querySelector('.mf-home-how').textContent, warn: li.querySelector('.mf-home-party').textContent })),
-    drawn: !!el.querySelector('.mf-stand.is-drawn') };
+    drawn: !!el.querySelector('.mf-stand.is-drawn'),
+    face: (() => { const well = el.querySelector('.mf-head .mf-face'), img = well && well.querySelector('img');
+      return { shown: !!well && !well.hidden && well.getClientRects().length > 0, src: img ? img.getAttribute('src') : null, w: img ? img.width : 0, inWindowHead: !!el.closest('.hs-win') && !!el.closest('.hs-win').querySelector(':scope > .hs-win-head .mf-face') }; })() };
 }, W);
 
 /* Open Hunts on `hunt` and press creature `id` on its page; true once that monster's page is drawn. */
@@ -158,6 +164,33 @@ function compare(fails, rule, got, want) {
   for (const k of ['name', 'kind', 'hp', 'maxHit', 'maxHitLabel', 'labels', 'tier', 'swing', 'weak', 'takes', 'tiers', 'xp', 'gold']) if (got[k] !== want[k]) fails.push(rule + ' ' + k + ' reads ' + JSON.stringify(got[k]) + ', the row says ' + JSON.stringify(want[k]));
   if (got.drops.join(' | ') !== want.drops.join(' | ')) fails.push(rule + ' the drops read ' + JSON.stringify(got.drops) + ', the row says ' + JSON.stringify(want.drops));
   if (!got.homes.some((h) => h.name === want.home)) fails.push(rule + ' its grounds read ' + JSON.stringify(got.homes) + ', not ' + want.home);
+}
+
+/* MF-8, the creature with no head: the Briarcoat Wolf's page with its head taken out of the set draws no well and no image. */
+async function headlessChecks(overrides) {
+  const fails = [];
+  const artFile = 'src/data/monster-art.js';
+  const art = overrides && overrides[artFile] ? overrides[artFile] : (await readFile(join(ROOT, artFile), 'utf8')).replace(/\r\n/g, '\n');
+  const cut = art.replace("'briarcoat_wolf', ", '');
+  if (cut === art) return ['MF-8 the wolf\'s head is no longer in HEAD_ART where the test takes it out'];
+  const { server, port } = await serve(Object.assign({}, overrides, { [artFile]: cut }));
+  const browser = await leaseBrowser(chromium);
+  try {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const page = await ctx.newPage();
+    page.setDefaultTimeout(20000);
+    await stub(page, { env: Object.assign(clone(BASE_ENV), clone(TOWN)), version: 1 });
+    if (!(await signInAndPlay(page, 'http://127.0.0.1:' + port))) fails.push('MF-8 the World never came up');
+    else if (!(await openFacts(page, 'meadowbrook_thicket', 'briarcoat_wolf'))) fails.push('MF-8 the headless wolf\'s page did not open');
+    else {
+      const face = await page.evaluate((w) => { const well = document.querySelector(w + ' .mf-head .mf-face'); return { shown: !!well && !well.hidden && well.getClientRects().length > 0, imgs: well ? well.querySelectorAll('img').length : -1 }; }, W);
+      if (face.shown || face.imgs !== 0) fails.push('MF-8 a creature with no head still draws a well: ' + JSON.stringify(face));
+    }
+    await ctx.close();
+  } finally {
+    server.close();
+  }
+  return fails;
 }
 
 async function checks(overrides, shots) {
@@ -211,6 +244,8 @@ async function checks(overrides, shots) {
         const want = expected('briarcoat_wolf', 'meadowbrook_thicket');
         compare(fails, 'MF-2', got, want);
         if (got && !got.drawn) fails.push('MF-2 the creature was not drawn');
+        /* MF-8: the wolf has a head, so its title row draws it in the well beside the name (the head path is the art manifest's, not retyped here) */
+        if (got && (!got.face.shown || got.face.src !== headPathFor('briarcoat_wolf') || got.face.w !== 32 || got.face.inWindowHead)) fails.push('MF-8 the Briarcoat Wolf\'s title row reads ' + JSON.stringify(got.face) + ', not its head at ' + headPathFor('briarcoat_wolf'));
         /* Each heading is the heading alone (Tyler 2026-11-11: a line that explains how the game works is cut): which tier is the Tier
            row's to say, a kill's heading carries no "shared by the heroes who were there", and the drops' note is the column's "Chance per
            kill" with no party rule after it. */
@@ -298,11 +333,14 @@ async function checks(overrides, shots) {
   } finally {
     server.close();
   }
+  fails.push(...await headlessChecks(overrides));
   return fails;
 }
 
 /* Each plants one defect the rules above exist for. [name, file, from, to] */
 const MUTANTS = [
+  ['a creature with no head still gets a well and a head path', 'src/shell/windows/monster.js', "  const well = root.querySelector('.mf-face'), src = headPathFor(id);", "  const well = root.querySelector('.mf-face'), src = headPathFor(id) || 'assets/icons-bundle/pixel/heads/' + id + '.png';"],
+  ['a creature with no head keeps an empty well', 'src/shell/windows/monster.js', "  prop(well, 'hidden', !src);", "  prop(well, 'hidden', false);"],
   ['Health is the monster\'s attack', 'src/shell/monster-facts.js', '    hp: Math.max(1, fights.hp || 1),', '    hp: Math.max(1, fights.atk || 1),'],
   ['Max Hit is the row\'s attack, not the engine\'s largest blow', 'src/shell/monster-facts.js', '  const top = monsterMaxHit(fights);', '  const top = row.atk;'],
   ['the Max Hit row goes back to the words Tyler could not read', 'src/data/text/monster.js', "  max_hit: 'Max Hit',", "  max_hit: 'One hit',"],

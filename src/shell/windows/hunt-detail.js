@@ -46,8 +46,9 @@ export function detailHtml() {
   return '<header class="hw-hd-head">'
     + '<h3 class="hw-hd-name"></h3><p class="hw-hd-band"><span class="hw-hd-levels"></span><span class="hw-hunt-fit"></span></p>'
     + '<p class="hw-hd-who"></p><p class="hw-hunt-warn"></p></header>'
-    + '<p class="hw-hd-theme"></p>'
     + '<h4 class="hw-hd-h">Who lives here</h4><ul class="hw-hd-lineup" aria-label="Who lives here"></ul><p class="hs-note hw-hd-bigpull" hidden></p>'
+    /* the ground's words under who lives there: on a short screen the first row of creatures shows whole (Tyler 2026-11-11) */
+    + '<p class="hw-hd-theme"></p>'
     + '<h4 class="hw-hd-h">Drops <small class="hw-hd-per hw-hd-per-size"></small></h4><ul class="hw-hd-sets" aria-label="Drops"></ul>'
     + '<h4 class="hw-hd-h">Materials <small class="hw-hd-per hw-hd-mats-per"></small></h4><ul class="hw-hd-mats" aria-label="Materials"></ul>'
     + '<h4 class="hw-hd-h">Rare drops <small class="hw-hd-per">chance per kill of its creature</small></h4><ul class="hw-hd-rares" aria-label="Rare drops"></ul>'
@@ -123,8 +124,8 @@ export function patchGo(det, ctx, v) {
   text(none, v.partyBlock.bring.length ? '' : 'Your other heroes can come too. Play one from Characters and it shows here. Up to four play at once.');
 }
 
-/* "Level 2 · common"; a boss says so in place of its share. */
-const howWords = (m) => (Number.isInteger(m.level) ? 'Level ' + m.level + ' · ' : '') + (m.boss ? 'boss' : m.band);
+/* "Level 2 · common"; a boss says so in place of its share. The dot keeps to the line it ends (a wrapped line never starts with one). */
+const howWords = (m) => (Number.isInteger(m.level) ? 'Level ' + m.level + ' · ' : '') + (m.boss ? 'boss' : m.band);
 
 /* One creature's picture, drawn once per creature (a canvas keeps it); nothing until its art has loaded. */
 function paintSprite(li, id) {

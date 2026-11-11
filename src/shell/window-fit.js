@@ -10,8 +10,8 @@
 //      where it is, under it (window-manager.js overBar). A floating window is held wholly inside the World.
 //   2. A STICKY FOOT TAKES ITS OWN ROOM. A foot that sticks to a scroll region's bottom (Enter, Save, Send) is measured
 //      out of that region's visible height, so the row it would lie on counts as cut.
-//   3. A WHOLE ROW AT THE FOOT. At rest a scroll region shows no row cut through: it ends on the top of the row its
-//      foot line crosses (that row starts below, whole, one scroll away). Rows are found, not declared: the deepest box
+//   3. A WHOLE ROW AT THE FOOT. As it opens (never once the player has scrolled or pressed in it) a scroll region shows no row cut through: it ends on the top of the row its
+//      foot line crosses (that row starts below, whole, one scroll away). Rows are found, not declared: the outermost box
 //      the line crosses that is repeated beside its like (a list's line, a bag's slot, a creature grid's card, a
 //      paragraph among paragraphs), so no window lists its rows. Display only: nothing here reads or writes the game.
 // mutant-anchors: tests/alpha-windows.mjs AW-90
@@ -20,10 +20,23 @@ import { dockCap } from './hud.js?v=0.2.121';
 import { overBar } from './window-manager.js?v=0.2.121';
 
 const TRIM = 'data-hs-trim';
+/* The scroll regions a player has scrolled, pressed in or wheeled over: their height is theirs from then on. */
+const held = new WeakSet();
+const HOLD = ['wheel', 'touchstart', 'pointerdown', 'keydown'];
+const watched = new WeakSet();
+function watch(frame, view) {
+  if (watched.has(frame)) return;
+  watched.add(frame);
+  const take = (ev) => { for (let a = ev.target; a && a !== frame; a = a.parentElement) if (a.hasAttribute && scrolls(a, view)) held.add(a); };
+  for (const type of HOLD) frame.addEventListener(type, take, { passive: true, capture: true });
+}
 /* A row hidden by this little is whole to the eye (its border, its pad). */
 const CUT_MIN_PX = 4;
-/* A region never gives up more than this share of its height to end on a whole row (a row that tall is read by scrolling). */
+/* A region never gives up more than this share of its height to end on a whole row, and more than half of that only while it keeps
+   READ_MIN_PX: a row taller is read by
+   scrolling, and a phone's ground page keeps its room to read (tests/phone-touch.mjs PH-25). */
 const ROW_SHARE = 0.5;
+const READ_MIN_PX = 200;
 const FLOW_OUT = /^(sticky|absolute|fixed)$/;
 
 /** The height a docked window counts for the widgets beside it: over the bar, only the part above it (the bar stays put). */
@@ -61,17 +74,18 @@ function holdInside(w, layer, gap) {
 
 /** Undo every trim inside `root`, so the frame is measured as its content draws it. */
 function clearTrims(root) {
-  for (const e of root.querySelectorAll('[' + TRIM + ']')) { e.style.maxHeight = ''; e.removeAttribute(TRIM); }
+  for (const e of root.querySelectorAll('[' + TRIM + ']')) if (!held.has(e)) { e.style.maxHeight = ''; e.removeAttribute(TRIM); }
 }
 
 /** Rules 2 and 3 for one window: each scroll region in it ends on a whole row. Run after a layout pass and a repaint. */
 export function trimEnds(frame) {
   if (!frame || frame.classList.contains('is-sized')) return;   // a window the player sized (Chat) keeps the size it was given
   const view = frame.ownerDocument.defaultView;
+  watch(frame, view);
   clearTrims(frame);
   /* outer regions first (document order): a region that a nested one crosses gives the nested one the cut */
   for (const s of frame.querySelectorAll('*')) {
-    if (!scrolls(s, view)) continue;
+    if (held.has(s) || !scrolls(s, view)) continue;   // a region the player has touched keeps its height: nothing moves under the hand
     const at = restCut(s, view);
     if (at) shrink(at.el, at.cut, view);
   }
@@ -94,10 +108,6 @@ function boxesIn(node, view) {
   return out;
 }
 
-/* Does `el` draw something itself (words of its own, a picture, a control), not only boxes? */
-function drawsItself(el) {
-  return /^(IMG|CANVAS|svg|BUTTON|INPUT|SELECT|TEXTAREA)$/.test(el.tagName) || ownWords(el);
-}
 /* Is `el` a block of its own words (a paragraph), not a control? */
 function ownWords(el) {
   return !/^(BUTTON|INPUT|SELECT|TEXTAREA)$/.test(el.tagName) && Array.prototype.some.call(el.childNodes, (n) => n.nodeType === 3 && n.textContent.trim() !== '');
@@ -116,7 +126,7 @@ function shrink(el, cut, view) {
 function restCut(s, view) {
   const r = s.getBoundingClientRect();
   const edge = r.top + s.clientTop;                  // the region's visible top, in the view
-  const origin = edge - s.scrollTop;                 // its content's y 0, in the view (= the visible top at rest)
+  const origin = edge;                               // rows as they stand in view now (at rest, or where the window scrolled them, the pick)
   /* rule 2: a foot stuck to the region's bottom (Enter, Save, Send: sticky, three levels deep at most) takes its own room */
   let line = s.clientHeight;
   for (const f of s.querySelectorAll(':scope > *, :scope > * > *, :scope > * > * > *')) {
@@ -126,10 +136,12 @@ function restCut(s, view) {
     if (q.height && q.bottom >= edge + s.clientHeight - 2) line = Math.min(line, q.top - edge);
   }
   /* rule 3: the row the line crosses. A row is a box repeated beside its like (a list's line, a grid's card, a paragraph
-     among paragraphs; same tag, same first class), the deepest such one; a crossing section that is no row is looked into.
-     With none, the deepest crossing box when it draws something there itself (its own words, a picture, a control): a lone
-     paragraph cut through its lines. A line through a gap between boxes cuts nothing. */
-  let node = s, row = null, last = null;
+     among paragraphs; same tag, same first class): the outermost one that ends whole within the share (a row, not a cell
+     in it; a repeated section too tall to give up is looked into). With none, words end on a whole line: the deepest
+     crossing box that draws its own words (a lone paragraph). A line through a gap between boxes cuts nothing. */
+  const share = s.clientHeight * ROW_SHARE;
+  const fits = (cut) => (cut > CUT_MIN_PX && cut <= share && (cut <= share / 2 || s.clientHeight - cut >= READ_MIN_PX) ? { el: s, cut } : null);
+  let node = s, words = null;
   for (let depth = 0; depth < 12; depth++) {
     let into = null, top = Infinity, bot = 0;
     const kids = boxesIn(node, view);
@@ -141,20 +153,14 @@ function restCut(s, view) {
       if (t < line - CUT_MIN_PX && b > line + CUT_MIN_PX && t < top) { top = t; bot = b; into = k; }
     }
     if (!into) break;
-    if (scrolls(into, view)) return bot - line <= into.clientHeight * ROW_SHARE ? { el: into, cut: Math.ceil(bot - line) } : null;
-    if (kids.some((o) => o !== into && o.tagName === into.tagName && o.classList[0] === into.classList[0])) row = { top, el: into };
+    if (scrolls(into, view)) return !held.has(into) && bot - line <= into.clientHeight * ROW_SHARE ? { el: into, cut: Math.ceil(bot - line) } : null;
+    if (kids.some((o) => o !== into && o.tagName === into.tagName && o.classList[0] === into.classList[0]) && fits(Math.ceil(line - top))) return fits(Math.ceil(line - top));
+    if (ownWords(into)) words = { top, el: into };
     node = into;
-    last = { top, el: into };
   }
-  if (!row && last && node !== s && drawsItself(node)) row = last;
-  if (!row) return null;
-  /* words end on a whole line, not a whole paragraph; a row of boxes ends whole */
-  let cut = Math.ceil(line - row.top);
-  if (ownWords(row.el)) {
-    const rs = view.getComputedStyle(row.el);
-    const lh = parseFloat(rs.lineHeight) || parseFloat(rs.fontSize) * 1.2;
-    const first = row.top + parseFloat(rs.borderTopWidth) + parseFloat(rs.paddingTop);
-    if (lh > 0 && line > first) cut = Math.ceil((line - first) % lh);
-  }
-  return cut > CUT_MIN_PX && cut <= s.clientHeight * ROW_SHARE ? { el: s, cut } : null;
+  if (!words) return null;
+  const rs = view.getComputedStyle(words.el);
+  const lh = parseFloat(rs.lineHeight) || parseFloat(rs.fontSize) * 1.2;
+  const first = words.top + parseFloat(rs.borderTopWidth) + parseFloat(rs.paddingTop);
+  return lh > 0 && line > first ? fits(Math.ceil((line - first) % lh)) : fits(Math.ceil(line - words.top));
 }

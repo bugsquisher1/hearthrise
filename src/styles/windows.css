@@ -374,7 +374,7 @@
 .hw-hd-who { margin: 0; font-size: var(--t-small); color: var(--ink-2); }
 .hw-hunt-warn { margin: 1px 0 0; font-size: var(--t-micro); color: var(--red); }
 .hw-hunt-warn:empty { display: none; }
-.hw-hd-theme { margin: 2px 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink); }
+.hw-hd-theme { margin: var(--gap) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink); }
 /* Each section head is a Forged Steel head (shell.css): Cinzel in gold over a rule. */
 .hw-hd-h { margin: 18px 0 10px; }
 /* Who lives here: each creature as the world draws it (x2), in even columns, all standing at the tallest one's
@@ -385,7 +385,7 @@
 .hw-hd-stand { display: flex; align-items: flex-end; justify-content: center; align-self: stretch; height: calc(var(--stand-h, 45px) + 6px); padding: 0 0 4px;
   background: url('../../assets/ui/ground-shadow.png') 50% 100% / 48px 10px no-repeat; image-rendering: pixelated; }
 .hw-hd-mon-name { margin-top: 6px; padding: 0 4px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: var(--t-small); font-weight: 700; line-height: 1.2; color: var(--ink); white-space: nowrap; }
-.hw-hd-mon-how { padding: 0 4px; font-size: var(--t-micro); line-height: 1.25; color: var(--ink-3); white-space: nowrap; }
+.hw-hd-mon-how { max-width: 100%; padding: 0 4px; font-size: var(--t-micro); line-height: 1.25; color: var(--ink-3); text-wrap: balance; }
 .hw-hd-sprite { display: block; image-rendering: pixelated; }
 .hw-hd-mon:not(.is-drawn) .hw-hd-sprite { width: 0; height: 0; }
 .hw-hd-mon[data-band="common"] .hw-hd-mon-how { color: var(--ink-2); }

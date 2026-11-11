@@ -2355,7 +2355,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             rares: Array.from(d.querySelectorAll('.hw-hd-rares .hw-hd-rare')).map((n) => n.querySelector('.hw-hd-rare-name').textContent + ' / ' + n.querySelector('.hw-hd-rare-by').textContent + (n.classList.contains('is-trophy') ? ' (trophy)' : '')),
             raresShown: (() => { const h = d.querySelector('.hw-hd-rares'), head = h && h.previousElementSibling; return !!head && head.getClientRects().length > 0; })(),
             mons: Array.from(d.querySelectorAll('.hw-hd-mon')).map((li) => { const c = li.querySelector('canvas'), b = c.getBoundingClientRect(), st = li.querySelector('.hw-hd-stand').getBoundingClientRect();
-              return { id: li.dataset.monster, how: li.querySelector('.hw-hd-mon-how').textContent, drawn: li.classList.contains('is-drawn'), carrier: li.classList.contains('is-carrier'),
+              return { id: li.dataset.monster, how: li.querySelector('.hw-hd-mon-how').textContent.replace(/ /g, ' '), drawn: li.classList.contains('is-drawn'), carrier: li.classList.contains('is-carrier'),
                 w: c.width, h: c.height, cw: b.width, ch: b.height, ground: Math.round(st.bottom), inside: b.top >= st.top - 0.5 }; }),
             bests: Array.from(d.querySelectorAll('.hw-hd-best')).filter((n) => n.getClientRects().length).map((n) => n.textContent) };
         }, W);
@@ -2912,7 +2912,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const on = (n) => !!n && (n === b || b.contains(n));
         return { hit: on(top) && on(low), top: top && (top.className || top.tagName), low: low && (low.className || low.tagName) };
       }, sel);
-      const { ctx, page, errors, s, up } = await open({ viewport: { width: 1366, height: 660 }, mutateEnv: town });
+      /* 560 tall: on a short World a window now rises over the bar to fit (AW-77), so the columns these controls need to overflow do so only here */
+      const { ctx, page, errors, s, up } = await open({ viewport: { width: 1366, height: 560 }, mutateEnv: town });
       s.onCall = (name, b) => { if (name === 'hr-accrue' && b.verb === 'set_activity') Object.assign(s.env.state, b.activity && b.activity.kind ? { active_kind: b.activity.kind, active_id: b.activity.id } : { active_kind: 'idle', active_id: null }); };
       if (!up) fails.push('AW-67 the town did not mount');
       else {

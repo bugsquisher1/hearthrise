@@ -3226,5 +3226,14 @@ fire), as a style image leaks its props; (3) before writing a pass rule, measure
 tileset ash fills have p10 = p90, so "15% on the neighbours" was unreachable and cost 45 gens of re-rolls; a plain step
 plus authored decals is the route; (4) a rounded slab with one glyph reads as a headstone: judge a prop's silhouette in
 the company it keeps; (5) judge a flier's seat in its sidecar frame, after placement, not on the generator's canvas.
+### 2026-11-11 lane/a-windows-no-clip (every window opens whole; the honest Hunts advice line)
+One shell home: src/shell/window-fit.js (window-manager.js overBar, DOCK_ROOM_PX 480). Tables and shots in
+art/review/windows-no-clip-2026-11-11 (40 of 135 window-size cells cut something at open, then 0). Lessons: (1) the class had
+one cause, not 23: the dock cap above a 190 px action bar left Hunts 338 px of a 652 px screen; fix the height first and most
+"cut rows" vanish; (2) a row is found, not declared: the OUTERMOST repeated box the line crosses (the deepest finds a table
+cell), look through display:contents, and a nested scroll region the line crosses ends at the line; (3) never re-trim a region
+the player has touched (AW-65 caught a stack moving under the hand); (4) a trim spends reading room: cap it (PH-25 guards the
+phone page); (5) measure before and after with one detector by serving the base's files as overrides from git.
+
 ### 2026-11-10 lane/d-scaled-and-events-mocks (mocks only: scaled hunts, live events)
 Boards in .claude/coordination/mocks/2026-11-10 (4 boards, 9 screens, SPEC.md). Method: capture the real page from local-world (canvases to images, scripts stripped, a base href to the repo root), edit it in Playwright, save the DOM, so a mock is today's screen plus the new part. Lessons: (1) a mock of a phone sheet must sit in an iframe at 922x423 or the desktop rules apply; (2) .hs-win::before is absolute, so a window slice set to position static paints its floor over the whole first viewport; (3) a full-page shot leaves iframes under the fold blank unless the viewport is grown to the page first; (4) bake a scroll position as a negative top margin, a load script scrolls before the images have a height.

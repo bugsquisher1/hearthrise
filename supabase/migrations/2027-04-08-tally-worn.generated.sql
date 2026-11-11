@@ -10,8 +10,11 @@
 -- and the pick that 2027-04-08-tally-worn.sql restates, which applies AFTER this file.
 -- hr_tally_tasks rows are UPSERTED (held tasks point at them; a removed task REFUSES
 -- while a hero holds it, loudly, by design); pieces, materials and tiers are replaced
--- whole. MONEY SURFACE (gold and an item per claim), on the pre-EA Security list.
--- No begin/commit.
+-- whole. A HELD task keeps the count it was taken at, so when a task's count is CUT,
+-- every held copy above the new count comes down to it: one already past it is done
+-- now and pays on the hero's next return, as any done task does. A count that is
+-- RAISED leaves held copies alone. Touches no function body. MONEY SURFACE (gold and
+-- an item per claim), on the pre-EA Security list. No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 create table if not exists public.hr_tally_config (
@@ -68,7 +71,7 @@ insert into public.hr_tally_config (only_row, held_max, paid_per_day, weights, s
 -- ord is unique: park the old order out of the way before the upsert re-numbers it.
 update public.hr_tally_tasks set ord = ord + 1000000;
 insert into public.hr_tally_tasks (task_id, ord, hunt_id, monster_id, target, gold, party) values
-  ('cellar_giant_rats', 1, 'mill_cellar', 'rat', 120, 100, false),
+  ('cellar_giant_rats', 1, 'mill_cellar', 'rat', 25, 25, false),
   ('thicket_gray_wolves', 2, 'meadowbrook_thicket', 'gray_wolf', 200, 480, false),
   ('wickstead_turncoats', 3, 'wickstead', 'turncoat', 50, 780, false),
   ('sewer_rat_king', 4, 'millrace_sewer', 'rat_king', 5, 1020, true),
@@ -77,6 +80,14 @@ insert into public.hr_tally_tasks (task_id, ord, hunt_id, monster_id, target, go
   on conflict (task_id) do update set ord = excluded.ord, hunt_id = excluded.hunt_id, monster_id = excluded.monster_id,
     target = excluded.target, gold = excluded.gold, party = excluded.party;
 delete from public.hr_tally_tasks where task_id <> all (array['cellar_giant_rats', 'thicket_gray_wolves', 'wickstead_turncoats', 'sewer_rat_king', 'glade_poachers', 'warrens_goblin_diggers']::text[]);
+
+-- A CUT COUNT NEVER STRANDS A HELD TASK (the migration's work, not a self-check): hero_tally_tasks is 2026-12-23-tally-tasks.sql's,
+-- applied long before this file. Idempotent: a second apply finds no held row above its task's count.
+update public.hero_tally_tasks h
+   set target = c.target, kills = least(h.kills, c.target),
+       done_at = case when h.kills >= c.target then coalesce(h.done_at, now()) end
+  from public.hr_tally_tasks c
+ where c.task_id = h.task_id and h.target > c.target;
 
 delete from public.hr_tally_pieces;
 insert into public.hr_tally_pieces (hunt_id, item_id, weight, equip_slot, tier) values
@@ -326,7 +337,7 @@ do $$
 declare v_role text; v_bad text;
 begin
   if (select count(*) from public.hr_tally_tasks) <> 6
-     or (select sum(gold) from public.hr_tally_tasks) <> 4390
+     or (select sum(gold) from public.hr_tally_tasks) <> 4315
      or (select count(*) from public.hr_tally_pieces) <> 63
      or (select count(*) from public.hr_tally_materials) <> 15
      or (select held_max from public.hr_tally_config) <> 3
@@ -357,6 +368,9 @@ begin
   select p.item_id into v_bad from public.hr_tally_pieces p
    where not exists (select 1 from public.hr_tally_tiers w where w.item_id = p.item_id and w.equip_slot = p.equip_slot and w.tier = p.tier) limit 1;
   if v_bad is not null then raise exception 'tally-catalogue: piece % has a tier her tier book does not', v_bad; end if;
+  select h.task_id into v_bad from public.hero_tally_tasks h join public.hr_tally_tasks c using (task_id)
+   where h.target > c.target or h.kills > h.target or ((h.done_at is null) <> (h.kills < h.target)) limit 1;
+  if v_bad is not null then raise exception 'tally-catalogue: a held % still counts past the catalogue''s target', v_bad; end if;
   foreach v_role in array array['anon', 'authenticated'] loop
     if has_table_privilege(v_role, 'public.hr_tally_tasks', 'select,insert,update,delete')
        or has_table_privilege(v_role, 'public.hr_tally_pieces', 'select,insert,update,delete')
@@ -365,5 +379,5 @@ begin
        or has_table_privilege(v_role, 'public.hr_tally_tiers', 'select,insert,update,delete') then
       raise exception 'tally-catalogue: % reaches the catalogue', v_role; end if;
   end loop;
-  raise notice 'tally-catalogue: 6 tasks (4390 g in all), 63 pieces on 6 grounds, 15 materials, 154 worn tiers; all green';
+  raise notice 'tally-catalogue: 6 tasks (4315 g in all), 63 pieces on 6 grounds, 15 materials, 154 worn tiers; all green';
 end $$;

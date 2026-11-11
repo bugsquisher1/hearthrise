@@ -9,7 +9,8 @@
 //        → an empty (or unnamed) slot opens the creation step (src/app/hero-create.js):
 //          name + four colours, ONE intent; the hero enters town on the server's yes
 //        → the game: the character strip (src/app/character-strip.js; up to the
-//          server's concurrent limit, each its own CharacterSession), built
+//          server's concurrent limit, each its own CharacterSession, and the
+//          account's heroes not open here, one Play press each), built
 //          once, and the World pane with the shell over it for the VIEWED
 //          character (src/app/world-pane.js); one alert centre for the account
 //          (src/shell/alerts.js) watches every open character
@@ -40,36 +41,36 @@
 // account reaches another's heroes and no answer of another's reaches this page (Andy 2026-11-06).
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient, authLockFor } from '../net/supabase-bootstrap.js?v=0.2.118';
-import { createBootTiming } from '../net/boot-timing.js?v=0.2.118';
-import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.118';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.118';
-import { createServerLink } from '../session/server.js?v=0.2.118';
-import { AccountSession } from '../session/account-session.js?v=0.2.118';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.118';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.118';
-import { mountWorldPane } from './world-pane.js?v=0.2.118';
-import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.118';
-import { renderHeroCreate } from './hero-create.js?v=0.2.118';
-import { renderBannedNotice, renderClosedNotice } from './closed-notice.js?v=0.2.118';
-import { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.118';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.118';
-import { mountMarketWatch } from '../shell/market-watch.js?v=0.2.118';
-import { mountSocialWatch } from '../shell/social-watch.js?v=0.2.118';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.118';
-import { SocialSession } from '../social/social-session.js?v=0.2.118';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.118';
-import { startObservability, track, trackOnce } from '../net/observability.js?v=0.2.118';
-import { loadGlyphs } from './glyphs-loader.js?v=0.2.118';
-import { startDiagnostics } from '../net/diagnostics.js?v=0.2.118';
-import { mountPressAck } from '../shell/press-ack.js?v=0.2.118';
-import { mountOffWhy } from '../shell/off-why.js?v=0.2.118';
-import { mountLauncherNames } from '../shell/launcher-names.js?v=0.2.118';
-import { connection, mountConnectionLine } from '../net/connection.js?v=0.2.118';
-import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.118';
-import { mountNewVersion } from './new-version.js?v=0.2.118';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.118';
-import { coachFactsOf } from '../shell/launcher.js?v=0.2.118';
+import { SUPABASE_CONFIG, createSupabaseClient, authLockFor } from '../net/supabase-bootstrap.js?v=0.2.119';
+import { createBootTiming } from '../net/boot-timing.js?v=0.2.119';
+import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.119';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.119';
+import { createServerLink } from '../session/server.js?v=0.2.119';
+import { AccountSession } from '../session/account-session.js?v=0.2.119';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.119';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.119';
+import { mountWorldPane } from './world-pane.js?v=0.2.119';
+import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.119';
+import { renderHeroCreate } from './hero-create.js?v=0.2.119';
+import { renderBannedNotice, renderClosedNotice } from './closed-notice.js?v=0.2.119';
+import { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.119';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.119';
+import { mountMarketWatch } from '../shell/market-watch.js?v=0.2.119';
+import { mountSocialWatch } from '../shell/social-watch.js?v=0.2.119';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.119';
+import { SocialSession } from '../social/social-session.js?v=0.2.119';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.119';
+import { startObservability, track, trackOnce } from '../net/observability.js?v=0.2.119';
+import { loadGlyphs } from './glyphs-loader.js?v=0.2.119';
+import { startDiagnostics } from '../net/diagnostics.js?v=0.2.119';
+import { mountPressAck } from '../shell/press-ack.js?v=0.2.119';
+import { mountOffWhy } from '../shell/off-why.js?v=0.2.119';
+import { mountLauncherNames } from '../shell/launcher-names.js?v=0.2.119';
+import { connection, mountConnectionLine } from '../net/connection.js?v=0.2.119';
+import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.119';
+import { mountNewVersion } from './new-version.js?v=0.2.119';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.119';
+import { coachFactsOf } from '../shell/launcher.js?v=0.2.119';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -115,6 +116,7 @@ function startApp(win) {
   let rosterSlots = [];   // the account's existing characters, as the roster last read them
   let roster = [];        // the roster rows the characters screen shows (the server's, as last read)
   let slotBuying = false; // a hero-slot purchase is in flight: the button stays off until the answer
+  let soon = new Set();   // the heroes play() opens next, beside the one it shows: off the strip's not-open list until tried
 
   const recovering = /type=recovery/.test(win.location.hash);
   /* AN EMAIL LINK THAT DID NOT WORK (expired, used twice, or opened first by a mail scanner) comes back with its error in the
@@ -184,7 +186,7 @@ function startApp(win) {
     /* the town's sheets likewise (src/world/prewarm.js): a cold Play after a release no longer waits for 2.5 MB */
     /* ...for THIS session only: the pass asks before every slice and sheet whether its account is still the page's, so a
        sign-out or a refused session stops it at once (client-boot B-15) */
-    import('../world/prewarm.js?v=0.2.118').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
+    import('../world/prewarm.js?v=0.2.119').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
     /* the token's answer is the moment the first read leaves (boot-timing.js): whatever it waited on is before that; the
        link carries THIS login's token only (auth.tokensFor), never another account's a later sign-in left on the device */
     const tokens = auth.tokensFor(auth.userId());
@@ -322,10 +324,14 @@ function startApp(win) {
     }
     if (a !== account) return false;
     a.view(slot);
+    const next = new Set(others);
+    soon = next;
     await showGame();
     timing.drawn('game');
     /* the account's other characters play too (in town for everyone), unviewed */
     if (account === a) await a.openOthers(others);
+    /* any it could not open (the server's limit, a failed load) now show in the strip as not open, with Play */
+    if (soon === next) { soon = new Set(); if (strip) strip.patch(); }
     /* The game screen is reported only now, with every hero this page opens read: the player's choice about being recorded
        lives in their residue (src/session/replay-pref.js), so recording waits until all of it has been seen. */
     if (account === a) obs.screen('game');
@@ -344,7 +350,7 @@ function startApp(win) {
       main.className = 'game';
       root.appendChild(nav);
       root.appendChild(main);
-      strip = mountCharacterStrip(nav, { account, alerts, glyphs: () => win.HR_GLYPHS || {} });
+      strip = mountCharacterStrip(nav, { account, alerts, glyphs: () => win.HR_GLYPHS || {}, soon: () => soon });
     }
     await showPane();
   }
@@ -379,6 +385,19 @@ function startApp(win) {
     account.view(slot);
   }
 
+  /* A HERO THE STRIP LISTS AS NOT OPEN (character-strip.js; Andy 2026-11-09: a reload reopens only this tab's heroes): one press
+     opens it beside the others and shows it, while the server's play-at-once limit has a seat (AccountSession.open answers
+     'limit' and sends nothing when it has none); else the strip says why in a plain line. */
+  async function openHero(slot) {
+    const a = account;
+    if (!a || !strip || !Number.isInteger(slot)) return;
+    if (a.character(slot)) { goTo(slot, null); return; }
+    const r = await a.open(slot);
+    if (a !== account) return;
+    if (r.ok) a.view(slot);
+    else if (strip) strip.refused(slot, r.reason === 'limit' ? 'full' : 'failed');
+  }
+
   root.addEventListener('click', (e) => {
     const t = e.target.closest('[data-app]');
     if (!t) return;
@@ -388,6 +407,7 @@ function startApp(win) {
     else if (what === 'characters') showCharacters();
     else if (what === 'play') play(slot);
     else if (what === 'show') goTo(slot, null);
+    else if (what === 'open-hero') openHero(slot);
     else if (what === 'all') { if (pane) pane.shell.toggle('characters'); }
     else if (what === 'create') showCreate(slot);
     else if (what === 'buy-slot') buySlot(Number(t.getAttribute('data-slot-id')), Number(t.getAttribute('data-pay')));

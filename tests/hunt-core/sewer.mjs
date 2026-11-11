@@ -235,6 +235,11 @@ function carriedOnly(T, ids) {
   }
   return { ...T, slots };
 }
+/* Tamsin's tally as the coach reads it (tutorial-sections.js): `held` [[task, kills, done]], `paid` [task] of the last day. */
+function tallyFact(held, paid, weight = true) {
+  return { held: held.length, paid: paid.length, weight, paidTasks: paid.slice(),
+    tasks: Object.fromEntries(held.map(([task, kills, done]) => [task, { kills, target: 25, done: !!done }])) };
+}
 /* The facts of that hero at Level L, in town, everything else fresh (`more` overrides). */
 function tutAt(M, T, L, more) {
   const lr = M.blessings.BLESSING_RULES;
@@ -245,7 +250,7 @@ function tutAt(M, T, L, more) {
     blessings: { held: 0, of: M.blessings.BLESSING_TIERS.length, freeUntil: lr.freeUntilLevel, best: Math.max(...M.blessings.BLESSING_TIERS.map((t) => t.xpLossReductionPermille)),
       prices: M.blessings.BLESSING_TIERS.map((t) => M.blessings.blessingPrice(t.tier, L)) },
     death: null, supplies: [], huntMs: 0, hpMax: M.vit.maxHpFor(L, 0), presets: 0, landPlanted: false, land: { ready: {} }, home: null, gold: 500,
-    staminaMs: 8 * 3600000, tally: { held: 0, paid: 0, weight: false }, inParty: false, partied: false,
+    staminaMs: 8 * 3600000, tally: tallyFact([], [], false), inParty: false, partied: false,
     read: new Set(), roster: null, slotsOwned: null, playLimit: null, sellable: 0, upgrades: [], ...(more || {}) };
 }
 /* ONE HERO WALKS THE CHAIN: at each step the card the facts put up, then the press (or the server's change) that
@@ -260,7 +265,14 @@ function walkChain(M, T, extra) {
   const read = (id) => (f.read instanceof Set ? set({ read: new Set([...f.read, id]) }) : null);
   const at = (id, pct) => (s) => (s && s.id === id ? { ...s, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: pct }] } : s);
   const save = (slots) => set({ slots, stored: slots.map((s) => (s ? { type: s.type, id: s.id, conditions: s.conditions } : null)) });
+  const RATS = 'cellar_giant_rats', WOLVES = 'thicket_gray_wolves';
   const press = {
+    /* TAMSIN FIRST (designer 2026-11-10): her rats taken before the first hunt, counted in it, paid on the way back with a helmet to wear */
+    tamsins_rats: () => set({ tally: tallyFact([[RATS, 0]], []) }),
+    rats_count: () => set({ tally: tallyFact([[RATS, 25, true]], []) }),
+    tamsin_owes: () => set({ huntId: null, endReason: 'left', tally: tallyFact([], [RATS]), upgrades: ['bronze_helm'] }),
+    equip_upgrades: () => set({ upgrades: [] }),
+    back_down: () => set({ huntId: 'mill_cellar', endReason: null }),
     to_the_cellar: () => set({ huntId: 'mill_cellar', visited: new Set([...f.visited, 'mill_cellar']) }),
     first_kill: () => set({ levelXp: 3 }),
     first_level: () => L(2),
@@ -286,12 +298,12 @@ function walkChain(M, T, extra) {
     cook_catch: () => set({ skillXp: { ...f.skillXp, cooking: 30 } }),
     styles: () => read('styles'),
     bless: () => set({ blessings: { ...f.blessings, held: f.blessings.of, prices: [] } }),
-    tamsins_task: () => set({ tally: { held: 1, paid: 0, weight: true } }),
+    tamsins_task: () => set({ tally: tallyFact([[WOLVES, 0]], [RATS]) }),
     /* in the Thicket the hero eats, and "Eat on time" comes (the two read-on-sight cards it meets on the way are read) */
     into_the_thicket: () => set({ huntId: 'meadowbrook_thicket', visited: new Set([...f.visited, 'meadowbrook_thicket']), sellable: null,
       supplies: [{ item: 'cooked_shrimp', source: 'own', count: 3 }], read: f.read instanceof Set ? new Set([...f.read, 'first_eat', 'fight_settings']) : f.read }),
     help_page: () => read('help_page'),
-    tamsin_pays: () => { L(7); set({ huntId: null, endReason: 'left', tally: { held: 0, paid: 1, weight: true }, sellable: 0 }); },
+    tamsin_pays: () => { L(7); set({ huntId: null, endReason: 'left', tally: tallyFact([], [RATS, WOLVES]), sellable: 0 }); },
     save_setup: () => set({ presets: 1 }),
     /* Level 7 is the day-one goals' Level (lane/b-first-hour): paid at 7, the hero meets "Make your own runes" next.
        Its press: a rune of the bar's spell family made and carried. */
@@ -500,17 +512,20 @@ const cases = {
     /* short over the town (it fits 667x375 without covering the bar), the five ways inside the bag */
     const sc = M.tut.cardFor(M.tut.currentCard(tutAt(M, K, 1)), tutAt(M, K, 1));
     if (sc.text.split(' ').length > 25 || !sc.text.includes('then Equip') || (sc.textIn || '').length > 260 || !/heals\..*made in Gathering and crafting/.test(sc.textIn || '')) return 'the style card reads ' + JSON.stringify([sc.text, sc.textIn]);
-    if (id(tutAt(M, K, 1, { read: new Set(['styles']) })) !== 'to_the_cellar') return 'after the style card comes ' + id(tutAt(M, K, 1, { read: new Set(['styles']) }));
+    if (id(tutAt(M, K, 1, { read: new Set(['styles']) })) !== 'tamsins_rats') return 'after the style card comes ' + id(tutAt(M, K, 1, { read: new Set(['styles']) }));
+    /* Tamsin's rats never wall the first hunt: Got it, or the Take, and the Cellar's card follows */
+    if (id(tutAt(M, K, 1, { read: new Set(['styles', 'tamsins_rats']) })) !== 'to_the_cellar') return 'Got it on Tamsin\'s rats leads to ' + id(tutAt(M, K, 1, { read: new Set(['styles', 'tamsins_rats']) }));
+    if (id(tutAt(M, K, 1, { read: new Set(['styles']), tally: tallyFact([['cellar_giant_rats', 0]], []) })) !== 'to_the_cellar') return 'her rats taken, the next card is not the Cellar';
     const back = tutAt(M, K, floor, { levelXp: M.xp.charXpForLevel(floor), visited: new Set(['mill_cellar']), sellable: 3, read: new Set(seen.concat('styles')), blessings: tutAt(M, K, floor).blessings });
     if (id(back) !== 'bless') return 'back from the Cellar the first card is ' + id(back) + ', not the Blessings';
     /* the bow: the worn set says nothing is loaded (fact `ammo`); unknown says nothing */
     const B = tutKit(M, null, 'practice_bow', null);
     const bow = (more) => tutAt(M, B, 1, { ammo: null, ...(more || {}) });
-    const town = bow({ visited: new Set(['mill_cellar']), read: new Set(['styles']) }), said = M.tut.cardFor(M.tut.currentCard(town), town);
+    const town = bow({ visited: new Set(['mill_cellar']), read: new Set(['styles', 'tamsins_rats']) }), said = M.tut.cardFor(M.tut.currentCard(town), town);
     if (said.id !== 'load_shot' || !said.text.includes('press Bronze Arrows, then Put on the bar') || !said.hooks.some((h) => h.includes('data-item="bronze_arrows"'))) return 'a bow with nothing loaded in town reads ' + JSON.stringify(said);
     /* and before the first kill that would never come */
     if (id(bow({ huntId: 'mill_cellar', visited: new Set(['mill_cellar']), read: new Set(['styles']) })) !== 'load_shot_hunt') return 'a bow with nothing loaded in a hunt is on ' + id(bow({ huntId: 'mill_cellar', visited: new Set(['mill_cellar']) }));
-    const S = { read: new Set(['styles']) };
+    const S = { read: new Set(['styles', 'tamsins_rats']) };
     if (id(bow({ ...S, ammo: 'bronze_arrows' })) !== 'to_the_cellar') return 'a loaded bow is on ' + id(bow({ ...S, ammo: 'bronze_arrows' }));
     if (id(bow({ ...S, ammo: undefined })) !== 'to_the_cellar') return 'a worn set the server never sent walls the coach: ' + id(bow({ ...S, ammo: undefined }));
     if (id(bow({ ...S, slots: [...B.slots, { type: 'attack_with_item', id: 'bronze_arrows', conditions: [], enabled: true, usable: true, count: 50 }] })) !== 'to_the_cellar') return 'arrows on the bar still read as nothing to shoot';
@@ -519,6 +534,96 @@ const cases = {
     const off = fresh(floor + 1, { huntId: 'meadowbrook_thicket', visited: new Set(['mill_cellar', 'meadowbrook_thicket']), read: new Set(seen) });
     const offer = M.tut.cardFor(M.tut.currentCard(off), off);
     if (offer.id !== 'first_spell' || !/data-store/.test(offer.hooks[0]) || !/data-id/.test(offer.hooks[1]) || !/data-tab/.test(offer.hooks[2])) return 'A spell costs runes rings ' + JSON.stringify(offer.hooks);
+    /* the press it names is a tab Configure action has (Spells, Food & drink, Ammo): "then Runes" named none (designer re-read 2026-11-11) */
+    if (!offer.text.includes(', then Spells, ') || /then Runes/.test(offer.text)) return 'the spell offer names a tab that is not there: ' + offer.text;
+    return null;
+  },
+  /* TAMSIN FIRST (designer 2026-11-10, the first ten minutes, played: the quit minute was 9). Her Cellar rats are taken before the first hunt, counted
+     inside it, paid with a helmet the hero wears at once, and the invitation to close the game comes on the second trip down. Every card is read
+     off the server's tally: the held row's own done, the day's pays. */
+  'tamsin-first': async (M) => {
+    const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
+    const { ringPlan } = await imp('src/shell/launcher.js');
+    const { tutorialFactsOf } = await imp('src/session/tutorial-sections.js');
+    const { MONSTERS } = await imp('src/data/monsters.js');
+    const RATS = 'cellar_giant_rats', WOLVES = 'thicket_gray_wolves';
+    const rats = M.tally.tallyTask(RATS);
+    /* the count the designer measured inside the first hunt (24 to 29 rats at hunt minute 5 to 6), at the old gold per rat */
+    if (rats.count !== 25 || rats.gold !== 25) return 'her Cellar task asks ' + rats.count + ' rats for ' + rats.gold + ' gp, the first ten minutes need 25 for 25';
+    /* "she pays you gold and a helmet": her Cellar pieces are a helmet in every weight, each worn at Level 1 */
+    const cellar = Object.values(M.grounds.HUNT_GROUNDS).find((g) => g.hunt === rats.hunt);
+    const kinds = new Set(cellar.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((s) => s.monster)));
+    const pieces = [...kinds].flatMap((k) => (MONSTERS[k].drops || []).filter((d) => d.band === 'scarce').map((d) => M.items.ITEMS[d.id])).filter((it) => it && it.type === 'armor');
+    const weights = new Set(pieces.map((it) => M.coreModel.ARMOUR_WEIGHT[it.armourClass]));
+    if (pieces.length < 3 || pieces.some((it) => it.slot !== 'helmet' || (it.reqLv || 1) > 1) || !M.tally.TALLY_RULES.weights.every((w) => weights.has(w))) {
+      return 'her Cellar pick is not a helmet worn at Level 1 in every weight: ' + pieces.map((it) => it.n + '/' + it.slot + '/' + it.reqLv).join(', ');
+    }
+    const K = tutKit(M, 'tank');
+    const lessons = ['styles', 'plant_land', 'bar_intro'];
+    const at = (L, more) => tutAt(M, K, L, { levelXp: L > 1 ? M.xp.charXpForLevel(L) : 0, read: new Set(lessons), ...(more || {}) });
+    const said = (f) => { const c = M.tut.currentCard(f); return c ? M.tut.cardFor(c, f) : null; };
+    const id = (f) => (said(f) || {}).id || null;
+    const inCellar = { huntId: 'mill_cellar', visited: new Set(['mill_cellar']) };
+    /* 1. before the first hunt, and only then */
+    const ask = said(at(1));
+    if (!ask || ask.id !== 'tamsins_rats' || !ask.text.includes('Kill ' + rats.count) || !ask.text.includes(rats.label) || !ask.gotIt) return 'a new hero in town reads ' + JSON.stringify(ask && [ask.id, ask.text]);
+    const way = ringPlan(ask, { open: (w) => w === 'tally', weight: false });
+    if (!way[0] || !way[0].includes('[data-hs-act="take"][data-task="' + RATS + '"]')) return 'her card rings ' + JSON.stringify(way) + ', not the Take on her rats';
+    if (ringPlan(ask, { open: () => false })[0] !== '.hs-launchers [data-hs-open="tally"]') return 'with her window shut the card does not ring her icon';
+    if (id(at(3, { visited: new Set(['mill_cellar']) })) === 'tamsins_rats') return 'a hero who has hunted is sent back to her rats';
+    /* 2. in the Cellar the count has a card, and "Out to the brook" keeps for the second trip */
+    if (id(at(3, { ...inCellar, tally: tallyFact([[RATS, 4]], []) })) !== 'rats_count') return 'her count running, the Cellar reads ' + id(at(3, { ...inCellar, tally: tallyFact([[RATS, 4]], []) }));
+    /* 3. the count done: ahead of every lesson, even for a hero who pressed nothing; the server's done, never this build's count */
+    const owed = said(tutAt(M, K, 3, { ...inCellar, read: new Set(), tally: tallyFact([[RATS, 25, true]], []) }));
+    if (!owed || owed.id !== 'tamsin_owes' || owed.anchor !== 'hunt_topbar' || !owed.holdOpen) return 'her count done, the Cellar reads ' + JSON.stringify(owed && [owed.id, owed.anchor, owed.holdOpen]);
+    const old = { held: 1, paid: 0, weight: true, paidTasks: [], tasks: { [RATS]: { kills: 40, target: 120, done: false } } };
+    if (id(at(3, { ...inCellar, tally: old })) !== 'rats_count') return 'a row held at the old count of 120 with 40 kills reads ' + id(at(3, { ...inCellar, tally: old })) + ' (the card follows the server\'s done)';
+    if (id(at(6, { huntId: 'meadowbrook_thicket', visited: new Set(['mill_cellar', 'meadowbrook_thicket']), tally: tallyFact([[RATS, 25, true]], []) })) === 'tamsin_owes') return 'a Level 6 hero in the Thicket is told to leave for her rats';
+    /* 4. paid: the helmet first, then back down, the Cellar ringed */
+    const paid = tallyFact([], [RATS]);
+    if (id(at(3, { visited: new Set(['mill_cellar']), tally: paid, upgrades: ['bronze_helm'] })) !== 'equip_upgrades') return 'paid a helmet, the town card is not Wear what you found';
+    const down = said(at(3, { visited: new Set(['mill_cellar']), tally: paid }));
+    if (!down || down.id !== 'back_down' || !/you don't have to watch\. Close the game\. Your hero keeps hunting\.$/.test(down.text)) return 'paid and dressed, the town card reads ' + JSON.stringify(down && [down.id, down.text]);
+    if (!ringPlan(down, { open: (w) => w === 'hunts' }).some((q) => q.includes('data-hunt="mill_cellar"'))) return 'Back down rings ' + JSON.stringify(ringPlan(down, { open: (w) => w === 'hunts' }));
+    if (id(at(5, { visited: new Set(['mill_cellar']), tally: paid, sellable: 0 })) === 'back_down') return 'a Level 5 hero is sent back down';
+    /* 5. the second trip: the invitation leads. A hero who never took her rats reads the first trip's words */
+    const second = said(at(3, { ...inCellar, tally: paid }));
+    if (!second || second.id !== 'earn_the_thicket' || !second.text.startsWith('You don\'t have to watch. Close the game and your hero keeps hunting.')) return 'the second trip reads ' + JSON.stringify(second && [second.id, second.text]);
+    const never = said(at(3, inCellar));
+    if (!never || never.id !== 'earn_the_thicket' || !never.text.includes('fifteen minutes')) return 'a hero without her rats reads ' + JSON.stringify(never && [never.id, never.text]);
+    /* 6. her rats are not her wolves: the Thicket's task is still asked for, and its pay still waited for */
+    const town5 = { visited: new Set(['mill_cellar']), read: new Set([...lessons, 'sell_loot']), blessings: { ...at(5).blessings, held: 3, prices: [] } };
+    if (id(at(5, { ...town5, tally: paid })) !== 'tamsins_task') return 'her rats paid, the wolves\' card is passed by: ' + id(at(5, { ...town5, tally: paid }));
+    const thicket = { huntId: 'meadowbrook_thicket', visited: new Set(['mill_cellar', 'meadowbrook_thicket']), read: new Set([...lessons, 'food_when', 'food_order', 'first_spell', 'help_page', 'more_heroes', 'sell_loot']) };
+    if (id(at(6, { ...thicket, tally: tallyFact([[WOLVES, 12]], [RATS]) })) !== 'tamsin_pays') return 'her rats paid, the wolves\' pay is not waited for: ' + id(at(6, { ...thicket, tally: tallyFact([[WOLVES, 12]], [RATS]) }));
+    /* 7. the facts are the server's tally section: the held row's own count and done, the day's pays */
+    const sect = { held: [{ place: 1, task: RATS, hunt: 'mill_cellar', monster: 'rat', kills: 25, target: 25, keep: false, done: true, done_at: '2026-11-10T10:00:00Z', wait: null }],
+      recent: [{ claim: 'c1', at: '2026-11-10T09:00:00Z', task: WOLVES, gold: 480, item: 'bronze_helm', qty: 1, pick: 'piece' }], paid_today: 1, per_day: 3, held_max: 3, weight: 'heavy', order: [] };
+    const env = { state: { level_xp: M.xp.charXpForLevel(3) }, level: { xp: M.xp.charXpForLevel(3), level: 3, into: 0, need: 1 }, tally: sect };
+    const facts = tutorialFactsOf({ read: (k) => env[k] });
+    if (JSON.stringify(facts.tally.tasks) !== JSON.stringify({ [RATS]: { kills: 25, target: 25, done: true } }) || facts.tally.paidTasks.join() !== WOLVES) return 'the tally facts read ' + JSON.stringify(facts.tally);
+    return null;
+  },
+  /* THE COACH STAYS UP WITH CHAT OPEN (designer 2026-11-10: with Chat open the screen said nothing at minute 9). Chat is the one window that does not
+     take the card's place, in town under the icon row and in a hunt under the hunt bar; any other open window still does. */
+  'coach-beside-chat': async (M) => {
+    const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
+    const { pointerFor, coachCovered } = await imp('src/shell/launcher.js');
+    const { SHELL_WINDOWS } = await imp('src/data/shell-windows.js');
+    const env = { state: { level_xp: M.xp.charXpForLevel(3) }, level: { xp: M.xp.charXpForLevel(3), level: 3, into: 0, need: 1 }, hunt_settings: { preset: 1, slots: [] }, hunt: { session_id: 's1', hunt_id: 'mill_cellar', ended: false, session: {}, hero: {}, pose: { units: [] } } };
+    const cs = { read: (k) => env[k], record: { residue: {} }, setResidue: () => true };
+    const ctx = (open) => ({ character: cs, glyphs: {}, hud: { isShown: () => false }, wm: { openIds: () => open, rows: () => SHELL_WINDOWS.slice(), row: (w) => SHELL_WINDOWS.find((r) => r.id === w) } });
+    const card = (open, hunting) => (/data-tutorial="([a-z0-9_]+)"/.exec(pointerFor(ctx(open), hunting)) || [])[1] || null;
+    const alone = card([], true);
+    if (!alone) return 'no card to test with';
+    for (const hunting of [true, false]) {
+      if (card(['chat'], hunting) !== card([], hunting)) return 'with Chat open ' + (hunting ? 'in a hunt' : 'in town') + ' the coach shows ' + card(['chat'], hunting) + ', not ' + card([], hunting);
+      if (card(['inventory'], hunting) !== null) return 'the card is drawn over an open bag';
+      if (card(['chat', 'inventory'], hunting) !== null) return 'the card is drawn over an open bag beside Chat';
+    }
+    const beside = SHELL_WINDOWS.filter((r) => r.besideCoach).map((r) => r.id);
+    if (beside.join() !== 'chat') return 'the windows the card stays up beside are ' + beside.join(', ') + ', the ruling names Chat alone';
+    if (coachCovered({ openIds: () => [], rows: () => SHELL_WINDOWS.slice() }) !== false) return 'with no window open the card is covered';
     return null;
   },
   'tutorial-walk-through': async (M) => {
@@ -600,7 +705,9 @@ const cases = {
     /* the panel's order (2026-10-31): the style before any hunt, Blessings first on the way back, the food sums once the hero has eaten.
        The panel again (2026-11-01, "about ten tips before hunt 2"): what the first two hunts need comes first; the spell offer and the
        Help page wait for the Thicket, where a hero has time to read, and Cook and Decide once for the second return */
-    const want = ['styles', 'to_the_cellar', 'first_kill', 'first_level', 'plant_land', 'bar_intro', 'earn_the_thicket',
+    /* TAMSIN FIRST (designer 2026-11-10, the first ten minutes): her rats before the first hunt, her count while it runs, "Tamsin owes you" when it is
+       done, the helmet worn in town, then back down, and "Out to the brook" only on that second trip */
+    const want = ['styles', 'tamsins_rats', 'to_the_cellar', 'first_kill', 'first_level', 'plant_land', 'bar_intro', 'rats_count', 'tamsin_owes', 'equip_upgrades', 'back_down', 'earn_the_thicket',
       'leave_cellar', 'bless', 'sell_loot', 'tamsins_task', 'into_the_thicket', 'food_when', 'food_order', 'first_spell', 'help_page', 'tamsin_pays',
       'loot_rules', 'cook_catch', 'save_setup', 'own_runes', null];
     if (order.join() !== want.join()) return 'a sword-and-shield hero walks ' + order.join(' > ') + ', wanted ' + want.join(' > ');
@@ -1377,7 +1484,7 @@ const cases = {
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
     const { pointerFor, restsNow, COACH_HUNT_OPEN_MS } = await imp('src/shell/launcher.js');
     let t = 1000;
-    const env = { state: { level_xp: M.xp.charXpForLevel(3) }, level: srvLevel(M, M.xp.charXpForLevel(3)), hunt_settings: { preset: 1, slots: [] }, hunt: { session_id: 's1', hunt_id: 'mill_cellar', ended: false, session: {}, hero: {}, pose: { units: [] } } };
+    const env = { state: { level_xp: M.xp.charXpForLevel(3) }, level: { xp: M.xp.charXpForLevel(3), level: 3, into: 0, need: 1 }, level: srvLevel(M, M.xp.charXpForLevel(3)), hunt_settings: { preset: 1, slots: [] }, hunt: { session_id: 's1', hunt_id: 'mill_cellar', ended: false, session: {}, hero: {}, pose: { units: [] } } };
     const cs = { read: (k) => env[k], record: { residue: {} }, setResidue: (k, v) => { cs.record = { residue: { ...cs.record.residue, [k]: v } }; return true; } };
     const ctx = { character: cs, glyphs: {}, now: () => t, hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } };
     const key = (hunting) => (/data-coach="([a-z0-9_:]+)"/.exec(pointerFor(ctx, hunting)) || [])[1] || null;
@@ -1729,6 +1836,36 @@ const cases = {
 };
 
 const mutants = [
+  { name: 'her Cellar task is 120 rats again (27 minutes of a ground the game sends a hero out of at 16)', case: 'tamsin-first',
+    edits: [['src/data/tally-tasks.js', "label: 'Giant Rats', count: 25, gold: 25,", "label: 'Giant Rats', count: 120, gold: 100,"]] },
+  { name: 'her rats are asked of a hero who has already hunted', case: 'tamsin-first',
+    edits: [['src/data/hunt-tutorial.js', "when: [IN_TOWN, { kind: 'unhunted' }], ring: { task: RATS.id }", 'when: [IN_TOWN], ring: { task: RATS.id }']] },
+  { name: 'the count done says nothing (Tamsin owes you never shows)', case: 'tamsin-first',
+    edits: [['src/data/hunt-tutorial.js', '(ts) => !!ts[p.task] && ts[p.task].done === true),', '() => false),']] },
+  { name: 'Out to the brook is back on the first trip, over her running count', case: 'tamsin-first',
+    edits: [['src/data/hunt-tutorial.js', '(ts) => !ts[p.task] || ts[p.task].done === true),', '() => true),']] },
+  { name: 'Tamsin owes you follows this build\'s count, not the server\'s done', case: 'tamsin-first',
+    edits: [['src/data/hunt-tutorial.js', '(ts) => !ts[p.task] || ts[p.task].done === true),', '(ts) => !ts[p.task] || ts[p.task].kills >= RATS.count),']] },
+  { name: 'Tamsin owes you chases a hero past the Cellar', case: 'tamsin-first',
+    edits: [['src/data/hunt-tutorial.js', "when: [HUNTING, UNDER_THICKET, { kind: 'tally_counted', task: RATS.id }]", "when: [HUNTING, { kind: 'tally_counted', task: RATS.id }]"]] },
+  { name: 'Back down rings the Thicket', case: 'tamsin-first',
+    edits: [['src/data/hunt-tutorial.js', "'hunt_picker', { kind: 'in_hunt', hunt: CELLAR },", "'hunt_picker', { kind: 'in_hunt', hunt: THICKET },"]] },
+  { name: 'Back down sends a Level 5 hero to the Cellar', case: 'tamsin-first',
+    edits: [['src/data/hunt-tutorial.js', "when: [IN_TOWN, UNDER_THICKET, { kind: 'tally_paid_for', task: RATS.id }]", "when: [IN_TOWN, { kind: 'tally_paid_for', task: RATS.id }]"]] },
+  { name: 'the second trip reads the first trip\'s words (no invitation to close the game)', case: 'tamsin-first',
+    edits: [['src/data/hunt-tutorial.js', "FACTS.tally_paid_for({ task: RATS.id }, f) === true ? t('coach.keep_hunting', RATS_WORDS) : BROOK", 'BROOK']] },
+  { name: 'her rats count as her wolves (the Thicket\'s task is never asked for)', case: 'tamsin-first',
+    edits: [['src/data/hunt-tutorial.js', 'mine.some((id) => taskFloor(id) >= taskFloor(p.task))', 'mine.length > 0']] },
+  { name: 'a pay for her rats ends the wait for the wolves\' pay', case: 'tamsin-first',
+    edits: [['src/data/hunt-tutorial.js', "(f.tally.paidTasks || []).includes(p.task) || !f.tally.tasks[p.task]", 'f.tally.paid > 0']] },
+  { name: 'the coach never sees a held task\'s done', case: 'tamsin-first',
+    edits: [['src/session/tutorial-sections.js', '{ kills: h.kills, target: h.target, done: h.done }', '{ kills: h.kills, target: h.target, done: false }']] },
+  { name: 'any open window hides the coach again, Chat too', case: 'coach-beside-chat',
+    edits: [['src/shell/launcher.js', '  return open.some((id) => !beside.has(id));', '  return true;']] },
+  { name: 'Chat is not marked as a window the card stays up beside', case: 'coach-beside-chat',
+    edits: [['src/data/shell-windows.js', "object: 'plain', besideCoach: true }),", "object: 'plain' }),"]] },
+  { name: 'the card is drawn over every open window', case: 'coach-beside-chat',
+    edits: [['src/shell/launcher.js', "  if (!cs || coachCovered(ctx.wm)) return '';", "  if (!cs) return '';"]] },
   { name: 'the what-next line never sees Defense (no armour hint)', case: 'tutorial-launcher-card',
     edits: [['src/session/tutorial-sections.js', 'defenseXp: sk && sk.defense ? sk.defense.xp : null', 'defenseXp: null']] },
   { name: 'the farm line keys off this hero\'s Farming XP again, not the shared land (v0.2.35 "Nothing grows" over ready crops)', case: 'tutorial-launcher-card',
@@ -1746,7 +1883,7 @@ const mutants = [
     edits: [['src/shell/launcher.js', 'const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);',
       "const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined) && { id: 'to_the_cellar', title: 'a', text: 'b' };"]] },
   { name: 'the pointer is drawn over an open window', case: 'tutorial-launcher-card',
-    edits: [['src/shell/launcher.js', 'ctx.wm.openIds().length > 0', 'ctx.wm.row(ctx.wm.openIds()[0] || "") && ctx.wm.row(ctx.wm.openIds()[0]).modal']] },
+    edits: [['src/shell/launcher.js', 'coachCovered(ctx.wm)', 'ctx.wm.row(ctx.wm.openIds()[0] || "") && ctx.wm.row(ctx.wm.openIds()[0]).modal']] },
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', "(ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx))", 'pointerFor(ctx)']] },
   { name: 'the gold card stands ahead of Klappa\'s Club', case: 'tutorial-reactive',
@@ -1885,7 +2022,7 @@ const mutants = [
   { name: 'back in the Cellar after the Thicket, the "Cash in" card returns (#58)', case: 'tutorial-never-backward',
     edits: [['src/data/hunt-tutorial.js', ' || (!!c.openedIn && reached(f, c.openedIn, true))', '']] },
   { name: 'out of the Sewer with the wolves held, the Thicket card returns (#58, Andy)', case: 'tutorial-never-backward',
-    edits: [['src/data/hunt-tutorial.js', "{ kind: 'any', of: [{ kind: 'tally_paid' }, { kind: 'been', hunt: WOLVES.hunt, past: true }] }", "{ kind: 'tally_paid' }"]] },
+    edits: [['src/data/hunt-tutorial.js', "{ kind: 'any', of: [{ kind: 'tally_paid', task: WOLVES.id }, { kind: 'been', hunt: WOLVES.hunt, past: true }] }", "{ kind: 'tally_paid', task: WOLVES.id }"]] },
   { name: 'the pointer ignores the personal-best grounds (#58)', case: 'tutorial-never-backward',
     edits: [['src/session/tutorial-sections.js', 'new Set(Object.keys((bests || {}).grounds || {}))', 'new Set()']] },
   { name: 'the Thicket is skipped: the cellar unlocks the sewer', case: 'tutorial-walk-through',
@@ -1909,7 +2046,7 @@ const mutants = [
   { name: 'the facts count an extra plot as open land', case: 'tutorial-plant-every-plot',
     edits: [['src/session/tutorial-sections.js', ".filter((p) => !p.extra && p.i < field.cap).length", ".length"]] },
   { name: 'Tamsin\'s card comes back the day after she paid', case: 'tutorial-never-backward',
-    edits: [['src/data/hunt-tutorial.js', ' || (t.weight === true && reached(f, tallyTask(p.task).hunt))', '']] },
+    edits: [['src/data/hunt-tutorial.js', ' || (tl.weight === true && reached(f, tallyTask(p.task).hunt))', '']] },
   { name: 'a party never meets the Sewer card', case: 'tutorial-never-backward',
     edits: [['src/session/tutorial-sections.js', 'inParty: !!party && party.seats.length >= 2,', 'inParty: false,']] },
   { name: 'the town lessons are asked of a hero past the Thicket', case: 'tutorial-launcher-card',

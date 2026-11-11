@@ -35,7 +35,7 @@
     "src/shell/intent-words.js": 33,
     "src/shell/item-lore.js": 1,
     "src/shell/launcher.js": 10,
-    "src/shell/loot-dispatch.js": 16,
+    "src/shell/loot-dispatch.js": 15,
     "src/shell/market-model.js": 47,
     "src/shell/market-words.js": 30,
     "src/shell/menu-providers.js": 6,

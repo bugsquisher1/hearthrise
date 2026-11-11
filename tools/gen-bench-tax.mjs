@@ -25,7 +25,10 @@ import { ROOM_RUNGS } from '../src/data/homestead-tiers.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* Once this file is APPLIED it is history: a new number moves OUT_FILE to a forward file, like every generated catalogue. */
-export const OUT_FILE = '2027-03-08-rune-ladder-bench-tax-rates.generated.sql';
+/* TIER 4'S MADE RUNGS (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-08-rune-ladder is APPLIED history; the Mithril Hatchets' and Maple Crossbow's benches
+   (Smithing and Crafting, 150 permille of the bid like every job of their skills) land in this forward file, the same full replace, after the items catalogue
+   that names both recipes (its §4 asks for them). */
+export const OUT_FILE = '2027-03-27-phase0-tier4-bench-tax-rates.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 /** What is wrong with the rows, as sentences. */

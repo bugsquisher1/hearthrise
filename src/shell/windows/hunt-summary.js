@@ -17,21 +17,22 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.118';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.118';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.118';
-import { runIntent } from '../intent-words.js?v=0.2.118';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle } from '../../hunt-view/summary-model.js?v=0.2.118';
-import { callOfHunt } from '../../data/boss-calls.js?v=0.2.118';
-import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.118';
-import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.118';
-import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.118';
-import { observeSessions } from '../../session/character-session.js?v=0.2.118';
-import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.118';
-import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.118';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.118';
-import { heldCard } from '../launcher.js?v=0.2.118';
-import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.118';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.119';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.119';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.119';
+import { runIntent } from '../intent-words.js?v=0.2.119';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle } from '../../hunt-view/summary-model.js?v=0.2.119';
+import { callOfHunt } from '../../data/boss-calls.js?v=0.2.119';
+import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.119';
+import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.119';
+import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.119';
+import { observeSessions } from '../../session/character-session.js?v=0.2.119';
+import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.119';
+import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.119';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.119';
+import { endCardAfter } from '../after-hunt.js?v=0.2.119';
+import { heldCard } from '../launcher.js?v=0.2.119';
+import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.119';
 
 /* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), and an old hunt that kept no settings. */
 const againOffWords = (cur) => (callOfHunt(cur.hunt) ? 'He comes when he is called, from the ground\'s page.' : 'This hunt did not keep its settings.');
@@ -123,7 +124,9 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     text(root.querySelector('.hsum-title'), groundTitle(cur));
     text(root.querySelector('.hsum-when'), cur.at ? dayTime(cur.at) : '');
     const st = cur === list[0] && !huntOpen ? staminaOf(cs) : null;
-    text(root.querySelector('.hsum-reason'), reasonWords(cur, nameOf(cs), st ? st.msLeft : null));
+    /* the newest hunt, none open: what the hero did after it, from the server's pointer (../after-hunt.js) */
+    const after = cur === list[0] && !huntOpen ? endCardAfter(cs, cur.id) : '';
+    text(root.querySelector('.hsum-reason'), reasonWords(cur, nameOf(cs), st ? st.msLeft : null) + (after ? ' ' + after : ''));
     /* A lost called fight: where it was lost and what answers it (hunt-view/boss-loss.js). */
     text(root.querySelector('.hsum-loss'), cur.loss || '');
     prop(root.querySelector('.hsum-loss'), 'hidden', !cur.loss);

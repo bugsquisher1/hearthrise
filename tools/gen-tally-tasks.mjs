@@ -34,10 +34,11 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-/* 2026-12-23-tally-catalogue.generated.sql and 2027-02-21-tally-glade-steel.generated.sql are APPLIED history (the
-   Wickstead task, then the Glade's Steel). The tier book her pick reads to skip a slot the hero already wears
-   (lane/c-tally-reward-worn, 2026-11-11) lands in this forward file, which rewrites the same tables and adds
-   hr_tally_tiers; 2027-04-08-tally-worn.sql, the pick that reads it, applies right after. */
+/* 2026-12-23-tally-catalogue.generated.sql, 2027-02-21-tally-glade-steel.generated.sql (the Wickstead task, then the
+   Glade's Steel) and 2027-04-03-tally-first-rats.generated.sql (the Cellar's count of 25 with the held-row step,
+   lane/b-first-ten-build, 2026-11-10) are history. The tier book her pick reads to skip a slot the hero already wears
+   (lane/c-tally-reward-worn, 2026-11-11) lands in this forward file, which rewrites the same tables, keeps the held-row
+   step and adds hr_tally_tiers; 2027-04-08-tally-worn.sql, the pick that reads it, applies right after. */
 export const OUT_FILE = '2027-04-08-tally-worn.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
@@ -147,8 +148,11 @@ export function buildSql(D) {
 -- and the pick that 2027-04-08-tally-worn.sql restates, which applies AFTER this file.
 -- hr_tally_tasks rows are UPSERTED (held tasks point at them; a removed task REFUSES
 -- while a hero holds it, loudly, by design); pieces, materials and tiers are replaced
--- whole. MONEY SURFACE (gold and an item per claim), on the pre-EA Security list.
--- No begin/commit.
+-- whole. A HELD task keeps the count it was taken at, so when a task's count is CUT,
+-- every held copy above the new count comes down to it: one already past it is done
+-- now and pays on the hero's next return, as any done task does. A count that is
+-- RAISED leaves held copies alone. Touches no function body. MONEY SURFACE (gold and
+-- an item per claim), on the pre-EA Security list. No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 create table if not exists public.hr_tally_config (
@@ -210,6 +214,14 @@ ${tasks.join(',\n')}
     target = excluded.target, gold = excluded.gold, party = excluded.party;
 delete from public.hr_tally_tasks where task_id <> all (${arr(TALLY_TASKS.map((t) => t.id))});
 
+-- A CUT COUNT NEVER STRANDS A HELD TASK (the migration's work, not a self-check): hero_tally_tasks is 2026-12-23-tally-tasks.sql's,
+-- applied long before this file. Idempotent: a second apply finds no held row above its task's count.
+update public.hero_tally_tasks h
+   set target = c.target, kills = least(h.kills, c.target),
+       done_at = case when h.kills >= c.target then coalesce(h.done_at, now()) end
+  from public.hr_tally_tasks c
+ where c.task_id = h.task_id and h.target > c.target;
+
 delete from public.hr_tally_pieces;
 insert into public.hr_tally_pieces (hunt_id, item_id, weight, equip_slot, tier) values
 ${prow.join(',\n')};
@@ -260,6 +272,9 @@ begin
   select p.item_id into v_bad from public.hr_tally_pieces p
    where not exists (select 1 from public.hr_tally_tiers w where w.item_id = p.item_id and w.equip_slot = p.equip_slot and w.tier = p.tier) limit 1;
   if v_bad is not null then raise exception 'tally-catalogue: piece % has a tier her tier book does not', v_bad; end if;
+  select h.task_id into v_bad from public.hero_tally_tasks h join public.hr_tally_tasks c using (task_id)
+   where h.target > c.target or h.kills > h.target or ((h.done_at is null) <> (h.kills < h.target)) limit 1;
+  if v_bad is not null then raise exception 'tally-catalogue: a held % still counts past the catalogue''s target', v_bad; end if;
   foreach v_role in array array['anon', 'authenticated'] loop
     if has_table_privilege(v_role, 'public.hr_tally_tasks', 'select,insert,update,delete')
        or has_table_privilege(v_role, 'public.hr_tally_pieces', 'select,insert,update,delete')
@@ -311,6 +326,10 @@ async function selftest() {
   if (/'iron_sword'|'practice_shield'|'ring1'|'cape'/.test(book)) { console.error('  MISSED  an item worn outside her slots is in her tier book'); bad++; }
   if (gearTier({ reqLv: 95 }, D.ladder) !== 7 || gearTier({ tier: 8, reqLv: 88 }, D.ladder) !== 8 || gearTier({}, D.ladder) !== 1) {
     console.error('  MISSED  an untiered piece does not take its Level\'s rung'); bad++;
+  }
+  /* a cut count brings the held copies down with it, and only those above it (a raised count leaves them) */
+  if (!/\nupdate public\.hero_tally_tasks h\s+set target = c\.target, kills = least\(h\.kills, c\.target\),\s+done_at = case when h\.kills >= c\.target then coalesce\(h\.done_at, now\(\)\) end\s+from public\.hr_tally_tasks c\s+where c\.task_id = h\.task_id and h\.target > c\.target;/.test(sql)) {
+    console.error('  MISSED  a cut count strands the held tasks'); bad++;
   }
   if (bad) { console.error('gen-tally-tasks --selftest: ' + bad + ' refusal(s) did not bite'); process.exit(1); }
   console.log('gen-tally-tasks --selftest: every refusal bites');

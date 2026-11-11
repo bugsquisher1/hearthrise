@@ -21,6 +21,10 @@ export const PULSE_LIMITS = Object.freeze({
      one settled the next fire). More than this share is the tick not keeping up. */
   stalledShareMax: 0.1,
   dbBusyMax: 1400,         // ms a second of database execution: 70 % of Small's 2 shared cores. Replay 11-02: 20 x 4 worst hour ~300, 100 x 4 ~1,450
+  /* One ledger kind whose rows move no value (no gold, XP, quantity, gems or item) as a share of the day's rows. Measured
+     2026-11-10: renown_ratchet was 14.6 % of a week's rows and read by nothing (2027-03-30-dead-writes.sql stops it); the
+     next such kind was 0.4 % (set_activity). A journal row a settle is the 229 MB game_events again, a kind at a time. */
+  idleJournalShareMax: 0.05,
 });
 
 const mb = (b) => `${Math.round(Number(b) / 1e6)} MB`;
@@ -63,13 +67,20 @@ export function pulseLines(p) {
     + `${retBad ? ` << RETENTION: want frames under ${L.frameAgeH} h, 0 cron failures` : ''}`);
 
   out.push(`Realtime: ${p.frames1m ?? '?'} frames last minute, ${Number.isFinite(kbs) ? kbs.toFixed(1) : '?'} KB/s of 100${kbs > L.frameKBsMax ? ` << FRAMES: over ${L.frameKBsMax} KB/s` : ''}`);
+
+  /* The journal's own waste: the kind that wrote the most rows moving no value in the day (hunt-health reads `kind:rows`). */
+  const day = n(p.ledgerRows24h), idle = n(p.idleKindRows24h);
+  const share = day > 0 && Number.isFinite(idle) ? idle / day : NaN;
+  out.push(`Journal: ${!Number.isFinite(idle) ? 'rows that move no value unknown' : idle > 0 ? `${p.idleKind} wrote ${idle} of the day's ${day} ledger rows and moved no value (${(share * 100).toFixed(1)} %)` : 'every ledger row of the day moved value'}`
+    + `${share > L.idleJournalShareMax ? ` << DEAD JOURNAL: one kind over ${L.idleJournalShareMax * 100} % of the day's rows with no gold, XP, items or gems. Who reads it?` : ''}`);
   return out;
 }
 
 function selftest() {
   const ok = { dbBytes: 3e8, dbBytes24h: 2.9e8, fsUsedBytes: 9e8, diskBytes: 8e9, conns: 21, maxConns: 90, engineConns: 2, engineCap: 20, active: 2, peakConns: 22,
     tickLastS: 4, fires10m: 60, edge5xx10m: 0, edgeTimedOut10m: 0, edgePosts10m: 40, openHunts: 50, stalledHunts: 0, worstLagS: 96,
-    oldestFrameH: 0.8, cronFailed1h: 0, ledgerRows24h: 1300, frames1m: 12, frameKBs: 13, dbMsPerS: 350, edgeAll10m: 1200, edgeAll5xx10m: 0 };
+    oldestFrameH: 0.8, cronFailed1h: 0, ledgerRows24h: 1300, frames1m: 12, frameKBs: 13, dbMsPerS: 350, edgeAll10m: 1200, edgeAll5xx10m: 0,
+    idleKind: 'admin', idleKindRows24h: 40 };
   const cases = [
     ['quiet', {}, null],
     ['disk over 70 %', { fsUsedBytes: 6e9 }, 'DISK'],
@@ -92,6 +103,10 @@ function selftest() {
     ['the database past 70 % of its cores', { dbMsPerS: 1500 }, 'CPU'],
     ['browsers getting 5xx', { edgeAll5xx10m: 4 }, 'EDGE 5XX'],
     ['no logs answer is not an alarm by itself', { edgeAll10m: null, edgeAll5xx10m: null }, null],
+    ['a journal kind that moves no value past 5 % of the day (renown_ratchet, 2026-11-10)', { idleKind: 'renown', idleKindRows24h: 190 }, 'DEAD JOURNAL'],
+    ['the same kind at 5 % exactly stays quiet', { idleKind: 'renown', idleKindRows24h: 65 }, null],
+    ['a day nobody played', { ledgerRows24h: 0, idleKind: null, idleKindRows24h: 0 }, null],
+    ['no idle-rows answer is not an alarm by itself', { idleKind: null, idleKindRows24h: null }, null],
   ];
   let bad = 0;
   for (const [name, patch, want] of cases) {

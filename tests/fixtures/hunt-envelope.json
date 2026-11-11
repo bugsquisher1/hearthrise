@@ -17,6 +17,86 @@
     "need": 25450
   },
   "skills": {},
+  "skill_levels": {
+    "melee": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 15
+    },
+    "ranged": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 15
+    },
+    "magic": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 15
+    },
+    "defense": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 15
+    },
+    "inner_flame": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 15
+    },
+    "woodcutting": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 83
+    },
+    "mining": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 83
+    },
+    "fishing": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 83
+    },
+    "farming": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 83
+    },
+    "cooking": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 83
+    },
+    "crafting": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 83
+    },
+    "smithing": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 83
+    },
+    "runecrafting": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 83
+    }
+  },
   "inventory": {},
   "hero_slots": [
     0,

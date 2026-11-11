@@ -36,7 +36,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { TOWN_NAME } from './world/town/plan.js?v=0.2.118';
+import { TOWN_NAME } from './world/town/plan.js?v=0.2.119';
 
 /** Who keeps the tally, and the one line her board opens with: what she does, in plain words (Tyler 2026-10-24:
  *  "this is weird dialogue"). Client copy only: the generated catalogue holds none of it. */
@@ -71,8 +71,10 @@ export const TALLY_RULES = Object.freeze({
 const row = (r) => Object.freeze({ ...r, materials: Object.freeze(r.materials.map((m) => Object.freeze(m))) });
 
 export const TALLY_TASKS = Object.freeze([
-  /* ~25 min at the floor (rats are ~280 of the Cellar's 464 kills an hour). */
-  row({ id: 'cellar_giant_rats', hunt: 'mill_cellar', monster: 'rat', label: 'Giant Rats', count: 120, gold: 100, party: false,
+  /* THE FIRST TASK FINISHES INSIDE THE FIRST HUNT (designer 2026-11-10, lane/d-first-ten-minutes, played: 120 took 27 minutes of a ground the game
+     sends a hero out of at 16). Three fresh heroes had 24 to 29 rats at hunt minute 5 to 6 (rats are 61% of the Cellar's kills). 25 gp for 25 rats is
+     the old 100 for 120 per rat, and her three pays a day cap it. Her Cellar piece is a helmet in every weight, worn at Level 1. */
+  row({ id: 'cellar_giant_rats', hunt: 'mill_cellar', monster: 'rat', label: 'Giant Rats', count: 25, gold: 25, party: false,
     materials: [{ item: 'slime_gel', qty: 4 }, { item: 'silk_thread', qty: 1 }] }),
   row({ id: 'thicket_gray_wolves', hunt: 'meadowbrook_thicket', monster: 'gray_wolf', label: 'Gray Wolves', count: 200, gold: 480, party: false,
     materials: [{ item: 'raw_wolf_meat', qty: 5 }, { item: 'bones', qty: 6 }] }),

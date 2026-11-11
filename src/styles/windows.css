@@ -335,6 +335,7 @@
 .hs-win[data-hs-win="hunts"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .hw-hunts { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .hw-hunts-now, .hw-hunts-reco { margin: 0 2px 8px; }
+.hw-hunts-now.is-advised { display: none; }
 .hw-hunts-cols { flex: 1; min-height: 0; display: grid; grid-template-columns: 286px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); column-gap: 12px; }
 /* The list: a steel panel of lines, one a ground; the picked one is lifted, outlined in gold, a gold bar at its left. */
 .hw-hunt-list { min-height: 0; overflow: auto; margin: 0; padding: 0; list-style: none; background: var(--fill-1); border: 2px solid var(--steel-edge); }

@@ -135,32 +135,45 @@ function restCut(s, view) {
     const q = f.getBoundingClientRect();
     if (q.height && q.bottom >= edge + s.clientHeight - 2) line = Math.min(line, q.top - edge);
   }
-  /* rule 3: the row the line crosses. A row is a box repeated beside its like (a list's line, a grid's card, a paragraph
-     among paragraphs; same tag, same first class): the outermost one that ends whole within the share (a row, not a cell
-     in it; a repeated section too tall to give up is looked into). With none, words end on a whole line: the deepest
-     crossing box that draws its own words (a lone paragraph). A line through a gap between boxes cuts nothing. */
+  /* rule 3: the rows the line crosses, in every column it crosses (a builder's two columns, a list beside a page). A row is
+     a box repeated beside its like (a list's line, a grid's card, a paragraph among paragraphs; same tag, same first class):
+     the outermost one that ends whole within the share (a row, not a cell in it; a repeated section too tall to give up is
+     looked into). A box of its own words with no row inside ends on a whole line. A line through a gap cuts nothing. */
   const share = s.clientHeight * ROW_SHARE;
-  const fits = (cut) => (cut > CUT_MIN_PX && cut <= share && (cut <= share / 2 || s.clientHeight - cut >= READ_MIN_PX) ? { el: s, cut } : null);
-  let node = s, words = null;
-  for (let depth = 0; depth < 12; depth++) {
-    let into = null, top = Infinity, bot = 0;
+  const ok = (cut) => cut <= share && (cut <= share / 2 || s.clientHeight - cut >= READ_MIN_PX);
+  let nested = null;
+  const need = (node, depth) => {
+    let most = 0;
+    if (depth > 12) return 0;
     const kids = boxesIn(node, view);
     for (const k of kids) {
       if (FLOW_OUT.test(view.getComputedStyle(k).position)) continue;
       const q = k.getBoundingClientRect();
       if (!q.height) continue;
       const t = q.top - origin, b = q.bottom - origin;
-      if (t < line - CUT_MIN_PX && b > line + CUT_MIN_PX && t < top) { top = t; bot = b; into = k; }
+      if (!(t < line - CUT_MIN_PX && b > line + CUT_MIN_PX)) continue;
+      if (scrolls(k, view)) { if (!held.has(k) && b - line <= k.clientHeight * ROW_SHARE) nested = { el: k, cut: Math.ceil(b - line) }; continue; }
+      const whole = Math.ceil(line - t);
+      if (kids.some((o) => o !== k && o.tagName === k.tagName && o.classList[0] === k.classList[0]) && ok(whole)) { most = Math.max(most, whole); continue; }
+      const inner = need(k, depth + 1);
+      if (inner) { most = Math.max(most, inner); continue; }
+      if (ownWords(k)) {
+        const rs = view.getComputedStyle(k);
+        const lh = parseFloat(rs.lineHeight) || parseFloat(rs.fontSize) * 1.2;
+        const first = t + parseFloat(rs.borderTopWidth) + parseFloat(rs.paddingTop);
+        most = Math.max(most, lh > 0 && line > first ? Math.ceil((line - first) % lh) : whole);
+      }
     }
-    if (!into) break;
-    if (scrolls(into, view)) return !held.has(into) && bot - line <= into.clientHeight * ROW_SHARE ? { el: into, cut: Math.ceil(bot - line) } : null;
-    if (kids.some((o) => o !== into && o.tagName === into.tagName && o.classList[0] === into.classList[0]) && fits(Math.ceil(line - top))) return fits(Math.ceil(line - top));
-    if (ownWords(into)) words = { top, el: into };
-    node = into;
+    return most;
+  };
+  /* a cut in one column moves the line for the others: cut again until no row crosses it */
+  let cut = 0;
+  for (let pass = 0; pass < 4; pass++) {
+    const more = need(s, 0);
+    if (nested) return nested;
+    if (more <= CUT_MIN_PX) break;
+    cut += more;
+    line -= more;
   }
-  if (!words) return null;
-  const rs = view.getComputedStyle(words.el);
-  const lh = parseFloat(rs.lineHeight) || parseFloat(rs.fontSize) * 1.2;
-  const first = words.top + parseFloat(rs.borderTopWidth) + parseFloat(rs.paddingTop);
-  return lh > 0 && line > first ? fits(Math.ceil((line - first) % lh)) : fits(Math.ceil(line - words.top));
+  return cut > CUT_MIN_PX && ok(cut) ? { el: s, cut } : null;
 }

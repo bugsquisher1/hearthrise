@@ -251,6 +251,9 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const advice = !now && !follower && rec.note ? rec.note : '';
   text(reco, advice);
   prop(reco, 'hidden', !advice);
+  /* The advice speaks for the how-to while it shows (a hero past its first grounds): its line goes to the page, so the first
+     row of creatures stands whole on a short screen (Tyler 2026-11-11, 1014x652). */
+  cls(nowEl, 'is-advised', !now && !follower && !party && !!advice);
   /* The advice's two tags: the safe ground, and the harder one above it (the lowest Level in a party, who the warning is for). */
   const step = nextStepUp(list, party ? Math.min(...party.seats.map((s) => (s.seat === party.me ? level : s.level)).filter(Number.isInteger)) : level, !party);
   rows(root.querySelector('.hw-hunt-list'), list, {

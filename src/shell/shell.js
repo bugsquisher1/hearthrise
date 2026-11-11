@@ -62,6 +62,7 @@ import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.118';
 import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.118';
 import { heroIsAlone } from './widgets/party-panel.js?v=0.2.118';
 import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.118';
+import { hideTipIfGone } from './windows/item-tip.js?v=0.2.118';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -204,6 +205,8 @@ export function mountShell(root, o) {
       el.style.top = p.docked || (p.modal && !moved) || home ? '' : p.y + 'px';
       el.style.bottom = home ? p.bottom + 'px' : '';
     }
+    /* an item tooltip goes with its window: a close by hotkey or Esc fires no mouseout */
+    hideTipIfGone(doc);
   }
 
   /* ── Widgets: shown, faded and placed from the layout ── */

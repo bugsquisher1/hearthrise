@@ -22,6 +22,10 @@
 //                    worn): a Follow-through ring beats a plain one, a second Keen ring beside
 //                    a Keen ring adds nothing, and Keen against Surge is the player's pick
 //                    (played 2026-11-09: a plain Banded Signet stayed on over a perked one)
+//   a bane           a weapon's damage against one monster kind (src/core/bane.js, the engine's clamped
+//                    multiplier) is a number too: gaining one is a plus, losing one blocks the pick, so a
+//                    better blade of the family goes on and a worn bane is never traded away unseen
+//                    (designer re-read 2026-11-11: Level 16 with the Practice Sword and 6 Bramble Blades)
 //   a tier step      a higher material tier of the weight worn is judged with the
 //                    set bonus left out of both sides, and the line says which set
 //                    bonus it ends (designer ruling 2026-10-31, played: Marlow, Level
@@ -37,7 +41,7 @@
 //     (ruling 2026-10-16) and the player picks every supply (ruling 2026-10-21)
 //   · never takes off a piece of another armour weight (the player chose heavy,
 //     medium or light), nor one carrying an effect the numbers do not price
-//     (a bane, an away effect); it fills EMPTY slots first, then upgrades within
+//     (an away effect); it fills EMPTY slots first, then upgrades within
 //     the worn piece's own weight
 //   · never picks a piece the server's skills say the hero cannot wear yet
 //     (unknown skills read as "cannot", the safe side)
@@ -52,11 +56,12 @@ import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.118';
 import { JEWEL_PERKS } from '../data/jewelry.js?v=0.2.118';
 import { loadoutOf } from '../core/member.js?v=0.2.118';
 import { jewelPerksOf } from '../core/combat.js?v=0.2.118';
+import { baneIndex, baneMultFor, MONSTER_CLASSES } from '../core/bane.js?v=0.2.118';
 import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.118';
 import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.118';
 import { itemName } from './widgets/bits.js?v=0.2.118';
 import { t } from '../render/player-text.js?v=0.2.118';
-import { reqHave } from './item-lore.js?v=0.2.118';
+import { reqHave, baneKindName } from './item-lore.js?v=0.2.118';
 import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.118';
 import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.118';
 
@@ -69,8 +74,10 @@ const EPS = 1e-9;
 const PREFER = new Set(['heavy', 'medium', 'light']);
 const num = (v) => (Number.isFinite(v) ? v : 0);
 const weightOf = (it) => (it && ARMOUR_WEIGHT[it.armourClass]) || 'none';
-/* A piece whose worth the numbers do not hold (a bane, an away effect) is the player's call. */
-const unpriced = (it) => !!(it && (it.bane || it.awayEffect || (Array.isArray(it.effects) && it.effects.length)));
+/* A piece whose worth the numbers do not hold (an away effect, an effect kind other than a bane) is the player's call. A bane is priced: banesOf. */
+const unpriced = (it) => !!(it && (it.awayEffect || (Array.isArray(it.effects) && it.effects.some((e) => e !== 'bane'))));
+/* The damage multiplier the worn set has against each monster kind, as the engine clamps it (bane.js baneMultFor), 1 = none. */
+const banesOf = (worn) => { const ix = baneIndex(worn, ITEMS); return Object.fromEntries(MONSTER_CLASSES.map((c) => [c, baneMultFor(c, ix)])); };
 
 /* The server's own number against the row's requirement (the hero's Level for gear, Tyler 2026-10-24; item-lore.js
    reqHave, the one reader); a number the server has not sent reads as "cannot", the safe side. */
@@ -92,7 +99,7 @@ function numbersOf(worn, level, set = true) {
   }
   const w = armourWeights(worn, ITEMS);
   return { acc, dmg, def: num(eq.defB), steady: num(eq.steadyPm), crit: num(eq.critB) + (set && setBonus ? num(setBonus.critB) : 0),
-    hp: maxHpFor(level, w.heavy), mana: maxManaFor(level, w.light), style: profile.accuracySkill, perks: jewelPerksOf(worn, ITEMS) || {} };
+    hp: maxHpFor(level, w.heavy), mana: maxManaFor(level, w.light), style: profile.accuracySkill, perks: jewelPerksOf(worn, ITEMS) || {}, banes: banesOf(worn) };
 }
 
 /* A worn armour piece, and in the bag one of its weight from a higher material tier. */
@@ -106,9 +113,11 @@ function dominates(a, b) {
   let more = false;
   for (const k of DIMS) { if (a[k] < b[k] - EPS) return false; if (a[k] > b[k] + EPS) more = true; }
   for (const p of perksIn(a, b)) { if (perkOf(a, p) < perkOf(b, p)) return false; if (perkOf(a, p) > perkOf(b, p)) more = true; }
+  for (const c of MONSTER_CLASSES) { if (a.banes[c] < b.banes[c] - EPS) return false; if (a.banes[c] > b.banes[c] + EPS) more = true; }
   return more;
 }
-const same = (a, b) => DIMS.every((k) => Math.abs(a[k] - b[k]) < EPS) && perksIn(a, b).every((p) => perkOf(a, p) === perkOf(b, p));
+const same = (a, b) => DIMS.every((k) => Math.abs(a[k] - b[k]) < EPS) && perksIn(a, b).every((p) => perkOf(a, p) === perkOf(b, p))
+  && MONSTER_CLASSES.every((c) => Math.abs(a.banes[c] - b.banes[c]) < EPS);
 
 const STYLE_WORDS = Object.freeze({ melee: 'Melee', ranged: 'Ranged', magic: 'Magic' });
 /* What one pick adds, in words, in reading order: [{ label, text }]. */
@@ -123,6 +132,8 @@ function gainsOf(before, after) {
   }
   /* a perk gained or raised, by the name the piece and the tooltip give it (upgradeWords drops it when the piece's name says it) */
   for (const p of perksIn(after, before)) if (perkOf(after, p) > perkOf(before, p)) out.push({ label: JEWEL_PERKS[p].name, perk: p, text: t('shop.upgrade_adds_perk', { perk: JEWEL_PERKS[p].name }) });
+  /* a bane gained: listed after the stats, so the preview's first gain stays the accuracy or damage it adds */
+  for (const c of MONSTER_CLASSES) if (after.banes[c] > before.banes[c] + EPS) out.push({ label: 'bane', bane: c, text: t('item.bane_more', { pct: Math.round((after.banes[c] - 1) * 100), kind: baneKindName(c) }) });
   return out;
 }
 

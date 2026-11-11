@@ -25,6 +25,8 @@ import { callOfHunt } from '../data/boss-calls.js?v=0.2.118';
 import { lossLine } from './boss-loss.js?v=0.2.118';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.118';
 import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.118';
+import { ITEMS } from '../data/items.js?v=0.2.118';
+import { isRareItem } from '../shell/hunt-ground-facts.js?v=0.2.118';
 
 export { sanitizeSummaries };
 
@@ -89,6 +91,27 @@ function countPairs(v) {
   return out;
 }
 
+/* Gear a hero can wear (ammo is a supply), or a Rare row somewhere (the Hunts page's own test): the finds worth a line of their own. */
+const standout = (id) => { const it = ITEMS[id]; return !!(it && it.slot && it.slot !== 'ammo') || isRareItem(id); };
+const each = (r) => (Number.isFinite(r.value) && r.count > 0 ? r.value / r.count : -1);
+
+/**
+ * TOP LOOT, BEST FIRST (designer re-read 2026-11-11: Bones, Rat Tail and Wheat led by count, and the Iron Platebody and the Alpha
+ * Fangs never got a line): gear and Rares first, then the most each one is worth at the shop's bid (the server's, hunt-sections.js's
+ * row value; a row the shop has no bid for comes after), then the most of it. Display order only.
+ * @param {{item:string, count:number, value?:number|null}[]} rows
+ * @returns {{item:string, count:number, value?:number|null}[]}
+ */
+export function rankLoot(rows) {
+  return (rows || []).slice().sort((a, b) => (standout(b.item) - standout(a.item)) || (each(b) - each(a)) || (b.count - a.count) || (a.item < b.item ? -1 : a.item > b.item ? 1 : 0));
+}
+
+/** The best find in these rows when one stands out (gear or a Rare), else null: the away card's line. */
+export function bestFind(rows) {
+  const top = rankLoot(rows)[0];
+  return top && standout(top.item) ? top.item : null;
+}
+
 /**
  * The hunt section's session, read tolerantly. Null when there is no session
  * or it is still open (`ended` false).
@@ -137,8 +160,8 @@ export function buildSummary(s, an, deaths, role) {
   const t = s.tally || {};
   const dur = an && an.sessionMs !== null && an.sessionMs !== undefined ? an.sessionMs
     : s.enteredMs !== null && s.endedMs !== null ? Math.max(0, s.endedMs - s.enteredMs) : null;
-  const loot = hero ? hero.loot.filter((l) => id(l.item) && num(l.count) !== null).map((l) => [l.item, l.count]) : countPairs(t.loot);
-  loot.sort((a, b) => b[1] - a[1]);
+  const loot = rankLoot(hero ? hero.loot.filter((l) => id(l.item) && num(l.count) !== null) : countPairs(t.loot).map(([item, count]) => ({ item, count })))
+    .map((l) => [l.item, l.count]);
   const supplies = hero ? hero.supplies.filter((x) => id(x.item) && num(x.count) !== null).map((x) => [x.item, x.source, x.count])
     : countPairs(t.supplies).map(([item, n]) => [item, 'own', n]);
   return sanitizeSummary({

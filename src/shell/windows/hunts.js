@@ -42,7 +42,7 @@
 // member's pick (hr_hunt_tier_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
 import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js?v=0.2.118';
-import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.118';
+import { bagOf, equipmentOf, blessingsOf } from '../../session/item-sections.js?v=0.2.118';
 import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.118';
 import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.118';
 import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.118';
@@ -288,7 +288,9 @@ function patchPage(det, ctx, sc, v) {
   patchGround(det, ctx, r, { level, size, bests: v.bests, worn: wornWeightOf(equipmentOf(cs) || {}), repaint: () => ctx.refresh('hunts') });
   /* the floor is a warning (Tyler 2026-11-04 UTC): this hero's own gap, and a leader's every seat's too. The first press of Enter arms the one confirm (renderHunts.act). */
   const under = party && !follower ? seatsUnder(r, party).under : [];
-  text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));
+  /* the death line says the share a death would really take with the Blessings the server says are on (designer re-read 2026-11-11) */
+  const blessed = blessingsOf(cs);
+  text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level, blessed ? blessed.permille : 0), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));
   /* While a hunt runs, its own page says what its hunt bag holds (in town, Before you go says what the bar spends). */
   const carried = now ? huntBagOf(cs) : null;
   text(det.querySelector('.hw-hunt-pack'), now && now.huntId === r.hunt && carried ? carriedWords(carried) : '');

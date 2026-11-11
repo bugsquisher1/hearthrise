@@ -47,6 +47,9 @@ import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.118';
 import { cameHomeWords } from '../data/party-words.js?v=0.2.118';
 import { whole } from '../render/format.js?v=0.2.118';
 import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.118';
+import { bestFind } from '../hunt-view/summary-model.js?v=0.2.118';
+import { itemName } from './widgets/bits.js?v=0.2.118';
+import { t } from '../render/player-text.js?v=0.2.118';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;
@@ -117,7 +120,10 @@ export function awayRecapOf(cs) {
   if (kills !== null && kills > 0) parts.push(whole(kills) + ' kills');
   const name = nameOf(cs) || 'Your hero';
   const head = 'While you were away (' + awayWords(gone) + '), ' + name + ' hunted ' + huntName(h.huntId);
-  const said = head + (parts.length ? ': ' + parts.join(', ') + '.' : '.');
+  /* the hunt's best find, gear or a Rare, from the server's loot tally (designer re-read 2026-11-11: the card never named the Iron Platebody). The
+     tally is the whole hunt's, so the line says so: the stamp holds no loot, and the absence alone is not known here. */
+  const best = a && a.hero ? bestFind(a.hero.loot) : null;
+  const said = head + (parts.length ? ': ' + parts.join(', ') + '.' : '.') + (best ? ' ' + t('hunts.away_best', { item: itemName(best) }) : '');
   return { id: 'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at, kind: 'away', session: h.sessionId, said, ended: h.ended,
     text: (said + nowWords(cs, h, now)).trim() };
 }

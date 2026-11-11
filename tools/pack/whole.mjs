@@ -72,3 +72,9 @@ export async function itemsOutside(outName, root = ROOT) {
   for (const p of GROUND_PACKS) if (!folded.has(p.id)) for (const id of Object.keys(p.items || {})) out[id] = { pack: p.id, sql: p.sql || null };
   return out;
 }
+
+/** The ground packs a replayed chain never applies (tests/schema-apply-order.json): a staged pack (no file yet) and a shipped one whose
+    file is not in the order. A guard that holds the data against the replayed server leaves their rows out (tests/hunt-tiers-db.mjs HT-6). */
+export function unappliedPacks(root = ROOT, ids = packIds(root), order = applyOrder(root)) {
+  return ids.filter((id) => { const f = packSqlOf(id, root); return !f || !order.includes(f); }).sort();
+}

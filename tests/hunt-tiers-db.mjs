@@ -21,6 +21,7 @@ import { prepare } from '../tools/settle-cost.mjs';
 import { decodeStored } from '../src/core/hunt/world-state.js';
 import { tierRowOf, pullOfTier, GROUND_TIERS } from '../src/data/hunt-tiers.js';
 import { OUT_NAME as DIALS_FILE } from '../tools/gen-ground-tiers.mjs';
+import { unappliedPacks } from '../tools/pack/whole.mjs';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -146,7 +147,9 @@ async function dialsTwice(db, again) {
     checks: (await db.query("select conname, pg_get_constraintdef(oid) d from pg_constraint where conrelid = 'public.hr_ground_tiers'::regclass order by conname")).rows,
   });
   const want = [];
-  for (const g of Object.keys(GROUND_TIERS).sort()) for (const id of ['dangerous', 'deadly']) {
+  /* a ground pack the chain never applied (staged, or its file not in the order: tools/pack/whole.mjs) has no rows on the server yet */
+  const unapplied = new Set(unappliedPacks());
+  for (const g of Object.keys(GROUND_TIERS).sort().filter((x) => !unapplied.has(x))) for (const id of ['dangerous', 'deadly']) {
     const t = GROUND_TIERS[g][id];
     want.push({ hunt_id: g, tier: id, pull: t.pull, dmg_pm: t.dmgPm, hp_pm: t.hpPm, xp_pm: t.xpPm });
   }

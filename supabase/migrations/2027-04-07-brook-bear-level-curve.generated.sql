@@ -16,7 +16,7 @@
 -- hr_level_of, the analyzer's ETA) follows with no edit.
 -- NEW IN THIS FILE (lane/c-brook-bear, 2026-11-10): the Brook Bear stands in the Glade as
 -- built, so the pace was re-measured; the ground ladder now pays 975 x L^1.421 Level XP an
--- hour, so the brackets from Level 50 re-fit to it. Level 10 at 182805 XP, Level 50 at 16018945;
+-- hour, so the brackets from Level 50 re-fit to it. Level 10 at 200086 XP, Level 50 at 17054606;
 -- Levels 1-51 cost what they did; only the Levels past them move. LIVE CHARACTERS: nothing is stored per Level, so a
 -- character whose Level XP now makes a different Level simply shows it; no row is written.
 -- The death floor is re-read at each settle, so the edge's and the server's floors agree
@@ -51,18 +51,18 @@ revoke all on public.hr_level_curve from public, anon, authenticated, service_ro
 
 delete from public.hr_level_curve;
 insert into public.hr_level_curve (from_level, base_xp, first_xp, rise, bend) values
-  (1, 0, 143, 143, 0),
-  (2, 143, 286, 286, 0),
-  (3, 429, 572, 563, 0),
-  (4, 1001, 1135, 4665, 0),
-  (5, 2136, 5800, 6280, 0),
-  (6, 7936, 12080, 13370, 0),
-  (7, 20016, 25450, 33843, 0),
-  (8, 45466, 59293, 18753, 0),
-  (9, 104759, 78046, 1, 0),
-  (10, 182805, 78047, 0, 619),
-  (50, 16018945, 1068447, 122973, 93),
-  (300, 4592137945, 37624197, 615405, 262);
+  (1, 0, 159, 159, 0),
+  (2, 159, 318, 317, 0),
+  (3, 477, 635, 634, 0),
+  (4, 1112, 1269, 5050, 0),
+  (5, 2381, 6319, 6858, 0),
+  (6, 8700, 13177, 14400, 0),
+  (7, 21877, 27577, 40603, 0),
+  (8, 49454, 68180, 14272, 0),
+  (9, 117634, 82452, 1, 0),
+  (10, 200086, 82453, 0, 660),
+  (50, 17054606, 1138453, 102750, 261),
+  (300, 4850991231, 43138453, 311063, 1016);
 
 -- ── §2 SELF-CHECK (CLAUDE.md §4) ──────────────────────────────────────────────
 -- The rows are exactly the generated set; both functions answer the JS values at every pinned Level (bracket edges,
@@ -74,27 +74,27 @@ declare v_bad text; v_role text;
 begin
   if (select count(*) from public.hr_level_curve) <> 12
      or exists (select 1 from (values
-  (1, 0, 143, 143, 0),
-  (2, 143, 286, 286, 0),
-  (3, 429, 572, 563, 0),
-  (4, 1001, 1135, 4665, 0),
-  (5, 2136, 5800, 6280, 0),
-  (6, 7936, 12080, 13370, 0),
-  (7, 20016, 25450, 33843, 0),
-  (8, 45466, 59293, 18753, 0),
-  (9, 104759, 78046, 1, 0),
-  (10, 182805, 78047, 0, 619),
-  (50, 16018945, 1068447, 122973, 93),
-  (300, 4592137945, 37624197, 615405, 262)) d(from_level, base_xp, first_xp, rise, bend)
+  (1, 0, 159, 159, 0),
+  (2, 159, 318, 317, 0),
+  (3, 477, 635, 634, 0),
+  (4, 1112, 1269, 5050, 0),
+  (5, 2381, 6319, 6858, 0),
+  (6, 8700, 13177, 14400, 0),
+  (7, 21877, 27577, 40603, 0),
+  (8, 49454, 68180, 14272, 0),
+  (9, 117634, 82452, 1, 0),
+  (10, 200086, 82453, 0, 660),
+  (50, 17054606, 1138453, 102750, 261),
+  (300, 4850991231, 43138453, 311063, 1016)) d(from_level, base_xp, first_xp, rise, bend)
                  where not exists (select 1 from public.hr_level_curve k where k.from_level = d.from_level and k.base_xp = d.base_xp
                                      and k.first_xp = d.first_xp and k.rise = d.rise and k.bend = d.bend)) then
     raise exception 'level-curve: hr_level_curve is not the generated 12-row set'; end if;
   select string_agg(p.l || ': ' || public.hr_char_xp_for_level(p.l) || ' <> ' || p.x, ', ') into v_bad
-    from (values (1, 0), (2, 143), (3, 429), (4, 1001), (5, 2136), (6, 7936), (7, 20016), (8, 45466), (9, 104759), (10, 182805), (11, 260852), (25, 1981795), (49, 14999399), (50, 16018945), (51, 17087392), (100, 223842745), (200, 1654090345), (299, 4554683128), (300, 4592137945), (301, 4629762142), (500, 25056972245), (750, 91626058870), (1000, 211379082995), (5000, 16041442968995)) p(l, x)
+    from (values (1, 0), (2, 159), (3, 477), (4, 1112), (5, 2381), (6, 8700), (7, 21877), (8, 49454), (9, 117634), (10, 200086), (11, 282539), (25, 2106781), (49, 15968293), (50, 17054606), (51, 18193059), (100, 210396931), (200, 1626749081), (299, 4808085767), (300, 4850991231), (301, 4894129684), (500, 22357882731), (750, 86446640856), (1000, 227063336481), (5000, 38792729966481)) p(l, x)
    where public.hr_char_xp_for_level(p.l) <> p.x;
   if v_bad is not null then raise exception 'level-curve: hr_char_xp_for_level disagrees with src/core/xp.js at %', v_bad; end if;
   select string_agg(p.l::text, ', ') into v_bad
-    from (values (1, 0), (2, 143), (3, 429), (4, 1001), (5, 2136), (6, 7936), (7, 20016), (8, 45466), (9, 104759), (10, 182805), (11, 260852), (25, 1981795), (49, 14999399), (50, 16018945), (51, 17087392), (100, 223842745), (200, 1654090345), (299, 4554683128), (300, 4592137945), (301, 4629762142), (500, 25056972245), (750, 91626058870), (1000, 211379082995), (5000, 16041442968995)) p(l, x)
+    from (values (1, 0), (2, 159), (3, 477), (4, 1112), (5, 2381), (6, 8700), (7, 21877), (8, 49454), (9, 117634), (10, 200086), (11, 282539), (25, 2106781), (49, 15968293), (50, 17054606), (51, 18193059), (100, 210396931), (200, 1626749081), (299, 4808085767), (300, 4850991231), (301, 4894129684), (500, 22357882731), (750, 86446640856), (1000, 227063336481), (5000, 38792729966481)) p(l, x)
    where public.hr_char_level(p.x) <> p.l
       or (p.l > 1 and public.hr_char_level(p.x - 1) <> p.l - 1)
       or public.hr_char_level(public.hr_char_xp_for_level(p.l + 1) - 1) <> p.l;
@@ -105,8 +105,8 @@ begin
       from generate_series(1, 3000) l) s
    where s.step < 1 or s.step <= s.before;
   if v_bad is not null then raise exception 'level-curve: the step to Level(s) % does not cost more than the one before', v_bad; end if;
-  if public.hr_level_block(0) <> jsonb_build_object('xp', 0, 'level', 1, 'into', 0, 'need', 143) then
-    raise exception 'level-curve: a fresh hero does not project Level 1 needing % XP', 143; end if;
+  if public.hr_level_block(0) <> jsonb_build_object('xp', 0, 'level', 1, 'into', 0, 'need', 159) then
+    raise exception 'level-curve: a fresh hero does not project Level 1 needing % XP', 159; end if;
   foreach v_role in array array['anon', 'authenticated'] loop
     if has_table_privilege(v_role, 'public.hr_level_curve', 'select,insert,update,delete')
        or has_function_privilege(v_role, 'public.hr_char_level(bigint)', 'execute')

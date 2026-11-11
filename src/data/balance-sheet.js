@@ -252,7 +252,17 @@ export const GROUND_ROSTER = Object.freeze(foldRows('roster', BASE_ROSTER, GROUN
 /* The Sewer x0.9 (lane/b-one-difficulty, 2026-11-08): its party-built monsters die to area blows in packs, so with one pack for every
    group a lone hammer at the Glade's floor earned 131k on its Deadly against the Glade's Normal 108k (the ladder rule); the floor fit alone
    leaves it about 4% over. */
-export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.25, meadowbrook_thicket: 0.9, wickstead: 1.1, millrace_sewer: 0.9 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));
+/* THE GLADE x0.90 UNDER SOLO +15% (lane/d-solo-fifteen, 2026-11-11). The +15% put the Glade's lone median at 1.12x the pace contract at its middle (24),
+   1.07x at +5% (grade quick, Normal; the band is 0.90-1.10), and the Glade is a solo ground, so its lone median is the way the contract reads: x0.90
+   lands it at 1.01x. Ratios between heroes on one ground never move (a fit scales alone and party alike).
+   THE PARTY GROUNDS ARE NOT RE-DIALED, on purpose. The grader reads a party ground's pace on the four a head (the Sewer 1.19x, the Warrens 1.52x
+   at their middles under +15%), while the contract itself is fitted on LONE heroes (tools/balance-sim/pace.mjs, the ladder plan; the Sewer's lone
+   median reads 1.04x, the Warrens' 1.27x) and a four is ruled to earn 1.15-1.25x a lone hero (party.fourVsSolo). The two readings differ by the
+   party bonus, so both can't sit in 0.90-1.10 of one contract. Measured on the real settle: the Sewer x0.81 and the Warrens x0.70 held the grader's
+   line (1.07x, 1.06x) and broke three others, the ladder (hunt-tiers: the Glade's Deadly out-paid the Warrens' Normal, nobody moves on), the
+   contract's fit (level-curve C5: +21% against the measured ladder) and the scaled hunts (tests/scaled-hunts fee-guard: a scaled Thicket or Glade four at
+   41-50 out-earned the Warrens' four 1.19-1.41x). Which way paces a party ground, the lone hero or the four, is a ruling, on the board (2026-11-11 Solo +15%). */
+export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.25, meadowbrook_thicket: 0.9, wickstead: 1.1, mosslight_glade: 0.90, millrace_sewer: 0.9 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));
 
 /* NAMED EXCEPTIONS: { monster: { field: 'the reason' } }, a field a row keeps by hand. Empty: none has earned one. */
 export const FORMULA_EXCEPTIONS = Object.freeze({});

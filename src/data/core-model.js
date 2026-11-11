@@ -61,20 +61,20 @@
    since 11-09; the bear alone would read C5 -3.0% at Level 300, the Warrens alone -10.3%). The contract follows it, so the brackets from Level 50
    re-fit (pace.mjs --fit --fit-past, minimax 5.4%); Levels 1-50 cost what they did. Forward file 2027-04-07-brook-bear-level-curve. */
 export const LEVEL_CURVE = Object.freeze({
-  first: 143,
+  first: 159,
   brackets: Object.freeze([
-    Object.freeze({ from: 1, rise: 143, bend: 0 }),
-    Object.freeze({ from: 2, rise: 286, bend: 0 }),
-    Object.freeze({ from: 3, rise: 563, bend: 0 }),
-    Object.freeze({ from: 4, rise: 4665, bend: 0 }),
-    Object.freeze({ from: 5, rise: 6280, bend: 0 }),
-    Object.freeze({ from: 6, rise: 13370, bend: 0 }),
-    Object.freeze({ from: 7, rise: 33843, bend: 0 }),
-    Object.freeze({ from: 8, rise: 18753, bend: 0 }),
+    Object.freeze({ from: 1, rise: 159, bend: 0 }),
+    Object.freeze({ from: 2, rise: 317, bend: 0 }),
+    Object.freeze({ from: 3, rise: 634, bend: 0 }),
+    Object.freeze({ from: 4, rise: 5050, bend: 0 }),
+    Object.freeze({ from: 5, rise: 6858, bend: 0 }),
+    Object.freeze({ from: 6, rise: 14400, bend: 0 }), /* the fit said 14642; eased so Level 7 -> 8 stays under 2x Level 6 -> 7 (level-curve C6 read 2.00x) */
+    Object.freeze({ from: 7, rise: 40603, bend: 0 }),
+    Object.freeze({ from: 8, rise: 14272, bend: 0 }),
     Object.freeze({ from: 9, rise: 1, bend: 0 }),
-    Object.freeze({ from: 10, rise: 0, bend: 619 }),
-    Object.freeze({ from: 50, rise: 122973, bend: 93 }),
-    Object.freeze({ from: 300, rise: 615405, bend: 262 }),
+    Object.freeze({ from: 10, rise: 0, bend: 660 }),
+    Object.freeze({ from: 50, rise: 102750, bend: 261 }),
+    Object.freeze({ from: 300, rise: 311063, bend: 1016 }),
   ]),
 });
 

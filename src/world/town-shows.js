@@ -6,7 +6,7 @@
 // A shell whose art the atlas lacks draws nothing, never a missing sprite. The powders' colors are hearth-burn.js's.
 // PURE: no DOM, no window, no clock of its own (the caller passes `now`).
 // ════════════════════════════════════════════════════════════════════════
-import { ROUND_SHOW } from '../data/gold-sinks.js?v=0.2.115';
+import { ROUND_SHOW } from '../data/gold-sinks.js?v=0.2.116';
 
 
 /**

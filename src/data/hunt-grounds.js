@@ -132,13 +132,13 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.115';
-import { HUNT_INDEX } from './hunts.js?v=0.2.115';
-import { MONSTERS } from './monsters.js?v=0.2.115';
-import { PARTY } from './party.js?v=0.2.115';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.116';
+import { HUNT_INDEX } from './hunts.js?v=0.2.116';
+import { MONSTERS } from './monsters.js?v=0.2.116';
+import { PARTY } from './party.js?v=0.2.116';
 /* the shape helpers (pocket, box, gather) live with the ground packs, which build their grounds with the same ones */
-import { pocket, box, gather, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.115';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.115';
+import { pocket, box, gather, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.116';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.116';
 export { FULL_BOX };
 
 /* THE GATHER NODE KINDS (HUNT_GATHERING_SPEC §3, REVIEW §3 and §5): what a placed node is. `node` is a

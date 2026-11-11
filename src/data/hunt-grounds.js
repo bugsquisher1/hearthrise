@@ -293,7 +293,7 @@ const BASE_GROUNDS = Object.freeze({
       /* P4 Rook's Hide: the ruined spring-house, Rook and his two */
       box([22, 1, 35, 12], [28, 6], ['rook_poacher', 'glade_poacher', 'carrion_crow'], ['carrion_crow', 'glade_poacher', 'carrion_crow', 'walking_vine', 'carrion_crow']),
       /* P5 Vine Hollow, back over the ford */
-      box([3, 2, 17, 13], [10, 8], ['walking_vine', 'carrion_crow'], ['brook_bear', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']),
+      box([3, 2, 17, 13], [10, 8], ['walking_vine', 'brook_bear'], ['carrion_crow', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
     respawnMs: 60000, pullDist: 1.5, groupFit: 'solo',

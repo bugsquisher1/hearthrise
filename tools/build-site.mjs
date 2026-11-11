@@ -53,6 +53,7 @@ export const PUBLISH = Object.freeze([
   'assets/icons-bundle/pixel/items/*.png',                   // one 32 px icon per item row
   'assets/icons-bundle/pixel/abilities/*.png',               // one tile per ability
   'assets/icons-bundle/pixel/supplies/*.png',                // one icon per basic supply
+  'assets/icons-bundle/pixel/heads/*.png',                   // one 32 px head per creature
   'legal/PRIVACY_POLICY.md', 'legal/TERMS_OF_SERVICE.md',    // read by the sign-in screens
 ]);
 
@@ -63,8 +64,8 @@ export const PUBLISH = Object.freeze([
 export const LEFT_OUT = Object.freeze({
   prefixes: Object.freeze(['assets/icons-bundle/hearthfire/', 'assets/icons-bundle/painted/']),
   names: Object.freeze({
-    'item-art.js': Object.freeze(['PIXEL_DIR', 'ABILITY_DIR', 'ABILITY_ART', 'SUPPLY_DIR', 'SUPPLY_ART_AHEAD', 'ITEM_ART_SET', 'fileFor']),
-    'monster-art.js': Object.freeze(['HUNT_ART_ALIAS', 'HUNT_WALK_ART']),
+    'item-art.js': Object.freeze(['PIXEL_DIR', 'ABILITY_DIR', 'ABILITY_ART', 'SUPPLY_DIR', 'SUPPLY_ART_AHEAD', 'ITEM_ART_AHEAD', 'ITEM_ART_SET', 'fileFor']),
+    'monster-art.js': Object.freeze(['HUNT_ART_ALIAS', 'HUNT_WALK_ART', 'HEAD_DIR', 'HEAD_ART', 'HEAD_ART_AHEAD', 'headPathFor']),
   }),
 });
 
@@ -108,12 +109,13 @@ export function publishSet(root = ROOT, rows = PUBLISH) {
 /** What the data rows say the game draws: the icons and atlases by path, and which item art set is live. */
 export async function artFacts(root = ROOT) {
   const at = (p) => import(pathToFileURL(join(root, p)).href);
-  const [{ ITEMS }, art, { BASIC_SUPPLIES }, sets, { atlasPaths }] = await Promise.all([
-    at('src/data/items.js'), at('src/data/item-art.js'), at('src/data/supply-basics.js'), at('src/data/world/atlas-sets.js'), at('src/data/world/art-budget.js')]);
+  const [{ ITEMS }, art, { BASIC_SUPPLIES }, sets, { atlasPaths }, mart] = await Promise.all([
+    at('src/data/items.js'), at('src/data/item-art.js'), at('src/data/supply-basics.js'), at('src/data/world/atlas-sets.js'), at('src/data/world/art-budget.js'), at('src/data/monster-art.js')]);
   const png = (dir, ids) => ids.map((id) => dir + id + '.png');
   return {
     artSet: art.ITEM_ART_SET,
-    item: png(art.PIXEL_DIR, Object.keys(ITEMS)),
+    item: png(art.PIXEL_DIR, Object.keys(ITEMS).concat(art.ITEM_ART_AHEAD)),
+    head: png(mart.HEAD_DIR, mart.HEAD_ART.concat(mart.HEAD_ART_AHEAD)),
     supply: png(art.SUPPLY_DIR, BASIC_SUPPLIES.map((b) => b.id).concat(art.SUPPLY_ART_AHEAD)),
     ability: png(art.ABILITY_DIR, art.ABILITY_ART),
     atlas: sets.LOADED_SETS.concat(Object.keys(sets.MASK_SETS)).flatMap((set) => [atlasPaths(set).image, atlasPaths(set).manifest]),
@@ -192,7 +194,7 @@ export function audit(site, facts, budget = SITE_BUDGET_BYTES) {
     }
   }
   if (facts.artSet !== 'pixel') problems.push('SITE-6 ITEM_ART_SET is ' + JSON.stringify(facts.artSet) + ': the painted set it switches to is not published (LEFT_OUT).');
-  for (const via of ['item', 'supply', 'ability', 'atlas']) for (const p of facts[via]) need('SITE-5', via, p, 'the ' + via + ' rows');
+  for (const via of ['item', 'supply', 'ability', 'head', 'atlas']) for (const p of facts[via]) need('SITE-5', via, p, 'the ' + via + ' rows');
 
   const missing = new Map();   // rule + path -> who asks
   for (const n of needs) {

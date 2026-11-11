@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-11",
- "replay_ms": 49958,
+ "replay_ms": 46222,
  "counts": {
   "tracked_names": 832,
   "entries": 684
@@ -6049,7 +6049,8 @@
     "2027-03-21-scaled-hunts.sql",
     "2027-03-22-live-events.sql",
     "2027-03-25-death-share.sql",
-    "2027-04-08-member-write-once.sql"
+    "2027-04-08-member-write-once.sql",
+    "2027-04-12-tick-enrol-restated.sql"
    ],
    "live": {
     "md5": "5186f2e9d3865eebe43718626b34b0e2",
@@ -14130,13 +14131,15 @@
    "sig": "hr_tick_enrol(p_limit integer)",
    "name": "hr_tick_enrol",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-10-10-world-tick-gather-widen.sql",
     "2027-02-20-tick-fuse-load.sql",
-    "2027-04-08-idle-clock.sql"
+    "2027-04-08-idle-clock.sql",
+    "2027-04-12-tick-enrol-restated.sql"
    ],
    "live": {
     "md5": "e7d36b74a8351b30a9c8206024426951",

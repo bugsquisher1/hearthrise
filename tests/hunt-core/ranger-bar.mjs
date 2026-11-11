@@ -282,7 +282,7 @@ const CLIENT_MUTANTS = [
   { name: 'the bag puts a whetstone on the bar (Andy a41)',
     edits: [['src/shell/bar-assign.js', "  if (k === 'ammo' && !attackItem(id)) return null;", "  if (k === 'ammo' && /_rune$/.test(id)) return null;"]] },
   { name: 'the bar shows a shot under its skill as ready',
-    edits: [['src/shell/action-facts.js', "if (shootsItem(role, it)) { const need = shortOf(a.id, skills, null); return need ? need.text + '. This slot waits until then, and your next ammo fires.' : ''; }", "if (shootsItem(role, it)) return '';"]] },
+    edits: [['src/shell/action-facts.js', "if (shootsItem(role, it)) { const need = shortOf(a.id, skills, null); return need ? t('bar.shot_waits', { need: need.text }) : ''; }", "if (shootsItem(role, it)) return '';"]] },
   { name: 'the Ammo run does not lock a shot under its skill',
     edits: [['src/shell/action-table.js', '(!shootsItem(c.role, ITEMS[id]) || !!short)', '!shootsItem(c.role, ITEMS[id])']] },
   { name: 'Configure action offers whetstones as shots',

@@ -74,6 +74,10 @@ declare
     'hunt_bag', 'hunt_bests', 'hunt_density', 'hunt_instances', 'hunt_parties', 'hunt_party_invites', 'hunt_party_members',
     'hunt_session_events', 'hunt_session_tally', 'hunt_sessions', 'hunt_tick_lease',
     'account_gold_given', 'player_titles', 'town_shows', 'town_works_gifts', 'town_works_totals',
+    /* scaled hunts' banked hours (2027-03-21-scaled-hunts.sql): a hero's, bought with gold the wipe also clears */
+    'player_scaled_hours',
+    /* the live-event announcer's record of the window edges it passed (2027-03-22-live-events.sql), with the System lines the wipe clears */
+    'hr_live_event_notices',
     'party', 'party_hunt', 'party_hunt_roster_log', 'party_hunt_tally', 'party_invite', 'party_member', 'party_notices', 'party_seekers',
     'party_settle_boundary', 'party_tick_lease',
     'player_action_sets', 'player_blessings', 'player_cosmetics', 'player_equipment', 'player_hunt_active', 'player_hunt_presets',
@@ -84,7 +88,9 @@ declare
   c_keep constant text[] := array[
     'beta_invites', 'beta_signup_log', 'bug_reports', 'chat_blocks', 'friend_links', 'friend_requests', 'profiles', 'hr_access_allowlist',
     'hr_lb_hidden', 'hr_name_holds', 'hr_tick_config', 'hr_tick_shard_cursor', 'hr_account_deletions',
-    'hr_gm_accounts', 'hr_gm_log', 'hr_bans', 'hr_chat_mutes'];
+    'hr_gm_accounts', 'hr_gm_log', 'hr_bans', 'hr_chat_mutes',
+    /* the server feature switches (2027-03-21-feature-switches.sql): config naming tester accounts, which outlive a character wipe */
+    'hr_feature_switches'];
   c_market constant text[] := array['market_listings', 'market_sales', 'market_item_daily'];
   c_no_player constant text[] := array[
     'hr_activities', 'hr_bench_tax_rates', 'hr_blessing_rule', 'hr_blessing_tiers', 'hr_bounty_board_monsters', 'hr_bounty_monsters',
@@ -105,7 +111,11 @@ declare
     'hr_world_notice_rules', 'hr_xp_table', 'hunt_world_shape_move', 'leaderboard_meta', 'maintenance_alerts', 'maintenance_log',
     'hr_account_deletion_log', 'hr_sink_rules', 'hr_titles', 'hr_town_works', 'hr_boss_calls',
     /* crafted jewelry's catalogues (2027-03-14-jewelry-catalogue.generated.sql): the Hallmark step, its day limit, the graded rows' ceilings */
-    'hr_hallmark_offers', 'hr_hallmark_rule', 'hr_market_ceilings'];
+    'hr_hallmark_offers', 'hr_hallmark_rule', 'hr_market_ceilings',
+    /* scaled hunts' catalogues (2027-03-21-scaled-hunts-catalogue.generated.sql): the rule, the grounds, the scaled kill bounds */
+    'hr_scaled_hunt_rule', 'hr_scaled_grounds', 'hr_scaled_kill_bounds',
+    /* the live events' catalogues (2027-03-22-live-events-catalogue.generated.sql): the types and the schedule */
+    'hr_live_event_types', 'hr_live_events'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';
@@ -145,8 +155,9 @@ begin
   if exists (select 1 from cron.job where jobname = 'hr-market-expire') then
     raise exception 'PRECONDITION: the expiry sweep is scheduled: apply 2027-02-20-market-wipe.sql first'; end if;
   if to_regprocedure('public.hr_create_hero(integer,text,jsonb,uuid)') is null or to_regprocedure('public.hr_hero_slots_of(uuid)') is null
-     or (select count(*) from public.hr_hero_slots where starter) <> 1 then
-    raise exception 'PRECONDITION: hero creation or the starter slot catalogue is missing: after this file an account would have no way back in'; end if;
+     or to_regclass('public.hr_hero_slots') is null then
+    -- (an account always owns slot 0; since 2027-03-25-hero-slots-one.sql no other slot is a starter, so the count is not the check)
+    raise exception 'PRECONDITION: hero creation or the hero slot catalogue is missing: after this file an account would have no way back in'; end if;
 
   -- AN UNKNOWN TABLE STOPS THE WIPE: every public base table is on exactly one list...
   select string_agg(c.relname, ', ' order by c.relname) into v_bad

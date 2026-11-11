@@ -29,6 +29,10 @@
 //   home     a row with `home: 'bl'` (Chat, Tyler 2026-10-22) opens FLOATING at the
 //            World's bottom-left, held to that corner by its bottom edge, until it
 //            is dragged; it is never docked, so it never moves a widget or the dock.
+//   go to    goTo(id, { tab, find }) is the one door a "take me there" link uses (src/shell/goto.js):
+//            it opens (or raises) the window on its tab and asks it for one row; the shell
+//            brings that row into view once the window draws it (takeFind), and a close
+//            forgets the wish.
 //   size     a row with `resizable: true` (and a `height`) takes its size from
 //            o.sizeOf(id) (the residue `winSize`, a display preference) clamped to
 //            RESIZE_MIN and the World; setSize changes it live (the shell's grip).
@@ -40,7 +44,7 @@
 // size and a scheduler, so node drives every rule (tests/shell-core.mjs).
 // ════════════════════════════════════════════════════════════════════════
 
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.106';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.113';
 
 export const MAX_OPEN = 3;
 export const DOCK_MAX = 0.6;
@@ -122,6 +126,7 @@ export function createWindowManager(o) {
   const sized = new Map();       // id -> {w, h} set live by setSize (else o.sizeOf's saved one)
   const sizeOf = o.sizeOf || (() => null);
   const tabWanted = new Map();   // id -> the tab a press asked it to show (openTab), until its renderer takes it
+  const findWanted = new Map();  // id -> the row a link asked it to bring into view (goTo), until the shell finds it
 
   const isModal = (id) => rows.get(id).modal === true;
   const docked = () => open.filter((id) => !floating.has(id) && !isModal(id));
@@ -182,6 +187,7 @@ export function createWindowManager(o) {
     floating.delete(id);
     slot.delete(id);
     sized.delete(id);   // a reopen reads the saved size (the grip saved it on release)
+    findWanted.delete(id);
     leaving.delete(id);
     entering.delete(id);
   }
@@ -240,6 +246,19 @@ export function createWindowManager(o) {
     tabWanted.set(id, tab);
     if (open.includes(id) && !leaving.has(id)) { focus(id); emit(); return true; }
     return openWindow(id);
+  }
+
+  /** A link's door (src/shell/goto.js): open (or raise) `id`, on `o.tab` when given, then ask it for row `o.find` (its renderer
+      marks the row data-hs-find; the shell scrolls to it and rings it once drawn). Another link's wish replaces this one. */
+  function goTo(id, o) {
+    if (!rows.has(id)) return false;
+    const tab = o && typeof o.tab === 'string' && o.tab ? o.tab : null;
+    const find = o && typeof o.find === 'string' && o.find ? o.find : null;
+    const done = tab ? openTab(id, tab) : openWindow(id);
+    if (!done) return false;
+    if (find) findWanted.set(id, find); else findWanted.delete(id);
+    emit();
+    return true;
   }
 
   /* A WINDOW MADE SMALLER NEVER LOSES ONE (friends' panel 2026-11-01): the kept place stays as it was, so it comes back when the
@@ -348,7 +367,11 @@ export function createWindowManager(o) {
   function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 
   return {
-    open: openWindow, close, toggle, focus, float, dock, resize, setSize, handleKey, layout, subscribe, openTab,
+    open: openWindow, close, toggle, focus, float, dock, resize, setSize, handleKey, layout, subscribe, openTab, goTo,
+    /** The row a link asked `id` to bring into view, or null (it stays asked until takeFind: the row may draw later). */
+    wantsFind: (id) => findWanted.get(id) || null,
+    /** The shell found the row: the wish is spent. */
+    takeFind(id) { const f = findWanted.get(id) || null; findWanted.delete(id); return f; },
     /** The tab a press asked `id` to show, once (its renderer reads it as it patches), or null. */
     takeTab(id) { const t = tabWanted.has(id) ? tabWanted.get(id) : null; tabWanted.delete(id); return t; },
     /** Is a tab wish waiting for `id`? (the shell re-patches that window at once) */

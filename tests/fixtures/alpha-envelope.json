@@ -634,6 +634,13 @@
       }
     }
   ],
+  "setup_slots": {
+    "count": 5,
+    "free": 3,
+    "bought": 2,
+    "max": 5,
+    "price": null
+  },
   "role": {
     "id": "melee_dps",
     "weapon": "sword"

@@ -21,12 +21,12 @@
 // Every control is one intent, off from the press until the server answered;
 // the window changes only from the re-read envelope. Nothing is predicted.
 // ════════════════════════════════════════════════════════════════════════
-import { invitesOf, partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.106';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.106';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.106';
-import { runIntent } from '../intent-words.js?v=0.2.106';
-import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.106';
-import { rosterHtml, patchRoster, actRoster } from './party-roster.js?v=0.2.106';
+import { invitesOf, partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.113';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.113';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.113';
+import { runIntent } from '../intent-words.js?v=0.2.113';
+import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.113';
+import { rosterHtml, patchRoster, actRoster } from './party-roster.js?v=0.2.113';
 
 const TABS = Object.freeze([['party', 'Your party'], ['invites', 'Invites'], ['find', 'Find a party']]);
 

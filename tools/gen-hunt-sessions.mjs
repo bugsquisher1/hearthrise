@@ -132,7 +132,7 @@ import { SUPPLIES, COMBAT_BUFF_TYPES } from '../src/data/supplies.js';
 import { BASIC_SUPPLIES } from '../src/data/supply-basics.js';
 import { DRINK_ITEMS } from '../src/data/drinks.js';
 import { ACTION_SET_LIMITS, TARGET_MODES, DEFAULT_TARGET_MODE, HERO_DISTANCE } from '../src/data/rule-subjects.js';
-import { SESSION_LIMITS, END_ORDER, NO_FIGHT_END_MIN, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, DEATH_XP_BASE, STAMINA_MAX_MS,
+import { SESSION_LIMITS, END_ORDER, NO_FIGHT_END_MIN, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, STAMINA_MAX_MS,
   RESUMABLE_KINDS, RESUME_AFTER_END, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY, ACTION_SET_OPTIONS, VALUE_HEADROOM,
   DEFAULT_RESUME, EVENT_COPY, GATHER_SHARE, coverSellable } from '../src/data/hunt-sessions.js';
 import { CONSUMABLE_RULES } from '../src/data/consumables.js';
@@ -140,7 +140,7 @@ import { ABILITIES, ABILITY_LANES, ABILITY_RULES } from '../src/data/abilities.j
 import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, roleWeaponOf } from '../src/data/hunt-roles.js';
 import { isShield } from '../src/data/shields.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
-import { OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
+import { OPEN_GROUNDS, DENSITY_PICK, MAX_HEROES, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
 import { CALLED_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
 import { PARTY } from '../src/data/party.js';
@@ -229,7 +229,23 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* ONE FORMULA FOR EVERY HUNT (lane/b-ground-formula, Tyler 2026-11-07): 2027-03-17-lucky-kobold is APPLIED history; every open ground's thirty monsters are written by
    tools/gen-ground-stats.mjs, so their hr_hunt_kill_bounds rows move (gold_max, xp_max), the same full replace. Some bounds WIDEN (the Barn Wasp, the Walking Vine, the Warrens' coin, the
    Sluicer pay more a kill), so this applies BEFORE the hr-accrue edge carrying the same src/data/monsters.js. No spawn, limit, bid or shape moves. */
-export const OUT_NAME = '2027-03-20-ground-formula-hunt-sessions-catalogue.generated.sql';
+/* RUNE SUPPLY PER SLOT (lane/b-rune-supply, Tyler 2026-11-08): 2027-03-20-ground-formula is APPLIED history; END_ORDER's runes_out (a spell slot set to "Leave the hunt"
+   with none of its ticked runes left; RESUME_AFTER_END too) lands in hr_hunt_end_reasons and hunt_sessions.end_reason's CHECK in this forward file, the same full replace,
+   applied right before 2027-03-24-rune-supply.sql (its §0 and the settle's proof arm read the reason). No kill bound, spawn, limit, bid or shape moves. */
+/* THE DEATH SHARE (lane/c-death-and-slots, Tyler 2026-11-09): 2027-03-24-rune-supply is APPLIED history and this file carries it (runes_out); death_xp_permille 20 -> 60 and the death_xp_base
+   row cut, the same full replace, AFTER 2027-03-25-death-share.sql (its precondition) and BEFORE the hr-accrue carrying DEATH_XP_LOSS 0.06. */
+/* ONE PACK FOR EVERY GROUP (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged"):
+   2027-03-25-death-share is APPLIED history and this file carries it (death_xp_permille 60, no death_xp_base row) with rune supply's runes_out. The party scale is gone, so a monster unit no longer carries its yield share (pull-cycle.js PERSISTED
+   loses yieldPm): hr_hunt_world_shape moves (its shape and fields), the same full replace. The re-tune moves the most one kill pays (hr_hunt_kill_bounds)
+   for 25 monsters, and hr_hunt_abilities gains Undertow, the Healer's strike when it hunts alone (Tyler 2026-11-09; abilities.js `alone`, read by the
+   engine only; no column carries it). No spawn, limit or bid. THE SHAPE MOVES, so the old engine refuses every stored world once this applies: the
+   hr-accrue deploy carrying the same src/core follows AT ONCE (each running hunt's world restarts once, as on any shape change). */
+/* THE GEAR SALE LADDER (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-26-one-difficulty is the file before this one and this file carries it whole (its world shape, kill bounds
+   and Undertow; the death share's rows and rune supply's runes_out with it). hr_hunt_vendor_value, the bid Dispatch loot pays, the Shop shows, the Weighhouse floors on and the bench tax
+   reads, moves for gear of tier 4 and up (loot-bands.js VENDOR_GEAR_RATES 0.075 / 0.033 / 0.015, tiers 7 and 8 at tier 6's), every such bid DOWN from tier 3's 0.14; the made Mithril Hatchets and
+   Maple Crossbow join it and hr_hunt_weapons. No kill bound, spawn, limit, ability or shape moves. AFTER 2027-03-27-phase0-tier4-items-catalogue (the self-check wants both weapons in
+   hr_items), then the hr-accrue carrying the same loot-bands.js at once: vendor_sell is priced by the edge, so until it deploys the Sell tab pays the old bid this table no longer shows. */
+export const OUT_NAME = '2027-03-27-phase0-tier4-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -278,9 +294,9 @@ export function groundRows(grounds, refs = {}) {
       }
     }
     if (!n) throw new Error(`ground ${id} spawns nothing`);
-    /* THE MOST A HERO MAY PICK here, per party size 1..PARTY_SCALE.maxHeroes (densityFor's clamp, the one
+    /* THE MOST A HERO MAY PICK here, per party size 1..MAX_HEROES (densityFor's clamp, the one
        rule): hr_hunt_density_set refuses a pick over the largest, the instance's freeze clamps to it. */
-    const dmax = Array.from({ length: PARTY_SCALE.maxHeroes }, (_, i) => densityFor(g, i + 1, DENSITY_PICK.max));
+    const dmax = Array.from({ length: MAX_HEROES }, (_, i) => densityFor(g, i + 1, DENSITY_PICK.max));
     if (!dmax.every((v, i) => whole(v) && v >= 0 && v <= DENSITY_PICK.max && (i === 0 || v >= dmax[i - 1]))) {
       throw new Error(`ground ${id} density max ${dmax} is not 0..${DENSITY_PICK.max}, never falling as the party grows`);
     }
@@ -423,9 +439,9 @@ export function catalogueRows(src = {}) {
     value_headroom: S.valueHeadroom,
     stamina_low_min: S.staminaLow, sessions_kept: S.kept,
     gold_floor_min: S.floor.min, gold_floor_max: S.floor.max, gold_floor_default: S.floor.default,
+    /* A death's share of the TOTAL Level XP and of each combat skill's progress (Tyler 2026-11-09: one public formula,
+       no alternative base; the `death_xp_base` row was cut by 2027-03-25-death-share.sql). */
     death_xp_permille: Math.round(Number(S.deathXpLoss) * 1000),
-    /* What the Level's death loss is a share of: 0 total Level XP, 1 the current Level's span. */
-    death_xp_base: { total: 0, level: 1 }[DEATH_XP_BASE],
     stamina_free_min: staminaFree, stamina_premium_min: staminaPremium,
     distance_min: S.distance.min, distance_max: S.distance.max,
     density_min: DENSITY_PICK.min, density_max: DENSITY_PICK.max,
@@ -467,7 +483,6 @@ export function catalogueRows(src = {}) {
   if (!(lim.gold_floor_min <= lim.gold_floor_default && lim.gold_floor_default <= lim.gold_floor_max)) {
     throw new Error(`GOLD_FLOOR ${JSON.stringify(S.floor)} is not min <= default <= max`);
   }
-  if (lim.death_xp_base === undefined) throw new Error(`DEATH_XP_BASE ${DEATH_XP_BASE} is not 'total' or 'level'`);
   if (lim.hit_xp_permille / 1000 !== COMBAT_XP.hitXpPerDamage) throw new Error(`COMBAT_XP.hitXpPerDamage ${COMBAT_XP.hitXpPerDamage} is not a whole permille`);
   if (!(whole(lim.stamina_free_min) && lim.stamina_free_min > 0 && whole(lim.stamina_premium_min) && lim.stamina_premium_min >= lim.stamina_free_min)) {
     throw new Error(`STAMINA_MAX_MS ${JSON.stringify(st)} is not whole minutes with premium >= free > 0`);
@@ -637,7 +652,7 @@ function calledRows(S) {
     if (!(m.xp === 0)) throw new Error(`called row ${id} pays XP (${m.xp}): a called row pays nothing`);
     if (!(Array.isArray(m.gp) && m.gp[0] === 0 && m.gp[1] === 0)) throw new Error(`called row ${id} pays coin (${JSON.stringify(m.gp)}): a called row pays nothing`);
     if (!(Array.isArray(m.drops) && m.drops.length === 0)) throw new Error(`called row ${id} drops something: a called row pays nothing`);
-    if (m.yieldPm !== undefined || m.dropBonus !== undefined) throw new Error(`called row ${id} carries a yield: damage.js yieldOf reads 0 as full yield`);
+    if (m.dropBonus !== undefined) throw new Error(`called row ${id} carries a drop bonus: a called row drops nothing`);
     if (m.boss !== true && m.add !== true) throw new Error(`called row ${id} is neither a boss nor his add`);
     if (m.boss === true && m.add === true) throw new Error(`called row ${id} is both a boss and an add: "target is a boss" tells them apart`);
     if (m.boss === true && !(m.phases && whole(m.phases.addsPm) && whole(m.phases.enragePm) && whole(m.phases.enrageAtkPm) && m.phases.addsPm > m.phases.enragePm && m.phases.enragePm > 0 && m.phases.addsPm < 1000 && m.phases.enrageAtkPm > 1000)) throw new Error(`called boss ${id} has no two lines: ${JSON.stringify(m.phases)}`);
@@ -724,6 +739,26 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
+-- NEW IN THIS FILE (lane/b-phase0-tier4, designer 2026-11-08: one sale ladder from tier 4 up, src/data/loot-bands.js VENDOR_GEAR_RATES
+-- [0.5, 0.5, 0.14, 0.075, 0.033, 0.015]): hr_hunt_vendor_value moves for worn gear of tier 4 and up, every such bid DOWN (tier 4 sold at tier 3's
+-- 0.14 of book; tiers 7 and 8 read tier 6's rate), and gains the made Mithril Hatchets and Maple Crossbow, which join hr_hunt_weapons too. This table is
+-- the bid Dispatch loot pays, the Shop shows, the Weighhouse floors on and the bench tax reads. Nothing else moves: no kill bound, spawn, limit,
+-- ability or shape (no world_shape_pending from this file). ORDER: AFTER 2027-03-26-one-difficulty-hunt-sessions-catalogue.generated.sql (carried
+-- whole below; applied before it this file IS that shape move) and AFTER 2027-03-27-phase0-tier4-items-catalogue.generated.sql (the self-check
+-- wants both weapons in hr_items), THEN the hr-accrue carrying the same loot-bands.js at once: vendor_sell is priced by the edge.
+--
+-- CARRIED FROM 2027-03-26-one-difficulty-hunt-sessions-catalogue (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged"):
+-- hr_hunt_world_shape moved (a monster unit carries no yield share: one pack for every group), hr_hunt_kill_bounds moved for the re-tuned
+-- monsters, and hr_hunt_abilities gained Undertow. Every row the files before it set is carried: the death share's (death_xp_permille 60, no
+-- death_xp_base) and rune supply's runes_out. That file applied AFTER the six APPLIED 2027-03-25 files (the precondition below still asks for
+-- 2027-03-25-death-share.sql); its shape move wants the hr-accrue carrying the same src/core AT ONCE (the old engine refuses every stored
+-- world until it deploys, and each running hunt's world restarts once).
+--
+-- CARRIED FROM 2027-03-25-death-share-hunt-sessions-catalogue (APPLIED; lane/c-death-and-slots, Tyler 2026-11-09: "Death needs to be more than 2% I think, and losing a level should be possible"):
+-- hr_hunt_limits.death_xp_permille 20 -> 60 (src/data/hunt-sessions.js DEATH_XP_LOSS 0.06), and the death_xp_base row is CUT (one public formula:
+-- a share of the TOTAL Level XP, no alternative base). That file moved nothing else and applied AFTER 2027-03-25-death-share.sql (the precondition
+-- below refuses a catalogue while a body still reads death_xp_base) and before the hr-accrue carrying DEATH_XP_LOSS 0.06.
+--
 -- NEW IN THIS FILE (lane/c-rune-ladder, Tyler 2026-11-05: "let start with your calls"): hr_hunt_basic_supplies gains one store rune a
 -- family a tier above Plain (src/data/supply-basics.js STORE_RUNE_PRICE), and hr_hunt_vendor_value moves the deeper runes' bids to their new
 -- book (src/data/stonecraft.js RUNE_VALUE). Plain does not move and no bar is rewritten. No kill bound, spawn or limit moves and the world's
@@ -744,6 +779,11 @@ export function render(src) {
 -- only), so hr_hunt_kill_bounds' kobold row names iron_helm. No spawn, limit, bid or ground moves and the world's shape is unchanged (no world_shape_pending
 -- on either order); no ground fields a Kobold, so the edge may deploy before or after. ORDER: after 2027-03-14-jewelry-hallmark.sql (it carries
 -- 2027-03-14-jewelry-hunt-sessions-catalogue.generated.sql).
+--
+-- NEW IN THIS FILE (lane/b-rune-supply, Tyler 2026-11-08: "Then condition - 'when rune supply runs out' 'Pay rune shop' or 'leave hunt'"): END_ORDER's
+-- runes_out (a spell slot set to "Leave the hunt" came to cast with none of its ticked runes left; RESUME_AFTER_END too) in hr_hunt_end_reasons and
+-- hunt_sessions.end_reason's CHECK. No kill bound, spawn, limit, bid or ground moves and the world's shape is unchanged (no world_shape_pending on
+-- either order). ORDER: right before 2027-03-24-rune-supply.sql (its §0 needs the reason), then the hr-accrue at once.
 --
 -- CARRIED FROM 2027-02-24-gold-matters (lane/c-gold-matters, designer 2026-11-03): gold value climbs with the monster. hr_hunt_kill_bounds' gold_max falls on Wickstead,
 -- the Glade's poachers and the Sewer's bat and spider, and rises on the Rat King and the Warrens; hr_hunt_vendor_value falls for tier 2's helmet, body, legs and
@@ -866,6 +906,8 @@ begin
               and p.proname in ('hr_char_level', 'hr_char_xp_for_level') and p.prosrc like '%level_quartic%')
      or to_regclass('public.hr_level_curve') is null then
     raise exception 'PRECONDITION: apply 2027-02-01-level-curve.generated.sql first (a Level curve function still reads hr_hunt_limits)'; end if;
+  if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosrc like '%death_xp_base%') then
+    raise exception 'PRECONDITION: apply 2027-03-25-death-share.sql first (a hunt body still reads hr_hunt_limits.death_xp_base)'; end if;
 end $$;
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
@@ -1377,7 +1419,7 @@ function selftest() {
     'a called row that pays XP': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, xp: 1 } } }),
     'a called row that pays coin': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, gp: [0, 1] } } }),
     'a called row that drops': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, drops: [{ id: 'bones', ch: 1, band: 'common' }] } } }),
-    'a called row with a yield of nothing': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, yieldPm: 0 } } }),
+    'a called row with a drop bonus': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, dropBonus: 2 } } }),
     'a paying row named as a called one': () => ({ monsters: { ...MONSTERS, rat_called: { ...MONSTERS.rat } } }),
     'a called row with an ordinary id': () => ({ monsters: { ...MONSTERS, rat_king_copy: { ...MONSTERS.rat_king_called } } }),
     'a called room fielding a row that pays': () => ({ calledGrounds: { ...CALLED_GROUNDS, millrace_sewer_called: { ...CALLED_GROUNDS.millrace_sewer_called,

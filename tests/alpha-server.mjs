@@ -457,14 +457,16 @@ async function blessArm(db, { H, M }, attended) {
 // ═══════════════════════════════════════════════════════════════════════
 /* Each mutant: the file, its [find, replace], the arm that must go red. The file's own
    self-check is turned into an uncalled function so the defect reaches the arm. */
-/* hr_hunt_apply_member's LAST author is 2027-01-31-inner-flame.sql §2(d): restated WHOLE from the live body (its §0
-   pins the pre-image, 2027-01-20-tutorial-facts.sql's patched body, so a plant in any earlier file trips that pin and the
-   chain never boots). A member-settle defect is planted straight into that restated body, the text that runs.
-   Shared with tests/settle-hooks.mjs. */
-export const MEMBER_LAST = '2027-01-31-inner-flame.sql';
-/* The LAST file to patch it in place: 2027-03-12-boss-call.sql's CALL-OUT splice (an anchored replace, no md5 pin), so a
-   memberPlant mutant is planted into the live body (plantLive), never into a file. */
-const MEMBER_PATCH_LAST = '2027-03-12-boss-call.sql';
+/* hr_hunt_apply_member's LAST author is 2027-03-25-death-share.sql §2: restated WHOLE (tests/patch-chain-guard.mjs) on
+   2027-03-22-live-events.sql §5(b)'s restatement (v0.2.113: a death costs a share of the total Level XP), which followed
+   2027-03-21-scaled-hunts.sql's on 2027-01-31-inner-flame.sql's restatement and 2027-03-12-boss-call.sql's splice.
+   Each restatement pins its pre-image, so a plant in any earlier file trips a pin and the chain never boots: a memberPlant mutant is
+   planted into the live body (plantLive), the text that runs. Shared with tests/settle-hooks.mjs. */
+export const MEMBER_LAST = '2027-03-25-death-share.sql';
+/* A PATCH IS AN AUTHOR: hr_hunt_instance_read is restated last by 2027-02-27-hunt-tiers.sql and then spliced in place (anchored
+   replaces of pg_get_functiondef) by 2027-03-21-scaled-hunts.sql and READ_PATCH_LAST, so its last author is a patch. */
+const READ_RESTATE_LAST = '2027-02-27-hunt-tiers.sql';
+const READ_PATCH_LAST = '2027-03-22-live-events.sql';
 export function memberPlant(find, repl) {
   return { file: MEMBER_LAST, fn: 'hr_hunt_apply_member', find, repl };
 }
@@ -633,14 +635,19 @@ async function main() {
      2026-12-23-tally-tasks.sql) must be flagged: a body's end is read from its dollar quotes, not guessed. */
   const inBody = staleAnchors([{ arm: 'SELFTEST', file: '2026-12-15-account-gold.sql', find: '      if public.hr_purse_of(v_u) < v_f then\n' }]);
   if (!inBody.some((s) => s.includes('hr_hunt_apply_instance'))) { console.error('✗ ANCHOR selftest: a plant in 12-15\'s superseded hr_hunt_apply_instance was not flagged'); process.exit(1); }
-  /* ...and a plant in a body a later file PATCHES (12-15's hr_hunt_apply_member, edited in place by
-     2027-01-20-tutorial-facts.sql's execute replace(pg_get_functiondef(..)), restated whole by MEMBER_LAST, then spliced by
-     MEMBER_PATCH_LAST's anchored replace) must be flagged, naming the LAST author: a patch is an author, and so is the
-     restatement between them. Without `patches` the last author is the restatement. */
-  const patched = staleAnchors([{ arm: 'SELFTEST', file: '2026-12-15-account-gold.sql', find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);' }], { patches: true });
-  if (!patched.some((s) => s.endsWith(`restated last by ${MEMBER_PATCH_LAST}; plant it there`))) { console.error('✗ ANCHOR selftest: a plant in 12-15\'s pin-patched hr_hunt_apply_member was not flagged'); process.exit(1); }
-  const restated = staleAnchors([{ arm: 'SELFTEST', file: '2026-12-15-account-gold.sql', find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);' }]);
-  if (!restated.some((s) => s.endsWith(`restated last by ${MEMBER_LAST}; plant it there`))) { console.error('✗ ANCHOR selftest: without patches, 12-15\'s hr_hunt_apply_member was not named as restated by ' + MEMBER_LAST); process.exit(1); }
+  /* ...and a plant in a body a later file PATCHES (2027-02-02-settle-cost.sql's hr_hunt_instance_read, restated whole by
+     READ_RESTATE_LAST, then spliced in place by two later files) must be flagged, naming the LAST author: a patch is an
+     author. Without `patches` the last author is the restatement. */
+  const KICKED = "                 'kicked', exists (select 1 from public.hunt_parties p where p.id = v_i.id)\n";
+  const patched = staleAnchors([{ arm: 'SELFTEST', file: '2027-02-02-settle-cost.sql', find: KICKED }], { patches: true });
+  if (!patched.some((s) => s.endsWith(`restated last by ${READ_PATCH_LAST}; plant it there`))) { console.error('✗ ANCHOR selftest: a plant in settle-cost\'s patched hr_hunt_instance_read was not flagged as ' + READ_PATCH_LAST + '\'s: ' + JSON.stringify(patched)); process.exit(1); }
+  const unpatched = staleAnchors([{ arm: 'SELFTEST', file: '2027-02-02-settle-cost.sql', find: KICKED }]);
+  if (!unpatched.some((s) => s.endsWith(`restated last by ${READ_RESTATE_LAST}; plant it there`))) { console.error('✗ ANCHOR selftest: without patches, settle-cost\'s hr_hunt_instance_read was not named as restated by ' + READ_RESTATE_LAST + ': ' + JSON.stringify(unpatched)); process.exit(1); }
+  /* ...and 12-15's hr_hunt_apply_member names its last restatement, MEMBER_LAST, either way. */
+  for (const patches of [true, false]) {
+    const restated = staleAnchors([{ arm: 'SELFTEST', file: '2026-12-15-account-gold.sql', find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);' }], { patches });
+    if (!restated.some((s) => s.endsWith(`restated last by ${MEMBER_LAST}; plant it there`))) { console.error('✗ ANCHOR selftest: 12-15\'s hr_hunt_apply_member was not named as restated by ' + MEMBER_LAST + ' (patches ' + patches + '): ' + JSON.stringify(restated)); process.exit(1); }
+  }
   /* ...and a find no live body holds is a refusal, never a quiet survivor. */
   const { db: probeDb } = await bootReplay();
   const noBody = await plantLive(probeDb, 'hr_apply', 'no live body holds this line', 'x');

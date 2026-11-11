@@ -6,7 +6,7 @@
 // `end_by_why`, a friend's low stamina its party view's `stamina_low_ms`. Nothing here gates or spends anything.
 // PURE ESM.
 // ════════════════════════════════════════════════════════════════════════
-import { END_REASON_COPY } from './hunt-sessions.js?v=0.2.106';
+import { END_REASON_COPY } from './hunt-sessions.js?v=0.2.113';
 
 /* A notice's line: {who} the other player's hero, {name} this hero, {ground} the ground a warning names ("Mosslight Glade, Level 16 and up"). */
 export const PARTY_NOTICE_WORDS = Object.freeze({
@@ -24,6 +24,7 @@ const CAME_HOME_BECAUSE = Object.freeze({
   gold_out: '{member} ran out of gold for supplies, so {name} came home too.',
   heals_out: '{member} ran out of healing food, so {name} came home too.',
   ammo_out: '{member} ran out of ammunition, so {name} came home too.',
+  runes_out: '{member} ran out of runes, so {name} came home too.',
   rule: '{member}’s stop rule was met, so {name} came home too.',
   hours: '{member}’s time limit was up, so {name} came home too.',
   no_fight: '{member} went too long without landing a blow, so {name} came home too.',

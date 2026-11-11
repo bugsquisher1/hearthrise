@@ -29,25 +29,25 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=0.2.106';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.106';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.106';
-import { SKILLS_DEF } from './skills.js?v=0.2.106';
-import { SHOP_OFFERS } from './shops.js?v=0.2.106';
-import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.106';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.106';
-import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.106';
-import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.106';
-import { EFFECT_KINDS } from './item-effects.js?v=0.2.106';
-import { MONSTERS } from './monsters.js?v=0.2.106';
-import { NAMED_FUELS } from './hearth.js?v=0.2.106';
-import { TEMPER_OFFERS } from './temper.js?v=0.2.106';
-import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.106';
-import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.106';
-import { HUNT_INDEX } from './hunts.js?v=0.2.106';
+import { ITEMS } from './items.js?v=0.2.113';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.113';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.113';
+import { SKILLS_DEF } from './skills.js?v=0.2.113';
+import { SHOP_OFFERS } from './shops.js?v=0.2.113';
+import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.113';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.113';
+import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.113';
+import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.113';
+import { EFFECT_KINDS } from './item-effects.js?v=0.2.113';
+import { MONSTERS } from './monsters.js?v=0.2.113';
+import { NAMED_FUELS } from './hearth.js?v=0.2.113';
+import { TEMPER_OFFERS } from './temper.js?v=0.2.113';
+import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.113';
+import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.113';
+import { HUNT_INDEX } from './hunts.js?v=0.2.113';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-} from './item-authority.js?v=0.2.106';
+} from './item-authority.js?v=0.2.113';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module
@@ -109,8 +109,8 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'granary_whisker', 'barn_wasp_sting', 'loft_web', 'torn_company_badge',
   /* the boar and the bear (lane b-unsourced-items): their imbuement items, and the boar's bristles */
   'orchard_boar_tusk', 'brook_bear_tooth', 'boar_bristle',
-  /* the Slake's four (lane/b-the-slake), the same promise */
-  'green_rivet', 'barge_nail', 'mudlark_hook', 'color_cord',
+  /* the Slake's four and Hask's Ford's four (lane/b-slake-and-ford), the same promise: a Material that only sells until linings are built */
+  'green_rivet', 'barge_nail', 'mudlark_hook', 'color_cord', 'pike_band', 'ford_weed', 'ledger_leaf', 'toll_token',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -179,7 +179,7 @@ export const AWAITING_ROSTER = Object.freeze([
    planned ground or system, (b) needed now (its source is a listing away), (c) no home in
    Early Access, listed for Tyler's keep-or-cut. */
 export const UNREACHABLE_FATES = Object.freeze({
-  staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens (Wickstead, waiting on its painted ground)', open: Object.freeze({ grounds: HUNT_GROUNDS }) }),
+  staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens (Hask\'s Ford and the Slake, waiting on their art)', open: Object.freeze({ grounds: HUNT_GROUNDS }) }),
   premium:    Object.freeze({ bucket: 'a', door: 'premium sells and the daily login claim pays', open: Object.freeze({ premium: true }) }),
   greenhaven: Object.freeze({ bucket: 'a', door: 'a Greenhaven ground not yet built puts it on one of its creatures' }),
   later:      Object.freeze({ bucket: 'c', door: 'none in Early Access, kept for a later region or cut (Tyler)' }),
@@ -192,14 +192,14 @@ export const UNREACHABLE_FATES = Object.freeze({
 export const UNREACHABLE = Object.freeze({
   /* Empty since Wickstead opened on its painted ground (lane b-wickstead-art, 2026-10-28): its tier-2 gloves, belts and
      jewelry, the Bramble Blade and its four imbuement items are reachable. A ground staged again may refill it. */
-  /* THE SLAKE (lane/b-the-slake, staged until its art lands): the tier-4 set in three weights, its weapons, gloves, belts and the
-     caster's pair, Grave Dust, and its four imbuement items. C11 proves its opening sources every one. */
+  /* HASK'S FORD AND THE SLAKE (lane/b-slake-and-ford, staged until their art lands): the tier-4 set in three weights, its weapons,
+     gloves, belts and the caster's pair, Grave Dust, and each ground's four imbuement items. C11 proves their opening sources every one. */
   staged: Object.freeze([
     'mithril_sword', 'mithril_warhammer', 'maple_staff', 'mithril_helm', 'mithril_platebody', 'mithril_platelegs',
     'snakeskin_body', 'snakeskin_helmet', 'snakeskin_pants', 'warlock_body', 'warlock_pants', 'mithril_boots',
     'mithril_gauntlets', 'mithril_belt', 'snakeskin_boots', 'snakeskin_gloves', 'snakeskin_belt', 'warlock_helmet',
     'warlock_boots', 'warlock_gloves', 'warlock_belt', 'maple_bow', 'maple_wand', 'maple_spellbook', 'grave_dust',
-    'green_rivet', 'barge_nail', 'mudlark_hook', 'color_cord',
+    'green_rivet', 'barge_nail', 'mudlark_hook', 'color_cord', 'pike_band', 'ford_weed', 'ledger_leaf', 'toll_token',
   ]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next

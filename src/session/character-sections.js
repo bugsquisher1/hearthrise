@@ -22,10 +22,10 @@
 //                   its progress are read off it on the shared curve (src/core/xp.js, the
 //                   curve hr_char_level uses), never counted in the browser.
 // ════════════════════════════════════════════════════════════════════════
-import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.106';
-import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.106';
-import { TITLE_WORDS } from '../data/titles.js?v=0.2.106';
-import { dyeKeyOf } from '../data/outfits.js?v=0.2.106';
+import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.113';
+import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.113';
+import { TITLE_WORDS } from '../data/titles.js?v=0.2.113';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.113';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -156,9 +156,11 @@ const xpMap = (o) => {
   return out;
 };
 
-/** `death_log`: [{ id, atMs, hunt, session, monster, xp, xpLost, saved }] newest first, or null.
+/** `death_log`: [{ id, atMs, hunt, session, monster, xp, xpLost, saved, blessings, levelFrom, levelTo }] newest first, or null.
  *  saved: the XP a Blessing kept ({} = it kept nothing), null when no Blessing was used, undefined when the
- *  server did not say (a row from before 2026-11-07-death-popup-blessing.sql). All the server's. */
+ *  server did not say (a row from before 2026-11-07-death-popup-blessing.sql). blessings: how many the death used up, or null.
+ *  levelFrom / levelTo: the hero's Level before and after the death's debit (a death can take a Level since
+ *  2027-03-25-death-share.sql), both null on an older row. All the server's. */
 export function deathLogOf(cs) {
   const d = read(cs, 'death_log');
   if (!Array.isArray(d)) return null;
@@ -167,9 +169,13 @@ export function deathLogOf(cs) {
     if (!isObj(r) || nat(r.id) === null) continue;
     const at = typeof r.at === 'string' ? Date.parse(r.at) : NaN;
     if (!Number.isFinite(at)) continue;
+    const from = nat(r.level_from), to = nat(r.level_to);
+    const pair = from !== null && to !== null && from >= 1 && to >= 1 && to <= from;
     out.push({ id: r.id, atMs: at, hunt: id(r.hunt), session: typeof r.session === 'string' && SESSION.test(r.session) ? r.session : null,
       monster: id(r.monster), xp: nat(r.xp), xpLost: xpMap(r.xp_lost),
-      saved: !('saved' in r) ? undefined : isObj(r.saved) ? xpMap(r.saved) : null });
+      saved: !('saved' in r) ? undefined : isObj(r.saved) ? xpMap(r.saved) : null,
+      blessings: nat(r.blessings) !== null && r.blessings > 0 ? r.blessings : null,
+      levelFrom: pair ? from : null, levelTo: pair ? to : null });
   }
   return out;
 }

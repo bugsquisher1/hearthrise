@@ -19,11 +19,11 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { SUPPLIES } from '../data/supplies.js?v=0.2.106';
-import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, DEATH_XP_BASE, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.106';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.106';
-import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.106';
-import { skillLevelFromXp, skillXpForLevel, charLevelFromXp, charXpForLevel } from './xp.js?v=0.2.106';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.113';
+import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.113';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.113';
+import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.113';
+import { skillLevelFromXp, skillXpForLevel } from './xp.js?v=0.2.113';
 
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };
 
@@ -253,6 +253,9 @@ const END_CHECKS = Object.freeze({
   party_member_left: (hs) => hs.partyEnd === 'left' && hs.died !== true,
   heals_out: (hs) => essentialOut(hs, 'heal'),
   ammo_out: (hs) => essentialOut(hs, 'ammo'),
+  /* RUNE SUPPLY PER SLOT (Tyler 2026-11-08): a spell slot set to "Leave the hunt" came to cast with none of its ticked runes
+     left (abilities.js firstUsable: `runesOut`, the spell's id); like goldOut, a flag of this span, never stored. */
+  runes_out: (hs) => typeof hs.runesOut === 'string' && hs.runesOut.length > 0,
   gold_out: (hs) => hs.goldOut === true,
   /* A stop rule met (conditions.js checkStopRules); like goldOut, a flag of this span, never stored. */
   rule: (hs) => typeof hs.ruleStop === 'string' && hs.ruleStop.length > 0,
@@ -292,22 +295,19 @@ export function staminaStep(ms, intervalMs, hunting, maxMs) {
   return Math.max(v, Math.min(Math.floor(Number(maxMs) || 0), v + d));
 }
 
-/* ── THE PRICE OF A DEATH (Tyler 2026-10-19; hunt-sessions.js DEATH_XP_LOSS) ──
-   LEVEL: the fraction of the character's TOTAL Level XP (DEATH_XP_BASE 'total')
-   or of its current Level's span ('level'), never below the start of its
-   current Level (a death never de-levels; 0 at a Level floor).
+/* ── THE PRICE OF A DEATH (Tyler 2026-11-09; hunt-sessions.js DEATH_XP_LOSS) ──
+   LEVEL: the fraction of the character's TOTAL Level XP. It may cross a Level
+   (a death can take one), never below 0 XP, which is Level 1.
    SKILLS: every combat skill (src/data/skills.js COMBAT_SKILLS) loses the same
    fraction of its PROGRESS toward its next level, never a level.
    Integer XP, floored. PURE: it draws no random number, and it is read off the
-   state, not applied (the caller debits the same numbers it journals). */
-export function levelDeathLoss(levelXp, fraction = DEATH_XP_LOSS, base = DEATH_XP_BASE) {
+   state, not applied (the caller debits the same numbers it journals). The
+   server's bound is hr_death_xp_max (2027-03-25-death-share.sql), the same rule. */
+export function levelDeathLoss(levelXp, fraction = DEATH_XP_LOSS) {
   const x = Math.max(0, Math.floor(Number(levelXp) || 0));
   const f = Number(fraction);
   if (!(f > 0)) return 0;
-  const lv = charLevelFromXp(x);
-  const floor = charXpForLevel(lv);
-  const of = base === 'level' ? charXpForLevel(lv + 1) - floor : x;
-  return Math.max(0, Math.min(Math.floor(of * f), x - floor));
+  return Math.max(0, Math.min(Math.floor(x * f), x));
 }
 export function skillDeathLoss(skillId, xp, fraction = DEATH_XP_LOSS) {
   const x = Math.max(0, Math.floor(Number(xp) || 0));
@@ -395,6 +395,8 @@ export function newHuntSession(o) {
     basics: shopTable(s.basics),
     purse: Math.max(0, int(s.purse, 0)),
     goldOut: s.goldOut === true,
+    /* The spell whose slot left the hunt when its ticked runes ran out (abilities.js firstUsable), or null: a flag of the span. */
+    runesOut: typeof s.runesOut === 'string' && s.runesOut ? s.runesOut : null,
     /* THE GOLD FLOOR and the loot sell-to-cover may sell (row 3). */
     goldFloor: Math.min(GOLD_FLOOR.max, Math.max(GOLD_FLOOR.min, int(s.goldFloor, GOLD_FLOOR.default))),
     /* THE HERO'S SUPPLY SETTING (SUPPLY_SOURCE / ON_EMPTY; unknown = the

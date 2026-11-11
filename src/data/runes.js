@@ -38,6 +38,14 @@ export const RUNE_TIERS = Object.freeze([
   Object.freeze({ tier: 5, name: 'Graven', level: 60 }),
 ]);
 
+/* WHEN A SPELL SLOT'S RUNES RUN OUT (Tyler 2026-11-08, RUNE SUPPLY PER SLOT): a spell's slot spends only the carried runes
+   the player ticked on it (`action.own`, best ticked tier first), then does what its `action.onEmpty` says:
+     store   buy the store rune the slot names (`action.store`) per cast, at the store's share
+     leave   end the hunt `runes_out` (src/data/hunt-sessions.js END_ORDER)
+   A slot that says nothing ticks every rune of its family and buys its store rune when it names one, else leaves
+   (src/core/hunt/conditions.js runeSupplyOf; the server's hr_hunt_slot_check fills the same). */
+export const RUNE_ON_EMPTY = Object.freeze(['store', 'leave']);
+
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
 /** The item id of `family`'s tier-`tier` rune ("graven_rupture_rune"), derived from the two names so an id can

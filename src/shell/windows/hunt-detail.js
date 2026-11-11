@@ -20,14 +20,14 @@
 // Enter sits at the page's foot. This module draws; it holds no state and sends
 // nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.106';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.106';
-import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.106';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.106';
-import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.106';
-import { residentsOf, scarceSetOf, raresOf, bigPullLine, materialsOf } from '../hunt-ground-facts.js?v=0.2.106';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.106';
-import { chance, listWords } from '../../render/format.js?v=0.2.106';
+import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.113';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.113';
+import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.113';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.113';
+import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.113';
+import { residentsOf, scarceSetOf, raresOf, bigPullLine, materialsOf } from '../hunt-ground-facts.js?v=0.2.113';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.113';
+import { chance, listWords } from '../../render/format.js?v=0.2.113';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
@@ -157,7 +157,7 @@ export function patchGround(det, ctx, r, o) {
   const residents = residentsOf(r.hunt);
   wantArt(ctx.doc, residents.map((m) => m.id), repaint);
   const size = Math.max(1, Number(o.size) || 1);
-  const rares = raresOf(r.hunt, size), carriers = new Set(rares.map((x) => x.carrier.id));
+  const rares = raresOf(r.hunt), carriers = new Set(rares.map((x) => x.carrier.id));
   const lineup = det.querySelector('.hw-hd-lineup');
   rows(lineup, residents, {
     key: (m) => r.hunt + ':' + m.id,
@@ -180,11 +180,11 @@ export function patchGround(det, ctx, r, o) {
   /* What drops here and how often (Tyler 2026-10-24: "a % drop chance or nothing at all"): the gear a line a tier, the
      hero's own armour weight first ("Iron, Studded, Adept: helmets, boots and Iron Sword") with the chance a kill here drops
      any piece of it, then each Rare and Trophy, item and carrier, with its chance per kill of that creature. The odds
-     are the engine's own rows at this hero's party size (hunt-ground-facts.js), never a number typed here. */
-  /* PER KILL, FOR THE WHOLE PARTY (blind party test 2026-11-01; played): each kill rolls once and each drop goes to one hero, so a party's higher odds are shared out
-     and each hero's loot per hour stays about the same as alone (hunt-rewards.js payKill). */
+     are the engine's own rows, the same for every party size (hunt-ground-facts.js), never a number typed here. */
+  /* PER KILL, FOR THE WHOLE PARTY (blind party test 2026-11-01; played): each kill rolls the row's own odds for any party size, and each drop goes to one hero
+     (hunt-rewards.js payKill). */
   text(det.querySelector('.hw-hd-per-size'), size > 1 ? 'chance per kill, for your party of ' + size + ': each drop goes to one of you' : 'chance per kill, hunting alone');
-  rows(det.querySelector('.hw-hd-sets'), scarceSetOf(r.hunt, o.worn || null, size), {
+  rows(det.querySelector('.hw-hd-sets'), scarceSetOf(r.hunt, o.worn || null), {
     key: (e) => String(e.tier),
     build: () => element(ctx.doc, '<li class="hw-hd-set"><span><b class="hw-hd-set-lines"></b><span class="hw-hd-set-what"></span></span>'
       + '<span class="hw-hd-odds"></span></li>'),
@@ -195,7 +195,7 @@ export function patchGround(det, ctx, r, o) {
     },
   });
   /* The materials a shortage sends a player here for (panel 2026-11-01: Drops listed gear only). The rows look like the Rare list's. */
-  const mats = materialsOf(r.hunt, size);
+  const mats = materialsOf(r.hunt);
   text(det.querySelector('.hw-hd-mats-per'), size > 1 ? 'chance per kill, for your party of ' + size + ': each drop goes to one of you' : 'chance per kill, hunting alone');
   rows(det.querySelector('.hw-hd-mats'), mats, {
     key: (x) => x.id,

@@ -127,7 +127,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_farm_harvest: 'harvest a ready plot and leave it empty (a regrowing crop stays and grows again); readiness and the roll are the server’s (farm-intents.js harvestPlot)',
   hr_farm_harvest_clear: 'harvest a ready plot, then remove a regrowing plant so the plot is empty; a slot, a plot and a key only (farm-intents.js clearPlot; 2027-01-26-farm-harvest-clear.sql)',
   hr_farm_harvest_replant: 'harvest a ready plot and plant the same crop again, from an own seed or one bought at the listed Shop price (farm-intents.js harvestPlot)',
-  hr_farm_upgrade_plot: 'buy the next plot tier the client expects; the server prices it, gold first then deeds (farm-intents.js upgradePlot)',
+  hr_farm_upgrade_plot: 'buy the next plot tier the client expects; the server prices it in gold (farm-intents.js upgradePlot)',
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): catalogue ids only; the server counts the kills, prices the reward and picks the piece. */
   /* What gold buys in town (2027-02-27-town-shows.sql, -town-crier.sql): a catalogue id, the price the player saw and a fresh key; the server re-quotes and charges. */
   hr_town_sinks_view: 'the Havora window\'s read of this account\'s quotes and last choices; a read, while the window is open (town-intents.js readSinks)',

@@ -1,0 +1,35 @@
+{
+  "id": "hf_pike_stakes",
+  "class": "fixture",
+  "style": "s1",
+  "material": "wood",
+  "source": "hf_pike_stakes.png",
+  "frame": [
+    38,
+    48
+  ],
+  "anchor_px": [
+    19,
+    47
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "7bfee120-494d-5b9c-8eb8-9a4c90d10c2b",
+    "cell": 4
+  },
+  "notes": "Cell 4 of a 4x4 style-1 prop sheet (PixelLab image 7bfee120-494d-5b9c-8eb8-9a4c90d10c2b, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

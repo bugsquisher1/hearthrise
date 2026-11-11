@@ -3,7 +3,7 @@
 //
 // A hero's colors are four dye INDICES the server holds (player_outfits.base_colors; the key "head.body.legs.feet",
 // src/data/outfits.js dyeKeyOf). A dye's colour is the token --dye-N, so no client colour value ever crosses to another player.
-// A LOOK is one outfit in one set of colors: every frame of its sprite (the `hunt` atlas), recoloured where its mask
+// A LOOK is one outfit in one set of colors: every frame of its sprite (the `heroes` atlas), recoloured where its mask
 // (`hunt-masks`, tools/world-art/outfit-masks.mjs) keys a region: each pixel keeps its value and takes the dye's hue and
 // saturation, so the shading stays (dyeRamp, recolourPixels). Two sets that differ only in a region this outfit doesn't show are the
 // same look (a knight has no legs to dye), so they share a sheet.
@@ -19,8 +19,8 @@
 //
 // A frame's use: want(...) for every dyed unit it will draw, pump(), then source(...) while painting. PURE of globals: the document, the tokens and the clock are handed in.
 // ════════════════════════════════════════════════════════════════════════
-import { BASE_REGIONS, MASK_COLOURS } from '../data/outfits.js?v=0.2.106';
-import { loadAtlasSet } from './atlas.js?v=0.2.106';
+import { BASE_REGIONS, MASK_COLOURS } from '../data/outfits.js?v=0.2.113';
+import { loadAtlasSet } from './atlas.js?v=0.2.113';
 
 /** How many dyed looks stay in memory: past this, heroes draw undyed. */
 export const DYE_LOOKS = 24;

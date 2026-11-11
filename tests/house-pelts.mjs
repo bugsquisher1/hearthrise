@@ -49,7 +49,11 @@ async function gladeHunter(db, H, M, uid) {
   await H.character(db, M, uid, { level: 24, gold: 5000000, inv: {} });
   /* IN THE IRON PLATE A LEVEL 24 HERO HAS WORN SINCE 15 (Tyler's harder Glade, 2026-11-02): in the practice set alone it now dies at a pull of 3, which is the
      ground's own words ("in weak armor ... or die"), not this guard's claim. A local fixture, like the Level above. */
-  for (const [equipSlot, item] of [['helmet', 'iron_helm'], ['body', 'iron_platebody'], ['pants', 'iron_platelegs'], ['boots', 'iron_boots']]) {
+  /* AND THE REST OF THAT KIT (lane/b-one-difficulty, 2026-11-08): since a monster has its row's HP for one hero or four, a Level 24 hero alone with the
+     start kit's weapon in iron plate died on the Glade's Dangerous at 66 min (closed) and 6 min (viewed). Either strong enough or not (Tyler 11-08): it
+     wears the smiths' ladder kit a Level 24 Melee wears (tools/balance-sim/gear.mjs kitOf('tank', 24)), weapon, shield, gauntlets and belt too. */
+  for (const [equipSlot, item] of [['weapon', 'iron_sword'], ['shield', 'ironbound_shield'], ['helmet', 'iron_helm'], ['body', 'iron_platebody'], ['pants', 'iron_platelegs'],
+    ['boots', 'iron_boots'], ['gloves', 'iron_gauntlets'], ['belt', 'iron_belt']]) {
     await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3) on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id', [uid, equipSlot, item]);
   }
   await db.query('update public.hr_hunt_config set enabled = true where id');
@@ -314,8 +318,8 @@ const WORD_TREES = ['src/shell', 'src/render', 'src/session', 'src/utils', 'src/
 const WORD_MUTANTS = [
   { name: 'the source lists every catalogue creature again', edits: [['src/shell/hunt-ground-facts.js', "return 'Dropped by ' + listWords(first.names) + ' at '", "return 'Dropped by ' + listWords(Object.values(MONSTERS).filter((m) => (m.drops || []).some((d) => d && d.id === item)).map((m) => m.name), 99) + ' at '"]] },
   { name: 'the tip drops the harder hunt', edits: [['src/shell/hunt-ground-facts.js', "return 'The ' + MONSTERS[best.id].name + ' only comes to a party or a harder hunt at '", "return '' && ' only comes to a party or a harder hunt at '"]] },
-  { name: 'the House\'s short line drops the source', edits: [['src/shell/windows/house.js', "const where = short ? whereToGet(it.id) : '';", "const where = '';"]] },
-  { name: 'the House tells everyone', edits: [['src/shell/windows/house.js', "const where = short ? whereToGet(it.id) : '';", 'const where = whereToGet(it.id);']] },
+  { name: 'the House\'s short line drops the source', edits: [['src/shell/windows/house.js', "const places = short ? wherePlaces(it.id) : [];", "const places = [];"]] },
+  { name: 'the House tells everyone', edits: [['src/shell/windows/house.js', "const places = short ? wherePlaces(it.id) : [];", 'const places = wherePlaces(it.id);']] },
   { name: 'the source names no ground', edits: [['src/shell/hunt-ground-facts.js', "' at ' + groundName(first.g) + (more.length", "(more.length"]] },
   { name: 'a material with no drop on Materials: gear-only Drops again', edits: [['src/shell/hunt-ground-facts.js', "!isSpentMaterial(d.id)) continue;", "true) continue;"]] },
   { name: 'Materials lists a pure sell item', edits: [['src/shell/hunt-ground-facts.js', "|| isRare(d) || !isSpentMaterial(d.id)) continue;", "|| isRare(d)) continue;"]] },

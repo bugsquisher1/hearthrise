@@ -1,0 +1,237 @@
+{
+  "asset": "captain_hask-idle",
+  "brief": "art/briefs/gen-2026-11-07/02-march-idles.txt, run per 08-next-batch.txt (A3)",
+  "status": "NOT imported; waits on the art director's read",
+  "made": "2026-11-08",
+  "object_id": "3de1b017-1ac7-4bb6-9976-553fc6a51e27",
+  "set": "muster",
+  "layout": "<facing>/frame_000..008.png = the chosen roll (frame_000 the still); alt/<roll>/<facing>/ = every other roll",
+  "rolls": {
+    "r1": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "27de285d-7555-4e28-bb8f-85fd1a077e18",
+      "directions": "s e n (w se sw ne nw in A3c)",
+      "action": "standing guard, breathing slowly, a slight sway, feet planted, stays in place, nothing else appears in the frame"
+    },
+    "r2": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "051cc888-c4fb-4d93-815a-ff65c08d1ab8",
+      "directions": "s e n",
+      "action": "standing guard very still, the chest rises and falls by one pixel, the head stays level, the body does not rise or grow, both feet stay exactly where they are, the sword stays completely still, only the cape's hem stirs, nothing else appears in the frame"
+    },
+    "r3": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "b9673614-ae50-4185-b220-e872f16f7c22",
+      "directions": "s e n",
+      "action": "standing completely still like a statue, only the chest rises and falls by one pixel, the head, the arms and the sword do not move at all, feet planted, only the cape's hem stirs, nothing else appears in the frame"
+    },
+    "a3c_r1": {
+      "brief": "08 A3c",
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "27de285d-7555-4e28-bb8f-85fd1a077e18 (extended)",
+      "directions": "w se sw ne nw",
+      "action": "standing guard, breathing slowly, a slight sway, feet planted, stays in place, nothing else appears in the frame"
+    },
+    "a3c_r2": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "6199daad-4ca6-4023-ab1a-8bd7b72aa570",
+      "directions": "se sw ne nw",
+      "action": "standing completely still like a statue, only the chest rises and falls by one pixel, the head, the arms and the sword do not move at all, feet planted, only the cape's hem stirs, nothing else appears in the frame"
+    },
+    "a3c_r3": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "7aba2b37-300f-49fb-91de-98053718d22b",
+      "directions": "ne nw",
+      "action": "standing completely still like a statue, only the chest rises and falls by one pixel, the head, the plume, the arms, the sword and the cape do not move at all, feet planted, nothing else appears in the frame",
+      "note": "fetched from the backblaze URLs: its ZIP folder name (the description cut to 50 characters) is the same as a3c_r2's"
+    }
+  },
+  "chosen": {
+    "south": "r3",
+    "east": "r2",
+    "north": "r1",
+    "west": "r1",
+    "north-west": "r1",
+    "south-east": "r2",
+    "south-west": "r2",
+    "north-east": "r2"
+  },
+  "loop_preview": {
+    "how": "idle-clip.mjs idleFrames(the shipped still from the March art branch, frames, 58)",
+    "facings": {
+      "south": {
+        "picks": [
+          0,
+          6,
+          7,
+          6
+        ],
+        "steps": [
+          836,
+          168
+        ],
+        "feet": 75,
+        "detached": 0,
+        "missed": 1
+      },
+      "east": {
+        "picks": [
+          0,
+          8,
+          1,
+          8
+        ],
+        "steps": [
+          126,
+          151
+        ],
+        "feet": 5,
+        "detached": 7,
+        "missed": 0
+      },
+      "north": {
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          169,
+          204
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "steps": [
+          102,
+          157
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          2,
+          3,
+          2
+        ],
+        "steps": [
+          627,
+          195
+        ],
+        "feet": 29,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-west": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          54,
+          83
+        ],
+        "feet": 1,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "steps": [
+          54,
+          226
+        ],
+        "feet": 1,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          152,
+          183
+        ],
+        "feet": 4,
+        "detached": 0,
+        "missed": 0
+      }
+    }
+  },
+  "needs_hand_pass": {
+    "east": {
+      "roll": "r2",
+      "frames": "008, 001",
+      "moving": "the sword blade redraws along its length and the cape tip throws 7 stray px (feet 5)",
+      "best_of": "r1 173/223 feet 17; r2 126/151 feet 5, 7 stray; r3 120/341 feet 16, 18 stray"
+    },
+    "north": {
+      "roll": "r1",
+      "frames": "001, 002",
+      "moving": "the cape's lower edge swings (cloth) and the sword tip at the lower right moves; 169/204",
+      "best_of": "r1 169/204; r2 208/233; r3 180/293"
+    },
+    "north-east": {
+      "roll": "a3c_r2",
+      "frames": "001, 008",
+      "moving": "the cape's trailing edge and the plume swing in 008 (226 px far step); the sword holds",
+      "best_of": "r1 131/207; r2 54/226; r3 108/203"
+    },
+    "north-west": {
+      "roll": "a3c_r1",
+      "frames": "001, 002",
+      "moving": "the cape's hem and the plume (cloth; 4 px of the foot rows are the hem)",
+      "best_of": "r1 152/183 feet 4; r2 222/292, 29 stray px; r3 216/190, 9 stray px"
+    }
+  },
+  "generations": 20,
+  "flags": [
+    "south r3 passes with the floor at row 63 (167/103, feet 0); laid at 58 as the import does today it lifts 5 px (836 px in the strip): same IMPORT WARNING as the barrow knight (S at row 63, SE at row 62)",
+    "east and north failed all 3 rolls: best kept, hand passes flagged",
+    "w se sw ne nw come in batch A3c",
+    "A3c: west (102/157) and south-west (54/83) pass; south-east passes with the floor at its still's lowest row 62 (70/132, feet 0), and in the strip, laid at 58 as the import does, it shows the 627 px lift",
+    "north-east and north-west failed all 3 rolls: best in place, hand passes flagged"
+  ],
+  "review_strip": "art/review/gen-2026-11-07/captain_hask-idle.png and captain_hask-idle-loops.png",
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set muster --id captain_hask --clip art/world-src/gen-2026-11-07/captain_hask-idle (on the March merge, where the muster set lives)"
+}

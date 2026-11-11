@@ -12,9 +12,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_STANCES } from './rule-subjects.js?v=0.2.106';
-import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.106';
-import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.106';
+import { HUNT_STANCES } from './rule-subjects.js?v=0.2.113';
+import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.113';
+import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.113';
 
 /* Hours is an optional limit, off by default: the bag, stamina and death
    already bound a hunt, and a timer nobody asked for is a hunt that ends for no
@@ -130,22 +130,21 @@ export function coverSellable(item, isSupply) {
   return item.junk === true;
 }
 
-/* THE PRICE OF A DEATH (Tyler 2026-10-19; Coordinator answer Q7, recorded for
-   Tyler's approval). A death ends the hunt and costs:
-     Level   this fraction of the character's TOTAL Level XP, never below the
-             start of the current Level (a death never de-levels);
+/* THE PRICE OF A DEATH (Tyler 2026-11-09: "Death needs to be more than 2% I
+   think, and losing a level should be possible" + "A flat share of exp that is
+   reduced with blessings"; the designer's share, PRIORITY_BOARD "2026-11-09
+   Death share and alt price"). A death ends the hunt and costs:
+     Level   this fraction of the character's TOTAL Level XP. It CAN take a
+             Level, and never goes below Level 1 (a share of a total never
+             reaches zero);
      skills  every combat skill (src/data/skills.js DEATH_SKILLS) loses the same
              fraction of its progress toward its next level, never a level.
-   Blessings (src/data/blessings.js) remove a share of both. The server reads it
-   as the hr_hunt_limits row `death_xp_permille` (the generator refuses a
-   fraction that is not a whole permille). */
-export const DEATH_XP_LOSS = 0.02;
-/* WHAT THE LEVEL'S LOSS IS A SHARE OF (Tyler 2026-10-19: 'total'; the designer
-   recommends 'level', the current Level's span, at Level 200): 'total' = the
-   character's total Level XP, 'level' = the XP between its current Level and the
-   next. Either way the loss never takes the character below its current Level.
-   Server row `death_xp_base` (0 total, 1 level), generated. */
-export const DEATH_XP_BASE = 'total';
+   Blessings (src/data/blessings.js) remove a share of both. One public formula,
+   nothing keyed on a ground: XP lost = total Level XP x DEATH_XP_LOSS x (1 - the
+   Blessings' cut). The server reads it as the hr_hunt_limits row
+   `death_xp_permille` (the generator refuses a fraction that is not a whole
+   permille). */
+export const DEATH_XP_LOSS = 0.06;
 
 /* The Analyzer keeps a character's last this-many hunts (ruling §2); an older
    ended hunt, its bag lines, tally and timeline are pruned when a new one
@@ -183,6 +182,8 @@ export const STAMINA_MAX_MS = Object.freeze({ free: 8 * 3600000, premium: 12 * 3
    reason) and this hero's box "Leave if anyone leaves the hunt or dies" is ticked
    (player_state.party_leave_together, default on): it is paid up to that boundary
    and goes home; an unticked hero hunts on.
+   `runes_out` (Tyler 2026-11-08, RUNE SUPPLY PER SLOT): a spell's slot set to "Leave the hunt" came to cast
+   with none of the runes the player ticked on it left (src/core/hunt/abilities.js runeFor).
    `gold_out` (Tyler, 2026-10-14): an NPC basic supply
    the purse cannot pay ends the hunt at the next boundary. `rule` (Tyler
    2026-10-18, the action engine): one of the hero's own stop rules held for its
@@ -192,7 +193,7 @@ export const STAMINA_MAX_MS = Object.freeze({ free: 8 * 3600000, premium: 12 * 3
    killed one for NO_FIGHT_END_MIN (combat-sim.js, the world's `fightAt`). The server reads
    this list as hr_hunt_end_reasons and as hunt_sessions.end_reason's CHECK
    (tools/gen-hunt-sessions.mjs). */
-export const END_ORDER = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'left', 'changed', 'no_fight', 'server']);
+export const END_ORDER = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'left', 'changed', 'no_fight', 'server']);
 
 /* THE NO-FIGHT SPAN, in hunt minutes (the server reads it as hr_hunt_limits.no_fight_min). MEASURED on the real settle,
    every ground at its floor, solo and as a party with a Healer (tests/hunt-core/no-fight.mjs quiet-gaps): the longest
@@ -209,7 +210,7 @@ export const NO_FIGHT_END_MIN = 10;
    place later without touching the settle. A BENCH IS REMEMBERED BUT NEVER RESUMED
    (2027-02-15-panel-truth.sql hr_resume_has_inputs): a resume has no count, so it would spend
    a whole hunt's loot the player never pointed at. Gathering spends nothing and resumes. */
-export const RESUME_AFTER_END = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'no_fight', 'server']);
+export const RESUME_AFTER_END = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'no_fight', 'server']);
 
 /* The non-hunt activity kinds a character's "last activity" may name. `training`
    is RESERVED for the combat redesign (train a chosen combat skill in town while
@@ -244,6 +245,7 @@ export const END_REASON_COPY = Object.freeze({
   party_member_left: Object.freeze({ one: '{member} left the hunt, so {name} came home too.' }),
   heals_out: Object.freeze({ one: 'You ran out of healing food, so you headed home.' }),
   ammo_out: Object.freeze({ one: 'You ran out of {item}, so you headed home.' }),
+  runes_out: Object.freeze({ one: 'You ran out of runes, so you headed home.' }),
   gold_out: Object.freeze({ one: 'You ran out of gold for supplies, so you headed home.' }),
   rule: Object.freeze({ one: 'One of your stop rules was met, so you headed home.' }),
   stamina: Object.freeze({ one: 'Out of stamina, so you headed home. It rests back 1:1 while you are not hunting.' }),

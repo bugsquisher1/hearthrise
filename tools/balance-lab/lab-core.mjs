@@ -527,7 +527,7 @@ export function grounds() {
     const hunt = HUNT_INDEX[g.hunt] || {};
     const mons = new Set();
     for (const p of g.pockets) for (const s of (p.pack || []).concat(p.spawns)) mons.add(s.monster);
-    return { id: g.id, name: hunt.name || g.name || g.id, band: (hunt.band || [1, 1]).slice(), groupFit: g.pockets.some((p) => p.minParty) ? 'party' : (g.groupFit || null),
+    return { id: g.id, name: hunt.name || g.name || g.id, band: (hunt.band || [1, 1]).slice(), groupFit: g.pockets.some((p) => p.forParty) ? 'party' : (g.groupFit || null),
       partyPull: Array.isArray(g.partyPull) ? g.partyPull.slice() : null, densityMax: Array.isArray(g.densityMax) ? g.densityMax.slice() : null,
       monsters: [...mons].filter((id) => MONSTERS[id]).map((id) => ({ id, name: MONSTERS[id].name || id })) };
   }).sort((a, b) => a.band[0] - b.band[0] || a.id.localeCompare(b.id));
@@ -553,5 +553,8 @@ export function heroCard(style, level, preset) {
   return { pieces: Object.entries(kit).map(([slot, id]) => ({ slot, id, name: (ITEMS[id] && (ITEMS[id].n || ITEMS[id].name)) || id, tier: (ITEMS[id] && ITEMS[id].tier) || null })),
     maxHp: vit.maxHp, maxMana: vit.maxMana };
 }
+/** A copy of a monster row as the engine reads it right now (dials and a scaled hunt included): parity.mjs reads it. */
+export const liveMonster = (id) => (MONSTERS[id] ? clone(MONSTERS[id]) : null);
+
 /** Level XP from Level `L` to `L + 1` (the curve the game reads). */
 export const xpToNext = (L) => charXpForLevel(L + 1) - charXpForLevel(L);

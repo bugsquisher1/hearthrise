@@ -20,7 +20,7 @@
 //                     never picked, runs 3+ laps of the Thicket on the real settle; EVERY spawn, the first packs and
 //                     every respawn, is a pack of 8, never the room as built; the box's ring of 8 never walls the leader
 //                     off the pull tile (it pulls from the ring's edge)
-//   party-scale       a pack spawns at the party scale's HP for the instance's size
+//   one-pack          a pack spawns at its row's HP for every party size (Tyler 2026-11-08), whole-kill: it pays its row's whole kill, every-route: a lone hero walks the King's hall
 //   party-acceptance  a 4-party (Knight, Ranger, Druid, Sorcerer) on one instance: the Ranger switches 5x5 / 3x3 by
 //                     enemies_in_aoe and falls back when the 5x5 runs out, one unit a shot; the Druid heals only the
 //                     Knight and only under 80%; the Sorcerer casts at density 3+; cut into windows (the client closed,
@@ -29,6 +29,8 @@
 //                     first pocket at Level 5 (its first real ground, Tyler 10-21) and the Sewer's at its floor (a party's first ground)
 //   starter-bar-fires       every worn set of the kit, on the real settle: no dead default slot, the first pull fires, a lone monster fires, every slot earns its place
 //   starter-bars-both-paths a new caster's bar, watched and with the browser closed: the same result
+//   undertow-both-paths     the Healer's alone spell (Tyler 2026-11-09): a lone Healer casts it watched and closed alike; a tank and a
+//                           Healer, both alive, never do on either path
 //   sql-rows          the migration's catalogue rows equal the registry, the action ids and ROLE_RULES
 //
 //   node tests/hunt-core/conditions.mjs            cases + mutants
@@ -53,8 +55,9 @@ const SLOT_MIGRATION = 'supabase/migrations/2027-01-13-slot-truth.sql';
 const CONTENT_MIGRATION = 'supabase/migrations/2027-01-13-spell-content.sql';
 /* The settings view that places the starter bar, at the chain's end (restated: a slot may name any store rune of its family): lane/c-rune-ladder, 2026-11-05. */
 const VIEW_MIGRATION = 'supabase/migrations/2027-03-08-rune-ladder-slots.sql';
-/* The role rule sets once more (every default rune spell names its store rune, Flame Volley and Rend off the default bars: lane/c-caster-starter-bars, designer 2026-11-05). */
-const BAR_MIGRATION = 'supabase/migrations/2027-03-09-caster-starter-bars.sql';
+/* The role rule sets once more (every default rune spell names its store rune, Flame Volley and Rend off the default bars: lane/c-caster-starter-bars, designer 2026-11-05),
+   and again (Undertow on the Healer's set: lane/b-one-difficulty, Tyler 2026-11-09). */
+const BAR_MIGRATION = 'supabase/migrations/2027-03-24-undertow-bar.sql';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -98,7 +101,7 @@ function openGrid(M) {
 }
 function openGround(spawns, o) {
   return Object.assign({ id: 'ae_room', hunt: 'mill_cellar', map: 'ae_room', start: [[2, 5], [2, 6], [3, 5], [3, 6]],
-    pockets: [{ room: [8, 1, 22, 10], spawns }], route: [0], respawnMs: 3000, pullDist: 1.5, groupFit: 'both', densityMax: [12, 12, 12, 12], partyScale: true }, o || {});
+    pockets: [{ room: [8, 1, 22, 10], spawns }], route: [0], respawnMs: 3000, pullDist: 1.5, groupFit: 'both', densityMax: [12, 12, 12, 12] }, o || {});
 }
 /* A 3 x 3 block of `monster` round (16, 5), plus a straggler at (20, 9). */
 const BLOCK = (monster) => [[15, 4], [16, 4], [17, 4], [15, 5], [16, 5], [17, 5], [15, 6], [16, 6], [17, 6], [20, 9]]
@@ -584,46 +587,33 @@ const cases = {
     sc.atMs = 600; M.cond.checkStopRules(inst, sc);
     return h.ruleWait === null ? null : 'a wait on a removed rule survived: ' + JSON.stringify(h.ruleWait);
   },
-  /* SCALING IS PAID IN REWARD (designer ruling 2026-10-18): a monster at s/1000 HP pays s/1000 of its row's kill yield,
-     so the yield per HP dealt (and with kill speed set by HP, the yield per hour) is the same for 1, 2, 3 or 4 heroes. */
-  'yield-scale': (M) => {
+  /* ONE PACK FOR EVERY GROUP (Tyler 2026-11-08: "the difficulty should be unchanged"): a monster spawns at its row's HP for 1, 2, 3 or 4
+     heroes and pays its row's whole kill: XP, every drop chance (a sure one too) and the Hearthfind, untouched. */
+  'whole-kill': (M) => {
     const row = M.MONSTERS.drain_rat;
     for (const n of [1, 2, 3, 4]) {
       const w = M.spawn.newHuntWorld(openGround([{ monster: 'drain_rat', x: 16, y: 5 }]), openGrid(M),
         Array.from({ length: n }, () => ({ role: 'tank', maxHp: 100, acc: 900, maxHit: 5, def: 1 })));
       const m = w.units.find((u) => u.side === 'mon');
-      const pm = M.grounds.yieldPermille(n);
-      if (m.yieldPm !== pm) return n + ' heroes: the monster pays ' + m.yieldPm + ' permille, the ruling says ' + pm;
-      /* per HP dealt: the kill XP it pays over its HP, against the row's, within one XP of rounding */
-      const xp = Math.round(row.xp * m.yieldPm / 1000);
-      /* within one XP of rounding and one HP of the scaled pool's rounding */
-      if (Math.abs(xp / m.maxHp - row.xp / row.hp) > (1 + row.xp / row.hp) / m.maxHp + 1e-9) return n + ' heroes: ' + xp + ' XP for ' + m.maxHp + ' HP vs ' + row.xp + ' for ' + row.hp;
+      if (m.maxHp !== row.hp || 'yieldPm' in m) return n + ' heroes: the monster spawned at ' + m.maxHp + ' HP (the row ' + row.hp + ')' + ('yieldPm' in m ? ' carrying a yield share' : '');
     }
-    /* every chance scales: a drop (a sure one too) and the Hearthfind */
-    const ch = M.drops.effectiveDropChance({ ch: 0.2 }, { yieldMult: 0.55 }); const sure = M.drops.effectiveDropChance({ ch: 1 }, { yieldMult: 0.55 });
-    if (Math.abs(ch - 0.11) > 1e-9 || Math.abs(sure - 0.55) > 1e-9) return 'drop chances scaled to ' + ch + ' / ' + sure;
-    /* the Hearthfind is thinned OUTSIDE its roll (the mint guard): the kill payout's source gates it at y first */
+    const ch = M.drops.effectiveDropChance({ ch: 0.2 }); const sure = M.drops.effectiveDropChance({ ch: 1 });
+    if (Math.abs(ch - 0.2) > 1e-9 || sure !== 1) return 'drop chances read ' + ch + ' / ' + sure + ', the rows say 0.2 / 1';
     const src = readFileSync(join(M.root, 'src/core/hunt-rewards.js'), 'utf8');
-    if (!src.includes('if (y < 1 && !rng.chance(y)) return;')) return 'a scaled kill\'s Hearthfind is not thinned by its yield share';
-    /* and the paid kill: a 550-permille rat's kill XP event */
-    const h = hero(M, 1, 12, 3, { role: 'tank' }); const r = mon(M, 10, 0, 13, 3, { kind: 'drain_rat', hp: 1, maxHp: 25, yieldPm: 550 });
+    if (/rng\.chance\(y\)|yieldMult/.test(src)) return 'a kill\'s drops or Hearthfind still read a yield share';
+    /* the paid kill, alone: its share before bonuses is the row's whole XP */
+    const h = hero(M, 1, 12, 3, { role: 'tank' }); const r = mon(M, 10, 0, 13, 3, { kind: 'drain_rat', hp: 1, maxHp: row.hp });
     const inst = instOf(M, world(M, [h, r])); const sc = subStep(0);
     M.damage.landHit(inst, sc, h, r, 50, null, null);
-    const paid = sc.events.filter((e) => e.type === 'xp' || e.type === 'xp_group').map((e) => e.amount);
-    M.xpshare.flushXpGroup(inst, sc);
-    const all = sc.events.filter((e) => e.type === 'xp').reduce((a, e) => a + e.amount, 0);
-    return all === Math.round(row.xp * 0.55) ? null : 'a 550-permille kill paid ' + all + ' XP (' + JSON.stringify(paid) + '), want ' + Math.round(row.xp * 0.55);
+    const raw = sc.events.filter((e) => e.type === 'xp').reduce((a, e) => a + e.raw, 0);
+    return raw === row.xp ? null : 'a lone hero\'s kill paid a share of ' + raw + ' XP, the row says ' + row.xp;
   },
-  /* THE KING NEEDS A PARTY: a solo route never includes a minParty pocket; a pair walks it. */
-  'solo-route': (M) => {
-    for (const g of Object.values(M.grounds.HUNT_GROUNDS)) {
-      const solo = M.grounds.routeFor(g, 1);
-      if (solo.some((i) => (g.pockets[i].minParty || 1) > 1)) return g.id + ': the solo route walks a party-only pocket';
-    }
+  /* EVERY HERO WALKS EVERY POCKET (Tyler 2026-11-08): a lone hero's route is the ground's, the Rat King's hall included (a warning, never a gate). */
+  'every-route': (M) => {
     const sewer = M.grounds.HUNT_GROUNDS.millrace_sewer;
-    const king = sewer.pockets.findIndex((p) => p.minParty);
-    if (king < 0 || !M.grounds.routeFor(sewer, 2).includes(king)) return 'the King\'s pocket is not on a pair\'s route';
-    /* A solo hero that cannot fall walks the real sewer until its route loops twice. */
+    const king = sewer.pockets.findIndex((p) => p.forParty);
+    if (king < 0 || !sewer.route.includes(king)) return 'the King\'s hall is not on the Sewer\'s route';
+    /* A lone hero that cannot fall walks the real sewer until its route loops twice: it pulls the King's hall. */
     const { ground, grid } = M.hg.huntGroundOf('millrace_sewer');
     const w = M.spawn.newHuntWorld(ground, grid, [{ role: 'tank', maxHp: 1e7, hp: 1e7, acc: 1000, maxHit: 400, def: 50 }]);
     const pulls = [];
@@ -631,7 +621,7 @@ const cases = {
       const r = M.worldstep.stepSwing(w, { ground, grid, heroes: {}, swingMs: 2000, atMs: T0 + i * 2000, rng: M.rng.createRng(M.rng.hashSeed('route', i)) });
       for (const e of r.events) if (e.type === 'pull') pulls.push(e.pocket);
     }
-    return w.runs >= 2 && !pulls.includes(king) ? null : 'a solo hunt pulled ' + pulls.join(',') + ' (runs ' + w.runs + ')';
+    return w.runs >= 2 && pulls.includes(king) ? null : 'a lone hunt pulled ' + pulls.join(',') + ' (runs ' + w.runs + '), never the King\'s hall ' + king;
   },
   'metrics-misc': (M) => {
     const h = hero(M, 1, 12, 3, { target: 10 });
@@ -692,7 +682,7 @@ const cases = {
   },
   /* Tyler 2026-10-18: a FULL BOX. At density 8 the pack fills all eight tiles round a tank that holds still. */
   'full-box': (M) => {
-    const ground = openGround([{ monster: 'drain_rat', x: 18, y: 5 }], { start: [[14, 5]], partyScale: false });
+    const ground = openGround([{ monster: 'drain_rat', x: 18, y: 5 }], { start: [[14, 5]] });
     const grid = openGrid(M);
     const w = M.spawn.newHuntWorld(ground, grid, [{ role: 'tank', maxHp: 1000000, hp: 1000000, acc: 0, maxHit: 1, def: 0, density: 8,
       settings: { chase: false, dist: 1 } }]);
@@ -714,19 +704,17 @@ const cases = {
     return n === 8 && w.units.filter((u) => u.side === 'mon' && u.alive).every((m) => m.target === k.id) ? null
       : 'after 40 s only ' + n + ' of the 8 tiles round the tank hold a monster (' + around.join('') + ')';
   },
-  'party-scale': (M) => {
+  /* ONE PACK FOR EVERY GROUP: the same HP for 1, 2 and 4 heroes, and no ground row carries the old party scale. */
+  'one-pack': (M) => {
     const hp = (n) => {
       const w = M.spawn.newHuntWorld(openGround([{ monster: 'drain_rat', x: 16, y: 5 }]), openGrid(M),
         Array.from({ length: n }, () => ({ role: 'tank', maxHp: 100, acc: 900, maxHit: 5, def: 1 })));
       return w.units.find((u) => u.side === 'mon').maxHp;
     };
     const got = [1, 2, 4].map(hp).join();
-    const want = [1, 2, 4].map((n) => M.grounds.scaledHp(M.MONSTERS.drain_rat, n)).join();
-    if (got !== want || !(hp(1) < M.MONSTERS.drain_rat.hp)) return 'packs spawned at ' + got + ' HP, the party scale says ' + want;
-    const flat = M.spawn.newHuntWorld(openGround([{ monster: 'drain_rat', x: 16, y: 5 }], { partyScale: false }), openGrid(M),
-      [{ role: 'tank', maxHp: 100, acc: 900, maxHit: 5, def: 1 }]).units.find((u) => u.side === 'mon').maxHp;
-    if (flat !== M.MONSTERS.drain_rat.hp) return 'a ground that does not opt in scaled its pack to ' + flat;
-    return ['mill_cellar', 'millrace_sewer'].every((g) => M.grounds.HUNT_GROUNDS[g].partyScale === true) ? null : 'the cellar and the sewer do not opt in to the party scale';
+    if (got !== [1, 2, 4].map(() => M.MONSTERS.drain_rat.hp).join()) return 'packs spawned at ' + got + ' HP for 1, 2 and 4 heroes, the row says ' + M.MONSTERS.drain_rat.hp;
+    const scaled = Object.values(M.grounds.HUNT_GROUNDS).filter((g) => 'partyScale' in g).map((g) => g.id);
+    return scaled.length ? 'grounds still carry a party scale: ' + scaled.join(', ') : null;
   },
   'party-acceptance': (M) => {
     const whole = runParty(M, []);
@@ -848,6 +836,30 @@ const cases = {
       if (watched.casts.length < 3 || !watched.casts.some((c) => M.AD.ABILITIES[c[1]].rune)) return worn.weapon + ': CONTROL: ' + watched.casts.length + ' casts in 10 minutes';
       if (JSON.stringify(watched.casts) !== JSON.stringify(closed.casts)) return worn.weapon + ': the casts differ with the browser closed (' + watched.casts.length + ' watched, ' + closed.casts.length + ' closed)';
       if (watched.sum !== closed.sum) return worn.weapon + ': watched ' + watched.sum.slice(0, 200) + ' but closed ' + closed.sum.slice(0, 200);
+    }
+    return null;
+  },
+  /* UNDERTOW ON BOTH PATHS (Tyler 2026-11-09: "a new spell that can only be used when not in a party"; CLAUDE.md §4): the Healer's
+     default bar at the Thicket's floor, watched (10 s settles) and with the browser closed (10 min windows). A lone Healer casts
+     Undertow on both, the same casts; a tank and a Healer, both alive throughout, never cast it on either, and their paths agree. */
+  'undertow-both-paths': (M) => {
+    const L = M.HUNTS.meadowbrook_thicket.band[0];
+    const play = (roles, windowMs) => {
+      const casts = [];
+      const r = M.play.run('meadowbrook_thicket', L, roles, { spanMs: 10 * 60000, windowMs, secret: '42', bar: () => [],
+        onWindow: (w) => { for (const e of w.events || []) if (e.type === 'cast') casts.push([e.atMs, e.u, e.ability]); } });
+      return { casts, n: casts.filter((c) => c[2] === 'undertow').length, falls: r.totals.falls,
+        sum: JSON.stringify([r.totals.buys, r.totals.coin, r.totals.levelXp, r.totals.xp, r.totals.kills, r.totals.falls, Object.entries(r.items).sort()]) };
+      /* (a party's loot tallies its windows in another key order: the bag compared as sorted pairs) */
+    };
+    for (const roles of [['healer'], ['tank', 'healer']]) {
+      const tag = roles.join(' + ');
+      const watched = play(roles, 10000), closed = play(roles, 600000);
+      if (watched.falls || closed.falls) return 'CONTROL: ' + tag + ' fell (' + watched.falls + ' watched, ' + closed.falls + ' closed), so a hero was alone for a while';
+      if (JSON.stringify(watched.casts) !== JSON.stringify(closed.casts)) return tag + ': the casts differ with the browser closed (' + watched.casts.length + ' watched, ' + closed.casts.length + ' closed)';
+      if (watched.sum !== closed.sum) return tag + ': watched ' + watched.sum.slice(0, 160) + ' but closed ' + closed.sum.slice(0, 160);
+      if (roles.length === 1 && !(watched.n > 0)) return 'CONTROL: a lone Healer never cast Undertow in 10 minutes';
+      if (roles.length > 1 && (watched.n || closed.n)) return tag + ': Undertow cast ' + watched.n + ' times watched and ' + closed.n + ' closed with two heroes alive';
     }
     return null;
   },
@@ -993,8 +1005,11 @@ const mutants = [
   { name: 'a lone hero takes the party\'s pull', case: 'party-pull', edits: [['src/data/hunt-grounds.js', 'return n > 1 && ground && Array.isArray(ground.partyPull) ? ground.partyPull[n - 1] : 0;', 'return ground && Array.isArray(ground.partyPull) ? ground.partyPull[Math.max(n, 2) - 1] : 0;']] },
   { name: 'a party with no pick stays as built', case: 'party-pull', edits: [['src/data/hunt-grounds.js', 'const p = Number.isInteger(pick) && pick > 0 ? pick : partyPullOf(ground, n);', 'const p = Number.isInteger(pick) && pick > 0 ? pick : 0;']] },
   { name: 'a pull ignores the ground\'s clamp', case: 'party-pull', edits: [['src/data/hunt-grounds.js', 'return Math.max(0, Math.min(max, p, DENSITY_PICK.max));\n}\n\n/** THE PULL\'S PICK', 'return Math.max(0, Number.isInteger(pick) && pick > 0 ? Math.min(max, p, DENSITY_PICK.max) : p);\n}\n\n/** THE PULL\'S PICK']] },
-  { name: 'a row\'s pull for a lone hero passes validation', case: 'party-pull', edits: [['src/data/hunt-grounds.js', 'row.partyPull.length === PARTY_SCALE.maxHeroes && row.partyPull[0] === 0', 'row.partyPull.length === PARTY_SCALE.maxHeroes']] },
+  { name: 'a row\'s pull for a lone hero passes validation', case: 'party-pull', edits: [['src/data/hunt-grounds.js', 'row.partyPull.length === MAX_HEROES && row.partyPull[0] === 0', 'row.partyPull.length === MAX_HEROES']] },
   { name: 'a metric row with no evaluator', case: 'registry', edits: [['src/core/hunt/conditions.js', '  target_is_boss: (cx) => {', '  target_is_boss_x: (cx) => {']] },
+  /* (Tyler 2026-11-08, "at or above 2 what?": a count reads its noun after the number, the picker and the summary alike) */
+  { name: 'a count with no noun passes the registry', case: 'registry', edits: [['src/data/condition-metrics.js', "say: 'it would hit', unit: noun('monster', 'monsters'), value: 'count',", "say: 'it would hit', value: 'count',"]] },
+  { name: 'a comparison with no words for a count passes the registry', case: 'registry', edits: [['src/data/condition-metrics.js', "  gte: Object.freeze({ pct: 'is at least', count: 'at least' }),", "  gte: Object.freeze({ pct: 'is at least' }),"]] },
   { name: 'an unknown metric is accepted', case: 'validation', edits: [['src/core/hunt/conditions.js', "  if (!m || (stop && m.slotOnly)) return 'bad_metric';", "  if (stop && m && m.slotOnly) return 'bad_metric';\n  if (!m) return null;"]] },
   { name: 'a value out of range is accepted', case: 'validation', edits: [['src/core/hunt/conditions.js', ' || c.value < m.range[0] || c.value > m.range[1]) return', ') return']] },
   { name: 'a slot may join or', case: 'validation', edits: [['src/core/hunt/conditions.js', "(!JOINS.includes(join) || (!stop && join !== 'and'))", '!JOINS.includes(join)']] },
@@ -1029,20 +1044,23 @@ const mutants = [
   { name: 'target_is_boss reads the wrong flag', case: 'metrics-misc', edits: [['src/core/hunt/conditions.js', 'MONSTERS[t.kind].boss === true', 'MONSTERS[t.kind].formation === false']] },
   { name: 'the id is the slot position', case: 'stable-ids', edits: [['src/core/hunt/conditions.js', '  list.forEach((s, at) => { if (keep(s) && s.enabled !== false) out.push({ rule: s.id, slot: s, at }); });', '  list.forEach((s, at) => { if (keep(s) && s.enabled !== false) out.push({ rule: \'p\' + at, slot: s, at }); });']] },
   { name: 'a bar edit keeps a dropped rule\'s state', case: 'rekey', edits: [['src/core/hunt/conditions.js', '    for (const [id, ms] of Object.entries(u.ruleHold)) if (ids.has(id)) hold[id] = int(ms);', '    for (const [id, ms] of Object.entries(u.ruleHold)) hold[id] = int(ms);']] },
-  { name: 'a scaled kill pays its row\'s whole XP', case: 'yield-scale', edits: [['src/core/hunt/damage.js', 'xp: Math.round((atTier(MONSTERS[target.kind], inst.tier).xp * yieldOf(target)) / 1000) }', 'xp: MONSTERS[target.kind].xp }']] },
-  { name: 'a sure drop ignores the yield share', case: 'yield-scale', edits: [['src/core/drops.js', '  if (row.ch >= 1) return Math.min(1, row.ch * y);', '  if (row.ch >= 1) return row.ch;']] },
-  { name: 'a solo hero walks the King\'s hall', case: 'solo-route', edits: [['src/core/hunt/pull-cycle.js', 'const routeOf = (inst) => routeFor(inst.ground, partySize(inst));', 'const routeOf = (inst) => inst.ground.route;']] },
+  /* ONE PACK FOR EVERY GROUP (Tyler 2026-11-08): the old party scale, the yield share and the party-only hall, each planted back */
+  { name: 'a lone hero\'s kill pays 55% of its row\'s XP', case: 'whole-kill', edits: [['src/core/hunt/damage.js', 'xp: Math.round(atTier(rowOf(inst, target.kind), inst.tier).xp) }', "xp: Math.round(atTier(rowOf(inst, target.kind), inst.tier).xp * (inst.world.units.filter((x) => x.side === 'hero').length === 1 ? 0.55 : 1)) }"]] },
+  { name: 'a sure drop thinned by a yield share', case: 'whole-kill', edits: [['src/core/drops.js', '  if (row.ch >= 1) return Math.min(1, row.ch);', '  if (row.ch >= 1) return Math.min(1, row.ch * 0.55);']] },
+  { name: 'a lone hero skips the King\'s hall', case: 'every-route', edits: [['src/core/hunt/pull-cycle.js', 'const routeOf = (inst) => inst.ground.route;', "const routeOf = (inst) => (inst.world.units.filter((u) => u.side === 'hero').length > 1 ? inst.ground.route : inst.ground.route.filter((i) => !inst.ground.pockets[i].forParty));"]] },
   { name: 'a wait is reported every sub-step', case: 'rule-wait', edits: [['src/core/hunt/conditions.js', '  if (cur[lane] === key) return;\n', '']] },
   { name: 'a stop rule ignores its hold', case: 'stop-rule', edits: [['src/core/hunt/conditions.js', '      if (t.pass && hold[r.id] >= int(r.forMs)) {', '      if (t.pass) {']] },
   { name: 'the span never ends a met stop rule', case: 'stop-rule-span', edits: [['src/core/combat-sim.js', " || typeof m.hs.ruleStop === 'string' ||", ' ||'], ['src/core/action-rules.js', "  rule: (hs) => typeof hs.ruleStop === 'string' && hs.ruleStop.length > 0,", '  rule: () => false,']] },
   { name: 'the density pick is not clamped', case: 'density', edits: [['src/data/hunt-grounds.js', '  return Math.max(0, Math.min(max, p, DENSITY_PICK.max));', '  return Math.max(0, Math.min(p, DENSITY_PICK.max));']] },
   { name: 'density does not reach the pack', case: 'density', edits: [['src/core/hunt/pull-cycle.js', 'pullRows(inst.ground, p, w.density)', 'pullRows(inst.ground, p, 0)']] },
-  { name: 'packs spawn at full HP whatever the party', case: 'party-scale', edits: [['src/data/hunt-grounds.js', '  return ground && ground.partyScale === true ? scaledHp(row, partySize) : Math.max(1, (row && row.hp) || 1);', '  return Math.max(1, (row && row.hp) || 1);']] },
+  { name: 'a lone hero\'s pack spawns at 55% HP', case: 'one-pack', edits: [['src/core/hunt/pull-cycle.js', '  const hp = Math.max(1, atTier(row, inst.tier).hp || 1);', "  const hp = Math.max(1, Math.floor((atTier(row, inst.tier).hp || 1) * (inst.world.units.filter((x) => x.side === 'hero').length === 1 ? 0.55 : 1)));"]] },
   { name: 'the druid heals whoever is lowest', case: 'ally-subject', edits: [['src/core/hunt/conditions.js', '  if (subject && subject !== \'lowest\') return all.find((a) => a.role === subject) || null;\n', '']] },
   { name: 'an attack slot ignores its conditions', case: 'party-acceptance', edits: [['src/core/hunt/damage.js', '  const got = shotPasses(inst, u, h, rows, (own) => (slot, cx) => {', '  const got = shotPasses(inst, u, h, rows.map((r) => ({ rule: r.rule, slot: Object.assign({}, r.slot, { conditions: [] }) })), (own) => (slot, cx) => {']] },
   { name: 'the stop-rule hold is not persisted (a cut resets it)', case: 'stop-rule-span', edits: [['src/core/hunt/conditions.js', "  unit: Object.freeze([['ruleHold', 'json'], ['ruleWait', 'json']]),", "  unit: Object.freeze([['ruleWait', 'json']]),"]] },
+  { name: '[undertow] a party casts the alone spell', case: 'undertow-both-paths',
+    edits: [['src/core/hunt/abilities.js', '    && (solo || !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].alone)));', '    && (solo || true));']] },
   { name: 'the healer\'s default rule set has no attack-when-safe rule', case: 'healer-default-rules',
-    edits: [['src/data/rule-subjects.js', ", slot('green_sickness', SICKNESS_WHEN)]),", ']),']] },
+    edits: [['src/data/rule-subjects.js', ", slot('green_sickness', SICKNESS_WHEN), slot('undertow', UNDERTOW_WHEN)]),", ", slot('undertow', UNDERTOW_WHEN)]),"]] },
   { name: 'the healer\'s attack spends the mana a heal needs', case: 'healer-default-rules',
     edits: [['src/data/rule-subjects.js', "subject: 'lowest' }, { metric: 'self_mana_pct', op: 'gte', value: 78 }]);", "subject: 'lowest' }]);"]] },
   { name: 'the tank\'s default set holds Flame Strike again, with no store rune (struck from minute one)', case: 'starter-bar-fires',
@@ -1063,8 +1081,10 @@ const mutants = [
     edits: [['src/data/rule-subjects.js', "? BASIC_SUPPLIES.find((x) => x.partner === r.rune) : null; return b ? b.id : null; };", "? BASIC_SUPPLIES.find((x) => x.partner === r.rune) : null; return b ? 'plain_fire_rune' : null; };"]] },
   { name: 'Frost Lance waits for two monsters (a new Mage fires nothing on a lone one)', case: 'starter-bar-fires',
     edits: [['src/data/rule-subjects.js', "slot('frost_lance', SPARE_MANA)", "slot('frost_lance', [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }])"]] },
+  /* (Undertow fires on a lone monster too since 2026-11-09, so both of the Healer's strikes wait for two here.) */
   { name: 'Green Sickness waits for two monsters (a new Healer fires nothing on a lone one)', case: 'starter-bar-fires',
-    edits: [['src/data/rule-subjects.js', "slot('green_sickness', SICKNESS_WHEN)", "slot('green_sickness', [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }])"]] },
+    edits: [['src/data/rule-subjects.js', "slot('green_sickness', SICKNESS_WHEN)", "slot('green_sickness', [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }])"],
+      ['src/data/rule-subjects.js', "slot('undertow', UNDERTOW_WHEN)", "slot('undertow', [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }])"]] },
   { name: 'Green Sickness waits for someone hurt (the old Healer: nothing until it hurts)', case: 'starter-bar-fires',
     edits: [['src/data/rule-subjects.js', "slot('green_sickness', SICKNESS_WHEN)", "slot('green_sickness', [{ metric: 'ally_hp_pct', op: 'lt', value: 70, subject: 'lowest' }])"]] },
   { name: 'Arcane Barrier can never fire (HP under 0%)', case: 'starter-bar-fires',
@@ -1076,18 +1096,19 @@ const mutants = [
     edits: [['src/data/hunt-grounds.js', "  const lead = list.find((h) => h.lead === true)\n    || list", "  const lead = list.filter((h) => h.density > 0).sort((a, b) => a.density - b.density)[0]\n    || list"]] },
   { name: 'the lowest seat chooses, not the leader', case: 'density-pull', edits: [['src/data/hunt-grounds.js', "  const lead = list.find((h) => h.lead === true)\n    || list", "  const lead = list"]] },
   { name: 'the settle never hands the member its leader flag', case: 'density-pull', edits: [['src/core/member.js', ' density: h.density || 0, tier: h.tier || null, lead: h.lead === true,', ' density: h.density || 0, tier: h.tier || null,']] },
-  { name: 'the first packs spawn at the opening hero\'s pick alone', case: 'density-pull', edits: [['src/core/combat-sim.js', '            { density: densityFor(ctx.ground, standing.length, picker(standing)), tier });', '            { tier });']] },
+  { name: 'the first packs spawn at the opening hero\'s pick alone', case: 'density-pull', edits: [['src/core/combat-sim.js', '            { density: densityFor(ctx.ground, standing.length, pickOf(standing)), tier, monsters: play.monsters });', '            { tier, monsters: play.monsters });']] },
   { name: 'respawns read every member\'s pick, smallest first (Andy 10-20, v0.2.20)', case: 'density-laps',
-    edits: [['src/core/combat-sim.js', '        picker(members.filter((m) => !m.left && m.unitId !== null)));', '        Math.min(...members.filter((m) => !m.left && m.unitId !== null).map((m) => m.hero.density)));']] },
+    edits: [['src/core/combat-sim.js', '        pickOf(members.filter((m) => !m.left && m.unitId !== null)));', '        Math.min(...members.filter((m) => !m.left && m.unitId !== null).map((m) => m.hero.density)));']] },
   { name: 'a full box walls the leader off the pull tile (no pull from the ring\'s edge)', case: 'density-laps',
     edits: [['src/core/hunt/pull-cycle.js', ' || arrived || walled)) {', ' || arrived)) {']] },
   { name: 'the settle never clamps the stored pick', case: 'density-settle', edits: [['src/core/combat-sim.js', '      world.density = densityFor(ctx.ground,', '      world.density = Math.max(...members.map((m) => m.hero.density), 1) || densityFor(ctx.ground,']] },
-  /* the P1 as it shipped: unscaled packs, and a first room that shrugs off her poison whole (the immunity Tyler removed 2026-11-06) */
-  { name: 'the solo healer fights unscaled packs behind a poison wall (the P1 as it shipped)', case: 'solo-healer',
-    edits: [['src/data/hunt-grounds.js', '  return ground && ground.partyScale === true ? scaledHp(row, partySize) : Math.max(1, (row && row.hp) || 1);', '  return Math.max(1, (row && row.hp) || 1);'],
-      ['src/core/elements.js', '  if (!monster || !isElement(element)) return 1000;', "  if (element === 'poison' && monster && monster.elements && monster.elements.poison === 50) return 0;\n  if (!monster || !isElement(element)) return 1000;"],
-      ['src/core/hunt/damage.js', '  const el = elementOn(target, element);\n', '  const el = elementOn(target, element);\n  if (el === 0) return { dmg: 0, absorbed: 0, killed: false };\n']] },
-  { name: 'a migration row drifts from the registry', case: 'sql-rows', edits: [['src/data/condition-metrics.js', "label: 'My target is a boss', say: 'my target being a boss', value: 'bool', ops: Object.freeze(['eq'])", "label: 'My target is a boss', say: 'my target being a boss', value: 'bool', ops: Object.freeze(['eq', 'ne'])"]] },
+  /* the P1 as it shipped: a first room that shrugs off her poison whole (the immunity Tyler removed 2026-11-06); packs are the row's own since 2026-11-08 */
+  /* (As it shipped the Healer's bar had no Undertow, its strike with no element since 2026-11-09: the bar goes back to that too.) */
+  { name: 'the solo healer fights behind a poison wall (the P1 as it shipped)', case: 'solo-healer',
+    edits: [['src/core/elements.js', '  if (!monster || !isElement(element)) return 1000;', "  if (element === 'poison' && monster && monster.elements && monster.elements.poison === 50) return 0;\n  if (!monster || !isElement(element)) return 1000;"],
+      ['src/core/hunt/damage.js', '  const el = elementOn(target, element);\n', '  const el = elementOn(target, element);\n  if (el === 0) return { dmg: 0, absorbed: 0, killed: false };\n'],
+      ['src/data/rule-subjects.js', ", slot('undertow', UNDERTOW_WHEN)]),", ']),']] },
+  { name: 'a migration row drifts from the registry', case: 'sql-rows', edits: [['src/data/condition-metrics.js', "say: 'my target is a boss', value: 'bool', ops: Object.freeze(['eq'])", "say: 'my target is a boss', value: 'bool', ops: Object.freeze(['eq', 'ne'])"]] },
   { name: 'the start kit bar drifts from the server one', case: 'sql-rows', edits: [['src/data/start-kit.js', "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 30)", "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 35)"]] },
   { name: 'a store food is no slot item', case: 'sql-rows', edits: [['src/data/consumables.js', "    .map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),", "    .filter(() => false).map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),"]] },
 ];

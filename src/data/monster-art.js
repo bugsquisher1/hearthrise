@@ -41,7 +41,7 @@
 // one line to change if the sheet wins.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from './monsters.js?v=0.2.106';
+import { MONSTERS } from './monsters.js?v=0.2.113';
 
 /** The retired direction — the 30 portraits that shipped before the wave. */
 export const PAINTED_DIR = 'assets/icons-bundle/painted/monsters/';
@@ -199,4 +199,6 @@ export const HUNT_WALK_ART = Object.freeze({
 });
 
 /* A CALLED BOSS WEARS HIS OWN ART (Call out, src/data/boss-calls.js): a row with no sprite of its own draws as the row it copies. The scene's one reader (hunt-view/scene.js spriteOf). */
-export const HUNT_ART_ALIAS = Object.freeze({ rat_king_called: 'rat_king', chief_coppercap_called: 'chief_coppercap', drain_rat_called: 'drain_rat', goblin_digger_called: 'goblin_digger' });
+export const HUNT_ART_ALIAS = Object.freeze({ rat_king_called: 'rat_king', chief_coppercap_called: 'chief_coppercap', drain_rat_called: 'drain_rat', goblin_digger_called: 'goblin_digger',
+  /* A PACK BODY WHOSE ID IS NOT ITS SPRITE'S: the Ford's Ledger Wight is drawn as the March kit's wight (art/world/march). */
+  ledger_wight: 'wight' });

@@ -45,8 +45,8 @@
 // When the server moves the stand (a new activity, back from a hunt, a counter)
 // the World walks the hero there from where it is (me(), display only).
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.106';
-import { dyeKeyOf } from '../data/outfits.js?v=0.2.106';
+import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.113';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.113';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAP_ID = /^[a-z0-9_]{1,40}$/;
@@ -323,10 +323,17 @@ export class TownPresence {
   /** A stand another answer named for this character (hr_hearth_burn's `me`): the World walks the hero there. */
   noteStand(raw) { if (!this._dead) this._noteMe(raw); }
 
-  /** The server burnt this character's named fuel `item` (hr_hearth_burn): the World throws it once the hero is at the fire. */
-  noteBurn(item) { if (!this._dead && typeof item === 'string') { this._burn = Object.freeze({ item, at: this._now() }); this._changed(); } }
+  /** The server burnt this character's named fuel or powder `item` (hr_hearth_burn, hr_town_show): the World throws it once the
+      hero reaches the stand that answer set it on (noteStand, just before). The server holds the body there for the walk and the
+      throw (2027-03-23-town-visit-hold.sql); when it moves the body on, the stand changes and a throw never reached is dropped. */
+  noteBurn(item) {
+    if (this._dead || typeof item !== 'string') return;
+    const m = this._me;
+    this._burn = Object.freeze({ item, at: this._now(), stand: m ? Object.freeze({ station: m.station, stand: m.stand, since: m.since }) : null });
+    this._changed();
+  }
 
-  /** This character's last accepted named burn ({item, at}, local ms), or null. Display only. */
+  /** This character's last accepted named burn ({item, at, stand: {station, stand, since}|null}, local ms), or null. Display only. */
   lastBurn() { return this._burn; }
 
   _noteMe(raw) {

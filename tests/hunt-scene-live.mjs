@@ -52,8 +52,8 @@
 //   LV-20 EVERY PARTY MEMBER WEARS ITS OUTFIT: your other hero its session's server `outfit`, another
 //         player's hero the party section's member `outfit` (2026-11-04-party-outfits.sql), never the role's.
 //   LV-22 THE CHALLENGE SLOT READS AS WORKING (bug #61): a tank holding every engaged monster in the live
-//         engine's world shows its Challenge slot in the quiet Holding state ("Holding the pack: nothing to
-//         Challenge"); a monster on another hero ends it.
+//         engine's world shows its Challenge slot in the quiet Holding state ("You’re holding the pack, so
+//         there’s nothing to Challenge"); a monster on another hero ends it.
 //   LV-26 PUSHED FRAMES COST THE WATCHED HUNT NOTHING: a party member settles first and each settle reaches this
 //         session as a frame: the prediction never runs dry, and it asks and reads no more than with no frames.
 //   LV-27 A HERO SWITCH (Andy #65, "freezing/catchup sprinting and jumping when toggling"): viewed again
@@ -1168,8 +1168,11 @@ async function nodeRules(M) {
     // THE LEVEL (lane/b-ground-formula-fix): on the formula's Thicket rows a pair at 12 kills every wolf between steps (88
     // kills, 0 steps past one in 150 s); at 8 three steps run past a kill (at 9 two, 10 two, 7 one, 11 none), and every
     // commit matches (at 5 a peer's Melee level-up leaves its frozen row behind: one commit off).
-    const mis = ['melee_dps', 'melee_dps'].map((r, i) => {
-      const mi = LIVE_H.memberOf(LM, 'ab'[i], i, r, 8);
+    // FOUR, NOT TWO (lane/b-one-difficulty, 2026-11-09): with one pack for every group a pair meets each pack at its row's HP and
+    // kills every wolf between steps at every Level from 5 to 12 and density 4 to 12 (0 steps past a kill); four Melee heroes at 8
+    // run 2 past one (three at 8 to 10 run 1), as main's pair ran 3 on the scaled packs.
+    const mis = ['melee_dps', 'melee_dps', 'melee_dps', 'melee_dps'].map((r, i) => {
+      const mi = LIVE_H.memberOf(LM, 'abcd'[i], i, r, 8);
       mi.huntId = 'meadowbrook_thicket'; mi.hero = Object.assign({}, mi.hero, { density: 8 });
       return mi;
     });
@@ -1196,7 +1199,7 @@ async function nodeRules(M) {
         }
       }, { hunt: 'meadowbrook_thicket' });
     } finally { console.warn = warn; }
-    console.log(`  LV-24 Thicket duo d8, 150 s: ${corpses} corpses, ${late} step(s) of a killed unit past its kill in the timeline; ${moved} frame(s) moved a corpse (worst ${first || 'none'})`);
+    console.log(`  LV-24 Thicket four d8, 150 s: ${corpses} corpses, ${late} step(s) of a killed unit past its kill in the timeline; ${moved} frame(s) moved a corpse (worst ${first || 'none'})`);
     ok('LV-24', corpses >= 20 && late > 0, `CONTROL: ${corpses} corpses and ${late} step(s) past a kill (want 20+ and 1+: the fixture no longer walks a dead id)`);
     ok('LV-24', moved === 0, `${moved} frame(s) drew a corpse off the spot it fell on (worst ${first})`);
   }
@@ -1516,7 +1519,7 @@ async function nodeRules(M) {
     if (!seed(me)) { ok('LV-22', false, 'CONTROL: the live engine did not take the start point'); }
     else {
       const held = read();
-      ok('LV-22', held.wait && !held.off && held.why === 'holding' && /Holding the pack: nothing to Challenge/.test(held.label || ''),
+      ok('LV-22', held.wait && !held.off && held.why === 'holding' && /holding the pack, so there’s nothing to Challenge/.test(held.label || ''),
         `a tank holding every engaged monster: its Challenge slot reads ${JSON.stringify(held)}, want the quiet Holding state`);
       seed(me + 1);
       const loose = read();

@@ -15,6 +15,8 @@
 //   2027-03-20-tier-dials.generated.sql (lane/b-tier-dials, Tyler 2026-11-07: a tier is a % of XP and difficulty, never gold):
 //   the shape moves to the data's dials, power_pm renamed dmg_pm and hp_pm new; every row as it stood, at hp_pm 1000.
 //   2027-03-21-sewer-deadly-xp.generated.sql (lane/a-v106-ladder): the Sewer's Deadly pays x1.22 Level XP (was x1.25), the ladder rule.
+//   2027-03-23-one-difficulty.generated.sql (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the
+//   difficulty should be unchanged"): one pull a tier for every party size; the bigger pulls start at the Glade's floor (16).
 //
 //   node tools/gen-ground-tiers.mjs            write OUT_NAME
 //   node tools/gen-ground-tiers.mjs --check    exit 1 if OUT_NAME is not what it would write
@@ -36,15 +38,18 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_NAME = '2027-03-21-sewer-deadly-xp.generated.sql';
+export const OUT_NAME = '2027-03-23-one-difficulty.generated.sql';
 /* THIS FILE'S OWN NOTE (what moved, its order, how to undo it), written into its header: the rest of the header is every file's. */
-const FILE_NOTE = `-- THIS FILE (lane/a-v106-ladder, the ladder rule, tests/hunt-core/hunt-tiers.mjs): one row moves. The Millrace Sewer's Deadly
--- pays xp_pm 1220 (was 1250): since the gentle party blow shape a lone hammer on it at the Glade's floor (16) read 78,980 Level
--- XP an hour against the Glade's Normal 78,779, so nobody moved on. Still above its Dangerous (1200). Every other row as it stands.
--- ORDER: after 2027-03-20-tier-dials.generated.sql (APPLIED, the shape this file keeps). Idempotent: the rename stays guarded and
--- the rows are rewritten whole, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2). The hr-accrue deploy carrying
--- the same src/data/balance-sheet.js follows AT ONCE.
--- REVERSIBLE: re-apply 2027-03-20-tier-dials.generated.sql.`;
+const FILE_NOTE = `-- THIS FILE (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be
+-- unchanged. Either they are strong enough to do the harder content or they aren't"): ONE pull a tier for one hero or four, every
+-- entry of a row's pull the same. The Glade and the Warrens: Dangerous {5,5,5,5} (was {3,5,5,6}), Deadly {8,8,8,8} as before. The
+-- first grounds, floors under 16 (the Thicket, Wickstead, the Sewer): no tier brings more monsters, for anyone, {0,0,0,0} (Wickstead
+-- and the Sewer were {0,5,5,6} and {0,8,8,8}: a party pulled more than a lone hero). Damage, health and XP as they stand. The solo
+-- boost (party-class-xp.js SOLO_XP_PM) is engine data and moves nothing here.
+-- ORDER: last, after 2027-03-21-sewer-deadly-xp.generated.sql and the v0.2.109 bundle (all APPLIED). Idempotent: the rename stays guarded and the rows are rewritten
+-- whole, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2). The hr-accrue deploy carrying the same
+-- src/data/balance-sheet.js and src/data/party-class-xp.js follows AT ONCE (a hunt already running keeps the pull it froze).
+-- REVERSIBLE: re-apply 2027-03-21-sewer-deadly-xp.generated.sql, with the engine from before this lane.`;
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const HARDER = ['dangerous', 'deadly'];
 const FULL_BOX_GROUNDS = ['mosslight_glade', 'coppercap_warrens'];
@@ -64,6 +69,8 @@ export function buildSql(tiers, headroom) {
       const at = 'gen-ground-tiers: ' + ground + ' ' + id;
       if (!t) throw new Error('gen-ground-tiers: ' + ground + ' has no ' + id + ' row');
       if (!Array.isArray(t.pull) || t.pull.length !== 4 || t.pull.some((p) => !Number.isInteger(p) || p < 0 || p > 12)) throw new Error(at + ' pull ' + t.pull);
+      /* ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08): the same pull for one hero or four */
+      if (t.pull.some((p) => p !== t.pull[0])) throw new Error(at + ' pulls by party size (' + t.pull + '): one pull a tier for every group');
       for (const k of DIALS) if (!Number.isInteger(t[k]) || t[k] < RANGE[k][0] || t[k] > RANGE[k][1]) throw new Error(at + ' ' + k + ' ' + t[k]);
       if (t.dmgPm < was.dmgPm || t.hpPm < was.hpPm || (t.dmgPm === was.dmgPm && t.hpPm === was.hpPm) || !(t.xpPm > was.xpPm)) {
         throw new Error(at + ' is not harder and better paid than the tier before');
@@ -84,7 +91,7 @@ export function buildSql(tiers, headroom) {
 --   \`node tools/gen-ground-tiers.mjs --check\` and tests/hunt-core/hunt-tiers.mjs \`catalogue\`.
 --
 -- WHAT: hr_ground_tiers (made by 2027-02-27-hunt-tiers.sql, APPLIED) rewritten whole, ${rows.length} rows: per ground and tier the
--- pull for one to four heroes (0 = the ground as it stands), the monsters' damage and health and the XP a kill pays, permille.
+-- pull, the same for one to four heroes (0 = no more than Normal brings), the monsters' damage and health and the XP a kill pays, permille.
 -- Normal is no row and doesn't move. The data holds ONE table for every ground (balance-sheet.js TIER_DIALS, tierRowFor at the
 -- ground's floor, named per-ground pulls); this table holds each ground's resolved rows, so every server reader stays one lookup. No function,
 -- grant or client verb changes. The server reads the pull when it freezes a hunt and a row's presence when a hero picks it;
@@ -154,6 +161,8 @@ begin
     raise exception 'tier-dials: a ground''s Deadly is not harder and better paid than its Dangerous'; end if;
   if exists (select 1 from public.hr_ground_tiers t where t.tier = 'deadly' and t.hunt_id in ('mosslight_glade', 'coppercap_warrens') and t.pull <> array[8,8,8,8]) then
     raise exception 'tier-dials: the Glade or the Warrens lost its full box on Deadly'; end if;
+  if exists (select 1 from public.hr_ground_tiers t where cardinality(t.pull) <> 4 or exists (select 1 from unnest(t.pull) p where p is distinct from t.pull[1])) then
+    raise exception 'tier-dials: a tier pulls by party size (one pull a tier for one hero or four, Tyler 2026-11-08)'; end if;
   if v_k is null or exists (select 1 from public.hr_ground_tiers t where greatest(t.hp_pm, t.xp_pm) > v_k * 1000) then
     raise exception 'tier-dials: an HP or XP dial is past the value bound (% x a Normal kill)', v_k; end if;
   begin
@@ -189,8 +198,9 @@ async function loadData(root) {
 /* ONE FORMULA, SAID OUT LOUD: the grounds on the table as it stands, and each named exception the sheet carries. */
 function said(tiers, overrides) {
   const dialsOf = (o, id) => (o.dials && o.dials[id] ? ' ' + Object.entries(o.dials[id]).map(([k, v]) => k + ' ' + v).join(' ') : '');
-  const named = Object.entries(overrides).map(([g, o]) => g + (o.normalOnly ? ' Normal only' : ' ' + HARDER.filter((id) => o[id]).map((id) => id + ' pull ' + o[id].join('/') + dialsOf(o, id)).join(', ')));
-  return Object.keys(tiers).length + ' grounds from balance-sheet.js tierRowFor; named: ' + (named.join('; ') || 'none');
+  const named = Object.entries(overrides).map(([g, o]) => g + (o.normalOnly ? ' Normal only' : ' ' + HARDER.filter((id) => o[id] !== undefined || (o.dials && o.dials[id])).map((id) => id + (o[id] !== undefined ? ' pull ' + o[id] : '') + dialsOf(o, id)).join(', ')));
+  const pulls = Object.entries(tiers).map(([g, t]) => g + ' ' + HARDER.map((id) => t[id].pull[0]).join('/')).join(', ');
+  return Object.keys(tiers).length + ' grounds from balance-sheet.js tierRowFor, one pull a tier (' + pulls + '); named: ' + (named.join('; ') || 'none');
 }
 
 async function selftest() {
@@ -207,6 +217,7 @@ async function selftest() {
   expectThrow('an XP past a tighter value bound', () => {}, 1);
 
   expectThrow('three pulls for four sizes', (t) => { t.wickstead.dangerous.pull = [0, 4, 4]; });
+  expectThrow('a lone hero pulling fewer than a four', (t) => { t.mosslight_glade.dangerous.pull = [3, 5, 5, 6]; });
   expectThrow('the Glade without its full box', (t) => { t.mosslight_glade.deadly.pull = [4, 8, 8, 8]; });
   expectThrow('a ground with no Deadly', (t) => { delete t.millrace_sewer.deadly; });
   const sql = buildSql(T, headroom);

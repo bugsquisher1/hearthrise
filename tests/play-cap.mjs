@@ -12,23 +12,25 @@
 //
 // Ships with supabase/migrations/2027-01-19-play-cap.sql. On the real chain (PGlite), as a player and as the engine
 // call each door (`authenticated` with the request's cf-connecting-ip header; `hr_engine` with neither JWT nor header):
-//   PC-EMPTY   AN ACCOUNT WITH NO HERO (2027-01-20-tutorial-facts.sql): hr_load(0) answers no_character WITH the two
-//              owned slots and the cap; the real roster reads two empty slots and plays the cap at once (not one)
-//   PC-CLOSED  THE BROWSER CLOSED (no client at all): two heroes hunt (hr_hunt_enter) and two gather through the REAL
-//              edge verb (supabase/functions/hr-accrue/set-activity.js runSetActivity); the account's fifth is refused
+//   PC-EMPTY   AN ACCOUNT WITH NO HERO (2027-01-20-tutorial-facts.sql): hr_load(0) answers no_character WITH the one
+//              owned slot (one to start since 2027-03-25-hero-slots-one.sql) and the cap; the real roster reads one empty slot and plays the cap at once
+//   (Four heroes an account since 2027-03-22-four-slots.sql: the account-cap arms own every slot sold and lower the cap to
+//   one under it in their rolled-back fixture, so the last owned hero is the one too many.)
+//   PC-CLOSED  THE BROWSER CLOSED (no client at all): half the cap hunts (hr_hunt_enter), the rest gathers through the REAL
+//              edge verb (supabase/functions/hr-accrue/set-activity.js runSetActivity); the hero past the cap is refused
 //              too_many_playing by the hunt door and by the town door (409), and nothing of it moved
-//   PC-VIEWED  THE HUNT VIEWED: a real CharacterSession for the fifth hero, viewed, presses Enter: refused, its hunt
+//   PC-VIEWED  THE HUNT VIEWED: a real CharacterSession for the hero past the cap, viewed, presses Enter: refused, its hunt
 //              section stays empty and the screen's words say why (src/shell/intent-words.js); one hunter leaves, the
 //              same press goes in and the section shows the hunt
-//   PC-AGAIN   NEVER COUNTED TWICE (the cap lowered to 3 so a recount would refuse): a gathering hero goes hunting
-//              (the activity yields), a hunt changes ground (hr_hunt_swap), the settle ends a hunt and resumes the last
-//              activity in one transaction; a hero that never stopped is still refused
+//   PC-AGAIN   NEVER COUNTED TWICE (the cap lowered under what plays, so a recount would refuse): a gathering hero goes
+//              hunting (the activity yields), a hunt changes ground (hr_hunt_swap), the settle ends a hunt and resumes the
+//              last activity in one transaction; a hero that never played is still refused
 //   PC-NET     THE NETWORK: four heroes of two accounts behind one address; the fifth, a third account's, is refused
 //              too_many_playing_here, by the hunt door and (its stored network) by the engine's town door; another
 //              address plays; an IPv6 /64 is one network; the stored value is a 32-byte salted hash
-//   PC-PARTY   THE PARTY VIEW SAYS WHAT START DOES: four own heroes seated, a fifth gathering: the view's `ready` of the
-//              fourth seat is too_many_playing (the seats before it walk in first), Start refuses that seat by name and
-//              enters nobody; the gatherer stops and Start enters all four
+//   PC-PARTY   THE PARTY VIEW SAYS WHAT START DOES: the cap's worth of own heroes seated, the last owned one gathering: the
+//              view's `ready` of the last seat is too_many_playing (the seats before it walk in first), Start refuses that
+//              seat by name and enters nobody; the gatherer stops and Start enters them all
 //   PC-WORDS   the refusal words name SESSION_CONFIG.maxConcurrentCharacters (four, a fifth)
 // Exit: 0 green · 1 a red arm or a missed mutant · 2 a harness problem.
 //
@@ -77,6 +79,13 @@ const playing = (db, uid, slot) => one(db, 'select public.hr_playing($1, $2)', [
 const err = (r) => (r && r.ok === true ? 'ok' : r && r.error);
 
 /* Accounts with N named heroes each, admitted, slots 2-4 owned as bought ones are; hunts on; the lowest ground. */
+/* FOUR HEROES AN ACCOUNT (Tyler 2026-11-07, 2027-03-22-four-slots.sql): an account holds as many heroes as can play at once, so its
+   own "one too many" exists only under a LOWER cap. The arms that prove the account cap own every slot the server sells (the
+   catalogue's top, max(slot_id) + 1) and lower hr_hunt_limits.max_concurrent in their rolled-back fixture to one under it: the
+   last owned hero is the one too many. PC-EMPTY still proves the real cap is SESSION_CONFIG.maxConcurrentCharacters. */
+const slotsTop = async (db) => Number(await one(db, 'select max(slot_id) + 1 from public.hr_hero_slots'));
+const capAt = (db, n) => db.query("update public.hr_hunt_limits set value = $1 where key = 'max_concurrent'", [n]);
+
 async function world(db, accounts) {
   await db.query('update public.hr_hunt_config set enabled = true where id');
   const hunt = await one(db, `select g.hunt_id from public.hr_hunt_grounds g left join public.hr_hunts h on h.hunt_id = g.hunt_id
@@ -91,7 +100,7 @@ async function world(db, accounts) {
       const c = await as(db, uid, null, 'select public.hr_create_character($1)', [slot]);
       if (!c || c.ok !== true) throw Object.assign(new Error('HARNESS: hr_create_character refused: ' + JSON.stringify(c)), { harness: true });
       if (slot === 0) await db.query(`insert into public.player_progress (user_id, slot, kind, key, period_key, value)
-                                      select $1, 0, 'flag', 'character_slot:' || s, '', 1 from generate_series(2, 4) s`, [uid]);
+                                      select $1, 0, 'flag', 'character_slot:' || h.slot_id, '', 1 from public.hr_hero_slots h where h.slot_id >= 1`, [uid]);   // one slot to start (2027-03-25-hero-slots-one.sql): every slot past 0 bought
       const nm = await as(db, uid, null, 'select public.hr_character_name_set($1, $2, $3::uuid)', [slot, 'Capa ' + 'ABCDEFGH'[i] + 'abcde'[slot] + 'lt', idem()]);
       if (!nm || nm.ok !== true) throw Object.assign(new Error('HARNESS: naming refused: ' + JSON.stringify(nm)), { harness: true });
     }
@@ -113,27 +122,30 @@ const ARMS = {
     const owned = await one(db, 'select public.hr_hero_slots_of($1)', [E]);
     const ans = await as(db, E, IP_X, 'select public.hr_load(0)', []);
     if (!ans || ans.error !== 'no_character') p.push('an empty account loaded as ' + JSON.stringify(ans).slice(0, 160));
-    if (JSON.stringify(ans && ans.hero_slots) !== JSON.stringify(owned) || owned.length !== 2) p.push(`the empty answer names slots ${JSON.stringify(ans && ans.hero_slots)}, the server owns ${JSON.stringify(owned)} (two to start)`);
+    if (JSON.stringify(ans && ans.hero_slots) !== JSON.stringify(owned) || JSON.stringify(owned) !== '[0]') p.push(`the empty answer names slots ${JSON.stringify(ans && ans.hero_slots)}, the server owns ${JSON.stringify(owned)} (one to start, Tyler 2026-11-09)`);
     if (!ans || !ans.account || ans.account.max_concurrent !== cap || cap !== SESSION_CONFIG.maxConcurrentCharacters) p.push(`the empty answer names the limit ${JSON.stringify(ans && ans.account)}, the cap is ${cap}`);
     const server = { rpc: async (name, args) => ({ ok: true, status: 200, closed: false,
       body: name === 'hr_load' ? await as(db, E, IP_X, 'select public.hr_load($1)', [args.p_slot]) : { ok: false, error: 'not_in_this_test' } }) };
     const acc = new AccountSession({ auth: { userId: () => E, token: () => 'jwt' }, server, tab: null, timers: {} });
     const rows = await acc.roster();
-    if (JSON.stringify(rows.map((r) => [r.slot, r.exists, r.unnamed])) !== '[[0,false,false],[1,false,false]]') p.push('the roster of an empty account read ' + JSON.stringify(rows));
+    if (JSON.stringify(rows.map((r) => [r.slot, r.exists, r.unnamed])) !== '[[0,false,false]]') p.push('the roster of an empty account read ' + JSON.stringify(rows));
     if (acc.limit() !== cap) p.push(`the roster of an empty account plays ${acc.limit()} at once, the server says ${cap}`);
     return p;
   },
   'PC-CLOSED': async (db) => {
     const p = []; const A = U(1);
-    const { hunt, node } = await world(db, [[A, 5]]);
-    for (const s of [0, 1]) if (err(await enter(db, A, s, hunt)) !== 'ok') p.push(`hero ${s} could not go hunting`);
-    for (const s of [2, 3]) { const r = await gather(db, A, s, node); if (r.status !== 200) p.push(`hero ${s} could not gather: ${JSON.stringify(r.body).slice(0, 160)}`); }
-    const r5 = await enter(db, A, 4, hunt);
-    if (err(r5) !== 'too_many_playing' || r5.max !== SESSION_CONFIG.maxConcurrentCharacters || r5.playing !== 4) p.push('the fifth hunt start was not refused too_many_playing {max 4, playing 4}: ' + JSON.stringify(r5).slice(0, 160));
-    const g5 = await gather(db, A, 4, node);
-    if (g5.status !== 409 || g5.body.error !== 'too_many_playing') p.push('the engine town door let a fifth hero gather: ' + JSON.stringify(g5.body).slice(0, 160));
-    if (await playing(db, A, 4)) p.push('the refused fifth hero is playing');
-    if (await one(db, 'select count(*)::int from public.hunt_sessions where user_id = $1 and slot = 4', [A])) p.push('the refused fifth start opened a hunt session');
+    const top = await slotsTop(db), cap = top - 1, extra = top - 1;
+    const { hunt, node } = await world(db, [[A, top]]);
+    await capAt(db, cap);
+    const half = Math.ceil(cap / 2);
+    for (let s = 0; s < half; s++) if (err(await enter(db, A, s, hunt)) !== 'ok') p.push(`hero ${s} could not go hunting`);
+    for (let s = half; s < cap; s++) { const r = await gather(db, A, s, node); if (r.status !== 200) p.push(`hero ${s} could not gather: ${JSON.stringify(r.body).slice(0, 160)}`); }
+    const r5 = await enter(db, A, extra, hunt);
+    if (err(r5) !== 'too_many_playing' || r5.max !== cap || r5.playing !== cap) p.push(`the hunt start past the cap was not refused too_many_playing {max ${cap}, playing ${cap}}: ` + JSON.stringify(r5).slice(0, 160));
+    const g5 = await gather(db, A, extra, node);
+    if (g5.status !== 409 || g5.body.error !== 'too_many_playing') p.push('the engine town door let a hero past the cap gather: ' + JSON.stringify(g5.body).slice(0, 160));
+    if (await playing(db, A, extra)) p.push('the refused hero is playing');
+    if (await one(db, 'select count(*)::int from public.hunt_sessions where user_id = $1 and slot = $2', [A, extra])) p.push('the refused start opened a hunt session');
     /* THE LOCK ORDER, read from the installed bodies: the play locks come after the character's and before the count. */
     const ef = String(await one(db, "select prosrc from pg_proc where oid = 'public.hr_hunt_enter_for(uuid,integer,text,jsonb,integer,integer)'::regprocedure"));
     const at = (s) => ef.indexOf(s);
@@ -150,8 +162,10 @@ const ARMS = {
 
   'PC-VIEWED': async (db) => {
     const p = []; const A = U(2);
-    const { hunt } = await world(db, [[A, 5]]);
-    for (const s of [0, 1, 2, 3]) if (err(await enter(db, A, s, hunt)) !== 'ok') p.push(`hero ${s} could not go hunting`);
+    const top = await slotsTop(db), cap = top - 1, extra = top - 1;
+    const { hunt } = await world(db, [[A, top]]);
+    await capAt(db, cap);
+    for (let s = 0; s < cap; s++) if (err(await enter(db, A, s, hunt)) !== 'ok') p.push(`hero ${s} could not go hunting`);
     const server = {
       rpc: async (name, args) => {
         const keys = Object.keys(args);
@@ -161,12 +175,12 @@ const ARMS = {
       },
       accrue: async () => ({ ok: false, status: 0, error: 'network' }),
     };
-    const cs = new CharacterSession({ slot: 4, uid: A, server, viewed: true, setTimer: () => 0, clearTimer: () => {}, now: () => Date.now() });
+    const cs = new CharacterSession({ slot: extra, uid: A, server, viewed: true, setTimer: () => 0, clearTimer: () => {}, now: () => Date.now() });
     try {
       await cs.load();
       if (cs.status !== 'ready') { p.push('HARNESS: the viewed hero did not load: ' + cs.status); return p; }
       const r = await cs.enterHunt(hunt, [], 0);
-      if (r.ok !== false || r.error !== 'too_many_playing') p.push('the viewed fifth hero went in: ' + JSON.stringify(r).slice(0, 160));
+      if (r.ok !== false || r.error !== 'too_many_playing') p.push('the viewed hero past the cap went in: ' + JSON.stringify(r).slice(0, 160));
       const h = cs.read('hunt');
       if (h && typeof h === 'object' && typeof h.session_id === 'string' && h.ended !== true) p.push('the viewed hero shows a hunt the server refused');
       if (refusalText(r) !== REFUSAL_WORDS.too_many_playing) p.push(`the screen says "${refusalText(r)}", not the play-cap words`);
@@ -183,12 +197,16 @@ const ARMS = {
 
   'PC-AGAIN': async (db) => {
     const p = []; const A = U(3);
-    const { hunt, other, node } = await world(db, [[A, 5]]);
-    for (const s of [0, 1, 2]) if (err(await enter(db, A, s, hunt)) !== 'ok') p.push(`hero ${s} could not go hunting`);
-    if ((await gather(db, A, 3, node)).status !== 200) p.push('hero 3 could not gather');
-    await db.query("update public.hr_hunt_limits set value = 3 where key = 'max_concurrent'");
+    /* every hero but the last plays (two hunt, the rest gather; the last gatherer is `g`), then the cap drops below what plays, so a recount refuses */
+    const top = await slotsTop(db), g = top - 2, never = top - 1;
+    const { hunt, other, node } = await world(db, [[A, top]]);
+    /* the cap one under the account first, so the gatherer FILLS it: a count that takes the hero itself refuses that start */
+    await capAt(db, top - 1);
+    for (let s = 0; s < g; s++) if (err(await enter(db, A, s, hunt)) !== 'ok') p.push(`hero ${s} could not go hunting`);
+    if ((await gather(db, A, g, node)).status !== 200) p.push(`hero ${g} could not gather`);
+    await capAt(db, g);
     /* a gathering hero goes hunting: the town activity yields; not a new player */
-    const y = await enter(db, A, 3, hunt);
+    const y = await enter(db, A, g, hunt);
     if (err(y) !== 'ok') p.push('a gathering hero going hunting was counted as a start: ' + JSON.stringify(y).slice(0, 160));
     /* a hunt changes ground: the old session closes, the new one opens, one hero throughout */
     const sid = await one(db, 'select id from public.hunt_sessions where user_id = $1 and slot = 1 and ended_at is null', [A]);
@@ -203,7 +221,7 @@ const ARMS = {
     } catch (e) { p.push('the settle\'s resume was refused as a start: ' + String(e.message).slice(0, 120)); }
     /* a hero that never played this transaction is a start, and refused */
     let refused = false;
-    try { await db.query('savepoint s'); await db.query("update public.player_state set active_kind = 'gather', active_id = $2 where user_id = $1 and slot = 4", [A, node]); await db.query('release savepoint s'); }
+    try { await db.query('savepoint s'); await db.query("update public.player_state set active_kind = 'gather', active_id = $2 where user_id = $1 and slot = $3", [A, node, never]); await db.query('release savepoint s'); }
     catch (e) { await db.query('rollback to savepoint s'); refused = /too_many_playing/.test(String(e.message)); }
     if (!refused) p.push('a hero that never played started beside the cap');
     return p;
@@ -236,28 +254,31 @@ const ARMS = {
 
   'PC-PARTY': async (db) => {
     const p = []; const A = U(8);
-    const { hunt, node } = await world(db, [[A, 5]]);
-    for (const s of [1, 2, 3]) {
+    /* the cap's worth of own heroes seated, the last owned hero gathering: the last seat would be one too many */
+    const top = await slotsTop(db), cap = top - 1, gatherer = top - 1, last = cap - 1;
+    const { hunt, node } = await world(db, [[A, top]]);
+    await capAt(db, cap);
+    for (let s = 1; s < cap; s++) {
       const r = await as(db, A, IP_X, 'select public.hr_hunt_party_invite_own(0, $1, $2::uuid)', [s, idem()]);
       if (err(r) !== 'ok') p.push(`seating hero ${s} was refused: ` + JSON.stringify(r).slice(0, 120));
     }
-    if ((await gather(db, A, 4, node)).status !== 200) p.push('the fifth hero could not gather');
+    if ((await gather(db, A, gatherer, node)).status !== 200) p.push('the last owned hero could not gather');
     /* the leader's own envelope (hr_load, as the client reads it): the party section's seats and their readiness */
     const env = await as(db, A, IP_X, 'select public.hr_load(0)', []);
     const view = env && env.party;
     const members = (view && view.members) || [];
-    const seat3 = members.find((m) => m.seat === 3);
-    if (!seat3 || seat3.ready !== false || seat3.ready_why !== 'too_many_playing') p.push('the party view does not say the fourth seat would be one too many: ' + JSON.stringify(seat3 || members).slice(0, 200));
-    for (const m of members.filter((x) => x.seat < 3)) if (m.ready !== true) p.push(`seat ${m.seat} reads not ready (${m.ready_why})`);
+    const seatLast = members.find((m) => m.seat === last);
+    if (!seatLast || seatLast.ready !== false || seatLast.ready_why !== 'too_many_playing') p.push(`the party view does not say seat ${last} would be one too many: ` + JSON.stringify(seatLast || members).slice(0, 200));
+    for (const m of members.filter((x) => x.seat < last)) if (m.ready !== true) p.push(`seat ${m.seat} reads not ready (${m.ready_why})`);
     const st = await as(db, A, IP_X, 'select public.hr_hunt_party_start(0, $1, $2::uuid)', [hunt, idem()]);
     const seats = (st && st.seats) || [];
-    if (err(st) !== 'not_ready' || seats.length !== 1 || seats[0].seat !== 3 || seats[0].error !== 'too_many_playing') p.push('Start did not refuse exactly the fourth seat: ' + JSON.stringify(st).slice(0, 200));
+    if (err(st) !== 'not_ready' || seats.length !== 1 || seats[0].seat !== last || seats[0].error !== 'too_many_playing') p.push(`Start did not refuse exactly seat ${last}: ` + JSON.stringify(st).slice(0, 200));
     if (!/would be a fifth hero playing on that account/.test(refusalText(st))) p.push(`Start's words are "${refusalText(st)}"`);
     if (await one(db, 'select count(*)::int from public.hunt_sessions where user_id = $1 and ended_at is null', [A])) p.push('a refused Start let somebody in');
-    const stop = await SA.runSetActivity({ exec: engineExec(db), user: A, slot: 4, intentId: idem(), activity: { kind: 'idle' } });
+    const stop = await SA.runSetActivity({ exec: engineExec(db), user: A, slot: gatherer, intentId: idem(), activity: { kind: 'idle' } });
     if (stop.status !== 200) p.push('the gatherer could not stop');
     const st2 = await as(db, A, IP_X, 'select public.hr_hunt_party_start(0, $1, $2::uuid)', [hunt, idem()]);
-    if (err(st2) !== 'ok' || st2.entered !== 4) p.push('with the gatherer stopped Start did not enter all four: ' + JSON.stringify(st2).slice(0, 200));
+    if (err(st2) !== 'ok' || st2.entered !== cap) p.push(`with the gatherer stopped Start did not enter all ${cap}: ` + JSON.stringify(st2).slice(0, 200));
     return p;
   },
 

@@ -24,7 +24,8 @@
 //   reqLv      — recommended combat level
 //   style      — the boss's own attack style: melee | ranged | magic
 //   weakness   — the weapon type it is weak to (routes the player's loadout)
-//   resist     — weapon types it resists (flavour + future mitigation)
+//   resist     — weapon types it resists: unread by the engine and shown
+//                nowhere, until a ruling makes it a real percent
 //   mechanic   — one player-facing sentence: what makes THIS fight different
 //   signature  — the item ids that are this boss's exclusive prize
 // ============================================================

@@ -96,7 +96,7 @@ export function groundsOf(G, names) {
 }
 
 /** A ground's fit: party where a pocket needs a party or the ground says so (tools/balance-sim plans.mjs loadAxes), else solo (a both ground sends a lone hero). */
-export const fitOf = (g) => ((g.pockets || []).some((p) => p.minParty) || g.groupFit === 'party' ? 'party' : 'solo');
+export const fitOf = (g) => ((g.pockets || []).some((p) => p.forParty) || g.groupFit === 'party' ? 'party' : 'solo');
 export async function fitsOf(root) { const G = await import(pathToFileURL(join(root, 'src/data/hunt-grounds.js')).href); return Object.fromEntries(Object.values(G.HUNT_GROUNDS).map((g) => [g.id, fitOf(g)])); }
 
 /* ── THE METRICS OF ONE CELL (hour-weighted per head) ── */

@@ -18,6 +18,7 @@
       "enchant",
       "equipment",
       "farm_land",
+      "features",
       "gem_unlocks",
       "gm",
       "hallmark",
@@ -33,6 +34,7 @@
       "inventory",
       "inventory_complete",
       "level",
+      "live_events",
       "login",
       "must_rename",
       "name",
@@ -51,6 +53,7 @@
       "rename",
       "renown_high",
       "role",
+      "scaled_hunts",
       "setup_slots",
       "shop",
       "skill_inputs",
@@ -99,5 +102,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-11-06"
+  "generatedAt": "2026-11-08"
 }

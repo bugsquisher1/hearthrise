@@ -121,25 +121,24 @@
 // x1.09; the Cellar and the Thicket unchanged. Each stays inside its roster band (monster-classes.js). Floors, each ground's own table:
 // tests/hunt-core/drop-tables.mjs and forest-cave.mjs harder-pays-more.
 //
-// PARTY SCALING (BALANCE_RULINGS 2026-10-16, the party-size test): a fixed pack
-// is trivial for four heroes and lethal at the boss for one, so a pack's HP is
-// scaled by its instance's party size, `packScalePermille` below, on every ground
-// whose row says `partyScale: true` (the two grounds the party test measured;
-// lane action-engine wired it 2026-10-18: pull-cycle spawnPack via packHpFor).
-// A ground opts in by its row so the measured kill rates of the fixture rooms
-// the drop odds are pinned on do not move until the Designer rules them. It is
-// DATA. (The solo Healer's element floor is gone with the immunities it answered,
-// Tyler 2026-11-06: every element now lands at least ELEMENT_PCT's share.)
+// ONE PACK FOR EVERY GROUP (Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be
+// unchanged. Either they are strong enough to do the harder content or they aren't"; lane/b-one-difficulty): a monster
+// has its row's HP and pays its row's whole kill, XP, coin and every drop chance, whoever fights it. A party shares the
+// kill as it always did. The party scale (10-16: 55% HP and yield alone, 15% more a hero) and the King's party-only
+// hall (10-18) are gone: a lone hero walks every pocket, the Rat King's included, and the hunt card warns it.
+// (The solo Healer's element floor is gone with the immunities it answered, Tyler 2026-11-06: every element now lands
+// at least ELEMENT_PCT's share.)
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.106';
-import { HUNT_INDEX } from './hunts.js?v=0.2.106';
-import { MONSTERS } from './monsters.js?v=0.2.106';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.113';
+import { HUNT_INDEX } from './hunts.js?v=0.2.113';
+import { MONSTERS } from './monsters.js?v=0.2.113';
+import { PARTY } from './party.js?v=0.2.113';
 /* the shape helpers (pocket, box, gather) live with the ground packs, which build their grounds with the same ones */
-import { pocket, box, gather, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.106';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.106';
+import { pocket, box, gather, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.113';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.113';
 export { FULL_BOX };
 
 /* THE GATHER NODE KINDS (HUNT_GATHERING_SPEC §3, REVIEW §3 and §5): what a placed node is. `node` is a
@@ -174,7 +173,7 @@ const BASE_GROUNDS = Object.freeze({
        spawn (pull-cycle.js awaitPack), where it stood ~3 s of every 30 s lap on the pocket it had cleared. 32 s keeps the
        measured floor pay (L1 solo 1,829.5 g/h, was 1,828.5; 30 s would be 1,930, over the Thicket's: forest-cave
        first-grounds-net-chain) and the first Levels' pace. */
-    respawnMs: 32000, pullDist: 1.5, partyScale: true, groupFit: 'both',
+    respawnMs: 32000, pullDist: 1.5, groupFit: 'both',
     /* the full box and no more. Normal only (hunt-tiers.js), so no tier asks for it */
     densityMax: Object.freeze([8, 8, 8, 8]),
     partyPull: Object.freeze([0, 4, 5, 5]),
@@ -189,11 +188,11 @@ const BASE_GROUNDS = Object.freeze({
       pocket([26, 24, 37, 34], ['culvert_bat', 30, 27], ['culvert_bat', 31, 29]),
       pocket([38, 2, 48, 12], ['cistern_spider', 41, 5], ['cistern_spider', 43, 5], ['culvert_bat', 42, 4], ['culvert_bat', 44, 6]),
       pocket([40, 30, 50, 37], ['kobold_tosher', 43, 35], ['kobold_tosher', 44, 34], ['kobold_tosher', 45, 35]),
-      /* THE KING IS A PARTY FIGHT (ruling 2026-10-18, see MIN_PARTY below): minParty 2. */
-      Object.freeze({ ...pocket([51, 17, 57, 29], ['rat_king', 55, 23], ['drain_rat', 54, 21], ['drain_rat', 54, 25]), minParty: 2 }),
+      /* THE KING IS BUILT FOR A PARTY (designer 10-18; since 2026-11-08 a warning, never a gate: see PARTY_HALL_NOTE): forParty 2. */
+      Object.freeze({ ...pocket([51, 17, 57, 29], ['rat_king', 55, 23], ['drain_rat', 54, 21], ['drain_rat', 54, 25]), forParty: 2 }),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
-    respawnMs: 90000, pullDist: 1.5, partyScale: true, groupFit: 'both',
+    respawnMs: 90000, pullDist: 1.5, groupFit: 'both',
     densityMax: Object.freeze([8, 8, 10, 12]),
   }),
   meadowbrook_thicket: Object.freeze({
@@ -215,7 +214,7 @@ const BASE_GROUNDS = Object.freeze({
       box([3, 27, 20, 38], [10, 33], ['gray_wolf', 'gray_whelp'], ['briarcoat_wolf', 'gray_whelp', 'gray_wolf', 'gray_whelp', 'briarcoat_wolf', 'gray_whelp']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
-    respawnMs: 60000, pullDist: 1.5, partyScale: true,
+    respawnMs: 60000, pullDist: 1.5,
     /* 'both' (designer 2026-11-02, lane/b-rulings-1102): a new party was held in the Cellar until the Sewer's floor at 8, Level 8 at
        5.4 h against 2.0-2.7 h alone. Advice only; a pair and a four go on to the Sewer at 8. */
     groupFit: 'both',
@@ -256,7 +255,7 @@ const BASE_GROUNDS = Object.freeze({
       box([2, 25, 14, 38], [7, 31], ['chief_coppercap', 'goblin_scavenger', 'goblin_scavenger'], ['goblin_digger', 'goblin_skulker', 'hobgoblin_foreman', 'goblin_scavenger', 'goblin_skulker']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
-    respawnMs: 90000, pullDist: 1.5, partyScale: true, groupFit: 'party',
+    respawnMs: 90000, pullDist: 1.5, groupFit: 'party',
     /* ALONE FROM 45 (designer 2026-10-21, CONFLICTS item 2; six seeds, the real settle, the own-tier
        heavy set, tier-3 store food): a lone Melee at 32 bills about 14,000 g/h against 3,069 of income
        (-78%; it was -38% before armour weights, at a 5% to-hit), at 40 still -2% median, at 45 eats no
@@ -297,7 +296,7 @@ const BASE_GROUNDS = Object.freeze({
       box([3, 2, 17, 13], [10, 8], ['walking_vine', 'carrion_crow'], ['brook_bear', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
-    respawnMs: 60000, pullDist: 1.5, partyScale: true, groupFit: 'solo',
+    respawnMs: 60000, pullDist: 1.5, groupFit: 'solo',
     densityMax: Object.freeze([8, 8, 8, 8]),
     partyPull: Object.freeze([0, 3, 3, 4]),
     gather: gather(9000, [
@@ -332,7 +331,7 @@ const BASE_GROUNDS = Object.freeze({
       box([4, 29, 22, 37], [13, 33], ['granary_rat', 'barn_spider'], ['turncoat', 'granary_rat', 'granary_rat', 'barn_wasp', 'granary_rat', 'barn_spider']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
-    respawnMs: 60000, pullDist: 1.5, partyScale: true, groupFit: 'solo',
+    respawnMs: 60000, pullDist: 1.5, groupFit: 'solo',
     densityMax: Object.freeze([8, 8, 8, 8]),
     partyPull: Object.freeze([0, 3, 3, 4]),
     gather: gather(9000, [
@@ -364,7 +363,7 @@ export const CALLED_GROUNDS = Object.freeze({
     start: Object.freeze([[51, 23], [51, 22], [51, 24], [50, 23]]),
     pockets: Object.freeze([{ ...pocket([51, 17, 57, 29], ['rat_king_called', 55, 23]), adds: addRows(['drain_rat_called', 56, 18], ['drain_rat_called', 56, 28], ['drain_rat_called', 53, 18]) }]),
     route: Object.freeze([0]),
-    respawnMs: 600000, pullDist: 1.5, partyScale: true, groupFit: 'party',
+    respawnMs: 600000, pullDist: 1.5, groupFit: 'party',
   }),
   coppercap_warrens_called: Object.freeze({
     id: 'coppercap_warrens_called', hunt: 'coppercap_warrens_called', map: 'coppercap_warrens', call: 'chief_coppercap',
@@ -372,7 +371,7 @@ export const CALLED_GROUNDS = Object.freeze({
     start: Object.freeze([[12, 31], [12, 30], [12, 32], [13, 31]]),
     pockets: Object.freeze([{ ...pocket([2, 25, 14, 38], ['chief_coppercap_called', 7, 31]), adds: addRows(['goblin_digger_called', 4, 26], ['goblin_digger_called', 4, 36], ['goblin_digger_called', 9, 26]) }]),
     route: Object.freeze([0]),
-    respawnMs: 600000, pullDist: 1.5, partyScale: true, groupFit: 'party',
+    respawnMs: 600000, pullDist: 1.5, groupFit: 'party',
   }),
 });
 
@@ -397,45 +396,19 @@ export function reachableOf(grounds, hunts) {
   return Object.freeze({ monsters: Object.freeze([...mons].sort()) });
 }
 
-/* THE PARTY SCALE (BALANCE_RULINGS 2026-10-16): pack HP x (base + perHero x party
-   size), in permille, party size clamped to 1..maxHeroes. 550 solo, 700 a pair,
-   850 three, 1000 a full party; the Rat King scales the same way. The numbers are
-   the ruling's; the measured verdict behind them is the 10-16 party-size table. */
-export const PARTY_SCALE = Object.freeze({ basePermille: 400, perHeroPermille: 150, maxHeroes: 4 });
+/* The most heroes one hunt holds (party.js PARTY.maxSize): a ground's per-size rows (densityMax, partyPull) carry one entry a size. */
+export const MAX_HEROES = PARTY.maxSize;
 
-/* PARTY SCALE AS THE DEFAULT (Designer ruling 2026-10-18). Every ground row carries
-   `partyScale: true` (a shipped ground that omits it is a review fail; `false` is an explicit,
-   commented opt-out for a fixture, never for a shipped ground). Scaling is paid for in
-   REWARD, not odds: a monster spawned at s/1000 of its row's HP is worth s/1000 of its row's
-   kill yield (XP, coin and every drop chance, lucky and hearthfind rolls included), where
-   s = packScalePermille(party size). A solo hero kills 1000/550 = 1.82x as fast for 0.55x the
-   yield per kill, so yield per HOUR, and with it ruled band D (standard 1-3 h, rare 10-20 h,
-   relic 100-150 h) and the lucky-find [4, 30] h band, is the same for a solo, a pair or a full
-   party; a party is rewarded by its XP share and by reaching the King, not by a faster faucet.
-   The pinned odds stay as authored (they are the full-party, 1000-permille numbers). The
-   multiplier below is the data; the settle applying it to kill yields is owed to Systems (the
-   monster swing model, DM-10, is a separate engine item). */
-export function yieldPermille(partySize) { return packScalePermille(partySize); }
+/* A HALL BUILT FOR A PARTY (designer 10-18; Tyler 2026-11-08 makes it a warning, never a gate): a pocket may carry `forParty`,
+   the party size its boss is built for. Every hero walks it, a lone one too, and dies there if it isn't strong enough. The
+   Hunts window says so before Enter (hunt-list.js partyNote), and a ground with such a hall is a party ground to the advice
+   and to the formula's fit. */
 
-/* THE KING NEEDS A PARTY (Designer ruling 2026-10-18). A solo Melee wiped 9 times in 20 min at
-   the Rat King even with HP scaled (his damage does not scale), so a pocket may carry
-   `minParty`: a hunt of fewer heroes skips it, and the hunt card says "the Rat King wants a
-   party of 2 or more". Solo clears every normal pocket; the King is the reason to bring a
-   friend, and nobody loops through a death. This is a route filter, not a damage rule, so it
-   holds whatever the swing model does later. */
-export const MIN_PARTY_NOTE = 'The Rat King wants a party of two or more. Alone, you skip his hall.';
-
-/** The pocket indexes a party of `partySize` actually walks: the route minus pockets whose `minParty` it misses. */
-export function routeFor(ground, partySize) {
-  const n = Math.max(1, Math.floor(Number(partySize) || 1));
-  return ground.route.filter((i) => n >= ((ground.pockets[i] && ground.pockets[i].minParty) || 1));
-}
-
-/** Every monster id a party of `partySize` can meet on `ground`: the rows of each pocket it walks
-    (routeFor), as built and at any density (pullRows only repeats a pocket's own rows). */
-export function monstersOn(ground, partySize) {
+/** Every monster id a hunt can meet on `ground`: the rows of each pocket on its route, as built and at any density (pullRows
+    only repeats a pocket's own rows). The same for every party size: every hero walks the whole route. */
+export function monstersOn(ground) {
   const out = new Set();
-  for (const i of routeFor(ground, partySize)) {
+  for (const i of ground.route) {
     const pk = ground.pockets[i];
     for (const s of (pk.pack || pk.spawns).concat(pk.spawns)) out.add(s.monster);
     for (const s of pk.adds || []) out.add(s.monster);
@@ -460,14 +433,14 @@ export const DENSITY_PICK = Object.freeze({ min: 0, max: 16 });
 
 /** A party's default pull on `ground` for `partySize` (the row's `partyPull`), or 0 (as built): always 0 for a lone hero. */
 export function partyPullOf(ground, partySize) {
-  const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));
+  const n = Math.min(MAX_HEROES, Math.max(1, Math.floor(Number(partySize) || 1)));
   return n > 1 && ground && Array.isArray(ground.partyPull) ? ground.partyPull[n - 1] : 0;
 }
 
 /** The density an instance spawns at: the pick (partyPick's, for a party) clamped to the ground's max
     for its size; with no pick, a party's default pull (partyPullOf), clamped too; 0 (as built) for anyone else. */
 export function densityFor(ground, partySize, pick) {
-  const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));
+  const n = Math.min(MAX_HEROES, Math.max(1, Math.floor(Number(partySize) || 1)));
   const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;
   const p = Number.isInteger(pick) && pick > 0 ? pick : partyPullOf(ground, n);
   return Math.max(0, Math.min(max, p, DENSITY_PICK.max));
@@ -490,23 +463,6 @@ export function underFloorSharePm(ground, level, top) {
   if (!band || !Number.isInteger(level) || !Number.isInteger(top) || level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;
   const ratio = (level * 1000) / (top * HUNT_TUNING.partyShareRangePm);
   return Math.floor(1000 * ratio * ratio);
-}
-
-/** The HP scale (permille) for a pack in an instance of `partySize` heroes. */
-export function packScalePermille(partySize) {
-  const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));
-  return PARTY_SCALE.basePermille + PARTY_SCALE.perHeroPermille * n;
-}
-
-/** The HP a monster of `row` spawns with on `ground` for `partySize`: scaled where the ground
-    opts in (`partyScale: true`, the grounds the 10-16 party test measured), else the row's own. */
-export function packHpFor(ground, row, partySize) {
-  return ground && ground.partyScale === true ? scaledHp(row, partySize) : Math.max(1, (row && row.hp) || 1);
-}
-
-/** A spawned monster's HP for `partySize`: the row's HP scaled, never below 1. */
-export function scaledHp(row, partySize) {
-  return Math.max(1, Math.floor(((row && row.hp) || 1) * packScalePermille(partySize) / 1000));
 }
 
 const isBoss = (s) => !!(MONSTERS[s.monster] && MONSTERS[s.monster].boss === true);
@@ -584,7 +540,6 @@ export function validateGround(row, refs) {
     bad('respawnMs must be a positive whole number of ' + HUNT_TUNING.stepMs + ' ms sub-steps');
   }
   if (!(typeof row.pullDist === 'number' && row.pullDist > 0 && row.pullDist <= 8)) bad('pullDist must be in (0, 8]');
-  if (row.partyScale !== undefined && typeof row.partyScale !== 'boolean') bad('partyScale must be true or false');
   if (!GROUP_FITS.includes(row.groupFit)) bad('groupFit must be one of ' + GROUP_FITS.join(' / '));
   if (row.soloFrom !== undefined) {
     const band = (hunts[row.hunt] || {}).band || [];
@@ -592,16 +547,15 @@ export function validateGround(row, refs) {
     if (!(Number.isInteger(row.soloFrom) && row.soloFrom > band[0] && row.soloFrom <= band[1])) bad('soloFrom must be a Level inside the band, above its floor');
   }
   (row.pockets || []).forEach((p, i) => {
-    if (p && p.minParty !== undefined && !(Number.isInteger(p.minParty) && p.minParty >= 2 && p.minParty <= PARTY_SCALE.maxHeroes)) bad('pocket ' + i + ' minParty must be 2..' + PARTY_SCALE.maxHeroes);
+    if (p && p.forParty !== undefined && !(Number.isInteger(p.forParty) && p.forParty >= 2 && p.forParty <= MAX_HEROES)) bad('pocket ' + i + ' forParty must be 2..' + MAX_HEROES);
   });
-  if (!routeFor(row, 1).length) bad('a solo hero must have at least one pocket to walk');
-  if (row.densityMax !== undefined && !(Array.isArray(row.densityMax) && row.densityMax.length === PARTY_SCALE.maxHeroes
+  if (row.densityMax !== undefined && !(Array.isArray(row.densityMax) && row.densityMax.length === MAX_HEROES
     && row.densityMax.every((v, i) => Number.isInteger(v) && v >= DENSITY_FULL_BOX && v <= DENSITY_PICK.max && (i === 0 || v >= row.densityMax[i - 1])))) {
-    bad('densityMax must be ' + PARTY_SCALE.maxHeroes + ' whole numbers ' + DENSITY_FULL_BOX + '..' + DENSITY_PICK.max + ' (at least a full box), never falling as the party grows');
+    bad('densityMax must be ' + MAX_HEROES + ' whole numbers ' + DENSITY_FULL_BOX + '..' + DENSITY_PICK.max + ' (at least a full box), never falling as the party grows');
   }
-  if (row.partyPull !== undefined && !(Array.isArray(row.partyPull) && row.partyPull.length === PARTY_SCALE.maxHeroes && row.partyPull[0] === 0
+  if (row.partyPull !== undefined && !(Array.isArray(row.partyPull) && row.partyPull.length === MAX_HEROES && row.partyPull[0] === 0
     && row.partyPull.every((v, i) => Number.isInteger(v) && v >= 0 && v <= DENSITY_FULL_BOX && (i === 0 || v >= row.partyPull[i - 1])))) {
-    bad('partyPull must be ' + PARTY_SCALE.maxHeroes + ' whole numbers 0..' + DENSITY_FULL_BOX + ', 0 for a lone hero (its pull never moves), never falling as the party grows');
+    bad('partyPull must be ' + MAX_HEROES + ' whole numbers 0..' + DENSITY_FULL_BOX + ', 0 for a lone hero (its pull never moves), never falling as the party grows');
   }
   if (row.leashMargin !== undefined && !(Number.isInteger(row.leashMargin) && row.leashMargin >= 0 && row.leashMargin <= 8)) {
     bad('leashMargin must be an integer 0..8');
@@ -642,7 +596,6 @@ export function validate() {
   const out = [];
   for (const [key, row] of [...Object.entries(HUNT_GROUNDS), ...Object.entries(CALLED_GROUNDS)]) {
     if (row.id !== key) out.push(key + ': row id ' + row.id + ' does not match its key');
-    if (row.partyScale !== true) out.push(key + ' is shipped, so it must set partyScale to true (designer ruling 2026-10-18)');
     out.push(...validateGround(row));
   }
   return out;

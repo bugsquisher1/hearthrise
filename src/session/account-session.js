@@ -51,15 +51,15 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.115';
-import { CharacterSession } from './character-session.js?v=0.2.115';
-import { TownPresence } from './town-presence.js?v=0.2.115';
-import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.115';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.115';
-import { assignmentOf } from './party-sections.js?v=0.2.115';
-import { benchJobOver } from './bench-sections.js?v=0.2.115';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.115';
-import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.115';
+import { SESSION_CONFIG } from './config.js?v=0.2.116';
+import { CharacterSession } from './character-session.js?v=0.2.116';
+import { TownPresence } from './town-presence.js?v=0.2.116';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.116';
+import { levelOf } from './character-sections.js?v=0.2.116';
+import { assignmentOf } from './party-sections.js?v=0.2.116';
+import { benchJobOver } from './bench-sections.js?v=0.2.116';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.116';
+import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.116';
 
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */
@@ -100,8 +100,8 @@ export function accountLimitOf(read) {
    stands (timeline.js T3), so `now` moves on by what has passed here. */
 const agedBy = (body, ms) => (body && typeof body.now === 'string' ? Object.assign({}, body, { now: new Date(Date.parse(body.now) + ms).toISOString() }) : body);
 
-/** A roster row's hero, from one hr_load answer: its name, Level (the server's state.level_xp on the
-    shared curve, CORE_MODEL.md §1), the ACCOUNT purse it read (state.gold at version state.gold_v:
+/** A roster row's hero, from one hr_load answer: its name, Level (the server's own, the answer's `level`
+    block: character-sections.js levelOf, never this build's curve), the ACCOUNT purse it read (state.gold at version state.gold_v:
     the same gold on every hero) and what it is doing when that is more than standing idle in town
     ("Hunting in Mill Cellar", "In town, fishing at the Shrimp Spot": party-sections.js assignmentOf, the
     words the character strip uses), or nulls. Pure. */
@@ -109,8 +109,8 @@ export function heroOf(body) {
   if (!body || body.ok !== true) return { name: null, level: null, gold: null, goldV: null, doing: null };
   const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 40) : null;
   const st = body.state && typeof body.state === 'object' ? body.state : {};
-  const lx = st.level_xp;
-  return { name, level: Number.isSafeInteger(lx) && lx >= 0 ? charLevelFromXp(lx) : null,
+  const lv = levelOf({ read: (k) => body[k] });
+  return { name, level: lv ? lv.level : null,
     gold: Number.isSafeInteger(st.gold) && st.gold >= 0 ? st.gold : null,
     goldV: Number.isSafeInteger(st.gold_v) && st.gold_v >= 0 ? st.gold_v : null,
     /* The picker said only "Level 2 · Play" for a hero mid-hunt (core-loop play 2026-10-30; board 10-28 P3). */

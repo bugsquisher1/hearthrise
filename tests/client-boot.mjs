@@ -98,12 +98,14 @@ import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { TOWN_NAME } from '../src/data/world/town/plan.js';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { withServerLevel } from './_server-level.mjs';
 /* Level 10's total on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
 const LEVEL_10_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(10);
 
 /* account.max_concurrent is the server's concurrent limit (AccountSession.limit): without it one character plays. */
+/* The server states the Level itself (hr_state_of's `level` block): stated for the XP a case names (./_server-level.mjs). */
 function envelope(slot, version, extra) {
-  return Object.assign({ ok: true, version, now: '2026-10-17T00:00:00Z', state: { active_kind: 'idle', gold: 0 }, skills: {}, inventory: {}, hero_slots: [0, 1], account: { max_concurrent: 4 } }, extra || {});
+  return withServerLevel(Object.assign({ ok: true, version, now: '2026-10-17T00:00:00Z', state: { active_kind: 'idle', gold: 0 }, skills: {}, inventory: {}, hero_slots: [0, 1], account: { max_concurrent: 4 } }, extra || {}));
 }
 
 const HUNT = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
@@ -706,8 +708,8 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         const body = JSON.parse(raw || '{}');
         if (name === 'hr_put_client_state') { puts.push(body.p_patch); Object.assign(residue, body.p_patch); }
         const hero = name === 'hr_load' || name === 'hr-accrue';
-        const answer = hero ? Object.assign({}, fixture, { version: ++version, hunt: null, client_state: residue, state: Object.assign({}, fixture.state, { level_xp: 0, active_kind: null, active_id: null }),
-          equipment: Object.assign({}, fixture.equipment, { weapon: 'practice_sword' }) }) : { ok: true };
+        const answer = hero ? withServerLevel(Object.assign({}, fixture, { version: ++version, hunt: null, client_state: residue, state: Object.assign({}, fixture.state, { level_xp: 0, active_kind: null, active_id: null }),
+          equipment: Object.assign({}, fixture.equipment, { weapon: 'practice_sword' }) })) : { ok: true };
         res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, answer) : answer));
         return true;
       };

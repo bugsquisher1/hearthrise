@@ -1632,11 +1632,14 @@ function rules(M) {
       ok('LV-CLASS', shownXp.join() === closedXp.join(), name + ': the prediction shows ' + shownXp + ', the server pays ' + closedXp);
       ok('LV-CLASS', !!next && aheadXp.join() === nextXp.join(), name + ': the prediction past the last commit shows ' + aheadXp + ', the next commit pays ' + nextXp);
       ok('LV-CLASS', off === 0, name + ': ' + off + ' of ' + r.verdicts.length + ' commits did not match the prediction');
-      /* Whole shares floor: the cell moves each share before its floor, so the sum sits within a floor of it. One class reads its own
-         cell, exactly (since the lane/b-one-difficulty re-tune a one-class cell sits over the even share and always under the mixed one). */
+      /* Whole shares floor: the cell moves each share before its floor, and the event's raw is the even share floored too (xp-share.js), so a kill of odd XP
+         split two ways hides a half: the paid sum sits between the cell on the floored shares and the cell on those shares plus the hidden (n-1)/n. One class
+         reads its own cell (read from the data, never typed: lane/d-solo-fifteen scaled every cell x1150/1050 with the +15% solo boost, Tyler 2026-11-11) and
+         always sits under the mixed one (since the lane/b-one-difficulty re-tune a one-class cell is over the even share). */
       const cell = M.PCX.partyClassXp('mill_cellar', roles).permille, mixedCell = M.PCX.partyClassXp('mill_cellar', cast.mixed).permille;
       const want = evs.reduce((s, e) => s + Math.floor((e.raw * cell) / 1000 + 1e-9), 0);
-      ok('LV-CLASS', name === 'same' ? paid === want && cell < mixedCell : paid >= want && paid > raw, name + ': ' + paid + ' Level XP on ' + raw + ' even shares (the cell ' + cell + ')');
+      const most = evs.reduce((s, e) => s + Math.floor(((e.raw + (roles.length - 1) / roles.length) * cell) / 1000 + 1e-9), 0);
+      ok('LV-CLASS', name === 'same' ? paid >= want && paid <= most && cell < mixedCell : paid >= want && paid > raw, name + ': ' + paid + ' Level XP on ' + raw + ' even shares (the cell ' + cell + ', ' + want + '-' + most + ' on the whole shares)');
     }
     /* A PARTY'S DEFAULT PULL (designer 2026-11-01), both paths: a Thicket pair with no pick stands at 3 each in the server's world
        and in the browser's, every commit matching; the same XP viewed and with the browser closed. */

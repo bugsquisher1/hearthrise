@@ -55,6 +55,17 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     hunting: 'Your hero is out hunting. Dispatch loot works in town.',
     storage_full: 'Storage is full, so nothing was stored. Storage chests in the House (E) make more room.',
   }),
+  /* Many stacks in one press (2027-04-13-bank-move-many.sql): all of them went, or none did. */
+  bank_move_many: Object.freeze({
+    hunt_open: 'Your hero is out hunting. Storage is at home, so nothing was put away.',
+    bank_full: 'Your storage is full, so nothing was put away. Storage chests in the House (E) make more room.',
+    bag_full: 'Your bag is full, so nothing was taken out. Make room first.',
+    item_locked: 'One of those is locked, so nothing was put away. Unlock it first.',
+    too_many_items: 'That is too many stacks for one press. Pick fewer.',
+  }),
+  item_lock_many: Object.freeze({
+    too_many_items: 'That is too many items for one press. Pick fewer.',
+  }),
   /* Carrying supplies into a running hunt (2027-02-21-hunt-carry-in.sql hr_hunt_restock). */
   hunt_restock: Object.freeze({
     no_hunt: 'Your hero isn\'t hunting right now, so there is nothing to carry it into.',

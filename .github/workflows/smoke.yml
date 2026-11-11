@@ -4311,6 +4311,19 @@ jobs:
           node tests/storage-chests.mjs
           node tools/mutant-gate.mjs node tests/storage-chests.mjs --selftest
 
+      # MANY STACKS IN ONE CALL (the UX flow audit 2026-11-11; 2027-04-13-bank-move-many.sql):
+      # hr_bank_move_many / hr_item_lock_many on a replayed chain, two accounts with the same
+      # kit: N single calls vs ONE bulk call leave Storage, the bag and the journal
+      # byte-identical; a locked stack, a full Storage, a hunting hero and bad input refuse
+      # the whole press by name and move nothing; one key, one rate token; lock order and
+      # ACL pinned; a second apply is a no-op. 12 mutations, the migration's own §0 / §6
+      # short-circuited so each catch is the guard's.
+      - name: Bank move many — many stacks in one call is N single calls, all or nothing
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/bank-move-many.mjs
+          node tools/mutant-gate.mjs node tests/bank-move-many.mjs --selftest
+
       # A HERO'S NAME (Tyler 2026-10-22): the first name is free, a change costs gold.
       # The guard drives the real hr_hero_rename / hr_character_name_set on a replayed
       # chain: the price row = src/data/hero-rename.js, the Level quote, every refusal

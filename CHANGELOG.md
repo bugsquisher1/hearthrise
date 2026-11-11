@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.118 — 2026-11-11 (Max Hit)
+
+**Monster pages show Max Hit now.** It is the hardest that monster can hit you. The heal warning in Configure action says Max Hit too.
+
 ## v0.2.117 — 2026-11-11 (Lighter Reload)
 
 **Reloading is a little lighter.** When you reload, each hero who is waiting in town loads once instead of twice.

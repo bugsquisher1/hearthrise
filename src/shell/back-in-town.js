@@ -42,7 +42,7 @@ function planned(bag, rules, rule) {
 
 /**
  * The Back in town steps from the server's sections, and which press is the gold one.
- * @param {{ plan: object|null, bag: {id:string,qty:number}[]|null, rules: {locked:Set, loot:object}|null, bids: Map|null,
+ * @param {{ plan: object|null, bag: {id:string,qty:number}[]|null, rules: {locked:Set<string>, loot:object}|null, bids: Map<string,any>|null,
  *           blessings: {tiers:{tier:number,price:number,held:boolean}[], freeUntil:number|null}|null, purse: number|null, did: Map<string,string> }} o
  *        plan: upgradePlan's answer (upgrade-line.js upgradeOf); bids: the shop's (shopOf); purse: goldOf; did: the steps pressed on this
  *        card, each with its title as it was pressed (a done row keeps saying what it did: "Sell 17 stacks for 5,407 gp · Done")

@@ -101,6 +101,7 @@ const REPAIR_AFTER_WIPE = [
   '2027-02-28-temper-craft-catalogue.generated.sql',   // the same ladders, each rung's material; SCOPED upsert by id; deletes nothing
   '2027-03-22-catalogue-cuts-unlocks.generated.sql',   // the same SCOPED upsert; also retires the four plot:* buildings, `worker` and character_slot:4
   '2027-03-22-dead-ladders-gold-ladders.generated.sql', // bank upserted by id; retires worker_hire and plot:farm_land by id
+  '2027-03-25-hero-slots-one-unlocks.generated.sql',   // the same SCOPED upsert with character_slot:1 back (one slot to start, slot 1 sold); deletes the same retired ids
 ];
 
 /** The seventeen ids the 2026-08-23 refill destroyed, pinned BY VALUE (b493:

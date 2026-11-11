@@ -155,8 +155,9 @@ begin
   if exists (select 1 from cron.job where jobname = 'hr-market-expire') then
     raise exception 'PRECONDITION: the expiry sweep is scheduled: apply 2027-02-20-market-wipe.sql first'; end if;
   if to_regprocedure('public.hr_create_hero(integer,text,jsonb,uuid)') is null or to_regprocedure('public.hr_hero_slots_of(uuid)') is null
-     or (select count(*) from public.hr_hero_slots where starter) <> 1 then
-    raise exception 'PRECONDITION: hero creation or the starter slot catalogue is missing: after this file an account would have no way back in'; end if;
+     or to_regclass('public.hr_hero_slots') is null then
+    -- (an account always owns slot 0; since 2027-03-25-hero-slots-one.sql no other slot is a starter, so the count is not the check)
+    raise exception 'PRECONDITION: hero creation or the hero slot catalogue is missing: after this file an account would have no way back in'; end if;
 
   -- AN UNKNOWN TABLE STOPS THE WIPE: every public base table is on exactly one list...
   select string_agg(c.relname, ', ' order by c.relname) into v_bad

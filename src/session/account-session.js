@@ -39,7 +39,9 @@
 //   findItems(q)  where an item is across this account's characters
 //                 (hr_account_items: bags and worn sets by character, and the
 //                 account's one storage, slot null; read by the server)
-//   signOut()     close every character, then auth.signOut() (every copy)
+//   signOut()     close every character, tell the server this client is gone
+//                 (hr_presence_leave: the players-online count and the friends'
+//                 dot drop the account at once), then auth.signOut() (every copy)
 //   social        the account's chat, whispers, friends and blocks: what the
 //                 `social` factory made for it (src/social/social-session.js,
 //                 handed in by src/app/boot.js), started once a character is
@@ -49,19 +51,24 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.112';
-import { CharacterSession } from './character-session.js?v=0.2.112';
-import { TownPresence } from './town-presence.js?v=0.2.112';
-import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.112';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.112';
-import { assignmentOf } from './party-sections.js?v=0.2.112';
-import { benchJobOver } from './bench-sections.js?v=0.2.112';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.112';
-import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.112';
+import { SESSION_CONFIG } from './config.js?v=0.2.116';
+import { CharacterSession } from './character-session.js?v=0.2.116';
+import { TownPresence } from './town-presence.js?v=0.2.116';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.116';
+import { levelOf } from './character-sections.js?v=0.2.116';
+import { assignmentOf } from './party-sections.js?v=0.2.116';
+import { benchJobOver } from './bench-sections.js?v=0.2.116';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.116';
+import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.116';
 
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */
 const SHARED_KINDS = new Set(['farm']);   // 'bank' (the depot) is read through _noteStorage, not re-read
+
+/* How long a sign-out waits for the server to hear that this client is gone (_leavePresence): a healthy answer takes a
+   few hundred ms; past this the login is forgotten anyway and the server's own 75 s window ends the presence. A wait on
+   this page only, no rule of the game, so it is not a SESSION_CONFIG knob (the hunt catalogue is generated from those). */
+const SIGN_OUT_LEAVE_MS = 2500;
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
@@ -93,8 +100,8 @@ export function accountLimitOf(read) {
    stands (timeline.js T3), so `now` moves on by what has passed here. */
 const agedBy = (body, ms) => (body && typeof body.now === 'string' ? Object.assign({}, body, { now: new Date(Date.parse(body.now) + ms).toISOString() }) : body);
 
-/** A roster row's hero, from one hr_load answer: its name, Level (the server's state.level_xp on the
-    shared curve, CORE_MODEL.md §1), the ACCOUNT purse it read (state.gold at version state.gold_v:
+/** A roster row's hero, from one hr_load answer: its name, Level (the server's own, the answer's `level`
+    block: character-sections.js levelOf, never this build's curve), the ACCOUNT purse it read (state.gold at version state.gold_v:
     the same gold on every hero) and what it is doing when that is more than standing idle in town
     ("Hunting in Mill Cellar", "In town, fishing at the Shrimp Spot": party-sections.js assignmentOf, the
     words the character strip uses), or nulls. Pure. */
@@ -102,8 +109,8 @@ export function heroOf(body) {
   if (!body || body.ok !== true) return { name: null, level: null, gold: null, goldV: null, doing: null };
   const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 40) : null;
   const st = body.state && typeof body.state === 'object' ? body.state : {};
-  const lx = st.level_xp;
-  return { name, level: Number.isSafeInteger(lx) && lx >= 0 ? charLevelFromXp(lx) : null,
+  const lv = levelOf({ read: (k) => body[k] });
+  return { name, level: lv ? lv.level : null,
     gold: Number.isSafeInteger(st.gold) && st.gold >= 0 ? st.gold : null,
     goldV: Number.isSafeInteger(st.gold_v) && st.gold_v >= 0 ? st.gold_v : null,
     /* The picker said only "Level 2 · Play" for a hero mid-hunt (core-loop play 2026-10-30; board 10-28 P3). */
@@ -500,15 +507,35 @@ export class AccountSession {
     return true;
   }
 
-  /** Close every character, then forget the login everywhere on this device. */
+  /** Close every character, tell the server this client is gone, then forget the login everywhere on this device. */
   async signOut() {
     this._ending = true;   // the closes below are not what this tab had open; auth.signOut removes the record
     if (this._awayTimer !== null) { (this._timers.clearTimer || ((t) => clearTimeout(t)))(this._awayTimer); this._awayTimer = null; }
     /* the social side first: its chat re-reads for whichever hero is shown, and nothing is shown while every hero closes */
     if (this.social) { this.social.destroy(); this.social = null; }
     for (const slot of Array.from(this._chars.keys())) this.close(slot);
+    await this._leavePresence();
     await this.auth.signOut();
     this._emit('signed-out');
     this._listeners.clear();
+  }
+
+  /* SIGNED OUT IS NOT ONLINE (report #78; 2027-03-26-signout-presence.sql). The server holds this account's heroes "open in a
+     client" and the account "online" for 75 s after its last social poll, so the players-online count and a friend's dot outlived
+     a sign-out by a minute. ONE ask with no argument (the server reads who asks from the token), after the poll has stopped (a
+     later one would stamp the heroes again) and before the login is forgotten. A hero that hunts or works keeps playing: the
+     server reads that from the hero's own state, never from this stamp.
+     IT NEVER HOLDS THE SIGN-OUT: a refusal, a network failure or a throw is what happened before this existed (the stamps age
+     out), and an answer that has not come in SIGN_OUT_LEAVE_MS is not waited for. */
+  _leavePresence() {
+    const set = this._timers.setTimer || ((fn, ms) => setTimeout(fn, ms));
+    const clear = this._timers.clearTimer || ((t) => clearTimeout(t));
+    return new Promise((done) => {
+      const bound = set(() => done(false), SIGN_OUT_LEAVE_MS);
+      const end = (ok) => { clear(bound); done(ok); };
+      let ask;
+      try { ask = this.server.rpc('hr_presence_leave', {}); } catch (e) { end(false); return; }
+      Promise.resolve(ask).then((ans) => end(!!(ans && ans.ok)), () => end(false));
+    });
   }
 }

@@ -1,0 +1,20 @@
+{
+  "asset": "brief 13 Y3 npc_arms_master (rotations and the S idle) SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt Y3 (N1's recipe as T1 ran it)",
+  "status": "SAMPLE for the art director's one read; the line is complete at this size (rotations + S idle only). Not imported",
+  "made": "2026-11-08 (the brief's 11-09 samples)",
+  "generations": 7,
+  "object": "2c4e4e43-2ea7-4d70-a2a6-479a73a1dfe5",
+  "tool": "create_object_pro_flash 8 directions 48x48 high top-down, seed 3301, style image a 48x48 crop of npc_crier's south still (art/world/common/npc_crier.png cell 0 at x5 y16, upload 8ce007d9) \"match palette, outline, shading and the figure's height\"; idle S: animate_object v3 frame_count 8 keep_first_frame true (group 4997b627-dc02-4743-89f0-e29ea4c066c0)",
+  "description": "a grizzled arms master in a padded quilted gambeson and leather bracers, a wooden practice sword resting on one shoulder, a scarred face and a grey beard, town npc sprite, standing upright at full adult height, single black outline, basic shading, muted cloth colours",
+  "idle_action": "standing at rest, breathing slowly, chest rises and falls, a slight shift of weight, feet planted, the practice sword stays resting on the shoulder and still, stays in place, nothing else appears in the frame",
+  "layout": "<facing>.png the 8 rotations; idle/south/frame_000..008.png (frame_000 the rotation)",
+  "measured": "box 31x43 S (y3-45, the sword's tip included), 23x43 E; idle frames change 0-813 px from the rotation, the feet never move, the top row moves at most 1 px",
+  "ring_contrast": "LOCKED (unit grade), ring 0.027: on a 64 centre crop of havora_square_plaza (locked floor 0.139) 2.44:1 UNDER (the crier on the same crop 1.87:1); on the town dirt (0.255) 3.94:1. Town NPCs are not held to 3:1 (brief 13 N1), measured for the record",
+  "flags": [
+    "reads as a grey-bearded trainer in a quilted gambeson with leather bracers; scars do not show at this size",
+    "the practice sword reads as a wooden club or stick at x2 in the front views (no crossguard), and in N, NE and NW it lies across both shoulders as a long pole",
+    "idle calm: the sword holds on the shoulder in all 9 frames"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/y3-npc_arms_master-sample.png (x3 on the plaza: row 1 the crier's still | S SE E NE N NW W SW; row 2 idle S frames 0-8)"
+}

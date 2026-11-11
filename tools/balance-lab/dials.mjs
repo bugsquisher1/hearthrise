@@ -2,7 +2,7 @@
 //
 // Nothing here forks a formula: a dial moves a data row the engine already reads (src/data/monsters.js MONSTERS,
 // src/data/hunt-tiers.js through tierRowOf), the same road tools/balance-sim/worker.mjs's what-ifs take, and the run
-// reads it through the engine's own code (atTier, packHpFor, payKill). applyDials answers the undo; the worker calls it
+// reads it through the engine's own code (atTier, payKill). applyDials answers the undo; the worker calls it
 // before a run and the undo after, so a baseline played next reads today's data digit for digit.
 //
 // A SCALED HUNT is the game's own module (src/data/scaled-hunts.js): its scaledMonsters rows replace the ground's roster
@@ -49,7 +49,8 @@ export const hasScaled = () => typeof SCALED.scaledMonsters === 'function' && ty
 /** A tier row as the dials read it, from whatever shape hunt-tiers.js holds: { pull[4], dmgPm, hpPm, xpPm }. */
 export function tierDialOf(row) {
   const r = row || {};
-  return { pull: Array.isArray(r.pull) ? r.pull.slice(0, 4).concat([0, 0, 0, 0]).slice(0, 4) : [0, 0, 0, 0],
+  /* the sheet's TIER_DIALS hold ONE pull for every group (2026-11-08); an engine row, one per party size */
+  return { pull: Array.isArray(r.pull) ? r.pull.slice(0, 4).concat([0, 0, 0, 0]).slice(0, 4) : Number.isInteger(r.pull) ? [r.pull, r.pull, r.pull, r.pull] : [0, 0, 0, 0],
     dmgPm: Number.isFinite(r.dmgPm) ? r.dmgPm : Number.isFinite(r.powerPm) ? r.powerPm : PM,
     hpPm: Number.isFinite(r.hpPm) ? r.hpPm : PM, xpPm: Number.isFinite(r.xpPm) ? r.xpPm : PM };
 }

@@ -1,0 +1,1478 @@
+{
+ "barn_spider/deathpose/north-east": {
+  "foot": 40,
+  "lastLow": 37,
+  "shift": 3,
+  "drop": -0.03,
+  "stillBox": [
+   4,
+   7,
+   39,
+   40
+  ],
+  "lastBox": [
+   6,
+   6,
+   38,
+   37
+  ]
+ },
+ "barn_spider/deathpose/south-east": {
+  "foot": 41,
+  "lastLow": 37,
+  "shift": 4,
+  "drop": 0.15,
+  "stillBox": [
+   4,
+   2,
+   39,
+   41
+  ],
+  "lastBox": [
+   4,
+   8,
+   40,
+   37
+  ]
+ },
+ "barn_wasp/deathpose/north-east": {
+  "foot": 34,
+  "lastLow": 30,
+  "shift": 4,
+  "drop": 0.33,
+  "stillBox": [
+   7,
+   5,
+   32,
+   34
+  ],
+  "lastBox": [
+   2,
+   15,
+   36,
+   30
+  ]
+ },
+ "barn_wasp/deathpose/south-east": {
+  "foot": 34,
+  "lastLow": 34,
+  "shift": 0,
+  "drop": 0.35,
+  "stillBox": [
+   3,
+   4,
+   31,
+   34
+  ],
+  "lastBox": [
+   2,
+   15,
+   37,
+   34
+  ]
+ },
+ "briarcoat_wolf/death/north-east": {
+  "foot": 40,
+  "lastLow": 40,
+  "shift": 0,
+  "drop": 0.15,
+  "stillBox": [
+   7,
+   7,
+   41,
+   40
+  ],
+  "lastBox": [
+   6,
+   12,
+   42,
+   40
+  ]
+ },
+ "briarcoat_wolf/death/north-west": {
+  "foot": 40,
+  "lastLow": 38,
+  "shift": 2,
+  "drop": 0.18,
+  "stillBox": [
+   5,
+   7,
+   42,
+   40
+  ],
+  "lastBox": [
+   4,
+   13,
+   42,
+   38
+  ]
+ },
+ "briarcoat_wolf/death/south-east": {
+  "foot": 40,
+  "lastLow": 40,
+  "shift": 0,
+  "drop": 0.22,
+  "stillBox": [
+   5,
+   9,
+   39,
+   40
+  ],
+  "lastBox": [
+   4,
+   16,
+   42,
+   40
+  ]
+ },
+ "briarcoat_wolf/death/south-west": {
+  "foot": 40,
+  "lastLow": 40,
+  "shift": 0,
+  "drop": 0.3,
+  "stillBox": [
+   7,
+   8,
+   41,
+   40
+  ],
+  "lastBox": [
+   4,
+   18,
+   43,
+   40
+  ]
+ },
+ "brook_bear/death/north-east": {
+  "foot": 57,
+  "lastLow": 57,
+  "shift": 0,
+  "drop": 0.12,
+  "stillBox": [
+   9,
+   8,
+   56,
+   57
+  ],
+  "lastBox": [
+   5,
+   14,
+   57,
+   57
+  ]
+ },
+ "brook_bear/death/north-west": {
+  "foot": 57,
+  "lastLow": 56,
+  "shift": 1,
+  "drop": 0.16,
+  "stillBox": [
+   7,
+   8,
+   54,
+   57
+  ],
+  "lastBox": [
+   7,
+   16,
+   55,
+   56
+  ]
+ },
+ "brook_bear/death/south-east": {
+  "foot": 56,
+  "lastLow": 56,
+  "shift": 0,
+  "drop": -0.02,
+  "stillBox": [
+   9,
+   10,
+   52,
+   56
+  ],
+  "lastBox": [
+   6,
+   9,
+   55,
+   56
+  ]
+ },
+ "brook_bear/death/south-west": {
+  "foot": 56,
+  "lastLow": 57,
+  "shift": 0,
+  "drop": 0,
+  "stillBox": [
+   11,
+   10,
+   53,
+   56
+  ],
+  "lastBox": [
+   5,
+   10,
+   56,
+   57
+  ]
+ },
+ "brook_bear/deathpose/north-east": {
+  "foot": 57,
+  "lastLow": 50,
+  "shift": 7,
+  "drop": 0.26,
+  "stillBox": [
+   9,
+   8,
+   56,
+   57
+  ],
+  "lastBox": [
+   3,
+   21,
+   61,
+   50
+  ]
+ },
+ "brook_bear/deathpose/north-west": {
+  "foot": 57,
+  "lastLow": 52,
+  "shift": 5,
+  "drop": 0.32,
+  "stillBox": [
+   7,
+   8,
+   54,
+   57
+  ],
+  "lastBox": [
+   2,
+   24,
+   60,
+   52
+  ]
+ },
+ "carrion_crow/death/north-east": {
+  "foot": 43,
+  "lastLow": 40,
+  "shift": 3,
+  "drop": 0.09,
+  "stillBox": [
+   5,
+   7,
+   40,
+   40
+  ],
+  "lastBox": [
+   8,
+   10,
+   43,
+   40
+  ]
+ },
+ "carrion_crow/death/north-west": {
+  "foot": 43,
+  "lastLow": 40,
+  "shift": 3,
+  "drop": 0.03,
+  "stillBox": [
+   7,
+   7,
+   41,
+   40
+  ],
+  "lastBox": [
+   7,
+   8,
+   41,
+   40
+  ]
+ },
+ "carrion_crow/death/south-west": {
+  "foot": 43,
+  "lastLow": 39,
+  "shift": 4,
+  "drop": 0.16,
+  "stillBox": [
+   8,
+   6,
+   42,
+   37
+  ],
+  "lastBox": [
+   8,
+   11,
+   42,
+   39
+  ]
+ },
+ "carrion_crow/deathpose/north-east": {
+  "foot": 43,
+  "lastLow": 38,
+  "shift": 5,
+  "drop": 0.32,
+  "stillBox": [
+   5,
+   7,
+   40,
+   40
+  ],
+  "lastBox": [
+   2,
+   18,
+   45,
+   38
+  ]
+ },
+ "carrion_crow/deathpose/north-west": {
+  "foot": 43,
+  "lastLow": 37,
+  "shift": 6,
+  "drop": 0.32,
+  "stillBox": [
+   7,
+   7,
+   41,
+   40
+  ],
+  "lastBox": [
+   1,
+   18,
+   46,
+   37
+  ]
+ },
+ "carrion_crow/deathpose/south-west": {
+  "foot": 43,
+  "lastLow": 35,
+  "shift": 8,
+  "drop": 0.34,
+  "stillBox": [
+   8,
+   6,
+   42,
+   37
+  ],
+  "lastBox": [
+   2,
+   17,
+   45,
+   35
+  ]
+ },
+ "chief_coppercap/death/north-east": {
+  "foot": 51,
+  "lastLow": 54,
+  "shift": 0,
+  "drop": 0.51,
+  "stillBox": [
+   13,
+   9,
+   58,
+   51
+  ],
+  "lastBox": [
+   5,
+   31,
+   57,
+   54
+  ]
+ },
+ "chief_coppercap/death/north-west": {
+  "foot": 52,
+  "lastLow": 53,
+  "shift": 0,
+  "drop": 0.58,
+  "stillBox": [
+   15,
+   10,
+   48,
+   52
+  ],
+  "lastBox": [
+   8,
+   35,
+   55,
+   53
+  ]
+ },
+ "chief_coppercap/death/south-east": {
+  "foot": 54,
+  "lastLow": 54,
+  "shift": 0,
+  "drop": 0.46,
+  "stillBox": [
+   15,
+   9,
+   47,
+   54
+  ],
+  "lastBox": [
+   7,
+   30,
+   55,
+   54
+  ]
+ },
+ "chief_coppercap/death/south-west": {
+  "foot": 52,
+  "lastLow": 55,
+  "shift": 0,
+  "drop": 0.58,
+  "stillBox": [
+   4,
+   8,
+   49,
+   52
+  ],
+  "lastBox": [
+   10,
+   34,
+   58,
+   55
+  ]
+ },
+ "dire_gray/death/north-east": {
+  "foot": 54,
+  "lastLow": 54,
+  "shift": 0,
+  "drop": 0.22,
+  "stillBox": [
+   8,
+   10,
+   54,
+   54
+  ],
+  "lastBox": [
+   6,
+   20,
+   57,
+   54
+  ]
+ },
+ "dire_gray/death/north-west": {
+  "foot": 54,
+  "lastLow": 53,
+  "shift": 1,
+  "drop": 0.16,
+  "stillBox": [
+   7,
+   10,
+   53,
+   54
+  ],
+  "lastBox": [
+   7,
+   17,
+   55,
+   53
+  ]
+ },
+ "dire_gray/death/south-east": {
+  "foot": 52,
+  "lastLow": 55,
+  "shift": 0,
+  "drop": 0.35,
+  "stillBox": [
+   13,
+   13,
+   51,
+   52
+  ],
+  "lastBox": [
+   7,
+   27,
+   57,
+   55
+  ]
+ },
+ "dire_gray/death/south-west": {
+  "foot": 52,
+  "lastLow": 54,
+  "shift": 0,
+  "drop": 0.35,
+  "stillBox": [
+   10,
+   13,
+   50,
+   52
+  ],
+  "lastBox": [
+   6,
+   27,
+   57,
+   54
+  ]
+ },
+ "drain_rat/deathpose/north-east": {
+  "foot": 32,
+  "lastLow": 30,
+  "shift": 2,
+  "drop": 0.2,
+  "stillBox": [
+   3,
+   8,
+   33,
+   32
+  ],
+  "lastBox": [
+   2,
+   13,
+   36,
+   30
+  ]
+ },
+ "glade_poacher/death/north-east": {
+  "foot": 50,
+  "lastLow": 51,
+  "shift": 0,
+  "drop": 0.55,
+  "stillBox": [
+   20,
+   11,
+   43,
+   50
+  ],
+  "lastBox": [
+   11,
+   33,
+   51,
+   51
+  ]
+ },
+ "glade_poacher/death/north-west": {
+  "foot": 51,
+  "lastLow": 51,
+  "shift": 0,
+  "drop": 0.53,
+  "stillBox": [
+   16,
+   12,
+   46,
+   51
+  ],
+  "lastBox": [
+   10,
+   33,
+   55,
+   51
+  ]
+ },
+ "goblin_digger/death/north-east": {
+  "foot": 40,
+  "lastLow": 40,
+  "shift": 0,
+  "drop": 0.51,
+  "stillBox": [
+   12,
+   6,
+   36,
+   40
+  ],
+  "lastBox": [
+   5,
+   24,
+   41,
+   40
+  ]
+ },
+ "goblin_digger/death/north-west": {
+  "foot": 40,
+  "lastLow": 40,
+  "shift": 0,
+  "drop": 0.5,
+  "stillBox": [
+   6,
+   7,
+   35,
+   40
+  ],
+  "lastBox": [
+   7,
+   24,
+   41,
+   40
+  ]
+ },
+ "goblin_digger/death/south-west": {
+  "foot": 41,
+  "lastLow": 41,
+  "shift": 0,
+  "drop": 0.56,
+  "stillBox": [
+   9,
+   6,
+   35,
+   41
+  ],
+  "lastBox": [
+   5,
+   26,
+   41,
+   41
+  ]
+ },
+ "goblin_scavenger/death/north-east": {
+  "foot": 39,
+  "lastLow": 39,
+  "shift": 0,
+  "drop": 0.55,
+  "stillBox": [
+   8,
+   7,
+   39,
+   39
+  ],
+  "lastBox": [
+   5,
+   25,
+   41,
+   39
+  ]
+ },
+ "goblin_scavenger/death/north-west": {
+  "foot": 39,
+  "lastLow": 39,
+  "shift": 0,
+  "drop": 0.42,
+  "stillBox": [
+   12,
+   7,
+   33,
+   39
+  ],
+  "lastBox": [
+   7,
+   21,
+   39,
+   39
+  ]
+ },
+ "goblin_scavenger/death/south-east": {
+  "foot": 40,
+  "lastLow": 40,
+  "shift": 0,
+  "drop": 0.52,
+  "stillBox": [
+   12,
+   8,
+   35,
+   40
+  ],
+  "lastBox": [
+   5,
+   25,
+   40,
+   40
+  ]
+ },
+ "goblin_scavenger/death/south-west": {
+  "foot": 40,
+  "lastLow": 40,
+  "shift": 0,
+  "drop": 0.48,
+  "stillBox": [
+   8,
+   8,
+   39,
+   40
+  ],
+  "lastBox": [
+   5,
+   24,
+   42,
+   40
+  ]
+ },
+ "goblin_skulker/death/north-east": {
+  "foot": 39,
+  "lastLow": 39,
+  "shift": 0,
+  "drop": 0.47,
+  "stillBox": [
+   14,
+   10,
+   41,
+   39
+  ],
+  "lastBox": [
+   4,
+   24,
+   41,
+   39
+  ]
+ },
+ "goblin_skulker/death/north-west": {
+  "foot": 39,
+  "lastLow": 39,
+  "shift": 0,
+  "drop": 0.53,
+  "stillBox": [
+   7,
+   10,
+   33,
+   39
+  ],
+  "lastBox": [
+   8,
+   26,
+   40,
+   39
+  ]
+ },
+ "goblin_skulker/death/south-east": {
+  "foot": 39,
+  "lastLow": 39,
+  "shift": 0,
+  "drop": 0.55,
+  "stillBox": [
+   12,
+   11,
+   39,
+   39
+  ],
+  "lastBox": [
+   6,
+   27,
+   41,
+   39
+  ]
+ },
+ "goblin_skulker/death/south-west": {
+  "foot": 39,
+  "lastLow": 40,
+  "shift": 0,
+  "drop": 0.52,
+  "stillBox": [
+   8,
+   11,
+   36,
+   39
+  ],
+  "lastBox": [
+   6,
+   26,
+   41,
+   40
+  ]
+ },
+ "goblin_sluicer/death/north-east": {
+  "foot": 41,
+  "lastLow": 42,
+  "shift": 0,
+  "drop": 0.46,
+  "stillBox": [
+   9,
+   5,
+   42,
+   41
+  ],
+  "lastBox": [
+   4,
+   22,
+   43,
+   42
+  ]
+ },
+ "goblin_sluicer/death/north-west": {
+  "foot": 41,
+  "lastLow": 41,
+  "shift": 0,
+  "drop": 0.62,
+  "stillBox": [
+   8,
+   5,
+   34,
+   41
+  ],
+  "lastBox": [
+   5,
+   28,
+   40,
+   41
+  ]
+ },
+ "goblin_sluicer/death/south-east": {
+  "foot": 42,
+  "lastLow": 42,
+  "shift": 0,
+  "drop": 0.57,
+  "stillBox": [
+   14,
+   6,
+   40,
+   42
+  ],
+  "lastBox": [
+   6,
+   27,
+   42,
+   42
+  ]
+ },
+ "goblin_sluicer/death/south-west": {
+  "foot": 42,
+  "lastLow": 42,
+  "shift": 0,
+  "drop": 0.54,
+  "stillBox": [
+   5,
+   6,
+   37,
+   42
+  ],
+  "lastBox": [
+   5,
+   26,
+   42,
+   42
+  ]
+ },
+ "granary_rat/deathpose/north-east": {
+  "foot": 37,
+  "lastLow": 36,
+  "shift": 1,
+  "drop": 0.23,
+  "stillBox": [
+   2,
+   3,
+   36,
+   37
+  ],
+  "lastBox": [
+   2,
+   11,
+   37,
+   36
+  ]
+ },
+ "granary_rat/deathpose/south-east": {
+  "foot": 37,
+  "lastLow": 34,
+  "shift": 3,
+  "drop": 0.19,
+  "stillBox": [
+   4,
+   2,
+   35,
+   37
+  ],
+  "lastBox": [
+   2,
+   9,
+   37,
+   34
+  ]
+ },
+ "grayjaw/death/north-east": {
+  "foot": 54,
+  "lastLow": 56,
+  "shift": 0,
+  "drop": 0.2,
+  "stillBox": [
+   7,
+   10,
+   54,
+   54
+  ],
+  "lastBox": [
+   6,
+   19,
+   59,
+   56
+  ]
+ },
+ "grayjaw/death/north-west": {
+  "foot": 54,
+  "lastLow": 55,
+  "shift": 0,
+  "drop": 0.2,
+  "stillBox": [
+   7,
+   10,
+   54,
+   54
+  ],
+  "lastBox": [
+   7,
+   19,
+   56,
+   55
+  ]
+ },
+ "grayjaw/death/south-east": {
+  "foot": 52,
+  "lastLow": 52,
+  "shift": 0,
+  "drop": 0.31,
+  "stillBox": [
+   10,
+   14,
+   51,
+   52
+  ],
+  "lastBox": [
+   9,
+   26,
+   54,
+   52
+  ]
+ },
+ "grayjaw/death/south-west": {
+  "foot": 52,
+  "lastLow": 54,
+  "shift": 0,
+  "drop": 0.23,
+  "stillBox": [
+   10,
+   14,
+   51,
+   52
+  ],
+  "lastBox": [
+   7,
+   23,
+   55,
+   54
+  ]
+ },
+ "gray_whelp/death/north-east": {
+  "foot": 38,
+  "lastLow": 39,
+  "shift": 0,
+  "drop": 0.23,
+  "stillBox": [
+   9,
+   8,
+   38,
+   38
+  ],
+  "lastBox": [
+   8,
+   15,
+   40,
+   39
+  ]
+ },
+ "gray_whelp/death/north-west": {
+  "foot": 38,
+  "lastLow": 38,
+  "shift": 0,
+  "drop": 0.29,
+  "stillBox": [
+   8,
+   8,
+   37,
+   38
+  ],
+  "lastBox": [
+   7,
+   17,
+   39,
+   38
+  ]
+ },
+ "gray_whelp/death/south-east": {
+  "foot": 39,
+  "lastLow": 39,
+  "shift": 0,
+  "drop": 0.35,
+  "stillBox": [
+   9,
+   14,
+   36,
+   39
+  ],
+  "lastBox": [
+   6,
+   23,
+   40,
+   39
+  ]
+ },
+ "gray_whelp/death/south-west": {
+  "foot": 39,
+  "lastLow": 39,
+  "shift": 0,
+  "drop": 0.19,
+  "stillBox": [
+   12,
+   14,
+   37,
+   39
+  ],
+  "lastBox": [
+   6,
+   19,
+   41,
+   39
+  ]
+ },
+ "gray_wolf/death/north-west": {
+  "foot": 40,
+  "lastLow": 39,
+  "shift": 1,
+  "drop": 0.18,
+  "stillBox": [
+   5,
+   7,
+   40,
+   40
+  ],
+  "lastBox": [
+   6,
+   13,
+   42,
+   39
+  ]
+ },
+ "gray_wolf/death/south-west": {
+  "foot": 40,
+  "lastLow": 40,
+  "shift": 0,
+  "drop": 0.35,
+  "stillBox": [
+   7,
+   10,
+   39,
+   40
+  ],
+  "lastBox": [
+   4,
+   21,
+   44,
+   40
+  ]
+ },
+ "hobgoblin_foreman/death/north-east": {
+  "foot": 51,
+  "lastLow": 53,
+  "shift": 0,
+  "drop": 0.5,
+  "stillBox": [
+   12,
+   14,
+   48,
+   51
+  ],
+  "lastBox": [
+   10,
+   33,
+   55,
+   53
+  ]
+ },
+ "hobgoblin_foreman/death/north-west": {
+  "foot": 50,
+  "lastLow": 53,
+  "shift": 0,
+  "drop": 0.51,
+  "stillBox": [
+   12,
+   12,
+   44,
+   50
+  ],
+  "lastBox": [
+   11,
+   32,
+   51,
+   53
+  ]
+ },
+ "hobgoblin_foreman/death/south-east": {
+  "foot": 51,
+  "lastLow": 50,
+  "shift": 1,
+  "drop": 0.45,
+  "stillBox": [
+   18,
+   14,
+   51,
+   51
+  ],
+  "lastBox": [
+   8,
+   31,
+   56,
+   50
+  ]
+ },
+ "hobgoblin_foreman/death/south-west": {
+  "foot": 50,
+  "lastLow": 53,
+  "shift": 0,
+  "drop": 0.55,
+  "stillBox": [
+   18,
+   13,
+   46,
+   50
+  ],
+  "lastBox": [
+   10,
+   34,
+   51,
+   53
+  ]
+ },
+ "orchard_boar/death/north-east": {
+  "foot": 55,
+  "lastLow": 55,
+  "shift": 0,
+  "drop": 0.26,
+  "stillBox": [
+   11,
+   10,
+   51,
+   55
+  ],
+  "lastBox": [
+   6,
+   22,
+   56,
+   55
+  ]
+ },
+ "orchard_boar/death/north-west": {
+  "foot": 55,
+  "lastLow": 55,
+  "shift": 0,
+  "drop": 0.2,
+  "stillBox": [
+   11,
+   10,
+   52,
+   55
+  ],
+  "lastBox": [
+   9,
+   19,
+   54,
+   55
+  ]
+ },
+ "orchard_boar/death/south-west": {
+  "foot": 55,
+  "lastLow": 56,
+  "shift": 0,
+  "drop": 0.19,
+  "stillBox": [
+   13,
+   13,
+   54,
+   55
+  ],
+  "lastBox": [
+   6,
+   21,
+   56,
+   56
+  ]
+ },
+ "rook_poacher/death/north-east": {
+  "foot": 52,
+  "lastLow": 53,
+  "shift": 0,
+  "drop": 0.58,
+  "stillBox": [
+   19,
+   8,
+   44,
+   52
+  ],
+  "lastBox": [
+   8,
+   34,
+   55,
+   53
+  ]
+ },
+ "rook_poacher/death/north-west": {
+  "foot": 52,
+  "lastLow": 52,
+  "shift": 0,
+  "drop": 0.64,
+  "stillBox": [
+   17,
+   11,
+   45,
+   52
+  ],
+  "lastBox": [
+   9,
+   38,
+   54,
+   52
+  ]
+ },
+ "rook_poacher/death/south-east": {
+  "foot": 52,
+  "lastLow": 54,
+  "shift": 0,
+  "drop": 0.36,
+  "stillBox": [
+   17,
+   11,
+   45,
+   52
+  ],
+  "lastBox": [
+   8,
+   26,
+   54,
+   54
+  ]
+ },
+ "rook_poacher/death/south-west": {
+  "foot": 51,
+  "lastLow": 52,
+  "shift": 0,
+  "drop": 0.6,
+  "stillBox": [
+   18,
+   10,
+   43,
+   51
+  ],
+  "lastBox": [
+   9,
+   35,
+   55,
+   52
+  ]
+ },
+ "sump_slime/death/north-east": {
+  "foot": 34,
+  "lastLow": 33,
+  "shift": 1,
+  "drop": 0.03,
+  "stillBox": [
+   5,
+   5,
+   33,
+   34
+  ],
+  "lastBox": [
+   6,
+   6,
+   33,
+   33
+  ]
+ },
+ "sump_slime/death/south-east": {
+  "foot": 34,
+  "lastLow": 33,
+  "shift": 1,
+  "drop": -0.04,
+  "stillBox": [
+   7,
+   7,
+   34,
+   34
+  ],
+  "lastBox": [
+   7,
+   6,
+   34,
+   33
+  ]
+ },
+ "sump_slime/deathpose/north-east": {
+  "foot": 34,
+  "lastLow": 31,
+  "shift": 3,
+  "drop": 0.4,
+  "stillBox": [
+   5,
+   5,
+   33,
+   34
+  ],
+  "lastBox": [
+   2,
+   17,
+   37,
+   31
+  ]
+ },
+ "sump_slime/deathpose/south-east": {
+  "foot": 34,
+  "lastLow": 33,
+  "shift": 1,
+  "drop": 0.29,
+  "stillBox": [
+   7,
+   7,
+   34,
+   34
+  ],
+  "lastBox": [
+   1,
+   15,
+   38,
+   33
+  ]
+ },
+ "turncoat/death/north-east": {
+  "foot": 43,
+  "lastLow": 44,
+  "shift": 0,
+  "drop": 0.5,
+  "stillBox": [
+   13,
+   4,
+   42,
+   43
+  ],
+  "lastBox": [
+   5,
+   24,
+   43,
+   44
+  ]
+ },
+ "turncoat/death/north-west": {
+  "foot": 42,
+  "lastLow": 43,
+  "shift": 0,
+  "drop": 0.56,
+  "stillBox": [
+   13,
+   4,
+   40,
+   42
+  ],
+  "lastBox": [
+   5,
+   26,
+   43,
+   43
+  ]
+ },
+ "turncoat/death/south-east": {
+  "foot": 43,
+  "lastLow": 43,
+  "shift": 0,
+  "drop": 0.47,
+  "stillBox": [
+   12,
+   4,
+   33,
+   43
+  ],
+  "lastBox": [
+   5,
+   23,
+   42,
+   43
+  ]
+ },
+ "turncoat/death/south-west": {
+  "foot": 43,
+  "lastLow": 43,
+  "shift": 0,
+  "drop": 0.42,
+  "stillBox": [
+   6,
+   4,
+   33,
+   43
+  ],
+  "lastBox": [
+   7,
+   21,
+   41,
+   43
+  ]
+ },
+ "walking_vine/death/north-east": {
+  "foot": 41,
+  "lastLow": 41,
+  "shift": 0,
+  "drop": 0.25,
+  "stillBox": [
+   10,
+   6,
+   37,
+   41
+  ],
+  "lastBox": [
+   5,
+   15,
+   41,
+   41
+  ]
+ },
+ "walking_vine/death/north-west": {
+  "foot": 41,
+  "lastLow": 41,
+  "shift": 0,
+  "drop": 0.39,
+  "stillBox": [
+   9,
+   6,
+   36,
+   41
+  ],
+  "lastBox": [
+   6,
+   20,
+   40,
+   41
+  ]
+ },
+ "walking_vine/death/south-east": {
+  "foot": 41,
+  "lastLow": 41,
+  "shift": 0,
+  "drop": 0.08,
+  "stillBox": [
+   11,
+   6,
+   37,
+   41
+  ],
+  "lastBox": [
+   8,
+   9,
+   36,
+   41
+  ]
+ },
+ "walking_vine/death/south-west": {
+  "foot": 41,
+  "lastLow": 41,
+  "shift": 0,
+  "drop": 0.42,
+  "stillBox": [
+   9,
+   6,
+   35,
+   41
+  ],
+  "lastBox": [
+   4,
+   21,
+   42,
+   41
+  ]
+ },
+ "walking_vine/deathpose/south-east": {
+  "foot": 41,
+  "lastLow": 38,
+  "shift": 3,
+  "drop": 0.36,
+  "stillBox": [
+   11,
+   6,
+   37,
+   41
+  ],
+  "lastBox": [
+   3,
+   19,
+   44,
+   38
+  ]
+ }
+}

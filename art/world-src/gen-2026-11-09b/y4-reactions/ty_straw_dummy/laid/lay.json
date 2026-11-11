@@ -1,0 +1,20 @@
+{
+ "order": [
+  0,
+  1,
+  2,
+  1,
+  0
+ ],
+ "fps": 12,
+ "hand_pass": {
+  "frame": 2,
+  "box": [
+   6,
+   16,
+   14,
+   23
+  ],
+  "from": "frame_000 (the arm peg)"
+ }
+}

@@ -1,0 +1,1309 @@
+{
+ "charred_pikeman/attack/east": {
+  "reach": [
+   -4,
+   -7,
+   4,
+   1,
+   5,
+   -1
+  ],
+  "changed": [
+   387,
+   460,
+   383,
+   356,
+   373,
+   210
+  ],
+  "peak": 1,
+  "peakReach": -7,
+  "order": [
+   0,
+   0,
+   0,
+   1,
+   2,
+   3
+  ]
+ },
+ "charred_pikeman/attack/north": {
+  "reach": [
+   0,
+   -2,
+   -7,
+   -7,
+   -7,
+   -7
+  ],
+  "changed": [
+   124,
+   139,
+   223,
+   247,
+   249,
+   255
+  ],
+  "peak": 5,
+  "peakReach": -7,
+  "order": [
+   2,
+   3,
+   4,
+   5,
+   4,
+   3
+  ]
+ },
+ "charred_pikeman/attack/north-east": {
+  "reach": [
+   0,
+   -2,
+   -21,
+   -13,
+   -20,
+   -13
+  ],
+  "changed": [
+   311,
+   477,
+   478,
+   499,
+   472,
+   374
+  ],
+  "peak": 3,
+  "peakReach": -13,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "charred_pikeman/attack/north-west": {
+  "reach": [
+   -4,
+   -7,
+   -5,
+   -7,
+   -6,
+   -4
+  ],
+  "changed": [
+   243,
+   276,
+   502,
+   511,
+   427,
+   415
+  ],
+  "peak": 3,
+  "peakReach": -7,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "charred_pikeman/attack/south": {
+  "reach": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "changed": [
+   261,
+   508,
+   533,
+   563,
+   543,
+   517
+  ],
+  "peak": 3,
+  "peakReach": 0,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "charred_pikeman/attack/south-east": {
+  "reach": [
+   0,
+   0,
+   0,
+   1,
+   1,
+   1
+  ],
+  "changed": [
+   595,
+   576,
+   575,
+   591,
+   572,
+   559
+  ],
+  "peak": 0,
+  "peakReach": 0,
+  "order": [
+   3,
+   2,
+   1,
+   0,
+   1,
+   2
+  ]
+ },
+ "charred_pikeman/attack/south-west": {
+  "reach": [
+   0,
+   0,
+   1,
+   2,
+   2,
+   2
+  ],
+  "changed": [
+   457,
+   336,
+   655,
+   710,
+   709,
+   627
+  ],
+  "peak": 3,
+  "peakReach": 2,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "charred_pikeman/attack/west": {
+  "reach": [
+   0,
+   1,
+   -4,
+   -2,
+   -4,
+   -1
+  ],
+  "changed": [
+   246,
+   457,
+   503,
+   501,
+   424,
+   224
+  ],
+  "peak": 2,
+  "peakReach": -4,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "charred_pikeman/death/east": {
+  "foot": 46,
+  "lastLow": 46,
+  "shift": 0,
+  "drop": -0.02,
+  "stillBox": [
+   16,
+   4,
+   38,
+   46
+  ],
+  "lastBox": [
+   16,
+   3,
+   36,
+   46
+  ]
+ },
+ "charred_pikeman/death/north": {
+  "foot": 45,
+  "lastLow": 45,
+  "shift": 0,
+  "drop": 0.36,
+  "stillBox": [
+   14,
+   2,
+   32,
+   45
+  ],
+  "lastBox": [
+   5,
+   18,
+   41,
+   45
+  ]
+ },
+ "charred_pikeman/death/north-east": {
+  "foot": 46,
+  "lastLow": 46,
+  "shift": 0,
+  "drop": -0.02,
+  "stillBox": [
+   14,
+   2,
+   40,
+   46
+  ],
+  "lastBox": [
+   14,
+   1,
+   36,
+   46
+  ]
+ },
+ "charred_pikeman/death/north-west": {
+  "foot": 46,
+  "lastLow": 46,
+  "shift": 0,
+  "drop": 0.7,
+  "stillBox": [
+   14,
+   1,
+   32,
+   46
+  ],
+  "lastBox": [
+   3,
+   33,
+   43,
+   46
+  ]
+ },
+ "charred_pikeman/death/south": {
+  "foot": 46,
+  "lastLow": 46,
+  "shift": 0,
+  "drop": 0.74,
+  "stillBox": [
+   13,
+   4,
+   31,
+   46
+  ],
+  "lastBox": [
+   3,
+   36,
+   42,
+   46
+  ]
+ },
+ "charred_pikeman/death/south-east": {
+  "foot": 46,
+  "lastLow": 46,
+  "shift": 0,
+  "drop": 0.7,
+  "stillBox": [
+   15,
+   4,
+   31,
+   46
+  ],
+  "lastBox": [
+   3,
+   34,
+   43,
+   46
+  ]
+ },
+ "charred_pikeman/death/south-west": {
+  "foot": 46,
+  "lastLow": 46,
+  "shift": 0,
+  "drop": -0.02,
+  "stillBox": [
+   6,
+   3,
+   30,
+   46
+  ],
+  "lastBox": [
+   9,
+   2,
+   30,
+   46
+  ]
+ },
+ "charred_pikeman/death/west": {
+  "foot": 46,
+  "lastLow": 46,
+  "shift": 0,
+  "drop": 0.73,
+  "stillBox": [
+   7,
+   2,
+   30,
+   46
+  ],
+  "lastBox": [
+   3,
+   35,
+   45,
+   46
+  ]
+ },
+ "charred_pikeman/deathpose/east": {
+  "foot": 46,
+  "lastLow": 40,
+  "shift": 6,
+  "drop": 0.47,
+  "stillBox": [
+   16,
+   4,
+   38,
+   46
+  ],
+  "lastBox": [
+   3,
+   24,
+   45,
+   40
+  ]
+ },
+ "charred_pikeman/deathpose/north-east": {
+  "foot": 46,
+  "lastLow": 41,
+  "shift": 5,
+  "drop": 0.49,
+  "stillBox": [
+   14,
+   2,
+   40,
+   46
+  ],
+  "lastBox": [
+   3,
+   24,
+   44,
+   41
+  ]
+ },
+ "charred_pikeman/deathpose/south-west": {
+  "foot": 46,
+  "lastLow": 44,
+  "shift": 2,
+  "drop": 0.55,
+  "stillBox": [
+   6,
+   3,
+   30,
+   46
+  ],
+  "lastBox": [
+   2,
+   27,
+   45,
+   44
+  ]
+ },
+ "lurcher/attack/east": {
+  "reach": [
+   0,
+   -1,
+   -1,
+   -1,
+   0,
+   0
+  ],
+  "changed": [
+   408,
+   568,
+   593,
+   720,
+   559,
+   372
+  ],
+  "peak": 3,
+  "peakReach": -1,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "lurcher/attack/north": {
+  "reach": [
+   -1,
+   -2,
+   -5,
+   -5,
+   -4,
+   -2
+  ],
+  "changed": [
+   262,
+   433,
+   478,
+   467,
+   375,
+   356
+  ],
+  "peak": 2,
+  "peakReach": -5,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "lurcher/attack/north-east": {
+  "reach": [
+   6,
+   10,
+   13,
+   -7,
+   -4,
+   -2
+  ],
+  "changed": [
+   483,
+   669,
+   639,
+   637,
+   568,
+   395
+  ],
+  "peak": 1,
+  "peakReach": 10,
+  "order": [
+   0,
+   0,
+   0,
+   1,
+   2,
+   3
+  ]
+ },
+ "lurcher/attack/north-west": {
+  "reach": [
+   6,
+   10,
+   13,
+   -7,
+   -4,
+   -2
+  ],
+  "changed": [
+   483,
+   669,
+   639,
+   637,
+   568,
+   395
+  ],
+  "peak": 1,
+  "peakReach": 10,
+  "order": [
+   0,
+   0,
+   0,
+   1,
+   2,
+   3
+  ]
+ },
+ "lurcher/attack/south": {
+  "reach": [
+   0,
+   -2,
+   -4,
+   -6,
+   -2,
+   0
+  ],
+  "changed": [
+   462,
+   548,
+   569,
+   457,
+   439,
+   412
+  ],
+  "peak": 2,
+  "peakReach": -4,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "lurcher/attack/south-east": {
+  "reach": [
+   -3,
+   -3,
+   2,
+   4,
+   3,
+   2
+  ],
+  "changed": [
+   453,
+   549,
+   649,
+   609,
+   630,
+   485
+  ],
+  "peak": 2,
+  "peakReach": 2,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "lurcher/attack/south-west": {
+  "reach": [
+   -2,
+   -1,
+   1,
+   2,
+   -3,
+   -2
+  ],
+  "changed": [
+   360,
+   521,
+   672,
+   684,
+   608,
+   499
+  ],
+  "peak": 3,
+  "peakReach": 2,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "lurcher/attack/west": {
+  "reach": [
+   -1,
+   0,
+   1,
+   1,
+   1,
+   1
+  ],
+  "changed": [
+   240,
+   382,
+   474,
+   655,
+   657,
+   549
+  ],
+  "peak": 4,
+  "peakReach": 1,
+  "order": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   4
+  ]
+ },
+ "lurcher/death/east": {
+  "foot": 44,
+  "lastLow": 43,
+  "shift": 1,
+  "drop": 0.32,
+  "stillBox": [
+   10,
+   11,
+   51,
+   44
+  ],
+  "lastBox": [
+   4,
+   22,
+   51,
+   43
+  ]
+ },
+ "lurcher/death/north": {
+  "foot": 50,
+  "lastLow": 50,
+  "shift": 0,
+  "drop": 0.65,
+  "stillBox": [
+   19,
+   3,
+   36,
+   50
+  ],
+  "lastBox": [
+   6,
+   34,
+   50,
+   50
+  ]
+ },
+ "lurcher/death/north-east": {
+  "foot": 48,
+  "lastLow": 48,
+  "shift": 0,
+  "drop": 0.56,
+  "stillBox": [
+   10,
+   15,
+   42,
+   48
+  ],
+  "lastBox": [
+   6,
+   34,
+   49,
+   48
+  ]
+ },
+ "lurcher/death/north-west": {
+  "foot": 48,
+  "lastLow": 48,
+  "shift": 0,
+  "drop": 0.56,
+  "stillBox": [
+   13,
+   15,
+   45,
+   48
+  ],
+  "lastBox": [
+   6,
+   34,
+   49,
+   48
+  ]
+ },
+ "lurcher/death/south": {
+  "foot": 51,
+  "lastLow": 51,
+  "shift": 0,
+  "drop": 0.02,
+  "stillBox": [
+   19,
+   10,
+   35,
+   51
+  ],
+  "lastBox": [
+   15,
+   11,
+   38,
+   51
+  ]
+ },
+ "lurcher/death/south-east": {
+  "foot": 51,
+  "lastLow": 50,
+  "shift": 1,
+  "drop": 0.05,
+  "stillBox": [
+   12,
+   13,
+   44,
+   51
+  ],
+  "lastBox": [
+   5,
+   15,
+   46,
+   50
+  ]
+ },
+ "lurcher/death/south-west": {
+  "foot": 51,
+  "lastLow": 50,
+  "shift": 1,
+  "drop": 0.05,
+  "stillBox": [
+   10,
+   13,
+   42,
+   51
+  ],
+  "lastBox": [
+   9,
+   15,
+   50,
+   50
+  ]
+ },
+ "lurcher/death/west": {
+  "foot": 44,
+  "lastLow": 43,
+  "shift": 1,
+  "drop": 0.34,
+  "stillBox": [
+   5,
+   10,
+   44,
+   44
+  ],
+  "lastBox": [
+   4,
+   22,
+   51,
+   43
+  ]
+ },
+ "lurcher/deathpose/south": {
+  "foot": 51,
+  "lastLow": 41,
+  "shift": 10,
+  "drop": 0.29,
+  "stillBox": [
+   19,
+   10,
+   35,
+   51
+  ],
+  "lastBox": [
+   4,
+   22,
+   51,
+   41
+  ]
+ },
+ "stoker/alt/attack-r1-fire-arc": "no still",
+ "stoker/attack/east": {
+  "reach": [
+   2,
+   7,
+   19,
+   17,
+   17,
+   15
+  ],
+  "changed": [
+   472,
+   528,
+   518,
+   432,
+   367,
+   315
+  ],
+  "peak": 1,
+  "peakReach": 7,
+  "order": [
+   0,
+   0,
+   0,
+   1,
+   2,
+   3
+  ]
+ },
+ "stoker/attack/north": {
+  "reach": [
+   0,
+   4,
+   0,
+   0,
+   0,
+   0
+  ],
+  "changed": [
+   474,
+   709,
+   773,
+   625,
+   623,
+   604
+  ],
+  "peak": 2,
+  "peakReach": 0,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "stoker/attack/north-east": {
+  "reach": [
+   1,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  "changed": [
+   275,
+   503,
+   598,
+   607,
+   626,
+   621
+  ],
+  "peak": 4,
+  "peakReach": 0,
+  "order": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   4
+  ]
+ },
+ "stoker/attack/north-west": {
+  "reach": [
+   1,
+   1,
+   3,
+   -1,
+   -1,
+   -1
+  ],
+  "changed": [
+   524,
+   577,
+   596,
+   651,
+   666,
+   685
+  ],
+  "peak": 5,
+  "peakReach": -1,
+  "order": [
+   2,
+   3,
+   4,
+   5,
+   4,
+   3
+  ]
+ },
+ "stoker/attack/south": {
+  "reach": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "changed": [
+   636,
+   740,
+   789,
+   785,
+   752,
+   728
+  ],
+  "peak": 2,
+  "peakReach": 0,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "stoker/attack/south-east": {
+  "reach": [
+   0,
+   0,
+   0,
+   0,
+   2,
+   4
+  ],
+  "changed": [
+   563,
+   579,
+   581,
+   648,
+   701,
+   658
+  ],
+  "peak": 4,
+  "peakReach": 2,
+  "order": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   4
+  ]
+ },
+ "stoker/attack/south-west": {
+  "reach": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "changed": [
+   493,
+   933,
+   766,
+   353,
+   548,
+   292
+  ],
+  "peak": 1,
+  "peakReach": 0,
+  "order": [
+   0,
+   0,
+   0,
+   1,
+   2,
+   3
+  ]
+ },
+ "stoker/attack/west": {
+  "reach": [
+   7,
+   14,
+   15,
+   13,
+   13,
+   13
+  ],
+  "changed": [
+   373,
+   530,
+   637,
+   711,
+   722,
+   700
+  ],
+  "peak": 4,
+  "peakReach": 13,
+  "order": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   4
+  ]
+ },
+ "stoker/attack-r3/east": {
+  "reach": [
+   1,
+   6,
+   16,
+   14,
+   15,
+   17
+  ],
+  "changed": [
+   268,
+   297,
+   453,
+   442,
+   449,
+   430
+  ],
+  "peak": 2,
+  "peakReach": 16,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "stoker/attack-r3/north": {
+  "reach": [
+   0,
+   1,
+   1,
+   2,
+   2,
+   2
+  ],
+  "changed": [
+   332,
+   583,
+   670,
+   688,
+   687,
+   694
+  ],
+  "peak": 5,
+  "peakReach": 2,
+  "order": [
+   2,
+   3,
+   4,
+   5,
+   4,
+   3
+  ]
+ },
+ "stoker/attack-r3/north-west": {
+  "reach": [
+   1,
+   0,
+   -1,
+   -1,
+   -1,
+   -1
+  ],
+  "changed": [
+   459,
+   341,
+   462,
+   382,
+   500,
+   530
+  ],
+  "peak": 5,
+  "peakReach": -1,
+  "order": [
+   2,
+   3,
+   4,
+   5,
+   4,
+   3
+  ]
+ },
+ "stoker/attack-r3/south-west": {
+  "reach": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "changed": [
+   284,
+   330,
+   366,
+   346,
+   431,
+   382
+  ],
+  "peak": 4,
+  "peakReach": 0,
+  "order": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   4
+  ]
+ },
+ "stoker/death/east": {
+  "foot": 55,
+  "lastLow": 55,
+  "shift": 0,
+  "drop": 0.71,
+  "stillBox": [
+   23,
+   14,
+   37,
+   55
+  ],
+  "lastBox": [
+   6,
+   44,
+   56,
+   55
+  ]
+ },
+ "stoker/death/north": {
+  "foot": 54,
+  "lastLow": 52,
+  "shift": 2,
+  "drop": 0.1,
+  "stillBox": [
+   7,
+   13,
+   47,
+   54
+  ],
+  "lastBox": [
+   21,
+   17,
+   43,
+   52
+  ]
+ },
+ "stoker/death/north-east": {
+  "foot": 54,
+  "lastLow": 54,
+  "shift": 0,
+  "drop": 0.62,
+  "stillBox": [
+   15,
+   13,
+   46,
+   54
+  ],
+  "lastBox": [
+   8,
+   39,
+   54,
+   54
+  ]
+ },
+ "stoker/death/north-west": {
+  "foot": 54,
+  "lastLow": 55,
+  "shift": 0,
+  "drop": 0.71,
+  "stillBox": [
+   12,
+   13,
+   42,
+   54
+  ],
+  "lastBox": [
+   10,
+   43,
+   54,
+   55
+  ]
+ },
+ "stoker/death/south": {
+  "foot": 54,
+  "lastLow": 55,
+  "shift": 0,
+  "drop": 0.61,
+  "stillBox": [
+   15,
+   14,
+   54,
+   54
+  ],
+  "lastBox": [
+   8,
+   39,
+   56,
+   55
+  ]
+ },
+ "stoker/death/south-east": {
+  "foot": 55,
+  "lastLow": 56,
+  "shift": 0,
+  "drop": 0.67,
+  "stillBox": [
+   20,
+   14,
+   46,
+   55
+  ],
+  "lastBox": [
+   8,
+   42,
+   55,
+   56
+  ]
+ },
+ "stoker/death/south-west": {
+  "foot": 55,
+  "lastLow": 57,
+  "shift": 0,
+  "drop": 0.69,
+  "stillBox": [
+   16,
+   14,
+   47,
+   55
+  ],
+  "lastBox": [
+   10,
+   43,
+   55,
+   57
+  ]
+ },
+ "stoker/death/west": {
+  "foot": 55,
+  "lastLow": 55,
+  "shift": 0,
+  "drop": 0.71,
+  "stillBox": [
+   24,
+   14,
+   38,
+   55
+  ],
+  "lastBox": [
+   7,
+   44,
+   54,
+   55
+  ]
+ },
+ "stoker/deathpose/north": {
+  "foot": 54,
+  "lastLow": 49,
+  "shift": 5,
+  "drop": 0.38,
+  "stillBox": [
+   7,
+   13,
+   47,
+   54
+  ],
+  "lastBox": [
+   5,
+   29,
+   53,
+   49
+  ]
+ }
+}

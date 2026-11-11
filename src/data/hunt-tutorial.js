@@ -65,27 +65,27 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.112';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.112';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.112';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.112';
-import { SKILLS_DEF } from './skills.js?v=0.2.112';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.112';
-import { tallyTask } from './tally-tasks.js?v=0.2.112';
-import { ITEMS } from './items.js?v=0.2.112';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.112';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.112';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.112';
-import { isShield } from './shields.js?v=0.2.112';
-import { deriveProfile } from '../core/member.js?v=0.2.112';
-import { ABILITIES } from './abilities.js?v=0.2.112';
-import { CONSUMABLES } from './consumables.js?v=0.2.112';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.112';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.112';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.112';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.112';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.112';
-import { regenPermille } from '../core/vitals.js?v=0.2.112';
+import { HUNT_INDEX } from './hunts.js?v=0.2.116';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.116';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.116';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.116';
+import { SKILLS_DEF } from './skills.js?v=0.2.116';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.116';
+import { tallyTask } from './tally-tasks.js?v=0.2.116';
+import { ITEMS } from './items.js?v=0.2.116';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.116';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.116';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.116';
+import { isShield } from './shields.js?v=0.2.116';
+import { deriveProfile } from '../core/member.js?v=0.2.116';
+import { ABILITIES } from './abilities.js?v=0.2.116';
+import { CONSUMABLES } from './consumables.js?v=0.2.116';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.116';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.116';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.116';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.116';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.116';
+import { regenPermille } from '../core/vitals.js?v=0.2.116';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -639,7 +639,7 @@ const FACTS = Object.freeze({
   below_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel < b.freeUntil),
   at_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel >= b.freeUntil),
   /* the purse holds the price of the next hero slot the server offers; none on offer: never (unknown until the account's offer is read) */
-  /* The purse is a real start on the next hero (the What next line's own share): at 25,000 gp that is 12,500 gp, about hour 5, when gold first needs a plan; the first house speaks until then (lane/c-slots-lower). */
+  /* The purse is a real start on the next hero (the What next line's own share): at 300,000 gp for the second (Tyler 2026-11-09) that is 150,000 gp, about hour 30 of hunting at Level 23-24 (designer, table D); the first house speaks until then (lane/c-slots-lower). */
   purse_saving_hero: (p, f) => (Number.isSafeInteger(f.gold) && Number.isInteger(f.slotsOwned) ? Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost * SAVING_FROM : null),
   /* more than one hero (the account's roster, from the shell) */
   one_hero: (p, f) => known(heroesOn(f), (h) => h.length === 1 && Number.isInteger(f.slotsOwned) && f.slotsOwned > 1),
@@ -1150,7 +1150,8 @@ function readyWords(ready) {
 
 /* WHAT TO WANT, HOURS 5 TO 20 (panel 2026-11-01: 16-22k gold and "nothing to want"; designer's ruling, PRIORITY_BOARD 2026-11-01): the purse's
    next buy on the What next line, at the server's price. Below this share of the next hero's price, it is too far off to be a goal and the house's deeds speak instead.
-   A HALF (2026-11-04, the ladder at 25,000 / 75,000; no fifth slot since 2026-11-07): the third speaks from 12,500 gp, about hour 5, the fourth from 37,500 gp, about 8-10 h after the third for a lone hero. */
+   A HALF (the ladder at 300,000 / 750,000 / 1,500,000 since Tyler 2026-11-09, one slot to start; no fifth slot since 2026-11-07): the second speaks from
+   150,000 gp, about hour 30 of a lone hero's hunting, the third from 375,000 gp and the fourth from 750,000 gp (the purse is the account's). */
 const SAVING_FROM = 0.5;
 const ORDINAL = Object.freeze(['', 'first', 'second', 'third', 'fourth', 'fifth']);
 const gp = (n) => n.toLocaleString('en-US') + ' gp';
@@ -1199,8 +1200,8 @@ const PARTY_HOW = 'Invite a friend, or make a second hero. Up to four of yours c
 /* A hero with another hero of its own already needs only the press. */
 const PARTY_HOW_OWN = 'Right-click your other hero\'s tab (on a phone, Heroes, then Invite) and choose Invite to party.';
 const partyHow = (f) => (Array.isArray(f.roster) && f.roster.length > 1 ? PARTY_HOW_OWN : PARTY_HOW);
-/* A ground built for a party: a pocket of it needs one (hunt-grounds.js minParty). */
-const partyGround = (hunt) => Object.values(HUNT_GROUNDS).some((g) => g.hunt === hunt && g.pockets.some((p) => (p.minParty || 1) > 1));
+/* A ground built for a party: a pocket of it is built for one (hunt-grounds.js forParty). */
+const partyGround = (hunt) => Object.values(HUNT_GROUNDS).some((g) => g.hunt === hunt && g.pockets.some((p) => (p.forParty || 1) > 1));
 
 /* THE NEXT STEP UP (Tyler 2026-11-04: "if someone wants to try and 'rush' exp then they should be able to try harder content to get there faster, but it comes with risk"; played 11-04: a Level 12 in
    Bronze earned 55,106 Level XP/h in the Glade at +3,042 g/h, while the list's "Fits your level" stood on Wickstead's 28,388 at +3,017 g/h). The lowest floor above the hero's Level, and at most this far
@@ -1305,7 +1306,7 @@ export function nextGoal(facts) {
      no party hears of the party ground its Level fits, and how to make a party: once, on whichever line names it. */
   const fits = solo ? groundHunts().find((h) => partyGround(h) && HUNT_INDEX[h].band[0] <= facts.charLevel && facts.charLevel <= HUNT_INDEX[h].band[1]) : null;
   if (fits) {
-    lines.push(HUNT_INDEX[fits].name + ' is right for your Level if you bring a party. ' + partyHow(facts));
+    lines.push(HUNT_INDEX[fits].name + ' is at your Level. Its monsters are tough, and a group kills them faster. ' + partyHow(facts));
     ids.push('party', fits);
   }
   /* THE NEXT GEAR, BY LEVEL (Tyler 2026-10-24): the lowest Level above the hero's that opens a piece a player can get

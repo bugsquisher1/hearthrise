@@ -1,0 +1,21 @@
+{
+  "asset": "verdicts B1: Y4 the reactions, the four targets that do not wait on A1's pick",
+  "status": "for the art director's read; the two dummy variants' reactions wait for A1's pick. Not imported",
+  "generations": 4,
+  "tool": "animate_image on Y1 sheet 1's cut, bottom-centred in a padded canvas (room to move), frame_count 4 (5 stored, frame_000 the input)",
+  "targets": {
+    "ty_quintain": { "canvas": "72x52, art at x6 y8 (upload 96eb4ff7)", "job": "840ee2bb-5aeb-439d-a9ae-60fe06b63158", "seed": 3411, "action": "the crossarm swings a little way round on its pivot, the sandbag swinging out, then settles back, the post stays planted, the same shield and bag throughout, nothing else appears in the frame" },
+    "ty_pell": { "canvas": "24x48, art at x3 y5 (upload e17ca986)", "job": "20113e4f-04bd-4788-b87f-daf188216637", "seed": 3412, "action": "shudders as if struck, the top shakes by one pixel and settles, the post and legs stay planted, nothing else appears in the frame" },
+    "ty_archery_butt": { "canvas": "48x52, art at x3 y5 (upload 9986267a)", "job": "cb6949f2-1fa5-499f-ac9c-9690acdc5ea5", "seed": 3413, "action": "the same as the pell" },
+    "ty_butt_small": { "canvas": "36x44, art at x3 y6 (upload 1b6ef2c1)", "job": "0522afa4-0ea5-45a0-810b-2123ef7edc9d", "seed": 3414, "action": "the same as the pell" }
+  },
+  "cut": "raw/ as generated; cut/ = raw with the art box's lowest 30-35% of rows taken from frame_000 (the planted post, legs or base never move); lay.json = 0 a s a 0 at 12 fps, s the frame that moves most, a the frame nearest half of it, with the changed-pixel counts",
+  "flags": [
+    "quintain: the arm swings and the shield rises, but the sandbag changes shape (rounder, smaller) at frames 2-3: a part's shape changes, so by the verdict's rule those frames may drop",
+    "pell: a small shudder, the top rises 1-2 px at frame 2",
+    "archery butt: the boss shifts 1-2 px and the arrows are redrawn (their number and angles change between frames): a part change",
+    "small butt: its one arrow changes angle between frames: a part change",
+    "changed px vs frame 0 (cut): quintain 744-889, pell 55-316, archery butt 451-970, small butt 350-430: far more than a 1 px shudder for the butts"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/b1-reactions.png (x3 on the town dirt, frames as is: per target the cut row, then the raw row grey-barred)"
+}

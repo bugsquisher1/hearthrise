@@ -24,20 +24,20 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.112';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.112';
-import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=0.2.112';
-import { makeUnit } from './world-state.js?v=0.2.112';
-import { holderOutside, resetPack } from './leash.js?v=0.2.112';
-import { chooseTargets } from './targeting.js?v=0.2.112';
-import { positionHeroes } from './roles.js?v=0.2.112';
-import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js?v=0.2.112';
-import { resolveAttacks } from './damage.js?v=0.2.112';
-import { castAbilities } from './abilities.js?v=0.2.112';
-import { tickStatuses } from './status.js?v=0.2.112';
-import { consume } from './consumables.js?v=0.2.112';
-import { flushXpGroup } from './xp-share.js?v=0.2.112';
-import { checkStopRules } from './conditions.js?v=0.2.112';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.116';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.116';
+import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=0.2.116';
+import { makeUnit } from './world-state.js?v=0.2.116';
+import { holderOutside, resetPack } from './leash.js?v=0.2.116';
+import { chooseTargets } from './targeting.js?v=0.2.116';
+import { positionHeroes } from './roles.js?v=0.2.116';
+import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js?v=0.2.116';
+import { resolveAttacks } from './damage.js?v=0.2.116';
+import { castAbilities } from './abilities.js?v=0.2.116';
+import { tickStatuses } from './status.js?v=0.2.116';
+import { consume } from './consumables.js?v=0.2.116';
+import { flushXpGroup } from './xp-share.js?v=0.2.116';
+import { checkStopRules } from './conditions.js?v=0.2.116';
 
 /** How many sub-steps one swing of `swingMs` is; refuses a swing that is not a whole number of them. */
 export function substepsOf(swingMs) {

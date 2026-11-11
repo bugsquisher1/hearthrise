@@ -177,7 +177,9 @@ function grade(o) {
   ok(o.catalogue === '1:0:true,2:25000:false,3:75000:false', `FS-1: hr_hero_slots reads ${o.catalogue}, not 1 starter / 25,000 / 75,000`);
   ok(o.playCap === 4 && o.maxConcurrent === 4, `FS-1: the play cap is ${o.playCap} (server) / ${o.maxConcurrent} (client), not 4`);
   ok(o.unlock4 === 0 && o.offer4 === 0, `FS-1: the generated catalogues still name slot 4 (hr_unlocks ${o.unlock4}, hr_unlock_offers ${o.offer4})`);
-  ok(o.shopSlots === 'character_slot.2,character_slot.3', `FS-1: src/data/shops.js sells hero slots ${o.shopSlots}`);
+  /* The shop's ladder moved on since (2027-03-25-hero-slots-one.sql sells slot 1 too, tests/hero-slots-one.mjs); this file's
+     property is that it never sells a fifth hero. */
+  ok(o.shopSlots && !o.shopSlots.split(',').includes('character_slot.4'), `FS-1: src/data/shops.js sells hero slots ${o.shopSlots}`);
 
   ok(o.newMade.every((h) => h?.ok === true), `FIXTURE: the new account's heroes: ${js(o.newMade)}`);
   ok(o.acc0?.hero_slots_max === 4 && o.acc0?.hero_slot_offer?.slot_id === 2 && o.acc0?.hero_slot_offer?.cost_gold === 25000,
@@ -197,7 +199,7 @@ function grade(o) {
   ok(o.at3.html.includes('A fourth hero slot costs 75,000 gold. An account holds up to 4 heroes.')
      && o.at3.html.includes('Buy a hero slot for 75,000 gold') && !/\b5 heroes|fifth/.test(o.at3.html),
     `FS-3: at three heroes the offer reads ${js(o.at3.html)}`);
-  ok(o.at3.line === 'You own 3 hero slots, and up to 4 heroes can play at once. More slots cost gold: the fourth is 75,000.',
+  ok(o.at3.line === 'You own 3 hero slots. Up to 4 heroes can play at once, and more slots cost gold.',
     `FS-3: at three heroes the line over the roster reads ${js(o.at3.line)}`);
   ok(o.at4.rows.split(',').length === 4 && o.at4.offer === null && o.at4.html === '' && o.at4.line === 'Up to 4 can play at once.',
     `FS-3: at four heroes the screen reads ${js(o.at4)} (expected four rows, no offer, "Up to 4 can play at once.")`);

@@ -1,0 +1,42 @@
+{
+  "id": "ty_butt_small",
+  "class": "fixture",
+  "style": "s1",
+  "material": "wood",
+  "source": "ty_butt_small.png",
+  "frame": [
+    32,
+    37
+  ],
+  "anchor_px": [
+    5,
+    36
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    },
+    {
+      "name": "hit",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 4
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "PixelLab create_image_pro_flash, brief 13 Y1 (art/world-src/gen-2026-11-09b/y1-yard-kit), style 1; cut by blob, no pixel redrawn",
+    "image": "0522afa4-0ea5-45a0-810b-2123ef7edc9d"
+  },
+  "notes": "The small butt. Its `hit` clip is the free 1 px shudder of the verdict: the rows above the cut's freeze row move 1 art px right, then 1 px left (0 r l 0 at 12 fps); the base never moves."
+}

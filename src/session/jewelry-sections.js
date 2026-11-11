@@ -7,9 +7,9 @@
 // call 6): the catalogue's table at the hero's Crafting level as the server holds it, the same table the engine rolls with
 // (src/core/artisan.js rollJewel). Display only: the bench rolls on the server, and this client never rolls.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.112';
-import { rollOdds, perksFor, JEWEL_PERKS, ODDS_SCALE, JEWEL_SKILL } from '../data/jewelry.js?v=0.2.112';
-import { skillsOf, bankOf } from './item-sections.js?v=0.2.112';
+import { ITEMS } from '../data/items.js?v=0.2.116';
+import { rollOdds, perksFor, JEWEL_PERKS, ODDS_SCALE, JEWEL_SKILL } from '../data/jewelry.js?v=0.2.116';
+import { skillsOf, bankOf } from './item-sections.js?v=0.2.116';
 
 const whole = (n) => (Number.isSafeInteger(n) && n >= 0 ? n : 0);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

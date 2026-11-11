@@ -1,0 +1,56 @@
+{
+ "barrow_knight/death/north-east": {
+  "foot": 53,
+  "lastLow": 59,
+  "shift": 0,
+  "drop": 0.38,
+  "stillBox": [
+   16,
+   4,
+   58,
+   53
+  ],
+  "lastBox": [
+   7,
+   23,
+   56,
+   59
+  ]
+ },
+ "barrow_knight/death/north-west": {
+  "foot": 53,
+  "lastLow": 58,
+  "shift": 0,
+  "drop": 0.61,
+  "stillBox": [
+   17,
+   5,
+   45,
+   53
+  ],
+  "lastBox": [
+   9,
+   35,
+   55,
+   58
+  ]
+ },
+ "barrow_knight/death/south-west": {
+  "foot": 52,
+  "lastLow": 59,
+  "shift": 0,
+  "drop": 0.27,
+  "stillBox": [
+   5,
+   4,
+   47,
+   52
+  ],
+  "lastBox": [
+   6,
+   17,
+   58,
+   59
+  ]
+ }
+}

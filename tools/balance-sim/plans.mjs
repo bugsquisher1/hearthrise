@@ -29,7 +29,7 @@ export async function loadAxes(root) {
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
   const { MATERIAL_TIERS } = await import(u('src/data/gear-tiers.js'));
   const { tierRowOf } = await import(u('src/data/hunt-tiers.js'));
-  const grounds = Object.values(G.OPEN_GROUNDS).map((g) => ({ id: g.id, band: HUNT_INDEX[g.hunt].band.slice(), groupFit: g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit,
+  const grounds = Object.values(G.OPEN_GROUNDS).map((g) => ({ id: g.id, band: HUNT_INDEX[g.hunt].band.slice(), groupFit: g.pockets.some((p) => p.forParty) ? 'party' : g.groupFit,
     soloFrom: g.soloFrom || null, densityMax: g.densityMax ? g.densityMax[0] : 8 })).sort((a, b) => a.band[0] - b.band[0]);
   const { ITEMS } = await import(u('src/data/items.js'));
   /* Every cape and jewelry slot's best row a Level can wear. */
@@ -919,7 +919,9 @@ export function buildPlan(name, axes, scale = 1) {
     const SETS = name.startsWith('formulaF') ? ['F'] : name.startsWith('formulaH') ? ['H'] : ['T', 'F'];
     for (const [ground, s] of Object.entries(SHAPE)) for (const rows of SETS) for (const tier of s.normalOnly ? ['normal'] : rows === 'H' ? ['dangerous', 'deadly'] : ['normal', 'dangerous', 'deadly']) {
       /* the engine's tier row on this ground (src/data/balance-sheet.js tierRowFor, in the proposal), else the table's */
-      const dial = { ...((P.tiers && P.tiers[ground] && P.tiers[ground][tier]) || axes.tierDials[tier]), ...(rows === 'H' ? HP_DIAL[tier] : {}) };
+      const dial0 = { ...((P.tiers && P.tiers[ground] && P.tiers[ground][tier]) || axes.tierDials[tier]), ...(rows === 'H' ? HP_DIAL[tier] : {}) };
+      /* the sheet's TIER_DIALS hold ONE pull for every group since 2026-11-08; an engine row holds one a party size */
+      const dial = { ...dial0, pull: Array.isArray(dial0.pull) ? dial0.pull : [dial0.pull, dial0.pull, dial0.pull, dial0.pull] };
       const cell = (party, level, gear) => {
         const live = axes.tierRowOf(ground, tier);
         const pull = rows !== 'T' ? dial.pull[party.length - 1] : live.pull[party.length - 1];

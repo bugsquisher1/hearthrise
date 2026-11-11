@@ -49,7 +49,7 @@ const COIN_CASE = ['meadowbrook_thicket', 41, 1];
 const BAR = Object.freeze({ xpUnderRight: 1, xpOverOwn: 1.25, feeShare: [0.15, 0.6], coinPerKill: 2, commonsPerKill: [0.75, 1.33] });
 
 const band = (gid) => HUNT_INDEX[G.OPEN_GROUNDS[gid].hunt].band;
-const fitOf = (gid) => (G.HUNT_GROUNDS[gid].pockets.some((p) => p.minParty) ? 'party' : G.HUNT_GROUNDS[gid].groupFit || 'both');
+const fitOf = (gid) => (G.HUNT_GROUNDS[gid].pockets.some((p) => p.forParty) ? 'party' : G.HUNT_GROUNDS[gid].groupFit || 'both');
 const compsOf = (size) => (size === 4 ? FOUR : SOLO);
 const rightOf = (L) => Object.keys(G.OPEN_GROUNDS).filter((g) => band(g)[0] <= L && L <= band(g)[1]).sort((a, b) => band(b)[0] - band(a)[0])[0];
 const freeOf = (L) => Object.keys(G.OPEN_GROUNDS).filter((g) => band(g)[0] <= L);

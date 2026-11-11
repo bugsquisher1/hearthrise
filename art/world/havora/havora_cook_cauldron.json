@@ -19,10 +19,10 @@
   "anims": [
     {
       "name": "idle",
-      "fps": 0,
-      "loop": false,
+      "fps": 8,
+      "loop": true,
       "dirs": {
-        "s": 1
+        "s": 4
       }
     }
   ],
@@ -38,5 +38,5 @@
     "cost": 10,
     "style": "havora/havora_tavern"
   },
-  "notes": "An iron cauldron hung from a tripod over a small fire: the cook yard's stew pot (lane/b-havora-polish 2026-10-26: the cook yard's own art in place of the cottage forge sprite). Candidate 0 of 16, cropped to its art."
+  "notes": "An iron cauldron hung from a tripod over a small fire: the cook yard's stew pot (lane/b-havora-polish 2026-10-26: the cook yard's own art in place of the cottage forge sprite). Candidate 0 of 16, cropped to its art. Flame loop: the still with only its warm flame pixels moving (brief 13 L1 cut, verdict laid 0 1 2 1 at 8 fps), imported in place."
 }

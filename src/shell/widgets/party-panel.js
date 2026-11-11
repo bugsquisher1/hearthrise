@@ -31,21 +31,22 @@
 // Built once; each member is a keyed row (src/render/paint.js rows), patched in
 // place. The expand toggle and the intent scratch live on the panel element.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.121';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.121';
-import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.121';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.121';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.121';
-import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.121';
-import { runIntent } from '../intent-words.js?v=0.2.121';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.121';
-import { short, whole } from '../../render/format.js?v=0.2.121';
-import { glyphSvg } from '../launcher.js?v=0.2.121';
-import { markPlayer } from '../context-menu.js?v=0.2.121';
-import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.121';
-import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.121';
-import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.121';
-import { foldButtonHtml } from '../widget-move.js?v=0.2.121';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.122';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.122';
+import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.122';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.122';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.122';
+import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.122';
+import { runIntent } from '../intent-words.js?v=0.2.122';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.122';
+import { short, whole } from '../../render/format.js?v=0.2.122';
+import { glyphSvg } from '../launcher.js?v=0.2.122';
+import { markPlayer } from '../context-menu.js?v=0.2.122';
+import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.122';
+import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.122';
+import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.122';
+import { foldButtonHtml } from '../widget-move.js?v=0.2.122';
+import { t } from '../../render/player-text.js?v=0.2.122';
 
 function memberHtml(glyphs) {
   return '<li class="hp-m">'
@@ -54,7 +55,7 @@ function memberHtml(glyphs) {
     + '<div class="hp-line"><b class="hp-name"></b>'
     + '<span class="hp-lead" title="Party leader">' + glyphSvg(glyphs, 'uiCrown') + '</span><span class="hp-lv"></span></div>'
     + '<div class="hp-line is-sub"><span class="hp-role"></span><span class="hp-state"></span>'
-    + '<button type="button" class="hh-tool hp-kick" data-hs-act="kick" hidden>Remove</button></div>'
+    + '<button type="button" class="hh-tool hp-kick" data-hs-act="kick" hidden>' + t('controls.remove') + '</button></div>'
     + '<p class="hp-turn"></p>'
     + gaugeHtml('hp', 'Health') + gaugeHtml('mana', 'Mana')
     + togetherHtml()
@@ -203,8 +204,8 @@ export function renderPartyPanel() {
   return panelHtml('hp-party', 'Party',
     '<button type="button" class="hh-tool" data-hs-act="expand" aria-pressed="false" hidden>DPS and HPS</button>' + foldButtonHtml('Party'),
     '<p class="hh-empty">Not in a party.</p><ol class="hp-members"></ol>' + holdHtml()
-    + '<div class="hp-acts"><button type="button" class="hh-tool" data-hs-act="leave" hidden>Leave party</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="disband" hidden>Disband</button></div>'
+    + '<div class="hp-acts"><button type="button" class="hh-tool" data-hs-act="leave" hidden>' + t('controls.leave_party') + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="disband" hidden>' + t('controls.disband') + '</button></div>'
     + '<p class="hh-intent-msg hp-msg" role="status"></p><p class="hp-foot" hidden>You each pay your own supplies.</p>');
 }
 

@@ -3228,3 +3228,12 @@ plus authored decals is the route; (4) a rounded slab with one glyph reads as a 
 the company it keeps; (5) judge a flier's seat in its sidecar frame, after placement, not on the generator's canvas.
 ### 2026-11-10 lane/d-scaled-and-events-mocks (mocks only: scaled hunts, live events)
 Boards in .claude/coordination/mocks/2026-11-10 (4 boards, 9 screens, SPEC.md). Method: capture the real page from local-world (canvases to images, scripts stripped, a base href to the repo root), edit it in Playwright, save the DOM, so a mock is today's screen plus the new part. Lessons: (1) a mock of a phone sheet must sit in an iframe at 922x423 or the desktop rules apply; (2) .hs-win::before is absolute, so a window slice set to position static paints its floor over the whole first viewport; (3) a full-page shot leaves iframes under the fold blank unless the viewport is grown to the page first; (4) bake a scroll position as a negative top margin, a load script scrolls before the images have a height.
+### 2026-11-11 lane/a-hunt-view-1024 (the fight hidden at 1024x768)
+Measured on local-world (fresh solo hero holding Tamsin's rat task, Mill Cellar): share of the playfield's centre two thirds (the World
+between the hunt bar's foot and the action bar's top) under widgets at 1024x768 was 29.1% with the coach open, 19.8% once it rests;
+now 9.3% and 0.0%. 1280, 1440 and 922x423 unchanged by design. Fix: a desktop default fold per row ('narrow', 'narrow-alone', hud.js
+FOLD_RULES) read against one width token (--hud-fold-below: 1280px); a folded widget is its title's width on every size; Hunt details
+opens a folded analyzer; the folded Tally keeps its count in its title. HS-28 guards it. Lessons: (1) measure the playfield, not the
+canvas: the action bar always takes a quarter, so a canvas metric can never be met; (2) a fold that keeps the open box's width still
+steps under the hunt bar into the fight, so a fold must shrink too; (3) folding a counter hides the number a coach card points at:
+keep it in the title. Open: the coach card's reading window (20 s or more) still covers about 9% at 1024 before it rests.

@@ -551,7 +551,7 @@ async function checks(overrides, shots) {
 
 const MUTANTS = [
   ['Take stays on while hunting', 'src/shell/windows/tally.js', "prop(btn, 'disabled', !!why || st.sc.pending || st.hunting || !st.t || (!st.t.weight && !st.suggest));", "prop(btn, 'disabled', !!why || st.sc.pending || !st.t || !st.t.weight);"],
-  ['a done task is handed in mid-hunt', 'src/shell/windows/tally.js', "const due = t && !st.hunting && t.paidToday < t.perDay", 'const due = t && t.paidToday < t.perDay'],
+  ['a done task is handed in mid-hunt', 'src/shell/windows/tally.js', "const due = tally && !st.hunting && tally.paidToday < tally.perDay", 'const due = tally && tally.paidToday < tally.perDay'],
   ['the visit is sent on every repaint', 'src/shell/windows/tally.js', '  if (due.length && sc.collected !== key && !sc.pending && ctx.account) {', '  if (due.length && !sc.pending && ctx.account) {'],
   ['the reader invents a tally', 'src/session/tally-sections.js', "  if (!isObj(raw)) return null;\n  const had", "  if (!isObj(raw)) raw = { held: [], paid_today: 0, per_day: 3, held_max: 3, order: [] };\n  const had"],
   ['take carries a count', 'src/session/tally-intents.js', "{ p_slot: cs.slot, p_task: task, p_weight: weight == null ? null : weight, p_idem: newIdem() }", "{ p_slot: cs.slot, p_task: task, p_weight: weight == null ? null : weight, p_count: 1, p_idem: newIdem() }"],
@@ -559,7 +559,7 @@ const MUTANTS = [
   ['a refusal reads as a generic line', 'src/shell/windows/tally.js', "  const run = (send, busy, done) => runIntent(sc, repaint, send, busy, (r) => { sc.stale = true; return done(r); }, cs);", "  const run = (send, busy, done) => runIntent(sc, repaint, async () => { const r = await send(); if (!r.ok) r.error = 'refused'; return r; }, busy, (r) => { sc.stale = true; return done(r); }, cs);"],
   ['the hunt list drops the tally line', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(' · '));", "text(li.querySelector('.hw-hunt-tally'), '');"],
   ['the Tally is held at its capped height', 'src/shell/hud-room.js', 'phone ? rel(el) : Object.assign(rel(el), { height: wholeHeight(el) })', 'rel(el)'],
-  ['her board says nothing of a missing weight', 'src/shell/windows/tally.js', "const takeWhy = sc.board ? takeWhyOf(t, st.hunting, suggest) : '';", "const takeWhy = '';"],
+  ['her board says nothing of a missing weight', 'src/shell/windows/tally.js', "const takeWhy = sc.board ? takeWhyOf(tally, st.hunting, suggest) : '';", "const takeWhy = '';"],
   ['every Take stays grey until a weight is picked', 'src/shell/windows/tally.js', "st.hunting || !st.t || (!st.t.weight && !st.suggest));", "st.hunting || !st.t || !st.t.weight);"],
   ['a first Take names no weight', 'src/shell/windows/tally.js', "takeTask(ctx.account, cs, task, first ? first.weight : null)", "takeTask(ctx.account, cs, task, null)"],
   ['a first Take guesses with nothing to go on', 'src/shell/windows/tally.js', "const weight = wears || WEIGHT_FOR_ROLE[role] || null;", "const weight = wears || WEIGHT_FOR_ROLE[role] || 'heavy';"],
@@ -567,8 +567,8 @@ const MUTANTS = [
   ['the tally sits at its anchor, over the analyzer', 'src/shell/shell.js', '      const top = stackBelow(at, above, DOCK_EDGE);', '      const top = Math.round(at.top);'],
   ['her greeting is the riddle again', 'src/data/tally-tasks.js', "greeting: 'Take a task from my board and go hunting. When the count\\'s done, I\\'ll pay you in town with gold, plus the armor or materials my board shows.',",
     "greeting: 'Bring me your half of the stick when the count is done, and I pay. Coin, and a piece for your back.',"],
-  ['a tally with nothing to show keeps its box', 'src/shell/widgets/tally-hud.js', "  cls(el, 'is-quiet', !t || (!held.length && (hunting || !met)));", "  cls(el.querySelector('.hs-tally'), 'is-quiet', !t || (!held.length && (hunting || !met)));"],
-  ['a new hero\'s first screen carries Tamsin\'s line beside the coach', 'src/shell/widgets/tally-hud.js', '  const met = !!t && (!!t.weight || t.recent.length > 0);', '  const met = !!t;'],
+  ['a tally with nothing to show keeps its box', 'src/shell/widgets/tally-hud.js', "  cls(el, 'is-quiet', !tl || (!held.length && (hunting || !met)));", "  cls(el.querySelector('.hs-tally'), 'is-quiet', !tl || (!held.length && (hunting || !met)));"],
+  ['a new hero\'s first screen carries Tamsin\'s line beside the coach', 'src/shell/widgets/tally-hud.js', '  const met = !!tl && (!!tl.weight || tl.recent.length > 0);', '  const met = !!tl;'],
   /* TW-11: move and fold (Tyler 2026-10-25) */
   ['a folded analyzer keeps its full minimum height', 'src/shell/shell.js', "      el.style.minHeight = L.folded ? '' : row.min[1] + 'px';", "      el.style.minHeight = row.min[1] + 'px';"],
   ['the fold press does nothing', 'src/shell/widget-move.js', '    hud.setFolded(id, !hud.layoutOf(id).folded);', ''],

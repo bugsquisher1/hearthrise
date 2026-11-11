@@ -37,7 +37,6 @@ export const HOUSE_TEXT = Object.freeze({
   rooms_head: 'Rooms',
   chests_head: 'Storage chests',
   confirm_aria: 'Confirm the purchase',
-  cancel: 'Cancel',
   tier_n: 'tier {n}',
   your_house: 'Your house',
   loading: 'Reading your house from the server…',
@@ -51,7 +50,6 @@ export const HOUSE_TEXT = Object.freeze({
   deed_opens_room: 'the {room}',
   deed_next_home: 'The next home.',
   deed_after: 'After the {tier}.',
-  buy: 'Buy',
   upgrade: 'Upgrade',
   build: 'Build',
 

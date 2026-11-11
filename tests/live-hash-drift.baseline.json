@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-11",
- "replay_ms": 46222,
+ "replay_ms": 3768,
  "counts": {
-  "tracked_names": 832,
-  "entries": 684
+  "tracked_names": 837,
+  "entries": 689
  },
  "functions": [
   {
@@ -1314,17 +1314,62 @@
     "2026-09-28-settle-before-mutate.sql",
     "2026-11-27-account-depot.sql",
     "2026-11-28-storage-chests.sql",
-    "2027-01-12-market-account.sql"
+    "2027-01-12-market-account.sql",
+    "2027-04-13-bank-move-many.sql"
    ],
    "live": {
-    "md5": "9a2f4c0dfe2528f8eda1f0f7126f7c1b",
-    "norm_len": 8200,
+    "md5": "3fc6d06eb528e1bf7e8beb285d4d3c1c",
+    "norm_len": 5011,
     "measured": "2026-11-11",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "9a2f4c0dfe2528f8eda1f0f7126f7c1b",
-    "norm_len": 8200,
+    "md5": "3fc6d06eb528e1bf7e8beb285d4d3c1c",
+    "norm_len": 5011,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_bank_move_many(p_slot integer, p_items jsonb, p_idem uuid)",
+   "name": "hr_bank_move_many",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-13-bank-move-many.sql"
+   ],
+   "live": {
+    "md5": "fb5356da9d615e2d6dd33dcf9ccb18d0",
+    "norm_len": 7203,
+    "measured": "2026-11-11",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "fb5356da9d615e2d6dd33dcf9ccb18d0",
+    "norm_len": 7203,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_bank_move_stack(p_user uuid, p_slot integer, p_item text, p_qty bigint, p_dir text, p_bag_cap integer)",
+   "name": "hr_bank_move_stack",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-13-bank-move-many.sql"
+   ],
+   "live": {
+    "md5": "4d9192c9a31f1818fee1fabf8bceb95f",
+    "norm_len": 3729,
+    "measured": "2026-11-11",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "4d9192c9a31f1818fee1fabf8bceb95f",
+    "norm_len": 3729,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1850,17 +1895,18 @@
    ],
    "touched_by": [
     "2027-03-12-boss-call.sql",
-    "2027-03-22-live-events.sql"
+    "2027-03-22-live-events.sql",
+    "2027-04-05-call-out-alone.sql"
    ],
    "live": {
-    "md5": "0ffb5feaddcdd7f1ea2a0f04854603ab",
-    "norm_len": 4194,
+    "md5": "3b34ae9f41620dbdf1b63880ca338c57",
+    "norm_len": 4902,
     "measured": "2026-11-11",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "0ffb5feaddcdd7f1ea2a0f04854603ab",
-    "norm_len": 4194,
+    "md5": "3b34ae9f41620dbdf1b63880ca338c57",
+    "norm_len": 4902,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1896,17 +1942,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-03-12-boss-call.sql"
+    "2027-03-12-boss-call.sql",
+    "2027-04-05-call-out-alone.sql"
    ],
    "live": {
-    "md5": "e93d7196db40c7bab081da4b95f29a96",
-    "norm_len": 970,
+    "md5": "f6bc9af9ded442afd0691def0d07b5c5",
+    "norm_len": 1301,
     "measured": "2026-11-11",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "e93d7196db40c7bab081da4b95f29a96",
-    "norm_len": 970,
+    "md5": "f6bc9af9ded442afd0691def0d07b5c5",
+    "norm_len": 1301,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1938,22 +1985,24 @@
    "sig": "hr_boss_call_quote(p_user uuid, p_slot integer, p_call text)",
    "name": "hr_boss_call_quote",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2027-03-12-boss-call.sql",
-    "2027-03-22-live-events.sql"
+    "2027-03-22-live-events.sql",
+    "2027-04-05-call-out-alone.sql"
    ],
    "live": {
-    "md5": "445a7b269f24fdedf1f3254fb62e148c",
-    "norm_len": 1723,
+    "md5": "28b7f404b00a0988902076c8e2dc3254",
+    "norm_len": 1864,
     "measured": "2026-11-11",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "445a7b269f24fdedf1f3254fb62e148c",
-    "norm_len": 1723,
+    "md5": "28b7f404b00a0988902076c8e2dc3254",
+    "norm_len": 1864,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -7511,6 +7560,50 @@
    "agree": true
   },
   {
+   "sig": "hr_hunt_preset_project(p_user uuid, p_slot integer, p_preset integer)",
+   "name": "hr_hunt_preset_project",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-13-hunt-preset-read.sql"
+   ],
+   "live": {
+    "md5": "735f8b7240dfa2146213902ce520fb0f",
+    "norm_len": 9309,
+    "measured": "2026-11-11",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "735f8b7240dfa2146213902ce520fb0f",
+    "norm_len": 9309,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_preset_read(p_slot integer, p_preset integer)",
+   "name": "hr_hunt_preset_read",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-13-hunt-preset-read.sql"
+   ],
+   "live": {
+    "md5": "e853438efa5055cb48f5b1793b0e5881",
+    "norm_len": 1198,
+    "measured": "2026-11-11",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "e853438efa5055cb48f5b1793b0e5881",
+    "norm_len": 1198,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_hunt_preset_rename(p_slot integer, p_preset integer, p_name text, p_idem uuid)",
    "name": "hr_hunt_preset_rename",
    "tracked_by": [
@@ -8539,6 +8632,28 @@
    "replay": {
     "md5": "5404ddd09f552cc920faae8d90bd6d92",
     "norm_len": 2252,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_item_lock_many(p_slot integer, p_items jsonb, p_locked boolean, p_idem uuid)",
+   "name": "hr_item_lock_many",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-13-bank-move-many.sql"
+   ],
+   "live": {
+    "md5": "7b61b99783ba76a00fac31e63357cdec",
+    "norm_len": 3239,
+    "measured": "2026-11-11",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "7b61b99783ba76a00fac31e63357cdec",
+    "norm_len": 3239,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -27,23 +27,24 @@
 // Storage has room and sells every stack planned "Sell"; off with its reason (a
 // hunt, nothing planned), and its line is the server's answer.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bankOf, depotOf, shopOf } from '../../session/item-sections.js?v=0.2.121';
-import { STORE_SEEN_MAX } from '../../session/residue.js?v=0.2.121';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.121';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.121';
-import { whole } from '../../render/format.js?v=0.2.121';
-import { glyphSvg } from '../launcher.js?v=0.2.121';
-import { itemName } from '../widgets/bits.js?v=0.2.121';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.121';
-import { BAG_CATS, BAG_SORTS, view } from '../bag-model.js?v=0.2.121';
-import { storePrefsOf, markStored } from '../storage-model.js?v=0.2.121';
-import { runIntent } from '../intent-words.js?v=0.2.121';
-import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.121';
-import { showTip, hideTip } from './item-tip.js?v=0.2.121';
-import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.2.121';
-import { amountHtml, amountOf, stepAmount } from '../widgets/amount.js?v=0.2.121';
-import { dispatchBlock, runDispatch } from '../loot-dispatch.js?v=0.2.121';
-import { toolLossWords } from '../town-work.js?v=0.2.121';
+import { bagOf, bankOf, depotOf, shopOf } from '../../session/item-sections.js?v=0.2.122';
+import { STORE_SEEN_MAX } from '../../session/residue.js?v=0.2.122';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.122';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.122';
+import { whole } from '../../render/format.js?v=0.2.122';
+import { glyphSvg } from '../launcher.js?v=0.2.122';
+import { itemName } from '../widgets/bits.js?v=0.2.122';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.122';
+import { BAG_CATS, BAG_SORTS, view } from '../bag-model.js?v=0.2.122';
+import { storePrefsOf, markStored } from '../storage-model.js?v=0.2.122';
+import { runIntent } from '../intent-words.js?v=0.2.122';
+import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.122';
+import { showTip, hideTip } from './item-tip.js?v=0.2.122';
+import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.2.122';
+import { amountHtml, amountOf, stepAmount } from '../widgets/amount.js?v=0.2.122';
+import { dispatchBlock, runDispatch } from '../loot-dispatch.js?v=0.2.122';
+import { toolLossWords } from '../town-work.js?v=0.2.122';
+import { t } from '../../render/player-text.js?v=0.2.122';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { query: '', pending: false, msg: '', press: null, pressed: false }; SCRATCH.set(cs, s); } return s; };
@@ -57,15 +58,15 @@ const bagSeenOf = (cs, bag) => residueOf(cs).bagSeen || Object.fromEntries(bag.m
 export function renderStorage(ctx) {
   const g = ctx.glyphs;
   return '<div class="hw-store">'
-    + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="search" placeholder="Find an item" aria-label="Find an item" autocomplete="off"></span>'
-    + '<label class="hw-sort"><span>Sort</span><select class="hh-select" data-hs-act="sort">' + BAG_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div>'
+    + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="search" placeholder="Search items" aria-label="Search items" autocomplete="off"></span>'
+    + '<label class="hw-sort"><span>' + t('controls.sort') + '</span><select class="hh-select" data-hs-act="sort">' + BAG_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div>'
     + '<div class="hw-cats" role="group" aria-label="Show">' + BAG_CATS.map(([id, l]) => '<button type="button" class="hw-cat" data-hs-act="cat" data-cat="' + id + '" aria-pressed="false">' + esc(l) + '</button>').join('') + '</div>'
     + '<p class="hs-note hw-store-note"></p>'
     + '<h3 class="hw-ledger-head is-on">In storage <small class="hw-store-n" data-n="bank"></small></h3>'
     + '<ul class="hw-pockets" data-side="bank" role="listbox" aria-label="In storage"></ul><p class="hh-empty hw-store-none" data-none="bank"></p>'
     + '<p class="hs-note hw-store-room"></p>'
     + '<h3 class="hw-ledger-head is-on">In your bag <small class="hw-store-n" data-n="bag"></small></h3>'
-    + '<div class="hw-tools hw-store-do"><button type="button" class="hh-tool" data-hs-act="dispatch">Dispatch loot</button><p class="hw-why"></p></div>'
+    + '<div class="hw-tools hw-store-do"><button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button><p class="hw-why"></p></div>'
     + '<ul class="hw-pockets" data-side="bag" role="listbox" aria-label="In your bag"></ul><p class="hh-empty hw-store-none" data-none="bag"></p>'
     /* The press's answer: "Putting it away…", then the result or the refusal. At the foot, it stands in view however the window is scrolled
        (windows.css, sticky), and its coming moves no stack from under the hand. Above the grids, a bag scrolled into reach left it out of sight, and a
@@ -73,7 +74,8 @@ export function renderStorage(ctx) {
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
-const STORE_AWAY = 'Your storage is at home and your hero is out hunting. Leave the hunt to use it.';
+/* The one sentence the bag's Deposit says too (src/data/text/bag.js). */
+const STORE_AWAY = t('bag.storage_away');
 
 /* SAY WHY: a press on a stack with the hero out hunting moves nothing, and the note that says so has scrolled away by the time the bag is in reach. */
 function sayAway(cs, sc, repaint) {
@@ -156,10 +158,10 @@ function move(cs, sc, repaint, id, qty, dir) {
     () => (dir === 'withdraw' ? 'Took out ' : 'Put away ') + whole(qty) + ' ' + itemName(id) + '.' + (slower ? ' ' + slower : ''));
 }
 
-/* "How many?" beside the stack: Store X / Take X, up to the stack the server last sent. */
+/* "How many?" beside the stack: Deposit X / Withdraw X, up to the stack the server last sent. */
 function askAmount(ctx, body, cs, sc, repaint, row, dir, at) {
   hideTip(ctx.doc);
-  const verb = dir === 'withdraw' ? 'Take' : 'Store';
+  const verb = dir === 'withdraw' ? t('controls.withdraw') : t('controls.deposit');
   openFloatMenu(ctx.doc, amountHtml({ title: verb + ' how many ' + itemName(row.id) + '?', verb, max: row.qty, value: row.qty, act: 'amt-go' }), at, {
     label: verb + ' how many',
     onAct: (action) => {
@@ -174,27 +176,27 @@ function askAmount(ctx, body, cs, sc, repaint, row, dir, at) {
   });
 }
 
-renderStorage.act = function actStorage(ctx, body, action, ev, t) {
+renderStorage.act = function actStorage(ctx, body, action, ev, el) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => renderStorage.patch(body, ctx);
-  if (action === 'search' && ev.type === 'input') { sc.query = t.value.slice(0, 40); repaint(); return false; }
-  if (action === 'sort' && ev.type === 'change') { setPref(cs, 'sort', t.value); repaint(); return false; }
-  if (action === 'cat' && ev.type === 'click') { setPref(cs, 'cat', t.getAttribute('data-cat')); repaint(); return true; }
-  if (action === 'dispatch') { if (ev.type === 'click' && !sc.pending && !t.disabled) runDispatch(ctx.account, cs, sc, repaint); return ev.type === 'click'; }
+  if (action === 'search' && ev.type === 'input') { sc.query = el.value.slice(0, 40); repaint(); return false; }
+  if (action === 'sort' && ev.type === 'change') { setPref(cs, 'sort', el.value); repaint(); return false; }
+  if (action === 'cat' && ev.type === 'click') { setPref(cs, 'cat', el.getAttribute('data-cat')); repaint(); return true; }
+  if (action === 'dispatch') { if (ev.type === 'click' && !sc.pending && !el.disabled) runDispatch(ctx.account, cs, sc, repaint); return ev.type === 'click'; }
   if (action !== 'withdraw' && action !== 'deposit') return false;
-  const id = t.getAttribute('data-item');
+  const id = el.getAttribute('data-item');
   const type = ev.type;
-  if (type === 'mouseover') { showTip(ctx.doc, t, id, {}); return false; }
-  if (type === 'mouseout') { if (!t.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
+  if (type === 'mouseover') { showTip(ctx.doc, el, id, {}); return false; }
+  if (type === 'mouseout') { if (!el.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
   if (type === 'pointerup' || type === 'pointercancel') { clearTimeout(sc.press); return false; }
-  const off = t.getAttribute('aria-disabled') === 'true';
+  const off = el.getAttribute('aria-disabled') === 'true';
   const row = ((action === 'withdraw' ? bankOf(cs) : bagOf(cs)) || []).find((r) => r.id === id);
   if (type === 'pointerdown') {
     if (!ev.pointerType || ev.pointerType === 'mouse' || off || !row) return false;
     sc.pressed = false;
     clearTimeout(sc.press);
-    sc.press = setTimeout(() => { sc.pressed = true; const r = t.getBoundingClientRect(); askAmount(ctx, body, cs, sc, repaint, row, action, { x: r.left, y: r.bottom }); }, LONG_PRESS_MS);
+    sc.press = setTimeout(() => { sc.pressed = true; const r = el.getBoundingClientRect(); askAmount(ctx, body, cs, sc, repaint, row, action, { x: r.left, y: r.bottom }); }, LONG_PRESS_MS);
     return false;
   }
   if (type === 'contextmenu') {

@@ -42,6 +42,22 @@
 .hsum-name small { font-size: var(--t-micro); line-height: 1.2; color: var(--ink-2); }
 .hsum-name small:empty { display: none; }
 .hsum-n { flex: none; font-size: var(--t-small); font-weight: 700; color: var(--ink); }
+/* BACK IN TOWN (UX flow audit 2026-11-11, flow C): the trip home as a list between the numbers and the foot, each row one step with its
+   count and value, its one press at the right; the first open step's press is the card's gold plate; a done row stays, ticked in green. */
+.hsum-town { display: none; margin-top: 4px; }
+.hsum-town.is-on { display: block; }
+.hsum-steps { margin: 0 2px 4px; padding: 0; list-style: none; }
+.hsum-step { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 4px 0; border-top: 2px solid var(--steel-sep); }
+.hsum-step:first-child { border-top: 0; }
+.hsum-step-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.hsum-step-name b { font-size: var(--t-small); font-weight: 700; color: var(--ink); }
+.hsum-step-name small { font-size: var(--t-micro); line-height: 1.25; color: var(--ink-2); }
+.hsum-step-name small:empty { display: none; }
+.hsum-step .hh-tool { flex: none; min-height: 36px; }
+.hsum-step.is-done .hsum-step-name b { color: var(--ink-2); }
+.hsum-step.is-done .hsum-ico { color: var(--green); }
+.hsum-step .hsum-ico .hs-glyph { width: 24px; height: 24px; }
+.hsum-done { flex: none; font-family: var(--f-display); font-weight: 700; font-size: var(--t-micro); letter-spacing: .06em; color: var(--green); }
 /* Sticks to the foot of the scrolling body while the card runs past it: its floor covers what scrolls under it, out to the body's edges. */
 .hsum-foot { position: sticky; bottom: -12px; z-index: 2; margin: 0 -12px; padding: 0 12px 12px; background: var(--bg-1); }
 .hsum-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 2px 4px; }
@@ -73,6 +89,8 @@
   .hsum-card.is-on { display: flex; flex-direction: column; }
   .hsum-card > * { order: 3; }
   .hsum-card > .hsum-head, .hsum-card > .hsum-reason { order: 0; }
+  /* the steps come before the foot (the same list, stacked), so the first open step's gold press is the first thing under the reason */
+  .hsum-card > .hsum-town { order: 1; }
   .hsum-foot { position: static; order: 1; margin: 0 0 8px; padding: 0; background: none; }
   .hsum-card > .hsum-stats { order: 2; }
   .hsum-actions { margin-top: 0; }

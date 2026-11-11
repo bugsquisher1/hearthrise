@@ -12,7 +12,7 @@
 //   T2 Gnoll Packlord  (combat 15+)  → Packlord's Band     ring
 //   T3 The Mire Witch  (combat 30+)  → Mirewort Drops      earrings
 //   T4 The Barrow King (combat 45+)  → Barrow-King's Mantle cape
-//   T5 The Frost Jarl  (combat 60+)  → Jarl's Rime Necklace necklace
+//   T5 The Frost Jarl  (combat 60+)  → Jarl's Collar        necklace
 //
 // A CHAMPION is a step into the next tier's danger at its own tier's gate: its
 // hp/atk/def/xp/gp sit inside [its own tier's band floor, the NEXT tier's band
@@ -53,7 +53,7 @@ export const CHAMPION_ITEMS = {
     steadyPm: 150, strB: 3, rarity: 'epic', tier: 4, reqSkill: 'level', reqLv: 52,
   },
   jarls_rimetorc: {
-    n: "Jarl's Rime Necklace", icon: '📿', v: 3300, type: 'jewelry', slot: 'necklace',
+    n: "Jarl's Collar", icon: '📿', v: 3300, type: 'jewelry', slot: 'necklace',  /* Rime Necklace -> Collar (designer 2026-11-11, lane/d-small-calls): the text says what it is, a frozen iron neck ring; one plain noun like Charm, Band, Drops, Mantle */
     atkB: 7, strB: 6, rarity: 'legendary', tier: 5, reqSkill: 'level', reqLv: 66,
   },
 };

@@ -11,9 +11,9 @@
 // way IN (envelope) and on the way OUT (put), so a malformed or oversized value
 // can never reach a renderer or the server.
 // ════════════════════════════════════════════════════════════════════════
-import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.121';
-import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.121';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.121';
+import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.122';
+import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.122';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.122';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -75,8 +75,8 @@ function sanitizeCombatLog(v) {
   return out;
 }
 
-import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.121';
-import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.121';
+import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.122';
+import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.122';
 
 const ITEM_ID = /^[a-z0-9_]{1,64}$/;
 export const BAG_SEEN_MAX = 512;
@@ -185,9 +185,12 @@ function sanitizePanelAlpha(v) {
 /* The coach line's fold (src/shell/launcher.js coachFoldOf): folded or not, and the card id the player last had in
    front of them (a goal id joins its parts, so it may run long); and `read`, the tutorial cards the player pressed
    Got it on or had on screen long enough to read (src/shell/launcher.js markCoachRead; ids, oldest first, bounded).
-   and `back`, the hunt session the player last came back to after an absence, with `backAt`, the stamp it was told from (src/shell/away-recap.js).
+   and `back`, the hunt session the player last came back to after an absence, with `backAt`, the stamp it was told from (src/shell/away-recap.js);
+   and `hid`, the cards the player pressed Got it on that a server fact finishes (Tyler 2026-11-11: tips are never mandatory): the
+   card stays hidden, the chain's own progress stays the server's (ids, oldest first, bounded; a goal id joins its parts).
    Display state like the death popup's seen mark: a read only finishes a card that teaches; it gates and spends nothing. */
 export const COACH_READ_MAX = 128;
+export const COACH_HID_MAX = 64;
 function sanitizeCoach(v) {
   const out = {};
   if (!isObj(v)) return out;
@@ -196,6 +199,10 @@ function sanitizeCoach(v) {
   if (Array.isArray(v.read)) {
     const read = Array.from(new Set(v.read.filter((id) => typeof id === 'string' && /^[a-z0-9_]{1,64}$/.test(id)))).slice(-COACH_READ_MAX);
     if (read.length) out.read = read;
+  }
+  if (Array.isArray(v.hid)) {
+    const hid = Array.from(new Set(v.hid.filter((id) => typeof id === 'string' && /^[a-z0-9_]{1,256}$/.test(id)))).slice(-COACH_HID_MAX);
+    if (hid.length) out.hid = hid;
   }
   if (typeof v.back === 'string' && /^[A-Za-z0-9_:.-]{1,64}$/.test(v.back)) out.back = v.back;
   /* the last-seen stamp that return's line was told from (away-recap.js awayMinMsOf) */
@@ -245,6 +252,7 @@ const SANITIZERS = Object.freeze({
   townZoom: sanitizeTownZoom,       // display preference: the viewer's town zoom, one for every hero (src/world/town-zoom.js); gates and spends nothing
   shareReplay: sanitizeSwitch,      // display preference: whether the screen may be recorded, one for every hero (src/session/replay-pref.js); gates and spends nothing
   idleMotion: sanitizeSwitch,       // display preference: whether standing units breathe, one for every hero (src/world/idle-motion.js); gates and spends nothing
+  tips: sanitizeSwitch,             // display preference: whether the coach's cards and the town criers show, one for every hero (src/data/tips.js); gates and spends nothing
   stationSort: sanitizeStationSort, // display preference: each crafting station's recipe order (src/shell/station-sort.js); gates and spends nothing
 });
 

@@ -16,19 +16,19 @@
 // The Inventory (its item menu, its This hunt tab, its tools row) and the Storage
 // window read this; the bag and Storage change only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { isStartKit } from './bag-model.js?v=0.2.121';
-import { bagOf, rulesOf } from '../session/item-sections.js?v=0.2.121';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.121';
-import { whole, gold } from '../render/format.js?v=0.2.121';
-import { dispatchLoot } from '../session/loot-intents.js?v=0.2.121';
-import { runIntent, refusalWords } from './intent-words.js?v=0.2.121';
-import { t } from '../render/player-text.js?v=0.2.121';
+import { isStartKit } from './bag-model.js?v=0.2.122';
+import { bagOf, rulesOf } from '../session/item-sections.js?v=0.2.122';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.122';
+import { whole, gold } from '../render/format.js?v=0.2.122';
+import { dispatchLoot } from '../session/loot-intents.js?v=0.2.122';
+import { runIntent, refusalWords } from './intent-words.js?v=0.2.122';
+import { t } from '../render/player-text.js?v=0.2.122';
 
 /** The three plans, then the pickup filter: [rule, words, group]. The rule is the server's word (player_item_rules.loot_rule). */
 export const LOOT_CHOICES = Object.freeze([
-  Object.freeze(['keep', 'Keep in bag', 'plan']),
-  Object.freeze(['deposit', 'Deposit in storage', 'plan']),
-  Object.freeze(['sell', 'Sell', 'plan']),
+  Object.freeze(['keep', t('controls.keep'), 'plan']),
+  Object.freeze(['deposit', t('controls.deposit'), 'plan']),
+  Object.freeze(['sell', t('controls.sell'), 'plan']),
   Object.freeze(['ignore', 'Don\'t pick up', 'pickup']),
 ]);
 const WORDS = new Map(LOOT_CHOICES.map(([v, w]) => [v, w]));

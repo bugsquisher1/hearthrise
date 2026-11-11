@@ -28,10 +28,10 @@
 // THE ONE-SETUP MODEL (designer ruling 2026-10-22: a setup owns its bar; the hero is on one):
 //   PN-7  THE SETUP IN USE: the row the server's hunt_settings.preset names reads
 //         "In use" and offers no Delete; the others keep theirs
-//   PN-8  SETUPS CHANGE IN TOWN: with a hunt open, Use, Save here and Save current
+//   PN-8  SETUPS CHANGE IN TOWN: with a hunt open, Use, Use equipped and New
 //         setup are off and the window says why; once the hunt has ended, Save
 //         current setup sends ONE hr_hunt_preset_save on the first free number
-//   PN-9  FIVE AT MOST: with ACTION_SET_LIMITS.presets setups, Save current setup is off, also when the server's
+//   PN-9  FIVE AT MOST: with ACTION_SET_LIMITS.presets setups, New setup is off, also when the server's
 //         setup_slots counts past that limit (the window then says the limit's number)
 //   PN-11 THE SLOT IS BOUGHT (Tyler 2026-11-04; every number from the row, src/data/gold-sinks.js): past the server's count Save is off, the
 //         window says so in the design's words, and Buy sends ONE hr_setup_slot_buy with the QUOTE; the next slot opens only from the re-read,
@@ -241,7 +241,7 @@ async function checks(overrides) {
     await page.click('[data-hs-win="hunt-prep"] [data-hs-act="save-new"]');
     await page.waitForTimeout(600);
     const sv = sent(s, 'hr_hunt_preset_save');
-    if (sv.length !== 1 || sv[0].body.p_slot !== 0 || sv[0].body.p_preset !== 1 || sv[0].body.p_name !== 'Thicket solo') fails.push('PN-8 Save current setup sent ' + JSON.stringify(sv.map((c) => c.body)));
+    if (sv.length !== 1 || sv[0].body.p_slot !== 0 || sv[0].body.p_preset !== 1 || sv[0].body.p_name !== 'Thicket solo') fails.push('PN-8 New setup sent ' + JSON.stringify(sv.map((c) => c.body)));
     // PN-9
     s.env.hunt_presets = [0, 1, 2, 3, 4].map((n) => Object.assign(clone(FIXTURE.hunt_presets[0]), { preset: n, name: 'Setup ' + (n + 1) }));
     await reload(page);

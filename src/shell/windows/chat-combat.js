@@ -12,11 +12,12 @@
 // could not be read): the type filters fold under one press, which says how many
 // are off, and this tab shows no input (hunt.css).
 // ════════════════════════════════════════════════════════════════════════
-import { LOG_TYPES } from '../../data/combat-text.js?v=0.2.121';
-import { logFor } from '../../hunt-view/combat-log.js?v=0.2.121';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.121';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.121';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.121';
+import { LOG_TYPES } from '../../data/combat-text.js?v=0.2.122';
+import { logFor } from '../../hunt-view/combat-log.js?v=0.2.122';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.122';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.122';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.122';
+import { t } from '../../render/player-text.js?v=0.2.122';
 
 /* A LOG AT ITS FOOT STAYS AT ITS FOOT when its box changes size (2026-10-24: Chat opened at 1440x900 on its
    oldest lines — the lines were written before the window had its height, then the dock capped it). Only the
@@ -50,8 +51,8 @@ export function combatHtml() {
     + '<span class="ha-scope" role="group" aria-label="Whose lines">'
     + '<button type="button" class="hh-tool" data-hs-act="scope" data-scope="hero" aria-pressed="false">This hero</button>'
     + '<button type="button" class="hh-tool" data-hs-act="scope" data-scope="party" aria-pressed="true">Party</button></span>'
-    + '<details class="hc-more"><summary class="hh-tool">Filter lines</summary><span class="hc-types" role="group" aria-label="Line types">'
-    + LOG_TYPES.map((t) => '<label class="hc-type"><input type="checkbox" data-hs-act="type" data-type="' + esc(t.id) + '" checked> ' + esc(t.label) + '</label>').join('')
+    + '<details class="hc-more"><summary class="hh-tool">' + t('controls.filter') + '</summary><span class="hc-types" role="group" aria-label="Line types">'
+    + LOG_TYPES.map((lt) => '<label class="hc-type"><input type="checkbox" data-hs-act="type" data-type="' + esc(lt.id) + '" checked> ' + esc(lt.label) + '</label>').join('')
     + '</span></details></div>'
     + '<ol class="hc-log is-combat" aria-live="off"></ol><p class="hh-empty hc-none is-combat">No combat yet. Lines appear as your hunt plays.</p>';
 }
@@ -65,7 +66,7 @@ export function patchCombat(pane, ctx) {
   for (const b of pane.querySelectorAll('[data-scope]')) attr(b, 'aria-pressed', String(b.getAttribute('data-scope') === prefs.scope));
   for (const c of pane.querySelectorAll('input[data-type]')) prop(c, 'checked', !prefs.off.has(c.getAttribute('data-type')));
   /* folded away, a filter that is off still has to say so, or its lines just seem to be missing */
-  text(pane.querySelector('.hc-more summary'), prefs.off.size ? 'Filter lines (' + prefs.off.size + ' off)' : 'Filter lines');
+  text(pane.querySelector('.hc-more summary'), prefs.off.size ? t('controls.filter_off', { count: prefs.off.size }) : t('controls.filter'));
   const shown = cs ? logFor(cs).lines().filter((l) => !prefs.off.has(l.type) && (prefs.scope === 'party' || l.units.includes(me))) : [];
   const list = pane.querySelector('.hc-log.is-combat');
   if (!PINNED.has(list)) keepPinned(list);
@@ -80,14 +81,14 @@ export function patchCombat(pane, ctx) {
 }
 
 /** The Combat pane's filters. Returns true when the event was one of them. */
-export function actCombat(ctx, pane, action, ev, t) {
+export function actCombat(ctx, pane, action, ev, el) {
   const cs = ctx.character;
   const prefs = prefsOf(cs);
   if (action === 'scope' && ev.type === 'click') {
-    cs.setResidue('combatLog', { off: Array.from(prefs.off), scope: t.getAttribute('data-scope') });
+    cs.setResidue('combatLog', { off: Array.from(prefs.off), scope: el.getAttribute('data-scope') });
   } else if (action === 'type' && ev.type === 'change') {
-    const id = t.getAttribute('data-type');
-    if (t.checked) prefs.off.delete(id); else prefs.off.add(id);
+    const id = el.getAttribute('data-type');
+    if (el.checked) prefs.off.delete(id); else prefs.off.add(id);
     cs.setResidue('combatLog', { off: Array.from(prefs.off), scope: prefs.scope });
   } else return false;
   patchCombat(pane, ctx);

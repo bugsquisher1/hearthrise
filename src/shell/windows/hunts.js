@@ -22,7 +22,7 @@
 // confirm press; nothing refuses a Level (Tyler 2026-11-04 UTC).
 //
 // IN A PARTY (PARTY_SPEC.md §1.5, Tyler 10-19) the ground is chosen HERE, at
-// Start: the leader's Enter reads "Start with party" and is ONE
+// Start: the leader's Enter reads "Enter with party" and is ONE
 // hr_hunt_party_start naming the picked hunt; everyone walks in together, each
 // with their own saved setup, or nobody, and the answer names who was not
 // ready. A member's Enter stays off ("the leader starts the hunt"). The party
@@ -41,30 +41,32 @@
 // read-only ("Set by <leader>: Dangerous", the server's `leader_tiers`) with no buttons, and the server refuses a
 // member's pick (hr_hunt_tier_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js?v=0.2.121';
-import { bagOf, equipmentOf, blessingsOf } from '../../session/item-sections.js?v=0.2.121';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.121';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.121';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.121';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.121';
-import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.121';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.121';
-import { whole } from '../../render/format.js?v=0.2.121';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.121';
-import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.121';
-import { glyphSvg } from '../launcher.js?v=0.2.121';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.121';
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.121';
-import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.121';
-import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.121';
-import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.121';
-import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.121';
-import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.121';
-import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.121';
-import { openFinderOn } from './party-finder.js?v=0.2.121';
-import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.121';
-import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.121';
-import { callFromGround } from '../../data/boss-calls.js?v=0.2.121';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js?v=0.2.122';
+import { bagOf, equipmentOf, blessingsOf } from '../../session/item-sections.js?v=0.2.122';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.122';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.122';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.122';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.122';
+import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.122';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.122';
+import { whole } from '../../render/format.js?v=0.2.122';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.122';
+import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.122';
+import { glyphSvg } from '../launcher.js?v=0.2.122';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.122';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.122';
+import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.122';
+import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.122';
+import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.122';
+import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.122';
+import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.122';
+import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.122';
+import { openFinderOn } from './party-finder.js?v=0.2.122';
+import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.122';
+import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.122';
+import { callFromGround } from '../../data/boss-calls.js?v=0.2.122';
+import { rowLines } from '../live-events-view.js?v=0.2.122';
+import { t } from '../../render/player-text.js?v=0.2.122';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the tier shown before the server has it ({ hunt, tier }), `timer` its coalescing
@@ -110,8 +112,8 @@ function tierOf(picks, hunt) {
 /* The tier on screen: this ground's unsaved draft while there is one, else the server's. A party member's is its leader's (the party section's leader_tiers), never its own. */
 function shownTier(sc, picks, hunt, party) {
   if (party && !party.isLeader) return tierOf(party.tiers, hunt);
-  const t = tierOf(picks, hunt);
-  return t && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : t;
+  const tier = tierOf(picks, hunt);
+  return tier && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : tier;
 }
 
 /**
@@ -137,7 +139,7 @@ function saveTier(cs, sc, repaint) {
   return p;
 }
 
-/* Enter / Start with party never goes on an unsaved tier: the draft is saved first, and a refused save refuses the start. */
+/* Enter / Enter with party never goes on an unsaved tier: the draft is saved first, and a refused save refuses the start. */
 function afterTier(cs, sc, repaint, go) {
   if (!sc.draft && !sc.saving) return go();
   return saveTier(cs, sc, repaint).then((r) => (r && r.ok === false ? r : go()));
@@ -189,10 +191,10 @@ export function renderHunts(ctx) {
     + '<p class="hw-tier-note"></p>'
     + '<p class="hw-hunt-pack"></p>' + goHtml() + callHtml() + '</div>'
     + '<div class="hw-hd-foot"><p class="hh-intent-msg" role="status" aria-live="polite"></p>'
-    + '<p class="hw-enter-why"></p><button type="button" class="hh-tool" data-hs-act="leave-party" hidden>Leave party</button>'
+    + '<p class="hw-enter-why"></p><button type="button" class="hh-tool" data-hs-act="leave-party" hidden>' + t('controls.leave_party') + '</button>'
     /* The phone's way back (windows.css): beside Enter, in reach however far down the page has been read. */
-    + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="back">Back to the list</button>'
-    + '<button type="button" class="hw-primary is-on hw-hunt-enter" data-hs-act="enter">Enter</button></div>'
+    + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="back">' + t('controls.back') + '</button>'
+    + '<button type="button" class="hw-primary is-on hw-hunt-enter" data-hs-act="enter">' + t('controls.enter') + '</button></div>'
     + '</section></div></div>';
 }
 
@@ -204,7 +206,7 @@ function lineHtml(r, glyphs) {
     + '<span class="hw-hunt-main"><b class="hw-hunt-name">' + esc(r.name) + '</b>'
     + '<small class="hw-hunt-band"><span class="hw-hunt-lv">Level ' + r.band[0] + '–' + r.band[1] + '</span><span class="hw-hunt-fit"></span></small>'
     + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span><span class="hw-hunt-bestline"></span></small>'
-    + '<small class="hw-hunt-tally"></small></span></li>';
+    + '<small class="hw-hunt-tally"></small><span class="hw-hunt-events"></span></span></li>';
 }
 
 renderHunts.patch = function patchHunts(body, ctx) {
@@ -240,7 +242,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const nowEl = root.querySelector('.hw-hunts-now');
   text(nowEl, now ? 'You are hunting in ' + huntName(now.huntId) + '. Leave that hunt to go somewhere else.'
     : follower ? 'Your party leader picks the hunt and starts it. You walk in with everyone, with your own setup.'
-    : party ? 'Pick a hunt, then Start with party. Everyone walks in together, each with their own setup.'
+    : party ? 'Pick a hunt, then Enter with party. Everyone walks in together, each with their own setup.'
     : 'Pick a hunt, then Enter. Your hero walks there and fights on its own.');
   /* The how-to (not a running hunt) gives its room to the ground's page on the phone sheet. */
   cls(nowEl, 'is-hint', !now);
@@ -266,6 +268,12 @@ renderHunts.patch = function patchHunts(body, ctx) {
       text(li.querySelector('.hw-hunt-bestline'), bestLine(bests, r.hunt) || '');
       /* Tamsin's tallies held on this ground, the server's count ("Gray Wolves 112/200"). */
       text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(' · '));
+      /* A live event on this ground or its boss, the server's (live-events-view.js rowLines): Open Halls frees its call out. */
+      rows(li.querySelector('.hw-hunt-events'), rowLines(cs, r.hunt), {
+        key: (l) => l.id,
+        build: () => element(ctx.doc, '<small class="hw-hunt-event"><b></b></small>'),
+        patch: (s, l) => text(s.querySelector('b'), l.words),
+      });
     },
   });
   /* The line the window opens on stands in view: it can be the last on the list (openingPick). */
@@ -311,7 +319,7 @@ function patchPage(det, ctx, sc, v) {
   const enter = det.querySelector('.hw-hunt-enter');
   attr(enter, 'data-hunt', r.hunt);
   const armed = sc.warned === warnKey(r.hunt, under) && (under.length > 0 || !!rangeWords(r, level));
-  text(enter, party && !follower ? (armed ? 'Start anyway' : 'Start with party') : armed ? 'Enter anyway' : 'Enter');
+  text(enter, party && !follower ? (armed ? t('controls.enter_anyway') : t('controls.enter_with_party')) : armed ? t('controls.enter_anyway') : t('controls.enter'));
   /* Enter and the tier buttons (Go as, Find a party and Bring are patchGo's: off for a member too). */
   for (const b of det.querySelectorAll('.hw-hd-foot button:not(.hw-hd-back), .hw-tiers button')) prop(b, 'disabled', sc.pending || !!now);
   /* ENTER OFF SAYS WHY, BESIDE IT (midgame panel 2026-11-01: a hero sent home by a friend's death, left in the party, read "the game is broken"), with the way out. */
@@ -345,11 +353,11 @@ function patchPage(det, ctx, sc, v) {
     : size > 1 ? safe + 'As the leader, your pick holds for everyone, and it\'s kept for this ground.' : safe + 'Your pick is kept for this ground.'));
 }
 
-renderHunts.act = function actHunts(ctx, body, action, ev, t) {
+renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   if (ev.type !== 'click') return false;
   const cs = ctx.character;
   const sc = scratchOf(cs);
-  const hunt = t.getAttribute('data-hunt');
+  const hunt = el.getAttribute('data-hunt');
   const repaint = () => renderHunts.patch(body, ctx);
   if (action === 'tier') {
     /* The choice moves on the press; the save waits TIER_SAVE_MS for the next press (saveTier). */
@@ -357,7 +365,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     const party = partyMembershipOf(cs);
     /* A member's tier is its leader's: there is nothing to press (the server refuses it too). */
     if (party && !party.isLeader) return true;
-    const want = t.getAttribute('data-tier');
+    const want = el.getAttribute('data-tier');
     const server = tierOf(tiers ? tiers.picks : null, hunt);
     if (sc.pending || server === null || !tiersOf(groundOf(hunt).id).includes(want)) return true;
     sc.msg = '';
@@ -383,11 +391,11 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
   }
   if (action === 'back') { sc.paged = false; repaint(); return true; }
   /* Go as: display scratch only, until Enter sends it (nothing else reads or spends it). */
-  if (action === 'go-as') { if (!sc.pending) { sc.goAs = Number(t.getAttribute('data-preset')); sc.msg = ''; repaint(); } return true; }
+  if (action === 'go-as') { if (!sc.pending) { sc.goAs = Number(el.getAttribute('data-preset')); sc.msg = ''; repaint(); } return true; }
   /* Find a party: the Party window's finder, on this ground and this hero's weapon (B #3). */
   if (action === 'find-party') { if (sc.pick) openFinderOn(ctx, cs, sc.pick); return true; }
   if (action === 'bring') {
-    const slot = Number(t.getAttribute('data-slot'));
+    const slot = Number(el.getAttribute('data-slot'));
     const who = freeHeroes(cs, ctx.peers()).find((x) => x.slot === slot);
     if (who) runIntent(sc, repaint, () => inviteOwn(ctx.account, cs, slot), 'Bringing ' + who.name + '…', () => who.name + ' joined your party.', cs);
     return true;
@@ -407,18 +415,18 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     sc.pick = hunt;
     const lead = partyMembershipOf(cs);
     if (!lead.isLeader) return true;
-    /* A seat under this ground's floor hears it first: the first press tells them and arms "Start anyway", the second goes (panel 2026-11-01, designer's list).
+    /* A seat under this ground's floor hears it first: the first press tells them and arms "Enter anyway", the second goes (panel 2026-11-01, designer's list).
        A leader alone under it has already read the words on this page: the press only arms. */
     const row = huntRows().find((x) => x.hunt === hunt);
     const low = row ? seatsUnder(row, lead) : { under: [] };
     if (low.under.length && sc.warned !== warnKey(hunt, low.under)) {
       runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), 'Telling your party…',
-        () => underWords(row, low.under) + ' They have been told. Press Start anyway to go.', cs).then(() => { sc.warned = warnKey(hunt, low.under); repaint(); });
+        () => underWords(row, low.under) + ' They have been told. Press Enter anyway to go.', cs).then(() => { sc.warned = warnKey(hunt, low.under); repaint(); });
       return true;
     }
     if (!low.under.length && row && rangeWords(row, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {
       sc.warned = warnKey(hunt, []);
-      sc.msg = 'Press Start anyway to go.';
+      sc.msg = 'Press Enter anyway to go.';
       repaint();
       return true;
     }

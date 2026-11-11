@@ -22,6 +22,8 @@ export const SHOP_TEXT = Object.freeze({
   upgrade_adds_perk: 'adds {perk}',
   upgrade_tie:'Nothing goes on by itself, since each piece is better at something. {ties}. Pick on the doll.',
   upgrade_tie_weights: 'Nothing goes on by itself, since each piece is better at something. {ties}. Pick on the doll, or pick an armor weight at Tamsin\'s.',
+  /* One tie's words when a plain stronger weapon in the bag would lose the worn one's bane (designer 2026-11-11): `more` is item.bane_more's line, the tooltip's. */
+  upgrade_tie_bane: '{plain} hits harder, {bane} does {more}',
   /* Why Dispatch loot is off in town (src/shell/loot-dispatch.js dispatchBlock): no plan yet, or a plan with nothing left in the bag to move. */
   dispatch_none_set: 'You haven’t picked Deposit or Sell for anything yet. Pick one in an item’s menu.',
   dispatch_all_moved: 'Your loot plan has nothing left to move. New loot follows it the next time you press Dispatch loot.',

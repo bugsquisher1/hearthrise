@@ -20,12 +20,13 @@
 // the prefix, and the step's .hc-body laid every chat line out (2026-10-24).
 // ════════════════════════════════════════════════════════════════════════
 
-import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD, HOW_YOU_FIGHT_SLOTS } from '../data/how-to-play.js?v=0.2.121';
-import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL, HERO_DYES_SHOWN, OUTFIT_ROWS } from '../data/outfits.js?v=0.2.121';
-import { OUTFITS, ROLE_OUTFIT } from '../data/hunt-outfits.js?v=0.2.121';
-import { refusalWords } from '../shell/intent-words.js?v=0.2.121';
-import { outfitArt, outfitMasks, drawOutfit } from '../render/outfit-sprite.js?v=0.2.121';
-import { focusOffTouch } from './sign-in.js?v=0.2.121';
+import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD, HOW_YOU_FIGHT_SLOTS } from '../data/how-to-play.js?v=0.2.122';
+import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL, HERO_DYES_SHOWN, OUTFIT_ROWS } from '../data/outfits.js?v=0.2.122';
+import { OUTFITS, ROLE_OUTFIT } from '../data/hunt-outfits.js?v=0.2.122';
+import { refusalWords } from '../shell/intent-words.js?v=0.2.122';
+import { outfitArt, outfitMasks, drawOutfit } from '../render/outfit-sprite.js?v=0.2.122';
+import { focusOffTouch } from './sign-in.js?v=0.2.122';
+import { t } from '../render/player-text.js?v=0.2.122';
 
 /* The preview's whole-number scale: a 64 px sprite at 3 = 192 px; the other outfits at 1. */
 export const PREVIEW_SCALE = 3;
@@ -131,7 +132,7 @@ export function renderHeroCreate(card, o) {
   };
   card.innerHTML = '<h1 class="auth-title">Create your hero</h1>'
     /* a phone's step shows one thing at a time: its own layout of the same step (Tyler 2026-10-25), not a smaller desktop */
-    + (dyes ? '<button type="button" class="hh-tool hero-pick" aria-pressed="false">Pick colors</button>' : '')
+    + (dyes ? '<button type="button" class="hh-tool hero-pick" aria-pressed="false">' + t('controls.pick_colors') + '</button>' : '')
     + '<div class="hero-body">'
     + (dyes ? '<div class="hero-look"><canvas class="hero-preview" width="' + 64 * PREVIEW_SCALE + '" height="' + 64 * PREVIEW_SCALE + '" role="img" aria-label="Your hero"></canvas>'
       + '<div class="hero-others">' + OTHER_OUTFITS.map((id) => '<canvas class="hero-other" data-hero-outfit="' + id + '" width="64" height="64" role="img" aria-label="Your hero in the ' + OUTFIT_ROWS[id].label + '"></canvas>').join('') + '</div>'
@@ -141,7 +142,7 @@ export function renderHeroCreate(card, o) {
     + (dyes ? '<div class="hero-colors">' + BASE_REGIONS.map((g) => '<fieldset class="hero-region"><legend>' + REGION_LABEL[g] + '</legend><div class="hero-dyes">' + swatches(g) + '</div></fieldset>').join('') + '</div>' : '')
     + '</div>' + howYouFightHtml() + '</div>'
     + '<p class="auth-message" role="status" aria-live="polite"></p>'
-    + '<div class="auth-foot"><button type="button" class="auth-link hero-back">Back to your characters</button>'
+    + '<div class="auth-foot"><button type="button" class="auth-link hero-back">' + t('controls.back') + '</button>'
     + '<button type="button" class="hh-tool is-primary auth-submit is-go hero-confirm">Enter town</button></div>';
   const input = card.querySelector('.hero-name');
   const msg = card.querySelector('.auth-message');

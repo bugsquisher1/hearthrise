@@ -22,20 +22,21 @@
 // keyBelongsToField (src/utils/dom.js), which the World and the window keys
 // read too — so W types while the field has focus and walks once it is left.
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_TABS, WHISPER } from '../../data/chat-channels.js?v=0.2.121';
-import { refusalWords } from '../intent-words.js?v=0.2.121';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.121';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.121';
-import { isWhisperTab } from '../../social/whispers.js?v=0.2.121';
-import { linkLabel } from '../../social/chat-lines.js?v=0.2.121';
-import { combatHtml, patchCombat, actCombat, keepPinned, isPinned } from './chat-combat.js?v=0.2.121';
-import { crierButtonHtml, crierBarHtml, crierMarkHtml, patchCrier, actCrier } from './chat-crier.js?v=0.2.121';
-import { showTip, hideTip } from './item-tip.js?v=0.2.121';
-import { rarityOf } from '../bag-model.js?v=0.2.121';
-import { glyphSvg } from '../launcher.js?v=0.2.121';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.121';
-import { escapeHtml as esc, keyBelongsToField } from '../../utils/dom.js?v=0.2.121';
-import { playerTargetOf } from '../context-menu.js?v=0.2.121';
+import { CHAT_TABS, WHISPER } from '../../data/chat-channels.js?v=0.2.122';
+import { refusalWords } from '../intent-words.js?v=0.2.122';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.122';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.122';
+import { isWhisperTab } from '../../social/whispers.js?v=0.2.122';
+import { linkLabel } from '../../social/chat-lines.js?v=0.2.122';
+import { combatHtml, patchCombat, actCombat, keepPinned, isPinned } from './chat-combat.js?v=0.2.122';
+import { crierButtonHtml, crierBarHtml, crierMarkHtml, patchCrier, actCrier } from './chat-crier.js?v=0.2.122';
+import { showTip, hideTip } from './item-tip.js?v=0.2.122';
+import { rarityOf } from '../bag-model.js?v=0.2.122';
+import { glyphSvg } from '../launcher.js?v=0.2.122';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.122';
+import { escapeHtml as esc, keyBelongsToField } from '../../utils/dom.js?v=0.2.122';
+import { playerTargetOf } from '../context-menu.js?v=0.2.122';
+import { linkHtml } from '../goto.js?v=0.2.122';
 
 const STATE = new WeakMap();
 const ROW = Object.freeze(Object.fromEntries(CHAT_TABS.map((t) => [t.id, t])));
@@ -74,6 +75,8 @@ function tabEl(doc, t) {
 
 function partsHtml(parts) {
   return parts.map((p) => {
+    /* a townsperson's "take me there" (src/shell/goto.js: the shell's one click handler follows it) */
+    if (p.goto) return linkHtml(p.text, p.goto);
     if (!p.item) return esc(p.text);
     const rar = rarityOf(p.item);
     return '<button type="button" class="hc-link' + (rar ? ' rar-' + esc(rar) : '') + '" data-hs-act="link" data-item="' + esc(p.item) + '">' + esc(linkLabel(p.item)) + '</button>';
@@ -83,6 +86,8 @@ function partsHtml(parts) {
 /** One line's element, written once: time, name [level role], body. */
 function lineEl(ctx, l) {
   if (l.system) return element(ctx.doc, '<li class="hc-line is-system"><time class="hc-time">' + esc(l.time) + '</time> <span class="hc-body">' + partsHtml(l.parts) + '</span></li>');
+  /* a townsperson (a town crier, src/shell/town-criers.js): named, no level, no player menu */
+  if (l.npc) return element(ctx.doc, '<li class="hc-line is-npc"><time class="hc-time">' + esc(l.time) + '</time> <span class="hc-npc">' + esc(l.name) + '</span>: <span class="hc-body">' + partsHtml(l.parts) + '</span></li>');
   const role = l.role && HUNT_ROLES[l.role] ? l.role : null;
   const tag = (l.level !== null || role)
     ? ' <span class="hc-tag">[' + (l.level !== null ? esc(l.level) : '') + (role ? '<span class="hc-role" title="' + esc(HUNT_ROLES[role].label) + '">' + glyphSvg(ctx.glyphs, ROLE_GLYPH[role] || 'uiPeople') + '</span>' : '') + ']</span>'

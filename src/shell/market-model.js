@@ -17,14 +17,15 @@
 //   rowWords · noneWords · ageWords · sellRowWords · listingWords · historyWords   the plain-English lines
 //   noticesSince(history, seenAt)   the sold and returned rows a player has not been told
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.121';
-import { whole } from '../render/format.js?v=0.2.121';
-import { kindOf } from './bag-model.js?v=0.2.121';
-import { itemName } from './widgets/bits.js?v=0.2.121';
+import { ITEMS } from '../data/items.js?v=0.2.122';
+import { whole } from '../render/format.js?v=0.2.122';
+import { kindOf } from './bag-model.js?v=0.2.122';
+import { itemName } from './widgets/bits.js?v=0.2.122';
+import { t } from '../render/player-text.js?v=0.2.122';
 
 const int = (v) => (Number.isSafeInteger(v) ? v : null);
 const count = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : 0);
-const whenMs = (v) => { const t = typeof v === 'string' ? Date.parse(v) : NaN; return Number.isFinite(t) ? t : null; };
+const whenMs = (v) => { const ms = typeof v === 'string' ? Date.parse(v) : NaN; return Number.isFinite(ms) ? ms : null; };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** n gold, as the design words it. */
@@ -33,7 +34,7 @@ export const goldWords = (n) => whole(n) + ' gold';
 export const MARKET_TABS = Object.freeze([['browse', 'Browse'], ['sell', 'Sell'], ['mine', 'My listings'], ['history', 'History']]);
 export const MARKET_SORTS = Object.freeze([['price', 'Lowest price'], ['most', 'Most for sale'], ['recent', 'Recently sold'], ['name', 'Name']]);
 /* The quantities one press picks on an item page; `afford` and `all` read the server's asks. */
-export const BUY_CHIPS = Object.freeze([[1, '1'], [10, '10'], [100, '100'], ['afford', 'Most I can afford'], ['all', 'All']]);
+export const BUY_CHIPS = Object.freeze([[1, '1'], [10, '10'], [100, '100'], ['afford', t('controls.max_affordable')], ['all', 'All']]);
 
 /** The rules a client renders (hr_market_rules), or null when the server sent none: every control stays off. */
 export function rulesOf(raw) {

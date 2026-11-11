@@ -28,15 +28,15 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, partyPullOf, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.121';
-import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier } from '../data/hunt-tiers.js?v=0.2.121';
-import { PARTY } from '../data/party.js?v=0.2.121';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.121';
-import { MONSTERS } from '../data/monsters.js?v=0.2.121';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.121';
-import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.121';
-import { whole, gold } from '../render/format.js?v=0.2.121';
-import { t, hasText } from '../render/player-text.js?v=0.2.121';
+import { HUNT_GROUNDS, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.122';
+import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier } from '../data/hunt-tiers.js?v=0.2.122';
+import { PARTY } from '../data/party.js?v=0.2.122';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.122';
+import { MONSTERS } from '../data/monsters.js?v=0.2.122';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.122';
+import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.122';
+import { whole, gold } from '../render/format.js?v=0.2.122';
+import { t, hasText } from '../render/player-text.js?v=0.2.122';
 
 const PACK_QTY_MAX = 100000;
 /* A party size in words (hunts.count_<n>, "two"), else the number. */
@@ -71,7 +71,7 @@ export function huntRows() {
       /* WHO MAY COME is the server's party size on every ground, never the ground's start tiles: two tiles read "up to 1 more"
          on the Thicket while the server walked in four (panel 2026-11-01; heroes past the tiles stand beside them). */
       heroes: PARTY.maxSize,
-      packs: g.pockets.length, packMin: Math.min(...sizes), packMax: Math.max(...sizes), partyPull: g.partyPull || null,
+      packs: g.pockets.length, packMin: Math.min(...sizes), packMax: Math.max(...sizes),
       respawnS: Math.round(g.respawnMs / 1000),
       boss: g.pockets.some((p) => p.spawns.some((s) => MONSTERS[s.monster] && MONSTERS[s.monster].boss === true)),
     });
@@ -89,9 +89,9 @@ export function packWords(r, n) {
   return t(r.boss ? 'hunts.packs_boss' : 'hunts.packs', { count: r.packs, size: picked ? n : built, secs: r.respawnS });
 }
 
-/** How many monsters a pull brings on tier `id` for a group of `size` (0 = the room as built: Normal alone). The tier's row, else the ground's own party pull. Pure. */
+/** How many monsters a pull brings on tier `id` for a group of `size` (0 = the room as built: Normal, for every group since Tyler 2026-11-11). The tier's row. Pure. */
 export function tierPull(r, id, size = 1) {
-  return pullOfTier(tierRowOf(r.hunt, id), size) || partyPullOf(r, size);
+  return pullOfTier(tierRowOf(r.hunt, id), size);
 }
 
 /**

@@ -32,11 +32,11 @@
 // place (src/render/paint.js) on any character's change, a switch, or an
 // alert. Every number is the server's (src/shell/command-model.js).
 // ════════════════════════════════════════════════════════════════════════
-import { summaryOf } from '../shell/command-model.js?v=0.2.121';
-import { rows, text, cls, attr, style, element } from '../render/paint.js?v=0.2.121';
-import { patchRoleGlyph } from '../shell/widgets/bits.js?v=0.2.121';
-import { markPlayer, playerTargetOf } from '../shell/context-menu.js?v=0.2.121';
-import { t } from '../render/player-text.js?v=0.2.121';
+import { summaryOf } from '../shell/command-model.js?v=0.2.122';
+import { rows, text, cls, attr, style, element } from '../render/paint.js?v=0.2.122';
+import { patchRoleGlyph } from '../shell/widgets/bits.js?v=0.2.122';
+import { markPlayer, playerTargetOf } from '../shell/context-menu.js?v=0.2.122';
+import { t } from '../render/player-text.js?v=0.2.122';
 
 /** The menu target under a strip event: one of this account's own characters (its tab), or null. */
 export function stripTargetOf(e) {
@@ -109,7 +109,7 @@ function patchUnopened(li, x, limit, full) {
   cls(b, 'is-full', full);
   text(li.querySelector('.char-tab-name'), heroName(x));
   text(li.querySelector('.char-tab-doing'), unopenedLine(x));
-  text(li.querySelector('.char-unopened-play'), full ? '' : t('heroes.strip_play'));
+  text(li.querySelector('.char-unopened-play'), full ? '' : t('controls.play'));
   attr(b, 'title', full ? fullLine(x, limit) : t('heroes.strip_play_title', { name: heroName(x) }));
 }
 

@@ -1,5 +1,5 @@
 {
- "measured": "GitHub ubuntu-latest, run 40043808165 (release/v0.2.38, 2026-10-24, every mutant run: the diff touched tests/_client-harness.mjs): seconds from one mutant's caught line to the next, the first from the clean control (205 s a shard, excluded). Re-measure with the same method when a shard nears its budget; a mutant missing here is booked at the slowest measured one. Four entries ESTIMATED 2026-10-25 (lane/a-v0246-followups, not yet measured on GitHub) from the neighbouring rules: HS-27 runs first in checks (~25 s, one page boot), its Configure check catches the ammo mutant there too (~30 s).",
+ "measured": "GitHub ubuntu-latest, run 40043808165 (release/v0.2.38, 2026-10-24, every mutant run: the diff touched tests/_client-harness.mjs): seconds from one mutant's caught line to the next, the first from the clean control (205 s a shard, excluded). Re-measure with the same method when a shard nears its budget; a mutant missing here is booked at the slowest measured one. Four entries ESTIMATED 2026-10-25 (lane/a-v0246-followups, not yet measured on GitHub) from the neighbouring rules: HS-27 runs first in checks (~25 s, one page boot), its Configure check catches the ammo mutant there too (~30 s). Six HS-28 entries ESTIMATED 2026-11-11 (lane/a-hunt-view-1024, not yet measured on GitHub): HS-28 runs after HS-13 (33 s) and boots two pages, so 50 s each.",
  "seconds": {
   "a setting shows before the server confirms": 4,
   "the hub counts the bag mid-hunt, not the hunt bag (HS-18, Brannoc 10-22)": 2,
@@ -92,6 +92,12 @@
   "ammo mixed back into Food & drink (HS-27, HS-7)": 30,
   "the fight panel locks a value the server sent in town (HS-27)": 25,
   "the client fills an unset option with its own pick (HS-27)": 25,
-  "the gold to keep shows a client default while unset (HS-27)": 25
+  "the gold to keep shows a client default while unset (HS-27)": 25,
+  "Hunt details leaves a folded analyzer folded (HS-28)": 50,
+  "a lone hero's Party panel starts open at 1024 (HS-28)": 50,
+  "every desktop folds the analyzer (HS-28)": 50,
+  "the analyzer starts open over the fight at 1024 (HS-28)": 50,
+  "the fold width is never read (HS-28)": 50,
+  "the folded Tally hides its count (HS-28)": 50
  }
 }

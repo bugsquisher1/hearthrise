@@ -6,17 +6,17 @@
 // Original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.121';
-import { foldRows } from './grounds/shape.js?v=0.2.121';
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.121';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.121';
-import { LIB2_DESC } from './library2-items.js?v=0.2.121';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.121';
-import { CHAMPION_DESC } from './champions.js?v=0.2.121';
-import { DRINK_DESC } from './drinks.js?v=0.2.121';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.121';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.121';
-import { SHIELD_DESC } from './shields.js?v=0.2.121';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.122';
+import { foldRows } from './grounds/shape.js?v=0.2.122';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.122';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.122';
+import { LIB2_DESC } from './library2-items.js?v=0.2.122';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.122';
+import { CHAMPION_DESC } from './champions.js?v=0.2.122';
+import { DRINK_DESC } from './drinks.js?v=0.2.122';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.122';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.122';
+import { SHIELD_DESC } from './shields.js?v=0.2.122';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -117,7 +117,7 @@ export const ITEM_DESC = {
   'bat_wing': 'A leathery wing off a cave bat. Crafters use it for spellbooks and caster gear',
   'bear_claw': 'A curved claw off a bear. Cooks bake it right into Bear Claw Pie',
   'bear_claw_pie': 'A big pie stuffed with bear meat. Eat it before a fight and you\'ll hit harder',
-  'bear_pelt': 'A Brook Bear\'s heavy pelt, from a party or a harder hunt at Mosslight Glade. The Keep, Trophy Room and Houndskin Cloak ask for it',
+  'bear_pelt': 'A Brook Bear\'s heavy pelt, from Mosslight Glade. The Keep, Trophy Room and Houndskin Cloak ask for it',
   'big_bones': 'Fuel for the Great Hearth in Havora. Big brutes drop them, and they burn hotter than plain bones',
   'boarhide_belt': 'A wide boarhide belt, tough enough for a ranger who lives out of a camp',
   'boarhide_body': 'A thick boarhide vest for a ranger who hunts deep in the woods',

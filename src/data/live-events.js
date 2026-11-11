@@ -40,30 +40,45 @@ export const LIVE_EVENT_TYPES = Object.freeze({
   }),
 });
 
-/* THE WORDS, one set an event. */
+/* THE WORDS, one set an event. `name`, `start` and `end` are the server's too (the generated catalogue); the rest only the client reads
+   (src/shell/live-events-view.js): `soon` and `on` the plate's tooltip, `chip` the plate, `hunts` a Hunts line, `page` the ground's page
+   (`pageUntil`, `pageFree` its second sentence), `callLine` and `callEnding` the Call out section, `warning` and `confirm` its free call.
+   TRUTHFUL TO THE SERVER'S RULE (2027-03-22-live-events.sql: a dial moves Level XP a kill or a fee, never coin, drops, rares or skill
+   XP): the XP event says what stays the same, and a called room still pays nothing (src/data/boss-calls.js). */
 export const WORDS = Object.freeze({
   bonus_weekend: Object.freeze({
     name: 'Bonus XP weekend',
     soon: 'A Bonus XP weekend starts {start}. Rest up so your stamina is full when it begins.',
-    on: 'Every hunt earns {pct}% more Level XP until {end}, even while you\'re away. Skill XP stays the same.',
+    on: 'You get {pct}% more Level XP from every hunt until {end}, even while you\'re away. Coin, drops and skill XP don\'t change.',
     chip: '+{pct}% Level XP',
     start: 'The Bonus XP weekend has started. Every hunt earns {pct}% more Level XP until {end}.',
     end: 'The Bonus XP weekend is over. The next one starts {next}.',
     hunts: '+{pct}% Level XP this weekend',
+    page: 'You get {pct}% more Level XP this weekend.',
     analyzer: 'Weekend bonus',
   }),
   open_halls: Object.freeze({
     name: 'Open Halls',
-    soon: 'Open Halls starts {start}. Calling out the Rat King or Chief Coppercap will be free.',
-    on: 'Calling out the Rat King or Chief Coppercap is free until {end}. There\'s still no XP, coin or drops in the hall.',
+    soon: 'Open Halls starts {start}. You\'ll be able to call out the Rat King or Chief Coppercap for free.',
+    on: 'You can call out the Rat King or Chief Coppercap for free until {end}. You still get no XP, coin or drops for the fight.',
     chip: 'Open Halls',
     start: 'The halls are open. Until {end}, calling out the Rat King or Chief Coppercap is free. Bring a friend or a second hero.',
     end: 'The halls are closed again. Calling out costs its usual fee.',
     hunts: 'Call out {boss} for free',
-    warning: 'Open Halls is on, so there\'s no fee. You still get no XP, no coin and no drops in this room, only the fight. It ends after {minutes} minutes.',
+    page: 'Open Halls is on.',
+    pageUntil: 'You can call out {boss} for free until {end}.',
+    pageFree: 'You can call out {boss} for free.',
+    callLine: 'Open Halls is on until {end}.',
+    callEnding: 'Open Halls ends in {mins} min.',
+    warning: 'Open Halls is on, so it\'s free. You still get no XP, coin or drops in his room. The fight ends after {minutes} minutes.',
     confirm: 'Call him out for free',
   }),
 });
+
+/* WHEN THE PLATE SHOWS (display only, the mocks' decision, .claude/coordination/mocks/2026-11-10/SPEC.md §2): an event on now, or
+   starting within `soonMs`; its last `endingMs` counts down. The server lists a week ahead, so a weekly and a fortnightly event would
+   otherwise make the plate permanent furniture. Neither moves a number: every window is the server's. */
+export const LIVE_EVENT_SHOWN = Object.freeze({ soonMs: 24 * 3600000, endingMs: 3600000 });
 
 /* THE SCHEDULE: a window starts at `first` (UTC) and lasts `hours`. With `everyDays` it starts again that many days after each start, until
    `until` (null: for good). Without it, it happens once. The server answers "what is live at instant t" from these rows alone.

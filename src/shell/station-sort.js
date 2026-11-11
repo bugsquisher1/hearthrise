@@ -22,9 +22,9 @@
 //   orderStation(open, ahead, sort, canMake)   the rows in the picked order (a fresh array)
 //   sortMenuHtml() / patchSortMenu(box, show, sort)   the menu, built once and patched in place
 // ════════════════════════════════════════════════════════════════════════
-import { t } from '../render/player-text.js?v=0.2.121';
-import { prop } from '../render/paint.js?v=0.2.121';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.121';
+import { t } from '../render/player-text.js?v=0.2.122';
+import { prop } from '../render/paint.js?v=0.2.122';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.122';
 
 /** id -> its menu label's text row. */
 const LABELS = Object.freeze({ can: 'work.sort_can', level: 'work.sort_level', name: 'work.sort_name' });
@@ -66,7 +66,7 @@ export function orderStation(open, ahead, sort, canMake) {
 
 /** The Sort menu over a station's recipes (hidden until a bench skill is open). */
 export function sortMenuHtml() {
-  return '<div class="hw-work-sort" hidden><label class="hw-sort"><span>' + esc(t('work.sort')) + '</span>'
+  return '<div class="hw-work-sort" hidden><label class="hw-sort"><span>' + esc(t('controls.sort')) + '</span>'
     + '<select class="hh-select" data-hs-act="station-sort">'
     + STATION_SORTS.map((id) => '<option value="' + id + '">' + esc(t(LABELS[id])) + '</option>').join('')
     + '</select></label></div>';

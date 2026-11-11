@@ -21,28 +21,28 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.121';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.121';
-import { whole, gold } from '../../render/format.js?v=0.2.121';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.121';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.121';
-import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.121';
-import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.121';
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.121';
-import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.121';
-import { toolLossWords } from '../town-work.js?v=0.2.121';
-import { runIntent } from '../intent-words.js?v=0.2.121';
-import { showTip, hideTip } from './item-tip.js?v=0.2.121';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.121';
-import { gearLocked } from '../gear-gate.js?v=0.2.121';
-import { revealInWindow } from '../widgets/bits.js?v=0.2.121';
-import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.121';
-import { CROPS } from '../../data/gathering.js?v=0.2.121';
-import { requiredPlotLevel } from '../../core/farm.js?v=0.2.121';
-import { farmFieldOf } from '../../session/farm-sections.js?v=0.2.121';
-import { t } from '../../render/player-text.js?v=0.2.121';
+import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.122';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.122';
+import { whole, gold } from '../../render/format.js?v=0.2.122';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.122';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.122';
+import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.122';
+import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.122';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.122';
+import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.122';
+import { toolLossWords } from '../town-work.js?v=0.2.122';
+import { runIntent } from '../intent-words.js?v=0.2.122';
+import { showTip, hideTip } from './item-tip.js?v=0.2.122';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.122';
+import { gearLocked } from '../gear-gate.js?v=0.2.122';
+import { revealInWindow } from '../widgets/bits.js?v=0.2.122';
+import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.122';
+import { CROPS } from '../../data/gathering.js?v=0.2.122';
+import { requiredPlotLevel } from '../../core/farm.js?v=0.2.122';
+import { farmFieldOf } from '../../session/farm-sections.js?v=0.2.122';
+import { t } from '../../render/player-text.js?v=0.2.122';
 
-const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell'], ['services', 'Services']]);
+const TABS = Object.freeze([['buy', t('controls.buy')], ['sell', t('controls.sell')], ['services', 'Services']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
 /* The Buy tab's lists, by the server's offer kind: [kind, heading, the one line under it]. The gear line says
    why it is there (designer 2026-10-22: Defense trains only in armour; monsters drop the big pieces). */
@@ -88,7 +88,7 @@ export function renderShop() {
     /* the confirmation beside the press, never under the list (the coach rings its Sell: data-coach-hook) */
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes" data-coach-hook="sell-confirm"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">Cancel</button></div></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">' + t('controls.cancel') + '</button></div></div>'
     + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing in your bag that the shop buys.</p></section>'
     + '<section class="hw-pane" data-pane="services">' + servicesPaneHtml() + '</section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';

@@ -127,11 +127,16 @@ export const ABOVE_LEVEL_WORDS = t('hunts.above_level');
 /* FAR under a floor: the words and the list line lean harder. Display only. */
 const FAR_UNDER_LEVELS = 10;
 const FAR_WORDS = t('hunts.far_above_level');
-export function rangeWords(r, level) {
+/** cutPermille: the share of a death's XP loss the held Blessings remove, the server's (item-sections.js blessingsOf permille, hr_blessing_view);
+    0 or absent says the unblessed share (designer re-read 2026-11-11: "lose 6%" with 3 of 3 on, where a death took 1.5%). */
+export function rangeWords(r, level, cutPermille) {
   if (!Number.isInteger(level) || level >= r.band[0]) return null;
   const gap = r.band[0] - level;
+  const cut = Number.isInteger(cutPermille) && cutPermille > 0 ? Math.min(1000, cutPermille) : 0;
+  /* one decimal at most: 6% x (1 - 750/1000) = 1.5% */
+  const loss = Math.round(DEATH_XP_LOSS * (1000 - cut) / 10 * 10) / 10;
   return [t('hunts.range_under', { count: gap }), (gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS),
-    t('hunts.range_die', { loss: Math.round(DEATH_XP_LOSS * 100) })].join(' ');
+    cut ? t('hunts.range_die_blessed', { loss }) : t('hunts.range_die', { loss })].join(' ');
 }
 
 /**

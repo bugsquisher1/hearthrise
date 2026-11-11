@@ -170,7 +170,7 @@
 //         "out hunting" in view; in town the item menu offers the loot plan (Keep in bag pressed, Deposit in storage,
 //         Sell) and the pickup filter (Don't pick up); Deposit is ONE hr_loot_rule_set {slot, item, rule, key}; the
 //         starting kit's Sell is off (Deposit on); Dispatch loot is ONE hr_loot_dispatch {slot, key}, off in flight,
-//         its line the server's answer ("Stored 1 stack, sold 2 for 246 gp. 1 stack locked, so kept."), the bag and
+//         its line the server's answer ("Stored 1 stack, sold 2 stacks for 246 gp. 1 stack locked, so kept."), the bag and
 //         Storage the re-read envelope's; Storage offers the same button beside the bag at 1440x900 and 844x390
 //   AW-33 THE ITEM WELLS (Tyler 10-25, art/review/window-icons-2026-10-25 option C as picked): at 1440x900 the bag's
 //         pockets are 44 px wells, 6 a row; Storage's are 44 px, 10 a row; the paper doll's wells are larger than the
@@ -855,6 +855,24 @@ async function planRules(base) {
   const lv1 = { defense: { level: 1 }, melee: { level: 1 }, ranged: { level: 1 }, magic: { level: 1 } };
   /* AW-27 Before you go, a rune spell's line (starter bars, lane/a-starter-bars), over the hunt-go.js at `base`. */
   const { beforeLines, noShotWords } = await imp('src/shell/hunt-go.js');
+  /* THE DEATH LINE SAYS THE BLESSED SHARE (designer re-read 2026-11-11: "lose 6%" with 3 of 3 Blessings on): the server's held cut against the 6% */
+  {
+    const HL = await imp('src/shell/hunt-list.js');
+    const glade = HL.huntRows().find((r) => r.band[0] > 6);
+    const die = (pm) => (HL.rangeWords(glade, 1, pm) || '').replace(/^.*?If you die/, 'If you die');
+    const said = [die(0), die(250), die(750)];
+    if (said.join(' | ') !== 'If you die, the hunt ends and you lose 6% of your Level XP. | If you die, the hunt ends. With your Blessings on, you lose 4.5% of your Level XP. | If you die, the hunt ends. With your Blessings on, you lose 1.5% of your Level XP.') fails.push('AW-25 the death line with Blessings reads ' + JSON.stringify(said));
+  }
+  /* A PLAN THAT HAS RUN IS NOT "NOTHING SET" (designer re-read 2026-11-11: "Nothing is set to Deposit or Sell yet." right under "Sold 17 for 5,407 gp."). */
+  const { dispatchBlock } = await imp('src/shell/loot-dispatch.js');
+  const bagCs = (inventory, loot) => ({ read: (k) => ({ inventory, bag_rules: { locked: [], loot } })[k] });
+  const ran = dispatchBlock(bagCs({ bones: 3 }, { rat_tail: 'sell', wolf_pelt: 'deposit' })), none = dispatchBlock(bagCs({ bones: 3 }, {})), ready = dispatchBlock(bagCs({ rat_tail: 3 }, { rat_tail: 'sell' }));
+  if (!/^Your loot plan has nothing left to move\./.test(ran) || !/^You haven’t picked Deposit or Sell for anything yet\./.test(none) || ready !== '') fails.push('AW-32 the Dispatch loot why reads ' + JSON.stringify([ran, none, ready]));
+  /* A SHARED COOLDOWN IS A WAIT, NOT A STOP (designer re-read 2026-11-11: "which fires first" read as "never fires", over 2,484 casts in a night). */
+  const { sharedCooldownOf } = await imp('src/shell/action-facts.js');
+  const wire = (id) => ({ action: { type: 'ability', id }, conditions: [], enabled: true });
+  const waits = sharedCooldownOf([wire('power_strike'), wire('flame_strike')], 1);
+  if (waits !== 'Waits for Power Strike (slot 1) when both are ready.') fails.push('AW-27 a spell sharing a cooldown reads ' + JSON.stringify(waits));
   const STORE = FIXTURE.hunt_settings.store;
   const slot = (type, id, count) => ({ action: { type, id }, conditions: [], join: 'and', usable: true, count });
   const sess = (o) => { const e = Object.assign({ hunt_settings: { preset: 0, presets: [], slots: [], store: STORE }, state: { gold: 500 }, inventory: {},
@@ -1129,6 +1147,12 @@ async function planRules(base) {
     const tank = plan({ weapon: 'practice_sword', shield: 'practice_shield' }, [['iron_sword', 8]], lv1, 15);
     if (ops2(tank) !== '{"weapon":"iron_sword"}' || UP.upgradeWords(tank) !== 'Wear Iron Sword (+3 Melee accuracy).') fails.push('AW-21 a sword-and-shield hero with Iron Swords at Level 15 reads ' + ops2(tank) + ' / ' + UP.upgradeWords(tank));
     if (Object.keys(plan({ weapon: 'practice_sword' }, [['iron_sword']], lv1, 14).ops).length) fails.push('AW-21 an Iron Sword goes on under its Level');
+    /* A BANE IS A PLUS (designer re-read 2026-11-11: Level 16 in the Practice Sword with 6 Bramble Blades in the bag): the blade goes on and its preview names the bane, the
+       engine's clamped number; a worn bane is never traded away for plain numbers, and the tooltip says what the bane is. */
+    const bane = plan({ weapon: 'practice_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
+    if (ops2(bane) !== '{"weapon":"bramble_blade"}' || UP.upgradeWords(bane, 2, 3) !== 'Wear Bramble Blade (+2 Melee accuracy, +2 Melee damage, +40% damage to Plant monsters).') fails.push('AW-21 a sword hero with Bramble Blades at Level 16 reads ' + ops2(bane) + ' / ' + UP.upgradeWords(bane, 2, 3));
+    if ('weapon' in plan({ weapon: 'bramble_blade' }, [['iron_sword']], lv1, 16).ops) fails.push('AW-21 Equip upgrades traded a worn bane away for plain numbers');
+    if ((await imp('src/shell/item-lore.js')).baneWords('bramble_blade').join() !== '+40% damage to Plant monsters') fails.push('AW-21 the Bramble Blade tooltip bane reads ' + (await imp('src/shell/item-lore.js')).baneWords('bramble_blade'));
     const steelOverIron = plan({ weapon: 'practice_sword' }, [['iron_sword'], ['steel_sword']], lv1, 30);
     if (ops2(steelOverIron) !== '{"weapon":"steel_sword"}') fails.push('AW-21 of two better swords it would put on ' + ops2(steelOverIron));
     const LADDER = (await imp('src/data/style-gear.js')).STYLE_LADDER;
@@ -1671,6 +1695,19 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!tip || !tip.startsWith('Heavy armor') || !tip.includes(share(VITALS.heavyHpPermille, 1) + ' max HP, of the ' + share(VITALS.heavyHpPermille, ARMOUR_SLOTS.length) + ' a full heavy set of ' + ARMOUR_SLOTS.length))
           fails.push('AW-34 the worn plate helmet\'s tooltip weight line reads ' + JSON.stringify(tip));
         if (shots) await shot(page, 'armour-weight-1440x900-doll-tip');
+        /* THE TIP GOES WITH ITS WINDOW (designer re-read 2026-11-11: a bag tip stood over the World after B closed the bag, through mouse moves and a hunt start).
+           A tip the pointer is not on (the bag's keyboard cursor shows one: actions.js focusCursor) gets no mouseout when its window goes, so the
+           pointer is moved off the bag first and the pocket's tip is raised as the cursor raises it. */
+        await page.mouse.move(2, 2);
+        const raised = await page.evaluate(() => { const p = document.querySelector('[data-hs-win="inventory"] .hw-pocket[data-item]'); if (!p) return false;
+          p.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return !!document.querySelector('.hw-tip.is-on'); });
+        if (!raised) fails.push('AW-34 no bag pocket raised its tooltip');
+        await page.keyboard.press('b');
+        await page.waitForTimeout(450);
+        await page.mouse.move(40, 40);
+        if (await page.evaluate(() => !!document.querySelector('.hw-tip.is-on'))) fails.push('AW-34 an item tooltip stayed on screen after its window closed by hotkey');
+        await page.keyboard.press('b');
+        await page.waitForSelector('.hw-slot[data-slot="helmet"]', { timeout: 4000 }).catch(() => fails.push('AW-34 B did not open the bag again'));
         delete s.env.equipment.helmet;
         await pushEnvelope(page, s);
         if (!String(await weightsLine()).startsWith('1 heavy (' + share(VITALS.heavyHpPermille, 1) + ' max HP)')) fails.push('AW-34 after the server took the helmet off, the line reads ' + JSON.stringify(await weightsLine()));
@@ -2055,13 +2092,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const ds = sent(s, 'hr_loot_dispatch');
         if (ds.length !== 1 || Object.keys(ds[0].body).sort().join() !== 'p_idem,p_slot' || ds[0].body.p_slot !== 0) fails.push('AW-32 Dispatch loot sent ' + JSON.stringify(ds.map((c) => c.body)));
         if (!busy) fails.push('AW-32 Dispatch loot stayed on while its intent was in flight');
-        if (after.msg !== 'Stored 1 stack, sold 2 for 246 gp. 1 stack locked, so kept.') fails.push('AW-32 the answer line reads ' + JSON.stringify(after.msg));
+        if (after.msg !== 'Stored 1 stack, sold 2 stacks for 246 gp. 1 stack locked, so kept.') fails.push('AW-32 the answer line reads ' + JSON.stringify(after.msg));
         if (after.tail || after.pelt) fails.push('AW-32 the bag did not take the re-read envelope: ' + JSON.stringify(after));
         if (shots) await shot(page, 'dispatch-1440x900-bag-answer');
         await openWin(page, 't', 'storage');
         await page.waitForTimeout(150);
         const sb = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="storage"] [data-hs-act="dispatch"]'); return b ? { off: b.disabled, why: document.querySelector('.hw-store-do .hw-why').textContent, pelt: !!document.querySelector('[data-hs-win="storage"] .hw-pockets[data-side="bank"] [data-item="wolf_pelt"]') } : null; });
-        if (!sb || !sb.off || !/^Nothing is set to Deposit or Sell yet\. Set it in an item’s menu\.$/.test(sb.why) || !sb.pelt) fails.push('AW-32 Storage after the dispatch reads ' + JSON.stringify(sb));
+        if (!sb || !sb.off || !/^Your loot plan has nothing left to move\. /.test(sb.why) || !sb.pelt) fails.push('AW-32 Storage after the dispatch reads ' + JSON.stringify(sb));
         if (shots) await shot(page, 'dispatch-1440x900-storage-after');
         if (errors.length) fails.push('AW-32 console errors: ' + errors.slice(0, 3).join(' | '));
       } else fails.push('AW-32 the screen did not mount (town)');
@@ -3803,6 +3840,12 @@ const MUTANTS = [
   ['plans: AW-21 a bare slot waits for a weight the bag doesn\'t hold', 'src/shell/upgrade-plan.js', "else if (!curIt) front = [front.reduce(", "else if (false) front = [front.reduce("],
   ['plans: AW-21 the window never reads the role', 'src/shell/widgets/upgrade-line.js', "prefer: preferredWeight(t ? t.weight : null, eq, s ? s.role : null) });", "prefer: t ? t.weight : null });"],
   ['plans: Equip upgrades lets a set bonus hold a hero below the next tier', 'src/shell/upgrade-plan.js', '  const set = !fits.some((id) => tierStep(ITEMS[id], curIt));', '  const set = true;'],
+  ['plans: AW-21 a bane is a reason to skip the blade again', 'src/shell/upgrade-plan.js', "it.effects.some((e) => e !== 'bane')", 'it.effects.length'],
+  ['plans: AW-21 a worn bane is traded for plain numbers', 'src/shell/upgrade-plan.js', '  for (const c of MONSTER_CLASSES) { if (a.banes[c] < b.banes[c] - EPS) return false; if (a.banes[c] > b.banes[c] + EPS) more = true; }\n', ''],
+  ['plans: AW-25 the death line ignores the Blessings', 'src/shell/hunt-list.js', '  const cut = Number.isInteger(cutPermille) && cutPermille > 0 ?', '  const cut = false ?'],
+  ['plans: AW-32 a plan that ran reads nothing set', 'src/shell/loot-dispatch.js', "Object.values(rules.loot).some((v) => MOVES.has(v)) ? t('shop.dispatch_all_moved')", "false ? t('shop.dispatch_all_moved')"],
+  ['plans: AW-27 a shared cooldown reads as never firing', 'src/data/text/bar.js', "  shared_cooldown: 'Waits for {action} (slot {slot}) when both are ready.',", "  shared_cooldown: 'Shares a cooldown with {action} (slot {slot}), which fires first when both are ready.',"],
+  ['AW-34 an item tooltip outlives its window', 'src/shell/shell.js', '    hideTipIfGone(doc);\n', ''],
   ['plans: Equip upgrades sees no worth in a ring\'s perks', 'src/shell/upgrade-plan.js', '  for (const p of perksIn(a, b)) { if (perkOf(a, p) < perkOf(b, p)) return false; if (perkOf(a, p) > perkOf(b, p)) more = true; }\n', ''],
   ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? '. To cast '", "(fixes.length > 9 ? '. To cast '"],
   ['plans: AW-27 a club hero is warned about another weapon', 'src/shell/hunt-go.js', 'if (moveOffWeapon(s.discipline, a.id)) return null;', ''],
@@ -3951,7 +3994,7 @@ const MUTANTS = [
   ['ticker: the character forgets the settle refusal', 'src/session/character-session.js', '    if (ans.ok) this.settleRefusal = settleRefusalOf(ans);\n', ''],
   ['ticker: a bench runs past its "N left"', 'src/shell/town-ticker.js', 'maxActions: count(o.left) || null', 'maxActions: null'],
   ['ticker: a bench spends inputs the bag does not hold', 'src/shell/town-ticker.js', "    removeItem(id, n) {\n      const take = Math.min(n, supply[id] || 0);\n      const fromBag = Math.min(take, bag[id] || 0);\n      supply[id] = (supply[id] || 0) - take;\n      bag[id] = (bag[id] || 0) - fromBag;\n      if (fromBag) move(id, -fromBag);\n      if (take > fromBag) stored[id] = (stored[id] || 0) - (take - fromBag);\n    },", '    removeItem(id, n) { move(id, -n); },'],
-  ['ticker: a dish that may burn is counted as cooked', 'src/shell/town-ticker.js', "  const burnable = !gather && w.skill === 'cooking' && !!w.row.output && burnChance(w.row, levelOf(skills, 'cooking'), 0) > 0;", '  const burnable = false;'],
+  ['ticker: a dish that may burn is counted as cooked', 'src/shell/town-ticker.js', "  const burnable = !gather && w.skill === 'cooking' && !!w.row.output && burnChance(w.row, cook, 0) > 0;", '  const burnable = false;'],
   ['ticker: a yield range is read at its top', 'src/shell/town-ticker.js', '  int: (lo) => Math.ceil(Number(lo) || 0),', '  int: (lo, hi) => Math.floor(Number(hi) || 0),'],
 ];
 /* The doll mutant needs the want set where an equip is asked: plant it beside the intent. */

@@ -305,8 +305,10 @@ const mutants = [
     edits: [['src/data/hunt-grounds.js', "level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;", "level >= band[0]) return 1000;\n  if (level < band[0]) return 500;"]] },
   { name: 'a mixed Thicket four is paid x1.29, and the window still says what x1.00 measured', case: 'vs-alone',
     edits: [['src/data/party-class-xp.js', 'row([1045, 1735], [1015, 1620, 1800], [1190, 1735, 1815, 1860])', 'row([1045, 1735], [1015, 1620, 1800], [1190, 1735, 1815, 2400])']] },
-  { name: 'the Iron Warhammer is back at 7/12: its upgrade pays under +5%', case: 'weapon-rungs',
-    edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:12},"]] },
+  /* RE-AIMED (lane/c-brook-bear): with the Brook Bear in Vine Hollow as built a Glade kill takes longer, so the rung pays more (the shipped 7/16 +10.2%, was
+     +8.5%) and the old 7/12 reads +7.0%, a passing rung. 7/10 reads +3.9% (2 seeds x 1 h at 16), the nearest strength under the bar. */
+  { name: 'the Iron Warhammer at 7/10: its upgrade pays under +5%', case: 'weapon-rungs',
+    edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:10},"]] },
   { name: 'the Steel Warhammer is back at 9/19: over the Iron it pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/gear-tiers.js', 'str: [7, 16, 23, 28, 39, 52, 68],', 'str: [7, 16, 19, 28, 39, 52, 68],']] },
   { name: 'the Iron Hatchets are back at 7/7: their upgrade pays under +5%', case: 'weapon-rungs',

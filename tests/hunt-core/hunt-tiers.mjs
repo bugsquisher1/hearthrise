@@ -184,11 +184,13 @@ const cases = {
         if (u.maxHp !== want || !(want > row.hp)) return 'a ' + u.kind + ' spawned at ' + u.maxHp + ' health; the dial says ' + want + ', Normal ' + row.hp;
         if ('yieldPm' in u) return 'a ' + u.kind + ' spawned carrying a yield share: health paid in coin';
       }
-      /* (2) AN HOUR, the same hero and pull with no tier against the dialled Deadly: a kill takes the dial's damage, earns the tier's XP and
-         pays the row's coin and loot (Tyler 2026-11-07: never gold). */
+      /* (2) THE HOURS, the same hero and pull with no tier against the dialled Deadly: a kill takes the dial's damage, earns the tier's XP and
+         pays the row's coin and loot (Tyler 2026-11-07: never gold). 4 seeds x 2 h, the reading harder-tier-costs names: a loot ratio on one
+         seed's hour is a dice roll once health is a dial. It read 0.771 on one hour when the Brook Bear moved into Vine Hollow's as-built rows
+         (lane/c-brook-bear: the same monsters, other tiles, other dice) and 1.052 on 4 x 2 h; the band is unchanged. */
       const cell = cellOn(T);
-      const flat = R.runCell({ ...cell(GLADE, ['tank'], 31, null), density: pull });
-      const dial = R.runCell(cell(GLADE, ['tank'], 31, 'deadly'));
+      const flat = R.runCell({ ...cell(GLADE, ['tank'], 31, null, 2), seeds: 4, density: pull });
+      const dial = R.runCell({ ...cell(GLADE, ['tank'], 31, 'deadly', 2), seeds: 4 });
       const f = flat.heroes[0], d = dial.heroes[0];
       if (!(flat.party.killsPerH > 100 && dial.party.killsPerH > 50)) return 'the fixture killed ' + flat.party.killsPerH + ' and ' + dial.party.killsPerH + ' an hour';
       const perKill = (r, n) => n / r.party.killsPerH;
@@ -246,6 +248,8 @@ const mutants = [
   { name: 'a spawn ignores the tier\'s health', case: 'dials', edits: [[PC, 'const hp = Math.max(1, atTier(row, inst.tier).hp || 1);', 'const hp = Math.max(1, row.hp || 1);']] },
   { name: 'the first packs spawn on no tier', case: 'dials', edits: [['src/core/combat-sim.js', '            { density: densityFor(ctx.ground, standing.length, pickOf(standing)), tier, monsters: play.monsters });', '            { density: densityFor(ctx.ground, standing.length, pickOf(standing)), monsters: play.monsters });']] },
   { name: 'more health pays more coin', case: 'dials', edits: [['src/core/hunt-rewards.js', 'const gp = Array.isArray(row.gp) ? rng.int(row.gp[0], row.gp[1]) : 0;', 'const gp = Array.isArray(row.gp) ? Math.round((rng.int(row.gp[0], row.gp[1]) * (ctx.tier ? ctx.tier.hpPm : 1000)) / 1000) : 0;']] },
+  /* the loot reading on 4 seeds x 2 h still bites (lane/c-brook-bear moved it off one seed's hour) */
+  { name: 'more health drops more loot', case: 'dials', edits: [['src/core/hunt-rewards.js', 'const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff', 'const rolled = rollDropTable(row.drops, { dropMult: (lead.weakness(row).dropMult * (ctx.tier ? ctx.tier.hpPm : 1000)) / 1000, dropBuff']] },
   { name: 'the settle reads no tier at all', case: 'harder-tier-costs', edits: [['src/core/combat-sim.js', "const tier = play.tierOf(tierPick(members.filter((m) => !m.left && m.unitId !== null)));", "const tier = null;"]] },
   { name: 'a tier rolls more drops', case: 'never-gold', edits: [['src/core/hunt-rewards.js', "dropBuff: lead.bonus('dropRate') }, rng);", "dropBuff: lead.bonus('dropRate'), dropMult: lead.weakness(row).dropMult * (ctx.tier ? ctx.tier.xpPm / 1000 : 1) }, rng);"]] },
   { name: 'a tier pays more gold a kill (exact)', case: 'never-gold', edits: [['src/core/hunt-rewards.js', 'const gp = Array.isArray(row.gp) ? rng.int(row.gp[0], row.gp[1]) : 0;', 'const gp = Array.isArray(row.gp) ? Math.round((rng.int(row.gp[0], row.gp[1]) * (ctx.tier ? ctx.tier.xpPm : 1000)) / 1000) : 0;']] },

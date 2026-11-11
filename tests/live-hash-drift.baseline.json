@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-11",
- "replay_ms": 3871,
+ "replay_ms": 3768,
  "counts": {
-  "tracked_names": 835,
-  "entries": 687
+  "tracked_names": 837,
+  "entries": 689
  },
  "functions": [
   {
@@ -7555,6 +7555,50 @@
    "replay": {
     "md5": "e031b9a02247d8cefed774de42ef203d",
     "norm_len": 2535,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_preset_project(p_user uuid, p_slot integer, p_preset integer)",
+   "name": "hr_hunt_preset_project",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-13-hunt-preset-read.sql"
+   ],
+   "live": {
+    "md5": "735f8b7240dfa2146213902ce520fb0f",
+    "norm_len": 9309,
+    "measured": "2026-11-11",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "735f8b7240dfa2146213902ce520fb0f",
+    "norm_len": 9309,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_preset_read(p_slot integer, p_preset integer)",
+   "name": "hr_hunt_preset_read",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-13-hunt-preset-read.sql"
+   ],
+   "live": {
+    "md5": "e853438efa5055cb48f5b1793b0e5881",
+    "norm_len": 1198,
+    "measured": "2026-11-11",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "e853438efa5055cb48f5b1793b0e5881",
+    "norm_len": 1198,
     "source": "computed-from-replay"
    },
    "agree": true

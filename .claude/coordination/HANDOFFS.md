@@ -1,5 +1,9 @@
 # Handoffs
 
+### 2026-11-11 · ART DIRECTOR (lane/d-station-ui) → lane/a-station-sort, and whoever builds the station mock · where the sort sits
+
+Mocks: `.claude/coordination/mocks/2026-11-11-stations/` (SPEC.md, boards, `mock.css` part 1). For the sort lane: the control is a `.hh-segs` row "Sort: Can make / Level / Name" directly above the first row group (after the Hallmark pane on Crafting, not above it). Under Can make the mock splits the rows into three `.hs-sub` groups with counts (Can make, Missing materials, Higher level); under Level or Name there are no groups. No other part of the mock depends on your lane, and nothing in it needs a server change.
+
 ### 2026-11-07 · ART DIRECTOR (lane/a-region-kit) → GROUND PACK (lane/b-ground-pack), GENERATOR, IMPORT LANES · the region kits
 
 1. **Kits are data now:** `src/data/world/region-kits.js` (greenhaven: 3 tile families, 65 props, 27 bodies, 5 signatures; barrow_march: 8 terrains in 13 pro tilesets, 41 props, 5 bodies, 5 signatures, 14 pending). `tests/world-assets.mjs` rule [kit] (`tools/world-art/region-kit.mjs`) holds every hunting map to its kit: a new ground is claimed by one kit, places its props plus at most 2 signature pieces (a signature covers its `<id>_*` variants), never another ground's. `pack new --region` and `pack-distinct`'s "signature" check should read this file, not a second list.

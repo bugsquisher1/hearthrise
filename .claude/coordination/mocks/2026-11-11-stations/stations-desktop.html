@@ -1,0 +1,68 @@
+<!doctype html><html lang="en" class="mock-board" style="--panel-alpha: 1;"><head><meta charset="utf-8"><base href="../../../../"><title>Crafting stations, desktop 1920 x 1080</title>
+<link rel="stylesheet" href="src/styles/tokens.css"><link rel="stylesheet" href="src/styles/shell.css"><link rel="stylesheet" href="src/styles/windows.css"><link rel="stylesheet" href=".claude/coordination/mocks/2026-11-11-stations/mock.css"></head>
+<body>
+<h1 class="mock-h1">Crafting stations, desktop 1920 x 1080</h1>
+<p class="mock-lede">Static mock. Every station (the forge and anvils, the crafting benches, the kitchen, the rune altars) opens one window: Gathering and crafting, on its skill (<code>src/shell/windows/work.js</code>). The before shots are that window on main v0.2.118, served by <code>tools/qa/local-world.mjs</code>, for Mira at Smithing 18, Cooking 12, Crafting 9 and Runecrafting 4, with some things made, some she can make and some locked. The after shots are the same page with only the window's body changed. Same frame, same width, same place, same fonts, same 32 px item art. Every number is the game's own.</p>
+
+<h2 class="mock-h2">What players of this kind of game expect</h2>
+<table class="mock-table">
+<tr><th>Expected</th><th>Where players learned it</th><th>Hearthrise today</th><th>This mock</th></tr>
+<tr><td>What I can make right now, first</td><td>WoW's "Have materials", FFXIV's craftable filter, OSRS make-X</td><td class="p">Part: sorted first, not marked</td><td class="y">Groups: Can make, Missing materials, Higher level</td></tr>
+<tr><td>Every input as have / need</td><td>WoW 3/5, Melvor, FFXIV</td><td class="p">Part: the first short input only, in a sentence</td><td class="y">Every input, "you have N"</td></tr>
+<tr><td>Where to get what's missing, one press</td><td>FFXIV item search, Albion</td><td class="y">Yes: a link, inside a long sentence</td><td class="y">Kept, under each input</td></tr>
+<tr><td>How many: 1, 5, all</td><td>OSRS 1/5/10/X/All, WoW Create All</td><td class="y">Yes, on every row</td><td class="y">Kept; the button says the count ("Make 7")</td></tr>
+<tr><td>Time and XP per craft</td><td>Melvor, New World</td><td class="y">Yes</td><td class="y">Kept</td></tr>
+<tr><td>What it's for: heals, a tool, wear Level</td><td>Stardew, WoW tooltips</td><td class="n">No (only in the skills list)</td><td class="y">On the row</td></tr>
+<tr><td>How many I already have</td><td>Melvor, OSRS</td><td class="n">No</td><td class="y">The bag's count on the icon</td></tr>
+<tr><td>Locked recipes and their level</td><td>All of them</td><td class="y">Yes, the next 2</td><td class="y">Kept, the level on the right</td></tr>
+<tr><td>A running job always in sight</td><td>Melvor's bar, OSRS</td><td class="p">Part: a line that scrolls away</td><td class="y">Pinned to the window's foot, a bar on the row</td></tr>
+<tr><td>The bench fee said once</td><td>Albion's station fee</td><td class="n">No: on every row and in the intro</td><td class="y">Once at the foot, the exact fee on the picked row</td></tr>
+<tr><td>Sort</td><td>WoW, FFXIV</td><td class="p">Being built (lane/a-station-sort)</td><td class="y">Shown: Can make, Level, Name</td></tr>
+<tr><td>Search</td><td>WoW, FFXIV, New World</td><td class="n">No</td><td class="p">Not yet: needed past about 25 rows (Smithing 60 lists 33)</td></tr>
+<tr><td>Categories (bars, tools, gear)</td><td>Melvor, Albion, WoW</td><td class="n">No</td><td class="p">Not yet: the three groups do most of it</td></tr>
+<tr><td>New recipe mark</td><td>WoW, Stardew</td><td class="n">No (the bag has one)</td><td class="p">Not yet</td></tr>
+<tr><td>Favorites</td><td>WoW's tracked recipe, FFXIV</td><td class="n">No</td><td class="p">Not yet</td></tr>
+</table>
+
+<h2 class="mock-h2">The problems, worst first</h2>
+<ol class="mock-list">
+<li><b>A wall of text.</b> <span>At 1920 x 1080 the Smithing window shows 3 of its 17 rows, and its list scrolls 2,615 px in a 693 px body. On a 922 x 423 phone it shows none: the intro fills the first screen. Each row runs 4 to 6 lines, and the bench fee sentence repeats on nearly every row after the intro already said it (<a href=".claude/coordination/mocks/2026-11-11-stations/before/m-10-smithing.png">phone shot</a>).</span></li>
+<li><b>Can make, can't make and locked look alike.</b> <span>At Smithing 18 the list holds 8 she can make, 7 she's short for and 2 locked, mixed. Only a dimmed "Start" tells them apart, and "Start" looks like plain text.</span></li>
+<li><b>Short of materials, it names one input in a long sentence.</b> <span>Stitch Houndskin Cloak never says it needs a Bear Pelt. The Wolf Pelt line is 4 lines of link with a lone "." on a line by itself. The runes repeat "For your own use. The shop and the Weighhouse won't take it." six times (<a href=".claude/coordination/mocks/2026-11-11-stations/before/d-12-runecrafting-foot.png">shot</a>).</span></li>
+<li><b>A row doesn't say what the thing is for, or how many you have.</b> <span>Cook Wolf Meat never says it heals 72. Iron Hatchets never say you need Level 15 to wear them (Mira is Level 1). Her 12 Cooked Shrimp never show. The skills list already knows: "Cooked Trout (food, heals 168)".</span></li>
+<li><b>The running job scrolls away.</b> <span>"Making Bronze Bar: 1 made so far, 12 Copper Ore left" sits above the intro. Scroll to the row and it's gone, and the row only says "Working on it now" (<a href=".claude/coordination/mocks/2026-11-11-stations/before/d-21-smithing-running-win.png">shot</a>).</span></li>
+</ol>
+
+<h2 class="mock-h2">Smithing: before and after</h2>
+<div class="mock-pair">
+<figure><img src=".claude/coordination/mocks/2026-11-11-stations/png/desk-smithing-before-win.png" width="380" height="761" alt="Smithing today"><figcaption><b>Today.</b> 3 of 17 rows in view.</figcaption></figure>
+<figure><img src=".claude/coordination/mocks/2026-11-11-stations/png/desk-smithing-after-win.png" width="380" height="761" alt="Smithing after"><figcaption><b>After.</b> Two lines a row: what it is and the XP, or what's missing. The icon is the bag's pocket with the count you have. Press a row for its facts: every input, its uses as links, the time, XP and fee, then 1 / 5 / All and the one gold Make. Rows you can make keep a Make press, so it's still one press to start.</figcaption></figure>
+</div>
+<p class="mock-lede">Full screen: <a href=".claude/coordination/mocks/2026-11-11-stations/png/desk-smithing-after.png">png/desk-smithing-after.png</a>, live HTML: <a href=".claude/coordination/mocks/2026-11-11-stations/screens/desk-smithing-after.html">screens/desk-smithing-after.html</a>.</p>
+
+<h2 class="mock-h2">Short of materials: every input, where to get it</h2>
+<div class="mock-pair">
+<figure><img src=".claude/coordination/mocks/2026-11-11-stations/before/d-12-crafting-foot.png" width="380" height="761" alt="Crafting today, scrolled down"><figcaption><b>Today.</b> Houndskin Cloak: "Needs 12 Wolf Pelt (you have 4)" and nothing about the Bear Pelt.</figcaption></figure>
+<figure><img src=".claude/coordination/mocks/2026-11-11-stations/png/desk-crafting-after-win.png" width="380" height="761" alt="Crafting after"><figcaption><b>After.</b> The row says "You need 8 more Wolf Pelt and 1 Bear Pelt". Opened, each input says what you have and where it drops, each place a link. "You can wear it at Level 22" is said before you spend 23 gold and 12 pelts on it.</figcaption></figure>
+</div>
+
+<h2 class="mock-h2">Cooking: what it heals, on the row</h2>
+<div class="mock-pair">
+<figure><img src=".claude/coordination/mocks/2026-11-11-stations/png/desk-cooking-before-win.png" width="380" height="761" alt="Cooking today"><figcaption><b>Today.</b> No word on what any dish heals.</figcaption></figure>
+<figure><img src=".claude/coordination/mocks/2026-11-11-stations/png/desk-cooking-after-win.png" width="380" height="761" alt="Cooking after"><figcaption><b>After.</b> "Food, heals 72" on each row (and the locked Cook Trout says heals 168), so a player picks food for the bar here. 12 Cooked Shrimp show on its icon.</figcaption></figure>
+</div>
+
+<h2 class="mock-h2">While it works</h2>
+<div class="mock-pair">
+<figure><img src=".claude/coordination/mocks/2026-11-11-stations/png/desk-smithing-running-before-win.png" width="380" height="761" alt="Running today"><figcaption><b>Today.</b> The line is at the top of the list and scrolls with it.</figcaption></figure>
+<figure><img src=".claude/coordination/mocks/2026-11-11-stations/png/desk-smithing-running-after-win.png" width="380" height="761" alt="Running after"><figcaption><b>After.</b> The same line, pinned to the window's foot with the gold bar of the picked mark, so it's there wherever you scroll. The row is gold with "3 of 7 made" on a bar, and its press reads Stop. The italic part is what the town ticker counts before the server pays, as today.</figcaption></figure>
+</div>
+
+<h2 class="mock-h2">Seen, not mocked</h2>
+<ol class="mock-list">
+<li><span>At Crafting 9 the default order puts Normal Plank, the first thing a crafter makes, 6th of 7. That's the sort lane's.</span></li>
+<li><span>"Made with Smithing 15" under Forge Iron Axe points at this same window. The link finds the Iron Bar row, but the words don't say it's right here: "You can make it here" reads better.</span></li>
+<li><span>Turnip Juice says "burns up to 14%". Can a drink burn? Designer's call.</span></li>
+<li><span>Gathering rows (Woodcutting, Mining, Fishing) share this window and keep today's rows until they get their own look.</span></li>
+</ol>
+</body></html>

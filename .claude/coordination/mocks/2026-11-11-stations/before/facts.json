@@ -1,0 +1,187 @@
+{
+ "shots": [
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/d-00-town.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/d-01-ledger.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/d-10-smithing.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/d-11-smithing-win.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/d-12-smithing-foot.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/d-10-cooking.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/d-11-cooking-win.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/d-12-cooking-foot.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/d-10-crafting.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/d-11-crafting-win.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/d-12-crafting-foot.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/d-10-runecrafting.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/d-11-runecrafting-win.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/d-12-runecrafting-foot.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/d-20-smithing-running.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/d-21-smithing-running-win.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/m-00-town.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/m-01-ledger.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/m-10-smithing.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/m-11-smithing-win.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/m-12-smithing-foot.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/m-10-cooking.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/m-11-cooking-win.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/m-12-cooking-foot.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/m-10-crafting.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/m-11-crafting-win.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/m-12-crafting-foot.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/m-10-runecrafting.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/m-11-runecrafting-win.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/m-12-runecrafting-foot.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/m-20-smithing-running.png",
+  "R:/the game/the game/.claude/worktrees/agent-a67122b35f26524d6/.claude/coordination/mocks/2026-11-11-stations/before/m-21-smithing-running-win.png"
+ ],
+ "texts": {
+  "d-ledger": "Gathering and crafting\nG\n\nPress a skill to gather or make.\n\nGathering\nWoodcutting\n16\n332 XP to 17\nNext at level 22: Hollow Oak (tree to chop)\nMining\n22\n630 XP to 23\nNext at level 30: Coal Seam (rock to mine)\nFishing\n14\n267 XP to 15\nNext at level 20: Trout Spot (fishing spot)\nFarming\n1\n83 XP to 2\nNext at level 10: Carrot (crop to grow)\nCrafting\nCooking\n12\n212 XP to 13\nNext at level 15: Cooked Trout (food, heals 168)\nCrafting\n9\n148 XP to 10\nNext at level 15: Oak Plank (material), Oak Wand (wand), Oakboard Spellbook (spellbook) and 5 more\nSmithing\n18\n413 XP to 19\nNext at level 20: Iron Whetstone (whetstone for blades)\nRunecrafting\n4\n75 XP to 5\nNext at level 12: Split Blank Runes (material)",
+  "d-smithing": "Gathering and crafting\nG\n‹ All skills\nSmithing\n413 XP to 19\n18\n\nMetal bars, axes and pickaxes, whetstones for melee, salts for tempering, and fittings for your home. Pick what to make. It uses the materials in your bag, then your Storage, and stops when they run out. The public bench takes 15% of what you make, at shop prices. A forge in your house takes none.\n\nIron Bar\n1 Iron Ore → Iron Bar\nThe public bench takes about 1 gold a craft.\nMakes up to 7 · 4.8 s · 11 XP each\n1\n5\nAll\nStart\nGrind Copper Whetstones\n1 Copper Bar + 5 Copper Ore → 10 Copper Whetstone\nThe public bench takes about 1.5 gold a craft.\nMakes up to 20 · 4.6 s · 27 XP each\n1\n5\nAll\nStart\nForge Bronze Gauntlets\n3 Bronze Bar → Bronze Gauntlets\nThe public bench takes 3 gold a craft.\nMakes 1 of up to 1 · 4.5 s · 15 XP each\n1\n5\nAll\nStart\nForge Bronze Axe\n1 Bronze Bar + 1 Normal Plank → Bronze Axe\nThe public bench takes about 1.8 gold a craft.\nMakes 1 of up to 1 · 4 s · 15 XP each\n1\n5\nAll\nStart\nForge Bronze Pickaxe\n1 Bronze Bar + 1 Normal Plank → Bronze Pickaxe\nThe public bench takes about 1.8 gold a craft.\nMakes 1 of up to 1 · 4 s · 15 XP each\n1\n5\nAll\nStart\nCopper Bar\n1 Copper Ore → Copper Bar\nMakes up to 14 · 3.8 s · 5 XP each\n1\n5\nAll\nStart\nBronze Bar\n2 Copper Ore → Bronze Bar\nThe public bench takes about 1 gold a craft.\nMakes up to 7 · 4.2 s · 7 XP each\n1\n5\nAll\nStart\nGrind Coarse Whetstones\n2 Copper Ore → 10 Coarse Whetstone. For your own use. The shop and the Weighhouse won't take it.\nMakes up to 70 · 4.2 s · 7 XP each\n1\n5\nAll\nStart\nForge Iron Axe\n2 Iron Bar + 1 Oak Plank → Iron Axe\nThe public bench takes about 3.8 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nForge Iron Pickaxe\n2 Iron Bar + 1 Oak Plank → Iron Pickaxe\nThe public bench takes about 3.8 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nMix Tempering Salts\n1 Iron Bar + 1 Bone Chips → Tempering Salts\nThe public bench takes about 1.1 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nForge Iron Hatchets\n6 Iron Bar + 2 Normal Plank → Iron Hatchets\nThe public bench takes about 9.8 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nForge Iron Warhammer\n6 Iron Bar + 3 Normal Plank → Iron Warhammer\nThe public bench takes about 11 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nForge Ironbound Shield\n9 Iron Bar + 3 Normal Plank → Ironbound Shield\nThe public bench takes 15 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nReforge Klappa's Club\n1 Practice Club + 6 Bronze Bar + 3 Small Fang → Klappa's Club\nThe public bench takes about 7.5 gold a craft.\nNeeds 6 Bronze Bar (you have 3). Made with Smithing.\nStart\nGrind Iron Whetstones\n2 Iron Bar + 3 Iron Ore → 10 Iron Whetstone\nYou need Smithing 20 to make Iron Whetstone. You have 18.\nStart\nGold Bar\n1 Gold Ore → Gold Bar\nYou need Smithing 25 to make Gold Bar. You have 18.\nStart",
+  "d-smithing-geo": {
+   "win": [
+    1519,
+    120,
+    380,
+    761
+   ],
+   "rows": 17,
+   "fullyVisibleRows": 3,
+   "scrollH": 2615,
+   "clientH": 693,
+   "fonts": [
+    "14.5px",
+    "16px",
+    "18.5px"
+   ]
+  },
+  "d-cooking": "Gathering and crafting\nG\n‹ All skills\nCooking\n212 XP to 13\n12\n\nFood that heals and drinks that restore mana on a hunt. Pick what to make. It uses the materials in your bag, then your Storage, and stops when they run out. The public bench takes 15% of what you make, at shop prices. A kitchen in your house takes none.\n\nCook Wolf Meat\n1 Raw Wolf Meat → Cooked Wolf Meat\nThe public bench takes about 1.8 gold a craft.\nMakes up to 6 · 3.8 s · 13 XP each · burns up to 18%\n1\n5\nAll\nStart\nCook Shrimp\n1 Raw Shrimp → Cooked Shrimp. The shop buys it, but every new hero starts with some, so the Weighhouse won't list it.\nMakes up to 24 · 3.8 s · 11 XP each · burns up to 14%\n1\n5\nAll\nStart\nBoil Turnip Mash\n1 Turnip → Turnip Mash\nThe public bench takes about 2.1 gold a craft.\nMakes up to 5 · 2.6 s · 3 XP each · burns up to 14%\n1\n5\nAll\nStart\nTurnip Juice\n1 Turnip → 3 Turnip Juice\nThe public bench takes about 2.7 gold a craft.\nMakes up to 15 · 2.6 s · 3 XP each · burns up to 14%\n1\n5\nAll\nStart\nCarrot Juice\n1 Carrot → 3 Carrot Juice\nThe public bench takes about 5 gold a craft.\nNo Carrot in your bag or Storage. Grown with Farming 10.\nStart\nCook Herring\n1 Raw Herring → Cooked Herring\nThe public bench takes about 1 gold a craft.\nNo Raw Herring in your bag or Storage. Gathered with Fishing 10.\nStart\nRoast Carrot\n1 Carrot → Roasted Carrot\nThe public bench takes about 1.8 gold a craft.\nNo Carrot in your bag or Storage. Grown with Farming 10.\nStart\nCook Trout\n1 Raw Trout → Cooked Trout\nYou need Cooking 15 to cook Raw Trout. You have 12.\nStart\nGrill Pikeperch\n1 Raw Pikeperch → Grilled Pikeperch\nYou need Cooking 18 to cook Raw Pikeperch. You have 12.\nStart",
+  "d-cooking-geo": {
+   "win": [
+    1519,
+    120,
+    380,
+    761
+   ],
+   "rows": 9,
+   "fullyVisibleRows": 3,
+   "scrollH": 1427,
+   "clientH": 693,
+   "fonts": [
+    "14.5px",
+    "16px",
+    "18.5px"
+   ]
+  },
+  "d-crafting": "Gathering and crafting\nG\n‹ All skills\nCrafting\n148 XP to 10\n9\n\nPlanks, arrows and bolts, and timber for building your home. Pick what to make. It uses the materials in your bag, then your Storage, and stops when they run out. The public bench takes 15% of what you make, at shop prices. A workshop in your house takes none.\n\nHallmark\n\nHold a Fine piece to choose its second perk here. Make Banded Signet can roll one, and setting a Road Carnelian in a plain one always does.\n\nSew Apprentice Robe Bottom\n2 Silk Thread → Apprentice Robe Bottom\nThe public bench takes about 6.8 gold a craft.\nMakes 1 of up to 1 · 4.8 s · 10 XP each\n1\n5\nAll\nStart\nSew Apprentice Sash\n1 Silk Thread → Apprentice Sash\nThe public bench takes about 2.6 gold a craft.\nMakes 1 of up to 2 · 4.5 s · 6 XP each\n1\n5\nAll\nStart\nSew Apprentice Hat\n1 Silk Thread → Apprentice Hat\nThe public bench takes about 3.8 gold a craft.\nMakes 1 of up to 2 · 4.5 s · 6 XP each\n1\n5\nAll\nStart\nStitch Leather Belt\n1 Wolf Pelt → Leather Belt\nThe public bench takes about 2.6 gold a craft.\nMakes 1 of up to 4 · 4.5 s · 6 XP each\n1\n5\nAll\nStart\nSew Apprentice Gloves\n1 Silk Thread → Apprentice Gloves\nThe public bench takes about 2.3 gold a craft.\nMakes 1 of up to 2 · 4.5 s · 5 XP each\n1\n5\nAll\nStart\nNormal Plank\n1 Normal Log → Normal Plank\nMakes up to 30 · 3.8 s · 3 XP each\n1\n5\nAll\nStart\nSew Apprentice Slippers\n1 Silk Thread → Apprentice Slippers\nThe public bench takes about 2.6 gold a craft.\nMakes 1 of up to 2 · 4.5 s · 5 XP each\n1\n5\nAll\nStart\nSew Apprentice Robe Top\n3 Silk Thread → Apprentice Robe Top\nThe public bench takes about 9.3 gold a craft.\nNeeds 3 Silk Thread (you have 2). Dropped by Hive Wasp at Mill Cellar, and at The Sewer and Wickstead.\nStart\nFletch Bronze Arrows ×50\n6 Bronze Bar + 4 Normal Plank → 50 Bronze Arrows. For your own use. The shop and the Weighhouse won't take it.\nNeeds 6 Bronze Bar (you have 3). Made with Smithing.\nStart\nStitch Graypelt Cloak\n6 Wolf Pelt → Graypelt Cloak\nThe public bench takes about 11 gold a craft.\nNeeds 6 Wolf Pelt (you have 4). Dropped by Briarcoat Wolf and Old Grayjaw at Meadowbrook Thicket, and at Wickstead and Mosslight Glade.\nStart\nStitch Houndskin Cloak\n12 Wolf Pelt + 1 Bear Pelt → Houndskin Cloak\nThe public bench takes about 23 gold a craft.\nNeeds 12 Wolf Pelt (you have 4). Dropped by Briarcoat Wolf and Old Grayjaw at Meadowbrook Thicket, and at Wickstead and Mosslight Glade.\nStart\nOak Plank\n1 Oak Log → Oak Plank\nYou need Crafting 15 to make Oak Plank. You have 9.\nStart\nCarve Oak Wand\n2 Oak Plank + 1 Silk Thread → Oak Wand\nYou need Crafting 15 to make Oak Wand. You have 9.\nStart",
+  "d-crafting-geo": {
+   "win": [
+    1519,
+    120,
+    380,
+    761
+   ],
+   "rows": 13,
+   "fullyVisibleRows": 2,
+   "scrollH": 2332,
+   "clientH": 693,
+   "fonts": [
+    "14.5px",
+    "16px",
+    "18.5px"
+   ]
+  },
+  "d-runecrafting": "Gathering and crafting\nG\n‹ All skills\nRunecrafting\n75 XP to 5\n4\n\nRunes your spells spend, better than the shop’s. Pick what to make. It uses the materials in your bag, then your Storage, and stops when they run out. The public bench takes 15% of what you make, at shop prices. A library in your house takes none.\n\nCut Blank Runes\n6 Rune Essence → 12 Blank Rune\nThe public bench takes about 1.8 gold a craft.\nMakes up to 36 · 4.5 s · 3 XP each\n1\n5\nAll\nStart\nBind Chalked Earth Runes\n6 Blank Rune → 45 Chalked Earth Rune. For your own use. The shop and the Weighhouse won't take it.\nNo Blank Rune in your bag or Storage. Made with Runecrafting.\nStart\nBind Chalked Water Runes\n6 Blank Rune → 45 Chalked Water Rune. For your own use. The shop and the Weighhouse won't take it.\nNo Blank Rune in your bag or Storage. Made with Runecrafting.\nStart\nBind Chalked Fire Runes\n6 Blank Rune → 45 Chalked Fire Rune. For your own use. The shop and the Weighhouse won't take it.\nNo Blank Rune in your bag or Storage. Made with Runecrafting.\nStart\nBind Chalked Ice Runes\n6 Blank Rune → 45 Chalked Ice Rune. For your own use. The shop and the Weighhouse won't take it.\nNo Blank Rune in your bag or Storage. Made with Runecrafting.\nStart\nBind Chalked Poison Runes\n6 Blank Rune → 45 Chalked Poison Rune. For your own use. The shop and the Weighhouse won't take it.\nNo Blank Rune in your bag or Storage. Made with Runecrafting.\nStart\nBind Chalked Rupture Runes\n6 Blank Rune → 45 Chalked Rupture Rune. For your own use. The shop and the Weighhouse won't take it.\nNo Blank Rune in your bag or Storage. Made with Runecrafting.\nStart\nSplit Blank Runes\n6 Rune Essence → 6 Blank Rune\nYou need Runecrafting 12 to make Blank Rune. You have 4.\nStart\nBind Scored Earth Runes\n18 Blank Rune → 13 Scored Earth Rune\nYou need Runecrafting 15 to make Scored Earth Rune. You have 4.\nStart",
+  "d-runecrafting-geo": {
+   "win": [
+    1519,
+    120,
+    380,
+    761
+   ],
+   "rows": 9,
+   "fullyVisibleRows": 4,
+   "scrollH": 1282,
+   "clientH": 693,
+   "fonts": [
+    "14.5px",
+    "16px",
+    "18.5px"
+   ]
+  },
+  "d-running": "Gathering and crafting\nG\nMaking Bronze Bar: 1 made so far, 12 Copper Ore left. It stops when they run out.\nStop\n‹ All skills\nSmithing\n406 XP to 19\n18\n\nMetal bars, axes and pickaxes, whetstones for melee, salts for tempering, and fittings for your home. Pick what to make. It uses the materials in your bag, then your Storage, and stops when they run out. The public bench takes 15% of what you make, at shop prices. A forge in your house takes none.\n\nIron Bar\n1 Iron Ore → Iron Bar\nThe public bench takes about 1 gold a craft.\nMakes up to 7 · 4.8 s · 11 XP each\n1\n5\nAll\nStart\nGrind Copper Whetstones\n1 Copper Bar + 5 Copper Ore → 10 Copper Whetstone\nThe public bench takes about 1.5 gold a craft.\nMakes up to 20 · 4.6 s · 27 XP each\n1\n5\nAll\nStart\nForge Bronze Gauntlets\n3 Bronze Bar → Bronze Gauntlets\nThe public bench takes 3 gold a craft.\nMakes 1 of up to 1 · 4.5 s · 15 XP each\n1\n5\nAll\nStart\nForge Bronze Axe\n1 Bronze Bar + 1 Normal Plank → Bronze Axe\nThe public bench takes about 1.8 gold a craft.\nMakes 1 of up to 1 · 4 s · 15 XP each\n1\n5\nAll\nStart\nForge Bronze Pickaxe\n1 Bronze Bar + 1 Normal Plank → Bronze Pickaxe\nThe public bench takes about 1.8 gold a craft.\nMakes 1 of up to 1 · 4 s · 15 XP each\n1\n5\nAll\nStart\nCopper Bar\n1 Copper Ore → Copper Bar\nMakes up to 14 · 3.8 s · 5 XP each\n1\n5\nAll\nStart\nBronze Bar\n2 Copper Ore → Bronze Bar\nThe public bench takes about 1 gold a craft.\nWorking on it now · Makes up to 7 · 4.2 s · 7 XP each\n1\n5\nAll\nStop\nGrind Coarse Whetstones\n2 Copper Ore → 10 Coarse Whetstone. For your own use. The shop and the Weighhouse won't take it.\nMakes up to 70 · 4.2 s · 7 XP each\n1\n5\nAll\nStart\nForge Iron Axe\n2 Iron Bar + 1 Oak Plank → Iron Axe\nThe public bench takes about 3.8 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nForge Iron Pickaxe\n2 Iron Bar + 1 Oak Plank → Iron Pickaxe\nThe public bench takes about 3.8 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nMix Tempering Salts\n1 Iron Bar + 1 Bone Chips → Tempering Salts\nThe public bench takes about 1.1 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nForge Iron Hatchets\n6 Iron Bar + 2 Normal Plank → Iron Hatchets\nThe public bench takes about 9.8 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nForge Iron Warhammer\n6 Iron Bar + 3 Normal Plank → Iron Warhammer\nThe public bench takes about 11 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nForge Ironbound Shield\n9 Iron Bar + 3 Normal Plank → Ironbound Shield\nThe public bench takes 15 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nReforge Klappa's Club\n1 Practice Club + 6 Bronze Bar + 3 Small Fang → Klappa's Club\nThe public bench takes about 7.5 gold a craft.\nNeeds 6 Bronze Bar (you have 3). Made with Smithing.\nStart\nGrind Iron Whetstones\n2 Iron Bar + 3 Iron Ore → 10 Iron Whetstone\nYou need Smithing 20 to make Iron Whetstone. You have 18.\nStart\nGold Bar\n1 Gold Ore → Gold Bar\nYou need Smithing 25 to make Gold Bar. You have 18.\nStart",
+  "m-ledger": "Gathering and crafting\nGathering\nWoodcutting\n16\n332 XP to 17\nNext at level 22: Hollow Oak (tree to chop)\nMining\n22\n630 XP to 23\nNext at level 30: Coal Seam (rock to mine)\nFishing\n14\n267 XP to 15\nNext at level 20: Trout Spot (fishing spot)\nFarming\n1\n83 XP to 2\nNext at level 10: Carrot (crop to grow)\nCrafting\nCooking\n12\n212 XP to 13\nNext at level 15: Cooked Trout (food, heals 168)\nCrafting\n9\n148 XP to 10\nNext at level 15: Oak Plank (material), Oak Wand (wand), Oakboard Spellbook (spellbook) and 5 more\nSmithing\n18\n413 XP to 19\nNext at level 20: Iron Whetstone (whetstone for blades)\nRunecrafting\n4\n75 XP to 5\nNext at level 12: Split Blank Runes (material)",
+  "m-smithing": "Gathering and crafting\n‹ All skills\nSmithing\n413 XP to 19\n18\n\nMetal bars, axes and pickaxes, whetstones for melee, salts for tempering, and fittings for your home. Pick what to make. It uses the materials in your bag, then your Storage, and stops when they run out. The public bench takes 15% of what you make, at shop prices. A forge in your house takes none.\n\nIron Bar\n1 Iron Ore → Iron Bar\nThe public bench takes about 1 gold a craft.\nMakes up to 7 · 4.8 s · 11 XP each\n1\n5\nAll\nStart\nGrind Copper Whetstones\n1 Copper Bar + 5 Copper Ore → 10 Copper Whetstone\nThe public bench takes about 1.5 gold a craft.\nMakes up to 20 · 4.6 s · 27 XP each\n1\n5\nAll\nStart\nForge Bronze Gauntlets\n3 Bronze Bar → Bronze Gauntlets\nThe public bench takes 3 gold a craft.\nMakes 1 of up to 1 · 4.5 s · 15 XP each\n1\n5\nAll\nStart\nForge Bronze Axe\n1 Bronze Bar + 1 Normal Plank → Bronze Axe\nThe public bench takes about 1.8 gold a craft.\nMakes 1 of up to 1 · 4 s · 15 XP each\n1\n5\nAll\nStart\nForge Bronze Pickaxe\n1 Bronze Bar + 1 Normal Plank → Bronze Pickaxe\nThe public bench takes about 1.8 gold a craft.\nMakes 1 of up to 1 · 4 s · 15 XP each\n1\n5\nAll\nStart\nCopper Bar\n1 Copper Ore → Copper Bar\nMakes up to 14 · 3.8 s · 5 XP each\n1\n5\nAll\nStart\nBronze Bar\n2 Copper Ore → Bronze Bar\nThe public bench takes about 1 gold a craft.\nMakes up to 7 · 4.2 s · 7 XP each\n1\n5\nAll\nStart\nGrind Coarse Whetstones\n2 Copper Ore → 10 Coarse Whetstone. For your own use. The shop and the Weighhouse won't take it.\nMakes up to 70 · 4.2 s · 7 XP each\n1\n5\nAll\nStart\nForge Iron Axe\n2 Iron Bar + 1 Oak Plank → Iron Axe\nThe public bench takes about 3.8 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nForge Iron Pickaxe\n2 Iron Bar + 1 Oak Plank → Iron Pickaxe\nThe public bench takes about 3.8 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nMix Tempering Salts\n1 Iron Bar + 1 Bone Chips → Tempering Salts\nThe public bench takes about 1.1 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nForge Iron Hatchets\n6 Iron Bar + 2 Normal Plank → Iron Hatchets\nThe public bench takes about 9.8 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nForge Iron Warhammer\n6 Iron Bar + 3 Normal Plank → Iron Warhammer\nThe public bench takes about 11 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nForge Ironbound Shield\n9 Iron Bar + 3 Normal Plank → Ironbound Shield\nThe public bench takes 15 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nReforge Klappa's Club\n1 Practice Club + 6 Bronze Bar + 3 Small Fang → Klappa's Club\nThe public bench takes about 7.5 gold a craft.\nNeeds 6 Bronze Bar (you have 3). Made with Smithing.\nStart\nGrind Iron Whetstones\n2 Iron Bar + 3 Iron Ore → 10 Iron Whetstone\nYou need Smithing 20 to make Iron Whetstone. You have 18.\nStart\nGold Bar\n1 Gold Ore → Gold Bar\nYou need Smithing 25 to make Gold Bar. You have 18.\nStart",
+  "m-smithing-geo": {
+   "win": [
+    513,
+    41,
+    400,
+    373
+   ],
+   "rows": 17,
+   "fullyVisibleRows": 0,
+   "scrollH": 2569,
+   "clientH": 331,
+   "fonts": [
+    "14.5px",
+    "16px",
+    "18.5px"
+   ]
+  },
+  "m-cooking": "Gathering and crafting\n‹ All skills\nCooking\n212 XP to 13\n12\n\nFood that heals and drinks that restore mana on a hunt. Pick what to make. It uses the materials in your bag, then your Storage, and stops when they run out. The public bench takes 15% of what you make, at shop prices. A kitchen in your house takes none.\n\nCook Wolf Meat\n1 Raw Wolf Meat → Cooked Wolf Meat\nThe public bench takes about 1.8 gold a craft.\nMakes up to 6 · 3.8 s · 13 XP each · burns up to 18%\n1\n5\nAll\nStart\nCook Shrimp\n1 Raw Shrimp → Cooked Shrimp. The shop buys it, but every new hero starts with some, so the Weighhouse won't list it.\nMakes up to 24 · 3.8 s · 11 XP each · burns up to 14%\n1\n5\nAll\nStart\nBoil Turnip Mash\n1 Turnip → Turnip Mash\nThe public bench takes about 2.1 gold a craft.\nMakes up to 5 · 2.6 s · 3 XP each · burns up to 14%\n1\n5\nAll\nStart\nTurnip Juice\n1 Turnip → 3 Turnip Juice\nThe public bench takes about 2.7 gold a craft.\nMakes up to 15 · 2.6 s · 3 XP each · burns up to 14%\n1\n5\nAll\nStart\nCarrot Juice\n1 Carrot → 3 Carrot Juice\nThe public bench takes about 5 gold a craft.\nNo Carrot in your bag or Storage. Grown with Farming 10.\nStart\nCook Herring\n1 Raw Herring → Cooked Herring\nThe public bench takes about 1 gold a craft.\nNo Raw Herring in your bag or Storage. Gathered with Fishing 10.\nStart\nRoast Carrot\n1 Carrot → Roasted Carrot\nThe public bench takes about 1.8 gold a craft.\nNo Carrot in your bag or Storage. Grown with Farming 10.\nStart\nCook Trout\n1 Raw Trout → Cooked Trout\nYou need Cooking 15 to cook Raw Trout. You have 12.\nStart\nGrill Pikeperch\n1 Raw Pikeperch → Grilled Pikeperch\nYou need Cooking 18 to cook Raw Pikeperch. You have 12.\nStart",
+  "m-cooking-geo": {
+   "win": [
+    513,
+    41,
+    400,
+    373
+   ],
+   "rows": 9,
+   "fullyVisibleRows": 0,
+   "scrollH": 1436,
+   "clientH": 331,
+   "fonts": [
+    "14.5px",
+    "16px",
+    "18.5px"
+   ]
+  },
+  "m-crafting": "Gathering and crafting\n‹ All skills\nCrafting\n148 XP to 10\n9\n\nPlanks, arrows and bolts, and timber for building your home. Pick what to make. It uses the materials in your bag, then your Storage, and stops when they run out. The public bench takes 15% of what you make, at shop prices. A workshop in your house takes none.\n\nHallmark\n\nHold a Fine piece to choose its second perk here. Make Banded Signet can roll one, and setting a Road Carnelian in a plain one always does.\n\nSew Apprentice Robe Bottom\n2 Silk Thread → Apprentice Robe Bottom\nThe public bench takes about 6.8 gold a craft.\nMakes 1 of up to 1 · 4.8 s · 10 XP each\n1\n5\nAll\nStart\nSew Apprentice Sash\n1 Silk Thread → Apprentice Sash\nThe public bench takes about 2.6 gold a craft.\nMakes 1 of up to 2 · 4.5 s · 6 XP each\n1\n5\nAll\nStart\nSew Apprentice Hat\n1 Silk Thread → Apprentice Hat\nThe public bench takes about 3.8 gold a craft.\nMakes 1 of up to 2 · 4.5 s · 6 XP each\n1\n5\nAll\nStart\nStitch Leather Belt\n1 Wolf Pelt → Leather Belt\nThe public bench takes about 2.6 gold a craft.\nMakes 1 of up to 4 · 4.5 s · 6 XP each\n1\n5\nAll\nStart\nSew Apprentice Gloves\n1 Silk Thread → Apprentice Gloves\nThe public bench takes about 2.3 gold a craft.\nMakes 1 of up to 2 · 4.5 s · 5 XP each\n1\n5\nAll\nStart\nNormal Plank\n1 Normal Log → Normal Plank\nMakes up to 30 · 3.8 s · 3 XP each\n1\n5\nAll\nStart\nSew Apprentice Slippers\n1 Silk Thread → Apprentice Slippers\nThe public bench takes about 2.6 gold a craft.\nMakes 1 of up to 2 · 4.5 s · 5 XP each\n1\n5\nAll\nStart\nSew Apprentice Robe Top\n3 Silk Thread → Apprentice Robe Top\nThe public bench takes about 9.3 gold a craft.\nNeeds 3 Silk Thread (you have 2). Dropped by Hive Wasp at Mill Cellar, and at The Sewer and Wickstead.\nStart\nFletch Bronze Arrows ×50\n6 Bronze Bar + 4 Normal Plank → 50 Bronze Arrows. For your own use. The shop and the Weighhouse won't take it.\nNeeds 6 Bronze Bar (you have 3). Made with Smithing.\nStart\nStitch Graypelt Cloak\n6 Wolf Pelt → Graypelt Cloak\nThe public bench takes about 11 gold a craft.\nNeeds 6 Wolf Pelt (you have 4). Dropped by Briarcoat Wolf and Old Grayjaw at Meadowbrook Thicket, and at Wickstead and Mosslight Glade.\nStart\nStitch Houndskin Cloak\n12 Wolf Pelt + 1 Bear Pelt → Houndskin Cloak\nThe public bench takes about 23 gold a craft.\nNeeds 12 Wolf Pelt (you have 4). Dropped by Briarcoat Wolf and Old Grayjaw at Meadowbrook Thicket, and at Wickstead and Mosslight Glade.\nStart\nOak Plank\n1 Oak Log → Oak Plank\nYou need Crafting 15 to make Oak Plank. You have 9.\nStart\nCarve Oak Wand\n2 Oak Plank + 1 Silk Thread → Oak Wand\nYou need Crafting 15 to make Oak Wand. You have 9.\nStart",
+  "m-crafting-geo": {
+   "win": [
+    513,
+    41,
+    400,
+    373
+   ],
+   "rows": 13,
+   "fullyVisibleRows": 0,
+   "scrollH": 2190,
+   "clientH": 331,
+   "fonts": [
+    "14.5px",
+    "16px",
+    "18.5px"
+   ]
+  },
+  "m-runecrafting": "Gathering and crafting\n‹ All skills\nRunecrafting\n75 XP to 5\n4\n\nRunes your spells spend, better than the shop’s. Pick what to make. It uses the materials in your bag, then your Storage, and stops when they run out. The public bench takes 15% of what you make, at shop prices. A library in your house takes none.\n\nCut Blank Runes\n6 Rune Essence → 12 Blank Rune\nThe public bench takes about 1.8 gold a craft.\nMakes up to 36 · 4.5 s · 3 XP each\n1\n5\nAll\nStart\nBind Chalked Earth Runes\n6 Blank Rune → 45 Chalked Earth Rune. For your own use. The shop and the Weighhouse won't take it.\nNo Blank Rune in your bag or Storage. Made with Runecrafting.\nStart\nBind Chalked Water Runes\n6 Blank Rune → 45 Chalked Water Rune. For your own use. The shop and the Weighhouse won't take it.\nNo Blank Rune in your bag or Storage. Made with Runecrafting.\nStart\nBind Chalked Fire Runes\n6 Blank Rune → 45 Chalked Fire Rune. For your own use. The shop and the Weighhouse won't take it.\nNo Blank Rune in your bag or Storage. Made with Runecrafting.\nStart\nBind Chalked Ice Runes\n6 Blank Rune → 45 Chalked Ice Rune. For your own use. The shop and the Weighhouse won't take it.\nNo Blank Rune in your bag or Storage. Made with Runecrafting.\nStart\nBind Chalked Poison Runes\n6 Blank Rune → 45 Chalked Poison Rune. For your own use. The shop and the Weighhouse won't take it.\nNo Blank Rune in your bag or Storage. Made with Runecrafting.\nStart\nBind Chalked Rupture Runes\n6 Blank Rune → 45 Chalked Rupture Rune. For your own use. The shop and the Weighhouse won't take it.\nNo Blank Rune in your bag or Storage. Made with Runecrafting.\nStart\nSplit Blank Runes\n6 Rune Essence → 6 Blank Rune\nYou need Runecrafting 12 to make Blank Rune. You have 4.\nStart\nBind Scored Earth Runes\n18 Blank Rune → 13 Scored Earth Rune\nYou need Runecrafting 15 to make Scored Earth Rune. You have 4.\nStart",
+  "m-runecrafting-geo": {
+   "win": [
+    513,
+    41,
+    400,
+    373
+   ],
+   "rows": 9,
+   "fullyVisibleRows": 1,
+   "scrollH": 1264,
+   "clientH": 331,
+   "fonts": [
+    "14.5px",
+    "16px",
+    "18.5px"
+   ]
+  },
+  "m-running": "Gathering and crafting\nMaking Bronze Bar: 1 made so far, 12 Copper Ore left. It stops when they run out.\nStop\n‹ All skills\nSmithing\n406 XP to 19\n18\n\nMetal bars, axes and pickaxes, whetstones for melee, salts for tempering, and fittings for your home. Pick what to make. It uses the materials in your bag, then your Storage, and stops when they run out. The public bench takes 15% of what you make, at shop prices. A forge in your house takes none.\n\nIron Bar\n1 Iron Ore → Iron Bar\nThe public bench takes about 1 gold a craft.\nMakes up to 7 · 4.8 s · 11 XP each\n1\n5\nAll\nStart\nGrind Copper Whetstones\n1 Copper Bar + 5 Copper Ore → 10 Copper Whetstone\nThe public bench takes about 1.5 gold a craft.\nMakes up to 20 · 4.6 s · 27 XP each\n1\n5\nAll\nStart\nForge Bronze Gauntlets\n3 Bronze Bar → Bronze Gauntlets\nThe public bench takes 3 gold a craft.\nMakes 1 of up to 1 · 4.5 s · 15 XP each\n1\n5\nAll\nStart\nForge Bronze Axe\n1 Bronze Bar + 1 Normal Plank → Bronze Axe\nThe public bench takes about 1.8 gold a craft.\nMakes 1 of up to 1 · 4 s · 15 XP each\n1\n5\nAll\nStart\nForge Bronze Pickaxe\n1 Bronze Bar + 1 Normal Plank → Bronze Pickaxe\nThe public bench takes about 1.8 gold a craft.\nMakes 1 of up to 1 · 4 s · 15 XP each\n1\n5\nAll\nStart\nCopper Bar\n1 Copper Ore → Copper Bar\nMakes up to 14 · 3.8 s · 5 XP each\n1\n5\nAll\nStart\nBronze Bar\n2 Copper Ore → Bronze Bar\nThe public bench takes about 1 gold a craft.\nWorking on it now · Makes up to 7 · 4.2 s · 7 XP each\n1\n5\nAll\nStop\nGrind Coarse Whetstones\n2 Copper Ore → 10 Coarse Whetstone. For your own use. The shop and the Weighhouse won't take it.\nMakes up to 70 · 4.2 s · 7 XP each\n1\n5\nAll\nStart\nForge Iron Axe\n2 Iron Bar + 1 Oak Plank → Iron Axe\nThe public bench takes about 3.8 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nForge Iron Pickaxe\n2 Iron Bar + 1 Oak Plank → Iron Pickaxe\nThe public bench takes about 3.8 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nMix Tempering Salts\n1 Iron Bar + 1 Bone Chips → Tempering Salts\nThe public bench takes about 1.1 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nForge Iron Hatchets\n6 Iron Bar + 2 Normal Plank → Iron Hatchets\nThe public bench takes about 9.8 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nForge Iron Warhammer\n6 Iron Bar + 3 Normal Plank → Iron Warhammer\nThe public bench takes about 11 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nForge Ironbound Shield\n9 Iron Bar + 3 Normal Plank → Ironbound Shield\nThe public bench takes 15 gold a craft.\nNo Iron Bar in your bag or Storage. Made with Smithing 15.\nStart\nReforge Klappa's Club\n1 Practice Club + 6 Bronze Bar + 3 Small Fang → Klappa's Club\nThe public bench takes about 7.5 gold a craft.\nNeeds 6 Bronze Bar (you have 3). Made with Smithing.\nStart\nGrind Iron Whetstones\n2 Iron Bar + 3 Iron Ore → 10 Iron Whetstone\nYou need Smithing 20 to make Iron Whetstone. You have 18.\nStart\nGold Bar\n1 Gold Ore → Gold Bar\nYou need Smithing 25 to make Gold Bar. You have 18.\nStart"
+ },
+ "errors": []
+}

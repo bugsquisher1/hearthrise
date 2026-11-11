@@ -1,5 +1,20 @@
 # Art Director — running log
 
+## 2026-11-11 - the crafting stations, researched and mocked (lane/d-station-ui, from main v0.2.118)
+
+Tyler: "just do some design research on crafting station UI and improve them", after rejecting three reskins in October. Lessons:
+
+- **There is one station window, not four.** Forge, benches, kitchen and altars all open Gathering and crafting on a skill
+  (`work.js`, 380 px); `havora/works.js` is the Town Works donation tab. Map the doors (`stations.js opens`) before planning N mocks.
+- **Measure the wall before calling it one:** a small evaluate over the open window (rows fully inside its rect, body scrollHeight)
+  gave 3 of 17 rows at 1920x1080 and 0 at 922x423. Numbers like that carry the argument without a single adjective.
+- **Mock on the captured page, not a redraw.** Saving the live DOM (scripts stripped, the canvas swapped for its PNG) and replacing
+  only `.hw-trade` keeps the frame, place and fonts exactly today's, which is what "improve, don't reskin" means. Shoot the canvas
+  with every overlay hidden first: an element screenshot of a canvas also catches the coach card lying over it.
+- **`.hw-primary` is display:none until `.is-on`.** The gold Make vanished in the first render and only the PNG showed it.
+- **Reuse beats invention here:** the bag's pocket well and count, the Hunts list's picked row, the sunk press, `.hs-sub` heads
+  and the sticky intent-message pattern covered every new need. The mock adds layout, no new control style.
+
 ## 2026-11-04 - the spark instead of the word (lane/a-miss-spark, from main v0.2.89)
 
 Tyler's named fix: "miss miss miss" over the hero becomes a spark. Lessons worth keeping:

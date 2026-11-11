@@ -1,0 +1,505 @@
+<!DOCTYPE html><html lang="en" class="is-touch" style="--panel-alpha: 1;"><head><base href="../../../../../">
+<meta charset="utf-8">
+<!-- play.html — THE CLIENT (rebuilt 2026-10-17). hearthrise.net/ is the static
+     notice (index.html); this page is the game, behind the server's closed
+     allowlist. Boot: src/app/boot.js. An http visit moves to https first
+     (hr-accrue answers https origins only), then the b124 kill-switch runs. -->
+
+
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="application-name" content="Hearthrise">
+<meta name="robots" content="noindex">
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self';
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src 'self' https://fonts.gstatic.com;
+  img-src 'self' data: blob:;
+  connect-src 'self' https://*.ingest.us.sentry.io https://us.i.posthog.com https://us-assets.i.posthog.com;
+  worker-src 'self' blob:;
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+">
+<title>Hearthrise</title>
+<link rel="icon" type="image/png" sizes="512x512" href="assets/brand/hearthrise-mark.png?v=0.2.118">
+
+<link rel="stylesheet" href="src/styles/tokens.css?v=0.2.118">
+<link rel="stylesheet" href="src/styles/world.css?v=0.2.118">
+<link rel="stylesheet" href="src/styles/shell.css?v=0.2.118">
+<link rel="stylesheet" href="src/styles/hunt.css?v=0.2.118">
+<link rel="stylesheet" href="src/styles/windows.css?v=0.2.118">
+<link rel="stylesheet" href="src/styles/market.css?v=0.2.118">
+<link rel="stylesheet" href="src/styles/summary.css?v=0.2.118">
+<link rel="stylesheet" href="src/styles/character.css?v=0.2.118">
+<link rel="stylesheet" href="src/styles/app.css?v=0.2.118">
+<!-- MODULE PRELOAD (generated: node tests/module-preload.mjs --write). Every module the page loads, asked for at once
+     while this page is parsed instead of one import level at a time; fetched, never run early. -->
+<link rel="preload" as="script" href="src/platform/load-shell.js?v=0.2.118">
+<link rel="preload" as="script" href="src/vendor/supabase-js-2.103.0.umd.js?v=0.2.118">
+<link rel="preload" as="script" href="src/platform/storage.js?v=0.2.118">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- /MODULE PRELOAD -->
+</head>
+<body class="client-page">
+<!-- THE LOADING SHELL (old-laptop player 10-31: a slow line stared at plain black until all 346 modules had arrived).
+     Painted with this page's stylesheets; the bar is src/platform/load-shell.js; boot.js takes it away with the first screen. -->
+
+
+<div class="app is-game" id="app"><nav class="char-strip" aria-label="Characters" style="padding-right: 674px;"><ol class="char-tabs"><li class="char-tab-row" data-key="0"><button type="button" class="char-tab is-shown" data-app="show" data-slot="0" data-hs-player="" data-hs-player-id="c9871838-1bb3-4ee9-9502-585273c2733e" data-hs-player-name="Wren" data-hs-player-slot="0" aria-pressed="true" aria-label="Wren, In town, idle"><span class="char-roleglyph" aria-hidden="true" data-role="tank"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M48.906 19.656v10.782c0 103.173 10.53 206.07 41.313 289.53 30.78 83.463 82.763 148.094 164.53 170.563l2.188.626 2.25-.5c89.686-19.12 142.322-84.028 171.187-168.344 28.865-84.315 35.406-188.656 35.406-291.875v-10.78l-10.655 1.53C323.26 39.954 191.452 40 59.595 21.188l-10.69-1.53zM67.75 41.03c63.242 8.536 126.495 12.792 189.75 12.782v184.532h174.78c-4.905 27.572-11.31 53.747-19.592 77.937-27.348 79.884-73.757 137.33-155.157 155.564-.008-.003-.02.003-.03 0v-233.5H86.53c-12.87-60.99-18.277-128.81-18.78-197.313z"></path></svg></span><span class="char-tab-main"><b class="char-tab-name">Wren</b><small class="char-tab-doing">In town, idle</small><span class="char-bars" aria-hidden="true"><i class="char-bar is-hp"><i style="width: 100%;"></i></i><i class="char-bar is-mana"><i style="width: 100%;"></i></i><i class="char-bar is-stamina"><i style="width: 100%;"></i></i></span></span><span class="char-badge"></span></button></li></ol><span class="char-strip-tools"><button type="button" class="char-tool is-all" data-app="all" aria-label="All characters" title="Every character on one screen (O)"><span class="char-tool-now">Wren</span><span class="char-tool-wide">All characters</span><span class="char-tool-short">Heroes</span><span class="char-badge char-all-badge"></span></button><button type="button" class="char-tool" data-app="characters">Characters</button><button type="button" class="char-tool" data-app="sign-out">Sign out</button></span></nav><main class="game"><section class="panel active" id="panel-world" data-slot="0" data-scene="town"><div class="world-chrome"><span class="world-title">Havora</span><span class="world-scenes" role="group" aria-label="Show"><button type="button" class="world-scene active" data-world-choice="town" aria-pressed="true">Town</button><button type="button" class="world-scene" data-world-choice="home" aria-pressed="false">Home</button></span></div><div class="world-stage"><img class="world-canvas" src=".claude/coordination/mocks/2026-11-11-stations/img/world-phone.png" style="width:904px;height:323px;image-rendering:pixelated;"><div class="world-idle" role="status" hidden=""></div><div class="world-zoom" role="group" aria-label="Zoom" hidden=""><button type="button" class="world-zoom-btn" data-zoom="1" aria-label="Zoom in">+</button><button type="button" class="world-zoom-btn" data-zoom="-1" aria-label="Zoom out">−</button></div><div class="hs-shell" data-hs-shell=""><div class="hs-hud" data-hs-hud="world"><div class="hs-widget is-action-bar" data-hs-widget="action-bar" style="--hs-op: 1; min-width: 320px; min-height: 64px; left: 24px; top: 230px;"><div class="hb-bar is-town" role="group" aria-label="Action bar"><div class="hb-hub"><div class="hb-read is-hp" title="Health"><span class="hb-read-k">HP</span><b class="hb-read-v" data-v="hp">150/150</b><small class="hb-read-r" data-r="hp" title="Health regained each second"></small></div><div class="hb-medal" role="group" aria-label="Level and experience" data-coach-hook="level" title="Level 1: 0% of the way to 2"><svg class="hb-arcs" viewBox="0 0 120 120" aria-hidden="true"><circle class="hb-ring-bezel" cx="60" cy="60" r="59"></circle><circle class="hb-ring-channel" cx="60" cy="60" r="52"></circle><path class="hb-arc-track" d="M47.42 110.46 A52 52 0 0 1 47.42 9.54"></path><path class="hb-arc-track" d="M72.58 110.46 A52 52 0 0 0 72.58 9.54"></path><path class="hb-arc is-hp" d="M47.42 110.46 A52 52 0 0 1 47.42 9.54" pathLength="100" stroke-dasharray="100 100"></path><path class="hb-arc is-mana" d="M72.58 110.46 A52 52 0 0 0 72.58 9.54" pathLength="100" stroke-dasharray="100 100"></path><circle class="hb-ring-xp" cx="60" cy="60" r="43"></circle><path class="hb-arc is-xp" d="M60 17 A43 43 0 1 1 60 103 A43 43 0 1 1 60 17" pathLength="100" stroke-dasharray="0 100"></path><circle class="hb-ring-disc" cx="60" cy="60" r="40"></circle></svg><span class="hb-medal-in"><small class="hb-lv-k">Lv</small><b class="hb-lv">1</b><small class="hb-xp"><i class="hb-xp-k">XP </i><span class="hb-xp-v">0%</span></small></span></div><div class="hb-read is-mana" title="Mana"><span class="hb-read-k">MP</span><b class="hb-read-v" data-v="mana">100/100</b><small class="hb-read-r" data-r="mana" title="Mana regained each second"></small></div><div class="hb-stam" title="Stamina: hunting time left" data-coach-hook="stamina"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M92.656 19.188v41.5h331.72v-41.5H92.655zM119.5 79.374V433.53h22.28V79.376H119.5zm46.594 0c3.212 43.324 13.312 82.022 27.78 110.906 17.685 35.304 40.845 54.75 64.064 54.75 23.218 0 46.346-19.446 64.03-54.75 14.47-28.883 24.57-67.58 27.782-110.905H166.094zm209.156 0V433.53h22.28V79.376h-22.28zm-117.313 185.22c-23.218 0-46.378 19.415-64.062 54.717-14.835 29.614-25.098 69.562-28.03 114.22H350c-2.933-44.658-13.197-84.606-28.03-114.22-17.686-35.302-40.814-54.718-64.033-54.718zM92.657 452.218v41.467h331.718V452.22H92.655z"></path></svg><b class="hb-stam-v">12:00h</b><button type="button" class="hb-stam-buy" data-hs-act="stam-buy" data-coach-hook="stamina-buy" aria-expanded="false" aria-label="Buy stamina" title="Buy stamina"><i></i></button></div><div class="hb-socket is-food" title="12 food in the bag (most: Cooked Shrimp)"><span class="hb-socket-ico" data-for="cooked_shrimp"><img class="hh-icon" src="assets/icons-bundle/pixel/items/cooked_shrimp.png" alt="" width="32" height="32" decoding="async"></span><small class="hb-socket-k">Food ×12</small></div><div class="hb-socket is-charm" title="Charm socket: empty"><span class="hb-socket-ico"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M191.02 25.346l-22.9 34.35h30.714l22.9-34.35H191.02zm52.347 0l-22.898 34.35h71.06l-22.897-34.35h-25.266zm46.9 0l22.9 34.35h30.714l-22.9-34.35h-30.714zm-117.234 52.35l50.115 50.115-25.058-50.115h-25.057zm45.182 0L256 153.265l37.785-75.57h-75.57zm95.695 0l-25.058 50.115 50.115-50.115H313.91zm-134.435 31.898C109.163 139.5 59.693 209.29 59.693 290.348c0 108.185 88.122 196.306 196.307 196.306 108.185 0 196.307-88.12 196.307-196.306 0-81.057-49.47-150.848-119.782-180.754l-30.517 30.517c64.397 19.592 111.037 79.292 111.037 150.238 0 86.966-70.08 157.045-157.045 157.045-86.966 0-157.045-70.08-157.045-157.045 0-70.946 46.64-130.646 111.037-150.237l-30.517-30.516z"></path></svg></span><small class="hb-socket-k">Charm</small></div></div><div class="hb-grid"><ol class="hb-slots" aria-label="Slots 1 to 5 and 11 to 15, slot 1 tried first"><li class="hb-slot" data-slot="0" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 1: Challenge" data-item="ability:challenge" draggable="true"><span class="hb-slot-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/abilities/challenge.png" alt="" width="32" height="32" decoding="async"></span><small class="hb-n">1</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot" data-slot="1" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 2: Power Strike" data-item="ability:power_strike" draggable="true"><span class="hb-slot-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/abilities/power_strike.png" alt="" width="32" height="32" decoding="async"></span><small class="hb-n">2</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot" data-slot="2" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 3: Cooked Shrimp" data-item="consume:cooked_shrimp" draggable="true"><span class="hb-slot-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/cooked_shrimp.png" alt="" width="32" height="32" decoding="async"></span><small class="hb-n">3</small><small class="hb-count">12</small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot" data-slot="3" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 4: Salted Shrimp" data-item="consume:salted_shrimp" draggable="true"><span class="hb-slot-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/supplies/salted_shrimp.png" alt="" width="32" height="32" decoding="async"></span><small class="hb-n">4</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot" data-slot="4" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 5: Thin Turnip Juice" data-item="consume:thin_turnip_juice" draggable="true"><span class="hb-slot-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/supplies/thin_turnip_juice.png" alt="" width="32" height="32" decoding="async"></span><small class="hb-n">5</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot is-empty" data-slot="10" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 11: empty, press to configure" data-item=""><span class="hb-slot-ico"></span><small class="hb-n">11</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot is-empty" data-slot="11" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 12: empty, press to configure" data-item=""><span class="hb-slot-ico"></span><small class="hb-n">12</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot is-empty" data-slot="12" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 13: empty, press to configure" data-item=""><span class="hb-slot-ico"></span><small class="hb-n">13</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot is-empty" data-slot="13" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 14: empty, press to configure" data-item=""><span class="hb-slot-ico"></span><small class="hb-n">14</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot is-empty" data-slot="14" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 15: empty, press to configure" data-item=""><span class="hb-slot-ico"></span><small class="hb-n">15</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li></ol><ol class="hb-slots" aria-label="Slots 6 to 10 and 16 to 20"><li class="hb-slot is-empty" data-slot="5" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 6: empty, press to configure" data-item=""><span class="hb-slot-ico"></span><small class="hb-n">6</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot is-empty" data-slot="6" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 7: empty, press to configure" data-item=""><span class="hb-slot-ico"></span><small class="hb-n">7</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot is-empty" data-slot="7" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 8: empty, press to configure" data-item=""><span class="hb-slot-ico"></span><small class="hb-n">8</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot is-empty" data-slot="8" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 9: empty, press to configure" data-item=""><span class="hb-slot-ico"></span><small class="hb-n">9</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot is-empty" data-slot="9" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 10: empty, press to configure" data-item=""><span class="hb-slot-ico"></span><small class="hb-n">10</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot is-empty" data-slot="15" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 16: empty, press to configure" data-item=""><span class="hb-slot-ico"></span><small class="hb-n">16</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot is-empty" data-slot="16" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 17: empty, press to configure" data-item=""><span class="hb-slot-ico"></span><small class="hb-n">17</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot is-empty" data-slot="17" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 18: empty, press to configure" data-item=""><span class="hb-slot-ico"></span><small class="hb-n">18</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot is-empty" data-slot="18" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 19: empty, press to configure" data-item=""><span class="hb-slot-ico"></span><small class="hb-n">19</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li><li class="hb-slot is-empty" data-slot="19" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot 20: empty, press to configure" data-item=""><span class="hb-slot-ico"></span><small class="hb-n">20</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b><span class="hb-why" aria-hidden="true" data-for=""></span><span class="hb-plus" aria-hidden="true"></span><span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li></ol></div><button type="button" class="hb-page" data-hs-act="slot-page" aria-label="More slots" hidden=""></button><div class="hb-plaque" role="group" aria-label="Fight settings" data-coach-hook="fight-settings"><div class="hb-pl-row is-set"><span class="hb-label">Setup</span><span class="hb-set" data-coach-hook="preset"><button type="button" class="hs-name" data-hs-act="set-rename" title="Rename"><b class="hs-name-t">Preset 1</b></button><input type="text" class="hh-num hs-name-edit" maxlength="24" aria-label="New name for this setup" data-hs-act="set-rename-key" style=""></span><button type="button" class="hh-tool hb-ok" data-hs-act="setups" aria-label="Saved setups: switch or save"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M17.47 250.9C88.82 328.1 158 397.6 224.5 485.5c72.3-143.8 146.3-288.1 268.4-444.37L460 26.06C356.9 135.4 276.8 238.9 207.2 361.9c-48.4-43.6-126.62-105.3-174.38-137z"></path></svg></button><button type="button" class="hh-tool hb-more" data-hs-act="panel" aria-expanded="false" aria-label="More fight settings"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M87 32v71h18V32H87zm160 0v345h18V32h-18zm160 0v167h18V32h-18zM50 121c-5.14 0-9 3.9-9 9v28c0 5.1 3.86 9 9 9h92c5.1 0 9-3.9 9-9v-28c0-5.1-3.9-9-9-9H50zm37 64v295h18V185H87zm283 32c-5.1 0-9 3.9-9 9v28c0 5.1 3.9 9 9 9h92c5.1 0 9-3.9 9-9v-28c0-5.1-3.9-9-9-9h-92zm37 64v199h18V281h-18zM210 395c-5.1 0-9 3.9-9 9v28c0 5.1 3.9 9 9 9h92c5.1 0 9-3.9 9-9v-28c0-5.1-3.9-9-9-9h-92zm37 64v21h18v-21h-18z"></path></svg></button></div><div class="hb-pl-more" role="group" aria-label="More fight settings"><label class="hb-pl-row is-target"><span class="hb-label">Target</span><select class="hh-select" data-opt="target_mode" data-hs-act="opt" aria-label="Target"><option value="nearest">Nearest</option><option value="weakest">Lowest HP</option><option value="highest_pct">Highest % life</option><option value="strongest">Strongest</option><option value="follow">Follow the leader</option></select></label><div class="hb-pl-fold"><div class="hb-pl-head"><b>More fight settings</b><button type="button" class="hh-tool" data-hs-act="panel" aria-label="Close">×</button></div><label class="hb-pl-row is-gold"><span class="hb-label">Keep at least</span><input type="number" class="hh-num hb-gold" min="0" max="100000" step="50" inputmode="numeric" data-opt="gold_floor" data-hs-act="opt" aria-label="Gold to keep: the hunt sells loot, then stops, rather than spend below it" style=""><span class="hb-label">gold</span></label><p class="hb-pl-note">The hunt sells loot, then stops, rather than spend below this.</p></div></div><div class="hb-pl-row is-stance"><span class="hh-segs hb-stance" role="group" aria-label="Stance" data-coach-hook="stance"><button type="button" class="hh-seg" data-opt="stance" data-val="offensive" data-hs-act="opt" aria-pressed="false" title="Offensive">Offensive</button><button type="button" class="hh-seg" data-opt="stance" data-val="balanced" data-hs-act="opt" aria-pressed="true" title="Balanced">Balanced</button><button type="button" class="hh-seg" data-opt="stance" data-val="defensive" data-hs-act="opt" aria-pressed="false" title="Defensive">Defensive</button></span></div><div class="hb-pl-row is-move"><button type="button" class="hh-seg hb-chase" data-opt="chase" data-hs-act="opt" aria-pressed="true" data-coach-hook="chase" title="With chase off, the hero keeps its distance">Chase</button><span class="hb-dist" data-coach-hook="distance"><span class="hb-label">Distance</span><span class="hh-step" role="group" aria-label="Distance in tiles"><button type="button" class="hh-seg" data-opt="distance" data-val="-1" data-hs-act="opt" aria-label="Closer">−</button><output class="hh-step-val" data-show="distance">1</output><button type="button" class="hh-seg" data-opt="distance" data-val="1" data-hs-act="opt" aria-label="Farther">+</button></span></span></div><p class="hh-intent-msg" role="status" aria-live="polite"></p></div><div class="hb-tip" role="tooltip"></div><div class="hb-buy" role="dialog" aria-label="Buy stamina"><div class="hb-buy-head"><b>Stamina</b><span class="hb-buy-now"></span><button type="button" class="hh-tool" data-hs-act="stam-close" aria-label="Close">×</button></div><p class="hb-buy-quote"></p><p class="hb-buy-day"></p><p class="hb-buy-why"></p><p class="hb-buy-premium">Premium raises your stamina cap by 4 hours.</p><div class="hb-buy-do"><button type="button" class="hh-tool is-primary hb-buy-go" data-hs-act="stam-go"></button><button type="button" class="hh-tool hb-buy-no" data-hs-act="stam-no" hidden="">Cancel</button></div><p class="hh-intent-msg hb-buy-msg" role="status" aria-live="polite"></p></div><div class="hb-drop" role="menu" aria-label="Drop the action"><b class="hb-drop-t"></b><button type="button" class="hh-tool" role="menuitem" data-hs-act="drop" data-x="swap"></button><button type="button" class="hh-tool" role="menuitem" data-hs-act="drop" data-x="insert">Insert here (shift the rest)</button><button type="button" class="hh-tool" role="menuitem" data-hs-act="drop" data-x="cancel">Cancel</button></div></div></div></div><div class="hs-layer" data-hs-layer=""><section class="hs-win is-ledger is-entering is-top" data-hs-win="skills-trade" role="dialog" aria-label="Gathering and crafting" style="z-index: 10;"><header class="hs-win-head" data-hs-drag="skills-trade"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M113.844 17.72c-8.426.04-16.812.833-25.094 2.436C195.65 84.503 275.473 170.516 338.47 270c2.526-53.76-19.07-109.13-53.533-154.25-14.097 5.298-31.477.742-43.468-11.25-11.98-11.98-16.558-29.347-11.282-43.438C194.46 34.105 153.68 17.52 113.844 17.72zm380.562 20.405L423.47 115.75l30.06 125.563-55.092 8.78-19.407 80.626 73.5 39.124-41.25 55.937 29.658 44.033-88.782-27.625 16.5-43.844L291.97 364.5l13.124-84.563-111.375 58.125-4.22 78.25-112.22-27.656-33.25 104.156h450.376V38.125zM261.156 58.72c-.388.01-.776.028-1.156.06-3.644.325-6.882 1.696-9.188 4-6.147 6.15-5.746 18.88 3.875 28.5 9.622 9.623 22.353 10.024 28.5 3.876 6.148-6.148 5.747-18.878-3.875-28.5-5.637-5.637-12.335-8.096-18.156-7.937zM196.5 127.593L25.28 298.874c4.273 11.926 11.027 21.05 25.25 25.626L221.97 153c-7.796-8.89-16.308-17.333-25.47-25.406zm158.78 11.625l9.314 84.686 27.437-84.687h-36.75zm-132.03 74.968l-20.156 35.937 92.687 7.375-72.53-43.313z"></path></svg><h2 class="hs-win-title">Gathering and crafting</h2><kbd class="hs-key">G</kbd><button type="button" class="hs-close" data-hs-close="skills-trade" aria-label="Close Gathering and crafting"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M256 16C123.45 16 16 123.45 16 256s107.45 240 240 240 240-107.45 240-240S388.55 16 256 16zm0 60c99.41 0 180 80.59 180 180s-80.59 180-180 180S76 355.41 76 256 156.59 76 256 76zm-80.625 60c-.97-.005-2.006.112-3.063.313v-.032c-18.297 3.436-45.264 34.743-33.375 46.626l73.157 73.125-73.156 73.126c-14.63 14.625 29.275 58.534 43.906 43.906L256 299.906l73.156 73.156c14.63 14.628 58.537-29.28 43.906-43.906l-73.156-73.125 73.156-73.124c14.63-14.625-29.275-58.5-43.906-43.875L256 212.157l-73.156-73.125c-2.06-2.046-4.56-3.015-7.47-3.03z"></path></svg></button></header><div class="hs-win-coach"></div><div class="hs-win-body" data-hs-body="" data-hs-built=""><div class="hw-trade"><div class="hw-burying hw-work-now" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="work-stop">Stop</button></div><p class="hs-note hw-work-end" role="status"></p><div class="hw-trade-ledger is-off"><p class="hs-note hw-work-hint">Press a skill to gather or make.</p><div class="hw-skills"><section class="hw-skill-group"><h3 class="hw-skill-head">Gathering</h3><ul class="hw-skill-list" data-cat="gather"><li class="hw-skill" title="Woodcutting: Logs for Crafting and for building your home. Chop trees." data-key="woodcutting" data-hs-act="open-skill" data-skill="woodcutting" role="button" tabindex="0"><span class="hw-skill-top"><span class="hw-skill-glyph"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M215.344 22.813L205.03 37.906l71.782 46.375 8.938-12.81c-15.62-23.633-44.153-40.97-70.406-48.657zm-38.47 18.843c-28.32 35.34-79.16 105.16-105.718 145.313 61.96 26.364 113.013 69.562 133.22 119.593 5.064 12.54 8.125 25.566 8.78 38.75 36.873-9.75 80.34-36.93 117.25-70.5 30.105-27.38 55.912-59.115 71.406-87.75L176.875 41.655zm240.657 155.53c-16.836 31.038-43.713 63.084-74.717 91.283-40.21 36.57-87.238 66.474-130.47 76.03-1.09 8.278-3.153 16.543-6.343 24.72-8.91 22.832-26.23 44.633-52.656 64.592 64.678 10.955 135.135-13.105 195.844-53.687 64.21-42.923 116.84-104.112 139.28-157.063l-70.937-45.875zM84.814 213.782L16.5 313.72v143.717l135.875-194.812c-18.23-18.513-41.412-35.295-67.563-48.844z"></path></svg></span><b class="hw-skill-name">Woodcutting</b><b class="hw-skill-lv">16</b></span><span class="hw-skill-mid"><span class="hw-skill-bar" role="meter" aria-label="Woodcutting progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="10"><i class="hw-skill-fill" style="width: 10%;"></i><i class="hw-skill-ahead" style="left: 10%; width: 0%;"></i></span><small class="hw-skill-xp">332 XP to 17</small></span><small class="hw-skill-next" title="Next at level 22: Hollow Oak (tree to chop)">Next at level 22: Hollow Oak (tree to chop)</small></li><li class="hw-skill" title="Mining: Ore for Smithing and essence for Runecrafting. Mine rocks." data-key="mining" data-hs-act="open-skill" data-skill="mining" role="button" tabindex="0"><span class="hw-skill-top"><span class="hw-skill-glyph"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M113.844 17.72c-8.426.04-16.812.833-25.094 2.436C195.65 84.503 275.473 170.516 338.47 270c2.526-53.76-19.07-109.13-53.533-154.25-14.097 5.298-31.477.742-43.468-11.25-11.98-11.98-16.558-29.347-11.282-43.438C194.46 34.105 153.68 17.52 113.844 17.72zm380.562 20.405L423.47 115.75l30.06 125.563-55.092 8.78-19.407 80.626 73.5 39.124-41.25 55.937 29.658 44.033-88.782-27.625 16.5-43.844L291.97 364.5l13.124-84.563-111.375 58.125-4.22 78.25-112.22-27.656-33.25 104.156h450.376V38.125zM261.156 58.72c-.388.01-.776.028-1.156.06-3.644.325-6.882 1.696-9.188 4-6.147 6.15-5.746 18.88 3.875 28.5 9.622 9.623 22.353 10.024 28.5 3.876 6.148-6.148 5.747-18.878-3.875-28.5-5.637-5.637-12.335-8.096-18.156-7.937zM196.5 127.593L25.28 298.874c4.273 11.926 11.027 21.05 25.25 25.626L221.97 153c-7.796-8.89-16.308-17.333-25.47-25.406zm158.78 11.625l9.314 84.686 27.437-84.687h-36.75zm-132.03 74.968l-20.156 35.937 92.687 7.375-72.53-43.313z"></path></svg></span><b class="hw-skill-name">Mining</b><b class="hw-skill-lv">22</b></span><span class="hw-skill-mid"><span class="hw-skill-bar" role="meter" aria-label="Mining progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="6"><i class="hw-skill-fill" style="width: 5.5%;"></i><i class="hw-skill-ahead" style="left: 5.5%; width: 0%;"></i></span><small class="hw-skill-xp">630 XP to 23</small></span><small class="hw-skill-next" title="Next at level 30: Coal Seam (rock to mine)">Next at level 30: Coal Seam (rock to mine)</small></li><li class="hw-skill" title="Fishing: Raw fish for Cooking. Fish at a fishing spot." data-key="fishing" data-hs-act="open-skill" data-skill="fishing" role="button" tabindex="0"><span class="hw-skill-top"><span class="hw-skill-glyph"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M459.36 43.126c-52.275 8.712-112.776 46.666-171.8 96.906-52.19 44.424-102.796 98.724-142.838 152.305l18.672 15.12c13.228-17.734 27.73-35.612 43.078-53.196l-7.84-8.214 13.02-12.43c4.962 5.48 10.23 10.624 15.588 15.98-11.517 38.772-39.2 79.74-72.682 112.528 4.815 3.77 9.285 9.016 11.818 13.726 36.024-34.846 65.698-78.494 78.332-122.087 43.844-16.906 66.78-48.94 89.637-90.875 59.482-8.695 102.554-40.688 126.98-69.985 5.128 13.79 10.162 27.596 12.97 41.098 3.867 18.583 3.758 36.084-4.987 53.32-15.826 31.187-45.75 46.012-69.05 61.634-11.65 7.81-22.287 15.994-26.587 28.74-4.3 12.746-.336 27.582 11.634 44.29 12.763 17.813 31.426 30.763 44.025 43.56 3.362 3.415 6.242 6.77 8.558 10.064 2.087-.42 4.24-.644 6.445-.644 5.573 0 10.836 1.412 15.457 3.888-.13-.373-.255-.748-.394-1.117-3.633-9.606-10.07-17.534-17.24-24.818-14.343-14.568-32.06-27.236-42.22-41.418-10.282-14.353-11.195-22.164-9.208-28.054 1.987-5.89 8.8-12.334 19.553-19.543 21.504-14.418 56.188-31.21 75.08-68.44 10.993-21.667 10.92-44.166 6.56-65.128-7.15-32.718-19.584-59.43-32.56-87.21zm-12.798 13.172l7.666 16.46c-19.566 27.352-61.308 63.002-121.12 72.202l-4.183-7.598c37.565-29.052 74.82-51.47 106.934-63.097l-4.896-11.07zm-138.37 82.662c3.517 5.194 7.076 10.895 9.946 16.133-21.795 39.982-40.676 66.46-78.537 81.41l-8.94-8.94c22.38-23.795 48.04-48.565 71.984-69.115l-5.57-7.723zM132.14 305.31l-8.81 10.88 23.316 18.88 8.808-10.882zM112 330.18L17.338 447.088c.033.307.18 1.134.828 2.404 1.395 2.734 4.697 6.665 8.582 9.812 3.886 3.146 8.42 5.56 11.383 6.355 1.378.37 2.216.34 2.524.307l49.72-61.403c-2.815-11.952-.31-25.042 7.965-35.26 8.273-10.218 20.556-15.395 32.833-15.127l4.143-5.115zm17.99 41.866c-6.608.054-13.126 2.98-17.66 8.58-8.06 9.955-6.555 24.29 3.4 32.35 9.955 8.06 24.29 6.552 32.35-3.403.47-.58.904-1.178 1.31-1.787l17.537 3.23-7.062 38.354 17.7 3.26 10.325-56.057-35.19-6.48c-1.09-4.877-3.79-9.44-8.023-12.868-4.355-3.526-9.548-5.222-14.687-5.18zm314.343 20.918c-8.39 0-15 6.61-15 15 0 5.16 2.507 9.642 6.385 12.332-.485 4.442-1.343 9.902-2.932 15.05-3.453 10.063-8.195 17.16-17.492 15.186-7.036-2.698-7.764-9.982-7.37-16.176l12.636-.213-26.694-40.82c-1.9 6.86-5.49 34.502-3.615 50.008.625 4.574 2.016 9.724 5.355 14.466 3.338 4.742 8.884 8.768 15.767 10.304 10.428 2.328 20.3-.8 26.63-6.65 6.33-5.85 9.723-13.474 11.984-20.795 2.397-7.764 3.458-15.483 3.94-21.088 3.32-2.733 5.407-6.887 5.407-11.603 0-8.39-6.61-15-15-15z"></path></svg></span><b class="hw-skill-name">Fishing</b><b class="hw-skill-lv">14</b></span><span class="hw-skill-mid"><span class="hw-skill-bar" role="meter" aria-label="Fishing progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="12"><i class="hw-skill-fill" style="width: 12.2%;"></i><i class="hw-skill-ahead" style="left: 12.2%; width: 0%;"></i></span><small class="hw-skill-xp">267 XP to 15</small></span><small class="hw-skill-next" title="Next at level 20: Trout Spot (fishing spot)">Next at level 20: Trout Spot (fishing spot)</small></li><li class="hw-skill" title="Farming: Crops for Cooking and for drinks. Plant seeds in your plots." data-key="farming"><span class="hw-skill-top"><span class="hw-skill-glyph"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M255.688 18S198.118 84.876 199 148.875c.11 7.924 1.104 15.806 2.78 23.53 23.498 25.825 43.035 57.618 58.19 95 13.85-31.163 30.07-60.016 50.03-84.967 3.764-12.817 6.056-26.13 5.875-39.313-.88-64-60.188-125.125-60.188-125.125zM24.094 111.47c.138 1.77.174 2.98.406 5.186.993 9.44 2.96 22.583 6.813 37.22 7.703 29.27 22.952 64.12 52.25 87.81 16.455 13.308 40.276 20.756 64.593 27.064s48.935 11.302 67.594 23.156c14.984 9.52 24.296 24.148 28.375 40.813 4.08 16.663 3.338 35.387-.72 55.06-7.072 34.304-24.28 71.737-46.874 105.908h126.44c-22.767-34.427-39.985-72.006-46.94-106.438-3.982-19.722-4.637-38.51-.436-55.188 4.2-16.677 13.665-31.284 28.75-40.78 18.79-11.83 43.49-16.743 67.812-22.938 24.322-6.196 48.034-13.46 64.313-26.625 47.514-38.425 57.337-105.795 59.405-130.19-61.585 1.928-106.926 21.097-142.406 52.19-37.42 32.788-64.065 79.142-85.345 132.436l-5.28 13.156-10.033-10.03-1.53-1.532-.688-2.063C210.397 177.51 133.342 115.054 24.094 111.47z"></path></svg></span><b class="hw-skill-name">Farming</b><b class="hw-skill-lv">1</b></span><span class="hw-skill-mid"><span class="hw-skill-bar" role="meter" aria-label="Farming progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i class="hw-skill-fill" style="width: 0%;"></i><i class="hw-skill-ahead" style="left: 0%; width: 0%;"></i></span><small class="hw-skill-xp">83 XP to 2</small></span><small class="hw-skill-next" title="Next at level 10: Carrot (crop to grow)">Next at level 10: Carrot (crop to grow)</small></li></ul></section><section class="hw-skill-group"><h3 class="hw-skill-head">Crafting</h3><ul class="hw-skill-list" data-cat="artisan"><li class="hw-skill" title="Cooking: Food that heals and drinks that restore mana on a hunt. Cook what you fish and grow." data-key="cooking" data-hs-act="open-skill" data-skill="cooking" role="button" tabindex="0"><span class="hw-skill-top"><span class="hw-skill-glyph"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M256 100c-8 0-16 4-32 12l10.848 32.543C179.665 147.226 112.76 160.04 98.68 183h314.625c-7.012-11.422-27.093-20.334-52.305-26.738V135h-18v17.266c-21.203-4.107-44.4-6.68-65.848-7.723L288 112c-16-8-24-12-32-12zM96 201v14H55v18h41v151c0 16 16 32 32 32h256c16 0 32-16 32-32V233h41v-18h-41v-14H96z"></path></svg></span><b class="hw-skill-name">Cooking</b><b class="hw-skill-lv">12</b></span><span class="hw-skill-mid"><span class="hw-skill-bar" role="meter" aria-label="Cooking progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="15"><i class="hw-skill-fill" style="width: 14.9%;"></i><i class="hw-skill-ahead" style="left: 14.9%; width: 0%;"></i></span><small class="hw-skill-xp">212 XP to 13</small></span><small class="hw-skill-next" title="Next at level 15: Cooked Trout (food, heals 168)">Next at level 15: Cooked Trout (food, heals 168)</small></li><li class="hw-skill" title="Crafting: Planks, arrows and bolts, and timber for building your home. Saw logs and fletch at the workbench." data-key="crafting" data-hs-act="open-skill" data-skill="crafting" role="button" tabindex="0"><span class="hw-skill-top"><span class="hw-skill-glyph"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M351.4 31.4l-55.9 27.75 54 34.62 1.9-62.37zM143.2 67.33l20 33.47L182 71.5l-38.8-4.17zm57 9.16l-7.6 11.82 100.2 64.19-9.7 15.1-100.2-64.1-24.8 38.7 100.2 64.1-9.7 15.2-100.2-64.1-7.5 11.7 150 96.1 37.9-7.6 44.8-70L200.2 76.49zm93.2 2.73l-16.2 25.28 38.7 24.7 16.2-25.2-38.7-24.78zM108.7 121.2l20 33.5 18.8-29.3-38.8-4.2zm280.1 76.1L346.7 263l11.8 7.5 42.1-65.7-11.8-7.5zm-224.1 8.5l.6 36 72.8 46.6 33-14.5-106.4-68.1zm250.4 9.9l-33.2 51.8c11.7 2.8 24 7.3 36.5 12.3 19.3 7.6 39.1 16.7 56.6 24-9.5-27.2-22.2-57.9-59.9-88.1zm-242.5 52.1L27.77 494h54.61L211.4 292.6l-38.8-24.8z"></path></svg></span><b class="hw-skill-name">Crafting</b><b class="hw-skill-lv">9</b></span><span class="hw-skill-mid"><span class="hw-skill-bar" role="meter" aria-label="Crafting progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="20"><i class="hw-skill-fill" style="width: 20%;"></i><i class="hw-skill-ahead" style="left: 20%; width: 0%;"></i></span><small class="hw-skill-xp">148 XP to 10</small></span><small class="hw-skill-next" title="Next at level 15: Oak Plank (material), Oak Wand (wand), Oakboard Spellbook (spellbook) and 5 more">Next at level 15: Oak Plank (material), Oak Wand (wand), Oakboard Spellbook (spellbook) and 5 more</small></li><li class="hw-skill" title="Smithing: Metal bars, axes and pickaxes, whetstones for melee, salts for tempering, and fittings for your home. Smelt ore and forge bars." data-key="smithing" data-hs-act="open-skill" data-skill="smithing" role="button" tabindex="0"><span class="hw-skill-top"><span class="hw-skill-glyph"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M128.688 115.594v147.75h285v-147.75h-285zm-111.844 20.47c17.374 47.14 54.372 80.413 94.906 93.81v-93.81H16.844zm414.375 12.31v88.657c21.457-9.083 42.92-25.257 64.374-47.374-21.52-22.562-42.633-35.173-64.375-41.28zm-226.25 132.47c-12.15 38.536-33.897 71.5-60.595 100.47l257.844-.002c-28.705-29.016-49.952-62.054-61.5-100.468H204.97zM101.843 400v43.78h337.562V400H101.844z"></path></svg></span><b class="hw-skill-name">Smithing</b><b class="hw-skill-lv">18</b></span><span class="hw-skill-mid"><span class="hw-skill-bar" role="meter" aria-label="Smithing progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="8"><i class="hw-skill-fill" style="width: 8.2%;"></i><i class="hw-skill-ahead" style="left: 8.2%; width: 0%;"></i></span><small class="hw-skill-xp">413 XP to 19</small></span><small class="hw-skill-next" title="Next at level 20: Iron Whetstone (whetstone for blades)">Next at level 20: Iron Whetstone (whetstone for blades)</small></li><li class="hw-skill" title="Runecrafting: Runes your spells spend, better than the shop’s. Bind essence into runes." data-key="runecrafting" data-hs-act="open-skill" data-skill="runecrafting" role="button" tabindex="0"><span class="hw-skill-top"><span class="hw-skill-glyph"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M310.375 16.75L89.405 75.72l58.126 50.905L282.563 90.28l2.032-.53 25.78-73zm17.063 7.844l-27.157 76.812 91.69 91.875 95.624-8.78L327.438 24.594zm-41.813 12.062l-8.594 33.657c-.28-15.516-38.03-17.018-107.56-4.376l116.155-29.28zm51.063 14.625l123.5 123.407-58.844 7.563c16.2-21.37-32.277-91.112-64.656-130.97zM74.75 87.72L15.594 308.405l79-31.47 37.28-139.155L74.75 87.72zm207.438 22l-133.032 35.81-35.72 133.376 97.25 97.53 133.064-35.81 35.72-133.376-97.283-97.53zm-201.72 5.686l32.844 30.5-30.156 118.97-39.03 15.812c50.817-30.543 65.667-130.132 36.343-165.282zm195.876 14.78L359 213.377l-30.156 113.81-44.688 11.97c119.527-107.872-34.816-238.375-131.5-140.875l9.875-37.405 113.814-30.688zM490.564 203l-92.877 8.53-35.968 134.19 71.342 71.842L490.563 203zm-17.283 13.875L444.03 333.03c6.73-68.874-.03-90.85-30.655-111.5l59.906-4.655zm-371.155 77.188L20.22 326.688l161.75 161.468 17.31-96.72-97.155-97.373zm.094 20l78.124 82.437-7.438 61.375c-5.23-44.565-28.34-85.92-70.687-143.813zm246.124 44.687l-130.53 35.125-17.564 98.188 221.688-59.157-73.594-74.156zm18.625 42.5l24.28 24.844-115.22 32.72c61.28-26.446 83.34-37.418 90.94-57.564z"></path></svg></span><b class="hw-skill-name">Runecrafting</b><b class="hw-skill-lv">4</b></span><span class="hw-skill-mid"><span class="hw-skill-bar" role="meter" aria-label="Runecrafting progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="33"><i class="hw-skill-fill" style="width: 33%;"></i><i class="hw-skill-ahead" style="left: 33%; width: 0%;"></i></span><small class="hw-skill-xp">75 XP to 5</small></span><small class="hw-skill-next" title="Next at level 12: Split Blank Runes (material)">Next at level 12: Split Blank Runes (material)</small></li></ul></section><p class="hh-empty hw-skill-none">Reading your skills…</p></div></div><section class="hw-work is-on"><div class="hw-work-head has-xp"><button type="button" class="hh-tool" data-hs-act="work-back">‹ All skills</button><b class="hw-work-title">Smithing</b><span class="hw-skill-bar" role="meter" aria-label="Smithing progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="8"><i class="hw-skill-fill" style="width: 8.2%;"></i><i class="hw-skill-ahead" style="left: 8.2%; width: 0%;"></i></span><small class="hw-skill-xp">413 XP to 19</small><b class="hw-skill-lv">18</b></div><p class="hs-note hw-work-use">Metal bars, axes and pickaxes, whetstones for melee, salts for tempering, and fittings for your home. Pick what to make. It uses the materials in your bag, then your Storage, and stops when they run out. The public bench takes 15% of what you make, at shop prices. A forge in your house takes none.</p><p class="hs-note hw-work-tool" hidden=""></p><section class="hw-hallmark" hidden=""><h3 class="hs-sub">Hallmark</h3><p class="hs-note hw-hallmark-how">Set a gem in a Fine piece and choose its second perk. Nothing is rolled here and it can't fail. It costs gold and the gem.</p><p class="hs-note hw-hallmark-day"></p><ul class="hw-ledger hw-hallmark-rows"></ul><p class="hh-empty hw-hallmark-none"></p><div class="hw-confirm hw-hallmark-ask" role="alertdialog" aria-label="Confirm the Hallmark"><p class="hw-confirm-q"></p><p class="hw-confirm-note">The Fine piece and the gem are used. The new piece trades like any other.</p><div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="hallmark-yes"></button><button type="button" class="hh-tool" data-hs-act="hallmark-no">Cancel</button></div></div></section><ul class="hw-ledger hw-work-rows"><li class="hw-line hw-work-row" data-id="smelt_iron" data-hs-find="smelt_iron" data-key="smelt_iron"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/iron_bar.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Iron Bar</b><small class="hw-work-what">1 Iron Ore → Iron Bar</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee" title="The public bench takes about 1 gold a craft. A forge in your house takes none.">The public bench takes about 1 gold a craft.</small><small class="hw-work-why">Makes up to 7 · 4.8 s · 11 XP each</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="smelt_iron" data-n="1" aria-pressed="false">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="smelt_iron" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="smelt_iron" data-n="all" aria-pressed="true">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="smelt_iron">Start</button></li><li class="hw-line hw-work-row" data-id="grind_copper_whetstone" data-hs-find="grind_copper_whetstone" data-key="grind_copper_whetstone"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/copper_whetstone.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Grind Copper Whetstones</b><small class="hw-work-what">1 Copper Bar + 5 Copper Ore → 10 Copper Whetstone</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee" title="The public bench takes about 1.5 gold a craft. A forge in your house takes none.">The public bench takes about 1.5 gold a craft.</small><small class="hw-work-why">Makes up to 20 · 4.6 s · 27 XP each</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="grind_copper_whetstone" data-n="1" aria-pressed="false">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="grind_copper_whetstone" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="grind_copper_whetstone" data-n="all" aria-pressed="true">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="grind_copper_whetstone">Start</button></li><li class="hw-line hw-work-row" data-id="forge_bronze_gauntlets" data-hs-find="forge_bronze_gauntlets" data-key="forge_bronze_gauntlets"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/bronze_gauntlets.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Forge Bronze Gauntlets</b><small class="hw-work-what">3 Bronze Bar → Bronze Gauntlets</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee" title="The public bench takes 3 gold a craft. A forge in your house takes none.">The public bench takes 3 gold a craft.</small><small class="hw-work-why">Makes 1 of up to 1 · 4.5 s · 15 XP each</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_bronze_gauntlets" data-n="1" aria-pressed="true">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_bronze_gauntlets" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_bronze_gauntlets" data-n="all" aria-pressed="false">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="forge_bronze_gauntlets">Start</button></li><li class="hw-line hw-work-row" data-id="forge_bronze_axe" data-hs-find="forge_bronze_axe" data-key="forge_bronze_axe"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/bronze_axe.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Forge Bronze Axe</b><small class="hw-work-what">1 Bronze Bar + 1 Normal Plank → Bronze Axe</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee" title="The public bench takes about 1.8 gold a craft. A forge in your house takes none.">The public bench takes about 1.8 gold a craft.</small><small class="hw-work-why">Makes 1 of up to 1 · 4 s · 15 XP each</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_bronze_axe" data-n="1" aria-pressed="true">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_bronze_axe" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_bronze_axe" data-n="all" aria-pressed="false">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="forge_bronze_axe">Start</button></li><li class="hw-line hw-work-row" data-id="forge_bronze_pickaxe" data-hs-find="forge_bronze_pickaxe" data-key="forge_bronze_pickaxe"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/bronze_pickaxe.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Forge Bronze Pickaxe</b><small class="hw-work-what">1 Bronze Bar + 1 Normal Plank → Bronze Pickaxe</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee" title="The public bench takes about 1.8 gold a craft. A forge in your house takes none.">The public bench takes about 1.8 gold a craft.</small><small class="hw-work-why">Makes 1 of up to 1 · 4 s · 15 XP each</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_bronze_pickaxe" data-n="1" aria-pressed="true">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_bronze_pickaxe" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_bronze_pickaxe" data-n="all" aria-pressed="false">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="forge_bronze_pickaxe">Start</button></li><li class="hw-line hw-work-row" data-id="smelt_copper" data-hs-find="smelt_copper" data-key="smelt_copper"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/copper_bar.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Copper Bar</b><small class="hw-work-what">1 Copper Ore → Copper Bar</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee"></small><small class="hw-work-why">Makes up to 14 · 3.8 s · 5 XP each</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="smelt_copper" data-n="1" aria-pressed="false">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="smelt_copper" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="smelt_copper" data-n="all" aria-pressed="true">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="smelt_copper">Start</button></li><li class="hw-line hw-work-row" data-id="smelt_bronze" data-hs-find="smelt_bronze" data-key="smelt_bronze"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/bronze_bar.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Bronze Bar</b><small class="hw-work-what">2 Copper Ore → Bronze Bar</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee" title="The public bench takes about 1 gold a craft. A forge in your house takes none.">The public bench takes about 1 gold a craft.</small><small class="hw-work-why">Makes up to 7 · 4.2 s · 7 XP each</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="smelt_bronze" data-n="1" aria-pressed="false">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="smelt_bronze" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="smelt_bronze" data-n="all" aria-pressed="true">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="smelt_bronze">Start</button></li><li class="hw-line hw-work-row" data-id="grind_coarse_whetstone" data-hs-find="grind_coarse_whetstone" data-key="grind_coarse_whetstone"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/coarse_whetstone.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Grind Coarse Whetstones</b><small class="hw-work-what">2 Copper Ore → 10 Coarse Whetstone. For your own use. The shop and the Weighhouse won't take it.</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee"></small><small class="hw-work-why">Makes up to 70 · 4.2 s · 7 XP each</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="grind_coarse_whetstone" data-n="1" aria-pressed="false">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="grind_coarse_whetstone" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="grind_coarse_whetstone" data-n="all" aria-pressed="true">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="grind_coarse_whetstone">Start</button></li><li class="hw-line hw-work-row is-locked" data-id="forge_iron_axe" data-hs-find="forge_iron_axe" data-key="forge_iron_axe"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/iron_axe.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Forge Iron Axe</b><small class="hw-work-what">2 Iron Bar + 1 Oak Plank → Iron Axe</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee" title="The public bench takes about 3.8 gold a craft. A forge in your house takes none.">The public bench takes about 3.8 gold a craft.</small><small class="hw-work-why">No Iron Bar in your bag or Storage. <button type="button" class="hs-goto" data-hs-goto="skills-trade|smithing|smelt_iron">Made with Smithing 15</button>.</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_iron_axe" data-n="1" aria-pressed="true">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_iron_axe" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_iron_axe" data-n="all" aria-pressed="false">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="forge_iron_axe" title="No Iron Bar in your bag or Storage. Made with Smithing 15." disabled="">Start</button></li><li class="hw-line hw-work-row is-locked" data-id="forge_iron_pickaxe" data-hs-find="forge_iron_pickaxe" data-key="forge_iron_pickaxe"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/iron_pickaxe.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Forge Iron Pickaxe</b><small class="hw-work-what">2 Iron Bar + 1 Oak Plank → Iron Pickaxe</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee" title="The public bench takes about 3.8 gold a craft. A forge in your house takes none.">The public bench takes about 3.8 gold a craft.</small><small class="hw-work-why">No Iron Bar in your bag or Storage. <button type="button" class="hs-goto" data-hs-goto="skills-trade|smithing|smelt_iron">Made with Smithing 15</button>.</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_iron_pickaxe" data-n="1" aria-pressed="true">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_iron_pickaxe" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_iron_pickaxe" data-n="all" aria-pressed="false">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="forge_iron_pickaxe" title="No Iron Bar in your bag or Storage. Made with Smithing 15." disabled="">Start</button></li><li class="hw-line hw-work-row is-locked" data-id="mix_temper_salts" data-hs-find="mix_temper_salts" data-key="mix_temper_salts"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/temper_salts.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Mix Tempering Salts</b><small class="hw-work-what">1 Iron Bar + 1 Bone Chips → Tempering Salts</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee" title="The public bench takes about 1.1 gold a craft. A forge in your house takes none.">The public bench takes about 1.1 gold a craft.</small><small class="hw-work-why">No Iron Bar in your bag or Storage. <button type="button" class="hs-goto" data-hs-goto="skills-trade|smithing|smelt_iron">Made with Smithing 15</button>.</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="mix_temper_salts" data-n="1" aria-pressed="false">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="mix_temper_salts" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="mix_temper_salts" data-n="all" aria-pressed="true">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="mix_temper_salts" title="No Iron Bar in your bag or Storage. Made with Smithing 15." disabled="">Start</button></li><li class="hw-line hw-work-row is-locked" data-id="forge_iron_hatchets" data-hs-find="forge_iron_hatchets" data-key="forge_iron_hatchets"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/iron_hatchets.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Forge Iron Hatchets</b><small class="hw-work-what">6 Iron Bar + 2 Normal Plank → Iron Hatchets</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee" title="The public bench takes about 9.8 gold a craft. A forge in your house takes none.">The public bench takes about 9.8 gold a craft.</small><small class="hw-work-why">No Iron Bar in your bag or Storage. <button type="button" class="hs-goto" data-hs-goto="skills-trade|smithing|smelt_iron">Made with Smithing 15</button>.</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_iron_hatchets" data-n="1" aria-pressed="true">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_iron_hatchets" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_iron_hatchets" data-n="all" aria-pressed="false">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="forge_iron_hatchets" title="No Iron Bar in your bag or Storage. Made with Smithing 15." disabled="">Start</button></li><li class="hw-line hw-work-row is-locked" data-id="forge_iron_warhammer" data-hs-find="forge_iron_warhammer" data-key="forge_iron_warhammer"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/iron_warhammer.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Forge Iron Warhammer</b><small class="hw-work-what">6 Iron Bar + 3 Normal Plank → Iron Warhammer</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee" title="The public bench takes about 11 gold a craft. A forge in your house takes none.">The public bench takes about 11 gold a craft.</small><small class="hw-work-why">No Iron Bar in your bag or Storage. <button type="button" class="hs-goto" data-hs-goto="skills-trade|smithing|smelt_iron">Made with Smithing 15</button>.</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_iron_warhammer" data-n="1" aria-pressed="true">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_iron_warhammer" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_iron_warhammer" data-n="all" aria-pressed="false">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="forge_iron_warhammer" title="No Iron Bar in your bag or Storage. Made with Smithing 15." disabled="">Start</button></li><li class="hw-line hw-work-row is-locked" data-id="forge_ironbound_shield" data-hs-find="forge_ironbound_shield" data-key="forge_ironbound_shield"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/ironbound_shield.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Forge Ironbound Shield</b><small class="hw-work-what">9 Iron Bar + 3 Normal Plank → Ironbound Shield</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee" title="The public bench takes 15 gold a craft. A forge in your house takes none.">The public bench takes 15 gold a craft.</small><small class="hw-work-why">No Iron Bar in your bag or Storage. <button type="button" class="hs-goto" data-hs-goto="skills-trade|smithing|smelt_iron">Made with Smithing 15</button>.</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_ironbound_shield" data-n="1" aria-pressed="true">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_ironbound_shield" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="forge_ironbound_shield" data-n="all" aria-pressed="false">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="forge_ironbound_shield" title="No Iron Bar in your bag or Storage. Made with Smithing 15." disabled="">Start</button></li><li class="hw-line hw-work-row is-locked" data-id="reforge_klappas_club" data-hs-find="reforge_klappas_club" data-key="reforge_klappas_club"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/klappas_club.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Reforge Klappa's Club</b><small class="hw-work-what">1 Practice Club + 6 Bronze Bar + 3 Small Fang → Klappa's Club</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee" title="The public bench takes about 7.5 gold a craft. A forge in your house takes none.">The public bench takes about 7.5 gold a craft.</small><small class="hw-work-why">Needs 6 Bronze Bar (you have 3). <button type="button" class="hs-goto" data-hs-goto="skills-trade|smithing|smelt_bronze">Made with Smithing</button>.</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="reforge_klappas_club" data-n="1" aria-pressed="true">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="reforge_klappas_club" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="reforge_klappas_club" data-n="all" aria-pressed="false">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="reforge_klappas_club" title="Needs 6 Bronze Bar (you have 3). Made with Smithing." disabled="">Start</button></li><li class="hw-line hw-work-row is-locked" data-id="grind_iron_whetstone" data-hs-find="grind_iron_whetstone" data-key="grind_iron_whetstone"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/iron_whetstone.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Grind Iron Whetstones</b><small class="hw-work-what">2 Iron Bar + 3 Iron Ore → 10 Iron Whetstone</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee"></small><small class="hw-work-why">You need Smithing 20 to make Iron Whetstone. You have 18.</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="grind_iron_whetstone" data-n="1" aria-pressed="false">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="grind_iron_whetstone" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="grind_iron_whetstone" data-n="all" aria-pressed="true">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="grind_iron_whetstone" title="You need Smithing 20 to make Iron Whetstone. You have 18." disabled="">Start</button></li><li class="hw-line hw-work-row is-locked" data-id="smelt_gold" data-hs-find="smelt_gold" data-key="smelt_gold"><span class="hw-ico"><img class="hh-icon" src="assets/icons-bundle/pixel/items/gold_bar.png" alt="" width="32" height="32" decoding="async"></span><span class="hw-line-name"><b>Gold Bar</b><small class="hw-work-what">1 Gold Ore → Gold Bar</small><small class="hw-work-odds" hidden=""></small><small class="hw-work-fee"></small><small class="hw-work-why">You need Smithing 25 to make Gold Bar. You have 18.</small><span class="hh-segs hw-work-n" role="group" aria-label="How many to make"><button type="button" class="hh-seg" data-hs-act="work-n" data-id="smelt_gold" data-n="1" aria-pressed="false">1</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="smelt_gold" data-n="5" aria-pressed="false">5</button><button type="button" class="hh-seg" data-hs-act="work-n" data-id="smelt_gold" data-n="all" aria-pressed="true">All</button></span></span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="artisan" data-id="smelt_gold" title="You need Smithing 25 to make Gold Bar. You have 18." disabled="">Start</button></li></ul></section><p class="hh-intent-msg" role="status" aria-live="polite"></p></div></div></section></div></div></div></section></main><div class="hs-shell hs-screen"><div class="hs-hud is-screen" data-hs-hud="screen"><div class="hs-widget is-launchers" data-hs-widget="launchers" style="--hs-op: 1; min-width: 320px; min-height: 40px; left: 256px; top: 0px; --coach-room: 281px;"><nav class="hs-launchers" aria-label="Windows"><button type="button" class="hs-launch" data-hs-open="hunts" aria-pressed="false" aria-label="Hunts (H)" data-tip="Hunts" data-key="H"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M227.4 34.7c-10.1 0-20.2.2-30.2.5l6.1 65.6-61.1-62.5c-31.3 2.5-62.5 6.6-93.8 12.5l34.2 28.4-48-.6c35.1 100.2 6.9 182.6-.3 292.1L130 476.5c10-1.3 19.9-2.4 29.6-3.3l21.5-42.2 18.6 28.8 41.5-33.5.8 43c82.9-.2 157.7 9.1 235.7 7.9-28.2-73-31.2-143.6-31.9-209.2l-33.3-19.1 32.7-33.9c-.4-21.3-1.3-42-3.6-61.9l-57.4.7 50.2-41.7c-3.8-15.5-9-30.4-16.1-44.7l-29.5-23.9C335 38 281.2 34.6 227.4 34.7zm58.7 37c10.6 24.75 21.1 49.5 31.7 74.3 7.5-10.5 14.9-21 22.4-31.5 16 27.2 32 54.3 48 81.5l-16.2 9.5-33.3-56.7-42.5 59.4-15.2-10.9 24-33.5-21.9-51.5-24.6 40.1 12 22.6-16.5 8.8-18.3-34.5-24.8 58.2-17.2-7.4 32.5-76.2 7.7-18c4.8 9.2 9.6 18.3 14.5 27.4 12.5-20.6 25.1-41.11 37.7-61.6zM91.2 128c6.72 1.6 13.4 3.4 19.2 5.3-2.1 5.9-4.1 11.8-6.2 17.6-5.79-1.6-11.72-3.4-16.9-4.7 1.39-6 2.62-12.1 3.9-18.2zm37.9 13.4c6.3 3.8 12 7.2 17 12.8L132.6 167c-4-3.7-8.6-7-12.8-9.4zm28.7 32.3c2.1 7.4 2.1 15.7 1.6 22.5l-18.5-2.4c.1-5.1.3-10-1-14.5zm-21.2 35.7l17.2 7.1c-3.3 6.6-5.1 12.7-8.6 17.8l-16.3-9c2.6-5.4 5.6-10.8 7.7-15.9zm-16.5 34.1l17.7 6.1c-1.5 5.4-3 11.2-3.6 16.2l-18.6-2c1.3-7.5 2.1-14 4.5-20.3zm207.8 17.4c8.5 1 14.6 3 21.7 7.1l-9.8 16c-4.1-2.8-9.4-3.8-13.5-4.5zm-21.2 1.5c1.1 6.1 2.5 12.2 3.9 18.3-5.9 1.3-11.7 3.3-16.5 5.1l-6.8-17.4c6.7-2.4 13.5-4.7 19.4-6zm-37.9 15.9l11 15.1c-5.6 4-11.8 7.8-16.8 10.6l-8.9-16.4c5.1-2.9 10.6-6.3 14.7-9.3zM135.3 281c1.5 4.7 4.2 9.2 6.9 12.1l-13.8 12.6c-5.5-5.7-9.5-13.5-11.2-20.1zm230.3 3.3c3.5 6.4 6.8 12.7 8.7 19.1l-17.8 5.6c-2-5.4-4.3-10.8-6.8-14.8zm-127.4 10.9l6.9 17.3c-6.4 2.7-12.9 4.8-18.6 6.5l-5-18c5.9-1.6 11.3-3.8 16.7-5.8zm-83.8 6.2c5.3 1.7 10.8 3.4 15.7 4.2-1.2 6.1-2 12.3-2.8 18.5-7-1-14.5-3.3-20.5-5.7zm50 3.5l2.8 18.5c-7.2 1.3-13.4 1.6-19.8 1.9l-.4-18.7c5.9-.2 11.6-.8 17.4-1.7zm174.5 18c1 6.4 1.6 12.9 2.2 19.3l-18.7 1.5c-.4-6-.9-11.9-2-17.8zm-67.6 30.8c18.9 3.5 44.9 16.2 68.9 33.9 7.4-9.9 14.4-20.4 21.3-31.1l30.1 12.9c-4.7 12.3-15 25.6-28.6 37.2 17 16.2 30.9 34.5 37 53-13.8-18.1-31.1-31.8-50.3-42.8-23.4 15.8-52.7 25.9-79.6 20.4 22.9-4.4 40.6-16.6 55.8-32.6-16.5-7.5-33.8-13.9-51.3-20.1z"></path></svg></button><button type="button" class="hs-launch" data-hs-open="inventory" aria-pressed="false" aria-label="Inventory (B)" data-tip="Inventory" data-key="B" data-coach-ring=""><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M230.125 18.156V247h49.313V18.156h-49.313zM78.812 21.438l-16 136.906c48.707 30.112 97.637 47.843 148.625 53.094V33.125c-44.244-1.822-88.46-5.89-132.625-11.688zm349.438.28c-43.398 6.814-86.784 10.647-130.125 11.97v175c46.732-7.458 95.816-24.375 148.438-50.844L428.25 21.72zm-1.938 166.532c-44.474 19.847-87.06 32.836-128.187 38.97V247h37.031v143.188h-37.031v8.718c0 34.41-20.516 56.084-43.25 56.28-22.734.2-43.438-21.34-43.438-56.28v-8.72l-27.656.002h-9.343V247h37.001v-17.188c-43.774-4.164-86.14-16.857-127.687-38.062 5.04 92.69 3.66 185.37-5.063 278.063 117.402 32.047 234.788 31.002 352.188 0-6.853-93.858-9.223-187.706-4.563-281.563zm-233.187 77.438V371.5H316.47V265.687H193.124zm20.47 18.156H296v67.5H213.594v-67.5zm18.686 18.687v30.126h45.032V302.53h-45.03zm-2.155 87.658v8.718c0 28.23 13.32 37.692 24.594 37.594 11.27-.098 24.718-10.018 24.718-37.594v-8.72l-49.313.002z"></path></svg></button><button type="button" class="hs-launch" data-hs-open="character" aria-pressed="false" aria-label="Character (C)" data-tip="Character" data-key="C"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M258.094 18.5c-74.34 0-138.073 62.498-156.188 148.438 52.758-7.697 102.23-22.044 153.938-45.094l4.125-1.813 3.967 2.064c49.424 25.667 97.648 41.026 150.657 46.406-17.66-86.744-81.71-150-156.5-150zm1.28 122.156c-57.41 25.148-112.883 39.993-172.53 47 6.724 32.847 6.91 65.935-.5 98.938 89.29 41.602 231.648 43.154 340.594-.125-10.762-32.516-11.727-65.66-1.188-98.408-59.03-4.235-112.628-20.06-166.375-47.406zm-13.5 33.125h18.72v127.75h-18.72V173.78zm-58.78 11.19h18.687v101.655h-18.686V184.97zm115.72 0h18.686v101.655h-18.688V184.97zm-171.72 14.905h18.687v79.28h-18.686v-79.28zm227.72 0h18.686v79.28h-18.688v-79.28zm38.748 116.75c-14.302 4.282-28.96 7.873-43.78 10.844l-19.22 64.06c26.114-17.337 48.002-43.31 63-74.905zm-277.53 2.875c13.95 28.257 33.448 51.85 56.562 68.53l-17.688-58.905c-13.397-2.61-26.387-5.826-38.875-9.625zm213.156 11.656c-51.63 8.175-104.745 8.588-153.72 1.438l20.845 69.5c18 8.52 37.49 13.187 57.78 13.187 18.588 0 36.507-3.92 53.22-11.124l21.875-73zm-195.5 47.156c-19.436 21.562-36.416 44.367-48.594 72.157 70.233-8.736 133.743 14.684 168.03 50.75 39.684-35.607 103.71-55.685 170.876-44.25-15.08-29.372-33.32-51.982-53.938-74-31.187 31.75-71.53 51-115.968 51-46.568 0-88.65-21.142-120.406-55.658z"></path></svg></button><button type="button" class="hs-launch is-open" data-hs-open="skills-trade" aria-pressed="true" aria-label="Gathering and crafting (G)" data-tip="Gathering and crafting" data-key="G"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M113.844 17.72c-8.426.04-16.812.833-25.094 2.436C195.65 84.503 275.473 170.516 338.47 270c2.526-53.76-19.07-109.13-53.533-154.25-14.097 5.298-31.477.742-43.468-11.25-11.98-11.98-16.558-29.347-11.282-43.438C194.46 34.105 153.68 17.52 113.844 17.72zm380.562 20.405L423.47 115.75l30.06 125.563-55.092 8.78-19.407 80.626 73.5 39.124-41.25 55.937 29.658 44.033-88.782-27.625 16.5-43.844L291.97 364.5l13.124-84.563-111.375 58.125-4.22 78.25-112.22-27.656-33.25 104.156h450.376V38.125zM261.156 58.72c-.388.01-.776.028-1.156.06-3.644.325-6.882 1.696-9.188 4-6.147 6.15-5.746 18.88 3.875 28.5 9.622 9.623 22.353 10.024 28.5 3.876 6.148-6.148 5.747-18.878-3.875-28.5-5.637-5.637-12.335-8.096-18.156-7.937zM196.5 127.593L25.28 298.874c4.273 11.926 11.027 21.05 25.25 25.626L221.97 153c-7.796-8.89-16.308-17.333-25.47-25.406zm158.78 11.625l9.314 84.686 27.437-84.687h-36.75zm-132.03 74.968l-20.156 35.937 92.687 7.375-72.53-43.313z"></path></svg></button><button type="button" class="hs-launch" data-hs-open="storage" aria-pressed="false" aria-label="Storage (T)" data-tip="Storage" data-key="T"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M146.857 20.842c-12.535-.036-24.268 2.86-37.285 9.424h.004C61.356 54.6 19.966 120.734 17.982 175.91l41.848 14.236c4.33-61.89 47.057-128.37 101.527-155.86h.002c4.423-2.23 8.822-4.162 13.185-5.8l-22.26-7.45c-1.83-.123-3.637-.19-5.428-.194zm59.34 20.19c-10.478-.09-22.832 3.093-36.424 9.943l.004-.004c-48.23 24.34-89.625 90.513-91.548 145.436l156.485 53.24c3.865-62.22 46.797-129.372 101.613-157.035h.002l.002-.003c4.303-2.168 8.584-4.056 12.832-5.666l-134.54-45.036c-2.652-.542-5.458-.847-8.427-.873zm174.97 58.323c-10.476-.09-22.83 3.092-36.42 9.94l-.005.002c-48.577 24.518-90.225 91.473-91.586 146.623l46.205 15.72c3.914-62.188 46.825-129.274 101.607-156.92 4.522-2.283 9.04-4.258 13.53-5.91l-26.544-8.884c-2.164-.35-4.423-.55-6.785-.57zm63.554 22.014c-10.267.093-22.094 3.353-35.333 10.034-47.158 23.8-87.777 87.587-91.362 141.75l174.55-73.726c-.404-39.01-10.754-61.304-24.415-71.082-2.347-1.68-4.867-3.057-7.55-4.137l-.01.034-4.735-1.584c-3.48-.887-7.195-1.327-11.144-1.29zM17.9 195.622l-.035 187.484L59.46 397.58V209.764L17.9 195.624zM78.15 216.12v187.962l156.282 54.37V269.288l-29.053-9.886v119.43l-101.054-34.082V225.025L78.15 216.12zm414.22 3.683L318.433 293.27v189.236l173.935-73.504v-189.2zm-369.354 11.582v99.947l63.675 21.477v-99.763l-63.674-21.662zm31.306 28.797c9.705 0 17.573 7.867 17.573 17.572 0 6.34-3.37 11.88-8.407 14.97v28.53h-18.69v-28.746c-4.838-3.13-8.048-8.562-8.048-14.754 0-9.705 7.867-17.572 17.572-17.572zm98.797 15.464v189.307l46.626 16.22V291.51l-46.627-15.864z"></path></svg></button><button type="button" class="hs-launch" data-hs-open="shop" aria-pressed="false" aria-label="Shop (V)" data-tip="Shop" data-key="V"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M256.18 21c-23.242 0-46.577 3.01-63.186 8.54-8.304 2.763-14.868 6.196-18.808 9.558-3.94 3.36-5.167 5.956-5.186 8.96L168.943 57H41v14h430V57H342.967l.033-9.033c.01-3.002-1.17-5.55-5.057-8.895-3.887-3.344-10.407-6.773-18.677-9.535C302.724 24.014 279.42 21 256.18 21zM38.277 89l-10.443 94h80.9l20.243-86.36L122.81 183h81.07l17.114-86.68-3.096 86.68h75.75l-4.634-86.518L307.694 183h81.497l-6.167-86.36L403.266 183h80.9l-10.443-94H38.277zM25.834 201l-.51 4.588C39.822 226.445 52.968 235 64 235c11.32 0 24.852-8.89 39.8-30.96l.714-3.04h-78.68zm95.687 0l-.32 4.498C135.753 226.495 148.935 235 160 235c11.293 0 24.788-8.85 39.693-30.803l.63-3.197h-78.802zm95.736 0l-.156 4.352C231.69 226.455 244.908 235 256 235c11.08 0 24.28-8.525 38.85-29.576l-.237-4.424h-77.357zm94.324 0l.674 3.12c15 22.192 28.503 31.044 39.773 31.013 11.03-.03 24.212-8.62 38.772-29.637l-.32-4.496h-78.9zm95.906 0l.713 3.04C423.147 226.11 436.68 235 448 235c11.032 0 24.178-8.555 38.676-29.412l-.51-4.588h-78.68zM112 223.31C97.313 242.11 81.492 253 64 253c-13.972 0-26.884-6.906-39-19.264V487h318V279h114v208h30V233.736C474.884 246.094 461.972 253 448 253c-17.49 0-33.31-10.888-47.996-29.684-14.664 18.808-30.432 29.77-47.926 29.817-17.508.048-33.352-10.87-48.092-29.807C289.303 242.116 273.486 253 256 253c-17.492 0-33.313-10.89-48-29.69-14.687 18.8-30.508 29.69-48 29.69s-33.313-10.89-48-29.69zM55 279h258v178H55V279zm18 18v142h222V297H73zm288 0v71.064l78 .573V297h-78zM88 312h128c-108.235 8-116.31 24-128 113.11V312zm273 74.066v13.998l78 .573v-14.002l-78-.57zm0 32V487h78v-68.365l-78-.57z"></path></svg></button><button type="button" class="hs-launch" data-hs-open="market" aria-pressed="false" aria-label="Market (M)" data-tip="Market" data-key="M"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M254.47 53.094s-4.808 37.12-49.5 49.5c-44.695 12.38-129.282 0-129.282 0L61.343 115.78l8.187 9.157-1.093 2.876-51.843 137.312L16 266.72v1.717c0 18.897 8.253 34.243 20.344 44 12.09 9.758 27.563 14.31 42.937 14.313 15.376.003 30.878-4.556 42.97-14.313 12.092-9.756 20.344-25.094 20.344-44v-1.843l-.688-1.688L86.97 130.28c23.946-3.003 80.866-8.54 115.5 1.532 23.064 6.71 36.151 20.345 43.436 31.97L210.78 354.468l21.407 30.31c-17.75 7.75-32.593 24.84-37.562 51.345-56.076 6.195-95.47 20.74-95.47 37.688h311.876c0-16.947-39.392-31.493-95.467-37.688-4.91-26.6-19.57-44.112-37.188-51.906l21-29.75L264 162.28c7.457-11.275 20.388-24.045 42.47-30.468 34.955-10.167 92.615-4.42 116.155-1.437l-50.875 134.75-.625 1.594v1.717c0 18.897 8.253 34.243 20.344 44 12.09 9.758 27.593 14.31 42.967 14.313 15.375.003 30.877-4.556 42.97-14.313 12.09-9.756 20.343-25.094 20.343-44v-1.843l-.688-1.688L441 127.562l-.938-2.28 8.782-8.438-15.594-14.25s-84.556 12.38-129.25 0-49.53-49.5-49.53-49.5zM77.53 156.656l44.22 108.375H36.594L77.53 156.657zm355.158 0l44.218 108.375H391.72l40.967-108.374z"></path></svg></button><button type="button" class="hs-launch" data-hs-open="farm" aria-pressed="false" aria-label="Farm (J)" data-tip="Farm" data-key="J"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M255.688 18S198.118 84.876 199 148.875c.11 7.924 1.104 15.806 2.78 23.53 23.498 25.825 43.035 57.618 58.19 95 13.85-31.163 30.07-60.016 50.03-84.967 3.764-12.817 6.056-26.13 5.875-39.313-.88-64-60.188-125.125-60.188-125.125zM24.094 111.47c.138 1.77.174 2.98.406 5.186.993 9.44 2.96 22.583 6.813 37.22 7.703 29.27 22.952 64.12 52.25 87.81 16.455 13.308 40.276 20.756 64.593 27.064s48.935 11.302 67.594 23.156c14.984 9.52 24.296 24.148 28.375 40.813 4.08 16.663 3.338 35.387-.72 55.06-7.072 34.304-24.28 71.737-46.874 105.908h126.44c-22.767-34.427-39.985-72.006-46.94-106.438-3.982-19.722-4.637-38.51-.436-55.188 4.2-16.677 13.665-31.284 28.75-40.78 18.79-11.83 43.49-16.743 67.812-22.938 24.322-6.196 48.034-13.46 64.313-26.625 47.514-38.425 57.337-105.795 59.405-130.19-61.585 1.928-106.926 21.097-142.406 52.19-37.42 32.788-64.065 79.142-85.345 132.436l-5.28 13.156-10.033-10.03-1.53-1.532-.688-2.063C210.397 177.51 133.342 115.054 24.094 111.47z"></path></svg></button><button type="button" class="hs-launch" data-hs-open="house" aria-pressed="false" aria-label="House (E)" data-tip="House" data-key="E"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M256 19.27L25.637 249.638 19.27 256 32 268.73l6.363-6.367L256 44.727l217.637 217.636L480 268.73 492.73 256l-6.367-6.363zM96 48v107.273l64-64.002V48zm160 20.727l-192 192V486h64V320h96v166h224V260.727zM288 320h96v80h-96z"></path></svg></button><button type="button" class="hs-launch" data-hs-open="tally" aria-pressed="false" aria-label="Tamsin's tally (Q)" data-tip="Tamsin's tally" data-key="Q"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M226.063 24.22l-9.782 32.624c12.992-2.652 26.423-4.032 40.19-4.032 10.475 0 20.766.82 30.81 2.376l-9.405-30.97h-51.813zm30.406 48.843c-99.627 0-180.19 80.53-180.19 180.156 0 99.624 80.563 180.155 180.19 180.155 99.624 0 180.155-80.53 180.155-180.156 0-99.627-80.53-180.157-180.156-180.157zm0 41.687c76.482 0 138.467 61.985 138.467 138.47 0 76.482-61.985 138.5-138.468 138.5-76.485 0-138.5-62.018-138.5-138.5 0-76.485 62.015-138.47 138.5-138.47zm-.033 38.938c-54.96 0-99.53 44.54-99.53 99.5s44.57 99.5 99.53 99.5 99.5-44.54 99.5-99.5-44.54-99.5-99.5-99.5zm.032 39.687c33.052 0 59.842 26.79 59.842 59.844 0 33.052-26.79 59.843-59.843 59.843-33.055 0-59.845-26.79-59.845-59.844 0-33.055 26.79-59.845 59.844-59.845zm0 30.906c-15.993 0-28.97 12.947-28.97 28.94 0 15.99 12.977 28.968 28.97 28.968 15.99 0 28.936-12.977 28.936-28.97 0-15.99-12.945-28.937-28.937-28.937zM114.905 395l-27.844 92.875h46.876l20.28-62.313c-14.35-8.54-27.56-18.833-39.312-30.562zm277.188 5.688c-11.982 11.026-25.324 20.595-39.72 28.468l19.25 58.72h46.907l-26.436-87.188zm-165.03 50.78v36.407h52.092v-35.53c-7.45.84-15.015 1.28-22.687 1.28-9.99 0-19.81-.74-29.408-2.156z"></path></svg></button><button type="button" class="hs-launch" data-hs-open="hunt-prep" aria-pressed="false" aria-label="Hunt prep (P)" data-tip="Hunt prep" data-key="P"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M17.47 250.9C88.82 328.1 158 397.6 224.5 485.5c72.3-143.8 146.3-288.1 268.4-444.37L460 26.06C356.9 135.4 276.8 238.9 207.2 361.9c-48.4-43.6-126.62-105.3-174.38-137z"></path></svg></button><button type="button" class="hs-launch" data-hs-open="hunt-party" aria-pressed="false" aria-label="Party (Y)" data-tip="Party" data-key="Y"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M250.322 18.494c-25.06 3.26-47.158 32.267-47.158 69.346 0 20.453 7.06 38.57 17.502 51.166l10.123 12.213-15.59 2.932c-13.676 2.574-23.794 9.896-32.272 21.547-8.48 11.65-14.86 27.7-19.326 46.095-8.23 33.9-9.916 75.216-10.143 111.275h44.007l11.883 159.512h96.37l10.514-159.512h41.88c-.013-36.448-.353-78.316-7.81-112.48-4.042-18.524-10.176-34.575-18.777-46.12-8.6-11.543-19.21-18.81-34.482-21.18l-15.912-2.468 10.037-12.59c9.99-12.533 16.7-30.436 16.7-50.392 0-39.537-24.776-69.268-52.352-69.268-2.915 0-4.754-.135-5.196-.078zm178.608 1.078c-31.872-.534-61.166 26.473-71.084 63.49-4.575 17.073-4.83 35.29-.817 51.108-10.96 1.307-20.99 5.173-29.772 10.996 5.563 3.58 10.537 7.906 14.906 12.814 7.998-4.296 16.716-6.28 27.084-5.492l15.816 1.2-6.615-14.415c-5.86-12.764-7.33-33.55-2.554-51.377 8.122-30.308 31.484-49.75 52.75-49.61 1.416.008 2.825.104 4.22.29l.01.002c.263.037 1.817.567 4.44 1.27 23.73 6.36 38.404 37.853 29.168 72.324-4.66 17.392-15.965 34.567-27.02 42.73l-12.954 9.565 14.73 6.502c13.063 5.765 20.835 13.86 25.885 24.348 5.05 10.487 7.12 23.674 6.846 38.674-.5 27.368-8.862 60.148-17.2 91.362l-36.864-9.88-51.232 153.712-42.69.11-1.23 18.69 57.402-.146 49.914-149.758 37.946 10.166 2.42-9.025c9.022-33.677 19.603-71.135 20.22-104.89.31-16.876-1.89-32.994-8.693-47.124-5.016-10.417-12.696-19.57-23.065-26.622 10.814-11.607 19.228-27.125 23.637-43.58 11.288-42.13-6.228-85.52-42.38-95.21l-.003-.003c-1.106-.296-3.297-1.274-6.81-1.744h-.008l-2.838-.38-.295.146c-1.09-.082-2.185-.226-3.27-.244zm-349.32.46c-4.49.056-9.02.665-13.538 1.876-.095.026-.327.068-.44.094l-.575-.574-5.76 2.377h-.002C27.32 36.99 13.11 77.635 23.69 117.12c4.574 17.073 13.46 32.977 24.845 44.67-9.328 6.978-16.34 15.908-21.053 25.99-6.507 13.924-8.973 29.83-9.11 46.6-.27 33.543 8.753 71.01 17.82 104.845l2.42 9.027 40.02-10.727 51.11 149.454 60.46.153-1.39-18.694-45.7-.116-52.446-153.37-38.73 10.378c-8.028-30.892-15.098-63.467-14.875-90.8.122-14.997 2.417-28.276 7.354-38.84 4.937-10.56 12.24-18.566 23.865-24.15l14.298-6.87-12.94-9.176c-11.456-8.122-23.12-25.39-27.896-43.215-8.66-32.315 3.867-62.596 24.653-71.188l.025-.01c.244-.1 1.86-.42 4.486-1.12h.002l.002-.003c2.966-.796 6.005-1.18 9.072-1.175 21.47.027 44.263 19.06 52.344 49.223 4.66 17.392 3.46 37.92-2.035 50.517l-6.436 14.76 16.01-1.734c13.355-1.447 23.684 1.234 32.868 7.016 4.285-4.866 9.108-9.17 14.46-12.742-.73-.536-1.464-1.062-2.212-1.572-9.55-6.512-20.777-10.598-33.283-11.522 3.562-15.46 3.09-33.105-1.318-49.56-9.878-36.864-39.338-63.538-70.77-63.14z"></path></svg></button><button type="button" class="hs-launch" data-hs-open="chat" aria-pressed="false" aria-label="Chat (Enter)" data-tip="Chat" data-key="Enter"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M229.7 22.66A155.2 235.6 80.24 0 0 23.81 215.6 155.2 235.6 80.24 0 0 236.7 333.4c23.8 55.6-17.1 109.3-83.6 161.1 86.2-28.3 176.2-94.4 179.7-178.7a155.2 235.6 80.24 0 0 155.4-180.1A155.2 235.6 80.24 0 0 229.7 22.66z"></path></svg></button><button type="button" class="hs-launch" data-hs-open="friends" aria-pressed="false" aria-label="Friends (N)" data-tip="Friends" data-key="N"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M250.882 22.802c-23.366 3.035-44.553 30.444-44.553 65.935 0 19.558 6.771 36.856 16.695 48.815l11.84 14.263-18.217 3.424c-12.9 2.425-22.358 9.24-30.443 20.336-8.085 11.097-14.266 26.558-18.598 44.375-7.843 32.28-9.568 71.693-9.842 106.436h42.868l11.771 157.836c29.894 6.748 61.811 6.51 90.602.025l10.414-157.86h40.816c-.027-35.169-.477-75.126-7.584-107.65-3.918-17.934-9.858-33.372-18.04-44.343-8.185-10.97-18.08-17.745-32.563-19.989l-18.592-2.88 11.736-14.704c9.495-11.897 15.932-28.997 15.932-48.082 0-37.838-23.655-65.844-49.399-65.844z"></path></svg></button><button type="button" class="hs-launch" data-hs-open="settings" aria-pressed="false" aria-label="Settings (Escape)" data-tip="Settings" data-key="Escape"><svg class="hs-glyph" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M87 32v71h18V32H87zm160 0v345h18V32h-18zm160 0v167h18V32h-18zM50 121c-5.14 0-9 3.9-9 9v28c0 5.1 3.86 9 9 9h92c5.1 0 9-3.9 9-9v-28c0-5.1-3.9-9-9-9H50zm37 64v295h18V185H87zm283 32c-5.1 0-9 3.9-9 9v28c0 5.1 3.9 9 9 9h92c5.1 0 9-3.9 9-9v-28c0-5.1-3.9-9-9-9h-92zm37 64v199h18V281h-18zM210 395c-5.1 0-9 3.9-9 9v28c0 5.1 3.9 9 9 9h92c5.1 0 9-3.9 9-9v-28c0-5.1-3.9-9-9-9h-92zm37 64v21h18v-21h-18z"></path></svg></button></nav></div><div class="hs-widget is-alerts" data-hs-widget="alerts" style="--hs-op: 1; min-width: 240px; min-height: 8px; left: 678px; top: 311px;"><section class="hw-alerts is-empty" aria-label="Alerts"><p class="hw-alerts-more"></p><ol class="hw-alert-list" aria-live="polite"></ol></section></div></div></div></div>
+<!-- A phone held upright (QA 2026-10-24): phones are landscape-only, so ONE card over everything asks to turn it.
+     Shown only by app.css's portrait touch-phone query; a desktop or a tablet never sees it. -->
+<div class="turn-phone" role="dialog" aria-modal="true" aria-labelledby="turn-phone-title">
+  <img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.118" alt="" width="311" height="384" loading="lazy" decoding="async">
+  <div class="auth-card turn-phone-card">
+    <h1 class="auth-title" id="turn-phone-title">Turn your phone sideways</h1>
+    <p class="auth-lead">Hearthrise plays in landscape. Hold your phone on its side to carry on.</p>
+  </div>
+</div>
+
+
+
+
+
+<p class="conn-line" role="status" aria-live="polite" hidden=""></p></body></html>

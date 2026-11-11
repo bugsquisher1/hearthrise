@@ -151,23 +151,6 @@
 .wk-plate img { position: absolute; image-rendering: pixelated; }
 .wk-plate figcaption { position: absolute; left: 12px; bottom: 8px; padding: 2px 8px; background: var(--hud-fill); font-size: var(--t-micro); color: var(--ink-2); }
 
-/* THE ROAD on a story's page: the places in the order the road north reaches them, a stud each, on one steel rule. */
-.wk-road { position: relative; margin: 10px 0 0; padding: 0; list-style: none; }
-.wk-road::before { content: ''; position: absolute; left: 8px; top: 10px; bottom: 14px; width: 2px; background: var(--steel-rule); }
-.wk-stop { position: relative; padding: 0 0 16px 34px; }
-.wk-stop::before { content: ''; position: absolute; left: 3px; top: 5px; width: 10px; height: 10px; background: var(--gold); box-shadow: 0 0 0 2px var(--fill-1); transform: rotate(45deg); }
-.wk-stop.is-later::before { background: var(--fill-1); box-shadow: inset 0 0 0 2px var(--ink-3), 0 0 0 2px var(--fill-1); }
-.wk-stop-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 0 0 3px; }
-.wk-stop-name { font-family: var(--f-display); font-size: var(--t-small); font-weight: 700; letter-spacing: .05em; color: var(--gold-2); }
-.wk-stop-name.hs-goto { text-decoration-color: var(--steel-rule); }
-.wk-stop-band { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
-.wk-stop-band b { font-weight: 700; color: var(--green); }
-.wk-stop.is-later .wk-stop-name { color: var(--ink-2); }
-.wk-stop p { max-width: 62ch; margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink); }
-.wk-stop .wk-piece { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: var(--t-micro); color: var(--ink-2); }
-.wk-stop .wk-piece .hw-ico { width: 40px; height: 40px; background: var(--bg-0); box-shadow: var(--hw-well); }
-.wk-stop .wk-piece .hw-ico .hh-icon { width: 32px; height: 32px; }
-.wk-stop.is-sealed p { color: var(--ink-3); }
 
 /* A STORY PAGE: told, not listed. Paragraphs at the reading size with room between them; nothing else on the page competes. */
 .wk-story { max-width: 68ch; margin: 4px 0 6px; }

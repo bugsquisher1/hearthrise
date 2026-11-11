@@ -59,7 +59,7 @@ export function hoursPicked(sc, tr) {
 }
 
 /** The picks the server's bounds allow, with a remembered value outside the usual list kept. Pure. */
-export function hourChoices(tr, picked) {
+function hourChoices(tr, picked) {
   const min = tr.hours.min ?? TRAINING.stopAfterHours.min, max = tr.hours.max ?? TRAINING.stopAfterHours.max;
   const list = HOUR_PICKS.filter((h) => h >= min && h <= max);
   if (Number.isInteger(picked) && picked >= min && picked <= max && !list.includes(picked)) list.push(picked);
@@ -75,7 +75,7 @@ export function keepTyped(textValue) {
 }
 
 /** "Defense is 19. The next level takes about 2 hours here.": the server's skill and the yard's server rate. '' when unknown. Pure. */
-export function nextLevelWords(skill, row, xpH) {
+function nextLevelWords(skill, row, xpH) {
   if (!row || !Number.isInteger(row.level) || !Number.isSafeInteger(row.xp) || !(xpH > 0)) return '';
   const need = skillXpForLevel(skill, row.level + 1) - row.xp;
   if (!(need > 0)) return '';
@@ -246,7 +246,7 @@ renderTraining.act = function actTraining(ctx, body, action, ev, el) {
     const skill = skillPicked(sc, tr), hours = hoursPicked(sc, tr), keep = keepTyped(sc.keep);
     if (startBlock(cs, tr, keep, skill) || !keepOk(keep)) { repaint(); return true; }
     runIntent(sc, repaint, () => startTraining(ctx.account, cs, { skill, hours, keep }), t('training.busy_start'),
-      (r) => t('training.started', { name: nameOf(cs) || t('training.your_hero'), skill: skillWord(r.skill) }), cs);
+      () => t('training.started', { name: nameOf(cs) || t('training.your_hero') }), cs);
     return true;
   }
   if (action === 'train-stop') {

@@ -28,7 +28,8 @@ export const TRAINING_TEXT = Object.freeze({
   press_stop: 'Stop training',
   busy_start: 'Heading to the yard…',
   busy_stop: 'Stopping…',
-  started: '{name} is training {skill} now.',
+  /* the run itself is said above the press: this only says the hero is on the way */
+  started: '{name} heads to the yard.',
 
   /* While it runs: the section's run, settled by the server about once a minute. */
   run_now: '{name} is training {skill}.',

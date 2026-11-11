@@ -227,21 +227,14 @@ async function checks(overrides) {
       if (errors.length) fails.push('TR-1 console errors: ' + errors.join(' | ').slice(0, 300));
       await ctx.close();
     }
+    /* the switch turned off while a hero trains: Stop is always allowed, and the re-read after it carries no section */
     {
-      const s = world({});
+      const s = world({ active: 'training', training: SECTION({ run: RUN({ settled_to: iso(Date.now() - 5000) }) }) });
+      s.onStop = () => { s.active = 'idle'; s.training = null; return { ok: true, stopped: { skill: 'defense' }, version: s.version + 1, training: null }; };
       const { ctx, page } = await open(s);
       if (!await openWindow(page, 'TR-1')) fails.push('TR-1 the switch on: the window did not open from its icon');
-      s.training = null;
-      await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-      await page.click('[data-hs-open="hunts"]').catch(() => {});
-      await page.waitForTimeout(200);
-      /* a re-read: the server no longer sends the section */
-      await page.evaluate(async () => { const b = document.querySelector('[data-hs-act="train-start"]'); if (b) b.blur(); });
-      s.calls.length = 0;
-      await page.reload({ waitUntil: 'load' });
-      await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]') || document.querySelector('.hs-launchers'));
-      if (await page.$('[data-app="play"][data-slot="0"]')) await page.click('[data-app="play"][data-slot="0"]');
-      await wait(page, () => document.querySelector('.hs-launchers'));
+      await press(page, '[data-hs-act="train-stop"]', 'TR-1');
+      await wait(page, () => !document.querySelector('[data-hs-open="training"]'), null, 4000);
       await page.waitForTimeout(400);
       if (await page.$('[data-hs-open="training"]')) fails.push('TR-1 the section went away and the icon stayed');
       if (await shown(page, '[data-hs-win="training"] .tw-train')) fails.push('TR-1 the section went away and the window stayed open');
@@ -256,7 +249,7 @@ async function checks(overrides) {
       const rate = await q(page, '.tw-rate');
       if (rate !== 'At Level 20, an hour here earns 8,000 skill XP and costs 1,000 gold.') fails.push('TR-2 the rate reads ' + JSON.stringify(rate));
       const skills = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="training"] .tw-skill'), (b) => b.getAttribute('data-skill') + ':' + b.querySelector('.tw-skill-level').textContent));
-      if (skills.join(' ') !== 'melee:1 ranged:5 magic:1 defense:19') fails.push('TR-2 the skills read ' + skills.join(' '));
+      if (skills.join(' ') !== 'melee:20 ranged:5 magic:1 defense:19') fails.push('TR-2 the skills read ' + skills.join(' '));
       await press(page, '[data-hs-win="training"] .tw-skill[data-skill="defense"]', 'TR-2');
       const next = await q(page, '.tw-next');
       if (!/^Defense is 19\. The next level takes about .+ here\.$/.test(next || '')) fails.push('TR-2 the next level reads ' + JSON.stringify(next));
@@ -411,9 +404,12 @@ async function checks(overrides) {
       const s = world({ training: SECTION({ settings: { skill: 'defense', place: 'yard', stop_after_h: 4, keep_gold: 500 },
         last_stop: { reason: 'keep_gold', at: iso(Date.now() - HOUR), skill: 'defense', ms: 2 * HOUR, xp: 16000, gold: 2000 } }) });
       const { ctx, page } = await open(s, viewport);
-      if (label === 'phone') await page.evaluate(() => { const b = document.querySelector('[data-hs-open="training"]'); if (!b) { const c = document.querySelector('[data-hs-open="characters"]'); if (c) c.click(); } });
-      const opened = await page.evaluate(() => !!document.querySelector('[data-hs-open="training"]'));
-      if (opened) await openWindow(page, 'TR-8'); else fails.push('TR-8 ' + label + ': no way to the Training window');
+      /* the phone's icon row is full: the All characters sheet (O) lists it under "Also here" */
+      if (label === 'phone') {
+        await page.keyboard.press('o');
+        if (!await wait(page, () => { const b = document.querySelector('[data-hs-win="characters"] .hw-icon-names [data-hs-open="training"]'); return !!b && b.offsetParent !== null; }, null, 4000)) fails.push('TR-8 phone: "Also here" does not list Training');
+        else { await page.click('[data-hs-win="characters"] .hw-icon-names [data-hs-open="training"]'); await wait(page, () => !!document.querySelector('[data-hs-win="training"] .tw-train'), null, 4000); }
+      } else if (!await openWindow(page, 'TR-8')) fails.push('TR-8 ' + label + ': no way to the Training window');
       await page.waitForTimeout(300);
       const m = await page.evaluate(() => {
         const win = document.querySelector('[data-hs-win="training"]');

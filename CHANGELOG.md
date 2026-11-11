@@ -7,7 +7,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.118 — 2026-11-11 (Max Hit)
 
-**Monster pages show Max Hit now.** It is the hardest that monster can hit you. The heal warning in Configure action says Max Hit too.
+**Monster pages show Max Hit now.** That's the hardest a monster can hit you. The heal warning in Configure action uses it too.
 
 ## v0.2.117 — 2026-11-11 (Lighter Reload)
 

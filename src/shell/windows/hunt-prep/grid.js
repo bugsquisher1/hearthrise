@@ -8,7 +8,9 @@
 // one) opens Configure action on that slot of the COPY, hosted (bar-draft.js openSlotIn): its
 // picker and every condition the engine has, and its Save writes back to the copy. Nothing is sent
 // from here: the builder's Save sends the whole setup as ONE intent. Pointer events, so a phone's
-// finger drags too (a filled tile takes no scroll: windows.css touch-action).
+// finger drags too (a filled tile takes no scroll: windows.css touch-action). The press reaches the
+// tile through the shell (pointerdown); the drag's own moves and release are listened for on the
+// document only while the drag runs, so no shell-wide pointermove listener ever exists.
 // ════════════════════════════════════════════════════════════════════════
 import { text, cls, attr, keyedChild, element } from '../../../render/paint.js?v=0.2.122';
 import { actionIconHtml } from '../../widgets/bits.js?v=0.2.122';
@@ -110,52 +112,60 @@ function tileAt(doc, grid, ev) {
   return li && grid.contains(li) ? Number(li.getAttribute('data-slot')) : null;
 }
 
-/** A tile's events: the drag (pointer), the press (click, Enter, Space). Returns true when handled. */
+/* THE DRAG: from a press on a filled tile. The document hears the pointer's moves and its release (capture, so a release over
+   anything ends it) only while the drag runs; the ghost shows once the pointer has moved DRAG_START_PX. The release drops:
+   a move onto an empty tile, a swap with a filled one (prep-draft.js dropPlan), nothing when it lands off the grid. */
+function startDrag(ctx, sc, repaint, ev, el) {
+  const grid = el.closest('.hpb-grid'), wrap = el.closest('.hpb-gridwrap');
+  const doc = ctx.doc;
+  const g = { from: Number(el.getAttribute('data-slot')), x: ev.clientX, y: ev.clientY, id: ev.pointerId, on: false, over: null, off: null };
+  const d = () => sc.draft;
+  const move = (e) => {
+    if (e.pointerId !== g.id || !d()) return;
+    if (!g.on) {
+      if (Math.hypot(e.clientX - g.x, e.clientY - g.y) < DRAG_START_PX) return;
+      g.on = true;
+      moveGhost(wrap, ghostOf(wrap, doc, actionIconHtml(ctx.glyphs, d().slots[g.from].action)), e);
+    } else moveGhost(wrap, wrap.querySelector('.hpb-ghost'), e);
+    const over = tileAt(doc, grid, e);
+    if (over !== g.over) { g.over = over; repaint(); }
+    e.preventDefault();
+  };
+  const end = (e) => {
+    if (e.pointerId !== g.id) return;
+    g.off();
+    sc.drag = null;
+    if (!g.on) return;
+    endGhost(wrap);
+    const to = e.type === 'pointerup' ? tileAt(doc, grid, e) : null;
+    const plan = d() && to !== null ? dropPlan(d().slots, g.from, to) : null;
+    if (plan) { d().slots = plan; sc.sorted = false; sc.cleared = false; }
+    sc.swallowUntil = ctx.now() + SWALLOW_MS;
+    repaint();
+  };
+  g.off = () => { doc.removeEventListener('pointermove', move, true); doc.removeEventListener('pointerup', end, true); doc.removeEventListener('pointercancel', end, true); };
+  doc.addEventListener('pointermove', move, true);
+  doc.addEventListener('pointerup', end, true);
+  doc.addEventListener('pointercancel', end, true);
+  if (sc.drag && sc.drag.off) sc.drag.off();
+  sc.drag = g;
+}
+
+/** A tile's events: the press that may start a drag (pointerdown), the press (click, Enter, Space). Returns true when handled. */
 export function actGrid(ctx, body, sc, repaint, ev, el) {
   const i = Number(el.getAttribute('data-slot'));
-  const grid = el.closest('.hpb-grid'), wrap = el.closest('.hpb-gridwrap');
   const d = sc.draft;
-  const now = () => ctx.now();
   switch (ev.type) {
-    case 'pointerdown': {
+    case 'pointerdown':
       if ((ev.pointerType === 'mouse' && ev.button !== 0) || !d || sc.pending || !d.slots[i]) return false;
-      sc.drag = { from: i, x: ev.clientX, y: ev.clientY, id: ev.pointerId, on: false, over: null };
-      try { el.setPointerCapture(ev.pointerId); } catch (e) { /* a pointer already gone */ }
+      startDrag(ctx, sc, repaint, ev, el);
       return false;
-    }
-    case 'pointermove': {
-      const g = sc.drag;
-      if (!g || g.id !== ev.pointerId || !d) return false;
-      if (!g.on) {
-        if (Math.hypot(ev.clientX - g.x, ev.clientY - g.y) < DRAG_START_PX) return false;
-        g.on = true;
-        const ghost = ghostOf(wrap, ctx.doc, actionIconHtml(ctx.glyphs, d.slots[g.from].action));
-        moveGhost(wrap, ghost, ev);
-      } else moveGhost(wrap, wrap.querySelector('.hpb-ghost'), ev);
-      const over = tileAt(ctx.doc, grid, ev);
-      if (over !== g.over) { g.over = over; repaint(); }
-      return true;
-    }
-    case 'pointerup': case 'pointercancel': {
-      const g = sc.drag;
-      if (!g || g.id !== ev.pointerId) return false;
-      try { el.releasePointerCapture(ev.pointerId); } catch (e) { /* never captured */ }
-      sc.drag = null;
-      if (!g.on) return false;
-      endGhost(wrap);
-      const to = ev.type === 'pointerup' ? tileAt(ctx.doc, grid, ev) : null;
-      const plan = d && to !== null ? dropPlan(d.slots, g.from, to) : null;
-      if (plan) { d.slots = plan; sc.sorted = false; sc.cleared = false; }
-      sc.swallowUntil = now() + SWALLOW_MS;
-      repaint();
-      return true;
-    }
     case 'keydown':
       if (!(ev.key === 'Enter' || ev.key === ' ')) return false;
       if (d && !sc.pending) openOn(ctx, sc, i);
       return true;
     case 'click':
-      if (sc.swallowUntil && now() < sc.swallowUntil) { sc.swallowUntil = 0; return true; }
+      if (sc.swallowUntil && ctx.now() < sc.swallowUntil) { sc.swallowUntil = 0; return true; }
       if (d && !sc.pending) openOn(ctx, sc, i);
       return true;
     default: return false;

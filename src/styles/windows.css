@@ -594,7 +594,10 @@
 .hpb-set.is-picked .hw-line-name b { color: var(--ink); }
 .hpb-set-do { display: flex; flex-direction: column; align-items: stretch; flex: none; }
 .hpb-set-do .hh-tool { min-height: 26px; padding: 0 6px; }
+/* The New row: the name field gives way to its Save, so both stay inside the column (the field's own width is wider than the column). */
 .hpb-add { margin: 0 0 6px; }
+.hpb-add .hw-preset-name { flex: 1 1 0; width: 0; min-width: 0; }
+.hpb-add .hh-tool { flex: none; }
 .hpb-add[hidden] { display: none; }
 .hpb-leftrow { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
 .hpb-left .hh-tool { justify-content: flex-start; text-align: left; }
@@ -614,10 +617,12 @@
 .hpb-plays .hh-seg { cursor: default; }
 .hpb-plays .hh-seg:not([aria-pressed="true"]) { color: var(--ink-3); cursor: help; }
 .hpb-plays p { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
-.hpb-three { display: grid; grid-template-columns: auto minmax(150px, 1fr) auto auto; column-gap: 24px; align-items: start; }
-.hpb-three > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* The four fight panels in a row; the gold one wraps under them where the column is narrow (a 44 px tile desktop). */
+.hpb-three { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: flex-start; }
+.hpb-three > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; max-width: 220px; }
+.hpb-three .hpb-target { min-width: 170px; }
 .hpb-three p { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
-.hpb-move, .hpb-gold { display: flex; align-items: center; gap: 8px; }
+.hpb-move, .hpb-gold { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .hpb-move .hb-label, .hpb-gold .hb-label { font-size: var(--t-micro); color: var(--ink-2); }
 .hpb-floor { width: 88px; }
 .hpb-barhead { display: flex; align-items: baseline; gap: 12px; }
@@ -627,8 +632,10 @@
 .hpb-grid { list-style: none; margin: 0; padding: 8px; display: grid; grid-template-columns: repeat(10, clamp(40px, calc(9.375vw - 52px), 68px)); grid-auto-rows: clamp(40px, calc(9.375vw - 52px), 68px); gap: 4px;
   justify-content: start; background: var(--bg-0); box-shadow: var(--steel-well); width: max-content; user-select: none; }
 .hpb-grid .hb-slot { width: clamp(40px, calc(9.375vw - 52px), 68px); height: clamp(40px, calc(9.375vw - 52px), 68px); }
-/* A filled tile is dragged, so a finger on it never scrolls; an empty one still pans the sheet. */
+/* A filled tile is dragged, so a finger on it never scrolls; an empty one still pans the sheet. The icon and the badges take no
+   pointer of their own: the tile is the press, and a mouse on the icon never starts the browser's own image drag. */
 .hpb-grid .hb-slot:not(.is-empty) { touch-action: none; cursor: grab; }
+.hpb-grid .hb-slot .hb-slot-ico, .hpb-grid .hb-slot small, .hpb-grid .hb-slot .hb-plus { pointer-events: none; }
 .hpb-grid .hb-slot.is-busy { cursor: default; opacity: .6; }
 .hpb-grid .hb-slot.is-lifted { opacity: .35; }
 .hpb-grid .hb-slot.is-drop { outline: 2px dashed var(--gold); outline-offset: -2px; }
@@ -637,11 +644,13 @@
 .hpb-ghost .hh-icon { width: round(down, 100% - 4px, 32px); height: round(down, 100% - 4px, 32px); }
 .hpb-under { display: flex; align-items: center; gap: 8px; }
 .hpb-under p { flex: 1; margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
-.hpb-state { margin: 0; min-height: 0; font-size: var(--t-micro); color: var(--ink-2); }
-.hpb-state:empty { display: none; }
 .hpb-msg { grid-column: 1 / -1; margin-top: 10px; }
-/* THE FOOTER: the hero's readiness line (a press shows every hero's checklist), then Close, Save and the one gold primary. */
-.hpb-foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; box-shadow: 0 -2px 0 var(--steel-rule); }
+/* THE FOOTER, always in reach (sticky at the body's foot): the copy's state (not saved, sorted, changed on the bar), else the hero's readiness
+   line (a press shows every hero's checklist); then Close, Save and the one gold primary. */
+.hpb-foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin: 10px 0 -12px; padding: 10px 0 12px; box-shadow: 0 -2px 0 var(--steel-rule); position: sticky; bottom: -12px; background: var(--bg-1); z-index: 1; }
+.hpb-state { flex: 1; min-width: 0; margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hpb-state:empty { display: none; }
+.hpb-foot:has(.hpb-state:not(:empty)) .hpb-ready { display: none; }
 .hpb-ready { flex: 1; min-width: 0; margin: 0; padding: 0; border: 0; background: none; text-align: left; font-family: var(--f-ui); font-size: var(--t-micro); color: var(--red); cursor: pointer; }
 .hpb-ready.is-ready { color: var(--green); }
 .hpb-ready b { font-weight: 700; }
@@ -673,7 +682,7 @@
   .hpb .hh-tool, .hpb .hh-seg, .hpb .hh-select { min-height: 44px; }
   .hpb-grid { grid-template-columns: repeat(10, 56px); grid-auto-rows: 56px; padding: 6px; }
   .hpb-grid .hb-slot, .hpb-ghost { width: 56px; height: 56px; }
-  .hpb-foot { position: sticky; bottom: -10px; background: var(--bg-1); padding-bottom: 8px; margin-bottom: -10px; }
+  .hpb-foot { bottom: -10px; margin-bottom: -10px; padding-bottom: 10px; }
   /* The phone sheet scrolls as one, its foot under the list. */
   .hs-win[data-hs-win="inventory"] .hs-win-body { display: block; overflow: auto; }
   [data-hs-win="inventory"] .hw-inv { display: block; overflow-y: visible; }

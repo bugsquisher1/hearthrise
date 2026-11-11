@@ -58,7 +58,7 @@ export function renderHuntPrep(ctx) {
     + builderHtml()
     + '</div>'
     + '<p class="hh-intent-msg hpb-msg" role="status" aria-live="polite"></p>'
-    + '<div class="hpb-foot"><button type="button" class="hpb-ready hw-ready-line" data-hs-act="ready" aria-expanded="false" title="' + t('prep.ready_label') + '"><b></b></button>'
+    + '<div class="hpb-foot"><p class="hpb-state"></p><button type="button" class="hpb-ready hw-ready-line" data-hs-act="ready" aria-expanded="false" title="' + t('prep.ready_label') + '"><b></b></button>'
     + '<button type="button" class="hh-tool hpb-load" data-hs-act="load-again" hidden>' + t('prep.load_again') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="close">' + t('prep.close') + '</button>'
     + '<button type="button" class="hh-tool hpb-save" data-hs-act="save">' + t('prep.save') + '</button>'
@@ -149,4 +149,4 @@ renderHuntPrep.act = function actHuntPrep(ctx, body, action, ev, el) {
   if (done !== undefined) return done;
   return actBuilder(ctx, body, sc, repaint, action, ev, el);
 };
-renderHuntPrep.events = Object.freeze(['keydown', 'pointerdown', 'pointermove', 'pointerup', 'pointercancel']);
+renderHuntPrep.events = Object.freeze(['keydown', 'pointerdown']);

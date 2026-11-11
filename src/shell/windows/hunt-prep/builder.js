@@ -67,7 +67,6 @@ export function builderHtml() {
     + gridHtml()
     + '<div class="hpb-under"><p>' + t('prep.bar_hint') + '</p>'
     + '<button type="button" class="hh-tool" data-hs-act="sort">' + t('prep.sort') + '</button><button type="button" class="hh-tool" data-hs-act="clear">' + t('prep.clear') + '</button></div>'
-    + '<p class="hpb-state"></p>'
     + '</div>';
 }
 

@@ -84,7 +84,7 @@
 //   PH-22 THE DOORS: Create account and Back to sign in on screen (667x375, 844x390); Enter town and its way back (667x375)
 //   PH-23 Refresh in the sheet; How many, Price each and List on screen together; Sort in the sheet (667x375)
 //   PH-24 A PARTY ON A PHONE: an invite from the Party window, ONE hr_hunt_party_invite and its answer in words; an invite
-//         shows beside an open sheet (844x390); Also here at the sheet's top; the red count says what it wants; no mouse
+//         shows beside an open sheet (844x390), its Join clear of the town card; Also here at the sheet's top; the red count says what it wants; no mouse
 //         words and no press under 40 px in seven windows (667x375)
 //   The small-phone panel on v0.2.83 (2026-11-03, 844x390 and 667x375):
 //   PH-25 A GROUND'S PAGE GETS THE SHEET: with its card up, at least 190 px to read (it was 104), the sheet's head in reach in
@@ -1779,6 +1779,8 @@ const MUTANTS = [
   ['PH-24 the red count says nothing', 'src/shell/windows/characters.js', "text(li.querySelector('.hw-char-waits'), wait ? wait.text : '');", ''],
   ['PH-24 Storage tells a thumb to shift-press', 'src/shell/windows/storage.js', "(ctx.isPhone && ctx.isPhone() ? 'Press a stack to move one across. Hold it to choose how many.' : ", '(false ? \'\' : '],
   ['PH-24 the sheet\'s presses stay 30 px', 'src/styles/windows.css', '  .hs-win .hh-tool, .hs-win .hh-select, .hs-win .hh-seg, .hs-win .hh-num, .hs-win .hw-search, .hs-win .hf-name, .hs-win .st-search, .hs-win .hs-close { min-height: 40px; }\n', ''],
+  ['PH-24 the town card lies over the invite beside a sheet', 'src/shell/shell.js', "(w.matches('.is-hunt-topbar') || beside) ? at.top - 8", "w.matches('.is-hunt-topbar') ? at.top - 8"],
+  ['PH-24 a window card\'s foot stays 24 px', 'src/styles/shell.css', '  .hs-coach-off, .hs-win-coach > .hs-pointer.is-line :is(.hs-coach-got, .hs-coach-off) { min-height: var(--tap); }\n', ''],
   ['PH-25 a ground\'s page keeps its frame and padding', 'src/styles/windows.css', '  [data-hs-win="hunts"]:has(.is-paged) .hs-win-body { padding: 0; }\n', '  [data-hs-win="hunts"]:has(.is-paged) .hw-hd-page { max-height: 104px; }\n'],
   ['PH-25 the sheet starts under the place\'s row', 'src/styles/shell.css', '  #panel-world:not([data-scene="hunt"]) .hs-win:not(.is-modal) { top: calc(-1 * (var(--tap) + 6px)); }\n', ''],
   ['PH-25 the stage still clips the sheet\'s head', 'src/styles/shell.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal)) .world-stage { overflow: visible; }\n', ''],

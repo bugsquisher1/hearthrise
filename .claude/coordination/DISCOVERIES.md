@@ -3913,3 +3913,9 @@ row. Give the head cells the rows' data-c and hide both with one selector.
 - #78 (P2, game-designer): a player who signs out to play another account on the same connection is refused by the network cap and can only stop the old heroes by signing back in. Rule whether Sign out should say "N heroes keep working" or offer to stop them.
 - "Leaving in 5s" (not reproduced on a visible page): two leaves measured every 50 ms, no value stood longer than 1,016 ms, "Leaving now…" 554 and 734 ms, then town. With the page HIDDEN the line stood on "Leaving in 16s" for over 10 s: the display tick skips a hidden page (src/shell/shell.js:466) and only an envelope repaints. Most likely the sample was read from a pane showing another tab. Coordinator: read play-gate text with the QA tab in front.
 - P3, game-designer (the class behind #75): these picks are still kept per hero, so a change on one hero does not show on the others: window opacity (panelAlpha), floating numbers (combatText), HUD layout (hudLayout; the 10-25 ruling says "kept per viewer"), window sizes (winSize), combat log filters (combatLog), alert kinds switched off (alerts.off). Rule which are the player's; src/session/player-switch.js is the pattern.
+
+- 2026-11-12 (art-director, lane/a-phone-touch-24): on a phone the coach card's foot ("Don't show tips" + Got it, both 44 px)
+  shares the title's row, so on the 277 px card at 667x375 the title wraps one word per line (Shop's "Sell what only pays
+  coin" takes five lines; three at 844x390). Pre-existing with the town-criers foot. Fix: move "Don't show tips" under the
+  words on a phone and re-measure PH-6/PH-18's text caps for the extra row. Screen:
+  art/review/phone-touch-24-2026-11-12/shop-coach-667x375.png.

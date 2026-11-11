@@ -427,6 +427,8 @@
   .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { width: min(320px, 100%); }
   .hs-widget.is-hunt-topbar > .hs-pointer::before { left: auto; right: 10px; }
   .hs-coach-got { min-height: var(--tap); }
+  /* The foot's two presses at a thumb's size on every card, the one-line card in a window too (its 24 px is the desktop's line; phone-touch PH-24, 667x375). */
+  .hs-coach-off, .hs-win-coach > .hs-pointer.is-line :is(.hs-coach-got, .hs-coach-off) { min-height: var(--tap); }
   /* A card about the action bar stands just above the bar on a phone (board 2026-10-25 sample s7: under the hunt bar it
      hung far from its slot): its foot 8 px over the bar's top, the host's --coach-room below the host's own foot
      (shell.js roomForCoach). Desktop keeps it under its host. */

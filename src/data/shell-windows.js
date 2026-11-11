@@ -65,7 +65,8 @@ export const SHELL_WINDOWS = Object.freeze([
   /* What gold buys in town (Tyler 2026-11-04; the designer's gold sinks section): Hearth powders, a round at the Tavern, later the Town Works. Every letter is taken and
      WASD walks, so it has no shortcut; the Tavern on the map opens it on Round. Its label is the city's name, read from the one place it lives. */
   Object.freeze({ id: 'havora', label: TOWN_NAME, key: null, noShortcut: true, phoneIcon: false, glyph: 'uiFlame', width: 420, object: 'ledger' }),
-  Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 420, object: 'plain' }),
+  /* The setup builder (Tyler 2026-11-11): the setups column beside the HUD's own 2 x 10 slot grid, so it is as wide as Hunts. */
+  Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 1000, object: 'plain' }),
   /* Week plan step 16 + QoL 3: the party, and every open character on one screen (opened from the
      character strip's "All characters", so it takes no launcher icon). */
   Object.freeze({ id: 'hunt-party', label: 'Party', key: 'y', glyph: 'uiPeople', width: 440, object: 'plain' }),

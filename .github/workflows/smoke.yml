@@ -5589,6 +5589,16 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/hud-layout-display-only.mjs
 
+      # Sort automatically on the Hunt prep builder (lane/b-hunt-prep-builder, 2026-11-11): a pure reorder of the bar
+      # by the engine's own lane rule (src/shell/bar-sort.js); --mutate plants seven defects into a temp copy.
+      - name: Bar sort - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/bar-sort.mjs --mutate
+
+      - name: Bar sort - base run
+        if: ${{ !cancelled() }}
+        run: node tests/bar-sort.mjs
+
       # THE REBUILT CLIENT (2026-10-17). session-core: one rule per session law
       # (envelope replace, frame order, residue allowlist, per-character
       # isolation, the concurrent cap, sign-out clears every copy, the tab id,

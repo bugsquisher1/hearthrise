@@ -13,7 +13,8 @@
 // town (tests/fixtures/alpha-envelope.json). The hero never walks on its own
 // (Tyler 2026-10-19), so the
 // camera moves only for the reason a rule is about.
-//   WC-1  THE X CLOSES: with Hunt prep | Services | Gathering and crafting
+//   WC-1  THE X CLOSES: with the House | Services | Gathering and crafting (Hunt prep became the
+//         wide setup builder on 2026-11-11, so the House stands in as the third docked window)
 //         docked side by side, a real press and release on Services' X
 //         closes it; the other two keep their exact rects; presses on a window's
 //         head (a hand's few px of wander included) move no window; a reopen comes
@@ -348,13 +349,13 @@ async function checks(overrides, pages = null) {
       const { ctx, page, errors, up } = await enter(browser, base, { width: 2560, height: 1200 });
       if (!up) fails.push('WC-1 the town did not mount');
       else {
-        for (const k of ['p', 'r', 'g']) { await page.keyboard.press(k); await settle(page); }
+        for (const k of ['e', 'r', 'g']) { await page.keyboard.press(k); await settle(page); }
         const r0 = await rects(page);
-        if (Object.keys(r0).sort().join() !== 'hunt-prep,shop,skills-trade') fails.push('WC-1 three docked windows did not open: ' + JSON.stringify(r0));
+        if (Object.keys(r0).sort().join() !== 'house,shop,skills-trade') fails.push('WC-1 three docked windows did not open: ' + JSON.stringify(r0));
         else {
           const c0 = await camera(page), h0 = await hero(page);
           /* WC-2: presses inside a window (its head, its body) move no window, no camera, no hero. */
-          for (const sel of ['[data-hs-win="shop"] .hs-win-title', '[data-hs-win="hunt-prep"] .hs-win-title', '[data-hs-win="shop"] .hs-win-title']) { await press(page, sel, 3); await page.waitForTimeout(120); }
+          for (const sel of ['[data-hs-win="shop"] .hs-win-title', '[data-hs-win="house"] .hs-win-title', '[data-hs-win="shop"] .hs-win-title']) { await press(page, sel, 3); await page.waitForTimeout(120); }
           await settle(page);
           if (JSON.stringify(await rects(page)) !== JSON.stringify(r0)) fails.push('WC-1 presses inside windows moved the dock: ' + JSON.stringify(await rects(page)) + ' vs ' + JSON.stringify(r0));
           if ((await camera(page)) !== c0) fails.push('WC-2 three presses inside a window moved the camera from ' + c0 + ' to ' + (await camera(page)));
@@ -385,7 +386,7 @@ async function checks(overrides, pages = null) {
           await settle(page);
           const r1 = await rects(page);
           if (r1['shop']) fails.push('WC-1 a press on the Shop’s X did not close it: ' + JSON.stringify(r1));
-          if (r1['hunt-prep'] !== r0['hunt-prep'] || r1['skills-trade'] !== r0['skills-trade']) fails.push('WC-1 closing one window moved the others: ' + JSON.stringify(r1) + ' vs ' + JSON.stringify(r0));
+          if (r1['house'] !== r0['house'] || r1['skills-trade'] !== r0['skills-trade']) fails.push('WC-1 closing one window moved the others: ' + JSON.stringify(r1) + ' vs ' + JSON.stringify(r0));
           await page.keyboard.press('r'); await settle(page);
           const r2 = await rects(page);
           if (r2['shop'] !== r0['shop']) fails.push('WC-1 a reopened window did not come back to its rect: ' + r2['shop'] + ' vs ' + r0['shop']);
@@ -422,12 +423,12 @@ async function checks(overrides, pages = null) {
               const e = document.elementFromPoint(x.left + x.width / 2, x.top + x.height / 2); return e && !e.closest('[data-hs-close]') ? e.outerHTML.slice(0, 120) : null; });
             if (xAt) fails.push('WC-5b the dragged modal’s X is covered by ' + xAt);
             const mr1b = await rects(page);
-            for (const id of ['hunt-prep', 'shop', 'skills-trade']) if (mr1b[id] !== r2[id]) fails.push('WC-5b dragging the modal moved ' + id);
+            for (const id of ['house', 'shop', 'skills-trade']) if (mr1b[id] !== r2[id]) fails.push('WC-5b dragging the modal moved ' + id);
             await press(page, '[data-hs-win="configure-action"] [data-hs-close]');
             await settle(page);
             const mr2 = await rects(page), mc2 = await camera(page), mh2 = await hero(page);
             if (mr2['configure-action']) fails.push('WC-5 the modal’s X did not close it');
-            for (const id of ['hunt-prep', 'shop', 'skills-trade']) {
+            for (const id of ['house', 'shop', 'skills-trade']) {
               if (mr1[id] !== r2[id] || mr2[id] !== r2[id]) fails.push('WC-5 the modal closed or moved ' + id + ': ' + [r2[id], mr1[id], mr2[id]].join(' -> '));
             }
             if (mc1 !== mc0 || mc2 !== mc0) fails.push('WC-5 the modal moved the camera: ' + [mc0, mc1, mc2].join(' -> '));
@@ -471,14 +472,14 @@ async function checks(overrides, pages = null) {
         if (Math.abs(hx - (cl + cw / 2)) > 48 && !(westShown && hx < cl + cw / 2)) fails.push('WC-3 the hero is not centred across the World: x ' + hx + ' in ' + v0);
         const steps = [
           ['opening Gathering and crafting', async () => page.keyboard.press('g')],
-          ['opening Hunt prep', async () => page.keyboard.press('p')],
+          ['opening the House', async () => page.keyboard.press('e')],
           ['focusing Gathering and crafting', async () => press(page, '[data-hs-win="skills-trade"] .hs-win-title')],
-          ['dragging Hunt prep', async () => {
-            const b = await page.locator('[data-hs-win="hunt-prep"] .hs-win-title').boundingBox();
+          ['dragging the House', async () => {
+            const b = await page.locator('[data-hs-win="house"] .hs-win-title').boundingBox();
             await page.mouse.move(b.x + 10, b.y + b.height / 2); await page.mouse.down();
             await page.mouse.move(b.x - 200, b.y + 120, { steps: 6 }); await page.mouse.up();
           }],
-          ['closing Hunt prep', async () => press(page, '[data-hs-win="hunt-prep"] [data-hs-close]')],
+          ['closing the House', async () => press(page, '[data-hs-win="house"] [data-hs-close]')],
           ['closing Gathering and crafting', async () => press(page, '[data-hs-win="skills-trade"] [data-hs-close]')],
         ];
         for (const [what, act] of steps) {

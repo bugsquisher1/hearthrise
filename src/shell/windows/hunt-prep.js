@@ -1,98 +1,96 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/shell/windows/hunt-prep.js — HUNT PREP: ONE-CLICK SETUPS AND A READINESS CHECK (QoL 2).
+// src/shell/windows/hunt-prep.js — HUNT PREP: THE SETUP BUILDER (Tyler 2026-11-11, from his reference).
 //
-// Tyler 10-18: "players should spend their time making interesting decisions,
-// not repeating decisions they've already made". So a hunt setup is saved
-// once and put back with one press:
-//   Setups     ONE concept (designer ruling 2026-10-22, CONFLICTS.md): a setup is
-//              a whole loadout, its OWN action bar (slots, conditions, fight
-//              options) and the gear it wears; at most ACTION_SET_LIMITS.presets.
-//              The hero is always on one (hunt_settings.preset, marked "In use":
-//              the bar shows it and edits it). Use = ONE hr_hunt_preset_apply
-//              (the server wears the gear and switches the bar); Save here /
-//              Save current setup = ONE hr_hunt_preset_save (what the hero has on,
-//              gear and bar, becomes that setup and the hero is on it). Use and
-//              Save are town-only (the server refuses hunt_open): off in a hunt.
-//              The name renames in place (inline-name.js: ONE
-//              hr_hunt_preset_rename); Delete asks once on the same button,
-//              then sends ONE hr_hunt_preset_delete (src/session/preset-intents.js;
-//              ruling C4); the setup in use has none (the server: setup_in_use).
-//   Slots      how many setups this hero may open is the server's (`setup_slots`): some free, then bought, up to
-//              ACTION_SET_LIMITS.presets. Past the count, Buy sends ONE hr_setup_slot_buy with the quoted price. A
-//              setup already saved is never blocked: only a NEW number past the count is refused.
-//   Ready?     every open character's checklist (src/shell/readiness.js), with
-//              what is short in one line. Supplies are never bought here: the
-//              action bar pays the store per use (Tyler 2026-10-20).
-//   Carry in   while this hero hunts (Tyler 2026-11-02, "Yes, add a press"): every
-//              hunt supply in its bag, how many the hunt holds, and "Carry 40":
-//              how many (src/shell/carry-in.js), then ONE hr_hunt_restock.
-// Built once, patched in place; every control is off while an intent is in
-// flight, and changes show only from the re-read envelope.
+// One window, one setup at a time: pick a setup on the left, edit it on the right, then Save.
+//   Setups     the server's `hunt_presets` rows (hunt-prep/setups.js): a setup is a whole loadout, its OWN
+//              action bar (slots, conditions, fight options) and the gear it wears, at most
+//              ACTION_SET_LIMITS.presets. The hero is always on one (hunt_settings.preset, "In use").
+//              Use = ONE hr_hunt_preset_apply (the server wears the gear and switches the bar), one press
+//              on each row so swapping setups is one click. New = ONE hr_hunt_preset_save on the first free
+//              number, named first. Use equipped = ONE hr_hunt_preset_save over the picked setup (what the
+//              hero has on, gear and bar), asked once. The name renames in place (inline-name.js: ONE
+//              hr_hunt_preset_rename); Delete asks once, then ONE hr_hunt_preset_delete. Use, New and Use
+//              equipped are town-only (the server refuses hunt_open). Past the server's count (`setup_slots`)
+//              Buy sends ONE hr_setup_slot_buy with the quoted price.
+//   Builder    (hunt-prep/builder.js, hunt-prep/grid.js) Fights as (read only: the worn weapon decides it),
+//              stance, target, chase and distance, the gold to keep, and the 2 x 10 slot grid at the HUD's
+//              own tiles: drag to move, drop on a filled slot to swap, a press opens Configure action on
+//              that slot (every condition the engine has), Sort (bar-sort.js) and Clear. All of it edits a
+//              COPY of the picked setup (prep-draft.js); Save sends it as ONE hr_action_set_options with
+//              every key, Save and use then ONE hr_hunt_preset_apply. The setup in use is the envelope's
+//              projection; another setup is read on demand (session/preset-read.js).
+//   Ready?     this hero's readiness line in the footer (src/shell/readiness.js), the checklist for every
+//              open hero on a press. Supplies are never bought here: the bar pays the store per use.
+//   Carry in   while this hero hunts (Tyler 2026-11-02): every hunt supply in its bag, how many the hunt
+//              holds, and "Carry 40" (src/shell/carry-in.js), then ONE hr_hunt_restock.
+// Built once per opening (a fresh opening starts from the server's row, never a stale draft), patched in
+// place; every control is off while an intent is in flight, and changes show only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { presetsOf, setupSlotsOf, goldOf } from '../../session/item-sections.js?v=0.2.122';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.122';
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.122';
-import { runIntent } from '../intent-words.js?v=0.2.122';
 import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.122';
 import { itemName } from '../widgets/bits.js?v=0.2.122';
-import { whole, gold } from '../../render/format.js?v=0.2.122';
+import { whole } from '../../render/format.js?v=0.2.122';
 import { readinessOf, readinessLine } from '../readiness.js?v=0.2.122';
-import { settingsOf, huntOf } from '../../session/hunt-sections.js?v=0.2.122';
-import { ACTION_SET_LIMITS } from '../../data/rule-subjects.js?v=0.2.122';
-import { renameSetup, deleteSetup, buySetupSlot } from '../../session/preset-intents.js?v=0.2.122';
-import { setupBuyWords, setupFullWords } from '../setup-words.js?v=0.2.122';
-import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.122';
-import { settleTownActivity } from '../../session/party-intents.js?v=0.2.122';
 import { t } from '../../render/player-text.js?v=0.2.122';
+import { setupsHtml, patchSetups, actSetups } from './hunt-prep/setups.js?v=0.2.122';
+import { builderHtml, patchBuilder, actBuilder, dropDraft } from './hunt-prep/builder.js?v=0.2.122';
 
-const MAX_PRESETS = ACTION_SET_LIMITS.presets;
 const SCRATCH = new WeakMap();
-/* The lowest setup number nothing stands on: a new setup goes there. MAX_PRESETS when all are taken. */
-function firstFree(presets) {
-  const used = new Set((presets || []).map((p) => p.preset));
-  let free = 0;
-  while (used.has(free) && free < MAX_PRESETS) free++;
-  return free;
-}
-/* `naming`: the setup whose name field is open; `arming`: the setup whose Delete asked "Delete it?". */
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: false, msg: '', naming: null, arming: null }; SCRATCH.set(cs, s); } return s; };
+/* The window's state for one character: `pending` and `msg` (intent-words.js runIntent), `naming` the setup whose name
+   field is open, `arming` the setup whose Delete asked, `adding` the New row open, `readyOpen` the checklist shown, and
+   the builder's draft (builder.js): `picked`, `draft`, `base`, `read`, `stale`, `sorted`, `drag`. */
+export const scratchOf = (cs) => {
+  let s = SCRATCH.get(cs);
+  if (!s) { s = { pending: false, msg: '', naming: null, arming: null, armingEquipped: false, adding: false, readyOpen: false, picked: null, draft: null, draftFor: null, base: '', read: null, stale: false, sorted: false, cleared: false, roleHint: null, drag: null }; SCRATCH.set(cs, s); }
+  return s;
+};
 
-/** The skeleton (built once per opening). */
-export function renderHuntPrep() {
-  return '<div class="hw-prep">'
-    + '<h3 class="hw-ledger-head is-on">Ready to hunt?</h3><ul class="hw-ready"></ul>'
-    + '<h3 class="hw-ledger-head hw-carry-head">Carry into this hunt</h3>'
-    + '<p class="hs-note hw-carry-note" hidden>This hunt uses only the supplies it carries, then buys from the store. What you got after you set out waits in your backpack until you carry it in.</p>'
-    + '<ul class="hw-ledger hw-carry" hidden></ul><p class="hh-empty hw-carry-none"></p>'
-    + '<h3 class="hw-ledger-head is-on">Saved setups</h3>'
-    + '<p class="hs-note">A setup is a whole loadout, with its own action bar and the gear it wears. The bar always shows the setup in use, and changing the bar changes that setup. To make another, save what you have on as a new setup, then change it.</p>'
-    + '<ul class="hw-ledger hw-presets"></ul><p class="hh-empty hw-presets-none"></p>'
-    + '<p class="hs-note hw-town-only">Setups change in town. This hunt keeps the bar it set off with.</p>'
-    + '<div class="hw-add"><input type="text" class="hh-num hw-preset-name" maxlength="24" placeholder="Name this setup" aria-label="Setup name" data-hs-act="preset-name">'
-    + '<button type="button" class="hh-tool" data-hs-act="save-new" data-coach-hook="setup-save">Save current setup</button></div>'
-    + '<button type="button" class="hh-tool hw-slot-buy" data-hs-act="buy-slot" hidden></button>'
-    + '<p class="hs-note hw-slot-why" hidden></p>'
-    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
+/** The skeleton (built once per opening). A fresh opening throws any old draft away: it starts from the server's row. */
+export function renderHuntPrep(ctx) {
+  if (ctx && ctx.character) dropDraft(scratchOf(ctx.character));
+  return '<div class="hw-prep hpb">'
+    + '<div class="hpb-left">' + setupsHtml() + '</div>'
+    + '<div class="hpb-right">'
+    + '<section class="hpb-carry" hidden><h3 class="hw-ledger-head hw-carry-head">' + t('prep.carry_head') + '</h3>'
+    + '<p class="hs-note hw-carry-note" hidden>' + t('prep.carry_note') + '</p>'
+    + '<ul class="hw-ledger hw-carry" hidden></ul><p class="hh-empty hw-carry-none"></p></section>'
+    + builderHtml()
+    + '</div>'
+    + '<p class="hh-intent-msg hpb-msg" role="status" aria-live="polite"></p>'
+    + '<div class="hpb-foot"><button type="button" class="hpb-ready hw-ready-line" data-hs-act="ready" aria-expanded="false" title="' + t('prep.ready_label') + '"><b></b></button>'
+    + '<button type="button" class="hh-tool hpb-load" data-hs-act="load-again" hidden>' + t('prep.load_again') + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="close">' + t('prep.close') + '</button>'
+    + '<button type="button" class="hh-tool hpb-save" data-hs-act="save">' + t('prep.save') + '</button>'
+    + '<button type="button" class="hh-tool is-primary hpb-save-use" data-hs-act="save-use">' + t('prep.save_and_use') + '</button></div>'
+    + '<h3 class="hw-ledger-head hpb-ready-head">' + t('prep.ready_head') + '</h3><ul class="hw-ready" hidden></ul></div>';
 }
 
 function readyRow(ctx) {
   return element(ctx.doc, '<li class="hw-ready-row"><p class="hw-ready-line"><b></b></p><ul class="hw-checks"></ul></li>');
 }
 
-function setupRow(ctx, p) {
-  const at = ' data-preset="' + p.preset + '"';
-  return element(ctx.doc, '<li class="hw-line hw-setup"><span class="hw-line-name">' + nameEditorHtml('rename', at, 'New name for this setup') + '<small></small></span>'
-    + '<button type="button" class="hh-tool" data-hs-act="save-over"' + at + '>Save here</button>'
-    + '<button type="button" class="hh-tool hw-use" data-hs-act="apply"' + at + '>Use</button>'
-    + '<button type="button" class="hh-tool hw-del" data-hs-act="delete"' + at + '>Delete</button>'
-    + '<button type="button" class="hh-tool hw-keep" data-hs-act="keep"' + at + '>Keep</button></li>');
-}
-
 renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const root = body.querySelector('.hw-prep');
+  const repaint = () => renderHuntPrep.patch(body, ctx);
+  const h = huntOf(cs);
+  const hunting = !!h && !h.ended;
+  patchSetups(root, ctx, sc, hunting);
+  patchCarry(root, ctx, cs, sc, hunting);
+  patchBuilder(root, ctx, sc, hunting, repaint);
+  /* THE FOOTER'S READINESS: this hero's line (green when ready, red when short); a press shows every open hero's checklist. */
   const peers = ctx.peers();
-  rows(root.querySelector('.hw-ready'), peers.map((p) => ({ cs: p, r: readinessOf(p) })), {
+  const mine = readinessOf(cs);
+  const line = root.querySelector('.hpb-ready');
+  text(line.querySelector('b'), readinessLine(mine));
+  cls(line, 'is-ready', mine.ready);
+  attr(line, 'aria-expanded', String(sc.readyOpen));
+  cls(root.querySelector('.hpb-ready-head'), 'is-on', sc.readyOpen);
+  const list = root.querySelector('.hw-ready');
+  prop(list, 'hidden', !sc.readyOpen);
+  rows(list, peers.map((p) => ({ cs: p, r: readinessOf(p) })), {
     key: (x) => String(x.cs.slot),
     build: () => readyRow(ctx),
     patch: (li, x) => {
@@ -106,60 +104,13 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
       });
     },
   });
-  patchCarry(root, ctx, cs, sc);
-  const presets = presetsOf(cs);
-  const set = settingsOf(cs);
-  const h = huntOf(cs);
-  const hunting = !!h && !h.ended;
-  rows(root.querySelector('.hw-presets'), presets || [], {
-    key: (p) => String(p.preset),
-    build: (p) => setupRow(ctx, p),
-    patch: (li, p) => {
-      text(li.querySelector('.hs-name-t'), p.name);
-      const gearN = Object.keys(p.gear).length;
-      /* The setup the hero is on (the server's hunt_settings.preset) is marked and has no Delete. */
-      const inUse = !!set && set.preset === p.preset;
-      cls(li, 'is-current', inUse);
-      text(li.querySelector('small'), (inUse ? 'In use · ' : '') + gearN + (gearN === 1 ? ' piece' : ' pieces') + ' of gear');
-      cls(li, 'is-naming', sc.naming === p.preset);
-      /* Delete asks once on the same button ("Delete it?", with Keep beside it); the second press sends. */
-      const armed = sc.arming === p.preset;
-      cls(li, 'is-arming', armed);
-      text(li.querySelector('.hw-del'), armed ? 'Delete it?' : 'Delete');
-      for (const b of li.querySelectorAll('button, input')) prop(b, 'disabled', sc.pending);
-      for (const b of li.querySelectorAll('.hw-use, [data-hs-act="save-over"]')) prop(b, 'disabled', sc.pending || hunting);
-    },
-  });
-  const none = root.querySelector('.hw-presets-none');
-  cls(none, 'is-on', !presets || !presets.length);
-  text(none, presets ? 'No saved setups yet.' : t('prep.setups_reading'));
-  /* The server says how many this hero may open (`setup_slots`). Until it has, none is free (§6: fail safe to not unlocked),
-     and never more than the data's limit: past it Save stays off and says so, as the press would send nothing. */
-  const slots = setupSlotsOf(cs);
-  const count = Math.min(slots ? slots.count : 0, MAX_PRESETS);
-  const full = presets && firstFree(presets) >= count;
-  for (const el of root.querySelectorAll('.hw-add input, .hw-add button')) prop(el, 'disabled', sc.pending || !presets || full || hunting);
-  cls(root.querySelector('.hw-town-only'), 'is-on', hunting);
-  /* Past the count the next slot is for sale (a hunting hero may buy it too: nothing about the hunt moves). */
-  const price = full && slots ? slots.price : null;
-  const purse = goldOf(cs);
-  const short = price !== null && purse !== null && purse < price ? price - purse : 0;
-  const buy = root.querySelector('.hw-slot-buy');
-  prop(buy, 'hidden', price === null);
-  text(buy, price === null ? '' : setupBuyWords(count, price));
-  prop(buy, 'disabled', sc.pending || short > 0);
-  /* Saving a new setup is off when every slot is used: said, not only greyed (say-why), on a line of its own so an answer's news never hides it. */
-  const why = hunting || !presets ? '' : !slots ? t('prep.slots_reading')
-    : full ? setupFullWords(count, price) + (short ? ' You need ' + gold(short) + ' more.' : '') : '';
-  const whyEl = root.querySelector('.hw-slot-why');
-  prop(whyEl, 'hidden', !why);
-  text(whyEl, why);
-  text(root.querySelector('.hh-intent-msg'), sc.msg);
+  text(root.querySelector('.hpb-msg'), sc.msg);
 };
 
 /* CARRY IN (src/shell/carry-in.js): the bag's hunt supplies while this hero hunts, each with the server's two counts. */
-function patchCarry(root, ctx, cs, sc) {
-  const carry = carryRows(cs);
+function patchCarry(root, ctx, cs, sc, hunting) {
+  const carry = hunting ? carryRows(cs) : null;
+  prop(root.querySelector('.hpb-carry'), 'hidden', !carry);
   cls(root.querySelector('.hw-carry-head'), 'is-on', !!carry);
   prop(root.querySelector('.hw-carry-note'), 'hidden', !carry);
   const list = root.querySelector('.hw-carry');
@@ -170,89 +121,32 @@ function patchCarry(root, ctx, cs, sc) {
       + '<button type="button" class="hh-tool" data-hs-act="carry" data-item="' + r.id + '"></button></li>'),
     patch: (li, r) => {
       text(li.querySelector('b'), itemName(r.id));
-      text(li.querySelector('small'), whole(r.have) + ' in your backpack · ' + whole(r.inHunt) + ' in this hunt' + (r.wait ? ' · ' + r.wait : ''));
+      text(li.querySelector('small'), t('prep.carry_line', { have: whole(r.have), inHunt: whole(r.inHunt) }) + (r.wait ? ' · ' + r.wait : ''));
       const b = li.querySelector('button');
-      text(b, 'Carry ' + whole(r.max));
+      text(b, t('prep.carry_press', { n: whole(r.max) }));
       attr(b, 'aria-label', carryWords(r));
       prop(b, 'disabled', sc.pending);
     },
   });
   const none = root.querySelector('.hw-carry-none');
   cls(none, 'is-on', !!carry && !carry.length);
-  text(none, carry && !carry.length ? 'Nothing in your backpack can be carried into a hunt.' : '');
+  text(none, carry && !carry.length ? t('prep.carry_none') : '');
 }
 
 renderHuntPrep.act = function actHuntPrep(ctx, body, action, ev, el) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => renderHuntPrep.patch(body, ctx);
-  if (action === 'rename-key') return renameKey(ctx, ev, el, sc, repaint);
-  if (ev.type !== 'click') return false;
-  if (action === 'carry') {
+  if (action === 'carry' && ev.type === 'click') {
     const row = (carryRows(cs) || []).find((r) => r.id === el.getAttribute('data-item'));
     const at = el.getBoundingClientRect();
     if (row && !sc.pending) askCarry(ctx, body, sc, repaint, row, { x: at.left, y: at.bottom });
     return true;
   }
-  const preset = Number(el.getAttribute('data-preset'));
-  const setup = (presetsOf(cs) || []).find((x) => x.preset === preset);
-  if (action !== 'delete' && sc.arming !== null) { sc.arming = null; repaint(); }
-  if (action === 'rename') {
-    if (!setup || sc.pending) return true;
-    sc.naming = setup.preset;
-    repaint();
-    openNameEditor(el.closest('.hw-setup'), setup.name, () => { if (sc.naming === setup.preset) { sc.naming = null; repaint(); } });
-    return true;
-  }
-  if (action === 'keep') return true;
-  if (action === 'delete') {
-    const s = settingsOf(cs);
-    if (!setup || (s && s.preset === setup.preset)) return true;
-    if (sc.arming !== setup.preset) { sc.arming = setup.preset; repaint(); return true; }
-    sc.arming = null;
-    runIntent(sc, repaint, () => deleteSetup(ctx.account, cs, setup.preset), 'Deleting…', () => 'Deleted ' + setup.name + '.');
-    return true;
-  }
-  /* A town activity yields to the hunt setup (Andy live 10-21: "burying locks an action"): the engine collects
-     it first (set_activity idle, as Enter does in hunts.js), so the server's apply never answers activity_running. */
-  if (action === 'apply') {
-    runIntent(sc, repaint, () => settleTownActivity(cs).then(() => cs.applyPreset(preset)), 'Putting the setup on…', () => 'Setup on.');
-    return true;
-  }
-  if (action === 'save-over') {
-    if (setup) runIntent(sc, repaint, () => cs.savePreset(setup.preset, setup.name), 'Saving…', () => 'Saved over ' + setup.name + ' with the bar and gear you have on.');
-    return true;
-  }
-  if (action === 'buy-slot') {
-    const q = setupSlotsOf(cs);
-    if (q && q.price !== null) runIntent(sc, repaint, () => buySetupSlot(ctx.account, cs, q.price), 'Buying…', () => 'Bought. This hero has ' + (q.count + 1) + ' setup slots.');
-    return true;
-  }
-  if (action === 'save-new') {
-    const free = firstFree(presetsOf(cs));
-    const input = body.querySelector('.hw-preset-name');
-    const name = input.value.trim() || 'Setup ' + (free + 1);
-    if (free >= MAX_PRESETS) return true;
-    runIntent(sc, repaint, () => cs.savePreset(free, name), 'Saving…', () => { input.value = ''; return 'Saved ' + name + '.'; });
-    return true;
-  }
-  return false;
+  if (action === 'ready' && ev.type === 'click') { sc.readyOpen = !sc.readyOpen; repaint(); return true; }
+  if (action === 'close' && ev.type === 'click') { dropDraft(sc); ctx.wm.close('hunt-prep'); return true; }
+  const done = actSetups(ctx, body, sc, repaint, action, ev, el);
+  if (done !== undefined) return done;
+  return actBuilder(ctx, body, sc, repaint, action, ev, el);
 };
-renderHuntPrep.events = Object.freeze(['keydown']);
-
-/* A key in a setup's name field: Enter sends ONE rename (the field closes; the new name shows from the
-   re-read), Escape puts the name back. Any other key is the player typing. */
-function renameKey(ctx, ev, el, sc, repaint) {
-  const k = nameKey(ev);
-  if (!k) return false;
-  const preset = Number(el.getAttribute('data-preset'));
-  const name = el.value;
-  sc.naming = null;
-  repaint();
-  el.blur();
-  const setup = (presetsOf(ctx.character) || []).find((x) => x.preset === preset);
-  if (k === 'commit' && setup && name.trim() && name.trim() !== setup.name) {
-    runIntent(sc, repaint, () => renameSetup(ctx.account, ctx.character, preset, name), 'Renaming…', () => 'Renamed to ' + name.trim() + '.');
-  }
-  return true;
-}
+renderHuntPrep.events = Object.freeze(['keydown', 'pointerdown', 'pointermove', 'pointerup', 'pointercancel']);

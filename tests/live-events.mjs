@@ -371,8 +371,10 @@ const DB_MUTANTS = [
     find: ' * public.hr_live_xp_max_pm(p_user, v_s.hunt_id, v_s.settled_to, v_to) / 1000.0 then', replace: ' then' },
   { arm: 'LE-BOUND', name: 'the Level XP bound doubles whatever is live', fn: SIG.apply, find: 'v_s.settled_to, v_to) / 1000.0 then', replace: 'v_s.settled_to, v_to) / 500.0 then' },
   { arm: 'LE-BOUND', name: 'an event part is taken with no event live', fn: SIG.apply, find: '(select case when q.m = 1000 then 0', replace: '(select case when false then 0' },
+  /* the tally's one write a member (2027-04-08-member-write-once.sql folds the store bill into it, so xp_event is its third column) */
   { arm: 'LE-CLOSED', name: 'the event\'s part is never kept on the tally', fn: SIG.apply,
-    find: 'set xp_event = t.xp_event + coalesce((p_hunt->>\'xp_event\')::bigint, 0),', replace: 'set' },  { arm: 'LE-CLOSED', name: 'a best keeps the event\'s part', fn: SIG.best,
+    find: 'xp_event = t.xp_event + coalesce((p_hunt->>\'xp_event\')::bigint, 0),\n           dealt = case', replace: 'dealt = case' },
+  { arm: 'LE-CLOSED', name: 'a best keeps the event\'s part', fn: SIG.best,
     find: ' - coalesce((select t.xp_event from public.hunt_session_tally t where t.session_id = p_session), 0) / v_wall_h', replace: '' },
   { arm: 'LE-CLOSED', name: 'the instance read hands the engine no windows', fn: SIG.read,
     find: "'live_xp', public.hr_live_xp_windows(h.user_id, v_i.hunt_id, v_i.settled_to, now() + interval '1 hour')", replace: "'live_xp', '[]'::jsonb" },

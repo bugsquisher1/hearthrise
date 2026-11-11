@@ -51,8 +51,10 @@
 //   PF-OWN-NUDGE (2027-04-09-own-hunt-nudge.sql, qa 11-11) a hunt opened or closed for an own hero reaches the account's
 //               OTHER open clients at once: a solo start, the leader's Start (each own seat) and an end each nudge the
 //               hero's own topic, whoever the caller; a replayed key and a write that ends nothing send none; never a hero
-//               open in no client, never with frames off; a party verb still spares the caller's own heroes
+//               open in no client, never with frames off; a party verb still spares the caller's own heroes. Inside an
+//               instance settle (2027-04-10-own-hunt-nudge-once.sql) a close its commit point frames is not nudged too
 //   PF-OWN-IDEM a second apply of 2027-04-09-own-hunt-nudge.sql is byte-identical
+//   PF-ONCE-IDEM a second apply of 2027-04-10-own-hunt-nudge-once.sql is byte-identical
 //   PF-M8       (#4) the dormant M8 verbs and their baseline rows are gone
 //   PF-IDEM     a second apply of both files is byte-identical
 //   PF-GRANT    the four verbs are authenticated-only; the sweep and the
@@ -89,6 +91,8 @@ const RESET = '2027-02-10-party-instance-reset.sql';
    hr_party_nudge (through the one hr_hero_nudge) and hr_party_nudge_trg last, and makes a hunt's open and close reach
    every client of the hero, the caller's own included: every nudge mutant plants there. */
 const OWN = '2027-04-09-own-hunt-nudge.sql';
+/* 2027-04-10-own-hunt-nudge-once.sql restates hr_hunt_nudge_trg last (an end inside a settle is one push): its mutants plant there. */
+const ONCE = '2027-04-10-own-hunt-nudge-once.sql';
 /* 2027-02-18-party-truth.sql restates the seat, join, decline, kick, disband, leave, sweep and finder bodies last: their mutants plant there. */
 const TRUTH = '2027-02-18-party-truth.sql';
 /* 2027-02-27-hunt-tiers.sql restates hr_hunt_party_view last (the tier replaces the density): its mutants plant there. */
@@ -454,6 +458,16 @@ const ARMS = {
     if (await n(0) !== 2) out.push(`the end sent its own hero ${await n(0) - 1} nudge(s), want 1 (a short hunt never shows on the other tab)`);
     await db.query('update public.hunt_sessions set ended_at = ended_at where user_id = $1 and slot = 0', [A]);
     if (await n(0) !== 2) out.push('an ended session written again nudged');
+    /* ONE PUSH AN END (2027-04-10-own-hunt-nudge-once.sql): inside an instance settle (hr.frame_defer around its members, the
+       world tick here: no requester) the commit point frames every hero hr_frame_wanted wants, so that close is not nudged too. */
+    await idle();
+    if (err(await enter(0, idem())) !== 'ok') out.push('HARNESS: the second solo enter was refused');
+    if (await n(0) !== 3) out.push(`a second solo start sent its own hero ${await n(0) - 2} nudge(s), want 1`);
+    await db.query("select set_config('request.jwt.claim.sub', '', true), set_config('hr.frame_self', '', true), set_config('hr.frame_defer', 'instance', true)");
+    await closeOpen(0);
+    await db.query("select set_config('hr.frame_defer', '', true)");
+    if (await n(0) !== 3) out.push('a close inside a settle nudged a hero its commit point frames: two pushes for one end');
+    const was0 = await n(0);
     /* A hero open in no client (its last stamp past the 75 s window) hears nothing, open or close. */
     await db.query("update public.character_presence set seen_at = now() - interval '2 minutes' where user_id = $1 and slot = 1", [A]);
     await idle();
@@ -464,14 +478,14 @@ const ARMS = {
     /* A party verb still spares the caller's own heroes; the leader's Start reaches every own seat, once each. */
     await idle();
     if (err(await own(db, A, 0, 1)) !== 'ok') out.push('HARNESS: the own invite was refused');
-    if (await n(0) !== 2 || await n(1) !== 0) out.push('a party verb nudged the caller\'s own heroes');
+    if (await n(0) !== was0 || await n(1) !== 0) out.push('a party verb nudged the caller\'s own heroes');
     if (err(await start(db, A, hunt)) !== 'ok') out.push('HARNESS: the start was refused');
-    if (await n(0) !== 3 || await n(1) !== 1) out.push(`the leader's Start sent its own seats ${await n(0) - 2}/${await n(1)} nudge(s), want one each`);
+    if (await n(0) !== was0 + 1 || await n(1) !== 1) out.push(`the leader's Start sent its own seats ${await n(0) - was0}/${await n(1)} nudge(s), want one each`);
     /* Frames off: silence, and the ends still land. */
     await db.exec('update public.hr_tick_config set frame_push = false where id');
     await closeOpen(0); await closeOpen(1);
     if (Number(await one(db, 'select count(*) from public.hunt_sessions where user_id = $1 and ended_at is null', [A])) !== 0) out.push('HARNESS: a session stayed open');
-    if (await n(0) !== 3 || await n(1) !== 1) out.push('a nudge went out with frames off');
+    if (await n(0) !== was0 + 1 || await n(1) !== 1) out.push('a nudge went out with frames off');
     return out;
   },
   'PF-KICK-HUNT': async (db) => {
@@ -831,6 +845,22 @@ const ARMS = {
     return before === after ? [] : ['a second apply moved the schema, a body, a grant or a trigger'];
   },
 
+  /* A second apply of 2027-04-10-own-hunt-nudge-once.sql over its own state is byte-identical, trigger definitions included. */
+  'PF-ONCE-IDEM': async (chainDb) => {
+    void chainDb;
+    const { db } = await bootReplay({ upTo: ONCE });
+    const snap = async () => JSON.stringify([await inventory(db),
+      (await db.query(`select p.oid::regprocedure::text f, md5(p.prosrc) h, coalesce(p.proacl::text, '') a from pg_proc p
+                       where p.pronamespace = 'public'::regnamespace order by 1`)).rows,
+      (await db.query(`select c.relname::text r, t.tgname::text n, pg_get_triggerdef(t.oid) d from pg_trigger t join pg_class c on c.oid = t.tgrelid
+                       where c.relnamespace = 'public'::regnamespace and not t.tgisinternal order by 1, 2`)).rows]);
+    const before = await snap();
+    try { await db.exec(SRC(ONCE)); } catch (e) { await db.close().catch(() => {}); return ['the second apply RAISED: ' + String(e.message).split('\n')[0]]; }
+    const after = await snap();
+    await db.close().catch(() => {});
+    return before === after ? [] : ['a second apply moved the schema, a body, a grant or a trigger'];
+  },
+
   'PF-M8': async (db) => {
     const names = ['hr_party_create', 'hr_party_invite', 'hr_party_accept', 'hr_party_kick', 'hr_party_leave', 'hr_party_hunt_stop'];
     const left = (await db.query(`select proname from pg_proc where pronamespace = 'public'::regnamespace and proname = any ($1)
@@ -868,8 +898,12 @@ const MUTANTS = [
       + "                      and cp.seen_at >  now() - interval '75 seconds'\n                      and cp.seen_at <= now() + interval '60 seconds') then return; end if;\n",
     repl: '' },
   /* qa 11-11: the bug itself. A hunt's open and close took the party verbs' rule, so the caller's own other clients heard nothing. */
-  { arm: 'PF-OWN-NUDGE', file: OWN, why: 'a hunt\'s open and close spare the caller\'s own other clients (2027-02-11\'s party rule)',
+  { arm: 'PF-OWN-NUDGE', file: ONCE, why: 'a hunt\'s open and close spare the caller\'s own other clients (2027-02-11\'s party rule)',
     find: '  perform public.hr_hero_nudge(new.user_id, new.slot);\n', repl: '  perform public.hr_party_nudge(new.user_id, new.slot);\n' },
+  /* 2027-04-10: the bug the settle guard fixes. An end inside a settle was nudged on top of the frame its commit point sends. */
+  { arm: 'PF-OWN-NUDGE', file: ONCE, why: 'a close inside a settle is nudged on top of its frame (two pushes)',
+    find: "    if coalesce(current_setting('hr.frame_defer', true), '') <> '' and public.hr_frame_wanted(new.user_id, new.slot) then\n      return null;\n    end if;\n",
+    repl: '    null;\n' },
   { arm: 'PF-OWN-NUDGE', file: OWN, why: 'a hunt start sends nothing',
     find: 'create or replace trigger hr_hunt_nudge_open after insert on public.hunt_sessions\n  for each row execute function public.hr_hunt_nudge_trg();',
     repl: 'drop trigger if exists hr_hunt_nudge_open on public.hunt_sessions;' },

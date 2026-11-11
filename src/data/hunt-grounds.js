@@ -292,8 +292,10 @@ const BASE_GROUNDS = Object.freeze({
       box([40, 1, 57, 8], [50, 4], ['walking_vine', 'walking_vine'], ['brook_bear', 'walking_vine', 'carrion_crow', 'goblin_sluicer', 'walking_vine', 'carrion_crow']),
       /* P4 Rook's Hide: the ruined spring-house, Rook and his two */
       box([22, 1, 35, 12], [28, 6], ['rook_poacher', 'glade_poacher', 'carrion_crow'], ['carrion_crow', 'glade_poacher', 'carrion_crow', 'walking_vine', 'carrion_crow']),
-      /* P5 Vine Hollow, back over the ford */
-      box([3, 2, 17, 13], [10, 8], ['walking_vine', 'carrion_crow'], ['brook_bear', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']),
+      /* P5 Vine Hollow, back over the ford: the Brook Bear stands here as built, so a hero alone meets it and its Pelt on Normal (designer's
+         ruling 3, 2026-11-10, measured as option (b) on the board's "2026-11-11 Party pull options"); a party's pull of 3 or 4 brings the same
+         monsters as before, the bear and the crow only trade tiles */
+      box([3, 2, 17, 13], [10, 8], ['walking_vine', 'brook_bear'], ['carrion_crow', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
     respawnMs: 60000, pullDist: 1.5, groupFit: 'solo',

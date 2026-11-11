@@ -82,7 +82,14 @@ const BASE_CLASS_XP = Object.freeze({
      four of staves at 8 each 1.014 (960). */
   meadowbrook_thicket: row([1045, 1735], [1015, 1620, 1800], [1190, 1735, 1815, 1860]),
   wickstead: row([975, 1610], [1200, 1745, 1910], [1335, 1800, 1860, 1910]),
-  mosslight_glade: row([990, 1610], [1180, 1660, 1795], [1160, 1575, 1695, 1730]),
+  /* THE BROOK BEAR STANDS AS BUILT (lane/c-brook-bear; the designer's ruling 3, 2026-11-10, option (b) of the board's "2026-11-11 Party pull options"): a hero
+     alone meets it in Vine Hollow, so the median lone way here earns 3-5% more Level XP an hour while a party's pull (3 or 4) brought it already. The whole row
+     is x1.04 (to the nearest 5), so every party stands against a hero alone where it stood before the bear and PARTY_VS_ALONE's line stays the measured one.
+     Measured (the grade's method, Normal, 4 seeds x 2 h a cell, a head over the median of 8 ways alone at the same Level), at 16 / 24 / 31:
+       tank + healer + bow + mage    before the bear 1.192 / 1.200 / 1.169, the bear on the old row 1.161 / 1.158 / 1.125, this row 1.208 / 1.204 / 1.170
+       tank + hammer + bow + mage    before the bear 1.203 / 1.167 / 1.117, the bear on the old row 1.163 / 1.117 / 1.069, this row 1.212 / 1.165 / 1.115
+     The three-class four's top sat under 1.15 before the bear too: its cell can't rise past the four-class one (more classes pay more), so it is the designer's. */
+  mosslight_glade: row([1030, 1675], [1225, 1725, 1865], [1205, 1640, 1765, 1800]),
   millrace_sewer: row([1015, 1660], [1155, 1660, 1735], [1150, 1660, 1735, 1860]),
   /* One class under the even share (Tyler 2026-10-31, "only better if there are different classes"; lane/c-caster-party-line). With Green Sickness on the Healer's default bar a pair at 8 each read 1.033 against
      one alone and a four 1.005: the debuff stays up far longer in a one-class party, as Greater Mend's load splits (a head's casts an hour, alone 84 and 256, in a pair 144 and 168). Mana gates can't hold it (at 95% the

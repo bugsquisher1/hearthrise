@@ -828,7 +828,7 @@ export const MONSTERS = {
     drops: [{ id: 'raw_wolf_meat', ch: .7, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'rooks_moss_charm', ch: .15, band: 'uncommon' }, { id: 'rooks_whistle', ch: .0038, band: 'rare' },
       { id: 'steel_helm', ch: .0038, band: 'rare' }, { id: 'boarhide_helmet', ch: .0038, band: 'rare' }, { id: 'scholar_helmet', ch: .0038, band: 'rare' }] },
   brook_bear: { name: 'Brook Bear', icon: '🐻', tier: 3, level: 24, cls: 'mammal', family: 'Mammal',
-    /* the Meadowbrook's bruiser: the wet coat sheds frost, fire takes it. The Keep and Trophy Room ask for its Pelt (Andy's report), about an hour's errand, so the Claw, a pie's trophy, rides a Rare row (drop-tables big-pull). */
+    /* the Meadowbrook's bruiser: the wet coat sheds frost, fire takes it. The Keep and Trophy Room ask for its Pelt (Andy's report), about an hour's errand, so the Claw, a pie's trophy, rides a Rare row (drop-tables rare-pace: it stands in Vine Hollow as built, lane/c-brook-bear). */
     elements: { ember: -15, frost: 25 },
     hp: 69, atk: 20, baseAcc: 0.78, def: 10, xp: 375, gp: [14, 44], formula: true, speed: 3000,
     drops: [{ id: 'raw_bear_meat', ch: .6, band: 'common' }, { id: 'bear_pelt', ch: .18, band: 'common' }, { id: 'brook_bear_tooth', ch: .08, band: 'uncommon' }, { id: 'bear_claw', ch: .0033, band: 'rare' }] },

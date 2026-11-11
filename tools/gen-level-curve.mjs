@@ -55,7 +55,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    refuses to run before 02-11. */
 /* 2027-03-15-pace-final is APPLIED history; the ground formula's Cellar eased Level 4 -> 5 by 20 XP (C6), rows only, the same table (lane/b-ground-formula-2). */
 /* 2027-03-20-ground-formula-level-curve.generated.sql is APPLIED history; the re-fit after the re-tune (lane/b-one-difficulty) is a new dated file. */
-export const OUT_NAME = '2027-03-23-one-difficulty-level-curve.generated.sql';
+/* 2027-04-07-brook-bear-level-curve (lane/c-brook-bear, 2026-11-10): the Brook Bear stands in the Glade as built, which moved the pace fingerprint, so
+   plans pace + ladder were re-measured. Every bracket under Level 50 holds (C2); the ladder now trends 975 x L^1.421 (the Glade +5.1%, the Warrens
+   +8.7% from lanes since 11-09), LEVEL_PACE.contract follows it (C5), and the brackets from Level 50 re-fit (pace.mjs --fit --fit-past). Same table,
+   new rows; 2027-03-23 stays history. */
+export const OUT_NAME = '2027-04-07-brook-bear-level-curve.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /* The Levels the self-check pins: every bracket's edge, Tyler's target Levels and a deep one. */
@@ -91,11 +95,10 @@ export function buildSql(XP) {
 -- plpgsql since 2027-02-11-settle-plan-cache-2.generated.sql: a SQL copy is re-planned on
 -- every call on PostgreSQL 17), so every reader (the settle's death floor, hr_level_block,
 -- hr_level_of, the analyzer's ETA) follows with no edit.
--- NEW IN 2027-03-15 (lane/b-pace-final, 2026-11-06, the final pace re-measure before the
--- wipe): the ground ladder now pays 1019 x L^1.365 Level XP an hour, so every bracket from
--- Level 50 re-fits to it; Levels 1-9 re-shape so no Level takes more than 1.95x the minutes
--- of the one before (Level 6 read 2.03x). Level 10 at ${l10} XP, Level 50 at ${l50};
--- Levels 10-49 cost what they did. LIVE CHARACTERS: nothing is stored per Level, so a
+-- NEW IN THIS FILE (lane/c-brook-bear, 2026-11-10): the Brook Bear stands in the Glade as
+-- built, so the pace was re-measured; the ground ladder now pays 975 x L^1.421 Level XP an
+-- hour, so the brackets from Level 50 re-fit to it. Level 10 at ${l10} XP, Level 50 at ${l50};
+-- Levels 1-51 cost what they did; only the Levels past them move. LIVE CHARACTERS: nothing is stored per Level, so a
 -- character whose Level XP now makes a different Level simply shows it; no row is written.
 -- The death floor is re-read at each settle, so the edge's and the server's floors agree
 -- once the hr-accrue deploy carrying the same LEVEL_CURVE follows this file (AT ONCE:

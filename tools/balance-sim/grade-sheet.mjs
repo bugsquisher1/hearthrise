@@ -62,7 +62,7 @@ export function sheetFromBalanceSheet(BS) {
       { id: 'normal-profit', why: why('normal.marginMin, every way (RULED 10-18)'), ...floor1, metric: 'margin', min: N.marginMin, binding: true },
       { id: 'normal-supplies-max', why: why('normal.supplyShare.max, the median way (DESIGNER)'), ...floor1, aggregate: 'supplyShare', max: N.supplyShare.max, binding: true },
       { id: 'normal-supplies-min', why: why('normal.supplyShare.min from Level ' + N.supplyShare.fromLevel + ', the median way (DESIGNER, Tyler 11-07)'), ...floor1, floorFrom: N.supplyShare.fromLevel, aggregate: 'supplyShare', min: N.supplyShare.min, binding: true },
-      { id: 'normal-xp-contract', why: why('normal.xpVsContract at the band middle, the median way (a party ground: the four a head)'), tiers: ['normal'], offsets: ['middle'], aggregate: 'xpVsContract', min: N.xpVsContract.min, max: N.xpVsContract.max, binding: true },
+      { id: 'normal-xp-contract', why: why('normal.xpVsContract at the band middle, the median lone way on every ground (the contract is fitted on lone heroes)'), tiers: ['normal'], offsets: ['middle'], aggregate: 'xpVsContract', min: N.xpVsContract.min, max: N.xpVsContract.max, binding: true },
       { id: 'fresh-deaths', why: why('freshHero.deaths, the practice set at a first-day floor'), ...fresh, metric: 'deaths', max: F.deaths },
       { id: 'fresh-dips', why: why('freshHero.closeCalls'), ...fresh, metric: 'dips', max: F.closeCalls },
       { id: 'fresh-low-point', why: why('freshHero.typicalMinHpPct'), ...fresh, metric: 'minHpP50', min: F.typicalMinHpPct },

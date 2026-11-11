@@ -49,7 +49,8 @@ export const BALANCE_SHEET = Object.freeze({
     supplyShare: Object.freeze({ fromLevel: 16, min: 0.10, max: 0.35 }),
     /* XP: at the band's MIDDLE the median way's Level XP an hour within this share of the pace contract
        LEVEL_PACE.contract (a x L^b, the trend the Level curve is held to past the measured grounds; RULED
-       10-25 §2 pace: L10 ~6 h, L25 ~36 h, L50 ~168 h at 12 h a day). A party ground: the four's per head. */
+       10-25 §2 pace: L10 ~6 h, L25 ~36 h, L50 ~168 h at 12 h a day). The median LONE way on every ground, a party ground too:
+       the contract is fitted on lone heroes, and a four is ruled 1.15-1.25x a lone hero (Coordinator 2026-11-11). */
     xpVsContract: Object.freeze({ at: 'middle', min: 0.90, max: 1.10 }),
   }),
   /* THE FRESH HERO on a first-day ground (the grounds the Hunts window sends a LONE hero to at Levels 1-15):
@@ -261,7 +262,10 @@ export const GROUND_ROSTER = Object.freeze(foldRows('roster', BASE_ROSTER, GROUN
    party bonus, so both can't sit in 0.90-1.10 of one contract. Measured on the real settle: the Sewer x0.81 and the Warrens x0.70 held the grader's
    line (1.07x, 1.06x) and broke three others, the ladder (hunt-tiers: the Glade's Deadly out-paid the Warrens' Normal, nobody moves on), the
    contract's fit (level-curve C5: +21% against the measured ladder) and the scaled hunts (tests/scaled-hunts fee-guard: a scaled Thicket or Glade four at
-   41-50 out-earned the Warrens' four 1.19-1.41x). Which way paces a party ground, the lone hero or the four, is a ruling, on the board (2026-11-11 Solo +15%). */
+   41-50 out-earned the Warrens' four 1.19-1.41x). RULED (Coordinator 2026-11-11): the pace is the LONE hero's on every ground; the grader now reads the lone
+   median there (the Sewer 1.04x, in band). THE WARRENS' LONE 1.27x STAYS, a bind: a scaled Thicket four at Level 50 already reads 0.99x the Warrens' four
+   (tests/scaled-hunts fee-guard, the best grind must stay the real ground), so the Warrens' XP can come down about 1% at most; a cut that lands its lone hero in
+   band (x0.87 or less) breaks that guard. The lever that frees it is the scaled fours (a scaled solo ground carries its own party cells), not this dial. */
 export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.25, meadowbrook_thicket: 0.9, wickstead: 1.1, mosslight_glade: 0.90, millrace_sewer: 0.9 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));
 
 /* NAMED EXCEPTIONS: { monster: { field: 'the reason' } }, a field a row keeps by hand. Empty: none has earned one. */

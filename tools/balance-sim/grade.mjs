@@ -137,7 +137,8 @@ export function gradeCells(cells, sheet, pace, fits = {}) {
   const find = (m, pred) => rows.filter((r) => r.m.ground === m.ground && pred(r.m));
   const verdicts = [];
   const push = (rule, m, value, extra, ci) => {
-    const binding = rule.binding && !(m.size === 1 && m.groupFit === 'party');
+    /* the pace contract is fitted on lone heroes (pace.mjs, the ladder plan), so its lone reading binds on a party ground too (Coordinator ruling 2026-11-11, lane/d-solo-fifteen) */
+    const binding = rule.binding && !(m.size === 1 && m.groupFit === 'party' && rule.aggregate !== 'xpVsContract');
     let verdict = 'ok', o = 0;
     if (ci) {
       if (rule.max != null && ci.lo > rule.max) { verdict = binding ? 'FAIL' : 'OFF'; o = (ci.lo - rule.max) / Math.max(rule.max, 1e-9); }
@@ -165,8 +166,10 @@ export function gradeCells(cells, sheet, pace, fits = {}) {
       const groups = new Map();
       for (const r of rows) if (scoped(rule, r.m)) { const k = [r.m.ground, r.m.tier, r.m.offset, r.m.size].join('|'); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
       if (rule.aggregate === 'xpVsContract') {
-        /* a party ground reads its fours a head; a solo ground its lone heroes */
-        for (const k of [...groups.keys()]) { const m = groups.get(k)[0].m; if (m.size !== (m.groupFit === 'party' ? 4 : 1)) groups.delete(k); }
+        /* the lone median on EVERY ground, party grounds included: the contract is fitted on lone heroes (tools/balance-sim/pace.mjs, the ladder plan), and a
+           four is ruled 1.15-1.25x a lone hero (party.fourVsSolo), so the four a head always read about 1.2x it (Coordinator ruling 2026-11-11, lane/d-solo-fifteen:
+           the Sewer's 1.19 and the Warrens' 1.52 were the party bonus, not a pace miss) */
+        for (const k of [...groups.keys()]) if (groups.get(k)[0].m.size !== 1) groups.delete(k);
       }
       for (const g of groups.values()) {
         const m = g[0].m, L = g[0].c.cell.level;

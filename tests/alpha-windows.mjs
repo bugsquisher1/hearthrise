@@ -4292,7 +4292,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             await page.waitForTimeout(300);
             await page.evaluate(() => { const l = Array.from(document.querySelectorAll('[data-hs-win="monster"] [data-hs-goto]')).find((a) => !/^(hunts|monster)\|/.test(a.getAttribute('data-hs-goto')) && a.getClientRects().length); if (l) l.click(); });
             await page.waitForTimeout(400);
-            const b = await page.evaluate((w) => { const x = document.querySelector('.hs-win[data-hs-win="' + w + '"] > .hs-win-head .hs-back'); return x && x.getClientRects().length ? x.getAttribute('title') : null; }, out);
+            const backTitle = () => page.evaluate((w) => { const x = document.querySelector('.hs-win[data-hs-win="' + w + '"] > .hs-win-head .hs-back'); return x && x.getClientRects().length ? (x.getAttribute('title') || 'inner') : null; }, out);
+            /* a window opened on one of its own pages (a skill's rows) steps back up through them first, then to Hunts */
+            let b = await backTitle();
+            for (let i = 0; i < 2 && b === 'inner'; i++) { await page.click('.hs-win[data-hs-win="' + out + '"] > .hs-win-head .hs-back'); await page.waitForTimeout(250); b = await backTitle(); }
             if (b !== 'Back to Hunts') fails.push('AW-94 ' + out + ' opened from Hunts reads its Back as ' + JSON.stringify(b));
             else {
               await page.click('.hs-win[data-hs-win="' + out + '"] > .hs-win-head .hs-back');
@@ -4317,6 +4320,16 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.keyboard.press('h'); await page.waitForTimeout(350);
         const three = (await rects()).map((x) => x.id).sort().join();
         if (three !== 'hunt-party,hunts,skills-trade') fails.push('AW-94 at 1440 Hunts closed the windows under it: ' + three);
+        /* a bar slot pressed in Hunt prep opens Configure action as its page, not a second window */
+        if (!(await openWin(page, 'p', 'hunt-prep')) || !(await wait(page, () => document.querySelector('[data-hs-win="hunt-prep"] .hb-slot[data-slot="0"]'), null, 3000))) fails.push('AW-94 CONTROL: Hunt prep shows no bar slot');
+        else {
+          await page.click('[data-hs-win="hunt-prep"] .hb-slot[data-slot="0"]');
+          await wait(page, () => document.querySelector('.hs-win[data-hs-win="hunt-prep"] > .is-page[data-hs-win="configure-action"] .ca-tab'), null, 3000);
+          await page.waitForTimeout(300);
+          const ca = await page.evaluate(() => ({ page: !!document.querySelector('.hs-win[data-hs-win="hunt-prep"] > .is-page[data-hs-win="configure-action"]'), second: !!document.querySelector('.hs-win[data-hs-win="configure-action"]') }));
+          if (!ca.page || ca.second) fails.push('AW-94 Configure action from Hunt prep is not its page: ' + JSON.stringify(ca));
+          if (shots) await shot(page, 'header-1440-configure-page');
+        }
         /* one gold plate per window: two more planted in the Shop, one stays gold */
         if (!(await openWin(page, 'v', 'shop'))) fails.push('AW-94 CONTROL: the Shop did not open');
         else {
@@ -4338,6 +4351,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.evaluate(() => { const m = document.querySelector('[data-hs-win="hunts"] .hw-hd-mon[data-monster]'); if (m) m.click(); });
         await page.waitForTimeout(400);
         await shot(page, 'header-922-monster-page');
+        await page.evaluate(() => { const p = document.querySelector('.is-page[data-hs-win="monster"]'); if (p) p.scrollTop = p.scrollHeight; });
+        await page.waitForTimeout(150);
+        await shot(page, 'header-922-monster-page-end');
         await page.evaluate(() => { const h = document.querySelector('[data-hs-win="hunts"] .hs-help'); if (h) h.click(); });
         await page.waitForTimeout(150);
         await shot(page, 'header-922-help');

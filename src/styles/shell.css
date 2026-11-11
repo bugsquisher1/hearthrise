@@ -270,6 +270,8 @@
 .hs-back:hover, .hs-help:hover, .hs-help[aria-expanded="true"] { color: var(--ink); background: var(--bg-3); }
 .hs-back:focus-visible, .hs-help:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 .hs-back[hidden] { display: none; }
+/* With Back showing, Back stands where the glyph stood: a long name keeps its two lines in a narrow window (Gathering and crafting, 380). */
+.hs-win-head:has(> .hs-back:not([hidden])) > .hs-glyph { display: none; }
 /* A page's path: its host's name, dim, then the page's own. */
 .hs-win-crumb { color: var(--ink-3); }
 .hs-win-crumb::after { content: ' \203A  '; }
@@ -281,7 +283,9 @@
 .hs-win-body { overflow: auto; padding: 10px 12px 12px; }
 /* A page (Monster facts in Hunts) takes its host's body's place; the host's own body waits, hidden. */
 .hs-shell .hs-win > .hs-win-body[hidden] { display: none; }
-.hs-shell .hs-win > .hs-win-body.is-page { display: block; flex: 1 1 auto; min-height: 0; overflow: auto; }
+.hs-shell .hs-win > .hs-win-body.is-page { display: block; flex: 1 1 auto; min-height: 0; overflow: auto; padding: 10px 12px 12px; }
+/* The ? is the host window's help: it waits while a page covers the window. */
+.hs-win.has-page > .hs-win-head .hs-help, .hs-win.has-page > .hs-win-help { display: none; }
 /* ONE GOLD PER WINDOW (window-head.js oneGold): a second plate showing is drawn as the steel tool it outranks. */
 .hs-win .hw-primary.is-second, .hs-win .hh-tool.is-primary.is-second {
   border: 0; border-bottom: 2px solid var(--steel-btn); border-image: none;
@@ -478,6 +482,7 @@
   }
   .hs-win-head { min-height: 40px; cursor: default; }
   .hs-win-crumb { display: none; }   /* a phone's band says Back and the page's name */
+  .hs-back, .hs-help { height: 40px; min-width: 40px; }   /* a thumb's press (PH-24) */
   .hs-grip { display: none; }
   .hs-win-body { padding: 8px 10px 10px; }
   .st .st-tabs { width: 100%; border-right: 0; }

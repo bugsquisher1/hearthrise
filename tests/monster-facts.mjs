@@ -142,6 +142,8 @@ const readPage = (page) => page.evaluate((w) => {
 /* Open Hunts on `hunt` and press creature `id` on its page; true once that monster's page is drawn. */
 async function openFacts(page, hunt, id, how) {
   if (!(await page.evaluate(() => !!document.querySelector('[data-hs-win="hunts"]')))) await page.keyboard.press('h');
+  /* a monster opened from Hunts is a page of it (lane/b-window-header): its header's Back returns to the list */
+  if (await page.evaluate(() => !!document.querySelector('.hs-win[data-hs-win="hunts"].has-page'))) await page.click('.hs-win[data-hs-win="hunts"] > .hs-win-head .hs-back');
   await wait(page, (h) => document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="' + h + '"]'), hunt);
   await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="' + hunt + '"]');
   const mon = '[data-hs-win="hunts"] .hw-hd-mon[data-monster="' + id + '"]';
@@ -274,7 +276,7 @@ async function checks(overrides, shots) {
         await wait(page, (w) => document.querySelector(w + ' .mf-stand.is-drawn'), W, 6000);
         await page.waitForTimeout(600);   // the 120 ms slide-in ends
         const m = await page.evaluate((w) => {
-          const el = document.querySelector(w), body = el.querySelector('[data-hs-body]');
+          const el = document.querySelector(w), body = el.hasAttribute('data-hs-body') ? el : el.querySelector('[data-hs-body]');   // a page of Hunts is its own body
           let small = null;
           for (const e of el.querySelectorAll('*')) {
             if (!e.childNodes.length || ![...e.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim())) continue;

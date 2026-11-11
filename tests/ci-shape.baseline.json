@@ -53,6 +53,8 @@
     "node tools/mutant-gate.mjs node tests/party-ui.mjs --mutate": "in-page-13",
     "node tests/chat-social.mjs": "in-page-13",
     "node tools/mutant-gate.mjs node tests/chat-social.mjs --mutate": "in-page-13",
+    "node tests/town-criers.mjs": "in-page-13",
+    "node tools/mutant-gate.mjs node tests/town-criers.mjs --mutate": "in-page-13",
     "node tests/town-walk.mjs": "in-page-13",
     "node tools/mutant-gate.mjs node tests/town-walk.mjs --mutate": "in-page-13",
     "node tools/gen-town-stations.mjs --check": "in-page-24",

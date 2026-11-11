@@ -1095,7 +1095,7 @@ const PURE_MUTANTS = [
   ['the ground opens a menu', 'src/shell/menu-providers.js', "    if (MONSTERS[mon]) return { kind: 'monster', id: mon, title: monsterName(mon) };", "    return { kind: 'monster', id: mon, title: String(mon) };"],
   ['a person drops its slot (FR-1)', 'src/social/friends.js', 'slot: Number.isInteger(p.slot) && p.slot >= 0 && p.slot <= 32 ? p.slot : null };', 'slot: null };'],
   ['a held whisper keeps its old name (WH-2)', 'src/social/whispers.js', 'if (this._ids.has(l.id)) return this._rename(l);', 'if (this._ids.has(l.id)) return false;'],
-  ['a re-read keeps lines the server no longer returns', 'src/social/chat-store.js', "const keep = tab === 'system' ? this.lines(tab).filter((l) => l.system) : [];", 'const keep = this.lines(tab);'],
+  ['a re-read keeps lines the server no longer returns', 'src/social/chat-store.js', "const keep = this.lines(tab).filter((l) => (tab === 'system' && l.system) || l.npc === true);", 'const keep = this.lines(tab);'],
 ];
 const PAGE_MUTANTS = [
   ['the Crier sends a client price', 'src/shell/windows/chat-crier.js', "const r = await social.chat.cry(words, links, s.quote.price);", "const r = await social.chat.cry(words, links, 1);"],

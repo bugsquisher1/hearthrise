@@ -887,6 +887,17 @@ jobs:
           node tests/chat-social.mjs
           node tools/mutant-gate.mjs node tests/chat-social.mjs --mutate
 
+      # THE TOWN CRIERS AND THE TIPS SWITCH (2026-11-11, lane/b-town-criers, Tyler: tips
+      # are never mandatory; NPCs call out tips in Local chat): the rows, a fresh hero's
+      # first line, the clock and its turns, quiet in a viewed hunt, the Show tips switch
+      # and its Settings row, the re-read keeping a crier's line, Got it and Don't show
+      # tips now and after a reload. Pure node. --mutate plants 11.
+      - name: Town criers and the tips switch
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/town-criers.mjs
+          node tools/mutant-gate.mjs node tests/town-criers.mjs --mutate
+
       # TOWN PRESENCE (2026-10-18, lane/town-presence): two accounts in The
       # Common see each other (the server's id, name, level, role, tiles), the
       # position publish is capped, blocks are hidden at once, leaving leaves

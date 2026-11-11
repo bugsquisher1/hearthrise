@@ -538,6 +538,9 @@
 .hc-log.is-talk.is-on { display: block; }
 .hc-log.is-talk .hc-line { padding: 2px 2px; border-bottom: 0; line-height: 1.4; color: var(--ink); overflow-wrap: anywhere; }
 .hc-line.is-system { color: var(--gold-2); }
+/* a townsperson's line (a town crier, src/shell/town-criers.js): the name in gold, the words plain, its link under them */
+.hc-npc { font-weight: 700; color: var(--gold-2); }
+.hc-line.is-npc .hc-body .hs-goto { font-weight: 700; }
 .hc-time { margin-right: 2px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .hc-name { padding: 0; border: 0; background: none; font: inherit; font-weight: 700; color: var(--ink-2); cursor: pointer; }
 .hc-name:hover, .hc-name:focus-visible { text-decoration: underline; outline: none; }

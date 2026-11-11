@@ -9,6 +9,9 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const COACH_TEXT = Object.freeze({
+  /* every card's two presses (Tyler 2026-11-11: no tip is mandatory): Got it closes this one, Don't show tips hides them all */
+  got_it: 'Got it',
+  no_tips: 'Don\'t show tips',
   tamsins_rats_title: 'Tamsin\'s rats',
   tamsins_rats: 'Tamsin pays for kills. Open her tally and take the {label}. Kill {count} and she pays you gold and a helmet.',
   tamsins_rats_in: 'Press Take on the {label}. Kill {count} in the {ground} and she pays you gold and a helmet.',

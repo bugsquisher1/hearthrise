@@ -130,10 +130,14 @@
 .hs-coach-close::after { transform: rotate(-45deg); }
 .hs-coach-close:hover { color: var(--ink); }
 .hs-coach-close:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
-/* A card that only teaches finishes on its Got it (launcher.js coachHtml): a small quiet press at its foot, right. */
-.hs-coach-got { display: block; margin: 6px 0 0 auto; min-height: 28px; padding: 0 12px; border: 1px solid var(--gold); border-radius: 0; background: none; color: var(--gold-2); font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); cursor: pointer; pointer-events: auto; }
+/* Every card's foot (launcher.js coachHtml, Tyler 2026-11-11: no tip is mandatory): "Don't show tips" quiet at the left, Got it a small press at the right. */
+.hs-coach-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
+.hs-coach-got { display: block; margin: 0 0 0 auto; min-height: 28px; padding: 0 12px; border: 1px solid var(--gold); border-radius: 0; background: none; color: var(--gold-2); font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); cursor: pointer; pointer-events: auto; }
 .hs-coach-got:hover { background: var(--bg-3); color: var(--ink); }
 .hs-coach-got:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+.hs-coach-off { min-height: 28px; padding: 0; border: 0; background: none; color: var(--ink-3); font-family: var(--f-label); font-size: var(--t-micro); text-decoration: underline; cursor: pointer; pointer-events: auto; }
+.hs-coach-off:hover { color: var(--ink); }
+.hs-coach-off:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 /* The card inside the window it points into (shell.js .hs-win-coach, hunt-tutorial.js coachWindow): between the title band
    and the body, so it covers no control; the ring shows the control, so it needs no tip. */
 .hs-win-coach { flex: none; }
@@ -144,7 +148,8 @@
 .hs-win-coach > .hs-pointer.is-line { display: flex; align-items: center; gap: 8px; padding-block: 0; white-space: nowrap; }
 .hs-win-coach > .hs-pointer.is-line > b { flex: none; }
 .hs-win-coach > .hs-pointer.is-line > .hs-coach-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.hs-win-coach > .hs-pointer.is-line > .hs-coach-got { flex: none; margin: 0; min-height: 24px; }
+.hs-win-coach > .hs-pointer.is-line > .hs-coach-foot { flex: none; margin: 0; }
+.hs-win-coach > .hs-pointer.is-line .hs-coach-got, .hs-win-coach > .hs-pointer.is-line .hs-coach-off { min-height: 24px; }
 .hs-coach-more { flex: none; min-height: 28px; padding: 0 6px; border: 0; background: none; color: var(--gold-2); font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); cursor: pointer; pointer-events: auto; }
 .hs-coach-more:hover { color: var(--ink); }
 .hs-coach-more:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }

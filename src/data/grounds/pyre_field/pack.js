@@ -244,7 +244,10 @@ export default definePack({
      mean of its five one-class parties (pairs 0.84-0.90, threes 0.83-0.94, fours 0.79-0.91 at 1150, times 1120/1150). Two of two is the
      mean of three mixes (0.97-1.04), three of three of two (1.07, 1.11), four of four the one played (1.09). The cells between are the
      size's mix times the cell ratio. */
-  partyVsAlone: { 2: [-10, 0], 3: [-10, 0, 10], 4: [-15, 0, 10, 10] },
+  /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
+     under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.60-0.72, threes 0.48-0.70, fours 0.36-0.57), two of two the mean of three mixes, three of three of two,
+     four of four the one played (pairs 0.92-1.05, threes 0.91-1.00, the four 1.02: a Mage or a Healer alone earns the most here, so a mix reads near even against its own heroes while it reads 1.20 against the median lone way, the band the grader binds); the cells between are the size's mix times the cell ratio. Whole fives. */
+  partyVsAlone: { 2: [-35, -5], 3: [-40, -10, -5], 4: [-50, -10, 0, 0] },
   /* THE PACK'S TEST FACTS (re-pinned 2026-11-10 for one difficulty). dropRef: a lone tank at the floor in its full own-tier set
      (tests/hunt-core/drop-tables.mjs, the harness's tier-5 kit). valueToday is COMPUTED, the 11-09 method: the hour's expected coin
      (10,880 g) and commons (10,528) plus the gear-faucet's half of the coin (5,440), the most the hour's worn gear may sell for. The

@@ -199,7 +199,10 @@ export default definePack({
      late, the four's cells at 1565 and 1570). One class is the mean of its five one-class parties (pairs 0.80-0.89, threes
      0.76-0.88, fours 0.77-0.89). Two of two is the mean of three mixes (1.01-1.09), three of three of two (1.08 and 1.05), four of
      four the one played (1.13). The cells between are the size's mix times the cell ratio. */
-  partyVsAlone: { 2: [-15, 5], 3: [-15, 0, 5], 4: [-15, 0, 15, 15] },
+  /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
+     under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.59-0.70, threes 0.55-0.65, fours 0.44-0.58), two of two the mean of three mixes, three of three of two,
+     four of four the one played (pairs 1.06-1.17, threes 1.06-1.14, the four 1.17); the cells between are the size's mix times the cell ratio. Whole fives. */
+  partyVsAlone: { 2: [-35, 10], 3: [-40, 0, 10], 4: [-50, 5, 15, 15] },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Slake's bag. Salted Lobster is the cheapest heal an HP at this Level
      (0.83 g an HP). The melee line holds about three hours of a lone tank's bill at the floor (5.8k g an hour, drop-tables). */
   bagGuide: { tier: 4,

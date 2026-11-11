@@ -96,9 +96,9 @@ export default definePack({
          walk with a crossbow and the company's striped sleeve under his tabard. Human, no override. Their bolt iron, the whistle nobody answered,
          the tier-6 helmets and the Runewood Bow, and now and then the gloves off a dead officer. A crossbow at range is engine piece 2 (unbuilt). */
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'iron_bar', ch: 0.3, band: 'common' }, { id: 'picket_whistle', ch: 0.08, band: 'uncommon' },
-        { id: 'ember_helm', ch: 0.045, band: 'scarce' }, { id: 'dragonhide_helmet', ch: 0.045, band: 'scarce' }, { id: 'archmage_helmet', ch: 0.045, band: 'scarce' },
-        { id: 'runewood_bow', ch: 0.045, band: 'scarce' },
-        { id: 'ember_gauntlets', ch: 0.003, band: 'rare' }, { id: 'dragonhide_gloves', ch: 0.003, band: 'rare' }, { id: 'archmage_gloves', ch: 0.003, band: 'rare' }],
+        { id: 'ember_helm', ch: 0.026, band: 'scarce' }, { id: 'dragonhide_helmet', ch: 0.026, band: 'scarce' }, { id: 'archmage_helmet', ch: 0.026, band: 'scarce' },
+        { id: 'runewood_bow', ch: 0.026, band: 'scarce' },
+        { id: 'ember_gauntlets', ch: 0.0018, band: 'rare' }, { id: 'dragonhide_gloves', ch: 0.0018, band: 'rare' }, { id: 'archmage_gloves', ch: 0.0018, band: 'rare' }],
       hp: 109, atk: 103, baseAcc: 0.45, def: 38, xp: 1333, gp: [23, 69], formula: true },
     warder: {
       name: 'Warder', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', speed: 2400,
@@ -107,9 +107,9 @@ export default definePack({
          for the Hearth, the barrow nail they pulled to get him out, the tier-6 legs and the Emberforged Warhammer, and now and then a belt. His
          shield slam, a marked heavy hit on the tiles in front of him, is engine piece 1 (unbuilt). */
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'barrow_nail', ch: 0.08, band: 'uncommon' },
-        { id: 'ember_platelegs', ch: 0.03, band: 'scarce' }, { id: 'dragonhide_pants', ch: 0.03, band: 'scarce' }, { id: 'archmage_pants', ch: 0.03, band: 'scarce' },
-        { id: 'ember_warhammer', ch: 0.03, band: 'scarce' },
-        { id: 'ember_belt', ch: 0.002, band: 'rare' }, { id: 'dragonhide_belt', ch: 0.002, band: 'rare' }, { id: 'archmage_belt', ch: 0.002, band: 'rare' }],
+        { id: 'ember_platelegs', ch: 0.017, band: 'scarce' }, { id: 'dragonhide_pants', ch: 0.017, band: 'scarce' }, { id: 'archmage_pants', ch: 0.017, band: 'scarce' },
+        { id: 'ember_warhammer', ch: 0.017, band: 'scarce' },
+        { id: 'ember_belt', ch: 0.0012, band: 'rare' }, { id: 'dragonhide_belt', ch: 0.0012, band: 'rare' }, { id: 'archmage_belt', ch: 0.0012, band: 'rare' }],
       hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 2077, gp: [38, 115], formula: true },
     binder: {
       name: 'Binder', icon: '📿', tier: 6, level: 95, cls: 'human', family: 'Human', speed: 3000,
@@ -118,7 +118,7 @@ export default definePack({
          wand and codex. He mends the dead in his pull, so the Warders beside him take far longer to drop: engine piece 3 (unbuilt). */
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'binders_cord', ch: 0.08, band: 'uncommon' },
         { id: 'runewood_staff', ch: 0.045, band: 'scarce' },
-        { id: 'runewood_wand', ch: 0.003, band: 'rare' }, { id: 'runewood_codex', ch: 0.003, band: 'rare' }],
+        { id: 'runewood_wand', ch: 0.0035, band: 'rare' }, { id: 'runewood_codex', ch: 0.0035, band: 'rare' }],
       hp: 157, atk: 100, baseAcc: 0.6, def: 45, xp: 1650, gp: [33, 99], formula: true },
     castellan: {
       name: 'Castellan', icon: '🗝️', tier: 6, level: 100, cls: 'human', family: 'Human', speed: 2800,
@@ -129,7 +129,7 @@ export default definePack({
       weaponWeak: 'hammer', weaponResist: ['sword'],
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_bar', ch: 0.3, band: 'common' }, { id: 'castellans_chain', ch: 0.1, band: 'uncommon' },
         { id: 'ember_platebody', ch: 0.05, band: 'scarce' }, { id: 'dragonhide_body', ch: 0.05, band: 'scarce' }, { id: 'archmage_body', ch: 0.05, band: 'scarce' },
-        { id: 'hall_key', ch: 0.04, band: 'key' }],
+        { id: 'hall_key', ch: 0.026, band: 'key' }],
       hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 3244, gp: [55, 166], formula: true },
   },
   roster: {
@@ -169,6 +169,11 @@ export default definePack({
     melee: { heal: { id: 'cooked_lobster', qty: 100 } },
     ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_poison_rune', qty: 650 } } },
+  /* THE PACK'S TEST FACTS (2026-11-10). dropRef: a lone tank at the floor in its full own-tier set (tests/hunt-core/drop-tables.mjs, the harness's
+     tier-6 kit). valueToday is COMPUTED the Pyre Field's way, not a pre-conversion pin: the floor hour's expected coin (12,152 g) and commons
+     (1,550) plus the gear-faucet's half of the coin (6,076), the most the hour's worn gear may sell for. No room holders (every placed body
+     has a spawn weight) and no one-tile bridge (every corridor is three wide). */
+  checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 19778 },
   /* KRELL'S HALL: one room, one fight, opened with a Hall Key (the design's section 3). Written in the called-room machinery's own shapes, so the
      engine that plays the Rat King's and the Chief's rooms plays this one: `hunt` is a hunts.js CALLED_HUNTS row less its id and `called`,
      `ground` a hunt-grounds.js CALLED_GROUNDS row less its id, hunt, map and call (the boss in the pocket's spawns, his adds in `adds`), and

@@ -66,32 +66,35 @@ export async function loadPlay(root) {
     const item = { d_food: food, d_food_store: storeOf('heal', food), d_drink: storeOf('mana', drink) };
     return START_BAR.map((x) => { const y = JSON.parse(JSON.stringify(x)); if (item[y.id]) y.action.id = item[y.id]; return y; });
   };
-  /* gear by level, the smiths' ladder a player at that level wears */
+  /* gear by level, the smiths' ladder a player at that level wears. Tier 5 from Level 60 (the Pyre Field's own set, lane/b-pyre-field) and
+     tier 6 from 75 (Krell's Hold's, lane/b-krells-hold-pack): no shield climbs past tier 3 (src/data/shields.js), so a tank of 60 or 85
+     still carries the Coppercap. */
+  const tierAt = (L) => (L < 15 ? 0 : L < 30 ? 1 : L < 45 ? 2 : L < 60 ? 3 : L < 75 ? 4 : 5);
   const kit = (L, role) => {
-    const t = L < 15 ? 0 : L < 30 ? 1 : L < 45 ? 2 : 3;
-    const weapon = { tank: ['bronze_sword', 'iron_sword', 'steel_sword', 'mithril_sword'], melee_dps: ['stone_maul', 'iron_warhammer', 'steel_warhammer', 'mithril_warhammer'],
-      ranger: ['shortbow', 'willow_longbow', 'maple_bow', 'maple_bow'],
-      mage: ['apprentice_wand', 'oak_wand', 'willow_wand', 'maple_wand'], healer: ['apprentice_staff', 'oak_staff', 'willow_staff', 'maple_staff'] }[role][t];
+    const t = tierAt(L);
+    const weapon = { tank: ['bronze_sword', 'iron_sword', 'steel_sword', 'mithril_sword', 'rune_sword', 'ember_sword'], melee_dps: ['stone_maul', 'iron_warhammer', 'steel_warhammer', 'mithril_warhammer', 'rune_warhammer', 'ember_warhammer'],
+      ranger: ['shortbow', 'willow_longbow', 'maple_bow', 'maple_bow', 'yew_bow', 'runewood_bow'],
+      mage: ['apprentice_wand', 'oak_wand', 'willow_wand', 'maple_wand', 'yew_wand', 'runewood_wand'], healer: ['apprentice_staff', 'oak_staff', 'willow_staff', 'maple_staff', 'yew_staff', 'runewood_staff'] }[role][t];
     /* A Mage is wand + spellbook (since 10-19; a staff is the Healer's: hunt-roles.js roleWeaponOf). The harness's
        "mage" held a staff until 2026-10-21, so it measured a second Healer (designer pass 2026-10-21). */
-    const book = role === 'mage' ? { shield: ['apprentice_primer', 'oak_spellbook', 'willow_spellbook', 'maple_spellbook'][t] } : {};
+    const book = role === 'mage' ? { shield: ['apprentice_primer', 'oak_spellbook', 'willow_spellbook', 'maple_spellbook', 'yew_spellbook', 'runewood_codex'][t] } : {};
     /* THE TANK CARRIES A SHIELD (Tyler 2026-10-23: the SHIELD makes the tank; a sword alone is Melee damage): the
        Shop's Bronze-Rimmed, then the smiths' Ironbound and Coppercap (src/data/shields.js) at the Defense they need. */
-    const guard = role === 'tank' ? { shield: ['bronze_rimmed_shield', 'ironbound_shield', 'coppercap_shield', 'coppercap_shield'][t] } : {};
-    return { weapon, ...book, ...guard, body: ['bronze_platebody', 'iron_platebody', 'steel_platebody', 'mithril_platebody'][t], helmet: ['bronze_helm', 'iron_helm', 'steel_helm', 'steel_helm'][t],
+    const guard = role === 'tank' ? { shield: ['bronze_rimmed_shield', 'ironbound_shield', 'coppercap_shield', 'coppercap_shield', 'coppercap_shield', 'coppercap_shield'][t] } : {};
+    return { weapon, ...book, ...guard, body: ['bronze_platebody', 'iron_platebody', 'steel_platebody', 'mithril_platebody', 'rune_platebody', 'ember_platebody'][t], helmet: ['bronze_helm', 'iron_helm', 'steel_helm', 'steel_helm', 'rune_helm', 'ember_helm'][t],
       ...(role === 'ranger' ? { ammo: 'bronze_arrows' } : {}) };
   };
   /* THE FULL SET (opts.fullSet): the weapon above plus helmet, body, legs and boots of the hero's own armour line
      (gear-tiers.js: plate for the tank, leather for the ranger, cloth for the casters) at the tier its Level wears,
      the set the hunts' equipment drops build (tests/hunt-core/drop-tables.mjs). */
   const fullKit = (L, role) => {
-    const t = L < 15 ? 0 : L < 30 ? 1 : L < 45 ? 2 : 3;
+    const t = tierAt(L);
     const base = kit(L, role);
     if (role === 'tank') {
-      const m = ['bronze', 'iron', 'steel', 'mithril'][t];
+      const m = ['bronze', 'iron', 'steel', 'mithril', 'rune', 'ember'][t];
       return { ...base, helmet: m + '_helm', body: m + '_platebody', pants: m + '_platelegs', boots: m + '_boots' };
     }
-    const line = role === 'ranger' ? ['leather', 'studded', 'boarhide', 'snakeskin'] : ['apprentice', 'adept', 'scholar', 'warlock'];
+    const line = role === 'ranger' ? ['leather', 'studded', 'boarhide', 'snakeskin', 'wyvernhide', 'dragonhide'] : ['apprentice', 'adept', 'scholar', 'warlock', 'sorcerer', 'archmage'];
     return { ...base, helmet: line[t] + '_helmet', body: line[t] + '_body', pants: line[t] + '_pants', boots: line[t] + '_boots' };
   };
   const hero = (huntId, role, i, L, roles, fullSet, worn, bar, bag, session, options, start, leaveTogether) => {

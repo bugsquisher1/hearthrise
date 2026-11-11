@@ -39,7 +39,7 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 | 3 | The Brook Bear is gated by party size on Normal. That breaks one difficulty. The page line is true today and stays until the gate goes | FLAGGED with the rows, fix SPECIFIED, needs measuring |
 | 4 | The Blessings line is rewritten. Data and player text say 25 / 50 / 75 | BUILT |
 | 5 | `vitals` is right. `refHp` reads one Level high. It is fixed the next time the monster rows are regenerated, not on its own | SPECIFIED |
-| 6 | Tier 7 leather is Slakehide and tier 7 cloth is Shroudweave. The Hall Key trades | SPECIFIED (names, ids), RULED (key) |
+| 6 | Tier 7 leather is Slakehide and tier 7 cloth is Shroudweave. The Hall Key trades | BUILT on lane/b-krells-hold-pack (ids and names together, two STAGED 2027-04-06 catalogues; the twelve icons renamed, art owed), RULED (key: tradeable, book 800) |
 | 7 | Two notes for the art director's 11-12 read | NOTED |
 
 **1. The weight-class row.** The red row is `wc-deadly-under-dies` in `tools/balance-sim/grade-sheet.mjs` (`sheetFromBalanceSheet`, the sheet `pack check` reads). It asked every pair 2-3 under on Deadly, and 5 under on Dangerous or Deadly, for a death in the sample. Quick mode plays one pair, a tank and a Healer, for one hour on one seed. That is the pair built not to die. On Muster Barrows it lost 19.4k g an hour a head and held (lane/b-muster-barrows 5c3b00d0a).
@@ -393,6 +393,22 @@ That is 6 new creatures, 1 reused, 5 tilesets, 16 structures and props, 8 icons,
 `node tools/pack.mjs new` copies a shipped ground's map and rows under new ids. A Hold poured on Wickstead's map would be a fake castle with numbers attached, and its creatures need fields the pack shape refuses today (piece 10). So there is no staged pack on this branch. The rows above are the proposal, and the stat lines are what `propose` would write. The pack lane starts with `new krells_hold --like pyre_field --band 85,110` once the Pyre Field is on main.
 
 **Done and verified.** Every existing item, monster, class, target mode and engine file named here was read on main at v0.2.112. The new names were checked free. The stat rows are `formulaStats` output. **Not verified.** Nothing was played. No drop rate, key rate, pull size or win rate has been through the sim. **Assumed.** The generation count, five pockets, and that the area-spell engine lands as specced.
+
+#### 10. Built as a STAGED pack (systems, lane/b-krells-hold-pack, 2026-11-10). No art, nothing served
+`src/data/grounds/krells_hold/` (pack.js, map.js). Started `new krells_hold --like wickstead` (the Pyre Field is not on main), every row rewritten and the castle drawn new: five rooms on the route (gate, yard, chapel, undercroft, keep stair) and out the sally port, Krell's Hall behind the stair's north door and on no lap, every corridor three wide. The five rows are the formula's (`pack propose`: every row the formula's). It stays staged until its art and engine pieces 1-3 land (the Picket and the Binder must not ship as plain melee bodies).
+
+| What changed from the design | Why |
+|---|---|
+| Head count 7 Levies, 5 Warders, 3 / 3 / 2 (the design 8 / 4) | Five pockets of four can't give the Undercroft its ranks of dead, the Chapel a Warder and the Stair a Warder out of four. A Binder kneels among the Undercroft's dead. Arrow 13, hammer 7 (design 14 / 6) |
+| Each body has a product Common: Levy wheat (Krell's tithe), Picket iron bar (bolt iron), Warder grave dust, Binder coal, Castellan gold bar (the toll) | drop-tables four-slots: a Common of its own besides bones. The five new items are the Uncommon imbuement rows, one of each kind |
+| The Hall Key is a new loot band, `key`, 1.5-3 h a key per hero at the floor (loot-bands.js) | The design said "uncommon" and "about one every two hours". The Uncommon band is the one imbuement row (four-slots), and Scarce is gear only. The band holds the key to its own hall's ground, one row a monster, and is paced like Scarce (drop-tables key-pace, mutants both ways) |
+| The Hall Key: book value 800, tradeable (`opens: 'krells_hold'`) | Ruling 6. The market's ceiling is 100x book, so a 0 value would refuse every listing (lintHall refuses it) |
+| Bag guide: Salted Lobster, not Shark | The store's Shark is 1.75 g a healed point, Lobster 0.83. On Shark a lone floor tank ate 39.5k g an hour against 13.2k coin |
+| Krell's Hall is the pack's new `hall` field, in the called-room shapes, NOT folded into CALLED_HUNTS / CALLED_GROUNDS / BOSS_CALLS | Today a called room is behind a gold fee, pays nothing (tests/boss-call.mjs) and copies a ground's boss. Krell is behind a key, pays (the prize table is in the hall) and copies no one. That is piece 5; the fold lands with it |
+
+**Dependencies on the boss lane (lane/b-muster-barrows, generalising phases) and piece 5, none taken here:** a key door on the call verb (take one key on entry, the leader's, journalled), a called room that pays XP and the prize, a boss that copies no ground boss (calledRows `of`), Hask as a named add with his own kit (piece 6), the Hall Fire flare and its bar line (piece 7), the coal cone (piece 1), and the loot-band guard learning a per-kill boss for the 1-in-10 rows. Krell's row fields today's machinery reads: phases adds at 50%, guard 80% while they stand, enrage x1.4 at 25%.
+
+**Measured, the quick grade AS OPENED** (scratch status flip: the grader's ladder kit reads only reachable gear, so a staged ground plays in Steel; as opened it wears its own tier-6 set): a lone tank +25% (on the bar), hammer +117%, bow +50%, Mage +6,800% (runes); supply share, median way, 0.56 (sheet 0.35); a mixed four 0.79 of the median lone way at the floor and 0.77 at the middle (sheet 1.15-1.25, so the Hold needs party cells, which the design says it wins). No death on Normal. The Hall Key, the other new items and every tier-6 piece are `staged` in catalogue-coherence; the Hall Key's use is PENDING_USE until piece 5.
 
 ### 2026-11-10 The living world: Krell's arc from Havora to the Hold (designer, lane/d-krells-hold. Tyler 2026-11-09 "you're kind of crushing it with the lore", "I want to keep this going"): a living section, added to as grounds land
 Havora is the capital of Greenhaven and keeps the Great Hearth. Its fire lays the dead to rest. That is why Bones and Grave Dust burn there.

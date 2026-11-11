@@ -41,9 +41,9 @@
 // ════════════════════════════════════════════════════════════════════════
 import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.122';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.122';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.122';
 import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.122';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.122';
+import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.122';
+import { createShellHud } from './shell-hud.js?v=0.2.122';
 import { createHudRoom } from './hud-room.js?v=0.2.122';
 import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.122';
 import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.122';
@@ -53,14 +53,12 @@ import { menuProvidersOf } from './menu-providers.js?v=0.2.122';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.122';
 import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.122';
 import { takeFresh, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.122';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.122';
 import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.122';
 import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.122';
 import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.122';
 import { benchSpentAtMs } from './town-work.js?v=0.2.122';
 import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.122';
 import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.122';
-import { heroIsAlone } from './widgets/party-panel.js?v=0.2.122';
 import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.122';
 import { hideTipIfGone } from './windows/item-tip.js?v=0.2.122';
 
@@ -117,28 +115,8 @@ export function mountShell(root, o) {
     reducedMotion,
     schedule: (fn, ms) => host.setTimeout(fn, ms),
   });
-  /* THE HUNT'S WIDGETS LEAVE TOWN WITH IT (designer walk 2026-10-25 #5: the summary, "Not in a party", the hunt bar's
-     Summary, the analyzer's "Hunt ended" and a toast, five overlays on return): the party panel and the analyzer show
-     while a hunt runs and the server has not said it ended; the hunt bar, which keeps only the way back to the summary
-     once the hunt is over (Tyler 10-19), leaves with the summary: when the player closes it (summaryDone), so the
-     summary opens by itself (followSummary below) as the one notice and then the town is clear. */
-  const huntUp = (id) => {
-    if (!opts.inHunt || !opts.inHunt()) return false;
-    const h = huntOf(opts.character);
-    if (!h || !h.ended) return true;
-    /* ...and none while that summary is open: the bar would hold only a Summary press for the window already on
-       screen (first-hour playtest 10-29 #10: on a phone, its ground's name given way to the sheet, an empty box). */
-    return id === 'hunt-topbar' && !summaryDone(opts.character, h.sessionId) && !wm.isOpen('hunt-summary');
-  };
-  const hud = createHud({
-    widgets: HUD_WIDGETS,
-    sizeClass: () => (phoneMq.matches ? 'phone' : 'desktop'),
-    store: residueStore(opts.character),
-    inHunt: huntUp,
-    alone: () => heroIsAlone(opts.character),
-    /* the desktop's default folds below the fold width (tokens.css --hud-fold-below); the phone keeps its own */
-    narrow: () => host.innerWidth < (parseFloat(host.getComputedStyle(doc.documentElement).getPropertyValue('--hud-fold-below')) || 0),
-  });
+  /* The HUD layout and the facts it follows: which hunt widgets show, the default folds (src/shell/shell-hud.js). */
+  const hud = createShellHud({ host, opts, wm, phoneMq });
   const insetListeners = new Set();
   const ctx = {
     wm, hud, refresh, doc, get glyphs() { return host.HR_GLYPHS || {}; }, character: opts.character || null,

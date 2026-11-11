@@ -5,14 +5,18 @@
 //   pictureChangedPct                 — share of samples (every 3rd frame) where the picture moved
 //   accrueCallsPerMin                 — hunt-engine calls; dozens per minute = the live view is starving
 // Read-only: it samples the world canvas and the page's resource timings, nothing else.
+// A HIDDEN TAB gets no animation frames, so this probe used to wait for ever on one: the "QA tab froze" of CLAUDE.md §9 as the
+// tool saw it (tools/qa/long-session.local.mjs, 2026-11-11: the page itself resumes in ~150 ms once shown). It now says so at
+// once, and a probe whose frames stop part way (the tab went behind another) answers anyway, marked `stalled`.
 (async (SECONDS = 30) => {
   const cv = document.querySelector('canvas.world-canvas');
   if (!cv) return { error: 'no world canvas: open a hunt first' };
+  if (document.visibilityState === 'hidden') return { error: 'the tab is hidden: it gets no frames until it is in front' };
   const off = document.createElement('canvas'); off.width = 120; off.height = 72;
   const ox = off.getContext('2d', { willReadFrequently: true });
   const hash = () => { ox.drawImage(cv, 0, 0, 120, 72); const d = ox.getImageData(0, 0, 120, 72).data; let h = 0; for (let i = 0; i < d.length; i += 3) h = (h * 31 + d[i]) | 0; return h; };
   performance.clearResourceTimings(); performance.setResourceTimingBufferSize(5000);
-  const t0 = performance.now(); const frames = []; const still = []; let last = t0, lastH = null, since = null, changes = 0, n = 0;
+  const t0 = performance.now(); const frames = []; const still = []; let last = t0, lastH = null, since = null, changes = 0, n = 0, stalled = false;
   await new Promise((done) => {
     const f = (now) => {
       frames.push(now - last); last = now; n++;
@@ -20,11 +24,12 @@
       if (now - t0 < SECONDS * 1000) requestAnimationFrame(f); else { if (since !== null) still.push([Math.round(since - t0), Math.round(now - since), 'open']); done(); }
     };
     requestAnimationFrame(f);
+    setTimeout(() => { stalled = true; done(); }, SECONDS * 1000 + 3000);
   });
   const fr = frames.slice(1).sort((a, b) => a - b);
   const calls = performance.getEntriesByType('resource').filter((e) => e.name.includes('hr-accrue')).length;
   const imgs = performance.getEntriesByType('resource').filter((e) => /\.png/.test(e.name)).length;
   return { seconds: SECONDS, fps: Math.round(fr.length / SECONDS), p95FrameMs: Math.round(fr[Math.floor(fr.length * 0.95)]),
     longFrames: fr.filter((x) => x > 50).length, stillSpans: still, pictureChangedPct: Math.round(changes / Math.max(1, Math.floor(n / 3)) * 100),
-    accrueCallsPerMin: Math.round(calls / SECONDS * 60), imageRequests: imgs, origin: location.origin };
+    accrueCallsPerMin: Math.round(calls / SECONDS * 60), imageRequests: imgs, origin: location.origin, stalled };
 })()

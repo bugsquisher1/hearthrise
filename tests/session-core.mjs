@@ -100,13 +100,18 @@
 //          an auth error the server threw still ends it
 //   VIEW-1 the world view reads only the character's record and its own scratch
 //   LVL-0  outside src/core and its data no module takes a level curve from src/core/xp.js or reads level_xp
-//          (CURVE_USE lists the two exceptions and why): the browser cannot work a Level out
+//          (CURVE_USE, empty since lane/c-skills-from-server: an exception needs its why): the browser cannot work a
+//          Level or a skill's level or bar out
 //   LVL-1  the Level, its XP marks, the roster's Level and a Level gate are the envelope's `level` block
 //          (hr_level_block), fed a block that DISAGREES with this build's curve for the same Level XP
 //   LVL-2  no `level` block (or a broken one) draws no Level anywhere: never this build's curve as a fallback
 //   LVL-3  a hunt on screen: the pushed frame's Level replaces the load's at once, the Level XP unmoved
 //   LVL-4  the browser closed: the stamp keeps the server's Level, and the return line names the two
 //          Levels the server said (the hunt ran on the server meanwhile)
+//   SKL-1  a skill's bar (fill, pending segment, 'N XP to L+1', 'Mastered') draws the envelope's `skill_levels` cell
+//          (hr_skill_block), fed one that DISAGREES with this build's curve for the same XP (lane/c-skills-from-server)
+//   SKL-2  no section (or a broken cell) draws no bar, never this build's curve; a pushed frame's marks replace the load's
+//   SKL-3  the town-work burn check reads the server's Cooking level, never one worked out of the XP
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -143,6 +148,11 @@ async function load(base) {
     AWAY: await import(u('src/shell/away-recap.js')),
     ITEMS: (await import(u('src/data/items.js'))).ITEMS,
     LEVEL_REQ: (await import(u('src/data/gear-tiers.js'))).LEVEL_REQ,
+    /* a skill's bar and the town-work burn check (SKL-1 .. SKL-3) */
+    SW: await import(u('src/shell/windows/skills.js')),
+    TT: await import(u('src/shell/town-ticker.js')),
+    RCP: (await import(u('src/data/recipes.js'))).ARTISAN_RECIPES,
+    ARTISAN: await import(u('src/core/artisan.js')),
     BASE: base,
   };
 }
@@ -192,7 +202,7 @@ const timers = { setTimer: () => 0, clearTimer: () => {} };
 async function rules(M) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
-  const { E, R, C, A, S, AU, NB, AR, SI, CFG, TP, TW, PS, HB, I, FI, FS, XP, CS, GG, AWAY, ITEMS, LEVEL_REQ } = M;
+  const { E, R, C, A, S, AU, NB, AR, SI, CFG, TP, TW, PS, HB, I, FI, FS, XP, CS, GG, AWAY, ITEMS, LEVEL_REQ, SW, TT, RCP, ARTISAN } = M;
 
   await t('ENV-1', () => {
     const a = E.applyEnvelope(null, env(3, { skills: { mining: 5 }, buffs: [1] })).record;
@@ -1425,6 +1435,10 @@ async function rules(M) {
     if (JSON.stringify(r) !== JSON.stringify([{ slot: 0, exists: true, unnamed: false, name: 'Tester', level: 9, gold: 1, goldV: 4, doing: 'Hunting in Mill Cellar' },
       { slot: 2, exists: true, unnamed: false, name: null, level: null, gold: 1, goldV: null, doing: null },
       { slot: 3, exists: false, unnamed: true, name: null, level: null, gold: null, goldV: null, doing: null }])) return 'roster was ' + JSON.stringify(r);
+    /* NOT OPEN HERE (Andy 2026-11-09, lane/a-strip-all-heroes): every hero the roster read, minus those this tab has open, and never
+       a slot still to be named, with the server's name, Level and doing; the strip lists them as one-press opens */
+    if (JSON.stringify(acc.notOpen()) !== JSON.stringify([{ slot: 0, name: 'Tester', level: 9, doing: 'Hunting in Mill Cellar' },
+      { slot: 2, name: null, level: null, doing: null }])) return 'notOpen before any open read ' + JSON.stringify(acc.notOpen());
     srv.calls.length = 0;
     const ok = await acc.create(3, 'Fennick', { head: 1, body: 2, legs: 3, feet: 4 });
     const no = await acc.create(3, 'Taken', { head: 1, body: 2, legs: 3, feet: 4 });
@@ -1451,6 +1465,8 @@ async function rules(M) {
     const r = await acc.open(0);
     if (!r.ok || r.session.record.version !== 7) return 'the hero did not open on the roster\'s answer: ' + JSON.stringify(r.reason);
     if (loads(0) !== 1) return 'opening on a fresh roster read hero 0 ' + loads(0) + ' times, want the roster\'s one';
+    /* NOT OPEN HERE (lane/a-strip-all-heroes): the strip lists Bram, whom this tab has not opened, and no longer Ada */
+    if (acc.notOpen().map((h) => h.name).join() !== 'Bram') return 'with Ada open, the heroes not open read ' + JSON.stringify(acc.notOpen());
     /* the server's clock is measured as of now, not as of when the roster heard it (timeline.js T3: the first measure stands) */
     const clock = r.session.serverNow();
     if (clock !== SAID + CFG.SESSION_CONFIG.rosterReadFreshMs) return 'the server clock after a roster answer ' + CFG.SESSION_CONFIG.rosterReadFreshMs + ' ms old reads ' + (clock - SAID) + ' ms past what it said';
@@ -1460,6 +1476,7 @@ async function rules(M) {
     now += 1;
     await acc.open(1);
     if (loads(1) !== 2) return 'a roster answer older than rosterReadFreshMs was spent (' + loads(1) + ' reads of hero 1)';
+    if (acc.notOpen().length) return 'with both open, the heroes not open read ' + JSON.stringify(acc.notOpen());
     /* a slot the roster found empty, then made: it reads the hero it now holds */
     const made = { 0: env(1, { hero_slots: [0, 1], account: { max_concurrent: 4 } }) };
     const srv2 = fakeServer(made);
@@ -2180,10 +2197,100 @@ async function rules(M) {
     const want = 'Level ' + (NEED_LV - 1) + ' to ' + (NEED_LV + 2);
     return (!!line && line.text.includes(want) && line.text.includes('+5,000 Level XP')) || 'the return line does not say "' + want + '": ' + JSON.stringify(line && line.text);
   });
+
+  /* ── A SKILL'S BAR IS THE SERVER'S (lane/c-skills-from-server) ─────────────────────────────────────────────
+     The skill ledgers (the Character window's combat skills, Gathering and crafting, the work head) drew each bar, its fill,
+     "N XP to L+1" and "Mastered" off this build's copy of the skill curves (src/core/xp.js), the Level's 2026-11-10 class.
+     hr_state_of states each skill's two marks itself (`skill_levels` = hr_skill_block: xp, level, into, need), and every case
+     below hands the client a cell that DISAGREES with this build's curve for the same XP: a bar worked out here is wrong. */
+  const SK_XP = XP.skillXpForLevel('mining', 40) + 7;            // this build's curve: Mining 40, 7 XP into it
+  const srvSkill = (level, into, need, xp = SK_XP) => ({ xp, level, into, need });
+  /* one ledger entry's parts as paint.js writes them (fill and pending segment widths, the meter, the words) */
+  const fakeBar = () => {
+    const node = () => {
+      const st = new Map(), at = new Map(), cl = new Set();
+      return { textContent: '', style: { getPropertyValue: (k) => st.get(k) || '', setProperty: (k, v) => st.set(k, v), removeProperty: (k) => st.delete(k) },
+        classList: { contains: (c) => cl.has(c), toggle: (c, on) => (on ? cl.add(c) : cl.delete(c)) },
+        hasAttribute: (k) => at.has(k), getAttribute: (k) => (at.has(k) ? at.get(k) : null), setAttribute: (k, v) => at.set(k, String(v)), removeAttribute: (k) => at.delete(k) };
+    };
+    const p = { '.hw-skill-fill': node(), '.hw-skill-ahead': node(), '.hw-skill-bar': node(), '.hw-skill-xp': node() };
+    const el = { querySelector: (s) => p[s] || null };
+    el.read = () => ({ fill: p['.hw-skill-fill'].style.getPropertyValue('width'), segAt: p['.hw-skill-ahead'].style.getPropertyValue('left'),
+      seg: p['.hw-skill-ahead'].style.getPropertyValue('width'), now: p['.hw-skill-bar'].getAttribute('aria-valuenow'),
+      words: p['.hw-skill-xp'].textContent, ahead: p['.hw-skill-xp'].classList.contains('is-ahead') });
+    return el;
+  };
+  const skEnv = (version, mining, extra) => env(version, Object.assign({ skills: { mining: { xp: mining.xp, level: mining.level } },
+    skill_levels: { mining } }, extra || {}));
+  await t('SKL-1', () => {
+    if (XP.skillLevelFromXp('mining', SK_XP) === 31) return 'HARNESS: this build\'s curve agrees with the server\'s cell, so the case proves nothing';
+    /* the server: Mining 31, 250 of 1,000 XP into it (this build's curve would say 40, 7 XP in) */
+    const sl = I.skillLevelsOf(asCs(skEnv(1, srvSkill(31, 250, 1000))));
+    if (!sl || JSON.stringify(sl.mining) !== JSON.stringify(srvSkill(31, 250, 1000))) return 'skillLevelsOf reads ' + JSON.stringify(sl);
+    const el = fakeBar();
+    SW.patchSkillProgress(el, sl.mining, 0);
+    let got = el.read();
+    if (got.fill !== '25%' || got.now !== '25' || got.words !== '750 XP to 32' || got.seg !== '0%' || got.ahead)
+      return 'the Mining bar draws ' + JSON.stringify(got) + ', the server said 250 of 1,000 XP into level 31';
+    /* town work's certain XP (town-ticker.js) is pending after the fill, against the SERVER's marks, and stops at its level */
+    SW.patchSkillProgress(el, sl.mining, 100);
+    got = el.read();
+    if (got.fill !== '25%' || got.segAt !== '25%' || got.seg !== '10%' || got.words !== '650 XP to 32' || !got.ahead) return 'with 100 XP pending the bar draws ' + JSON.stringify(got);
+    SW.patchSkillProgress(el, sl.mining, 5000);
+    got = el.read();
+    if (got.seg !== '75%' || got.words !== '0 XP to 32') return 'pending XP past the level runs the bar on: ' + JSON.stringify(got);
+    /* "Mastered" is the server's word (no XP across the level), never this build's cap: Cooking 99 with none across reads
+       Mastered and takes no pending XP; a skill the server takes on past 99 (its curve, not this build's) is not Mastered */
+    const top = fakeBar();
+    SW.patchSkillProgress(top, srvSkill(99, 5, 0, XP.skillXpForLevel('cooking', 99) + 5), 300);
+    got = top.read();
+    if (got.fill !== '100%' || got.words !== 'Mastered' || got.seg !== '0%' || got.ahead) return 'a skill at its last level draws ' + JSON.stringify(got);
+    const past = fakeBar();
+    SW.patchSkillProgress(past, srvSkill(99, 10, 500, XP.skillXpForLevel('cooking', 99) + 10), 0);
+    got = past.read();
+    return (got.fill !== '2%' || got.words !== '490 XP to 100') ? 'a level the server goes on past draws ' + JSON.stringify(got) : true;
+  });
+  await t('SKL-2', async () => {
+    /* NO SECTION, NO BAR; A BROKEN CELL, NO BAR FOR THAT SKILL: never this build's curve over `skills` (whose level the gates
+       still read) */
+    const bare = skEnv(1, srvSkill(31, 250, 1000)); delete bare.skill_levels;
+    if (I.skillLevelsOf(asCs(bare)) !== null) return 'with no skill_levels section the ledger reads ' + JSON.stringify(I.skillLevelsOf(asCs(bare)));
+    if ((I.skillsOf(asCs(bare)) || {}).mining.level !== 31) return 'HARNESS: the gates lost the skills key';
+    for (const [what, cell] of [['no level', { xp: SK_XP, into: 1, need: 9 }], ['a level that is not a number', srvSkill('31', 250, 1000)],
+      ['XP into the level past the XP across it', srvSkill(31, 1000, 1000)], ['no XP across a level that has a next', srvSkill(31, 250, null)],
+      ['negative XP into it', srvSkill(31, -1, 1000)], ['a cell that is a list', [31, 250, 1000]]]) {
+      const sl = I.skillLevelsOf(asCs(skEnv(1, cell)));
+      if (!sl || sl.mining !== undefined) return what + ': the cell was drawn anyway: ' + JSON.stringify(sl);
+    }
+    /* A HUNT OR A JOB ON SCREEN: the pushed frame (the whole character) brings the next level's marks, the XP the same in both */
+    const srv = fakeServer({ 0: skEnv(1, srvSkill(31, 999, 1000)) });
+    const hub = fakeHub();
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers });
+    await cs.load(); cs.connect();
+    if ((I.skillLevelsOf(cs) || {}).mining.into !== 999) return 'the first read draws ' + JSON.stringify(I.skillLevelsOf(cs));
+    hub.send(C.frameTopic(UID, 0), { t: 'state', frame: 2, env: skEnv(2, srvSkill(32, 0, 1100)) });
+    if (cs.record.version !== 2) return 'HARNESS: the frame was refused: ' + cs.lastVerdict;
+    const el = fakeBar();
+    SW.patchSkillProgress(el, I.skillLevelsOf(cs).mining, 0);
+    return el.read().words === '1,100 XP to 33' || 'after the frame the bar says ' + JSON.stringify(el.read());
+  });
+  await t('SKL-3', () => {
+    /* THE TOWN-WORK BURN CHECK READS THE SERVER'S COOKING LEVEL: the XP this build's curve calls Cooking 99 (no burns), the server
+       says Cooking 1 (a quarter burn): the cooked shrimp is unsure, in no stack; and the other way round, certain. */
+    const row = RCP.cooking.find((r) => r.id === 'cook_shrimp');
+    if (!row || !(ARTISAN.burnChance(row, 1, 0) > 0) || ARTISAN.burnChance(row, 99, 0) !== 0) return 'HARNESS: cook_shrimp does not burn at 1 and not at 99';
+    const t0 = Date.UTC(2026, 10, 10, 12, 0, 0), at = new Date(t0).toISOString();
+    const tick = (xp, level) => TT.predictTown({ w: { kind: 'artisan', id: row.id, skill: 'cooking', row },
+      state: { active_kind: 'artisan', active_id: row.id, accrued_to: at, active_since: at }, nowMs: t0 + 20000,
+      skills: { cooking: { xp, level } }, inventory: { shrimp: 50 }, equipment: {} });
+    const low = tick(XP.skillXpForLevel('cooking', 99), 1), high = tick(0, 99);
+    if (!low || !(low.unsure > 0) || (low.items[row.output] || 0) > 0) return 'the server says Cooking 1 and the ticker counts the cooking certain: ' + JSON.stringify(low);
+    return (!!high && high.unsure === 0 && (high.items[row.output] || 0) > 0) || 'the server says Cooking 99 and the ticker counts it unsure: ' + JSON.stringify(high);
+  });
   await t('LVL-0', () => {
     /* THE CLASS, HELD SHUT: outside the engine (src/core) and its data, no module takes a level curve from src/core/xp.js or reads
-       `level_xp`. A Level a window needs comes from character-sections.js levelOf; a skill's level from the envelope's `skills`.
-       CURVE_USE lists each exception, with the names it may take and why. */
+       `level_xp`. A Level a window needs comes from character-sections.js levelOf; a skill's level from the envelope's `skills`,
+       its bar from `skill_levels` (item-sections.js skillLevelsOf). CURVE_USE lists each exception, with the names it may take and why. */
     const found = {}, xpReads = [];
     const walk = (dir) => { for (const e of readdirSync(join(M.BASE, dir), { withFileTypes: true })) {
       const rel = dir + '/' + e.name;
@@ -2206,14 +2313,9 @@ async function rules(M) {
 }
 
 /* The modules outside src/core that may take a curve from src/core/xp.js, each with the names it takes and why (LVL-0). Sorted names. */
-const CURVE_USE = Object.freeze({
-  /* the town-work prediction's burn check: pending numbers only, never spent, replaced by each envelope (the file's header) */
-  'src/shell/town-ticker.js': ['levelOf'],
-  /* the skill bars' two XP marks. The envelope states each skill's level but not yet the XP at its start and at the next
-     (`skills[id]` needs `into` / `need` like the `level` block): until it does the bar reads the marks of the SERVER's level
-     off this build's curve. Reported by lane/c-level-from-server; remove this row with that projection. */
-  'src/shell/windows/skills.js': ['skillCapOf', 'skillXpForLevel'],
-});
+/* None since lane/c-skills-from-server (2026-11-10): the skill bars read the server's two XP marks (`skill_levels`) and the
+   town-work burn check the server's Cooking level, where they took this build's curves. A new row needs its why here. */
+const CURVE_USE = Object.freeze({});
 
 async function viewRules(base) {
   const fails = [];
@@ -2230,6 +2332,9 @@ async function viewRules(base) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const MUTANTS = [
+  ['the strip lists a hero this tab has open as not open (lane/a-strip-all-heroes)', 'src/session/account-session.js', 'filter((r) => r.exists && !this._chars.has(r.slot))', 'filter((r) => r.exists)'],
+  ['the strip lists a slot still to be named as a hero (lane/a-strip-all-heroes)', 'src/session/account-session.js', 'filter((r) => r.exists && !this._chars.has(r.slot))', 'filter((r) => !this._chars.has(r.slot))'],
+  ['a hero not open here shows no Level (lane/a-strip-all-heroes)', 'src/session/account-session.js', 'level: r.level, doing: r.doing }));', 'level: null, doing: r.doing }));'],
   ['a tab keeps playing a hero the server no longer holds', 'src/session/account-session.js', "if (why === 'empty' && s.record && this._chars.get(slot) === s) { this.close(slot); this._emit('hero-gone', slot); }", "if (false) { this.close(slot); this._emit('hero-gone', slot); }"],
   ['a slot empty on its first read counts as a hero gone', 'src/session/account-session.js', "if (why === 'empty' && s.record && this._chars.get(slot) === s) {", "if (why === 'empty' && this._chars.get(slot) === s) {"],
   ['a reload reads each hero again over the roster\'s answer', 'src/session/account-session.js', 'await cs.load(read && read.ans.ok && age <= this.config.rosterReadFreshMs ? agedBy(read.ans.body, age) : null, age);', 'await cs.load();'],
@@ -2410,6 +2515,21 @@ const MUTANTS = [
   ['the residue drops the stamp\'s Level (the return line names none)', 'src/session/residue.js', "for (const k of ['xp', 'lv', 'gold', 'kills', 'sx', 'sl', 'n'])", "for (const k of ['xp', 'gold', 'kills', 'sx', 'sl', 'n'])"],
   ['a client module takes the Level curve again', 'src/session/party-sections.js', "import { heroVitalsOf } from './character-sections.js", "import { charLevelFromXp } from '../core/xp.js';\nimport { heroVitalsOf } from './character-sections.js"],
   ['a client module reads level_xp again', 'src/session/tutorial-sections.js', '  const lv = levelOf(cs);\n  if (!lv) return null;\n', "  const lv = levelOf(cs);\n  if (!lv || !(cs.read('state').level_xp >= 0)) return null;\n"],
+  /* lane/c-skills-from-server: the skill bars' bug itself (the client curve restored in the caller), then each way back to it */
+  ['a skill bar is filled from its XP on this build\'s curve (the bug)', 'src/shell/windows/skills.js',
+    'const levelProgress = (r, extra) => (mastered(r) ? 1 : Math.max(0, Math.min(1, (r.into + extra) / r.need)));',
+    "import { xpForLevel as mutXp } from '../../core/xp.js';\nconst levelProgress = (r, extra) => (mastered(r) ? 1 : Math.max(0, Math.min(1, (r.xp + extra - mutXp(r.level)) / (mutXp(r.level + 1) - mutXp(r.level)))));"],
+  ['a skill\'s "XP to" words are worked out of its XP, not the server\'s marks', 'src/shell/windows/skills.js', 'whole(Math.max(0, r.need - r.into - a))', 'whole(Math.max(0, r.need - (r.xp % r.need) - a))'],
+  ['"Mastered" is this build\'s cap, not the server\'s word', 'src/shell/windows/skills.js', 'const mastered = (r) => r.need === 0;', 'const mastered = (r) => r.level >= 99;'],
+  ['pending XP runs a skill bar past the server\'s level', 'src/shell/windows/skills.js', 'Math.min(1, (r.into + extra) / r.need)', '(r.into + extra) / r.need'],
+  ['the ledger\'s reader works the marks out of `skills` on this build\'s curve', 'src/session/item-sections.js',
+    "export function skillLevelsOf(cs) {\n  const sk = read(cs, 'skill_levels');\n",
+    "import { skillXpForLevel as mutXp, skillLevelFromXp as mutLv } from '../core/xp.js';\nexport function skillLevelsOf(cs) {\n  const mutSk = read(cs, 'skills');\n"
+    + "  const sk = isObj(mutSk) ? Object.fromEntries(Object.entries(mutSk).map(([id, r]) => { const lv = mutLv(id, r.xp); return [id, { xp: r.xp, level: lv, into: r.xp - mutXp(id, lv), need: mutXp(id, lv + 1) - mutXp(id, lv) }]; })) : null;\n"],
+  ['a broken skill cell is drawn', 'src/session/item-sections.js', ' || !Number.isInteger(r.level) || r.level < 1 || (need > 0 && into >= need)) continue;', ') continue;'],
+  ['the burn check reads no server Cooking level', 'src/shell/town-ticker.js', '? o.skills.cooking.level : 1;', '? 99 : 1;'],
+  ['the skill ledger takes a curve from src/core/xp.js again', 'src/shell/windows/skills.js', "import { nextUnlock } from '../../data/skill-unlocks.js", "import { skillXpForLevel } from '../../core/xp.js';\nimport { nextUnlock } from '../../data/skill-unlocks.js"],
+  ['the town ticker takes a curve from src/core/xp.js again', 'src/shell/town-ticker.js', "import { ITEMS } from '../data/items.js", "import { levelOf } from '../core/xp.js';\nimport { ITEMS } from '../data/items.js"],
 ];
 
 /* The WHOLE src tree at its own layout: the session graph reaches across src/** by relative path
@@ -2424,7 +2544,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (49 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (52 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(async () => rules(await load(ROOT)));

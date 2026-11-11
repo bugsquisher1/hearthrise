@@ -227,6 +227,207 @@ This overrules the Hold section's default of no. Rails for the server lane: one 
 - Spring Tide and Undertow are both blue curls on a Healer's bar. One heals the party and one hits a monster, and they can't be told apart at a glance.
 
 **Checks, one at a time, exit codes read.** Exit 0: `tests/balance-grade.mjs` (exit 1 before the sheet moved, on the new check), `tests/text-home.mjs` (ceiling lowered, `hunt-go.js` 50 to 42), `tests/copy-lint.mjs`, `tests/alpha-windows.mjs --pure` (AW-27 pins moved, two added), `tools/typecheck.mjs`. Not run: `pack check` on the four staged grounds, the alpha-windows mutants, any browser. The new Blessings line has not been read on screen.
+### 2026-11-10 The first ten minutes (designer, lane/d-first-ten-minutes; Tyler 2026-11-10 approved "one-sentence hook on the first ten minutes + Steam page"): PLAYED on the local world at v0.2.114, three text lines CHANGED, the rest is a build list. Nothing else built
+
+**Method.** The real `play.html` on `tools/qa/local-world.mjs serve`, a brand-new account from the sign-in screen, one sword and shield hero (Odalys), 30 minutes by hand in real time in the browser pane (1355x846), then the page closed and `wait 480 --away`, then back. Session minutes count from the sign-in screen. A second measure ran on a separate headless world: three fresh heroes who took Tamsin's rats at Level 1 before their first hunt, read once a minute for 12 minutes of skipped time. Shots: `art/review/first-ten-minutes-2026-11-10/` (22, untracked). **Not played:** a phone, a death, sound, the email link a live sign-up needs, and other players. The local world held one account, so everything below about other people is what an empty server shows, which is also what live shows most hours today.
+
+**The play, minute by minute**
+
+| Min | What the game told me | What I did | How it felt | Shot |
+|---|---|---|---|---|
+| 0:00 | Crest and "Your heroes hunt, gather and craft, even while you're away." | Made an account | Fine. The line is every idle game's line | 00 |
+| 0:40 | "You own 1 hero slot, and up to 4 heroes can play at once." | Create hero | 1 and 4 in one sentence. I didn't know what it meant | 01 |
+| 0:50 | Name, four colors, five fighting styles in about 120 words | Typed a name, Enter town | Read two of the five | 02 |
+| 1:00 | Havora. The Great Hearth burning, Tamsin at her board, 18 icons with no labels, "1 online". Card "Every weapon is a style" | Got it | The town looks like a place. The card gave me nothing to do | 03 |
+| 1:15 | "Rats in the mill", the Hunts icon ringed. Mill Cellar already picked | Hunts, Enter | Two presses. Knew exactly what to do | 04 |
+| 1:35 | "Your hero fights on its own" | Watched | | |
+| 2:15 | 5 kills, 93 XP, the ring at 65%, nothing pressed | Watched | **First moment that felt good** | 05 |
+| 2:47 | Level 2. "Plant your land" | Farm, Plant 2 empty plots (one press) | "+23 XP" popped behind the Farm window. **Second good moment**, and the card never said that was the point | 06, 07 |
+| 3:20 | "Your action bar" | Got it | The bar came set. Nothing to change | |
+| 3:30 | "Out to the brook": Level 5, about fifteen minutes. You can close the game | Nothing to do | The game stops asking for 14 minutes | 08 |
+| 4:40 | Nothing | Watched the hero stand in an empty room between respawns | | 09 |
+| 5:00 | Chat: "Nothing said here yet." Counter: "1 online". Havora's Works: "0 of 1,000,000 gp", gold button "Give the 526 gp you have" | Opened windows looking for other people | Found nobody, and a button that would have taken all my gold | 10, 11 |
+| 9:00 | Level 4, XP 1%. With Chat open the coach card is gone, so the screen says nothing at all | Nothing | **The minute I would have quit** | 12 |
+| 17:20 | Level 5. "Cash in" | Leave hunt (25 s) | Never ate once. Nothing rare. Loot was tails and gel | 13 |
+| 18:20 | Hunt summary: 123 monsters, 2,285 Level XP, 123 gp, 364 gp of loot. "Next: Feed the Hearth" | Pressed it | Clean. One window, one next step | 14 |
+| 19:00 | "Press the Bones, then Fuel all" | Did | The hero walked over the bridge to the Hearth and burned them one by one. Good | 15 |
+| 20:00 | "Before the wolves" | Shop, Services, Bless three times | Three presses for one decision | |
+| 21:00 | "Sell what only pays coin" | Sell all junk, 61 gp | The Sell list held an Apprentice Hat. A piece of gear had dropped and nothing told me | 16 |
+| 22:00 | "Tamsin's wolves" | Took 200 Gray Wolves | Her board also lists "120 Giant Rats, Mill Cellar". I had just killed about 75 of them for nothing | 17 |
+| 22:30 | "Into the Thicket" | Hunts, Enter | | 18 |
+| 29:30 | Thicket: 39 kills, 1,926 Level XP, wolves 15 of 200, 5 food eaten. "Taking a beating?" | Closed the page with the hunt running | The Thicket is a real hunt. The hero walks, eats and gets hurt | 19 |
+| +8 h | Characters screen: "Odalys, Level 9 · Hunting in Meadowbrook Thicket" | Play | | |
+| +8 h | "While you were away (8 h 6 min), Odalys hunted Meadowbrook Thicket: Level 5 to 9, +158,926 Level XP, +12,536 gold, 3,216 kills. Still hunting, with 3 h 32 min of stamina left." | Read it twice | **The best moment of the whole play.** It is one small gray box | 20 |
+| +8 h | Bag: about 100 pieces of armor in all three weights, 1,498 Bones. Nothing on the hero's body for the whole night | Opened the bag | A good ten minutes of town work waiting. The Summary button showed the old Mill Cellar hunt, not the night | 21 |
+
+**The quit minute is 9.** Level 4 has just landed, Level 5 is eight more minutes of the same three rats, the last instruction was five minutes ago, the only loot is junk, and the one sign of other people is a counter that says I'm alone. The game's best moment is the return, and nothing in the first ten minutes makes a stranger believe it is coming.
+
+**What works and stays.** Two presses from town to a fight. The ringed coach cards. The Hunts window (ground picked, "Right for your level"). Plant 2 empty plots in one press. The summary's one Next button. The walk to the Hearth. The away line's numbers.
+
+**The hook.** Three candidates, each held against the play.
+
+| # | Hook | What the play said | Verdict |
+|---|---|---|---|
+| A | A shared live world. Other players in town, a party made of your own heroes | "1 online". "Nothing said here yet." One hero slot, and the second costs 300,000 gold, "after about a week" (Tyler 11-09, alts take longer). The first ten minutes can't show any of it, and the first week can't show the party | A lie today. The Coordinator's read is overruled on "shared", kept on "live" |
+| B | You build how your hero fights, then it plays itself | The bar came set, I pressed Got it, and the hero never ate in the Cellar. The first real bar decision came at minute 29 | True, but not felt in ten minutes. It is the depth, not the hook |
+| C | Your hero keeps hunting after you close the game | Planting while the fight went on at minute 3. The return after 8 hours: four Levels, 12,536 gold, a bag of armor, still hunting | **Picked.** The first ten minutes deliver half of it today and can deliver all of it |
+
+The sentence a stranger repeats: **"It's an online RPG where your hero keeps hunting after you log off."** Steam capsule line under the logo: **"Log off. Your hero keeps hunting."** First line of the store page: **"Hearthrise is an online RPG where your hero keeps hunting on a live server after you close the game. Come back to new Levels, a bag of loot and a full purse, or to find out what killed you."** "Shared world" goes in the second paragraph, as what you grow into (the town, the market, parties with other players), never as the promise of minute one.
+
+**The first ten minutes, redesigned.** No new system. Every beat is something that exists today, moved or reworded. The Hunts window, the action bar and the ringed cards are untouched.
+
+| Min | The player sees | The player does | The player learns | Delivered by |
+|---|---|---|---|---|
+| 0:00 | The crest and "Your hero keeps hunting after you close the game." | Makes an account | The hook, before anything else | Sign-in pitch. **Changed in this lane** |
+| 0:45 | Create your hero | Name, colors | The weapon is the style | As today |
+| 1:15 | Havora, the Hearth, Tamsin at her board. Card "Every weapon is a style" | Got it | | As today |
+| 1:30 | Card "Tamsin's rats", her icon ringed, then Take ringed | Takes 25 Giant Rats | Kills pay. There is a person in this town who wants something | Tamsin's tally (exists). New card, and her count moves 120 to 25. **Build 1** |
+| 2:00 | Card "Rats in the mill" | Hunts, Mill Cellar, Enter | | As today |
+| 2:15 | The fight. The tally on screen counts "Giant Rats 4/25" | Watches | The hero fights alone. Level 2 inside 75 seconds | As today, plus the tally widget (exists) |
+| 3:30 | Card "Plant your land", now leading with "Your hero doesn't need you watching." | Farm, Plant 2 empty plots | **The hook, shown.** XP keeps popping while the Farm is open | Farm (exists). **Words changed in this lane** |
+| 4:15 | Card "Your action bar" | Got it | The bar is the hero's brain | As today |
+| 7:45 | The tally reads 25/25. Card "Tamsin owes you", Leave hunt ringed | Leave hunt | A hunt ends when you say so, and somebody is waiting | New card. **Build 1** |
+| 8:15 | Town. The summary. Tamsin has paid 25 gp and a Bronze Helm. Card "Wear what you found" | Bag, Equip upgrades | **The first reward that's worn.** Gear goes on in town | Tamsin's pay on return (exists), "Wear what you found" (exists) |
+| 9:15 | Card "Back down for Level 5" | Hunts, Mill Cellar, Enter | | New card. **Build 1** |
+| 9:45 | The card goes on: "Level 5 is about ten minutes away, and you don't have to watch. Close the game. Your hero keeps hunting." | Closes the game, or watches | **The hook, as an invitation**, at the minute I would have quit | "Out to the brook". **Words changed in this lane**, its place in Build 1 |
+| ~20 | Back. "While you were away (11 min), Odalys hunted Mill Cellar: Level 4 to 5, 70 kills..." then "Cash in" | Reads, leaves, goes on to the Thicket | **The return, inside the first session** | The away line (exists, speaks from 10 minutes). Build 3 lets it speak from 3 for a new hero |
+
+New player lines (for the reader gate, none shipped yet). "Tamsin's rats": "Tamsin pays for kills. Open her tally and take the Giant Rats. Kill 25 and she pays you gold and a helmet." "Tamsin owes you": "That's 25 rats. Leave the hunt and she pays you in town." "Back down for Level 5": "Send your hero back to the Mill Cellar. Level 5 is about ten minutes away, and you don't have to watch. Close the game. Your hero keeps hunting."
+
+**Other players, honestly.** No card can put people in an empty town. What exists is enough when people are there (walkers in the square, Chat, the Works, the Hearth's colors), so the fix is the playtest's shape, not a system: bring strangers in at the same hour, in batches, so each one's first town has bodies in it. Until then the store page must not promise a crowd.
+
+**Walk-through against real data.** Level curve from `src/core/xp.js charXpForLevel` (Level 2 at 143 XP, 3 at 429, 4 at 1,001, 5 at 2,136). Each step uses only the start kit (`src/data/start-kit.js`) and the steps before it.
+
+| # | Step | Holds and can reach | Number | Measured or assumed |
+|---|---|---|---|---|
+| 1 | Take Tamsin's Giant Rats at Level 1, no hunt yet | In town, her icon on the row, task `cellar_giant_rats` (`tally-tasks.js`). No weight picked: the first Take asks for heavy | Take is on, the task reads "Giant Rats 0/120" | **Measured**, 3 of 3 fresh heroes |
+| 2 | Enter the Mill Cellar | Sword and shield worn, 20 Cooked Shrimp | In the hunt about 40 s after the first town frame | **Measured** (hand play) |
+| 3 | 25 rats | Rats are 61% of kills (`hunt-grounds.js`: 3 of the room's 5 spawns) | 24 to 29 rats at hunt minute 5 to 6. Level 3 with 720 to 870 XP | **Measured**, 3 heroes |
+| 4 | Leave, back in town | Leave hunt on the hunt bar | 25 s to leave | **Measured** (hand play) |
+| 5 | Tamsin pays a Bronze Helm | Her Cellar piece for heavy is the Bronze Helm (the board read "100 gp + a Bronze Helm"). Pay lands on return to town | Bronze Helm, worn from Level 1 (`items.js`) | Board line **measured**. The pay on return at 25 rats is **assumed**: not played, the count is still 120 |
+| 6 | Equip upgrades wears it | An empty head slot takes the picked weight (`upgrade-plan.js`) | | **Assumed** from the code. Unplayed |
+| 7 | Back down to Level 5 | Level 3, about 800 XP, 1,336 to go | About 135 XP a minute at Levels 3 to 4, so about 10 minutes. Level 5 came at 15 min 45 s of one unbroken hunt | Pace **measured**. The split trip is **computed** |
+| 8 | The away line on return | Speaks after 10 minutes away (`away-recap.js AWAY_MIN_MS`) | A player who comes back at minute 5 gets nothing | Rule read from code. The 8-hour line was **measured** |
+| 9 | A gear drop before minute ten | Helms drop only from the Hive Wasp, 1.2% each | 1 of 3 heroes found one in 12 minutes. I found one in 16 | **Measured.** Too rare to plan on, which is why Tamsin's helm carries the beat |
+
+Does the timing work? Yes with the count at 25: the helm is on the hero at about 9:00 to 9:30, and the invitation to leave lands at the minute I quit. It does not work at today's 120, which takes 27 minutes of a ground the game sends you out of at 16. That task fails the purpose test as it stands. Money check for the count change: 25 gp per 25 rats is the same gold per rat as today's 100 per 120, her three pays a day cap it at 75 gp, and the helm is given once. It is a catalogue row, so it rides lane C.
+
+**Build list, by first-session value**
+
+| # | Item | Kind | Files |
+|---|---|---|---|
+| 1 | **Tamsin first.** Her Cellar count 120 to 25, gold 100 to 25. Cards "Tamsin's rats" (before the first hunt), "Tamsin owes you" (count done, in the Cellar), "Back down for Level 5". "Out to the brook" shows only on the second trip. Play the walk above to the end | Needs a build lane (C for the row, B for the cards) | `src/data/tally-tasks.js`, its generated catalogue (`tools/gen-tally-tasks.mjs`), `src/data/hunt-tutorial.js`, `src/session/tutorial-sections.js`, `tests/hunt-core/sewer.mjs` (tutorial-walk-through), `tests/tally-window.mjs` TW-1 |
+| 2 | **The coach stays up with Chat open.** Any open window hides the card, Chat too, and Chat is the window a new player leaves open | Needs a build lane, small | `src/shell/launcher.js:46` (pointerFor) |
+| 3 | **A new hero's first return speaks at 3 minutes**, not 10, until Level 5 | Needs a build lane, small | `src/shell/away-recap.js`, `src/shell/alerts.js`, pins in `tests/client-boot.mjs` B-17 and `tests/hunt-core/sewer.mjs` |
+| 4 | **A gear find says so.** The first time a piece of gear drops, one line: "Odalys found an Apprentice Hat." And the summary's Top loot leads with the best find, not the biggest pile (it read "Rat Tail ×31") | Needs a build lane, small | `src/data/alerts.js`, `src/shell/alerts.js`, `src/hunt-view/summary-model.js` |
+| 5 | **On a return, Summary shows the hunt that's running**, not the last one that ended | Needs a build lane, small | `src/shell/widgets/hunt-topbar.js`, `src/hunt-view/summary-model.js` |
+| 6 | **Bless all three in one press** (the first principle: one decision, three presses) | Needs a build lane, small | `src/shell/windows/services.js` |
+| 7 | **The Works' gold button isn't "Give the 526 gp you have"** for a hero in its first hour. The small gift leads | Needs a build lane, small | `src/shell/windows/havora/works.js` |
+| 8 | **The funnel's three missing events** (below) | Needs a build lane, small | `src/net/observability.js`, `src/shell/alerts.js` |
+| 9 | Sign-in pitch, "Plant your land", "Out to the brook" | **Data and text. Done in this lane** | `src/app/sign-in.js`, `src/data/hunt-tutorial.js`, `tests/client-boot.mjs` B-9 |
+
+Changed in this lane, three lines. The pitch: "Your hero keeps hunting after you close the game." Plant your land: "Your hero doesn't need you watching. While it fights, open the Farm and plant a Turnip Seed in each empty plot. Turnips take 4 hours to grow and cook into Turnip Juice, a drink." Out to the brook: "Level 5 opens Meadowbrook Thicket. That's about fifteen minutes of hunting here, and you don't have to watch. Close the game and your hero keeps hunting until its stamina runs out. Everything it earns will be waiting for you." They are mine, so the release's reader judges them (`tools/player-read.local.mjs`).
+
+**What to measure with strangers.** One funnel for the first session, one for the first return. "Sent" means the client sends it today (`src/net/observability.js`).
+
+| Step | Event | Sent today | The number that says the hook works |
+|---|---|---|---|
+| S1 | `signup_done` | Yes | The base |
+| S2 | `first_town` | Yes | 90% of S1 |
+| S3 | `hunt_started`, the first | Yes | 90% of S2, median under 90 s after `first_town` (my play: 40 s) |
+| S4 | `level_reached` with level 4, the quit minute | Yes | 75% of S3. Under 60% says minute 9 still loses them |
+| S5 | `first_gear_equipped` | Yes | 60% of S3 inside 12 minutes, once Build 1 ships |
+| R1 | Left the page with a hunt running | **Missing**: `left_with_hunt_running` (hunt, level, session minutes) | 60% of first sessions end this way. This is the hook, counted |
+| R2 | The away line came up | **Missing**: `away_recap_shown` (minutes away, still hunting, Levels gained). `session_return` fires only when the hunt is over, so my 8-hour return sent nothing | 50% of R1 inside 24 hours |
+| R3 | `session_return` (the hunt ended while away) | Yes | Read beside R2, never alone |
+| R4 | `first_sale` or `first_gear_equipped` after the return | Yes | 70% of R2 |
+| R5 | `hunt_started` inside 10 minutes of the return | Yes | 80% of R2 |
+
+Also missing: `first_gear_found` (the drop in Build 4). `tutorial_card` already carries every card by id, so Tamsin's cards need no new event.
+
+**Checklist** (`QUALITY_CHECKLIST.md` §1). Done and verified: the play and its numbers, the Take at Level 1, the rat pace, copy-lint on the three lines (exit 0). Done and not verified: the three lines on screen (edited after the play, not re-read in the game). Assumptions: steps 5 to 7 of the walk, every funnel target (no stranger has played yet, so each is a first guess to correct after the first batch).
+### 2026-11-11 Designer re-read: fun, hours 1-20 (designer, lane/d-fun-reread, CLAUDE.md §3.5, after v0.2.113-0.2.118): PLAYED on the local world, design only, nothing built
+**Method.** origin/main 3554ebc67 (v0.2.118) on `tools/qa/local-world.mjs serve`, the real `play.html` at 1024x768, a brand-new account from the sign-in screen. **Wrenna**, sword and shield, alone, one hero slot. Every coach followed as a new player would. Hours stood in by `skip` (watched) and `wait 480 --away` (page closed). About 19 hunted hours over four sittings and three nights. Every number below is the game's own screen text.
+
+**Wrenna's stops** (the game's summary or analyzer)
+| Hunted | Level, purse | Where | XP/h | Balance/h | What the screen said | What I wanted |
+|---|---|---|---|---|---|---|
+| 1.5 min | 2 | Mill Cellar | | | Coach: "Plant your land", then "Out to the brook: keep hunting here until Level 5 ... close the game and your hero keeps hunting" | To see Level 5. The promise lands |
+| 18 min | 5, 620 g | Cellar, left | 7.9k | +1.9k | "Next: Wear what you found" (a Bronze Helm). Then Hearth, Blessings, Sell junk, Tamsin, Thicket, one press each | Every step had a next thing. The best 20 minutes in the game |
+| 8.8 h | 10, 17.3k | Thicket overnight (tab open) | 24.0k | +2.7k | "Decide once" (loot plan), Dispatch sold 17 stacks for 5,407 g. Tamsin paid 480 g **and a Bronze Helm** (15 in the bag, one worn) | Gear. I had 9 Bronze Platebodies and still no weapon |
+| 12.1 h | 11, 24.1k | Wickstead, Dangerous, page closed 8 h | 37.1k | +3.5k | "**The hunt has ended 5 h 45 min ago.** Out of stamina" | To know what my hero did for those 5 h 45. Nothing told me a town job would have filled them |
+| 13.1 h | 12 | Glade Normal, 5 under, "Enter anyway" | **71.1k** | **+4.8k** | "Taking a beating? Your hero has eaten 183 times" | To stay. Three times the Thicket, still profit, no death |
+| 18.9 h | 16, 40.7k | Glade overnight, page closed | 69.2k | +4.7k | "Level 11 to 16". The hero went back to mining copper by itself (2,511 Copper Ore in the bag) | A sword. **Weapon: Practice Sword**, with **6 Bramble Blades** (+2/+2, Level 15) in the bag. "Equip upgrades" put on 5 armor pieces and skipped the blade |
+
+Second hero slot at 19 h: "A second hero slot costs 300,000 gold ... Most players can buy a second hero after about a week" (40,707 held). Honest, and a real week goal.
+
+**The three best moments (verified in play).**
+1. **Minute 0 to 20.** Create, one coach to Hunts, kills in 18 s, Level 2 at 1:26, Level 5 at 17 min, then a press-by-press tour (wear, Hearth, Blessings, sell junk, Tamsin, Thicket) where every step names the next one. Nothing to wonder about.
+2. **"Decide once" plus Dispatch.** Set each drop's plan once, one press sells 17 stacks for 5,407 g, and every later return uses the same plan. The first principle, working.
+3. **Pushing a ground.** The Glade 5 Levels under: one plain warning, one "Enter anyway", 71k XP/h against 24k in the Thicket, Level 11 to 16 overnight. A real choice that pays (Tyler 11-04, 11-06).
+
+**The three worst moments (verified in play).**
+1. **19 hours with the Practice Sword.** Damage 1-13 at Level 16 while 6 Bramble Blades sat in the bag. `upgrade-plan.js` never picks a piece with an effect it can't price, and a bane is one, so the only weapon a solo sword hero finds is the one Equip upgrades refuses. The tooltip shows "+2 Melee accuracy, +2 Melee damage" and no bane, so the player can't see why. Iron Swords drop only from the Sewer's Kobold Tosher (a party ground the solo path skips) or come from Smithing 15, and nothing points at either.
+2. **The second night pays three hours.** Stamina had 3 h 13 m after night one, so 8 h away gave 3 h 14 m of hunting and 5 h 45 m of nothing, and the return card only says when it ended. The fix is already in the game (a hero goes back to its last town job when a hunt ends; mining did resume on night three), but nothing teaches it.
+3. **Rewards already in the bag.** Tamsin's first task paid a Bronze Helm (worn, plus 14 found), the Turncoats paid an Iron Platebody already found. The summary's "Top loot" leads with Bones, Rat Tail and Wheat by count, so the Iron Platebody and the Alpha Fangs never get a line.
+
+**Top 10, ranked by first-20-hour value**
+| # | What the player feels now | What changes | Size | Where |
+|---|---|---|---|---|
+| 1 | "I've hunted 19 hours and I'm still swinging a practice sword." | Equip upgrades counts a bane as a plus, never a reason to skip, so a same-family weapon better on the numbers goes on. The tooltip names the bane ("Hits plants harder"). | S | client (`src/shell/upgrade-plan.js`, item tooltip) |
+| 2 | "I came back and it stopped 6 hours ago. What a waste." | The away card says what the hero did after the hunt ("then mined 2,400 Copper Ore"), or, if it sat idle, says so and how to fix it: "Pick a town job before you hunt and your hero goes back to it when stamina runs out." Plus one coach after the first stamina end (walk-through below). | M | client (away card, one `hunt-tutorial.js` step) |
+| 3 | "Tamsin paid me a helm I'm already wearing." | Her armor pick skips a slot the hero already wears at that tier or better and moves to the next slot in the player's order. | S | server (tally pay RPC) + one line of board text |
+| 4 | "I have 1,100 Raw Wolf Meat and I can't cook any of it." | Cook Wolf Meat at Cooking 1, so the Thicket's meat is the first real food a hunter makes, and "Cook your catch" points at it. It heals 72, the same as the 14 g Salted Shrimp the bar buys (980 eaten in one Glade night), so own meat cuts the store bill: measure the profit band first. | S + a measure | data (`recipes.js:54` req) + Systems |
+| 5 | "The coach says press Runes, and there's no Runes tab." | The rune coach says "then Spells". Configure action's "Shares a cooldown with Power Strike (slot 2), which fires first when both are ready" reads like "this never fires", yet 2,484 casts went off in one night: say "Waits for Power Strike when both are ready." | S | data (`hunt-tutorial.js` first_spell, `text/bar.js` shared_cooldown) |
+| 6 | "The best thing I found isn't on the summary." | Top loot leads with gear and rare drops by value, then the rest. The away card names the best drop of the absence. | S | client (summary, away card) |
+| 7 | "Dangerous says I can die, and my HP never moved." | Wickstead Dangerous at Level 10: HP 284 of 284, 0 deaths, 2 own meals in the watched hour. The Glade 5 under on Normal: 0 deaths in 6.8 h. Inside Tyler's 11-04 line (monster stats only), the first grounds' harder tiers get a measured dmg raise so "You can die here" is true for a hero who presses them under-geared. | M | data (`hunt-tiers.js` rows) + the balance lane's measure |
+| 8 | "17 dropdowns, one item at a time." | One tick in the loot plan: "Sell gear worse than what you wear". The per-item plan stays for everything else. | M | client + server (a category rule beside the per-item plan) |
+| 9 | "It sold 17 stacks and then said nothing is set to Sell." | After Dispatch the line says what the plan did: "Your loot plan sold 17 stacks for 5,407 gp." | S | client |
+| 10 | "Three presses to bless again, every time." | One "Bless all" press (free under Level 30). The hard-ground warning says the share you'd really lose with your blessings on ("you lose 1.5% of your Level XP"), not the unblessed 6% it shows today with 3 of 3 on. | S | client (Shop Services, `text/hunts.js` range_die fed the server's blessings) |
+
+**Purpose test, every system met in hours 1-20** (problem it solves / decision it adds / what it plugs into, then the call)
+| System | One line | Call |
+|---|---|---|
+| Hunts and tiers | Where to spend stamina / safe, faster or harder / XP, gold, drops, Tamsin | KEEP. Pushing pays (best moment 3). First-ground tier risk: #7 |
+| Action bar, Configure action | How my hero fights unattended / slot order and conditions / every supply and spell | KEEP. The food and drink tables ("g per HP, cheapest first") make a real choice. Copy: #5 |
+| Food and drink | Staying alive / own first or store, which one / Cooking, Farming, the store | FIX #4: the hunter's own meat has no use before Cooking 5 |
+| Runes, Flame Strike | More XP for gold / "+15% XP for about a fifth less gold", said in the coach / the rune shop, Runecrafting later | KEEP. The trade is real |
+| Shop (Buy, Sell, Services) | Junk, blessings, stamina / sell all junk or keep materials | KEEP. #10 |
+| Weighhouse | Trading with others / what to list, at what price | **Not reached**: "The Weighhouse isn't trading right now" on the local world |
+| Storage | Room once the bag fills / what to put away | KEEP. Not needed by hour 19 (66 of 100 bag spaces) |
+| Gathering (Mining) | Materials, and something to do off stamina / which rock / Smithing, the House | KEEP. It resumed by itself after the hunt. Teach it: #2 |
+| Crafting, Smithing, Cooking, Fletching | Better gear and cheaper supplies / what to make | FIX. In 19 h the only bench work a hunter was led to was 10 shrimp and 13 turnips; the sword ladder runs through Smithing 15 and nothing points there. #1 and #4 first; a "made from what you carry" goal after |
+| Farm | Free drink, Farming XP / what to plant | KEEP, small. 2 plots made 39 Turnip Juice against 101 to 171 drunk a hunt. Water and harvest are a press a plot: fine at 2, a chore at more |
+| The Hearth (Inner Flame) | A use for bones / when to burn | KEEP. One press, "+218 Inner Flame XP", "Regeneration +5.6% (Inner Flame)" on the sheet |
+| House | A long goal for gold and materials / which room first | KEEP. The Homestead wants 400 g, 20 Copper Ore (2,511 held) and 30 Normal Log (none). Woodcutting is the gate, and no coach names it |
+| Blessings | Softening death / bless or not | KEEP. #10 |
+| Tamsin's tally | A reason to pick a ground / which task, which armor weight | FIX #3 |
+| Party | Playing together / who to bring | **Not reached**: one hero slot, "1 online" |
+| Rings and perks | Crafted identity, gear choices | **Not reached**: no ring found or made in 19 h; every jewelry slot empty at Level 16 |
+| Hero slots | Your own party, later / save 300,000 g | KEEP. The week goal is honest |
+
+Cut: nothing. Merge: nothing.
+
+**The chase as it stands.**
+- **Hour:** the Level ring, a coach that always names the next press, Tamsin's count on the hunt list. Strong to Level 5, thinner after.
+- **Day:** the next ground (each tagged "Right for your level" or "Next step up") and Iron at Level 15. Strong, except the weapon, which the screen never names (#1).
+- **Week:** the second hero (300,000 g, "about a week"), the Homestead, the Warrens at 32, Steel at 30. Real, but the crafting half needs Woodcutting and Fishing, and a hunter is never pointed at either.
+
+**The away and return.** Night one (tab open past 8 h): Level 5 to 10, 23k balance, Tamsin paid, "Wear what you found". It pays. Night two: 3 h 14 m hunted, 5 h 45 m idle, Level 10 to 11, and the card only says when it ended. It doesn't pay, and every player meets it on their second night (#2). Night three (Glade, a mining job set): Level 11 to 16, 27k balance, mining resumed. It pays, but the card never says the copper was mined.
+
+**Evidence, sorted.**
+- **Verified in play:** every stop and quote above; the stuck tooltip below; the rune coach's missing tab (the tabs read "Spells, Food & drink, Ammo"); "Nothing is set to Deposit or Sell yet." right after "Sold 17 for 5,407 gp."; Practice Sword at Level 16 with 6 Bramble Blades; Tamsin's helm; 0 deaths at Wickstead Dangerous (1 h watched, 3.2 h away) and the Glade 5 under (6.8 h); the 300,000 g slot line.
+- **Read in code:** why the blade is skipped (`upgrade-plan.js`: never "one carrying an effect the numbers do not price (a bane, an away effect)"); Iron Sword sources (Kobold Tosher, `monsters.js:704`; Smithing 15, `gear-tiers.js`); Cook Wolf Meat at req 5 (`recipes.js:54`); Flame Strike and Power Strike in one offense lane (`abilities.js`); the warning reads the unblessed share (`text/hunts.js` range_die).
+- **Assumed, not played:** hours 20 to 40; a death and re-blessing; a party; the Weighhouse; rings; a bow or wand hero; phones. A skip compresses time, so whether a drop reveal plays on a watched hunt was not seen.
+
+**Walk-through: the one sequence proposed (#2's coach, after the first stamina end).** Every name pressed on the local world.
+| Step | What the player holds and can reach (steps before + the kit) | The coach says | Doable |
+|---|---|---|---|
+| 1 | In town after "Your stamina ran out" (night two, seen) | "Your hero sat idle for 5 h 45 min. Give it a town job before you hunt and it goes back to it when your stamina runs out." | Text only |
+| 2 | Gathering and crafting (G) is on the top bar from minute 0 (pressed) | "Press Gathering and crafting, then Mining, then Start on the Copper Rock." | The Copper Rock reads Start at Mining 1 with no tool (pressed; the page says "No tool in your bag. Bronze Pickaxe from the Shop") |
+| 3 | Mining running ("In town, mining the Copper Rock", seen) | "Now pick your hunt. When your stamina runs out, your hero comes home and mines." | Proved on night three: the hero came home mining |
+
+**Handoffs.** Art-director: at 1024x768 the hunt is mostly covered by the Party card, the coach, the analyzer and the Tally, and the bag shows two and a half rows. Client bug (verified): a bag tooltip ("Raw Shrimp", `.hw-tip.is-on`) stayed up after its window closed by hotkey, through mouse moves and a hunt start, until reload. Systems: #4's profit re-measure and #7's tier rows. Coordinator: #3 is a server body change (lane C).
 
 ### 2026-11-08 One difficulty for every group, and a small solo boost (designer, lane/b-one-difficulty; **Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged. Either they are strong enough to do the harder content or they aren't simple as that"**, then **"Same monsters, re-tune"**): BUILT and RE-TUNED as data, measured on the real engine, four files STAGED (tiers, hunt-sessions, scaled hunts, the Level curve), the edge moves. **Tyler: four reds below are a bar the rule moves, each his call**
 **The call.** A tier is now the same fight for one hero or four: one pull a tier, the same damage and HP. A hero hunting alone earns +5% Level XP (`src/data/party-class-xp.js` `SOLO_XP_PM`), and every mixed-class cell carries the same +5%, so a mixed party keeps its measured lead over the same heroes alone while a one-class party falls 5% further under one. The bigger pulls start at the Glade's floor (`TIER_PULL_FROM_FLOOR` 16): on the Thicket, Wickstead and the Sewer the harder tiers bring no more monsters, for anyone. The lone-hero tier targets are retired (`loneMustCost`, `loneHeldMin`): the sheet now judges what a tier pays whoever holds it, and keeps one ceiling, a four at the floor holds Deadly.
@@ -348,33 +549,33 @@ Every solo ground is back in the pace band. The party grounds' fours read over i
 **Two generic ideas I cut.** A boss standing in the last pocket of the route would be killed thirty times an hour by an idle loop, and a final boss can't be a lap monster. A castle full of more undead would be a fifth ground with the same answer (hammer). So Krell gets a room you enter on purpose, and the Hold mixes living and dead in one pull.
 
 #### 1. The place
-The Stokers' cart road runs north off the Pyre Field and up the hill. The pyre wood came down that road from Krell's yard. The Hold is at the top. It is small, gray and in good repair, because people still live in it. Smoke comes from one chimney. That is the Hall Fire, the fire the Binders' rite tied the dead to. There is no travel time in the game today, so the player reaches it from the Hunts list at Level 85 and stands on the cart road at the gate.
+Follow the Stokers' cart road north off the Pyre Field and up the hill. It's the same road the pyre wood came down from Krell's yard, and the Hold is waiting at the top. It's a small gray castle in good shape, because people still live there, and smoke comes out of one chimney. That smoke is the Hall Fire, the one Krell's priests tied the dead to when they lit the pyres from it. (There's no travel time in the game today, so a player picks it from the Hunts list at Level 85 and starts on the cart road at the gate.)
 
 | # | Area | Who is there | Why it exists |
 |---|---|---|---|
-| 1 | **The Cart Gate** | Levies, one Picket | The soft door. A hero under 85 pushing for tier 6 boots stands here |
-| 2 | **The Drill Yard** | Levies, Pickets on the wall walk | All living. The bow's ground and the poison rune's ground. The woodyard that fed the pyres is here |
-| 3 | **The Chapel** | Binders, Warders | Where the rite was written. A Binder mends the dead beside him, so kill order matters. The caster's prizes drop here |
-| 4 | **The Undercroft** | Warders in ranks | The officers Krell dug out of the Muster Barrows. All dead. The hammer's ground. An Emberstone Vein in the cellar rock (the node kind has no sprite yet, the Pyre lane flagged it) |
-| 5 | **The Keep Stair** | The Castellan, Warders, Pickets | The hardest pull and the rare carrier. The Hall Key drops here |
+| 1 | **The Cart Gate** | Farmhands, one Lookout | The soft door. A hero under 85 pushing for tier 6 boots stands here |
+| 2 | **The Drill Yard** | Farmhands, Lookouts on the wall walk | All living. The bow's ground and the poison rune's ground. The woodyard that fed the pyres is here |
+| 3 | **The Chapel** | Pyre Priests, Grave Guards | This is where Krell's priests worked out what to chant over the bodies. A Pyre Priest mends the dead beside him, so kill order matters. The caster's prizes drop here |
+| 4 | **The Crypt** | Grave Guards in ranks | Krell had some of the dead officers dug back out of the Muster Barrows to guard his cellar. The hammer's ground. An Emberstone Vein in the cellar rock (the node kind has no sprite yet, the Pyre lane flagged it) |
+| 5 | **The Keep Stair** | The Gatekeeper, Grave Guards, Lookouts | The hardest pull and the rare carrier. The Hall Key drops here |
 | 6 | **Krell's Hall** | Lord Krell, the Hall Fire | Not on the route. One room, one fight, opened with a key |
 
-The route is 1 to 5 and back out through the sally port to the gate. Areas 2 and 4 disagree on purpose. A lone bow lives in the yard and a lone hammer lives in the cellar. Mixed parties earn the most in the Chapel and on the Stair.
+The route is 1 to 5, then out the back gate and around to the front. Areas 2 and 4 disagree on purpose. A lone bow lives in the yard and a lone hammer lives in the cellar. Mixed parties earn the most in the Chapel and on the Stair.
 
 **The axis it wins and loses (proposed, unmeasured).** It wins tier 6 armor, the boss, and mixed-party XP. It should lose to the Pyre Field on a lone hero's gold, because no one weapon answers a whole lap here.
 
 #### 2. The sample of five
-One difficulty for every group size. No solo or party label and no gate. Stats are `formulaStats` on main (tier 6, floor 85, fit `both`), not played. Head count at density 4 over five pockets is 8 Levies, 4 Warders, 3 Pickets, 3 Binders, 2 Castellans.
+One difficulty for every group size. No solo or party label and no gate. Stats are `formulaStats` on main (tier 6, floor 85, fit `both`), not played. Head count at density 4 over five pockets is 8 Farmhands, 4 Grave Guards, 3 Lookouts, 3 Pyre Priests, 2 Gatekeepers.
 
 | Creature | Level, role | Tied to | Class, weak to | New here | Formula row |
 |---|---|---|---|---|---|
-| **Levy** | 86, swarm | Krell. Farmhands he pressed to hold his walls | Human. Arrows, poison +15% | The March's first living enemy. Poison did half to every dead thing for four grounds. It works here | hp 114, atk 78, xp 1,151, gp 24-72 |
-| **Hask's Picket** | 88, glass | Captain Hask. The sentries he pulled off the line at the Ford. They took Krell's pay too | Human. Arrows | Shoots a crossbow from range at the hero farthest back and doesn't walk in. Challenge turns his aim to the tank | hp 109, atk 103, xp 1,333, gp 23-69 |
-| **Warder** | 92, heavy | The Barrows. A company officer dug up and set at Krell's doors | Undead. Hammer, fire +15% | The first regular monster with a marked heavy hit. A shield slam on the tiles in front of him. The tank holds, ranged heroes step off | hp 182, atk 78, xp 2,077, gp 38-115 |
-| **Binder** | 95, regular | The Pyre. Krell's priests, who said the rite on the field | Human. Arrows | Mends the dead in his pull. The first monster that heals. Leave him alive and the Warders take far longer to drop (how much is unmeasured) | hp 157, atk 100, xp 1,650, gp 33-99 |
-| **Castellan** | 100, elite | Krell. He keeps the castle and its keys | Human in plate, so hammer (one override) | No trick. He is the first monster whose drop opens a fight | hp 263, atk 105, xp 3,244, gp 55-166 |
+| **Farmhand** | 86, swarm | Krell. Farm workers he dragged off their land to stand on his walls | Human. Arrows, poison +15% | The March's first living enemy. Poison did half to every dead thing for four grounds. It works here | hp 114, atk 78, xp 1,151, gp 24-72 |
+| **Hask's Lookout** | 88, glass | Captain Hask. The guards he pulled off the crossing that night. They took Krell's money too, and they've worked for him ever since | Human. Arrows | Shoots a crossbow from range at the hero farthest back and doesn't walk in. Challenge turns his aim to the tank | hp 109, atk 103, xp 1,333, gp 23-69 |
+| **Grave Guard** | 92, heavy | The Barrows. A company officer Krell dug back up to stand at his doors | Undead. Hammer, fire +15% | The first regular monster with a marked heavy hit. A shield slam on the tiles in front of him. The tank holds, ranged heroes step off | hp 182, atk 78, xp 2,077, gp 38-115 |
+| **Pyre Priest** | 95, regular | The Pyre Field. Krell's priests, the ones who burned the soldiers and chanted over them | Human. Arrows | Mends the dead in his pull. The first monster that heals. Leave him alive and the Grave Guards take far longer to drop (how much is unmeasured) | hp 157, atk 100, xp 1,650, gp 33-99 |
+| **Gatekeeper** | 100, elite | Krell. He runs the castle and carries the keys | Human in plate, so hammer (one override) | No trick. He is the first monster whose drop opens a fight | hp 263, atk 105, xp 3,244, gp 55-166 |
 
-Each one is a question from the boss exam. The Levy says Krell is a living man and your undead kit is wrong for him. The Picket is his adds going for the back line. The Warder is his marked hit. The Binder is "kill the helpers first". The Castellan is the key. Weak-to counts at density 4 are 14 to arrows and 6 to a hammer, so this is the Ranger's ground the way the Slake is the sword's and the Pyre Field is the hammer's.
+Each one is a question from the boss exam. The Farmhand says Krell is a living man and your undead kit is wrong for him. The Lookout is his adds going for the back line. The Grave Guard is his marked hit. The Pyre Priest is "kill the helpers first". The Gatekeeper is the key. Weak-to counts at density 4 are 14 to arrows and 6 to a hammer, so this is the Ranger's ground the way the Slake is the sword's and the Pyre Field is the hammer's.
 
 **Sample rule.** These five get built, played and read by the art director before any sixth creature is written.
 
@@ -384,11 +585,11 @@ Level 110, Human, an old man in Dawnsteel plate who has sat with that fire at hi
 | Phase | What happens | What the bar answers with |
 |---|---|---|
 | 100% to 50% | He swings at the tank. **Rake the Coals** is a marked cone of coals out of the Hall Fire. **The Hall Fire flares** every 20 s and hits every hero in the room. Nobody steps out of that one | A shield takes 30% off the cone. Ranged heroes step off it. The flare wants a party heal, food rules and ember resistance |
-| 50% | **He reads the Roll.** Captain Hask and two Warders stand up out of the floor. They go for whoever isn't the tank and they shield Krell while they stand | Challenge, an area slot, and Target set to take them first |
+| 50% | **He reads the Roster.** Captain Hask and two Grave Guards stand up out of the floor. They go for whoever isn't the tank and they shield Krell while they stand | Challenge, an area slot, and Target set to take them first |
 | 25% | He is enraged and hits harder. The Hall Fire flares twice as often | The eat lines and the healer's slots decide the finish |
 | Dead | The Hall Fire goes out | |
 
-**Why players will talk about it.** Hask comes back. Everyone who got here killed him in the Muster Barrows, and now the man who bought him calls him by name and he has to come. The fire is the second thing. It is on the boss bar with its own countdown, so a loss reads "Fell in the enrage at 12%, the Hall Fire had just flared". The third is the end. You take a page of the Muster Roll home and burn it at Havora's Hearth, and the square's fire changes for everyone standing there.
+**Why players will talk about it.** Hask comes back. Everyone who got here killed him in the Muster Barrows, and now the man who bought him calls him by name and he has to come. The fire is the second thing. It is on the boss bar with its own countdown, so a loss reads "Fell in the enrage at 12%, the Hall Fire had just flared". The third is the end. You take a page of the Company Roster home and burn it at Havora's Hearth, and the square's fire changes for everyone standing there.
 
 **The boss bar.** Krell's health with lines drawn at 50 and 25, the phase words under it, and one more line for the next flare. That bar exists for called rooms (`src/shell/widgets/boss-bar.js`). The flare line is new.
 
@@ -410,19 +611,19 @@ Level 110, Human, an old man in Dawnsteel plate who has sat with that fire at hi
 | 11 | Rows that are missing | Captain Hask has art on lane/b-muster-barrows-art and no monster row on main. No tier 7 wand or spellbook. Hatchets and crossbows stop at tier 3 | Designer |
 | 12 | The hall remembers the bar setup a hero last entered with | Setups are not tied to a ground | Systems. First principle |
 
-Pieces 2, 3 and 4 are only for this ground's Picket and Binder. If they slip, those two creatures wait. They do not ship as plain melee bodies, because that is a reskin.
+Pieces 2, 3 and 4 are only for this ground's Lookout and Pyre Priest. If they slip, those two creatures wait. They do not ship as plain melee bodies, because that is a reskin.
 
 #### 4. Drops
 Every id below was read on main (`ITEMS`), except the rows marked new.
 
 | From | Common | Scarce, about hourly a piece | Rare |
 |---|---|---|---|
-| Levy | Bones, coin, Press Token (new) | Tier 6 boots in three weights (`ember_boots`, `dragonhide_boots`, `archmage_boots`), `ember_sword` | |
-| Hask's Picket | Bones, Picket Whistle (new) | Tier 6 helmets (`ember_helm`, `dragonhide_helmet`, `archmage_helmet`), `runewood_bow` | Tier 6 gloves in three weights |
-| Warder | Big Bones, Grave Dust, Barrow Nail (new) | Tier 6 legs (`ember_platelegs`, `dragonhide_pants`, `archmage_pants`), `ember_warhammer` | Tier 6 belts in three weights |
-| Binder | Bones, Coal, Binder's Cord (new) | `runewood_staff` | `runewood_wand`, `runewood_codex` |
-| Castellan | Big Bones, Castellan's Chain (new), **Hall Key** (new, uncommon) | Tier 6 bodies (`ember_platebody`, `dragonhide_body`, `archmage_body`) | |
-| Lord Krell | Coin | | Each about 1 kill in 10. `dawn_sword`, `dawn_warhammer`, `duskwood_bow`, `duskwood_staff`, and the tier 7 body and helm in three weights. **Roll Page** (new, named fuel). Trophy **Krell's Toll Box** (new, 100-150 h) |
+| Farmhand | Bones, coin, Farmhand's Tag (new) | Tier 6 boots in three weights (`ember_boots`, `dragonhide_boots`, `archmage_boots`), `ember_sword` | |
+| Hask's Lookout | Bones, Lookout Whistle (new) | Tier 6 helmets (`ember_helm`, `dragonhide_helmet`, `archmage_helmet`), `runewood_bow` | Tier 6 gloves in three weights |
+| Grave Guard | Big Bones, Grave Dust, Barrow Nail (new) | Tier 6 legs (`ember_platelegs`, `dragonhide_pants`, `archmage_pants`), `ember_warhammer` | Tier 6 belts in three weights |
+| Pyre Priest | Bones, Coal, Priest's Cord (new) | `runewood_staff` | `runewood_wand`, `runewood_codex` |
+| Gatekeeper | Big Bones, Gatekeeper's Chain (new), **Hall Key** (new, uncommon) | Tier 6 bodies (`ember_platebody`, `dragonhide_body`, `archmage_body`) | |
+| Lord Krell | Coin | | Each about 1 kill in 10. `dawn_sword`, `dawn_warhammer`, `duskwood_bow`, `duskwood_staff`, and the tier 7 body and helm in three weights. **Roster Page** (new, named fuel). Trophy **Krell's Toll Box** (new, 100-150 h) |
 
 **Where tier 6 armor comes from.** Here. All eighteen pieces, three weights by six slots, Scarce on the five bodies. It is worn from Level 75, so every piece is wearable the hour it drops. That closes the audit's hole. It also leaves a real gap that I am keeping. A hero at 75-84 can wear tier 6 armor and has no ground in range that drops it. They push into the Cart Gate early and pay for it in food and deaths, which is the risk rule working (Tyler 11-04, 11-06). If testers stall at 75-84, the fix is the Pyre Field's Provost carrying the tier 6 boots, a one-row move.
 
@@ -432,20 +633,20 @@ Every id below was read on main (`ITEMS`), except the rows marked new.
 - Bones, Big Bones and Grave Dust burn at the Hearth. Coal goes to the forge.
 - The five new commons are imbuement items, one of each kind, kept for the imbuer like every ground's.
 - The Hall Key opens Krell's Hall once. About one key every two hours for a lone hero at the floor. Proposed, unmeasured.
-- A Roll Page burns alone at the Hearth for a burst of Inner Flame XP and turns the square's fire for everyone. One `NAMED_FUELS` row and one flame ramp.
+- A Roster Page burns alone at the Hearth for a burst of Inner Flame XP and turns the square's fire for everyone. One `NAMED_FUELS` row and one flame ramp.
 - Krell's Toll Box goes on the house trophy shelf. It is the box the ford's toll went into, and it is what all of this was for.
 - First kill gives a title. My pick is **Holdtaker**. Tyler names titles.
 
 **Open for Tyler, through the Coordinator.** Does a Hall Key trade? My default is no, like a trophy, because a traded key is a bought boss attempt and buying rare drops is on his avoid list. And three tier 7 names carry a banned word in the data today (`voidhide`, `voidweave`). I'd rename them Duskhide and Dawnweave before anyone sees one drop.
 
-**Exploit read.** Krell pays only through a key, and a key only comes from kills, so gold never buys his drops. A mended Warder pays once. The hall has no tiers, so nobody farms him on Normal for Deadly loot. The 1 in 10 rows break the 5% row ceiling on purpose, and the loot-band guard has to learn a per-kill boss before those rows land.
+**Exploit read.** Krell pays only through a key, and a key only comes from kills, so gold never buys his drops. A mended Grave Guard pays once. The hall has no tiers, so nobody farms him on Normal for Deadly loot. The 1 in 10 rows break the 5% row ceiling on purpose, and the loot-band guard has to learn a per-kill boss before those rows land.
 
 #### 5. The chase for a Level 85 hero
 | When | What they want |
 |---|---|
 | The first hour | A tier 6 piece on the doll. A first Hall Key in the bag. Finding out the bow matters here |
 | The first day | Most of a tier 6 set in their weight. Three to six tries at Krell. The first time Hask stands up. Maybe the kill and the title |
-| The first week | A Dawnsteel piece at 88. A Roll Page burned in front of the square. The Undercroft on Deadly once resistance exists. The Levy's first bestiary stage at 2,500 kills |
+| The first week | A Dawnsteel piece at 88. A Roster Page burned in front of the square. The Crypt on Deadly once resistance exists. The Farmhand's first bestiary stage at 2,500 kills |
 | After that | The Toll Box at 100-150 hours, and Level 110 |
 
 **What makes them do the next thing.** Every lap of the castle moves them toward a key. Every key is a fight they can lose. Every loss says where it was lost.
@@ -458,45 +659,45 @@ A Level 85 hero back from the Pyre Field in its tier 5 set, with the Pyre bar (`
 | 1 | Opens Hunts and sees Krell's Hold, Level 85-110 | Level 85 | Yes, once the pack row exists. `hunt-list.js` reads it |
 | 2 | Picks Normal | Step 1 | Yes, tiers are on main |
 | 3 | Swaps the ice rune for `chalked_poison_rune` on the bar | The Pyre bar | Yes, a real store row. **First principle flag.** Nothing ties a saved setup to a ground |
-| 4 | Enters at the Cart Gate. First pull is Levies and a Picket | Step 3 | Not yet. No map, and the Picket needs piece 2 |
+| 4 | Enters at the Cart Gate. First pull is Farmhands and a Lookout | Step 3 | Not yet. No map, and the Lookout needs piece 2 |
 | 5 | First kills give coin and Bones | Step 4 | Yes, real rows |
 | 6 | About an hour in, wears a first tier 6 piece | Step 5's kills | Yes. `ember_boots` is Level 75 |
-| 7 | A Castellan on the Stair drops a Hall Key | Laps of the route | Needs the item row |
+| 7 | A Gatekeeper on the Stair drops a Hall Key | Laps of the route | Needs the item row |
 | 8 | Back in town, the Hold's page offers "Enter Krell's Hall" for one key, with the warning and one confirm | Step 7's key | Needs piece 5 |
-| 9 | Fights Krell. Loses at the Roll the first time | Step 8 | Needs pieces 1, 6, 7. The losing line exists for called rooms |
-| 10 | Wins. Title, a chance at tier 7, a chance at a Roll Page | More keys | Needs piece 5 and the loot guard |
-| 11 | Burns the Roll Page at the Hearth | Step 10 | Needs the `NAMED_FUELS` row and piece 10 |
+| 9 | Fights Krell. Loses at the Roster the first time | Step 8 | Needs pieces 1, 6, 7. The losing line exists for called rooms |
+| 10 | Wins. Title, a chance at tier 7, a chance at a Roster Page | More keys | Needs piece 5 and the loot guard |
+| 11 | Burns the Roster Page at the Hearth | Step 10 | Needs the `NAMED_FUELS` row and piece 10 |
 | 12 | Sells spare tier 6 at the shop | Step 6 | Needs piece 9, or the gold floods |
 
 Seven of twelve steps wait on something unbuilt. That is the honest size of this ground.
 
 #### 7. Art brief (current style only, `docs/ART_DIRECTION.md`, classes from `src/data/world/art-budget.js`)
-For the generator lane after PixelLab resets on 11-14. Sample first. Draw the Levy and one wall run, read them at x2 beside the Pyre Field, then the rest.
+For the generator lane after PixelLab resets on 11-14. Sample first. Draw the Farmhand and one wall run, read them at x2 beside the Pyre Field, then the rest.
 
 | What | Class, size | Clips | Note |
 |---|---|---|---|
-| Levy | `character`, 64x64, body 36-40 | idle 4, walk 6, death 6. East and west | Quilted jack, bill hook, no helmet. Reads young and scared |
-| Hask's Picket | `character` | same | Crossbow, the Banded Company's striped sleeve under Krell's tabard |
-| Warder | `character` | same | A dead officer behind a door-sized shield. New drawing. The barrow knight has been poured twice already |
-| Binder | `character` | same | Hooded, knotted cord, ash-gray robe. Living skin |
-| Castellan | `brute`, body 41-52 | same | Plate, mace, a ring of keys that reads at x2 |
-| Lord Krell | `brute` | walk, attack, two specials (the rake, reading the Roll), death. 8 and 4 facings like Hask | Old, thin, Dawnsteel plate, the Roll in his off hand |
+| Farmhand | `character`, 64x64, body 36-40 | idle 4, walk 6, death 6. East and west | Quilted jack, bill hook, no helmet. Reads young and scared |
+| Hask's Lookout | `character` | same | Crossbow, the Banded Company's striped sleeve under Krell's tabard |
+| Grave Guard | `character` | same | A dead officer behind a door-sized shield. New drawing. The barrow knight has been poured twice already |
+| Pyre Priest | `character` | same | Hooded, knotted cord, ash-gray robe. Living skin |
+| Gatekeeper | `brute`, body 41-52 | same | Plate, mace, a ring of keys that reads at x2 |
+| Lord Krell | `brute` | walk, attack, two specials (the rake, reading the Roster), death. 8 and 4 facings like Hask | Old, thin, Dawnsteel plate, the Roster in his off hand |
 | Captain Hask | exists | | Reused from lane/b-muster-barrows-art. No generations |
-| Tilesets | 5 chained pro tilesets | | Cart road and gate dirt, yard cobble, chapel flags, undercroft stone, hall boards |
+| Tilesets | 5 chained pro tilesets | | Cart road and gate dirt, yard cobble, chapel flags, crypt stone, hall boards |
 | Walls | wall slices 32x60 | | Gray dressed stone. A feature every 6 tiles (arrow loop, torch, buttress) |
 | Gatehouse and portcullis | `building`, 80-160 | | The landmark at the start tile |
 | The Hall Fire | Needs a class row first. About 96 wide, 4 frames at 8 fps | | A long floor hearth. The art director adds the class. The budget is law |
-| Props, 14 | `fixture`, `bulky`, `station`, `seat`, `box`, `log` | braziers and candle stands 4 frames | Lectern with the Muster Roll, Krell's high seat, the toll box, the company's colors hung upside down, Krell's banner, pells in the yard, weapon rack, woodpile, saw horse, well, open barrow coffins stood on end, candle stand, brazier, chapel bench |
-| Icons, 8 | 32 px pixel items | | Hall Key, Roll Page, Krell's Toll Box, Press Token, Picket Whistle, Barrow Nail, Binder's Cord, Castellan's Chain. Tier 6 and 7 gear icons are already in the bundle |
+| Props, 14 | `fixture`, `bulky`, `station`, `seat`, `box`, `log` | braziers and candle stands 4 frames | Lectern with the Company Roster, Krell's high seat, the toll box, the company's colors hung upside down, Krell's banner, pells in the yard, weapon rack, woodpile, saw horse, well, open barrow coffins stood on end, candle stand, brazier, chapel bench |
+| Icons, 8 | 32 px pixel items | | Hall Key, Roster Page, Krell's Toll Box, Farmhand's Tag, Lookout Whistle, Barrow Nail, Priest's Cord, Gatekeeper's Chain. Tier 6 and 7 gear icons are already in the bundle |
 | Effects, 4 | `vfx` | | Crossbow bolt, the coal cone's mark, the Hall Fire's flare, the dead standing up (a death clip played backward, free) |
 | Portraits, 6 | bestiary, front-facing | | The five and Krell |
 
 That is 6 new creatures, 1 reused, 5 tilesets, 16 structures and props, 8 icons, 4 effects and 6 portraits. The Muster Barrows took 323 generations for a ground, two creatures, 16 props and 4 icons. Assume 400 to 500 here. Not measured.
 
 #### 8. For the Pyre Field lane (the pack is on origin/lane/b-pyre-field, not on main, so I did not edit it)
-- Theme line becomes "Lord Krell's priests burned the Banded Company's dead on this field, and they would not stay burned."
-- Naming voice. The Chantry's words (brother, shroud, prior) become the Hold's (binder, shroud, roll). The short names are Hask and Krell.
-- "Prior Ebbe's Chantry" becomes "Krell's Binders". "Ebbe's rite" and "Ebbe's binding" become Krell's. "The Chantry's wood" and "the Chantry's books" become the Hold's and the Binders'. The Shroud Pin's line says "a Binder" where it says "a Chantry brother". "Tier-6 armor waits for Ebbe's Chantry" becomes Krell's Hold.
+- Theme line becomes "Krell's priests burned the Banded Company's dead here, but they lit the pyres from Krell's own fire, so the dead never got to rest." (lane/d-plain-lore 11-11, the approved story's facts)
+- Naming voice. The Chantry's words (brother, shroud, prior) become the Hold's (priest, shroud, roster). The short names are Hask and Krell.
+- "Prior Ebbe's Chantry" becomes "Krell's priests" (the Pyre Priests). "Ebbe's rite" and "Ebbe's binding" become Krell's. "The Chantry's wood" and "the Chantry's books" become the Hold's and the Pyre Priests'. The Shroud Pin's line says "a Pyre Priest" where it says "a Chantry brother". "Tier-6 armor waits for Ebbe's Chantry" becomes Krell's Hold.
 
 #### 9. The pack
 `node tools/pack.mjs new` copies a shipped ground's map and rows under new ids. A Hold poured on Wickstead's map would be a fake castle with numbers attached, and its creatures need fields the pack shape refuses today (piece 10). So there is no staged pack on this branch. The rows above are the proposal, and the stat lines are what `propose` would write. The pack lane starts with `new krells_hold --like pyre_field --band 85,110` once the Pyre Field is on main.
@@ -504,26 +705,36 @@ That is 6 new creatures, 1 reused, 5 tilesets, 16 structures and props, 8 icons,
 **Done and verified.** Every existing item, monster, class, target mode and engine file named here was read on main at v0.2.112. The new names were checked free. The stat rows are `formulaStats` output. **Not verified.** Nothing was played. No drop rate, key rate, pull size or win rate has been through the sim. **Assumed.** The generation count, five pockets, and that the area-spell engine lands as specced.
 
 ### 2026-11-10 The living world: Krell's arc from Havora to the Hold (designer, lane/d-krells-hold. Tyler 2026-11-09 "you're kind of crushing it with the lore", "I want to keep this going"): a living section, added to as grounds land
-Havora is the capital of Greenhaven and keeps the Great Hearth. Its fire lays the dead to rest. That is why Bones and Grave Dust burn there.
+*Voice (Tyler 2026-11-11, on the wiki's "The Road North", lane/d-wiki-mocks d280ad46e: "NOW THAT IS WHAT I'M TALKIN ABOUT BAYBEEE").* Lore is told out loud by a person, in order, with cause and effect, casual. The story below is the approved text and its facts are canon, including the four it added: the dead only rest if they're burned at the Great Hearth, the pyres were lit from Krell's hall fire, Hask was buried with the officers to keep him quiet, and if Krell's fire goes out the dead come for him. A short line in the game (an item, a ground's theme, a monster) uses these facts in a few plain words and never contradicts them.
 
-The road north crosses the Meadowbrook at a ford with a toll stone. Havora hired the Banded Company, a free company under Captain Hask, to hold that ford and the March beyond it. Lord Krell had held the March before them, and he wanted the toll back. He didn't fight the company. He bought its captain. Hask sold the crossing, and Krell's men killed the company where it stood.
+**The Road North (approved, 399 words).**
 
-Then Krell cleaned up, and each ground is one piece of the cleaning.
+> In Greenhaven, the dead only rest if they're burned at the Great Hearth in Havora. Skip that and they get back up. Keep that in mind, because it's why the road north is such a mess.
+>
+> The road goes over the Meadowbrook at an old toll stone. Lord Krell used to collect that toll, until Havora took the crossing from him and hired Captain Hask's soldiers, the Banded Company, to guard it. Krell didn't want a fight with them, so he paid Hask instead. One night Hask pulled his guards off the crossing and let Krell's men walk right over. They wiped out the company on the spot. The few who ran before it started are the Turncoats robbing people at Wickstead.
+>
+> Krell's men didn't burn a single body, so you can guess what happened next. The dead got back up where they fell, and that spot is called Hask's Ford now. Their flag-bearer walks around the toll stone with the company flag like he never heard the fight ended. The river carried a lot of the others down to the Slake, along with the company's supply barge, and they're out on the mudflats.
+>
+> Krell knew that many bodies would get people asking questions, so he started cleaning up. He buried the officers with full honors in the Muster Barrows so it'd look like they lost a fair fight. Hask went in with them, since a guy who'd sell out his own men would sell out Krell just as fast.
+>
+> There were too many regular soldiers to bury, so Krell's priests burned them on the Pyre Field. That should've been the end of it, but they lit those pyres from the fire in Krell's own hall, and whatever they chanted over the bodies tied the dead to that fire instead of letting them rest. The castle's Stokers have kept those pyres going ever since.
+>
+> That fire is in Krell's Hold, his castle at the end of the road. He's an old man now. He sits in his hall with the company's roster on the table and that fire at his back. He can't let it go out, because the second it does, every soldier he killed is loose, and they all know where he lives. So kill Krell and bring a page of that roster home. Burn it in the Great Hearth, and those soldiers finally get to rest.
 
-| Ground | Its place in the story | In the data |
+**Ground by ground, in the same voice** (for each ground's own wiki page and its pack; a ground's page tells its piece and links back to the story):
+
+| Ground | Its piece of the story | In the data |
 |---|---|---|
-| Wickstead, 8-18 | The Turncoats in the farmhouse are the company's last deserters. Their Torn Company Badge is the first piece of this story a new hero holds | Live |
-| Hask's Ford, 45-60 | The foot died in their files and nobody burned them. The Bannerman still holds the Company Colors at the toll stone | lane/b-hasks-ford |
-| The Slake, 50-65 | The river took the rest, and the company's supply barge, and dropped them on the mudflat | lane/b-the-slake |
-| Muster Barrows, 55-75 | Krell buried the officers with honors so it would look like a lost battle. Hask is in there with them | Art on lane/b-muster-barrows-art |
-| The Pyre Field, 70-90 | The foot were too many to bury. Krell's Binders burned them, and the rite tied them to the fire. The Stokers still feed the pyres | lane/b-pyre-field |
-| Krell's Hold, 85-110 | The fire that holds the dead burns in Krell's hall, beside the company's Muster Roll. He is old now and can't let it go out | This design |
+| Wickstead, 8-18 | A handful of Hask's soldiers saw what was coming and ran before it started. They're the Turncoats now. They burned out the farm at Wickstead, moved into the house, and rob anybody on the Thicket road. Most of them cut the company badge off their coats, and that Torn Company Badge is usually the first piece of this whole mess a new hero ends up holding | Live |
+| Hask's Ford, 45-60 | This is where it happened. Krell's men left the bodies where they dropped, and since none of them went to the Hearth, the whole company got back up right there at the toll stone. Their flag-bearer still walks around the stone with the company flag like he never heard the fight ended | lane/b-hasks-ford |
+| The Slake, 50-65 | Plenty of the bodies went into the Meadowbrook, and the river carried them down to the Slake along with the company's supply barge. The barge never made it back upstream, and the dead washed up on the mudflats and got up there too. They've been lying in that copper silt long enough to turn green | lane/b-the-slake |
+| Muster Barrows, 55-75 | Krell had the officers buried with full honors so it'd look like they lost a fair fight. He put Hask in the ground with them, because a guy who'd sell out his own men would sell out Krell too. Hask is the first boss you meet on this road | Art on lane/b-muster-barrows-art |
+| The Pyre Field, 70-90 | There were way too many regular soldiers to bury, so Krell's priests burned them out here. The trouble is they lit the pyres from the fire in Krell's hall, and whatever they chanted tied the dead to that fire instead of letting them rest. The Stokers come down from the castle and have kept the pyres burning ever since | lane/b-pyre-field |
+| Krell's Hold, 85-110 | Krell's castle sits at the top of the hill at the end of the road. He's old now, and he spends his days in his hall with the company's roster on the table and that fire at his back. If it ever goes out, every soldier he killed is loose, and they all know where he lives | This design |
 
-The Warrens' copper hill feeds the Meadowbrook's springs, the Glade glows with it, and the same water runs past the Ford down to the Slake. The Mill Cellar, the Thicket and the Sewer are Havora's own doorstep and have no part in Krell's story yet.
+The water ties the places together. The copper hill under the Warrens feeds the Meadowbrook's springs, which is why the moss in the Glade glows, and that same water runs past the Ford and on down to the Slake. The Mill Cellar, the Thicket and the Sewer are right on Havora's doorstep, and they don't have anything to do with Krell yet.
 
-The end is two fires. Krell's holds the dead. Havora's frees them. A hero kills Krell, takes a page of the Roll, and burns it at the Hearth.
-
-**New in this draft, for Tyler to keep or strike.** The toll as Krell's reason. Hask buried to keep him quiet. The Hall Fire. The Muster Roll. Hask's pickets. The rest was in the data or his 11-09 ruling.
+**Canon since 11-11** (Tyler approved the story): the toll as Krell's reason, Hask buried to keep him quiet, the Hall Fire, the company roster, the pyres lit from Krell's fire, the dead resting only at the Great Hearth. Hask's lookouts are still a design proposal (Krell's Hold, below).
 ### 2026-11-10 Combat training (designer, lane/d-training-and-wards; Tyler 2026-11-08: "training dummies and stuff to train skills (for gold)", "Make the training area look cool too", "Wildly expensive gold sink is going to be a personal training dummy for houses"): DESIGN ONLY, the numbers MEASURED on the real engine at Levels 20 and 50, Level 80 NOT measured, nothing built. **The server half is a §1 money surface and goes on the pre-EA Security list (§3.7)**
 **What it is.** A hero who is not hunting can stand in the Training Yard and train Melee, Ranged, Magic or Defense. It costs gold by the minute and gives skill XP only. It gives no Level XP, no gold and no loot, so a hunt always pays more. The house dummy does the same thing with no fee, for one hero at a time, and costs a million gold a skill.
 
@@ -682,7 +893,7 @@ So training is a luxury at 20 and a real choice from about 50. That is the right
 | **Stitched Fire Lining** | 10% less fire damage | 6 Torn Company Badge (`torn_company_badge`. Turncoat, Wickstead, Level 16, 10% a kill) | 30 Chalked Fire Rune | 1 | 3,000 | Wickstead's Smoke Pot on Dangerous and Deadly. The Warrens' Blasting Charge |
 | **Stitched Poison Lining** | 10% less poison damage | 6 Cistern Venom Gland (`cistern_venom_gland`. Cistern Spider, the Sewer, Level 20, 10%). Or 2 Rook's Moss Charm (`rooks_moss_charm`, Rook the Poacher, the Glade's boss, 15%). Or 2 Knotted Tails (`knotted_tails`, the Rat King, 15%) | 30 Chalked Poison Rune | 1 | 3,000 | The Glade's Spore Cloud. The Rat King's Squeal. Wickstead's Venom Spray |
 | **Corded Frost Lining** | 20% less frost damage | 2 Coppercap's Tallow (`coppercaps_tallow`. Chief Coppercap, the Warrens' boss, Level 52, 15%. "It is why frost slides off him") | 30 Scored Ice Rune (Runecrafting 15) | 25 | 12,000 | The Slake's Cold Bilge, a seed row on the area spells board |
-| **Corded Fire Lining** | 20% less fire damage | 6 Color Cord (`color_cord`. Color Sergeant, the Slake, Level 60, 10%. STAGED pack, not on main) | 30 Scored Fire Rune | 25 | 12,000 | The Pyre Field on Normal and Dangerous. The Warrens on Deadly |
+| **Corded Fire Lining** | 20% less fire damage | 6 Flag Cord (`color_cord`. Flag Sergeant, the Slake, Level 60, 10%. STAGED pack, not on main) | 30 Scored Fire Rune | 25 | 12,000 | The Pyre Field on Normal and Dangerous. The Warrens on Deadly |
 | **Sealed Fire Lining** | 30% less fire damage | 6 Warrant Seal (`warrant_seal`. Provost, the Pyre Field, Level 82, 10%. STAGED pack. "The paper burned and the seal did not") | 30 Etched Fire Rune (Runecrafting 30) | 50 | 40,000 | The Pyre Field on Deadly |
 
 Tier words say how it is fixed in. Stitched, then Corded, then Sealed. The Slake's cord and the Pyre's seal give the two upper tiers their names. Chalked runes are the rune shop's or Runecrafting 1 (`bind_chalked_*_runes`). **Left out on purpose.** Sticky Core (`sticky_core`, the Cellar's Slime) is an `element_ward` piece with no lining. A Level 50 hero would farm slimes for every first-tier lining. It stays sell-only until a use is found. No Stitched Frost Lining either. No ground under Level 50 casts frost, so it would be an item with no use.
@@ -1715,7 +1926,7 @@ Tyler: "Don't rebuild hasks ford, rebuild something similar or maybe a 'mutated'
 
 **The cousin:** same kit, same dead, opposite answers. Same band size, solo, four creature rows. Every id below was grepped on `release/v0.2.91` and is free or real (C); the `hf_` props and the three base bodies are real on the Ford's art lane, which Phase 0 merges.
 
-**Name: The Slake**, id `the_slake`. A slake is a north-country word for a river mudflat (Jarrow Slake on the Tyne). Short, real, not a mood word. Theme line: "The Meadowbrook drops its copper here, and the Banded Company's dead with it." If it doesn't land, the fallback is The Wrack.
+**Name: The Slake**, id `the_slake`. A slake is a north-country word for a river mudflat (Jarrow Slake on the Tyne). Short, real, not a mood word. Theme line: "The Meadowbrook slows down here and leaves its copper silt on the mudflats, along with a lot of the Banded Company's dead." (plain-voiced 11-11) If it doesn't land, the fallback is The Wrack.
 
 **Lore link, each step read from the data or the art brief:** the Warrens' copper hill feeds the springs of the Meadowbrook (`hunts.js`, the Glade's header), "the copper water makes the moss glow" (the Glade's theme), the brook leaves the wood at Wickstead, and the Ford's river is painted off the same water (art lane; no text says so yet, and the Slake's theme line would). Below the Ford the river slows and drops what it carries: copper silt and the company's dead. They lay in it for years and went green. Hask sold the crossing, so the supply barge never got back upstream. The Hearth still lays them to rest: Grave Dust burns at Inner Flame 46. Each named thing connects to a place the player has already hunted.
 
@@ -1778,8 +1989,8 @@ Highest pair today: Thicket and Wickstead 72; next Wickstead and Glade 62. The S
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | **Greened Pikeman**, 12 | `banded_pikeman`, re-poured | Swarm. The crust turns a hammer, a blade finds the joints: `weaponWeak: 'sword', weaponResist: ['hammer']` (the shape the Orchard Boar already uses) | 52 | 170 | 42 | .80 | 20 | 1,500 | 20-46 | 3400 | `bones`, `grave_dust`; `green_rivet`; `mithril_sword`, `maple_wand` |
 | **Bargeman**, 6 | `fordsunk`, re-poured | Tank, the slowest thing on the flat. Where the Fordsunk's bloat swallows arrows, the crew's cracked hides take them: weak ranged | 55 | 240 | 38 | .80 | 26 | 1,850 | 22-50 | 2400 | `bones`, `coal` (the barge's forge cargo); `barge_nail`; `mithril_warhammer`, `maple_staff` |
-| **Mudlark**, 4 | **New**, small and crouched, a sack on its back | Skirmisher. River scavengers who picked the dead and died among them. Quick enough to catch a kiter, hits often and light: resists ranged, weak magic | 54 | 130 | 34 | .85 | 14 | 1,350 | 18-40 | 4400 | `bone_chips`, `copper_ore`; `mudlark_hook`; `maple_bow`, `maple_crossbow` |
-| **Color Sergeant**, 2 (rare) | `bannerman`, re-poured | Bruiser and rare carrier: the danger row, holds the Barge | 60 | 260 | 52 | .80 | 28 | 2,600 | 34-78 | 3000 | `big_bones`; `color_cord`; `mithril_hatchets`, `maple_spellbook`; Rare: `barge_pitch` |
+| **Mudlark**, 4 | **New**, small and crouched, a sack on its back | Skirmisher. Scavengers who picked through the dead on the mudflats and ended up dead there too. Quick enough to catch a kiter, hits often and light: resists ranged, weak magic | 54 | 130 | 34 | .85 | 14 | 1,350 | 18-40 | 4400 | `bone_chips`, `copper_ore`; `mudlark_hook`; `maple_bow`, `maple_crossbow` |
+| **Flag Sergeant**, 2 (rare) | `bannerman`, re-poured | Bruiser and rare carrier: the danger row, holds the Barge | 60 | 260 | 52 | .80 | 28 | 2,600 | 34-78 | 3000 | `big_bones`; `color_cord`; `mithril_hatchets`, `maple_spellbook`; Rare: `barge_pitch` |
 - **It's the T4 weapons' one home.** No T4 ladder weapon has a reachable source today (`AWAITING_ROSTER`, `UNREACHABLE`, and no forge recipe, C). The Ford is the armor's home, so the two don't overlap.
 - **Why these numbers (C):** XP seeds are the Ford's rows scaled about +12% to reach the contract at the middle of the band (L58 244k; the Ford measured about 217k there). To-hit against a shield hero: 27-58% at Level 50, 11-42% at 58, 5-28% at 65; bare of shield and cape 53-84% at 50. Blows 136-208, at most 32% of 650 HP. The Ford as built reads 5-22% at 45 and 5% at 60 (C), so guard swallows it. **The Ford's import needs its effective attack raised: numbers only, no art.**
 - **Flame:** `barge_pitch` is a NAMED_FUELS row (req about 30, 0.6 x floor; a burst) with a new `pitch` flame, "burns low and dull red", a free ramp in `hearth-flames.mjs`. "The Hearth's flame changes for the square" was Tyler's favorite part of this system. Lands after lane/c-hero-sinks, which also builds on colored fuels.
@@ -1839,7 +2050,7 @@ It counts as proved only if played, read by the art director and shipped. A miss
 | 2 | **Hask's Ford, imported** | 45-60, solo | T4 armor, Keystone inputs, Colors | Done | Tyler's word lifts the hold. Effective attack raised, tier and party rows, re-fit from 45 up | Without it the Slake gives weapons and no armor. It's the first thing the pack's commuting lets us stop rebasing |
 | 3 | **Muster Barrows** | 55-75, party | Barrow Knight, Captain Hask's boss rows, **T5 armor (spec gap)** | Done (`aac5732b1`, 323 gens) | First party pack, first boss row | T5 opens at 60 and the spec gives it no home; Pyre Field at 70 is too late. Fix: T5 Scarce here |
 | 4 | **The Pyre Field** | 70-90, solo | Razor Claw, Pyre Ash, Wraith Veil, T6 at 75 | None | Ground, 3 creatures | The kit's second family (ash field) |
-| 5 | **Krell's Hold** (was Ebbe's Chantry, retired by Tyler 2026-11-09) | 85-110, one difficulty for every group size | Tier 6 armor, the Hall Key, Lord Krell's tier 7 and the Roll Page. Design: "2026-11-10 Krell's Hold" | None | Ground, five creatures, the keyed hall | The region's end, about when Open Beta ends |
+| 5 | **Krell's Hold** (was Ebbe's Chantry, retired by Tyler 2026-11-09) | 85-110, one difficulty for every group size | Tier 6 armor, the Hall Key, Lord Krell's tier 7 and the Roster Page. Design: "2026-11-10 Krell's Hold" | None | Ground, five creatures, the keyed hall | The region's end, about when Open Beta ends |
 | Watch | A lone hero at 32-45 | | | | Nothing yet | Warrens at 32, a lone sword: 129.7k, -761 g/h, 69% HP, held (M). Thin, not empty, and **after a wipe every player meets it long before 50.** If testers stall here, a kit-built solo door jumps the queue |
 
 **If Andy can't wait:** the Slake can ship on Phase 1 alone at about the Ford's plumbing cost. That gets a ground out sooner and loses the measurement. I wouldn't: the tier lane gives him something this week, and the region needs the system either way.

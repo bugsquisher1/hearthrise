@@ -12,9 +12,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_STANCES } from './rule-subjects.js?v=0.2.118';
-import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.118';
-import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.118';
+import { HUNT_STANCES } from './rule-subjects.js?v=0.2.121';
+import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.121';
+import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.121';
 
 /* Hours is an optional limit, off by default: the bag, stamina and death
    already bound a hunt, and a timer nobody asked for is a hunt that ends for no
@@ -237,11 +237,11 @@ export const END_REASON_COPY = Object.freeze({
   /* `{name}` the character, `{ground}` the hunt's name, both from the server. */
   died: Object.freeze({ one: '{name} died in {ground} and returned to town.' }),
   /* CALL OUT (src/data/boss-calls.js): the kill and the limit. A death is `died` / `party_member_died`, as anywhere. */
-  boss_felled: Object.freeze({ one: 'He is down. {name} walked out of {ground}. There is a title to claim on the Character window, under Titles.' }),
-  boss_time: Object.freeze({ one: 'Ten minutes, and he still stands. {name} came home from {ground}.' }),
+  boss_felled: Object.freeze({ one: '{name} beat him and walked out of {ground}. There\'s a title for you under Titles in the Character window.' }),
+  boss_time: Object.freeze({ one: 'The ten minutes ran out before he went down. {name} came home from {ground}.' }),
   /* LEAVE TOGETHER (Tyler 2026-10-22): `{member}` the party member whose hunt ended first (the server's
      hunt.session.end_by; "A party member" when it cannot say), `{name}` this hero. */
-  party_member_died: Object.freeze({ one: '{member} fell, so {name} came home too.' }),
+  party_member_died: Object.freeze({ one: '{member} died, so {name} came home too.' }),
   party_member_left: Object.freeze({ one: '{member} left the hunt, so {name} came home too.' }),
   heals_out: Object.freeze({ one: 'You ran out of healing food, so you headed home.' }),
   ammo_out: Object.freeze({ one: 'You ran out of {item}, so you headed home.' }),

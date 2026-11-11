@@ -795,7 +795,7 @@ async function pureRules(M, base) {
     const left = M.AL.cameHomeLine({ endReason: 'party_member_left', endBy: 'Mira' }, 'Tyler');
     const fell = M.AL.cameHomeLine({ endReason: 'party_member_died', endBy: 'Mira' }, 'Tyler');
     const anon = M.AL.cameHomeLine({ endReason: 'party_member_left', endBy: null }, 'Tyler');
-    if (left !== 'Mira left the hunt, so Tyler came home too.' || fell !== 'Mira fell, so Tyler came home too.' || anon !== 'A party member left the hunt, so Tyler came home too.') {
+    if (left !== 'Mira left the hunt, so Tyler came home too.' || fell !== 'Mira died, so Tyler came home too.' || anon !== 'A party member left the hunt, so Tyler came home too.') {
       return 'the came-home lines read ' + JSON.stringify([left, fell, anon]);
     }
     const sum = [M.SM.endWords('party_member_left', false, 'Mira', 'Tyler'), M.SM.endWords('party_member_died', false, 'Mira', 'Tyler')];
@@ -893,7 +893,7 @@ async function pureRules(M, base) {
     const why = (r, by, w) => M.AL.cameHomeLine({ endReason: r, endBy: by, endWhy: w }, 'Wrenna');
     if (why('party_member_left', 'Bramwell', 'stamina') !== 'Bramwell ran out of stamina, so Wrenna came home too.') return 'a stamina end reads ' + why('party_member_left', 'Bramwell', 'stamina');
     if (why('party_member_left', 'Bramwell', 'left') !== 'Bramwell left the hunt, so Wrenna came home too.') return 'a plain leave reads ' + why('party_member_left', 'Bramwell', 'left');
-    if (why('party_member_died', 'Bramwell', 'died') !== 'Bramwell fell, so Wrenna came home too.') return 'a death reads ' + why('party_member_died', 'Bramwell', 'died');
+    if (why('party_member_died', 'Bramwell', 'died') !== 'Bramwell died, so Wrenna came home too.') return 'a death reads ' + why('party_member_died', 'Bramwell', 'died');
     if (why('party_member_left', 'Bramwell', 'no_such_reason') !== 'Bramwell left the hunt, so Wrenna came home too.') return 'an unknown reason reads ' + why('party_member_left', 'Bramwell', 'no_such_reason');
     if (M.SM.reasonWords({ reason: 'party_member_left', by: 'Bramwell', why: 'stamina' }, 'Wrenna') !== 'Bramwell ran out of stamina, so Wrenna came home too.') return 'the summary reads ' + M.SM.reasonWords({ reason: 'party_member_left', by: 'Bramwell', why: 'stamina' }, 'Wrenna');
     if (M.SM.endedSessionOf({ read: (k) => (k === 'hunt' ? { session_id: 's', ended: true, session: { id: 's', end_reason: 'party_member_left', end_by: 'Bramwell', end_by_why: 'stamina', ended_at: '2026-10-17T12:30:00Z' } } : null) }).why !== 'stamina') return 'the ended session drops end_by_why';

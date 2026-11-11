@@ -19,7 +19,7 @@
 // a style's rung has one door, and a second door is only added where it adds a decision.
 //   Silk Thread  Hive Wasp (Cellar, 15%), Cistern Spider (Sewer, 30%)   cloth, wand grips, strings
 //   Bat Wing     Culvert Bat (Sewer, 70%)                               spellbook vellum, adept lining
-//   Bone Chips   Kobold Tosher (Sewer, 50%)                             the staff's bone cap
+//   Bone Chips   Sewer Kobold (Sewer, 50%)                              the staff's bone cap
 //   Oak Plank    Woodcutting 15 oak, sawn at Crafting 15                 the tier-2 wand, book, staff and bows
 //   Normal Plank Woodcutting 1, sawn at Crafting 1                       the hafts: a smith needs no Crafting 15
 //   Iron Bar     Mining 15 iron, smelted at Smithing 15                  hatchets and the club's head
@@ -107,9 +107,9 @@ export const STYLE_GEAR_RECIPES = Object.freeze({
 
 /* The style ladder's new weapons' flavour lines (item-descriptions.js spreads them): tier 2 made, tier 3 dropped, tier 4 made. */
 export const STYLE_GEAR_DESC = Object.freeze({
-  iron_hatchets: 'A matched pair of iron hatchets on oak hafts, made to open a wound and keep it bleeding',
+  iron_hatchets: 'A pair of iron hatchets on oak handles. They\'re made to cut deep and keep a monster bleeding',
   oak_crossbow: 'An oak crossbow strung with spider silk, slower to draw than a bow and harder where it lands',
-  steel_hatchets: 'Steel hatchets for a fighter who bleeds a foe, the pair a Coppercap foreman keeps for splitting pit props',
+  steel_hatchets: 'Steel hatchets for a fighter who likes to make monsters bleed. A Coppercap foreman keeps a pair for splitting pit props',
   willow_crossbow: 'A willow crossbow for a ranger who keeps a shield up, the kind the goblin skulkers shoot down the galleries',
   mithril_hatchets: 'Mithril hatchets on oak hafts for a fighter who bleeds a foe, light enough to swing all day',
   maple_crossbow: 'A maple crossbow strung with spider silk for a ranger who keeps a shield up and wants the bolt to land hard',

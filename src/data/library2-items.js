@@ -55,7 +55,7 @@
 // line.vmul), the same expression the generator uses.
 // ============================================================
 
-import { MAX_BANE_MULT } from '../core/bane.js?v=0.2.118';
+import { MAX_BANE_MULT } from '../core/bane.js?v=0.2.121';
 
 /* The generator's own value expression, so a hand-authored rung and a generated
    one can never price differently. Kept local rather than exported from
@@ -159,13 +159,13 @@ const watch = (slot, base, vmul) => ({
 
 const SL = {
   helmet: { slot: 'helmet', label: 'Helm' }, body: { slot: 'body', label: 'Cuirass' },
-  pants: { slot: 'pants', label: 'Greaves' }, boots: { slot: 'boots', label: 'Boots' },
+  pants: { slot: 'pants', label: 'Leg Plates' }, boots: { slot: 'boots', label: 'Boots' },
   gloves: { slot: 'gloves', label: 'Gauntlets' }, belt: { slot: 'belt', label: 'Belt' },
 };
 const SLC = {
-  helmet: { slot: 'helmet', label: 'Coif' }, body: { slot: 'body', label: 'Body' },
+  helmet: { slot: 'helmet', label: 'Hood' }, body: { slot: 'body', label: 'Body' },
   pants: { slot: 'pants', label: 'Chaps' }, boots: { slot: 'boots', label: 'Boots' },
-  gloves: { slot: 'gloves', label: 'Vambraces' }, belt: { slot: 'belt', label: 'Belt' },
+  gloves: { slot: 'gloves', label: 'Bracers' }, belt: { slot: 'belt', label: 'Belt' },
 };
 
 const ARMOUR_SETS = {
@@ -289,30 +289,30 @@ export const LIB2_ITEMS = {
    shipped: an unbuilt promise in a tooltip is the same lie as a broken stat.
    ══════════════════════════════════════════════════════════════════════════ */
 export const LIB2_DESC = {
-  lazlos_maul: 'Lazlo dug graves for coin and forged this to settle what climbed back out. The head is cast from the fittings of coffins he emptied',
-  dragonrib_bow: 'A wyrm\'s rib bent against its own sinew, the only bow that was grown before it was strung',
-  bramble_blade: 'A short blade wound with living thorn, kept sharp by the very hedges it was cut to clear',
-  void_censer: 'A censer that burns nothing and still smokes, and the smoke always leans toward the thing that should not be there',
-  rat_stick: 'A stick. Weighted at one end, worn smooth at the other. It is very good at rats',
+  lazlos_maul: 'Lazlo was a gravedigger who made this maul for the dead that climbed back out. He cast the head from old coffin fittings',
+  dragonrib_bow: 'A bow made from a wyrm\'s rib and strung with the same wyrm\'s sinew',
+  bramble_blade: 'A short blade wrapped in thorny vine that\'s still alive. Hacking through hedges keeps it sharp',
+  void_censer: 'A censer that smokes even when it\'s empty. The smoke always drifts toward something that doesn\'t belong',
+  rat_stick: 'It\'s a stick, weighted at one end and worn smooth at the other, and it\'s really good for killing rats',
 
-  chitin_helmet: 'A coif plated in overlapping vermin shell, lighter than leather and colder to the touch',
-  chitin_body: 'Chitin scales laid like roof tiles, stitched to a hide backing. Armor grown, not skinned',
-  chitin_pants: 'Segmented chitin chaps that click faintly with every stride',
-  chitin_boots: 'Shell-capped boots that turn a bite the way tanned hide never could',
-  chitin_gloves: 'Vambraces of banded chitin, clawed at the knuckle out of habit rather than design',
-  chitin_belt: 'A belt of linked shell plates, each one a different creature',
+  chitin_helmet: 'A hood covered in overlapping bug shell. It\'s lighter than leather and cold to the touch',
+  chitin_body: 'Pieces of bug shell laid like roof tiles and stitched onto a hide backing',
+  chitin_pants: 'Leg armor made of shell segments that click a little with every step you take',
+  chitin_boots: 'Boots capped with bug shell. A bite that would go through tanned leather won\'t get through these',
+  chitin_gloves: 'Arm guards made of shell bands, with claws on the knuckles because that\'s how the shell grew',
+  chitin_belt: 'A belt of linked shell plates, and each plate came off a different creature',
 
-  watchknight_helmet: 'A closed helm of deathsteel, visored so narrowly that the wearer must turn to look',
-  watchknight_body: 'Deathsteel plate, dark and unreflective, built for the long watch rather than the short charge',
-  watchknight_pants: 'Heavy deathsteel greaves that stand on their own when set down',
-  watchknight_boots: 'Sabatons of deathsteel, weighted at the heel so a tired man still stands straight',
-  watchknight_gloves: 'Deathsteel gauntlets, articulated finely enough to hold a cup at the end of a long night',
-  watchknight_belt: 'A deathsteel warbelt, buckled once and rarely undone',
+  watchknight_helmet: 'A closed death-steel helmet with a visor so narrow you have to turn your head to see',
+  watchknight_body: 'Dark death-steel plate that doesn\'t shine. It\'s made for standing guard all night, not for charging in',
+  watchknight_pants: 'Heavy death-steel leg plates. They\'re stiff enough to stand up on their own when you take them off',
+  watchknight_boots: 'Death-steel boots with weighted heels, so you stay standing straight even when you\'re worn out',
+  watchknight_gloves: 'Death-steel gauntlets with joints fine enough that you can still hold a cup in them',
+  watchknight_belt: 'A heavy death-steel belt. Once you buckle it on, you won\'t take it off much',
 
-  quiet_coat: 'A long coat of void-chitin weave that makes no sound at all. Not the cloth, not the buckles, not the man inside it',
+  quiet_coat: 'A long coat woven from void shell. It doesn\'t make a sound, and neither do you while you\'re wearing it',
 
-  rune_essence: 'Pale humming stone off the essence face, the raw stuff every blank rune is cut out of',
-  rune_blank: 'A blank stone chip, cut square and waiting for a mark',
+  rune_essence: 'Pale stone mined from the essence rock. Every blank rune gets cut out of this',
+  rune_blank: 'A square chip of stone with nothing on it yet. Runecrafting puts the mark on it',
 
   /* ── STAFF RUNES: SAY THE MECHANIC, THEN THE FLAVOUR (b432) ──────────────
      These were pure atmosphere, on the one screen where a player is looking at
@@ -330,11 +330,11 @@ export const LIB2_DESC = {
        possible order. These seven lines are the one place the wording changes
        when that indicator lands. */
 
-  coarse_whetstone: 'A rough field stone that puts an edge on anything and a good edge on nothing',
-  copper_whetstone: 'A copper-bound stone, the first one worth keeping in the pack',
+  coarse_whetstone: 'A rough stone from a field. It\'ll sharpen anything, just not very well',
+  copper_whetstone: 'A whetstone bound in copper. It\'s the first one worth keeping in your bag',
   iron_whetstone: 'An iron-backed whetstone with a groove worn down its center',
-  steel_whetstone: 'A close-grained stone that leaves an edge you can hear',
-  mithril_whetstone: 'A pale stone that takes almost nothing off and gives a great deal back',
-  rune_whetstone: 'A marked whetstone that sharpens a little more than the honing accounts for',
-  dawn_whetstone: 'Dawnsteel grit bound in basalt, the last stone a blade will ever need',
+  steel_whetstone: 'A fine-grained whetstone for steel blades. It leaves an edge sharp enough to shave with',
+  mithril_whetstone: 'A pale whetstone that barely wears the blade down but makes it a lot sharper',
+  rune_whetstone: 'A whetstone with a rune cut into it. The rune does some of the sharpening for you',
+  dawn_whetstone: 'Dawnsteel grit set in basalt. It\'s the best whetstone there is',
 };

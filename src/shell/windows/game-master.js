@@ -6,10 +6,10 @@
 // account is the Game Master (2027-03-13-gm-tools.sql), and its icon shows only then (launcher.js). The RPCs are the authority: a page
 // that opened this by hand would be told `refused` by every one of them.
 // ════════════════════════════════════════════════════════════════════════
-import { gmOf } from '../../session/character-sections.js?v=0.2.118';
+import { gmOf } from '../../session/character-sections.js?v=0.2.121';
 
 /* Not a literal import(): play.html's preload block (tests/module-preload.mjs) names every literal one, and everyone's page would fetch this. */
-const BODY_URL = new URL('./game-master-body.js?v=0.2.118', import.meta.url).href;
+const BODY_URL = new URL('./game-master-body.js?v=0.2.121', import.meta.url).href;
 let body = null;
 let loading = null;
 

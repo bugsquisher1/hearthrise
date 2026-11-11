@@ -20,6 +20,9 @@
 //   TICK    the browser closed (the world tick's fire, no asker): every open member framed, nothing held
 //   END     A1 runs out of stamina in a window that crosses no mark: its frame goes in THAT commit, its hunt ended
 //   LEVEL   A1's Level rises in a window that crosses no mark: its frame goes in that commit
+//   ONCE    one push an end (2027-04-10-own-hunt-nudge-once.sql): all three hunts end in one commit. The asker's own settle:
+//           A1 and B0 hear it once, as the state frame; A0 once, as a nudge (the self-echo rule spares its frame, its other
+//           clients hold nothing). The world tick's settle: each once, as the frame. Never a frame and a nudge for one end.
 //   FLOOR   the floor's answer: no `have` or any other version is the whole character; exactly the held version is
 //           the start point alone (no hr_state_of statement); after a tick settle the old `have` is whole again
 //   PERKS   the perk read prices no renown, and the engine's stack is the same from the old answer and the new
@@ -39,6 +42,7 @@ const WIN = 18000;
 const [A, B] = H.UIDS;
 const HELD = 'public.hr_frame_own_held(jsonb,uuid,integer,timestamp with time zone,timestamp with time zone)';
 const INST = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)';
+const NUDGE = 'public.hr_hunt_nudge_trg()';
 const idem = () => crypto.randomUUID();
 const q = (db, sql, p) => H.q(db, sql, p);
 const one = (db, sql, p) => H.one(db, sql, p);
@@ -235,6 +239,7 @@ const ARMS = {
       const f = (await q(db, 'select payload from realtime.bench_frames where topic = $1 order by n desc limit 1', [F.topics.a1]))[0];
       const h = f && f.payload && f.payload.env && f.payload.env.hunt;
       if (r.sent[2].a1 === 1 && h && h.ended !== true && typeof h.session_id === 'string') p.push('the frame sent at the end still shows the hunt open: ' + JSON.stringify(h).slice(0, 160));
+      if (r.sent[2].a1 === 1 && !(f && f.payload && f.payload.t === 'state')) p.push('the one push at the end was not the state frame: ' + JSON.stringify(f && f.payload).slice(0, 120));
       return p;
     });
   },
@@ -247,6 +252,36 @@ const ARMS = {
       if (!ev.length) return ['CONTROL: one kill short of Level 21, the off-screen hero did not rise in window 1'];
       return r.sent[0].a1 === 1 ? [] : [`the commit in which the off-screen hero's Level rose sent it ${r.sent[0].a1} frame(s): its Level waited for a mark`];
     });
+  },
+  async ONCE(db, M, F) {
+    const p = [];
+    for (const [who, asker, win, windows, nudged] of [["the asker's own settle", [A, 0], WIN, 3, 'a0'], ["the world tick's settle", null, 90000, 1, null]]) {
+      /* 45 s of stamina each from the start: every hunt ends in the last window (the asker's third, the tick's first). */
+      const r = await arm(db, async () => {
+        for (const [u, s] of [[A, 0], [A, 1], [B, 0]]) {
+          await db.query('update public.player_state set stamina_ms = 45000, stamina_at = to_timestamp($3) where user_id = $1 and slot = $2', [u, s, F.fromMs / 1000]);
+        }
+        const out = await run(db, M, F, { dial: 0, asker, windows, win });
+        const ended = await q(db, 'select end_reason, floor(extract(epoch from ended_at) * 1000)::bigint as at from public.hunt_sessions where id = any($1::uuid[])', [F.sids]);
+        const msgs = await q(db, 'select topic, payload from realtime.bench_frames order by n');
+        return { out, ended, msgs };
+      });
+      const last = (windows - 1) * win;
+      if (r.ended.length !== 3 || r.ended.some((e) => e.end_reason !== 'stamina' || !(Number(e.at) > F.fromMs + last && Number(e.at) <= F.fromMs + windows * win))) {
+        p.push(`CONTROL: ${who}: the three hunts did not all end on stamina in the last window: ${JSON.stringify(r.ended)}`); continue;
+      }
+      const end = r.out.sent[windows - 1];
+      for (const k of ['a0', 'a1', 'b0']) {
+        const mine = r.msgs.filter((m) => m.topic === F.topics[k]);
+        const nudges = mine.filter((m) => m.payload && m.payload.t === 'nudge').length;
+        const lastMsg = mine[mine.length - 1];
+        if (end[k] !== 1) p.push(`${who}: the commit that ended ${k}'s hunt sent it ${end[k]} push(es), want exactly 1`);
+        else if (k === nudged ? nudges !== 1 || lastMsg.payload.t !== 'nudge' : nudges !== 0 || lastMsg.payload.t !== 'state') {
+          p.push(`${who}: ${k}'s one push at its end was ${JSON.stringify(lastMsg.payload).slice(0, 60)} (${nudges} nudge(s) in all), want ${k === nudged ? 'a nudge (the self-echo rule spares its frame)' : 'the state frame and no nudge'}`);
+        }
+      }
+    }
+    return p;
   },
   async FLOOR(db, M, F) {
     return arm(db, async () => {
@@ -317,6 +352,11 @@ const MUTANTS = [
   ['the hold reaches another account\'s ask', 'OTHER', HELD, [['\n     or v_user <> p_project_user or v_slot = p_project_slot then return false; end if;', ' then return false; end if;']]],
   ['a hunt\'s end waits for a mark', 'END', HELD, [[' and h.ended_at is null) then', ') then'], ["e.type in ('rare_drop', 'death', 'ended', 'slot_dry', 'stamina_low')", "e.type in ('rare_drop')"]]],
   ['a Level waits for a mark', 'LEVEL', HELD, [[" or (e.type = 'level_up' and e.data->>'skill' = 'level')", '']]],
+  /* 2027-04-10-own-hunt-nudge-once.sql: the settle guard on the open/close nudge. */
+  ['an end inside a settle is nudged on top of its frame (two pushes)', 'ONCE', NUDGE,
+    [["    if coalesce(current_setting('hr.frame_defer', true), '') <> '' and public.hr_frame_wanted(new.user_id, new.slot) then\n      return null;\n    end if;\n", '    null;\n']]],
+  ['an end inside a settle is never nudged (the asker\'s other clients miss it)', 'ONCE', NUDGE,
+    [[' and public.hr_frame_wanted(new.user_id, new.slot) then', ' then']]],
 ];
 const EDGE_MUTANTS = [
   ['the floor answers slim at any version', 'FLOOR', 'hunt-settle.js', 'const held = Number.isSafeInteger(o.have) && o.have === Number(mine.state.version);', 'const held = Number.isSafeInteger(o.have);'],
@@ -373,13 +413,13 @@ async function main() {
     if (missed) { console.error(`watched-settle-cost --mutate: ${missed} planted defect(s) not caught`); process.exit(1); }
   }
   console.log('watched-settle-cost: OK — at the shipped dial every frame goes as before; at 30 only the asker\'s own off-screen hero waits for a mark, its end and its Level never; '
-    + 'the rows and the asker\'s answers are identical; the floor answers slim only at the held version' + (MUTATE ? `; ${MUTANTS.length + EDGE_MUTANTS.length} planted defects caught.` : '.'));
+    + 'the rows and the asker\'s answers are identical; an end is one push (the frame, or a nudge where the frame spares the asker); the floor answers slim only at the held version' + (MUTATE ? `; ${MUTANTS.length + EDGE_MUTANTS.length} planted defects caught.` : '.'));
   process.exit(0);
 }
 
 /* The two bodies as the chain left them, kept at boot and put back after each plant. */
 const KEPT = new Map();
 async function restore(db, fn) { await db.exec(KEPT.get(fn)); }
-async function keep(db) { for (const fn of [HELD, INST]) KEPT.set(fn, (await one(db, `select pg_get_functiondef('${fn}'::regprocedure)`)).replace(/\r/g, '')); }
+async function keep(db) { for (const fn of [HELD, INST, NUDGE]) KEPT.set(fn, (await one(db, `select pg_get_functiondef('${fn}'::regprocedure)`)).replace(/\r/g, '')); }
 
 main().catch((e) => { console.error('harness: ' + ((e && e.stack) || e)); process.exit(2); });

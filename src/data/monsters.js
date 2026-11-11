@@ -63,10 +63,10 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=0.2.118';
-import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.118';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.118';
-import { foldRows } from './grounds/shape.js?v=0.2.118';
+import { applyClassProfiles } from './monster-classes.js?v=0.2.121';
+import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.121';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.121';
+import { foldRows } from './grounds/shape.js?v=0.2.121';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -697,7 +697,7 @@ export const MONSTERS = {
     elements: { frost: -15, poison: 25 },
     hp: 110, atk: 7, baseAcc: 0.51, def: 6, xp: 344, gp: [18, 53], formula: true, speed: 3600,
     drops: [{ id: 'silk_thread', ch: .3, band: 'common' }, { id: 'dry_husk', ch: .5, band: 'common' }, { id: 'cistern_venom_gland', ch: .1, band: 'uncommon' }, { id: 'longbow', ch: .0055, band: 'rare' }, { id: 'oak_crossbow', ch: .0055, band: 'rare' }] },
-  kobold_tosher: { name: 'Kobold Tosher', icon: '🦎', tier: 1, level: 13, cls: 'humanoid', family: 'Humanoid', formation: true,
+  kobold_tosher: { name: 'Sewer Kobold', icon: '🦎', tier: 1, level: 13, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 63, atk: 7, baseAcc: 0.37, def: 1, xp: 144, gp: [10, 31], formula: true, speed: 3200,
     /* junk: the Bone Chips it sifts out of the outfalls (the reachable source of Iron Fitting's chips, and a Hearth fuel) */
     drops: [{ id: 'bones', ch: 1, band: 'common' }, { id: 'bone_chips', ch: .5, band: 'common' }, { id: 'kobold_scale', ch: .08, band: 'uncommon' },
@@ -713,7 +713,7 @@ export const MONSTERS = {
      Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS' SAMPLE (designer 2026-10-23): one
      tier-1 armour slot per wolf in all three weights, each piece about hourly per hero; the den mother's tier-2 helmets,
      Alpha Fang and Ruff and the Dire Gray's Studded Leather Body about every 15 h. Odds PROVISIONAL (Tyler 10-23). ══ */
-  gray_whelp: { name: 'Gray Whelp', icon: '🐺', tier: 1, level: 5, cls: 'mammal', family: 'Mammal',
+  gray_whelp: { name: 'Gray Wolf Pup', icon: '🐺', tier: 1, level: 5, cls: 'mammal', family: 'Mammal',
     hp: 10, atk: 4, baseAcc: 0.38, def: 0, xp: 20, gp: [1, 3], formula: true, speed: 3800,
     drops: [{ id: 'raw_wolf_meat', ch: .262, band: 'common' }, { id: 'bones', ch: .3, band: 'common' }, { id: 'whelp_milk_tooth', ch: .06, band: 'uncommon' },
       { id: 'bronze_boots', ch: .00825, band: 'scarce' }, { id: 'leather_boots', ch: .00825, band: 'scarce' }, { id: 'apprentice_boots', ch: .00825, band: 'scarce' }] },

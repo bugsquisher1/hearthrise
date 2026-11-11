@@ -30,6 +30,13 @@
 //                    bag); a piece the hero carries or wears does NOT move her pick, so her board's line is
 //                    what she pays (2027-02-15-panel-truth.sql; the panel 2026-11-01: board "a Bronze
 //                    Platebody", paid "5 Raw Wolf Meat"); the hero's own slot order leads.
+//   TT-6b WORN       her pick skips a slot the hero already WEARS at that piece's tier or better, any
+//                    weight (2027-04-08-tally-worn.sql; the designer's re-read 2026-11-11 #3: "Tamsin paid
+//                    me a helm I'm already wearing"): town visit, wearing the Thicket's leather helmet (14
+//                    more in the bag) her board says and she pays the leather body; an Iron Platebody worn
+//                    skips her tier-1 body (better, another weight); a lower tier worn does not skip
+//                    (Wickstead's tier-2 body); both settle doors, wearing the Cellar's one light piece,
+//                    she pays the gold and its first material, and gives no piece.
 //   TT-7  KEEP       "Keep this task": paid, then held again at once with a fresh count; off: gone.
 //   TT-8  OWN        no verb takes a target hero; a stranger's drop / set touches only its own
 //                    rows; no client may write a tally table.
@@ -38,6 +45,9 @@
 //   TT-10 PROJECTION the client's reader (src/session/tally-sections.js) reads the real section
 //                    and is REPLACED by the next envelope, never merged.
 //   TT-11 REAPPLY    a second apply of both files is byte-identical (bodies, rows, constraints).
+//   TT-11b REAPPLY   the same for 2027-04-08-tally-worn.generated.sql + 2027-04-08-tally-worn.sql (the
+//                    tier book, the pick), at their own position in the chain.
+// --selftest also requires 2027-04-08-tally-worn.sql's §4 to REFUSE a pick that pays a worn piece.
 // TRUE CONCURRENCY is unverified locally (PGlite is one backend); the lock order is pinned in
 // the migration header and its §8.
 // ════════════════════════════════════════════════════════════════════════
@@ -51,6 +61,9 @@ const MIG = '2026-12-23-tally-tasks.sql';
 const CAT = '2026-12-23-tally-catalogue.generated.sql';
 const CELLAR = 'cellar_giant_rats';
 const THICKET = 'thicket_gray_wolves';
+const WICKSTEAD = 'wickstead_turncoats';
+const WORN = '2027-04-08-tally-worn.sql';
+const WORN_CAT = '2027-04-08-tally-worn.generated.sql';
 const idem = () => crypto.randomUUID();
 
 /* ── THE PLANTED DEFECTS ─────────────────────────────────────────────────────
@@ -87,6 +100,15 @@ export const MUTANTS = {
       'and not exists (select 1 from public.hero_tally_given g where g.user_id = p_user and g.slot = p_slot and g.item_id = p.item_id) and not exists (select 1 from public.player_inventory i where i.user_id = p_user and i.slot = p_slot and i.item_id = p.item_id)'] },
   pick_ignores_order: { arm: 'TT-6', why: 'her pick ignores the hero\'s slot order',
     db: ['public.hr_tally_pick(uuid,integer,text)', 'order by coalesce(array_position(v_order, p.equip_slot), 99), p.tier desc, p.item_id', 'order by p.item_id'] },
+  pick_pays_worn: { arm: 'TT-6b', why: 'her pick ignores what the hero wears: she pays a helm the hero has on (the bug, 2026-11-11)',
+    db: ['public.hr_tally_pick(uuid,integer,text)', 'and w.tier >= p.tier)', 'and false)'] },
+  pick_worn_strictly_better: { arm: 'TT-6b', why: 'only a HIGHER tier worn skips her piece: the same helm worn is paid again',
+    db: ['public.hr_tally_pick(uuid,integer,text)', 'and w.tier >= p.tier)', 'and w.tier > p.tier)'] },
+  pick_worn_any_tier: { arm: 'TT-6b', why: 'any item worn in the slot skips her piece, even a lower tier her piece would upgrade',
+    db: ['public.hr_tally_pick(uuid,integer,text)', 'and w.tier >= p.tier)', 'and true)'] },
+  pick_worn_same_weight: { arm: 'TT-6b', why: 'only armor of her weight counts as worn: a better piece of another weight is paid over',
+    db: ['public.hr_tally_pick(uuid,integer,text)', 'and w.tier >= p.tier)',
+      'and w.tier >= p.tier and exists (select 1 from public.hr_items i where i.item_id = e.item_id and i.armour_weight = p.weight))'] },
   keep_ignored: { arm: 'TT-7', why: '"Keep this task" is never honoured',
     db: ['public.hr_tally_claim(uuid,integer,uuid)', '    if v_r.keep then', '    if false then'] },
   drop_any_hero: { arm: 'TT-8', why: 'a drop finds and deletes that task on any hero in the slot',
@@ -125,6 +147,12 @@ export const SQL_MUTANTS = {
   self_one_member: { why: '§8(b): the settle counts one member only',
     find: "    for v_m in select e.value from jsonb_array_elements(p_members) e order by (e.value->>'user')::uuid, (e.value->>'slot')::int loop\n      perform public.hr_tally_count(",
     repl: "    for v_m in select e.value from jsonb_array_elements(p_members) e order by (e.value->>'user')::uuid, (e.value->>'slot')::int limit 1 loop\n      perform public.hr_tally_count(" },
+};
+
+/* 2027-04-08-tally-worn.sql's OWN §4 MUST REFUSE TO APPLY a pick that pays what the hero wears (each replays the chain to it). */
+export const WORN_SQL_MUTANTS = {
+  self_pays_worn: { why: '§4(c): the pre-image pick, which pays a piece the hero wears', find: 'and w.tier >= p.tier)', repl: 'and false)' },
+  self_slot_only: { why: '§4(b): any item worn in the slot skips, a lower tier too', find: 'and w.tier >= p.tier)', repl: 'and true)' },
 };
 
 async function q(db, sql, p) { return (await db.query(sql, p)).rows; }
@@ -372,6 +400,76 @@ const ARMS = {
     return problems;
   },
 
+  'TT-6b': async (db, M, X) => {
+    const problems = [];
+    const H = X.H;
+    const wear = (u, slot, item) => db.query(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3)
+      on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id`, [u, slot, item]);
+    /* THE TOWN VISIT, her board read through the client's own verb (what the player sees is what she pays). */
+    const V = H.UIDS[1];
+    await H.character(db, M, V, {});
+    const board = async (task) => {
+      const v = await rpc(db, V, 'select public.hr_tally_view(0)', []);
+      const r = v && Array.isArray(v.board) ? v.board.find((x) => x.task === task) : null;
+      return r && r.pick ? r.pick.item : null;
+    };
+    const t1 = await take(db, V, THICKET, 'medium');
+    if (!t1 || t1.ok !== true) return ['CONTROL: take refused ' + JSON.stringify(t1)];
+    if ((await board(THICKET)) !== 'leather_helmet') problems.push('CONTROL: bare, her Thicket board says ' + (await board(THICKET)) + ', want leather_helmet');
+    await wear(V, 'helmet', 'leather_helmet');
+    await db.query("insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'leather_helmet', 14) on conflict (user_id, slot, item_id) do update set qty = 14", [V]);
+    const said = await board(THICKET);
+    if (said !== 'leather_body') problems.push('wearing a Leather Helmet (14 more in the bag) her board says ' + said + ', want leather_body');
+    await finish(db, V, THICKET);
+    const v = await rpc(db, V, 'select public.hr_tally_collect(0, $1::uuid)', [idem()]);
+    const paid = v && v.paid && v.paid[0];
+    if (!paid || paid.item !== 'leather_body' || paid.pick !== 'piece') problems.push('wearing a Leather Helmet she paid ' + JSON.stringify(v) + ', want leather_body');
+    if (paid && paid.item !== said) problems.push('her board said ' + said + ' and she paid ' + (paid && paid.item));
+    const helms = Number(await one(db, "select coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'leather_helmet'), 0)::text", [V]));
+    if (helms !== 14) problems.push('the bag holds ' + helms + ' Leather Helmets after the payment, want the 14 it had');
+    /* BETTER, ANOTHER WEIGHT: an Iron Platebody (tier 2, heavy) worn skips her tier-1 leather body. */
+    await db.query('delete from public.hero_tally_given where user_id = $1', [V]);
+    await db.query('delete from public.hero_tally_claims where user_id = $1', [V]);
+    await take(db, V, THICKET, null);
+    await wear(V, 'body', 'iron_platebody');
+    if ((await board(THICKET)) !== 'leather_pants') problems.push('wearing a Leather Helmet and an Iron Platebody her Thicket board says ' + (await board(THICKET)) + ', want leather_pants');
+    /* A LOWER TIER IS NO REASON: a Leather Body (tier 1) worn does not skip Wickstead's Studded Body (tier 2). */
+    const t2 = await take(db, V, WICKSTEAD, null);
+    if (!t2 || t2.ok !== true) problems.push('CONTROL: the Wickstead take was refused ' + JSON.stringify(t2));
+    if ((await board(WICKSTEAD)) !== 'studded_pants') problems.push('wearing tier 1 and tier 2 in helmet and body her Wickstead board says ' + (await board(WICKSTEAD)) + ', want studded_pants');
+    await wear(V, 'body', 'leather_body');
+    if ((await board(WICKSTEAD)) !== 'studded_body') problems.push('wearing a Leather Body her Wickstead board says ' + (await board(WICKSTEAD)) + ', want the tier-2 studded_body');
+
+    /* BOTH SETTLE DOORS: wearing the Cellar's one light piece, the hunt that ends pays the gold and her first material. */
+    const U = H.UIDS[0];
+    const h = await H.hunter(db, M, { ...H.STRONG, minutesAgo: 12, beforeEnter: async () => {
+      const r = await take(db, U, CELLAR, 'light');
+      if (!r || r.ok !== true) throw new Error('take refused: ' + JSON.stringify(r));
+      await wear(U, 'helmet', 'apprentice_helmet');
+    } });
+    const exec = H.makeExec(db);
+    const gold = await one(db, 'select gold::int from public.hr_tally_tasks where task_id = $1', [CELLAR]);
+    const mat = (await q(db, 'select item_id, qty from public.hr_tally_materials where task_id = $1 order by ord limit 1', [CELLAR]))[0];
+    await db.query('savepoint tt6b');
+    for (const door of ['closed', 'viewed']) {
+      const go = doorsOf(M, H, exec, U, h.sid)[door];
+      await db.query('update public.hero_tally_tasks set kills = target - 1 where user_id = $1 and task_id = $2', [U, CELLAR]);
+      let r = await go(h.from + 5 * 60000);
+      await leaveAt(db, H, U, h.sid, h.from + 6 * 60000);
+      for (let i = 0; i < 3 && r && r.outcome === 'paid' && !r.ended; i++) r = await go(h.from + 7 * 60000);
+      const ended = await one(db, 'select ended_at is not null from public.hunt_sessions where id = $1', [h.sid]);
+      if (!ended) { problems.push(`${door}: CONTROL: the hunt did not end (${r && r.outcome}/${r && r.reason})`); await db.query('rollback to savepoint tt6b'); continue; }
+      const rows = await payRows(db, U, CELLAR);
+      if (rows.length !== 1) problems.push(`${door}: ${rows.length} tally_pay rows after the hero came home, want 1`);
+      else if (Number(rows[0].gold) !== gold || rows[0].item_id !== mat.item_id || rows[0].qty !== mat.qty) {
+        problems.push(`${door}: wearing the Cellar's Apprentice Hat she paid ${rows[0].gold} g + ${rows[0].item_id} x${rows[0].qty}, want ${gold} g + ${mat.item_id} x${mat.qty}`);
+      }
+      if ((await q(db, 'select 1 from public.hero_tally_given where user_id = $1', [U])).length) problems.push(`${door}: a piece was given to a hero wearing every piece`);
+      await db.query('rollback to savepoint tt6b');
+    }
+    return problems;
+  },
+
   'TT-7': async (db, M, X) => {
     const problems = [];
     const U = X.H.UIDS[0];
@@ -565,6 +663,27 @@ const ARMS = {
   },
 };
 
+/* 2027-04-08-tally-worn's two files applied again at their own position: nothing moves (the tier book, the pick, the rows). */
+ARMS['TT-11b'] = async (whole, M, X) => {
+  const { bootReplay, chainFiles } = await import('./schema-replay.mjs');
+  const order = (await chainFiles()).map(([n]) => n);
+  const db = order[order.length - 1] === WORN ? whole : (await bootReplay({ upTo: WORN })).db;
+  const snap = async () => one(db, `select jsonb_build_object(
+    'fns', (select jsonb_object_agg(p.oid::regprocedure::text, md5(p.prosrc) || ':' || coalesce(array_to_string(p.proacl, ','), '') || ':' || coalesce(array_to_string(p.proconfig, ','), ''))
+              from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'hr_tally%'),
+    'cons', (select jsonb_object_agg(conrelid::regclass::text || '.' || conname, pg_get_constraintdef(oid)) from pg_constraint
+              where conrelid::regclass::text like 'hr_tally%'),
+    'acl', (select jsonb_object_agg(c.relname, coalesce(array_to_string(c.relacl, ','), '') || ':' || c.relrowsecurity) from pg_class c
+             where c.relnamespace = 'public'::regnamespace and c.relname like 'hr_tally%' and c.relkind = 'r'),
+    'rows', jsonb_build_array((select jsonb_agg(t order by task_id) from public.hr_tally_tasks t), (select jsonb_agg(p order by hunt_id, item_id) from public.hr_tally_pieces p),
+      (select jsonb_agg(m order by task_id, ord) from public.hr_tally_materials m), (select jsonb_agg(c) from public.hr_tally_config c),
+      (select jsonb_agg(w order by item_id) from public.hr_tally_tiers w)))`);
+  const a = await snap();
+  for (const f of [WORN_CAT, WORN]) await db.exec(readFileSync(join(X.H.ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n'));
+  const b = await snap();
+  return JSON.stringify(a) === JSON.stringify(b) ? [] : ['a second apply of the worn files moved the server: ' + firstDiff(JSON.stringify(a), JSON.stringify(b))];
+};
+
 function firstDiff(a, b) {
   let i = 0; while (i < a.length && a[i] === b[i]) i++;
   return `at ${i}: …${a.slice(Math.max(0, i - 120), i + 80)}… vs …${b.slice(Math.max(0, i - 120), i + 80)}…`;
@@ -628,6 +747,7 @@ async function main() {
   if (list) {
     for (const [id, m] of Object.entries(MUTANTS)) console.log(`${id}  [${m.arm}]  ${m.why}`);
     for (const [id, m] of Object.entries(SQL_MUTANTS)) console.log(`${id}  [${MIG} §8]  ${m.why}`);
+    for (const [id, m] of Object.entries(WORN_SQL_MUTANTS)) console.log(`${id}  [${WORN} §4]  ${m.why}`);
     return;
   }
   let db;
@@ -650,7 +770,7 @@ async function main() {
     process.exit(bad ? 1 : 0);
   }
   let missed = 0;
-  if (pick && !MUTANTS[pick] && !SQL_MUTANTS[pick]) { console.error('unknown mutant ' + pick); process.exit(2); }
+  if (pick && !MUTANTS[pick] && !SQL_MUTANTS[pick] && !WORN_SQL_MUTANTS[pick]) { console.error('unknown mutant ' + pick); process.exit(2); }
   const ids = pick ? (MUTANTS[pick] ? [pick] : []) : Object.keys(MUTANTS);
   for (const id of ids) {
     const m = MUTANTS[id];
@@ -697,7 +817,17 @@ async function main() {
     }
     else { console.error(`✗ ${MIG} applied ${id} (${m.why})${refused ? ': ' + String(refused.message).slice(0, 200) : ''}`); missed++; }
   }
-  const total = ids.length + sqlIds.length;
+  const wornIds = pick ? Object.keys(WORN_SQL_MUTANTS).filter((k) => k === pick) : Object.keys(WORN_SQL_MUTANTS);
+  for (const id of wornIds) {
+    const m = WORN_SQL_MUTANTS[id];
+    let refused = null;
+    try { await bootReplay({ patches: new Map([[WORN, [[m.find, m.repl]]]]), upTo: WORN }); } catch (e) { refused = e; }
+    const said = String(refused && refused.message);
+    if (refused && !refused.harness && /tally-worn §4\([a-e]\)/.test(said) && !/syntax error/.test(said)) {
+      console.log(`✓ the §4 of ${WORN} refuses ${id}: ${m.why} (${(said.match(/tally-worn §4\([a-e]\)[^\n]{0,60}/) || [''])[0]})`);
+    } else { console.error(`✗ ${WORN} applied ${id} (${m.why})${refused ? ': ' + String(refused.message).slice(0, 200) : ''}`); missed++; }
+  }
+  const total = ids.length + sqlIds.length + wornIds.length;
   console.log(missed ? `tally-tasks --selftest: ${missed} of ${total} mutant(s) survived` : `tally-tasks --selftest: all ${total} mutants killed`);
   process.exit(missed ? 1 : 0);
 }

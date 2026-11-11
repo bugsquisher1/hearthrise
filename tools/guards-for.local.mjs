@@ -27,12 +27,23 @@ import { fileURLToPath } from 'node:url';
 import { changedFiles, guardSources, touchedBy } from './lib/guard-deps.mjs';
 
 const args = process.argv.slice(2);
+/* The mapping is shared with tools/mutant-gate.mjs (CI's --mutate/--selftest gate): one rule, two callers. */
+/* Never scheduled here, whatever the diff touches: run-ci-local is a way to reproduce a GitHub red, not a gate
+   (CLAUDE.md §3.3), and on 2026-11-11 six lanes ran it at once because their diffs touched CI files. */
+export const NEVER_SCHEDULED = Object.freeze(['tests/run-ci-local.mjs']);
+export const pickTests = (entries) => new Map([...entries]
+  .filter(([t]) => t.startsWith('tests/') && !basename(t).startsWith('_') && !NEVER_SCHEDULED.includes(t)));
+
+if (args.includes('--selftest')) {
+  const got = pickTests([['tests/run-ci-local.mjs', 'ci'], ['tests/_helper.mjs', 'x'], ['tests/ci-shape.mjs', 'ci'], ['tools/x.mjs', 'y']]);
+  const ok = [...got.keys()].join(',') === 'tests/ci-shape.mjs';
+  console.log(ok ? 'guards-for --selftest: run-ci-local is never scheduled (1/1)' : `guards-for --selftest FAILED: ${[...got.keys()]}`);
+  process.exit(ok ? 0 : 1);
+}
+
 const base = args.includes('--base') ? args[args.indexOf('--base') + 1] : 'origin/main';
 const changed = changedFiles(process.cwd(), `${base}...HEAD`, { worktree: true });
-
-/* The mapping is shared with tools/mutant-gate.mjs (CI's --mutate/--selftest gate): one rule, two callers. */
-const pick = new Map([...touchedBy(changed, guardSources(process.cwd()))]
-  .filter(([t]) => t.startsWith('tests/') && !basename(t).startsWith('_')));
+const pick = pickTests(touchedBy(changed, guardSources(process.cwd())));
 const list = [...pick.entries()].sort();
 console.log(`${changed.length} changed files vs ${base} → ${list.length} tests`);
 if (!args.includes('--run')) {

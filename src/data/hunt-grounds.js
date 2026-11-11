@@ -69,7 +69,7 @@
 // and seat stands on open floor there (tests/hunt-core/sewer.mjs, forest-cave.mjs).
 //
 // THE WOLVES (one family, roles not stat bumps; Tyler's H-001 creatures kept by intent):
-// the Gray Whelp (the swarm: fast, weak, many), the Gray Wolf (the skirmisher, the
+// the Gray Wolf Pup (the swarm: fast, weak, many), the Gray Wolf (the skirmisher, the
 // ground's common carrier), the Briarcoat Wolf (the tank: burrs catch arrows, a club
 // knocks them loose; the workbook's armoured Cave Beetle and Thorn Sprout folded in),
 // the Dire Gray (the bruiser) and Old Grayjaw (the den mother, a tier-3 bite). The
@@ -96,7 +96,7 @@
 // THE SEWER'S CREATURES (monsters.js, `formation: true`). Names come from the work
 // done down there: the Drain Rat, the Sump Slime, the Culvert Bat (roosts over the
 // channel, fast enough to reach the backline), the Cistern Spider (the elite pocket's
-// anchor), the Kobold Tosher (picks the outfalls for scrap) and the Rat King (a knot
+// anchor), the Sewer Kobold (picks the outfalls for scrap) and the Rat King (a knot
 // of rats under a crown hammered from drain grates). hp/atk/def/xp/speed are the hunt
 // sim's measured rows (prototypes/hunt-sim/BALANCE_RULINGS.md, rounds 1-2 and the
 // 10-16 party test). ECONOMY (Tyler 2026-10-20: +25-35% over the store bill is a MINIMUM
@@ -132,13 +132,13 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.118';
-import { HUNT_INDEX } from './hunts.js?v=0.2.118';
-import { MONSTERS } from './monsters.js?v=0.2.118';
-import { PARTY } from './party.js?v=0.2.118';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.121';
+import { HUNT_INDEX } from './hunts.js?v=0.2.121';
+import { MONSTERS } from './monsters.js?v=0.2.121';
+import { PARTY } from './party.js?v=0.2.121';
 /* the shape helpers (pocket, box, gather) live with the ground packs, which build their grounds with the same ones */
-import { pocket, box, gather, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.118';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.118';
+import { pocket, box, gather, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.121';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.121';
 export { FULL_BOX };
 
 /* THE GATHER NODE KINDS (HUNT_GATHERING_SPEC §3, REVIEW §3 and §5): what a placed node is. `node` is a

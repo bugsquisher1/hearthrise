@@ -276,7 +276,12 @@ const MUTATIONS = {
   on_elk_king:      { rule: 'b', mk: () => withRow(null, (ms) => moveLucky(ms, 'broodmother', 'elk_king')) },
   wartusk_cleaver:  { rule: 'a', mk: () => withRow(null, (ms) => { lastOf(ms, 'goblin_warlord').id = 'wartusk_cleaver'; }) },
   emberheart:       { rule: 'a', mk: () => withRow(null, (ms) => { lastOf(ms, 'drake').id = 'emberheart'; }) },
-  t1_v13600_item:   { rule: 'c', mk: () => withRow(null, (ms) => { lastOf(ms, 'mandrake').id = 'demoncaller_staff'; }) },
+  /* (c) is the GROUND side of the cap. Until v0.2.120 this planted a v:13600 T6 staff on a T1 ground (its old vendor bid 1904g);
+     the gear sale ladder (loot-bands.js gearSaleRate, lane/b-phase0-tier4) bids 204g for it, 0.03g a kill, under mandrake's
+     0.175g cap, so that plant tripped only (a) and (f). No T1/T2 item with art can pass the cap at a lucky ch (the dearest bids
+     155g), so the defect is the one a re-priced ground makes: its gold cut to a tenth of a coin a kill, its find left as it was:
+     bramble_blade's 0.0097g a kill is then 9.7% of the kill's gold. Hours (d), the item (a) and the tier (f) are untouched. */
+  t1_gold_cut:      { rule: 'c', mk: () => withRow(null, (ms) => { ms.mandrake.gp = [0, 0.2]; }) },
   oak_staff:        { rule: 'a', mk: () => withRow(null, (ms) => { lastOf(ms, 'witchs_apprentice').id = 'oak_staff'; }) },
   crown_fallen_king:{ rule: 'a', mk: () => withRow(null, (ms) => { lastOf(ms, 'draconia').id = 'crown_of_the_fallen_king'; }) },
   widows_fang:      { rule: 'f', mk: () => withRow(null, (ms) => { lastOf(ms, 'giant_spider').id = 'widows_fang'; }) },

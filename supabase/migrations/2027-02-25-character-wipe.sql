@@ -107,6 +107,8 @@ declare
     'hr_qm_offers', 'hr_room_perks', 'hr_runes', 'hr_server_secrets', 'hr_settings', 'hr_shop_supply_offers', 'hr_skill_curve', 'hr_skills',
     'hr_stamina_refill_rule', 'hr_start_equipment', 'hr_start_inventory', 'hr_start_kit', 'hr_start_skill_xp', 'hr_state_sections', 'hr_storage_chests',
     'hr_tally_config', 'hr_tally_materials', 'hr_tally_pieces', 'hr_tally_tasks', 'hr_tick_cohort', 'hr_tick_cron_log',
+    /* Tamsin's tier book (2027-04-08-tally-worn.generated.sql): the gear tier of every item worn in her slots, a catalogue */
+    'hr_tally_tiers',
     'hr_town_maps', 'hr_town_stands', 'hr_town_station_hosts', 'hr_town_stations', 'hr_traits', 'hr_unlock_offers', 'hr_unlocks', 'hr_wipe_log',
     'hr_world_notice_rules', 'hr_xp_table', 'hunt_world_shape_move', 'leaderboard_meta', 'maintenance_alerts', 'maintenance_log',
     'hr_account_deletion_log', 'hr_sink_rules', 'hr_titles', 'hr_town_works', 'hr_boss_calls',

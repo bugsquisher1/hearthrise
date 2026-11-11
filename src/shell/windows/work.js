@@ -16,6 +16,8 @@
 //               how many the bag and the account's Storage cover ("Makes up to
 //               62"; the server spends the bag first, Tyler 2026-10-25) or what is missing
 //   locked      the next two rows above the level, "Needs Smithing 15"
+// A crafting station's rows come in the order its Sort menu picks (Can make, Level, Name;
+// src/shell/station-sort.js), remembered per station; locked rows stay in the list under every sort.
 // Buttons are off while a press is in flight and when the server's numbers say
 // no (a hunt running, the level, the materials); the server re-checks all of it.
 // While the work runs, the line and the skill's bar under its title also count
@@ -23,29 +25,32 @@
 // (src/shell/town-ticker.js), as pending; the rows' numbers stay the server's.
 // Farming has no door here: it is grown in plots, which this window does not run.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.118';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.118';
-import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.118';
-import { skillsOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.118';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.118';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.118';
-import { whole } from '../../render/format.js?v=0.2.118';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.118';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.118';
-import { runIntent } from '../intent-words.js?v=0.2.118';
-import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.118';
-import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, perHourOf, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf, toolLine, shortInputLine } from '../town-work.js?v=0.2.118';
-import { patchParts, placesParts } from '../goto.js?v=0.2.118';
-import { saleWords } from '../item-lore.js?v=0.2.118';
-import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.118';
-import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.118';
-import { rollOddsOf } from '../../session/jewelry-sections.js?v=0.2.118';
-import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark-pane.js?v=0.2.118';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.121';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.121';
+import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.121';
+import { skillsOf, skillLevelsOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.121';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.121';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.121';
+import { whole } from '../../render/format.js?v=0.2.121';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.121';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.121';
+import { runIntent } from '../intent-words.js?v=0.2.121';
+import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.121';
+import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, perHourOf, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf, toolLine, shortInputLine } from '../town-work.js?v=0.2.121';
+import { patchParts, placesParts } from '../goto.js?v=0.2.121';
+import { saleWords } from '../item-lore.js?v=0.2.121';
+import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.121';
+import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.121';
+import { rollOddsOf } from '../../session/jewelry-sections.js?v=0.2.121';
+import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark-pane.js?v=0.2.121';
+import { DEFAULT_SORT, stationSortOf, withStationSort, orderStation, sortMenuHtml, patchSortMenu } from '../station-sort.js?v=0.2.121';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { skill: null, pending: false, msg: '', n: {} }; SCRATCH.set(cs, s); } return s; };
+/* The display state this hero keeps on the server (the residue allowlist, src/session/residue.js). */
+const residueOf = (cs) => (cs && cs.record && cs.record.residue) || {};
 /* The amount a bench row will make on its next Start (1, 5 or 'all'): the player's pick, else the row's default. */
 const countOf = (sc, w) => (Object.prototype.hasOwnProperty.call(sc.n, w.id) ? sc.n[w.id] : defaultCount(w));
 
@@ -62,17 +67,16 @@ function hasWork(skill) {
 }
 
 /**
- * The rows a skill shows at the server's level: what it can do now (a bench: what the bag covers first),
- * best first, then the next AHEAD above the level. Pure over (skill, level, bag).
+ * The rows a skill shows at the server's level: what it can do now, then the next AHEAD above the level, in
+ * the station's picked order (src/shell/station-sort.js; by default what the bag covers first, best first,
+ * the locked ones last). Pure over (skill, level, bag, sort).
  */
-export function rowsFor(skill, level, inv) {
+export function rowsFor(skill, level, inv, sort) {
   const all = BY_SKILL.get(skill) || [];
   const lv = Number.isInteger(level) ? level : 1;
   const open = all.filter((w) => (w.row.req || 1) <= lv);
   const ahead = all.filter((w) => (w.row.req || 1) > lv).sort((a, b) => (a.row.req || 1) - (b.row.req || 1)).slice(0, AHEAD);
-  const can = (w) => (w.kind === 'artisan' && runsOf(w.row, inv) > 0 ? 1 : 0);
-  open.sort((a, b) => can(b) - can(a) || (b.row.req || 1) - (a.row.req || 1));
-  return open.concat(ahead);
+  return orderStation(open, ahead, sort, (w) => w.kind === 'artisan' && runsOf(w.row, inv) > 0);
 }
 
 const secs = (ms) => (Math.round(ms / 100) / 10) + ' s';
@@ -162,7 +166,7 @@ export function renderWork() {
     + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make.</p>' + renderTradeSkills() + '</div>'
     + '<section class="hw-work"><div class="hw-work-head"><button type="button" class="hh-tool" data-hs-act="work-back">‹ All skills</button>'
     + '<b class="hw-work-title"></b>' + skillBarHtml('Skill') + '<small class="hw-skill-xp"></small><b class="hw-skill-lv"></b></div>'
-    + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p>' + hallmarkPaneHtml() + '<ul class="hw-ledger hw-work-rows"></ul></section>'
+    + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p>' + hallmarkPaneHtml() + sortMenuHtml() + '<ul class="hw-ledger hw-work-rows"></ul></section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -204,13 +208,15 @@ renderWork.patch = function patchWork(body, ctx) {
   if (skill) {
     const sk = skillsOf(cs);
     const lv = sk && sk[skill] ? sk[skill].level : null;
+    /* the head draws the ledger's cell (skillLevelsOf: the server's level and its two XP marks), the rows gate on `lv` */
+    const bar = (skillLevelsOf(cs) || {})[skill] || null;
     const head = view.querySelector('.hw-work-head');
     text(view.querySelector('.hw-work-title'), SKILLS_DEF[skill].name);
-    text(head.querySelector('.hw-skill-lv'), lv === null ? '' : String(lv));
+    text(head.querySelector('.hw-skill-lv'), bar ? String(bar.level) : '');
     /* The skill's own bar beside its title: the server's XP, and what the running work has earned since the payout. */
-    cls(head, 'has-xp', lv !== null);
+    cls(head, 'has-xp', !!bar);
     attr(head.querySelector('.hw-skill-bar'), 'aria-label', SKILLS_DEF[skill].name + ' progress');
-    if (lv !== null) patchSkillProgress(head, skill, sk[skill], aheadXp(tickOf(cs), skill));
+    if (bar) patchSkillProgress(head, bar, aheadXp(tickOf(cs), skill));
     const guide = SKILL_GUIDE[skill];
     const how = SKILLS_DEF[skill].cat === 'gather'
       ? 'Pick what to gather. Your hero keeps at it while you are away, until you stop it or start a hunt.'
@@ -219,7 +225,11 @@ renderWork.patch = function patchWork(body, ctx) {
     const tool = view.querySelector('.hw-work-tool'), toolSaid = toolLine(cs, skill);
     text(tool, toolSaid);
     prop(tool, 'hidden', !toolSaid);
-    rows(view.querySelector('.hw-work-rows'), lv === null ? [] : rowsFor(skill, lv, heldOf(cs)), {
+    /* A crafting station's recipes come in the order this hero picked there (residue, display only); gathering keeps its one order. */
+    const bench = SKILLS_DEF[skill].cat === 'artisan';
+    const sort = bench ? stationSortOf(residueOf(cs), skill) : DEFAULT_SORT;
+    patchSortMenu(view.querySelector('.hw-work-sort'), bench && lv !== null, sort);
+    rows(view.querySelector('.hw-work-rows'), lv === null ? [] : rowsFor(skill, lv, heldOf(cs), sort), {
       key: (w) => w.id,
       build: (w) => element(ctx.doc, rowHtml(ctx.glyphs, w)),
       patch: (li, w) => patchRow(li, w, cs, sc, on, hunting, lv),
@@ -241,6 +251,13 @@ renderWork.act = function actWork(ctx, body, action, ev, t) {
   const sc = scratchOf(cs);
   const repaint = () => renderWork.patch(body, ctx);
   const send = (fn, busy, done) => runIntent(sc, repaint, fn, busy, done);
+  /* The station's Sort menu: the pick is remembered for this station (residue, display only) and the rows re-order at once. */
+  if (action === 'station-sort') {
+    if (ev.type !== 'change' || !sc.skill) return false;
+    const next = withStationSort(residueOf(cs), sc.skill, t.value);
+    if (next) { cs.setResidue('stationSort', next); repaint(); }
+    return false;
+  }
   if (ev.type === 'keydown') {
     if (action !== 'open-skill' || (ev.key !== 'Enter' && ev.key !== ' ')) return false;
   } else if (ev.type !== 'click') return false;

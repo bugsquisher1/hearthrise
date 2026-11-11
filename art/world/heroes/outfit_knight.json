@@ -42,9 +42,21 @@
         "ne": 6,
         "nw": 6
       }
+    },
+    {
+      "name": "hit",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 5,
+        "e": 5,
+        "n": 5,
+        "w": 5,
+        "se": 5
+      }
     }
   ],
-  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from prototypes/hunt-sim-assets/knight (PixelLab style-1, 2026-10-15) by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels.",
+  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from prototypes/hunt-sim-assets/knight (PixelLab style-1, 2026-10-15) by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels. Combat clips (hit) laid from reviewed raw frames by tools/world-art/import-clips.mjs (hunt-clips.mjs): registered on the idle still by whole pixels, falls seated on the anchor row, never scaled or redrawn.",
   "pixellab": {
     "idle": {
       "tool": "animate_object",
@@ -100,6 +112,15 @@
           2,
           1
         ]
+      }
+    },
+    "clips": {
+      "hit": {
+        "s": "art/world-src/gen-2026-11-08b/outfit_knight-hit/hit/south lay 0 1 2 3 4",
+        "e": "art/world-src/gen-2026-11-08b/outfit_knight-hit/hit/east lay 0 1 2 3 4",
+        "n": "art/world-src/gen-2026-11-08b/outfit_knight-hit/hit/north lay 0 1 2 3 4",
+        "w": "art/world-src/gen-2026-11-08b/outfit_knight-hit/hit/west lay 0 1 2 3 4",
+        "se": "art/world-src/gen-2026-11-09/h1d-hero-flinch-diagonals-sample/outfit_knight/h1d/hit/south-east lay 0 1 2 3 4"
       }
     }
   }

@@ -2,7 +2,7 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
-## 2026-11-10 · SYSTEMS (lane: `lane/a-hunt-clips`) → ART DIRECTOR · **OPEN, one constant: how far a combat clip may turn a unit**
+## 2026-11-10 · SYSTEMS (lane: `lane/a-hunt-clips`) → ART DIRECTOR · **RULED (Coordinator 2026-11-10): `CLIP_RULES.reach` stays 1, one 45° step. Was OPEN, one constant: how far a combat clip may turn a unit**
 - **The two readings.** Brief 13's READY list (line 1): play a clip only on a facing the clip HAS, else the old behaviour (the 1 px recoil, no swing). The Coordinator's lane brief: "fall back to the nearest facing it has, never a blank or a mirrored wrong-perspective frame".
 - **Built, bounded.** `src/hunt-view/clip-hook.js` `CLIP_RULES.reach = 1`: a swing or flinch plays on the unit's own facing, else the nearest DRAWN one a single 45° step round (a wolf facing SE flinches in its drawn E or S, the heading picks), else the recoil; never 90° or 180° round, never mirrored. A fall lies in the nearest facing at any distance (`fallReach` 4: a body always lies). `tests/hunt-clips.mjs` HC-1/HC-2 hold it over every shipped clip; `tests/world-assets.mjs` [live] reads the same constant for the swing contract.
 - **For the art director.** `reach: 0` is the strict brief-13 reading (the four-facing flinches then play on cardinals only and a diagonal recoils). One line, no art change either way.

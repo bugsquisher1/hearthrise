@@ -2,6 +2,16 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-11 — party cells without a party pull: the grader was judging against fresh heroes
+
+Re-fit the mixed party cells after Tyler retired the Normal party pull (board "2026-11-11 Party XP cells").
+Two lessons. **Check what the grader compares before tuning to it.** Its four-xp floor median mixed ladder-kit
+solos with the practice-kit fresh heroes, so floors read 10-15 points higher than the middles and no single cell
+fit Wickstead. Every sibling metric already filtered the kit; this one forgot. Fixing it was a one-liner with a
+synthetic regression. **One cell per ground can't serve two pull shapes.** Normal (packs for one) needs the mixed
+cells about doubled, and the big-pull tiers then pay a Glade party 1.5-2.4x. One-class cells can't rise at all
+without crossing solo at 8 each. The clean answer is a cell keyed by tier. That's Systems' call and Tyler's question,
+so the cells hold the ruled band where the grader binds it (Normal) and the board says what that costs.
 ## 2026-11-11 lane/d-plain-lore (Tyler: "Fix your voice. ASAP.")
 - 521 player strings in src/data rewritten in plain words (item flavour, hunt themes, class lines, trophy, boss and end-of-hunt lines, title words). The item file's own header asked for a "medieval voice"; that was the root cause, not one bad line.
 - The armor ladders were the worst: about 130 lines from one template ("an adept's sash, finer cloth cinched round..."). Plain names now: belt, chestplate, hood, vest, arm guards, leggings.

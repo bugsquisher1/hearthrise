@@ -64,6 +64,26 @@ export function hoursWords(ms) {
   return h && r ? h + ' h ' + r + ' m' : h ? h + ' h' : r + ' m';
 }
 
+/* The player's own clock and language, made once (the HUD's display tick reads them several times a second). */
+const AT_TIME = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
+const AT_DAY = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
+const AT_DAY_LONG = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
+const AT_DATE = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+const DAY_MS = 86400000;
+const dayKey = (ms) => { const d = new Date(ms); return d.getFullYear() * 400 + d.getMonth() * 32 + d.getDate(); };
+
+/**
+ * A server instant in the player's own clock (display only): "11:00 PM" on the day of `nowMs`, "Fri 6:00 AM" within the
+ * week around it ("Friday 6:00 AM" when `long`), else "Nov 20 6:00 AM". A dash for an instant that isn't one.
+ */
+export function localWhen(atMs, nowMs, long = false) {
+  if (!ok(atMs)) return DASH;
+  const time = AT_TIME.format(atMs);
+  if (ok(nowMs) && dayKey(atMs) === dayKey(nowMs)) return time;
+  if (ok(nowMs) && Math.abs(atMs - nowMs) < 6 * DAY_MS) return (long ? AT_DAY_LONG : AT_DAY).format(atMs) + ' ' + time;
+  return AT_DATE.format(atMs) + ' ' + time;
+}
+
 /** 0..1 → "62%". */
 export function pct(f) { return ok(f) ? Math.round(Math.max(0, Math.min(1, f)) * 100) + '%' : DASH; }
 

@@ -21,7 +21,7 @@
 //
 // PURE except for `residueStore`, the adapter onto one character's residue.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.121';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.122';
 
 export const SIZE_CLASSES = Object.freeze(['desktop', 'phone']);
 export const OPACITY_MIN = 0.4;
@@ -58,6 +58,7 @@ export function validateWidgetRows(rows) {
     if (r.phone.anchor !== undefined && !ANCHOR_RE.test(r.phone.anchor)) throw new Error(where + ': bad phone anchor');
     if (r.phone.folded !== undefined && r.phone.folded !== FOLDED_ALONE) throw new Error(where + ': phone.folded can only be ' + FOLDED_ALONE);
     if (r.below !== undefined && (!Array.isArray(r.below) || !r.below.every((x) => typeof x === 'string' && x !== r.id))) throw new Error(where + ': below must list other widget ids');
+    if (r.section !== undefined && (typeof r.section !== 'string' || !/^[a-z][a-z0-9_]*$/.test(r.section))) throw new Error(where + ': section must name an envelope section');
     byId.set(r.id, r);
   }
   for (const r of byId.values()) for (const x of r.below || []) if (!byId.has(x)) throw new Error('hud widget ' + JSON.stringify(r.id) + ': below names no widget ' + JSON.stringify(x));
@@ -510,8 +511,12 @@ export function renderHudSettings(ctx) {
       + '</li>';
   };
   const move = hud.sizeClass() === 'desktop' ? ' Drag the Hunt analyzer or the Tally by its title to move it.' : '';
+  /* A row behind a server switch (its `section`, e.g. the live events) is listed only while the server sends that section:
+     switched off, its widget is nowhere, its settings line included. */
+  const cs = ctx.character;
+  const listed = (row) => !row.section || (!!cs && typeof cs.read === 'function' && cs.read(row.section) != null);
   return '<p class="hs-note">Show, hide or fade any part of the screen. Hovering shows it at full strength.' + move + '</p>'
-    + '<ul class="hs-hudset">' + hud.rows().map(line).join('') + '</ul>'
+    + '<ul class="hs-hudset">' + hud.rows().filter(listed).map(line).join('') + '</ul>'
     + '<div class="hs-foot"><button type="button" class="hs-quiet" data-hs-wreset>Reset layout</button></div>';
 }
 

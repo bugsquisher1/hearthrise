@@ -25,27 +25,27 @@
 // the stats says what each harder tier changes (the Hunts page says a tier in words only, hunt-list.js tierWords). A server-revealed surprise row
 // (`lucky`, `salvage`) stays unlisted, as on the ground's page.
 // ════════════════════════════════════════════════════════════════════════
-import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.121';
-import { ITEMS } from '../data/items.js?v=0.2.121';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.121';
-import { OPEN_GROUNDS } from '../data/hunt-grounds.js?v=0.2.121';
-import { DEFAULT_TIER, atTier, tierRowOf, tiersOf } from '../data/hunt-tiers.js?v=0.2.121';
-import { partyNote } from './hunt-list.js?v=0.2.121';
-import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.121';
-import { elementPermille } from '../core/elements.js?v=0.2.121';
-import { COMBAT_BALANCE, WEAKNESS_BONUS, monsterMaxHit, weaknessInfo } from '../core/combat.js?v=0.2.121';
-import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.121';
-import { residentsOf, bigPullOf } from './hunt-ground-facts.js?v=0.2.121';
-import { usePlaces, usesOf } from './item-lore.js?v=0.2.121';
-import { skillName } from './widgets/bits.js?v=0.2.121';
-import { t } from '../render/player-text.js?v=0.2.121';
+import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.122';
+import { ITEMS } from '../data/items.js?v=0.2.122';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.122';
+import { OPEN_GROUNDS } from '../data/hunt-grounds.js?v=0.2.122';
+import { DEFAULT_TIER, atTier, tierRowOf, tiersOf } from '../data/hunt-tiers.js?v=0.2.122';
+import { partyNote } from './hunt-list.js?v=0.2.122';
+import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.122';
+import { elementPermille } from '../core/elements.js?v=0.2.122';
+import { COMBAT_BALANCE, WEAKNESS_BONUS, monsterMaxHit, weaknessInfo } from '../core/combat.js?v=0.2.122';
+import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.122';
+import { residentsOf, bigPullOf } from './hunt-ground-facts.js?v=0.2.122';
+import { usePlaces, usesOf } from './item-lore.js?v=0.2.122';
+import { skillName } from './widgets/bits.js?v=0.2.122';
+import { t } from '../render/player-text.js?v=0.2.122';
 
 const pctOf = (mult) => Math.round((mult - 1) * 100);
 
 /**
  * The open grounds monster `id` lives on, lowest floor first: [{ hunt, name, band: [lo, hi], how, warn, ground }].
  * `how` is its share of the spawn points in words ('common' | 'uncommon' | 'rare'), 'boss', or 'pull' for a creature
- * only a party or a harder hunt brings. `warn`: for a boss whose hall is built for a group, the Hunts list's warning; else ''.
+ * only a harder hunt summons (Normal is the room as built for every group, Tyler 2026-11-11). `warn`: for a boss whose hall is built for a group, the Hunts list's warning; else ''.
  */
 export function homesOf(id) {
   const out = [];

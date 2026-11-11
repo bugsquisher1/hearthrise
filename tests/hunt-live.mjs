@@ -472,15 +472,25 @@ function rules(M) {
     server(M, closedMis, { hunt: 'mosslight_glade' }).commit(T0 + SPAN);
     const closedXp = closedMis.map((m, i) => m.levelXp - closedFrom[i]);
     const viewedMis = heroes(), viewedFrom = viewedMis.map((m) => m.levelXp);
-    const r = run(M, viewedMis, SPAN, { server: { hunt: 'mosslight_glade', id: 'i-live' } });
+    const batches = [];
+    const r = run(M, viewedMis, SPAN, { server: { hunt: 'mosslight_glade', id: 'i-live' }, feed: (b) => batches.push(b) });
     const viewedXp = viewedMis.map((m, i) => m.levelXp - viewedFrom[i]);
-    const shown = {};
-    for (const e of r.fed.events) if (e.type === 'xp') shown[e.u] = (shown[e.u] || 0) + e.amount;
-    const shownXp = viewedMis.map((m) => shown[m.unitId] || 0);
-    console.log('  LV-U closed ' + closedXp + ', viewed ' + viewedXp + ', prediction ' + shownXp);
+    /* THE PREDICTION STANDS ONE SWING PAST THE LAST COMMIT (LV-CLASS's split, lane/b-ground-formula-fix): its xp is summed over the swings that
+       commit settled, and the swing past it is held to the server's next commit. With the Glade's room as built for a pair (Tyler 2026-11-11,
+       lane/c-brook-bear) a kill fell in that swing, and the whole-run sum read one kill's shares over the commits'. */
+    const xpBy = (evList) => { const o = {}; for (const e of evList) if (e.type === 'xp') o[e.u] = (o[e.u] || 0) + e.amount; return viewedMis.map((m) => o[m.unitId] || 0); };
+    const settled = r.srv.inst.settled_to_ms;
+    const shownXp = xpBy(batches.filter((b) => b.toMs <= settled).flatMap((b) => b.events));
+    const ahead = batches.filter((b) => b.fromMs >= settled);
+    const aheadTo = Math.max(settled, ...ahead.map((b) => b.toMs));
+    const aheadXp = xpBy(ahead.flatMap((b) => b.events));
+    const next = r.srv.commit(aheadTo + 16000);
+    const nextXp = xpBy(next ? next.tl.hunt_events.filter((e) => e.atMs < aheadTo) : []);
+    console.log('  LV-U closed ' + closedXp + ', viewed ' + viewedXp + ', prediction ' + shownXp + ' (and ' + aheadXp + ' past the last commit, next commit ' + nextXp + ')');
     ok('LV-U', closedXp[1] > 0 && closedXp[0] > 0 && closedXp[0] < closedXp[1] * 0.3, 'the low seat earned ' + closedXp[0] + ' against the top seat\'s ' + closedXp[1] + ' with the browser closed');
     ok('LV-U', viewedXp.join() === closedXp.join(), 'viewed the server paid ' + viewedXp + ', with the browser closed ' + closedXp);
     ok('LV-U', shownXp.join() === closedXp.join(), 'the prediction shows ' + shownXp + ', the server pays ' + closedXp);
+    ok('LV-U', aheadXp.join() === nextXp.join(), 'the prediction past the last commit shows ' + aheadXp + ', the next commit pays ' + nextXp);
   }
 
   { // LV-TIER: A HARDER HUNT, WATCHED (hunt-tiers.js; CLAUDE.md §6): the browser runs the same core on the frozen tier the leader's peer hero carries: every commit matches, and it's a harder fight than today's pull on the same dice.
@@ -1642,8 +1652,8 @@ function rules(M) {
     const pullOf = (s) => M.WS.decodeStored(JSON.parse(s.inst.world)).density;
     const closedPull = pullOf(closed), viewedPull = pullOf(r.srv);
     console.log('  LV-CLASS pull: density ' + closedPull + ' / ' + viewedPull + ', XP closed ' + closedXp + ', viewed ' + viewedXp + ', ' + off + ' commits off');
-    const pairPull = M.HG.huntGroundOf('meadowbrook_thicket').ground.partyPull[1];
-    ok('LV-CLASS', closedPull === pairPull && viewedPull === pairPull, 'pull: a Thicket pair with no pick stands at density ' + closedPull + ' closed, ' + viewedPull + ' viewed, want ' + pairPull);
+    /* ONE PACK ON NORMAL (Tyler 2026-11-11): a pair with no pick stands as built, as a hero alone does, on both doors */
+    ok('LV-CLASS', closedPull === 0 && viewedPull === 0, 'pull: a Thicket pair with no pick stands at density ' + closedPull + ' closed, ' + viewedPull + ' viewed, want the room as built (0)');
     ok('LV-CLASS', closedXp.join() === viewedXp.join() && closedXp.every((x) => x > 0), 'pull: viewed the server paid ' + viewedXp + ', with the browser closed ' + closedXp);
     ok('LV-CLASS', off === 0, 'pull: ' + off + ' of ' + r.verdicts.length + ' commits did not match the prediction');
   }
@@ -1670,9 +1680,11 @@ const MUTANTS = [
   ["the browser's prediction fights on a ground it cannot name (LV-CLASS, viewed)", 'src/hunt-view/live-engine.js',
     '    const where = huntGroundOf(String(live.instance.hunt));\n',
     "    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { id: 'nowhere' }) };\n", /^LV-CLASS: mixed: (the prediction|\d+ of)/],
-  ["the browser's prediction plays no party pull (LV-CLASS, viewed)", 'src/hunt-view/live-engine.js',
+  /* (re-aimed, lane/c-brook-bear: the server's party pull is retired, so the plant gives the browser's prediction a bigger pack of its own:
+     every pocket's first four rows as built, where the server spawns the room as built) */
+  ["the browser's prediction draws a bigger pack than the server (LV-CLASS, viewed)", 'src/hunt-view/live-engine.js',
     '    const where = huntGroundOf(String(live.instance.hunt));\n',
-    '    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { partyPull: undefined }) };\n', /^LV-CLASS: pull: \d+ of/],
+    '    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { pockets: real.ground.pockets.map((p) => Object.assign({}, p, { spawns: (p.pack || p.spawns).slice(0, 4) })) }) };\n', /^LV-CLASS: pull: \d+ of/],
   ['a shield Melee and a Melee count as two classes (LV-CLASS)', 'src/data/party-class-xp.js',
     "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['tank', 'melee_dps']) }),",
     "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['melee_dps']) }), tanks: Object.freeze({ label: 'Tank', roles: Object.freeze(['tank']) }),", /^LV-CLASS: same/],

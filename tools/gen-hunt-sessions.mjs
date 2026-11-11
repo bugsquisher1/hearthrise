@@ -49,7 +49,7 @@
 //   hr_hunt_end_reasons    hunt-sessions.js END_ORDER (reason, position) + RESUME_AFTER_END
 //   hr_hunt_kill_bounds    the most ONE kill of each monster can pay (the value bound)
 //   hr_hunt_vendor_value   vendorPriceOf (supabase/functions/hr-accrue/catalogue.js)
-//   hr_boss_calls          boss-calls.js BOSS_CALLS + BOSS_CALL_RULES: which rooms, what fee (Call out). A called row and its room
+//   hr_boss_calls          boss-calls.js BOSS_CALLS + BOSS_CALL_RULES: which rooms, what fee, how many a day, how long (Call out). A called row and its room
 //                          are refused here unless they pay NOTHING: xp 0, gp [0, 0], no drops; never in hr_hunt_roster
 //   hr_premium_login_reward premium.js PREMIUM_LOGIN_REWARD
 //   + CHECKS GENERATED FROM DATA on tables other files own: hunt_sessions
@@ -245,7 +245,18 @@ export const WORLD_FIELDS_READ = Object.freeze({
    reads, moves for gear of tier 4 and up (loot-bands.js VENDOR_GEAR_RATES 0.075 / 0.033 / 0.015, tiers 7 and 8 at tier 6's), every such bid DOWN from tier 3's 0.14; the made Mithril Hatchets and
    Maple Crossbow join it and hr_hunt_weapons. No kill bound, spawn, limit, ability or shape moves. AFTER 2027-03-27-phase0-tier4-items-catalogue (the self-check wants both weapons in
    hr_items), then the hr-accrue carrying the same loot-bands.js at once: vendor_sell is priced by the edge, so until it deploys the Sell tab pays the old bid this table no longer shows. */
-export const OUT_NAME = '2027-03-27-phase0-tier4-hunt-sessions-catalogue.generated.sql';
+/* A HERO ALONE MAY CALL OUT A BOSS (lane/c-call-out-and-bear, the designer's ruling 2, 2026-11-10): BOSS_CALL_RULES.partyMin is gone, so hr_boss_calls loses
+   party_min (dropped here, if it exists). 2027-03-27-phase0-tier4 is the file before this one and this file carries it whole; against it only hr_boss_calls's
+   column, its insert, the digest and the header differ. AFTER 2027-04-05-call-out-alone.sql, which restates the one body that read the column
+   (hr_boss_call_quote): applied before it, the live quote would read a dropped column until that file landed. No kill bound, spawn, limit, ability, bid
+   or shape moves, so no hunt pauses and the edge needs no order with it. */
+/* ONE PACK ON NORMAL FOR EVERY GROUP, AND THE BROOK BEAR AS BUILT (lane/c-brook-bear; Tyler 2026-11-11 "No, if they want bigger pulls they need to up
+   the difficulty"; the designer's ruling 3): hunt-grounds.js partyPull is gone, so hr_hunt_grounds.spawns of the Cellar, the Thicket, Wickstead and
+   the Glade falls back to their rows as built (the 2027-02-16 widening comes out), and the Glade's Vine Hollow stands the bear (the spawn rows count
+   each pocket's whole pack, so they do not move). 2027-04-05-call-out is the file before this one and this file carries it whole. THE BOUND NARROWS:
+   this file applies AFTER the hr-accrue carrying the same hunt-grounds.js (an old engine still pulls a party's bigger pack, which the narrower
+   bound refuses kills_over), and once no party hunt that began on Normal on those four grounds before that deploy is still running. */
+export const OUT_NAME = '2027-04-07-brook-bear-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -301,11 +312,9 @@ export function groundRows(grounds, refs = {}) {
       throw new Error(`ground ${id} density max ${dmax} is not 0..${DENSITY_PICK.max}, never falling as the party grows`);
     }
     /* THE KILL BOUND'S BASE (hr_hunt_apply_member v_pass = spawns + pockets x the instance's frozen pick): the most the ground
-       presents with NO pick, its as-built rows plus every pocket at a party's largest default pull (hunt-grounds.js partyPull,
-       designer 2026-11-01). The engine plays that pull at a frozen pick of 0, so a bound of the as-built rows alone refused
-       a Thicket four's every window (kills_over, then the forfeit). */
-    const pull = Math.max(0, ...(g.partyPull || []));
-    rows.push({ hunt: g.hunt, ground: id, pockets: g.pockets.length, spawns: n + g.pockets.length * pull, respawn: g.respawnMs, seats: g.start.length, dmax });
+       presents with NO pick, its as-built rows, for every group (Tyler 2026-11-11: a party's own Normal pull is gone, so the
+       2027-02-16 widening by pockets x the largest partyPull comes back out; a harder tier's pull is the frozen pick). */
+    rows.push({ hunt: g.hunt, ground: id, pockets: g.pockets.length, spawns: n, respawn: g.respawnMs, seats: g.start.length, dmax });
     for (const m of Object.keys(counts).sort()) spawns.push({ hunt: g.hunt, monster: m, n: counts[m] });
   }
   return { rows, spawns };
@@ -685,10 +694,11 @@ function calledRows(S) {
   const hs = S.hunts.filter((h) => h.called === true && !rows.some((c) => c.hunt === h.id));
   if (hs.length) throw new Error(`called hunt ${hs[0].id} has no call: it would have no door`);
   const rules = S.callRules;
-  if (!(whole(rules.perDay) && rules.perDay >= 1 && whole(rules.partyMin) && rules.partyMin >= 2 && whole(rules.limitMs) && rules.limitMs >= 60000 && rules.limitMs <= 3600000)) {
-    throw new Error(`BOSS_CALL_RULES ${JSON.stringify(rules)}: a whole per-day count, a party of two or more, a limit of 1 to 60 minutes`);
+  /* No party size (the designer's ruling 2, 2026-11-10): a hero alone may call, so a rule that names one is refused rather than ignored. */
+  if (!(whole(rules.perDay) && rules.perDay >= 1 && whole(rules.limitMs) && rules.limitMs >= 60000 && rules.limitMs <= 3600000 && !('partyMin' in rules))) {
+    throw new Error(`BOSS_CALL_RULES ${JSON.stringify(rules)}: a whole per-day count, a limit of 1 to 60 minutes, and no party size (a hero alone may call)`);
   }
-  return rows.map((c) => ({ ...c, perDay: rules.perDay, partyMin: rules.partyMin, limitMs: rules.limitMs }));
+  return rows.map((c) => ({ ...c, perDay: rules.perDay, limitMs: rules.limitMs }));
 }
 
 export function render(src) {
@@ -717,7 +727,7 @@ export function render(src) {
   const resumableValues = r.resumable.map((k) => `  (${sq(k)})`).join(',\n');
   const endList = r.ends.map((e) => sq(e.r)).join(', ');
   const vendorValues = r.vendor.map((v) => `  (${sq(v.id)}, ${v.unit})`).join(',\n');
-  const callValues = r.bossCalls.map((c) => `  (${sq(c.id)}, ${sq(c.hunt)}, ${sq(c.from)}, ${sq(c.monster)}, ${c.fee}, ${c.perDay}, ${c.partyMin}, ${c.limitMs})`).join(',\n');
+  const callValues = r.bossCalls.map((c) => `  (${sq(c.id)}, ${sq(c.hunt)}, ${sq(c.from)}, ${sq(c.monster)}, ${c.fee}, ${c.perDay}, ${c.limitMs})`).join(',\n');
   const nLim = Object.keys(r.lim).length;
   const CATALOGUE = ['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value',
     'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes',
@@ -739,7 +749,15 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/b-phase0-tier4, designer 2026-11-08: one sale ladder from tier 4 up, src/data/loot-bands.js VENDOR_GEAR_RATES
+-- NEW IN THIS FILE (lane/c-brook-bear, Tyler 2026-11-11: "No, if they want bigger pulls they need to up the difficulty"; the designer's ruling 3):
+-- a party's own Normal pull (hunt-grounds.js partyPull) is GONE, so hr_hunt_grounds.spawns of mill_cellar, meadowbrook_thicket, wickstead and
+-- mosslight_glade falls to their rows as built (the 2027-02-16 widening comes back out). The Brook Bear stands in the Glade's Vine Hollow as built;
+-- the spawn rows count each pocket's whole pack, so they do not move. Nothing else moves (no kill bound, limit, bid, ability or world shape).
+-- THE BOUND NARROWS. ORDER: AFTER 2027-04-05-call-out-hunt-sessions-catalogue.generated.sql (carried whole), and AFTER the hr-accrue carrying
+-- the same hunt-grounds.js: an old engine still pulls a party's bigger Normal pack, which this bound refuses kills_over (the sixth refusal
+-- forfeits). Apply it once no party hunt that began on Normal on those four grounds before the deploy is still running.
+--
+-- CARRIED FROM 2027-03-27-phase0-tier4 (lane/b-phase0-tier4, designer 2026-11-08: one sale ladder from tier 4 up, src/data/loot-bands.js VENDOR_GEAR_RATES
 -- [0.5, 0.5, 0.14, 0.075, 0.033, 0.015]): hr_hunt_vendor_value moves for worn gear of tier 4 and up, every such bid DOWN (tier 4 sold at tier 3's
 -- 0.14 of book; tiers 7 and 8 read tier 6's rate), and gains the made Mithril Hatchets and Maple Crossbow, which join hr_hunt_weapons too. This table is
 -- the bid Dispatch loot pays, the Shop shows, the Weighhouse floors on and the bench tax reads. Nothing else moves: no kill bound, spawn, limit,
@@ -1123,9 +1141,10 @@ create table if not exists public.hr_boss_calls (
   monster_id text   not null check (monster_id ~ '^[a-z0-9_]{1,64}$'),
   fee        bigint not null check (fee between 1 and 1000000000),
   per_day    int    not null check (per_day between 1 and 100),
-  party_min  int    not null check (party_min between 2 and 8),
   limit_ms   int    not null check (limit_ms between 60000 and 3600000)
 );
+-- A HERO ALONE MAY CALL (2027-04-05-call-out-alone.sql restates the quote that read it first): no party size.
+alter table public.hr_boss_calls drop column if exists party_min;
 comment on table public.hr_boss_calls is
   'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms and their fees (Call out, lane/c-boss-call). Names no player; character wipe c_no_player.';
 do $$
@@ -1223,7 +1242,7 @@ delete from public.hr_hunt_vendor_value;
 insert into public.hr_hunt_vendor_value (item_id, unit) values
 ${vendorValues};
 delete from public.hr_boss_calls;
-insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, fee, per_day, party_min, limit_ms) values
+insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, fee, per_day, limit_ms) values
 ${callValues};
 
 -- ── SELF-CHECK (CLAUDE.md §4): the rows the generator wrote, and nothing more ──
@@ -1265,10 +1284,10 @@ begin
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.respawn_ms) not in
                (${r.grounds.length ? r.grounds.map((g) => `(${sq(g.ground)}, ${g.respawn})`).join(', ') : `(null::text, null::int)`})) then
     raise exception 'a hunt ground''s respawn_ms is not hunt-grounds.js respawnMs'; end if;
-  -- THE KILL BOUND'S BASE covers a party's default pull: every ground's spawns, as generated, and each at least its pockets' largest pull.
+  -- THE KILL BOUND'S BASE is the room as built for every group (Tyler 2026-11-11): every ground's spawns, as generated.
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.pockets, g.spawns) not in
                (${r.grounds.length ? r.grounds.map((g) => `(${sq(g.ground)}, ${g.pockets}, ${g.spawns})`).join(', ') : `(null::text, null::int, null::int)`})) then
-    raise exception 'a hunt ground''s spawns is not as-built plus its pockets at a party''s largest default pull'; end if;
+    raise exception 'a hunt ground''s spawns is not its rows as built (no party pull on Normal)'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
   if (select fields from public.hr_hunt_world_shape) is distinct from ${sq(JSON.stringify(r.world.fields))}::jsonb
      or exists (select 1 from unnest(array[${WORLD_FIELDS_READ.unit.map(sq).join(', ')}]) n
@@ -1429,7 +1448,7 @@ function selftest() {
     'a call with no room': () => ({ calls: { ...BOSS_CALLS, ghost: { ...BOSS_CALLS.rat_king, id: 'ghost', hunt: 'nowhere_called' } } }),
     'a called hunt with no call': () => ({ calls: { rat_king: BOSS_CALLS.rat_king } }),
     'a free call': () => ({ calls: { ...BOSS_CALLS, rat_king: { ...BOSS_CALLS.rat_king, fee: 0 } } }),
-    'a call for one hero': () => ({ callRules: { ...BOSS_CALL_RULES, partyMin: 1 } }),
+    'a party size on the call (a hero alone may call)': () => ({ callRules: { ...BOSS_CALL_RULES, partyMin: 2 } }),
     'no shield arm (no worn set plays the tank)': () => ({ shieldArm: {} }),
   };
   /* The fixture ground itself must pass (the arm proves the ground path is live). */

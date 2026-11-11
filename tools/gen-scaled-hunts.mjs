@@ -34,7 +34,9 @@ import { isMain } from '../tests/_is-main.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 2027-03-21-scaled-hunts-catalogue.generated.sql is APPLIED history (v0.2.109). The re-tune's kill pay (lane/b-one-difficulty, 2026-11-08: the stat formula's
    floor fit and coin line) moves the scaled rows' most-a-kill bounds, so they are a new dated file. */
-export const OUT_NAME = '2027-03-23-one-difficulty-scaled-hunts-catalogue.generated.sql';
+/* 2027-03-23-one-difficulty-scaled-hunts-catalogue.generated.sql is APPLIED history (v0.2.114). Solo +15% (lane/d-solo-fifteen, 2026-11-11) re-dialed the Sewer's,
+   the Glade's and the Warrens' XP fits (balance-sheet.js GROUND_XP_FIT), so the Sewer's scaled kill bounds move: a new dated file. */
+export const OUT_NAME = '2027-04-08-solo-fifteen-scaled-hunts-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const whole = (n) => Number.isInteger(n) && n >= 1;

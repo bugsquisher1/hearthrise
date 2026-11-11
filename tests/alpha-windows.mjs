@@ -3449,7 +3449,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     }
 
     { // AW-61 NOTHING CLIPS: every window's title and a Shop name, in a wide fallback font (GitHub's Linux runner has one); a member's Hunt again is off and says why
-      const stall = (e) => { e.shop = Object.assign({}, e.shop, { offers: [{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }, { offer: 'gear.iron_helm', item: 'iron_helm', kind: 'gear', price: 180 }],
+      /* ONE HERO ON THE ACCOUNT (lane/a-strip-all-heroes): the stub answers every slot with this same hero, so slot 1 was a second
+         "Tyler" that never showed; the strip now lists a hero not open beside the shown one, and two tabs share the top bar. The
+         job's rule is about one tab's room. */
+      const stall = (e) => { e.hero_slots = [0]; e.shop = Object.assign({}, e.shop, { offers: [{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }, { offer: 'gear.iron_helm', item: 'iron_helm', kind: 'gear', price: 180 }],
         bids: Object.assign({}, e.shop.bids, { alpha_fang: 450, rat_tail: 1 }) }); e.inventory = Object.assign({}, e.inventory, { alpha_fang: 3, rat_tail: 4 }); };
       const { ctx, page, s, up } = await open({ viewport: { width: 1365, height: 846 }, mutateEnv: stall });
       if (!up) fails.push('AW-61 the page did not mount');

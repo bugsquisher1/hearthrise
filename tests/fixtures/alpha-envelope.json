@@ -83,6 +83,86 @@
       "frac": 0
     }
   },
+  "skill_levels": {
+    "melee": {
+      "xp": 4700,
+      "level": 20,
+      "into": 0,
+      "need": 12641
+    },
+    "ranged": {
+      "xp": 400,
+      "level": 5,
+      "into": 0,
+      "need": 438
+    },
+    "magic": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 15
+    },
+    "defense": {
+      "xp": 3973,
+      "level": 19,
+      "into": 0,
+      "need": 10969
+    },
+    "inner_flame": {
+      "xp": 120,
+      "level": 2,
+      "into": 61,
+      "need": 62
+    },
+    "woodcutting": {
+      "xp": 1500,
+      "level": 12,
+      "into": 0,
+      "need": 249
+    },
+    "mining": {
+      "xp": 800,
+      "level": 8,
+      "into": 0,
+      "need": 168
+    },
+    "fishing": {
+      "xp": 300,
+      "level": 4,
+      "into": 24,
+      "need": 112
+    },
+    "farming": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 83
+    },
+    "cooking": {
+      "xp": 1200,
+      "level": 11,
+      "into": 0,
+      "need": 226
+    },
+    "crafting": {
+      "xp": 90,
+      "level": 2,
+      "into": 7,
+      "need": 91
+    },
+    "smithing": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 83
+    },
+    "runecrafting": {
+      "xp": 0,
+      "level": 1,
+      "into": 0,
+      "need": 83
+    }
+  },
   "inventory": {
     "rat_tail": 31,
     "slime_gel": 12,

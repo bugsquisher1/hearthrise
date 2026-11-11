@@ -8,11 +8,11 @@
 // Nothing here prices or gates anything. A press re-reads every one of this account's heroes in the party: the screen
 // shows only the server's answer. A refusal keeps the server's code and its quote.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.118';
-import { refusalOf } from './refusal.js?v=0.2.118';
-import { partyPeersOf, settleTownActivity } from './party-intents.js?v=0.2.118';
-import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.118';
-import { quoteOf } from './boss-quote.js?v=0.2.118';
+import { askVia } from './intent-ledger.js?v=0.2.119';
+import { refusalOf } from './refusal.js?v=0.2.119';
+import { partyPeersOf, settleTownActivity } from './party-intents.js?v=0.2.119';
+import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.119';
+import { quoteOf } from './boss-quote.js?v=0.2.119';
 
 const VERB = 'boss_call';
 const newIdem = () => globalThis.crypto.randomUUID();

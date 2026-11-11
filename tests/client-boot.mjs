@@ -74,7 +74,13 @@
 //        THE TAB'S HEROES (designer 10-30 #8: a hero picked once is never re-picked):
 //        the shown hero is shown again and the other plays beside it, nothing pressed;
 //        a fresh tab lists both heroes by name; once the server no longer holds the
-//        shown hero a reload falls back to the characters screen
+//        shown hero a reload falls back to the characters screen. EVERY HERO IN THE
+//        STRIP (Andy 2026-11-09: "refreshed ... only showed 3 chars"): a reload of a
+//        tab that had only Tester open lists Fennick beside it as not open (Level from
+//        the server, no bars, Play), one press plays and shows Fennick, and a reload
+//        that reopens both never shows either as not open on the way; at the server's
+//        play-at-once limit Fennick has no Play, and a press says why in one plain
+//        line (12 px or more, on screen) and asks the server nothing
 //   B-11 BUY A HERO SLOT (tracker r45; Tyler 10-17: up to five, for gold): the roster offers the
 //        server's next slot at the server's price, paid from "Your gold" — ONE purse per account
 //        (Tyler 10-23), so there is no payer to pick; short of gold it cannot be pressed and says
@@ -186,7 +192,8 @@ async function stubServer(page, o) {
       const slot = name === 'hr_load' ? body.p_slot : body.slot;
       const slots = o.slots || [0, 1];
       const next = o.ladder ? Object.keys(o.ladder).map(Number).find((k) => !slots.includes(k)) : undefined;
-      const account = Object.assign({ max_concurrent: 4 }, o.ladder ? { hero_slots_max: 4, hero_slot_offer: next === undefined ? null : { slot_id: next, cost_gold: o.ladder[next] } } : {});
+      if (o.asked) o.asked.push(name + ':' + slot);   // B-9: what a press on a hero not open asked the server
+      const account = Object.assign({ max_concurrent: o.maxConcurrent || 4 }, o.ladder ? { hero_slots_max: 4, hero_slot_offer: next === undefined ? null : { slot_id: next, cost_gold: o.ladder[next] } } : {});
       if (name === 'hr_load' || name === 'hr-accrue') {
         const b = o.heroes[slot] ? envelope(slot, 1, { name: o.heroes[slot], hero_slots: slots, account,
           /* THE ACCOUNT PURSE (one per account): every hero states it; a lagging hero states an older version. */
@@ -974,7 +981,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
     }
 
     { // B-9 one hero, two owned slots: name + level, Create hero (name + colours), both after a reload
-      const o = { heroes: { 0: 'Tester' }, created: [] };
+      const o = { heroes: { 0: 'Tester' }, created: [], asked: [] };
       const { ctx, page, errors } = await fresh(o);
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
@@ -1066,11 +1073,35 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         /* The reload: Fennick is shown again and Tester plays beside it, with no characters screen and no press. */
         const named = () => Array.from(document.querySelectorAll('.char-tab[data-app="show"] .char-tab-name')).map((n) => n.textContent).join() === 'Tester,Fennick';
         await wait(page, named);
+        /* every hero the strip ever shows as not open, from the first paint of each load (the reloads below) */
+        await page.addInitScript(() => { window.__unopened = [];
+          new MutationObserver(() => { const b = document.querySelector('.char-unopened'); if (b) window.__unopened.push(b.getAttribute('data-slot')); }).observe(document, { childList: true, subtree: true }); });
         await page.reload({ waitUntil: 'load' });
         const back = await wait(page, () => document.querySelector('#panel-world[data-slot="1"]') && Array.from(document.querySelectorAll('.char-tab[data-app="show"] .char-tab-name')).map((n) => n.textContent).join() === 'Tester,Fennick');
         if (!back || await page.$('.char-list')) fails.push('B-9 a reload did not reopen the tab\'s two heroes on Fennick: '
           + JSON.stringify(await page.evaluate(() => ({ shown: (document.querySelector('#panel-world') || { dataset: {} }).dataset.slot,
             tabs: Array.from(document.querySelectorAll('.char-tab[data-app="show"]')).map((t) => t.textContent.replace(/\s+/g, ' ').trim()), list: !!document.querySelector('.char-list') }))));
+        /* ...and Tester, opened a moment after Fennick is drawn, never showed as not open on the way (a Play that vanishes) */
+        const flicker = await page.evaluate(() => window.__unopened.slice());
+        if (flicker.length) fails.push('B-9 a reload that reopens both heroes showed slot(s) ' + Array.from(new Set(flicker)).join() + ' as not open on the way');
+        /* A HERO THIS TAB NEVER OPENED IS STILL IN THE STRIP (Andy 2026-11-09, a work PC: "refreshed ... only showed 3 chars"): a tab that
+           had only Tester open reloads to Tester, with Fennick beside it as not open (the roster's Level, no bars, a Play), and one press
+           plays Fennick beside Tester and shows Fennick. */
+        await page.evaluate((uid) => window.HearthriseStorage.session.set('hr-open', JSON.stringify({ uid, slots: [0], viewed: 0 })), UID);
+        await page.reload({ waitUntil: 'load' });
+        const listed = await wait(page, () => document.querySelector('#panel-world[data-slot="0"]') && document.querySelector('.char-unopened[data-slot="1"]'));
+        const ghost = await page.evaluate(() => { const b = document.querySelector('.char-unopened[data-slot="1"]');
+          return b && { name: b.querySelector('.char-tab-name').textContent, line: b.querySelector('.char-tab-doing').textContent, play: b.querySelector('.char-unopened-play').textContent,
+            bars: b.querySelectorAll('.char-bar').length, open: Array.from(document.querySelectorAll('.char-tab[data-app="show"]')).map((t) => t.getAttribute('data-slot')).join() }; });
+        if (!listed || !ghost || ghost.name !== 'Fennick' || ghost.line !== 'Level 10' || ghost.play !== 'Play' || ghost.bars || ghost.open !== '0')
+          fails.push('B-9 a reload of a tab that had only Tester open lists Fennick as ' + JSON.stringify(ghost));
+        else {
+          await page.click('.char-unopened[data-slot="1"]');
+          const opened = await wait(page, () => document.querySelector('#panel-world[data-slot="1"]') && document.querySelector('.char-tab[data-app="show"][data-slot="1"].is-shown')
+            && document.querySelector('.char-tab[data-app="show"][data-slot="0"]') && !document.querySelector('.char-unopened'));
+          if (!opened) fails.push('B-9 one press on Fennick, not open, did not play Fennick beside Tester: ' + JSON.stringify(await page.evaluate(() => ({
+            shown: (document.querySelector('#panel-world') || { dataset: {} }).dataset.slot, tabs: Array.from(document.querySelectorAll('.char-tab, .char-unopened')).map((t) => t.className + ':' + t.getAttribute('data-slot')) }))));
+        }
         /* A fresh tab (its own tab store) starts at the characters screen, both heroes by name. */
         const tab = await ctx.newPage();
         await stubServer(tab, o);
@@ -1084,6 +1115,25 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         await page.reload({ waitUntil: 'load' });
         const safe = await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]') && document.querySelector('[data-app="create"][data-slot="1"]'));
         if (!safe || await page.$('#panel-world')) fails.push('B-9 a reload whose shown hero the server no longer holds did not fall back to the characters screen');
+        /* THE PLAY-AT-ONCE LIMIT (four; here the server says one): Fennick, past it, stays in the strip with no Play, and a press on
+           Fennick says why in one plain line on the screen, 12 px or more, and opens nothing and asks the server nothing. */
+        o.heroes[1] = 'Fennick'; o.maxConcurrent = 1;
+        await page.reload({ waitUntil: 'load' });
+        await wait(page, () => document.querySelector('[data-app="play"][data-slot="1"]'));
+        await page.click('[data-app="play"][data-slot="0"]');
+        const capped = await wait(page, () => document.querySelector('#panel-world[data-slot="0"]') && document.querySelector('.char-unopened.is-full[data-slot="1"]'));
+        const reads = () => o.asked.filter((k) => k === 'hr_load:1' || k === 'hr-accrue:1').length;
+        const before = reads();
+        if (capped) await page.click('.char-unopened[data-slot="1"]');
+        const said = capped && await wait(page, () => !!(document.querySelector('.char-strip-note.is-on') || {}).textContent);
+        await page.waitForTimeout(300);
+        const cap = await page.evaluate(() => { const n = document.querySelector('.char-strip-note'), b = document.querySelector('.char-unopened[data-slot="1"]'), r = n ? n.getBoundingClientRect() : null;
+          return { text: n && n.textContent, px: n && parseFloat(getComputedStyle(n).fontSize), on: !!r && r.width > 0 && r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth,
+            play: b && getComputedStyle(b.querySelector('.char-unopened-play')).display, shown: (document.querySelector('#panel-world') || { dataset: {} }).dataset.slot,
+            open: document.querySelectorAll('.char-tab').length }; });
+        if (!capped || !said || cap.text !== 'You can play one hero at a time. To play Fennick instead, sign out and pick Fennick.' || !(cap.px >= 12) || !cap.on
+          || cap.play !== 'none' || cap.shown !== '0' || cap.open !== 1 || reads() !== before)
+          fails.push('B-9 at the play-at-once limit a press on Fennick, not open, reads ' + JSON.stringify({ capped: !!capped, said: !!said, ...cap, asked: reads() - before }));
       }
       if (errors.length) fails.push('B-9 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
@@ -1321,6 +1371,16 @@ const MUTANTS = [
     "else if (what === 'create') account.create(slot, 'New hero', { head: 13, body: 5, legs: 3, feet: 0 }).then(() => play(slot));"],
   ['a reload lands on the characters screen again (B-9)', 'src/app/boot.js', '    else if (auth.userId()) startAccount(true);', '    else if (auth.userId()) startAccount(false);'],
   ['a reload whose shown hero does not load stays on the reading screen (B-9)', 'src/app/boot.js', 'if (was && await play(was.viewed, was.slots)) return;', 'if (was) { await play(was.viewed, was.slots); return; }'],
+  /* lane/a-strip-all-heroes (Andy 2026-11-09): the strip lists every hero on the account, one press opens one not open */
+  ['a hero this tab never opened is missing from the strip again (B-9)', 'src/app/character-strip.js', 'const unopened = o.account.notOpen().filter(', 'const unopened = [].filter('],
+  ['a press on a hero not open does nothing (B-9)', 'src/app/boot.js', "    else if (what === 'open-hero') openHero(slot);\n", ''],
+  ['a hero opened from the strip is not shown (B-9)', 'src/app/boot.js', '    if (r.ok) a.view(slot);\n', '    if (r.ok) void slot;\n'],
+  ['a hero not open shows live bars (B-9)', 'src/app/character-strip.js', `<small class="char-tab-doing"></small></span></span></button></li>';`,
+    `<small class="char-tab-doing"></small></span><span class="char-bars"><i class="char-bar is-hp"><i></i></i></span></span></button></li>';`],
+  ['the heroes a reload reopens show Play on the way (B-9)', 'src/app/boot.js', ', soon: () => soon });', ' });'],
+  ['the strip offers Play at the play-at-once limit (B-9)', 'src/app/character-strip.js', "  cls(b, 'is-full', full);\n", "  cls(b, 'is-full', false);\n"],
+  ['a press at the play-at-once limit says nothing (B-9)', 'src/app/boot.js', "    else if (strip) strip.refused(slot, r.reason === 'limit' ? 'full' : 'failed');\n", ''],
+  ['the strip\'s line is under 12 px (B-9)', 'src/styles/app.css', "font-family: var(--f-ui); font-size: var(--t-small); line-height: 1.35; color: var(--ink); }\n.char-strip-note:not(.is-on)", "font-family: var(--f-ui); font-size: 10px; line-height: 1.35; color: var(--ink); }\n.char-strip-note:not(.is-on)"],
   ['a dead session stays in the game', 'src/app/boot.js', "else if (ev === 'signed-out' || ev === 'expired') sessionEnded();", "else if (ev === 'signed-out') sessionEnded();"],
   ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
   ['the bare domain strands an invited player (N-1)', 'index.html', '<a class="notice-signin" href="play.html">Have an invite? Sign in</a>', ''],

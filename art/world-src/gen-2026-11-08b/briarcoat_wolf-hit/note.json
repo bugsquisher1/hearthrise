@@ -1,0 +1,267 @@
+{
+  "asset": "briarcoat_wolf hit clip (brief 10 B3), Meadowbrook Thicket",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B3 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "forest",
+  "object_id": "c8f8d528-0e5b-48df-b89d-3250ee7b4e5a",
+  "name": "briarcoat wolf",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); hit/<facing>/0..N.png = the kept roll; alt/<roll>/hit/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the object, frame_count 6, keep_first_frame false; south and the side facings are separate groups (their action texts differ)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "9f7c9b0e-6ef4-4dc3-87d2-beb17c25ef84",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "88b519f1-831b-42db-8bb5-0eff067f12f2",
+        "directions": "e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r2": [
+      {
+        "group": "de5b4989-7d3a-4523-beb8-9cf4741165d4",
+        "directions": "n",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, all four paws planted, stays low, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r3": [
+      {
+        "group": "f0a07bc7-2a41-4777-b51d-a1f50f4a1e96",
+        "directions": "n",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, all four legs stay under the body and do not move, stays low, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r1",
+    "east": "r1",
+    "north": "r3",
+    "west": "r1"
+  },
+  "refused": {
+    "north r1": "the forelegs swing out sideways like arms at frames 3-4",
+    "north r2": "one foreleg still swings out at frames 3-4"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r1",
+      "xor": [
+        24,
+        70,
+        109,
+        146,
+        53,
+        44
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "dx": [
+        0,
+        -0.1,
+        -0.2,
+        -0.2,
+        0,
+        0
+      ],
+      "dy": [
+        0.3,
+        0.5,
+        0.7,
+        0.6,
+        0,
+        -0.8
+      ],
+      "top": [
+        1,
+        2,
+        3,
+        4,
+        1,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        -1,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "feet f3 (bot -1, dy 0.6)"
+      ]
+    },
+    "east": {
+      "roll": "r1",
+      "xor": [
+        80,
+        139,
+        204,
+        203,
+        142,
+        93
+      ],
+      "alien": [
+        0,
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "dx": [
+        0.2,
+        0.3,
+        0.4,
+        0.1,
+        0.3,
+        0
+      ],
+      "dy": [
+        0,
+        -0.2,
+        -1.5,
+        -1.3,
+        -0.9,
+        -0.4
+      ],
+      "top": [
+        0,
+        0,
+        -1,
+        -2,
+        -1,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        -1,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "north": {
+      "roll": "r3",
+      "xor": [
+        39,
+        75,
+        109,
+        121,
+        93,
+        40
+      ],
+      "alien": [
+        0,
+        0,
+        2,
+        3,
+        2,
+        0
+      ],
+      "dx": [
+        0,
+        -0.1,
+        -0.1,
+        -0.2,
+        -0.1,
+        -0.1
+      ],
+      "dy": [
+        0.2,
+        0.6,
+        0.8,
+        0.9,
+        0.8,
+        0.2
+      ],
+      "top": [
+        1,
+        2,
+        3,
+        4,
+        3,
+        1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "west": {
+      "roll": "r1",
+      "xor": [
+        68,
+        131,
+        218,
+        306,
+        223,
+        139
+      ],
+      "alien": [
+        0,
+        0,
+        7,
+        14,
+        7,
+        0
+      ],
+      "dx": [
+        0.2,
+        0,
+        -0.2,
+        -0.4,
+        -0.4,
+        -0.1
+      ],
+      "dy": [
+        0,
+        -0.4,
+        -0.8,
+        -1.6,
+        -0.9,
+        -0.2
+      ],
+      "top": [
+        0,
+        -1,
+        -1,
+        -2,
+        -1,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    }
+  },
+  "generations": 6,
+  "flags": [
+    "south: the body hunches 1 px at frame 3, feet 1 px"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/briarcoat_wolf-hit.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)"
+}

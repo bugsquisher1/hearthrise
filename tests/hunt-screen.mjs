@@ -1014,7 +1014,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     }
 
     { // HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop (Tyler 10-19)
-      const { ctx, page, up } = await open();
+      /* Below the fold width the analyzer and the Tally start folded (HS-28); this player opened them (residue hudLayout), so the
+         narrow passes still have open edge panels for the hunt bar to slide or step clear of. */
+      const { ctx, page, up } = await open({ prep: (s) => { s.env.client_state = { hudLayout: { desktop: { analyzer: { folded: false }, tally: { folded: false } } } }; } });
       if (up) {
         const overlaps = () => page.evaluate(() => {
           const els = Array.from(document.querySelectorAll('[data-hs-hud="world"] [data-hs-widget]')).map((e) => [e.getAttribute('data-hs-widget'), e.getBoundingClientRect()]);

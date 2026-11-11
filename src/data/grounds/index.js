@@ -9,7 +9,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 /* pack imports (tools/pack.mjs index) */
-import pack_muster_barrows from './muster_barrows/pack.js?v=0.2.116';
+import pack_muster_barrows from './muster_barrows/pack.js?v=0.2.117';
 
 export const GROUND_PACKS = Object.freeze([
   /* pack rows (tools/pack.mjs index) */

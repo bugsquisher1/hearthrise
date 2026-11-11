@@ -163,12 +163,16 @@ Their eleven KNOWN_TWINS entries are gone: the guard now enforces unique art. Wi
 ### Live-ground monster clips (2026-10-19) — the blow, the fall and the corpse
 Every monster on Mill Cellar, Millrace Sewer, Meadowbrook Thicket and Coppercap Warrens must be drawable through a whole
 kill: idle and walk in 8 facings, `attack`, `death` and the held `corpse` in s/e/n/w (`tests/world-assets.mjs` rule `[live]`, read
-from `HUNT_GROUNDS` and `HUNTS`, so a new spawn is covered the day it lands). The wolves and goblins carry drawn clips. The seven
-that have none (rat, slime, hive_wasp, culvert_bat, cistern_spider, kobold_tosher, rat_king) get
-`node tools/world-art/derive-combat.mjs` (`--check` for drift): their own idle pixels, moved by whole pixels, flipped, squashed or
-quarter-turned; nothing is borrowed or scaled up. These are a stand-in for drawn death clips, not a replacement:
-a PixelLab death/attack per creature (`docs/PIXELLAB_WORKFLOW.md`) supersedes a derived row when Tyler approves a spend.
-The `hunt` atlas is 2048x1808 of its 2048x2048 cap: the next monster set goes in its own set.
+from `HUNT_GROUNDS` and `HUNTS`, so a new spawn is covered the day it lands). The wolves and goblins carry drawn clips.
+**2026-11-10 (lane/a-hunt-clips):** the seven derived stand-ins (rat, slime, hive_wasp, culvert_bat, cistern_spider,
+kobold_tosher, rat_king) are replaced by DRAWN swings and falls in 8 facings (briefs 11 and 13, art-director verdicts),
+`derive-combat.mjs` is retired with its last unit, and the live 30 gain a `hit` flinch (brief 10 B3, 12 fps, s/e/n/w
+less the four dropped facings, plus the M3 sample diagonals) while the 23 drawn bodies gain their diagonal falls (B6, Q4,
+M2), and the eight outfits their H1 flinch (+ the H1d sample). All of it is laid by `node tools/world-art/import-clips.mjs`
+from the rows of `tools/world-art/hunt-clips.mjs` (`--check` for drift); the hunt plays them through
+`src/hunt-view/clip-hook.js`, only on a facing a clip has. Still owed by the generator: slime N swing (B3n), rat king S swing
+(B3k), H1d for the other facings, the M3 diagonal flinches, the heroes' swings and falls (approved, but the `heroes` atlas
+has no room: a set split first). The `hunt` atlas is 2048x1680, `forest` 2048x1988 and `glade` 2048x1972 of the 2048 cap.
 
 ### Mosslight Glade set (2026-10-22, lane b-mosslight-art) — `art/world/glade`, atlas `glade`
 PixelLab, paid generations approved by Tyler 2026-10-22. Style 1, ported unscaled by `tools/world-art/port-pixellab.mjs`:

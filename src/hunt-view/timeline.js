@@ -63,6 +63,7 @@
 //      floor. The pose (the hunt section, replaced by every envelope) holds every unit's HP at `at_ms`, the instant the
 //      window ends at, so reconcile() books it as a base for each unit the book holds: the window's end is known the
 //      moment it lands, and a hero nobody views (plain reads, no windows) reads each read's HP, not its last viewed one.
+//   T15 upcoming(now, aheadMs): the queued events of the next moments, read-only (a swing winds up before its blow).
 //
 // Rendering, simulation and persistence run on independent clocks: the caller
 // asks positionAt()/advance() with its own frame clock; the server ticks at its
@@ -319,6 +320,19 @@ export function createTimeline(o) {
     return true;
   }
 
+  /**
+   * T15 THE NEXT MOMENTS: the queued events (not yet played) whose instant is at most `aheadMs` past the instant shown
+   * at client time `now`, oldest first. Read-only: a swing's wind-up is drawn from them (clip-hook.js), so a blow a
+   * rebase drops (T8) takes its wind-up with it, and nothing plays that the timeline does not hold.
+   */
+  function upcoming(now, aheadMs) {
+    const t = serverAt(now);
+    const out = [];
+    if (t === null || !(aheadMs > 0)) return out;
+    for (const ev of queue) { if (ev.atMs > t + aheadMs) break; out.push(ev); }
+    return out;
+  }
+
   /** The unit's kind from the book (T6), or null. */
   function kindOf(u) { const r = book.get(u); return r ? r.kind : null; }
   /** { hp, maxHp } of a booked unit at the server instant shown at client time `now` (T6), or null. */
@@ -349,7 +363,7 @@ export function createTimeline(o) {
   function clear() { steps.clear(); queue.length = 0; book.clear(); gone.clear(); }
 
   return {
-    ingest, reconcile, advance, positionAt, clientAt, kindOf, hpAt, serverNowAt, rebase, clear, forget,
+    ingest, reconcile, advance, positionAt, clientAt, kindOf, hpAt, serverNowAt, rebase, clear, forget, upcoming,
     /** T9: play `ms` behind the server from now on. */
     setDelay(ms) { if (Number.isFinite(ms) && ms >= 0) cfg.delayMs = ms; },
     delayMs: () => cfg.delayMs,

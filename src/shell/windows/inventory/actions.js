@@ -426,6 +426,7 @@ function onPocket(ctx, body, st, action, ev, el, repaint) {
   if (action === 'loot-row') return false;
   if (type === 'dragstart') { hideTip(ctx.doc); ev.dataTransfer.setData(DRAG_TYPE, id); ev.dataTransfer.setData('text/plain', itemName(id)); ev.dataTransfer.effectAllowed = 'copy'; return false; }
   if (type === 'contextmenu') { openMenu(ctx, body, st, id, { x: ev.clientX, y: ev.clientY }, repaint); return true; }
+  if (type === 'pointerdown') sc.touch = !!ev.pointerType && ev.pointerType !== 'mouse';   // a finger has no Ctrl: see the click below
   if (type === 'pointerdown' && ev.pointerType && ev.pointerType !== 'mouse') {
     sc.pressed = false;
     clearTimeout(sc.press);
@@ -436,8 +437,9 @@ function onPocket(ctx, body, st, action, ev, el, repaint) {
   if (type !== 'click') return false;
   if (sc.pressed) { sc.pressed = false; return true; }
   if (ev.shiftKey && chatOpen(ctx) && linkInChat(ctx, id)) return true;   // Shift+click links it into an open chat
-  /* plain: this one (or none, with none selected); Ctrl: toggled; Shift: the range from the anchor (selection.js) */
-  pressSelect(sc, id, st.shown, { ctrl: ev.ctrlKey || ev.metaKey, shift: ev.shiftKey });
+  /* plain: this one (or none, with none selected); Ctrl: toggled; Shift: the range from the anchor (selection.js). A finger has no
+     Ctrl: once a selection stands (the long-press menu's Select starts one) a tap toggles, as a phone's file list does. */
+  pressSelect(sc, id, st.shown, { ctrl: ev.ctrlKey || ev.metaKey || (!!sc.touch && sc.sel.size > 0), shift: ev.shiftKey });
   sc.menu = null;
   /* The last press's result is old news once another stack is in hand (newcomer panel 2026-11-03: "Put on 1 piece." over the Bones' Fuel all). */
   if (!sc.pending && !sc.msgAt) sc.msg = '';

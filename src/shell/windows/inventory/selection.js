@@ -9,7 +9,8 @@
 // deselect all"):
 //   a plain press        with a selection active, just that stack; with none,
 //                        none (the cursor picks it)
-//   Ctrl+press, Space    toggles that stack
+//   Ctrl+press, Space    toggles that stack (a finger's tap over a selection
+//                        counts as Ctrl: actions.js, since a phone has none)
 //   Shift+press / arrow  the range from the anchor (the last stack pressed
 //                        without Shift) to it, replacing the selection; with
 //                        Ctrl too, added to what was selected when the anchor

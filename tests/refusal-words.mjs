@@ -64,8 +64,10 @@ async function load(root) {
     CS: await import(u('src/session/character-session.js')), XP: await import(u('src/core/xp.js')), root };
 }
 
-/* A character as the session reads it: skills, and the Level XP when `levelXp` is given. */
-const csWith = (skills, levelXp) => ({ read: (k) => (k === 'skills' ? skills : k === 'state' && levelXp !== undefined ? { level_xp: levelXp } : undefined) });
+/* A character as the session reads it: skills, and when `level` is given the Level the SERVER states (hr_state_of's `level`
+   block). `levelXp` is the Level XP beside it: the words read the server's Level, never a Level worked out of the XP. */
+const csWith = (skills, level, levelXp = 0) => ({ read: (k) => (k === 'skills' ? skills : level === undefined ? undefined
+  : k === 'state' ? { level_xp: levelXp } : k === 'level' ? { xp: levelXp, level, into: 0, need: 100 } : undefined) });
 
 const CLAIMS = {
   RW1: (M) => {
@@ -84,14 +86,14 @@ const CLAIMS = {
     const out = [];
     /* Gear names the hero's LEVEL (Tyler 2026-10-24): a Level-14 hero with Defense 99 is still short of the Iron Platelegs. */
     const with1 = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'iron_platelegs' },
-      csWith({ defense: { xp: 0, level: 99 } }, M.XP.charXpForLevel(14)));
+      csWith({ defense: { xp: 0, level: 99 } }, 14, M.XP.charXpForLevel(15)));   // the XP this build's curve calls Level 15: the server says 14
     if (with1 !== 'Iron Platelegs needs Level 15 (you\'re 14).') out.push('RW3 the Iron Platelegs refusal reads ' + JSON.stringify(with1));
     /* The refusal's own numbers (hr_apply's need / have, through the session reader) win over the sections. */
     const served = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'scholar_helmet', counts: { have: 28, need: 30 } },
-      csWith({}, M.XP.charXpForLevel(5)));
+      csWith({}, 5, M.XP.charXpForLevel(5)));
     if (served !== 'Scholar Hat needs Level 30 (you\'re 28).') out.push('RW3 the server\'s own Level reads ' + JSON.stringify(served));
     /* A supply keeps its skill ("Supplies/runes stick to skill level"). */
-    const arrows = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'barbed_arrows' }, csWith({ ranged: { xp: 0, level: 3 } }, 0));
+    const arrows = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'barbed_arrows' }, csWith({ ranged: { xp: 0, level: 3 } }, 1));
     if (arrows !== 'Barbed Arrows needs Ranged 15 (you have 3).') out.push('RW3 the Barbed Arrows refusal reads ' + JSON.stringify(arrows));
     /* whatever the requirement names (Tyler 2026-10-24: gear moves to Level gates, supplies and runes keep skills) */
     const words = [M.IL.needWords('level', 30, 28), M.IL.needWords('magic', 20, 14), M.IL.needWords('level', 30, null)].join('|');

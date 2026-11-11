@@ -94,8 +94,16 @@
 //   TOK-7  A THROWN ERROR IS NOT A REFUSAL (a lock that failed, say): the session stays and nobody hears 'expired';
 //          an auth error the server threw still ends it
 //   VIEW-1 the world view reads only the character's record and its own scratch
+//   LVL-0  outside src/core and its data no module takes a level curve from src/core/xp.js or reads level_xp
+//          (CURVE_USE lists the two exceptions and why): the browser cannot work a Level out
+//   LVL-1  the Level, its XP marks, the roster's Level and a Level gate are the envelope's `level` block
+//          (hr_level_block), fed a block that DISAGREES with this build's curve for the same Level XP
+//   LVL-2  no `level` block (or a broken one) draws no Level anywhere: never this build's curve as a fallback
+//   LVL-3  a hunt on screen: the pushed frame's Level replaces the load's at once, the Level XP unmoved
+//   LVL-4  the browser closed: the stamp keeps the server's Level, and the return line names the two
+//          Levels the server said (the hunt ran on the server meanwhile)
 // ════════════════════════════════════════════════════════════════════════
-import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, cpSync, readFileSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -124,6 +132,13 @@ async function load(base) {
     FI: await import(u('src/session/farm-intents.js')),
     FS: await import(u('src/session/farm-sections.js')),
     XP: await import(u('src/core/xp.js')),
+    /* the Level's readers and three of its surfaces (LVL-0 .. LVL-4), and the tree the modules came from (LVL-0 reads its imports) */
+    CS: await import(u('src/session/character-sections.js')),
+    GG: await import(u('src/shell/gear-gate.js')),
+    AWAY: await import(u('src/shell/away-recap.js')),
+    ITEMS: (await import(u('src/data/items.js'))).ITEMS,
+    LEVEL_REQ: (await import(u('src/data/gear-tiers.js'))).LEVEL_REQ,
+    BASE: base,
   };
 }
 
@@ -172,7 +187,7 @@ const timers = { setTimer: () => 0, clearTimer: () => {} };
 async function rules(M) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
-  const { E, R, C, A, S, AU, NB, AR, SI, CFG, TP, TW, PS, HB, I, FI, FS, XP } = M;
+  const { E, R, C, A, S, AU, NB, AR, SI, CFG, TP, TW, PS, HB, I, FI, FS, XP, CS, GG, AWAY, ITEMS, LEVEL_REQ } = M;
 
   await t('ENV-1', () => {
     const a = E.applyEnvelope(null, env(3, { skills: { mining: 5 }, buffs: [1] })).record;
@@ -1334,12 +1349,14 @@ async function rules(M) {
     /* gold is the ACCOUNT purse each hero's answer states, with the wallet version it was read at (goldV) */
     /* ...and what a hero is doing when it is more than idle in town: the picker said only "Level 2 · Play" over a
        hero mid-hunt (core-loop play 2026-10-30). Slot 0 hunts; slot 2 stands idle and says nothing. */
+    /* THE LEVEL IS THE ANSWER'S OWN `level` BLOCK (lane/c-level-from-server): the server says 9 for XP this build's curve calls 10 */
     const srv = fakeServer({ 0: env(1, { hero_slots: [0, 2, 3, 99, -1, 'x'], name: 'Tester', state: { gold: 1, gold_v: 4, level_xp: XP.charXpForLevel(10) },
+      level: { xp: XP.charXpForLevel(10), level: 9, into: 70000, need: 78046 },
       hunt: { session_id: 'sess-1', hunt_id: 'mill_cellar', ended: false } }), 2: env(1),
       3: { ok: false, error: 'needs_name', hero_slots: [0, 2, 3] } });
     const acc = mkAccount(srv);
     const r = await acc.roster();
-    if (JSON.stringify(r) !== JSON.stringify([{ slot: 0, exists: true, unnamed: false, name: 'Tester', level: 10, gold: 1, goldV: 4, doing: 'Hunting in Mill Cellar' },
+    if (JSON.stringify(r) !== JSON.stringify([{ slot: 0, exists: true, unnamed: false, name: 'Tester', level: 9, gold: 1, goldV: 4, doing: 'Hunting in Mill Cellar' },
       { slot: 2, exists: true, unnamed: false, name: null, level: null, gold: 1, goldV: null, doing: null },
       { slot: 3, exists: false, unnamed: true, name: null, level: null, gold: null, goldV: null, doing: null }])) return 'roster was ' + JSON.stringify(r);
     srv.calls.length = 0;
@@ -2013,8 +2030,124 @@ async function rules(M) {
     await refused.auth.renewToken('A');
     return (refused.heard.join() === 'expired' && refused.auth.userId() === null) || 'an auth error the server threw did not end the session: ' + JSON.stringify(refused.heard);
   });
+
+  /* ── THE LEVEL IS THE SERVER'S (lane/c-level-from-server) ─────────────────────────────────────────────────
+     2026-11-10: the Level curve was re-fitted on the server and the browser, a release behind, printed "Lv 20" for a
+     hero the server fought as Level 19. hr_state_of states the Level itself (`level` = hr_level_block: xp, level, into,
+     need) and the client reads only that. Every case below hands the client an envelope whose `level` block DISAGREES
+     with this build's curve for the same Level XP, so a Level worked out in the browser is the wrong answer. */
+  const iron = Object.entries(ITEMS).find(([, it]) => it.reqSkill === LEVEL_REQ && it.reqLv >= 10);
+  const NEED_LV = iron[1].reqLv;
+  /* The XP this build's curve calls NEED_LV + 1; the server (another curve) says NEED_LV - 1, 40 XP into a 9,000 XP Level. */
+  const SRV_XP = XP.charXpForLevel(NEED_LV + 1) + 3;
+  const srvLevel = (level, xp = SRV_XP) => ({ xp, level, into: 40, need: 9000 });
+  const lvEnv = (version, level, extra) => env(version, Object.assign({ name: 'Tester', now: '2026-11-10T12:00:00Z',
+    state: { gold: 1, gold_v: 1, level_xp: SRV_XP, hp: 50, max_hp: 60 }, level: srvLevel(level), vitals: { max_hp: 60, max_mana: 30 },
+    skills: {}, inventory: {}, equipment: {} }, extra || {}));
+  const asCs = (body) => ({ slot: 0, read: (k) => body[k], record: { residue: {} } });
+  await t('LVL-1', () => {
+    if (XP.charLevelFromXp(SRV_XP) === NEED_LV - 1) return 'HARNESS: this build\'s curve agrees with the server\'s block, so the case proves nothing';
+    const cs = asCs(lvEnv(1, NEED_LV - 1));
+    const lv = CS.levelOf(cs);
+    if (JSON.stringify(lv) !== JSON.stringify({ xp: SRV_XP, level: NEED_LV - 1, into: 40, need: 9000 })) return 'levelOf reads ' + JSON.stringify(lv) + ', the server said ' + JSON.stringify(srvLevel(NEED_LV - 1));
+    /* the HUD medallion and its XP ring, the Character sheet's "40 / 9,000 XP to Level N", the party panel's own seat, the bag's hero line */
+    const v = CS.heroVitalsOf(cs);
+    if (v.level !== NEED_LV - 1 || v.into !== 40 || v.need !== 9000 || Math.abs(v.xpPct - 40 / 9000) > 1e-12) return 'heroVitalsOf reads ' + JSON.stringify([v.level, v.into, v.need, v.xpPct]);
+    /* the Characters screen and the hero strip's rows (one hr_load answer each) */
+    const row = A.heroOf(lvEnv(1, NEED_LV - 1));
+    if (row.level !== NEED_LV - 1) return 'the roster says Level ' + row.level + ', the server ' + (NEED_LV - 1);
+    /* A GATE READS THE SERVER'S LEVEL: this build's curve would call the hero NEED_LV + 1 and offer a press the server refuses */
+    const block = GG.wearBlock(cs, iron[0]);
+    if (!block || !block.includes(String(NEED_LV))) return 'the gear gate lets a Level ' + (NEED_LV - 1) + ' hero put on ' + iron[0] + ' (needs ' + NEED_LV + '): ' + JSON.stringify(block);
+    if (GG.wearBlock(asCs(lvEnv(1, NEED_LV)), iron[0]) !== '') return 'the gear gate refuses a hero the server says is Level ' + NEED_LV;
+    return true;
+  });
+  await t('LVL-2', () => {
+    /* NO BLOCK, NO LEVEL: never this build's curve over state.level_xp, on any reader (a missing or broken block draws nothing) */
+    const bare = lvEnv(1, 5); delete bare.level;
+    for (const [what, body] of [['no level block', bare], ['a block with no Level', lvEnv(1, 0)], ['a Level that is not a number', lvEnv(1, '19')],
+      ['a block with no XP across the Level', Object.assign(lvEnv(1, 5), { level: { xp: SRV_XP, level: 5, into: 0, need: 0 } })],
+      ['a block that is a list', Object.assign(lvEnv(1, 5), { level: [5] })]]) {
+      const cs = asCs(body);
+      const v = CS.heroVitalsOf(cs);
+      if (CS.levelOf(cs) !== null || v.level !== null || v.into !== null || v.need !== null || v.xpPct !== null) return what + ': a Level was drawn anyway: ' + JSON.stringify([CS.levelOf(cs), v.level]);
+      if (A.heroOf(body).level !== null) return what + ': the roster drew Level ' + A.heroOf(body).level;
+      /* the rest of the hero still reads: the server's HP is not held back by a missing Level */
+      if (v.hp !== 50 || v.hpMax !== 60) return what + ': the hero\'s HP went with the Level: ' + JSON.stringify([v.hp, v.hpMax]);
+    }
+    return true;
+  });
+  await t('LVL-3', async () => {
+    /* A HUNT ON SCREEN: the load says Level N-1; the settle's pushed frame (the whole character) says N. The Level XP is the
+       same in both, so nothing the browser could work out of it moves: only the server's block does. */
+    const hunt = { session_id: 'sess-lv', hunt_id: 'mill_cellar', ended: false, session: {}, hero: {}, pose: { units: [] } };
+    const srv = fakeServer({ 0: lvEnv(1, NEED_LV - 1, { hunt }) });
+    const hub = fakeHub();
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers });
+    await cs.load(); cs.connect();
+    if ((CS.levelOf(cs) || {}).level !== NEED_LV - 1) return 'the hunting hero\'s first read says Level ' + JSON.stringify(CS.levelOf(cs));
+    hub.send(C.frameTopic(UID, 0), { t: 'state', frame: 2, env: lvEnv(2, NEED_LV, { hunt }) });
+    if (cs.record.version !== 2) return 'HARNESS: the frame was refused: ' + cs.lastVerdict;
+    const up = CS.heroVitalsOf(cs);
+    if (up.level !== NEED_LV) return 'after the frame the hunting hero reads Level ' + up.level + ', the server said ' + NEED_LV;
+    return GG.wearBlock(cs, iron[0]) === '' || 'the gate still refuses the Level the frame brought: ' + GG.wearBlock(cs, iron[0]);
+  });
+  await t('LVL-4', async () => {
+    /* THE BROWSER CLOSED: a hunt stamped at the server's Level N-1, the page gone, the hunt run on by the server. A new page's
+       first read, two hours on, says Level N+2: the return line names the two Levels the SERVER said, and the hero reads N+2. */
+    const T0 = Date.parse('2026-11-10T12:00:00Z'), H2 = 2 * 3600 * 1000;
+    const hunt = { session_id: 'sess-away', hunt_id: 'mill_cellar', ended: false, session: {}, hero: {}, pose: { units: [] } };
+    const before = new C.CharacterSession({ slot: 0, uid: UID, server: fakeServer({ 0: lvEnv(1, NEED_LV - 1, { hunt }) }), channel: fakeHub().channel, ...timers });
+    await before.load();
+    const writes = [];
+    const stamping = { slot: 0, record: before.record, read: (k) => before.read(k), serverNow: () => T0, setResidue: (f, v) => { writes.push([f, v]); return true; } };
+    if (AWAY.stampAway(stamping) !== true || writes.length !== 1 || writes[0][1].lv !== NEED_LV - 1 || writes[0][1].xp !== SRV_XP) return 'the stamp did not keep the server\'s Level: ' + JSON.stringify(writes);
+    /* the reopened browser: a new session, the residue the server kept, the hunt still running */
+    const laterXp = SRV_XP + 5000;
+    const back = lvEnv(9, NEED_LV + 2, { hunt, now: new Date(T0 + H2).toISOString(), client_state: { awaySeen: writes[0][1] },
+      state: { gold: 1, gold_v: 1, level_xp: laterXp, hp: 50, max_hp: 60 } });
+    back.level = srvLevel(NEED_LV + 2, laterXp);
+    const after = new C.CharacterSession({ slot: 0, uid: UID, server: fakeServer({ 0: back }), channel: fakeHub().channel, ...timers });
+    await after.load();
+    if ((CS.levelOf(after) || {}).level !== NEED_LV + 2) return 'the first read back says Level ' + JSON.stringify(CS.levelOf(after));
+    const line = AWAY.awayRecapOf({ slot: 0, record: after.record, read: (k) => after.read(k), serverNow: () => T0 + H2 });
+    const want = 'Level ' + (NEED_LV - 1) + ' to ' + (NEED_LV + 2);
+    return (!!line && line.text.includes(want) && line.text.includes('+5,000 Level XP')) || 'the return line does not say "' + want + '": ' + JSON.stringify(line && line.text);
+  });
+  await t('LVL-0', () => {
+    /* THE CLASS, HELD SHUT: outside the engine (src/core) and its data, no module takes a level curve from src/core/xp.js or reads
+       `level_xp`. A Level a window needs comes from character-sections.js levelOf; a skill's level from the envelope's `skills`.
+       CURVE_USE lists each exception, with the names it may take and why. */
+    const found = {}, xpReads = [];
+    const walk = (dir) => { for (const e of readdirSync(join(M.BASE, dir), { withFileTypes: true })) {
+      const rel = dir + '/' + e.name;
+      if (e.isDirectory()) { if (!/^src\/(core|data|vendor|styles)$/.test(rel)) walk(rel); continue; }
+      if (!e.name.endsWith('.js')) continue;
+      const text = readFileSync(join(M.BASE, rel), 'utf8');
+      for (const m of text.matchAll(/import\s*(\{[^}]*\}|\*\s*as\s+\w+)\s*from\s*'[^']*core\/(?:xp|index)\.js[^']*'/g)) {
+        found[rel] = (found[rel] || []).concat(m[1].startsWith('{') ? m[1].slice(1, -1).split(',').map((s) => s.trim().split(/\s+as\s+/)[0]).filter(Boolean) : ['*']).sort();
+      }
+      /* comments say `level_xp` freely (block comments, then line comments not inside a URL or a string's `//`) */
+      const code = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`\\])\/\/[^\n]*/g, '$1');
+      if (/\blevel_xp\b/.test(code)) xpReads.push(rel);
+    } };
+    walk('src');
+    const sorted = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, o[k]]));
+    if (sorted(found) !== sorted(CURVE_USE)) return 'modules outside src/core take a level curve from src/core/xp.js: ' + sorted(found) + ' (allowed: ' + sorted(CURVE_USE) + ')';
+    return xpReads.length === 0 || 'client code reads level_xp (the Level and its XP are the envelope\'s `level` block): ' + xpReads.join(', ');
+  });
   return fails;
 }
+
+/* The modules outside src/core that may take a curve from src/core/xp.js, each with the names it takes and why (LVL-0). Sorted names. */
+const CURVE_USE = Object.freeze({
+  /* the town-work prediction's burn check: pending numbers only, never spent, replaced by each envelope (the file's header) */
+  'src/shell/town-ticker.js': ['levelOf'],
+  /* the skill bars' two XP marks. The envelope states each skill's level but not yet the XP at its start and at the next
+     (`skills[id]` needs `into` / `need` like the `level` block): until it does the bar reads the marks of the SERVER's level
+     off this build's curve. Reported by lane/c-level-from-server; remove this row with that projection. */
+  'src/shell/windows/skills.js': ['skillCapOf', 'skillXpForLevel'],
+});
 
 async function viewRules(base) {
   const fails = [];
@@ -2191,6 +2324,21 @@ const MUTANTS = [
   ['the town re-read asks every display tick', 'src/session/town-poll.js', '  return nowMs - since >= SESSION_CONFIG.townPollMs;', '  return true;'],
   ['two town re-reads in flight', 'src/session/town-poll.js', '  if (!running || busy) return false;', '  if (!running) return false;'],
   ['a hunter is re-read as town work', 'src/session/town-poll.js', "  return !(hunt && typeof hunt === 'object' && typeof hunt.session_id === 'string' && hunt.ended !== true);", '  return true;'],
+  /* lane/c-level-from-server: the 2026-11-10 bug itself, then each way back to it */
+  ['the Level is worked out of Level XP on this build\'s curve (the 2026-11-10 bug)', 'src/session/character-sections.js',
+    "export function levelOf(cs) {\n  const b = read(cs, 'level');\n",
+    "import { charLevelFromXp as mutLv, charXpForLevel as mutXp } from '../core/xp.js';\nexport function levelOf(cs) {\n  const mutSt = read(cs, 'state'); const mutX = isObj(mutSt) ? nat(mutSt.level_xp) : null;\n"
+    + "  const b = mutX === null ? null : { xp: mutX, level: mutLv(mutX), into: mutX - mutXp(mutLv(mutX)), need: mutXp(mutLv(mutX) + 1) - mutXp(mutLv(mutX)) };\n"],
+  ['a missing Level falls back to this build\'s curve', 'src/session/character-sections.js',
+    "export function levelOf(cs) {\n  const b = read(cs, 'level');\n  if (!isObj(b)) return null;\n",
+    "import { charLevelFromXp as mutLv, charXpForLevel as mutXp } from '../core/xp.js';\nexport function levelOf(cs) {\n  let b = read(cs, 'level');\n  const mutSt = read(cs, 'state'); const mutX = isObj(mutSt) ? nat(mutSt.level_xp) : null;\n"
+    + "  if (!isObj(b) && mutX !== null) b = { xp: mutX, level: mutLv(mutX), into: mutX - mutXp(mutLv(mutX)), need: mutXp(mutLv(mutX) + 1) - mutXp(mutLv(mutX)) };\n  if (!isObj(b)) return null;\n"],
+  ['a Level block with no Level in it is drawn', 'src/session/character-sections.js', '  if (xp === null || !level || into === null || !need) return null;\n', '  if (xp === null) return null;\n'],
+  ['the XP ring is filled from the Level XP, not the server\'s two marks', 'src/session/character-sections.js', 'xpPct: lv && lv.need > 0 ? Math.max(0, Math.min(1, lv.into / lv.need)) : null,', 'xpPct: lv && lv.need > 0 ? Math.max(0, Math.min(1, (lv.xp % lv.need) / lv.need)) : null,'],
+  ['the roster works the Level out of Level XP', 'src/session/account-session.js', '  const lv = levelOf({ read: (k) => body[k] });\n', "  const lv = Number.isSafeInteger(st.level_xp) ? { level: 1 + Math.floor(st.level_xp / 1000) } : null;\n"],
+  ['the residue drops the stamp\'s Level (the return line names none)', 'src/session/residue.js', "for (const k of ['xp', 'lv', 'gold', 'kills', 'sx', 'sl', 'n'])", "for (const k of ['xp', 'gold', 'kills', 'sx', 'sl', 'n'])"],
+  ['a client module takes the Level curve again', 'src/session/party-sections.js', "import { heroVitalsOf } from './character-sections.js", "import { charLevelFromXp } from '../core/xp.js';\nimport { heroVitalsOf } from './character-sections.js"],
+  ['a client module reads level_xp again', 'src/session/tutorial-sections.js', '  const lv = levelOf(cs);\n  if (!lv) return null;\n', "  const lv = levelOf(cs);\n  if (!lv || !(cs.read('state').level_xp >= 0)) return null;\n"],
 ];
 
 /* The WHOLE src tree at its own layout: the session graph reaches across src/** by relative path
@@ -2205,7 +2353,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (44 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (49 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(async () => rules(await load(ROOT)));

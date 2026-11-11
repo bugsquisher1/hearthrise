@@ -6,7 +6,7 @@
 // what this answers, and this types no number of its own. Each fact is read from the row the server's
 // catalogue is generated from (src/data/monsters.js), through the function the engine itself calls:
 //   Health        the row's HP on Normal (hunt-tiers.js atTier), the same for every group size (Tyler 2026-11-08)
-//   a blow        combat.js monsterMaxHit, and the roller's own floor and ceiling (rollAttack)
+//   Max Hit       combat.js monsterMaxHit, the ceiling the engine rolls a landed blow under (the game's label, Tyler 2026-11-11)
 //   how often     combat.js COMBAT_BALANCE.tickMs, the one basic-attack interval
 //   its damage    physical: the engine gives a monster's blow no element (hunt-spawn.js)
 //   weak to       the row's weaponWeak, paid by combat.js WEAKNESS_BONUS
@@ -29,7 +29,7 @@ import { DEFAULT_TIER, atTier, tierRowOf } from '../data/hunt-tiers.js?v=0.2.118
 import { partyNote } from './hunt-list.js?v=0.2.118';
 import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.118';
 import { elementPermille } from '../core/elements.js?v=0.2.118';
-import { COMBAT_BALANCE, WEAKNESS_BONUS, monsterMaxHit, rollAttack, weaknessInfo } from '../core/combat.js?v=0.2.118';
+import { COMBAT_BALANCE, WEAKNESS_BONUS, monsterMaxHit, weaknessInfo } from '../core/combat.js?v=0.2.118';
 import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.118';
 import { residentsOf, bigPullOf } from './hunt-ground-facts.js?v=0.2.118';
 import { usePlaces, usesOf } from './item-lore.js?v=0.2.118';
@@ -37,9 +37,6 @@ import { skillName } from './widgets/bits.js?v=0.2.118';
 import { t } from '../render/player-text.js?v=0.2.118';
 
 const pctOf = (mult) => Math.round((mult - 1) * 100);
-/* The roller's own two ends: a blow that lands, drawn at its lowest and at its highest. */
-const LOWEST = Object.freeze({ chance: () => true, int: (lo) => lo });
-const HIGHEST = Object.freeze({ chance: () => true, int: (lo, hi) => hi });
 
 /**
  * The open grounds monster `id` lives on, lowest floor first: [{ hunt, name, band: [lo, hi], how, warn, ground }].
@@ -77,7 +74,7 @@ function usesFor(item) {
 
 /**
  * Monster `id`'s facts on Normal, the same for every group size, or null for a monster no open ground holds:
- * { id, name, family, level, boss, hp, blow: { min, max }, swingMs, deals, weak: { weapon, damagePct, accuracyPct } | null,
+ * { id, name, family, level, boss, hp, maxHit, swingMs, deals, weak: { weapon, damagePct, accuracyPct } | null,
  *   elements: [{ element, pct }] (pct LESS taken, negative = more), xp, gold: [lo, hi],
  *   drops: [{ id, name, band, chance, uses: [{ words, place }] }], homes (homesOf) }.
  */
@@ -94,7 +91,7 @@ export function monsterFactsOf(id) {
   return {
     id, name: row.name || id, family: row.className || row.family || '', level: monsterLevelOf(row), boss: row.boss === true,
     hp: Math.max(1, fights.hp || 1),
-    blow: { min: rollAttack(LOWEST, 1, top), max: rollAttack(HIGHEST, 1, top) },
+    maxHit: top,
     swingMs: COMBAT_BALANCE.tickMs,
     deals: PHYSICAL,
     weak: weak.matched ? { weapon: row.weaponWeak, damagePct: pctOf(WEAKNESS_BONUS.damage), accuracyPct: pctOf(weak.accuracyMult) } : null,

@@ -3271,3 +3271,10 @@ coach card's column, and roomForCoach only shortened the hunt bar's card for an 
 Join. Now any card whose box shares the alert's column ends 8 px above it. (2) Shop, 667x375: the one-line window card's
 desktop 24 px foot rule (.hs-win-coach > .is-line, 0-4-0) outranked the phone's --tap; the phone block now sets both foot
 presses to --tap. Open: on a 277 px phone card the foot squeezes the title to one word per line (filed in DISCOVERIES).
+
+## 2026-11-12 lane/a-phone-coach-foot
+Phone coach foot moved to its own row under the words in town and beside a sheet; the dash joins it, so the title has the
+top row alone (Shop "Sell what only pays coin": 5/3/3 lines at 667/844/922 -> 1/1/1, card 142 -> 105 px). A second row
+costs a line PH-27 does not have: paid for with the card's own 40 px presses, a 1.05 one-line title and words at 1.3
+(--coach-foot feeds every words cap). The hunt-bar card keeps the shared row (no line to spare). Lesson: name scratch
+scripts per lane; a stale shared `edit.cjs` re-ran another lane's edits (filed in DISCOVERIES).

@@ -383,9 +383,9 @@
   /* Open, it runs from the left edge to just short of the hero's column: wide words, few lines. */
   .hs-launchers > .hs-pointer:not(.is-min):not([data-anchor="action_bar"]) { width: min(340px, calc(50vw - 56px)); right: calc(100vw - 8px - min(340px, calc(50vw - 56px))); }
   .hs-launchers > .hs-pointer:not(.is-min) { top: calc(100% + 50px); max-height: calc(var(--coach-room) - 58px); }
-  .hs-launchers > .hs-pointer:not(.is-min):not([data-anchor="action_bar"]) > .hs-coach-text { max-height: calc(round(down, var(--coach-room) - 114px - .5lh, 1lh) + .5lh); }
+  .hs-launchers > .hs-pointer:not(.is-min):not([data-anchor="action_bar"]) > .hs-coach-text { max-height: calc(round(down, var(--coach-room) - 114px - var(--coach-foot) - .5lh, 1lh) + .5lh); }
   /* An alert under the card leaves it too little room (shell.js roomForCoach): the card keeps its title until it closes. */
-  .hs-widget.is-short-room > .hs-pointer:not(.is-min) > :is(.hs-coach-text, .hs-coach-got) { display: none; }
+  .hs-widget.is-short-room > .hs-pointer:not(.is-min) > :is(.hs-coach-text, .hs-coach-foot) { display: none; }
   .hs-widget.is-no-room > .hs-pointer { display: none; }
   /* While a leave counts down: what the wait is for, in one line under the hunt bar (hunt-topbar.js), the card aside. */
   .ht-why:not([hidden]) { display: block; position: absolute; top: 100%; right: 0; width: max-content; max-width: 100%; margin: 4px 0 0; padding: 2px 8px; background: var(--bg-2); font-size: var(--t-micro); color: var(--ink-2); }
@@ -401,12 +401,27 @@
      mid-sentence). A long card (a high Level's "What next") ends above the action bar: --coach-room is its host's foot to the
      bar's top (shell.js roomForCoach), less the card's 12 px drop and an 8 px gap. The title and the dash stay; the words
      scroll in their own box, which alone takes the thumb (the card lets presses through to the World). That box ends half a
-     line in (the room less those 20 px, the frame's 12, the row's 40 and the foot's 4), so a cut line always says there is
+     line in (the room less those 20 px, the frame's 12, the row's 40, the foot's 4 and the foot's own row where it has one), so a cut line always says there is
      more: a phone's scrollbar shows only while it scrolls. The card's own cap holds where round() or lh is missing
      (tests/phone-touch.mjs PH-6). */
-  .hs-pointer:not(.is-min), .hs-pointer.has-close:not(.is-min), .hs-win-coach > .hs-pointer:not(.is-min), .hs-win-coach > .hs-pointer.has-close:not(.is-min) { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; grid-template-rows: auto minmax(0, 1fr); align-items: center; padding: 0 0 4px 12px; }
+  .hs-pointer:not(.is-min), .hs-pointer.has-close:not(.is-min), .hs-win-coach > .hs-pointer:not(.is-min), .hs-win-coach > .hs-pointer.has-close:not(.is-min) { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; grid-template-rows: auto minmax(0, 1fr) auto; align-items: center; padding: 0 0 4px 12px; }
   .hs-pointer:not(.is-min) > b { grid-area: 1 / 1; line-height: 1.2; }
-  .hs-pointer:not(.is-min) > .hs-coach-got, .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-got { grid-area: 1 / 2; margin: 0; min-height: 40px; padding: 0 8px; }
+  /* IN TOWN AND BESIDE A SHEET THE FOOT IS ITS OWN ROW UNDER THE WORDS (phone 2026-11-12: on the title row its two presses took 192
+     of a 277 px card and "Sell what only pays coin" stood one word to a line, under Don't show tips): the desktop's order, quiet at
+     the left, Got it at the right, the dash after it; the title has the top row to itself, one line where it was five. The row is
+     paid for, so every card's words still fit whole (phone-touch PH-27): the presses are the card's own 40 px (as the dash), the
+     one-line title sets tight on the frame, the words at 1.3. The card under the hunt bar (320 px, short titles) keeps one row:
+     its room has no line to spare. */
+  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) { padding: 0 0 0 12px; }
+  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min) > .hs-coach-foot { grid-area: 3 / 1 / 4 / 3; margin: 0; }
+  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min) > .hs-coach-foot > :is(.hs-coach-got, .hs-coach-off) { min-height: 40px; }
+  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-min { grid-area: 3 / 3; }
+  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > b { grid-area: 1 / 1 / 2 / -1; padding-right: 8px; line-height: 1.05; }
+  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-text { line-height: 1.3; }
+  /* What that costs the words' box, past the 40 px row and 4 px foot every cap below already takes off: the title's own line, less
+     the 4 px foot the card no longer has (the 40 px foot row takes the 40 px row's place). */
+  .hs-pointer:not(.is-min) { --coach-foot: 0px; }
+  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) { --coach-foot: calc(var(--t-micro) * 1.05 - 4px); }
   .hs-pointer:not(.is-min) > .hs-coach-min { position: static; grid-area: 1 / 3; width: 40px; height: 40px; }
   /* relative, not static: its cross is drawn from its own middle. Static, the cross lay over the words in the middle of the card, and the button was blank (door panel 2026-11-04). */
   .hs-pointer:not(.is-min) > .hs-coach-close { position: relative; top: auto; right: auto; grid-area: 1 / 4; width: 40px; height: 40px; }
@@ -415,7 +430,7 @@
   .hs-widget > .hs-pointer:not(.is-min), .hs-launchers > .hs-pointer:not(.is-min) { max-height: calc(var(--coach-room) - 20px); }
   .hs-pointer:not(.is-min) > .hs-coach-text {
     grid-area: 2 / 1 / 3 / -1; padding-right: 14px;
-    min-height: 0; max-height: calc(round(down, var(--coach-room) - 76px - .5lh, 1lh) + .5lh); overflow-y: auto; overscroll-behavior: contain;
+    min-height: 0; max-height: calc(round(down, var(--coach-room) - 76px - var(--coach-foot) - .5lh, 1lh) + .5lh); overflow-y: auto; overscroll-behavior: contain;
     pointer-events: auto;
     /* A cut line alone read as cut off, with "no way to read the rest": a gold tip in the box's corner, in the gutter its padding
        keeps, says the words go on. It is the box's own background, so it stays put as they scroll; ::after, one line tall and
@@ -438,13 +453,13 @@
   /* What next's other goals on a phone: a press away, scrolled inside the card's room (QA 2026-11-04: the one goal had no More). */
   .hs-coach-also { max-height: 96px; overflow-y: auto; }
   .hs-win-coach > .hs-pointer { margin: 6px 10px 0; }
-  .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, 100vh / 3 - 100px, 1lh) + .5lh); }
+  .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, 100vh / 3 - 100px - var(--coach-foot), 1lh) + .5lh); }
   .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer { position: absolute; margin: 0; top: 50px; left: calc(min(400px, 48vw) + 5px - 100vw); }
   .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer:not(.is-min) { width: min(340px, calc(50vw - 56px)); max-height: calc(100vh - 200px); }
-  .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, 100vh - 256px - .5lh, 1lh) + .5lh); }
+  .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, 100vh - 256px - var(--coach-foot) - .5lh, 1lh) + .5lh); }
   #panel-world[data-scene="hunt"] .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer { top: 64px; }
   #panel-world[data-scene="hunt"] .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer:not(.is-min) { max-height: calc(100vh - 216px); }
-  #panel-world[data-scene="hunt"] .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, 100vh - 272px - .5lh, 1lh) + .5lh); }
+  #panel-world[data-scene="hunt"] .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, 100vh - 272px - var(--coach-foot) - .5lh, 1lh) + .5lh); }
   [data-hs-win="hunts"]:has(.hs-win-coach .hs-pointer) .hw-hunts-now { display: none; }
   /* The town card's own cap, past the general one above (same weight, later wins): its 50 px drop stays inside the room. */
   .hs-launchers > .hs-pointer:not(.is-min):not([data-anchor="action_bar"]) { max-height: calc(var(--coach-room) - 58px); }

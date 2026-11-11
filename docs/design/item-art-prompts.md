@@ -131,7 +131,7 @@ Every subject line below already uses this table; keep it if you edit them.
 | 4 | Warlock | dark purple cloth with black leather bindings |
 | 5 | Sorcerer | midnight blue cloth with silver embroidery |
 | 6 | Archmage | white and gold cloth set with small gems |
-| 7 | Shroudweave | pale ash-gray shroud linen, coarse and heavy, scorched brown at the hem (the Pyre Field's shrouds that wouldn't burn; the scorch reads it apart from Apprentice linen) |
+| 7 | Shroudweave | ash grey shroud linen, coarse and heavy, scorched brown at the hem (the Pyre Field's shrouds that wouldn't burn; the scorch reads it apart from Apprentice linen) |
 
 **Wood ladder** (bows, staves, rods, planks, logs)
 
@@ -253,42 +253,42 @@ Every subject line below already uses this table; keep it if you edit them.
 | warlock_helmet | Warlock Hat | a dark purple wide-brimmed hat with black leather bindings around the crown | `warlock_helmet.png` |
 | sorcerer_helmet | Sorcerer Hat | a midnight blue pointed hat with silver embroidery running up the crown | `sorcerer_helmet.png` |
 | archmage_helmet | Archmage Hat | a white and gold ceremonial mage hat set with small gems at the band | `archmage_helmet.png` |
-| shroudweave_helmet | Shroudweave Hat | a hood-hat of pale ash-gray shroud linen hanging in heavy folds, scorched brown at the edge | `shroudweave_helmet.png` |
+| shroudweave_helmet | Shroudweave Hat | a hood-hat of ash grey shroud linen hanging in heavy folds, scorched brown at the edge | `shroudweave_helmet.png` |
 | apprentice_body | Apprentice Robe Top | an undyed coarse linen robe top, plain and cheap, with a rope tie | `apprentice_body.png` |
 | adept_body | Adept Robe Top | a blue-grey wool robe top with simple braid trim at the cuffs | `adept_body.png` |
 | scholar_body | Scholar Robe Top | an empty deep green cloth robe tunic laid out flat with its sleeves spread, no wearer, brass clasps down the front | `scholar_body.png` |
 | warlock_body | Warlock Robe Top | an empty dark purple robe tunic laid out flat with its sleeves spread, no wearer, black leather bindings across the front | `warlock_body.png` |
 | sorcerer_body | Sorcerer Robe Top | an empty midnight blue robe tunic laid out flat with its sleeves spread, no wearer, silver embroidery at the shoulders | `sorcerer_body.png` |
 | archmage_body | Archmage Robe Top | an empty white and gold robe tunic laid out flat with its sleeves spread, no wearer, small gems set along the collar | `archmage_body.png` |
-| shroudweave_body | Shroudweave Robe Top | an empty robe tunic of pale ash-gray shroud linen laid out flat with its sleeves spread, no wearer, scorched brown at the cuffs | `shroudweave_body.png` |
+| shroudweave_body | Shroudweave Robe Top | an empty robe tunic of ash grey shroud linen laid out flat with its sleeves spread, no wearer, scorched brown at the cuffs | `shroudweave_body.png` |
 | apprentice_pants | Apprentice Robe Bottom | an undyed coarse linen robe skirt, plain and cheap, hem uneven | `apprentice_pants.png` |
 | adept_pants | Adept Robe Bottom | a blue-grey wool robe skirt with simple braid trim at the hem | `adept_pants.png` |
 | scholar_pants | Scholar Robe Bottom | a deep green cloth robe skirt with brass hem weights | `scholar_pants.png` |
 | warlock_pants | Warlock Robe Bottom | a dark purple robe skirt with black leather binding at the waist | `warlock_pants.png` |
 | sorcerer_pants | Sorcerer Robe Bottom | a midnight blue robe skirt with silver embroidery along the hem | `sorcerer_pants.png` |
 | archmage_pants | Archmage Robe Bottom | a pair of empty white and gold robe trousers laid out flat side by side, no wearer, small gems at the ankle hem | `archmage_pants.png` |
-| shroudweave_pants | Shroudweave Robe Bottom | a robe skirt of pale ash-gray shroud linen, the hem scorched brown | `shroudweave_pants.png` |
+| shroudweave_pants | Shroudweave Robe Bottom | a robe skirt of ash grey shroud linen, the hem scorched brown | `shroudweave_pants.png` |
 | apprentice_boots | Apprentice Slippers | a pair of undyed coarse linen slippers, plain, cheap and soft-soled | `apprentice_boots.png` |
 | adept_boots | Adept Slippers | a pair of blue-grey wool slippers with simple braid trim at the ankle | `adept_boots.png` |
 | scholar_boots | Scholar Slippers | a pair of deep green cloth slippers with small brass buckles | `scholar_boots.png` |
 | warlock_boots | Warlock Slippers | a pair of dark purple slippers with black leather bindings crossing the instep | `warlock_boots.png` |
 | sorcerer_boots | Sorcerer Slippers | a pair of midnight blue slippers with silver embroidery over the toe | `sorcerer_boots.png` |
 | archmage_boots | Archmage Slippers | a pair of white and gold slippers set with a small gem on each toe | `archmage_boots.png` |
-| shroudweave_boots | Shroudweave Slippers | a pair of slippers of pale ash-gray shroud linen, scorched at the toe | `shroudweave_boots.png` |
+| shroudweave_boots | Shroudweave Slippers | a pair of slippers of ash grey shroud linen, scorched at the toe | `shroudweave_boots.png` |
 | apprentice_gloves | Apprentice Gloves | a pair of undyed coarse linen gloves, plain, cheap and fingerless | `apprentice_gloves.png` |
 | adept_gloves | Adept Gloves | a pair of blue-grey wool gloves with simple braid trim at the wrist | `adept_gloves.png` |
 | scholar_gloves | Scholar Gloves | a pair of deep green cloth gloves with brass wrist studs | `scholar_gloves.png` |
 | warlock_gloves | Warlock Gloves | a pair of dark purple gloves with black leather bindings up the wrist | `warlock_gloves.png` |
 | sorcerer_gloves | Sorcerer Gloves | a pair of midnight blue gloves with silver embroidery across the back of the hand | `sorcerer_gloves.png` |
 | archmage_gloves | Archmage Gloves | a pair of white and gold gloves set with a small gem on each cuff | `archmage_gloves.png` |
-| shroudweave_gloves | Shroudweave Gloves | a pair of gloves of pale ash-gray shroud linen, scorched brown at the fingertips | `shroudweave_gloves.png` |
+| shroudweave_gloves | Shroudweave Gloves | a pair of gloves of ash grey shroud linen, scorched brown at the fingertips | `shroudweave_gloves.png` |
 | apprentice_belt | Apprentice Sash | a knotted undyed coarse linen sash, plain and cheap, ends frayed | `apprentice_belt.png` |
 | adept_belt | Adept Sash | a blue-grey wool sash with simple braid trim along its length | `adept_belt.png` |
 | scholar_belt | Scholar Sash | a single deep green cloth sash rolled and laid flat, no wearer, a brass clasp at its centre | `scholar_belt.png` |
 | warlock_belt | Warlock Sash | a dark purple sash bound with black leather cord | `warlock_belt.png` |
 | sorcerer_belt | Sorcerer Sash | a midnight blue sash with silver embroidery running its length | `sorcerer_belt.png` |
 | archmage_belt | Archmage Sash | a white and gold sash set with small gems along the centre | `archmage_belt.png` |
-| shroudweave_belt | Shroudweave Sash | a single sash of pale ash-gray shroud linen rolled and laid flat, no wearer, tied with a knotted cord | `shroudweave_belt.png` |
+| shroudweave_belt | Shroudweave Sash | a single sash of ash grey shroud linen rolled and laid flat, no wearer, tied with a knotted cord | `shroudweave_belt.png` |
 
 ### 2.4 Weapons — the four generated families (28)
 

@@ -1,0 +1,16 @@
+{
+  "asset": "brief 11 line 3 M2 SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/11-next-batch.txt",
+  "status": "SAMPLE for the art director's one-pass read; the line's batch waits for it. Not imported",
+  "made": "2026-11-08",
+  "generations": 11,
+  "made_how": "death in diagonals, animate_object v3 frame_count 6 keep_first_frame false, the words from each body's shipped S and E deaths: gray_wolf se, ne (group 62b53f4e, \"its legs give way and it slumps down onto its belly, its head sinks to the ground, and it lies still, nothing else appears in the frame\"); glade_poacher se, sw (group cd70df41, \"crumples to its knees and falls forward flat onto the ground face down, the bow beside it, and lies still, ...\"); drain_rat se (group 1710f173, \"rolls onto its side, belly up, legs out, and lies still, ...\")",
+  "end_poses": "drain_rat se plain did NOT fall (it stood), so per the brief its se took an end pose: edit_image_pro_flash on the se rotation, \"the same creature lying dead on the ground, rolled onto its side, belly up, legs out\" (job b346446f), then animate_image still to pose (job 27695135); 7 frames, frame 6 the pose",
+  "findings": [
+    "wolf se and ne fall and lie flat; the se corpse lies on its side with the legs out, the shipped S/E corpses lie on the belly: a slightly different corpse (the art director decides)",
+    "poacher se and sw: the same forward fall as the shipped S/E, the bow beside him",
+    "drain_rat se with the pose: the same belly-up corpse as the shipped S/E",
+    "the plain roll held for 4 of 5; the vermin that rolls over needed its pose (as M1 found)"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/m2-fall-diagonals-sample.png (blue-barred = shipped deaths: gray_wolf S, E; glade_poacher S, E; drain_rat S, E. Then wolf se, wolf ne, poacher se, poacher sw, drain_rat se plain (refused), drain_rat se with pose)"
+}

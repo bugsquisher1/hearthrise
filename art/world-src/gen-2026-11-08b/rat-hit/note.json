@@ -1,0 +1,265 @@
+{
+  "asset": "rat hit clip (brief 10 B3), Mill Cellar",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B3 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "hunt",
+  "object_id": "01744036-6944-4548-a581-a408b4bf1bee",
+  "name": "S1 giant rat (the shipped rat, KIT section 2)",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); hit/<facing>/0..N.png = the kept roll; alt/<roll>/hit/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the object, frame_count 6, keep_first_frame false; south and the side facings are separate groups (their action texts differ)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "f21694e7-7673-4330-ae69-53b0a814f886",
+        "directions": "e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r2": [
+      {
+        "group": "e04ff7e0-8c15-4e52-933d-d4b58b5feb39",
+        "directions": "n",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, all four feet planted, stays low, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r3": [
+      {
+        "group": "3285452c-cd6f-40cf-8d10-8d122e3a70c0",
+        "directions": "n",
+        "action": "tilts back by one pixel as if pushed from the side it faces, then returns to its stance, crouched low on all four feet the whole time, the body keeps its height, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "given",
+    "east": "r1",
+    "north": "r3",
+    "west": "r1"
+  },
+  "refused": {
+    "north r1": "rears up: the head rises 5-6 px (frames 2-3), a lean over 3 px",
+    "north r2": "rears again: 6 px at frame 2"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "given",
+      "xor": [
+        70,
+        135,
+        217,
+        228,
+        217,
+        139
+      ],
+      "alien": [
+        0,
+        0,
+        2,
+        13,
+        13,
+        10
+      ],
+      "dx": [
+        0.2,
+        0.3,
+        0.6,
+        0.5,
+        0.6,
+        0.4
+      ],
+      "dy": [
+        0.2,
+        -0.3,
+        -1.1,
+        -1.2,
+        -1.1,
+        -1
+      ],
+      "top": [
+        0,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        -1
+      ],
+      "auto_flags": []
+    },
+    "east": {
+      "roll": "r1",
+      "xor": [
+        75,
+        177,
+        254,
+        297,
+        255,
+        156
+      ],
+      "alien": [
+        0,
+        0,
+        1,
+        15,
+        4,
+        2
+      ],
+      "dx": [
+        0.2,
+        0,
+        -0.2,
+        -0.3,
+        -0.1,
+        0.1
+      ],
+      "dy": [
+        -0.2,
+        -0.7,
+        -0.8,
+        -0.8,
+        -0.8,
+        -0.5
+      ],
+      "top": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "north": {
+      "roll": "r3",
+      "xor": [
+        49,
+        68,
+        106,
+        114,
+        90,
+        52
+      ],
+      "alien": [
+        2,
+        0,
+        9,
+        15,
+        8,
+        0
+      ],
+      "dx": [
+        -0.2,
+        0,
+        0.2,
+        0.1,
+        0,
+        -0.1
+      ],
+      "dy": [
+        -0.3,
+        -0.2,
+        -0.9,
+        -0.9,
+        -0.6,
+        -0.3
+      ],
+      "top": [
+        -1,
+        -1,
+        -5,
+        -6,
+        -5,
+        0
+      ],
+      "bottom": [
+        0,
+        -1,
+        -1,
+        0,
+        -1,
+        -1
+      ],
+      "auto_flags": [
+        "top f2 (-5)",
+        "top f3 (-6)",
+        "top f4 (-5)"
+      ]
+    },
+    "west": {
+      "roll": "r1",
+      "xor": [
+        66,
+        168,
+        209,
+        218,
+        149,
+        126
+      ],
+      "alien": [
+        0,
+        0,
+        17,
+        13,
+        0,
+        1
+      ],
+      "dx": [
+        0.1,
+        -0.1,
+        -0.6,
+        -0.4,
+        -0.1,
+        0.4
+      ],
+      "dy": [
+        -0.2,
+        -1,
+        -1.3,
+        -1.4,
+        -0.7,
+        -0.1
+      ],
+      "top": [
+        -1,
+        -3,
+        -4,
+        -4,
+        -2,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    }
+  },
+  "generations": 6,
+  "flags": [
+    "NORTH: no clean roll after 2 retries. Kept r3 as the least bad: the body and feet hold (1 px), but the head pokes up 5-6 px above the back at frames 2-4 (seen from behind, it lifts its head); r1 and r2 reared the whole body"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/rat-hit.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)",
+  "south_from": "south is the approved sample roll from art/world-src/gen-2026-11-08/hit-sample (approved in 10), copied so this folder is complete"
+}

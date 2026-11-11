@@ -77,6 +77,10 @@
 .hs-tally-open { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .hs-tally-head .hs-wfold { width: 22px; height: 22px; margin: -2px -2px 0 0; }
 .hs-widget.is-folded .hs-tally-none, .hs-widget.is-folded .hs-tally-list { display: none; }
+/* Folded, the title row keeps the lead task's count beside the name (tally-hud.js); open, the rows say it. */
+.hs-tally-sum { display: none; font-size: var(--t-micro); color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.hs-widget.is-folded .hs-tally-open { flex-direction: row; align-items: baseline; gap: 6px; }
+.hs-widget.is-folded .hs-tally-sum:not(:empty) { display: inline; }
 .hs-tally-open b { font-family: var(--f-display); font-weight: 700; font-size: var(--t-micro); letter-spacing: .1em; color: var(--gold-2); }
 .hs-tally-open:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 .hs-tally-none { font-size: var(--t-micro); color: var(--ink-2); }

@@ -3764,6 +3764,15 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-ground-tiers.mjs --selftest
           node tests/hunt-tiers-db.mjs
           node tools/mutant-gate.mjs node tests/hunt-tiers-db.mjs --mutate
+      # ONE SAVED SETUP READ WHOLE, IN USE OR NOT (2027-04-13-hunt-preset-read.sql, the Hunt prep builder): two setups read back their own
+      # bars and options, parity with hunt_settings on the one in use, an unset number reads the role default, own hero only, every number
+      # the data allows, the name clamp, the shape, a read writes nothing. --mutate: the number ignored, the role default dropped, the filled
+      # bar answered as stored, the clamp widened, a read that writes, anon granted, STABLE, an overload naming a player.
+      - name: Hunt preset read — one setup whole, in use or not
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-preset-read.mjs
+          node tools/mutant-gate.mjs node tests/hunt-preset-read.mjs --mutate
       # THE WORLD TICK'S HUNT SETTLES, PACKED BY LOAD (2026-11-04-hunt-tick-shards.sql,
       # tick.js HUNT_BODY_BUDGET_MS, accrual.js accrueHunt's world bound): one fire
       # over 26 due hunts queues 3 bodies of <= hunt_body_max, disjoint, each
@@ -4321,6 +4330,19 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-storage-chests.mjs --selftest
           node tests/storage-chests.mjs
           node tools/mutant-gate.mjs node tests/storage-chests.mjs --selftest
+
+      # MANY STACKS IN ONE CALL (the UX flow audit 2026-11-11; 2027-04-13-bank-move-many.sql):
+      # hr_bank_move_many / hr_item_lock_many on a replayed chain, two accounts with the same
+      # kit: N single calls vs ONE bulk call leave Storage, the bag and the journal
+      # byte-identical; a locked stack, a full Storage, a hunting hero and bad input refuse
+      # the whole press by name and move nothing; one key, one rate token; lock order and
+      # ACL pinned; a second apply is a no-op. 12 mutations, the migration's own §0 / §6
+      # short-circuited so each catch is the guard's.
+      - name: Bank move many — many stacks in one call is N single calls, all or nothing
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/bank-move-many.mjs
+          node tools/mutant-gate.mjs node tests/bank-move-many.mjs --selftest
 
       # A HERO'S NAME (Tyler 2026-10-22): the first name is free, a change costs gold.
       # The guard drives the real hr_hero_rename / hr_character_name_set on a replayed
@@ -5814,6 +5836,14 @@ jobs:
         run: |
           node tests/hero-slots-one.mjs
           node tools/mutant-gate.mjs node tests/hero-slots-one.mjs --mutate
+
+      # A MERGE MUST NOT DROP AN IMPORT (2026-11-11, the v0.2.122 chain: bigPullParts, patchParts, t, three times). Every
+      # name a src/** module uses is declared or imported, every import resolves and the target exports it; zero findings.
+      - name: Imports resolve - no lost import, no missing export
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/imports-resolve.mjs
+          node tools/mutant-gate.mjs node tests/imports-resolve.mjs --selftest
 
   # ── edge ── THE DEPLOYED GATEWAY. One read-only probe against the live Edge
   # Functions with a garbage token, plus its control. It is alone in a job on

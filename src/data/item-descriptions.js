@@ -117,7 +117,7 @@ export const ITEM_DESC = {
   'bat_wing': 'A leathery wing off a cave bat. Crafters use it for spellbooks and caster gear',
   'bear_claw': 'A curved claw off a bear. Cooks bake it right into Bear Claw Pie',
   'bear_claw_pie': 'A big pie stuffed with bear meat. Eat it before a fight and you\'ll hit harder',
-  'bear_pelt': 'A Brook Bear\'s heavy pelt, from a party or a harder hunt at Mosslight Glade. The Keep, Trophy Room and Houndskin Cloak ask for it',
+  'bear_pelt': 'A Brook Bear\'s heavy pelt, from Mosslight Glade. The Keep, Trophy Room and Houndskin Cloak ask for it',
   'big_bones': 'Fuel for the Great Hearth in Havora. Big brutes drop them, and they burn hotter than plain bones',
   'boarhide_belt': 'A wide boarhide belt, tough enough for a ranger who lives out of a camp',
   'boarhide_body': 'A thick boarhide vest for a ranger who hunts deep in the woods',

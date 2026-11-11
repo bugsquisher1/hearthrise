@@ -56,7 +56,6 @@ import { bestFind } from '../hunt-view/summary-model.js?v=0.2.119';
 import { itemName } from './widgets/bits.js?v=0.2.119';
 import { t } from '../render/player-text.js?v=0.2.119';
 import { afterHuntOf, afterHuntWords, spanWords, WAITED_FROM_MS } from './after-hunt.js?v=0.2.119';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.119';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.119';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
@@ -78,7 +77,7 @@ const stampOf = (cs) => {
 
 /**
  * The shortest absence the line speaks of for this hero, which is also how often its stamp is renewed in view: FIRST_AWAY_MIN_MS until
- * its first return has been told, while it is new by the stamp's Level XP (else the server's now), else AWAY_MIN_MS. `was`: the stamp
+ * its first return has been told, while it is new by the server's Level in the stamp (else its `level` block now; neither: not new), else AWAY_MIN_MS. `was`: the stamp
  * being judged; the return markBack recorded for that very stamp is still the first (a second read of it says the same line).
  */
 export function awayMinMsOf(cs, was) {
@@ -86,8 +85,8 @@ export function awayMinMsOf(cs, was) {
   const told = isObj(coach) && typeof coach.back === 'string';
   if (told && !(was && coach.back === was.s && coach.backAt === was.at)) return AWAY_MIN_MS;
   const lv = levelOf(cs);
-  const xp = was && Number.isSafeInteger(was.xp) ? was.xp : lv ? lv.xp : null;
-  return xp !== null && charLevelFromXp(xp) < NEW_HERO_BELOW ? FIRST_AWAY_MIN_MS : AWAY_MIN_MS;
+  const level = was && Number.isSafeInteger(was.lv) && was.lv >= 1 ? was.lv : lv ? lv.level : 0;
+  return level >= 1 && level < NEW_HERO_BELOW ? FIRST_AWAY_MIN_MS : AWAY_MIN_MS;
 }
 
 /** "1 h 58 min", "25 min". */

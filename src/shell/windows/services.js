@@ -45,6 +45,7 @@ export function servicesPaneHtml() {
     + '<p class="hs-note hw-bless-note"></p>'
     + '<ul class="hw-ledger hw-bless"></ul>'
     + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="bless-all"></button></div>'
+    + '<p class="hs-note hw-bless-all-why" hidden></p>'
     + temperPaneHtml()
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
@@ -104,9 +105,14 @@ export function patchServicesPane(body, ctx) {
      tier's own button would be. No total is said: each tier is priced by the server as it is bought (blessAll). */
   const all = root.querySelector('[data-hs-act="bless-all"]');
   const missing = b ? b.tiers.filter((x) => !x.held).length : 0;
+  const allShort = purse !== null && !!next && purse < next.price;
   text(all, t('shop.bless_all'));
   prop(all.parentNode, 'hidden', missing < 2);
-  prop(all, 'disabled', missing < 2 || sc.pending || (purse !== null && !!next && purse < next.price));
+  prop(all, 'disabled', missing < 2 || sc.pending || allShort);
+  /* why it is off, in words on screen (phones have no hover): all on, short of gold for the next one, or a purchase under way */
+  const allWhy = !b || !b.tiers.length ? '' : !missing ? t('shop.bless_all_on') : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short') : '';
+  text(root.querySelector('.hw-bless-all-why'), allWhy);
+  prop(root.querySelector('.hw-bless-all-why'), 'hidden', !allWhy);
   patchTemperPane(root, ctx, sc);
   /* the tab's line answers Stamina and Blessings; Tempering's answer stands in its own section (temper-pane.js) */
   text(root.querySelector('.hh-intent-msg'), sc.msgAt === 'temper' ? '' : sc.msg);
@@ -164,7 +170,9 @@ export async function blessAll(cs) {
     if (!next) return asked.size ? r : { ok: false, error: b ? 'blessing_held' : 'blessings_unread' };
     if (asked.has(next.tier)) return r.ok ? { ok: false, error: 'blessing_unchanged' } : r;
     asked.add(next.tier);
-    r = await cs.buyBlessing(next.tier, next.price);
-    if (!r || !r.ok) return r || { ok: false, error: 'network' };
+    /* the answer, refusal and all, goes back to the press's runIntent, which says it in the window's line (refusalText) */
+    const got = await cs.buyBlessing(next.tier, next.price);
+    if (!got || !got.ok) return got || { ok: false, error: 'network' };
+    r = got;
   }
 }

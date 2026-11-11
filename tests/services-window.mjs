@@ -320,6 +320,9 @@ async function checks(overrides) {
         if (JSON.stringify(bought) !== '[[2,165],[3,220]]') fails.push('SV-11 Bless all sent ' + JSON.stringify(bought));
         const msg = await txt(sv.page, '.hh-intent-msg'), after = await shown();
         if (!/All 3 Blessings are on\./.test(msg || '') || !after || !after.hidden) fails.push('SV-11 after Bless all: ' + JSON.stringify({ msg, after }));
+        /* say-why: with nothing left to buy, the line under it says so */
+        const why = await txt(sv.page, '.hw-bless-all-why');
+        if (why !== 'All your Blessings are on.') fails.push('SV-11 the Bless all why line reads ' + JSON.stringify(why));
         if (sv.errors.length) fails.push('SV-11 console errors: ' + sv.errors.join(' | ').slice(0, 300));
       }
       await sv.ctx.close();
@@ -363,7 +366,7 @@ const MUTANTS = [
     "if (q && q.available) { sc.confirm = true; sc.msg = ''; repaint(); } return true; }",
     "if (q && q.available) runIntent(sc, repaint, () => cs.buyStamina(q.price), 'x'); return true; }"],
   ['any missing tier can be bought', 'src/shell/windows/services.js', "prop(btn, 'disabled', r.held || !next || next.tier !== r.tier || sc.pending", "prop(btn, 'disabled', r.held || sc.pending"],
-  ['Bless all buys one tier (SV-11)', 'src/shell/windows/services.js', '    r = await cs.buyBlessing(next.tier, next.price);\n', '    return cs.buyBlessing(next.tier, next.price);\n'],
+  ['Bless all buys one tier (SV-11)', 'src/shell/windows/services.js', '    r = got;\n', '    return got;\n'],
   ['the stamina control is on with no quote', 'src/shell/windows/services.js', 'const canStam = !!q && q.available && !sc.pending', 'const canStam = !sc.pending'],
   ['the Shop writes its own line over the Services answer (IP-3, v0.2.46)', 'src/shell/windows/shop.js',
     "text(root.querySelector(':scope > .hh-intent-msg'), st.sc.msgAt", "text(root.querySelector('.hh-intent-msg'), st.sc.msgAt"],

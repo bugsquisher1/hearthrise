@@ -232,7 +232,8 @@ export const REASONS = Object.freeze({
   ],
   'src/shell/windows/services.js': [
     { cond: '!canStam', words: "' You need ' + gold(q.price - purse) + ' more.'", where: 'the stamina quote line: full, all bought today, or how much more gold' },
-    { cond: 't.held || !next', words: "' · You need ' + gold(short) + ' more.'", where: 'each blessing row: Owned, Needs I, or how much more gold' },
+    { cond: 'r.held || !next', words: "' · You need ' + gold(short) + ' more.'", where: 'each blessing row: Owned, Needs I, or how much more gold' },
+    { cond: 'missing < 2 || sc.pending || allShort', words: "!missing ? t('shop.bless_all_on') : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short')", where: 'Bless all: the line under it says all are on, a purchase is under way, or the gold is short for the next one; with one missing it is hidden and that row\'s own button says why' },
   ],
   'src/shell/widgets/stamina-buy.js': [
     { cond: '!!why', words: ".hb-buy-why'), why", where: 'the bar\'s refill panel line' },

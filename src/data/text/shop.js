@@ -29,6 +29,9 @@ export const SHOP_TEXT = Object.freeze({
   bless_all: 'Bless all',
   bless_all_busy: 'Blessing…',
   bless_all_done: 'All {of} Blessings are on.',
+  /* Why Bless all is off, said under it. */
+  bless_all_on: 'All your Blessings are on.',
+  bless_all_short: 'You don’t have enough gold for the next Blessing.',
   junk_keeps: { one: 'Sell all junk keeps {count} stack worth {worth}. It is a Material. Sell it by hand if you want the gold.',
     other: 'Sell all junk keeps {count} stacks worth {worth}. They are Materials. Sell those by hand if you want the gold.' },
 });

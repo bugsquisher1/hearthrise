@@ -7,7 +7,7 @@
 // everyone, so a hero south of the lot would stand behind its front wall, and a tap would never reach it.
 // PURE: no DOM, no window, no clock. Nothing here can be spent, and nothing reads this but the frame.
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_WORKS } from '../data/town-works.js?v=0.2.115';
+import { TOWN_WORKS } from '../data/town-works.js?v=0.2.116';
 
 /* made once: this runs every town frame */
 const SWAPS = new Map(Object.entries(TOWN_WORKS).map(([id, p]) => [id, p.stages.map((s) => Object.freeze({ [p.stages[0].art]: s.art }))]));

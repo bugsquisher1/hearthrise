@@ -91,7 +91,10 @@
 /* ── Party board ── */
 /* It ends above the action bar and scrolls inside (--hs-room, hud-room.js; the phone's own cap is below). */
 .hp-party { width: 250px; max-height: var(--hs-room, none); }
-.hp-party .hs-wfold { display: none; }
+/* Folded (widget-move.js; a lone hero's starts so below --hud-fold-below, hud-widgets.js): its name and its plus, the width of those. */
+.is-folded > .hp-party { width: max-content; }
+.is-folded > .hp-party > .hh-panel-body, .is-folded > .hp-party [data-hs-act="expand"] { display: none; }
+.is-folded > .hp-party > .hh-panel-head { border-bottom: 0; }
 .hp-party .hh-panel-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .hp-party.is-empty .hh-empty { display: block; }
 .hp-members { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
@@ -149,7 +152,9 @@
 .ha-analyzer { width: 290px; max-height: min(560px, calc(100vh - 200px), var(--hs-room, 100vh)); }
 /* Its close is the phone's (no HUD panel carries one on a desktop, where Hunt details and HUD layout hide it). */
 .ha-close { display: none; }
-/* Folded (widget-move.js): the title row alone, its fold a plus; the stacked Tally rises under it. */
+/* Folded (widget-move.js; it starts so below --hud-fold-below): the title row alone, its fold a plus, the width of those,
+   so it sits beside the hunt bar rather than stepping under it into the fight; the stacked Tally rises under it. */
+.is-folded > .ha-analyzer { width: max-content; }
 .is-folded > .ha-analyzer > .hh-panel-body { display: none; }
 .is-folded > .ha-analyzer > .hh-panel-head { border-bottom: 0; }
 .ha-analyzer .hh-panel-body { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
@@ -666,11 +671,8 @@ label.st-line { cursor: pointer; }
   .st-row input[type="range"]::-moz-range-thumb { width: 16px; height: 22px; }
   .hp-party { width: 200px; }
   /* SOLO, THE PANEL STARTS FOLDED (phone panel v0.2.83: board, hunt bar and card covered 60% of a 245 px World, and a party of
-     one says nothing the bar does not): its name and its plus, the width of those; hud-widgets.js says when. */
-  .hp-party .hs-wfold { display: grid; margin: -2px -6px; }
-  .is-folded > .hp-party { width: max-content; }
-  .is-folded > .hp-party > .hh-panel-body, .is-folded > .hp-party [data-hs-act="expand"] { display: none; }
-  .is-folded > .hp-party > .hh-panel-head { border-bottom: 0; }
+     one says nothing the bar does not): its name and its plus (the folded rules are the desktop's, above); hud-widgets.js says when. */
+  .hp-party .hs-wfold { margin: -2px -6px; }
   /* A party of two with the hold switch is 245 px tall: past the action bar's top at 390 px, so the bar pushed the
      board below the screen. It ends above the bar (at most 100 px tall, 2 px up) and scrolls inside. */
   .hp-party { max-height: calc(100vh - 160px); }

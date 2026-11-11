@@ -18,6 +18,8 @@
 //   phone      overrides of anchor/dx/dy/opacity/visible on the phone size class; folded: 'alone' starts the widget
 //              folded while the hero has no party, open in one, until the player presses its fold (hud.js layoutOf)
 //   below      (optional) widget ids this one stacks under when it would overlap them (hud.js stackBelow)
+//   folded     (optional) the desktop's default fold: 'narrow' starts the widget folded on a screen narrower than
+//              --hud-fold-below (tokens.css), 'narrow-alone' only while the hero has no party too (hud.js FOLD_RULES)
 //
 // The player's layout is a DISPLAY preference (residue `hudLayout`, CLAUDE.md §6).
 // The hunt widgets show only while the character's envelope carries a hunt.
@@ -57,7 +59,7 @@ export const HUD_WIDGETS = Object.freeze([
   }),
   Object.freeze({
     id: 'party', label: 'Party', layer: 'world', anchor: 'tl', dx: 12, dy: 12,
-    min: Object.freeze([240, 80]), opacity: 0.9, visible: true, removable: true, when: 'hunt',
+    min: Object.freeze([240, 80]), opacity: 0.9, visible: true, removable: true, when: 'hunt', folded: 'narrow-alone',
     /* On a phone a hero with no party starts it folded (the World is 245 px tall; a party of one says nothing the bar does not). */
     phone: Object.freeze({ dx: 4, dy: 4, folded: 'alone' }),
   }),
@@ -65,7 +67,7 @@ export const HUD_WIDGETS = Object.freeze([
      covers Hunt details, Summary or Leave hunt (QA phone playtest 10-24: one press on Hunt details hid all three). */
   Object.freeze({
     id: 'analyzer', label: 'Hunt analyzer', layer: 'world', anchor: 'tr', dx: 12, dy: 12,
-    min: Object.freeze([260, 120]), opacity: 0.9, visible: true, removable: true, when: 'hunt',
+    min: Object.freeze([260, 120]), opacity: 0.9, visible: true, removable: true, when: 'hunt', folded: 'narrow',
     below: Object.freeze(['hunt-topbar']),
     phone: Object.freeze({ visible: false, dx: 4, dy: 4 }),
   }),
@@ -76,7 +78,7 @@ export const HUD_WIDGETS = Object.freeze([
      Off by default on a phone, where it stacks under the hunt bar (HUD layout shows it). */
   Object.freeze({
     id: 'tally', label: 'Tally (kill tasks)', layer: 'world', anchor: 'tr', dx: 12, dy: 12,
-    min: Object.freeze([180, 32]), opacity: 0.9, visible: true, removable: true, when: 'always',
+    min: Object.freeze([180, 32]), opacity: 0.9, visible: true, removable: true, when: 'always', folded: 'narrow',
     below: Object.freeze(['analyzer', 'hunt-topbar']),
     phone: Object.freeze({ visible: false, dx: 4, dy: 4 }),
   }),

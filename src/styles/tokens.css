@@ -989,6 +989,10 @@ body[data-theme-palette="iron"] {
    ══════════════════════════════════════════════════════════════════════════ */
 :root {
   --panel-alpha: 1;
+  /* THE HUD FOLD WIDTH (designer 2026-11-11: at 1024x768 the open analyzer, Tally and a lone hero's Party panel hid
+     the fight): narrower than this, those widgets start folded to their titles (src/data/hud-widgets.js `folded`,
+     src/shell/hud.js FOLD_RULES; src/shell/shell.js reads it). A width, not a breakpoint: no @media reads it. */
+  --hud-fold-below: 1280px;
 }
 :root,
 body[data-theme="hearthlight"] {

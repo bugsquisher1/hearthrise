@@ -136,6 +136,8 @@ export function mountShell(root, o) {
     store: residueStore(opts.character),
     inHunt: huntUp,
     alone: () => heroIsAlone(opts.character),
+    /* the desktop's default folds below the fold width (tokens.css --hud-fold-below); the phone keeps its own */
+    narrow: () => host.innerWidth < (parseFloat(host.getComputedStyle(doc.documentElement).getPropertyValue('--hud-fold-below')) || 0),
   });
   const insetListeners = new Set();
   const ctx = {
@@ -229,8 +231,9 @@ export function mountShell(root, o) {
       else { const html = render(ctx); if (el.innerHTML !== html) el.innerHTML = html; }
       const L = hud.layoutOf(row.id);
       el.style.setProperty('--hs-op', String(L.opacity));
-      /* A phone's folded widget is its title's width, or its empty box would still take presses and the camera's room. */
-      el.style.minWidth = L.folded && phoneMq.matches ? '' : row.min[0] + 'px';
+      /* A folded widget is its title's width, or its empty box would still take presses and the camera's room
+         (and at 1024 px a folded analyzer as wide as the open one stepped under the hunt bar, into the fight). */
+      el.style.minWidth = L.folded ? '' : row.min[0] + 'px';
       el.style.minHeight = L.folded ? '' : row.min[1] + 'px';
       paintMove(el, L, hud.isMoved(row.id));
       if (sized && !sized.watched.has(el)) { sized.watched.add(el); sized.ro.observe(el, { box: 'border-box' }); }

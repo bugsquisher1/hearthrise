@@ -100,9 +100,9 @@ export function takeWhyOf(tally, hunting, suggest) {
 }
 
 /**
- * What Tamsin says, from the server's section alone: a done task first (the cap, the bag, the way home), then a pay she
- * just made (`justPaid`), then the held task nearest done (counting, or just taken), then nothing held (first visit, the
- * cap, or her board). '' with no section. Pure.
+ * What Tamsin says, from the server's section alone: a done task first (the cap, the bag, the way home), then the held
+ * task nearest done (counting, or just taken), then with nothing held a pay she just made (`justPaid`), the cap, her
+ * story on a first visit, or her board. '' with no section. Pure.
  */
 export function keeperSay(tally, hunting, justPaid) {
   if (!tally) return '';
@@ -110,11 +110,12 @@ export function keeperSay(tally, hunting, justPaid) {
   const done = tally.held.find((h) => h.done);
   if (done && capped) return t('tally.say_capped', { n: countWord(tally.perDay), label: labelOf(done.task) });
   if (done) return t(hunting ? 'tally.say_done_hunting' : done.wait === 'bag_full' ? 'tally.say_done_bag' : 'tally.say_done_town', { count: whole(done.target) });
-  const paid = tally.recent[0];
-  if (justPaid && paid) return t('tally.say_paid', { gold: whole(paid.gold), pick: pickWords(paid, itemName) });
   const open = tally.held.filter((h) => !h.done).sort((a, b) => b.kills / b.target - a.kills / a.target)[0];
   if (open && open.kills > 0) return t('tally.say_counting', { down: whole(open.kills), left: whole(open.target - open.kills) });
   if (open) return t('tally.say_taken', { task: titleOf(open.task, open.target), ground: huntName(open.hunt) });
+  /* nothing held: a pay she just made invites the next take (played 11-12: once a task is taken, that task speaks) */
+  const paid = tally.recent[0];
+  if (justPaid && paid) return t('tally.say_paid', { gold: whole(paid.gold), pick: pickWords(paid, itemName) });
   if (capped) return t('tally.say_capped_none', { n: countWord(tally.perDay) });
   return t(!tally.weight && !tally.recent.length ? 'tally.say_first' : 'tally.say_none');
 }
@@ -124,8 +125,8 @@ export function renderTally(ctx) {
   if (ctx && ctx.character) { const sc = scratchOf(ctx.character); sc.stale = true; sc.collected = null; sc.paidNow = false; sc.pickOpen = false; sc.msg = ''; }
   return '<div class="hw-tally">'
     + '<header class="ht-say"><b class="ht-who"></b><span class="ht-day"><span class="ht-day-paid"></span><span class="ht-day-new"></span></span><p class="ht-voice"></p></header>'
-    + '<h3 class="ht-head ht-mine-head"><span></span><small></small></h3><ul class="ht-mine"></ul>'
-    + '<h3 class="ht-head ht-board-head"><span></span></h3>'
+    + '<h3 class="hw-ledger-head ht-head ht-mine-head"><span></span><small></small></h3><ul class="ht-mine"></ul>'
+    + '<h3 class="hw-ledger-head is-on ht-head ht-board-head"><span></span></h3>'
     + '<p class="ht-board-why"><span></span><button type="button" class="hh-tool" data-hs-act="to-weight" hidden></button></p>'
     + '<p class="hh-empty ht-wait"></p><ul class="ht-list"></ul>'
     + '<div class="ht-pick"><span class="ht-pick-line"></span><button type="button" class="hh-tool" data-hs-act="pick-toggle"></button></div>'
@@ -148,8 +149,8 @@ function entryHtml(h) {
 function rowHtml(r) {
   const task = esc(r.task);
   return '<li class="ht-row" data-task="' + task + '" data-hs-find="' + task + '"><span class="ht-row-name"><b></b><small><span class="ht-row-go"></span><span class="ht-row-lvl"></span></small></span>'
-    + '<span class="ht-pocket"></span><span class="ht-pay"><b></b><small class="ht-pay-name"></small><small class="ht-once"></small></span>'
-    + '<button type="button" class="hh-tool ht-take" data-hs-act="take" data-task="' + task + '"></button></li>';
+    + '<span class="ht-pocket"></span><span class="ht-pay"><b></b><small class="ht-pay-name"></small></span>'
+    + '<button type="button" class="hh-tool ht-take" data-hs-act="take" data-task="' + task + '"></button><small class="ht-once"></small></li>';
 }
 
 /* The piece in its pocket: the icon node kept per item, so a repaint with the same pick writes nothing. */

@@ -693,7 +693,7 @@ const MUTANTS = [
   ['every Take stays grey until a weight is picked', 'src/shell/windows/tally.js', "st.hunting || !tally || (!tally.weight && !st.suggest));", "st.hunting || !tally || !tally.weight);"],
   ['a first Take names no weight', 'src/shell/windows/tally.js', "takeTask(ctx.account, cs, task, first ? first.weight : null)", "takeTask(ctx.account, cs, task, null)"],
   ['a first Take guesses with nothing to go on', 'src/shell/windows/tally.js', "const weight = wears || WEIGHT_FOR_ROLE[role] || null;", "const weight = wears || WEIGHT_FOR_ROLE[role] || 'heavy';"],
-  ['the weight picker stands over her board again', 'src/shell/windows/tally.js', "    + '<h3 class=\"ht-head ht-board-head\"><span></span></h3>'", "    + '<div class=\"ht-weights\"></div><h3 class=\"ht-head ht-board-head\"><span></span></h3>'"],
+  ['the weight picker stands over her board again', 'src/shell/windows/tally.js', "    + '<h3 class=\"hw-ledger-head is-on ht-head ht-board-head\"><span></span></h3>'", "    + '<div class=\"ht-weights\"></div><h3 class=\"hw-ledger-head is-on ht-head ht-board-head\"><span></span></h3>'"],
   ['the tally sits at its anchor, over the analyzer', 'src/shell/shell.js', '      const top = stackBelow(at, above, DOCK_EDGE);', '      const top = Math.round(at.top);'],
   ['her first line is the riddle again', 'src/data/text/tally.js', "say_first: 'I kept the mill\\'s rats down myself for thirty years. Then they got a king, so now I pay people to do it. Take one off my board.',",
     "say_first: 'Bring me your half of the stick when the count is done, and I pay. Coin, and a piece for your back.',"],

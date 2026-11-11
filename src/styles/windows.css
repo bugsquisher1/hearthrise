@@ -934,13 +934,10 @@
 .ht-day-new:not(:empty)::before { content: ' · '; color: var(--ink-3); font-weight: 400; }
 .ht-voice { grid-column: 1 / -1; margin: 6px 0 0; padding-left: 10px; border-left: 2px solid var(--gold); font-size: var(--t-small); line-height: 1.35; color: var(--ink); }
 .ht-voice:empty { display: none; }
-/* Section heads: the Forged Steel head (shell.css), with the held count at the rule's end. Your tallies goes with nothing held. */
-.ht-head { display: flex; align-items: center; gap: 12px; margin: 6px 2px 0; font-family: var(--f-display); font-weight: 700; font-size: var(--t-micro); line-height: 1.2; letter-spacing: .14em; color: var(--gold); }
-.ht-head::after { content: ''; flex: 1; height: 2px; background: var(--steel-rule); }
+/* Section heads are the Forged Steel .hw-ledger-head (shell.css); the held count sits past the rule. Your tallies goes (no .is-on) with nothing held. */
+.ht-head { margin: 6px 2px 0; }
 .ht-head small { order: 2; font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; color: var(--ink-3); }
 .ht-head small:empty { display: none; }
-.ht-mine-head { display: none; }
-.ht-mine-head.is-on { display: flex; }
 /* YOUR TALLIES: one entry a held task. */
 .ht-mine { list-style: none; margin: 4px 0 6px; padding: 0; }
 .ht-entry { display: grid; grid-template-columns: minmax(0, 1fr) 44px; column-gap: 10px; row-gap: 4px; align-items: center; padding: 8px 6px 8px 4px; border-top: 2px solid var(--steel-sep); }
@@ -949,7 +946,7 @@
 .ht-entry-top > b { font-weight: 700; font-size: var(--t-small); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ht-count { white-space: nowrap; line-height: 1; }
 .ht-count b { font-weight: 800; font-size: var(--t-lead); color: var(--ink); }
-.ht-count small { font-weight: 400; font-size: var(--t-micro); color: var(--ink-3); }
+.ht-count small { margin-left: 3px; font-weight: 400; font-size: var(--t-micro); color: var(--ink-3); }
 .ht-entry .ht-pocket { grid-column: 2; grid-row: 1 / span 2; }
 .ht-get, .ht-once { grid-column: 1 / -1; margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
 .ht-get:empty, .ht-once:empty { display: none; }
@@ -979,7 +976,7 @@
 .ht-board-why > span { flex: 1; min-width: 0; }
 .ht-board-why > button { flex: none; }
 .ht-list { list-style: none; margin: 4px 0 6px; padding: 0; }
-.ht-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px 118px auto; column-gap: 8px; align-items: center; min-height: 56px; padding: 4px 0; border-top: 2px solid var(--steel-sep); }
+.ht-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px 118px auto; column-gap: 8px; row-gap: 2px; align-items: center; min-height: 56px; padding: 4px 0; border-top: 2px solid var(--steel-sep); }
 .ht-row:first-child { border-top: 0; }
 .ht-row-name { display: flex; flex-direction: column; min-width: 0; }
 .ht-row-name b { font-weight: 700; color: var(--ink); line-height: 1.2; }
@@ -988,7 +985,8 @@
 .ht-row-lvl:not(:empty)::before { content: ' · '; }
 .ht-pay { display: flex; flex-direction: column; min-width: 0; }
 .ht-pay b { font-weight: 700; color: var(--ink); white-space: nowrap; }
-.ht-pay .ht-once { margin: 0; color: var(--gold-2); }
+/* the once note runs under the whole row, never squeezed into the pay column (played 11-12: three lines at 118 px) */
+.ht-row .ht-once { grid-column: 1 / -1; margin: 0 0 2px; color: var(--gold-2); }
 .ht-take { min-height: 36px; padding: 0 12px; background: var(--bg-0); box-shadow: var(--hw-well); color: var(--ink); }
 .ht-take:disabled { color: var(--ink-3); opacity: 1; background: none; box-shadow: none; }
 /* HER PICK: one line at the foot, the picker folded behind Change. */

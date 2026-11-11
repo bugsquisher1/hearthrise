@@ -30,6 +30,7 @@ import { observeSessions } from '../../session/character-session.js?v=0.2.118';
 import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.118';
 import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.118';
 import { staminaOf } from '../../session/hunt-sections.js?v=0.2.118';
+import { endCardAfter } from '../after-hunt.js?v=0.2.118';
 import { heldCard } from '../launcher.js?v=0.2.118';
 import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.118';
 
@@ -123,7 +124,9 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     text(root.querySelector('.hsum-title'), groundTitle(cur));
     text(root.querySelector('.hsum-when'), cur.at ? dayTime(cur.at) : '');
     const st = cur === list[0] && !huntOpen ? staminaOf(cs) : null;
-    text(root.querySelector('.hsum-reason'), reasonWords(cur, nameOf(cs), st ? st.msLeft : null));
+    /* the newest hunt, none open: what the hero did after it, from the server's pointer (../after-hunt.js) */
+    const after = cur === list[0] && !huntOpen ? endCardAfter(cs, cur.id) : '';
+    text(root.querySelector('.hsum-reason'), reasonWords(cur, nameOf(cs), st ? st.msLeft : null) + (after ? ' ' + after : ''));
     /* A lost called fight: where it was lost and what answers it (hunt-view/boss-loss.js). */
     text(root.querySelector('.hsum-loss'), cur.loss || '');
     prop(root.querySelector('.hsum-loss'), 'hidden', !cur.loss);

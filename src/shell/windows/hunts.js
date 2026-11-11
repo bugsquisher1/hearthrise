@@ -183,7 +183,7 @@ export function renderHunts(ctx) {
     /* The page scrolls in its own box and Enter stands below it (windows.css), never over the lineup or the drops. */
     + '<section class="hw-hunt-detail" aria-label="The picked hunt"><div class="hw-hd-page">' + detailHtml()
     + '<h4 class="hw-hd-h">The packs</h4><div class="hw-pull"><p class="hw-hunt-facts"></p>'
-    + '<span class="hw-tiers" role="group" aria-label="How hard to hunt"><span class="hh-segs">'
+    + '<span class="hw-tiers" role="group" aria-label="Tiers"><span class="hh-segs">'
     + TIER_IDS.map((id) => '<button type="button" class="hh-seg" data-hs-act="tier" data-tier="' + id + '">' + TIER_NAME[id] + '</button>').join('')
     + '</span><output class="hw-tier-read"></output></span></div>'
     + '<p class="hw-tier-note"></p>'
@@ -339,7 +339,7 @@ function patchPage(det, ctx, sc, v) {
   text(det.querySelector('.hw-tier-read'), follower && tier ? 'Set by ' + (party.leaderName || 'your leader') + ': ' + TIER_NAME[tier] : '');
   /* Normal says it is safe only where it is: under the ground's floor the warning above says what the hero risks. */
   const safe = rangeWords(r, level) ? '' : TIER_LINES.normal + ' ';
-  text(det.querySelector('.hw-tier-note'), !choice ? '' : tierWords(r, tier, size) || (follower ? 'Your party leader picks how hard the hunt is.'
+  text(det.querySelector('.hw-tier-note'), !choice ? '' : tierWords(r, tier, size) || (follower ? 'Your party leader picks the tier.'
     : size > 1 ? safe + 'As the leader, your pick holds for everyone, and it\'s kept for this ground.' : safe + 'Your pick is kept for this ground.'));
 }
 

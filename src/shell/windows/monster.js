@@ -50,10 +50,9 @@ export function renderMonster() {
     + '<header class="mf-head"><span class="mf-stand"><canvas class="mf-sprite" aria-hidden="true"></canvas></span>'
     + '<div class="mf-id"><h3 class="mf-name"></h3><p class="mf-kind"></p></div></header>'
     + head('monster.h_homes') + '<ul class="mf-homes"></ul>'
-    + head('monster.h_fight', 'mf-for') + '<dl class="mf-facts">'
-    + fact('hp', 'monster.hp') + fact('max_hit', 'monster.max_hit') + fact('swing', 'monster.swing') + fact('deals', 'monster.deals')
+    + head('monster.h_fight') + '<dl class="mf-facts">'
+    + fact('tier', 'monster.tier') + fact('hp', 'monster.hp') + fact('max_hit', 'monster.max_hit') + fact('swing', 'monster.swing') + fact('deals', 'monster.deals')
     + fact('weak', 'monster.weak') + fact('takes', 'monster.takes') + '</dl>'
-    + '<p class="mf-note mf-harder"></p>'
     + head('monster.h_kill', 'mf-pay') + '<dl class="mf-facts">' + fact('xp', 'monster.xp') + fact('gold', 'monster.gold') + '</dl>'
     + head('monster.h_drops', 'mf-per') + '<ul class="mf-drops"></ul><p class="mf-note mf-nodrops"></p>'
     + '</div></article>';
@@ -117,7 +116,7 @@ renderMonster.patch = function patchMonster(body, ctx) {
     },
   });
   const set = (key, words) => text(root.querySelector('[data-fact="' + key + '"]'), words);
-  text(root.querySelector('.mf-for'), t('monster.on_tier', { tier: TIER_NAME[DEFAULT_TIER] }));
+  set('tier', TIER_NAME[DEFAULT_TIER]);
   set('hp', whole(f.hp));
   set('max_hit', whole(f.maxHit));
   set('swing', t('monster.swing_value', { secs: f.swingMs / 1000 }));
@@ -126,7 +125,6 @@ renderMonster.patch = function patchMonster(body, ctx) {
   set('weak', weak);
   prop(root.querySelector('[data-fact="weak"]').parentElement, 'hidden', !weak);
   set('takes', takesWords(f.elements));
-  text(root.querySelector('.mf-harder'), t('monster.harder'));
   text(root.querySelector('.mf-pay'), t('monster.pay_shared'));
   set('xp', whole(f.xp));
   set('gold', f.gold[0] === f.gold[1] ? t('monster.gold_one', { lo: whole(f.gold[0]) }) : t('monster.gold_value', { lo: whole(f.gold[0]), hi: whole(f.gold[1]) }));

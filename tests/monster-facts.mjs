@@ -16,7 +16,9 @@
 //   MF-2  the Briarcoat Wolf's page equals its row: name, family and Level, Health and what a kill pays (the row's own,
 //         the same for every group size: Tyler 2026-11-08), its biggest hit labelled exactly "Max Hit" with that one number (Tyler
 //         2026-11-11: "it should just say Max Hit"), the one attack interval, its weakness and elements, every
-//         drop in the row's order with its chance per kill, and the ground it lives on
+//         drop in the row's order with its chance per kill, and the ground it lives on. Every stat is labelled with the game's
+//         own word and nothing more (the approved wiki mock, 11-11): Tier (Normal), Health, Max Hit, Attack Speed (in seconds),
+//         Damage Type, Weak to, Elements
 //   MF-3  the creature's name is a real button: focus and Enter open the page (Enter is not taken for Chat)
 //   MF-4  a drop says what it is for, and a use that a window does is a link that opens that window
 //   MF-5  the Slime's drops carry its own drop bonus, and the Sump Slime's Rares read the same chance as on the Hunts
@@ -65,7 +67,11 @@ function expected(id, hunt) {
     maxHit: whole(Math.max(1, Math.floor(row.atk * scale))),
     /* Tyler's word, typed here and never read through t(): a text home that drifts from it is red. */
     maxHitLabel: 'Max Hit',
-    swing: t('monster.swing_value', { secs: COMBAT_BALANCE.tickMs / 1000 }),
+    /* The rest of the stat labels, the approved wiki mock's (11-11), typed here the same way: "It attacks" or "Its damage" is red. */
+    labels: ['tier', 'Tier', 'hp', 'Health', 'swing', 'Attack Speed', 'deals', 'Damage Type', 'weak', 'Weak to', 'takes', 'Elements'].join(' / '),
+    /* The numbers are Normal's, the same alone or in a party (Tyler 2026-11-08), and the page says which tier. */
+    tier: 'Normal',
+    swing: COMBAT_BALANCE.tickMs / 1000 + ' s',
     weak: t('monster.weak_' + row.weaponWeak, { pct: Math.round((WEAKNESS_BONUS.damage - 1) * 100), acc: Math.round((WEAKNESS_BONUS.accuracy - 1) * 100) }),
     takes: els.length ? (els.length > 1 ? els.slice(0, -1).join(', ') + ' and ' + els.at(-1) : els[0]) : t('monster.takes_all'),
     xp: whole(row.xp),
@@ -101,9 +107,11 @@ const readPage = (page) => page.evaluate((w) => {
   const el = document.querySelector(w);
   if (!el || !el.querySelector('.mf-page') || el.querySelector('.mf-page').hidden) return null;
   const fact = (k) => { const d = el.querySelector('[data-fact="' + k + '"]'); return d.parentElement.hidden ? null : d.textContent; };
+  const label = (k) => { const d = el.querySelector('[data-fact="' + k + '"]'); return d ? d.parentElement.querySelector('dt').textContent : null; };
   return { id: el.querySelector('.mf').getAttribute('data-monster'), name: el.querySelector('.mf-name').textContent, kind: el.querySelector('.mf-kind').textContent,
-    hp: fact('hp'), maxHit: fact('max_hit'), maxHitLabel: el.querySelector('[data-fact="max_hit"]').parentElement.querySelector('dt').textContent, swing: fact('swing'), deals: fact('deals'), weak: fact('weak'), takes: fact('takes'), xp: fact('xp'), gold: fact('gold'),
-    size: el.querySelector('.mf-for').textContent, pay: el.querySelector('.mf-pay').textContent, per: el.querySelector('.mf-per').textContent,
+    hp: fact('hp'), maxHit: fact('max_hit'), maxHitLabel: label('max_hit'), swing: fact('swing'), deals: fact('deals'), weak: fact('weak'), takes: fact('takes'), xp: fact('xp'), gold: fact('gold'),
+    labels: ['tier', 'hp', 'swing', 'deals', 'weak', 'takes'].flatMap((k) => [k, label(k)]).join(' / '), tier: fact('tier'),
+    fight: el.querySelector('.mf-facts').previousElementSibling.textContent, pay: el.querySelector('.mf-pay').textContent, per: el.querySelector('.mf-per').textContent,
     drops: Array.from(el.querySelectorAll('.mf-drop')).map((li) => [li.dataset.item, li.querySelector('.mf-drop-name').textContent, li.querySelector('.mf-drop-band').textContent, li.querySelector('.mf-odds').textContent].join(' / ')),
     uses: Object.fromEntries(Array.from(el.querySelectorAll('.mf-drop')).map((li) => [li.dataset.item, li.querySelector('.mf-drop-use').textContent])),
     homes: Array.from(el.querySelectorAll('.mf-home')).map((li) => ({ name: li.querySelector('.mf-home-go').textContent, how: li.querySelector('.mf-home-how').textContent, warn: li.querySelector('.mf-home-party').textContent })),
@@ -124,7 +132,7 @@ async function openFacts(page, hunt, id, how) {
 
 function compare(fails, rule, got, want) {
   if (!got) { fails.push(rule + ' the page was not drawn'); return; }
-  for (const k of ['name', 'kind', 'hp', 'maxHit', 'maxHitLabel', 'swing', 'weak', 'takes', 'xp', 'gold']) if (got[k] !== want[k]) fails.push(rule + ' ' + k + ' reads ' + JSON.stringify(got[k]) + ', the row says ' + JSON.stringify(want[k]));
+  for (const k of ['name', 'kind', 'hp', 'maxHit', 'maxHitLabel', 'labels', 'tier', 'swing', 'weak', 'takes', 'xp', 'gold']) if (got[k] !== want[k]) fails.push(rule + ' ' + k + ' reads ' + JSON.stringify(got[k]) + ', the row says ' + JSON.stringify(want[k]));
   if (got.drops.join(' | ') !== want.drops.join(' | ')) fails.push(rule + ' the drops read ' + JSON.stringify(got.drops) + ', the row says ' + JSON.stringify(want.drops));
   if (!got.homes.some((h) => h.name === want.home)) fails.push(rule + ' its grounds read ' + JSON.stringify(got.homes) + ', not ' + want.home);
 }
@@ -173,7 +181,8 @@ async function checks(overrides, shots) {
         const want = expected('briarcoat_wolf', 'meadowbrook_thicket');
         compare(fails, 'MF-2', got, want);
         if (got && !got.drawn) fails.push('MF-2 the creature was not drawn');
-        if (got && (got.size !== t('monster.on_tier', { tier: 'Normal' }) || got.pay !== t('monster.pay_shared') || got.per !== t('monster.per_kill') || /party of \d/.test(got.size + got.pay + got.per))) fails.push('MF-2 the page\'s headings read ' + JSON.stringify([got.size, got.pay, got.per]));
+        /* The fight's heading is the heading alone: which tier is the Tier row's to say, and no "alone or in a party" rides on it. */
+        if (got && (got.fight !== t('monster.h_fight') || got.pay !== t('monster.pay_shared') || got.per !== t('monster.per_kill') || /party of \d|alone or in a party/.test(got.fight + got.tier + got.pay + got.per))) fails.push('MF-2 the page\'s headings read ' + JSON.stringify([got.fight, got.tier, got.pay, got.per]));
         if (got && got.deals !== t('monster.el_physical')) fails.push('MF-2 its damage reads ' + got.deals);
         if (shots) {
           await page.waitForTimeout(400);
@@ -259,6 +268,8 @@ const MUTANTS = [
   ['Health is the monster\'s attack', 'src/shell/monster-facts.js', '    hp: Math.max(1, fights.hp || 1),', '    hp: Math.max(1, fights.atk || 1),'],
   ['Max Hit is the row\'s attack, not the engine\'s largest blow', 'src/shell/monster-facts.js', '  const top = monsterMaxHit(fights);', '  const top = row.atk;'],
   ['the Max Hit row goes back to the words Tyler could not read', 'src/data/text/monster.js', "  max_hit: 'Max Hit',", "  max_hit: 'One hit',"],
+  ['the Attack Speed row goes back to a sentence', 'src/data/text/monster.js', "  swing: 'Attack Speed',", "  swing: 'It attacks',"],
+  ['the page stops saying which tier its numbers are', 'src/shell/windows/monster.js', "  set('tier', TIER_NAME[DEFAULT_TIER]);", "  set('tier', '');"],
   ['a kill\'s Level XP is cut to a lone hero\'s old share', 'src/shell/monster-facts.js', '    xp: Math.round(fights.xp || 0),', '    xp: Math.round((fights.xp || 0) * 0.55),'],
   ['a drop\'s chance is cut to a lone hero\'s old share', 'src/shell/monster-facts.js', '      chance: effectiveDropChance(d, { dropMult: lone.dropMult }),', '      chance: effectiveDropChance(d, { dropMult: lone.dropMult }) * 0.55,'],
   ['a drop\'s chance forgets the monster\'s own drop bonus', 'src/shell/monster-facts.js', '{ dropMult: lone.dropMult }', '{}'],

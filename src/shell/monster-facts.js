@@ -7,10 +7,10 @@
 // catalogue is generated from (src/data/monsters.js), through the function the engine itself calls:
 //   Health        the row's HP on Normal (hunt-tiers.js atTier), the same for every group size (Tyler 2026-11-08)
 //   Max Hit       combat.js monsterMaxHit, the ceiling the engine rolls a landed blow under (the game's label, Tyler 2026-11-11)
-//   how often     combat.js COMBAT_BALANCE.tickMs, the one basic-attack interval
-//   its damage    physical: the engine gives a monster's blow no element (hunt-spawn.js)
-//   weak to       the row's weaponWeak, paid by combat.js WEAKNESS_BONUS
-//   elements      core/elements.js elementPermille, for each element of data/elements.js
+//   Attack Speed  combat.js COMBAT_BALANCE.tickMs, the one basic-attack interval
+//   Damage Type   physical: the engine gives a monster's blow no element (hunt-spawn.js)
+//   Weak to       the row's weaponWeak, paid by combat.js WEAKNESS_BONUS
+//   Elements      core/elements.js elementPermille, for each element of data/elements.js
 //   a kill pays   the row's xp and gp, whole, shared by who was there (hunt-rewards.js payKill)
 //   drops         every row of its table, its chance on one kill by the roller's own sum (drops.js
 //                 effectiveDropChance) with the monster's own drop bonus (combat.js weaknessInfo),
@@ -18,7 +18,8 @@
 //                 it, each a place a link opens, then its other uses in the item tip's words)
 //   where         the open grounds it stands on, or that a bigger pull brings it to (hunt-ground-facts.js)
 // ONE DIFFICULTY FOR EVERY GROUP SIZE (Tyler 2026-11-08): the numbers are Normal's, the same alone or in a party.
-// A boss whose hall is built for a group says so in the Hunts list's own words (hunt-list.js partyNote). A harder hunt's dials are the Hunts page's to say. A server-revealed surprise row
+// A boss whose hall is built for a group says so in the Hunts list's own words (hunt-list.js partyNote). The page's Tier row names Normal; a harder tier's
+// numbers are not on it (the Hunts page says a tier in words only, hunt-list.js tierWords). A server-revealed surprise row
 // (`lucky`, `salvage`) stays unlisted, as on the ground's page.
 // ════════════════════════════════════════════════════════════════════════
 import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.118';

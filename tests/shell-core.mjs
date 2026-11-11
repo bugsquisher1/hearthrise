@@ -81,7 +81,7 @@ function memStore(initial) {
 }
 
 async function runTests(mods) {
-  const { WM, HUD, CS, AR, XP } = mods;
+  const { WM, HUD, CS, AR, AH, XP } = mods;
   const fails = [];
   const t = (id, fn) => { try { fn(); } catch (e) { fails.push(id + ': ' + e.message); } };
   const eq = (a, b, msg) => { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(msg + ' — got ' + JSON.stringify(a) + ', want ' + JSON.stringify(b)); };
@@ -754,6 +754,59 @@ async function runTests(mods) {
     eq(CS.sanitizeResidueField('awaySeen', { s: 'town:gather:x', at: 5, sx: -1, n: 1.5 }), { s: 'town:gather:x', at: 5 }, 'and is bounded');
   });
 
+  /* ── R3c/R3d: what the hero did AFTER the hunt (src/shell/after-hunt.js, designer re-read 2026-11-11 #2: the second night's
+     "The hunt has ended 5 h 45 min ago" said nothing of the hero idle in town, nor what would have filled the time) ── */
+  const T0 = 1_800_000_000_000, MIN = 60 * 1000, H = 60 * MIN;
+  const iso = (ms) => new Date(ms).toISOString();
+  const END = T0 + 3 * H + 14 * MIN;                                   // the hunt ran 3 h 14 min on the server
+  const idleSince = (ms) => ({ active_kind: 'idle', active_id: null, active_since: iso(ms) });
+  const mining = (ms) => ({ active_kind: 'gather', active_id: 'copper_rock', active_since: iso(ms) });
+  const wrenna = (now, state, reason = 'stamina', o = {}) => Object.assign({
+    slot: 0, writes: [], record: { residue: { awaySeen: { s: 's-1', at: T0, xp: XP.charXpForLevel(10), lv: 10, gold: 0, kills: 0 } } },
+    setResidue(f, v) { this.writes.push([f, v]); return true; },
+    serverNow: () => now,
+    read: (k) => ({ name: 'Wrenna', state, level: { xp: XP.charXpForLevel(11), level: 11, into: 0, need: 1 }, stamina: { ms: now - END, max_ms: 8 * H },
+      hunt: { session_id: o.session || 's-1', hunt_id: 'meadowbrook_thicket', ended: o.open !== true,
+        session: o.open ? {} : { end_reason: reason, ended_at: iso(END) }, hero: {}, pose: { units: [] } },
+      hunt_analyzer: { hero: { kills: 900, coins: 0 } } })[k],
+  }, o);
+  const NOW = T0 + 9 * H;                                              // the player reopens 9 h after leaving: 5 h 46 min idle
+  t('R3c the browser closed: the away card says the hero waited in town, and the one thing that would have filled it', () => {
+    const night = AR.awayRecapOf(wrenna(NOW, idleSince(END + 8000)));
+    ok(night && night.text.includes('The hunt has ended. Out of stamina, so Wrenna came home. Then Wrenna waited in town for 5 h 46 min. '
+      + 'Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends. Stamina now: 5 h 46 min.')
+      && !/ ago\./.test(night.text), 'the second night: ' + JSON.stringify(night && night.text));
+    /* the line follows the record while the card is up: the wait grows, and it is the server's clock that says so */
+    ok(AR.awayLineNow(wrenna(NOW + 10 * MIN, idleSince(END + 8000)), night).includes('waited in town for 5 h 56 min'), 'the wait is the record\'s now');
+    /* the server put the hero back on its gathering job at the walk home's end (active_since = ended_at + travel): it says so, no wait, no advice */
+    const went = AR.awayRecapOf(wrenna(NOW, mining(END)));
+    ok(went && went.text.includes('Out of stamina, so Wrenna came home. Then Wrenna went back to mining the Copper Rock.') && !/waited|Start mining/.test(went.text),
+      'a resumed job: ' + JSON.stringify(went && went.text));
+    /* one next thing per end reason, by the rules (hunt-sessions.js RESUME_AFTER_END) */
+    const nextOf = (reason) => (AR.awayRecapOf(wrenna(NOW, idleSince(END), reason)) || {}).text || '';
+    ok(nextOf('hours').includes('Set a longer hunt next time, up to the stamina you have.'), 'a set limit: ' + nextOf('hours'));
+    ok(nextOf('heals_out').includes('Pack more food next time, and the hunt can run longer.'), 'out of food: ' + nextOf('heals_out'));
+    ok(nextOf('ammo_out').includes('Pack more ammo next time'), 'out of ammo: ' + nextOf('ammo_out'));
+    ok(nextOf('runes_out').includes('Pack more runes next time'), 'out of runes: ' + nextOf('runes_out'));
+    ok(nextOf('gold_out').includes('Keep more gold on hand for the store\'s supplies, or pack your own'), 'out of gold: ' + nextOf('gold_out'));
+    ok(nextOf('died').includes('Start mining, chopping or fishing before you hunt'), 'a death resumes a job too: ' + nextOf('died'));
+    /* never a guess: the player's own end, a pointer moved since the end, a job started later, a state that has not said */
+    ok(!/Then Wrenna/.test(nextOf('left')), 'leaving is the player\'s own choice and resumes nothing: ' + nextOf('left'));
+    ok(!/Then Wrenna/.test((AR.awayRecapOf(wrenna(NOW, idleSince(END + 2 * H))) || {}).text || ''), 'idle since long after the end: something happened between');
+    ok(!/Then Wrenna/.test((AR.awayRecapOf(wrenna(NOW, mining(END + 2 * H))) || {}).text || ''), 'a job started later was not a resume');
+    const unsaid = (AR.awayRecapOf(wrenna(NOW, { gold: 5 })) || {}).text || '';
+    ok(/The hunt has ended 5 h 46 min ago\./.test(unsaid) && !/Then Wrenna/.test(unsaid), 'no pointer from the server: the old line, nothing guessed: ' + unsaid);
+  });
+  t('R3d the hunt viewed: the summary card says what came after, from the server\'s pointer', () => {
+    const atEnd = AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000)), 's-1');
+    eq(atEnd, 'Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends.', 'watched as it ends: the one next thing, no wait yet');
+    const leftOpen = AH.endCardAfter(wrenna(END + 2 * H, idleSince(END + 8000)), 's-1');
+    eq(leftOpen, 'Then Wrenna waited in town for 2 h 0 min. Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends.', 'a page left open on the card');
+    eq(AH.endCardAfter(wrenna(END + MIN, mining(END)), 's-1'), 'Then Wrenna went back to mining the Copper Rock.', 'a resumed job');
+    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { session: 's-2' }), 's-1'), '', 'an older summary says nothing of today');
+    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { open: true }), 's-1'), '', 'a hunt still open: nothing came after');
+  });
+
   return fails;
 }
 
@@ -779,6 +832,7 @@ async function load(base) {
     HUD: await import(u(HUD_FILE)),
     CS: await import(u('src/session/residue.js')),
     AR: await import(u('src/shell/away-recap.js')),
+    AH: await import(u('src/shell/after-hunt.js')),
     XP: await import(u('src/core/xp.js')),
   };
 }
@@ -873,6 +927,15 @@ const MUTANTS = [
   { test: 'R3', file: 'src/shell/away-recap.js', from: ' || awayRecapOf(cs)) return false;', to: ') return false;' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (!was || was.s !== next.s || !(was.at', to: 'if (true || !was || was.s !== next.s || !(was.at' },
   { test: 'R3', file: 'src/session/residue.js', from: '  awaySeen: sanitizeAwaySeen,', to: '  awaySeen: (v) => v,' },
+  { test: 'R3c', file: 'src/shell/away-recap.js', from: "      + then + (stamina ? ' Stamina now: '", to: "      + (stamina ? ' Stamina now: '" },
+  { test: 'R3c', file: 'src/shell/away-recap.js', from: "const ago = h.ended && !waited && ", to: 'const ago = h.ended && ' },
+  { test: 'R3c', file: 'src/shell/after-hunt.js', from: 'Math.abs(since - home) <= SAME_MS', to: 'true' },
+  { test: 'R3c', file: 'src/shell/after-hunt.js', from: "if (Number.isFinite(since) && since > home + MOVED_AFTER_MS) return null;", to: '' },
+  { test: 'R3c', file: 'src/shell/after-hunt.js', from: " || !RESUME_AFTER_END.includes(h.endReason)) return null;", to: ') return null;' },
+  { test: 'R3c', file: 'src/shell/after-hunt.js', from: "if (st.active_kind !== 'idle') return null;", to: '' },
+  { test: 'R3c', file: 'src/shell/after-hunt.js', from: "hours: 'away.next_longer', ", to: '' },
+  { test: 'R3d', file: 'src/shell/after-hunt.js', from: 'a.idleMs >= WAITED_FROM_MS ?', to: 'true ?' },
+  { test: 'R3d', file: 'src/shell/after-hunt.js', from: '|| h.sessionId !== id ||', to: '||' },
 ];
 
 async function selftest() {

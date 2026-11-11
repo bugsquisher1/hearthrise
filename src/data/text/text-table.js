@@ -8,6 +8,7 @@
 // tests/text-home.mjs keeps every call site honest and ratchets the text
 // still written in code down to none.
 // ════════════════════════════════════════════════════════════════════════
+import { AWAY_TEXT } from './away.js?v=0.2.119';
 import { BAR_TEXT } from './bar.js?v=0.2.119';
 import { DEATH_TEXT } from './death.js?v=0.2.119';
 import { FARM_TEXT } from './farm.js?v=0.2.119';
@@ -20,8 +21,10 @@ import { PREP_TEXT } from './prep.js?v=0.2.119';
 import { SHOP_TEXT } from './shop.js?v=0.2.119';
 import { SLOTS_TEXT } from './slots.js?v=0.2.119';
 import { TEMPER_TEXT } from './temper.js?v=0.2.119';
+import { WORK_TEXT } from './work.js?v=0.2.119';
 
 export const TEXT = Object.freeze({
+  away: AWAY_TEXT,
   bar: BAR_TEXT,
   death: DEATH_TEXT,
   farm: FARM_TEXT,
@@ -34,4 +37,5 @@ export const TEXT = Object.freeze({
   shop: SHOP_TEXT,
   slots: SLOTS_TEXT,
   temper: TEMPER_TEXT,
+  work: WORK_TEXT,
 });

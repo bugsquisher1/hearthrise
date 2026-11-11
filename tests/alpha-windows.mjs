@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// mutant-rule-functions: checks pure huntsPure itemTruthRules panelLeftovers planRules armourWordRules tickerRules
+// mutant-rule-functions: checks pure huntsPure itemTruthRules panelLeftovers planRules armourWordRules tickerRules stationSortRules
 // mutant-runner-functions: main shardOf tickerMutant pureMutant
 // ════════════════════════════════════════════════════════════════════════
 // tests/alpha-windows.mjs — THE ALPHA WINDOWS' RULES, IN A REAL CHROMIUM.
@@ -12,7 +12,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js src/shell/windows/inventory/elsewhere.js
+// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js src/shell/windows/inventory/elsewhere.js src/shell/station-sort.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -113,6 +113,12 @@
 //         reload; Stop is ONE idle and says what the server made; a bench row's amount
 //         (1 / 5 / All; a tool starts on 1, stock on All) rides the Start as `count` and
 //         the running row says the server's "N left"
+//   AW-76 A CRAFTING STATION SORTS (Andy, Discord 2026-11-11): a bench skill's Sort menu reads Can make, Level, Name;
+//         Can make is the default and the order the list had before (what the bag makes first, highest level first,
+//         the next locked ones last); Level is low to high, Name A to Z, both over the same rows (the locked ones
+//         too); the pick is ONE residue put naming stationSort, kept per station, and after a reload the menu and
+//         the order come back from the server; gathering has no menu. Pure half: every bench skill at several
+//         levels, each order worked out here from the raw rows, and the residue round trip through the allowlist
 //   AW-24 TOWN WORK COUNTS UP BETWEEN PAYOUTS (Tyler 2026-10-23; src/shell/town-ticker.js runs the
 //         server's own span loop on the envelope's numbers, display only). Pure rules:
 //         TK-1  one action at a time on the engine's interval: the logs and XP, and the line
@@ -448,7 +454,72 @@ async function pure() {
     workBlock(wcs(1, {}), workRow('artisan', 'forge_bronze_axe'), false), workBlock(wcs(1, { copper_ore: 2 }), bronze, false), String(runsOf(bronze.row, { copper_ore: 11 })),
     workBlock(wcs(1, {}), bronze, false)];
   if (said.join('|') !== 'Needs 2 Copper Ore (you have 1). Gathered with Mining.|Not while a hunt is running.|You need Smithing 3 to make Bronze Axe. You have 1.||5|No Copper Ore in your bag. Gathered with Mining.') fails.push('AW-22 the work rows say ' + JSON.stringify(said));
-  return fails.concat(await huntsPure(imp), await tickerRules(ROOT), await armourWordRules(ROOT), await planRules(ROOT), await itemTruthRules(ROOT));
+  return fails.concat(await huntsPure(imp), await tickerRules(ROOT), await armourWordRules(ROOT), await planRules(ROOT), await itemTruthRules(ROOT), await stationSortRules(ROOT));
+}
+
+/* AW-76 PURE: A CRAFTING STATION'S SORT, over the src at `base` (the 'station sort:' mutants judge a planted copy).
+   Every expected order is worked out here from the raw rows (BENCH_INDEX, catalogue order), never through
+   src/shell/station-sort.js; the labels are typed, not read through t(). */
+async function stationSortRules(base) {
+  const fails = [];
+  const imp = (p) => import(pathToFileURL(join(base, p)).href);
+  const { rowsFor } = await imp('src/shell/windows/work.js');
+  const { BENCH_INDEX, runsOf } = await imp('src/shell/town-work.js');
+  const { recipeInputs } = await imp('src/core/artisan.js');
+  const { SKILLS_DEF } = await imp('src/data/skills.js');
+  const S = await imp('src/shell/station-sort.js');
+  const R = await imp('src/session/residue.js');
+  const req = (id) => BENCH_INDEX[id].recipe.req || 1;
+  const nameOf = (id) => String(BENCH_INDEX[id].recipe.name);
+  /* a stable sort over ids, so ties keep the catalogue's order */
+  const sorted = (ids, cmp) => ids.map((id, i) => [id, i]).sort((a, b) => cmp(a[0], b[0]) || a[1] - b[1]).map(([id]) => id);
+  let differ = 0, locked = 0, cases = 0;
+  for (const skill of Object.keys(SKILLS_DEF).filter((s) => SKILLS_DEF[s].cat === 'artisan')) {
+    const cat = Object.keys(BENCH_INDEX).filter((id) => BENCH_INDEX[id].skill === skill);
+    if (!cat.length) continue;
+    /* a bag that covers every second recipe, so "can make" splits the list */
+    const inv = {};
+    cat.forEach((id, i) => { if (i % 2 === 0) for (const [it, n] of Object.entries(recipeInputs(BENCH_INDEX[id].recipe))) inv[it] = Math.max(inv[it] || 0, n * 3); });
+    const levels = [...new Set([1, ...cat.map(req)])].sort((a, b) => a - b);
+    for (const lv of levels) {
+      cases++;
+      const open = cat.filter((id) => req(id) <= lv);
+      const ahead = sorted(cat.filter((id) => req(id) > lv), (a, b) => req(a) - req(b)).slice(0, 2);
+      const can = (id) => runsOf(BENCH_INDEX[id].recipe, inv) > 0;
+      const want = {
+        can: [...sorted(open.filter(can), (a, b) => req(b) - req(a)), ...sorted(open.filter((id) => !can(id)), (a, b) => req(b) - req(a)), ...ahead],
+        level: sorted([...open, ...ahead], (a, b) => req(a) - req(b)),
+        name: sorted([...open, ...ahead], (a, b) => nameOf(a).localeCompare(nameOf(b), 'en')),
+      };
+      const got = (sort) => rowsFor(skill, lv, inv, sort).map((w) => w.id).join();
+      const at = skill + ' ' + lv + ': ';
+      if (got(undefined) !== want.can.join()) fails.push('AW-76 the default order moved at ' + at + got(undefined) + ' (was ' + want.can.join() + ')');
+      if (got('can') !== want.can.join() || got('nonsense') !== want.can.join()) fails.push('AW-76 Can make (or an unknown sort) is not the old order at ' + at + got('can') + ' / ' + got('nonsense'));
+      if (got('level') !== want.level.join()) fails.push('AW-76 Level is not low to high at ' + at + got('level') + ' (want ' + want.level.join() + ')');
+      if (got('name') !== want.name.join()) fails.push('AW-76 Name is not A to Z at ' + at + got('name') + ' (want ' + want.name.join() + ')');
+      if (want.level.join() !== want.can.join() && want.name.join() !== want.can.join() && want.name.join() !== want.level.join()) differ++;
+      if (ahead.length) locked++;
+    }
+  }
+  /* not vacuous: the three orders differ somewhere, and locked rows were in the lists sorted */
+  if (!cases || !differ || !locked) fails.push('AW-76 the cases prove nothing: ' + cases + ' cases, ' + differ + ' where the three orders differ, ' + locked + ' with locked rows');
+  /* the menu: three orders under a Sort label, Can make first (the default) */
+  const menu = S.sortMenuHtml();
+  const opts = [...menu.matchAll(/<option value="([a-z]+)">([^<]+)<\/option>/g)].map((m) => m[1] + '=' + m[2]).join();
+  if (opts !== 'can=Can make,level=Level,name=Name' || !/<span>Sort<\/span>/.test(menu) || S.DEFAULT_SORT !== 'can') fails.push('AW-76 the menu reads ' + opts + ' (default ' + S.DEFAULT_SORT + ')');
+  /* the pick survives a reload: the field the window puts comes back through the envelope's allowlist, per station */
+  if (!R.RESIDUE_FIELDS.includes('stationSort')) fails.push('AW-76 stationSort is not on the residue allowlist');
+  const reload = (field) => R.residueOf({ stationSort: field, gold: 9 });
+  let res = reload(S.withStationSort({}, 'smithing', 'name'));
+  if (S.stationSortOf(res, 'smithing') !== 'name' || S.stationSortOf(res, 'cooking') !== 'can' || 'gold' in res) fails.push('AW-76 after a reload Smithing reads ' + S.stationSortOf(res, 'smithing') + ' and Cooking ' + S.stationSortOf(res, 'cooking'));
+  res = reload(S.withStationSort(res, 'cooking', 'level'));
+  if (S.stationSortOf(res, 'smithing') !== 'name' || S.stationSortOf(res, 'cooking') !== 'level') fails.push('AW-76 a pick at one station lost another\'s: ' + JSON.stringify(res.stationSort));
+  res = reload(S.withStationSort(res, 'smithing', 'can'));
+  if (JSON.stringify(res.stationSort) !== '{"cooking":"level"}') fails.push('AW-76 Can make is not kept as no entry: ' + JSON.stringify(res.stationSort));
+  const forged = R.sanitizeResidueField('stationSort', { smithing: 'name', not_a_skill: 'name', cooking: 5, 'BAD KEY': 'level', crafting: 'x'.repeat(99) });
+  if (JSON.stringify(forged) !== '{"smithing":"name"}') fails.push('AW-76 a forged stationSort keeps ' + JSON.stringify(forged));
+  if (S.stationSortOf({ stationSort: { smithing: 'bogus' } }, 'smithing') !== 'can' || S.stationSortOf(null, 'smithing') !== 'can' || S.withStationSort({}, 'smithing', 'bogus') !== null) fails.push('AW-76 an unknown or missing pick is not Can make');
+  return fails;
 }
 
 /* AW-25 .. AW-28 PURE: the Hunts page's facts from the data rows and its lines from the server's sections. */
@@ -3280,6 +3351,34 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           go = sent(s, 'hr-accrue', 'set_activity');
           if (go.length !== 3 || JSON.stringify(go[2].body.activity) !== '{"kind":"idle"}') fails.push('AW-22 Stop sent ' + JSON.stringify(go.map((c) => c.body)));
           if ((await msg()) !== 'Done: 5 Bronze Bar, +39 Smithing XP.' || (await nowText())) fails.push('AW-22 after the server smelted them: ' + JSON.stringify(await msg()));
+          /* AW-76 A STATION SORTS (Andy, Discord 2026-11-11): Smithing's menu opens on Can make (the old order); Name puts the same
+             rows A to Z, locked ones too, as ONE residue put naming stationSort; after a reload the menu and the order come back. */
+          const menu = () => page.evaluate((w) => { const box = document.querySelector(w + ' .hw-work.is-on .hw-work-sort'); const sel = box && box.querySelector('select');
+            return box ? { shown: !box.hidden && box.getBoundingClientRect().height > 0, value: sel.value, labels: [...sel.options].map((o) => o.textContent).join() } : null; }, W);
+          const names = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + ' .hw-work.is-on .hw-work-row .hw-line-name b')).map((b) => b.textContent), W);
+          const aToZ = (xs) => xs.slice().sort((a, b) => a.localeCompare(b, 'en')).join();
+          const m0 = await menu(), byCan = await names();
+          if (!m0 || !m0.shown || m0.value !== 'can' || m0.labels !== 'Can make,Level,Name') fails.push('AW-76 Smithing\'s Sort menu reads ' + JSON.stringify(m0));
+          await page.selectOption(W + ' .hw-work-sort select', 'name');
+          await page.waitForTimeout(200);
+          const byName = await names();
+          if (byName.join() !== aToZ(byCan) || byName.join() === byCan.join() || !(await rowsOf()).some((x) => x.off && /^You need Smithing /.test(x.why))) fails.push('AW-76 Name orders ' + byName.join() + ' (Can make had ' + byCan.join() + ')');
+          for (let i = 0; i < 40 && !sent(s, 'hr_put_client_state').some((c) => c.body.p_patch && c.body.p_patch.stationSort); i++) await page.waitForTimeout(100);
+          const puts = sent(s, 'hr_put_client_state').map((c) => c.body.p_patch && c.body.p_patch.stationSort).filter(Boolean);
+          if (JSON.stringify(puts) !== '[{"smithing":"name"}]') fails.push('AW-76 the pick was put as ' + JSON.stringify(puts));
+          if (!(await reloadAndPlay(page))) fails.push('AW-76 the reload did not come back');
+          else {
+            await openWin(page, 'g', 'skills-trade');
+            await page.click(W + ' .hw-skill[data-skill="smithing"]');
+            await page.waitForTimeout(300);
+            const m1 = await menu(), back = await names();
+            if (!m1 || m1.value !== 'name' || back.join() !== aToZ(back) || back.length !== byCan.length) fails.push('AW-76 after a reload Smithing reads ' + JSON.stringify(m1) + ': ' + back.join());
+            await page.click(W + ' [data-hs-act="work-back"]');
+            await page.click(W + ' .hw-skill[data-skill="woodcutting"]');
+            await page.waitForTimeout(300);
+            const m2 = await menu();
+            if (!m2 || m2.shown) fails.push('AW-76 gathering shows a Sort menu: ' + JSON.stringify(m2));
+          }
         }
       }
       if (errors.length) fails.push('AW-22 console errors: ' + errors.slice(0, 3).join(' | '));
@@ -3737,6 +3836,15 @@ const MUTANTS = [
   ['item truth: a tool says sell it again', 'src/shell/item-lore.js', "  if (tool) out.push(tool);\n", ''],
   ['item truth: a kit stone says sell it', 'src/shell/item-lore.js', "Number(it.v) > 0 ? t('item.sell_it') : ", "true ? t('item.sell_it') : "],
   ['item truth: a seed says sell it', 'src/shell/item-lore.js', "  if (it.seed) out.push(t('item.plant_it'));\n", ''],
+  ['station sort: Level runs high to low', 'src/shell/station-sort.js', "if (sort === 'level') return all.sort((a, b) => reqOf(a) - reqOf(b));", "if (sort === 'level') return all.sort((a, b) => reqOf(b) - reqOf(a));"],
+  ['station sort: Name is not a sort', 'src/shell/station-sort.js', "  if (sort === 'name') return all.sort(byName);\n", ''],
+  ['station sort: a sort drops the locked rows', 'src/shell/station-sort.js', '  const all = open.concat(ahead);', '  const all = open.slice();'],
+  ['station sort: Can make no longer puts what the bag makes first', 'src/shell/station-sort.js', 'can(b) - can(a) || reqOf(b) - reqOf(a)', 'reqOf(b) - reqOf(a)'],
+  ['station sort: the default is Level', 'src/shell/station-sort.js', "export const DEFAULT_SORT = 'can';", "export const DEFAULT_SORT = 'level';"],
+  ['station sort: a pick forgets the other stations', 'src/shell/station-sort.js', "const out = Object.assign({}, own(residue, 'stationSort')", "const out = Object.assign({}, false && own(residue, 'stationSort')"],
+  ['station sort: the pick is not kept on the server', 'src/session/residue.js', '  stationSort: sanitizeStationSort,', '  stationSortX: sanitizeStationSort,'],
+  ['station sort: a forged key is kept', 'src/session/residue.js', "if (ID.test(id) && Object.prototype.hasOwnProperty.call(SKILLS_DEF, id) && ", 'if (ID.test(id) && '],
+  ['AW-76 the window ignores the station\'s pick', 'src/shell/windows/work.js', 'rowsFor(skill, lv, heldOf(cs), sort)', 'rowsFor(skill, lv, heldOf(cs))'],
   ['item truth: a bar a hero makes files as junk', 'src/shell/bag-model.js', "if (dropSet().has(id) && !made) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';", "if (dropSet().has(id)) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';"],
   ['item truth: a tool files as a material', 'src/shell/bag-model.js', "const made = it.type !== 'tool' && madeSet().has(id);", 'const made = madeSet().has(id);'],
   ['item truth: the shop\'s raw flag files a tool as a material', 'src/shell/bag-model.js', "if (it.type === 'tool') return 'other';", ''],
@@ -4020,7 +4128,7 @@ async function main() {
   if (process.argv.includes('--pure') && !process.argv.includes('--mutate')) {
     const fails = await pure();
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'alpha-windows --pure: ' + fails.length + ' rule(s) RED' : 'alpha-windows --pure: the pure rules hold (AW-0, AW-19..AW-22, AW-24 the town ticker, AW-25..AW-28 the Hunts page)');
+    console.log(fails.length ? 'alpha-windows --pure: ' + fails.length + ' rule(s) RED' : 'alpha-windows --pure: the pure rules hold (AW-0, AW-19..AW-22, AW-24 the town ticker, AW-25..AW-28 the Hunts page, AW-76 the station sort)');
     process.exit(fails.length ? 1 : 0);
   }
   if (!process.argv.includes('--mutate')) {
@@ -4040,7 +4148,7 @@ async function main() {
   const shard = (process.argv.find((x) => x.startsWith('--shard=')) || '').slice(8);
   const mine = scopedMutants('tests/alpha-windows.mjs', picked, { companion: Object.fromEntries(Object.entries(COMPANION).map(([k, v]) => [k, [v[0]]])), tag: shard ? ' (shard ' + shard + ')' : '' });
   if (!mine.length) process.exit(0);
-  const pureOnly = mine.every(([n]) => n.startsWith('ticker:') || n.startsWith('armor words:') || n.startsWith('plans:') || n.startsWith('item truth:'));
+  const pureOnly = mine.every(([n]) => n.startsWith('ticker:') || n.startsWith('armor words:') || n.startsWith('plans:') || n.startsWith('item truth:') || n.startsWith('station sort:'));
   const clean = await cleanControl(() => (pureOnly ? pure() : checks(null, null)));
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
@@ -4055,7 +4163,7 @@ async function main() {
       over[f] = text.replace(x, y);
     }
     if (missing) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + missing); counts.harness++; continue; }
-    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : name.startsWith('item truth:') ? tickerMutant(over, itemTruthRules) : name.startsWith('plans:') ? tickerMutant(over, planRules) : checks(over, null, { stopAtFirst: true })));
+    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : name.startsWith('item truth:') ? tickerMutant(over, itemTruthRules) : name.startsWith('plans:') ? tickerMutant(over, planRules) : name.startsWith('station sort:') ? tickerMutant(over, stationSortRules) : checks(over, null, { stopAtFirst: true })));
     console.log(report(name, v, counts));
   }
   console.log(exitOf(counts) ? 'alpha-windows --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'alpha-windows --mutate: ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule' + (mine === MUTANTS ? '' : ' (' + (only ? '--only=' + only + ', ' : '') + 'of ' + MUTANTS.length + ')'));

@@ -52,19 +52,19 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.116';
-import { ABILITIES, suggestedTrigger } from '../../data/abilities.js?v=0.2.116';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.116';
-import { SUPPLIES } from '../../data/supplies.js?v=0.2.116';
-import { ITEMS } from '../../data/items.js?v=0.2.116';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.116';
-import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.116';
-import { cheb, dist2, los } from './grid.js?v=0.2.116';
-import { makeEvent } from './events.js?v=0.2.116';
-import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.116';
-import { START_BAR } from '../../data/start-kit.js?v=0.2.116';
-import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.116';
-import { RUNE_ON_EMPTY, isRune, runeTierOf } from '../../data/runes.js?v=0.2.116';
+import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.118';
+import { ABILITIES, suggestedTrigger } from '../../data/abilities.js?v=0.2.118';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.118';
+import { SUPPLIES } from '../../data/supplies.js?v=0.2.118';
+import { ITEMS } from '../../data/items.js?v=0.2.118';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.118';
+import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.118';
+import { cheb, dist2, los } from './grid.js?v=0.2.118';
+import { makeEvent } from './events.js?v=0.2.118';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.118';
+import { START_BAR } from '../../data/start-kit.js?v=0.2.118';
+import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.118';
+import { RUNE_ON_EMPTY, isRune, runeTierOf } from '../../data/runes.js?v=0.2.118';
 
 /* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
    ruleWait: the last `rule_wait` reported, per lane ('ruleId:why'), so it is reported once.

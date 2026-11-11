@@ -35,8 +35,8 @@
 // tank in its tier-6 set, 2026-11-10): Scarce 0.88-1.17 h a piece, Rare 14.6-15.0 h, the Hall Key about every 2.0 h (19 Gatekeepers an hour).
 // NOT FITTED, the designer's (CONFLICTS 2026-11-10): that tank earns -39% over its food on drop-tables' profit floor (+25% ruled), and the
 // full grade as opened reads the shieldless melee ways under it too, the parties under the lone median and Deadly's four over its deaths.
-import { definePack, box, gather } from '../shape.js?v=0.2.116';
-import map from './map.js?v=0.2.116';
+import { definePack, box, gather } from '../shape.js?v=0.2.118';
+import map from './map.js?v=0.2.118';
 
 const LV = 'farmhand', PK = 'hasks_lookout', WD = 'grave_guard', BD = 'fire_priest', CS = 'gatekeeper';
 

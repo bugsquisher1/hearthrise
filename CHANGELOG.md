@@ -21,6 +21,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Coming back after a hunt ended tells you what your hero did next.** It went back to its gathering job, or it waited in town, and you see for how long and the one thing that would have filled that time.
 
+**Monster pages use the game's own labels now.** Attack Speed, Damage Type, Elements and Tier, and the page says in real numbers how much harder a monster hits on Dangerous and Deadly. Packs say when they respawn.
+
 **Crafting stations have a Sort menu,** so you can list recipes by what you can make, by level or by name, and each station remembers your pick.
 
 **Smaller fixes.** Item tooltips close when you close their window. The rune tip names the right tab. Dispatch loot says what it did after a sale.

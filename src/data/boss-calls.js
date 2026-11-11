@@ -49,21 +49,21 @@ export const BOSS_CALL_WORDS = Object.freeze({
   press: 'Call out {boss} for {fee} gp',
   warnTitle: 'Call out {boss}?',
   warn: Object.freeze([
-    '{Boss} hits harder here than on the ground. At half his health his adds come for whoever isn\'t your tank.{guard} At a quarter he rages and hits harder still. A death ends the fight for the whole party.',
-    'You pay {fee} gp from your purse, win or lose. There is no XP, no coin and no drops in this room, only the fight. It ends after {minutes} minutes.',
+    '{Boss} hits harder here than on the ground. At half his health his adds come for whoever isn\'t your tank.{guard} At a quarter of his health he hits even harder. If anyone dies, the fight ends.',
+    'You pay {fee} gp, win or lose. You get no XP, coin or drops in his room. The fight ends after {minutes} minutes.',
   ]),
   /* A boss whose adds shield him (monsters.js phases.guardPm): the warning's {guard}, empty for one whose adds don't. */
   warnGuard: ' They shield him until they fall.',
   /* The warning's one more line when the room will hold the caller alone (the server's quote says `alone`). */
-  warnAlone: '{Boss} is built for a party. Alone, you still fight him, and he can kill you.',
+  warnAlone: '{Boss} is built for a party. You can fight him alone, but he can kill you.',
   confirm: 'Call him out for {fee} gp',
   cancel: 'Not yet',
   /* The status line while the call is out, and once he answers (alone: no party walks in with you). */
   calling: 'Calling {boss} out…',
   answered: Object.freeze({ party: '{Boss} answers. Your party is on its way.', alone: '{Boss} answers. You\'re on your way.' }),
-  left: Object.freeze({ one: '1 call left today.', other: '{n} calls left today.', none: 'No calls left today.' }),
+  left: Object.freeze({ one: 'You have 1 call left today.', other: 'You have {n} calls left today.', none: 'You have no calls left today.' }),
   hunting: 'Not while you\'re hunting. Come back to town first.',
-  noQuote: 'The server hasn\'t said yet whether he can be called.',
+  noQuote: 'Checking if you can call him out.',
   /* The boss bar (src/shell/widgets/boss-bar.js) past each line, the same words the world calls out (hunt-view/scene.js). */
   bar: Object.freeze({ adds: 'His adds are coming', guarded: 'His adds shield him', enrage: 'He is enraged' }),
   /* The combat log's line, after his name (src/hunt-view/combat-log.js), and what the world calls out over him (src/hunt-view/scene.js). */

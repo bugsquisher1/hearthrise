@@ -12,7 +12,7 @@ export const EVENTS_TEXT = Object.freeze({
   plate_starts: 'starts {at}',
   plate_ends: 'ends {at}',
   plate_ends_in: 'ends in {mins} min',
-  /* The second sentence of a ground's line for an XP event. */
-  ends_at: 'Ends {at}.',
-  ends_in: 'Ends in {mins} min.',
+  /* The second sentence of a ground's line for an event. */
+  ends_at: 'It ends {at}.',
+  ends_in: 'It ends in {mins} min.',
 });

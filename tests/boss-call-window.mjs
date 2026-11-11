@@ -100,9 +100,9 @@ async function checks(overrides) {
       await page.waitForTimeout(150);
       if (sent(s, 'hr_boss_call').length) fails.push('BW-1 the first press charged');
       const lone = await txt(page, '.hw-call-note-alone') || '';
-      if (lone !== 'The Rat King is built for a party. Alone, you still fight him, and he can kill you.' || !await shown(page, '.hw-call-note-alone')) fails.push('BW-1 alone, the warning\'s own line reads ' + JSON.stringify(lone));
+      if (lone !== 'The Rat King is built for a party. You can fight him alone, but he can kill you.' || !await shown(page, '.hw-call-note-alone')) fails.push('BW-1 alone, the warning\'s own line reads ' + JSON.stringify(lone));
       const warned = await txt(page, '.hw-call-warn') || '';
-      if (!/10,000 gp from your purse, win or lose/.test(warned) || !/At half his health his adds come/.test(warned)) fails.push('BW-1 alone, the warning reads ' + JSON.stringify(warned));
+      if (!/You pay 10,000 gp, win or lose/.test(warned) || !/At half his health his adds come/.test(warned)) fails.push('BW-1 alone, the warning reads ' + JSON.stringify(warned));
       await press(page, '[data-hs-act="call-go"]', 'BW-1');
       await page.waitForTimeout(500);
       const calls = sent(s, 'hr_boss_call');
@@ -131,9 +131,9 @@ async function checks(overrides) {
       if (sent(s, 'hr_boss_call').length) fails.push('BW-2 the first press charged');
       if (!await shown(page, '.hw-call-warn')) fails.push('BW-2 no warning');
       const warned = await txt(page, '.hw-call-warn') || '';
-      if (!/A death ends the fight/.test(warned) || !/10,000 gp from your purse, win or lose/.test(warned) || !/no XP, no coin and no drops/.test(warned) || !/At half his health his adds come/.test(warned) || !/At a quarter he rages/.test(warned)) fails.push('BW-2 the warning reads ' + JSON.stringify(warned));
+      if (!/If anyone dies, the fight ends/.test(warned) || !/You pay 10,000 gp, win or lose/.test(warned) || !/no XP, coin or drops/.test(warned) || !/At half his health his adds come/.test(warned) || !/At a quarter of his health he hits even harder/.test(warned)) fails.push('BW-2 the warning reads ' + JSON.stringify(warned));
       /* a party's leader reads no lone line: the room holds the party */
-      if (/Alone, you still fight him/.test(warned) || await shown(page, '.hw-call-note-alone')) fails.push('BW-2 a party\'s warning reads the lone line: ' + JSON.stringify(warned));
+      if (/You can fight him alone/.test(warned) || await shown(page, '.hw-call-note-alone')) fails.push('BW-2 a party\'s warning reads the lone line: ' + JSON.stringify(warned));
       await press(page, '[data-hs-act="call-no"]', 'BW-2');
       await page.waitForTimeout(150);
       if (await shown(page, '.hw-call-warn')) fails.push('BW-2 Not yet left the warning up');
@@ -168,7 +168,7 @@ async function checks(overrides) {
       const { ctx, page, s } = await open(PARTY(0), null);
       await page.waitForTimeout(1500);
       if (await off(page) !== true) fails.push('BW-4 with no quote the press is on');
-      if (!/hasn't said yet/.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-4 off with no words: ' + JSON.stringify(await txt(page, '.hw-call-line')));
+      if (!/Checking if you can call him out/.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-4 off with no words: ' + JSON.stringify(await txt(page, '.hw-call-line')));
       if (sent(s, 'hr_boss_call_view').length > 1) fails.push('BW-4 asked ' + sent(s, 'hr_boss_call_view').length + ' times in a moment');
       await ctx.close();
     }

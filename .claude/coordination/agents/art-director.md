@@ -3246,3 +3246,10 @@ opens a folded analyzer; the folded Tally keeps its count in its title. HS-28 gu
 canvas: the action bar always takes a quarter, so a canvas metric can never be met; (2) a fold that keeps the open box's width still
 steps under the hunt bar into the fight, so a fold must shrink too; (3) folding a counter hides the number a coach card points at:
 keep it in the title. Open: the coach card's reading window (20 s or more) still covers about 9% at 1024 before it rests.
+
+## 2026-11-12 lane/a-phone-touch-24
+PH-24 red on two layout causes. (1) 844x390, chat sheet open: the alert stack steps left beside the sheet into the town
+coach card's column, and roomForCoach only shortened the hunt bar's card for an alert, so the card's words box lay over
+Join. Now any card whose box shares the alert's column ends 8 px above it. (2) Shop, 667x375: the one-line window card's
+desktop 24 px foot rule (.hs-win-coach > .is-line, 0-4-0) outranked the phone's --tap; the phone block now sets both foot
+presses to --tap. Open: on a 277 px phone card the foot squeezes the title to one word per line (filed in DISCOVERIES).

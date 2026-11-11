@@ -9,9 +9,12 @@
 // the gold she pays. Her PICK (a piece of gear) is not a row here: it is the next
 // Scarce armour piece of that ground in the hero's chosen weight that she has
 // not given that hero yet (derived from the loot bands by
-// tools/gen-tally-tasks.mjs), and once every piece is given, the ground's
-// crafting material below, in turn. A piece the hero found on the ground does not
-// move it: her board's line is what she pays (2027-02-15-panel-truth.sql).
+// tools/gen-tally-tasks.mjs), skipping a slot the hero already WEARS at that
+// piece's gear tier or better, any weight (the tier is gear-tiers.js's, emitted as
+// hr_tally_tiers; 2027-04-08-tally-worn.sql, designer 2026-11-11), and once every
+// piece is given or worn, the ground's crafting material below, in turn. A piece
+// the hero only carries does not move it: her board's line is what she pays
+// (2027-02-15-panel-truth.sql).
 //
 // THE RULES, server-owned (supabase/migrations/2026-12-23-tally-tasks.sql):
 //   · taken at her board in town; at most TALLY_RULES.heldMax held per hero;

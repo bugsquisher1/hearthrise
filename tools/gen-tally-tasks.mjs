@@ -13,6 +13,9 @@
 //   hr_tally_pieces     per ground, every Scarce ARMOUR piece its creatures drop,
 //                       with its weight, slot and tier (weapons are not picked)
 //   hr_tally_materials  per task, the materials she gives once every piece is given
+//   hr_tally_tiers      every item a hero can wear in one of her slots, with its gear
+//                       tier, so her pick skips a slot the hero already wears at the
+//                       piece's tier or better (2027-04-08-tally-worn.sql)
 //
 //   Regenerate:  node tools/gen-tally-tasks.mjs
 //   Verify:      node tools/gen-tally-tasks.mjs --check     (exit 1 on drift)
@@ -22,7 +25,8 @@
 // whose hunt has no ground, or whose monster does not spawn on that ground; a
 // ground with no Scarce armour piece (the pick would be materials only: said
 // loudly, never silently); a Scarce piece that is not an item, has no slot or
-// no armour weight.
+// no armour weight; a slot in her order that no item is worn in (the worn check
+// would compare against nothing).
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -30,11 +34,40 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-/* 2026-12-23-tally-catalogue.generated.sql is APPLIED history (5 tasks). Wickstead's task (lane/b-core-loop-20h,
-   2026-10-31) lands in this forward file, which rewrites the same tables: it must follow 2027-02-06's Wickstead hunt
-   catalogue, or the chain has no ground to name. */
-export const OUT_FILE = '2027-02-21-tally-glade-steel.generated.sql';
+/* 2026-12-23-tally-catalogue.generated.sql and 2027-02-21-tally-glade-steel.generated.sql are APPLIED history (the
+   Wickstead task, then the Glade's Steel). The tier book her pick reads to skip a slot the hero already wears
+   (lane/c-tally-reward-worn, 2026-11-11) lands in this forward file, which rewrites the same tables and adds
+   hr_tally_tiers; 2027-04-08-tally-worn.sql, the pick that reads it, applies right after. */
+export const OUT_FILE = '2027-04-08-tally-worn.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
+
+/**
+ * AN ITEM'S GEAR TIER, the one rule both sides of "at that tier or better" read: its `tier`, the rung of the material
+ * ladder it is made on (src/data/gear-tiers.js MATERIAL_TIERS); a named piece with no `tier` takes the rung its Level
+ * requirement is worn at (gear is worn by Level, Tyler 2026-10-24: the highest rung whose level it meets); else 1.
+ * @param {object} it      an src/data/items.js row
+ * @param {object[]} [ladder]  MATERIAL_TIERS (absent: the Level fallback is skipped)
+ */
+export function gearTier(it, ladder) {
+  if (Number.isInteger(it.tier)) return it.tier;
+  let t = 1;
+  for (const m of ladder || []) if (Number.isFinite(it.reqLv) && it.reqLv >= m.level && m.tier > t) t = m.tier;
+  return t;
+}
+
+/**
+ * HER TIER BOOK: every item a hero can wear in one of her slots (slotOrder), with its gear tier, sorted by id. Her pick
+ * skips a piece when the hero's worn item in that piece's slot is in this book at the piece's tier or higher, whatever
+ * its weight (designer 2026-11-11, fun re-read #3: "skips a slot the hero already wears at that tier or better").
+ */
+export function wornTiers(refs) {
+  const { items, slotOrder, ladder } = refs;
+  const slots = new Set(slotOrder);
+  const out = Object.keys(items).filter((id) => items[id] && slots.has(items[id].slot)).sort()
+    .map((id) => ({ item: id, slot: items[id].slot, tier: gearTier(items[id], ladder) }));
+  for (const s of slotOrder) if (!out.some((r) => r.slot === s)) throw new Error(`gen-tally-tasks: no item is worn in her slot ${s}`);
+  return out;
+}
 
 const lit = (s) => "'" + String(s).replace(/'/g, "''") + "'";
 const arr = (xs) => 'array[' + xs.map(lit).join(', ') + ']::text[]';
@@ -52,7 +85,7 @@ export function groundMonsters(ground) {
  * order), tier (highest first), id.
  */
 export function groundPieces(ground, refs) {
-  const { monsters, items, armourWeight, slotOrder } = refs;
+  const { monsters, items, armourWeight, slotOrder, ladder } = refs;
   const seen = new Map();
   for (const m of groundMonsters(ground)) {
     for (const d of (monsters[m] && monsters[m].drops) || []) {
@@ -62,7 +95,7 @@ export function groundPieces(ground, refs) {
       if (it.type !== 'armor') continue;            // weapons and off-hands are not hers to give
       const weight = armourWeight[it.armourClass];
       if (!weight || !it.slot) throw new Error(`gen-tally-tasks: the Scarce armour ${d.id} has no weight or slot`);
-      if (!seen.has(d.id)) seen.set(d.id, { item: d.id, weight, slot: it.slot, tier: Number.isInteger(it.tier) ? it.tier : 1 });
+      if (!seen.has(d.id)) seen.set(d.id, { item: d.id, weight, slot: it.slot, tier: gearTier(it, ladder) });
     }
   }
   const W = ['heavy', 'medium', 'light'];
@@ -73,7 +106,7 @@ export function groundPieces(ground, refs) {
 
 /** The generated SQL for the data. Throws on anything the server would have to guess about. */
 export function buildSql(D) {
-  const { tally, monsters, items, hunts, grounds, armourWeight } = D;
+  const { tally, monsters, items, hunts, grounds, armourWeight, ladder } = D;
   const { TALLY_TASKS, TALLY_RULES, validateTallyTasks } = tally;
   const problems = validateTallyTasks({ monsters, items, hunts }, TALLY_TASKS, TALLY_RULES);
   if (problems.length) throw new Error('gen-tally-tasks: ' + problems.join('; '));
@@ -90,25 +123,32 @@ export function buildSql(D) {
     /* A task may pay another ground's Scarce set (piecesFrom): the Glade's Steel, worn at 30. */
     const from = t.piecesFrom ? groundOf(t.piecesFrom) : g;
     if (!from) throw new Error(`gen-tally-tasks: task ${t.id} takes its pieces from ${t.piecesFrom}, which has no ground`);
-    const ps = groundPieces(from, { monsters, items, armourWeight, slotOrder: TALLY_RULES.slotOrder });
+    const ps = groundPieces(from, { monsters, items, armourWeight, slotOrder: TALLY_RULES.slotOrder, ladder });
     if (!ps.length) throw new Error(`gen-tally-tasks: ${t.hunt} drops no Scarce armour: Tamsin could only pick materials there`);
     for (const p of ps) pieces.push({ hunt: t.hunt, ...p });
   }
+  const tiers = wornTiers({ items, slotOrder: TALLY_RULES.slotOrder, ladder });
   const tasks = TALLY_TASKS.map((t, i) => `  (${lit(t.id)}, ${i + 1}, ${lit(t.hunt)}, ${lit(t.monster)}, ${t.count}, ${t.gold}, ${t.party})`);
   const mats = [];
   for (const t of TALLY_TASKS) t.materials.forEach((m, i) => mats.push(`  (${lit(t.id)}, ${i + 1}, ${lit(m.item)}, ${m.qty})`));
   const prow = pieces.map((p) => `  (${lit(p.hunt)}, ${lit(p.item)}, ${lit(p.weight)}, ${lit(p.slot)}, ${p.tier})`);
+  const trow = tiers.map((r) => `  (${lit(r.item)}, ${lit(r.slot)}, ${r.tier})`);
+  const tierSum = tiers.reduce((a, r) => a + r.tier, 0);
   const goldSum = TALLY_TASKS.reduce((a, t) => a + t.gold, 0);
   return `-- ════════════════════════════════════════════════════════════════════════
 -- Generated by tools/gen-tally-tasks.mjs from src/data/tally-tasks.js (the tasks,
 -- the rules, the materials) and the loot bands (src/data/monsters.js Scarce rows on
 -- each ground of src/data/hunt-grounds.js). Do not hand-edit:
 --   Any hand edit FAILS \`node tools/gen-tally-tasks.mjs --check\`.
--- STAGED (lane/c-tally-tasks). Tamsin's tally: the kill tasks, her limits, the
--- pieces each ground can give and the materials after them. Read by
--- 2026-12-23-tally-tasks.sql, which applies AFTER this file. hr_tally_tasks rows
--- are UPSERTED (held tasks point at them; a removed task REFUSES while a hero holds
--- it, loudly, by design); pieces and materials are replaced whole. No begin/commit.
+-- Tamsin's tally: the kill tasks, her limits, the pieces each ground can give, the
+-- materials after them, and the gear tier of every item a hero can wear in one of
+-- her slots (hr_tally_tiers: her pick skips a slot the hero already wears at the
+-- piece's tier or better, 2027-04-08-tally-worn.sql). Read by 2026-12-23-tally-tasks.sql
+-- and the pick that 2027-04-08-tally-worn.sql restates, which applies AFTER this file.
+-- hr_tally_tasks rows are UPSERTED (held tasks point at them; a removed task REFUSES
+-- while a hero holds it, loudly, by design); pieces, materials and tiers are replaced
+-- whole. MONEY SURFACE (gold and an item per claim), on the pre-EA Security list.
+-- No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 create table if not exists public.hr_tally_config (
@@ -143,10 +183,15 @@ create table if not exists public.hr_tally_materials (
   qty     int  not null check (qty between 1 and 100),
   primary key (task_id, ord)
 );
+create table if not exists public.hr_tally_tiers (
+  item_id    text primary key check (item_id ~ '^[a-z0-9_]{1,64}$'),
+  equip_slot text not null check (equip_slot ~ '^[a-z0-9_]{1,24}$'),
+  tier       int  not null check (tier between 1 and 20)
+);
 do $mig$
 declare v_t text;
 begin
-  foreach v_t in array array['hr_tally_config', 'hr_tally_tasks', 'hr_tally_pieces', 'hr_tally_materials'] loop
+  foreach v_t in array array['hr_tally_config', 'hr_tally_tasks', 'hr_tally_pieces', 'hr_tally_materials', 'hr_tally_tiers'] loop
     execute format('alter table public.%I enable row level security', v_t);
     execute format('revoke all on public.%I from public, anon, authenticated, service_role', v_t);
   end loop;
@@ -173,8 +218,13 @@ delete from public.hr_tally_materials;
 insert into public.hr_tally_materials (task_id, ord, item_id, qty) values
 ${mats.join(',\n')};
 
+delete from public.hr_tally_tiers;
+insert into public.hr_tally_tiers (item_id, equip_slot, tier) values
+${trow.join(',\n')};
+
 -- SELF-CHECK (CLAUDE.md §4): the rows are exactly the data's; every task stands on its ground; every piece and
--- material is a real item, every piece worn in its slot at its weight; no client reaches the catalogue.
+-- material is a real item, every piece worn in its slot at its weight; the tier book is every item hr_item_slots
+-- lets a hero wear in one of her slots, and each piece's tier is its book tier (one rule); no client reaches the catalogue.
 do $$
 declare v_role text; v_bad text;
 begin
@@ -183,7 +233,9 @@ begin
      or (select count(*) from public.hr_tally_pieces) <> ${pieces.length}
      or (select count(*) from public.hr_tally_materials) <> ${mats.length}
      or (select held_max from public.hr_tally_config) <> ${TALLY_RULES.heldMax}
-     or (select paid_per_day from public.hr_tally_config) <> ${TALLY_RULES.paidPerDay} then
+     or (select paid_per_day from public.hr_tally_config) <> ${TALLY_RULES.paidPerDay}
+     or (select count(*) from public.hr_tally_tiers) <> ${tiers.length}
+     or (select sum(tier) from public.hr_tally_tiers) <> ${tierSum} then
     raise exception 'tally-catalogue: the rows are not the generated set'; end if;
   select t.task_id into v_bad from public.hr_tally_tasks t
    where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = t.hunt_id)
@@ -199,14 +251,24 @@ begin
   select m.item_id into v_bad from public.hr_tally_materials m
    where not exists (select 1 from public.hr_items i where i.item_id = m.item_id) limit 1;
   if v_bad is not null then raise exception 'tally-catalogue: material % is not in hr_items', v_bad; end if;
+  select coalesce(s.item_id, w.item_id) into v_bad
+    from (select s.item_id, s.equip_slot from public.hr_item_slots s, public.hr_tally_config c
+           where c.only_row and s.equip_slot = any (c.slot_order)) s
+    full join public.hr_tally_tiers w on w.item_id = s.item_id and w.equip_slot = s.equip_slot
+   where s.item_id is null or w.item_id is null limit 1;
+  if v_bad is not null then raise exception 'tally-catalogue: % is worn in one of her slots by hr_item_slots or her tier book, not both', v_bad; end if;
+  select p.item_id into v_bad from public.hr_tally_pieces p
+   where not exists (select 1 from public.hr_tally_tiers w where w.item_id = p.item_id and w.equip_slot = p.equip_slot and w.tier = p.tier) limit 1;
+  if v_bad is not null then raise exception 'tally-catalogue: piece % has a tier her tier book does not', v_bad; end if;
   foreach v_role in array array['anon', 'authenticated'] loop
     if has_table_privilege(v_role, 'public.hr_tally_tasks', 'select,insert,update,delete')
        or has_table_privilege(v_role, 'public.hr_tally_pieces', 'select,insert,update,delete')
        or has_table_privilege(v_role, 'public.hr_tally_materials', 'select,insert,update,delete')
-       or has_table_privilege(v_role, 'public.hr_tally_config', 'select,insert,update,delete') then
+       or has_table_privilege(v_role, 'public.hr_tally_config', 'select,insert,update,delete')
+       or has_table_privilege(v_role, 'public.hr_tally_tiers', 'select,insert,update,delete') then
       raise exception 'tally-catalogue: % reaches the catalogue', v_role; end if;
   end loop;
-  raise notice 'tally-catalogue: ${TALLY_TASKS.length} tasks (${goldSum} g in all), ${pieces.length} pieces on ${huntsDone.size} grounds, ${mats.length} materials; all green';
+  raise notice 'tally-catalogue: ${TALLY_TASKS.length} tasks (${goldSum} g in all), ${pieces.length} pieces on ${huntsDone.size} grounds, ${mats.length} materials, ${tiers.length} worn tiers; all green';
 end $$;
 `;
 }
@@ -220,7 +282,8 @@ export async function inputs(root) {
   const { HUNTS } = await import(u('src/data/hunts.js'));
   const { HUNT_GROUNDS } = await import(u('src/data/hunt-grounds.js'));
   const { ARMOUR_WEIGHT } = await import(u('src/data/core-model.js'));
-  return { tally, monsters: MONSTERS, items: ITEMS, hunts: HUNTS, grounds: HUNT_GROUNDS, armourWeight: ARMOUR_WEIGHT };
+  const { MATERIAL_TIERS } = await import(u('src/data/gear-tiers.js'));
+  return { tally, monsters: MONSTERS, items: ITEMS, hunts: HUNTS, grounds: HUNT_GROUNDS, armourWeight: ARMOUR_WEIGHT, ladder: MATERIAL_TIERS };
 }
 
 async function selftest() {
@@ -237,9 +300,18 @@ async function selftest() {
   expectThrow('a second task for one ground and monster', () => buildSql(withTask({ hunt: D.tally.TALLY_TASKS[0].hunt, monster: D.tally.TALLY_TASKS[0].monster, id: 'twin_task' })));
   const noScarce = { ...D, monsters: Object.fromEntries(Object.entries(D.monsters).map(([k, m]) => [k, { ...m, drops: (m.drops || []).filter((d) => d.band !== 'scarce') }])) };
   expectThrow('a ground with no Scarce armour', () => buildSql(noScarce));
+  const withOrder = (slotOrder) => ({ ...D, tally: { ...D.tally, TALLY_RULES: { ...D.tally.TALLY_RULES, slotOrder } } });
+  expectThrow('a slot in her order that nothing is worn in', () => buildSql(withOrder([...D.tally.TALLY_RULES.slotOrder, 'tail'])));
   const sql = buildSql(D);
   if (!/on conflict \(task_id\) do update/.test(sql)) { console.error('  MISSED  the tasks are not upserted'); bad++; }
   if (/'iron_sword'|'longbow'|'steel_sword'/.test(sql.split('insert into public.hr_tally_pieces')[1].split(';')[0])) { console.error('  MISSED  a weapon is a piece'); bad++; }
+  /* THE TIER BOOK: every item worn in her slots at its gear tier, nothing worn elsewhere; a named piece with no tier at its Level's rung. */
+  const book = sql.split('insert into public.hr_tally_tiers')[1].split(';')[0];
+  if (!/\('bronze_helm', 'helmet', 1\)/.test(book) || !/\('steel_platebody', 'body', 3\)/.test(book)) { console.error('  MISSED  a worn piece is not in her tier book at its tier'); bad++; }
+  if (/'iron_sword'|'practice_shield'|'ring1'|'cape'/.test(book)) { console.error('  MISSED  an item worn outside her slots is in her tier book'); bad++; }
+  if (gearTier({ reqLv: 95 }, D.ladder) !== 7 || gearTier({ tier: 8, reqLv: 88 }, D.ladder) !== 8 || gearTier({}, D.ladder) !== 1) {
+    console.error('  MISSED  an untiered piece does not take its Level\'s rung'); bad++;
+  }
   if (bad) { console.error('gen-tally-tasks --selftest: ' + bad + ' refusal(s) did not bite'); process.exit(1); }
   console.log('gen-tally-tasks --selftest: every refusal bites');
 }

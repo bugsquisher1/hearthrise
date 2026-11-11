@@ -170,7 +170,7 @@ renderTally.patch = function patchTally(body, ctx) {
   rows(root.querySelector('.ht-held'), t ? t.held : [], { key: (x) => x.task, build: (x) => element(ctx.doc, heldHtml(x)), patch: (li, x) => patchHeld(li, x, st) });
   cls(root.querySelector('.ht-none'), 'is-on', !!t && !t.held.length);
   text(root.querySelector('.ht-pick-note'), !t ? '' : !t.weight ? (suggest ? suggest.words : 'Pick the armor weight she pays you in. You can change it later.') + ' ' + WEIGHT_ORDER.map(weightSentence).join(' ')
-    : 'Each task pays what its line says, its gold and the next ' + WEIGHT_WORDS[t.weight].toLowerCase() + ' armor piece from that ground she hasn\'t given you, in the slot order below, even if you\'ve found one yourself. '
+    : 'Each task pays what its line says, its gold and the next ' + WEIGHT_WORDS[t.weight].toLowerCase() + ' armor piece from that ground she hasn\'t given you, in the slot order below. She skips a slot where you\'re already wearing that tier or better. Armor in your bag doesn\'t count. '
       + 'Where she has no piece left to give, she pays in crafting materials instead.');
   for (const b of root.querySelectorAll('[data-hs-act="weight"]')) {
     attr(b, 'aria-pressed', String(!!t && t.weight === b.getAttribute('data-weight')));

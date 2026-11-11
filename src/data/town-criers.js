@@ -38,15 +38,14 @@ const MIN = 60 * 1000;
 
 export const CRIER_CLOCK = Object.freeze({ firstMs: 40 * 1000, everyMs: 2 * MIN, tickMs: 5 * 1000 });
 
-/** The facts a line may key on, each read from the server's projection (src/session/crier-facts.js crierFactsOf). */
-export const CRIER_FACTS = Object.freeze({
-  unhunted: 'the hero has never hunted (no Level XP yet)',
-  no_blessing: 'no Blessing is held',
-  storage_unused: 'the account\'s Storage is empty',
-  untempered: 'the hero wears gear with a tempering ladder and has never bought a rung',
-  no_task: 'no task is held on Tamsin\'s tally',
-  task_open: 'a task is held and not done: { label, count, ground, hunt }',
-});
+/** The facts a line may key on, each read from the server's projection (src/session/crier-facts.js crierFactsOf):
+ *    unhunted        the hero has never hunted (no Level XP yet)
+ *    no_blessing     no Blessing is held
+ *    storage_unused  the account's Storage is empty
+ *    untempered      the hero wears gear with a tempering ladder and has never bought a rung
+ *    no_task         no task is held on Tamsin's tally
+ *    task_open       a task is held and not done; the fact carries { label, count, ground, hunt } for the line's words */
+export const CRIER_FACTS = Object.freeze(['unhunted', 'no_blessing', 'storage_unused', 'untempered', 'no_task', 'task_open']);
 
 const line = (id, when, more) => Object.freeze(Object.assign({ id, when }, more || {}));
 const crier = (id, name, stand, everyMs, lines) => Object.freeze({ id, name, stand, everyMs, lines: Object.freeze(lines) });
@@ -82,7 +81,7 @@ export function validateCriers(rows = TOWN_CRIERS, stations = null) {
     for (const l of c.lines) {
       if (!/^[a-z][a-z0-9_]*$/.test(l.id) || seen.has(l.id)) out.push('crier `' + c.id + '`: line id `' + l.id + '` bad or duplicated');
       seen.add(l.id);
-      if (!Object.prototype.hasOwnProperty.call(CRIER_FACTS, l.when)) out.push('crier `' + c.id + '` line `' + l.id + '`: `when` names no fact: ' + l.when);
+      if (!CRIER_FACTS.includes(l.when)) out.push('crier `' + c.id + '` line `' + l.id + '`: `when` names no fact: ' + l.when);
       if (stations && l.at && !stations.has(l.at)) out.push('crier `' + c.id + '` line `' + l.id + '`: `at` is no station: ' + l.at);
     }
   }

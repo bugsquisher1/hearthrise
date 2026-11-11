@@ -135,6 +135,9 @@ async function pureRules(M) {
     const bad = validateCriers(TOWN_CRIERS, stations);
     if (bad.length) fail('TC-1 ' + bad[0]);
     if (TOWN_CRIERS.length < 3) fail('TC-1 three criers to start (Tyler): ' + TOWN_CRIERS.length);
+    /* every fact a line may key on is one the projection reader answers, and nothing else */
+    const read = Object.keys(M.facts.crierFactsOf(hero(M)) || {}).sort().join(','), named = M.data.CRIER_FACTS.slice().sort().join(',');
+    if (read !== named) fail('TC-1 CRIER_FACTS [' + named + '] and crierFactsOf [' + read + '] disagree');
     for (const c of TOWN_CRIERS) {
       for (const l of c.lines) {
         for (const k of ['say_', 'go_']) if (!M.text.hasText('criers.' + k + l.id)) fail('TC-1 crier ' + c.id + ' line ' + l.id + ' has no criers.' + k + l.id + ' row');

@@ -14,10 +14,10 @@
 //                          after a confirmation that shows the total at the
 //                          server's bids; LOCKED stacks are never named
 //   deposit / lock the selection
-//                          one hr_bank_move (the stack whole) or hr_item_lock a
-//                          stack, in the shown order, stopping at the first
-//                          refusal; said once: how many went, and why it
-//                          stopped (the server has no bulk form of either yet)
+//                          ONE hr_bank_move_many (every stack whole, at the
+//                          server's count) or ONE hr_item_lock_many naming the
+//                          ids (src/session/storage-intents.js): all of them
+//                          go, or none and the refusal names the stack
 //   lock, loot plan        hr_item_lock, hr_loot_rule_set (Keep in bag / Deposit in
 //                          storage / Sell, or Don't pick up: loot-dispatch.js)
 //   Dispatch loot          ONE hr_loot_dispatch: the server runs every plan in town
@@ -38,12 +38,13 @@
 // ════════════════════════════════════════════════════════════════════════
 import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } from '../../bag-model.js?v=0.2.122';
 import { assignToBar, barKind, barIndexOf, barKeyLabel, tidyBarAfterSwap } from '../../bar-assign.js?v=0.2.122';
-import { runIntent, refusalText } from '../../intent-words.js?v=0.2.122';
+import { runIntent } from '../../intent-words.js?v=0.2.122';
 import { t } from '../../../render/player-text.js?v=0.2.122';
 import { huntOf } from '../../../session/hunt-sections.js?v=0.2.122';
-import { pressSelect, toggleSelect, rangeTo, selectKey, clearSelection, selectedIds } from './selection.js?v=0.2.122';
+import { pressSelect, toggleSelect, rangeTo, selectKey, clearSelection, selectedIds, settleSelection } from './selection.js?v=0.2.122';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.122';
-import { gold, whole } from '../../../render/format.js?v=0.2.122';
+import { gold } from '../../../render/format.js?v=0.2.122';
+import { moveStorageMany, lockItems } from '../../../session/storage-intents.js?v=0.2.122';
 import { itemName } from '../../widgets/bits.js?v=0.2.122';
 import { showTip, hideTip } from '../item-tip.js?v=0.2.122';
 import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.122';
@@ -201,44 +202,31 @@ function doLock(st, id, repaint) {
   send(st, repaint, () => st.cs.lockItem(id, on), on ? 'Locking…' : 'Unlocking…');
 }
 
-/* One server ask a stack over the selection, in the shown order, stopping at the first refusal: { done, count, stopped }
-   (the answer is always "ok" so the words below say how far it got; a refusal's words are the server's, refusalText).
-   The stacks that went leave the selection; a run that went through clears it. */
-async function eachSelected(st, ids, ask) {
-  let done = 0, stopped = null;
-  for (const id of ids) {
-    const r = await ask(id);
-    if (!r || !r.ok) { stopped = r || { ok: false, error: 'network' }; break; }
-    done++;
-    st.sc.sel.delete(id);
-  }
-  if (!stopped) clearSelection(st.sc);
-  return { ok: true, done, count: ids.length, stopped };
+/* ONE bulk ask over the selection (storage-intents.js): all of it went, or none did. On ok the selection is done with
+   (settleSelection) and the line says the server's count; a refusal keeps the selection, since nothing moved, and its
+   words are the server's (refusalText names the stack it stopped on). Everything repaints from the re-read envelope. */
+function bulk(st, repaint, ask, busy, saidKey) {
+  send(st, repaint, async () => { const r = await ask(); settleSelection(st.sc, r); return r; }, busy, (r) => t(saidKey, { count: r.count }));
 }
 
-/* "Put away 3 stacks." / "Put away 1 of 3 stacks. Your storage is full." */
-const ranWords = (st, r, all, some) => (r.stopped ? (r.done ? t(some, { done: whole(r.done), count: whole(r.count) }) + ' ' : '') + refusalText(r.stopped, st.cs) : t(all, { count: r.done }));
-
-/* Deposit the selection: one hr_bank_move a stack, whole, at the server's count. Refused here only for what the screen
-   already knows (the chest is at home and the hero is out: the Storage window's own rule). */
+/* Deposit the selection: ONE hr_bank_move_many, every stack whole at the server's count. Refused here only for what the
+   screen already knows (the chest is at home and the hero is out: the Storage window's own rule). */
 function doDeposit(st, repaint) {
   const ids = selectedIds(st.sc, st.items);
   if (!ids.length) return;
   const h = huntOf(st.cs);
   if (h && !h.ended) { say(st, repaint, t('bag.storage_away')); return; }
-  send(st, repaint, () => eachSelected(st, ids, (id) => st.cs.moveStorage(id, st.qty.get(id), 'deposit')), t('bag.putting_away'),
-    (r) => ranWords(st, r, 'bag.put_away', 'bag.put_away_some'));
+  bulk(st, repaint, () => moveStorageMany(st.account, st.cs, ids, 'deposit'), t('bag.putting_away'), 'bag.put_away');
 }
 
-/* Lock the selection (Unlock when every stack in it is locked): one hr_item_lock a stack that is not there yet. */
+/* Lock the selection (Unlock when every stack in it is locked): ONE hr_item_lock_many over the stacks not there yet. */
 function doLockMany(st, repaint) {
   const ids = selectedIds(st.sc, st.items);
   if (!ids.length) return;
   if (!st.rules) { say(st, repaint, t('bag.locks_reading')); return; }
   const on = !ids.every((id) => st.rules.locked.has(id));
   const todo = ids.filter((id) => st.rules.locked.has(id) !== on);
-  send(st, repaint, () => eachSelected(st, todo, (id) => st.cs.lockItem(id, on)), on ? t('bag.locking') : t('bag.unlocking'),
-    (r) => ranWords(st, r, on ? 'bag.locked_n' : 'bag.unlocked_n', on ? 'bag.locked_some' : 'bag.unlocked_some'));
+  bulk(st, repaint, () => lockItems(st.account, st.cs, todo, on), on ? t('bag.locking') : t('bag.unlocking'), on ? 'bag.locked_n' : 'bag.unlocked_n');
 }
 
 /* The item's loot plan or its pickup filter: ONE hr_loot_rule_set. "Don't pick up" pressed again goes back to Keep in bag. */

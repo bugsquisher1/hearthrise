@@ -18,18 +18,17 @@ export const BAG_TEXT = Object.freeze({
   lock: 'Lock',
   unlock: 'Unlock',
   clear: 'Clear',
-  /* Deposit: one storage move a stack, whole; how many went, and where it stopped. */
+  /* Deposit: ONE storage move of every selected stack, whole (all or nothing); the count is the server's. */
   putting_away: 'Putting them away…',
   put_away: { one: 'Put away {count} stack.', other: 'Put away {count} stacks.' },
-  put_away_some: 'Put away {done} of {count} stacks.',
   storage_away: 'Your storage is at home and your hero is out hunting. Leave the hunt to use it.',
-  /* Lock and Unlock: one lock a stack. */
+  /* The locked stack that stopped a bulk deposit (hr_bank_move_many names it; src/shell/intent-words.js refusalText). */
+  stack_locked: '{item} is locked. Unlock it first.',
+  /* Lock and Unlock: ONE lock of every selected stack (all or nothing). */
   locking: 'Locking…',
   unlocking: 'Unlocking…',
   locked_n: { one: 'Locked {count} stack.', other: 'Locked {count} stacks.' },
   unlocked_n: { one: 'Unlocked {count} stack.', other: 'Unlocked {count} stacks.' },
-  locked_some: 'Locked {done} of {count} stacks.',
-  unlocked_some: 'Unlocked {done} of {count} stacks.',
   locks_reading: 'Reading your locks…',
   /* The key help line under the grid. */
   keys: '/ search · arrows move · Enter use · Space or Ctrl+click select · Shift+click or Shift+arrows select a range · Ctrl+A select all or none · Esc clear · Delete sell · L lock',

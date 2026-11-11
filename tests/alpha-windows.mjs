@@ -595,6 +595,15 @@ async function selectRules(base) {
   sc = fresh();
   for (const id of ['a', 'gone']) sc.sel.add(id);
   if (S.selectedIds(sc, shown).join() !== 'a') fails.push('AW-77 the selection counts a stack the bag no longer holds: ' + S.selectedIds(sc, shown).join());
+  /* after a bulk press: ONE server ask, all or nothing: ok is done with the selection; a refusal moved nothing, so it stands */
+  sc = fresh();
+  for (const id of ['a', 'b']) sc.sel.add(id);
+  if (S.settleSelection(sc, { ok: false, error: 'item_locked', verb: 'bank_move_many', item: 'b' }) || has(sc) !== 'a,b') fails.push('AW-77 a refused bulk press leaves ' + has(sc) + ' (want a,b kept)');
+  if (!S.settleSelection(sc, { ok: true, count: 2 }) || has(sc) !== '') fails.push('AW-77 an ok bulk press keeps ' + has(sc));
+  /* ...and the bag's Deposit and Lock ARE one ask each (storage-intents.js), never a stack at a time */
+  const acts = readFileSync(join(base, 'src/shell/windows/inventory/actions.js'), 'utf8');
+  if (!/moveStorageMany\(st\.account, st\.cs, ids, 'deposit'\)/.test(acts) || /\.moveStorage\(/.test(acts)) fails.push('AW-77 Deposit is not one hr_bank_move_many');
+  if (!/lockItems\(st\.account, st\.cs, todo, on\)/.test(acts) || /lockItem\(id, on\)[^)]*\)\s*\)\s*,\s*t\('bag\./.test(acts)) fails.push('AW-77 Lock over the selection is not one hr_item_lock_many');
   /* Lock reads Unlock only over a selection locked through */
   const lock = [S.lockLabel(['a', 'b'], new Set(['a', 'b'])), S.lockLabel(['a', 'b'], new Set(['a'])), S.lockLabel(['a'], null), S.lockLabel([], new Set())];
   if (lock.join() !== 'Unlock,Lock,Lock,Lock') fails.push('AW-77 the lock tool reads ' + lock.join());
@@ -3942,6 +3951,9 @@ const MUTANTS = [
   ['select: the line counts a stack the bag no longer holds', 'src/shell/windows/inventory/selection.js', '  return Array.from(sc.sel).filter((id) => have.has(id));', '  return Array.from(sc.sel);'],
   ['select: Lock reads Lock over a locked selection', 'src/shell/windows/inventory/selection.js', "  return ids.length && locked && ids.every((id) => locked.has(id)) ? t('bag.unlock') : t('bag.lock');", "  return t('bag.lock');"],
   ['select: the help line forgets the keys', 'src/data/text/bag.js', ' · Ctrl+A select all or none · Esc clear', ' · Ctrl+A select all'],
+  ['select: a refused bulk press clears the selection', 'src/shell/windows/inventory/selection.js', '  if (went) clearSelection(sc);', '  clearSelection(sc);'],
+  ['select: Deposit puts stacks away one at a time again', 'src/shell/windows/inventory/actions.js', "  bulk(st, repaint, () => moveStorageMany(st.account, st.cs, ids, 'deposit'), t('bag.putting_away'), 'bag.put_away');",
+    "  bulk(st, repaint, () => ids.reduce((p, id) => p.then(() => st.cs.moveStorage(id, st.qty.get(id), 'deposit')), Promise.resolve({ ok: true })), t('bag.putting_away'), 'bag.put_away');"],
   ['station sort: a sort drops the locked rows', 'src/shell/station-sort.js', '  const all = open.concat(ahead);', '  const all = open.slice();'],
   ['station sort: Can make no longer puts what the bag makes first', 'src/shell/station-sort.js', 'can(b) - can(a) || reqOf(b) - reqOf(a)', 'reqOf(b) - reqOf(a)'],
   ['station sort: the default is Level', 'src/shell/station-sort.js', "export const DEFAULT_SORT = 'can';", "export const DEFAULT_SORT = 'level';"],

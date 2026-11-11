@@ -37,6 +37,14 @@ function toggle(sc, id) { if (sc.sel.has(id)) sc.sel.delete(id); else sc.sel.add
 /** Nothing selected (the anchor stays: a Shift press after it still ranges from there). */
 export function clearSelection(sc) { sc.sel.clear(); sc.base = null; }
 
+/** After a bulk press (Sell, Deposit, Lock: one server ask, all or nothing): done with the selection on ok; a refusal
+    moved nothing, so the selection stands for the next try. Returns whether it went. */
+export function settleSelection(sc, r) {
+  const went = !!(r && r.ok);
+  if (went) clearSelection(sc);
+  return went;
+}
+
 /** Ctrl+A: every shown stack; with every shown stack already selected, none at all. */
 export function selectAll(sc, shown) {
   const ids = idsOf(shown);

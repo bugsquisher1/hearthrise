@@ -10,11 +10,11 @@
 //
 //   readinessOf(cs) → { name, ready, checks: [{ id, ok, text }], short: [words] }
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf, analyzerOf, huntOf } from '../session/hunt-sections.js?v=0.2.117';
-import { carriedOf, equipmentOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.117';
-import { itemName } from './widgets/bits.js?v=0.2.117';
-import { whole, hoursWords } from '../render/format.js?v=0.2.117';
-import { supplyWords } from './hunt-go.js?v=0.2.117';
+import { settingsOf, staminaOf, analyzerOf, huntOf } from '../session/hunt-sections.js?v=0.2.118';
+import { carriedOf, equipmentOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.118';
+import { itemName } from './widgets/bits.js?v=0.2.118';
+import { whole, hoursWords } from '../render/format.js?v=0.2.118';
+import { supplyWords } from './hunt-go.js?v=0.2.118';
 
 /**
  * @param {object} cs a CharacterSession

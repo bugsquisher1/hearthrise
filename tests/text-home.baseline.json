@@ -89,7 +89,7 @@
     "src/shell/windows/hunt-detail.js": 28,
     "src/shell/windows/hunt-prep.js": 36,
     "src/shell/windows/hunt-summary.js": 32,
-    "src/shell/windows/hunts.js": 43,
+    "src/shell/windows/hunts.js": 41,
     "src/shell/windows/inspect.js": 8,
     "src/shell/windows/inventory/actions.js": 51,
     "src/shell/windows/inventory/advanced.js": 19,

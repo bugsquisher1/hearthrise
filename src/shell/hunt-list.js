@@ -28,15 +28,15 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, partyPullOf, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.117';
-import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier } from '../data/hunt-tiers.js?v=0.2.117';
-import { PARTY } from '../data/party.js?v=0.2.117';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.117';
-import { MONSTERS } from '../data/monsters.js?v=0.2.117';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.117';
-import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.117';
-import { whole, gold } from '../render/format.js?v=0.2.117';
-import { t, hasText } from '../render/player-text.js?v=0.2.117';
+import { HUNT_GROUNDS, partyPullOf, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.118';
+import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier } from '../data/hunt-tiers.js?v=0.2.118';
+import { PARTY } from '../data/party.js?v=0.2.118';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.118';
+import { MONSTERS } from '../data/monsters.js?v=0.2.118';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.118';
+import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.118';
+import { whole, gold } from '../render/format.js?v=0.2.118';
+import { t, hasText } from '../render/player-text.js?v=0.2.118';
 
 const PACK_QTY_MAX = 100000;
 /* A party size in words (hunts.count_<n>, "two"), else the number. */

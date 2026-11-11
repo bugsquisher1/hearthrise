@@ -11,6 +11,19 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 
 ## Log
 
+### 2026-11-10 · first-run green, the cancelled sweep, the silent install (lane/a-ci-first-run)
+1. *Read every red, then count.* `gh run list --json` → `gh run view <id> --json jobs` → `--log-failed`. A cancelled job's log is not in `--log-failed`: use `gh run view --job <id> --log`. That gives the LATEST attempt; an earlier attempt's log needs `gh api --allow-escape-sequences repos/{owner}/{repo}/actions/jobs/<id>/logs`.
+2. *Grep a red run for "full sweep:" before blaming its diff.* Five runs on 11-10 ran every proof because a cancelled dispatch stood as the last nightly. Their reds belonged to other changes.
+3. *The jobs API puts a composite action's whole tail under its step.* "Install … cancelled 44 m" was a stall in our own apt seed block, not in Playwright's install. Read the log's last line.
+4. *Watch the tree, not git status.* `node tools/qa/tree-watch.mjs <out.json> <anchors|-> -- <cmd>` (recursive fs.watch, a baseline stat of every file git knows, a 10 ms poll of the anchors) catches a 5 ms plant-and-restore that git status calls clean (exit 1), and passes reads and gitignored cache writes (exit 0). Use it before writing `mutant-writes-tree: no`; the 19 such headers wrote nothing in 335 mutants.
+5. session-core --mutate takes 172 s here alone, hunt-scene 24 s, hunt-view-core 16 s, world-sandbox 7 s.
+
+### 2026-11-10 · preflight false red (lane/a-preflight-race)
+1. *"Green alone, red in the pool" means some process shares a file.* Look for a proof that writes the REAL tree (`writeFileSync(join(ROOT, ...))`, mutation-safety) running beside one that reads it. To show the race without a second test process, watch the file: a 10 ms poll script logs the window and replays the victim's first step.
+2. *The SOLO bit is a heuristic.* guard-anchors catalogues it (`node tools/guard-anchors.mjs`, a "solo" column). A guard that writes the tree and ALSO uses mkdtemp, or reaches mutation-safety from tools/, used to slip through. Declare `// mutant-writes-tree: yes — why`. NOTE: `: no` is read as yes today (DISCOVERIES 11-10 #2).
+3. *Replay a set's preflight plan without running it:* import buildPlan/ordered/selectGuards and feed them `committedDiff(ROOT, base..tip)`. That gives the start order, which is how the overlap is shown.
+4. character-window on the new PC (no CPU cap): exit 0 in 31.2 s, no 6 s load wait hit. The old timeouts were the old PC's load.
+
 ### 2026-11-09 · alpha-windows Equip upgrades HARNESS (lane/a-aw-harness-step)
 1. *A HARNESS must say where.* harnessFail now carries the guard's stack lines and Playwright's last wait. Read those before theorising. A first lane fixed AW-21 on a guess and the red stayed.
 2. *Count Playwright's tries, not its verdict.* `DEBUG=pw:api` shows every "intercepts pointer events" retry. A click that only lands on its 3rd or 4th try (scroll alternation) is green locally and a 6 s timeout on a loaded runner. Grep a run for retried clicks before calling a step safe.

@@ -20,17 +20,17 @@
 //                     pockets show it as pending; `items` and `qty`, which every
 //                     action reads, stay the server's.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.117';
-import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.117';
-import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, namedFuelOf } from '../../bag-model.js?v=0.2.117';
-import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.117';
-import { itemName } from '../../widgets/bits.js?v=0.2.117';
-import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.117';
-import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.117';
-import { tickOf } from '../../town-work.js?v=0.2.117';
-import { ITEMS } from '../../../data/items.js?v=0.2.117';
-import { REFUSAL_WORDS } from '../../../data/refusal-words.js?v=0.2.117';
-import { heroVitalsOf } from '../../../session/character-sections.js?v=0.2.117';
+import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.118';
+import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.118';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, namedFuelOf } from '../../bag-model.js?v=0.2.118';
+import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.118';
+import { itemName } from '../../widgets/bits.js?v=0.2.118';
+import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.118';
+import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.118';
+import { tickOf } from '../../town-work.js?v=0.2.118';
+import { ITEMS } from '../../../data/items.js?v=0.2.118';
+import { REFUSAL_WORDS } from '../../../data/refusal-words.js?v=0.2.118';
+import { heroVitalsOf } from '../../../session/character-sections.js?v=0.2.118';
 
 const SCRATCH = new WeakMap();
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));

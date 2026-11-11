@@ -1,0 +1,96 @@
+/* Hunt prep builder MOCK (2026-11-11). Layout only, injected over the real play.html.
+   Every control is the game's own class (shell.css section heads, hunt.css .hh-tool / .hh-seg / .hh-step /
+   .hh-select / .hb-slot, the gold plate .hh-tool.is-primary, the thin-steel popup .hw-menu); this file only
+   places them. Tokens only. Not game code: the build lane moves what survives into windows.css. */
+
+.hs-win[data-hs-win="hunt-prep"].is-mock { width: 1010px !important; }
+.hpb { display: grid; grid-template-columns: 196px 1fr; column-gap: 20px; row-gap: 0; }
+.hpb h3 { margin: 0 0 8px; }
+.hpb-left { display: flex; flex-direction: column; gap: 2px; padding-right: 16px; box-shadow: 2px 0 0 var(--steel-rule); }
+.hpb-sets { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; }
+.hpb-set { display: flex; flex-direction: column; gap: 1px; padding: 6px 8px 6px 10px; cursor: pointer; border-left: 2px solid transparent; }
+.hpb-set b { font-size: var(--t-small); color: var(--ink-2); font-weight: 700; }
+.hpb-set small { font-size: var(--t-micro); color: var(--ink-3); }
+.hpb-set:hover { background: var(--surf-panel); }
+.hpb-set.is-picked { background: var(--bg-0); box-shadow: var(--steel-well); border-left-color: var(--ink-2); }
+.hpb-set.is-picked b { color: var(--ink); }
+.hpb-set .is-use { color: var(--gold-2); font-weight: 700; }
+.hpb-left .hh-tool { justify-content: flex-start; text-align: left; }
+.hpb-from { display: flex; flex-direction: column; align-items: flex-start; padding: 6px 10px; min-height: 0; white-space: normal; text-align: left; }
+.hpb-from small { font-weight: 400; color: var(--ink-3); font-size: var(--t-micro); }
+.hpb-count { margin-top: auto; padding: 8px 2px 0; font-size: var(--t-micro); color: var(--ink-3); }
+
+.hpb-right { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.hpb-plays { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.hpb-plays .hh-segs .hh-seg { cursor: default; }
+.hpb-plays .hh-seg:not([aria-pressed="true"]) { color: var(--ink-3); }
+.hpb-plays p { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hpb-plays p b { color: var(--ink); }
+.hpb-three { display: grid; grid-template-columns: auto 1fr auto; column-gap: 28px; align-items: start; }
+.hpb-three > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.hpb-three .hh-select { min-width: 170px; }
+.hpb-three p { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hpb-move { display: flex; align-items: center; gap: 10px; }
+.hpb-move .hb-label { font-size: var(--t-micro); color: var(--ink-2); }
+.hh-step-val { display: inline-block; min-width: 26px; text-align: center; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.hpb-barhead { display: flex; align-items: baseline; gap: 12px; }
+.hpb-barhead h3 { flex: 1; margin: 0; }
+.hpb-barhead small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+/* The bar's well: the one box on this page that is earned (it IS the bar). */
+.hpb-grid { list-style: none; margin: 0; padding: 8px; display: grid; grid-template-columns: repeat(10, var(--hpb-slot, 68px)); grid-auto-rows: var(--hpb-slot, 68px); gap: 4px;
+  justify-content: start; background: var(--bg-0); box-shadow: var(--steel-well); width: max-content; }
+.hpb-grid .hb-slot { width: var(--hpb-slot, 68px); height: var(--hpb-slot, 68px); }
+.hpb-grid .hb-slot .hh-icon { width: round(down, 100% - 4px, 32px); height: round(down, 100% - 4px, 32px); }
+.hpb-grid .hb-slot.is-off .hh-icon { opacity: .4; }
+.hpb-grid .hb-slot .hb-n { top: 3px; left: 4px; }
+.hpb-grid .hb-slot .hpb-cond { position: absolute; right: 3px; bottom: 2px; font-size: var(--t-micro); font-weight: 700; color: var(--gold-2);
+  line-height: 1; paint-order: stroke; -webkit-text-stroke: 3px var(--bg-0); }
+.hpb-grid .hb-slot.is-empty .hpb-plus { font-size: 22px; line-height: 1; color: var(--ink-3); font-weight: 700; }
+.hpb-grid .hb-slot.is-empty:hover .hpb-plus, .hpb-grid .hb-slot.is-target .hpb-plus { color: var(--gold-2); }
+.hpb-grid .hb-slot.is-target { outline: 2px solid var(--ink); outline-offset: -2px; }
+.hpb-grid .hb-slot.is-lifted { opacity: .35; }
+.hpb-grid .hb-slot.is-drop { outline: 2px dashed var(--ink-2); outline-offset: -2px; }
+.hpb-ghost { position: absolute; width: var(--hpb-slot, 68px); height: var(--hpb-slot, 68px); display: grid; place-items: center; background: var(--bg-3); box-shadow: 0 6px 14px color-mix(in srgb, var(--world-shadow) 60%, transparent); z-index: 5; pointer-events: none; }
+.hpb-ghost .hh-icon { width: 64px; height: 64px; }
+.hpb-gridwrap { position: relative; width: max-content; }
+.hpb-under { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.hpb-under p { flex: 1; margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hpb-sorted { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+
+.hpb-foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 10px; box-shadow: 0 -2px 0 var(--steel-rule); }
+.hpb-ready { flex: 1; margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hpb-ready b { color: var(--green); }
+.hpb-ready b.is-short { color: var(--red); }
+.hpb-foot .hh-tool.is-primary { min-height: 40px; }
+
+/* The slot picker: the thin-steel popup over an empty slot. */
+.hpb-pick { position: absolute; z-index: 6; width: 300px; padding: 8px 10px 10px; }
+.hpb-pick h4 { margin: 0 0 6px; font-family: var(--f-display); font-weight: 700; font-size: var(--t-micro); letter-spacing: .14em; color: var(--gold); }
+.hpb-pick .hh-segs { margin-bottom: 8px; }
+.hpb-pick ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.hpb-pick li { display: flex; align-items: center; gap: 10px; padding: 4px 6px; cursor: pointer; }
+.hpb-pick li:hover, .hpb-pick li.is-hover { background: var(--surf-panel); }
+.hpb-pick li .hh-icon { width: 32px; height: 32px; flex: none; }
+.hpb-pick li span { display: flex; flex-direction: column; font-size: var(--t-micro); color: var(--ink-3); }
+.hpb-pick li span b { font-size: var(--t-small); color: var(--ink); }
+.hpb-pick li.is-on b { color: var(--ink-3); }
+.hpb-pick p { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-3); }
+
+/* PHONE (922 x 423): the window is the slide-out sheet; the columns stack, the grid stays 2 x 10. */
+.is-phone .hs-win[data-hs-win="hunt-prep"].is-mock { width: auto !important; }
+.is-phone .hpb { grid-template-columns: 1fr; }
+.is-phone .hpb-left { padding: 0 0 10px; box-shadow: 0 2px 0 var(--steel-rule); margin-bottom: 12px; }
+.is-phone .hpb-sets { flex-direction: row; gap: 4px; overflow-x: auto; margin-bottom: 4px; }
+.is-phone .hpb-set { flex: none; min-height: 44px; justify-content: center; border-left: 0; border-bottom: 2px solid transparent; }
+.is-phone .hpb-set.is-picked { border-bottom-color: var(--ink-2); }
+.is-phone .hpb-leftrow { display: flex; gap: 6px; align-items: center; }
+.is-phone .hpb-leftrow .hh-tool { min-height: 44px; }
+.is-phone .hpb-count { margin: 0 0 0 auto; padding: 0; }
+.is-phone .hpb-from small { display: none; }
+.is-phone .hh-tool, .is-phone .hh-seg, .is-phone .hh-select { min-height: 44px; }
+.is-phone .hpb-grid { padding: 6px; }
+/* On a phone the picker docks to the sheet's right edge under the title and scrolls inside itself. */
+.is-phone .hpb-pick { max-height: calc(100% - 60px); overflow: auto; }
+.is-phone .hpb-pick li { min-height: 44px; }
+.is-phone .hpb-foot { position: sticky; bottom: -12px; background: var(--bg-1); padding-bottom: 8px; margin-bottom: -12px; }

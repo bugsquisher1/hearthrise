@@ -1,0 +1,237 @@
+// Hunt prep builder mocks: before shots + the injected builder, desktop 1440x900 and phone 922x423.
+// usage: node hpb.mjs <repo> <port> [desk|phone|both]
+import { pathToFileURL } from 'node:url';
+import { readFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+const [repo, port = '8791', which = 'both'] = process.argv.slice(2);
+const { createRequire } = await import('node:module'); const { chromium } = createRequire(join(repo, 'package.json'))('playwright'); const { launchOptions } = await import(pathToFileURL(join(repo, 'tests/_chrome.mjs')).href);
+const MOCK = join(repo, '.claude/coordination/mocks/2026-11-11-hunt-prep-builder');
+const css = readFileSync(join(MOCK, 'mock.css'), 'utf8');
+const URL0 = 'http://127.0.0.1:' + port + '/play.html';
+const EMAIL = 'prepbuild@local-world.test', PASS = 'local-world-password';
+mkdirSync(join(MOCK, 'before'), { recursive: true }); mkdirSync(join(MOCK, 'after'), { recursive: true });
+
+const browser = await chromium.launch(launchOptions({ headless: true }));
+const wait = (p, ms) => p.waitForTimeout(ms);
+
+async function signIn(page, fresh) {
+  await page.goto(URL0, { waitUntil: 'load' });
+  await page.waitForSelector('form[data-auth="sign-in"]', { timeout: 120000 });
+  if (fresh) {
+    await page.click('[data-auth-go="create"]');
+    await page.fill('input[name=email]', EMAIL); await page.fill('input[name=password]', PASS); await page.fill('input[name=confirm]', PASS);
+    await page.click('.auth-submit');
+    await page.waitForFunction(() => /Check your email|already/i.test(document.querySelector('.auth-message')?.textContent || ''), null, { timeout: 60000 });
+    await page.click('[data-auth-go="sign-in"]');
+  }
+  await page.fill('input[name=email]', EMAIL); await page.fill('input[name=password]', PASS);
+  await page.click('.auth-submit');
+  await page.waitForSelector('.char-row, .hs-launchers', { timeout: 120000 });
+  if (!(await page.$('.hs-launchers'))) {
+    if (await page.$('[data-app="create"][data-slot="0"]')) {
+      await page.click('[data-app="create"][data-slot="0"]'); await page.fill('.hero-name', 'Marlow'); await page.click('.hero-confirm');
+    } else {
+      await page.click('.char-row');
+    }
+    await page.waitForSelector('.hs-launchers', { timeout: 120000 });
+  }
+  await wait(page, 2500);
+}
+
+async function openPrep(page) {
+  if (!(await page.$('[data-hs-win="hunt-prep"]'))) await page.click('[data-hs-open="hunt-prep"]');
+  await page.waitForSelector('.hw-prep');
+  await wait(page, 800);
+}
+
+async function saveSetups(page) {
+  const n = await page.$$eval('.hw-setup', (l) => l.length);
+  if (n >= 2) return;
+  for (const name of ['Cellar runs', 'Boss nights'].slice(n)) {
+    await page.fill('.hw-preset-name', name);
+    const b = await page.$('[data-hs-act="save-new"]');
+    if (await b.isDisabled()) break;
+    await b.click();
+    await wait(page, 2500);
+  }
+}
+
+/* What the window shows today, read from the DOM: every value here was painted from the server's envelope. */
+async function readState(page) {
+  return page.evaluate(() => {
+    const q = (s) => document.querySelector(s);
+    const sets = [...document.querySelectorAll('.hw-setup')].map((li) => ({ name: li.querySelector('.hs-name-t')?.textContent || '', line: li.querySelector('small')?.textContent || '', inUse: li.classList.contains('is-current') }));
+    const slots = [...document.querySelectorAll('.hb-bar .hb-slot')].map((li) => ({ i: +li.getAttribute('data-slot'), item: li.getAttribute('data-item') || '', ico: li.querySelector('.hb-slot-ico')?.innerHTML || '', count: li.querySelector('.hb-count')?.textContent || '' }));
+    const stance = q('.hb-stance [aria-pressed="true"]')?.getAttribute('data-val') || '';
+    const target = q('.hb-plaque select[data-opt="target_mode"]')?.value || '';
+    const dist = q('.hb-plaque [data-show="distance"]')?.textContent || '';
+    const chase = q('.hb-chase')?.getAttribute('aria-pressed') === 'true';
+    const ready = q('.hw-ready-row.is-self b')?.textContent || q('.hw-ready-row b')?.textContent || '';
+    const shortLines = [...document.querySelectorAll('.hw-ready-row.is-self .hw-check.is-short')].map((x) => x.textContent);
+    const slotsWhy = q('.hw-slot-why')?.textContent || '';
+    const slotPx = Math.round(q('.hb-bar .hb-slot')?.getBoundingClientRect().width || 68); return { slotPx, sets, slots, stance, target, dist, chase, ready, shortLines, slotsWhy };
+  });
+}
+
+/* The builder body, built in the page from the game's own data modules (names, labels, icons). */
+async function inject(page, st, opts) {
+  await page.addStyleTag({ content: css });
+  await page.evaluate(async ({ st, opts }) => {
+    const V = '?v=' + (document.querySelector('script[src*="?v="]')?.src.split('?v=')[1] || '');
+    const imp = (p) => import('/src/' + p + V);
+    const [{ HUNT_ROLES, ROLE_ORDER }, { HUNT_STANCES, TARGET_MODES }, { ABILITIES }, bits, items] = await Promise.all([
+      imp('data/hunt-roles.js'), imp('data/rule-subjects.js'), imp('data/abilities.js'), imp('shell/widgets/bits.js'), imp('data/items.js')]);
+    const glyphs = window.HR_GLYPHS || {};
+    const icon = (type, id) => { try { return bits.actionIconHtml(glyphs, { type, id }); } catch { return ''; } };
+    
+    const itemName = (id) => { try { return bits.itemName(id); } catch { return id; } };
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+    /* The bar: the server's slots as the HUD shows them, plus (mock only) the moves this weapon can use, so the grid reads full. */
+    const bar = Array.from({ length: 20 }, (_, i) => ({ i, ico: '', count: '', name: '' }));
+    for (const s of st.slots) if (s.item && s.i < 20) bar[s.i] = { i: s.i, ico: s.ico, count: s.count, name: s.item.split(':')[1] };
+    const add = (at, id) => { if (!bar[at].ico) bar[at] = { i: at, ico: icon('ability', id), count: '', name: id }; };
+    if (opts.fill) { add(5, 'flame_strike'); }
+    if (opts.sorted) { const full = bar.filter((b) => b.ico); const kind = (b) => (/^(challenge|power_strike|flame_strike|mend)$/.test(b.name) ? 0 : 1); const order = full.filter((b) => kind(b) === 0).concat(full.filter((b) => kind(b) === 1)); for (let i = 0; i < 20; i++) bar[i] = order[i] ? Object.assign({}, order[i], { i }) : { i, ico: '', count: '', name: '' }; }
+    const used = bar.filter((b) => b.ico).length;
+    const slotLi = (b) => b.ico
+      ? '<li class="hb-slot' + (opts.lift === b.i ? ' is-lifted' : '') + '" data-slot="' + b.i + '"><span class="hb-slot-ico">' + b.ico + '</span><small class="hb-n">' + (b.i + 1) + '</small>'
+        + (b.count ? '<small class="hb-count">' + esc(b.count) + '</small>' : '') + '</li>'
+      : '<li class="hb-slot is-empty' + (opts.pick === b.i ? ' is-target' : '') + (opts.drop === b.i ? ' is-drop' : '') + '" data-slot="' + b.i + '"><small class="hb-n">' + (b.i + 1) + '</small><span class="hpb-plus">+</span></li>';
+
+    const picked = st.sets.find((s) => s.inUse) || st.sets[0] || { name: 'Setup 1', line: '' };
+    const setsHtml = st.sets.map((s) => '<li class="hpb-set' + (s === picked ? ' is-picked' : '') + '"><b>' + esc(s.name) + '' + '</b><small>'
+      + (s.inUse ? '<span class="is-use">In use</span> · ' : '') + esc(s.line.replace(/^In use · /, '')) + (opts.dirty && s === picked ? ' · not saved' : '') + '</small></li>').join('');
+
+    const role = 'tank';
+    const plays = ROLE_ORDER.map((r) => '<button type="button" class="hh-seg" aria-pressed="' + (r === role) + '" tabindex="-1">' + esc(HUNT_ROLES[r].label) + '</button>').join('');
+    const pct = (pm) => (pm >= 1000 ? '+' : '') + Math.round((pm - 1000) / 10) + '%';
+    const stRow = HUNT_STANCES[st.stance] || HUNT_STANCES.balanced;
+    const stanceNote = st.stance === 'balanced' ? 'Deals and takes normal damage.' : 'Deals ' + pct(stRow.dealt) + ' damage and takes ' + pct(stRow.taken) + '.';
+    const stances = Object.entries(HUNT_STANCES).map(([id, s]) => '<button type="button" class="hh-seg" aria-pressed="' + (id === st.stance) + '">' + esc(s.label) + '</button>').join('');
+    const targets = Object.entries(TARGET_MODES).map(([id, m]) => '<option value="' + id + '"' + (id === st.target ? ' selected' : '') + '>' + esc(m.label) + '</option>').join('');
+    const dist = st.dist || '1';
+    const moveNote = st.chase ? 'Chase on. Runs up to its target.' : 'Chase off. Stays ' + dist + (dist === '1' ? ' tile' : ' tiles') + ' away and backs off.';
+
+    const shortLine = st.shortLines.length ? '<b class="is-short">' + esc(st.ready) + '</b>' : '<b>' + esc(st.ready || 'Ready to hunt.') + '</b>';
+    const footNote = opts.dirty ? 'Not saved yet. Save keeps it, Close throws it away.' : '';
+    const sortedMsg = opts.sorted ? '<p class="hpb-sorted">Sorted. Moves first, then food and drink, then ammo. In each, a slot with a rule goes before a plain one.</p>' : '';
+
+    const body = '<div class="hpb">'
+      + '<div class="hpb-left"><h3 class="hw-ledger-head is-on">Setups</h3><ul class="hpb-sets">' + setsHtml + '</ul>'
+      + '<div class="hpb-leftrow"><button type="button" class="hh-tool">+ New setup</button>'
+      + '<button type="button" class="hh-tool hpb-from">Start from what you wear<small>Copies what you have on into ' + esc(picked.name) + '</small></button>'
+      + '<p class="hpb-count">' + st.sets.length + ' of 5 setups</p></div></div>'
+      + '<div class="hpb-right">'
+      + '<div><h3 class="hw-ledger-head is-on">Fights as</h3><div class="hpb-plays"><span class="hh-segs" role="group" aria-label="Fights as">' + plays + '</span>'
+      + '<p>Your weapon decides this. <b>' + esc(itemName('practice_sword')) + '</b> and <b>' + esc(itemName('practice_shield')) + '</b>.</p></div></div>'
+      + '<div class="hpb-three">'
+      + '<div><h3 class="hw-ledger-head is-on">Stance</h3><span class="hh-segs">' + stances + '</span><p>' + esc(stanceNote) + '</p></div>'
+      + '<div><h3 class="hw-ledger-head is-on">Target</h3><select class="hh-select" aria-label="Target">' + targets + '</select><p>Who it hits first.</p></div>'
+      + '<div><h3 class="hw-ledger-head is-on">Distance</h3><div class="hpb-move"><button type="button" class="hh-seg" aria-pressed="' + st.chase + '">Chase</button>'
+      + '<span class="hh-step"><button type="button" class="hh-seg">−</button><output class="hh-step-val">' + esc(dist) + '</output><button type="button" class="hh-seg">+</button></span><span class="hb-label">tiles</span></div><p>' + esc(moveNote) + '</p></div>'
+      + '</div>'
+      + '<div><div class="hpb-barhead"><h3 class="hw-ledger-head is-on">Action bar</h3><small>' + used + ' of 20 slots</small></div>'
+      + '<div class="hpb-gridwrap"><ol class="hpb-grid" aria-label="Action bar, slot 1 tried first">' + bar.map(slotLi).join('') + '</ol></div>'
+      + '<div class="hpb-under"><p>Drag a slot to move it. Press + to fill one. Slot 1 is tried first.</p>'
+      + '<button type="button" class="hh-tool">Sort automatically</button><button type="button" class="hh-tool">Clear</button></div>' + sortedMsg + '</div>'
+      + '</div>'
+      + '<div class="hpb-foot"><p class="hpb-ready">' + (footNote ? esc(footNote) : shortLine) + '</p>'
+      + '<button type="button" class="hh-tool">Close</button><button type="button" class="hh-tool">Save</button><button type="button" class="hh-tool is-primary">Save and use</button></div>'
+      + '</div>';
+
+    const win = document.querySelector('[data-hs-win="hunt-prep"]');
+    win.classList.add('is-mock');
+    if (opts.phone) document.documentElement.classList.add('is-phone');
+    win.querySelector('.hs-win-title').textContent = 'Hunt prep';
+    win.querySelector('[data-hs-body]').innerHTML = body;
+    win.style.setProperty('--hpb-slot', '68px'); if (!opts.phone) { win.style.left = Math.round((innerWidth - 1010) / 2) + 'px'; win.style.top = '6px'; win.style.right = 'auto'; win.style.transform = 'none'; win.style.maxHeight = 'none'; }
+
+    /* The picker over an empty slot: this weapon's moves, from the data, the off-weapon ones never listed. */
+    if (opts.pick !== undefined) {
+      const slot = win.querySelector('.hpb-grid [data-slot="' + opts.pick + '"]');
+      const wrap = win.querySelector('.hpb-gridwrap');
+      const moves = Object.values(ABILITIES).filter((a) => a.universal || a.disciplines.includes('shield'));
+      const onBar = new Set(bar.filter((b) => b.ico).map((b) => b.name));
+      const cd = (a) => (a.cdMs / 1000) + ' s' + (a.mana ? ' · ' + a.mana + ' mana' : '');
+      const rows = moves.map((a, k) => '<li class="' + (onBar.has(a.id) ? 'is-on' : '') + (a.id === 'mend' ? ' is-hover' : '') + '">' + icon('ability', a.id) + '<span><b>' + esc(a.n) + '</b>' + (onBar.has(a.id) ? 'On the bar already' : cd(a)) + '</span></li>').join('');
+      const pop = document.createElement('div');
+      pop.className = 'hw-menu hpb-pick is-on';
+      pop.innerHTML = '<h4>Slot ' + (opts.pick + 1) + '</h4><span class="hh-segs"><button type="button" class="hh-seg" aria-pressed="true">Moves</button><button type="button" class="hh-seg">Food and drink</button><button type="button" class="hh-seg">Ammo</button></span>'
+        + '<ul>' + rows + '</ul><p>Pick one, then set when it fires.</p>';
+      win.appendChild(pop);
+      const sr = slot.getBoundingClientRect(), wr = win.getBoundingClientRect(), ph = pop.getBoundingClientRect().height;
+      if (opts.phone) { pop.style.right = '10px'; pop.style.top = '50px'; return; }
+      pop.style.left = Math.round(sr.left - wr.left - 12) + 'px';
+      pop.style.top = Math.round(opts.phone ? Math.max(4, sr.top - wr.top - ph - 6) : sr.bottom - wr.top + 6) + 'px';
+    }
+    if (opts.lift !== undefined) {
+      const from = bar[opts.lift];
+      const g = document.createElement('div'); g.className = 'hpb-ghost'; g.innerHTML = from.ico;
+      const wrap = win.querySelector('.hpb-gridwrap');
+      const to = win.querySelector('.hpb-grid [data-slot="' + opts.drop + '"]').getBoundingClientRect(), wr = wrap.getBoundingClientRect();
+      g.style.left = (to.left - wr.left + 14) + 'px'; g.style.top = (to.top - wr.top - 18) + 'px';
+      wrap.appendChild(g);
+    }
+  }, { st, opts });
+  await wait(page, 600);
+}
+
+async function desk() {
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => console.log('pageerror', e.message));
+  await signIn(page, true);
+  await openPrep(page);
+  await saveSetups(page);
+  await wait(page, 1500);
+  await page.screenshot({ path: join(MOCK, 'before/desk-1440-hunt-prep.png') });
+  const st = await readState(page);
+  console.log(JSON.stringify(st, (k, v) => (k === 'ico' ? (v ? '[icon]' : '') : v)));
+  const shots = [
+    ['desk-1440-builder', { fill: true }],
+    ['desk-1440-picker', { fill: true, pick: 7 }],
+    ['desk-1440-drag', { fill: true, lift: 4, drop: 7, dirty: true }],
+    ['desk-1440-sorted', { fill: true, dirty: true, sorted: true }],
+  ];
+  for (const [name, opts] of shots) {
+    await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.hs-launchers'); await wait(page, 2000);
+    await openPrep(page);
+    await inject(page, st, opts);
+    await page.screenshot({ path: join(MOCK, 'after/' + name + '.png') });
+  }
+  await ctx.close();
+}
+
+async function phone() {
+  const ctx = await browser.newContext({ viewport: { width: 922, height: 423 }, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => console.log('pageerror', e.message));
+  await signIn(page, false);
+  await openPrep(page);
+  await page.screenshot({ path: join(MOCK, 'before/phone-922-hunt-prep.png') });
+  await page.evaluate(() => { const b = document.querySelector('[data-hs-win="hunt-prep"] [data-hs-body]'); b.scrollTop = b.scrollHeight; });
+  await wait(page, 400);
+  await page.screenshot({ path: join(MOCK, 'before/phone-922-hunt-prep-end.png') });
+  const st = await readState(page);
+  const shots = [
+    ['phone-922-builder-top', { fill: true, phone: true }, 0],
+    ['phone-922-builder-bar', { fill: true, phone: true }, 'bar'],
+    ['phone-922-picker', { fill: true, phone: true, pick: 7 }, 'bar'],
+  ];
+  for (const [name, opts, scroll] of shots) {
+    await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.hs-launchers'); await wait(page, 2000);
+    await openPrep(page);
+    await inject(page, st, opts);
+    if (scroll === 'bar') await page.evaluate(() => { const b = document.querySelector('[data-hs-win="hunt-prep"] [data-hs-body]'); const g = b.querySelector('.hpb-barhead'); b.scrollTop = g.offsetTop - 8; });
+    await wait(page, 300);
+    await page.screenshot({ path: join(MOCK, 'after/' + name + '.png') });
+  }
+  await ctx.close();
+}
+
+try {
+  if (which === 'desk' || which === 'both') await desk();
+  if (which === 'phone' || which === 'both') await phone();
+} finally { await browser.close(); }

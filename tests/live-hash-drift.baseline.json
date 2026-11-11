@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-11",
- "replay_ms": 2814,
+ "replay_ms": 40563,
  "counts": {
   "tracked_names": 832,
   "entries": 684
@@ -6948,17 +6948,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-04-09-own-hunt-nudge.sql"
+    "2027-04-09-own-hunt-nudge.sql",
+    "2027-04-10-own-hunt-nudge-once.sql"
    ],
    "live": {
-    "md5": "5ca88601ac4b39d0dd7f18d2844316b5",
-    "norm_len": 487,
+    "md5": "afc138fcc6c92c7830e261f7a81bf4f5",
+    "norm_len": 1153,
     "measured": "2026-11-11",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5ca88601ac4b39d0dd7f18d2844316b5",
-    "norm_len": 487,
+    "md5": "afc138fcc6c92c7830e261f7a81bf4f5",
+    "norm_len": 1153,
     "source": "computed-from-replay"
    },
    "agree": true

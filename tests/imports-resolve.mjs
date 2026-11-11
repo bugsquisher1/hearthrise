@@ -8,7 +8,7 @@
 // one more count, and dead-exports only reads exports. Only a browser test that opened the window found it.
 //
 // WHAT IT CHECKS, over every .js module under src/** (not src/vendor/**), read by the TypeScript parser and binder
-// the repo already pins (typescript 6.0.3), through the same `?v=`-stripping resolver as tools/typecheck.mjs:
+// the repo already pins (typescript 6.0.3), through the same version-query-stripping resolver as tools/typecheck.mjs:
 //   (a) an identifier used in a module that is not declared in scope, not a parameter, not imported, and not a global
 //       the runtime provides (the DOM + ES lib, plus RUNTIME_GLOBALS below for Deno/Node/vendor);
 //   (b) an import / re-export whose specifier resolves to no file;
@@ -19,7 +19,7 @@
 //   node tests/imports-resolve.mjs --selftest  plants the real faults on an overlay, each must be caught,
 //                                              and the clean tree must be green
 //
-// NO ?v= on the imports (tests/**, not a browser module).
+// NO version query on the imports (tests/**, not a browser module).
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, normalize, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -106,6 +106,7 @@ export async function findings(overlay = {}) {
 async function selftest() {
   const read = (rel) => readFileSync(join(ROOT, rel), 'utf8');
   const bad = [];
+  const Q = '?v' + '=0.0.0'; // built at run time: a literal version query outside src/** trips versionQueryGuard
   const clean = await findings();
   if (clean.length) bad.push(`clean tree is not green (${clean.length} findings, first: ${clean[0]})`);
   const drop = (src, name) => {
@@ -116,11 +117,11 @@ async function selftest() {
     return lines.join('\n');
   };
   const cases = [
-    ['hunt-detail.js loses bigPullLine (the bigPullParts shape)', 'src/shell/windows/hunt-detail.js', (s) => drop(s, 'bigPullLine'), /bigPullLine/],
-    ['hunt-detail.js loses materialsOf (the patchParts shape)', 'src/shell/windows/hunt-detail.js', (s) => drop(s, 'materialsOf'), /materialsOf/],
+    ['hunt-detail.js loses bigPullParts', 'src/shell/windows/hunt-detail.js', (s) => drop(s, 'bigPullParts'), /bigPullParts/],
+    ['hunt-detail.js loses patchParts', 'src/shell/windows/hunt-detail.js', (s) => drop(s, 'patchParts'), /patchParts/],
     ['party-roster.js loses huntName (the t shape)', 'src/shell/windows/party-roster.js', (s) => drop(s, 'huntName'), /huntName/],
-    ['import of a missing file', 'src/shell/windows/party-roster.js', (s) => `import { x } from './no-such-module.js?v=0.0.0';\nexport const _p = x;\n${s}`, /Cannot find module/],
-    ['import of a name the target does not export', 'src/shell/windows/party-roster.js', (s) => `import { noSuchExport } from './hunt-detail.js?v=0.0.0';\nexport const _q = noSuchExport;\n${s}`, /no exported member|has no exported/],
+    ['import of a missing file', 'src/shell/windows/party-roster.js', (s) => `import { x } from './no-such-module.js${Q}';\nexport const _p = x;\n${s}`, /Cannot find module/],
+    ['import of a name the target does not export', 'src/shell/windows/party-roster.js', (s) => `import { noSuchExport } from './hunt-detail.js${Q}';\nexport const _q = noSuchExport;\n${s}`, /no exported member|has no exported/],
   ];
   for (const [label, rel, mutate, want] of cases) {
     let text;

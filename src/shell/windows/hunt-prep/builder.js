@@ -13,7 +13,7 @@ import { settingsOf } from '../../../session/hunt-sections.js?v=0.2.122';
 import { presetsOf, equipmentOf } from '../../../session/item-sections.js?v=0.2.122';
 import { text, cls, prop, attr } from '../../../render/paint.js?v=0.2.122';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.122';
-import { runIntent } from '../../intent-words.js?v=0.2.122';
+import { runIntent, refusalWords } from '../../intent-words.js?v=0.2.122';
 import { HUNT_ROLES, ROLE_ORDER } from '../../../data/hunt-roles.js?v=0.2.122';
 import { HUNT_STANCES, TARGET_MODES, HERO_DISTANCE } from '../../../data/rule-subjects.js?v=0.2.122';
 import { GOLD_FLOOR } from '../../../data/hunt-sessions.js?v=0.2.122';
@@ -58,15 +58,15 @@ export function builderHtml() {
     + '<div>' + head('prep.target') + '<select class="hh-select hpb-target" data-hs-act="d-target" aria-label="' + t('prep.target') + '">' + targets + '</select><p>' + t('prep.target_line') + '</p></div>'
     + '<div>' + head('prep.distance') + '<div class="hpb-move"><button type="button" class="hh-seg hpb-chase" data-hs-act="d-chase" aria-pressed="false">' + t('prep.chase') + '</button>'
     + '<span class="hh-step" role="group" aria-label="' + t('prep.distance') + '"><button type="button" class="hh-seg" data-hs-act="d-dist" data-val="-1" aria-label="' + t('prep.closer') + '">−</button>'
-    + '<output class="hh-step-val hpb-dist"></output><button type="button" class="hh-seg" data-hs-act="d-dist" data-val="1" aria-label="' + t('prep.farther') + '">+</button></span><span class="hb-label">' + t('prep.tiles') + '</span></div><p class="hpb-move-line"></p></div>'
-    + '<div>' + head('prep.gold') + '<label class="hpb-gold"><span class="hb-label">' + t('prep.keep_at_least') + '</span>'
+    + '<output class="hh-step-val hpb-dist"></output><button type="button" class="hh-seg" data-hs-act="d-dist" data-val="1" aria-label="' + t('prep.farther') + '">+</button></span></div><p class="hpb-move-line"></p></div>'
+    + '<div>' + head('prep.gold') + '<label class="hpb-gold">'
     + '<input type="number" class="hh-num hpb-floor" min="' + GOLD_FLOOR.min + '" max="' + GOLD_FLOOR.max + '" step="50" inputmode="numeric" data-hs-act="d-gold" aria-label="' + t('prep.keep_at_least') + '">'
     + '<span class="hb-label">' + t('prep.gold_word') + '</span></label><p>' + t('prep.gold_line') + '</p></div>'
     + '</div>'
-    + '<div class="hpb-barhead">' + head('prep.bar') + '<small class="hpb-barcount"></small></div>'
-    + gridHtml()
-    + '<div class="hpb-under"><p>' + t('prep.bar_hint') + '</p>'
+    + '<div class="hpb-barhead">' + head('prep.bar') + '<small class="hpb-barcount"></small>'
     + '<button type="button" class="hh-tool" data-hs-act="sort">' + t('prep.sort') + '</button><button type="button" class="hh-tool" data-hs-act="clear">' + t('prep.clear') + '</button></div>'
+    + gridHtml()
+    + '<p class="hpb-under">' + t('prep.bar_hint') + '</p>'
     + '</div>';
 }
 
@@ -156,7 +156,8 @@ export function patchBuilder(root, ctx, sc, hunting, repaint) {
   const off = sc.pending;
   const reading = !view && sc.read && sc.read.preset === sc.picked ? sc.read.state : null;
   const readLine = root.querySelector('.hpb-read');
-  text(readLine, reading === 'reading' ? t('prep.reading_setup') : reading === 'refused' ? t('prep.read_refused') : '');
+  /* A refused read says the server's why in the one table's words (rate_limited, no_character, a network miss). */
+  text(readLine, reading === 'reading' ? t('prep.reading_setup') : reading === 'refused' ? refusalWords(sc.read.error) : '');
   prop(readLine, 'hidden', !reading);
   cls(root.querySelector('.hpb-edit'), 'is-blank', !sc.draft);
   patchPlays(root, cs, sc, view);

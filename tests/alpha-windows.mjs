@@ -704,6 +704,8 @@ async function prepBuilderRules(base) {
     if (!other.ok || other.live || other.set.preset !== 2 || other.set.stance !== 'offensive' || other.set.slots.length !== 20 || !other.set.store.length) fails.push('AW-84 the read parsed as ' + JSON.stringify(other).slice(0, 200));
     const refused = await R.readPreset({ server: { rpc: async () => ({ ok: false, status: 404, error: 'http_404', body: null }) } }, cs, 2);
     if (refused.ok || !refused.error) fails.push('AW-84 a refused read reads ' + JSON.stringify(refused));
+    const limited = await R.readPreset({ server: { rpc: async () => ({ ok: true, status: 200, body: { ok: false, error: 'rate_limited' } }) } }, cs, 2);
+    if (limited.ok || limited.error !== 'rate_limited') fails.push('AW-84 the refusal code the server sent is lost: ' + JSON.stringify(limited));
     const bad = await R.readPreset(account, cs, 9);
     if (bad.ok || rpcs.length !== 1) fails.push('AW-84 a preset past the limit was asked');
   }

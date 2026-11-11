@@ -583,7 +583,7 @@
    The bar's well is the one box on the page: it IS the bar. A narrow desktop caps the window to the World. */
 .hs-win[data-hs-win="hunt-prep"] { max-width: calc(100% - 24px); }
 .hpb { display: grid; grid-template-columns: 220px 1fr; column-gap: 20px; row-gap: 0; }
-.hpb .hw-ledger-head.is-on { margin: 0 0 8px; }
+.hpb .hw-ledger-head.is-on { margin: 0 0 6px; }
 .hpb-left { display: flex; flex-direction: column; gap: 2px; padding-right: 16px; box-shadow: 2px 0 0 var(--steel-rule); }
 .hpb-sets { margin: 0 0 8px; }
 .hpb-set { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 4px 6px 4px 10px; cursor: pointer; border-top: 0; border-left: 2px solid transparent; }
@@ -606,9 +606,9 @@
 .hpb-from.is-arming b { color: var(--red); }
 .hpb-keep[hidden] { display: none; }
 .hpb-count { margin: 6px 2px 0; font-size: var(--t-micro); color: var(--ink-3); }
-.hpb-right { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.hpb-right { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .hpb-carry[hidden] { display: none; }
-.hpb-edit { display: flex; flex-direction: column; gap: 14px; }
+.hpb-edit { display: flex; flex-direction: column; gap: 10px; }
 .hpb-read[hidden] { display: none; }
 /* With no copy to edit (a setup still reading, or one the server could not read) the panels wait, dim. */
 .hpb-edit.is-blank .hpb-plays-box, .hpb-edit.is-blank .hpb-three, .hpb-edit.is-blank .hpb-gridwrap, .hpb-edit.is-blank .hpb-under { opacity: .45; }
@@ -617,17 +617,21 @@
 .hpb-plays .hh-seg { cursor: default; }
 .hpb-plays .hh-seg:not([aria-pressed="true"]) { color: var(--ink-3); cursor: help; }
 .hpb-plays p { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
-/* The four fight panels in a row; the gold one wraps under them where the column is narrow (a 44 px tile desktop). */
-.hpb-three { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: flex-start; }
-.hpb-three > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; max-width: 220px; }
-.hpb-three .hpb-target { min-width: 170px; }
+/* The four fight panels in one row at the HUD's 68 px tiles; one wraps under where the column is narrower (a 44 px tile desktop). */
+.hpb-three { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-start; }
+.hpb-three > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* A panel is as wide as its control; its note wraps inside that width and never widens it (width 0, min-width 100%). */
+.hpb-three > div > p { width: 0; min-width: 100%; }
+.hpb-three .hpb-target { min-width: 140px; }
+.hpb-stance .hh-seg { padding: 0 6px; }
 .hpb-three p { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
 .hpb-move, .hpb-gold { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .hpb-move .hb-label, .hpb-gold .hb-label { font-size: var(--t-micro); color: var(--ink-2); }
-.hpb-floor { width: 88px; }
-.hpb-barhead { display: flex; align-items: baseline; gap: 12px; }
-.hpb-barhead h3 { flex: 1; }
-.hpb-barhead small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.hpb-floor { width: 72px; }
+/* The bar's head row: the heading, the count, then Sort and Clear at its right. */
+.hpb-barhead { display: flex; align-items: center; gap: 8px; }
+.hpb-barhead h3 { flex: 1; margin: 0; }
+.hpb-barhead small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: tabular-nums; margin-right: 8px; }
 .hpb-gridwrap { position: relative; width: max-content; max-width: 100%; overflow-x: auto; }
 .hpb-grid { list-style: none; margin: 0; padding: 8px; display: grid; grid-template-columns: repeat(10, clamp(40px, calc(9.375vw - 52px), 68px)); grid-auto-rows: clamp(40px, calc(9.375vw - 52px), 68px); gap: 4px;
   justify-content: start; background: var(--bg-0); box-shadow: var(--steel-well); width: max-content; user-select: none; }
@@ -642,8 +646,7 @@
 .hpb-ghost { position: absolute; left: 0; top: 0; width: clamp(40px, calc(9.375vw - 52px), 68px); height: clamp(40px, calc(9.375vw - 52px), 68px); display: grid; place-items: center; background: var(--bg-3);
   box-shadow: 0 6px 14px color-mix(in srgb, var(--world-shadow) 60%, transparent); z-index: 5; pointer-events: none; }
 .hpb-ghost .hh-icon { width: round(down, 100% - 4px, 32px); height: round(down, 100% - 4px, 32px); }
-.hpb-under { display: flex; align-items: center; gap: 8px; }
-.hpb-under p { flex: 1; margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hpb-under { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
 .hpb-msg { grid-column: 1 / -1; margin-top: 10px; }
 /* THE FOOTER, always in reach (sticky at the body's foot): the copy's state (not saved, sorted, changed on the bar), else the hero's readiness
    line (a press shows every hero's checklist); then Close, Save and the one gold primary. */
@@ -678,7 +681,6 @@
   .hpb-leftrow .hh-tool { min-height: 44px; }
   .hpb-count { margin: 0 0 0 auto; }
   .hpb-from small { display: none; }
-  .hpb-three { grid-template-columns: 1fr 1fr; row-gap: 10px; }
   .hpb .hh-tool, .hpb .hh-seg, .hpb .hh-select { min-height: 44px; }
   .hpb-grid { grid-template-columns: repeat(10, 56px); grid-auto-rows: 56px; padding: 6px; }
   .hpb-grid .hb-slot, .hpb-ghost { width: 56px; height: 56px; }

@@ -83,7 +83,8 @@ export function patchSetups(root, ctx, sc, hunting) {
       cls(li, 'is-arming', armed);
       text(li.querySelector('.hw-del'), armed ? t('prep.delete_ask') : t('prep.delete'));
       for (const b of li.querySelectorAll('button, input')) prop(b, 'disabled', sc.pending);
-      prop(li.querySelector('.hw-use'), 'disabled', sc.pending || hunting || current);
+      /* Use stays on the setup in use too: it puts that setup's saved gear back on (the server wears it). */
+      prop(li.querySelector('.hw-use'), 'disabled', sc.pending || hunting);
     },
   });
   const none = root.querySelector('.hw-presets-none');

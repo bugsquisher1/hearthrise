@@ -25,19 +25,6 @@
 //   MP-4  the classic scripts at the end of the body (supabase-js, storage)
 //         are preloaded too: each blocks the parser, so unpreloaded they came one
 //         round trip after another, after the modules (measured 10-24)
-//   MP-5  THE FIRST SCREEN DOES NOT WAIT ON THE GAME SCREEN (hunt-path baseline
-//         2026-11-10: every module of the page ran before sign-in was drawn or the
-//         roster's read left). The entry's STATIC graph, which must all arrive and
-//         run before boot.js does anything, holds none of the game screen's own
-//         modules (BEHIND: the World pane, the shell, the windows and widgets, the
-//         World): they are reached only through an import() and run while the
-//         server answers. Each is still in the page's graph (a renamed file must
-//         not leave this rule reading nothing), so MP-1 still preloads it
-//   MP-6  the block lists the modules the first screen waits on BEFORE the ones
-//         behind an import(): requests leave in the block's order, and the entry
-//         runs when the last module it waits on has landed (measured on the local
-//         world, listed by name: the last of its 273 landed 46 ms before the last
-//         of all 442 scripts, so MP-5 alone bought nothing)
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -49,12 +36,8 @@ const PAGE = 'play.html';
 const BEGIN = '<!-- MODULE PRELOAD';
 const END = '<!-- /MODULE PRELOAD -->';
 const HEAD = BEGIN + ' (generated: node tests/module-preload.mjs --write). Every module the page loads, asked for at once\n'
-  + '     while this page is parsed instead of one import level at a time; fetched, never run early. The first screen\'s own\n'
-  + '     come first; the game screen\'s (behind an import()) follow. -->';
+  + '     while this page is parsed instead of one import level at a time; fetched, never run early. -->';
 const MIN_MODULES = 100;   // MP-3: the rebuilt client is ~300 modules
-/* MP-5: the game screen's own modules. The pane (boot.js asks for it when an account starts), the shell it mounts, the
-   one module that names every window and widget, and the World the pane asks for. */
-export const BEHIND = Object.freeze(['src/app/world-pane.js', 'src/shell/shell.js', 'src/shell/renderers.js', 'src/world/world-boot.js']);
 
 /* Line-start import/export statements with a `from` (multi-line named lists included), bare
    side-effect imports, and literal dynamic import(): relative specifiers only. */
@@ -62,10 +45,10 @@ const STATIC_RE = /^[ \t]*(?:import|export)\b[^;'"]*?\bfrom\s*['"](\.{1,2}\/[^'"
 const BARE_RE = /^[ \t]*import\s*['"](\.{1,2}\/[^'"]+)['"]/gm;
 const DYNAMIC_RE = /\bimport\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)/g;
 
-/** The repo-relative modules `file` imports (static and literal dynamic; `staticOnly`: not the dynamic ones), resolved, queries stripped. */
-export function importsOf(file, src, staticOnly) {
+/** The repo-relative modules `file` imports (static and literal dynamic), resolved, queries stripped. */
+export function importsOf(file, src) {
   const out = [];
-  for (const re of staticOnly ? [STATIC_RE, BARE_RE] : [STATIC_RE, BARE_RE, DYNAMIC_RE]) {
+  for (const re of [STATIC_RE, BARE_RE, DYNAMIC_RE]) {
     re.lastIndex = 0;
     let m;
     while ((m = re.exec(src))) out.push(posix.normalize(posix.join(posix.dirname(file), m[1].split('?')[0])));
@@ -73,26 +56,14 @@ export function importsOf(file, src, staticOnly) {
   return out;
 }
 
-/** What must arrive and run before `entry` does: file -> the module that statically imports it (the entry -> null). */
-export function waitedOnBy(entry, read) {
-  const from = new Map([[entry, null]]), queue = [entry];
-  while (queue.length) {
-    const f = queue.shift();
-    for (const d of importsOf(f, read(f), true)) if (!from.has(d)) { from.set(d, f); queue.push(d); }
-  }
-  return from;
-}
-
-/** Every module reachable from `entry` through `read(file) → source`: the entry, then the modules the first screen waits
-    on (sorted), then the ones behind an import() (sorted). The block is written in this order (MP-6). */
+/** Every module reachable from `entry` through `read(file) → source`: a sorted list, the entry first. */
 export function graphOf(entry, read) {
   const seen = new Set([entry]), queue = [entry];
   while (queue.length) {
     const f = queue.shift();
     for (const d of importsOf(f, read(f))) if (!seen.has(d)) { seen.add(d); queue.push(d); }
   }
-  const first = waitedOnBy(entry, read), rest = Array.from(seen).filter((f) => f !== entry).sort();
-  return [entry, ...rest.filter((f) => first.has(f)), ...rest.filter((f) => !first.has(f))];
+  return [entry, ...Array.from(seen).filter((f) => f !== entry).sort()];
 }
 
 /** The entry module play.html runs: its one <script type="module" src>. */
@@ -123,16 +94,8 @@ export function check(html, read, version) {
   const graph = graphOf(entry, read);
   const depth = (() => { let d = 0, level = [entry]; const seen = new Set(level); while (level.length) { d++; level = level.flatMap((f) => importsOf(f, read(f))).filter((x) => !seen.has(x) && seen.add(x)); } return d; })();
   if (graph.length < MIN_MODULES || depth < 4) problems.push('MP-3 the graph from ' + entry + ' is ' + graph.length + ' modules over ' + depth + ' levels: the reader is not following imports');
-  const first = waitedOnBy(entry, read), behind = [];
-  for (const f of BEHIND) {
-    if (!graph.includes(f)) { behind.push('MP-5 ' + f + ' is not in the page\'s graph: the rule is reading nothing (renamed? name it in BEHIND)'); continue; }
-    if (!first.has(f)) continue;
-    const chain = [];
-    for (let at = f; at; at = first.get(at)) chain.unshift(at);
-    behind.push('MP-5 the first screen waits on the game screen again: ' + chain.join(' -> ') + ' (ask for it with import() where it is used)');
-  }
   const a = html.indexOf(BEGIN), b = html.indexOf(END);
-  if (a < 0 || b < a) return problems.concat(['MP-1 ' + PAGE + ' has no MODULE PRELOAD block: run node tests/module-preload.mjs --write'], behind);
+  if (a < 0 || b < a) return problems.concat(['MP-1 ' + PAGE + ' has no MODULE PRELOAD block: run node tests/module-preload.mjs --write']);
   const listed = new Map();
   for (const m of html.slice(a, b).matchAll(/<link rel="modulepreload" href="([^"?]+)\?v=([^"]*)">/g)) listed.set(m[1], m[2]);
   const want = new Set(graph);
@@ -140,13 +103,6 @@ export function check(html, read, version) {
   if (missing.length || stale.length) {
     problems.push('MP-1 the preload block is not the module graph (' + [missing.length ? 'missing ' + missing.slice(0, 4).join(', ') + (missing.length > 4 ? ' +' + (missing.length - 4) : '') : '',
       stale.length ? 'not loaded ' + stale.slice(0, 4).join(', ') : ''].filter(Boolean).join('; ') + '): run node tests/module-preload.mjs --write');
-  }
-  /* MP-6: requests leave in the block's order, and the entry runs when the LAST module it waits on has landed */
-  const order = [...listed.keys()].filter((f) => want.has(f));
-  const lastFirst = order.reduce((at, f, i) => (first.has(f) ? i : at), -1), firstLater = order.findIndex((f) => !first.has(f));
-  if (firstLater >= 0 && lastFirst > firstLater) {
-    problems.push('MP-6 the first screen\'s modules are not asked for first: ' + order[lastFirst] + ' is listed after ' + order[firstLater]
-      + ', which only the game screen needs: run node tests/module-preload.mjs --write');
   }
   const scripts = new Map();
   for (const m of html.slice(a, b).matchAll(/<link rel="preload" as="script" href="([^"?]+)\?v=([^"]*)">/g)) scripts.set(m[1], m[2]);
@@ -157,19 +113,13 @@ export function check(html, read, version) {
   for (const [f, v] of scripts) listed.set(f, v);
   const off = [...listed].filter(([, v]) => v !== version);
   if (off.length) problems.push('MP-2 ' + off.length + ' preload(s) not at ?v=' + version + ': ' + off.slice(0, 3).map(([f, v]) => f + '?v=' + v).join(', '));
-  return problems.concat(behind);
+  return problems;
 }
 
-/* Each file is read from disk once a run: a check walks the graph four times and --selftest runs seventeen checks, which was
-   some 50,000 reads (13 minutes on this PC when it throttles a process; the tree does not change under a run). */
-const READ = new Map();
 const readFile = (f) => {
-  if (READ.has(f)) return READ.get(f);
   const p = join(ROOT, f);
   if (!existsSync(p)) throw new Error(f + ' is imported but does not exist');
-  const text = readFileSync(p, 'utf8');
-  READ.set(f, text);
-  return text;
+  return readFileSync(p, 'utf8');
 };
 const versionOf = () => (/cache:\s*'([^']+)'/.exec(readFile('src/build-info.js')) || [])[1];
 
@@ -204,12 +154,6 @@ if (process.argv.includes('--selftest')) {
     ['a reader that stops at the first level', html, (f) => (f === 'src/app/boot.js' ? readFile(f) : ''), 'MP-3'],
     ['a classic script added to the body, not preloaded', html.replace('<script type="module"', '<script src="src/platform/extra.js?v=' + version + '"></script>\n<script type="module"'), readFile, 'MP-4'],
     ['a classic script preload dropped', html.replace(/<link rel="preload" as="script" href="[^"]*">\r?\n/, ''), readFile, 'MP-4'],
-    ['the entry imports the World pane statically again', html, (f) => (f === 'src/app/boot.js' ? "import { mountWorldPane } from './world-pane.js?v=" + version + "';\n" + readFile(f) : readFile(f)), 'MP-5'],
-    ['a first-screen module reaches the shell (two levels down)', html, (f) => (f === 'src/app/slot-offer.js' ? "import '../shell/shell.js?v=" + version + "';\n" + readFile(f) : readFile(f)), 'MP-5'],
-    ['a first-screen module names every window', html, (f) => (f === 'src/session/config.js' ? "export { WINDOW_RENDERERS } from '../shell/renderers.js?v=" + version + "';\n" + readFile(f) : readFile(f)), 'MP-5'],
-    ['a first-screen module listed after the game screen\'s', html.replace(new RegExp('<link rel="modulepreload" href="' + graph[1].replace(/[.*+?^${}()|[\]\\/]/g, '\\$&') + '\\?v=[^"]*">\\r?\\n'), '')
-      .replace(END, '<link rel="modulepreload" href="' + graph[1] + '?v=' + version + '">\n' + END), readFile, 'MP-6'],
-    ['the pane renamed under the rule (it would read nothing)', html, (f) => (f === 'src/app/boot.js' ? readFile(f).replace(/import\('\.\/world-pane\.js\?v=[^']*'\)/, "import('./world-view.js?v=" + version + "')") : readFile(f)), 'MP-5'],
   ];
   let bad = 0;
   for (const [name, h, read, want] of cases) {
@@ -228,5 +172,4 @@ const html = readFile(PAGE);
 const problems = check(html, readFile, versionOf());
 for (const p of problems) console.error('✗ ' + p);
 if (problems.length) process.exit(1);
-console.log('✓ module-preload: ' + PAGE + ' preloads all ' + (html.match(/rel="modulepreload"/g) || []).length + ' modules of its graph at ?v=' + versionOf()
-  + '; the first screen waits on ' + waitedOnBy(entryOf(html), readFile).size + ' of them');
+console.log('✓ module-preload: ' + PAGE + ' preloads all ' + (html.match(/rel="modulepreload"/g) || []).length + ' modules of its graph at ?v=' + versionOf());

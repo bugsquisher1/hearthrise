@@ -273,8 +273,6 @@ export class AccountSession {
   /** What this tab had open when it last stood, for this login ({ slots, viewed }), or null. */
   lastOpen() { return openOf(this._tab, this.userId, this.config); }
   forgetOpen() { if (this._tab) this._tab.remove(this.config.openKey); }
-  /** A Play this page could not finish and reloads to try again (its game screen did not load: src/app/boot.js): the next load opens `slots` and shows `slot`. */
-  keepPlay(slot, slots) { if (this._tab && !this._ending) this._tab.set(this.config.openKey, JSON.stringify({ uid: this.userId, slots: [slot].concat(Array.isArray(slots) ? slots : []), viewed: slot })); }
 
   /* This tab's open heroes and the shown one, kept in the tab store for its next load (lastOpen); not while signing out. */
   _keepOpen() {

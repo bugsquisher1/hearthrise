@@ -6,7 +6,7 @@
 //   node tests/monster-facts.mjs --mutate   every planted defect must turn a rule RED
 //   node tests/monster-facts.mjs --shots <dir>   also write the desktop and phone screenshots
 //
-// mutant-anchors: src/shell/monster-facts.js src/shell/windows/monster.js src/shell/windows/hunt-detail.js
+// mutant-anchors: src/shell/monster-facts.js src/shell/windows/monster.js src/shell/windows/hunt-detail.js src/data/text/monster.js
 //
 // Tyler 2026-11-09: every monster's stats are visible in the game. play.html with supabase-js and the REST
 // paths stubbed (tests/_client-harness.mjs); the hero is tests/fixtures/alpha-envelope.json ("Tyler", slot 0)
@@ -14,7 +14,8 @@
 // and the engine's own constants with plain arithmetic, never through src/shell/monster-facts.js.
 //   MF-1  a creature on a hunt's page opens its page with zero console errors, and the Hunts window stays open
 //   MF-2  the Briarcoat Wolf's page equals its row: name, family and Level, Health and what a kill pays (the row's own,
-//         the same for every group size: Tyler 2026-11-08), the blow's floor and ceiling, the one attack interval, its weakness and elements, every
+//         the same for every group size: Tyler 2026-11-08), its biggest hit labelled exactly "Max Hit" with that one number (Tyler
+//         2026-11-11: "it should just say Max Hit"), the one attack interval, its weakness and elements, every
 //         drop in the row's order with its chance per kill, and the ground it lives on
 //   MF-3  the creature's name is a real button: focus and Enter open the page (Enter is not taken for Chat)
 //   MF-4  a drop says what it is for, and a use that a window does is a link that opens that window
@@ -61,7 +62,9 @@ function expected(id, hunt) {
     name: row.name,
     kind: t(row.boss ? 'monster.kind_boss' : 'monster.kind', { family: row.className, level: row.level }),
     hp: whole(row.hp),
-    blow: t('monster.blow_value', { min: '1', max: whole(Math.max(1, Math.floor(row.atk * scale))) }),
+    maxHit: whole(Math.max(1, Math.floor(row.atk * scale))),
+    /* Tyler's word, typed here and never read through t(): a text home that drifts from it is red. */
+    maxHitLabel: 'Max Hit',
     swing: t('monster.swing_value', { secs: COMBAT_BALANCE.tickMs / 1000 }),
     weak: t('monster.weak_' + row.weaponWeak, { pct: Math.round((WEAKNESS_BONUS.damage - 1) * 100), acc: Math.round((WEAKNESS_BONUS.accuracy - 1) * 100) }),
     takes: els.length ? (els.length > 1 ? els.slice(0, -1).join(', ') + ' and ' + els.at(-1) : els[0]) : t('monster.takes_all'),
@@ -99,7 +102,7 @@ const readPage = (page) => page.evaluate((w) => {
   if (!el || !el.querySelector('.mf-page') || el.querySelector('.mf-page').hidden) return null;
   const fact = (k) => { const d = el.querySelector('[data-fact="' + k + '"]'); return d.parentElement.hidden ? null : d.textContent; };
   return { id: el.querySelector('.mf').getAttribute('data-monster'), name: el.querySelector('.mf-name').textContent, kind: el.querySelector('.mf-kind').textContent,
-    hp: fact('hp'), blow: fact('blow'), swing: fact('swing'), deals: fact('deals'), weak: fact('weak'), takes: fact('takes'), xp: fact('xp'), gold: fact('gold'),
+    hp: fact('hp'), maxHit: fact('max_hit'), maxHitLabel: el.querySelector('[data-fact="max_hit"]').parentElement.querySelector('dt').textContent, swing: fact('swing'), deals: fact('deals'), weak: fact('weak'), takes: fact('takes'), xp: fact('xp'), gold: fact('gold'),
     size: el.querySelector('.mf-for').textContent, pay: el.querySelector('.mf-pay').textContent, per: el.querySelector('.mf-per').textContent,
     drops: Array.from(el.querySelectorAll('.mf-drop')).map((li) => [li.dataset.item, li.querySelector('.mf-drop-name').textContent, li.querySelector('.mf-drop-band').textContent, li.querySelector('.mf-odds').textContent].join(' / ')),
     uses: Object.fromEntries(Array.from(el.querySelectorAll('.mf-drop')).map((li) => [li.dataset.item, li.querySelector('.mf-drop-use').textContent])),
@@ -121,7 +124,7 @@ async function openFacts(page, hunt, id, how) {
 
 function compare(fails, rule, got, want) {
   if (!got) { fails.push(rule + ' the page was not drawn'); return; }
-  for (const k of ['name', 'kind', 'hp', 'blow', 'swing', 'weak', 'takes', 'xp', 'gold']) if (got[k] !== want[k]) fails.push(rule + ' ' + k + ' reads ' + JSON.stringify(got[k]) + ', the row says ' + JSON.stringify(want[k]));
+  for (const k of ['name', 'kind', 'hp', 'maxHit', 'maxHitLabel', 'swing', 'weak', 'takes', 'xp', 'gold']) if (got[k] !== want[k]) fails.push(rule + ' ' + k + ' reads ' + JSON.stringify(got[k]) + ', the row says ' + JSON.stringify(want[k]));
   if (got.drops.join(' | ') !== want.drops.join(' | ')) fails.push(rule + ' the drops read ' + JSON.stringify(got.drops) + ', the row says ' + JSON.stringify(want.drops));
   if (!got.homes.some((h) => h.name === want.home)) fails.push(rule + ' its grounds read ' + JSON.stringify(got.homes) + ', not ' + want.home);
 }
@@ -138,7 +141,7 @@ async function checks(overrides, shots) {
       if (!f) { fails.push('MF-7 ' + id + ' stands on an open ground and has no page'); continue; }
       const words = ['monster.weak_' + MONSTERS[id].weaponWeak, 'monster.el_' + f.deals, ...f.elements.map((e) => 'monster.el_' + e.element), ...f.drops.map((d) => 'monster.band_' + d.band), ...f.homes.map((h) => 'monster.how_' + h.how)];
       for (const w of words) if (!hasText(w)) fails.push('MF-7 ' + id + ' asks for the word ' + w + ', which the text home does not have');
-      if (!(f.hp >= 1) || !(f.blow.max >= f.blow.min) || !f.homes.length || f.drops.some((d) => !(d.chance > 0 && d.chance <= 1) || !d.uses.length)) fails.push('MF-7 ' + id + ' has a fact that is not a fact: ' + JSON.stringify({ hp: f.hp, blow: f.blow }));
+      if (!(f.hp >= 1) || !(Number.isInteger(f.maxHit) && f.maxHit >= 1) || !f.homes.length || f.drops.some((d) => !(d.chance > 0 && d.chance <= 1) || !d.uses.length)) fails.push('MF-7 ' + id + ' has a fact that is not a fact: ' + JSON.stringify({ hp: f.hp, maxHit: f.maxHit }));
     }
     for (const b of LOOT_BANDS) if (!hasText('monster.band_' + b)) fails.push('MF-7 the band ' + b + ' has no word');
   }
@@ -254,7 +257,8 @@ async function checks(overrides, shots) {
 /* Each plants one defect the rules above exist for. [name, file, from, to] */
 const MUTANTS = [
   ['Health is the monster\'s attack', 'src/shell/monster-facts.js', '    hp: Math.max(1, fights.hp || 1),', '    hp: Math.max(1, fights.atk || 1),'],
-  ['the blow\'s ceiling is the row\'s attack, not the engine\'s largest blow', 'src/shell/monster-facts.js', '  const top = monsterMaxHit(fights);', '  const top = row.atk;'],
+  ['Max Hit is the row\'s attack, not the engine\'s largest blow', 'src/shell/monster-facts.js', '  const top = monsterMaxHit(fights);', '  const top = row.atk;'],
+  ['the Max Hit row goes back to the words Tyler could not read', 'src/data/text/monster.js', "  max_hit: 'Max Hit',", "  max_hit: 'One hit',"],
   ['a kill\'s Level XP is cut to a lone hero\'s old share', 'src/shell/monster-facts.js', '    xp: Math.round(fights.xp || 0),', '    xp: Math.round((fights.xp || 0) * 0.55),'],
   ['a drop\'s chance is cut to a lone hero\'s old share', 'src/shell/monster-facts.js', '      chance: effectiveDropChance(d, { dropMult: lone.dropMult }),', '      chance: effectiveDropChance(d, { dropMult: lone.dropMult }) * 0.55,'],
   ['a drop\'s chance forgets the monster\'s own drop bonus', 'src/shell/monster-facts.js', '{ dropMult: lone.dropMult }', '{}'],

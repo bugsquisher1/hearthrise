@@ -808,10 +808,23 @@ async function selftest() {
       ? { jobs: Object.entries(jobs).map(([name, c]) => ({ name, conclusion: c })) }
       : { workflow_runs: [{ id: 7, event: 'schedule', conclusion, updated_at: '2026-11-02T01:00:00Z' }, ...more] });
     const redSweep = sweep('failure', { edge: 'success', 'client-guards': 'cancelled', perf: 'failure' });
+    /* 42735502405 (11-10): a dispatch on main cancelled before any job finished, newer than a real sweep (7). */
+    const after = (jobs9) => (path) => {
+      const m = /runs\/(\d+)\/jobs/.exec(path);
+      if (m) return { jobs: Object.entries(m[1] === '9' ? jobs9 : { edge: 'success', perf: 'failure' }).map(([name, c]) => ({ name, conclusion: c })) };
+      return { workflow_runs: [{ id: 7, event: 'schedule', conclusion: 'failure', updated_at: '2026-11-02T01:00:00Z' },
+        { id: 9, event: 'workflow_dispatch', conclusion: 'cancelled', updated_at: '2026-11-02T03:00:00Z' }] };
+    };
+    const unjudged = after({ edge: 'cancelled', perf: 'cancelled', 'client-guards-2': 'skipped' });
+    const cutShort = after({ edge: 'success', perf: 'cancelled' });
     const nightlyChecks = (read) => {
       const policy = (get, job) => historyPolicy({ nightly: read(get), nightlyError: null, proved: null }, { job, event: 'push', ref: 'release/v0.0.1', now });
       const greenSweep = sweep('success', { edge: 'success' });
       return [
+        [(read(unjudged) || {}).id === 7 && !policy(unjudged, 'edge').full && policy(unjudged, 'perf').full === true,
+          'a sweep cancelled before any job reached a verdict says nothing: the sweep before it decides'],
+        [(read(cutShort) || {}).id === 9 && policy(cutShort, 'perf').full === true && !policy(cutShort, 'edge').full,
+          'a sweep cut short with a job judged counts, and its cancelled jobs run every proof'],
         [policy(redSweep, 'client-guards-2').full === true, 'a job a red sweep never ran runs every proof'],
         [policy(greenSweep, 'client-guards-2').full === true, 'a job a green sweep never ran runs every proof'],
         [policy(redSweep, 'client-guards').full === true && policy(redSweep, 'perf').full === true, 'a cancelled or failed job runs every proof'],
@@ -832,6 +845,8 @@ async function selftest() {
       ['a red run no job explains keeps its green jobs', runsAs((rs) => rs.map((r) => ({ ...r, conclusion: 'success' })))],
       ['a push counts as a sweep', runsAs((rs) => rs.map((r) => ({ ...r, event: 'schedule' })))],
       ['the first sweep listed counts, not the newest', runsAs((rs) => rs.slice(0, 1))],
+      ['a sweep cancelled with no verdict still counts (as a red one)', runsAs((rs) => rs.map((r) => (r.conclusion === 'cancelled' ? { ...r, conclusion: 'failure' } : r)))],
+      ['a cancelled sweep is passed over though a job was judged', (get) => readNightly((p) => { const x = get(p); return x.jobs && /runs\/9\//.test(p) ? { jobs: x.jobs.map((j) => ({ ...j, conclusion: 'cancelled' })) } : x; })],
     ]) {
       const missed = nightlyChecks(read).every(([ok]) => ok);
       if (missed) bad++;

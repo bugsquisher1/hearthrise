@@ -67,26 +67,26 @@ import { GROUND_PACKS } from './grounds/index.js?v=0.2.119';
 
 const BASE_HUNTS = Object.freeze([
   {
-    id: 'mill_cellar', name: 'Mill Cellar', theme: 'Rats get into the grain sacks under the mill, and slimes and wasps live in the damp.',
+    id: 'mill_cellar', name: 'Mill Cellar', theme: 'Rats, slimes and wasps live in the damp cellar under the mill.',
     band: [1, 8],
     spawns: [{ monster: 'rat', w: 3, rarity: 'common' }, { monster: 'slime', w: 1, rarity: 'uncommon' },
       { monster: 'hive_wasp', w: 1, rarity: 'rare' }],
     family: 'Vermin', art: 'rat', travelS: 0, pull: 1, respawnMs: 60000,
   },
   {
-    id: 'bramble_edge', name: 'Bramble Edge', theme: 'The farm fields stop at the brambles, where young wolves, boars and mandrakes live.',
+    id: 'bramble_edge', name: 'Bramble Edge', theme: 'Wolf cubs, boars and mandrakes live where the fields meet the brambles.',
     band: [0, 15],
     spawns: [{ monster: 'small_wolf', w: 4 }, { monster: 'wild_boar', w: 3 }, { monster: 'mandrake', w: 3 }],
     family: 'Mammal', art: 'small_wolf', travelS: 0, pull: 3, respawnMs: 42000,
   },
   {
-    id: 'goblin_warren', name: 'Goblin Warren', theme: 'Goblins and kobolds live in these tunnels with the pots they stole, and they all carry knives.',
+    id: 'goblin_warren', name: 'Goblin Warren', theme: 'Goblins and kobolds hide down here with all the pots they stole.',
     band: [0, 15],
     spawns: [{ monster: 'goblin', w: 6 }, { monster: 'kobold', w: 4 }],
     family: 'Humanoid', art: 'goblin', travelS: 0, pull: 5, respawnMs: 60000,
   },
   {
-    id: 'ridge_camp', name: 'Ridge Camp', theme: 'Hobgoblin and gnoll raiders camp up on the ridge, and stags graze right past them.',
+    id: 'ridge_camp', name: 'Ridge Camp', theme: 'Hobgoblins and gnolls camp on the ridge, and stags graze right past them.',
     band: [15, 99],
     spawns: [{ monster: 'hobgoblin', w: 4 }, { monster: 'gnoll', w: 4 }, { monster: 'stag', w: 2 }],
     family: 'Humanoid', art: 'hobgoblin', travelS: 0, pull: 5, respawnMs: 54000,
@@ -99,7 +99,7 @@ const BASE_HUNTS = Object.freeze([
      weighted spawn; he holds the last room). Floor 4: a fresh character (combat 3)
      earns the door in the Mill Cellar first. */
   {
-    id: 'millrace_sewer', name: 'The Sewer', theme: 'The mill race runs under the town here, and the rats in it follow the Rat King.',
+    id: 'millrace_sewer', name: 'The Sewer', theme: 'The mill race runs under town, and its rats follow the Rat King.',
     band: [8, 25],
     spawns: [{ monster: 'drain_rat', w: 6, rarity: 'common' }, { monster: 'culvert_bat', w: 4, rarity: 'uncommon' },
       { monster: 'sump_slime', w: 3, rarity: 'uncommon' }, { monster: 'kobold_tosher', w: 3, rarity: 'uncommon' },
@@ -150,7 +150,7 @@ const BASE_HUNTS = Object.freeze([
      pockets' head-count at density 4; the Turncoats, the rare spawn, carry the jewellery. STAGED until its painted
      ground lands (its creatures reuse shipped units: src/data/world/maps/wickstead.js). */
   {
-    id: 'wickstead', name: 'Wickstead', theme: 'The Turncoats burned this farm on the Thicket road and moved into the house. Rats took the granary.',
+    id: 'wickstead', name: 'Wickstead', theme: 'The Turncoats burned this farm and moved in. Rats took the granary.',
     band: [8, 18],
     spawns: [{ monster: 'granary_rat', w: 13, rarity: 'common' }, { monster: 'barn_spider', w: 4, rarity: 'uncommon' },
       { monster: 'barn_wasp', w: 3, rarity: 'uncommon' }, { monster: 'orchard_boar', w: 2, rarity: 'uncommon' }, { monster: 'turncoat', w: 2, rarity: 'rare' }],
@@ -174,9 +174,9 @@ export const OPEN_HUNTS = Object.freeze(HUNTS.filter((h) => h.staged !== true));
    advice line, tally task or spawn table reads them; only HUNT_INDEX below names them, for the top bar and the end card. The band is the ground's, so a server read
    ordered by floor finds the ground first. `spawns` names the called row for the facts; gen-hunts writes hr_hunts but no hr_hunt_spawns for it (a boss is never a spawn). */
 export const CALLED_HUNTS = Object.freeze([
-  Object.freeze({ id: 'millrace_sewer_called', name: 'The Rat King\'s Hall', theme: 'This is the Rat King\'s own room. It\'s just you and him, plus a few of his rats.', called: true,
+  Object.freeze({ id: 'millrace_sewer_called', name: 'The Rat King\'s Hall', theme: 'It\'s just you, the Rat King and a few of his rats in here.', called: true,
     band: Object.freeze([8, 25]), spawns: Object.freeze([Object.freeze({ monster: 'rat_king_called', w: 1 }), Object.freeze({ monster: 'drain_rat_called', w: 1 })]), family: 'Vermin', art: 'rat_king_called', travelS: 0, pull: 1, respawnMs: 600000 }),
-  Object.freeze({ id: 'coppercap_warrens_called', name: 'Chief Coppercap\'s Hall', theme: 'Chief Coppercap sent his crew away so he can fight you himself. A digger or two stayed to help him.', called: true,
+  Object.freeze({ id: 'coppercap_warrens_called', name: 'Chief Coppercap\'s Hall', theme: 'Chief Coppercap sent his crew away so he can fight you himself.', called: true,
     band: Object.freeze([32, 50]), spawns: Object.freeze([Object.freeze({ monster: 'chief_coppercap_called', w: 1 }), Object.freeze({ monster: 'goblin_digger_called', w: 1 })]), family: 'Humanoid', art: 'chief_coppercap_called', travelS: 0, pull: 1, respawnMs: 600000 }),
 ]);
 

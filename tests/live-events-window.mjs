@@ -292,7 +292,7 @@ const MUTANTS = [
   { name: 'the press keeps the fee\'s words while the event frees it', file: 'src/shell/windows/boss-call-pane.js', from: 'text(press, callWords(ev ? ev.press : BOSS_CALL_WORDS.press,', to: 'text(press, callWords(BOSS_CALL_WORDS.press,', want: /LW-PLAY/ },
   { name: 'the event\'s end never reads the quote again', file: 'src/shell/windows/boss-call-pane.js', from: " + ':' + feeKey(cs, call);", to: ';', want: /LW-CLOCK/ },
   { name: 'HUD layout lists the plate with the switches off', file: 'src/shell/hud.js', from: "hud.rows().filter(listed).map(line)", to: 'hud.rows().map(line)', want: /LW-OFF/ },
-  { name: 'Settings lists the plate with the switches off', file: 'src/data/settings.js', from: '...(w.section ? { visibleWhen:', to: '...(false ? { visibleWhen:', want: /LW-OFF/ },
+  { name: 'Settings lists the plate with the switches off', file: 'src/data/settings.js', from: "...('section' in w && w.section ? { visibleWhen:", to: "...(false ? { visibleWhen:", want: /LW-OFF/ },
 ];
 
 async function main() {

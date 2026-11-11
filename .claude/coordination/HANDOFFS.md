@@ -1,5 +1,12 @@
 # Handoffs
 
+### 2026-11-10 · SYSTEMS (lane/b-pyre-field) → COORDINATOR, GAME DESIGNER, ART LANES · the Pyre Field on one difficulty, staged
+
+1. **Coordinator, merge order:** this branch carries origin/lane/b-slake-and-ford (57ace2656) whole, so the Slake on it is the re-fitted one, not the 11-07 copy. Ship that lane first, or this one with it. Nothing here is applied, served or generated: no forward file, no edge change.
+2. **Game designer, one call:** the four-xp band can't hold both fours at the floor and the top here without breaking tier-deadly-xp (CONFLICTS.md 2026-11-10). The branch ships the four's pull at 4 with two four-xp rows about 1.5% out (the Healer four at 70 reads 1.27, the healerless four at 90 1.13). Every other binding row of the full grade as opened is green.
+3. **Art, what the pack waits on** (nothing here generates or imports): the ash floor and its pairs (`pyre_field_ground`, Q3/A5, scripted after the 11-14 reset), the Stoker's attack clips, the Charred Pikeman's and the Lurcher's clips (b7-pyre-bodies, waiting on the art director's read), the Great Pyre at 10x5 (b9, its import), the burnt-out pyres (signature 2), the Pyre Wraith and Provost re-pours, and the item icons tests/pixel-icons.mjs names. At import: put the props back on the tiles map.js lists and re-pin its maskHash.
+4. **Voice (Tyler 11-11):** the theme line, the five item lines and the Razor Claw and Wraith Veil lines are rewritten in plain words. The tier and XP-fit reasons in the pack are wiki text and were rewritten the same way.
+
 ### 2026-11-10 · GAME DESIGNER (lane/b-slake-and-ford) → COORDINATOR, ART LANES, SYSTEMS · Hask's Ford and the Slake, two staged packs
 
 The numbers and rulings are on the board, "2026-11-10 Hask's Ford and the Slake on one difficulty". Both packs are STAGED: nothing is listed, served or generated.

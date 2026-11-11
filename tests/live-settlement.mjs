@@ -52,10 +52,10 @@ import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
-import { wholeViewOrRerun } from '../tools/pack/whole.mjs';
-/* THE CHAIN END'S VIEW (lane/b-slake-and-ford 2026-11-11): a STAGED ground pack's monsters are in src/data and have no hr_activities
-   row until tools/pack.mjs ship, so the authored side is read as the chain end holds it (tools/pack/whole.mjs). */
-const CHAIN_END = 'the chain end, every applied file';
+import { GROUND_PACKS } from '../src/data/grounds/index.js';
+/* A STAGED ground pack's monsters (src/data/grounds, status staged) are in src/data and have no hr_activities row until tools/pack.mjs
+   ship writes the pack's file (lane/b-slake-and-ford 2026-11-11): nobody can fight one, so the ceiling sweep leaves them out. */
+const UNSERVED = new Set(GROUND_PACKS.filter((p) => p.status !== 'open').flatMap((p) => Object.keys(p.monsters || {})));
 
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -315,7 +315,7 @@ export async function sqlGuard() {
       "select activity_id, max_hp from hr_activities where kind='combat'")).rows;
     const inDb = new Map(rows.map((r) => [r.activity_id, r.max_hp === null ? null : Number(r.max_hp)]));
     /* A called boss (src/data/boss-calls.js) is no activity: one verb reaches his room, and no combat pointer or fight clamp may name him. */
-    const authored = Object.keys(MONSTERS).filter((id) => MONSTERS[id].called !== true);
+    const authored = Object.keys(MONSTERS).filter((id) => MONSTERS[id].called !== true && !UNSERVED.has(id));
     for (const id of Object.keys(MONSTERS)) ok(MONSTERS[id].called !== true || !inDb.has(id), `SETTLE-1c: the called row ${id} has an hr_activities row: a door of its own`);
     ok(authored.length > 50,
       `SETTLE-1c: only ${authored.length} authored monsters — the sweep would be near-vacuous`);
@@ -701,7 +701,7 @@ async function mutate() {
   return bad;
 }
 
-if (isMain(import.meta.url) && wholeViewOrRerun(import.meta.url, CHAIN_END)) {
+if (isMain(import.meta.url)) {
   if (process.argv.includes('--mutate')) {
     console.log('Live-settlement Phase 0 — mutation harness:');
     const bad = await mutate();

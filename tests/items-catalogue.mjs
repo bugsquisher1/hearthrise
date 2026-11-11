@@ -126,7 +126,21 @@ export async function itemsCatalogueGuard(opts) {
       + 'is checking nothing');
   }
 
-  const missing = authored.filter((id) => !parsed.ids.has(id));
+  /* GROUND PACKS (lane/b-slake-and-ford 2026-11-11). A STAGED pack's own items have no source a player can reach, so no bag can
+     hold one, and no row until tools/pack.mjs ship; an OPEN pack's rows live in its own additive file (its `sql`), read here too. */
+  const unserved = new Set();
+  {
+    const { GROUND_PACKS } = await import(pathToFileURL(join(ROOT, 'src', 'data', 'grounds', 'index.js')).href);
+    for (const p of GROUND_PACKS) {
+      if (p.status !== 'open') { for (const id of Object.keys(p.items || {})) unserved.add(id); continue; }
+      let packSql = '';
+      try { packSql = await readFile(join(ROOT, 'supabase', 'migrations', p.sql), 'utf8'); }
+      catch { problems.push(`the open pack ${p.id} names ${p.sql}, which is not in supabase/migrations: its items have no row`); continue; }
+      const own = itemIdsInSql(packSql);
+      if (own.ok) for (const id of own.ids) parsed.ids.add(id);
+    }
+  }
+  const missing = authored.filter((id) => !parsed.ids.has(id) && !unserved.has(id));
   if (missing.length) {
     problems.push(
       `${missing.length} item id(s) exist in src/data/items.js but have NO hr_items row: `
@@ -138,7 +152,7 @@ export async function itemsCatalogueGuard(opts) {
   }
   return {
     problems,
-    note: `${authored.length} authored items ⊆ ${parsed.ids.size} hr_items rows`,
+    note: `${authored.length} authored items ⊆ ${parsed.ids.size} hr_items rows` + (unserved.size ? ` (${unserved.size} in staged packs, not served yet)` : ''),
   };
 }
 

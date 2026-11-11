@@ -14,7 +14,7 @@
 //   node tests/hunt-screen.mjs --shots <dir>  also write the visual-gate screenshots
 //                                             (1440x900 and 922x423)
 //
-// mutant-anchors: src/render/images.js src/world/atlas.js src/hunt-view/summary-model.js src/session/character-session.js src/session/hunt-leave.js src/session/hunt-poll.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js src/shell/action-facts.js src/shell/hud.js
+// mutant-anchors: src/render/images.js src/world/atlas.js src/hunt-view/summary-model.js src/session/character-session.js src/session/hunt-leave.js src/session/hunt-poll.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/shell-hud.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js src/shell/action-facts.js src/shell/hud.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/hunt-envelope.json.
@@ -1948,7 +1948,7 @@ const MUTANTS = [
   /* HS-28 (designer 2026-11-11): the fight stays clear at 1024x768. */
   ['the analyzer starts open over the fight at 1024 (HS-28)', 'src/data/hud-widgets.js', "when: 'hunt', folded: 'narrow',", "when: 'hunt',"],
   ['a lone hero\'s Party panel starts open at 1024 (HS-28)', 'src/data/hud-widgets.js', "when: 'hunt', folded: 'narrow-alone',", "when: 'hunt',"],
-  ['the fold width is never read (HS-28)', 'src/shell/shell.js', 'narrow: () => host.innerWidth <', 'narrow: () => false && host.innerWidth <'],
+  ['the fold width is never read (HS-28)', 'src/shell/shell-hud.js', 'narrow: () => host.innerWidth <', 'narrow: () => false && host.innerWidth <'],
   ['every desktop folds the analyzer (HS-28)', 'src/styles/tokens.css', '--hud-fold-below: 1280px;', '--hud-fold-below: 4000px;'],
   ['the folded Tally hides its count (HS-28)', 'src/styles/shell.css', '.hs-widget.is-folded .hs-tally-sum:not(:empty) { display: inline; }', '.hs-widget.is-folded .hs-tally-sum:not(:empty) { }'],
   ['Hunt details leaves a folded analyzer folded (HS-28)', 'src/shell/widgets/hunt-topbar.js', "    if (hud.layoutOf('analyzer').folded) hud.setFolded('analyzer', false);\n", ''],

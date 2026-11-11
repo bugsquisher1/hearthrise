@@ -545,6 +545,8 @@
     "node tests/hunt-summary.mjs": "client-guards-2",
     "node tools/mutant-gate.mjs node tests/hud-layout-display-only.mjs --selftest": "client-guards-2",
     "node tests/hud-layout-display-only.mjs": "client-guards-2",
+    "node tools/mutant-gate.mjs node tests/bar-sort.mjs --mutate": "client-guards-2",
+    "node tests/bar-sort.mjs": "client-guards-2",
     "node tests/session-core.mjs": "client-guards-2",
     "node tools/mutant-gate.mjs node tests/session-core.mjs --mutate": "client-guards-2",
     "node tests/new-version-banner.mjs": "client-guards-2",

@@ -557,22 +557,111 @@
 .hw-add .hh-select { flex: 1; min-width: 0; }
 .hw-add .hw-preset-name { flex: 1; width: auto; }
 .hw-ready { margin: 0 0 6px; padding: 0; list-style: none; }
+.hw-ready[hidden] { display: none; }
 .hw-ready-row { padding: 6px 0 8px; border-top: 1px solid var(--line-soft); }
 .hw-ready-line { margin: 0; color: var(--red); }
 .hw-ready-row.is-ready .hw-ready-line { color: var(--green); }
 .hw-checks { margin: 4px 0 0; padding: 0 0 0 14px; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-check.is-short { color: var(--red); }
 .hw-use { color: var(--gold-2); }
-/* A setup's Delete asks once: "Delete it?" in red with Keep beside it, in the place Save here and Use stood. */
+/* A setup's Delete asks once: "Delete it?" in red with Keep beside it, in the place Use stood. */
 .hw-keep { display: none; }
 .hw-setup.is-arming .hw-keep { display: inline-block; }
 .hw-setup.is-arming .hw-del { color: var(--red); }
-.hw-setup.is-arming [data-hs-act="save-over"], .hw-setup.is-arming .hw-use { display: none; }
-/* The setup the hero is on: "In use" in gold, and no Delete (its place kept so the rows line up). */
+.hw-setup.is-arming .hw-use { display: none; }
+/* The setup the hero is on: "In use" in gold, and no Delete; Delete sits on the picked row only. */
 .hw-setup.is-current small, .hw-title.is-current small { color: var(--gold-2); }
-.hw-setup.is-current .hw-del { visibility: hidden; }
+.hw-setup .hw-del { display: none; }
+.hw-setup.is-picked:not(.is-current) .hw-del { display: inline-block; }
 .hw-town-only { display: none; }
 .hw-town-only.is-on { display: block; }
+
+/* ── HUNT PREP, THE SETUP BUILDER (Tyler 2026-11-11; mocks .claude/coordination/mocks/2026-11-11-hunt-prep-builder) ──
+   The setups column at the left, the one setup's copy at the right: Fights as, the three fight panels and the gold, then the
+   bar's well with the HUD's own tiles at the HUD's size (hunt.css .hb-slots: 68 px at 1280 and up, 40 px on a narrow desktop).
+   Every control is the game's own (hunt.css .hh-tool / .hh-seg / .hh-step / .hh-select, the gold plate .hh-tool.is-primary).
+   The bar's well is the one box on the page: it IS the bar. A narrow desktop caps the window to the World. */
+.hs-win[data-hs-win="hunt-prep"] { max-width: calc(100% - 24px); }
+.hpb { display: grid; grid-template-columns: 220px 1fr; column-gap: 20px; row-gap: 0; }
+.hpb .hw-ledger-head.is-on { margin: 0 0 6px; }
+.hpb-left { display: flex; flex-direction: column; gap: 2px; padding-right: 16px; box-shadow: 2px 0 0 var(--steel-rule); }
+.hpb-sets { margin: 0 0 8px; }
+.hpb-set { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 4px 6px 4px 10px; cursor: pointer; border-top: 0; border-left: 2px solid transparent; }
+.hpb-set .hw-line-name b { font-size: var(--t-small); color: var(--ink-2); white-space: normal; }
+.hpb-set .hw-line-name small { white-space: normal; color: var(--ink-3); }
+.hpb-set:hover { background: var(--surf-panel); }
+.hpb-set.is-picked { background: var(--bg-0); box-shadow: var(--steel-well); border-left-color: var(--gold); }
+.hpb-set.is-picked .hw-line-name b { color: var(--ink); }
+.hpb-set-do { display: flex; flex-direction: column; align-items: stretch; flex: none; }
+.hpb-set-do .hh-tool { min-height: 26px; padding: 0 6px; }
+/* The New row: the name field gives way to its Save, so both stay inside the column (the field's own width is wider than the column). */
+.hpb-add { margin: 0 0 6px; }
+.hpb-add .hw-preset-name { flex: 1 1 0; width: 0; min-width: 0; }
+.hpb-add .hh-tool { flex: none; }
+.hpb-add[hidden] { display: none; }
+.hpb-leftrow { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
+.hpb-left .hh-tool { justify-content: flex-start; text-align: left; }
+.hpb-from { display: flex; flex-direction: column; align-items: flex-start; padding: 6px 10px; min-height: 0; white-space: normal; }
+.hpb-from small { font-weight: 400; color: var(--ink-3); font-size: var(--t-micro); }
+.hpb-from.is-arming b { color: var(--red); }
+.hpb-keep[hidden] { display: none; }
+.hpb-count { margin: 6px 2px 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hpb-right { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.hpb-carry[hidden] { display: none; }
+.hpb-edit { display: flex; flex-direction: column; gap: 10px; }
+.hpb-read[hidden] { display: none; }
+/* With no copy to edit (a setup still reading, or one the server could not read) the panels wait, dim. */
+.hpb-edit.is-blank .hpb-plays-box, .hpb-edit.is-blank .hpb-three, .hpb-edit.is-blank .hpb-gridwrap, .hpb-edit.is-blank .hpb-under { opacity: .45; }
+/* FIGHTS AS is read only: the lit role is the worn weapon's; a press on a dim one only says how to get it. */
+.hpb-plays { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.hpb-plays .hh-seg { cursor: default; }
+.hpb-plays .hh-seg:not([aria-pressed="true"]) { color: var(--ink-3); cursor: help; }
+.hpb-plays p { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+/* The four fight panels in one row at the HUD's 68 px tiles; one wraps under where the column is narrower (a 44 px tile desktop). */
+.hpb-three { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-start; }
+.hpb-three > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* A panel is as wide as its control; its note wraps inside that width and never widens it (width 0, min-width 100%). */
+.hpb-three > div > p { width: 0; min-width: 100%; }
+.hpb-three .hpb-target { min-width: 140px; }
+.hpb-stance .hh-seg { padding: 0 6px; }
+.hpb-three p { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hpb-move, .hpb-gold { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.hpb-move .hb-label, .hpb-gold .hb-label { font-size: var(--t-micro); color: var(--ink-2); }
+.hpb-floor { width: 72px; }
+/* The bar's head row: the heading, the count, then Sort and Clear at its right. */
+.hpb-barhead { display: flex; align-items: center; gap: 8px; }
+.hpb-barhead h3 { flex: 1; margin: 0; }
+.hpb-barhead small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: tabular-nums; margin-right: 8px; }
+.hpb-gridwrap { position: relative; width: max-content; max-width: 100%; overflow-x: auto; }
+.hpb-grid { list-style: none; margin: 0; padding: 8px; display: grid; grid-template-columns: repeat(10, clamp(40px, calc(9.375vw - 52px), 68px)); grid-auto-rows: clamp(40px, calc(9.375vw - 52px), 68px); gap: 4px;
+  justify-content: start; background: var(--bg-0); box-shadow: var(--steel-well); width: max-content; user-select: none; }
+.hpb-grid .hb-slot { width: clamp(40px, calc(9.375vw - 52px), 68px); height: clamp(40px, calc(9.375vw - 52px), 68px); }
+/* A filled tile is dragged, so a finger on it never scrolls; an empty one still pans the sheet. The icon and the badges take no
+   pointer of their own: the tile is the press, and a mouse on the icon never starts the browser's own image drag. */
+.hpb-grid .hb-slot:not(.is-empty) { touch-action: none; cursor: grab; }
+.hpb-grid .hb-slot .hb-slot-ico, .hpb-grid .hb-slot small, .hpb-grid .hb-slot .hb-plus { pointer-events: none; }
+.hpb-grid .hb-slot.is-busy { cursor: default; opacity: .6; }
+.hpb-grid .hb-slot.is-lifted { opacity: .35; }
+.hpb-grid .hb-slot.is-drop { outline: 2px dashed var(--gold); outline-offset: -2px; }
+.hpb-ghost { position: absolute; left: 0; top: 0; width: clamp(40px, calc(9.375vw - 52px), 68px); height: clamp(40px, calc(9.375vw - 52px), 68px); display: grid; place-items: center; background: var(--bg-3);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--world-shadow) 60%, transparent); z-index: 5; pointer-events: none; }
+.hpb-ghost .hh-icon { width: round(down, 100% - 4px, 32px); height: round(down, 100% - 4px, 32px); }
+.hpb-under { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hpb-msg { grid-column: 1 / -1; margin-top: 10px; }
+/* THE FOOTER, always in reach (sticky at the body's foot): the copy's state (not saved, sorted, changed on the bar), else the hero's readiness
+   line (a press shows every hero's checklist); then Close, Save and the one gold primary. */
+.hpb-foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin: 10px 0 -12px; padding: 10px 0 12px; box-shadow: 0 -2px 0 var(--steel-rule); position: sticky; bottom: -12px; background: var(--bg-1); z-index: 1; }
+.hpb-state { flex: 1; min-width: 0; margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hpb-state:empty { display: none; }
+.hpb-foot:has(.hpb-state:not(:empty)) .hpb-ready { display: none; }
+.hpb-ready { flex: 1; min-width: 0; margin: 0; padding: 0; border: 0; background: none; text-align: left; font-family: var(--f-ui); font-size: var(--t-micro); color: var(--red); cursor: pointer; }
+.hpb-ready.is-ready { color: var(--green); }
+.hpb-ready b { font-weight: 700; }
+.hpb-ready:hover { text-decoration: underline; }
+.hpb-load[hidden], .hpb-save-use[hidden] { display: none; }
+.hpb-foot .hh-tool.is-primary { min-height: 40px; }
+.hpb-ready-head { grid-column: 1 / -1; }
+.hpb > .hw-ready { grid-column: 1 / -1; }
 
 /* ── Phone, landscape: the one sheet; the same density, tighter rhythm ── */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
@@ -580,6 +669,22 @@
   /* A Shop row on the half-wide sheet: the icon and name on one line, the count and the price under them (the name had 23 px and read "C…"). */
   .hw-shop .hw-line { flex-wrap: wrap; justify-content: flex-end; }
   .hw-shop .hw-line-name { flex: 1 1 calc(100% - 52px); }
+  /* HUNT PREP ON A PHONE: the builder takes the sheet's whole width (as Configure action does), the columns stack, the setups
+     run as a strip, the grid keeps its 2 x 10 at a thumb's tile and scrolls inside its well on the narrowest screen. */
+  .hs-win[data-hs-win="hunt-prep"] { width: min(100%, 840px); max-width: 100%; }
+  .hpb { grid-template-columns: 1fr; }
+  .hpb-left { padding: 0 0 10px; box-shadow: 0 2px 0 var(--steel-rule); margin-bottom: 12px; }
+  .hpb-sets { display: flex; flex-direction: row; gap: 4px; overflow-x: auto; margin-bottom: 4px; }
+  .hpb-set { flex: none; min-height: 44px; border-left: 0; border-bottom: 2px solid transparent; }
+  .hpb-set.is-picked { border-bottom-color: var(--gold); }
+  .hpb-leftrow { flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .hpb-leftrow .hh-tool { min-height: 44px; }
+  .hpb-count { margin: 0 0 0 auto; }
+  .hpb-from small { display: none; }
+  .hpb .hh-tool, .hpb .hh-seg, .hpb .hh-select { min-height: 44px; }
+  .hpb-grid { grid-template-columns: repeat(10, 56px); grid-auto-rows: 56px; padding: 6px; }
+  .hpb-grid .hb-slot, .hpb-ghost { width: 56px; height: 56px; }
+  .hpb-foot { bottom: -10px; margin-bottom: -10px; padding-bottom: 10px; }
   /* The phone sheet scrolls as one, its foot under the list. */
   .hs-win[data-hs-win="inventory"] .hs-win-body { display: block; overflow: auto; }
   [data-hs-win="inventory"] .hw-inv { display: block; overflow-y: visible; }

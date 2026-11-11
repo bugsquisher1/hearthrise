@@ -252,10 +252,22 @@ export const REASONS = Object.freeze({
   'src/shell/windows/hunt-summary.js': [
     { cond: 'huntOpen || !again', words: "'Hunt again is off. A hunt is already running.'", where: 'the summary\'s line under its buttons' },
   ],
-  'src/shell/windows/hunt-prep.js': [
-    { cond: '!presets || full || hunting', words: "setupFullWords(count, price)", where: 'the window line (full), the town-only note (hunting), the none line (no presets)' },
-    { cond: 'short > 0', words: "' You need ' + gold(short) + ' more.'", where: 'Buy a setup: the window line says how much more gold' },
-    { cond: 'sc.pending || hunting', words: "Setups change in town.", where: 'the town-only note' },
+  /* THE HUNT PREP BUILDER (lane/b-hunt-prep-builder, 2026-11-11): the setups column and the builder's copy of one setup. */
+  'src/shell/windows/hunt-prep/setups.js': [
+    { cond: 'sc.pending || hunting', words: "t('prep.town_only')", where: 'Use: the town-only note while hunting' },
+    { cond: 'noNew', words: "setupFullWords(count, price)", where: 'New and its Save: the window line (full), the town-only note (hunting), the none line (no presets)' },
+    { cond: 'sc.pending || hunting || !pickedRow', words: "t('prep.town_only')", where: 'Use equipped: the town-only note; with no setup picked there is nothing to replace (the none line)' },
+    { cond: 'short > 0', words: "t('prep.need_more'", where: 'Buy a setup: the window line says how much more gold' },
+  ],
+  'src/shell/windows/hunt-prep/builder.js': [
+    { cond: 'off || !d || d.stance === null', words: "t('prep.reading_setup')", where: 'stance: off until the copy of the setup is read (the read line says so, or the refusal); the server never sent a value' },
+    { cond: 'off || !d || d.targetMode === null', words: "t('prep.reading_setup')", where: 'target: the same' },
+    { cond: 'off || !d || d.chase === null', words: "t('prep.reading_setup')", where: 'chase: the same' },
+    { cond: 'off || !d || d.distance === null', words: "t('prep.reading_setup')", where: 'distance: the same, and at the ends of HERO_DISTANCE' },
+    { cond: 'off || !d || d.goldFloor === null', words: "t('prep.reading_setup')", where: 'the gold to keep: the same' },
+    { cond: 'off || !sc.draft', words: "t('prep.reading_setup')", where: 'Sort and Clear: off until the copy is read' },
+    { cond: 'off || !sc.draft || sc.stale', words: "t('prep.changed')", where: 'Save: the state line says the setup changed on the bar, load it again' },
+    { cond: 'off || !sc.draft || sc.stale || hunting', words: "t('prep.changed')", where: 'Save and use: the same, and the town-only note while hunting (setups.js)' },
   ],
   'src/shell/windows/character/titles.js': [
     { cond: 'w.off', words: "' · You need ' + gold(short) + ' more.'", where: 'the row\'s own line says how much more gold; a row short of its kills has no button, its line says the count' },

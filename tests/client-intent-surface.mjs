@@ -89,6 +89,8 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_preset_apply: 'put a saved setup back on (CharacterSession.applyPreset)',
   /* Ruling C4 (2026-11-15-preset-names.sql): a slot, a preset number and a name; the server owns the name rule. */
   hr_hunt_preset_rename: 'rename one of this character’s saved setups (preset-intents.js renameSetup)',
+  /* The Hunt prep builder (2027-04-13-hunt-preset-read.sql): a slot and a preset number, a read of that setup's bar and options, 60 a minute. */
+  hr_hunt_preset_read: 'one saved setup’s bar and options, the hr_hunt_settings_view shape, a read (preset-read.js readPreset)',
   hr_hunt_preset_delete: 'remove one of this character’s saved setups (preset-intents.js deleteSetup)',
   hr_action_set_rename: 'name the action set the bar shows (preset-intents.js renameActionSet)',
   hr_account_items: 'where an item is across this account, a read (AccountSession.findItems)',

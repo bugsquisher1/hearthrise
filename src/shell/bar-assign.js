@@ -14,12 +14,12 @@
 // buy that for ever while the hero's own juice waited (crafter's panel 2026-11-01: 78 Turnip Juice untouched through a 160 min
 // hunt). A slot the player names (a drag, `at`) is the player's order and is never moved.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.116';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.116';
-import { attackItem } from '../core/hunt/conditions.js?v=0.2.116';
-import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.116';
-import { kindOf } from './bag-model.js?v=0.2.116';
-import { startConditions, moveOffWeapon } from './bar-draft.js?v=0.2.116';
+import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.117';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.117';
+import { attackItem } from '../core/hunt/conditions.js?v=0.2.117';
+import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.117';
+import { kindOf } from './bag-model.js?v=0.2.117';
+import { startConditions, moveOffWeapon } from './bar-draft.js?v=0.2.117';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 

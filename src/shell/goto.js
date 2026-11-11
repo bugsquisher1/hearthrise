@@ -42,6 +42,8 @@ export function targetOf(place) {
   if (place.kind === 'temper') return { win: 'shop', tab: 'services', find: null };
   if (place.kind === 'market') return { win: 'market', tab: 'browse', find: null };
   if (place.kind === 'hunt') return place.hunt ? { win: 'hunts', tab: place.hunt, find: null } : null;
+  /* a creature's facts (windows/monster.js factsTarget reads this one row) */
+  if (place.kind === 'monster') return place.id ? { win: 'monster', tab: place.id, find: null } : null;
   if (place.kind === 'farm' || place.kind === 'house') return { win: place.kind, tab: null, find: null };
   return null;
 }

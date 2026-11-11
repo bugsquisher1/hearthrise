@@ -114,7 +114,7 @@ export const ITEM_DESC = {
   'bat_wing': 'Leathery wing torn from a cave bat, a minor alchemy reagent',
   'bear_claw': 'A curved claw torn from a bear, a trophy and crafting reagent',
   'bear_claw_pie': 'A rugged pie stuffed with bear meat, a fighter\'s feast that hardens your blows',
-  'bear_pelt': 'A Brook Bear\'s heavy pelt, from a party or a harder hunt at Mosslight Glade. The Keep, Trophy Room and Houndskin Cloak ask for it',
+  'bear_pelt': 'A Brook Bear\'s heavy pelt, from Mosslight Glade. The Keep, Trophy Room and Houndskin Cloak ask for it',
   'big_bones': 'Fuel for the Great Hearth in Havora, hotter than plain bones. Left by big brutes',
   'boarhide_belt': 'A broad boarhide belt, rugged enough for a ranger living out of camp',
   'boarhide_body': 'A boarhide jerkin, thick and rugged, cover built for a ranger who hunts the deep woods',

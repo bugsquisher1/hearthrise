@@ -25,10 +25,10 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.117';
 import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.117';
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.117';
 import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.117';
-import { residentsOf, scarceSetOf, raresOf, bigPullLine, materialsOf } from '../hunt-ground-facts.js?v=0.2.117';
+import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.117';
 import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.117';
 import { chance, listWords } from '../../render/format.js?v=0.2.117';
-import { gotoAttr } from '../goto.js?v=0.2.117';
+import { gotoAttr, patchParts } from '../goto.js?v=0.2.117';
 import { factsTarget } from './monster.js?v=0.2.117';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
@@ -176,10 +176,10 @@ export function patchGround(det, ctx, r, o) {
   /* One ground line: every creature stands at the height of the tallest drawn here, feet on the same row. */
   const tallest = Math.max(0, ...Array.from(lineup.querySelectorAll('.hw-hd-mon.is-drawn canvas'), (c) => c.height));
   style(lineup, '--stand-h', tallest ? tallest + 'px' : null);
-  /* Who the line above leaves out: a creature only a bigger pull brings, and what it drops (the Brook Bear's Bear Pelt). */
-  const bigPull = det.querySelector('.hw-hd-bigpull'), bigSaid = bigPullLine(r.hunt);
-  text(bigPull, bigSaid);
-  prop(bigPull, 'hidden', !bigSaid);
+  /* Who the line above leaves out: a creature only a harder hunt summons, its name a link to its facts (Tyler 2026-11-11: no drop list). */
+  const bigPull = det.querySelector('.hw-hd-bigpull'), bigParts = bigPullParts(r.hunt, factsTarget);
+  patchParts(bigPull, bigParts);
+  prop(bigPull, 'hidden', !bigParts.length);
   /* What drops here and how often (Tyler 2026-10-24: "a % drop chance or nothing at all"): the gear a line a tier, the
      hero's own armour weight first ("Iron, Studded, Adept: helmets, boots and Iron Sword") with the chance a kill here drops
      any piece of it, then each Rare and Trophy, item and carrier, with its chance per kill of that creature. The odds

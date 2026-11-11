@@ -23,7 +23,7 @@ export const MONSTER_TEXT = Object.freeze({
   how_uncommon: 'uncommon',
   how_rare: 'rare',
   how_boss: 'boss',
-  how_pull: 'only with a party or a harder hunt',
+  how_pull: 'only a harder hunt summons it',
 
   /* In a fight. */
   h_fight: 'In a fight',

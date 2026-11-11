@@ -44,7 +44,7 @@ const HIGHEST = Object.freeze({ chance: () => true, int: (lo, hi) => hi });
 /**
  * The open grounds monster `id` lives on, lowest floor first: [{ hunt, name, band: [lo, hi], how, warn, ground }].
  * `how` is its share of the spawn points in words ('common' | 'uncommon' | 'rare'), 'boss', or 'pull' for a creature
- * only a party or a harder hunt brings. `warn`: for a boss whose hall is built for a group, the Hunts list's warning; else ''.
+ * only a harder hunt summons (Normal is the room as built for every group, Tyler 2026-11-11). `warn`: for a boss whose hall is built for a group, the Hunts list's warning; else ''.
  */
 export function homesOf(id) {
   const out = [];

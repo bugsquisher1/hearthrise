@@ -16,7 +16,7 @@ import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.117'
 import { gold, whole, listWords } from '../../render/format.js?v=0.2.117';
 import { runIntent } from '../intent-words.js?v=0.2.117';
 import { huntedOnly, saleWords } from '../item-lore.js?v=0.2.117';
-import { dropWhereWords, dropHuntOf } from '../hunt-ground-facts.js?v=0.2.117';
+import { dropWhereWords, dropPlaceOf } from '../hunt-ground-facts.js?v=0.2.117';
 import { patchParts, targetOf } from '../goto.js?v=0.2.117';
 import { t } from '../../render/player-text.js?v=0.2.117';
 
@@ -59,7 +59,7 @@ function wayParts(rows) {
     said.set(n.id, [{ words: n.smith.level < n.smith.req
       ? t('temper.way_smith_short', { name: n.name, req: n.smith.req, level: n.smith.level, inputs })
       : t('temper.way_smith', { name: n.name, req: n.smith.req, inputs }), target: targetOf({ kind: 'work', skill: 'smithing', row: n.smith.id }) },
-    ...n.smith.from.map((f) => ({ words: dropWords(f), target: targetOf({ kind: 'hunt', hunt: dropHuntOf(f.id) }) })),
+    ...n.smith.from.map((f) => ({ words: dropWords(f), target: targetOf(dropPlaceOf(f.id)) })),
     { words: saleWords(n.id) ? '' : t('temper.way_weighhouse'), target: targetOf({ kind: 'market' }) }].filter((p) => p.words));
   }
   return [...said.values()].flat().flatMap((p, i) => (i ? [' ', p] : [p]));

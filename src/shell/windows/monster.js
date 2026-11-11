@@ -25,7 +25,7 @@ import { TIER_NAME, DEFAULT_TIER } from '../../data/hunt-tiers.js?v=0.2.117';
 import { monsterFactsOf, isMet } from '../monster-facts.js?v=0.2.117';
 import { targetOf, placesParts, patchParts } from '../goto.js?v=0.2.117';
 
-const WIN = 'monster';
+const WIN = targetOf({ kind: 'monster', id: 'x' }).win;
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px, facing the player. */
 const PORTRAIT = Object.freeze({ scale: 2, dir: PORTRAIT_DIR });
 const VERSION = new URL(import.meta.url).searchParams.get('v') || '';
@@ -37,7 +37,7 @@ const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { id: null, facts: null }; SCRATCH.set(cs, s); } return s; };
 
 /** The link that opens monster `id`'s page (src/shell/goto.js linkHtml, gotoAttr). */
-export const factsTarget = (id) => ({ win: WIN, tab: id, find: null });
+export const factsTarget = (id) => targetOf({ kind: 'monster', id });
 
 const fact = (key, label) => '<div class="mf-fact"><dt>' + esc(t(label)) + '</dt><dd data-fact="' + key + '"></dd></div>';
 const head = (label, per) => '<h4 class="hw-hd-h">' + esc(t(label)) + (per ? ' <small class="hw-hd-per ' + per + '"></small>' : '') + '</h4>';

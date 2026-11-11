@@ -33,7 +33,7 @@ import { itemName } from './widgets/bits.js?v=0.2.117';
 import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromKit, temperSpends } from './bag-model.js?v=0.2.117';
 import { FLAMES } from '../data/hearth.js?v=0.2.117';
 import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.117';
-import { dropWhereWords, dropHuntOf, isRareItem } from './hunt-ground-facts.js?v=0.2.117';
+import { dropWhereWords, dropPlaceOf, isRareItem } from './hunt-ground-facts.js?v=0.2.117';
 import { recipeOutcomes, HALLMARK_OFFERS } from '../data/jewelry.js?v=0.2.117';
 import { t, hasText } from '../render/player-text.js?v=0.2.117';
 
@@ -141,8 +141,7 @@ export function wherePlaces(id) {
   if (r.shop) out.push({ words: t('item.sold_at_shop'), place: { kind: 'shop', item: id } });
   const easy = r.shop || Object.values(r.at).some((lv) => lv <= 1);
   const drop = !easy && r.drops.length ? dropWhereWords(id) : '';
-  const hunt = drop ? dropHuntOf(id) : null;
-  if (drop) out.push({ words: drop, place: hunt ? { kind: 'hunt', hunt } : null });
+  if (drop) out.push({ words: drop, place: dropPlaceOf(id) });
   return out;
 }
 

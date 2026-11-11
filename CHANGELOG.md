@@ -5,6 +5,16 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.124 — 2026-11-12 (Faces and Frames)
+
+**Every window has the same header.** Its icon, Back, the title, the help mark, the hotkey and Close sit in one row. Back takes you to the window that opened this one, so a Monster page goes back to Hunts and Configure action goes back to Hunt prep. The old Back buttons inside the body are gone.
+
+**Windows know where to stand.** On a wide screen the bag opens beside Storage, the Shop and your Character so you can move things across. Hunts and Hunt prep lie over the dock and leave the rest alone.
+
+**Creatures have faces now.** Forty-three creature heads and twenty-two item icons are drawn in the game's pixel style. A creature's head sits beside its name on its Monster page and on Tamsin's tally. A creature without a head yet shows no empty box.
+
+**Phone tip cards got their words back.** On a phone, a tip card keeps its title on one line, with Don't show tips and Got it on their own row under the words. The party invite's Join sits under the town card instead of over it, and the Shop's tip card no longer crowds the buttons.
+
 ## v0.2.123 — 2026-11-12 (Your Town, Your Way)
 
 **Tips are yours to turn off.** Every coach card has Got it and Don't show tips. Got it closes that card. Don't show tips hides them all, and Settings, Interface, Show tips brings them back.

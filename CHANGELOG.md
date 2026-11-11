@@ -11,7 +11,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Town criers call out tips in Local chat.** The Town Crier, Garrick the Smith and Tamsin Reeve speak up now and then about something you haven't done yet, with a link that takes you there. They go quiet during a hunt and when Show tips is off. Only you see their lines.
 
-**Coming home from a hunt has a guided path.** The hunt summary lists what to do in town, each one press with its real count and value: wear the better gear you found, sell what your loot plan marks for the shop, put away what it marks for Storage, bless, then hunt again. One gold button at a time, and done steps stay ticked.
+**Coming home from a hunt has a guided path.** The hunt summary lists what to do in town, each one press with its real count and value. Wear the better gear you found, sell what your loot plan marks for the shop, put away what it marks for Storage, bless, then hunt again. One gold button at a time, and done steps stay ticked.
 
 **Tamsin's tally board got a new look.** Tamsin talks to you at the top and tells you where you stand. Your own tasks come first, with her tally marks and the exact count, the piece she'll give you, and what you'll get. Her board shows only the tasks you don't hold, with the ground as a link and a proper Take button. The armor weight and slot order are behind Change.
 

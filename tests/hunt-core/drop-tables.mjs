@@ -218,7 +218,7 @@ const cases = {
             trophies++;
             if (m.boss !== true) return tag + ' carries a Trophy row (' + d.id + ') and is no boss';
           }
-          /* A KEY opens one hall, and only that hall's own ground drops it (Krell's Hold: the Castellan carries the Hall Key) */
+          /* A KEY opens one hall, and only that hall's own ground drops it (Krell's Hold: the Gatekeeper carries the Hall Key) */
           if (d.band === 'key') {
             keys++;
             if (typeof it.opens !== 'string' || !it.opens) return tag + ' Key row ' + d.id + ' opens nothing (an item with `opens`, a hall\'s ground)';
@@ -702,8 +702,8 @@ const dataMutants = [
   { name: 'a misspelt band', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'gray_whelp', 'bronze_boots').band = 'scarse'; } },
   /* the Key band (lane/b-krells-hold-pack): a hall's key drops on its own ground only, and nothing that opens no hall rides the band */
   { name: 'the Hall Key on a ground with no hall (a Thicket wolf carries it)', case: 'loot-structure', edit: (ms) => { ms.gray_wolf.drops.push({ id: 'hall_key', ch: 0.03, band: 'key' }); } },
-  { name: 'a Key row that opens nothing (Bones in the Key band)', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'castellan', 'hall_key').id = 'bones'; } },
-  { name: 'two Key rows on one monster', case: 'loot-structure', edit: (ms) => { ms.castellan.drops.push({ id: 'hall_key', ch: 0.01, band: 'key' }); } },
+  { name: 'a Key row that opens nothing (Bones in the Key band)', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'gatekeeper', 'hall_key').id = 'bones'; } },
+  { name: 'two Key rows on one monster', case: 'loot-structure', edit: (ms) => { ms.gatekeeper.drops.push({ id: 'hall_key', ch: 0.01, band: 'key' }); } },
   { name: 'an old-model flag on a banded row', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'briarcoat_wolf', 'leather_pants').gear = true; } },
   { name: 'a Warrens row with no band', case: 'loot-structure', edit: (ms) => { delete rowOf(ms, 'goblin_digger', 'coal').band; } },
   { name: 'rows out of band order', case: 'loot-structure', edit: (ms) => { const d = ms.gray_whelp.drops; d.push(d.splice(2, 1)[0]); } },
@@ -763,8 +763,8 @@ const playMutants = [
   } },
   { name: 'the Kingsgrate at 5% (a Rare every 4 h)', rule: 'rare-pace: millrace_sewer rare kingsgrate', edit: (ms) => { rowOf(ms, 'rat_king', 'kingsgrate').ch = 0.05; } },
   /* the Key band's pace, both ways, on the staged Hold (its pack's dropRef plays the floor hour) */
-  { name: 'the Hall Key twice as common (a key an hour)', rule: 'key-pace: krells_hold', edit: (ms) => { rowOf(ms, 'castellan', 'hall_key').ch *= 2; } },
-  { name: 'the Hall Key at half its odds (a key every 4 h or more)', rule: 'key-pace: krells_hold', edit: (ms) => { rowOf(ms, 'castellan', 'hall_key').ch /= 2; } },
+  { name: 'the Hall Key twice as common (a key an hour)', rule: 'key-pace: krells_hold', edit: (ms) => { rowOf(ms, 'gatekeeper', 'hall_key').ch *= 2; } },
+  { name: 'the Hall Key at half its odds (a key every 4 h or more)', rule: 'key-pace: krells_hold', edit: (ms) => { rowOf(ms, 'gatekeeper', 'hall_key').ch /= 2; } },
   { name: 'the Thicket\'s heavy boots five times rarer', rule: 'gear-pace: meadowbrook_thicket', edit: (ms) => { rowOf(ms, 'gray_whelp', 'bronze_boots').ch /= 5; } },
   { name: 'the Thicket\'s bodies twice as common', rule: 'gear-pace: meadowbrook_thicket', edit: (ms) => { for (const d of scarceOf(ms, 'dire_gray')) d.ch *= 2; } },
   { name: 'the Sewer\'s bodies too slow (the one sample point)', rule: 'gear-pace: millrace_sewer', edit: (ms) => { for (const d of scarceOf(ms, 'sump_slime')) d.ch = 0.03; } },

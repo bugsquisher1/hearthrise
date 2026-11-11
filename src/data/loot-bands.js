@@ -17,7 +17,7 @@
 //   rare      each item every 10-20 h: next-tier pieces, named pieces, the
 //             carrier's trophies. The reveal, and the party's rare roll.
 //   key       about every 2 h (1.5-3 h), the door to a keyed hall (lane/b-krells-hold-pack; the designer's
-//             "2026-11-10 Krell's Hold": the Castellan carries the Hall Key, "about one key every two hours
+//             "2026-11-10 Krell's Hold": the Gatekeeper carries the Hall Key, "about one key every two hours
 //             for a lone hero at the floor"). Only an item that `opens` a hall, only on that hall's own ground,
 //             one row a monster. A standard drop, never revealed: the fight it opens is the moment.
 //   trophy    every 100-150 h, bosses only, the boss's LAST row: one named

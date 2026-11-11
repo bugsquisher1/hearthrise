@@ -68,6 +68,8 @@ async function load(root) {
   M.roles = await imp('src/data/hunt-roles.js');
   M.AD = await imp('src/data/abilities.js');
   M.CD = await imp('src/data/consumables.js');
+  /* the ground packs (src/data/grounds): a pack states its own pull (party-pull below) */
+  M.packs = (await imp('src/data/grounds/index.js')).GROUND_PACKS;
   M.SUP = await imp('src/data/supplies.js');
   M.kit = await imp('src/data/start-kit.js');
   M.acc = await raw('supabase/functions/hr-accrue/accrual.js');
@@ -904,6 +906,9 @@ const cases = {
   'party-pull': (M) => {
     const G = M.grounds;
     const want = { meadowbrook_thicket: [0, 4, 5, 6], wickstead: [0, 3, 3, 4], mosslight_glade: [0, 3, 3, 4], mill_cellar: [0, 4, 5, 5], millrace_sewer: [0, 0, 0, 0], coppercap_warrens: [0, 0, 0, 0] };
+    /* A GROUND PACK'S PULL IS ITS OWN STATED CHOICE (lane/b-krells-hold-pack): its pack.js ground.partyPull, read from there, so a new pack needs
+       no line here and parallel pack lanes never collide on this one. The rows below still play each through densityFor. */
+    for (const p of M.packs || []) want[p.id] = p.ground.partyPull;
     if (Object.keys(G.HUNT_GROUNDS).sort().join() !== Object.keys(want).sort().join()) return 'a new ground: give it a line here, its pull is a choice';
     for (const [id, row] of Object.entries(want)) {
       const got = [1, 2, 3, 4].map((n) => G.densityFor(G.HUNT_GROUNDS[id], n, 0));

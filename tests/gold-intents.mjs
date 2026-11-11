@@ -1388,7 +1388,10 @@ async function run(mutate) {
     const { ITEMS } = await import('../src/data/items.js');
     /* PRODUCTION'S hr_items is the FORWARD catalogue's delete+insert (gen-catalogues OUT),
        not the frozen 08-11 root this slice boots; its rows are loaded into a temp copy. */
-    const { CATALOGUE_SQL: FWD } = await import('./items-catalogue.mjs');
+    const { CATALOGUE_SQL: FWD, stagedOnlyOfTree } = await import('./items-catalogue.mjs');
+    /* A STAGED ground pack's own items, reachable by no door, are in ITEMS and in no catalogue by design (items-catalogue.mjs
+       stagedOnlyItemIds, the S5 guard's one rule): no bag can hold one, so no sale can price one. The day one is reachable it counts. */
+    const stagedOnly = await stagedOnlyOfTree();
     const fwd = await readFile(join(ROOT, FWD), 'utf8');
     const at = fwd.indexOf('insert into public.hr_items ');
     const stmt = at < 0 ? '' : fwd.slice(at, fwd.indexOf(';\n', at) + 1);
@@ -1399,7 +1402,7 @@ async function run(mutate) {
     const rows = (await db.query('select item_id from pg_temp.g16_items')).rows.map((r) => r.item_id);
     const known = new Set(rows);
     ok(rows.length > 100, `G16-CONTROL: hr_items holds ${rows.length} rows — the catalogue is not the generated one`);
-    const missing = Object.keys(ITEMS).filter((id) => !known.has(id)).slice(0, 5);
+    const missing = Object.keys(ITEMS).filter((id) => !known.has(id) && !stagedOnly.has(id)).slice(0, 5);
     ok(missing.length === 0,
       `G16: [${missing}] are priceable here and ABSENT from the generated hr_items, so a vendor_sell `
       + 'would pass this layer\'s guard and be refused by hr_apply with the same code from a '

@@ -108,7 +108,7 @@ export function stagedOnlyItemIds(packs, reach) {
   }
   return out;
 }
-async function stagedOnlyOfTree() {
+export async function stagedOnlyOfTree() {
   const v = (p) => pathToFileURL(join(ROOT, p)).href;
   const { GROUND_PACKS } = await import(v('src/data/grounds/index.js'));
   const CC = await import(v('src/data/catalogue-coherence.js'));

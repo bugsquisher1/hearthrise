@@ -21,6 +21,8 @@ import { prepare } from '../tools/settle-cost.mjs';
 import { decodeStored } from '../src/core/hunt/world-state.js';
 import { tierRowOf, pullOfTier, GROUND_TIERS } from '../src/data/hunt-tiers.js';
 import { OUT_NAME as DIALS_FILE } from '../tools/gen-ground-tiers.mjs';
+import { foldedPacks } from '../tools/pack/whole.mjs';
+import { packIds } from '../tools/pack/files.mjs';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -146,7 +148,11 @@ async function dialsTwice(db, again) {
     checks: (await db.query("select conname, pg_get_constraintdef(oid) d from pg_constraint where conrelid = 'public.hr_ground_tiers'::regclass order by conname")).rows,
   });
   const want = [];
-  for (const g of Object.keys(GROUND_TIERS).sort()) for (const id of ['dangerous', 'deadly']) {
+  /* the grounds the dials file serves: the base ones and the ground packs it folds (tools/pack/whole.mjs, the generator's own rule); a staged
+     pack, or one shipped after the file, has its tier rows in the data and none on the server yet (lane/b-krells-hold-pack) */
+  const packs = packIds(), folded = foldedPacks(DIALS_FILE);
+  const served = (g) => !packs.includes(g) || folded.includes(g);
+  for (const g of Object.keys(GROUND_TIERS).filter(served).sort()) for (const id of ['dangerous', 'deadly']) {
     const t = GROUND_TIERS[g][id];
     want.push({ hunt_id: g, tier: id, pull: t.pull, dmg_pm: t.dmgPm, hp_pm: t.hpPm, xp_pm: t.xpPm });
   }

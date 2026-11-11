@@ -210,8 +210,14 @@ const ARMS = {
     return problems;
   },
   /* The two files' own self-checks refuse the apply: the file's text, one row edited, run over the chain. */
-  'HP-4': async (db, H) => {
+  'HP-4': async (_db, H) => {
     const problems = [];
+    /* ON THE CHAIN AS OF THESE TWO FILES (secondApply's rule, below): a later full-replace catalogue may rename or drop an item these files
+       still name (lane/b-krells-hold-pack's tier-7 rename, 2027-04-06), and on the chain END their own self-check then stops at that row
+       before the refusal this arm asks for. Where they stand in the order, every row they name exists. */
+    const { bootReplay } = await import('./schema-replay.mjs');
+    const { db } = await bootReplay({ upTo: AGAIN_UP_TO });
+    try {
     const refuses = async (file, pairs, want, what) => {
       let sql = readFileSync(join(H.ROOT, 'supabase', 'migrations', file), 'utf8').split('\r\n').join('\n');
       for (const [find, repl] of pairs) {
@@ -230,6 +236,7 @@ const ARMS = {
     ['if v_n <> 36 then', 'if v_n <> 37 then']], 'held house rows are sellable', 'the Castle sold');
     await refuses(BOUNDS, [[`'{"raw_bear_meat":1,"bear_pelt":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb`, `'{"raw_bear_meat":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb`]],
       'item bound is under', 'the bear\'s bound forgets the pelt');
+    } finally { await db.close().catch(() => {}); }
     problems.push(...await secondApply(H));
     return problems;
   },

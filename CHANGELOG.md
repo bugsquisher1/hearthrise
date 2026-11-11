@@ -19,6 +19,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Bless all gets you every blessing in one press,** and the hunt warning shows what a death really costs with your blessings on.
 
+**Coming back after a hunt ended tells you what your hero did next:** went back to its gathering job, or waited in town and for how long, plus the one thing that would have filled that time.
+
 **Crafting stations have a Sort menu,** so you can list recipes by what you can make, by level or by name, and each station remembers your pick.
 
 **Smaller fixes.** Item tooltips close when you close their window. The rune tip names the right tab. Dispatch loot says what it did after a sale.

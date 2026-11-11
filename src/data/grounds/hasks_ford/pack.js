@@ -39,8 +39,8 @@
 // estimate: no career was played with the Ford open. So the Ford opens WITH a re-measured pace
 // and a re-fit of the Level curve from 45 up (tools/balance-sim/pace.mjs --fit, tools/gen-level-curve.mjs): the Coordinator's
 // world move, listed in the lane's report.
-import { definePack, box, gather } from '../shape.js?v=0.2.113';
-import map from './map.js?v=0.2.113';
+import { definePack, box, gather } from '../shape.js?v=0.2.116';
+import map from './map.js?v=0.2.116';
 
 const PK = 'banded_pikeman', FS = 'fordsunk', LW = 'ledger_wight', BN = 'bannerman';
 

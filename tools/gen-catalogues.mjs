@@ -111,7 +111,10 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* CRAFTED JEWELRY (lane/c-jewelry-sample, Tyler 2026-11-05): 2027-03-08-rune-ladder-items-catalogue is APPLIED history; the Banded Signet's Fine and Hallmarked rows, the Road Carnelian (hr_items) and the two rolled Crafting jobs (hr_activities) land in ONE forward file, the same full delete+insert replace. */
 /* ONE FORMULA FOR EVERY HUNT (lane/b-ground-formula, Tyler 2026-11-07): 2027-03-14-jewelry-items-catalogue is APPLIED history; the open grounds' monsters' max HP (hr_activities combat rows) land in ONE forward file, the same full delete+insert replace. */
 /* TIER 4'S MADE RUNGS (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-20-ground-formula-items-catalogue is APPLIED history; the Mithril Hatchets' and Maple Crossbow's hr_items rows and their Smithing and Crafting recipes in hr_activities land in ONE forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-03-27-phase0-tier4-items-catalogue.generated.sql');
+/* TIER 7'S NAMES (lane/b-krells-hold-pack, the designer's 11-10 ruling 6): 2027-03-27-phase0-tier4-items-catalogue is the file before this one and this one carries it whole; the
+   tier-7 leather and cloth move ids and names together, voidhide_* -> slakehide_* (Slakehide) and voidweave_* -> shroudweave_* (Shroudweave), twelve hr_items rows and their
+   hr_item_slots. No ground drops tier 7, so no bag holds one (the Coordinator reads the live bags before the apply). ONE forward file, the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-06-krells-hold-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

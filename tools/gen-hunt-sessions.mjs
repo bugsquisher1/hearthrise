@@ -250,7 +250,11 @@ export const WORLD_FIELDS_READ = Object.freeze({
    column, its insert, the digest and the header differ. AFTER 2027-04-05-call-out-alone.sql, which restates the one body that read the column
    (hr_boss_call_quote): applied before it, the live quote would read a dropped column until that file landed. No kill bound, spawn, limit, ability, bid
    or shape moves, so no hunt pauses and the edge needs no order with it. */
-export const OUT_NAME = '2027-04-05-call-out-hunt-sessions-catalogue.generated.sql';
+/* TIER 7'S NAMES (lane/b-krells-hold-pack, the designer's 11-10 ruling 6): 2027-04-05-call-out is the file before this one and this file carries it whole; against it only
+   hr_hunt_vendor_value's twelve tier-7 leather and cloth ids (voidhide_* -> slakehide_*, voidweave_* -> shroudweave_*), the digest and the header differ. AFTER
+   2027-04-06-krells-hold-items-catalogue (the ids it bids on). No kill bound, spawn, limit, ability, bid or shape moves, so no hunt pauses; the edge carries the new
+   ids at its next deploy (a tier-7 piece is in no bag, so no Sell tab meets either id meanwhile). */
+export const OUT_NAME = '2027-04-06-krells-hold-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

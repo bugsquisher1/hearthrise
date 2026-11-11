@@ -51,7 +51,8 @@ const APPLY = process.argv.includes('--apply');
 /** id -> [category, staged source name]. A source name with `__b`/`__c` is a dupe pick. */
 export const WIRE = {
   /* ── armour ─────────────────────────────────────────────────────────────── */
-  voidhide_pants: ['armour', 'voidhide_pants'],
+  /* the staged source keeps its file name; the id is the tier-7 leather's since the 11-10 rename (Voidhide to Slakehide) */
+  slakehide_pants: ['armour', 'voidhide_pants'],
 
   /* ── food ───────────────────────────────────────────────────────────────── */
   // Fourth attempt at this id and the first that is not a humanoid figure.

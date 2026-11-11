@@ -1749,7 +1749,7 @@ const MUTANTS = [
   ['PH-15 every alert stacks on a phone', 'src/styles/windows.css', '  .hw-alert-list > .hw-alert:not(:first-child) { display: none; }\n', ''],
   ['PH-15 the alert is see-through', 'src/styles/windows.css', 'padding: 0 0 0 10px; background: var(--bg-2); }', 'padding: 0 0 0 10px; }'],
   ['PH-15 nothing counts the alerts behind', 'src/styles/windows.css', '  .hw-alerts-more:not(:empty) { display: block; }\n', ''],
-  ['PH-15 the card runs under the alert', 'src/shell/shell.js', "const shared = alert && w.matches('.is-hunt-topbar') ? alert.getBoundingClientRect().top - 8 : floor;", 'const shared = floor;'],
+  ['PH-15 the card runs under the alert', 'src/shell/shell.js', "const shared = alert && (w.matches('.is-hunt-topbar') || beside) ? at.top - 8 : floor;", 'const shared = floor;'],
   ['PH-15 the town\'s card hangs on the hero', 'src/styles/shell.css', '  .hs-launchers > .hs-pointer { left: auto; right: calc(100vw - 268px); }\n', ''],
   ['PH-16 the world waits in silence', 'src/app/world-pane.js', 'statusEl.textContent = loadingWords(connection.state(), Date.now() - waitFrom, firstWords);', 'statusEl.textContent = firstWords;'],
   ['PH-16 no connection line', 'src/app/boot.js', 'mountConnectionLine(doc), ', ''],

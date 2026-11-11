@@ -383,7 +383,7 @@ export function residueStore(character) {
 
 /**
  * @param {object} o
- * @param {object[]} o.widgets             the rows (src/data/hud-widgets.js)
+ * @param {readonly object[]} o.widgets    the rows (src/data/hud-widgets.js)
  * @param {() => string} o.sizeClass       'desktop' | 'phone'
  * @param {{read():object|null, write(v:object):void}} o.store
  * @param {(id: string) => boolean} [o.inHunt]  true while hunt widget `id` belongs on screen (a hunt is running;

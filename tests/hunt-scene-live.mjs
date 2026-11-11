@@ -919,13 +919,17 @@ async function nodeRules(M) {
           prev = c.tl.hunt_from_ms;
         }
       }
-      /* the catch-up lands just inside a swing's end: the book it hands the screen is the engine's HP there */
-      const b = [...truth.keys()].find((at) => at > LIVE_H.T0 + 20000);
-      const res = C.catchUp(b - 1, 0);
+      /* the catch-up lands just inside a swing's end: the book it hands the screen is the engine's HP there. The swing is the first past 20 s in which a living
+         hero REGAINED HP (a regen tick no event names, the silent HP a catch-up must carry): re-aimed 2026-11-12 (lane/d-solo-fifteen) when the re-tuned Glade
+         left the first swing past 20 s with nobody regenerating, so the swing's silent HP was 0 and the mutant that drops it stayed green. */
+      const regainedAt = (at) => { const p = truth.get(at - LM.CB.tickMs); return !!p && [...truth.get(at)].some(([u, hp]) => p.has(u) && hp > p.get(u)); };
+      const ends = [...truth.keys()].filter((at) => at > LIVE_H.T0 + 20000);
+      const b = ends.find(regainedAt);
+      const res = b ? C.catchUp(b - 1, 0) : null;
       let catchOff = 0;
-      for (const [u, hp] of truth.get(b)) if (!res || !res.units[u] || res.units[u][2] !== hp) catchOff++;
+      if (b) for (const [u, hp] of truth.get(b)) if (!res || !res.units[u] || res.units[u][2] !== hp) catchOff++;
       for (const [at, hs] of truth) { const p = truth.get(at - LM.CB.tickMs); if (p) for (const [u, hp] of hs) if (p.has(u) && hp > p.get(u)) regen++; }
-      ok('LV-34', swings > 60 && regen > 0, `CONTROL: ${swings} hero swing ends, ${regen} with HP regained (the case is not exercised)`);
+      ok('LV-34', swings > 60 && regen > 0 && !!b, `CONTROL: ${swings} hero swing ends, ${regen} with HP regained, a swing past 20 s with HP regained ${b ? 'found' : 'NOT found'} (the case is not exercised)`);
       ok('LV-34', off === 0 && zero === 0, `viewed: ${off} of ${swings} hero swing ends read other than the engine's HP (${zero} read 0 while alive)`);
       ok('LV-34', windows >= 6 && winOff === 0 && winZero === 0, `browser closed: ${winOff} of ${windows} server windows ended off the server's HP, ${winZero} instant(s) read a living hero at 0`);
       ok('LV-34', res && catchOff === 0, `a catch-up handed ${catchOff} hero(es) an HP other than the engine's`);

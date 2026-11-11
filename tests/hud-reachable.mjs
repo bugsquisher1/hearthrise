@@ -195,6 +195,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await scrollBack(page);
         }
         for (const sel of needed) {
+          /* Below the fold width the analyzer starts folded to its title (hud-widgets.js 'narrow', hunt-screen HS-28): its XP per
+             hour is one press on its plus away, and that press must open it into a panel whose stats are still in reach. */
+          if (sel.startsWith('.ha-stats') && await page.evaluate(() => !!document.querySelector('[data-hs-widget="analyzer"].is-folded'))) {
+            await page.click('[data-hs-widget="analyzer"] .hs-wfold', { timeout: 3000 }).catch(() => null);
+            if (!(await wait(page, () => !document.querySelector('[data-hs-widget="analyzer"].is-folded'), null, 3000))) fails.push('HR-2 ' + at + ': the folded analyzer\'s plus did not open it');
+            await settle(page);
+          }
           const got = await presses(page, sel);
           if (!got.length) fails.push('HR-2 ' + at + ': nothing shows ' + sel);
           for (const g of got) if (!g.ok) fails.push('HR-2 ' + at + ': "' + g.what + '" (' + sel + ') cannot be reached: at ' + g.at + ' lies ' + g.on);
@@ -292,7 +299,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.mouse.up();
         await settle(page);
         const far = await page.locator('[data-hs-win="inventory"]').boundingBox();
-        if (!(far.y > 800)) fails.push('HR-5 CONTROL: the float did not land in the far corner: ' + JSON.stringify(far));
+        /* the far corner is the float's bottom right at the World's: a floating window is held wholly inside the World
+           (window-fit.js, lane/a-windows-no-clip), so a 611 px Bag's top can no longer pass 800 */
+        if (!(far.x + far.width > 1800 && far.y + far.height > 1000)) fails.push('HR-5 CONTROL: the float did not land in the far corner: ' + JSON.stringify(far));
         await size(page, 1024, 600);
         const near = await presses(page, '.hs-win-head .hs-close, .hs-win-head [data-hs-close]', '[data-hs-win="inventory"]');
         if (!near.length || !near[0].ok) fails.push('HR-5 a float at the far corner is out of reach in a smaller window: ' + JSON.stringify(near[0] || null));

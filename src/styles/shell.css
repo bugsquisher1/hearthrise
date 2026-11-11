@@ -262,7 +262,30 @@
 .hs-close:hover { color: var(--ink); background: var(--bg-3); }
 .hs-close:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 .hs-close .hs-glyph { width: 18px; height: 18px; }
+/* ONE HEADER (src/shell/window-head.js): Back sits left of the title, ? beside the key, both the key's steel. */
+.hs-back, .hs-help { height: 32px; padding: 0 10px; flex: none; cursor: pointer;
+  border: 2px solid var(--steel-btn); border-radius: 0; background: var(--fill-1); color: var(--ink-2);
+  font-family: var(--f-ui); font-weight: 700; font-size: var(--t-small); line-height: 1; }
+.hs-help { width: 32px; padding: 0; font-family: var(--f-display); }
+.hs-back:hover, .hs-help:hover, .hs-help[aria-expanded="true"] { color: var(--ink); background: var(--bg-3); }
+.hs-back:focus-visible, .hs-help:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.hs-back[hidden] { display: none; }
+/* A page's path: its host's name, dim, then the page's own. */
+.hs-win-crumb { color: var(--ink-3); }
+.hs-win-crumb::after { content: ' \203A  '; }
+.hs-win-crumb[hidden] { display: none; }
+/* The help line under the band, folded until ? is pressed. */
+.hs-win-help { margin: 0; padding: 8px 12px; flex: none; background: var(--fill-0); border-bottom: 2px solid var(--steel-rule);
+  color: var(--ink-2); font-size: var(--t-small); }
+.hs-win-help[hidden] { display: none; }
 .hs-win-body { overflow: auto; padding: 10px 12px 12px; }
+/* A page (Monster facts in Hunts) takes its host's body's place; the host's own body waits, hidden. */
+.hs-shell .hs-win > .hs-win-body[hidden] { display: none; }
+.hs-shell .hs-win > .hs-win-body.is-page { display: block; flex: 1 1 auto; min-height: 0; overflow: auto; }
+/* ONE GOLD PER WINDOW (window-head.js oneGold): a second plate showing is drawn as the steel tool it outranks. */
+.hs-win .hw-primary.is-second, .hs-win .hh-tool.is-primary.is-second {
+  border: 0; border-bottom: 2px solid var(--steel-btn); border-image: none;
+  background: var(--fill-1); color: var(--ink); font-family: var(--f-ui); }
 
 /* ── Forged Steel, the shared pieces (windows here; the HUD panels and the account screens add their selectors) ── */
 /* A SECTION HEAD: Cinzel in gold, letter-spaced, a dim gold rule running to the right edge. Each head keeps its
@@ -454,13 +477,13 @@
     border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch;
   }
   .hs-win-head { min-height: 40px; cursor: default; }
+  .hs-win-crumb { display: none; }   /* a phone's band says Back and the page's name */
   .hs-grip { display: none; }
   .hs-win-body { padding: 8px 10px 10px; }
   .st .st-tabs { width: 100%; border-right: 0; }
   .st-body { display: block; }
   .st-tab { min-height: 44px; border-left: 0; border-top: 1px solid var(--line-soft); }
   .st[data-view="list"] .st-pages, .st[data-view="page"] .st-tabs { display: none; }
-  .st[data-view="page"] .st-back { display: block; min-height: 40px; padding: 0; border: 0; background: none; color: var(--gold); font: inherit; font-weight: 700; cursor: pointer; }
   .st-row .st-help { display: block; }
   .hs-hudset-row { min-height: 32px; gap: 6px; }
   .hs-hudset-show small { display: none; }

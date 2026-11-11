@@ -631,7 +631,6 @@
 .st-tab.is-on { color: var(--gold-2); border-left: 4px solid var(--gold); background: var(--fill-3); }
 .st-tab:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 .st-pages { flex: 1; min-width: 0; }
-.st-back { display: none; }
 .st-row { padding: 6px 0; border-top: 1px solid var(--line-soft); }
 .st-line { display: flex; align-items: center; gap: 10px; min-height: 28px; }
 label.st-line { cursor: pointer; }
@@ -868,3 +867,4 @@ label.st-line { cursor: pointer; }
   /* Summary and Leave are not one thumb apart (panel 2026-11-01: 7 px, "I wanted Summary"). */
   .ht-bar [data-hs-act="leave"] { margin-left: 10px; }
 }
+.hs-win-body.is-page .ca-close { display: none; }   /* a page of Hunt prep: the header's Back and Close stand in for it (window-head.js) */

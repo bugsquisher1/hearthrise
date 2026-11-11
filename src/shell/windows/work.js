@@ -165,7 +165,7 @@ export function renderWork() {
     + '<div class="hw-burying hw-work-now" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="work-stop">' + t('controls.stop') + '</button></div>'
     + '<p class="hs-note hw-work-end" role="status"></p>'
     + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make.</p>' + renderTradeSkills() + '</div>'
-    + '<section class="hw-work"><div class="hw-work-head"><button type="button" class="hh-tool" data-hs-act="work-back">‹ ' + t('controls.back') + '</button>'
+    + '<section class="hw-work"><div class="hw-work-head">'
     + '<b class="hw-work-title"></b>' + skillBarHtml('Skill') + '<small class="hw-skill-xp"></small><b class="hw-skill-lv"></b></div>'
     + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p>' + hallmarkPaneHtml() + sortMenuHtml() + '<ul class="hw-ledger hw-work-rows"></ul></section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
@@ -285,3 +285,6 @@ renderWork.act = function actWork(ctx, body, action, ev, el) {
   }
   return false;
 };
+
+/* The header's Back (src/shell/window-head.js): a skill's rows go back to the ledger. */
+renderWork.inner = (ctx, body) => (body.querySelector('.hw-work.is-on') ? 'work-back' : null);

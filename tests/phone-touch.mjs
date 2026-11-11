@@ -8,7 +8,7 @@
 //   node tests/phone-touch.mjs --shots <dir>  also write the visual-gate screenshots (667x375, 844x390,
 //                                             922x423, portrait 390x844 and desktop 1440x900, fonts loaded)
 //
-// mutant-anchors: src/shell/windows/hunts.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js
+// mutant-anchors: src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js
 // mutant-writes-tree: no — page mutants are served overrides
 // mutant-rule-functions: configureFits analyzerToggles portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule rules
 // mutant-runner-functions: main
@@ -808,7 +808,7 @@ async function groundPage(page, tag, fails, floor) {
   if (head.gap > 8) fails.push('PH-25 [' + tag + '] the sheet starts ' + Math.round(head.gap) + ' px below the icon row');
   await page.click('.hw-hunt', { timeout: 2500 }).catch(() => null);
   await page.waitForTimeout(300);
-  const facts = () => page.evaluate(() => { const s = document.querySelector('.hw-hd-page'), e = document.querySelector('.hw-hunt-enter'), b = document.querySelector('.hw-hd-back');
+  const facts = () => page.evaluate(() => { const s = document.querySelector('.hw-hd-page'), e = document.querySelector('.hw-hunt-enter'), b = document.querySelector('[data-hs-win="hunts"] .hs-win-head .hs-back');
     return { read: s.clientHeight, end: s.scrollHeight - s.clientHeight, enter: window.__onScreen(window.__r(e)) && window.__hits(e), back: window.__onScreen(window.__r(b)) && window.__hits(b), over: window.__cross(window.__r('[data-hs-win="hunts"] .hs-win-coach .hs-pointer'), window.__r('[data-hs-win="hunts"]')) }; });
   const f = await facts();
   if (f.read < floor) fails.push('PH-25 [' + tag + '] a ground\'s page has ' + f.read + ' px to read, under ' + floor);
@@ -822,7 +822,7 @@ async function groundPage(page, tag, fails, floor) {
   await page.waitForTimeout(100);
   const low = await facts();
   if (!low.enter || !low.back) fails.push('PH-25 [' + tag + '] at the page\'s end Enter ' + low.enter + ', the way back ' + low.back);
-  await page.click('.hw-hd-back', { timeout: 2500 }).catch(() => null);
+  await page.click('[data-hs-win="hunts"] .hs-win-head .hs-back', { timeout: 2500 }).catch(() => null);
   await page.waitForTimeout(200);
   if (!(await page.evaluate(() => !!window.__r('.hw-hunt-list')))) fails.push('PH-25 [' + tag + '] the way back did not bring the list');
 }
@@ -832,7 +832,7 @@ async function groundBackHunting(page, tag, fails) {
   if (!(await wait(page, () => document.querySelector('.hw-hunt b'), null, 4000))) { fails.push('PH-25 [' + tag + '] CONTROL: no list mid-hunt'); return; }
   await page.click('.hw-hunt', { timeout: 2500 }).catch(() => null);
   await page.waitForTimeout(250);
-  const off = await page.evaluate(() => ({ enter: document.querySelector('.hw-hunt-enter').disabled, back: document.querySelector('.hw-hd-back').disabled }));
+  const off = await page.evaluate(() => ({ enter: document.querySelector('.hw-hunt-enter').disabled, back: (() => { const b = document.querySelector('[data-hs-win="hunts"] .hs-win-head .hs-back'); return !b || b.hidden || b.disabled; })() }));
   if (!off.enter) fails.push('PH-25 [' + tag + '] CONTROL: Enter is on mid-hunt');
   if (off.back) fails.push('PH-25 [' + tag + '] mid-hunt the way back to the list is off');
 }
@@ -1782,9 +1782,9 @@ const MUTANTS = [
   ['PH-25 a ground\'s page keeps its frame and padding', 'src/styles/windows.css', '  [data-hs-win="hunts"]:has(.is-paged) .hs-win-body { padding: 0; }\n', '  [data-hs-win="hunts"]:has(.is-paged) .hw-hd-page { max-height: 104px; }\n'],
   ['PH-25 the sheet starts under the place\'s row', 'src/styles/shell.css', '  #panel-world:not([data-scene="hunt"]) .hs-win:not(.is-modal) { top: calc(-1 * (var(--tap) + 6px)); }\n', ''],
   ['PH-25 the stage still clips the sheet\'s head', 'src/styles/shell.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal)) .world-stage { overflow: visible; }\n', ''],
-  ['PH-25 the way back scrolls off with the page', 'src/shell/windows/hunts.js', "    + '<button type=\"button\" class=\"hh-tool hw-hd-back\" data-hs-act=\"back\">' + t('controls.back') + '</button>'\n", "    + ''\n"],
+  ['PH-25 a ground\'s page has no way back in the sheet\'s head','src/shell/windows/hunts.js', "renderHunts.inner = (ctx, body) => (ctx.isPhone() && body.querySelector('.is-paged') ? 'back' : null);", 'renderHunts.inner = () => null;'],
   ['PH-25 the line beside Enter stands in a column', 'src/styles/windows.css', ".hw-hd-foot .hh-intent-msg:not(:empty), .hw-hd-foot .hw-enter-why:not(:empty) { flex: 1 0 100%; }", ".hw-hd-foot .hh-intent-msg:not(:empty) { flex: 1 0 100%; }"],
-  ['PH-25 mid-hunt the way back is off', 'src/shell/windows/hunts.js', ".hw-hd-foot button:not(.hw-hd-back), .hw-tiers button", ".hw-hd-foot button, .hw-tiers button"],
+  ['PH-25 mid-hunt the way back is off', 'src/shell/window-head.js', "  attr(back, 'hidden', !(inner || to));", "  attr(back, 'hidden', true);"],
   ['PH-26 the switch\'s span widens the fold and the close', 'src/styles/hunt.css', '  .ha-analyzer .ha-scope { grid-area: 2 / 1 / 3 / -1; justify-self: end; margin-bottom: 0; }\n', '  .ha-analyzer .ha-scope { grid-area: 2 / 2 / 3 / 4; justify-self: end; margin-bottom: 0; }\n'],
   ['PH-26 the panel is too narrow for its tabs', 'src/styles/hunt.css', 'column-gap: 2px; width: min(376px, calc(100vw - 232px));', 'column-gap: 2px; width: 300px;'],
   ['PH-26 a hero alone keeps the switch', 'src/styles/hunt.css', '  .ha-analyzer.is-alone .ha-scope { display: none; }\n', ''],

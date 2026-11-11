@@ -25,6 +25,14 @@
 //   phoneIcon false keeps a launcher row off the phone's icon row, which holds 15 at a thumb's width on the
 //            narrowest phone (tests/phone-touch.mjs PH-11); the All characters sheet names it under "Also here"
 //   gm       true: shown only when the server's `gm` section says so (launcher.js, characters.js)
+//   help     the text row of the window's one help line, behind the header's ? (src/data/text/windows.js)
+//
+// THE COEXISTENCE TABLE (UX flow audit 2026-11-11, src/shell/window-manager.js): which windows stay open together.
+//   beside   [ids]: windows that dock side by side past the dock's 60% (the bag and the window a bag task needs:
+//            Storage, the Shop, Character), so at 1440 neither closes the other
+//   over     true: wider than the dock (Hunts, Hunt prep), it lies over the docked windows and closes none
+//   pageOf   [ids]: opened by a press inside one of these windows, it opens as a PAGE of it with Back, never a
+//            second window on top (Monster facts in Hunts, Configure action in Hunt prep)
 //
 // The rest of the spec's catalogue (Bestiary L) lands
 // with its renderer: a launcher never opens a window that does not exist yet
@@ -41,14 +49,15 @@
 import { TOWN_NAME } from './world/town/plan.js?v=0.2.123';
 
 export const SHELL_WINDOWS = Object.freeze([
-  Object.freeze({ id: 'hunts', label: 'Hunts', key: 'h', glyph: 'uiMap', width: 960, object: 'plain' }),
-  Object.freeze({ id: 'inventory', label: 'Inventory', key: 'b', glyph: 'navInventory', width: 560, object: 'satchel' }),
+  Object.freeze({ id: 'hunts', label: 'Hunts', key: 'h', glyph: 'uiMap', width: 960, object: 'plain', over: true, help: 'windows.help_hunts' }),
+  Object.freeze({ id: 'inventory', label: 'Inventory', key: 'b', glyph: 'navInventory', width: 560, object: 'satchel', help: 'windows.help_inventory',
+    beside: Object.freeze(['storage', 'shop', 'character']) }),
   Object.freeze({ id: 'character', label: 'Character', key: 'c', glyph: 'navCharacter', width: 560, object: 'ledger' }),
-  Object.freeze({ id: 'skills-trade', label: 'Gathering and crafting', key: 'g', glyph: 'uiPickaxe', width: 380, object: 'ledger' }),
-  Object.freeze({ id: 'storage', label: 'Storage', key: 't', glyph: 'uiChest', width: 540, object: 'satchel' }),
+  Object.freeze({ id: 'skills-trade', label: 'Gathering and crafting', key: 'g', glyph: 'uiPickaxe', width: 380, object: 'ledger', help: 'windows.help_skills' }),
+  Object.freeze({ id: 'storage', label: 'Storage', key: 't', glyph: 'uiChest', width: 540, object: 'satchel', help: 'windows.help_storage' }),
   /* Services (stamina, Blessings) is the Shop's third tab (Tyler 2026-10-25: "Lets move services to the 'shop' menu"):
      its old key R opens the Shop on it. */
-  Object.freeze({ id: 'shop', label: 'Shop', key: 'v', glyph: 'navStore', width: 480, object: 'ledger', tabKeys: Object.freeze({ r: 'services' }) }),
+  Object.freeze({ id: 'shop', label: 'Shop', key: 'v', glyph: 'navStore', width: 480, object: 'ledger', help: 'windows.help_shop', tabKeys: Object.freeze({ r: 'services' }) }),
   /* The Weighhouse (market design 2026-10-24): one window with four tabs, for every hero, hunting or not. */
   Object.freeze({ id: 'market', label: 'Market', title: 'The Weighhouse', key: 'm', glyph: 'navMarket', width: 820, object: 'ledger' }),
   /* The farm plots (P1 2026-10-22: no client door to farming). Per hero: each hero has its own plots on the server. */
@@ -66,7 +75,7 @@ export const SHELL_WINDOWS = Object.freeze([
      WASD walks, so it has no shortcut; the Tavern on the map opens it on Round. Its label is the city's name, read from the one place it lives. */
   Object.freeze({ id: 'havora', label: TOWN_NAME, key: null, noShortcut: true, phoneIcon: false, glyph: 'uiFlame', width: 420, object: 'ledger' }),
   /* The setup builder (Tyler 2026-11-11): the setups column beside the HUD's own 2 x 10 slot grid, so it is as wide as Hunts. */
-  Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 1040, object: 'plain' }),
+  Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 1040, object: 'plain', over: true, help: 'windows.help_prep' }),
   /* Week plan step 16 + QoL 3: the party, and every open character on one screen (opened from the
      character strip's "All characters", so it takes no launcher icon). */
   Object.freeze({ id: 'hunt-party', label: 'Party', key: 'y', glyph: 'uiPeople', width: 440, object: 'plain' }),
@@ -74,7 +83,8 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'hunt-summary', label: 'Hunt summary', key: 'l', glyph: 'uiCheck', width: 420, object: 'ledger', launcher: false }),
   Object.freeze({ id: 'hud', label: 'HUD layout', key: 'u', glyph: 'uiSettings', width: 380, object: 'plain', launcher: false }),
   /* One bar slot: what it does and when (opened by a press on a bar slot, in town or in a hunt). */
-  Object.freeze({ id: 'configure-action', label: 'Configure action', key: 'k', glyph: 'uiTarget', width: 800, object: 'plain', launcher: false, modal: true }),
+  Object.freeze({ id: 'configure-action', label: 'Configure action', key: 'k', glyph: 'uiTarget', width: 800, object: 'plain', launcher: false, modal: true,
+    pageOf: Object.freeze(['hunt-prep']) }),
   /* Tyler 2026-10-19: a death opens a centred popup (src/shell/death-popup.js opens it; its key shows the last death). */
   Object.freeze({ id: 'death', label: 'You died', key: 'x', glyph: 'uiSkull', width: 420, object: 'ledger', launcher: false, modal: true }),
   /* Tyler 2026-11-01: the play cap's refusal opens a centered popup (windows/play-cap.js). It has nothing to say until the server refuses a start, so no key. */
@@ -93,7 +103,8 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'report', label: 'Report a problem', key: 'f', phoneIcon: false, glyph: 'uiWarn', width: 420, object: 'plain' }),
   /* One monster's facts, a page of the encyclopedia (Tyler 2026-11-09: every monster's stats are visible). A creature on a hunt's page opens it
      (src/shell/goto.js), so it has no icon and no key. It opens at the bottom-left, beside the Hunts window it was opened from: docked, it would close it. */
-  Object.freeze({ id: 'monster', label: 'Monster facts', key: null, noShortcut: true, launcher: false, glyph: 'uiBook', width: 420, height: 560, home: 'bl', object: 'book' }),
+  Object.freeze({ id: 'monster', label: 'Monster facts', key: null, noShortcut: true, launcher: false, glyph: 'uiBook', width: 420, height: 560, home: 'bl', object: 'book',
+    pageOf: Object.freeze(['hunts']) }),
   /* The owner's tools (2027-03-13-gm-tools.sql). No key: nobody else's keyboard reaches an empty window; the icon is the way in. */
   Object.freeze({ id: 'game-master', label: 'Game Master', key: null, phoneIcon: false, gm: true, glyph: 'uiTarget', width: 520, object: 'ledger' }),
 ]);

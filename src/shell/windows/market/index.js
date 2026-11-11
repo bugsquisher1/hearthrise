@@ -89,3 +89,9 @@ renderMarket.act = function actMarket(ctx, body, action, ev, el) {
   const o = { ctx, cs, sc, body, repaint };
   return actBrowse(o, action, ev, el) || actSell(o, action, ev, el) || actLedger(o, action, ev, el) || false;
 };
+
+/* The header's Back (src/shell/window-head.js): on a phone, a listing or a stack's page goes back to its list. */
+renderMarket.inner = (ctx, body) => {
+  const p = ctx.isPhone() ? body.querySelector('.hw-pane.is-on.is-paged') : null;
+  return p ? (p.getAttribute('data-pane') === 'sell' ? 'ms-back' : 'mk-back') : null;
+};

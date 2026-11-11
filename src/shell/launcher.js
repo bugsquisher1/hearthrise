@@ -444,7 +444,7 @@ export function ringPlan(card, at) {
       /* Enter while the ground is the picked one and on screen; else its line (a phone shows the list first); on a
          phone showing ANOTHER ground's page, the way back to the list */
       return [inWin('hunts', '.hw-hunt-enter[data-hunt="' + hunt + '"]:not([disabled])'),
-        inWin('hunts', '.hw-hunt[data-hunt="' + hunt + '"]'), '[data-hs-win="hunts"]:not(:has(.hw-hunt-enter[data-hunt="' + hunt + '"])) .hw-hd-back'];
+        inWin('hunts', '.hw-hunt[data-hunt="' + hunt + '"]'), '[data-hs-win="hunts"]:not(:has(.hw-hunt-enter[data-hunt="' + hunt + '"])) .hs-win-head .hs-back'];
     }
     case 'hunt_topbar': return ['[data-hs-widget="hunt-topbar"] [data-hs-act="leave"]:not([disabled])'];
     case 'action_bar': {

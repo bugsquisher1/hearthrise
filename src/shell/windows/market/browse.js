@@ -44,7 +44,6 @@ export function browseHtml(ctx) {
     + '<p class="hw-mk-invite-p"></p><button type="button" class="hw-primary is-on" data-hs-act="mk-to-sell">' + t('controls.list_item') + '</button></div>'
     + '<div class="hw-mk-cols"><ul class="hw-mk-list" role="listbox" aria-label="Items"></ul>'
     + '<section class="hw-mk-page" aria-label="The picked item"><div class="hw-hd-page">'
-    + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="mk-back">' + t('controls.back') + '</button>'
     + '<div class="hw-mk-head"><span class="hw-ico hw-mk-ico"></span><div class="hw-mk-title"><h3 class="hw-hd-name hw-mk-name"></h3><p class="hw-hd-band hw-mk-kind"></p></div></div>'
     + '<p class="hw-mk-price"></p>'
     + '<h4 class="hw-hd-h">For sale</h4><ul class="hw-mk-asks"></ul><p class="hh-empty hw-mk-asks-none"></p>'

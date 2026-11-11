@@ -192,8 +192,6 @@ export function renderHunts(ctx) {
     + '<p class="hw-hunt-pack"></p>' + goHtml() + callHtml() + '</div>'
     + '<div class="hw-hd-foot"><p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<p class="hw-enter-why"></p><button type="button" class="hh-tool" data-hs-act="leave-party" hidden>' + t('controls.leave_party') + '</button>'
-    /* The phone's way back (windows.css): beside Enter, in reach however far down the page has been read. */
-    + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="back">' + t('controls.back') + '</button>'
     + '<button type="button" class="hw-primary is-on hw-hunt-enter" data-hs-act="enter">' + t('controls.enter') + '</button></div>'
     + '</section></div></div>';
 }
@@ -324,7 +322,7 @@ function patchPage(det, ctx, sc, v) {
   const armed = sc.warned === warnKey(r.hunt, under) && (under.length > 0 || !!rangeWords(r, level));
   text(enter, party && !follower ? (armed ? t('controls.enter_anyway') : t('controls.enter_with_party')) : armed ? t('controls.enter_anyway') : t('controls.enter'));
   /* Enter and the tier buttons (Go as, Find a party and Bring are patchGo's: off for a member too). */
-  for (const b of det.querySelectorAll('.hw-hd-foot button:not(.hw-hd-back), .hw-tiers button')) prop(b, 'disabled', sc.pending || !!now);
+  for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-tiers button')) prop(b, 'disabled', sc.pending || !!now);
   /* ENTER OFF SAYS WHY, BESIDE IT (midgame panel 2026-11-01: a hero sent home by a friend's death, left in the party, read "the game is broken"), with the way out. */
   const off = now ? '' : enterOffWords(party);
   if (off) prop(enter, 'disabled', true);
@@ -456,3 +454,6 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   }
   return false;
 };
+
+/* The header's Back (src/shell/window-head.js): on a phone, a ground's page goes back to the list. */
+renderHunts.inner = (ctx, body) => (ctx.isPhone() && body.querySelector('.is-paged') ? 'back' : null);

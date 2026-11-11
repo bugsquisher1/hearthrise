@@ -39,6 +39,16 @@
 //            The phone ignores both: one sheet, its own size.
 //   no inset WINDOWS FLOAT OVER THE WORLD (Tyler 2026-10-19): no window, docked,
 //            floating, modal or phone sheet, takes any of the World or moves its camera.
+//   beside   THE COEXISTENCE TABLE (UX flow audit 2026-11-11: at 1440 the bag closed Storage, the Shop
+//            and Character without a word). Two rows that name each other in `beside` share the dock past
+//            DOCK_MAX, up to the World's width; a row with `over: true` (Hunts, Hunt prep: wider than the
+//            dock) lies over the docked windows and closes none of them.
+//   pages    A row with `pageOf` (Monster facts in Hunts, Configure action in Hunt prep) opened by a press
+//            inside one of those windows opens as a PAGE of it, not a second window: isOpen and
+//            openIds count it, close takes it back to its host, closing the host closes it.
+//   back     THE WAY BACK: a window opened by a press inside another (from(opener, fn)) remembers it;
+//            back(id) closes a page, or closes the window and opens the one it came from (cameFrom).
+//            Display state only, kept in memory, never the residue.
 //
 // PURE: no DOM, no window, no G. The host passes the size class, the World's
 // size and a scheduler, so node drives every rule (tests/shell-core.mjs).
@@ -95,11 +105,16 @@ export function validateWindowRows(rows) {
     if (r.besideCoach !== undefined && !(r.besideCoach === true && r.home === 'bl')) throw new Error('shell windows: ' + r.id + ' besideCoach is true on a home window, or absent');
     if ((r.home || r.resizable) && !(r.height > 0)) throw new Error('shell windows: ' + r.id + ' needs a positive height to sit home or resize');
     if ((r.home || r.resizable) && r.modal) throw new Error('shell windows: ' + r.id + ' a modal neither sits home nor resizes');
+    if (r.beside !== undefined && !(Array.isArray(r.beside) && r.beside.length && r.beside.every((x) => typeof x === 'string' && x !== r.id))) throw new Error('shell windows: ' + r.id + ' beside is a list of other windows');
+    if (r.over !== undefined && !(r.over === true && !r.modal && !r.home)) throw new Error('shell windows: ' + r.id + ' over is true on a docked row, or absent');
+    if (r.pageOf !== undefined && !(Array.isArray(r.pageOf) && r.pageOf.length && r.pageOf.every((x) => typeof x === 'string' && x !== r.id) && r.launcher === false)) throw new Error('shell windows: ' + r.id + ' pageOf lists its hosts, on a row with no launcher icon');
+    if (r.help !== undefined && !/^[a-z]+\.[a-z0-9_]+$/.test(r.help)) throw new Error('shell windows: ' + r.id + ' help names a text row');
     if (r.escape) escapes++;
     byId.set(r.id, r);
     if (!noKey) keys.set(r.key, r.id);
   }
   if (escapes > 1) throw new Error('shell windows: more than one escape row');
+  for (const r of rows) for (const x of (r.beside || []).concat(r.pageOf || [])) if (!byId.has(x)) throw new Error('shell windows: ' + r.id + ' names no window ' + x);
   return byId;
 }
 
@@ -135,8 +150,16 @@ export function createWindowManager(o) {
   const sizeOf = o.sizeOf || (() => null);
   const tabWanted = new Map();   // id -> the tab a press asked it to show (openTab), until its renderer takes it
   const findWanted = new Map();  // id -> the row a link asked it to bring into view (goTo), until the shell finds it
+  const pages = new Map();       // host id -> the page id it shows (a pageOf row opened from inside it)
+  const cameFrom = new Map();    // id -> the window a press inside opened it from (back)
+  let opener = null;             // the window a press is being handled inside (from), or null
+  let returning = false;         // back() is reopening a window: its own way back is kept
 
   const isModal = (id) => rows.get(id).modal === true;
+  const isOver = (id) => rows.get(id).over === true;
+  /* Do two rows share the dock (either names the other in `beside`)? */
+  const besides = (a, b) => (rows.get(a).beside || []).includes(b) || (rows.get(b).beside || []).includes(a);
+  const hostOf = (id) => { for (const [h, p] of pages) if (p === id) return h; return null; };
   const docked = () => open.filter((id) => !floating.has(id) && !isModal(id));
   const isHome = (id) => rows.get(id).home === 'bl';
   /* A resizable window's size: the live one, else the saved one, else the row's; clamped to RESIZE_MIN and the World. */
@@ -152,18 +175,22 @@ export function createWindowManager(o) {
     };
   }
   const width = (id) => sizeNow(id).w;
-  const dockMax = () => world().width * DOCK_MAX;
+  /* The dock's reach for `id`: DOCK_MAX of the World, or the whole World when every window docked beside it is its partner. */
+  function dockMax(id) {
+    const occ = spans(id);
+    return occ.length && occ.every((q) => besides(id, q.id)) ? world().width - DOCK_EDGE : world().width * DOCK_MAX;
+  }
 
-  /* The other docked windows' occupied spans (right-edge offsets), sorted. */
+  /* The other docked windows' occupied spans (right-edge offsets), sorted. A window that lies `over` the dock takes no span. */
   function spans(except) {
-    return docked().filter((d) => d !== except && slot.has(d) && !leaving.has(d))
+    return docked().filter((d) => d !== except && slot.has(d) && !leaving.has(d) && !isOver(d))
       .map((d) => ({ id: d, r: slot.get(d), w: width(d) })).sort((a, b) => a.r - b.r);
   }
   const fits = (r, w, occ) => r >= DOCK_EDGE && occ.every((q) => r + w + DOCK_GAP <= q.r || q.r + q.w + DOCK_GAP <= r);
 
-  /* A free slot for id that keeps the dock inside DOCK_MAX (its remembered one first), or null. */
+  /* A free slot for id that keeps the dock inside its reach (its remembered one first), or null. */
   function freeSlot(id, prefer) {
-    const w = width(id), occ = spans(id), max = dockMax();
+    const w = width(id), occ = spans(id), max = dockMax(id);
     const tries = (Number.isFinite(prefer) ? [prefer] : []).concat([DOCK_EDGE], occ.map((q) => q.r + q.w + DOCK_GAP));
     for (const r of tries) if (fits(r, w, occ) && r + w <= max) return r;
     return null;
@@ -171,19 +198,21 @@ export function createWindowManager(o) {
 
   /* Give a docked window its slot: a free one; else pack the others right if that makes room; else close the oldest. */
   function place(id, prefer) {
+    /* a window wider than the dock lies over it at the edge and moves nobody */
+    if (isOver(id)) { slot.set(id, DOCK_EDGE); return; }
     for (;;) {
       const r = freeSlot(id, prefer);
       if (r !== null) { slot.set(id, r); return; }
       const occ = spans(id);
       if (!occ.length) { slot.set(id, DOCK_EDGE); return; }
       const packed = occ.reduce((s, q) => s + q.w + DOCK_GAP, DOCK_EDGE);
-      if (packed + width(id) <= dockMax()) {
+      if (packed + width(id) <= dockMax(id)) {
         let at = DOCK_EDGE;
         for (const q of occ) { slot.set(q.id, at); at += q.w + DOCK_GAP; }
         slot.set(id, at);
         return;
       }
-      drop(docked().find((d) => d !== id && slot.has(d)));
+      drop(occ.map((q) => q.id).sort((a, b) => open.indexOf(a) - open.indexOf(b))[0]);
     }
   }
 
@@ -198,6 +227,7 @@ export function createWindowManager(o) {
     findWanted.delete(id);
     leaving.delete(id);
     entering.delete(id);
+    pages.delete(id);   // a host takes its page with it
   }
 
   function emit() {
@@ -206,7 +236,21 @@ export function createWindowManager(o) {
 
   function openWindow(id) {
     if (!rows.has(id)) return false;
+    const by = opener && opener !== id && live().includes(opener) ? opener : null;
+    /* a page of the window the press was in: its host shows it, raised */
+    if (by && (rows.get(id).pageOf || []).includes(by)) {
+      if (open.includes(id)) drop(id);
+      const was = hostOf(id);
+      if (was) pages.delete(was);
+      pages.set(by, id);
+      if (open[open.length - 1] !== by) { open.splice(open.indexOf(by), 1); open.push(by); }
+      emit();
+      return true;
+    }
+    /* anywhere else it is a window of its own */
+    if (hostOf(id)) pages.delete(hostOf(id));
     if (open.includes(id) && !leaving.has(id)) return focus(id);
+    if (by) cameFrom.set(id, by); else if (!returning) cameFrom.delete(id);
     drop(id);
     if (isPhone() && !isModal(id)) for (const other of open.slice()) drop(other);
     /* The cap counts the dock and the floats only: a modal floats over them and never closes one
@@ -229,7 +273,11 @@ export function createWindowManager(o) {
   }
 
   function close(id) {
+    /* a page closes back to its host */
+    const host = hostOf(id);
+    if (host) { pages.delete(host); emit(); return true; }
     if (!open.includes(id) || leaving.has(id)) return false;
+    cameFrom.delete(id);
     entering.delete(id);
     if (reducedMotion()) { drop(id); emit(); return true; }
     leaving.add(id);
@@ -239,19 +287,21 @@ export function createWindowManager(o) {
   }
 
   function focus(id) {
+    if (hostOf(id)) return focus(hostOf(id));
     if (!open.includes(id) || leaving.has(id)) return false;
     if (open[open.length - 1] !== id) { open.splice(open.indexOf(id), 1); open.push(id); emit(); }
     return true;
   }
 
   function toggle(id) {
-    return open.includes(id) && !leaving.has(id) ? close(id) : openWindow(id);
+    return isOpen(id) ? close(id) : openWindow(id);
   }
 
   /** Open (or raise) `id` on `tab`: its renderer takes the wish on its next patch (takeTab). */
   function openTab(id, tab) {
     if (!rows.has(id) || typeof tab !== 'string') return false;
     tabWanted.set(id, tab);
+    pages.delete(id);   // a host asked for one of its own tabs shows itself, not its page
     if (open.includes(id) && !leaving.has(id)) { focus(id); emit(); return true; }
     return openWindow(id);
   }
@@ -282,10 +332,37 @@ export function createWindowManager(o) {
 
   /** The live windows, oldest first (a window sliding out is already gone). */
   const live = () => open.filter((id) => !leaving.has(id));
+  /** A window is open, or shown as a page of an open one. */
+  function isOpen(id) { return live().includes(id) || (hostOf(id) !== null && live().includes(hostOf(id))); }
+
+  /** The way back from `id` (or the page it shows): its page closes, else it closes and the window it was opened from opens. */
+  function back(id) {
+    const host = hostOf(id);
+    if (host) return back(host);
+    if (pages.has(id)) { pages.delete(id); emit(); return true; }
+    const to = cameFrom.get(id);
+    if (!to || !rows.has(to) || !live().includes(id)) return false;
+    const was = opener;
+    opener = null;
+    returning = true;
+    try { close(id); openWindow(to); } finally { opener = was; returning = false; }
+    return true;
+  }
+  /** Where back(id) goes: `id` itself when it shows a page (its own body), the window it came from, or null. */
+  function backTo(id) {
+    if (pages.has(id)) return id;
+    return live().includes(id) && cameFrom.has(id) ? cameFrom.get(id) : null;
+  }
+  /** Run `fn` as a press inside window `id`: what it opens remembers `id` (and opens as its page when it may). */
+  function from(id, fn) {
+    const was = opener;
+    opener = rows.has(id) ? id : null;
+    try { return fn(); } finally { opener = was; }
+  }
 
   function onEscape() {
     const l = live();
-    if (l.length) return close(l[l.length - 1]);
+    if (l.length) return pages.has(l[l.length - 1]) ? back(l[l.length - 1]) : close(l[l.length - 1]);
     for (const r of rows.values()) if (r.escape) return openWindow(r.id);
     return false;
   }
@@ -386,8 +463,12 @@ export function createWindowManager(o) {
     wantsTab: (id) => tabWanted.has(id),
     /** The size a window shows at now ({w, h}; h null for a row that sizes to its content). */
     sizeOf: (id) => (rows.has(id) ? sizeNow(id) : null),
-    openIds: () => live(),
-    isOpen: (id) => live().includes(id),
+    /** The open windows, oldest first, then the pages they show. */
+    openIds: () => live().concat(live().filter((h) => pages.has(h)).map((h) => pages.get(h))),
+    isOpen,
+    back, backTo, from,
+    /** The page window `id` shows in place of its own body, or null. */
+    pageIn: (id) => (live().includes(id) && pages.has(id) ? pages.get(id) : null),
     row: (id) => rows.get(id) || null,
     rows: () => Array.from(rows.values()),
   };

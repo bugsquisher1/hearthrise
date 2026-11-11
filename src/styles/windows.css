@@ -363,7 +363,6 @@
 .hw-hunt-detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--fill-1); border: 2px solid var(--steel-edge); border-left-color: var(--steel-rule); }
 .hw-hunt-detail[hidden] { display: none; }
 .hw-hd-page { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 18px 12px; }
-.hw-hd-back { display: none; }
 .hw-hd-head { margin-bottom: 8px; }
 /* The ground's name, as a place is named: Cinzel in gold (ART_DIRECTION §10). */
 .hw-hd-name { margin: 0; font-family: var(--f-display); font-size: calc(var(--t-h2) * 1.2); font-weight: 700; line-height: 1.15; letter-spacing: .05em; color: var(--gold-2); }
@@ -730,8 +729,6 @@
   /* A ground's page has the sheet to itself: the list's notes wait on the list. */
   .hw-hunts.is-paged .hw-hunt-list, .hw-hunts.is-paged .hw-hunts-now, .hw-hunts.is-paged .hw-hunts-reco { display: none; }
   .hw-hunts.is-paged .hw-hunt-detail:not([hidden]) { display: flex; flex: 1 1 auto; }
-  .hw-hd-back { display: inline-flex; align-items: center; min-height: 40px; margin: 0 0 4px -6px; }
-  .hw-hd-foot .hw-hd-back { margin: 0; }
   .hw-hd-page { padding: 8px 12px 10px; }
   /* THE PAGE GETS THE SHEET (phone panel v0.2.83: 104 px of a 1501 px page, about 14 swipes to the drops): no second frame
      or padding round it; only the sheet's head and the foot (the way back, Enter) stand outside its scroller. */

@@ -37,7 +37,6 @@ export function sellHtml() {
     + '<button type="button" class="hh-seg" data-hs-act="ms-from" data-from="storage" aria-pressed="false">Storage</button><p class="hs-note hw-mk-kept"></p></div>'
     + '<div class="hw-mk-cols"><ul class="hw-mk-list" role="listbox" aria-label="What to sell"></ul>'
     + '<section class="hw-mk-page" aria-label="The picked stack"><div class="hw-hd-page">'
-    + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="ms-back">' + t('controls.back') + '</button>'
     + '<p class="hh-empty hw-mk-pickone">Pick a stack to see what it would fetch.</p>'
     + '<div class="hw-mk-sheet"><div class="hw-mk-head"><span class="hw-ico hw-mk-ico"></span><div class="hw-mk-title"><h3 class="hw-hd-name hw-mk-name"></h3><p class="hw-hd-band hw-mk-kind"></p></div></div>'
     + '<dl class="hw-mk-facts"><dt>The shop pays</dt><dd data-f="shop"></dd><dt>Lowest now</dt><dd data-f="low"></dd><dt>Last sold</dt><dd data-f="last"></dd></dl>'

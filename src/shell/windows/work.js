@@ -26,7 +26,7 @@
 import { SKILLS_DEF } from '../../data/skills.js?v=0.2.118';
 import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.118';
 import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.118';
-import { skillsOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.118';
+import { skillsOf, skillLevelsOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.118';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.118';
 import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.118';
 import { whole } from '../../render/format.js?v=0.2.118';
@@ -204,13 +204,15 @@ renderWork.patch = function patchWork(body, ctx) {
   if (skill) {
     const sk = skillsOf(cs);
     const lv = sk && sk[skill] ? sk[skill].level : null;
+    /* the head draws the ledger's cell (skillLevelsOf: the server's level and its two XP marks), the rows gate on `lv` */
+    const bar = (skillLevelsOf(cs) || {})[skill] || null;
     const head = view.querySelector('.hw-work-head');
     text(view.querySelector('.hw-work-title'), SKILLS_DEF[skill].name);
-    text(head.querySelector('.hw-skill-lv'), lv === null ? '' : String(lv));
+    text(head.querySelector('.hw-skill-lv'), bar ? String(bar.level) : '');
     /* The skill's own bar beside its title: the server's XP, and what the running work has earned since the payout. */
-    cls(head, 'has-xp', lv !== null);
+    cls(head, 'has-xp', !!bar);
     attr(head.querySelector('.hw-skill-bar'), 'aria-label', SKILLS_DEF[skill].name + ' progress');
-    if (lv !== null) patchSkillProgress(head, skill, sk[skill], aheadXp(tickOf(cs), skill));
+    if (bar) patchSkillProgress(head, bar, aheadXp(tickOf(cs), skill));
     const guide = SKILL_GUIDE[skill];
     const how = SKILLS_DEF[skill].cat === 'gather'
       ? 'Pick what to gather. Your hero keeps at it while you are away, until you stop it or start a hunt.'

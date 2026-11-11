@@ -110,7 +110,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'pike_band', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_boots', ch: 0.0064, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.0064, band: 'scarce' }, { id: 'warlock_boots', ch: 0.0064, band: 'scarce' },
         { id: 'mithril_helm', ch: 0.0064, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.0064, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.0064, band: 'scarce' }],
-      hp: 61, atk: 26, baseAcc: 1.04, def: 14, xp: 609, gp: [13, 38], formula: true },
+      hp: 61, atk: 26, baseAcc: 1.04, def: 14, xp: 485, gp: [13, 38], formula: true },
     fordsunk: {
       name: 'Fordsunk', icon: '🌊', tier: 4, level: 50, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank: the dead who went into the ford, bloated and slow. Arrows sink into the bloat (the bestiary's words). The
@@ -118,7 +118,7 @@ export default definePack({
       weaponResist: ['ranged'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.16, band: 'common' }, { id: 'ford_weed', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_platelegs', ch: 0.026, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.026, band: 'scarce' }, { id: 'warlock_pants', ch: 0.026, band: 'scarce' }],
-      hp: 101, atk: 26, baseAcc: 1.08, def: 27, xp: 1156, gp: [21, 64], formula: true },
+      hp: 101, atk: 26, baseAcc: 1.08, def: 27, xp: 921, gp: [21, 64], formula: true },
     ledger_wight: {
       name: 'Ledger Wight', icon: '🪦', tier: 4, level: 51, cls: 'undead', family: 'Undead', speed: 3200,
       /* the glass: the company's dead quartermasters, still keeping the books by the stores. It hits hard and breaks fast. A
@@ -127,7 +127,7 @@ export default definePack({
       weaponResist: ['magic'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'ledger_leaf', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_platebody', ch: 0.05, band: 'scarce' }, { id: 'snakeskin_body', ch: 0.05, band: 'scarce' }, { id: 'warlock_body', ch: 0.05, band: 'scarce' }],
-      hp: 65, atk: 36, baseAcc: 1.05, def: 18, xp: 818, gp: [14, 41], formula: true },
+      hp: 65, atk: 36, baseAcc: 1.05, def: 18, xp: 652, gp: [14, 41], formula: true },
     bannerman: {
       name: 'Bannerman', icon: '🚩', tier: 4, level: 56, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier: the company's dead sergeant, still holding the colors at the Toll Stone. The gloves
@@ -136,7 +136,7 @@ export default definePack({
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'toll_token', ch: 0.1, band: 'uncommon' },
         { id: 'mithril_gauntlets', ch: 0.0033, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0033, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0033, band: 'rare' },
         { id: 'mithril_belt', ch: 0.0033, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0033, band: 'rare' }, { id: 'warlock_belt', ch: 0.0033, band: 'rare' }],
-      hp: 151, atk: 36, baseAcc: 1.1, def: 36, xp: 1891, gp: [32, 95], formula: true },
+      hp: 151, atk: 36, baseAcc: 1.1, def: 36, xp: 1507, gp: [32, 95], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (53) for 0.90-1.10 of the
      pace contract (254,360 an hour at 53). Measured as opened in the tier-4 set, the 8 ways, 4 seeds x 1 h each: at 1.15 the middle
@@ -144,7 +144,12 @@ export default definePack({
      1.22 the Warrens' Normal paid a lone tank, hammer and wand 2-5% more Level XP at 45 than the Ford did (204k, 282k and 350k
      against 194k, 277k and 334k, 2 seeds x 1 h), and the ground the Hunts window sends a lone hero to should not pay less than
      the party ground beside it. */
-  xpFit: { k: 1.28, why: 'at 1.15 the median lone way read 0.92 of the pace contract at the band middle (53), measured as opened over the 8 ways, 4 seeds x 1 h. At 1.28 it reads 1.03, level with the Warrens for a lone hero at 45' },
+  /* RE-FITTED UNDER SOLO +15% AND THE FLATTER CONTRACT (lane/d-packs-retune, 2026-11-12). Tyler 2026-11-11 pays a hero alone +15% Level XP
+     (party-class-xp.js SOLO_XP_PM 1150, was 1050) and the pace contract was re-pinned to the measured ladder (core-model.js LEVEL_PACE.contract
+     1378 x L^1.298, was 975 x L^1.421: 238k an hour at 53, was 276k). At 1.28 the median lone way read 1.26 of the contract at the band middle
+     (quick grade, the Slake's weapons on the ladder, 1 seed x 1 h). A fit scales every way alike, so 1.28 x 1.00 / 1.26 = 1.02. The Warrens'
+     own fit fell further the same day (1 -> 0.76), so a lone hero at 45 still earns a little more here than there. */
+  xpFit: { k: 1.02, why: 'at 1.28 the median lone way read 1.26 of the pace contract at the band middle (53) under solo +15% and the re-pinned contract (quick grade, 1 seed x 1 h). At 1.02 it reads about 1.00' },
   roster: {
     banded_pikeman: 'swarm',   // the common majority
     fordsunk: 'heavy',         // the tank: slow (2400), thick
@@ -176,7 +181,14 @@ export default definePack({
      6 x 4 h). At 1545 and 1555 the four of three classes (tank, hammer, bow, wand) read 1.14 at the middle and the top. The four's
      two cells now 1565 and 1570, held for both ways it can open: alone, the four of three reads 1.15-1.17 and of four 1.19-1.21; with
      the Slake (its weapons on the ladder, the faster party kills) 1.18-1.20 and 1.22-1.24. Pairs 1.01-1.12 alone, 1.06-1.16 with it. */
-  partyClassXp: { 2: [990, 1230], 3: [1150, 1400, 1510], 4: [1150, 1400, 1565, 1570] },
+  /* ONE PACK ON NORMAL FOR EVERY GROUP (Tyler 2026-11-11; lane/d-packs-retune, 2026-11-12). With no party pull a party walks the same route a
+     hero alone walks and splits each kill, so at the cells above a four of four classes read 0.59-0.61 of the median lone way (quick grade,
+     floor and middle) and a tank and Healer pair 0.71, where 10-25 §5 asks a four 1.15-1.25, a pair about 1.10 and a three about 1.15. A cell
+     is a straight factor on the share, so each mixed cell is its old one times its target over its reading: the four's 1570 x 1.20 / 0.60 =
+     3150 (the three-class four 0.98 of it and the two-class 0.90, the base grounds' spread), the pair 1230 x 1.10 / 0.71 = 1905, the threes
+     between (x1.77, the two sizes' mean). One-class cells stay at 1150: they already hold every one-class party under solo (party-class-xp-line),
+     and a raise would carry it over solo on the big-pull tiers (10-31). */
+  partyClassXp: { 2: [990, 1905], 3: [1150, 2480, 2670], 4: [1150, 2830, 3090, 3150] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives.
      Measured at the floor on the default pull, as it ships (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10
      late, the four's cells at 1565 and 1570). One class is the mean of its five one-class parties (pairs 0.80-0.89, threes

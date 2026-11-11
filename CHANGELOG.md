@@ -7,11 +7,11 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.122 — 2026-11-11 (Hunting Alone Pays)
 
-**Hunting alone pays 15% more Level XP.** A hero on its own earns a bonus on every ground and tier. A mixed party of four still earns about 15 to 25% more per head than a hero alone, now from a bigger share of each kill. On Normal every group fights the same packs, and bigger pulls come only from Dangerous and Deadly.
+**Hunting alone earns 15% more Level XP.** A hero on its own gets the bonus on every ground and tier. A mixed party of four still earns about 15 to 25% more per head than a hero alone, now from a bigger share of each kill. On Normal every group fights the same packs, and bigger pulls come only from Dangerous and Deadly.
 
 **The level curve was refitted** to go with it. Hours to Level 10, 25 and 50 are about the same as before. Your Level can drop by one when this lands, because the XP you have is measured against the new curve. Nothing you earned is gone.
 
-**Coppercap Warrens pays less Level XP per kill** than it did, about a quarter less, so the ladder from the Glade up reads right. Bought scaled hunts also pay a little less for a party, so a bought hour is never the best party grind.
+**Coppercap Warrens gives less Level XP per kill** than it did, about a quarter less, so the ladder from the Glade up reads right. Bought scaled hunts also pay a little less for a party, so a bought hour is never the best party grind.
 
 **The Brook Bear lives in Vine Hollow.** A harder hunt in Mosslight Glade brings it, and its page says so.
 

@@ -5795,6 +5795,14 @@ jobs:
           node tests/hero-slots-one.mjs
           node tools/mutant-gate.mjs node tests/hero-slots-one.mjs --mutate
 
+      # A MERGE MUST NOT DROP AN IMPORT (2026-11-11, the v0.2.122 chain: bigPullParts, patchParts, t, three times). Every
+      # name a src/** module uses is declared or imported, every import resolves and the target exports it; zero findings.
+      - name: Imports resolve - no lost import, no missing export
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/imports-resolve.mjs
+          node tools/mutant-gate.mjs node tests/imports-resolve.mjs --selftest
+
   # ── edge ── THE DEPLOYED GATEWAY. One read-only probe against the live Edge
   # Functions with a garbage token, plus its control. It is alone in a job on
   # purpose: it is the only step whose result depends on something OUTSIDE this

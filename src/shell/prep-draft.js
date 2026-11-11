@@ -59,6 +59,7 @@ export function isDirty(d, baseKey) {
  * back: a null would reset it to its default, and the builder shows no default of its own.
  */
 export function optionsOf(d) {
+  /** @type {{ slots: any[], stance?: any, target_mode?: any, distance?: any, chase?: any, gold_floor?: any }} */
   const o = { slots: d.slots.slice() };
   if (known(d.stance)) o.stance = d.stance;
   if (known(d.targetMode)) o.target_mode = d.targetMode;

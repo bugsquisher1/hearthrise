@@ -66,6 +66,7 @@ export function pickCry(criers, facts, clock, now) {
 /** The chat line for a pick: the words from the text home, the link to the place. `at`: the player's clock (ms). */
 function cryLine(pick, at, n, o = {}) {
   const vars = pick.fact && typeof pick.fact === 'object' ? pick.fact : undefined;
+  /** @type {{ text: string, goto?: any }[]} */
   const parts = [{ text: t('criers.say_' + pick.line.id, vars) }];
   const target = crierTarget(pick.crier, pick.line, pick.fact);
   if (target) parts.push({ text: ' ' }, { text: t('criers.go_' + pick.line.id, vars), goto: target });
@@ -74,8 +75,9 @@ function cryLine(pick, at, n, o = {}) {
 
 /**
  * Mount the clock once per signed-in page. `o.timers`: { setTimer, clearTimer } (setInterval's shape), `o.now` the clock (ms),
- * `o.hidden` whether the page is hidden. @returns {{ destroy(): void }}
+ * `o.hidden` whether the page is hidden. @returns {{ destroy(): void, tick?: () => void }}
  */
+/** @param {*} win @param {*} account @param {{ timers?: { setTimer?: Function, clearTimer?: Function }, now?: () => number, hidden?: () => boolean }} [o] */
 export function mountTownCriers(win, account, o = {}) {
   const set = o.timers && o.timers.setTimer ? o.timers.setTimer : (fn, ms) => win.setInterval(fn, ms);
   const clear = o.timers && o.timers.clearTimer ? o.timers.clearTimer : (h) => win.clearInterval(h);

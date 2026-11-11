@@ -472,14 +472,15 @@ async function checks(overrides, pages = null) {
         if (Math.abs(hx - (cl + cw / 2)) > 48 && !(westShown && hx < cl + cw / 2)) fails.push('WC-3 the hero is not centred across the World: x ' + hx + ' in ' + v0);
         const steps = [
           ['opening Gathering and crafting', async () => page.keyboard.press('g')],
-          ['opening the House', async () => page.keyboard.press('e')],
+          /* Friends (380 px) beside Gathering and crafting: both dock inside 60% of a 1440 World (the House's 480 would drop the first). */
+          ['opening Friends', async () => page.keyboard.press('n')],
           ['focusing Gathering and crafting', async () => press(page, '[data-hs-win="skills-trade"] .hs-win-title')],
-          ['dragging the House', async () => {
-            const b = await page.locator('[data-hs-win="house"] .hs-win-title').boundingBox();
+          ['dragging Friends', async () => {
+            const b = await page.locator('[data-hs-win="friends"] .hs-win-title').boundingBox();
             await page.mouse.move(b.x + 10, b.y + b.height / 2); await page.mouse.down();
             await page.mouse.move(b.x - 200, b.y + 120, { steps: 6 }); await page.mouse.up();
           }],
-          ['closing the House', async () => press(page, '[data-hs-win="house"] [data-hs-close]')],
+          ['closing Friends', async () => press(page, '[data-hs-win="friends"] [data-hs-close]')],
           ['closing Gathering and crafting', async () => press(page, '[data-hs-win="skills-trade"] [data-hs-close]')],
         ];
         for (const [what, act] of steps) {

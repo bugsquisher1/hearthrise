@@ -29,7 +29,7 @@ const FIELD = {
 
 /** The crest and the name over every account screen (painted art at its own 1:1 or exactly 1:2, never between). */
 export const AUTH_BRAND = '<header class="auth-brand"><img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.119" alt="" width="311" height="384">'
-  + '<p class="auth-name">Hearthrise</p><p class="auth-pitch">Your heroes hunt, gather and craft, even while you\'re away.</p></header>';
+  + '<p class="auth-name">Hearthrise</p><p class="auth-pitch">Your hero keeps hunting after you close the game.</p></header>';
 
 /* The two pages a player can read from here (legal-reader.js), as presses. */
 const legalLink = (which) => '<button type="button" class="auth-link" data-auth-legal="' + which + '">' + esc(LEGAL_DOCS[which].title) + '</button>';

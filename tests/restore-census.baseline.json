@@ -850,7 +850,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 352,
+   "replay": 354,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_bans": {
@@ -860,7 +860,7 @@
   },
   "hr_bench_tax_rates": {
    "class": "seeded",
-   "replay": 150,
+   "replay": 152,
    "note": "Generated catalogue (2027-02-19-bench-tax-rates.generated.sql from src/data/bench-tax.js and src/data/recipes.js): per bench recipe, its output, count, permille, room and rung. Empty, no job has a fee and the settle's re-derivation takes nothing."
   },
   "hr_blessing_rule": {
@@ -1010,7 +1010,7 @@
   },
   "hr_feature_switches": {
    "class": "operator_tunable",
-   "replay": 3,
+   "replay": 4,
    "wiped_at_cutover": false,
    "live_value": {
     "measured": "2026-11-07",
@@ -1262,7 +1262,7 @@
   },
   "hr_hunt_vendor_value": {
    "class": "seeded",
-   "replay": 557,
+   "replay": 559,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the vendor bid per item (vendorPriceOf), read only by hr_hunt_analyzer for Gold-at-vendor-value and Waste. Moves no value. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_weapon_roles": {
@@ -1272,7 +1272,7 @@
   },
   "hr_hunt_weapons": {
    "class": "seeded",
-   "replay": 67,
+   "replay": 69,
    "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): weapon item -> weapon type, the role a hero plays (hr_hunt_weapon_of). Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_world_shape": {
@@ -1297,12 +1297,12 @@
   },
   "hr_item_slots": {
    "class": "seeded",
-   "replay": 337,
+   "replay": 339,
    "note": "Generated catalogue — which items may occupy which equipment slot. 222 rows on 2026-08-15, 275 now. Rebuilt from repo, never restored."
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 582,
+   "replay": 584,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_kill_credit_log": {
@@ -1546,6 +1546,11 @@
    "class": "seeded",
    "replay": 6,
    "note": "Generated catalogue (2026-12-23-tally-catalogue.generated.sql from src/data/tally-tasks.js TALLY_TASKS): each kill task's ground, monster, count and gold. UPSERTED; hero_tally_tasks references it. Rebuilt from repo, never restored."
+  },
+  "hr_tally_tiers": {
+   "class": "seeded",
+   "replay": 154,
+   "note": "Generated catalogue (2027-04-08-tally-worn.generated.sql by tools/gen-tally-tasks.mjs from src/data/items.js and gear-tiers.js): the gear tier of every item a hero can wear in one of Tamsin's slots, read by hr_tally_pick to skip a slot the hero already wears at the piece's tier or better. Rebuilt from repo, never restored. Empty, her pick fails open to paying a piece the hero wears (the pre-2027-04-08 behaviour, no extra mint)."
   },
   "hr_tick_cohort": {
    "class": "operator_tunable",

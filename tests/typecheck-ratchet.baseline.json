@@ -1,6 +1,6 @@
 {
   "note": "Ceilings, not targets: per file and error kind, counts may only fall. Written by node tests/typecheck-ratchet.mjs --write, which refuses a rise. Regenerate, never hand-merge.",
-  "total": 391,
+  "total": 389,
   "files": {
     "src/app/boot.js": {"TS2367":1,"TS2554":5},
     "src/app/hero-create.js": {"TS1005":3,"TS2304":2,"TS2353":1},
@@ -61,7 +61,7 @@
     "src/session/tutorial-sections.js": {"TS2339":6},
     "src/shell/action-table.js": {"TS2362":3,"TS2363":3},
     "src/shell/alerts.js": {"TS2339":4,"TS2345":7,"TS2353":3},
-    "src/shell/away-recap.js": {"TS2322":1,"TS2353":1},
+    "src/shell/away-recap.js": {"TS2322":1},
     "src/shell/bag-model.js": {"TS2314":1,"TS2339":3},
     "src/shell/bar-draft.js": {"TS1345":1,"TS2339":1},
     "src/shell/carry-in.js": {"TS2339":1},
@@ -69,7 +69,6 @@
     "src/shell/hud.js": {"TS2554":1},
     "src/shell/hunt-go.js": {"TS2339":4},
     "src/shell/item-lore.js": {"TS2339":1},
-    "src/shell/launcher.js": {"TS2339":1},
     "src/shell/market-model.js": {"TS2362":1,"TS2363":1},
     "src/shell/readiness.js": {"TS2339":4},
     "src/shell/report-model.js": {"TS2339":11},

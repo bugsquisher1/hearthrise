@@ -61,8 +61,9 @@
 -- Re-apply 2027-02-18-party-truth.sql's hr_party_nudge_trg and 2027-02-11-party-nudge.sql's hr_party_nudge and its
 -- hr_party_nudge_session trigger (pre-images pinned in §0), drop the two hr_hunt_nudge_* triggers, hr_hunt_nudge_trg and
 -- hr_hero_nudge. No column, row or player value is touched.
--- ORDER: after 2027-04-04-skills-from-server.sql; shares no object with the 2027-04-08 files (progress-hot, member-write-once,
--- idle-clock, tally-worn), so either order is safe. Proof: tests/party-flow.mjs PF-OWN-NUDGE (+ --mutate) and §4 below;
+-- ORDER: LAST in the v0.2.120 server chain, after 2027-04-08-tally-worn.sql; it shares no object with any 2027-03-27..2027-04-08
+-- file (tier 4, dead-writes, watched-settle-cost, first rats, progress-hot, member-write-once, idle-clock, tally-worn), so its
+-- place among them is free. Proof: tests/party-flow.mjs PF-OWN-NUDGE (+ --mutate) and §4 below;
 -- the client's half is unchanged (tests/session-core.mjs NUDGE-1). No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 

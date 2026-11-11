@@ -2,8 +2,9 @@
 // src/session/boss-intents.js — CALL OUT: THE READ AND THE PRESS (src/data/boss-calls.js; supabase/migrations/2027-03-12-boss-call.sql).
 //
 // One ask, naming this hero's slot, a catalogue id and the price the player was shown:
-//   callOut(account, cs, call, price)   hr_boss_call: the leader pays the server's fee and the party enters the room,
-//                                       every member or none. A moved price answers quote_changed with the new quote.
+//   callOut(account, cs, call, price)   hr_boss_call: the caller pays the server's fee and enters the room, a hero in no
+//                                       party alone, a party's leader with every member or none (2027-04-05-call-out-alone.sql).
+//                                       A moved price answers quote_changed with the new quote.
 // (The read of the quote is src/session/boss-quote.js.)
 // Nothing here prices or gates anything. A press re-reads every one of this account's heroes in the party: the screen
 // shows only the server's answer. A refusal keeps the server's code and its quote.

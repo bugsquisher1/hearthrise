@@ -245,7 +245,7 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
     which is the direction that matters. */
 export const INTENT_KEYS = Object.freeze(
   ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty',
-    'equip', 'auto', 'trophy', 'lines', 'market', 'gmStop'],
+    'equip', 'auto', 'trophy', 'lines', 'market', 'gmStop', 'have'],
 );
 
 /** The `market` object's own vocabulary (readMarket), exported so a test reads it instead of restating it. */
@@ -326,7 +326,21 @@ export function parseIntent(body) {
   out.lines = readLines(body);
   out.market = readMarket(body);
   out.gmStop = readGmStop(body);
+  out.have = readHave(body);
   return out;
+}
+
+/**
+ * THE VERSION THE CLIENT SAYS IT HOLDS WHOLE: the `have` field (lane/c-watched-settle-cost). A selector, never a value: it only lets
+ * the hunt settle's floor answer leave out the caller's own character when the server's row is at exactly this version
+ * (hunt-settle.js readHuntSettle). A wrong claim costs the caller its own copy until the next frame or read; it reaches no
+ * number and no other player. A whole JSON number in [0, 2^53), else null (never a numeric string, never rounded).
+ */
+export function readHave(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  if (!Object.prototype.hasOwnProperty.call(body, 'have')) return null;
+  const n = body.have;
+  return typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 ? n : null;
 }
 
 /**

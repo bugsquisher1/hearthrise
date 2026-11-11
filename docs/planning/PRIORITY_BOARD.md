@@ -30,6 +30,95 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-10 Rulings (designer, lane/d-rulings-2026-11-10): seven RULED. Two built here (the pack check's weight-class row, the Blessings line). The rest are SPECIFIED for the lane that owns the file. Nothing measured on the engine today, so every number below is read from data or from another lane's measurement, named
+
+| # | Ruling | State |
+|---|---|---|
+| 1 | Under your weight class you lose gold. Nobody is required to die. The row that asked a pair to die is retired and deaths are read on heroes alone | BUILT in the grader's sheet, with its test |
+| 2 | A hero alone can call out the Rat King. He gets a warning, not a refusal | SPECIFIED, a server change |
+| 3 | The Brook Bear is gated by party size on Normal. That breaks one difficulty. The page line is true today and stays until the gate goes | FLAGGED with the rows, fix SPECIFIED, needs measuring |
+| 4 | The Blessings line is rewritten. Data and player text say 25 / 50 / 75 | BUILT |
+| 5 | `vitals` is right. `refHp` reads one Level high. It is fixed the next time the monster rows are regenerated, not on its own | SPECIFIED |
+| 6 | Tier 7 leather is Slakehide and tier 7 cloth is Shroudweave. The Hall Key trades | SPECIFIED (names, ids), RULED (key) |
+| 7 | Two notes for the art director's 11-12 read | NOTED |
+
+**1. The weight-class row.** The red row is `wc-deadly-under-dies` in `tools/balance-sim/grade-sheet.mjs` (`sheetFromBalanceSheet`, the sheet `pack check` reads). It asked every pair 2-3 under on Deadly, and 5 under on Dangerous or Deadly, for a death in the sample. Quick mode plays one pair, a tank and a Healer, for one hour on one seed. That is the pair built not to die. On Muster Barrows it lost 19.4k g an hour a head and held (lane/b-muster-barrows 5c3b00d0a).
+
+Tyler's words (11-06) are "you're gonna waste money but get more exp and possibly die a few times". Wasting money is the promise. Dying is "possibly". And one difficulty (11-08) says no line asks a group size to fare a set way. So the row over-read him, and it is the check's own fault, not four grounds'.
+
+The contract now:
+- **Binding, unchanged:** `wc-deadly-under-loses`. The same pairs, the same tiers and offsets, net a head at or under 0. The four red cells pass it. This is the row that carries the retired row's intent.
+- **Retired:** `wc-deadly-under-dies`.
+- **New report line, never red:** `{ id: 'wc-under-lone-dies', tiers: ['dangerous', 'deadly'], offsets: ['under5'], sizes: [1], aggregate: 'heldCount', max: 4, binding: false }`. Alone and five under on a harder tier, at most 4 of 8 ways to fight get through the sample with no death. Lone heroes are who dies on the harder tiers (lane/d-spell-tuning: fours hold Dangerous and Deadly at the floor with spells on and no resistance, lone heroes don't). If a change makes the tiers toothless, this line ranks it in the grade without blocking a ground. It is advisory because nothing has measured it at five under yet.
+
+**The proof it bites** (`tests/balance-grade.mjs`, the weight-class block, on the real `BALANCE_SHEET`): the red cell (a pair five under on Dangerous, losing gold, no death) is not a FAIL. That check was red before the sheet moved and names `wc-deadly-under-dies`. The mutant, the same pair earning a profit, FAILS `wc-deadly-under-loses`. Every lone way holding reads OFF on the new line and never FAIL. No binding line asks a group to die.
+
+When the spell dial (`spellPm`) and the linings land, deaths on a four become real on Deadly. The contract doesn't change. Gold stays the binding line.
+
+Owed, not built here: `src/data/balance-sheet.js:68-69` still says "the median cell dies" and carries `deathsMin`. `tools/balance-sim/sheet-check.mjs:118,121` and `tools/balance-lab/targets.mjs:107` still show deaths as pass or fail. They follow this ruling (deaths shown, never failed) in the next lane that moves the edge, because `balance-sheet.js` rides the edge bundle and the lab needs a rebuild. The four ground lanes re-run `pack check` after merging this. Not run here.
+
+**2. Call out.** The lock goes. Tyler 11-04: "big risks should include warnings but should allow the player to take them". Tyler 11-08: the Rat King "is a warning not a gate", and "Either they are strong enough to do the harder content or they aren't". He asked for this sink as a boss called "at the player's own risk". Krell's Hall already says a lone hero may enter. A called room pays no XP, no coin and no drops, so a lone call can only cost gold. There is nothing to exploit.
+
+Spec for the server lane (lane C, on the pre-EA Security list with the rest of the call):
+- `hr_boss_call_quote` (latest body `2027-03-22-live-events.sql:227`) stops answering `call_party`. A hero in no party is quoted and calls alone. `hr_boss_call` opens the room for one seat.
+- `hr_boss_calls.party_min` and `BOSS_CALL_RULES.partyMin` go (`tools/gen-hunt-sessions.mjs:683, 1113, 1213`, and the mutant at `:1419`).
+- `call_party` leaves `src/data/boss-calls.js:81` and `src/data/refusal-words.js:320`.
+- The fee is the same alone. Three calls a day stays. Only a party's leader calls stays.
+- The Call out warning gets one more line when the caller is alone: "{Boss} is built for a party. Alone, you still fight him, and he can kill you."
+- Tests: `boss-call-db` BD-WORDS flips (a hero alone is quoted) and its mutant `:374` becomes "a lone call is refused". `boss-call-window :94, :162, :176`. A lone called fight on both paths, viewed and with the browser closed. `tests/boss-call.mjs` (the room pays nothing) is not touched.
+
+**3. The Brook Bear.** The line is true. `mosslight_glade` has `partyPull: [0, 3, 3, 4]` (`src/data/hunt-grounds.js:301`) and the bear is the third row of the Mosslight Springs and Vine Hollow (`:292`, `:296`). Read with `densityFor` and `pullRows`: alone on Normal the pull is the room as built and has no bear. A party of two, three or four pulls 3, 3 or 4 and meets it. Dangerous (5) and Deadly (8) bring it to anyone.
+
+So on Normal the monsters do change with group size. That is a one-difficulty violation, and it is not only the Glade: the Cellar `[0, 4, 5, 5]` (`:179`), the Thicket `[0, 4, 5, 6]` (`:223`) and Wickstead `[0, 3, 3, 4]` (`:336`) carry the same field. The Glade is the only one where it hides a creature, and that creature carries a House material (Bear Pelt: the Keep, the Trophy Room, the Houndskin Cloak).
+
+Ruling: `partyPull` goes, Normal is the room as built for every group, and the bear stands in Vine Hollow's as-built rows so everyone meets it. A party earning more than a hero alone is held by the mixed-party XP cells, the lever Tyler picked on 11-08. The 11-08 section kept `partyPull` on purpose (a mixed four earned 0.40-0.63 of a lone hero without it). That number is from before the re-tune and has to be measured again first: the grade on the four grounds one at a time, `party-class-xp-line`, `level-curve` (a lone hero's Glade changes). If the XP cells can't hold Tyler's 115-125 for a four without it, that is an open conflict for Tyler, not mine to settle. It moves the world shape, so it is a server catalogue and an edge move. The page line needs no edit: it is built from the data and goes quiet when the bear stands as built.
+
+**4. Blessings.** The line is now seven rows in `src/data/text/prep.js`, picked by `blessingWords` in `src/shell/hunt-go.js`:
+
+| When | The line |
+|---|---|
+| None on, free | You have no Blessings on. They cut the XP you lose when you die, and they're free until Level 30. Get them in the Shop's Services tab. |
+| None on, priced | You have no Blessings on. They cut the XP you lose when you die. The first one costs 110 gp in the Shop's Services tab. |
+| Some on, priced | You have 1 of 3 Blessings on. You lose 25% less XP when you die. The next one costs 450 gp in the Shop's Services tab. |
+| Some on, free | You have 1 of 3 Blessings on. You lose 25% less XP when you die. The rest are free until Level 30 in the Shop's Services tab. |
+| All on | You have all 3 Blessings on. You lose 75% less XP when you die. |
+
+"Free for now" was true but vague. Blessings are free under Level 30 (Tyler 10-18, `BLESSING_RULES.freeUntilLevel`), the server sends that Level, and the death popup and the tutorial already name it. So this line names it too. Two more rows cover a server that hasn't said the price yet.
+
+25 / 50 / 75, checked: `BLESSING_CUT_PERMILLE = [250, 500, 750]` (`src/data/blessings.js:53`), and every player line reads the server's `permille`. No player text in `src/` says 32, 63 or 95. **CLAUDE.md §6 still says "32 / 63 / 95%"**. Not edited here. The Coordinator owns that file.
+
+**5. `refHp`.** A Level L hero has 150 + 10 x (L - 1) HP (`src/core/vitals.js:61`, and the start kit pins Level 1 at 150). `STAT_FORMULA.refHp` (`src/data/balance-sheet.js:110`) says 150 + 10 x L, a hero one Level up. `vitals` is right, because it is what every hero has. The formula's "share of a same-Level hero" is high by 10 HP: about 5% at Level 5, 1.5% at Level 50, under 1% at 100.
+
+It is not a one-line fix. `refHp` feeds every formula-written monster's `atk` and `baseAcc` and every tier's `dmgPm` (`:296-302`, `:391`). The gap is 0.2 to 0.5 of an attack point a row (arithmetic, not a run), so some rows flip by one and shipped numbers move. Every row was fitted and measured with today's `refHp`, so the game as played is right and only the sentence is wrong. Spec for lane/b-formula-home: `refHp: (L) => VITALS.hpBase + VITALS.hpPerLevel * (L - 1)`, in the same commit that next regenerates the monster rows (the `spellPm` dial or the next ground batch), with `gen-ground-stats`, `gen-ground-tiers` and the hunt-sessions catalogue regenerated and the grade re-read. Until then the wiki must not print "same-Level hero" from this line.
+
+**6. Krell's Hold.**
+
+Names. Both come from the Barrow March, because the first tier 7 pieces come out of Krell's hall and he took everything the March made. The earlier offer, Duskhide and Dawnweave, is two mood words glued to a noun, the shape Tyler called AI on 10-25.
+
+| Id today | Name today | New name | Root |
+|---|---|---|---|
+| `voidhide_*` (6) | Voidhide | **Slakehide** Coif, Body, Chaps, Boots, Vambraces, Belt | Hide cured green in the Slake's copper water. Slaking is also a real step in tanning |
+| `voidweave_*` (6) | Voidweave | **Shroudweave** Hat, Robe Top, Robe Bottom, Slippers, Gloves, Sash | Woven from the Pyre Field's shrouds, the ones that wouldn't burn (the Shroud Rows) |
+
+Id plan. No id moves in this lane. The ids are `hr_items` rows and the names sit in the same generated catalogue. Both move together in the Hold's item batch (lane C), in one items catalogue and one hunt-sessions catalogue: `voidhide_*` to `slakehide_*`, `voidweave_*` to `shroudweave_*`, and any recipe id built from them. No ground drops tier 7 today, and there is no back-compat rule to keep the old ids. The Coordinator reads the live bags first. If a hero holds one, the changelog says so.
+
+Files that name them: `src/data/gear-tiers.js:202-203, 214-215` (the names and ids are generated from these two lines). `src/data/item-descriptions.js:452-457, 459-464` (twelve lines to rewrite, they say "void-dark" and "unraveling dark"). `src/data/item-art.js:132-135`. `src/data/catalogue-coherence.js:152-155`. Twelve icons under `assets/icons-bundle/` (`voidhide_*.png`, `voidweave_*.png`). `tools/lib/art-palette.mjs:227`, `tools/art-wave2-select.mjs:54`, `tools/art-wave2-map.mjs:28`. `tests/recipe-yield-guard.mjs:45` (a comment). `docs/design/item-art-prompts.md`, `docs/design/item-session-pack.txt`. 71 generated migrations name them too. Those are history and are never edited. Not part of this: the old roster's other Void rows (`void_chitin`, `void_core`, `void_essence`, `void_banquet`, `void_censer`, `voidmaw_scepter`, `voidwoven_sigil`, `voidheart_robe`). No open ground reaches them. They are renamed or cut when their area is reworked.
+
+The Hall Key trades. Reasons:
+- Tyler's money model (11-10) puts value in what players sell each other. Crowns become gold on the market, and gold buys what other players hunted. A key is exactly that kind of good.
+- A bought key is not a bought drop. It is one try at a fight you can lose, and the key is used up either way. Somebody still spent about two hours on the Keep Stair for it, so the supply is hunting hours and the price is the players'.
+- His avoid list (11-04) is about the game selling rare drops for gold. Here the game sells nothing and no gold is minted.
+- It gives the Hold's lone hunters something to sell, on a ground designed to lose to the Pyre Field on a lone hero's gold. And it gives a boss party a reason to buy.
+- No gear binds in this game (10-23), and keys stay items (10-14).
+
+This overrules the Hold section's default of no. Rails for the server lane: one key opens the hall for the whole party and it is the leader's. The key is taken on entry by the server and journalled. It moves only through Storage and trade. The keyed room and the key go on the pre-EA Security list together. Tyler may overrule, since it sits next to his money model.
+
+**7. For the art director, 11-12.**
+- Maple is red on `maple_bow`, `maple_staff` and the new `maple_crossbow`, and orange on `maple_plank`. One wood, one color.
+- Spring Tide and Undertow are both blue curls on a Healer's bar. One heals the party and one hits a monster, and they can't be told apart at a glance.
+
+**Checks, one at a time, exit codes read.** Exit 0: `tests/balance-grade.mjs` (exit 1 before the sheet moved, on the new check), `tests/text-home.mjs` (ceiling lowered, `hunt-go.js` 50 to 42), `tests/copy-lint.mjs`, `tests/alpha-windows.mjs --pure` (AW-27 pins moved, two added), `tools/typecheck.mjs`. Not run: `pack check` on the four staged grounds, the alpha-windows mutants, any browser. The new Blessings line has not been read on screen.
+
 ### 2026-11-08 One difficulty for every group, and a small solo boost (designer, lane/b-one-difficulty; **Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged. Either they are strong enough to do the harder content or they aren't simple as that"**, then **"Same monsters, re-tune"**): BUILT and RE-TUNED as data, measured on the real engine, four files STAGED (tiers, hunt-sessions, scaled hunts, the Level curve), the edge moves. **Tyler: four reds below are a bar the rule moves, each his call**
 **The call.** A tier is now the same fight for one hero or four: one pull a tier, the same damage and HP. A hero hunting alone earns +5% Level XP (`src/data/party-class-xp.js` `SOLO_XP_PM`), and every mixed-class cell carries the same +5%, so a mixed party keeps its measured lead over the same heroes alone while a one-class party falls 5% further under one. The bigger pulls start at the Glade's floor (`TIER_PULL_FROM_FLOOR` 16): on the Thicket, Wickstead and the Sewer the harder tiers bring no more monsters, for anyone. The lone-hero tier targets are retired (`loneMustCost`, `loneHeldMin`): the sheet now judges what a tier pays whoever holds it, and keeps one ceiling, a four at the floor holds Deadly.
 

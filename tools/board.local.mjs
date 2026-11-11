@@ -7,14 +7,16 @@
 // Runs the existing local tools on their own timers (lane-watch, release-check for the live version,
 // hunt-health, vitals, pc-load, economy-watch) and serves their text as panels, each stamped with its
 // age. The page polls /state.json every 10 s; nothing is computed in the browser. /translate is an
-// offline translator on Chrome's built-in on-device Translator API (Chrome 138+): no server, no key.
+// offline translator: tools/translate-worker.py (Argos Translate, Python) runs as a child; nothing leaves the PC.
 // Reads only what those tools read. Writes nothing. Local tool, not in CI.
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 
 const args = process.argv.slice(2);
 const portAt = args.indexOf('--port');
-const PORT = portAt >= 0 ? Number(args[portAt + 1]) || 8199 : 8199;
+const PORT = portAt >= 0 ? Number(args[portAt + 1]) || 8199 : Number(process.env.PORT) || 8199;
 const ONCE = args.includes('--once');
 const LIVE = 'https://hearthrise.net/src/build-info.js';
 
@@ -60,6 +62,23 @@ async function refresh(p) {
   } catch (e) { s.text = String(e); s.at = Date.now(); s.ok = false; }
   s.busy = false;
 }
+
+/* ── offline translator worker (tools/translate-worker.py, Argos) ────── */
+const PY = [join(process.env.LOCALAPPDATA || '', 'Programs/Python/Python312/python.exe'), 'python'].find((p) => p === 'python' || existsSync(p));
+let worker = null, ready = false; const queue = [];
+function startWorker() {
+  worker = spawn(PY, ['tools/translate-worker.py'], { cwd: process.cwd(), windowsHide: true, env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
+  let buf = '';
+  worker.stdout.on('data', (d) => { buf += d; let i; while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); if (!line.trim()) continue;
+    let j; try { j = JSON.parse(line); } catch { continue; }
+    if (j.ready) { ready = true; continue; } const q = queue.shift(); if (q) q(j); } });
+  worker.stderr.on('data', () => {});
+  worker.on('close', () => { ready = false; worker = null; for (const q of queue.splice(0)) q({ error: 'translator restarted' }); setTimeout(startWorker, 3000); });
+}
+function translate(req) {
+  return new Promise((resolve) => { if (!worker) return resolve({ error: 'translator not running' }); queue.push(resolve); worker.stdin.write(JSON.stringify(req) + '\n'); });
+}
+const readBody = (req) => new Promise((r) => { let b = ''; req.on('data', (d) => { b += d; }); req.on('end', () => r(b)); });
 
 /* ── the page ───────────────────────────────────────────────────────────── */
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Hearthrise board</title>
@@ -127,12 +146,12 @@ select,button{background:var(--panel);color:var(--ink);border:1px solid var(--li
 <textarea id="dst" readonly placeholder="Translation"></textarea>
 </main>
 <script>
-const LANGS=[['en','English'],['es','Spanish'],['pt','Portuguese'],['fr','French'],['de','German'],['it','Italian'],['nl','Dutch'],['pl','Polish'],['ru','Russian'],['uk','Ukrainian'],['tr','Turkish'],['ar','Arabic'],['hi','Hindi'],['ja','Japanese'],['ko','Korean'],['zh','Chinese'],['vi','Vietnamese'],['th','Thai'],['id','Indonesian'],['sv','Swedish'],['da','Danish'],['fi','Finnish'],['nb','Norwegian'],['cs','Czech'],['hu','Hungarian'],['ro','Romanian'],['el','Greek'],['he','Hebrew']];
+const LANGS=[['en','English'],['es','Spanish'],['pt','Portuguese'],['de','German'],['fr','French'],['pl','Polish'],['ru','Russian'],['tr','Turkish'],['it','Italian']];const OLD=[['es','Spanish'],['pt','Portuguese'],['fr','French'],['de','German'],['it','Italian'],['nl','Dutch'],['pl','Polish'],['ru','Russian'],['uk','Ukrainian'],['tr','Turkish'],['ar','Arabic'],['hi','Hindi'],['ja','Japanese'],['ko','Korean'],['zh','Chinese'],['vi','Vietnamese'],['th','Thai'],['id','Indonesian'],['sv','Swedish'],['da','Danish'],['fi','Finnish'],['nb','Norwegian'],['cs','Czech'],['hu','Hungarian'],['ro','Romanian'],['el','Greek'],['he','Hebrew']];void OLD;
 const $=id=>document.getElementById(id);
 for(const [c,n] of LANGS){$('from').append(new Option(n,c));$('to').append(new Option(n,c))}
-$('to').value='en';$('from').value=localStorage.getItem('from')||'es';$('from').addEventListener('change',()=>localStorage.setItem('from',$('from').value));
+$('to').value='en';$('from').value=localStorage.getItem('from')||'auto';$('from').addEventListener('change',()=>localStorage.setItem('from',$('from').value));
 const status=t=>$('status').textContent=t;
-if(!('Translator' in self)){status('Not available: needs Chrome 138 or newer (Edge works too). Open this page there.')}
+status('ready · paste text, press Translate (Ctrl+Enter) · runs on this PC');
 let timer,translator,key='';
 const within=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('this browser never answered: it has no on-device translator. Use Chrome itself (138+), not the Claude app pane')),ms))]);
 async function detect(text){
@@ -141,7 +160,10 @@ async function detect(text){
 }
 async function go(){try{await run()}catch(e){status('error: '+(e&&e.message||e))}}
 async function run(){
-  const text=$('src').value.trim();if(!text||!('Translator' in self))return;
+  const text=$('src').value.trim();if(!text)return;status('translating…');
+  const r=await (await fetch('/api/translate',{method:'POST',body:JSON.stringify({from:$('from').value,to:$('to').value,text})})).json();
+  if(r.error){status('error: '+r.error);return}
+  $('dst').value=r.out;status(r.from+'>'+$('to').value+' · '+r.ms+' ms · on this PC');translator=true;return;
   let from=$('from').value;if(from==='auto')from=await detect(text);
   const to=$('to').value;if(from===to){$('dst').value=text;status('same language');return}
   const k=from+'>'+to;
@@ -151,12 +173,12 @@ async function run(){
     translator=await Translator.create({sourceLanguage:from,targetLanguage:to,monitor(m){m.addEventListener('downloadprogress',e=>status('downloading '+Math.round(e.loaded*100)+'%'))}});key=k}
   const t0=performance.now();$('dst').value=await translator.translate(text);status(k+' · '+Math.round(performance.now()-t0)+' ms · on device');
 }
-$('src').addEventListener('input',()=>{clearTimeout(timer);if(translator)timer=setTimeout(go,400);else status('press Translate once to load the model, then it follows your typing')});
+$('src').addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(go,600)});
 $('run').onclick=go;
 $('src').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.ctrlKey)go()});
 $('from').onchange=$('to').onchange=go;
 $('swap').onclick=()=>{const f=$('from').value,t=$('to').value;if(f==='auto')return;$('from').value=t;$('to').value=f;$('src').value=$('dst').value;go()};
-if('Translator' in self)status('ready · paste text, press Translate (Ctrl+Enter) · on-device, no network');
+
 </script></body></html>`;
 
 /* ── main ───────────────────────────────────────────────────────────────── */
@@ -165,11 +187,13 @@ if (ONCE) {
   process.exit(0);
 }
 
+startWorker();
 for (const p of PANELS) { refresh(p); setInterval(() => refresh(p), p.every * 1000); }
 
 createServer((req, res) => {
   const url = req.url.split('?')[0];
   if (url === '/state.json') { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); return res.end(JSON.stringify(state)); }
+  if (url === '/api/translate' && req.method === 'POST') { return readBody(req).then(async (b) => { let j; try { j = JSON.parse(b); } catch { j = {}; } const r = await translate({ from: j.from || 'auto', to: j.to || 'en', text: String(j.text || '').slice(0, 5000) }); res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(r)); }); }
   if (url === '/translate') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(TRANSLATE); }
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); res.end(PAGE);
 }).listen(PORT, '127.0.0.1', () => console.log(`board: http://localhost:${PORT}  (translator: /translate)`));

@@ -1,0 +1,64 @@
+{
+ "tool": "create_1_direction_object",
+ "object_id": "ae2383db-f14c-4339-9aac-d0e68e3ed6a3",
+ "cost_gens": 10,
+ "size": 32,
+ "view": "top-down",
+ "palette": "hr-world-56-v2 (all 56 passed)",
+ "description": "a single fantasy RPG inventory item icon, drawn large and filling the square, on the diagonal where it is long, dark single colour outline, lit from the upper left, classic MMORPG pixel art",
+ "style_images": [
+  "assets/icons-bundle/pixel/items/hearth_token.png",
+  "assets/icons-bundle/pixel/items/crown_shard.png",
+  "assets/icons-bundle/pixel/items/keystone.png",
+  "assets/icons-bundle/pixel/items/wolfbone_torc.png",
+  "assets/icons-bundle/pixel/items/culvert_bat_fang.png"
+ ],
+ "candidates": [
+  {
+   "from": 0,
+   "to": 6,
+   "words": "hall key: a big heavy black iron castle key, a round ring bow with a dull gold band, a long shaft and a large toothed bit, on the diagonal"
+  },
+  {
+   "from": 7,
+   "to": 13,
+   "words": "farmhand's tag: a small dented rectangular tin tag stamped with a wheat sheaf, a hole at the top threaded with a loop of rough twine"
+  },
+  {
+   "from": 14,
+   "to": 20,
+   "words": "lookout's whistle: a small brass signal whistle, a round barrel with a mouthpiece, on a short loop of iron chain"
+  },
+  {
+   "from": 21,
+   "to": 27,
+   "words": "barrow nail: a huge black hand-forged iron spike with a wide flat head, square shank, a strip of faded red cloth tied round it, on the diagonal"
+  },
+  {
+   "from": 28,
+   "to": 34,
+   "words": "priest's cord: a coiled knotted cord of scorched cream rope with three knots and a frayed burnt black end"
+  },
+  {
+   "from": 35,
+   "to": 41,
+   "words": "gatekeeper's chain: a heavy loop of steel chain links with a small iron padlock hanging from it"
+  },
+  {
+   "from": 42,
+   "to": 48,
+   "words": "coffin nail: a short rusty brown iron nail with a round head, bent at a right angle, a splinter of dark coffin wood still stuck on it"
+  },
+  {
+   "from": 49,
+   "to": 55,
+   "words": "urn shard: a curved broken piece of an old clay burial urn, terracotta orange outside with a cream painted band and zigzag, a dark inside edge"
+  },
+  {
+   "from": 56,
+   "to": 63,
+   "words": "toll token: a worn bronze ferry toll token, a thick round disc stamped with a small boat, a notch cut in its rim, with a green copper patina"
+  }
+ ],
+ "frames_url": "https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ae2383db-f14c-4339-9aac-d0e68e3ed6a3/rotations/frame_{i}.png"
+}

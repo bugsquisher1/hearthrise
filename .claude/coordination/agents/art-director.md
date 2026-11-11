@@ -3246,3 +3246,11 @@ opens a folded analyzer; the folded Tally keeps its count in its title. HS-28 gu
 canvas: the action bar always takes a quarter, so a canvas metric can never be met; (2) a fold that keeps the open box's width still
 steps under the hunt bar into the fight, so a fold must shrink too; (3) folding a counter hides the number a coach card points at:
 keep it in the title. Open: the coach card's reading window (20 s or more) still covers about 9% at 1024 before it rests.
+### 2026-11-12 lane/a-gen-2026-11-12 (heads, icons, Slake bodies; 83 gens, briefs 15-19)
+The account held 83.4 generations, not the 2,123 of 11-07. A 32 px create_1_direction_object bills 10 for 64 slots whatever
+fills them, so one call can carry several owed lines (brief 18 carried 6 faces, 7 heads, a key and a pin). Lessons: (1) heads
+with approved heads as style images hold one family across calls; crops of the world stills are good identity refs but poor
+heads (a humanoid face is 8-10 px at 1x); (2) the palette param kept every pick on hr-world-56-v2 with 0 off pixels, but it
+can pick the wrong ramp (the pikeman's bones came back mithril, not bone): read a census by ramp; (3) the model paints "ash on
+the brow" as a cross every time: say "no shape, no symbol"; (4) the PixelLab MCP answers plain HTTP with ~/.pixellab-token
+(a scratch client, token never printed), so a missing connector is not a blocker for brief 14.

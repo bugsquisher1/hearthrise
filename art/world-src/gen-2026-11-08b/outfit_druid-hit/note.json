@@ -1,0 +1,165 @@
+{
+  "asset": "outfit_druid hit clip (brief 10 H1), every hunt (the hero)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt H1 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`). A facing with no kept roll has none after the retries (flagged)",
+  "made": "2026-11-08",
+  "set": "hunt (heroes)",
+  "object_id": "none (the PixelLab druid object is not the shipped druid: 08 R1)",
+  "name": "druid (staff); animated from uploads of the shipped stills",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); hit/<facing>/0..N.png = the kept roll; alt/<roll>/hit/<facing>/ = refused rolls",
+  "tool": "animate_image from an upload of the shipped still (art/world/hunt/outfit_druid.png idle row, 64x64), frame_count 6; index 0 (the input) dropped so the clip matches keep_first_frame false",
+  "rolls": {
+    "r1": [
+      {
+        "group": "jobs s 7ce751d3, e bb77a13c, n 0534440a, w b6185975 (seed 51)",
+        "directions": "s e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the weapon and shield move only with the body, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r2": [
+      {
+        "group": "jobs e 54703013, n 35c16878 (seed 52)",
+        "directions": "e n",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the staff stays in its hand and moves only with the body, no leaves, no sparks, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r3": [
+      {
+        "group": "jobs e f6a1fdcb, n 44b29c04 (seed 53)",
+        "directions": "e n",
+        "action": "only the upper body tips back by one pixel as if pushed from the side it faces, then returns, the legs and feet do not move, it keeps facing the same way, the staff stays in its hand exactly where it is and is not redrawn, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r1",
+    "east": "none",
+    "north": "none",
+    "west": "r1"
+  },
+  "refused": {
+    "east r1": "the staff lifts overhead with a green leaf flare and floating specks (frames 1-4)",
+    "east r2": "the staff lifts overhead with a green glow",
+    "east r3": "a long pale stick shoots up above the head (frames 1-5)",
+    "north r1": "a white streak like a slash at frame 1, the staff lifts",
+    "north r2": "white sparkles over the head (frames 1-5)",
+    "north r3": "a star-shaped burst over the staff (frames 2-4)"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r1",
+      "xor": [
+        53,
+        106,
+        169,
+        201,
+        159,
+        97
+      ],
+      "alien": [
+        0,
+        2,
+        25,
+        33,
+        15,
+        4
+      ],
+      "dx": [
+        0,
+        -0.7,
+        -1.5,
+        -2,
+        -1,
+        -0.3
+      ],
+      "dy": [
+        -0.3,
+        -0.6,
+        -1.1,
+        -0.9,
+        -0.9,
+        -1.1
+      ],
+      "top": [
+        -1,
+        0,
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f3 (33)"
+      ]
+    },
+    "west": {
+      "roll": "r1",
+      "xor": [
+        55,
+        81,
+        77,
+        62,
+        126,
+        102
+      ],
+      "alien": [
+        9,
+        8,
+        9,
+        7,
+        18,
+        24
+      ],
+      "dx": [
+        0.4,
+        0,
+        0.1,
+        -0.8,
+        -1.6,
+        -1.3
+      ],
+      "dy": [
+        0.4,
+        0.4,
+        -0.1,
+        0.2,
+        0.7,
+        0.7
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    }
+  },
+  "generations": 8,
+  "flags": [
+    "EAST and NORTH: NO CLEAN ROLL after 2 retries (6 rolls): the druid's leafy staff turns into magic every time it is animated (the idle line hit the same wall: 09 R3). These two facings have no hit clip; the engine's 1 px recoil stays for them",
+    "south r1 note: the green glow at the hand is in the still; the staff tips 2 px with the lean"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/outfit_druid-hit.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)",
+  "still": "art/world/hunt/outfit_druid.png idle row; uploads s e289f399, e 7d845121, n 5cbd17b0, w 6bab5205 (valid 3 days from 11-08)",
+  "import_note": "brief 10 H1: the import re-runs tools/world-art/outfit-masks.mjs"
+}

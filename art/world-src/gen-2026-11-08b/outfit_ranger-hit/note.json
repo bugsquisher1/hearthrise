@@ -1,0 +1,281 @@
+{
+  "asset": "outfit_ranger hit clip (brief 10 H1), every hunt (the hero)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt H1 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "hunt (heroes)",
+  "object_id": "0934ce5c-0838-4b3e-9b53-16e9e9504489",
+  "name": "S1 ranger (crossbow)",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); hit/<facing>/0..N.png = the kept roll; alt/<roll>/hit/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the object, frame_count 6, keep_first_frame false; south and the side facings are separate groups (their action texts differ)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "11aa6279-e211-460f-8b59-17b0e739785a",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, feet planted, the weapon and shield move only with the body, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "effed39d-a155-445c-9187-07557d4af474",
+        "directions": "e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the weapon and shield move only with the body, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r2": [
+      {
+        "group": "b7bc8afc-dca5-49bd-87f2-bc1748fecfaa",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, feet planted, it keeps facing the same way, both arms and everything held in the hands stay where they are and move only with the body, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "843c3ee1-30ac-40a6-b948-44e7e624dd83",
+        "directions": "e n",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, it keeps facing the same way, both arms and everything held in the hands stay where they are and move only with the body, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r3": [
+      {
+        "group": "c99ead21-f68c-44b1-9509-99656d7f3e71",
+        "directions": "s",
+        "action": "only the upper body tips back by one pixel as if pushed from the front, then returns, the legs and feet do not move, it keeps facing the same way, both arms and the crossbow stay where they are and move only with the body, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "1099acb0-9277-4690-b7b4-d3db45e4c72c",
+        "directions": "e n",
+        "action": "only the upper body tips back by one pixel as if pushed from the side it faces, then returns, the legs and feet do not move, it keeps facing the same way, both arms and the crossbow stay where they are and move only with the body, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r3",
+    "east": "r3",
+    "north": "r3",
+    "west": "r1"
+  },
+  "refused": {
+    "south r1": "the legs step out into a wide stance (frames 2-4)",
+    "south r2": "turns toward the east at frames 3-6",
+    "east r1": "turns to face the viewer (frames 3-5)",
+    "east r2": "turns toward the viewer again",
+    "north r1": "the crossbow swings out with the arms (frames 3-4)",
+    "north r2": "the crossbow vanishes at frames 3-6"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r3",
+      "xor": [
+        50,
+        120,
+        23,
+        54,
+        26,
+        27
+      ],
+      "alien": [
+        1,
+        1,
+        0,
+        0,
+        0,
+        1
+      ],
+      "dx": [
+        0.6,
+        1.5,
+        0.2,
+        -0.7,
+        0.3,
+        0.1
+      ],
+      "dy": [
+        0,
+        0.1,
+        -0.2,
+        -0.1,
+        0,
+        0.1
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "east": {
+      "roll": "r3",
+      "xor": [
+        70,
+        49,
+        54,
+        110,
+        106,
+        97
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "dx": [
+        0.9,
+        0.3,
+        -0.5,
+        -1.3,
+        -1.4,
+        -1.1
+      ],
+      "dy": [
+        0,
+        -0.1,
+        0.2,
+        0.3,
+        0.1,
+        -0.2
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        -1,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "north": {
+      "roll": "r3",
+      "xor": [
+        39,
+        109,
+        134,
+        127,
+        114,
+        42
+      ],
+      "alien": [
+        0,
+        1,
+        4,
+        6,
+        3,
+        0
+      ],
+      "dx": [
+        0.4,
+        1.1,
+        1.3,
+        1.2,
+        1.1,
+        0.4
+      ],
+      "dy": [
+        -0.3,
+        -0.4,
+        0,
+        0.3,
+        0.2,
+        0
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "west": {
+      "roll": "r1",
+      "xor": [
+        54,
+        26,
+        92,
+        143,
+        161,
+        137
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        10,
+        10,
+        12
+      ],
+      "dx": [
+        -0.2,
+        0.1,
+        0.5,
+        0.5,
+        0.5,
+        0.1
+      ],
+      "dy": [
+        -0.1,
+        -0.1,
+        0.3,
+        1.1,
+        1,
+        0.9
+      ],
+      "top": [
+        1,
+        0,
+        0,
+        0,
+        -1,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    }
+  },
+  "generations": 10,
+  "flags": [
+    "south, east, north r3 are very small motions (centroid 1-1.5 px, the legs never move): the recipe that held for heroes was \"only the upper body tips back\"",
+    "west r1: the body turns a little toward the viewer at frames 4-5; the crossbow holds"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/outfit_ranger-hit.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)",
+  "import_note": "brief 10 H1: the import re-runs tools/world-art/outfit-masks.mjs (the heroes set dye masks follow each frame)"
+}

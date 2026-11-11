@@ -86,6 +86,8 @@ import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../src/data/world/house-layo
 import { OUTFITS } from '../src/data/hunt-outfits.js';
 import { HUNT_INDEX } from '../src/data/hunts.js';
 import { HUNT_ART_ALIAS } from '../src/data/monster-art.js';
+import { clipFacing } from '../src/world/core/facing.js';
+import { CLIP_RULES } from '../src/hunt-view/clip-hook.js';
 /* the OPEN grounds: a staged one (src/data/hunts.js `staged`) is drawn by nobody until its art lands (forest-cave.mjs staged-until-art) */
 import { OPEN_GROUNDS as HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 /* ONE KIT A REGION (Tyler 2026-11-07): every hunting ground places its region kit's props and at most two signature pieces */
@@ -182,10 +184,14 @@ const REQUIRED_TERRAIN = { sewer_ground: 'sewer', cellar_ground: 'mill', common_
 
 // THE LIVE-GROUND CONTRACT: what a kill on a walked ground asks the renderer for. The sprite id is the
 // monster id (src/hunt-view/scene.js spriteOf, src/world/choreo.js corpses); the clips are the ones the
-// scenes name: idle and walk (every facing), attack, death and the held corpse (the four cardinals; a
-// diagonal falls back to its cardinal, core/book.js pickFacing).
+// scenes name: idle and walk (every facing), death and the held corpse (the four cardinals; a fall lies in
+// the nearest facing it has), and the swing (`attack`) reachable from EVERY facing: the hunt plays a swing
+// only on a facing it has or one 45° step round (src/hunt-view/clip-hook.js H2), so a facing with no drawn
+// swing that near would stand still on its blow (2026-11-10: the slime's N and the rat king's S are owed,
+// their drawn neighbours swing there).
 const CARDINALS = ['s', 'e', 'n', 'w'];
-const LIVE_CLIPS = [['idle', FACINGS], ['walk', FACINGS], ['attack', CARDINALS], ['death', CARDINALS], ['corpse', CARDINALS]];
+const LIVE_CLIPS = [['idle', FACINGS], ['walk', FACINGS], ['death', CARDINALS], ['corpse', CARDINALS]];
+const SWING_REACH = CLIP_RULES.reach;
 const IDLE_POSES = 3;
 /** monster id → the grounds whose packs and spawn rows name it. */
 function liveMonsters(grounds = HUNT_GROUNDS, hunts = HUNT_INDEX) {
@@ -211,7 +217,12 @@ function liveFindings(monsters, sprites, atlasOf) {
       const list = idle.dirs[d] || [];
       if (list.length && (!idle.fps || !idle.loop || new Set(list.map(String)).size < IDLE_POSES)) out.push(`live: ${id} (${at}) stands still facing ${d}: its idle is ${new Set(list.map(String)).size} drawing(s) at ${idle.fps || 0} fps, loop ${!!idle.loop}`);
     }
-    for (const [name, dirs] of LIVE_CLIPS) for (const d of dirs) {
+    const swing = got.sprite.anims.attack;
+    const drawnSwing = swing ? Object.fromEntries(Object.entries(swing.dirs).filter(([, l]) => l.length)) : {};
+    for (const d of FACINGS) {
+      if (!clipFacing(drawnSwing, d.length === 2 ? d[0] : d, d.length === 2 ? d : null, SWING_REACH)) out.push(`live: ${id} (${at}) has no attack facing ${d} or within ${SWING_REACH} step of it`);
+    }
+    for (const [name, dirs] of [['attack', Object.keys(drawnSwing)], ...LIVE_CLIPS]) for (const d of dirs) {
       const list = (got.sprite.anims[name] || { dirs: {} }).dirs[d] || [];
       if (!list.length) { out.push(`live: ${id} (${at}) has no ${name} facing ${d}`); continue; }
       list.forEach(([x, y], i) => {
@@ -526,6 +537,8 @@ function selftest(atlases) {
   liveCase('a Mill Cellar rat with no corpse', 'rat (', monsters, without('rat', dropClip('corpse')));
   liveCase('a Sewer bat with no death clip', 'culvert_bat (', monsters, without('culvert_bat', dropClip('death')));
   liveCase('a Warrens goblin with no attack', 'goblin_digger (', monsters, without('goblin_digger', dropClip('attack')));
+  liveCase('a slime with no swing north or one step round it', 'slime (mill_cellar) has no attack facing n or within', monsters,
+    without('slime', (sp) => ({ anims: { ...sp.anims, attack: { ...sp.anims.attack, dirs: Object.fromEntries(Object.entries(sp.anims.attack.dirs).filter(([d]) => d !== 'ne' && d !== 'nw' && d !== 'n')) } } })));
   liveCase('a Thicket wolf whose corpse lacks the west facing', 'gray_wolf (', monsters,
     without('gray_wolf', (sp) => ({ anims: { ...sp.anims, corpse: { ...sp.anims.corpse, dirs: { ...sp.anims.corpse.dirs, w: [] } } } })));
   liveCase('a corpse frame pointing outside its atlas', 'points outside atlas', monsters,

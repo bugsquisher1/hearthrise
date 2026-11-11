@@ -493,8 +493,9 @@ function check(M) {
   return fails;
 }
 
-/* src/data/grounds: the map index and hunts.js fold the ground packs in (lane/b-ground-pack; release run 42519810819 missed it) */
-const COPY = ['src/world', 'src/data/world', 'src/data/grounds', 'src/data/hunts.js', 'src/data/hunt-outfits.js', 'src/data/town-presence.js', 'src/data/perks.js', 'src/data/homestead-tiers.js', 'src/data/panel-alpha.js', 'src/build-info.js', 'assets/world', 'src/session'];
+/* src/data/grounds: the map index and hunts.js fold the ground packs in (lane/b-ground-pack; release run 42519810819 missed it).
+   src/data/skills.js: residue.js bounds the station sorts by the skill catalogue (lane/a-station-sort). */
+const COPY = ['src/world', 'src/data/world', 'src/data/grounds', 'src/data/hunts.js', 'src/data/hunt-outfits.js', 'src/data/town-presence.js', 'src/data/perks.js', 'src/data/homestead-tiers.js', 'src/data/panel-alpha.js', 'src/data/skills.js', 'src/build-info.js', 'assets/world', 'src/session'];
 function copyTree() {
   const dir = mkdtempSync(join(tmpdir(), 'world-town-home-'));
   for (const p of COPY) {

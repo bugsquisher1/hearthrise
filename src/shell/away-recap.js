@@ -47,6 +47,10 @@ import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.119';
 import { cameHomeWords } from '../data/party-words.js?v=0.2.119';
 import { whole } from '../render/format.js?v=0.2.119';
 import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.119';
+import { bestFind } from '../hunt-view/summary-model.js?v=0.2.119';
+import { itemName } from './widgets/bits.js?v=0.2.119';
+import { t } from '../render/player-text.js?v=0.2.119';
+import { afterHuntOf, afterHuntWords, spanWords, WAITED_FROM_MS } from './after-hunt.js?v=0.2.119';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;
@@ -62,10 +66,7 @@ const stampOf = (cs) => {
 };
 
 /** "1 h 58 min", "25 min". */
-function awayWords(ms) {
-  const m = Math.max(0, Math.floor(ms / 60000));
-  return m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min' : m + ' min';
-}
+const awayWords = spanWords;
 /* Plain words where the shared copy says "1:1" (that copy ships in the engine's bundle; this line is the client's). How it comes back is the end card's. */
 const STAMINA_WORDS = Object.freeze({ stamina: 'Out of stamina, so {name} came home.' });
 const signed = (n, unit) => (n >= 0 ? '+' : '−') + whole(Math.abs(n)) + ' ' + unit;
@@ -117,7 +118,10 @@ export function awayRecapOf(cs) {
   if (kills !== null && kills > 0) parts.push(whole(kills) + ' kills');
   const name = nameOf(cs) || 'Your hero';
   const head = 'While you were away (' + awayWords(gone) + '), ' + name + ' hunted ' + huntName(h.huntId);
-  const said = head + (parts.length ? ': ' + parts.join(', ') + '.' : '.');
+  /* the hunt's best find, gear or a Rare, from the server's loot tally (designer re-read 2026-11-11: the card never named the Iron Platebody). The
+     tally is the whole hunt's, so the line says so: the stamp holds no loot, and the absence alone is not known here. */
+  const best = a && a.hero ? bestFind(a.hero.loot) : null;
+  const said = head + (parts.length ? ': ' + parts.join(', ') + '.' : '.') + (best ? ' ' + t('hunts.away_best', { item: itemName(best) }) : '');
   return { id: 'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at, kind: 'away', session: h.sessionId, said, ended: h.ended,
     text: (said + nowWords(cs, h, now)).trim() };
 }
@@ -128,12 +132,18 @@ function nowWords(cs, h, now) {
   const where = huntName(h.huntId);
   const st = staminaOf(cs);
   const stamina = st && st.msLeft > 0 ? awayWords(st.msLeft) : null;
-  const ago = h.ended && Number.isFinite(h.endedAtMs) && now - h.endedAtMs >= AWAY_MIN_MS ? ' ' + awayWords(now - h.endedAtMs) + ' ago' : '';
+  /* WHAT CAME AFTER (./after-hunt.js, designer re-read 2026-11-11 #2): the job the server put the hero back on, or how long it
+     waited in town and the one thing that would have filled that time. A wait says the time itself, so "ago" is not said twice. */
+  const state = h.ended && typeof cs.read === 'function' ? cs.read('state') : null;
+  const after = h.ended ? afterHuntOf(state, h, now) : null;
+  const waited = !!after && Number.isFinite(after.idleMs) && after.idleMs >= WAITED_FROM_MS;
+  const ago = h.ended && !waited && Number.isFinite(h.endedAtMs) && now - h.endedAtMs >= AWAY_MIN_MS ? ' ' + awayWords(now - h.endedAtMs) + ' ago' : '';
+  const then = after ? ' ' + afterHuntWords(state, h, now, name) : '';
   return h.ended
     /* a friend's end says what ended it (`end_by_why`, the alert's and the summary's words): "left the hunt" for a friend whose stamina ran out was the panel's report */
     ? ' The hunt has ended' + ago + '. ' + (cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || (END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')
       .replace('{name}', name).replace('{ground}', where).replace('{item}', 'a supply').replace('{hunt}', 'another hunt')
-      + (stamina ? ' Stamina now: ' + stamina + '.' : '')
+      + then + (stamina ? ' Stamina now: ' + stamina + '.' : '')
     : stamina ? ' Still hunting, with ' + stamina + ' of stamina left.' : ' Still hunting.';
 }
 

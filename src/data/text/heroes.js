@@ -1,7 +1,8 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/data/text/heroes.js — THE ALL CHARACTERS WINDOW'S WORDS: each hero's
 // card, renaming, parties, alerts and the phone's routes
-// (src/shell/windows/characters.js).
+// (src/shell/windows/characters.js), and the character strip's heroes that
+// are not open (src/app/character-strip.js).
 //
 // One row per sentence or label, read by t('heroes.<key>'). The parties line
 // is two sentences: how many heroes are in one, then how to invite.
@@ -59,4 +60,15 @@ export const HEROES_TEXT = Object.freeze({
   sending: 'Sending…',
   invite_failed: 'That did not work. Try again.',
   alerts_from: 'Alerts from {name}',
+
+  /* The character strip's heroes this tab has not open (src/app/character-strip.js): each is listed, so none seems missing,
+     with its Level and what it was last doing, and one press plays it. Tyler's voice (11-11): what the player can do, plain words. */
+  strip_play: 'Play',
+  strip_no_name: 'Hero {number}',
+  strip_level: 'Level {level}',
+  strip_level_doing: 'Level {level} · {doing}',
+  strip_play_title: 'Play {name} too. Your other heroes keep playing.',
+  strip_full: { one: 'You can play one hero at a time. To play {name} instead, sign out and pick {name}.',
+    other: 'You can play {count} heroes at once. To swap one for {name}, sign out and pick {name}.' },
+  strip_open_failed: '{name} didn’t load. Try again in a minute.',
 });

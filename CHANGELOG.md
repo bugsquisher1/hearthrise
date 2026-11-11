@@ -5,6 +5,26 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.119 — 2026-11-11 (Better Finds)
+
+**Equip upgrades picks a better weapon even when it has a monster bonus.** A Bramble Blade now goes on over a Practice Sword, and the tooltip says what the bonus does.
+
+**Monsters fight with their own moves.** They strike with their own attack animations, flinch when hit and fall the way they face. Heroes flinch when hit too.
+
+**Your heroes are all in the top bar now,** even ones you haven't opened in this window, and one click on Play brings them in.
+
+**Skill bars and XP to next level always match your real skill level.**
+
+**Top loot shows your gear and rare finds first,** and the welcome-back note names your best find.
+
+**Bless all gets you every blessing in one press,** and the hunt warning shows what a death really costs with your blessings on.
+
+**Coming back after a hunt ended tells you what your hero did next.** It went back to its gathering job, or it waited in town, and you see for how long and the one thing that would have filled that time.
+
+**Crafting stations have a Sort menu,** so you can list recipes by what you can make, by level or by name, and each station remembers your pick.
+
+**Smaller fixes.** Item tooltips close when you close their window. The rune tip names the right tab. Dispatch loot says what it did after a sale.
+
 ## v0.2.118 — 2026-11-11 (Max Hit)
 
 **Monster pages show Max Hit now.** That's the hardest a monster can hit you. The heal warning in Configure action uses it too.

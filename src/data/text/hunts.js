@@ -36,6 +36,10 @@ export const HUNTS_TEXT = Object.freeze({
   far_above_level: 'Its monsters are far stronger than you. You’ll spend a lot more on supplies and you might die, but you get more XP and better loot.',
   range_under: { one: 'You\'re {count} Level under this ground.', other: 'You\'re {count} Levels under this ground.' },
   range_die: 'If you die, the hunt ends and you lose {loss}% of your Level XP.',
+  /* the same, with Blessings on: the share a death would really take, the server's held cut (hr_blessing_view permille) */
+  range_die_blessed: 'If you die, the hunt ends. With your Blessings on, you lose {loss}% of your Level XP.',
+  /* The away card: the hunt's best find, gear or a Rare (src/shell/away-recap.js). */
+  away_best: 'Your best find this hunt was the {item}.',
   seat_level: '{name} (Level {level})',
   seats_under: { one: '{who} is under this ground’s Level {level}. It will hit them hard, and they could die.',
     other: '{who} are under this ground’s Level {level}. It will hit them hard, and they could die.' },

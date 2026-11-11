@@ -1,7 +1,6 @@
 {
   "why": "tests/copy-lint.mjs THE PERSON DEBT: lines that broke a PERSON rule (Tyler 2026-11-09, \"the lint needs to check whether it reads like a person wrote it\") when the rules landed. Each is rewritten in a voice sweep batch (.claude/coordination/voice-sweep.txt); the list only shrinks (--prune-voice drops rewritten rows and never adds one).",
   "hits": [
-    "src/data/boss-calls.js#server-talk#The server hasn't said yet whether he can be called.",
     "src/data/condition-metrics.js#this-slots#of this slot’s item left",
     "src/data/how-to-play.js#per-unit#Bronze Arrows are free and never run out. Better ammo costs a little per shot. Uses food.",
     "src/data/refusal-words.js#server-talk#The server does not know that",

@@ -51,7 +51,7 @@ export function renderMonster() {
     + '<div class="mf-id"><h3 class="mf-name"></h3><p class="mf-kind"></p></div></header>'
     + head('monster.h_homes') + '<ul class="mf-homes"></ul>'
     + head('monster.h_fight', 'mf-for') + '<dl class="mf-facts">'
-    + fact('hp', 'monster.hp') + fact('blow', 'monster.blow') + fact('swing', 'monster.swing') + fact('deals', 'monster.deals')
+    + fact('hp', 'monster.hp') + fact('max_hit', 'monster.max_hit') + fact('swing', 'monster.swing') + fact('deals', 'monster.deals')
     + fact('weak', 'monster.weak') + fact('takes', 'monster.takes') + '</dl>'
     + '<p class="mf-note mf-harder"></p>'
     + head('monster.h_kill', 'mf-pay') + '<dl class="mf-facts">' + fact('xp', 'monster.xp') + fact('gold', 'monster.gold') + '</dl>'
@@ -119,7 +119,7 @@ renderMonster.patch = function patchMonster(body, ctx) {
   const set = (key, words) => text(root.querySelector('[data-fact="' + key + '"]'), words);
   text(root.querySelector('.mf-for'), t('monster.on_tier', { tier: TIER_NAME[DEFAULT_TIER] }));
   set('hp', whole(f.hp));
-  set('blow', t('monster.blow_value', { min: whole(f.blow.min), max: whole(f.blow.max) }));
+  set('max_hit', whole(f.maxHit));
   set('swing', t('monster.swing_value', { secs: f.swingMs / 1000 }));
   set('deals', elWord(f.deals));
   const weak = f.weak && hasText('monster.weak_' + f.weak.weapon) ? t('monster.weak_' + f.weak.weapon, { pct: f.weak.damagePct, acc: f.weak.accuracyPct }) : '';

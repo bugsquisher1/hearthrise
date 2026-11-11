@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.117 — 2026-11-11 (Lighter Reload)
+
+**Reloading is a little lighter.** When you reload, each hero who is waiting in town loads once instead of twice.
+
 ## v0.2.116 — 2026-11-11 (Your Level, Everywhere)
 
 **Your Level shows the same number everywhere.** The Level bar, the character list and the away recap all read the Level the game keeps for your hero. When an update changes Levels, you see the new one right away.

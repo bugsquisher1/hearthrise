@@ -69,6 +69,9 @@ const SKILL_TOTAL = [0];
 let powNum = 1n;
 let powDen = 1n;
 function growSkillTo(lv) {
+  /* Already grown (every call but the first few): no BigInt is made. skillLevelFromXp asks once per Level it walks, and the
+     engine asks it for every hero's skill levels each sub-step (lane/r-engine-profile: 3% of a party's engine time). */
+  if (SKILL_TOTAL.length >= lv) return;
   const base = BigInt(SKILL_CURVE.base);
   const g = BigInt(1000 + SKILL_CURVE.growthPermille);
   while (SKILL_TOTAL.length < lv && SKILL_TOTAL[SKILL_TOTAL.length - 1] < Number.MAX_SAFE_INTEGER) {

@@ -57,6 +57,7 @@ import { ITEMS } from '../../data/items.js?v=0.2.119';
 import { isRune } from '../../data/supplies.js?v=0.2.119';
 import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder, runeSupplyOf } from './conditions.js?v=0.2.119';
 import { shootsItem } from '../../data/hunt-roles.js?v=0.2.119';
+import { livingOf, targetedOf, heroesByIdOf } from './unit-index.js?v=0.2.119';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
@@ -67,9 +68,10 @@ export const PERSISTED = Object.freeze({
 
 const int = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : 0; };
 const readyAt = (o, k) => (o && typeof o === 'object' && Number.isInteger(o[k]) ? o[k] : 0);
-const living = (inst, side) => inst.world.units.filter((u) => u.side === side && u.alive);
+/* (unit-index.js: frozen lists, read once a sub-step in a swing; a caller that reorders one copies it) */
+const living = (inst, side) => livingOf(inst, side);
 /* A monster is in the fight once it holds a target. */
-const engaged = (inst) => living(inst, 'mon').filter((m) => m.target !== null && m.target !== undefined);
+const engaged = (inst) => targetedOf(inst);
 
 /** In reach: Melee (range 1) is adjacent; ranged is within `range` tiles with line of sight. */
 export function inReach(inst, hero, range, t) {
@@ -369,7 +371,7 @@ function effect(inst, u, row, t, sc, v) {
       sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: t.id, amount: t.shield }));
       break;
     case 'party':
-      for (const a of living(inst, 'hero').sort((x, y) => x.id - y.id)) {
+      for (const a of living(inst, 'hero').slice().sort((x, y) => x.id - y.id)) {
         if (a === u || dist2(a, u) <= row.radius * row.radius) healOne(u, a, scaled(roll(sc, row.heal)), sc, sg);
       }
       break;
@@ -481,11 +483,13 @@ export function payBasic(inst, hero, cost, sc) {
 /* THE CAST ORDER: the lap's holding tank first (targeting.js holderTank), then every other unit by id. The
    Challenge fires through this one path (roadmap p12, audit c18: its lane, its cooldown and its slot's conditions
    apply like any ability's); the holder going first keeps an overflow monster on the holder when both tanks'
-   Challenges are ready (a non-holder takes only what is on a non-tank, challengeable). */
+   Challenges are ready (a non-holder takes only what is on a non-tank, challengeable). Only a living hero casts
+   (castAbilities skips every other unit, and nothing a cast does brings one back), so the order is the living heroes
+   by id (unit-index.js), never a sort of the whole list a sub-step; the holder is one of them (a living tank). */
 function castOrder(inst) {
-  const units = inst.world.units.slice().sort((a, b) => a.id - b.id);
+  const heroes = heroesByIdOf(inst);
   const k = holderTank(inst);
-  return k ? [k, ...units.filter((u) => u !== k)] : units;
+  return k ? [k, ...heroes.filter((u) => u !== k)] : heroes;
 }
 
 /** Attack hook: each hero fires its first usable ability; between pulls, its first usable heal or shield (`mends`). */

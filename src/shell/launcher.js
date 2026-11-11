@@ -6,20 +6,20 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.118';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.118';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.118';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.118';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf } from '../session/item-sections.js?v=0.2.118';
-import { gmOf, levelOf } from '../session/character-sections.js?v=0.2.118';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.118';
-import { COACH_READ_MAX } from '../session/residue.js?v=0.2.118';
-import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.118';
-import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.118';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.118';
-import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.118';
-import { draftOf, serverBar } from './bar-draft.js?v=0.2.118';
-import { trackOnce } from '../net/observability.js?v=0.2.118';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.119';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.119';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.119';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.119';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf } from '../session/item-sections.js?v=0.2.119';
+import { gmOf, levelOf } from '../session/character-sections.js?v=0.2.119';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.119';
+import { COACH_READ_MAX } from '../session/residue.js?v=0.2.119';
+import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.119';
+import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.119';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.119';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.119';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.119';
+import { trackOnce } from '../net/observability.js?v=0.2.119';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -36,16 +36,25 @@ export { glyphSvg };
  * projects (src/session/tutorial-sections.js), so it advances as the server reports each step done
  * and is the same after a reload. Once the guide is done it names the next goal instead ("What next":
  * the next ground and the weapon skill's next unlock, designer 2026-10-22), so a hero is never left
- * with nothing to aim at. It is drawn only while NO window is open (it would cover the
- * window's title; the card a window's control answers shows INSIDE that window instead, src/shell/shell.js coach),
- * and not here during a hunt: the hunt top bar draws it under itself
+ * with nothing to aim at. It is drawn only while no window that takes its place is open (it would cover the
+ * window's title; the card a window's control answers shows INSIDE that window instead, src/shell/shell.js coach).
+ * Chat does not take its place (src/data/shell-windows.js `besideCoach`): the card and Chat show together.
+ * It is not drawn here during a hunt: the hunt top bar draws it under itself
  * (src/shell/widgets/hunt-topbar.js), so it never covers Leave hunt or the analyzer. Display only.
  */
 export function pointerFor(ctx, hunting) {
   const cs = ctx.character;
-  if (!cs || ctx.wm.openIds().length > 0) return '';
+  if (!cs || coachCovered(ctx.wm)) return '';
   const card = heldCard(ctx);
   return card ? coachHtml(cs, card, false, !!hunting && restsNow(ctx, card)) : '';
+}
+
+/** Is a window open that takes the card's place? Every window but the ones the catalogue marks `besideCoach` (Chat). */
+export function coachCovered(wm) {
+  const open = wm.openIds();
+  if (!open.length) return false;
+  const beside = new Set(wm.rows().filter((r) => r.besideCoach === true).map((r) => r.id));
+  return open.some((id) => !beside.has(id));
 }
 
 /* THE COACH STANDS ASIDE IN A HUNT (the panel 2026-10-31: What next, Plant your land and the rest sat over the hero for a
@@ -329,9 +338,10 @@ export function actCoach(ctx, el, action, ev) {
   const hadFocus = !!doc && !!doc.activeElement && el.contains(doc.activeElement);
   /* Opening clears the mark: the card the player now sees is the one they have seen. The reads stay. */
   const read = coachReadOf(cs);
+  /** @type {{ read?: string[], back?: string, backAt?: number }} */
   const keep = read && read.size ? { read: Array.from(read) } : {};
   const r = cs.record && cs.record.residue && cs.record.residue.coach;
-  if (r && r.back) keep.back = r.back;
+  if (r && r.back) { keep.back = r.back; if (Number.isSafeInteger(r.backAt)) keep.backAt = r.backAt; }
   cs.setResidue('coach', Object.assign(action === 'coach-min' ? { min: true, seen: card.id } : { seen: card.id }, keep));
   /* The box is redrawn on the residue change (one repaint per task): keep the keyboard on the coach's control. */
   if (hadFocus) queueMicrotask(() => { const b = el.querySelector('[data-hs-act^="coach-"]'); if (b) b.focus(); });

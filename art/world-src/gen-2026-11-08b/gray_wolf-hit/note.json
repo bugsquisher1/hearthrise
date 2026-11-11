@@ -1,0 +1,259 @@
+{
+  "asset": "gray_wolf hit clip (brief 10 B3), Meadowbrook Thicket",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B3 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "forest",
+  "object_id": "b6c0bef7-68de-4942-8543-b88ef2c96a78",
+  "name": "S1 Gray Wolf",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); hit/<facing>/0..N.png = the kept roll; alt/<roll>/hit/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the object, frame_count 6, keep_first_frame false; south and the side facings are separate groups (their action texts differ)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "593bd14f-2d35-4682-ac40-7824b00ab9ba",
+        "directions": "e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r2": [
+      {
+        "group": "2832efcf-e411-4bb6-b33f-8ba87dbfbcf3",
+        "directions": "e n",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, all four paws planted, stays low, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "given",
+    "east": "r2",
+    "north": "r2",
+    "west": "r1"
+  },
+  "refused": {
+    "east r1": "rears: the head rises 5 px at frame 3",
+    "north r1": "the forelegs swing out sideways like arms at frames 2-4"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "given",
+      "xor": [
+        34,
+        80,
+        105,
+        152,
+        55,
+        16
+      ],
+      "alien": [
+        0,
+        1,
+        0,
+        3,
+        0,
+        0
+      ],
+      "dx": [
+        -0.1,
+        0,
+        -0.1,
+        0,
+        -0.1,
+        0
+      ],
+      "dy": [
+        0.4,
+        0,
+        -1.9,
+        -2.8,
+        -1,
+        0
+      ],
+      "top": [
+        1,
+        1,
+        -1,
+        -2,
+        -1,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        -2,
+        -3,
+        -1,
+        0
+      ],
+      "auto_flags": []
+    },
+    "east": {
+      "roll": "r2",
+      "xor": [
+        97,
+        157,
+        226,
+        269,
+        240,
+        173
+      ],
+      "alien": [
+        1,
+        1,
+        9,
+        16,
+        10,
+        1
+      ],
+      "dx": [
+        -0.1,
+        0.1,
+        0.2,
+        0.3,
+        0.2,
+        0.2
+      ],
+      "dy": [
+        -0.2,
+        -0.9,
+        -1.6,
+        -2.6,
+        -2.3,
+        -1.5
+      ],
+      "top": [
+        -1,
+        -2,
+        -3,
+        -4,
+        -4,
+        -3
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        -1,
+        -1,
+        -1
+      ],
+      "auto_flags": [
+        "feet f3 (bot -1, dy -2.6)"
+      ]
+    },
+    "north": {
+      "roll": "r2",
+      "xor": [
+        59,
+        139,
+        162,
+        161,
+        135,
+        72
+      ],
+      "alien": [
+        2,
+        2,
+        5,
+        3,
+        2,
+        4
+      ],
+      "dx": [
+        0.3,
+        0.7,
+        0.7,
+        0.5,
+        0.8,
+        0.5
+      ],
+      "dy": [
+        -0.4,
+        -0.1,
+        0.1,
+        0.6,
+        0.1,
+        0.4
+      ],
+      "top": [
+        0,
+        1,
+        2,
+        3,
+        2,
+        1
+      ],
+      "bottom": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -2,
+        0
+      ],
+      "auto_flags": [
+        "feet f3 (bot -1, dy 0.6)",
+        "feet f4 (bot -2, dy 0.1)"
+      ]
+    },
+    "west": {
+      "roll": "r1",
+      "xor": [
+        52,
+        146,
+        255,
+        334,
+        281,
+        186
+      ],
+      "alien": [
+        0,
+        0,
+        1,
+        8,
+        7,
+        1
+      ],
+      "dx": [
+        0.1,
+        -0.1,
+        -0.4,
+        -0.7,
+        -0.1,
+        0.1
+      ],
+      "dy": [
+        0.2,
+        -0.3,
+        -1.4,
+        -1.9,
+        -1.5,
+        -1.1
+      ],
+      "top": [
+        0,
+        -1,
+        -3,
+        -4,
+        -4,
+        -3
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    }
+  },
+  "generations": 5,
+  "flags": [
+    "east r2 and west r1: the head rises 4 px at frames 3-4 with the lean (top row -4), one over the 3 px line; the body and feet hold (east feet 1 px at 3-5). Kept as the best rolls; east r1 rose 5 px"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/gray_wolf-hit.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)",
+  "south_from": "south is the approved sample roll from art/world-src/gen-2026-11-08/hit-sample (approved in 10), copied so this folder is complete"
+}

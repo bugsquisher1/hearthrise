@@ -1,0 +1,251 @@
+{
+  "asset": "rook_poacher hit clip (brief 10 B3), Mosslight Glade",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B3 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "glade",
+  "object_id": "ad8d1765-5d0a-4841-a2d1-0eb846974fa0",
+  "name": "Rook the Poacher (64 frame, the Glade boss)",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); hit/<facing>/0..N.png = the kept roll; alt/<roll>/hit/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the object, frame_count 6, keep_first_frame false; south and the side facings are separate groups (their action texts differ)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "c08418e1-1515-4292-a8ba-9e4f126e24de",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "8584a81c-45a1-4a9a-b762-85d2e6cf7502",
+        "directions": "e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r1",
+    "east": "r1",
+    "north": "r1",
+    "west": "r1"
+  },
+  "refused": {},
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r1",
+      "xor": [
+        53,
+        87,
+        169,
+        191,
+        105,
+        119
+      ],
+      "alien": [
+        0,
+        1,
+        2,
+        4,
+        4,
+        4
+      ],
+      "dx": [
+        -0.1,
+        0.1,
+        0,
+        -0.1,
+        0,
+        0.1
+      ],
+      "dy": [
+        0.2,
+        0.3,
+        -0.1,
+        -0.1,
+        -0.2,
+        -0.4
+      ],
+      "top": [
+        1,
+        2,
+        2,
+        2,
+        0,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "east": {
+      "roll": "r1",
+      "xor": [
+        151,
+        211,
+        276,
+        296,
+        206,
+        114
+      ],
+      "alien": [
+        0,
+        0,
+        16,
+        18,
+        0,
+        0
+      ],
+      "dx": [
+        0.9,
+        1,
+        1.2,
+        1.4,
+        0.9,
+        0.5
+      ],
+      "dy": [
+        0.5,
+        0.6,
+        0.6,
+        0.8,
+        0.3,
+        -0.5
+      ],
+      "top": [
+        1,
+        1,
+        1,
+        2,
+        1,
+        0
+      ],
+      "bottom": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        -2
+      ],
+      "auto_flags": []
+    },
+    "north": {
+      "roll": "r1",
+      "xor": [
+        121,
+        216,
+        262,
+        282,
+        204,
+        132
+      ],
+      "alien": [
+        0,
+        4,
+        12,
+        4,
+        0,
+        0
+      ],
+      "dx": [
+        -1,
+        -1.9,
+        -2.1,
+        -1.8,
+        -0.7,
+        0.3
+      ],
+      "dy": [
+        -0.2,
+        0.4,
+        1.1,
+        1.9,
+        1.4,
+        0.2
+      ],
+      "top": [
+        0,
+        2,
+        3,
+        5,
+        4,
+        2
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "top f3 (5)"
+      ]
+    },
+    "west": {
+      "roll": "r1",
+      "xor": [
+        73,
+        131,
+        190,
+        170,
+        80,
+        86
+      ],
+      "alien": [
+        0,
+        0,
+        8,
+        4,
+        0,
+        0
+      ],
+      "dx": [
+        -0.1,
+        -0.4,
+        -0.8,
+        -1.1,
+        -0.3,
+        -0.1
+      ],
+      "dy": [
+        0,
+        0.3,
+        0.6,
+        0,
+        0,
+        -0.5
+      ],
+      "top": [
+        0,
+        1,
+        2,
+        1,
+        0,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    }
+  },
+  "generations": 4,
+  "flags": [
+    "east: the legs bend into half a step back at frames 2-4 while the cloak flares (the body leans with them)",
+    "west: a 2-3 px pale point shows at the hand at frames 2-4 (an arrow nock?); 8 px of new colour"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/rook_poacher-hit.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)"
+}

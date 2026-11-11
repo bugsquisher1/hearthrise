@@ -23,18 +23,18 @@
 //   back        string           the hunt the player came back to after an absence (residue `coach.back`, away-recap.js)
 //   slotCost    number           the next hero slot's price (AccountSession.slotOffer, the server's), absent when none is for sale
 // ════════════════════════════════════════════════════════════════════════
-import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.118';
-import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.118';
-import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf } from './hunt-sections.js?v=0.2.118';
-import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js?v=0.2.118';
-import { farmFieldOf } from './farm-sections.js?v=0.2.118';
-import { homeOf, chestsOf } from './home-sections.js?v=0.2.118';
-import { tallyOf } from './tally-sections.js?v=0.2.118';
-import { temperFirstRungOf } from './temper-sections.js?v=0.2.118';
-import { partyMembershipOf } from './party-sections.js?v=0.2.118';
-import { wearsArmour } from '../core/vitals.js?v=0.2.118';
-import { ITEMS } from '../data/items.js?v=0.2.118';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.118';
+import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.119';
+import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.119';
+import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf } from './hunt-sections.js?v=0.2.119';
+import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js?v=0.2.119';
+import { farmFieldOf } from './farm-sections.js?v=0.2.119';
+import { homeOf, chestsOf } from './home-sections.js?v=0.2.119';
+import { tallyOf } from './tally-sections.js?v=0.2.119';
+import { temperFirstRungOf } from './temper-sections.js?v=0.2.119';
+import { partyMembershipOf } from './party-sections.js?v=0.2.119';
+import { wearsArmour } from '../core/vitals.js?v=0.2.119';
+import { ITEMS } from '../data/items.js?v=0.2.119';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.119';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -159,7 +159,10 @@ export function tutorialFactsOf(cs, sh) {
     land: field ? { ready, empty: Math.max(0, field.cap - Array.from(field.plots.values()).filter((p) => !p.extra && p.i < field.cap).length) } : null,
     home: homeFacts(cs), gold: goldOf(cs), chest: chestFact(cs),
     staminaMs: stamina ? stamina.msLeft : null,
-    tally: tally ? { held: tally.held.length, paid: tally.recent.length, weight: !!tally.weight } : null,
+    /* `tasks`: the held rows by task, each the server's count and whether it is done. `paidTasks`: the tasks she paid in the last day. */
+    tally: tally ? { held: tally.held.length, paid: tally.recent.length, weight: !!tally.weight,
+      tasks: Object.fromEntries(tally.held.map((h) => [h.task, { kills: h.kills, target: h.target, done: h.done }])),
+      paidTasks: Array.from(new Set(tally.recent.map((p) => p.task))) } : null,
     temper: temperFirstRungOf(cs),
     inParty: !!party && party.seats.length >= 2,
     partied: !!bests && Object.values(bests.grounds).some((g) => !!g.party),

@@ -18,14 +18,15 @@
 // Every control is off while an intent is in flight; nothing changes on
 // screen until the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.118';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.118';
-import { staminaAskWords } from '../widgets/stamina-buy.js?v=0.2.118';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.118';
-import { whole, gold, hoursWords as hoursText } from '../../render/format.js?v=0.2.118';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.118';
-import { runIntent } from '../intent-words.js?v=0.2.118';
-import { temperPaneHtml, patchTemperPane, actTemperPane } from './temper-pane.js?v=0.2.118';
+import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.119';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.119';
+import { staminaAskWords } from '../widgets/stamina-buy.js?v=0.2.119';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.119';
+import { whole, gold, hoursWords as hoursText } from '../../render/format.js?v=0.2.119';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.119';
+import { runIntent } from '../intent-words.js?v=0.2.119';
+import { t } from '../../render/player-text.js?v=0.2.119';
+import { temperPaneHtml, patchTemperPane, actTemperPane } from './temper-pane.js?v=0.2.119';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const SCRATCH = new WeakMap();
@@ -43,6 +44,8 @@ export function servicesPaneHtml() {
     + '<h3 class="hs-sub">Blessings</h3>'
     + '<p class="hs-note hw-bless-note"></p>'
     + '<ul class="hw-ledger hw-bless"></ul>'
+    + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="bless-all"></button></div>'
+    + '<p class="hs-note hw-bless-all-why" hidden></p>'
     + temperPaneHtml()
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
@@ -84,20 +87,32 @@ export function patchServicesPane(body, ctx) {
   const b = blessingsOf(cs);
   text(root.querySelector('.hw-bless-note'), !b ? 'Blessings load from the server.'
     : 'Each blessing cuts the XP a death takes, and a death uses them all up.' + (b.freeUntil ? ' Free below Level ' + b.freeUntil + '.' : ''));
-  const next = b ? b.tiers.find((t) => !t.held) : null;
+  const next = b ? b.tiers.find((r) => !r.held) : null;
   rows(root.querySelector('.hw-bless'), b ? b.tiers : [], {
-    key: (t) => String(t.tier),
-    build: (t) => element(ctx.doc, '<li class="hw-line" data-tier="' + t.tier + '"><span class="hw-line-name"><b>Blessing ' + ROMAN[t.tier] + '</b><small></small></span>'
-      + '<button type="button" class="hh-tool" data-hs-act="bless" data-tier="' + t.tier + '"></button></li>'),
-    patch: (li, t) => {
-      const short = !t.held && next && next.tier === t.tier && purse !== null && purse < t.price ? t.price - purse : 0;
-      text(li.querySelector('small'), Math.round(t.permille / 10) + '% less XP lost' + (t.tier > 1 ? ' with ' + (t.tier > 2 ? 'I and II' : 'I') : '') + ' · ' + (t.held ? 'owned' : t.price ? gold(t.price) : 'free')
+    key: (r) => String(r.tier),
+    build: (r) => element(ctx.doc, '<li class="hw-line" data-tier="' + r.tier + '"><span class="hw-line-name"><b>Blessing ' + ROMAN[r.tier] + '</b><small></small></span>'
+      + '<button type="button" class="hh-tool" data-hs-act="bless" data-tier="' + r.tier + '"></button></li>'),
+    patch: (li, r) => {
+      const short = !r.held && next && next.tier === r.tier && purse !== null && purse < r.price ? r.price - purse : 0;
+      text(li.querySelector('small'), Math.round(r.permille / 10) + '% less XP lost' + (r.tier > 1 ? ' with ' + (r.tier > 2 ? 'I and II' : 'I') : '') + ' · ' + (r.held ? 'owned' : r.price ? gold(r.price) : 'free')
         + (short ? ' · You need ' + gold(short) + ' more.' : ''));
       const btn = li.querySelector('button');
-      text(btn, t.held ? 'Owned' : next && next.tier === t.tier ? (t.price ? 'Bless · ' + gold(t.price) : 'Bless · free') : 'Needs ' + ROMAN[t.tier - 1]);
-      prop(btn, 'disabled', t.held || !next || next.tier !== t.tier || sc.pending || (purse !== null && purse < t.price));
+      text(btn, r.held ? 'Owned' : next && next.tier === r.tier ? (r.price ? 'Bless · ' + gold(r.price) : 'Bless · free') : 'Needs ' + ROMAN[r.tier - 1]);
+      prop(btn, 'disabled', r.held || !next || next.tier !== r.tier || sc.pending || (purse !== null && purse < r.price));
     },
   });
+  /* BLESS ALL (designer re-read 2026-11-11: three presses to bless again after every death): shown while two or more are missing, off as the next
+     tier's own button would be. No total is said: each tier is priced by the server as it is bought (blessAll). */
+  const all = root.querySelector('[data-hs-act="bless-all"]');
+  const missing = b ? b.tiers.filter((x) => !x.held).length : 0;
+  const allShort = purse !== null && !!next && purse < next.price;
+  text(all, t('shop.bless_all'));
+  prop(all.parentNode, 'hidden', missing < 2);
+  prop(all, 'disabled', missing < 2 || sc.pending || allShort);
+  /* why it is off, in words on screen (phones have no hover): all on, short of gold for the next one, or a purchase under way */
+  const allWhy = !b || !b.tiers.length ? '' : !missing ? t('shop.bless_all_on') : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short') : '';
+  text(root.querySelector('.hw-bless-all-why'), allWhy);
+  prop(root.querySelector('.hw-bless-all-why'), 'hidden', !allWhy);
   patchTemperPane(root, ctx, sc);
   /* the tab's line answers Stamina and Blessings; Tempering's answer stands in its own section (temper-pane.js) */
   text(root.querySelector('.hh-intent-msg'), sc.msgAt === 'temper' ? '' : sc.msg);
@@ -105,12 +120,12 @@ export function patchServicesPane(body, ctx) {
 }
 
 /** The tab's presses (the Shop routes its clicks here first); true when handled. */
-export function actServicesPane(ctx, body, action, ev, t) {
+export function actServicesPane(ctx, body, action, ev, el) {
   if (ev.type !== 'click') return false;
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => patchServicesPane(body, ctx);
-  if (actTemperPane(ctx, action, t, sc, repaint)) return true;
+  if (actTemperPane(ctx, action, el, sc, repaint)) return true;
   if (action === 'stam-ask') { const q = staminaRefillOf(cs); if (q && q.available) { sc.confirm = true; sc.msg = ''; repaint(); } return true; }
   if (action === 'stam-no') { sc.confirm = false; repaint(); return true; }
   if (action === 'stam-yes' && sc.confirm) {
@@ -123,12 +138,41 @@ export function actServicesPane(ctx, body, action, ev, t) {
   }
   if (action === 'bless') {
     const b = blessingsOf(cs);
-    const tier = Number(t.getAttribute('data-tier'));
+    const tier = Number(el.getAttribute('data-tier'));
     const row = b && b.tiers.find((x) => x.tier === tier);
     if (!row || row.held) return true;
     sc.msgAt = null;
     runIntent(sc, repaint, () => cs.buyBlessing(tier, row.price), 'Blessing…', () => 'Blessing ' + ROMAN[tier] + ' is yours.');
     return true;
   }
+  if (action === 'bless-all') {
+    sc.msgAt = null;
+    runIntent(sc, repaint, () => blessAll(cs), t('shop.bless_all_busy'), () => {
+      const b = blessingsOf(cs);
+      return b ? t('shop.bless_all_done', { of: b.tiers.length }) : '';
+    });
+    return true;
+  }
   return false;
+}
+
+/**
+ * EVERY MISSING BLESSING, ONE SERVER PURCHASE EACH (the server has no bulk verb): the next tier at the price the server's envelope quotes
+ * now, then the next from the envelope that purchase brought back. Stops at the first refusal (its words are the answer) and never asks
+ * for the same tier twice, so an envelope that did not move cannot loop. No client-side total. Exported for its test.
+ */
+export async function blessAll(cs) {
+  const asked = new Set();
+  let r = { ok: false, error: 'blessings_unread' };
+  for (;;) {
+    const b = blessingsOf(cs);
+    const next = b ? b.tiers.find((x) => !x.held) : null;
+    if (!next) return asked.size ? r : { ok: false, error: b ? 'blessing_held' : 'blessings_unread' };
+    if (asked.has(next.tier)) return r.ok ? { ok: false, error: 'blessing_unchanged' } : r;
+    asked.add(next.tier);
+    /* the answer, refusal and all, goes back to the press's runIntent, which says it in the window's line (refusalText) */
+    const got = await cs.buyBlessing(next.tier, next.price);
+    if (!got || !got.ok) return got || { ok: false, error: 'network' };
+    r = got;
+  }
 }

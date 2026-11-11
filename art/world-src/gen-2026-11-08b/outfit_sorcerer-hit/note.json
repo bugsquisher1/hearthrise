@@ -1,0 +1,296 @@
+{
+  "asset": "outfit_sorcerer hit clip (brief 10 H1), every hunt (the hero)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt H1 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "hunt (heroes)",
+  "object_id": "e60aff3a-0e05-45d3-a83e-a8801ddf4fe8",
+  "name": "S1 sorcerer v3 (staff with a glowing tip)",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); hit/<facing>/0..N.png = the kept roll; alt/<roll>/hit/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the object, frame_count 6, keep_first_frame false; south and the side facings are separate groups (their action texts differ)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "75ab8a3f-7d93-4c3c-a71f-24569e6eaa53",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, feet planted, the weapon and shield move only with the body, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "630d7577-6d38-49ba-b7fc-e2d99cc1a735",
+        "directions": "e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the weapon and shield move only with the body, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r2": [
+      {
+        "group": "29ed4a24-c1f9-4868-8080-dec15904ae75",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, feet planted, the staff stays upright in its hand and moves only with the body, the glow at the staff tip stays the same small size, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "e58d58a0-7fb8-42cc-babe-54dcb32453f7",
+        "directions": "e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the staff stays upright in its hand and moves only with the body, the glow at the staff tip stays the same small size, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r3": [
+      {
+        "group": "13551f88-1ba8-4a8c-9b13-c78f050789e6",
+        "directions": "e n w",
+        "action": "only the upper body tips back by one pixel as if pushed from the side it faces, then returns, the legs and feet do not move, it keeps facing the same way, the staff stays in its hand exactly where it is and moves only with the body, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r2",
+    "east": "r3",
+    "north": "r3",
+    "west": "r3"
+  },
+  "refused": {
+    "south r1": "the staff swings down level and the tip glow spreads into sparkles (frames 3-6)",
+    "east r1": "the staff lowers and the glow sparkles spread",
+    "north r1": "the staff vanishes and a glow ring shows (frame 4)",
+    "west r1": "the staff swings level with a glow burst",
+    "east r2": "the staff moves from behind the head to the front",
+    "north r2": "the staff vanishes, then shows on the other side",
+    "west r2": "the staff swaps to in front of the body"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r2",
+      "xor": [
+        135,
+        191,
+        198,
+        255,
+        183,
+        131
+      ],
+      "alien": [
+        1,
+        0,
+        1,
+        10,
+        0,
+        0
+      ],
+      "dx": [
+        0.2,
+        -0.1,
+        -0.4,
+        -0.6,
+        -0.5,
+        -0.1
+      ],
+      "dy": [
+        0.9,
+        1.4,
+        0.4,
+        0.7,
+        1,
+        0.7
+      ],
+      "top": [
+        2,
+        2,
+        0,
+        -1,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "east": {
+      "roll": "r3",
+      "xor": [
+        135,
+        221,
+        261,
+        200,
+        172,
+        181
+      ],
+      "alien": [
+        14,
+        54,
+        64,
+        56,
+        58,
+        62
+      ],
+      "dx": [
+        0.9,
+        0.8,
+        0.1,
+        0.8,
+        1.1,
+        1.6
+      ],
+      "dy": [
+        -0.7,
+        -0.1,
+        1.3,
+        2.7,
+        1.6,
+        0.6
+      ],
+      "top": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        -1,
+        -1
+      ],
+      "auto_flags": [
+        "colour f1 (54)",
+        "colour f2 (64)",
+        "bright f2 (42)",
+        "colour f3 (56)",
+        "bright f3 (39)",
+        "colour f4 (58)",
+        "bright f4 (42)",
+        "feet f4 (bot -1, dy 1.6)",
+        "colour f5 (62)",
+        "bright f5 (39)",
+        "feet f5 (bot -1, dy 0.6)"
+      ]
+    },
+    "north": {
+      "roll": "r3",
+      "xor": [
+        74,
+        142,
+        191,
+        248,
+        172,
+        70
+      ],
+      "alien": [
+        2,
+        3,
+        0,
+        2,
+        2,
+        0
+      ],
+      "dx": [
+        0,
+        0.2,
+        0.4,
+        0.7,
+        0.5,
+        0.4
+      ],
+      "dy": [
+        0.1,
+        0.4,
+        0.7,
+        1,
+        0.8,
+        0.5
+      ],
+      "top": [
+        1,
+        1,
+        1,
+        2,
+        1,
+        1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "west": {
+      "roll": "r3",
+      "xor": [
+        41,
+        80,
+        159,
+        255,
+        167,
+        81
+      ],
+      "alien": [
+        0,
+        2,
+        38,
+        77,
+        38,
+        2
+      ],
+      "dx": [
+        0,
+        -0.3,
+        -1.3,
+        -1.7,
+        -1.1,
+        -0.1
+      ],
+      "dy": [
+        -0.4,
+        -0.2,
+        0.7,
+        1.2,
+        0.9,
+        0.4
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "loose f1 (4)",
+        "colour f2 (38)",
+        "loose f2 (8)",
+        "colour f3 (77)",
+        "colour f4 (38)",
+        "loose f4 (6)"
+      ]
+    }
+  },
+  "generations": 11,
+  "flags": [
+    "EAST: no clean roll after 2 retries. Kept r3: the staff still swings out to the front at frames 2-6 with its tip glow (54-64 px new colour)",
+    "the staff tip glow (cyan sparkle) is part of the still and redraws every frame"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/outfit_sorcerer-hit.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)",
+  "import_note": "brief 10 H1: the import re-runs tools/world-art/outfit-masks.mjs (the heroes set dye masks follow each frame)"
+}

@@ -4,20 +4,21 @@
 // One floating tooltip per page, shown on hover or keyboard focus of an item:
 //   the name in its rarity, what kind of thing it is, its line of flavour,
 //   its stats and — for gear — what changes against the piece worn in that
-//   slot, what its armor weight gives, where it comes from, what it is for, what the shop pays for it
+//   slot, a bane's damage against its monster kind, what its armor weight gives, where it comes from, what it is for, what the shop pays for it
 //   (the server's bid, never a client price), its lock and loot rule.
 // Display only: it reads the catalogue (src/shell/item-lore.js) and the
 // numbers the window hands it from the envelope, and sends nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.118';
-import { whole, gold } from '../../render/format.js?v=0.2.118';
-import { itemName } from '../widgets/bits.js?v=0.2.118';
-import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords } from '../item-lore.js?v=0.2.118';
-import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.118';
-import { planWords } from '../loot-dispatch.js?v=0.2.118';
-import { pieceWords } from '../../data/armour-weights.js?v=0.2.118';
-import { ITEMS } from '../../data/items.js?v=0.2.118';
-import { JEWEL_PERKS, perkWords } from '../../data/jewelry.js?v=0.2.118';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.119';
+import { whole, gold } from '../../render/format.js?v=0.2.119';
+import { itemName } from '../widgets/bits.js?v=0.2.119';
+import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, baneWords } from '../item-lore.js?v=0.2.119';
+import { t } from '../../render/player-text.js?v=0.2.119';
+import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.119';
+import { planWords } from '../loot-dispatch.js?v=0.2.119';
+import { pieceWords } from '../../data/armour-weights.js?v=0.2.119';
+import { ITEMS } from '../../data/items.js?v=0.2.119';
+import { JEWEL_PERKS, perkWords } from '../../data/jewelry.js?v=0.2.119';
 
 const GAP = 10;
 
@@ -39,6 +40,9 @@ function tipHtml(id, o) {
   const perks = ITEMS[id] && ITEMS[id].jewelPerks ? Object.entries(ITEMS[id].jewelPerks) : [];
   if (perks.length) h += '<dl class="hw-tip-stats hw-tip-perks">' + perks.map(([p, pm]) => '<dt>' + esc(JEWEL_PERKS[p] ? JEWEL_PERKS[p].name : p) + '</dt><dd>' + esc(perkWords(p, pm)) + '</dd>').join('') + '</dl>'
     + '<p class="hw-tip-line"><small>Perks</small>Each perk counts once, however many pieces you wear with it.</p>';
+  /* A bane: what the weapon does against one kind of monster, the engine's own number (designer re-read 2026-11-11: the Bramble Blade's tip said only +2/+2). */
+  const banes = baneWords(id);
+  if (banes.length) h += '<p class="hw-tip-line hw-tip-bane"><small>' + esc(t('item.bane_label')) + '</small>' + esc(banes.join('. ')) + '</p>';
   if (stats.length && opt.worn !== undefined) {
     if (opt.worn === id) h += '<p class="hw-tip-cmp">You are wearing this.</p>';
     else {
@@ -111,6 +115,16 @@ export function showTip(doc, anchor, id, o) {
 /** Hide the tooltip. On touch only a press does (`byPress`): the emulated hover's mouseout fires when the row it points at moves. */
 export function hideTip(doc, byPress) {
   if (touching(doc) && !byPress) return;
+  const el = doc.querySelector('.hw-tip');
+  if (el) el.classList.remove('is-on');
+}
+
+/** Put the tooltip away when what it points at has gone: its window closing (the hotkey fires no mouseout: a Raw Shrimp tip stood over the World
+    through mouse moves and a hunt start, designer re-read 2026-11-11) or its row no longer drawn. The shell calls it after every window change. */
+export function hideTipIfGone(doc) {
+  if (!tipFor) return;
+  if (tipFor.isConnected && !(tipFor.closest && tipFor.closest('.is-leaving'))) return;
+  tipFor = null;
   const el = doc.querySelector('.hw-tip');
   if (el) el.classList.remove('is-on');
 }

@@ -23,21 +23,21 @@
 //                       characters that sit in no party (own characters join at once,
 //                       PARTY_SPEC 10-19).
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.116';
-import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf, blessingsOf } from '../session/item-sections.js?v=0.2.116';
-import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.116';
-import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.116';
-import { ITEMS } from '../data/items.js?v=0.2.116';
-import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.116';
-import { attackOrder, DEFAULT_ATTACK_ROW, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.116';
-import { ammoPerShot } from '../core/ammo.js?v=0.2.116';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.116';
-import { ABILITIES } from '../data/abilities.js?v=0.2.116';
-import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.116';
-import { itemName, runeWords } from './widgets/bits.js?v=0.2.116';
-import { ownCount } from './rune-supply.js?v=0.2.116';
-import { shortOf } from './item-lore.js?v=0.2.116';
-import { whole, gold } from '../render/format.js?v=0.2.116';
+import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.118';
+import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf, blessingsOf } from '../session/item-sections.js?v=0.2.118';
+import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.118';
+import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.118';
+import { ITEMS } from '../data/items.js?v=0.2.118';
+import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.118';
+import { attackOrder, DEFAULT_ATTACK_ROW, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.118';
+import { ammoPerShot } from '../core/ammo.js?v=0.2.118';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.118';
+import { ABILITIES } from '../data/abilities.js?v=0.2.118';
+import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.118';
+import { itemName, runeWords } from './widgets/bits.js?v=0.2.118';
+import { ownCount } from './rune-supply.js?v=0.2.118';
+import { shortOf } from './item-lore.js?v=0.2.118';
+import { whole, gold } from '../render/format.js?v=0.2.118';
 
 /* How many of the bar's actions a setup line shows. */
 const SETUP_ICONS = 4;

@@ -95,8 +95,9 @@ export const BAR_TEXT = Object.freeze({
   /* A slot's setup, and what another slot does to it. */
   setup_any: 'Any of: {conditions}.',
   setup_when: 'When {conditions}.',
-  heal_warning_eat: 'The {monster} can hit for {hit}. At {pct}% you have {hp} HP, so one hit can kill you before you eat.',
-  heal_warning_heal: 'The {monster} can hit for {hit}. At {pct}% you have {hp} HP, so one hit can kill you before you heal.',
+  /* A monster's biggest hit is called Max Hit wherever the game shows it, as on its page (Tyler 2026-11-11). */
+  heal_warning_eat: 'The {monster} has a Max Hit of {hit}. At {pct}% you have {hp} HP, so one hit can kill you before you eat.',
+  heal_warning_heal: 'The {monster} has a Max Hit of {hit}. At {pct}% you have {hp} HP, so one hit can kill you before you heal.',
   blocked_by: '{action} in slot {slot} does the same thing and always goes first, so this one never fires.',
   shared_cooldown: 'Shares a cooldown with {action} (slot {slot}), which fires first when both are ready.',
   holding: 'You’re holding the pack, so there’s nothing to Challenge.',

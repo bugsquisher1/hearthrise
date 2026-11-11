@@ -8,18 +8,18 @@
 // tests/text-home.mjs keeps every call site honest and ratchets the text
 // still written in code down to none.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_TEXT } from './bar.js?v=0.2.116';
-import { DEATH_TEXT } from './death.js?v=0.2.116';
-import { FARM_TEXT } from './farm.js?v=0.2.116';
-import { HEROES_TEXT } from './heroes.js?v=0.2.116';
-import { HOUSE_TEXT } from './house.js?v=0.2.116';
-import { HUNTS_TEXT } from './hunts.js?v=0.2.116';
-import { ITEM_TEXT } from './item.js?v=0.2.116';
-import { MONSTER_TEXT } from './monster.js?v=0.2.116';
-import { PREP_TEXT } from './prep.js?v=0.2.116';
-import { SHOP_TEXT } from './shop.js?v=0.2.116';
-import { SLOTS_TEXT } from './slots.js?v=0.2.116';
-import { TEMPER_TEXT } from './temper.js?v=0.2.116';
+import { BAR_TEXT } from './bar.js?v=0.2.118';
+import { DEATH_TEXT } from './death.js?v=0.2.118';
+import { FARM_TEXT } from './farm.js?v=0.2.118';
+import { HEROES_TEXT } from './heroes.js?v=0.2.118';
+import { HOUSE_TEXT } from './house.js?v=0.2.118';
+import { HUNTS_TEXT } from './hunts.js?v=0.2.118';
+import { ITEM_TEXT } from './item.js?v=0.2.118';
+import { MONSTER_TEXT } from './monster.js?v=0.2.118';
+import { PREP_TEXT } from './prep.js?v=0.2.118';
+import { SHOP_TEXT } from './shop.js?v=0.2.118';
+import { SLOTS_TEXT } from './slots.js?v=0.2.118';
+import { TEMPER_TEXT } from './temper.js?v=0.2.118';
 
 export const TEXT = Object.freeze({
   bar: BAR_TEXT,

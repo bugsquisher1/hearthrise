@@ -35,6 +35,9 @@
 //               the gate exists to remove
 //   CI-SHAPE-10 no PLAIN guard run goes through the gate — plain runs always run,
 //               and a gated one could be skipped on a push that did not touch it
+//   CI-SHAPE-11 every apt-get update/install and `playwright install` a composite
+//               action (.github/actions/*/action.yml) runs has a `timeout` (run
+//               42758317717: an install step sat silent 43 min, past its job's limit)
 //
 // ── THE REGISTER ────────────────────────────────────────────────────────────
 // tests/ci-shape.baseline.json maps every guard command to the job that owns
@@ -59,7 +62,7 @@
 // could not plant a defect).
 // ════════════════════════════════════════════════════════════════════════
 
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { ROOT, WORKFLOW, parseWorkflow, flatSteps, buildPlan, SKIP } from './run-ci-local.mjs';
@@ -82,6 +85,30 @@ export function guardCommands(jobs) {
   return out;
 }
 
+/* A fetch over the network that can stall with no output: apt's index and packages, and Playwright's browser download. */
+const NET_FETCH = /\b(?:apt-get|apt)\s+(?:-\S+\s+)*(?:update|install|upgrade|dist-upgrade)\b|\bplaywright\s+install\b/;
+const DEADLINE = /\btimeout\s+(?:-{1,2}[\w-]+(?:[=\s]+\d+[smhd]?)?\s+)*\d+[smhd]?\s/;
+
+/** [{ line, cmd }] for every shell line of a composite action's `run:` steps (inline or block), comments dropped. */
+export function actionRunLines(text) {
+  const out = [];
+  let block = -1;
+  text.split(/\r?\n/).forEach((raw, i) => {
+    const indent = raw.match(/^ */)[0].length;
+    if (block >= 0 && (raw.trim() === '' || indent > block)) {
+      const cmd = raw.trim();
+      if (cmd && !cmd.startsWith('#')) out.push({ line: i + 1, cmd });
+      return;
+    }
+    block = -1;
+    const m = /^(\s*)(?:-\s+)?run:\s*(.*)$/.exec(raw);
+    if (!m) return;
+    if (/^[|>][-+]?\s*$/.test(m[2])) block = m[1].length + (/^\s*-\s+run:/.test(raw) ? 2 : 0);
+    else if (m[2].trim()) out.push({ line: i + 1, cmd: m[2].trim() });
+  });
+  return out;
+}
+
 /**
  * The whole verdict, as data. Pure: text in, problems out — which is what lets
  * --selftest plant a defect in a COPY of the workflow and require this to see it.
@@ -90,9 +117,10 @@ export function guardCommands(jobs) {
  * @param {string} o.workflowText
  * @param {object} o.baseline      { commands: { cmd: job } }
  * @param {string} o.listText      the output of `run-ci-local --list`
+ * @param {{path: string, text: string}[]} [o.actions]  the composite actions (.github/actions/*\/action.yml)
  * @returns {{problems: {check:string, message:string}[], jobs: any[]}}
  */
-export function analyse({ workflowText, baseline, listText }) {
+export function analyse({ workflowText, baseline, listText, actions = [] }) {
   const problems = [];
   const fail = (check, message) => problems.push({ check, message });
 
@@ -187,6 +215,21 @@ export function analyse({ workflowText, baseline, listText }) {
     }
   }
 
+  // CI-SHAPE-11 — a network fetch in a composite action has a deadline.
+  for (const a of actions) {
+    for (const { line, cmd } of actionRunLines(a.text)) {
+      /* A quoted string is a message, not a call ("::warning::apt-get update did not finish"). */
+      const bare = cmd.replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, '""');
+      const net = NET_FETCH.exec(bare);
+      if (!net) continue;
+      const by = DEADLINE.exec(bare);
+      if (by && by.index < net.index) continue;
+      fail('CI-SHAPE-11', `${a.path}:${line} fetches with no deadline: "${cmd}". A stalled mirror then holds `
+        + 'the job silent until its timeout-minutes (run 42758317717: 43 min, no test run). Run it under '
+        + '`timeout <seconds>`, and say what happens when the deadline passes.');
+    }
+  }
+
   return { problems, jobs };
 }
 
@@ -194,6 +237,18 @@ export function analyse({ workflowText, baseline, listText }) {
 async function readBaseline() {
   try { return JSON.parse(await readFile(BASELINE_PATH, 'utf8')); }
   catch { return { commands: {} }; }
+}
+
+/** Every composite action the workflow can use: [{ path, text }]. */
+async function readActions() {
+  const dir = join(ROOT, '.github', 'actions');
+  const out = [];
+  for (const d of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
+    if (!d.isDirectory()) continue;
+    const path = `.github/actions/${d.name}/action.yml`;
+    try { out.push({ path, text: (await readFile(join(ROOT, path), 'utf8')).split('\r\n').join('\n') }); } catch { /* no action.yml */ }
+  }
+  return out;
 }
 
 function localList() {
@@ -230,7 +285,8 @@ async function runReport({ write }) {
 
   const baseline = await readBaseline();
   const listText = localList();
-  const { problems } = analyse({ workflowText, baseline, listText });
+  const actions = await readActions();
+  const { problems } = analyse({ workflowText, baseline, listText, actions });
 
   const cmds = guardCommands(jobs);
   console.log('CI SHAPE — .github/workflows/smoke.yml\n');
@@ -245,7 +301,7 @@ async function runReport({ write }) {
 
   if (!problems.length) {
     console.log('\n  ok — every guard command runs in exactly one job, the register agrees, and');
-    console.log('       run-ci-local --list enumerates the whole matrix.');
+    console.log(`       run-ci-local --list enumerates the whole matrix; ${actions.length} composite action(s) fetch under a deadline.`);
     return 0;
   }
   console.log('');
@@ -264,8 +320,10 @@ async function selftest() {
   const listOf = (text) => buildPlan(parseWorkflow(text))
     .filter((p) => !p.skipped).flatMap((p) => p.cmds).map((c) => `      ${c}`).join('\n');
   const listText = listOf(workflowText);
+  const actions = await readActions();
+  if (!actions.length) { console.error('SELFTEST HARNESS: no .github/actions/*/action.yml to read'); process.exit(2); }
 
-  const clean = analyse({ workflowText, baseline, listText });
+  const clean = analyse({ workflowText, baseline, listText, actions });
   if (clean.problems.length) {
     console.error('SELFTEST HARNESS: the UNMUTATED workflow already reports problems, so every');
     console.error('  "caught" below would be meaningless. Fix the real shape first:');
@@ -305,6 +363,13 @@ async function selftest() {
     return ls.join('\n');
   };
   const harness = (m) => { const e = new Error(m); e.harness = true; return e; };
+  /** The actions, with ONE edit to the browser install action (structural: its deadlines are measurements and move). */
+  const inAction = (re, to) => actions.map((a) => {
+    if (!a.path.includes('/playwright-chromium/')) return a;
+    const hits = a.text.match(new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g')) || [];
+    if (hits.length !== 1) throw harness(`--selftest: ${re} matches ${hits.length} time(s) in ${a.path}, not once`);
+    return { ...a, text: a.text.replace(re, to) };
+  });
 
   const PROBE = 'node tests/rpc-resolution.mjs';
   const JWT = 'node tests/edge-jwt-gate.mjs --strict';
@@ -370,6 +435,12 @@ async function selftest() {
       workflowText, baseline,
       listText: listText.split('\n').filter((l) => l.trim() !== PROBE).join('\n'),
     })],
+    ['the seed\'s apt-get update without its deadline (run 42758317717)', 'CI-SHAPE-11', () => ({
+      workflowText, baseline, listText, actions: inAction(/\btimeout\s+(?:-k\s+\d+\s+)?\d+\s+(sudo apt-get update\b)/, '$1'),
+    })],
+    ['the browser install without its deadline', 'CI-SHAPE-11', () => ({
+      workflowText, baseline, listText, actions: inAction(/\btimeout\s+(?:-k\s+\d+\s+)?\d+\s+(npx playwright install\b)/, '$1'),
+    })],
   ];
 
   const controls = [
@@ -379,12 +450,16 @@ async function selftest() {
     ['NEGATIVE CONTROL: a blank line added inside a job', () => ({
       workflowText: insertInJob('edge', ['']), baseline, listText,
     })],
+    ['NEGATIVE CONTROL: a comment and a message in an action\'s shell that name apt-get update', () => ({
+      workflowText, baseline, listText,
+      actions: inAction(/^( *)seed=\(\)$/m, '$1seed=()\n$1# sudo apt-get update -qq (a note, not a call)\n$1echo "sudo apt-get update is next"'),
+    })],
   ];
 
   let bad = 0;
   for (const [label, check, mutate] of arms) {
     let got;
-    try { got = analyse(mutate()); } catch (e) {
+    try { got = analyse({ actions, ...mutate() }); } catch (e) {
       console.error(`  HARNESS  ${label} — ${e.message}`);
       process.exit(2);
     }
@@ -402,7 +477,7 @@ async function selftest() {
     }
   }
   for (const [label, mutate] of controls) {
-    const got = analyse(mutate());
+    const got = analyse({ actions, ...mutate() });
     if (got.problems.length) {
       bad++;
       console.log(`  FALSE +  ${label} — reported `

@@ -23,8 +23,8 @@ export const HUNTS_TEXT = Object.freeze({
 
   /* How crowded a ground is. {size} is a count or pack_range. */
   pack_range: '{min} to {max}',
-  packs: { one: '{count} pack of {size} · back in {secs} s', other: '{count} packs of {size} · back in {secs} s' },
-  packs_boss: { one: '{count} pack of {size}, a boss · back in {secs} s', other: '{count} packs of {size}, a boss · back in {secs} s' },
+  packs: { one: '{count} pack of {size} · respawns every {secs} seconds', other: '{count} packs of {size} · respawns every {secs} seconds' },
+  packs_boss: { one: '{count} pack of {size}, a boss · respawns every {secs} seconds', other: '{count} packs of {size}, a boss · respawns every {secs} seconds' },
 
   /* What a tier does. */
   tier_choice: '{tier}: {head}.',

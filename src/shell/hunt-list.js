@@ -6,7 +6,7 @@
 // new ground is a data row and shows up here with nothing else to edit.
 //   huntRows()          [{ hunt, name, theme, band, heroes, packs, packMin,
 //                          packMax, respawnS, boss }] in band order
-//   packWords(row, n)   "6 packs of 7 · back in 60 s": the pull size the
+//   packWords(row, n)   "6 packs of 7 · respawns every 60 seconds": the pull size the
 //                        server spawns on the shown tier; the room as built only at 0
 //   tierPull(row, tier, size)  how many monsters a pull brings on a tier for this group
 //   tierWords(row, tier, size)  what a tier does, in plain words (hunt-tiers.js TIER_LINES; the numbers are the wiki's)

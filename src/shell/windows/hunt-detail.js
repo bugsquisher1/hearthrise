@@ -56,8 +56,8 @@ export function detailHtml() {
     + '<p class="hw-hd-best hw-hunt-best-solo"></p><p class="hw-hd-best hw-hunt-best-party"></p><p class="hw-hd-best hw-hunt-best-none"></p></section>';
 }
 
-/* A creature opens its facts (windows/monster.js): the whole figure is the link, and its name is the button a key presses. */
-const monHtml = (m) => '<li class="hw-hd-mon" data-monster="' + esc(m.id) + '"' + gotoAttr(factsTarget(m.id)) + '><span class="hw-hd-stand"><canvas class="hw-hd-sprite" aria-hidden="true"></canvas></span>'
+/* A creature opens its facts (windows/monster.js) on this ground: the whole figure is the link, and its name is the button a key presses. */
+const monHtml = (m, hunt) => '<li class="hw-hd-mon" data-monster="' + esc(m.id) + '"' + gotoAttr(factsTarget(m.id, hunt)) + '><span class="hw-hd-stand"><canvas class="hw-hd-sprite" aria-hidden="true"></canvas></span>'
   + '<button type="button" class="hw-hd-mon-name mf-open"></button><small class="hw-hd-mon-how"></small></li>';
 
 /**
@@ -164,7 +164,7 @@ export function patchGround(det, ctx, r, o) {
   const lineup = det.querySelector('.hw-hd-lineup');
   rows(lineup, residents, {
     key: (m) => r.hunt + ':' + m.id,
-    build: (m) => element(ctx.doc, monHtml(m)),
+    build: (m) => element(ctx.doc, monHtml(m, r.hunt)),
     patch: (li, m) => {
       text(li.querySelector('.hw-hd-mon-name'), m.name);
       text(li.querySelector('.hw-hd-mon-how'), howWords(m));

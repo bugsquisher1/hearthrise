@@ -17,16 +17,19 @@
 //                 before any hero's bonus; and what the item is for (item-lore.js: the windows that spend
 //                 it, each a place a link opens, then its other uses in the item tip's words)
 //   where         the open grounds it stands on, or that a bigger pull brings it to (hunt-ground-facts.js)
+//   harder tiers  each harder tier's Health and damage dials on the ground the page was opened from (its first ground when
+//                 no ground opened it): hunt-tiers.js tiersOf and tierRowOf, the rows the engine fights with; none on a
+//                 Normal-only ground (the Cellar)
 // ONE DIFFICULTY FOR EVERY GROUP SIZE (Tyler 2026-11-08): the numbers are Normal's, the same alone or in a party.
-// A boss whose hall is built for a group says so in the Hunts list's own words (hunt-list.js partyNote). The page's Tier row names Normal; a harder tier's
-// numbers are not on it (the Hunts page says a tier in words only, hunt-list.js tierWords). A server-revealed surprise row
+// A boss whose hall is built for a group says so in the Hunts list's own words (hunt-list.js partyNote). The page's Tier row names Normal, and a line under
+// the stats says what each harder tier changes (the Hunts page says a tier in words only, hunt-list.js tierWords). A server-revealed surprise row
 // (`lucky`, `salvage`) stays unlisted, as on the ground's page.
 // ════════════════════════════════════════════════════════════════════════
 import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.119';
 import { ITEMS } from '../data/items.js?v=0.2.119';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.119';
 import { OPEN_GROUNDS } from '../data/hunt-grounds.js?v=0.2.119';
-import { DEFAULT_TIER, atTier, tierRowOf } from '../data/hunt-tiers.js?v=0.2.119';
+import { DEFAULT_TIER, atTier, tierRowOf, tiersOf } from '../data/hunt-tiers.js?v=0.2.119';
 import { partyNote } from './hunt-list.js?v=0.2.119';
 import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.119';
 import { elementPermille } from '../core/elements.js?v=0.2.119';
@@ -77,13 +80,14 @@ function usesFor(item) {
  * Monster `id`'s facts on Normal, the same for every group size, or null for a monster no open ground holds:
  * { id, name, family, level, boss, hp, maxHit, swingMs, deals, weak: { weapon, damagePct, accuracyPct } | null,
  *   elements: [{ element, pct }] (pct LESS taken, negative = more), xp, gold: [lo, hi],
- *   drops: [{ id, name, band, chance, uses: [{ words, place }] }], homes (homesOf) }.
+ *   drops: [{ id, name, band, chance, uses: [{ words, place }] }], homes (homesOf),
+ *   tiers: [{ tier, hpPm, dmgPm }] (each harder tier's dials, permille of Normal, on the ground hunt `from` names, else its first) }.
  */
-export function monsterFactsOf(id) {
+export function monsterFactsOf(id, from = null) {
   if (!isMet(id)) return null;
   const row = MONSTERS[id];
   const homes = homesOf(id);
-  const home = homes[0];
+  const home = homes.find((h) => h.hunt === from) || homes[0];
   /* the row as it fights on Normal: the engine's own read (pull-cycle.js spawns it so) */
   const fights = atTier(row, tierRowOf(home.ground.id, DEFAULT_TIER));
   const top = monsterMaxHit(fights);
@@ -105,5 +109,9 @@ export function monsterFactsOf(id) {
       uses: usesFor(d.id),
     })),
     homes,
+    tiers: tiersOf(home.ground.id).filter((tier) => tier !== DEFAULT_TIER).map((tier) => {
+      const dial = tierRowOf(home.ground.id, tier);
+      return { tier, hpPm: dial.hpPm, dmgPm: dial.dmgPm };
+    }),
   };
 }

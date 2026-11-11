@@ -31,8 +31,14 @@ import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorde
 import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.122';
 import { staminaOf } from '../../session/hunt-sections.js?v=0.2.122';
 import { endCardAfter } from '../after-hunt.js?v=0.2.122';
-import { heldCard } from '../launcher.js?v=0.2.122';
+import { heldCard, glyphSvg } from '../launcher.js?v=0.2.122';
 import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.122';
+import { townStepsOf, depositPlanned } from '../back-in-town.js?v=0.2.122';
+import { equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.122';
+import { blessAll } from '../bless-all.js?v=0.2.122';
+import { blessingsOf } from '../../session/item-sections.js?v=0.2.122';
+import { t } from '../../render/player-text.js?v=0.2.122';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.122';
 
 /* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), and an old hunt that kept no settings. */
 const againOffWords = (cur) => (callOfHunt(cur.hunt) ? 'He comes when he is called, from the ground\'s page.' : 'This hunt did not keep its settings.');
@@ -44,7 +50,10 @@ const nextStepOf = (ctx) => { const c = ctx.character ? heldCard(ctx) : null; re
 observeSessions(attach);
 
 const SCRATCH = new WeakMap();
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: false, msg: '', pick: null }; SCRATCH.set(cs, s); } return s; };
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: false, msg: '', pick: null, did: new Map() }; SCRATCH.set(cs, s); } return s; };
+/* The Back in town steps pressed on this card (by its session id), each with its title as pressed, so a step with nothing left reads
+   Done and stays saying what it did. Display only. */
+const didOf = (sc, id) => { let d = sc.did.get(id); if (!d) { d = new Map(); sc.did.clear(); sc.did.set(id, d); } return d; };
 /* ── The window ── */
 /* The hunt's balance shows for everyone; balance per hour once the server rates the hunt (10 minutes of it: a shorter
    hunt showed a bare "–" there, core-loop play 2026-10-30); Level XP per hour before bonuses only when the server sent
@@ -60,15 +69,19 @@ export function renderHuntSummary() {
     + '<section class="hsum-live"><h3 class="hw-ledger-head is-on">Just now</h3><ul class="hsum-falls hsum-live-falls"></ul></section>'
     + '<section class="hsum-card">'
     + '<header class="hsum-head"><h3 class="hsum-title"></h3><p class="hsum-when"></p></header><p class="hsum-reason"></p><p class="hsum-loss" hidden></p>'
+    /* BACK IN TOWN (UX flow audit 2026-11-11, flow C): the trip home as steps right under the reason, each one press with its count and
+       value (../back-in-town.js); the first open one is the card's one gold press, and a done one stays, ticked. Above the numbers, so the
+       first step's press is in view as the window opens (under them it sat behind the sticky foot at 1440x900). */
+    + '<section class="hsum-town"><h4 class="hw-ledger-head hsum-h-town is-on">' + esc(t('summary.town_head')) + '</h4><ul class="hsum-steps"></ul></section>'
     + '<dl class="hsum-stats">' + STATS.map(([k, label]) => '<div class="hsum-stat"><dt>' + label + '</dt><dd data-stat="' + k + '"></dd></div>').join('') + '</dl>'
     /* The presses and their answer stay in reach: the reason and the numbers pushed them under a 1366x768 window's fold, so a hunt that
        ran out of stamina opened with no press in sight (door panel 2026-11-04). */
     + '<div class="hsum-foot"><div class="hsum-actions">'
-    /* while a tutorial card is up its next step is the main press here (board 2026-10-25 #5: "Hunt again" pulled the
-       other way); then "Hunt again" is the main one again */
-    + '<button type="button" class="hh-tool is-primary" data-hs-act="coach-next" hidden></button>'
-    + '<button type="button" class="hh-tool is-primary" data-hs-act="again">Hunt again</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="bag">Open bag</button></div>'
+    /* a tutorial card's next step is a press here, never the gold one (Tyler 2026-11-11: after 4 h the summary's gold button was still
+       the first card); the gold press is the first open Back in town step, else "Hunt again" */
+    + '<button type="button" class="hh-tool" data-hs-act="coach-next" hidden></button>'
+    + '<button type="button" class="hh-tool is-primary" data-hs-act="again">' + t('controls.hunt_again') + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="bag">' + t('controls.open_bag') + '</button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
     + '<h4 class="hw-ledger-head hsum-h-loot">Top loot</h4><ul class="hsum-list hsum-loot"></ul>'
     + '<h4 class="hw-ledger-head hsum-h-sup">Supplies used</h4><ul class="hsum-list hsum-sup"></ul>'
@@ -81,7 +94,7 @@ const li = (doc, markup) => element(doc, markup);
 const dayTime = (at) => (at === null ? '' : new Date(at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }));
 
 function lines(host, doc, items) {
-  rows(host, items.map((t, i) => ({ t, i })), {
+  rows(host, items.map((row, i) => ({ t: row, i })), {
     key: (x) => String(x.i), build: () => li(doc, '<li></li>'), patch: (el, x) => text(el, x.t),
   });
 }
@@ -156,8 +169,11 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     const next = root.querySelector('[data-hs-act="coach-next"]');
     prop(next, 'hidden', !card);
     text(next, card ? 'Next: ' + card.title : '');
-    cls(go, 'is-primary', !card);
-    for (const b of root.querySelectorAll('.hsum-actions button:not(.is-primary):not([data-hs-act="again"])')) prop(b, 'disabled', sc.pending);
+    /* the steps are about the bag NOW: the newest hunt's card only, with no hunt running */
+    const town = cur === list[0] && !huntOpen ? townStepsOf(cs, didOf(sc, cur.id)) : { steps: [], primary: 'again' };
+    patchTown(root, ctx, sc, town);
+    cls(go, 'is-primary', town.primary === 'again');
+    for (const b of root.querySelectorAll('.hsum-actions button:not([data-hs-act="again"])')) prop(b, 'disabled', sc.pending);
   }
   /* THE ANSWER IS THE PRESS'S (party panel 2026-11-03: "Setting out." still up with the hero home from that hunt): a hunt that opens or ends makes it old. */
   const huntNow = open ? open.id + (open.ended ? ':over' : '') : '';
@@ -169,7 +185,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
   rows(root.querySelector('.hsum-past'), past, {
     key: (s) => s.id,
     build: (s) => li(ctx.doc, '<li class="hw-line"><span class="hw-line-name"><b></b><small></small></span>'
-      + '<button type="button" class="hh-tool" data-hs-act="pick" data-id="' + s.id.replace(/[^a-z0-9-]/gi, '') + '">Show</button></li>'),
+      + '<button type="button" class="hh-tool" data-hs-act="pick" data-id="' + s.id.replace(/[^a-z0-9-]/gi, '') + '">' + t('controls.show') + '</button></li>'),
     patch: (el, s) => {
       text(el.querySelector('b'), groundTitle(s));
       text(el.querySelector('small'), [dayTime(s.at), s.kills !== null ? whole(s.kills) + ' kills' : '', s.reason ? endWords(s.reason, s.forfeit, s.by, nameOf(cs), s.why).split('. ')[0].replace(/\.$/, '') : ''].filter(Boolean).join(' · '));
@@ -177,12 +193,70 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
   });
 };
 
-renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, t) {
+/* The Back in town rows, patched in place: the icon is the first stack's (a tick once done), the count and value its title, the plan's
+   words under it, its one press at the right (gold when it is the first open step). */
+function patchTown(root, ctx, sc, town) {
+  cls(root.querySelector('.hsum-town'), 'is-on', town.steps.length > 0);
+  rows(root.querySelector('.hsum-steps'), town.steps, {
+    key: (s) => s.id,
+    build: (s) => li(ctx.doc, '<li class="hsum-step" data-step="' + s.id + '"><span class="hsum-ico"></span><span class="hsum-step-name"><b></b><small></small></span>'
+      + '<button type="button" class="hh-tool" data-hs-act="town" data-step="' + s.id + '"></button><span class="hsum-done" hidden></span></li>'),
+    patch: (el, s) => {
+      cls(el, 'is-done', s.done);
+      const ico = el.querySelector('.hsum-ico');
+      const want = s.done ? 'done' : s.icon ? 'item:' + s.icon : 'shield';
+      if (ico.getAttribute('data-ico') !== want) { ico.setAttribute('data-ico', want); ico.innerHTML = s.done ? glyphSvg(ctx.glyphs, 'uiCheck') : s.icon ? itemIconHtml(ctx.glyphs, s.icon) : glyphSvg(ctx.glyphs, 'uiShield'); }
+      text(el.querySelector('b'), s.title);
+      text(el.querySelector('small'), s.words);
+      const btn = el.querySelector('button');
+      prop(btn, 'hidden', s.done);
+      prop(btn, 'disabled', sc.pending);
+      text(btn, s.verb);
+      cls(btn, 'is-primary', town.primary === s.id);
+      const done = el.querySelector('.hsum-done');
+      prop(done, 'hidden', !s.done);
+      text(done, t('summary.done'));
+    },
+  });
+}
+
+/* ONE press per step, the existing intent each: the plan's `equip` (upgrade-line.js), the loot plan's sale as ONE vendor_sell_many, the
+   Deposit stacks as ONE hr_bank_move_many (back-in-town.js depositPlanned), the Services tab's Bless all. An answer that went marks the step pressed
+   on this card, so a step with nothing left reads Done; the answer's words land on the summary's own line. */
+function doTown(ctx, cs, sc, repaint, cur, step) {
+  const town = townStepsOf(cs, didOf(sc, cur.id));
+  const s = town.steps.find((x) => x.id === step && !x.done);
+  if (!s || sc.pending) return;
+  const mark = (r) => { if (r && (r.ok || r.moved > 0)) { didOf(sc, cur.id).set(step, s.title); repaint(); } };
+  if (step === 'equip') { equipUpgrades(cs, sc, repaint, { ops: s.ops }).then(mark); return; }
+  if (step === 'sell') {
+    const lines = s.lines;
+    runIntent(sc, repaint, () => cs.edgeIntent('vendor_sell_many', { lines }), t('summary.selling'),
+      (r) => (r && Number.isSafeInteger(r.paid) ? t('summary.sold', { gold: gold(r.paid) }) : t('summary.sold_plain')), cs).then(mark);
+    return;
+  }
+  if (step === 'deposit') {
+    const lines = s.lines;
+    runIntent(sc, repaint, () => depositPlanned(ctx.account, cs, lines), t('summary.depositing'), (r) => t('summary.deposited', { count: r && Number.isSafeInteger(r.moved) ? r.moved : lines.length }), cs).then(mark);
+    return;
+  }
+  if (step === 'bless') {
+    runIntent(sc, repaint, () => blessAll(cs), t('shop.bless_all_busy'), () => { const b = blessingsOf(cs); return b ? t('shop.bless_all_done', { of: b.tiers.length }) : ''; }, cs).then(mark);
+  }
+}
+
+renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, el) {
   if (ev.type !== 'click') return false;
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => renderHuntSummary.patch(body, ctx);
-  if (action === 'pick') { sc.pick = t.getAttribute('data-id'); sc.msg = ''; repaint(); return true; }
+  if (action === 'pick') { sc.pick = el.getAttribute('data-id'); sc.msg = ''; repaint(); return true; }
+  if (action === 'town') {
+    const list = sanitizeSummaries(summariesOf(cs));
+    const cur = list.find((s) => s.id === sc.pick) || list[0];
+    if (cur && cur === list[0]) doTown(ctx, cs, sc, repaint, cur, el.getAttribute('data-step'));
+    return true;
+  }
   /* the card's next step: the summary closes and the card's window opens on its tab (its card and ring are there),
      or, for a card on the bar or the town, the summary closes and the card stands under the icon row */
   if (action === 'coach-next') {

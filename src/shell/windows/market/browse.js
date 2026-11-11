@@ -28,6 +28,7 @@ import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.
 import { MARKET_SORTS, BUY_CHIPS, planBuy, mostAffordable, browseRows, searchIds, rowWords, noneWords, ageWords, goldWords, priceSample } from '../../market-model.js?v=0.2.122';
 import { showTip, hideTip } from '../item-tip.js?v=0.2.122';
 import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGesture, cancelKey } from './state.js?v=0.2.122';
+import { t } from '../../../render/player-text.js?v=0.2.122';
 
 const SEARCH_MAX = 50;
 const LOST_WORDS = 'No answer from the Weighhouse. Press again. It won\'t buy twice.';
@@ -36,14 +37,14 @@ const LOST_WORDS = 'No answer from the Weighhouse. Press again. It won\'t buy tw
 export function browseHtml(ctx) {
   const g = ctx.glyphs;
   return '<section class="hw-pane hw-mk-browse" data-pane="browse">'
-    + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="mk-search" placeholder="Find any item" aria-label="Find any item" autocomplete="off"></span>'
-    + '<label class="hw-sort"><span>Sort</span><select class="hh-select" data-hs-act="mk-sort">' + MARKET_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div>'
+    + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="mk-search" placeholder="Search items" aria-label="Search items" autocomplete="off"></span>'
+    + '<label class="hw-sort"><span>' + t('controls.sort') + '</span><select class="hh-select" data-hs-act="mk-sort">' + MARKET_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div>'
     + '<div class="hw-cats" role="group" aria-label="Show">' + BAG_CATS.map(([id, l]) => '<button type="button" class="hw-cat" data-hs-act="mk-cat" data-cat="' + id + '" aria-pressed="false">' + esc(l) + '</button>').join('') + '</div>'
     + '<div class="hw-mk-invite"><h3 class="hw-hd-name">The scales are empty</h3>'
-    + '<p class="hw-mk-invite-p"></p><button type="button" class="hw-primary is-on" data-hs-act="mk-to-sell">List something</button></div>'
+    + '<p class="hw-mk-invite-p"></p><button type="button" class="hw-primary is-on" data-hs-act="mk-to-sell">' + t('controls.list_item') + '</button></div>'
     + '<div class="hw-mk-cols"><ul class="hw-mk-list" role="listbox" aria-label="Items"></ul>'
     + '<section class="hw-mk-page" aria-label="The picked item"><div class="hw-hd-page">'
-    + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="mk-back">Back to the list</button>'
+    + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="mk-back">' + t('controls.back') + '</button>'
     + '<div class="hw-mk-head"><span class="hw-ico hw-mk-ico"></span><div class="hw-mk-title"><h3 class="hw-hd-name hw-mk-name"></h3><p class="hw-hd-band hw-mk-kind"></p></div></div>'
     + '<p class="hw-mk-price"></p>'
     + '<h4 class="hw-hd-h">For sale</h4><ul class="hw-mk-asks"></ul><p class="hh-empty hw-mk-asks-none"></p>'
@@ -60,7 +61,7 @@ function buyHtml() {
     + '<input type="number" min="1" step="1" class="hh-num hw-mk-count" data-hs-act="mk-count" aria-label="How many"></div>'
     + '<div class="hw-mk-do"><label class="hw-mk-goes"><span>Goes to:</span><select class="hh-select" data-hs-act="mk-deliver" aria-label="Goes to"><option value="storage">Storage</option><option value="bag"></option></select></label>'
     + '<button type="button" class="hw-primary is-on" data-hs-act="mk-buy"></button>'
-    + '<button type="button" class="hh-tool hw-mk-forget" data-hs-act="mk-forget" hidden>Forget it</button></div>'
+    + '<button type="button" class="hh-tool hw-mk-forget" data-hs-act="mk-forget" hidden>' + t('controls.cancel') + '</button></div>'
     + '<p class="hs-note hw-mk-after"></p><p class="hs-note hw-mk-warn"></p></div>';
 }
 
@@ -143,7 +144,7 @@ function patchBuy(root, v, page) {
   const left = purse === null ? null : purse - plan.total;
   const short = left !== null && left < 0;
   const press = buy.querySelector('[data-hs-act="mk-buy"]');
-  text(press, g ? 'Try again' : plan.qty ? 'Buy ' + whole(plan.qty) + ' for ' + goldWords(plan.total) : 'Buy');
+  text(press, g ? 'Try again' : plan.qty ? 'Buy ' + whole(plan.qty) + ' for ' + goldWords(plan.total) : t('controls.buy'));
   prop(press, 'disabled', v.off || !plan.qty || (short && !g));
   attr(press, 'data-off-why', v.offWhy || (short ? 'You need ' + goldWords(-left) + ' more.' : null));
   prop(buy.querySelector('.hw-mk-forget'), 'hidden', !g);
@@ -270,12 +271,12 @@ async function runBuy(o, plan, deliver) {
 }
 
 /** Browse's presses. True when one was handled. */
-export function actBrowse(o, action, ev, t) {
+export function actBrowse(o, action, ev, el) {
   const { ctx, cs, sc, repaint } = o;
   if (action === 'mk-pick') {
-    const id = t.getAttribute('data-item');
-    if (ev.type === 'mouseover') { showTip(ctx.doc, t, id, {}); return false; }
-    if (ev.type === 'mouseout') { if (!t.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
+    const id = el.getAttribute('data-item');
+    if (ev.type === 'mouseover') { showTip(ctx.doc, el, id, {}); return false; }
+    if (ev.type === 'mouseout') { if (!el.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
     if (ev.type !== 'click') return false;
     hideTip(ctx.doc);
     if (sc.pick !== id) { sc.want = 1; if (sc.gesture && sc.gesture.kind === 'buy') dropGesture(sc); }
@@ -287,39 +288,39 @@ export function actBrowse(o, action, ev, t) {
     return true;
   }
   if (action === 'mk-search' && ev.type === 'input') {
-    sc.query = t.value.slice(0, 40);
+    sc.query = el.value.slice(0, 40);
     searchSoon(ctx, cs, sc, searchIds(sc.query, SEARCH_MAX));
     repaint();
     return false;
   }
-  if (action === 'mk-sort' && ev.type === 'change') { setView(cs, 'sort', t.value); repaint(); return false; }
-  if (action === 'mk-deliver' && ev.type === 'change') { setView(cs, 'deliver', t.value); repaint(); return false; }
+  if (action === 'mk-sort' && ev.type === 'change') { setView(cs, 'sort', el.value); repaint(); return false; }
+  if (action === 'mk-deliver' && ev.type === 'change') { setView(cs, 'deliver', el.value); repaint(); return false; }
   if (action === 'mk-count' && ev.type === 'input') {
-    const n = Math.floor(Number(t.value));
+    const n = Math.floor(Number(el.value));
     sc.want = Number.isSafeInteger(n) && n > 0 ? n : 0;
     repaint();
     return false;
   }
   if (ev.type !== 'click') return false;
   /* A category leaves the search: a search covers every kind, a category shows what is for sale. */
-  if (action === 'mk-cat') { sc.query = ''; setView(cs, 'cat', t.getAttribute('data-cat')); repaint(); return true; }
+  if (action === 'mk-cat') { sc.query = ''; setView(cs, 'cat', el.getAttribute('data-cat')); repaint(); return true; }
   if (action === 'mk-back') { sc.paged = false; repaint(); return true; }
   if (action === 'mk-to-sell') { sc.tab = 'sell'; sc.msg = ''; repaint(); return true; }
   if (action === 'mk-want') {
-    const w = t.getAttribute('data-want');
+    const w = el.getAttribute('data-want');
     sc.want = w === 'all' || w === 'afford' ? w : Number(w);
     repaint();
     return true;
   }
   if (action === 'mk-forget') { dropGesture(sc); sc.msg = ''; repaint(); rereadAll(ctx, cs, sc); return true; }
   if (action === 'mk-cancel') {
-    const listing = t.getAttribute('data-listing');
+    const listing = el.getAttribute('data-listing');
     if (!sc.pending) cancelListing(o, listing);
     return true;
   }
   if (action === 'mk-buy') {
     const page = sc.page && sc.page.id === sc.pick ? sc.page : null;
-    if (!page || sc.pending || t.disabled) return true;
+    if (!page || sc.pending || el.disabled) return true;
     const plan = planBuy(page.asks, wanted(sc, page.asks, goldOf(cs)));
     if (plan.qty || sc.gesture) runBuy(o, plan, viewOf(cs).deliver);
     return true;

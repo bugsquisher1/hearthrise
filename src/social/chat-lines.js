@@ -134,6 +134,17 @@ export function systemLine(id, text, at, o = {}) {
     role: null, slot: null, parts: [{ text: String(text).slice(0, 300) }], toId: null, toName: null, system: true };
 }
 
+/**
+ * A townsperson's line (a town crier, src/shell/town-criers.js): { id, at, time, name, parts, npc: true }. Local and display-only:
+ * never a server row, never sent, never another player's; `name` is the speaker (no player menu) and a part may carry `goto`,
+ * a src/shell/goto.js target the chat draws as a link.
+ * @param {{tz?: string}} [o]
+ */
+export function npcLine(id, name, parts, at, o = {}) {
+  return { id: String(id), channel: null, at, time: clockOf(at, o.tz), fromId: null, name: String(name).slice(0, 40), level: null,
+    role: null, slot: null, parts: parts.slice(0, 8), toId: null, toName: null, system: false, npc: true };
+}
+
 /** Which fixed tab a chat line belongs to, given the zone and party channels the server named. */
 export function tabOfChannel(channel, zone, party) {
   if (channel === 'global') return 'global';

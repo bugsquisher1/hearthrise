@@ -38,9 +38,9 @@ export function setupsHtml() {
     + '<div class="hw-add hpb-add" hidden><input type="text" class="hh-num hw-preset-name" maxlength="24" placeholder="' + t('prep.name_this') + '" aria-label="' + t('prep.setup_name') + '" data-hs-act="preset-name">'
     + '<button type="button" class="hh-tool" data-hs-act="save-new">' + t('prep.save') + '</button></div>'
     + '<div class="hpb-leftrow">'
-    + '<button type="button" class="hh-tool hpb-new" data-hs-act="new" data-coach-hook="setup-save">' + t('prep.new') + '</button>'
-    + '<button type="button" class="hh-tool hpb-from" data-hs-act="use-equipped"><b>' + t('prep.use_equipped') + '</b><small></small></button>'
-    + '<button type="button" class="hh-tool hw-keep hpb-keep" data-hs-act="keep-equipped">' + t('prep.keep') + '</button>'
+    + '<button type="button" class="hh-tool hpb-new" data-hs-act="new" data-coach-hook="setup-save">' + t('controls.new_setup') + '</button>'
+    + '<button type="button" class="hh-tool hpb-from" data-hs-act="use-equipped"><b>' + t('controls.use_equipped') + '</b><small></small></button>'
+    + '<button type="button" class="hh-tool hw-keep hpb-keep" data-hs-act="keep-equipped">' + t('controls.cancel') + '</button>'
     + '<p class="hpb-count"></p></div>'
     + '<p class="hs-note hw-town-only">' + t('prep.town_only') + '</p>'
     + '<button type="button" class="hh-tool hw-slot-buy" data-hs-act="buy-slot" hidden></button>'
@@ -50,9 +50,9 @@ export function setupsHtml() {
 function setupRow(ctx, p) {
   const at = ' data-preset="' + p.preset + '"';
   return element(ctx.doc, '<li class="hw-line hw-setup hpb-set" data-hs-act="pick"' + at + '><span class="hw-line-name">' + nameEditorHtml('rename', at, t('prep.rename_label')) + '<small></small></span>'
-    + '<span class="hpb-set-do"><button type="button" class="hh-tool hw-use" data-hs-act="apply"' + at + '>' + t('prep.use') + '</button>'
-    + '<button type="button" class="hh-tool hw-del" data-hs-act="delete"' + at + '>' + t('prep.delete') + '</button>'
-    + '<button type="button" class="hh-tool hw-keep" data-hs-act="keep"' + at + '>' + t('prep.keep') + '</button></span></li>');
+    + '<span class="hpb-set-do"><button type="button" class="hh-tool hw-use" data-hs-act="apply"' + at + '>' + t('controls.use') + '</button>'
+    + '<button type="button" class="hh-tool hw-del" data-hs-act="delete"' + at + '>' + t('controls.delete') + '</button>'
+    + '<button type="button" class="hh-tool hw-keep" data-hs-act="keep"' + at + '>' + t('controls.cancel') + '</button></span></li>');
 }
 
 /** Patch the column from the server's sections. */
@@ -81,7 +81,7 @@ export function patchSetups(root, ctx, sc, hunting) {
       /* Delete asks once on the same button ("Delete it?", with Keep beside it); the second press sends. */
       const armed = sc.arming === p.preset;
       cls(li, 'is-arming', armed);
-      text(li.querySelector('.hw-del'), armed ? t('prep.delete_ask') : t('prep.delete'));
+      text(li.querySelector('.hw-del'), armed ? t('controls.delete_confirm') : t('controls.delete'));
       for (const b of li.querySelectorAll('button, input')) prop(b, 'disabled', sc.pending);
       /* Use stays on the setup in use too: it puts that setup's saved gear back on (the server wears it). */
       prop(li.querySelector('.hw-use'), 'disabled', sc.pending || hunting);
@@ -102,7 +102,7 @@ export function patchSetups(root, ctx, sc, hunting) {
   /* Use equipped: the picked setup takes what the hero has on. Asked once ("Replace Boss nights with what you have on?"). */
   const pickedRow = (presets || []).find((p) => p.preset === sc.picked);
   const from = root.querySelector('.hpb-from');
-  text(from.querySelector('b'), sc.armingEquipped && pickedRow ? t('prep.use_equipped_ask', { name: pickedRow.name }) : t('prep.use_equipped'));
+  text(from.querySelector('b'), sc.armingEquipped && pickedRow ? t('prep.use_equipped_ask', { name: pickedRow.name }) : t('controls.use_equipped'));
   text(from.querySelector('small'), pickedRow ? t('prep.use_equipped_hint', { name: pickedRow.name }) : '');
   cls(from, 'is-arming', sc.armingEquipped);
   prop(from, 'disabled', sc.pending || hunting || !pickedRow);

@@ -5,6 +5,22 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.123 — 2026-11-12 (Your Town, Your Way)
+
+**Tips are yours to turn off.** Every coach card has Got it and Don't show tips. Got it closes that card. Don't show tips hides them all, and Settings, Interface, Show tips brings them back.
+
+**Town criers call out tips in Local chat.** The Town Crier, Garrick the Smith and Tamsin Reeve speak up now and then about something you haven't done yet, with a link that takes you there. They go quiet during a hunt and when Show tips is off. Only you see their lines.
+
+**Coming home from a hunt has a guided path.** The hunt summary lists what to do in town, each one press with its real count and value. Wear the better gear you found, sell what your loot plan marks for the shop, put away what it marks for Storage, bless, then hunt again. One gold button at a time, and done steps stay ticked.
+
+**Tamsin's tally board got a new look.** Tamsin talks to you at the top and tells you where you stand. Your own tasks come first, with her tally marks and the exact count, the piece she'll give you, and what you'll get. Her board shows only the tasks you don't hold, with the ground as a link and a proper Take button. The armor weight and slot order are behind Change.
+
+**Bag selection works like a file list.** Ctrl+A selects everything shown and again clears it, Esc clears, Shift picks a range, Ctrl+click adds one, a plain click picks just that one. The selection line shows what the shop would pay, with Sell, Deposit and Lock right there, and Deposit and Lock move every stack in one go.
+
+**One word per button.** Every window uses the same word for the same action: Equip and Unequip on the doll and for outfits and titles, Deposit and Withdraw in Storage and the loot plan, Back instead of "Back to the list", Enter with party instead of "Start with party", New setup and Use equipped in Hunt prep, Cancel, Decline and Abandon where it used to say "Forget it", "No thanks" and "Give up".
+
+**On smaller screens (under 1280 px wide) the hunt analyzer, the Tally and your Party panel start minimized,** so you can see the fight. The Tally still shows your count, and Hunt details opens the analyzer.
+
 ## v0.2.122 — 2026-11-11 (Hunting Alone Pays)
 
 **Hunting alone earns 15% more Level XP.** A hero on its own gets the bonus on every ground and tier. A mixed party of four still earns about 15 to 25% more per head than a hero alone, now from a bigger share of each kill. On Normal every group fights the same packs, and bigger pulls come only from Dangerous and Deadly.

@@ -513,7 +513,7 @@ try {
     }
   } else {
     /* the party forms by the account's own verb (its own heroes need no accept); the page then reads it, and the LEADER's press starts the hunt:
-       the same Hunts window button, which reads "Start with party" and sends hr_hunt_party_start (src/shell/windows/hunts.js, party-intents.js startPartyHunt) */
+       the same Hunts window button, which reads "Enter with party" and sends hr_hunt_party_start (src/shell/windows/hunts.js, party-intents.js startPartyHunt) */
     for (let s = 1; s < PARTY; s++) { const r = await rpc('hr_hunt_party_invite_own', { p_slot: 0, p_other_slot: s, p_idem: idem() }); if (!r || r.ok !== true) throw new Error('invite ' + s + ': ' + JSON.stringify(r)); await freshRates(); }
     await p.page.reload({ waitUntil: 'load' });
     await playHero(p.page);
@@ -522,7 +522,7 @@ try {
     try {
       if (ENTER === 'rpc') throw new Error('--enter rpc');
       await p.enterHunt(HUNT);
-      out.startedBy = formed + 'the leader\'s press on the real screen (Hunts window -> ground -> Start with party): hr_hunt_party_start';
+      out.startedBy = formed + 'the leader\'s press on the real screen (Hunts window -> ground -> Enter with party): hr_hunt_party_start';
     } catch (e) {
       const st = await rpc('hr_hunt_party_start', { p_slot: 0, p_hunt: HUNT, p_idem: idem() });
       if (!st || st.ok !== true) throw new Error('hr_hunt_party_start: ' + JSON.stringify(st) + ' (screen: ' + String(e.message).split('\n')[0] + ')');

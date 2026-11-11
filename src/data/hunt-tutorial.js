@@ -110,7 +110,7 @@ export const TUTORIAL_ANCHORS = Object.freeze({
   market: anchor('the Weighhouse (src/shell/windows/market), its icon', 'market', true),
   honor: anchor('Leaderboards (src/shell/windows/honor.js), its icon', 'honor', true),
   settings: anchor('Settings (src/shell/windows/settings.js), its icon, then the Help tab', 'settings', true),
-  hunt_prep: anchor('Hunt prep (src/shell/windows/hunt-prep.js), the bar\'s setup corner, then New', 'hunt-prep', true),
+  hunt_prep: anchor('Hunt prep (src/shell/windows/hunt-prep.js), the bar\'s setup corner, then New setup', 'hunt-prep', true),
   house: anchor('the House (src/shell/windows/house.js), its icon, then Buy', 'house', true),
   characters: anchor('the character strip\'s Characters button, then Create hero on the characters screen', 'characters'),
   strip: anchor('the character strip (src/app/character-strip.js), another hero\'s tab'),
@@ -215,7 +215,9 @@ const orGotIt = (fact) => ({ kind: 'any', asks: true, of: [READ, fact] });
 const LESSON = { kind: 'lesson_time', hunt: THICKET };
 /* The Shop's Services tab and its next Bless (the shell rings the deepest one on screen first) */
 const SERVICES_TAB = '[data-hs-win="shop"] .hw-tab[data-tab="services"]';
-const TO_BLESS = [SERVICES_TAB, '[data-hs-win="shop"] [data-hs-act="bless"]:not([disabled])'];
+/* ...after the hunt summary's Back in town Bless row, the shallowest doorway (ringPlan rings the deepest on screen first: the Shop's own controls
+   when the Shop is open, else the summary's row while that card shows, else the Shop's icon) */
+const TO_BLESS = ['[data-hs-win="hunt-summary"] [data-hs-act="town"][data-step="bless"]', SERVICES_TAB, '[data-hs-win="shop"] [data-hs-act="bless"]:not([disabled])'];
 
 export const HUNT_TUTORIAL = Object.freeze([
   /* ── THE WEAPON IS THE STYLE, BEFORE ANY HUNT (the panel 2026-10-31: it came after the archer's disaster). One Got it, or
@@ -294,7 +296,9 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('equip_upgrades', 'Wear what you found',
     'You found gear that beats what you\'re wearing. You change gear in town, so open your bag and press Equip upgrades.',
     'inventory', { kind: 'upgrades_none' }, { reactive: true, when: [IN_TOWN, { kind: 'upgrades' }],
-      inWindow: 'Press Equip upgrades. You can swap any piece back from your bag.', hooks: ['[data-hs-win="inventory"] [data-hs-act="equip-upgrades"]'] }),
+      inWindow: 'Press Equip upgrades. You can swap any piece back from your bag.',
+      /* the hunt summary's Back in town Equip row while that card shows (a card about the return rings its row, never the summary's gold press), then the bag's Equip upgrades */
+      hooks: ['[data-hs-win="hunt-summary"] [data-hs-act="town"][data-step="equip"]', '[data-hs-win="inventory"] [data-hs-act="equip-upgrades"]'] }),
   step('storage', 'Room in your bag',
     'Your bag is nearly full. Storage holds more, and all your heroes share it.',
     'storage', { kind: 'any', of: [READ, { kind: 'stored_stack' }] }, { reactive: true, gotIt: true, when: [{ kind: 'bag_full' }] }),
@@ -387,7 +391,9 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Open the Shop and press Sell. Sell all junk sells what is only worth gold. Your Materials stay, like fuel for the Great Hearth (it raises your Inner Flame), food you can cook and parts for your recipes and your House. Point at anything to see what it\'s for.',
     'shop', { kind: 'any', asks: true, of: [READ, { kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },
     { gotIt: true, when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all junk. Your Materials stay in your bag.',
-      hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="sell"]', '[data-hs-win="shop"] [data-hs-act="sell-loot"]', '[data-hs-win="shop"] [data-coach-hook="sell-confirm"]'] }),
+      /* the hunt summary's Back in town Sell row while that card shows (the card rings the row, never the summary's gold press), then the Shop's way */
+      hooks: ['[data-hs-win="hunt-summary"] [data-hs-act="town"][data-step="sell"]',
+        '[data-hs-win="shop"] .hw-tab[data-tab="sell"]', '[data-hs-win="shop"] [data-hs-act="sell-loot"]', '[data-hs-win="shop"] [data-coach-hook="sell-confirm"]'] }),
   /* One decision, not a form (panel 2026-11-01: a 14-dropdown list at hour one, "I don't know what I don't need yet"): after the
      Thicket the bag knows what piles up, and a plan once set is kept for every hunt after (the first principle). */
   step('loot_rules', 'Decide once',
@@ -414,12 +420,12 @@ export const HUNT_TUTORIAL = Object.freeze([
       + WOLVES.gold + ' gp and a piece of armor you don\'t own yet, or materials if you already own them all.',
     'world', { kind: 'any', of: [{ kind: 'tally_paid', task: WOLVES.id }, { kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),
   step('go_below', 'Into the sewer, together',
-    'The Sewer is a party hunt. Pick The Sewer and Start with party, and everyone walks in together. The Rat King holds the last room and only comes out for a party.',
+    'The Sewer is a party hunt. Pick The Sewer and press Enter with party, and everyone walks in together. The Rat King holds the last room and only comes out for a party.',
     'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),
   step('save_setup', 'Keep this bar',
-    'A setup is your whole loadout, bar and gear. Open Hunt prep, press New and give it a name, so you can come back to it after trying another style.',
+    'A setup is your whole loadout, bar and gear. Open Hunt prep, press New setup and name it, so you can come back to it after trying another style.',
     'hunt_prep', { kind: 'setup_saved' }, { when: [IN_TOWN, { kind: 'bar_saved' }, { kind: 'been', hunt: THICKET }],
-      inWindow: 'Press New, name the setup and press Save. Your bar and the gear you wear are kept under its name.',
+      inWindow: 'Press New setup, name it and press Save. Your bar and the gear you wear are kept under its name.',
       hooks: ['[data-hs-act="setups"]', '[data-hs-win="hunt-prep"] [data-coach-hook="setup-save"]'] }),
   /* ── F. Day one: each waits for the chain, then starts on its own fact ── */
   step('harvest_juice', 'Turnips are ready',

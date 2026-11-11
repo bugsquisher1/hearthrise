@@ -64,7 +64,7 @@ export function builderHtml() {
     + '<span class="hb-label">' + t('prep.gold_word') + '</span></label><p>' + t('prep.gold_line') + '</p></div>'
     + '</div>'
     + '<div class="hpb-barhead">' + head('prep.bar') + '<small class="hpb-barcount"></small>'
-    + '<button type="button" class="hh-tool" data-hs-act="sort">' + t('prep.sort') + '</button><button type="button" class="hh-tool" data-hs-act="clear">' + t('prep.clear') + '</button></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="sort">' + t('controls.sort') + '</button><button type="button" class="hh-tool" data-hs-act="clear">' + t('controls.clear') + '</button></div>'
     + gridHtml()
     + '<p class="hpb-under">' + t('prep.bar_hint') + '</p>'
     + '</div>';

@@ -57,6 +57,7 @@ import { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.
 import { createAlertCenter } from '../shell/alerts.js?v=0.2.122';
 import { mountMarketWatch } from '../shell/market-watch.js?v=0.2.122';
 import { mountSocialWatch } from '../shell/social-watch.js?v=0.2.122';
+import { mountTownCriers } from '../shell/town-criers.js?v=0.2.122';
 import { createSocialRealtime } from '../social/realtime.js?v=0.2.122';
 import { SocialSession } from '../social/social-session.js?v=0.2.122';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.122';
@@ -203,7 +204,8 @@ function startApp(win) {
     account.setPageHidden(doc.hidden);   // opened behind another tab: visibilitychange has nothing to say yet
     alerts = createAlertCenter(account);
     /* Every press answers at once (src/shell/press-ack.js); ?debug=live adds the corner (live-overlay.js). */
-    watchers = [mountPressAck(doc, account.intents), mountConnectionLine(doc), mountOffWhy(doc), mountLauncherNames(doc), mountMarketWatch(win, account, alerts), mountSocialWatch(account, alerts)];
+    watchers = [mountPressAck(doc, account.intents), mountConnectionLine(doc), mountOffWhy(doc), mountLauncherNames(doc), mountMarketWatch(win, account, alerts), mountSocialWatch(account, alerts),
+      mountTownCriers(win, account)];   // the town criers' tips in Local chat (display only, never sent)
     if (liveOverlayWanted(win.location.search)) watchers.push(mountLiveOverlay(win, account));
     account.social.chat.followAlerts(alerts);   // the alerts are also the chat's System lines
     if (!resume) account.forgetOpen();

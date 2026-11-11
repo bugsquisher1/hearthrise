@@ -12,8 +12,11 @@ import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-
 import { tallyOf } from '../session/tally-sections.js?v=0.2.122';
 import { bagOf, rulesOf, shopOf, equipmentOf, nameOf } from '../session/item-sections.js?v=0.2.122';
 import { gmOf, levelOf } from '../session/character-sections.js?v=0.2.122';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.122';
-import { COACH_READ_MAX } from '../session/residue.js?v=0.2.122';
+import { huntOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.122';
+import { COACH_READ_MAX, COACH_HID_MAX } from '../session/residue.js?v=0.2.122';
+import { TIPS } from '../data/tips.js?v=0.2.122';
+import { switchOn, setSwitch } from '../session/player-switch.js?v=0.2.122';
+import { t } from '../render/player-text.js?v=0.2.122';
 import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.122';
 import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.122';
 import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.122';
@@ -153,6 +156,30 @@ export function markCoachRead(cs, card) {
   return cs.setResidue('coach', Object.assign({}, r, { read: Array.from(read).concat(card.id).slice(-COACH_READ_MAX) }));
 }
 
+/* ── NO TIP IS MANDATORY (Tyler 2026-11-11) ── The player's "Show tips" switch (src/data/tips.js: one pick for every open
+   hero, the newest wins, src/session/player-switch.js) and, per character, the cards a server fact finishes that the player
+   pressed Got it on (residue `coach.hid`). Both display state: the tutorial's own progress is the server's, and a card
+   hidden here still finishes on the server's fact, so the next one shows in its turn. */
+const heroesOf = (ctx) => {
+  const all = ctx.account && typeof ctx.account.characters === 'function' ? ctx.account.characters() : [];
+  return !ctx.character || all.includes(ctx.character) ? all : all.concat(ctx.character);
+};
+/** Are the tips on for this player (the coach's cards here, the town criers in chat)? */
+export function tipsOn(ctx) { return switchOn(heroesOf(ctx), TIPS); }
+/** The cards this character hid with Got it (ids), or null when this client cannot record one. */
+export function coachHidOf(cs) {
+  if (!cs || !cs.record || typeof cs.setResidue !== 'function') return null;
+  const r = cs.record.residue && cs.record.residue.coach;
+  return new Set(r && Array.isArray(r.hid) ? r.hid : []);
+}
+/** Record `card` as hidden for this character (residue `coach.hid`, display state). True when written. */
+export function markCoachHid(cs, card) {
+  const hid = coachHidOf(cs);
+  if (!hid || !card || hid.has(card.id)) return false;
+  const r = (cs.record.residue && cs.record.residue.coach) || {};
+  return cs.setResidue('coach', Object.assign({}, r, { hid: Array.from(hid).concat(card.id).slice(-COACH_HID_MAX) }));
+}
+
 /* A card a read finishes (read on sight, or its Got it): the player may close it, which records the read. A card that
    finishes on a server fact cannot be closed by a click (CLAUDE.md §6: its done is the server's); it only folds. */
 const readable = (card) => !!card && !!card.done && (card.done.kind === 'read'
@@ -195,7 +222,11 @@ function noteCard(cs, from, to) {
  *  being read (above). */
 export function heldCard(ctx) {
   const cs = ctx.character;
-  const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);
+  /* tips off, or this card hidden with Got it: nothing shown and nothing rung (the server's chain still moves on its own facts) */
+  if (cs && !tipsOn(ctx)) { HELD.delete(cs); return null; }
+  let card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);
+  const hid = card && coachHidOf(cs);
+  if (hid && hid.has(card.id)) card = null;
   const now = typeof ctx.now === 'function' ? ctx.now() : null;
   if (!cs || now === null) return card;
   const had = HELD.get(cs);
@@ -239,9 +270,12 @@ export function coachHtml(cs, card, inWin, rest) {
       + esc(card.title + (fresh ? ', something new' : '') + ': show') + '">' + esc(card.title)
       + (fresh ? '<i class="hs-coach-new" aria-hidden="true"></i>' : '') + '</button>' + close + '</p>';
   }
-  /* A card that teaches and asks for nothing finishes on its Got it (residue `coach.read`, markCoachRead); it is
-     offered only where this client can record the press, so it is never a button that does nothing. */
-  const got = card.gotIt && coachReadOf(cs) ? ' <button type="button" class="hs-coach-got" data-hs-act="coach-got">Got it</button>' : '';
+  /* NO TIP IS MANDATORY (Tyler 2026-11-11): every card has a Got it and a "Don't show tips". Got it finishes a card that
+     teaches (residue `coach.read`, markCoachRead) and hides one a server fact finishes (residue `coach.hid`, markCoachHid:
+     the chain's progress stays the server's). Don't show tips turns the player's switch off (src/data/tips.js). Both are
+     offered only where this client can record the press, so neither is ever a button that does nothing. */
+  const foot = coachReadOf(cs) ? '<span class="hs-coach-foot"><button type="button" class="hs-coach-off" data-hs-act="coach-off">' + esc(t('coach.no_tips'))
+    + '</button><button type="button" class="hs-coach-got" data-hs-act="coach-got">' + esc(t('coach.got_it')) + '</button></span>' : '';
   /* WHAT NEXT IS ONE GOAL: the others stay one press away, under More, and shut again with each new goal. */
   const also = Array.isArray(card.also) && card.also.length ? card.also : null;
   const open = !!also && ALSO_OPEN.get(cs) === card.id;
@@ -249,8 +283,8 @@ export function coachHtml(cs, card, inWin, rest) {
     + esc(card.title) + '" title="Minimize"></button>' + close + '<b>' + esc(card.title) + '</b> <span class="hs-coach-text">' + esc(card.text) + '</span>'
     + (line ? '<button type="button" class="hs-coach-more" data-hs-act="coach-more" aria-expanded="false" hidden>More</button>' : '')
     + (also ? ' <button type="button" class="hs-coach-more" data-hs-act="coach-more" aria-expanded="' + open + '">' + (open ? 'Less' : 'More') + '</button><span class="hs-coach-also"' + (open ? '' : ' hidden') + '>'
-      + also.map((t) => '<span class="hs-coach-goal">' + esc(t) + '</span>').join('') + '</span>' : '')
-    + got + '</p>';
+      + also.map((g) => '<span class="hs-coach-goal">' + esc(g) + '</span>').join('') + '</span>' : '')
+    + foot + '</p>';
 }
 
 /** A window's one-line card offers More only when its words do not fit. Reads one element's width, writes only a change. */
@@ -258,8 +292,8 @@ export function fitCoachLine(slot) {
   const p = slot.querySelector(':scope > .hs-pointer');
   const more = p && p.querySelector(':scope > .hs-coach-more');
   if (!more) return;
-  const t = p.querySelector(':scope > .hs-coach-text');
-  const off = p.classList.contains('is-line') && t.scrollWidth <= t.clientWidth;
+  const words = p.querySelector(':scope > .hs-coach-text');
+  const off = p.classList.contains('is-line') && words.scrollWidth <= words.clientWidth;
   if (more.hidden !== off) more.hidden = off;
 }
 
@@ -295,19 +329,19 @@ function sameCardWords(have, html) {
   SAID.set(have, html);
   const was = have.querySelector(':scope > .hs-coach-text');
   if (!was) return;   // folded to its title: no words to follow
-  const t = have.ownerDocument.createElement('template');
-  t.innerHTML = html;
-  const now = t.content.querySelector('.hs-pointer > .hs-coach-text');
+  const tpl = have.ownerDocument.createElement('template');
+  tpl.innerHTML = html;
+  const now = tpl.content.querySelector('.hs-pointer > .hs-coach-text');
   if (now && was.textContent !== now.textContent) was.textContent = now.textContent;
   /* the goals behind More follow the same numbers, open or shut */
-  const said = have.querySelectorAll(':scope > .hs-coach-also > .hs-coach-goal'), goals = t.content.querySelectorAll('.hs-pointer > .hs-coach-also > .hs-coach-goal');
+  const said = have.querySelectorAll(':scope > .hs-coach-also > .hs-coach-goal'), goals = tpl.content.querySelectorAll('.hs-pointer > .hs-coach-also > .hs-coach-goal');
   if (said.length === goals.length) goals.forEach((g, i) => { if (said[i].textContent !== g.textContent) said[i].textContent = g.textContent; });
 }
 
 /** The coach's fold, open, Got it and close presses, from wherever it is drawn (this row, the hunt top bar, a window).
  *  Close records the read of a card a read finishes; any other card it only folds. True when handled. */
 export function actCoach(ctx, el, action, ev) {
-  if (action !== 'coach-min' && action !== 'coach-open' && action !== 'coach-got' && action !== 'coach-close' && action !== 'coach-more') return false;
+  if (action !== 'coach-min' && action !== 'coach-open' && action !== 'coach-got' && action !== 'coach-close' && action !== 'coach-more' && action !== 'coach-off') return false;
   if (ev.type !== 'click') return true;
   /* the whole card, or its one line again: this box only (a new card or a new opening starts as one line) */
   if (action === 'coach-more') {
@@ -330,9 +364,13 @@ export function actCoach(ctx, el, action, ev) {
        under a box still showing the last, and its Got it would finish a card nobody read (a skipped step, QA 2026-11-04). */
     const on = ev.target && ev.target.closest ? ev.target.closest('.hs-pointer') : null;
     if (on && on.getAttribute('data-tutorial') !== card.id) return true;
-    if (card.gotIt) { if (ctx.isPhone && ctx.isPhone() && coachWindow(card)) RESTED.set(cs, coachWindow(card)); markCoachRead(cs, card); }
+    if (ctx.isPhone && ctx.isPhone() && coachWindow(card)) RESTED.set(cs, coachWindow(card));
+    /* a card that teaches is read; one a server fact finishes is hidden until that fact (Tyler 2026-11-11: never mandatory) */
+    if (card.gotIt || readable(card)) markCoachRead(cs, card); else markCoachHid(cs, card);
     return true;
   }
+  /* DON'T SHOW TIPS: the player's switch off, into every open hero (src/data/tips.js); Settings > Interface turns it back on */
+  if (action === 'coach-off') { setSwitch(heroesOf(ctx), TIPS, false, serverNowOf(cs)); return true; }
   if (action === 'coach-close') { if (readable(card)) { markCoachRead(cs, card); return true; } action = 'coach-min'; }
   const doc = el.ownerDocument;
   const hadFocus = !!doc && !!doc.activeElement && el.contains(doc.activeElement);
@@ -393,7 +431,13 @@ export function ringPlan(card, at) {
   const g = card.ring || {};
   const open = (id) => !!at && typeof at.open === 'function' && at.open(id);
   const icon = coachIcon(card, open);
-  if (icon) return ['.hs-launchers [data-hs-open="' + icon + '"]'];
+  if (icon) {
+    /* A CARD ABOUT THE RETURN RINGS ITS ROW ON THE OPEN HUNT SUMMARY (UX flow audit 2026-11-11, flow C: "Sell what only pays coin" rings the
+       summary's Sell step, never the summary's gold press and not the Shop's icon while that row is on screen): of the card's hooks, those
+       inside a window that is OPEN come before the icon of the closed window its way starts in, deepest first. */
+    const near = (card.hooks || []).filter((q) => { const m = /^\[data-hs-win="([a-z0-9-]+)"\]/.exec(q); return !!m && open(m[1]); }).reverse();
+    return near.concat(['.hs-launchers [data-hs-open="' + icon + '"]']);
+  }
   switch (card.anchor) {
     case 'hunt_picker': {
       const hunt = card.done && card.done.hunt;
@@ -455,9 +499,9 @@ function barEditOf(cs) {
  */
 export function ringCoach(ctx, card, roots) {
   const cs = ctx.character;
-  const t = cs && tallyOf(cs);
+  const tl = cs && tallyOf(cs);
   const bar = barEditOf(cs);
-  const plan = ringPlan(card, { open: (id) => ctx.wm.isOpen(id), configuring: bar.configuring, edited: bar.edited, cond0: bar.cond0, weight: t ? !!t.weight : null });
+  const plan = ringPlan(card, { open: (id) => ctx.wm.isOpen(id), configuring: bar.configuring, edited: bar.edited, cond0: bar.cond0, weight: tl ? !!tl.weight : null });
   let target = null;
   for (const q of plan) {
     for (const r of roots) { const el = r.querySelector(q); if (el && shown(el)) { target = el; break; } }

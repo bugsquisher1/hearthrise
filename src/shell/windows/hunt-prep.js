@@ -60,7 +60,7 @@ export function renderHuntPrep(ctx) {
     + '<p class="hh-intent-msg hpb-msg" role="status" aria-live="polite"></p>'
     + '<div class="hpb-foot"><p class="hpb-state"></p><button type="button" class="hpb-ready hw-ready-line" data-hs-act="ready" aria-expanded="false" title="' + t('prep.ready_label') + '"><b></b></button>'
     + '<button type="button" class="hh-tool hpb-load" data-hs-act="load-again" hidden>' + t('prep.load_again') + '</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="close">' + t('prep.close') + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="close">' + t('controls.close') + '</button>'
     + '<button type="button" class="hh-tool hpb-save" data-hs-act="save">' + t('prep.save') + '</button>'
     + '<button type="button" class="hh-tool is-primary hpb-save-use" data-hs-act="save-use">' + t('prep.save_and_use') + '</button></div>'
     + '<h3 class="hw-ledger-head hpb-ready-head">' + t('prep.ready_head') + '</h3><ul class="hw-ready" hidden></ul></div>';

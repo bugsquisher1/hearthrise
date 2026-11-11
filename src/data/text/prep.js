@@ -2,8 +2,8 @@
 // src/data/text/prep.js — THE HUNT PREP WINDOW'S WORDS (src/shell/windows/hunt-prep.js and its
 // hunt-prep/ modules: the setups column, the builder and its footer).
 //
-// One row per sentence or label, read by t('prep.<key>'). The control words are the
-// game's standard ones (Save, Save and use, Close, Clear, Sort, Use, Use equipped, New).
+// One row per sentence or label, read by t('prep.<key>'). The controls (Use, Use equipped, New setup, Delete, Cancel,
+// Close, Sort, Clear) read the glossary, src/data/text/controls.js; Save and Save and use are the builder's own.
 // ════════════════════════════════════════════════════════════════════════
 
 export const PREP_TEXT = Object.freeze({
@@ -18,19 +18,13 @@ export const PREP_TEXT = Object.freeze({
   in_use: 'In use',
   gear_count: { one: '{count} piece of gear', other: '{count} pieces of gear' },
   not_saved: 'not saved',
-  new: 'New',
   setup_n: 'Setup {n}',
   name_this: 'Name this setup',
   setup_name: 'Setup name',
   rename_label: 'New name for this setup',
   save: 'Save',
-  use: 'Use',
-  use_equipped: 'Use equipped',
   use_equipped_hint: 'Copies what you have on into {name}',
   use_equipped_ask: 'Replace {name} with what you have on?',
-  keep: 'Keep',
-  delete: 'Delete',
-  delete_ask: 'Delete it?',
   count_line: '{n} of {max} setups',
   town_only: 'Setups change in town. This hunt keeps the bar it set off with.',
   need_more: 'You need {gold} more.',
@@ -72,13 +66,10 @@ export const PREP_TEXT = Object.freeze({
   slot_filled: 'Slot {n}. {name}. Press to change it, drag to move it.',
   slot_off: 'Switched off.',
   slot_always: 'Fires whenever it is ready.',
-  sort: 'Sort',
   sorted: 'Sorted. Moves first, then food and drink, then ammo. In each, a slot with a rule goes before a plain one.',
-  clear: 'Clear',
   cleared: 'Cleared. Save keeps it, and your hero fights with its weapon\'s own moves until you fill the bar again.',
 
   /* THE FOOTER. */
-  close: 'Close',
   save_and_use: 'Save and use',
   unsaved: 'Not saved yet. Save keeps it, Close throws it away.',
   changed: 'This setup changed on the bar. Load it again before you save.',

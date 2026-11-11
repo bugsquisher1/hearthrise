@@ -172,6 +172,11 @@ export const CLIENT_RPCS = Object.freeze({
   hr_town_here: 'an unviewed character is present in town, no tile: the server stands it on its stand (TownPresence.here)',
   hr_town_go: 'send this character’s body to a counter or back to its work: a station id only (TownPresence.go)',
   hr_outfit_set: 'wear an owned outfit; free and it carries no color, the server checks ownership (CharacterSession.saveOutfit)',
+  /* The training yard (2027-04-06-training-yard.sql): a skill, the yard, whole hours or none and the gold to KEEP (it can only stop
+     training sooner), never a price, a rate, an amount or a time; the server reads the Level, prices it and charges by the minute. */
+  hr_training_start: 'start training one skill at the yard: a skill, whole hours or until stopped, the gold to keep and a key (training-intents.js startTraining)',
+  hr_training_stop: 'stop training; the server pays the run to now (training-intents.js stopTraining, leaveTraining)',
+  hr_training_tick: 'the viewed hero\x27s settle, about once a minute while it trains; the server clock and its own mark, the slot only (training-poll.js watchTraining)',
 });
 
 /* The Edge Functions the one link may call, each with what it is for. */

@@ -155,8 +155,10 @@ function chosenOf(sc, setups) {
  * when the chosen setup is not the one on, ONE hr_hunt_preset_apply puts it on (the server wears its gear
  * and switches the bar) and a refusal stops there, in words; then `go()` (hr_hunt_enter, or the leader's start).
  */
-async function asChosen(cs, sc, go) {
-  await settleTownActivity(cs);
+async function asChosen(cs, sc, go, account) {
+  /* a training run stays for the hunt's start to close (`hunt`), unless a setup change needs the hero idle first */
+  const was = settingsOf(cs), pick = chosenOf(sc, setupsOf(cs));
+  await settleTownActivity(cs, was && Number.isInteger(pick) && pick !== was.preset ? account : null);
   const s = settingsOf(cs);
   const want = chosenOf(sc, setupsOf(cs));
   if (s && Number.isInteger(want) && want !== s.preset) {
@@ -394,7 +396,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
   const thenClose = (r) => { if (r && r.ok) { sc.closeOnHunt = true; repaint(); } };
   /* Call out: its section's presses, run as the setup Go as chose; its refusals read the designer's words. */
   const called = callFromGround(sc.pick);
-  if (actCall(ctx, action, repaint, (send, busy, done) => runIntent(sc, repaint, () => asChosen(cs, sc, send), busy, done, cs).then((r) => {
+  if (actCall(ctx, action, repaint, (send, busy, done) => runIntent(sc, repaint, () => asChosen(cs, sc, send, ctx.account), busy, done, cs).then((r) => {
     const said = r && !r.ok && called ? callRefusal(r, called) : null;
     if (said) { sc.msg = said; repaint(); }
     thenClose(r);
@@ -421,7 +423,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
       return true;
     }
     sc.warned = null;
-    runIntent(sc, repaint, () => afterTier(cs, sc, repaint, () => asChosen(cs, sc, () => startPartyHunt(ctx.account, cs, hunt))), 'Gathering the party for ' + huntName(hunt) + '…',
+    runIntent(sc, repaint, () => afterTier(cs, sc, repaint, () => asChosen(cs, sc, () => startPartyHunt(ctx.account, cs, hunt), ctx.account)), 'Gathering the party for ' + huntName(hunt) + '…',
       () => 'Your party is on its way to ' + huntName(hunt) + '.', cs).then(thenClose);
     return true;
   }
@@ -437,7 +439,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     }
     sc.warned = null;
     /* What the hunt carries is the bag's own supplies, read after any setup change has landed. */
-    runIntent(sc, repaint, () => afterTier(cs, sc, repaint, () => asChosen(cs, sc, (preset) => cs.enterHunt(hunt, packFor(bagOf(cs)), preset))), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; }, cs)
+    runIntent(sc, repaint, () => afterTier(cs, sc, repaint, () => asChosen(cs, sc, (preset) => cs.enterHunt(hunt, packFor(bagOf(cs)), preset), ctx.account)), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; }, cs)
       .then(thenClose);
     return true;
   }

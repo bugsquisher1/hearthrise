@@ -154,7 +154,7 @@ function doPrimary(st, id, repaint) {
 function doBury(st, id, repaint, count) {
   const why = buryBlock(st.cs, buryRecipeOf(id));
   if (why) { say(st, repaint, why); return; }
-  startBury(st.cs, st.sc, id, (fn, busy, done) => send(st, repaint, fn, busy, done), repaint, count);
+  startBury(st.cs, st.sc, id, (fn, busy, done) => send(st, repaint, fn, busy, done), repaint, count, st.account);
 }
 
 /* Burn ONE named fuel in the Great Hearth (bury.js burnNamed): refused here only for what the screen already knows. */

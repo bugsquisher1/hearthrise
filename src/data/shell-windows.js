@@ -25,6 +25,9 @@
 //   phoneIcon false keeps a launcher row off the phone's icon row, which holds 15 at a thumb's width on the
 //            narrowest phone (tests/phone-touch.mjs PH-11); the All characters sheet names it under "Also here"
 //   gm       true: shown only when the server's `gm` section says so (launcher.js, characters.js)
+//   section  a section key: shown only while the server sends that section for the hero on screen (its switch on;
+//            launcher.js rowOffered, the All characters sheet, a place's tap); hidden, it never opens
+//   orElse   with `section`: while the server hides it, a tap in the world that names it opens this window instead
 //
 // The rest of the spec's catalogue (Bestiary L) lands
 // with its renderer: a launcher never opens a window that does not exist yet
@@ -65,6 +68,12 @@ export const SHELL_WINDOWS = Object.freeze([
   /* What gold buys in town (Tyler 2026-11-04; the designer's gold sinks section): Hearth powders, a round at the Tavern, later the Town Works. Every letter is taken and
      WASD walks, so it has no shortcut; the Tavern on the map opens it on Round. Its label is the city's name, read from the one place it lives. */
   Object.freeze({ id: 'havora', label: TOWN_NAME, key: null, noShortcut: true, phoneIcon: false, glyph: 'uiFlame', width: 420, object: 'ledger' }),
+  /* The training yard (2027-04-06-training-yard.sql; the designer's board section "2026-11-10 Combat training"): a hero trains one
+     combat skill for gold by the hour. Shown only while the server sends the `training` section (its switch, seeded off). The yard
+     in Havora opens it; while it is hidden the yard opens Hunts, as it did before. No letter is left for it: the icon opens it, and
+     the phone's row is full (the All characters sheet lists it). */
+  Object.freeze({ id: 'training', label: 'Training', title: 'Training Yard', key: null, noShortcut: true, phoneIcon: false, section: 'training', orElse: 'hunts',
+    glyph: 'uiSword', width: 440, object: 'ledger' }),
   Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 420, object: 'plain' }),
   /* Week plan step 16 + QoL 3: the party, and every open character on one screen (opened from the
      character strip's "All characters", so it takes no launcher icon). */

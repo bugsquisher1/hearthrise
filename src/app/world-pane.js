@@ -19,10 +19,16 @@ import { pickHunt } from '../shell/windows/hunts.js?v=0.2.118';
 import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.118';
 import { TAP_WINDOWS } from '../data/world/stations.js?v=0.2.118';
 import { SINK_TAPS } from '../data/world/sink-taps.js?v=0.2.118';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.118';
+import { rowOffered } from '../shell/launcher.js?v=0.2.118';
 import { connection, loadingWords } from '../net/connection.js?v=0.2.118';
 
 /* The windows a town keeper or station opens (a tapped prop's `window`), and nothing else. */
 const KEEPER_WINDOWS = new Set([...TAP_WINDOWS, ...Object.values(SINK_TAPS).map((t) => t.window)]);
+const ROW_OF = new Map(SHELL_WINDOWS.map((r) => [r.id, r]));
+/* A window the server hides from this hero (shell-windows.js `section`, the training yard while its switch is off) is not opened by a
+   tap: its row's `orElse` is (the yard opens Hunts, as before). */
+const shownOr = (id, character) => (rowOffered(ROW_OF.get(id), character) ? id : (ROW_OF.get(id) && ROW_OF.get(id).orElse) || null);
 
 const PANE_HTML = '<div class="world-chrome">'
   + '<span class="world-title">World</span>'
@@ -75,7 +81,7 @@ export async function mountWorldPane(host, character, o) {
   let shell = null;
   const SHOWS = { entrance: (d) => { pickHunt(character, d.hunt); return 'hunts'; }, station: () => 'skills-trade',
     /* A town keeper's or station's window (src/data/world/stations.js TAP_WINDOWS): only a window a station names. */
-    keeper: (d) => (KEEPER_WINDOWS.has(d.window) ? d.window : null) };
+    keeper: (d) => (KEEPER_WINDOWS.has(d.window) ? shownOr(d.window, character) : null) };
   function emit(kind, detail) {
     /* The World's entity context (a right-click or long press on a unit): the shell's one player / monster menu. */
     if (kind === 'entity') { const t = shell && worldTargetOf(detail); return !!t && shell.menu.open(t, { x: detail.x, y: detail.y }); }

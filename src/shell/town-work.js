@@ -26,6 +26,8 @@
 // Stop is ONE `set_activity` { kind:'idle' }: the engine pays first. A start
 // while something else runs is a switch, also ONE intent (the engine collects the
 // old one first), so a player never has to stop before choosing again.
+// A hero on the TRAINING YARD is stopped first by the yard's own verb (src/session/training-intents.js leaveTraining:
+// the database pays the run, the engine never settles one), then the job is asked for, and its line says so.
 //
 // Nothing here moves a number: every count, level and XP a control reads is the
 // envelope's. The "Done: 37 Normal Logs, +185 Woodcutting XP." words are the
@@ -50,6 +52,8 @@ import { itemName } from './widgets/bits.js?v=0.2.118';
 import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.118';
 import { townWorkRunning } from '../session/town-poll.js?v=0.2.118';
 import { townActivityWords } from '../session/party-sections.js?v=0.2.118';
+import { leaveTraining } from '../session/training-intents.js?v=0.2.118';
+import { trainingNow } from '../session/training-sections.js?v=0.2.118';
 import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.118';
 import { skillShortWords } from './intent-words.js?v=0.2.118';
 import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.118';
@@ -304,22 +308,27 @@ const skillRefusal = (cs, w) => (r) => (r && !r.ok && r.error === 'activity_lock
     press that ends one says so (newcomer panel 2026-11-01: a craft ended the woodcutting in silence). Read before the press lands. */
 export function jobReplacedWords(cs, w) {
   const now = workOf(cs), st = stateOf(cs);
-  if (!now || now.id === w.id || !townWorkRunning(st, typeof cs.read === 'function' ? cs.read('hunt') : null)) return '';
+  /* the yard's run ends for any job ("You stopped training Defense.") */
+  if (!trainingNow(cs) && (!now || now.id === w.id || !townWorkRunning(st, typeof cs.read === 'function' ? cs.read('hunt') : null))) return '';
   const what = townActivityWords(st);
   return what ? 'You stopped ' + what + '.' : '';
 }
 
 /**
  * Start (or switch to) a work row: ONE set_activity. `send(fn, busy, done)` is the window's runIntent;
- * `repaint` repaints it when the armed stop fires while something else is in flight. Returns send's promise.
+ * `repaint` repaints it when the armed stop fires while something else is in flight. `account`: a training run is
+ * stopped first by its own verb (without it, the engine's switch closes the run). Returns send's promise.
  */
-export function startWork(cs, w, send, repaint, words, count) {
+export function startWork(cs, w, send, repaint, words, count, account) {
   const run = runOf(cs);
   /* A whole count only on a bench row; anything else (All, a gathering node) runs until stopped or out. */
   const n = w.kind === 'artisan' && Number.isInteger(count) && count > 0 ? count : null;
   const activity = n === null ? { kind: w.kind, id: w.id } : { kind: w.kind, id: w.id, count: n };
   const replaced = jobReplacedWords(cs, w);
-  return send(() => cs.edgeIntent('set_activity', { activity }).then(skillRefusal(cs, w)), 'Starting…', () => {
+  /* the job; a run on the yard ends first (its stop's refusal is the answer the window says) */
+  const go = () => cs.edgeIntent('set_activity', { activity }).then(skillRefusal(cs, w));
+  const leave = () => leaveTraining(account, cs);
+  return send(() => (account ? leave().then((left) => (left.ok ? go() : left)) : go()), 'Starting…', () => {
     clearTimeout(run.timer);
     run.timer = null;
     const bag = invOf(cs);

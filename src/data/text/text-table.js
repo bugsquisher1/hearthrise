@@ -20,6 +20,7 @@ import { PREP_TEXT } from './prep.js?v=0.2.118';
 import { SHOP_TEXT } from './shop.js?v=0.2.118';
 import { SLOTS_TEXT } from './slots.js?v=0.2.118';
 import { TEMPER_TEXT } from './temper.js?v=0.2.118';
+import { TRAINING_TEXT } from './training.js?v=0.2.118';
 
 export const TEXT = Object.freeze({
   bar: BAR_TEXT,
@@ -34,4 +35,5 @@ export const TEXT = Object.freeze({
   shop: SHOP_TEXT,
   slots: SLOTS_TEXT,
   temper: TEMPER_TEXT,
+  training: TRAINING_TEXT,
 });

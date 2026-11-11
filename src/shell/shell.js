@@ -56,6 +56,7 @@ import { takeFresh, summaryDone, summaryClosedBy } from '../hunt-view/summary-re
 import { huntOf } from '../session/hunt-sections.js?v=0.2.118';
 import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.118';
 import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.118';
+import { watchTraining } from '../session/training-poll.js?v=0.2.118';
 import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.118';
 import { benchSpentAtMs } from './town-work.js?v=0.2.118';
 import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.118';
@@ -456,6 +457,7 @@ export function mountShell(root, o) {
     for (const p of ctx.peers()) settleSpentBench(p, benchSpentAtMs(p));
     /* What "While you were away" will compare with stays fresh for the hero on screen (./away-work.js). */
     if (ctx.character && !doc.hidden) settleStaleTown(ctx.character, STAMP_EVERY_MS);
+    if (ctx.character) watchTraining(ctx.account, ctx.character);   // on the training yard: one server settle a minute or so (training-poll.js)
     for (const row of hud.rows()) {
       const render = WIDGET_RENDERERS[row.id];
       const el = render.patch && (row.layer === 'screen' ? screenHud : worldHud).querySelector('[data-hs-widget="' + row.id + '"]');

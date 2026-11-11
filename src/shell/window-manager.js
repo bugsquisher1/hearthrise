@@ -87,11 +87,15 @@ export function validateWindowRows(rows) {
     if (r.resizable !== undefined && r.resizable !== true) throw new Error('shell windows: ' + r.id + ' resizable is true or absent');
     if ((r.home || r.resizable) && !(r.height > 0)) throw new Error('shell windows: ' + r.id + ' needs a positive height to sit home or resize');
     if ((r.home || r.resizable) && r.modal) throw new Error('shell windows: ' + r.id + ' a modal neither sits home nor resizes');
+    /* section: shown only while the server sends that section (launcher.js rowOffered); orElse: what a tap opens while it is hidden */
+    if (r.section !== undefined && !(typeof r.section === 'string' && /^[a-z][a-z0-9_]{0,40}$/.test(r.section))) throw new Error('shell windows: ' + r.id + ' section is a section key');
+    if (r.orElse !== undefined && r.section === undefined) throw new Error('shell windows: ' + r.id + ' orElse needs a section');
     if (r.escape) escapes++;
     byId.set(r.id, r);
     if (!noKey) keys.set(r.key, r.id);
   }
   if (escapes > 1) throw new Error('shell windows: more than one escape row');
+  for (const r of rows) if (r.orElse !== undefined && (!byId.has(r.orElse) || byId.get(r.orElse).section !== undefined)) throw new Error('shell windows: ' + r.id + ' orElse names no window that is always shown');
   return byId;
 }
 

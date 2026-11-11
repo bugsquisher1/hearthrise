@@ -192,6 +192,9 @@ export const REASONS = Object.freeze({
   'src/shell/windows/hallmark-pane.js': [
     { cond: '!!why || sc.pending || !!sc.hallmark', words: "text(li.querySelector('.hw-hallmark-need'), why ||", where: 'Hallmark: the line beside it says the first thing missing (the Crafting level, the day\'s limit, the gem and where to get one, the gold short); while the confirm is open it asks in the window' },
   ],
+  'src/shell/windows/training.js': [
+    { cond: '!!block', words: "text(root.querySelector('.tw-off-why'), block)", where: 'Start training: the line above it says why (out hunting, under the yard\'s Level, no skill on offer, a keep that isn\'t a whole number, is over the most or is the purse or more), and data-off-why says it on a press' },
+  ],
   'src/shell/windows/havora/works.js': [
     { cond: 'off', words: 'a day from one account, and you', where: 'Give: off while a gift is in flight, before the first read, and when today\'s allowance is spent; the line under them says so in the designer\'s words' },
     { cond: 'short > 0', words: "'You need ' + gold(short) + ' more.'", where: 'a gift over the envelope\'s purse: data-off-why says how much more on a press, and the line under the buttons says what the purse holds' },

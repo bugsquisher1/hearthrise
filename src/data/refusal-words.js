@@ -83,6 +83,24 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     show_limit: 'Havora takes 3 rounds a day from one account. More after midnight UTC.',
     show_busy: 'Someone\'s round is still going. You weren\'t charged.',
   }),
+  /* The training yard (2027-04-06-training-yard.sql hr_training_start / hr_training_stop). A refusal that carries the server's
+     numbers (Level, purse, hours, the most to keep) is said with them by src/shell/training-words.js; these are the plain ones. */
+  training_start: Object.freeze({
+    feature_off: 'The training yard is closed right now.',
+    catalogue_missing: 'The training yard is closed right now.',
+    level_low: 'Your hero needs a higher Level to train at the yard.',
+    bad_skill: 'You can train Melee, Ranged, Magic or Defense at the yard.',
+    bad_place: 'You can only train at the yard right now.',
+    no_dummy: 'You don\x27t have a training dummy at home yet. Train at the yard.',
+    bad_hours: 'Pick how many hours to train, or until you stop it.',
+    bad_keep: 'That\x27s more gold than you can keep back. Try a smaller number.',
+    in_hunt: 'Your hero is out hunting. Come back to town to train.',
+    settle_first: 'Your hero is still finishing a job in town. Try again in a few seconds.',
+    cannot_pay: 'You don\x27t have enough gold above what you want to keep.',
+  }),
+  training_stop: Object.freeze({
+    not_training: 'Your hero isn\x27t training right now.',
+  }),
 });
 
 export const REFUSAL_WORDS = Object.freeze({
@@ -407,6 +425,13 @@ export const REFUSAL_WORDS = Object.freeze({
   hero_slot_daily_cap: 'No more hero slots today. Try again tomorrow.',
   buff_at_max: 'That boost is already as long as it can be.',
   buff_not_paid: 'That boost was not paid for, so nothing was changed.',
+  /* The training yard's codes, read without their verb (src/shell/training-words.js and REFUSAL_VERB_WORDS say them in full). */
+  feature_off: 'That isn\x27t open right now.',
+  level_low: 'Your hero\x27s Level is too low for that.',
+  cannot_pay: 'You don\x27t have enough gold for that.',
+  not_training: 'Your hero isn\x27t training right now.',
+  no_dummy: 'You don\x27t have a training dummy at home yet.',
+  in_hunt: 'Not while your hero is out hunting.',
   nothing_to_commit: 'There was nothing to save.',
 });
 

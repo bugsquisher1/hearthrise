@@ -40,6 +40,7 @@ import { renderFarm } from './windows/farm.js?v=0.2.118';
 import { renderTally } from './windows/tally.js?v=0.2.118';
 import { renderHonor } from './windows/honor.js?v=0.2.118';
 import { renderHavora } from './windows/havora/index.js?v=0.2.118';
+import { renderTraining } from './windows/training.js?v=0.2.118';
 import { renderTallyHud } from './widgets/tally-hud.js?v=0.2.118';
 import { renderMonster } from './windows/monster.js?v=0.2.118';
 import { renderGameMaster } from './windows/game-master.js?v=0.2.118';
@@ -57,6 +58,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   tally: renderTally,
   honor: renderHonor,
   havora: renderHavora,
+  training: renderTraining,
   house: renderHouse,
   'hunt-prep': renderHuntPrep,
   'hunt-party': renderParty,

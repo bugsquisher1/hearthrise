@@ -216,7 +216,7 @@ renderHuntPrep.act = function actHuntPrep(ctx, body, action, ev, el) {
   /* A town activity yields to the hunt setup (Andy live 10-21: "burying locks an action"): the engine collects
      it first (set_activity idle, as Enter does in hunts.js), so the server's apply never answers activity_running. */
   if (action === 'apply') {
-    runIntent(sc, repaint, () => settleTownActivity(cs).then(() => cs.applyPreset(preset)), 'Putting the setup on…', () => 'Setup on.');
+    runIntent(sc, repaint, () => settleTownActivity(cs, ctx.account).then(() => cs.applyPreset(preset)), 'Putting the setup on…', () => 'Setup on.');
     return true;
   }
   if (action === 'save-over') {

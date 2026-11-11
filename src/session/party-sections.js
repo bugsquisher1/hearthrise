@@ -35,6 +35,8 @@ import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.118';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.118';
 import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.118';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.118';
+import { TRAINING } from '../data/training.js?v=0.2.118';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.118';
 import { huntOf, staminaOf, tierMapOf } from './hunt-sections.js?v=0.2.118';
 import { heroVitalsOf } from './character-sections.js?v=0.2.118';
 import { dyeKeyOf } from '../data/outfits.js?v=0.2.118';
@@ -157,6 +159,8 @@ const TOWN_WORDS = new Map([
   ...FISH_SPOTS.map((n) => ['gather:' + n.id, 'fishing at the ' + n.name]),
   /* a fuel (an output-less row: src/data/hearth.js) burns in the Great Hearth; any other row is worked on */
   ...Object.values(ARTISAN_RECIPES).flat().map((r) => ['artisan:' + r.id, r.output ? 'working on ' + r.name : 'fueling the Great Hearth with ' + r.name]),
+  /* the yard (2027-04-06-training-yard.sql): the server's pointer id is <place>_<skill> */
+  ...TRAINING.skills.map((k) => ['training:yard_' + k, 'training ' + ((SKILLS_DEF[k] && SKILLS_DEF[k].name) || k)]),
 ]);
 const TOWN_KIND_WORDS = Object.freeze({ gather: 'gathering', artisan: 'at a workbench', training: 'training' });
 

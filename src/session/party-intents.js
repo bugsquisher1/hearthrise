@@ -32,6 +32,8 @@
 // from its send until those re-reads are applied: the pressed control waits on it.
 // ════════════════════════════════════════════════════════════════════════
 import { partyMembershipOf } from './party-sections.js?v=0.2.118';
+import { leaveTraining } from './training-intents.js?v=0.2.118';
+import { trainingNow } from './training-sections.js?v=0.2.118';
 import { askVia } from './intent-ledger.js?v=0.2.118';
 
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
@@ -70,15 +72,19 @@ async function settled(ans, reread) {
 }
 
 /* The town activities a hunt replaces (the server makes them yield; settling first through the engine pays the
-   stretch since their last settle, which SQL cannot). */
-const TOWN_KINDS = Object.freeze(['gather', 'artisan', 'training']);
+   stretch since their last settle, which SQL cannot). Training is not one: the database pays a run to the instant itself,
+   and a hunt's start closes it with its own reason, `hunt` (2027-04-06-training-yard.sql hr_training_hunt_yield); the
+   engine never settles a training pointer (hr-accrue set-activity.js SERVER_SETTLED_KINDS). */
+const TOWN_KINDS = Object.freeze(['gather', 'artisan']);
 
 /**
- * Before a hunt: an own character still gathering, on an artisan run or training is stopped through the engine
+ * Before a hunt: an own character still gathering or on an artisan run is stopped through the engine
  * (set_activity idle collects before it switches), so what it earned is paid. A refusal here does not stop the
- * hunt: the server makes the activity yield anyway.
+ * hunt: the server makes the activity yield anyway. `account`: the hero must be IDLE after (a setup change:
+ * hr_hunt_preset_apply refuses a busy hero), so a training run is stopped by its own verb (training-intents.js).
  */
-export async function settleTownActivity(cs) {
+export async function settleTownActivity(cs, account) {
+  if (account && trainingNow(cs)) return leaveTraining(account, cs);
   const st = cs && typeof cs.read === 'function' ? cs.read('state') : null;
   if (!st || !TOWN_KINDS.includes(st.active_kind) || typeof cs.edgeIntent !== 'function') return { ok: true, skipped: true };
   try { return await cs.edgeIntent('set_activity', { activity: { kind: 'idle' } }); } catch (e) { return { ok: false, error: 'network' }; }

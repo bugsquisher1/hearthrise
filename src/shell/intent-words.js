@@ -22,6 +22,7 @@ import { marketRefusal } from './market-words.js?v=0.2.118';
 import { setupFullWords } from './setup-words.js?v=0.2.118';
 import { TITLES } from '../data/titles.js?v=0.2.118';
 import { sinkRefusal } from './sink-words.js?v=0.2.118';
+import { trainingRefusal } from './training-words.js?v=0.2.118';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -89,6 +90,9 @@ export function refusalText(r, cs) {
   /* What gold buys in town: the designer's sentences around the server's own numbers (sink-words.js). */
   const sink = sinkRefusal(r, cs ? nameOf(cs) : null);
   if (sink) return sink;
+  /* The training yard: the server's Level, purse and bounds in its sentences (training-words.js). */
+  const training = trainingRefusal(r, cs ? nameOf(cs) : null);
+  if (training) return training;
   const seats = r && Array.isArray(r.seats) ? r.seats : [];
   if (r && r.error === 'not_ready' && seats.length) {
     const why = seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]

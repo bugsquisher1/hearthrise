@@ -262,7 +262,7 @@ renderWork.act = function actWork(ctx, body, action, ev, t) {
     const why = workBlock(cs, w, !!(h && !h.ended));
     if (why) { sc.msg = why; repaint(); return true; }
     const n = w.kind === 'artisan' ? countOf(sc, w) : 'all';
-    startWork(cs, w, send, repaint, undefined, n === 'all' ? null : n);
+    startWork(cs, w, send, repaint, undefined, n === 'all' ? null : n, ctx.account);
     return true;
   }
   return false;

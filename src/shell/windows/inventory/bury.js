@@ -133,15 +133,15 @@ export function buryBlock(cs, e) {
 /**
  * Start spending the stack `id`: ONE set_activity on its bench recipe, through the one town-work path
  * (src/shell/town-work.js), which arms the stop for when the stack should be done. `send(fn, busy, done)`
- * is the window's runIntent.
+ * is the window's runIntent; `account` stops a training run first (town-work.js startWork).
  */
-export function startBury(cs, sc, id, send, repaint, count) {
+export function startBury(cs, sc, id, send, repaint, count, account) {
   const e = buryRecipeOf(id);
   if (!e) return null;
   const qty = buryQty(cs, id);
   /* "Fuel the hearth" on a stack is a run of ONE (the bench's count); Fuel all / Cook all spend the stack */
   const n = e.skill === FLAME && count === 1 ? 1 : null;
-  return startWork(cs, workRow('artisan', e.recipe.id), send, repaint, buryingWord(e) + ' ' + whole(n || qty) + ' ' + itemName(id) + '…', n);
+  return startWork(cs, workRow('artisan', e.recipe.id), send, repaint, buryingWord(e) + ' ' + whole(n || qty) + ' ' + itemName(id) + '…', n, account);
 }
 
 /* ── A NAMED FUEL (src/data/hearth.js NAMED_FUELS): it burns alone, by one call the server decides whole ── */

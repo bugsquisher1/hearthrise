@@ -373,6 +373,8 @@
     "node tools/mutant-gate.mjs node tools/gen-storage-chests.mjs --selftest": "economy-selftests-2",
     "node tests/storage-chests.mjs": "economy-selftests-2",
     "node tools/mutant-gate.mjs node tests/storage-chests.mjs --selftest": "economy-selftests-2",
+    "node tests/bank-move-many.mjs": "economy-selftests-2",
+    "node tools/mutant-gate.mjs node tests/bank-move-many.mjs --selftest": "economy-selftests-2",
     "node tests/hero-rename.mjs": "economy-selftests-2",
     "node tools/mutant-gate.mjs node tests/hero-rename.mjs --selftest": "economy-selftests-2",
     "node tests/hero-rename-client.mjs": "economy-selftests-2",

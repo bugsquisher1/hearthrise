@@ -1358,6 +1358,12 @@ const CLIENT_CALLABLE = new Map([
      server-side move clamped to holdings, idempotent, journalled kind='bank',
      rate-gated (bank_move bucket). NOT granted to hr_engine. */
   ['hr_bank_move',     ['authenticated']],
+  /* 2027-04-13-bank-move-many.sql — many whole stacks in ONE all-or-nothing
+     call (the single verb's rule a stack through hr_bank_move_stack, one ledger
+     row a stack, one `bank_move` token) and many locks in one (`hunt` bucket,
+     hr_item_rule_put). Idempotent, journalled. NOT granted to hr_engine. */
+  ['hr_bank_move_many', ['authenticated']],
+  ['hr_item_lock_many', ['authenticated']],
   /* 2026-08-28-client-state.sql — the verbatim self-only client_state MERGE.
      Shallow jsonb merge under the per-character lock, idempotent, size-bounded
      (256KiB), rate-gated (client_state_put bucket). NOT authority (a forged value

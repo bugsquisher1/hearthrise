@@ -3264,3 +3264,10 @@ heads (a humanoid face is 8-10 px at 1x); (2) the palette param kept every pick 
 can pick the wrong ramp (the pikeman's bones came back mithril, not bone): read a census by ramp; (3) the model paints "ash on
 the brow" as a cross every time: say "no shape, no symbol"; (4) the PixelLab MCP answers plain HTTP with ~/.pixellab-token
 (a scratch client, token never printed), so a missing connector is not a blocker for brief 14.
+
+## 2026-11-12 lane/a-phone-touch-24
+PH-24 red on two layout causes. (1) 844x390, chat sheet open: the alert stack steps left beside the sheet into the town
+coach card's column, and roomForCoach only shortened the hunt bar's card for an alert, so the card's words box lay over
+Join. Now any card whose box shares the alert's column ends 8 px above it. (2) Shop, 667x375: the one-line window card's
+desktop 24 px foot rule (.hs-win-coach > .is-line, 0-4-0) outranked the phone's --tap; the phone block now sets both foot
+presses to --tap. Open: on a 277 px phone card the foot squeezes the title to one word per line (filed in DISCOVERIES).

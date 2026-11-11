@@ -282,13 +282,19 @@ export function mountShell(root, o) {
     roomForCoach();
   }
 
-  /* --coach-room per host: its foot to the bar's top (or the World's foot), the phone's cap on the card; in a hunt card and alert share the right edge: to the alert's top. */
+  /* --coach-room per host: its foot to the bar's top (or the World's foot), the phone's cap on the card. Where card and alert
+     share a column (a hunt's right edge; in town, the World's half beside an open sheet, where the stack steps over to the
+     card), to the alert's top, so the invite's Join is never under the card (phone-touch PH-24, 844x390). */
   function roomForCoach() {
     const bar = worldHud.querySelector('[data-hs-widget="action-bar"]');
     const floor = bar && bar.offsetWidth ? bar.getBoundingClientRect().top : worldHud.getBoundingClientRect().bottom;
     const alert = phoneMq.matches && screenHud.querySelector('.hw-alerts:not(.is-empty)');
+    const at = alert && alert.getBoundingClientRect();
     for (const w of [worldHud, screenHud].flatMap((b) => Array.from(b.querySelectorAll(COACH_HOSTS)))) {
-      const shared = alert && w.matches('.is-hunt-topbar') ? alert.getBoundingClientRect().top - 8 : floor;
+      const card = alert && w.querySelector('.hs-pointer');
+      const cr = card && card.getBoundingClientRect();
+      const beside = !!cr && cr.width > 0 && cr.right > at.left && cr.left < at.right;
+      const shared = alert && (w.matches('.is-hunt-topbar') || beside) ? at.top - 8 : floor;
       const room = Math.max(0, Math.floor(Math.min(floor, shared) - w.getBoundingClientRect().bottom));
       w.classList.toggle('is-short-room', !!alert && room < SHORT_ROOM);
       /* not even its title fits: the away card is tall, and the title lay under it as a sliver (phone, QA 2026-11-04). The card waits till the alert closes. */

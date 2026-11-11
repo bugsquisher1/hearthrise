@@ -165,6 +165,7 @@ function baneTrade(slot, cur, now, fits, worn, o, set) {
 }
 
 /* The best piece in the bag for one slot, or { choice } when two trade off (`keeps`: the worn bane a plain stronger weapon would lose), or null. */
+/** @returns {{ choice?: string[], keeps?: any, lost?: any, id?: string, before?: any, after?: any }|null} */
 function bestFor(slot, worn, left, o) {
   const cur = worn[slot] || null;
   const curIt = cur ? ITEMS[cur] : null;

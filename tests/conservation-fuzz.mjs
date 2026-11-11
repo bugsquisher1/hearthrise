@@ -280,6 +280,10 @@ const INJECTION_FINAL_BODIES = Object.freeze({
   'market-cancel-final': 'public.hr_market_cancel(uuid,integer,uuid,uuid)',
   'market-expire-final': 'public.hr_market_expire(integer,uuid)',
   'bank-move-final': 'public.hr_bank_move(integer,text,bigint,text,uuid)',
+  /* 2027-04-13 (lane c-bank-move-many): hr_bank_move is restated onto hr_bank_move_stack, the ONE per-stack
+     body the single verb and hr_bank_move_many both run (the debit, the room, the credit, the ledger row), so
+     the Storage plants target the body the chain ends with THERE: a defect in it reaches both verbs. */
+  'bank-stack-final': 'public.hr_bank_move_stack(uuid,integer,text,bigint,text,integer)',
   'restock-final': 'public.hr_hunt_restock(integer,text,bigint,uuid)',
   /* 2027-01-10 (lane c-house-from-storage): the ONE material take of a house build. Its own file's §5
      executes it, so the plant goes in the body the chain ends with and reconcile() grades it. */
@@ -381,10 +385,12 @@ const INJECTIONS = {
 
   bank_deposit_no_debit: {
     what: 'a Storage deposit credits the account\'s Storage without debiting the hero\'s bag — a dupe through Storage',
-    final: 'bank-move-final',
+    /* The debit lives in hr_bank_move_stack since 2027-04-13-bank-move-many.sql (over p_user, not v_uid); hr_bank_move
+       and hr_bank_move_many both run it, so the plant corrupts every Storage deposit the fuzz makes. */
+    final: 'bank-stack-final',
     patches: [[
-      '    if v_have = p_qty then\n      delete from public.player_inventory\n        where user_id = v_uid and slot = p_slot and item_id = p_item;\n'
-      + '    else\n      update public.player_inventory set qty = qty - p_qty\n        where user_id = v_uid and slot = p_slot and item_id = p_item;\n    end if;',
+      '    if v_have = p_qty then\n      delete from public.player_inventory\n        where user_id = p_user and slot = p_slot and item_id = p_item;\n'
+      + '    else\n      update public.player_inventory set qty = qty - p_qty\n        where user_id = p_user and slot = p_slot and item_id = p_item;\n    end if;',
       '    null;  -- INJECTED bank_deposit_no_debit',
     ]],
   },

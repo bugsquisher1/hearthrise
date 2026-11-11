@@ -479,12 +479,8 @@ declare
   k   constant text := '000000c0-0000-4000-b000-0000ba9c';
   v jsonb; v2 jsonb; v_list jsonb; v_wlist jsonb; v_llist jsonb; v_role text;
   v_kinds text[]; v_n int; v_i int; v_ver bigint; v_la bigint; v_lb bigint; v_inst uuid := gen_random_uuid();
-  v_pre_md5 text; v_self_md5 text;
-  -- the rows of one account, without ids, users or clocks
-  f_bank   constant text := $f$select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'q', qty) order by item_id), '[]')::text from public.account_bank where user_id = $1$f$;
-  f_bag    constant text := $f$select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'q', qty) order by item_id), '[]')::text from public.player_inventory where user_id = $1 and slot = 0$f$;
-  f_ledger constant text := $f$select coalesce(jsonb_agg(jsonb_build_object('k', kind, 'n', intent, 'i', item_id, 'q', qty, 'm', meta, 'g', gold, 's', slot) order by item_id, id), '[]')::text from public.player_ledger where user_id = $1 and id > $2$f$;
-  f_rules  constant text := $f$select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'l', locked, 'r', loot_rule, 's', restock) order by item_id), '[]')::text from public.player_item_rules where user_id = $1 and slot = 0$f$;
+  -- the rows of one probe account, without ids or clocks, as static SQL scoped to v_a / v_b (tests/selfcheck-no-global-dml.mjs
+  -- reads every statement this block runs; an EXECUTE it cannot read is a finding)
   s_a text; s_b text;
 begin
   begin
@@ -495,7 +491,9 @@ begin
       v := public.hr_create_character(0);
       if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(a): hr_create_character refused: %', v; end if;
     end loop;
-    execute f_bag into s_a using v_a; execute f_bag into s_b using v_b;
+    select (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'q', qty) order by item_id), '[]') from public.player_inventory where user_id = v_a and slot = 0)::text,
+           (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'q', qty) order by item_id), '[]') from public.player_inventory where user_id = v_b and slot = 0)::text
+      into s_a, s_b;
     if s_a <> s_b then raise exception 'VERIFY(a): the two probes do not start with the same bag'; end if;
     select array_agg(item_id order by item_id), count(*) into v_kinds, v_n from public.player_inventory where user_id = v_a and slot = 0;
     if v_n < 3 then raise exception 'VERIFY(a): fewer than three kit kinds in the bag (%)', v_n; end if;
@@ -515,11 +513,17 @@ begin
     v := public.hr_bank_move_many(0, v_list, (k || '1001')::uuid);
     if coalesce(v->>'ok', '') <> 'true' or (v->>'count')::int <> v_n or (v->>'version')::bigint <> v_ver + 1 then
       raise exception 'VERIFY(a): the bulk deposit answered % (wanted count %, version %)', v, v_n, v_ver + 1; end if;
-    execute f_bank into s_a using v_a; execute f_bank into s_b using v_b;
+    select (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'q', qty) order by item_id), '[]') from public.account_bank where user_id = v_a)::text,
+           (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'q', qty) order by item_id), '[]') from public.account_bank where user_id = v_b)::text
+      into s_a, s_b;
     if s_a <> s_b then raise exception 'VERIFY(a): Storage differs after N singles vs one bulk: % vs %', s_a, s_b; end if;
-    execute f_bag into s_a using v_a; execute f_bag into s_b using v_b;
+    select (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'q', qty) order by item_id), '[]') from public.player_inventory where user_id = v_a and slot = 0)::text,
+           (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'q', qty) order by item_id), '[]') from public.player_inventory where user_id = v_b and slot = 0)::text
+      into s_a, s_b;
     if s_a <> s_b or s_a <> '[]' then raise exception 'VERIFY(a): the bags differ or are not empty: % vs %', s_a, s_b; end if;
-    execute f_ledger into s_a using v_a, v_la; execute f_ledger into s_b using v_b, v_lb;
+    select (select coalesce(jsonb_agg(jsonb_build_object('k', kind, 'n', intent, 'i', item_id, 'q', qty, 'm', meta, 'g', gold, 's', slot) order by item_id, id), '[]') from public.player_ledger where user_id = v_a and id > v_la)::text,
+           (select coalesce(jsonb_agg(jsonb_build_object('k', kind, 'n', intent, 'i', item_id, 'q', qty, 'm', meta, 'g', gold, 's', slot) order by item_id, id), '[]') from public.player_ledger where user_id = v_b and id > v_lb)::text
+      into s_a, s_b;
     if s_a <> s_b or (select count(*) from public.player_ledger where user_id = v_b and id > v_lb) <> v_n then
       raise exception 'VERIFY(a): the journal differs after N singles vs one bulk: % vs %', s_a, s_b; end if;
 
@@ -543,11 +547,17 @@ begin
     perform set_config('request.jwt.claim.sub', v_b::text, true);
     v := public.hr_bank_move_many(0, v_wlist, (k || '1002')::uuid);
     if coalesce(v->>'ok', '') <> 'true' or (v->>'count')::int <> v_n then raise exception 'VERIFY(c): the bulk withdraw answered %', v; end if;
-    execute f_bank into s_a using v_a; execute f_bank into s_b using v_b;
+    select (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'q', qty) order by item_id), '[]') from public.account_bank where user_id = v_a)::text,
+           (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'q', qty) order by item_id), '[]') from public.account_bank where user_id = v_b)::text
+      into s_a, s_b;
     if s_a <> s_b or s_a <> '[]' then raise exception 'VERIFY(c): Storage differs or is not empty after the withdraws: % vs %', s_a, s_b; end if;
-    execute f_bag into s_a using v_a; execute f_bag into s_b using v_b;
+    select (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'q', qty) order by item_id), '[]') from public.player_inventory where user_id = v_a and slot = 0)::text,
+           (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'q', qty) order by item_id), '[]') from public.player_inventory where user_id = v_b and slot = 0)::text
+      into s_a, s_b;
     if s_a <> s_b then raise exception 'VERIFY(c): the bags differ after N singles vs one bulk: % vs %', s_a, s_b; end if;
-    execute f_ledger into s_a using v_a, v_la; execute f_ledger into s_b using v_b, v_lb;
+    select (select coalesce(jsonb_agg(jsonb_build_object('k', kind, 'n', intent, 'i', item_id, 'q', qty, 'm', meta, 'g', gold, 's', slot) order by item_id, id), '[]') from public.player_ledger where user_id = v_a and id > v_la)::text,
+           (select coalesce(jsonb_agg(jsonb_build_object('k', kind, 'n', intent, 'i', item_id, 'q', qty, 'm', meta, 'g', gold, 's', slot) order by item_id, id), '[]') from public.player_ledger where user_id = v_b and id > v_lb)::text
+      into s_a, s_b;
     if s_a <> s_b then raise exception 'VERIFY(c): the journal differs after the withdraws: % vs %', s_a, s_b; end if;
 
     -- (d) A LOCKED STACK refuses the whole press, named, nothing moved, the key free.
@@ -558,7 +568,7 @@ begin
     v := public.hr_bank_move_many(0, v_list, (k || '2002')::uuid);
     if v->>'error' is distinct from 'item_locked' or v->>'item_id' is distinct from v_kinds[2] or (v->>'index')::int <> 1 then
       raise exception 'VERIFY(d): a bulk deposit over a locked stack answered %', v; end if;
-    execute f_bank into s_b using v_b;
+    select (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'q', qty) order by item_id), '[]') from public.account_bank where user_id = v_b)::text into s_b;
     if s_b <> '[]' or (select count(*) from public.player_ledger where user_id = v_b and id > v_lb) <> 0
        or (select version from public.player_state where user_id = v_b and slot = 0) <> v_ver
        or exists (select 1 from public.player_intents where user_id = v_b and intent_id = (k || '2002')::uuid) then
@@ -570,7 +580,7 @@ begin
     v := public.hr_bank_move_many(0, v_list, (k || '2004')::uuid);
     if v->>'error' is distinct from 'bank_full' or v->>'item_id' is distinct from v_kinds[2] or (v->>'index')::int <> 1 or (v->>'cap')::int <> 1 then
       raise exception 'VERIFY(e): a bulk deposit past the room answered %', v; end if;
-    execute f_bank into s_b using v_b;
+    select (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'q', qty) order by item_id), '[]') from public.account_bank where user_id = v_b)::text into s_b;
     if s_b <> '[]' then raise exception 'VERIFY(e): the first stack stayed in Storage after the refusal: %', s_b; end if;
     update public.hr_depot_config set base_stacks = 1000 where only_row;
 
@@ -581,7 +591,7 @@ begin
     v := public.hr_bank_move_many(0, v_list, (k || '2005')::uuid);
     if v->>'error' is distinct from 'hunt_open' or v->>'hunt' is distinct from 'mill_cellar' then
       raise exception 'VERIFY(f): a bulk deposit on a hunting hero answered %', v; end if;
-    execute f_bank into s_b using v_b;
+    select (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'q', qty) order by item_id), '[]') from public.account_bank where user_id = v_b)::text into s_b;
     if s_b <> '[]' then raise exception 'VERIFY(f): a hunting hero moved a stack'; end if;
     delete from public.hunt_sessions where user_id = v_b and slot = 0 and instance_id = v_inst;
     delete from public.hunt_instances where id = v_inst;
@@ -612,7 +622,9 @@ begin
     v := public.hr_item_lock_many(0, v_llist, true, (k || '3001')::uuid);
     if coalesce(v->>'ok', '') <> 'true' or (v->>'count')::int <> 3 or jsonb_array_length(v->'bag_rules'->'locked') <> 3 then
       raise exception 'VERIFY(h): the bulk lock answered %', v; end if;
-    execute f_rules into s_a using v_a; execute f_rules into s_b using v_b;
+    select (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'l', locked, 'r', loot_rule, 's', restock) order by item_id), '[]') from public.player_item_rules where user_id = v_a and slot = 0)::text,
+           (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'l', locked, 'r', loot_rule, 's', restock) order by item_id), '[]') from public.player_item_rules where user_id = v_b and slot = 0)::text
+      into s_a, s_b;
     if s_a <> s_b then raise exception 'VERIFY(h): the rules differ after 3 singles vs one bulk: % vs %', s_a, s_b; end if;
     v2 := public.hr_item_lock_many(0, v_llist, true, (k || '3001')::uuid);
     if v2::text <> v::text then raise exception 'VERIFY(h): a replayed bulk lock answered %', v2; end if;
@@ -622,7 +634,9 @@ begin
     if coalesce(v->>'ok', '') <> 'true' or (v->>'count')::int <> 3 then raise exception 'VERIFY(h): the bulk unlock answered %', v; end if;
     perform set_config('request.jwt.claim.sub', v_a::text, true);
     for v_i in 1 .. 3 loop perform public.hr_item_lock(0, v_kinds[v_i], false, (k || lpad((310 + v_i)::text, 4, '0'))::uuid); end loop;
-    execute f_rules into s_a using v_a; execute f_rules into s_b using v_b;
+    select (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'l', locked, 'r', loot_rule, 's', restock) order by item_id), '[]') from public.player_item_rules where user_id = v_a and slot = 0)::text,
+           (select coalesce(jsonb_agg(jsonb_build_object('i', item_id, 'l', locked, 'r', loot_rule, 's', restock) order by item_id), '[]') from public.player_item_rules where user_id = v_b and slot = 0)::text
+      into s_a, s_b;
     if s_a <> s_b or s_b <> '[]' then raise exception 'VERIFY(h): the rules differ after the unlocks: % vs %', s_a, s_b; end if;
     perform set_config('request.jwt.claim.sub', v_b::text, true);
     v := public.hr_item_lock_many(0, jsonb_build_array(v_kinds[1], 'no_such_item_zz'), true, (k || '3003')::uuid);

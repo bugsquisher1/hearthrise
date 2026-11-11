@@ -123,11 +123,11 @@ const PANEL_ROWS = HUD_WIDGETS.filter((w) => w.removable).map((w) => row({
   default: w.visible,
   bind: Object.freeze({ store: 'hud', id: w.id }),
   /* A panel behind a server switch (its row's `section`, the live events) is listed only while the server sends that section. */
-  ...(w.section ? { visibleWhen: (ctx) => !!ctx && !!ctx.character && typeof ctx.character.read === 'function' && ctx.character.read(w.section) != null } : {}),
+  ...('section' in w && w.section ? { visibleWhen: (ctx) => !!ctx && !!ctx.character && typeof ctx.character.read === 'function' && ctx.character.read(w.section) != null } : {}),
 }));
 
 /* ── Controls: every window's key, then the shell's own (display only: hunts play themselves) ── */
-const HOTKEY_ROWS = SHELL_WINDOWS.filter((w) => !w.escape && w.key).map((w) => row({
+const HOTKEY_ROWS = SHELL_WINDOWS.filter((w) => !('escape' in w && w.escape) && w.key).map((w) => row({
   id: 'key.' + w.id, category: 'controls', label: 'Open ' + w.label,
   help: 'Press this key to open or close the ' + w.label.toLowerCase() + ' window.',
   type: 'hotkey', key: w.key,

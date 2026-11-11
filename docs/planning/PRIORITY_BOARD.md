@@ -150,14 +150,14 @@ Every solo ground is back in the pace band. The party grounds' fours read over i
 **Two generic ideas I cut.** A boss standing in the last pocket of the route would be killed thirty times an hour by an idle loop, and a final boss can't be a lap monster. A castle full of more undead would be a fifth ground with the same answer (hammer). So Krell gets a room you enter on purpose, and the Hold mixes living and dead in one pull.
 
 #### 1. The place
-The Stokers' cart road runs north off the Pyre Field and up the hill. The pyre wood came down that road from Krell's yard. The Hold is at the top. It is small, gray and in good repair, because people still live in it. Smoke comes from one chimney. That is the Hall Fire, the fire the Binders' rite tied the dead to. There is no travel time in the game today, so the player reaches it from the Hunts list at Level 85 and stands on the cart road at the gate.
+The Stokers' cart road runs north off the Pyre Field and up the hill. The pyre wood came down that road from Krell's yard. The Hold is at the top. It is small, gray and in good repair, because people still live in it. Smoke comes from one chimney. That is the Hall Fire, the fire the Binders tied the dead to when they burned them. There is no travel time in the game today, so the player reaches it from the Hunts list at Level 85 and stands on the cart road at the gate.
 
 | # | Area | Who is there | Why it exists |
 |---|---|---|---|
 | 1 | **The Cart Gate** | Levies, one Picket | The soft door. A hero under 85 pushing for tier 6 boots stands here |
 | 2 | **The Drill Yard** | Levies, Pickets on the wall walk | All living. The bow's ground and the poison rune's ground. The woodyard that fed the pyres is here |
-| 3 | **The Chapel** | Binders, Warders | Where the rite was written. A Binder mends the dead beside him, so kill order matters. The caster's prizes drop here |
-| 4 | **The Undercroft** | Warders in ranks | The officers Krell dug out of the Muster Barrows. All dead. The hammer's ground. An Emberstone Vein in the cellar rock (the node kind has no sprite yet, the Pyre lane flagged it) |
+| 3 | **The Chapel** | Binders, Warders | Where the priests wrote the words that tie the dead to the fire. A Binder mends the dead beside him, so kill order matters. The caster's prizes drop here |
+| 4 | **The Undercroft** | Warders in ranks | Dead officers Krell dug back out of the Muster Barrows. The hammer's ground. An Emberstone Vein in the cellar rock (the node kind has no sprite yet, the Pyre lane flagged it) |
 | 5 | **The Keep Stair** | The Castellan, Warders, Pickets | The hardest pull and the rare carrier. The Hall Key drops here |
 | 6 | **Krell's Hall** | Lord Krell, the Hall Fire | Not on the route. One room, one fight, opened with a key |
 
@@ -170,10 +170,10 @@ One difficulty for every group size. No solo or party label and no gate. Stats a
 
 | Creature | Level, role | Tied to | Class, weak to | New here | Formula row |
 |---|---|---|---|---|---|
-| **Levy** | 86, swarm | Krell. Farmhands he pressed to hold his walls | Human. Arrows, poison +15% | The March's first living enemy. Poison did half to every dead thing for four grounds. It works here | hp 114, atk 78, xp 1,151, gp 24-72 |
+| **Levy** | 86, swarm | Krell. Farmhands he forced to guard his walls | Human. Arrows, poison +15% | The March's first living enemy. Poison did half to every dead thing for four grounds. It works here | hp 114, atk 78, xp 1,151, gp 24-72 |
 | **Hask's Picket** | 88, glass | Captain Hask. The sentries he pulled off the line at the Ford. They took Krell's pay too | Human. Arrows | Shoots a crossbow from range at the hero farthest back and doesn't walk in. Challenge turns his aim to the tank | hp 109, atk 103, xp 1,333, gp 23-69 |
 | **Warder** | 92, heavy | The Barrows. A company officer dug up and set at Krell's doors | Undead. Hammer, fire +15% | The first regular monster with a marked heavy hit. A shield slam on the tiles in front of him. The tank holds, ranged heroes step off | hp 182, atk 78, xp 2,077, gp 38-115 |
-| **Binder** | 95, regular | The Pyre. Krell's priests, who said the rite on the field | Human. Arrows | Mends the dead in his pull. The first monster that heals. Leave him alive and the Warders take far longer to drop (how much is unmeasured) | hp 157, atk 100, xp 1,650, gp 33-99 |
+| **Binder** | 95, regular | The Pyre. Krell's priests, the ones who burned the soldiers on the field | Human. Arrows | Mends the dead in his pull. The first monster that heals. Leave him alive and the Warders take far longer to drop (how much is unmeasured) | hp 157, atk 100, xp 1,650, gp 33-99 |
 | **Castellan** | 100, elite | Krell. He keeps the castle and its keys | Human in plate, so hammer (one override) | No trick. He is the first monster whose drop opens a fight | hp 263, atk 105, xp 3,244, gp 55-166 |
 
 Each one is a question from the boss exam. The Levy says Krell is a living man and your undead kit is wrong for him. The Picket is his adds going for the back line. The Warder is his marked hit. The Binder is "kill the helpers first". The Castellan is the key. Weak-to counts at density 4 are 14 to arrows and 6 to a hammer, so this is the Ranger's ground the way the Slake is the sword's and the Pyre Field is the hammer's.
@@ -296,7 +296,7 @@ For the generator lane after PixelLab resets on 11-14. Sample first. Draw the Le
 That is 6 new creatures, 1 reused, 5 tilesets, 16 structures and props, 8 icons, 4 effects and 6 portraits. The Muster Barrows took 323 generations for a ground, two creatures, 16 props and 4 icons. Assume 400 to 500 here. Not measured.
 
 #### 8. For the Pyre Field lane (the pack is on origin/lane/b-pyre-field, not on main, so I did not edit it)
-- Theme line becomes "Lord Krell's priests burned the Banded Company's dead on this field, and they would not stay burned."
+- Theme line becomes "Lord Krell's priests burned the Banded Company's dead on this field, and the dead got back up anyway." (plain-voiced in lane/d-plain-lore, 11-11)
 - Naming voice. The Chantry's words (brother, shroud, prior) become the Hold's (binder, shroud, roll). The short names are Hask and Krell.
 - "Prior Ebbe's Chantry" becomes "Krell's Binders". "Ebbe's rite" and "Ebbe's binding" become Krell's. "The Chantry's wood" and "the Chantry's books" become the Hold's and the Binders'. The Shroud Pin's line says "a Binder" where it says "a Chantry brother". "Tier-6 armor waits for Ebbe's Chantry" becomes Krell's Hold.
 
@@ -306,24 +306,26 @@ That is 6 new creatures, 1 reused, 5 tilesets, 16 structures and props, 8 icons,
 **Done and verified.** Every existing item, monster, class, target mode and engine file named here was read on main at v0.2.112. The new names were checked free. The stat rows are `formulaStats` output. **Not verified.** Nothing was played. No drop rate, key rate, pull size or win rate has been through the sim. **Assumed.** The generation count, five pockets, and that the area-spell engine lands as specced.
 
 ### 2026-11-10 The living world: Krell's arc from Havora to the Hold (designer, lane/d-krells-hold. Tyler 2026-11-09 "you're kind of crushing it with the lore", "I want to keep this going"): a living section, added to as grounds land
-Havora is the capital of Greenhaven and keeps the Great Hearth. Its fire lays the dead to rest. That is why Bones and Grave Dust burn there.
+*Voice (Tyler 2026-11-11): these rows are plain facts for designers, not player text. The story a player reads is told by a person, with flow, like the wiki's "The Road North" sample (lane/d-wiki-mocks, d280ad46e, `screens/desk-lore-road.html`). Copy facts from here, never the wording.*
 
-The road north crosses the Meadowbrook at a ford with a toll stone. Havora hired the Banded Company, a free company under Captain Hask, to hold that ford and the March beyond it. Lord Krell had held the March before them, and he wanted the toll back. He didn't fight the company. He bought its captain. Hask sold the crossing, and Krell's men killed the company where it stood.
+Havora is the capital of Greenhaven, and the Great Hearth is there. The dead only rest if they're burned in its fire, which is why you burn Bones and Grave Dust there.
 
-Then Krell cleaned up, and each ground is one piece of the cleaning.
+The road north crosses the Meadowbrook at a ford with a toll stone. Havora hired the Banded Company, a band of soldiers under Captain Hask, to guard that ford and the March beyond it. Lord Krell used to own the March and collect that toll, and he wanted it back. Instead of fighting the company, he paid Hask off. Hask pulled his guards off the crossing, and Krell's men killed the company where it stood.
+
+After that Krell tried to hide what he'd done, and each ground is one part of that.
 
 | Ground | Its place in the story | In the data |
 |---|---|---|
-| Wickstead, 8-18 | The Turncoats in the farmhouse are the company's last deserters. Their Torn Company Badge is the first piece of this story a new hero holds | Live |
-| Hask's Ford, 45-60 | The foot died in their files and nobody burned them. The Bannerman still holds the Company Colors at the toll stone | lane/b-hasks-ford |
-| The Slake, 50-65 | The river took the rest, and the company's supply barge, and dropped them on the mudflat | lane/b-the-slake |
-| Muster Barrows, 55-75 | Krell buried the officers with honors so it would look like a lost battle. Hask is in there with them | Art on lane/b-muster-barrows-art |
-| The Pyre Field, 70-90 | The foot were too many to bury. Krell's Binders burned them, and the rite tied them to the fire. The Stokers still feed the pyres | lane/b-pyre-field |
-| Krell's Hold, 85-110 | The fire that holds the dead burns in Krell's hall, beside the company's Muster Roll. He is old now and can't let it go out | This design |
+| Wickstead, 8-18 | The Turncoats in the farmhouse are a few company soldiers who ran before the killing started. Their Torn Company Badge is the first piece of this story a new hero picks up | Live |
+| Hask's Ford, 45-60 | The company's soldiers died at the toll stone, and Krell's men never burned the bodies, so they got back up. The Bannerman, their flag-bearer, walks around the toll stone with the company flag (the Company Colors) | lane/b-hasks-ford |
+| The Slake, 50-65 | The river carried a lot of the other bodies downstream, along with the company's supply barge, and left them on the mudflats | lane/b-the-slake |
+| Muster Barrows, 55-75 | Krell buried the officers with full honors so it would look like they lost a fair fight. He had Hask killed and buried with them so Hask couldn't talk | Art on lane/b-muster-barrows-art |
+| The Pyre Field, 70-90 | There were too many regular soldiers to bury, so Krell's priests, the Binders, burned them here. They lit the pyres from the fire in Krell's hall, and the words they said over the bodies tied the dead to that fire. The Stokers keep the pyres burning | lane/b-pyre-field |
+| Krell's Hold, 85-110 | The fire the dead are tied to burns in Krell's hall, next to the company's roster, the Muster Roll. Krell is an old man now, and he can't let that fire go out, because the dead would be free | This design |
 
 The Warrens' copper hill feeds the Meadowbrook's springs, the Glade glows with it, and the same water runs past the Ford down to the Slake. The Mill Cellar, the Thicket and the Sewer are Havora's own doorstep and have no part in Krell's story yet.
 
-The end is two fires. Krell's holds the dead. Havora's frees them. A hero kills Krell, takes a page of the Roll, and burns it at the Hearth.
+It ends with the two fires. Krell's fire keeps the dead from resting and Havora's lets them rest, so a hero kills Krell, takes a page of the Muster Roll home and burns it in the Great Hearth.
 
 **New in this draft, for Tyler to keep or strike.** The toll as Krell's reason. Hask buried to keep him quiet. The Hall Fire. The Muster Roll. Hask's pickets. The rest was in the data or his 11-09 ruling.
 ### 2026-11-10 Combat training (designer, lane/d-training-and-wards; Tyler 2026-11-08: "training dummies and stuff to train skills (for gold)", "Make the training area look cool too", "Wildly expensive gold sink is going to be a personal training dummy for houses"): DESIGN ONLY, the numbers MEASURED on the real engine at Levels 20 and 50, Level 80 NOT measured, nothing built. **The server half is a §1 money surface and goes on the pre-EA Security list (§3.7)**

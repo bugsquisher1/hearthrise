@@ -101,8 +101,8 @@ export const STYLE_GEAR_RECIPES = Object.freeze({
 
 /* The style ladder's new weapons' flavour lines (item-descriptions.js spreads them): tier 2 made, tier 3 dropped. */
 export const STYLE_GEAR_DESC = Object.freeze({
-  iron_hatchets: 'A matched pair of iron hatchets on oak hafts, made to open a wound and keep it bleeding',
+  iron_hatchets: 'A pair of iron hatchets on oak handles. They\'re made to cut deep and keep a monster bleeding',
   oak_crossbow: 'An oak crossbow strung with spider silk, slower to draw than a bow and harder where it lands',
-  steel_hatchets: 'Steel hatchets for a fighter who bleeds a foe, the pair a Coppercap foreman keeps for splitting pit props',
+  steel_hatchets: 'Steel hatchets for a fighter who likes to make monsters bleed. A Coppercap foreman keeps a pair for splitting pit props',
   willow_crossbow: 'A willow crossbow for a ranger who keeps a shield up, the kind the goblin skulkers shoot down the galleries',
 });

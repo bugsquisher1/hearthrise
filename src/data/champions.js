@@ -59,11 +59,11 @@ export const CHAMPION_ITEMS = {
 };
 
 export const CHAMPION_DESC = {
-  tusker_charm: 'A cracked tusk from the oldest boar in the woods, strung on a thong to make its wearer braver than is wise',
+  tusker_charm: 'A cracked tusk from the oldest boar in the woods, on a leather cord. Wearing it makes you a bit too brave',
   packlord_band: 'A crude iron band the Packlord wore on one claw, and the gnolls followed whoever held it',
-  mirewort_drops: 'Two beads of bog-amber with a sprig of mirewort sealed inside, humming faintly when a spell is near',
-  barrowking_mantle: 'The moldering cloak of a king who would not stay buried, and it still remembers how to hold a line',
-  jarls_rimetorc: 'A torc of frozen iron worn by the Frost Jarl. It never warms, and neither does the one who wears it',
+  mirewort_drops: 'Two beads of bog amber with a bit of mirewort sealed inside. They hum a little when someone\'s casting nearby',
+  barrowking_mantle: 'The rotting cloak of a king who wouldn\'t stay buried. It still helps you stand your ground',
+  jarls_rimetorc: 'A frozen iron neck ring the Frost Jarl wore. It never warms up, and you feel the cold the whole time you wear it',
 };
 
 /** The champion id for each tier, the order the roster appends them. */

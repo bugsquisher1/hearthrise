@@ -60,9 +60,9 @@ export const BOSS_FORGE_ITEMS = {
 };
 
 export const BOSS_FORGE_DESC = {
-  elderscale_platebody: "Dawnsteel plate hammered around the Great Wyrm's still-cold heart. Nothing in the realm turns a blow better",
-  riftmaw_carapace: "The Riftmaw's shed husk, split and stitched over duskwood ribs, light as leather and steadying every shot",
-  voidheart_robe: 'A robe woven through with distilled void, and every spell cast in it lands as if the dark were pushing',
+  elderscale_platebody: "Dawnsteel plate hammered around the Great Wyrm's cold heart. No armor anywhere stops a hit better",
+  riftmaw_carapace: "The Riftmaw's old shell, cut open and stitched over duskwood ribs. It's as light as leather and steadies your aim",
+  voidheart_robe: 'A robe with void woven all through it. Spells you cast in it hit a lot harder',
 };
 
 /* THE TROPHY WALL'S BOSS ROW. Order is the order a player meets the bosses.
@@ -72,13 +72,13 @@ export const BOSS_FORGE_DESC = {
    hangs. No numbers, no effect fields: this is a display. */
 export const BOSS_TROPHIES = Object.freeze([
   Object.freeze({ item: 'warboss_standard', dungeon: 'goblin_warcamp', boss: 'Grimtusk',
-    line: 'Hung over the door, torn and proud. The warcamp will not be raising it again.' }),
+    line: 'It hangs over your door, all torn up. Grimtusk\'s warcamp won\'t be flying it again.' }),
   Object.freeze({ item: 'lexarch_seal', dungeon: 'haunted_archive', boss: 'The Pale Archivist',
-    line: 'Set in a glass case. Now and then a page turns somewhere in the house.' }),
+    line: 'You keep the Pale Archivist\'s seal in a glass case. Every now and then a page turns somewhere in the house on its own.' }),
   Object.freeze({ item: 'voidwoven_sigil', dungeon: 'voidbringer', boss: 'The Riftmaw',
-    line: 'Pinned above the hearth, still slowly moving. The fire leans toward it.' }),
+    line: 'It\'s pinned above your fireplace and it still moves a little. The fire bends toward it.' }),
   Object.freeze({ item: 'dragon_relic', dungeon: 'ancient_wyrm', boss: 'Elderscale',
-    line: 'The center of the hall. Guests stop talking when they see it.' }),
+    line: 'Elderscale\'s relic sits in the middle of your hall, and visitors always stop to stare at it.' }),
 ]);
 
 /** How many of the boss trophies a holder owns, from a {id: qty} map (or

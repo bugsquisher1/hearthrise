@@ -134,8 +134,9 @@ $('to').value='en';$('from').value='auto';
 const status=t=>$('status').textContent=t;
 if(!('Translator' in self)){status('Not available: needs Chrome 138 or newer (Edge works too). Open this page there.')}
 let timer,translator,key='';
+const within=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('this browser never answered: it has no on-device translator. Use Chrome itself (138+), not the Claude app pane')),ms))]);
 async function detect(text){
-  if(!('LanguageDetector' in self))return 'en';
+  if(!('LanguageDetector' in self)||await within(LanguageDetector.availability(),8000)==='unavailable')throw new Error('this browser cannot detect the language. Pick it under From');
   const d=await LanguageDetector.create();const r=await d.detect(text);return (r[0]&&r[0].detectedLanguage)||'en';
 }
 async function go(){try{await run()}catch(e){status('error: '+(e&&e.message||e))}}
@@ -145,7 +146,7 @@ async function run(){
   const to=$('to').value;if(from===to){$('dst').value=text;status('same language');return}
   const k=from+'>'+to;
   if(k!==key){status('loading '+k+' model (first time downloads it, then it is on disk)…');
-    const avail=await Translator.availability({sourceLanguage:from,targetLanguage:to});
+    const avail=await within(Translator.availability({sourceLanguage:from,targetLanguage:to}),8000);
     if(avail==='unavailable'){status(k+' is not a pair Chrome can do offline');return}
     translator=await Translator.create({sourceLanguage:from,targetLanguage:to,monitor(m){m.addEventListener('downloadprogress',e=>status('downloading '+Math.round(e.loaded*100)+'%'))}});key=k}
   const t0=performance.now();$('dst').value=await translator.translate(text);status(k+' · '+Math.round(performance.now()-t0)+' ms · on device');

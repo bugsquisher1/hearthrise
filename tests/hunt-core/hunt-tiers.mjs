@@ -85,8 +85,10 @@ const cases = {
         /* ONE PULL FOR EVERY GROUP (Tyler 2026-11-08: "the difficulty should be unchanged"): a lone hero fights the four's pull, entry for entry */
         if (r.pull.length !== G.MAX_HEROES || r.pull.some((p) => p !== r.pull[0])) return id + ': ' + t + ' pulls by party size: ' + r.pull + ' (one pull for one hero or four)';
         if (r.pull[0] && r.pull[0] < was.pull[0]) return id + ': ' + t + "'s pull falls: " + r.pull;
-        /* never fewer monsters than a party draws on Normal (hunt-grounds.js partyPull): a harder tier is never a smaller fight */
-        for (let s = 1; s <= GR.MAX_HEROES; s++) if (r.pull[0] && r.pull[0] < GR.partyPullOf(g, s)) return id + ': ' + t + ' brings ' + r.pull[0] + ', fewer than a party of ' + s + ' draws on Normal (' + GR.partyPullOf(g, s) + ')';
+        /* NEVER A SMALLER FIGHT THAN NORMAL (Tyler 2026-11-11: Normal is the room as built for every group, a bigger pull is a harder tier; the
+           party pull this read is retired): a tier's pull is at least every pocket's pack as built, or pullRows would cut that pocket down */
+        const built = Math.max(...g.pockets.map((p) => p.spawns.length));
+        if (r.pull[0] && r.pull[0] < built) return id + ': ' + t + ' brings ' + r.pull[0] + ', fewer than its room as built (' + built + ' in a pocket)';
         for (let s = 0; s < r.pull.length; s++) if (r.pull[s] > g.densityMax[s]) return id + " cannot spawn " + t + "'s " + r.pull[s] + ' for ' + (s + 1);
         /* SLIGHTLY MORE XP (Tyler 2026-11-05 tier words: "Dangerous and Deadly ... pay slightly more Level XP", +10% and +20% in his 11-05
            table; 11-07's "a scaling % of exp and difficulty" names the dial, not the amount): a kill never pays more than +25% for a tier, and
@@ -238,7 +240,7 @@ const mutants = [
   { name: 'a lone hero pulls fewer than a four on the Glade\'s Dangerous', case: 'rows', edits: [[D, 'out[g][id] = { id, pull: [...r.pull],', "out[g][id] = { id, pull: [g === 'mosslight_glade' && id === 'dangerous' ? 3 : r.pull[0], ...r.pull.slice(1)],"]] },
   { name: 'the sheet pulls Dangerous by party size again', case: 'rows', edits: [[SH, 'dangerous: Object.freeze({ pull: 5,', 'dangerous: Object.freeze({ pull: Object.freeze([3, 5, 5, 6]),']] },
   { name: 'a ground gives a party its own pull again', case: 'rows', edits: [[SH, "  mill_cellar: Object.freeze({ normalOnly: true,", "  wickstead: Object.freeze({ deadly: Object.freeze([0, 8, 8, 8]), why: 'a lone hero keeps the ground as it stands' }),\n  mill_cellar: Object.freeze({ normalOnly: true,"]] },
-  { name: 'the Glade\'s Dangerous under a party\'s Normal pull', case: 'rows', edits: [['src/data/hunt-grounds.js', "partyPull: Object.freeze([0, 3, 3, 4]),\n    gather: gather(9000, [\n      /* P0 the Crow Field", "partyPull: Object.freeze([0, 3, 3, 7]),\n    gather: gather(9000, [\n      /* P0 the Crow Field"]] },
+  { name: 'the Glade\'s Dangerous under its room as built (a smaller fight than Normal)', case: 'rows', edits: [[D, 'out[g][id] = { id, pull: [...r.pull],', "out[g][id] = { id, pull: g === 'mosslight_glade' && id === 'dangerous' ? [2, 2, 2, 2] : [...r.pull],"]] },
   { name: 'Deadly pays more than slightly more XP', case: 'rows', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1250', 'xpPm: 1300')]] },
   { name: 'a ground\'s dial names no dial', case: 'rows', edits: [[SH, THICKET_DIALS, THICKET_DIALS.replace('xpPm: 1080', 'xpPM: 1080')]] },
   { name: 'a party ground lifts its tiers', case: 'rows', edits: [[D, '{ ground: g, fit: fitOf(HUNT_GROUNDS[g]) }', '{ ground: g }']] },

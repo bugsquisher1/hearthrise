@@ -2,7 +2,7 @@
 // tests/party-class-xp-line.mjs — A SAME-CLASS PARTY NEVER BEATS SOLO, PER HEAD (Tyler 2026-10-31).
 //
 // "Party exp should only be better if there are different classes in the party." The table that pays it is
-// src/data/party-class-xp.js, with each ground's default pull (hunt-grounds.js partyPull); this plays the line itself on
+// src/data/party-class-xp.js, on the room as built for every group (Tyler 2026-11-11 retired a party's own Normal pull); this plays the line itself on
 // the REAL engine, through tools/balance-sim's cell runner (the settle the world tick runs): every ground (HUNT_GROUNDS,
 // never a typed list, so a new ground with no row is judged too), at the party's default pull and at 8 each, on several
 // seeds, at the ground's floor Level, in the ladder kit.
@@ -143,8 +143,9 @@ const MUTANTS = [
   { name: 'a shield Melee and a Melee count as two classes', cells: [['millrace_sewer', ['tank', 'axes']], ['meadowbrook_thicket', ['tank', 'axes']]],
     edits: [['src/data/party-class-xp.js', "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['tank', 'melee_dps']) }),",
       "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['melee_dps']) }), tanks: Object.freeze({ label: 'Tank', roles: Object.freeze(['tank']) }),"]] },
-  { name: 'a pull far past the line on one row (the Cellar pair at the full box)', cells: [['mill_cellar', ['bow', 'bow']]],
-    edits: [['src/data/hunt-grounds.js', 'partyPull: Object.freeze([0, 4, 5, 5])', 'partyPull: Object.freeze([0, 8, 8, 8])']] },
+  /* (re-aimed, lane/c-brook-bear: Tyler 2026-11-11 retired the ground's party pull, so the plant brings one back in the engine, the full box for a party) */
+  { name: 'a party with no pick draws the full box (the Cellar pair)', cells: [['mill_cellar', ['bow', 'bow']]],
+    edits: [['src/data/hunt-grounds.js', 'const p = Number.isInteger(pick) && pick > 0 ? pick : 0;', 'const p = Number.isInteger(pick) && pick > 0 ? pick : (n > 1 ? 8 : 0);']] },
   /* A ONE-CLASS CELL PAID LIKE A MIX, on another size and another ground than the rows above, and a four's shares lifted in the engine. */
   { name: 'the Thicket\'s three of wands paid a mix\'s 1620', cells: [['meadowbrook_thicket', LARGER.wands3]],
     edits: [['src/data/party-class-xp.js', 'meadowbrook_thicket: row([1045, 1735], [1015, 1620, 1800]', 'meadowbrook_thicket: row([1045, 1735], [1620, 1620, 1800]']] },

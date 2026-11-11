@@ -176,7 +176,6 @@ const BASE_GROUNDS = Object.freeze({
     respawnMs: 32000, pullDist: 1.5, groupFit: 'both',
     /* the full box and no more. Normal only (hunt-tiers.js), so no tier asks for it */
     densityMax: Object.freeze([8, 8, 8, 8]),
-    partyPull: Object.freeze([0, 4, 5, 5]),
   }),
   millrace_sewer: Object.freeze({
     id: 'millrace_sewer', hunt: 'millrace_sewer', map: 'millrace_sewer',
@@ -219,8 +218,6 @@ const BASE_GROUNDS = Object.freeze({
        5.4 h against 2.0-2.7 h alone. Advice only; a pair and a four go on to the Sewer at 8. */
     groupFit: 'both',
     densityMax: Object.freeze([8, 8, 8, 8]),
-    /* Tyler 2026-11-02: widen the Thicket's party pull so same-weapon friends lose less (was [0, 3, 3, 4]: 0.69-0.84 per head). */
-    partyPull: Object.freeze([0, 4, 5, 6]),
     gather: gather(9000, [
       /* P0 the woodcutters' clearing: the first logs, by the trailhead */
       ['normal_tree', 6, 16, 0], ['normal_tree', 17, 14, 0], ['normal_tree', 18, 23, 0], ['normal_tree', 8, 22, 0],
@@ -292,15 +289,14 @@ const BASE_GROUNDS = Object.freeze({
       box([40, 1, 57, 8], [50, 4], ['walking_vine', 'walking_vine'], ['brook_bear', 'walking_vine', 'carrion_crow', 'goblin_sluicer', 'walking_vine', 'carrion_crow']),
       /* P4 Rook's Hide: the ruined spring-house, Rook and his two */
       box([22, 1, 35, 12], [28, 6], ['rook_poacher', 'glade_poacher', 'carrion_crow'], ['carrion_crow', 'glade_poacher', 'carrion_crow', 'walking_vine', 'carrion_crow']),
-      /* P5 Vine Hollow, back over the ford: the Brook Bear stands here as built, so a hero alone meets it and its Pelt on Normal (designer's
-         ruling 3, 2026-11-10, measured as option (b) on the board's "2026-11-11 Party pull options"); a party's pull of 3 or 4 brings the same
-         monsters as before, the bear and the crow only trade tiles */
+      /* P5 Vine Hollow, back over the ford: the Brook Bear stands here as built, so every group meets it and its Pelt on Normal (designer's
+         ruling 3, 2026-11-10; Tyler 2026-11-11: one pack on Normal for every group). Dangerous and Deadly bring the same rows, the bear
+         and the crow only trade tiles */
       box([3, 2, 17, 13], [10, 8], ['walking_vine', 'brook_bear'], ['carrion_crow', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
     respawnMs: 60000, pullDist: 1.5, groupFit: 'solo',
     densityMax: Object.freeze([8, 8, 8, 8]),
-    partyPull: Object.freeze([0, 3, 3, 4]),
     gather: gather(9000, [
       /* P0 the Crow Field: pines by the trail */
       ['normal_tree', 6, 26, 0], ['normal_tree', 19, 34, 0], ['normal_tree', 8, 35, 0],
@@ -335,7 +331,6 @@ const BASE_GROUNDS = Object.freeze({
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
     respawnMs: 60000, pullDist: 1.5, groupFit: 'solo',
     densityMax: Object.freeze([8, 8, 8, 8]),
-    partyPull: Object.freeze([0, 3, 3, 4]),
     gather: gather(9000, [
       /* P0 the Rick Yard: the hedge pines */
       ['normal_tree', 7, 14, 0], ['normal_tree', 20, 14, 0], ['normal_tree', 7, 25, 0],
@@ -398,7 +393,7 @@ export function reachableOf(grounds, hunts) {
   return Object.freeze({ monsters: Object.freeze([...mons].sort()) });
 }
 
-/* The most heroes one hunt holds (party.js PARTY.maxSize): a ground's per-size rows (densityMax, partyPull) carry one entry a size. */
+/* The most heroes one hunt holds (party.js PARTY.maxSize): a ground's per-size row (densityMax) carries one entry a size. */
 export const MAX_HEROES = PARTY.maxSize;
 
 /* A HALL BUILT FOR A PARTY (designer 10-18; Tyler 2026-11-08 makes it a warning, never a gate): a pocket may carry `forParty`,
@@ -423,28 +418,22 @@ export function monstersOn(ground) {
    settle still CLAMPS it to the ground's `densityMax` for the party's size (a row's array, one entry per party size 1..4).
    A tool's pick (tools/balance-sim, the fixtures) comes in by the same road: the leader's alone counts (partyPick).
    A top tier's DENSITY_FULL_BOX fits every ground (Tyler: "a full box", all 8 tiles round the tank taken); a row may allow more. The values above 8 are ASSUMED.
-   A PARTY'S DEFAULT PULL (designer 2026-11-01: a mixed party as built stayed under
-   solo): a row's `partyPull`, one entry per party size 1..4, is Normal's pull for a party; absent = as built.
-   It follows the party standing, at the next spawn (designer 2026-11-01): a four dropping to three goes to three's pull,
-   and a lone survivor goes back to as built. A lone hero's entry is 0 and never read: its pull never moves. */
+   NORMAL IS THE ROOM AS BUILT FOR EVERY GROUP (Tyler 2026-11-11, on the board's "2026-11-11 Party pull options": "No, if they want
+   bigger pulls they need to up the difficulty"). A party's default pull (`partyPull`, designer 2026-11-01) is GONE: with no pick a
+   party of any size meets the pack a hero alone meets, and a bigger pull comes only from Dangerous and Deadly. validate refuses the
+   field, so no ground or pack can bring it back. */
 export const DENSITY_FULL_BOX = 8;
 
 /* Who a ground is built for (the workbook's "Group fit"): see the row shape's groupFit. */
 export const GROUP_FITS = Object.freeze(['solo', 'party', 'both']);
 export const DENSITY_PICK = Object.freeze({ min: 0, max: 16 });
 
-/** A party's default pull on `ground` for `partySize` (the row's `partyPull`), or 0 (as built): always 0 for a lone hero. */
-export function partyPullOf(ground, partySize) {
-  const n = Math.min(MAX_HEROES, Math.max(1, Math.floor(Number(partySize) || 1)));
-  return n > 1 && ground && Array.isArray(ground.partyPull) ? ground.partyPull[n - 1] : 0;
-}
-
-/** The density an instance spawns at: the pick (partyPick's, for a party) clamped to the ground's max
-    for its size; with no pick, a party's default pull (partyPullOf), clamped too; 0 (as built) for anyone else. */
+/** The density an instance spawns at: the pick (partyPick's, for a party: a harder tier's pull) clamped to the ground's max
+    for its size; with no pick, 0 (the room as built), for every group (Tyler 2026-11-11). */
 export function densityFor(ground, partySize, pick) {
   const n = Math.min(MAX_HEROES, Math.max(1, Math.floor(Number(partySize) || 1)));
   const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;
-  const p = Number.isInteger(pick) && pick > 0 ? pick : partyPullOf(ground, n);
+  const p = Number.isInteger(pick) && pick > 0 ? pick : 0;
   return Math.max(0, Math.min(max, p, DENSITY_PICK.max));
 }
 
@@ -555,10 +544,8 @@ export function validateGround(row, refs) {
     && row.densityMax.every((v, i) => Number.isInteger(v) && v >= DENSITY_FULL_BOX && v <= DENSITY_PICK.max && (i === 0 || v >= row.densityMax[i - 1])))) {
     bad('densityMax must be ' + MAX_HEROES + ' whole numbers ' + DENSITY_FULL_BOX + '..' + DENSITY_PICK.max + ' (at least a full box), never falling as the party grows');
   }
-  if (row.partyPull !== undefined && !(Array.isArray(row.partyPull) && row.partyPull.length === MAX_HEROES && row.partyPull[0] === 0
-    && row.partyPull.every((v, i) => Number.isInteger(v) && v >= 0 && v <= DENSITY_FULL_BOX && (i === 0 || v >= row.partyPull[i - 1])))) {
-    bad('partyPull must be ' + MAX_HEROES + ' whole numbers 0..' + DENSITY_FULL_BOX + ', 0 for a lone hero (its pull never moves), never falling as the party grows');
-  }
+  /* ONE PACK ON NORMAL FOR EVERY GROUP (Tyler 2026-11-11): a party's own Normal pull is not a row a ground may carry. */
+  if (row.partyPull !== undefined) bad('partyPull is retired: on Normal every group meets the room as built; a bigger pull is a harder tier (Tyler 2026-11-11)');
   if (row.leashMargin !== undefined && !(Number.isInteger(row.leashMargin) && row.leashMargin >= 0 && row.leashMargin <= 8)) {
     bad('leashMargin must be an integer 0..8');
   }

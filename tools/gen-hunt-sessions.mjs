@@ -250,7 +250,13 @@ export const WORLD_FIELDS_READ = Object.freeze({
    column, its insert, the digest and the header differ. AFTER 2027-04-05-call-out-alone.sql, which restates the one body that read the column
    (hr_boss_call_quote): applied before it, the live quote would read a dropped column until that file landed. No kill bound, spawn, limit, ability, bid
    or shape moves, so no hunt pauses and the edge needs no order with it. */
-export const OUT_NAME = '2027-04-05-call-out-hunt-sessions-catalogue.generated.sql';
+/* ONE PACK ON NORMAL FOR EVERY GROUP, AND THE BROOK BEAR AS BUILT (lane/c-brook-bear; Tyler 2026-11-11 "No, if they want bigger pulls they need to up
+   the difficulty"; the designer's ruling 3): hunt-grounds.js partyPull is gone, so hr_hunt_grounds.spawns of the Cellar, the Thicket, Wickstead and
+   the Glade falls back to their rows as built (the 2027-02-16 widening comes out), and the Glade's Vine Hollow stands the bear (the spawn rows count
+   each pocket's whole pack, so they do not move). 2027-04-05-call-out is the file before this one and this file carries it whole. THE BOUND NARROWS:
+   this file applies AFTER the hr-accrue carrying the same hunt-grounds.js (an old engine still pulls a party's bigger pack, which the narrower
+   bound refuses kills_over), and once no party hunt that began on Normal on those four grounds before that deploy is still running. */
+export const OUT_NAME = '2027-04-07-brook-bear-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -306,11 +312,9 @@ export function groundRows(grounds, refs = {}) {
       throw new Error(`ground ${id} density max ${dmax} is not 0..${DENSITY_PICK.max}, never falling as the party grows`);
     }
     /* THE KILL BOUND'S BASE (hr_hunt_apply_member v_pass = spawns + pockets x the instance's frozen pick): the most the ground
-       presents with NO pick, its as-built rows plus every pocket at a party's largest default pull (hunt-grounds.js partyPull,
-       designer 2026-11-01). The engine plays that pull at a frozen pick of 0, so a bound of the as-built rows alone refused
-       a Thicket four's every window (kills_over, then the forfeit). */
-    const pull = Math.max(0, ...(g.partyPull || []));
-    rows.push({ hunt: g.hunt, ground: id, pockets: g.pockets.length, spawns: n + g.pockets.length * pull, respawn: g.respawnMs, seats: g.start.length, dmax });
+       presents with NO pick, its as-built rows, for every group (Tyler 2026-11-11: a party's own Normal pull is gone, so the
+       2027-02-16 widening by pockets x the largest partyPull comes back out; a harder tier's pull is the frozen pick). */
+    rows.push({ hunt: g.hunt, ground: id, pockets: g.pockets.length, spawns: n, respawn: g.respawnMs, seats: g.start.length, dmax });
     for (const m of Object.keys(counts).sort()) spawns.push({ hunt: g.hunt, monster: m, n: counts[m] });
   }
   return { rows, spawns };
@@ -745,7 +749,15 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/b-phase0-tier4, designer 2026-11-08: one sale ladder from tier 4 up, src/data/loot-bands.js VENDOR_GEAR_RATES
+-- NEW IN THIS FILE (lane/c-brook-bear, Tyler 2026-11-11: "No, if they want bigger pulls they need to up the difficulty"; the designer's ruling 3):
+-- a party's own Normal pull (hunt-grounds.js partyPull) is GONE, so hr_hunt_grounds.spawns of mill_cellar, meadowbrook_thicket, wickstead and
+-- mosslight_glade falls to their rows as built (the 2027-02-16 widening comes back out). The Brook Bear stands in the Glade's Vine Hollow as built;
+-- the spawn rows count each pocket's whole pack, so they do not move. Nothing else moves (no kill bound, limit, bid, ability or world shape).
+-- THE BOUND NARROWS. ORDER: AFTER 2027-04-05-call-out-hunt-sessions-catalogue.generated.sql (carried whole), and AFTER the hr-accrue carrying
+-- the same hunt-grounds.js: an old engine still pulls a party's bigger Normal pack, which this bound refuses kills_over (the sixth refusal
+-- forfeits). Apply it once no party hunt that began on Normal on those four grounds before the deploy is still running.
+--
+-- CARRIED FROM 2027-03-27-phase0-tier4 (lane/b-phase0-tier4, designer 2026-11-08: one sale ladder from tier 4 up, src/data/loot-bands.js VENDOR_GEAR_RATES
 -- [0.5, 0.5, 0.14, 0.075, 0.033, 0.015]): hr_hunt_vendor_value moves for worn gear of tier 4 and up, every such bid DOWN (tier 4 sold at tier 3's
 -- 0.14 of book; tiers 7 and 8 read tier 6's rate), and gains the made Mithril Hatchets and Maple Crossbow, which join hr_hunt_weapons too. This table is
 -- the bid Dispatch loot pays, the Shop shows, the Weighhouse floors on and the bench tax reads. Nothing else moves: no kill bound, spawn, limit,
@@ -1272,10 +1284,10 @@ begin
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.respawn_ms) not in
                (${r.grounds.length ? r.grounds.map((g) => `(${sq(g.ground)}, ${g.respawn})`).join(', ') : `(null::text, null::int)`})) then
     raise exception 'a hunt ground''s respawn_ms is not hunt-grounds.js respawnMs'; end if;
-  -- THE KILL BOUND'S BASE covers a party's default pull: every ground's spawns, as generated, and each at least its pockets' largest pull.
+  -- THE KILL BOUND'S BASE is the room as built for every group (Tyler 2026-11-11): every ground's spawns, as generated.
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.pockets, g.spawns) not in
                (${r.grounds.length ? r.grounds.map((g) => `(${sq(g.ground)}, ${g.pockets}, ${g.spawns})`).join(', ') : `(null::text, null::int, null::int)`})) then
-    raise exception 'a hunt ground''s spawns is not as-built plus its pockets at a party''s largest default pull'; end if;
+    raise exception 'a hunt ground''s spawns is not its rows as built (no party pull on Normal)'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
   if (select fields from public.hr_hunt_world_shape) is distinct from ${sq(JSON.stringify(r.world.fields))}::jsonb
      or exists (select 1 from unnest(array[${WORLD_FIELDS_READ.unit.map(sq).join(', ')}]) n

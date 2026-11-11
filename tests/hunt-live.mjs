@@ -1642,8 +1642,8 @@ function rules(M) {
     const pullOf = (s) => M.WS.decodeStored(JSON.parse(s.inst.world)).density;
     const closedPull = pullOf(closed), viewedPull = pullOf(r.srv);
     console.log('  LV-CLASS pull: density ' + closedPull + ' / ' + viewedPull + ', XP closed ' + closedXp + ', viewed ' + viewedXp + ', ' + off + ' commits off');
-    const pairPull = M.HG.huntGroundOf('meadowbrook_thicket').ground.partyPull[1];
-    ok('LV-CLASS', closedPull === pairPull && viewedPull === pairPull, 'pull: a Thicket pair with no pick stands at density ' + closedPull + ' closed, ' + viewedPull + ' viewed, want ' + pairPull);
+    /* ONE PACK ON NORMAL (Tyler 2026-11-11): a pair with no pick stands as built, as a hero alone does, on both doors */
+    ok('LV-CLASS', closedPull === 0 && viewedPull === 0, 'pull: a Thicket pair with no pick stands at density ' + closedPull + ' closed, ' + viewedPull + ' viewed, want the room as built (0)');
     ok('LV-CLASS', closedXp.join() === viewedXp.join() && closedXp.every((x) => x > 0), 'pull: viewed the server paid ' + viewedXp + ', with the browser closed ' + closedXp);
     ok('LV-CLASS', off === 0, 'pull: ' + off + ' of ' + r.verdicts.length + ' commits did not match the prediction');
   }
@@ -1670,9 +1670,10 @@ const MUTANTS = [
   ["the browser's prediction fights on a ground it cannot name (LV-CLASS, viewed)", 'src/hunt-view/live-engine.js',
     '    const where = huntGroundOf(String(live.instance.hunt));\n',
     "    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { id: 'nowhere' }) };\n", /^LV-CLASS: mixed: (the prediction|\d+ of)/],
-  ["the browser's prediction plays no party pull (LV-CLASS, viewed)", 'src/hunt-view/live-engine.js',
-    '    const where = huntGroundOf(String(live.instance.hunt));\n',
-    '    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { partyPull: undefined }) };\n', /^LV-CLASS: pull: \d+ of/],
+  /* (re-aimed, lane/c-brook-bear: the server's party pull is retired, so the plant gives the browser's prediction one of its own) */
+  ["the browser's prediction draws a bigger pull than the server (LV-CLASS, viewed)", 'src/hunt-view/live-engine.js',
+    'memberSide(Object.assign({}, mi, { gold: isInt(mi.gold) ? mi.gold : UNKNOWN_PURSE }), { items })',
+    'memberSide(Object.assign({}, mi, { density: 4, gold: isInt(mi.gold) ? mi.gold : UNKNOWN_PURSE }), { items })', /^LV-CLASS: pull: \d+ of/],
   ['a shield Melee and a Melee count as two classes (LV-CLASS)', 'src/data/party-class-xp.js',
     "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['tank', 'melee_dps']) }),",
     "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['melee_dps']) }), tanks: Object.freeze({ label: 'Tank', roles: Object.freeze(['tank']) }),", /^LV-CLASS: same/],

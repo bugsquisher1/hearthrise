@@ -15,10 +15,18 @@
 // The mutants prove the pin bites: one damage roll in a whole run one point higher, and each of the pure
 // optimizations this file was written to hold (lane/r-engine-profile) broken by one tile or one unit.
 //
-// mutant-anchors: src/core/hunt/damage.js src/core/hunt/roles.js src/core/hunt/movement.js src/core/xp.js
+// index-audited   THE SUB-STEP'S UNIT LISTS (src/core/hunt/unit-index.js, part 2) are kept between reads and dropped by
+//                 their writers. An audit planted into the index checks EVERY answer it gives against a fresh scan of the
+//                 list, through all four scenarios: a writer that forgot to drop it throws there, even where the stale
+//                 answer happened not to move a hash. The audited run must also hold the pins.
+// index-writers   Every line in src/core that writes a unit's `alive`, a `target` or a world's unit list is pinned below
+//                 with why the index stays true (it drops the index; a hero's target is in no list; it runs between
+//                 swings). A new writer fails here until it calls staleIndex(inst) or says why it needn't.
+//
+// mutant-anchors: src/core/hunt/damage.js src/core/hunt/roles.js src/core/hunt/movement.js src/core/hunt/grid.js src/core/hunt/targeting.js src/core/hunt/pull-cycle.js src/core/hunt/unit-index.js
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
 
@@ -98,6 +106,65 @@ for (const name of names) {
 const why = against(P, PIN, names);
 R.ok(!why, 'pinned: ' + why);
 
+/* THE INDEX AUDIT (unit-index.js current): every answer checked against a fresh build of the same list, and counted. */
+const AUDIT = ['src/core/hunt/unit-index.js', '  if (!ix || ix.units !== units || ix.n !== units.length) ix = inst.ix = build(units);\n  return ix;\n',
+  '  if (!ix || ix.units !== units || ix.n !== units.length) ix = inst.ix = build(units);\n'
+  + "  { const f = build(units); for (const k of ['engaged', 'targeted', 'mons', 'heroes', 'heroUnits']) { const a = ix[k]; const b = f[k];"
+  + " if (a.length !== b.length || a.some((u, i) => u !== b[i])) throw new Error('unit-index audit: a stale ' + k + ' list'); }"
+  + ' globalThis.__indexReads = (globalThis.__indexReads || 0) + 1; }\n  return ix;\n'];
+if (!process.argv.includes('--no-audit')) {
+  const p = plant([AUDIT], [...PLAY_TREES, 'tests/hunt-core/fixtures']);
+  try {
+    globalThis.__indexReads = 0;
+    let got = null;
+    try { got = against(await loadPlay(p.root), PIN, names); } catch (e) { got = 'threw ' + e.message; }
+    R.ok(!got, 'index-audited: ' + got);
+    /* the audit must have read the index, a lot: a swing that never indexes would pass it vacuously */
+    R.ok(globalThis.__indexReads > 100000, 'index-audited: the index was read ' + globalThis.__indexReads + ' times in four hunts');
+    if (process.argv.includes('--verbose')) console.log('  index-audited: ' + globalThis.__indexReads + ' answers, every one a fresh scan\'s');
+  } finally { p.done(); }
+}
+
+/* THE WRITERS (unit-index.js header). [file, the line as written, why the index stays true]. */
+const WRITERS = [
+  ['src/core/hunt-spawn.js', 'world.units = units;', 'a new world, between swings'],
+  ['src/core/hunt-spawn.js', 'world.units.push(heroUnit(id, hero, roles, ground.start[Math.max(0, seat) % ground.start.length]));', 'a hero joins between swings'],
+  ['src/core/hunt-spawn.js', 'world.units = world.units.filter((u) => u.id !== unitId);', 'a hero leaves between swings'],
+  ['src/core/hunt-spawn.js', 'for (const u of world.units) if (u.target === unitId) u.target = null;', 'a hero leaves between swings'],
+  ['src/core/hunt/leash.js', 'u.target = null;', 'resetPack drops the index'],
+  ['src/core/hunt/pull-cycle.js', 'w.units.push(u);', 'placeRow drops the index'],
+  ['src/core/hunt/pull-cycle.js', 'w.packs[p].alive = true;', 'a pack\'s alive, not a unit\'s'],
+  ['src/core/hunt/pull-cycle.js', 'if (u && on.length) { u.target = on[i % on.length].id; staleIndex(inst); }', 'spawnAdds drops the index'],
+  ['src/core/hunt/pull-cycle.js', 'u.alive = false;', 'fallen drops the index'],
+  ['src/core/hunt/pull-cycle.js', 'u.target = null;', 'fallen drops the index'],
+  ['src/core/hunt/pull-cycle.js', 'h.target = null;', 'a hero\'s target, in no list'],
+  ['src/core/hunt/pull-cycle.js', 'for (const m of packMonsters(inst, p)) m.target = k.id;', 'startPull drops the index'],
+  ['src/core/hunt/pull-cycle.js', 'w.packs[p].alive = false;', 'a pack\'s alive, not a unit\'s'],
+  ['src/core/hunt/pull-cycle.js', "if (gone) { w.units = w.units.filter((u) => u.side !== 'mon' || u.alive || u.deadMs < HUNT_TUNING.corpseMs); staleIndex(inst); }", 'clearCorpses drops the index'],
+  ['src/core/hunt/roles.js', 'if (m) h.target = m.id;', 'a hero\'s target, in no list'],
+  ['src/core/hunt/targeting.js', 'm.target = id;', 'retarget drops the index'],
+  ['src/core/hunt/targeting.js', 'if (!u.alive || !fighting) { u.target = null; continue; }', 'a hero\'s target, in no list'],
+  ['src/core/hunt/targeting.js', 'u.target = id;', 'a hero\'s target, in no list'],
+  ['src/core/hunt/world-state.js', 'w.units = ((o && o.units) || []).map(makeUnit);', 'a new world, between swings'],
+  ['src/core/hunt/world-state.js', "w.units = enc.u.map((r) => unrow('unit', r));", 'a decoded world, between swings'],
+];
+{
+  const re = /\.(alive|target)\s*=(?!=)|\.units\s*=(?!=)|\.units\.(push|splice|unshift|pop|shift|sort|reverse|fill|copyWithin)\(|\.units\[[^\]]*\]\s*=(?!=)/;
+  const found = [];
+  for (const f of readdirSync(join(ROOT, 'src/core'), { recursive: true }).filter((x) => String(x).endsWith('.js')).sort()) {
+    for (const line of readFileSync(join(ROOT, 'src/core', String(f)), 'utf8').split('\n')) {
+      const t = line.trim();
+      if (!t.startsWith('//') && !t.startsWith('*') && !t.startsWith('/*') && re.test(line)) found.push('src/core/' + String(f).replace(/\\/g, '/') + '  ' + t);
+    }
+  }
+  const pinned = WRITERS.map(([f, t]) => f + '  ' + t);
+  const extra = found.filter((x) => !pinned.includes(x)), gone = pinned.filter((x) => !found.includes(x));
+  R.ok(!extra.length && !gone.length && found.length === pinned.length, 'index-writers: '
+    + (extra.length ? 'a new writer of alive, a target or the unit list (call staleIndex(inst) where it writes, or say why it needn\'t, and pin it here): ' + extra.join(' | ') : '')
+    + (gone.length ? ' pinned writers no longer found: ' + gone.join(' | ') : '') + (found.length !== pinned.length ? ' (' + found.length + ' found, ' + pinned.length + ' pinned)' : ''));
+  if (process.argv.includes('--writers')) for (const x of found) console.log('  writer: ' + x);
+}
+
 /* THE MUTANTS. Each runs only the scenario that walks the code it breaks (a planted copy of the engine and the settle). */
 const mutants = [
   /* one roll, five points: at a monster with well over twice the blow's HP left (never an overkill the HP cap hides), past every floor */
@@ -118,7 +185,18 @@ const mutants = [
   { name: 'A* takes "too big to tell" for "sealed off" (grid.js sealedOff)', only: ['warrens-4', 'glade-4'],
     edits: [['src/core/hunt/grid.js', '      if (seen.size >= budget) return false;', '      if (seen.size >= budget) return true;']] },
   { name: 'the basic attack takes the last monster in range (targeting.js basicTarget)', only: ['glade-4'],
-    edits: [['src/core/hunt/targeting.js', 'return pickTargets(inst, u).find((m) => inRange(inst, u, m)) || null;', 'return pickTargets(inst, u).findLast((m) => inRange(inst, u, m)) || null;']] },
+    edits: [['src/core/hunt/targeting.js', 'if ((cmp(a, b) || dist2(a, u) - dist2(b, u) || a.id - b.id) < 0) bi = i;', 'if ((cmp(a, b) || dist2(a, u) - dist2(b, u) || a.id - b.id) > 0) bi = i;']] },
+  /* part 2: a writer that forgets the index (the audit planted beside it throws on the first stale answer). A death is read
+     again in its own sub-step; a pull is mostly read again only after the sub-step drops the index anyway, so it runs with the
+     sub-step's drop taken out too. A retarget moves a list only when it drops a target (no leader to turn on), which these
+     hunts never meet: tests/hunt-core/targeting.mjs an-indexed-retarget-is-read-at-once holds that writer. */
+  { name: 'a death leaves the index standing (pull-cycle.js fallen)', only: ['warrens-4'],
+    edits: [AUDIT, ['src/core/hunt/pull-cycle.js', '  u.target = null;\n  staleIndex(inst);\n', '  u.target = null;\n']] },
+  { name: 'a pull leaves the index standing, past the sub-step (pull-cycle.js startPull)', only: ['warrens-4'],
+    edits: [AUDIT, ['src/core/hunt/pull-cycle.js', '  for (const m of packMonsters(inst, p)) m.target = k.id;\n  staleIndex(inst);\n', '  for (const m of packMonsters(inst, p)) m.target = k.id;\n'],
+      ['src/core/hunt/world-step.js', '    inst.ix = null;\n', '']] },
+  { name: 'the cast order is the list\'s, not the ids\' (abilities.js castOrder)', only: ['warrens-4', 'glade-4'],
+    edits: [['src/core/hunt/abilities.js', '  return k ? [k, ...heroes.filter((u) => u !== k)] : heroes;', '  return k ? [...heroes.filter((u) => u !== k), k] : heroes;']] },
 ];
 
 const PICK = process.argv.includes('--no-mutants') ? [] : mutants;

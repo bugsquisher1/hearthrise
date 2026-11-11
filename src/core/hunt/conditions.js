@@ -65,6 +65,7 @@ import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.118';
 import { START_BAR } from '../../data/start-kit.js?v=0.2.118';
 import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.118';
 import { RUNE_ON_EMPTY, isRune, runeTierOf } from '../../data/runes.js?v=0.2.118';
+import { engagedOf, heroesByIdOf, livingOf } from './unit-index.js?v=0.2.118';
 
 /* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
    ruleWait: the last `rule_wait` reported, per lane ('ruleId:why'), so it is reported once.
@@ -421,7 +422,8 @@ export function footprintOf(slot, h) {
   return 1;
 }
 
-const engagedMons = (inst) => inst.world.units.filter((u) => u.side === 'mon' && u.alive && Number.isInteger(u.target));
+/* (unit-index.js: frozen lists, read once a sub-step in a swing) */
+const engagedMons = (inst) => engagedOf(inst);
 /* Can `hero` reach `t` with `range` tiles: adjacent for 1, else range + line of sight. */
 export function reaches(inst, hero, range, t) {
   const r = Math.max(1, int(range) || 1);
@@ -469,7 +471,7 @@ export function bestAim(inst, hero, range, n, slot) {
 
 /* A share as a ratio { n, d } (pct of a pool), so a test cross-multiplies: no floats. */
 const share = (v, max) => (int(max) > 0 ? { n: int(v), d: int(max) } : { n: 1, d: 1 });
-const heroesOf = (inst) => inst.world.units.filter((x) => x.side === 'hero' && x.alive).sort((a, b) => a.id - b.id);
+const heroesOf = (inst) => heroesByIdOf(inst);
 
 /* "Whose": `lowest` = the lowest share among living heroes the hero can reach (it
    included); `self` = the hero itself (a heal aimed at yourself, roadmap p23); a role
@@ -655,10 +657,16 @@ function noteWait(u, lane, wait, sc) {
    moved on the bar) and an id that is gone is dropped. */
 function rekey(u, h) {
   if (u.ruleWait && typeof u.ruleWait === 'object') {
-    const ids = new Set((Array.isArray(h.slots) ? h.slots : []).map((r) => r && r.rule));
-    const w = {};
-    for (const [lane, key] of Object.entries(u.ruleWait)) if (ids.has(String(key).slice(0, String(key).lastIndexOf(':')))) w[lane] = key;
-    u.ruleWait = Object.keys(w).length ? w : null;
+    const slots = Array.isArray(h.slots) ? h.slots : [];
+    const kept = (key) => { const id = String(key).slice(0, String(key).lastIndexOf(':')); return slots.some((r) => (r && r.rule) === id); };
+    const waits = Object.entries(u.ruleWait);
+    /* Every wait still on the bar (nearly every sub-step of every hero): the copy below would equal the object key for key, in
+       the same order, so it stands as it is (no reader keeps or changes it in place: noteWait and pickSlot replace it). */
+    if (!waits.length || !waits.every(([, key]) => kept(key))) {
+      const w = {};
+      for (const [lane, key] of waits) if (kept(key)) w[lane] = key;
+      u.ruleWait = Object.keys(w).length ? w : null;
+    }
   }
   if (u.ruleHold && typeof u.ruleHold === 'object') {
     const ids = new Set((Array.isArray(h.stopRules) ? h.stopRules : []).map((r) => r.id));
@@ -681,7 +689,8 @@ function rekey(u, h) {
 export function checkStopRules(inst, sc) {
   const heroes = inst.heroes || null;
   if (!heroes) return;
-  for (const u of inst.world.units) {
+  /* (the living heroes, unit-index.js, in list order; a stop rule kills nobody) */
+  for (const u of livingOf(inst, 'hero')) {
     if (u.side !== 'hero' || !u.alive) continue;
     const h = heroes[u.id];
     if (!h) continue;

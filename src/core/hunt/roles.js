@@ -25,6 +25,7 @@ import { walkable, cheb, dist2, los, ringFree, tileKey } from './grid.js?v=0.2.1
 import { inArea } from './leash.js?v=0.2.118';
 import { atRest, unitById, setGoal, clearGoal, candidateTiles, chooseSpot, standable, goToNearest, reachWithin } from './movement.js?v=0.2.118';
 import { roleOf, engaged, inRange, pickTargets } from './targeting.js?v=0.2.118';
+import { livingOf } from './unit-index.js?v=0.2.118';
 
 /* role/dist/chase/tmode: the hero's settings. queued: a monster with no surround slot.
    aiMs: ms until the unit re-picks its goal. */
@@ -322,7 +323,7 @@ function rangedPos(inst, h, mons) {
   if (h.aiMs > 0 && !nearMon) return;
   h.aiMs = AI_REPATH_MS.ranged;
   const want = h.dist;
-  const living = inst.world.units.filter((m) => m.side === 'mon' && m.alive);
+  const living = livingOf(inst, 'mon');
   const beside = besideNear(living, tgt, SPOT.searchRadius);
   const valid = (x, y) => inBand(dist2({ x, y }, tgt), want) && los(inst.grid, { x, y }, tgt) && !beside(x, y);
   const score = (x, y) => {
@@ -403,7 +404,8 @@ export function positionHeroes(inst, sc) {
   positionMonsters(inst, sc);
   const fighting = inst.world.phase === 'fight';
   const mons = engaged(inst);
-  for (const h of inst.world.units) {
+  /* (only a living hero is placed: unit-index.js, in list order; placing one kills nobody) */
+  for (const h of livingOf(inst, 'hero')) {
     const row = roleOf(h);
     if (!row || !h.alive) continue;
     if (!fighting || !mons.length) { h.spot = null; continue; }

@@ -16,6 +16,7 @@
 
 import { leashMarginOf } from '../../data/hunt-grounds.js?v=0.2.118';
 import { makeEvent } from './events.js?v=0.2.118';
+import { staleIndex } from './unit-index.js?v=0.2.118';
 
 /** Is (x, y) inside pocket `pocket`'s pack area (its room plus the ground's margin)? */
 export function inArea(inst, pocket, x, y) {
@@ -73,5 +74,6 @@ export function resetPack(inst, pocket, sc) {
     u.goal = u.home ? [u.home[0], u.home[1]] : null;
     u.path = [];
   }
+  staleIndex(inst);
   sc.emit(makeEvent('pack_reset', sc.atMs, { pocket }));
 }

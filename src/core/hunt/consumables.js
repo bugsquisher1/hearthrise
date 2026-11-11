@@ -51,6 +51,7 @@ import { CONSUMABLE_RULES as R, CONSUMABLE_KINDS, CONSUMABLES } from '../../data
 import { slotsFor, pickSlot } from './conditions.js?v=0.2.118';
 import { resolveLine, takeLine, lineAmount } from '../action-rules.js?v=0.2.118';
 import { makeEvent } from './events.js?v=0.2.118';
+import { livingOf } from './unit-index.js?v=0.2.118';
 
 /* An over-time half is [left, nextTickAtMs, ticksLeft, itemId], or null. */
 export const PERSISTED = Object.freeze({
@@ -165,7 +166,8 @@ function consumeOrder(u, rows) {
  */
 export function consume(inst, sc) {
   const heroes = inst.heroes || null;
-  for (const u of inst.world.units) {
+  /* (the living heroes, unit-index.js, in list order; eating and drinking kill nobody) */
+  for (const u of livingOf(inst, 'hero')) {
     if (u.side !== 'hero' || !u.alive) continue;
     tickOverTime(u, sc);
     if (int(u.laneAt) > sc.atMs) continue;

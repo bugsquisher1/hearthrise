@@ -34,6 +34,7 @@ import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.118';
 import { inArea, resetPack } from './leash.js?v=0.2.118';
 import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.118';
 import { makeEvent, trackStep } from './events.js?v=0.2.118';
+import { staleIndex } from './unit-index.js?v=0.2.118';
 import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.118';
 import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.118';
 
@@ -91,6 +92,7 @@ function placeRow(inst, p, s, sc) {
     target: null, home: at, x: at[0], y: at[1], fx: at[0], fy: at[1], speed: monsterSpeedOf(row) });
   w.nextId += 1;
   w.units.push(u);
+  staleIndex(inst);
   inst.occ.mon.set(tileKey(inst.grid, at[0], at[1]), u);
   if (sc) sc.track(trackStep(u.id, at[0], at[1], sc.atMs));   // a respawn is placed by the track (visual only)
   return u;
@@ -126,7 +128,7 @@ export function spawnAdds(inst, p, sc) {
   occupancy(inst);
   (inst.ground.pockets[p].adds || []).forEach((s, i) => {
     const u = placeRow(inst, p, s, sc);
-    if (u && on.length) u.target = on[i % on.length].id;
+    if (u && on.length) { u.target = on[i % on.length].id; staleIndex(inst); }
   });
 }
 
@@ -139,6 +141,7 @@ export function fallen(inst, u, sc) {
   u.alive = false;
   u.hp = 0;
   u.target = null;
+  staleIndex(inst);
   clearGoal(u);
   if (u.side === 'mon') { u.deadMs = 0; return; }
   u.spot = null;
@@ -173,6 +176,7 @@ function startPull(inst, sc, k, p) {
   pack.aggro = true;
   pack.holder = k.id;
   for (const m of packMonsters(inst, p)) m.target = k.id;
+  staleIndex(inst);
   clearGoal(k);
   inst.world.phase = PHASE.FIGHT;
   sc.emit(makeEvent('pull', sc.atMs, { pocket: p }));
@@ -340,5 +344,5 @@ export function clearCorpses(inst, sc) {
     u.deadMs += sc.dtMs;
     if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;
   }
-  if (gone) w.units = w.units.filter((u) => u.side !== 'mon' || u.alive || u.deadMs < HUNT_TUNING.corpseMs);
+  if (gone) { w.units = w.units.filter((u) => u.side !== 'mon' || u.alive || u.deadMs < HUNT_TUNING.corpseMs); staleIndex(inst); }
 }

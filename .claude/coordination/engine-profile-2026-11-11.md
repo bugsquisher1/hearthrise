@@ -87,7 +87,43 @@ Assumed: the fixture heroes (ladder kits, the reference bar) are a fair stand-in
 
 ## Owed
 
-- Coordinator: deploy hr-accrue with the next release (`pack-edge --hash` c2355acdd61158af80cf05e6864c4411e86ad4d955db73dbbcf84e4e04f83efd). Outputs are byte-identical, so a tick that mixes old and new isolates plays the same hunt.
-- After the deploy, re-measure live engine ms per party settle with the 11-10 baseline's tick-answer read. Expected about 275 mean (DERIVED).
-- A follow-up lane for item 2 (an engaged / living-heroes index per sub-step), now about 30% of a party's engine with chooseTargets.
+- Coordinator: deploy hr-accrue with the next release. Part 1 shipped in v0.2.120 (hash c2355acdd61158af80cf05e6864c4411e86ad4d955db73dbbcf84e4e04f83efd); part 2's hash is below. Outputs are byte-identical, so a tick that mixes old and new isolates plays the same hunt.
+- After the deploy, re-measure live engine ms per party settle with the 11-10 baseline's tick-answer read. Expected about 250 mean after both parts (375 less a third; DERIVED).
 - `hunt-settle.js:174` still says "0.19 s a party settle". Stale, as the 11-10 baseline noted. Not touched here.
+
+## Part 2: the sub-step's unit lists (same day, same branch)
+
+The follow-up named under item 2. Before part 2, a party's sub-step filtered the whole unit list (four heroes, six packs at density 8, every corpse) about 17 times, plus about 20 id lookups: 37.5 scans, counted with a planted counter.
+
+**What changed** (all pure):
+- `src/core/hunt/unit-index.js` (new) builds the engaged monsters, the monsters whose target is set, the living monsters, the living heroes, every hero unit and the living heroes by id in one pass, then keeps them until something changes them. Only a swing indexes (`world-step.js` sets `inst.indexed` and drops the index at every sub-step); every other caller gets the plain scan. Every answer is a frozen array, so a caller that sorts one in place throws instead of corrupting the next reader (`pickTargets` and the party heal now copy first). The writers of a unit's `alive`, a monster's `target` and the unit list (placeRow, spawnAdds, fallen, startPull, clearCorpses, resetPack, retarget) call `staleIndex(inst)`. A list that is replaced or grows is also caught by its identity and length.
+- `targeting.js engaged`, `abilities.js living / engaged`, `conditions.js engagedMons / heroesOf` and `roles.js rangedPos`'s living monsters read the index.
+- `abilities.js castOrder` takes the living heroes by id (castAbilities skipped everything else) instead of sorting every unit each sub-step. `targeting.js turnTanks` filters the living heroes.
+- `targeting.js basicTarget` picks the least monster in range without sorting the pack. pickTargets' order is a strict total order (the mode's key, then distance, then the unique id), so its first in-range monster is the least in-range one.
+- The hero loops in `chooseTargets`, `positionHeroes`, `consume` and `checkStopRules` walk the hero lists, not every unit.
+- `conditions.js rekey` leaves a hero's waits alone when every one is still on the bar, which is nearly every sub-step. The copy it made would have been equal key for key.
+- Tried and dropped: an id map in the index for `unitById`. Building a Map every sub-step cost more than about 20 finds, because heroes sit at the front of the list.
+
+**Numbers** (one process a side, alternating; ms per simulated second, median / p95):
+
+| Scenario | Part 1 (4e4157184) | Part 2 | Part 2's change (6 reps) | Both parts against the original engine (d86e0ac4f) |
+|---|---|---|---|---|
+| warrens-4 | 0.49 / 0.65 | 0.43 / 0.54 | median -12.1%, CPU total -12.3% | 0.67 -> 0.43, **-35.9%** median, CPU -35.2% (6 reps) |
+| glade-4 | 0.42 / 0.54 | 0.36 / 0.49 | median -13.8%, CPU total -12.3% | 0.53 -> 0.37, **-29.8%** median, CPU -30.5% (6 reps) |
+| glade-1 | 0.11 / 0.13 | 0.10 / 0.13 | median -4.1%, CPU total -3.5% | -13.6% median, CPU -13.3% (200 settles, 4 reps) |
+| thicket-1 | 0.08 / 0.10 | 0.07 / 0.08 | median -7.4%, CPU total -8.0% | -6.4% median, CPU -5.8% (200 settles, 4 reps) |
+
+A lone hero's 50-settle run holds under 0.5 s of engine time, and repeated runs read anywhere from -9% to +10%. So the solo cumulative figures come from 200 settles.
+
+**Parity** (`tests/hunt-core/engine-parity.mjs`):
+- The same pins, unchanged (`engine-parity.baseline.json` is untouched).
+- **index-audited**: an audit planted into the index checks every answer against a fresh scan for all four hunts. That was 856,599 answers, none stale, and the pins still held.
+- **index-writers**: the 20 lines in src/core that write `alive`, a `target` or a unit list are pinned, each with the reason the index stays true.
+- 10 mutants caught: the 7 from part 1 (the basicTarget one re-anchored on the selection), plus a death that leaves the index standing, a pull that leaves it standing past the sub-step, and a cast order by list rather than by id.
+- The one writer these hunts never exercise (a retarget that drops a target) has its own case: `tests/hunt-core/targeting.mjs an-indexed-retarget-is-read-at-once`, with its mutant.
+- The rekey shortcut has a mutant in `tests/hunt-core/conditions.mjs rekey`.
+- `play.html`'s preload block gains the new module (`tests/module-preload.mjs --write`).
+
+**What is left** (V8 sampler, share of a smaller total): the ranged spot search is about 18% (its scoring and line of sight, done per candidate). The bar's conditions are about 17-19% (`testSlot -> holds -> allyOf / bestAim`, per slot per hero per sub-step). Rebuilding `occupancy` 2-3 times a sub-step costs 5-6%. None of these has a single pure change I'd expect to clear 10%.
+
+Edge: `pack-edge --hash` hr-accrue bce17306075bcb8d7e7e5ca872860aa796c6caae449a12d4e3415eccfd960df7 (not deployed).

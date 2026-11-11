@@ -121,7 +121,7 @@ async function inject(page, st, opts) {
     const body = '<div class="hpb">'
       + '<div class="hpb-left"><h3 class="hw-ledger-head is-on">Setups</h3><ul class="hpb-sets">' + setsHtml + '</ul>'
       + '<div class="hpb-leftrow"><button type="button" class="hh-tool">+ New setup</button>'
-      + '<button type="button" class="hh-tool hpb-from">Start from what you wear<small>Copies what you have on into ' + esc(picked.name) + '</small></button>'
+      + '<button type="button" class="hh-tool hpb-from">Use equipped<small>Copies what you have on into ' + esc(picked.name) + '</small></button>'
       + '<p class="hpb-count">' + st.sets.length + ' of 5 setups</p></div></div>'
       + '<div class="hpb-right">'
       + '<div><h3 class="hw-ledger-head is-on">Fights as</h3><div class="hpb-plays"><span class="hh-segs" role="group" aria-label="Fights as">' + plays + '</span>'

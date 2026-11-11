@@ -22,7 +22,7 @@
 // confirm press; nothing refuses a Level (Tyler 2026-11-04 UTC).
 //
 // IN A PARTY (PARTY_SPEC.md §1.5, Tyler 10-19) the ground is chosen HERE, at
-// Start: the leader's Enter reads "Start with party" and is ONE
+// Start: the leader's Enter reads "Enter with party" and is ONE
 // hr_hunt_party_start naming the picked hunt; everyone walks in together, each
 // with their own saved setup, or nobody, and the answer names who was not
 // ready. A member's Enter stays off ("the leader starts the hunt"). The party
@@ -139,7 +139,7 @@ function saveTier(cs, sc, repaint) {
   return p;
 }
 
-/* Enter / Start with party never goes on an unsaved tier: the draft is saved first, and a refused save refuses the start. */
+/* Enter / Enter with party never goes on an unsaved tier: the draft is saved first, and a refused save refuses the start. */
 function afterTier(cs, sc, repaint, go) {
   if (!sc.draft && !sc.saving) return go();
   return saveTier(cs, sc, repaint).then((r) => (r && r.ok === false ? r : go()));
@@ -242,7 +242,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const nowEl = root.querySelector('.hw-hunts-now');
   text(nowEl, now ? 'You are hunting in ' + huntName(now.huntId) + '. Leave that hunt to go somewhere else.'
     : follower ? 'Your party leader picks the hunt and starts it. You walk in with everyone, with your own setup.'
-    : party ? 'Pick a hunt, then Start with party. Everyone walks in together, each with their own setup.'
+    : party ? 'Pick a hunt, then Enter with party. Everyone walks in together, each with their own setup.'
     : 'Pick a hunt, then Enter. Your hero walks there and fights on its own.');
   /* The how-to (not a running hunt) gives its room to the ground's page on the phone sheet. */
   cls(nowEl, 'is-hint', !now);
@@ -415,18 +415,18 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     sc.pick = hunt;
     const lead = partyMembershipOf(cs);
     if (!lead.isLeader) return true;
-    /* A seat under this ground's floor hears it first: the first press tells them and arms "Start anyway", the second goes (panel 2026-11-01, designer's list).
+    /* A seat under this ground's floor hears it first: the first press tells them and arms "Enter anyway", the second goes (panel 2026-11-01, designer's list).
        A leader alone under it has already read the words on this page: the press only arms. */
     const row = huntRows().find((x) => x.hunt === hunt);
     const low = row ? seatsUnder(row, lead) : { under: [] };
     if (low.under.length && sc.warned !== warnKey(hunt, low.under)) {
       runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), 'Telling your party…',
-        () => underWords(row, low.under) + ' They have been told. Press Start anyway to go.', cs).then(() => { sc.warned = warnKey(hunt, low.under); repaint(); });
+        () => underWords(row, low.under) + ' They have been told. Press Enter anyway to go.', cs).then(() => { sc.warned = warnKey(hunt, low.under); repaint(); });
       return true;
     }
     if (!low.under.length && row && rangeWords(row, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {
       sc.warned = warnKey(hunt, []);
-      sc.msg = 'Press Start anyway to go.';
+      sc.msg = 'Press Enter anyway to go.';
       repaint();
       return true;
     }

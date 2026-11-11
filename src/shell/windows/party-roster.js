@@ -7,7 +7,7 @@
 // this window held only Invites and Find a party. So while the viewed hero sits
 // in a party, the window opens on this tab: every seat (name, level, role from
 // the weapon, the leader's crown, away / hunting / in town), the next step
-// (the leader picks a hunt in the Hunts window, where "Start with party"
+// (the leader picks a hunt in the Hunts window, where "Enter with party"
 // lives; a member waits for the leader) and Leave party / Disband.
 //
 // Everything is the SERVER's: the seats are party-panel.js rosterOf over the

@@ -81,6 +81,7 @@ export const ITEM_TEXT = Object.freeze({
 
   /* A requirement, against the server's number. */
   need_level: 'Needs Level {level}',
+  locked_unlock_first: '{item} is locked. Unlock it first.',
   need_level_have: 'Needs Level {level} (you\'re {have})',
   need_skill: 'Needs {skill} {level}',
   need_skill_have: 'Needs {skill} {level} (you have {have})',

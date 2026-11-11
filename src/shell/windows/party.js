@@ -6,7 +6,7 @@
 //               tabs) -> Invite to party; the first invite makes the party
 //   the roster  the Party panel (src/shell/widgets/party-panel.js) in a hunt, with Leave /
 //               Kick / Disband; in town, this window's Your party tab (same roster, same Leave)
-//   start       the leader's "Start with party" in the Hunts window, where the
+//   start       the leader's "Enter with party" in the Hunts window, where the
 //               ground is chosen
 // So this window holds what has no other home, as three tabs:
 //   Your party    shown only while THIS character sits in a party, and the tab

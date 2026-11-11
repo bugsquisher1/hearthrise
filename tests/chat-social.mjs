@@ -1134,7 +1134,7 @@ const PAGE_MUTANTS = [
     "  if (!el.hasAttribute('data-hs-player')) { markPlayer(el, target(p)); text(el.querySelector('.hf-who'), p.name); }"],
   ['a friend row targets the account, not its hero (FR-2)', 'src/shell/windows/friends.js', "slot: Number.isInteger(p.slot) ? p.slot : null });", 'slot: null });'],
   ['a mutual ask reads "Asked" (FR-2)', 'src/shell/windows/friends.js', '(r) => ASK_WORDS[r && r.state] || ASK_WORDS.requested);', '() => ASK_WORDS.requested);'],
-  ['a refused Unblock is silent (FR-2)', 'src/shell/windows/friends.js', "settle(ctx, body, st, actBlocks(ctx, body, t), '');", 'actBlocks(ctx, body, t);'],
+  ['a refused Unblock is silent (FR-2)', 'src/shell/windows/friends.js', "settle(ctx, body, st, actBlocks(ctx, body, el), '');", 'actBlocks(ctx, body, el);'],
   ['a blocked row keeps its first name (FR-2)', 'src/shell/windows/block-list.js', "patch: (el, p) => { text(el.querySelector('b'), p.name);", "patch: (el, p) => { if (!el.querySelector('b').textContent) text(el.querySelector('b'), p.name);"],
   ['a held chat line keeps its old name (CW-10)', 'src/social/chat-store.js', 'if (this._ids.has(l.id)) return this._rename(l);', 'if (this._ids.has(l.id)) return false;'],
   ['a drawn line never repaints its name (CW-10)', 'src/shell/windows/chat.js', 'build: (l) => lineEl(ctx, l), patch: patchName });', 'build: (l) => lineEl(ctx, l), patch: () => {} });'],

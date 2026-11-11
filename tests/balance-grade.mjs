@@ -102,6 +102,14 @@ check(!WC.rules.some((r) => r.metric === 'deaths' && r.min != null && r.binding)
     if (!only.length) { console.log('  --   as it ships: every drop of ' + g + ' is gettable elsewhere, nothing to open'); continue; }
     check(only.every((id) => gear.reachWith([g]).has(id)), 'as it ships: ' + only.length + ' drops found only on ' + g + ' are on its ladder with openAlso, and off it without');
   }
+  /* --open-also: a pair that ships together (pack check --with); a name that is no ground is refused before anything plays */
+  if (staged.length > 1) {
+    const [a, b] = staged, pair = await buildGrid(ROOT, 'quick', { grounds: [a], openAlso: [b] });
+    check(pair.every((j) => j.gear.openAlso.join() === a + ',' + b && j.id.includes(',open=' + a + '+' + b)), 'as it ships with ' + b + ': ' + a + '\'s jobs open both, and their ids say so');
+  }
+  let refused = false;
+  try { await buildGrid(ROOT, 'quick', { grounds: [open], openAlso: ['no_such_ground'] }); } catch { refused = true; }
+  check(refused, 'as it ships: --open-also with no such ground is refused');
 }
 
 const L = levelsOf([5, 15], ['under5', 'under3', 'under2', 'floor', 'plus10', 'top']);

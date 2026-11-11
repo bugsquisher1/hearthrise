@@ -8,8 +8,9 @@
 //   node tools/player-read.local.mjs --selftest            the diff rules on fixtures
 //
 // WHAT IT READS. Every row of src/data/text/*.js (a plural row's forms each on their own line, keyed surface.key.form), the
-// newest CHANGELOG.md entry (its lines that base's copy of the same entry lacks), and every .claude/notes-v*.md the range
-// changed (its added lines). A cut row is listed too, so the reader sees what went.
+// newest CHANGELOG.md entry (its lines that base's copy of the same entry lacks), every .claude/notes-v*.md the range
+// changed (its added lines), and every ground pack's lines (src/data/grounds/<id>: its name and theme, monster and item names,
+// item lines; keyed pack.<id>.<field>). A cut row is listed too, so the reader sees what went.
 // THE GATE (the Coordinator, before every release): a fresh reader, never the author of the lines, answers --rubric for each
 // line. A line with any "no" is flagged and blocks the release until it is rewritten.
 import { execFileSync } from 'node:child_process';
@@ -66,6 +67,38 @@ export function diffRows(baseRows, headRows) {
   return out;
 }
 
+/* A GROUND PACK'S LINES (lane/b-slake-and-ford 2026-11-11; Tyler on Hask's Ford: "Fix your voice"). A pack (src/data/grounds/<id>)
+   carries its own player text, which src/data/text never sees: the ground's name and theme, its monsters' and items' names and the
+   items' lines. Read as rows, so they diff like the text tables. */
+const PACKS_DIR = 'src/data/grounds/';
+/** A pack's player lines: [[id, text]]. */
+export function packRows(p) {
+  if (!p) return [];
+  const out = [], put = (k, v) => { if (typeof v === 'string' && v.trim()) out.push([`pack.${p.id}.${k}`, v]); };
+  put('name', p.hunt && p.hunt.name);
+  put('theme', p.hunt && p.hunt.theme);
+  for (const [m, row] of Object.entries(p.monsters || {})) put(`monster.${m}`, row && row.name);
+  for (const [k, row] of Object.entries(p.items || {})) put(`item.${k}`, row && row.n);
+  for (const [k, v] of Object.entries(p.itemText || {})) put(`itemText.${k}`, v);
+  return out;
+}
+/** The pack `id` as `ref` holds it (its pack.js, map.js and the shared shape.js, laid out in a temp dir and imported), or null. */
+async function packAt(ref, id) {
+  const pack = show(ref, `${PACKS_DIR}${id}/pack.js`);
+  if (pack === null) return null;
+  const { mkdtempSync, mkdirSync, rmSync } = await import('node:fs');
+  const { pathToFileURL } = await import('node:url');
+  const dir = mkdtempSync(join(tmpdir(), 'player-read-pack-'));
+  try {
+    mkdirSync(join(dir, id));
+    writeFileSync(join(dir, 'shape.js'), show(ref, `${PACKS_DIR}shape.js`) || '');
+    writeFileSync(join(dir, id, 'map.js'), show(ref, `${PACKS_DIR}${id}/map.js`) || 'export default {};');
+    writeFileSync(join(dir, id, 'pack.js'), pack);
+    return (await import(pathToFileURL(join(dir, id, 'pack.js')).href)).default;
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+const packIdsAt = (ref) => { try { return git(['ls-tree', '-d', '--name-only', ref, PACKS_DIR]).split('\n').map((l) => l.trim().slice(PACKS_DIR.length)).filter(Boolean); } catch { return []; } };
+
 /** The newest CHANGELOG entry's lines that base's copy of the same entry lacks: [{ id, text }]. */
 export function changelogLines(baseLog, headLog) {
   const entry = (log, version) => {
@@ -108,6 +141,7 @@ async function list(base, outPath) {
     const surface = f.slice(TEXT_DIR.length, -3);
     entries.push(...diffRows(await rowsOf(surface, show(base, f)), await rowsOf(surface, show('HEAD', f))));
   }
+  for (const id of [...new Set([...packIdsAt(base), ...packIdsAt('HEAD')])].sort()) entries.push(...diffRows(packRows(await packAt(base, id)), packRows(await packAt('HEAD', id))));
   for (const l of changelogLines(show(base, 'CHANGELOG.md'), show('HEAD', 'CHANGELOG.md'))) entries.push({ kind: 'CHANGELOG', ...l });
   const notes = git(['diff', '--name-only', base, 'HEAD', '--', '.claude']).split('\n').filter((f) => /(^|\/)notes-v[^/]*\.md$/.test(f));
   for (const f of notes) for (const l of addedLines(git(['diff', '-U0', base, 'HEAD', '--', f]), f)) entries.push({ kind: 'NOTES', ...l });
@@ -144,6 +178,11 @@ async function selftest() {
   const cl = changelogLines(log('0.2.5', '- Kept line.'), log('0.2.5', '- Kept line.\n- New line.'));
   check(cl.length === 1 && cl[0].text === '- New line.' && /^CHANGELOG v0\.2\.5:\d+$/.test(cl[0].id), 'the newest CHANGELOG entry: only its new lines');
   check(changelogLines(log('0.2.4', '- Kept line.'), log('0.2.5', '- Kept line.')).length === 2, 'a new CHANGELOG entry: every line, heading included');
+  const pk = (theme, line) => ({ id: 'g', hunt: { name: 'G Ford', theme }, monsters: { m: { name: 'Pikeman', hp: 1 } }, items: { t: { n: 'Token', v: 1 } }, itemText: { t: line } });
+  const pd = diffRows(packRows(pk('Old line.', 'A token.')), packRows(pk('New line.', 'A token.')));
+  check(packRows(pk('x', 'y')).map((r) => r[0]).join() === 'pack.g.name,pack.g.theme,pack.g.monster.m,pack.g.item.t,pack.g.itemText.t', 'a pack: its name, theme, monster and item names and item lines');
+  check(pd.length === 1 && pd[0].kind === 'CHANGED' && pd[0].id === 'pack.g.theme' && pd[0].was === 'Old line.', 'a pack: a changed theme, with what it was');
+  check(diffRows([], packRows(pk('x', 'y'))).length === 5 && packRows(null).length === 0, 'a new pack: every line is new; no pack, no rows');
   const added = addedLines('+++ b/.claude/notes-v1.md\n@@ -3,0 +4,2 @@\n+First new.\n+\n@@ -9 +11 @@\n-old\n+Second new.\n', 'n.md');
   check(added.map((a) => a.id + ' ' + a.text).join('|') === 'n.md:4 First new.|n.md:11 Second new.', 'notes: added lines with their line numbers');
   console.log(bad ? `player-read selftest: ${bad} FAILED` : 'player-read selftest: ok');

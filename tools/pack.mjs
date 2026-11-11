@@ -7,7 +7,7 @@
 //   node tools/pack.mjs propose <ground> [--write]   the formula's numbers for every monster on the ground's roster, beside its
 //                                                    rows (tools/gen-ground-stats.mjs proposeGround over src/data/balance-sheet.js);
 //                                                    --write puts them into the rows, in monsters.js or the pack's own file
-//   node tools/pack.mjs check <ground> [--mode quick|full] [--workers N]
+//   node tools/pack.mjs check <ground> [--mode quick|full] [--workers N] [--with <staged ground>,...]
 //                                                    lint (the ground row, its roster, the formula) and then the grader on the real
 //                                                    engine (tools/balance-sim/grade.mjs --grounds <ground>, a STAGED one included,
 //                                                    played as it ships: its own drops on the gear ladder, as every open ground's are):
@@ -22,7 +22,8 @@
 // propose and check work on every ground, a pack's or one authored in the old files.
 // ════════════════════════════════════════════════════════════════════════
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, statSync, readdirSync, readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
@@ -108,9 +109,42 @@ async function check(gid, argv) {
   console.log('pack check ' + gid + ': lint and formula clean; the grader plays it next');
   const mode = argv.includes('--mode') ? argv[argv.indexOf('--mode') + 1] : 'quick';
   const workers = argv.includes('--workers') ? argv[argv.indexOf('--workers') + 1] : '4';
-  const out = join(ROOT, 'tools', 'balance-sim', 'out', 'pack-' + gid + '-' + mode);
-  const r = spawnSync(process.execPath, [join(ROOT, 'tools', 'balance-sim', 'grade.mjs'), '--mode', mode, '--grounds', gid, '--workers', workers, '--out', out], { stdio: 'inherit' });
+  /* --with a,b: staged grounds that ship with this one (their drops on the gear ladder too), graded in a folder of their own */
+  const withIds = argOf(argv, 'with') ? argOf(argv, 'with').split(',').filter(Boolean) : [];
+  const out = join(ROOT, 'tools', 'balance-sim', 'out', 'pack-' + gid + '-' + mode + (withIds.length ? '-with-' + withIds.join('+') : ''));
+  setAsideStale(out);
+  const r = spawnSync(process.execPath, [join(ROOT, 'tools', 'balance-sim', 'grade.mjs'), '--mode', mode, '--grounds', gid, '--workers', workers, '--out', out,
+    ...(withIds.length ? ['--open-also', withIds.join(',')] : [])], { stdio: 'inherit' });
   process.exit(r.status == null ? 1 : r.status);
+}
+
+/* A STOPPED RUN RESUMES, A STALE ONE DOES NOT (lane/b-slake-and-ford 2026-11-10). The grader resumes by cell id, and an id names the
+   cell, not the data: after a row or the engine moved, a re-run kept the old cells and graded them as new. The folder keeps a hash of
+   everything a cell reads (src, the edge's engine, the simulator, the play fixture); when it differs, the old cells are set aside. */
+const CELL_INPUTS = ['src', 'supabase/functions/hr-accrue', 'tools/balance-sim', 'tests/hunt-core/fixtures'];
+export function inputsHash(root = ROOT) {
+  const h = createHash('sha256');
+  const walk = (rel) => {
+    const abs = join(root, rel);
+    if (!existsSync(abs)) return;
+    if (statSync(abs).isDirectory()) {
+      if (rel.replace(/\\/g, '/') === 'tools/balance-sim/out') return;
+      for (const e of readdirSync(abs).sort()) walk(join(rel, e));
+    } else if (/\.(m?js|json)$/.test(rel)) h.update(rel.replace(/\\/g, '/') + '\0').update(readFileSync(abs)).update('\0');
+  };
+  for (const d of CELL_INPUTS) walk(d);
+  return h.digest('hex');
+}
+function setAsideStale(out) {
+  const now = inputsHash(), stamp = join(out, 'inputs.sha256'), cells = join(out, 'cells.jsonl');
+  const was = existsSync(stamp) ? readFileSync(stamp, 'utf8').trim() : null;
+  if (existsSync(cells) && was !== now) {
+    const aside = join(out, 'cells.stale-' + (was || 'unstamped').slice(0, 8) + '.jsonl');
+    renameSync(cells, aside);
+    console.log('pack check: the data or the engine moved since the cells here were played; set aside as ' + aside);
+  }
+  mkdirSync(out, { recursive: true });
+  writeFileSync(stamp, now + '\n');
 }
 
 /* --selftest: every shipped ground lints clean, and each refusal bites a mutant of a real one. */

@@ -63,9 +63,12 @@ const { STYLES } = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/gear
 const groundIds = Object.keys(G.HUNT_GROUNDS);
 const floorOf = (g) => HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band[0];
 
+/* A STAGED ground (a pack not yet open) is played as it ships, its own drops on the gear ladder (tools/balance-sim/gear.mjs openAlso,
+   the grader's rule): otherwise a ground whose tier drops only there is played a tier under. */
+const stagedGear = (g) => (Object.prototype.hasOwnProperty.call(G.OPEN_GROUNDS, g) ? {} : { gear: { openAlso: [g] } });
 const cellOf = (g, arm, seed, party, name) => ({
   id: [g, arm.id, seed, name].join(':'), ground: g, party, level: floorOf(g), hours: party.length === 1 && arm.density === null ? SOLO_HOURS : HOURS, seeds: 1, seedBase: seed,
-  ...(arm.density === null ? {} : { density: arm.density }),
+  ...(arm.density === null ? {} : { density: arm.density }), ...stagedGear(g),
 });
 
 function oneClassProblems() {

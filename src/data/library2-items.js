@@ -297,7 +297,7 @@ export const LIB2_DESC = {
 
   chitin_helmet: 'A hood covered in overlapping bug shell. It\'s lighter than leather and cold to the touch',
   chitin_body: 'Pieces of bug shell laid like roof tiles and stitched onto a hide backing',
-  chitin_pants: 'Leg armor made of shell segments. They click a little with every step you take',
+  chitin_pants: 'Leg armor made of shell segments that click a little with every step you take',
   chitin_boots: 'Boots capped with bug shell. A bite that would go through tanned leather won\'t get through these',
   chitin_gloves: 'Arm guards made of shell bands, with claws on the knuckles because that\'s how the shell grew',
   chitin_belt: 'A belt of linked shell plates, and each plate came off a different creature',

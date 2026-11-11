@@ -139,5 +139,5 @@ export const IMBUE_DESC = Object.freeze({
   torn_company_badge: 'The Banded Company badge a Turncoat cut off his coat when he ran. The loose threads are still hanging off it',
   dented_copper_pot: 'The copper pot a Goblin Digger wears as a helmet. It\'s dented from every blade that\'s ever hit it',
   foremans_lash: 'The knotted lash a Hobgoblin Foreman keeps the diggers working with',
-  coppercaps_tallow: 'The tallow Chief Coppercap rubs into his skin. That\'s why frost barely hurts him',
+  coppercaps_tallow: 'The tallow Chief Coppercap rubs into his skin. That\'s why frost doesn\'t hurt him as much',
 });

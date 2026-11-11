@@ -127,6 +127,7 @@ export function createClipHook(o) {
      *   { anim, frame, dir, diag }  a swing ('attack') or a flinch ('hit') on a facing the clip has
      *   { recoil: [dx, dy] }          a landed blow with no flinch near enough
      * `act` is swingAt's answer for the unit; (dir, diag, hx, hy) the facing it stands in.
+     * @returns {{anim?: string, frame?: number, dir?: string, diag?: string|null, recoil?: number[]}|null}
      */
     clipAt(u, id, now, act, f) {
       if (act) {
@@ -151,6 +152,7 @@ export function createClipHook(o) {
      * A DEAD unit `age` ms into its fall, lying the way it fell (f: the facing it fell with): its death clip in the
      * nearest facing the clip has, then its corpse frame of that same facing (else the fall's last frame, held); null
      * when the sprite has no death clip at all (scene.js greys it, or a hero keeps standing as before).
+     * @returns {{anim: string, frame: number, dir: string, diag: string|null}|null}
      */
     fallAt(id, age, f) {
       const c = clipOf(id, 'death');

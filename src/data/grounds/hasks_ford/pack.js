@@ -187,8 +187,13 @@ export default definePack({
      is a straight factor on the share, so each mixed cell is its old one times its target over its reading: the four's 1570 x 1.20 / 0.60 =
      3150 (the three-class four 0.98 of it and the two-class 0.90, the base grounds' spread), the pair 1230 x 1.10 / 0.71 = 1905, the threes
      between (x1.77, the two sizes' mean). One-class cells stay at 1150: they already hold every one-class party under solo (party-class-xp-line),
-     and a raise would carry it over solo on the big-pull tiers (10-31). */
-  partyClassXp: { 2: [990, 1905], 3: [1150, 2480, 2670], 4: [1150, 2830, 3090, 3150] },
+     and a raise would carry it over solo on the big-pull tiers (10-31).
+     RE-READ ON THE FULL GRADE (8 lone ways, 6 seeds x 4 h; parties 2 x 2 h; the Slake's weapons on the ladder): the median of eight lone ways sits
+     under the quick grade's four, so every mixed cell read about 5% high: the four of four classes 1.30 / 1.25 / 1.24 at the floor, middle and top
+     at 3150, the four of three 1.25 / 1.21 / 1.20 at 3090, the pairs 1.17-1.24 at 1905, the threes 1.25-1.42 at 2670. Each cell scaled to its
+     target once more: the four 3000 (reads about 1.24 / 1.19 / 1.18) over the three-class four at 2980, the pair 1760 (about 1.08-1.15), the threes
+     2310 and 2145 (about 1.08-1.23; a three with no tank earns most). A four's spread from the floor to the top is 5%, inside the band's 8.7%. */
+  partyClassXp: { 2: [990, 1760], 3: [1150, 2145, 2310], 4: [1150, 2700, 2980, 3000] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives.
      Measured at the floor on the default pull, as it ships (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10
      late, the four's cells at 1565 and 1570). One class is the mean of its five one-class parties (pairs 0.80-0.89, threes

@@ -185,8 +185,11 @@ export default definePack({
   /* ONE PACK ON NORMAL FOR EVERY GROUP (Tyler 2026-11-11; lane/d-packs-retune, 2026-11-12; the Ford's note says the method). At the cells above a
      four of four classes read 0.65-0.67 of the median lone way (quick grade, floor and middle) and a tank and Healer pair 0.78-0.79. The four's
      1570 x 1.20 / 0.66 = 2860 (the three-class four 0.98 of it, the two-class 0.90), the pair 1270 x 1.10 / 0.785 = 1780, the threes between
-     (x1.6). One-class cells stay: 990 and 1150 already hold every one-class party under solo (party-class-xp-line). */
-  partyClassXp: { 2: [990, 1780], 3: [1150, 2240, 2415], 4: [1150, 2570, 2800, 2860] },
+     (x1.6). One-class cells stay: 990 and 1150 already hold every one-class party under solo (party-class-xp-line).
+     THE FULL GRADE'S READ (the Ford's note): the eight lone ways' median sits about 5% under the quick grade's four, so each mixed cell is 5% under its
+     quick-grade number, the threes 13.5% under (a three with no tank earns most): the four 2720 over 2700 and 2450, the pair 1645, the threes 2090
+     and 1940. Measured on the full grade with the Ford's armor on the ladder (the board, 2026-11-12 Packs re-tuned). */
+  partyClassXp: { 2: [990, 1645], 3: [1150, 1940, 2090], 4: [1150, 2450, 2700, 2720] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives.
      Measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10). One class is the
      mean of its five one-class parties (pairs 0.83-0.89, threes 0.81-0.92, fours 0.81-0.93). Two of two is the mean of three mixes

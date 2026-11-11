@@ -457,12 +457,11 @@ async function blessArm(db, { H, M }, attended) {
 // ═══════════════════════════════════════════════════════════════════════
 /* Each mutant: the file, its [find, replace], the arm that must go red. The file's own
    self-check is turned into an uncalled function so the defect reaches the arm. */
-/* hr_hunt_apply_member's LAST author is 2027-03-25-death-share.sql §2: restated WHOLE (tests/patch-chain-guard.mjs) on
-   2027-03-22-live-events.sql §5(b)'s restatement (v0.2.113: a death costs a share of the total Level XP), which followed
-   2027-03-21-scaled-hunts.sql's on 2027-01-31-inner-flame.sql's restatement and 2027-03-12-boss-call.sql's splice.
-   Each restatement pins its pre-image, so a plant in any earlier file trips a pin and the chain never boots: a memberPlant mutant is
-   planted into the live body (plantLive), the text that runs. Shared with tests/settle-hooks.mjs. */
-export const MEMBER_LAST = '2027-03-25-death-share.sql';
+/* hr_hunt_apply_member's LAST author is 2027-04-12-tick-enrol-restated.sql §2: restated WHOLE, byte for byte the body
+   2027-03-25-death-share.sql §2 restated plus 2027-04-08-member-write-once.sql §1's splice (tests/patch-chain-guard.mjs PATCH-3,
+   v0.2.121). Each restatement pins its pre-image, so a plant in any earlier file trips a pin and the chain never boots: a
+   memberPlant mutant is planted into the live body (plantLive), the text that runs. Shared with tests/settle-hooks.mjs. */
+export const MEMBER_LAST = '2027-04-12-tick-enrol-restated.sql';
 /* A PATCH IS AN AUTHOR: hr_hunt_instance_read is restated last by 2027-02-27-hunt-tiers.sql and then spliced in place (anchored
    replaces of pg_get_functiondef) by 2027-03-21-scaled-hunts.sql and READ_PATCH_LAST, so its last author is a patch. */
 const READ_RESTATE_LAST = '2027-02-27-hunt-tiers.sql';
@@ -476,7 +475,7 @@ const MUTANTS = [
     find: "        if v_n < 0 and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then",
     repl: "        if false and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then" },
   /* hr_hunt_loot_rules is RESTATED last by 2027-01-23-loot-dispatch.sql (md5-pinned to its pre-image); hr_hunt_apply_member
-     is restated last by 2027-01-31-inner-flame.sql (memberPlant): each mutant is planted in the body that runs. */
+     is restated last by MEMBER_LAST (memberPlant): each mutant is planted in the body that runs. */
   { arm: 'A-LOOT-AWAY', why: 'the settle no longer runs the loot filter',
     ...memberPlant("  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", '  v_loot := null;') },
   { arm: 'A-LOOT-ATTENDED', file: '2027-01-23-loot-dispatch.sql', why: 'a sell plan acts at pickup again',
@@ -510,7 +509,7 @@ const MUTANTS = [
   { arm: 'A-STAMINA', file: '2026-10-25-stamina-refill.sql', why: 'the refill charges and never writes the pool',
     find: "   where user_id = v_uid and slot = p_slot;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price,",
     repl: "   where false;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price," },
-  /* hr_hunt_apply_member is patched last by 2027-01-20-tutorial-facts.sql: the hook call is planted in the body that runs. */
+  /* hr_hunt_apply_member is restated last by MEMBER_LAST: the hook call is planted in the body that runs. */
   { arm: 'A-BLESS-AWAY', why: 'the death no longer applies blessings',
     ...memberPlant('    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', '    v_bless := null;') },
   /* ('every fall of the window is protected, not the first' RETIRED with the core rebuild: a hunt holds one death,

@@ -36,8 +36,11 @@
 // WHICH ARM. The proof flag(s) smoke.yml registers for the file; if none, --selftest
 // when the file branches on it, else --mutate. A guard whose proof writes into the
 // working tree (it imports tests/mutation-safety.mjs, writes without a temp dir, or
-// declares `// mutant-writes-tree`) is marked SOLO: lane-done runs it after the pool
-// drains, alone, so no concurrent guard reads a planted defect.
+// declares `// mutant-writes-tree: yes — <why>`) is marked SOLO: lane-done runs it after
+// the pool drains, alone, so no concurrent guard reads a planted defect, and preflight
+// leaves it for GitHub. `// mutant-writes-tree: no — <why>` (a temp copy, served
+// overrides, a rolled-back transaction) outranks the write heuristic, never mutation-safety;
+// check it first with tools/qa/tree-watch.mjs (a 10 ms watch of the proof's real run).
 //
 //   node tools/guard-anchors.mjs                    the catalogue (exit 1 on a MISSING)
 //   node tools/guard-anchors.mjs --for <file> …     which proofs a change to <file> re-runs
@@ -188,7 +191,8 @@ const isFile = (abs) => { try { return statSync(abs).isFile(); } catch { return 
 const isDir = (abs) => { try { return statSync(abs).isDirectory(); } catch { return false; } };
 const toRel = (root, abs) => relative(root, abs).replace(/\\/g, '/');
 
-/** `// mutant-anchors: a b dir/` and `// mutant-anchors: none — why`, and the solo marker. */
+/** `// mutant-anchors: a b dir/` and `// mutant-anchors: none — why`, and the solo marker:
+    `// mutant-writes-tree: yes — why` (or the bare marker) is true, `: no — why` false, no marker null. */
 function directives(src) {
   const entries = [];
   let none = null;
@@ -198,7 +202,18 @@ function directives(src) {
     if (nm) none = nm[1].trim();
     else entries.push(...body.split(/[\s,]+/).filter(Boolean));
   }
-  return { entries, none, writesTree: /^\s*\/\/\s*mutant-writes-tree\b/m.test(src) };
+  /* 11-10: the test was the marker's presence, so all 19 `: no — <reason>` headers read as yes. */
+  const errors = [];
+  let writesTree = null;
+  const wt = /^\s*\/\/\s*mutant-writes-tree\b(.*)$/m.exec(src);
+  if (wt) {
+    const m = /^\s*(?::\s*([A-Za-z]+)\b\s*(?:[—–-]+\s*)?(.*?))?\s*$/.exec(wt[1]);
+    const word = m ? (m[1] || 'yes').toLowerCase() : null;
+    if (word !== 'yes' && word !== 'no') errors.push(`declares \`mutant-writes-tree${wt[1]}\`: write \`: yes — <why>\` or \`: no — <why>\``);
+    else if (word === 'no' && !m[2]) errors.push('declares `mutant-writes-tree: no` with no reason (where do its mutants go?)');
+    writesTree = word !== 'no';
+  }
+  return { entries, none, writesTree, errors };
 }
 
 /** Every repo file (relative, forward slashes) the guard's code names. */
@@ -247,7 +262,7 @@ function guardEntry(root, rel, { contentOf, registered = new Map() } = {}) {
   if (!flags.length) return null;
   const lexed = lex(src);
   const dir = directives(src);
-  const errors = [];
+  const errors = [...dir.errors];
   const referenced = referencedFiles(root, rel, src, lexed);
   /* A path is a REFERENCE, not an anchor: 'src/net/gold.js' occurs in gold.js's own
      header, and would make every file a guard names look anchored. */
@@ -276,7 +291,11 @@ function guardEntry(root, rel, { contentOf, registered = new Map() } = {}) {
   const writes = /\bwrite(?:File)?(?:Sync)?\s*\(|\bcopyFile(?:Sync)?\s*\(|\brename(?:Sync)?\s*\(/.test(src)
     && !/\bmkdtemp(?:Sync)?\s*\(|\btmpdir\s*\(/.test(src);
   /* From tools/ the helper is '../tests/mutation-safety.mjs': this file's own E arm took that path and ran in the pool (11-11). */
-  const solo = dir.writesTree || /['"](?:\.\/|\.\.\/tests\/)mutation-safety\.mjs['"]/.test(src) || writes;
+  const viaSafety = /['"](?:\.\/|\.\.\/tests\/)mutation-safety\.mjs['"]/.test(src);
+  if (dir.writesTree === false && viaSafety) errors.push('declares `mutant-writes-tree: no` but imports mutation-safety.mjs, which plants into the tree');
+  /* `: no — why` is a written decision and outranks the write heuristic (party-flow's only "write (" is in a comment);
+     `yes` or the bare marker forces SOLO; with no marker the heuristic decides. mutation-safety is SOLO whatever is declared. */
+  const solo = dir.writesTree === true || viaSafety || (dir.writesTree === null && writes);
   return { guard: rel, flags, arms, how, anchors: [...new Set([...anchored, ...declared])].sort(), errors, solo,
     none: dir.none, registered: regFlags, derived, declared, lits, res };
 }
@@ -610,7 +629,12 @@ async function selftest() {
   const efg = entries.find((e) => e.guard === INCIDENT_GUARD);
   ok(efg && efg.anchors.includes(ENV_FILE), `M1 ${INCIDENT_GUARD} anchors on ${ENV_FILE} (the b569 shape)`);
   const aa = entries.find((e) => e.guard === 'tests/session-core.mjs');
-  ok(aa && aa.anchors.includes(ENV_FILE) && aa.solo, `M2 session-core anchors on ${ENV_FILE} and runs SOLO (its --mutate plants into the tree)`);
+  ok(aa && aa.anchors.includes(ENV_FILE) && !aa.solo, `M2 session-core anchors on ${ENV_FILE} and runs in the pool (its --mutate plants into a temp copy: \`mutant-writes-tree: no\`)`);
+  /* 11-10: the 19 `mutant-writes-tree: no` guards ran SOLO, so preflight never ran them; a 10 ms watch of each saw no tree write. */
+  const saysNo = entries.filter((e) => /^\s*\/\/\s*mutant-writes-tree:\s*no\b/m.test(readFileSync(join(ROOT, e.guard), 'utf8')));
+  ok(saysNo.length > 0 && saysNo.every((e) => !e.solo && !e.errors.length),
+    `M5 every guard that declares \`mutant-writes-tree: no\` runs in the pool (${saysNo.length}; party-flow's only "write (" is a comment)`
+    + (saysNo.some((e) => e.solo) ? ': SOLO ' + saysNo.filter((e) => e.solo).map((e) => e.guard).join(', ') : ''));
   const self = entries.find((e) => e.guard === 'tools/guard-anchors.mjs');
   ok(self && self.solo, `M4 guard-anchors runs SOLO: its E arm plants into ${ENV_FILE}, which ${INCIDENT_GUARD} --selftest copies (preflight 11-11)`);
   ok(entries.every((e) => !e.errors.length), 'M3 every proof-capable guard has a derivable or declared anchor set'
@@ -640,6 +664,18 @@ async function selftest() {
       const viaTools = guardEntry(ROOT, tmpRel).solo;
       write(join(ROOT, tmpRel), temp + body);
       ok(viaTools && !guardEntry(ROOT, tmpRel).solo, 'X5 importing ../tests/mutation-safety.mjs (a tools/ guard) is SOLO beside a temp dir; the same guard without it is not');
+      /* X6 — the solo marker is read, not merely found (11-10: `: no` was read as yes). The probe writes with no temp dir. */
+      const writer = "// mutant-anchors: none — probe\nwriteFileSync(join(ROOT, 'x.txt'), '1');\n";
+      const marked = (line, extra = '') => { write(join(ROOT, tmpRel), line + '\n' + extra + writer + body); return guardEntry(ROOT, tmpRel); };
+      const saysNoProbe = marked('// mutant-writes-tree: no — probe: plants into a temp copy');
+      ok(!saysNoProbe.solo && !saysNoProbe.errors.length, 'X6 `mutant-writes-tree: no — <why>` runs in the pool, over the write heuristic');
+      ok(marked('// mutant-writes-tree: yes — probe').solo && marked('// mutant-writes-tree').solo && marked('').solo,
+        'X7 `: yes — <why>`, the bare marker, and no marker over a tree write are SOLO');
+      const bareNo = marked('// mutant-writes-tree: no');
+      const lying = marked('// mutant-writes-tree: no — probe', "const { finish } = await import('../tests/mutation-safety.mjs');\n");
+      const odd = marked('// mutant-writes-tree: maybe');
+      ok(bareNo.errors.some((e) => /no reason/.test(e)) && lying.solo && lying.errors.some((e) => /mutation-safety/.test(e))
+        && odd.errors.some((e) => /write `: yes/.test(e)), 'X8 `: no` with no reason, `: no` beside mutation-safety (still SOLO), and `: maybe` FAIL');
       const anchor = goldAnchor;
       write(join(ROOT, tmpRel), "const F = ['src/session/envelope.js', 'src/session/residue.js'];\n"
         + `const M = [${JSON.stringify(anchor)}, 'export const RESIDUE_FIELDS = Object.freeze('];\n` + body);

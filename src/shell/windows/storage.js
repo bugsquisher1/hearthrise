@@ -44,6 +44,7 @@ import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.2.121';
 import { amountHtml, amountOf, stepAmount } from '../widgets/amount.js?v=0.2.121';
 import { dispatchBlock, runDispatch } from '../loot-dispatch.js?v=0.2.121';
 import { toolLossWords } from '../town-work.js?v=0.2.121';
+import { t } from '../../render/player-text.js?v=0.2.121';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { query: '', pending: false, msg: '', press: null, pressed: false }; SCRATCH.set(cs, s); } return s; };
@@ -73,7 +74,8 @@ export function renderStorage(ctx) {
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
-const STORE_AWAY = 'Your storage is at home and your hero is out hunting. Leave the hunt to use it.';
+/* The one sentence the bag's Deposit says too (src/data/text/bag.js). */
+const STORE_AWAY = t('bag.storage_away');
 
 /* SAY WHY: a press on a stack with the hero out hunting moves nothing, and the note that says so has scrolled away by the time the bag is in reach. */
 function sayAway(cs, sc, repaint) {
@@ -174,27 +176,27 @@ function askAmount(ctx, body, cs, sc, repaint, row, dir, at) {
   });
 }
 
-renderStorage.act = function actStorage(ctx, body, action, ev, t) {
+renderStorage.act = function actStorage(ctx, body, action, ev, el) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => renderStorage.patch(body, ctx);
-  if (action === 'search' && ev.type === 'input') { sc.query = t.value.slice(0, 40); repaint(); return false; }
-  if (action === 'sort' && ev.type === 'change') { setPref(cs, 'sort', t.value); repaint(); return false; }
-  if (action === 'cat' && ev.type === 'click') { setPref(cs, 'cat', t.getAttribute('data-cat')); repaint(); return true; }
-  if (action === 'dispatch') { if (ev.type === 'click' && !sc.pending && !t.disabled) runDispatch(ctx.account, cs, sc, repaint); return ev.type === 'click'; }
+  if (action === 'search' && ev.type === 'input') { sc.query = el.value.slice(0, 40); repaint(); return false; }
+  if (action === 'sort' && ev.type === 'change') { setPref(cs, 'sort', el.value); repaint(); return false; }
+  if (action === 'cat' && ev.type === 'click') { setPref(cs, 'cat', el.getAttribute('data-cat')); repaint(); return true; }
+  if (action === 'dispatch') { if (ev.type === 'click' && !sc.pending && !el.disabled) runDispatch(ctx.account, cs, sc, repaint); return ev.type === 'click'; }
   if (action !== 'withdraw' && action !== 'deposit') return false;
-  const id = t.getAttribute('data-item');
+  const id = el.getAttribute('data-item');
   const type = ev.type;
-  if (type === 'mouseover') { showTip(ctx.doc, t, id, {}); return false; }
-  if (type === 'mouseout') { if (!t.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
+  if (type === 'mouseover') { showTip(ctx.doc, el, id, {}); return false; }
+  if (type === 'mouseout') { if (!el.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
   if (type === 'pointerup' || type === 'pointercancel') { clearTimeout(sc.press); return false; }
-  const off = t.getAttribute('aria-disabled') === 'true';
+  const off = el.getAttribute('aria-disabled') === 'true';
   const row = ((action === 'withdraw' ? bankOf(cs) : bagOf(cs)) || []).find((r) => r.id === id);
   if (type === 'pointerdown') {
     if (!ev.pointerType || ev.pointerType === 'mouse' || off || !row) return false;
     sc.pressed = false;
     clearTimeout(sc.press);
-    sc.press = setTimeout(() => { sc.pressed = true; const r = t.getBoundingClientRect(); askAmount(ctx, body, cs, sc, repaint, row, action, { x: r.left, y: r.bottom }); }, LONG_PRESS_MS);
+    sc.press = setTimeout(() => { sc.pressed = true; const r = el.getBoundingClientRect(); askAmount(ctx, body, cs, sc, repaint, row, action, { x: r.left, y: r.bottom }); }, LONG_PRESS_MS);
     return false;
   }
   if (type === 'contextmenu') {

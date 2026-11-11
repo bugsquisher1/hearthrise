@@ -13,6 +13,11 @@
 //                          ONE `vendor_sell_many` naming the stacks whole,
 //                          after a confirmation that shows the total at the
 //                          server's bids; LOCKED stacks are never named
+//   deposit / lock the selection
+//                          one hr_bank_move (the stack whole) or hr_item_lock a
+//                          stack, in the shown order, stopping at the first
+//                          refusal; said once: how many went, and why it
+//                          stopped (the server has no bulk form of either yet)
 //   lock, loot plan        hr_item_lock, hr_loot_rule_set (Keep in bag / Deposit in
 //                          storage / Sell, or Don't pick up: loot-dispatch.js)
 //   Dispatch loot          ONE hr_loot_dispatch: the server runs every plan in town
@@ -24,17 +29,21 @@
 // when the re-read envelope replaces the bag and the worn set.
 //
 // The rest is display: the search (and where else the item is), the category,
-// sort and Advanced view (remembered in the residue), selection (click,
-// Ctrl/Shift-click, Space, Ctrl+A), the cursor (arrows), the tooltip on hover
+// sort and Advanced view (remembered in the residue), the selection (a plain
+// press replaces it, Ctrl or Space toggles, Shift ranges, Ctrl+A all shown or
+// none, Escape none: selection.js), the cursor (arrows), the tooltip on hover
 // or focus, the context menu (right-click, a long press, or the + button), the
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
 import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } from '../../bag-model.js?v=0.2.121';
 import { assignToBar, barKind, barIndexOf, barKeyLabel, tidyBarAfterSwap } from '../../bar-assign.js?v=0.2.121';
-import { runIntent } from '../../intent-words.js?v=0.2.121';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.121';
+import { t } from '../../../render/player-text.js?v=0.2.121';
+import { huntOf } from '../../../session/hunt-sections.js?v=0.2.121';
+import { pressSelect, toggleSelect, rangeTo, selectKey, clearSelection, selectedIds } from './selection.js?v=0.2.121';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.121';
-import { gold } from '../../../render/format.js?v=0.2.121';
+import { gold, whole } from '../../../render/format.js?v=0.2.121';
 import { itemName } from '../../widgets/bits.js?v=0.2.121';
 import { showTip, hideTip } from '../item-tip.js?v=0.2.121';
 import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.121';
@@ -181,15 +190,55 @@ function doSell(st, repaint) {
   const lines = c.plan.lines;
   st.sc.confirm = null;
   send(st, repaint, () => cs.edgeIntent('vendor_sell_many', { lines }), 'Selling…', (r) => {
-    for (const l of lines) st.sc.sel.delete(l.item);
+    clearSelection(st.sc);   // the action is done with it
     return r && Number.isSafeInteger(r.paid) ? 'The shop paid ' + gold(r.paid) + '.' : 'Sold.';
   });
 }
 
 function doLock(st, id, repaint) {
-  if (!st.rules) { say(st, repaint, 'Reading your locks…'); return; }
+  if (!st.rules) { say(st, repaint, t('bag.locks_reading')); return; }
   const on = !st.rules.locked.has(id);
   send(st, repaint, () => st.cs.lockItem(id, on), on ? 'Locking…' : 'Unlocking…');
+}
+
+/* One server ask a stack over the selection, in the shown order, stopping at the first refusal: { done, count, stopped }
+   (the answer is always "ok" so the words below say how far it got; a refusal's words are the server's, refusalText).
+   The stacks that went leave the selection; a run that went through clears it. */
+async function eachSelected(st, ids, ask) {
+  let done = 0, stopped = null;
+  for (const id of ids) {
+    const r = await ask(id);
+    if (!r || !r.ok) { stopped = r || { ok: false, error: 'network' }; break; }
+    done++;
+    st.sc.sel.delete(id);
+  }
+  if (!stopped) clearSelection(st.sc);
+  return { ok: true, done, count: ids.length, stopped };
+}
+
+/* "Put away 3 stacks." / "Put away 1 of 3 stacks. Your storage is full." */
+const ranWords = (st, r, all, some) => (r.stopped ? (r.done ? t(some, { done: whole(r.done), count: whole(r.count) }) + ' ' : '') + refusalText(r.stopped, st.cs) : t(all, { count: r.done }));
+
+/* Deposit the selection: one hr_bank_move a stack, whole, at the server's count. Refused here only for what the screen
+   already knows (the chest is at home and the hero is out: the Storage window's own rule). */
+function doDeposit(st, repaint) {
+  const ids = selectedIds(st.sc, st.items);
+  if (!ids.length) return;
+  const h = huntOf(st.cs);
+  if (h && !h.ended) { say(st, repaint, t('bag.storage_away')); return; }
+  send(st, repaint, () => eachSelected(st, ids, (id) => st.cs.moveStorage(id, st.qty.get(id), 'deposit')), t('bag.putting_away'),
+    (r) => ranWords(st, r, 'bag.put_away', 'bag.put_away_some'));
+}
+
+/* Lock the selection (Unlock when every stack in it is locked): one hr_item_lock a stack that is not there yet. */
+function doLockMany(st, repaint) {
+  const ids = selectedIds(st.sc, st.items);
+  if (!ids.length) return;
+  if (!st.rules) { say(st, repaint, t('bag.locks_reading')); return; }
+  const on = !ids.every((id) => st.rules.locked.has(id));
+  const todo = ids.filter((id) => st.rules.locked.has(id) !== on);
+  send(st, repaint, () => eachSelected(st, todo, (id) => st.cs.lockItem(id, on)), on ? t('bag.locking') : t('bag.unlocking'),
+    (r) => ranWords(st, r, on ? 'bag.locked_n' : 'bag.unlocked_n', on ? 'bag.locked_some' : 'bag.unlocked_some'));
 }
 
 /* The item's loot plan or its pickup filter: ONE hr_loot_rule_set. "Don't pick up" pressed again goes back to Keep in bag. */
@@ -264,16 +313,7 @@ function openMenu(ctx, body, st, id, at, repaint) {
 
 function closeMenu(ctx, st) { if (!st.sc.menu) return false; closeFloatMenu(ctx.doc, st.sc.menuOwner || null); return true; }
 
-/* ── Selection and the cursor ── */
-function toggleSel(sc, id) { if (sc.sel.has(id)) sc.sel.delete(id); else sc.sel.add(id); sc.anchor = id; }
-
-function rangeSel(st, id) {
-  const ids = st.shown.map((r) => r.id);
-  const a = ids.indexOf(st.sc.anchor || st.sc.cursor), b = ids.indexOf(id);
-  if (a < 0 || b < 0) { toggleSel(st.sc, id); return; }
-  for (let i = Math.min(a, b); i <= Math.max(a, b); i++) st.sc.sel.add(ids[i]);
-}
-
+/* ── Selection (selection.js) and the cursor ── */
 function focusCursor(body, st, ctx) {
   const li = st.sc.cursor && body.querySelector('.hw-pocket[data-item="' + st.sc.cursor + '"]');
   if (li) { li.focus({ preventScroll: false }); tipFor(ctx, st, li); }
@@ -291,47 +331,49 @@ function moveCursor(body, st, key) {
   st.sc.cursor = ids[Math.max(0, Math.min(ids.length - 1, (st.sc.cursor ? at + step : 0)))];
 }
 
-function onKey(ctx, body, st, ev, t, repaint) {
+function onKey(ctx, body, st, ev, el, repaint) {
   const sc = st.sc;
   const k = ev.key;
-  if (t.classList.contains('hw-q')) {
-    if (k === 'Escape' && sc.query) { sc.query = ''; t.value = ''; repaint(); return true; }
+  if (el.classList.contains('hw-q')) {
+    if (k === 'Escape' && sc.query) { sc.query = ''; el.value = ''; repaint(); return true; }
     if (k === 'ArrowDown' || k === 'Enter') { if (!sc.cursor && st.shown.length) sc.cursor = st.shown[0].id; repaint(); focusCursor(body, st, ctx); return true; }
     return false;
   }
   if (sc.menu && k === 'Escape') { closeMenu(ctx, st); focusCursor(body, st, ctx); return true; }
-  /* A button or a select keeps its own keys (Enter, Space); only Escape is the Inventory's. */
-  if (!t.classList.contains('hw-pocket') && !t.classList.contains('hw-inv')) {
+  const mods = { ctrl: ev.ctrlKey || ev.metaKey, shift: ev.shiftKey };
+  /* A button or a select keeps its own keys (Enter, Space); only Escape is the Inventory's: the confirmation, then the selection. */
+  if (!el.classList.contains('hw-pocket') && !el.classList.contains('hw-inv')) {
     if (sc.confirm && k === 'Escape') { sc.confirm = null; repaint(); return true; }
+    if (k === 'Escape' && selectKey(sc, k, mods, st.shown)) { repaint(); return true; }
     return false;
   }
   if (sc.confirm && k === 'Escape') { sc.confirm = null; repaint(); return true; }
-  if (sc.sel.size && k === 'Escape') { sc.sel.clear(); repaint(); return true; }
-  if (k === '/' || ((ev.ctrlKey || ev.metaKey) && k.toLowerCase() === 'f')) { body.querySelector('.hw-q').focus(); return true; }
-  if ((ev.ctrlKey || ev.metaKey) && k.toLowerCase() === 'a') { for (const r of st.shown) sc.sel.add(r.id); repaint(); return true; }
+  if (k === '/' || (mods.ctrl && k.toLowerCase() === 'f')) { body.querySelector('.hw-q').focus(); return true; }
+  if (selectKey(sc, k, mods, st.shown)) { repaint(); return true; }   // Escape: none; Ctrl+A: all shown, or none
   if (ev.ctrlKey || ev.metaKey || ev.altKey || sc.menu) return false;
-  if (/^Arrow/.test(k)) { moveCursor(body, st, k); repaint(); focusCursor(body, st, ctx); return true; }
+  /* an arrow moves the cursor; with Shift it also takes the range from the anchor (or the cursor it left) to there */
+  if (/^Arrow/.test(k)) { const from = sc.cursor; moveCursor(body, st, k); if (mods.shift && sc.cursor) rangeTo(sc, sc.cursor, st.shown, { from }); repaint(); focusCursor(body, st, ctx); return true; }
   const id = sc.cursor && st.qty.has(sc.cursor) ? sc.cursor : null;
   if (!id) return false;
   if (k === 'Enter') { if (sc.confirm) doSell(st, repaint); else doPrimary(st, id, repaint); return true; }
-  if (k === ' ') { toggleSel(sc, id); repaint(); return true; }
-  if (k === 'Delete') { askSell(st, sc.sel.size ? Array.from(sc.sel) : [id], sc.sel.size ? 'Sell selected' : 'Sell', repaint); return true; }
+  if (k === ' ') { toggleSelect(sc, id); repaint(); return true; }
+  if (k === 'Delete') { const sel = selectedIds(sc, st.items); askSell(st, sel.length ? sel : [id], sel.length ? 'Sell selected' : 'Sell', repaint); return true; }
   if (k === 'l' || k === 'L') { doLock(st, id, repaint); return true; }
-  if (k === 'ContextMenu') { const r = t.getBoundingClientRect(); openMenu(ctx, body, st, id, { x: r.right, y: r.top }, repaint); return true; }
+  if (k === 'ContextMenu') { const r = el.getBoundingClientRect(); openMenu(ctx, body, st, id, { x: r.right, y: r.top }, repaint); return true; }
   return false;
 }
 
 const dragTypes = (ev) => Array.from((ev.dataTransfer && ev.dataTransfer.types) || []);
 
 /* A bag stack over a doll slot: wear it there on the drop, when it fits. */
-function onSlotDrag(st, ev, t, repaint) {
+function onSlotDrag(st, ev, el, repaint) {
   if (!dragTypes(ev).includes(DRAG_TYPE)) return false;
-  if (ev.type === 'dragleave') { t.classList.remove('is-drop'); return false; }
+  if (ev.type === 'dragleave') { el.classList.remove('is-drop'); return false; }
   ev.preventDefault();
-  t.classList.toggle('is-drop', ev.type === 'dragover');
+  el.classList.toggle('is-drop', ev.type === 'dragover');
   if (ev.type === 'drop') {
     const id = ev.dataTransfer.getData(DRAG_TYPE);
-    const slot = t.getAttribute('data-slot');
+    const slot = el.getAttribute('data-slot');
     /* the drop opens that slot's line: its words (and the server's answer) show there */
     st.sc.slot = slot;
     if (fitsSlot(id, slot)) wear(st, repaint, slot, id, 'slot');
@@ -351,14 +393,14 @@ function onGridDrag(st, ev, repaint) {
   return true;
 }
 
-function onDoll(ctx, st, action, ev, t, repaint) {
+function onDoll(ctx, st, action, ev, el, repaint) {
   const sc = st.sc;
   const type = ev.type;
-  if (type === 'mouseover' && (action === 'slot' || action === 'fit-row')) { dollTip(ctx, st, t, action); return false; }
-  if (type === 'mouseout') { if (!t.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
-  if (action === 'slot' && (type === 'dragover' || type === 'drop' || type === 'dragleave')) return onSlotDrag(st, ev, t, repaint);
+  if (type === 'mouseover' && (action === 'slot' || action === 'fit-row')) { dollTip(ctx, st, el, action); return false; }
+  if (type === 'mouseout') { if (!el.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
+  if (action === 'slot' && (type === 'dragover' || type === 'drop' || type === 'dragleave')) return onSlotDrag(st, ev, el, repaint);
   if (action === 'slot' && type === 'dragstart') {
-    const s = t.getAttribute('data-slot');
+    const s = el.getAttribute('data-slot');
     if (!st.eq[s]) return false;
     hideTip(ctx.doc);
     ev.dataTransfer.setData(DRAG_WORN, s);
@@ -367,42 +409,41 @@ function onDoll(ctx, st, action, ev, t, repaint) {
     return false;
   }
   if (type !== 'click') return false;
-  if (action === 'slot') { const s = t.getAttribute('data-slot'); sc.slot = sc.slot === s ? null : s; sc.msg = ''; sc.msgAt = null; repaint(); return true; }
-  if (action === 'wear' && sc.slot) { wear(st, repaint, sc.slot, t.getAttribute('data-item'), 'slot'); return true; }
+  if (action === 'slot') { const s = el.getAttribute('data-slot'); sc.slot = sc.slot === s ? null : s; sc.msg = ''; sc.msgAt = null; repaint(); return true; }
+  if (action === 'wear' && sc.slot) { wear(st, repaint, sc.slot, el.getAttribute('data-item'), 'slot'); return true; }
   if (action === 'unequip' && sc.slot && st.eq[sc.slot]) { wear(st, repaint, sc.slot, null, 'slot'); return true; }
   return false;
 }
 
 const DOLL_ACTS = new Set(['slot', 'fit-row', 'wear', 'unequip']);
 
-function onPocket(ctx, body, st, action, ev, t, repaint) {
+function onPocket(ctx, body, st, action, ev, el, repaint) {
   const sc = st.sc;
   const type = ev.type;
-  const id = t.getAttribute('data-item');
-  if (type === 'mouseover') { tipFor(ctx, st, t); if (action === 'pocket') commitSeen(st.cs, [id]); return false; }
-  if (type === 'mouseout') { if (!t.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
+  const id = el.getAttribute('data-item');
+  if (type === 'mouseover') { tipFor(ctx, st, el); if (action === 'pocket') commitSeen(st.cs, [id]); return false; }
+  if (type === 'mouseout') { if (!el.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
   if (action === 'loot-row') return false;
   if (type === 'dragstart') { hideTip(ctx.doc); ev.dataTransfer.setData(DRAG_TYPE, id); ev.dataTransfer.setData('text/plain', itemName(id)); ev.dataTransfer.effectAllowed = 'copy'; return false; }
   if (type === 'contextmenu') { openMenu(ctx, body, st, id, { x: ev.clientX, y: ev.clientY }, repaint); return true; }
   if (type === 'pointerdown' && ev.pointerType && ev.pointerType !== 'mouse') {
     sc.pressed = false;
     clearTimeout(sc.press);
-    sc.press = setTimeout(() => { sc.pressed = true; const r = t.getBoundingClientRect(); openMenu(ctx, body, st, id, { x: r.left, y: r.bottom }, repaint); }, LONG_PRESS_MS);
+    sc.press = setTimeout(() => { sc.pressed = true; const r = el.getBoundingClientRect(); openMenu(ctx, body, st, id, { x: r.left, y: r.bottom }, repaint); }, LONG_PRESS_MS);
     return false;
   }
   if (type === 'pointerup' || type === 'pointercancel' || type === 'dragend') { clearTimeout(sc.press); return false; }
   if (type !== 'click') return false;
   if (sc.pressed) { sc.pressed = false; return true; }
   if (ev.shiftKey && chatOpen(ctx) && linkInChat(ctx, id)) return true;   // Shift+click links it into an open chat
-  if (ev.shiftKey) rangeSel(st, id);
-  else if (ev.ctrlKey || ev.metaKey || sc.sel.size) toggleSel(sc, id);
-  sc.cursor = id;
+  /* plain: this one (or none, with none selected); Ctrl: toggled; Shift: the range from the anchor (selection.js) */
+  pressSelect(sc, id, st.shown, { ctrl: ev.ctrlKey || ev.metaKey, shift: ev.shiftKey });
   sc.menu = null;
   /* The last press's result is old news once another stack is in hand (newcomer panel 2026-11-03: "Put on 1 piece." over the Bones' Fuel all). */
   if (!sc.pending && !sc.msgAt) sc.msg = '';
   commitSeen(st.cs, [id]);
   repaint();
-  t.focus();
+  el.focus();
   return true;
 }
 
@@ -410,27 +451,29 @@ function onPocket(ctx, body, st, action, ev, t, repaint) {
  * The Inventory's [data-hs-act] events. Returns true when the event was consumed.
  * @param {() => void} repaint
  */
-export function actInventory(ctx, body, action, ev, t, repaint) {
+export function actInventory(ctx, body, action, ev, el, repaint) {
   const st = stateOf(ctx);
   const sc = st.sc;
   const type = ev.type;
-  if (type === 'keydown') return onKey(ctx, body, st, ev, t, repaint);
+  if (type === 'keydown') return onKey(ctx, body, st, ev, el, repaint);
   if ((type === 'dragover' || type === 'drop') && (action === 'pocket' || action === 'grid')) return onGridDrag(st, ev, repaint);
-  if (DOLL_ACTS.has(action)) return onDoll(ctx, st, action, ev, t, repaint);
-  if (action === 'pocket' || action === 'loot-row') return onPocket(ctx, body, st, action, ev, t, repaint);
-  if (type === 'input' && action === 'search') { sc.query = t.value.slice(0, 40); repaint(); askElsewhere(ctx, sc.query, repaint); return false; }
-  if (type === 'change' && action === 'sort') { setPref(st.cs, 'sort', t.value); return false; }
-  if (type === 'change' && action === 'rule') { doRule(st, t.getAttribute('data-item'), t.value, repaint); return false; }
-  if (type === 'change' && action === 'advanced') { setPref(st.cs, 'advanced', t.checked); return false; }
+  if (DOLL_ACTS.has(action)) return onDoll(ctx, st, action, ev, el, repaint);
+  if (action === 'pocket' || action === 'loot-row') return onPocket(ctx, body, st, action, ev, el, repaint);
+  if (type === 'input' && action === 'search') { sc.query = el.value.slice(0, 40); repaint(); askElsewhere(ctx, sc.query, repaint); return false; }
+  if (type === 'change' && action === 'sort') { setPref(st.cs, 'sort', el.value); return false; }
+  if (type === 'change' && action === 'rule') { doRule(st, el.getAttribute('data-item'), el.value, repaint); return false; }
+  if (type === 'change' && action === 'advanced') { setPref(st.cs, 'advanced', el.checked); return false; }
   if (type !== 'click') return false;
   const cur = sc.cursor && st.qty.has(sc.cursor) ? sc.cursor : null;
   switch (action) {
-    case 'tab': sc.tab = t.getAttribute('data-tab'); sc.menu = null; sc.confirm = null; hideTip(ctx.doc); repaint(); return true;
-    case 'cat': setPref(st.cs, 'cat', t.getAttribute('data-cat')); return true;
+    case 'tab': sc.tab = el.getAttribute('data-tab'); sc.menu = null; sc.confirm = null; hideTip(ctx.doc); repaint(); return true;
+    case 'cat': setPref(st.cs, 'cat', el.getAttribute('data-cat')); return true;
     case 'primary': if (cur) doPrimary(st, cur, repaint); return true;
-    case 'more': if (cur) { const r = t.getBoundingClientRect(); openMenu(ctx, body, st, cur, { x: r.left, y: r.bottom + 4 }, repaint); } return true;
-    case 'sell-sel': askSell(st, Array.from(sc.sel), 'Sell selected', repaint); return true;
-    case 'clear-sel': sc.sel.clear(); repaint(); return true;
+    case 'more': if (cur) { const r = el.getBoundingClientRect(); openMenu(ctx, body, st, cur, { x: r.left, y: r.bottom + 4 }, repaint); } return true;
+    case 'sell-sel': askSell(st, selectedIds(sc, st.items), 'Sell selected', repaint); return true;
+    case 'deposit-sel': doDeposit(st, repaint); return true;
+    case 'lock-sel': doLockMany(st, repaint); return true;
+    case 'clear-sel': clearSelection(sc); repaint(); return true;
     case 'dispatch': doDispatch(ctx, st, repaint); return true;
     case 'sell-cat': askSell(st, st.shown.map((r) => r.id), 'Sell all', repaint); return true;
     case 'confirm-yes': doSell(st, repaint); return true;
@@ -451,9 +494,9 @@ export function actInventory(ctx, body, action, ev, t, repaint) {
     case 'm-sell': askSell(st, [id], 'Sell', repaint); return true;
     case 'm-market': closeMenu(ctx, st); offerForSale(ctx, id, 'bag'); return true;
     case 'm-lock': doLock(st, id, repaint); return true;
-    case 'm-select': toggleSel(sc, id); sc.menu = null; repaint(); return true;
+    case 'm-select': toggleSelect(sc, id); sc.menu = null; repaint(); return true;
     case 'm-link': linkInChat(ctx, id); closeMenu(ctx, st); return true;
-    case 'm-rule': doRule(st, id, t.getAttribute('data-rule'), repaint); return true;
+    case 'm-rule': doRule(st, id, el.getAttribute('data-rule'), repaint); return true;
     default: return false;
   }
 }

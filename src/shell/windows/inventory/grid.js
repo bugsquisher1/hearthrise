@@ -37,11 +37,14 @@ import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.121';
 import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.121';
 import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.121';
 import { whyLine } from '../../widgets/why-line.js?v=0.2.121';
+import { t } from '../../../render/player-text.js?v=0.2.121';
+import { selectedIds, selectionWords, lockLabel } from './selection.js?v=0.2.121';
 
 /* The This hunt row's choices: the three plans, then the pickup filter (loot-dispatch.js). */
 const RULE_OPTIONS = '<optgroup label="Loot plan">' + LOOT_CHOICES.filter((c) => c[2] === 'plan').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('')
   + '</optgroup><optgroup label="On pickup">' + LOOT_CHOICES.filter((c) => c[2] === 'pickup').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('') + '</optgroup>';
-export const KEYS = '/ search · arrows move · Enter use · Space select · Delete sell · L lock · Ctrl+A select all';
+/** The key help line under the grid: the keys actions.js and selection.js really read. */
+export const KEYS = t('bag.keys');
 
 /** The toolbar across the window (tabs, search, sort, categories). */
 export function toolbarHtml(g) {
@@ -72,9 +75,12 @@ export function toolsHtml(g) {
     + '<p class="hw-why hw-pick-why" role="status" aria-live="polite"></p><p class="hw-pick-ways"></p>'
     + upgradeLineHtml()
     + '<div class="hw-burying" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="bury-stop">Stop</button></div>'
-    + '<div class="hw-bulk"><span class="hw-selcount"></span>'
-    + '<button type="button" class="hh-tool" data-hs-act="sell-sel">Sell selected</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="clear-sel">Clear</button></div>'
+    /* the selection line ("3 selected · value 120 gp", selection.js) with its bulk tools; it shows while a selection stands */
+    + '<div class="hw-bulk" role="group" aria-label="Selected stacks"><span class="hw-selcount"></span>'
+    + '<button type="button" class="hh-tool" data-hs-act="sell-sel">' + esc(t('bag.sell')) + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="deposit-sel">' + esc(t('bag.deposit')) + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="lock-sel">' + esc(t('bag.lock')) + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="clear-sel">' + esc(t('bag.clear')) + '</button></div>'
     + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="dispatch">Dispatch loot</button>'
     + '<button type="button" class="hh-tool" data-hs-act="sell-cat"></button><span class="hw-value"></span></div>'
     + '<p class="hw-why hw-dispatch-why" role="status" aria-live="polite"></p>'
@@ -173,10 +179,16 @@ export function patchTools(root, st, ctx) {
   prop(bl.querySelector('[data-hs-act="bury-stop"]'), 'disabled', sc.pending);
   prop(pick.querySelector('.hw-more'), 'disabled', sc.pending || !cur);
 
-  const selIds = Array.from(sc.sel).filter((id) => st.qty.has(id));
+  /* The selection: the server's rows it still names, counted and valued at the shop's bids (selection.js). */
+  const selIds = selectedIds(sc, st.items);
   cls(root.querySelector('.hw-bulk'), 'is-on', onBag && selIds.length > 0);
-  text(root.querySelector('.hw-selcount'), selIds.length + ' selected');
+  text(root.querySelector('.hw-selcount'), selectionWords(selIds, st.items, st.shop ? st.shop.bids : null));
   prop(root.querySelector('[data-hs-act="sell-sel"]'), 'disabled', sc.pending || !st.shop);
+  prop(root.querySelector('[data-hs-act="deposit-sel"]'), 'disabled', sc.pending);
+  const lb = root.querySelector('[data-hs-act="lock-sel"]');
+  text(lb, lockLabel(selIds, st.rules ? st.rules.locked : null));
+  prop(lb, 'disabled', sc.pending);
+  prop(root.querySelector('[data-hs-act="clear-sel"]'), 'disabled', sc.pending);
   const tools = root.querySelector('.hw-tools');
   cls(tools, 'is-off', !onBag);
   /* Dispatch loot: off with the server-sections' reason (a hunt running, nothing planned), said on its own line. */

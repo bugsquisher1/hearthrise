@@ -40,7 +40,7 @@ const SORT_IDS = new Set(BAG_SORTS.map(([id]) => id));
 export function scratchOf(cs) {
   let s = SCRATCH.get(cs);
   if (!s) {
-    s = { tab: 'bag', query: '', sel: new Set(), cursor: null, anchor: null, menu: null, menuOwner: null, confirm: null, slot: null,
+    s = { tab: 'bag', query: '', sel: new Set(), cursor: null, anchor: null, base: null, menu: null, menuOwner: null, confirm: null, slot: null,
       pending: false, wearing: null, msg: '', msgAt: null, shownNew: new Set(), press: null, pressed: false };
     SCRATCH.set(cs, s);
   }

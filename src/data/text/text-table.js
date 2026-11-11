@@ -9,6 +9,7 @@
 // still written in code down to none.
 // ════════════════════════════════════════════════════════════════════════
 import { AWAY_TEXT } from './away.js?v=0.2.121';
+import { BAG_TEXT } from './bag.js?v=0.2.121';
 import { BAR_TEXT } from './bar.js?v=0.2.121';
 import { COACH_TEXT } from './coach.js?v=0.2.121';
 import { DEATH_TEXT } from './death.js?v=0.2.121';
@@ -26,6 +27,7 @@ import { WORK_TEXT } from './work.js?v=0.2.121';
 
 export const TEXT = Object.freeze({
   away: AWAY_TEXT,
+  bag: BAG_TEXT,
   bar: BAR_TEXT,
   coach: COACH_TEXT,
   death: DEATH_TEXT,

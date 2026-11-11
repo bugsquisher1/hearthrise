@@ -51,6 +51,10 @@
 // STILL OPEN: the losing line that names the phase (src/hunt-view/boss-loss.js reads the server's record of a CALLED fight only);
 // the tank's dodgeable heavy hit and the whole-group pulse (Tyler 2026-11-08; lane/d-area-spells is a spec); the ship bar (same
 // gear about 30% with a bad bar, 85% with a good one) has no grader cell.
+// THE FULL GRADE (2026-11-10, this row and his file of Pikemen, 252 cells): 1 FAIL, 1 unproven, 36 ok. FAIL tier-deadly-four-held: a
+// four with no Healer (tank, hammer, bow, mage) at the floor on Deadly lost its tank 53 times in 16 h (the sheet allows 9; the four
+// with a Healer 3). Its killers were the ground's own (Knights 20, Pikemen 17, Wights 9) and Hask 7, so it is the Deadly pull, not his
+// lines: the designer's. UNPROVEN feel-normal-deaths: a lone Ranger at the floor on Normal died twice in 192 h (Hask 1, a Knight 1).
 //
 // THE LOOT (src/data/loot-bands.js). THIS IS WHERE TIER 5 ARMOR COMES FROM (worn from Level 60; the spec gave it no home): the
 // whole set in all three weights, Scarce, about hourly a piece (Pikemen boots and helmets, Wights legs, Knights bodies), with one
@@ -198,7 +202,7 @@ export default definePack({
      four a head within 0.90-1.10 of the pace contract, and 1.15-1.25 of the median lone way. On the formula's rows the median lone way
      read 0.94-0.96 of the contract (quick grade, 1 seed x 1 h), so a four paid 1.15 of it sat at 1.10, on the edge. At 0.93 the lone
      way reads about 0.91 and the four about 1.07. */
-  xpFit: { k: 0.93, why: 'at the formula XP the median lone way read 0.94-0.96 of the pace contract at the band middle (65), so a four paid 1.15 of it read 1.10, the top of the band the sheet allows' },
+  xpFit: { k: 0.93, why: 'at the formula XP the median lone way read 0.94-0.96 of the pace contract at the band middle (65), so a party of four paid 1.15 of it read 1.10, the top of the band the sheet allows' },
   /* THE HARDER TIERS (TIER_PULL_OVERRIDES' shape since one difficulty: ONE pull for every group). Dangerous brings the full box, 8, not
      the table's 5: on 5 a Melee and Healer pair two under the floor netted +2.9k gold an hour a head and five under +0.5k, where the
      weight-class ruling (11-06) asks them to lose gold. On 8 they lose 15.6k and 28.8k (quick grade, 1 seed x 1 h). So here the two
@@ -221,12 +225,13 @@ export default definePack({
      lines), where 10-25 asks 1.15-1.25; the four-class four read 1.22 / 1.21 / 1.19. So 1510 and 1520 (more classes still pay more). */
   partyClassXp: { 2: [990, 1440], 3: [990, 1440, 1470], 4: [970, 1300, 1510, 1520] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
-     measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-09). One class is the mean
-     of its five one-class parties: pairs 0.85-0.94, threes 0.72-0.90, fours 0.71-0.84 (no one-class party beats its heroes alone, the
-     worst cell 0.943 as built and 0.985 at 8 each). Two of two is the mean of three mixes (1.31-1.38), three of three of two (1.22 and
-     1.30), four of four the one played (1.23). The cells between are the size's mix times the cell ratio. A tank and a Healer are
-     the slowest heroes alone, so a mixed party reads more against them than against the median lone way (the cells above). */
-  partyVsAlone: { 2: [-10, 35], 3: [-20, 25, 25], 4: [-25, 10, 20, 25] },
+     measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10, with Hask's lines and
+     the cells above). One class is the mean of its five one-class parties: pairs 0.88-0.94 (0.91), threes 0.80-0.89 (0.84), fours
+     0.71-0.85 (0.77); no one-class party beats its heroes alone (the worst cell 0.943 as built and 0.936 at 8 each). Two of two is the
+     mean of three mixes (1.32-1.37), three of three of two (1.36 and 1.27), four of four the one played (1.28). The cells between are the
+     size's mix times the cell ratio. A tank and a Healer are the slowest heroes alone, so a mixed party reads more against them than
+     against the median lone way (the cells above). */
+  partyVsAlone: { 2: [-10, 35], 3: [-15, 30, 30], 4: [-25, 10, 25, 30] },
   /* THE PACK'S TEST FACTS. Hask holds his barrow (no spawn weight). dropRef: the four the ground is built for, at the floor in the
      harness's own-tier set (tests/hunt-core/drop-tables.mjs, as the Warrens'). valueToday is COMPUTED, not a pre-conversion pin: that
      four's measured coin a head (7,178 g/h) and commons (499) plus the gear-faucet's half of the coin (3,589), the most the hour's

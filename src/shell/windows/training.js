@@ -123,10 +123,12 @@ export function renderTraining(ctx) {
     + '<input type="text" inputmode="numeric" autocomplete="off" class="hh-num tw-keep" data-hs-act="keep" maxlength="16" aria-label="' + esc(t('training.keep_head')) + '">'
     + '<p class="hs-note tw-keep-note">' + esc(t('training.keep_note')) + '</p>'
     + '</div>'
-    + '<p class="hw-why tw-off-why"></p>'
+    /* THE FOOT: why Start is off, the press and its answer, stuck to the window's foot, so a short window scrolls the choices
+       under them and never hides the press (the Havora window's foot) */
+    + '<div class="tw-foot"><p class="hw-why tw-off-why"></p>'
     + '<button type="button" class="hh-tool is-primary tw-go" data-hs-act="train-start">' + esc(t('training.press_start')) + '</button>'
     + '<button type="button" class="hh-tool tw-stop" data-hs-act="train-stop" hidden>' + esc(t('training.press_stop')) + '</button>'
-    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
+    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div></div>';
 }
 
 /* The four skills as radio buttons: the name and the server's level, the picked one gold. */
@@ -179,7 +181,8 @@ renderTraining.patch = function patchTraining(body, ctx) {
   if (run) {
     const skill = skillWord(run.skill);
     text(root.querySelector('.tw-now'), t('training.run_now', { name, skill }));
-    text(root.querySelector('.tw-so-far'), t('training.run_so_far', { name, xp: whole(run.xp), gold: whole(run.gold) }));
+    /* nothing to say before the server's first settle (a minute in) */
+    text(root.querySelector('.tw-so-far'), run.xp || run.gold ? t('training.run_so_far', { name, xp: whole(run.xp), gold: whole(run.gold) }) : '');
     const left = runLeftMs(run, serverNow(cs));
     text(root.querySelector('.tw-left'), left === null ? t('training.run_until') : t('training.run_left', { time: timeWords(left) }));
     text(root.querySelector('.tw-keep-line'), run.keep > 0 ? t('training.run_keep', { keep: whole(run.keep) }) : t('training.run_keep_none'));

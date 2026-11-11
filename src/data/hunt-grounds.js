@@ -176,6 +176,7 @@ const BASE_GROUNDS = Object.freeze({
     respawnMs: 32000, pullDist: 1.5, groupFit: 'both',
     /* the full box and no more. Normal only (hunt-tiers.js), so no tier asks for it */
     densityMax: Object.freeze([8, 8, 8, 8]),
+    partyPull: Object.freeze([0, 4, 5, 5]),
   }),
   millrace_sewer: Object.freeze({
     id: 'millrace_sewer', hunt: 'millrace_sewer', map: 'millrace_sewer',
@@ -218,6 +219,8 @@ const BASE_GROUNDS = Object.freeze({
        5.4 h against 2.0-2.7 h alone. Advice only; a pair and a four go on to the Sewer at 8. */
     groupFit: 'both',
     densityMax: Object.freeze([8, 8, 8, 8]),
+    /* Tyler 2026-11-02: widen the Thicket's party pull so same-weapon friends lose less (was [0, 3, 3, 4]: 0.69-0.84 per head). */
+    partyPull: Object.freeze([0, 4, 5, 6]),
     gather: gather(9000, [
       /* P0 the woodcutters' clearing: the first logs, by the trailhead */
       ['normal_tree', 6, 16, 0], ['normal_tree', 17, 14, 0], ['normal_tree', 18, 23, 0], ['normal_tree', 8, 22, 0],
@@ -290,11 +293,12 @@ const BASE_GROUNDS = Object.freeze({
       /* P4 Rook's Hide: the ruined spring-house, Rook and his two */
       box([22, 1, 35, 12], [28, 6], ['rook_poacher', 'glade_poacher', 'carrion_crow'], ['carrion_crow', 'glade_poacher', 'carrion_crow', 'walking_vine', 'carrion_crow']),
       /* P5 Vine Hollow, back over the ford */
-      box([3, 2, 17, 13], [10, 8], ['walking_vine', 'brook_bear'], ['carrion_crow', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']),
+      box([3, 2, 17, 13], [10, 8], ['walking_vine', 'carrion_crow'], ['brook_bear', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
     respawnMs: 60000, pullDist: 1.5, groupFit: 'solo',
     densityMax: Object.freeze([8, 8, 8, 8]),
+    partyPull: Object.freeze([0, 3, 3, 4]),
     gather: gather(9000, [
       /* P0 the Crow Field: pines by the trail */
       ['normal_tree', 6, 26, 0], ['normal_tree', 19, 34, 0], ['normal_tree', 8, 35, 0],
@@ -329,6 +333,7 @@ const BASE_GROUNDS = Object.freeze({
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
     respawnMs: 60000, pullDist: 1.5, groupFit: 'solo',
     densityMax: Object.freeze([8, 8, 8, 8]),
+    partyPull: Object.freeze([0, 3, 3, 4]),
     gather: gather(9000, [
       /* P0 the Rick Yard: the hedge pines */
       ['normal_tree', 7, 14, 0], ['normal_tree', 20, 14, 0], ['normal_tree', 7, 25, 0],

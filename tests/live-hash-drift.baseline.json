@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-11",
- "replay_ms": 57329,
+ "replay_ms": 3979,
  "counts": {
-  "tracked_names": 832,
-  "entries": 684
+  "tracked_names": 834,
+  "entries": 686
  },
  "functions": [
   {
@@ -7513,6 +7513,42 @@
     "source": "computed-from-replay"
    },
    "agree": true
+  },
+  {
+   "sig": "hr_hunt_preset_project(p_user uuid, p_slot integer, p_preset integer)",
+   "name": "hr_hunt_preset_project",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-13-hunt-preset-read.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "735f8b7240dfa2146213902ce520fb0f",
+    "norm_len": 9309,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED 2026-11-11 (lane/c-hunt-preset-read): a NEW body authored by 2027-04-13-hunt-preset-read.sql, absent on production until the Coordinator applies that file; the replay md5 is the body as the chain builds it (the owner-only projector, hr_hunt_settings_view's slot and option rules for one setup number). Re-measure with --live --write after the apply."
+  },
+  {
+   "sig": "hr_hunt_preset_read(p_slot integer, p_preset integer)",
+   "name": "hr_hunt_preset_read",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-13-hunt-preset-read.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "e853438efa5055cb48f5b1793b0e5881",
+    "norm_len": 1198,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED 2026-11-11 (lane/c-hunt-preset-read): a NEW body authored by 2027-04-13-hunt-preset-read.sql, absent on production until the Coordinator applies that file; the replay md5 is the body as the chain builds it (the client door hr_hunt_preset_read, authenticated, volatile, 60 a minute). Re-measure with --live --write after the apply."
   },
   {
    "sig": "hr_hunt_preset_rename(p_slot integer, p_preset integer, p_name text, p_idem uuid)",

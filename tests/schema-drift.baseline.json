@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-11",
- "digest": "6fb1014d9ad6029383a9e135044b91abe85651254a7590b1659e933aada75085",
+ "digest": "792127092ed917b686120c16bbf786410bb91ddc2ed08bb406fbd6d29ccf311d",
  "counts": {
   "relations": 273,
-  "functions": 699,
+  "functions": 701,
   "policies": 119,
   "indexes": 387,
   "triggers": 93,
@@ -624,6 +624,8 @@
    "hr_hunt_pointer_guard()",
    "hr_hunt_preset_apply(p_slot integer, p_preset integer, p_idem uuid)",
    "hr_hunt_preset_delete(p_slot integer, p_preset integer, p_idem uuid)",
+   "hr_hunt_preset_project(p_user uuid, p_slot integer, p_preset integer)",
+   "hr_hunt_preset_read(p_slot integer, p_preset integer)",
    "hr_hunt_preset_rename(p_slot integer, p_preset integer, p_name text, p_idem uuid)",
    "hr_hunt_preset_save(p_slot integer, p_preset integer, p_name text, p_idem uuid)",
    "hr_hunt_presets_view(p_user uuid, p_slot integer)",

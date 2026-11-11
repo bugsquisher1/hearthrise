@@ -79,7 +79,7 @@ export default definePack({
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 16 Pikemen, 6 Wights and 5 Knights, who stand only
      on the Sergeants' Row and with their captain. Hask holds his barrow and has no weight (checks.holders). */
   hunt: {
-    name: 'The Muster Barrows', theme: 'Lord Krell buried the Banded Company\'s officers here with honors, to make it look like a lost battle. He buried Captain Hask with them, to keep him quiet.',
+    name: 'The Muster Barrows', theme: "Lord Krell buried the Banded Company's officers here to make it look like they died in battle. Captain Hask sold them out, and he's buried here too.",
     band: [55, 75],
     spawns: [{ monster: PK, w: 16, rarity: 'common' }, { monster: CW, w: 6, rarity: 'uncommon' }, { monster: BK, w: 5, rarity: 'rare' }],
     family: 'Undead', art: BK, travelS: 0, pull: 4, respawnMs: 90000,
@@ -183,10 +183,10 @@ export default definePack({
     hasks_coin: { n: 'Hask\'s Coin', icon: '🪙', v: 150, raw: true, imbue: { kind: 'life_leech', tier: 2 } },
   },
   itemText: {
-    coffin_nail: 'An iron nail out of a coffin lid in the Long Barrows. The Barrow Pikeman under it pushed it out himself',
-    urn_shard: 'A piece of a burial urn older than the Banded Company. The Cairn Wights were in this field first',
-    sergeant_spur: 'The spur off a Barrow Knight\'s boot. Krell buried the company\'s sergeants armed, with their horses beside them',
-    hasks_coin: 'One coin of the price Lord Krell paid Captain Hask for the ford. Hask was buried with all of it',
+    coffin_nail: 'Barrow Pikemen drop these iron nails from their coffins',
+    urn_shard: 'Cairn Wights drop these pieces of burial urns. The urns are older than the Banded Company',
+    sergeant_spur: 'Barrow Knights drop the spurs off their boots',
+    hasks_coin: 'Lord Krell paid Captain Hask in these coins to give up the ford. Hask was buried with all of them',
   },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the March's store food and drink, and Chalked Fire Runes (the unburned dead
      take 15% more fire). */

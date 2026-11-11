@@ -1,0 +1,110 @@
+/* MOCK ONLY (lane/d-ux-flow-audit, 2026-11-11). Every colour, size and face is a token from src/styles/tokens.css or a
+   variable the shipped sheets already define (--steel-rule, --fill-0, --hw-well). Part 1 is the proposed rules, named the
+   way the build would name them. Part 2 is the review board around the screens and never ships. */
+
+/* ═══ 1A. THE SHELL: one header for every window (shell.css) ═══ */
+/* The way back is always the first thing in the band: a crumb with the page it returns to. */
+.hs-crumbs { display: flex; align-items: baseline; gap: 6px; min-width: 0; flex: 1; margin: 0; }
+.hs-crumb { border: 0; background: none; padding: 0; font-family: var(--f-display); font-weight: 700; font-size: var(--t-lead); letter-spacing: .12em;
+  color: var(--ink-3); cursor: pointer; white-space: nowrap; }
+.hs-crumb:hover { color: var(--gold-2); }
+/* On a phone the crumbs fold to one back press: a sunk steel button naming the page it returns to. */
+.hs-crumb.is-back { flex: none; padding: 4px 8px; font-family: var(--f-ui); font-size: var(--t-small); letter-spacing: 0; color: var(--ink-2); background: var(--bg-0); box-shadow: var(--hw-well); }
+.hs-crumb-sep { color: var(--ink-3); font-family: var(--f-ui); font-size: var(--t-small); }
+.hs-crumbs .hs-win-title { flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+/* Tabs live in the head band, under the title, in every window that has them (one row, never two). */
+.hs-win-tabs { display: flex; gap: 2px; padding: 0 12px; background: var(--fill-0); border-bottom: 2px solid var(--steel-rule); }
+.hs-win-tabs .hw-tab { min-height: 36px; }
+/* Help: the window's one "what is this for" line, a steel square like the key and close. */
+.hs-help { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; box-sizing: border-box; border: 0; background: var(--bg-0);
+  box-shadow: var(--hw-well); font-family: var(--f-ui); font-weight: 800; font-size: var(--t-small); color: var(--ink-2); cursor: pointer; }
+/* The launcher row in four groups, a gap and a dim rule between them; the names stay on hover and hold. */
+.hs-launch-sep { flex: none; align-self: center; width: 1px; height: 24px; margin: 0 6px; background: var(--steel-rule); }
+
+/* ═══ 1B. INVENTORY: bag, worn gear and the counter in one window (windows.css) ═══ */
+.hw-inv3 { display: grid; grid-template-columns: auto minmax(0, 1fr) 248px; gap: 12px; align-items: start; }
+.hw-inv3 .hw-pockets { grid-template-columns: repeat(6, 44px); }
+.hw-counter { display: flex; flex-direction: column; gap: 10px; min-height: 100%; padding: 10px 12px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-counter-tabs { display: flex; gap: 2px; margin: -10px -12px 0; padding: 0 8px; border-bottom: 2px solid var(--steel-rule); }
+.hw-item-top { display: flex; gap: 10px; align-items: center; }
+.hw-item-top .hw-ico { width: 64px; height: 64px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.hw-item-top .hh-icon { width: 64px; height: 64px; image-rendering: pixelated; }
+.hw-item-name { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: var(--t-body); letter-spacing: .06em; color: var(--gold-2); line-height: 1.15; }
+.hw-item-kind { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-item-facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; font-size: var(--t-micro); }
+.hw-item-facts dt { color: var(--ink-2); }
+.hw-item-facts dd { margin: 0; color: var(--ink); font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
+.hw-item-facts .is-gain { color: var(--green); }
+.hw-item-from { margin: 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.4; }
+.hw-item-from a { color: var(--gold-2); }
+.hw-item-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.hw-item-acts .hw-primary { display: inline-block; }
+/* The selection bar: present only while 2 or more stacks are picked, pinned to the window's foot. */
+.hw-selbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; margin: 10px -12px -12px; background: var(--fill-0);
+  border-top: 2px solid var(--steel-rule); font-size: var(--t-small); color: var(--ink); }
+.hw-selbar b { font-variant-numeric: lining-nums tabular-nums; }
+.hw-selbar .hw-sel-worth { color: var(--ink-2); margin-right: auto; }
+.hw-pocket.is-sel { border-color: var(--ink); }
+.hw-pocket.is-picked { border-color: var(--gold); }
+.hw-pocket .hw-tick { position: absolute; left: 2px; top: 2px; width: 10px; height: 10px; background: var(--ink); box-shadow: 0 0 0 1px var(--bg-0); }
+.hw-filterline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hw-filterline .hw-cats { flex: 1; }
+/* The worn column on a phone is its own tab, so the grid takes the sheet's width. */
+.hw-sheet-drawer { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px 12px 8px; background: var(--bg-2); border-top: 2px solid var(--steel-rule);
+  display: flex; flex-direction: column; gap: 8px; }
+
+/* ═══ 1C. BACK IN TOWN: the summary leads the return (summary.css) ═══ */
+.hsum-line { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0; font-size: var(--t-small); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hsum-line b { color: var(--ink); }
+.hsum-line .is-gain { color: var(--green); }
+.hsum-steps { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; }
+.hsum-step { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+.hsum-step:last-child { border-bottom: 0; }
+.hsum-step .hsum-ico { width: 40px; height: 40px; display: grid; place-items: center; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hsum-step .hsum-ico .hh-icon { width: 32px; height: 32px; image-rendering: pixelated; }
+.hsum-step-words b { display: block; font-size: var(--t-small); color: var(--ink); }
+.hsum-step-words small { display: block; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
+.hsum-step.is-done .hsum-step-words b { color: var(--ink-2); }
+.hsum-step-done { font-size: var(--t-micro); font-weight: 700; color: var(--green); white-space: nowrap; }
+.hsum-again { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.hsum-again .hh-tool.is-primary { flex: 1; }
+
+/* ═══ 2. THE REVIEW BOARD (never ships) ═══ */
+html.mock-board, .mock-board body { background: var(--bg-0); color: var(--ink); font-family: var(--f-ui); }
+.mock-board body { margin: 0; padding: 24px 32px 48px; }
+.mock-h1 { font-family: var(--f-display); color: var(--gold-2); letter-spacing: .1em; font-size: var(--t-h2); margin: 0 0 6px; }
+.mock-lede { max-width: 1100px; font-size: var(--t-body); color: var(--ink-2); line-height: 1.45; margin: 0 0 18px; }
+.mock-cap { font-size: var(--t-small); color: var(--ink-2); margin: 18px 0 6px; }
+.mock-cap b { color: var(--ink); }
+.mock-pair { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+.mock-shot { display: block; border: 1px solid var(--line-soft); }
+.mock-note { max-width: 1100px; font-size: var(--t-small); color: var(--ink-2); line-height: 1.45; }
+.mock-note li { margin: 3px 0; }
+
+/* ── the mock's composition of the Inventory body (the build lays it out the same way in windows.css) ── */
+[data-hs-win="inventory"] .hw-inv-mock { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+.hw-inv-mock .hw-filterline { flex-wrap: nowrap; }
+.hw-inv-mock .hw-filterline .hw-find { display: contents; }
+.hw-inv-mock .hw-filterline .hw-search { flex: 0 0 160px; order: 0; }
+.hw-inv-mock .hw-filterline .hw-cats { order: 1; flex: 1 1 auto; min-width: 0; margin: 0; flex-wrap: nowrap; overflow: hidden; }
+.hw-inv-mock .hw-filterline .hw-sort { order: 2; flex: none; }
+.hw-inv-mock .hw-inv3 { flex: 1 1 auto; min-height: 0; grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+.hw-inv-mock .hw-inv-gridwrap { min-height: 0; max-height: 100%; overflow-y: auto; }
+.hw-inv-mock .hw-inv-gridwrap .hw-pockets { display: grid; grid-template-columns: repeat(auto-fill, 44px); gap: 4px; margin: 0; padding: 0; }
+.hw-inv-mock .hw-counter { min-height: 0; max-height: 100%; overflow-y: auto; }
+.hw-inv-mock .hw-inv-foot { margin: 0; }
+.hw-inv-mock .hw-selbar { margin: 0 -12px -12px; flex-wrap: nowrap; }
+/* The tab row's right end carries the one thing the bag can do for you right now (Equip upgrades). */
+.hs-tabs-aside { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: var(--t-micro); color: var(--ink-2); }
+.hs-tabs-aside b { color: var(--ink); }
+.hs-help .hs-glyph { width: 18px; height: 18px; }
+.hw-sheet-drawer { gap: 4px; }
+.hw-sheet-drawer .hw-item-kind { margin: 0; }
+.hw-sheet-drawer .hw-primary { min-height: 34px; padding: 0 14px; }
+.hw-sheet-drawer .hw-item-top .hw-ico { width: 40px; height: 40px; }
+.hw-sheet-drawer .hw-item-top .hh-icon { width: 32px; height: 32px; }
+.hsum-step .hsum-ico .hs-glyph { width: 22px; height: 22px; color: var(--green); }
+/* On a phone the way out stays in reach: the again row is pinned to the sheet's foot. */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hsum-again { position: sticky; bottom: -16px; margin: 0 -12px -16px; padding: 8px 12px 16px; background: var(--bg-2); border-top: 2px solid var(--steel-rule); }
+}

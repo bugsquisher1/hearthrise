@@ -30,6 +30,29 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-11 UX flow audit (art director, lane/d-ux-flow-audit; Tyler 2026-11-11: "Inventory management still kind of sucks", "difficult to navigate to the point where it's overwhelming"): PLAYED on the local world, audit and mocks only, nothing built
+**Method.** The real `play.html` on the local world (set v0.2.121), a new account to Level 8 (46 min Mill Cellar, 4 h Thicket), the 12 most common tasks of hours 1-20 walked at 1440x900, 1920x1080 and 922x423. Evidence table: `.claude/coordination/mocks/2026-11-11-ux-flow/AUDIT.md` (38 shots in `before/`), build spec `SPEC.md`, before/after board `board.html`. Hunts' clip, Tamsin's window and the crafting stations are other lanes' and only recorded.
+
+**Why it feels overwhelming** (ranked by how often a player hits it)
+| # | Reason | Proof (AUDIT rows) |
+|---|---|---|
+| 1 | Every window is a long scroll and the action is at the foot or under the fold (Shop 3.5 screens, 7 on a phone; a ground's page 3 and 5; This hunt 5) | 11 of 12 tasks |
+| 2 | Windows close each other with no word; bag + Storage, bag + Shop, bag + Character never fit at 1440 | 6 of 12 |
+| 3 | The return trip has no home: the summary's gold button is the first coach card after 4 h, selling has four routes, deposit is one press per stack | 4 of 12, every hunt |
+| 4 | One gesture, two meanings: a press picks in the bag and moves in Storage; three different "back"s; tabs in four places; up to three gold buttons | 5 of 12 + 4 shell rows |
+| 5 | Places named but not linked, things with no door: food has no shop, Blessings are a third tab named in words, monsters only through a hunt page | 4 of 12 |
+
+**The fix, three flows** (mocks on today's screens: same frame, fonts, tokens, 32 px art)
+| Lane | Flow | Size | Status |
+|---|---|---|---|
+| 1 | Back in town: the summary lists Wear / Sell junk / Put away / Bless as one press each, Hunt again is the gold button, the coach never takes it, Best loot by value | M client | 📋 waits on Tyler Q2 |
+| 2 | `hr_bank_move_many`: put a list of stacks away in one call (feeds 1 and 5) | S server | 📋 |
+| 3 | One header for every window: crumbs with a way back, tabs in the band, `?`, a monster as a page inside Hunts, a closed window says so | M client | 📋 |
+| 4 | The icon row in four groups, Report into Settings, one heroes press in the top bar | S client | 📋 waits on Tyler Q3 |
+| 5 | Inventory: the counter (Item / Storage / Sell tabs), pick and multi-pick that work the same everywhere, the pick bar, one gold button, phone Worn tab | L client | 📋 after lane/a-inventory-select; waits on Tyler Q1, Q4 |
+
+**Tyler's four questions** (SPEC.md): (1) fold Storage and selling into the Inventory as tabs? (2) the summary's Sell: junk only, or the loot plan's Sell? (3) group the icon row? (4) an 860 px Inventory at 1440?
+
 ### 2026-11-10 The first ten minutes (designer, lane/d-first-ten-minutes; Tyler 2026-11-10 approved "one-sentence hook on the first ten minutes + Steam page"): PLAYED on the local world at v0.2.114, three text lines CHANGED, the rest is a build list. Nothing else built
 
 **Method.** The real `play.html` on `tools/qa/local-world.mjs serve`, a brand-new account from the sign-in screen, one sword and shield hero (Odalys), 30 minutes by hand in real time in the browser pane (1355x846), then the page closed and `wait 480 --away`, then back. Session minutes count from the sign-in screen. A second measure ran on a separate headless world: three fresh heroes who took Tamsin's rats at Level 1 before their first hunt, read once a minute for 12 minutes of skipped time. Shots: `art/review/first-ten-minutes-2026-11-10/` (22, untracked). **Not played:** a phone, a death, sound, the email link a live sign-up needs, and other players. The local world held one account, so everything below about other people is what an empty server shows, which is also what live shows most hours today.

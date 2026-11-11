@@ -9,8 +9,8 @@
 //   equip     what Equip upgrades would put on (upgrade-plan.js): ONE `equip`
 //   sell      every stack the LOOT PLAN marks Sell (Dispatch loot's own rule, never
 //             a second "junk only" rule, Coordinator 2026-11-11): ONE `vendor_sell_many`
-//   deposit   every stack the loot plan marks Deposit: the bank verb per stack
-//             today (depositPlanned below), the bulk verb when it lands
+//   deposit   every stack the loot plan marks Deposit: ONE hr_bank_move_many, all
+//             or nothing (depositPlanned below, session/storage-intents.js)
 //   bless     every Blessing not on, while the purse covers the next one: the
 //             Services tab's own Bless all (bless-all.js)
 //   again     Hunt again, the summary's own press
@@ -25,6 +25,7 @@ import { sellPlan, isStartKit, SELL_LINES_MAX } from './bag-model.js?v=0.2.122';
 import { upgradeWords } from './upgrade-plan.js?v=0.2.122';
 import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.122';
 import { bagOf, rulesOf, shopOf, blessingsOf, goldOf } from '../session/item-sections.js?v=0.2.122';
+import { moveStorageMany } from '../session/storage-intents.js?v=0.2.122';
 import { itemName } from './widgets/bits.js?v=0.2.122';
 import { gold, listWords } from '../render/format.js?v=0.2.122';
 import { t } from '../render/player-text.js?v=0.2.122';
@@ -93,22 +94,12 @@ export function townStepsOf(cs, did) {
 }
 
 /**
- * Put the plan's Deposit stacks away: ONE hr_bank_move per stack, in order, stopped at the first refusal (its words are the answer; the
- * stacks before it are in Storage, the row shows what is left). `moved` counts the stacks that went.
- * TODO(lane/c-bank-move-many): when CharacterSession carries moveStorageMany (hr_bank_move_many: a list of item and count, one lock,
- * the bag fuse once), send `lines` as that ONE intent and drop the loop.
+ * Put the plan's Deposit stacks away: ONE hr_bank_move_many naming the stacks (whole, at the server's own counts), all of them or none
+ * (lane/c-bank-move-many, storage-intents.js). A refusal names the stack it stopped on, and its words are the answer. `moved` counts the
+ * stacks that went: the server's count, or none.
  * @returns {Promise<{ok:boolean, error?:string, moved:number}>}
  */
-export async function depositPlanned(cs, lines) {
-  if (typeof cs.moveStorageMany === 'function') {
-    const r = await cs.moveStorageMany(lines, 'deposit');
-    return Object.assign({ moved: r && r.ok ? lines.length : 0 }, r || { ok: false, error: 'network' });
-  }
-  let moved = 0;
-  for (const l of lines) {
-    const r = await cs.moveStorage(l.item, l.qty, 'deposit');
-    if (!r || !r.ok) return Object.assign({ moved }, r || { ok: false, error: 'network' });
-    moved++;
-  }
-  return { ok: true, moved };
+export async function depositPlanned(account, cs, lines) {
+  const r = await moveStorageMany(account, cs, lines.map((l) => l.item), 'deposit');
+  return Object.assign({ moved: r && r.ok ? r.count : 0 }, r || { ok: false, error: 'network' });
 }

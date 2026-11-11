@@ -35,8 +35,8 @@
 //   T2  ONE GOLD PRESS: the first open step is the card's gold press, else Hunt again
 //   T3  DONE STAYS: a step pressed on this card that now has nothing left reads Done with the title it was pressed with; one
 //       with something left is open again
-//   T4  DEPOSIT IS THE BANK VERB PER STACK (until lane/c-bank-move-many lands): one hr_bank_move per planned stack, stopped
-//       at the first refusal with the count that went; the bulk verb is used when the session carries it
+//   T4  DEPOSIT IS ONE hr_bank_move_many naming the plan's stacks (lane/c-bank-move-many): all of them or none, never a
+//       per-stack hr_bank_move; a refusal moves nothing and says so
 // No ?v= on imports here (tests/**).
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, cpSync, rmSync } from 'node:fs';
@@ -391,19 +391,27 @@ async function runTests(M) {
     eq([left.done, left.title], [false, 'Sell 1 stack for 60 gp'], 'what is left stays a press');
   });
 
-  await t('T4 Deposit is one hr_bank_move per planned stack, stopped at the first refusal; the bulk verb when the session has it', async () => {
+  await t('T4 Deposit is ONE hr_bank_move_many naming the plan\'s stacks, all or nothing', async () => {
     const lines = [{ item: 'wolf_pelt', qty: 3 }, { item: 'bones', qty: 8 }, { item: 'rat_tail', qty: 2 }];
     const calls = [];
-    const cs = { moveStorage: async (item, qty, dir) => { calls.push([item, qty, dir]); return item === 'bones' ? { ok: false, error: 'bank_full' } : { ok: true }; } };
-    const r = await TN.depositPlanned(cs, lines);
-    eq([r.ok, r.error, r.moved], [false, 'bank_full', 1], 'the first refusal is the answer, with the count that went');
-    eq(calls, [['wolf_pelt', 3, 'deposit'], ['bones', 8, 'deposit']], 'one move per stack, in order, none after the refusal');
-    const all = await TN.depositPlanned({ moveStorage: async () => ({ ok: true }) }, lines);
-    eq([all.ok, all.moved], [true, 3], 'every stack went');
-    /* TODO(lane/c-bank-move-many): the session's bulk verb, ONE intent with the list */
-    const bulk = [];
-    const b = await TN.depositPlanned({ moveStorage: async () => { throw new Error('one by one with the bulk verb there'); }, moveStorageMany: async (ls, dir) => { bulk.push([ls, dir]); return { ok: true }; } }, lines);
-    eq([b.ok, b.moved, bulk], [true, 3, [[lines, 'deposit']]], 'the bulk verb carries the whole list once');
+    let refuse = null;
+    const server = { accrue: async () => ({ ok: true, body: {} }), rpc: async (name, args) => {
+      calls.push({ name, args });
+      if (name === 'hr_load') return { ok: true, body: endedEnv(8) };
+      if (name === 'hr_bank_move_many') return refuse ? { ok: false, body: { ok: false, error: refuse, item: 'bones', index: 1 } } : { ok: true, body: { ok: true, count: 3 } };
+      return { ok: true, body: { ok: true } };
+    } };
+    const cs = new CS.CharacterSession({ slot: 0, uid: 'u', now: () => 0, server, setTimer: () => 0, clearTimer: () => {} });
+    const r = await TN.depositPlanned({ server }, cs, lines);
+    eq([r.ok, r.moved], [true, 3], 'every stack went, the server\'s count');
+    const many = calls.filter((c) => c.name === 'hr_bank_move_many');
+    eq([many.length, many[0].args.p_slot, many[0].args.p_items], [1, 0, [{ item: 'wolf_pelt', dir: 'deposit' }, { item: 'bones', dir: 'deposit' }, { item: 'rat_tail', dir: 'deposit' }]], 'ONE bulk move naming the stacks, no counts');
+    ok(!calls.some((c) => c.name === 'hr_bank_move'), 'never a per-stack hr_bank_move');
+    /* refused: nothing moved, the server's reason stands, still one ask */
+    refuse = 'bank_full';
+    const no = await TN.depositPlanned({ server }, cs, lines);
+    eq([no.ok, no.error, no.moved], [false, 'bank_full', 0], 'a refusal moves nothing');
+    eq(calls.filter((c) => c.name === 'hr_bank_move_many').length, 2, 'one ask per press');
   });
 
   return fails;
@@ -465,8 +473,8 @@ const MUTANTS = [
   { test: 'T2', file: TOWN, from: "const first = out.find((s) => !s.done);", to: "const first = out[0];" },
   { test: 'T3', file: TOWN, from: "else if (did.has(step.id)) out.push(Object.assign(step, { done: true, title: did.get(step.id) || step.title, words: '' }));", to: '' },
   { test: 'T3', file: TOWN, from: "done: true, title: did.get(step.id) || step.title, words: ''", to: "done: true, words: ''" },
-  { test: 'T4', file: TOWN, from: "    if (!r || !r.ok) return Object.assign({ moved }, r || { ok: false, error: 'network' });\n", to: '' },
-  { test: 'T4', file: TOWN, from: "if (typeof cs.moveStorageMany === 'function') {", to: 'if (false) {' },
+  { test: 'T4', file: TOWN, from: "lines.map((l) => l.item), 'deposit');", to: "lines.map((l) => l.item), 'withdraw');" },
+  { test: 'T4', file: TOWN, from: "return Object.assign({ moved: r && r.ok ? r.count : 0 }, r", to: "return Object.assign({ moved: lines.length }, r" },
 ];
 
 async function selftest() {

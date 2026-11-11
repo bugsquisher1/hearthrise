@@ -32,6 +32,8 @@ export const ITEM_TEXT = Object.freeze({
   kind_junk: 'Junk',
   kind_material: 'Material',
 
+  /* The locked stack that stopped a bulk deposit (hr_bank_move_many names it; src/shell/intent-words.js refusalText). */
+  locked_unlock_first: '{name} is locked. Unlock it first.',
   /* A bane weapon: its damage against one kind of monster (src/core/bane.js). */
   bane_label: 'Bane',
   bane_more: '+{pct}% damage to {kind} monsters',

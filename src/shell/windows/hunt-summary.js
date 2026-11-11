@@ -221,7 +221,7 @@ function patchTown(root, ctx, sc, town) {
 }
 
 /* ONE press per step, the existing intent each: the plan's `equip` (upgrade-line.js), the loot plan's sale as ONE vendor_sell_many, the
-   bank verb per Deposit stack (back-in-town.js depositPlanned), the Services tab's Bless all. An answer that went marks the step pressed
+   Deposit stacks as ONE hr_bank_move_many (back-in-town.js depositPlanned), the Services tab's Bless all. An answer that went marks the step pressed
    on this card, so a step with nothing left reads Done; the answer's words land on the summary's own line. */
 function doTown(ctx, cs, sc, repaint, cur, step) {
   const town = townStepsOf(cs, didOf(sc, cur.id));
@@ -237,7 +237,7 @@ function doTown(ctx, cs, sc, repaint, cur, step) {
   }
   if (step === 'deposit') {
     const lines = s.lines;
-    runIntent(sc, repaint, () => depositPlanned(cs, lines), t('summary.depositing'), (r) => t('summary.deposited', { count: r && Number.isSafeInteger(r.moved) ? r.moved : lines.length }), cs).then(mark);
+    runIntent(sc, repaint, () => depositPlanned(ctx.account, cs, lines), t('summary.depositing'), (r) => t('summary.deposited', { count: r && Number.isSafeInteger(r.moved) ? r.moved : lines.length }), cs).then(mark);
     return;
   }
   if (step === 'bless') {

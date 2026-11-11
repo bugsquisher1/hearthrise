@@ -22,6 +22,7 @@ import { marketRefusal } from './market-words.js?v=0.2.122';
 import { setupFullWords } from './setup-words.js?v=0.2.122';
 import { TITLES } from '../data/titles.js?v=0.2.122';
 import { sinkRefusal } from './sink-words.js?v=0.2.122';
+import { t } from '../render/player-text.js?v=0.2.122';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -141,7 +142,7 @@ export function refusalText(r, cs) {
   /* "That many" of WHAT (blind playtest 2026-10-31): the item the server's refusal named. */
   if (r && (r.error === 'insufficient_item' || r.error === 'bag_short') && r.item && own(ITEMS, r.item)) return 'You no longer have that many ' + ITEMS[r.item].n + '.';
   /* The locked stack that stopped a bulk deposit (hr_bank_move_many names it): "Wolf Pelt is locked. Unlock it first." */
-  if (r && r.error === 'item_locked' && r.item && own(ITEMS, r.item)) return ITEMS[r.item].n + ' is locked. Unlock it first.';
+  if (r && r.error === 'item_locked' && r.item && own(ITEMS, r.item)) return t('item.locked_unlock_first', { name: ITEMS[r.item].n });
   return refusalWords(r && r.error, r && r.verb);
 }
 
@@ -191,6 +192,6 @@ function answerAges(sc, repaint) {
   const said = sc.msg;
   if (!said) return;
   /* a number in the browser; under node (the pure tests) a handle that must not hold the process open */
-  const t = /** @type {any} */ (setTimeout(() => { if (sc.msg === said && !sc.pending) { sc.msg = ''; repaint(); } }, ANSWER_STANDS_MS));
-  if (t && t.unref) t.unref();
+  const timer = /** @type {any} */ (setTimeout(() => { if (sc.msg === said && !sc.pending) { sc.msg = ''; repaint(); } }, ANSWER_STANDS_MS));
+  if (timer && timer.unref) timer.unref();
 }

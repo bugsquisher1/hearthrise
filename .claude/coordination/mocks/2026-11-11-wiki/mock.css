@@ -1,0 +1,252 @@
+/* MOCK ONLY (lane/d-wiki-mocks, 2026-11-11). Every colour, size and face is a token from src/styles/tokens.css (or a
+   shared piece windows.css already defines: --hw-well, .hw-hd-h, .hw-hd-band, .hs-goto, .hh-seg, .hh-tool, .hw-search).
+   Part 1 is the proposed new rules for one window, `wiki` (object `book`), named the way the build would name them (.wk-).
+   Part 2 is the review board around the screens and never ships. */
+
+/* ── 1a. THE WINDOW: a book's contents beside its page, two steel panels as on Hunts (windows.css .hw-hunts-cols) ── */
+.hs-win[data-hs-win="wiki"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.wk { flex: 1; min-height: 0; display: grid; grid-template-columns: 232px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); column-gap: 12px; }
+
+/* The contents: search on top, the six shelves, the open shelf's index under its name. An index is lines, never boxes. */
+.wk-rail { min-height: 0; overflow: auto; display: flex; flex-direction: column; background: var(--fill-1); border: 2px solid var(--steel-edge); }
+.wk-find { flex: none; display: flex; padding: 10px 10px 8px; }
+.wk-find .hw-search { height: 36px; padding-right: 6px; }
+.wk-find .hw-q { height: 34px; padding: 0; font-family: var(--f-ui); font-size: var(--t-small); color: var(--ink); }
+.wk-find .hw-q::placeholder { color: var(--ink-3); }
+.wk-find .hs-key { min-width: 24px; height: 24px; font-size: var(--t-micro); }
+.wk-find.is-typing .hw-search { box-shadow: var(--steel-well), inset 0 0 0 2px var(--gold); }
+.wk-shelves { margin: 0; padding: 2px 0 10px; list-style: none; }
+.wk-shelf-go { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; width: 100%; padding: 7px 12px 7px 14px; border: 0; background: none;
+  font-family: var(--f-label); font-size: var(--t-small); font-weight: 700; letter-spacing: .03em; color: var(--ink-2); text-align: left; cursor: pointer; }
+.wk-shelf-go small { font-family: var(--f-ui); font-size: var(--t-micro); font-weight: 400; letter-spacing: 0; color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.wk-shelf-go:hover { color: var(--ink); }
+.wk-shelf.is-open > .wk-shelf-go { color: var(--gold-2); }
+.wk-index { margin: 0 0 8px; padding: 0; list-style: none; }
+.wk-index-h { margin: 8px 12px 2px 14px; font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.wk-entry { position: relative; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 3px 12px 3px 26px;
+  font-size: var(--t-small); line-height: 1.35; color: var(--ink); cursor: pointer; }
+.wk-entry small { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.wk-entry:hover { background: var(--fill-2); }
+/* The page you're on: the Hunts list's picked line, at an index line's weight (a gold bar at its left, no full outline). */
+.wk-entry.is-here { background: var(--fill-3); box-shadow: inset 4px 0 0 var(--gold); color: var(--gold-2); font-weight: 700; }
+/* A closed group of the open shelf (another ground's monsters, another kind of item): one line, its count at the right. */
+.wk-entry.is-group { padding-left: 14px; color: var(--ink-2); }
+/* A big shelf's thumb index: the letters of the open kind, the page's letter underlined in gold, an empty letter dim. */
+.wk-letters { display: flex; flex-wrap: wrap; gap: 0 1px; padding: 2px 10px 6px 20px; }
+.wk-letter { width: 22px; height: 24px; padding: 0; border: 0; background: none; font-family: var(--f-label); font-size: var(--t-micro); font-weight: 700; color: var(--ink-2); cursor: pointer; }
+.wk-letter.is-on { color: var(--gold-2); box-shadow: inset 0 -2px 0 var(--gold); }
+.wk-letter.is-none { color: var(--ink-3); cursor: default; }
+/* While searching, each shelf's count is its matches; a shelf with none is dim. */
+.wk-rail-note { margin: 0 12px 2px 14px; font-size: var(--t-micro); color: var(--ink-3); }
+.wk-shelf.is-empty > .wk-shelf-go { color: var(--ink-3); }
+
+/* The page: a steel panel, its left edge in dim gold toward the contents (as .hw-hunt-detail). Only the page scrolls. */
+.wk-page { min-width: 0; min-height: 0; overflow: auto; background: var(--fill-1); border: 2px solid var(--steel-edge); border-left-color: var(--steel-rule); padding: 8px 22px 22px; }
+.wk-crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin: 0 0 8px; font-size: var(--t-micro); color: var(--ink-3); }
+.wk-back { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px 0 8px; }
+.wk-crumbs .hs-goto { color: var(--ink-2); text-decoration-color: var(--steel-rule); }
+.wk-crumbs i { font-style: normal; color: var(--ink-3); }
+.wk-crumbs .wk-find-go { display: none; }
+
+/* LINKS. In a sentence a name is the game's link (.hs-goto: gold, underlined). In a list, a table or an index, where every
+   name is a link, the name keeps its own colour (ink, or its rarity) over a dim steel underline: a page of gold underlines
+   reads as a web page, not a book. */
+.wk-toc-list .hs-goto, .wk-table .hs-goto, .wk-page .mf-drop-name .hs-goto, .wk-page .hw-hd-rare-name .hs-goto, .wk-hit-name .hs-goto,
+.wk-lineup .hs-goto, .wk-step b .hs-goto, .wk-page .mf-home .hs-goto, .wk-page .mf-fact dt .hs-goto { color: inherit; text-decoration-color: var(--steel-rule); }
+.wk-toc-list .hs-goto:hover, .wk-table .hs-goto:hover, .wk-page .mf-drop-name .hs-goto:hover, .wk-page .hw-hd-rare-name .hs-goto:hover { color: var(--gold-2); text-decoration-color: var(--gold); }
+.wk-it { white-space: nowrap; }
+/* A book's index carries no underline at all: the line is the entry. Hover and focus show it. */
+.wk-toc-list .hs-goto { text-decoration-color: transparent; }
+.wk-toc-list .hs-goto:hover, .wk-toc-list .hs-goto:focus-visible { text-decoration-color: var(--gold); }
+
+/* A page's head: the picture on its stand or in its well, the name as a place is named, the kind over the diamond rule. */
+.wk-head { display: flex; align-items: flex-end; gap: 16px; }
+.wk-head .mf-stand { min-width: 80px; }
+.wk-head .hw-ico { flex: none; width: 72px; height: 72px; margin-bottom: 26px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.wk-head .hw-ico.is-glyph .hs-glyph { width: 40px; height: 40px; color: var(--gold-2); }
+.wk-id { flex: 1; min-width: 0; }
+.wk-title { margin: 0; font-family: var(--f-display); font-size: calc(var(--t-h2) * 1.2); font-weight: 700; line-height: 1.15; letter-spacing: .05em; color: var(--gold-2); }
+.wk-id .hw-hd-band { color: var(--ink-2); }
+.wk-lede { margin: 2px 0 10px; font-size: var(--t-body); line-height: 1.5; color: var(--ink); }
+.wk-flavour { margin: -4px 0 10px; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); font-style: italic; }
+.wk-p { max-width: 70ch; margin: 0 0 8px; font-size: var(--t-small); line-height: 1.5; color: var(--ink); }
+.wk-note { max-width: 66ch; margin: 6px 0 0; font-size: var(--t-micro); line-height: 1.45; color: var(--ink-3); }
+.wk-page .hw-hd-h small { font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; color: var(--ink-3); }
+.wk-page .mf-facts { row-gap: 7px; }
+.wk-page .mf-fact dd .hs-goto { font-weight: 700; }
+.wk-num { font-weight: 700; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+
+/* A table of exact numbers: a head ruled in steel, hairlines between rows, numbers right and tabular. Used where a list
+   would make the reader compare by eye (who lives on a ground, a tier's numbers, a skill's recipes). */
+.wk-table { width: 100%; border-collapse: collapse; font-size: var(--t-small); font-variant-numeric: lining-nums tabular-nums; }
+.wk-table th { padding: 0 12px 6px 0; border-bottom: 2px solid var(--steel-sep); font-family: var(--f-label); font-size: var(--t-micro); font-weight: 700; letter-spacing: .03em; color: var(--ink-3); text-align: left; white-space: nowrap; }
+.wk-table td { padding: 6px 12px 6px 0; border-bottom: 1px solid var(--line-soft); color: var(--ink); vertical-align: middle; }
+.wk-table tr:last-child td { border-bottom: 0; }
+.wk-table .n { text-align: right; font-weight: 700; white-space: nowrap; }
+.wk-table th.n { text-align: right; font-weight: 700; }
+.wk-table td.dim, .wk-table .dim { color: var(--ink-2); font-weight: 400; }
+.wk-table td.lbl { color: var(--ink-2); white-space: nowrap; }
+.wk-table tr.is-here td { background: var(--fill-3); }
+.wk-table tr.is-here td:first-child { box-shadow: inset 4px 0 0 var(--gold); padding-left: 10px; }
+.wk-table .wk-mon { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.wk-tiers { display: flex; align-items: center; gap: 12px; margin: 0 0 8px; }
+.wk-tiers .hh-segs { display: inline-flex; }
+.wk-tiers .hh-seg { min-height: 30px; padding: 0 12px; }
+
+/* Lines with an icon in a well: drops, materials, what feeds a skill. Reuses the monster page's .mf-drop and the Hunts
+   page's .hw-hd-rare as shipped; the wiki adds only the link under the name. */
+.wk-page .mf-drops, .wk-page .hw-hd-mats, .wk-page .hw-hd-rares { margin: 0; padding: 0; list-style: none; }
+.wk-page .hw-hd-rare { margin: 0 2px 10px; }
+.wk-page .hw-hd-rare-name.is-plain { color: var(--ink); }
+.wk-odds-n { display: block; font-size: var(--t-micro); font-weight: 400; color: var(--ink-3); text-align: right; }
+
+/* THE CHAIN on an item's page: where it comes from, what it becomes, where it ends up, left to right on one steel rule. */
+.wk-chain { display: flex; align-items: flex-start; margin: 4px 0 2px; padding: 12px 0 4px; }
+.wk-step { flex: none; width: 112px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.wk-step-pic { display: grid; place-items: end center; width: 80px; height: 80px; }
+.wk-step-pic.is-well { place-items: center; width: 72px; height: 72px; margin: 4px 0; background: var(--bg-0); box-shadow: var(--hw-well); }
+.wk-step-pic .hh-icon { width: 64px; height: 64px; image-rendering: pixelated; }
+.wk-step-pic .hs-glyph { width: 36px; height: 36px; color: var(--ink-2); }
+.wk-step-pic img.wk-sprite { image-rendering: pixelated; }
+.wk-step.is-here .wk-step-pic.is-well { box-shadow: var(--hw-well), inset 0 0 0 2px var(--gold); }
+.wk-step b { margin-top: 6px; font-size: var(--t-small); line-height: 1.2; color: var(--ink); }
+.wk-step.is-here b { color: var(--gold-2); }
+.wk-step small { margin-top: 2px; font-size: var(--t-micro); line-height: 1.25; color: var(--ink-2); }
+.wk-link { flex: 1 1 18px; min-width: 18px; align-self: flex-start; position: relative; height: 2px; margin-top: 41px; background: var(--steel-rule); }
+.wk-link::after { content: ''; position: absolute; right: -1px; top: -5px; border: 6px solid transparent; border-left: 8px solid var(--steel-rule); border-right: 0; }
+.wk-link small { position: absolute; left: 0; right: 0; top: 8px; font-size: var(--t-micro); color: var(--ink-3); text-align: center; white-space: nowrap; }
+.wk-feed { display: flex; align-items: center; gap: 10px; margin: 8px 0 0; font-size: var(--t-micro); line-height: 1.4; color: var(--ink-2); }
+.wk-feed .hw-ico { width: 40px; height: 40px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.wk-feed .hw-ico .hh-icon { width: 32px; height: 32px; }
+
+/* A recipe as a sentence and its numbers; the door to the window where you make it is a steel tool button, never a link. */
+.wk-recipe { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; align-items: start; }
+.wk-recipe-name { margin: 0 0 6px; font-size: var(--t-small); font-weight: 700; color: var(--ink); }
+.wk-recipe-name small { font-weight: 400; color: var(--ink-2); }
+.wk-door { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px; color: var(--ink-2); }
+.wk-door .hs-glyph { width: 14px; height: 14px; }
+.wk-perks { margin: 4px 0 0; padding: 0; list-style: none; }
+.wk-perks li { display: grid; grid-template-columns: 124px minmax(0, 1fr); column-gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--line-soft); font-size: var(--t-small); line-height: 1.4; color: var(--ink); }
+.wk-perks li:last-child { border-bottom: 0; }
+.wk-perks b { color: var(--rar-uncommon); }
+
+/* A skill's page: what comes in on the left, what goes out on the right, so a skill reads as the joint it is. */
+.wk-io { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 24px; }
+.wk-io .hw-hd-rare { margin: 0 0 8px; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) { .wk-io { grid-template-columns: minmax(0, 1fr); } }
+
+/* Where a creature stands, yard by yard: the route's order is the reading order. */
+.wk-yards td:first-child { width: 22px; color: var(--ink-3); font-weight: 400; }
+.wk-yards .wk-yard { font-family: var(--f-label); font-size: var(--t-small); font-weight: 700; letter-spacing: .02em; color: var(--ink); white-space: nowrap; }
+/* A ground's rare drops, one line per creature that carries them: the items inline with their icons, one chance for each. */
+.wk-rares td { vertical-align: top; }
+.wk-rare { display: inline-flex; align-items: center; gap: 4px; margin: 0 12px 4px 0; white-space: nowrap; color: var(--rar-rare); }
+.wk-rare .hh-icon { width: 32px; height: 32px; image-rendering: pixelated; }
+.wk-nosrc { font-size: var(--t-micro); color: var(--ink-3); font-style: italic; }
+/* A skill's recipes: the thing you make never wraps; what it takes may. */
+.wk-recipes td:nth-child(2) { white-space: nowrap; }
+
+/* A ground's picture: the game's own frame of it, at the world's one density (every art pixel 2x2), never scaled. */
+.wk-plate { position: relative; margin: 0 -22px 12px; height: 176px; overflow: hidden; background: var(--bg-0); border-bottom: 2px solid var(--steel-sep); }
+.wk-plate img { position: absolute; image-rendering: pixelated; }
+.wk-plate figcaption { position: absolute; left: 12px; bottom: 8px; padding: 2px 8px; background: var(--hud-fill); font-size: var(--t-micro); color: var(--ink-2); }
+
+/* THE ROAD on a story's page: the places in the order the road north reaches them, a stud each, on one steel rule. */
+.wk-road { position: relative; margin: 10px 0 0; padding: 0; list-style: none; }
+.wk-road::before { content: ''; position: absolute; left: 8px; top: 10px; bottom: 14px; width: 2px; background: var(--steel-rule); }
+.wk-stop { position: relative; padding: 0 0 16px 34px; }
+.wk-stop::before { content: ''; position: absolute; left: 3px; top: 5px; width: 10px; height: 10px; background: var(--gold); box-shadow: 0 0 0 2px var(--fill-1); transform: rotate(45deg); }
+.wk-stop.is-later::before { background: var(--fill-1); box-shadow: inset 0 0 0 2px var(--ink-3), 0 0 0 2px var(--fill-1); }
+.wk-stop-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 0 0 3px; }
+.wk-stop-name { font-family: var(--f-display); font-size: var(--t-small); font-weight: 700; letter-spacing: .05em; color: var(--gold-2); }
+.wk-stop-name.hs-goto { text-decoration-color: var(--steel-rule); }
+.wk-stop-band { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.wk-stop-band b { font-weight: 700; color: var(--green); }
+.wk-stop.is-later .wk-stop-name { color: var(--ink-2); }
+.wk-stop p { max-width: 62ch; margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink); }
+.wk-stop .wk-piece { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: var(--t-micro); color: var(--ink-2); }
+.wk-stop .wk-piece .hw-ico { width: 40px; height: 40px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.wk-stop .wk-piece .hw-ico .hh-icon { width: 32px; height: 32px; }
+.wk-stop.is-sealed p { color: var(--ink-3); }
+
+/* THE FRONT PAGE: the shelves as a book's contents, two columns of headed indexes, and one thing from the world. */
+.wk-toc { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 30px; }
+.wk-toc .hw-hd-h { margin: 16px 0 6px; }
+.wk-toc-what { margin: 0 0 6px; font-size: var(--t-micro); line-height: 1.4; color: var(--ink-2); }
+.wk-toc-list { margin: 0; padding: 0; list-style: none; font-size: var(--t-small); line-height: 1.45; }
+.wk-toc-list li { padding: 2px 0; }
+.wk-toc-list li > i { display: inline-block; min-width: 108px; font-style: normal; font-size: var(--t-micro); color: var(--ink-3); }
+.wk-toc-list li.is-grid { display: grid; grid-template-columns: 84px minmax(0, 1fr); column-gap: 8px; }
+.wk-toc-list li.is-grid.is-wide { grid-template-columns: 168px minmax(0, 1fr); }
+.wk-toc-list li.is-grid > i { min-width: 0; padding-top: 2px; }
+.wk-toc-list .wk-dot { color: var(--ink-3); }
+.wk-from { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px; align-items: center; margin: 4px 0 0; padding: 10px 0 10px 16px; border-left: 2px solid var(--steel-rule); }
+.wk-from .hw-ico { width: 72px; height: 72px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.wk-from p { margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink); }
+.wk-from p + p { margin-top: 4px; }
+
+/* SEARCH: results grouped by shelf, names first; the letters that matched are bold, nothing else changes colour. */
+.wk-hits-sum { margin: 2px 0 0; font-size: var(--t-small); color: var(--ink-2); }
+.wk-hits { margin: 0; padding: 0; list-style: none; }
+.wk-hit { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; column-gap: 12px; row-gap: 1px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line-soft); }
+.wk-hit:last-child { border-bottom: 0; }
+.wk-hit .hw-ico { grid-row: 1 / 3; width: 40px; height: 40px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.wk-hit .hw-ico .hh-icon { width: 32px; height: 32px; }
+.wk-hit .hw-ico.is-glyph .hs-glyph { width: 22px; height: 22px; color: var(--ink-2); }
+.wk-hit-name { font-size: var(--t-small); font-weight: 400; color: var(--ink); }
+.wk-hit-name .hs-goto { font-weight: 400; }
+.wk-hit-name .hs-goto b { font-weight: 800; color: var(--ink); }
+.wk-hit-what { grid-column: 2; font-size: var(--t-micro); line-height: 1.35; color: var(--ink-2); }
+.wk-hit-n { grid-column: 3; grid-row: 1 / 3; font-size: var(--t-small); font-weight: 700; color: var(--ink); text-align: right; font-variant-numeric: lining-nums tabular-nums; }
+.wk-hit.is-first { background: var(--fill-3); box-shadow: inset 4px 0 0 var(--gold); padding-left: 10px; margin-left: -10px; }
+.wk-lineup { display: flex; flex-wrap: wrap; gap: 10px 8px; margin: 0; padding: 0; list-style: none; }
+.wk-lineup .hw-hd-mon { width: 156px; padding-bottom: 6px; }
+.wk-lineup .hw-hd-stand { height: 72px; }
+.wk-lineup .hw-hd-mon-how { white-space: normal; }
+.wk-lineup .hw-hd-mon-name .hs-goto b { font-weight: 800; color: var(--ink); }
+/* The first hit, the one Enter opens: the picked line's gold bar, under the creature. */
+.wk-lineup .hw-hd-mon.is-first { background: var(--fill-3); box-shadow: inset 0 -4px 0 var(--gold); }
+
+/* The icon row's new book (launcher.js): a plain launcher; its tip is "Wiki (/)". */
+.mock-ring { box-shadow: inset 0 0 0 2px var(--gold); }
+
+/* ── 1b. THE PHONE SHEET (the one mobile query): the contents fold into the crumbs, search stays on top ── */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  /* 423 px of height: the contents and the search field fold into the crumbs row; the search press opens the field there. */
+  .hs-win[data-hs-win="wiki"] .hs-win-body { padding-top: 6px; }
+  .wk { display: flex; flex-direction: column; }
+  .wk-rail { display: none; }
+  .wk-page { flex: 1; border: 0; background: none; padding: 0 2px 16px; }
+  .wk-crumbs { position: sticky; top: -6px; z-index: 1; margin: -6px -2px 6px; padding: 4px 2px; background: var(--fill-1); }
+  .wk-back { min-height: 40px; }
+  .wk-crumbs .wk-find-go { display: inline-grid; place-items: center; min-width: 40px; min-height: 40px; margin-left: auto; }
+  .wk-find-go .hs-glyph { width: 18px; height: 18px; }
+  .wk-head { gap: 10px; }
+  .wk-title { font-size: var(--t-lead); }
+  .wk-head .hw-ico { width: 72px; height: 72px; margin-bottom: 22px; }
+  .wk-chain { padding-top: 6px; }
+  .wk-step { width: 78px; }
+  .wk-step-pic { width: 72px; height: 80px; }
+  .wk-link { min-width: 14px; flex-basis: 14px; }
+  .wk-link small { display: none; }
+  .wk-feed { margin-left: 0; }
+  .wk-table td, .wk-table th { padding-right: 8px; }
+  .wk-tiers .hh-seg { min-height: 40px; }
+  .wk-recipe { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
+  .wk-recipe .wk-door { justify-self: start; min-height: 40px; }
+  .wk-perks li { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── 2. THE REVIEW BOARD (never ships) ── */
+html.mock-board, html.mock-board body { height: auto; min-height: 100%; overflow: auto; }
+html.mock-board body { margin: 0; padding: 28px 32px 60px; background: var(--bg-0); color: var(--ink); font-family: var(--f-ui); font-size: var(--t-small); }
+.mock-h1 { margin: 0 0 4px; font-family: var(--f-display); font-size: var(--t-h2); letter-spacing: .06em; color: var(--gold); }
+.mock-lede { margin: 0 0 22px; max-width: 1000px; color: var(--ink-2); line-height: 1.45; }
+.mock-cap { margin: 26px 0 8px; font-family: var(--f-label); font-size: var(--t-micro); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.mock-cap b { color: var(--ink); }
+.mock-screen { display: block; border: 0; background: var(--bg-0); box-shadow: 0 0 0 1px var(--line); }
+.mock-why { max-width: 1000px; margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-3); line-height: 1.45; }
+.mock-row { display: flex; align-items: flex-start; gap: 28px; flex-wrap: wrap; }
+/* A whole page of the window standing still on the board, at the page's real width (960 window: 232 contents + 12 + the page). */
+.mock-page { position: relative; width: 676px; }
+.mock-page .wk-page { overflow: visible; }

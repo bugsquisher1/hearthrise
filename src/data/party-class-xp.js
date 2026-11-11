@@ -73,16 +73,16 @@ const BASE_CLASS_XP = Object.freeze({
      and a three of tank, healer and bow 1.03 -> 0.99 on Wickstead. A ground's XP dial moves alone and party alike, so the cell is the lever: the Cellar's two-class pair
      1070 -> 1210 (its tank 1.04-1.05, its hammer and bow 1.12, today 1.11), the Sewer's 1000 -> 1100 (its tank 0.96 at the floor and 1.09-1.12 above it, today 0.95-1.07),
      Wickstead's three-class three 1220 -> 1270 (1.03-1.09, today 1.03-1.07). Measured on the real settle, full grade, Normal (tools/balance-sim/grade.mjs). */
-  mill_cellar: row([1145, 1545], [1320, 1755, 1850], [1785, 2130, 2165, 2380]),
+  mill_cellar: row([1145, 2235], [1320, 3055, 3225], [1785, 4015, 4080, 4485]),
   /* A one-weapon four pays the even share: Tyler 11-02 (same-weapon friends lose about 6-15%) beats 10-31 (one class never beats solo) where they conflict (CLAUDE.md §0; Coordinator 2026-11-04). The share floors per
      kill, so the cell moves in steps: 995 left shields at -17 to -19%, 1000 lands them at -12 to -15%, and a four of wands 4-5% over solo, the accepted cost and party-class-xp-line's one named exception. A pull of 7: mixed coin 1.04-1.05, over solo.
      RE-MEASURED ON THE FORMULA'S ROWS (lane/b-ground-formula-2, 1 h x 2 seeds at 10): the four row moved a head about 10% toward the party (a mix +33% against
      the window's 20%, wands +15%, shields -8%), so the row is scaled: 940 lands wands about +4% and shields about -17% (920 read +2% and -19%), the mix +20% (10-25 §5: 15-25%).
      party-class-xp-line on the same rows: the Thicket's mage duo read 1.05 and trio 1.09 (cells 930, 880), the Cellar's healer trio 1.007 (990), the Warrens'
      four of staves at 8 each 1.014 (960). */
-  meadowbrook_thicket: row([1045, 1735], [1015, 1620, 1800], [1190, 1735, 1815, 1860]),
-  wickstead: row([975, 1610], [1200, 1745, 1910], [1335, 1800, 1860, 1910]),
-  mosslight_glade: row([990, 1610], [1180, 1660, 1795], [1160, 1575, 1695, 1730]),
+  meadowbrook_thicket: row([1045, 2085], [1015, 2315, 2570], [1190, 3130, 3275, 3355]),
+  wickstead: row([975, 2085], [1200, 2435, 2665], [1335, 3325, 3435, 3525]),
+  mosslight_glade: row([990, 1760], [1180, 2005, 2165], [1160, 2455, 2640, 2695]),
   millrace_sewer: row([1015, 1660], [1155, 1660, 1735], [1150, 1660, 1735, 1860]),
   /* One class under the even share (Tyler 2026-10-31, "only better if there are different classes"; lane/c-caster-party-line). With Green Sickness on the Healer's default bar a pair at 8 each read 1.033 against
      one alone and a four 1.005: the debuff stays up far longer in a one-class party, as Greater Mend's load splits (a head's casts an hour, alone 84 and 256, in a pair 144 and 168). Mana gates can't hold it (at 95% the

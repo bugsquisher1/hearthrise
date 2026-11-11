@@ -117,8 +117,8 @@ async function selftest() {
     return lines.join('\n');
   };
   const cases = [
-    ['hunt-detail.js loses bigPullLine (the bigPullParts shape)', 'src/shell/windows/hunt-detail.js', (s) => drop(s, 'bigPullLine'), /bigPullLine/],
-    ['hunt-detail.js loses materialsOf (the patchParts shape)', 'src/shell/windows/hunt-detail.js', (s) => drop(s, 'materialsOf'), /materialsOf/],
+    ['hunt-detail.js loses bigPullParts', 'src/shell/windows/hunt-detail.js', (s) => drop(s, 'bigPullParts'), /bigPullParts/],
+    ['hunt-detail.js loses patchParts', 'src/shell/windows/hunt-detail.js', (s) => drop(s, 'patchParts'), /patchParts/],
     ['party-roster.js loses huntName (the t shape)', 'src/shell/windows/party-roster.js', (s) => drop(s, 'huntName'), /huntName/],
     ['import of a missing file', 'src/shell/windows/party-roster.js', (s) => `import { x } from './no-such-module.js${Q}';\nexport const _p = x;\n${s}`, /Cannot find module/],
     ['import of a name the target does not export', 'src/shell/windows/party-roster.js', (s) => `import { noSuchExport } from './hunt-detail.js${Q}';\nexport const _q = noSuchExport;\n${s}`, /no exported member|has no exported/],

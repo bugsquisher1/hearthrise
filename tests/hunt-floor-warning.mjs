@@ -163,7 +163,7 @@ async function run(base) {
   ok('W4', (tierData.match(/You can die here\./g) || []).length === 4 && (tierData.match(/Bring plenty of food\./g) || []).length === 2
     && read('src/shell/hunt-list.js').includes("[tierLine(r, tier, size), TIER_DEATH_LINE].join(' ')") && win.includes('tierWords(r, tier, size)'), 'the tier no longer says what a harder tier costs (first-week-bands.mjs bigger-pulls-words plays it)');
   ok('W2', !/prop\([^)]*'disabled'[^)]*(short|rangeWords)/.test(win), 'Enter must never be disabled by the level warning');
-  ok('W2', win.includes("if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {") && win.includes("armed ? 'Enter anyway' : 'Enter'"), 'a lone hero above its level walks in with no confirm press');
+  ok('W2', win.includes("if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {") && win.includes("armed ? t('controls.enter_anyway') : t('controls.enter')"), 'a lone hero above its level walks in with no confirm press');
   ok('W2', /res && res\.belowRange \? ' ' \+ ABOVE_LEVEL_WORDS/.test(win), 'a below_range enter does not repeat the warning');
   const cs = read('src/session/character-session.js');
   ok('W3', cs.includes('ans.body.ok === true && ans.body.below_range === true) { await this.load(); return { ok: true, belowRange: true }; }'), 'CharacterSession drops the server\'s below_range');

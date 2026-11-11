@@ -4133,9 +4133,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             const lay = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-party"]'), m = w.querySelector('.hw-party > .hh-intent-msg').getBoundingClientRect(), a = w.querySelector('.hw-party-acts').getBoundingClientRect(), d = w.querySelector('[data-hs-act="disband"]'), dr = d.getBoundingClientRect(), b = w.querySelector('.hs-win-body').getBoundingClientRect();
               return { over: m.height > 0 && m.top < a.bottom && a.top < m.bottom, clip: d.scrollWidth - d.clientWidth, past: dr.right - b.right, said: w.querySelector('.hw-party > .hh-intent-msg').textContent }; });
             if (lay.over || lay.clip > 0 || lay.past > 0 || !lay.said) fails.push('AW-63 the Party window lays out as ' + JSON.stringify(lay));
-            /* ...and where the window scrolls too (a 1366x768 laptop's browser: 620 px of page), the presses scrolled to its foot: the sticky
+            /* ...and where the window scrolls too (a laptop's short browser; 460 px of page now that a window rises over the bar to fit, AW-93), the presses scrolled to its foot: the sticky
                answer every other window keeps would pin itself there, over Leave party and Disband (an unscrolled window never shows it). */
-            await page.setViewportSize({ width: 1366, height: 620 });
+            await page.setViewportSize({ width: 1366, height: 460 });
             await page.waitForTimeout(200);
             const low = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-party"]'), body = w.querySelector('.hs-win-body'), acts = w.querySelector('.hw-party-acts'), m = w.querySelector('.hw-party > .hh-intent-msg');
               const scrolls = body.scrollHeight > body.clientHeight + 1;
@@ -4144,7 +4144,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
               return { scrolls, said: m.textContent, over: r.height > 0 && r.top < a.bottom && a.top < r.bottom, msg: [Math.round(r.top), Math.round(r.bottom)], acts: [Math.round(a.top), Math.round(a.bottom)] }; });
             await page.setViewportSize({ width: 1365, height: 846 });
             await page.waitForTimeout(200);
-            if (!low.scrolls || !low.said) fails.push('AW-63 CONTROL: at 1366x620 the Party window does not scroll with its answer up: ' + JSON.stringify(low));
+            if (!low.scrolls || !low.said) fails.push('AW-63 CONTROL: at 1366x460 the Party window does not scroll with its answer up: ' + JSON.stringify(low));
             else if (low.over) fails.push('AW-63 scrolled to its presses, the Party window\'s answer lies over them: ' + JSON.stringify(low));
             s.env.party = Object.assign({}, s.env.party, { members: s.env.party.members.concat([{ seat: 2, name: 'Solace', unit: 12, hunting: false }]) });
             await pushEnvelope(page, s);

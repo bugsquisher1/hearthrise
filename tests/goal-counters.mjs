@@ -794,6 +794,18 @@ async function runOn(db, patches) {
     const fresh = await boot(patches);
     const c2 = combatNight();
     if (c2.accrued) {
+      /* COLLECTION-OFF (2027-03-30-dead-writes.sql): as shipped, the `collection_log` feature switch is off and hr_apply
+         stores no loot counter. The delta still lands whole: the Bestiary's rows beside it are the control. */
+      const off = await apply(fresh, outsideHunt(c2.delta));
+      ok(off?.ok === true, `COLLECTION-OFF: hr_apply refused the combat delta carrying loot ops with the switch off — ${JSON.stringify(off)}`);
+      const stored = await fresh.query(
+        `select count(*) filter (where key like 'ev:loot:%')::int as loot, count(*) filter (where key like 'ev:kill_monster:%')::int as kills
+           from public.player_progress where user_id = $1 and slot = 0`, [USER]);
+      ok(stored.rows[0].kills > 0, 'COLLECTION-OFF CONTROL: the delta stored no Bestiary row, so "no loot row" proves nothing');
+      ok(stored.rows[0].loot === 0,
+        `COLLECTION-OFF: ${stored.rows[0].loot} loot counter row(s) were stored with collection_log off. Nothing reads them `
+        + '(hunt-path baseline 2026-11-10, finding 2); the write comes back by the switch, not by default.');
+      await fresh.query(`update public.hr_feature_switches set scope = 'everyone' where switch_id = 'collection_log'`);
       const r = await apply(fresh, outsideHunt(c2.delta));
       ok(r?.ok === true, `COLLECTION-1: hr_apply refused the combat delta carrying loot ops — ${JSON.stringify(r)}`);
       const proj = await fresh.query('select item_id, qty from public.hr_collection_of($1::uuid, 0)', [USER]);
@@ -891,7 +903,11 @@ async function runOn(db, patches) {
     const fresh = await boot(patches);
     const c2 = combatNight();
     if (c2.accrued) {
+      /* The collection counter is stored only with its switch on (2027-03-30-dead-writes.sql): on here, so the exclusion is read against real rows. */
+      await fresh.query(`update public.hr_feature_switches set scope = 'everyone' where switch_id = 'collection_log'`);
       await apply(fresh, outsideHunt(c2.delta));   // writes ev:kill_monster:* and ev:loot:* rows
+      ok(Number((await fresh.query(`select count(*)::int as n from public.player_progress where user_id = $1 and slot = 0 and key like 'ev:loot:%'`, [USER])).rows[0].n) > 0,
+        'STATE-EXCL CONTROL: no collection row was stored, so "hr_state_of excludes them" proves nothing');
       await apply(fresh, { accrued_to: 'now', journal: { kind: 'accrue', intent: 'accrue' } }); // a settle → streak
       const r = await fresh.query('select public.hr_state_of($1::uuid, 0) as e', [USER]);
       const env = r.rows[0].e;

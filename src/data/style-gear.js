@@ -43,10 +43,10 @@
    weapon key (hunt-roles.js WEAPON_ROLES). */
 export const STYLE_LADDER = Object.freeze({
   sword:     Object.freeze({ practice: 'practice_sword',     rungs: Object.freeze(['iron_sword', 'steel_sword']), next: '' }),
-  dual_axe:  Object.freeze({ practice: 'practice_hatchets',  rungs: Object.freeze(['iron_hatchets', 'steel_hatchets']),  next: '' }),
+  dual_axe:  Object.freeze({ practice: 'practice_hatchets',  rungs: Object.freeze(['iron_hatchets', 'steel_hatchets', 'mithril_hatchets']),  next: '' }),
   club:      Object.freeze({ practice: 'practice_club',      rungs: Object.freeze(['klappas_club', 'iron_warhammer', 'steel_warhammer']), next: '' }),
   bow:       Object.freeze({ practice: 'practice_bow',       rungs: Object.freeze(['longbow', 'willow_longbow']),        next: '' }),
-  crossbow:  Object.freeze({ practice: 'practice_crossbow',  rungs: Object.freeze(['oak_crossbow', 'willow_crossbow']),  next: '' }),
+  crossbow:  Object.freeze({ practice: 'practice_crossbow',  rungs: Object.freeze(['oak_crossbow', 'willow_crossbow', 'maple_crossbow']),  next: '' }),
   wand:      Object.freeze({ practice: 'practice_wand',      rungs: Object.freeze(['oak_wand', 'willow_wand']),          next: '' }),
   spellbook: Object.freeze({ practice: 'practice_spellbook', rungs: Object.freeze(['oak_spellbook', 'willow_spellbook']), next: '' }),
   staff:     Object.freeze({ practice: 'practice_staff',     rungs: Object.freeze(['oak_staff', 'willow_staff']),        next: '' }),
@@ -74,6 +74,10 @@ export const STYLE_GEAR_RECIPES = Object.freeze({
     /* THE OTHER WEIGHTS' FIRST GLOVES AND SASH (lane b-unsourced-items, designer 2026-10-28): the Shop sells medium gloves and a
        heavy belt; the rest of the tier-1 pair is made, so a hero picks a weight in those slots too (made > bought, Tyler 10-14). */
     r('forge_bronze_gauntlets', 'Forge Bronze Gauntlets', '🧤', { bronze_bar: 3 }, 'bronze_gauntlets', 40, 4, 2800),
+    /* TIER 4 (lane/b-phase0-tier4, designer 2026-11-08): the two ways to fight with no tier-4 drop. The Slake carries one weapon on
+       each of its four bodies (sword, warhammer, bow, staff: the loot bands' one Scarce weapon a monster), so the pair and the
+       crossbow are made, as their tier 2 is, from the tier's own metal and wood. Made to carry: tier 4 sells at 0.075 of book. */
+    r('forge_mithril_hatchets', 'Forge Mithril Hatchets', '🪓', { mithril_bar: 6, normal_plank: 2 }, 'mithril_hatchets', 600, 45, 4200),
   ]),
   crafting: Object.freeze([
     /* Tier-2 weapons: oak stock at Crafting 15, the level they are worn at. */
@@ -82,6 +86,8 @@ export const STYLE_GEAR_RECIPES = Object.freeze({
     r('carve_oak_staff',      'Carve Oak Staff',         '🔮', { oak_plank: 3, bone_chips: 3 },  'oak_staff',     110, 15, 3600),
     r('string_longbow',       'String Longbow',          '🏹', { oak_plank: 3, silk_thread: 2 }, 'longbow',       110, 15, 3600),
     r('string_oak_crossbow',  'String Oak Crossbow',     '🏹', { oak_plank: 3, silk_thread: 1 }, 'oak_crossbow',  110, 15, 3600),
+    /* tier 4, the crossbow's maple stock (see the hatchets above) */
+    r('string_maple_crossbow', 'String Maple Crossbow',  '🏹', { maple_plank: 3, silk_thread: 2 }, 'maple_crossbow', 450, 45, 4500),
     /* Apprentice cloth (worn at Level 1): the Cellar's silk, a first spark for a caster. */
     r('sew_apprentice_boots',  'Sew Apprentice Slippers',    '🧵', { silk_thread: 1 }, 'apprentice_boots',  14, 1, 2800),
     r('sew_apprentice_helmet', 'Sew Apprentice Hat',         '🧵', { silk_thread: 1 }, 'apprentice_helmet', 16, 3, 2800),
@@ -99,10 +105,12 @@ export const STYLE_GEAR_RECIPES = Object.freeze({
   ]),
 });
 
-/* The style ladder's new weapons' flavour lines (item-descriptions.js spreads them): tier 2 made, tier 3 dropped. */
+/* The style ladder's new weapons' flavour lines (item-descriptions.js spreads them): tier 2 made, tier 3 dropped, tier 4 made. */
 export const STYLE_GEAR_DESC = Object.freeze({
   iron_hatchets: 'A matched pair of iron hatchets on oak hafts, made to open a wound and keep it bleeding',
   oak_crossbow: 'An oak crossbow strung with spider silk, slower to draw than a bow and harder where it lands',
   steel_hatchets: 'Steel hatchets for a fighter who bleeds a foe, the pair a Coppercap foreman keeps for splitting pit props',
   willow_crossbow: 'A willow crossbow for a ranger who keeps a shield up, the kind the goblin skulkers shoot down the galleries',
+  mithril_hatchets: 'Mithril hatchets on oak hafts for a fighter who bleeds a foe, light enough to swing all day',
+  maple_crossbow: 'A maple crossbow strung with spider silk for a ranger who keeps a shield up and wants the bolt to land hard',
 });

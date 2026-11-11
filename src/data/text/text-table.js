@@ -10,6 +10,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { AWAY_TEXT } from './away.js?v=0.2.119';
 import { BAR_TEXT } from './bar.js?v=0.2.119';
+import { COACH_TEXT } from './coach.js?v=0.2.119';
 import { DEATH_TEXT } from './death.js?v=0.2.119';
 import { FARM_TEXT } from './farm.js?v=0.2.119';
 import { HEROES_TEXT } from './heroes.js?v=0.2.119';
@@ -26,6 +27,7 @@ import { WORK_TEXT } from './work.js?v=0.2.119';
 export const TEXT = Object.freeze({
   away: AWAY_TEXT,
   bar: BAR_TEXT,
+  coach: COACH_TEXT,
   death: DEATH_TEXT,
   farm: FARM_TEXT,
   heroes: HEROES_TEXT,

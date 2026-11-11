@@ -5,7 +5,7 @@
 //   node tests/party-flow.mjs            the guard (every arm)
 //   node tests/party-flow.mjs --mutate   every planted defect must be CAUGHT by its arm
 //
-// mutant-anchors: supabase/migrations/2027-02-27-hunt-tiers.sql supabase/migrations/2027-02-20-party-leader-starts.sql supabase/migrations/2027-02-18-party-truth.sql supabase/migrations/2027-02-11-party-nudge.sql supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js
+// mutant-anchors: supabase/migrations/2027-04-09-own-hunt-nudge.sql supabase/migrations/2027-02-27-hunt-tiers.sql supabase/migrations/2027-02-20-party-leader-starts.sql supabase/migrations/2027-02-18-party-truth.sql supabase/migrations/2027-02-11-party-nudge.sql supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js
 // mutant-writes-tree: no — each mutant is ONE statement of its migration, patched in memory and run on the chain end inside a rolled-back transaction
 //
 // Ships with supabase/migrations/2026-10-28-party-flow.sql (PARTY_SPEC.md,
@@ -48,6 +48,11 @@
 //               starts nothing, refuses nothing
 //   PF-END-WHY  a friend's end names its cause (hr_hunt_view end_by_why); a hunting seat's stamina shows only when low
 //   PF-TRUTH-IDEM a second apply of the file is byte-identical
+//   PF-OWN-NUDGE (2027-04-09-own-hunt-nudge.sql, qa 11-11) a hunt opened or closed for an own hero reaches the account's
+//               OTHER open clients at once: a solo start, the leader's Start (each own seat) and an end each nudge the
+//               hero's own topic, whoever the caller; a replayed key and a write that ends nothing send none; never a hero
+//               open in no client, never with frames off; a party verb still spares the caller's own heroes
+//   PF-OWN-IDEM a second apply of 2027-04-09-own-hunt-nudge.sql is byte-identical
 //   PF-M8       (#4) the dormant M8 verbs and their baseline rows are gone
 //   PF-IDEM     a second apply of both files is byte-identical
 //   PF-GRANT    the four verbs are authenticated-only; the sweep and the
@@ -80,8 +85,10 @@ const FINDER = '2026-12-07-party-finder.sql';
 const PLAY = '2027-01-19-play-cap.sql';
 /* 2027-02-10-party-instance-reset.sql restates hr_hunt_enter_for last (#60: the restart resets density and strikes). */
 const RESET = '2027-02-10-party-instance-reset.sql';
-/* 2027-02-11-party-nudge.sql: a party move reaches another player's open client. */
-const NUDGE = '2027-02-11-party-nudge.sql';
+/* 2027-02-11-party-nudge.sql made a party move reach another player's open client; 2027-04-09-own-hunt-nudge.sql restates
+   hr_party_nudge (through the one hr_hero_nudge) and hr_party_nudge_trg last, and makes a hunt's open and close reach
+   every client of the hero, the caller's own included: every nudge mutant plants there. */
+const OWN = '2027-04-09-own-hunt-nudge.sql';
 /* 2027-02-18-party-truth.sql restates the seat, join, decline, kick, disband, leave, sweep and finder bodies last: their mutants plant there. */
 const TRUTH = '2027-02-18-party-truth.sql';
 /* 2027-02-27-hunt-tiers.sql restates hr_hunt_party_view last (the tier replaces the density): its mutants plant there. */
@@ -118,6 +125,16 @@ async function accept(db, uid) {
 const seen = (db, uid, ago) => db.query(`update public.social_presence set seen_at = now() - $2::interval where user_id = $1`, [uid, ago]);
 const joined = (db, uid, ago) => db.query(`update public.hunt_party_members set joined_at = now() - $2::interval where user_id = $1`, [uid, ago]);
 const err = (r) => (r && r.ok === true ? 'ok' : r && r.error);
+/* The push transport as the replay knows it (Supabase's realtime.send and its table), frames armed; and the nudges one
+   hero's topic got. Every client of a hero (the tab that acted, a second tab, a phone) joins that one topic. */
+const pushProbe = (db) => db.exec(`create schema if not exists realtime;
+  create table if not exists realtime.messages (id uuid primary key default gen_random_uuid(), topic text not null, extension text not null default 'broadcast',
+    event text, payload jsonb, private boolean, inserted_at timestamptz not null default now());
+  create or replace function realtime.send(payload jsonb, event text, topic text, private boolean default true) returns void language sql as
+    'insert into realtime.messages (topic, extension, event, payload, private) values ($3, ''broadcast'', $2, $1, $4)';
+  update public.hr_tick_config set frame_push = true where id;`);
+const nudgesOn = async (db, uid, slot = 0) => Number(await one(db, `select count(*) from realtime.messages where topic = public.hr_frame_topic($1, $2)
+                                                                     and event = 'frame' and payload = '{"t":"nudge"}'::jsonb`, [uid, slot]));
 
 /* Three players with the game open; A and C play a second character (C's is named). Grounds from the chain. */
 async function world(db) {
@@ -377,15 +394,10 @@ const ARMS = {
      never the caller's own (its client re-reads itself), never with frames off. */
   'PF-NUDGE': async (db) => {
     const { hunt } = await world(db);
-    await db.exec(`create schema if not exists realtime;
-      create table if not exists realtime.messages (id uuid primary key default gen_random_uuid(), topic text not null, extension text not null default 'broadcast',
-        event text, payload jsonb, private boolean, inserted_at timestamptz not null default now());
-      create or replace function realtime.send(payload jsonb, event text, topic text, private boolean default true) returns void language sql as
-        'insert into realtime.messages (topic, extension, event, payload, private) values ($3, ''broadcast'', $2, $1, $4)';
-      update public.hr_tick_config set frame_push = true where id;`);
+    await pushProbe(db);
     await db.query('insert into public.character_presence (user_id, slot, seen_at) values ($1, 0, now()) on conflict (user_id, slot) do update set seen_at = now()', [B]);
     await db.query('delete from public.character_presence where user_id = $1', [C]);
-    const nudges = async (uid) => Number(await one(db, `select count(*) from realtime.messages where topic = public.hr_frame_topic($1, 0) and event = 'frame' and payload = '{"t":"nudge"}'::jsonb`, [uid]));
+    const nudges = (uid) => nudgesOn(db, uid);
     const out = [];
     if (err(await invite(db, A, 'Flow B')) !== 'ok') out.push('HARNESS: the invite was refused');
     if (await nudges(B) !== 1) out.push(`the invite sent B ${await nudges(B)} nudge(s), want 1 (its toast never shows)`);
@@ -408,6 +420,58 @@ const ARMS = {
     await db.query('delete from public.hr_rate_counters');
     if (err(await invite(db, A, 'Flow B')) !== 'ok') out.push('HARNESS: the invite with frames off was refused');
     if (await nudges(B) !== off) out.push('a nudge went out with frames off');
+    return out;
+  },
+
+  /* qa 11-11 (2027-04-09-own-hunt-nudge.sql): a hunt started for an own hero from ANOTHER tab or a phone showed "In town,
+     idle" here until the world tick's first 90 s flush, and one that ended sooner never showed. A hero idle in town asks
+     nothing, so the hero's own topic must hear every open and close, whoever caused it: the tab that acted reads once more
+     (coalesced), the account's other clients read for the first time. */
+  'PF-OWN-NUDGE': async (db) => {
+    const { hunt } = await world(db);
+    await pushProbe(db);
+    const present = (slot) => db.query('insert into public.character_presence (user_id, slot, seen_at) values ($1, $2, now()) on conflict (user_id, slot) do update set seen_at = now()', [A, slot]);
+    await present(0); await present(1);
+    const n = (slot) => nudgesOn(db, A, slot);
+    const enter = (slot, key) => as(db, A, 'select public.hr_hunt_enter($1, $2, $3::jsonb, 0, null, $4::uuid)', [slot, hunt, '[]', key]);
+    const closeOpen = (slot) => db.query("select public.hr_hunt_close(h.id, 'left', now(), true) from public.hunt_sessions h where h.user_id = $1 and h.slot = $2 and h.ended_at is null", [A, slot]);
+    const idle = async () => {
+      await db.query("update public.player_state set active_kind = 'idle', active_id = null where user_id = $1", [A]);
+      await db.query('delete from public.hr_rate_counters');
+    };
+    const out = [];
+    /* A solo start from one session: its own hero's topic hears it once; the same key again opens and sends nothing. */
+    const key = idem();
+    const e = await enter(0, key);
+    if (err(e) !== 'ok') return ['HARNESS: the solo enter answered ' + JSON.stringify(e).slice(0, 160)];
+    if (await n(0) !== 1) out.push(`a solo start sent its own hero ${await n(0)} nudge(s), want 1 (the account's other tab shows town)`);
+    await enter(0, key);
+    if (await n(0) !== 1) out.push('a replayed start nudged again');
+    /* A write that ends nothing sends nothing; the end reaches it, once; an ended session written again sends nothing. */
+    await db.query("update public.hunt_sessions set leave_at = now() + interval '1 minute' where user_id = $1 and slot = 0 and ended_at is null", [A]);
+    if (await n(0) !== 1) out.push('a session write that ended nothing nudged');
+    await closeOpen(0);
+    if (await n(0) !== 2) out.push(`the end sent its own hero ${await n(0) - 1} nudge(s), want 1 (a short hunt never shows on the other tab)`);
+    await db.query('update public.hunt_sessions set ended_at = ended_at where user_id = $1 and slot = 0', [A]);
+    if (await n(0) !== 2) out.push('an ended session written again nudged');
+    /* A hero open in no client (its last stamp past the 75 s window) hears nothing, open or close. */
+    await db.query("update public.character_presence set seen_at = now() - interval '2 minutes' where user_id = $1 and slot = 1", [A]);
+    await idle();
+    if (err(await enter(1, idem())) !== 'ok') out.push('HARNESS: the second hero\'s enter was refused');
+    await closeOpen(1);
+    if (await n(1) !== 0) out.push('a hero open in no client was nudged');
+    await present(1);
+    /* A party verb still spares the caller's own heroes; the leader's Start reaches every own seat, once each. */
+    await idle();
+    if (err(await own(db, A, 0, 1)) !== 'ok') out.push('HARNESS: the own invite was refused');
+    if (await n(0) !== 2 || await n(1) !== 0) out.push('a party verb nudged the caller\'s own heroes');
+    if (err(await start(db, A, hunt)) !== 'ok') out.push('HARNESS: the start was refused');
+    if (await n(0) !== 3 || await n(1) !== 1) out.push(`the leader's Start sent its own seats ${await n(0) - 2}/${await n(1)} nudge(s), want one each`);
+    /* Frames off: silence, and the ends still land. */
+    await db.exec('update public.hr_tick_config set frame_push = false where id');
+    await closeOpen(0); await closeOpen(1);
+    if (Number(await one(db, 'select count(*) from public.hunt_sessions where user_id = $1 and ended_at is null', [A])) !== 0) out.push('HARNESS: a session stayed open');
+    if (await n(0) !== 3 || await n(1) !== 1) out.push('a nudge went out with frames off');
     return out;
   },
   'PF-KICK-HUNT': async (db) => {
@@ -751,6 +815,22 @@ const ARMS = {
     return before === after ? [] : ['a second apply moved the schema, a body, a grant or a row'];
   },
 
+  /* A second apply of 2027-04-09-own-hunt-nudge.sql over its own state is byte-identical, trigger definitions included. */
+  'PF-OWN-IDEM': async (chainDb) => {
+    void chainDb;
+    const { db } = await bootReplay({ upTo: OWN });
+    const snap = async () => JSON.stringify([await inventory(db),
+      (await db.query(`select p.oid::regprocedure::text f, md5(p.prosrc) h, coalesce(p.proacl::text, '') a from pg_proc p
+                       where p.pronamespace = 'public'::regnamespace order by 1`)).rows,
+      (await db.query(`select c.relname::text r, t.tgname::text n, pg_get_triggerdef(t.oid) d from pg_trigger t join pg_class c on c.oid = t.tgrelid
+                       where c.relnamespace = 'public'::regnamespace and not t.tgisinternal order by 1, 2`)).rows]);
+    const before = await snap();
+    try { await db.exec(SRC(OWN)); } catch (e) { await db.close().catch(() => {}); return ['the second apply RAISED: ' + String(e.message).split('\n')[0]]; }
+    const after = await snap();
+    await db.close().catch(() => {});
+    return before === after ? [] : ['a second apply moved the schema, a body, a grant or a trigger'];
+  },
+
   'PF-M8': async (db) => {
     const names = ['hr_party_create', 'hr_party_invite', 'hr_party_accept', 'hr_party_kick', 'hr_party_leave', 'hr_party_hunt_stop'];
     const left = (await db.query(`select proname from pg_proc where pronamespace = 'public'::regnamespace and proname = any ($1)
@@ -779,13 +859,33 @@ const ARMS = {
    must go red. Only the statement carrying the anchor runs (see plantedStatements). */
 const MUTANTS = [
   /* The invite body that runs is 2026-10-30-party-invite-player.sql's hr_party_invite_core: its mutants plant there. */
-  { arm: 'PF-NUDGE', file: TRUTH, why: 'an invite reaches nobody\'s open screen',
+  { arm: 'PF-NUDGE', file: OWN, why: 'an invite reaches nobody\'s open screen',
     find: '    perform public.hr_party_nudge(new.to_user, new.to_slot);\n', repl: '    perform 1;\n' },
-  { arm: 'PF-NUDGE', file: NUDGE, why: 'the caller is nudged for its own move',
+  { arm: 'PF-NUDGE', file: OWN, why: 'the caller is nudged for its own move',
     find: '    if auth.uid() is not distinct from p_user then return; end if;\n', repl: '' },
-  { arm: 'PF-NUDGE', file: NUDGE, why: 'a hero open in no client is nudged',
-    find: '    if not public.hr_frame_wanted(p_user, p_slot) then return; end if;\n    perform realtime.send(jsonb_build_object(\'t\', \'nudge\')',
-    repl: '    perform realtime.send(jsonb_build_object(\'t\', \'nudge\')' },
+  { arm: 'PF-NUDGE', file: OWN, why: 'a hero open in no client is nudged',
+    find: "    if not exists (select 1 from public.character_presence cp\n                    where cp.user_id = p_user and cp.slot = p_slot\n"
+      + "                      and cp.seen_at >  now() - interval '75 seconds'\n                      and cp.seen_at <= now() + interval '60 seconds') then return; end if;\n",
+    repl: '' },
+  /* qa 11-11: the bug itself. A hunt's open and close took the party verbs' rule, so the caller's own other clients heard nothing. */
+  { arm: 'PF-OWN-NUDGE', file: OWN, why: 'a hunt\'s open and close spare the caller\'s own other clients (2027-02-11\'s party rule)',
+    find: '  perform public.hr_hero_nudge(new.user_id, new.slot);\n', repl: '  perform public.hr_party_nudge(new.user_id, new.slot);\n' },
+  { arm: 'PF-OWN-NUDGE', file: OWN, why: 'a hunt start sends nothing',
+    find: 'create or replace trigger hr_hunt_nudge_open after insert on public.hunt_sessions\n  for each row execute function public.hr_hunt_nudge_trg();',
+    repl: 'drop trigger if exists hr_hunt_nudge_open on public.hunt_sessions;' },
+  { arm: 'PF-OWN-NUDGE', file: OWN, why: 'a hunt end sends nothing',
+    find: 'create or replace trigger hr_hunt_nudge_close after update of ended_at on public.hunt_sessions\n  for each row when (old.ended_at is null and new.ended_at is not null) execute function public.hr_hunt_nudge_trg();',
+    repl: 'drop trigger if exists hr_hunt_nudge_close on public.hunt_sessions;' },
+  { arm: 'PF-OWN-NUDGE', file: OWN, why: 'every session write nudges',
+    find: 'create or replace trigger hr_hunt_nudge_close after update of ended_at on public.hunt_sessions\n  for each row when (old.ended_at is null and new.ended_at is not null) execute function public.hr_hunt_nudge_trg();',
+    repl: 'create or replace trigger hr_hunt_nudge_close after update on public.hunt_sessions\n  for each row execute function public.hr_hunt_nudge_trg();' },
+  { arm: 'PF-OWN-NUDGE', file: OWN, why: 'an ended session written again nudges',
+    find: 'create or replace trigger hr_hunt_nudge_close after update of ended_at on public.hunt_sessions\n  for each row when (old.ended_at is null and new.ended_at is not null) execute function public.hr_hunt_nudge_trg();',
+    repl: 'create or replace trigger hr_hunt_nudge_close after update of ended_at on public.hunt_sessions\n  for each row when (new.ended_at is not null) execute function public.hr_hunt_nudge_trg();' },
+  { arm: 'PF-OWN-NUDGE', file: OWN, why: 'a client gone past the 75 s window is still nudged',
+    find: "                      and cp.seen_at >  now() - interval '75 seconds'\n", repl: '' },
+  { arm: 'PF-OWN-NUDGE', file: OWN, why: 'a nudge goes out with frames off',
+    find: '    select c.frame_push into v_on from public.hr_tick_config c where c.id;\n    if not coalesce(v_on, false) then return; end if;\n', repl: '' },
   { arm: 'PF-INVITE', file: INV, why: 'the first invite needs a party made first',
     find: '      v_pid := public.hr_party_open(p_uid, p_slot);\n    end if;\n    select * into v_p',
     repl: "      return jsonb_build_object('ok', false, 'error', 'no_party');\n    end if;\n    select * into v_p" },
@@ -857,11 +957,12 @@ MUTANTS.push(
     find: "jsonb_build_object('seat', m.seat, 'weapon', public.hr_hunt_weapon_of(m.user_id, m.slot),", repl: "jsonb_build_object('seat', m.seat, 'weapon', 'shield'," },
   { arm: 'PF-ROLE', file: TRUTH, why: 'the finder filters on no weapon',
     find: 'and public.hr_hunt_weapon_of(m.user_id, m.slot) = p_weapon))', repl: 'and false))' },
-  { arm: 'PF-ROLE', file: TRUTH, why: 'a swap of weapon reaches no seat-mate\'s screen',
+  /* hr_party_nudge_trg runs OWN's body (the hunt_sessions branch went to hr_hunt_nudge_trg): its mutants plant there. */
+  { arm: 'PF-ROLE', file: OWN, why: 'a swap of weapon reaches no seat-mate\'s screen',
     find: "    if v_party is null then return null; end if;\n  elsif tg_table_name = 'hunt_party_members' then", repl: "    return null;\n  elsif tg_table_name = 'hunt_party_members' then" },
-  { arm: 'PF-ROLE', file: TRUTH, why: 're-writing the same weapon nudges',
+  { arm: 'PF-ROLE', file: OWN, why: 're-writing the same weapon nudges',
     find: "      if tg_op = 'UPDATE' and new.item_id is not distinct from old.item_id then return null; end if;\n", repl: '' },
-  { arm: 'PF-ROLE', file: TRUTH, why: 'any worn slot nudges',
+  { arm: 'PF-ROLE', file: OWN, why: 'any worn slot nudges',
     find: "      if new.equip_slot not in ('weapon', 'shield') then return null; end if;\n", repl: '' },
   { arm: 'PF-CROSS', file: TRUTH, why: 'a party of one refuses a Join: the crossing invite is a dead end again',
     find: "(v_own = p_party or exists (select 1 from public.hunt_party_members m where m.party_id = v_own\n                                                         and (m.user_id, m.slot) is distinct from (p_uid, p_slot)))",
@@ -879,8 +980,8 @@ MUTANTS.push(
     find: "    perform public.hr_party_notice(v_m.user_id, v_m.slot, 'left', v_uid, p_slot);\n", repl: '    perform 1;\n' },
   { arm: 'PF-NOTICE', file: TRUTH, why: 'a lost seat tells nobody',
     find: "      perform public.hr_party_notice(v_o.user_id, v_o.slot, 'dropped', v_m.user_id, v_m.slot);\n", repl: '      perform 1;\n' },
-  { arm: 'PF-NOTICE', file: TRUTH, why: 'a decline reaches no idle inviter\'s screen',
-    find: "    perform public.hr_party_nudge(new.user_id, new.slot);\n    return null;\n  elsif tg_table_name = 'hunt_sessions' then", repl: "    return null;\n  elsif tg_table_name = 'hunt_sessions' then" },
+  { arm: 'PF-NOTICE', file: OWN, why: 'a decline reaches no idle inviter\'s screen',
+    find: "    perform public.hr_party_nudge(new.user_id, new.slot);\n    return null;\n  elsif tg_table_name = 'player_equipment' then", repl: "    return null;\n  elsif tg_table_name = 'player_equipment' then" },
   { arm: 'PF-NOTICE', file: TRUTH, why: 'an account is told of its own move',
     find: ' or p_actor_slot is null or p_user = p_actor then return; end if;', repl: ' or p_actor_slot is null then return; end if;' },
   { arm: 'PF-NOTICE', file: TRUTH, why: 'a hero\'s notices pile up',

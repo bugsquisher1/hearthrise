@@ -3307,6 +3307,20 @@ jobs:
           node tests/frame-push-revive.mjs
           node tools/mutant-gate.mjs node tests/frame-push-revive.mjs --mutate
 
+      # A WATCHED HUNT'S SETTLE COSTS LESS (2027-03-31-watched-settle-cost.sql + the
+      # settle floor's answer in hunt-settle.js). One account's two heroes and a
+      # stranger in one instance through the shipped edge: at the shipped dial (0)
+      # every frame goes as before; at 30 only the asker's own off-screen hero waits
+      # for a mark, never its hunt's end or its Level; the asker's answers and every
+      # row the commits wrote are identical; the floor answers without the character
+      # only at the version the client holds. --mutate plants 8 defects, each red at
+      # its own arm.
+      - name: Watched settle cost — own off-screen frames at a dial, the slim floor answer, identical rows (base + mutate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/watched-settle-cost.mjs
+          node tools/mutant-gate.mjs node tests/watched-settle-cost.mjs --mutate
+
       # CHAT ON PRIVATE BROADCAST (2026-12-26-chat-broadcast.sql + -27-chat-
       # unpublish.sql). Every stored line and whisper is broadcast once to exactly
       # who may hear it (public topics, the account inbox for party lines and

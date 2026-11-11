@@ -44,7 +44,7 @@ import { ALERT_INDEX } from '../data/alerts.js?v=0.2.119';
 import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.119';
 import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.119';
 import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.119';
-import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.119';
+import { carriedOf, nameOf, huntLootOf } from '../session/item-sections.js?v=0.2.119';
 import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.119';
 import { callOfHunt } from '../data/boss-calls.js?v=0.2.119';
 import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.119';
@@ -59,6 +59,9 @@ import { workRow } from './town-work.js?v=0.2.119';
 import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.119';
 import { tallyTask } from '../data/tally-tasks.js?v=0.2.119';
 import { gold } from '../render/format.js?v=0.2.119';
+import { levelOf } from '../session/character-sections.js?v=0.2.119';
+import { ITEMS } from '../data/items.js?v=0.2.119';
+import { trackOnce } from '../net/observability.js?v=0.2.119';
 
 const tallyLabel = (task) => { const t = tallyTask(task); return t ? t.label : 'a tally'; };
 
@@ -71,6 +74,19 @@ const who = (cs) => nameOf(cs) || 'Character ' + (cs.slot + 1);
 const RETIRE = new Set(['ended', 'death', 'low']);
 /* How long the away card must have been up to count as read when the page is left. */
 const AWAY_READ_MS = 8000;
+/* THE HOOK, COUNTED (designer 2026-11-10: "Your hero keeps hunting after you close the game"). Three funnel steps this centre is the one to see,
+   sent as the coach's are (observability.js trackOnce: once per scope in a page load, a no-op where nothing sends). Numbers and ids only: a slot,
+   a ground id, an item id, a Level, minutes. Never a name. Nothing reads them back.
+     left_with_hunt_running  the page was hidden or closed over an open hunt            per hero, once hidden and once closed
+     away_recap_shown        "While you were away" came up for a hunt                   per line
+     first_gear_found        a piece of gear landed in the open hunt's loot, in view    per hero */
+const GEAR_TYPES = new Set(['armor', 'weapon', 'offhand', 'jewelry']);
+/** The gear ids in this hero's open hunt's loot (the server's `hunt.loot`), or null with no open hunt or no loot sent. */
+function huntGearOf(cs) {
+  const h = huntOf(cs), loot = huntLootOf(cs);
+  if (!h || h.ended || !loot) return null;
+  return loot.filter((l) => l.count > 0 && ITEMS[l.item] && GEAR_TYPES.has(ITEMS[l.item].type)).map((l) => l.item);
+}
 
 /** Which kinds this character shows (every kind unless its residue switched it off). */
 export function alertShown(cs, kind) {
@@ -197,8 +213,12 @@ export function runOutOf(cs, ev) {
 
 /**
  * @param {object} account  the AccountSession (its open characters, and 'opening' / 'closed')
+ * @param {object} [opts]   { track(name, props, scope): the funnel's sender (the tests'), clock(): ms since the page loaded }
  */
-export function createAlertCenter(account) {
+export function createAlertCenter(account, opts) {
+  const track = (opts && opts.track) || trackOnce;
+  const sinceLoad = (opts && opts.clock) || (() => (typeof performance !== 'undefined' ? performance.now() : 0));
+  const gearSeen = new Map();        // slot -> { session, ids: Set } the gear already in the open hunt's loot
   const alerts = [];                 // newest first
   const seen = new Map();            // slot -> Set of ids shown on this page
   const watching = new Map();        // slot -> [unsubscribe]
@@ -234,6 +254,7 @@ export function createAlertCenter(account) {
     const kind = ALERT_INDEX[c.kind];
     alerts.unshift(Object.assign({ key: 'a' + (++n), slot: cs.slot, action: kind.action, button: kind.button, decline: kind.decline || null,
       share: kind.share || null, glyph: kind.glyph, pending: false, msg: '' }, c));
+    if (c.kind === 'away' && c.session) track('away_recap_shown', { slot: cs.slot, minutes: c.minutes, still_hunting: !c.ended, levels: c.levels }, c.id);
     if (alerts.length > 32) alerts.length = 32;
     if (kind.fadeMs) { const key = alerts[0].key; setTimeout(() => { const i = alerts.findIndex((a) => a.key === key); if (i >= 0) { alerts.splice(i, 1); changed(); } }, kind.fadeMs); }
     /* `transient`: live news a reload never raises again, so it takes no place in the saved list */
@@ -244,8 +265,31 @@ export function createAlertCenter(account) {
     return true;
   }
 
+  /* first_gear_found: the first read of a hunt is the baseline (what dropped unseen is the return's news, not a find); a gear id new since then is the find. */
+  function noteGear(cs) {
+    const ids = huntGearOf(cs);
+    if (!ids) return;
+    const h = huntOf(cs), was = gearSeen.get(cs.slot);
+    if (!was || was.session !== h.sessionId) { gearSeen.set(cs.slot, { session: h.sessionId, ids: new Set(ids) }); return; }
+    const found = ids.find((id) => !was.ids.has(id));
+    if (!found) return;
+    for (const id of ids) was.ids.add(id);
+    const lv = levelOf(cs);
+    track('first_gear_found', { slot: cs.slot, hunt: h.huntId, item: found, level: lv ? lv.level : null }, 'gear:' + cs.slot);
+  }
+  /* left_with_hunt_running: every open hero whose hunt is open as the page goes. `how`: hidden (it may come back) or closed. */
+  function noteLeft(how) {
+    for (const cs of account.characters()) {
+      const h = huntOf(cs);
+      if (!h || h.ended) continue;
+      const lv = levelOf(cs);
+      track('left_with_hunt_running', { slot: cs.slot, hunt: h.huntId, level: lv ? lv.level : null, minutes: Math.round(sinceLoad() / 60000), how }, 'left:' + how + ':' + cs.slot);
+    }
+  }
+
   function scan(cs) {
     let any = false;
+    noteGear(cs);
     /* ON SCREEN: the viewed slot, or, while the first character is still loading (a reload, a sign-in), the one the
        account is opening, since it becomes the viewed one (AccountSession._open: `viewed === null` -> this slot).
        Without that a reload raised "has ended · Start again" over the hero on screen (QA2's Pellow, 10-25). */
@@ -253,7 +297,7 @@ export function createAlertCenter(account) {
     /* "While you were away" (away-recap.js): judged against the last-seen stamp BEFORE it is renewed. */
     const judged = returning.has(cs.slot);
     const away = judged ? awayRecapOf(cs) : null;
-    if (away) { now.push(away); markBack(cs, away.session); } else if (judged) backWithNoStamp(cs);
+    if (away) { now.push(away); markBack(cs, away.session, away.at); } else if (judged) backWithNoStamp(cs);
     /* A bench the server stopped for gold says so once, watched or not (the work bench tax: bench-fee.js). */
     const broke = benchStopRecapOf(cs, (id) => { const w = workRow('artisan', id); return w ? w.row.name : 'A bench job'; });
     if (broke) now.push(broke);
@@ -299,6 +343,7 @@ export function createAlertCenter(account) {
     for (const off of watching.get(slot) || []) off();
     watching.delete(slot);
     returning.delete(slot);
+    gearSeen.delete(slot);
     seen.delete(slot);
     for (let i = alerts.length - 1; i >= 0; i--) if (alerts[i].slot === slot) alerts.splice(i, 1);
     changed();
@@ -340,6 +385,7 @@ export function createAlertCenter(account) {
         closed summary, a moved window) go now, on a fetch that outlives the page. `hidden`: only hidden, it may yet flicker back (flushResidue). */
     leaving({ hidden = false } = {}) {
       hiding = hidden;
+      noteLeft(hidden ? 'hidden' : 'closed');
       if (!hidden) for (const cs of account.characters()) forgetUnreadSummary(cs);
       for (const cs of account.characters()) { stampAway(cs, true); cs.flushResidue({ keepalive: true, hidden }).catch(() => {}); }
       for (const cs of account.characters()) returning.add(cs.slot);

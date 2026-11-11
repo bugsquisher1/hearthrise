@@ -712,6 +712,44 @@ async function rules(M) {
     if (d.err) return d.err;
     return d.reads() === '2,2' || 'a roster answer ' + (FRESH + 100) + ' ms old when the join asked was not read again (' + d.reads() + ')';
   });
+  /* ASK-4 (lane/c-watched-settle-cost): the ask says which version the record holds whole (`have`). The settle floor's
+     answer at exactly that version carries no character (hunt_slim): its start point is played with the record's own
+     hunt, nothing is re-read and the record stands. A slim answer at any other version is never the character: behind
+     it the full read follows (a client is never left on an old version). A full floor answer still replaces. */
+  await t('ASK-4', async () => {
+    const calls = [], asked = [], played = [];
+    let ver = 10, slim = null, heard = 0;
+    const body = () => env(ver, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: false, pose: { units: [] } } });
+    const live = { instance: { settled_to_ms: 1000 } };
+    const srv = {
+      rpc: async (name) => { calls.push(name); return { ok: true, status: 200, body: body(), closed: false }; },
+      accrue: async (b) => {
+        calls.push('accrue'); asked.push(b);
+        const a = slim === null ? Object.assign(body(), { hunt_live: live })
+          : { ok: true, hunt_slim: true, version: slim, now: new Date(5000).toISOString(), hunt_live: live };
+        return { ok: true, status: 200, body: Object.assign(a, { accrued: false, settled: false, reason: 'below_min_span' }), closed: false };
+      },
+    };
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, ...timers });
+    cs.liveLink.from = (b) => { played.push(b); };   // the live view's intake (live-link.js from), observed
+    cs.subscribe((_, why) => { if (why === 'hello') heard++; });
+    await cs.load();
+    const ask = async () => { calls.length = 0; await cs.hello(); await new Promise((r) => setImmediate(r)); return calls.join(','); };
+    slim = 10; played.length = 0;
+    if ((await ask()) !== 'accrue') return 'a slim floor answer at the held version was re-read: ' + calls.join(',');
+    if (asked[asked.length - 1].have !== 10) return 'the ask did not say which version the record holds whole: ' + JSON.stringify(asked[asked.length - 1]);
+    if (cs.record.version !== 10 || heard !== 1) return 'the slim answer moved the record or told nobody (version ' + cs.record.version + ', ' + heard + ' hello)';
+    if (played.length !== 1 || played[0].hunt_live !== live || !played[0].hunt || played[0].hunt.session_id !== 'h1' || played[0].state) {
+      return 'the slim answer\'s start point was not played with the record\'s own hunt: ' + JSON.stringify(played).slice(0, 200);
+    }
+    /* the server moved on and the client never heard: a slim answer at the newer version is not the character */
+    ver = 11; slim = 11;
+    if ((await ask()) !== 'accrue,hr_load') return 'a slim answer ahead of the record was not re-read in full: ' + calls.join(',');
+    if (cs.record.version !== 11) return 'the client stayed on version ' + cs.record.version + ' after a slim answer ahead of it';
+    ver = 12; slim = null;
+    if ((await ask()) !== 'accrue' || cs.record.version !== 12) return 'a full floor answer was not applied as the character: ' + calls.join(',') + ' at ' + cs.record.version;
+    return asked[asked.length - 1].have === 11 || 'the ask after a full read named version ' + asked[asked.length - 1].have;
+  });
   await t('HELLO-1', async () => {
     const calls = [];
     const srv = {
@@ -2413,6 +2451,10 @@ const MUTANTS = [
   ['a roster answer\'s age is forgotten at the join', 'src/session/account-session.js', '? agedBy(read.ans.body, age) : null, age);', '? agedBy(read.ans.body, age) : null);'],
   ['a whole copy never grows old', 'src/session/character-session.js', 'this._wholeMs = this._now();', 'this._wholeMs = Infinity;'],
   ['the session drops the age the account handed it', 'src/session/character-session.js', '_heldFor(ms) { this._wholeMs -= ms > 0 ? ms : 0; return', '_heldFor(ms) { return'],
+  /* ASK-4 (lane/c-watched-settle-cost: the floor's answer without the character) */
+  ['a slim floor answer is taken at any version', 'src/session/hunt-ask.js', ' && !body.state && body.version === wholeAt;', ' && !body.state;'],
+  ['the ask never says which version it holds', 'src/session/hunt-ask.js', 'return huntOpen && Number.isSafeInteger(wholeAt) && wholeAt >= 0 ? { slot, have: wholeAt } : { slot }; }', 'return { slot }; }'],
+  ['a slim floor answer\'s start point is dropped', 'src/session/hunt-ask.js', "  cs._play(Object.assign({}, body, { hunt: cs.read('hunt') }));\n", ''],
   ['the close is asked every 2 s past leave_at', 'src/session/hunt-leave.js', 'Math.max(SESSION_CONFIG.leaveRetryMs, Math.ceil(-left))', 'SESSION_CONFIG.leaveRetryMs'],
   ['an ended hunt keeps re-reading', 'src/session/character-session.js', "typeof h.session_id === 'string' && h.ended !== true;", "typeof h.session_id === 'string';"],
   ['a pending leave waits for the world tick', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.load();"],

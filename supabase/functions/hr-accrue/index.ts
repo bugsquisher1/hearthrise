@@ -1117,7 +1117,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       const huntOpenHere = out.reason === SKIP.HUNT_OPEN;
       const respond = async (auxOut: Record<string, any>): Promise<Response> => {
         if (!huntOpenHere) return json(auxOut);
-        const hv = await settleHunt({ exec, user, slot, mode: 'settle', bucket: null, project: true, live: true });
+        const hv = await settleHunt({ exec, user, slot, mode: 'settle', bucket: null, project: true, live: true, have: intent.have });
         if (hv.status !== 200) {
           return json({ ...auxOut, hunt: { outcome: hv.outcome, reason: hv.reason ?? null } });
         }

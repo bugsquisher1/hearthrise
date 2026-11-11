@@ -35,6 +35,11 @@
 // ONLY A RETURN IS JUDGED (src/shell/alerts.js): this page's first read of the hero, or its first after the page was left. A hunt on
 // screen past the stamp's age is being watched, not missed: it renews the stamp and says nothing.
 //
+// A NEW HERO'S FIRST RETURN SPEAKS SOONER (designer 2026-11-10, played: the return was the best moment of the game, and a new player who
+// came back at minute 5 got nothing). Until this hero has come back to a hunt once (residue `coach.back`), and while the stamp is of a hero
+// under the first real ground's Level, the shortest absence is FIRST_AWAY_MIN_MS and the stamp is renewed that often. After that first
+// return, AWAY_MIN_MS as ever. Only when the line speaks moves: its numbers are still two server answers.
+//
 // IN VIEW, A TIME SKIP (tools/qa/local-world.mjs) IS NOT AN ABSENCE. It moves the hunt, not the clock, so the stamp stays as young as
 // real time says; a tab closed with no goodbye right after one reports the skipped stretch too. No real clock can do that: a stamp is
 // never older than the absence it reports plus the renewal below, and its time and its numbers are the same stamp's.
@@ -51,9 +56,15 @@ import { bestFind } from '../hunt-view/summary-model.js?v=0.2.119';
 import { itemName } from './widgets/bits.js?v=0.2.119';
 import { t } from '../render/player-text.js?v=0.2.119';
 import { afterHuntOf, afterHuntWords, spanWords, WAITED_FROM_MS } from './after-hunt.js?v=0.2.119';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.119';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.119';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;
+/* A new hero's first return (see the header): the shortest absence its first line speaks of. */
+export const FIRST_AWAY_MIN_MS = 3 * 60 * 1000;
+/* A hero is new under the Level of the first ground past the tutorial room (hunt-tutorial.js: the coach's first hour ends there). */
+const NEW_HERO_BELOW = HUNT_INDEX.meadowbrook_thicket.band[0];
 /* How often the last-seen stamp is renewed while a hunt runs on screen, for a tab that dies with no goodbye. */
 export const STAMP_EVERY_MS = AWAY_MIN_MS;
 /* The most often leaving writes (one residue put per character): a page that flickers in and out of view is no absence. */
@@ -64,6 +75,20 @@ const stampOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.awaySeen;
   return isObj(r) && typeof r.s === 'string' && Number.isSafeInteger(r.at) ? r : null;
 };
+
+/**
+ * The shortest absence the line speaks of for this hero, which is also how often its stamp is renewed in view: FIRST_AWAY_MIN_MS until
+ * its first return has been told, while it is new by the stamp's Level XP (else the server's now), else AWAY_MIN_MS. `was`: the stamp
+ * being judged; the return markBack recorded for that very stamp is still the first (a second read of it says the same line).
+ */
+export function awayMinMsOf(cs, was) {
+  const coach = cs && cs.record && cs.record.residue && cs.record.residue.coach;
+  const told = isObj(coach) && typeof coach.back === 'string';
+  if (told && !(was && coach.back === was.s && coach.backAt === was.at)) return AWAY_MIN_MS;
+  const lv = levelOf(cs);
+  const xp = was && Number.isSafeInteger(was.xp) ? was.xp : lv ? lv.xp : null;
+  return xp !== null && charLevelFromXp(xp) < NEW_HERO_BELOW ? FIRST_AWAY_MIN_MS : AWAY_MIN_MS;
+}
 
 /** "1 h 58 min", "25 min". */
 const awayWords = spanWords;
@@ -89,7 +114,7 @@ function awayStampOf(cs, h) {
 
 /**
  * The away line for this character against its stamp, or null. Pure (reads the sections and the residue).
- * @returns {{id: string, kind: 'away', session: string, text: string}|null}
+ * @returns {{id: string, kind: 'away', session: string, text: string, said?: string, ended?: boolean, at?: number, minutes?: number, levels?: number}|null}
  */
 export function awayRecapOf(cs) {
   const was = stampOf(cs);
@@ -103,7 +128,7 @@ export function awayRecapOf(cs) {
   const now = serverNowOf(cs);
   if (!was || !h || h.sessionId !== was.s || !lv || !Number.isFinite(now)) return null;
   const gone = now - was.at;
-  if (gone < AWAY_MIN_MS) return null;
+  if (gone < awayMinMsOf(cs, was)) return null;
   /* A hunt that was over when the player left is no part of the absence (crafter's panel 2026-11-01). */
   if (h.ended && Number.isFinite(h.endedAtMs) && h.endedAtMs <= was.at) return null;
   const parts = [];
@@ -122,7 +147,9 @@ export function awayRecapOf(cs) {
      tally is the whole hunt's, so the line says so: the stamp holds no loot, and the absence alone is not known here. */
   const best = a && a.hero ? bestFind(a.hero.loot) : null;
   const said = head + (parts.length ? ': ' + parts.join(', ') + '.' : '.') + (best ? ' ' + t('hunts.away_best', { item: itemName(best) }) : '');
+  /* `minutes`, `levels`: the absence and the Levels gained, as the line says them (telemetry reads them, alerts.js: nothing else does) */
   return { id: 'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at, kind: 'away', session: h.sessionId, said, ended: h.ended,
+    at: was.at, minutes: Math.floor(gone / 60000), levels: from !== null ? Math.max(0, lv.level - from) : 0,
     text: (said + nowWords(cs, h, now)).trim() };
 }
 
@@ -166,11 +193,12 @@ export function awaySettled(cs) {
   return !isWorkStamp(was) || awayWorkSettled(cs, was, AWAY_MIN_MS);
 }
 
-/** Record the hunt the player came back to (see the header). Written once per return; display state only. */
-export function markBack(cs, session) {
+/** Record the hunt the player came back to (see the header), and the stamp its line was told from (`at`, awayMinMsOf). Written once per
+    return; display state only. */
+export function markBack(cs, session, at) {
   if (typeof session !== 'string' || typeof cs.setResidue !== 'function') return false;
   const r = (cs.record && cs.record.residue && cs.record.residue.coach) || {};
-  return r.back === session ? false : cs.setResidue('coach', Object.assign({}, r, { back: session }));
+  return r.back === session ? false : cs.setResidue('coach', Object.assign({}, r, { back: session, backAt: Number.isSafeInteger(at) ? at : undefined }));
 }
 
 /**
@@ -205,6 +233,6 @@ export function stampAway(cs, leaving = false) {
     /* only the hunt this stamp is for, once (this stamp lands past the end, the last one before it: a write re-runs this through its
        listeners, so a clock short of the end must not stamp at all), and never over a line still due: a new stamp would be a new line about the same hunt */
     if (!was || was.s !== next.s || !(was.at < h.endedAtMs && next.at >= h.endedAtMs) || awayRecapOf(cs)) return false;
-  } else if (was && was.s === next.s && next.at - was.at < (leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)) return false;
+  } else if (was && was.s === next.s && next.at - was.at < Math.min(awayMinMsOf(cs, null), (leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS))) return false;
   return cs.setResidue('awaySeen', next);
 }

@@ -46,6 +46,9 @@
 //   node tools/guard-anchors.mjs --unregistered     proof arms CI never runs
 //   node tools/guard-anchors.mjs --selftest         mutation proof of this file and of
 //                                                   lane-done's scoped step, end to end
+// mutant-writes-tree: yes — --selftest plants into src/session/envelope.js (E) and writes tests/__guard-anchors-probe.mjs (X).
+//   SOLO, so no runner starts it beside a guard that copies src/: on 11-11 preflight ran it next to
+//   no-client-copy-of-projection --selftest, whose copy caught E's plant ("selftest anchor missing").
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname, resolve, relative, normalize } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -272,7 +275,8 @@ function guardEntry(root, rel, { contentOf, registered = new Map() } = {}) {
   const arms = regFlags.length ? regFlags : [flags.includes('--selftest') ? '--selftest' : '--mutate'];
   const writes = /\bwrite(?:File)?(?:Sync)?\s*\(|\bcopyFile(?:Sync)?\s*\(|\brename(?:Sync)?\s*\(/.test(src)
     && !/\bmkdtemp(?:Sync)?\s*\(|\btmpdir\s*\(/.test(src);
-  const solo = dir.writesTree || /['"]\.\/mutation-safety\.mjs['"]/.test(src) || writes;
+  /* From tools/ the helper is '../tests/mutation-safety.mjs': this file's own E arm took that path and ran in the pool (11-11). */
+  const solo = dir.writesTree || /['"](?:\.\/|\.\.\/tests\/)mutation-safety\.mjs['"]/.test(src) || writes;
   return { guard: rel, flags, arms, how, anchors: [...new Set([...anchored, ...declared])].sort(), errors, solo,
     none: dir.none, registered: regFlags, derived, declared, lits, res };
 }
@@ -607,6 +611,8 @@ async function selftest() {
   ok(efg && efg.anchors.includes(ENV_FILE), `M1 ${INCIDENT_GUARD} anchors on ${ENV_FILE} (the b569 shape)`);
   const aa = entries.find((e) => e.guard === 'tests/session-core.mjs');
   ok(aa && aa.anchors.includes(ENV_FILE) && aa.solo, `M2 session-core anchors on ${ENV_FILE} and runs SOLO (its --mutate plants into the tree)`);
+  const self = entries.find((e) => e.guard === 'tools/guard-anchors.mjs');
+  ok(self && self.solo, `M4 guard-anchors runs SOLO: its E arm plants into ${ENV_FILE}, which ${INCIDENT_GUARD} --selftest copies (preflight 11-11)`);
   ok(entries.every((e) => !e.errors.length), 'M3 every proof-capable guard has a derivable or declared anchor set'
     + (entries.some((e) => e.errors.length) ? ': ' + entries.filter((e) => e.errors.length).map((e) => e.guard).join(', ') : ''));
 
@@ -629,6 +635,11 @@ async function selftest() {
       write(join(ROOT, tmpRel), '// mutant-anchors: src/session/\n' + body);
       const t = triggered([guardEntry(ROOT, tmpRel)], [ENV_FILE]);
       ok(t.length === 1, 'X4 a declared directory anchor covers its subtree');
+      const temp = "// mutant-anchors: none — probe\nconst d = mkdtempSync(join(tmpdir(), 'x'));\n";
+      write(join(ROOT, tmpRel), temp + "const { finish } = await import('../tests/mutation-safety.mjs');\n" + body);
+      const viaTools = guardEntry(ROOT, tmpRel).solo;
+      write(join(ROOT, tmpRel), temp + body);
+      ok(viaTools && !guardEntry(ROOT, tmpRel).solo, 'X5 importing ../tests/mutation-safety.mjs (a tools/ guard) is SOLO beside a temp dir; the same guard without it is not');
       const anchor = goldAnchor;
       write(join(ROOT, tmpRel), "const F = ['src/session/envelope.js', 'src/session/residue.js'];\n"
         + `const M = [${JSON.stringify(anchor)}, 'export const RESIDUE_FIELDS = Object.freeze('];\n` + body);

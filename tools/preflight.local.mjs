@@ -393,6 +393,12 @@ async function selftest() {
     'node tests/copy-lint.mjs --report', 'node tests/dead-exports.mjs', 'node tests/patch-chain-guard.mjs --report', 'bash bump-version.sh --check', 'node tests/restore-census.mjs']) {
     ok(names(real).includes(need), `the real plan runs ${need}`);
   }
+  /* 11-11, set/v0.2.116: guard-anchors --selftest plants into src/session/envelope.js; in the pool it ran beside
+     no-client-copy-of-projection --selftest, whose copy of src/ caught the plant ("selftest anchor missing"). */
+  const realSolo = new Set(catalogue(ROOT).filter((e) => e.solo).map((e) => e.guard));
+  const both = names(buildPlan(readFileSync(WORKFLOW, 'utf8'), { selected: new Set(['tools/guard-anchors.mjs', 'tests/no-client-copy-of-projection.mjs']), solo: realSolo }));
+  ok(!both.includes('node tools/guard-anchors.mjs --selftest') && both.includes('node tests/no-client-copy-of-projection.mjs --selftest'),
+    'the real plan leaves guard-anchors --selftest (it plants into src/) for GitHub, and runs the projection selftest that copies src/');
   /* --proofs: every job with no browser, touched proofs only, none that plants into the tree. */
   const proofChecks = (impl) => {
     const p = impl(FIXTURE, { selected: new Set(['tests/census.mjs', 'tests/plain-b.mjs', 'tests/plants.mjs', 'tests/page.mjs']), solo: new Set(['tests/plants.mjs']) });

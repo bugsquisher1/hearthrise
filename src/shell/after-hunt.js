@@ -21,12 +21,12 @@
 //
 // Display only: nothing here is spendable or gates an intent (CLAUDE.md §6).
 // ════════════════════════════════════════════════════════════════════════
-import { t } from '../render/player-text.js?v=0.2.120';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.120';
-import { RESUME_AFTER_END } from '../data/hunt-sessions.js?v=0.2.120';
-import { townActivityWords } from '../session/party-sections.js?v=0.2.120';
-import { huntOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.120';
-import { nameOf } from '../session/item-sections.js?v=0.2.120';
+import { t } from '../render/player-text.js?v=0.2.121';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.121';
+import { RESUME_AFTER_END } from '../data/hunt-sessions.js?v=0.2.121';
+import { townActivityWords } from '../session/party-sections.js?v=0.2.121';
+import { huntOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.121';
+import { nameOf } from '../session/item-sections.js?v=0.2.121';
 
 /* Shorter than this in town is the walk home settling, not time the hero waited (the away card's own shortest absence). */
 export const WAITED_FROM_MS = 10 * 60 * 1000;

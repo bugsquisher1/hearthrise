@@ -51,14 +51,14 @@
 // Every event is bounded: EVENT_MAX named events per load, CLICK_MAX of each click kind (a loop cannot spend the quota).
 // ════════════════════════════════════════════════════════════════════════
 
-import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.120';
-import { BUILD } from '../build-info.js?v=0.2.120';
-import { observeSessions } from '../session/character-session.js?v=0.2.120';
-import { partyOf, huntOf, huntTierOf } from '../session/hunt-sections.js?v=0.2.120';
-import { levelOf } from '../session/character-sections.js?v=0.2.120';
-import { replayWanted } from '../session/replay-pref.js?v=0.2.120';
-import { startDiagnostics } from './diagnostics.js?v=0.2.120';
-import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.120';
+import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.121';
+import { BUILD } from '../build-info.js?v=0.2.121';
+import { observeSessions } from '../session/character-session.js?v=0.2.121';
+import { partyOf, huntOf, huntTierOf } from '../session/hunt-sections.js?v=0.2.121';
+import { levelOf } from '../session/character-sections.js?v=0.2.121';
+import { replayWanted } from '../session/replay-pref.js?v=0.2.121';
+import { startDiagnostics } from './diagnostics.js?v=0.2.121';
+import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.121';
 
 const EARLY_MAX = 10;        // errors held while Sentry loads
 const QUEUE_MAX = 20;        // events held while PostHog loads

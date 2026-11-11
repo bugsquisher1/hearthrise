@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.121 — 2026-11-11 (Plainer Names)
+
+**Some gear and monsters have plainer names.** Coifs are Hoods, Vambraces are Bracers, Torcs are Necklaces and Greaves are Leg Plates. The Kobold Tosher is the Sewer Kobold, the Gray Whelp is the Gray Wolf Pup, and the Dire Gray Hackle is the Dire Gray Neck Fur. Your gear stays the same.
+
 ## v0.2.120 — 2026-11-11 (Tamsin's First Task)
 
 **Your first task from Tamsin comes early.** Bring her 25 rats from the Mill Cellar in your first minutes and she pays 25 gold and a Bronze Helm. A card tells you when it's safe to close the game, because your hero keeps hunting.

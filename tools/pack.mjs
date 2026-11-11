@@ -37,7 +37,47 @@ export async function loadPackData(root = ROOT) {
   const { HUNT_INDEX } = await import(v('src/data/hunts.js'));
   const { MONSTERS } = await import(v('src/data/monsters.js'));
   const BS = await import(v('src/data/balance-sheet.js'));
-  return { G, HUNT_INDEX, MONSTERS, BS };
+  const { ITEMS } = await import(v('src/data/items.js'));
+  const { GROUND_PACKS } = await import(v('src/data/grounds/index.js'));
+  return { G, HUNT_INDEX, MONSTERS, BS, ITEMS, GROUND_PACKS };
+}
+
+/**
+ * A PACK'S HALL (src/data/grounds/shape.js `hall`: a keyed boss room on the called-room machinery, lane/b-krells-hold-pack) against the
+ * data: its key is one of the game's items, tradeable (the designer's 11-10 ruling 6), and opens this ground; the room fields only its
+ * own called rows, a boss with the two lines the called-room engine reads (core/hunt/boss-phases.js) and his adds; every prize is a real
+ * item. `pack` the pack (or null), D = loadPackData's answer. Answers a list of refusals. The pay rules (xp 0, no coin, no drops) are the
+ * called-room generator's (tools/gen-hunt-sessions.mjs calledRows), which reads the hall the day it is folded in.
+ */
+export function lintHall(pack, D) {
+  const h = pack && pack.hall;
+  if (!h) return [];
+  const out = [], gid = pack.id, own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
+  const key = own(D.ITEMS, h.key) ? D.ITEMS[h.key] : null;
+  if (!key) out.push(gid + ': the hall\'s key ' + h.key + ' is not an item');
+  else {
+    if (key.opens !== gid) out.push(gid + ': the hall\'s key ' + h.key + ' opens ' + key.opens + ', not ' + gid);
+    if (key.bop === true) out.push(gid + ': the hall\'s key ' + h.key + ' is bound; a Hall Key trades (the designer\'s 11-10 ruling 6)');
+    if (!(Number(key.v) > 0)) out.push(gid + ': the hall\'s key ' + h.key + ' has no book value, so the market\'s ceiling (100x book) would refuse every listing');
+  }
+  const rows = Object.values(h.monsters || {});
+  const bosses = rows.filter((m) => m.boss === true), adds = rows.filter((m) => m.add === true);
+  if (bosses.length !== 1) out.push(gid + ': the hall has ' + bosses.length + ' bosses, the rule is one');
+  for (const b of bosses) {
+    const ph = b.phases || {};
+    if (!(Number.isInteger(ph.addsPm) && Number.isInteger(ph.enragePm) && Number.isInteger(ph.enrageAtkPm) && ph.addsPm > ph.enragePm && ph.enragePm > 0 && ph.addsPm < 1000 && ph.enrageAtkPm > 1000)) {
+      out.push(gid + ': the hall\'s boss has no two lines (phases.addsPm > enragePm > 0, enrageAtkPm > 1000)');
+    }
+  }
+  if (!adds.length) out.push(gid + ': the hall has no adds (a called room\'s boss calls his adds at his first line)');
+  const placed = (h.ground && h.ground.pockets || []).flatMap((p) => [...(p.spawns || []), ...(p.adds || [])].map((s) => s.monster));
+  for (const id of placed) if (!own(h.monsters, id)) out.push(gid + ': the hall fields ' + id + ', which is not one of its own rows');
+  for (const id of Object.keys(h.monsters || {})) {
+    if (!placed.includes(id)) out.push(gid + ': the hall\'s row ' + id + ' stands nowhere in it');
+    if (own(D.MONSTERS, id)) out.push(gid + ': the hall\'s row ' + id + ' is already a monster (a hall row is the room\'s own)');
+  }
+  for (const r of h.prize || []) if (!own(D.ITEMS, r.id) && r.id !== 'coin') out.push(gid + ': the hall\'s prize ' + r.id + ' is not an item');
+  return out;
 }
 
 /** Every monster a ground places (its packs and spawns, a boss included), sorted. */
@@ -67,6 +107,8 @@ export function lintGround(gid, D) {
     if (!Number.isInteger(D.MONSTERS[id].level)) out.push(gid + ': ' + id + ' has no Level');
   }
   for (const id of Object.keys(roster || {})) if (!placed.includes(id)) out.push(gid + ': the roster names ' + id + ', which the ground never places');
+  /* a pack's keyed hall, when it has one */
+  out.push(...lintHall((D.GROUND_PACKS || []).find((p) => p.id === gid) || null, D));
   return out;
 }
 
@@ -128,6 +170,28 @@ async function selftest() {
     ['a placed monster that does not exist', () => lintGround(gid, { ...D, MONSTERS: Object.fromEntries(Object.entries(D.MONSTERS).filter(([k]) => k !== first)) })],
     ['a placed monster with no Level', () => lintGround(gid, { ...D, MONSTERS: { ...D.MONSTERS, [first]: { ...D.MONSTERS[first], level: undefined } } })],
   ];
+  /* THE HALL (lintHall): a sound keyed room on a planted pack and its data, then one defect each. The items and rows are planted, so the
+     proof needs no pack on the tree. */
+  const hallItems = { ...D.ITEMS, fx_key: { n: 'Fx Key', v: 10, opens: 'fx_hold' }, fx_prize: { n: 'Fx Prize', v: 1 } };
+  const sound = { id: 'fx_hold', hall: { key: 'fx_key', words: { boss: 'the Fx', Boss: 'The Fx' }, hunt: { name: 'Fx Hall' },
+    ground: { pockets: [{ room: [0, 0, 4, 4], spawns: [{ monster: 'fx_boss_called', x: 2, y: 2 }], adds: [{ monster: 'fx_add_called', x: 1, y: 1 }] }] },
+    monsters: { fx_boss_called: { called: true, boss: true, phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400 } }, fx_add_called: { called: true, add: true } },
+    prize: [{ id: 'fx_prize', ch: 0.1, band: 'rare' }] } };
+  const HD = { ...D, ITEMS: hallItems };
+  const withHall = (edit) => { const p = JSON.parse(JSON.stringify(sound)); edit(p.hall, p); return p; };
+  const control = lintHall(sound, HD);
+  if (control.length) bad.push('the sound hall does not lint: ' + control.join('; '));
+  cases.push(
+    ['a hall whose key is no item', () => lintHall(withHall((h) => { h.key = 'no_such_key'; }), HD)],
+    ['a hall whose key opens another ground', () => lintHall(sound, { ...HD, ITEMS: { ...hallItems, fx_key: { ...hallItems.fx_key, opens: 'wickstead' } } })],
+    ['a bound Hall Key (the 11-10 ruling: it trades)', () => lintHall(sound, { ...HD, ITEMS: { ...hallItems, fx_key: { ...hallItems.fx_key, bop: true } } })],
+    ['a Hall Key with no book value (the market refuses it)', () => lintHall(sound, { ...HD, ITEMS: { ...hallItems, fx_key: { ...hallItems.fx_key, v: 0 } } })],
+    ['a hall boss with no two lines', () => lintHall(withHall((h) => { delete h.monsters.fx_boss_called.phases; }), HD)],
+    ['a hall with no adds', () => lintHall(withHall((h) => { delete h.monsters.fx_add_called; h.ground.pockets[0].adds = []; }), HD)],
+    ['a hall fielding a row it does not own', () => lintHall(withHall((h) => { h.ground.pockets[0].adds.push({ monster: 'rat', x: 3, y: 3 }); }), HD)],
+    ['a hall row that is already a monster', () => lintHall(withHall((h) => { h.monsters.rat = { called: true, add: true }; h.ground.pockets[0].adds.push({ monster: 'rat', x: 3, y: 3 }); }), HD)],
+    ['a hall prize that is no item', () => lintHall(withHall((h) => { h.prize.push({ id: 'no_such_prize', ch: 0.1, band: 'rare' }); }), HD)],
+  );
   for (const [what, fn] of cases) { const n = fn().length; console.log('  ' + (n ? 'ok ' : 'RED') + ' refuses: ' + what); if (!n) bad.push(what + ' passed the lint'); }
   if (bad.length) { console.error('pack --selftest: RED\n  ' + bad.join('\n  ')); process.exit(1); }
   console.log('pack --selftest: green (' + Object.keys(D.G.HUNT_GROUNDS).length + ' grounds lint clean, ' + cases.length + ' refusals bite)');

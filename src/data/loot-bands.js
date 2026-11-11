@@ -16,6 +16,10 @@
 //             the weapons its creatures carry. Split round-robin in a party.
 //   rare      each item every 10-20 h: next-tier pieces, named pieces, the
 //             carrier's trophies. The reveal, and the party's rare roll.
+//   key       about every 2 h (1.5-3 h), the door to a keyed hall (lane/b-krells-hold-pack; the designer's
+//             "2026-11-10 Krell's Hold": the Castellan carries the Hall Key, "about one key every two hours
+//             for a lone hero at the floor"). Only an item that `opens` a hall, only on that hall's own ground,
+//             one row a monster. A standard drop, never revealed: the fight it opens is the moment.
 //   trophy    every 100-150 h, bosses only, the boss's LAST row: one named
 //             prize per boss. The reveal.
 //
@@ -25,8 +29,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-/** The bands, in the order a monster's rows list them. */
-export const LOOT_BANDS = Object.freeze(['common', 'uncommon', 'scarce', 'rare', 'trophy']);
+/** The bands, in the order a monster's rows list them. `key` sits after `rare`, so a key row added to a monster never moves the draw
+    of a row it already had. */
+export const LOOT_BANDS = Object.freeze(['common', 'uncommon', 'scarce', 'rare', 'key', 'trophy']);
 
 /** The bands the server reveals (a `rare_drop` event) and the party's rare roll decides. */
 export const REVEAL_BANDS = Object.freeze(['rare', 'trophy']);
@@ -43,6 +48,9 @@ export const BAND_TARGETS = Object.freeze({
   uncommon: odds(0.05, 0.15),
   scarce: hours(0.75, 1.5),
   rare: hours(10, 20),
+  /* a hall's key: one try at a fight you can lose, used up either way (Krell's Hold). PROPOSED, the design's "about every two hours" held
+     to [1.5, 3] the way Scarce holds its hour to [0.75, 1.5]; measured by tests/hunt-core/drop-tables.mjs key-pace */
+  key: hours(1.5, 3),
   /* the Bestiary's full stage multiplies a boss's relic chance by up to 1.25 (Tyler 2026-10-19): the base sits at
      125-150 h so a fully studied boss still drops it no faster than every 100 h */
   trophy: Object.freeze({ ...hours(100, 150), boostMax: 1.25 }),

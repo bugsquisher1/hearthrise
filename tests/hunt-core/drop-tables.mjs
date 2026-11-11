@@ -29,6 +29,9 @@
 //                    (BAND_ALT); a fresh solo hero at the floor holds all four slots of EACH weight within GEAR_HOURS
 //   rare-pace        each Rare item every 10-20 h per hero (a PENDING_ROWS row too, at the pace it will have);
 //   trophy-pace      each Trophy item every 125-150 h per hero, so a full Bestiary (x1.25) still waits 100 h
+//   key-pace         (lane/b-krells-hold-pack) each hall's key every 1.5-3 h per hero (BAND_TARGETS.key, the design's "about one
+//                    key every two hours"). loot-structure holds where a Key row may stand: its item `opens` a hall, the hall of
+//                    the very ground its dropper stands on (a pack's `hall`, whose `key` it is), one Key row a monster
 //   gear-faucet      the equipment's expected sale value (the trader's price, loot-bands.js VENDOR_GEAR_RATES by tier) per
 //                    hero-hour is at most FAUCET of the coin
 //   total-value      coin + commons + every Scarce / Rare / Trophy row's sale value per hero-hour is at most +25% over the
@@ -78,7 +81,8 @@ const BUILD_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots']);
 const WEIGHTS = Object.freeze(['heavy', 'medium', 'light']);
 const SLOT_WORD = Object.freeze({ helmet: 'helmet', body: 'body', pants: 'legs', boots: 'boots' });
 const GEAR_TYPES = Object.freeze(['weapon', 'armor', 'offhand']);
-const HOUR_BANDS = Object.freeze(['scarce', 'rare', 'trophy']);
+const HOUR_BANDS = Object.freeze(['scarce', 'rare', 'key', 'trophy']);
+const PACE_RULE = Object.freeze({ scarce: 'gear-pace', rare: 'rare-pace', key: 'key-pace', trophy: 'trophy-pace' });
 /* The tutorial cellar teaches the pull with one slot: its Hive Wasp's helmets in three weights (build-coverage). */
 const TUTORIAL = Object.freeze({ ground: 'mill_cellar' });
 /* MONSTERS STILL OVER TWO COMMONS (the designer's trim, 2026-10-23): the Giant Rat's wheat, the Warrens' ore, ears
@@ -181,12 +185,14 @@ function revealWhy(M, tag, mid, m, d) {
 
 const cases = {
   'loot-structure'(M) {
+    /* the key a ground's hall opens with (a pack's `hall.key`), or null */
+    const hallKeyOf = (gid) => { const p = (M.packs || []).find((x) => x.id === gid); return (p && p.hall && p.hall.key) || null; };
     for (const [gid, ground] of Object.entries(M.G.HUNT_GROUNDS)) {
       const band = M.HUNTS[ground.hunt].band;
       for (const id of rosterOf(ground)) {
         const m = M.MONSTERS[id], drops = m.drops || [], tag = gid + ': ' + id;
         if (!(Array.isArray(m.gp) && m.gp[1] > 0)) return tag + ' pays no gold';
-        let last = -1, commons = 0, uncommons = 0, trophies = 0;
+        let last = -1, commons = 0, uncommons = 0, trophies = 0, keys = 0;
         const armour = [];
         for (let i = 0; i < drops.length; i++) {
           const d = drops[i], it = M.ITEMS[d.id];
@@ -212,11 +218,18 @@ const cases = {
             trophies++;
             if (m.boss !== true) return tag + ' carries a Trophy row (' + d.id + ') and is no boss';
           }
+          /* A KEY opens one hall, and only that hall's own ground drops it (Krell's Hold: the Castellan carries the Hall Key) */
+          if (d.band === 'key') {
+            keys++;
+            if (typeof it.opens !== 'string' || !it.opens) return tag + ' Key row ' + d.id + ' opens nothing (an item with `opens`, a hall\'s ground)';
+            if (it.opens !== gid || hallKeyOf(gid) !== d.id) return tag + ' Key row ' + d.id + ' opens ' + it.opens + '\'s hall, not this ground\'s (' + (hallKeyOf(gid) || 'it has no hall') + ')';
+          }
           if (M.LB.REVEAL_BANDS.includes(d.band)) { const why = revealWhy(M, tag, id, m, d); if (why) return why; }
         }
         if (commons < 1 || (commons > 2 && !COMMONS_PENDING.includes(id))) return tag + ' has ' + commons + ' Common rows, the rule is 1-2';
         if (uncommons !== 1) return tag + ' has ' + uncommons + ' Uncommon rows, the rule is one (its imbuement item)';
         if (trophies > 1) return tag + ' has ' + trophies + ' Trophy rows, the rule is one per boss';
+        if (keys > 1) return tag + ' has ' + keys + ' Key rows, the rule is one';
         /* every slot a monster carries comes in heavy, medium AND light, once each (one slot where the kills allow it;
            a fast-dying swarm may carry two, a slow trio may share one, to hold the hourly pace: gear-pace) */
         for (const slot of new Set(armour.map((it) => it.slot))) {
@@ -382,7 +395,7 @@ function bandRules(M, P, monsters, R, gid, x, n, today, label, bossKills, judge 
   }
   for (const band of HOUR_BANDS) {
     const T = M.LB.BAND_TARGETS[band], lo = T.hours[0] * (T.boostMax || 1), hi = T.hours[1];
-    const rule = band === 'scarce' ? 'gear-pace' : band === 'rare' ? 'rare-pace' : 'trophy-pace';
+    const rule = PACE_RULE[band];
     for (const p of list.filter((q) => q.band === band)) {
       const h = 1 / p.perH;
       if (judge) R.ok(h >= lo && h <= hi, rule + ': ' + at + ' ' + (p.pending ? 'pending ' : '') + band + ' ' + p.id + ' (' + p.from.join(', ') + ') every ' + h.toFixed(2) + ' h per hero, outside ' + lo + '-' + hi + ' h');
@@ -687,6 +700,10 @@ const dataMutants = [
   /* the loot bands */
   { name: 'a band row loses its band', case: 'loot-structure', edit: (ms) => { delete rowOf(ms, 'gray_wolf', 'bones').band; } },
   { name: 'a misspelt band', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'gray_whelp', 'bronze_boots').band = 'scarse'; } },
+  /* the Key band (lane/b-krells-hold-pack): a hall's key drops on its own ground only, and nothing that opens no hall rides the band */
+  { name: 'the Hall Key on a ground with no hall (a Thicket wolf carries it)', case: 'loot-structure', edit: (ms) => { ms.gray_wolf.drops.push({ id: 'hall_key', ch: 0.03, band: 'key' }); } },
+  { name: 'a Key row that opens nothing (Bones in the Key band)', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'castellan', 'hall_key').id = 'bones'; } },
+  { name: 'two Key rows on one monster', case: 'loot-structure', edit: (ms) => { ms.castellan.drops.push({ id: 'hall_key', ch: 0.01, band: 'key' }); } },
   { name: 'an old-model flag on a banded row', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'briarcoat_wolf', 'leather_pants').gear = true; } },
   { name: 'a Warrens row with no band', case: 'loot-structure', edit: (ms) => { delete rowOf(ms, 'goblin_digger', 'coal').band; } },
   { name: 'rows out of band order', case: 'loot-structure', edit: (ms) => { const d = ms.gray_whelp.drops; d.push(d.splice(2, 1)[0]); } },
@@ -745,6 +762,9 @@ const playMutants = [
     for (const id of ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 6)));
   } },
   { name: 'the Kingsgrate at 5% (a Rare every 4 h)', rule: 'rare-pace: millrace_sewer rare kingsgrate', edit: (ms) => { rowOf(ms, 'rat_king', 'kingsgrate').ch = 0.05; } },
+  /* the Key band's pace, both ways, on the staged Hold (its pack's dropRef plays the floor hour) */
+  { name: 'the Hall Key twice as common (a key an hour)', rule: 'key-pace: krells_hold', edit: (ms) => { rowOf(ms, 'castellan', 'hall_key').ch *= 2; } },
+  { name: 'the Hall Key at half its odds (a key every 4 h or more)', rule: 'key-pace: krells_hold', edit: (ms) => { rowOf(ms, 'castellan', 'hall_key').ch /= 2; } },
   { name: 'the Thicket\'s heavy boots five times rarer', rule: 'gear-pace: meadowbrook_thicket', edit: (ms) => { rowOf(ms, 'gray_whelp', 'bronze_boots').ch /= 5; } },
   { name: 'the Thicket\'s bodies twice as common', rule: 'gear-pace: meadowbrook_thicket', edit: (ms) => { for (const d of scarceOf(ms, 'dire_gray')) d.ch *= 2; } },
   { name: 'the Sewer\'s bodies too slow (the one sample point)', rule: 'gear-pace: millrace_sewer', edit: (ms) => { for (const d of scarceOf(ms, 'sump_slime')) d.ch = 0.03; } },
@@ -869,7 +889,9 @@ for (const mu of engineMutants) {
     R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
   } finally { p.done(); }
 }
-const groundOf = (rule) => /meadowbrook_thicket|millrace_sewer|mosslight_glade|coppercap_warrens|mill_cellar|wickstead/.exec(rule)[0];
+/* the ground a rule names: a base ground, or a ground pack (src/data/grounds) by its id */
+const groundOf = (rule) => (/meadowbrook_thicket|millrace_sewer|mosslight_glade|coppercap_warrens|mill_cellar|wickstead/.exec(rule)
+  || [(M.packs || []).map((p) => p.id).find((id) => rule.includes(id))])[0];
 for (const mu of playMutants) {
   const MR = { fails: [], ok(c, msg) { if (!c) this.fails.push(msg); } };
   await plays(M, P, clone(M.MONSTERS, mu.edit), MR, false, [groundOf(mu.rule)], mu.fresh === true);

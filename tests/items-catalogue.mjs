@@ -89,7 +89,33 @@ export function itemIdsInSql(sql) {
   return { ok: true, ids };
 }
 
-/** @returns string[] of problems — empty is green. */
+/* ── A STAGED GROUND PACK'S OWN ITEMS (lane/b-krells-hold-pack) ─────────────
+   A ground pack (src/data/grounds/<id>/pack.js) adds its new items to ITEMS at
+   once, staged or open. A STAGED pack is never served: every whole catalogue
+   leaves it out (tools/pack/whole.mjs), its ground is refused at hr_hunt_enter,
+   and its server rows ship only with `tools/pack.mjs ship`. So its items have no
+   hr_items row by design, and no door can put one in a bag. Exempt exactly the
+   staged-only ids that NO reachable door sources (catalogue-coherence.js
+   reachableSources: an open ground's drop, the listed Shop, the start kit, a
+   craft from reachable inputs, ...). The day one becomes reachable, its row is
+   owed again and this guard says so. Pure: the mutation guard plants both
+   inputs. */
+export function stagedOnlyItemIds(packs, reach) {
+  const out = new Set();
+  for (const p of packs || []) {
+    if (!p || p.status !== 'staged') continue;
+    for (const id of Object.keys(p.items || {})) if (!(reach && reach.has(id))) out.add(id);
+  }
+  return out;
+}
+async function stagedOnlyOfTree() {
+  const v = (p) => pathToFileURL(join(ROOT, p)).href;
+  const { GROUND_PACKS } = await import(v('src/data/grounds/index.js'));
+  const CC = await import(v('src/data/catalogue-coherence.js'));
+  return stagedOnlyItemIds(GROUND_PACKS, CC.reachableSources());
+}
+
+/** @returns string[] of problems — empty is green. opts.exempt: the staged-only ids (default: this tree's, stagedOnlyOfTree). */
 export async function itemsCatalogueGuard(opts) {
   const o = opts || {};
   const problems = [];
@@ -126,7 +152,12 @@ export async function itemsCatalogueGuard(opts) {
       + 'is checking nothing');
   }
 
-  const missing = authored.filter((id) => !parsed.ids.has(id));
+  let exempt = o.exempt;
+  if (!exempt) {
+    try { exempt = await stagedOnlyOfTree(); }
+    catch (e) { return { problems: [`could not read the ground packs' staged items: ${e && e.message} — never a silent skip`], note: '' }; }
+  }
+  const missing = authored.filter((id) => !parsed.ids.has(id) && !exempt.has(id));
   if (missing.length) {
     problems.push(
       `${missing.length} item id(s) exist in src/data/items.js but have NO hr_items row: `
@@ -138,7 +169,8 @@ export async function itemsCatalogueGuard(opts) {
   }
   return {
     problems,
-    note: `${authored.length} authored items ⊆ ${parsed.ids.size} hr_items rows`,
+    note: `${authored.length - exempt.size} authored items ⊆ ${parsed.ids.size} hr_items rows`
+      + (exempt.size ? ` (+${exempt.size} a staged ground pack's own, unreachable: no row owed)` : ''),
   };
 }
 
@@ -202,7 +234,29 @@ export async function itemsCatalogueMutationGuard() {
       + 'not a deletion, and failing on it would block every item removal: ' + stale.problems.join(' | '));
   }
 
-  return { problems, note: '3 mutations graded (missing row RED, blind catalogue RED, stale row GREEN)' };
+  // 4-6. A STAGED GROUND PACK'S OWN ITEM (lane/b-krells-hold-pack): no row owed while no door reaches it; owed the moment one does, and
+  // always owed for an open pack's item. The fake id is the planted item above; the packs and the reachable set are planted too.
+  const fakeUrl = pathToFileURL(fakePath).href;
+  const staged = [{ id: 'fx_hold', status: 'staged', items: { hr_s5_fake_item: {} } }];
+  /* the tree's own staged-only items stay exempt in every case: only the planted one's fate changes */
+  const tree = await stagedOnlyOfTree();
+  const plus = (s) => new Set([...tree, ...s]);
+  const held = await itemsCatalogueGuard({ itemsUrl: fakeUrl, exempt: plus(stagedOnlyItemIds(staged, new Set())) });
+  if (held.problems.length) {
+    problems.push('a staged pack\'s own item, reachable by no door, failed the guard — a staged ground is never served, so no bag can '
+      + 'hold it and no row is owed: ' + held.problems.join(' | '));
+  }
+  const reached = await itemsCatalogueGuard({ itemsUrl: fakeUrl, exempt: plus(stagedOnlyItemIds(staged, new Set(['hr_s5_fake_item']))) });
+  if (!reached.problems.some((p) => /hr_s5_fake_item/.test(p))) {
+    problems.push('a staged pack\'s item that a reachable door sources passed with no hr_items row — the exemption outlived its reason, '
+      + 'and that item would be deleted from the first bag that took it');
+  }
+  const opened = await itemsCatalogueGuard({ itemsUrl: fakeUrl, exempt: plus(stagedOnlyItemIds([{ ...staged[0], status: 'open' }], new Set())) });
+  if (!opened.problems.some((p) => /hr_s5_fake_item/.test(p))) {
+    problems.push('an OPEN pack\'s item with no hr_items row passed — only a staged pack is never served');
+  }
+
+  return { problems, note: '6 mutations graded (missing row RED, blind catalogue RED, stale row GREEN, staged-only GREEN, staged but reachable RED, open pack RED)' };
 }
 
 export default itemsCatalogueGuard;

@@ -9,7 +9,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 /* pack imports (tools/pack.mjs index) */
+import pack_krells_hold from './krells_hold/pack.js?v=0.2.116';
 
 export const GROUND_PACKS = Object.freeze([
   /* pack rows (tools/pack.mjs index) */
+  pack_krells_hold,
 ]);

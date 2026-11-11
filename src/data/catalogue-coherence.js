@@ -109,6 +109,8 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'granary_whisker', 'barn_wasp_sting', 'loft_web', 'torn_company_badge',
   /* the boar and the bear (lane b-unsourced-items): their imbuement items, and the boar's bristles */
   'orchard_boar_tusk', 'brook_bear_tooth', 'boar_bristle',
+  /* Krell's Hold's five (lane/b-krells-hold-pack), the same promise */
+  'press_token', 'picket_whistle', 'barrow_nail', 'binders_cord', 'castellans_chain',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -121,9 +123,7 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
    with no source is a C1 failure, not a candidate for this list. */
 export const AWAITING_ROSTER = Object.freeze([
   'oak_rod',   // the road_cook reward until the 2026-10-14 re-reward; rods have no recipe yet
-  'abyssal_greaves', 'alphaheart_longbow',
-  'archmage_belt', 'archmage_body', 'archmage_helmet',
-  'archmage_pants', 'ashcrown_greatsword', 'bone_needle',
+  'abyssal_greaves', 'alphaheart_longbow', 'ashcrown_greatsword', 'bone_needle',
   'bronze_hammer', 'bronze_knife',
   'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
@@ -131,11 +131,9 @@ export const AWAITING_ROSTER = Object.freeze([
   'dawn_boots', 'dawn_gauntlets', 'dawn_helm', 'dawn_platebody',
   'dawn_platelegs', 'dawn_sword', 'dawn_warhammer', 'dawnbound_amulet', 'dawnforged_signet',
   'dawnlit_mantle', 'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',
-  'dragon_relic', 'dragonfang_pike', 'dragonhide_belt', 'dragonhide_body', 'dragonhide_boots',
-  'dragonhide_gloves', 'dragonhide_helmet', 'dragonhide_pants', 'dragonrend_greatblade',
+  'dragon_relic', 'dragonfang_pike', 'dragonrend_greatblade',
   'duskwood_bow', 'duskwood_rod', 'duskwood_staff', 'elderscale_heart', 'elderscale_platebody',
-  'ember_belt', 'ember_boots', 'ember_helm', 'ember_platebody',
-  'ember_platelegs', 'ember_sword', 'ember_warhammer', 'fangdart_recurve', 'gold_amulet',
+  'fangdart_recurve', 'gold_amulet',
   'gold_ring', 'heartgarnet_maul', 'hollow_sigil_ring',
   'lexarch_seal',
   'maple_rod', 'maple_staff', 'mithril_helm',
@@ -143,7 +141,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'nightstalker_pelt', 'plaguewarden_greaves', 'quiet_coat', 'regent_helm',
   'riftmaw_carapace', 'riftmaw_husk', 'ruby_signet', 'rubyfire_studs',
   'rune_hammer', 'rune_helm', 'rune_knife', 'rune_needle', 'rune_platebody',
-  'rune_platelegs', 'rune_warhammer', 'runewood_bow', 'runewood_rod',
+  'rune_platelegs', 'rune_warhammer', 'runewood_rod',
   'slagheart_core', 'slagheart_platebody', 'snakeskin_body',
   'snakeskin_helmet', 'snakeskin_pants', 'sorcerer_body', 'sorcerer_helmet', 'sorcerer_pants',
   'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
@@ -179,7 +177,7 @@ export const AWAITING_ROSTER = Object.freeze([
    planned ground or system, (b) needed now (its source is a listing away), (c) no home in
    Early Access, listed for Tyler's keep-or-cut. */
 export const UNREACHABLE_FATES = Object.freeze({
-  staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens (Wickstead, waiting on its painted ground)', open: Object.freeze({ grounds: HUNT_GROUNDS }) }),
+  staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens (Krell\'s Hold, waiting on its art and its engine pieces)', open: Object.freeze({ grounds: HUNT_GROUNDS }) }),
   premium:    Object.freeze({ bucket: 'a', door: 'premium sells and the daily login claim pays', open: Object.freeze({ premium: true }) }),
   greenhaven: Object.freeze({ bucket: 'a', door: 'a Greenhaven ground not yet built puts it on one of its creatures' }),
   later:      Object.freeze({ bucket: 'c', door: 'none in Early Access, kept for a later region or cut (Tyler)' }),
@@ -190,26 +188,32 @@ export const UNREACHABLE_FATES = Object.freeze({
    Only `staged` may grow, and only with a ground whose opening the guard proves; every
    other fate is held under UNREACHABLE_CEILING. */
 export const UNREACHABLE = Object.freeze({
-  /* Empty since Wickstead opened on its painted ground (lane b-wickstead-art, 2026-10-28): its tier-2 gloves, belts and
-     jewelry, the Bramble Blade and its four imbuement items are reachable. A ground staged again may refill it. */
-  staged: Object.freeze([]),
+  /* KRELL'S HOLD (lane/b-krells-hold-pack, staged until its art and engine pieces 1-3 land): its tier-6 armor in three weights, four tier-6
+     weapons, the Binders' wand and codex, the Warders' grave dust, and its five imbuement items. (Wickstead emptied this row when it opened.) */
+  staged: Object.freeze([
+    'archmage_belt', 'archmage_body', 'archmage_boots', 'archmage_gloves', 'archmage_helmet', 'archmage_pants', 'dragonhide_belt',
+    'dragonhide_body', 'dragonhide_boots', 'dragonhide_gloves', 'dragonhide_helmet', 'dragonhide_pants', 'ember_belt', 'ember_boots',
+    'ember_gauntlets', 'ember_helm', 'ember_platebody', 'ember_platelegs', 'ember_sword', 'ember_warhammer', 'grave_dust', 'runewood_bow',
+    'runewood_codex', 'runewood_staff', 'runewood_wand',
+    'press_token', 'picket_whistle', 'barrow_nail', 'binders_cord', 'castellans_chain', 'hall_key',
+  ]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next
      grounds. Gloves, belts and the caster's cloth line have NO reachable piece today. */
   greenhaven: Object.freeze([
     'rat_stick',
     'spidersilk_choker', 'tusker_charm', 'packlord_band',
-    'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'grave_dust', 'razor_claw',
+    'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'razor_claw',
   ]),
   /* Tier 4+ ladder rungs, the old roster's uniques, and the dragon, undead, demon, troll and void materials
      with the late recipes they feed (Cooking 25 panther and 70+, Inner Flame 35+, Crafting 60 keystones). */
   later: Object.freeze([
-    'mithril_boots', 'rune_boots', 'mithril_gauntlets', 'rune_gauntlets', 'ember_gauntlets', 'mithril_belt',
+    'mithril_boots', 'rune_boots', 'mithril_gauntlets', 'rune_gauntlets', 'mithril_belt',
     'rune_belt', 'snakeskin_boots', 'wyvernhide_boots', 'snakeskin_gloves', 'wyvernhide_gloves', 'snakeskin_belt',
-    'wyvernhide_belt', 'warlock_helmet', 'warlock_boots', 'sorcerer_boots', 'archmage_boots', 'warlock_gloves',
-    'sorcerer_gloves', 'archmage_gloves', 'warlock_belt', 'sorcerer_belt', 'rune_sword', 'maple_bow', 'yew_bow',
-    'yew_staff', 'runewood_staff', 'maple_wand', 'yew_wand', 'runewood_wand', 'maple_spellbook', 'yew_spellbook',
-    'runewood_codex', 'emberfang_blade', 'panthers_eye_pendant', 'wraithsilk_shroud', 'chitinweave_cloak',
+    'wyvernhide_belt', 'warlock_helmet', 'warlock_boots', 'sorcerer_boots', 'warlock_gloves',
+    'sorcerer_gloves', 'warlock_belt', 'sorcerer_belt', 'rune_sword', 'maple_bow', 'yew_bow',
+    'yew_staff', 'maple_wand', 'yew_wand', 'maple_spellbook', 'yew_spellbook',
+    'emberfang_blade', 'panthers_eye_pendant', 'wraithsilk_shroud', 'chitinweave_cloak',
     'wraithglass_drops', 'trollhide_cape', 'shadowsilk_cape', 'warlords_torc', 'lazlos_maul', 'dragonrib_bow',
     'void_censer', 'barrowking_mantle', 'jarls_rimetorc', 'captains_ribblade', 'chief_blade', 'alpha_cloak',
     'keystone',
@@ -238,7 +242,9 @@ export const UNREACHABLE = Object.freeze({
 /* 115 -> 105 (lane b-unsourced-items): the tier-1 gloves and sashes are made (style-gear.js), the tier-3 ones are Warrens Rares. */
 /* 105 -> 101: the Brook Bear's meat and claw (and the two dishes they cook). */
 /* 101 -> 100 (lane c-house-pelts): the Brook Bear drops the Bear Pelt the Keep and the Trophy Room ask for. */
-export const UNREACHABLE_CEILING = 100;
+/* 100 -> 93 (lane/b-krells-hold-pack): Krell's Hold (staged) drops six later rows (the tier-6 gauntlets, Archmage boots and gloves, the Runewood
+   staff, wand and codex) and the greenhaven Grave Dust; they move to `staged`. */
+export const UNREACHABLE_CEILING = 93;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

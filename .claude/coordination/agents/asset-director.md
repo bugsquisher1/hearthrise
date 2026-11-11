@@ -11,6 +11,9 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 
 ## Log
 
+### 2026-11-10 · lane/a-import-slake-art — the Slake's art imported (the pack stays staged)
+- Learned: (1) the lane's base moved under it (b-the-slake vs b-slake-and-ford): take the pack's rows from the newer branch and re-apply only art wiring. (2) A sprite whose pixels are 3 tiles deep wants a 3-deep footprint, or the rows above it are invisible walls: the board's 10x5 became 10x3 and the mask hash moved. (3) The `paint` step lived only on the Muster branch; a painted ground needs a pair set for every material pair on the grid, so the grid is derived from the walk rows with a lip (reed cells next to water paint as silt). (4) The staged-pack probe (open it in the tree, run world-assets, put it back) shows exactly the missing bodies; region-kit.html on a tiny static server is a real-renderer screen without the replayed database.
+- Handoffs: Art Director, decide Greened Pikeman, Bargeman, Color Sergeant (new gens or a re-pour); a river/shallows and river/reeds pair would let the channels be deep water; the Slake icons are hand-drawn pixel (fit check welcome).
 ### 2026-11-10 · lane/a-import-ford-art — Hask's Ford art imported (the pack stays staged)
 - Paths, not a merge: `git checkout <art branch> -- art/world/march <3 icons>`, then `build.mjs --set`. The art branch's atlas, its `port-pixellab.mjs` and its unreferenced icons stayed behind.
 - Sets split as the region kit asks: `march` = kit props + bodies, `ford` = the painted ground + its two signature pieces.

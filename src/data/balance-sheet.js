@@ -280,7 +280,7 @@ export const FORMULA_EXCEPTIONS = Object.freeze({
      most of the elite's coin it carried before, [13, 40] against the formula's [11, 32]. With the role alone a plate hero at the Glade's floor read +9% over its
      bill on one seed of six (forest-cave glade-between); the bear is the hour's one purse worth a stop, so its coin, not the whole ground's, carries the point. At
      the elite's full [14, 44] the Glade's lone median netted 0.7% over the Warrens' fours (the grader's feel-gold-order: a higher floor nets more, Tyler 11-03). */
-  brook_bear: Object.freeze({ gp: "most of an elite's purse on a heavy: the Glade floor's +10% over its bill, under the Warrens' fours (designer 2026-11-12)" }),
+  brook_bear: Object.freeze({ gp: "a heavy with most of an elite's purse, so the Glade floor clears +10% over its bill and stays under the Warrens' fours (designer 2026-11-12)" }),
 });
 
 /* combat.js monsterDamageScaleByTier, restated: the formula divides the blow by it (a test pins the two equal). */

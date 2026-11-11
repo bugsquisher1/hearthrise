@@ -109,7 +109,7 @@ function patchUnopened(li, x, limit, full) {
   cls(b, 'is-full', full);
   text(li.querySelector('.char-tab-name'), heroName(x));
   text(li.querySelector('.char-tab-doing'), unopenedLine(x));
-  text(li.querySelector('.char-unopened-play'), full ? '' : t('heroes.strip_play'));
+  text(li.querySelector('.char-unopened-play'), full ? '' : t('controls.play'));
   attr(b, 'title', full ? fullLine(x, limit) : t('heroes.strip_play_title', { name: heroName(x) }));
 }
 

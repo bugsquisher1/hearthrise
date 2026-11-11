@@ -142,7 +142,7 @@ export function renderActionBar(ctx) {
     + '<div class="hb-tip" role="tooltip"></div>' + staminaBuyHtml()
     + '<div class="hb-drop" role="menu" aria-label="Drop the action"><b class="hb-drop-t"></b>'
     + '<button type="button" class="hh-tool" role="menuitem" data-hs-act="drop" data-x="swap"></button>'
-    + '<button type="button" class="hh-tool" role="menuitem" data-hs-act="drop" data-x="insert">Insert here (shift the rest)</button>'
+    + '<button type="button" class="hh-tool" role="menuitem" data-hs-act="drop" data-x="insert">Insert here</button>'
     + '<button type="button" class="hh-tool" role="menuitem" data-hs-act="drop" data-x="cancel">Cancel</button></div>'
     + '</div>';
 }
@@ -322,7 +322,7 @@ function setPanel(ctx, el, open) {
 }
 
 /* THE DROP MENU (Tyler 10-19): dropped onto an action, the dragged action's name, Swap with <target>,
-   Insert here (shift the rest) — off when there is no empty slot to shift into — and Cancel; Escape or a
+   Insert here (it shifts the rest along) — off when there is no empty slot to shift into — and Cancel; Escape or a
    press anywhere else cancels. Nothing moves until the server confirms the one intent a choice sends. */
 function openDropMenu(ctx, el, li, from, to, bar) {
   closeDropMenu(el);

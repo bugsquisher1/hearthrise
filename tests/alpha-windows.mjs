@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// mutant-rule-functions: checks pure huntsPure itemTruthRules panelLeftovers planRules armourWordRules tickerRules stationSortRules
+// mutant-rule-functions: checks pure huntsPure itemTruthRules panelLeftovers planRules armourWordRules tickerRules stationSortRules selectRules
 // mutant-runner-functions: main shardOf tickerMutant pureMutant
 // ════════════════════════════════════════════════════════════════════════
 // tests/alpha-windows.mjs — THE ALPHA WINDOWS' RULES, IN A REAL CHROMIUM.
@@ -12,7 +12,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js src/shell/windows/inventory/elsewhere.js src/shell/station-sort.js
+// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js src/shell/windows/inventory/elsewhere.js src/shell/station-sort.js src/shell/windows/inventory/selection.js src/data/text/bag.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -119,6 +119,13 @@
 //         too); the pick is ONE residue put naming stationSort, kept per station, and after a reload the menu and
 //         the order come back from the server; gathering has no menu. Pure half: every bench skill at several
 //         levels, each order worked out here from the raw rows, and the residue round trip through the allowlist
+//   AW-77 THE BAG'S SELECTION BEHAVES LIKE A FILE LIST (Tyler 2026-11-11: "I can hit ctrl+A to select all, but hitting
+//         it again doesn't deselect all"; src/shell/windows/inventory/selection.js, pure): Ctrl+A selects every
+//         shown stack and, with every shown stack selected, none; Escape clears; a plain press with a selection
+//         active selects only that stack (none active: only the cursor moves); Ctrl+press toggles; Shift+press and
+//         Shift+arrow take the range from the anchor, growing and shrinking, Ctrl+Shift adding it; the line reads
+//         "N selected · value X gp" at the shop's bids (the count alone with no shop) and Lock reads Unlock over a
+//         locked selection; the help line names those keys and is the line the grid shows
 //   AW-24 TOWN WORK COUNTS UP BETWEEN PAYOUTS (Tyler 2026-10-23; src/shell/town-ticker.js runs the
 //         server's own span loop on the envelope's numbers, display only). Pure rules:
 //         TK-1  one action at a time on the engine's interval: the logs and XP, and the line
@@ -173,7 +180,7 @@
 //         the confirmation's Sell, and the confirmation is in view inside the window (it sat under a long list); no
 //         Services icon, and R opens the Shop on its Services tab (stamina and Blessings), closed or open
 //   AW-32 DISPATCH LOOT (Tyler 2026-10-25, 2027-01-23-loot-dispatch.sql): mid-hunt the Bag's Dispatch loot is off with
-//         "out hunting" in view; in town the item menu offers the loot plan (Keep in bag pressed, Deposit in storage,
+//         "out hunting" in view; in town the item menu offers the loot plan (Keep pressed, Deposit,
 //         Sell) and the pickup filter (Don't pick up); Deposit is ONE hr_loot_rule_set {slot, item, rule, key}; the
 //         starting kit's Sell is off (Deposit on); Dispatch loot is ONE hr_loot_dispatch {slot, key}, off in flight,
 //         its line the server's answer ("Stored 1 stack, sold 2 stacks for 246 gp. 1 stack locked, so kept."), the bag and
@@ -455,7 +462,7 @@ async function pure() {
     workBlock(wcs(1, {}), workRow('artisan', 'forge_bronze_axe'), false), workBlock(wcs(1, { copper_ore: 2 }), bronze, false), String(runsOf(bronze.row, { copper_ore: 11 })),
     workBlock(wcs(1, {}), bronze, false)];
   if (said.join('|') !== 'Needs 2 Copper Ore (you have 1). Gathered with Mining.|Not while a hunt is running.|You need Smithing 3 to make Bronze Axe. You have 1.||5|No Copper Ore in your bag. Gathered with Mining.') fails.push('AW-22 the work rows say ' + JSON.stringify(said));
-  return fails.concat(await huntsPure(imp), await tickerRules(ROOT), await armourWordRules(ROOT), await planRules(ROOT), await itemTruthRules(ROOT), await stationSortRules(ROOT));
+  return fails.concat(await huntsPure(imp), await tickerRules(ROOT), await armourWordRules(ROOT), await planRules(ROOT), await itemTruthRules(ROOT), await stationSortRules(ROOT), await selectRules(ROOT));
 }
 
 /* AW-76 PURE: A CRAFTING STATION'S SORT, over the src at `base` (the 'station sort:' mutants judge a planted copy).
@@ -520,6 +527,90 @@ async function stationSortRules(base) {
   const forged = R.sanitizeResidueField('stationSort', { smithing: 'name', not_a_skill: 'name', cooking: 5, 'BAD KEY': 'level', crafting: 'x'.repeat(99) });
   if (JSON.stringify(forged) !== '{"smithing":"name"}') fails.push('AW-76 a forged stationSort keeps ' + JSON.stringify(forged));
   if (S.stationSortOf({ stationSort: { smithing: 'bogus' } }, 'smithing') !== 'can' || S.stationSortOf(null, 'smithing') !== 'can' || S.withStationSort({}, 'smithing', 'bogus') !== null) fails.push('AW-76 an unknown or missing pick is not Can make');
+  return fails;
+}
+
+/* AW-77 PURE: THE BAG'S SELECTION, over the src at `base` (the 'select:' mutants judge a planted copy). The scratch is the
+   Inventory's own shape (state.js scratchOf); the shown rows stand in for the grid's order. */
+async function selectRules(base) {
+  const fails = [];
+  const imp = (p) => import(pathToFileURL(join(base, p)).href);
+  const S = await imp('src/shell/windows/inventory/selection.js');
+  const { t } = await imp('src/render/player-text.js');
+  const shown = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ id, qty: 2 }));
+  const fresh = () => ({ sel: new Set(), anchor: null, base: null, cursor: null });
+  const has = (sc) => [...sc.sel].sort().join();
+  /* Ctrl+A: a partial selection → every shown stack; pressed again with every shown stack selected → none, a hidden one too */
+  let sc = fresh();
+  sc.sel.add('z');   // selected, then filtered out of view
+  S.pressSelect(sc, 'b', shown, { ctrl: true });
+  S.selectKey(sc, 'a', { ctrl: true }, shown);
+  if (has(sc) !== 'a,b,c,d,e,z') fails.push('AW-77 Ctrl+A over a partial selection reads ' + has(sc));
+  S.selectKey(sc, 'A', { ctrl: true }, shown);
+  if (has(sc) !== '') fails.push('AW-77 Ctrl+A over every shown stack keeps ' + has(sc) + ' (it should clear)');
+  S.selectAll(sc, []);
+  if (has(sc) !== '') fails.push('AW-77 Ctrl+A over an empty grid selects ' + has(sc));
+  /* Escape: none; with none selected it is not the selection's key */
+  sc = fresh();
+  S.pressSelect(sc, 'c', shown, { ctrl: true });
+  if (!S.selectKey(sc, 'Escape', {}, shown) || has(sc) !== '') fails.push('AW-77 Escape leaves ' + has(sc));
+  if (S.selectKey(sc, 'Escape', {}, shown)) fails.push('AW-77 Escape with nothing selected was taken as the selection\'s');
+  /* Shift: the range from the anchor, growing and shrinking; Ctrl+Shift adds it to what stood when the anchor was set */
+  sc = fresh();
+  S.pressSelect(sc, 'b', shown, { ctrl: true });
+  S.pressSelect(sc, 'd', shown, { shift: true });
+  const grew = has(sc);
+  S.pressSelect(sc, 'e', shown, { shift: true });
+  const grewMore = has(sc);
+  S.pressSelect(sc, 'c', shown, { shift: true });
+  if (grew !== 'b,c,d' || grewMore !== 'b,c,d,e' || has(sc) !== 'b,c') fails.push('AW-77 Shift ranges read ' + [grew, grewMore, has(sc)].join(' | ') + ' (want b,c,d | b,c,d,e | b,c)');
+  S.pressSelect(sc, 'e', shown, { ctrl: true });
+  S.pressSelect(sc, 'c', shown, { shift: true, ctrl: true });
+  if (has(sc) !== 'b,c,d,e') fails.push('AW-77 Ctrl+Shift reads ' + has(sc) + ' (want the range c..e added to b,c,e)');
+  S.pressSelect(sc, 'd', shown, { shift: true });
+  if (has(sc) !== 'd,e' || sc.cursor !== 'd') fails.push('AW-77 Shift after Ctrl+Shift reads ' + has(sc) + ' at ' + sc.cursor);
+  /* Shift+arrow with no anchor on screen: from the cursor the arrow left, which becomes the anchor */
+  sc = fresh();
+  sc.cursor = 'c';
+  S.rangeTo(sc, 'e', shown, { from: 'c' });
+  S.rangeTo(sc, 'd', shown, { from: 'e' });
+  if (has(sc) !== 'c,d' || sc.anchor !== 'c') fails.push('AW-77 Shift+arrow reads ' + has(sc) + ' from ' + sc.anchor);
+  /* a plain press: with a selection active, only that stack; with none, none (the cursor picks it); Ctrl toggles it off again */
+  sc = fresh();
+  for (const id of ['a', 'b', 'c']) sc.sel.add(id);
+  S.pressSelect(sc, 'b', shown, {});
+  if (has(sc) !== 'b' || sc.cursor !== 'b') fails.push('AW-77 a plain press over a,b,c reads ' + has(sc) + ' (want b alone)');
+  S.pressSelect(sc, 'b', shown, { ctrl: true });
+  if (has(sc) !== '') fails.push('AW-77 Ctrl+press on the one selected stack keeps ' + has(sc));
+  S.pressSelect(sc, 'd', shown, {});
+  if (has(sc) !== '' || sc.cursor !== 'd') fails.push('AW-77 a plain press with nothing selected reads ' + has(sc) + ' at ' + sc.cursor);
+  S.toggleSelect(sc, 'd');
+  S.toggleSelect(sc, 'd');
+  if (has(sc) !== '') fails.push('AW-77 Space twice keeps ' + has(sc));
+  /* the line: the count and the shop's bids; a stack with no bid is said; no shop, the count alone */
+  const bids = new Map([['a', 10], ['b', 5]]);
+  const line = [S.selectionWords(['a', 'b'], shown, bids), S.selectionWords(['a', 'c'], shown, bids), S.selectionWords(['a'], shown, null)];
+  if (line.join(' | ') !== '2 selected · value 30 gp | 2 selected · value 20 gp (1 with no shop price) | 1 selected') fails.push('AW-77 the selection line reads ' + JSON.stringify(line));
+  /* the selection names only the server's rows (a sold stack drops out of the count) */
+  sc = fresh();
+  for (const id of ['a', 'gone']) sc.sel.add(id);
+  if (S.selectedIds(sc, shown).join() !== 'a') fails.push('AW-77 the selection counts a stack the bag no longer holds: ' + S.selectedIds(sc, shown).join());
+  /* after a bulk press: ONE server ask, all or nothing: ok is done with the selection; a refusal moved nothing, so it stands */
+  sc = fresh();
+  for (const id of ['a', 'b']) sc.sel.add(id);
+  if (S.settleSelection(sc, { ok: false, error: 'item_locked', verb: 'bank_move_many', item: 'b' }) || has(sc) !== 'a,b') fails.push('AW-77 a refused bulk press leaves ' + has(sc) + ' (want a,b kept)');
+  if (!S.settleSelection(sc, { ok: true, count: 2 }) || has(sc) !== '') fails.push('AW-77 an ok bulk press keeps ' + has(sc));
+  /* ...and the bag's Deposit and Lock ARE one ask each (storage-intents.js), never a stack at a time */
+  const acts = readFileSync(join(base, 'src/shell/windows/inventory/actions.js'), 'utf8');
+  if (!/moveStorageMany\(st\.account, st\.cs, ids, 'deposit'\)/.test(acts) || /\.moveStorage\(/.test(acts)) fails.push('AW-77 Deposit is not one hr_bank_move_many');
+  if (!/lockItems\(st\.account, st\.cs, todo, on\)/.test(acts) || /lockItem\(id, on\)[^)]*\)\s*\)\s*,\s*t\('bag\./.test(acts)) fails.push('AW-77 Lock over the selection is not one hr_item_lock_many');
+  /* Lock reads Unlock only over a selection locked through */
+  const lock = [S.lockLabel(['a', 'b'], new Set(['a', 'b'])), S.lockLabel(['a', 'b'], new Set(['a'])), S.lockLabel(['a'], null), S.lockLabel([], new Set())];
+  if (lock.join() !== 'Unlock,Lock,Lock,Lock') fails.push('AW-77 the lock tool reads ' + lock.join());
+  /* the help line names the keys read above, and is the line the grid shows */
+  const keys = t('bag.keys');
+  for (const k of ['Ctrl+A select all, again deselect all', 'Esc clear', 'Shift+click', 'Shift+arrows', 'Ctrl+click']) if (!keys.includes(k)) fails.push('AW-77 the help line leaves out "' + k + '": ' + keys);
+  if (!/KEYS = t\('bag\.keys'\)/.test(readFileSync(join(base, 'src/shell/windows/inventory/grid.js'), 'utf8'))) fails.push('AW-77 the grid shows a help line of its own, not bag.keys');
   return fails;
 }
 
@@ -2142,7 +2233,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             rules: Array.from(document.querySelectorAll('.hw-menu [data-hs-act="m-rule"]')).map((b) => [b.getAttribute('data-rule'), b.textContent, b.getAttribute('aria-pressed'), b.disabled]) }));
         };
         const m = await menuOf('wolf_pelt');
-        const want = [['keep', 'Keep in bag', 'true', false], ['deposit', 'Deposit in storage', 'false', false], ['sell', 'Sell', 'false', false], ['ignore', 'Don\'t pick up', 'false', false]];
+        const want = [['keep', 'Keep', 'true', false], ['deposit', 'Deposit', 'false', false], ['sell', 'Sell', 'false', false], ['ignore', 'Don\'t pick up', 'false', false]];
         if (JSON.stringify(m.rules) !== JSON.stringify(want) || !m.subs.includes('Loot plan') || !m.subs.includes('On pickup')) fails.push('AW-32 the item menu offers ' + JSON.stringify(m));
         if (shots) await shot(page, 'dispatch-1440x900-item-menu');
         s.onCall = (name, body) => {
@@ -2156,7 +2247,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(600);
         const rs = sent(s, 'hr_loot_rule_set');
         if (rs.length !== 1 || rs[0].body.p_item !== 'wolf_pelt' || rs[0].body.p_rule !== 'deposit' || Object.keys(rs[0].body).sort().join() !== 'p_idem,p_item,p_rule,p_slot') {
-          fails.push('AW-32 Deposit in storage sent ' + JSON.stringify(rs.map((c) => c.body)));
+          fails.push('AW-32 Deposit sent ' + JSON.stringify(rs.map((c) => c.body)));
         }
         /* the starting kit may be deposited but takes no Sell plan (the server's start_kit), said before the press */
         const k = await menuOf('cooked_shrimp');
@@ -3850,6 +3941,19 @@ const MUTANTS = [
   ['item truth: a seed says sell it', 'src/shell/item-lore.js', "  if (it.seed) out.push(t('item.plant_it'));\n", ''],
   ['station sort: Level runs high to low', 'src/shell/station-sort.js', "if (sort === 'level') return all.sort((a, b) => reqOf(a) - reqOf(b));", "if (sort === 'level') return all.sort((a, b) => reqOf(b) - reqOf(a));"],
   ['station sort: Name is not a sort', 'src/shell/station-sort.js', "  if (sort === 'name') return all.sort(byName);\n", ''],
+  /* AW-77 the bag's selection: `select:` mutants are judged by selectRules on a temp copy of src. */
+  ['select: Ctrl+A never clears', 'src/shell/windows/inventory/selection.js', '  if (ids.every((id) => sc.sel.has(id))) sc.sel.clear();\n  else for (const id of ids) sc.sel.add(id);', '  for (const id of ids) sc.sel.add(id);'],
+  ['select: Escape leaves the selection', 'src/shell/windows/inventory/selection.js', "  if (key === 'Escape') { if (!sc.sel.size) return false; clearSelection(sc); return true; }\n", ''],
+  ['select: a plain press toggles again (the selection never ends)', 'src/shell/windows/inventory/selection.js', '  else if (sc.sel.size) { sc.sel.clear(); sc.sel.add(id); }', '  else if (sc.sel.size) toggle(sc, id);'],
+  ['select: Shift ranges from the cursor, not the anchor', 'src/shell/windows/inventory/selection.js', '  const from = held ? sc.anchor : o && o.from && ids.includes(o.from) ? o.from : id;', '  const from = o && o.from && ids.includes(o.from) ? o.from : id;'],
+  ['select: Shift only ever adds (a range never shrinks)', 'src/shell/windows/inventory/selection.js', '  const next = new Set(o && o.ctrl && sc.base ? sc.base : []);', '  const next = new Set(sc.sel);'],
+  ['select: the line leaves out the value', 'src/shell/windows/inventory/selection.js', "  if (!bids) return t('bag.selected', { count: n });", "  return t('bag.selected', { count: n });"],
+  ['select: the line counts a stack the bag no longer holds', 'src/shell/windows/inventory/selection.js', '  return Array.from(sc.sel).filter((id) => have.has(id));', '  return Array.from(sc.sel);'],
+  ['select: Lock reads Lock over a locked selection', 'src/shell/windows/inventory/selection.js', "  return ids.length && locked && ids.every((id) => locked.has(id)) ? t('controls.unlock') : t('controls.lock');", "  return t('controls.lock');"],
+  ['select: the help line forgets the keys', 'src/data/text/bag.js', ' · Ctrl+A select all, again deselect all · Esc clear', ' · Ctrl+A select all'],
+  ['select: a refused bulk press clears the selection', 'src/shell/windows/inventory/selection.js', '  if (went) clearSelection(sc);', '  clearSelection(sc);'],
+  ['select: Deposit puts stacks away one at a time again', 'src/shell/windows/inventory/actions.js', "  bulk(st, repaint, () => moveStorageMany(st.account, st.cs, ids, 'deposit'), t('bag.putting_away'), 'bag.put_away');",
+    "  bulk(st, repaint, () => ids.reduce((p, id) => p.then(() => st.cs.moveStorage(id, st.qty.get(id), 'deposit')), Promise.resolve({ ok: true })), t('bag.putting_away'), 'bag.put_away');"],
   ['station sort: a sort drops the locked rows', 'src/shell/station-sort.js', '  const all = open.concat(ahead);', '  const all = open.slice();'],
   ['station sort: Can make no longer puts what the bag makes first', 'src/shell/station-sort.js', 'can(b) - can(a) || reqOf(b) - reqOf(a)', 'reqOf(b) - reqOf(a)'],
   ['station sort: the default is Level', 'src/shell/station-sort.js', "export const DEFAULT_SORT = 'can';", "export const DEFAULT_SORT = 'level';"],
@@ -4127,12 +4231,12 @@ const COMPANION = { 'the doll wears the item before the server confirms': ['src/
     `    /* the confirmation beside the press, never under the list (the coach rings its Sell: data-coach-hook) */
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes" data-coach-hook="sell-confirm"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">Cancel</button></div></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">' + t('controls.cancel') + '</button></div></div>'
     + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing in your bag that the shop buys.</p></section>'`,
     `    + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing in your bag that the shop buys.</p>'
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes" data-coach-hook="sell-confirm"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">Cancel</button></div></div></section>'`] };
+    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">' + t('controls.cancel') + '</button></div></div></section>'`] };
 
 async function main() {
   const at = process.argv.indexOf('--shots');
@@ -4141,7 +4245,7 @@ async function main() {
   if (process.argv.includes('--pure') && !process.argv.includes('--mutate')) {
     const fails = await pure();
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'alpha-windows --pure: ' + fails.length + ' rule(s) RED' : 'alpha-windows --pure: the pure rules hold (AW-0, AW-19..AW-22, AW-24 the town ticker, AW-25..AW-28 the Hunts page, AW-76 the station sort)');
+    console.log(fails.length ? 'alpha-windows --pure: ' + fails.length + ' rule(s) RED' : 'alpha-windows --pure: the pure rules hold (AW-0, AW-19..AW-22, AW-24 the town ticker, AW-25..AW-28 the Hunts page, AW-76 the station sort, AW-77 the bag\'s selection)');
     process.exit(fails.length ? 1 : 0);
   }
   if (!process.argv.includes('--mutate')) {
@@ -4161,7 +4265,7 @@ async function main() {
   const shard = (process.argv.find((x) => x.startsWith('--shard=')) || '').slice(8);
   const mine = scopedMutants('tests/alpha-windows.mjs', picked, { companion: Object.fromEntries(Object.entries(COMPANION).map(([k, v]) => [k, [v[0]]])), tag: shard ? ' (shard ' + shard + ')' : '' });
   if (!mine.length) process.exit(0);
-  const pureOnly = mine.every(([n]) => n.startsWith('ticker:') || n.startsWith('armor words:') || n.startsWith('plans:') || n.startsWith('item truth:') || n.startsWith('station sort:'));
+  const pureOnly = mine.every(([n]) => n.startsWith('ticker:') || n.startsWith('armor words:') || n.startsWith('plans:') || n.startsWith('item truth:') || n.startsWith('station sort:') || n.startsWith('select:'));
   const clean = await cleanControl(() => (pureOnly ? pure() : checks(null, null)));
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
@@ -4176,7 +4280,7 @@ async function main() {
       over[f] = text.replace(x, y);
     }
     if (missing) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + missing); counts.harness++; continue; }
-    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : name.startsWith('item truth:') ? tickerMutant(over, itemTruthRules) : name.startsWith('plans:') ? tickerMutant(over, planRules) : name.startsWith('station sort:') ? tickerMutant(over, stationSortRules) : checks(over, null, { stopAtFirst: true })));
+    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : name.startsWith('item truth:') ? tickerMutant(over, itemTruthRules) : name.startsWith('plans:') ? tickerMutant(over, planRules) : name.startsWith('station sort:') ? tickerMutant(over, stationSortRules) : name.startsWith('select:') ? tickerMutant(over, selectRules) : checks(over, null, { stopAtFirst: true })));
     console.log(report(name, v, counts));
   }
   console.log(exitOf(counts) ? 'alpha-windows --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'alpha-windows --mutate: ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule' + (mine === MUTANTS ? '' : ' (' + (only ? '--only=' + only + ', ' : '') + 'of ' + MUTANTS.length + ')'));

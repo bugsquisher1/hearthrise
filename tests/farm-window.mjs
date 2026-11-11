@@ -34,7 +34,7 @@
 //         growing tomato says how often it grows back (the server's regrows_left); a ready
 //         one offers "Harvest (grows back N more times)" (ONE hr_farm_harvest) and "Harvest
 //         and clear plot" (ONE hr_farm_harvest_clear); on its last harvest Harvest and replant
-//         / Harvest and clear plot (it withers), never "Harvest only"
+//         / Harvest and clear (it withers), never "Harvest only"
 //   FW-9  SOW WITHOUT SCROLLING (Discord 0.2.95: "Scrolling up and down to select new plantable
 //         seeds over and over is tedious"), at 922×423: pressing an empty plot brings the picker
 //         on screen; the crops you can plant list first; after a plant the picker stays drawn,
@@ -257,14 +257,14 @@ async function checks(overrides) {
         if (by0 !== 'Planted by Alda. Grows back 4 more times after this harvest') fails.push('FW-8 the growing tomato says ' + JSON.stringify(by0));
         const labels = (i) => page.evaluate((n) => [...document.querySelectorAll('[data-hs-win="farm"] .hw-plot[data-plot="' + n + '"] button.hh-tool')].map((b) => [b.getAttribute('data-hs-act'), b.textContent]), i);
         const l1 = await labels(1);
-        if (JSON.stringify(l1) !== JSON.stringify([['leave', 'Harvest (grows back 3 more times)'], ['clear', 'Harvest and clear plot']])) fails.push('FW-8 the ready tomato\'s buttons read ' + JSON.stringify(l1));
+        if (JSON.stringify(l1) !== JSON.stringify([['leave', 'Harvest (grows back 3 more times)'], ['clear', 'Harvest and clear']])) fails.push('FW-8 the ready tomato\'s buttons read ' + JSON.stringify(l1));
         const l2 = await labels(2);
         const by2 = await txt(page, W + '.hw-plot[data-plot="2"] .hw-plot-by');
-        if (JSON.stringify(l2) !== JSON.stringify([['harvest', 'Harvest and replant'], ['leave', 'Harvest and clear plot']]) || !/Last harvest: the plant withers after it$/.test(by2 || '')) fails.push('FW-8 the last-harvest tomato reads ' + JSON.stringify([l2, by2]));
+        if (JSON.stringify(l2) !== JSON.stringify([['harvest', 'Harvest and replant'], ['leave', 'Harvest and clear']]) || !/Last harvest: the plant withers after it$/.test(by2 || '')) fails.push('FW-8 the last-harvest tomato reads ' + JSON.stringify([l2, by2]));
         await press(page, W + '.hw-plot[data-plot="1"] [data-hs-act="clear"]', 'FW-8');
         await idle(page);
         const cl = s.calls.filter((c) => /harvest/.test(c.name));
-        if (cl.length !== 1 || cl[0].name !== 'hr_farm_harvest_clear' || cl[0].body.p_plot_idx !== 1 || cl[0].body.p_slot !== 0) fails.push('FW-8 Harvest and clear plot sent ' + JSON.stringify(cl));
+        if (cl.length !== 1 || cl[0].name !== 'hr_farm_harvest_clear' || cl[0].body.p_plot_idx !== 1 || cl[0].body.p_slot !== 0) fails.push('FW-8 Harvest and clear sent ' + JSON.stringify(cl));
         const line = await txt(page, W + '.hh-intent-msg');
         if (!/Harvested 3 Tomato/.test(line || '') || !/The plot is clear\./.test(line || '')) fails.push('FW-8 the line reads ' + JSON.stringify(line));
         await press(page, W + '.hw-plot[data-plot="1"] [data-hs-act="leave"]', 'FW-8');

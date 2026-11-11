@@ -33,6 +33,7 @@ import { staminaOf } from '../../session/hunt-sections.js?v=0.2.122';
 import { endCardAfter } from '../after-hunt.js?v=0.2.122';
 import { heldCard } from '../launcher.js?v=0.2.122';
 import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.122';
+import { t } from '../../render/player-text.js?v=0.2.122';
 
 /* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), and an old hunt that kept no settings. */
 const againOffWords = (cur) => (callOfHunt(cur.hunt) ? 'He comes when he is called, from the ground\'s page.' : 'This hunt did not keep its settings.');
@@ -67,8 +68,8 @@ export function renderHuntSummary() {
     /* while a tutorial card is up its next step is the main press here (board 2026-10-25 #5: "Hunt again" pulled the
        other way); then "Hunt again" is the main one again */
     + '<button type="button" class="hh-tool is-primary" data-hs-act="coach-next" hidden></button>'
-    + '<button type="button" class="hh-tool is-primary" data-hs-act="again">Hunt again</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="bag">Open bag</button></div>'
+    + '<button type="button" class="hh-tool is-primary" data-hs-act="again">' + t('controls.hunt_again') + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="bag">' + t('controls.open_bag') + '</button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
     + '<h4 class="hw-ledger-head hsum-h-loot">Top loot</h4><ul class="hsum-list hsum-loot"></ul>'
     + '<h4 class="hw-ledger-head hsum-h-sup">Supplies used</h4><ul class="hsum-list hsum-sup"></ul>'
@@ -81,7 +82,7 @@ const li = (doc, markup) => element(doc, markup);
 const dayTime = (at) => (at === null ? '' : new Date(at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }));
 
 function lines(host, doc, items) {
-  rows(host, items.map((t, i) => ({ t, i })), {
+  rows(host, items.map((row, i) => ({ t: row, i })), {
     key: (x) => String(x.i), build: () => li(doc, '<li></li>'), patch: (el, x) => text(el, x.t),
   });
 }
@@ -169,7 +170,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
   rows(root.querySelector('.hsum-past'), past, {
     key: (s) => s.id,
     build: (s) => li(ctx.doc, '<li class="hw-line"><span class="hw-line-name"><b></b><small></small></span>'
-      + '<button type="button" class="hh-tool" data-hs-act="pick" data-id="' + s.id.replace(/[^a-z0-9-]/gi, '') + '">Show</button></li>'),
+      + '<button type="button" class="hh-tool" data-hs-act="pick" data-id="' + s.id.replace(/[^a-z0-9-]/gi, '') + '">' + t('controls.show') + '</button></li>'),
     patch: (el, s) => {
       text(el.querySelector('b'), groundTitle(s));
       text(el.querySelector('small'), [dayTime(s.at), s.kills !== null ? whole(s.kills) + ' kills' : '', s.reason ? endWords(s.reason, s.forfeit, s.by, nameOf(cs), s.why).split('. ')[0].replace(/\.$/, '') : ''].filter(Boolean).join(' · '));
@@ -177,12 +178,12 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
   });
 };
 
-renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, t) {
+renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, el) {
   if (ev.type !== 'click') return false;
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => renderHuntSummary.patch(body, ctx);
-  if (action === 'pick') { sc.pick = t.getAttribute('data-id'); sc.msg = ''; repaint(); return true; }
+  if (action === 'pick') { sc.pick = el.getAttribute('data-id'); sc.msg = ''; repaint(); return true; }
   /* the card's next step: the summary closes and the card's window opens on its tab (its card and ring are there),
      or, for a card on the bar or the town, the summary closes and the card stands under the icon row */
   if (action === 'coach-next') {

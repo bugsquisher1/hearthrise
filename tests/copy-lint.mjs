@@ -58,6 +58,14 @@
 //   noun-stack    3+ game nouns in a row, "store rune tier" (text table rows only)
 // Today's older hits are pinned in tests/copy-lint-voice.baseline.json ("<file>#<rule>#<text>"), which only shrinks:
 //   stale-voice   a pinned line that was rewritten — drop its row (--prune-voice)
+// THE CONTROLS (Tyler 2026-11-11, after "Start from what you wear" became "Use equipped": "Try to standardize language
+// like that a bit more please"): a control says the genre's one word for its action (src/data/text/controls.js), and a
+// sentence is for explanations, never for a button. Read on every static <button> or <summary> label in src/shell and
+// src/app, on every controls.* row, and on any text table row keyed btn_/tab_/button_:
+//   control-long     four or more words ("Pick a hunt for the party")   → the glossary word, plus at most a noun
+//   control-period   a label that ends in a period                      → no period on a control
+//   control-synonym  a near-synonym of a glossary word (Put away, Store, Stash, Wear, Take off, Forget it, No thanks,
+//                    Unselect, Give up…)                                → the glossary word (CONTROL_SYNONYMS says which)
 // What no pattern can judge, a reader does before each release: tools/player-read.local.mjs.
 // plus a SHRINK-ONLY RATCHET on filler fantasy words in NAMES (DESIGN_STANDARDS
 // §2): Shadow, Void, Ancient, Eternal, Dark, Forgotten (whole word, any case)
@@ -348,6 +356,50 @@ export function personRules(text, table = false) {
   return hits;
 }
 
+/* ── THE CONTROLS (Tyler 2026-11-11) ──────────────────────────────────────────────────────────────────────────────────
+   One standard word per action, everywhere (src/data/text/controls.js is the glossary). A control label is read from a
+   static <button>/<summary> in src/shell or src/app, from every controls.* row, and from a text table row keyed
+   btn_/tab_/button_. A feature noun after the word is fine (Dispatch loot, Sell all junk, Leave party); a sentence is not.
+   CONTROL_SYNONYMS: the near-synonym a writer reaches for → the glossary word the control says instead. The selftest holds
+   that every target is a glossary row's value, so the table cannot drift from the glossary. */
+export const CONTROL_SYNONYMS = Object.freeze({
+  'put away': 'Deposit', store: 'Deposit', stash: 'Deposit', 'take out': 'Withdraw',
+  wear: 'Equip', 'put it on': 'Equip', 'take off': 'Unequip', 'wear this outfit': 'Equip',
+  'forget it': 'Cancel', 'never mind': 'Cancel', 'no thanks': 'Decline', 'give up': 'Abandon', unselect: 'Deselect',
+  'go back': 'Back', 'back to the list': 'Back', return: 'Back', purchase: 'Buy', erase: 'Delete', shut: 'Close', apply: 'Use',
+  'save here': 'Use equipped', 'start from what you wear': 'Use equipped', 'save current setup': 'New setup',
+  'start with party': 'Enter with party', 'start anyway': 'Enter anyway', 'keep in bag': 'Keep', 'deposit in storage': 'Deposit',
+});
+export const CONTROL_KEY_RE = /(?:^|_)(?:btn|tab|button)(?:_|$)/;
+/** A control label, as the player reads it: the back glyph, entities, a trailing ellipsis and a count in brackets dropped. */
+export function controlLabel(text) {
+  return String(text).replace(/&[a-z#0-9]+;/gi, ' ').replace(/[‹›×…]/g, ' ').replace(/\{[a-z][A-Za-z0-9_]*\}/g, 'x').replace(/\(.*?\)/g, ' ').replace(/\s+/g, ' ').trim();
+}
+/** The control rules `text` breaks: ['control-long' | 'control-period' | 'control-synonym', …]. */
+export function controlRules(text) {
+  const raw = String(text).trim();
+  const label = controlLabel(raw);
+  if (!/[A-Za-z]/.test(label)) return [];
+  const hits = [];
+  if (label.split(' ').length > 3) hits.push('control-long');
+  if (/\.$/.test(raw)) hits.push('control-period');
+  if (Object.prototype.hasOwnProperty.call(CONTROL_SYNONYMS, label.toLowerCase())) hits.push('control-synonym');
+  return hits;
+}
+/** The static button and summary labels written in one literal: [{ label }] ("' + t('controls.equip') + '" is no literal). */
+export function buttonLabels(text) {
+  const out = [];
+  for (const m of String(text).matchAll(/<(button|summary)\b[^>]*>([^<§]*)<\/\1>/g)) { const l = m[2].trim(); if (l) out.push(l); }
+  return out;
+}
+export const CONTROL_FIX = Object.freeze({
+  'control-long': 'a control says the glossary word, plus at most a noun (src/data/text/controls.js): "Pick a hunt", "Use equipped"',
+  'control-period': 'a control is not a sentence: drop the period',
+  'control-synonym': 'say the glossary word instead (tests/copy-lint.mjs CONTROL_SYNONYMS says which): Deposit, not Put away',
+});
+const CONTROL_DIRS_RE = /[\\/]src[\\/](?:shell|app)[\\/]/;
+const CONTROLS_TABLE_RE = /[\\/]src[\\/]data[\\/]text[\\/]controls\.js$/;
+
 /* THE PERSON DEBT: the lines that broke a PERSON rule the day the rules landed (2026-11-09), pinned as "<file>#<rule>#<text>"
    in tests/copy-lint-voice.baseline.json and rewritten batch by batch (.claude/coordination/voice-sweep.txt holds the next
    batch). The list only shrinks: a new line is red, and a pinned line that no longer exists is red as stale-voice until its row
@@ -509,13 +561,22 @@ export async function scan(root, opts = {}) {
       if (!rules.includes('em-dash') && /^\s+—\s+$/.test(text)) rules.push('em-dash');
       /* THE PERSON TEST: a pinned line (the voice baseline) is the debt the sweep pays down, anything else is red. */
       const person = prose(text) ? personRules(text, table) : [];
-      if (!rules.length && !person.length) continue;
+      /* THE CONTROLS: a controls.* row, a btn_/tab_/button_ row, or a static <button>/<summary> label in src/shell or src/app */
+      const controls = [];
+      if (table) {
+        const key = (/([a-z][a-z0-9_]*)\s*:\s*$/.exec(src.slice(Math.max(0, at - 40), at)) || [])[1];
+        if (CONTROLS_TABLE_RE.test(f) || (key && CONTROL_KEY_RE.test(key))) for (const r of controlRules(lits[i].text)) controls.push([r, lits[i].text]);
+      } else if (CONTROL_DIRS_RE.test(f)) {
+        for (const l of buttonLabels(text)) for (const r of controlRules(l)) controls.push([r, l]);
+      }
+      if (!rules.length && !person.length && !controls.length) continue;
       const line = src.slice(0, at).split('\n').length;
       const rel = relative(root, f).split(sep).join('/');
       for (const rule of rules) {
         if (waived(root, f, rule, text)) continue;
         findings.push({ file: rel, line, rule, text: text.replace(/\s+/g, ' ').slice(0, 110) });
       }
+      for (const [rule, label] of controls) findings.push({ file: rel, line, rule, text: label.replace(/\s+/g, ' ').slice(0, 110) });
       for (const rule of person) {
         const key = voiceKey(rel, rule, text);
         if (pinned.has(key)) { seenVoice.add(key); continue; }
@@ -606,6 +667,7 @@ async function gate(root, report) {
   const fixes = [...new Set(findings.map((f) => f.rule))].filter((r) => PERSON_FIX[r]);
   for (const r of fixes) console.log(`  fix ${r}: ${PERSON_FIX[r]}`);
   if (fixes.length) console.log('  (the voice: docs/DESIGN_STANDARDS.md §3 "Tyler\'s voice")');
+  for (const r of [...new Set(findings.map((f) => f.rule))].filter((r) => CONTROL_FIX[r])) console.log(`  fix ${r}: ${CONTROL_FIX[r]}`);
   console.log(`copy-lint: ${files} files, ${plurals} plural item names, ${Object.keys(baseline).length} pinned filler name(s), ${readVoiceBaseline().size} pinned person line(s), ${findings.length} slip(s)`);
   return findings.length ? 1 : 0;
 }
@@ -819,6 +881,41 @@ async function selftest() {
     WAIVERS.pop();
     console.log(`  ${staleW ? 'caught' : 'MISSED'}  stale-waiver (a fixed literal's row left behind)`);
     if (!staleW) bad++;
+    // THE CONTROLS: a button label in src/shell that is a sentence, one that ends in a period, and a near-synonym of a glossary
+    // word each bite; a controls.* row and a btn_ row are read the same way; a feature noun, a question and a glued label stay
+    // quiet; a prose literal with no button is not a control; and every synonym's target is a glossary row's value.
+    mkdirSync(join(tmp, 'src', 'shell', 'windows'), { recursive: true });
+    const shellPlant = join(tmp, 'src', 'shell', 'windows', '__copy_lint_buttons.js');
+    const CONTROL = ['control-long', 'control-period', 'control-synonym'];
+    const controlHits = async (file) => (await scan(HERE_ROOT, { files: [file] })).findings.filter((f) => CONTROL.includes(f.rule)).map((f) => f.rule + ':' + f.text).sort();
+    writeFileSync(shellPlant, "export const h = '<button type=\"button\" class=\"hh-tool\">Start from what you wear</button>'\n"
+      + "  + '<button type=\"button\">Put away</button><button type=\"button\">Take off</button><summary class=\"hh-tool\">Filter lines now please</summary>'\n"
+      + "  + '<button type=\"button\" data-hs-act=\"x\">Save the setup.</button>';\n");
+    const loudC = await controlHits(shellPlant);
+    const wantLoud = ['control-long:Filter lines now please', 'control-long:Start from what you wear', 'control-period:Save the setup.',
+      'control-synonym:Put away', 'control-synonym:Start from what you wear', 'control-synonym:Take off'].sort();
+    const bit = JSON.stringify(loudC) === JSON.stringify(wantLoud);
+    console.log(`  ${bit ? 'caught' : 'MISSED'}  control-long / control-period / control-synonym on planted buttons${bit ? '' : ': ' + loudC.join(' | ')}`);
+    if (!bit) bad++;
+    const controlsPlant = join(tmp, 'src', 'data', 'text', 'controls.js');
+    writeFileSync(controlsPlant, "export const CONTROLS_TEXT = Object.freeze({ deposit: 'Put it in the chest', keep: 'Keep.', drop: 'Give up' });\n");
+    writeFileSync(tablePlant, "export const T = Object.freeze({ btn_go: 'Go on to the next one', tab_x: 'Store', note: 'Put away {count} stacks in all the chests.' });\n");
+    const rowsLoud = [...await controlHits(controlsPlant), ...await controlHits(tablePlant)].sort();
+    const wantRows = ['control-long:Go on to the next one', 'control-long:Put it in the chest', 'control-period:Keep.', 'control-synonym:Give up', 'control-synonym:Store'].sort();
+    const rowsBit = JSON.stringify(rowsLoud) === JSON.stringify(wantRows);
+    console.log(`  ${rowsBit ? 'caught' : 'MISSED'}  the control rules on controls.* rows and btn_/tab_ rows, not on a prose row${rowsBit ? '' : ': ' + rowsLoud.join(' | ')}`);
+    if (!rowsBit) bad++;
+    writeFileSync(shellPlant, "export const h = '<button type=\"button\">Dispatch loot</button><button type=\"button\">Delete it?</button><button type=\"button\">&lsaquo; Back</button>'\n"
+      + "  + '<button type=\"button\">' + t('controls.equip') + '</button><button type=\"button\">All (' + o.max + ')</button>'\n"
+      + "  + '<button type=\"button\" class=\"hh-tool\" data-hs-act=\"sell-sel\">Sell selected</button>';\n"
+      + "export const p = 'Put away 12 Bones. You can take off the cape in your bag whenever you like.';\n");
+    const quietC = await controlHits(shellPlant);
+    console.log(`  ${quietC.length ? 'FALSE-POSITIVE' : 'ignored'}  control rules on feature nouns, a question, a glyph, a glued label, a count and prose${quietC.length ? ': ' + quietC.join(' | ') : ''}`);
+    if (quietC.length) bad++;
+    const glossary = new Set(Object.values((await import(pathToFileURL(join(HERE_ROOT, 'src', 'data', 'text', 'controls.js')).href)).CONTROLS_TEXT));
+    const strays = Object.entries(CONTROL_SYNONYMS).filter(([, to]) => !glossary.has(to));
+    console.log(`  ${strays.length ? 'FAILED' : 'ok    '}  every CONTROL_SYNONYMS target is a glossary word${strays.length ? ': ' + strays.map(([k, v]) => k + ' → ' + v).join(', ') : ''}`);
+    if (strays.length) bad++;
     // A comment is not copy.
     writeFileSync(plant, "/* 'Smith 60 items in all' */\n// 'item(s)' 'an Apprentice Gloves'\nexport const a = 1;\n");
     const c = await scan(HERE_ROOT, { files: [plant] });

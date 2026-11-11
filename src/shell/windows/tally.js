@@ -10,7 +10,7 @@
 // her board of the tasks you don't hold, two lines a row with the ground as a take-me-there
 // link (src/shell/goto.js) and a real Take; then her pick folded to one line, Change opens it.
 //   Take        ONE hr_tally_accept (in town only; a first Take names the weight that suits)
-//   Give up     ONE hr_tally_drop (the count is lost; said on the answer's line)
+//   Abandon     ONE hr_tally_drop (the count is lost; said on the answer's line)
 //   Keep        ONE hr_tally_set { task, keep }: taken again the moment it pays
 //   Weight      ONE hr_tally_set { weight }; a slot chip ONE hr_tally_set { order } with it first
 //   Being paid  automatic in the settle that brings the hero home; when the window opens in
@@ -178,11 +178,11 @@ function patchEntry(li, h, st) {
   const here = st.hunting && st.huntId === h.hunt;
   patchParts(li.querySelector('.ht-where'), here ? [t('tally.counting_here', { ground: huntName(h.hunt) })] : st.hunting ? [groundLink(h.hunt), ' · ', t('tally.not_here')] : [groundLink(h.hunt)]);
   const keep = li.querySelector('[data-hs-act="keep"]');
-  text(keep.nextElementSibling, t('tally.keep'));
+  text(keep.nextElementSibling, t('controls.keep'));
   prop(keep, 'checked', h.keep);
   prop(keep, 'disabled', st.sc.pending);
   const drop = li.querySelector('[data-hs-act="drop"]');
-  text(drop, t('tally.give_up'));
+  text(drop, t('controls.abandon'));
   prop(drop, 'disabled', st.sc.pending);
 }
 
@@ -196,7 +196,7 @@ function patchRow(li, r, st) {
   text(li.querySelector('.ht-pay-name'), r.pick ? pieceName(r.pick) : '');
   text(li.querySelector('.ht-once'), onceWords(r, st));
   const btn = li.querySelector('.ht-take');
-  text(btn, t('tally.take'));
+  text(btn, t('controls.take'));
   const tally = st.tally;
   const full = !!tally && tally.held.length >= tally.heldMax;
   prop(btn, 'disabled', r.held || full || st.sc.pending || st.hunting || !tally || (!tally.weight && !st.suggest));
@@ -213,7 +213,7 @@ function patchPick(root, st) {
     ? t('tally.pick_line', { weight: lower(weightWord(tally.weight)), first: lower(slotWord(order[0] || '')), second: lower(slotWord(order[1] || '')), third: lower(slotWord(order[2] || '')) })
     : st.suggest ? t('tally.pick_none_suggest') : t('tally.pick_none'));
   const toggle = root.querySelector('[data-hs-act="pick-toggle"]');
-  text(toggle, sc.pickOpen ? t('tally.close') : t('tally.change'));
+  text(toggle, sc.pickOpen ? t('controls.close') : t('tally.change'));
   prop(toggle, 'disabled', !tally);
   attr(toggle, 'aria-expanded', String(sc.pickOpen));
   prop(root.querySelector('.ht-pick-open'), 'hidden', !sc.pickOpen);
@@ -276,7 +276,7 @@ renderTally.patch = function patchTally(body, ctx) {
   cls(root.querySelector('.ht-board-why'), 'is-on', !!why);
   text(root.querySelector('.ht-board-why span'), why);
   const toWeight = root.querySelector('[data-hs-act="to-weight"]');
-  text(toWeight, t('tally.change'));
+  text(toWeight, t('controls.pick_weight'));
   prop(toWeight, 'hidden', !why || hunting || !tally || !!tally.weight);
   rows(root.querySelector('.ht-list'), board.filter((r) => !r.held), { key: (r) => r.task, build: (r) => element(ctx.doc, rowHtml(r)), patch: (li, r) => patchRow(li, r, st) });
   cls(root.querySelector('.ht-wait'), 'is-on', !sc.board);

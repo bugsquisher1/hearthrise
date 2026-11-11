@@ -33,7 +33,7 @@
 //         Character tab's Level, max health and max mana equal the vitals hub's,
 //         in a hunt, after a pushed frame that restates only `state`, and in town
 //   CW-9  THE TITLES TAB (Tyler 2026-11-04, 2027-02-28-titles.sql; every number from the data's rows): a locked row reads "Wolves: 3,214 of 5,000" with
-//         nothing to press; an earned one's "Claim for 3,000 gp" sends ONE hr_title_buy with the QUOTE and no count; Wear and Take off are ONE
+//         nothing to press; an earned one's "Claim for 3,000 gp" sends ONE hr_title_buy with the QUOTE and no count; Equip and Unequip are ONE
 //         hr_title_wear; each changes only from the re-read; a short purse is off and says how much more; a refusal says the server's numbers;
 //         the sheet's header shows (no title row says party-only: a lone hero walks the King's hall too, 2026-11-08)
 //   CW-6  THE SKILLS: Gathering and crafting lists no combat skill; the combat
@@ -392,13 +392,13 @@ async function checks(overrides, shots) {
         if (buys().length !== 1 || buys()[0].body.p_title !== earned || buys()[0].body.p_price !== e.price || buys()[0].body.p_slot !== 0 || !buys()[0].body.p_idem
             || Object.keys(buys()[0].body).sort().join() !== 'p_idem,p_price,p_slot,p_title') fails.push('CW-9 Claim sent ' + JSON.stringify(buys().map((c) => c.body)));
         t = await read();
-        if (t[earned].press !== 'Wear') fails.push('CW-9 after the re-read the claimed row reads ' + JSON.stringify(t[earned]));
+        if (t[earned].press !== 'Equip') fails.push('CW-9 after the re-read the claimed row reads ' + JSON.stringify(t[earned]));
         /* WEAR, one intent; the sheet's header follows the server; TAKE OFF, null */
         await press(earned);
         await page.waitForTimeout(900);
         if (wears().length !== 1 || wears()[0].body.p_title !== earned || wears()[0].body.p_slot !== 0) fails.push('CW-9 Wear sent ' + JSON.stringify(wears().map((c) => c.body)));
         t = await read();
-        if (t[earned].press !== 'Take off') fails.push('CW-9 a worn row reads ' + JSON.stringify(t[earned]));
+        if (t[earned].press !== 'Unequip') fails.push('CW-9 a worn row reads ' + JSON.stringify(t[earned]));
         await shot(page, 'character-titles');
         await page.click('[data-hs-win="character"] .hw-tab[data-tab="sheet"]');
         await page.waitForTimeout(150);
@@ -408,7 +408,7 @@ async function checks(overrides, shots) {
         await page.waitForTimeout(150);
         await press(earned);
         await page.waitForTimeout(900);
-        if (wears().length !== 2 || wears()[1].body.p_title !== null) fails.push('CW-9 Take off sent ' + JSON.stringify(wears().map((c) => c.body)));
+        if (wears().length !== 2 || wears()[1].body.p_title !== null) fails.push('CW-9 Unequip sent ' + JSON.stringify(wears().map((c) => c.body)));
         /* A SHORT PURSE: off, and says how much more; A REFUSAL: the server's numbers in the design's words */
         const c = TITLES[claimable];
         s.env.state = Object.assign({}, s.env.state, { gold: c.price - 1, gold_v: 5 });
@@ -514,10 +514,10 @@ const MUTANTS = [
   ['a leech line the engine does not have', 'src/shell/windows/character/sheet.js', "const COMBAT = Object.freeze([['damage', 'Damage'],", "const COMBAT = Object.freeze([['leech', 'Life Leech'], ['damage', 'Damage'],"],
   ['a locked title can be pressed', 'src/shell/windows/character/titles.js', "if (r.have < r.kills) return { small: count, press: null, off: true };", "if (r.have < r.kills) return { small: count, press: 'Claim', off: false };"],
   ['a claim sends a price of its own', 'src/shell/windows/character/titles.js', 'buyTitle(ctx.account, cs, r.id, r.price)', 'buyTitle(ctx.account, cs, r.id, 1)'],
-  ['Take off wears it again', 'src/shell/windows/character/titles.js', 'wearTitle(ctx.account, cs, r.worn ? null : r.id)', 'wearTitle(ctx.account, cs, r.id)'],
+  ['Unequip wears it again', 'src/shell/windows/character/titles.js', 'wearTitle(ctx.account, cs, r.worn ? null : r.id)', 'wearTitle(ctx.account, cs, r.id)'],
   ['a title stays pressable in flight', 'src/shell/windows/character/titles.js', "prop(b, 'disabled', sc.pending || w.off);", "prop(b, 'disabled', w.off);"],
   ['a short purse can press Claim', 'src/shell/windows/character/titles.js', "off: short > 0 };", "off: false };"],
-  ['a refusal does not name the hero', 'src/shell/windows/character/titles.js', "() => name + ' is yours. Press Wear to show it.', cs);", "() => name + ' is yours. Press Wear to show it.');"],
+  ['a refusal does not name the hero', 'src/shell/windows/character/titles.js', "() => name + ' is yours. Press Equip to show it.', cs);", "() => name + ' is yours. Press Equip to show it.');"],
   ['the sheet header drops the title', 'src/shell/windows/character/sheet.js', "(nameOf(cs) || '') + (worn ? ' ' + worn : '')", "(nameOf(cs) || '')"],
   ['the sheet is asked for every paint', 'src/shell/windows/character/index.js', "  if (!sh || sc.sheetAsking || v === null) return;\n  if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "  if (!sh) return;"],
   ['an opening never asks the engine', 'src/shell/windows/character/index.js', "if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "if (sh.fresh || sc.sheetAsked === v) return;"],

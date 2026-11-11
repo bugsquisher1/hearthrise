@@ -26,6 +26,7 @@ import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { stringLiterals } from '../tests/copy-lint.mjs';
+import { isMain } from '../tests/_is-main.mjs';
 
 export const RUBRIC = Object.freeze([
   'Does it lead with what happens to the player, or what they can do?',
@@ -254,8 +255,9 @@ async function selftest() {
   return bad ? 1 : 0;
 }
 
-const args = process.argv.slice(2);
-try {
+/* The CLI runs only as the entry module, so the gate's functions (autoFlags, dataLines) can be imported. */
+const args = isMain(import.meta.url) ? process.argv.slice(2) : null;
+if (args) try {
   if (args.includes('--rubric')) {
     console.log('PLAYER READ RUBRIC (docs/DESIGN_STANDARDS.md §3 "Tyler\'s voice"). Any "no" flags the line.');
     RUBRIC.forEach((q, i) => console.log(`  ${String(i + 1).padStart(2)}. ${q}`));

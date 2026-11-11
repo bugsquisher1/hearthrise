@@ -10,6 +10,12 @@
     "gold": 5200,
     "level_xp": 21591
   },
+  "level": {
+    "xp": 21591,
+    "level": 7,
+    "into": 1575,
+    "need": 25450
+  },
   "skills": {
     "defense": {
       "xp": 3973,

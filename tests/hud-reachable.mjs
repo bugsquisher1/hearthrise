@@ -42,6 +42,7 @@ import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { withServerLevel } from './_server-level.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -69,7 +70,8 @@ function partyOf4(env) {
 function scripted(prep) {
   const s = { env: clone(FIXTURE), version: 1 };
   if (prep) prep(s.env);
-  s.next = () => Object.assign(clone(s.env), { version: ++s.version });
+  /* The server states the Level itself (hr_state_of's `level` block): the stub states it for the XP a case set (./_server-level.mjs). */
+  s.next = () => withServerLevel(Object.assign(clone(s.env), { version: ++s.version }));
   return s;
 }
 

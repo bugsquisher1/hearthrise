@@ -1,0 +1,29 @@
+{
+  "asset": "verdicts B3: Q1 the rest, the first fights' attacks and deaths in 8 facings",
+  "status": "for the art director's read. Not imported",
+  "generations": 201,
+  "objects": { "rat": "01744036", "cistern_spider": "d6f7f699", "culvert_bat": "3d41dcb0", "hive_wasp": "1c4dd534", "kobold_tosher": "27b8daf0", "rat_king": "3c137163", "slime": "a53b1f35" },
+  "attacks_plain": {
+    "tool": "animate_object v3, frame_count 6, keep_first_frame false, one call per creature for its side and diagonal facings, one for N",
+    "words": "brief 11's per creature + \"then returns to its stance, feet planted, nothing else appears in the frame\"; N: \"lunges/swoops/darts/thrusts away from the viewer ... reach up and forward 2-3 px, then back ...\"; the fliers' S: \"swoops/darts toward the viewer ... reach down and forward 2-3 px ...\"; the slime's 8: B3's slime words + \"the same face throughout, two open dot eyes, no mouth, the bottom stays on the ground\"",
+    "made": "rat W SE SW NE NW; spider W SE SW NE NW N; bat E W SE SW NE NW S N; wasp W SE SW NE NW S N; kobold W SE SW NE NW N; rat_king E W SE SW NE NW N; slime all 8"
+  },
+  "attacks_pose_route_S": "every S attack of a body on legs (cistern_spider, kobold_tosher, rat_king): edit_image_pro_flash on the S still to the blow (\"... thrust down and forward toward the viewer by three pixels ...\", 5 gens) then animate_image still -> pose, frame_count 4 (frame_004 = the blow). Laid 0 1 2 4 2 1 as the rat's",
+  "deaths_plain": "slime e n se ne (\"melts flat into a puddle ...\"); bat e n se ne and wasp s e n se ne (\"stops flapping, falls to the floor on its back, wings spread, and lies still, eyes closed ...\"); kobold e n w se sw ne nw (\"falls flat on its back, the spear beside it ...\"); rat_king e n w se sw ne nw (\"collapses and falls face down, his cape spread, the bone sceptre beside him ...\")",
+  "deaths_pose_route": {
+    "by the brief (roll over)": "rat n se ne, cistern_spider e n se ne",
+    "refused plain rolls (stood or rose; read on a still-versus-corpse sheet)": "culvert_bat ne, hive_wasp e n ne se, slime e n ne se (all four rose into a bell, as S did), rat_king ne nw",
+    "kept plain": "bat e n se, wasp s, kobold all 7, rat_king e n w se sw",
+    "how": "edit_image_pro_flash on the facing's still to the corpse (5 gens, eyes closed), animate_image still -> pose, frame_count 6 (frame_006 = the corpse)"
+  },
+  "layout": "<creature>/<facing>.png the rotation; <creature>/attack|attackpose|death|deathpose/<facing>/frame_NNN.png; pose-<facing>.png the edit; death-seated/ and deathpose-seated/ = every death re-seated (the corpse's lowest row on the still's foot row, 43 for the bat and wasp, whole-frame steps, never lifted); analysis.json = per attack the changed pixels per frame and the lay with the most-changed frame on index 3, per death the fall test and the seat shift",
+  "flags": [
+    "slime attack N: the back view grows a face (dot eyes and a smile, frames 2-6); NW shows a faint face; S shuts its eyes at frame 1: 'the same face throughout' held only on the side facings",
+    "slime death poses N and E: a small drip spike rises on top at frames 2-4; SE: the melt passes through a hollow arch shape at frames 4-5",
+    "the lay uses the frame that differs most from the still as the blow (a reach measure on the facing proved unreliable: tails and wings set the extremes); check index 3 by eye",
+    "bat death SE kept plain: it lies tilted on its side, not flat on its back",
+    "rat death N pose: a curled ball seen from behind; the top barely drops (top-down roll-overs read by shape, not height)",
+    "every pose-route death re-seated by 1-10 px (the edits float their corpses)"
+  ],
+  "review_strips": "art/review/gen-2026-11-09b/b3-<creature>.png, one per creature (x2, 64 cells, frames as is): each row the still then the frames; plain attacks unbarred, pose-route rows amber-barred, plain deaths grey-barred (the seated copy shown)"
+}

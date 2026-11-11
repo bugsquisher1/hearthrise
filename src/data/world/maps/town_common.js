@@ -17,15 +17,15 @@
 // yards, all one tileset family chained from the same grass and dirt tiles), drawn on the dual grid
 // (compose.js blendTiles); Hearth Square's paving is a patch over it. A material no pair draws yet
 // (a placeholder site) stays a placeholder tone.
-import { at, TOWN_NAME, TOWN_MAP } from '../town/plan.js?v=0.2.113';
-import { GROUND_ROWS } from '../town/ground.js?v=0.2.113';
-import { SITES, SCENERY, EXITS, PATCHES, AMBIENT, BLEND } from '../town/sites.js?v=0.2.113';
-import { GREENERY } from '../town/greenery.js?v=0.2.113';
-import { WEAR } from '../town/wear.js?v=0.2.113';
-import { PALISADE } from '../town/palisade.js?v=0.2.113';
-import { SCREE } from '../town/mountain.js?v=0.2.113';
-import { PIERS } from '../town/piers.js?v=0.2.113';
-import { STATIONS, STATION_BY_ID, ACTIVITY_STATIONS } from '../stations.js?v=0.2.113';
+import { at, TOWN_NAME, TOWN_MAP } from '../town/plan.js?v=0.2.116';
+import { GROUND_ROWS } from '../town/ground.js?v=0.2.116';
+import { SITES, SCENERY, EXITS, PATCHES, AMBIENT, BLEND } from '../town/sites.js?v=0.2.116';
+import { GREENERY } from '../town/greenery.js?v=0.2.116';
+import { WEAR } from '../town/wear.js?v=0.2.116';
+import { PALISADE } from '../town/palisade.js?v=0.2.116';
+import { SCREE } from '../town/mountain.js?v=0.2.116';
+import { PIERS } from '../town/piers.js?v=0.2.116';
+import { STATIONS, STATION_BY_ID, ACTIVITY_STATIONS } from '../stations.js?v=0.2.116';
 
 const tile = (x, y) => { const [mx, my] = at(x, y); return { x: mx, y: my }; };
 /** A placeholder footprint: a painted, closed building with its door mid-side. */
@@ -46,7 +46,7 @@ export default Object.freeze({
   outdoor: true,
   light: 'day',
   ground: null,
-  legend: Object.freeze({ '.': 'grass', ':': 'cobble', '=': 'earth', '_': 'flagstone', '#': 'planks', '~': 'water', '^': 'cliff', '|': 'palisade', 'o': 'site', '%': 'tilled', ',': 'gravel', ';': 'setts' }),
+  legend: Object.freeze({ '.': 'grass', ':': 'cobble', '=': 'earth', '_': 'flagstone', '#': 'planks', '~': 'water', '^': 'cliff', '|': 'palisade', 'o': 'site', '%': 'tilled', ',': 'gravel', ';': 'setts', 'S': 'sand' }),
   rows: GROUND_ROWS,
   blend: BLEND,
   patches: Object.freeze(PATCHES.map((p) => Object.freeze({ terrain: p.terrain, rect: Object.freeze(at(p.rect[0], p.rect[1]).concat(p.rect[2], p.rect[3])) }))),
@@ -70,5 +70,5 @@ export default Object.freeze({
   /* the lint's reach origin: the gatehouse's first stand (a hero back from a hunt arrives on one of the
      gatehouse's stands, the one the SERVER holds for it: 2027-01-28-town-stands.sql) */
   start: first(ACTIVITY_STATIONS.arrival),
-  maskHash: '5355097f',
+  maskHash: '21bd4f38',
 });

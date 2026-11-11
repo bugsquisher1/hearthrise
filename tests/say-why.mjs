@@ -38,6 +38,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { withServerLevel } from './_server-level.mjs';
 
 const ARGS = process.argv.slice(2);
 const SHOTS = ARGS.includes('--shots') ? ARGS[ARGS.indexOf('--shots') + 1] : null;
@@ -435,7 +436,7 @@ async function screens(overrides) {
       await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
         const name = r.request().url().split('?')[0].split('/').pop();
         const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
-        if (name === 'hr_load' || name === 'hr-accrue') return json(Object.assign(clone(s.env), { version: ++s.version, ok: true }));
+        if (name === 'hr_load' || name === 'hr-accrue') return json(withServerLevel(Object.assign(clone(s.env), { version: ++s.version, ok: true })));
         return json({ ok: true });
       });
       const shot = async (n) => { if (SHOTS) await page.screenshot({ path: join(ROOT, SHOTS, n + '-' + w + 'x' + h + '.png') }); };

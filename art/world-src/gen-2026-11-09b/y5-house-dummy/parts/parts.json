@@ -1,0 +1,48 @@
+{
+ "target_px": 170,
+ "target_holes": 1,
+ "arms_px": 243,
+ "arms_holes": 1,
+ "plates_px": 246,
+ "plates_holes": 28,
+ "plinth_box": [
+  23,
+  35,
+  41,
+  51
+ ],
+ "outline_closed_px": 23,
+ "all_parts_vs_c2_mismatch_px": 41,
+ "boxes": {
+  "hd_circle": [
+   15,
+   37,
+   46,
+   59
+  ],
+  "hd_base": [
+   18,
+   5,
+   43,
+   51
+  ],
+  "hd_plates": [
+   19,
+   5,
+   43,
+   22
+  ],
+  "hd_arms": [
+   12,
+   18,
+   48,
+   39
+  ],
+  "hd_target": [
+   24,
+   16,
+   38,
+   31
+  ]
+ }
+}

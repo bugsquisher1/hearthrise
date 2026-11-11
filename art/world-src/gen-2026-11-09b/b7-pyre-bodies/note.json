@@ -1,0 +1,19 @@
+{
+  "asset": "verdicts B7: the stoker's clips (idle in the 7 other facings, walk 8, attack 8, death 8). The pikeman's and the lurcher's wait for the read of A3 and A4",
+  "status": "for the art director's read. Not imported",
+  "generations": 37,
+  "object": "765cee1e-c89e-49f9-b594-a182e094bb5f",
+  "clips": {
+    "idle": "the approved S group f8417156-2646-4254-9538-6f2bb469a915 extended to the 7 other facings (its own words: standing guard, the chest rises and falls, the head stays level, both feet stay where they are, the rake stays still, nothing else appears in the frame); 8 frames keeping the still",
+    "walk": "group bf908fbc-417d-4fa2-bab4-6bac25d61b9a, \"a slow heavy trudge, both feet lift in turn, the rake stays held in both hands, nothing else appears in the frame\", 6 frames",
+    "attack": "group 420b19fe-32cd-4835-b16b-0cfb4717357b, \"swings the fire rake down in a heavy sweep, then drags it back to his stance, feet planted, nothing else appears in the frame\", 6 frames",
+    "death": "group 78e44753-f965-4496-859a-ebc0fcd8eaa3, \"falls forward onto his face, the rake beside him, and lies still, nothing else appears in the frame\", 6 frames; N refused (it ends standing) and redone by the pose route: edit 809c1d70 on the N rotation (\"... fallen forward flat on his face away from the viewer, the rake on the ground beside him ...\"), animate_image 70d309fc (deathpose/north, 7 frames)"
+  },
+  "layout": "stoker/<facing>.png the rotations; stoker/idle|walk|attack|death|deathpose/<facing>/; *-seated/ the deaths re-seated; idle/lay.json = each facing's calm ping-pong (still, a, b, a: frames within 1 px of the still's box); analysis.json = the attack lays (the most-changed frame on index 3) and the fall test",
+  "flags": [
+    "the idles drift 3-6 px in their middle frames in most facings (box shift per frame in idle/lay.json); the calm ping-pongs avoid those frames",
+    "S idle is the approved 11-08 clip (not re-rolled)",
+    "the rake still reads as a pitchfork at x2, as in the approved stills"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/b7-stoker.png (x2, 64 cells: every clip row the still then the frames; deaths grey-barred, the pose-route row amber)"
+}

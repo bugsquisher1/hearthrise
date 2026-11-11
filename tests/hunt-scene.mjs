@@ -460,7 +460,8 @@ async function rules(M) {
 
   { // SC-12: the level-up moment plays once when the SERVER's Level rises, never on a mount, and obeys its toggle
     const xpAt = (L) => M.XP.charXpForLevel(L);
-    const lv = (version, serverNow, L) => { const e = envelope(version, serverNow); e.state = Object.assign({}, e.state, { level_xp: xpAt(L) }); return e; };
+    /* the server's Level rides its own `level` block; the Level XP stands still, so only the server's word moves the Level (lane/c-level-from-server) */
+    const lv = (version, serverNow, L) => { const e = envelope(version, serverNow); e.state = Object.assign({}, e.state, { level_xp: xpAt(3) }); e.level = { xp: xpAt(3), level: L, into: 0, need: 100 }; return e; };
     const levelFloats = (f) => f.floats.filter((x) => /^Level \d+$/.test(x.text));
     const run = async (off) => {
       const clock = { t: C0 };

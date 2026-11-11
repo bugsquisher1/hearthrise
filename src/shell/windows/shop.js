@@ -21,26 +21,26 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.113';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.113';
-import { whole, gold } from '../../render/format.js?v=0.2.113';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.113';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.113';
-import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.113';
-import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.113';
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.113';
-import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.113';
-import { toolLossWords } from '../town-work.js?v=0.2.113';
-import { runIntent } from '../intent-words.js?v=0.2.113';
-import { showTip, hideTip } from './item-tip.js?v=0.2.113';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.113';
-import { gearLocked } from '../gear-gate.js?v=0.2.113';
-import { revealInWindow } from '../widgets/bits.js?v=0.2.113';
-import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.113';
-import { CROPS } from '../../data/gathering.js?v=0.2.113';
-import { requiredPlotLevel } from '../../core/farm.js?v=0.2.113';
-import { farmFieldOf } from '../../session/farm-sections.js?v=0.2.113';
-import { t } from '../../render/player-text.js?v=0.2.113';
+import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.116';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.116';
+import { whole, gold } from '../../render/format.js?v=0.2.116';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.116';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.116';
+import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.116';
+import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.116';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.116';
+import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.116';
+import { toolLossWords } from '../town-work.js?v=0.2.116';
+import { runIntent } from '../intent-words.js?v=0.2.116';
+import { showTip, hideTip } from './item-tip.js?v=0.2.116';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.116';
+import { gearLocked } from '../gear-gate.js?v=0.2.116';
+import { revealInWindow } from '../widgets/bits.js?v=0.2.116';
+import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.116';
+import { CROPS } from '../../data/gathering.js?v=0.2.116';
+import { requiredPlotLevel } from '../../core/farm.js?v=0.2.116';
+import { farmFieldOf } from '../../session/farm-sections.js?v=0.2.116';
+import { t } from '../../render/player-text.js?v=0.2.116';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell'], ['services', 'Services']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);

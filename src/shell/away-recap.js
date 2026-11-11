@@ -8,7 +8,7 @@
 //
 // HOW. While a character's hunt runs on screen, its last-seen SERVER numbers are
 // stamped into the display-only residue field `awaySeen` (src/session/residue.js):
-// the hunt session, the server clock, Level XP, the coins THIS hero's hunt has taken
+// the hunt session, the server clock, Level XP and the Level the server made of it, the coins THIS hero's hunt has taken
 // (the analyzer's, never the purse: gold is the account's, 2026-12-15-account-gold.sql,
 // so the purse moves with every hero) and the session's kills. On the next visit the
 // first envelope is compared with that stamp: if at least AWAY_MIN_MS of server time
@@ -39,15 +39,14 @@
 // real time says; a tab closed with no goodbye right after one reports the skipped stretch too. No real clock can do that: a stamp is
 // never older than the absence it reports plus the renewal below, and its time and its numbers are the same stamp's.
 // ════════════════════════════════════════════════════════════════════════
-import { levelOf } from '../session/character-sections.js?v=0.2.113';
-import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.113';
-import { nameOf } from '../session/item-sections.js?v=0.2.113';
-import { huntName } from '../session/party-sections.js?v=0.2.113';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.113';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.113';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.113';
-import { whole } from '../render/format.js?v=0.2.113';
-import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.113';
+import { levelOf } from '../session/character-sections.js?v=0.2.116';
+import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.116';
+import { nameOf } from '../session/item-sections.js?v=0.2.116';
+import { huntName } from '../session/party-sections.js?v=0.2.116';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.116';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.116';
+import { whole } from '../render/format.js?v=0.2.116';
+import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.116';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;
@@ -82,7 +81,9 @@ function awayStampOf(cs, h) {
   const a = analyzerOf(cs);
   const kills = a && a.hero && Number.isFinite(a.hero.kills) ? Math.floor(a.hero.kills) : null;
   const gold = coinsOf(a);
-  return { s: h.sessionId, at: Math.floor(now), xp: lv.xp, ...(gold !== null ? { gold } : {}), ...(kills !== null ? { kills } : {}) };
+  /* `lv`: the Level the server said with that XP. The return compares it with the Level the server says then; a Level
+     worked out here from the stamped XP would be this build's curve (character-sections.js levelOf). */
+  return { s: h.sessionId, at: Math.floor(now), xp: lv.xp, lv: lv.level, ...(gold !== null ? { gold } : {}), ...(kills !== null ? { kills } : {}) };
 }
 
 /**
@@ -105,8 +106,9 @@ export function awayRecapOf(cs) {
   /* A hunt that was over when the player left is no part of the absence (crafter's panel 2026-11-01). */
   if (h.ended && Number.isFinite(h.endedAtMs) && h.endedAtMs <= was.at) return null;
   const parts = [];
-  const from = charLevelFromXp(was.xp);
-  if (lv.level > from) parts.push('Level ' + from + ' to ' + lv.level);
+  /* two server answers, the stamp's Level and this one's; a stamp from before `lv` was kept says no Levels, only the XP */
+  const from = Number.isSafeInteger(was.lv) && was.lv >= 1 ? was.lv : null;
+  if (from !== null && lv.level > from) parts.push('Level ' + from + ' to ' + lv.level);
   if (lv.xp > was.xp) parts.push(signed(lv.xp - was.xp, 'Level XP'));
   const a = analyzerOf(cs);
   const gold = coinsOf(a);

@@ -194,6 +194,7 @@ import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { harnessFail, ruleOf, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { withServerLevel, levelBlock } from './_server-level.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* The readiness line with the fixture's bag and bar (supplies are never 'short' against a restock target any more). */
@@ -238,8 +239,9 @@ function scripted() {
      agedBy), and a later read stamped at the fixture's fixed `now` looks older, so _noteStorage drops every Storage change after it. */
   const said = s.env.now, born = Date.now();
   /* (A case that sets its own clock, AW-24's, keeps it.) */
+  /* The server states the Level itself (hr_state_of's `level` block): the stub states it for the XP a case set (./_server-level.mjs). */
   s.next = () => {
-    const e = clone(s.env);
+    const e = withServerLevel(clone(s.env));
     return Object.assign(e, { version: ++s.version, client_state: clone(s.residue), now: e.now === said ? new Date(Date.parse(said) + Date.now() - born).toISOString() : e.now });
   };
   return s;
@@ -263,7 +265,7 @@ async function stub(page, s) {
         if (s.refuse) {
           const error = s.refuse; s.refuse = null;
           return r.fulfill({ status: 409, contentType: 'application/json',
-            body: JSON.stringify(Object.assign(clone(s.env), { version: s.version, ok: false, verb: body.verb, error })) });
+            body: JSON.stringify(Object.assign(withServerLevel(clone(s.env)), { version: s.version, ok: false, verb: body.verb, error })) });
         }
         if (s.onEdge) s.onEdge(body);
         return json(Object.assign({ ok: true, accrued: true }, s.next()));
@@ -1177,7 +1179,7 @@ async function planRules(base) {
   for (const [chosen, worn, role, want] of weightIs) if (UP.preferredWeight(chosen, worn, role) !== want) fails.push('AW-21 chosen ' + chosen + ', role ' + role + ' prefers ' + UP.preferredWeight(chosen, worn, role) + ', wanted ' + want);
   /* the window reads it: a hammer hero, no pick at Tamsin's, with one of each helmet */
   const { upgradeOf } = await imp('src/shell/widgets/upgrade-line.js');
-  const bare = { state: { level_xp: 200 }, inventory: { bronze_helm: 1, leather_helmet: 1 }, equipment: { weapon: 'practice_club' }, hunt_settings: { preset: 0, role: 'melee_dps', slots: [] }, skills: { melee: { xp: 0, level: 1 }, defense: { xp: 0, level: 1 } } };
+  const bare = { state: { level_xp: 200 }, level: levelBlock(200), inventory: { bronze_helm: 1, leather_helmet: 1 }, equipment: { weapon: 'practice_club' }, hunt_settings: { preset: 0, role: 'melee_dps', slots: [] }, skills: { melee: { xp: 0, level: 1 }, defense: { xp: 0, level: 1 } } };
   if (upgradeOf({ read: (k) => bare[k] }).ops.helmet !== 'bronze_helm') fails.push('AW-21 a hammer hero with no pick would put on ' + JSON.stringify(upgradeOf({ read: (k) => bare[k] }).ops));
   /* a worn slot's tie is still the player's: a heavy hero in Leather Boots isn't moved off them */
   if (UP.upgradePlan({ equipment: { ...kit, boots: 'leather_boots' }, bag: [{ id: 'bronze_boots', qty: 1 }], skills: lv1, level: 5, prefer: 'heavy' }).ops.boots) fails.push('AW-21 Equip upgrades took off a piece of another weight');

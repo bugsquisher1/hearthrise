@@ -1,0 +1,141 @@
+# ============================================================
+# .github/workflows/pages.yml
+#
+# hearthrise.net is the files the game loads, not the repository.
+#
+# WHY (2026-11-10). Pages published the whole repository from main: 253 MB
+# (472 MB before art/review left it). v0.2.114's deploy ran past GitHub's
+# 10-minute limit four times, and a release whose server half was live sat
+# undeployed for over an hour. tools/build-site.mjs copies the 10 MB a
+# browser asks for into _site and fails if the game names a file that is
+# not there; this workflow deploys that folder as the Pages artifact.
+#
+# THE SWITCH IS A REPOSITORY SETTING, NOT THIS FILE. While Pages still
+# builds from the branch (build_type "legacy") this workflow builds, checks
+# and uploads the artifact, then stops: the branch deploy stays the only
+# one, so landing this file changes nothing a player sees. (Both at once
+# would race: actions/deploy-pages will deploy onto a branch-sourced site.)
+#   on:   gh api -X PUT repos/bugsquisher1/hearthrise/pages -f build_type=workflow
+#         then run this workflow once (workflow_dispatch) or push main
+#   off:  gh api -X PUT repos/bugsquisher1/hearthrise/pages -f build_type=legacy -f "source[branch]=main" -f "source[path]=/"
+#         gh api -X POST repos/bugsquisher1/hearthrise/pages/builds
+# The custom domain and HTTPS are settings of the Pages site. Neither call
+# sends them, and a workflow deploy does not read the CNAME file (GitHub
+# docs, "Troubleshooting custom domains and GitHub Pages"). The build job
+# still refuses to go on when the setting and the CNAME file disagree.
+#
+# tools/release-check.local.mjs reads this workflow's runs on main:
+# "pages: deploying", "pages: RED" (failed, cancelled, timed out) or
+# "pages: serving vX".
+# ============================================================
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# One deploy at a time. A newer push that is waiting replaces an older one
+# that is waiting; the deploy in flight always finishes, because a cancelled
+# deploy is the one way to leave the site between two versions.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+# Nothing by default; each job names what it needs. The job that runs this
+# repository's code can only read. The job that can deploy checks out
+# nothing and runs no code from the repository.
+permissions: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+      pages: read   # the site's settings: its source, its custom domain
+    outputs:
+      source: ${{ steps.settings.outputs.source }}
+      host: ${{ steps.settings.outputs.host }}
+      version: ${{ steps.site.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # No npm install: the build reads the tree with Node alone, so no
+      # third-party code runs in the job that decides what players are served.
+      - name: Build _site and check the game asks for nothing outside it
+        id: site
+        run: |
+          node tools/build-site.mjs --out _site
+          version="$(sed -n "s/.*version:[[:space:]]*'\([0-9][0-9.]*\)'.*/\1/p" _site/src/build-info.js | head -n 1)"
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Read the Pages settings
+        id: settings
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          line="$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq '[.build_type, (.cname // ""), (.https_enforced | tostring)] | join("|")')"
+          IFS='|' read -r source host https <<< "$line"
+          want="$(tr -d '[:space:]' < CNAME)"
+          echo "Pages source: ${source} · custom domain: ${host:-none} · HTTPS enforced: ${https}"
+          if [ "$host" != "$want" ]; then
+            echo "::error::The Pages custom domain is '${host:-none}' and CNAME says '${want}'. Set it back under Settings > Pages before any deploy."
+            exit 1
+          fi
+          echo "source=${source}" >> "$GITHUB_OUTPUT"
+          echo "host=${host}" >> "$GITHUB_OUTPUT"
+          if [ "$source" != "workflow" ]; then
+            echo "::notice::Pages still builds from the branch (build_type ${source}): built, checked and uploaded, not deployed."
+          fi
+
+      # Uploaded in both modes: before the switch, this is the exact artifact
+      # the first workflow deploy will publish, there to be downloaded and read.
+      - name: Upload the Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.source == 'workflow'
+    runs-on: ubuntu-latest
+    # actions/deploy-pages gives up at 10 minutes by itself; the check after it takes at most 3.
+    timeout-minutes: 15
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy the artifact to Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+      # The address players use, not the one the deploy reports: a custom
+      # domain that came loose would still report a github.io address as fine.
+      - name: The site serves this build
+        env:
+          HOST: ${{ needs.build.outputs.host }}
+          WANT: ${{ needs.build.outputs.version }}
+        run: |
+          for i in $(seq 1 18); do
+            got="$(curl -fsS --max-time 15 "https://${HOST}/src/build-info.js?n=${GITHUB_RUN_ID}-${i}" | sed -n "s/.*version:[[:space:]]*'\([0-9][0-9.]*\)'.*/\1/p" | head -n 1 || true)"
+            if [ "$got" = "$WANT" ]; then
+              echo "https://${HOST} serves v${got}"
+              exit 0
+            fi
+            echo "https://${HOST} serves v${got:-?}, want v${WANT} (try ${i} of 18)"
+            sleep 10
+          done
+          echo "::error::The deploy finished and https://${HOST} still does not serve v${WANT}."
+          exit 1

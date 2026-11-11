@@ -40,7 +40,7 @@
 // floor(stands / heroesPerPlayer). view/margin/cap: the area a viewer reads (its view in tiles +
 // margin on every side, at most cap bodies a read; hr_town_view).
 // ════════════════════════════════════════════════════════════════════════
-import { at, TOWN_MAP } from './town/plan.js?v=0.2.113';
+import { at, TOWN_MAP } from './town/plan.js?v=0.2.116';
 
 export const TAP_OPENS = Object.freeze({
   anvil: Object.freeze({ open: 'skill', skill: 'smithing' }),
@@ -87,8 +87,8 @@ const BENCHES = [['workbench', 71, 40], ['workbench', 73, 40], ['workbench', 71,
 const FIRES = [['havora_cook_spit', 61, 32], ['havora_cook_spit', 66, 31], ['havora_cook_cauldron', 63, 29], ['havora_cook_cauldron', 71, 29],
   ['havora_bread_oven', 60, 28], ['havora_bread_oven', 68, 28], ['havora_prep_table', 64, 34], ['havora_prep_table', 69, 33]];
 /* the training yard: 8 dummies scattered over the yard, three fighters to a dummy */
-const DUMMIES = [['dummy', 62, 64], ['dummy', 66, 66], ['dummy', 71, 63], ['dummy', 75, 65], ['dummy', 63, 70], ['dummy', 68, 71],
-  ['dummy', 73, 69], ['dummy', 76, 72]];
+const DUMMIES = [['ty_straw_dummy', 62, 64], ['ty_straw_dummy_helm', 66, 66], ['ty_straw_dummy', 71, 63], ['ty_straw_dummy_split', 75, 65],
+  ['ty_straw_dummy_helm', 63, 70], ['ty_straw_dummy', 68, 71], ['ty_straw_dummy_split', 73, 69], ['ty_straw_dummy', 76, 72]];
 /* the quarry: 24 rock nodes in small clusters that hug the mountain (lane/b-havora-polish 2026-10-26): veins under the north
    face, a heap either side of the cart path by the mine mouth, a cluster round the outcrop in the middle of the floor, coal
    seams along the east face and by the low outcrop; copper nearest the mouth, the Common's rocks in the middle, coal at the
@@ -111,7 +111,7 @@ const TREE_ROWS = { westwood_yew: 2, westwood_ash: 2 };
 const treeStands = (trees) => trees.map(([id, x, y]) => [x, y + (TREE_ROWS[id] || 1)]);
 /* the farm: 12 plots of tilled ground (town/ground.js), 3 to 5 wide, in two uneven rows of fields: [x, y, width], each
    2 deep, its workers on the row south of it */
-const PLOTS = [[20, 82, 4], [25, 82, 3], [29, 81, 5], [35, 82, 3], [39, 81, 4], [45, 81, 3],
+export const FARM_PLOTS = [[20, 82, 4], [25, 82, 3], [29, 81, 5], [35, 82, 3], [39, 81, 4], [45, 81, 3],
   [21, 86, 3], [25, 85, 4], [30, 86, 4], [35, 85, 3], [39, 86, 5], [46, 85, 3]];
 
 const ROWS = [
@@ -173,7 +173,7 @@ const ROWS = [
   { id: 'river_bank', district: 'river', kind: 'gather', skill: 'fishing', opens: skill('fishing'), props: [],
     stands: F(87, 54, 1, 8), overflow: F(86, 54, 1, 8), fallback: 'shore' },
   { id: 'farm', district: 'farm', kind: 'gather', skill: 'farming', opens: win('farm'), props: [['cabbage_crate', 19, 86]],
-    stands: PLOTS.flatMap(([x, y, w]) => F(x, y + 2, w, 1)), overflow: [], fallback: 'square_benches' },
+    stands: FARM_PLOTS.flatMap(([x, y, w]) => F(x, y + 2, w, 1)), overflow: [], fallback: 'square_benches' },
 ];
 
 const tiles = (list) => Object.freeze(list.map(([x, y]) => at(x, y)));

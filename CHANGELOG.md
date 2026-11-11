@@ -19,6 +19,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Bless all gets you every blessing in one press,** and the hunt warning shows what a death really costs with your blessings on.
 
+**Crafting stations have a Sort menu,** so you can list recipes by what you can make, by level or by name, and each station remembers your pick.
+
 **Smaller fixes.** Item tooltips close when you close their window. The rune tip names the right tab. Dispatch loot says what it did after a sale.
 
 ## v0.2.118 — 2026-11-11 (Max Hit)

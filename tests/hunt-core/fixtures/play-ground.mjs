@@ -27,7 +27,7 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
     windowMs (the settle's cut, default ten minutes: any cut walks the same swings, TICK-1; a short one lets onWindow read HP often),
     start ((role, seat, L) -> { levelXp?, skills? }: a hero's own Level XP and skill XP instead of "every combat skill at L",
     tools/balance-sim's career runs), leaveTogether (true: every hero's "Leave if anyone leaves the hunt or dies" box ticked,
-    the server's default), ground (a ground row played instead of the hunt's own: a what-if copy with other numbers), buffs (the server's buff rows) }.
+    the server's default), dropEnded (true: a hero whose hunt ended is settled no more, as on the server), ground (a ground row played instead of the hunt's own: a what-if copy with other numbers), buffs (the server's buff rows) }.
     The answer's `members` is each hero's state at the end (levelXp, skills, gold, hp, ended). */
 /** The trees loadPlay reads beyond src/core and src/data: a planted copy (h1.js plant) needs them too. */
 export const PLAY_TREES = Object.freeze(['supabase/functions/hr-accrue']);
@@ -135,8 +135,11 @@ export async function loadPlay(root) {
     const items = {}, heroItems = {}, killsBy = {}, heroXp = {}, heroRares = {}, rareRolls = [];
     const WIN = Number.isInteger(opts.windowMs) && opts.windowMs > 0 ? opts.windowMs : 600000;
     for (let t = T0; t < T0 + span; t += WIN) {
+      /* opts.dropEnded: an ended hero's session is no longer settled, as on the server (tests/ground-boss.mjs: a party plays on
+         after its leader falls). Off by default: the grader counts a hero's deaths over an hour, so its heroes come back. */
+      const playing = opts.dropEnded === true ? members.filter((m) => !m.ended) : members;
       const out = AC.accrueHunt({ instance: { id: IID, nextSwingAtMs: next, world }, window: { fromMs: t, toMs: Math.min(T0 + span, t + WIN) },
-        secret, ground, grid, items: ITEMS, monsters, members });
+        secret, ground, grid, items: ITEMS, monsters, members: playing });
       if (!out.accrued) continue;
       /* opts.onWindow(out, members): an observer of each settled window's events and members (party-defense.mjs) */
       if (typeof opts.onWindow === 'function') opts.onWindow(out, members);

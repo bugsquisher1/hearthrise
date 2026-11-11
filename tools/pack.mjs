@@ -40,10 +40,10 @@ export async function loadPackData(root = ROOT) {
   return { G, HUNT_INDEX, MONSTERS, BS };
 }
 
-/** Every monster a ground places (its packs and spawns, a boss included), sorted. */
+/** Every monster a ground places (its packs and spawns, a boss and his wave included), sorted. */
 export function monstersOfGround(ground) {
   const ids = new Set();
-  for (const p of ground.pockets || []) for (const s of [...(p.pack || []), ...(p.spawns || [])]) ids.add(s.monster);
+  for (const p of ground.pockets || []) for (const s of [...(p.pack || []), ...(p.spawns || []), ...(p.adds || [])]) ids.add(s.monster);
   return [...ids].sort();
 }
 

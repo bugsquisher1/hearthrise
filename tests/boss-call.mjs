@@ -106,7 +106,9 @@ async function guard(X) {
     else if (a.boss === true || a.add !== true) bad.push('BC-ROW the add ' + id + ' reads as a boss: "target is a boss" must tell them apart');
     if (a && a.phases) bad.push('BC-ROW the add ' + id + ' has phases');
   }
-  for (const [id, m] of Object.entries(M.MONSTERS)) if (m.phases && !calls.some((c) => c.monster === id)) bad.push('BC-ROW ' + id + ' has phases and is no called boss');
+  /* Lines belong to a boss, never to an add. A ground's boss may carry them too since lane/b-muster-barrows (Captain Hask: the same engine,
+     tests/ground-boss.mjs); what this guard holds is that a CALLED row pays nothing, below, whoever carries lines. */
+  for (const [id, m] of Object.entries(M.MONSTERS)) if (m.phases && (m.boss !== true || m.add === true)) bad.push('BC-ROW ' + id + ' has phases and is no boss');
   for (const c of calls) { const p = (M.MONSTERS[c.monster] || {}).phases; if (!p || !(p.addsPm > p.enragePm && p.enragePm > 0 && p.enrageAtkPm > 1000)) bad.push('BC-ROW ' + c.monster + ' has no two lines: ' + JSON.stringify(p)); }
   for (const [id, m] of rows) {
     if (m.xp !== 0) bad.push('BC-ROW ' + id + ' pays XP ' + m.xp);

@@ -30,6 +30,11 @@ export const box = (room, pull, base, more) => {
   return Object.freeze({ room: Object.freeze(room), pull: Object.freeze(pull), spawns: Object.freeze(pack.slice(0, base.length)), pack: Object.freeze(pack) });
 };
 
+/** A BOSS'S WAVE: a pocket's `adds` rows, [monster, x, y] each, the shape of its spawns (pull-cycle.js spawnAdds places them when his
+    `phases` line is crossed, src/core/hunt/boss-phases.js). Only a pocket holding a boss with phases may carry them (hunt-grounds.js
+    validateGround). On a ground they are monsters like any other and pay their kill; in a called room they are called rows. */
+export const addRows = (...rows) => Object.freeze(rows.map(([monster, x, y]) => Object.freeze({ monster, x, y })));
+
 /* THE GATHER SLIDER (Tyler 10-18): `shares` are the steps of the time between pulls a hero spends
    on a node, in permille of the hunt (0 = None, the default: REVIEW amendment). `refKillMs` is the
    reference hero's time to clear one pack here (spec §2): the engine sizes a gap from it, so a hero

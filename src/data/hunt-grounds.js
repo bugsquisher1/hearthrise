@@ -137,7 +137,7 @@ import { HUNT_INDEX } from './hunts.js?v=0.2.116';
 import { MONSTERS } from './monsters.js?v=0.2.116';
 import { PARTY } from './party.js?v=0.2.116';
 /* the shape helpers (pocket, box, gather) live with the ground packs, which build their grounds with the same ones */
-import { pocket, box, gather, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.116';
+import { pocket, box, gather, addRows, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.116';
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.116';
 export { FULL_BOX };
 
@@ -350,9 +350,6 @@ const BASE_GROUNDS = Object.freeze({
 /* THE BASE ROWS, then every ground pack's (src/data/grounds): its id is the pack's, and so is its hunt. */
 export const HUNT_GROUNDS = Object.freeze(foldRows('ground', BASE_GROUNDS, GROUND_PACKS, (p) => ({ [p.id]: Object.freeze({ id: p.id, hunt: p.id, ...p.ground }) })));
 
-/* A called boss's wave, rows like a pocket's spawns (pull-cycle.js spawnAdds): nothing else reads them but the catalogue's bounds. */
-const addRows = (...rows) => Object.freeze(rows.map(([monster, x, y]) => Object.freeze({ monster, x, y })));
-
 /* THE CALLED ROOMS (Call out, Tyler 2026-11-04; src/data/boss-calls.js): one pocket, the boss's own hall on his own map, no pull dial: a pocket of nothing but a boss keeps its
    as-built pack at any size (pullRows). Not in HUNT_GROUNDS, so nothing that lists grounds sees them; the engine and the scene reach them by hunt (groundOfHunt). `call` marks
    the room: the engine pays nothing in it (hunt-rewards.js), a death or a leave sends everyone home, and its end is the kill or the limit (combat-sim.js). */
@@ -384,13 +381,13 @@ export function groundOfHunt(huntId) {
 export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries(HUNT_GROUNDS).filter(([, g]) => !(HUNT_INDEX[g.hunt] && HUNT_INDEX[g.hunt].staged === true))));
 
 /** THE REACHABLE ROSTER (designer 2026-10-22, lane c-monster-ladders): what a player can actually meet, from `grounds`
-    (pass OPEN_GROUNDS: a staged ground is hidden and refused): every pocket's spawns and full pack plus its hunt's spawn
+    (pass OPEN_GROUNDS: a staged ground is hidden and refused): every pocket's spawns, full pack and boss's wave (`adds`) plus its hunt's spawn
     rows. The Bestiary's total counts these: gen-hunt-sessions writes them to hr_hunt_roster, so a new open ground moves
     the total by itself. */
 export function reachableOf(grounds, hunts) {
   const mons = new Set();
   for (const g of Object.values(grounds)) {
-    for (const p of g.pockets) for (const s of (p.pack || []).concat(p.spawns)) mons.add(s.monster);
+    for (const p of g.pockets) for (const s of (p.pack || []).concat(p.spawns, p.adds || [])) mons.add(s.monster);
     for (const s of ((hunts[g.hunt] || {}).spawns || [])) mons.add(s.monster);
   }
   return Object.freeze({ monsters: Object.freeze([...mons].sort()) });
@@ -546,6 +543,19 @@ export function validateGround(row, refs) {
     if (row.groupFit !== 'party') bad('soloFrom is for a party ground only');
     if (!(Number.isInteger(row.soloFrom) && row.soloFrom > band[0] && row.soloFrom <= band[1])) bad('soloFrom must be a Level inside the band, above its floor');
   }
+  /* A BOSS'S WAVE (shape.js addRows): only in a pocket that holds a boss with two lines (boss-phases.js), each a known monster that is
+     no boss and has no lines of its own, standing inside the room. A wave nothing can call would be a row the engine never plays. */
+  (row.pockets || []).forEach((p, i) => {
+    if (!p || p.adds === undefined) return;
+    if (!Array.isArray(p.adds) || !p.adds.length) { bad('pocket ' + i + ' adds must list at least one row'); return; }
+    const ph = (s) => !!s && !!monsters[s.monster] && monsters[s.monster].boss === true && !!monsters[s.monster].phases;
+    if (!(p.pack || p.spawns || []).concat(p.spawns || []).some(ph)) bad('pocket ' + i + ' has adds and no boss with phases to call them');
+    for (const s of p.adds) {
+      if (!s || !monsters[s.monster]) bad('pocket ' + i + ' adds unknown monster ' + (s && s.monster));
+      else if (monsters[s.monster].boss === true || monsters[s.monster].phases) bad('pocket ' + i + ' add ' + s.monster + ' is a boss');
+      else if (!isTile([s.x, s.y]) || !Array.isArray(p.room) || !inRect(p.room, s.x, s.y)) bad('pocket ' + i + ' add ' + s.monster + ' stands outside its room');
+    }
+  });
   (row.pockets || []).forEach((p, i) => {
     if (p && p.forParty !== undefined && !(Number.isInteger(p.forParty) && p.forParty >= 2 && p.forParty <= MAX_HEROES)) bad('pocket ' + i + ' forParty must be 2..' + MAX_HEROES);
   });

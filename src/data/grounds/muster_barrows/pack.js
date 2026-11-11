@@ -33,24 +33,18 @@
 // Fire Runes both work on him. A weakness is +20% damage and +15% accuracy (combat.js WEAKNESS_BONUS); a resistance is the
 // bestiary's words only (no engine reads weaponResist, flagged to Systems by the Slake).
 //
-// CAPTAIN HASK IS THE GAME'S FIRST BOSS ROW WRITTEN FOR TYLER'S BOSS RULES (2026-11-05: adds at 50% health, an enrage at 25%, a
-// real boss bar, a losing line that names the phase; 2026-11-08: the tank soaks the heavy hit, casters step off it, and an
-// unavoidable pulse hits the whole group). THE ROW BELOW IS WHAT THE ENGINE CAN PLAY ON A GROUND TODAY: a boss-role stat line, his
-// blow held to a third of the floor hero's HP, two Barrow Knights standing with him as built, the warning before Enter. THE DESIGN
-// THE ROW WAITS FOR, as data the day the engine takes it:
-//     phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400 }                    on captain_hask
-//     adds: [[muster_knight, 44, 24], [muster_knight, 52, 24]]                      on the Captain's Barrow pocket
+// CAPTAIN HASK IS THE GAME'S FIRST GROUND BOSS BUILT TO TYLER'S BOSS RULES (2026-11-05: adds at 50% health, an enrage at 25%, a
+// real boss bar). His row carries the same `phases` a called boss does and his pocket the same `adds`, played by the one engine
+// (src/core/hunt/boss-phases.js), viewed or with the browser closed (tests/ground-boss.mjs):
 //   At half health two Barrow Knights come out of the Sergeants' Row for whoever isn't holding him (Challenge and an area slot
-//   answer it). Under a quarter he hits 40% harder (the eat lines and the Healer's slots decide the finish). Unmeasured.
-// WHAT IS MISSING, exactly (each built for a CALLED room only, src/data/boss-calls.js):
-//   1. tools/gen-hunt-sessions.mjs refuses both on a ground: line 668 "has phases and is no called row", line 671 "has adds and is
-//      no called room". The server catalogue and its kill bounds have no row for an add that pays.
-//   2. src/core/hunt/leash.js resetPack heals a ground's boss and leaves his adds standing (a called room never resets), so after a
-//      wipe his 50% line is crossed again and a second wave joins the first. Adds must leave on a reset and with the pocket's respawn.
-//   3. src/core/hunt/boss-phases.js keeps no state because a called boss's HP only falls. On a ground it needs "once a life".
-//   4. src/shell/widgets/boss-bar.js reads callOfHunt only: quiet on every ground. src/hunt-view/boss-loss.js, the losing line, the same.
-//   5. No monster has the dodgeable heavy hit or the whole-group pulse yet (lane/d-area-spells is a spec).
-//   6. The grader plays no boss fight as a fight: the ship bar (same gear about 30% with a bad bar, 85% with a good one) has no cell.
+//   answer it). Under a quarter he hits 40% harder (the eat lines and the Healer's slots decide the finish).
+// ON A GROUND, NOT IN A ROOM: his adds are the ground's own Barrow Knights and pay a Knight's kill (a called room's pay nothing).
+// A wipe or a holder walking out resets his barrow: he heals and his adds leave (leash.js isAdd), so every try brings one wave.
+// His bar is the called boss's (src/shell/widgets/boss-bar.js), shown on a ground once he is hurt. No guard (`guardPm`): his
+// sergeants fight for him, they don't stand in front of him. Unmeasured as a fight: the grader plays the lap, not a boss try.
+// STILL OPEN: the losing line that names the phase (src/hunt-view/boss-loss.js reads the server's record of a CALLED fight only);
+// the tank's dodgeable heavy hit and the whole-group pulse (Tyler 2026-11-08; lane/d-area-spells is a spec); the ship bar (same
+// gear about 30% with a bad bar, 85% with a good one) has no grader cell.
 //
 // THE LOOT (src/data/loot-bands.js). THIS IS WHERE TIER 5 ARMOR COMES FROM (worn from Level 60; the spec gave it no home): the
 // whole set in all three weights, Scarce, about hourly a piece (Pikemen boots and helmets, Wights legs, Knights bodies), with one
@@ -67,8 +61,8 @@
 // Commons feed the Hearth (Bones, Big Bones, Bone Chips, Grave Dust). Each body drops its own imbuement item, kept for the imbuer
 // (catalogue-coherence.js VENDOR_TRASH until imbuing is built): Sergeant's Spur and Hask's Coin have icons on the art lane, Coffin
 // Nail and Urn Shard need one each. The ground's named fuel waits on a pack field for NAMED_FUELS (src/data/hearth.js): no row.
-import { definePack, box, gather } from '../shape.js?v=0.2.112';
-import map from './map.js?v=0.2.112';
+import { definePack, box, gather, addRows } from '../shape.js?v=0.2.116';
+import map from './map.js?v=0.2.116';
 
 const PK = 'barrow_pikeman', CW = 'cairn_wight', BK = 'muster_knight', HASK = 'captain_hask';
 
@@ -111,8 +105,9 @@ export default definePack({
          at the floor on Normal (quick grade), and Normal in range is safe (11-04) */
       box([46, 3, 58, 15], [51, 12], [BK, PK, PK], [BK, CW, BK, PK, PK]),
       /* P6 the Captain's Barrow: Captain Hask in the forecourt of the great mound, two of his sergeants with him. BUILT FOR FOUR
-         (`forParty`, a warning before Enter and never a gate, Tyler 2026-11-08). */
-      { ...box([37, 21, 57, 38], [48, 26], [HASK, BK, BK], [PK, BK, CW, PK, PK]), forParty: 4 },
+         (`forParty`, a warning before Enter and never a gate, Tyler 2026-11-08). HIS WAVE (`adds`, his `phases` line at half
+         health): two more Barrow Knights out of the Sergeants' Row barrows on the pocket's north edge, the walk down to him. */
+      { ...box([37, 21, 57, 38], [48, 26], [HASK, BK, BK], [PK, BK, CW, PK, PK]), forParty: 4, adds: addRows([BK, 44, 24], [BK, 52, 24]) },
     ],
     route: [0, 1, 2, 3, 4, 5, 6],
     respawnMs: 90000, pullDist: 1.5, groupFit: 'party',
@@ -159,11 +154,14 @@ export default definePack({
       name: 'Captain Hask', icon: '👑', tier: 5, level: 75, cls: 'undead', family: 'Undead', speed: 2800, boss: true,
       /* THE BOSS: the Banded Company's captain, who sold the crossing to Lord Krell and was buried by the men he sold, in his cloak
          and with the price still on him. The class as written (no override): a hammer and fire both answer him. His belts and the
-         bow are the Rares. His Trophy waits on its icon (the header). His phases are in the header: this row is what a ground's engine plays today. */
+         bow are the Rares. His Trophy waits on its icon (the header).
+         HIS TWO LINES (boss-phases.js, the header): at half his health he calls his sergeants (the pocket's `adds`), and under a
+         quarter he hits 40% harder. No guard: his Knights fight beside him, they don't shield him. */
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'hasks_coin', ch: 0.15, band: 'uncommon' },
         { id: 'rune_belt', ch: 0.0133, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.0133, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.0133, band: 'rare' },
         { id: 'yew_bow', ch: 0.0133, band: 'rare' }],
-      hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 13281, gp: [173, 520], formula: true },
+      hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 13281, gp: [173, 520], formula: true,
+      phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400 } },
   },
   roster: {
     barrow_pikeman: 'swarm',   // the common majority

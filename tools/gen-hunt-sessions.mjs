@@ -317,7 +317,7 @@ export function groundRows(grounds, refs = {}) {
 }
 
 /** WHAT EACH GROUND CAN DROP (the drop-bound self-check): per hunt, every item a monster standing in any of its
-    pockets' authored rows (a box's whole `pack`, plus its `spawns`) drops, and the most rows one kill's table names
+    pockets' authored rows (a box's whole `pack`, plus its `spawns` and a boss's `adds`, which pay on a ground) drops, and the most rows one kill's table names
     it (one unit a row: src/core/drops.js rollDropTable). The self-check executes the settle's item bound on the
     APPLIED rows for each. Sorted [{ hunt, item, need }]. */
 export function dropNeeds(grounds, monsters) {
@@ -325,7 +325,7 @@ export function dropNeeds(grounds, monsters) {
   for (const id of Object.keys(grounds).sort()) {
     const g = grounds[id];
     const mons = new Set();
-    for (const p of g.pockets || []) for (const s of (p.pack || []).concat(p.spawns || [])) mons.add(s.monster);
+    for (const p of g.pockets || []) for (const s of (p.pack || []).concat(p.spawns || [], p.adds || [])) mons.add(s.monster);
     for (const m of mons) {
       const per = {};
       for (const d of ((monsters[m] || {}).drops || [])) if (d && d.id && ID.test(d.id)) per[d.id] = (per[d.id] || 0) + 1;
@@ -648,6 +648,9 @@ export function catalogueRows(src = {}) {
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
 }
 
+/* A boss row's two lines (src/core/hunt/boss-phases.js): adds at addsPm, a raised blow under enragePm, whole permille in order. */
+const twoLines = (ph) => !!ph && whole(ph.addsPm) && whole(ph.enragePm) && whole(ph.enrageAtkPm) && ph.addsPm > ph.enragePm && ph.enragePm > 0 && ph.addsPm < 1000 && ph.enrageAtkPm > 1000;
+
 /* THE MONEY LINE, AT THE GENERATOR (tests/boss-call.mjs mutates it): the rows of hr_boss_calls, or a throw. A called row has xp 0, gp [0, 0] and no drops, and carries no yield trick;
    a called room holds called rows only and a called row stands nowhere else; a call names one room and the open ground its press sits on, and that ground fields the boss it copies. */
 function calledRows(S) {
@@ -660,7 +663,7 @@ function calledRows(S) {
     if (m.dropBonus !== undefined) throw new Error(`called row ${id} carries a drop bonus: a called row drops nothing`);
     if (m.boss !== true && m.add !== true) throw new Error(`called row ${id} is neither a boss nor his add`);
     if (m.boss === true && m.add === true) throw new Error(`called row ${id} is both a boss and an add: "target is a boss" tells them apart`);
-    if (m.boss === true && !(m.phases && whole(m.phases.addsPm) && whole(m.phases.enragePm) && whole(m.phases.enrageAtkPm) && m.phases.addsPm > m.phases.enragePm && m.phases.enragePm > 0 && m.phases.addsPm < 1000 && m.phases.enrageAtkPm > 1000)) throw new Error(`called boss ${id} has no two lines: ${JSON.stringify(m.phases)}`);
+    if (m.boss === true && !twoLines(m.phases)) throw new Error(`called boss ${id} has no two lines: ${JSON.stringify(m.phases)}`);
   }
   /* The table's CHECK tells a called row by its id (hr_hunt_kill_bounds_xp_max_check): the id and the flag agree, both ways. */
   for (const id of Object.keys(S.monsters)) if (/_called$/.test(id) !== (S.monsters[id].called === true)) throw new Error(`monster ${id}: an id ends _called exactly when its row is called`);
@@ -676,10 +679,18 @@ function calledRows(S) {
     if (!(whole(c.fee) && c.fee >= 1 && c.fee <= 1000000000)) throw new Error(`call ${c.id} fee ${c.fee} is not whole gold in 1..1e9`);
     return { id: c.id, hunt: c.hunt, from: c.from, monster: c.monster, fee: c.fee };
   }).sort((a, b) => (a.id < b.id ? -1 : 1));
-  for (const id of Object.keys(S.monsters)) if (S.monsters[id].phases && S.monsters[id].called !== true) throw new Error(`monster ${id} has phases and is no called row`);
+  /* A BOSS'S LINES, ON ANY ROW THAT HAS THEM (src/core/hunt/boss-phases.js plays a ground's boss as it plays a called one): only a boss
+     carries them, and always both, in order. A called row with none is refused above. */
+  for (const id of Object.keys(S.monsters)) {
+    const m = S.monsters[id];
+    if (m.phases === undefined) continue;
+    if (m.boss !== true || m.add === true) throw new Error(`monster ${id} has phases and is no boss`);
+    if (!twoLines(m.phases)) throw new Error(`boss ${id} has no two lines: ${JSON.stringify(m.phases)}`);
+  }
   for (const g of Object.values(S.grounds)) {
     if (g.call && !g.pockets.some((p) => (p.adds || []).length)) throw new Error(`called room ${g.id} has no adds`);
-    if (!g.call && g.pockets.some((p) => p.adds)) throw new Error(`ground ${g.id} has adds and is no called room`);
+    /* A GROUND'S WAVE (Captain Hask's): only in a pocket whose boss has the lines to call it; its rows pay like the ground's own (no called row, below). */
+    for (const p of g.pockets) if (!g.call && p.adds && !(p.pack || []).concat(p.spawns).some((s) => S.monsters[s.monster] && S.monsters[s.monster].phases)) throw new Error(`ground ${g.id} has adds and no boss with lines to call them`);
     const mons = g.pockets.flatMap((p) => (p.pack || []).concat(p.spawns, p.adds || [])).map((s) => s.monster);
     for (const id of mons) {
       if (g.call && !(S.monsters[id] && S.monsters[id].called === true)) throw new Error(`called room ${g.id} fields ${id}, which pays`);

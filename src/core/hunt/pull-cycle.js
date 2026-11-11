@@ -77,8 +77,9 @@ export function biggestBlowOn(huntId, tier) {
   return best;
 }
 
-/* One spawn row as a unit on the first free tile near its spot, at this party's HP on the hunt's tier, or null with no tile: the pack's path and a called boss's adds'. */
-function placeRow(inst, p, s, sc) {
+/* One spawn row as a unit on the first free tile near its spot, at this party's HP on the hunt's tier, or null with no tile: the pack's path and a boss's adds'.
+   A pack's monster has its tile as its HOME (a reset walks it back there); an add has none (`add`: leash.js isAdd, it leaves on a reset). */
+function placeRow(inst, p, s, sc, add) {
   const w = inst.world;
   const taken = (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)) || inst.occ.hero.has(tileKey(inst.grid, x, y)) || !inArea(inst, p, x, y);
   const at = freeNear(inst.grid, s.x, s.y, 3, taken);
@@ -88,7 +89,7 @@ function placeRow(inst, p, s, sc) {
   /* THE ROW'S HEALTH ON THE HUNT'S TIER (hunt-tiers.js hpPm), the same for every party size (Tyler 2026-11-08): it pays its row's whole kill. */
   const hp = Math.max(1, atTier(row, inst.tier).hp || 1);
   const u = inst.makeUnit({ id: w.nextId, side: 'mon', kind: s.monster, pocket: p, alive: true, hp, maxHp: hp,
-    target: null, home: at, x: at[0], y: at[1], fx: at[0], fy: at[1], speed: monsterSpeedOf(row) });
+    target: null, home: add ? null : at, x: at[0], y: at[1], fx: at[0], fy: at[1], speed: monsterSpeedOf(row) });
   w.nextId += 1;
   w.units.push(u);
   inst.occ.mon.set(tileKey(inst.grid, at[0], at[1]), u);
@@ -115,8 +116,9 @@ export function spawnPack(inst, p, sc) {
 }
 
 /**
- * A CALLED BOSS'S ADDS (boss-phases.js): pocket `p`'s `adds` rows, through the pack's own unit path, each on a hero who isn't
- * holding him, in seat order round again (none: the holder). A pick with no dice, so every cut of the windows spawns the same.
+ * A BOSS'S ADDS (boss-phases.js; a called room's or a ground's): pocket `p`'s `adds` rows, through the pack's own unit path with no
+ * home (leash.js isAdd: a reset sends them away), each on a hero who isn't holding him, in seat order round again (none: the
+ * holder). A pick with no dice, so every cut of the windows spawns the same.
  */
 export function spawnAdds(inst, p, sc) {
   const w = inst.world;
@@ -125,7 +127,7 @@ export function spawnAdds(inst, p, sc) {
   const on = off.length ? off : standing;
   occupancy(inst);
   (inst.ground.pockets[p].adds || []).forEach((s, i) => {
-    const u = placeRow(inst, p, s, sc);
+    const u = placeRow(inst, p, s, sc, true);
     if (u && on.length) u.target = on[i % on.length].id;
   });
 }

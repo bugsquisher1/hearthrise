@@ -3246,3 +3246,13 @@ opens a folded analyzer; the folded Tally keeps its count in its title. HS-28 gu
 canvas: the action bar always takes a quarter, so a canvas metric can never be met; (2) a fold that keeps the open box's width still
 steps under the hunt bar into the fight, so a fold must shrink too; (3) folding a counter hides the number a coach card points at:
 keep it in the title. Open: the coach card's reading window (20 s or more) still covers about 9% at 1024 before it rests.
+### 2026-11-12 lane/b-window-header (UX flow audit lane 3: one window header)
+Every window wears one band (src/shell/window-head.js): glyph, Back, title, ? (rows with `help`), key, Close. Back shows only when there is
+somewhere to go: a renderer's own inner page (`inner(ctx, body)` names its act: Hunts' phone page, Settings, Market listing, a skill's rows),
+a page the window shows, or the window a press came from (window-manager.js from/back/backTo, memory only). The four in-body backs are gone.
+Pages: a `pageOf` row opened by a press inside its host draws as a second body in the host's frame, keeping its own [data-hs-win], so acts,
+refresh and coach hooks still find it (Monster facts in Hunts, Configure action in Hunt prep). Coexistence lives in shell-windows.js: `beside`
+(bag with Storage, Shop, Character past 60%), `over` (Hunts, Hunt prep lie over the dock). One gold per window: oneGold demotes extra plates
+to steel on the display tick, before the coach reads layout. Lessons: (1) a page as a nested [data-hs-win] needs `:scope >` on every frame
+query; (2) Back plus ? cost a 380 px window its title's second line, so Back takes the glyph's place when it shows; (3) on a page the host's ?
+is the wrong help, hide it; (4) PH-24's invite and Shop coach-press reds are on the base too (proved by running the base src).

@@ -28,6 +28,7 @@ import { showTip, hideTip } from '../item-tip.js?v=0.2.122';
 import { notListableWords, keptWords } from '../../market-words.js?v=0.2.122';
 import { toolLossWords } from '../../town-work.js?v=0.2.122';
 import { viewOf, setView, readItem, readNamed, rereadAll, holdGesture, dropGesture } from './state.js?v=0.2.122';
+import { t } from '../../../render/player-text.js?v=0.2.122';
 
 /** The Sell pane's skeleton. */
 export function sellHtml() {
@@ -36,7 +37,7 @@ export function sellHtml() {
     + '<button type="button" class="hh-seg" data-hs-act="ms-from" data-from="storage" aria-pressed="false">Storage</button><p class="hs-note hw-mk-kept"></p></div>'
     + '<div class="hw-mk-cols"><ul class="hw-mk-list" role="listbox" aria-label="What to sell"></ul>'
     + '<section class="hw-mk-page" aria-label="The picked stack"><div class="hw-hd-page">'
-    + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="ms-back">Back to the list</button>'
+    + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="ms-back">' + t('controls.back') + '</button>'
     + '<p class="hh-empty hw-mk-pickone">Pick a stack to see what it would fetch.</p>'
     + '<div class="hw-mk-sheet"><div class="hw-mk-head"><span class="hw-ico hw-mk-ico"></span><div class="hw-mk-title"><h3 class="hw-hd-name hw-mk-name"></h3><p class="hw-hd-band hw-mk-kind"></p></div></div>'
     + '<dl class="hw-mk-facts"><dt>The shop pays</dt><dd data-f="shop"></dd><dt>Lowest now</dt><dd data-f="low"></dd><dt>Last sold</dt><dd data-f="last"></dd></dl>'
@@ -48,7 +49,7 @@ export function sellHtml() {
     /* The terms and List stand at the foot OUTSIDE the scroller: what it costs is read right beside the press. */
     + '<div class="hw-mk-foot hw-mk-sellfoot"><p class="hw-mk-terms"></p><p class="hs-note hw-mk-warn"></p><p class="hw-why hw-mk-why"></p>'
     + '<div class="hw-mk-do"><button type="button" class="hw-primary is-on" data-hs-act="ms-list"></button>'
-    + '<button type="button" class="hh-tool hw-mk-forget" data-hs-act="ms-forget" hidden>Forget it</button></div></div>'
+    + '<button type="button" class="hh-tool hw-mk-forget" data-hs-act="ms-forget" hidden>' + t('controls.cancel') + '</button></div></div>'
     + '</section></div></section>';
 }
 
@@ -163,7 +164,7 @@ function patchSheet(pane, v, have, source) {
   text(foot.querySelector('.hw-mk-warn'), [under, setupNaming(cs, id), slower].filter(Boolean).join(' '));
   text(foot.querySelector('.hw-mk-why'), why || shortFee || f.msg);
   const press = foot.querySelector('[data-hs-act="ms-list"]');
-  text(press, g ? 'Try again' : qty && ask ? 'List ' + whole(qty) + ' for ' + whole(ask) + ' each' : 'List');
+  text(press, g ? 'Try again' : qty && ask ? 'List ' + whole(qty) + ' for ' + whole(ask) + ' each' : t('controls.list'));
   prop(press, 'disabled', v.off || !s || !!why || !!shortFee);
   attr(press, 'data-off-why', v.offWhy || why || shortFee || null);
   prop(foot.querySelector('.hw-mk-forget'), 'hidden', !g);
@@ -233,13 +234,13 @@ async function runList(o) {
 }
 
 /** Sell's presses. True when one was handled. */
-export function actSell(o, action, ev, t) {
+export function actSell(o, action, ev, el) {
   const { ctx, cs, sc, repaint } = o;
   const f = sc.sell;
   if (action === 'ms-pick') {
-    const id = t.getAttribute('data-item');
-    if (ev.type === 'mouseover') { showTip(ctx.doc, t, id, {}); return false; }
-    if (ev.type === 'mouseout') { if (!t.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
+    const id = el.getAttribute('data-item');
+    if (ev.type === 'mouseover') { showTip(ctx.doc, el, id, {}); return false; }
+    if (ev.type === 'mouseout') { if (!el.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
     if (ev.type !== 'click') return false;
     hideTip(ctx.doc);
     if (f.pick !== id) { f.pick = id; f.qty = ''; f.ask = ''; f.filled = null; f.msg = ''; if (sc.gesture && sc.gesture.kind === 'list') dropGesture(sc); }
@@ -249,23 +250,23 @@ export function actSell(o, action, ev, t) {
     readItem(ctx, cs, sc, id);
     return true;
   }
-  if (action === 'ms-qty' && ev.type === 'input') { f.qty = t.value.slice(0, 12); repaint(); return false; }
-  if (action === 'ms-ask' && ev.type === 'input') { f.ask = t.value.slice(0, 12); f.filled = f.pick; repaint(); return false; }
+  if (action === 'ms-qty' && ev.type === 'input') { f.qty = el.value.slice(0, 12); repaint(); return false; }
+  if (action === 'ms-ask' && ev.type === 'input') { f.ask = el.value.slice(0, 12); f.filled = f.pick; repaint(); return false; }
   if (ev.type !== 'click') return false;
-  if (action === 'ms-from') { const s = t.getAttribute('data-from'); f.source = s; f.pick = null; f.qty = ''; f.ask = ''; f.filled = null; sc.paged = false; setView(cs, 'source', s); repaint(); return true; }
+  if (action === 'ms-from') { const s = el.getAttribute('data-from'); f.source = s; f.pick = null; f.qty = ''; f.ask = ''; f.filled = null; sc.paged = false; setView(cs, 'source', s); repaint(); return true; }
   if (action === 'ms-back') { sc.paged = false; repaint(); return true; }
   if (action === 'ms-share') {
     const all = ((f.source === 'storage' ? bankOf(cs) : bagOf(cs)) || []).find((r) => r.id === f.pick);
-    if (all) { f.qty = String(t.getAttribute('data-share') === 'half' ? Math.max(1, Math.floor(all.qty / 2)) : all.qty); repaint(); }
+    if (all) { f.qty = String(el.getAttribute('data-share') === 'half' ? Math.max(1, Math.floor(all.qty / 2)) : all.qty); repaint(); }
     return true;
   }
   if (action === 'ms-chip') {
     const s = sc.known.get(f.pick) || null;
-    const n = t.getAttribute('data-chip') === 'last' ? lastAsk(sc, f.pick) : suggested(f.pick, s);
+    const n = el.getAttribute('data-chip') === 'last' ? lastAsk(sc, f.pick) : suggested(f.pick, s);
     if (n !== null) { f.ask = String(n); f.filled = f.pick; repaint(); }
     return true;
   }
   if (action === 'ms-forget') { dropGesture(sc); sc.msg = ''; repaint(); rereadAll(ctx, cs, sc); return true; }
-  if (action === 'ms-list') { if (!sc.pending && !t.disabled && f.pick) runList(o); return true; }
+  if (action === 'ms-list') { if (!sc.pending && !el.disabled && f.pick) runList(o); return true; }
   return false;
 }

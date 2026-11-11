@@ -31,6 +31,7 @@ import { tickOf } from '../../town-work.js?v=0.2.122';
 import { ITEMS } from '../../../data/items.js?v=0.2.122';
 import { REFUSAL_WORDS } from '../../../data/refusal-words.js?v=0.2.122';
 import { heroVitalsOf } from '../../../session/character-sections.js?v=0.2.122';
+import { t } from '../../../render/player-text.js?v=0.2.122';
 
 const SCRATCH = new WeakMap();
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));
@@ -40,8 +41,8 @@ const SORT_IDS = new Set(BAG_SORTS.map(([id]) => id));
 export function scratchOf(cs) {
   let s = SCRATCH.get(cs);
   if (!s) {
-    s = { tab: 'bag', query: '', sel: new Set(), cursor: null, anchor: null, menu: null, menuOwner: null, confirm: null, slot: null,
-      pending: false, wearing: null, msg: '', msgAt: null, shownNew: new Set(), press: null, pressed: false };
+    s = { tab: 'bag', query: '', sel: new Set(), cursor: null, anchor: null, base: null, menu: null, menuOwner: null, confirm: null, slot: null,
+      pending: false, wearing: null, msg: '', msgAt: null, shownNew: new Set(), press: null, pressed: false, touch: false };
     SCRATCH.set(cs, s);
   }
   return s;
@@ -109,14 +110,14 @@ export function eatBlock(cs, id) {
 export function primaryOf(st, id) {
   if (!id || !st.qty.has(id)) return null;
   const k = kindOf(id);
-  if (k === 'gear') return equipSlotFor(id, st.eq) ? ['equip', 'Equip'] : null;
+  if (k === 'gear') return equipSlotFor(id, st.eq) ? ['equip', t('controls.equip')] : null;
   if (k === 'food') return ['eat', 'Eat'];
   if (barKind(id) && st.bar && barIndexOf(st.cs, id) < 0) return ['bar', 'Put on the bar'];
   const br = buryRecipeOf(id);
   if (br) return ['bury', buryLabel(br, buryQty(st.cs, id), st.cs)];
   /* a named fuel burns alone in the Great Hearth (bury.js burnNamed) */
   if (namedFuelOf(id)) return ['hearth', 'Fuel the hearth'];
-  if (st.shop && st.shop.bids.has(id) && !(st.rules && st.rules.locked.has(id))) return ['sell', 'Sell'];
+  if (st.shop && st.shop.bids.has(id) && !(st.rules && st.rules.locked.has(id))) return ['sell', t('controls.sell')];
   return null;
 }
 

@@ -193,7 +193,7 @@ const MUTANTS = [
   { test: 'W6', file: GESTURE, from: "r.error === 'network' || ", to: '', why: 'a dropped connection reads as a refusal, so the next press is a NEW gesture and buys twice' },
   { test: 'W6', file: CATCH, from: "if (/^market_/.test(String(body.verb))) return server.accrue(body); ", to: '', why: 'the catch-up retry takes a key the window never saw' },
   { test: 'W7', file: MODEL, from: 'h.at > seenAt && ', to: '', why: 'every old sale is told again' },
-  { test: 'W8', file: SELL, from: "t.getAttribute('data-chip') === 'last' ? lastAsk(sc, f.pick) : suggested(f.pick, s)", to: "t.getAttribute('data-chip') === 'last' ? s.lastEach : suggested(f.pick, s)", why: 'one press prices a good from a number a wash pair can print' },
+  { test: 'W8', file: SELL, from: "el.getAttribute('data-chip') === 'last' ? lastAsk(sc, f.pick) : suggested(f.pick, s)", to: "el.getAttribute('data-chip') === 'last' ? s.lastEach : suggested(f.pick, s)", why: 'one press prices a good from a number a wash pair can print' },
   { test: 'W9', file: MODEL, from: "return { id: raw.item_id, listable: raw.listable === true,", to: "return { ...raw, id: raw.item_id, listable: raw.listable === true,", why: 'the row keeps whatever the read carried' },
   { test: 'W11', file: SELL, from: 'const book = jewelSuggestedAsk(id, ITEMS) ?? (ITEMS[id] && Number(ITEMS[id].v));', to: 'const book = ITEMS[id] && Number(ITEMS[id].v);', why: 'a Hallmarked ring suggests its 260 book' },
   { test: 'W12', file: 'src/styles/market.css', from: '.hw-mk-sell .hw-mk-head { position: sticky; top: 0; z-index: 1; background: var(--fill-1); }', to: '', why: 'the price field scrolls the picked name out of sight' },

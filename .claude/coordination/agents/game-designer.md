@@ -842,3 +842,12 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - An XP bonus's pace cost is its share of hunting hours x its percent. +25% on every hour reads x0.805 at Level 50 and x0.81-0.82 at 10-25 (skills lag a little).
 - +10% is below what a player feels. At the Glade at 24 the gap between a hammer (83k) and a mage (91k) is wider than +10% on either.
 - Lane branches that insert at the top of the Decisions list collide. Insert a same-day section lower down (before the next dated heading) when another lane is writing the top.
+
+### 2026-11-10 · lane/b-slake-and-ford · Hask's Ford and the Slake re-fitted for one difficulty (two staged packs)
+- One difficulty changed what a lone hero fights (the whole HP, the whole kill), so the Slake as tuned before it read 1.27 to 1.34 of the pace contract and cost a lone tank 76% of its income in food. The fix was three data dials: the common body at the floor Level, two as built a pocket with a Pikeman in each, and the XP fit.
+- The grader judges "the Level's gear it can get". A staged pack's own drops are not gettable, so `pack check` on a staged tier-4 ground plays heroes in tier 3. Measure both: staged is what an arriving hero feels, opened is what the sheet asks.
+- The sword alone is the way that binds a floor's +25% rule, not the shield tank. The quick grade has no sword, so it can pass a ground the full grid fails.
+- Two fours bracket the party cell: three classes read about 4% under four classes, and the band is 8.7% wide. Set the 3-class and 4-class cells a few permille apart (xp-share wants a fourth class to pay more) and check the floor and the top.
+- A ladder of grounds five Levels apart can't keep "the lower ground's Deadly under the upper ground's Normal". Read it tier for tier there.
+- A solo ground that opens under the curve's ceiling (the Ford at 45) moves the pace: check `level-pace.json`'s rate at its floor before choosing a band.
+- On this PC a background sim runs at about a tenth of a foreground one, and so does any cell longer than a few seconds. The grader's full grid as 1-hour cells with `seedBase` is the same grid in about 10 minutes a ground.

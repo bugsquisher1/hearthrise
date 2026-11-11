@@ -1470,6 +1470,63 @@ A four at the Warrens, Level 40: +2.6%. Both tracks at once add nothing to XP ov
 **Repeated decisions (first principle), flagged:** a four's whole ladder is 80 rungs and 160 presses, spread over hundreds of hours and each one a real spend, so I kept the question; a "temper all my heroes" press is the fix if players ask.
 
 **Done:** engine, catalogue, view, section, edge forward list, client, sheet, coach, guards. **Verified by playing** (local world, real client and engine, 2026-11-04; levels, gear and gold are local fixtures): Bronze's refusal, a rung bought, short of gold, the question in sight, a rung bought mid-hunt, 50 minutes hunted with the browser closed for part of it, reload, the sheet; screenshots read. **Assumed:** nobody has spent real gold on this, so how fast piles go and whether anyone feels 1% are unmeasured; hours past 50 for a four. **Could still be wrong:** rung 1 may feel like nothing on screen (a blow of 8 lands 9 one time in twelve): the row and sheet say it, the blows barely can. The deep-pocket line: rich players press the pull, so piles run about 1.4x sooner.
+### 2026-11-10 Hask's Ford and the Slake on one difficulty (designer, lane/b-slake-and-ford): BUILT as two STAGED packs, MEASURED on the real engine, nothing served, no server file written
+**What changed.** Both grounds were built before one difficulty, the re-fitted Level curve and the tier-4 sale rate. The Ford (45-60) moved out of the old data files into a pack (`src/data/grounds/hasks_ford`). The Slake (50-65) keeps its pack. Neither carries a party scale or a party gate. Each harder tier brings one pull for every group. Normal's party pull is the Glade's (3, 3, 4).
+
+**How it was measured.** "As opened" means the pack is flipped open for the run only, so heroes wear the tier-4 set the ground drops. The grid is the grader's own full grid (7 Level offsets, 8 lone ways, 2 pairs, 2 threes, 2 fours, 3 tiers), played as 1-hour cells (4 seeds a lone way on Normal in range, 2 seeds elsewhere), 2,312 hero-hours for the two grounds. The grader's own `--mode full` (4-hour cells) was NOT run: this PC throttles a long cell to about a tenth of its speed.
+
+| Ground | Monsters (Level, role) | Level | Alone, XP an hour | Alone, gold an hour | A four, XP a head | A four, gold a head | Against the ground below, same Level |
+|---|---|---|---|---|---|---|---|
+| Hask's Ford | Banded Pikeman 45 swarm, Fordsunk 50 heavy, Ledger Wight 51 glass, Bannerman 56 elite | 45 | 249.7k | 10.9k | 306.2k | 11.4k | The Warrens at 45: a lone tank, hammer and wand 203.6k, 282.2k, 349.8k XP. The Ford 203.1k, 290.1k, 350.5k. Gold 8.0k, 8.1k, 14.9k against 7.0k, 12.3k, 17.4k. A four 289.7k and 8.9k against 306.2k and 11.4k |
+| | | 53 | 261.5k (1.03 of the contract) | 12.5k | 316.2k | 11.4k | |
+| The Slake | Greened Pikeman 50 swarm, Mudlark 52 glass, Bargeman 54 heavy, Color Sergeant 58 elite | 50 | 288.9k | 12.6k | 358.4k | 13.3k | The Ford at 50: tank, hammer, wand 213.2k, 298.6k, 366.8k XP. The Slake 235.7k, 311.8k, 417.4k. Gold 8.9k, 13.5k, 17.9k against 8.6k, 13.4k, 22.3k. A four 313.7k and 11.2k against 358.4k and 13.3k |
+| | | 58 | 298.7k (1.04 of the contract) | 15.1k | 369.1k | 13.8k | |
+
+"Alone" is the median of the 8 ways to fight. The ladder rows are 2 seeds x 1 h a cell. No death on Normal at or over a floor in 128 lone hero-hours a ground, and none in a party.
+
+**What each ground is for.** The Ford is the tier-4 armor's first home and the hammer's ground (all four bodies break to a hammer). The Slake is the tier-4 weapons' home (sword, warhammer, bow, staff hourly, wand and spellbook as Rares) and carries the armor too, with a different weapon answer on each body. The hatchets and the crossbow are made, not dropped. Loot, a lone tank at the floor, one played hour: the Ford a Scarce piece every 0.99-1.05 h and a Rare every 15.2 h, the Slake 0.91-1.08 h and 13.8-16.2 h. Gear sells for 26% and 29% of the coin (cap 50%).
+
+**Rulings made here.**
+| What | Ruling | Why, measured |
+|---|---|---|
+| Monster Levels | The common body stands at the floor (45, 50). The Ford's others at 50, 51, 56. The Slake's at 52, 54, 58 | With the common body one or two Levels over the floor a sword alone cleared +20% (Ford, at 46, 50, 51, 56) and +15% (Slake, at 52, 54, 55, 60) over its bill at the floor. The rule is +25% for every way. Now +43% on both |
+| As-built pockets | Two a pocket, a Pikeman in each. The harder bodies join at three and four | With one difficulty a lone hero fights the whole HP. The Slake's old pockets cost a lone tank 76% of its income in food |
+| XP fit | Ford 1.28, Slake 1.22 | The middle reads 1.03 and 1.04 of the pace contract. At 1.22 the Warrens paid a lone hero more than the Ford at 45 |
+| Party cells | Ford 2: 990, 1230. 3: 1150, 1400, 1510. 4: 1150, 1400, 1545, 1555. Slake 2: 990, 1270. 3: the same. 4: 1150, 1400, 1565, 1570 | A mixed four reads 1.165-1.226 (Ford) and 1.16-1.24 (Slake) of the median lone way. No one-class party beats its heroes alone (best 0.91 and 0.93) |
+| The Slake's Dangerous | A pull of 6, one number | On 5 a Melee and Healer pair two to five Levels under still made gold. On 6 it loses 2.2k to 5.7k an hour |
+| The Ford's Dangerous and Deadly | The table's own (5 and 8) | Its under-floor pair already loses gold on 5 |
+| Company Colors | Left out of the Ford's pack | A named Hearth fuel needs a row in `hearth.js`, which a pack can't add. Handed to Systems |
+| Color Thread | Renamed Toll Token (the Bannerman's imbuement item) | Three items named for the company's colors across two grounds. The token ties to Hask's toll |
+| Ford Weed | The Ford's element piece | The ground before sells the lining for the ground after (the linings rule). The Slake's Bargemen throw cold water |
+
+**The harder tiers, at the floor.** Alone, Dangerous costs a median 47k gold an hour at the Ford and 68k at the Slake for 1.4 to 1.5 times Normal's XP. Alone, Deadly kills (465 and 488 deaths in 12 and 11 hero-hours). A four holds both with no death: at the Ford 378.5k XP a head on Dangerous and 499.0k on Deadly, at the Slake 463.9k and 559.6k.
+
+**Reds left, and whose.**
+1. `wc-deadly-under-dies` (the sheet): a pair five Levels under on Dangerous never dies, 2 rows on the Ford and 1 on the Slake. Every solo ground fails this row today. Mine, as the sheet's owner, and not a row to fix inside one ground.
+2. `tests/pixel-icons.mjs`: 8 imbuement item icons are missing. The art lane's. Three of the Ford's are drawn on `origin/lane/b-hasks-ford-art`.
+3. `pack check hasks_ford` as STAGED (heroes arrive in tier 3): a lone tank at 45 clears +2% over its bill until its tier-4 pieces drop, about one an hour a slot. By design: the first two hours at a new tier are thin and each drop is felt. As opened it clears +141%.
+
+**The ladder between grounds five Levels apart.** The test's rule is that a ground's Deadly never beats the next ground's Normal. It can't hold for these three. At 50 a four on the Ford's Deadly earns 515.5k a head with no death and the Slake's Normal pays 358.4k. Read tier for tier the upper ground pays more: Dangerous 463.9k against 388.9k, Deadly 559.6k against 515.5k. My ruling: for grounds whose bands overlap, the ladder is read tier for tier. The typed list in `tests/hunt-core/hunt-tiers.mjs` gets those pairs when the grounds open.
+
+**What opening the Ford moves.** The Hunts window sends a lone hero at 45-49 to the Glade today, at 105-107k XP an hour. The Ford pays about 250k. Computed from the curve's XP, Levels 45 to 50 fall from 43.5 hours to about 18.5 and Level 50 from 170 hours to about 145, outside the target's 10%. No career was played with the Ford open, so that is an estimate. The Ford therefore opens with a re-measured pace and a re-fit of the Level curve from 45 up. The Slake's floor is the curve's ceiling, so it moves no Level.
+
+**Ship order: the Ford first, then the Slake.** The Ford is first in Level order and its art is drawn, so it is one icon and one art merge from open. The Slake's three re-pours are made from the Ford's bodies and its painted ground and four icons are not made. The Slake also waits on Cold Bilge (the Bargeman's group spell, lane/b-area-set) for a second measure of its harder tiers. The Ford's cost is the curve re-fit above. If that world move has to wait, the Slake can open first on its own: staged, in tier-3 gear, a lone tank at 50 clears +45% and its only red is row 1.
+
+**Walk-through: a Level 45 hero's first hours at the Ford.** Every id was read from `src/data` on this branch.
+| Step | The player | Holds, from the steps before | Doable |
+|---|---|---|---|
+| 1 | Opens Hunts. Hask's Ford, Level 45-60 | A Level 45 hero in the Warrens' tier-3 set (`steel_sword`, `steel_platebody`, `coppercap_shield`) | Yes once the pack is open. `hunt-list.js` reads the row |
+| 2 | Picks Normal and enters at the Pike Files | Step 1. The bar's food slot names Salted Lobster (`salted_lobster`, the store partner of `cooked_lobster`) | Yes. Two bodies a pull, a Pikeman in each |
+| 3 | First kills: coin, Bones, Bone Chips, a Pike Band | Step 2 | Yes. `bones`, `bone_chips` are real rows, `pike_band` is the pack's |
+| 4 | About each hour: a tier-4 piece for each slot of its weight (`mithril_boots`, `mithril_helm` off Pikemen, `mithril_platelegs` off Fordsunk, `mithril_platebody` off Ledger Wights) | Step 3's kills | Yes, worn at once: each is Level 45 |
+| 5 | In town sells the other weights' pieces at the tier-4 rate, burns Bone Chips (Inner Flame 40) and Grave Dust (46) at the Hearth | Steps 3 and 4 | Yes. `fuel_bone_chips`, `fuel_grave_dust` exist. Under those Levels the game says why |
+| 6 | Keeps Ford Weed, Pike Bands, Ledger Leaves and Toll Tokens, or sells them | Step 3 | Yes. They file under Materials and only sell until linings are built |
+| 7 | About every 15 h: gloves or a belt off a Bannerman | Kills at the Toll Stone and the Muster Line | Yes. `mithril_gauntlets`, `mithril_belt` and their twins |
+| 8 | At 50 moves to the Slake for a tier-4 weapon | Steps 4 and 7's set | Yes once the Slake is open. `mithril_sword` off Greened Pikemen |
+| 9 | Tamsin's Tally for the Ford | | **Not checked.** `gen-tally-tasks` was not run for a staged pack. Flagged |
+
+**First principle.** Nothing new asks for a repeated choice. The tier is remembered per ground. One gap stays from the Slake's first design: nothing tells a player which saved bar suits a ground.
+
 ### 2026-11-05 Ground Packs: a new hunting ground that doesn't touch the rest of the world (designer, lane/d-ground-pack): DESIGN ONLY. Nothing built, no generations, no sim run on the new rows
 **Tyler:** "we need a scalable way to build new hunting grounds. It seems like right now you're just doing it all from scratch but I think we need a system or module or something that allows us to quickly roll out new hunting grounds so we don't get caught behind on new content."
 

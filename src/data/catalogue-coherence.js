@@ -109,8 +109,8 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'granary_whisker', 'barn_wasp_sting', 'loft_web', 'torn_company_badge',
   /* the boar and the bear (lane b-unsourced-items): their imbuement items, and the boar's bristles */
   'orchard_boar_tusk', 'brook_bear_tooth', 'boar_bristle',
-  /* the Slake's four (lane/b-the-slake), the same promise */
-  'green_rivet', 'barge_nail', 'mudlark_hook', 'color_cord',
+  /* the Slake's four and Hask's Ford's four (lane/b-slake-and-ford), the same promise: a Material that only sells until linings are built */
+  'green_rivet', 'barge_nail', 'mudlark_hook', 'color_cord', 'pike_band', 'ford_weed', 'ledger_leaf', 'toll_token',
   /* the Pyre Field's five (lane/b-pyre-field), the same promise */
   'pike_ferrule', 'rake_tine', 'kennel_tag', 'shroud_pin', 'warrant_seal',
 ]);
@@ -179,7 +179,7 @@ export const AWAITING_ROSTER = Object.freeze([
    planned ground or system, (b) needed now (its source is a listing away), (c) no home in
    Early Access, listed for Tyler's keep-or-cut. */
 export const UNREACHABLE_FATES = Object.freeze({
-  staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens (Wickstead, waiting on its painted ground)', open: Object.freeze({ grounds: HUNT_GROUNDS }) }),
+  staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens (Hask\'s Ford, the Slake and the Pyre Field, waiting on their art)', open: Object.freeze({ grounds: HUNT_GROUNDS }) }),
   premium:    Object.freeze({ bucket: 'a', door: 'premium sells and the daily login claim pays', open: Object.freeze({ premium: true }) }),
   greenhaven: Object.freeze({ bucket: 'a', door: 'a Greenhaven ground not yet built puts it on one of its creatures' }),
   later:      Object.freeze({ bucket: 'c', door: 'none in Early Access, kept for a later region or cut (Tyler)' }),
@@ -192,14 +192,15 @@ export const UNREACHABLE_FATES = Object.freeze({
 export const UNREACHABLE = Object.freeze({
   /* Empty since Wickstead opened on its painted ground (lane b-wickstead-art, 2026-10-28): its tier-2 gloves, belts and
      jewelry, the Bramble Blade and its four imbuement items are reachable. A ground staged again may refill it. */
-  /* THE SLAKE (lane/b-the-slake, staged until its art lands): the tier-4 set in three weights, its weapons, gloves, belts and the
-     caster's pair, Grave Dust, and its four imbuement items. C11 proves its opening sources every one. */
+  /* HASK'S FORD, THE SLAKE AND THE PYRE FIELD (lane/b-slake-and-ford, lane/b-pyre-field; staged until their art lands): the tier-4 set
+     in three weights, its weapons, gloves, belts and the caster's pair, Grave Dust, and each ground's imbuement items. C11 proves
+     their opening sources every one. */
   staged: Object.freeze([
     'mithril_sword', 'mithril_warhammer', 'maple_staff', 'mithril_helm', 'mithril_platebody', 'mithril_platelegs',
     'snakeskin_body', 'snakeskin_helmet', 'snakeskin_pants', 'warlock_body', 'warlock_pants', 'mithril_boots',
     'mithril_gauntlets', 'mithril_belt', 'snakeskin_boots', 'snakeskin_gloves', 'snakeskin_belt', 'warlock_helmet',
     'warlock_boots', 'warlock_gloves', 'warlock_belt', 'maple_bow', 'maple_wand', 'maple_spellbook', 'grave_dust',
-    'green_rivet', 'barge_nail', 'mudlark_hook', 'color_cord',
+    'green_rivet', 'barge_nail', 'mudlark_hook', 'color_cord', 'pike_band', 'ford_weed', 'ledger_leaf', 'toll_token',
     /* THE PYRE FIELD (lane/b-pyre-field, staged until its art lands): the tier-5 set in three weights and all six slots, its weapons,
        the Yew Wand and Yewclasp Spellbook, the six tier-6 weapons (Rares), Razor Claw and Wraith Veil for the Hearth, and its five
        imbuement items. C11 proves its opening sources every one. */

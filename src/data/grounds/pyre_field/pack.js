@@ -51,8 +51,8 @@
 // Each body drops its
 // own imbuement item, one of each of the five kinds, kept for the imbuer (catalogue-coherence.js VENDOR_TRASH until imbuing is
 // built). The ground's named fuel, Pyre Ash (the board's), waits on a pack field for NAMED_FUELS (src/data/hearth.js): no row.
-import { definePack, box, gather } from '../shape.js?v=0.2.112';
-import map from './map.js?v=0.2.112';
+import { definePack, box, gather } from '../shape.js?v=0.2.116';
+import map from './map.js?v=0.2.116';
 
 const CP = 'charred_pikeman', ST = 'stoker', LU = 'lurcher', PW = 'pyre_wraith', PV = 'provost';
 /* the pyres burned them once: fire does 25% less, frost full, poison still little (the class's 50) */

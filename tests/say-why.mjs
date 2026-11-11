@@ -284,9 +284,9 @@ export const REASONS = Object.freeze({
     { cond: '!on', words: "t('house.cost_gold_short'", where: 'each step\'s cost lines mark what is short, with your counts' },
   ],
   'src/shell/windows/tally.js': [
-    { cond: '!!why || st.sc.pending || st.hunting', words: "': take tasks when you are back in town.'", where: 'the button reads Held / Full; hunting says the board is in town' },
-    { cond: 'order.indexOf(s) === 0', words: '(the first cannot move up)', where: 'the first slot has nothing to move above (its button reads Move up)' },
-    { cond: '!t', words: "'Loading her board…'", where: 'the board says it is loading' },
+    { cond: 'r.held || full || st.sc.pending || st.hunting', words: "t('tally.board_hunting')", where: 'the gold line under her board head says why every Take is off (hunting, three held, no weight yet), and data-off-why on the press' },
+    { cond: 'order.indexOf(s) === 0', words: "t('tally.slot_first_why')", where: 'the first slot chip has nothing to go before; a press on it says so (data-off-why)' },
+    { cond: '!tally', words: "t('tally.board_loading')", where: 'with no tally from the server the board says it is loading and every control stays off' },
   ],
   'src/shell/windows/work.js': [
     { cond: '(!running && !!why)', words: ": [why || (running ? 'Working on it now · '", where: 'the row\'s own line, a short input\'s places linked (workBlock: "You need Smithing 3 to make Bronze Axe. You have 1.")' },

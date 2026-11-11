@@ -23,6 +23,7 @@ import { PARTY_TEXT } from './party.js?v=0.2.122';
 import { PREP_TEXT } from './prep.js?v=0.2.122';
 import { SHOP_TEXT } from './shop.js?v=0.2.122';
 import { SLOTS_TEXT } from './slots.js?v=0.2.122';
+import { TALLY_TEXT } from './tally.js?v=0.2.122';
 import { TEMPER_TEXT } from './temper.js?v=0.2.122';
 import { WORK_TEXT } from './work.js?v=0.2.122';
 
@@ -42,6 +43,7 @@ export const TEXT = Object.freeze({
   prep: PREP_TEXT,
   shop: SHOP_TEXT,
   slots: SLOTS_TEXT,
+  tally: TALLY_TEXT,
   temper: TEMPER_TEXT,
   work: WORK_TEXT,
 });

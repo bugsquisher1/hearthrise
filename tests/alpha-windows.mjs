@@ -887,7 +887,7 @@ async function panelLeftovers(base) {
   for (const [w, r, want] of bySuggest) if ((suggestedWeight(w, r) || {}).weight !== want) fails.push('AW-62 a first Take for ' + r + ' in ' + JSON.stringify(w) + ' asks for ' + JSON.stringify(suggestedWeight(w, r)));
   if (suggestedWeight({}, null) !== null) fails.push('AW-62 with nothing said a first Take still guesses ' + JSON.stringify(suggestedWeight({}, null)));
   if (takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')) !== 'Your first Take asks her for heavy armor, which suits a shield tank. Change it below any time.') fails.push('AW-62 the line over her board with a suggestion reads ' + takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')));
-  if (!/^Pick the armor weight/.test(takeWhyOf({ weight: null, held: [], heldMax: 3 }, false)) || !/^You hold as many/.test(takeWhyOf({ weight: 'heavy', held: [1, 2, 3], heldMax: 3 }, false))
+  if (!/^Pick the armor weight/.test(takeWhyOf({ weight: null, held: [], heldMax: 3 }, false)) || !/^You have three of mine already/.test(takeWhyOf({ weight: 'heavy', held: [1, 2, 3], heldMax: 3 }, false))
     || takeWhyOf({ weight: 'heavy', held: [], heldMax: 3 }, false) !== '' || takeWhyOf({ weight: null, held: [], heldMax: 3 }, true) !== '') fails.push('AW-62 the line over her board is wrong');
   const { buryLabel, buryRecipeOf } = await imp('src/shell/windows/inventory/bury.js');
   const bones = buryRecipeOf('bones');
@@ -3874,7 +3874,7 @@ const MUTANTS = [
   ['item truth: no-book-value says nothing', 'src/shell/item-lore.js', "if (!(Number(it.v) > 0) || it.bop) return t('item.own_use')", "if (false) return t('item.own_use')"],
   ['item truth: a kit item says the Weighhouse lists it', 'src/shell/item-lore.js', "return isStartKit(id) ? t('item.kit_unlisted')", "return false ? t('item.kit_unlisted')"],
   ['item truth: the Weighhouse has one vague reason', 'src/shell/market-words.js', "(Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.')", "'.'"],
-  ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !t.weight ? (suggest ? suggest.words : NO_WEIGHT_WHY) : t.held.length >= t.heldMax ? FULL_WHY : '';", "  return '';"],
+  ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !tally.weight ? (suggest ? suggest.words : t('tally.no_weight')) : tally.held.length >= tally.heldMax ? t('tally.board_full', { n: countWord(tally.heldMax) }) : '';", "  return '';"],
   ['item truth: panel: Fuel all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';\n", ''],
   ['item truth: panel: the sale hides its rares', 'src/shell/item-lore.js', "rare.length ? t('item.sells_rares', { items: listWords(rare) }) : ''", "''"],
   ['item truth: panel: a slot on sale beside an empty one', 'src/app/slot-offer.js', "if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "if (!offer || !purse || actor === null) return '';"],

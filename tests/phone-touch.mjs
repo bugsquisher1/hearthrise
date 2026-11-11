@@ -1126,7 +1126,7 @@ async function touchHunt(page, s, tag, fails) {
   /* After her board's answer: the line once stood only until the board had loaded. */
   for (let i = 0; i < 60 && !s.calls.some((c) => c.name === 'hr_tally_view'); i++) await page.waitForTimeout(50);
   await page.waitForTimeout(400);
-  const line = await page.evaluate(() => { const l = document.querySelector('[data-hs-win="tally"] .ht-wait'); return !!l && l.getClientRects().length > 0 && /back in town/.test(l.textContent); });
+  const line = await page.evaluate(() => { const l = document.querySelector('[data-hs-win="tally"] .ht-board-why'); return !!l && l.getClientRects().length > 0 && /back in town/.test(l.textContent); });
   if (!line) fails.push('PH-14 [' + tag + '] hunting, her board does not say why every Take is grey');
 }
 
@@ -1737,7 +1737,7 @@ const MUTANTS = [
   ['PH-14 the key chips stay on touch', 'src/styles/shell.css', ':root.is-touch .hs-win-head .hs-key, :root.is-touch .hs-launch::before { display: none; }', ':root.is-touch .hs-launch::before { display: none; }'],
   ['PH-14 a grey button says nothing', 'src/shell/off-why.js', "if (words) show(b, words); else hide();", "hide();"],
   ['PH-14 a slot\'s sheet does not say why', 'src/shell/windows/configure-action.js', "text(root.querySelector('.ca-why'), fireWhy ? fireWhy.text : '');", ''],
-  ['PH-14 her board does not say why while it is loaded', 'src/shell/windows/tally.js', "'is-on', !sc.board || st.hunting);", "'is-on', !sc.board);"],
+  ['PH-14 her board does not say why while it is loaded', 'src/shell/windows/tally.js', "const why = !sc.board ? '' : hunting ? t('tally.board_hunting') : takeWhyOf(tally, hunting, suggest);", "const why = !sc.board ? '' : takeWhyOf(tally, hunting, suggest);"],
   ['PH-15 a sliver of card stays under a tall alert', 'src/styles/shell.css', '  .hs-widget.is-no-room > .hs-pointer { display: none; }\n', ''],
   ['PH-6 a press on a folded card\'s tab opens nothing on a return', 'src/shell/launcher.js', '  if (r && r.seen === card.id && r.min !== true) return false;\n', ''],
   ['PH-15 every alert stacks on a phone', 'src/styles/windows.css', '  .hw-alert-list > .hw-alert:not(:first-child) { display: none; }\n', ''],

@@ -921,30 +921,98 @@
   .hr-line { grid-template-columns: 44px minmax(0, 1fr) auto; min-height: 40px; padding: 2px 2px 2px 6px; }
   .hr-pick .hh-select { min-height: 40px; }
 }
-/* ── Tamsin's tally (src/shell/windows/tally.js): a keeper's board, not a card grid. Her name, then the
-   hero's tallies as notched sticks (.ht-stick, shell.css), her pick (weight, slot order), her board. ── */
-.ht-keeper { display: flex; flex-direction: column; gap: 2px; margin: 0 2px 8px; }
-.ht-keeper b { font-family: var(--f-label); font-weight: 700; font-size: var(--t-lead); color: var(--ink); }
-.ht-keeper small { font-size: var(--t-micro); color: var(--ink-3); }
-.ht-keeper .hs-note { margin: 4px 0 0; color: var(--ink-2); }
-.ht-take-why { display: none; align-items: center; gap: 8px; color: var(--gold-2); }
-.ht-take-why.is-on { display: flex; }
-.ht-take-why > span { flex: 1; min-width: 0; }
-.ht-take-why > button { flex: none; }
-.ht-tally .hw-line-name small { white-space: normal; }
-.ht-tally.is-done .hw-line-name b { color: var(--gold-2); }
-.ht-keep { display: flex; align-items: center; gap: 4px; flex: none; font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; }
-.ht-weights { display: flex; gap: 2px; margin: 4px 2px; }
-.ht-order { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 2px 8px; padding: 0; list-style: none; counter-reset: ht-slot; }
-.ht-slot { display: flex; align-items: center; gap: 4px; padding: 2px 2px 2px 6px; background: var(--bg-1); box-shadow: var(--hw-well);
-  font-size: var(--t-micro); color: var(--ink-2); counter-increment: ht-slot; }
-.ht-slot::before { content: counter(ht-slot) "."; color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
-.ht-offer .hw-line-name small { white-space: normal; }
+/* ── Tamsin's tally (src/shell/windows/tally.js): her ledger, not a card grid (mocks 2026-11-11). Her line on top (name in
+   the display face, the day's count, one thing she says on a gold rule), your tallies first as entries with her tally
+   marks (ten strokes in two fives, the cut ones gold) beside the exact count and the piece in a pocket well, then her
+   board two lines a row with a sunk Take, then her pick folded to one line behind Change. The HUD's stick is shell.css. ── */
+.hw-tally { display: flex; flex-direction: column; font-variant-numeric: lining-nums tabular-nums; }
+.ht-say { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-items: baseline; margin: 0 2px 10px; }
+.ht-who { white-space: nowrap; font-family: var(--f-display); font-weight: 700; font-size: var(--t-small); letter-spacing: .04em; color: var(--gold-2); }
+.ht-day { justify-self: end; font-size: var(--t-micro); color: var(--ink-3); white-space: nowrap; }
+.ht-day-paid { color: var(--ink); font-weight: 700; }
+.ht-day.is-full .ht-day-paid { color: var(--gold-2); }
+.ht-day-new:not(:empty)::before { content: ' · '; color: var(--ink-3); font-weight: 400; }
+.ht-voice { grid-column: 1 / -1; margin: 6px 0 0; padding-left: 10px; border-left: 2px solid var(--gold); font-size: var(--t-small); line-height: 1.35; color: var(--ink); }
+.ht-voice:empty { display: none; }
+/* Section heads: the Forged Steel head (shell.css), with the held count at the rule's end. Your tallies goes with nothing held. */
+.ht-head { display: flex; align-items: center; gap: 12px; margin: 6px 2px 0; font-family: var(--f-display); font-weight: 700; font-size: var(--t-micro); line-height: 1.2; letter-spacing: .14em; color: var(--gold); }
+.ht-head::after { content: ''; flex: 1; height: 2px; background: var(--steel-rule); }
+.ht-head small { order: 2; font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; color: var(--ink-3); }
+.ht-head small:empty { display: none; }
+.ht-mine-head { display: none; }
+.ht-mine-head.is-on { display: flex; }
+/* YOUR TALLIES: one entry a held task. */
+.ht-mine { list-style: none; margin: 4px 0 6px; padding: 0; }
+.ht-entry { display: grid; grid-template-columns: minmax(0, 1fr) 44px; column-gap: 10px; row-gap: 4px; align-items: center; padding: 8px 6px 8px 4px; border-top: 2px solid var(--steel-sep); }
+.ht-entry:first-child { border-top: 0; }
+.ht-entry-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.ht-entry-top > b { font-weight: 700; font-size: var(--t-small); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ht-count { white-space: nowrap; line-height: 1; }
+.ht-count b { font-weight: 800; font-size: var(--t-lead); color: var(--ink); }
+.ht-count small { font-weight: 400; font-size: var(--t-micro); color: var(--ink-3); }
+.ht-entry .ht-pocket { grid-column: 2; grid-row: 1 / span 2; }
+.ht-get, .ht-once { grid-column: 1 / -1; margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
+.ht-get:empty, .ht-once:empty { display: none; }
+.ht-entry .ht-once { color: var(--gold-2); }
+.ht-foot { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--t-micro); color: var(--ink-3); }
+.ht-where { min-width: 0; }
+.ht-tools { display: flex; align-items: center; gap: 2px; flex: none; }
+.ht-keep { display: flex; align-items: center; gap: 4px; padding: 0 6px; font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; }
+.ht-tools .hh-tool { min-height: 28px; padding: 0 8px; }
+/* Her tally marks: ten strokes in two fives, each a tenth of the count; the fifth is the bar across the four. Cut = gold. */
+.ht-marks { display: flex; gap: 14px; height: 18px; align-items: center; }
+.ht-five { position: relative; display: flex; gap: 5px; height: 18px; padding: 0 1px; }
+.ht-five i { display: block; width: 3px; height: 18px; background: var(--bg-3); }
+.ht-five i:nth-child(5) { position: absolute; left: -4px; right: -4px; top: 7px; width: auto; height: 3px; transform: rotate(-22deg); }
+.ht-five i.is-cut { background: var(--gold); }
+/* A done entry: the Hunts list's picked row (lifted, a gold bar at its left); the count turns gold. */
+.ht-entry.is-done { background: var(--fill-3); box-shadow: inset 4px 0 0 var(--gold); padding-left: 10px; }
+.ht-entry.is-done .ht-count b { color: var(--gold-2); }
+.ht-entry.is-done .ht-get { color: var(--ink); }
+/* The bag's pocket well: the piece she pays, at its one 32 px density. */
+.ht-pocket { position: relative; width: 44px; height: 44px; display: grid; place-items: center; background: var(--bg-1); box-shadow: var(--hw-well); }
+.ht-pocket .hh-icon { width: 32px; height: 32px; }
+.ht-pocket .hh-icon.is-glyph .hs-glyph { width: 20px; height: 20px; }
+/* HER BOARD: two lines a task, the ground a take-me-there link, her pay as the piece, a sunk Take. */
+.ht-board-why { display: none; align-items: center; gap: 8px; margin: 4px 2px 0; font-size: var(--t-micro); color: var(--gold-2); }
+.ht-board-why.is-on { display: flex; }
+.ht-board-why > span { flex: 1; min-width: 0; }
+.ht-board-why > button { flex: none; }
+.ht-list { list-style: none; margin: 4px 0 6px; padding: 0; }
+.ht-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px 118px auto; column-gap: 8px; align-items: center; min-height: 56px; padding: 4px 0; border-top: 2px solid var(--steel-sep); }
+.ht-row:first-child { border-top: 0; }
+.ht-row-name { display: flex; flex-direction: column; min-width: 0; }
+.ht-row-name b { font-weight: 700; color: var(--ink); line-height: 1.2; }
+.ht-row-name small, .ht-pay small { font-size: var(--t-micro); color: var(--ink-2); line-height: 1.2; }
+.ht-row-lvl { white-space: nowrap; }
+.ht-row-lvl:not(:empty)::before { content: ' · '; }
+.ht-pay { display: flex; flex-direction: column; min-width: 0; }
+.ht-pay b { font-weight: 700; color: var(--ink); white-space: nowrap; }
+.ht-pay .ht-once { margin: 0; color: var(--gold-2); }
+.ht-take { min-height: 36px; padding: 0 12px; background: var(--bg-0); box-shadow: var(--hw-well); color: var(--ink); }
+.ht-take:disabled { color: var(--ink-3); opacity: 1; background: none; box-shadow: none; }
+/* HER PICK: one line at the foot, the picker folded behind Change. */
+.ht-pick { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; padding: 8px 2px 0; border-top: 2px solid var(--steel-sep); font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
+.ht-pick .hh-tool { flex: none; }
+.ht-pick-open { display: grid; gap: 8px; margin: 8px 2px 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
+.ht-pick-open[hidden] { display: none; }
+.ht-pick-open p { margin: 0; }
+.ht-weights { display: flex; gap: 2px; margin: 0; }
+.ht-weights .hh-seg { flex: 1; background: var(--bg-0); box-shadow: var(--hw-well); }
+.ht-slots { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.ht-slots button { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; border: 0; background: var(--bg-1); box-shadow: var(--hw-well); font: inherit; font-size: var(--t-micro); color: var(--ink-2); cursor: pointer; }
+.ht-slots button:disabled { color: var(--ink); cursor: default; }
+.ht-slots button:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
+.ht-slots button small { font-weight: 700; font-size: var(--t-micro); color: var(--ink-3); }
 .hw-hunt-tally { font-size: var(--t-micro); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-hunt-tally:empty { display: none; }
+/* PHONE (the sheet): her line at the small size, the pay column narrows so a long piece name wraps, thumb-sized presses. */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  .ht-tally, .ht-offer { flex-wrap: wrap; }
-  .ht-tally > .hh-tool, .ht-offer > .hh-tool { min-height: 36px; }
+  .ht-voice { font-size: var(--t-micro); }
+  .ht-row { grid-template-columns: minmax(0, 1fr) 44px 88px auto; column-gap: 6px; }
+  .ht-take { padding: 0 10px; }
+  .ht-tools .hh-tool, .ht-keep { min-height: 36px; }
+  .ht-pick { padding-bottom: 4px; }
 }
 /* ── A monster's page (src/shell/windows/monster.js): a page of the encyclopedia, not a card grid. The creature on its ground
    shadow (x2, facing front) beside its name, the grounds it lives on as links, a two-column table of facts, then its drops as

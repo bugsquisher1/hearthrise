@@ -42,10 +42,10 @@ export const DRINK_RECIPES = Object.freeze([
 
 /* The flavour lines, ready for src/data/item-descriptions.js on merge. */
 export const DRINK_DESC = Object.freeze({
-  turnip_juice: 'Thin turnip juice. It brings back a little mana, which is plenty when you\'re just starting out',
+  turnip_juice: 'Thin turnip juice that brings back a little mana, which is plenty when you\'re just starting out',
   carrot_juice: 'Sweet carrot juice that brings back some mana between casts',
   tomato_juice: 'Rich tomato juice, a caster\'s favorite on a long hunt',
-  pumpkin_cider: 'Spiced pumpkin cider. It warms you up and brings back a good chunk of mana',
+  pumpkin_cider: 'Spiced pumpkin cider that warms you up and brings back a good chunk of mana',
   goldenroot_tea: 'A slow-brewed tea of goldenroot. It\'s bright gold and brings back a lot of mana',
   emberfruit_cordial: 'A strong emberfruit drink for casters fighting the toughest monsters. It brings back the most mana',
 });

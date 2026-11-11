@@ -16,7 +16,7 @@
 -- hr_level_of, the analyzer's ETA) follows with no edit.
 -- NEW IN THIS FILE (lane/c-brook-bear, 2026-11-10): the Brook Bear stands in the Glade as
 -- built, so the pace was re-measured; the ground ladder now pays 975 x L^1.421 Level XP an
--- hour, so the brackets from Level 50 re-fit to it. Level 10 at 200086 XP, Level 50 at 17054606;
+-- hour, so the brackets from Level 50 re-fit to it. Level 10 at 198367 XP, Level 50 at 17032267;
 -- Levels 1-51 cost what they did; only the Levels past them move. LIVE CHARACTERS: nothing is stored per Level, so a
 -- character whose Level XP now makes a different Level simply shows it; no row is written.
 -- The death floor is re-read at each settle, so the edge's and the server's floors agree
@@ -54,15 +54,15 @@ insert into public.hr_level_curve (from_level, base_xp, first_xp, rise, bend) va
   (1, 0, 159, 159, 0),
   (2, 159, 318, 317, 0),
   (3, 477, 635, 634, 0),
-  (4, 1112, 1269, 5050, 0),
-  (5, 2381, 6319, 6858, 0),
-  (6, 8700, 13177, 14400, 0),
-  (7, 21877, 27577, 40603, 0),
-  (8, 49454, 68180, 14272, 0),
-  (9, 117634, 82452, 1, 0),
-  (10, 200086, 82453, 0, 660),
-  (50, 17054606, 1138453, 102750, 261),
-  (300, 4850991231, 43138453, 311063, 1016);
+  (4, 1112, 1269, 5000, 0),
+  (5, 2381, 6269, 6601, 0),
+  (6, 8650, 12870, 13385, 0),
+  (7, 21520, 26255, 40860, 0),
+  (8, 47775, 67115, 16362, 0),
+  (9, 114890, 83477, 1, 0),
+  (10, 198367, 83478, 0, 657),
+  (50, 17032267, 1134678, 78689, 162),
+  (300, 3588591142, 30931928, 203586, 598);
 
 -- ── §2 SELF-CHECK (CLAUDE.md §4) ──────────────────────────────────────────────
 -- The rows are exactly the generated set; both functions answer the JS values at every pinned Level (bracket edges,
@@ -77,24 +77,24 @@ begin
   (1, 0, 159, 159, 0),
   (2, 159, 318, 317, 0),
   (3, 477, 635, 634, 0),
-  (4, 1112, 1269, 5050, 0),
-  (5, 2381, 6319, 6858, 0),
-  (6, 8700, 13177, 14400, 0),
-  (7, 21877, 27577, 40603, 0),
-  (8, 49454, 68180, 14272, 0),
-  (9, 117634, 82452, 1, 0),
-  (10, 200086, 82453, 0, 660),
-  (50, 17054606, 1138453, 102750, 261),
-  (300, 4850991231, 43138453, 311063, 1016)) d(from_level, base_xp, first_xp, rise, bend)
+  (4, 1112, 1269, 5000, 0),
+  (5, 2381, 6269, 6601, 0),
+  (6, 8650, 12870, 13385, 0),
+  (7, 21520, 26255, 40860, 0),
+  (8, 47775, 67115, 16362, 0),
+  (9, 114890, 83477, 1, 0),
+  (10, 198367, 83478, 0, 657),
+  (50, 17032267, 1134678, 78689, 162),
+  (300, 3588591142, 30931928, 203586, 598)) d(from_level, base_xp, first_xp, rise, bend)
                  where not exists (select 1 from public.hr_level_curve k where k.from_level = d.from_level and k.base_xp = d.base_xp
                                      and k.first_xp = d.first_xp and k.rise = d.rise and k.bend = d.bend)) then
     raise exception 'level-curve: hr_level_curve is not the generated 12-row set'; end if;
   select string_agg(p.l || ': ' || public.hr_char_xp_for_level(p.l) || ' <> ' || p.x, ', ') into v_bad
-    from (values (1, 0), (2, 159), (3, 477), (4, 1112), (5, 2381), (6, 8700), (7, 21877), (8, 49454), (9, 117634), (10, 200086), (11, 282539), (25, 2106781), (49, 15968293), (50, 17054606), (51, 18193059), (100, 210396931), (200, 1626749081), (299, 4808085767), (300, 4850991231), (301, 4894129684), (500, 22357882731), (750, 86446640856), (1000, 227063336481), (5000, 38792729966481)) p(l, x)
+    from (values (1, 0), (2, 159), (3, 477), (4, 1112), (5, 2381), (6, 8650), (7, 21520), (8, 47775), (9, 114890), (10, 198367), (11, 281845), (25, 2117392), (49, 15949492), (50, 17032267), (51, 18166945), (100, 176709042), (200, 1247015092), (299, 3557818741), (300, 3588591142), (301, 3619523070), (500, 15409064742), (750, 56178981742), (1000, 143273148742), (5000, 23085877820742)) p(l, x)
    where public.hr_char_xp_for_level(p.l) <> p.x;
   if v_bad is not null then raise exception 'level-curve: hr_char_xp_for_level disagrees with src/core/xp.js at %', v_bad; end if;
   select string_agg(p.l::text, ', ') into v_bad
-    from (values (1, 0), (2, 159), (3, 477), (4, 1112), (5, 2381), (6, 8700), (7, 21877), (8, 49454), (9, 117634), (10, 200086), (11, 282539), (25, 2106781), (49, 15968293), (50, 17054606), (51, 18193059), (100, 210396931), (200, 1626749081), (299, 4808085767), (300, 4850991231), (301, 4894129684), (500, 22357882731), (750, 86446640856), (1000, 227063336481), (5000, 38792729966481)) p(l, x)
+    from (values (1, 0), (2, 159), (3, 477), (4, 1112), (5, 2381), (6, 8650), (7, 21520), (8, 47775), (9, 114890), (10, 198367), (11, 281845), (25, 2117392), (49, 15949492), (50, 17032267), (51, 18166945), (100, 176709042), (200, 1247015092), (299, 3557818741), (300, 3588591142), (301, 3619523070), (500, 15409064742), (750, 56178981742), (1000, 143273148742), (5000, 23085877820742)) p(l, x)
    where public.hr_char_level(p.x) <> p.l
       or (p.l > 1 and public.hr_char_level(p.x - 1) <> p.l - 1)
       or public.hr_char_level(public.hr_char_xp_for_level(p.l + 1) - 1) <> p.l;

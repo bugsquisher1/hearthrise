@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: c0d874f52b5b29b5b8eaf5b372fa743840481f2136b6dd88be04c872b664ab6f
+--   digest: 3e8c4d121c278087c72252868b41431b240c2b2c7de934858e6dfddae65fd172
 --   82 supplies, 130 hunts (named + training), 46 limits, 16 end reasons,
 --   559 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 17 abilities, 10 action-set options, 8 hunt grounds
@@ -599,7 +599,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('cave_wyrm', 102, 515, '{"dragon_scale":1,"iron_ore":1,"mithril_ore":1,"coal":1,"snakeskin_gloves":1}'::jsonb),
   ('centipede', 40, 188, '{"void_chitin":1,"venom_sac":1,"iron_ore":1,"coal":1}'::jsonb),
   ('chained_demon', 254, 962, '{"demon_shard":1,"hell_ember":1,"death_steel":1,"iron_fitting":1,"yew_staff":1}'::jsonb),
-  ('chief_coppercap', 366, 10332, '{"big_bones":1,"gold_ore":1,"goblin_totem":1,"coppercaps_tallow":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"war_crown":1,"willow_wand":1,"willow_spellbook":1,"willow_staff":1,"verdigris_cake":1,"coppercaps_cauldron":1}'::jsonb),
+  ('chief_coppercap', 366, 8247, '{"big_bones":1,"gold_ore":1,"goblin_totem":1,"coppercaps_tallow":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"war_crown":1,"willow_wand":1,"willow_spellbook":1,"willow_staff":1,"verdigris_cake":1,"coppercaps_cauldron":1}'::jsonb),
   ('chief_coppercap_called', 0, 0, '{}'::jsonb),
   ('cistern_spider', 53, 509, '{"silk_thread":1,"dry_husk":1,"cistern_venom_gland":1,"longbow":1,"oak_crossbow":1}'::jsonb),
   ('clay_golem', 40, 217, '{"iron_ore":1,"iron_fitting":1,"coal":1,"steel_boots":1}'::jsonb),
@@ -637,10 +637,10 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('gnoll_packlord', 40, 185, '{"bones":1,"goblin_ear":1,"wolf_pelt":1,"iron_ore":1,"packlord_band":1}'::jsonb),
   ('goblin', 8, 36, '{"goblin_ear":1,"bones":1,"bronze_sword":1,"goblin_totem":1}'::jsonb),
   ('goblin_brute', 42, 207, '{"goblin_ear":1,"brute_plate":1,"steel_sword":1,"goblin_totem":1}'::jsonb),
-  ('goblin_digger', 69, 1657, '{"copper_ore":1,"coal":1,"bones":1,"goblin_ear":1,"dented_copper_pot":1,"steel_helm":1,"boarhide_helmet":1,"scholar_helmet":1,"steel_warhammer":1,"steel_belt":1,"boarhide_belt":1,"scholar_belt":1}'::jsonb),
+  ('goblin_digger', 69, 1333, '{"copper_ore":1,"coal":1,"bones":1,"goblin_ear":1,"dented_copper_pot":1,"steel_helm":1,"boarhide_helmet":1,"scholar_helmet":1,"steel_warhammer":1,"steel_belt":1,"boarhide_belt":1,"scholar_belt":1}'::jsonb),
   ('goblin_digger_called', 0, 0, '{}'::jsonb),
-  ('goblin_scavenger', 49, 1040, '{"goblin_ear":1,"copper_ore":1,"bones":1,"glowing_copper_fleck":1,"steel_boots":1,"boarhide_boots":1,"scholar_boots":1,"steel_platelegs":1,"boarhide_pants":1,"scholar_pants":1,"steel_sword":1}'::jsonb),
-  ('goblin_skulker', 40, 1036, '{"goblin_ear":1,"bones":1,"iron_ore":1,"skulkers_shiv":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"willow_longbow":1,"willow_crossbow":1,"steel_gauntlets":1,"boarhide_gloves":1,"scholar_gloves":1}'::jsonb),
+  ('goblin_scavenger', 49, 844, '{"goblin_ear":1,"copper_ore":1,"bones":1,"glowing_copper_fleck":1,"steel_boots":1,"boarhide_boots":1,"scholar_boots":1,"steel_platelegs":1,"boarhide_pants":1,"scholar_pants":1,"steel_sword":1}'::jsonb),
+  ('goblin_skulker', 40, 831, '{"goblin_ear":1,"bones":1,"iron_ore":1,"skulkers_shiv":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"willow_longbow":1,"willow_crossbow":1,"steel_gauntlets":1,"boarhide_gloves":1,"scholar_gloves":1}'::jsonb),
   ('goblin_sluicer', 46, 485, '{"copper_ore":1,"bones":1,"sluice_crust":1,"iron_platebody":1,"studded_body":1,"adept_body":1}'::jsonb),
   ('goblin_warlord', 100, 438, '{"brute_plate":1,"warlord_badge":1,"steel_helm":1,"warlords_torc":1}'::jsonb),
   ('granary_rat', 6, 68, '{"rat_tail":1,"bones":1,"granary_whisker":1,"bronze_boots":1,"leather_boots":1,"apprentice_boots":1}'::jsonb),
@@ -650,9 +650,9 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('grayjaw', 11, 169, '{"wolf_pelt":1,"bones":1,"grayjaw_whisker":1,"alpha_fang":1,"iron_helm":1,"studded_helmet":1,"adept_helmet":1,"grayjaws_ruff":1}'::jsonb),
   ('grim_reaper', 668, 1797, '{"lich_soul":1,"death_steel":1,"hollow_sigil":1,"big_bones":1,"vamp_dust":1}'::jsonb),
   ('hellhound', 130, 513, '{"demon_shard":1,"hell_ember":1,"big_bones":1,"coal":1}'::jsonb),
-  ('hive_wasp', 1, 36, '{"venom_sac":1,"silk_thread":1,"hive_wasp_stinger":1,"bronze_helm":1,"leather_helmet":1,"apprentice_helmet":1,"queens_comb":1}'::jsonb),
+  ('hive_wasp', 1, 37, '{"venom_sac":1,"silk_thread":1,"hive_wasp_stinger":1,"bronze_helm":1,"leather_helmet":1,"apprentice_helmet":1,"queens_comb":1}'::jsonb),
   ('hobgoblin', 22, 89, '{"goblin_ear":1,"iron_ore":1,"iron_sword":1,"goblin_totem":1,"rat_stick":1}'::jsonb),
-  ('hobgoblin_foreman', 104, 2725, '{"big_bones":1,"iron_ore":1,"coal":1,"foremans_lash":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"steel_hatchets":1}'::jsonb),
+  ('hobgoblin_foreman', 104, 2183, '{"big_bones":1,"iron_ore":1,"coal":1,"foremans_lash":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"steel_hatchets":1}'::jsonb),
   ('ice_elemental', 100, 462, '{"frostfin":1,"magic_essence":1,"mithril_ore":1}'::jsonb),
   ('imp', 6, 25, '{"demon_shard":1,"coal":1,"rune_frag":1,"apprentice_boots":1}'::jsonb),
   ('iron_colossus', 544, 1852, '{"rune_bar":1,"mithril_bar":1,"keystone":1,"iron_fitting":1,"death_steel":1}'::jsonb),
@@ -688,7 +688,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('shadow_creeper', 190, 760, '{"shadow_thread":1,"silk_thread":1,"void_chitin":1,"shadowsilk_cape":1}'::jsonb),
   ('shrieker', 15, 77, '{"oak_log":1,"moonbloom":1,"goldenroot":1,"studded_helmet":1}'::jsonb),
   ('skeleton', 20, 98, '{"bones":1,"bone_chips":1,"iron_ore":1,"ancient_fragment":1,"iron_belt":1}'::jsonb),
-  ('slime', 1, 34, '{"slime_gel":1,"lamp_jelly":1,"sticky_core":1}'::jsonb),
+  ('slime', 1, 35, '{"slime_gel":1,"lamp_jelly":1,"sticky_core":1}'::jsonb),
   ('small_wolf', 9, 38, '{"wolf_pelt":1,"small_fang":1,"bones":1,"raw_wolf_meat":1,"wolfbone_torc":1}'::jsonb),
   ('stag', 14, 71, '{"wolf_pelt":1,"bones":1,"raw_wolf_meat":1,"studded_boots":1}'::jsonb),
   ('starhusk', 272, 940, '{"void_chitin":1,"shadow_thread":1,"ancient_rune":1,"grave_dust":1,"sorcerer_belt":1}'::jsonb),

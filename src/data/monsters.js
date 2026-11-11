@@ -95,7 +95,7 @@ export const MONSTERS = {
        weapon triangle is the better answer. Fire still burns it (Tyler 2026-11-06). */
     elements: { ember: 50, frost: 50, poison: 50 },
     dropBonus: 1.15,
-    hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 22, gp: [1, 1], formula: true, speed: 2400,
+    hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 23, gp: [1, 1], formula: true, speed: 2400,
     /* no skeleton, so no bones: its family's Hearth fuel (Tyler 2026-10-25, src/data/hearth.js) */
     drops: [{ id: 'slime_gel', ch: .48, band: 'common' }, { id: 'lamp_jelly', ch: .25, band: 'common' }, { id: 'sticky_core', ch: .08, band: 'uncommon' }] },
   /* FOLD-02 / FOLD-31 (combat-screen-rework.md §7): `barn_rat` merged INTO this
@@ -112,7 +112,7 @@ export const MONSTERS = {
   hive_wasp: { name: 'Hive Wasp', icon: '🐝', tier: 1, level: 4, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): it flies, so the T1 bow finally has a target. */
     weaponWeak: 'ranged', weaponResist: [],
-    hp: 8, atk: 3, baseAcc: 0.47, def: 0, xp: 24, gp: [1, 1], formula: true,
+    hp: 8, atk: 3, baseAcc: 0.47, def: 0, xp: 25, gp: [1, 1], formula: true,
     /* the loot bands (batch 1): the tutorial's first helmet in all three weights, each about hourly at the floor */
     /* the Hearth (Tyler 2026-10-25): the hive's heart holds the Queen's Comb, a named fuel (src/data/hearth.js). Its Dry
        Husk waits: its two Commons are full (the loot bands' 1-2), and its Silk Thread is Crafting 1-9's only early source */
@@ -749,12 +749,12 @@ export const MONSTERS = {
      and the Steel Warhammer; the few skulkers, foremen and the Chief share the bodies. Rares, ~13-15 h: the skulkers'
      willow bows, the foreman's steel hatchets, the willow caster pieces in the Chief's hoard beside his War Crown. ══ */
   goblin_scavenger: { name: 'Goblin Scavenger', icon: '👺', tier: 3, level: 34, cls: 'humanoid', family: 'Humanoid', formation: true,
-    hp: 147, atk: 18, baseAcc: 0.72, def: 10, xp: 819, gp: [16, 49], formula: true, speed: 3200,
+    hp: 147, atk: 18, baseAcc: 0.72, def: 10, xp: 623, gp: [16, 49], formula: true, speed: 3200,
     drops: [{ id: 'goblin_ear', ch: .6, band: 'common' }, { id: 'copper_ore', ch: .5, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'glowing_copper_fleck', ch: .08, band: 'uncommon' },
       { id: 'steel_boots', ch: .0176, band: 'scarce' }, { id: 'boarhide_boots', ch: .0176, band: 'scarce' }, { id: 'scholar_boots', ch: .0176, band: 'scarce' },
       { id: 'steel_platelegs', ch: .0176, band: 'scarce' }, { id: 'boarhide_pants', ch: .0176, band: 'scarce' }, { id: 'scholar_pants', ch: .0176, band: 'scarce' }, { id: 'steel_sword', ch: .0176, band: 'scarce' }] },
   goblin_skulker: { name: 'Goblin Skulker', icon: '👺', tier: 3, level: 38, cls: 'humanoid', family: 'Humanoid', formation: true,
-    hp: 122, atk: 22, baseAcc: 0.77, def: 11, xp: 853, gp: [14, 40], formula: true, speed: 4400,
+    hp: 122, atk: 22, baseAcc: 0.77, def: 11, xp: 648, gp: [14, 40], formula: true, speed: 4400,
     drops: [{ id: 'goblin_ear', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'iron_ore', ch: .2, band: 'common' }, { id: 'skulkers_shiv', ch: .08, band: 'uncommon' },
       { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' },
       { id: 'willow_longbow', ch: .00546, band: 'rare' }, { id: 'willow_crossbow', ch: .00546, band: 'rare' },
@@ -763,20 +763,20 @@ export const MONSTERS = {
   goblin_digger: { name: 'Goblin Digger', icon: '👺', tier: 3, level: 40, cls: 'humanoid', family: 'Humanoid', formation: true,
     /* one override (weapon): the copper pot over its eyes turns a blade; a hammer rings it. */
     weaponWeak: 'hammer', weaponResist: ['sword'],
-    hp: 206, atk: 17, baseAcc: 0.76, def: 20, xp: 1348, gp: [23, 69], formula: true, speed: 2600,
+    hp: 206, atk: 17, baseAcc: 0.76, def: 20, xp: 1024, gp: [23, 69], formula: true, speed: 2600,
     drops: [{ id: 'copper_ore', ch: .8, band: 'common' }, { id: 'coal', ch: .4, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'goblin_ear', ch: .4, band: 'common' }, { id: 'dented_copper_pot', ch: .08, band: 'uncommon' },
       { id: 'steel_helm', ch: .0308, band: 'scarce' }, { id: 'boarhide_helmet', ch: .0308, band: 'scarce' }, { id: 'scholar_helmet', ch: .0308, band: 'scarce' }, { id: 'steel_warhammer', ch: .0308, band: 'scarce' },
       /* the first tier-3 belts (lane b-unsourced-items), Rares above the Shop's basic belt */
       { id: 'steel_belt', ch: .00238, band: 'rare' }, { id: 'boarhide_belt', ch: .00238, band: 'rare' }, { id: 'scholar_belt', ch: .00238, band: 'rare' }] },
   hobgoblin_foreman: { name: 'Hobgoblin Foreman', icon: '👹', tier: 3, level: 46, cls: 'humanoid', family: 'Humanoid', formation: true,
-    hp: 312, atk: 23, baseAcc: 0.86, def: 28, xp: 2257, gp: [35, 104], formula: true, speed: 3000,
+    hp: 312, atk: 23, baseAcc: 0.86, def: 28, xp: 1715, gp: [35, 104], formula: true, speed: 3000,
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'iron_ore', ch: .6, band: 'common' }, { id: 'coal', ch: .6, band: 'common' }, { id: 'foremans_lash', ch: .08, band: 'uncommon' },
       { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' },
       { id: 'steel_hatchets', ch: .0109, band: 'rare' }] },
   chief_coppercap: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, boss: true,
     /* one override (element): the polished cauldron he wears for a crown sheds frost. */
     elements: { frost: 25, poison: -15 },
-    hp: 1096, atk: 28, baseAcc: 0.88, def: 33, xp: 8688, gp: [122, 366], formula: true, speed: 2800,
+    hp: 1096, atk: 28, baseAcc: 0.88, def: 33, xp: 6603, gp: [122, 366], formula: true, speed: 2800,
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' }, { id: 'coppercaps_tallow', ch: .15, band: 'uncommon' },
       { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' }, { id: 'war_crown', ch: .0141, band: 'rare' },
       { id: 'willow_wand', ch: .011, band: 'rare' }, { id: 'willow_spellbook', ch: .011, band: 'rare' }, { id: 'willow_staff', ch: .011, band: 'rare' },

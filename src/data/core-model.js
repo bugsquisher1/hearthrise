@@ -66,15 +66,15 @@ export const LEVEL_CURVE = Object.freeze({
     Object.freeze({ from: 1, rise: 159, bend: 0 }),
     Object.freeze({ from: 2, rise: 317, bend: 0 }),
     Object.freeze({ from: 3, rise: 634, bend: 0 }),
-    Object.freeze({ from: 4, rise: 5050, bend: 0 }),
-    Object.freeze({ from: 5, rise: 6858, bend: 0 }),
-    Object.freeze({ from: 6, rise: 14400, bend: 0 }), /* the fit said 14642; eased so Level 7 -> 8 stays under 2x Level 6 -> 7 (level-curve C6 read 2.00x) */
-    Object.freeze({ from: 7, rise: 40603, bend: 0 }),
-    Object.freeze({ from: 8, rise: 14272, bend: 0 }),
+    Object.freeze({ from: 4, rise: 5000, bend: 0 }), /* the fit said 5164; eased so Level 5 -> 6 stays under 2x Level 4 -> 5 (level-curve C6 read 2.04x) */
+    Object.freeze({ from: 5, rise: 6601, bend: 0 }), /* the fit said 6998; Levels 5-7 eased by hand so each step stays under 2x the one before (C6; the fit sat at 2.00) */
+    Object.freeze({ from: 6, rise: 13385, bend: 0 }),
+    Object.freeze({ from: 7, rise: 40860, bend: 0 }),
+    Object.freeze({ from: 8, rise: 16362, bend: 0 }),
     Object.freeze({ from: 9, rise: 1, bend: 0 }),
-    Object.freeze({ from: 10, rise: 0, bend: 660 }),
-    Object.freeze({ from: 50, rise: 102750, bend: 261 }),
-    Object.freeze({ from: 300, rise: 311063, bend: 1016 }),
+    Object.freeze({ from: 10, rise: 0, bend: 657 }),
+    Object.freeze({ from: 50, rise: 78689, bend: 162 }),
+    Object.freeze({ from: 300, rise: 203586, bend: 598 }),
   ]),
 });
 
@@ -105,7 +105,7 @@ export const LEVEL_PACE = Object.freeze({
      Warrens' band middles 1.12x and the Cellar's 1.10x (C5: -10.6% against the ladder at Level 100). Each now reads 0.93-1.05x.
      RE-PINNED 2026-11-10 (lane/c-brook-bear) to the re-measured ladder (the Cellar at 4.5 8,774, the Thicket at 10 25,001, Wickstead at 13 33,907,
      the Glade at 23.5 89,098, the Warrens at 47.5 242,111): 1049 x L^1.383 read -13.4% against it at Level 300 (C5). */
-  contract: Object.freeze({ a: 975, b: 1.421 }),
+  contract: Object.freeze({ a: 1378, b: 1.298 }), /* re-pinned to the measured ladder 2026-11-11 (lane/d-solo-fifteen: the Warrens x0.76 flattened the top rung; level-curve C5), was 975 x L^1.421 */
   smooth: Object.freeze({ from: 1, ratio: 2 }),
 });
 

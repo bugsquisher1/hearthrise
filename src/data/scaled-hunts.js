@@ -26,7 +26,7 @@
 // Level are READ from the ground data (hunt-grounds.js OPEN_GROUNDS, hunts.js bands; every ground pack folds into them), never typed
 // here, so opening a ground needs no row in this file (the ground-pack lane, CONFLICTS.md 2026-11-07).
 // ════════════════════════════════════════════════════════════════════════
-import { formulaStats, tierRowFor, GROUND_ROSTER, STAT_FORMULA, TIER_PULL_OVERRIDES } from './balance-sheet.js?v=0.2.118';
+import { formulaStats, tierRowFor, GROUND_ROSTER, STAT_FORMULA, TIER_PULL_OVERRIDES, GROUND_XP_FIT } from './balance-sheet.js?v=0.2.118';
 import { OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.118';
 import { HUNT_INDEX } from './hunts.js?v=0.2.118';
 
@@ -58,6 +58,25 @@ export function scaleLadderOf(open, huntIndex, roster = GROUND_ROSTER, exception
 }
 const LADDER = scaleLadderOf(OPEN_GROUNDS, HUNT_INDEX);
 
+/** THE TOP GROUND: the open ground whose band ends at the top Level (the highest floor if two do); the ladder every scaled hunt climbs toward. */
+export function topGroundOf(open = OPEN_GROUNDS, huntIndex = HUNT_INDEX) {
+  let best = null, floor = -1, top = -1;
+  for (const [id, g] of Object.entries(open)) {
+    const band = g && huntIndex[g.hunt] && huntIndex[g.hunt].band;
+    if (!Array.isArray(band)) continue;
+    if (band[1] > top || (band[1] === top && band[0] > floor)) { best = id; top = band[1]; floor = band[0]; }
+  }
+  return best;
+}
+
+/* A SCALED HUNT PAYS XP ON THE TOP GROUND'S FIT (designer 2026-11-11, lane/d-solo-fifteen). A ground's XP fit (balance-sheet.js GROUND_XP_FIT)
+   corrects its own layout at its own Levels (the Cellar's 1.28 is the tutorial's slow room at Levels 1-8); carried to Level 50 it paid a scaled
+   Cellar hero alone 241k an hour against the Warrens' own 226k, and no one xpPm held that under while the Glade scaled one Level past its band
+   stayed worth buying. So every scaled kill reads the fit of the top ground (topGroundOf: today the Warrens' 0.76), its own layout aside: one
+   number for every scaled Level, so the server's kill bound never falls from one Level to the next (2027-03-21-scaled-hunts.sql's self-check;
+   the fit of the ground that owns each Level fell 0.90 -> 0.76 at 32 and broke it). A new top ground moves it for every scaled hunt, from the data. */
+const xpFitAt = (groundId) => ({ [groundId]: GROUND_XP_FIT[topGroundOf()] || 1 });
+
 export const SCALED_HUNTS = Object.freeze({
   /* the slider: whole hours, 1 to 24 a purchase (Tyler 11-07 "up to 24 hours") */
   minHours: 1,
@@ -73,7 +92,18 @@ export const SCALED_HUNTS = Object.freeze({
      the formula's own (its layout kills fast); at 800 every tested gap reads 0.5-0.9x the right-Level ground. 700 since the re-tune
      (lane/b-one-difficulty, 2026-11-08): the mixed party cells rose, and a scaled four reads its ground's cell (the Thicket's 1860, the
      Glade's 1730, against the Warrens' 1475), so at 800 the Thicket's and the Glade's fours at 50 read 1.01x and 1.08x the Warrens */
-  xpPm: 700,
+  xpPm: 820,
+  /* 820 since a scaled kill reads the top ground's XP fit (below; 2026-11-11): at 700 the Glade scaled one Level past its band paid 1.10x itself, under the 1.25x
+     that makes a bought hour worth it (fee-guard), while a scaled Cellar hero alone at 50 read 0.65x the Warrens' own; 820 lands the Glade at about 1.29x itself and the
+     scaled fours at 0.86-0.90x the Warrens' four, under it as ruled. */
+  /* A PARTY'S SHARE ON A SCALED HUNT (designer 2026-11-11, lane/d-solo-fifteen): a party keeps this much of its ground's party cell (party-class-xp.js
+     PARTY_CLASS_XP), a hero alone keeps the whole solo boost. The cells are fitted at the ground's floor so a mixed four earns 15-25% more a head
+     than a hero alone there; on the same ground scaled to 41-50 a four kills far faster for its share, and since the 11-11 cells (a four's cell
+     about doubled when every group met one pack) a scaled Thicket or Glade four read 0.96-0.99x the Warrens' four, the right-Level ground (tests/
+     scaled-hunts fee-guard), so a bought hour was the best party grind and the Warrens' own XP could not be re-dialed. Rides the scaled row
+     (scaledStats `partyPm`) through the engine's one door (damage.js rowOf -> xp-share.js), so the sim's what-if and the settle read the same.
+     The number is measured below (fee-guard: a scaled four under the right-Level ground's four) and never falls under a hero alone. */
+  partyPm: 700,
   /* coin a kill, permille of the formula's at the scaled Level, by the ground's fit. A party ground already pays the party line
      (x0.53 at full danger, balance-sheet STAT_FORMULA.fit.party); a solo ground's monsters have a solo HP, so at the formula's own
      coin a scaled Glade's four netted 2,100-2,400 a head over the Warrens. 600 leaves about 1,000 or more a head under the best free gold before the fee */
@@ -111,11 +141,11 @@ function formulaOf(g, floor) {
    floor, Level XP x xpPm, coin x coinPm (the roll kept on the formula's mean, STAT_FORMULA.gp.keepMean). */
 function scaledStats(level, role, tier, g, groundId, to) {
   const gap = to - g.floor;
-  const f = formulaStats({ level: level + gap, role, tier, floor: to, fit: g.fit, ground: groundId }, { formula: formulaOf(g, to) });
+  const f = formulaStats({ level: level + gap, role, tier, floor: to, fit: g.fit, ground: groundId }, { formula: formulaOf(g, to), groundXp: xpFitAt(groundId) });
   const mean = ((f.gp[0] + f.gp[1]) / 2) * (SCALED_HUNTS.coinPm[g.fit] / 1000);
   const lo = Math.max(1, Math.round(mean * STAT_FORMULA.gp.lo));
   return { level: level + gap, hp: f.hp, atk: f.atk, baseAcc: f.baseAcc, def: f.def,
-    xp: Math.max(1, Math.round((f.xp * SCALED_HUNTS.xpPm) / 1000)), gp: [lo, Math.max(lo, Math.round(2 * mean - lo))] };
+    xp: Math.max(1, Math.round((f.xp * SCALED_HUNTS.xpPm) / 1000)), gp: [lo, Math.max(lo, Math.round(2 * mean - lo))], partyPm: SCALED_HUNTS.partyPm };
 }
 
 /**

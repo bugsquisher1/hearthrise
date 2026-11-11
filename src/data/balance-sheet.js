@@ -253,6 +253,8 @@ export const GROUND_ROSTER = Object.freeze(foldRows('roster', BASE_ROSTER, GROUN
 /* The Sewer x0.9 (lane/b-one-difficulty, 2026-11-08): its party-built monsters die to area blows in packs, so with one pack for every
    group a lone hammer at the Glade's floor earned 131k on its Deadly against the Glade's Normal 108k (the ladder rule); the floor fit alone
    leaves it about 4% over. */
+/* THE CELLAR x1.28 (was 1.25; lane/d-solo-fifteen, 2026-11-11): the contract re-pinned to the flatter measured ladder (core-model.js LEVEL_PACE.contract 1378 x L^1.298)
+   reads the Cellar's lone median 0.895x at its middle (5), half a point under the band; x1.28 lands it about 0.92x. Level 5 still inside LEVEL_PACE.early. */
 /* THE GLADE x0.90 UNDER SOLO +15% (lane/d-solo-fifteen, 2026-11-11). The +15% put the Glade's lone median at 1.12x the pace contract at its middle (24),
    1.07x at +5% (grade quick, Normal; the band is 0.90-1.10), and the Glade is a solo ground, so its lone median is the way the contract reads: x0.90
    lands it at 1.01x. Ratios between heroes on one ground never move (a fit scales alone and party alike).
@@ -265,8 +267,10 @@ export const GROUND_ROSTER = Object.freeze(foldRows('roster', BASE_ROSTER, GROUN
    41-50 out-earned the Warrens' four 1.19-1.41x). RULED (Coordinator 2026-11-11): the pace is the LONE hero's on every ground; the grader now reads the lone
    median there (the Sewer 1.04x, in band). THE WARRENS' LONE 1.27x STAYS, a bind: a scaled Thicket four at Level 50 already reads 0.99x the Warrens' four
    (tests/scaled-hunts fee-guard, the best grind must stay the real ground), so the Warrens' XP can come down about 1% at most; a cut that lands its lone hero in
-   band (x0.87 or less) breaks that guard. The lever that frees it is the scaled fours (a scaled solo ground carries its own party cells), not this dial. */
-export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.25, meadowbrook_thicket: 0.9, wickstead: 1.1, mosslight_glade: 0.90, millrace_sewer: 0.9 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));
+   band (x0.87 or less) broke that guard. THE LEVER, built (scaled-hunts.js partyPm 720: a party on a scaled hunt keeps 72% of its ground's party cell), put a
+   scaled four at 0.54-0.71x the Warrens' four, so THE WARRENS x0.76: the Warrens is the ladder's last rung, so a cut there flattens the measured ladder and the contract follows it (level-curve C5):
+   x0.84 left its lone median 1.12x the re-measured contract, x0.76 lands it in band. Measured below (the grade) and in level-curve (C5). */
+export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.28, meadowbrook_thicket: 0.9, wickstead: 1.1, mosslight_glade: 0.90, millrace_sewer: 0.9, coppercap_warrens: 0.76 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));
 
 /* NAMED EXCEPTIONS: { monster: { field: 'the reason' } }, a field a row keeps by hand. Empty: none has earned one. */
 export const FORMULA_EXCEPTIONS = Object.freeze({});

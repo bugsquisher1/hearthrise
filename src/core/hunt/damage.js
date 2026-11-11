@@ -139,7 +139,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   if (r.killed) {
     sc.emit(makeEvent('kill', sc.atMs, { u, t: target.id }));
     fallen(inst, target, sc);
-    if (target.side === 'mon') shareKillXp(inst, { t: target.id, u, xp: Math.round(atTier(rowOf(inst, target.kind), inst.tier).xp) }, sc);
+    if (target.side === 'mon') { const row = rowOf(inst, target.kind); shareKillXp(inst, { t: target.id, u, xp: Math.round(atTier(row, inst.tier).xp), ...(Number.isInteger(row.partyPm) ? { partyPm: row.partyPm } : {}) }, sc); }
   }
   return r;
 }

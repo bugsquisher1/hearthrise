@@ -4,6 +4,8 @@
 // THE RULE (one place; a solo hunt is a party of one):
 //   base share = monster XP / heroes alive at the kill        (XP-01)
 //   hero XP    = floor(base share x party factor x that hero's multiplier)   (XP-02)
+//   on a SCALED hunt a party's factor is thinned by the row's partyPm (src/data/scaled-hunts.js, on every scaled row: the kill
+//   carries it from damage.js); a hero alone is never thinned
 // THE PARTY FACTOR (Tyler 2026-10-31: better only with different classes) is
 // src/data/party-class-xp.js, read from the living heroes at each kill, on the
 // ground in `inst`, never latched: a death or a leave changes the next kill.
@@ -57,12 +59,13 @@ const xpOf = (kill) => {
  * Answers { [id]: { xp, raw, ev } }; nobody alive is nobody paid. `ev`: the part of `xp` the hero's multiplier added (a live event's, its
  * only user), so a personal best can leave it out (hunt_session_tally.xp_event); 0 when the multiplier is 1.
  */
-function splitKillXp(xp, heroes, sc, ground) {
+function splitKillXp(xp, heroes, sc, ground, partyPm = 1000) {
   const out = {};
   if (!heroes.length || xp <= 0) return out;
   const raw = xp / heroes.length;
   const groundId = ground ? ground.id : null;
-  const party = partyClassXp(groundId, heroes.map((h) => h.role)).permille;
+  const cell = partyClassXp(groundId, heroes.map((h) => h.role)).permille;
+  const party = heroes.length > 1 && Number.isInteger(partyPm) && partyPm > 0 && partyPm !== 1000 ? (cell * partyPm) / 1000 : cell;
   const top = heroes.reduce((m, h) => (Number.isInteger(h.heroLv) && h.heroLv > m ? h.heroLv : m), 0);
   for (const h of heroes) {
     const paid = (raw * party * multOf(sc, h)) / 1000;
@@ -84,7 +87,7 @@ export function shareKillXp(inst, kill, sc) {
   const xp = xpOf(kill);
   const units = (inst && inst.world && inst.world.units) || [];
   const living = units.filter((u) => u.side === 'hero' && u.alive === true);
-  const paid = splitKillXp(xp, living, sc, inst && inst.ground ? inst.ground : null);
+  const paid = splitKillXp(xp, living, sc, inst && inst.ground ? inst.ground : null, kill && Number.isInteger(kill.partyPm) ? kill.partyPm : 1000);
   const ids = Object.keys(paid);
   const answer = {};
   if (!ids.length) return answer;

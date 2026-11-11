@@ -11,7 +11,7 @@
 // no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.115';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.121';
 
 /* The 8 neighbours, in the one order every search uses. */
 const NEIGHBOURS = Object.freeze([[0, -1], [1, 0], [0, 1], [-1, 0], [1, -1], [1, 1], [-1, 1], [-1, -1]]);
@@ -47,6 +47,68 @@ export const dist2 = (a, b) => (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - 
 /** The cost of one step from a to an adjacent b, in millitiles. */
 export const stepCost = (ax, ay, bx, by) => (ax !== bx && ay !== by ? HUNT_TUNING.stepCost.diagonal : HUNT_TUNING.stepCost.straight);
 
+/* A*'S OPEN LIST, A BINARY MIN-HEAP on the entry key (f, h, seq). It was a list scanned whole for its minimum at every
+   expansion: a search that finds no way (up to pathNodeCap expansions, the pull's "walled" test) cost the cap times the
+   list (lane/r-engine-profile). The key is total and never shared, so pops come out in the scan's order exactly. */
+const before = (a, b) => a[0] < b[0] || (a[0] === b[0] && (a[1] < b[1] || (a[1] === b[1] && a[2] < b[2])));
+function heapPush(hp, e) {
+  let i = hp.push(e) - 1;
+  while (i > 0) {
+    const p = (i - 1) >> 1;
+    if (!before(hp[i], hp[p])) break;
+    const t = hp[i]; hp[i] = hp[p]; hp[p] = t; i = p;
+  }
+}
+function heapPop(hp) {
+  const top = hp[0];
+  const last = hp.pop();
+  if (hp.length) {
+    hp[0] = last;
+    for (let i = 0; ;) {
+      const l = 2 * i + 1; const r = l + 1;
+      let m = i;
+      if (l < hp.length && before(hp[l], hp[m])) m = l;
+      if (r < hp.length && before(hp[r], hp[m])) m = r;
+      if (m === i) break;
+      const t = hp[i]; hp[i] = hp[m]; hp[m] = t; i = m;
+    }
+  }
+  return top;
+}
+
+/*
+ * THE GOAL SEALED OFF. A search with no way to its goal expands every tile it can reach before it answers null: the
+ * pull's "walled" test (pull-cycle.js travel, movement.js reachable) asks for the free centre of a full ring (density 8),
+ * and on the 2026-11-11 profile those floods were four in five of every node A* expanded at the Glade (about 1,100 nodes
+ * each, against about 3 for a search that finds its way). This floods from the GOAL instead, over the same moves (8
+ * directions, no corner cutting, `blocked` vetoing every tile but the start); a move's corner rule reads the same two
+ * tiles either way, so the start is on the goal's side of the ground exactly when the goal is on the start's, and a goal
+ * in a small pocket is proven out of reach in a few tiles. Answers true ONLY on that proof (the goal's whole side, at
+ * most `budget` tiles, and no start in it), where A* would answer null however long it searched; false is "not proven"
+ * and the search goes on as before. Asked once a search, after SEAL_AFTER expansions, so a search that finds its way
+ * in a few steps (nearly all of them) never pays for it. Neither number moves an outcome, only how soon a null comes.
+ */
+const SEAL_AFTER = 64;
+const SEAL_TILES = 64;
+function sealedOff(g, sx, sy, tx, ty, blocked, budget) {
+  const seen = new Set([tileKey(g, tx, ty)]);
+  const queue = [tx, ty];
+  for (let i = 0; i < queue.length; i += 2) {
+    const x = queue[i]; const y = queue[i + 1];
+    for (const [dx, dy] of NEIGHBOURS) {
+      const nx = x + dx; const ny = y + dy;
+      if (dx && dy && (!walkable(g, x + dx, y) || !walkable(g, x, y + dy))) continue;
+      if (nx === sx && ny === sy) return false;
+      if (!walkable(g, nx, ny) || (blocked && blocked(nx, ny))) continue;
+      const nk = tileKey(g, nx, ny);
+      if (seen.has(nk)) continue;
+      if (seen.size >= budget) return false;
+      seen.add(nk); queue.push(nx, ny);
+    }
+  }
+  return true;
+}
+
 /**
  * A* over 8 directions with no corner cutting (a diagonal needs both of its
  * orthogonal tiles walkable). `blocked(x, y)` vetoes any tile but the start —
@@ -63,17 +125,12 @@ export function astar(g, sx, sy, tx, ty, blocked, cap) {
   const gCost = new Map(); const from = new Map(); const closed = new Set();
   const start = tileKey(g, sx, sy);
   gCost.set(start, 0);
-  /* open entries: [f, h, seq, x, y]; the minimum is chosen by (f, h, seq). */
+  /* open entries: [f, h, seq, x, y]; the minimum is chosen by (f, h, seq), a key no two entries share (seq), so the
+     heap pops exactly the entry a scan of the whole list would pick, in the same order. */
   const open = [[hOf(sx, sy), hOf(sx, sy), 0, sx, sy]];
   let seq = 1; let expanded = 0;
   while (open.length && expanded < limit) {
-    let bi = 0;
-    for (let i = 1; i < open.length; i++) {
-      const a = open[i]; const b = open[bi];
-      if (a[0] < b[0] || (a[0] === b[0] && (a[1] < b[1] || (a[1] === b[1] && a[2] < b[2])))) bi = i;
-    }
-    const [, , , x, y] = open[bi];
-    open[bi] = open[open.length - 1]; open.pop();
+    const [, , , x, y] = heapPop(open);
     const k = tileKey(g, x, y);
     if (closed.has(k)) continue;
     closed.add(k); expanded++;
@@ -82,6 +139,8 @@ export function astar(g, sx, sy, tx, ty, blocked, cap) {
       while (c !== start) { path.push([c % g.w, (c - (c % g.w)) / g.w]); c = from.get(c); }
       return path.reverse();
     }
+    /* A search this long may have no way at all: ask once whether the goal is sealed off (sealedOff: only a proof answers null) */
+    if (expanded === SEAL_AFTER && sealedOff(g, sx, sy, tx, ty, blocked, SEAL_TILES)) return null;
     for (const [dx, dy] of NEIGHBOURS) {
       const nx = x + dx; const ny = y + dy;
       if (!walkable(g, nx, ny)) continue;
@@ -93,7 +152,7 @@ export function astar(g, sx, sy, tx, ty, blocked, cap) {
       if (!gCost.has(nk) || ng < gCost.get(nk)) {
         gCost.set(nk, ng); from.set(nk, k);
         const h = hOf(nx, ny);
-        open.push([ng + h, h, seq++, nx, ny]);
+        heapPush(open, [ng + h, h, seq++, nx, ny]);
       }
     }
   }

@@ -1,0 +1,250 @@
+{
+  "asset": "hive_wasp hit clip (brief 10 B3), Mill Cellar",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B3 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "mill",
+  "object_id": "1c4dd534-ac8a-47de-90f3-bed71ad6a160",
+  "name": "hive wasp (KIT section 8)",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); hit/<facing>/0..N.png = the kept roll; alt/<roll>/hit/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the object, frame_count 6, keep_first_frame false; south and the side facings are separate groups (their action texts differ)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "9a1622c6-75db-404c-9fa6-5f144aeb6492",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "ff8df7c9-c782-4c78-8cda-c63f5ab90187",
+        "directions": "e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r1",
+    "east": "r1",
+    "north": "r1",
+    "west": "r1"
+  },
+  "refused": {},
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r1",
+      "xor": [
+        106,
+        174,
+        237,
+        255,
+        162,
+        33
+      ],
+      "alien": [
+        0,
+        0,
+        5,
+        1,
+        0,
+        1
+      ],
+      "dx": [
+        0,
+        -0.1,
+        -0.2,
+        -0.1,
+        0.1,
+        0
+      ],
+      "dy": [
+        0.6,
+        0.6,
+        1.3,
+        1.7,
+        0.9,
+        -0.1
+      ],
+      "top": [
+        1,
+        2,
+        2,
+        2,
+        2,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "east": {
+      "roll": "r1",
+      "xor": [
+        87,
+        149,
+        202,
+        233,
+        160,
+        61
+      ],
+      "alien": [
+        1,
+        0,
+        1,
+        4,
+        0,
+        0
+      ],
+      "dx": [
+        0,
+        -0.4,
+        -1.6,
+        -2.1,
+        -1.2,
+        0.2
+      ],
+      "dy": [
+        -0.2,
+        -0.5,
+        -0.6,
+        -0.4,
+        -0.3,
+        -0.2
+      ],
+      "top": [
+        1,
+        2,
+        2,
+        2,
+        1,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        -1,
+        -1
+      ],
+      "auto_flags": []
+    },
+    "north": {
+      "roll": "r1",
+      "xor": [
+        62,
+        149,
+        177,
+        198,
+        207,
+        83
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "dx": [
+        0,
+        0.1,
+        -0.2,
+        0,
+        0.3,
+        0.1
+      ],
+      "dy": [
+        -0.3,
+        -1.2,
+        -0.9,
+        0,
+        0.1,
+        0.1
+      ],
+      "top": [
+        0,
+        -1,
+        -1,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        -1,
+        -2,
+        -2,
+        -1,
+        -1,
+        0
+      ],
+      "auto_flags": []
+    },
+    "west": {
+      "roll": "r1",
+      "xor": [
+        68,
+        133,
+        192,
+        187,
+        148,
+        81
+      ],
+      "alien": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "dx": [
+        0,
+        0,
+        0,
+        0,
+        0.1,
+        0.1
+      ],
+      "dy": [
+        0,
+        0,
+        -0.2,
+        0.1,
+        0,
+        0
+      ],
+      "top": [
+        1,
+        2,
+        3,
+        3,
+        2,
+        1
+      ],
+      "bottom": [
+        0,
+        -1,
+        -2,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "feet f2 (bot -2, dy -0.2)"
+      ]
+    }
+  },
+  "generations": 4,
+  "flags": [
+    "a flier: the action says \"feet planted\"; the wasp hovers in place and drifts back up to 2 px in east (frames 2-3), the wings beat"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/hive_wasp-hit.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)"
+}

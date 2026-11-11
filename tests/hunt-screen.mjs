@@ -93,7 +93,7 @@
 //         above its top, and the fight settings are a slide-out sheet (shut until the bar's
 //         button opens it, then on top of everything, shut again on Escape)
 //   HS-23 THE HEAL WARNING: a heal slot whose HP % is fewer HP than the hunt's biggest blow (the same for
-//         every party size since 2026-11-08: a lone hero walks the King's hall too) says so in Configure action's sticky foot beside Save ("The Rat King can hit for 75.
+//         every party size since 2026-11-08: a lone hero walks the King's hall too) says so in Configure action's sticky foot beside Save ("The Rat King has a Max Hit of 75.
 //         At 30% you have 66 HP, so one hit can kill you before you eat."), in view at 922x423 whenever Save is;
 //         it hides at a safe threshold, and a lone hero is warned like a party
 //   HS-21 THE COOLDOWN EMBER: the hero's played cast cools that ability's slot for its
@@ -121,6 +121,7 @@ import { pathToFileURL } from 'node:url';
 import { scopeMutants, gateScope, planShards, checkShards } from '../tools/lib/mutant-scope.mjs';
 import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { withServerLevel } from './_server-level.mjs';
 /* Level totals on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
 const { charXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
 /* The Glade's Dangerous row and the tier's plain words, never typed: HS-8 reads them from the data (hunt-tiers.js GROUND_TIERS, TIER_LINES). */
@@ -239,8 +240,9 @@ function scripted() {
   };
   s.sent = (name) => s.calls.filter((c) => c.name === name);
   /* `clock`: a server clock of the test's own (ms); each answer then states it as `now` and hunt_server_now_ms. */
-  s.next = () => Object.assign(clone(s.env), { version: ++s.version },
-    s.clock ? { now: new Date(s.clock()).toISOString(), hunt_server_now_ms: s.clock() } : {});
+  /* The server states the Level itself (hr_state_of's `level` block): the stub states it for the XP a case set (./_server-level.mjs). */
+  s.next = () => withServerLevel(Object.assign(clone(s.env), { version: ++s.version },
+    s.clock ? { now: new Date(s.clock()).toISOString(), hunt_server_now_ms: s.clock() } : {}));
   return s;
 }
 
@@ -1176,7 +1178,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.fill('.ca-cond[data-cond="0"] [data-f="value"]', String(HS23_PCT));
         await page.dispatchEvent('.ca-cond[data-cond="0"] [data-f="value"]', 'change');
         const shown = await warn();
-        const said = 'The ' + SEWER_BLOW.name + ' can hit for ' + SEWER_BLOW.hit + '. At ' + HS23_PCT + '% you have ' + HS23_AT + ' HP, so one hit can kill you before you eat.';
+        /* A monster's biggest hit is "Max Hit" wherever the game shows it (Tyler 2026-11-11). */
+        const said = 'The ' + SEWER_BLOW.name + ' has a Max Hit of ' + SEWER_BLOW.hit + '. At ' + HS23_PCT + '% you have ' + HS23_AT + ' HP, so one hit can kill you before you eat.';
         if (safe !== '' || shown !== said) {
           fails.push('HS-23 the heal warning did not follow the threshold in a party of two: at 50% "' + safe + '", at 30% "' + shown + '"');
         }

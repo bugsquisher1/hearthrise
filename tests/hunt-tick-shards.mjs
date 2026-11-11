@@ -12,7 +12,7 @@
 //                                              measured (one body of 100 vs the
 //                                              packed bodies), and the fire must
 //                                              fit the cadence
-//   node tests/hunt-tick-shards.mjs --mutate   every planted defect must go RED
+//   node tests/hunt-tick-shards.mjs --mutate   every planted defect must go RED (with --only=A,B: those arms' mutants alone)
 //
 // On the real replayed chain (PGlite, the edge as hr_engine; pg_net / Vault /
 // pgcrypto stubbed by tests/world-tick-token-shims.mjs):
@@ -26,6 +26,9 @@
 //   SETTLE ★ every body, driven through the shipped runTick, settles every one
 //            of its hunts: one stamped accrue row a session, each clock moved
 //            (no hunt settled twice, none dropped)
+//   IDLE     (2027-04-08-idle-clock.sql) the clock asks first: with nothing owed a fire answers empty and writes its
+//            log row alone (no shard cursor, no config cursor, no lease); a mid-pass cursor is still cleared; a
+//            session 60 s behind is not leased; one owed 91 s is leased to its body and posted within one fire
 //   FANOUT   (2027-02-03-tick-capacity.sql) the bodies a fire queues are
 //            hr_tick_config.hunt_bodies_max, not a literal 16: at one hunt a body
 //            and two bodies a fire, two of three due hunts ride and one waits;
@@ -253,6 +256,48 @@ const ARMS = {
     await db.query('update public.hr_tick_config set hunt_bodies_max = 3 where id');
     const three = await fire(db);
     if (three.bodies.length !== 3) problems.push(`at 3 bodies a fire the cron queued ${three.bodies.length} bodies for 3 due hunts`);
+    return problems;
+  }),
+
+  /* IDLE (2027-04-08-idle-clock.sql, lane/r-commit-cost): the clock asks first whether anything is owed. With nothing open
+     a fire answers `empty` and writes its log row and nothing else (the shard cursor and the retired config cursor are not
+     rewritten); a session 60 s behind is not leased and nothing is posted; one owed a flush (91 s behind) is leased to its
+     body's holder and posted WITHIN ONE FIRE; and a cursor left mid-pass is still cleared on an idle fire. */
+  IDLE: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    await armCron(db);
+    const open = Number(await one(db, 'select count(*)::int from public.hunt_sessions where ended_at is null'));
+    if (open) problems.push(`fixture: ${open} open session(s) before the idle fire`);
+    await db.query(`insert into public.hr_tick_shard_cursor (shard, cursor_at, cursor_user, cursor_slot, updated_at)
+                      values (0, null, null, null, now()) on conflict (shard) do update set cursor_at = null, cursor_user = null, cursor_slot = null`);
+    const rows = async () => JSON.stringify(await q(db, `select (select ctid::text from public.hr_tick_config where id) as cfg,
+        (select coalesce(jsonb_agg(ctid::text order by shard), '[]') from public.hr_tick_shard_cursor) as cur,
+        (select count(*)::int from public.hunt_tick_lease) as leases`));
+    const logs = async () => Number(await one(db, 'select count(*)::int from public.hr_tick_cron_log'));
+    const w0 = await rows(), l0 = await logs();
+    const f0 = await fire(db);
+    if (!f0.out || f0.out.outcome !== 'empty' || f0.bodies.length) problems.push(`with nothing owed the fire answered ${JSON.stringify(f0.out)} and queued ${f0.bodies.length} hunt bodies`);
+    if (await rows() !== w0) problems.push(`an idle fire rewrote the config row, a shard cursor or a lease: ${w0} -> ${await rows()}`);
+    if (await logs() !== l0 + 1) problems.push(`an idle fire logged ${(await logs()) - l0} rows, not its one`);
+    /* a cursor left mid-pass (a full roster last fire) is cleared by an idle fire, as an empty roster cleared it */
+    await db.query(`update public.hr_tick_shard_cursor set cursor_at = now() - interval '1 hour', cursor_user = $1, cursor_slot = 0 where shard = 0`, [UID0]);
+    await fire(db);
+    if (Number(await one(db, 'select count(*)::int from public.hr_tick_shard_cursor where cursor_at is not null or cursor_user is not null')) !== 0) {
+      problems.push('an idle fire left a mid-pass shard cursor set');
+    }
+    const [sid] = await hunters(db, M, 1);
+    await db.query(`update public.hunt_sessions set settled_to = now() - interval '60 seconds' where id = $1`, [sid]);
+    const f1 = await fire(db);
+    if (f1.bodies.length || Number(await one(db, 'select count(*)::int from public.hunt_tick_lease where session_id = $1', [sid]))) {
+      problems.push(`a session 60 s behind was posted (${f1.bodies.length} bodies) or leased`);
+    }
+    await db.query(`update public.hunt_sessions set settled_to = now() - interval '91 seconds' where id = $1`, [sid]);
+    const f2 = await fire(db);
+    const body = f2.bodies.find((b) => b.hunts.some((h) => h.session_id === sid));
+    const lease = await q(db, 'select holder from public.hunt_tick_lease where session_id = $1 and lease_until > now()', [sid]);
+    if (!body || f2.out.outcome !== 'posted' || lease.length !== 1 || lease[0].holder !== body.holder) {
+      problems.push(`a session owed 91 s was not leased and posted within one fire: ${JSON.stringify({ out: f2.out && f2.out.outcome, bodies: f2.bodies.length, lease })}`);
+    }
     return problems;
   }),
 
@@ -794,6 +839,15 @@ const DB_MUTANTS = [
     find: '     group by r.body\n     order by r.body', replace: '     group by 0 * r.body\n     order by 0 * r.body' },
   { arm: 'FANOUT', name: '[tick-capacity] the roster keeps the literal 16 bodies a fire', fn: 'public.hr_hunt_roster_sharded(text,integer,integer)',
     find: '  c_bodies := least(greatest(coalesce(c_bodies, 16), 1), 64);', replace: '  c_bodies := 16;' },
+  /* lane/r-commit-cost (2027-04-08-idle-clock.sql) */
+  { arm: 'IDLE', name: '[idle-clock] the probe never sees a hunt a flush behind', fn: 'public.hr_tick_session_owed(timestamp with time zone,timestamp with time zone,timestamp with time zone,boolean,integer)',
+    find: "or p_settled_to <= now() - coalesce(make_interval(secs => p_flush_seconds), interval '90 seconds')", replace: 'or false' },
+  { arm: 'IDLE', name: '[idle-clock] an idle fire still runs the gather half (its cursor upsert)', fn: 'public.hr_tick_cron_run()',
+    find: '  if not coalesce(v_owe_g, true) then', replace: '  if false then' },
+  { arm: 'IDLE', name: '[idle-clock] every fire rewrites the retired config cursor again', fn: 'public.hr_tick_cron_run()',
+    find: '   where id and (cursor_at is not null or cursor_user is not null or cursor_slot is not null);', replace: '   where id;' },
+  { arm: 'IDLE', name: '[idle-clock] an idle fire leaves a mid-pass cursor set', fn: 'public.hr_tick_cron_run()',
+    find: '     where cursor_at is not null or cursor_user is not null or cursor_slot is not null;\n  else', replace: '     where false;\n  else' },
 ];
 /* The §5 self-check's own bites. Each mutant RE-PINS k0's packer md5 to the
    mutated body, so the refusal must come from the behavioural gate it names
@@ -884,7 +938,10 @@ async function main() {
   }
   if (MUTATE) {
     let bad = 0;
-    const mine = (list) => list.filter((m) => inScope(m.arm || ''));
+    /* --only=A,B with --mutate: those arms' mutants alone (a lane's own proof); the SQL §5 bites need no arm and are skipped */
+    const onlyM = process.argv.find((a) => a.startsWith('--only='));
+    const armsM = onlyM ? onlyM.slice(7).split(',') : null;
+    const mine = (list) => list.filter((m) => inScope(m.arm || '') && (!armsM || armsM.includes(m.arm)));
     for (const m of mine(MUTANTS)) {
       const dir = mkdtempSync(join(tmpdir(), 'hr-hts-'));
       try {
@@ -911,7 +968,7 @@ async function main() {
       } finally { await db.exec(def); }
     }
     /* the older migrations' §5 bites belong to the plain file's proof; this lane's file's to --outage */
-    const sqlOf = (list) => ((list === SPAN_SQL_MUTANTS) === OUTAGE_ONLY ? list : []);
+    const sqlOf = (list) => (armsM ? [] : (list === SPAN_SQL_MUTANTS) === OUTAGE_ONLY ? list : []);
     for (const m of sqlOf(SQL_MUTANTS)) {
       let refused = null;
       try { await bootReplay({ patches: new Map([[m.file, sqlPatches(m)]]), upTo: LAST_PATCHED }); } catch (e) { refused = String(e.message); }

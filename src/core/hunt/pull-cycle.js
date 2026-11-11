@@ -22,20 +22,21 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.115';
-import { VITALS } from '../../data/core-model.js?v=0.2.115';
-import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.115';
-import { atTier } from '../../data/hunt-tiers.js?v=0.2.115';
-import { AI_REPATH_MS, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.115';
-import { HUNT_GROUNDS, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.115';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.115';
-import { monsterMaxHit } from '../combat.js?v=0.2.115';
-import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.115';
-import { inArea, resetPack } from './leash.js?v=0.2.115';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.115';
-import { makeEvent, trackStep } from './events.js?v=0.2.115';
-import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.115';
-import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.115';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.121';
+import { VITALS } from '../../data/core-model.js?v=0.2.121';
+import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.121';
+import { atTier } from '../../data/hunt-tiers.js?v=0.2.121';
+import { AI_REPATH_MS, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.121';
+import { HUNT_GROUNDS, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.121';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.121';
+import { monsterMaxHit } from '../combat.js?v=0.2.121';
+import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.121';
+import { inArea, resetPack } from './leash.js?v=0.2.121';
+import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.121';
+import { makeEvent, trackStep } from './events.js?v=0.2.121';
+import { staleIndex } from './unit-index.js?v=0.2.121';
+import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.121';
+import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.121';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -91,6 +92,7 @@ function placeRow(inst, p, s, sc) {
     target: null, home: at, x: at[0], y: at[1], fx: at[0], fy: at[1], speed: monsterSpeedOf(row) });
   w.nextId += 1;
   w.units.push(u);
+  staleIndex(inst);
   inst.occ.mon.set(tileKey(inst.grid, at[0], at[1]), u);
   if (sc) sc.track(trackStep(u.id, at[0], at[1], sc.atMs));   // a respawn is placed by the track (visual only)
   return u;
@@ -126,7 +128,7 @@ export function spawnAdds(inst, p, sc) {
   occupancy(inst);
   (inst.ground.pockets[p].adds || []).forEach((s, i) => {
     const u = placeRow(inst, p, s, sc);
-    if (u && on.length) u.target = on[i % on.length].id;
+    if (u && on.length) { u.target = on[i % on.length].id; staleIndex(inst); }
   });
 }
 
@@ -139,6 +141,7 @@ export function fallen(inst, u, sc) {
   u.alive = false;
   u.hp = 0;
   u.target = null;
+  staleIndex(inst);
   clearGoal(u);
   if (u.side === 'mon') { u.deadMs = 0; return; }
   u.spot = null;
@@ -173,6 +176,7 @@ function startPull(inst, sc, k, p) {
   pack.aggro = true;
   pack.holder = k.id;
   for (const m of packMonsters(inst, p)) m.target = k.id;
+  staleIndex(inst);
   clearGoal(k);
   inst.world.phase = PHASE.FIGHT;
   sc.emit(makeEvent('pull', sc.atMs, { pocket: p }));
@@ -340,5 +344,5 @@ export function clearCorpses(inst, sc) {
     u.deadMs += sc.dtMs;
     if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;
   }
-  if (gone) w.units = w.units.filter((u) => u.side !== 'mon' || u.alive || u.deadMs < HUNT_TUNING.corpseMs);
+  if (gone) { w.units = w.units.filter((u) => u.side !== 'mon' || u.alive || u.deadMs < HUNT_TUNING.corpseMs); staleIndex(inst); }
 }

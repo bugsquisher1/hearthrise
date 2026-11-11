@@ -5,6 +5,58 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.121 — 2026-11-11 (Plainer Names)
+
+**Some gear and monsters have plainer names.** Coifs are Hoods, Vambraces are Bracers, Torcs are Necklaces and Greaves are Leg Plates. The Kobold Tosher is the Sewer Kobold, the Gray Whelp is the Gray Wolf Pup, and the Dire Gray Hackle is the Dire Gray Neck Fur. Your gear stays the same.
+
+## v0.2.120 — 2026-11-11 (Tamsin's First Task)
+
+**Your first task from Tamsin comes early.** Bring her 25 rats from the Mill Cellar in your first minutes and she pays 25 gold and a Bronze Helm. A card tells you when it's safe to close the game, because your hero keeps hunting.
+
+**Tamsin no longer pays you armor you're already wearing.** She skips that slot and gives you the next piece, or crafting materials if you're wearing them all.
+
+**If you start a hunt on your phone, the tab on your PC sees it right away,** and it sees the hunt end too.
+
+**Tier 4 gear sells for about half its price, tier 5 about a quarter, tier 6 and up about a tenth.** Mithril Hatchets (Smithing 45) and the Maple Crossbow (Crafting 45) can be made now.
+
+**Hundreds of item, hunt and monster lines are rewritten plain,** so they say what a thing is for in words a person would use.
+
+**The server settles fights faster.** Nothing about the fights changes. A watched hunt's confirmed loot, gold and XP now refresh a little less often, while the fight on screen keeps moving.
+
+## v0.2.119 — 2026-11-11 (Better Finds)
+
+**Equip upgrades picks a better weapon even when it has a monster bonus.** A Bramble Blade now goes on over a Practice Sword, and the tooltip says what the bonus does.
+
+**Monsters fight with their own moves.** They strike with their own attack animations, flinch when hit and fall the way they face. Heroes flinch when hit too.
+
+**Your heroes are all in the top bar now,** even ones you haven't opened in this window, and one click on Play brings them in.
+
+**Skill bars and XP to next level always match your real skill level.**
+
+**Top loot shows your gear and rare finds first,** and the welcome-back note names your best find.
+
+**Bless all gets you every blessing in one press,** and the hunt warning shows what a death really costs with your blessings on.
+
+**Coming back after a hunt ended tells you what your hero did next.** It went back to its gathering job, or it waited in town, and you see for how long and the one thing that would have filled that time.
+
+**Monster pages use the game's own labels now.** Attack Speed, Damage Type, Elements and Tier, and the page says in real numbers how much harder a monster hits on Dangerous and Deadly. Packs say when they respawn.
+
+**Crafting stations have a Sort menu,** so you can list recipes by what you can make, by level or by name, and each station remembers your pick.
+
+**Smaller fixes.** Item tooltips close when you close their window. The rune tip names the right tab. Dispatch loot says what it did after a sale.
+
+## v0.2.118 — 2026-11-11 (Max Hit)
+
+**Monster pages show Max Hit now.** That's the hardest a monster can hit you. The heal warning in Configure action uses it too.
+
+## v0.2.117 — 2026-11-11 (Lighter Reload)
+
+**Reloading is a little lighter.** When you reload, each hero who is waiting in town loads once instead of twice.
+
+## v0.2.116 — 2026-11-11 (Your Level, Everywhere)
+
+**Your Level shows the same number everywhere.** The Level bar, the character list and the away recap all read the Level the game keeps for your hero. When an update changes Levels, you see the new one right away.
+
 ## v0.2.115 — 2026-11-10 (Honest Health)
 
 **Your Health reads right after a reload.** If you reloaded in the middle of a hunt, your Health could show 1 for up to a minute. It was never really 1. The bar shows your real Health right away now. Party members, monsters and the boss bar had the same problem and are fixed too.

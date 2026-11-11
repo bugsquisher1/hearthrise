@@ -44,15 +44,14 @@
 // a payout restarts the count from the new watermark and a lower payout snaps it
 // down; a stop or a hunt clears it with the pointer.
 // ════════════════════════════════════════════════════════════════════════
-import { simulateSkillSpan, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.115';
-import { simulateArtisanSpan, artisanIntervalMs } from '../core/artisan-sim.js?v=0.2.115';
-import { creditWindow } from '../core/away.js?v=0.2.115';
-import { burnChance, burnXp } from '../core/artisan.js?v=0.2.115';
-import { pacedXp } from '../core/pacing.js?v=0.2.115';
-import { levelOf } from '../core/xp.js?v=0.2.115';
-import { ITEMS } from '../data/items.js?v=0.2.115';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.115';
-import { rows, text, cls } from '../render/paint.js?v=0.2.115';
+import { simulateSkillSpan, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.121';
+import { simulateArtisanSpan, artisanIntervalMs } from '../core/artisan-sim.js?v=0.2.121';
+import { creditWindow } from '../core/away.js?v=0.2.121';
+import { burnChance, burnXp } from '../core/artisan.js?v=0.2.121';
+import { pacedXp } from '../core/pacing.js?v=0.2.121';
+import { ITEMS } from '../data/items.js?v=0.2.121';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.121';
+import { rows, text, cls } from '../render/paint.js?v=0.2.121';
 
 /** Every roll on its smallest outcome: a range on its low end, a chance on "no" (yes only when certain). next() sits
     at the top of [0, 1), so a `next() < p` test reads "no" too. */
@@ -108,7 +107,10 @@ export function predictTown(o) {
   const stepMs = gather ? gatherIntervalMs(scratch, w.skill, w.row, { items: ITEMS }) : artisanIntervalMs(scratch, w.skill, w.row, { items: ITEMS });
   const win = creditWindow({ watermarkMs: fromMs, activeSinceMs: sinceMs, nowMs, capMs: horizonMs(stepMs) });
   if (win.capped) return null;
-  const burnable = !gather && w.skill === 'cooking' && !!w.row.output && burnChance(w.row, levelOf(skills, 'cooking'), 0) > 0;
+  /* the SERVER's Cooking level (skillsOf), never one worked out of the XP on this build's curve (lane/c-skills-from-server);
+     none stated reads level 1, the most burns, so the product is counted unsure: the floor never predicts more */
+  const cook = o.skills && o.skills.cooking && Number.isInteger(o.skills.cooking.level) ? o.skills.cooking.level : 1;
+  const burnable = !gather && w.skill === 'cooking' && !!w.row.output && burnChance(w.row, cook, 0) > 0;
   /* A ROLLED job's grade is the server's dice (src/data/jewelry.js): its product is unsure too, in no stack until the payout. */
   const rolled = !gather && !!w.row.roll;
   const items = {};

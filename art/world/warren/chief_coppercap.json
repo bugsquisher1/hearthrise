@@ -66,7 +66,22 @@
         "s": 6,
         "e": 6,
         "n": 6,
-        "w": 6
+        "w": 6,
+        "se": 6,
+        "sw": 6,
+        "ne": 6,
+        "nw": 6
+      }
+    },
+    {
+      "name": "hit",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 5,
+        "e": 5,
+        "n": 5,
+        "w": 5
       }
     },
     {
@@ -77,7 +92,11 @@
         "s": 1,
         "e": 1,
         "n": 1,
-        "w": 1
+        "w": 1,
+        "se": 1,
+        "sw": 1,
+        "ne": 1,
+        "nw": 1
       }
     }
   ],
@@ -143,7 +162,21 @@
           1
         ]
       }
+    },
+    "clips": {
+      "hit": {
+        "s": "art/world-src/gen-2026-11-08b/chief_coppercap-hit/hit/south lay 0 1 2 3 4",
+        "e": "art/world-src/gen-2026-11-08b/chief_coppercap-hit/hit/east lay 0 1 2 3 4",
+        "n": "art/world-src/gen-2026-11-08b/chief_coppercap-hit/hit/north lay 0 1 2 3 4",
+        "w": "art/world-src/gen-2026-11-08b/chief_coppercap-hit/hit/west lay 0 1 2 3 4"
+      },
+      "death": {
+        "se": "art/world-src/gen-2026-11-09b/b6-fall-diagonals/chief_coppercap/death-seated/south-east",
+        "sw": "art/world-src/gen-2026-11-09b/b6-fall-diagonals/chief_coppercap/death-seated/south-west",
+        "ne": "art/world-src/gen-2026-11-09b/b6-fall-diagonals/chief_coppercap/death-seated/north-east",
+        "nw": "art/world-src/gen-2026-11-09b/b6-fall-diagonals/chief_coppercap/death-seated/north-west"
+      }
     }
   },
-  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from PixelLab object 280d519f-0e7f-4242-aa5a-bcfc689c1c30 (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels."
+  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from PixelLab object 280d519f-0e7f-4242-aa5a-bcfc689c1c30 (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. Combat clips (hit, death) laid from reviewed raw frames by tools/world-art/import-clips.mjs (hunt-clips.mjs): registered on the idle still by whole pixels, falls seated on the anchor row, never scaled or redrawn."
 }

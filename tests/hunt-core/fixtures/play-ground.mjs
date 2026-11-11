@@ -135,11 +135,15 @@ export async function loadPlay(root) {
     const items = {}, heroItems = {}, killsBy = {}, heroXp = {}, heroRares = {}, rareRolls = [];
     const WIN = Number.isInteger(opts.windowMs) && opts.windowMs > 0 ? opts.windowMs : 600000;
     for (let t = T0; t < T0 + span; t += WIN) {
+      /* the settle's engine time, measured as hunt-settle.js proposeHuntSettle measures it (accrueHunt is synchronous) */
+      const t0 = performance.now();
       const out = AC.accrueHunt({ instance: { id: IID, nextSwingAtMs: next, world }, window: { fromMs: t, toMs: Math.min(T0 + span, t + WIN) },
         secret, ground, grid, items: ITEMS, monsters, members });
+      const engineMs = performance.now() - t0;
       if (!out.accrued) continue;
-      /* opts.onWindow(out, members): an observer of each settled window's events and members (party-defense.mjs) */
-      if (typeof opts.onWindow === 'function') opts.onWindow(out, members);
+      /* opts.onWindow(out, members, engineMs): an observer of each settled window's events and members (party-defense.mjs),
+         and its engine time (tools/qa/engine-profile.local.mjs) */
+      if (typeof opts.onWindow === 'function') opts.onWindow(out, members, engineMs);
       world = out.world; next = out.settledTo; played = next - T0;
       /* a party's rare roll (hunt-rewards.js payKill: each revealed unit, two or more heroes) */
       for (const e of out.events || []) if (e && e.type === 'rare_roll') rareRolls.push(e.item);

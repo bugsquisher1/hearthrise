@@ -23,11 +23,11 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS } from './items.js?v=0.2.115';
-import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.115';
-import { STARTER_SETS } from './start-kit.js?v=0.2.115';
-import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.115';
-import { DEATH_XP_LOSS } from './hunt-sessions.js?v=0.2.115';
+import { ITEMS } from './items.js?v=0.2.121';
+import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.121';
+import { STARTER_SETS } from './start-kit.js?v=0.2.121';
+import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.121';
+import { DEATH_XP_LOSS } from './hunt-sessions.js?v=0.2.121';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 

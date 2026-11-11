@@ -38,6 +38,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { withServerLevel } from './_server-level.mjs';
 
 const ARGS = process.argv.slice(2);
 const SHOTS = ARGS.includes('--shots') ? ARGS[ARGS.indexOf('--shots') + 1] : null;
@@ -231,7 +232,8 @@ export const REASONS = Object.freeze({
   ],
   'src/shell/windows/services.js': [
     { cond: '!canStam', words: "' You need ' + gold(q.price - purse) + ' more.'", where: 'the stamina quote line: full, all bought today, or how much more gold' },
-    { cond: 't.held || !next', words: "' · You need ' + gold(short) + ' more.'", where: 'each blessing row: Owned, Needs I, or how much more gold' },
+    { cond: 'r.held || !next', words: "' · You need ' + gold(short) + ' more.'", where: 'each blessing row: Owned, Needs I, or how much more gold' },
+    { cond: 'missing < 2 || sc.pending || allShort', words: "!missing ? t('shop.bless_all_on') : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short')", where: 'Bless all: the line under it says all are on, a purchase is under way, or the gold is short for the next one; with one missing it is hidden and that row\'s own button says why' },
   ],
   'src/shell/widgets/stamina-buy.js': [
     { cond: '!!why', words: ".hb-buy-why'), why", where: 'the bar\'s refill panel line' },
@@ -435,7 +437,7 @@ async function screens(overrides) {
       await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
         const name = r.request().url().split('?')[0].split('/').pop();
         const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
-        if (name === 'hr_load' || name === 'hr-accrue') return json(Object.assign(clone(s.env), { version: ++s.version, ok: true }));
+        if (name === 'hr_load' || name === 'hr-accrue') return json(withServerLevel(Object.assign(clone(s.env), { version: ++s.version, ok: true })));
         return json({ ok: true });
       });
       const shot = async (n) => { if (SHOTS) await page.screenshot({ path: join(ROOT, SHOTS, n + '-' + w + 'x' + h + '.png') }); };

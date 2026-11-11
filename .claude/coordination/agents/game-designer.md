@@ -2,6 +2,24 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-11 lane/d-plain-lore (Tyler: "Fix your voice. ASAP.")
+- 521 player strings in src/data rewritten in plain words (item flavour, hunt themes, class lines, trophy, boss and end-of-hunt lines, title words). The item file's own header asked for a "medieval voice"; that was the root cause, not one bad line.
+- The armor ladders were the worst: about 130 lines from one template ("an adept's sash, finer cloth cinched round..."). Plain names now: belt, chestplate, hood, vest, arm guards, leggings.
+- tools/player-read.local.mjs read only src/data/text. It now lists every changed prose literal in src/data and auto-flags OLD_WORDS / OLD_PHRASES (exit 1). Over the old lines it catches 107 of 521; the rest needed a reader.
+- A caption then a short sentence ("Dawnsteel boots. You won't find better") reads clipped when it repeats a hundred times. Join it into one sentence, or keep the caption only when it carries a real detail.
+- Story text is a different job: the wiki's "The Road North" (d280ad46e) is the shape. Short game lines stay short.
+## 2026-11-11 — the fun re-read: the safety rule that left a hero with a practice sword for 19 hours
+
+Played a fresh sword-and-shield hero for 19 hunted hours on v0.2.118 (board section "2026-11-11 Designer re-read").
+The first 20 minutes are the best thing in the game now. The worst thing came from a rule that looks careful: Equip
+upgrades skips any piece with an effect it can't price, so it skipped the only weapon the solo path drops (Bramble
+Blade, a bane). **Lesson: a "never decide for the player" rule needs a "never leave the player worse off" check
+beside it.** A bane can only add, so leaving it out keeps the player on the worse weapon by default. The same
+pattern showed in Tamsin paying armor the hero already wore. Second lesson: the second night is the real away test,
+not the first, because stamina left over from night one caps it. Test returns in a row, not just one.
+Harness note: in the pane, clicks with refs miss on a scaled screenshot; read state with `document.body.innerText`,
+and close the page by going to another local URL before `wait --away`.
+
 ## 2026-09-07 — I played b518 as a new player and found the onboarding we already shipped
 
 Wrote `docs/planning/FEATURE_SLATE.md` (6 ranked features + 5 existing-feature fixes). The thing I

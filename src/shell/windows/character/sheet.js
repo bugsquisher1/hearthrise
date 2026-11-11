@@ -14,16 +14,16 @@
 // Stats the engine does not have (leech, element protections, a character
 // XP bar) have no line at all.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.115';
-import { characterSheetOf, heroVitalsOf, wornTitleOf } from '../../../session/character-sections.js?v=0.2.115';
-import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.115';
-import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.115';
-import { roleIdOf } from '../../../session/party-sections.js?v=0.2.115';
-import { text, cls, style, attr } from '../../../render/paint.js?v=0.2.115';
-import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.115';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.115';
-import { combatLedger } from '../skills.js?v=0.2.115';
-import { temperNowOf } from '../../../session/temper-sections.js?v=0.2.115';
+import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.121';
+import { characterSheetOf, heroVitalsOf, wornTitleOf } from '../../../session/character-sections.js?v=0.2.121';
+import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.121';
+import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.121';
+import { roleIdOf } from '../../../session/party-sections.js?v=0.2.121';
+import { text, cls, style, attr } from '../../../render/paint.js?v=0.2.121';
+import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.121';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.121';
+import { combatLedger } from '../skills.js?v=0.2.121';
+import { temperNowOf } from '../../../session/temper-sections.js?v=0.2.121';
 
 /* [key, label] of each number line; a line shows only when its value exists. */
 const VITALS = Object.freeze([['hp', 'Max health'], ['mana', 'Max mana'], ['regen', 'Regeneration'], ['speed', 'Speed'], ['cap', 'Capacity'], ['stamina', 'Stamina']]);
@@ -92,7 +92,7 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   const role = (c && c.role) || roleIdOf(cs);
   text(root.querySelector('.hw-cs-role'), role && HUNT_ROLES[role] ? HUNT_ROLES[role].label : '');
   /* Level, max HP and max mana: heroVitalsOf, the one reader the HUD draws them from (r09), so the
-     tab and the HUD can never show two numbers. Level is the server's Level XP on the shared curve. */
+     tab and the HUD can never show two numbers. The Level and its two XP marks are the server's own (the envelope's `level` block). */
   const lv = hv.level !== null ? hv : null;
   const lvEl = root.querySelector('.hw-cs-level');
   cls(lvEl, 'is-on', !!lv);

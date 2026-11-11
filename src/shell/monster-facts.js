@@ -6,40 +6,41 @@
 // what this answers, and this types no number of its own. Each fact is read from the row the server's
 // catalogue is generated from (src/data/monsters.js), through the function the engine itself calls:
 //   Health        the row's HP on Normal (hunt-tiers.js atTier), the same for every group size (Tyler 2026-11-08)
-//   a blow        combat.js monsterMaxHit, and the roller's own floor and ceiling (rollAttack)
-//   how often     combat.js COMBAT_BALANCE.tickMs, the one basic-attack interval
-//   its damage    physical: the engine gives a monster's blow no element (hunt-spawn.js)
-//   weak to       the row's weaponWeak, paid by combat.js WEAKNESS_BONUS
-//   elements      core/elements.js elementPermille, for each element of data/elements.js
+//   Max Hit       combat.js monsterMaxHit, the ceiling the engine rolls a landed blow under (the game's label, Tyler 2026-11-11)
+//   Attack Speed  combat.js COMBAT_BALANCE.tickMs, the one basic-attack interval
+//   Damage Type   physical: the engine gives a monster's blow no element (hunt-spawn.js)
+//   Weak to       the row's weaponWeak, paid by combat.js WEAKNESS_BONUS
+//   Elements      core/elements.js elementPermille, for each element of data/elements.js
 //   a kill pays   the row's xp and gp, whole, shared by who was there (hunt-rewards.js payKill)
 //   drops         every row of its table, its chance on one kill by the roller's own sum (drops.js
 //                 effectiveDropChance) with the monster's own drop bonus (combat.js weaknessInfo),
 //                 before any hero's bonus; and what the item is for (item-lore.js: the windows that spend
 //                 it, each a place a link opens, then its other uses in the item tip's words)
 //   where         the open grounds it stands on, or that a bigger pull brings it to (hunt-ground-facts.js)
+//   harder tiers  each harder tier's Health and damage dials on the ground the page was opened from (its first ground when
+//                 no ground opened it): hunt-tiers.js tiersOf and tierRowOf, the rows the engine fights with; none on a
+//                 Normal-only ground (the Cellar)
 // ONE DIFFICULTY FOR EVERY GROUP SIZE (Tyler 2026-11-08): the numbers are Normal's, the same alone or in a party.
-// A boss whose hall is built for a group says so in the Hunts list's own words (hunt-list.js partyNote). A harder hunt's dials are the Hunts page's to say. A server-revealed surprise row
+// A boss whose hall is built for a group says so in the Hunts list's own words (hunt-list.js partyNote). The page's Tier row names Normal, and a line under
+// the stats says what each harder tier changes (the Hunts page says a tier in words only, hunt-list.js tierWords). A server-revealed surprise row
 // (`lucky`, `salvage`) stays unlisted, as on the ground's page.
 // ════════════════════════════════════════════════════════════════════════
-import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.115';
-import { ITEMS } from '../data/items.js?v=0.2.115';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.115';
-import { OPEN_GROUNDS } from '../data/hunt-grounds.js?v=0.2.115';
-import { DEFAULT_TIER, atTier, tierRowOf } from '../data/hunt-tiers.js?v=0.2.115';
-import { partyNote } from './hunt-list.js?v=0.2.115';
-import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.115';
-import { elementPermille } from '../core/elements.js?v=0.2.115';
-import { COMBAT_BALANCE, WEAKNESS_BONUS, monsterMaxHit, rollAttack, weaknessInfo } from '../core/combat.js?v=0.2.115';
-import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.115';
-import { residentsOf, bigPullOf } from './hunt-ground-facts.js?v=0.2.115';
-import { usePlaces, usesOf } from './item-lore.js?v=0.2.115';
-import { skillName } from './widgets/bits.js?v=0.2.115';
-import { t } from '../render/player-text.js?v=0.2.115';
+import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.121';
+import { ITEMS } from '../data/items.js?v=0.2.121';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.121';
+import { OPEN_GROUNDS } from '../data/hunt-grounds.js?v=0.2.121';
+import { DEFAULT_TIER, atTier, tierRowOf, tiersOf } from '../data/hunt-tiers.js?v=0.2.121';
+import { partyNote } from './hunt-list.js?v=0.2.121';
+import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.121';
+import { elementPermille } from '../core/elements.js?v=0.2.121';
+import { COMBAT_BALANCE, WEAKNESS_BONUS, monsterMaxHit, weaknessInfo } from '../core/combat.js?v=0.2.121';
+import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.121';
+import { residentsOf, bigPullOf } from './hunt-ground-facts.js?v=0.2.121';
+import { usePlaces, usesOf } from './item-lore.js?v=0.2.121';
+import { skillName } from './widgets/bits.js?v=0.2.121';
+import { t } from '../render/player-text.js?v=0.2.121';
 
 const pctOf = (mult) => Math.round((mult - 1) * 100);
-/* The roller's own two ends: a blow that lands, drawn at its lowest and at its highest. */
-const LOWEST = Object.freeze({ chance: () => true, int: (lo) => lo });
-const HIGHEST = Object.freeze({ chance: () => true, int: (lo, hi) => hi });
 
 /**
  * The open grounds monster `id` lives on, lowest floor first: [{ hunt, name, band: [lo, hi], how, warn, ground }].
@@ -77,15 +78,16 @@ function usesFor(item) {
 
 /**
  * Monster `id`'s facts on Normal, the same for every group size, or null for a monster no open ground holds:
- * { id, name, family, level, boss, hp, blow: { min, max }, swingMs, deals, weak: { weapon, damagePct, accuracyPct } | null,
+ * { id, name, family, level, boss, hp, maxHit, swingMs, deals, weak: { weapon, damagePct, accuracyPct } | null,
  *   elements: [{ element, pct }] (pct LESS taken, negative = more), xp, gold: [lo, hi],
- *   drops: [{ id, name, band, chance, uses: [{ words, place }] }], homes (homesOf) }.
+ *   drops: [{ id, name, band, chance, uses: [{ words, place }] }], homes (homesOf),
+ *   tiers: [{ tier, hpPm, dmgPm }] (each harder tier's dials, permille of Normal, on the ground hunt `from` names, else its first) }.
  */
-export function monsterFactsOf(id) {
+export function monsterFactsOf(id, from = null) {
   if (!isMet(id)) return null;
   const row = MONSTERS[id];
   const homes = homesOf(id);
-  const home = homes[0];
+  const home = homes.find((h) => h.hunt === from) || homes[0];
   /* the row as it fights on Normal: the engine's own read (pull-cycle.js spawns it so) */
   const fights = atTier(row, tierRowOf(home.ground.id, DEFAULT_TIER));
   const top = monsterMaxHit(fights);
@@ -94,7 +96,7 @@ export function monsterFactsOf(id) {
   return {
     id, name: row.name || id, family: row.className || row.family || '', level: monsterLevelOf(row), boss: row.boss === true,
     hp: Math.max(1, fights.hp || 1),
-    blow: { min: rollAttack(LOWEST, 1, top), max: rollAttack(HIGHEST, 1, top) },
+    maxHit: top,
     swingMs: COMBAT_BALANCE.tickMs,
     deals: PHYSICAL,
     weak: weak.matched ? { weapon: row.weaponWeak, damagePct: pctOf(WEAKNESS_BONUS.damage), accuracyPct: pctOf(weak.accuracyMult) } : null,
@@ -107,5 +109,9 @@ export function monsterFactsOf(id) {
       uses: usesFor(d.id),
     })),
     homes,
+    tiers: tiersOf(home.ground.id).filter((tier) => tier !== DEFAULT_TIER).map((tier) => {
+      const dial = tierRowOf(home.ground.id, tier);
+      return { tier, hpPm: dial.hpPm, dmgPm: dial.dmgPm };
+    }),
   };
 }

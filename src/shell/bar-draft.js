@@ -11,19 +11,19 @@
 // until the server has answered and the re-read envelope has replaced
 // hunt_settings (CLAUDE.md §6). A refusal names its slot and condition.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.115';
-import { STATUSES } from '../data/statuses.js?v=0.2.115';
-import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.115';
-import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.115';
-import { isRune } from '../data/supplies.js?v=0.2.115';
-import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.115';
-import { ITEMS } from '../data/items.js?v=0.2.115';
-import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.115';
-import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.115';
-import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.115';
-import { refusalWords } from './intent-words.js?v=0.2.115';
-import { skillName } from './widgets/bits.js?v=0.2.115';
-import { t } from '../render/player-text.js?v=0.2.115';
+import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.121';
+import { STATUSES } from '../data/statuses.js?v=0.2.121';
+import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.121';
+import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.121';
+import { isRune } from '../data/supplies.js?v=0.2.121';
+import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.121';
+import { ITEMS } from '../data/items.js?v=0.2.121';
+import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.121';
+import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.121';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.121';
+import { refusalWords } from './intent-words.js?v=0.2.121';
+import { skillName } from './widgets/bits.js?v=0.2.121';
+import { t } from '../render/player-text.js?v=0.2.121';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));

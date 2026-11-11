@@ -18,13 +18,15 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.115';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.115';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.115';
-import { callOfHunt } from '../data/boss-calls.js?v=0.2.115';
-import { lossLine } from './boss-loss.js?v=0.2.115';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.115';
-import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.115';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.121';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.121';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.121';
+import { callOfHunt } from '../data/boss-calls.js?v=0.2.121';
+import { lossLine } from './boss-loss.js?v=0.2.121';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.121';
+import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.121';
+import { ITEMS } from '../data/items.js?v=0.2.121';
+import { isRareItem } from '../shell/hunt-ground-facts.js?v=0.2.121';
 
 export { sanitizeSummaries };
 
@@ -32,17 +34,17 @@ export { sanitizeSummaries };
 /** Why a hunt ended, as a sentence (one per END_ORDER name; a guard in tests/hunt-summary.mjs keeps them equal). */
 export const END_WORDS = Object.freeze({
   died: 'Your hero died and returned to town.',
-  boss_felled: 'He is down. There is a title to claim on the Character window, under Titles.',
-  party_member_died: 'A party member fell, so your hero came home too.',
+  boss_felled: 'You beat him. There\'s a title for you under Titles in the Character window.',
+  party_member_died: 'A party member died, so your hero came home too.',
   party_member_left: 'A party member left the hunt, so your hero came home too.',
   heals_out: 'You ran out of healing supplies.',
   ammo_out: 'You ran out of ammunition.',
   runes_out: END_REASON_COPY.runes_out.one,
-  gold_out: 'Ran out of gold for supplies, returned to town.',
+  gold_out: 'You ran out of gold for supplies, so you headed home.',
   rule: 'One of your stop rules was met, so you headed home.',
   stamina: 'Your stamina ran out, so your hero came home. It comes back hour for hour while you aren\'t hunting.',
   hours: 'The hunt reached its time limit.',
-  boss_time: 'Ten minutes, and he still stands. Your party came home.',
+  boss_time: 'The ten minutes ran out before he went down. Your party came home.',
   left: 'You left the hunt.',
   changed: 'You moved on to another hunt.',
   no_fight: END_REASON_COPY.no_fight.one,
@@ -87,6 +89,27 @@ function countPairs(v) {
   if (Array.isArray(v)) for (const l of v) { if (isObj(l) && id(l.item) && num(l.count) !== null) out.push([l.item, l.count]); }
   else if (isObj(v)) for (const [k, n] of Object.entries(v)) if (id(k) && num(n) !== null) out.push([k, n]);
   return out;
+}
+
+/* Gear a hero can wear (ammo is a supply), or a Rare row somewhere (the Hunts page's own test): the finds worth a line of their own. */
+const standout = (id) => { const it = ITEMS[id]; return !!(it && it.slot && it.slot !== 'ammo') || isRareItem(id); };
+const each = (r) => (Number.isFinite(r.value) && r.count > 0 ? r.value / r.count : -1);
+
+/**
+ * TOP LOOT, BEST FIRST (designer re-read 2026-11-11: Bones, Rat Tail and Wheat led by count, and the Iron Platebody and the Alpha
+ * Fangs never got a line): gear and Rares first, then the most each one is worth at the shop's bid (the server's, hunt-sections.js's
+ * row value; a row the shop has no bid for comes after), then the most of it. Display order only.
+ * @param {{item:string, count:number, value?:number|null}[]} rows
+ * @returns {{item:string, count:number, value?:number|null}[]}
+ */
+export function rankLoot(rows) {
+  return (rows || []).slice().sort((a, b) => (standout(b.item) - standout(a.item)) || (each(b) - each(a)) || (b.count - a.count) || (a.item < b.item ? -1 : a.item > b.item ? 1 : 0));
+}
+
+/** The best find in these rows when one stands out (gear or a Rare), else null: the away card's line. */
+export function bestFind(rows) {
+  const top = rankLoot(rows)[0];
+  return top && standout(top.item) ? top.item : null;
 }
 
 /**
@@ -137,8 +160,8 @@ export function buildSummary(s, an, deaths, role) {
   const t = s.tally || {};
   const dur = an && an.sessionMs !== null && an.sessionMs !== undefined ? an.sessionMs
     : s.enteredMs !== null && s.endedMs !== null ? Math.max(0, s.endedMs - s.enteredMs) : null;
-  const loot = hero ? hero.loot.filter((l) => id(l.item) && num(l.count) !== null).map((l) => [l.item, l.count]) : countPairs(t.loot);
-  loot.sort((a, b) => b[1] - a[1]);
+  const loot = rankLoot(hero ? hero.loot.filter((l) => id(l.item) && num(l.count) !== null) : countPairs(t.loot).map(([item, count]) => ({ item, count })))
+    .map((l) => [l.item, l.count]);
   const supplies = hero ? hero.supplies.filter((x) => id(x.item) && num(x.count) !== null).map((x) => [x.item, x.source, x.count])
     : countPairs(t.supplies).map(([item, n]) => [item, 'own', n]);
   return sanitizeSummary({

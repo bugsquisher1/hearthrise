@@ -15,8 +15,8 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { LEVEL_CURVE, SKILL_CURVE } from '../data/core-model.js?v=0.2.115';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.115';
+import { LEVEL_CURVE, SKILL_CURVE } from '../data/core-model.js?v=0.2.121';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.121';
 
 /* Threshold XP for level i+1. b215: the level-98 threshold (11,805,606)
    was missing for a long time, which capped levelFromXp at 98 and made
@@ -69,6 +69,9 @@ const SKILL_TOTAL = [0];
 let powNum = 1n;
 let powDen = 1n;
 function growSkillTo(lv) {
+  /* Already grown (every call but the first few): no BigInt is made. skillLevelFromXp asks once per Level it walks, and the
+     engine asks it for every hero's skill levels each sub-step (lane/r-engine-profile: 3% of a party's engine time). */
+  if (SKILL_TOTAL.length >= lv) return;
   const base = BigInt(SKILL_CURVE.base);
   const g = BigInt(1000 + SKILL_CURVE.growthPermille);
   while (SKILL_TOTAL.length < lv && SKILL_TOTAL[SKILL_TOTAL.length - 1] < Number.MAX_SAFE_INTEGER) {

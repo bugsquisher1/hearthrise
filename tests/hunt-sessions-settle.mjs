@@ -4854,8 +4854,9 @@ const DB_MUTANTS = [
     find: 'kills = t.kills + v_kills,', replace: 'kills = t.kills + v_kills + 1,' },
   { arm: 'TALLY', name: 'the fold drops the own-supply rows', fn: SS,
     find: 'supplies = public.hr_jsonb_add(t.supplies, v_sup)', replace: 'supplies = t.supplies' },
+  /* the tally's one write a member (2027-04-08-member-write-once.sql folds the store bill into it; each column keeps its own condition) */
   { arm: 'ANALYZER', name: 'the analyzer tally is not folded', fn: AM,
-    find: '           dealt = public.hr_hunt_tally_add(t.dealt, coalesce(p_analyzer->\'dealt\', \'{}\'::jsonb)),', replace: '           dealt = t.dealt,' },
+    find: 'then public.hr_hunt_tally_add(t.dealt, coalesce(p_analyzer->\'dealt\', \'{}\'::jsonb)) else t.dealt end,', replace: 'then t.dealt else t.dealt end,' },
   /* 'a free character reads the analyzer' RETIRED 2026-10-19: 2026-10-26-hunt-analyzer-basic.sql gives every
      character the basic analyzer, so the live body has no premium gate to remove. */
   { arm: 'DEATHXP', name: 'the applier stops bounding the Level\'s death price', fn: AM,

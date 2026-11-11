@@ -14,8 +14,9 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { leashMarginOf } from '../../data/hunt-grounds.js?v=0.2.115';
-import { makeEvent } from './events.js?v=0.2.115';
+import { leashMarginOf } from '../../data/hunt-grounds.js?v=0.2.121';
+import { makeEvent } from './events.js?v=0.2.121';
+import { staleIndex } from './unit-index.js?v=0.2.121';
 
 /** Is (x, y) inside pocket `pocket`'s pack area (its room plus the ground's margin)? */
 export function inArea(inst, pocket, x, y) {
@@ -73,5 +74,6 @@ export function resetPack(inst, pocket, sc) {
     u.goal = u.home ? [u.home[0], u.home[1]] : null;
     u.path = [];
   }
+  staleIndex(inst);
   sc.emit(makeEvent('pack_reset', sc.atMs, { pocket }));
 }

@@ -57,16 +57,35 @@ function ghGet(path, env) {
   throw new Error(`GET ${path}: ${last}`);
 }
 
+/* A verdict a job reached. A job cut off at its own timeout-minutes reads `cancelled` too, so a
+   cancelled sweep is passed over only when NO job reached one (see readNightly). */
+const JUDGED = new Set(['success', 'failure', 'timed_out']);
+/* Sweeps read past a cancelled one with no verdict, newest first: one jobs call each. */
+const SWEEP_LOOKBACK = 4;
+
 /**
  * The last completed sweep on main: { at, id, jobs: { job name: conclusion } }, or null. A red
- * run no job explains proves nothing, so its list is empty. `get` is GitHub's answer, injectable for the selftest.
+ * run no job explains proves nothing, so its list is empty. A sweep CANCELLED before any job
+ * reached a verdict says nothing at all, so the sweep before it decides (11-10: dispatch
+ * 42735502405 on main, cancelled at 5 min with 0 of 45 jobs judged, stood as the last nightly
+ * for 15 h and put every job of four release runs in full; three were red for that alone). The
+ * 48 h staleness still applies to whichever sweep decides. `get` is GitHub's answer, injectable for the selftest.
  */
 export function readNightly(get) {
   /* One call for both sweep events: the token allows 1000 calls an hour and every job asks. */
   const runs = get('/actions/workflows/smoke.yml/runs?branch=main&status=completed&per_page=50').workflow_runs || [];
-  const run = runs.filter((r) => r.event === 'schedule' || r.event === 'workflow_dispatch').sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))[0];
-  if (!run) return null;
-  const list = get(`/actions/runs/${run.id}/jobs?per_page=100&filter=latest`).jobs || [];
+  const sweeps = runs.filter((r) => r.event === 'schedule' || r.event === 'workflow_dispatch').sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at));
+  if (!sweeps.length) return null;
+  let run = sweeps[0];
+  let list = null;
+  for (const r of sweeps.slice(0, SWEEP_LOOKBACK)) {
+    const jobs = get(`/actions/runs/${r.id}/jobs?per_page=100&filter=latest`).jobs || [];
+    if (r === sweeps[0]) list = jobs;
+    if (r.conclusion === 'cancelled' && !jobs.some((j) => JUDGED.has(j.conclusion))) continue;
+    run = r; list = jobs;
+    break;
+  }
+  /* Every sweep read was cancelled unjudged: the newest stands, and every job it did not prove runs in full. */
   const explained = run.conclusion === 'success' || list.some((j) => j.conclusion !== 'success');
   return { at: run.updated_at, id: run.id, jobs: explained ? Object.fromEntries(list.map((j) => [j.name, j.conclusion])) : {} };
 }

@@ -1,0 +1,270 @@
+{
+  "asset": "rat_king hit clip (brief 10 B3), The Sewer",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B3 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "hunt",
+  "object_id": "3c137163-dbd3-4812-8a72-a518a58f0f20",
+  "name": "Rat King (64 canvas, the Sewer boss)",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); hit/<facing>/0..N.png = the kept roll; alt/<roll>/hit/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the object, frame_count 6, keep_first_frame false; south and the side facings are separate groups (their action texts differ)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "8b512ec5-0f85-4943-9df1-643bdf26f4d8",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "affe5432-b1a4-47ff-9162-b487055c0743",
+        "directions": "e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r2": [
+      {
+        "group": "fee5b132-60e0-4e1f-8d11-fb4f832901c7",
+        "directions": "w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance upright, feet planted, it does not bow forward, the cape and the sceptre move only with the body, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r3": [
+      {
+        "group": "f4a16e10-7f62-4a9d-ac5b-de11cd125210",
+        "directions": "w",
+        "action": "seen from the side, rocks back on its heels by one pixel as if pushed in the chest, then returns to its stance upright, feet planted, the head and the arms stay where they are, the cape and the sceptre move only with the body, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r1",
+    "east": "r1",
+    "north": "r1",
+    "west": "r3"
+  },
+  "refused": {
+    "west r1": "bows forward toward the side it faces, the cape flares (frames 2-4, 3 px)",
+    "west r2": "bows forward again, 3 px"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r1",
+      "xor": [
+        134,
+        234,
+        236,
+        252,
+        184,
+        157
+      ],
+      "alien": [
+        0,
+        3,
+        3,
+        4,
+        0,
+        1
+      ],
+      "dx": [
+        -0.1,
+        -0.1,
+        -0.7,
+        -1,
+        -0.5,
+        -0.2
+      ],
+      "dy": [
+        0,
+        0.2,
+        0.4,
+        0.9,
+        0.4,
+        -0.1
+      ],
+      "top": [
+        1,
+        3,
+        3,
+        5,
+        3,
+        1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "top f3 (5)"
+      ]
+    },
+    "east": {
+      "roll": "r1",
+      "xor": [
+        76,
+        123,
+        215,
+        266,
+        176,
+        83
+      ],
+      "alien": [
+        0,
+        1,
+        5,
+        21,
+        1,
+        1
+      ],
+      "dx": [
+        0.2,
+        0.3,
+        0.5,
+        0.6,
+        0.5,
+        0.2
+      ],
+      "dy": [
+        -0.3,
+        0,
+        0.3,
+        0.8,
+        0.3,
+        0.1
+      ],
+      "top": [
+        0,
+        1,
+        2,
+        3,
+        2,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "north": {
+      "roll": "r1",
+      "xor": [
+        104,
+        207,
+        297,
+        359,
+        198,
+        157
+      ],
+      "alien": [
+        0,
+        3,
+        14,
+        22,
+        5,
+        5
+      ],
+      "dx": [
+        0.2,
+        0.2,
+        0,
+        -0.2,
+        0.1,
+        0.3
+      ],
+      "dy": [
+        0.4,
+        0.8,
+        1.4,
+        1.8,
+        0.8,
+        -0.1
+      ],
+      "top": [
+        1,
+        2,
+        3,
+        4,
+        2,
+        0
+      ],
+      "bottom": [
+        1,
+        2,
+        2,
+        2,
+        2,
+        1
+      ],
+      "auto_flags": []
+    },
+    "west": {
+      "roll": "r3",
+      "xor": [
+        116,
+        232,
+        351,
+        340,
+        252,
+        112
+      ],
+      "alien": [
+        2,
+        15,
+        48,
+        30,
+        11,
+        2
+      ],
+      "dx": [
+        -0.2,
+        -0.8,
+        -1.1,
+        -0.9,
+        -0.5,
+        -0.1
+      ],
+      "dy": [
+        0.5,
+        0.7,
+        0.4,
+        0.2,
+        0.2,
+        0.1
+      ],
+      "top": [
+        1,
+        2,
+        3,
+        3,
+        2,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (48)",
+        "colour f3 (30)"
+      ]
+    }
+  },
+  "generations": 6,
+  "flags": [
+    "WEST: no clean roll after 2 retries. Kept r3: it still dips its head forward 1 px at frames 2-3 (48 px new colour where the cape folds), the least of the three"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/rat_king-hit.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)"
+}

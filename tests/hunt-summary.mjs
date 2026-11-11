@@ -171,6 +171,12 @@ async function runTests(M) {
     const unrated = MD.buildSummary(ended(), { ...an, hero: { ...an.hero, balance: 2228, perHour: { ...an.hero.perHour, balance: null } } }, []);
     eq([unrated.balance, unrated.balanceH, MD.sanitizeSummaries([unrated])[0].balance], [2228, null, 2228], 'the balance shows before the per-hour rate does');
     eq(s.loot[0], ['cheese', 9], 'top loot first');
+    /* GEAR AND RARES LEAD, THEN THE SHOP'S BID EACH (designer re-read 2026-11-11: Bones and Rat Tail led by count, the Iron Platebody never got a line) */
+    const night = MD.buildSummary(ended(), { ...an, hero: { ...an.hero, loot: [{ item: 'bones', count: 900, value: 900 }, { item: 'rat_tail', count: 300, value: 1800 },
+      { item: 'dire_fang', count: 4, value: 600 }, { item: 'iron_platebody', count: 1, value: 100 }, { item: 'wolf_pelt', count: 40, value: null }] } }, []);
+    eq(night.loot.map((l) => l[0]), ['iron_platebody', 'dire_fang', 'rat_tail', 'bones', 'wolf_pelt'], 'gear first, then the most each is worth, an unbid row last');
+    eq(MD.bestFind([{ item: 'bones', count: 900, value: 900 }, { item: 'iron_platebody', count: 1, value: 400 }]), 'iron_platebody', 'the best find is the gear');
+    eq(MD.bestFind([{ item: 'bones', count: 900, value: 900 }]), null, 'Bones are never a best find');
     const free = MD.buildSummary(ended(), null, []);
     eq([free.ms, free.kills, free.xp, free.gold, free.loot, free.supplies], [60000, 7, 70, 30, [['rat_tail', 4]], [['wheat_bread', 'own', 3]]], 'the free character reads the session tally (XP = its Level key, not the skills)');
   });
@@ -344,7 +350,8 @@ const MUTANTS = [
   { test: 'S2', file: SUMMARIES, from: "if (!s || seen.has(s.id)) continue;", to: "if (!s) continue;" },
   { test: 'S3', file: RESIDUE, from: "  huntSummaries: sanitizeSummaries,", to: "  huntSummaries: (v) => v," },
   { test: 'S4', file: MODEL, from: ".map((x) => [x.item, x.source, x.count])", to: ".map((x) => [x.item, 'own', x.count])" },
-  { test: 'S4', file: MODEL, from: "loot.sort((a, b) => b[1] - a[1]);", to: '' },
+  { test: 'S4', file: MODEL, from: "(standout(b.item) - standout(a.item)) || ", to: '' },
+  { test: 'S4', file: MODEL, from: '(each(b) - each(a)) || ', to: '' },
   { test: 'S4', file: MODEL, from: 'balanceH: ph ? ph.balance : null,', to: 'balanceH: ph ? ph.gold : null,' },
   { test: 'S4', file: SUMMARIES, from: 'lootValue: num(v.lootValue), ', to: '' },
   { test: 'S4', file: SUMMARIES, from: 'balance: num(v.balance), ', to: '' },

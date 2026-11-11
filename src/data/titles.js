@@ -49,10 +49,10 @@ export const TITLES = Object.freeze({
   /* THE PRIZES OF CALL OUT (src/data/boss-calls.js; Tyler 2026-11-04), price 0: the same whatever the dice say, and nothing tradeable. The King's crown is hammered from drain grates; the Chief wears his cauldron. */
   grate_thief: Object.freeze({
     name: 'Sewerlord', words: 'the Sewerlord', price: 0, kills: 1,
-    monsters: Object.freeze(['rat_king_called']), label: 'Rat King called out and felled', noun: 'Rat King called out and felled',
+    monsters: Object.freeze(['rat_king_called']), label: 'Wins in the Rat King\'s Hall', noun: 'win in the Rat King\'s Hall',
   }),
   cauldron_thief: Object.freeze({
     name: 'Slagbreaker', words: 'the Slagbreaker', price: 0, kills: 1,
-    monsters: Object.freeze(['chief_coppercap_called']), label: 'Chief Coppercap called out and felled', noun: 'Chief Coppercap called out and felled',
+    monsters: Object.freeze(['chief_coppercap_called']), label: 'Wins in Chief Coppercap\'s Hall', noun: 'win in Chief Coppercap\'s Hall',
   }),
 });

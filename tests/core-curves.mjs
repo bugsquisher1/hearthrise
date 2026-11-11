@@ -14,8 +14,23 @@
 // settle (or worse, admits a forged one). This guard replays the chain
 // (PGlite) and compares every boundary value, exactly.
 //
+// AND THE ENVELOPE'S OWN LEVEL (lane/c-level-from-server): the client draws the
+// Level from hr_state_of's `level` block { xp, level, into, need } and works
+// none of it out, so that block is held to hr_char_level / hr_char_xp_for_level
+// at 0, one XP under and on every boundary, and deep into the curve, with the
+// Level the vitals are worked from beside it (readEnvelopeLevels).
+//
+// AND THE ENVELOPE'S SKILL BARS (lane/c-skills-from-server): the skill ledgers draw
+// each skill's level and two XP marks from hr_state_of's `skill_levels` section
+// (hr_skill_block: { xp, level, into, need }, every skill in the catalogue), so that
+// section is held to hr_skill_level / hr_skill_xp_for_level and to this build's
+// skill curves at 0, one XP under and on every level boundary (every capped level,
+// the combat curve to 120) and past the cap and deep, beside `skills`' own level
+// (readEnvelopeSkills); its keys are SKILLS_DEF's.
+//
 //   node tests/core-curves.mjs              compare; exit 1 on any mismatch
-//   node tests/core-curves.mjs --selftest   each planted JS drift must be named
+//   node tests/core-curves.mjs --selftest   each planted drift must be named (JS drifts, then
+//                                           drifts planted in the database's envelope)
 // ════════════════════════════════════════════════════════════════════════
 import { isMain } from './_is-main.mjs';
 import * as XP from '../src/core/xp.js';
@@ -67,7 +82,109 @@ async function readSql(db) {
   out.regen = await one('select p, public.hr_regen_permille(p) as v from generate_series(0, 400) p');
   const ids = Object.keys(MONSTERS);
   out.monster = await one('select m, public.hr_monster_level(m) as v from unnest($1::text[]) m', [ids]);
+  out.env = await readEnvelopeLevels(db);
+  out.skillEnv = await readEnvelopeSkills(db);
   return out;
+}
+
+/* ── THE ENVELOPE'S OWN LEVEL (lane/c-level-from-server) ───────────────────────────────────────────────────
+   The client draws the Level, the XP ring and every Level gate from hr_state_of's `level` block and works none of it out
+   (src/session/character-sections.js levelOf; on 2026-11-10 its own copy of the curve said Level 20 for a hero the server
+   fought as 19). So the block IS the contract, and it is held here against the server's own curve functions: one probe
+   hero is set to each XP in ENV_XP and its whole envelope read back. */
+const ENV_HERO = '1e0e1000-0000-4000-8000-0000000c0de5';
+/* 0; every Level's boundary up to 60 and each curve bracket's first Level, one XP under it and on it; deep Levels; a huge one. */
+const ENV_XP = (() => {
+  const at = new Set([0, 1]);
+  const edges = [...Array.from({ length: 59 }, (_, i) => i + 2), ...XP.levelCurveRows().map((r) => r.from), 120, 150, 299, 300, 301, 1000];
+  for (const l of edges) { const x = XP.charXpForLevel(l); if (x > 0) at.add(x - 1); at.add(x); }
+  at.add(XP.charXpForLevel(1000) + 123456789);
+  at.add(XP.charXpForLevel(10000) + 987654321);   // about 1.6e14: deep in the last bracket, whole numbers still exact
+  return [...at].sort((a, b) => a - b);
+})();
+
+/** One row per ENV_XP: what hr_state_of projected for a hero holding that Level XP, beside the server's curve functions' own answers. */
+async function readEnvelopeLevels(db) {
+  await db.exec(`insert into auth.users (id) values ('${ENV_HERO}') on conflict do nothing;
+    insert into public.player_state (user_id, slot, version) values ('${ENV_HERO}', 0, 1) on conflict (user_id, slot) do nothing;
+    create temp table if not exists hr_env_level_probe (x bigint primary key, env jsonb);
+    truncate hr_env_level_probe;
+    do $probe$
+    declare v_x bigint;
+    begin
+      foreach v_x in array array[${ENV_XP.join(', ')}]::bigint[] loop
+        update public.player_state set level_xp = v_x where user_id = '${ENV_HERO}' and slot = 0;
+        insert into hr_env_level_probe values (v_x, public.hr_state_of('${ENV_HERO}', 0));
+      end loop;
+    end $probe$;`);
+  return (await db.query(`select p.x::text as x, p.env->'level' as block, p.env->'vitals'->'level' as vitals, p.env->'state'->'level_xp' as state_xp,
+           f.lv as fn, public.hr_char_xp_for_level(f.lv)::text as lo, public.hr_char_xp_for_level(f.lv + 1)::text as hi
+      from hr_env_level_probe p cross join lateral (select public.hr_char_level(p.x) as lv) f order by p.x`)).rows;
+}
+
+/* ── THE ENVELOPE'S SKILL BARS (lane/c-skills-from-server) ─────────────────────────────────────────────────
+   The ledgers draw a skill's level, its fill and "N XP to L+1" / "Mastered" from hr_state_of's `skill_levels` section and work
+   none of it out (src/session/item-sections.js skillLevelsOf). The same probe hero holds a row for every skill; probe i sets each
+   skill to the i-th XP of its own list (its last once the list is spent) and reads the envelope back. */
+const SKILL_IDS = Object.keys(SKILLS_DEF);
+const SKILL_XP = Object.fromEntries(SKILL_IDS.map((s) => {
+  const at = new Set([0, 1]);
+  const top = XP.isCapped(s) ? XP.MAX_LEVEL : 120;
+  for (let l = 2; l <= top; l++) { const x = XP.skillXpForLevel(s, l); at.add(x - 1); at.add(x); }
+  if (XP.isCapped(s)) at.add(XP.skillXpForLevel(s, XP.MAX_LEVEL) + 123456);
+  else { at.add(XP.skillXpForLevel(s, 200) + 5); at.add(XP.skillXpForLevel(s, 300)); }
+  return [s, [...at].sort((a, b) => a - b)];
+}));
+const SKILL_PROBES = Math.max(...Object.values(SKILL_XP).map((a) => a.length));
+
+/** One row per (probe, skill): the section's cell, `skills`' level, and the server's curve functions' own answers for that XP. */
+async function readEnvelopeSkills(db) {
+  const xs = [];
+  for (const s of SKILL_IDS) for (let i = 0; i < SKILL_PROBES; i++) xs.push(`('${s}', ${i}, ${SKILL_XP[s][Math.min(i, SKILL_XP[s].length - 1)]})`);
+  await db.exec(`insert into auth.users (id) values ('${ENV_HERO}') on conflict do nothing;
+    insert into public.player_state (user_id, slot, version) values ('${ENV_HERO}', 0, 1) on conflict (user_id, slot) do nothing;
+    insert into public.player_skills (user_id, slot, skill_id, xp) select '${ENV_HERO}', 0, s, 0 from unnest(array[${SKILL_IDS.map((s) => `'${s}'`).join(', ')}]) s
+      on conflict (user_id, slot, skill_id) do nothing;
+    create temp table if not exists hr_env_skill_xp (s text, i int, x bigint, primary key (s, i));
+    create temp table if not exists hr_env_skill_probe (i int primary key, sl jsonb, sk jsonb);
+    truncate hr_env_skill_xp; truncate hr_env_skill_probe;
+    insert into hr_env_skill_xp values ${xs.join(', ')};
+    do $probe$
+    declare v_i int; v_env jsonb;
+    begin
+      for v_i in 0 .. ${SKILL_PROBES - 1} loop
+        update public.player_skills p set xp = t.x from hr_env_skill_xp t
+         where p.user_id = '${ENV_HERO}' and p.slot = 0 and p.skill_id = t.s and t.i = v_i;
+        v_env := public.hr_state_of('${ENV_HERO}', 0);
+        insert into hr_env_skill_probe values (v_i, v_env->'skill_levels', v_env->'skills');
+      end loop;
+    end $probe$;`);
+  return (await db.query(`select p.i, coalesce((select array_agg(k order by k) from jsonb_object_keys(coalesce(p.sl, '{}'::jsonb)) k), '{}') as keys,
+           t.s, t.x::text as x, p.sl->t.s as cell, p.sk->t.s->'level' as sk_level,
+           f.lv as fn, public.hr_skill_xp_for_level(t.s, f.lv)::text as lo, public.hr_skill_xp_for_level(t.s, f.lv + 1)::text as hi
+      from hr_env_skill_probe p join hr_env_skill_xp t on t.i = p.i
+      cross join lateral (select public.hr_skill_level(t.s, t.x) as lv) f order by p.i, t.s`)).rows;
+}
+
+/** Every way the envelope's `skill_levels` disagrees with the server's own curve functions, `skills` or the engine's curves. */
+function compareSkillEnvelope(js, rows) {
+  const bad = [];
+  const want = [...SKILL_IDS].sort().join(',');
+  if (rows.length !== SKILL_PROBES * SKILL_IDS.length) bad.push(`skill_levels: ${rows.length} of ${SKILL_PROBES * SKILL_IDS.length} cells read back`);
+  for (const r of rows) {
+    const x = Number(r.x), c = r.cell, lo = Number(r.lo), hi = Number(r.hi);
+    const at = `skill_levels at ${r.s} ${r.x} XP: `;
+    if ([...r.keys].join(',') !== want) { bad.push(at + `the section's skills are [${[...r.keys].join(',')}], SKILLS_DEF's [${want}]`); continue; }
+    if (!c || typeof c !== 'object') { bad.push(at + 'no cell (the ledger would draw no bar)'); continue; }
+    if (c.level !== r.fn) bad.push(at + `the cell says level ${c.level}, hr_skill_level ${r.fn}`);
+    if (c.xp !== x || c.into !== x - lo || c.need !== hi - lo) bad.push(at + `the cell is ${JSON.stringify(c)}, the curve functions give xp ${x}, into ${x - lo}, need ${hi - lo}`);
+    if (!(c.into >= 0) || !(c.need >= 0) || (c.need > 0 && !(c.into < c.need))) bad.push(at + `the marks do not hold the XP: into ${c.into} of ${c.need}`);
+    if ((c.need === 0) !== (XP.isCapped(r.s) && c.level >= XP.MAX_LEVEL)) bad.push(at + `need ${c.need} at level ${c.level}: "Mastered" only at a capped skill's last level`);
+    if (r.sk_level !== c.level) bad.push(at + `\`skills\` says level ${r.sk_level}, the section ${c.level}`);
+    const jl = js.skillLevel(r.s, x), jlo = js.skillXp(r.s, jl), jhi = js.skillXp(r.s, jl + 1);
+    if (jl !== c.level || x - jlo !== c.into || jhi - jlo !== c.need) bad.push(at + `the engine's curves (src/core/xp.js) say level ${jl}, ${x - jlo} of ${jhi - jlo}; the cell ${JSON.stringify(c)}`);
+  }
+  return bad;
 }
 
 /** Every disagreement between `js` and the SQL rows, as strings. */
@@ -89,6 +206,26 @@ function compare(js, sql) {
     const j = js.monster(r.m);
     if ((j ?? null) !== (r.v ?? null)) push(`monster ${r.m}: JS level ${j}, SQL ${r.v}`);
   }
+  bad.push(...compareEnvelope(js, sql.env || []).slice(0, 12));
+  bad.push(...compareSkillEnvelope(js, sql.skillEnv || []).slice(0, 12));
+  return bad;
+}
+
+/** Every way the envelope's `level` block disagrees with the server's own curve functions (and the engine's), as strings. */
+function compareEnvelope(js, rows) {
+  const bad = [];
+  if (rows.length !== ENV_XP.length) bad.push(`envelope: ${rows.length} of ${ENV_XP.length} probes read back`);
+  for (const r of rows) {
+    const x = Number(r.x), b = r.block, lo = Number(r.lo), hi = Number(r.hi);
+    const at = `envelope at ${r.x} Level XP: `;
+    if (!b || typeof b !== 'object') { bad.push(at + 'hr_state_of projects no `level` block (the client would draw no Level)'); continue; }
+    if (b.level !== r.fn) bad.push(at + `the block says Level ${b.level}, hr_char_level ${r.fn}`);
+    if (b.xp !== x || b.into !== x - lo || b.need !== hi - lo) bad.push(at + `the block is ${JSON.stringify(b)}, the curve functions give xp ${x}, into ${x - lo}, need ${hi - lo}`);
+    if (!(b.need >= 1) || !(b.into >= 0) || !(b.into < b.need)) bad.push(at + `the block's marks do not hold the XP: into ${b.into} of ${b.need}`);
+    if (r.vitals !== b.level) bad.push(at + `vitals (max HP and mana) are worked from Level ${r.vitals}, the block says ${b.level}`);
+    if (r.state_xp !== x) bad.push(at + `state.level_xp is ${r.state_xp}`);
+    if (js.charLevel(x) !== b.level) bad.push(at + `the engine's curve (src/core/xp.js) says Level ${js.charLevel(x)}, the block ${b.level}`);
+  }
   return bad;
 }
 
@@ -107,6 +244,46 @@ const MUTANTS = [
   ['a called row is read at his engine level', { monster: (m) => monsterLevelOf(MONSTERS[m]) }],
 ];
 
+/* hr_state_of's own text with one edit, re-created (the body is not restated here: whatever file last authored it is read from the catalogue). */
+const patchStateOf = (from, to) => `do $plant$
+declare v_def text := replace(pg_get_functiondef('public.hr_state_of(uuid,integer)'::regprocedure), chr(13), '');
+begin
+  if strpos(v_def, $a$${from}$a$) = 0 then raise exception 'core-curves --selftest: the hr_state_of anchor moved: ${from.replace(/'/g, "''")}'; end if;
+  execute replace(v_def, $a$${from}$a$, $a$${to}$a$);
+end $plant$;`;
+/* Planted in the database, inside a transaction that is rolled back: [name, sql]. */
+const ENV_DRIFTS = [
+  ['the envelope reads the Level one XP late at each boundary', `create or replace function public.hr_level_block(p_xp bigint)
+     returns jsonb language sql stable set search_path = public, pg_catalog as $f$
+       select jsonb_build_object('xp', x, 'level', lv, 'into', x - public.hr_char_xp_for_level(lv),
+                'need', public.hr_char_xp_for_level(lv + 1) - public.hr_char_xp_for_level(lv))
+         from (select greatest(0, coalesce(p_xp, 0)) as x, public.hr_char_level(greatest(0, coalesce(p_xp, 0) - 1)) as lv) a $f$;`],
+  ['the envelope\'s XP marks are the next Level\'s', `create or replace function public.hr_level_block(p_xp bigint)
+     returns jsonb language sql stable set search_path = public, pg_catalog as $f$
+       select jsonb_build_object('xp', x, 'level', lv, 'into', x - public.hr_char_xp_for_level(lv),
+                'need', public.hr_char_xp_for_level(lv + 2) - public.hr_char_xp_for_level(lv + 1))
+         from (select greatest(0, coalesce(p_xp, 0)) as x, public.hr_char_level(p_xp) as lv) a $f$;`],
+  ['the envelope carries no level block', patchStateOf("'level', public.hr_level_block(v_st.level_xp),", '')],
+  ['the envelope\'s Level is not the Level its vitals are worked from', patchStateOf("'level', public.hr_level_block(v_st.level_xp),", "'level', public.hr_level_block(v_st.level_xp + 100000),")],
+];
+/* hr_skill_block re-made with one change (plpgsql, as the file installs it): `lv`, `lo` and the jsonb are its three lines. */
+const skillBlockWith = ({ lv = 'public.hr_skill_level(p_skill, x)', need = 'public.hr_skill_xp_for_level(p_skill, lv + 1) - lo' } = {}) =>
+  `create or replace function public.hr_skill_block(p_skill text, p_xp bigint)
+     returns jsonb language plpgsql stable set search_path = public, pg_catalog as $f$
+     declare x bigint := greatest(0, coalesce(p_xp, 0)); lv int; lo bigint;
+     begin
+       lv := ${lv};
+       lo := public.hr_skill_xp_for_level(p_skill, lv);
+       return jsonb_build_object('xp', x, 'level', lv, 'into', x - lo, 'need', ${need});
+     end $f$;`;
+/* The skill arm's own drifts, planted in the database and rolled back: [name, sql]. */
+const SKILL_DRIFTS = [
+  ['a skill\'s level is read one XP late at each boundary', skillBlockWith({ lv: 'public.hr_skill_level(p_skill, greatest(0, x - 1))' })],
+  ['a skill\'s XP marks are the next level\'s', skillBlockWith({ need: 'public.hr_skill_xp_for_level(p_skill, lv + 2) - public.hr_skill_xp_for_level(p_skill, lv + 1)' })],
+  ['a skill at its cap reads a next level (never Mastered)', skillBlockWith({ need: 'greatest(1, public.hr_skill_xp_for_level(p_skill, lv + 1) - lo)' })],
+  ['the envelope carries no skill_levels section', "delete from public.hr_state_sections where key = 'skill_levels';"],
+];
+
 async function main() {
   const { bootReplay } = await import('./schema-replay.mjs');
   let db;
@@ -123,12 +300,33 @@ async function main() {
       console.log(`  ${caught ? 'ok  ' : 'MISS'} ${name}`);
       if (!caught) missed++;
     }
-    console.log(missed ? `core-curves --selftest: ${missed} drift(s) not caught` : `core-curves --selftest: all ${MUTANTS.length} drifts caught`);
+    /* THE ENVELOPE ARM'S OWN DRIFTS, planted in the DATABASE (the block is the server's) and rolled back: each must be named. */
+    for (const [name, plant] of ENV_DRIFTS) {
+      await db.exec('begin');
+      let said = [];
+      try { await db.exec(plant); said = compareEnvelope(JS, await readEnvelopeLevels(db)); } finally { await db.exec('rollback'); }
+      const caught = said.length > 0;
+      console.log(`  ${caught ? 'ok  ' : 'MISS'} ${name}${caught ? ' (' + said.length + ' named: ' + said[0].slice(0, 110) + ')' : ' — nothing said'}`);
+      if (!caught) missed++;
+    }
+    if (compareEnvelope(JS, await readEnvelopeLevels(db)).length) { console.error('core-curves --selftest: the envelope arm is red after its plants were rolled back'); missed++; }
+    /* THE SKILL ARM'S DRIFTS, the same way (lane/c-skills-from-server) */
+    for (const [name, plant] of SKILL_DRIFTS) {
+      await db.exec('begin');
+      let said = [];
+      try { await db.exec(plant); said = compareSkillEnvelope(JS, await readEnvelopeSkills(db)); } finally { await db.exec('rollback'); }
+      const caught = said.length > 0;
+      console.log(`  ${caught ? 'ok  ' : 'MISS'} ${name}${caught ? ' (' + said.length + ' named: ' + said[0].slice(0, 110) + ')' : ' — nothing said'}`);
+      if (!caught) missed++;
+    }
+    if (compareSkillEnvelope(JS, await readEnvelopeSkills(db)).length) { console.error('core-curves --selftest: the skill arm is red after its plants were rolled back'); missed++; }
+    const total = MUTANTS.length + ENV_DRIFTS.length + SKILL_DRIFTS.length;
+    console.log(missed ? `core-curves --selftest: ${missed} drift(s) not caught` : `core-curves --selftest: all ${total} drifts caught`);
     process.exit(missed ? 1 : 0);
   }
   const bad = compare(JS, sql);
   for (const b of bad) console.error('  ✗ ' + b);
-  const n = sql.charXp.length + sql.charLevel.length + sql.skill.length + sql.vit.length * 2 + sql.regen.length + sql.monster.length;
+  const n = sql.charXp.length + sql.charLevel.length + sql.skill.length + sql.vit.length * 2 + sql.regen.length + sql.monster.length + sql.env.length + sql.skillEnv.length;
   console.log(bad.length ? `core-curves: ${bad.length} disagreement(s)` : `core-curves: JS and SQL agree on ${n} values`);
   process.exit(bad.length ? 1 : 0);
 }

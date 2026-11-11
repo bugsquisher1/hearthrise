@@ -22,9 +22,9 @@
 //   orderStation(open, ahead, sort, canMake)   the rows in the picked order (a fresh array)
 //   sortMenuHtml() / patchSortMenu(box, show, sort)   the menu, built once and patched in place
 // ════════════════════════════════════════════════════════════════════════
-import { t } from '../render/player-text.js?v=0.2.121';
-import { prop } from '../render/paint.js?v=0.2.121';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.121';
+import { t } from '../render/player-text.js?v=0.2.122';
+import { prop } from '../render/paint.js?v=0.2.122';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.122';
 
 /** id -> its menu label's text row. */
 const LABELS = Object.freeze({ can: 'work.sort_can', level: 'work.sort_level', name: 'work.sort_name' });

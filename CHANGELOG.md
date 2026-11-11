@@ -5,6 +5,22 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.122 — 2026-11-11 (Hunting Alone Pays)
+
+**Hunting alone pays 15% more Level XP.** A hero on its own earns a bonus on every ground and tier. A mixed party of four still earns about 15 to 25% more per head than a hero alone, now from a bigger share of each kill. On Normal every group fights the same packs, and bigger pulls come only from Dangerous and Deadly.
+
+**The level curve was refitted** to go with it. Hours to Level 10, 25 and 50 are about the same as before. Your Level can drop by one when this lands, because the XP you have is measured against the new curve. Nothing you earned is gone.
+
+**Coppercap Warrens pays less Level XP per kill** than it did, about a quarter less, so the ladder from the Glade up reads right. Bought scaled hunts also pay a little less for a party, so a bought hour is never the best party grind.
+
+**The Brook Bear lives in Vine Hollow.** A harder hunt in Mosslight Glade brings it, and its page says so.
+
+**You can call out the Rat King and Chief Coppercap on your own now.** Same price, still three calls a day, and the warning tells you what you are walking into.
+
+**Wolf Meat cooks at Cooking 1.** Jarl's Rime Necklace is Jarl's Collar.
+
+**Equip upgrades tells you when a stronger plain weapon would lose your bane.** If you wear a Bramble Blade and an Iron Sword sits in your bag, the line says the Iron Sword hits harder and the Bramble Blade does +40% to Plant monsters, and leaves the pick to you on the doll.
+
 ## v0.2.121 — 2026-11-11 (Plainer Names)
 
 **Some gear and monsters have plainer names.** Coifs are Hoods, Vambraces are Bracers, Torcs are Necklaces and Greaves are Leg Plates. The Kobold Tosher is the Sewer Kobold, the Gray Whelp is the Gray Wolf Pup, and the Dire Gray Hackle is the Dire Gray Neck Fur. Your gear stays the same.

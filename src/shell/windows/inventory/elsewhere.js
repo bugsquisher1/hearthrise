@@ -11,10 +11,10 @@
 // Nothing here builds a list from the envelopes open on this page (§1, §6).
 // Read only.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, element } from '../../../render/paint.js?v=0.2.121';
-import { whole } from '../../../render/format.js?v=0.2.121';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.121';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.121';
+import { rows, text, cls, element } from '../../../render/paint.js?v=0.2.122';
+import { whole } from '../../../render/format.js?v=0.2.122';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.122';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.122';
 
 const WHERE = Object.freeze({ bag: 'in the bag', worn: 'worn' });
 const DEBOUNCE_MS = 300;

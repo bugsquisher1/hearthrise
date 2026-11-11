@@ -49,7 +49,7 @@ export function spanWords(ms) {
 /**
  * What the hero did after hunt `h` (huntOf's shape) ended, from the server's `state` section, or null when the server
  * does not say. Pure.
- * @returns {{went: string}|{idleMs: number, next: string}|null}
+ * @returns {{kind: 'went', went: string}|{kind: 'waited', idleMs: number, next: string}|null}
  */
 export function afterHuntOf(st, h, nowMs) {
   if (!h || !h.ended || !Number.isFinite(h.endedAtMs) || !Number.isFinite(nowMs) || !RESUME_AFTER_END.includes(h.endReason)) return null;
@@ -59,19 +59,19 @@ export function afterHuntOf(st, h, nowMs) {
   const since = typeof st.active_since === 'string' ? Date.parse(st.active_since) : NaN;
   if (TOWN_KINDS.includes(st.active_kind)) {
     const doing = townActivityWords(st);
-    return doing && Number.isFinite(since) && Math.abs(since - home) <= SAME_MS ? { went: doing } : null;
+    return doing && Number.isFinite(since) && Math.abs(since - home) <= SAME_MS ? { kind: 'went', went: doing } : null;
   }
   /* player_state.active_kind is NOT NULL DEFAULT 'idle' (2026-08-11-player-state.sql): a section without it has not said */
   if (st.active_kind !== 'idle') return null;
   if (Number.isFinite(since) && since > home + MOVED_AFTER_MS) return null;
-  return { idleMs: Math.max(0, nowMs - home), next: NEXT[h.endReason] || 'away.next_gather' };
+  return { kind: 'waited', idleMs: Math.max(0, nowMs - home), next: NEXT[h.endReason] || 'away.next_gather' };
 }
 
 /** The after-the-hunt sentences for `name`, or '' when the server does not say (afterHuntOf). Pure. */
 export function afterHuntWords(st, h, nowMs, name) {
   const a = afterHuntOf(st, h, nowMs);
   if (!a) return '';
-  if (a.went) return t('away.after_went', { name, doing: a.went });
+  if (a.kind === 'went') return t('away.after_went', { name, doing: a.went });
   const next = t(a.next, a.next === 'away.next_gather' ? { name } : undefined);
   return (a.idleMs >= WAITED_FROM_MS ? t('away.after_waited', { name, time: spanWords(a.idleMs) }) + ' ' : '') + next;
 }

@@ -1,0 +1,34 @@
+BRIEF 14: ONE SAMPLE OF PIXELLAB'S STICKY PALETTE ON A PRO TILESET (Coordinator for the art director, 2026-11-11)
+Why: PixelLab's 2026-11-11 release (docs/PIXELLAB_WORKFLOW.md §7) lets create_topdown_tileset mode pro take `palette`
+(every drawn pixel one of the given colours) and `max_colors`. Brief 13 A5 refused five ash rolls because the LOCK
+crushed each to one flat colour (ash r1 p10 = p50 = p90 = 0.401; a value step past 8% slides onto the iron ramp) and
+ruled the ash route scripted. A palette-locked roll draws its flecks ON hr-world-56-v2 from the start, so the lock has
+nothing to crush. If that holds, pairs 2-6 of the ash family (75 gens) and every later region kit go this way.
+Tyler 2026-11-11: "Yes, one sample". One call, then stop and read.
+
+THE CALL (15 gens; read get_balance before and after; stop if the balance is under 115, the re-roll reserve):
+  create_topdown_tileset
+    mode: "pro", tile_size: 32, view: "high top-down", transition_size: 0
+    lower_base_tile_id: "093a18a0-67de-4862-b64a-b755422ac0a0"   (brief 13's kept ash base: must come back identical)
+    upper_description: "scorched bare earth, sooty dark brown-grey soil, soft and smudged, a few charred twigs and thin
+      hairline cracks, flat and level with the ash, no plates, no stones, no slabs, no paving, no tiles"
+    lower_description: brief 13 A5's ash words (the base id wins; the words are for the seam)
+    max_colors: 12
+    palette_name: "hr-world-56-v2"
+    palette: ["#0b0a0c","#17141a","#231d1f","#2f2723","#3a3a3e","#4f4e52","#6a6865","#8a867d","#aaa49a","#2a1c14","#3d2a1d","#553a26","#6e4c30","#8a6440","#a88457","#c49a5c","#16241a","#1f3322","#2c4a2c","#3d6234","#557a3e","#73944c","#4a5a2a","#6b7a38","#c9bfa0","#e6dcbc","#1a2c44","#2b4a6a","#3e1216","#5e1a1f","#b5835f","#dcae86","#f2a03a","#ffd36a","#8e1f1f","#c23a2a","#4fa8e8","#a8e4ff","#7ccf4a","#e8c547","#4a2e18","#7a4f26","#a8743a","#cfa25c","#2c2e33","#4a4d54","#6e727a","#969aa1","#3a4652","#5c6c7a","#8a9aa8","#c4ccd2","#2e4a52","#4f7a80","#86b4b4","#c8e6e0"]
+  Where it goes: art/world-src/gen-2026-11-11/ash-palette/<tileset id>.json (the GET /v2/tilesets/<id> response) plus
+  the fill tiles as png, then lock(fill, 'terrain') with tools/world-art/lock.mjs and ring-contrast as brief 13 does.
+
+PASS (measured on the LOCKED pixels, brief 13's rule):
+  1 the ash fill comes back byte-identical to 093a18a0 (a chained base that drifts is the Muster lesson: refuse).
+  2 the scorched fill: majority colour under 80% of its pixels, with at least 15% on two or more OTHER palette colours
+    (the "neighbours" rule brief 13 called unreachable), none of them on the iron ramp (#4f4e52 #6a6865 #8a867d #aaa49a
+    are ash greys; the scorched must sit on the brown ramp #2a1c14 #3d2a1d #553a26 or the charcoal #231d1f #2f2723).
+  3 at x2 (tools/qa/region-kit.html, ground=<ash terrain>) the scorched half reads as burnt soil, never as paving, and
+    the black Pyre bodies (pikeman, stoker, wraith) keep a locked ring of 0.045 or less on it.
+  4 raw vs locked: fewer than 5% of the pixels change colour under the lock (that is the point of the sample).
+FAIL: any of the four. Then the scripted ash route of brief 13 stands and the palette goes untried on tilesets this
+  cycle; note the raw histogram in the verdict so the next cycle knows how far off it was.
+
+BLOCKER, 2026-11-11: the PixelLab MCP connector is not in the Coordinator session (session_connectors_status lists
+  Supabase, Claude Docs, Gmail only), and no API key is on disk. The call runs from the first session that has it.

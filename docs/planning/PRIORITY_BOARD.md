@@ -237,29 +237,29 @@ Follow the Stokers' cart road north off the Pyre Field and up the hill. It's the
 
 | # | Area | Who is there | Why it exists |
 |---|---|---|---|
-| 1 | **The Cart Gate** | Farmhands, one Sentry | The soft door. A hero under 85 pushing for tier 6 boots stands here |
-| 2 | **The Drill Yard** | Farmhands, Sentries on the wall walk | All living. The bow's ground and the poison rune's ground. The woodyard that fed the pyres is here |
+| 1 | **The Cart Gate** | Farmhands, one Lookout | The soft door. A hero under 85 pushing for tier 6 boots stands here |
+| 2 | **The Drill Yard** | Farmhands, Lookouts on the wall walk | All living. The bow's ground and the poison rune's ground. The woodyard that fed the pyres is here |
 | 3 | **The Chapel** | Pyre Priests, Grave Guards | This is where Krell's priests worked out what to chant over the bodies. A Pyre Priest mends the dead beside him, so kill order matters. The caster's prizes drop here |
 | 4 | **The Crypt** | Grave Guards in ranks | Krell had some of the dead officers dug back out of the Muster Barrows to guard his cellar. The hammer's ground. An Emberstone Vein in the cellar rock (the node kind has no sprite yet, the Pyre lane flagged it) |
-| 5 | **The Keep Stair** | The Gatekeeper, Grave Guards, Sentries | The hardest pull and the rare carrier. The Hall Key drops here |
+| 5 | **The Keep Stair** | The Gatekeeper, Grave Guards, Lookouts | The hardest pull and the rare carrier. The Hall Key drops here |
 | 6 | **Krell's Hall** | Lord Krell, the Hall Fire | Not on the route. One room, one fight, opened with a key |
 
-The route is 1 to 5, then out the side gate and back around to the front. Areas 2 and 4 disagree on purpose. A lone bow lives in the yard and a lone hammer lives in the cellar. Mixed parties earn the most in the Chapel and on the Stair.
+The route is 1 to 5, then out the back gate and around to the front. Areas 2 and 4 disagree on purpose. A lone bow lives in the yard and a lone hammer lives in the cellar. Mixed parties earn the most in the Chapel and on the Stair.
 
 **The axis it wins and loses (proposed, unmeasured).** It wins tier 6 armor, the boss, and mixed-party XP. It should lose to the Pyre Field on a lone hero's gold, because no one weapon answers a whole lap here.
 
 #### 2. The sample of five
-One difficulty for every group size. No solo or party label and no gate. Stats are `formulaStats` on main (tier 6, floor 85, fit `both`), not played. Head count at density 4 over five pockets is 8 Farmhands, 4 Grave Guards, 3 Sentries, 3 Pyre Priests, 2 Gatekeepers.
+One difficulty for every group size. No solo or party label and no gate. Stats are `formulaStats` on main (tier 6, floor 85, fit `both`), not played. Head count at density 4 over five pockets is 8 Farmhands, 4 Grave Guards, 3 Lookouts, 3 Pyre Priests, 2 Gatekeepers.
 
 | Creature | Level, role | Tied to | Class, weak to | New here | Formula row |
 |---|---|---|---|---|---|
 | **Farmhand** | 86, swarm | Krell. Farm workers he dragged off their land to stand on his walls | Human. Arrows, poison +15% | The March's first living enemy. Poison did half to every dead thing for four grounds. It works here | hp 114, atk 78, xp 1,151, gp 24-72 |
-| **Hask's Sentry** | 88, glass | Captain Hask. The guards he pulled off the crossing that night. They took Krell's money too, and they've worked for him ever since | Human. Arrows | Shoots a crossbow from range at the hero farthest back and doesn't walk in. Challenge turns his aim to the tank | hp 109, atk 103, xp 1,333, gp 23-69 |
+| **Hask's Lookout** | 88, glass | Captain Hask. The guards he pulled off the crossing that night. They took Krell's money too, and they've worked for him ever since | Human. Arrows | Shoots a crossbow from range at the hero farthest back and doesn't walk in. Challenge turns his aim to the tank | hp 109, atk 103, xp 1,333, gp 23-69 |
 | **Grave Guard** | 92, heavy | The Barrows. A company officer Krell dug back up to stand at his doors | Undead. Hammer, fire +15% | The first regular monster with a marked heavy hit. A shield slam on the tiles in front of him. The tank holds, ranged heroes step off | hp 182, atk 78, xp 2,077, gp 38-115 |
 | **Pyre Priest** | 95, regular | The Pyre Field. Krell's priests, the ones who burned the soldiers and chanted over them | Human. Arrows | Mends the dead in his pull. The first monster that heals. Leave him alive and the Grave Guards take far longer to drop (how much is unmeasured) | hp 157, atk 100, xp 1,650, gp 33-99 |
 | **Gatekeeper** | 100, elite | Krell. He runs the castle and carries the keys | Human in plate, so hammer (one override) | No trick. He is the first monster whose drop opens a fight | hp 263, atk 105, xp 3,244, gp 55-166 |
 
-Each one is a question from the boss exam. The Farmhand says Krell is a living man and your undead kit is wrong for him. The Sentry is his adds going for the back line. The Grave Guard is his marked hit. The Pyre Priest is "kill the helpers first". The Gatekeeper is the key. Weak-to counts at density 4 are 14 to arrows and 6 to a hammer, so this is the Ranger's ground the way the Slake is the sword's and the Pyre Field is the hammer's.
+Each one is a question from the boss exam. The Farmhand says Krell is a living man and your undead kit is wrong for him. The Lookout is his adds going for the back line. The Grave Guard is his marked hit. The Pyre Priest is "kill the helpers first". The Gatekeeper is the key. Weak-to counts at density 4 are 14 to arrows and 6 to a hammer, so this is the Ranger's ground the way the Slake is the sword's and the Pyre Field is the hammer's.
 
 **Sample rule.** These five get built, played and read by the art director before any sixth creature is written.
 
@@ -295,7 +295,7 @@ Level 110, Human, an old man in Dawnsteel plate who has sat with that fire at hi
 | 11 | Rows that are missing | Captain Hask has art on lane/b-muster-barrows-art and no monster row on main. No tier 7 wand or spellbook. Hatchets and crossbows stop at tier 3 | Designer |
 | 12 | The hall remembers the bar setup a hero last entered with | Setups are not tied to a ground | Systems. First principle |
 
-Pieces 2, 3 and 4 are only for this ground's Sentry and Pyre Priest. If they slip, those two creatures wait. They do not ship as plain melee bodies, because that is a reskin.
+Pieces 2, 3 and 4 are only for this ground's Lookout and Pyre Priest. If they slip, those two creatures wait. They do not ship as plain melee bodies, because that is a reskin.
 
 #### 4. Drops
 Every id below was read on main (`ITEMS`), except the rows marked new.
@@ -303,7 +303,7 @@ Every id below was read on main (`ITEMS`), except the rows marked new.
 | From | Common | Scarce, about hourly a piece | Rare |
 |---|---|---|---|
 | Farmhand | Bones, coin, Farmhand's Tag (new) | Tier 6 boots in three weights (`ember_boots`, `dragonhide_boots`, `archmage_boots`), `ember_sword` | |
-| Hask's Sentry | Bones, Sentry Whistle (new) | Tier 6 helmets (`ember_helm`, `dragonhide_helmet`, `archmage_helmet`), `runewood_bow` | Tier 6 gloves in three weights |
+| Hask's Lookout | Bones, Lookout Whistle (new) | Tier 6 helmets (`ember_helm`, `dragonhide_helmet`, `archmage_helmet`), `runewood_bow` | Tier 6 gloves in three weights |
 | Grave Guard | Big Bones, Grave Dust, Barrow Nail (new) | Tier 6 legs (`ember_platelegs`, `dragonhide_pants`, `archmage_pants`), `ember_warhammer` | Tier 6 belts in three weights |
 | Pyre Priest | Bones, Coal, Priest's Cord (new) | `runewood_staff` | `runewood_wand`, `runewood_codex` |
 | Gatekeeper | Big Bones, Gatekeeper's Chain (new), **Hall Key** (new, uncommon) | Tier 6 bodies (`ember_platebody`, `dragonhide_body`, `archmage_body`) | |
@@ -343,7 +343,7 @@ A Level 85 hero back from the Pyre Field in its tier 5 set, with the Pyre bar (`
 | 1 | Opens Hunts and sees Krell's Hold, Level 85-110 | Level 85 | Yes, once the pack row exists. `hunt-list.js` reads it |
 | 2 | Picks Normal | Step 1 | Yes, tiers are on main |
 | 3 | Swaps the ice rune for `chalked_poison_rune` on the bar | The Pyre bar | Yes, a real store row. **First principle flag.** Nothing ties a saved setup to a ground |
-| 4 | Enters at the Cart Gate. First pull is Farmhands and a Sentry | Step 3 | Not yet. No map, and the Sentry needs piece 2 |
+| 4 | Enters at the Cart Gate. First pull is Farmhands and a Lookout | Step 3 | Not yet. No map, and the Lookout needs piece 2 |
 | 5 | First kills give coin and Bones | Step 4 | Yes, real rows |
 | 6 | About an hour in, wears a first tier 6 piece | Step 5's kills | Yes. `ember_boots` is Level 75 |
 | 7 | A Gatekeeper on the Stair drops a Hall Key | Laps of the route | Needs the item row |
@@ -361,7 +361,7 @@ For the generator lane after PixelLab resets on 11-14. Sample first. Draw the Fa
 | What | Class, size | Clips | Note |
 |---|---|---|---|
 | Farmhand | `character`, 64x64, body 36-40 | idle 4, walk 6, death 6. East and west | Quilted jack, bill hook, no helmet. Reads young and scared |
-| Hask's Sentry | `character` | same | Crossbow, the Banded Company's striped sleeve under Krell's tabard |
+| Hask's Lookout | `character` | same | Crossbow, the Banded Company's striped sleeve under Krell's tabard |
 | Grave Guard | `character` | same | A dead officer behind a door-sized shield. New drawing. The barrow knight has been poured twice already |
 | Pyre Priest | `character` | same | Hooded, knotted cord, ash-gray robe. Living skin |
 | Gatekeeper | `brute`, body 41-52 | same | Plate, mace, a ring of keys that reads at x2 |
@@ -372,7 +372,7 @@ For the generator lane after PixelLab resets on 11-14. Sample first. Draw the Fa
 | Gatehouse and portcullis | `building`, 80-160 | | The landmark at the start tile |
 | The Hall Fire | Needs a class row first. About 96 wide, 4 frames at 8 fps | | A long floor hearth. The art director adds the class. The budget is law |
 | Props, 14 | `fixture`, `bulky`, `station`, `seat`, `box`, `log` | braziers and candle stands 4 frames | Lectern with the Company Roster, Krell's high seat, the toll box, the company's colors hung upside down, Krell's banner, pells in the yard, weapon rack, woodpile, saw horse, well, open barrow coffins stood on end, candle stand, brazier, chapel bench |
-| Icons, 8 | 32 px pixel items | | Hall Key, Roster Page, Krell's Toll Box, Farmhand's Tag, Sentry Whistle, Barrow Nail, Priest's Cord, Gatekeeper's Chain. Tier 6 and 7 gear icons are already in the bundle |
+| Icons, 8 | 32 px pixel items | | Hall Key, Roster Page, Krell's Toll Box, Farmhand's Tag, Lookout Whistle, Barrow Nail, Priest's Cord, Gatekeeper's Chain. Tier 6 and 7 gear icons are already in the bundle |
 | Effects, 4 | `vfx` | | Crossbow bolt, the coal cone's mark, the Hall Fire's flare, the dead standing up (a death clip played backward, free) |
 | Portraits, 6 | bestiary, front-facing | | The five and Krell |
 
@@ -418,7 +418,7 @@ That is 6 new creatures, 1 reused, 5 tilesets, 16 structures and props, 8 icons,
 
 The water ties the places together. The copper hill under the Warrens feeds the Meadowbrook's springs, which is why the moss in the Glade glows, and that same water runs past the Ford and on down to the Slake. The Mill Cellar, the Thicket and the Sewer are right on Havora's doorstep, and they don't have anything to do with Krell yet.
 
-**Canon since 11-11** (Tyler approved the story): the toll as Krell's reason, Hask buried to keep him quiet, the Hall Fire, the company roster, the pyres lit from Krell's fire, the dead resting only at the Great Hearth. Hask's sentries are still a design proposal (Krell's Hold, below).
+**Canon since 11-11** (Tyler approved the story): the toll as Krell's reason, Hask buried to keep him quiet, the Hall Fire, the company roster, the pyres lit from Krell's fire, the dead resting only at the Great Hearth. Hask's lookouts are still a design proposal (Krell's Hold, below).
 ### 2026-11-10 Combat training (designer, lane/d-training-and-wards; Tyler 2026-11-08: "training dummies and stuff to train skills (for gold)", "Make the training area look cool too", "Wildly expensive gold sink is going to be a personal training dummy for houses"): DESIGN ONLY, the numbers MEASURED on the real engine at Levels 20 and 50, Level 80 NOT measured, nothing built. **The server half is a §1 money surface and goes on the pre-EA Security list (§3.7)**
 **What it is.** A hero who is not hunting can stand in the Training Yard and train Melee, Ranged, Magic or Defense. It costs gold by the minute and gives skill XP only. It gives no Level XP, no gold and no loot, so a hunt always pays more. The house dummy does the same thing with no fee, for one hero at a time, and costs a million gold a skill.
 
@@ -1650,7 +1650,7 @@ Tyler: "Don't rebuild hasks ford, rebuild something similar or maybe a 'mutated'
 ####.....................................................###
 ###..............................................###......##
 ###...........###.............##................#####.....##
-###..........#####...........####................###......##     P4 the Low Flats (9,34)     P3 the Scavenger Holes (40,34)
+###..........#####...........####................###......##     P4 the Low Flats (9,34)     P3 the Mudlark Holes (40,34)
 ####..........###.............##.........................###
 #####...................................................####
 #######.................................................####
@@ -1673,7 +1673,7 @@ Highest pair today: Thicket and Wickstead 72; next Wickstead and Glade 62. The S
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | **Greened Pikeman**, 12 | `banded_pikeman`, re-poured | Swarm. The crust turns a hammer, a blade finds the joints: `weaponWeak: 'sword', weaponResist: ['hammer']` (the shape the Orchard Boar already uses) | 52 | 170 | 42 | .80 | 20 | 1,500 | 20-46 | 3400 | `bones`, `grave_dust`; `green_rivet`; `mithril_sword`, `maple_wand` |
 | **Bargeman**, 6 | `fordsunk`, re-poured | Tank, the slowest thing on the flat. Where the Fordsunk's bloat swallows arrows, the crew's cracked hides take them: weak ranged | 55 | 240 | 38 | .80 | 26 | 1,850 | 22-50 | 2400 | `bones`, `coal` (the barge's forge cargo); `barge_nail`; `mithril_warhammer`, `maple_staff` |
-| **River Scavenger**, 4 | **New**, small and crouched, a sack on its back | Skirmisher. Scavengers who picked through the dead on the mudflats and ended up dead there too. Quick enough to catch a kiter, hits often and light: resists ranged, weak magic | 54 | 130 | 34 | .85 | 14 | 1,350 | 18-40 | 4400 | `bone_chips`, `copper_ore`; `mudlark_hook`; `maple_bow`, `maple_crossbow` |
+| **Mudlark**, 4 | **New**, small and crouched, a sack on its back | Skirmisher. Scavengers who picked through the dead on the mudflats and ended up dead there too. Quick enough to catch a kiter, hits often and light: resists ranged, weak magic | 54 | 130 | 34 | .85 | 14 | 1,350 | 18-40 | 4400 | `bone_chips`, `copper_ore`; `mudlark_hook`; `maple_bow`, `maple_crossbow` |
 | **Flag Sergeant**, 2 (rare) | `bannerman`, re-poured | Bruiser and rare carrier: the danger row, holds the Barge | 60 | 260 | 52 | .80 | 28 | 2,600 | 34-78 | 3000 | `big_bones`; `color_cord`; `mithril_hatchets`, `maple_spellbook`; Rare: `barge_pitch` |
 - **It's the T4 weapons' one home.** No T4 ladder weapon has a reachable source today (`AWAITING_ROSTER`, `UNREACHABLE`, and no forge recipe, C). The Ford is the armor's home, so the two don't overlap.
 - **Why these numbers (C):** XP seeds are the Ford's rows scaled about +12% to reach the contract at the middle of the band (L58 244k; the Ford measured about 217k there). To-hit against a shield hero: 27-58% at Level 50, 11-42% at 58, 5-28% at 65; bare of shield and cape 53-84% at 50. Blows 136-208, at most 32% of 650 HP. The Ford as built reads 5-22% at 45 and 5% at 60 (C), so guard swallows it. **The Ford's import needs its effective attack raised: numbers only, no art.**
@@ -1689,7 +1689,7 @@ Highest pair today: Thicket and Wickstead 72; next Wickstead and Glade 62. The S
 | B1 | Designer: `pack new the_slake --region barrow_march`, draws `map.js`, writes rows and loot identity, no numbers | B0 | `pack-lint` runs. The ground starts `staged`, the Wickstead road (`STAGED_MAPS`), so it plays before it's painted |
 | B2 | `pack propose` | B1's rows, the server's grid | The sim plays a staged ground (`mapRowOf`). Numbers land as a diff |
 | B3 | `pack check` | B2's numbers, B0's tier rows | Board table, ladder, line, distinct. Reds name the row |
-| B4 | Art lane: ground painted from B1's rows on the kit's tilesets, River Scavenger, barge and nets, icons, re-pours | B1's rows, B0's kit | About 60 gens (A); subscription approved this cycle, read the balance first |
+| B4 | Art lane: ground painted from B1's rows on the kit's tilesets, Mudlark, barge and nets, icons, re-pours | B1's rows, B0's kit | About 60 gens (A); subscription approved this cycle, read the balance first |
 | B5 | `pack ship` opens it | B3 green, B4's sprites | Migration, index row, preload, coherence moves, order line. `world-assets` holds art to rows |
 | B6 | Designer plays it on the local world, art director reads it | B5 | `tools/qa/local-world.mjs`: real page, real engine, replayed chain |
 | B7 | Coordinator: one file, edge, `hunt-health`, client | B5 | The order table above |

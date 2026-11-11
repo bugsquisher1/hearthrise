@@ -226,7 +226,7 @@ export const SLOT_DESC = {
   mithril_arrows: 'Arrows with light mithril heads. They fly so fast you can barely see them, and they don\'t bend on armor',
   rune_arrows: 'Arrows with rune-carved points. They hit a lot harder than you\'d expect from something so light',
   emberhead_arrows: 'Arrows with emberforged heads that never fully cool down. They\'re still glowing when they hit',
-  dawnpoint_arrows: 'Arrows with dawnsteel points. Each head costs about as much as a cheap sword, and you shoot them by the quiverful',
+  dawnpoint_arrows: 'Arrows with dawnsteel points. They\'re the best arrows there are, and you\'ll burn through them by the quiverful',
 
   copper_studs: 'Two small copper earrings, the kind a village smith makes for weddings. They help you land a crit now and then',
   fang_studs: 'Wolf fangs capped in bronze and worn as earrings. Trackers like them because they help you crit',

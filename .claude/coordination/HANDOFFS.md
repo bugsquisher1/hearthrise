@@ -181,8 +181,9 @@ Nothing server-side was changed here. Baseline finding 3 ("the whole character r
   other slots, an empty one included: `hr_load` 6012-6352 ms, then `hr_load` 6354-6524 ms at 60 ms latency, before any hero
   opens). Opening the shown hero on slot 0's answer saves that round trip (src/session/account-session.js roster, src/app/boot.js
   showCharacters). `src/session/live-link.js` holds 21 modules (232 KB) that only a hunt on screen needs. And the game screen
-  still needs all 442 scripts: this lane moved the first read 12 to 30% sooner and left the hero's arrival where it was (474 and
-  467 ms, main and lane back to back). The windows (64 modules) behind their own import() would cut what the game screen needs,
+  still needs all 442 scripts. This lane tried a seam (boot.js asked for the World pane with import(), the preload block listed
+  first-screen-first): the first read left sooner and the hero reached the HUD LATER (776 -> 879 ms, median of 5, the old PC), so
+  it was taken out (Coordinator 11-10) and only the one-read fix shipped; fbff5bc27's message says what is suspected. The windows (64 modules) behind their own import() would cut what the game screen needs,
   and needs src/shell/shell.js to paint a window whose module is still on its way (tests/perf-budget.mjs probes those lines).
 - **Rerun the census:** capture any `hr-accrue` answer in the browser, then grep each key as a quoted name or `.key` in those
   directories with comments stripped.

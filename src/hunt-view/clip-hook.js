@@ -65,13 +65,21 @@ export function createClipHook(o) {
   let ahead = new Map();       // unit -> [{ t, at }]: its blows still queued within leadCapMs (this frame's look)
 
   const clipOf = (id, name) => { const s = book.sprite(id); const c = s && s.anims && s.anims[name]; return c && c.fps > 0 ? c : null; };
+  /* sprite id -> its swing's { lead, span, fps } (or null): read once from the book, not per unit per frame */
+  const swings = new Map();
+  function swingOf(id) {
+    if (swings.has(id)) return swings.get(id);
+    const c = clipOf(id, 'attack');
+    const hit = c && Number.isInteger(c.hit) ? c.hit : CLIP_RULES.hitFrame;
+    const lead = c ? Math.min(CLIP_RULES.leadCapMs, (hit * 1000) / c.fps) : 0;
+    const v = c ? { lead, span: spanOf(book, id, c, 'attack'), fps: c.fps } : null;
+    swings.set(id, v);
+    return v;
+  }
   /* A swing's clip window [start, end) for sprite `id`: its wind-up ends on the blow. */
   function windowOf(id, at) {
-    const c = clipOf(id, 'attack');
-    if (!c) return null;
-    const hit = Number.isInteger(c.hit) ? c.hit : CLIP_RULES.hitFrame;
-    const lead = Math.min(CLIP_RULES.leadCapMs, (hit * 1000) / c.fps);
-    return { start: at - lead, end: at - lead + spanOf(book, id, c, 'attack'), fps: c.fps };
+    const s = swingOf(id);
+    return s ? { start: at - s.lead, end: at - s.lead + s.span, fps: s.fps } : null;
   }
 
   return {

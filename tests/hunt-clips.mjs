@@ -189,7 +189,7 @@ const MUTANTS = [
   ['a clip may turn its unit any distance (HC-2)', 'src/hunt-view/clip-hook.js', '  reach: 1, ', '  reach: 4, '],
   ['the reach is not held (HC-1)', 'src/world/core/facing.js', 'for (let k = 1; k <= Math.min(4, reach); k++) {', 'for (let k = 1; k <= 4; k++) {'],
   ['a dropped blow keeps its wind-up (HC-3)', 'src/hunt-view/clip-hook.js', '    look(now) {\n      ahead = new Map();', '    look(now) {\n      ahead = ahead || new Map();'],
-  ['a swing starts on its blow, not before it (HC-3)', 'src/hunt-view/clip-hook.js', 'const lead = Math.min(CLIP_RULES.leadCapMs, (hit * 1000) / c.fps);', 'const lead = 0;'],
+  ['a swing starts on its blow, not before it (HC-3)', 'src/hunt-view/clip-hook.js', 'const lead = c ? Math.min(CLIP_RULES.leadCapMs, (hit * 1000) / c.fps) : 0;', 'const lead = 0;'],
   ['a status tick flinches (HC-3)', 'src/hunt-view/clip-hook.js', '&& ev.amount > 0 && !ev.dot ? ev.t : null;', '&& ev.amount > 0 ? ev.t : null;'],
   ['a cast on a friend swings (HC-3)', 'src/hunt-view/clip-hook.js', "if (ev.type === 'cast') return foes(ev.u, ev.t) ? ev.u : null;", "if (ev.type === 'cast') return ev.u;"],
   ['a swing counts its frames from the blow, not its wind-up (HC-3)', 'src/hunt-view/clip-hook.js', 'const i = Math.floor(((now - act.w.start) * act.w.fps) / 1000);', 'const i = Math.max(0, Math.floor(((now - act.at) * act.w.fps) / 1000));'],

@@ -44,14 +44,14 @@
 // a payout restarts the count from the new watermark and a lower payout snaps it
 // down; a stop or a hunt clears it with the pointer.
 // ════════════════════════════════════════════════════════════════════════
-import { simulateSkillSpan, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.119';
-import { simulateArtisanSpan, artisanIntervalMs } from '../core/artisan-sim.js?v=0.2.119';
-import { creditWindow } from '../core/away.js?v=0.2.119';
-import { burnChance, burnXp } from '../core/artisan.js?v=0.2.119';
-import { pacedXp } from '../core/pacing.js?v=0.2.119';
-import { ITEMS } from '../data/items.js?v=0.2.119';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.119';
-import { rows, text, cls } from '../render/paint.js?v=0.2.119';
+import { simulateSkillSpan, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.120';
+import { simulateArtisanSpan, artisanIntervalMs } from '../core/artisan-sim.js?v=0.2.120';
+import { creditWindow } from '../core/away.js?v=0.2.120';
+import { burnChance, burnXp } from '../core/artisan.js?v=0.2.120';
+import { pacedXp } from '../core/pacing.js?v=0.2.120';
+import { ITEMS } from '../data/items.js?v=0.2.120';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.120';
+import { rows, text, cls } from '../render/paint.js?v=0.2.120';
 
 /** Every roll on its smallest outcome: a range on its low end, a chance on "no" (yes only when certain). next() sits
     at the top of [0, 1), so a `next() < p` test reads "no" too. */

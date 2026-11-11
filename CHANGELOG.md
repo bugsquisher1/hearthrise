@@ -5,6 +5,20 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.120 — 2026-11-11 (Tamsin's First Task)
+
+**Your first task from Tamsin comes early.** Bring her 25 rats from the Mill Cellar in your first minutes and she pays 25 gold and a Bronze Helm. A card tells you when it's safe to close the game, because your hero keeps hunting.
+
+**Tamsin no longer pays you armor you're already wearing.** She skips that slot and gives you the next piece, or crafting materials if you're wearing them all.
+
+**If you start a hunt on your phone, the tab on your PC sees it right away,** and it sees the hunt end too.
+
+**Tier 4 gear sells for about half its price, tier 5 about a quarter, tier 6 and up about a tenth.** Mithril Hatchets (Smithing 45) and the Maple Crossbow (Crafting 45) can be made now.
+
+**Hundreds of item, hunt and monster lines are rewritten plain,** so they say what a thing is for in words a person would use.
+
+**The server settles fights faster.** Nothing about the fights changes. A watched hunt's confirmed loot, gold and XP now refresh a little less often, while the fight on screen keeps moving.
+
 ## v0.2.119 — 2026-11-11 (Better Finds)
 
 **Equip upgrades picks a better weapon even when it has a monster bonus.** A Bramble Blade now goes on over a Practice Sword, and the tooltip says what the bonus does.

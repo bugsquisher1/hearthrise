@@ -217,6 +217,7 @@ const ARMS = {
        before the refusal this arm asks for. Where they stand in the order, every row they name exists. */
     const { bootReplay } = await import('./schema-replay.mjs');
     const { db } = await bootReplay({ upTo: AGAIN_UP_TO });
+    await db.query('begin');   /* the refusals below roll back to a savepoint, so they run inside one transaction, as the arm's own db did */
     try {
     const refuses = async (file, pairs, want, what) => {
       let sql = readFileSync(join(H.ROOT, 'supabase', 'migrations', file), 'utf8').split('\r\n').join('\n');
@@ -236,7 +237,7 @@ const ARMS = {
     ['if v_n <> 36 then', 'if v_n <> 37 then']], 'held house rows are sellable', 'the Castle sold');
     await refuses(BOUNDS, [[`'{"raw_bear_meat":1,"bear_pelt":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb`, `'{"raw_bear_meat":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb`]],
       'item bound is under', 'the bear\'s bound forgets the pelt');
-    } finally { await db.close().catch(() => {}); }
+    } finally { await db.query('rollback').catch(() => {}); await db.close().catch(() => {}); }
     problems.push(...await secondApply(H));
     return problems;
   },

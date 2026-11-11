@@ -3901,6 +3901,18 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-live-events.mjs --selftest
           node tests/live-events.mjs
           node tools/mutant-gate.mjs node tests/live-events.mjs --mutate
+
+      # THE TRAINING YARD, THE SERVER HALF (2027-04-06-training-*.sql, lane/c-training-yard): skill XP for gold by the hour, settled by
+      # the database through every door; viewed (the owner's tick) and browser closed (the sweep) pay the same to the unit; a hero who
+      # can't pay is refused; the keep, "Stop after", a hunt, any switch and the stop end it paid; the ledger's day fuse holds; no XP
+      # without its gold (a mutant that mints it is caught). The catalogue is GENERATED from src/data/training.js (tools/gen-training.mjs).
+      - name: Training yard — the settle, both paths, the END reasons and the books
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-training.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-training.mjs --selftest
+          node tests/training-yard.mjs
+          node tools/mutant-gate.mjs node tests/training-yard.mjs --mutate
   artisan-selftest:
     runs-on: ubuntu-latest
     timeout-minutes: 56

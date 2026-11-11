@@ -70,6 +70,16 @@ import { huntFor } from '../../../src/core/hunt-spawn.js';
    it, in one edit, with no second list to remember. */
 export const SETTABLE_KINDS = Object.freeze(['idle', ...PAYABLE_KINDS]);
 
+/* ── THE POINTERS THE DATABASE SETTLES ITSELF (lane/c-training-yard) ───────
+   A kind here is never priced by the engine (it is not in PAYABLE_KINDS, so it
+   is never SETTABLE either: its own verbs move it, hr_training_start/stop). The
+   collect owes it nothing (collectCurrentWindow), answered SERVER_SETTLED. */
+export const SERVER_SETTLED_KINDS = Object.freeze(['training']);
+export const SERVER_SETTLED = 'server_settled';
+if (SERVER_SETTLED_KINDS.some((k) => PAYABLE_KINDS.includes(k))) {
+  throw new Error('set-activity.js: a server-settled kind is also payable by the engine (two settles of one window)');
+}
+
 
 /** The verb's own name, used to build `journal.intent`. */
 export const VERB = 'set_activity';
@@ -648,6 +658,18 @@ export async function collectCurrentWindow(o) {
     }
     return { outcome: 'refused', version: null, error: v.reason || 'hunt_settle_refused',
       detail: (v.body && v.body.detail) || null };
+  }
+
+  /* ── A TRAINING RUN IS THE DATABASE'S (lane/c-training-yard) ─────────────
+     The engine owes nothing on it and runs nothing for it: the database settles
+     it (2027-04-06-training-yard.sql hr_training_pay, every door), a purchase
+     leaves it running, and a switch's own commit pays it to that instant inside
+     the same statement (the hr_training_leave trigger). Reached through the
+     engine it would be `unsupported_activity`, rightly REFUSED for a kind the
+     engine owns, and every shop, equip, eat or switch of a training hero would
+     be refused with it. */
+  if (SERVER_SETTLED_KINDS.includes(st.active_kind)) {
+    return { outcome: 'nothing', version: env.version, reason: SERVER_SETTLED };
   }
 
   const accruedToMs = st.accrued_to ? new Date(st.accrued_to).getTime() : nowMs;

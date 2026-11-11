@@ -1860,6 +1860,61 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
+    { // AW-77 ONE GOLD PRESS ON THE WAY HOME (UX flow audit 2026-11-11, flow C; Tyler: after 4 h the summary's gold button was still the first tutorial card)
+      /* The AW-31 hero (Level 5, no gear in the bag, the bar's lessons read) comes home from the Cellar with the fixture's loot plan: Rat Tail and
+         Slime Gel marked Sell, Sticky Core marked Sell but locked. The card waiting is "Sell what only pays coin". */
+      const home5 = (e) => {
+        e.state = Object.assign({}, e.state, { level_xp: LEVEL_5_XP });
+        e.skills = Object.assign({}, e.skills, { farming: { xp: 28, level: 1, frac: 0 } });
+        for (const id of ['bronze_sword', 'steel_sword', 'iron_helm', 'iron_platebody', 'shortbow']) delete e.inventory[id];
+        e.hunt_settings = Object.assign({}, e.hunt_settings, { slots: [], bar: [] });
+      };
+      const { ctx, page, s, errors, up } = await open({ mutateEnv: home5, residue: { coach: { read: ['bar_intro'] } } });
+      if (!up) fails.push('AW-77 the page did not mount');
+      else {
+        s.env.hunt = Object.assign({}, s.env.hunt, { ended: true, session: { end_reason: 'left', ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
+        s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
+        await pushEnvelope(page, s);
+        await wait(page, () => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-built]'), null, 3000);
+        await page.waitForTimeout(300);
+        const look = () => page.evaluate(() => {
+          const w = document.querySelector('[data-hs-win="hunt-summary"]');
+          const shown = (b) => !b.hidden && b.getClientRects().length > 0;
+          const q = (sel) => w.querySelector(sel);
+          const row = q('.hsum-step[data-step="sell"]');
+          return {
+            gold: Array.from(w.querySelectorAll('button.is-primary')).filter(shown).map((b) => b.getAttribute('data-hs-act') + ':' + (b.getAttribute('data-step') || '')),
+            steps: Array.from(w.querySelectorAll('.hsum-step')).map((li) => li.getAttribute('data-step') + (li.classList.contains('is-done') ? ':done' : '')),
+            title: row ? row.querySelector('b').textContent : null, words: row ? row.querySelector('small').textContent : null,
+            done: row ? (row.querySelector('.hsum-done').hidden ? '' : row.querySelector('.hsum-done').textContent) : null,
+            next: q('[data-hs-act="coach-next"]') && shown(q('[data-hs-act="coach-next"]')) ? q('[data-hs-act="coach-next"]').textContent : null,
+            ring: Array.from(document.querySelectorAll('[data-coach-ring]')).map((e) => (e.getAttribute('data-hs-act') || '') + ':' + (e.getAttribute('data-step') || '')),
+          };
+        });
+        const before = await look();
+        /* the Sell step is the one gold press: its count and value are the server's (31 Rat Tail at 6, 12 Slime Gel at 5), the locked Sticky Core left out;
+           the coach's next step is a press, not the gold one, and the card rings the row it is about */
+        if (JSON.stringify(before.gold) !== '["town:sell"]' || JSON.stringify(before.steps) !== '["sell"]') fails.push('AW-77 the gold presses on the summary are ' + JSON.stringify(before));
+        if (before.title !== 'Sell 2 stacks for 246 gp' || before.words !== 'Your loot plan marks Rat Tail and Slime Gel for the shop.') fails.push('AW-77 the Sell row reads ' + JSON.stringify([before.title, before.words]));
+        if (before.next !== 'Next: Sell what only pays coin') fails.push('AW-77 the card\'s next step is not a press on the summary: ' + JSON.stringify(before.next));
+        if (JSON.stringify(before.ring) !== '["town:sell"]') fails.push('AW-77 the return card rings ' + JSON.stringify(before.ring) + ', want the summary\'s Sell row');
+        if (shots) await shot(page, 'alpha-1440x900-back-in-town');
+        /* the press: ONE vendor_sell_many naming the plan's stacks whole; the server's answer (the stacks gone) turns the row to Done, and Hunt again is gold */
+        s.onEdge = (body) => { if (body.verb === 'vendor_sell_many') { delete s.env.inventory.rat_tail; delete s.env.inventory.slime_gel; } };
+        await page.click('[data-hs-win="hunt-summary"] [data-hs-act="town"][data-step="sell"]');
+        await wait(page, () => { const w = document.querySelector('[data-hs-win="hunt-summary"]'); return w && w.querySelector('.hsum-step[data-step="sell"].is-done'); }, null, 4000);
+        await page.waitForTimeout(200);
+        const sales = sent(s, 'hr-accrue', 'vendor_sell_many');
+        if (sales.length !== 1 || JSON.stringify(sales[0].body.lines) !== '[{"item":"rat_tail","qty":31},{"item":"slime_gel","qty":12}]') fails.push('AW-77 the Sell step sent ' + JSON.stringify(sales.map((c) => c.body.lines)));
+        const after = await look();
+        if (JSON.stringify(after.steps) !== '["sell:done"]' || after.done !== 'Done' || after.title !== 'Sell 2 stacks for 246 gp') fails.push('AW-77 after the sale the row reads ' + JSON.stringify(after));
+        if (JSON.stringify(after.gold) !== '["again:"]') fails.push('AW-77 after the sale the gold presses are ' + JSON.stringify(after.gold) + ', want Hunt again alone');
+        if (shots) await shot(page, 'alpha-1440x900-back-in-town-done');
+        if (errors.length) fails.push('AW-77 console errors: ' + errors.join(' | ').slice(0, 300));
+      }
+      await ctx.close();
+    }
+
     { // AW-5 AW-6 the locked stack and the confirmation
       const { ctx, page, s, up } = await open();
       if (up) {
@@ -2571,8 +2626,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const town = await look();
         /* ...and no hunt bar: with the summary open it would hold only a Summary press for it (first-hour playtest 10-29 #10) */
         if (town.analyzer || town.party || town.bar || town.toast || !town.summary) fails.push('AW-31 back in town the screen holds more than the summary: ' + JSON.stringify(town));
-        /* the card's next step is the summary's main press, Hunt again the second */
-        if (town.next !== 'Next: Sell what only pays coin' || town.againMain !== false) fails.push('AW-31 the summary\'s main press is ' + JSON.stringify(town) + ', want "Next: Sell what only pays coin" over Hunt again');
+        /* the card's next step is a press on the summary, never its gold one (AW-77): the Back in town Sell step is gold here, Hunt again is not */
+        if (town.next !== 'Next: Sell what only pays coin' || town.againMain !== false) fails.push('AW-31 the summary\'s presses read ' + JSON.stringify(town) + ', want "Next: Sell what only pays coin" shown and Hunt again not gold');
         if (shots) await shot(page, 'alpha-1440x900-return-summary');
         /* pressed: the summary goes, the hunt bar leaves with it, and the Shop opens with the card inside it, the Sell tab ringed */
         await page.click('[data-hs-win="hunt-summary"] [data-hs-act="coach-next"]');
@@ -3924,6 +3979,12 @@ const MUTANTS = [
   ['AW-61 a window title clips again', 'src/styles/shell.css', '.hs-win-title { margin: 0; flex: 1; min-width: 0;', '.hs-win-title { margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'],
   ['AW-61 Shop names are cut again', 'src/styles/windows.css', '  .hw-shop .hw-line { flex-wrap: wrap; justify-content: flex-end; }', ''],
   ['AW-61 the summary ignores who may press', 'src/shell/windows/hunt-summary.js', "prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);", "prop(go, 'disabled', sc.pending || huntOpen || !again);"],
+  /* lane/b-back-in-town (AW-77): one gold press on the way home */
+  ['AW-77 Hunt again stays gold beside an open step', 'src/shell/windows/hunt-summary.js', "cls(go, 'is-primary', town.primary === 'again');", "cls(go, 'is-primary', true);"],
+  ['AW-77 the coach takes the gold press again', 'src/shell/windows/hunt-summary.js', '<button type="button" class="hh-tool" data-hs-act="coach-next" hidden>', '<button type="button" class="hh-tool is-primary" data-hs-act="coach-next" hidden>'],
+  ['AW-77 a step pressed never reads Done', 'src/shell/windows/hunt-summary.js', 'const mark = (r) => { if (r && (r.ok || r.moved > 0)) {', 'const mark = (r) => { if (false) {'],
+  ['AW-77 the steps are not the newest card\'s', 'src/shell/windows/hunt-summary.js', "const town = cur === list[0] && !huntOpen ? townStepsOf(cs, didOf(sc, cur.id)) : { steps: [], primary: 'again' };", "const town = { steps: [], primary: 'again' };"],
+  ['AW-77 the return card rings the Shop, never the summary\'s row', 'src/data/hunt-tutorial.js', "        '[data-hs-win=\"hunt-summary\"] [data-hs-act=\"town\"][data-step=\"sell\"]'] }),", '      ] }),'],
   ['AW-61 the leader enters alone', 'src/shell/windows/hunt-summary.js', "if (how === 'party') leadAgain(ctx, cs, sc, repaint, args.hunt);\n    else if (how === 'enter')", "if (how)"],
   ['item truth: Before you go hides the spare juice', 'src/shell/hunt-go.js', "const spare = usable && HEADS_UP_KINDS.has(kind) ? spareWords(kind, carried, barNames(s)) : '';", "const spare = '';"],
   ['item truth: Before you go nags about what is on the bar', 'src/shell/hunt-go.js', "const barNames = (s) => new Set(s.slots.filter((sl) => !sl.empty && sl.enabled !== false && sl.action.type === 'consume').map((sl) => sl.action.id));", 'const barNames = () => new Set();'],

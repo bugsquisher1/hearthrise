@@ -27,6 +27,7 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.122';
 import { runIntent } from '../intent-words.js?v=0.2.122';
 import { t } from '../../render/player-text.js?v=0.2.122';
 import { temperPaneHtml, patchTemperPane, actTemperPane } from './temper-pane.js?v=0.2.122';
+import { blessAll } from '../bless-all.js?v=0.2.122';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const SCRATCH = new WeakMap();
@@ -102,7 +103,7 @@ export function patchServicesPane(body, ctx) {
     },
   });
   /* BLESS ALL (designer re-read 2026-11-11: three presses to bless again after every death): shown while two or more are missing, off as the next
-     tier's own button would be. No total is said: each tier is priced by the server as it is bought (blessAll). */
+     tier's own button would be. No total is said: each tier is priced by the server as it is bought (../bless-all.js, the summary's Bless too). */
   const all = root.querySelector('[data-hs-act="bless-all"]');
   const missing = b ? b.tiers.filter((x) => !x.held).length : 0;
   const allShort = purse !== null && !!next && purse < next.price;
@@ -154,25 +155,4 @@ export function actServicesPane(ctx, body, action, ev, el) {
     return true;
   }
   return false;
-}
-
-/**
- * EVERY MISSING BLESSING, ONE SERVER PURCHASE EACH (the server has no bulk verb): the next tier at the price the server's envelope quotes
- * now, then the next from the envelope that purchase brought back. Stops at the first refusal (its words are the answer) and never asks
- * for the same tier twice, so an envelope that did not move cannot loop. No client-side total. Exported for its test.
- */
-export async function blessAll(cs) {
-  const asked = new Set();
-  let r = { ok: false, error: 'blessings_unread' };
-  for (;;) {
-    const b = blessingsOf(cs);
-    const next = b ? b.tiers.find((x) => !x.held) : null;
-    if (!next) return asked.size ? r : { ok: false, error: b ? 'blessing_held' : 'blessings_unread' };
-    if (asked.has(next.tier)) return r.ok ? { ok: false, error: 'blessing_unchanged' } : r;
-    asked.add(next.tier);
-    /* the answer, refusal and all, goes back to the press's runIntent, which says it in the window's line (refusalText) */
-    const got = await cs.buyBlessing(next.tier, next.price);
-    if (!got || !got.ok) return got || { ok: false, error: 'network' };
-    r = got;
-  }
 }

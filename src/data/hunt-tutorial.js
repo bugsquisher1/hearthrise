@@ -215,7 +215,8 @@ const orGotIt = (fact) => ({ kind: 'any', asks: true, of: [READ, fact] });
 const LESSON = { kind: 'lesson_time', hunt: THICKET };
 /* The Shop's Services tab and its next Bless (the shell rings the deepest one on screen first) */
 const SERVICES_TAB = '[data-hs-win="shop"] .hw-tab[data-tab="services"]';
-const TO_BLESS = [SERVICES_TAB, '[data-hs-win="shop"] [data-hs-act="bless"]:not([disabled])'];
+/* ...and, with the hunt summary open, its Back in town Bless row (the deepest on screen is ringed first: the summary's row when it shows, else the Shop's) */
+const TO_BLESS = [SERVICES_TAB, '[data-hs-win="shop"] [data-hs-act="bless"]:not([disabled])', '[data-hs-win="hunt-summary"] [data-hs-act="town"][data-step="bless"]'];
 
 export const HUNT_TUTORIAL = Object.freeze([
   /* ── THE WEAPON IS THE STYLE, BEFORE ANY HUNT (the panel 2026-10-31: it came after the archer's disaster). One Got it, or
@@ -294,7 +295,9 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('equip_upgrades', 'Wear what you found',
     'You found gear that beats what you\'re wearing. You change gear in town, so open your bag and press Equip upgrades.',
     'inventory', { kind: 'upgrades_none' }, { reactive: true, when: [IN_TOWN, { kind: 'upgrades' }],
-      inWindow: 'Press Equip upgrades. You can swap any piece back from your bag.', hooks: ['[data-hs-win="inventory"] [data-hs-act="equip-upgrades"]'] }),
+      inWindow: 'Press Equip upgrades. You can swap any piece back from your bag.',
+      /* the bag's Equip upgrades, or the hunt summary's Back in town Equip row while that card shows (a card about the return rings its row, never the summary's gold press) */
+      hooks: ['[data-hs-win="inventory"] [data-hs-act="equip-upgrades"]', '[data-hs-win="hunt-summary"] [data-hs-act="town"][data-step="equip"]'] }),
   step('storage', 'Room in your bag',
     'Your bag is nearly full. Storage holds more, and all your heroes share it.',
     'storage', { kind: 'any', of: [READ, { kind: 'stored_stack' }] }, { reactive: true, gotIt: true, when: [{ kind: 'bag_full' }] }),
@@ -387,7 +390,9 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Open the Shop and press Sell. Sell all junk sells what is only worth gold. Your Materials stay, like fuel for the Great Hearth (it raises your Inner Flame), food you can cook and parts for your recipes and your House. Point at anything to see what it\'s for.',
     'shop', { kind: 'any', asks: true, of: [READ, { kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },
     { gotIt: true, when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all junk. Your Materials stay in your bag.',
-      hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="sell"]', '[data-hs-win="shop"] [data-hs-act="sell-loot"]', '[data-hs-win="shop"] [data-coach-hook="sell-confirm"]'] }),
+      hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="sell"]', '[data-hs-win="shop"] [data-hs-act="sell-loot"]', '[data-hs-win="shop"] [data-coach-hook="sell-confirm"]',
+        /* the hunt summary's Back in town Sell row while that card shows: the card rings the row, never the summary's gold press */
+        '[data-hs-win="hunt-summary"] [data-hs-act="town"][data-step="sell"]'] }),
   /* One decision, not a form (panel 2026-11-01: a 14-dropdown list at hour one, "I don't know what I don't need yet"): after the
      Thicket the bag knows what piles up, and a plan once set is kept for every hunt after (the first principle). */
   step('loot_rules', 'Decide once',

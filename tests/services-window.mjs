@@ -5,7 +5,7 @@
 //   node tests/services-window.mjs            the rules
 //   node tests/services-window.mjs --mutate   every planted defect must turn a rule RED
 //
-// mutant-anchors: src/shell/windows/services.js src/session/item-sections.js src/shell/windows/shop.js
+// mutant-anchors: src/shell/windows/services.js src/session/item-sections.js src/shell/windows/shop.js src/shell/bless-all.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus the two S2 sections.
@@ -366,7 +366,7 @@ const MUTANTS = [
     "if (q && q.available) { sc.confirm = true; sc.msg = ''; repaint(); } return true; }",
     "if (q && q.available) runIntent(sc, repaint, () => cs.buyStamina(q.price), 'x'); return true; }"],
   ['any missing tier can be bought', 'src/shell/windows/services.js', "prop(btn, 'disabled', r.held || !next || next.tier !== r.tier || sc.pending", "prop(btn, 'disabled', r.held || sc.pending"],
-  ['Bless all buys one tier (SV-11)', 'src/shell/windows/services.js', '    r = got;\n', '    return got;\n'],
+  ['Bless all buys one tier (SV-11)', 'src/shell/bless-all.js', '    r = got;\n', '    return got;\n'],
   ['the stamina control is on with no quote', 'src/shell/windows/services.js', 'const canStam = !!q && q.available && !sc.pending', 'const canStam = !sc.pending'],
   ['the Shop writes its own line over the Services answer (IP-3, v0.2.46)', 'src/shell/windows/shop.js',
     "text(root.querySelector(':scope > .hh-intent-msg'), st.sc.msgAt", "text(root.querySelector('.hh-intent-msg'), st.sc.msgAt"],

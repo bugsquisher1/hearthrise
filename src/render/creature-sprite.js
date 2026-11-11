@@ -19,9 +19,9 @@
 // 7 only south, 1 the four sides), so a line of them is one consistent pose. Units in the
 // World turn as they move; that is the World renderer's, not this.
 // ════════════════════════════════════════════════════════════════════════
-import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.116';
-import { loadAtlasManifest, loadAtlasImage } from '../world/atlas.js?v=0.2.116';
-import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.116';
+import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.118';
+import { loadAtlasManifest, loadAtlasImage } from '../world/atlas.js?v=0.2.118';
+import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.118';
 
 /** The direction a creature's portrait faces: front, toward the player. */
 export const PORTRAIT_DIR = 's';

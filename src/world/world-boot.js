@@ -26,41 +26,41 @@
 // scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.116';
-import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.116';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.116';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.116';
-import { MONSTERS } from '../data/monsters.js?v=0.2.116';
-import { compileMap } from './core/map-compile.js?v=0.2.116';
-import { createBook } from './core/book.js?v=0.2.116';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.116';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.116';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.116';
-import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.116';
-import { sceneSetsSliced } from './scene-sets.js?v=0.2.116';
-import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.116';
-import { createViewSheets } from './view-sheets.js?v=0.2.116';
-import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.116';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.116';
-import { huntOfMap } from './hunt-maps.js?v=0.2.116';
-import { createHuntScene } from './hunt-scene.js?v=0.2.116';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.116';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.116';
-import { createWalkScene } from './walk-scene.js?v=0.2.116';
-import { createTownZoom } from './town-zoom.js?v=0.2.116';
-import { createIdleMotion } from './idle-motion.js?v=0.2.116';
-import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.116';
-import { runAction } from './steer-local.js?v=0.2.116';
-import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.116';
-import { heroDyeOf } from './hero-dye.js?v=0.2.116';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.116';
-import { homeOf } from '../session/home-sections.js?v=0.2.116';
-import { skillsOf } from '../session/item-sections.js?v=0.2.116';
-import { createHearthView } from './hearth-burn.js?v=0.2.116';
-import { townWorksSwap } from './town-works.js?v=0.2.116';
-import { farmCropProps } from './town-farm.js?v=0.2.116';
-import { farmFieldOf } from '../session/farm-sections.js?v=0.2.116';
-import { createTownShows } from './town-shows.js?v=0.2.116';
+import { BUILD } from '../build-info.js?v=0.2.118';
+import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.118';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.118';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.118';
+import { MONSTERS } from '../data/monsters.js?v=0.2.118';
+import { compileMap } from './core/map-compile.js?v=0.2.118';
+import { createBook } from './core/book.js?v=0.2.118';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.118';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.118';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.118';
+import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.118';
+import { sceneSetsSliced } from './scene-sets.js?v=0.2.118';
+import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.118';
+import { createViewSheets } from './view-sheets.js?v=0.2.118';
+import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.118';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.118';
+import { huntOfMap } from './hunt-maps.js?v=0.2.118';
+import { createHuntScene } from './hunt-scene.js?v=0.2.118';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.118';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.118';
+import { createWalkScene } from './walk-scene.js?v=0.2.118';
+import { createTownZoom } from './town-zoom.js?v=0.2.118';
+import { createIdleMotion } from './idle-motion.js?v=0.2.118';
+import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.118';
+import { runAction } from './steer-local.js?v=0.2.118';
+import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.118';
+import { heroDyeOf } from './hero-dye.js?v=0.2.118';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.118';
+import { homeOf } from '../session/home-sections.js?v=0.2.118';
+import { skillsOf } from '../session/item-sections.js?v=0.2.118';
+import { createHearthView } from './hearth-burn.js?v=0.2.118';
+import { townWorksSwap } from './town-works.js?v=0.2.118';
+import { farmCropProps } from './town-farm.js?v=0.2.118';
+import { farmFieldOf } from '../session/farm-sections.js?v=0.2.118';
+import { createTownShows } from './town-shows.js?v=0.2.118';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the

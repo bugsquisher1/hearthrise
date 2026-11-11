@@ -47,8 +47,8 @@
 // tier-4 weapons are the Slake's, so opened alone a sword alone at 45 swings its tier-3 sword and nets +5% over its store bill
 // (`node tools/pack.mjs check hasks_ford --mode full`, 6 seeds x 4 h), where the rule is +25% for every way. With the Slake's
 // mithril sword gettable it nets +45%, and that full grade passes every row (`--with the_slake`, exit 0, 66 rows).
-import { definePack, box, gather } from '../shape.js?v=0.2.116';
-import map from './map.js?v=0.2.116';
+import { definePack, box, gather } from '../shape.js?v=0.2.118';
+import map from './map.js?v=0.2.118';
 
 const PK = 'banded_pikeman', FS = 'fordsunk', LW = 'ledger_wight', BN = 'bannerman';
 

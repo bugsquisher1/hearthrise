@@ -99,9 +99,10 @@ export function selectedIds(sc, items) {
   return Array.from(sc.sel).filter((id) => have.has(id));
 }
 
-/** "3 selected · value 120 gp" at the shop's bids; with no shop yet, the count alone. */
+/** "3 selected · value 120 gp" at the shop's bids; with no shop yet, the count alone; nothing selected, no line at all. */
 export function selectionWords(ids, items, bids) {
   const n = ids.length;
+  if (!n) return '';
   if (!bids) return t('bag.selected', { count: n });
   const want = new Set(ids);
   const v = bagValue(items.filter((r) => want.has(r.id)), bids);

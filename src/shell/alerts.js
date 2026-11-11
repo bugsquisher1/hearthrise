@@ -155,7 +155,7 @@ function candidatesOf(cs, viewed) {
     if (!viewed && !deathSeen(cs, h.sessionId)) out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
       text: END_REASON_COPY.died.one.replace('{name}', who(cs)).replace('{ground}', where) });
   }
-  /* LEAVE TOGETHER (Tyler 2026-10-22): "<Name> left the hunt, so <hero> came home too." / "<Name> fell, so ..." */
+  /* LEAVE TOGETHER (Tyler 2026-10-22): "<Name> left the hunt, so <hero> came home too." / "<Name> died, so ..." */
   else if (h.ended && h.endReason === 'party_member_died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
     text: cameHomeLine(h, who(cs)) });
   else if (h.ended && h.endReason === 'party_member_left') out.push({ id: 'ended:' + h.sessionId, kind: endedKind, session: endedSession,

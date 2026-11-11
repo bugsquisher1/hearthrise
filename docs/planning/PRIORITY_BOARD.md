@@ -352,33 +352,33 @@ Every solo ground is back in the pace band. The party grounds' fours read over i
 **Two generic ideas I cut.** A boss standing in the last pocket of the route would be killed thirty times an hour by an idle loop, and a final boss can't be a lap monster. A castle full of more undead would be a fifth ground with the same answer (hammer). So Krell gets a room you enter on purpose, and the Hold mixes living and dead in one pull.
 
 #### 1. The place
-The Stokers' cart road runs north off the Pyre Field and up the hill. The pyre wood came down that road from Krell's yard. The Hold is at the top. It is small, gray and in good repair, because people still live in it. Smoke comes from one chimney. That is the Hall Fire, the fire the Binders' rite tied the dead to. There is no travel time in the game today, so the player reaches it from the Hunts list at Level 85 and stands on the cart road at the gate.
+Follow the Stokers' cart road north off the Pyre Field and up the hill. It's the same road the pyre wood came down from Krell's yard, and the Hold is waiting at the top. It's a small gray castle in good shape, because people still live there, and smoke comes out of one chimney. That smoke is the Hall Fire, the one Krell's priests tied the dead to when they lit the pyres from it. (There's no travel time in the game today, so a player picks it from the Hunts list at Level 85 and starts on the cart road at the gate.)
 
 | # | Area | Who is there | Why it exists |
 |---|---|---|---|
-| 1 | **The Cart Gate** | Levies, one Picket | The soft door. A hero under 85 pushing for tier 6 boots stands here |
-| 2 | **The Drill Yard** | Levies, Pickets on the wall walk | All living. The bow's ground and the poison rune's ground. The woodyard that fed the pyres is here |
-| 3 | **The Chapel** | Binders, Warders | Where the rite was written. A Binder mends the dead beside him, so kill order matters. The caster's prizes drop here |
-| 4 | **The Undercroft** | Warders in ranks | The officers Krell dug out of the Muster Barrows. All dead. The hammer's ground. An Emberstone Vein in the cellar rock (the node kind has no sprite yet, the Pyre lane flagged it) |
-| 5 | **The Keep Stair** | The Castellan, Warders, Pickets | The hardest pull and the rare carrier. The Hall Key drops here |
+| 1 | **The Cart Gate** | Farmhands, one Lookout | The soft door. A hero under 85 pushing for tier 6 boots stands here |
+| 2 | **The Drill Yard** | Farmhands, Lookouts on the wall walk | All living. The bow's ground and the poison rune's ground. The woodyard that fed the pyres is here |
+| 3 | **The Chapel** | Pyre Priests, Grave Guards | This is where Krell's priests worked out what to chant over the bodies. A Pyre Priest mends the dead beside him, so kill order matters. The caster's prizes drop here |
+| 4 | **The Crypt** | Grave Guards in ranks | Krell had some of the dead officers dug back out of the Muster Barrows to guard his cellar. The hammer's ground. An Emberstone Vein in the cellar rock (the node kind has no sprite yet, the Pyre lane flagged it) |
+| 5 | **The Keep Stair** | The Gatekeeper, Grave Guards, Lookouts | The hardest pull and the rare carrier. The Hall Key drops here |
 | 6 | **Krell's Hall** | Lord Krell, the Hall Fire | Not on the route. One room, one fight, opened with a key |
 
-The route is 1 to 5 and back out through the sally port to the gate. Areas 2 and 4 disagree on purpose. A lone bow lives in the yard and a lone hammer lives in the cellar. Mixed parties earn the most in the Chapel and on the Stair.
+The route is 1 to 5, then out the back gate and around to the front. Areas 2 and 4 disagree on purpose. A lone bow lives in the yard and a lone hammer lives in the cellar. Mixed parties earn the most in the Chapel and on the Stair.
 
 **The axis it wins and loses (proposed, unmeasured).** It wins tier 6 armor, the boss, and mixed-party XP. It should lose to the Pyre Field on a lone hero's gold, because no one weapon answers a whole lap here.
 
 #### 2. The sample of five
-One difficulty for every group size. No solo or party label and no gate. Stats are `formulaStats` on main (tier 6, floor 85, fit `both`), not played. Head count at density 4 over five pockets is 8 Levies, 4 Warders, 3 Pickets, 3 Binders, 2 Castellans.
+One difficulty for every group size. No solo or party label and no gate. Stats are `formulaStats` on main (tier 6, floor 85, fit `both`), not played. Head count at density 4 over five pockets is 8 Farmhands, 4 Grave Guards, 3 Lookouts, 3 Pyre Priests, 2 Gatekeepers.
 
 | Creature | Level, role | Tied to | Class, weak to | New here | Formula row |
 |---|---|---|---|---|---|
-| **Levy** | 86, swarm | Krell. Farmhands he pressed to hold his walls | Human. Arrows, poison +15% | The March's first living enemy. Poison did half to every dead thing for four grounds. It works here | hp 114, atk 78, xp 1,151, gp 24-72 |
-| **Hask's Picket** | 88, glass | Captain Hask. The sentries he pulled off the line at the Ford. They took Krell's pay too | Human. Arrows | Shoots a crossbow from range at the hero farthest back and doesn't walk in. Challenge turns his aim to the tank | hp 109, atk 103, xp 1,333, gp 23-69 |
-| **Warder** | 92, heavy | The Barrows. A company officer dug up and set at Krell's doors | Undead. Hammer, fire +15% | The first regular monster with a marked heavy hit. A shield slam on the tiles in front of him. The tank holds, ranged heroes step off | hp 182, atk 78, xp 2,077, gp 38-115 |
-| **Binder** | 95, regular | The Pyre. Krell's priests, who said the rite on the field | Human. Arrows | Mends the dead in his pull. The first monster that heals. Leave him alive and the Warders take far longer to drop (how much is unmeasured) | hp 157, atk 100, xp 1,650, gp 33-99 |
-| **Castellan** | 100, elite | Krell. He keeps the castle and its keys | Human in plate, so hammer (one override) | No trick. He is the first monster whose drop opens a fight | hp 263, atk 105, xp 3,244, gp 55-166 |
+| **Farmhand** | 86, swarm | Krell. Farm workers he dragged off their land to stand on his walls | Human. Arrows, poison +15% | The March's first living enemy. Poison did half to every dead thing for four grounds. It works here | hp 114, atk 78, xp 1,151, gp 24-72 |
+| **Hask's Lookout** | 88, glass | Captain Hask. The guards he pulled off the crossing that night. They took Krell's money too, and they've worked for him ever since | Human. Arrows | Shoots a crossbow from range at the hero farthest back and doesn't walk in. Challenge turns his aim to the tank | hp 109, atk 103, xp 1,333, gp 23-69 |
+| **Grave Guard** | 92, heavy | The Barrows. A company officer Krell dug back up to stand at his doors | Undead. Hammer, fire +15% | The first regular monster with a marked heavy hit. A shield slam on the tiles in front of him. The tank holds, ranged heroes step off | hp 182, atk 78, xp 2,077, gp 38-115 |
+| **Pyre Priest** | 95, regular | The Pyre Field. Krell's priests, the ones who burned the soldiers and chanted over them | Human. Arrows | Mends the dead in his pull. The first monster that heals. Leave him alive and the Grave Guards take far longer to drop (how much is unmeasured) | hp 157, atk 100, xp 1,650, gp 33-99 |
+| **Gatekeeper** | 100, elite | Krell. He runs the castle and carries the keys | Human in plate, so hammer (one override) | No trick. He is the first monster whose drop opens a fight | hp 263, atk 105, xp 3,244, gp 55-166 |
 
-Each one is a question from the boss exam. The Levy says Krell is a living man and your undead kit is wrong for him. The Picket is his adds going for the back line. The Warder is his marked hit. The Binder is "kill the helpers first". The Castellan is the key. Weak-to counts at density 4 are 14 to arrows and 6 to a hammer, so this is the Ranger's ground the way the Slake is the sword's and the Pyre Field is the hammer's.
+Each one is a question from the boss exam. The Farmhand says Krell is a living man and your undead kit is wrong for him. The Lookout is his adds going for the back line. The Grave Guard is his marked hit. The Pyre Priest is "kill the helpers first". The Gatekeeper is the key. Weak-to counts at density 4 are 14 to arrows and 6 to a hammer, so this is the Ranger's ground the way the Slake is the sword's and the Pyre Field is the hammer's.
 
 **Sample rule.** These five get built, played and read by the art director before any sixth creature is written.
 
@@ -388,11 +388,11 @@ Level 110, Human, an old man in Dawnsteel plate who has sat with that fire at hi
 | Phase | What happens | What the bar answers with |
 |---|---|---|
 | 100% to 50% | He swings at the tank. **Rake the Coals** is a marked cone of coals out of the Hall Fire. **The Hall Fire flares** every 20 s and hits every hero in the room. Nobody steps out of that one | A shield takes 30% off the cone. Ranged heroes step off it. The flare wants a party heal, food rules and ember resistance |
-| 50% | **He reads the Roll.** Captain Hask and two Warders stand up out of the floor. They go for whoever isn't the tank and they shield Krell while they stand | Challenge, an area slot, and Target set to take them first |
+| 50% | **He reads the Roster.** Captain Hask and two Grave Guards stand up out of the floor. They go for whoever isn't the tank and they shield Krell while they stand | Challenge, an area slot, and Target set to take them first |
 | 25% | He is enraged and hits harder. The Hall Fire flares twice as often | The eat lines and the healer's slots decide the finish |
 | Dead | The Hall Fire goes out | |
 
-**Why players will talk about it.** Hask comes back. Everyone who got here killed him in the Muster Barrows, and now the man who bought him calls him by name and he has to come. The fire is the second thing. It is on the boss bar with its own countdown, so a loss reads "Fell in the enrage at 12%, the Hall Fire had just flared". The third is the end. You take a page of the Muster Roll home and burn it at Havora's Hearth, and the square's fire changes for everyone standing there.
+**Why players will talk about it.** Hask comes back. Everyone who got here killed him in the Muster Barrows, and now the man who bought him calls him by name and he has to come. The fire is the second thing. It is on the boss bar with its own countdown, so a loss reads "Fell in the enrage at 12%, the Hall Fire had just flared". The third is the end. You take a page of the Company Roster home and burn it at Havora's Hearth, and the square's fire changes for everyone standing there.
 
 **The boss bar.** Krell's health with lines drawn at 50 and 25, the phase words under it, and one more line for the next flare. That bar exists for called rooms (`src/shell/widgets/boss-bar.js`). The flare line is new.
 
@@ -414,19 +414,19 @@ Level 110, Human, an old man in Dawnsteel plate who has sat with that fire at hi
 | 11 | Rows that are missing | Captain Hask has art on lane/b-muster-barrows-art and no monster row on main. No tier 7 wand or spellbook. Hatchets and crossbows stop at tier 3 | Designer |
 | 12 | The hall remembers the bar setup a hero last entered with | Setups are not tied to a ground | Systems. First principle |
 
-Pieces 2, 3 and 4 are only for this ground's Picket and Binder. If they slip, those two creatures wait. They do not ship as plain melee bodies, because that is a reskin.
+Pieces 2, 3 and 4 are only for this ground's Lookout and Pyre Priest. If they slip, those two creatures wait. They do not ship as plain melee bodies, because that is a reskin.
 
 #### 4. Drops
 Every id below was read on main (`ITEMS`), except the rows marked new.
 
 | From | Common | Scarce, about hourly a piece | Rare |
 |---|---|---|---|
-| Levy | Bones, coin, Press Token (new) | Tier 6 boots in three weights (`ember_boots`, `dragonhide_boots`, `archmage_boots`), `ember_sword` | |
-| Hask's Picket | Bones, Picket Whistle (new) | Tier 6 helmets (`ember_helm`, `dragonhide_helmet`, `archmage_helmet`), `runewood_bow` | Tier 6 gloves in three weights |
-| Warder | Big Bones, Grave Dust, Barrow Nail (new) | Tier 6 legs (`ember_platelegs`, `dragonhide_pants`, `archmage_pants`), `ember_warhammer` | Tier 6 belts in three weights |
-| Binder | Bones, Coal, Binder's Cord (new) | `runewood_staff` | `runewood_wand`, `runewood_codex` |
-| Castellan | Big Bones, Castellan's Chain (new), **Hall Key** (new, uncommon) | Tier 6 bodies (`ember_platebody`, `dragonhide_body`, `archmage_body`) | |
-| Lord Krell | Coin | | Each about 1 kill in 10. `dawn_sword`, `dawn_warhammer`, `duskwood_bow`, `duskwood_staff`, and the tier 7 body and helm in three weights. **Roll Page** (new, named fuel). Trophy **Krell's Toll Box** (new, 100-150 h) |
+| Farmhand | Bones, coin, Farmhand's Tag (new) | Tier 6 boots in three weights (`ember_boots`, `dragonhide_boots`, `archmage_boots`), `ember_sword` | |
+| Hask's Lookout | Bones, Lookout Whistle (new) | Tier 6 helmets (`ember_helm`, `dragonhide_helmet`, `archmage_helmet`), `runewood_bow` | Tier 6 gloves in three weights |
+| Grave Guard | Big Bones, Grave Dust, Barrow Nail (new) | Tier 6 legs (`ember_platelegs`, `dragonhide_pants`, `archmage_pants`), `ember_warhammer` | Tier 6 belts in three weights |
+| Pyre Priest | Bones, Coal, Priest's Cord (new) | `runewood_staff` | `runewood_wand`, `runewood_codex` |
+| Gatekeeper | Big Bones, Gatekeeper's Chain (new), **Hall Key** (new, uncommon) | Tier 6 bodies (`ember_platebody`, `dragonhide_body`, `archmage_body`) | |
+| Lord Krell | Coin | | Each about 1 kill in 10. `dawn_sword`, `dawn_warhammer`, `duskwood_bow`, `duskwood_staff`, and the tier 7 body and helm in three weights. **Roster Page** (new, named fuel). Trophy **Krell's Toll Box** (new, 100-150 h) |
 
 **Where tier 6 armor comes from.** Here. All eighteen pieces, three weights by six slots, Scarce on the five bodies. It is worn from Level 75, so every piece is wearable the hour it drops. That closes the audit's hole. It also leaves a real gap that I am keeping. A hero at 75-84 can wear tier 6 armor and has no ground in range that drops it. They push into the Cart Gate early and pay for it in food and deaths, which is the risk rule working (Tyler 11-04, 11-06). If testers stall at 75-84, the fix is the Pyre Field's Provost carrying the tier 6 boots, a one-row move.
 
@@ -436,20 +436,20 @@ Every id below was read on main (`ITEMS`), except the rows marked new.
 - Bones, Big Bones and Grave Dust burn at the Hearth. Coal goes to the forge.
 - The five new commons are imbuement items, one of each kind, kept for the imbuer like every ground's.
 - The Hall Key opens Krell's Hall once. About one key every two hours for a lone hero at the floor. Proposed, unmeasured.
-- A Roll Page burns alone at the Hearth for a burst of Inner Flame XP and turns the square's fire for everyone. One `NAMED_FUELS` row and one flame ramp.
+- A Roster Page burns alone at the Hearth for a burst of Inner Flame XP and turns the square's fire for everyone. One `NAMED_FUELS` row and one flame ramp.
 - Krell's Toll Box goes on the house trophy shelf. It is the box the ford's toll went into, and it is what all of this was for.
 - First kill gives a title. My pick is **Holdtaker**. Tyler names titles.
 
 **Open for Tyler, through the Coordinator.** Does a Hall Key trade? My default is no, like a trophy, because a traded key is a bought boss attempt and buying rare drops is on his avoid list. And three tier 7 names carry a banned word in the data today (`voidhide`, `voidweave`). I'd rename them Duskhide and Dawnweave before anyone sees one drop.
 
-**Exploit read.** Krell pays only through a key, and a key only comes from kills, so gold never buys his drops. A mended Warder pays once. The hall has no tiers, so nobody farms him on Normal for Deadly loot. The 1 in 10 rows break the 5% row ceiling on purpose, and the loot-band guard has to learn a per-kill boss before those rows land.
+**Exploit read.** Krell pays only through a key, and a key only comes from kills, so gold never buys his drops. A mended Grave Guard pays once. The hall has no tiers, so nobody farms him on Normal for Deadly loot. The 1 in 10 rows break the 5% row ceiling on purpose, and the loot-band guard has to learn a per-kill boss before those rows land.
 
 #### 5. The chase for a Level 85 hero
 | When | What they want |
 |---|---|
 | The first hour | A tier 6 piece on the doll. A first Hall Key in the bag. Finding out the bow matters here |
 | The first day | Most of a tier 6 set in their weight. Three to six tries at Krell. The first time Hask stands up. Maybe the kill and the title |
-| The first week | A Dawnsteel piece at 88. A Roll Page burned in front of the square. The Undercroft on Deadly once resistance exists. The Levy's first bestiary stage at 2,500 kills |
+| The first week | A Dawnsteel piece at 88. A Roster Page burned in front of the square. The Crypt on Deadly once resistance exists. The Farmhand's first bestiary stage at 2,500 kills |
 | After that | The Toll Box at 100-150 hours, and Level 110 |
 
 **What makes them do the next thing.** Every lap of the castle moves them toward a key. Every key is a fight they can lose. Every loss says where it was lost.
@@ -462,45 +462,45 @@ A Level 85 hero back from the Pyre Field in its tier 5 set, with the Pyre bar (`
 | 1 | Opens Hunts and sees Krell's Hold, Level 85-110 | Level 85 | Yes, once the pack row exists. `hunt-list.js` reads it |
 | 2 | Picks Normal | Step 1 | Yes, tiers are on main |
 | 3 | Swaps the ice rune for `chalked_poison_rune` on the bar | The Pyre bar | Yes, a real store row. **First principle flag.** Nothing ties a saved setup to a ground |
-| 4 | Enters at the Cart Gate. First pull is Levies and a Picket | Step 3 | Not yet. No map, and the Picket needs piece 2 |
+| 4 | Enters at the Cart Gate. First pull is Farmhands and a Lookout | Step 3 | Not yet. No map, and the Lookout needs piece 2 |
 | 5 | First kills give coin and Bones | Step 4 | Yes, real rows |
 | 6 | About an hour in, wears a first tier 6 piece | Step 5's kills | Yes. `ember_boots` is Level 75 |
-| 7 | A Castellan on the Stair drops a Hall Key | Laps of the route | Needs the item row |
+| 7 | A Gatekeeper on the Stair drops a Hall Key | Laps of the route | Needs the item row |
 | 8 | Back in town, the Hold's page offers "Enter Krell's Hall" for one key, with the warning and one confirm | Step 7's key | Needs piece 5 |
-| 9 | Fights Krell. Loses at the Roll the first time | Step 8 | Needs pieces 1, 6, 7. The losing line exists for called rooms |
-| 10 | Wins. Title, a chance at tier 7, a chance at a Roll Page | More keys | Needs piece 5 and the loot guard |
-| 11 | Burns the Roll Page at the Hearth | Step 10 | Needs the `NAMED_FUELS` row and piece 10 |
+| 9 | Fights Krell. Loses at the Roster the first time | Step 8 | Needs pieces 1, 6, 7. The losing line exists for called rooms |
+| 10 | Wins. Title, a chance at tier 7, a chance at a Roster Page | More keys | Needs piece 5 and the loot guard |
+| 11 | Burns the Roster Page at the Hearth | Step 10 | Needs the `NAMED_FUELS` row and piece 10 |
 | 12 | Sells spare tier 6 at the shop | Step 6 | Needs piece 9, or the gold floods |
 
 Seven of twelve steps wait on something unbuilt. That is the honest size of this ground.
 
 #### 7. Art brief (current style only, `docs/ART_DIRECTION.md`, classes from `src/data/world/art-budget.js`)
-For the generator lane after PixelLab resets on 11-14. Sample first. Draw the Levy and one wall run, read them at x2 beside the Pyre Field, then the rest.
+For the generator lane after PixelLab resets on 11-14. Sample first. Draw the Farmhand and one wall run, read them at x2 beside the Pyre Field, then the rest.
 
 | What | Class, size | Clips | Note |
 |---|---|---|---|
-| Levy | `character`, 64x64, body 36-40 | idle 4, walk 6, death 6. East and west | Quilted jack, bill hook, no helmet. Reads young and scared |
-| Hask's Picket | `character` | same | Crossbow, the Banded Company's striped sleeve under Krell's tabard |
-| Warder | `character` | same | A dead officer behind a door-sized shield. New drawing. The barrow knight has been poured twice already |
-| Binder | `character` | same | Hooded, knotted cord, ash-gray robe. Living skin |
-| Castellan | `brute`, body 41-52 | same | Plate, mace, a ring of keys that reads at x2 |
-| Lord Krell | `brute` | walk, attack, two specials (the rake, reading the Roll), death. 8 and 4 facings like Hask | Old, thin, Dawnsteel plate, the Roll in his off hand |
+| Farmhand | `character`, 64x64, body 36-40 | idle 4, walk 6, death 6. East and west | Quilted jack, bill hook, no helmet. Reads young and scared |
+| Hask's Lookout | `character` | same | Crossbow, the Banded Company's striped sleeve under Krell's tabard |
+| Grave Guard | `character` | same | A dead officer behind a door-sized shield. New drawing. The barrow knight has been poured twice already |
+| Pyre Priest | `character` | same | Hooded, knotted cord, ash-gray robe. Living skin |
+| Gatekeeper | `brute`, body 41-52 | same | Plate, mace, a ring of keys that reads at x2 |
+| Lord Krell | `brute` | walk, attack, two specials (the rake, reading the Roster), death. 8 and 4 facings like Hask | Old, thin, Dawnsteel plate, the Roster in his off hand |
 | Captain Hask | exists | | Reused from lane/b-muster-barrows-art. No generations |
-| Tilesets | 5 chained pro tilesets | | Cart road and gate dirt, yard cobble, chapel flags, undercroft stone, hall boards |
+| Tilesets | 5 chained pro tilesets | | Cart road and gate dirt, yard cobble, chapel flags, crypt stone, hall boards |
 | Walls | wall slices 32x60 | | Gray dressed stone. A feature every 6 tiles (arrow loop, torch, buttress) |
 | Gatehouse and portcullis | `building`, 80-160 | | The landmark at the start tile |
 | The Hall Fire | Needs a class row first. About 96 wide, 4 frames at 8 fps | | A long floor hearth. The art director adds the class. The budget is law |
-| Props, 14 | `fixture`, `bulky`, `station`, `seat`, `box`, `log` | braziers and candle stands 4 frames | Lectern with the Muster Roll, Krell's high seat, the toll box, the company's colors hung upside down, Krell's banner, pells in the yard, weapon rack, woodpile, saw horse, well, open barrow coffins stood on end, candle stand, brazier, chapel bench |
-| Icons, 8 | 32 px pixel items | | Hall Key, Roll Page, Krell's Toll Box, Press Token, Picket Whistle, Barrow Nail, Binder's Cord, Castellan's Chain. Tier 6 and 7 gear icons are already in the bundle |
+| Props, 14 | `fixture`, `bulky`, `station`, `seat`, `box`, `log` | braziers and candle stands 4 frames | Lectern with the Company Roster, Krell's high seat, the toll box, the company's colors hung upside down, Krell's banner, pells in the yard, weapon rack, woodpile, saw horse, well, open barrow coffins stood on end, candle stand, brazier, chapel bench |
+| Icons, 8 | 32 px pixel items | | Hall Key, Roster Page, Krell's Toll Box, Farmhand's Tag, Lookout Whistle, Barrow Nail, Priest's Cord, Gatekeeper's Chain. Tier 6 and 7 gear icons are already in the bundle |
 | Effects, 4 | `vfx` | | Crossbow bolt, the coal cone's mark, the Hall Fire's flare, the dead standing up (a death clip played backward, free) |
 | Portraits, 6 | bestiary, front-facing | | The five and Krell |
 
 That is 6 new creatures, 1 reused, 5 tilesets, 16 structures and props, 8 icons, 4 effects and 6 portraits. The Muster Barrows took 323 generations for a ground, two creatures, 16 props and 4 icons. Assume 400 to 500 here. Not measured.
 
 #### 8. For the Pyre Field lane (the pack is on origin/lane/b-pyre-field, not on main, so I did not edit it)
-- Theme line becomes "Lord Krell's priests burned the Banded Company's dead on this field, and they would not stay burned."
-- Naming voice. The Chantry's words (brother, shroud, prior) become the Hold's (binder, shroud, roll). The short names are Hask and Krell.
-- "Prior Ebbe's Chantry" becomes "Krell's Binders". "Ebbe's rite" and "Ebbe's binding" become Krell's. "The Chantry's wood" and "the Chantry's books" become the Hold's and the Binders'. The Shroud Pin's line says "a Binder" where it says "a Chantry brother". "Tier-6 armor waits for Ebbe's Chantry" becomes Krell's Hold.
+- Theme line becomes "Krell's priests burned the Banded Company's dead here, but they lit the pyres from Krell's own fire, so the dead never got to rest." (lane/d-plain-lore 11-11, the approved story's facts)
+- Naming voice. The Chantry's words (brother, shroud, prior) become the Hold's (priest, shroud, roster). The short names are Hask and Krell.
+- "Prior Ebbe's Chantry" becomes "Krell's priests" (the Pyre Priests). "Ebbe's rite" and "Ebbe's binding" become Krell's. "The Chantry's wood" and "the Chantry's books" become the Hold's and the Pyre Priests'. The Shroud Pin's line says "a Pyre Priest" where it says "a Chantry brother". "Tier-6 armor waits for Ebbe's Chantry" becomes Krell's Hold.
 
 #### 9. The pack
 `node tools/pack.mjs new` copies a shipped ground's map and rows under new ids. A Hold poured on Wickstead's map would be a fake castle with numbers attached, and its creatures need fields the pack shape refuses today (piece 10). So there is no staged pack on this branch. The rows above are the proposal, and the stat lines are what `propose` would write. The pack lane starts with `new krells_hold --like pyre_field --band 85,110` once the Pyre Field is on main.
@@ -508,26 +508,36 @@ That is 6 new creatures, 1 reused, 5 tilesets, 16 structures and props, 8 icons,
 **Done and verified.** Every existing item, monster, class, target mode and engine file named here was read on main at v0.2.112. The new names were checked free. The stat rows are `formulaStats` output. **Not verified.** Nothing was played. No drop rate, key rate, pull size or win rate has been through the sim. **Assumed.** The generation count, five pockets, and that the area-spell engine lands as specced.
 
 ### 2026-11-10 The living world: Krell's arc from Havora to the Hold (designer, lane/d-krells-hold. Tyler 2026-11-09 "you're kind of crushing it with the lore", "I want to keep this going"): a living section, added to as grounds land
-Havora is the capital of Greenhaven and keeps the Great Hearth. Its fire lays the dead to rest. That is why Bones and Grave Dust burn there.
+*Voice (Tyler 2026-11-11, on the wiki's "The Road North", lane/d-wiki-mocks d280ad46e: "NOW THAT IS WHAT I'M TALKIN ABOUT BAYBEEE").* Lore is told out loud by a person, in order, with cause and effect, casual. The story below is the approved text and its facts are canon, including the four it added: the dead only rest if they're burned at the Great Hearth, the pyres were lit from Krell's hall fire, Hask was buried with the officers to keep him quiet, and if Krell's fire goes out the dead come for him. A short line in the game (an item, a ground's theme, a monster) uses these facts in a few plain words and never contradicts them.
 
-The road north crosses the Meadowbrook at a ford with a toll stone. Havora hired the Banded Company, a free company under Captain Hask, to hold that ford and the March beyond it. Lord Krell had held the March before them, and he wanted the toll back. He didn't fight the company. He bought its captain. Hask sold the crossing, and Krell's men killed the company where it stood.
+**The Road North (approved, 399 words).**
 
-Then Krell cleaned up, and each ground is one piece of the cleaning.
+> In Greenhaven, the dead only rest if they're burned at the Great Hearth in Havora. Skip that and they get back up. Keep that in mind, because it's why the road north is such a mess.
+>
+> The road goes over the Meadowbrook at an old toll stone. Lord Krell used to collect that toll, until Havora took the crossing from him and hired Captain Hask's soldiers, the Banded Company, to guard it. Krell didn't want a fight with them, so he paid Hask instead. One night Hask pulled his guards off the crossing and let Krell's men walk right over. They wiped out the company on the spot. The few who ran before it started are the Turncoats robbing people at Wickstead.
+>
+> Krell's men didn't burn a single body, so you can guess what happened next. The dead got back up where they fell, and that spot is called Hask's Ford now. Their flag-bearer walks around the toll stone with the company flag like he never heard the fight ended. The river carried a lot of the others down to the Slake, along with the company's supply barge, and they're out on the mudflats.
+>
+> Krell knew that many bodies would get people asking questions, so he started cleaning up. He buried the officers with full honors in the Muster Barrows so it'd look like they lost a fair fight. Hask went in with them, since a guy who'd sell out his own men would sell out Krell just as fast.
+>
+> There were too many regular soldiers to bury, so Krell's priests burned them on the Pyre Field. That should've been the end of it, but they lit those pyres from the fire in Krell's own hall, and whatever they chanted over the bodies tied the dead to that fire instead of letting them rest. The castle's Stokers have kept those pyres going ever since.
+>
+> That fire is in Krell's Hold, his castle at the end of the road. He's an old man now. He sits in his hall with the company's roster on the table and that fire at his back. He can't let it go out, because the second it does, every soldier he killed is loose, and they all know where he lives. So kill Krell and bring a page of that roster home. Burn it in the Great Hearth, and those soldiers finally get to rest.
 
-| Ground | Its place in the story | In the data |
+**Ground by ground, in the same voice** (for each ground's own wiki page and its pack; a ground's page tells its piece and links back to the story):
+
+| Ground | Its piece of the story | In the data |
 |---|---|---|
-| Wickstead, 8-18 | The Turncoats in the farmhouse are the company's last deserters. Their Torn Company Badge is the first piece of this story a new hero holds | Live |
-| Hask's Ford, 45-60 | The foot died in their files and nobody burned them. The Bannerman still holds the Company Colors at the toll stone | lane/b-hasks-ford |
-| The Slake, 50-65 | The river took the rest, and the company's supply barge, and dropped them on the mudflat | lane/b-the-slake |
-| Muster Barrows, 55-75 | Krell buried the officers with honors so it would look like a lost battle. Hask is in there with them | Art on lane/b-muster-barrows-art |
-| The Pyre Field, 70-90 | The foot were too many to bury. Krell's Binders burned them, and the rite tied them to the fire. The Stokers still feed the pyres | lane/b-pyre-field |
-| Krell's Hold, 85-110 | The fire that holds the dead burns in Krell's hall, beside the company's Muster Roll. He is old now and can't let it go out | This design |
+| Wickstead, 8-18 | A handful of Hask's soldiers saw what was coming and ran before it started. They're the Turncoats now. They burned out the farm at Wickstead, moved into the house, and rob anybody on the Thicket road. Most of them cut the company badge off their coats, and that Torn Company Badge is usually the first piece of this whole mess a new hero ends up holding | Live |
+| Hask's Ford, 45-60 | This is where it happened. Krell's men left the bodies where they dropped, and since none of them went to the Hearth, the whole company got back up right there at the toll stone. Their flag-bearer still walks around the stone with the company flag like he never heard the fight ended | lane/b-hasks-ford |
+| The Slake, 50-65 | Plenty of the bodies went into the Meadowbrook, and the river carried them down to the Slake along with the company's supply barge. The barge never made it back upstream, and the dead washed up on the mudflats and got up there too. They've been lying in that copper silt long enough to turn green | lane/b-the-slake |
+| Muster Barrows, 55-75 | Krell had the officers buried with full honors so it'd look like they lost a fair fight. He put Hask in the ground with them, because a guy who'd sell out his own men would sell out Krell too. Hask is the first boss you meet on this road | Art on lane/b-muster-barrows-art |
+| The Pyre Field, 70-90 | There were way too many regular soldiers to bury, so Krell's priests burned them out here. The trouble is they lit the pyres from the fire in Krell's hall, and whatever they chanted tied the dead to that fire instead of letting them rest. The Stokers come down from the castle and have kept the pyres burning ever since | lane/b-pyre-field |
+| Krell's Hold, 85-110 | Krell's castle sits at the top of the hill at the end of the road. He's old now, and he spends his days in his hall with the company's roster on the table and that fire at his back. If it ever goes out, every soldier he killed is loose, and they all know where he lives | This design |
 
-The Warrens' copper hill feeds the Meadowbrook's springs, the Glade glows with it, and the same water runs past the Ford down to the Slake. The Mill Cellar, the Thicket and the Sewer are Havora's own doorstep and have no part in Krell's story yet.
+The water ties the places together. The copper hill under the Warrens feeds the Meadowbrook's springs, which is why the moss in the Glade glows, and that same water runs past the Ford and on down to the Slake. The Mill Cellar, the Thicket and the Sewer are right on Havora's doorstep, and they don't have anything to do with Krell yet.
 
-The end is two fires. Krell's holds the dead. Havora's frees them. A hero kills Krell, takes a page of the Roll, and burns it at the Hearth.
-
-**New in this draft, for Tyler to keep or strike.** The toll as Krell's reason. Hask buried to keep him quiet. The Hall Fire. The Muster Roll. Hask's pickets. The rest was in the data or his 11-09 ruling.
+**Canon since 11-11** (Tyler approved the story): the toll as Krell's reason, Hask buried to keep him quiet, the Hall Fire, the company roster, the pyres lit from Krell's fire, the dead resting only at the Great Hearth. Hask's lookouts are still a design proposal (Krell's Hold, below).
 ### 2026-11-10 Combat training (designer, lane/d-training-and-wards; Tyler 2026-11-08: "training dummies and stuff to train skills (for gold)", "Make the training area look cool too", "Wildly expensive gold sink is going to be a personal training dummy for houses"): DESIGN ONLY, the numbers MEASURED on the real engine at Levels 20 and 50, Level 80 NOT measured, nothing built. **The server half is a §1 money surface and goes on the pre-EA Security list (§3.7)**
 **What it is.** A hero who is not hunting can stand in the Training Yard and train Melee, Ranged, Magic or Defense. It costs gold by the minute and gives skill XP only. It gives no Level XP, no gold and no loot, so a hunt always pays more. The house dummy does the same thing with no fee, for one hero at a time, and costs a million gold a skill.
 
@@ -686,7 +696,7 @@ So training is a luxury at 20 and a real choice from about 50. That is the right
 | **Stitched Fire Lining** | 10% less fire damage | 6 Torn Company Badge (`torn_company_badge`. Turncoat, Wickstead, Level 16, 10% a kill) | 30 Chalked Fire Rune | 1 | 3,000 | Wickstead's Smoke Pot on Dangerous and Deadly. The Warrens' Blasting Charge |
 | **Stitched Poison Lining** | 10% less poison damage | 6 Cistern Venom Gland (`cistern_venom_gland`. Cistern Spider, the Sewer, Level 20, 10%). Or 2 Rook's Moss Charm (`rooks_moss_charm`, Rook the Poacher, the Glade's boss, 15%). Or 2 Knotted Tails (`knotted_tails`, the Rat King, 15%) | 30 Chalked Poison Rune | 1 | 3,000 | The Glade's Spore Cloud. The Rat King's Squeal. Wickstead's Venom Spray |
 | **Corded Frost Lining** | 20% less frost damage | 2 Coppercap's Tallow (`coppercaps_tallow`. Chief Coppercap, the Warrens' boss, Level 52, 15%. "It is why frost slides off him") | 30 Scored Ice Rune (Runecrafting 15) | 25 | 12,000 | The Slake's Cold Bilge, a seed row on the area spells board |
-| **Corded Fire Lining** | 20% less fire damage | 6 Color Cord (`color_cord`. Color Sergeant, the Slake, Level 60, 10%. STAGED pack, not on main) | 30 Scored Fire Rune | 25 | 12,000 | The Pyre Field on Normal and Dangerous. The Warrens on Deadly |
+| **Corded Fire Lining** | 20% less fire damage | 6 Flag Cord (`color_cord`. Flag Sergeant, the Slake, Level 60, 10%. STAGED pack, not on main) | 30 Scored Fire Rune | 25 | 12,000 | The Pyre Field on Normal and Dangerous. The Warrens on Deadly |
 | **Sealed Fire Lining** | 30% less fire damage | 6 Warrant Seal (`warrant_seal`. Provost, the Pyre Field, Level 82, 10%. STAGED pack. "The paper burned and the seal did not") | 30 Etched Fire Rune (Runecrafting 30) | 50 | 40,000 | The Pyre Field on Deadly |
 
 Tier words say how it is fixed in. Stitched, then Corded, then Sealed. The Slake's cord and the Pyre's seal give the two upper tiers their names. Chalked runes are the rune shop's or Runecrafting 1 (`bind_chalked_*_runes`). **Left out on purpose.** Sticky Core (`sticky_core`, the Cellar's Slime) is an `element_ward` piece with no lining. A Level 50 hero would farm slimes for every first-tier lining. It stays sell-only until a use is found. No Stitched Frost Lining either. No ground under Level 50 casts frost, so it would be an item with no use.
@@ -1719,7 +1729,7 @@ Tyler: "Don't rebuild hasks ford, rebuild something similar or maybe a 'mutated'
 
 **The cousin:** same kit, same dead, opposite answers. Same band size, solo, four creature rows. Every id below was grepped on `release/v0.2.91` and is free or real (C); the `hf_` props and the three base bodies are real on the Ford's art lane, which Phase 0 merges.
 
-**Name: The Slake**, id `the_slake`. A slake is a north-country word for a river mudflat (Jarrow Slake on the Tyne). Short, real, not a mood word. Theme line: "The Meadowbrook drops its copper here, and the Banded Company's dead with it." If it doesn't land, the fallback is The Wrack.
+**Name: The Slake**, id `the_slake`. A slake is a north-country word for a river mudflat (Jarrow Slake on the Tyne). Short, real, not a mood word. Theme line: "The Meadowbrook slows down here and leaves its copper silt on the mudflats, along with a lot of the Banded Company's dead." (plain-voiced 11-11) If it doesn't land, the fallback is The Wrack.
 
 **Lore link, each step read from the data or the art brief:** the Warrens' copper hill feeds the springs of the Meadowbrook (`hunts.js`, the Glade's header), "the copper water makes the moss glow" (the Glade's theme), the brook leaves the wood at Wickstead, and the Ford's river is painted off the same water (art lane; no text says so yet, and the Slake's theme line would). Below the Ford the river slows and drops what it carries: copper silt and the company's dead. They lay in it for years and went green. Hask sold the crossing, so the supply barge never got back upstream. The Hearth still lays them to rest: Grave Dust burns at Inner Flame 46. Each named thing connects to a place the player has already hunted.
 
@@ -1782,8 +1792,8 @@ Highest pair today: Thicket and Wickstead 72; next Wickstead and Glade 62. The S
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | **Greened Pikeman**, 12 | `banded_pikeman`, re-poured | Swarm. The crust turns a hammer, a blade finds the joints: `weaponWeak: 'sword', weaponResist: ['hammer']` (the shape the Orchard Boar already uses) | 52 | 170 | 42 | .80 | 20 | 1,500 | 20-46 | 3400 | `bones`, `grave_dust`; `green_rivet`; `mithril_sword`, `maple_wand` |
 | **Bargeman**, 6 | `fordsunk`, re-poured | Tank, the slowest thing on the flat. Where the Fordsunk's bloat swallows arrows, the crew's cracked hides take them: weak ranged | 55 | 240 | 38 | .80 | 26 | 1,850 | 22-50 | 2400 | `bones`, `coal` (the barge's forge cargo); `barge_nail`; `mithril_warhammer`, `maple_staff` |
-| **Mudlark**, 4 | **New**, small and crouched, a sack on its back | Skirmisher. River scavengers who picked the dead and died among them. Quick enough to catch a kiter, hits often and light: resists ranged, weak magic | 54 | 130 | 34 | .85 | 14 | 1,350 | 18-40 | 4400 | `bone_chips`, `copper_ore`; `mudlark_hook`; `maple_bow`, `maple_crossbow` |
-| **Color Sergeant**, 2 (rare) | `bannerman`, re-poured | Bruiser and rare carrier: the danger row, holds the Barge | 60 | 260 | 52 | .80 | 28 | 2,600 | 34-78 | 3000 | `big_bones`; `color_cord`; `mithril_hatchets`, `maple_spellbook`; Rare: `barge_pitch` |
+| **Mudlark**, 4 | **New**, small and crouched, a sack on its back | Skirmisher. Scavengers who picked through the dead on the mudflats and ended up dead there too. Quick enough to catch a kiter, hits often and light: resists ranged, weak magic | 54 | 130 | 34 | .85 | 14 | 1,350 | 18-40 | 4400 | `bone_chips`, `copper_ore`; `mudlark_hook`; `maple_bow`, `maple_crossbow` |
+| **Flag Sergeant**, 2 (rare) | `bannerman`, re-poured | Bruiser and rare carrier: the danger row, holds the Barge | 60 | 260 | 52 | .80 | 28 | 2,600 | 34-78 | 3000 | `big_bones`; `color_cord`; `mithril_hatchets`, `maple_spellbook`; Rare: `barge_pitch` |
 - **It's the T4 weapons' one home.** No T4 ladder weapon has a reachable source today (`AWAITING_ROSTER`, `UNREACHABLE`, and no forge recipe, C). The Ford is the armor's home, so the two don't overlap.
 - **Why these numbers (C):** XP seeds are the Ford's rows scaled about +12% to reach the contract at the middle of the band (L58 244k; the Ford measured about 217k there). To-hit against a shield hero: 27-58% at Level 50, 11-42% at 58, 5-28% at 65; bare of shield and cape 53-84% at 50. Blows 136-208, at most 32% of 650 HP. The Ford as built reads 5-22% at 45 and 5% at 60 (C), so guard swallows it. **The Ford's import needs its effective attack raised: numbers only, no art.**
 - **Flame:** `barge_pitch` is a NAMED_FUELS row (req about 30, 0.6 x floor; a burst) with a new `pitch` flame, "burns low and dull red", a free ramp in `hearth-flames.mjs`. "The Hearth's flame changes for the square" was Tyler's favorite part of this system. Lands after lane/c-hero-sinks, which also builds on colored fuels.
@@ -1843,7 +1853,7 @@ It counts as proved only if played, read by the art director and shipped. A miss
 | 2 | **Hask's Ford, imported** | 45-60, solo | T4 armor, Keystone inputs, Colors | Done | Tyler's word lifts the hold. Effective attack raised, tier and party rows, re-fit from 45 up | Without it the Slake gives weapons and no armor. It's the first thing the pack's commuting lets us stop rebasing |
 | 3 | **Muster Barrows** | 55-75, party | Barrow Knight, Captain Hask's boss rows, **T5 armor (spec gap)** | Done (`aac5732b1`, 323 gens) | First party pack, first boss row | T5 opens at 60 and the spec gives it no home; Pyre Field at 70 is too late. Fix: T5 Scarce here |
 | 4 | **The Pyre Field** | 70-90, solo | Razor Claw, Pyre Ash, Wraith Veil, T6 at 75 | None | Ground, 3 creatures | The kit's second family (ash field) |
-| 5 | **Krell's Hold** (was Ebbe's Chantry, retired by Tyler 2026-11-09) | 85-110, one difficulty for every group size | Tier 6 armor, the Hall Key, Lord Krell's tier 7 and the Roll Page. Design: "2026-11-10 Krell's Hold" | None | Ground, five creatures, the keyed hall | The region's end, about when Open Beta ends |
+| 5 | **Krell's Hold** (was Ebbe's Chantry, retired by Tyler 2026-11-09) | 85-110, one difficulty for every group size | Tier 6 armor, the Hall Key, Lord Krell's tier 7 and the Roster Page. Design: "2026-11-10 Krell's Hold" | None | Ground, five creatures, the keyed hall | The region's end, about when Open Beta ends |
 | Watch | A lone hero at 32-45 | | | | Nothing yet | Warrens at 32, a lone sword: 129.7k, -761 g/h, 69% HP, held (M). Thin, not empty, and **after a wipe every player meets it long before 50.** If testers stall here, a kit-built solo door jumps the queue |
 
 **If Andy can't wait:** the Slake can ship on Phase 1 alone at about the Ford's plumbing cost. That gets a ground out sooner and loses the measurement. I wouldn't: the tier lane gives him something this week, and the region needs the system either way.

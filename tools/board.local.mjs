@@ -130,7 +130,7 @@ select,button{background:var(--panel);color:var(--ink);border:1px solid var(--li
 const LANGS=[['en','English'],['es','Spanish'],['pt','Portuguese'],['fr','French'],['de','German'],['it','Italian'],['nl','Dutch'],['pl','Polish'],['ru','Russian'],['uk','Ukrainian'],['tr','Turkish'],['ar','Arabic'],['hi','Hindi'],['ja','Japanese'],['ko','Korean'],['zh','Chinese'],['vi','Vietnamese'],['th','Thai'],['id','Indonesian'],['sv','Swedish'],['da','Danish'],['fi','Finnish'],['nb','Norwegian'],['cs','Czech'],['hu','Hungarian'],['ro','Romanian'],['el','Greek'],['he','Hebrew']];
 const $=id=>document.getElementById(id);
 for(const [c,n] of LANGS){$('from').append(new Option(n,c));$('to').append(new Option(n,c))}
-$('to').value='en';$('from').value='auto';
+$('to').value='en';$('from').value=localStorage.getItem('from')||'es';$('from').addEventListener('change',()=>localStorage.setItem('from',$('from').value));
 const status=t=>$('status').textContent=t;
 if(!('Translator' in self)){status('Not available: needs Chrome 138 or newer (Edge works too). Open this page there.')}
 let timer,translator,key='';

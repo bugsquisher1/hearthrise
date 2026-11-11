@@ -1,0 +1,13 @@
+{
+  "asset": "brief 11 line 4 M3 SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/11-next-batch.txt",
+  "status": "SAMPLE for the art director's one-pass read; the line's batch waits for it. Not imported",
+  "made": "2026-11-08",
+  "generations": 5,
+  "made_how": "hit in diagonals on B3's approved groups (the same words, extended): rat se (group f21694e7), slime ne (the slime's kept jiggle group 1069b898: the plain B3 words grow the slime legs, brief 10 B3), gray_wolf sw (593bd14f), glade_poacher se (148e1a0d), goblin_digger nw (9bf39c82)",
+  "findings": [
+    "rat se, slime ne, poacher se, digger nw: small clean flinches, no effect, feet hold",
+    "gray_wolf sw: the head rises about 4 px at frames 3-4, the same as the wolf's E and W kept rolls (flagged in brief 10)"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/m3-flinch-diagonals-sample.png"
+}

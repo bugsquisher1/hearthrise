@@ -182,8 +182,17 @@ export default definePack({
   /* PARTY LEVEL XP (party-class-xp.js's row shape; lane/d-packs-retune, 2026-11-12). With no row a party paid the even share, and on one pack for every
      group (Tyler 2026-11-11) a four of four classes read 0.43 / 0.40 of the median lone way at the floor and middle (quick grade), a tank and Healer
      pair 0.67 / 0.66. The Ford's method: the four's 1000 x 1.20 / 0.415 = 2890 (the three-class four 2880, the two-class 2600), the pair 1000 x 1.10
-     / 0.665 = 1655, the threes between (2300, 2150). One-class cells are the Slake's (990, 1150): party-class-xp-line holds them under solo. */
-  partyClassXp: { 2: [990, 1655], 3: [1150, 2150, 2300], 4: [1150, 2600, 2880, 2890] },
+     / 0.665 = 1655, the threes between (2300, 2150). One-class cells are the Slake's (990, 1150): party-class-xp-line holds them under solo.
+     THE FULL GRADE'S READ (8 lone ways, 6 seeds x 4 h; parties 2 x 2 h): the median of eight lone ways sits under the quick grade's four, so the contract
+     read lower and every mixed cell higher than the quick grade said. At 2890 the four with a Healer read 1.36 / 1.27 / 1.21 at the floor, middle and top (85, 98, 110) and the four with no Healer
+     1.34 / 1.26 / 1.19, the pairs 1.15-1.23 at 1655, the threes 1.22-1.40 at 2300. A four falls 11% from the floor to the top of this 25-Level
+     band, wider than the 8.7% band: centred on the middle, the four 2730 (about 1.285 / 1.20 / 1.145) over 2720, the pair 1540 (about 1.07-1.15),
+     the threes 2025 and 1895 (about 1.07-1.23). The floor row reads over and the top a hair under, the Pyre Field's shape: Tyler's call. */
+  partyClassXp: { 2: [990, 1540], 3: [1150, 1895, 2025], 4: [1150, 2455, 2720, 2730] },
+  /* DEADLY BRINGS SIX, not the table's eight (the Pyre Field's row; lane/d-packs-retune, 2026-11-12): on eight a four with no Healer died 82 times in
+     16 hero-hours at the floor and the four with a Healer 10 (full grade, 2 seeds x 2 h), where the sheet allows 9. Six is the least Deadly may bring
+     (never under Dangerous, tests/hunt-core/hunt-tiers.mjs rows). Measured on the re-grade below. */
+  tierOverride: { deadly: 6, why: 'on the full box a group of four with no Healer died 82 times in 16 hours at the floor, and a group with one 10, where the rule allows 9. On six they hold it' },
   /* WHAT THE PARTY WINDOW SAYS (PARTY_VS_ALONE's shape): PROVISIONAL, the Slake's line until party-class-xp-line --table --mixed reads this ground. */
   partyVsAlone: { 2: [-15, 10], 3: [-15, 0, 10], 4: [-15, 0, 15, 15] },
   checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 19778 },

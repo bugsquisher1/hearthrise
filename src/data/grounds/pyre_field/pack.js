@@ -126,7 +126,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'pike_ferrule', ch: 0.08, band: 'uncommon' },
         { id: 'rune_boots', ch: 0.0115, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.0115, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.0115, band: 'scarce' },
         { id: 'rune_sword', ch: 0.0115, band: 'scarce' }],
-      hp: 93, atk: 48, baseAcc: 1.1, def: 28, xp: 701, gp: [20, 58], formula: true },
+      hp: 93, atk: 48, baseAcc: 1.1, def: 28, xp: 813, gp: [20, 58], formula: true },
     stoker: {
       name: 'Stoker', icon: '🪵', tier: 5, level: 74, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank, the slowest thing on the field: the Hold's woodmen who fed the pyres and forged in their heat. Worked in the
@@ -136,7 +136,7 @@ export default definePack({
         { id: 'rune_platelegs', ch: 0.029, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.029, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.029, band: 'scarce' },
         { id: 'rune_warhammer', ch: 0.029, band: 'scarce' },
         { id: 'rune_belt', ch: 0.0019, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.0019, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.0019, band: 'rare' }],
-      hp: 147, atk: 47, baseAcc: 1.14, def: 45, xp: 1245, gp: [31, 92], formula: true },
+      hp: 147, atk: 47, baseAcc: 1.14, def: 45, xp: 1445, gp: [31, 92], formula: true },
     lurcher: {
       name: 'Lurcher', icon: '🐕', tier: 5, level: 72, cls: 'mammal', family: 'Mammal', speed: 4600,
       /* the skirmisher: the company's camp dogs, lean and quick enough to run down a kiter, who never left their dead. Living, so the
@@ -145,7 +145,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'razor_claw', ch: 0.5, band: 'common' }, { id: 'kennel_tag', ch: 0.08, band: 'uncommon' },
         { id: 'rune_helm', ch: 0.05, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.05, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.05, band: 'scarce' },
         { id: 'rune_gauntlets', ch: 0.0039, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0039, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0039, band: 'rare' }],
-      hp: 90, atk: 64, baseAcc: 0.91, def: 29, xp: 823, gp: [19, 57], formula: true },
+      hp: 90, atk: 64, baseAcc: 0.91, def: 29, xp: 955, gp: [19, 57], formula: true },
     pyre_wraith: {
       name: 'Pyre Wraith', icon: '👻', tier: 5, level: 76, cls: 'undead', family: 'Undead', speed: 3600,
       /* the regular: a dead man Krell's rite bound into the pyre smoke, still in his shroud. A spell undoes the binding and a blade goes
@@ -155,7 +155,7 @@ export default definePack({
       drops: [{ id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'wraith_veil', ch: 0.6, band: 'common' }, { id: 'shroud_pin', ch: 0.08, band: 'uncommon' },
         { id: 'yew_staff', ch: 0.028, band: 'scarce' },
         { id: 'yew_wand', ch: 0.0019, band: 'rare' }, { id: 'yew_spellbook', ch: 0.0019, band: 'rare' }],
-      hp: 126, atk: 61, baseAcc: 1, def: 34, xp: 981, gp: [26, 80], formula: true },
+      hp: 126, atk: 61, baseAcc: 1, def: 34, xp: 1138, gp: [26, 80], formula: true },
     provost: {
       name: 'Provost', icon: '⚔️', tier: 5, level: 80, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier: the company's provosts, who hanged its deserters (Wickstead's Turncoats ran from them), burned
@@ -168,7 +168,7 @@ export default definePack({
         { id: 'yew_bow', ch: 0.029, band: 'scarce' },
         { id: 'ember_sword', ch: 0.002, band: 'rare' }, { id: 'ember_warhammer', ch: 0.002, band: 'rare' }, { id: 'runewood_bow', ch: 0.002, band: 'rare' },
         { id: 'runewood_staff', ch: 0.002, band: 'rare' }, { id: 'runewood_wand', ch: 0.002, band: 'rare' }, { id: 'runewood_codex', ch: 0.002, band: 'rare' }],
-      hp: 212, atk: 63, baseAcc: 1.04, def: 56, xp: 1937, gp: [45, 133], formula: true },
+      hp: 212, atk: 63, baseAcc: 1.04, def: 56, xp: 2248, gp: [45, 133], formula: true },
   },
   roster: {
     charred_pikeman: 'swarm',   // the common majority
@@ -204,8 +204,9 @@ export default definePack({
      contract. Since one difficulty a lone hero fights a body's whole HP for its whole kill: at the old 1.18 the median of the quick
      grade's four ways read 1.20, and at 0.98 the median of the full grade's eight ways read 0.86 (as opened). At 1.14 the eight read 1.00. */
   /* RE-FITTED (lane/d-packs-retune, 2026-11-12): under solo +15% (Tyler 2026-11-11) and the re-pinned, flatter contract (core-model.js LEVEL_PACE.contract,
-     407k an hour at 80) the median lone way read 1.41 of the contract at the band middle at 1.14 (quick grade, 1 seed x 1 h). 1.14 / 1.41 = 0.81. */
-  xpFit: { k: 0.81, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
+     407k an hour at 80) the median lone way read 1.41 of the contract at the band middle at 1.14 (quick grade, 1 seed x 1 h). 1.14 / 1.41 = 0.81.
+     On the full grade (the median of 8 lone ways) 0.81 read 0.86, so 0.94 (about 1.00). */
+  xpFit: { k: 0.94, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
   /* THE TIER PULLS (TIER_PULL_OVERRIDES' shape: ONE number a tier for every group), measured as opened, full grade. Dangerous brings six,
      one over the table's five: on five a Melee and Healer pair two Levels under the floor still netted gold on Dangerous, where the
      weight-class ruling (11-06) asks them to lose it. On six they lose 1.9k an hour, 3.4k three under and 7.5k five under. Deadly brings six
@@ -231,8 +232,13 @@ export default definePack({
      0.71 / 0.64 of the median lone way at the floor and middle (quick grade) and the tank and Healer pair 0.79 / 0.74. The four's 1473 x 1.20 / 0.675
      = 2620 (the three-class four 2615: the two read within 2% of each other on this ground), the two-class four 2340, the pair 1170 x 1.10 / 0.765 =
      1685, the threes x1.6 (2150, 2320). One-class cells stay (1120 and 1150 hold every one-class party under solo, party-class-xp-line). A four
-     falls about 10% from the floor to the middle here (a 20-Level band): the full grade says whether one cell can hold the floor, middle and top. */
-  partyClassXp: { 2: [990, 1685], 3: [1150, 2150, 2320], 4: [1120, 2340, 2615, 2620] },
+     falls about 10% from the floor to the middle here (a 20-Level band): the full grade says whether one cell can hold the floor, middle and top.
+     THE FULL GRADE'S READ (8 lone ways, 6 seeds x 4 h; parties 2 x 2 h): the median of eight lone ways sits under the quick grade's four, so the contract
+     read lower and every mixed cell higher than the quick grade said. At 2620 the four with a Healer read 1.43 / 1.32 / 1.26 at the floor, middle and top and the four with no Healer 1.39 / 1.30 /
+     1.24 at 2615: a four FALLS 13.5% FROM THE FLOOR TO THE TOP of this 20-Level band, and the band is 8.7% wide, so no one cell holds all three
+     Levels. Centred on the middle: the four 2380 (about 1.30 / 1.20 / 1.145) over 2375, the pair 1465 (about 1.04-1.13), the threes 1830 and 1695
+     (about 1.06-1.26). The floor row reads over and the top row a hair under: Tyler's call (the board, 2026-11-12 Packs re-tuned). */
+  partyClassXp: { 2: [990, 1465], 3: [1150, 1695, 1830], 4: [1120, 2130, 2375, 2380] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10). One class is the
      mean of its five one-class parties (pairs 0.84-0.90, threes 0.83-0.94, fours 0.79-0.91 at 1150, times 1120/1150). Two of two is the

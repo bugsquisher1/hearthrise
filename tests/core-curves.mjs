@@ -29,6 +29,10 @@ import * as XP from '../src/core/xp.js';
 import * as VIT from '../src/core/vitals.js';
 import { SKILLS_DEF } from '../src/data/skills.js';
 import { MONSTERS, monsterLevelOf } from '../src/data/monsters.js';
+import { wholeViewOrRerun } from '../tools/pack/whole.mjs';
+/* THE CHAIN END'S VIEW (lane/b-slake-and-ford 2026-11-11): a STAGED ground pack's monsters are in src/data and in no migration until
+   tools/pack.mjs ship, so JS is read as the chain end holds it: the base and every pack whose file is in the apply order. */
+const CHAIN_END = 'the chain end, every applied file';
 
 const LEVELS = [...Array.from({ length: 120 }, (_, i) => i + 1), 150, 199, 200, 201, 250, 300, 400];
 /* the character's Level curve also past them: its late brackets' edges and deep into the last one (it runs forever) */
@@ -229,4 +233,4 @@ async function main() {
   process.exit(bad.length ? 1 : 0);
 }
 
-if (isMain(import.meta.url)) main();
+if (isMain(import.meta.url) && wholeViewOrRerun(import.meta.url, CHAIN_END)) main();

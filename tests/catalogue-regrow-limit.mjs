@@ -51,6 +51,9 @@ async function generate(edits) {
     await cp(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true, filter: (p) => !/[\\/]vendor([\\/]|$)/.test(p.slice(ROOT.length)) });
     await cp(join(ROOT, 'tools'), join(tmp, 'tools'), { recursive: true });
     await mkdir(join(tmp, 'supabase', 'migrations'), { recursive: true });
+    /* the apply order: with a ground pack in the tree the generator renders the whole view, which reads it (tools/pack/whole.mjs) */
+    await mkdir(join(tmp, 'tests'), { recursive: true });
+    await cp(join(ROOT, 'tests', 'schema-apply-order.json'), join(tmp, 'tests', 'schema-apply-order.json'));
     let src = (await readFile(join(ROOT, GEN), 'utf8')).replace(/\r\n/g, '\n');
     for (const [find, repl] of edits || []) {
       const n = src.split(find).length - 1;

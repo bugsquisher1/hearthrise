@@ -52,6 +52,10 @@ import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
+import { wholeViewOrRerun } from '../tools/pack/whole.mjs';
+/* THE CHAIN END'S VIEW (lane/b-slake-and-ford 2026-11-11): a STAGED ground pack's monsters are in src/data and have no hr_activities
+   row until tools/pack.mjs ship, so the authored side is read as the chain end holds it (tools/pack/whole.mjs). */
+const CHAIN_END = 'the chain end, every applied file';
 
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -697,7 +701,7 @@ async function mutate() {
   return bad;
 }
 
-if (isMain(import.meta.url)) {
+if (isMain(import.meta.url) && wholeViewOrRerun(import.meta.url, CHAIN_END)) {
   if (process.argv.includes('--mutate')) {
     console.log('Live-settlement Phase 0 — mutation harness:');
     const bad = await mutate();

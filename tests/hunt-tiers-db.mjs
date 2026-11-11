@@ -16,6 +16,10 @@
 //
 // The mutants are SQL patched into the booted replay; their anchors are FILE's text.
 import { isMain } from './_is-main.mjs';
+import { wholeViewOrRerun } from '../tools/pack/whole.mjs';
+/* THE CHAIN END'S VIEW (lane/b-slake-and-ford 2026-11-11): a STAGED ground pack's tier rows are in src/data and in no migration until
+   tools/pack.mjs ship, so the data is read as the chain end holds it: the base and every pack whose file is in the apply order. */
+const CHAIN_END = 'the chain end, every applied file';
 import { bootReplay } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
 import { decodeStored } from '../src/core/hunt/world-state.js';
@@ -208,4 +212,4 @@ async function main() {
   process.exitCode = problems.length ? 1 : 0;
 }
 
-if (isMain(import.meta.url)) main().catch((e) => { console.error(e && e.stack ? e.stack : e); process.exit(1); });
+if (isMain(import.meta.url) && wholeViewOrRerun(import.meta.url, CHAIN_END)) main().catch((e) => { console.error(e && e.stack ? e.stack : e); process.exit(1); });

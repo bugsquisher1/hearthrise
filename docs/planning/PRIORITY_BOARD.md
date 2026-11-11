@@ -1537,6 +1537,8 @@ A four at the Warrens, Level 40: +2.6%. Both tracks at once add nothing to XP ov
 
 **So the Ford opens WITH the Slake** (or after it). Opened alone, every way and every party passes but a sword alone at the floor. The Slake's art import is on `lane/a-import-slake-art`, built on this branch.
 
+**The grades, exit codes read.** `pack check hasks_ford` (quick): exit 0, 34 rows. `--mode full --with the_slake` on the final cells: exit 0, 66 rows, no death on Normal in range; the median lone way 249.7k Level XP an hour at 45 and 260.9k at 53 (1.03 of the pace contract); the four of four 1.22-1.24 and of three 1.18-1.21, pairs 1.06-1.16, threes 1.06-1.23; the weakest way at the floor the sword at +45%. `--mode full` alone, before the four's cells moved: exit 1 on the sword (+5%) and the four of three (1.14); with the cells as they are the four of three computes to 1.15-1.17 alone (not re-played).
+
 ### 2026-11-05 Ground Packs: a new hunting ground that doesn't touch the rest of the world (designer, lane/d-ground-pack): DESIGN ONLY. Nothing built, no generations, no sim run on the new rows
 **Tyler:** "we need a scalable way to build new hunting grounds. It seems like right now you're just doing it all from scratch but I think we need a system or module or something that allows us to quickly roll out new hunting grounds so we don't get caught behind on new content."
 

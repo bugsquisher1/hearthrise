@@ -1399,7 +1399,11 @@ async function run(mutate) {
     const rows = (await db.query('select item_id from pg_temp.g16_items')).rows.map((r) => r.item_id);
     const known = new Set(rows);
     ok(rows.length > 100, `G16-CONTROL: hr_items holds ${rows.length} rows — the catalogue is not the generated one`);
-    const missing = Object.keys(ITEMS).filter((id) => !known.has(id)).slice(0, 5);
+    /* A STAGED ground pack's own items (src/data/grounds, status staged) have no source a player can reach and no hr_items row
+       until tools/pack.mjs ship writes the pack's file, which adds them (lane/b-slake-and-ford 2026-11-11). An OPEN pack's are judged. */
+    const { GROUND_PACKS } = await import('../src/data/grounds/index.js');
+    const unserved = new Set(GROUND_PACKS.filter((p) => p.status === 'staged').flatMap((p) => Object.keys(p.items || {})));
+    const missing = Object.keys(ITEMS).filter((id) => !known.has(id) && !unserved.has(id)).slice(0, 5);
     ok(missing.length === 0,
       `G16: [${missing}] are priceable here and ABSENT from the generated hr_items, so a vendor_sell `
       + 'would pass this layer\'s guard and be refused by hr_apply with the same code from a '

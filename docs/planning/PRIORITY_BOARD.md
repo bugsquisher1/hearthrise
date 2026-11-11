@@ -30,6 +30,38 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-11 Solo +15% (designer, lane/d-solo-fifteen on lane/d-party-xp-cells cd19212d5; **Tyler 2026-11-11: solo hunters get +15% Level XP, no cap on mixed-party XP on Dangerous and Deadly**): BUILT as data, MEASURED on the real settle, the edge moves (party-class-xp.js is engine data), no migration
+**The rule.** A hero hunting alone earns 15% more Level XP than the pack pays, on every ground and every tier (`SOLO_XP_PM` 1050 -> 1150, `src/data/party-class-xp.js`). It replaces the +5% from 11-09 and never stacks with it. No cap on a mixed party's XP on the harder tiers: nothing in the data capped it, so nothing changed there.
+
+**The reading I took.** The 15-25% a mixed four earns over a lone hero (10-25 §5) is measured against the lone hero AS PAID, boost included: that is what `balance-sheet.js party.fourVsSolo` says in its own words and what the grader binds. The party cells are the pack's pay in permille and the lone hero is the reference every party line is measured against, so every cell moved with it, x1150/1050 to the nearest 5 (the one-class cells too, so the same-weapon loss and the 10-31 line on the big-pull tiers read exactly what Tyler saw yesterday). Left alone, a mixed four would have read 1.04-1.15 of the +15% lone hero, under the band on every ground but the Sewer's floor.
+
+**The cells** (`BASE_CLASS_XP`, permille on the even share; columns are classes held)
+| Ground | Pair (1, 2) | Three (1, 2, 3) | Four (1, 2, 3, 4) | Four, was |
+|---|---|---|---|---|
+| Mill Cellar | 1255, 2540 | 1445, 3300, 3475 | 1955, 4375, 4445, 4890 | 1785, 3995, 4060, 4465 |
+| Meadowbrook Thicket | 1145, 2375 | 1110, 2750, 3055 | 1305, 3510, 3675, 3760 | 1190, 3205, 3355, 3435 |
+| Wickstead | 1070, 2420 | 1315, 2750, 3010 | 1460, 3835, 3965, 4070 | 1335, 3500, 3620, 3715 |
+| Mosslight Glade | 1085, 2035 | 1290, 2190, 2360 | 1270, 2690, 2895, 2955 | 1160, 2455, 2645, 2700 |
+| The Sewer | 1110, 1820 | 1265, 1980, 2070 | 1260, 1940, 2025, 2170 | 1150, 1770, 1850, 1980 |
+| Coppercap Warrens | 1085, 1500 | 1085, 1535, 1630 | 1060, 1490, 1565, 1690 | 970, 1360, 1430, 1545 |
+
+**Measured** (`tools/balance-sim/grade.mjs --mode quick --tiers normal`, the real settle, 1 seed x 1 h a cell, a head over the median lone way in the same kit, the +15% paid; before = yesterday's cells at +5%)
+| Ground | Four, floor / middle, before (+5%) | Four, after (+15%) | Pair, after (tank + healer) | Mixed vs the same heroes alone, floor (`party-class-xp-line --mixed`, 3 seeds): pair / three / four | One class on Normal, floor: pair / three / four |
+|---|---|---|---|---|---|
+| Mill Cellar | 1.20 / 1.19 | 1.20 / 1.20 | 1.13 / 1.13 | 1.22 / 1.20 / 1.28 | 0.58-0.61 / 0.44-0.50 / 0.44-0.50 (four shields 0.12) |
+| Meadowbrook Thicket | 1.23 / 1.20 | 1.21 / 1.19 | 1.09 / 1.10 | 1.44 / 1.51 / 1.44 | 0.64-0.74 / 0.46-0.55 / 0.41-0.55 |
+| Wickstead | 1.24 / 1.19 | 1.24 / 1.19 | 1.10 / 1.11 | 1.45 / 1.43 / 1.45 | 0.62-0.68 / 0.50-0.66 / 0.43-0.60 |
+| Mosslight Glade | 1.23 / 1.17 | 1.23 / 1.16 | 1.09 / 1.11 | 1.32 / 1.32 / 1.34 | 0.73-0.76 / 0.66-0.75 / 0.50-0.63 |
+| The Sewer | 1.26 / 1.14 | 1.26 / 1.14 | 1.09 / 1.10 | 1.41 / 1.50 / 1.43 | 0.78-0.94 / 0.74-0.94 / 0.64-0.89 |
+| Coppercap Warrens | 1.20 / 1.20 | 1.20 / 1.20 | 1.07 / 1.13 | 1.24 / 1.29 / 1.26 | 0.82-0.91 / 0.72-0.86 / 0.65-0.78 |
+Every reading Tyler ruled on yesterday holds to the point: the fours sit 1.16-1.24 on five grounds, the Sewer 1.26 / 1.14 as before (one cell can't hold both its Levels). The Party window's lines (`PARTY_VS_ALONE`) were re-read against the same heroes alone: every cell lands on its said number or one 5-step from it (the Cellar's four 28 against "25", the Glade's four 34 against "30", the Warrens' three 29 against "25", Wickstead's three 43 against "40"), so the window's words stand; no player text names the solo number.
+
+**Tyler's open question 2, same-weapon friends on Normal.** Unchanged by this lane on purpose: a one-class pair loses 6-42%, a three 6-56%, a four 11-59% against the same heroes alone (the Sewer and the Warrens lose least, the Cellar and Wickstead most). On the big-pull tiers (8 each) a one-class party reads 0.52-0.94 of its members alone at their better pull, under solo on every cell (`party-class-xp-line` green, 150 cells, bar 1.00). The two can't both hold with one cell a ground; a cell keyed by tier is the Systems change on the 11-11 Party XP cells row. Tyler's 11-02 "6-15%" would need that tier key, or a raised one-class cell that breaks 10-31 on Dangerous and Deadly: his call.
+
+**Tyler's open question 3, the Brook Bear and the +10% lone profit floor.** +15% Level XP doesn't touch it: the floor is gold over the bill. `forest-cave --only glade-between` still reads the plate hero at the Glade's floor at -1 / 0 / +9 / +2% over its bill on four of six seeds (exit 1, the same four seeds as yesterday). The Glade's XP leg is fine (62,750 Level XP an hour at L16, above the Sewer party's 42,422). The bear is a gold question (its kill is slow and pays little), still Tyler's or a Glade gold dial.
+
+**What the +15% moved in the grader** (binding `normal-xp-contract`, the band middle, 0.90-1.10 of the pace contract): the Glade's lone median 1.07 -> 1.12 (red by two points, one seed), the Thicket 1.06 and Wickstead 1.01 hold, the Cellar 1.04. On the party grounds the four a head is the typical way, and it moved with the cells: the Sewer 1.19 (new red), the Warrens 1.39 -> 1.52 (red before). Not re-dialed here (a ground's XP dial moves alone and party alike, and Tyler 11-09: grounds may differ, the contract is a guide): the honest fix is a lower XP dial on the Sewer (about -10%) and the Warrens (about -30%), a follow-up on the Sewer's and Warrens' rows, not a cell.
+
 ### 2026-11-11 Party XP cells with one pack for every group (designer, lane/d-party-xp-cells on lane/c-brook-bear 559541a10; **Tyler 2026-11-11: "if they want bigger pulls they need to up the difficulty"**): BUILT as data, MEASURED on the real settle, the edge moves (party-class-xp.js is engine data), no migration
 **The rule.** A mixed party is paid for mixing with a bigger share of each kill, not with a bigger pull: the mixed cells are set so a mixed four earns 15-25% more Level XP a head than the median hero alone in the same kit on Normal (10-25 §5, kept), a pair about 10% and a three about 15%. A one-class party keeps its old cells and loses 25-60% on Normal, because the same cells already sit at 0.81-0.96 of solo on the big-pull tiers and 10-31 holds there too. This replaces my earlier (b)+(a), which leaned on the party pull Tyler retired.
 

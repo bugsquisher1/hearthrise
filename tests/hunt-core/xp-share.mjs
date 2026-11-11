@@ -48,17 +48,17 @@ function away(M, fx, xpMultOf, awayFlag) {
 }
 
 /* THE DESIGNER'S TABLE (2026-11-01; same monsters re-tuned 2026-11-08; one pack on Normal for every group, Tyler 2026-11-11, so the mixed cells
-   re-fitted to 10-25 §5, lane/d-party-xp-cells): ground -> heroes alive -> permille by distinct classes (1, 2, ...). */
+   re-fitted to 10-25 §5, lane/d-party-xp-cells; solo +15%, Tyler 2026-11-11, every cell x1150/1050 to the nearest 5, lane/d-solo-fifteen): ground -> heroes alive -> permille by distinct classes (1, 2, ...). */
 const PARTY_TABLE = {
-  mill_cellar: { 2: [1145, 2320], 3: [1320, 3015, 3175], 4: [1785, 3995, 4060, 4465] },
-  meadowbrook_thicket: { 2: [1045, 2170], 3: [1015, 2510, 2790], 4: [1190, 3205, 3355, 3435] },
-  wickstead: { 2: [975, 2210], 3: [1200, 2510, 2750], 4: [1335, 3500, 3620, 3715] },
-  mosslight_glade: { 2: [990, 1860], 3: [1180, 2000, 2155], 4: [1160, 2455, 2645, 2700] },
-  millrace_sewer: { 2: [1015, 1660], 3: [1155, 1810, 1890], 4: [1150, 1770, 1850, 1980] },
-  coppercap_warrens: { 2: [990, 1370], 3: [990, 1400, 1490], 4: [970, 1360, 1430, 1545] },
+  mill_cellar: { 2: [1255, 2540], 3: [1445, 3300, 3475], 4: [1955, 4375, 4445, 4890] },
+  meadowbrook_thicket: { 2: [1145, 2375], 3: [1110, 2750, 3055], 4: [1305, 3510, 3675, 3760] },
+  wickstead: { 2: [1070, 2420], 3: [1315, 2750, 3010], 4: [1460, 3835, 3965, 4070] },
+  mosslight_glade: { 2: [1085, 2035], 3: [1290, 2190, 2360], 4: [1270, 2690, 2895, 2955] },
+  millrace_sewer: { 2: [1110, 1820], 3: [1265, 1980, 2070], 4: [1260, 1940, 2025, 2170] },
+  coppercap_warrens: { 2: [1085, 1500], 3: [1085, 1535, 1630], 4: [1060, 1490, 1565, 1690] },
 };
 /* A HERO HUNTING ALONE (Tyler 2026-11-08: "a solo person gets a small exp boost"), typed here like the table: a retune moves both. */
-const SOLO = 1050;
+const SOLO = 1150; /* party-class-xp.js SOLO_XP_PM, pinned: +15% (Tyler 2026-11-11), was 1050 */
 /* A kill big enough that every cell lands whole (no floor hides a cell), divisible by 2, 3, 4 and 5. */
 const BIG = 600000;
 const CLASS_ROLES = ['tank', 'ranger', 'mage', 'healer'];
@@ -319,7 +319,7 @@ const cases = {
     return f(10) === 15 && f(10, 2) === 30 && f(0) === 0 && f(3) === 4 ? null : 'magic XP ' + [f(10), f(10, 2), f(0), f(3)];
   },
   /* ATTENDED: the 2 s cadence's kill XP is the one rule's (the multiplier reaches it, solo = a party of one, and alone earns the solo boost:
-     at x2 a kill pays floor(2 x 1.05 x its XP), at x1 floor(1.05 x its XP), so the rise is the kills' worth x1.05 to within a point a kill). */
+     at x2 a kill pays floor(2 x 1.15 x its XP), at x1 floor(1.15 x its XP), so the rise is the kills' worth x1.15 to within a point a kill). */
   'attended-kill-xp-through-the-rule': (M) => {
     const r = creditedKillXp(M, (fx, mult) => attended(M, fx, mult));
     if (r.kills < 3) return 'the attended fixture killed ' + r.kills;
@@ -352,7 +352,7 @@ const mutants = [
   { name: 'the ground is ignored: every ground reads the Cellar\'s row', case: 'party-class-every-cell',
     edits: [['src/core/hunt/xp-share.js', "partyClassXp(groundId, heroes", "partyClassXp('mill_cellar', heroes"]] },
   { name: 'one Sewer cell drifts (a same-class duo back to the even share)', case: 'party-class-every-cell',
-    edits: [['src/data/party-class-xp.js', 'millrace_sewer: row([1015, 1660]', 'millrace_sewer: row([1000, 1660]']] },
+    edits: [['src/data/party-class-xp.js', 'millrace_sewer: row([1110, 1820]', 'millrace_sewer: row([1000, 1820]']] },
   { name: 'a ground with no row pays a bonus', case: 'party-class-no-row-is-even',
     edits: [['src/data/party-class-xp.js', "if (n < 2 || !Object.hasOwn(PARTY_CLASS_XP, groundId)) return { permille: 1000, classes };", "if (n < 2) return { permille: 1000, classes }; if (!Object.hasOwn(PARTY_CLASS_XP, groundId)) return { permille: 1200, classes };"]] },
   { name: 'a hero alone reads a party cell', case: 'party-class-no-row-is-even',

@@ -40,6 +40,9 @@ for (const [mut, rule] of [['deaths', 'normal-deaths'], ['dips', 'normal-dips'],
   check(failsOf(synthSet({ [mut]: true })).some((v) => v.rule === rule), 'mutants: ' + mut + ' FAILS ' + rule);
 }
 check(cli(synthSet({ profit: true })) === 1, 'mutants: grade.mjs --in exits 1 on the +25% mutant');
+/* a four is judged against solos in its own kit: practice-kit fresh heroes at the floor don't drag the median (10-25 §5 "same gear quality") */
+const kitFails = failsOf(synthSet({ practice: true })).filter((v) => v.rule === 'four-xp');
+check(kitFails.length === 0, 'same-kit: practice-kit solos leave the four at 1.2' + (kitFails.length ? ' (' + kitFails.map((v) => v.key + ' ' + v.value).join('; ') + ')' : ''));
 
 /* rare events: one Normal floor cell of 2,000 h holds the whole pooled group's hours (synthSet's floor solo is one cell) */
 const withDeaths = (k) => { const cells = synthSet(); const c = cells.find((x) => x.cell.grade.tier === 'normal' && x.cell.grade.offset === 'floor' && x.cell.grade.size === 1); c.heroes[0].deaths = k; return cells; };

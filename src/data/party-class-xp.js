@@ -68,27 +68,35 @@ export const SOLO_XP_PM = 1050;
    alone. Each one-class cell is now the most that keeps every one-class party of that size under solo with a margin on both of
    tests/party-class-xp-line.mjs's arms (measured: the best way at most 0.94 of alone at the default pull and 0.96 at 8 each, the mean 10-25% under). It sits above the even
    share: since one pack for every group the even share is no longer the solo line, so the measured guard holds 10-31, not this table. */
+/* ONE PACK ON NORMAL FOR EVERY GROUP (Tyler 2026-11-11: "if they want bigger pulls they need to up the difficulty"; lane/d-party-xp-cells). With no
+   party pull a mixed four on the four solo grounds read 0.60-0.79 of the median hero alone (grade quick, Normal, floor and middle), so the MIXED cells
+   (two classes and up) are re-fitted to 10-25 §5 on the real settle, the measure the grader binds (four 1.15-1.25, a pair about 1.10, a three about
+   1.15, against the median lone way in the same kit): the Cellar four 1.19-1.20, the Thicket 1.20-1.23, Wickstead 1.19-1.24, the Glade 1.17-1.23,
+   the Warrens 1.20; the Sewer can't hold both its Levels with one cell (1.26 at 8, 1.14 at 17), so it sits between. ONE-CLASS cells are NOT raised:
+   a one-class party at the big-pull tiers (8 each) already reads 0.81-0.96 of its members alone at their better pull, so a raise would carry it over
+   solo there (10-31). On Normal one class now loses 25-60%, said plainly in the Party window. The two can't both hold with one cell a ground: a cell
+   keyed by tier is a Systems change, on the board (2026-11-11 Party XP cells). */
 const BASE_CLASS_XP = Object.freeze({
   /* NO SEAT SLIDES UNDER TODAY ON THE FORMULA'S ROWS (lane/b-party-xp, 2026-11-07; tools/balance-sim/grade-compare.mjs, the release gate). The formula left lone heroes
      where they were and took 8-10% off a tank + healer pair: its tank against the median hero alone read 1.02 -> 0.93 on the Cellar and 0.95 -> 0.87 at the Sewer floor,
      and a three of tank, healer and bow 1.03 -> 0.99 on Wickstead. A ground's XP dial moves alone and party alike, so the cell is the lever: the Cellar's two-class pair
      1070 -> 1210 (its tank 1.04-1.05, its hammer and bow 1.12, today 1.11), the Sewer's 1000 -> 1100 (its tank 0.96 at the floor and 1.09-1.12 above it, today 0.95-1.07),
      Wickstead's three-class three 1220 -> 1270 (1.03-1.09, today 1.03-1.07). Measured on the real settle, full grade, Normal (tools/balance-sim/grade.mjs). */
-  mill_cellar: row([1145, 1545], [1320, 1755, 1850], [1785, 2130, 2165, 2380]),
+  mill_cellar: row([1145, 2320], [1320, 3015, 3175], [1785, 3995, 4060, 4465]),
   /* A one-weapon four pays the even share: Tyler 11-02 (same-weapon friends lose about 6-15%) beats 10-31 (one class never beats solo) where they conflict (CLAUDE.md §0; Coordinator 2026-11-04). The share floors per
      kill, so the cell moves in steps: 995 left shields at -17 to -19%, 1000 lands them at -12 to -15%, and a four of wands 4-5% over solo, the accepted cost and party-class-xp-line's one named exception. A pull of 7: mixed coin 1.04-1.05, over solo.
      RE-MEASURED ON THE FORMULA'S ROWS (lane/b-ground-formula-2, 1 h x 2 seeds at 10): the four row moved a head about 10% toward the party (a mix +33% against
      the window's 20%, wands +15%, shields -8%), so the row is scaled: 940 lands wands about +4% and shields about -17% (920 read +2% and -19%), the mix +20% (10-25 §5: 15-25%).
      party-class-xp-line on the same rows: the Thicket's mage duo read 1.05 and trio 1.09 (cells 930, 880), the Cellar's healer trio 1.007 (990), the Warrens'
      four of staves at 8 each 1.014 (960). */
-  meadowbrook_thicket: row([1045, 1735], [1015, 1620, 1800], [1190, 1735, 1815, 1860]),
-  wickstead: row([975, 1610], [1200, 1745, 1910], [1335, 1800, 1860, 1910]),
-  mosslight_glade: row([990, 1610], [1180, 1660, 1795], [1160, 1575, 1695, 1730]),
-  millrace_sewer: row([1015, 1660], [1155, 1660, 1735], [1150, 1660, 1735, 1860]),
+  meadowbrook_thicket: row([1045, 2170], [1015, 2510, 2790], [1190, 3205, 3355, 3435]),
+  wickstead: row([975, 2210], [1200, 2510, 2750], [1335, 3500, 3620, 3715]),
+  mosslight_glade: row([990, 1860], [1180, 2000, 2155], [1160, 2455, 2645, 2700]),
+  millrace_sewer: row([1015, 1660], [1155, 1810, 1890], [1150, 1770, 1850, 1980]),
   /* One class under the even share (Tyler 2026-10-31, "only better if there are different classes"; lane/c-caster-party-line). With Green Sickness on the Healer's default bar a pair at 8 each read 1.033 against
      one alone and a four 1.005: the debuff stays up far longer in a one-class party, as Greater Mend's load splits (a head's casts an hour, alone 84 and 256, in a pair 144 and 168). Mana gates can't hold it (at 95% the
      pair reads 0.987 and the four still 1.009, and each gate rerolls the first grounds' net chain); the cell can, and it moves no gold, no mixed party and no other ground. */
-  coppercap_warrens: row([990, 1325], [990, 1345, 1435], [970, 1300, 1365, 1475]),
+  coppercap_warrens: row([990, 1370], [990, 1400, 1490], [970, 1360, 1430, 1545]),
 });
 /* A ground pack's own row, when its same-class party would beat solo (src/data/grounds/<id>/pack.js `partyClassXp`: { 2, 3, 4 }). */
 export const PARTY_CLASS_XP = Object.freeze(foldRows('party class row', BASE_CLASS_XP, GROUND_PACKS, (p) => (p.partyClassXp ? { [p.id]: row(p.partyClassXp[2], p.partyClassXp[3], p.partyClassXp[4]) } : {})));
@@ -107,12 +115,12 @@ export const PARTY_CLASS_XP = Object.freeze(foldRows('party class row', BASE_CLA
    THE ONE-CLASS ANSWERS (the lane's fifth commit) are re-measured the same way at the raised one-class cells, never scaled (a small kill's share floors). */
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 const BASE_VS_ALONE = Object.freeze({
-  mill_cellar: said([-15, 15], [-20, 20, 25], [-15, 10, 10, 25]),
-  meadowbrook_thicket: said([-15, 45], [-20, 30, 45], [-20, 30, 35, 35]),
-  wickstead: said([-15, 40], [-15, 30, 40], [-15, 25, 30, 35]),
-  mosslight_glade: said([-15, 35], [-15, 20, 30], [-15, 15, 25, 25]),
-  millrace_sewer: said([-15, 40], [-15, 30, 40], [-25, 20, 25, 35]),
-  coppercap_warrens: said([-10, 20], [-20, 15, 20], [-25, 5, 15, 20]),
+  mill_cellar: said([-40, 20], [-55, 10, 20], [-60, 15, 15, 25]),
+  meadowbrook_thicket: said([-30, 45], [-50, 35, 50], [-55, 35, 40, 45]),
+  wickstead: said([-35, 45], [-40, 30, 40], [-50, 35, 40, 45]),
+  mosslight_glade: said([-25, 30], [-30, 20, 30], [-45, 15, 25, 30]),
+  millrace_sewer: said([-15, 40], [-15, 40, 50], [-25, 30, 35, 45]),
+  coppercap_warrens: said([-15, 25], [-20, 20, 25], [-30, 10, 15, 25]),
 });
 /* A ground pack's measured line (src/data/grounds/<id>/pack.js `partyVsAlone`: { 2, 3, 4 }, whole fives, measured on the real settle). */
 export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', BASE_VS_ALONE, GROUND_PACKS, (p) => (p.partyVsAlone ? { [p.id]: said(p.partyVsAlone[2], p.partyVsAlone[3], p.partyVsAlone[4]) } : {})));
@@ -123,7 +131,7 @@ export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', BASE_VS_ALONE
    RE-MEASURED 2026-11-08, same monsters re-tuned (the vs-alone cell itself: Level 10, 1 h x 2 seeds): shields -38.7, axes -42.0, bows -36.5, wands -28.6, staves -32.2.
    At the one-class cell 1190 (the lane's fifth commit): shields -22.9, axes -27.1, bows -20.1, wands -10.1, staves -14.7. */
 const ONE_ROLE_VS_ALONE = Object.freeze({
-  meadowbrook_thicket: Object.freeze({ 4: Object.freeze({ tank: -25, melee_dps: -25, ranger: -20, mage: -10, healer: -15 }) }),
+  meadowbrook_thicket: Object.freeze({ 4: Object.freeze({ tank: -50, melee_dps: -60, ranger: -55, mage: -60, healer: -50 }) }),
 });
 
 const CLASS_OF_ROLE = Object.freeze(Object.fromEntries(Object.entries(PARTY_CLASSES).flatMap(([c, r]) => r.roles.map((x) => [x, c]))));

@@ -16,6 +16,7 @@ import { HOUSE_TEXT } from './house.js?v=0.2.118';
 import { HUNTS_TEXT } from './hunts.js?v=0.2.118';
 import { ITEM_TEXT } from './item.js?v=0.2.118';
 import { MONSTER_TEXT } from './monster.js?v=0.2.118';
+import { PARTY_TEXT } from './party.js?v=0.2.118';
 import { PREP_TEXT } from './prep.js?v=0.2.118';
 import { SHOP_TEXT } from './shop.js?v=0.2.118';
 import { SLOTS_TEXT } from './slots.js?v=0.2.118';
@@ -30,6 +31,7 @@ export const TEXT = Object.freeze({
   hunts: HUNTS_TEXT,
   item: ITEM_TEXT,
   monster: MONSTER_TEXT,
+  party: PARTY_TEXT,
   prep: PREP_TEXT,
   shop: SHOP_TEXT,
   slots: SLOTS_TEXT,

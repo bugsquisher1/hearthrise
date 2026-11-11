@@ -25,6 +25,7 @@ import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/pa
 import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.118';
 import { glyphSvg } from '../launcher.js?v=0.2.118';
 import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.118';
+import { t } from '../../render/player-text.js?v=0.2.118';
 
 /** The tab's skeleton (built once with the window). */
 export function rosterHtml() {
@@ -77,12 +78,15 @@ export function classXpLine(roles, hunt) {
   const seats = roles.map((r) => r || roleForWeapon('neutral'));
   const { classes } = partyClassXp(ground ? ground.id : null, seats);
   /* The measured answer against hunting alone (designer 2026-11-02), never the table's factor on a share: see PARTY_VS_ALONE. */
+  /* Tyler's voice (2026-11-09): a sentence each, no colon joins. Since one pack on Normal for every group (Tyler 2026-11-11) a one-class party loses a lot
+     there, so its line says how to fix it (lane/d-party-xp-cells). */
   const vs = partyVsAlone(ground ? ground.id : null, seats);
-  const pay = vs === null ? 'no extra Level XP in ' + huntName(hunt)
-    : vs > 0 ? 'about ' + vs + '% more Level XP each than hunting alone in ' + huntName(hunt)
-      : vs < 0 ? 'about ' + -vs + '% less Level XP each than hunting alone in ' + huntName(hunt)
-        : 'about the same Level XP each as hunting alone in ' + huntName(hunt);
-  return 'Your party has ' + classes.length + ' of ' + CLASS_NAMES.length + ' classes: ' + pay + '. ' + CLASS_WORDS + ' each count.';
+  const place = huntName(hunt);
+  const have = t('party.class_have', { have: classes.length, of: CLASS_NAMES.length }) + ' ';
+  if (vs === null) return have + t('party.class_none', { place });
+  if (vs === 0) return have + t('party.class_same', { place });
+  if (vs > 0) return have + t('party.class_more', { pct: vs, place });
+  return have + t('party.class_less', { pct: -vs, place, classes: CLASS_WORDS });
 }
 
 /** The line before a hunt starts, on the party's last ground or the one the Hunts window opens on; '' for no line. */

@@ -195,7 +195,7 @@ export function gradeCells(cells, sheet, pace, fits = {}) {
         case 'xpVsNormal': { const n = find(m, (o) => o.tier === 'normal' && o.offset === m.offset && o.comp === m.comp && (o.gear || 'ladder') === 'ladder')[0]; v = n && n.x.xp > 0 ? x.xp / n.x.xp : null; break; }
         case 'xpVsPace': { const L = r.c.cell.level, p = pace(Array.isArray(L) ? Math.max(...L) : L); v = p > 0 ? x.xp / p : null; break; }
         case 'netMinusFloor': { const f = find(m, (o) => o.tier === m.tier && o.offset === 'floor' && o.comp === m.comp)[0]; v = f ? x.net - f.x.net : null; break; }
-        case 'xpVsSolo': case 'netVsSolo': { const solo = median(find(m, (o) => o.tier === m.tier && o.offset === m.offset && o.size === 1).map((o) => (rule.metric === 'xpVsSolo' ? o.x.xp : o.x.net)));
+        case 'xpVsSolo': case 'netVsSolo': { const solo = median(find(m, (o) => o.tier === m.tier && o.offset === m.offset && o.size === 1 && (o.gear || 'ladder') === (m.gear || 'ladder')).map((o) => (rule.metric === 'xpVsSolo' ? o.x.xp : o.x.net)));
           v = solo > 0 ? (rule.metric === 'xpVsSolo' ? x.xp : x.net) / solo : null; break; }
         case 'xpVsTierBelow': { const below = m.tier === 'deadly' ? 'dangerous' : 'normal'; const b = find(m, (o) => o.tier === below && o.offset === m.offset && o.comp === m.comp)[0]; v = b && b.x.xp > 0 ? x.xp / b.x.xp : null; break; }
         default: throw new Error('grade: no metric ' + rule.metric);
@@ -347,6 +347,9 @@ export function synthSet(mut = {}) {
   if (mut.four) for (const h of pick('normal', 'floor', 4).heroes) h.levelXpPerH = 70000 * 1.6;
   if (mut.tier) for (const h of pick('deadly', 'top', 4).heroes) h.levelXpPerH = 70000;
   if (mut.lowpoint) pick('normal', 'floor', 1).heroes[0].encMinHpPct.p50 = 40;
+  /* fresh heroes in the practice kit at the floor (buildGrid's first-week cells): a four in the ladder kit is judged against solos in the
+     same kit (10-25 §5 "same levels, gear quality"), so these must not drag the solo median down (lane/d-party-xp-cells, 2026-11-11) */
+  if (mut.practice) for (const comp of ['hammer', 'bow', 'mage']) cells.push(synthCell({ tier: 'normal', offset: 'floor', size: 1, comp, gear: 'practice' }, { level: 16, hours: 2000, xp: 20000, income: 5000, store: 1500, hp: 70, coin: 3000 }));
   return cells;
 }
 

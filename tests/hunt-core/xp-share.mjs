@@ -47,14 +47,15 @@ function away(M, fx, xpMultOf, awayFlag) {
   runSpan(M, f, []);
 }
 
-/* THE DESIGNER'S TABLE (2026-11-01; same monsters re-tuned 2026-11-08, the mixed cells raised, then the one-class cells): ground -> heroes alive -> permille by distinct classes (1, 2, ...). */
+/* THE DESIGNER'S TABLE (2026-11-01; same monsters re-tuned 2026-11-08; one pack on Normal for every group, Tyler 2026-11-11, so the mixed cells
+   re-fitted to 10-25 §5, lane/d-party-xp-cells): ground -> heroes alive -> permille by distinct classes (1, 2, ...). */
 const PARTY_TABLE = {
-  mill_cellar: { 2: [1145, 1545], 3: [1320, 1755, 1850], 4: [1785, 2130, 2165, 2380] },
-  meadowbrook_thicket: { 2: [1045, 1735], 3: [1015, 1620, 1800], 4: [1190, 1735, 1815, 1860] },
-  wickstead: { 2: [975, 1610], 3: [1200, 1745, 1910], 4: [1335, 1800, 1860, 1910] },
-  mosslight_glade: { 2: [990, 1610], 3: [1180, 1660, 1795], 4: [1160, 1575, 1695, 1730] },
-  millrace_sewer: { 2: [1015, 1660], 3: [1155, 1660, 1735], 4: [1150, 1660, 1735, 1860] },
-  coppercap_warrens: { 2: [990, 1325], 3: [990, 1345, 1435], 4: [970, 1300, 1365, 1475] },
+  mill_cellar: { 2: [1145, 2320], 3: [1320, 3015, 3175], 4: [1785, 3995, 4060, 4465] },
+  meadowbrook_thicket: { 2: [1045, 2170], 3: [1015, 2510, 2790], 4: [1190, 3205, 3355, 3435] },
+  wickstead: { 2: [975, 2210], 3: [1200, 2510, 2750], 4: [1335, 3500, 3620, 3715] },
+  mosslight_glade: { 2: [990, 1860], 3: [1180, 2000, 2155], 4: [1160, 2455, 2645, 2700] },
+  millrace_sewer: { 2: [1015, 1660], 3: [1155, 1810, 1890], 4: [1150, 1770, 1850, 1980] },
+  coppercap_warrens: { 2: [990, 1370], 3: [990, 1400, 1490], 4: [970, 1360, 1430, 1545] },
 };
 /* A HERO HUNTING ALONE (Tyler 2026-11-08: "a solo person gets a small exp boost"), typed here like the table: a retune moves both. */
 const SOLO = 1050;

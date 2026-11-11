@@ -30,6 +30,58 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-11 Party XP cells with one pack for every group (designer, lane/d-party-xp-cells on lane/c-brook-bear 559541a10; **Tyler 2026-11-11: "if they want bigger pulls they need to up the difficulty"**): BUILT as data, MEASURED on the real settle, the edge moves (party-class-xp.js is engine data), no migration
+**The rule.** A mixed party is paid for mixing with a bigger share of each kill, not with a bigger pull: the mixed cells are set so a mixed four earns 15-25% more Level XP a head than the median hero alone in the same kit on Normal (10-25 §5, kept), a pair about 10% and a three about 15%. A one-class party keeps its old cells and loses 25-60% on Normal, because the same cells already sit at 0.81-0.96 of solo on the big-pull tiers and 10-31 holds there too. This replaces my earlier (b)+(a), which leaned on the party pull Tyler retired.
+
+**Why not "a party pays with safety and speed, not XP".** On the four solo grounds a mixed four killed 547-743 an hour against the best lone way's 517-560 (grade quick, Normal, the floor): the packs are built for one, so four heroes walk the same route at nearly the same pace and split it four ways. Speed isn't there to pay with. Tyler's 11-08 "Same monsters, re-tune" already named the lever: a bigger mixed-party XP bonus, Tibia style.
+
+**The cells** (`src/data/party-class-xp.js` BASE_CLASS_XP, permille on the even share; columns are classes held, one-class cells unchanged)
+| Ground | Pair (1, 2) | Three (1, 2, 3) | Four (1, 2, 3, 4) | Four, was |
+|---|---|---|---|---|
+| Mill Cellar | 1145, **2320** | 1320, **3015, 3175** | 1785, **3995, 4060, 4465** | 2380 |
+| Meadowbrook Thicket | 1045, **2170** | 1015, **2510, 2790** | 1190, **3205, 3355, 3435** | 1860 |
+| Wickstead | 975, **2210** | 1200, **2510, 2750** | 1335, **3500, 3620, 3715** | 1910 |
+| Mosslight Glade | 990, **1860** | 1180, **2000, 2155** | 1160, **2455, 2645, 2700** | 1730 |
+| The Sewer | 1015, 1660 | 1155, **1810, 1890** | 1150, **1770, 1850, 1980** | 1860 |
+| Coppercap Warrens | 990, **1370** | 990, **1400, 1490** | 970, **1360, 1430, 1545** | 1475 |
+A four's cell of 3435 pays each of four heroes 0.86 of a whole kill; alone a hero earns 1.05 (SOLO_XP_PM). The total XP a kill makes is a party's reward for bringing four.
+
+**Measured** (`tools/balance-sim/grade.mjs --mode quick --tiers normal`, the real settle, a head over the median lone way in the ladder kit; before = the lane's tree, after = these cells)
+| Ground | Four, floor / middle, before | Four, after | Pair, after (tank + healer) | Three vs median (`party-class-xp-line --mixed`, floor) |
+|---|---|---|---|---|
+| Mill Cellar | 0.63 / 0.62 | **1.20 / 1.19** | 1.13 / 1.12 | 1.13 / 1.12 |
+| Meadowbrook Thicket | 0.66 / 0.64 | **1.23 / 1.20** | 1.09 / 1.11 | 1.17 / 1.21 |
+| Wickstead | 0.63 / 0.60 | **1.24 / 1.19** | 1.10 / 1.10 | 1.13 / 1.18 |
+| Mosslight Glade | 0.79 / 0.75 | **1.23 / 1.17** | 1.09 / 1.11 | 1.12 / 1.18 |
+| The Sewer | 1.18 / 1.07 | **1.26 / 1.14** | 1.09 / 1.10 | 1.15 / 1.16 |
+| Coppercap Warrens | 1.15 / 1.15 | **1.20 / 1.20** | 1.07 / 1.14 | 1.11 / 1.23 |
+**The Sewer can't hold the band at both Levels with one cell:** 1.26 at 8 and 1.14 at 17 (its spread is 10.4%, the band is 8.7% wide). 1980 sits between, each end under a point out. One seed, one hour a cell: the full grade's dice may land it.
+
+**The harder tiers** (grade quick, after): the Thicket's Dangerous and Deadly four 1.18-1.22 (no bigger pull under Level 16, the floor-16 rule). **The Glade's Dangerous four 1.54-1.56 and Deadly 1.89-2.38 of a hero alone** (lone heroes died 40-120 times a cell on Deadly in range). That's Tyler's 11-11 sentence played out: bigger pulls are a party's reward on the harder tiers, on top of a Normal that holds the band.
+
+**The Party window, rewritten to the truth in Tyler's voice** (`src/data/text/party.js`, read by `party-roster.js`; the numbers are PARTY_VS_ALONE, re-measured against the same heroes alone, the way the window speaks):
+- A mix: "Your party has 4 of 4 classes. Each of you gets about 45% more Level XP than hunting alone in Meadowbrook Thicket."
+- One class: "Your party has 1 of 4 classes. Each of you gets about 55% less Level XP than hunting alone in Meadowbrook Thicket. Mix Melee, Ranger, Mage and Healer to get more."
+The old line said "+35%" with a colon join for a party that measured -26%. The mix reads higher here than in the table above because a tank and a healer are the slowest heroes alone.
+
+**The four reds**
+| Red | Verdict | Now |
+|---|---|---|
+| grader four-xp, 24 of 24 on Normal | Real, fixed by the cells. One grader bug fixed with it: `xpVsSolo` compared a ladder-kit four with a median that included the practice-kit fresh heroes, unlike every sibling metric and against 10-25 §5 "same gear quality". Regression `same-kit` in `tests/balance-grade.mjs` (fails without the fix, read) | 10 of 12 green in quick; the Sewer's two stay red by a point (above) |
+| first-week-bands vs-alone (+35% said, -26% measured) | Re-pinned: PARTY_VS_ALONE and ONE_ROLE_VS_ALONE re-measured; its two mutants re-aimed at the new Thicket row | green, 2 of 2 mutants caught |
+| party-class-xp-line --mutate 4 of 9 | Re-pinned: five mutants were sized for the old cells (a one-class pair at 1300 now reads 0.85). Each now pays a one-class party the NEW mix cell, and the engine slip is x3 (x1.5 reads 0.62) | 9 of 9 caught; the guard green (150 cells) |
+| forest-cave glade-between (plate hero at 16: -1/0/+9/+2%) | **Real failure, not a party question.** A lone hero's profit with the bear standing in Vine Hollow. Party cells move no gold | still red |
+Also red and not new: the grader's `normal-xp-contract` on the Warrens (a party ground's four per head 1.33 of the pace contract before, 1.39 after the +5% to hold its four).
+
+**Exploit and economy.** Level XP only, no gold or loot moves. A four of one account's own heroes earns what a four of friends earns, as before 11-11, when the party pull held the same band. No new path: the per-head band is the one the pull held.
+
+**Tyler's to answer.**
+1. The Glade's Dangerous party at 1.55x and Deadly at 1.9-2.4x a hero alone. Keep it (bigger pulls are the party's reward, his 11-11 words), or cap it with a cell keyed by tier (a Systems change: the reader takes the tier)?
+2. Same-weapon friends now lose 25-60% on Normal, not his 11-02 "about 6-15%". Holding both that and "never over solo" on the big-pull tiers needs the same tier-keyed cell. Until then the Party window says it and points at mixing.
+3. forest-cave: the bear's coin or bite, its pocket, or the +10% floor.
+
+**Verified, assumed.** Verified: every number above is a guard's or the grader's output on this tree, one seed and one hour a quick cell. Not measured: the tank + hammer + bow + mage four (the full grade plays it; its 3-class cell is scaled with the 4-class), the full grade's six seeds, the Sewer and Warrens harder tiers, a pace re-measure with parties.
+
 ### 2026-11-10 Rulings (designer, lane/d-rulings-2026-11-10): seven RULED. Two built here (the pack check's weight-class row, the Blessings line). The rest are SPECIFIED for the lane that owns the file. Nothing measured on the engine today, so every number below is read from data or from another lane's measurement, named
 
 | # | Ruling | State |

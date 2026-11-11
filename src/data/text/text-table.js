@@ -11,6 +11,7 @@
 import { AWAY_TEXT } from './away.js?v=0.2.122';
 import { BAR_TEXT } from './bar.js?v=0.2.122';
 import { COACH_TEXT } from './coach.js?v=0.2.122';
+import { CONTROLS_TEXT } from './controls.js?v=0.2.122';
 import { DEATH_TEXT } from './death.js?v=0.2.122';
 import { EVENTS_TEXT } from './events.js?v=0.2.122';
 import { FARM_TEXT } from './farm.js?v=0.2.122';
@@ -30,6 +31,7 @@ export const TEXT = Object.freeze({
   away: AWAY_TEXT,
   bar: BAR_TEXT,
   coach: COACH_TEXT,
+  controls: CONTROLS_TEXT,
   death: DEATH_TEXT,
   events: EVENTS_TEXT,
   farm: FARM_TEXT,

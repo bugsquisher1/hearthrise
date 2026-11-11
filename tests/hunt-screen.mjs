@@ -1247,7 +1247,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await drag(0, 2);
         const menu = await page.evaluate(() => ({ on: document.querySelector('.hb-drop').classList.contains('is-on'), title: document.querySelector('.hb-drop-t').textContent,
           swap: document.querySelector('.hb-drop [data-x="swap"]').textContent, insert: document.querySelector('.hb-drop [data-x="insert"]').textContent }));
-        if (!menu.on || menu.title !== 'Power Strike' || menu.swap !== 'Swap with Wheat Bread' || menu.insert !== 'Insert here (shift the rest)') fails.push('HS-19 the drop menu reads ' + JSON.stringify(menu));
+        if (!menu.on || menu.title !== 'Power Strike' || menu.swap !== 'Swap with Wheat Bread' || menu.insert !== 'Insert here') fails.push('HS-19 the drop menu reads ' + JSON.stringify(menu));
         await page.keyboard.press('Escape');
         await page.waitForTimeout(400);
         if (await menuOn() || sent().length !== 1) fails.push('HS-19 Escape did not cancel the drop (menu or an intent left)');

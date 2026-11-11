@@ -1782,7 +1782,7 @@ const MUTANTS = [
   ['PH-25 a ground\'s page keeps its frame and padding', 'src/styles/windows.css', '  [data-hs-win="hunts"]:has(.is-paged) .hs-win-body { padding: 0; }\n', '  [data-hs-win="hunts"]:has(.is-paged) .hw-hd-page { max-height: 104px; }\n'],
   ['PH-25 the sheet starts under the place\'s row', 'src/styles/shell.css', '  #panel-world:not([data-scene="hunt"]) .hs-win:not(.is-modal) { top: calc(-1 * (var(--tap) + 6px)); }\n', ''],
   ['PH-25 the stage still clips the sheet\'s head', 'src/styles/shell.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal)) .world-stage { overflow: visible; }\n', ''],
-  ['PH-25 the way back scrolls off with the page', 'src/shell/windows/hunts.js', "    + '<button type=\"button\" class=\"hh-tool hw-hd-back\" data-hs-act=\"back\">Back to the list</button>'\n", "    + ''\n"],
+  ['PH-25 the way back scrolls off with the page', 'src/shell/windows/hunts.js', "    + '<button type=\"button\" class=\"hh-tool hw-hd-back\" data-hs-act=\"back\">' + t('controls.back') + '</button>'\n", "    + ''\n"],
   ['PH-25 the line beside Enter stands in a column', 'src/styles/windows.css', ".hw-hd-foot .hh-intent-msg:not(:empty), .hw-hd-foot .hw-enter-why:not(:empty) { flex: 1 0 100%; }", ".hw-hd-foot .hh-intent-msg:not(:empty) { flex: 1 0 100%; }"],
   ['PH-25 mid-hunt the way back is off', 'src/shell/windows/hunts.js', ".hw-hd-foot button:not(.hw-hd-back), .hw-tiers button", ".hw-hd-foot button, .hw-tiers button"],
   ['PH-26 the switch\'s span widens the fold and the close', 'src/styles/hunt.css', '  .ha-analyzer .ha-scope { grid-area: 2 / 1 / 3 / -1; justify-self: end; margin-bottom: 0; }\n', '  .ha-analyzer .ha-scope { grid-area: 2 / 2 / 3 / 4; justify-self: end; margin-bottom: 0; }\n'],

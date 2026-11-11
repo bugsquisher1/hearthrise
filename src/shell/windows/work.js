@@ -44,6 +44,7 @@ import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench
 import { rollOddsOf } from '../../session/jewelry-sections.js?v=0.2.122';
 import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark-pane.js?v=0.2.122';
 import { DEFAULT_SORT, stationSortOf, withStationSort, orderStation, sortMenuHtml, patchSortMenu } from '../station-sort.js?v=0.2.122';
+import { t } from '../../render/player-text.js?v=0.2.122';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;
@@ -161,10 +162,10 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
 /** The skeleton: the work line, the ledger (skills.js), one skill's rows, the press's answer. */
 export function renderWork() {
   return '<div class="hw-trade">'
-    + '<div class="hw-burying hw-work-now" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="work-stop">Stop</button></div>'
+    + '<div class="hw-burying hw-work-now" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="work-stop">' + t('controls.stop') + '</button></div>'
     + '<p class="hs-note hw-work-end" role="status"></p>'
     + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make.</p>' + renderTradeSkills() + '</div>'
-    + '<section class="hw-work"><div class="hw-work-head"><button type="button" class="hh-tool" data-hs-act="work-back">‹ All skills</button>'
+    + '<section class="hw-work"><div class="hw-work-head"><button type="button" class="hh-tool" data-hs-act="work-back">‹ ' + t('controls.back') + '</button>'
     + '<b class="hw-work-title"></b>' + skillBarHtml('Skill') + '<small class="hw-skill-xp"></small><b class="hw-skill-lv"></b></div>'
     + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p>' + hallmarkPaneHtml() + sortMenuHtml() + '<ul class="hw-ledger hw-work-rows"></ul></section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
@@ -246,7 +247,7 @@ renderWork.patch = function patchWork(body, ctx) {
 /* Enter or Space on a focused skill opens it, like a press. */
 renderWork.events = Object.freeze(['keydown']);
 
-renderWork.act = function actWork(ctx, body, action, ev, t) {
+renderWork.act = function actWork(ctx, body, action, ev, el) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => renderWork.patch(body, ctx);
@@ -254,26 +255,26 @@ renderWork.act = function actWork(ctx, body, action, ev, t) {
   /* The station's Sort menu: the pick is remembered for this station (residue, display only) and the rows re-order at once. */
   if (action === 'station-sort') {
     if (ev.type !== 'change' || !sc.skill) return false;
-    const next = withStationSort(residueOf(cs), sc.skill, t.value);
+    const next = withStationSort(residueOf(cs), sc.skill, el.value);
     if (next) { cs.setResidue('stationSort', next); repaint(); }
     return false;
   }
   if (ev.type === 'keydown') {
     if (action !== 'open-skill' || (ev.key !== 'Enter' && ev.key !== ' ')) return false;
   } else if (ev.type !== 'click') return false;
-  if (action === 'open-skill') { sc.skill = t.getAttribute('data-skill'); sc.msg = ''; repaint(); return true; }
+  if (action === 'open-skill') { sc.skill = el.getAttribute('data-skill'); sc.msg = ''; repaint(); return true; }
   if (action === 'work-back') { sc.skill = null; sc.msg = ''; repaint(); return true; }
   if (action === 'work-stop') { if (workOf(cs)) stopWork(cs, send); return true; }
-  if (action.indexOf('hallmark-') === 0) return actHallmarkPane(ctx, action, t, sc, repaint);
+  if (action.indexOf('hallmark-') === 0) return actHallmarkPane(ctx, action, el, sc, repaint);
   if (action === 'work-n') {
-    const id = t.getAttribute('data-id');
-    const raw = t.getAttribute('data-n');
+    const id = el.getAttribute('data-id');
+    const raw = el.getAttribute('data-n');
     const n = raw === 'all' ? 'all' : Number(raw);
     if (id && BENCH_COUNTS.includes(n)) { sc.n[id] = n; repaint(); }
     return true;
   }
   if (action === 'work-go') {
-    const w = workRow(t.getAttribute('data-kind'), t.getAttribute('data-id'));
+    const w = workRow(el.getAttribute('data-kind'), el.getAttribute('data-id'));
     if (!w) return true;
     const h = huntOf(cs);
     const why = workBlock(cs, w, !!(h && !h.ended));

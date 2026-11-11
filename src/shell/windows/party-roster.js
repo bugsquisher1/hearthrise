@@ -33,7 +33,7 @@ export function rosterHtml() {
     + '<p class="hs-note hw-party-next"></p>'
     + '<p class="hs-note hw-party-class" hidden></p>'
     + '<div class="hw-add hw-party-acts">'
-    + '<button type="button" class="hw-primary is-on" data-hs-act="party-hunts" hidden>Pick a hunt for the party</button>'
+    + '<button type="button" class="hw-primary is-on" data-hs-act="party-hunts" hidden>' + t('controls.pick_hunt') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="leave">Leave party</button>'
     + '<button type="button" class="hh-tool" data-hs-act="disband" hidden>Disband</button></div>';
 }
@@ -59,7 +59,7 @@ function seatWhere(m) {
 /** What the party does next, from the server's party (the leader picks the ground; a member waits). */
 function nextStep(p, r) {
   if (r.anyHunting) return p.hunt ? 'The party is hunting in ' + huntName(p.hunt) + '.' : 'The party is hunting.';
-  if (r.isLeader) return r.members.length > 1 ? 'You lead. Pick a hunt and press Start with party.'
+  if (r.isLeader) return r.members.length > 1 ? 'You lead. Pick a hunt and press Enter with party.'
     : 'You are the only one here. Invite someone (right-click a player), or pick a hunt.';
   const lead = r.members.find((m) => m.seat === r.leaderSeat);
   return 'Waiting for ' + (lead ? lead.name : 'the leader') + ' to pick a hunt.';

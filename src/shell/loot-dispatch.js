@@ -26,9 +26,9 @@ import { t } from '../render/player-text.js?v=0.2.122';
 
 /** The three plans, then the pickup filter: [rule, words, group]. The rule is the server's word (player_item_rules.loot_rule). */
 export const LOOT_CHOICES = Object.freeze([
-  Object.freeze(['keep', 'Keep in bag', 'plan']),
-  Object.freeze(['deposit', 'Deposit in storage', 'plan']),
-  Object.freeze(['sell', 'Sell', 'plan']),
+  Object.freeze(['keep', t('controls.keep'), 'plan']),
+  Object.freeze(['deposit', t('controls.deposit'), 'plan']),
+  Object.freeze(['sell', t('controls.sell'), 'plan']),
   Object.freeze(['ignore', 'Don\'t pick up', 'pickup']),
 ]);
 const WORDS = new Map(LOOT_CHOICES.map(([v, w]) => [v, w]));

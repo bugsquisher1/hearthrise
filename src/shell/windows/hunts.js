@@ -66,6 +66,7 @@ import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.
 import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.122';
 import { callFromGround } from '../../data/boss-calls.js?v=0.2.122';
 import { rowLines } from '../live-events-view.js?v=0.2.122';
+import { t } from '../../render/player-text.js?v=0.2.122';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the tier shown before the server has it ({ hunt, tier }), `timer` its coalescing
@@ -111,8 +112,8 @@ function tierOf(picks, hunt) {
 /* The tier on screen: this ground's unsaved draft while there is one, else the server's. A party member's is its leader's (the party section's leader_tiers), never its own. */
 function shownTier(sc, picks, hunt, party) {
   if (party && !party.isLeader) return tierOf(party.tiers, hunt);
-  const t = tierOf(picks, hunt);
-  return t && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : t;
+  const tier = tierOf(picks, hunt);
+  return tier && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : tier;
 }
 
 /**
@@ -190,10 +191,10 @@ export function renderHunts(ctx) {
     + '<p class="hw-tier-note"></p>'
     + '<p class="hw-hunt-pack"></p>' + goHtml() + callHtml() + '</div>'
     + '<div class="hw-hd-foot"><p class="hh-intent-msg" role="status" aria-live="polite"></p>'
-    + '<p class="hw-enter-why"></p><button type="button" class="hh-tool" data-hs-act="leave-party" hidden>Leave party</button>'
+    + '<p class="hw-enter-why"></p><button type="button" class="hh-tool" data-hs-act="leave-party" hidden>' + t('controls.leave_party') + '</button>'
     /* The phone's way back (windows.css): beside Enter, in reach however far down the page has been read. */
-    + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="back">Back to the list</button>'
-    + '<button type="button" class="hw-primary is-on hw-hunt-enter" data-hs-act="enter">Enter</button></div>'
+    + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="back">' + t('controls.back') + '</button>'
+    + '<button type="button" class="hw-primary is-on hw-hunt-enter" data-hs-act="enter">' + t('controls.enter') + '</button></div>'
     + '</section></div></div>';
 }
 
@@ -318,7 +319,7 @@ function patchPage(det, ctx, sc, v) {
   const enter = det.querySelector('.hw-hunt-enter');
   attr(enter, 'data-hunt', r.hunt);
   const armed = sc.warned === warnKey(r.hunt, under) && (under.length > 0 || !!rangeWords(r, level));
-  text(enter, party && !follower ? (armed ? 'Start anyway' : 'Start with party') : armed ? 'Enter anyway' : 'Enter');
+  text(enter, party && !follower ? (armed ? t('controls.enter_anyway') : t('controls.enter_with_party')) : armed ? t('controls.enter_anyway') : t('controls.enter'));
   /* Enter and the tier buttons (Go as, Find a party and Bring are patchGo's: off for a member too). */
   for (const b of det.querySelectorAll('.hw-hd-foot button:not(.hw-hd-back), .hw-tiers button')) prop(b, 'disabled', sc.pending || !!now);
   /* ENTER OFF SAYS WHY, BESIDE IT (midgame panel 2026-11-01: a hero sent home by a friend's death, left in the party, read "the game is broken"), with the way out. */
@@ -352,11 +353,11 @@ function patchPage(det, ctx, sc, v) {
     : size > 1 ? safe + 'As the leader, your pick holds for everyone, and it\'s kept for this ground.' : safe + 'Your pick is kept for this ground.'));
 }
 
-renderHunts.act = function actHunts(ctx, body, action, ev, t) {
+renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   if (ev.type !== 'click') return false;
   const cs = ctx.character;
   const sc = scratchOf(cs);
-  const hunt = t.getAttribute('data-hunt');
+  const hunt = el.getAttribute('data-hunt');
   const repaint = () => renderHunts.patch(body, ctx);
   if (action === 'tier') {
     /* The choice moves on the press; the save waits TIER_SAVE_MS for the next press (saveTier). */
@@ -364,7 +365,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     const party = partyMembershipOf(cs);
     /* A member's tier is its leader's: there is nothing to press (the server refuses it too). */
     if (party && !party.isLeader) return true;
-    const want = t.getAttribute('data-tier');
+    const want = el.getAttribute('data-tier');
     const server = tierOf(tiers ? tiers.picks : null, hunt);
     if (sc.pending || server === null || !tiersOf(groundOf(hunt).id).includes(want)) return true;
     sc.msg = '';
@@ -390,11 +391,11 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
   }
   if (action === 'back') { sc.paged = false; repaint(); return true; }
   /* Go as: display scratch only, until Enter sends it (nothing else reads or spends it). */
-  if (action === 'go-as') { if (!sc.pending) { sc.goAs = Number(t.getAttribute('data-preset')); sc.msg = ''; repaint(); } return true; }
+  if (action === 'go-as') { if (!sc.pending) { sc.goAs = Number(el.getAttribute('data-preset')); sc.msg = ''; repaint(); } return true; }
   /* Find a party: the Party window's finder, on this ground and this hero's weapon (B #3). */
   if (action === 'find-party') { if (sc.pick) openFinderOn(ctx, cs, sc.pick); return true; }
   if (action === 'bring') {
-    const slot = Number(t.getAttribute('data-slot'));
+    const slot = Number(el.getAttribute('data-slot'));
     const who = freeHeroes(cs, ctx.peers()).find((x) => x.slot === slot);
     if (who) runIntent(sc, repaint, () => inviteOwn(ctx.account, cs, slot), 'Bringing ' + who.name + '…', () => who.name + ' joined your party.', cs);
     return true;

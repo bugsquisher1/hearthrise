@@ -22,6 +22,7 @@ import { marketScratch, rereadAll, readMine, readItem } from './state.js?v=0.2.1
 import { browseHtml, patchBrowse, actBrowse } from './browse.js?v=0.2.122';
 import { sellHtml, patchSell, actSell } from './sell.js?v=0.2.122';
 import { ledgerHtml, patchLedger, actLedger } from './ledger.js?v=0.2.122';
+import { t } from '../../../render/player-text.js?v=0.2.122';
 
 /** The skeleton (built once per opening). An opening reads the server again. */
 export function renderMarket(ctx) {
@@ -29,7 +30,7 @@ export function renderMarket(ctx) {
   return '<div class="hw-mk">'
     + '<p class="hw-mk-greet"><span>Aldous Pell, weighmaster: I hold what you list and pay you the moment it sells.</span><b class="hw-gold hw-mk-purse"></b></p>'
     + '<div class="hw-tabs" role="tablist">' + MARKET_TABS.map(([id, l], i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '">' + esc(l) + '</button>').join('')
-    + '<button type="button" class="hh-tool hw-mk-refresh" data-hs-act="refresh">Refresh</button></div>'
+    + '<button type="button" class="hh-tool hw-mk-refresh" data-hs-act="refresh">' + t('controls.refresh') + '</button></div>'
     + '<p class="hs-note hw-mk-state" role="status"></p>'
     + browseHtml(ctx) + sellHtml() + ledgerHtml()
     + '<p class="hh-intent-msg hw-mk-msg" role="status" aria-live="polite"></p></div>';
@@ -69,12 +70,12 @@ renderMarket.patch = function patchMarket(body, ctx) {
 
 renderMarket.events = Object.freeze(['input', 'mouseover', 'mouseout']);
 
-renderMarket.act = function actMarket(ctx, body, action, ev, t) {
+renderMarket.act = function actMarket(ctx, body, action, ev, el) {
   const cs = ctx.character;
   const sc = marketScratch(cs);
   const repaint = () => ctx.refresh('market');
   if (ev.type === 'click' && action === 'tab') {
-    sc.tab = t.getAttribute('data-tab');
+    sc.tab = el.getAttribute('data-tab');
     sc.msg = '';
     hideTip(ctx.doc);
     repaint();
@@ -86,5 +87,5 @@ renderMarket.act = function actMarket(ctx, body, action, ev, t) {
   }
   if (ev.type === 'click' && action === 'refresh') { if (!sc.pending) { sc.known.clear(); sc.knownAt.clear(); rereadAll(ctx, cs, sc); } return true; }
   const o = { ctx, cs, sc, body, repaint };
-  return actBrowse(o, action, ev, t) || actSell(o, action, ev, t) || actLedger(o, action, ev, t) || false;
+  return actBrowse(o, action, ev, el) || actSell(o, action, ev, el) || actLedger(o, action, ev, el) || false;
 };

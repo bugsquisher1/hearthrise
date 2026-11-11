@@ -583,7 +583,7 @@ async function combatTab(browser, base, vp) {
     });
     const b = await box();
     if (!(b.line > 0 && b.h >= b.line * 4)) fails.push('CW-11 [' + tag + '] the Combat tab must show at least 4 lines: ' + JSON.stringify(b));
-    if (b.input || b.types || b.said !== 'Filter lines') { fails.push('CW-11 [' + tag + '] the Combat tab holds no input, its filters folded: ' + JSON.stringify(b)); return fails; }
+    if (b.input || b.types || b.said !== 'Filter') { fails.push('CW-11 [' + tag + '] the Combat tab holds no input, its filters folded: ' + JSON.stringify(b)); return fails; }
     if (b.tones[0] === b.tones[1]) fails.push('CW-11 [' + tag + '] a miss must not wear the color of damage taken: ' + JSON.stringify(b));
     await page.click('[data-hs-win="chat"]:not(.is-leaving) .hc-more summary');
     await page.click('[data-hs-win="chat"]:not(.is-leaving) input[data-type="xp"]');
@@ -1112,7 +1112,7 @@ const PAGE_MUTANTS = [
   ['the input takes the Combat log\'s room back (CW-11)', 'src/styles/hunt.css', '.hc-pane.is-combat.is-on ~ .hc-input, .hc-pane.is-combat.is-on ~ .hc-msg:empty { display: none; }\n', ''],
   ['the filters stand open over the log (CW-11)', 'src/shell/windows/chat-combat.js', '<details class="hc-more">', '<details class="hc-more" open>'],
   ['a miss shows in the red of damage taken (CW-11)', 'src/styles/hunt.css', '.hc-line.is-quiet { color: var(--ink-3); }\n', ''],
-  ['a filter folded away does not say it is off (CW-11)', 'src/shell/windows/chat-combat.js', "prefs.off.size ? 'Filter lines (' + prefs.off.size + ' off)' : 'Filter lines'", "'Filter lines'"],
+  ['a filter folded away does not say it is off (CW-11)', 'src/shell/windows/chat-combat.js', "prefs.off.size ? t('controls.filter_off', { count: prefs.off.size }) : t('controls.filter')", "t('controls.filter')"],
   ['the bag\'s repaint closes every menu', 'src/shell/windows/inventory/index.js', 'closeFloatMenu(ctx.doc, st.sc.menuOwner || null);', 'closeFloatMenu(ctx.doc);'],
   ['the chat docks on the right', 'src/data/shell-windows.js', "height: 280, home: 'bl', resizable: true,", "height: 280, resizable: true,"],
   ['the chat is opaque', 'src/styles/hunt.css', '.hs-win[data-hs-win="chat"] { background: var(--chat-bg); }', '.hs-win[data-hs-win="chat"] { background: var(--modal-bg); }'],

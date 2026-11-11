@@ -173,7 +173,7 @@
 //         the confirmation's Sell, and the confirmation is in view inside the window (it sat under a long list); no
 //         Services icon, and R opens the Shop on its Services tab (stamina and Blessings), closed or open
 //   AW-32 DISPATCH LOOT (Tyler 2026-10-25, 2027-01-23-loot-dispatch.sql): mid-hunt the Bag's Dispatch loot is off with
-//         "out hunting" in view; in town the item menu offers the loot plan (Keep in bag pressed, Deposit in storage,
+//         "out hunting" in view; in town the item menu offers the loot plan (Keep pressed, Deposit,
 //         Sell) and the pickup filter (Don't pick up); Deposit is ONE hr_loot_rule_set {slot, item, rule, key}; the
 //         starting kit's Sell is off (Deposit on); Dispatch loot is ONE hr_loot_dispatch {slot, key}, off in flight,
 //         its line the server's answer ("Stored 1 stack, sold 2 stacks for 246 gp. 1 stack locked, so kept."), the bag and
@@ -2142,7 +2142,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             rules: Array.from(document.querySelectorAll('.hw-menu [data-hs-act="m-rule"]')).map((b) => [b.getAttribute('data-rule'), b.textContent, b.getAttribute('aria-pressed'), b.disabled]) }));
         };
         const m = await menuOf('wolf_pelt');
-        const want = [['keep', 'Keep in bag', 'true', false], ['deposit', 'Deposit in storage', 'false', false], ['sell', 'Sell', 'false', false], ['ignore', 'Don\'t pick up', 'false', false]];
+        const want = [['keep', 'Keep', 'true', false], ['deposit', 'Deposit', 'false', false], ['sell', 'Sell', 'false', false], ['ignore', 'Don\'t pick up', 'false', false]];
         if (JSON.stringify(m.rules) !== JSON.stringify(want) || !m.subs.includes('Loot plan') || !m.subs.includes('On pickup')) fails.push('AW-32 the item menu offers ' + JSON.stringify(m));
         if (shots) await shot(page, 'dispatch-1440x900-item-menu');
         s.onCall = (name, body) => {
@@ -2156,7 +2156,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(600);
         const rs = sent(s, 'hr_loot_rule_set');
         if (rs.length !== 1 || rs[0].body.p_item !== 'wolf_pelt' || rs[0].body.p_rule !== 'deposit' || Object.keys(rs[0].body).sort().join() !== 'p_idem,p_item,p_rule,p_slot') {
-          fails.push('AW-32 Deposit in storage sent ' + JSON.stringify(rs.map((c) => c.body)));
+          fails.push('AW-32 Deposit sent ' + JSON.stringify(rs.map((c) => c.body)));
         }
         /* the starting kit may be deposited but takes no Sell plan (the server's start_kit), said before the press */
         const k = await menuOf('cooked_shrimp');

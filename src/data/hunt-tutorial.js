@@ -65,27 +65,28 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.118';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.118';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.118';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.118';
-import { SKILLS_DEF } from './skills.js?v=0.2.118';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.118';
-import { tallyTask } from './tally-tasks.js?v=0.2.118';
-import { ITEMS } from './items.js?v=0.2.118';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.118';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.118';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.118';
-import { isShield } from './shields.js?v=0.2.118';
-import { deriveProfile } from '../core/member.js?v=0.2.118';
-import { ABILITIES } from './abilities.js?v=0.2.118';
-import { CONSUMABLES } from './consumables.js?v=0.2.118';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.118';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.118';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.118';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.118';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.118';
-import { regenPermille } from '../core/vitals.js?v=0.2.118';
+import { HUNT_INDEX } from './hunts.js?v=0.2.119';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.119';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.119';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.119';
+import { SKILLS_DEF } from './skills.js?v=0.2.119';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.119';
+import { tallyTask } from './tally-tasks.js?v=0.2.119';
+import { ITEMS } from './items.js?v=0.2.119';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.119';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.119';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.119';
+import { isShield } from './shields.js?v=0.2.119';
+import { deriveProfile } from '../core/member.js?v=0.2.119';
+import { ABILITIES } from './abilities.js?v=0.2.119';
+import { CONSUMABLES } from './consumables.js?v=0.2.119';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.119';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.119';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.119';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.119';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.119';
+import { regenPermille } from '../core/vitals.js?v=0.2.119';
+import { BAR_TEXT } from './text/bar.js?v=0.2.119';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -896,7 +897,8 @@ const SAY = Object.freeze({
       : a.id === 'flame_volley' && freeShot ? VOLLEY_TRADE : '';
     return { text: 'Your bar has no spell that uses runes yet. ' + a.n + ' casts on its own timer beside your moves' + (a.magicXpMult > 0 ? ' and trains Magic' : '') + ', and every cast uses '
       + anA(fam.label) + ' rune. With none of your own, the store sells ' + name(st.id) + ' at ' + st.price + ' gp a cast.' + trade
-      + ' To try it, press ' + slotWords([free]) + ', then Runes, ' + a.n + ', ' + name(st.id) + ', then Save.',
+      /* the tab's own name (Configure action's Spells tab: a rune spell is a spell), never a tab that isn't there (designer re-read 2026-11-11) */
+      + ' To try it, press ' + slotWords([free]) + ', then ' + BAR_TEXT.tab_spells + ', ' + a.n + ', ' + name(st.id) + ', then Save.',
     barSlot: free, store: st.id, spell: a.id };
   },
   /* In a party a leaver takes the others home (Tyler 10-22: every ticked box, on by default): the card says so before the press (party panel 11-03). */

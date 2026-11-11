@@ -25,21 +25,22 @@ export const MONSTER_TEXT = Object.freeze({
   how_boss: 'boss',
   how_pull: 'only with a party or a harder hunt',
 
-  /* In a fight. */
+  /* In a fight. Each stat is the game's own label and its value, nothing more (Tyler 2026-11-11: "it should just say Max Hit";
+     the labels are the approved wiki mock's). Tier names the tier the numbers are for. A line that explains how the game works
+     instead of stating a fact about this monster is cut (Tyler 2026-11-11, on "shared by the heroes who were there"). */
   h_fight: 'In a fight',
-  on_tier: 'on {tier}, alone or in a party',
+  tier: 'Tier',
   hp: 'Health',
-  /* The game's own label for a monster's biggest hit, and its number only (Tyler 2026-11-11: "it should just say Max Hit"). */
   max_hit: 'Max Hit',
-  swing: 'It attacks',
-  swing_value: 'every {secs} s',
-  deals: 'Its damage',
+  swing: 'Attack Speed',
+  swing_value: '{secs} s',
+  deals: 'Damage Type',
   weak: 'Weak to',
   weak_sword: 'Swords. They deal {pct}% more damage and hit {acc}% more often.',
   weak_hammer: 'Hammers. They deal {pct}% more damage and hit {acc}% more often.',
   weak_ranged: 'Bows and crossbows. They deal {pct}% more damage and hit {acc}% more often.',
   weak_magic: 'Magic. It deals {pct}% more damage and hits {acc}% more often.',
-  takes: 'It takes',
+  takes: 'Elements',
   takes_all: 'Full damage from every element',
   el_less: '{pct}% less from {element}',
   el_more: '{pct}% more from {element}',
@@ -47,11 +48,17 @@ export const MONSTER_TEXT = Object.freeze({
   el_frost: 'Ice',
   el_poison: 'Poison',
   el_physical: 'Physical',
-  harder: 'A harder hunt changes these numbers. The hunt\'s page says by how much.',
+  /* What each harder tier does to it, on the ground its page was opened from (Tyler 2026-11-11: "cant this just say 'difficulty
+     increases by x% on dangerous/deadly'"). The numbers are that ground's own dials (hunt-tiers.js GROUND_TIERS), the ones the
+     engine fights with: {hp} is the Health dial in percent more, {hits} is hits_pct or, from twice as hard up, hits_times. */
+  tier_both: 'On {tier} it has {hp}% more Health and hits {hits}.',
+  tier_hits: 'On {tier} it hits {hits}.',
+  tier_hp: 'On {tier} it has {hp}% more Health.',
+  hits_pct: '{pct}% harder',
+  hits_times: '{times} times as hard',
 
   /* A kill. */
   h_kill: 'What a kill gives',
-  pay_shared: 'shared by the heroes who were there',
   xp: 'Level XP',
   gold: 'Gold',
   gold_value: '{lo} to {hi} gp',
@@ -59,7 +66,7 @@ export const MONSTER_TEXT = Object.freeze({
 
   /* Its drops. */
   h_drops: 'Drops',
-  per_kill: 'Chance per kill. In a party, each drop goes to one hero.',
+  per_kill: 'Chance per kill',
   no_drops: 'It drops nothing.',
   band_common: 'Common',
   band_uncommon: 'Uncommon',

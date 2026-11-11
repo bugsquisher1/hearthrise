@@ -903,7 +903,9 @@ const cases = {
      no pick and more than one hero answers the row's partyPull, clamped; a lone hero's answer is untouched on every ground. */
   'party-pull': (M) => {
     const G = M.grounds;
-    const want = { meadowbrook_thicket: [0, 4, 5, 6], wickstead: [0, 3, 3, 4], mosslight_glade: [0, 3, 3, 4], mill_cellar: [0, 4, 5, 5], millrace_sewer: [0, 0, 0, 0], coppercap_warrens: [0, 0, 0, 0] };
+    const want = { meadowbrook_thicket: [0, 4, 5, 6], wickstead: [0, 3, 3, 4], mosslight_glade: [0, 3, 3, 4], mill_cellar: [0, 4, 5, 5], millrace_sewer: [0, 0, 0, 0], coppercap_warrens: [0, 0, 0, 0],
+      /* the Muster Barrows (a staged pack, lane/b-muster-barrows): one pull for every group (Tyler 2026-11-08), so the room as built */
+      muster_barrows: [0, 0, 0, 0] };
     if (Object.keys(G.HUNT_GROUNDS).sort().join() !== Object.keys(want).sort().join()) return 'a new ground: give it a line here, its pull is a choice';
     for (const [id, row] of Object.entries(want)) {
       const got = [1, 2, 3, 4].map((n) => G.densityFor(G.HUNT_GROUNDS[id], n, 0));

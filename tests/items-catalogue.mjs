@@ -41,7 +41,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
-import { join, normalize } from 'node:path';
+import { basename, join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
@@ -126,7 +126,17 @@ export async function itemsCatalogueGuard(opts) {
       + 'is checking nothing');
   }
 
-  const missing = authored.filter((id) => !parsed.ids.has(id));
+  /* A GROUND PACK'S ITEMS (tools/pack/whole.mjs itemsOutside): a pack this whole file does not fold carries its rows in its own additive
+     file, which must hold them instead, and a staged one is served nowhere yet. Every other authored id needs its row here. */
+  const { itemsOutside } = await import(pathToFileURL(join(ROOT, 'tools', 'pack', 'whole.mjs')).href);
+  const outside = o.outside || await itemsOutside(basename(CATALOGUE_SQL));
+  const packIds = new Map();
+  for (const [id, x] of Object.entries(outside)) {
+    if (!x.sql) continue;
+    if (!packIds.has(x.sql)) packIds.set(x.sql, itemIdsInSql(await readFile(join(ROOT, 'supabase', 'migrations', x.sql), 'utf8').catch(() => '')).ids);
+    if (!packIds.get(x.sql).has(id)) problems.push(id + ' (ground pack ' + x.pack + ') has no hr_items row in its own file ' + x.sql);
+  }
+  const missing = authored.filter((id) => !parsed.ids.has(id) && !Object.prototype.hasOwnProperty.call(outside, id));
   if (missing.length) {
     problems.push(
       `${missing.length} item id(s) exist in src/data/items.js but have NO hr_items row: `
@@ -138,7 +148,7 @@ export async function itemsCatalogueGuard(opts) {
   }
   return {
     problems,
-    note: `${authored.length} authored items ⊆ ${parsed.ids.size} hr_items rows`,
+    note: `${authored.length} authored items (${Object.keys(outside).length} of them a ground pack's, held to its own file or staged) ⊆ ${parsed.ids.size} hr_items rows`,
   };
 }
 
@@ -202,7 +212,14 @@ export async function itemsCatalogueMutationGuard() {
       + 'not a deletion, and failing on it would block every item removal: ' + stale.problems.join(' | '));
   }
 
-  return { problems, note: '3 mutations graded (missing row RED, blind catalogue RED, stale row GREEN)' };
+  // 4. A GROUND PACK'S ITEM IS SPARED ONLY BY ITS OWN FILE. A shipped pack whose file lacks the row is RED, and a pack that names an
+  //    item the whole file never carries still needs that row somewhere (lane/b-muster-barrows: tools/pack/whole.mjs itemsOutside).
+  const shippedNoRow = await itemsCatalogueGuard({ itemsUrl: pathToFileURL(fakePath).href, outside: { hr_s5_fake_item: { pack: 'p', sql: 'no-such-pack.generated.sql' } } });
+  if (!shippedNoRow.problems.some((p) => /hr_s5_fake_item/.test(p))) {
+    problems.push('a shipped ground pack whose own file has no row for its item passed — a pack would hide a missing catalogue row');
+  }
+
+  return { problems, note: '4 mutations graded (missing row RED, blind catalogue RED, stale row GREEN, a pack item with no row in its file RED)' };
 }
 
 export default itemsCatalogueGuard;

@@ -57,3 +57,18 @@ export function wholeViewOrRerun(scriptUrl, outName) {
 /** The view's index source, for the hook: src/data/grounds/index.js naming these packs alone. */
 export { indexText } from './files.mjs';
 export const existsPack = (id, root = ROOT) => existsSync(join(GROUNDS_DIR(root), id, 'pack.js'));
+
+/**
+ * THE ITEMS A WHOLE CATALOGUE DOES NOT CARRY (lane/b-muster-barrows): every item a ground pack adds when that pack is not folded into
+ * the whole file `outName` (an apply-order name). A STAGED pack's items are served nowhere yet (it is never listed, nothing drops them);
+ * a SHIPPED one's rows ride its own additive file, which comes after the whole file. src/data/items.js folds every pack in, so a guard
+ * that holds items.js against the generated hr_items (tests/items-catalogue.mjs, tests/gold-intents.mjs G16) reads this, never a list:
+ * { itemId: { pack, sql } }, `sql` the pack's own file (null while staged), whose hr_items rows the guard then holds instead.
+ */
+export async function itemsOutside(outName, root = ROOT) {
+  const folded = new Set(foldedPacks(outName, root));
+  const { GROUND_PACKS } = await import(pathToFileURL(join(root, 'src', 'data', 'grounds', 'index.js')).href);
+  const out = {};
+  for (const p of GROUND_PACKS) if (!folded.has(p.id)) for (const id of Object.keys(p.items || {})) out[id] = { pack: p.id, sql: p.sql || null };
+  return out;
+}

@@ -1399,7 +1399,11 @@ async function run(mutate) {
     const rows = (await db.query('select item_id from pg_temp.g16_items')).rows.map((r) => r.item_id);
     const known = new Set(rows);
     ok(rows.length > 100, `G16-CONTROL: hr_items holds ${rows.length} rows — the catalogue is not the generated one`);
-    const missing = Object.keys(ITEMS).filter((id) => !known.has(id)).slice(0, 5);
+    /* A ground pack this whole file does not fold (tools/pack/whole.mjs itemsOutside) is served nowhere yet (staged) or carries its rows in
+       its own file, which tests/items-catalogue.mjs holds; no vendor_sell can name an item nothing hands out. Every other id needs its row. */
+    const { itemsOutside } = await import('../tools/pack/whole.mjs');
+    const outside = await itemsOutside(FWD.split(/[\\/]/).pop());
+    const missing = Object.keys(ITEMS).filter((id) => !known.has(id) && !Object.prototype.hasOwnProperty.call(outside, id)).slice(0, 5);
     ok(missing.length === 0,
       `G16: [${missing}] are priceable here and ABSENT from the generated hr_items, so a vendor_sell `
       + 'would pass this layer\'s guard and be refused by hr_apply with the same code from a '

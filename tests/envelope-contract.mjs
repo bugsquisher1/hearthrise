@@ -240,6 +240,12 @@ function contract(R, cs, body, tl) {
   const tv = R.CS.heroVitalsOf(cs);
   need('vitals', !!tv && isNum(tv.hpMax) && isNum(tv.manaMax) && isNum(tv.level) && (tv.hunting || tv.mana === tv.manaMax),
     'heroVitalsOf yields ' + JSON.stringify(tv) + ' from ' + JSON.stringify(body.vitals));
+  /* THE LEVEL IS THE SERVER'S OWN BLOCK (lane/c-level-from-server): the real envelope states { xp, level, into, need }, the
+     client's one reader takes all four as they stand, and it is the Level the server's vitals are worked from. */
+  const lb = body.level, lr = R.CS.levelOf(cs);
+  need('level', !!lb && !!lr && isNum(lb.level) && lr.level === lb.level && lr.xp === lb.xp && lr.into === lb.into && lr.need === lb.need
+    && tv.level === lb.level && tv.into === lb.into && tv.need === lb.need && body.vitals.level === lb.level && lb.xp === body.state.level_xp,
+    'levelOf yields ' + JSON.stringify(lr) + ' from the envelope\'s level block ' + JSON.stringify(lb) + ' (vitals ' + JSON.stringify(body.vitals) + ', state.level_xp ' + JSON.stringify(body.state && body.state.level_xp) + ')');
   /* the Farm window (2026-11-26-farm-window.sql): a fresh hero's field — room for 2 plots at the Camp, tier 1, the tier-2 price */
   const fl = R.FS.farmLandOf(cs, 0);
   need('farm_land', !!fl && fl.cap >= 2 && fl.plotLevel >= 1 && fl.plots instanceof Map && (fl.plotLevel >= 5 || (!!fl.upgrade && fl.upgrade.gold > 0 && fl.upgrade.farming > 0)),
@@ -277,7 +283,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'gm', 'hallmark']);
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'gm', 'hallmark', 'level']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -454,6 +460,10 @@ const DB_MUTANTS = [
   ['bench_tax', 'public.hr_bench_tax_view(uuid,integer)', "'carry_mg', v_st.carry,", "'carry', v_st.carry,"],
   ['temper', 'public.hr_temper_view(uuid,integer)', "'rung', coalesce(pp.value, 0),", "'level', coalesce(pp.value, 0),"],
   ['hallmark', 'public.hr_hallmark_view(uuid,integer)', "'per_day', v_limit);", "'perday', v_limit);"],
+  /* lane/c-level-from-server: the client reads the Level from the server's block and nowhere else, so each of its fields is contract */
+  ['level', 'public.hr_level_block(bigint)', "jsonb_build_object('xp', x, 'level', lv,", "jsonb_build_object('xp', x, 'lv', lv,"],
+  ['level', 'public.hr_level_block(bigint)', "'into', x - public.hr_char_xp_for_level(lv),", "'in_to', x - public.hr_char_xp_for_level(lv),"],
+  ['level', 'public.hr_state_of(uuid,integer)', "'level', public.hr_level_block(v_st.level_xp),", "'level_block', public.hr_level_block(v_st.level_xp),"],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

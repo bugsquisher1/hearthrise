@@ -70,7 +70,7 @@ function project(o = {}) {
         for (let i = 0; i < 300 && st.deadAsks < (o.together || 1); i++) await sleep(50);
         return json(401, { code: 'PGRST301', message: 'JWT expired' });
       }
-      return json(200, { ok: true, version: 1, name: 'Lockfoot', state: { active_kind: 'idle', gold: 0, gold_v: 1, level_xp: 0 }, skills: {}, inventory: {}, hero_slots: [0], account: { max_concurrent: 4 } });
+      return json(200, { ok: true, version: 1, name: 'Lockfoot', state: { active_kind: 'idle', gold: 0, gold_v: 1, level_xp: 0 }, level: { xp: 0, level: 1, into: 0, need: 143 }, skills: {}, inventory: {}, hero_slots: [0], account: { max_concurrent: 4 } });
     }
     return json(200, { ok: true });
   };

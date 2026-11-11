@@ -54,6 +54,12 @@ runs:
         key: ${{ steps.key.outputs.key }}
         restore-keys: ${{ steps.key.outputs.prefix }}
 
+    # EVERY NETWORK FETCH HERE HAS A DEADLINE (lane a-ci-first-run, 2026-11-10). Run 42758317717's
+    # in-page-2 sat silent in this step for 43 min 49 s, inside the seed block (the "seeded" line
+    # never printed; its one network call was `apt-get update -qq`), until the job's 44 min ran out
+    # with no test run; its re-run went green. The index refresh only feeds the seed, so a stall there seeds nothing and the
+    # install downloads; the install gets a second try, and apt keeps the .debs the first one
+    # finished. tests/ci-shape.mjs CI-SHAPE-11 refuses a fetch here with no `timeout`.
     - name: npx playwright install --with-deps chromium
       shell: bash
       env:
@@ -69,17 +75,27 @@ runs:
           # apt trusts a file already in its archive directory on name and size alone, so
           # a cached .deb is seeded only if the signed index lists its SHA256 for that
           # package version. (Playwright's own `apt-get update` then finds every index current.)
-          sudo apt-get update -qq
-          for f in "${cached[@]}"; do
-            pkg=$(dpkg-deb -f "$f" Package 2> /dev/null) || continue
-            ver=$(dpkg-deb -f "$f" Version 2> /dev/null) || continue
-            idx=$(apt-cache show "$pkg=$ver" 2> /dev/null) || continue
-            if grep -qx "SHA256: $(sha256sum "$f" | cut -d' ' -f1)" <<< "$idx"; then seed+=("$f"); fi
-          done
-          if [ ${#seed[@]} -gt 0 ]; then sudo cp "${seed[@]}" /var/cache/apt/archives/; fi
+          if timeout -k 20 180 sudo apt-get update -q -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o Acquire::Retries=2; then
+            for f in "${cached[@]}"; do
+              pkg=$(dpkg-deb -f "$f" Package 2> /dev/null) || continue
+              ver=$(dpkg-deb -f "$f" Version 2> /dev/null) || continue
+              idx=$(apt-cache show "$pkg=$ver" 2> /dev/null) || continue
+              if grep -qx "SHA256: $(sha256sum "$f" | cut -d' ' -f1)" <<< "$idx"; then seed+=("$f"); fi
+            done
+            if [ ${#seed[@]} -gt 0 ]; then sudo cp "${seed[@]}" /var/cache/apt/archives/; fi
+          else
+            echo "::warning::apt-get update did not finish inside 180 s: no .deb seeded, the install downloads them"
+          fi
         fi
         echo "apt archive seeded with ${#seed[@]} of ${#cached[@]} cached .deb file(s) (exact cache hit: '${HIT}')"
-        npx playwright install --with-deps chromium
+        for try in 1 2; do
+          rc=0
+          timeout -k 30 600 npx playwright install --with-deps chromium || rc=$?
+          if [ "$rc" -eq 0 ]; then break; fi
+          if [ "$try" -eq 2 ]; then echo "::error::npx playwright install failed twice (exit $rc; 124 is its 600 s deadline)"; exit "$rc"; fi
+          echo "::warning::npx playwright install exited $rc (124 is its 600 s deadline): one more try"
+          timeout 120 sudo dpkg --configure -a || true
+        done
 
     # Cache upkeep never fails a job: the worst it can do is leave the next run to download.
     - name: Collect apt .debs

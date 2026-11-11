@@ -8,10 +8,10 @@
 // WHICH BOSS: in a called room, the room's boss for the whole fight (the room is the fight). On a ground, a boss with lines who
 // stands hurt at the instant shown: the party is on him. Before the first blow, and once a reset heals him, the bar steps aside.
 // ════════════════════════════════════════════════════════════════════════
-import { callOfHunt, BOSS_CALL_WORDS, isGuarded } from '../../data/boss-calls.js?v=0.2.117';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.117';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.117';
-import { text, cls, style } from '../../render/paint.js?v=0.2.117';
+import { callOfHunt, BOSS_CALL_WORDS, isGuarded } from '../../data/boss-calls.js?v=0.2.118';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.118';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.118';
+import { text, cls, style } from '../../render/paint.js?v=0.2.118';
 
 /** The skeleton (built once). */
 export function renderBossBar() {

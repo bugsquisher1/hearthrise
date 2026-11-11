@@ -303,6 +303,8 @@
     "node tools/mutant-gate.mjs node tools/gen-ground-tiers.mjs --selftest": "db-replay-8",
     "node tests/hunt-tiers-db.mjs": "db-replay-8",
     "node tools/mutant-gate.mjs node tests/hunt-tiers-db.mjs --mutate": "db-replay-8",
+    "node tests/hunt-preset-read.mjs": "db-replay-8",
+    "node tools/mutant-gate.mjs node tests/hunt-preset-read.mjs --mutate": "db-replay-8",
     "node tests/hunt-tick-shards.mjs": "db-replay-8",
     "node tools/mutant-gate.mjs node tests/hunt-tick-shards.mjs --mutate": "db-replay-8",
     "node tests/core-curves.mjs": "db-replay-8",

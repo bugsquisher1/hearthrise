@@ -37,6 +37,17 @@ const SEED = '-4611686018427387904';
 
 /* The live-shaped hard grounds at a full box (density 8), a lone kiting ranger, and a melee + healer pair on another map:
    every positioning path (tank hold and open ground, melee walk, ranged spot, kite), the bar, the supplies, the rewards. */
+/* RE-PINNED 2026-11-12 (lane/d-solo-fifteen), DATA ONLY, THE ENGINE UNCHANGED. The pins were stamped on d86e0ac4f (lane/r-engine-profile, 2026-11-10). Proof, by
+   laying files into an archive of that commit and running this test there: the CURRENT src/core and supabase/functions/hr-accrue over the pin's data hold
+   every pin (the engine profile lane's byte-identity, played); the current src/data moves them. One current data file at a time into the pin's tree:
+     src/data/party-class-xp.js  moves warrens-4, glade-4, glade-1-kite and sewer-2: the mixed party cells re-fitted for one pack on Normal (lane/d-party-xp-cells,
+                                 Tyler 2026-11-11), then every cell x1150/1050 and SOLO_XP_PM 1050 -> 1150 (Tyler 2026-11-11: solo hunters +15%)
+     src/data/monsters.js        moves warrens-4, glade-4 and glade-1-kite: the rows regenerated from the sheet on the XP fits (the Glade 0.90, the Warrens 0.76,
+                                 the Cellar 1.28, balance-sheet.js GROUND_XP_FIT) and the Brook Bear as a heavy with most of an elite's purse (designer 2026-11-12)
+     src/data/hunt-grounds.js    moves glade-4 and glade-1-kite (kills 500 -> 504, 137 -> 128): the party's own Normal pull retired and the bear standing in
+                                 Vine Hollow as built (lane/c-brook-bear, Tyler 2026-11-11)
+     core-model.js (the re-fitted Level curve), scaled-hunts.js, balance-sheet.js, items.js, hunt-tiers.js, hunt-xp.js and the ground packs move no pin.
+   Every settle's hashes moved, the kills with them (warrens-4 221 as before). The baseline is --write on this tree. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

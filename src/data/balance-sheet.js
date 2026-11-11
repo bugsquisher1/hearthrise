@@ -229,7 +229,9 @@ const BASE_ROSTER = Object.freeze({
     glade_poacher: 'glass',   // "glass that hits like a cart"
     walking_vine: 'heavy',    // "the tank: slow and woody"
     goblin_sluicer: 'elite',  // the tier-3 body carrier
-    brook_bear: 'elite',      // "the Meadowbrook's bruiser"
+    brook_bear: 'heavy',      // "the Meadowbrook's bruiser": heavy, not elite (designer 2026-11-12, Tyler's open question 3 decided under the floor ruling: as an elite in Vine
+                              // Hollow it put a plate hero at the Glade's floor at -1 / 0 / +9 / +2% over its bill on four seeds against the +10% lone profit floor (forest-cave glade-between);
+                              // a heavy bear hits softer and dies sooner (hp 1.2 and blow 0.8 of a regular, def 3.0), so the hour spends less and kills more. One role word, the formula does the rest.
     rook_poacher: 'elite',    // "the poachers' chief", the rare carrier
   }),
   coppercap_warrens: Object.freeze({
@@ -273,7 +275,13 @@ export const GROUND_ROSTER = Object.freeze(foldRows('roster', BASE_ROSTER, GROUN
 export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.28, meadowbrook_thicket: 0.9, wickstead: 1.1, mosslight_glade: 0.90, millrace_sewer: 0.9, coppercap_warrens: 0.76 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));
 
 /* NAMED EXCEPTIONS: { monster: { field: 'the reason' } }, a field a row keeps by hand. Empty: none has earned one. */
-export const FORMULA_EXCEPTIONS = Object.freeze({});
+export const FORMULA_EXCEPTIONS = Object.freeze({
+  /* THE BROOK BEAR'S PURSE (designer 2026-11-12, Tyler's open question 3 decided under the +10% lone profit floor): as a heavy (roster above) it still hands
+     most of the elite's coin it carried before, [13, 40] against the formula's [11, 32]. With the role alone a plate hero at the Glade's floor read +9% over its
+     bill on one seed of six (forest-cave glade-between); the bear is the hour's one purse worth a stop, so its coin, not the whole ground's, carries the point. At
+     the elite's full [14, 44] the Glade's lone median netted 0.7% over the Warrens' fours (the grader's feel-gold-order: a higher floor nets more, Tyler 11-03). */
+  brook_bear: Object.freeze({ gp: "most of an elite's purse on a heavy: the Glade floor's +10% over its bill, under the Warrens' fours (designer 2026-11-12)" }),
+});
 
 /* combat.js monsterDamageScaleByTier, restated: the formula divides the blow by it (a test pins the two equal). */
 export const DAMAGE_SCALE_BY_TIER = Object.freeze({ 1: 5.4, 2: 5.4, 3: 4.0, 4: 4.0, 5: 3.0, 6: 2.2 });

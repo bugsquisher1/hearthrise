@@ -70,7 +70,10 @@ const TOTAL_RISE_MAX = 0.25;    // Tyler 2026-10-23: total value up to +25% over
    coin x1.4 pays the food Tyler's x1.2 bite costs, so its floor nets over the Sewer party: forest-cave glade-between), the Warrens 4588 -> 7424
    and alone at 45 5226 -> 8427 (its coin x0.53 of its HP is the least that keeps harder-pays-more, Tyler 11-03, at 41 and 45: at the old pins the
    Warrens paid under the Glade for the same hero). Every other pin stands and every ground still reads under its +25%. */
-const TOTAL_TODAY = Object.freeze({ mill_cellar: 1869, millrace_sewer: 3822, meadowbrook_thicket: 2285, coppercap_warrens: 7424, mosslight_glade: 5043,
+/* mosslight_glade RE-PINNED 2026-11-12 (lane/d-solo-fifteen; was 5043): the Brook Bear is a heavy with most of an elite's purse (balance-sheet.js roster and
+   FORMULA_EXCEPTIONS; designer under Tyler's +10% lone profit floor, his open question 3), so the Glade's value per hero-hour in the ladder kit read 6364, +26% on the old
+   pin, measured by this rule. A named rise, not a drift: the Warrens' fours still net more (the grader's feel-gold-order). */
+const TOTAL_TODAY = Object.freeze({ mill_cellar: 1869, millrace_sewer: 3822, meadowbrook_thicket: 2285, coppercap_warrens: 7424, mosslight_glade: 6364,
   /* a NEW ground has no pre-conversion value: its pin is its neighbours' by floor, the Thicket (L5) to the Glade (L16)
      interpolated at Wickstead's L8 (lane b-greenhaven-6, designer 2026-10-28): 2285 + (3834 - 2285) x 3/11 */
   wickstead: 2707 });

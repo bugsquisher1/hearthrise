@@ -1456,6 +1456,15 @@ jobs:
           node tests/boss-call-window.mjs
           node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate
 
+      # LIVE EVENTS IN THE GAME (lane/b-live-events-client): switched off is invisible; an event end to end (the plate, the Hunts
+      # lines, the ground's page, a FREE Call out sent at the quoted 0); the server's clock (soon, the last hour, a window closing).
+      # The server's half is tests/live-events.mjs, the section's shape tests/envelope-contract.mjs.
+      - name: Live events window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/live-events-window.mjs
+          node tools/mutant-gate.mjs node tests/live-events-window.mjs --mutate
+
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4

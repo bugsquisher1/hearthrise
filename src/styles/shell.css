@@ -44,6 +44,21 @@
 .hs-online { display: flex; align-items: center; gap: 6px; margin: 0; padding: 2px 8px; background: var(--hud-fill); font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
 .hs-online-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
 
+/* ── Live events (widgets/event-plate.js): the online count's plate, one a live event, a gold lozenge before it ── */
+.hs-widget.is-events.is-quiet { display: none; }
+.hs-events { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.hs-event { display: flex; align-items: center; gap: 8px; margin: 0; padding: 4px 10px 4px 8px; border: 0; background: var(--hud-fill);
+  font-family: var(--f-ui); font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums;
+  text-shadow: 0 1px 0 var(--world-shadow); cursor: pointer; }
+.hs-event::before { content: ''; flex: none; width: 6px; height: 6px; background: var(--gold); transform: rotate(45deg); }
+.hs-event b { font-weight: 700; color: var(--ink); }
+.hs-event.is-gain b { color: var(--green); }
+.hs-event.is-soon::before { background: var(--ink-3); }
+.hs-event.is-soon b { color: var(--ink-2); }
+.hs-event.is-ending .hs-event-when { color: var(--ink); font-weight: 700; }
+.hs-event:hover { color: var(--ink); }
+.hs-event:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+
 /* ── Tamsin's tally (widgets/tally-hud.js): each held kill task's server count on a notched stick ── */
 .hs-tally { display: flex; flex-direction: column; gap: 4px; max-height: var(--hs-room, none); padding: 4px 6px; background: var(--hud-fill);
   border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated; }

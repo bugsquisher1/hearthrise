@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-11",
- "replay_ms": 46222,
+ "replay_ms": 57329,
  "counts": {
   "tracked_names": 832,
   "entries": 684
@@ -1850,17 +1850,18 @@
    ],
    "touched_by": [
     "2027-03-12-boss-call.sql",
-    "2027-03-22-live-events.sql"
+    "2027-03-22-live-events.sql",
+    "2027-04-05-call-out-alone.sql"
    ],
    "live": {
-    "md5": "0ffb5feaddcdd7f1ea2a0f04854603ab",
-    "norm_len": 4194,
+    "md5": "3b34ae9f41620dbdf1b63880ca338c57",
+    "norm_len": 4902,
     "measured": "2026-11-11",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "0ffb5feaddcdd7f1ea2a0f04854603ab",
-    "norm_len": 4194,
+    "md5": "3b34ae9f41620dbdf1b63880ca338c57",
+    "norm_len": 4902,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1896,17 +1897,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-03-12-boss-call.sql"
+    "2027-03-12-boss-call.sql",
+    "2027-04-05-call-out-alone.sql"
    ],
    "live": {
-    "md5": "e93d7196db40c7bab081da4b95f29a96",
-    "norm_len": 970,
+    "md5": "f6bc9af9ded442afd0691def0d07b5c5",
+    "norm_len": 1301,
     "measured": "2026-11-11",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "e93d7196db40c7bab081da4b95f29a96",
-    "norm_len": 970,
+    "md5": "f6bc9af9ded442afd0691def0d07b5c5",
+    "norm_len": 1301,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1938,22 +1940,24 @@
    "sig": "hr_boss_call_quote(p_user uuid, p_slot integer, p_call text)",
    "name": "hr_boss_call_quote",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2027-03-12-boss-call.sql",
-    "2027-03-22-live-events.sql"
+    "2027-03-22-live-events.sql",
+    "2027-04-05-call-out-alone.sql"
    ],
    "live": {
-    "md5": "445a7b269f24fdedf1f3254fb62e148c",
-    "norm_len": 1723,
+    "md5": "28b7f404b00a0988902076c8e2dc3254",
+    "norm_len": 1864,
     "measured": "2026-11-11",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "445a7b269f24fdedf1f3254fb62e148c",
-    "norm_len": 1723,
+    "md5": "28b7f404b00a0988902076c8e2dc3254",
+    "norm_len": 1864,
     "source": "computed-from-replay"
    },
    "agree": true

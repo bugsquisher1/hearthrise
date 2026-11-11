@@ -20,6 +20,8 @@
 //   below      (optional) widget ids this one stacks under when it would overlap them (hud.js stackBelow)
 //   folded     (optional) the desktop's default fold: 'narrow' starts the widget folded on a screen narrower than
 //              --hud-fold-below (tokens.css), 'narrow-alone' only while the hero has no party too (hud.js FOLD_RULES)
+//   section    (optional) an envelope section behind a server switch: the widget's lines in HUD layout and in Settings are
+//              listed only while the server sends it (a feature switched off shows nothing, its settings included)
 //
 // The player's layout is a DISPLAY preference (residue `hudLayout`, CLAUDE.md §6).
 // The hunt widgets show only while the character's envelope carries a hunt.
@@ -50,6 +52,16 @@ export const HUD_WIDGETS = Object.freeze([
     id: 'online', label: 'Players online', layer: 'screen', anchor: 'bl', dx: 12, dy: 196,
     min: Object.freeze([96, 22]), opacity: 0.85, visible: true, removable: true, when: 'always',
     phone: Object.freeze({ visible: false, dx: 4, dy: 4 }),
+  }),
+  /* LIVE EVENTS (src/shell/widgets/event-plate.js; mocks 2026-11-10 SPEC §2): a plate an event on now or starting within a day,
+     at the World's top left, in town and in a hunt. In a hunt it STACKS under the Party panel that holds that corner (`below`).
+     With no event, or every server switch off, the whole box goes: it takes no room and never moves the camera. `section`: its
+     line in Settings, HUD layout, is listed only while the server sends `live_events` (switched off, nothing of it shows). */
+  Object.freeze({
+    id: 'events', label: 'Live events', layer: 'world', anchor: 'tl', dx: 4, dy: 12,
+    min: Object.freeze([120, 26]), opacity: 1, visible: true, removable: true, when: 'always',
+    below: Object.freeze(['party']), section: 'live_events',
+    phone: Object.freeze({ dx: 12, dy: 12 }),
   }),
   /* The hunt screen (HUNT_SCREEN_SPEC §1.4): built once, patched in place. */
   Object.freeze({

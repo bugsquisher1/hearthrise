@@ -411,12 +411,13 @@ async function pure() {
   if (cooks.join() !== 'cook_wolf_meat,cook_shrimp,cook_turnip,cook_wheat_bread,,') fails.push('AW-20 cookOf reads ' + cooks.join());
   if (lootToSell([{ id: 'raw_wolf_meat', qty: 4 }, { id: 'rat_tail', qty: 1 }]).join() !== 'rat_tail') fails.push('AW-20 Sell all loot would sell the raw meat');
   const meat = usesOf('raw_wolf_meat');
-  if (!meat.includes('Cook it into food (Cooking 5)')) fails.push('AW-20 the raw meat tooltip reads ' + JSON.stringify(meat));
+  /* Cook Wolf Meat opens at Cooking 1 (designer 2026-11-11, lane/d-small-calls), so the level refusal is probed on Raw Panther Meat (Cooking 25). */
+  if (!meat.includes('Cook it into food (Cooking 1)')) fails.push('AW-20 the raw meat tooltip reads ' + JSON.stringify(meat));
   const cs = (lv, inv, st) => ({ read: (k) => (k === 'skills' ? { cooking: { xp: 0, level: lv } } : k === 'inventory' ? inv : k === 'state' ? st || { active_kind: 'idle', active_id: null } : null) });
-  const wolf = buryRecipeOf('raw_wolf_meat');
-  const words = [buryBlock(cs(1, { raw_wolf_meat: 3 }), wolf), buryBlock(cs(5, { raw_wolf_meat: 3 }), wolf), buryBlock(cs(30, { wheat: 2 }), buryRecipeOf('wheat')),
+  const wolf = buryRecipeOf('raw_wolf_meat'), panther = buryRecipeOf('raw_panther_meat');
+  const words = [buryBlock(cs(1, { raw_panther_meat: 3 }), panther), buryBlock(cs(1, { raw_wolf_meat: 3 }), wolf), buryBlock(cs(30, { wheat: 2 }), buryRecipeOf('wheat')),
     buryBlock(cs(5, { raw_wolf_meat: 3 }, { active_kind: 'artisan', active_id: 'cook_shrimp' }), wolf), buryLabel(wolf, 3)];
-  if (words.join('|') !== 'You need Cooking 5 to cook Raw Wolf Meat. You have 1.||You need 3 Wheat for one. You have 2.|Already cooking. Stop it first.|Cook all') fails.push('AW-20 the bench says ' + JSON.stringify(words));
+  if (words.join('|') !== 'You need Cooking 25 to cook Raw Panther Meat. You have 1.||You need 3 Wheat for one. You have 2.|Already cooking. Stop it first.|Cook all') fails.push('AW-20 the bench says ' + JSON.stringify(words));
   /* AW-21 PURE: "Equip upgrades" by the core's numbers for the CURRENT style (src/shell/upgrade-plan.js). */
   const { upgradePlan, upgradeWords } = await imp('src/shell/upgrade-plan.js');
   const lv1 = { defense: { level: 1 }, melee: { level: 1 }, ranged: { level: 1 }, magic: { level: 1 } };
@@ -530,7 +531,7 @@ async function huntsPure(imp) {
   const { huntRows, fitWords, bestLine, bestWords, tierPull, tierWords, tierChoiceWords } = await imp('src/shell/hunt-list.js');
   const { setupsOf, beforeLines, freeHeroes } = await imp('src/shell/hunt-go.js');
   const STORE = FIXTURE.hunt_settings.store;
-  /* THE PULL EACH TIER BRINGS: Normal is the ground as it stands (as built alone, 0; a party's own pull), a harder tier its own row's number for the group's size, and a row of 0 the ground as it stands too. */
+  /* THE PULL EACH TIER BRINGS: Normal is the pack as built for EVERY group size (0; Tyler 2026-11-11 ONE PACK ON NORMAL, partyPull is gone), a harder tier its own row's number for the group's size, and a row of 0 the pack as built too. */
   const rowOf = (hunt) => huntRows().find((x) => x.hunt === hunt);
   const glade = rowOf('mosslight_glade'), thicketR = rowOf('meadowbrook_thicket');
   /* FIXED ROWS, NOT TODAY'S BALANCE (lane/b-tier-dials): the page's words and pulls are read off rows set here on the very rows the page reads
@@ -542,9 +543,9 @@ async function huntsPure(imp) {
     TV.GROUND_TIERS.mosslight_glade = { dangerous: tierRow('dangerous', [4, 5, 5, 6], 1200, 1000, 1100), deadly: tierRow('deadly', [8, 8, 8, 8], 1500, 1000, 1200) };
     TV.GROUND_TIERS.meadowbrook_thicket = { dangerous: tierRow('dangerous', [0, 0, 0, 0], 1500, 1000, 1050), deadly: tierRow('deadly', [0, 0, 0, 0], 3000, 1000, 1080) };
     if (tierPull(glade, 'normal', 1) !== 0) fails.push('AW-25 a lone hero moved off the room as built: ' + tierPull(glade, 'normal', 1));
-    if (tierPull(glade, 'normal', 2) !== 3 || tierPull(glade, 'normal', 4) !== 4) fails.push('AW-25 a party on Normal does not read its own pull: ' + tierPull(glade, 'normal', 2) + ' / ' + tierPull(glade, 'normal', 4));
+    if (tierPull(glade, 'normal', 2) !== 0 || tierPull(glade, 'normal', 4) !== 0) fails.push('AW-25 a party on Normal does not read the pack as built (Tyler 2026-11-11): ' + tierPull(glade, 'normal', 2) + ' / ' + tierPull(glade, 'normal', 4));
     if (tierPull(glade, 'dangerous', 1) !== 4 || tierPull(glade, 'dangerous', 4) !== 6 || tierPull(glade, 'deadly', 1) !== 8 || tierPull(glade, 'deadly', 4) !== 8) fails.push('AW-25 a harder tier does not read its row');
-    if (tierPull(thicketR, 'deadly', 1) !== 0 || tierPull(thicketR, 'deadly', 4) !== 6) fails.push('AW-25 a row with no more monsters does not read the ground as it stands: ' + tierPull(thicketR, 'deadly', 1) + ' / ' + tierPull(thicketR, 'deadly', 4));
+    if (tierPull(thicketR, 'deadly', 1) !== 0 || tierPull(thicketR, 'deadly', 4) !== 0) fails.push('AW-25 a row with no more monsters does not read the ground as it stands: ' + tierPull(thicketR, 'deadly', 1) + ' / ' + tierPull(thicketR, 'deadly', 4));
     if (tierWords(glade, 'normal', 1) !== '' || tierChoiceWords(glade, 'normal', 1) !== '') fails.push('AW-25 Normal says more than the ground\'s page: ' + tierWords(glade, 'normal', 1));
     /* THE PLAIN LINE (Tyler 2026-11-08: the old numbers note was 'way too exact'; hunt-tiers.js TIER_LINES): a tier that brings more monsters at once than
        this group's Normal reads its 'more' line, one that brings no more its 'same' line, each with the one death line and never a number. */
@@ -553,8 +554,8 @@ async function huntsPure(imp) {
     if (tierWords(glade, 'deadly', 1) !== W('deadly', 'more')) fails.push('AW-25 the Deadly note reads: ' + tierWords(glade, 'deadly', 1));
     if (tierChoiceWords(glade, 'dangerous', 4) !== 'Dangerous: more monsters at once, and they hit harder.') fails.push('AW-25 a four on a bigger pull reads: ' + tierChoiceWords(glade, 'dangerous', 4));
     if (tierChoiceWords(thicketR, 'deadly', 1) !== 'Deadly: the monsters hit much harder.' || tierWords(thicketR, 'dangerous', 4) !== W('dangerous', 'same')) fails.push('AW-25 a row with no more monsters reads: ' + tierChoiceWords(thicketR, 'deadly', 1) + ' / ' + tierWords(thicketR, 'dangerous', 4));
-    /* a pull no bigger than this group's Normal (a pair's 3 on the Glade) is no more monsters */
-    TV.GROUND_TIERS.mosslight_glade.dangerous = tierRow('dangerous', [4, 3, 3, 4], 1200, 1000, 1100);
+    /* a pull no bigger than this group's Normal (the pack as built, 0 for a pair too since Tyler 2026-11-11) is no more monsters */
+    TV.GROUND_TIERS.mosslight_glade.dangerous = tierRow('dangerous', [4, 0, 3, 4], 1200, 1000, 1100);
     if (tierWords(glade, 'dangerous', 2) !== W('dangerous', 'same') || tierWords(glade, 'dangerous', 1) !== W('dangerous', 'more')) fails.push('AW-25 the pull read against Normal: ' + tierWords(glade, 'dangerous', 2));
     /* every dial at a sheet's odd multiple still reads no number, on every tier and group size */
     TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 2261, 2847, 1400);
@@ -1049,9 +1050,12 @@ async function planRules(base) {
   /* AW-27 BEFORE YOU GO SAYS THE BLESSINGS (board 11-04: nothing said them before the risk), every number the server's */
   const blessed = (held, price) => say(sess({ blessings: { permille: [0, 250, 500, 750][held.length], free_until: 30, tiers: [1, 2, 3].map((tier) => ({ tier, permille: 250 * tier, price, held: held.includes(tier) })) } }));
   const noneFree = blessed([], 0), oneOn = blessed([1], 450), allOn = blessed([1, 2, 3], 450);
-  if (!noneFree.endsWith("Blessings: none on. A death takes less XP with them: free for now, in the Shop's Services tab.")) fails.push('AW-27 no Blessings, free, reads ' + JSON.stringify(noneFree));
-  if (!oneOn.endsWith("Blessings: 1 of 3 on. A death takes 25% less XP. More: the next is 450 gp, in the Shop's Services tab.")) fails.push('AW-27 one Blessing reads ' + JSON.stringify(oneOn));
-  if (!allOn.endsWith('Blessings: 3 of 3 on. A death takes 75% less XP.')) fails.push('AW-27 every Blessing reads ' + JSON.stringify(allOn));
+  if (!noneFree.endsWith("You have no Blessings on. They cut the XP you lose when you die, and they're free until Level 30. Get them in the Shop's Services tab.")) fails.push('AW-27 no Blessings, free, reads ' + JSON.stringify(noneFree));
+  if (!oneOn.endsWith("You have 1 of 3 Blessings on. You lose 25% less XP when you die. The next one costs 450 gp in the Shop's Services tab.")) fails.push('AW-27 one Blessing reads ' + JSON.stringify(oneOn));
+  if (!allOn.endsWith('You have all 3 Blessings on. You lose 75% less XP when you die.')) fails.push('AW-27 every Blessing reads ' + JSON.stringify(allOn));
+  const nonePaid = blessed([], 450), oneFree = blessed([1], 0);
+  if (!nonePaid.endsWith("You have no Blessings on. They cut the XP you lose when you die. The first one costs 450 gp in the Shop's Services tab.")) fails.push('AW-27 no Blessings, priced, reads ' + JSON.stringify(nonePaid));
+  if (!oneFree.endsWith("You have 1 of 3 Blessings on. You lose 25% less XP when you die. The rest are free until Level 30 in the Shop's Services tab.")) fails.push('AW-27 one Blessing, the rest free, reads ' + JSON.stringify(oneFree));
   /* AW-27 A MOVE THE WORN WEAPON CAN'T USE SPENDS NOTHING: a club hero is not warned about Flame Volley's runes (QA 2026-11-04) */
   const clubSay = say(sess({ hunt_settings: { preset: 0, presets: [], discipline: 'club', slots: [slot('ability', 'flame_volley', 0), slot('ability', 'power_strike', 0)], store: RUNES } }));
   if (/Flame Volley|Fire rune|^Runes:/.test(clubSay)) fails.push('AW-27 a club hero is told about another weapon\'s runes: ' + JSON.stringify(clubSay));
@@ -1223,6 +1227,14 @@ async function planRules(base) {
     const bane = plan({ weapon: 'practice_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
     if (ops2(bane) !== '{"weapon":"bramble_blade"}' || UP.upgradeWords(bane, 2, 3) !== 'Wear Bramble Blade (+2 Melee accuracy, +2 Melee damage, +40% damage to Plant monsters).') fails.push('AW-21 a sword hero with Bramble Blades at Level 16 reads ' + ops2(bane) + ' / ' + UP.upgradeWords(bane, 2, 3));
     if ('weapon' in plan({ weapon: 'bramble_blade' }, [['iron_sword']], lv1, 16).ops) fails.push('AW-21 Equip upgrades traded a worn bane away for plain numbers');
+    /* A WORN BANE AGAINST A PLAIN STRONGER BLADE IS SAID, NEVER SWAPPED (designer small call 2, 2026-11-11): the slot is a choice and the line says the trade in the
+       engine's numbers (Iron Sword +7/+6 over Bramble +6/+5, the bane's clamped +40%); a hand swap to the Iron Sword sticks, since the Bramble does not dominate it. */
+    const kept = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['iron_sword', 3]], lv1, 16);
+    if (ops2(kept) !== '{}' || JSON.stringify(kept.choices) !== '[{"slot":"weapon","ids":["iron_sword"],"keeps":"bramble_blade","lost":[{"cls":"plant","pct":40}]}]'
+      || UP.upgradeWords(kept) !== 'Nothing goes on by itself, since each piece is better at something. Iron Sword hits harder, Bramble Blade does +40% damage to Plant monsters. Pick on the doll.')
+      fails.push('AW-21 a worn Bramble Blade with Iron Swords in the bag reads ' + ops2(kept) + ' / ' + JSON.stringify(kept.choices) + ' / ' + UP.upgradeWords(kept));
+    const swapped = plan({ weapon: 'iron_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
+    if (ops2(swapped) !== '{}' || swapped.choices.length || UP.upgradeWords(swapped) !== '') fails.push('AW-21 a hand swap to the Iron Sword does not stick: ' + ops2(swapped) + ' / ' + JSON.stringify(swapped.choices));
     if ((await imp('src/shell/item-lore.js')).baneWords('bramble_blade').join() !== '+40% damage to Plant monsters') fails.push('AW-21 the Bramble Blade tooltip bane reads ' + (await imp('src/shell/item-lore.js')).baneWords('bramble_blade'));
     const steelOverIron = plan({ weapon: 'practice_sword' }, [['iron_sword'], ['steel_sword']], lv1, 30);
     if (ops2(steelOverIron) !== '{"weapon":"steel_sword"}') fails.push('AW-21 of two better swords it would put on ' + ops2(steelOverIron));
@@ -3949,7 +3961,8 @@ const MUTANTS = [
   ['plans: AW-21 the window never reads the role', 'src/shell/widgets/upgrade-line.js', "prefer: preferredWeight(t ? t.weight : null, eq, s ? s.role : null) });", "prefer: t ? t.weight : null });"],
   ['plans: Equip upgrades lets a set bonus hold a hero below the next tier', 'src/shell/upgrade-plan.js', '  const set = !fits.some((id) => tierStep(ITEMS[id], curIt));', '  const set = true;'],
   ['plans: AW-21 a bane is a reason to skip the blade again', 'src/shell/upgrade-plan.js', "it.effects.some((e) => e !== 'bane')", 'it.effects.length'],
-  ['plans: AW-21 a worn bane is traded for plain numbers', 'src/shell/upgrade-plan.js', '  for (const c of MONSTER_CLASSES) { if (a.banes[c] < b.banes[c] - EPS) return false; if (a.banes[c] > b.banes[c] + EPS) more = true; }\n', ''],
+  ['plans: AW-21 a worn bane is traded for plain numbers', 'src/shell/upgrade-plan.js', '  if (banes) for (const c of MONSTER_CLASSES) { if (a.banes[c] < b.banes[c] - EPS) return false; if (a.banes[c] > b.banes[c] + EPS) more = true; }\n', ''],
+  ['plans: AW-21 a worn bane keeps the blade in silence (designer small call 2, 2026-11-11)', 'src/shell/upgrade-plan.js', '  if (!front.length) return baneTrade(slot, cur, now, fits, worn, o, set);', '  if (!front.length) return null;'],
   ['plans: AW-25 the death line ignores the Blessings', 'src/shell/hunt-list.js', '  const cut = Number.isInteger(cutPermille) && cutPermille > 0 ?', '  const cut = false ?'],
   ['plans: AW-32 a plan that ran reads nothing set', 'src/shell/loot-dispatch.js', "Object.values(rules.loot).some((v) => MOVES.has(v)) ? t('shop.dispatch_all_moved')", "false ? t('shop.dispatch_all_moved')"],
   ['plans: AW-27 a shared cooldown reads as never firing', 'src/data/text/bar.js', "  shared_cooldown: 'Waits for {action} (slot {slot}) when both are ready.',", "  shared_cooldown: 'Shares a cooldown with {action} (slot {slot}), which fires first when both are ready.',"],

@@ -30,6 +30,213 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-11 Solo +15% (designer, lane/d-solo-fifteen on lane/d-party-xp-cells cd19212d5; **Tyler 2026-11-11: solo hunters get +15% Level XP, no cap on mixed-party XP on Dangerous and Deadly**): BUILT as data, MEASURED on the real settle, the edge moves (party-class-xp.js is engine data), no migration
+**The rule.** A hero hunting alone earns 15% more Level XP than the pack pays, on every ground and every tier (`SOLO_XP_PM` 1050 -> 1150, `src/data/party-class-xp.js`). It replaces the +5% from 11-09 and never stacks with it. No cap on a mixed party's XP on the harder tiers: nothing in the data capped it, so nothing changed there.
+
+**The reading I took.** The 15-25% a mixed four earns over a lone hero (10-25 §5) is measured against the lone hero AS PAID, boost included: that is what `balance-sheet.js party.fourVsSolo` says in its own words and what the grader binds. The party cells are the pack's pay in permille and the lone hero is the reference every party line is measured against, so every cell moved with it, x1150/1050 to the nearest 5 (the one-class cells too, so the same-weapon loss and the 10-31 line on the big-pull tiers read exactly what Tyler saw yesterday). Left alone, a mixed four would have read 1.04-1.15 of the +15% lone hero, under the band on every ground but the Sewer's floor.
+
+**The cells** (`BASE_CLASS_XP`, permille on the even share; columns are classes held)
+| Ground | Pair (1, 2) | Three (1, 2, 3) | Four (1, 2, 3, 4) | Four, was |
+|---|---|---|---|---|
+| Mill Cellar | 1255, 2540 | 1445, 3300, 3475 | 1955, 4375, 4445, 4890 | 1785, 3995, 4060, 4465 |
+| Meadowbrook Thicket | 1145, 2375 | 1110, 2750, 3055 | 1305, 3510, 3675, 3760 | 1190, 3205, 3355, 3435 |
+| Wickstead | 1070, 2420 | 1315, 2750, 3010 | 1460, 3835, 3965, 4070 | 1335, 3500, 3620, 3715 |
+| Mosslight Glade | 1085, 2035 | 1290, 2190, 2360 | 1270, 2690, 2895, 2955 | 1160, 2455, 2645, 2700 |
+| The Sewer | 1110, 1820 | 1265, 1980, 2070 | 1260, 1940, 2025, 2170 | 1150, 1770, 1850, 1980 |
+| Coppercap Warrens | 1085, 1500 | 1085, 1535, 1630 | 1060, 1490, 1565, 1690 | 970, 1360, 1430, 1545 |
+
+**Measured** (`tools/balance-sim/grade.mjs --mode quick --tiers normal`, the real settle, 1 seed x 1 h a cell, a head over the median lone way in the same kit, the +15% paid; before = yesterday's cells at +5%)
+| Ground | Four, floor / middle, before (+5%) | Four, after (+15%) | Pair, after (tank + healer) | Mixed vs the same heroes alone, floor (`party-class-xp-line --mixed`, 3 seeds): pair / three / four | One class on Normal, floor: pair / three / four |
+|---|---|---|---|---|---|
+| Mill Cellar | 1.20 / 1.19 | 1.20 / 1.20 | 1.13 / 1.13 | 1.22 / 1.20 / 1.28 | 0.58-0.61 / 0.44-0.50 / 0.44-0.50 (four shields 0.12) |
+| Meadowbrook Thicket | 1.23 / 1.20 | 1.21 / 1.19 | 1.09 / 1.10 | 1.44 / 1.51 / 1.44 | 0.64-0.74 / 0.46-0.55 / 0.41-0.55 |
+| Wickstead | 1.24 / 1.19 | 1.24 / 1.19 | 1.10 / 1.11 | 1.45 / 1.43 / 1.45 | 0.62-0.68 / 0.50-0.66 / 0.43-0.60 |
+| Mosslight Glade | 1.23 / 1.17 | 1.23 / 1.16 | 1.09 / 1.11 | 1.32 / 1.32 / 1.34 | 0.73-0.76 / 0.66-0.75 / 0.50-0.63 |
+| The Sewer | 1.26 / 1.14 | 1.26 / 1.14 | 1.09 / 1.10 | 1.41 / 1.50 / 1.43 | 0.78-0.94 / 0.74-0.94 / 0.64-0.89 |
+| Coppercap Warrens | 1.20 / 1.20 | 1.20 / 1.20 | 1.07 / 1.13 | 1.24 / 1.29 / 1.26 | 0.82-0.91 / 0.72-0.86 / 0.65-0.78 |
+Every reading Tyler ruled on yesterday holds to the point: the fours sit 1.16-1.24 on five grounds, the Sewer 1.26 / 1.14 as before (one cell can't hold both its Levels). The Party window's lines (`PARTY_VS_ALONE`) were re-read against the same heroes alone: every cell lands on its said number or one 5-step from it (the Cellar's four 28 against "25", the Glade's four 34 against "30", the Warrens' three 29 against "25", Wickstead's three 43 against "40"), so the window's words stand; no player text names the solo number.
+
+**Tyler's open question 2, same-weapon friends on Normal.** Unchanged by this lane on purpose: a one-class pair loses 6-42%, a three 6-56%, a four 11-59% against the same heroes alone (the Sewer and the Warrens lose least, the Cellar and Wickstead most). On the big-pull tiers (8 each) a one-class party reads 0.52-0.94 of its members alone at their better pull, under solo on every cell (`party-class-xp-line` green, 150 cells, bar 1.00). The two can't both hold with one cell a ground; a cell keyed by tier is the Systems change on the 11-11 Party XP cells row. Tyler's 11-02 "6-15%" would need that tier key, or a raised one-class cell that breaks 10-31 on Dangerous and Deadly: his call.
+
+**Tyler's open question 3, the Brook Bear and the +10% lone profit floor.** +15% Level XP doesn't touch it: the floor is gold over the bill. `forest-cave --only glade-between` still reads the plate hero at the Glade's floor at -1 / 0 / +9 / +2% over its bill on four of six seeds (exit 1, the same four seeds as yesterday). The Glade's XP leg is fine (62,750 Level XP an hour at L16, above the Sewer party's 42,422). The bear is a gold question (its kill is slow and pays little), still Tyler's or a Glade gold dial.
+
+**The dials, final** (grade quick Normal, the band middle, lone median vs the re-pinned contract 0.90-1.10; four = `four-xp` vs the +15% lone median, floor / middle). `src/data/monsters.js` is written from the sheet (`tools/gen-ground-stats.mjs --write`, `--check` holds it).
+| Ground | XP fit | Lone vs contract | Four vs lone | Verdict |
+|---|---|---|---|---|
+| Mill Cellar | 1.25 -> **1.28** | 0.895 -> **0.91** | 1.20 / 1.20 | green |
+| Meadowbrook Thicket | 0.9 | 1.00 | 1.22 / 1.19 | green |
+| Wickstead | 1.1 | 0.98 | 1.24 / 1.19 | green |
+| Mosslight Glade | 1 -> **0.90** | 1.12 -> **1.05** | 1.23 / 1.17 | green |
+| The Sewer | 0.9 | 1.05 | 1.26 / 1.14 | contract green; four-xp red (Tyler's table) |
+| Coppercap Warrens | 1 -> **0.76** | 1.27 -> **1.08** | 1.20 / 1.20 | green |
+
+**(History, ruled below.) Why the party grounds were not dialed at first.** The grader's `normal-xp-contract` reads a PARTY ground on the four a head, while the contract itself is fitted on LONE heroes (`pace.mjs`, the ladder plan) and a four is ruled to earn 1.15-1.25x a lone hero (10-25 §5). The two readings differ by the party bonus, so both can't sit in 0.90-1.10 of one contract; a party ground's four will always read about 1.2x a lone-fitted contract. Measured with the Sewer at 0.81 and the Warrens at 0.70: the grader's line held (1.07, 1.06) and (a) `hunt-tiers` ladder went red (the Glade's Deadly paid a lone tank at 32 more than the Warrens' Normal, 121k against 113k: nobody moves on), (b) `level-curve` C5 went red (the contract +21% over the measured ladder, 1471 x L^1.267), (c) `scaled-hunts` fee-guard went red (a scaled Thicket or Glade four at 41-50 out-earned the Warrens' four 1.19-1.41x, the best grind). All three read the lone way. **The question:** on a party ground, is the pace the lone hero's (then the grader's contract rule should read the lone median there, and the Sewer 1.04 / Warrens 1.27 are the numbers to judge) or the four's (then the contract must be fitted on fours for party grounds, a tools change, and scaled fours and the ladder follow)? Until ruled the Sewer and the Warrens stay as they are and the grader's two contract reds stand as a definition conflict, not a tuning miss.
+
+**RULED (Coordinator 2026-11-11, a measurement definition):** the pace contract is fitted on lone heroes, so `normal-xp-contract` reads the LONE median on every ground, party grounds included (`tools/balance-sim/grade.mjs`, binding on a party ground too; regression `lone-contract` in `tests/balance-grade.mjs`, both grader mutants exit 1).
+
+**The lever, built: a scaled hunt is never the best party grind (`src/data/scaled-hunts.js`, data; two engine lines carry it).** Two rules, both read from the scaled row through the engine's one door (`damage.js rowOf` -> `xp-share.js`), so the settle, the browser and the sim's what-if read the same:
+1. **A party on a scaled hunt keeps 70% of its ground's party cell** (`partyPm` 700; a hero alone keeps the whole +15%). The cells are fitted at a ground's floor so a mixed four earns 15-25% over a hero alone THERE; on the same ground scaled to 41-50 a four killed far faster for its share, and since the 11-11 cells (a four's cell about doubled) a scaled Thicket or Glade four read 0.96-0.99x the Warrens' four, a bought hour the best party grind. Purpose test: it keeps 10-25 §5 on scaled hunts (a scaled four still earns more than a scaled hero alone) and the "never the best grind" rule; it adds no decision and removes none.
+2. **A scaled kill pays XP on the TOP ground's fit** (`topGroundOf`, today the Warrens' 0.76), never the home ground's: the Cellar's 1.28 (the tutorial's slow room) carried to Level 50 paid a scaled hero alone 241k an hour against the Warrens' own 226k, and no `xpPm` held that under while the Glade scaled one Level past its band stayed worth buying (1.25x itself). One number for every scaled Level, so the server's kill bound never falls from a Level to the next (the catalogue's own self-check caught the first draft, which read the ground that owns each Level and fell 0.90 -> 0.76 at 32). `xpPm` 700 -> 820 with it.
+Measured (`tests/scaled-hunts` fee-guard, the real settle, a scaled hour against the right-Level ground): a scaled hero alone 0.52-0.76x the right-Level ground's lone hero (the Glade one Level past its band 1.29x itself, worth buying), a scaled four 0.49-0.90x the Warrens' four (the Thicket at 50 0.90, the Glade at 50 0.88), no deaths; before the lever 0.96-0.99x.
+
+**With the lever in, the Warrens re-dialed for its LONE hero: `GROUND_XP_FIT` 1 -> 0.76.** The Warrens is the measured ladder's last rung, so a cut there flattens the ladder and `LEVEL_PACE.contract` follows it (level-curve C5): 975 x L^1.421 -> 1378 x L^1.298 (the measured 1410 x L^1.291 at 0.76). x0.84 left its lone hero 1.12x the re-measured contract; x0.76 lands 1.08x. The flatter contract read the Cellar's lone median 0.895x at its middle, so the Cellar's fit went 1.25 -> 1.28 (two rows up by one XP; Level 5 still inside LEVEL_PACE.early). The curve was re-fitted whole on the re-pinned contract (`pace.mjs --fit`, minimax 2.8%), Levels 4-7 then eased by hand so each step stays under 2x the one before (C6 read 2.03-2.04x at the fit's exact 2.00).
+
+**The Level curve, as it stands.** Level 10 198,367 XP (was 182,805), 25 2,117,392 (1,981,795), 50 17,032,267 (16,018,945), 100 176,709,042 (223,842,745: the flatter contract past the ceiling); Levels 10, 25, 50 land in 6.1, 34.9, 172.6 h (targets 6, 36, 168; level-curve green, C5 green on the re-pinned contract). A live character's Level can fall by one on apply: the changelog says so (Tyler 11-09).
+
+**Server files (Lane C, staged, Coordinator applies):** `2027-04-08-solo-fifteen-scaled-hunts-catalogue.generated.sql` (new dated file: the Glade's 19 scaled kill bounds, down); `2027-04-07-brook-bear-hunt-sessions-catalogue.generated.sql` regenerated in place while staged (the Glade's 6 kill bounds, down); `2027-04-07-brook-bear-level-curve.generated.sql` regenerated in place while staged (the fitted curve). Notes in `tests/schema-apply-order.json`; the hr-accrue carrying monsters.js, party-class-xp.js and core-model.js follows the applies at once.
+
+**Still red, named:** grader `four-xp` Sewer 1.26 / 1.14 (one cell can't hold both Levels, since 11-11); grader `normal-xp-contract` Warrens lone 1.27 (the bind above; the Sewer reads 1.04 since the ruling); `hunt-tiers` ladder for a FOUR: the Glade's Deadly four 266k against the Warrens' Normal four 264k at 32 (since lane/d-party-xp-cells raised the Glade's four cells 1730 -> 2700 on 11-11; Tyler 11-11 "no cap on mixed-party XP on Dangerous and Deadly" against the ladder rule "nobody moves on": his word); `forest-cave` glade-between (gold: the plate hero at the Glade floor -1 / 0 / +9 / +2% over its bill, the bear; its coin-doubled mutant reads uncaught because the case already fails).
+
+### 2026-11-11 Party XP cells with one pack for every group (designer, lane/d-party-xp-cells on lane/c-brook-bear 559541a10; **Tyler 2026-11-11: "if they want bigger pulls they need to up the difficulty"**): BUILT as data, MEASURED on the real settle, the edge moves (party-class-xp.js is engine data), no migration
+**The rule.** A mixed party is paid for mixing with a bigger share of each kill, not with a bigger pull: the mixed cells are set so a mixed four earns 15-25% more Level XP a head than the median hero alone in the same kit on Normal (10-25 §5, kept), a pair about 10% and a three about 15%. A one-class party keeps its old cells and loses 25-60% on Normal, because the same cells already sit at 0.81-0.96 of solo on the big-pull tiers and 10-31 holds there too. This replaces my earlier (b)+(a), which leaned on the party pull Tyler retired.
+
+**Why not "a party pays with safety and speed, not XP".** On the four solo grounds a mixed four killed 547-743 an hour against the best lone way's 517-560 (grade quick, Normal, the floor): the packs are built for one, so four heroes walk the same route at nearly the same pace and split it four ways. Speed isn't there to pay with. Tyler's 11-08 "Same monsters, re-tune" already named the lever: a bigger mixed-party XP bonus, Tibia style.
+
+**The cells** (`src/data/party-class-xp.js` BASE_CLASS_XP, permille on the even share; columns are classes held, one-class cells unchanged)
+| Ground | Pair (1, 2) | Three (1, 2, 3) | Four (1, 2, 3, 4) | Four, was |
+|---|---|---|---|---|
+| Mill Cellar | 1145, **2320** | 1320, **3015, 3175** | 1785, **3995, 4060, 4465** | 2380 |
+| Meadowbrook Thicket | 1045, **2170** | 1015, **2510, 2790** | 1190, **3205, 3355, 3435** | 1860 |
+| Wickstead | 975, **2210** | 1200, **2510, 2750** | 1335, **3500, 3620, 3715** | 1910 |
+| Mosslight Glade | 990, **1860** | 1180, **2000, 2155** | 1160, **2455, 2645, 2700** | 1730 |
+| The Sewer | 1015, 1660 | 1155, **1810, 1890** | 1150, **1770, 1850, 1980** | 1860 |
+| Coppercap Warrens | 990, **1370** | 990, **1400, 1490** | 970, **1360, 1430, 1545** | 1475 |
+A four's cell of 3435 pays each of four heroes 0.86 of a whole kill; alone a hero earns 1.05 (SOLO_XP_PM). The total XP a kill makes is a party's reward for bringing four.
+
+**Measured** (`tools/balance-sim/grade.mjs --mode quick --tiers normal`, the real settle, a head over the median lone way in the ladder kit; before = the lane's tree, after = these cells)
+| Ground | Four, floor / middle, before | Four, after | Pair, after (tank + healer) | Three vs median (`party-class-xp-line --mixed`, floor) |
+|---|---|---|---|---|
+| Mill Cellar | 0.63 / 0.62 | **1.20 / 1.19** | 1.13 / 1.12 | 1.13 / 1.12 |
+| Meadowbrook Thicket | 0.66 / 0.64 | **1.23 / 1.20** | 1.09 / 1.11 | 1.17 / 1.21 |
+| Wickstead | 0.63 / 0.60 | **1.24 / 1.19** | 1.10 / 1.10 | 1.13 / 1.18 |
+| Mosslight Glade | 0.79 / 0.75 | **1.23 / 1.17** | 1.09 / 1.11 | 1.12 / 1.18 |
+| The Sewer | 1.18 / 1.07 | **1.26 / 1.14** | 1.09 / 1.10 | 1.15 / 1.16 |
+| Coppercap Warrens | 1.15 / 1.15 | **1.20 / 1.20** | 1.07 / 1.14 | 1.11 / 1.23 |
+**The Sewer can't hold the band at both Levels with one cell:** 1.26 at 8 and 1.14 at 17 (its spread is 10.4%, the band is 8.7% wide). 1980 sits between, each end under a point out. One seed, one hour a cell: the full grade's dice may land it.
+
+**The harder tiers** (grade quick, after): the Thicket's Dangerous and Deadly four 1.18-1.22 (no bigger pull under Level 16, the floor-16 rule). **The Glade's Dangerous four 1.54-1.56 and Deadly 1.89-2.38 of a hero alone** (lone heroes died 40-120 times a cell on Deadly in range). That's Tyler's 11-11 sentence played out: bigger pulls are a party's reward on the harder tiers, on top of a Normal that holds the band.
+
+**The Party window, rewritten to the truth in Tyler's voice** (`src/data/text/party.js`, read by `party-roster.js`; the numbers are PARTY_VS_ALONE, re-measured against the same heroes alone, the way the window speaks):
+- A mix: "Your party has 4 of 4 classes. Each of you gets about 45% more Level XP than hunting alone in Meadowbrook Thicket."
+- One class: "Your party has 1 of 4 classes. Each of you gets about 55% less Level XP than hunting alone in Meadowbrook Thicket. Mix Melee, Ranger, Mage and Healer to get more."
+The old line said "+35%" with a colon join for a party that measured -26%. The mix reads higher here than in the table above because a tank and a healer are the slowest heroes alone.
+
+**The four reds**
+| Red | Verdict | Now |
+|---|---|---|
+| grader four-xp, 24 of 24 on Normal | Real, fixed by the cells. One grader bug fixed with it: `xpVsSolo` compared a ladder-kit four with a median that included the practice-kit fresh heroes, unlike every sibling metric and against 10-25 §5 "same gear quality". Regression `same-kit` in `tests/balance-grade.mjs` (fails without the fix, read) | 10 of 12 green in quick; the Sewer's two stay red by a point (above) |
+| first-week-bands vs-alone (+35% said, -26% measured) | Re-pinned: PARTY_VS_ALONE and ONE_ROLE_VS_ALONE re-measured; its two mutants re-aimed at the new Thicket row | green, 2 of 2 mutants caught |
+| party-class-xp-line --mutate 4 of 9 | Re-pinned: five mutants were sized for the old cells (a one-class pair at 1300 now reads 0.85). Each now pays a one-class party the NEW mix cell, and the engine slip is x3 (x1.5 reads 0.62) | 9 of 9 caught; the guard green (150 cells) |
+| forest-cave glade-between (plate hero at 16: -1/0/+9/+2%) | **Real failure, not a party question.** A lone hero's profit with the bear standing in Vine Hollow. Party cells move no gold | still red |
+Also red and not new: the grader's `normal-xp-contract` on the Warrens (a party ground's four per head 1.33 of the pace contract before, 1.39 after the +5% to hold its four).
+
+**Exploit and economy.** Level XP only, no gold or loot moves. A four of one account's own heroes earns what a four of friends earns, as before 11-11, when the party pull held the same band. No new path: the per-head band is the one the pull held.
+
+**Tyler's to answer.**
+1. The Glade's Dangerous party at 1.55x and Deadly at 1.9-2.4x a hero alone. Keep it (bigger pulls are the party's reward, his 11-11 words), or cap it with a cell keyed by tier (a Systems change: the reader takes the tier)?
+2. Same-weapon friends now lose 25-60% on Normal, not his 11-02 "about 6-15%". Holding both that and "never over solo" on the big-pull tiers needs the same tier-keyed cell. Until then the Party window says it and points at mixing.
+3. forest-cave: the bear's coin or bite, its pocket, or the +10% floor.
+
+**Verified, assumed.** Verified: every number above is a guard's or the grader's output on this tree, one seed and one hour a quick cell. Not measured: the tank + hammer + bow + mage four (the full grade plays it; its 3-class cell is scaled with the 4-class), the full grade's six seeds, the Sewer and Warrens harder tiers, a pace re-measure with parties.
+
+### 2026-11-10 Rulings (designer, lane/d-rulings-2026-11-10): seven RULED. Two built here (the pack check's weight-class row, the Blessings line). The rest are SPECIFIED for the lane that owns the file. Nothing measured on the engine today, so every number below is read from data or from another lane's measurement, named
+
+| # | Ruling | State |
+|---|---|---|
+| 1 | Under your weight class you lose gold. Nobody is required to die. The row that asked a pair to die is retired and deaths are read on heroes alone | BUILT in the grader's sheet, with its test |
+| 2 | A hero alone can call out the Rat King. He gets a warning, not a refusal | SPECIFIED, a server change |
+| 3 | The Brook Bear is gated by party size on Normal. That breaks one difficulty. The page line is true today and stays until the gate goes | FLAGGED with the rows, fix SPECIFIED, needs measuring |
+| 4 | The Blessings line is rewritten. Data and player text say 25 / 50 / 75 | BUILT |
+| 5 | `vitals` is right. `refHp` reads one Level high. It is fixed the next time the monster rows are regenerated, not on its own | SPECIFIED |
+| 6 | Tier 7 leather is Slakehide and tier 7 cloth is Shroudweave. The Hall Key trades | SPECIFIED (names, ids), RULED (key) |
+| 7 | Two notes for the art director's 11-12 read | NOTED |
+
+**1. The weight-class row.** The red row is `wc-deadly-under-dies` in `tools/balance-sim/grade-sheet.mjs` (`sheetFromBalanceSheet`, the sheet `pack check` reads). It asked every pair 2-3 under on Deadly, and 5 under on Dangerous or Deadly, for a death in the sample. Quick mode plays one pair, a tank and a Healer, for one hour on one seed. That is the pair built not to die. On Muster Barrows it lost 19.4k g an hour a head and held (lane/b-muster-barrows 5c3b00d0a).
+
+Tyler's words (11-06) are "you're gonna waste money but get more exp and possibly die a few times". Wasting money is the promise. Dying is "possibly". And one difficulty (11-08) says no line asks a group size to fare a set way. So the row over-read him, and it is the check's own fault, not four grounds'.
+
+The contract now:
+- **Binding, unchanged:** `wc-deadly-under-loses`. The same pairs, the same tiers and offsets, net a head at or under 0. The four red cells pass it. This is the row that carries the retired row's intent.
+- **Retired:** `wc-deadly-under-dies`.
+- **New report line, never red:** `{ id: 'wc-under-lone-dies', tiers: ['dangerous', 'deadly'], offsets: ['under5'], sizes: [1], aggregate: 'heldCount', max: 4, binding: false }`. Alone and five under on a harder tier, at most 4 of 8 ways to fight get through the sample with no death. Lone heroes are who dies on the harder tiers (lane/d-spell-tuning: fours hold Dangerous and Deadly at the floor with spells on and no resistance, lone heroes don't). If a change makes the tiers toothless, this line ranks it in the grade without blocking a ground. It is advisory because nothing has measured it at five under yet.
+
+**The proof it bites** (`tests/balance-grade.mjs`, the weight-class block, on the real `BALANCE_SHEET`): the red cell (a pair five under on Dangerous, losing gold, no death) is not a FAIL. That check was red before the sheet moved and names `wc-deadly-under-dies`. The mutant, the same pair earning a profit, FAILS `wc-deadly-under-loses`. Every lone way holding reads OFF on the new line and never FAIL. No binding line asks a group to die.
+
+When the spell dial (`spellPm`) and the linings land, deaths on a four become real on Deadly. The contract doesn't change. Gold stays the binding line.
+
+Owed, not built here: `src/data/balance-sheet.js:68-69` still says "the median cell dies" and carries `deathsMin`. `tools/balance-sim/sheet-check.mjs:118,121` and `tools/balance-lab/targets.mjs:107` still show deaths as pass or fail. They follow this ruling (deaths shown, never failed) in the next lane that moves the edge, because `balance-sheet.js` rides the edge bundle and the lab needs a rebuild. The four ground lanes re-run `pack check` after merging this. Not run here.
+
+**2. Call out.** The lock goes. Tyler 11-04: "big risks should include warnings but should allow the player to take them". Tyler 11-08: the Rat King "is a warning not a gate", and "Either they are strong enough to do the harder content or they aren't". He asked for this sink as a boss called "at the player's own risk". Krell's Hall already says a lone hero may enter. A called room pays no XP, no coin and no drops, so a lone call can only cost gold. There is nothing to exploit.
+
+Spec for the server lane (lane C, on the pre-EA Security list with the rest of the call):
+- `hr_boss_call_quote` (latest body `2027-03-22-live-events.sql:227`) stops answering `call_party`. A hero in no party is quoted and calls alone. `hr_boss_call` opens the room for one seat.
+- `hr_boss_calls.party_min` and `BOSS_CALL_RULES.partyMin` go (`tools/gen-hunt-sessions.mjs:683, 1113, 1213`, and the mutant at `:1419`).
+- `call_party` leaves `src/data/boss-calls.js:81` and `src/data/refusal-words.js:320`.
+- The fee is the same alone. Three calls a day stays. Only a party's leader calls stays.
+- The Call out warning gets one more line when the caller is alone: "{Boss} is built for a party. Alone, you still fight him, and he can kill you."
+- Tests: `boss-call-db` BD-WORDS flips (a hero alone is quoted) and its mutant `:374` becomes "a lone call is refused". `boss-call-window :94, :162, :176`. A lone called fight on both paths, viewed and with the browser closed. `tests/boss-call.mjs` (the room pays nothing) is not touched.
+
+**3. The Brook Bear.** The line is true. `mosslight_glade` has `partyPull: [0, 3, 3, 4]` (`src/data/hunt-grounds.js:301`) and the bear is the third row of the Mosslight Springs and Vine Hollow (`:292`, `:296`). Read with `densityFor` and `pullRows`: alone on Normal the pull is the room as built and has no bear. A party of two, three or four pulls 3, 3 or 4 and meets it. Dangerous (5) and Deadly (8) bring it to anyone.
+
+So on Normal the monsters do change with group size. That is a one-difficulty violation, and it is not only the Glade: the Cellar `[0, 4, 5, 5]` (`:179`), the Thicket `[0, 4, 5, 6]` (`:223`) and Wickstead `[0, 3, 3, 4]` (`:336`) carry the same field. The Glade is the only one where it hides a creature, and that creature carries a House material (Bear Pelt: the Keep, the Trophy Room, the Houndskin Cloak).
+
+Ruling: `partyPull` goes, Normal is the room as built for every group, and the bear stands in Vine Hollow's as-built rows so everyone meets it. A party earning more than a hero alone is held by the mixed-party XP cells, the lever Tyler picked on 11-08. The 11-08 section kept `partyPull` on purpose (a mixed four earned 0.40-0.63 of a lone hero without it). That number is from before the re-tune and has to be measured again first: the grade on the four grounds one at a time, `party-class-xp-line`, `level-curve` (a lone hero's Glade changes). If the XP cells can't hold Tyler's 115-125 for a four without it, that is an open conflict for Tyler, not mine to settle. It moves the world shape, so it is a server catalogue and an edge move. The page line needs no edit: it is built from the data and goes quiet when the bear stands as built.
+
+**4. Blessings.** The line is now seven rows in `src/data/text/prep.js`, picked by `blessingWords` in `src/shell/hunt-go.js`:
+
+| When | The line |
+|---|---|
+| None on, free | You have no Blessings on. They cut the XP you lose when you die, and they're free until Level 30. Get them in the Shop's Services tab. |
+| None on, priced | You have no Blessings on. They cut the XP you lose when you die. The first one costs 110 gp in the Shop's Services tab. |
+| Some on, priced | You have 1 of 3 Blessings on. You lose 25% less XP when you die. The next one costs 450 gp in the Shop's Services tab. |
+| Some on, free | You have 1 of 3 Blessings on. You lose 25% less XP when you die. The rest are free until Level 30 in the Shop's Services tab. |
+| All on | You have all 3 Blessings on. You lose 75% less XP when you die. |
+
+"Free for now" was true but vague. Blessings are free under Level 30 (Tyler 10-18, `BLESSING_RULES.freeUntilLevel`), the server sends that Level, and the death popup and the tutorial already name it. So this line names it too. Two more rows cover a server that hasn't said the price yet.
+
+25 / 50 / 75, checked: `BLESSING_CUT_PERMILLE = [250, 500, 750]` (`src/data/blessings.js:53`), and every player line reads the server's `permille`. No player text in `src/` says 32, 63 or 95. **CLAUDE.md §6 still says "32 / 63 / 95%"**. Not edited here. The Coordinator owns that file.
+
+**5. `refHp`.** A Level L hero has 150 + 10 x (L - 1) HP (`src/core/vitals.js:61`, and the start kit pins Level 1 at 150). `STAT_FORMULA.refHp` (`src/data/balance-sheet.js:110`) says 150 + 10 x L, a hero one Level up. `vitals` is right, because it is what every hero has. The formula's "share of a same-Level hero" is high by 10 HP: about 5% at Level 5, 1.5% at Level 50, under 1% at 100.
+
+It is not a one-line fix. `refHp` feeds every formula-written monster's `atk` and `baseAcc` and every tier's `dmgPm` (`:296-302`, `:391`). The gap is 0.2 to 0.5 of an attack point a row (arithmetic, not a run), so some rows flip by one and shipped numbers move. Every row was fitted and measured with today's `refHp`, so the game as played is right and only the sentence is wrong. Spec for lane/b-formula-home: `refHp: (L) => VITALS.hpBase + VITALS.hpPerLevel * (L - 1)`, in the same commit that next regenerates the monster rows (the `spellPm` dial or the next ground batch), with `gen-ground-stats`, `gen-ground-tiers` and the hunt-sessions catalogue regenerated and the grade re-read. Until then the wiki must not print "same-Level hero" from this line.
+
+**6. Krell's Hold.**
+
+Names. Both come from the Barrow March, because the first tier 7 pieces come out of Krell's hall and he took everything the March made. The earlier offer, Duskhide and Dawnweave, is two mood words glued to a noun, the shape Tyler called AI on 10-25.
+
+| Id today | Name today | New name | Root |
+|---|---|---|---|
+| `voidhide_*` (6) | Voidhide | **Slakehide** Coif, Body, Chaps, Boots, Vambraces, Belt | Hide cured green in the Slake's copper water. Slaking is also a real step in tanning |
+| `voidweave_*` (6) | Voidweave | **Shroudweave** Hat, Robe Top, Robe Bottom, Slippers, Gloves, Sash | Woven from the Pyre Field's shrouds, the ones that wouldn't burn (the Shroud Rows) |
+
+Id plan. No id moves in this lane. The ids are `hr_items` rows and the names sit in the same generated catalogue. Both move together in the Hold's item batch (lane C), in one items catalogue and one hunt-sessions catalogue: `voidhide_*` to `slakehide_*`, `voidweave_*` to `shroudweave_*`, and any recipe id built from them. No ground drops tier 7 today, and there is no back-compat rule to keep the old ids. The Coordinator reads the live bags first. If a hero holds one, the changelog says so.
+
+Files that name them: `src/data/gear-tiers.js:202-203, 214-215` (the names and ids are generated from these two lines). `src/data/item-descriptions.js:452-457, 459-464` (twelve lines to rewrite, they say "void-dark" and "unraveling dark"). `src/data/item-art.js:132-135`. `src/data/catalogue-coherence.js:152-155`. Twelve icons under `assets/icons-bundle/` (`voidhide_*.png`, `voidweave_*.png`). `tools/lib/art-palette.mjs:227`, `tools/art-wave2-select.mjs:54`, `tools/art-wave2-map.mjs:28`. `tests/recipe-yield-guard.mjs:45` (a comment). `docs/design/item-art-prompts.md`, `docs/design/item-session-pack.txt`. 71 generated migrations name them too. Those are history and are never edited. Not part of this: the old roster's other Void rows (`void_chitin`, `void_core`, `void_essence`, `void_banquet`, `void_censer`, `voidmaw_scepter`, `voidwoven_sigil`, `voidheart_robe`). No open ground reaches them. They are renamed or cut when their area is reworked.
+
+The Hall Key trades. Reasons:
+- Tyler's money model (11-10) puts value in what players sell each other. Crowns become gold on the market, and gold buys what other players hunted. A key is exactly that kind of good.
+- A bought key is not a bought drop. It is one try at a fight you can lose, and the key is used up either way. Somebody still spent about two hours on the Keep Stair for it, so the supply is hunting hours and the price is the players'.
+- His avoid list (11-04) is about the game selling rare drops for gold. Here the game sells nothing and no gold is minted.
+- It gives the Hold's lone hunters something to sell, on a ground designed to lose to the Pyre Field on a lone hero's gold. And it gives a boss party a reason to buy.
+- No gear binds in this game (10-23), and keys stay items (10-14).
+
+This overrules the Hold section's default of no. Rails for the server lane: one key opens the hall for the whole party and it is the leader's. The key is taken on entry by the server and journalled. It moves only through Storage and trade. The keyed room and the key go on the pre-EA Security list together. Tyler may overrule, since it sits next to his money model.
+
+**7. For the art director, 11-12.**
+- Maple is red on `maple_bow`, `maple_staff` and the new `maple_crossbow`, and orange on `maple_plank`. One wood, one color.
+- Spring Tide and Undertow are both blue curls on a Healer's bar. One heals the party and one hits a monster, and they can't be told apart at a glance.
+
+**Checks, one at a time, exit codes read.** Exit 0: `tests/balance-grade.mjs` (exit 1 before the sheet moved, on the new check), `tests/text-home.mjs` (ceiling lowered, `hunt-go.js` 50 to 42), `tests/copy-lint.mjs`, `tests/alpha-windows.mjs --pure` (AW-27 pins moved, two added), `tools/typecheck.mjs`. Not run: `pack check` on the four staged grounds, the alpha-windows mutants, any browser. The new Blessings line has not been read on screen.
+### 2026-11-11 Small calls (designer, lane/d-small-calls): two data rows CHANGED, two rules, touched guards green, ONE regenerated items-catalogue migration still to make and apply before either row is live
+
+**1. Cook Wolf Meat opens at Cooking 1 (was 5).** `src/data/recipes.js` cook_wolf_meat req 5 to 1. The numbers. Cooking 5 needs 388 XP and Cook Shrimp pays 11.7 paced XP a cook, so 34 shrimp, and the kit holds 10 raw, which is Cooking 2. The Thicket drops about 125 meat an hour (1,100 in 8.8 h, the 11-11 re-read). Cooked Wolf Meat heals 72, book and shop bid 12, under the store's Salted Shrimp at 14 g for the same 72 HP, the rule the cooked fish follow (craft-wages W-ROOM). Raw bids 1 (a fifth of 5), so cooking adds 11 g a meat, at most about 1,375 g/h on a 2,614 g/h ground if a hero sold every one, bounded by the hunt, and it was the same at Cooking 5 (two minutes of shrimp), so the move opens no new faucet. Guards, exit codes seen. catalogue-coherence 0 before and after. hunt-core/drop-tables 0 before and after (no band reads a recipe's level, and the profit-floor is a minimum that cooking only raises). craft-wages 0 (a hunted input is out of the wage by design). alpha-windows --pure 0 after its two AW-20 pins moved to the new truth (the tooltip reads "Cook it into food (Cooking 1)", the level refusal is now probed on Raw Panther Meat at Cooking 25 so the sentence stays covered). **The server half:** hr_activities artisan:cook_wolf_meat req_lv is 5 at the chain's end, so the bench refuses the cook until a regenerated items-catalogue migration applies (catalogue-literal-drift and gen-catalogues --check both name it). Not changed on purpose. The "Cook your catch" coach still points at Cook Shrimp, which is right where it fires, with the kit's shrimp and before the Thicket.
+
+**2. Rule: a worn bane stays on, and the press says why.** Equip upgrades exists so a player never opens four menus a piece, and its contract is nothing lower and something higher. A plain stronger blade against a worn bane is a real trade (Iron Sword +7/+6 everywhere, Bramble Blade +6/+5 and +40% on plant monsters, the Walking Vine and the Mandrake), and where the hero hunts next decides it, so it is the player's call and the planner never swaps or asks. Today `src/shell/upgrade-plan.js` already keeps the bane (losing one blocks the pick) but says nothing, since the slot returns null instead of a choice. **Lane A, one paragraph.** In `bestFor`, when a same-hands weapon in the bag beats the worn one on every DIMS number and loses only on a bane, return it as a `choice` beside the worn one, so `src/shell/widgets/upgrade-line.js` and the Shop's `shop.upgrade_tie` line read "Nothing goes on by itself, since each piece is better at something. Iron Sword hits harder, Bramble Blade does +40% damage to plant monsters. Pick on the doll." (reuse `item.bane_more`), with one AW-21 pure case in tests/alpha-windows.mjs that fails without it. A swap by hand sticks, because the Bramble Blade does not dominate the Iron Sword, so the next press leaves it. No dialog, no per-hero preference, nothing server-side.
+
+**3. Names.** Gray Wolf Pup, confirmed. The family reads Gray Wolf Pup, Gray Wolf, Briarcoat Wolf, Dire Gray, Old Grayjaw. Wolf Cub (small_wolf) belongs to Bramble Edge, a hunt row with no ground row, so it is not on the Hunts page and no player sees the two side by side (the "Wolf Pup" companion row is not in the shell either). It gets renamed or cut the day Bramble Edge gets a ground or is cut. Pup Milk Tooth, confirmed. The ground's imbuement rows read creature then part (Brook Bear Tooth, Orchard Boar Tusk, Grayjaw Whisker). Jarl's Rime Necklace becomes **Jarl's Collar**. Rime is a word most players read as a typo, and the item text already says what it is, a frozen iron neck ring the Frost Jarl wore. The five champion pieces now read possessive and one plain noun (Charm, Band, Drops, Mantle, Collar). Changed in `src/data/champions.js` only, the id jarls_rimetorc stays. copy-lint 0, text-home 0, catalogue-coherence 0, items-catalogue 0. It needs the same regenerated items-catalogue file as #1 (hr_items name), NOT generated in this lane. The 2026-11-04 jewelry table below still says Rimetorc, which is history.
+
+**4. Sort picks stay per hero.** `stationSort` sits in the per-character residue beside bagView, storeView and marketView, and the client holds no account-level state (Tyler 2026-10-17). A player with four heroes picks a station's sort up to four times, which the first principle flags, so when an account-level preference home exists, all four views move to it together as one class, never one at a time.
+
 ### 2026-11-10 The first ten minutes (designer, lane/d-first-ten-minutes; Tyler 2026-11-10 approved "one-sentence hook on the first ten minutes + Steam page"): PLAYED on the local world at v0.2.114, three text lines CHANGED, the rest is a build list. Nothing else built
 
 **Method.** The real `play.html` on `tools/qa/local-world.mjs serve`, a brand-new account from the sign-in screen, one sword and shield hero (Odalys), 30 minutes by hand in real time in the browser pane (1355x846), then the page closed and `wait 480 --away`, then back. Session minutes count from the sign-in screen. A second measure ran on a separate headless world: three fresh heroes who took Tamsin's rats at Level 1 before their first hunt, read once a minute for 12 minutes of skipped time. Shots: `art/review/first-ten-minutes-2026-11-10/` (22, untracked). **Not played:** a phone, a death, sound, the email link a live sign-up needs, and other players. The local world held one account, so everything below about other people is what an empty server shows, which is also what live shows most hours today.

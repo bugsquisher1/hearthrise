@@ -39,8 +39,8 @@
 // A SPELL ROW THAT WAITS: the Bargeman's Cold Bilge (whole group, frost; the area spells board's seed row). Monster area spells
 // are not live, so this pack is tuned without it. When lane/b-area-set lands, the Bargeman's row and the harder tiers here are
 // measured again.
-import { definePack, box, gather } from '../shape.js?v=0.2.116';
-import map from './map.js?v=0.2.116';
+import { definePack, box, gather } from '../shape.js?v=0.2.117';
+import map from './map.js?v=0.2.117';
 
 const PK = 'greened_pikeman', BG = 'bargeman', ML = 'mudlark', CS = 'color_sergeant';
 

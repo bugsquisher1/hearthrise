@@ -9,9 +9,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 /* pack imports (tools/pack.mjs index) */
-import pack_hasks_ford from './hasks_ford/pack.js?v=0.2.116';
-import pack_pyre_field from './pyre_field/pack.js?v=0.2.116';
-import pack_the_slake from './the_slake/pack.js?v=0.2.116';
+import pack_hasks_ford from './hasks_ford/pack.js?v=0.2.117';
+import pack_pyre_field from './pyre_field/pack.js?v=0.2.117';
+import pack_the_slake from './the_slake/pack.js?v=0.2.117';
 
 export const GROUND_PACKS = Object.freeze([
   /* pack rows (tools/pack.mjs index) */

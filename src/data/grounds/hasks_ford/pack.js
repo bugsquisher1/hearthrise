@@ -46,7 +46,7 @@
 // IT OPENS WITH THE SLAKE (lane/b-slake-and-ford, systems, 2026-11-10; graded as it ships, its own drops on the gear ladder). The
 // tier-4 weapons are the Slake's, so opened alone a sword alone at 45 swings its tier-3 sword and nets +5% over its store bill
 // (`node tools/pack.mjs check hasks_ford --mode full`, 6 seeds x 4 h), where the rule is +25% for every way. With the Slake's
-// mithril sword gettable it nets +45% (the same check `--with the_slake`). Every other way and every party passes either way.
+// mithril sword gettable it nets +45%, and that full grade passes every row (`--with the_slake`, exit 0, 66 rows).
 import { definePack, box, gather } from '../shape.js?v=0.2.116';
 import map from './map.js?v=0.2.116';
 
@@ -179,11 +179,11 @@ export default definePack({
      the Slake (its weapons on the ladder, the faster party kills) 1.18-1.20 and 1.22-1.24. Pairs 1.01-1.12 alone, 1.06-1.16 with it. */
   partyClassXp: { 2: [990, 1230], 3: [1150, 1400, 1510], 4: [1150, 1400, 1565, 1570] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives.
-     Measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10). One class is the
-     mean of its five one-class parties (pairs 0.80-0.91, threes 0.77-0.88, fours 0.75-0.89). Two of two is the mean of three mixes
-     (1.03-1.09), three of three of two (1.09 and 1.10), four of four the one played (1.16). The cells between are the size's mix
-     times the cell ratio. */
-  partyVsAlone: { 2: [-15, 5], 3: [-15, 0, 10], 4: [-15, 5, 15, 15] },
+     Measured at the floor on the default pull, as it ships (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10
+     late, the four's cells at 1565 and 1570). One class is the mean of its five one-class parties (pairs 0.80-0.89, threes
+     0.76-0.88, fours 0.77-0.89). Two of two is the mean of three mixes (1.01-1.09), three of three of two (1.08 and 1.05), four of
+     four the one played (1.13). The cells between are the size's mix times the cell ratio. */
+  partyVsAlone: { 2: [-15, 5], 3: [-15, 0, 5], 4: [-15, 0, 15, 15] },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Slake's bag. Salted Lobster is the cheapest heal an HP at this Level
      (0.83 g an HP). The melee line holds about three hours of a lone tank's bill at the floor (5.8k g an hour, drop-tables). */
   bagGuide: { tier: 4,

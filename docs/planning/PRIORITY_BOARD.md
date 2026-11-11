@@ -1527,6 +1527,16 @@ A four at the Warrens, Level 40: +2.6%. Both tracks at once add nothing to XP ov
 
 **First principle.** Nothing new asks for a repeated choice. The tier is remembered per ground. One gap stays from the Slake's first design: nothing tells a player which saved bar suits a ground.
 
+**Resumed for the Ford alone (systems, 2026-11-10 late, main v0.2.116 + lane/c-call-out-and-bear + lane/a-import-ford-art merged).** The Level curve, the formula, the sheet and the party table did not move since this section was measured (only `?v=` differs), and `pack propose hasks_ford` reads every row the formula's. What moved is how the pack is graded.
+| What | Was | Now | Evidence |
+|---|---|---|---|
+| A staged pack's gear | `pack check` played it on today's open grounds' ladder, so the Ford's heroes wore tier 3 (its tier-4 armor drops only there): the tier-3 tank at 45 +2%, the quick four and pair under | Played as it ships, its own drops on the ladder (`gear.mjs openAlso`), as every open ground is. The quick grade through the tool equals a run with the pack flipped open, cell for cell | `tests/balance-grade.mjs`, two mutants bite |
+| Stale cells | A cell is resumed by id, and the id names the cell, not the data: a re-run after a row moved graded old cells | The folder keeps a hash of what a cell reads; stale cells are set aside | `tools/pack.mjs` |
+| The four's cells | 1545 / 1555: the four of three classes read 1.14 at the middle and the top (full grade) | 1565 / 1570 | full grades below |
+| The Ford's sword alone at 45 | +43% (measured with the Slake also flipped open) | **+5% opened alone** (a tier-3 sword: the tier-4 swords are the Slake's), +45% with the Slake | `pack check hasks_ford --mode full` exit 1 on that one row; `--with the_slake` below |
+
+**So the Ford opens WITH the Slake** (or after it). Opened alone, every way and every party passes but a sword alone at the floor. The Slake's art import is on `lane/a-import-slake-art`, built on this branch.
+
 ### 2026-11-05 Ground Packs: a new hunting ground that doesn't touch the rest of the world (designer, lane/d-ground-pack): DESIGN ONLY. Nothing built, no generations, no sim run on the new rows
 **Tyler:** "we need a scalable way to build new hunting grounds. It seems like right now you're just doing it all from scratch but I think we need a system or module or something that allows us to quickly roll out new hunting grounds so we don't get caught behind on new content."
 

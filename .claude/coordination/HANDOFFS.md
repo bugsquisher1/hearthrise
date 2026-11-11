@@ -1,5 +1,13 @@
 # Handoffs
 
+### 2026-11-10 · SYSTEMS (lane/b-slake-and-ford, resumed for the Ford) → COORDINATOR, DESIGNER, ART, lane/a-import-slake-art · the Ford opens with the Slake
+The board, "Resumed for the Ford alone", under "2026-11-10 Hask's Ford and the Slake on one difficulty", has the numbers.
+1. **Coordinator, the ship plan changes:** open the Ford WITH the Slake (or after it). Opened alone a sword alone at 45 nets +5% over its bill (its sword is tier 3: the tier-4 swords drop only at the Slake); with the Slake it's +45%. Check it with `node tools/pack.mjs check hasks_ford --mode full --with the_slake`. The curve re-fit from 45 (the designer's item 2 below) still goes with the opening.
+2. **Every pack lane:** `pack check` now grades a staged pack as it ships (its own drops on the gear ladder), `--with <ground>` adds a pack that ships with it, and a re-run after a data change sets the old cells aside instead of grading them. A lane that measured "as opened" by flipping `status` by hand no longer needs to.
+3. **Art, still owed for the Ford (no generation made here):** the `toll_token` icon (`tests/pixel-icons.mjs`), and a March tree for the six gather oaks (`[kit] hasks_ford places oak` once open). A no-art way out for the designer: a gather node kind on `westwood_ash`, which is in the March kit, with a spent sprite from the kit.
+4. **Coordinator, copy:** `tools/player-read.local.mjs` now lists ground pack lines (`pack.<id>.*`). The Ford's were rewritten to the 11-11 voice rule and need a fresh reader. The board's living-world table still says "The foot were too many" and "the rite" on the Pyre Field row (lane/b-pyre-field's).
+5. **lane/a-import-slake-art:** the Slake's pack files are untouched except the `?v=` on its two imports (main's 0.2.116, needed for `bump-version --check`).
+
 ### 2026-11-10 · ASSET DIRECTOR (lane/a-import-ford-art) → DESIGNER, COORDINATOR, ART DIRECTOR, SYSTEMS · Hask's Ford art is in, the pack is still staged
 
 Imported: sets `march` (14 hf_ kit props, 4 bodies with the approved breathing idles) and `ford` (the painted ground, hf_toll_stone, hf_ford_marker), the icons `pike_band`, `ford_weed`, `ledger_leaf`, the alias `ledger_wight` > `wight`. The hf_ props stand on the designer's tiles and the mask hash is 0ebf56a5. Screens: `art/review/ford-import-2026-11-10/`.

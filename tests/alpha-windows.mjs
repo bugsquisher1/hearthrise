@@ -1223,6 +1223,14 @@ async function planRules(base) {
     const bane = plan({ weapon: 'practice_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
     if (ops2(bane) !== '{"weapon":"bramble_blade"}' || UP.upgradeWords(bane, 2, 3) !== 'Wear Bramble Blade (+2 Melee accuracy, +2 Melee damage, +40% damage to Plant monsters).') fails.push('AW-21 a sword hero with Bramble Blades at Level 16 reads ' + ops2(bane) + ' / ' + UP.upgradeWords(bane, 2, 3));
     if ('weapon' in plan({ weapon: 'bramble_blade' }, [['iron_sword']], lv1, 16).ops) fails.push('AW-21 Equip upgrades traded a worn bane away for plain numbers');
+    /* A WORN BANE AGAINST A PLAIN STRONGER BLADE IS SAID, NEVER SWAPPED (designer small call 2, 2026-11-11): the slot is a choice and the line says the trade in the
+       engine's numbers (Iron Sword +7/+6 over Bramble +6/+5, the bane's clamped +40%); a hand swap to the Iron Sword sticks, since the Bramble does not dominate it. */
+    const kept = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['iron_sword', 3]], lv1, 16);
+    if (ops2(kept) !== '{}' || JSON.stringify(kept.choices) !== '[{"slot":"weapon","ids":["iron_sword"],"keeps":"bramble_blade","lost":[{"cls":"plant","pct":40}]}]'
+      || UP.upgradeWords(kept) !== 'Nothing goes on by itself, since each piece is better at something. Iron Sword hits harder, Bramble Blade does +40% damage to Plant monsters. Pick on the doll.')
+      fails.push('AW-21 a worn Bramble Blade with Iron Swords in the bag reads ' + ops2(kept) + ' / ' + JSON.stringify(kept.choices) + ' / ' + UP.upgradeWords(kept));
+    const swapped = plan({ weapon: 'iron_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
+    if (ops2(swapped) !== '{}' || swapped.choices.length || UP.upgradeWords(swapped) !== '') fails.push('AW-21 a hand swap to the Iron Sword does not stick: ' + ops2(swapped) + ' / ' + JSON.stringify(swapped.choices));
     if ((await imp('src/shell/item-lore.js')).baneWords('bramble_blade').join() !== '+40% damage to Plant monsters') fails.push('AW-21 the Bramble Blade tooltip bane reads ' + (await imp('src/shell/item-lore.js')).baneWords('bramble_blade'));
     const steelOverIron = plan({ weapon: 'practice_sword' }, [['iron_sword'], ['steel_sword']], lv1, 30);
     if (ops2(steelOverIron) !== '{"weapon":"steel_sword"}') fails.push('AW-21 of two better swords it would put on ' + ops2(steelOverIron));
@@ -3949,7 +3957,8 @@ const MUTANTS = [
   ['plans: AW-21 the window never reads the role', 'src/shell/widgets/upgrade-line.js', "prefer: preferredWeight(t ? t.weight : null, eq, s ? s.role : null) });", "prefer: t ? t.weight : null });"],
   ['plans: Equip upgrades lets a set bonus hold a hero below the next tier', 'src/shell/upgrade-plan.js', '  const set = !fits.some((id) => tierStep(ITEMS[id], curIt));', '  const set = true;'],
   ['plans: AW-21 a bane is a reason to skip the blade again', 'src/shell/upgrade-plan.js', "it.effects.some((e) => e !== 'bane')", 'it.effects.length'],
-  ['plans: AW-21 a worn bane is traded for plain numbers', 'src/shell/upgrade-plan.js', '  for (const c of MONSTER_CLASSES) { if (a.banes[c] < b.banes[c] - EPS) return false; if (a.banes[c] > b.banes[c] + EPS) more = true; }\n', ''],
+  ['plans: AW-21 a worn bane is traded for plain numbers', 'src/shell/upgrade-plan.js', '  if (banes) for (const c of MONSTER_CLASSES) { if (a.banes[c] < b.banes[c] - EPS) return false; if (a.banes[c] > b.banes[c] + EPS) more = true; }\n', ''],
+  ['plans: AW-21 a worn bane keeps the blade in silence (designer small call 2, 2026-11-11)', 'src/shell/upgrade-plan.js', '  if (!front.length) return baneTrade(slot, cur, now, fits, worn, o, set);', '  if (!front.length) return null;'],
   ['plans: AW-25 the death line ignores the Blessings', 'src/shell/hunt-list.js', '  const cut = Number.isInteger(cutPermille) && cutPermille > 0 ?', '  const cut = false ?'],
   ['plans: AW-32 a plan that ran reads nothing set', 'src/shell/loot-dispatch.js', "Object.values(rules.loot).some((v) => MOVES.has(v)) ? t('shop.dispatch_all_moved')", "false ? t('shop.dispatch_all_moved')"],
   ['plans: AW-27 a shared cooldown reads as never firing', 'src/data/text/bar.js', "  shared_cooldown: 'Waits for {action} (slot {slot}) when both are ready.',", "  shared_cooldown: 'Shares a cooldown with {action} (slot {slot}), which fires first when both are ready.',"],

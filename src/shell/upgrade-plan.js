@@ -25,7 +25,9 @@
 //   a bane           a weapon's damage against one monster kind (src/core/bane.js, the engine's clamped
 //                    multiplier) is a number too: gaining one is a plus, losing one blocks the pick, so a
 //                    better blade of the family goes on and a worn bane is never traded away unseen
-//                    (designer re-read 2026-11-11: Level 16 with the Practice Sword and 6 Bramble Blades)
+//                    (designer re-read 2026-11-11: Level 16 with the Practice Sword and 6 Bramble Blades);
+//                    a plain weapon that beats the worn bane on every number is a CHOICE the line says,
+//                    never a swap (designer small call 2, 2026-11-11: baneTrade below)
 //   a tier step      a higher material tier of the weight worn is judged with the
 //                    set bonus left out of both sides, and the line says which set
 //                    bonus it ends (designer ruling 2026-10-31, played: Marlow, Level
@@ -109,13 +111,16 @@ const DIMS = Object.freeze(['acc', 'dmg', 'def', 'steady', 'crit', 'hp', 'mana']
 /* The perks either side plays, in the catalogue's order, and one side's size of one (permille, 0 when it plays none). */
 const perksIn = (a, b) => Object.keys(JEWEL_PERKS).filter((p) => p in a.perks || p in b.perks);
 const perkOf = (n, p) => num(n.perks[p]);
-function dominates(a, b) {
+/* `banes` false judges the plain numbers only (the bane trade below): a worn bane is still never traded away by this. */
+function dominates(a, b, banes = true) {
   let more = false;
   for (const k of DIMS) { if (a[k] < b[k] - EPS) return false; if (a[k] > b[k] + EPS) more = true; }
   for (const p of perksIn(a, b)) { if (perkOf(a, p) < perkOf(b, p)) return false; if (perkOf(a, p) > perkOf(b, p)) more = true; }
-  for (const c of MONSTER_CLASSES) { if (a.banes[c] < b.banes[c] - EPS) return false; if (a.banes[c] > b.banes[c] + EPS) more = true; }
+  if (banes) for (const c of MONSTER_CLASSES) { if (a.banes[c] < b.banes[c] - EPS) return false; if (a.banes[c] > b.banes[c] + EPS) more = true; }
   return more;
 }
+/* The monster kinds a swap would lose a bane against, each with the worn piece's own clamped number (the set's best for that kind is the worn piece's, since the swap drops it). */
+const banesLost = (now, after) => MONSTER_CLASSES.filter((c) => after.banes[c] < now.banes[c] - EPS).map((c) => ({ cls: c, pct: Math.round((now.banes[c] - 1) * 100) }));
 const same = (a, b) => DIMS.every((k) => Math.abs(a[k] - b[k]) < EPS) && perksIn(a, b).every((p) => perkOf(a, p) === perkOf(b, p))
   && MONSTER_CLASSES.every((c) => Math.abs(a.banes[c] - b.banes[c]) < EPS);
 
@@ -142,7 +147,24 @@ function gainsOf(before, after) {
 const sameHands = (id, cur, worn) => roleWeaponOf(ITEMS[id]) === roleWeaponOf(ITEMS[cur]) && !!ITEMS[id].twoHanded === !!ITEMS[cur].twoHanded
   && wornRoleKey(Object.assign({}, worn, { weapon: id }), ITEMS) === wornRoleKey(worn, ITEMS);
 
-/* The best piece in the bag for one slot, or { choice } when two trade off, or null. */
+/* A WORN BANE AGAINST A PLAIN STRONGER WEAPON IS THE PLAYER'S CALL, SAID (designer 2026-11-11 small call 2: Iron Sword +7/+6 everywhere against
+   a worn Bramble Blade +6/+5 and +40% on plant monsters; where the hero hunts next decides it). Nothing goes on, and the slot is named as a
+   choice: the plain weapons of the same hands that beat the worn one on every number and lose only a bane, with the kinds that bane covers
+   (the worn piece's own clamped numbers). A swap by hand sticks: the bane does not dominate the plain blade, so the next press leaves it.
+   Only the hands: a bane is a weapon's (bane.js), and "hits harder" is a weapon's line. */
+function baneTrade(slot, cur, now, fits, worn, o, set) {
+  if (slot !== 'weapon' || !cur) return null;
+  const plain = [];
+  for (const id of fits) {
+    const after = numbersOf(Object.assign({}, worn, { [slot]: id }), o.level, set);
+    const lost = banesLost(now, after);
+    if (lost.length && dominates(after, now, false)) plain.push({ id, after, lost });
+  }
+  const front = plain.filter((c) => !plain.some((x) => x !== c && dominates(x.after, c.after, false))).sort((a, b) => (a.id < b.id ? -1 : 1));
+  return front.length ? { choice: front.map((c) => c.id), keeps: cur, lost: front[0].lost } : null;
+}
+
+/* The best piece in the bag for one slot, or { choice } when two trade off (`keeps`: the worn bane a plain stronger weapon would lose), or null. */
 function bestFor(slot, worn, left, o) {
   const cur = worn[slot] || null;
   const curIt = cur ? ITEMS[cur] : null;
@@ -164,7 +186,7 @@ function bestFor(slot, worn, left, o) {
     if (dominates(after, now)) better.push({ id, after });
   }
   let front = better.filter((c) => !better.some((x) => x !== c && dominates(x.after, c.after)));
-  if (!front.length) return null;
+  if (!front.length) return baneTrade(slot, cur, now, fits, worn, o, set);
   /* A tie between weights is settled by the weight the player already chose (Tamsin's, the server's tally row):
      a decision made once is not asked again (playtest 2026-10-29: a heavy-paid tank came home with a Bronze
      Platebody and a Leather Body and wore neither). No choice made, or none of that weight: the tie stands. */
@@ -209,7 +231,7 @@ export function upgradePlan(o) {
       if (!pass(slot)) continue;
       const b = bestFor(slot, worn, left, ctx);
       if (!b) continue;
-      if (b.choice) { choices.push({ slot, ids: b.choice }); continue; }
+      if (b.choice) { choices.push({ slot, ids: b.choice, ...(b.keeps ? { keeps: b.keeps, lost: b.lost } : {}) }); continue; }
       /* the set bonus this pick ends, if it ends one (crit lost with the set counted, the line's words) */
       const lost = numbersOf(worn, ctx.level).crit - numbersOf(Object.assign({}, worn, { [slot]: b.id }), ctx.level).crit;
       picks.push({ slot, id: b.id, replaces: worn[slot] || null, gains: gainsOf(b.before, b.after), ...(lost > EPS ? { ends: lost } : {}) });
@@ -231,7 +253,11 @@ export function upgradeWords(plan, names = 2, gains = 1) {
   if (!plan) return '';
   if (!plan.picks.length) {
     if (!Array.isArray(plan.choices) || !plan.choices.length) return '';
-    const ties = plan.choices.map((c) => ((EQUIP_SLOT_META[c.slot] || {}).label || c.slot) + ': ' + listWords(c.ids.map(itemName), ' or '));
+    /* a worn bane against a plain stronger weapon: the plain one hits harder, the worn one's bane in the tooltip's own words (item.bane_more) */
+    const ties = plan.choices.map((c) => (c.keeps
+      ? t('shop.upgrade_tie_bane', { plain: listWords(c.ids.map(itemName), ' or '), bane: itemName(c.keeps),
+        more: listWords(c.lost.map((l) => t('item.bane_more', { pct: l.pct, kind: baneKindName(l.cls) }))) })
+      : ((EQUIP_SLOT_META[c.slot] || {}).label || c.slot) + ': ' + listWords(c.ids.map(itemName), ' or ')));
     const weights = plan.choices.some((c) => new Set(c.ids.map((id) => weightOf(ITEMS[id]))).size > 1);
     return t(weights ? 'shop.upgrade_tie_weights' : 'shop.upgrade_tie', { ties: ties.join('. ') });
   }

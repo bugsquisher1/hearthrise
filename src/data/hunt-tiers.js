@@ -34,9 +34,9 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.112';
-import { HUNT_INDEX } from './hunts.js?v=0.2.112';
-import { TIER_PULL_OVERRIDES, tierRowFor } from './balance-sheet.js?v=0.2.112';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.116';
+import { HUNT_INDEX } from './hunts.js?v=0.2.116';
+import { TIER_PULL_OVERRIDES, tierRowFor } from './balance-sheet.js?v=0.2.116';
 
 export const TIER_IDS = Object.freeze(['normal', 'dangerous', 'deadly']);
 export const DEFAULT_TIER = 'normal';
@@ -53,8 +53,9 @@ export const TIER_LINES = Object.freeze({
   deadly: Object.freeze({ more: 'Big groups that hit hard. The most XP for each kill. Bring plenty of food. You can die here.',
     same: 'The monsters hit much harder. The most XP for each kill. Bring plenty of food. You can die here.' }),
 });
-/* The one death line a harder tier's note ends on (hunt-sessions.js DEATH_XP_LOSS is the number; the wiki says it). */
-export const TIER_DEATH_LINE = 'Dying ends the hunt and costs a little XP.';
+/* The one death line a harder tier's note ends on (hunt-sessions.js DEATH_XP_LOSS is the number; the wiki says it). It read "costs a little XP" while a
+   death cost 2% and never took a Level; since Tyler 2026-11-09 it costs 6% of the total Level XP and can take a Level, so the line says so, still with no number. */
+export const TIER_DEATH_LINE = 'Dying ends the hunt and costs Level XP. You can lose a Level.';
 /* The dials a tier row carries (permille of the monster row). */
 export const DIALS = Object.freeze(['dmgPm', 'hpPm', 'xpPm']);
 

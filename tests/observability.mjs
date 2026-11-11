@@ -81,6 +81,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { withServerLevel } from './_server-level.mjs';
 
 const BUILD_SRC = await readFile(join(ROOT, 'src/build-info.js'), 'utf8');
 const VERSION = /version:\s*'([^']+)'/.exec(BUILD_SRC)[1];
@@ -639,7 +640,8 @@ async function nodeChecks(root) {
   /* a hero that has hunted before: no first town, no first hunt left; its Level rising is a level reached, each Level once */
   let xp1 = XP.charXpForLevel(2);
   let v1 = 0;
-  const hero1 = more(1, () => Object.assign(huntBody(++v1, true), { now: '2026-10-17T00:05:00Z', state: { active_kind: 'idle', gold: 0, level_xp: xp1 } }));
+  /* the server states the Level with the XP (hr_state_of's `level` block, ./_server-level.mjs) */
+  const hero1 = more(1, () => withServerLevel(Object.assign(huntBody(++v1, true), { now: '2026-10-17T00:05:00Z', state: { active_kind: 'idle', gold: 0, level_xp: xp1 } })));
   await hero1.load();
   if (ev('first_town').length !== 1) fails.push('OB-14 first_town was sent for a hero with a hunt on record');
   xp1 = XP.charXpForLevel(3); await hero1.load(); await hero1.load();

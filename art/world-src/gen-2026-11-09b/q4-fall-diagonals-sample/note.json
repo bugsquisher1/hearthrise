@@ -1,0 +1,25 @@
+{
+  "asset": "brief 13 Q4 (brief 11 M2, the other death diagonals) SAMPLE: 5 plain rolls on new bodies, and the pose route for the flier",
+  "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt Q4",
+  "status": "SAMPLE for the art director's one read; the other 72 facings wait for it. Not imported",
+  "made": "2026-11-08 (the brief's 11-09 samples)",
+  "generations": 11,
+  "tool": "animate_object v3 on each body's own object (its sidecar's pixellab.object), one direction, frame_count 6, keep_first_frame false; words read off each body's shipped S and E death strips",
+  "rolls": {
+    "barn_spider se": { "object": "70b39926-6c54-4978-9862-72789e4b0669", "group": "4764dc1e-1f8b-4f27-a413-36a206d3b3ab", "action": "rolls over onto its back, its legs curl up over its pale belly, and lies still, nothing else appears in the frame", "verdict_by_generator": "REFUSED: it never rolls over (the box holds, 390 px of shimmer); the brief predicted the pose route" },
+    "orchard_boar se": { "object": "c7328683-df1f-492e-8526-761fcd184f45", "group": "239b3d18-dbad-4b00-aa6a-8b17b247bc7f", "action": "its legs give way and it slumps down onto its belly, its head sinks to the ground, and it lies still, nothing else appears in the frame", "verdict_by_generator": "falls: top y10 -> y23, lies on its belly like the shipped S and E" },
+    "goblin_digger se": { "object": "5a8d97bb-ac90-41c8-b0a1-c08cf514140e", "group": "8b35fad3-0710-451a-a99b-7ad6d0592fca", "action": "crumples to its knees and falls forward flat onto the ground face down, and lies still, nothing else appears in the frame", "verdict_by_generator": "falls: top y8 -> y26, face down like the shipped S and E" },
+    "carrion_crow se": { "object": "3920ce88-0ce9-4434-8ca1-f0e8c56aef4f", "group": "e0661196-f19c-4378-a83a-718e2b4874d6", "action": "stops flapping, drops to the ground and slumps flat with its wings spread low, and lies still, nothing else appears in the frame", "verdict_by_generator": "REFUSED: sinks 5 px but ends standing with its wings raised" },
+    "drain_rat ne": { "object": "6e991609-a3c6-4ac2-9a5b-0ccea35801ca", "group": "b2b2cad0-1836-44f5-83bd-813e1f370f2c", "action": "rolls onto its side, belly up, legs out, and lies still, nothing else appears in the frame (M2's se words)", "verdict_by_generator": "REFUSED: stays standing (as the brief predicted); the pose route, proven on its se in M2, is the batch's" }
+  },
+  "pose_route": {
+    "carrion_crow se": { "edit": "e968de63-5e76-4086-ac25-3189f98bc3a3 \"the same crow lying dead on the ground, slumped flat on its belly with its wings spread low and limp across the ground, head down, eyes closed\"", "animate": "a6e0b466-007b-46be-8ca5-336d8d1890a3 frame_count 6 (7 stored, frame_006 the pose)", "measured": "drops from y6 to y17, ends 46 px wide on its 48 canvas, wings spread flat" }
+  },
+  "layout": "<body>/<facing>.png the rotation; <body>/death/<facing>/frame_000..005 the plain roll; carrion_crow/deathpose/south-east/frame_000..006 + pose-south-east.png",
+  "flags": [
+    "plain rolls held for the boar and the digger (the beast and the character); all three vermin or flier rolls stayed standing",
+    "the pose route is needed for barn_spider, drain_rat ne and carrion_crow; only the crow's was run here (the vermin roll-over route is proven by M1 and M2)",
+    "crow pose: the corpse spreads 46 px wide (the flier class measures its smaller side, so it stays in class)"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/q4-fall-diagonals-sample.png (x2, frames as is: per body two blue rows = its shipped death S and E, then its rotation + the new diagonal; the crow adds a pose-route row)"
+}

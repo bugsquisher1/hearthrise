@@ -1,0 +1,17 @@
+{
+  "asset": "verdicts B11: Q11 crop sheet 3 (moonbloom's four stages, the watered-soil overlays, goldenroot and emberfruit ripening x2 each)",
+  "status": "for the art director's read. Not imported",
+  "generations": 12,
+  "tool": "create_image_pro_flash 128x96 (4 columns x 3 rows of 32 px cells; three rows asked, so no empty fourth row), style the cabbage crate crop (upload d80d9da2) \"match palette, outline, shading\"",
+  "kept": { "file": "sheet3.png + cells/ (blob cut)", "seed": 3913, "job": "24aae9d1-febb-4f6e-82c8-f0a107412635",
+    "prompt": "A sheet of 12 separate farm cells, 4 columns by 3 rows, each alone and centred in its own 32x32 cell on a transparent background, no soil drawn, no plot, no tile, no border, high top-down view, single black outline, basic shading, muted natural colours, no glow, no text. Row 1, only the plant, moonbloom in four growth stages left to right: a small sprout, a young plant, a plant with closed buds, a ripe plant in full flower with pale silver-white flowers, no glow. Row 2, four watered-soil overlays: just a dark wet patch of damp earth on transparency, no plants, no plot edge, each a slightly different shape. Row 3, only the plant: cells 1 and 2, goldenroot ripening, full green leaves, the root still hidden, no gold showing; cells 3 and 4, emberfruit ripening, a low shrub with small hard green fruit clearly visible, none of it orange yet." },
+  "alt": "alt/sheet3-r1-soil-drawn.png (seed 3912, job 96a31e73): MY PROMPT left out C1's \"no soil drawn\", and every cell came on a soil plot tile; the held re-roll sheet (6) replaced it",
+  "measured": "moonbloom 11x10, 14x18, 18x23, 22x24; watered 19x16, 22x15, 22x20, 20x23; goldenroot ripening 21x20, 22x23; emberfruit ripening 22x21, 25x23",
+  "flags": [
+    "moonbloom: sprout, leafy young, closed pale buds, open white flowers; no glow",
+    "watered overlays: brown damp-earth rims with a grey-blue wet middle: they carry their own earth colour, not just darkening",
+    "goldenroot ripening: full leaves, no gold: reads unripe",
+    "emberfruit ripening: the green fruit are a few pale specks, hard to see at x2"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/b11-crop-beds-sheet3.png (x3, each 32 cell as is over the tilled soil tile)"
+}

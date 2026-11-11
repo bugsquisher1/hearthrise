@@ -3191,3 +3191,40 @@ A hit painted a 70% `#e6dcbc` silhouette over the frame for 120 ms, so the armor
 
 ### 2026-11-07 lane/a-region-kit (region art kits as data; the 2,100-gen plan)
 Kits are `src/data/world/region-kits.js` (greenhaven, barrow_march), held by world-assets [kit] (tools/world-art/region-kit.mjs, 9 mutants). A kit reader: `tools/qa/region-kit.html` (real renderer, unshipped sets by URL). Briefs: art/briefs/gen-2026-11-07/. Lessons: (1) the renderer needs no region concept: scene-sets.js derives a scene's sets from what it places, so a kit is a rule on the art pipeline, not a runtime row; (2) a PixelLab tileset's metadata (pair prompts, terrain ids) is a free GET /v2/tilesets/<id>: read it before naming a family; (3) the browser pane can shrink to a sliver mid-session: shoot pages with headless Playwright at a fixed size and Read the PNGs; (4) a scripted ramp re-pour only moves the ramps a body actually wears after the unit grade (the March bodies are mostly earth and shadow), so it re-colours plate and nothing else: read one before planning on it; (5) the live-ground rules moved since the March art was made ([sheet-encoding] 11-01, [live] idles 11-05): audit held art against today's law, not its lane's exit codes; (6) a brief's "Needs" column is the honest part of a spend plan: half of 2,100 gens waits on a designer's rows.
+
+### 2026-11-08 lane/a-art-brief-11 (the last ~1,000 gens of the cycle, ranked; no generation)
+Brief: art/briefs/gen-2026-11-07/11-next-batch.txt (13 lines + 120 reserve). Lessons: (1) read a clip's SOURCE before
+planning facings for it: the "7 with 4 attack facings" were the 7 whose attack and death derive-combat.mjs scripted from
+idle pixels, so brief 10's "draw their diagonals" would have mixed drawn and scripted frames in one clip; (2) a placed
+map object draws frame 0 facing south (compose.js place), so an NPC idle on a station prop is inert and only its S
+facing can ever show: check how a sprite is DRAWN before buying its facings; (3) a mirror is fine for a one-way clip
+whose W already mirrors E, never for a flinch that returns to a stance drawn in its own light; (4) every 4-facing clip
+beside 8-facing idles turns 45 degrees on a diagonal (facing.js falls back to the cardinal): death, hit, fall.
+Brief 12 (the Pyre Field, same day): (5) the ring rule cuts both ways: on a PALE floor the black outline is the
+silhouette, so a ground of burnt-black bodies is made readable by its floor's value, set before any body is drawn
+(ash on stone #8a867d: black rings 3.7-4.6:1, the March mud 1.3); (6) a re-pour can pass on contrast and still fail on
+identity: read whether it is the thing its name says, not only whether it shows.
+
+### 2026-11-09 lane/a-gen-2026-11-09 (brief 13's sample read, no generation)
+Verdicts appended to art/briefs/gen-2026-11-07/13-next-batch.txt, with a run-as-is next batch (707 gens, 115 to a reserve
+and the next-cycle head, so the 822 reach zero by 11-13). Lessons: (1) measure a death's SEAT, not only its pose: five
+corpses floated 2-9 px over the still's foot row (a vermin_flier's hover is drawn into its frame, so its corpse must come
+down to the anchor), and the generator flagged one; (2) a sidecar's `hit` is per clip, so an attack drawn from full reach
+backwards (the kobold E) lands its blow on the drawn-back spear unless the frames are re-laid; (3) value is the one axis a
+PixelLab tileset roll cannot aim: probe the scripted step before choosing it. The sand's snap held (a rim-bounded flood
+fill moves the sand only), the ash's failed (a flat raw locks to one colour, and the stretch that passes the numbers
+turns its flecks into a grid); (4) a style image leaks its props (the poacher's bow on the pikeman): pick one whose
+weapon matches; (5) a crop's ripening stage must not show what makes the ripe one ripe, or the player can't read ready;
+(6) the generator's fill percentages were short by 3 points: measure the longest side myself.
+
+### 2026-11-08 lane/a-gen-2026-11-09 round 2 (the verdict batch's read, no generation)
+Round 2 appended to brief 13: 581 gens read, 22 + 100 named, 115 held, zero by 11-13. Lessons: (1) scan every clip for
+bright pixels its still lacks: it found what no flag named (the stoker's fire arcs in all 8 attacks, the rat king's white
+trails, glints), and a "most-changed frame" lay picks exactly those trail frames, so every attack's words now end "no
+fire, no flames, no sparks, no trail, no light"; (2) a prop's adjective leaks into its animation ("the fire rake" threw
+fire), as a style image leaks its props; (3) before writing a pass rule, measure whether the tool can meet it: five
+tileset ash fills have p10 = p90, so "15% on the neighbours" was unreachable and cost 45 gens of re-rolls; a plain step
+plus authored decals is the route; (4) a rounded slab with one glyph reads as a headstone: judge a prop's silhouette in
+the company it keeps; (5) judge a flier's seat in its sidecar frame, after placement, not on the generator's canvas.
+### 2026-11-10 lane/d-scaled-and-events-mocks (mocks only: scaled hunts, live events)
+Boards in .claude/coordination/mocks/2026-11-10 (4 boards, 9 screens, SPEC.md). Method: capture the real page from local-world (canvases to images, scripts stripped, a base href to the repo root), edit it in Playwright, save the DOM, so a mock is today's screen plus the new part. Lessons: (1) a mock of a phone sheet must sit in an iframe at 922x423 or the desktop rules apply; (2) .hs-win::before is absolute, so a window slice set to position static paints its floor over the whole first viewport; (3) a full-page shot leaves iframes under the fold blank unless the viewport is grown to the page first; (4) bake a scroll position as a negative top margin, a load script scrolls before the images have a height.

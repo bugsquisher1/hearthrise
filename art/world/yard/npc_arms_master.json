@@ -1,0 +1,30 @@
+{
+  "id": "npc_arms_master",
+  "class": "character",
+  "style": "s1",
+  "material": "unit",
+  "source": "npc_arms_master.png",
+  "anchor_px": [
+    32,
+    58
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 5,
+      "loop": true,
+      "dirs": {
+        "s": 4
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash 8 directions 48x48 + animate_object v3 (brief 13)",
+    "object": "eb44b804-cfb1-4c1d-9d96-da29ca12dfc1"
+  },
+  "notes": "The arms master (r2): a grizzled trainer in a quilted gambeson with a blunt steel practice sword planted point-down, both hands on the pommel. S idle laid 0 1 2 1 at 5 fps."
+}

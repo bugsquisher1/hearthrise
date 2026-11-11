@@ -19,20 +19,20 @@
 // (hr_tally_view). Every control is off while an intent is in flight; the window
 // changes only from the re-read envelope and her next answer.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, tallyLine, waitWords, pickWords, countsWords } from '../../session/tally-sections.js?v=0.2.112';
-import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.112';
-import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.112';
-import { huntName } from '../../session/party-sections.js?v=0.2.112';
-import { goldOf, equipmentOf } from '../../session/item-sections.js?v=0.2.112';
-import { WEIGHT_FOR_ROLE, ROLE_WORDS } from '../../data/hunt-tutorial.js?v=0.2.112';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.112';
-import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.112';
-import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.112';
-import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.112';
-import { whole, gold } from '../../render/format.js?v=0.2.112';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.112';
-import { itemName } from '../widgets/bits.js?v=0.2.112';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.112';
+import { tallyOf, tallyLine, waitWords, pickWords, countsWords } from '../../session/tally-sections.js?v=0.2.116';
+import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.116';
+import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.116';
+import { huntName } from '../../session/party-sections.js?v=0.2.116';
+import { goldOf, equipmentOf } from '../../session/item-sections.js?v=0.2.116';
+import { WEIGHT_FOR_ROLE, ROLE_WORDS } from '../../data/hunt-tutorial.js?v=0.2.116';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.116';
+import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.116';
+import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.116';
+import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.116';
+import { whole, gold } from '../../render/format.js?v=0.2.116';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.116';
+import { itemName } from '../widgets/bits.js?v=0.2.116';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.116';
 
 const SCRATCH = new WeakMap();
 /* `board` is her last answer (null until it comes), `asking` the read in flight, `stale` asks again,

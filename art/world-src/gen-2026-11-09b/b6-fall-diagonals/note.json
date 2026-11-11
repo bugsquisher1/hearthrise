@@ -1,0 +1,32 @@
+{
+  "asset": "verdicts B6: Q4, the other death diagonals of the 23 drawn bodies",
+  "status": "for the art director's read. Not imported",
+  "generations": 157,
+  "plain": {
+    "tool": "animate_object v3 on each body's own object, frame_count 6, keep_first_frame false, one call per body for its missing diagonals; words read off each body's shipped S and E deaths",
+    "words": {
+      "briarcoat_wolf, gray_whelp": "its legs give way and it slumps down onto its side, its head sinks to the ground, and it lies still, nothing else appears in the frame",
+      "dire_gray, grayjaw, gray_wolf, orchard_boar": "its legs give way and it slumps down onto its belly, its head sinks to the ground, and it lies still, nothing else appears in the frame",
+      "brook_bear": "its legs give way and it slumps heavily down onto its belly, ...",
+      "glade_poacher, rook_poacher": "crumples to its knees and falls forward flat onto the ground face down, the bow beside it, and lies still, ...",
+      "goblin_sluicer, goblin_digger, goblin_skulker": "crumples to its knees and falls forward flat onto the ground face down, and lies still, ...",
+      "goblin_scavenger": "... face down, the sack beside it, ...", "chief_coppercap": "crumples to his knees ... face down, his club beside him, ...", "hobgoblin_foreman": "... face down, the pick beside him, ...",
+      "turncoat": "staggers and falls flat on his back, the blade beside him, and lies still, ...", "walking_vine": "collapses into a limp heap of vines on the ground and lies still, ...",
+      "sump_slime (se, ne; its w side mirrors)": "sags and melts flat into a puddle and lies still, the same colours throughout, ...", "carrion_crow": "stops flapping, drops to the ground and slumps flat with its wings spread low, and lies still, ..."
+    }
+  },
+  "pose_route": {
+    "straight to it (the verdict)": "barn_spider se ne, drain_rat ne, granary_rat se ne, barn_wasp se ne",
+    "refused plain rolls (still standing on the still-versus-corpse sheet)": "brook_bear ne nw, carrion_crow sw ne nw, sump_slime se ne, walking_vine se",
+    "how": "edit_image_pro_flash on the object's own rotation (by its URL, no upload) to the corpse (5), animate_image rotation -> pose, frame_count 6 (1); frame_006 the corpse",
+    "slip": "drain_rat ne's interpolation text says 'the spider' (my typo); the motion is pinned by the rotation and the pose"
+  },
+  "seat": "every death re-seated into death-seated/ or deathpose-seated/: the corpse's lowest row onto the still's foot row (carrion_crow 43; barn_wasp 35 on its 40 canvas, the same 4 px above the bottom as 43 on 48), never lifted. analysis.json has the fall test and shifts",
+  "kept_with_flags": [
+    "brook_bear se and sw plain: lowered with the head down and paws out, a crouch more than lying flat",
+    "dire_gray and grayjaw: their shipped S deaths barely fall either; the diagonals slump lower than those",
+    "the 40 and 44 px canvases (barn_spider 44; drain_rat, granary_rat, barn_wasp, sump_slime 40) are the objects' own; the import seats them as the shipped deaths are"
+  ],
+  "layout": "<body>/<facing>.png the rotation; <body>/death|deathpose/<facing>/frame_NNN.png; pose-<facing>.png the edit; *-seated/ the seated copies",
+  "review_strips": "art/review/gen-2026-11-09b/b6-<body>.png, one per body (x2, 64 cells): the still then the frames; plain rows grey-barred (the seated copy shown), pose-route rows amber-barred"
+}

@@ -121,6 +121,7 @@ import { pathToFileURL } from 'node:url';
 import { scopeMutants, gateScope, planShards, checkShards } from '../tools/lib/mutant-scope.mjs';
 import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { withServerLevel } from './_server-level.mjs';
 /* Level totals on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
 const { charXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
 /* The Glade's Dangerous row and the tier's plain words, never typed: HS-8 reads them from the data (hunt-tiers.js GROUND_TIERS, TIER_LINES). */
@@ -239,8 +240,9 @@ function scripted() {
   };
   s.sent = (name) => s.calls.filter((c) => c.name === name);
   /* `clock`: a server clock of the test's own (ms); each answer then states it as `now` and hunt_server_now_ms. */
-  s.next = () => Object.assign(clone(s.env), { version: ++s.version },
-    s.clock ? { now: new Date(s.clock()).toISOString(), hunt_server_now_ms: s.clock() } : {});
+  /* The server states the Level itself (hr_state_of's `level` block): the stub states it for the XP a case set (./_server-level.mjs). */
+  s.next = () => withServerLevel(Object.assign(clone(s.env), { version: ++s.version },
+    s.clock ? { now: new Date(s.clock()).toISOString(), hunt_server_now_ms: s.clock() } : {}));
   return s;
 }
 
@@ -1338,10 +1340,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(300);
         const want = [
           [0, 'mana', /^Needs 6 mana, you have 2\.$/, false],
-          [1, 'rune', /^Needs a Fire rune for each cast: you carry none. Pick the store’s rune/, true],
-          [2, 'none left', /^None left: you carry no Wheat Bread\. The next food or drink slot fires instead\.$/, true],
-          [5, 'store off', /^This hero is set to end the hunt rather than buy from the store\.$/, true],
-          [7, 'server', /^The server says this cannot fire now\.$/, true],
+          [1, 'rune', /^Each cast uses a Fire rune, and you have none\. Pick the store’s rune/, true],
+          [2, 'none left', /^You’re out of Wheat Bread\. Your next food or drink slot takes over\.$/, true],
+          [5, 'store off', /^You chose to leave the hunt instead of buying from the store\.$/, true],
+          [7, 'server', /^This can’t fire right now\.$/, true],
         ];
         /* EVERY struck or waiting slot on the bar, not only the ones named: a glyph on it, the reason as its tooltip's first line. */
         const sweep = async (label) => {
@@ -1379,7 +1381,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         await page.waitForTimeout(300);
         const none = await why(0);
-        if (!/^No weapon worn/.test(none.text) || !none.off || !none.glyph) fails.push('HS-20 the no-weapon slot reads ' + JSON.stringify(none));
+        if (!/^You have no weapon on/.test(none.text) || !none.off || !none.glyph) fails.push('HS-20 the no-weapon slot reads ' + JSON.stringify(none));
         await sweep('the bar with no weapon');
       } else fails.push('HS-20 the screen did not mount');
       await ctx.close();
@@ -1408,7 +1410,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           fails.push('HS-24 the picker does not show the server’s personal bests: ' + JSON.stringify(a));
         }
         const none = await card('meadowbrook_thicket');
-        if (!none || none.line !== 'No best yet' || none.page.join('|') !== 'No best here yet. A hunt of 10 min or more sets your best.') fails.push('HS-24 a ground with no best does not say so once: ' + JSON.stringify(none));
+        if (!none || none.line !== 'No best yet' || none.page.join('|') !== 'No best here yet. Hunt 10 minutes or more to set one.') fails.push('HS-24 a ground with no best does not say so once: ' + JSON.stringify(none));
         /* The next envelope REPLACES the bests (a better party hunt landed, the solo one is gone from this read). */
         s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { party: { xp_h: 20500, balance_h: -450 } } } };
         await pushEnvelope(page, s);
@@ -1526,7 +1528,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const blocked = await wait(page, () => document.querySelector('.hb-slot[data-slot="6"]').classList.contains('is-blocked')
           && !document.querySelector('.hb-slot[data-slot="0"]').classList.contains('is-blocked'), null);
         const tip = await page.evaluate(() => { document.querySelector('.hb-slot[data-slot="6"]').dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return document.querySelector('.hb-tip .is-warn:not(.is-why)') ? document.querySelector('.hb-tip .is-warn:not(.is-why)').textContent : ''; });
-        if (!blocked || !/Blocked by Power Strike \(slot 1\)/.test(tip)) fails.push('HS-11 the never-firing slot shows no "!" or no reason: ' + tip);
+        if (!blocked || !/Power Strike in slot 1 does the same thing and always goes first/.test(tip)) fails.push('HS-11 the never-firing slot shows no "!" or no reason: ' + tip);
         s.env.hunt_settings.slots[0] = null;
         await pushEnvelope(page, s);
         if (!(await wait(page, () => !document.querySelector('.hb-slot[data-slot="6"]').classList.contains('is-blocked'), null))) fails.push('HS-11 emptying the earlier slot did not clear the "!"');
@@ -1561,8 +1563,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (firstLocked < 1 || sp.rows.slice(firstLocked).some((r) => !r.locked) || sp.rows.some((r) => r.locked !== r.lock)) fails.push('HS-8 the Spells list is not castable first, then locked with the lock showing: ' + JSON.stringify(sp.rows));
       else {
         await page.click('.ca-run[data-run="spells"] .ca-row[data-id="' + sp.rows[firstLocked].id + '"]');
-        const why = await wait(page, () => /^Your weapon can’t cast this. The slot stays struck until you wield a .+.$/.test((document.querySelector('.ca-weapon') || {}).textContent || ''), null);
-        if (!why) fails.push('HS-8 a locked spell picked does not say why the slot will stay struck: ' + JSON.stringify(await page.evaluate(() => document.querySelector('.ca-weapon').textContent)));
+        const why = await wait(page, () => /^Your weapon can’t cast this\. It works once you hold a .+\.$/.test((document.querySelector('.ca-weapon') || {}).textContent || ''), null);
+        if (!why) fails.push('HS-8 a locked spell picked does not say which weapon casts it: ' + JSON.stringify(await page.evaluate(() => document.querySelector('.ca-weapon').textContent)));
       }
       await page.click('.ca-tab[data-tab="food"]');
       const food = await page.$$eval('.ca-run[data-run="food"] .ca-list .ca-row', (n) => n.map((b) => ({ id: b.getAttribute('data-id'),

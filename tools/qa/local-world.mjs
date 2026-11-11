@@ -12,6 +12,8 @@
 //        A machine's first run replays the whole chain (about 6 min; tests/pglite-template.mjs then caches it), so this is a
 //        manual tool, not a CI guard. HR_LOCAL_WORLD_TRACE=1 logs every call over 500 ms. HR_CHROME picks the browser (tests/_chrome.mjs).
 //   node tools/qa/local-world.mjs serve [--port 8787] [--no-tick]    a world for any browser: http://127.0.0.1:8787/play.html
+//   smoke and serve take --site DIR: the client's files come from DIR (the Pages artifact, `node tools/build-site.mjs` -> _site), and a file
+//        the page asks for that DIR lacks is a 404 the smoke counts. The engine and the chain stay the repository's.
 //   node tools/qa/local-world.mjs skip 30 [--port 8787]              skip 30 minutes in a world that is serving
 //   node tools/qa/local-world.mjs wait 480 [--port 8787]             8 hours pass for everyone: hunts, and town too
 //   node tools/qa/local-world.mjs wait 480 --away [--port 8787]      the same, for a player who CLOSED the page: the "While you were away" stamp moves too
@@ -380,14 +382,15 @@ function rewriteServed(rel, text, origin) {
 }
 
 /* A driven world reads each file once (a busy disk stalled a page load past 30 s on tiny files); `serve` re-reads, so an edit shows on reload. */
-async function serveStatic(res, urlPath, origin, held) {
-  const f = normalize(join(ROOT, urlPath));
-  const rel = f.slice(ROOT.length + 1).split('\\').join('/');
-  if (!f.startsWith(ROOT) || !SERVED.test('/' + rel)) return send(res, 404, 'not served', 'text/plain');
+async function serveStatic(res, urlPath, origin, held, site, asked) {
+  const f = normalize(join(site, urlPath));
+  const rel = f.slice(site.length + 1).split('\\').join('/');
+  if (!f.startsWith(site) || !SERVED.test('/' + rel)) { asked.missed.push(urlPath); return send(res, 404, 'not served', 'text/plain'); }
   const type = MIME[extname(f).toLowerCase()] || 'application/octet-stream';
+  asked.served.add(rel);
   if (held && held.has(rel)) return send(res, 200, held.get(rel), type);
   const info = await stat(f).catch(() => null);
-  if (!info || !info.isFile()) return send(res, 404, 'not found', 'text/plain');
+  if (!info || !info.isFile()) { asked.served.delete(rel); asked.missed.push(urlPath); return send(res, 404, 'not found', 'text/plain'); }
   const rewritten = rel === 'play.html' || rel === 'src/net/supabase-bootstrap.js';
   const body = rewritten ? rewriteServed(rel, await readFile(f, 'utf8'), origin) : await readFile(f);
   if (held) held.set(rel, body);
@@ -395,12 +398,14 @@ async function serveStatic(res, urlPath, origin, held) {
 }
 
 /**
- * @param {{port?: number, tickMs?: number|false, liveFiles?: boolean}} [o]  tickMs: how often the world tick fires (default 10 s, false: only
- *   on skip); liveFiles: re-read client files on every request (serve), else each is read once
+ * @param {{port?: number, tickMs?: number|false, liveFiles?: boolean, site?: string}} [o]  tickMs: how often the world tick fires (default 10 s, false: only
+ *   on skip); liveFiles: re-read client files on every request (serve), else each is read once; site: the folder the client's files are
+ *   served from (the Pages artifact, `node tools/build-site.mjs`), default the repository. The engine and the chain are always the repository's.
  */
 export async function openWorld(o = {}) {
   refuseProduction();
   const offsite = [], reports = [], held = o.liveFiles ? null : new Map();
+  const site = o.site ? resolvePath(o.site) : ROOT, asked = { served: new Set(), missed: [] };
   const { db, tickSecret } = await bootDatabase();
   let origin = '';
   const auth = { shim: null, issuer: null };
@@ -436,7 +441,7 @@ export async function openWorld(o = {}) {
       if (p === '/__world/wait') return send(res, 200, await world.wait(Number(url.searchParams.get('minutes')), { away: url.searchParams.has('away') }));
       if (p === '/__world/status') return send(res, 200, { ok: true, offsite, reports: reports.length, pushed: push.pushed() });
       if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, null);
-      return await serveStatic(res, decodeURIComponent(p), origin, held);
+      return await serveStatic(res, decodeURIComponent(p), origin, held, site, asked);
     } catch (e) {
       console.error('[local-world] ' + req.method + ' ' + req.url + ': ' + (e && e.stack || e));
       if (!res.headersSent) send(res, 500, { code: 'local_world', message: String(e && e.message || e) });
@@ -513,6 +518,8 @@ export async function openWorld(o = {}) {
 
   const world = {
     url: origin + '/play.html', origin, db, offsite, reports, tick, pushed: () => push.pushed(),
+    /** The client files this world was asked for: `served` (a Set of paths) and `missed` (every request answered 404). */
+    asked,
     /** Skip `minutes` for every open hunt: move its clocks and world together, then settle the way the tick does. */
     async skip(minutes, how = {}) {
       if (!(minutes > 0)) throw new Error('local-world: skip(minutes) wants a positive number');
@@ -677,10 +684,10 @@ async function play(world, { account, viewport = { width: 1280, height: 720 }, t
 const known = new Set();
 
 // ── THE SMOKE ────────────────────────────────────────────────────────────
-async function smoke({ shots, viewport, touch }) {
+async function smoke({ shots, viewport, touch, site }) {
   const fails = [], t0 = Date.now();
   const step = (name, ok, got) => { console.log((ok ? '  ok   ' : '  RED  ') + name + (ok ? '' : ' -- ' + got) + '  (' + Math.round((Date.now() - t0) / 1000) + ' s)'); if (!ok) fails.push(name); };
-  const world = await openWorld({ tickMs: false });
+  const world = await openWorld({ tickMs: false, site });
   step('world up: chain replayed and opened, engine loaded', true);
   try {
     const flag = (await world.db.query(`select enabled from public.hr_flags where key = 'closed_mode'`)).rows[0];
@@ -748,6 +755,8 @@ async function smoke({ shots, viewport, touch }) {
     const rested = await sql(rest);
     step('a wait rests a hero in town (30 min of stamina back)', Number(rested.ms) - Number(tired.ms) >= 29 * 60000, JSON.stringify({ tired, rested }));
     step('no console errors', p.errors.length === 0, p.errors.slice(0, 5).join(' | '));
+    step('every client file the page asked for was served (' + world.asked.served.size + ' files' + (site ? ' from ' + site : '') + ', ' + world.asked.missed.length + ' answered 404)',
+      world.asked.served.size > 100 && world.asked.missed.length === 0, Array.from(new Set(world.asked.missed)).slice(0, 8).join(' | '));
     step('nothing left the machine', p.offsite.length === 0 && world.offsite.length === 0, [...p.offsite, ...world.offsite].slice(0, 5).join(' | '));
   } catch (e) {
     step('the walk finished', false, e && e.stack || e);
@@ -786,10 +795,10 @@ if (isMain(import.meta.url)) {
   const cmd = args[0];
   if (cmd === 'smoke') {
     const [w, h] = String(opt('--viewport') || '1280x720').split('x').map(Number);
-    const code = await smoke({ shots: opt('--shots') ? resolvePath(opt('--shots')) : null, viewport: { width: w, height: h }, touch: args.includes('--touch') });
+    const code = await smoke({ shots: opt('--shots') ? resolvePath(opt('--shots')) : null, viewport: { width: w, height: h }, touch: args.includes('--touch'), site: opt('--site') });
     process.exit(code);
   } else if (cmd === 'serve') {
-    const world = await openWorld({ port: Number(opt('--port') || 8787), tickMs: args.includes('--no-tick') ? false : 10000, liveFiles: true });
+    const world = await openWorld({ port: Number(opt('--port') || 8787), tickMs: args.includes('--no-tick') ? false : 10000, liveFiles: true, site: opt('--site') });
     console.log('local-world: open ' + world.url + '   (Ctrl-C ends the world; nothing is kept)');
   } else if (cmd === 'skip' || cmd === 'wait') {
     const res = await fetch('http://127.0.0.1:' + Number(opt('--port') || 8787) + '/__world/' + cmd + '?minutes=' + Number(args[1]) + (args.includes('--away') ? '&away=1' : ''));

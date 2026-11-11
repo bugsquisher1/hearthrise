@@ -1,0 +1,207 @@
+BRIEF 12: THE PYRE FIELD'S ART (art director, 2026-11-08, lane/a-art-brief-11 with lane/b-pyre-field 13b6545fd merged)
+The rows landed: src/data/grounds/pyre_field/pack.js and map.js (Levels 70-90, solo, staged). This brief takes its gens
+from the bottom of brief 11, as 11's rule says (THE BUDGET below). The generator runs 12's samples beside 11's on 11-09,
+for one read. Same rules as 11: read the balance before each batch, stop at zero, never buy credits, batches of 20 calls
+or fewer, and each line's batch waits for my yes on its sample (CLAUDE.md §10). The generator imports and wires nothing.
+
+THE FLOOR DECIDES EVERYTHING ELSE, SO IT IS MADE FIRST, AND IT IS PALE
+ The ash floor does not exist yet. Its value is the one choice that makes burnt-black bodies readable or not, so P1's
+ first pair is the first call of the brief, and every body is checked against it. Measured
+ (tools/world-art/ring-contrast.mjs maths, palette values; sheets in art/review/brief-12-2026-11-08/):
+   ring median             on ash stone #8a867d (L 0.239)   on stone #6a6865 (0.139)   on the March mud (0.051)
+   wight 0.027                        3.74                        2.44                        1.31
+   barrow_knight 0.051                2.87                        1.87                        1.00
+   provost re-pour 0.022              4.03                        2.63                        1.40
+   black outline 0.003                5.44                        3.56                        1.91
+ On a dark floor a black body vanishes, which is why ART_DIRECTION §4 measures the ring inside the outline. On a pale
+ floor the dark body and its black outline are the silhouette, so burnt-black bodies pass by being darker. Real wood ash
+ is pale grey, so this is also the truer floor. It makes the Pyre Field the one pale ground of the March: black figures
+ on grey ash, recognisable from a screenshot (CLAUDE.md §10).
+ THE RULE, for this ground:
+   ash ('.', where every pocket fights)  fill median on stone #8a867d or lighter, never darker than #6a6865 in any pixel
+                                         run wider than 2 px. Warm grey, low contrast, no white (#aaa49a only in
+                                         specks).
+   scorched earth (':', the burn lines)  one value step darker, median on #6a6865 (L 0.14), warm brown-grey.
+   charred wood ('#') and cinder pits ('o') block a step, so nobody stands on them: they may go near black.
+   Every body (new, re-poured, or placed here later) passes ring-contrast.mjs at 3:1 against refs/floor-pyre-ash-64.png
+   (a 64x64 crop of P1 pair 1's ash fill, saved by the generator), with its ring median at or below 0.045 (the palette's
+   earth #3d2a1d, iron #2c2e33 or the shadow ramp). Mid-brown (earth #553a26 and up) fails by design.
+ Heroes: on the ash a steel knight's ring is about 1.1:1, but its black outline is 5.4:1, so it reads by its outline.
+ FLAGGED to the designer: P5's pull tile (30,24) sits on the burn line (x29-30 are ':'), where a black body reads 2.6:1.
+ Moving it to (32,24) puts the whole box on ash (rows 23-25, x31-33 are '.'). Not changed here.
+
+THE LINES, in run order (gens include re-rolls)
+ #   Line                                                   Gens  Wiring
+ P1  The ash family: 6 Wang pairs                            105  import into a staged set, region-kits family `ash`
+ P2  Three new bodies, full clips in 8 facings               165  import (staged set `pyre`)
+ P3  The Provost, re-poured from barrow_knight                10  scripted re-pour (0) + barrow_knight's 8 diagonals
+ P4  pf_great_pyre, signature 1, and its embers               50  map import swap (P cells to ash) + brief 11's FLAMES
+ P5  pf_burnt_pyre and its variants, signature 2, 4 kit props 20  map rows on the pyre rows (blocked cells)
+ P6  The 5 icons                                              15  assets/icons-bundle/pixel/items (owed by ITEMS)
+ P7  The Pyre Wraith, a new body (its re-pour fails)          55  import (staged set `pyre`)
+     TOTAL                                                   420
+
+P1 THE ASH FAMILY (~105). create_topdown_tileset, mode pro, 32 px, high top-down, transition 0.25 unless named. It takes
+   no style image, so each pair chains the base tile ids the earlier pairs made (KIT §3, §5). Muted, calm, low contrast,
+   no lighting baked in, no glow.
+     1  ash / scorched earth      both new. lower "pale grey wood ash, soft and powdery, a warm mid-light grey, a few
+                                  charred flecks, calm low contrast"; upper "scorched bare earth, warm brown-grey, one
+                                  value darker than the ash, cracked, calm"   <- THE SAMPLE (1 call). Hand me its fills
+                                  before anything chains on them; I measure them against the rule above.
+     2  ash / cinder pit          chain ash. upper "a sunken pit of black cinders and dull ember specks, flat, no glow"
+     3  ash / charred wood        chain ash. upper "a floor of fallen charred black timbers and soot, flat"
+     4  scorched / burnt grass    chain scorched. upper "dead burnt grass, dry dark yellow-brown, short, flattened"
+     5  burnt grass / charred wood   chain both
+     6  burnt grass / March grass    chain burnt grass and the March's grass 61a68177-5975-468e-be66-3c611c4a3203, which
+                                  must come back byte-identical to the existing set (where the field meets the barrows)
+   7 calls with pair 1 rolled twice, about 15 gens each. Check every chained fill byte for byte against its base.
+   WIRING (import lane): the terrains and the 6 tileset ids as a new family `ash` in region-kits.js barrow_march (the
+   [kit] rule holds a painted ground to its family), then pyre_field_ground painted from the map rows (port-pixellab.mjs
+   paint, free), staged with the ground. The 'P' cells paint as ash (P4 stands there).
+
+P2 THE THREE NEW BODIES (~165). The pack's three new drawings, with every clip in 8 facings so none arrives half-drawn
+   (brief 11's F2): rotations, idle, walk, attack, death and hit. Their look comes from the pack's own lines (pack.js
+   `monsters` comments and its header's story). Each passes the ring rule above.
+   TOOL: create_object_pro_flash, 8 directions, high top-down, single black outline, basic shading, style image
+     refs/style-glade-poacher-s-48.png (the source of every March body; upload it, KIT §5), "match palette, outline,
+     shading". Then animate_object v3 on the object: idle 8 frames keeping the still (brief 02's words for the two that
+     stand), walk, attack and death 6 frames with keep_first_frame false, hit 6 frames with brief 11 M3's words (frames
+     0-4 kept). The blow lands on frame 3. One family accent: dull ember orange in the cracks of the burned bodies, at
+     most 15% of their pixels (ART_DIRECTION §4), never a glow.
+     charred_pikeman  class character (64 frame, body 36-40), canvas 48. The swarm. "a charred undead foot soldier,
+                      blackened bones with dull ember in the cracks, a few burnt scraps of a red armband, holding the
+                      broken stub of a pike with its iron head, soot black and charcoal grey, game enemy sprite". It
+                      must read as the Ford's Banded Pikeman burned, not his twin: black bones, not pale, and a stub,
+                      not a full pike.
+                      idle "standing guard, the chest rises and falls, the head stays level, both feet stay where they
+                      are, the pike stub stays upright, nothing else appears in the frame"; walk "a stiff marching
+                      shuffle, both feet lift in turn"; attack "jabs forward with the pike stub, then pulls back to its
+                      stance"; death "collapses into a heap of black bones, the pike stub falls beside it, lies still"
+     stoker           class brute (64 frame, body 41-52), canvas 64. The tank, the slowest thing on the field. "a
+                      hulking undead lay brother in a scorched leather apron over a charred brown habit, soot-black
+                      cracked skin with dull ember in the cracks, a hood, a long iron fire rake held in both hands, a
+                      coal sack at his belt, game enemy sprite". The rake is his weapon (the Rake Tine is its tine).
+                      idle as the pikeman's with "the rake stays still"; walk "a slow heavy trudge, both feet lift in
+                      turn"; attack "swings the fire rake down in a heavy sweep, then drags it back"; death "falls
+                      forward onto his face, the rake beside him, lies still"
+     lurcher          class beast (64 frame, body 40-48 measured on its width), canvas 64. The glass skirmisher, a
+                      living camp dog. "a lean gaunt lurcher hound, long legs and a narrow head, a soot-dark grey-brown
+                      coat matted with ash, a leather collar with a small brass tag, head carried low, game enemy
+                      sprite". No ember: it is alive. Its coat must be DARK: an ash-grey dog on ash is invisible.
+                      idle "standing with its head low, the flanks rise and fall, all four paws planted, the tail
+                      still"; walk "a quick loping trot, the legs move in turn"; attack "lunges forward and snaps its
+                      jaws, then springs back"; death "falls onto its side, legs out, and lies still"
+   FACINGS: idle, walk, attack and hit are generated in all 8 (a hit is never mirrored, brief 11 line 4). Death: all 8
+     for the pikeman and the stoker (they hold a weapon); for the lurcher s, e, n, se, ne generated and w, sw, nw
+     mirrored (no handedness, and all its west falls mirror alike). Use brief 11 M1's end-pose step only for a death
+     whose plain roll lands a corpse that could be standing.
+   CALLS: 3 rotations + 3 x 40 clips (the lurcher 37) = 120 calls, about 165 gens with re-rolls.
+   SAMPLE (6 calls): each body's rotations and its south idle. I read them at x2 on P1's ash (tools/qa/region-kit.html,
+     ground=<ash terrain>&size=12x8, extra=pyre&from=<the staged atlas dir>) beside the hero and the barrow knight, and
+     run ring-contrast.mjs. Then batches of 20: pikeman, stoker, lurcher.
+   REJECT: brief 11 M1's list, plus any body whose ring is over 0.045 or under 3:1 on the ash, and a pikeman that could
+     be mistaken for the Banded Pikeman.
+   WIRING (import lane): port-pixellab.mjs unit (--class character / brute / beast, --hit 3) and idle, into a staged set
+     `pyre`, not loaded until the pack opens (00-plan: world-assets [s1-orphan] keeps an unloaded set out of main).
+
+P3 THE PROVOST, RE-POURED (0 gens for the re-pour, ~10 for its diagonals). Read on the stills (forecast sheet): the
+   barrow knight's rust-brown plate poured onto the charred end of the palette (shadow and iron ramps, dark to light by
+   luminance) reads as the same knight burned in his plate, which is the pack's story ("burned in their plate on the
+   officers' pyre"), at 4.03:1 on the ash. FORECAST: PASSES. The final read is on P1's ash at x2, beside the barrow
+   knight.
+   HOW: a small script in the import lane, the ramp re-pour of tools/world-art/hearth-flames.mjs `repour` made general:
+     every opaque pixel of the earth and bronze ramps in every frame of barrow_knight's clips as they will ship
+     (art/world/muster on lane/b-muster-barrows-art, brief 09's approved idle, brief 10's B3b hits), mapped by luminance
+     rank onto #0b0a0c #17141a #231d1f #2f2723 #2c2e33 #4a4d54. A free hand pass may add the ember accent to 3-6 crack
+     pixels.
+   ITS DIAGONALS: the provost inherits barrow_knight's death and hit facings, and brief 11's M4 (their diagonals) is
+     pushed out below. So barrow_knight's death and hit in se, sw, ne, nw move here (8 calls, M4's words and rules, ~10
+     gens), made on barrow_knight and re-poured with the rest.
+   IF IT FAILS on the ground, it becomes a new body by P2's recipe ("an undead provost officer in charred black plate, a
+     burnt tabard, a bow on his back and a sword in hand"), about 55 gens from the reserve.
+
+P4 THE GREAT PYRE, pf_great_pyre (~50). Signature 1, the officers' pyre in the middle strip: footprint 8x5 at (26,16),
+   where the map's 'P' cells are. "a great square funeral pyre of stacked charred logs on a low fieldstone plinth, the
+   officers' shields and broken banner poles laid on its top, burnt half down, a bed of dull embers in its heart, black
+   timbers and grey ash, top-down game landmark, single black outline". The front (south) face toward the viewer.
+   TOOL: create_image_pro at 320x256 (a 32 px margin each side: the barge lesson, a canvas-cut end is a re-roll), style
+   image a crop of hf_pyre_unlit (art/world/march on lane/b-hasks-ford-art), 3 candidates about 10 gens each, then
+   inpaint_image fixes. Art about 256 px wide over the 8-tile footprint; class building or hall by its measured height
+   (build.mjs --report).
+   ITS EMBERS: the heart's ember bed as a `light` overlay by brief 11 line 2's method (animate_image on a crop of the
+     heart, "the embers flicker and small flames lick between the logs, the logs do not move, nothing else appears in
+     the frame", cut to the moving pixels, a loop at 8 fps). One FLAMES row (pf_great_pyre to pf_great_pyre_flame).
+     About 5 gens.
+   SAMPLE (2): 2 candidates. I read them at x2 on P1's ash with a pack of 4 at P5 below it (the pyre must not hide
+     them).
+   WIRING (import, as map.js says): the 'P' cells become ash and pf_great_pyre is placed at (26,16). Its footprint
+     blocks the same 40 tiles, so maskHash d4a6b03b does not move (tests/world-core.mjs --hashes).
+
+P5 THE BURNT PYRES, pf_burnt_pyre (~20). Signature 2 and its variants (region-kits counts the idea, not the cells), plus
+   four kit props the map's note names, in one sheet.
+   TOOL: create_image_pro_flash 256x256, a 4x4 grid of 64 px cells on a transparent canvas (KIT §8: tall pieces pass at
+   64), style image a 64x64 crop of hf_pyre_unlit, "match palette, outline, shading". Rows:
+     pf_burnt_pyre          a burnt-down pyre: a collapsed heap of charred logs and blackened bones, about 2 tiles wide
+                            (class wreck, 28-44 tall, at most 64 wide)
+     pf_burnt_pyre_small    the same heap one tile wide (class bulky)
+     pf_burnt_pyre_scatter  charred sticks and ash spilled flat on the ground (class decal: flat, never animated)
+     kit props (barrow_march `props`, any March ground may place them): ma_fire_rake (an iron fire rake leaning on a
+                            post), ma_log_stack (split logs stacked for a pyre), ma_ash_barrow (a wooden barrow of ash),
+                            ma_charred_stake (a burnt stake)
+   2 sheets and 1 re-roll sheet, 6 gens each. The pick is cell by cell, as brief 09 picked the stake nets.
+   SAMPLE (1 call): sheet 1.
+   WIRING (data, import lane): pf_burnt_pyre placements along both pyre rows (blocked '#' cells, rows 13-14 and 27-28)
+     at least every 10 tiles and round the cinder pits, as map.js asks; the rakes and log stacks in the Stokers' Yard
+     (P2); region-kits.js grounds.pyre_field { family: 'ash', signature: 'pf_great_pyre pf_burnt_pyre' }.
+
+P6 THE FIVE ICONS (~15). The pack's five new items are ITEMS keys (items.js folds GROUND_PACKS in), so
+   tests/pixel-icons.mjs asks each for its 32x32 icon. create_image_pixen 32x32 on hr-world-56-v2 (00-plan A4e's
+   recipe), dark outline, filling 75-94% (ART_DIRECTION §7), a flat item drawn on the diagonal. Each from its own
+   itemText line:
+     pike_ferrule  "the blackened iron cap off the foot of a pike, a ring of iron with a charred wooden stub in it"
+     rake_tine     "a bent black iron tine off a fire rake, a long curved spike"
+     kennel_tag    "a small round brass dog tag on a scrap of leather collar, stamped with a company mark"
+     shroud_pin    "a long bone pin with a carved knob, used to close a burial shroud"
+     warrant_seal  "a round grey lead seal stamped with a mark, a scorched cord through it"
+   SAMPLE (5): one of each. Then a second candidate only for those I refuse.
+   WIRING: assets/icons-bundle/pixel/items/<id>.png, palette-locked (the import lane's lock.mjs), with the pack.
+
+P7 THE PYRE WRAITH, A NEW BODY (~55). The re-pour of the wight FAILS my read on the stills (forecast sheet, second
+   column), and no floor changes why: it passes on contrast (4.57:1 on the ash) but reads as the wight in a black coat.
+   There is no shroud and no smoke, and the pack's line is "a dead man Ebbe's rite bound into the pyre smoke, still in
+   his shroud". A body named Wraith that is plainly the March's wight recoloured would tell the player he has met it
+   before.
+     "a dead soldier's wraith in a soot-blackened burial shroud closed at the chest with a bone pin, a pale skull face
+     under the shroud's hood, thin bony hands, the shroud's hem hanging in ragged dark tatters to the ground, charcoal
+     and soot grey, game enemy sprite". Class character (64 frame, body 36-40), canvas 48, P2's recipe and rules. The
+     pin is the Shroud Pin it drops. No ember: Ebbe's rite bound it to smoke, not fire (it keeps the class's elements).
+   idle "standing, the shroud stirs by one pixel at the hem, the head stays level, nothing else appears in the frame";
+   walk "glides forward, the hem drags, the legs move in turn under the shroud"; attack "reaches out with both bony
+   hands and claws, then draws back"; death "the shroud collapses empty to the ground and lies flat" (an empty shroud
+   reads dead at x2). Death all 8 facings (the pin and hood make it handed); hit all 8.
+   SAMPLE (2): rotations and the south idle. The re-pour stays possible at 0 gens if you overrule me: it is the scripted
+   P3 recipe on art/world/march/wight.png with the earth ramp onto #17141a #231d1f #2c2e33 #3a3a3e #4a4d54 #4f4e52.
+
+THE BUDGET, AND WHAT IT PUSHES OUT OF BRIEF 11
+ Brief 11 planned lines 1-13 (880) and a reserve (120) out of about 1,150, so about 150 had no line. Brief 12 needs 420.
+ Lines 1-6 of 11 never give way. From the bottom up:
+   free at the start                       150
+   11's M4  The March in eight           +  70   =  220   (its barrow_knight half moves into P3)
+   11's E1  Live-event marks             +  25   =  245
+   11's T3  Townsfolk                    + 100   =  345
+   11's H2d The hero's fall in eight     +  40   =  385
+   11's S1  Two grounds' signatures      +  70   =  455   >= 420: stop
+ PUSHED OUT: M4, E1, T3, H2d, S1 (305 gens). KEPT: C1 crop beds and T2 pigeons and hens (70), with 35 left over, which
+ joins the reserve (now ~155). If the balance on 11-09 reads under 1,150, T2 then C1 give way next, before the reserve.
+ A pushed-out line is not cut: the allowance renews on 11-14, and they open the next cycle in the same order.
+
+BY DAY (11's lines with 12's: 995 planned, the reserve on top)
+ 11-09  the samples of 11 (lines 1-4) and 12 (P1 pair 1, P2 x6, P4 x2, P5, P6 x5, P7 x2), one read; 11's M1 ....... ~260
+ 11-10  P1 pairs 2-6 (after pair 1 passes), P3 (re-pour + 8 diagonals); 11's L1, M2, T1 ......................... ~240
+ 11-11  P2 the three bodies; 11's H1d ........................................................................... ~185
+ 11-12  P7, P4, P5, P6; 11's M3 ................................................................................. ~240
+ 11-13  11's C1 and T2, then the reserve to zero ....................................................... ~70 + reserve
+
+WHERE IT GOES: art/world-src/gen-2026-11-09/<asset>/ with note.json (object, groups, actions, picks), one review strip
+ per batch in art/review/gen-2026-11-09/, and refs/floor-pyre-ash-64.png from P1 pair 1. The Pyre Field's art stays in
+ staged sets until the pack opens (00-plan: B4 stays on its art branch, unloaded).

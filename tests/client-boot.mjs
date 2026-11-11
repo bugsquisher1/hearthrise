@@ -98,12 +98,14 @@ import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { TOWN_NAME } from '../src/data/world/town/plan.js';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { withServerLevel } from './_server-level.mjs';
 /* Level 10's total on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
 const LEVEL_10_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(10);
 
 /* account.max_concurrent is the server's concurrent limit (AccountSession.limit): without it one character plays. */
+/* The server states the Level itself (hr_state_of's `level` block): stated for the XP a case names (./_server-level.mjs). */
 function envelope(slot, version, extra) {
-  return Object.assign({ ok: true, version, now: '2026-10-17T00:00:00Z', state: { active_kind: 'idle', gold: 0 }, skills: {}, inventory: {}, hero_slots: [0, 1], account: { max_concurrent: 4 } }, extra || {});
+  return withServerLevel(Object.assign({ ok: true, version, now: '2026-10-17T00:00:00Z', state: { active_kind: 'idle', gold: 0 }, skills: {}, inventory: {}, hero_slots: [0, 1], account: { max_concurrent: 4 } }, extra || {}));
 }
 
 const HUNT = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
@@ -706,8 +708,8 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         const body = JSON.parse(raw || '{}');
         if (name === 'hr_put_client_state') { puts.push(body.p_patch); Object.assign(residue, body.p_patch); }
         const hero = name === 'hr_load' || name === 'hr-accrue';
-        const answer = hero ? Object.assign({}, fixture, { version: ++version, hunt: null, client_state: residue, state: Object.assign({}, fixture.state, { level_xp: 0, active_kind: null, active_id: null }),
-          equipment: Object.assign({}, fixture.equipment, { weapon: 'practice_sword' }) }) : { ok: true };
+        const answer = hero ? withServerLevel(Object.assign({}, fixture, { version: ++version, hunt: null, client_state: residue, state: Object.assign({}, fixture.state, { level_xp: 0, active_kind: null, active_id: null }),
+          equipment: Object.assign({}, fixture.equipment, { weapon: 'practice_sword' }) })) : { ok: true };
         res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, answer) : answer));
         return true;
       };
@@ -1103,7 +1105,8 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       const b0 = shown ? await btn() : null;
       /* "Up to 4" beside two slots says how the other two come, at the server's price (blind playtest 2026-10-31). */
       const lead = await page.evaluate(() => (document.querySelector('.auth-lead') || {}).textContent || '');
-      if (!/You own 2 hero slots, and up to 4 heroes can play at once\. More slots cost gold: the third is 15,000\./.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
+      /* The price is the offer block's own (the server's quote), so the line names none (designer 2026-11-09). */
+      if (!/You own 2 hero slots\. Up to 4 heroes can play at once, and more slots cost gold\./.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
       /* 14,100 at wallet version 7 is the purse; Fennick's older answer (90,000 at version 3) is not. */
       if (!b0 || b0.text !== 'Buy a hero slot for 15,000 gold' || !b0.off || b0.pay !== '0' || b0.picker
         || b0.purse !== 'Your gold: 14,100' || !/^You need 900 more gold./.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Your gold: 14,100, 900 short, off, no payer to pick)');

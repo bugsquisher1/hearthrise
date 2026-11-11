@@ -18,14 +18,16 @@
 //                   saved = what a Blessing kept, null when none was used
 //                   (2026-11-07-death-popup-blessing.sql)
 //   titles          { worn, rows: [{ id, words, price, kills, have, held, worn }] } (2027-02-28-titles.sql)
-//   state.level_xp  the character's Level XP (kills only, CORE_MODEL.md §1): the Level and
-//                   its progress are read off it on the shared curve (src/core/xp.js, the
-//                   curve hr_char_level uses), never counted in the browser.
+//   level           { xp, level, into, need } (hr_state_of's `level` key, hr_level_block): the
+//                   character's Level XP (kills only, CORE_MODEL.md §1), the Level the SERVER's
+//                   curve makes of it (hr_char_level), the XP into that Level and the XP across
+//                   it. The browser reads all four and works out none: its own copy of the curve
+//                   (src/core/xp.js, which the live prediction runs) can be a release behind the
+//                   server's, and on 2026-11-10 it said Level 20 for a hero the server fought as 19.
 // ════════════════════════════════════════════════════════════════════════
-import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.112';
-import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.112';
-import { TITLE_WORDS } from '../data/titles.js?v=0.2.112';
-import { dyeKeyOf } from '../data/outfits.js?v=0.2.112';
+import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.116';
+import { TITLE_WORDS } from '../data/titles.js?v=0.2.116';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.116';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -86,14 +88,18 @@ export function wornTitleOf(cs) {
   return r ? r.words : null;
 }
 
-/** The Level, from the server's `state.level_xp`: { xp, level, into, need } (need = XP across this Level), or null. */
+/**
+ * The Level as the SERVER says it: the envelope's `level` block, { xp, level, into, need } (into = XP into this
+ * Level, need = XP across it), or null when the server did not send a whole one. Never worked out here from
+ * `state.level_xp`: a Level the browser derives is this build's curve, not the server's (see the header), and
+ * every gate, price and plate that reads a Level reads this one. tests/session-core.mjs LVL-0 .. LVL-4 hold it.
+ */
 export function levelOf(cs) {
-  const st = read(cs, 'state');
-  const xp = isObj(st) ? nat(st.level_xp) : null;
-  if (xp === null) return null;
-  const level = charLevelFromXp(xp);
-  const lo = charXpForLevel(level);
-  return { xp, level, into: xp - lo, need: charXpForLevel(level + 1) - lo };
+  const b = read(cs, 'level');
+  if (!isObj(b)) return null;
+  const xp = nat(b.xp), level = nat(b.level), into = nat(b.into), need = nat(b.need);
+  if (xp === null || !level || into === null || !need) return null;
+  return { xp, level, into, need };
 }
 
 /**
@@ -101,9 +107,9 @@ export function levelOf(cs) {
  * Level, its progress, HP, max HP, mana and max mana: the HUD's vitals hub, the Character tab, the
  * character strip, the command centre and the party panel's own seat all draw these from here, so
  * two places can never show two numbers. Each comes from ONE server field, never a second derivation:
- *   level, into, need, xpPct   `state.level_xp` on the shared curve (levelOf). A pushed frame restates
- *                              `state` and never `vitals`, `hunt` or `character_sheet`, so state is
- *                              the freshest copy of the Level the record holds.
+ *   level, into, need, xpPct   the envelope's `level` block (levelOf): the server's Level and its
+ *                              own two XP marks. Every envelope carries it, a pushed frame too (a
+ *                              frame is the whole character, envelope.js E2).
  *   hp, hpMax, mana, manaMax   IN A HUNT the hunt hero's (HP as the live timeline plays it: the bar
  *                              over its head; the engine raises max HP at a Level-up mid-hunt);
  *                              OUT OF ONE `state.hp` / `state.max_hp`, then max mana from `vitals`
@@ -156,9 +162,11 @@ const xpMap = (o) => {
   return out;
 };
 
-/** `death_log`: [{ id, atMs, hunt, session, monster, xp, xpLost, saved }] newest first, or null.
+/** `death_log`: [{ id, atMs, hunt, session, monster, xp, xpLost, saved, blessings, levelFrom, levelTo }] newest first, or null.
  *  saved: the XP a Blessing kept ({} = it kept nothing), null when no Blessing was used, undefined when the
- *  server did not say (a row from before 2026-11-07-death-popup-blessing.sql). All the server's. */
+ *  server did not say (a row from before 2026-11-07-death-popup-blessing.sql). blessings: how many the death used up, or null.
+ *  levelFrom / levelTo: the hero's Level before and after the death's debit (a death can take a Level since
+ *  2027-03-25-death-share.sql), both null on an older row. All the server's. */
 export function deathLogOf(cs) {
   const d = read(cs, 'death_log');
   if (!Array.isArray(d)) return null;
@@ -167,9 +175,13 @@ export function deathLogOf(cs) {
     if (!isObj(r) || nat(r.id) === null) continue;
     const at = typeof r.at === 'string' ? Date.parse(r.at) : NaN;
     if (!Number.isFinite(at)) continue;
+    const from = nat(r.level_from), to = nat(r.level_to);
+    const pair = from !== null && to !== null && from >= 1 && to >= 1 && to <= from;
     out.push({ id: r.id, atMs: at, hunt: id(r.hunt), session: typeof r.session === 'string' && SESSION.test(r.session) ? r.session : null,
       monster: id(r.monster), xp: nat(r.xp), xpLost: xpMap(r.xp_lost),
-      saved: !('saved' in r) ? undefined : isObj(r.saved) ? xpMap(r.saved) : null });
+      saved: !('saved' in r) ? undefined : isObj(r.saved) ? xpMap(r.saved) : null,
+      blessings: nat(r.blessings) !== null && r.blessings > 0 ? r.blessings : null,
+      levelFrom: pair ? from : null, levelTo: pair ? to : null });
   }
   return out;
 }

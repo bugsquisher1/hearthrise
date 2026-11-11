@@ -56,7 +56,7 @@ export const SCENERY = Object.freeze([
   /* the mine's mouth in the mountain, a fishing pier off the shore */
   ['mine_mouth', 138, 34], ['fishing_pier', 60, 94],
   /* the cook yard's stores, the training yard's rack, the farm's crates */
-  ['sack_pile', 74, 31], ['barrel_planter', 58, 31], ['weapon_rack', 78, 63], ['turnip_crate', 19, 82],
+  ['sack_pile', 74, 31], ['barrel_planter', 58, 31], ['turnip_crate', 19, 82],
   ['well', 99, 40], ['signpost', 9, 47],
   /* THE TOWN WORKS (src/data/town-works.js): the Weighhouse's lot on the east bank, here at stage 0 and blocking from stage 0, so a stage never moves
      what a hero can walk; src/world/town-works.js draws the stage's art in its place, every stage in this frame. Its plaque stands on the high street. */
@@ -84,6 +84,17 @@ export const SCENERY = Object.freeze([
   ['water_trough', 65, 43], ['bellows', 67, 43], ['weapon_rack', 65, 37], ['crates', 70, 38], ['sack_pile', 59, 43], ['barrels', 64, 42],
   ['barrels', 72, 32], ['flour_sack', 74, 34], ['bucket', 66, 33],
   ['hay_bale', 70, 67], ['armour_stand', 59, 66], ['barrels', 77, 69],
+  /* THE TRAINING YARD (art lane 2026-11-09, the art director's yard kit): the eight dummies stand where the stations put them (stations.js,
+     three fighters to each) on a ring of raked sand (ground.js). A MELEE ROW along the north edge (banners, the sword rack with the arms
+     master beside it, a sparring pad, the quintain and two pells), the ARCHERY LANE down the west side running north-south, its butts at the
+     north end (the small one on the grass fringe) and the archers standing south of them between the range posts, and a RUNE CORNER on the
+     south edge (the ward ring and the scorch where a spell landed, the lectern), with benches and the trough beside it. */
+  ['ty_butt_small', 58, 62], ['ty_archery_butt', 60, 62], ['ty_banner', 62, 62], ['ty_sword_rack', 64, 62], ['npc_arms_master', 65, 63],
+  ['ty_sparring_pad', 66, 62], ['ty_quintain', 68, 62], ['ty_pell', 73, 62], ['ty_pell', 75, 62], ['ty_banner', 77, 62],
+  ['ty_range_marker', 59, 69], ['ty_range_marker', 59, 73], ['ty_arrow_stand', 61, 69],
+  ['ty_bench', 62, 75], ['ty_scorch', 65, 75], ['ty_ward_ring', 68, 75], ['ty_rune_lectern', 71, 75], ['ty_trough', 73, 75], ['ty_bench', 76, 75],
+  /* the gate sergeant, at the gatehouse's door where the heroes come back from a hunt */
+  ['npc_gate_sergeant', 85, 15],
   ['barrel_broken', 137, 36], ['sack_tall', 136, 35], ['cart_wheel', 142, 38],
   ['corner_rubble', 142, 36], ['pebbles', 147, 34], ['pebbles', 157, 37], ['havora_scree_b', 156, 43], ['havora_scree_a', 150, 36],
   ['havora_scree_c', 146, 38], ['pebbles', 152, 33], ['havora_scree_d', 157, 35], ['corner_rubble', 151, 42], ['pebbles', 159, 41],
@@ -119,7 +130,9 @@ export const BLEND = Object.freeze({
     /* lane/a-havora-dock: the stone quay where the dirt meets the water, the rocky shore under the mountain */
     'havora_water_quay', 'havora_water_rock',
     /* lane/a-havora-dock round 2: the harbour's setts quay against the earth, the water and the piers */
-    'havora_earth_setts', 'havora_water_setts', 'havora_setts_planks']),
+    'havora_earth_setts', 'havora_water_setts', 'havora_setts_planks',
+    /* the Training Yard's raked sand ring on the town dirt (art/world/yard) */
+    'havora_earth_sand']),
   alias: Object.freeze({ cobble: 'flagstone', palisade: 'grass' }),
 });
 

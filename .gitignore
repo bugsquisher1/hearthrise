@@ -56,6 +56,8 @@ yarn-error.log
 # Build output / scratch
 dist/
 build/
+# The Pages artifact (tools/build-site.mjs): built on every deploy, never committed
+_site/
 *.log
 
 # Document working files (the .docx + .xlsx live in repo for reference,
@@ -128,3 +130,6 @@ tools/balance-sim/out/
 
 # the coverage bot's reports (tools/qa/coverage/run.mjs): written per run, never committed
 tools/qa/coverage/out/
+
+# Review screenshots: evidence for a visual gate, read from the lane worktree, never published (Pages serves the repo root; 251 MB of these timed the deploy out on 2026-11-10).
+art/review/

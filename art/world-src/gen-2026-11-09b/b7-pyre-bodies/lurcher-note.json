@@ -1,0 +1,19 @@
+{
+  "asset": "round 2 B7l: the lurcher r2 (997e815e-6954-401c-8fc9-7e677848023a) with the NE fix, clips",
+  "status": "for the art director's read. Not imported",
+  "generations": 31,
+  "clips": {
+    "object facings (S, SE, E, SW, W, N)": "idle: the idle_r2 group 624e579f-6dcf-4a82-a531-1dc962fba621 extended (its words); walk: group 4e11147b-d919-4ad6-999a-c2a962175859 \"a quick loping trot, the legs move in turn, the tail stays low, nothing else appears in the frame\"; attack: group e301649c-73da-445a-857f-300457622681 \"lunges forward and snaps its jaws, then returns to its stance, all four paws stay on the ground\" + the attack ending; death (S, E, N, SE): group d01f3450-b8f7-4658-b0d7-e9073aee78f9 \"falls onto its side, legs out, and lies still, nothing else appears in the frame\"",
+    "NE and NW": "every clip by animate_image from q5-pyre-bodies-sample/lurcher/ne-fix/north-east.png (upload 415ef8b9), NW its mirror: idle 56997c40 (8 frames, the still kept as frame 0), walk 8175aae1, attack 6ae1dc53, death 0beb6a3d (6 frames each, the still dropped)",
+    "mirrored deaths": "W from E and SW from SE (no handedness), as the verdict's death rule",
+    "refused and redone": "death S stays standing; the pose route: edit 1a7d1881 on the S rotation (\"... fallen onto its side with its legs stretched out, head on the ground, eyes closed\"), animate_image 61211d2b (deathpose/south)"
+  },
+  "laid": "idle/lay.json (calm still, a, b, a), attack-lay.json (trailed frames dropped, the blow on index 3), every death seated",
+  "flags": [
+    "idles SE and SW drift 4-10 px from frame 1 (no frame stays within 1 px of the still); E and W have one calm frame each: these four want a re-roll from the hold or a 0 0 1 1 lay",
+    "attack NE and NW (from the fixed still) have a bright flash at frames 0-1 (97-104 px), dropped, leaving frames 3-5; SE drops frames 0-3, SW frames 1-2",
+    "the fixed NE still carries its head up, so the NE and NW clips do too"
+  ],
+  "layout": "lurcher/<facing>.png (NE and NW from the fix); idle|walk|attack|death|deathpose/<facing>/; *-seated/",
+  "review_strip": "art/review/gen-2026-11-09b/r2-b7l-lurcher.png (x2, 56 cells; deaths grey-barred, the pose route amber)"
+}

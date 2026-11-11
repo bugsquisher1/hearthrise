@@ -51,6 +51,8 @@ export const MATERIALS = Object.freeze({
   gravel: Object.freeze({ solid: false }),
   /* the harbour's granite setts (lane/a-havora-dock 2026-10-26): the quay, the estates' yard, building footings */
   setts: Object.freeze({ solid: false }),
+  /* the Training Yard's raked sand (art lane 2026-11-09, havora_earth_sand): walked on, a ring of it under the dummies */
+  sand: Object.freeze({ solid: false }),
 });
 
 /* 'span' and 'bridge' (laid over water or a gap) are walked ON: it never blocks the step it covers (2026-10-18:

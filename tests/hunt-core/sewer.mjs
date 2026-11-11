@@ -74,6 +74,11 @@ async function load(root) {
 
 /* The walkable mask of a world map (sprites are not needed: only solid MATERIALS and solid props block,
    read from every atlas the renderer loads). */
+/* THE SERVER STATES THE LEVEL (hr_state_of's `level` block: xp, level, into, need) and the client reads only that
+   (src/session/character-sections.js levelOf; lane/c-level-from-server). A hand-built envelope here states it too, on the
+   curve of the modules under test, as hr_level_block does on the server's. */
+const srvLevel = (M, xp) => { const level = M.xp.charLevelFromXp(xp), lo = M.xp.charXpForLevel(level); return { xp, level, into: xp - lo, need: M.xp.charXpForLevel(level + 1) - lo }; };
+
 function maskOf(M, mapId) {
   const row = M.maps.mapRowOf(mapId);   // shipped or staged (hunts.js `staged`): every ground's grid is checked
   if (!row) return null;
@@ -310,7 +315,7 @@ const cases = {
   'return-with-no-stamp': async (M) => {
     /* Played 2026-11-04: a hero left hunting with the tab killed seconds after Enter came back ten hours later to "Your hero just ate". No stamp, so no recap and no markBack, and the just-now cards spoke. */
     const { backWithNoStamp } = await import(pathToFileURL(join(M.root, 'src/shell/away-recap.js')).href + V);
-    const make = (ms, stamp, ended) => { const e = { state: { level_xp: 5000 }, hunt: { session_id: 's1', hunt_id: 'meadowbrook_thicket', ended: !!ended, session: {}, hero: { hp_max: 170 }, pose: { units: [] } },
+    const make = (ms, stamp, ended) => { const e = { state: { level_xp: 5000 }, level: srvLevel(M, 5000), hunt: { session_id: 's1', hunt_id: 'meadowbrook_thicket', ended: !!ended, session: {}, hero: { hp_max: 170 }, pose: { units: [] } },
       hunt_analyzer: { hunt_ms: ms, session: {}, hero: { kills: 5, xp: 10, gold: 1, loot: [], supplies: [] } } };
       const writes = []; return { read: (k) => e[k], record: { residue: stamp ? { awaySeen: stamp } : {} }, setResidue: (k, v) => { writes.push([k, v]); return true; }, writes }; };
     const old = make(36000000);
@@ -720,7 +725,7 @@ const cases = {
        put Rend on Carried runes only, with none, is the struck spell the rune card speaks of */
     const tank = tutKit(M, 'tank');
     const T = carriedOnly(tutKit(M, null, 'practice_hatchets'), ['rend']);
-    const env = (stored, usable, K = T, ground = 'mill_cellar') => ({ state: { level_xp: M.xp.charXpForLevel(3) }, skills: { farming: { xp: 28, level: 1 } },
+    const env = (stored, usable, K = T, ground = 'mill_cellar') => ({ state: { level_xp: M.xp.charXpForLevel(3) }, level: srvLevel(M, M.xp.charXpForLevel(3)), skills: { farming: { xp: 28, level: 1 } },
       hunt: { session_id: 's', hunt_id: ground, ended: false, session: {}, hero: { hp_max: 170 }, pose: { units: [] } },
       hunt_settings: { preset: 0, role: K.role, discipline: K.discipline, stance: 'balanced', store: K.storeRows,
         slots: K.slots.map((s) => ({ action: { type: s.type, id: s.id }, conditions: s.conditions, join: 'and', usable: usable || s.usable, count: s.count })), bar: stored } });
@@ -933,13 +938,13 @@ const cases = {
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
     const tsb = await imp('src/session/tutorial-sections.js');
     const tiers = (held, L) => M.blessings.BLESSING_TIERS.map((t) => ({ tier: t.tier, permille: t.xpLossReductionPermille, price: M.blessings.blessingPrice(t.tier, L), held }));
-    const deathEnv = (L, saved, held) => ({ state: { level_xp: M.xp.charXpForLevel(L) }, name: 'Corliss',
+    const deathEnv = (L, saved, held) => ({ state: { level_xp: M.xp.charXpForLevel(L) }, level: srvLevel(M, M.xp.charXpForLevel(L)), name: 'Corliss',
       hunt: { session_id: 's', hunt_id: 'mosslight_glade', ended: true, session: { end_reason: 'died' }, hero: {}, pose: { units: [] } },
       death_log: [{ id: 1, at: '2026-10-25T00:30:00Z', hunt: 'mosslight_glade', monster: 'rook_the_poacher', xp: 0, xp_lost: { level: 10 }, saved }],
       blessings: { held: [], permille: 0, free_until: M.blessings.BLESSING_RULES.freeUntilLevel, tiers: tiers(held, L) } });
     const died = (e, sh) => { const c = tsb.pointerCardOf({ read: (k) => e[k], slot: 0 }, sh); return c || {}; };
     /* a return, through the real envelope: the open hunt's session against the shell's `back` */
-    const hungry = { state: { level_xp: M.xp.charXpForLevel(6) }, hunt: { session_id: 's-b', hunt_id: 'meadowbrook_thicket', ended: false, session: {}, hero: {}, pose: { units: [] } },
+    const hungry = { state: { level_xp: M.xp.charXpForLevel(6) }, level: srvLevel(M, M.xp.charXpForLevel(6)), hunt: { session_id: 's-b', hunt_id: 'meadowbrook_thicket', ended: false, session: {}, hero: {}, pose: { units: [] } },
       hunt_settings: { preset: 0, role: T.role, discipline: T.discipline, stance: T.stance || 'balanced', store: T.storeRows, slots: T.slots.map((s) => ({ action: { type: s.type, id: s.id }, conditions: s.conditions, join: 'and', usable: s.usable, count: s.count })), bar: [] },
       hunt_analyzer: { hero: { supplies: { own: { cooked_shrimp: 2 } } } } };
     const onEnv = (back) => (tsb.pointerCardOf({ read: (k) => hungry[k], slot: 0 }, { read: ['bar_intro', 'plant_land'], back }) || {}).id;
@@ -956,7 +961,7 @@ const cases = {
     /* Level 31, past the guide: the paid Blessings card, the server's prices */
     const paid = died(deathEnv(31, null, false), { read: [] });
     const total = M.blessings.BLESSING_TIERS.reduce((n, t) => n + M.blessings.blessingPrice(t.tier, 31), 0);
-    if (paid.id !== 'bless_paid' || !paid.text.includes('At Level 31, all three come to ' + total + ' gp') || !paid.text.includes('up to 95%')) return 'at Level 31 the Blessing card reads ' + JSON.stringify(paid.text) + ' (' + paid.id + ')';
+    if (paid.id !== 'bless_paid' || !paid.text.includes('At Level 31, all three come to ' + total + ' gp') || !paid.text.includes('up to 75%')) return 'at Level 31 the Blessing card reads ' + JSON.stringify(paid.text) + ' (' + paid.id + ')';
     /* the day-one cards wait for the chain: Level 9, a task held, in town: Tamsin's card, not the house */
     const homeNext = { owned: false, next: { name: 'Hearthside Homestead', gold: 400, items: [{ id: 'normal_log', qty: 30 }, { id: 'copper_ore', qty: 20 }] } };
     const L9 = (f) => ({ ...f, levelXp: M.xp.charXpForLevel(9), charLevel: 9 });
@@ -1010,7 +1015,7 @@ const cases = {
     if ((say(R({ ...town, armoured: true })) || {}).id === 'no_defense') return 'wearing armor, the Defense card is still up';
     /* through the real envelope: the server's worn set, read by the engine's own wearsArmour (a staff alone counts for
        nothing; the kit's Practice Shield does) */
-    const worn = (equipment) => died({ state: { level_xp: M.xp.charXpForLevel(5) }, equipment, hunt: { session_id: 's', hunt_id: 'meadowbrook_thicket', ended: true, session: { end_reason: 'left' }, hero: {}, pose: { units: [] } } }, { read: [] }).id;
+    const worn = (equipment) => died({ state: { level_xp: M.xp.charXpForLevel(5) }, level: srvLevel(M, M.xp.charXpForLevel(5)), equipment, hunt: { session_id: 's', hunt_id: 'meadowbrook_thicket', ended: true, session: { end_reason: 'left' }, hero: {}, pose: { units: [] } } }, { read: [] }).id;
     if (worn({ weapon: 'practice_staff' }) !== 'no_defense') return 'through the envelope a staff-only hero in town sees ' + worn({ weapon: 'practice_staff' });
     if (worn({ ...M.kit.START_EQUIPMENT }) === 'no_defense') return 'through the envelope the kit\'s sword and shield hero is told Defense is not training';
     /* The first-hour rung: at the cloak's Level with the pelts, the card rings the recipe; any Crafting XP ends it */
@@ -1080,7 +1085,7 @@ const cases = {
     const bench = (lv) => (say({ ...atL(M.tut.WEIGHHOUSE_LEVEL - 1), benchLevel: lv }) || {}).id;
     if (bench(M.tut.WEIGHHOUSE_BENCH) !== 'weighhouse') return 'a bench skill at ' + M.tut.WEIGHHOUSE_BENCH + ' below Level ' + M.tut.WEIGHHOUSE_LEVEL + ' meets ' + bench(M.tut.WEIGHHOUSE_BENCH) + ', not the Weighhouse card';
     if (bench(M.tut.WEIGHHOUSE_BENCH - 1) === 'weighhouse' || bench(null) === 'weighhouse') return 'the Weighhouse card came below its bench level, or on a bench the server never sent';
-    const benchOf = (skills) => tsb.tutorialFactsOf({ read: (k) => ({ state: { level_xp: M.xp.charXpForLevel(3) }, skills })[k], slot: 0 }).benchLevel;
+    const benchOf = (skills) => tsb.tutorialFactsOf({ read: (k) => ({ state: { level_xp: M.xp.charXpForLevel(3) }, level: srvLevel(M, M.xp.charXpForLevel(3)), skills })[k], slot: 0 }).benchLevel;
     const sk = (id, level) => ({ [id]: { xp: 1, level } });
     if (benchOf({ ...sk('smithing', 31), ...sk('cooking', 4), ...sk('mining', 60) }) !== 31 || benchOf(sk('mining', 60)) !== null || benchOf(undefined) !== null) return 'through the envelope the bench reads ' + JSON.stringify([benchOf({ ...sk('smithing', 31), ...sk('mining', 60) }), benchOf(sk('mining', 60)), benchOf(undefined)]);
     const benchGate = readFileSync(join(M.root, 'supabase/migrations/2027-03-03-market-bench-gate.sql'), 'utf8');
@@ -1138,7 +1143,7 @@ const cases = {
     /* the field not sent (an older server): Farming XP still finishes it, as before */
     if (id(null, { landPlanted: null }) === 'plant_land') return 'with no field section, a hero with Farming XP is asked to plant';
     const tsb = await import(pathToFileURL(join(M.root, 'src/session/tutorial-sections.js')).href + V);
-    const env = { state: { level_xp: M.xp.charXpForLevel(2) }, inventory: { turnip_seed: 7 },
+    const env = { state: { level_xp: M.xp.charXpForLevel(2) }, level: srvLevel(M, M.xp.charXpForLevel(2)), inventory: { turnip_seed: 7 },
       farm_land: { cap: 2, plot_level: 1, deeds: 0, upgrade: null, plots: [{ i: 0, crop: 'turnip', ready: false, ready_in_s: 600, waterable: false, by: 0, extra: false },
         { i: 3, crop: 'turnip', ready: true, ready_in_s: 0, waterable: false, by: 1, extra: true }] } };
     const f = tsb.tutorialFactsOf({ read: (k) => env[k], slot: 0 });
@@ -1195,7 +1200,7 @@ const cases = {
     /* The launcher draws the card the SERVER's envelope puts the character on, not always the first one. */
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
     const { renderLaunchers } = await imp('src/shell/launcher.js');
-    const env = (levelXp, hunt, slots) => ({ state: { level_xp: levelXp },
+    const env = (levelXp, hunt, slots) => ({ state: { level_xp: levelXp }, level: srvLevel(M, levelXp),
       ...(hunt ? { hunt: { session_id: 's1', hunt_id: hunt, ended: false, session: {}, hero: {}, pose: { units: [] } } } : {}),
       hunt_settings: { preset: 1, slots: slots || [] } });
     /* `opts.open`: window ids open; `opts.bar`: the hunt top bar is on screen (it draws the card itself). */
@@ -1320,7 +1325,7 @@ const cases = {
     const { renderLaunchers, placeCoach } = await imp('src/shell/launcher.js');
     const { residueOf, RESIDUE_FIELDS } = await imp('src/session/residue.js');
     if (!RESIDUE_FIELDS.includes('coach')) return 'the coach fold is not on the residue allowlist';
-    const env = (hunt) => ({ state: { level_xp: 0 }, hunt_settings: { preset: 1, slots: [] },
+    const env = (hunt) => ({ state: { level_xp: 0 }, level: srvLevel(M, 0), hunt_settings: { preset: 1, slots: [] },
       ...(hunt ? { hunt: { session_id: 's1', hunt_id: hunt, ended: false, session: {}, hero: {}, pose: { units: [] } } } : {}) });
     /* a character as the client holds it: the envelope's sections and the residue, written through setResidue */
     const hero = (e, residue) => {
@@ -1372,7 +1377,7 @@ const cases = {
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
     const { pointerFor, restsNow, COACH_HUNT_OPEN_MS } = await imp('src/shell/launcher.js');
     let t = 1000;
-    const env = { state: { level_xp: M.xp.charXpForLevel(3) }, hunt_settings: { preset: 1, slots: [] }, hunt: { session_id: 's1', hunt_id: 'mill_cellar', ended: false, session: {}, hero: {}, pose: { units: [] } } };
+    const env = { state: { level_xp: M.xp.charXpForLevel(3) }, level: srvLevel(M, M.xp.charXpForLevel(3)), hunt_settings: { preset: 1, slots: [] }, hunt: { session_id: 's1', hunt_id: 'mill_cellar', ended: false, session: {}, hero: {}, pose: { units: [] } } };
     const cs = { read: (k) => env[k], record: { residue: {} }, setResidue: (k, v) => { cs.record = { residue: { ...cs.record.residue, [k]: v } }; return true; } };
     const ctx = { character: cs, glyphs: {}, now: () => t, hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } };
     const key = (hunting) => (/data-coach="([a-z0-9_:]+)"/.exec(pointerFor(ctx, hunting)) || [])[1] || null;
@@ -1400,7 +1405,7 @@ const cases = {
     const { pointerFor, readMs } = await imp('src/shell/launcher.js');
     const card = (id) => M.tut.HUNT_TUTORIAL.find((s) => s.id === id);
     let t = 1000;
-    const env = { state: { level_xp: 0 }, hunt_settings: { preset: 1, slots: [] } };
+    const env = { state: { level_xp: 0 }, level: srvLevel(M, 0), hunt_settings: { preset: 1, slots: [] } };
     const hero = () => ({ read: (k) => env[k] });
     let cs = hero();
     const shown = (c) => (/data-tutorial="([a-z0-9_]+)"/.exec(pointerFor({ character: c || cs, glyphs: {}, now: () => t,
@@ -1408,7 +1413,7 @@ const cases = {
     if (shown() !== 'to_the_cellar') return 'a fresh hero is shown ' + shown();
     /* Enter: the server's first answer already holds the first kill and Level 2 (the card it says is past both) */
     env.hunt = { session_id: 's1', hunt_id: 'mill_cellar', ended: false, session: {}, hero: {}, pose: { units: [] } };
-    env.state = { level_xp: M.xp.charXpForLevel(2) };
+    env.state = { level_xp: M.xp.charXpForLevel(2) }; env.level = srvLevel(M, env.state.level_xp);
     const kill = readMs(card('first_kill')), level = readMs(card('first_level'));
     if (!(kill >= 4000 && level >= 4000)) return 'a card is held under 4 s (' + kill + ', ' + level + ')';
     const seen = [];
@@ -1427,7 +1432,7 @@ const cases = {
     env.hunt_settings = { preset: 1, slots: [food(50)], bar: [food(50)] };
     if (shown() !== 'earn_the_thicket') return 'a saved bar is held over: ' + shown();
     /* Cash in: the player's own press, the same */
-    env.state = { level_xp: M.xp.charXpForLevel(M.HUNTS.meadowbrook_thicket.band[0]) };
+    env.state = { level_xp: M.xp.charXpForLevel(M.HUNTS.meadowbrook_thicket.band[0]) }; env.level = srvLevel(M, env.state.level_xp);
     env.hunt = Object.assign({}, env.hunt, { ended: true });
     if (shown() !== 'into_the_thicket') return 'out of the cellar the coach shows ' + shown();
     return null;
@@ -1491,7 +1496,7 @@ const cases = {
     if (!first(barCard, at('configure-action', { configuring: 0 })).includes('.hb-slot[data-slot="2"]')) return 'Configure action open on another slot: the food slot lost its ring';
     if (ringPlan(M.tut.cardFor(card('food_when'), { slots: [] }), at(null)).length) return 'no food on the bar, yet a slot is ringed';
     /* the icon row: a fresh hero's Hunts icon carries the ring (once, last attribute); with Hunts open, no icon does */
-    const env = { state: { level_xp: 0 }, hunt_settings: { preset: 1, slots: [] } };
+    const env = { state: { level_xp: 0 }, level: srvLevel(M, 0), hunt_settings: { preset: 1, slots: [] } };
     const rows = SHELL_WINDOWS.filter((r) => r.launcher !== false);
     const row = (open) => renderLaunchers({ character: { read: (k) => env[k] }, glyphs: {}, hud: { isShown: () => false },
       wm: { openIds: () => open, rows: () => rows, row: (id) => rows.find((r) => r.id === id) } });
@@ -1515,7 +1520,7 @@ const cases = {
     const tally = (held, paid) => ({ held: Array.from({ length: held }, (_, i) => ({ place: i + 1, task: 'thicket_gray_wolves', hunt: 'meadowbrook_thicket', monster: 'gray_wolf', kills: 40, target: 200 })),
       recent: Array.from({ length: paid }, () => ({ claim: 'c1', at: '2026-10-24T10:00:00Z', task: 'thicket_gray_wolves', gold: 480, item: 'bronze_helm', qty: 1 })),
       paid_today: paid, per_day: 3, held_max: 3, weight: 'heavy', order: [] });
-    const env = (L, hunt, ended, bests, more) => ({ state: { level_xp: M.xp.charXpForLevel(L) },
+    const env = (L, hunt, ended, bests, more) => ({ state: { level_xp: M.xp.charXpForLevel(L) }, level: srvLevel(M, M.xp.charXpForLevel(L)),
       ...(hunt ? { hunt: { session_id: 's-' + hunt, hunt_id: hunt, ended, session: {}, hero: {}, pose: { units: [] } } } : {}),
       hunt_bests: { min_ms: 600000, grounds: Object.fromEntries((bests || []).map((g) => [g, { solo: { xp_h: 1, balance_h: 1 } }])) },
       hunt_settings: { preset: 1, slots: [eat], bar: [eat], role: 'tank' },
@@ -1713,7 +1718,7 @@ const cases = {
     if ((card(a0, acct([a0, a1h], rows2, 4)) || {}).id === 'party_own') return 'Hunt together is up while the other hero is out hunting';
 
     /* THE SERVICES TAB (Tyler 2026-10-25): a Blessing card rings the Shop's icon, then its Services tab, then the next Bless */
-    const bl = M.tut.cardFor(M.tut.HUNT_TUTORIAL.find((r) => r.id === 'bless'), { blessings: { held: 0, of: 3, freeUntil: 30, best: 950, prices: [0, 0, 0] } });
+    const bl = M.tut.cardFor(M.tut.HUNT_TUTORIAL.find((r) => r.id === 'bless'), { blessings: { held: 0, of: 3, freeUntil: 30, best: 750, prices: [0, 0, 0] } });
     if (L.ringPlan(bl, at(null))[0] !== '.hs-launchers [data-hs-open="shop"]') return 'the Blessing card rings ' + L.ringPlan(bl, at(null))[0] + ', want the Shop icon';
     const inShop = L.ringPlan(bl, at('shop'));
     if (!inShop[0].includes('[data-hs-act="bless"]:not([disabled])') || !inShop[1].includes('.hw-tab[data-tab="services"]')) return 'in the Shop the Blessing card rings ' + JSON.stringify(inShop);

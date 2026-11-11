@@ -1,15 +1,15 @@
 // src/data/world/maps/index.js — every world map, and which one each scene opens on.
 // A new map is a file in this folder plus one row below; nothing else changes.
-import millCellar from './mill_cellar.js?v=0.2.117';
-import townCommon from './town_common.js?v=0.2.117';
-import homeCottage from './home_cottage.js?v=0.2.117';
-import millraceSewer from './millrace_sewer.js?v=0.2.117';
-import meadowbrookThicket from './meadowbrook_thicket.js?v=0.2.117';
-import coppercapWarrens from './coppercap_warrens.js?v=0.2.117';
-import mosslightGlade from './mosslight_glade.js?v=0.2.117';
-import sandboxHd64 from './sandbox_hd64.js?v=0.2.117';
-import wickstead from './wickstead.js?v=0.2.117';
-import { GROUND_PACKS } from '../../grounds/index.js?v=0.2.117';
+import millCellar from './mill_cellar.js?v=0.2.119';
+import townCommon from './town_common.js?v=0.2.119';
+import homeCottage from './home_cottage.js?v=0.2.119';
+import millraceSewer from './millrace_sewer.js?v=0.2.119';
+import meadowbrookThicket from './meadowbrook_thicket.js?v=0.2.119';
+import coppercapWarrens from './coppercap_warrens.js?v=0.2.119';
+import mosslightGlade from './mosslight_glade.js?v=0.2.119';
+import sandboxHd64 from './sandbox_hd64.js?v=0.2.119';
+import wickstead from './wickstead.js?v=0.2.119';
+import { GROUND_PACKS } from '../../grounds/index.js?v=0.2.119';
 
 /* a ground pack's map follows its status (src/data/grounds): an open pack's is drawn, a staged one's is staged below */
 const packMaps = (status) => GROUND_PACKS.filter((p) => p.status === status).map((p) => p.map);

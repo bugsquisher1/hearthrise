@@ -15,15 +15,15 @@
 // Every number is src/shell/monster-facts.js's, read from the rows the server's catalogue is generated
 // from; this module types none. One set of numbers for every group size (Tyler 2026-11-08). Every word is a row of src/data/text/monster.js.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, prop, attr, cls, element } from '../../render/paint.js?v=0.2.117';
-import { chance, whole, listWords } from '../../render/format.js?v=0.2.117';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.117';
-import { t, hasText } from '../../render/player-text.js?v=0.2.117';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.117';
-import { itemIconHtml } from '../widgets/bits.js?v=0.2.117';
-import { TIER_NAME, DEFAULT_TIER } from '../../data/hunt-tiers.js?v=0.2.117';
-import { monsterFactsOf, isMet } from '../monster-facts.js?v=0.2.117';
-import { targetOf, placesParts, patchParts } from '../goto.js?v=0.2.117';
+import { rows, text, prop, attr, cls, element } from '../../render/paint.js?v=0.2.119';
+import { chance, whole, listWords } from '../../render/format.js?v=0.2.119';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.119';
+import { t, hasText } from '../../render/player-text.js?v=0.2.119';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.119';
+import { itemIconHtml } from '../widgets/bits.js?v=0.2.119';
+import { TIER_NAME, DEFAULT_TIER } from '../../data/hunt-tiers.js?v=0.2.119';
+import { monsterFactsOf, isMet } from '../monster-facts.js?v=0.2.119';
+import { targetOf, placesParts, patchParts } from '../goto.js?v=0.2.119';
 
 const WIN = 'monster';
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px, facing the player. */
@@ -51,7 +51,7 @@ export function renderMonster() {
     + '<div class="mf-id"><h3 class="mf-name"></h3><p class="mf-kind"></p></div></header>'
     + head('monster.h_homes') + '<ul class="mf-homes"></ul>'
     + head('monster.h_fight', 'mf-for') + '<dl class="mf-facts">'
-    + fact('hp', 'monster.hp') + fact('blow', 'monster.blow') + fact('swing', 'monster.swing') + fact('deals', 'monster.deals')
+    + fact('hp', 'monster.hp') + fact('max_hit', 'monster.max_hit') + fact('swing', 'monster.swing') + fact('deals', 'monster.deals')
     + fact('weak', 'monster.weak') + fact('takes', 'monster.takes') + '</dl>'
     + '<p class="mf-note mf-harder"></p>'
     + head('monster.h_kill', 'mf-pay') + '<dl class="mf-facts">' + fact('xp', 'monster.xp') + fact('gold', 'monster.gold') + '</dl>'
@@ -119,7 +119,7 @@ renderMonster.patch = function patchMonster(body, ctx) {
   const set = (key, words) => text(root.querySelector('[data-fact="' + key + '"]'), words);
   text(root.querySelector('.mf-for'), t('monster.on_tier', { tier: TIER_NAME[DEFAULT_TIER] }));
   set('hp', whole(f.hp));
-  set('blow', t('monster.blow_value', { min: whole(f.blow.min), max: whole(f.blow.max) }));
+  set('max_hit', whole(f.maxHit));
   set('swing', t('monster.swing_value', { secs: f.swingMs / 1000 }));
   set('deals', elWord(f.deals));
   const weak = f.weak && hasText('monster.weak_' + f.weak.weapon) ? t('monster.weak_' + f.weak.weapon, { pct: f.weak.damagePct, acc: f.weak.accuracyPct }) : '';

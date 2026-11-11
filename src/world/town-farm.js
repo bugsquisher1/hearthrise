@@ -11,9 +11,9 @@
 // read by a gate; a new envelope replaces the whole answer (the result is memoised per field object, so a frame costs nothing).
 // PURE: no DOM, no window, no clock.
 // ════════════════════════════════════════════════════════════════════════
-import { CROPS } from '../data/gathering.js?v=0.2.117';
-import { FARM_PLOTS } from '../data/world/stations.js?v=0.2.117';
-import { WEST } from '../data/world/town/plan.js?v=0.2.117';
+import { CROPS } from '../data/gathering.js?v=0.2.119';
+import { FARM_PLOTS } from '../data/world/stations.js?v=0.2.119';
+import { WEST } from '../data/world/town/plan.js?v=0.2.119';
 
 const MEMO = new WeakMap();
 const NONE = Object.freeze([]);

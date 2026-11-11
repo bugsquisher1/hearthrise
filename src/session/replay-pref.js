@@ -11,8 +11,8 @@
 //                          null while no hero's record has been read (nothing is
 //                          known, so nothing records: src/net/observability.js)
 // ════════════════════════════════════════════════════════════════════════
-import { REPLAY } from '../data/privacy.js?v=0.2.113';
-import { switchOn } from './player-switch.js?v=0.2.113';
+import { REPLAY } from '../data/privacy.js?v=0.2.116';
+import { switchOn } from './player-switch.js?v=0.2.116';
 
 /** Whether recordings are wanted: the newest pick, else REPLAY.defaultOn; null before any hero has been read. */
 export function replayWanted(heroes) {

@@ -1,0 +1,48 @@
+{
+ "slime/deathpose/east": {
+  "order": [
+   0,
+   4,
+   5,
+   6
+  ],
+  "why": "frames 1-3 grow a two-leaf sprout"
+ },
+ "slime/deathpose/north": {
+  "order": [
+   0,
+   1,
+   5,
+   6
+  ],
+  "why": "frames 2-4 are the hollow arch on legs"
+ },
+ "rat_king/attack/east": {
+  "order": [
+   0,
+   1,
+   1,
+   4,
+   5,
+   5
+  ],
+  "hit": 3,
+  "why": "frame 2 carries a white trail"
+ },
+ "rat_king/attack/south-east": {
+  "order": [
+   0,
+   1,
+   1,
+   3,
+   5,
+   5
+  ],
+  "hit": 3,
+  "why": "frame 2 carries a green-white trail"
+ },
+ "rat/attack/north-west": "use attack-fixed/ (the teal eye painted the still red)",
+ "culvert_bat/attack/east|west, hive_wasp/attack/*": "use attack-fixed/ (near-white islands of 6 px or fewer that the still lacks removed)",
+ "slime/attack/north": "refused (a face on its back): the pose route in slime/attackpose/north",
+ "rat_king/attackpose/south": "re-animated (B3k); the trailed roll is in alt/"
+}

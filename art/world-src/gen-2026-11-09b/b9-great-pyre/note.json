@@ -1,0 +1,22 @@
+{
+  "asset": "verdicts B9: Q7's t1, the three pits made one ember bed, and its ember overlay",
+  "status": "for the art director's read; the import waits for the designer's 10x5 footprint. Not imported",
+  "generations": 36,
+  "inpaint": {
+    "kept": "t1-inpainted-one-bed.png: inpaint_image on t1 (upload 9bf70046), box x44-287 y56-137 (covering the dividers to the frame logs), \"one single long unbroken bed of dull red embers and grey ash filling the whole pyre from end to end, a few loose charred black logs lying along it, no logs crossing it, no dividers, no hexagons, no separate pits, no glow\", seed 3922, job 648b1161-0859-4ba5-9dac-994523b2dae9, 15 gens",
+    "alt": "alt/t1-inpaint1-still-three-pits.png: the verdict's one inpaint (box x50-281 y64-129, the verdict's words, seed 3921, job 9eaa4fae): the model redrew the same three hexagon pits from the context, so ONE retry with the box grown over the dividers' ends"
+  },
+  "embers": {
+    "source": "heart-crop-x48y60.png: the kept pyre cropped at x48 y60, 236x76 (upload cbffee31); the overlay registers there on the pyre",
+    "kept": "embers/: animate_image frame_count 8, seed 3932, job c24b8e34-ae90-418d-b9cf-f475400ea73a, 3 gens, \"the red embers keep glowing the whole time and pulse a little brighter and dimmer, tiny flames flicker between the logs, the embers never go out and never go dark, the logs and ash do not move, nothing else appears in the frame\"",
+    "alt": "alt/embers-r1-goes-dark/: seed 3931, job ffba7a2b, the verdict's words + \"a calm flicker, never a bright burst\": the embers DIE OUT by frame 5 (a fade, not a flicker)",
+    "cut": "L1's cut with an ember rule for dull reds (R > 90, R - G > 45, R - B > 35, in the frame or the still): raw/, cut/ (the crop with only ember pixels moving), overlay/ (ember pixels alone). Overlay 257-673 px a frame"
+  },
+  "flags": [
+    "the bed now runs end to end with no crossing dividers, but its outline still swells into three soft lobes",
+    "the kept ember roll's flames have pale near-white tips at frames 3-5 (bright, though nothing is drawn round them)",
+    "MY SLIP: the kept roll's action text contains the word 'glowing', which L1 bans; no halo was painted, but the art director may want it re-rolled without the word (3 gens)",
+    "the raw ember frames redraw the logs too (4,000-5,000 px a frame); only the cut is usable"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/b9-great-pyre.png (x2 on the target ash: t1 | the kept inpaint | the refused inpaint; then the ember cut frames 0-8 at x2)"
+}

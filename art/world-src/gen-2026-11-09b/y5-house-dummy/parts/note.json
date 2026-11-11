@@ -1,0 +1,18 @@
+{
+  "asset": "verdicts B2: the house dummy's parts on c2 (the pick; c1 stays as the alternative)",
+  "status": "for the art director's read of all 16 sets before import. Grades 1 and 2 (the re-pours) are left to the import lane. Not imported",
+  "generations": 30,
+  "states": {
+    "state1-no-target.png": "inpaint_image on c2 (upload 315ec396), mask parts/mask-target.png (a 6.5 px circle on the chest, grown 1 px), \"bare stitched crimson leather where the disc was, the same brass studs\", seed 3511, job 51d0424b-4521-4b2f-8606-76be91fe8040, 10 gens",
+    "state2-no-arms.png": "inpaint_image on state1, mask parts/mask-arms.png (both arms with the sword and the buckler, grown 1 px), \"the dummy's crimson leather sides with no arms, no sword and no buckler, empty floor beside the dummy\", seed 3512, job 870c053c-c54e-41f5-ae7f-584aee6792d7, 10 gens",
+    "state3-no-plates.png": "inpaint_image on state2, mask parts/mask-plates.png (the helm and both pauldrons, crimson excluded, grown 1 px), \"a plain stitched crimson leather head and shoulders, no helm, no pauldrons\", seed 3513, job 6b4053ec-0a5c-4134-9a51-ef1df3ae3ca7, 10 gens"
+  },
+  "parts": "top/hd_target = c2 where it differs from state1; hd_arms = state1 vs state2; hd_plates = state2 vs state3; hd_circle = state3's ring outside the plinth box x23-41 y35-51 (its back arc stays under hd_base); hd_base = state3 without the ring, with 23 plinth-edge pixels closed in the outline colour #0b0a0c. sets/ = all 16 combinations in draw order circle, base, plates, arms, target. parts.json = the counts",
+  "measured": "target 170 px, arms 243, plates 246; all five parts composed differ from c2 in 41 px",
+  "flags": [
+    "28 px where the inpainted bare head and shoulders are wider than the helmed silhouette: with hd_plates on, those bare crimson pixels show at the helm's edge (the import can trim hd_base to the plated outline there, or accept it)",
+    "the 23 closed plinth-edge pixels show in every set (an outline where the ring met the plinth)",
+    "the bare dummy reads as a crimson leather torso with a round head on the post, the gold-capped plinth unchanged"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/b2-house-dummy-parts.png (x4 on a cottage floor crop: row 1 c2, state1, state2, state3; row 2 the five parts alone; rows 3-4 the 16 sets, alphabetical)"
+}

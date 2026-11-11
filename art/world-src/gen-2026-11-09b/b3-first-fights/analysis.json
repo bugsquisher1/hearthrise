@@ -1,0 +1,2206 @@
+{
+ "cistern_spider/attack/north": {
+  "reach": [
+   -1,
+   -3,
+   -4,
+   -5,
+   -4,
+   -1
+  ],
+  "changed": [
+   639,
+   789,
+   911,
+   947,
+   896,
+   731
+  ],
+  "peak": 3,
+  "peakReach": -5,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "cistern_spider/attack/north-east": {
+  "reach": [
+   3,
+   3,
+   0,
+   -2,
+   0,
+   1
+  ],
+  "changed": [
+   670,
+   681,
+   575,
+   705,
+   647,
+   365
+  ],
+  "peak": 3,
+  "peakReach": -2,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "cistern_spider/attack/north-west": {
+  "reach": [
+   1,
+   2,
+   3,
+   4,
+   1,
+   0
+  ],
+  "changed": [
+   579,
+   689,
+   712,
+   645,
+   543,
+   341
+  ],
+  "peak": 2,
+  "peakReach": 3,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "cistern_spider/attack/south-east": {
+  "reach": [
+   -1,
+   -2,
+   -3,
+   -3,
+   1,
+   1
+  ],
+  "changed": [
+   752,
+   920,
+   887,
+   729,
+   725,
+   451
+  ],
+  "peak": 1,
+  "peakReach": -2,
+  "order": [
+   0,
+   0,
+   0,
+   1,
+   2,
+   3
+  ]
+ },
+ "cistern_spider/attack/south-west": {
+  "reach": [
+   -2,
+   -4,
+   -4,
+   -3,
+   -4,
+   -2
+  ],
+  "changed": [
+   737,
+   874,
+   800,
+   903,
+   829,
+   609
+  ],
+  "peak": 3,
+  "peakReach": -3,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "cistern_spider/attack/west": {
+  "reach": [
+   -1,
+   0,
+   -2,
+   -3,
+   0,
+   1
+  ],
+  "changed": [
+   462,
+   753,
+   515,
+   576,
+   545,
+   715
+  ],
+  "peak": 1,
+  "peakReach": 0,
+  "order": [
+   0,
+   0,
+   0,
+   1,
+   2,
+   3
+  ]
+ },
+ "cistern_spider/attackpose/south": {
+  "reach": [
+   0,
+   -2,
+   1,
+   0,
+   0
+  ],
+  "changed": [
+   0,
+   881,
+   1026,
+   918,
+   900
+  ],
+  "peak": 2,
+  "peakReach": 1,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "cistern_spider/deathpose/east": {
+  "foot": 42,
+  "lastLow": 40,
+  "shift": 2,
+  "drop": 0.11,
+  "stillBox": [
+   3,
+   6,
+   43,
+   42
+  ],
+  "lastBox": [
+   4,
+   10,
+   42,
+   40
+  ]
+ },
+ "cistern_spider/deathpose/north": {
+  "foot": 38,
+  "lastLow": 37,
+  "shift": 1,
+  "drop": 0.09,
+  "stillBox": [
+   4,
+   5,
+   43,
+   38
+  ],
+  "lastBox": [
+   5,
+   8,
+   42,
+   37
+  ]
+ },
+ "cistern_spider/deathpose/north-east": {
+  "foot": 43,
+  "lastLow": 38,
+  "shift": 5,
+  "drop": 0.06,
+  "stillBox": [
+   3,
+   8,
+   41,
+   43
+  ],
+  "lastBox": [
+   6,
+   10,
+   37,
+   38
+  ]
+ },
+ "cistern_spider/deathpose/south-east": {
+  "foot": 44,
+  "lastLow": 38,
+  "shift": 6,
+  "drop": 0.07,
+  "stillBox": [
+   3,
+   5,
+   44,
+   44
+  ],
+  "lastBox": [
+   3,
+   8,
+   44,
+   38
+  ]
+ },
+ "culvert_bat/attack/east": {
+  "reach": [
+   2,
+   0,
+   -1,
+   -1,
+   0,
+   0
+  ],
+  "changed": [
+   264,
+   364,
+   421,
+   419,
+   408,
+   280
+  ],
+  "peak": 2,
+  "peakReach": -1,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "culvert_bat/attack/north": {
+  "reach": [
+   -1,
+   -2,
+   0,
+   1,
+   0,
+   -1
+  ],
+  "changed": [
+   609,
+   733,
+   849,
+   896,
+   883,
+   674
+  ],
+  "peak": 3,
+  "peakReach": 1,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "culvert_bat/attack/north-east": {
+  "reach": [
+   0,
+   -2,
+   -5,
+   -6,
+   -5,
+   0
+  ],
+  "changed": [
+   456,
+   618,
+   639,
+   660,
+   653,
+   457
+  ],
+  "peak": 3,
+  "peakReach": -6,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "culvert_bat/attack/north-west": {
+  "reach": [
+   -1,
+   -2,
+   -3,
+   -3,
+   -3,
+   0
+  ],
+  "changed": [
+   372,
+   565,
+   635,
+   679,
+   656,
+   379
+  ],
+  "peak": 3,
+  "peakReach": -3,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "culvert_bat/attack/south": {
+  "reach": [
+   0,
+   -1,
+   -2,
+   -1,
+   0,
+   1
+  ],
+  "changed": [
+   700,
+   840,
+   873,
+   818,
+   831,
+   738
+  ],
+  "peak": 2,
+  "peakReach": -2,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "culvert_bat/attack/south-east": {
+  "reach": [
+   1,
+   2,
+   1,
+   0,
+   0,
+   1
+  ],
+  "changed": [
+   420,
+   558,
+   628,
+   623,
+   546,
+   291
+  ],
+  "peak": 2,
+  "peakReach": 1,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "culvert_bat/attack/south-west": {
+  "reach": [
+   0,
+   0,
+   0,
+   -2,
+   -1,
+   0
+  ],
+  "changed": [
+   480,
+   575,
+   649,
+   699,
+   652,
+   519
+  ],
+  "peak": 3,
+  "peakReach": -2,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "culvert_bat/attack/west": {
+  "reach": [
+   1,
+   3,
+   4,
+   6,
+   1,
+   0
+  ],
+  "changed": [
+   251,
+   386,
+   402,
+   409,
+   360,
+   219
+  ],
+  "peak": 3,
+  "peakReach": 6,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "culvert_bat/death/east": {
+  "foot": 43,
+  "lastLow": 35,
+  "shift": 8,
+  "drop": 0.32,
+  "stillBox": [
+   15,
+   5,
+   34,
+   42
+  ],
+  "lastBox": [
+   7,
+   17,
+   40,
+   35
+  ]
+ },
+ "culvert_bat/death/north": {
+  "foot": 43,
+  "lastLow": 37,
+  "shift": 6,
+  "drop": 0.48,
+  "stillBox": [
+   1,
+   8,
+   46,
+   36
+  ],
+  "lastBox": [
+   7,
+   22,
+   40,
+   37
+  ]
+ },
+ "culvert_bat/death/north-east": {
+  "foot": 43,
+  "lastLow": 39,
+  "shift": 4,
+  "drop": 0.14,
+  "stillBox": [
+   6,
+   5,
+   39,
+   41
+  ],
+  "lastBox": [
+   10,
+   10,
+   40,
+   39
+  ]
+ },
+ "culvert_bat/death/south-east": {
+  "foot": 43,
+  "lastLow": 41,
+  "shift": 2,
+  "drop": 0.14,
+  "stillBox": [
+   6,
+   6,
+   40,
+   40
+  ],
+  "lastBox": [
+   5,
+   11,
+   42,
+   41
+  ]
+ },
+ "culvert_bat/deathpose/north-east": {
+  "foot": 43,
+  "lastLow": 37,
+  "shift": 6,
+  "drop": 0.32,
+  "stillBox": [
+   6,
+   5,
+   39,
+   41
+  ],
+  "lastBox": [
+   1,
+   17,
+   46,
+   37
+  ]
+ },
+ "hive_wasp/attack/north": {
+  "reach": [
+   0,
+   1,
+   1,
+   1,
+   1,
+   2
+  ],
+  "changed": [
+   296,
+   465,
+   512,
+   502,
+   506,
+   377
+  ],
+  "peak": 2,
+  "peakReach": 1,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "hive_wasp/attack/north-east": {
+  "reach": [
+   1,
+   -1,
+   -1,
+   0,
+   0,
+   -1
+  ],
+  "changed": [
+   292,
+   432,
+   470,
+   482,
+   470,
+   414
+  ],
+  "peak": 3,
+  "peakReach": 0,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "hive_wasp/attack/north-west": {
+  "reach": [
+   1,
+   3,
+   5,
+   3,
+   5,
+   4
+  ],
+  "changed": [
+   367,
+   441,
+   488,
+   522,
+   461,
+   294
+  ],
+  "peak": 3,
+  "peakReach": 3,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "hive_wasp/attack/south": {
+  "reach": [
+   0,
+   -1,
+   1,
+   2,
+   1,
+   0
+  ],
+  "changed": [
+   424,
+   505,
+   595,
+   561,
+   566,
+   364
+  ],
+  "peak": 2,
+  "peakReach": 1,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "hive_wasp/attack/south-east": {
+  "reach": [
+   -1,
+   -4,
+   -6,
+   -2,
+   -5,
+   -2
+  ],
+  "changed": [
+   346,
+   565,
+   629,
+   630,
+   626,
+   551
+  ],
+  "peak": 3,
+  "peakReach": -2,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "hive_wasp/attack/south-west": {
+  "reach": [
+   0,
+   -1,
+   -2,
+   -2,
+   -2,
+   0
+  ],
+  "changed": [
+   369,
+   579,
+   613,
+   628,
+   590,
+   327
+  ],
+  "peak": 3,
+  "peakReach": -2,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "hive_wasp/attack/west": {
+  "reach": [
+   -1,
+   0,
+   0,
+   -1,
+   0,
+   0
+  ],
+  "changed": [
+   264,
+   426,
+   484,
+   473,
+   478,
+   432
+  ],
+  "peak": 2,
+  "peakReach": 0,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "hive_wasp/death/east": {
+  "foot": 43,
+  "lastLow": 38,
+  "shift": 5,
+  "drop": 0.27,
+  "stillBox": [
+   9,
+   8,
+   39,
+   37
+  ],
+  "lastBox": [
+   8,
+   16,
+   40,
+   38
+  ]
+ },
+ "hive_wasp/death/north": {
+  "foot": 43,
+  "lastLow": 36,
+  "shift": 7,
+  "drop": 0.03,
+  "stillBox": [
+   5,
+   9,
+   42,
+   37
+  ],
+  "lastBox": [
+   6,
+   10,
+   41,
+   36
+  ]
+ },
+ "hive_wasp/death/north-east": {
+  "foot": 43,
+  "lastLow": 35,
+  "shift": 8,
+  "drop": 0.04,
+  "stillBox": [
+   5,
+   11,
+   35,
+   36
+  ],
+  "lastBox": [
+   8,
+   12,
+   37,
+   35
+  ]
+ },
+ "hive_wasp/death/south": {
+  "foot": 43,
+  "lastLow": 39,
+  "shift": 4,
+  "drop": 0.52,
+  "stillBox": [
+   5,
+   7,
+   42,
+   37
+  ],
+  "lastBox": [
+   5,
+   23,
+   42,
+   39
+  ]
+ },
+ "hive_wasp/death/south-east": {
+  "foot": 43,
+  "lastLow": 37,
+  "shift": 6,
+  "drop": 0.24,
+  "stillBox": [
+   4,
+   6,
+   37,
+   39
+  ],
+  "lastBox": [
+   7,
+   14,
+   41,
+   37
+  ]
+ },
+ "hive_wasp/deathpose/east": {
+  "foot": 43,
+  "lastLow": 36,
+  "shift": 7,
+  "drop": 0.27,
+  "stillBox": [
+   9,
+   8,
+   39,
+   37
+  ],
+  "lastBox": [
+   3,
+   16,
+   43,
+   36
+  ]
+ },
+ "hive_wasp/deathpose/north": {
+  "foot": 43,
+  "lastLow": 37,
+  "shift": 6,
+  "drop": 0.17,
+  "stillBox": [
+   5,
+   9,
+   42,
+   37
+  ],
+  "lastBox": [
+   5,
+   14,
+   42,
+   37
+  ]
+ },
+ "hive_wasp/deathpose/north-east": {
+  "foot": 43,
+  "lastLow": 33,
+  "shift": 10,
+  "drop": 0.19,
+  "stillBox": [
+   5,
+   11,
+   35,
+   36
+  ],
+  "lastBox": [
+   4,
+   16,
+   42,
+   33
+  ]
+ },
+ "hive_wasp/deathpose/south-east": {
+  "foot": 43,
+  "lastLow": 35,
+  "shift": 8,
+  "drop": 0.29,
+  "stillBox": [
+   4,
+   6,
+   37,
+   39
+  ],
+  "lastBox": [
+   3,
+   16,
+   44,
+   35
+  ]
+ },
+ "kobold_tosher/attack/north": {
+  "reach": [
+   -1,
+   -1,
+   -4,
+   -5,
+   -5,
+   -5
+  ],
+  "changed": [
+   216,
+   229,
+   241,
+   266,
+   278,
+   275
+  ],
+  "peak": 4,
+  "peakReach": -5,
+  "order": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   4
+  ]
+ },
+ "kobold_tosher/attack/north-east": {
+  "reach": [
+   -1,
+   -1,
+   -14,
+   -15,
+   -14,
+   -14
+  ],
+  "changed": [
+   222,
+   133,
+   363,
+   372,
+   362,
+   335
+  ],
+  "peak": 3,
+  "peakReach": -15,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "kobold_tosher/attack/north-west": {
+  "reach": [
+   -1,
+   -2,
+   -3,
+   -4,
+   -4,
+   -6
+  ],
+  "changed": [
+   331,
+   331,
+   391,
+   435,
+   441,
+   424
+  ],
+  "peak": 4,
+  "peakReach": -4,
+  "order": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   4
+  ]
+ },
+ "kobold_tosher/attack/south-east": {
+  "reach": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "changed": [
+   199,
+   295,
+   295,
+   302,
+   301,
+   264
+  ],
+  "peak": 3,
+  "peakReach": 0,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "kobold_tosher/attack/south-west": {
+  "reach": [
+   1,
+   1,
+   0,
+   0,
+   1,
+   1
+  ],
+  "changed": [
+   346,
+   385,
+   425,
+   422,
+   443,
+   367
+  ],
+  "peak": 4,
+  "peakReach": 1,
+  "order": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   4
+  ]
+ },
+ "kobold_tosher/attack/west": {
+  "reach": [
+   0,
+   3,
+   9,
+   10,
+   10,
+   9
+  ],
+  "changed": [
+   236,
+   279,
+   382,
+   400,
+   405,
+   388
+  ],
+  "peak": 4,
+  "peakReach": 10,
+  "order": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   4
+  ]
+ },
+ "kobold_tosher/attackpose/south": {
+  "reach": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "changed": [
+   0,
+   424,
+   445,
+   420,
+   415
+  ],
+  "peak": 2,
+  "peakReach": 0,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "kobold_tosher/death/east": {
+  "foot": 43,
+  "lastLow": 44,
+  "shift": 0,
+  "drop": 0.63,
+  "stillBox": [
+   6,
+   12,
+   32,
+   43
+  ],
+  "lastBox": [
+   6,
+   32,
+   42,
+   44
+  ]
+ },
+ "kobold_tosher/death/north": {
+  "foot": 41,
+  "lastLow": 42,
+  "shift": 0,
+  "drop": 0.22,
+  "stillBox": [
+   13,
+   6,
+   35,
+   41
+  ],
+  "lastBox": [
+   5,
+   14,
+   41,
+   42
+  ]
+ },
+ "kobold_tosher/death/north-east": {
+  "foot": 42,
+  "lastLow": 42,
+  "shift": 0,
+  "drop": 0.58,
+  "stillBox": [
+   11,
+   10,
+   38,
+   42
+  ],
+  "lastBox": [
+   5,
+   29,
+   42,
+   42
+  ]
+ },
+ "kobold_tosher/death/north-west": {
+  "foot": 42,
+  "lastLow": 42,
+  "shift": 0,
+  "drop": 0.31,
+  "stillBox": [
+   14,
+   4,
+   34,
+   42
+  ],
+  "lastBox": [
+   6,
+   16,
+   39,
+   42
+  ]
+ },
+ "kobold_tosher/death/south-east": {
+  "foot": 43,
+  "lastLow": 43,
+  "shift": 0,
+  "drop": 0.53,
+  "stillBox": [
+   9,
+   12,
+   33,
+   43
+  ],
+  "lastBox": [
+   6,
+   29,
+   41,
+   43
+  ]
+ },
+ "kobold_tosher/death/south-west": {
+  "foot": 43,
+  "lastLow": 43,
+  "shift": 0,
+  "drop": 0.68,
+  "stillBox": [
+   8,
+   10,
+   40,
+   43
+  ],
+  "lastBox": [
+   8,
+   33,
+   42,
+   43
+  ]
+ },
+ "kobold_tosher/death/west": {
+  "foot": 43,
+  "lastLow": 42,
+  "shift": 1,
+  "drop": 0.63,
+  "stillBox": [
+   14,
+   6,
+   41,
+   43
+  ],
+  "lastBox": [
+   3,
+   30,
+   42,
+   42
+  ]
+ },
+ "rat/attack/north-east": {
+  "reach": [
+   0,
+   2,
+   0,
+   2,
+   -1,
+   3
+  ],
+  "changed": [
+   277,
+   425,
+   454,
+   444,
+   404,
+   269
+  ],
+  "peak": 2,
+  "peakReach": 0,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "rat/attack/north-west": {
+  "reach": [
+   1,
+   7,
+   3,
+   0,
+   1,
+   3
+  ],
+  "changed": [
+   325,
+   468,
+   455,
+   484,
+   486,
+   455
+  ],
+  "peak": 4,
+  "peakReach": 1,
+  "order": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   4
+  ]
+ },
+ "rat/attack/south-east": {
+  "reach": [
+   1,
+   0,
+   -1,
+   -2,
+   -2,
+   -1
+  ],
+  "changed": [
+   411,
+   491,
+   572,
+   592,
+   591,
+   469
+  ],
+  "peak": 3,
+  "peakReach": -2,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "rat/attack/south-west": {
+  "reach": [
+   0,
+   0,
+   0,
+   0,
+   -1,
+   -1
+  ],
+  "changed": [
+   237,
+   368,
+   498,
+   564,
+   494,
+   357
+  ],
+  "peak": 3,
+  "peakReach": 0,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "rat/attack/west": {
+  "reach": [
+   -1,
+   -1,
+   -2,
+   -2,
+   -1,
+   0
+  ],
+  "changed": [
+   421,
+   486,
+   512,
+   540,
+   480,
+   325
+  ],
+  "peak": 3,
+  "peakReach": -2,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "rat/deathpose/north": {
+  "foot": 39,
+  "lastLow": 39,
+  "shift": 0,
+  "drop": 0,
+  "stillBox": [
+   13,
+   13,
+   33,
+   39
+  ],
+  "lastBox": [
+   11,
+   13,
+   34,
+   39
+  ]
+ },
+ "rat/deathpose/north-east": {
+  "foot": 40,
+  "lastLow": 36,
+  "shift": 4,
+  "drop": 0.13,
+  "stillBox": [
+   7,
+   11,
+   42,
+   40
+  ],
+  "lastBox": [
+   6,
+   15,
+   44,
+   36
+  ]
+ },
+ "rat/deathpose/south-east": {
+  "foot": 41,
+  "lastLow": 39,
+  "shift": 2,
+  "drop": 0.11,
+  "stillBox": [
+   10,
+   5,
+   41,
+   41
+  ],
+  "lastBox": [
+   8,
+   9,
+   40,
+   39
+  ]
+ },
+ "rat_king/attack/east": {
+  "reach": [
+   1,
+   1,
+   5,
+   2,
+   4,
+   4
+  ],
+  "changed": [
+   761,
+   982,
+   1165,
+   994,
+   894,
+   561
+  ],
+  "peak": 2,
+  "peakReach": 5,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "rat_king/attack/north": {
+  "reach": [
+   0,
+   0,
+   -1,
+   -1,
+   -1,
+   0
+  ],
+  "changed": [
+   844,
+   948,
+   1256,
+   1346,
+   1214,
+   941
+  ],
+  "peak": 3,
+  "peakReach": -1,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "rat_king/attack/north-east": {
+  "reach": [
+   0,
+   -2,
+   -1,
+   -1,
+   -1,
+   -1
+  ],
+  "changed": [
+   1017,
+   1108,
+   1216,
+   1236,
+   1219,
+   1116
+  ],
+  "peak": 3,
+  "peakReach": -1,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "rat_king/attack/north-west": {
+  "reach": [
+   0,
+   -2,
+   -5,
+   -4,
+   -3,
+   -2
+  ],
+  "changed": [
+   752,
+   1153,
+   1282,
+   1305,
+   1284,
+   1137
+  ],
+  "peak": 3,
+  "peakReach": -4,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "rat_king/attack/south-east": {
+  "reach": [
+   0,
+   0,
+   1,
+   2,
+   1,
+   0
+  ],
+  "changed": [
+   582,
+   954,
+   1184,
+   1027,
+   1003,
+   867
+  ],
+  "peak": 2,
+  "peakReach": 1,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "rat_king/attack/south-west": {
+  "reach": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "changed": [
+   523,
+   648,
+   1178,
+   1214,
+   1199,
+   1128
+  ],
+  "peak": 3,
+  "peakReach": 0,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "rat_king/attack/west": {
+  "reach": [
+   1,
+   7,
+   3,
+   3,
+   5,
+   6
+  ],
+  "changed": [
+   698,
+   1054,
+   1155,
+   1184,
+   1167,
+   1060
+  ],
+  "peak": 3,
+  "peakReach": 3,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "rat_king/attackpose/south": {
+  "reach": [
+   0,
+   0,
+   -1,
+   -1,
+   0
+  ],
+  "changed": [
+   0,
+   1441,
+   1633,
+   1585,
+   1505
+  ],
+  "peak": 2,
+  "peakReach": -1,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "rat_king/death/east": {
+  "foot": 59,
+  "lastLow": 58,
+  "shift": 1,
+  "drop": 0.55,
+  "stillBox": [
+   10,
+   4,
+   48,
+   59
+  ],
+  "lastBox": [
+   3,
+   35,
+   58,
+   58
+  ]
+ },
+ "rat_king/death/north": {
+  "foot": 56,
+  "lastLow": 57,
+  "shift": 0,
+  "drop": 0.15,
+  "stillBox": [
+   10,
+   4,
+   53,
+   56
+  ],
+  "lastBox": [
+   7,
+   12,
+   56,
+   57
+  ]
+ },
+ "rat_king/death/north-east": {
+  "foot": 57,
+  "lastLow": 57,
+  "shift": 0,
+  "drop": 0.09,
+  "stillBox": [
+   7,
+   4,
+   51,
+   57
+  ],
+  "lastBox": [
+   9,
+   9,
+   55,
+   57
+  ]
+ },
+ "rat_king/death/north-west": {
+  "foot": 57,
+  "lastLow": 58,
+  "shift": 0,
+  "drop": 0.13,
+  "stillBox": [
+   12,
+   4,
+   53,
+   57
+  ],
+  "lastBox": [
+   9,
+   11,
+   55,
+   58
+  ]
+ },
+ "rat_king/death/south-east": {
+  "foot": 59,
+  "lastLow": 59,
+  "shift": 0,
+  "drop": 0.49,
+  "stillBox": [
+   7,
+   5,
+   47,
+   59
+  ],
+  "lastBox": [
+   6,
+   32,
+   59,
+   59
+  ]
+ },
+ "rat_king/death/south-west": {
+  "foot": 58,
+  "lastLow": 58,
+  "shift": 0,
+  "drop": 0.35,
+  "stillBox": [
+   10,
+   4,
+   56,
+   58
+  ],
+  "lastBox": [
+   6,
+   23,
+   58,
+   58
+  ]
+ },
+ "rat_king/death/west": {
+  "foot": 58,
+  "lastLow": 58,
+  "shift": 0,
+  "drop": 0.35,
+  "stillBox": [
+   14,
+   4,
+   56,
+   58
+  ],
+  "lastBox": [
+   7,
+   23,
+   56,
+   58
+  ]
+ },
+ "rat_king/deathpose/north-east": {
+  "foot": 57,
+  "lastLow": 54,
+  "shift": 3,
+  "drop": 0.46,
+  "stillBox": [
+   7,
+   4,
+   51,
+   57
+  ],
+  "lastBox": [
+   4,
+   29,
+   59,
+   54
+  ]
+ },
+ "rat_king/deathpose/north-west": {
+  "foot": 57,
+  "lastLow": 55,
+  "shift": 2,
+  "drop": 0.33,
+  "stillBox": [
+   12,
+   4,
+   53,
+   57
+  ],
+  "lastBox": [
+   4,
+   22,
+   60,
+   55
+  ]
+ },
+ "slime/attack/east": {
+  "reach": [
+   -1,
+   -2,
+   -2,
+   -3,
+   -1,
+   0
+  ],
+  "changed": [
+   302,
+   523,
+   628,
+   619,
+   448,
+   350
+  ],
+  "peak": 2,
+  "peakReach": -2,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "slime/attack/north": {
+  "reach": [
+   -2,
+   -2,
+   -2,
+   0,
+   0,
+   -1
+  ],
+  "changed": [
+   462,
+   523,
+   573,
+   589,
+   597,
+   555
+  ],
+  "peak": 4,
+  "peakReach": 0,
+  "order": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   4
+  ]
+ },
+ "slime/attack/north-east": {
+  "reach": [
+   -2,
+   0,
+   1,
+   2,
+   1,
+   1
+  ],
+  "changed": [
+   427,
+   377,
+   443,
+   493,
+   387,
+   364
+  ],
+  "peak": 3,
+  "peakReach": 2,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "slime/attack/north-west": {
+  "reach": [
+   1,
+   2,
+   3,
+   3,
+   2,
+   2
+  ],
+  "changed": [
+   352,
+   473,
+   519,
+   554,
+   519,
+   417
+  ],
+  "peak": 3,
+  "peakReach": 3,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "slime/attack/south": {
+  "reach": [
+   0,
+   0,
+   -3,
+   -3,
+   0,
+   0
+  ],
+  "changed": [
+   358,
+   627,
+   742,
+   740,
+   582,
+   428
+  ],
+  "peak": 2,
+  "peakReach": -3,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "slime/attack/south-east": {
+  "reach": [
+   -2,
+   -4,
+   -7,
+   -8,
+   -3,
+   -1
+  ],
+  "changed": [
+   424,
+   576,
+   707,
+   724,
+   537,
+   382
+  ],
+  "peak": 3,
+  "peakReach": -8,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "slime/attack/south-west": {
+  "reach": [
+   -1,
+   -3,
+   -7,
+   -8,
+   -6,
+   -4
+  ],
+  "changed": [
+   392,
+   585,
+   712,
+   685,
+   627,
+   528
+  ],
+  "peak": 2,
+  "peakReach": -7,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "slime/attack/west": {
+  "reach": [
+   1,
+   1,
+   1,
+   1,
+   1,
+   1
+  ],
+  "changed": [
+   348,
+   412,
+   504,
+   590,
+   459,
+   411
+  ],
+  "peak": 3,
+  "peakReach": 1,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "slime/death/east": {
+  "foot": 39,
+  "lastLow": 41,
+  "shift": 0,
+  "drop": -0.14,
+  "stillBox": [
+   8,
+   12,
+   37,
+   39
+  ],
+  "lastBox": [
+   7,
+   8,
+   40,
+   41
+  ]
+ },
+ "slime/death/north": {
+  "foot": 34,
+  "lastLow": 38,
+  "shift": 0,
+  "drop": 0.11,
+  "stillBox": [
+   8,
+   7,
+   39,
+   34
+  ],
+  "lastBox": [
+   6,
+   10,
+   41,
+   38
+  ]
+ },
+ "slime/death/north-east": {
+  "foot": 37,
+  "lastLow": 38,
+  "shift": 0,
+  "drop": 0.04,
+  "stillBox": [
+   8,
+   10,
+   39,
+   37
+  ],
+  "lastBox": [
+   6,
+   11,
+   40,
+   38
+  ]
+ },
+ "slime/death/south-east": {
+  "foot": 39,
+  "lastLow": 40,
+  "shift": 0,
+  "drop": 0.04,
+  "stillBox": [
+   8,
+   13,
+   38,
+   39
+  ],
+  "lastBox": [
+   7,
+   14,
+   39,
+   40
+  ]
+ },
+ "slime/deathpose/east": {
+  "foot": 39,
+  "lastLow": 37,
+  "shift": 2,
+  "drop": 0.36,
+  "stillBox": [
+   8,
+   12,
+   37,
+   39
+  ],
+  "lastBox": [
+   4,
+   22,
+   41,
+   37
+  ]
+ },
+ "slime/deathpose/north": {
+  "foot": 34,
+  "lastLow": 31,
+  "shift": 3,
+  "drop": 0.39,
+  "stillBox": [
+   8,
+   7,
+   39,
+   34
+  ],
+  "lastBox": [
+   5,
+   18,
+   42,
+   31
+  ]
+ },
+ "slime/deathpose/north-east": {
+  "foot": 37,
+  "lastLow": 33,
+  "shift": 4,
+  "drop": 0.32,
+  "stillBox": [
+   8,
+   10,
+   39,
+   37
+  ],
+  "lastBox": [
+   3,
+   19,
+   43,
+   33
+  ]
+ },
+ "slime/deathpose/south-east": {
+  "foot": 39,
+  "lastLow": 36,
+  "shift": 3,
+  "drop": 0.33,
+  "stillBox": [
+   8,
+   13,
+   38,
+   39
+  ],
+  "lastBox": [
+   4,
+   22,
+   43,
+   36
+  ]
+ }
+}

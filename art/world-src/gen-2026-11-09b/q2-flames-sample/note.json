@@ -1,0 +1,20 @@
+{
+  "asset": "brief 13 Q2 (brief 11 L1, the other four flames) SAMPLE: forge and candle",
+  "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt Q2",
+  "status": "SAMPLE for the art director's one read; the cauldron and bread oven (uploads prepared) wait for it. Not imported",
+  "made": "2026-11-08 (the brief's 11-09 samples)",
+  "generations": 2,
+  "tool": "animate_image on the prop's own frame, frame_count 8 (9 stored, frame_000 the shipped sprite byte for byte), seed 91, L1's words and cut",
+  "props": {
+    "forge": { "source": "art/world/cottage/forge.png 46x48, padded to 48x48 at x1 y0 (upload 94149ab1)", "job": "b5b1079e-9c1f-423a-8d95-448ad92151ee", "action": "the flame flickers and sways, the forge does not move, nothing else appears in the frame", "measured": "raw frames change 158-251 px; overlay 50-127 px a frame; no pixel outside the prop frame" },
+    "candle": { "source": "art/world/mill/candle.png 14x22, padded to 32x32 at x9 y10 (upload 3c276527)", "job": "a702fc8a-646a-4314-a6c9-3ed81183f789", "action": "the flame flickers and sways, the candle does not move, nothing else appears in the frame", "measured": "raw frames change 40-60 px; overlay 23-41 px a frame; 0-3 stray px a frame fell outside the 14x22 frame (dropped by the crop)" }
+  },
+  "cut_rule": "L1's: a pixel is flame when warm (R > 150, R - B > 70, G > 40) in the generated frame or in the still; everything else is the still's pixel",
+  "layout": "<prop>/raw/frame_000..008 (cropped back to the prop frame), cut/ (the still with only the flame pixels moving), overlay/ (the flame pixels alone, registered to the prop frame: the `light` overlay)",
+  "flags": [
+    "forge frames 3-4 flare the fire mouth to pale yellow-white (a brighter burst, the 'glow' risk); the calm loop is frames 0-2 and 6-8",
+    "candle: the flame sways and leans; 1-2 ember specks above the tip in frames 1, 4, 6 (kept by the warm cut, as L1's torch embers)",
+    "no glow painted round either prop"
+  ],
+  "review_strip": "art/review/gen-2026-11-09b/q2-flames-sample.png (x3 on a dark floor: forge raw 0-8, forge cut 0-8, candle raw 0-8, candle cut 0-8)"
+}

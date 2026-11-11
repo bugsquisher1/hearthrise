@@ -121,6 +121,7 @@ import { pathToFileURL } from 'node:url';
 import { scopeMutants, gateScope, planShards, checkShards } from '../tools/lib/mutant-scope.mjs';
 import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { withServerLevel } from './_server-level.mjs';
 /* Level totals on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
 const { charXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
 /* The Glade's Dangerous row and the tier's plain words, never typed: HS-8 reads them from the data (hunt-tiers.js GROUND_TIERS, TIER_LINES). */
@@ -239,8 +240,9 @@ function scripted() {
   };
   s.sent = (name) => s.calls.filter((c) => c.name === name);
   /* `clock`: a server clock of the test's own (ms); each answer then states it as `now` and hunt_server_now_ms. */
-  s.next = () => Object.assign(clone(s.env), { version: ++s.version },
-    s.clock ? { now: new Date(s.clock()).toISOString(), hunt_server_now_ms: s.clock() } : {});
+  /* The server states the Level itself (hr_state_of's `level` block): the stub states it for the XP a case set (./_server-level.mjs). */
+  s.next = () => withServerLevel(Object.assign(clone(s.env), { version: ++s.version },
+    s.clock ? { now: new Date(s.clock()).toISOString(), hunt_server_now_ms: s.clock() } : {}));
   return s;
 }
 

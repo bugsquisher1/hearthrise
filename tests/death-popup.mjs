@@ -47,6 +47,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { withServerLevel, levelBlock } from './_server-level.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/party-envelope.json'), 'utf8'));
@@ -93,7 +94,7 @@ async function pure(base) {
   /* A row from before the server named the Level pair: the why reads the hero's own Level. */
   const BARE = Object.assign({}, ROW); delete BARE.level_from; delete BARE.level_to;
   const whyAt = (level, session) => { const hunt = { session_id: session, hunt_id: ROW.hunt, ended: true, session: { end_reason: 'died' } };
-    const cs = { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [BARE] : k === 'state' ? { level_xp: charXpForLevel(level) } : k === 'hunt' ? hunt : null), record: { residue: {} } };
+    const cs = { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [BARE] : k === 'state' ? { level_xp: charXpForLevel(level) } : k === 'level' ? levelBlock(charXpForLevel(level)) : k === 'hunt' ? hunt : null), record: { residue: {} } };
     return deathWords(cs, { session: SESSION, row: deathLogOf(cs)[0] }).why; };
   const under = whyAt(2, SESSION), floor = HUNT_INDEX[ROW.hunt].band[0];
   if (under !== 'You were ' + (floor - 2) + ' Levels under this ground, and its monsters are stronger than you. Better armor, food eaten sooner, a healer or a few more Levels would help.') fail(fails, 'DP-0 a death under the floor reads ' + JSON.stringify(under));
@@ -108,7 +109,7 @@ async function pure(base) {
   if (words(took).saved !== 'Your 3 Blessings saved you 300 Level XP. They\'re used up now.') fail(fails, 'DP-0b three Blessings read ' + JSON.stringify(words(took).saved));
   if (words(Object.assign({}, took, { saved: {} })).saved !== 'Your 3 Blessings are now used up.') fail(fails, 'DP-0b three Blessings that kept nothing read ' + JSON.stringify(words(Object.assign({}, took, { saved: {} })).saved));
   if (words(Object.assign({}, ROW, { saved: null })).saved !== 'You had no Blessing. Blessings in the Shop\'s Services tab make dying cost less.') fail(fails, 'DP-0b no Blessing reads ' + JSON.stringify(words(Object.assign({}, ROW, { saved: null })).saved));
-  const tookCs = { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [took] : k === 'state' ? { level_xp: charXpForLevel(2) } : k === 'hunt' ? { session_id: SESSION, hunt_id: ROW.hunt, ended: true, session: { end_reason: 'died' } } : null), record: { residue: {} } };
+  const tookCs = { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [took] : k === 'state' ? { level_xp: charXpForLevel(2) } : k === 'level' ? levelBlock(charXpForLevel(2)) : k === 'hunt' ? { session_id: SESSION, hunt_id: ROW.hunt, ended: true, session: { end_reason: 'died' } } : null), record: { residue: {} } };
   const tookWhy = deathWords(tookCs, { session: SESSION, row: deathLogOf(tookCs)[0] }).why;
   if (tookWhy !== 'Better armor, food eaten sooner or a smaller pull would help.') fail(fails, 'DP-0b a hero who died in range and lost Levels is told it stood under the ground: ' + JSON.stringify(tookWhy));
   return fails;
@@ -124,7 +125,8 @@ function dead(env, row) {
 function scripted(died, row) {
   const s = { env: clone(FIXTURE.characters), version: 1, calls: [], residue: { 0: {}, 1: {} } };
   if (died) dead(s.env[0], row);
-  s.next = (slot) => Object.assign(clone(s.env[slot]), { version: ++s.version, client_state: clone(s.residue[slot] || {}) });
+  /* The server states the Level itself (hr_state_of's `level` block): the stub states it for the XP a case set (./_server-level.mjs). */
+  s.next = (slot) => withServerLevel(Object.assign(clone(s.env[slot]), { version: ++s.version, client_state: clone(s.residue[slot] || {}) }));
   return s;
 }
 

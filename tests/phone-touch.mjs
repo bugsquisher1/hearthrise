@@ -107,6 +107,7 @@ import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { RING_WORDS, RING_WORDS_WIDEST } from './_bar-probes.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { withServerLevel } from './_server-level.mjs';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const HUNT = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
@@ -146,7 +147,8 @@ function scripted(fixture, prep) {
   if (prep) prep(s.env);
   /* a fixture's own residue is where the server keeps it: the store every later envelope echoes */
   if (s.env.client_state) { s.residue = Object.assign({}, s.env.client_state); delete s.env.client_state; }
-  s.next = () => Object.assign(clone(s.env), { version: ++s.version, client_state: clone(s.residue) });
+  /* The server states the Level itself (hr_state_of's `level` block): the stub states it for the XP a case set (./_server-level.mjs). */
+  s.next = () => withServerLevel(Object.assign(clone(s.env), { version: ++s.version, client_state: clone(s.residue) }));
   return s;
 }
 

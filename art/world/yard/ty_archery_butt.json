@@ -1,0 +1,42 @@
+{
+  "id": "ty_archery_butt",
+  "class": "fixture",
+  "style": "s1",
+  "material": "wood",
+  "source": "ty_archery_butt.png",
+  "frame": [
+    43,
+    46
+  ],
+  "anchor_px": [
+    9,
+    45
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    },
+    {
+      "name": "hit",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 4
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "PixelLab create_image_pro_flash, brief 13 Y1 (art/world-src/gen-2026-11-09b/y1-yard-kit), style 1; cut by blob, no pixel redrawn",
+    "image": "cb6949f2-1fa5-499f-ac9c-9690acdc5ea5"
+  },
+  "notes": "The archery butt, facing south. Its `hit` clip is the free 1 px shudder of the verdict: the rows above the cut's freeze row move 1 art px right, then 1 px left (0 r l 0 at 12 fps); the base never moves."
+}

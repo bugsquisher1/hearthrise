@@ -3228,3 +3228,12 @@ plus authored decals is the route; (4) a rounded slab with one glyph reads as a 
 the company it keeps; (5) judge a flier's seat in its sidecar frame, after placement, not on the generator's canvas.
 ### 2026-11-10 lane/d-scaled-and-events-mocks (mocks only: scaled hunts, live events)
 Boards in .claude/coordination/mocks/2026-11-10 (4 boards, 9 screens, SPEC.md). Method: capture the real page from local-world (canvases to images, scripts stripped, a base href to the repo root), edit it in Playwright, save the DOM, so a mock is today's screen plus the new part. Lessons: (1) a mock of a phone sheet must sit in an iframe at 922x423 or the desktop rules apply; (2) .hs-win::before is absolute, so a window slice set to position static paints its floor over the whole first viewport; (3) a full-page shot leaves iframes under the fold blank unless the viewport is grown to the page first; (4) bake a scroll position as a negative top margin, a load script scrolls before the images have a height.
+
+### 2026-11-11 lane/d-tally-board-mocks (mocks only: Tamsin's tally window)
+Method that worked fastest: drive the real game on local-world with Playwright, then inject the mock body as a sibling of the
+window's `.hs-win-body` (the original hidden, so the window manager's patch keeps running on it harmlessly). Every mock shot then
+has the real frame, the real world, the real HUD and real numbers. Scripts: mocks/2026-11-11-tally/tools/. Lessons: (1) measure
+clipping and sub-12 px text in the page (scrollWidth > clientWidth) on every shot, because the first pass clipped 8 labels the
+eye skimmed over; (2) world sprites are 46-92 px, so they can't be a row icon at an integer scale, and creature list icons
+need their own 32 px heads; (3) a "Held" row that repeats a held task is noise, so the task leaves the board when taken;
+(4) read the client parse against the window (pick.pick vs pick.kind): a note that never renders looks like a design gap.

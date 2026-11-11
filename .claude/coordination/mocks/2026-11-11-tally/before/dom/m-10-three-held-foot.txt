@@ -1,0 +1,64 @@
+Tamsin Reeve
+Gives out kill tasks in Havora
+
+Take a task from my board and go hunting. When the count's done, I'll pay you in town with gold, plus the armor or materials my board shows.
+
+Paid today: 1 of 3
+Your gold 598 gp
+
+Your tasks
+Gray Wolves 0/200
+Only Gray Wolves in Meadowbrook Thicket count, even while you're away. Pays 480 gp + a Bronze Platebody.
+Keep this task
+Give up
+Turncoats 0/50
+Only Turncoats in Wickstead count, even while you're away. Pays 780 gp + an Iron Platebody.
+Keep this task
+Give up
+Glade Poachers 0/60
+Only Glade Poachers in Mosslight Glade count, even while you're away. Pays 920 gp + a Steel Helm.
+Keep this task
+Give up
+Her board
+
+You hold as many tasks as she gives. Give one up first.
+
+25 Giant Rats
+Mill Cellar (Level 1 ground) · 25 gp + 4 Slime Gel
+Full
+200 Gray Wolves
+Meadowbrook Thicket (Level 5 ground) · 480 gp + a Bronze Platebody
+Held
+50 Turncoats
+Wickstead (Level 8 ground) · 780 gp + an Iron Platebody
+Held
+The Rat King, 5 times
+The Sewer (Level 8 ground), best with a party · 1,020 gp + an Iron Helm
+Full
+60 Glade Poachers
+Mosslight Glade (Level 16 ground) · 920 gp + a Steel Helm
+Held
+30 Goblin Diggers
+Coppercap Warrens (Level 32 ground), best with a party · 1,090 gp + a Steel Helm
+Full
+The armor she pays you in
+
+Each task pays what its line says, its gold and the next heavy armor piece from that ground she hasn't given you, in the slot order below. She skips a slot where you're already wearing that tier or better. Armor in your bag doesn't count. Where she has no piece left to give, she pays in crafting materials instead.
+
+Heavy
+Medium
+Light
+Head
+Move up
+Body
+Move up
+Legs
+Move up
+Feet
+Move up
+Hands
+Move up
+Waist
+Move up
+
+Taken. Only Glade Poachers in Mosslight Glade count, even while you're away.

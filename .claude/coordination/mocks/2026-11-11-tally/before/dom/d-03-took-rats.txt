@@ -1,0 +1,53 @@
+Tamsin Reeve
+Gives out kill tasks in Havora
+
+Take a task from my board and go hunting. When the count's done, I'll pay you in town with gold, plus the armor or materials my board shows.
+
+Paid today: 0 of 3
+Your gold 500 gp
+
+Your tasks
+Giant Rats 0/25
+Only Giant Rats in Mill Cellar count, even while you're away. Pays 25 gp + a Bronze Helm.
+Keep this task
+Give up
+Her board
+25 Giant Rats
+Mill Cellar (Level 1 ground) · 25 gp + a Bronze Helm
+Held
+200 Gray Wolves
+Meadowbrook Thicket (Level 5 ground) · 480 gp + a Bronze Helm
+Take
+50 Turncoats
+Wickstead (Level 8 ground) · 780 gp + a Bronze Helm
+Take
+The Rat King, 5 times
+The Sewer (Level 8 ground), best with a party · 1,020 gp + an Iron Helm
+Take
+60 Glade Poachers
+Mosslight Glade (Level 16 ground) · 920 gp + a Steel Helm
+Take
+30 Goblin Diggers
+Coppercap Warrens (Level 32 ground), best with a party · 1,090 gp + a Steel Helm
+Take
+The armor she pays you in
+
+Each task pays what its line says, its gold and the next heavy armor piece from that ground she hasn't given you, in the slot order below. She skips a slot where you're already wearing that tier or better. Armor in your bag doesn't count. Where she has no piece left to give, she pays in crafting materials instead.
+
+Heavy
+Medium
+Light
+Head
+Move up
+Body
+Move up
+Legs
+Move up
+Feet
+Move up
+Hands
+Move up
+Waist
+Move up
+
+Taken. Only Giant Rats in Mill Cellar count, even while you're away. She'll pay you in heavy armor.

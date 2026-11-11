@@ -30,6 +30,13 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-11 Tally board mocks (art director, lane/d-tally-board-mocks; Tyler 2026-11-11 "the menu / ui itself sucks ass", rewards stay): MOCKS ONLY, nothing built
+- Files: `.claude/coordination/mocks/2026-11-11-tally/` (`SPEC.md`, `compare-desktop.png`, `compare-phone.png`, `before/`, `after/`, `mock.css`), captured on the local world (set/v0.2.121) at 1440x900 and 922x423.
+- Problems: your own task is not what you see first (282 words on open, no task row in view on a phone); every row is a same-looking grey sentence with the pay at its end, no icons, and "Take" has no button shape; Tamsin has no voice, the window never says when the day resets, and the board's pay changes from materials to armor at the first Take.
+- Mock: her line on top (name, "Paid today 1 of 3 · new day in 6 h", one line in her voice per state). Your tallies come first, each with her tally marks, the exact count, the piece in a pocket well and "You'll get ...". Her board is two-line rows with the ground as a take-me-there link and a sunk Take. The armor picker folds to one line.
+- Build: client only, lane B, about half a day. Optional lane C read field (pick preview by suggested weight). Separate lane A: `sharedPieces` reads `pick.pick`, not `pick.kind`, so "she gives it once" never shows.
+- Tyler: (1) Tamsin's first-person lines, yes or no; (2) ship without creature pictures or wait for 32 px heads; (3) tally marks or a plain bar.
+
 ### 2026-11-10 The first ten minutes (designer, lane/d-first-ten-minutes; Tyler 2026-11-10 approved "one-sentence hook on the first ten minutes + Steam page"): PLAYED on the local world at v0.2.114, three text lines CHANGED, the rest is a build list. Nothing else built
 
 **Method.** The real `play.html` on `tools/qa/local-world.mjs serve`, a brand-new account from the sign-in screen, one sword and shield hero (Odalys), 30 minutes by hand in real time in the browser pane (1355x846), then the page closed and `wait 480 --away`, then back. Session minutes count from the sign-in screen. A second measure ran on a separate headless world: three fresh heroes who took Tamsin's rats at Level 1 before their first hunt, read once a minute for 12 minutes of skipped time. Shots: `art/review/first-ten-minutes-2026-11-10/` (22, untracked). **Not played:** a phone, a death, sound, the email link a live sign-up needs, and other players. The local world held one account, so everything below about other people is what an empty server shows, which is also what live shows most hours today.

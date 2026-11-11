@@ -10,7 +10,9 @@ import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.115';
 export function quoteOf(q) {
   if (!q || typeof q !== 'object' || !Number.isSafeInteger(q.price) || q.price < 1) return null;
   return { price: q.price, available: q.available === true, why: typeof q.why === 'string' ? q.why.slice(0, 32) : null,
-    used: Number.isInteger(q.used) ? q.used : 0, perDay: Number.isInteger(q.per_day) ? q.per_day : 0, left: Number.isInteger(q.left) ? q.left : 0 };
+    used: Number.isInteger(q.used) ? q.used : 0, perDay: Number.isInteger(q.per_day) ? q.per_day : 0, left: Number.isInteger(q.left) ? q.left : 0,
+    /* the room will hold this hero alone (2027-04-05-call-out-alone.sql): the warning's one more line; a server that doesn't say adds none */
+    alone: q.alone === true };
 }
 
 /** The server's quote for `call`, or null with no answer (the press stays off until there is one). */

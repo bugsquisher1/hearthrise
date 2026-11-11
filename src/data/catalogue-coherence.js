@@ -254,10 +254,10 @@ export const UNREACHABLE = Object.freeze({
 /* 115 -> 105 (lane b-unsourced-items): the tier-1 gloves and sashes are made (style-gear.js), the tier-3 ones are Warrens Rares. */
 /* 105 -> 101: the Brook Bear's meat and claw (and the two dishes they cook). */
 /* 101 -> 100 (lane c-house-pelts): the Brook Bear drops the Bear Pelt the Keep and the Trophy Room ask for. */
-/* 100 -> 61 (lane/d-packs-retune, 2026-11-12): the five Barrow March packs stage every tier-4, tier-5 and tier-6 rung that was `later`
-   (36 rows: boots, gauntlets, belts, gloves, the bows, staves, wands and spellbooks, the Runewood codex), Grave Dust, Razor Claw and
+/* 100 -> 64 (lane/d-packs-retune, 2026-11-12): the five Barrow March packs stage every tier-4, tier-5 and tier-6 rung that was `later`
+   (33 rows: boots, gauntlets, belts, gloves, the bows, staves, wands and spellbooks, the Runewood codex), Grave Dust, Razor Claw and
    Wraith Veil; they move to `staged`, which only a ground's proven opening may hold. */
-export const UNREACHABLE_CEILING = 61;
+export const UNREACHABLE_CEILING = 64;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

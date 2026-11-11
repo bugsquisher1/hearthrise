@@ -177,6 +177,9 @@ export const PENDING_USE = Object.freeze({
   lexarch_seal:     'w0f — boss trophies hang in the trophy room',
   voidwoven_sigil:  'w0f — boss trophies hang in the trophy room',
   dragon_relic:     'w0f — boss trophies hang in the trophy room',
+  /* The designer's 11-10 Krell's Hold (ruling 6: it trades). Its use is the door of a keyed hall, a new room kind (that design's engine
+     piece 5, on the pre-EA Security list); the row leaves the day that verb spends it (the Krell lane's row, carried by lane/d-packs-retune). */
+  hall_key:         'Krell\'s Hold piece 5 — the keyed hall spends it on entry (systems-engineer, backend-architect)',
 });
 /* Items with NO source today, each with the ruling and the lane that closes it. SHRINK-ONLY like PENDING_USE: a
    row whose id gained a source or left ITEMS fails; no id may be added without a ruling and an owner. They are the

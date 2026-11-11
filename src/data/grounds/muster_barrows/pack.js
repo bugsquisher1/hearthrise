@@ -207,7 +207,7 @@ export default definePack({
      0.93 the median lone way read 1.30 of the contract at the band middle (quick grade, the Ford's and the Slake's tier-4 gear on the ladder, 1 seed
      x 1 h). 0.93 x 1.00 / 1.30 = 0.72, the Warrens' own road (1 -> 0.76 the same day). A fit scales a four and a hero alone alike.
      On the full grade (the median of 8 lone ways) 0.72 read 0.86, so 0.84 (about 1.00). */
-  xpFit: { k: 0.84, why: 'at 0.93 the median lone way read 1.30 of the pace contract at the band middle (65) under solo +15% and the re-pinned contract, which reads the lone median on a party ground too (quick grade); 0.72 read 0.86 on the full grade. At 0.84 it reads about 1.00' },
+  xpFit: { k: 0.84, why: 'at 0.93 the median lone way read 1.30 of the pace contract at the band middle (65) under solo +15% and the re-pinned contract, which reads the lone median on a party ground too (quick grade). On the full grade 0.72 read 0.86. At 0.84 it reads about 1.00' },
   /* THE HARDER TIERS (TIER_PULL_OVERRIDES' shape since one difficulty: ONE pull for every group). Dangerous brings the full box, 8, not
      the table's 5: on 5 a Melee and Healer pair two under the floor netted +2.9k gold an hour a head and five under +0.5k, where the
      weight-class ruling (11-06) asks them to lose gold. On 8 they lose 15.6k and 28.8k (quick grade, 1 seed x 1 h). So here the two

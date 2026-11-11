@@ -332,13 +332,15 @@ export function readerFindings(t, has, table) {
 
 function readBaseline() { return existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')).counts : null; }
 
-/** Every finding over `sources` and `table` (the mutants pass edited copies). */
-export async function findings({ sources, table, baseline, allow = ALLOW, reader }) {
+/** Every finding over `sources` and `table` (the mutants pass edited copies). TH-6 proves the reader on rows of `readerTable`, the table the
+    reader really reads: a row planted only in an edited copy is no row of the reader's, and was picked as the plural sample when the
+    first surface held none (release v0.2.119: "no row away.th_mutant_row"). */
+export async function findings({ sources, table, baseline, allow = ALLOW, reader, readerTable = table }) {
   const rows = tableRows(table, sources);
   const sites = callSites(sources);
   const found = countTexts(sources, allow);
   const out = [...ratchetFindings(found, baseline), ...rowFindings(table, sources), ...callFindings(table, sites, rows),
-    ...deadRows(rows, sites), ...shadowFindings(sources), ...readerFindings(reader.t, reader.hasText, table)];
+    ...deadRows(rows, sites), ...shadowFindings(sources), ...readerFindings(reader.t, reader.hasText, readerTable)];
   return { out, found, rows };
 }
 
@@ -374,7 +376,7 @@ async function write() {
 /* The mutation proof: the clean tree is green, then each planted defect turns its own rule red. */
 async function mutate() {
   const sources = readSources(), table = await loadTable(), baseline = readBaseline(), reader = await realReader();
-  const run = async (o) => (await findings({ sources, table, baseline, reader, ...o })).out;
+  const run = async (o) => (await findings({ sources, table, baseline, reader, readerTable: table, ...o })).out;
   const clean = await run({});
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.slice(0, 3).join(' | ')); return 1; }
   const all = Object.entries(table).flatMap(([s, rows]) => Object.entries(rows).map(([k, row]) => ({ id: s + '.' + k, row })));

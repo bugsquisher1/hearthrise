@@ -3780,13 +3780,31 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const five = r.find((x) => x.id === 'smelt_bronze');
           if (!five || five.n !== '5' || !/^Makes 5 of up to 5 · /.test(five.why)) fails.push('AW-22 picking 5 reads ' + JSON.stringify(five));
           if (shots) await shot(page, 'work-1440x900-smithing');
+          /* AW-22X "X" (Andy, Discord 2026-11-12): X opens a number field; 37 + Enter makes the pick 37 and Start sends count 37.
+             0 clamps to 1 and 200000 to 100000 (the server's active_left range); Escape closes without a change. */
+          const XR = W + ' .hw-work-row[data-id="smelt_bronze"]';
+          const typeX = async (v, key) => { await page.click(XR + ' [data-hs-act="work-x"]'); await page.waitForTimeout(100); await page.fill(XR + ' .hw-work-xf', v);
+            if (key) await page.press(XR + ' .hw-work-xf', key); else await page.click(XR + ' [data-hs-act="work-x-set"]'); await page.waitForTimeout(150); };
+          const xBtn = () => page.evaluate((r) => { const b = document.querySelector(r + ' .hw-work-xb'); const f = document.querySelector(r + ' .hw-work-x');
+            return { t: b.textContent, on: b.getAttribute('aria-pressed'), open: !f.hidden, im: document.querySelector(r + ' .hw-work-xf').getAttribute('inputmode') }; }, XR);
+          await typeX('0');
+          r = await rowsOf(); /* 1 is a choice of its own: its button lights, X stays X */
+          if ((r.find((x) => x.id === 'smelt_bronze') || {}).n !== '1' || (await xBtn()).t !== 'X') fails.push('AW-22X 0 did not clamp to 1: ' + JSON.stringify(await xBtn()));
+          await typeX('200000', 'Enter');
+          if ((await xBtn()).t !== '100,000') fails.push('AW-22X 200000 did not clamp to 100000: ' + JSON.stringify(await xBtn()));
+          await typeX('9', 'Escape');
+          let xb = await xBtn();
+          if (xb.t !== '100,000' || xb.open) fails.push('AW-22X Escape changed the pick or left the field open: ' + JSON.stringify(xb));
+          await typeX('37', 'Enter');
+          xb = await xBtn();
+          if (xb.t !== '37' || xb.on !== 'true' || xb.open || xb.im !== 'numeric') fails.push('AW-22X X set to 37 reads ' + JSON.stringify(xb));
           await page.click(W + ' .hw-work-row[data-id="smelt_bronze"] .hw-work-go');
           await page.waitForTimeout(800);
           go = sent(s, 'hr-accrue', 'set_activity');
-          if (go.length !== 2 || JSON.stringify(go[1].body.activity) !== '{"kind":"artisan","id":"smelt_bronze","count":5}') fails.push('AW-22 the switch sent ' + JSON.stringify(go.map((c) => c.body)));
+          if (go.length !== 2 || JSON.stringify(go[1].body.activity) !== '{"kind":"artisan","id":"smelt_bronze","count":37}') fails.push('AW-22 the switch sent ' + JSON.stringify(go.map((c) => c.body)));
           if (!/^Making Bronze Bar: 0 made so far, \d+ Copper Ore left\. It stops when they run out\.$/.test(await nowText())) fails.push('AW-22 the bench line reads ' + JSON.stringify(await nowText()));
           r = await rowsOf();
-          if (!/^Working on it now · 5 left · Makes 5 of up to 5 · /.test((r.find((x) => x.id === 'smelt_bronze') || {}).why)) fails.push('AW-22 the bag was spent before the server did it: ' + JSON.stringify(r.find((x) => x.id === 'smelt_bronze')));
+          if (!/^Working on it now · 37 left · Makes 5 of up to 5 · /.test((r.find((x) => x.id === 'smelt_bronze') || {}).why)) fails.push('AW-22 the bag was spent before the server did it: ' + JSON.stringify(r.find((x) => x.id === 'smelt_bronze')));
           await page.click(W + ' .hw-work-now [data-hs-act="work-stop"]');
           await page.waitForTimeout(800);
           go = sent(s, 'hr-accrue', 'set_activity');

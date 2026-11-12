@@ -36,7 +36,7 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.124';
 import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.124';
 import { runIntent } from '../intent-words.js?v=0.2.124';
 import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.124';
-import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, perHourOf, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf, toolLine, shortInputLine } from '../town-work.js?v=0.2.124';
+import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, perHourOf, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, BENCH_MAX, clampCount, defaultCount, leftOf, toolLine, shortInputLine } from '../town-work.js?v=0.2.124';
 import { patchParts, placesParts } from '../goto.js?v=0.2.124';
 import { saleWords } from '../item-lore.js?v=0.2.124';
 import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.124';
@@ -110,7 +110,11 @@ function rowHtml(g, w) {
     /* "Make N" (a bench row only), under the row's words: how many the next Start makes; the server stops the bench there. */
     + (w.kind === 'artisan' ? '<span class="hh-segs hw-work-n" role="group" aria-label="How many to make">'
       + BENCH_COUNTS.map((n) => '<button type="button" class="hh-seg" data-hs-act="work-n" data-id="' + esc(w.id) + '" data-n="' + n + '">'
-        + (n === 'all' ? 'All' : n) + '</button>').join('') + '</span>' : '')
+        + (n === 'all' ? 'All' : n) + '</button>').join('')
+      + '<button type="button" class="hh-seg hw-work-xb" data-hs-act="work-x" data-id="' + esc(w.id) + '" data-n="x">X</button>'
+      + '<span class="hw-work-x" hidden><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="7" autocomplete="off" enterkeyhint="done"'
+      + ' class="hw-work-xf" data-hs-act="work-x-field" data-id="' + esc(w.id) + '" aria-label="How many, 1 to ' + BENCH_MAX + '">'
+      + '<button type="button" class="hh-seg" data-hs-act="work-x-set" data-id="' + esc(w.id) + '">Set</button></span></span>' : '')
     + '</span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="' + w.kind + '" data-id="' + esc(w.id) + '"></button></li>';
 }
 
@@ -146,8 +150,15 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
   const short = why ? shortInputLine(cs, w, hunting) : null;
   patchParts(li.querySelector('.hw-work-why'), short ? [short.head].concat(short.places.length ? [' '] : [], placesParts(short.places))
     : [why || (running ? 'Working on it now · ' + (left !== null ? whole(left) + ' left · ' : '') : '') + have]);
+  /* "X": a typed count shows on its button; the field is open only on the row that asked for it. */
+  const custom = typeof pick === 'number' && !BENCH_COUNTS.includes(pick);
+  const xb = li.querySelector('.hw-work-xb');
+  if (xb) text(xb, custom ? whole(pick) : 'X');
+  const xs = li.querySelector('.hw-work-x');
+  if (xs) attr(xs, 'hidden', sc.xOpen === w.id && !running ? null : '');
   for (const s of li.querySelectorAll('.hw-work-n .hh-seg')) {
-    attr(s, 'aria-pressed', String(s.getAttribute('data-n') === String(pick)));
+    const dn = s.getAttribute('data-n');
+    if (dn !== null) attr(s, 'aria-pressed', String(dn === 'x' ? custom : dn === String(pick)));
     prop(s, 'disabled', sc.pending || running);
   }
   cls(li, 'is-on', running);
@@ -247,6 +258,16 @@ renderWork.patch = function patchWork(body, ctx) {
 /* Enter or Space on a focused skill opens it, like a press. */
 renderWork.events = Object.freeze(['keydown']);
 
+/* The typed count, clamped to what the server takes, becomes the row's pick (Enter or Set). */
+function setX(sc, field, repaint) {
+  const n = field ? clampCount(field.value) : null;
+  const id = field && field.getAttribute('data-id');
+  if (id && n !== null) sc.n[id] = n;
+  sc.xOpen = null;
+  repaint();
+  return true;
+}
+
 renderWork.act = function actWork(ctx, body, action, ev, el) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
@@ -258,6 +279,11 @@ renderWork.act = function actWork(ctx, body, action, ev, el) {
     const next = withStationSort(residueOf(cs), sc.skill, el.value);
     if (next) { cs.setResidue('stationSort', next); repaint(); }
     return false;
+  }
+  if (action === 'work-x-field') {
+    if (ev.type !== 'keydown') return false;
+    if (ev.key === 'Escape') { sc.xOpen = null; repaint(); return true; }
+    return ev.key === 'Enter' ? setX(sc, el, repaint) : false;
   }
   if (ev.type === 'keydown') {
     if (action !== 'open-skill' || (ev.key !== 'Enter' && ev.key !== ' ')) return false;
@@ -273,6 +299,15 @@ renderWork.act = function actWork(ctx, body, action, ev, el) {
     if (id && BENCH_COUNTS.includes(n)) { sc.n[id] = n; repaint(); }
     return true;
   }
+  if (action === 'work-x') {
+    const id = el.getAttribute('data-id');
+    sc.xOpen = sc.xOpen === id ? null : id;
+    repaint();
+    const f = sc.xOpen && el.parentNode.querySelector('.hw-work-xf');
+    if (f) { f.value = typeof sc.n[id] === 'number' ? String(sc.n[id]) : ''; f.focus(); }
+    return true;
+  }
+  if (action === 'work-x-set') return setX(sc, el.parentNode.querySelector('.hw-work-xf'), repaint);
   if (action === 'work-go') {
     const w = workRow(el.getAttribute('data-kind'), el.getAttribute('data-id'));
     if (!w) return true;

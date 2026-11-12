@@ -122,6 +122,16 @@ export function runsOf(recipe, inv) {
    (bars, food, runes, ammo, whetstones: stock you use up). */
 export const BENCH_COUNTS = Object.freeze([1, 5, 'all']);
 
+/* "X" (Andy, Discord 2026-11-12): any whole count the server takes (player_state.active_left, 1..100000). */
+export const BENCH_MAX = 100000;
+/** A typed count clamped to 1..BENCH_MAX, or null when nothing number-like was typed. */
+export function clampCount(raw) {
+  const t = String(raw == null ? '' : raw).trim();
+  const n = Math.floor(Number(t));
+  if (!t || !Number.isFinite(n)) return null;
+  return Math.min(BENCH_MAX, Math.max(1, n));
+}
+
 /** The amount a bench row starts on: 1 for gear and tools, 'all' for stock. */
 export function defaultCount(w) {
   const out = w && w.kind === 'artisan' ? productOf(w) : null;

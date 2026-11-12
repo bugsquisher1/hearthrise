@@ -17,22 +17,22 @@
 //                       the first whose conditions pass AND that can act fires)
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.124';
-import { ABILITIES } from '../data/abilities.js?v=0.2.124';
-import { aimsAtMonsters, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.124';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.124';
-import { STATUSES } from '../data/statuses.js?v=0.2.124';
-import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.124';
-import { ITEMS } from '../data/items.js?v=0.2.124';
-import { isRune } from '../data/supplies.js?v=0.2.124';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.124';
-import { itemName, abilityName, runeWords } from './widgets/bits.js?v=0.2.124';
-import { ownCount } from './rune-supply.js?v=0.2.124';
-import { shortOf } from './item-lore.js?v=0.2.124';
-import { storeOf, storeChoices, conditionWords } from './bar-draft.js?v=0.2.124';
-import { castOf, costLine, landed } from './cast-facts.js?v=0.2.124';
-import { listWords, whole } from '../render/format.js?v=0.2.124';
-import { t } from '../render/player-text.js?v=0.2.124';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.125';
+import { ABILITIES } from '../data/abilities.js?v=0.2.125';
+import { aimsAtMonsters, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.125';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.125';
+import { STATUSES } from '../data/statuses.js?v=0.2.125';
+import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.125';
+import { ITEMS } from '../data/items.js?v=0.2.125';
+import { isRune } from '../data/supplies.js?v=0.2.125';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.125';
+import { itemName, abilityName, runeWords } from './widgets/bits.js?v=0.2.125';
+import { ownCount } from './rune-supply.js?v=0.2.125';
+import { shortOf } from './item-lore.js?v=0.2.125';
+import { storeOf, storeChoices, conditionWords } from './bar-draft.js?v=0.2.125';
+import { castOf, costLine, landed } from './cast-facts.js?v=0.2.125';
+import { listWords, whole } from '../render/format.js?v=0.2.125';
+import { t } from '../render/player-text.js?v=0.2.125';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));

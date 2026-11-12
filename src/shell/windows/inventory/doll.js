@@ -17,21 +17,21 @@
 // `equip` intent; the doll changes only when the re-read envelope replaces
 // `equipment`.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../../data/items.js?v=0.2.124';
-import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.124';
-import { bagOf, skillsOf, shopOf, equipmentOf } from '../../../session/item-sections.js?v=0.2.124';
-import { wornWeights, weightSentence, WEIGHT_ORDER } from '../../../data/armour-weights.js?v=0.2.124';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.124';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.124';
-import { glyphSvg } from '../../launcher.js?v=0.2.124';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.124';
-import { compare, rarityOf } from '../../bag-model.js?v=0.2.124';
-import { needOf } from '../../item-lore.js?v=0.2.124';
-import { gearLocked, GEAR_HUNT_WORDS } from '../../gear-gate.js?v=0.2.124';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.124';
-import { levelOf } from '../../../session/character-sections.js?v=0.2.124';
-import { showTip } from '../item-tip.js?v=0.2.124';
-import { t } from '../../../render/player-text.js?v=0.2.124';
+import { ITEMS } from '../../../data/items.js?v=0.2.125';
+import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.125';
+import { bagOf, skillsOf, shopOf, equipmentOf } from '../../../session/item-sections.js?v=0.2.125';
+import { wornWeights, weightSentence, WEIGHT_ORDER } from '../../../data/armour-weights.js?v=0.2.125';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.125';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.125';
+import { glyphSvg } from '../../launcher.js?v=0.2.125';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.125';
+import { compare, rarityOf } from '../../bag-model.js?v=0.2.125';
+import { needOf } from '../../item-lore.js?v=0.2.125';
+import { gearLocked, GEAR_HUNT_WORDS } from '../../gear-gate.js?v=0.2.125';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.125';
+import { levelOf } from '../../../session/character-sections.js?v=0.2.125';
+import { showTip } from '../item-tip.js?v=0.2.125';
+import { t } from '../../../render/player-text.js?v=0.2.125';
 
 /* Body order, row by row: [slot, label, empty glyph]. */
 export const DOLL = Object.freeze([

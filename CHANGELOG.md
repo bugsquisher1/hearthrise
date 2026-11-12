@@ -5,6 +5,12 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.125 — 2026-11-12 (Make as Many as You Like)
+
+**Pick your own count at a bench.** Next to 1, 5 and All there is now an X. Press it, type how many you want, and the next Start makes that many. It works for runes, bars, food and everything else you make at a bench.
+
+**Tip cards read cleanly on a wide screen.** Got it and Don't show tips stay on one line each.
+
 ## v0.2.124 — 2026-11-12 (Faces and Frames)
 
 **Every window has the same header now.** The icon, Back, the title, Help, the hotkey and Close all sit in one row. Back takes you to the window that opened this one, so a Monster page goes back to Hunts. The old Back buttons inside the windows are gone.

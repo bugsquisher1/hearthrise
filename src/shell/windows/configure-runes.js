@@ -15,15 +15,15 @@
 // window's one intent); the rule is src/shell/rune-supply.js's, the engine's. The bar's hover only
 // summarises it (cast-facts.js costLine).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.124';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.124';
-import { runeSupplyOf } from '../../core/hunt/conditions.js?v=0.2.124';
-import { RUNE_FAMILIES } from '../../data/runes.js?v=0.2.124';
-import { storeChoices, storeChoiceWords } from '../bar-draft.js?v=0.2.124';
-import { carriedRunes, withSupply } from '../rune-supply.js?v=0.2.124';
-import { castOf, outputWords } from '../cast-facts.js?v=0.2.124';
-import { whole } from '../../render/format.js?v=0.2.124';
-import { t } from '../../render/player-text.js?v=0.2.124';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.125';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.125';
+import { runeSupplyOf } from '../../core/hunt/conditions.js?v=0.2.125';
+import { RUNE_FAMILIES } from '../../data/runes.js?v=0.2.125';
+import { storeChoices, storeChoiceWords } from '../bar-draft.js?v=0.2.125';
+import { carriedRunes, withSupply } from '../rune-supply.js?v=0.2.125';
+import { castOf, outputWords } from '../cast-facts.js?v=0.2.125';
+import { whole } from '../../render/format.js?v=0.2.125';
+import { t } from '../../render/player-text.js?v=0.2.125';
 
 /** The section's skeleton (built once per opening, inside the detail pane). */
 export function runesHtml() {

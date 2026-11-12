@@ -23,8 +23,8 @@
 // can raise the banner.
 // ════════════════════════════════════════════════════════════════════════
 
-import { BUILD } from '../build-info.js?v=0.2.124';
-import { readServed } from '../session/server.js?v=0.2.124';
+import { BUILD } from '../build-info.js?v=0.2.125';
+import { readServed } from '../session/server.js?v=0.2.125';
 
 export const NEW_VERSION_COPY = Object.freeze({
   line: 'A new version of Hearthrise is out. Reload to get it.',

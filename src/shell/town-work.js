@@ -35,28 +35,28 @@
 // server's engine has certainly done since its watermark (tickOf: town-ticker.js,
 // Tyler 2026-10-23), shown as pending and never spent.
 // ════════════════════════════════════════════════════════════════════════
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.124';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.124';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.124';
-import { ITEMS } from '../data/items.js?v=0.2.124';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.124';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.124';
-import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.124';
-import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.124';
-import { recipeInputs } from '../core/artisan.js?v=0.2.124';
-import { pacedXp } from '../core/pacing.js?v=0.2.124';
-import { whole } from '../render/format.js?v=0.2.124';
-import { itemName } from './widgets/bits.js?v=0.2.124';
-import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.124';
-import { townWorkRunning } from '../session/town-poll.js?v=0.2.124';
-import { townActivityWords } from '../session/party-sections.js?v=0.2.124';
-import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.124';
-import { skillShortWords } from './intent-words.js?v=0.2.124';
-import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.124';
-import { bestTool } from '../core/tools.js?v=0.2.124';
-import { bankOf, shopOf } from '../session/item-sections.js?v=0.2.124';
-import { whereToGet, wherePlaces, toolEffect } from './item-lore.js?v=0.2.124';
-import { recipeOutcomes, JEWELRY_ITEMS, JEWEL_PERKS } from '../data/jewelry.js?v=0.2.124';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.125';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.125';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.125';
+import { ITEMS } from '../data/items.js?v=0.2.125';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.125';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.125';
+import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.125';
+import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.125';
+import { recipeInputs } from '../core/artisan.js?v=0.2.125';
+import { pacedXp } from '../core/pacing.js?v=0.2.125';
+import { whole } from '../render/format.js?v=0.2.125';
+import { itemName } from './widgets/bits.js?v=0.2.125';
+import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.125';
+import { townWorkRunning } from '../session/town-poll.js?v=0.2.125';
+import { townActivityWords } from '../session/party-sections.js?v=0.2.125';
+import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.125';
+import { skillShortWords } from './intent-words.js?v=0.2.125';
+import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.125';
+import { bestTool } from '../core/tools.js?v=0.2.125';
+import { bankOf, shopOf } from '../session/item-sections.js?v=0.2.125';
+import { whereToGet, wherePlaces, toolEffect } from './item-lore.js?v=0.2.125';
+import { recipeOutcomes, JEWELRY_ITEMS, JEWEL_PERKS } from '../data/jewelry.js?v=0.2.125';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });

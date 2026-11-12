@@ -7,13 +7,13 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.124 — 2026-11-12 (Faces and Frames)
 
-**Every window has the same header.** Its icon, Back, the title, the help mark, the hotkey and Close sit in one row. Back takes you to the window that opened this one, so a Monster page goes back to Hunts and Configure action goes back to Hunt prep. The old Back buttons inside the body are gone.
+**Every window has the same header now.** The icon, Back, the title, Help, the hotkey and Close all sit in one row. Back takes you to the window that opened this one, so a Monster page goes back to Hunts. The old Back buttons inside the windows are gone.
 
-**Windows know where to stand.** On a wide screen the bag opens beside Storage, the Shop and your Character so you can move things across. Hunts and Hunt prep lie over the dock and leave the rest alone.
+**Windows open where you'd expect.** On a wide screen the bag opens next to Storage, the Shop and your Character, so you can move things across. Hunts and Hunt prep open over the dock and leave everything else alone.
 
 **Creatures have faces now.** Forty-three creature heads and twenty-two item icons are drawn in the game's pixel style. A creature's head sits beside its name on its Monster page and on Tamsin's tally. A creature without a head yet shows no empty box.
 
-**Phone tip cards got their words back.** On a phone, a tip card keeps its title on one line, with Don't show tips and Got it on their own row under the words. The party invite's Join sits under the town card instead of over it, and the Shop's tip card no longer crowds the buttons.
+**Phone tip cards are easier to read.** On a phone, a tip card keeps its title on one line, and Don't show tips and Got it sit on their own row below the text. The party invite's Join button now sits under the town card, and the Shop's tip card no longer crowds the buttons.
 
 ## v0.2.123 — 2026-11-12 (Your Town, Your Way)
 

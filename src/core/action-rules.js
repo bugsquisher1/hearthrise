@@ -19,11 +19,11 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { SUPPLIES } from '../data/supplies.js?v=0.2.123';
-import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.123';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.123';
-import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.123';
-import { skillLevelFromXp, skillXpForLevel } from './xp.js?v=0.2.123';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.124';
+import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.124';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.124';
+import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.124';
+import { skillLevelFromXp, skillXpForLevel } from './xp.js?v=0.2.124';
 
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };
 

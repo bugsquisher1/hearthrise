@@ -20,14 +20,14 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.123';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.123';
-import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.123';
-import { elementPermille } from '../elements.js?v=0.2.123';
-import { cheb, dist2, los } from './grid.js?v=0.2.123';
-import { unitById, leaderOf } from './movement.js?v=0.2.123';
-import { makeEvent } from './events.js?v=0.2.123';
-import { engagedOf, livingOf, heroUnitsOf, staleIndex } from './unit-index.js?v=0.2.123';
+import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.124';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.124';
+import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.124';
+import { elementPermille } from '../elements.js?v=0.2.124';
+import { cheb, dist2, los } from './grid.js?v=0.2.124';
+import { unitById, leaderOf } from './movement.js?v=0.2.124';
+import { makeEvent } from './events.js?v=0.2.124';
+import { engagedOf, livingOf, heroUnitsOf, staleIndex } from './unit-index.js?v=0.2.124';
 
 /* holdMs: ms a Challenged monster stays on its challenger (no other Challenge takes it meanwhile).
    The Challenge's cooldown is the ability's own clock (abilities.js `cds`). leaderLast: the leader's last target (TG-04).

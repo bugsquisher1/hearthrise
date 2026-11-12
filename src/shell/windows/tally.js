@@ -20,23 +20,23 @@
 // the server's day_ends_at and clock; nothing can spend it (§6). Every control is off while an
 // intent is in flight; the window changes only from the re-read envelope and her next answer.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, pickWords, countsWords } from '../../session/tally-sections.js?v=0.2.123';
-import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.123';
-import { huntOf, settingsOf, serverNowOf } from '../../session/hunt-sections.js?v=0.2.123';
-import { huntName } from '../../session/party-sections.js?v=0.2.123';
-import { equipmentOf } from '../../session/item-sections.js?v=0.2.123';
-import { WEIGHT_FOR_ROLE, ROLE_WORDS } from '../../data/hunt-tutorial.js?v=0.2.123';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.123';
-import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.123';
-import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.123';
-import { rows, text, cls, attr, prop, element, keyedChild } from '../../render/paint.js?v=0.2.123';
-import { whole, gold } from '../../render/format.js?v=0.2.123';
-import { t } from '../../render/player-text.js?v=0.2.123';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.123';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.123';
-import { headPathFor } from '../../data/monster-art.js?v=0.2.123';
-import { targetOf, patchParts } from '../goto.js?v=0.2.123';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.123';
+import { tallyOf, pickWords, countsWords } from '../../session/tally-sections.js?v=0.2.124';
+import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.124';
+import { huntOf, settingsOf, serverNowOf } from '../../session/hunt-sections.js?v=0.2.124';
+import { huntName } from '../../session/party-sections.js?v=0.2.124';
+import { equipmentOf } from '../../session/item-sections.js?v=0.2.124';
+import { WEIGHT_FOR_ROLE, ROLE_WORDS } from '../../data/hunt-tutorial.js?v=0.2.124';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.124';
+import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.124';
+import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.124';
+import { rows, text, cls, attr, prop, element, keyedChild } from '../../render/paint.js?v=0.2.124';
+import { whole, gold } from '../../render/format.js?v=0.2.124';
+import { t } from '../../render/player-text.js?v=0.2.124';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.124';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.124';
+import { headPathFor } from '../../data/monster-art.js?v=0.2.124';
+import { targetOf, patchParts } from '../goto.js?v=0.2.124';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.124';
 
 const SCRATCH = new WeakMap();
 /* `board` is her last answer (null until it comes), `asking` the read in flight, `stale` asks again, `collected` the done

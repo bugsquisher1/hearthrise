@@ -12,7 +12,7 @@
 // throws, the page logs it once and shows a blank, never a code token.
 // tests/text-home.mjs checks every call site against the table.
 // ════════════════════════════════════════════════════════════════════════
-import { TEXT } from '../data/text/text-table.js?v=0.2.123';
+import { TEXT } from '../data/text/text-table.js?v=0.2.124';
 
 const PLURAL = new Intl.PluralRules('en-US');
 const STRICT = typeof document === 'undefined';

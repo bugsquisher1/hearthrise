@@ -11,9 +11,9 @@
 // way IN (envelope) and on the way OUT (put), so a malformed or oversized value
 // can never reach a renderer or the server.
 // ════════════════════════════════════════════════════════════════════════
-import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.123';
-import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.123';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.123';
+import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.124';
+import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.124';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.124';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -75,8 +75,8 @@ function sanitizeCombatLog(v) {
   return out;
 }
 
-import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.123';
-import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.123';
+import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.124';
+import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.124';
 
 const ITEM_ID = /^[a-z0-9_]{1,64}$/;
 export const BAG_SEEN_MAX = 512;

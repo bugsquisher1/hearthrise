@@ -734,6 +734,16 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
         await page.click('[data-app="play"][data-slot="0"]');
         const got = '.hs-win-coach [data-tutorial] .hs-coach-got';
+        /* B-18b (2026-11-12): a town card's foot buttons stay on one line at desktop width; the narrow card broke "Got it" and
+           "Don't show tips" over two lines each. A label whose text has line boxes at two heights has wrapped. */
+        if (!(await wait(page, () => [...document.querySelectorAll('.hs-coach-got')].some((b) => b.offsetParent && !b.closest('.hs-win-coach')), null, 15000))) fails.push('B-18b CONTROL: no town card with Got it');
+        else {
+          const wrapped = await page.evaluate(() => [...document.querySelectorAll('.hs-coach-got, .hs-coach-off')].filter((b) => b.offsetParent).map((b) => {
+            const r = document.createRange(); r.selectNodeContents(b);
+            return { t: b.textContent.trim(), lines: new Set([...r.getClientRects()].map((q) => Math.round(q.top))).size };
+          }).filter((x) => x.lines > 1));
+          if (wrapped.length) fails.push('B-18b a card button wraps at 1280 px: ' + JSON.stringify(wrapped));
+        }
         if (await wait(page, () => document.querySelector('.hs-launchers [data-hs-open="inventory"]'), null, 15000)) await page.click('.hs-launchers [data-hs-open="inventory"]');
         else fails.push('B-18 the game screen never showed its launchers');
         if (!(await wait(page, (q) => document.querySelector(q), got, 15000))) fails.push('B-18 CONTROL: a fresh hero shows no card with Got it');

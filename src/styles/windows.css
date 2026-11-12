@@ -546,6 +546,10 @@
 .hw-work-n { align-self: flex-start; margin-top: 4px; }
 .hw-work-n .hh-seg { min-width: 32px; min-height: 24px; padding: 0 6px; }
 .hw-work-row.is-locked .hw-work-n { display: none; }
+.hw-work-x { display: inline-flex; gap: 4px; margin-left: 4px; }
+.hw-work-x[hidden] { display: none; }
+.hw-work-xf { width: 72px; min-height: 24px; padding: 0 2px; border: 0; border-bottom: 1px solid var(--line-soft); background: none; color: var(--gold-2); font: inherit; font-size: 12px; text-align: center; }
+.hw-work-xf:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 /* A crafting station's Sort menu (src/shell/station-sort.js): the bag's own label and select, at the list's top right. */
 .hw-work-sort { display: flex; justify-content: flex-end; margin: 4px 0; }
 .hw-work-sort[hidden] { display: none; }
@@ -720,7 +724,7 @@
   /* THE PICKED ITEM STAYS IN REACH (QA 10-24: Equip sat under 42 stacks, a scroll away): its line pins to the
      sheet's foot while the bag scrolls, on the sheet's own floor. */
   .hw-pick.is-on { position: sticky; bottom: -10px; z-index: 1; margin: 8px -10px 0; padding: 6px 10px 8px; background: var(--bg-1); border-top: 2px solid var(--steel-sep); }
-  .hw-work-row .hh-tool, .hw-work-head .hh-tool, .hw-work-now .hh-tool, .hw-work-n .hh-seg { min-height: 40px; }
+  .hw-work-row .hh-tool, .hw-work-head .hh-tool, .hw-work-now .hh-tool, .hw-work-n .hh-seg, .hw-work-xf { min-height: 40px; }
   .hw-work-hint { display: none; }
   /* Hunts on the sheet: the list first; a pick opens the ground's page in its place, with the way back on top. */
   .hw-hunts-cols { display: flex; flex-direction: column; }

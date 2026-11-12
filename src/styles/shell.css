@@ -135,7 +135,7 @@
 .hs-coach-close:hover { color: var(--ink); }
 .hs-coach-close:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 /* Every card's foot (launcher.js coachHtml, Tyler 2026-11-11: no tip is mandatory): "Don't show tips" quiet at the left, Got it a small press at the right. */
-.hs-coach-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
+.hs-coach-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; white-space: nowrap; }
 .hs-coach-got { display: block; margin: 0 0 0 auto; min-height: 28px; padding: 0 12px; border: 1px solid var(--gold); border-radius: 0; background: none; color: var(--gold-2); font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); cursor: pointer; pointer-events: auto; }
 .hs-coach-got:hover { background: var(--bg-3); color: var(--ink); }
 .hs-coach-got:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }

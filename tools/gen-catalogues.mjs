@@ -113,7 +113,10 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* TIER 4'S MADE RUNGS (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-20-ground-formula-items-catalogue is APPLIED history; the Mithril Hatchets' and Maple Crossbow's hr_items rows and their Smithing and Crafting recipes in hr_activities land in ONE forward file, the same full delete+insert replace. */
 /* PLAIN GEAR NAMES (lane/c-plain-gear-names, Tyler 2026-11-11): 2027-03-27-phase0-tier4-items-catalogue is APPLIED history; hr_items.name takes the plain names (23 rows: Coif -> Hood, Vambraces -> Bracers, Torc -> Necklace, Greaves -> Leg Plates, Hackle -> Neck Fur, Whelp -> Pup) in ONE forward file, the same full delete+insert replace, ids unchanged. The emitted self-check pins every landed name to the source by digest. */
 /* SMALL CALLS (lane/d-small-calls, designer 2026-11-11): 2027-04-11-plain-gear-names-items-catalogue is APPLIED history; Cook Wolf Meat opens at Cooking 1 (hr_activities artisan:cook_wolf_meat req_lv 5 -> 1) and the Frost Jarl's necklace reads Jarl's Collar (hr_items jarls_rimetorc name) in ONE forward file, the same full delete+insert replace, ids unchanged. The emitted self-check pins both rows from the source, beside the names digest. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-12-small-calls-items-catalogue.generated.sql');
+/* THE BROOK BEAR, A HEAVY (lane/d-solo-fifteen, designer 2026-11-12, Tyler's open question 3 under the +10% lone profit floor): 2027-04-12-small-calls-items-catalogue
+   is APPLIED history; the bear's max HP (hr_activities combat:brook_bear, 69 -> 51, the formula's heavy row: src/data/balance-sheet.js roster and monsters.js) lands in
+   ONE forward file, the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-14-brook-bear-heavy-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

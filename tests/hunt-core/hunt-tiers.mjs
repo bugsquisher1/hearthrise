@@ -10,7 +10,8 @@
 //   dials                 ONE FORMULA (Tyler 2026-11-07: "a scaling % of exp and difficulty BUT NOT GOLD"): the Glade's Deadly with a health dial (a what-if):
 //                         every monster of the first world has the dial's health under the party scale and the party scale's yield; over an hour each
 //                         kill takes the dial's damage, pays the tier's XP and the row's coin and loot, never more coin.
-//   ladder                the rule that keeps people moving: a ground's top tier doesn't beat the next ground's Normal on XP at the Level that fits it, single target, AoE or a party.
+//   ladder                the rule that keeps people moving: a ground's top tier doesn't beat the next ground's Normal on XP at the Level that fits it, for a LONE single target
+//                         and lone area heroes; a mixed four's seam is reported, not judged (Tyler 2026-11-11: no cap on party Deadly XP; designer 2026-11-12).
 //
 // --only a,b plays just those cases and their mutants. About three minutes on one core, mutants included.
 import { join } from 'node:path';
@@ -216,12 +217,20 @@ const cases = {
       if (!seen.has(k)) seen.set(k, pooled(R.runCell(cell(ground, party, level, tier)), (h) => h.levelXpPerH));
       return seen.get(k);
     };
+    /* THE RULE BINDS THE LONE WAYS (designer 2026-11-12, lane/d-solo-fifteen). Tyler 2026-11-11: NO CAP on a mixed party's XP on Dangerous and Deadly (the bigger
+       pulls are the party's reward), and the pace contract reads the LONE median on every ground (Coordinator, the same day). A mixed four's Deadly on the lower
+       ground can therefore out-earn the next ground's Normal four and no cell may stop it, so the four's seam is REPORTED here (and on the board's open
+       question for Tyler), never a red: the lone single target and the lone area heroes must still move on at every seam. */
+    const seams = [];
     for (const [lower, upper, level] of [['meadowbrook_thicket', 'wickstead', 8], ['meadowbrook_thicket', 'millrace_sewer', 8], ['wickstead', GLADE, 16], ['millrace_sewer', GLADE, 16], [GLADE, WARRENS, 32]]) {
-      for (const party of [['tank'], ['hammer'], ['mage'], ['tank', 'healer', 'bow', 'mage']]) {
+      for (const party of [['tank'], ['hammer'], ['mage']]) {
         const a = xp(lower, party, level, 'deadly'), b = xp(upper, party, level, null);
         if (!(a < b)) return lower + ' on Deadly reads ' + Math.round(a) + ' XP/h and ' + upper + ' on Normal ' + Math.round(b) + ' for ' + party.join('+') + ' at ' + level + ': nobody moves on';
       }
+      const four = ['tank', 'healer', 'bow', 'mage'], a4 = xp(lower, four, level, 'deadly'), b4 = xp(upper, four, level, null);
+      seams.push(lower + ' Deadly ' + Math.round(a4 / 1000) + 'k ' + (a4 < b4 ? '<' : '>=') + ' ' + upper + ' Normal ' + Math.round(b4 / 1000) + 'k at ' + level + ' (' + (a4 / b4).toFixed(2) + 'x)');
     }
+    console.log('    a mixed four at each seam, reported (no cap on party Deadly XP, Tyler 2026-11-11): ' + seams.join('; '));
     return null;
   },
 };

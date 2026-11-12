@@ -1,0 +1,96 @@
+{
+ "tool": "create_1_direction_object",
+ "object_id": "ca8bede7-79b1-4c89-971f-1bbd25d583fe",
+ "cost_gens": 10,
+ "size": 32,
+ "view": "top-down",
+ "palette": "hr-world-56-v2 (all 56 passed)",
+ "description": "classic fantasy MMORPG pixel art at 32 px, dark single colour outline, lit from the upper left, filling the square, no glow",
+ "style_images": [
+  "heads-folk/candidates/52.png",
+  "heads-folk/candidates/37.png",
+  "heads-folk/candidates/07.png",
+  "heads-folk/candidates/01.png",
+  "heads-beasts/candidates/61.png",
+  "icons-krell-muster-ford/candidates/38.png",
+  "icons-krell-muster-ford/candidates/15.png"
+ ],
+ "candidates": [
+  {
+   "from": 0,
+   "to": 5,
+   "words": "head portrait, front view: a gaunt farm worker with a frightened hard face and stubble, a dented iron cap too big for him, a plain straw-coloured shirt collar"
+  },
+  {
+   "from": 6,
+   "to": 11,
+   "words": "head portrait, front view: a hard-faced river crossing guard in a dark green hood and a leather gorget, one eye squinting, a crossbow string across his chest"
+  },
+  {
+   "from": 12,
+   "to": 17,
+   "words": "head portrait, front view: an undead officer's bare skull in a rusted crested iron helmet, dark empty eye sockets, a high rusted gorget, dried grave dirt"
+  },
+  {
+   "from": 18,
+   "to": 23,
+   "words": "head portrait, front view: a stern thin priest in a soot-grey hood, a shaved head with grey ash smeared on the brow, a knotted cream cord at the neck"
+  },
+  {
+   "from": 24,
+   "to": 29,
+   "words": "head portrait, front view: a stern bearded gatekeeper in a steel plate helmet with the visor raised, a steel gorget, a ring of iron keys on a chain at his shoulder"
+  },
+  {
+   "from": 30,
+   "to": 35,
+   "words": "head portrait, front view: a cold middle-aged lord with a short grey beard and long dark hair, a thin plain iron circlet, a heavy dark red fur-trimmed cloak at the shoulders, hard pale eyes"
+  },
+  {
+   "from": 36,
+   "to": 43,
+   "words": "item icon: a big heavy castle key in bright grey steel, a thick round ring bow with a gold band, a thick shaft and a large toothed bit, on the diagonal, filling the square"
+  },
+  {
+   "from": 44,
+   "to": 49,
+   "words": "item icon: a long plain pale bone pin with a small round head and a sharp point, on the diagonal, small, with a wide empty margin round it"
+  },
+  {
+   "from": 50,
+   "to": 51,
+   "words": "head portrait, front view: a hunched undead river scavenger, grey-green waterlogged skin, a ragged mud-brown hood, green copper stains"
+  },
+  {
+   "from": 52,
+   "to": 53,
+   "words": "head portrait, front view: a pale bony barrow wight, a long thin skull face with sunken glinting eyes, wisps of grey hair, a tattered grey shroud"
+  },
+  {
+   "from": 54,
+   "to": 55,
+   "words": "head portrait, front view: a skeleton soldier's bare pale skull, a torn brown rag scarf, the top of a pike shaft beside it"
+  },
+  {
+   "from": 56,
+   "to": 57,
+   "words": "head portrait, front view: an undead standard bearer in a round dented iron helmet, a grey dead face, a brown and cream banner cloth behind"
+  },
+  {
+   "from": 58,
+   "to": 59,
+   "words": "head portrait, front view: an undead knight in a closed dark iron great helm with a narrow eye slit, a rusted mail coif"
+  },
+  {
+   "from": 60,
+   "to": 61,
+   "words": "head portrait, front view: an undead captain in a dark brown hood over a skull face and a dented iron half helm, a high collar"
+  },
+  {
+   "from": 62,
+   "to": 63,
+   "words": "head portrait, front view: a bloated drowned corpse, swollen grey-green skin, strands of river weed, dull white eyes"
+  }
+ ],
+ "frames_url": "https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ca8bede7-79b1-4c89-971f-1bbd25d583fe/rotations/frame_{i}.png"
+}

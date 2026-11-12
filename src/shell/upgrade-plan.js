@@ -52,20 +52,20 @@
 //     takes the weight preferredWeight names, so no hero stays bare (designer 2026-11-04)
 // Display and intent NAMES only: nothing here is a gate the server trusts.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.123';
-import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.123';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.123';
-import { JEWEL_PERKS } from '../data/jewelry.js?v=0.2.123';
-import { loadoutOf } from '../core/member.js?v=0.2.123';
-import { jewelPerksOf } from '../core/combat.js?v=0.2.123';
-import { baneIndex, baneMultFor, MONSTER_CLASSES } from '../core/bane.js?v=0.2.123';
-import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.123';
-import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.123';
-import { itemName } from './widgets/bits.js?v=0.2.123';
-import { t } from '../render/player-text.js?v=0.2.123';
-import { reqHave, baneKindName } from './item-lore.js?v=0.2.123';
-import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.123';
-import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.123';
+import { ITEMS } from '../data/items.js?v=0.2.124';
+import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.124';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.124';
+import { JEWEL_PERKS } from '../data/jewelry.js?v=0.2.124';
+import { loadoutOf } from '../core/member.js?v=0.2.124';
+import { jewelPerksOf } from '../core/combat.js?v=0.2.124';
+import { baneIndex, baneMultFor, MONSTER_CLASSES } from '../core/bane.js?v=0.2.124';
+import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.124';
+import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.124';
+import { itemName } from './widgets/bits.js?v=0.2.124';
+import { t } from '../render/player-text.js?v=0.2.124';
+import { reqHave, baneKindName } from './item-lore.js?v=0.2.124';
+import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.124';
+import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.124';
 
 /* The off-hand and the quiver: the player's own choice, never this one. */
 const STYLE_SLOTS = new Set(['shield', 'ammo']);

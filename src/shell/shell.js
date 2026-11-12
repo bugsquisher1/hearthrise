@@ -39,29 +39,29 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.123';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.123';
-import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.123';
-import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt, stackBelow } from './hud.js?v=0.2.123';
-import { createShellHud } from './shell-hud.js?v=0.2.123';
-import { createHudRoom } from './hud-room.js?v=0.2.123';
-import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.123';
-import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.123';
-import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.123';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.123';
-import { mountContextMenu } from './context-menu.js?v=0.2.123';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.123';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.123';
-import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.123';
-import { takeFresh, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.123';
-import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.123';
-import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.123';
-import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.123';
-import { benchSpentAtMs } from './town-work.js?v=0.2.123';
-import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.123';
-import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.123';
-import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.123';
-import { hideTipIfGone } from './windows/item-tip.js?v=0.2.123';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.124';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.124';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.124';
+import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt, stackBelow } from './hud.js?v=0.2.124';
+import { createShellHud } from './shell-hud.js?v=0.2.124';
+import { createHudRoom } from './hud-room.js?v=0.2.124';
+import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.124';
+import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js?v=0.2.124';
+import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.124';
+import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.124';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.124';
+import { mountContextMenu } from './context-menu.js?v=0.2.124';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.124';
+import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.124';
+import { takeFresh, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.124';
+import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.124';
+import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.124';
+import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.124';
+import { benchSpentAtMs } from './town-work.js?v=0.2.124';
+import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.124';
+import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.124';
+import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.124';
+import { hideTipIfGone } from './windows/item-tip.js?v=0.2.124';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -139,9 +139,8 @@ export function mountShell(root, o) {
     el.setAttribute('data-hs-win', row.id);
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-label', row.label);
-    el.innerHTML = '<header class="hs-win-head" data-hs-drag="' + esc(row.id) + '">' + glyphSvg(ctx.glyphs, row.glyph)
-      + '<h2 class="hs-win-title">' + esc(row.title || row.label) + '</h2>' + (row.key ? '<kbd class="hs-key">' + esc(keyLabel(row.key)) + '</kbd>' : '')
-      + '<button type="button" class="hs-close" data-hs-close="' + esc(row.id) + '" aria-label="Close ' + esc(row.label) + '">' + glyphSvg(ctx.glyphs, 'uiClose') + '</button></header>'
+    /* one band for every window: glyph, Back, title, ?, key, Close (./window-head.js) */
+    el.innerHTML = headHtml(row, ctx.glyphs, doc.documentElement.classList.contains('is-touch'))
       /* the coach's card when it points into this window (coach() below), above the body: it covers nothing */
       + '<div class="hs-win-coach"></div>'
       + '<div class="hs-win-body" data-hs-body></div>' + gripHtml(row);
@@ -152,11 +151,12 @@ export function mountShell(root, o) {
     const el = layer.querySelector('[data-hs-win="' + id + '"]');
     const render = WINDOW_RENDERERS[id];
     if (!el || !render) return;
-    const body = el.querySelector('[data-hs-body]');
+    const body = bodyOf(el), win = el.closest('.hs-win');   // a page (window-head.js) draws in its host's frame
     if (!render.patch) body.innerHTML = render(ctx);
     else { if (!body.hasAttribute('data-hs-built')) { body.innerHTML = render(ctx); body.setAttribute('data-hs-built', ''); } render.patch(body, ctx); }
     seekRow(wm, id, body);   // a "take me there" link's row, once drawn (goto.js)
-    trimEnds(el);   // what was drawn ends on a whole row (window-fit.js)
+    trimEnds(win);   // what was drawn ends on a whole row (window-fit.js)
+    paintHead(win, ctx, WINDOW_RENDERERS);   // its Back follows the page it is on
   }
 
   function paintWindows() {
@@ -164,8 +164,11 @@ export function mountShell(root, o) {
     const keep = new Set(placed.map((p) => p.id));
     for (const el of Array.from(layer.children)) if (!keep.has(el.getAttribute('data-hs-win'))) el.remove();
     for (const p of placed) {
-      let el = layer.querySelector('[data-hs-win="' + p.id + '"]');
+      let el = layer.querySelector(':scope > [data-hs-win="' + p.id + '"]');
       if (!el) { el = frame(wm.row(p.id)); layer.appendChild(el); refresh(p.id); if (sized) sized.ro.observe(el, { box: 'border-box' }); }
+      const page = wm.pageIn(p.id);
+      if (showPage(el, page)) refresh(page);
+      paintHead(el, ctx, WINDOW_RENDERERS);
       el.classList.toggle('is-entering', p.entering);
       el.classList.toggle('is-leaving', p.leaving);
       el.classList.toggle('is-floating', !p.docked && !p.modal);
@@ -434,7 +437,8 @@ export function mountShell(root, o) {
     /* The coach FIRST, while the page is still laid out from the last frame: its ring asks what is on screen
        (launcher.js shown, getClientRects), and asked after the patches below it forced a whole layout inside the
        tick (perf lane 2026-10-28: up to 79 ms of an 81 ms tick at 4x CPU). A control that appears on this tick is
-       ringed on the next, 250 ms later. */
+       ringed on the next, 250 ms later. One gold plate per window reads the same laid-out page (window-head.js). */
+    for (const w of layer.querySelectorAll(':scope > .hs-win')) oneGold(w);
     coach(true);
     followSummary();
     if (ctx.character && ctx.character.timeline) ctx.character.timeline.advance(ctx.now());
@@ -462,7 +466,7 @@ export function mountShell(root, o) {
     const id = box.getAttribute('data-hs-widget') || box.getAttribute('data-hs-win');
     const render = box.hasAttribute('data-hs-widget') ? WIDGET_RENDERERS[id] : WINDOW_RENDERERS[id];
     if (!render || !render.act) return false;
-    const where = box.hasAttribute('data-hs-widget') ? box : box.querySelector('[data-hs-body]');
+    const where = box.hasAttribute('data-hs-widget') ? box : bodyOf(box);
     render.act(ctx, where, t.getAttribute('data-hs-act'), e, t);
     return true;
   }
@@ -475,16 +479,19 @@ export function mountShell(root, o) {
     const id = box.getAttribute('data-hs-widget') || box.getAttribute('data-hs-win');
     const render = box.hasAttribute('data-hs-widget') ? WIDGET_RENDERERS[id] : WINDOW_RENDERERS[id];
     if (!render || !render.act || !Array.isArray(render.events) || !render.events.includes(e.type)) return;
-    const where = box.hasAttribute('data-hs-widget') ? box : box.querySelector('[data-hs-body]');
-    if (render.act(ctx, where, t.getAttribute('data-hs-act'), e, t) === true) { e.preventDefault(); e.stopPropagation(); }
+    const where = box.hasAttribute('data-hs-widget') ? box : bodyOf(box);
+    if (inWin(e, () => render.act(ctx, where, t.getAttribute('data-hs-act'), e, t)) === true) { e.preventDefault(); e.stopPropagation(); }
   }
+  /* A press inside a window: what it opens remembers that window, the way back (window-manager.js from). */
+  function inWin(e, fn) { const w = e.target.closest && e.target.closest('.hs-win'); return w ? wm.from(w.getAttribute('data-hs-win'), fn) : fn(); }
 
   /* ── Input ── */
-  function onClick(e) {
+  function onClick(e) { inWin(e, () => press(e)); }
+  function press(e) {
     /* the coach's fold and open inside a window (the window's own renderer does not know them) */
     const fold = e.target.closest('.hs-win-coach [data-hs-act]');
     if (fold) { actCoach(ctx, fold.closest('.hs-win-coach'), fold.getAttribute('data-hs-act'), e); return; }
-    if (followGoto(ctx, e.target.closest('[data-hs-goto]')) || onAct(e)) return;
+    if (followGoto(ctx, e.target.closest('[data-hs-goto]')) || onAct(e) || pressHead(ctx, e.target.closest('[data-hs-back],[data-hs-help]'))) return;
     const t = e.target.closest('[data-hs-open],[data-hs-close],[data-hs-wreset]');
     if (!t) return;
     if (t.hasAttribute('data-hs-open')) wm.toggle(t.getAttribute('data-hs-open'));
@@ -508,9 +515,9 @@ export function mountShell(root, o) {
      its head (desktop) drags it off the dock. The X is a button: its press raises nothing and drags
      nothing, so the click lands on the same X and closes. */
   function onPointerDown(e) {
-    const win = e.target.closest('[data-hs-win]');
+    const win = e.target.closest('.hs-win');
     if (!win) return;
-    if (e.target.closest('[data-hs-close]')) return;
+    if (e.target.closest('[data-hs-close],[data-hs-back],[data-hs-help]')) return;
     const id = win.getAttribute('data-hs-win');
     wm.focus(id);
     if (!phoneMq.matches && pressGrip(e, { wm, store: sizes, host })) return;

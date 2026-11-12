@@ -10,6 +10,8 @@
 .hw-mk-greet { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 0 2px 6px; font-size: var(--t-small); font-style: italic; color: var(--ink-2); }
 .hw-mk-purse { flex: none; font-style: normal; font-size: var(--t-small); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-mk .hw-tabs { align-items: flex-end; }
+/* A window's tabs are its first row, under the band, as in every other window (one header, UX flow audit 2026-11-11). */
+.hw-mk > .hw-tabs { order: -1; }
 .hw-mk-refresh { margin-left: auto; margin-bottom: 2px; }
 .hw-mk-state { margin: 0 2px 8px; color: var(--ink); }
 .hw-mk-state[hidden] { display: none; }
@@ -115,7 +117,6 @@
      would fetch and the terms come after them, a scroll down. */
   .hw-mk:has(.hw-mk-sell.is-on.is-paged) > :is(.hw-mk-greet, .hw-tabs) { display: none; }
   .hw-mk-sell.is-paged .hw-hd-page { padding: 0 8px; }
-  .hw-mk-sell.is-paged .hw-hd-back { margin: 0; }
   .hw-mk-sheet.is-on { display: flex; flex-direction: column; }
   .hw-mk-sell .hw-mk-head { margin-bottom: 2px; }
   .hw-mk-sell .hw-mk-ico, .hw-mk-sell .hw-mk-kind { display: none; }

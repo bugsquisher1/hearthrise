@@ -1,0 +1,82 @@
+{
+ "tool": "create_1_direction_object",
+ "object_id": "e5ef49df-f624-4162-824d-ac9dd5a595d7",
+ "cost_gens": 10,
+ "size": 32,
+ "view": "top-down",
+ "palette": "hr-world-56-v2 (all 56 passed)",
+ "description": "a single fantasy RPG armour inventory icon, the piece drawn large and filling the square, dark single colour outline, lit from the upper left, classic MMORPG pixel art, no glow",
+ "style_images": [
+  "assets/icons-bundle/pixel/items/voidhide_body.png",
+  "assets/icons-bundle/pixel/items/voidhide_pants.png",
+  "assets/icons-bundle/pixel/items/voidhide_boots.png",
+  "assets/icons-bundle/pixel/items/dragonhide_gloves.png",
+  "assets/icons-bundle/pixel/items/archmage_body.png",
+  "assets/icons-bundle/pixel/items/voidweave_helmet.png",
+  "assets/icons-bundle/pixel/items/archmage_pants.png",
+  "assets/icons-bundle/pixel/items/voidhide_belt.png"
+ ],
+ "candidates": [
+  {
+   "from": 0,
+   "to": 4,
+   "words": "slakehide coif: a close leather hood and neck guard of thick hide cured a dull verdigris green-brown, copper rivets, stitched seams"
+  },
+  {
+   "from": 5,
+   "to": 9,
+   "words": "slakehide body: a hardened leather jerkin of dull verdigris green-brown hide, copper rivets and buckles, layered shoulder plates"
+  },
+  {
+   "from": 10,
+   "to": 14,
+   "words": "slakehide chaps: leather leg armour of dull verdigris green-brown hide, copper rivets down the thighs, a belt at the top"
+  },
+  {
+   "from": 15,
+   "to": 19,
+   "words": "slakehide boots: a pair of tall leather boots of dull verdigris green-brown hide, copper buckles, worn toes"
+  },
+  {
+   "from": 20,
+   "to": 24,
+   "words": "slakehide vambraces: a pair of leather forearm guards of dull verdigris green-brown hide, laced with cord, copper studs"
+  },
+  {
+   "from": 25,
+   "to": 29,
+   "words": "slakehide belt: a thick coiled leather belt of dull verdigris green-brown hide with a square copper buckle"
+  },
+  {
+   "from": 30,
+   "to": 34,
+   "words": "shroudweave hat: a soft pointed hood-hat of pale ash-white burial linen, the brim edge scorched black, a grey cord band"
+  },
+  {
+   "from": 35,
+   "to": 39,
+   "words": "shroudweave robe top: a mage's robe top of pale ash-white burial linen wrapped in strips, soot-grey edges and scorched hems"
+  },
+  {
+   "from": 40,
+   "to": 44,
+   "words": "shroudweave robe bottom: a long robe skirt of pale ash-white burial linen in wrapped strips, the hem scorched black"
+  },
+  {
+   "from": 45,
+   "to": 49,
+   "words": "shroudweave slippers: a pair of soft cloth slippers of pale ash-white burial linen bound with grey cord, scorched toes"
+  },
+  {
+   "from": 50,
+   "to": 54,
+   "words": "shroudweave gloves: a pair of linen wrapped gloves of pale ash-white burial cloth, finger strips, scorched cuffs"
+  },
+  {
+   "from": 55,
+   "to": 59,
+   "words": "shroudweave sash: a long knotted sash of pale ash-white burial linen with scorched black ends"
+  }
+ ],
+ "frames_url": "https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/e5ef49df-f624-4162-824d-ac9dd5a595d7/rotations/frame_{i}.png"
+}

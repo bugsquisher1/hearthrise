@@ -3919,3 +3919,12 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   coin" takes five lines; three at 844x390). Pre-existing with the town-criers foot. Fix: move "Don't show tips" under the
   words on a phone and re-measure PH-6/PH-18's text caps for the extra row. Screen:
   art/review/phone-touch-24-2026-11-12/shop-coach-667x375.png.
+- 2026-11-12 (art-director, lane/a-phone-coach-foot): FIXED for the town card and window cards (foot row under the words).
+  Still open: the card UNDER THE HUNT BAR keeps the shared row (its room has no line to spare, PH-27), so at 667x375 "Your
+  hero fights on its own" stands four lines beside Don't show tips. Options for the game-designer: shorter hunt-card titles
+  (two words), or a wider hunt-bar card at 667 if PH-10 allows. Not a CSS-only fix.
+- 2026-11-12 (art-director, lane/a-phone-coach-foot) INCIDENT: the session scratchpad is shared across lanes; I ran a stale
+  `scratchpad/edit.cjs` (another lane's, written 15:58) by name and it re-applied its edits to
+  `.claude/worktrees/agent-ad943bab7953c3a92` at 16:21:51. That worktree now holds each edit TWICE: monster.js lines 25
+  (import), 57 (mf-face span), 110-120 (paintFace), 158 (paintFace call); windows.css lines 1135-1137 (.mf-face rules). Delete
+  those second copies to restore it; I was not permitted to touch it. Lesson: unique scratch names per lane.

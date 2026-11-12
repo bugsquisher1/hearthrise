@@ -24,6 +24,8 @@
 //   TW-15 SHE GIVES IT ONCE: a piece on two rows says so on both (the 11-11 bug: sharedPieces read
 //         pick.pick while tally-intents.js hands over pick.kind, so the note never showed); the
 //         pure helpers (sharedPieces, cutMarks, resetWords, keeperSay)
+//   TW-17 THE CREATURE'S HEAD (art brief 15, 2026-11-12): an entry draws the 32 px head of its creature in its own 44 px well when the head set
+//         has it (assets/icons-bundle/pixel/heads/<monster>.png, src/data/monster-art.js) and nothing, no broken image, when it does not (faceOf)
 //   TW-16 TAKE ME THERE: an entry's ground link opens the Hunts window on that ground
 //   TW-2  IN TOWN a done task due today is handed in by ONE hr_tally_collect naming
 //         only the slot and a key, then the character is re-read
@@ -232,11 +234,14 @@ async function checks(overrides, shots) {
         const entries = await page.evaluate((cut) => [...document.querySelectorAll('[data-hs-win="tally"] .ht-entry')].map((li) => ({
           task: li.getAttribute('data-task'), name: li.querySelector('.ht-entry-top > b').textContent, count: li.querySelector('.ht-count b').textContent + ' ' + li.querySelector('.ht-count small').textContent,
           get: li.querySelector('.ht-get').textContent, done: li.classList.contains('is-done'), cut: li.querySelectorAll('.ht-five i.is-cut').length, icon: !!li.querySelector('.ht-pocket .hh-icon'),
+          face: li.querySelector('.ht-face img')?.getAttribute('src') || null, hasFace: li.classList.contains('has-face'), faceBox: Math.round(li.querySelector('.ht-face').getBoundingClientRect().width),
           where: li.querySelector('.ht-where').textContent, go: li.querySelector('.ht-where .hs-goto')?.getAttribute('data-hs-goto') || null })));
         const wolves = entries[0], rats = entries[1];
         if (entries.length !== 2 || wolves.task !== 'thicket_gray_wolves' || wolves.name !== 'Gray Wolves' || wolves.count !== '112 / 200' || wolves.cut !== 5 || wolves.done
           || wolves.get !== 'You\'ll get 480 gp and an Apprentice Robe Top.' || !wolves.icon || wolves.where !== 'Meadowbrook Thicket' || wolves.go !== 'hunts|meadowbrook_thicket|') fails.push('TW-1 the wolves\' entry reads ' + JSON.stringify(wolves));
         if (!rats || rats.count !== '120 / 120' || rats.cut !== 10 || !rats.done || !/^Done\. I'll pay you now\. You'll get 100 gp and 4 Slime Gel\.$/.test(rats.get)) fails.push('TW-1 the done entry reads ' + JSON.stringify(rats));
+        /* TW-17 THE CREATURE'S HEAD (art brief 15): an entry whose creature has a head set draws it, 32 px, in its own well beside the name; the pick keeps its pocket */
+        if (!wolves.hasFace || wolves.face !== 'assets/icons-bundle/pixel/heads/gray_wolf.png' || !rats.hasFace || rats.face !== 'assets/icons-bundle/pixel/heads/rat.png' || wolves.faceBox !== 44 || !wolves.icon) fails.push('TW-17 the entries\' heads read ' + JSON.stringify([wolves.face, wolves.hasFace, wolves.faceBox, wolves.icon, rats.face]));
         const head = await page.evaluate(() => ({ day: document.querySelector('[data-hs-win="tally"] .ht-day-paid').textContent, reset: document.querySelector('[data-hs-win="tally"] .ht-day-new').textContent,
           who: document.querySelector('[data-hs-win="tally"] .ht-who').textContent, mine: document.querySelector('[data-hs-win="tally"] .ht-mine-head small').textContent, voice: document.querySelector('[data-hs-win="tally"] .ht-voice').textContent }));
         if (head.who !== 'Tamsin Reeve' || head.day !== 'Paid today 1 of 3' || head.reset !== 'resets in 6 h' || head.mine !== '2 of 3') fails.push('TW-1 her line\'s head reads ' + JSON.stringify(head));
@@ -396,10 +401,10 @@ async function checks(overrides, shots) {
             voice: w.querySelector('.ht-voice').textContent, mine: w.querySelector('.ht-mine-head').getClientRects().length > 0, folded: w.querySelector('.ht-pick-open').hidden, pick: w.querySelector('.ht-pick-line').textContent };
         });
         if (!seen.first) fails.push('TW-13 the weight picker stands over her board');
-        if (seen.off || seen.why !== 'Your first Take asks her for medium armor, the weight you wear most. Change it below any time.' || !seen.toPicker) fails.push('TW-13 with no weight her board reads ' + JSON.stringify(seen));
+        if (seen.off || seen.why !== 'When you take your first task, she pays you in medium armor, the weight you wear most. Change it below any time.' || !seen.toPicker) fails.push('TW-13 with no weight her board reads ' + JSON.stringify(seen));
         /* TW-14 FIRST VISIT: her story, no Your tallies section, the picker folded to one line */
         if (seen.voice !== FIRST_LINE) fails.push('TW-14 on a first visit she says ' + JSON.stringify(seen.voice));
-        if (seen.mine || !seen.folded || seen.pick !== 'Your first Take picks the armor weight for you, or pick it here.') fails.push('TW-14 a first visit shows ' + JSON.stringify({ mine: seen.mine, folded: seen.folded, pick: seen.pick }));
+        if (seen.mine || !seen.folded || seen.pick !== 'When you take your first task, she picks the armor weight for you. Or pick it here.') fails.push('TW-14 a first visit shows ' + JSON.stringify({ mine: seen.mine, folded: seen.folded, pick: seen.pick }));
         if (seen.toPicker) { // no press to make when it is hidden: that is already a named fail above, never a page.click timeout that kills the run
           await page.click('[data-hs-win="tally"] [data-hs-act="to-weight"]');
           await page.waitForTimeout(200);
@@ -636,7 +641,9 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
     { // TW-15 the pure half of the once note: her answer's rows carry pick.kind (tally-intents.js boardRow), and sharedPieces reads that
-      const { sharedPieces, cutMarks, resetWords, keeperSay } = await import(pathToFileURL(join(ROOT, 'src/shell/windows/tally.js')).href);
+      const { sharedPieces, cutMarks, resetWords, keeperSay, faceOf } = await import(pathToFileURL(join(ROOT, 'src/shell/windows/tally.js')).href);
+      /* TW-17 the pure half: a creature in the head set has a face, one the set lacks has none (the entry then draws no well and no broken image) */
+      if (faceOf('gray_wolf')?.src !== 'assets/icons-bundle/pixel/heads/gray_wolf.png' || faceOf('farmhand') === null || faceOf('not_a_creature') !== null || faceOf(undefined) !== null) fails.push('TW-17 faceOf reads ' + JSON.stringify([faceOf('gray_wolf'), faceOf('not_a_creature')]));
       const both = sharedPieces([{ pick: { kind: 'piece', item: 'adept_helmet', qty: 1 } }, { pick: { kind: 'piece', item: 'adept_helmet', qty: 1 } }, { pick: { kind: 'material', item: 'slime_gel', qty: 4 } }, { pick: { kind: 'material', item: 'slime_gel', qty: 4 } }]);
       if (both.size !== 1 || !both.has('adept_helmet')) fails.push('TW-15 sharedPieces over kind rows gives ' + JSON.stringify([...both]));
       if ([cutMarks(112, 200, false), cutMarks(0, 25, false), cutMarks(24, 25, false), cutMarks(24, 25, true), cutMarks(9, 25, false)].join() !== '5,0,9,10,3') fails.push('TW-15 the marks cut ' + [cutMarks(112, 200, false), cutMarks(24, 25, false), cutMarks(24, 25, true)].join());
@@ -659,6 +666,18 @@ async function checks(overrides, shots) {
       }
       await ctx.close();
     }
+    { // TW-17 the fallback: a held task whose creature the head set lacks draws no well and no broken image, and still reads
+      const noHead = Object.assign(clone(TALLY), { held: [Object.assign(clone(TALLY.held[0]), { monster: 'no_such_creature' })] });
+      const { ctx, page, up } = await open(Object.assign(clone(TOWN), { tally: noHead }), null, Object.assign(clone(BOARD), { tally: noHead }));
+      if (!(up && await show(page))) fails.push('TW-17 her window did not open for a creature with no head');
+      else {
+        await wait(page, () => document.querySelector('[data-hs-win="tally"] .ht-entry .ht-count b'), null, 4000);
+        const e = await page.evaluate(() => { const li = document.querySelector('[data-hs-win="tally"] .ht-entry'); return { name: li.querySelector('.ht-entry-top > b').textContent, face: !!li.querySelector('.ht-face img'), has: li.classList.contains('has-face'),
+          shown: getComputedStyle(li.querySelector('.ht-face')).display, cols: getComputedStyle(li).gridTemplateColumns.split(' ').length }; });
+        if (e.face || e.has || e.shown !== 'none' || e.cols !== 2 || !e.name) fails.push('TW-17 a creature with no head leaves ' + JSON.stringify(e));
+      }
+      await ctx.close();
+    }
   } finally {
     await browser.close();
     server.close();
@@ -669,6 +688,9 @@ async function checks(overrides, shots) {
 const MUTANTS = [
   ['Take stays on while hunting', 'src/shell/windows/tally.js', "prop(btn, 'disabled', r.held || full || st.sc.pending || st.hunting || !tally || (!tally.weight && !st.suggest));", "prop(btn, 'disabled', r.held || full || st.sc.pending || !tally || !tally.weight);"],
   ['a done task is handed in mid-hunt', 'src/shell/windows/tally.js', "const due = tally && !hunting && tally.paidToday < tally.perDay", 'const due = tally && tally.paidToday < tally.perDay'],
+  /* TW-17: the creature's head */
+  ['an entry never draws its creature\'s head', 'src/shell/windows/tally.js', '  patchFace(li, h.monster, st);\n', ''],
+  ['a creature with no head still gets a head path', 'src/shell/windows/tally.js', '  const src = headPathFor(monster);', "  const src = headPathFor(monster) || 'assets/icons-bundle/pixel/heads/' + monster + '.png';"],
   /* TW-14, TW-15, TW-16: her ledger (mocks 2026-11-11) */
   ['her line counts one kill more than the server', 'src/shell/windows/tally.js', "{ down: whole(open.kills), left: whole(open.target - open.kills) }", "{ down: whole(open.kills + 1), left: whole(open.target - open.kills - 1) }"],
   ['her line is the same in every state', 'src/shell/windows/tally.js', "  const capped = tally.paidToday >= tally.perDay;\n  const done = tally.held.find((h) => h.done);", "  return t('tally.say_none');\n  const capped = tally.paidToday >= tally.perDay;\n  const done = tally.held.find((h) => h.done);"],

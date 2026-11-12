@@ -25,20 +25,20 @@
 // the stats says what each harder tier changes (the Hunts page says a tier in words only, hunt-list.js tierWords). A server-revealed surprise row
 // (`lucky`, `salvage`) stays unlisted, as on the ground's page.
 // ════════════════════════════════════════════════════════════════════════
-import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.123';
-import { ITEMS } from '../data/items.js?v=0.2.123';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.123';
-import { OPEN_GROUNDS } from '../data/hunt-grounds.js?v=0.2.123';
-import { DEFAULT_TIER, atTier, tierRowOf, tiersOf } from '../data/hunt-tiers.js?v=0.2.123';
-import { partyNote } from './hunt-list.js?v=0.2.123';
-import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.123';
-import { elementPermille } from '../core/elements.js?v=0.2.123';
-import { COMBAT_BALANCE, WEAKNESS_BONUS, monsterMaxHit, weaknessInfo } from '../core/combat.js?v=0.2.123';
-import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.123';
-import { residentsOf, bigPullOf } from './hunt-ground-facts.js?v=0.2.123';
-import { usePlaces, usesOf } from './item-lore.js?v=0.2.123';
-import { skillName } from './widgets/bits.js?v=0.2.123';
-import { t } from '../render/player-text.js?v=0.2.123';
+import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.124';
+import { ITEMS } from '../data/items.js?v=0.2.124';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.124';
+import { OPEN_GROUNDS } from '../data/hunt-grounds.js?v=0.2.124';
+import { DEFAULT_TIER, atTier, tierRowOf, tiersOf } from '../data/hunt-tiers.js?v=0.2.124';
+import { partyNote } from './hunt-list.js?v=0.2.124';
+import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.124';
+import { elementPermille } from '../core/elements.js?v=0.2.124';
+import { COMBAT_BALANCE, WEAKNESS_BONUS, monsterMaxHit, weaknessInfo } from '../core/combat.js?v=0.2.124';
+import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.124';
+import { residentsOf, bigPullOf } from './hunt-ground-facts.js?v=0.2.124';
+import { usePlaces, usesOf } from './item-lore.js?v=0.2.124';
+import { skillName } from './widgets/bits.js?v=0.2.124';
+import { t } from '../render/player-text.js?v=0.2.124';
 
 const pctOf = (mult) => Math.round((mult - 1) * 100);
 

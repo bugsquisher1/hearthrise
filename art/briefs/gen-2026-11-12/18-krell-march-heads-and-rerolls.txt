@@ -1,0 +1,42 @@
+BRIEF 18 + VERDICT: KRELL'S SIX FACES, THE MARCH HEADS, THE HALL KEY AND THE SHROUD PIN (art director, 2026-11-12)
+One call carries four owed lines, since a 32 px call bills 10 for 64 slots whatever is in them:
+ - Krell's Hold "Portraits, 6" (board: "bestiary, front-facing", the five bodies and Krell). Drawn as 32 px heads in
+   brief 15's family, because the Tally and a bestiary row show a face, and no body exists yet to crop from. When the
+   bodies are drawn they take these faces as their reference, not the other way round.
+ - The hall key re-roll (brief 16 held 03: too dark).
+ - shroud_pin, the one Pyre Field icon still owed (brief 13 Q9 refused both rolls as bones; pike_ferrule, rake_tine,
+   warrant_seal and kennel_tag are kept there).
+ - 2 candidates each for the seven March bodies that already have art (Slake and Muster: mudlark, wight,
+   banded_pikeman, bannerman, barrow_knight, captain_hask, fordsunk), so the Tally has their heads when those grounds open.
+THE CALL (10 gens): create_1_direction_object, 64 at 32x32, palette hr-world-56-v2, object
+ ca8bede7-79b1-4c89-971f-1bbd25d583fe. Style: four approved folk heads (turncoat, rook_poacher, glade_poacher,
+ chief_coppercap), the rat king head, the chain and whistle icons.
+ Candidates: art/world-src/gen-2026-11-12/heads-krell-march-and-rerolls/candidates/NN.png (0-5 farmhand, 6-11
+ lookout, 12-17 grave guard, 18-23 pyre priest, 24-29 gatekeeper, 30-35 Krell, 36-43 key, 44-49 pin, then two each:
+ 50 mudlark, 52 wight, 54 banded_pikeman, 56 bannerman, 58 barrow_knight, 60 captain_hask, 62 fordsunk).
+
+VERDICT (x2, x3, x4; every pick 0 off-palette, 0 partial alpha)
+ farmhand        00 (02)  a gaunt man in a too-big iron cap and a straw shirt: the "your undead kit is wrong" face
+ hasks_lookout   07 (09)  green hood, the crossbow's stock at his shoulder
+ grave_guard     12 (14)  a skull in a rusted crested helmet
+ gatekeeper      24 (26)  a bearded face under a raised steel visor
+ lord_krell      30 (31)  grey beard, iron circlet, the dark red fur cloak. 32-35 REFUSED: the cloak went grey, he
+                          reads as the gatekeeper's father, not a lord
+ pyre_priest     19 (21)  HELD. Every roll paints the ash on the brow as a cross. A real faith's sign on the enemy
+                          who burns the dead is not ours to use. Free fix at import: the 5 dark brow pixels become an
+                          uneven grey smear (pixelart_workbench or a hand edit), read at x2. If it still reads as a
+                          sign, one re-roll next cycle with "a grey smudge of ash across the brow, no shape, no symbol"
+ hall_key        37 (41)  APPROVED, replaces brief 16's 03: bright steel, a gold band at the bow, median L 0.074
+                          against 0.003, mass 290 px against 267. Reads first in the bag at x2
+ shroud_pin      45 (47)  APPROVED: a pale bone pin with a round head on the diagonal, fill 81%. Not a bone this time
+ mudlark         50 (51)  hooded, grey-green; matches the body's hood and verdigris
+ wight           52 (53)  long grey hair over a thin skull
+ banded_pikeman  54 (55)  the bare skull and the pike's head beside it, as the body
+ bannerman       56 (57)  dented round helmet, the brown and cream banner behind
+ barrow_knight   59 (58)  a closed black great helm. 58's gold slit forms a cross: alt only
+ captain_hask    61 (60)  dented half helm over a skull, the hood behind
+ fordsunk        62 (63)  swollen grey-green, river weed, white eyes
+ The March heads are 2 rolls each, so their alts are thin. Each still reads as its body at x2.
+
+READY FOR IMPORT: hall_key and shroud_pin -> assets/icons-bundle/pixel/items/ (with the Hold's and the Pyre Field's
+ items). The faces join brief 15's heads set. pyre_priest after its free fix.

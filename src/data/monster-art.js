@@ -41,7 +41,7 @@
 // one line to change if the sheet wins.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from './monsters.js?v=0.2.123';
+import { MONSTERS } from './monsters.js?v=0.2.124';
 
 /** The retired direction — the 30 portraits that shipped before the wave. */
 export const PAINTED_DIR = 'assets/icons-bundle/painted/monsters/';
@@ -187,6 +187,24 @@ export function pendingArt() {
     .map((id) => ({ id, tier: MONSTERS[id].tier, cls: MONSTERS[id].cls, path: EXPECTED[id] }))
     .sort((a, b) => a.tier - b.tier || a.id.localeCompare(b.id));
 }
+
+/* THE 32 PX CREATURE HEADS (art briefs 15 and 18, 2026-11-12): one full-bleed bust per creature, front view, in the world's
+   palette, for the small places a creature is named (the Tally's entry rows; the Monster page when it wants one). They are their
+   own set and never stand in for the painted portraits above. The file is derived from the id, <HEAD_DIR><id>.png, and
+   tests/pixel-icons.mjs holds the folder to these two lists both ways. Shown at 32 px times the screen's one density, never larger. */
+export const HEAD_DIR = 'assets/icons-bundle/pixel/heads/';
+/** The 30 live creatures. */
+export const HEAD_ART = Object.freeze([
+  'rat', 'gray_wolf', 'brook_bear', 'kobold_tosher', 'culvert_bat', 'barn_spider', 'barn_wasp', 'briarcoat_wolf', 'carrion_crow', 'cistern_spider',
+  'dire_gray', 'drain_rat', 'granary_rat', 'gray_whelp', 'grayjaw', 'hive_wasp', 'orchard_boar', 'rat_king', 'chief_coppercap', 'glade_poacher',
+  'goblin_digger', 'goblin_scavenger', 'goblin_skulker', 'goblin_sluicer', 'hobgoblin_foreman', 'rook_poacher', 'slime', 'sump_slime', 'turncoat', 'walking_vine']);
+/** Heads drawn before their creature's row lands: Krell's six faces and the seven March bodies. Move an id to HEAD_ART the day its row ships. */
+export const HEAD_ART_AHEAD = Object.freeze([
+  'farmhand', 'hasks_lookout', 'grave_guard', 'gatekeeper', 'lord_krell', 'pyre_priest',
+  'mudlark', 'wight', 'banded_pikeman', 'bannerman', 'barrow_knight', 'captain_hask', 'fordsunk']);
+const HEAD_SET = new Set(HEAD_ART.concat(HEAD_ART_AHEAD));
+/** The head's path for a creature id, or null when the set has none (the caller draws nothing). */
+export function headPathFor(id) { return HEAD_SET.has(id) ? HEAD_DIR + fileFor(id) : null; }
 
 /* THE HUNT WALK ART (2026-10-18): which PixelLab style-1 unit each hunt-ground monster
    is drawn with in the world pane, the key of `units` in

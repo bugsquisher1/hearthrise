@@ -1,0 +1,87 @@
+{
+ "tool": "create_1_direction_object",
+ "object_id": "d7d3bbb2-cb5d-4332-b64a-894aea13f56e",
+ "cost_gens": 10,
+ "size": 32,
+ "view": "top-down",
+ "palette": "hr-world-56-v2 (all 56 passed)",
+ "description": "a creature's head portrait for a bestiary slot, front view facing the viewer, the head and a little of the neck and shoulders filling the square, dark single colour outline, lit from the upper left, classic fantasy MMORPG pixel art",
+ "style_images": [
+  "heads-sample/candidates/43.png",
+  "heads-sample/candidates/00.png",
+  "free-crops/chief_coppercap.png",
+  "free-crops/goblin_scavenger.png",
+  "free-crops/rook_poacher.png",
+  "free-crops/sump_slime.png",
+  "free-crops/walking_vine.png",
+  "free-crops/turncoat.png"
+ ],
+ "candidates": [
+  {
+   "from": 0,
+   "to": 5,
+   "words": "head of a goblin chieftain, front view: grey-green goblin skin, a big upturned copper cooking pot worn as a helmet, a thick grey fur collar, small yellow eyes, a wide mouth with tusks"
+  },
+  {
+   "from": 6,
+   "to": 10,
+   "words": "head of a forest poacher, front view: a man in a deep moss-green hood, a shadowed stubbled face, a brown scarf over the chin"
+  },
+  {
+   "from": 11,
+   "to": 15,
+   "words": "head of a goblin digger, front view: grey goblin skin, a dented copper bowl helmet, long pointed ears, small yellow eyes, dirt on the face"
+  },
+  {
+   "from": 16,
+   "to": 20,
+   "words": "head of a goblin scavenger, front view: grey goblin skin, a brown leather cap, long pointed ears with rings, a crooked grin"
+  },
+  {
+   "from": 21,
+   "to": 25,
+   "words": "head of a small sneaky goblin, front view: grey goblin skin, a small copper skullcap, big pointed ears, narrow yellow eyes, a sly smile"
+  },
+  {
+   "from": 26,
+   "to": 30,
+   "words": "head of a goblin sluicer, front view: grey goblin skin, a tall copper pot helmet with water dripping, long pointed ears, a wet face"
+  },
+  {
+   "from": 31,
+   "to": 35,
+   "words": "head of a hobgoblin foreman, front view: a big bald brown-skinned hobgoblin, heavy brow, small tusks, a brown leather collar"
+  },
+  {
+   "from": 36,
+   "to": 40,
+   "words": "head of a rook poacher, front view: a man in a wide-brimmed black hat and a dark high collar, a pale lean face, dark eyes"
+  },
+  {
+   "from": 41,
+   "to": 45,
+   "words": "a green slime blob seen from the front, a round wet green jelly with two small dark eyes and a pale highlight on its upper left"
+  },
+  {
+   "from": 46,
+   "to": 50,
+   "words": "a pale blue sump slime seen from the front, a translucent pale blue jelly with a small bone and a coin floating inside, two small dark eyes"
+  },
+  {
+   "from": 51,
+   "to": 55,
+   "words": "head of a turncoat soldier, front view: a man with messy brown hair, a stubbled hard face, a red tabard over grey mail at the shoulders"
+  },
+  {
+   "from": 56,
+   "to": 60,
+   "words": "head of a walking vine creature, front view: a face of twisted green vines and leaves, two dark hollow eyes, small thorns, a bud on top"
+  },
+  {
+   "from": 61,
+   "to": 63,
+   "words": "head of a kobold, front view: a small reptilian dog-faced humanoid with tan-brown scaly skin, pointed ears, yellow eyes"
+  }
+ ],
+ "frames_url": "https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/d7d3bbb2-cb5d-4332-b64a-894aea13f56e/rotations/frame_{i}.png"
+}

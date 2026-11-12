@@ -17,15 +17,16 @@
 // Every number is src/shell/monster-facts.js's, read from the rows the server's catalogue is generated
 // from; this module types none. One set of numbers for every group size (Tyler 2026-11-08). Every word is a row of src/data/text/monster.js.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, prop, attr, cls, element } from '../../render/paint.js?v=0.2.123';
-import { chance, whole, listWords } from '../../render/format.js?v=0.2.123';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.123';
-import { t, hasText } from '../../render/player-text.js?v=0.2.123';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.123';
-import { itemIconHtml } from '../widgets/bits.js?v=0.2.123';
-import { TIER_NAME, DEFAULT_TIER } from '../../data/hunt-tiers.js?v=0.2.123';
-import { monsterFactsOf, isMet } from '../monster-facts.js?v=0.2.123';
-import { targetOf, placesParts, patchParts } from '../goto.js?v=0.2.123';
+import { rows, text, prop, attr, cls, element } from '../../render/paint.js?v=0.2.124';
+import { chance, whole, listWords } from '../../render/format.js?v=0.2.124';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.124';
+import { t, hasText } from '../../render/player-text.js?v=0.2.124';
+import { headPathFor } from '../../data/monster-art.js?v=0.2.124';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.124';
+import { itemIconHtml } from '../widgets/bits.js?v=0.2.124';
+import { TIER_NAME, DEFAULT_TIER } from '../../data/hunt-tiers.js?v=0.2.124';
+import { monsterFactsOf, isMet } from '../monster-facts.js?v=0.2.124';
+import { targetOf, placesParts, patchParts } from '../goto.js?v=0.2.124';
 
 const WIN = targetOf({ kind: 'monster', id: 'x' }).win;
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px, facing the player. */
@@ -51,6 +52,7 @@ export function renderMonster() {
     + '<p class="hs-note mf-none"><span class="mf-none-words"></span> <span class="mf-none-go"></span></p>'
     + '<div class="mf-page">'
     + '<header class="mf-head"><span class="mf-stand"><canvas class="mf-sprite" aria-hidden="true"></canvas></span>'
+    + '<span class="mf-face" hidden></span>'
     + '<div class="mf-id"><h3 class="mf-name"></h3><p class="mf-kind"></p></div></header>'
     + head('monster.h_homes') + '<ul class="mf-homes"></ul>'
     + head('monster.h_fight') + '<dl class="mf-facts">'
@@ -92,6 +94,17 @@ function tiersWords(tiers) {
   }).filter(Boolean).join(' ');
 }
 
+/* The creature's head in its well beside the name (art brief 15, as the Tally draws it): a 32 px bust, kept per creature so a repaint with the
+   same one writes nothing; a creature the head set has none for draws no well. It sits in the page's own title row, so it holds as a page of Hunts. */
+function paintFace(root, ctx, id) {
+  const well = root.querySelector('.mf-face'), src = headPathFor(id);
+  prop(well, 'hidden', !src);
+  if (well.getAttribute('data-head') === (src ? id : '')) return;
+  well.replaceChildren();
+  if (src) well.appendChild(element(ctx.doc, '<img class="hh-icon mf-head-img" src="' + esc(src) + '" alt="" width="32" height="32" decoding="async">'));
+  attr(well, 'data-head', src ? id : '');
+}
+
 /* The creature's picture, once per monster; its art is asked for once and the page patched again when it lands. */
 function paintPortrait(root, ctx, id) {
   const stand = root.querySelector('.mf-stand'), c = stand.querySelector('canvas');
@@ -128,6 +141,7 @@ renderMonster.patch = function patchMonster(body, ctx) {
   }
   attr(root, 'data-monster', f.id);
   paintPortrait(root, ctx, f.id);
+  paintFace(root, ctx, f.id);
   text(root.querySelector('.mf-name'), f.name);
   text(root.querySelector('.mf-kind'), t(f.boss ? 'monster.kind_boss' : 'monster.kind', { family: f.family, level: f.level }));
   rows(root.querySelector('.mf-homes'), f.homes, {

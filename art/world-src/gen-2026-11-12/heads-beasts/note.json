@@ -1,0 +1,87 @@
+{
+ "tool": "create_1_direction_object",
+ "object_id": "8d2d499d-4922-437a-a41c-7fa8c62d8998",
+ "cost_gens": 10,
+ "size": 32,
+ "view": "top-down",
+ "palette": "hr-world-56-v2 (all 56 passed)",
+ "description": "a creature's head portrait for a bestiary slot, front view facing the viewer, the head and a little of the neck filling the square, dark single colour outline, lit from the upper left, classic fantasy MMORPG pixel art",
+ "style_images": [
+  "heads-sample/candidates/00.png",
+  "heads-sample/candidates/13.png",
+  "heads-sample/candidates/37.png",
+  "heads-sample/candidates/59.png",
+  "free-crops/barn_spider.png",
+  "free-crops/hive_wasp.png",
+  "free-crops/orchard_boar.png",
+  "free-crops/carrion_crow.png"
+ ],
+ "candidates": [
+  {
+   "from": 0,
+   "to": 4,
+   "words": "head of a barn spider, front view: tan and rust-orange hairy body, a cluster of small black eyes, two curved dark fangs, the tips of the front legs at the sides"
+  },
+  {
+   "from": 5,
+   "to": 9,
+   "words": "head of a barn wasp, front view: a red and black wasp face, big dark compound eyes, small mandibles, two antennae"
+  },
+  {
+   "from": 10,
+   "to": 14,
+   "words": "head of a briarcoat wolf, front view: a near-black charcoal wolf with a shaggy coat full of thorny briar burrs, yellow eyes, bared teeth"
+  },
+  {
+   "from": 15,
+   "to": 19,
+   "words": "head of a carrion crow, front view: a black-grey crow with a thick dark beak, small pale eyes, ruffled neck feathers"
+  },
+  {
+   "from": 20,
+   "to": 24,
+   "words": "head of a cistern spider, front view: a black spider with poison-green markings, green glowing-free eyes in a cluster, dark fangs dripping green"
+  },
+  {
+   "from": 25,
+   "to": 29,
+   "words": "head of a dire wolf, front view: a huge heavy pale grey wolf, broad skull, a thick ruff, cold pale eyes, a scarred muzzle"
+  },
+  {
+   "from": 30,
+   "to": 34,
+   "words": "head of a drain rat, front view: a mangy dirty tan-brown sewer rat, torn ear, small black eyes, yellow teeth"
+  },
+  {
+   "from": 35,
+   "to": 39,
+   "words": "head of a granary rat, front view: a plump golden-brown rat with round cheeks, a pink nose, long whiskers, a grain husk stuck in its fur"
+  },
+  {
+   "from": 40,
+   "to": 44,
+   "words": "head of a grey wolf pup, front view: a small young grey wolf with big ears, a round face and bright eyes"
+  },
+  {
+   "from": 45,
+   "to": 49,
+   "words": "head of a big grey wolf with a heavy jaw, front view: grey fur, a pale scar across the jaw, snarling, amber eyes"
+  },
+  {
+   "from": 50,
+   "to": 54,
+   "words": "head of a hive wasp, front view: a yellow and black striped wasp face, big dark compound eyes, small mandibles, two antennae"
+  },
+  {
+   "from": 55,
+   "to": 59,
+   "words": "head of a grey orchard boar, front view: grey bristly hide, a wide snout, two curved pale tusks, small dark eyes"
+  },
+  {
+   "from": 60,
+   "to": 63,
+   "words": "head of a rat king, front view: a fat old grey rat wearing a bent tin crown, a ragged red cloak at its neck, red eyes"
+  }
+ ],
+ "frames_url": "https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8d2d499d-4922-437a-a41c-7fa8c62d8998/rotations/frame_{i}.png"
+}

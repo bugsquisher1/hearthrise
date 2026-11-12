@@ -41,32 +41,32 @@
 // read-only ("Set by <leader>: Dangerous", the server's `leader_tiers`) with no buttons, and the server refuses a
 // member's pick (hr_hunt_tier_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js?v=0.2.123';
-import { bagOf, equipmentOf, blessingsOf } from '../../session/item-sections.js?v=0.2.123';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.123';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.123';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.123';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.123';
-import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.123';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.123';
-import { whole } from '../../render/format.js?v=0.2.123';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.123';
-import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.123';
-import { glyphSvg } from '../launcher.js?v=0.2.123';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.123';
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.123';
-import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.123';
-import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.123';
-import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.123';
-import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.123';
-import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.123';
-import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.123';
-import { openFinderOn } from './party-finder.js?v=0.2.123';
-import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.123';
-import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.123';
-import { callFromGround } from '../../data/boss-calls.js?v=0.2.123';
-import { rowLines } from '../live-events-view.js?v=0.2.123';
-import { t } from '../../render/player-text.js?v=0.2.123';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js?v=0.2.124';
+import { bagOf, equipmentOf, blessingsOf } from '../../session/item-sections.js?v=0.2.124';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.124';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.124';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.124';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.124';
+import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.124';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.124';
+import { whole } from '../../render/format.js?v=0.2.124';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.124';
+import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.124';
+import { glyphSvg } from '../launcher.js?v=0.2.124';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.124';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.124';
+import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.124';
+import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.124';
+import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.124';
+import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.124';
+import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.124';
+import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.124';
+import { openFinderOn } from './party-finder.js?v=0.2.124';
+import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.124';
+import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.124';
+import { callFromGround } from '../../data/boss-calls.js?v=0.2.124';
+import { rowLines } from '../live-events-view.js?v=0.2.124';
+import { t } from '../../render/player-text.js?v=0.2.124';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the tier shown before the server has it ({ hunt, tier }), `timer` its coalescing
@@ -192,8 +192,6 @@ export function renderHunts(ctx) {
     + '<p class="hw-hunt-pack"></p>' + goHtml() + callHtml() + '</div>'
     + '<div class="hw-hd-foot"><p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<p class="hw-enter-why"></p><button type="button" class="hh-tool" data-hs-act="leave-party" hidden>' + t('controls.leave_party') + '</button>'
-    /* The phone's way back (windows.css): beside Enter, in reach however far down the page has been read. */
-    + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="back">' + t('controls.back') + '</button>'
     + '<button type="button" class="hw-primary is-on hw-hunt-enter" data-hs-act="enter">' + t('controls.enter') + '</button></div>'
     + '</section></div></div>';
 }
@@ -324,7 +322,7 @@ function patchPage(det, ctx, sc, v) {
   const armed = sc.warned === warnKey(r.hunt, under) && (under.length > 0 || !!rangeWords(r, level));
   text(enter, party && !follower ? (armed ? t('controls.enter_anyway') : t('controls.enter_with_party')) : armed ? t('controls.enter_anyway') : t('controls.enter'));
   /* Enter and the tier buttons (Go as, Find a party and Bring are patchGo's: off for a member too). */
-  for (const b of det.querySelectorAll('.hw-hd-foot button:not(.hw-hd-back), .hw-tiers button')) prop(b, 'disabled', sc.pending || !!now);
+  for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-tiers button')) prop(b, 'disabled', sc.pending || !!now);
   /* ENTER OFF SAYS WHY, BESIDE IT (midgame panel 2026-11-01: a hero sent home by a friend's death, left in the party, read "the game is broken"), with the way out. */
   const off = now ? '' : enterOffWords(party);
   if (off) prop(enter, 'disabled', true);
@@ -456,3 +454,6 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   }
   return false;
 };
+
+/* The header's Back (src/shell/window-head.js): on a phone, a ground's page goes back to the list. */
+renderHunts.inner = (ctx, body) => (ctx.isPhone() && body.querySelector('.is-paged') ? 'back' : null);

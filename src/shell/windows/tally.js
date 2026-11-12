@@ -20,22 +20,23 @@
 // the server's day_ends_at and clock; nothing can spend it (§6). Every control is off while an
 // intent is in flight; the window changes only from the re-read envelope and her next answer.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, pickWords, countsWords } from '../../session/tally-sections.js?v=0.2.123';
-import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.123';
-import { huntOf, settingsOf, serverNowOf } from '../../session/hunt-sections.js?v=0.2.123';
-import { huntName } from '../../session/party-sections.js?v=0.2.123';
-import { equipmentOf } from '../../session/item-sections.js?v=0.2.123';
-import { WEIGHT_FOR_ROLE, ROLE_WORDS } from '../../data/hunt-tutorial.js?v=0.2.123';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.123';
-import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.123';
-import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.123';
-import { rows, text, cls, attr, prop, element, keyedChild } from '../../render/paint.js?v=0.2.123';
-import { whole, gold } from '../../render/format.js?v=0.2.123';
-import { t } from '../../render/player-text.js?v=0.2.123';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.123';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.123';
-import { targetOf, patchParts } from '../goto.js?v=0.2.123';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.123';
+import { tallyOf, pickWords, countsWords } from '../../session/tally-sections.js?v=0.2.124';
+import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.124';
+import { huntOf, settingsOf, serverNowOf } from '../../session/hunt-sections.js?v=0.2.124';
+import { huntName } from '../../session/party-sections.js?v=0.2.124';
+import { equipmentOf } from '../../session/item-sections.js?v=0.2.124';
+import { WEIGHT_FOR_ROLE, ROLE_WORDS } from '../../data/hunt-tutorial.js?v=0.2.124';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.124';
+import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.124';
+import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.124';
+import { rows, text, cls, attr, prop, element, keyedChild } from '../../render/paint.js?v=0.2.124';
+import { whole, gold } from '../../render/format.js?v=0.2.124';
+import { t } from '../../render/player-text.js?v=0.2.124';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.124';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.124';
+import { headPathFor } from '../../data/monster-art.js?v=0.2.124';
+import { targetOf, patchParts } from '../goto.js?v=0.2.124';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.124';
 
 const SCRATCH = new WeakMap();
 /* `board` is her last answer (null until it comes), `asking` the read in flight, `stale` asks again, `collected` the done
@@ -140,7 +141,7 @@ const marksHtml = () => '<span class="ht-marks" aria-hidden="true">' + ('<span c
 
 function entryHtml(h) {
   const task = esc(h.task);
-  return '<li class="ht-entry" data-task="' + task + '"><span class="ht-entry-top"><b></b><span class="ht-count"><b></b><small></small></span></span>'
+  return '<li class="ht-entry" data-task="' + task + '"><span class="ht-face"></span><span class="ht-entry-top"><b></b><span class="ht-count"><b></b><small></small></span></span>'
     + marksHtml() + '<span class="ht-pocket"></span><p class="ht-get"></p><p class="ht-once"></p>'
     + '<span class="ht-foot"><span class="ht-where"></span><span class="ht-tools"><label class="ht-keep"><input type="checkbox" data-hs-act="keep" data-task="' + task + '"><span></span></label>'
     + '<button type="button" class="hh-tool" data-hs-act="drop" data-task="' + task + '"></button></span></span></li>';
@@ -158,6 +159,18 @@ function patchPocket(el, pick, st) {
   keyedChild(el, pick ? pick.item : '', () => element(st.doc, itemIconHtml(st.glyphs, pick.item)));
 }
 
+/* The creature's head in its well (art brief 15): a 32 px bust, kept per creature so a repaint with the same one writes nothing.
+   A creature the head set has none for draws no well and the entry keeps its two columns. */
+export function faceOf(monster) {
+  const src = headPathFor(monster);
+  return src ? { monster, src } : null;
+}
+function patchFace(li, monster, st) {
+  const face = faceOf(monster);
+  cls(li, 'has-face', !!face);
+  keyedChild(li.querySelector('.ht-face'), face ? face.monster : '', () => element(st.doc, '<img class="hh-icon ht-head-img" src="' + esc(face.src) + '" alt="" width="32" height="32" decoding="async">'));
+}
+
 /* What she pays for a task, from her answer's row ('' until it comes). */
 const getWords = (offer) => (offer ? t('tally.get', { gold: gold(offer.gold), pick: offer.pick ? pickWords(offer.pick, itemName) : '' }) : '');
 const onceWords = (offer, st) => (offer && offer.pick && st.shared.has(offer.pick.item) ? t('tally.once') : '');
@@ -172,6 +185,7 @@ function patchEntry(li, h, st) {
   cls(li, 'is-done', h.done);
   const offer = st.board.find((r) => r.task === h.task) || null;
   patchPocket(li.querySelector('.ht-pocket'), offer && offer.pick, st);
+  patchFace(li, h.monster, st);
   const next = !h.done ? '' : tally.paidToday >= tally.perDay ? t('tally.done_tomorrow') : h.wait === 'bag_full' ? t('tally.done_bag') : st.hunting ? t('tally.done_hunting') : t('tally.done_town');
   text(li.querySelector('.ht-get'), [next, getWords(offer)].filter(Boolean).join(' '));
   text(li.querySelector('.ht-once'), onceWords(offer, st));

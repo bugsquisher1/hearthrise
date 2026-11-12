@@ -27,6 +27,8 @@
 //   longbow   items/longbow.png is not what tools/world-art/longbow-icon.mjs draws: the old file was a
 //             thick limb over a grey stock and read as a crossbow (player note a43, 2026-10-24); the
 //             script is the source, so a hand edit or an old copy of the file is a finding
+//   heads     a HEAD_ART id (src/data/monster-art.js) with no creature row, or an id in both head lists; the heads folder also runs
+//             the missing, orphan, size, palette, alpha and empty rules (32x32 busts, one file per listed id)
 //   drawn     the same for the icons tools/world-art/twin-icons.mjs and ability-tiles.mjs draw
 //
 // The SAME rules (missing, orphan, size, palette, alpha, empty) also hold for the shop's
@@ -36,7 +38,7 @@
 // --selftest plants each defect into a copy of real shipped icons and requires it
 // to be caught BY ITS NAMED RULE; the clean copy must stay silent.
 //
-// mutant-anchors: assets/icons-bundle/pixel/items/ assets/icons-bundle/pixel/supplies/ assets/icons-bundle/pixel/abilities/ src/data/item-art.js art/world/palette.json tools/world-art/longbow-icon.mjs tools/world-art/twin-icons.mjs tools/world-art/ability-tiles.mjs
+// mutant-anchors: assets/icons-bundle/pixel/items/ assets/icons-bundle/pixel/heads/ src/data/monster-art.js assets/icons-bundle/pixel/supplies/ assets/icons-bundle/pixel/abilities/ src/data/item-art.js art/world/palette.json tools/world-art/longbow-icon.mjs tools/world-art/twin-icons.mjs tools/world-art/ability-tiles.mjs
 //
 // Exit: 0 green · 1 a finding or a mutant escaped · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -53,6 +55,7 @@ import { DRAW as ABILITY_TILES, toImage as tileImage } from '../tools/world-art/
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = 'assets/icons-bundle/pixel/items';
 const SUPPLY = 'assets/icons-bundle/pixel/supplies';
+const HEADS = 'assets/icons-bundle/pixel/heads';
 const ABILITY = 'assets/icons-bundle/pixel/abilities';
 /** Pairs of items that share one icon. The second of each is a later or cut item no hero can reach today, so the two never
     share a shelf (src/data/catalogue-coherence.js reachableSources); it gets its own when it opens. A new pair is a finding. */
@@ -156,7 +159,17 @@ export async function checkWiring(root, abilityIds) {
 
 async function loadIds() {
   const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
-  return Object.keys(ITEMS);
+  const { ITEM_ART_AHEAD } = await import(pathToFileURL(join(ROOT, 'src/data/item-art.js')).href);
+  // icons drawn ahead of their row must exist too; once the row lands the id is in ITEMS and counted once
+  return [...new Set([...Object.keys(ITEMS), ...ITEM_ART_AHEAD])];
+}
+
+/** The head lists against the creature rows (`monsterIds`): a live head belongs to a creature, and no id sits in both lists (an AHEAD id whose row has landed may stay until moved). */
+export function checkHeads(art, monsterIds) {
+  const out = [];
+  for (const id of art.HEAD_ART) if (!monsterIds.has(id)) out.push({ rule: 'heads', id, detail: 'in HEAD_ART but no creature has this id (a rename that left the head behind, or a head listed before its row: HEAD_ART_AHEAD)' });
+  for (const id of art.HEAD_ART_AHEAD) if (art.HEAD_ART.includes(id)) out.push({ rule: 'heads', id, detail: 'in both HEAD_ART and HEAD_ART_AHEAD' });
+  return out;
 }
 
 async function loadSupplyIds() {
@@ -255,8 +268,19 @@ async function selftest(ids) {
   const sw = checkSwitch(sroot).some((f) => f.rule === 'switch');
   console.log(`  ${sw ? 'caught ' : 'ESCAPED'} switch`);
   if (!sw) escaped++;
+  // heads: an id in HEAD_ART that is no monster, an id in both lists, and the folder rules (a file with no list entry is an orphan)
+  { const art = { HEAD_ART: ['rat', 'no_such_beast'], HEAD_ART_AHEAD: ['farmhand', 'rat'] };
+    const found = checkHeads(art, new Set(['rat'])).map((f) => f.id + ':' + f.rule).join();
+    const hit = found.includes('no_such_beast:heads') && found.includes('rat:heads');
+    const quiet = checkHeads({ HEAD_ART: ['rat'], HEAD_ART_AHEAD: ['farmhand'] }, new Set(['rat'])).length === 0;
+    const dir = mkdtempSync(join(tmp, 'h-'));
+    copyFileSync(join(real, pick[0] + '.png'), join(dir, 'rat.png'));
+    copyFileSync(join(real, pick[1] + '.png'), join(dir, 'stray.png'));
+    const orphan = checkIcons(dir, ['rat']).some((f) => f.rule === 'orphan' && f.id === 'stray');
+    console.log(`  ${hit && quiet && orphan ? 'caught ' : 'ESCAPED'} heads`);
+    if (!(hit && quiet && orphan)) escaped++; }
   rmSync(tmp, { recursive: true, force: true });
-  console.log(escaped ? `pixel-icons --selftest: RED — ${escaped} planted defect(s) escaped` : 'pixel-icons --selftest: all 12 planted defects caught; clean control silent');
+  console.log(escaped ? `pixel-icons --selftest: RED — ${escaped} planted defect(s) escaped` : 'pixel-icons --selftest: all 13 planted defects caught; clean control silent');
   process.exit(escaped ? 1 : 0);
 }
 
@@ -269,7 +293,11 @@ const ids = await loadIds();
 const supplyIds = await loadSupplyIds();
 const abilityIds = await loadAbilityIds();
 if (process.argv.includes('--selftest')) await selftest(ids);
-const findings = [...checkIcons(join(ROOT, DIR), ids), ...checkDuplicates(join(ROOT, DIR), ids), ...checkSupplies(join(ROOT, SUPPLY), supplyIds), ...(await checkWiring(ROOT, abilityIds)), ...checkSwitch(ROOT), ...checkLongbow(join(ROOT, DIR, 'longbow.png')),
+const headArt = await import(pathToFileURL(join(ROOT, 'src/data/monster-art.js')).href);
+const { MONSTERS } = await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href);
+const headIds = headArt.HEAD_ART.concat(headArt.HEAD_ART_AHEAD);
+const findings = [...checkIcons(join(ROOT, HEADS), headIds), ...checkDuplicates(join(ROOT, HEADS), headIds, []), ...checkHeads(headArt, new Set(Object.keys(MONSTERS))),
+  ...checkIcons(join(ROOT, DIR), ids), ...checkDuplicates(join(ROOT, DIR), ids), ...checkSupplies(join(ROOT, SUPPLY), supplyIds), ...(await checkWiring(ROOT, abilityIds)), ...checkSwitch(ROOT), ...checkLongbow(join(ROOT, DIR, 'longbow.png')),
   ...checkDrawn(join(ROOT, DIR), TWIN_ICONS, twinImage), ...checkDrawn(join(ROOT, ABILITY), ABILITY_TILES, tileImage)];
-report(`pixel-icons: ${ids.length} items + ${supplyIds.length} supplies`, findings);
+report(`pixel-icons: ${ids.length} items + ${supplyIds.length} supplies + ${headIds.length} heads`, findings);
 process.exit(findings.length ? 1 : 0);

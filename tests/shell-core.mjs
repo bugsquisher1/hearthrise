@@ -81,7 +81,7 @@ function memStore(initial) {
 }
 
 async function runTests(mods) {
-  const { WM, HUD, CS, AR, AL, AH, XP } = mods;
+  const { WM, HUD, CS, AR, AL, AH, XP, WH, SW } = mods;
   const fails = [];
   const t = (id, fn) => { try { fn(); } catch (e) { fails.push(id + ': ' + e.message); } };
   const eq = (a, b, msg) => { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(msg + ' — got ' + JSON.stringify(a) + ', want ' + JSON.stringify(b)); };
@@ -269,6 +269,118 @@ async function runTests(mods) {
     phone.wm.open('bag');
     phone.wm.goTo('market', { tab: 'buy' });
     eq(phone.wm.openIds(), ['market'], 'the phone keeps the sheet the link was pressed in');
+  });
+
+  /* ── W17-W21: ONE WINDOW HEADER (UX flow audit 2026-11-11, lane/b-window-header), on the shipped catalogue ── */
+  t('W17 every window wears the same header: Back, title, ? when it has help, key, Close', () => {
+    WM.validateWindowRows(SW);
+    for (const row of SW) {
+      const h = WH.headHtml(row, {}, false), at = (s) => h.indexOf(s);
+      const back = at('data-hs-back="' + row.id + '" hidden'), title = at('class="hs-win-name">' + (row.title || row.label).replace(/'/g, '&#39;'));
+      const help = at('data-hs-help="' + row.id + '"'), key = at('<kbd class="hs-key">'), close = at('data-hs-close="' + row.id + '"');
+      ok(back > 0, row.id + ': no Back in its header');
+      ok(title > back, row.id + ': its title is missing or stands before Back');
+      ok(close > title, row.id + ': no Close after its title');
+      ok((key > title && key < close) === !!row.key, row.id + ': its key hint ' + (row.key ? 'is missing' : 'shows with no key'));
+      ok((help > title && help < close) === !!row.help, row.id + ': its ? ' + (row.help ? 'is missing' : 'shows with no help'));
+      if (row.help) {
+        ok(WH.helpLine(row, false).length > 20 && h.includes('class="hs-win-help" hidden'), row.id + ': its help line is empty or not folded under the band');
+        ok(!/opens this window/.test(WH.helpLine(row, true)) && (!row.key || /opens this window/.test(WH.helpLine(row, false))), row.id + ': the key sentence follows the keyboard');
+      }
+    }
+    eq(SW.filter((r) => r.help).map((r) => r.id).sort(), ['hunt-prep', 'hunts', 'inventory', 'shop', 'skills-trade', 'storage'], 'the windows with a help line');
+    for (const bad of [[{ id: 'a', label: 'A', key: 'a', width: 1, beside: ['nope'] }], [{ id: 'a', label: 'A', key: 'a', width: 1, beside: ['a'] }],
+      [{ id: 'a', label: 'A', key: 'a', width: 1, pageOf: ['a'], launcher: false }], [{ id: 'a', label: 'A', key: 'a', width: 1, over: true, modal: true, launcher: false }]]) {
+      let threw = false; try { WM.validateWindowRows(bad); } catch (e) { threw = true; } ok(threw, 'must refuse ' + JSON.stringify(bad));
+    }
+  });
+  t('W18 the coexistence table: the bag beside Storage, the Shop and Character at 1440; Hunts lies over the dock', () => {
+    for (const other of ['storage', 'shop', 'character']) {
+      const { wm } = harness(WM, { windows: SW, width: 1440 });
+      wm.open('inventory'); wm.open(other);
+      eq(wm.openIds(), ['inventory', other], 'the bag and ' + other + ' stay open together at 1440');
+      const L = wm.layout(), a = L.find((p) => p.id === 'inventory'), b = L.find((p) => p.id === other);
+      ok(a.right + a.width + WM.DOCK_GAP <= b.right || b.right + b.width + WM.DOCK_GAP <= a.right, other + ' and the bag overlap');
+    }
+    const lone = harness(WM, { windows: SW, width: 1440 });
+    lone.wm.open('character'); lone.wm.open('storage');
+    eq(lone.wm.openIds(), ['storage'], 'two windows the table does not pair still share only 60% of the dock');
+    const over = harness(WM, { windows: SW, width: 1440 });
+    over.wm.open('hunt-party'); over.wm.open('skills-trade');
+    const before = Object.fromEntries(over.wm.layout().map((p) => [p.id, p.right]));
+    over.wm.open('hunts');
+    eq(over.wm.openIds(), ['hunt-party', 'skills-trade', 'hunts'], 'Hunts closed the windows under it');
+    const L = over.wm.layout();
+    ok(L.find((p) => p.id === 'hunts').top, 'Hunts is not on top');
+    for (const id of ['hunt-party', 'skills-trade']) eq(L.find((p) => p.id === id).right, before[id], id + ' moved under Hunts');
+    over.wm.open('friends');
+    ok(over.wm.isOpen('hunts') && over.wm.isOpen('friends'), 'a window opened over Hunts made room by closing Hunts: ' + over.wm.openIds());
+  });
+  t('W19 Back returns to the window a press came from, along the chain', () => {
+    const { wm } = harness(WM, { windows: SW, width: 1440 });
+    wm.open('shop');
+    eq(wm.backTo('shop'), null, 'a window opened by its key has nowhere to go back to');
+    ok(wm.back('shop') === false && wm.isOpen('shop'), 'Back on a window opened by its key did something');
+    wm.close('shop');
+    wm.open('hunts');
+    wm.from('hunts', () => wm.goTo('shop', { tab: 'services' }));
+    eq(wm.backTo('shop'), 'hunts', 'the Shop does not know it came from Hunts');
+    wm.from('shop', () => wm.open('inventory'));
+    eq(wm.backTo('inventory'), 'shop', 'the bag does not know it came from the Shop');
+    ok(wm.back('inventory'), 'Back from the bag refused');
+    ok(!wm.isOpen('inventory') && wm.openIds().slice(-1)[0] === 'shop', 'Back from the bag did not return to the Shop: ' + wm.openIds());
+    ok(wm.back('shop') && !wm.isOpen('shop') && wm.openIds().slice(-1)[0] === 'hunts', 'Back from the Shop did not return to Hunts: ' + wm.openIds());
+    const phone = harness(WM, { windows: SW, phone: true, width: 922 });
+    phone.wm.open('hunts');
+    phone.wm.from('hunts', () => phone.wm.open('storage'));
+    eq(phone.wm.openIds(), ['storage'], 'the phone keeps one sheet');
+    phone.wm.back('storage');
+    eq(phone.wm.openIds(), ['hunts'], 'the phone\'s Back did not bring the sheet it came from');
+    phone.wm.from('hunts', () => phone.wm.open('shop'));
+    phone.wm.from('shop', () => phone.wm.open('inventory'));
+    phone.wm.back('inventory');
+    eq([phone.wm.openIds(), phone.wm.backTo('shop')], [['shop'], 'hunts'], 'a sheet brought back forgot where it came from');
+    phone.wm.back('shop');
+    eq(phone.wm.openIds(), ['hunts'], 'the phone\'s chain of Backs broke');
+  });
+  t('W20 a window opened from its host is a page of it, with Back, never a second window', () => {
+    const { wm, flush } = harness(WM, { windows: SW, width: 1440 });
+    wm.open('hunts');
+    wm.from('hunts', () => wm.goTo('monster', { tab: 'gray_wolf' }));
+    eq(wm.pageIn('hunts'), 'monster', 'Monster facts is not a page of Hunts');
+    eq(wm.layout().map((p) => p.id), ['hunts'], 'Monster facts opened a second window');
+    ok(wm.isOpen('monster') && wm.openIds().includes('monster'), 'a page is not open to the shell');
+    eq(wm.backTo('hunts'), 'hunts', 'the page has no way back');
+    wm.back('hunts');
+    ok(wm.pageIn('hunts') === null && wm.isOpen('hunts'), 'Back did not return to Hunts\' own page');
+    wm.from('hunts', () => wm.goTo('monster', { tab: 'gray_wolf' }));
+    wm.handleKey(key('Escape'));
+    ok(wm.pageIn('hunts') === null && wm.isOpen('hunts'), 'Esc on a page closed its host');
+    wm.from('hunts', () => wm.goTo('monster', { tab: 'gray_wolf' }));
+    wm.from('hunts', () => wm.goTo('hunts', { tab: 'thicket' }));
+    eq(wm.pageIn('hunts'), null, 'a link to the host\'s own page left the page over it');
+    wm.from('hunts', () => wm.goTo('monster', { tab: 'gray_wolf' }));
+    wm.close('hunts'); flush();
+    ok(!wm.isOpen('monster'), 'closing the host left its page open');
+    wm.open('hunts');
+    eq(wm.pageIn('hunts'), null, 'Hunts reopened on the page it was closed with');
+    wm.close('hunts'); flush();
+    wm.open('monster');
+    eq(wm.layout().map((p) => p.id), ['monster'], 'opened from anywhere else it is a window of its own');
+    wm.close('monster'); flush();
+    wm.open('hunt-prep');
+    wm.from('hunt-prep', () => wm.open('configure-action'));
+    eq([wm.pageIn('hunt-prep'), wm.layout().map((p) => p.id)], ['configure-action', ['hunt-prep']], 'Configure action is not a page of Hunt prep');
+    wm.close('configure-action');
+    ok(wm.pageIn('hunt-prep') === null && wm.isOpen('hunt-prep'), 'closing the page closed Hunt prep');
+  });
+  t('W21 one gold plate per window: a confirmation, then the window\'s own, then the coach\'s', () => {
+    const g = (zone, shown = true) => ({ zone, shown });
+    eq(WH.pickGold([g('body'), g('body')]), 0, 'two of the window\'s own: the first');
+    eq(WH.pickGold([g('coach'), g('body')]), 1, 'the coach took the window\'s gold');
+    eq(WH.pickGold([g('body'), g('coach'), g('confirm')]), 2, 'a pending confirmation is not the gold');
+    eq(WH.pickGold([g('confirm', false), g('body', false), g('coach')]), 2, 'a hidden plate kept the gold');
+    eq(WH.pickGold([g('body', false)]), -1, 'nothing shows, nothing is gold');
   });
 
   /* ── H: the HUD contract ── */
@@ -909,10 +1021,37 @@ async function load(base) {
     AL: await import(u('src/shell/alerts.js')),
     AH: await import(u('src/shell/after-hunt.js')),
     XP: await import(u('src/core/xp.js')),
+    WH: await import(u('src/shell/window-head.js')),
+    SW: (await import(u('src/data/shell-windows.js'))).SHELL_WINDOWS,
   };
 }
 
+const WH_FILE = 'src/shell/window-head.js';
 const MUTANTS = [
+  /* W17-W21: one window header (lane/b-window-header) */
+  { test: 'W17', file: WH_FILE, from: "    + '<button type=\"button\" class=\"hs-back\" data-hs-back=\"' + id + '\" hidden>&lsaquo; ' + esc(t('controls.back')) + '</button>'\n", to: '' },
+  { test: 'W17', file: WH_FILE, from: "    + (help ? '<button type=\"button\" class=\"hs-help\"", to: "    + (false ? '<button type=\"button\" class=\"hs-help\"" },
+  { test: 'W17', file: WH_FILE, from: "  const key = row.key && !row.noShortcut && !touch ?", to: '  const key = row.key ?' },
+  { test: 'W17', file: 'src/data/shell-windows.js', from: "help: 'windows.help_shop', ", to: '' },
+  { test: 'W17', file: WM_FILE, from: "    if (r.beside !== undefined && !(Array.isArray(r.beside) && r.beside.length && r.beside.every((x) => typeof x === 'string' && x !== r.id)))", to: '    if (false)' },
+  { test: 'W18', file: WM_FILE, from: '    return occ.length && occ.every((q) => besides(id, q.id)) ? world().width - DOCK_EDGE : world().width * DOCK_MAX;', to: '    return world().width * DOCK_MAX;' },
+  { test: 'W18', file: WM_FILE, from: '    return occ.length && occ.every((q) => besides(id, q.id)) ? world().width - DOCK_EDGE : world().width * DOCK_MAX;', to: '    return occ.length ? world().width - DOCK_EDGE : world().width * DOCK_MAX;' },
+  { test: 'W18', file: WM_FILE, from: '    if (isOver(id)) { slot.set(id, DOCK_EDGE); return; }\n', to: '' },
+  { test: 'W18', file: WM_FILE, from: ' && !leaving.has(d) && !isOver(d))', to: ' && !leaving.has(d))' },
+  { test: 'W18', file: 'src/data/shell-windows.js', from: "    beside: Object.freeze(['storage', 'shop', 'character']) }", to: "    beside: Object.freeze(['storage']) }" },
+  { test: 'W19', file: WM_FILE, from: '    if (by) cameFrom.set(id, by); else if (!returning) cameFrom.delete(id);', to: '    cameFrom.delete(id);' },
+  { test: 'W19', file: WM_FILE, from: '    try { close(id); openWindow(to); }', to: '    try { close(id); }' },
+  { test: 'W19', file: WM_FILE, from: '    returning = true;\n', to: '' },
+  { test: 'W19', file: WM_FILE, from: '    return live().includes(id) && cameFrom.has(id) ? cameFrom.get(id) : null;', to: '    return null;' },
+  { test: 'W20', file: WM_FILE, from: '    if (by && (rows.get(id).pageOf || []).includes(by)) {', to: '    if (false) {' },
+  { test: 'W20', file: WM_FILE, from: '    pages.delete(id);   // a host takes its page with it\n', to: '' },
+  { test: 'W20', file: WM_FILE, from: 'pages.has(l[l.length - 1]) ? back(l[l.length - 1]) : ', to: '' },
+  { test: 'W20', file: WM_FILE, from: '    pages.delete(id);   // a host asked for one of its own tabs shows itself, not its page\n', to: '' },
+  { test: 'W20', file: WM_FILE, from: '    if (host) { pages.delete(host); emit(); return true; }', to: '' },
+  { test: 'W20', file: 'src/data/shell-windows.js', from: "    pageOf: Object.freeze(['hunts']) }", to: '    }' },
+  { test: 'W21', file: WH_FILE, from: '    if (best < 0 || ZONE_RANK[g.zone] < ZONE_RANK[list[best].zone]) best = i;', to: '    if (best < 0) best = i;' },
+  { test: 'W21', file: WH_FILE, from: '    if (!g || !g.shown || !(g.zone in ZONE_RANK)) return;', to: '    if (!g || !(g.zone in ZONE_RANK)) return;' },
+  { test: 'W21', file: WH_FILE, from: "const ZONE_RANK = Object.freeze({ confirm: 0, body: 1, coach: 2 });", to: "const ZONE_RANK = Object.freeze({ confirm: 1, body: 0, coach: 2 });" },
   { test: 'W1', file: WM_FILE, from: 'export const MAX_OPEN = 3;', to: 'export const MAX_OPEN = 4;' },
   { test: 'W2', file: WM_FILE, from: 'export const DOCK_MAX = 0.6;', to: 'export const DOCK_MAX = 0.9;' },
   { test: 'W3', file: WM_FILE, from: 'for (const r of rows.values()) if (r.escape) return openWindow(r.id);', to: '' },

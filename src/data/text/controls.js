@@ -31,7 +31,7 @@
 //   Select / Deselect    the bag menu (was Select / Unselect)
 //   Sort / Filter        bag, Storage, Market, crafting; Chat's Combat tab (was Filter lines)
 //   Search               Party finder; the bag, Storage and Market search fields
-//   Clear                the bag's selection; Settings' search (Clear search)
+//   Clear                the bag's selection
 //   Play / Show / Rename / Sign out   All characters and the character strip
 //   Accept / Decline / Join / Invite  Friends, Party, the invite alert (was Join / No thanks)
 //   Show in finder / Hide from finder   Party (was Show in the finder / Hide from the finder)
@@ -78,7 +78,6 @@ export const CONTROLS_TEXT = Object.freeze({
   filter_off: 'Filter ({count} off)',
   search: 'Search',
   clear: 'Clear',
-  clear_search: 'Clear search',
   play: 'Play',
   show: 'Show',
   rename: 'Rename',

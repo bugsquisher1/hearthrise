@@ -401,10 +401,10 @@ async function checks(overrides, shots) {
             voice: w.querySelector('.ht-voice').textContent, mine: w.querySelector('.ht-mine-head').getClientRects().length > 0, folded: w.querySelector('.ht-pick-open').hidden, pick: w.querySelector('.ht-pick-line').textContent };
         });
         if (!seen.first) fails.push('TW-13 the weight picker stands over her board');
-        if (seen.off || seen.why !== 'Your first Take asks her for medium armor, the weight you wear most. Change it below any time.' || !seen.toPicker) fails.push('TW-13 with no weight her board reads ' + JSON.stringify(seen));
+        if (seen.off || seen.why !== 'When you take your first task, she pays you in medium armor, the weight you wear most. Change it below any time.' || !seen.toPicker) fails.push('TW-13 with no weight her board reads ' + JSON.stringify(seen));
         /* TW-14 FIRST VISIT: her story, no Your tallies section, the picker folded to one line */
         if (seen.voice !== FIRST_LINE) fails.push('TW-14 on a first visit she says ' + JSON.stringify(seen.voice));
-        if (seen.mine || !seen.folded || seen.pick !== 'Your first Take picks the armor weight for you, or pick it here.') fails.push('TW-14 a first visit shows ' + JSON.stringify({ mine: seen.mine, folded: seen.folded, pick: seen.pick }));
+        if (seen.mine || !seen.folded || seen.pick !== 'When you take your first task, she picks the armor weight for you. Or pick it here.') fails.push('TW-14 a first visit shows ' + JSON.stringify({ mine: seen.mine, folded: seen.folded, pick: seen.pick }));
         if (seen.toPicker) { // no press to make when it is hidden: that is already a named fail above, never a page.click timeout that kills the run
           await page.click('[data-hs-win="tally"] [data-hs-act="to-weight"]');
           await page.waitForTimeout(200);

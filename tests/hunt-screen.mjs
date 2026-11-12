@@ -877,7 +877,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         const withWin = await page.evaluate(() => document.querySelectorAll('.hs-pointer').length);
         if (withWin) fails.push('HS-10b the tutorial card is drawn over an open window (' + withWin + ')');
-        for (let i = 0; i < 4 && await page.$('[data-hs-win] [data-hs-close]'); i++) { await page.click('[data-hs-win] [data-hs-close]'); await page.waitForTimeout(300); }
+        for (let i = 0; i < 4 && await page.$('[data-hs-win] [data-hs-close]'); i++) {
+          /* A Close something else lies over is a player who cannot shut the window: a named fail, never a harness timeout. */
+          const shut = await page.click('[data-hs-win] [data-hs-close]', { timeout: 3000 }).then(() => true, (e) => String(e.message || e).split('\n').find((l) => /intercepts/.test(l)) || 'unclickable');
+          if (shut !== true) { fails.push('HS-10b an open window\'s Close cannot be pressed: ' + shut.trim()); break; }
+          await page.waitForTimeout(300);
+        }
         await wait(page, () => !document.querySelector('[data-hs-win]'));
         await pushEnvelope(page, s);
         await wait(page, () => document.querySelectorAll('.hs-pointer').length === 1);

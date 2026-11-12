@@ -1672,7 +1672,8 @@ jobs:
   # steps on job 108958707424; the 16-min timeout is unchanged.
   db-replay:
     runs-on: ubuntu-latest
-    timeout-minutes: 16
+    # 14.3 min measured on 43127106448 (8.5 on 43143204963) x2 = 29; 16 cancelled 43260108569 with no supabase/ change.
+    timeout-minutes: 29
 
     steps:
       - uses: actions/checkout@v4

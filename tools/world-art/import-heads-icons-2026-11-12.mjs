@@ -16,6 +16,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePNG, encodePNG } from './png.mjs';
 import { inPalette } from './lock.mjs';
+import { isMain } from '../../tests/_is-main.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SRC = 'art/world-src/gen-2026-11-12/';
@@ -77,10 +78,10 @@ export function plan(root = ROOT) {
   };
   take(HEAD_BATCHES, HEADS_OUT);
   take(ICON_BATCHES, ITEMS_OUT);
-  return { files, heads };
+  return { files };
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   const check = process.argv.includes('--check');
   const { files } = plan();
   let drift = 0;

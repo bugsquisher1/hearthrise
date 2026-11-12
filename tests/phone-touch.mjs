@@ -919,6 +919,15 @@ async function weighhouse(page, tag, fails) {
   await page.waitForTimeout(250);
   const see = await page.evaluate(() => ['#hw-mk-qty', '#hw-mk-ask', '[data-hs-act="ms-list"]'].map((q) => { const e = document.querySelector(q), r = window.__r(e); return [q, !!r && window.__onScreen(r) && window.__hits(e) && r.height >= 40]; }));
   for (const [q, ok] of see) if (!ok) fails.push('PH-23 [' + tag + '] ' + q + ' is not on the sell sheet with the others');
+  /* The sheet's layout, not only its fit (the one window header left room for both mutants to fit anyway): a picked
+     stack hides the purse and the tabs, and its two fields stand above what it would fetch. */
+  const lay = await page.evaluate(() => {
+    const shown = (q) => Array.from(document.querySelectorAll('[data-hs-win="market"] .hw-mk > ' + q)).filter((e) => e.getClientRects().length > 0).length;
+    const qty = document.querySelector('#hw-mk-qty'), facts = document.querySelector('.hw-mk-sell.is-paged .hw-mk-facts');
+    return { purse: shown('.hw-mk-greet'), tabs: shown('.hw-tabs'), factsFirst: !!qty && !!facts && facts.getBoundingClientRect().top < qty.getBoundingClientRect().top };
+  });
+  if (lay.purse || lay.tabs) fails.push('PH-23 [' + tag + '] the sell sheet keeps the purse or the tabs: ' + JSON.stringify(lay));
+  if (lay.factsFirst) fails.push('PH-23 [' + tag + '] what it would fetch stands above How many');
 }
 async function sorts(page, tag, fails) {
   for (const win of ['inventory', 'storage']) {

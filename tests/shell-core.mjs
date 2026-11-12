@@ -81,7 +81,7 @@ function memStore(initial) {
 }
 
 async function runTests(mods) {
-  const { WM, HUD, CS, AR, AL, AH, XP, WH, SW } = mods;
+  const { WM, HUD, CS, AR, AL, AH, XP, WH, SW, SHELL_CSS } = mods;
   const fails = [];
   const t = (id, fn) => { try { fn(); } catch (e) { fails.push(id + ': ' + e.message); } };
   const eq = (a, b, msg) => { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(msg + ' — got ' + JSON.stringify(a) + ', want ' + JSON.stringify(b)); };
@@ -292,6 +292,16 @@ async function runTests(mods) {
     for (const bad of [[{ id: 'a', label: 'A', key: 'a', width: 1, beside: ['nope'] }], [{ id: 'a', label: 'A', key: 'a', width: 1, beside: ['a'] }],
       [{ id: 'a', label: 'A', key: 'a', width: 1, pageOf: ['a'], launcher: false }], [{ id: 'a', label: 'A', key: 'a', width: 1, over: true, modal: true, launcher: false }]]) {
       let threw = false; try { WM.validateWindowRows(bad); } catch (e) { threw = true; } ok(threw, 'must refuse ' + JSON.stringify(bad));
+    }
+  });
+  /* With Back, ?, key and Close the band's controls leave a 380 window's title 133 px. Cinzel at .12em set "Gathering and crafting" on THREE
+     lines there (v0.2.124); at .04em it takes two (measured 1280, 1440). Widening instead breaks the Party pairing (W18). Two lines, never three. */
+  t('W22 a long window name keeps to two lines with Back showing: under 420 px the name sets at .04em or tighter', () => {
+    const m = /\.hs-win-head:has\(> \.hs-back:not\(\[hidden\]\)\) > \.hs-win-title \{[^}]*letter-spacing:\s*([\d.]+)em/.exec(SHELL_CSS);
+    const ls = m ? Number(m[1]) : 0.12;
+    for (const row of SW) {
+      const name = row.title || row.label;
+      if (name.length > 14 && row.width < 420) ok(ls <= 0.04, row.id + ': "' + name + '" at ' + row.width + ' px sets at ' + ls + 'em beside Back and wraps to three lines');
     }
   });
   t('W18 the coexistence table: the bag beside Storage, the Shop and Character at 1440; Hunts lies over the dock', () => {
@@ -1014,6 +1024,7 @@ async function load(base) {
   const u = (p) => pathToFileURL(join(base, p)).href;
   return {
     HUD_URL: u(HUD_FILE),
+    SHELL_CSS: readFileSync(join(base, 'src/styles/shell.css'), 'utf8'),
     WM: await import(u(WM_FILE)),
     HUD: await import(u(HUD_FILE)),
     CS: await import(u('src/session/residue.js')),
@@ -1029,6 +1040,7 @@ async function load(base) {
 const WH_FILE = 'src/shell/window-head.js';
 const MUTANTS = [
   /* W17-W21: one window header (lane/b-window-header) */
+  { test: 'W22', file: 'src/styles/shell.css', from: '> .hs-win-title { letter-spacing: .04em; }', to: '> .hs-win-title { }' },
   { test: 'W17', file: WH_FILE, from: "    + '<button type=\"button\" class=\"hs-back\" data-hs-back=\"' + id + '\" hidden>&lsaquo; ' + esc(t('controls.back')) + '</button>'\n", to: '' },
   { test: 'W17', file: WH_FILE, from: "    + (help ? '<button type=\"button\" class=\"hs-help\"", to: "    + (false ? '<button type=\"button\" class=\"hs-help\"" },
   { test: 'W17', file: WH_FILE, from: "  const key = row.key && !row.noShortcut && !touch ?", to: '  const key = row.key ?' },
@@ -1178,6 +1190,8 @@ async function selftest() {
       const skip = new Set(['styles', 'vendor'].map((n) => join(ROOT, 'src', n)));
       mkdirSync(join(base, 'src'), { recursive: true });
       cpSync(join(ROOT, 'src'), join(base, 'src'), { recursive: true, filter: (s) => !skip.has(s) });
+      mkdirSync(join(base, 'src/styles'), { recursive: true });
+      cpSync(join(ROOT, 'src/styles/shell.css'), join(base, 'src/styles/shell.css'));
       const p = join(base, m.file);
       const src = readFileSync(p, 'utf8');
       if (!src.includes(m.from)) throw new Error('selftest: anchor for ' + m.test + ' not found in ' + m.file);

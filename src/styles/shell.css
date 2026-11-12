@@ -272,6 +272,8 @@
 .hs-back[hidden] { display: none; }
 /* With Back showing, Back stands where the glyph stood: a long name keeps its two lines in a narrow window (Gathering and crafting, 380). */
 .hs-win-head:has(> .hs-back:not([hidden])) > .hs-glyph { display: none; }
+/* ...and the name sets tighter (.04em) so it keeps to two lines beside Back, ? and the key: at .12em "Gathering and crafting" took three at 380 (v0.2.124). */
+.hs-win-head:has(> .hs-back:not([hidden])) > .hs-win-title { letter-spacing: .04em; }
 /* A page's path: its host's name, dim, then the page's own. */
 .hs-win-crumb { color: var(--ink-3); }
 .hs-win-crumb::after { content: ' \203A  '; }

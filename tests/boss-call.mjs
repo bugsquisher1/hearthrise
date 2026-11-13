@@ -263,7 +263,9 @@ async function guard(X) {
     if (!ev.some((e) => e.type === 'challenge' && e.atMs >= at) || !took.length) bad.push('BC-PHASE the tank\'s Challenge took no add');
   }
   /* ...and the enrage raises his blows (his swings only, ability 'basic': a spell is priced off the same row and would hide a swing that ignores it): his largest before the line stays under his row's, after it passes it. */
-  setRow(king.monster, { hp: 9000, atk: 10, baseAcc: 1, phases: { ...X.EM[king.monster].phases, enrageAtkPm: 3000 } });
+  /* (his spells off for this arm: a cast takes his swing turns, and in the few seconds of the enrage it left too few swings to read) */
+  const kingSpells = X.EM[king.monster].spells;
+  setRow(king.monster, { hp: 9000, atk: 10, baseAcc: 1, spells: [], phases: { ...X.EM[king.monster].phases, enrageAtkPm: 3000 } });
   {
     const f = fight(X, king, ['tank', 'healer'], { bar: NO_CHALLENGE });
     const k = kinds(f);
@@ -276,7 +278,7 @@ async function guard(X) {
     if (!before || before > plain) bad.push('BC-PHASE before the line his largest blow was ' + before + ', his row\'s is ' + plain);
     if (!(after > plain)) bad.push('BC-PHASE in the enrage his largest blow was ' + after + ', his row\'s plain one is ' + plain);
   }
-  setRow(king.monster, { phases: { ...X.EM[king.monster].phases, enrageAtkPm: 1600 } });
+  setRow(king.monster, { spells: kingSpells, phases: { ...X.EM[king.monster].phases, enrageAtkPm: 1600 } });
 
   /* BC-WAVE: an add that kills: the healer falls with the wave up, the tank comes home with it, both paths. */
   setRow(king.monster, { hp: 3000, atk: 1, baseAcc: 0 });

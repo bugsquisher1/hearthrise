@@ -814,7 +814,11 @@ export const MONSTERS = {
   carrion_crow: { name: 'Carrion Crow', icon: '🐦', tier: 2, level: 16, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): a bird in the open, so an arrow brings it down and a club swings at air. */
     weaponWeak: 'ranged', weaponResist: [],
-    hp: 30, atk: 11, baseAcc: 0.8, def: 1, xp: 109, gp: [6, 19], formula: true, speed: 4400,
+    /* GORGED ON THE POACHERS' CARCASSES, so slower than a hero on foot (3.0 tiles a second against 3.2; designer 2026-11-13, lane/d-live-grounds-grade):
+       at 4.4 a kiting Ranger could never step away from them, and a lone bow or crossbow at the Glade's floor dipped under 25% HP about 6 times in
+       12 h (47 in 96 hero-hours, tools/balance-sim grade full + 6 more seeds), against the 10-25 Normal bound of 1. At 3.0: 19 in 96, the
+       ground's 8 ways 24 in 384 h (0.75 per 12 h). Every other way reads the same. */
+    hp: 30, atk: 11, baseAcc: 0.8, def: 1, xp: 109, gp: [6, 19], formula: true, speed: 3000,
     drops: [{ id: 'bone_chips', ch: .5, band: 'common' }, { id: 'crow_quill', ch: .08, band: 'uncommon' }, { id: 'iron_boots', ch: .0103, band: 'scarce' }, { id: 'studded_boots', ch: .0103, band: 'scarce' }, { id: 'adept_boots', ch: .0103, band: 'scarce' }] },
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */

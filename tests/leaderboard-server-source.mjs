@@ -489,7 +489,15 @@ export async function guard() {
     + 'content that moves on its own — almost certainly a timestamp.');
 
   // A SETTLE that changes no score. This is the case that was churning.
-  await db.query('update player_state set updated_at = now()');
+  /* The settle MOVES the clock by a real amount (2026-11-13, run 43511513009): `= now()` moved it by milliseconds
+     on a fast runner, so a ranked column built from the timestamp's seconds read identical and M9 SLIPPED there
+     while it was caught locally. Then assert it moved, so this arm cannot pass on a clock that stood still. */
+  const stampBefore = (await one('select max(extract(epoch from updated_at))::text t from player_state')).t;
+  await db.query("update player_state set updated_at = updated_at + interval '7 minutes 13 seconds'");
+  const stampAfter = (await one('select max(extract(epoch from updated_at))::text t from player_state')).t;
+  ok(Number(stampAfter) - Number(stampBefore) >= 60,
+    `LB-12 (the FIXTURE control): the settle did not move player_state.updated_at (${stampBefore} -> ${stampAfter}) — `
+    + 'a per-settle timestamp in a ranked row would be invisible to the churn arm below');
   const settled = await churn(conc);
   ok(settled.rewritten === 0 && settled.added === 0 && settled.removed === 0,
     `LB-12: after every player settled (player_state.updated_at moved, no score changed) a `

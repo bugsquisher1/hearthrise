@@ -426,6 +426,18 @@ function readTree() {
 // ACTUALLY been in (M1, M2, M4 were all measured on 2026-09-06), applied to the
 // real tree, and graded by the SAME verdict() the plain run calls.
 // ════════════════════════════════════════════════════════════════════════
+/* THE PLANTED GUARD (2026-11-13, run 43511513009). M3, M6 and M8-M10 used to plant into tests/gold-intents.mjs as
+   "a guard on the allowlist, registered nowhere". gold-intents was then registered and taken off the list, and all
+   five went NOT CAUGHT: a mutant aimed at a real file's current state breaks the day that state is paid down. They
+   now plant a synthetic guard that carries exactly the state each needs: present, flag-honest, allowlisted with a
+   real reason, registered nowhere. */
+const PLANT = 'planted-allowlisted-guard.mjs';
+const withPlant = (t, reason = 'a synthetic guard planted by guard-hygiene --selftest; it exists only in memory') => ({ ...t,
+  files: [...t.files, PLANT],
+  sources: { ...t.sources, [PLANT]: "if (process.argv.includes('--selftest')) process.exit(0);\nprocess.exit(0);\n" },
+  allowlist: { ...t.allowlist, guards: { ...t.allowlist.guards, [PLANT]: { reason } } } });
+const PLANT_RE = PLANT.replace(/[.]/g, '\\.');
+
 const MUTATIONS = [
   {
     id: 'M1-a-new-orphan-appears',
@@ -451,9 +463,8 @@ const MUTATIONS = [
     id: 'M3-an-allowlist-entry-with-no-argument-in-it',
     why: 'the cheapest way to silence rule 1 is a one-word reason. The allowlist is where the debt is '
        + 'written down; "TODO" is a quieter orphan, not a decision',
-    mutate: (t) => ({ ...t, allowlist: { ...t.allowlist,
-      guards: { ...t.allowlist.guards, 'gold-intents.mjs': { reason: 'later' } } } }),
-    expect: /UNREASONED: tests\/gold-intents\.mjs/,
+    mutate: (t) => withPlant(t, 'later'),
+    expect: new RegExp(`UNREASONED: tests/${PLANT_RE}`),
   },
   {
     id: 'M4-a-registered-guard-file-is-deleted',
@@ -477,9 +488,9 @@ const MUTATIONS = [
     id: 'M6-the-debt-is-paid-but-the-ledger-still-says-owed',
     why: 'somebody registers an allowlisted guard and forgets to remove the entry. The list then '
        + 'over-reports the debt, which is how a list stops being trusted and then stops being pruned',
-    mutate: (t) => ({ ...t,
-      workflowText: t.workflowText + '\n      - name: adopted\n        run: node tests/gold-intents.mjs\n' }),
-    expect: /STALE ALLOWLIST ENTRY: tests\/gold-intents\.mjs/,
+    mutate: (t) => { const u = withPlant(t);
+      return { ...u, workflowText: u.workflowText + `\n      - name: adopted\n        run: node tests/${PLANT}\n` }; },
+    expect: new RegExp(`STALE ALLOWLIST ENTRY: tests/${PLANT_RE}`),
   },
   {
     id: 'M7-a-header-comment-is-not-an-implementation',
@@ -497,32 +508,32 @@ const MUTATIONS = [
     why: 'THE 2026-09-12 STATE: 23 steps were registered with ONLY a mutation flag. A planted bad column '
        + 'in one guard\'s own SQL made every arm throw and the driver printed "All 6 mutations caught", '
        + 'exit 0, with nothing in CI running the plain body that was red',
-    mutate: (t) => ({ ...t,
-      workflowText: t.workflowText
-        + '\n      - name: brand new proof, no floor\n        run: node tests/gold-intents.mjs --selftest\n' }),
-    expect: /PROOF WITH NO FLOOR: smoke\.yml runs tests\/gold-intents\.mjs ONLY with a mutation flag/,
+    mutate: (t) => { const u = withPlant(t);
+      return { ...u, workflowText: u.workflowText
+        + `\n      - name: brand new proof, no floor\n        run: node tests/${PLANT} --selftest\n` }; },
+    expect: new RegExp(`PROOF WITH NO FLOOR: smoke\\.yml runs tests/${PLANT_RE} ONLY with a mutation flag`),
   },
   {
     id: 'M9-the-floor-exemption-with-no-argument-in-it',
     why: 'the cheap way to silence rule 5 is a one-word exemption. An exemption that does not say why the '
        + 'plain run cannot gate is just an unregistered guard with paperwork',
-    mutate: (t) => ({ ...t,
-      workflowText: t.workflowText
-        + '\n      - name: brand new proof, no floor\n        run: node tests/gold-intents.mjs --selftest\n',
-      allowlist: { ...t.allowlist,
-        proof_baseline: { ...(t.allowlist.proof_baseline || {}), 'gold-intents.mjs': { reason: 'slow' } } } }),
-    expect: /UNREASONED FLOOR EXEMPTION: tests\/gold-intents\.mjs/,
+    mutate: (t) => { const u = withPlant(t);
+      return { ...u, workflowText: u.workflowText
+        + `\n      - name: brand new proof, no floor\n        run: node tests/${PLANT} --selftest\n`,
+      allowlist: { ...u.allowlist,
+        proof_baseline: { ...(u.allowlist.proof_baseline || {}), [PLANT]: { reason: 'slow' } } } }; },
+    expect: new RegExp(`UNREASONED FLOOR EXEMPTION: tests/${PLANT_RE}`),
   },
   {
     id: 'M10-a-run-smoke-spawn-that-passes-the-proof-flag',
     why: 'the floor rule must not be satisfiable by run-smoke spawning the guard WITH --selftest — that is '
        + 'the same one-sided proof in a different file, and counting it would reopen the hole',
-    mutate: (t) => ({ ...t,
-      workflowText: t.workflowText
-        + '\n      - name: brand new proof, no floor\n        run: node tests/gold-intents.mjs --selftest\n',
-      runSmokeSrc: t.runSmokeSrc
-        + "\nawait spawn('node', [join(ROOT, 'tests', 'gold-intents.mjs'), '--selftest']);\n" }),
-    expect: /PROOF WITH NO FLOOR: smoke\.yml runs tests\/gold-intents\.mjs ONLY with a mutation flag/,
+    mutate: (t) => { const u = withPlant(t);
+      return { ...u, workflowText: u.workflowText
+        + `\n      - name: brand new proof, no floor\n        run: node tests/${PLANT} --selftest\n`,
+      runSmokeSrc: u.runSmokeSrc
+        + `\nawait spawn('node', [join(ROOT, 'tests', '${PLANT}'), '--selftest']);\n` }; },
+    expect: new RegExp(`PROOF WITH NO FLOOR: smoke\\.yml runs tests/${PLANT_RE} ONLY with a mutation flag`),
   },
   {
     id: 'M11-a-hand-rolled-isMain-compare-in-a-guard',

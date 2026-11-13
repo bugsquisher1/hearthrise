@@ -496,7 +496,8 @@ function rareRollRules(M) {
   const monsters = { x: { gp: [0, 0], drops: [{ id: 'a', ch: 1 }, { id: 'b', ch: 1 }, { id: 'r', ch: 0.01 }] } };
   const kill = (heroes, script, rareWon) => {
     const got = []; const events = [];
-    const world = { units: [...heroes.map((id) => ({ id, side: 'hero' })), { id: 9, side: 'mon', kind: 'x' }], rareWon: rareWon ?? null };
+    /* every hero alive, as hunt-spawn.js makes them: a kill pays only heroes alive at it (hunt-rewards.js presentIds, b5bb6cf6d) */
+    const world = { units: [...heroes.map((id) => ({ id, side: 'hero', alive: true })), { id: 9, side: 'mon', kind: 'x' }], rareWon: rareWon ?? null };
     const members = new Map(heroes.map((id) => [id, { unitId: id, state: {}, hs: { tally: { kills: 0 } }, bonus: () => 0, weakness: () => ({ dropMult: 1 }),
       fx: { addItem: (item) => got.push(item + '>' + id) } }]));
     const rng = dice(script);

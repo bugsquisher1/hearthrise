@@ -53,7 +53,7 @@ import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.127';
 import { mountContextMenu } from './context-menu.js?v=0.2.127';
 import { menuProvidersOf } from './menu-providers.js?v=0.2.127';
 import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.127';
-import { takeFresh, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.127';
+import { takeFresh, takeStarted, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.127';
 import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.127';
 import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.127';
 import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.127';
@@ -429,6 +429,8 @@ export function mountShell(root, o) {
      town with the hunt (huntUp). */
   function followSummary() {
     const cs = ctx.character;
+    /* ...and a new hunt that starts closes the last one's (playtest v0.2.127: it stayed open over the next hunt) */
+    if (cs && takeStarted(cs) && wm.isOpen('hunt-summary')) wm.close('hunt-summary');
     if (cs && takeFresh(cs) && !deathPopupOf(cs) && !wm.isOpen('death')) queueMicrotask(() => wm.open('hunt-summary'));
   }
 

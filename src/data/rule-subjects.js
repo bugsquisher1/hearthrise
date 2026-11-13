@@ -95,14 +95,19 @@ const UNDERTOW_WHEN = Object.freeze([{ metric: 'ally_hp_pct', op: 'gte', value: 
    +3.3% over its bill at the Sewer floor, three shots a Volley; +30.1% without it) and Rend (weapon-rungs: axes at Level 45
    read +4% from a rung; about +1% XP at the Thicket for 23 casts an hour). Sword Flame Strike likewise (playtest 2026-10-29
    #9, CONFLICTS.md: net -20%, XP +15%). None is needed for a first pull: each style's free moves already fire. */
+/* THE AREA MOVES (playtest v0.2.127, P1: a Level 14 sword, a Level 24 mage and a Level 36 party never saw one): each style's
+   area move stands LAST on its default set, so a bar the player never edited holds it. Each waits for its skill level
+   (abilities.js `unlock`: the engine skips it and the bar strikes it until then) and fires on its own trigger; the server keeps
+   only the slots of the hero's discipline (Turning Cut is a sword alone's). Hoarfrost waits on Fireball's mana like Frost Lance. */
+const HOARFROST_WHEN = Object.freeze([{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }, { metric: 'self_mana_pct', op: 'gte', value: 70 }]);
 export const ROLE_RULES = Object.freeze({
   tank: Object.freeze([slot('challenge'), slot('power_strike')]),
   /* One Melee damage set for every key that plays it (hunt-spawn heroSetup keeps the slots its discipline holds): a
      sword alone casts Power Strike, two axes and a club or bare hands Power Strike and Cleave (roadmap p15). */
-  melee_dps: Object.freeze([slot('power_strike'), slot('cleave')]),
-  ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot')]),
-  mage: Object.freeze([slot('fireball'), slot('frost_lance', SPARE_MANA), slot('arcane_barrier')]),
-  healer: Object.freeze([slot('greater_mend'), slot('circle_of_renewal'), slot('green_sickness', SICKNESS_WHEN), slot('undertow', UNDERTOW_WHEN)]),
+  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('turning_cut')]),
+  ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot'), slot('raking_shot')]),
+  mage: Object.freeze([slot('fireball'), slot('frost_lance', SPARE_MANA), slot('arcane_barrier'), slot('hoarfrost', HOARFROST_WHEN)]),
+  healer: Object.freeze([slot('greater_mend'), slot('circle_of_renewal'), slot('green_sickness', SICKNESS_WHEN), slot('undertow', UNDERTOW_WHEN), slot('spring_tide')]),
 });
 
 /* An action set: up to `presets` per character, each a bar of up to `slots`

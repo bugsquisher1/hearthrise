@@ -287,6 +287,7 @@ export const REFUSAL_WORDS = Object.freeze({
   activity_locked: 'Your level is too low for that hunt yet.',
   activity_running: 'Your hero is busy with something else. Stop it first.',
   same_hunt: 'You are already hunting there.',
+  training_only: 'That spot is for training. Start it from the Training window.',
   /* The play cap (2027-01-19-play-cap.sql; Tyler 2026-10-17): at most four heroes play at once per account and per
      internet connection. The number is SESSION_CONFIG.maxConcurrentCharacters (tests/play-cap.mjs holds the words to it). */
   /* These two open the centered popup (src/shell/windows/play-cap.js), never a window's foot line. */

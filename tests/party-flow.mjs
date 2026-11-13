@@ -80,8 +80,7 @@ const TOWN = '2026-10-30-town-activity-yields.sql';
 const STAM = '2026-10-28-hunt-enter-after-stamina.sql';
 /* 2026-10-31-live-horizon.sql restates SEC's hr_hunt_party_kick: the kick mutants plant there. */
 const LIVE = '2026-10-31-live-horizon.sql';
-/* The chain end's entry predicate (hr_hunt_enter_check) and party start / finder: their mutants plant there. */
-const SETUP = '2026-12-05-hunt-setup-per-ground.sql';
+/* Party start / finder: their mutants plant there. */
 const FINDER = '2026-12-07-party-finder.sql';
 /* 2027-01-19-play-cap.sql restates hr_party_seat_ready and hr_hunt_party_start last (the play cap): their mutants plant there. */
 const PLAY = '2027-01-19-play-cap.sql';
@@ -927,8 +926,9 @@ const MUTANTS = [
     find: '  perform public.hr_party_seat_into(v_pid, p_user, p_other);', repl: '  perform 1;' },
   /* Every refusal of hr_hunt_enter_for is hr_hunt_enter_check's since 2026-12-05-hunt-setup-per-ground.sql;
      hr_hunt_party_start judges each seat by hr_party_seat_ready since 2026-12-07-party-finder.sql; both are restated
-     last by 2027-01-19-play-cap.sql (the play cap), where their mutants plant. */
-  { arm: 'PF-OWN', file: SETUP, why: 'a ground-less party matches any hunt',
+     last by 2027-01-19-play-cap.sql (the play cap), where their mutants plant. hr_hunt_enter_check is spliced since
+     (2027-04-16-combat-training.sql), so its mutants plant in the chain end's body. */
+  { arm: 'PF-OWN', fn: 'hr_hunt_enter_check', why: 'a ground-less party matches any hunt',
     find: '    if v_ph is distinct from p_hunt then\n      return jsonb_build_object(\'ok\', false, \'error\', \'party_hunt_mismatch\'',
     repl: '    if v_ph <> p_hunt then\n      return jsonb_build_object(\'ok\', false, \'error\', \'party_hunt_mismatch\'' },
   { arm: 'PF-DISBAND', file: TRUTH, why: 'the party is disbanded mid-hunt',
@@ -960,7 +960,7 @@ const MUTANTS = [
 
 /* Security's reopen must-fixes (2026-10-29-party-security.sql). */
 MUTANTS.push(
-  { arm: 'PF-TOWN', file: SETUP, why: 'a gathering member refuses the start',
+  { arm: 'PF-TOWN', fn: 'hr_hunt_enter_check', why: 'a gathering member refuses the start',
     find: "  if v_st.active_kind not in ('gather', 'artisan', 'training') and v_st.active_kind <> 'idle' then",
     repl: "  if v_st.active_kind <> 'idle' then" },
   { arm: 'PF-LISTED', file: TRUTH, why: 'the finder’s Join seats in an unlisted party',

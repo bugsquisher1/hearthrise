@@ -72,6 +72,27 @@ export function lintGround(gid, D) {
   return out;
 }
 
+/**
+ * THE PACK FIELDS' DATA HALF (lane/b-pack-fields, engine piece 10; shape.js definePack checks their shape): answers refusals for pack `p`.
+ *   fuel    its flame is a hearth.js FLAMES key, and its id is not already a NAMED_FUELS row
+ *   spells  every row passes monster-spells.js validateSpell (the one spell model), and every row is cast by one of the pack's own monsters
+ * `S` = { validateSpell }, `H` = { FLAMES, NAMED_FUELS }.
+ */
+export function lintFields(p, S, H) {
+  const out = [];
+  if (p.fuel) {
+    if (!own(H.FLAMES, p.fuel.flame)) out.push(p.id + ': fuel.flame ' + p.fuel.flame + ' is not a hearth.js FLAMES key');
+    if (own(H.NAMED_FUELS, p.fuel.item)) out.push(p.id + ': fuel ' + p.fuel.item + ' is already a NAMED_FUELS row');
+  }
+  const cast = new Set(Object.values(p.monsters || {}).flatMap((m) => (Array.isArray(m.spells) ? m.spells : [])));
+  for (const [id, row] of Object.entries(p.spells || {})) {
+    out.push(...S.validateSpell(row, id).map((w) => p.id + ': ' + w));
+    if (!cast.has(id)) out.push(p.id + ': spell ' + id + ' is cast by none of its own monsters');
+  }
+  return out;
+}
+const fieldLibs = async () => [await import(u('src/data/monster-spells.js')), await import(u('src/data/hearth.js'))];
+
 async function propose(gid, argv) {
   const S = await import(u('tools/gen-ground-stats.mjs'));
   const D = await loadPackData();
@@ -105,6 +126,8 @@ async function check(gid, argv) {
       if (r.drift.length) lint.push(gid + ': ' + r.id + ' is not the formula\'s (' + r.drift.join(', ') + '): node tools/pack.mjs propose ' + gid + ' --write, or a named exception');
     }
   }
+  const P = (await import(u('src/data/grounds/index.js'))).GROUND_PACKS.find((x) => x.id === gid);
+  if (P) { const [S, H] = await fieldLibs(); lint.push(...lintFields(P, S, H)); }
   if (lint.length) { console.error('pack check ' + gid + ': RED before the grader\n  ' + lint.join('\n  ')); process.exit(1); }
   console.log('pack check ' + gid + ': lint and formula clean; the grader plays it next');
   const mode = argv.includes('--mode') ? argv[argv.indexOf('--mode') + 1] : 'quick';
@@ -163,6 +186,31 @@ async function selftest() {
     ['a placed monster that does not exist', () => lintGround(gid, { ...D, MONSTERS: Object.fromEntries(Object.entries(D.MONSTERS).filter(([k]) => k !== first)) })],
     ['a placed monster with no Level', () => lintGround(gid, { ...D, MONSTERS: { ...D.MONSTERS, [first]: { ...D.MONSTERS[first], level: undefined } } })],
   ];
+  /* THE PACK FIELDS (engine piece 10): every pack's fields lint clean; each shape refusal (definePack) and data refusal (lintFields) bites */
+  const { GROUND_PACKS } = await import(u('src/data/grounds/index.js'));
+  const { definePack } = await import(u('src/data/grounds/shape.js'));
+  const [SP, H] = await fieldLibs();
+  for (const p of GROUND_PACKS) { const l = lintFields(p, SP, H); if (l.length) bad.push('pack ' + p.id + ' fields do not lint: ' + l.join('; ')); }
+  const slake = GROUND_PACKS.find((p) => p.id === 'the_slake');
+  const item = Object.keys(slake.items)[0];
+  const fuel = { item, xp: 3000, req: 30, flame: 'fire', secs: 60, chunk: 'fuel_' + item };
+  const bilge = slake.spells.cold_bilge;
+  const shapeRefuses = (patch) => () => { try { definePack({ ...slake, ...patch }); return []; } catch (e) { return [String(e.message)]; } };
+  const fieldRefuses = (patch) => () => lintFields({ ...slake, ...patch }, SP, H);
+  if (shapeRefuses({ fuel })().length || fieldRefuses({ fuel })().length) bad.push('a well-formed fuel is refused: ' + shapeRefuses({ fuel })().concat(fieldRefuses({ fuel })()).join('; '));
+  cases.push(
+    ['a fuel whose item is not one of the pack items', shapeRefuses({ fuel: { ...fuel, item: 'bones', chunk: 'fuel_bones' } })],
+    ['a fuel with a field it does not read', shapeRefuses({ fuel: { ...fuel, colour: 'red' } })],
+    ['a fuel with no XP', shapeRefuses({ fuel: { ...fuel, xp: 0 } })],
+    ['a fuel whose chunk is not its sprite', shapeRefuses({ fuel: { ...fuel, chunk: 'fuel_bone' } })],
+    ['a fuel whose flame is no FLAMES key', fieldRefuses({ fuel: { ...fuel, flame: 'no_such_flame' } })],
+    ['a fuel that is already a named fuel', fieldRefuses({ fuel: { ...fuel, item: 'queens_comb', chunk: 'fuel_queens_comb' } })],
+    ['an empty spells table', shapeRefuses({ spells: {} })],
+    ['a spell row with a field it does not read', shapeRefuses({ spells: { cold_bilge: { ...bilge, dmg: 5 } } })],
+    ['a spell row out of its bounds', fieldRefuses({ spells: { cold_bilge: { ...bilge, hitPm: 99999 } } })],
+    ['a spell row under the fair warning', fieldRefuses({ spells: { cold_bilge: { ...bilge, windupMs: 400 } } })],
+    ['a spell none of its monsters casts', fieldRefuses({ spells: { ...slake.spells, river_mist: { ...bilge, n: 'River Mist' } } })],
+  );
   for (const [what, fn] of cases) { const n = fn().length; console.log('  ' + (n ? 'ok ' : 'RED') + ' refuses: ' + what); if (!n) bad.push(what + ' passed the lint'); }
   if (bad.length) { console.error('pack --selftest: RED\n  ' + bad.join('\n  ')); process.exit(1); }
   console.log('pack --selftest: green (' + Object.keys(D.G.HUNT_GROUNDS).length + ' grounds lint clean, ' + cases.length + ' refusals bite)');

@@ -70,11 +70,44 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
                (one pocket: the boss in `spawns`, his adds in `adds`); `monsters` the room's own called rows (ids ending _called, boss or add,
                never a MONSTERS id); `prize` what the room pays a kill. NOT folded into CALLED_HUNTS / CALLED_GROUNDS / BOSS_CALLS: a keyed
                room that pays is a new room kind (the Krell's Hold design's engine piece 5), so the fold lands with it. tools/pack.mjs
-               lintHall (on lane/b-krells-hold-pack) checks it against the data */
+               lintHall (on lane/b-krells-hold-pack) checks it against the data. CARRIED, NOT RUN (engine piece 5)
+     fuel      (optional, lane/b-pack-fields: engine piece 10) the ground's NAMED FUEL, a src/data/hearth.js NAMED_FUELS row plus its item:
+               { item, xp, req, flame, secs, chunk }. `item` is one of the pack's own items. CARRIED, NOT FOLDED: hr_hearth_named is a server
+               catalogue (tools/gen-hearth-catalogue.mjs), so the fold into NAMED_FUELS lands with the pack's ship. tools/pack.mjs lintFields
+               checks `flame` against FLAMES
+     spells    (optional, lane/b-pack-fields) the pack's NEW monster spells, src/data/monster-spells.js MONSTER_SPELLS rows { id: row }, the
+               one spell model: monster-spells.js folds them in (an id already taken is refused), validateSpell judges each row, and a row
+               none of the pack's own monsters casts is refused (tools/pack.mjs lintFields) */
 export const PACK_STATUS = Object.freeze(['staged', 'open']);
 const ID = /^[a-z0-9_]{1,40}$/;
 const isObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
-const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'gpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide', 'hall']);
+const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'gpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide', 'hall', 'fuel', 'spells']);
+const FUEL_KEYS = Object.freeze(['item', 'xp', 'req', 'flame', 'secs', 'chunk']);
+const SPELL_ROW_KEYS = Object.freeze(['n', 'shape', 'r', 'len', 'range', 'windupMs', 'cdMs', 'hitPm', 'element']);
+const posInt = (n) => Number.isInteger(n) && n > 0;
+
+/** A pack's `fuel`, checked for shape: answers why it is malformed, or null. FLAMES is tools/pack.mjs lintFields. */
+function fuelWhy(p) {
+  const f = p.fuel;
+  if (!isObj(f)) return 'fuel is not an object';
+  for (const k of Object.keys(f)) if (!FUEL_KEYS.includes(k)) return 'fuel has an unknown field ' + k;
+  if (typeof f.item !== 'string' || !(p.items && Object.prototype.hasOwnProperty.call(p.items, f.item))) return 'fuel.item is not one of the pack own items';
+  for (const k of ['xp', 'req', 'secs']) if (!posInt(f[k])) return 'fuel.' + k + ' is not a whole number over 0';
+  if (typeof f.flame !== 'string' || !f.flame) return 'fuel.flame is not a FLAMES key';
+  if (f.chunk !== 'fuel_' + f.item) return 'fuel.chunk is not fuel_' + f.item + ' (its world sprite)';
+  return null;
+}
+
+/** A pack's `spells`, checked for shape: answers why it is malformed, or null. The bounds are monster-spells.js validateSpell. */
+function spellsWhy(p) {
+  if (!isObj(p.spells) || !Object.keys(p.spells).length) return 'spells is not { id: row } with a row';
+  for (const [id, row] of Object.entries(p.spells)) {
+    if (!/^[a-z0-9_]{1,32}$/.test(id)) return 'spell id ' + id + ' is not [a-z0-9_]';
+    if (!isObj(row)) return 'spell ' + id + ' is not a row';
+    for (const k of Object.keys(row)) if (!SPELL_ROW_KEYS.includes(k)) return 'spell ' + id + ' has an unknown field ' + k;
+  }
+  return null;
+}
 const HALL_KEYS = Object.freeze(['key', 'words', 'hunt', 'ground', 'monsters', 'prize']);
 const isSpot = (s) => isObj(s) && ID.test(String(s.monster)) && Number.isInteger(s.x) && Number.isInteger(s.y);
 
@@ -126,7 +159,9 @@ export function definePack(p) {
   if (p.bagGuide !== undefined && !(isObj(p.bagGuide) && Number.isInteger(p.bagGuide.tier))) no('bagGuide is not { tier, melee, ranged, magic }');
   for (const k of ['partyClassXp', 'partyVsAlone']) if (p[k] !== undefined && !(isObj(p[k]) && [2, 3, 4].every((n) => Array.isArray(p[k][n]) && p[k][n].length === n))) no(k + ' is not { 2: [2], 3: [3], 4: [4] }');
   if (p.hall !== undefined) { const why = hallWhy(p); if (why) no(why); }
-  return Object.freeze({ monsters: {}, roster: {}, items: {}, itemText: {}, sql: null, ...p });
+  if (p.fuel !== undefined) { const why = fuelWhy(p); if (why) no(why); }
+  if (p.spells !== undefined) { const why = spellsWhy(p); if (why) no(why); }
+  return Object.freeze({ monsters: {}, roster: {}, items: {}, itemText: {}, spells: {}, sql: null, ...p });
 }
 
 /**

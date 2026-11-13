@@ -36,9 +36,8 @@
 // imbuement item, a Material that only sells until linings are built (the board, "2026-11-10 Resistance and imbuements"). The
 // Color Cord is the fire lining's piece for the Pyre Field.
 //
-// A SPELL ROW THAT WAITS: the Bargeman's Cold Bilge (whole group, frost; the area spells board's seed row). Monster area spells
-// are not live, so this pack is tuned without it. When lane/b-area-set lands, the Bargeman's row and the harder tiers here are
-// measured again.
+// THE BARGEMAN'S SPELL: Cold Bilge (whole group, frost; the area spells board's seed row) is this pack's own `spells` row
+// (lane/b-pack-fields, engine piece 10), cast now that the area spells are live.
 import { definePack, box, gather } from '../shape.js?v=0.2.123';
 import map from './map.js?v=0.2.123';
 
@@ -111,7 +110,7 @@ export default definePack({
       /* the tank, the slowest thing on the flat: the barge's crew. Where the Fordsunk's bloat swallows arrows, the crew's cracked
          hides take them (one override, weapon). The barge's forge cargo, its smith's hammer, the crew's belts. A lone hero meets
          about 21 an hour, so its Scarce rows sit near the 5% ceiling. */
-      weaponWeak: 'ranged', weaponResist: [],
+      weaponWeak: 'ranged', weaponResist: [], spells: ['cold_bilge'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.4, band: 'common' }, { id: 'barge_nail', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_platelegs', ch: 0.0475, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0475, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0475, band: 'scarce' },
         { id: 'mithril_warhammer', ch: 0.0475, band: 'scarce' },
@@ -155,6 +154,11 @@ export default definePack({
      death at 465k XP a head. OPEN, ONE ROW OF THE GRADE: five under on Dangerous the sheet also asks that pair to die. It never
      did. Every solo ground fails that row today. */
   tierOverride: { dangerous: 6, why: 'on the table pull of 5 a Melee and Healer pair two to five Levels under the floor still made gold on Dangerous. On 6 they lose it' },
+  /* THE BARGEMAN'S SPELL (the area spells board's seed row, lane/b-pack-fields): river water over the whole group, frost. One of
+     the Slake's own rows, folded into MONSTER_SPELLS (monster-spells.js); the Corded Frost Lining is its answer. */
+  spells: {
+    cold_bilge: { n: 'Cold Bilge', shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 1500, element: 'frost' },
+  },
   roster: {
     greened_pikeman: 'swarm',   // the common majority
     bargeman: 'heavy',          // the tank: slow (2400), thick

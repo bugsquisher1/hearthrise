@@ -135,7 +135,7 @@ export async function loadPace(root) {
 const scoped = (rule, m) => (!rule.tiers || rule.tiers.includes(m.tier)) && (!rule.offsets || rule.offsets.includes(m.offset)) && (!rule.sizes || rule.sizes.includes(m.size))
   && (!rule.fit || rule.fit === m.groupFit) && (rule.gear || 'ladder') === (m.gear || 'ladder') && (rule.floorFrom == null || m.band[0] >= rule.floorFrom)
   && (rule.floorMax == null || m.band[0] <= rule.floorMax) && !(rule.skip && rule.skip(m));
-const median = (xs) => { const s = xs.filter(Number.isFinite).sort((a, b) => a - b); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; };
+export const median = (xs) => { const s = xs.filter(Number.isFinite).sort((a, b) => a - b); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; };
 const off = (v, rule) => (rule.min != null && v < rule.min ? (rule.min - v) / Math.max(Math.abs(rule.min), 1e-9) : rule.max != null && v > rule.max ? (v - rule.max) / Math.max(Math.abs(rule.max), 1e-9) : 0);
 
 /**

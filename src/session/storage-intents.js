@@ -18,8 +18,8 @@
 // be the verb's own (src/data/refusal-words.js REFUSAL_VERB_WORDS); a refused
 // move resyncs ONCE, because the window held counts the server no longer has.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.127';
-import { refusalOf } from './refusal.js?v=0.2.127';
+import { askVia } from './intent-ledger.js?v=0.2.128';
+import { refusalOf } from './refusal.js?v=0.2.128';
 
 const ITEM = /^[a-z0-9_]{1,64}$/;
 /** The most one press names: the server's per-call cap (2027-04-13-bank-move-many.sql c_max_items). */

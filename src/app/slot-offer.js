@@ -16,8 +16,8 @@
 // PURE: strings in, strings out. src/app/boot.js mounts and wires it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { whole } from '../render/format.js?v=0.2.127';
-import { t } from '../render/player-text.js?v=0.2.127';
+import { whole } from '../render/format.js?v=0.2.128';
+import { t } from '../render/player-text.js?v=0.2.128';
 
 const ORDINAL = Object.freeze(['first', 'second', 'third', 'fourth', 'fifth', 'sixth']);
 

@@ -48,7 +48,8 @@ const CAPPED = Object.keys(SKILLS_DEF).filter((k) => SKILLS_DEF[k].cat !== 'comb
    combat pointer, fight clamp or renown `is_boss` join names it (live-settlement SETTLE-1c), and hr_monster_level reads 0. The
    one server reader, the settle's Defense bound, is then 0 in a called room, which pays nothing on any route (hunt-rewards.js
    calledSwing). The engine's own level for him (mitigation) never crosses to the server. */
-const serverLevelOf = (id) => (MONSTERS[id].called === true ? 0 : monsterLevelOf(MONSTERS[id]));
+/* THE TRAINING DUMMY (src/data/training.js) has none either, for the same reason: its yard pays Defense at the hero's own Level, never its row's. */
+const serverLevelOf = (id) => (MONSTERS[id].called === true || MONSTERS[id].dummy === true ? 0 : monsterLevelOf(MONSTERS[id]));
 
 /* The JS half, as one object, so --selftest can hand a drifted copy to the same comparison. */
 const JS = Object.freeze({

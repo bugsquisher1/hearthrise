@@ -25,9 +25,9 @@
 //                   (src/core/xp.js, which the live prediction runs) can be a release behind the
 //                   server's, and on 2026-11-10 it said Level 20 for a hero the server fought as 19.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.127';
-import { TITLE_WORDS } from '../data/titles.js?v=0.2.127';
-import { dyeKeyOf } from '../data/outfits.js?v=0.2.127';
+import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.128';
+import { TITLE_WORDS } from '../data/titles.js?v=0.2.128';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.128';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;

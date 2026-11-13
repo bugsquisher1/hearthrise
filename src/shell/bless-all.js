@@ -9,7 +9,7 @@
 // asks for the same tier twice, so an envelope that did not move cannot loop. No
 // client-side total. The caller's runIntent says the answer.
 // ════════════════════════════════════════════════════════════════════════
-import { blessingsOf } from '../session/item-sections.js?v=0.2.127';
+import { blessingsOf } from '../session/item-sections.js?v=0.2.128';
 
 /** @returns {Promise<{ok:boolean, error?:string}>} the last purchase's answer, or the first refusal */
 export async function blessAll(cs) {

@@ -24,25 +24,26 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS, monsterLevelOf } from '../../data/monsters.js?v=0.2.127';
-import { atTier, levelAtTier } from '../../data/hunt-tiers.js?v=0.2.127';
-import { STATUSES } from '../../data/statuses.js?v=0.2.127';
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.127';
-import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.127';
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.127';
-import { cheb } from './grid.js?v=0.2.127';
-import { atRest, unitById } from './movement.js?v=0.2.127';
-import { makeEvent } from './events.js?v=0.2.127';
-import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.127';
-import { fallen } from './pull-cycle.js?v=0.2.127';
-import { shareKillXp } from './xp-share.js?v=0.2.127';
-import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.127';
-import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.127';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.127';
-import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.127';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.127';
-import { temperedAmount } from '../temper.js?v=0.2.127';
-import { swingRow, crossLines, guardPmOf } from './boss-phases.js?v=0.2.127';
+import { MONSTERS, monsterLevelOf } from '../../data/monsters.js?v=0.2.128';
+import { atTier, levelAtTier } from '../../data/hunt-tiers.js?v=0.2.128';
+import { STATUSES } from '../../data/statuses.js?v=0.2.128';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.128';
+import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.128';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.128';
+import { cheb } from './grid.js?v=0.2.128';
+import { atRest, unitById } from './movement.js?v=0.2.128';
+import { makeEvent } from './events.js?v=0.2.128';
+import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.128';
+import { fallen } from './pull-cycle.js?v=0.2.128';
+import { shareKillXp } from './xp-share.js?v=0.2.128';
+import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.128';
+import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.128';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.128';
+import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.128';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.128';
+import { temperedAmount } from '../temper.js?v=0.2.128';
+import { swingRow, crossLines, guardPmOf } from './boss-phases.js?v=0.2.128';
+import { dummyBlow, dummyStands } from './training.js?v=0.2.128';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -92,7 +93,7 @@ export function slowed(u, ms) {
 
 const stanceOf = (u) => HUNT_STANCES[u && u.stance] || HUNT_STANCES[DEFAULT_STANCE];
 /* A MONSTER'S ROW, through the instance's one door (world-step.js inst.monsters: a scaled hunt's table, combat-sim.js huntPlayOf), the catalogue for a bare caller. */
-const rowOf = (inst, kind) => (inst.monsters || MONSTERS)[kind];
+export const rowOf = (inst, kind) => (inst.monsters || MONSTERS)[kind];
 
 /* WHAT THE HERO'S ARMOUR DOES TO THIS BLOW (mitigation.js): its values against the attacker's own level, the ground's tier on it (hunt-tiers.js). A status tick whose dealer has left the world has no level to read: 1. */
 const armourVs = (inst, target, source) => (target.armour
@@ -123,8 +124,10 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
   if (source && source.blowsPm > 0 && target.side === 'mon') n = temperedAmount(n, source.blowsPm, rng);
   const absorbed = Number.isInteger(target.shield) && target.shield > 0 ? Math.min(target.shield, n) : 0;
   if (absorbed) target.shield -= absorbed;
-  const dmg = Math.min(target.hp, n - absorbed);
+  /* A TRAINING DUMMY (src/core/hunt/training.js): its blow never takes a hero under the floor, and it never falls (whole again before anyone reads a kill). */
+  const dmg = dummyBlow(source && source.side === 'mon' ? rowOf(inst, source.kind) : null, target, Math.min(target.hp, n - absorbed));
   target.hp -= dmg;
+  if (target.side === 'mon') dummyStands(rowOf(inst, target.kind), target);
   return { dmg, absorbed, killed: target.hp <= 0 };
 }
 

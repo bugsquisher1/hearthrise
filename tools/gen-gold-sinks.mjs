@@ -22,13 +22,16 @@ import { SINK_RULES, SHOW_FLAMES, ROUND_OFFER } from '../src/data/gold-sinks.js'
 import { ACTION_SET_LIMITS } from '../src/data/rule-subjects.js';
 import { FLAMES } from '../src/data/hearth.js';
 import { CHAT_LIMITS } from '../src/data/chat-channels.js';
+import { TRAINING_SKILLS } from '../src/data/training.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-/* 2027-02-27-gold-sinks-catalogue.generated.sql is APPLIED history (2 free setups). This forward file re-issues the whole table (3 free, Tyler 2026-11-05); the next number moves OUT_FILE again. */
-export const OUT_FILE = '2027-03-07-gold-sinks-catalogue.generated.sql';
+/* 2027-02-27-gold-sinks-catalogue.generated.sql is APPLIED history (2 free setups). 2027-03-07 re-issued the whole table (3 free, Tyler 2026-11-05).
+   This forward file re-issues it again with the house dummy (lane/c-combat-training, Tyler 2026-11-08; src/data/training.js): one row more, every other
+   row unchanged. The next number moves OUT_FILE again. */
+export const OUT_FILE = '2027-04-16-combat-training-gold-sinks-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
-const NEEDED = ['powder', 'round', 'crier', 'setup_slot', 'hero_colors'];
+const NEEDED = ['powder', 'round', 'crier', 'setup_slot', 'hero_colors', 'house_dummy'];
 const PRICE_MAX = 1000000000;
 const whole = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
 
@@ -72,6 +75,15 @@ export function problemsOf(rules, ctx = {}) {
   /* what the World and the window can draw is what the server may sell */
   for (const offer of (rules.powder && rules.powder.offers) || []) if (!(ctx.showFlames || SHOW_FLAMES)[offer]) out.push(`powder: ${offer} has no flame to draw (SHOW_FLAMES)`);
   if (rules.round && !(rules.round.offers || []).includes(ROUND_OFFER)) out.push(`round: its offer is not ${ROUND_OFFER}`);
+  /* THE HOUSE DUMMY (src/data/training.js): one account ladder, a rung for each skill a hero can train, and nothing else. */
+  const dummy = rules.house_dummy;
+  const skills = ctx.trainingSkills || TRAINING_SKILLS;
+  if (dummy) {
+    if (dummy.scope !== 'account') out.push('house_dummy: one dummy an account, so its ladder is the account\'s');
+    if (JSON.stringify([...(dummy.offers || [])].sort()) !== JSON.stringify([...skills].sort())) out.push(`house_dummy: its offers are not the trained skills (${skills.join(', ')})`);
+    if ((dummy.prices || []).length !== skills.length) out.push(`house_dummy: ${(dummy.prices || []).length} rungs for ${skills.length} trained skills`);
+    if (dummy.perDay !== undefined || dummy.free !== undefined) out.push('house_dummy: a one-time unlock has no day cap and no free rung');
+  }
   const setup = rules.setup_slot;
   if (setup) {
     const has = (setup.free === undefined ? 0 : setup.free) + (setup.prices || []).length;
@@ -140,6 +152,10 @@ begin
     raise exception 'gold-sinks-catalogue §4: setup_slot is not ${rules.setup_slot.free} free'; end if;
   if (select prices from public.hr_sink_rules where sink_id = 'setup_slot') is distinct from ${bigs(rules.setup_slot.prices)} then
     raise exception 'gold-sinks-catalogue §4: setup_slot''s prices are not the row in src/data/gold-sinks.js'; end if;
+  if (select prices from public.hr_sink_rules where sink_id = 'house_dummy') is distinct from ${bigs(rules.house_dummy.prices)}
+     or (select scope from public.hr_sink_rules where sink_id = 'house_dummy') is distinct from 'account'
+     or (select offers from public.hr_sink_rules where sink_id = 'house_dummy') is distinct from ${texts(rules.house_dummy.offers)} then
+    raise exception 'gold-sinks-catalogue §4: house_dummy is not the account ladder in src/data/gold-sinks.js'; end if;
   select o into v from public.hr_sink_rules r cross join lateral unnest(r.offers) o
    where o in (select n.flame from public.hr_hearth_named n) limit 1;
   if v is not null then raise exception 'gold-sinks-catalogue §4: % is a named flame, and those are never for sale', v; end if;
@@ -176,6 +192,10 @@ function selftest() {
   bites('a round the client can not name', 'its offer is not', { ...R, round: { ...R.round, offers: ['toast'] } });
   bites('a show longer than its booking', "can't fit one show", { ...R, round: { ...R.round, bookS: 10 } });
   bites('a Crier line longer than chat takes', 'more than a chat line', { ...R, crier: { ...R.crier, maxLetters: 100000 } });
+  bites('a house dummy that misses a trained skill', 'not the trained skills', { ...R, house_dummy: { ...R.house_dummy, offers: ['melee', 'ranged', 'magic'], prices: [150000, 250000, 400000] } });
+  bites('a house dummy rung short', 'rungs for', { ...R, house_dummy: { ...R.house_dummy, prices: [150000, 250000, 400000] } });
+  bites('a house dummy on a hero ladder', 'one dummy an account', { ...R, house_dummy: { ...R.house_dummy, scope: 'hero' } });
+  bites('a house dummy with a day cap', 'one-time unlock', { ...R, house_dummy: { ...R.house_dummy, perDay: 4 } });
   /* Tyler may flip the free count again: it is one row, and it stays legal. */
   const three = problemsOf({ ...R, setup_slot: { ...R.setup_slot, free: 2, prices: [5000, 15000, 40000] } });
   console.log(`  ${three.length ? 'MISSED' : 'CAUGHT'} two free setups are one legal row`);

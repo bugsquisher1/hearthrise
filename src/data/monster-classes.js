@@ -35,7 +35,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 /* The element vocabulary is src/data/elements.js's, the one copy (re-exported). */
-import { ELEMENTS, elementProfileProblems } from './elements.js?v=0.2.127';
+import { ELEMENTS, elementProfileProblems } from './elements.js?v=0.2.128';
 export { ELEMENTS };
 
 /** The weapon triangle axis. NOTE: 'neutral' is deliberately absent. */
@@ -358,6 +358,8 @@ export function auditRoster(MONSTERS) {
   ids.forEach((id) => {
     const m = MONSTERS[id];
     if (!m || typeof m !== 'object') { problems.push(id + ': not an object'); return; }
+    /* A TRAINING DUMMY (src/data/training.js) is no creature: no class, no weak spot, no tier curve, and it pays nothing (tests/combat-training.mjs holds its row). */
+    if (m.dummy === true) return;
     if (!m.cls) { problems.push(id + ': no `cls`'); return; }
     if (!MONSTER_CLASSES[m.cls]) { problems.push(id + ': unknown class "' + m.cls + '"'); return; }
 

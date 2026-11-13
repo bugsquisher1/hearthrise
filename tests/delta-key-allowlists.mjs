@@ -411,6 +411,8 @@ async function dbArms(db, { log = () => {} } = {}) {
 const FRAC_READERS = Object.freeze({
   hr_hunt_member_state: '2027-02-02-settle-cost.sql: one hunt member\'s engine inputs, hr_state_of\'s own skills cell { xp, frac } '
     + 'copied for the settle read (tests/hunt-sessions-settle.mjs MEMBER-STATE proves the parity)',
+  hr_training_window: '2027-04-16-combat-training.sql: names xp_frac only to ALLOW it in a training window\'s delta (the trained skill\'s '
+    + 'remainder, hr_apply writes it) and refuse every other key before hr_apply runs (tests/combat-training-db.mjs TD-FORGED)',
 });
 async function readerProof(db, name) {
   const r = (await db.query(`select p.prosrc, p.prosecdef, p.oid::regprocedure::text as sig from pg_proc p

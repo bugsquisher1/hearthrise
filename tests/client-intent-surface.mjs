@@ -72,6 +72,9 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_tier_set: 'the hero’s tier on one hunt ground, a ground id and a tier word; the server checks that ground offers it and refuses a party member (CharacterSession.setHuntTier; 2027-02-27-hunt-tiers.sql)',
   hr_action_set_copy:'copy one character\'s hunt settings onto another of the caller\'s characters; moves no value (CharacterSession.copyHuntSettingsTo)',
   hr_hunt_leave: 'leave the running hunt; the server settles and ends it (CharacterSession.leaveHunt)',
+  /* Combat training (the designer's 2026-11-13 spec; server half lane/c-combat-training). */
+  hr_training_start: 'train one combat skill at the yard or on the house dummy: the slot, a skill id, the place and the hourly fee the player saw, with a fresh key; the server re-quotes on its clock and charges each hour (training-intents.js)',
+  hr_house_dummy_unlock: 'unlock one skill on the account\'s house dummy at the price the player saw, with a fresh key; the server gates, prices and debits it (training-intents.js)',
   /* Tyler's first playtest (10-18): going hunting and the home storage, both live, reviewed server verbs. */
   hr_hunt_enter: 'go hunting with names and counts of own supplies; band, stamina and stock are the server’s (CharacterSession.enterHunt; CharacterSession.huntAgain, the Hunt again card)',
   hr_bank_move: 'move a stack between the bag and the home storage, value-neutral (CharacterSession.moveStorage)',

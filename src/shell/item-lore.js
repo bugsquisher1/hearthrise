@@ -19,26 +19,26 @@
 //   flavourOf(id)   the item's one-line description, or ''
 //   baneWords(id)   a bane weapon's damage against one monster kind, the engine's clamped multiplier: ["+40% damage to Plant monsters"]
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.127';
-import { toolSpeed, toolXpB, toolDouble } from '../core/tools.js?v=0.2.127';
-import { listWords, whole } from '../render/format.js?v=0.2.127';
-import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.127';
-import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.127';
-import { MONSTERS } from '../data/monsters.js?v=0.2.127';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.127';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.127';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.127';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.127';
-import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.127';
-import { itemName } from './widgets/bits.js?v=0.2.127';
-import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromKit, temperSpends } from './bag-model.js?v=0.2.127';
-import { FLAMES } from '../data/hearth.js?v=0.2.127';
-import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.127';
-import { dropWhereWords, dropPlaceOf, isRareItem } from './hunt-ground-facts.js?v=0.2.127';
-import { recipeOutcomes, HALLMARK_OFFERS } from '../data/jewelry.js?v=0.2.127';
-import { t, hasText } from '../render/player-text.js?v=0.2.127';
-import { baneIndex, baneMultFor, MONSTER_CLASSES as BANE_CLASSES } from '../core/bane.js?v=0.2.127';
-import { MONSTER_CLASSES } from '../data/monster-classes.js?v=0.2.127';
+import { ITEMS } from '../data/items.js?v=0.2.128';
+import { toolSpeed, toolXpB, toolDouble } from '../core/tools.js?v=0.2.128';
+import { listWords, whole } from '../render/format.js?v=0.2.128';
+import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.128';
+import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.128';
+import { MONSTERS } from '../data/monsters.js?v=0.2.128';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.128';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.128';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.128';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.128';
+import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.128';
+import { itemName } from './widgets/bits.js?v=0.2.128';
+import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromKit, temperSpends } from './bag-model.js?v=0.2.128';
+import { FLAMES } from '../data/hearth.js?v=0.2.128';
+import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.128';
+import { dropWhereWords, dropPlaceOf, isRareItem } from './hunt-ground-facts.js?v=0.2.128';
+import { recipeOutcomes, HALLMARK_OFFERS } from '../data/jewelry.js?v=0.2.128';
+import { t, hasText } from '../render/player-text.js?v=0.2.128';
+import { baneIndex, baneMultFor, MONSTER_CLASSES as BANE_CLASSES } from '../core/bane.js?v=0.2.128';
+import { MONSTER_CLASSES } from '../data/monster-classes.js?v=0.2.128';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 /* A rarity's word (item.rarity_<rarity>, else Common) and a type's (item.type_<type>, else `or`); own-property reads only. */

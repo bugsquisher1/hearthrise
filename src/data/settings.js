@@ -38,17 +38,17 @@
 // Categories are data too, in the order the window lists them. Gameplay,
 // Chat & Social and Account stay hidden until a feature registers a row there.
 // ════════════════════════════════════════════════════════════════════════
-import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.126';
-import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.126';
-import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.126';
-import { HOTKEYS } from './hunt-hud.js?v=0.2.126';
-import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.126';
-import { HELP_NOTES } from './how-to-play.js?v=0.2.126';
-import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.126';
-import { REPLAY } from './privacy.js?v=0.2.126';
-import { IDLE_MOTION } from './world/motion.js?v=0.2.126';
-import { FX_ALPHA } from './fx-alpha.js?v=0.2.126';
-import { TIPS } from './tips.js?v=0.2.126';
+import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.127';
+import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.127';
+import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.127';
+import { HOTKEYS } from './hunt-hud.js?v=0.2.127';
+import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.127';
+import { HELP_NOTES } from './how-to-play.js?v=0.2.127';
+import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.127';
+import { REPLAY } from './privacy.js?v=0.2.127';
+import { IDLE_MOTION } from './world/motion.js?v=0.2.127';
+import { FX_ALPHA } from './fx-alpha.js?v=0.2.127';
+import { TIPS } from './tips.js?v=0.2.127';
 
 export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action', 'note']);
 export const SETTING_SCOPES = Object.freeze(['residue', 'server']);
@@ -156,6 +156,11 @@ const HOTKEY_ROWS = SHELL_WINDOWS.filter((w) => !('escape' in w && w.escape) && 
 /* ── Help: how the game works (src/data/how-to-play.js HELP_NOTES, read-only notes the search finds),
    then the problem report, which opens its own window (src/shell/windows/report.js) ── */
 const HELP_ROWS = [...HELP_NOTES.map((n) => row({ id: 'help.' + n.id, category: 'help', label: n.label, help: n.text, type: 'note' })), row({
+  /* The wiki (src/shell/windows/wiki.js): the top bar has no room for a 21st icon at a laptop's width (alpha-windows AW-62), so Help is its door, and the slash. */
+  id: 'help.wiki', category: 'help', label: 'Wiki',
+  help: 'Look up every skill, hunting ground and formula. The game writes it from its own numbers, so it always matches a hunt.',
+  type: 'action', open: 'wiki',
+}), row({
   id: 'help.report', category: 'help', label: 'Report a problem',
   help: 'Write what went wrong and it goes straight to the team, with your game details attached.',
   type: 'action', open: 'report',

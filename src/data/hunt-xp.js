@@ -17,7 +17,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.126';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.127';
 
 export const HUNT_XP = Object.freeze({
   groupMs: 1000,

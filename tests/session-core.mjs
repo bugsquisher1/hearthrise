@@ -2320,7 +2320,11 @@ async function rules(M) {
 /* The modules outside src/core that may take a curve from src/core/xp.js, each with the names it takes and why (LVL-0). Sorted names. */
 /* None since lane/c-skills-from-server (2026-11-10): the skill bars read the server's two XP marks (`skill_levels`) and the
    town-work burn check the server's Cooking level, where they took this build's curves. A new row needs its why here. */
-const CURVE_USE = Object.freeze({});
+const CURVE_USE = Object.freeze({
+  /* The wiki's public formulas (lane/b-wiki): it prints the curves themselves (XP to reach Level 10, 25, 50...) and works their example
+     with the engine's own function, so the page cannot drift from it. It never reads a hero's XP or draws a hero's Level or bar. */
+  'src/shell/wiki-model.js': ['MAX_LEVEL', 'charXpForLevel', 'isCapped', 'levelCurveRows', 'skillXpForLevel'],
+});
 
 async function viewRules(base) {
   const fails = [];

@@ -14,9 +14,9 @@
 //   categoriesFor(ctx, rows, cats)   the categories that have a visible row
 //   search(rows, q)        rows whose label or help holds every word of q
 // ════════════════════════════════════════════════════════════════════════
-import { floatShown, withFloat } from '../hunt-view/float-prefs.js?v=0.2.126';
-import { switchOn, setSwitch, switchValue, setSwitchValue } from '../session/player-switch.js?v=0.2.126';
-import { serverNowOf } from '../session/hunt-sections.js?v=0.2.126';
+import { floatShown, withFloat } from '../hunt-view/float-prefs.js?v=0.2.127';
+import { switchOn, setSwitch, switchValue, setSwitchValue } from '../session/player-switch.js?v=0.2.127';
+import { serverNowOf } from '../session/hunt-sections.js?v=0.2.127';
 
 const residueOf = (ctx) => (ctx.character && ctx.character.record && ctx.character.record.residue) || {};
 /* Every hero this account has open, the viewed one among them (a store that is the player's, not one hero's). */

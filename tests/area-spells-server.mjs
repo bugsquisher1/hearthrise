@@ -194,12 +194,12 @@ const byKey = (rows, k) => Object.fromEntries(rows.map((r) => [r[k], r]));
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 /* AS-4, AS-5, AS-6 on the chain as it stands before the three files. `patch(file, sql)`: a mutant's edit to a file's text. */
-async function rowsOnly(patch) {
+async function rowsOnly(patch, reorder) {
   const problems = [];
-  const order = (await manifest()).order;
+  const order = reorder ? reorder((await manifest()).order.slice()) : (await manifest()).order;
+  /* the three files by name, together and in order, wherever they sit: applied files (2027-04-16-bank-cap-plpgsql) follow them */
   const at = order.indexOf(COND);
-  /* the three files stand together, in order (a later lane's files may follow them: 2027-04-16-combat-training's do); the replay stops before them */
-  if (at < 1 || order.slice(at, at + FILES.length).join() !== FILES.join()) return ['AS-4 HARNESS: the three area files are not together on the chain, in order: ' + order.slice(at, at + FILES.length + 1).join()];
+  if (at < 1 || order.slice(at, at + FILES.length).join() !== FILES.join()) return ['AS-4 HARNESS: the three area files are not in the chain, together and in order: ' + order.slice(Math.max(0, at), at + FILES.length + 1).join()];
   const { db } = await bootReplay({ upTo: order[at - 1] });
   const check = (slot) => one(db, 'select public.hr_hunt_slot_check($1::jsonb)', [JSON.stringify(slot)]);
   /* AS-5, before: the server before the three files knows neither the abilities nor the conditions */
@@ -318,6 +318,10 @@ const MUTANTS = [
   { name: 'a spell may wind up faster than the Defense bound covers', patch: swap(CAT, "  ('spell_windup_min_ms', " + SPELL_BOUNDS.windupMs[0] + '),', "  ('spell_windup_min_ms', 900),"), want: /AS-4 .* does not apply: .*Defense bound/ },
   /* (the row's numbers are the data's today, never typed: a re-tune moves the anchor with it) */
   { name: 'the catalogue forgets Turning Cut', patch: swap(CAT, TURNING_ROW + 'true, ', TURNING_ROW + 'false, '), want: /AS-4 .* does not apply: .*turning_cut/ },
+  /* the harness finds the three by name: one missing, two swapped or a file between them is refused */
+  { name: 'the catalogue file is missing from the chain', reorder: (o) => o.filter((f) => f !== CAT), want: /AS-4 HARNESS/ },
+  { name: 'the conditions apply after the catalogue', reorder: (o) => { const i = o.indexOf(COND); [o[i], o[i + 1]] = [o[i + 1], o[i]]; return o; }, want: /AS-4 HARNESS/ },
+  { name: 'a file sits between the area files', reorder: (o) => { o.splice(o.indexOf(CAT), 0, '2027-04-16-bank-cap-plpgsql.sql'); return o; }, want: /AS-4 HARNESS/ },
   { name: 'Hoarfrost is no rune spell on the server', patch: swap(RUNES, '"hoarfrost":{', '"hoarfrost_x":{'), want: /AS-4 .* does not apply: .*hr_hunt_abilities/ },
   { name: 'the conditions forget the fight', patch: swap(COND, "  ('in_fight', 'bool', array['eq']::text[], null, null, '{}'::text[], false, '{}'::text[]),\n", ''), want: /AS-4 .* does not apply: .*VERIFY/ },
   /* the settle's side: a server that keeps the old shape refuses every world this engine stores */
@@ -334,7 +338,7 @@ async function main() {
       try {
         if (m.stagger) got = (await bothPaths(() => bootReplay(), null, m.stagger)).problems;
         else if (m.boot) got = (await bothPaths(() => bootReplay({ patches: new Map([[m.boot.file, [[m.boot.find, m.boot.repl]]]]), upTo: RUNES }), 'fire')).problems;
-        else got = await rowsOnly(m.patch);
+        else got = await rowsOnly(m.patch, m.reorder);
       } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
       const hit = got.some((p) => m.want.test(p));
       if (!hit) escaped++;

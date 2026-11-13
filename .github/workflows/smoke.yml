@@ -851,6 +851,14 @@ jobs:
           node tests/monster-facts.mjs
           node tools/mutant-gate.mjs node tests/monster-facts.mjs --mutate
 
+      # THE WIKI (lane/b-wiki, work ledger item 9): skills, grounds and formulas generated from the data
+      # and the engine; every worked example equals its stated terms by hand. --mutate plants eleven.
+      - name: Wiki window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/wiki-window.mjs
+          node tools/mutant-gate.mjs node tests/wiki-window.mjs --mutate
+
       # THE CHARACTER WINDOW (2026-10-25): the outfit catalogue is GENERATED
       # (gen-outfits --check); one XP formula, the sheet reads only what its
       # fingerprint covers, every put carries the engine version

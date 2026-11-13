@@ -20,7 +20,7 @@
 //   H4 A FUNCTION OF THE CLOCK: each clip's frame is (now - its start) x fps, its start fixed
 //      by its event's instant, so 30 fps and 144 fps draw the same frame at the same instant.
 // ════════════════════════════════════════════════════════════════════════
-import { clipFacing, asDirDiag } from '../world/core/facing.js?v=0.2.126';
+import { clipFacing, asDirDiag } from '../world/core/facing.js?v=0.2.127';
 
 export const CLIP_RULES = Object.freeze({
   reach: 1,           // a swing or flinch may turn its unit one 45° step at most (to the nearest facing it has)

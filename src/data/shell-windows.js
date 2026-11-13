@@ -46,7 +46,7 @@
 // search inside Inventory and Storage, not a window of its own.
 // ════════════════════════════════════════════════════════════════════════
 
-import { TOWN_NAME } from './world/town/plan.js?v=0.2.126';
+import { TOWN_NAME } from './world/town/plan.js?v=0.2.127';
 
 export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'hunts', label: 'Hunts', key: 'h', glyph: 'uiMap', width: 960, object: 'plain', over: true, help: 'windows.help_hunts' }),
@@ -105,6 +105,10 @@ export const SHELL_WINDOWS = Object.freeze([
      (src/shell/goto.js), so it has no icon and no key. It opens at the bottom-left, beside the Hunts window it was opened from: docked, it would close it. */
   Object.freeze({ id: 'monster', label: 'Monster facts', key: null, noShortcut: true, launcher: false, glyph: 'uiBook', width: 420, height: 560, home: 'bl', object: 'book',
     pageOf: Object.freeze(['hunts']) }),
+  /* The wiki (work ledger item 9, Tyler: public formulas): skills, grounds and formulas generated from the data rows and the engine's own
+     functions (src/shell/wiki-model.js), so it can never disagree with a hunt. Every letter is taken, so its key is the slash. The top bar has no
+     room for another icon at a laptop's width (tests/alpha-windows.mjs AW-62), so Settings, Help opens it on every screen (src/data/settings.js). */
+  Object.freeze({ id: 'wiki', label: 'Wiki', key: '/', launcher: false, glyph: 'uiBook', width: 620, object: 'book', help: 'windows.help_wiki' }),
   /* The owner's tools (2027-03-13-gm-tools.sql). No key: nobody else's keyboard reaches an empty window; the icon is the way in. */
   Object.freeze({ id: 'game-master', label: 'Game Master', key: null, phoneIcon: false, gm: true, glyph: 'uiTarget', width: 520, object: 'ledger' }),
 ]);

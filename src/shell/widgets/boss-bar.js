@@ -5,10 +5,10 @@
 // his two lines. Past a line it says what that line brought. Display only: nothing reads it. Quiet on any other hunt, so
 // the widget takes no room. Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { callOfHunt, BOSS_CALL_WORDS, isGuarded } from '../../data/boss-calls.js?v=0.2.126';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.126';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.126';
-import { text, cls, style } from '../../render/paint.js?v=0.2.126';
+import { callOfHunt, BOSS_CALL_WORDS, isGuarded } from '../../data/boss-calls.js?v=0.2.127';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.127';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.127';
+import { text, cls, style } from '../../render/paint.js?v=0.2.127';
 
 /** The skeleton (built once). */
 export function renderBossBar() {

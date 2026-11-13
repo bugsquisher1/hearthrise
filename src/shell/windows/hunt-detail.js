@@ -21,17 +21,17 @@
 // Enter sits at the page's foot. This module draws; it holds no state and sends
 // nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.126';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.126';
-import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.126';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.126';
-import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.126';
-import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.126';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.126';
-import { chance, listWords } from '../../render/format.js?v=0.2.126';
-import { gotoAttr, patchParts } from '../goto.js?v=0.2.126';
-import { factsTarget } from './monster.js?v=0.2.126';
-import { groundLines } from '../live-events-view.js?v=0.2.126';
+import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.127';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.127';
+import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.127';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.127';
+import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.127';
+import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.127';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.127';
+import { chance, listWords } from '../../render/format.js?v=0.2.127';
+import { gotoAttr, patchParts } from '../goto.js?v=0.2.127';
+import { factsTarget } from './monster.js?v=0.2.127';
+import { groundLines } from '../live-events-view.js?v=0.2.127';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */

@@ -21,15 +21,15 @@
 // THE ORDER is the order to fetch them in (fetchOrder): the prewarm takes them one at a time, while a hero is picked (prewarm.js).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { groundOf, groundOfSliced, composeFrame, sliced } from './core/compose.js?v=0.2.127';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.127';
-import { HUNT_GROUNDS, gatherNodesOf } from '../data/hunt-grounds.js?v=0.2.127';
-import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.127';
-import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.127';
-import { effectIds } from '../data/hunt-vfx.js?v=0.2.127';
-import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=0.2.127';
-import { SANDBOX } from '../data/world/sandbox.js?v=0.2.127';
-import { furnish } from './home-scene.js?v=0.2.127';
+import { groundOf, groundOfSliced, composeFrame, sliced } from './core/compose.js?v=0.2.128';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.128';
+import { HUNT_GROUNDS, gatherNodesOf } from '../data/hunt-grounds.js?v=0.2.128';
+import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.128';
+import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.128';
+import { effectIds } from '../data/hunt-vfx.js?v=0.2.128';
+import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=0.2.128';
+import { SANDBOX } from '../data/world/sandbox.js?v=0.2.128';
+import { furnish } from './home-scene.js?v=0.2.128';
 
 /* WHAT TO FETCH FIRST (phone, first visit: about 6 s for the town's six sheets): what nearly every first view draws, the hero's own
    sheet and the one most of the ground comes from, then small before big, so the heaviest is the last thing anything waits for. */

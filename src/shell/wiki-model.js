@@ -15,18 +15,18 @@
 //             from the stated terms and goes red when they disagree.
 // DISPLAY ONLY (CLAUDE.md §6): catalogue facts and arithmetic, nothing a player can spend, no intent, no residue.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF, COMBAT_SKILLS } from '../data/skills.js?v=0.2.127';
-import { SKILL_GUIDE } from '../data/skill-guide.js?v=0.2.127';
-import { SKILL_CURVE } from '../data/core-model.js?v=0.2.127';
-import { MONSTERS } from '../data/monsters.js?v=0.2.127';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.127';
-import { OPEN_GROUNDS } from '../data/hunt-grounds.js?v=0.2.127';
-import { DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.127';
-import { BLESSING_CUT_PERMILLE } from '../data/blessings.js?v=0.2.127';
-import { MAX_LEVEL, isCapped, skillXpForLevel, charXpForLevel, levelCurveRows } from '../core/xp.js?v=0.2.127';
-import { COMBAT_BALANCE, WEAKNESS_BONUS, ACC_DEF_MUL, playerCombatRolls, monsterAccuracy, monsterMaxHit } from '../core/combat.js?v=0.2.127';
-import { levelDeathLoss } from '../core/action-rules.js?v=0.2.127';
-import { residentsOf, raresOf, materialsOf } from './hunt-ground-facts.js?v=0.2.127';
+import { SKILLS_DEF, COMBAT_SKILLS } from '../data/skills.js?v=0.2.128';
+import { SKILL_GUIDE } from '../data/skill-guide.js?v=0.2.128';
+import { SKILL_CURVE } from '../data/core-model.js?v=0.2.128';
+import { MONSTERS } from '../data/monsters.js?v=0.2.128';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.128';
+import { OPEN_GROUNDS } from '../data/hunt-grounds.js?v=0.2.128';
+import { DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.128';
+import { BLESSING_CUT_PERMILLE } from '../data/blessings.js?v=0.2.128';
+import { MAX_LEVEL, isCapped, skillXpForLevel, charXpForLevel, levelCurveRows } from '../core/xp.js?v=0.2.128';
+import { COMBAT_BALANCE, WEAKNESS_BONUS, ACC_DEF_MUL, playerCombatRolls, monsterAccuracy, monsterMaxHit } from '../core/combat.js?v=0.2.128';
+import { levelDeathLoss } from '../core/action-rules.js?v=0.2.128';
+import { residentsOf, raresOf, materialsOf } from './hunt-ground-facts.js?v=0.2.128';
 
 /* The Levels each curve's table shows: the first hours, then the long climb. A capped skill stops at its cap. */
 const CURVE_LEVELS = Object.freeze([10, 25, 50, 99]);

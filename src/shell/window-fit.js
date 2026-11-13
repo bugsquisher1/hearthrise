@@ -16,8 +16,8 @@
 //      paragraph among paragraphs), so no window lists its rows. Display only: nothing here reads or writes the game.
 // mutant-anchors: tests/alpha-windows.mjs AW-90
 // ════════════════════════════════════════════════════════════════════════
-import { dockCap } from './hud.js?v=0.2.127';
-import { overBar } from './window-manager.js?v=0.2.127';
+import { dockCap } from './hud.js?v=0.2.128';
+import { overBar } from './window-manager.js?v=0.2.128';
 
 const TRIM = 'data-hs-trim';
 /* The scroll regions a player has scrolled, pressed in or wheeled over: their height is theirs from then on. */

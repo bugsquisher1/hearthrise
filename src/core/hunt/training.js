@@ -21,10 +21,10 @@
 // Draws nothing. PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { TRAINING_RULES } from '../../data/training.js?v=0.2.127';
-import { COMBAT_XP } from '../../data/core-model.js?v=0.2.127';
-import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../../data/skills.js?v=0.2.127';
-import { magicXpFor } from './xp-share.js?v=0.2.127';
+import { TRAINING_RULES } from '../../data/training.js?v=0.2.128';
+import { COMBAT_XP } from '../../data/core-model.js?v=0.2.128';
+import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../../data/skills.js?v=0.2.128';
+import { magicXpFor } from './xp-share.js?v=0.2.128';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
 

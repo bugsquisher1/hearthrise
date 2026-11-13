@@ -30,9 +30,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.127';
-import { isElement } from './elements.js?v=0.2.127';
-import { SHAPE_KINDS, shapeProblem } from '../core/hunt/shapes.js?v=0.2.127';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.128';
+import { isElement } from './elements.js?v=0.2.128';
+import { SHAPE_KINDS, shapeProblem } from '../core/hunt/shapes.js?v=0.2.128';
 
 /* The shapes a monster may cast (a 'square' is an aimed footprint, a hero's); every one but 'group' is MARKED. */
 export const SPELL_SHAPES = Object.freeze(['group', 'ring', 'blast', 'cone', 'line']);

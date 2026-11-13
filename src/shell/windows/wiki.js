@@ -13,12 +13,12 @@
 //
 // DISPLAY ONLY (CLAUDE.md §6): catalogue facts, nothing a player can spend, no intent and no residue.
 // ════════════════════════════════════════════════════════════════════════
-import { prop, attr, text } from '../../render/paint.js?v=0.2.127';
-import { whole, chance, listWords } from '../../render/format.js?v=0.2.127';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.127';
-import { t } from '../../render/player-text.js?v=0.2.127';
-import { glyphSvg } from '../widgets/bits.js?v=0.2.127';
-import { skillPages, groundPages, formulaPages } from '../wiki-model.js?v=0.2.127';
+import { prop, attr, text } from '../../render/paint.js?v=0.2.128';
+import { whole, chance, listWords } from '../../render/format.js?v=0.2.128';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.128';
+import { t } from '../../render/player-text.js?v=0.2.128';
+import { glyphSvg } from '../widgets/bits.js?v=0.2.128';
+import { skillPages, groundPages, formulaPages } from '../wiki-model.js?v=0.2.128';
 
 const WIKI_SECTIONS = Object.freeze(['skills', 'grounds', 'formulas']);
 const SECTION_WORD = Object.freeze({ skills: 'wiki.tab_skills', grounds: 'wiki.tab_grounds', formulas: 'wiki.tab_formulas' });

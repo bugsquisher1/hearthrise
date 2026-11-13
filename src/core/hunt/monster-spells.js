@@ -37,17 +37,17 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { atTier } from '../../data/hunt-tiers.js?v=0.2.127';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.127';
-import { spellRow, castsOf, specOf, spellHit, marked, SHIELD_BRACE, firstCastSteps } from '../../data/monster-spells.js?v=0.2.127';
-import { monsterMaxHit } from '../combat.js?v=0.2.127';
-import { cheb, los } from './grid.js?v=0.2.127';
-import { atRest, unitById, dirOf } from './movement.js?v=0.2.127';
-import { makeEvent } from './events.js?v=0.2.127';
-import { place, covers } from './shapes.js?v=0.2.127';
-import { castShape } from './marks.js?v=0.2.127';
-import { landHit, restart, slowed, rowOf } from './damage.js?v=0.2.127';
-import { swingRow } from './boss-phases.js?v=0.2.127';
+import { atTier } from '../../data/hunt-tiers.js?v=0.2.128';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.128';
+import { spellRow, castsOf, specOf, spellHit, marked, SHIELD_BRACE, firstCastSteps } from '../../data/monster-spells.js?v=0.2.128';
+import { monsterMaxHit } from '../combat.js?v=0.2.128';
+import { cheb, los } from './grid.js?v=0.2.128';
+import { atRest, unitById, dirOf } from './movement.js?v=0.2.128';
+import { makeEvent } from './events.js?v=0.2.128';
+import { place, covers } from './shapes.js?v=0.2.128';
+import { castShape } from './marks.js?v=0.2.128';
+import { landHit, restart, slowed, rowOf } from './damage.js?v=0.2.128';
+import { swingRow } from './boss-phases.js?v=0.2.128';
 
 /* spellCds: { spell id: ms until it may start } while the monster is in a fight, a spell it does not name being ready ({} = every
    spell ready); null = not in a fight, its first casts not drawn yet. cast: its live cast (marks.js), or null. */

@@ -20,8 +20,8 @@
 // the plain fire (never a missing sprite).
 // PURE: no DOM, no window, no clock of its own (the caller passes `now`).
 // ════════════════════════════════════════════════════════════════════════
-import { FLAMES as NAMED_FLAMES, BURN_SHOW, HEARTH_FUELS, NAMED_FUELS, fuelRecipeId } from '../data/hearth.js?v=0.2.127';
-import { SHOW_FLAMES, POWDER_CHUNK } from '../data/gold-sinks.js?v=0.2.127';
+import { FLAMES as NAMED_FLAMES, BURN_SHOW, HEARTH_FUELS, NAMED_FUELS, fuelRecipeId } from '../data/hearth.js?v=0.2.128';
+import { SHOW_FLAMES, POWDER_CHUNK } from '../data/gold-sinks.js?v=0.2.128';
 
 /* The named colors and the bought powders, one table to draw from. A bought flame stays out of src/data/hearth.js, which the edge bundles. */
 const FLAMES = Object.freeze({ ...NAMED_FLAMES, ...SHOW_FLAMES });

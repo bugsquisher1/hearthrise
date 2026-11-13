@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.128 — 2026-11-13 (The Training Yard)
+
+**Train a combat skill in town.** Open the Training Yard from the yard in town and pick Melee, Ranged, Magic or Defense. Your hero works that skill on a dummy that never falls. You pay a little gold for each hour, a bit more as the skill gets higher. Your hero keeps training after you close the game, for up to 12 hours or until your gold runs out. Only that skill goes up. There is no Level XP, no loot and no stamina used, and it is slower than hunting, so hunting is still the fast way up. Training is solo, so leave your party first.
+
+**A dummy for your house.** Once you own the Hearthside Homestead, you can put a training dummy in your house and unlock it one skill at a time. The first unlock costs 150,000 gold and the next ones cost 250,000, 400,000 and 600,000. Training on it costs nothing. One of your heroes can use it at a time.
+
+**Fixes.** The heal warning when you set up an action now counts monster spells, so it warns you about the biggest hit a hunt can really throw at you. Monster spells on a scaled hunt now hit as hard as the rest of that hunt.
+
 ## v0.2.127 — 2026-11-13 (The Wiki)
 
 **There is a wiki in the game now.** Press / or open it from Settings, then Help. It has every skill, every hunting ground with its Levels and monsters, and the formulas the game really uses, like your chance to hit, your max hit and how XP adds up to Levels. Each formula works an example with the same numbers the game uses, so the wiki is never out of date. Search finds anything in it.

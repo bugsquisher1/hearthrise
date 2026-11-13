@@ -32,7 +32,7 @@ export const TRAINING_RULES = Object.freeze({
   /* The trained skill's XP is this share (permille) of what the same blow, cast or hit taken teaches on a hunting ground, one dial a
      skill. The gate: a yard hour never pays more than 0.40x the same hero's best fitting hunt in that skill an hour
      (tests/combat-training-pace.mjs, the real settle at skill 10, 30 and 56). */
-  xpPermille: Object.freeze({ melee: 350, ranged: 350, magic: 350, defense: 350 }),
+  xpPermille: Object.freeze({ melee: 215, ranged: 245, magic: 340, defense: 215 }),
   /* A dummy's blow never takes a hero under this share (permille) of its max HP: nobody dies in the yard. */
   hpFloorPm: 500,
   /* The yard's fee for one hour: feeBase + feePerLevel x the trained skill's level at the hour's first instant. */

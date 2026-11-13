@@ -31,6 +31,7 @@
 //   starter-bars-both-paths a new caster's bar, watched and with the browser closed: the same result
 //   undertow-both-paths     the Healer's alone spell (Tyler 2026-11-09): a lone Healer casts it watched and closed alike; a tank and a
 //                           Healer, both alive, never do on either path
+//   area-moves-default every weapon key and role: an unedited bar holds its discipline's area moves (playtest v0.2.127)
 //   sql-rows          the migration's catalogue rows equal the registry, the action ids and ROLE_RULES
 //
 //   node tests/hunt-core/conditions.mjs            cases + mutants
@@ -57,7 +58,7 @@ const AREA_MIGRATION = 'supabase/migrations/2027-04-15-area-conditions.sql';
 const VIEW_MIGRATION = 'supabase/migrations/2027-03-08-rune-ladder-slots.sql';
 /* The role rule sets once more (every default rune spell names its store rune, Flame Volley and Rend off the default bars: lane/c-caster-starter-bars, designer 2026-11-05),
    and again (Undertow on the Healer's set: lane/b-one-difficulty, Tyler 2026-11-09). */
-const BAR_MIGRATION = 'supabase/migrations/2027-03-24-undertow-bar.sql';
+const BAR_MIGRATION = 'supabase/migrations/2027-04-18-area-moves-bar.sql';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -860,6 +861,19 @@ const cases = {
      2. the first pull fires: a cast of the style's own ability within 5 s of the first pull, the Cellar as built;
      3. a lone monster fires: the same within 30 s, on a Cellar copy with one monster a pocket;
      4. every slot earns its place: in 30 minutes at the Thicket's floor each default ability slot casts, but for WAITS_FOR_OTHERS. */
+  /* THE AREA MOVES ON AN UNEDITED BAR (playtest v0.2.127 P1: a Level 14 sword, a Level 24 mage and a Level 36 party saw none).
+     Every weapon key and role: a hero whose stored bar is empty holds every skill-unlock move of its discipline. */
+  'area-moves-default': (M) => {
+    const gated = Object.values(M.AD.ABILITIES).filter((r) => r.active && r.unlock && !r.universal);
+    if (gated.length < 4) return 'CONTROL: ' + gated.length + ' unlock-gated moves, want the four area moves';
+    for (const [k, rk] of Object.entries(M.roles.ROLE_KEYS)) for (const role of rk.roles) {
+      const setup = M.heroSetup({ weaponType: k, options: { role }, bar: [], partyRoles: [] });
+      const held = new Set(setup.slots.filter((r) => r.slot.action.type === 'ability').map((r) => r.slot.action.id));
+      const miss = gated.filter((r) => r.disciplines.includes(rk.discipline) && !held.has(r.id)).map((r) => r.id);
+      if (miss.length) return k + ' as ' + role + ': its default bar lacks ' + miss.join(', ');
+    }
+    return null;
+  },
   'starter-bar-fires': (M) => {
     if (Object.keys(M.kit.START_INVENTORY).some((id) => /_rune$/.test(id))) return 'the start kit carries a rune: re-judge this case';
     const cellar = M.grounds.HUNT_GROUNDS.mill_cellar;
@@ -881,7 +895,8 @@ const cases = {
       const fires = within(cellar, 5000, 'the Cellar as built') || within(lone, 30000, 'a lone monster');
       if (fires) return fires;
       const earned = newHeroCasts(M, worn, 'meadowbrook_thicket', floor, null, 30 * 60000, SECRET);
-      const idle = abilities.filter((a) => !earned.casts[a.id] && !WAITS_FOR_OTHERS[a.id]).map((a) => a.id);
+      /* a move behind a skill unlock (abilities.js `unlock`, the area moves) waits for that level, which a new hero lacks: area-moves-default proves them */
+      const idle = abilities.filter((a) => !earned.casts[a.id] && !WAITS_FOR_OTHERS[a.id] && !M.AD.ABILITIES[a.id].unlock).map((a) => a.id);
       if (idle.length) return name + ': in 30 minutes at the Thicket\'s floor ' + idle.join(', ') + ' never cast (' + JSON.stringify(earned.casts) + ')';
     }
     return null;
@@ -1136,17 +1151,17 @@ const mutants = [
   { name: '[undertow] a party casts the alone spell', case: 'undertow-both-paths',
     edits: [['src/core/hunt/abilities.js', '    && (solo || !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].alone)));', '    && (solo || true));']] },
   { name: 'the healer\'s default rule set has no attack-when-safe rule', case: 'healer-default-rules',
-    edits: [['src/data/rule-subjects.js', ", slot('green_sickness', SICKNESS_WHEN), slot('undertow', UNDERTOW_WHEN)]),", ", slot('undertow', UNDERTOW_WHEN)]),"]] },
+    edits: [['src/data/rule-subjects.js', ", slot('green_sickness', SICKNESS_WHEN), slot('undertow', UNDERTOW_WHEN), slot('spring_tide')]),", ", slot('undertow', UNDERTOW_WHEN), slot('spring_tide')]),"]] },
   { name: 'the healer\'s attack spends the mana a heal needs', case: 'healer-default-rules',
     edits: [['src/data/rule-subjects.js', "subject: 'lowest' }, { metric: 'self_mana_pct', op: 'gte', value: 78 }]);", "subject: 'lowest' }]);"]] },
   { name: 'the tank\'s default set holds Flame Strike again, with no store rune (struck from minute one)', case: 'starter-bar-fires',
     edits: [['src/data/rule-subjects.js', "  tank: Object.freeze([slot('challenge'), slot('power_strike')]),", "  tank: Object.freeze([slot('challenge'), NO_STORE('flame_strike'), slot('power_strike')]),"], NO_STORE_ROW] },
   { name: 'a sword alone casts Flame Strike again, with no store rune (struck from minute one)', case: 'starter-bar-fires',
-    edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave')]),", "  melee_dps: Object.freeze([NO_STORE('flame_strike'), slot('power_strike'), slot('cleave')]),"], NO_STORE_ROW] },
+    edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('turning_cut')]),", "  melee_dps: Object.freeze([NO_STORE('flame_strike'), slot('power_strike'), slot('cleave'), slot('turning_cut')]),"], NO_STORE_ROW] },
   { name: 'Rend comes back on the axes\' default set with no store rune', case: 'starter-bar-fires',
-    edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave')]),", "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), NO_STORE('rend')]),"], NO_STORE_ROW] },
+    edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('turning_cut')]),", "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), NO_STORE('rend'), slot('turning_cut')]),"], NO_STORE_ROW] },
   { name: 'Flame Volley comes back on the Ranger\'s default set with no store rune', case: 'starter-bar-fires',
-    edits: [['src/data/rule-subjects.js', "  ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot')]),", "  ranger: Object.freeze([slot('hunters_mark'), NO_STORE('flame_volley'), slot('precision_shot')]),"], NO_STORE_ROW] },
+    edits: [['src/data/rule-subjects.js', "  ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot'), slot('raking_shot', RAKING_WHEN)]),", "  ranger: Object.freeze([slot('hunters_mark'), NO_STORE('flame_volley'), slot('precision_shot'), slot('raking_shot', RAKING_WHEN)]),"], NO_STORE_ROW] },
   { name: 'a cooldown is lost at a window cut (watched and closed part ways)', case: 'starter-bars-both-paths',
     edits: [['src/core/hunt/abilities.js', "['lanes', 'json'], ['cds', 'json'],", "['lanes', 'json'],"]] },
   { name: 'Frost Lance names no store rune (the Mage\'s slot 2 struck again)', case: 'starter-bar-fires',
@@ -1183,7 +1198,9 @@ const mutants = [
   { name: 'the solo healer fights behind a poison wall (the P1 as it shipped)', case: 'solo-healer',
     edits: [['src/core/elements.js', '  if (!monster || !isElement(element)) return 1000;', "  if (element === 'poison' && monster && monster.elements && monster.elements.poison === 50) return 0;\n  if (!monster || !isElement(element)) return 1000;"],
       ['src/core/hunt/damage.js', '  const el = elementOn(target, element);\n', '  const el = elementOn(target, element);\n  if (el === 0) return { dmg: 0, absorbed: 0, killed: false };\n'],
-      ['src/data/rule-subjects.js', ", slot('undertow', UNDERTOW_WHEN)]),", ']),']] },
+      ['src/data/rule-subjects.js', ", slot('undertow', UNDERTOW_WHEN), slot('spring_tide')]),", ", slot('spring_tide')]),"]] },
+  { name: 'the area moves fall off the default bars (the v0.2.127 P1)', case: 'area-moves-default',
+    edits: [['src/data/rule-subjects.js', ", slot('raking_shot', RAKING_WHEN)]),", ']),']] },
   { name: 'a migration row drifts from the registry', case: 'sql-rows', edits: [['src/data/condition-metrics.js', "say: 'my target is a boss', value: 'bool', ops: Object.freeze(['eq'])", "say: 'my target is a boss', value: 'bool', ops: Object.freeze(['eq', 'ne'])"]] },
   { name: 'the start kit bar drifts from the server one', case: 'sql-rows', edits: [['src/data/start-kit.js', "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 30)", "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 35)"]] },
   { name: 'a store food is no slot item', case: 'sql-rows', edits: [['src/data/consumables.js', "    .map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),", "    .filter(() => false).map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),"]] },

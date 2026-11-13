@@ -101,7 +101,7 @@ const BASE_CLASS_XP = Object.freeze({
   /* One class under the even share (Tyler 2026-10-31, "only better if there are different classes"; lane/c-caster-party-line). With Green Sickness on the Healer's default bar a pair at 8 each read 1.033 against
      one alone and a four 1.005: the debuff stays up far longer in a one-class party, as Greater Mend's load splits (a head's casts an hour, alone 84 and 256, in a pair 144 and 168). Mana gates can't hold it (at 95% the
      pair reads 0.987 and the four still 1.009, and each gate rerolls the first grounds' net chain); the cell can, and it moves no gold, no mixed party and no other ground. */
-  coppercap_warrens: row([1085, 1500], [1085, 1535, 1630], [1060, 1490, 1565, 1690]),
+  coppercap_warrens: row([1085, 1500], [1085, 1535, 1630], [1060, 1490, 1705, 1770]), // mixed fours +9% (three classes) and +5% (four): area moves on the default bars (lane/a-area-moves-bar, 2026-11-13)
 });
 /* A ground pack's own row, when its same-class party would beat solo (src/data/grounds/<id>/pack.js `partyClassXp`: { 2, 3, 4 }). */
 export const PARTY_CLASS_XP = Object.freeze(foldRows('party class row', BASE_CLASS_XP, GROUND_PACKS, (p) => (p.partyClassXp ? { [p.id]: row(p.partyClassXp[2], p.partyClassXp[3], p.partyClassXp[4]) } : {})));

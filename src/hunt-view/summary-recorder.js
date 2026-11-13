@@ -76,7 +76,7 @@ export function attach(cs) {
   cs.subscribe(() => {
     const s = endedSessionOf(cs);
     if (!s) return;
-    if (!s.ended) { if (a.sid !== s.id) { a.rec.reset(); a.sid = s.id; a.live = null; a.liveSig = ''; } return; }
+    if (!s.ended) { if (a.sid !== s.id) { a.started = a.sid !== null || a.done.size > 0; a.rec.reset(); a.sid = s.id; a.live = null; a.liveSig = ''; } return; }
     if (a.done.has(s.id)) return;
     a.done.add(s.id);
     /* Recorded on an earlier page: it has already had its moment (summaryFromEarlierPage). */
@@ -118,6 +118,15 @@ export function summaryClosedBy(cs) {
   if (!h || !h.ended) return;
   attach(cs).closed = h.sessionId;
   if (typeof cs.flushResidue === 'function') cs.flushResidue().catch(() => {});
+}
+
+/** True once when a NEW hunt starts on this page after another (playtest v0.2.127: the last hunt's summary stayed open over
+    the next): the shell closes the summary when it is. Display state only. */
+export function takeStarted(cs) {
+  const a = attach(cs);
+  const f = a.started === true;
+  a.started = false;
+  return f;
 }
 
 /** True once per freshly ended hunt: the shell opens the window when it is. */

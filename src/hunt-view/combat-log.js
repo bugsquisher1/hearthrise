@@ -15,6 +15,7 @@
 import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.129';
 import { BOSS_CALL_WORDS, callOfHunt, isGuarded } from '../data/boss-calls.js?v=0.2.129';
 import { MONSTERS } from '../data/monsters.js?v=0.2.129';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.129';
 import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.129';
 import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.129';
 import { tallyOf, tallyLine } from '../session/tally-sections.js?v=0.2.129';
@@ -49,6 +50,12 @@ function namer(cs) {
   };
 }
 
+/** The moves skill `skill` unlocks at `level`, as a sentence that starts with a space, or ''. */
+function unlockedBy(skill, level) {
+  const rows = skill === 'level' ? [] : Object.values(ABILITIES).filter((r) => r.unlock === level && abilitySkill(r) === skill);
+  return rows.length ? ' ' + t('log.unlocked', { moves: rows.map((r) => r.n).join(', ') }) : '';
+}
+
 /**
  * One event as a line, or null when it is not a log line.
  * @returns {{key: string, type: string, units: number[], text: string, quiet?: boolean}|null}  `quiet`: nothing happened to anyone (a miss), so it wears no cost color
@@ -66,7 +73,8 @@ export function lineOf(ev, n) {
     case 'heal': return line('heal', ev.u === ev.t ? a + ' heals for ' + ev.amount + '.' : a + ' heals ' + b + ' for ' + ev.amount + '.');
     /* A kill's XP is LEVEL XP (xp-share.js); a skill's own level-up names the skill (Tyler 2026-10-22: say which XP). */
     case 'xp': return line('xp', a + ' gains ' + ev.amount + ' Level XP.');
-    case 'level': return line('xp', a + ' reaches ' + (ev.skill === 'level' ? 'Level ' : skillName(ev.skill) + ' level ') + ev.level + '.');
+    /* A skill level that unlocks a move (abilities.js unlock) says so: nothing else told a player Turning Cut was ready (lane/d-area-playtest). */
+    case 'level': return line('xp', a + ' reaches ' + (ev.skill === 'level' ? 'Level ' : skillName(ev.skill) + ' level ') + ev.level + '.' + unlockedBy(ev.skill, ev.level));
     case 'eat': case 'drink':
       return line('supply', a + (ev.type === 'eat' ? ' eats ' : ' drinks ') + itemName(ev.item) + (ev.source === 'store' ? ', bought from the store.' : ' from the bag.'));
     /* A called boss crossed a line (boss-phases.js): the bar and the world say so too. */

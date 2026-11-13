@@ -11,4 +11,6 @@ export const LOG_TEXT = Object.freeze({
   /* A monster's spell winding up: the screen marks it, the log names it. A group spell reaches everyone in the fight. */
   spell: '{who} is casting {spell}.',
   spell_group: '{who} is casting {spell} on the whole party.',
+  /* A skill level that unlocks a move (abilities.js unlock): the player adds it to the action bar. */
+  unlocked: 'You can now use {moves}. Add it to your action bar.',
 });

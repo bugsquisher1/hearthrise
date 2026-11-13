@@ -7,7 +7,9 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.129 — 2026-11-13 (Small Fixes)
 
-**Fixes.** Gathering now stops when your bag is full, and the Work panel tells you why. Pressing Enter on a button presses that button instead of opening Chat. A hero who falls before a monster dies no longer gets a share of its gold or loot. Hunting grounds now say which Level they are suited to. They were never locked, and now the text says so. Carrion Crows in Mosslight Glade are a little slower, so a Ranger can kite them.
+**Fixes.** Gathering now stops when your bag is full, and the Work panel tells you why. Pressing Enter on a button presses that button instead of opening Chat. A hero who falls before a monster dies no longer gets a share of its gold or loot. Hunting grounds now say which Level they are suited to. They were never locked, and now the text says so. Carrion Crows in Mosslight Glade are a little slower, so a Ranger can kite them. The last hunt's summary closes when you start a new hunt. Hunt settings has an Effects button.
+
+**Area moves on your bar.** Turning Cut, Raking Shot, Hoarfrost and Spring Tide join your action bar when you reach their skill Level.
 
 ## v0.2.128 — 2026-11-13 (The Training Yard)
 

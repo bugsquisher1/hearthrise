@@ -11,6 +11,8 @@
 export const HUNTS_TEXT = Object.freeze({
   /* the Tally widget's folded title when every held task is done (src/shell/widgets/tally-hud.js) */
   tally_done: 'Done',
+  /* Who lives here: one note under the line names each area caster's spells (src/shell/windows/hunt-detail.js), so no card grows a line. */
+  casts: '{name} casts {spells}.',
   /* A hall built for a group: a warning, never a gate (Tyler 2026-11-08). {n} is a number word (count_2 …). */
   party_boss: 'The {boss} is built for a group of {n} or more. Alone, you still fight him, and he can kill you.',
   party_hall: 'One hall here is built for a group of {n} or more. Alone, you still fight it, and it can kill you.',

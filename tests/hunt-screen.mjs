@@ -663,6 +663,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const h = document.elementFromPoint(q.left + 6, q.top + 6);
           return { above: r.height > 0 && r.bottom <= b.top, top: r.top >= 0 && r.right <= innerWidth, onTop: h === c || c.contains(h) }; });
         if (!fold.above || !fold.top || !fold.onTop) fails.push('HS-12 the fight settings fold-out is not on top above the bar: ' + JSON.stringify(fold));
+        /* HS-12b the fold's Effects door opens Settings on its Effects page (playtest v0.2.127: the sliders were found only in Settings) */
+        await page.click(P + ' .hb-effects');
+        const fx = await wait(page, () => { const w = document.querySelector('[data-hs-win="settings"]'); const pg = w && w.querySelector('[data-page="effects"]');
+          return !!pg && !pg.hidden && !!w.querySelector('.st-tab.is-on[data-cat="effects"]'); }, null, 4000);
+        if (!fx) fails.push('HS-12 the fight settings’ Effects door did not open Settings on Effects');
+        await page.evaluate(() => { const c = document.querySelector('[data-hs-close="settings"]'); if (c) c.click(); });
+        await unfold();
         await page.keyboard.press('j');
         await page.waitForTimeout(300);
         if (await page.$('[data-hs-win="hunt-settings"]')) fails.push('HS-12 a Hunt settings window still opens');
@@ -1941,6 +1948,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
+  /* playtest v0.2.127: the Effects door opens Settings, but not on Effects (HS-12) */
+  ['the Effects door opens Settings on its first page (HS-12)', 'src/shell/windows/settings.js', "if (want && SETTING_CATEGORIES.some((c) => c.id === want))", 'if (false)'],
   /* Tyler 10-25: ammo on its own tab (HS-7). */
   ['ammo mixed back into Food & drink (HS-27, HS-7)', 'src/shell/action-table.js', [["    return { runs, empty: runs.length ? null : t('bar.no_food') };\n", ''], ["  if (tab !== 'ammo') return { runs, empty: null };\n", '']]],
   ['the shell rebuilds a component on every paint', 'src/shell/shell.js', 'if (render.patch) render.patch(el, ctx);', 'if (render.patch) { el.innerHTML = render(ctx); render.patch(el, ctx); }'],

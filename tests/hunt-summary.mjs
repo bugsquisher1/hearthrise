@@ -25,6 +25,7 @@
 //       bag; a call missing its ground sends nothing
 //   A2  an ended session stores its summary ONCE (a second envelope for it adds
 //       nothing) and the stored card carries the death explanation
+//   A5  a new hunt after an ended one is told once (the shell closes the old summary)
 //   A3  a re-read that lands before the debounced residue put keeps the stored
 //       card (pending residue outlives a replacing envelope until it is put)
 //   T1  BACK IN TOWN (UX flow audit 2026-11-11, flow C): the steps come from the server's sections in the order a player does
@@ -296,6 +297,19 @@ async function runTests(M) {
     eq(store.length, 1, 'a second envelope for the same session adds nothing');
   });
 
+  await t('A5 a new hunt after an ended one says so once (the shell closes the old summary: playtest v0.2.127)', async () => {
+    const calls = [];
+    const cs = sessionOn(calls, () => endedEnv(8));
+    const run = (id, v) => { const e = clone(FIX); e.version = v; e.hunt = { session: { id, hunt: 'mill_cellar', preset: 1, phase: 'hunting', bag: [], tally: {} }, pose: FIX.hunt.pose }; return e; };
+    await cs._take(run('sess-9', 7), 'load');
+    ok(!M.REC.takeStarted(cs), 'the first hunt this page sees is no new start');
+    ok(await cs.load(), 'the ended envelope applied');
+    ok(M.REC.takeFresh(cs), 'the ended hunt is fresh');
+    await cs._take(run('sess-10', 9), 'load');
+    ok(M.REC.takeStarted(cs), 'the next hunt starting is told');
+    ok(!M.REC.takeStarted(cs), 'and told once');
+  });
+
   await t('A3 a re-read before the residue put lands keeps the stored card (it never blinks out)', async () => {
     const calls = [];
     let v = 8;
@@ -469,6 +483,7 @@ const MUTANTS = [
   { test: 'S7', file: MODEL, from: "s.tier !== DEFAULT_TIER && Object.prototype.hasOwnProperty.call(TIER_NAME, s.tier)", to: "s.tier && TIER_NAME[s.tier]" },
   { test: 'A1', file: SESSION, from: "p_hunt: a.hunt, p_bag: a.bag, p_preset: a.preset,", to: "p_hunt: a.hunt, p_bag: [], p_preset: a.preset," },
   { test: 'A1', file: SESSION, from: "if (!a || !ITEM.test(String(a.hunt)) ||", to: "if (!a ||" },
+  { test: 'A5', file: RECORDER, from: 'a.started = a.sid !== null || a.done.size > 0;', to: 'a.started = false;' },
   { test: 'A2', file: RECORDER, from: "    if (a.done.has(s.id)) return;\n    a.done.add(s.id);", to: "    a.done.add(s.id);" },
   { test: 'A2', file: RECORDER, from: "const ex = a.sid === s.id ? explainDeaths(a.rec.events(), { whoOf }) : { deaths: [] };", to: "const ex = { deaths: [] };" },
   /* Back in town (T1..T4) */

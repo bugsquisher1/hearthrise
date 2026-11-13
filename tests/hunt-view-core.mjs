@@ -303,6 +303,16 @@ async function rules(M) {
     ok('LOG-6', group && group.text === 'Turncoat is casting Smoke Pot on the whole party.', 'a group spell reads ' + JSON.stringify(group));
     ok('LOG-6', hit && hit.text === 'Barn Spider hits Tyler for 30 with Venom Spray.', 'a spell\'s hit reads ' + JSON.stringify(hit));
     ok('LOG-6', M.CT.LOG_TYPES.find((r) => r.id === 'status').events.includes('spell'), 'the Effects filter must read a spell');
+    // LOG-7 (lane/d-area-playtest): the skill level that unlocks an area move says so, or nobody finds Turning Cut.
+    const cut = M.L.lineOf({ key: 'l1', type: 'level', atMs: 1, u: 1, skill: 'melee', level: 10 }, n);
+    const plain = M.L.lineOf({ key: 'l2', type: 'level', atMs: 1, u: 1, skill: 'melee', level: 11 }, n);
+    ok('LOG-7', cut && cut.text === 'Tyler reaches Melee level 10. You can now use Turning Cut. Add it to your action bar.', 'an unlock level reads ' + JSON.stringify(cut));
+    // LOG-8 (lane/d-area-playtest): the Hunts page names a caster's area spells before the hunt, so the tier wall is seen from town.
+    const { residentsOf } = await import('../src/shell/hunt-ground-facts.js');
+    const slime = residentsOf('millrace_sewer').find((m) => m.id === 'kobold_tosher');
+    const rat = residentsOf('millrace_sewer').find((m) => m.id === 'drain_rat');
+    ok('LOG-8', slime && slime.casts.join() === 'Muck Fling' && rat && rat.casts.length === 0, 'the Sewer\'s casters read ' + JSON.stringify([slime, rat]));
+    ok('LOG-7', plain &&plain.text === 'Tyler reaches Melee level 11.', 'a plain level reads ' + JSON.stringify(plain));
   }
 
   { // LOG-5: a unit newer than the last pose has a name ("Someone misses Someone" filled the first seconds of a hunt):

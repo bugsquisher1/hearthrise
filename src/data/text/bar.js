@@ -13,6 +13,9 @@ export const BAR_TEXT = Object.freeze({
   tab_food: 'Food & drink',
   tab_ammo: 'Ammo',
   loaded_ammo: 'The loaded ammo',
+  /* The fight settings' door to Settings > Effects (playtest v0.2.127: the effect sliders were found only in Settings). */
+  effects_door: 'Effects',
+  effects_door_label: 'Effect settings: how strongly spells, hits and danger marks show',
 
   /* What the worn weapon can shoot or cast. */
   shot_waits: '{need}. This slot waits until then, and your next ammo fires.',

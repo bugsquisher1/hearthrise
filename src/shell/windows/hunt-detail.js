@@ -31,6 +31,7 @@ import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-s
 import { chance, listWords } from '../../render/format.js?v=0.2.129';
 import { gotoAttr, patchParts } from '../goto.js?v=0.2.129';
 import { factsTarget } from './monster.js?v=0.2.129';
+import { t } from '../../render/player-text.js?v=0.2.129';
 import { groundLines } from '../live-events-view.js?v=0.2.129';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
@@ -48,7 +49,7 @@ export function detailHtml() {
   return '<header class="hw-hd-head">'
     + '<h3 class="hw-hd-name"></h3><p class="hw-hd-band"><span class="hw-hd-levels"></span><span class="hw-hunt-fit"></span></p>'
     + '<p class="hw-hd-who"></p><div class="hw-hd-events"></div><p class="hw-hunt-warn"></p></header>'
-    + '<h4 class="hw-hd-h">Who lives here</h4><ul class="hw-hd-lineup" aria-label="Who lives here"></ul><p class="hs-note hw-hd-bigpull" hidden></p>'
+    + '<h4 class="hw-hd-h">Who lives here</h4><ul class="hw-hd-lineup" aria-label="Who lives here"></ul><p class="hs-note hw-hd-casts" hidden></p><p class="hs-note hw-hd-bigpull" hidden></p>'
     /* the ground's words under who lives there: on a short screen the first row of creatures shows whole (Tyler 2026-11-11) */
     + '<p class="hw-hd-theme"></p>'
     + '<h4 class="hw-hd-h">Drops <small class="hw-hd-per hw-hd-per-size"></small></h4><ul class="hw-hd-sets" aria-label="Drops"></ul>'
@@ -128,6 +129,8 @@ export function patchGo(det, ctx, v) {
 
 /* "Level 2 · common"; a boss says so in place of its share. The dot keeps to the line it ends (a wrapped line never starts with one). */
 const howWords = (m) => (Number.isInteger(m.level) ? 'Level ' + m.level + ' · ' : '') + (m.boss ? 'boss' : m.band);
+/* The area casters, one note under the line (lane/d-area-playtest): the page warns before the hunt does, and no card grows (AW-25c, AW-93). */
+const castsWords = (residents) => residents.filter((m) => m.casts && m.casts.length).map((m) => t('hunts.casts', { name: m.name, spells: listWords(m.casts) })).join(' ');
 
 /* One creature's picture, drawn once per creature (a canvas keeps it); nothing until its art has loaded. */
 function paintSprite(li, id) {
@@ -185,6 +188,9 @@ export function patchGround(det, ctx, r, o) {
   /* One ground line: every creature stands at the height of the tallest drawn here, feet on the same row. */
   const tallest = Math.max(0, ...Array.from(lineup.querySelectorAll('.hw-hd-mon.is-drawn canvas'), (c) => c.height));
   style(lineup, '--stand-h', tallest ? tallest + 'px' : null);
+  const casts = castsWords(residents);
+  text(det.querySelector('.hw-hd-casts'), casts);
+  prop(det.querySelector('.hw-hd-casts'), 'hidden', !casts);
   /* Who the line above leaves out: a creature only a harder hunt summons, its name a link to its facts (Tyler 2026-11-11: no drop list). */
   const bigPull = det.querySelector('.hw-hd-bigpull'), bigParts = bigPullParts(r.hunt, factsTarget);
   patchParts(bigPull, bigParts);

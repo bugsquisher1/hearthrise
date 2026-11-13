@@ -62,6 +62,9 @@ renderSettings.events = ['input'];
 renderSettings.patch = function patchSettings(body, ctx) {
   const root = body.querySelector('.st');
   if (!root) return;
+  /* a door asked for one category (the fight settings' Effects: window-manager.js openTab) */
+  const want = ctx.wm && typeof ctx.wm.takeTab === 'function' ? ctx.wm.takeTab('settings') : null;
+  if (want && SETTING_CATEGORIES.some((c) => c.id === want)) { attr(root, 'data-cat', want); attr(root, 'data-view', 'page'); attr(root, 'data-q', null); }
   const q = root.getAttribute('data-q') || '';
   const found = new Set(search(SETTINGS, q).map((r) => r.id));
   const live = categoriesFor(ctx, SETTINGS, SETTING_CATEGORIES).map((c) => c.id);

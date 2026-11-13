@@ -781,7 +781,7 @@ function trainingRows(S, groundRowsOut) {
       if (!g.train || g.train.place !== place || g.train.skill !== skill || !h.train || h.train.place !== place || h.train.skill !== skill) throw new Error(`training ground ${id} does not name ${place} ${skill}`);
       const mons = g.pockets.flatMap((p) => (p.pack || []).concat(p.spawns, p.adds || [])).map((x) => x.monster);
       if (gr.seats !== 1 || g.pockets.length !== 1 || gr.spawns !== 1 || mons.some((m) => m !== dummy)) throw new Error(`training ground ${id} is not one seat, one pocket and the dummy alone`);
-      rows.push({ hunt: id, place, skill, fee: T.places[place].fee === true, pm: R.xpPermille[skill] });
+      rows.push({ hunt: id, place, skill, ord: skills.indexOf(skill), fee: T.places[place].fee === true, pm: R.xpPermille[skill] });
     }
   }
   for (const g of Object.values(S.grounds)) {
@@ -789,7 +789,7 @@ function trainingRows(S, groundRowsOut) {
     if (!g.train && mons.includes(dummy)) throw new Error(`ground ${g.id} fields the training dummy`);
     if (g.train && !rows.some((r) => r.hunt === g.hunt)) throw new Error(`ground ${g.id} trains and is no training row`);
   }
-  return { dummy, rules: { feeBase: R.feeBase, feePerLevel: R.feePerLevel, hpFloorPm: R.hpFloorPm, maxHours: R.maxHours, houseTier: home }, grounds: rows };
+  return { dummy, rules: { feeBase: R.feeBase, feePerLevel: R.feePerLevel, hpFloorPm: R.hpFloorPm, maxHours: R.maxHours, houseTier: home, houseTierId: R.houseTier }, grounds: rows };
 }
 
 export function render(src) {
@@ -818,7 +818,7 @@ export function render(src) {
   const resumableValues = r.resumable.map((k) => `  (${sq(k)})`).join(',\n');
   const endList = r.ends.map((e) => sq(e.r)).join(', ');
   const vendorValues = r.vendor.map((v) => `  (${sq(v.id)}, ${v.unit})`).join(',\n');
-  const trainValues = r.training.grounds.map((t) => `  (${sq(t.hunt)}, ${sq(t.place)}, ${sq(t.skill)}, ${t.fee}, ${t.pm})`).join(',\n');
+  const trainValues = r.training.grounds.map((t) => `  (${sq(t.hunt)}, ${sq(t.place)}, ${sq(t.skill)}, ${t.ord}, ${t.fee}, ${t.pm})`).join(',\n');
   const trainRule = r.training.rules;
   const callValues = r.bossCalls.map((c) => `  (${sq(c.id)}, ${sq(c.hunt)}, ${sq(c.from)}, ${sq(c.monster)}, ${c.fee}, ${c.perDay}, ${c.limitMs})`).join(',\n');
   const nLim = Object.keys(r.lim).length;
@@ -1271,12 +1271,14 @@ create table if not exists public.hr_training_rules (
   hp_floor_pm   int     not null check (hp_floor_pm between 1 and 999),
   max_hours     int     not null check (max_hours between 1 and 24),
   house_tier    int     not null check (house_tier >= 1),
+  house_tier_id text    not null check (house_tier_id ~ '^[a-z0-9_]{1,32}$'),
   constraint hr_training_rules_fee_ck check (fee_base + fee_per_level > 0)
 );
 create table if not exists public.hr_training_grounds (
   hunt_id     text    primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
   place       text    not null check (place in ('yard', 'house')),
   skill       text    not null check (skill ~ '^[a-z0-9_]{1,64}$'),
+  ord         int     not null check (ord >= 0),
   fee         boolean not null,
   xp_permille int     not null check (xp_permille between 1 and 1000),
   constraint hr_training_grounds_place_skill unique (place, skill),
@@ -1385,9 +1387,9 @@ insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, fee, 
 ${callValues};
 delete from public.hr_training_grounds;
 delete from public.hr_training_rules;
-insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier) values
-  (true, ${trainRule.feeBase}, ${trainRule.feePerLevel}, ${trainRule.hpFloorPm}, ${trainRule.maxHours}, ${trainRule.houseTier});
-insert into public.hr_training_grounds (hunt_id, place, skill, fee, xp_permille) values
+insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier, house_tier_id) values
+  (true, ${trainRule.feeBase}, ${trainRule.feePerLevel}, ${trainRule.hpFloorPm}, ${trainRule.maxHours}, ${trainRule.houseTier}, ${sq(trainRule.houseTierId)});
+insert into public.hr_training_grounds (hunt_id, place, skill, ord, fee, xp_permille) values
 ${trainValues};
 
 -- ── SELF-CHECK (CLAUDE.md §4): the rows the generator wrote, and nothing more ──

@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 1d5b13cad842739edd1c56877199e1c46e85ae6448a48451f77b17f7f8380521
+--   digest: 4f6bbab1a94a87572767fc36ccbb95f94ba953d8abc2d7a16a3dd944ef5f6cf3
 --   82 supplies, 138 hunts (named + training), 47 limits, 16 end reasons,
 --   559 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 21 abilities, 10 action-set options, 16 hunt grounds
@@ -441,12 +441,14 @@ create table if not exists public.hr_training_rules (
   hp_floor_pm   int     not null check (hp_floor_pm between 1 and 999),
   max_hours     int     not null check (max_hours between 1 and 24),
   house_tier    int     not null check (house_tier >= 1),
+  house_tier_id text    not null check (house_tier_id ~ '^[a-z0-9_]{1,32}$'),
   constraint hr_training_rules_fee_ck check (fee_base + fee_per_level > 0)
 );
 create table if not exists public.hr_training_grounds (
   hunt_id     text    primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
   place       text    not null check (place in ('yard', 'house')),
   skill       text    not null check (skill ~ '^[a-z0-9_]{1,64}$'),
+  ord         int     not null check (ord >= 0),
   fee         boolean not null,
   xp_permille int     not null check (xp_permille between 1 and 1000),
   constraint hr_training_grounds_place_skill unique (place, skill),
@@ -1790,17 +1792,17 @@ insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, fee, 
   ('rat_king', 'millrace_sewer_called', 'millrace_sewer', 'rat_king_called', 10000, 3, 600000);
 delete from public.hr_training_grounds;
 delete from public.hr_training_rules;
-insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier) values
-  (true, 50, 6, 500, 12, 1);
-insert into public.hr_training_grounds (hunt_id, place, skill, fee, xp_permille) values
-  ('training_house_melee', 'house', 'melee', false, 350),
-  ('training_house_ranged', 'house', 'ranged', false, 350),
-  ('training_house_magic', 'house', 'magic', false, 350),
-  ('training_house_defense', 'house', 'defense', false, 350),
-  ('training_yard_melee', 'yard', 'melee', true, 350),
-  ('training_yard_ranged', 'yard', 'ranged', true, 350),
-  ('training_yard_magic', 'yard', 'magic', true, 350),
-  ('training_yard_defense', 'yard', 'defense', true, 350);
+insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier, house_tier_id) values
+  (true, 50, 6, 500, 12, 1, 'homestead');
+insert into public.hr_training_grounds (hunt_id, place, skill, ord, fee, xp_permille) values
+  ('training_house_melee', 'house', 'melee', 0, false, 350),
+  ('training_house_ranged', 'house', 'ranged', 1, false, 350),
+  ('training_house_magic', 'house', 'magic', 2, false, 350),
+  ('training_house_defense', 'house', 'defense', 3, false, 350),
+  ('training_yard_melee', 'yard', 'melee', 0, true, 350),
+  ('training_yard_ranged', 'yard', 'ranged', 1, true, 350),
+  ('training_yard_magic', 'yard', 'magic', 2, true, 350),
+  ('training_yard_defense', 'yard', 'defense', 3, true, 350);
 
 -- ── SELF-CHECK (CLAUDE.md §4): the rows the generator wrote, and nothing more ──
 do $$

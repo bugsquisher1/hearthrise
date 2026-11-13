@@ -17,20 +17,26 @@
 -- A TRAINING SESSION IS A HUNT SESSION (CLAUDE.md §6: one engine) on a training ground, hr_training_grounds (place yard | house, skill
 --   melee | ranged | magic | defense), opened by ONE door and settled by the ONE instance settle, viewed or not.
 -- hr_training_start(p_slot, p_skill, p_where, p_fee_seen, p_idem) -> jsonb. Client verb (authenticated). Refusals, each charging nothing
---   and opening nothing: not_signed_in, bad_slot, bad_idem, bad_quote, training_unknown, rate_limited, training_party (a hero in a party:
---   training is solo), no_home (the house dummy wants the account's home at hr_training_rules.house_tier), dummy_locked (the skill is not
---   unlocked on the account's dummy), dummy_busy (another hero of the account is on it), quote_changed (the price the player saw is not
---   the server's), and every refusal of the start a hunt runs (hr_hunt_enter_for: hunt_open, activity_running, the play cap, ...), and
---   insufficient_gold. THE PRICE is re-quoted on the server clock: the yard, hr_training_fee(the trained skill's level now); the house, 0.
+--   and opening nothing: not_signed_in, bad_slot, bad_idem, bad_quote, bad_skill (no such skill or place), rate_limited, in_party (a hero
+--   in a party: training is solo), no_home (the house dummy wants the account's home at hr_training_rules.house_tier), not_owned (the
+--   skill is not unlocked on the account's dummy), dummy_busy (another hero of the account is on it; `busy` names it), quote_changed (the
+--   price the player saw is not the server's; `fee` is the server's), every refusal of the start a hunt runs (hr_hunt_enter_for:
+--   hunt_open, activity_running, the play cap, ...), and hr_apply's insufficient_gold (with `fee` and `purse`). THE PRICE is re-quoted
+--   on the server clock: the yard, hr_training_fee(the trained skill's level now); the house, 0.
 --   The yard opens the session with hours_limit 1 (the hour it just paid); the house with hr_training_rules.max_hours. The first hour's
 --   fee is ONE hr_apply on the caller's key, journalled kind `shop`, intent training_start:<hunt>:<price>, meta.reason training_fee: a
 --   replay answers once and charges once. Training opens on an EMPTY stamina pool (it spends none).
--- hr_house_dummy_buy(p_slot, p_skill, p_price, p_idem) -> jsonb. Client verb (authenticated). The account's ladder (hr_sink_rules
+-- hr_house_dummy_unlock(p_slot, p_skill, p_price, p_idem) -> jsonb. Client verb (authenticated). The account's ladder (hr_sink_rules
 --   house_dummy, the n-th unlock costs prices[n], 150k/250k/400k/600k), skills in the order the player picks them, one rung a skill, once.
---   Refusals: the shape ones, dummy_unknown, rate_limited, no_character, no_home, dummy_owned, dummy_max, quote_changed, insufficient_gold.
---   ONE hr_apply on the caller's key (kind shop, intent house_dummy:<skill>:<price>, meta.reason house_dummy), then ONE account_house_dummy row.
--- hr_training_view(p_slot) -> jsonb. Client read (authenticated): the yard's four quotes, the house's four, the house ladder (owned,
---   next price), the rules a panel shows. Never in the envelope: an idle hero costs no read.
+--   Refusals: the shape ones, bad_skill, rate_limited, no_character, no_home, already_owned, dummy_max, quote_changed (`price` the server's),
+--   insufficient_gold (with `price` and `purse`). ONE hr_apply on the caller's key (kind shop, intent house_dummy:<skill>:<price>,
+--   meta.reason house_dummy), then ONE account_house_dummy row.
+-- THE `training` SECTION of every envelope (hr_state_sections: hr_training_section, owner-only; its reader is src/session/training-sections.js):
+--   { skills: [the yard's skills, in the data's order], max_hours, quotes: [{ skill, level, fee_h, xp_h, hours_to_next }] (the yard's fee at
+--   the hero's level; xp_h and hours_to_next are the hero's OWN pace on its last session of that skill, null until one ran 10 minutes),
+--   run: { skill, where, since, fee_h, paid } | null (the open training session: `paid` the gold its fee rows took), last_stop: { reason,
+--   skill, at } | null (its last ended one), dummy: { needs (the property tier id), has_home, owned: [skill, in the order bought], ladder:
+--   [gold], next_price, busy (the name of the hero on it, or null) } }. Every envelope replaces it.
 -- THE SETTLE (hr_hunt_apply_member RESTATED, TRAINING arms only): a training window proposes no stamina (JSON null) and none is drained or
 --   stamped: the pool rests while the hero trains (hr_stamina_of from its last stamp). Before hr_apply writes a thing, hr_training_window
 --   refuses `training_pays` for anything a training window may not carry (an allowlist of delta keys; XP of the trained skill only; no
@@ -46,7 +52,7 @@
 --   It asks no Level gate: a dummy keeps pace with its hero.
 -- hr_hunt_enter_check SPLICED once: an empty stamina pool refuses a hunt, never a training session opened by its door.
 -- account_house_dummy (user_id, skill, price, bought_slot, bought_at), pk (user_id, skill): RLS on, the owner reads its own rows, no client
---   writes (only hr_house_dummy_buy, SECURITY DEFINER). The house dummy is ONE per account: hr_training_quote refuses a second hero
+--   writes (only hr_house_dummy_unlock, SECURITY DEFINER). The house dummy is ONE per account: hr_training_quote refuses a second hero
 --   (dummy_busy) under the account key hr:train:<uid>, which every training start takes first.
 --
 -- ── CONCURRENCY AND IDEMPOTENCY ───────────────────────────────────────────────
@@ -54,7 +60,7 @@
 --   play locks; then hr_apply takes the account purse. The settle takes the character then the purse: the same order, no cycle. Two starts
 --   on two heroes of one account serialise on hr:train and the second sees the first (dummy_busy). The key: hr_intent_replay first, the
 --   charge's hr_apply journals it (the free house start too: a journal-only apply), so a replay answers once and charges once.
--- hr_house_dummy_buy: the character (hr_hunt_lock), then hr:sink:<uid> (every account-scoped sink verb's key), then hr_apply: two heroes
+-- hr_house_dummy_unlock: the character (hr_hunt_lock), then hr:sink:<uid> (every account-scoped sink verb's key), then hr_apply: two heroes
 --   buying together read one count. Lock order hero -> hr:sink -> purse, as every sink verb.
 -- The hourly charge runs inside hr_hunt_apply_instance under the character's lock and the account purse's lock it took first: no new
 --   lock. Its idempotency is the window's: the settle's own key (a replayed window answers before any member lands) and the CAS on
@@ -96,7 +102,9 @@ begin
      or to_regprocedure('public.hr_account_property_tier(uuid)') is null or to_regprocedure('public.hr_sink_price(text,integer,integer)') is null
      or to_regprocedure('public.hr_sink_lock(uuid)') is null or to_regprocedure('public.hr_purse_of(uuid)') is null
      or to_regprocedure('public.hr_purse_move(uuid,bigint,bigint)') is null or to_regprocedure('public.hr_skill_level(text,bigint)') is null
-     or to_regprocedure('public.hr_hunt_close(uuid,text,timestamp with time zone,boolean)') is null then
+     or to_regprocedure('public.hr_hunt_close(uuid,text,timestamp with time zone,boolean)') is null
+     or to_regprocedure('public.hr_character_name(uuid,integer)') is null or to_regprocedure('public.hr_skill_xp_for_level(text,integer)') is null
+     or to_regclass('public.hr_state_sections') is null then
     raise exception 'PRECONDITION: a helper this file calls is missing'; end if;
   for v_r in select * from (values
     ('public.hr_hunt_admit(uuid,integer,text)', '3e9d29fe7ec468b037e0e98878afdb61', 'c6cff5f013d8a549567fd65413339052'),
@@ -120,7 +128,7 @@ create table if not exists public.account_house_dummy (
 );
 comment on table public.account_house_dummy is
   '2027-04-16-combat-training.sql (Tyler 2026-11-08): the combat skills an ACCOUNT has unlocked on its house training dummy, once each, in the '
-  'order its heroes bought them (hr_sink_rules house_dummy). Written ONLY by hr_house_dummy_buy under the account sink key; character wipe: the account''s rows go with it.';
+  'order its heroes bought them (hr_sink_rules house_dummy). Written ONLY by hr_house_dummy_unlock under the account sink key; character wipe: the account''s rows go with it.';
 alter table public.account_house_dummy enable row level security;
 revoke all on public.account_house_dummy from public, anon, authenticated, service_role;
 grant select on public.account_house_dummy to authenticated;
@@ -136,11 +144,11 @@ returns bigint language sql stable security definer set search_path = public, pg
 $fn$;
 
 -- THE QUOTE: training p_skill at p_place for this hero, as the server prices it now, or null for no such ground. `why` is the first
--- refusal (training_party, no_home, dummy_locked, dummy_busy) or null. Read under hr:train by the verb; read bare by the view.
+-- refusal (in_party, no_home, not_owned, dummy_busy) or null; `busy` the name of the hero on the dummy. Read under hr:train by the verb.
 create or replace function public.hr_training_quote(p_user uuid, p_slot int, p_skill text, p_place text)
 returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
 declare v_t public.hr_training_grounds%rowtype; v_r public.hr_training_rules%rowtype; v_lv int; v_price bigint; v_why text;
-  v_owned boolean := false; v_busy jsonb;
+  v_owned boolean := false; v_busy text;
 begin
   select * into v_t from public.hr_training_grounds where place = p_place and skill = p_skill;
   if not found then return null; end if;
@@ -152,14 +160,14 @@ begin
     v_owned := exists (select 1 from public.account_house_dummy d where d.user_id = p_user and d.skill = v_t.skill);
     -- ONE HERO ON THE DUMMY: another hero of the account training on any house ground holds it (this hero's own open session is
     -- hr_hunt_enter_for's hunt_open, said there).
-    select jsonb_build_object('slot', h.slot, 'hunt', h.hunt_id) into v_busy
+    select coalesce(public.hr_character_name(h.user_id, h.slot), 'slot ' || h.slot) into v_busy
       from public.hunt_sessions h join public.hr_training_grounds g on g.hunt_id = h.hunt_id and g.place = 'house'
      where h.user_id = p_user and h.slot <> p_slot and h.ended_at is null
      order by h.slot limit 1;
   end if;
-  v_why := case when public.hr_hunt_party_of(p_user, p_slot) is not null then 'training_party'
+  v_why := case when public.hr_hunt_party_of(p_user, p_slot) is not null then 'in_party'
                 when v_t.place = 'house' and public.hr_account_property_tier(p_user) < v_r.house_tier then 'no_home'
-                when v_t.place = 'house' and not v_owned then 'dummy_locked'
+                when v_t.place = 'house' and not v_owned then 'not_owned'
                 when v_t.place = 'house' and v_busy is not null then 'dummy_busy' end;
   return jsonb_build_object('hunt', v_t.hunt_id, 'place', v_t.place, 'skill', v_t.skill, 'level', v_lv, 'price', v_price,
                             'per_hour', v_t.fee, 'max_hours', v_r.max_hours, 'xp_permille', v_t.xp_permille,
@@ -258,7 +266,7 @@ begin
   if p_fee_seen is null or p_fee_seen < 0 or p_fee_seen > 1000000000 then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_quote')); end if;
   select * into v_t from public.hr_training_grounds where place = p_where and skill = p_skill;
-  if not found then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'training_unknown')); end if;
+  if not found then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_skill')); end if;
   v_verb := c_verb || ':' || v_t.hunt_id || ':' || p_fee_seen;
   v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);
   if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
@@ -266,11 +274,11 @@ begin
   -- THE ACCOUNT'S TRAINING KEY, first: a second start on any hero of this account waits here, then counts this one (dummy_busy).
   perform pg_advisory_xact_lock(hashtextextended('hr:train:' || v_uid::text, 0));
   v_q := public.hr_training_quote(v_uid, p_slot, p_skill, p_where);
-  if not (v_q->>'available')::boolean then
-    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', v_q->>'why', 'training', v_q)); end if;
   v_price := (v_q->>'price')::bigint;
+  if not (v_q->>'available')::boolean then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', v_q->>'why', 'fee', v_price, 'busy', v_q->'busy')); end if;
   if v_price <> p_fee_seen then
-    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'quote_changed', 'training', v_q)); end if;
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'quote_changed', 'fee', v_price)); end if;
   -- THE SESSION AND THE CHARGE TOGETHER: a start that can't pay rolls the session back out.
   begin
     perform set_config('hr.training', v_t.hunt_id, true);
@@ -288,22 +296,21 @@ begin
                                                                       'hunt', v_t.hunt_id, 'skill', v_t.skill, 'place', v_t.place,
                                                                       'level', (v_q->>'level')::int, 'hour', 1, 'fee', v_price, 'session', v_sid))));
     if coalesce(v_a->>'ok', 'false') <> 'true' then
-      v_no := v_a || jsonb_build_object('ok', false); raise exception using errcode = 'HR879', message = 'training_refused'; end if;
+      v_no := v_a || jsonb_build_object('ok', false, 'fee', v_price, 'purse', public.hr_purse_of(v_uid)); raise exception using errcode = 'HR879', message = 'training_refused'; end if;
   exception when sqlstate 'HR879' then
     perform set_config('hr.training', '', true);
     return public.hr_note_rejection(c_verb, p_slot, v_no);
   end;
-  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -v_price, 'session_id', v_sid, 'session', v_r->'session',
-                            'training', public.hr_training_quote(v_uid, p_slot, p_skill, p_where));
+  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -v_price, 'session_id', v_sid, 'session', v_r->'session');
 end $fn$;
 revoke execute on function public.hr_training_start(int, text, text, bigint, uuid) from public;
 revoke execute on function public.hr_training_start(int, text, text, bigint, uuid) from anon, service_role;
 grant  execute on function public.hr_training_start(int, text, text, bigint, uuid) to authenticated;
 
-create or replace function public.hr_house_dummy_buy(p_slot int, p_skill text, p_price bigint, p_idem uuid)
+create or replace function public.hr_house_dummy_unlock(p_slot int, p_skill text, p_price bigint, p_idem uuid)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare
-  c_verb constant text := 'house_dummy_buy';
+  c_verb constant text := 'house_dummy_unlock';
   v_uid uuid := auth.uid(); v_r jsonb; v_verb text; v_ver bigint; v_bought int; v_price bigint; v_a jsonb;
 begin
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
@@ -312,7 +319,7 @@ begin
   if p_price is null or p_price < 1 or p_price > 1000000000 then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_quote')); end if;
   if not exists (select 1 from public.hr_training_grounds where place = 'house' and skill = p_skill) then
-    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'dummy_unknown')); end if;
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_skill')); end if;
   -- The rungs climb (tools/gen-gold-sinks.mjs refuses a ladder that doesn't), so the price names the rung, and a key can't buy two.
   v_verb := 'house_dummy:' || p_skill || ':' || p_price;
   v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);
@@ -324,58 +331,89 @@ begin
   -- THE ACCOUNT'S SINK KEY, after the hero's lock and before hr_apply (2027-02-27-gold-sinks-seams.sql): two heroes read one count.
   perform public.hr_sink_lock(v_uid);
   if public.hr_account_property_tier(v_uid) < (select r.house_tier from public.hr_training_rules r where r.id) then
-    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_home', 'training', public.hr_training_house_of(v_uid))); end if;
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_home')); end if;
   if exists (select 1 from public.account_house_dummy d where d.user_id = v_uid and d.skill = p_skill) then
-    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'dummy_owned', 'training', public.hr_training_house_of(v_uid))); end if;
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'already_owned')); end if;
   -- THE QUOTE, under the locks, from the server's row: never the client's number.
   v_bought := (select count(*) from public.account_house_dummy d where d.user_id = v_uid)::int;
   v_price := public.hr_sink_price('house_dummy', v_bought);
   if v_price is null then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'dummy_max')); end if;
   if v_price <> p_price then
-    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'quote_changed', 'training', public.hr_training_house_of(v_uid))); end if;
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'quote_changed', 'price', v_price)); end if;
   v_a := public.hr_apply(v_uid, p_slot, v_ver, p_idem, jsonb_build_object(
            'gold', -p_price,
            'journal', jsonb_build_object('kind', 'shop', 'intent', v_verb,
                                          'meta', jsonb_build_object('reason', 'house_dummy', 'skill', p_skill, 'rung', v_bought + 1))));
   if coalesce(v_a->>'ok', 'false') <> 'true' then
-    return public.hr_note_rejection(c_verb, p_slot, v_a || jsonb_build_object('ok', false)); end if;
+    return public.hr_note_rejection(c_verb, p_slot, v_a || jsonb_build_object('ok', false, 'price', v_price, 'purse', public.hr_purse_of(v_uid))); end if;
   insert into public.account_house_dummy (user_id, skill, price, bought_slot, bought_at) values (v_uid, p_skill, p_price, p_slot, now());
-  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price, 'training', public.hr_training_house_of(v_uid));
+  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price);
 end $fn$;
-revoke execute on function public.hr_house_dummy_buy(int, text, bigint, uuid) from public;
-revoke execute on function public.hr_house_dummy_buy(int, text, bigint, uuid) from anon, service_role;
-grant  execute on function public.hr_house_dummy_buy(int, text, bigint, uuid) to authenticated;
+revoke execute on function public.hr_house_dummy_unlock(int, text, bigint, uuid) from public;
+revoke execute on function public.hr_house_dummy_unlock(int, text, bigint, uuid) from anon, service_role;
+grant  execute on function public.hr_house_dummy_unlock(int, text, bigint, uuid) to authenticated;
 
--- THE HOUSE'S LADDER for an account: its home, what it owns in the order bought, and the next rung's price (null past the top).
-create or replace function public.hr_training_house_of(p_user uuid)
-returns jsonb language sql stable security definer set search_path = public, pg_catalog as $fn$
-  select jsonb_build_object(
-    'home', public.hr_account_property_tier(p_user) >= (select r.house_tier from public.hr_training_rules r where r.id),
-    'owned', coalesce((select jsonb_agg(d.skill order by d.bought_at, d.skill) from public.account_house_dummy d where d.user_id = p_user), '[]'::jsonb),
-    'next_price', public.hr_sink_price('house_dummy', (select count(*) from public.account_house_dummy d where d.user_id = p_user)::int),
-    'ladder', to_jsonb((select s.prices from public.hr_sink_rules s where s.sink_id = 'house_dummy')))
-$fn$;
-revoke execute on function public.hr_training_house_of(uuid) from public, anon, authenticated, service_role;
-
-create or replace function public.hr_training_view(p_slot int)
-returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
-declare v_uid uuid := auth.uid(); v_r public.hr_training_rules%rowtype;
+-- ── §3b THE `training` SECTION (every envelope; src/session/training-sections.js reads it field by field) ──
+-- Owner-only: hr_state_sections_of calls it with the character's own (user, slot). Reads only: a few indexed rows of this hero and account.
+create or replace function public.hr_training_section(p_user uuid, p_slot int)
+returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
+declare v_r public.hr_training_rules%rowtype; v_run jsonb; v_last jsonb; v_quotes jsonb; v_skills jsonb; v_dummy jsonb; v_busy text; v_bought int;
+  v_s record;
 begin
-  if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
-  if p_slot is null or p_slot < 0 or p_slot > 5 then return jsonb_build_object('ok', false, 'error', 'bad_slot'); end if;
-  if not exists (select 1 from public.player_state ps where ps.user_id = v_uid and ps.slot = p_slot) then return jsonb_build_object('ok', false, 'error', 'no_character'); end if;
-  if not public.hr_rpc_gate('hunt') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
   select * into v_r from public.hr_training_rules where id;
-  return jsonb_build_object('ok', true,
-    'yard', coalesce((select jsonb_agg(public.hr_training_quote(v_uid, p_slot, t.skill, t.place) order by t.hunt_id) from public.hr_training_grounds t where t.place = 'yard'), '[]'::jsonb),
-    'house', coalesce((select jsonb_agg(public.hr_training_quote(v_uid, p_slot, t.skill, t.place) order by t.hunt_id) from public.hr_training_grounds t where t.place = 'house'), '[]'::jsonb),
-    'dummy', public.hr_training_house_of(v_uid),
-    'rules', jsonb_build_object('fee_base', v_r.fee_base, 'fee_per_level', v_r.fee_per_level, 'max_hours', v_r.max_hours, 'hp_floor_pm', v_r.hp_floor_pm));
+  if not found then return null; end if;
+  -- THE YARD'S QUOTES, in the data's order: the fee at the hero's level now, and the hero's OWN pace on its last session of that skill
+  -- (yard or house: the same rate), once that session ran ten minutes (the analyzer's rate window); else null.
+  select coalesce(jsonb_agg(q.skill order by q.ord), '[]'::jsonb),
+         coalesce(jsonb_agg(jsonb_build_object('skill', q.skill, 'level', q.lv, 'fee_h', public.hr_training_fee(q.lv), 'xp_h', q.xp_h,
+                     'hours_to_next', case when q.xp_h > 0 then ceil(greatest(0, public.hr_skill_xp_for_level(q.skill, q.lv + 1) - q.xp)::numeric / q.xp_h)::int end)
+                   order by q.ord), '[]'::jsonb)
+    into v_skills, v_quotes
+    from (select g.skill, g.ord, x.xp, public.hr_skill_level(g.skill, x.xp) as lv,
+                 (select case when t.paid_ms >= 600000 then floor(coalesce((t.xp->>g.skill)::numeric, 0) * 3600000 / t.paid_ms)::bigint end
+                    from public.hunt_sessions h
+                    join public.hr_training_grounds tg on tg.hunt_id = h.hunt_id and tg.skill = g.skill
+                    join public.hunt_session_tally t on t.session_id = h.id
+                   where h.user_id = p_user and h.slot = p_slot
+                   order by h.entered_at desc limit 1) as xp_h
+            from public.hr_training_grounds g
+            cross join lateral (select coalesce((select ps.xp from public.player_skills ps
+                                                  where ps.user_id = p_user and ps.slot = p_slot and ps.skill_id = g.skill), 0) as xp) x
+           where g.place = 'yard') q;
+  -- THE RUN: this hero's open training session, its hourly price now and the gold its fee rows took (the session named in their meta).
+  select h.id, h.entered_at, h.hunt_from, g.skill, g.place, g.fee into v_s
+    from public.hunt_sessions h join public.hr_training_grounds g on g.hunt_id = h.hunt_id
+   where h.user_id = p_user and h.slot = p_slot and h.ended_at is null;
+  if found then
+    v_run := jsonb_build_object('skill', v_s.skill, 'where', v_s.place, 'since', v_s.hunt_from,
+      'fee_h', case when v_s.fee then (select (q->>'fee_h')::bigint from jsonb_array_elements(v_quotes) q where q->>'skill' = v_s.skill) else 0 end,
+      'paid', coalesce((select -sum(l.gold) from public.player_ledger l
+                         where l.user_id = p_user and l.slot = p_slot and l.at >= v_s.entered_at and l.kind = 'shop'
+                           and l.intent like 'training\_%' and l.meta->>'session' = v_s.id::text), 0));
+  end if;
+  -- THE LAST STOP: its last ended training session, why and when.
+  select jsonb_build_object('reason', h.end_reason, 'skill', g.skill, 'at', h.ended_at) into v_last
+    from public.hunt_sessions h join public.hr_training_grounds g on g.hunt_id = h.hunt_id
+   where h.user_id = p_user and h.slot = p_slot and h.ended_at is not null
+   order by h.ended_at desc limit 1;
+  -- THE ACCOUNT'S DUMMY: the home it needs, the skills bought in order, the ladder and the next rung, and the hero on it now, by name.
+  select coalesce(public.hr_character_name(h.user_id, h.slot), 'slot ' || h.slot) into v_busy
+    from public.hunt_sessions h join public.hr_training_grounds g on g.hunt_id = h.hunt_id and g.place = 'house'
+   where h.user_id = p_user and h.ended_at is null order by h.slot limit 1;
+  v_bought := (select count(*) from public.account_house_dummy d where d.user_id = p_user)::int;
+  v_dummy := jsonb_build_object('needs', v_r.house_tier_id,
+    'has_home', public.hr_account_property_tier(p_user) >= v_r.house_tier,
+    'owned', coalesce((select jsonb_agg(d.skill order by d.bought_at, d.price) from public.account_house_dummy d where d.user_id = p_user), '[]'::jsonb),
+    'ladder', coalesce(to_jsonb((select s.prices from public.hr_sink_rules s where s.sink_id = 'house_dummy')), '[]'::jsonb),
+    'next_price', public.hr_sink_price('house_dummy', v_bought),
+    'busy', v_busy);
+  return jsonb_build_object('skills', v_skills, 'max_hours', v_r.max_hours, 'quotes', v_quotes, 'run', v_run, 'last_stop', v_last, 'dummy', v_dummy);
 end $fn$;
-revoke execute on function public.hr_training_view(int) from public;
-revoke execute on function public.hr_training_view(int) from anon, service_role;
-grant  execute on function public.hr_training_view(int) to authenticated;
+revoke execute on function public.hr_training_section(uuid, int) from public, anon, authenticated, service_role;
+insert into public.hr_state_sections (key, fn, note) values
+  ('training', 'hr_training_section', '2027-04-16-combat-training.sql: combat training for this hero: the yard''s skills, fee and own pace, the open session and its paid gold, the last stop, the account''s house dummy (src/session/training-sections.js)')
+  on conflict (key) do update set fn = excluded.fn, note = excluded.note;
 
 -- ── §4 THE ONE DOOR (hr_hunt_admit, RESTATED: 2027-03-12-boss-call.sql's image with the TRAINING arm, every other line verbatim) ─
 CREATE OR REPLACE FUNCTION public.hr_hunt_admit(p_user uuid, p_slot integer, p_hunt text)
@@ -943,14 +981,12 @@ begin
 end $function$;
 
 -- ── §6 THE CLIENT BASELINE ───────────────────────────────────────────────────
-delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname in ('hr_training_start', 'hr_house_dummy_buy', 'hr_training_view');
+delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname in ('hr_training_start', 'hr_house_dummy_unlock');
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
   ('hr_training_start', 'p_slot integer, p_skill text, p_where text, p_fee_seen bigint, p_idem uuid', 'authenticated',
    'added 2027-04-16 (lane/c-combat-training): MONEY (an hourly gold sink) - opens a training session on the one engine; the yard re-quotes its first hour on the server clock and charges it, refuses quote_changed; the house dummy needs its unlock and holds one hero an account; pre-EA Security list'),
-  ('hr_house_dummy_buy', 'p_slot integer, p_skill text, p_price bigint, p_idem uuid', 'authenticated',
-   'added 2027-04-16 (lane/c-combat-training): MONEY (a one-time gold sink) - unlocks one combat skill on the account''s house dummy at the next rung of hr_sink_rules house_dummy; refuses quote_changed; pre-EA Security list'),
-  ('hr_training_view', 'p_slot integer', 'authenticated',
-   'added 2027-04-16 (lane/c-combat-training): the Training panel''s read: the yard and house quotes, the dummy ladder; moves no value')
+  ('hr_house_dummy_unlock', 'p_slot integer, p_skill text, p_price bigint, p_idem uuid', 'authenticated',
+   'added 2027-04-16 (lane/c-combat-training): MONEY (a one-time gold sink) - unlocks one combat skill on the account''s house dummy at the next rung of hr_sink_rules house_dummy; refuses quote_changed; pre-EA Security list')
   on conflict (proname, identity_args, grantee) do update set note = excluded.note;
 
 -- ── §7 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
@@ -962,13 +998,15 @@ declare
   v jsonb; v_s text; v_q jsonb; v_r public.hr_training_rules%rowtype; v_lv int; v_fee bigint; v_sid uuid; v_from timestamptz;
   v_hunt text; v_g bigint; v_ladder bigint[]; v_i int; v_role text;
 begin
-  -- (a) THE SHAPE: a signed-in client calls the three verbs, nobody else; the helpers are owner-only; the restated bodies carry their
-  --     arms; the account table is read-own, written by nobody; hygiene STRICT is green.
-  foreach v_s in array array['public.hr_training_start(integer,text,text,bigint,uuid)', 'public.hr_house_dummy_buy(integer,text,bigint,uuid)', 'public.hr_training_view(integer)'] loop
+  -- (a) THE SHAPE: a signed-in client calls the two verbs, nobody else; the helpers and the section are owner-only; the section is
+  --     registered; the restated bodies carry their arms; the account table is read-own, written by nobody; hygiene STRICT is green.
+  foreach v_s in array array['public.hr_training_start(integer,text,text,bigint,uuid)', 'public.hr_house_dummy_unlock(integer,text,bigint,uuid)'] loop
     if has_function_privilege('anon', v_s, 'execute') or has_function_privilege('service_role', v_s, 'execute') or not has_function_privilege('authenticated', v_s, 'execute') then
       raise exception 'combat-training §7(a): the grants on % are wrong', v_s; end if;
   end loop;
-  foreach v_s in array array['public.hr_training_fee(integer)', 'public.hr_training_quote(uuid,integer,text,text)', 'public.hr_training_house_of(uuid)',
+  if not exists (select 1 from public.hr_state_sections where key = 'training' and fn = 'hr_training_section') then
+    raise exception 'combat-training §7(a): the training section is not registered'; end if;
+  foreach v_s in array array['public.hr_training_fee(integer)', 'public.hr_training_quote(uuid,integer,text,text)', 'public.hr_training_section(uuid,integer)',
                              'public.hr_training_window(uuid,integer,text,timestamp with time zone,timestamp with time zone,jsonb)',
                              'public.hr_training_hour(uuid,integer,uuid,timestamp with time zone,bigint,bigint,jsonb)'] loop
     if has_function_privilege('authenticated', v_s, 'execute') or has_function_privilege('anon', v_s, 'execute') then
@@ -1080,6 +1118,14 @@ begin
     if (select count(*) from public.player_ledger where user_id = c_a and kind = 'shop' and intent = 'training_fee:training_yard_melee:2' and gold = -v_fee
           and session_id is null and meta->>'session' = v_sid::text and gold_kind = 'shop' and meta->>'reason' = 'training_fee' and (meta->>'hour')::int = 2) <> 1 then
       raise exception 'combat-training §7(h): not one hourly fee row'; end if;
+    -- (h2) THE SECTION, in the envelope: the yard's quote at the catalogue's price, the run on the yard with both hours' gold, no stop yet.
+    v := (public.hr_state_of(c_a, 0))->'training';
+    if v->'skills' <> '["melee", "ranged", "magic", "defense"]'::jsonb or (v->>'max_hours')::int <> v_r.max_hours
+       or (select (q->>'fee_h')::bigint from jsonb_array_elements(v->'quotes') q where q->>'skill' = 'melee') <> v_fee
+       or v->'run'->>'skill' <> 'melee' or v->'run'->>'where' <> 'yard' or (v->'run'->>'paid')::bigint <> 2 * v_fee or (v->'run'->>'fee_h')::bigint <> v_fee
+       or jsonb_typeof(v->'last_stop') <> 'null' or v->'dummy'->>'needs' is null or (v->'dummy'->>'has_home')::boolean
+       or (v->'dummy'->>'next_price')::bigint <> 150000 or v->'dummy'->'ladder' <> to_jsonb(v_ladder) then
+      raise exception 'combat-training §7(h2): the section reads %', v; end if;
     -- (i) A PURSE THAT CAN'T PAY THE NEXT HOUR ends the session gold_out at that hour's first instant, nothing charged. A window's own store
     --     bill and floor come off first: a purse that pays the fee alone but not the bill and the floor with it ends too.
     update public.account_wallet set gold = v_fee + 20 where user_id = c_a;
@@ -1094,7 +1140,7 @@ begin
     update public.account_wallet set gold = 2000000 where user_id = c_a;
     perform set_config('request.jwt.claim.sub', c_a::text, true);
     delete from public.hr_rate_counters where user_id = c_a;
-    v := public.hr_house_dummy_buy(0, 'melee', 150000, (k || '00000010')::uuid);
+    v := public.hr_house_dummy_unlock(0, 'melee', 150000, (k || '00000010')::uuid);
     if v->>'error' is distinct from 'no_home' then raise exception 'combat-training §7(j): a homeless buy answered %', v; end if;
     perform set_config('request.jwt.claim.sub', '', true);
     insert into public.player_progress (user_id, slot, kind, key, period_key, value, updated_at)
@@ -1106,10 +1152,10 @@ begin
     v_g := 2000000;
     for v_i in 1 .. 4 loop
       delete from public.hr_rate_counters where user_id = c_a;
-      v := public.hr_house_dummy_buy(0, (array['ranged', 'melee', 'defense', 'magic'])[v_i], v_ladder[v_i] + 1, (k || '0000002' || v_i)::uuid);
+      v := public.hr_house_dummy_unlock(0, (array['ranged', 'melee', 'defense', 'magic'])[v_i], v_ladder[v_i] + 1, (k || '0000002' || v_i)::uuid);
       if v->>'error' is distinct from 'quote_changed' then raise exception 'combat-training §7(j): a forged rung % answered %', v_i, v; end if;
       delete from public.hr_rate_counters where user_id = c_a;
-      v := public.hr_house_dummy_buy(0, (array['ranged', 'melee', 'defense', 'magic'])[v_i], v_ladder[v_i], (k || '0000003' || v_i)::uuid);
+      v := public.hr_house_dummy_unlock(0, (array['ranged', 'melee', 'defense', 'magic'])[v_i], v_ladder[v_i], (k || '0000003' || v_i)::uuid);
       v_g := v_g - v_ladder[v_i];
       if coalesce(v->>'ok', '') <> 'true' or (select gold from public.account_wallet where user_id = c_a) <> v_g then
         raise exception 'combat-training §7(j): rung % answered %, purse %', v_i, v, (select gold from public.account_wallet where user_id = c_a); end if;
@@ -1118,8 +1164,8 @@ begin
        or (select count(*) from public.account_house_dummy where user_id = c_a) <> 4 then
       raise exception 'combat-training §7(j): not four unlock rows'; end if;
     delete from public.hr_rate_counters where user_id = c_a;
-    v := public.hr_house_dummy_buy(0, 'melee', 150000, (k || '00000040')::uuid);
-    if v->>'error' is distinct from 'dummy_owned' then raise exception 'combat-training §7(j): a second melee unlock answered %', v; end if;
+    v := public.hr_house_dummy_unlock(0, 'melee', 150000, (k || '00000040')::uuid);
+    if v->>'error' is distinct from 'already_owned' then raise exception 'combat-training §7(j): a second melee unlock answered %', v; end if;
     delete from public.hr_rate_counters where user_id = c_a;
     v := public.hr_training_start(1, 'ranged', 'house', 0, (k || '00000041')::uuid);
     if coalesce(v->>'ok', '') <> 'true'
@@ -1128,14 +1174,20 @@ begin
       raise exception 'combat-training §7(j): the house start answered %', v; end if;
     delete from public.hr_rate_counters where user_id = c_a;
     v := public.hr_training_start(0, 'melee', 'house', 0, (k || '00000042')::uuid);
-    if v->>'error' is distinct from 'dummy_busy' then raise exception 'combat-training §7(j): a second hero on the dummy answered %', v; end if;
+    if v->>'error' is distinct from 'dummy_busy' or v->>'busy' is null then raise exception 'combat-training §7(j): a second hero on the dummy answered %', v; end if;
+    -- (j2) THE SECTION's dummy: owned in the order bought, nothing left to buy, the hero on it named; the first hero's last stop is its gold_out.
+    v := (public.hr_state_of(c_a, 0))->'training';
+    if v->'dummy'->'owned' <> '["ranged", "melee", "defense", "magic"]'::jsonb or jsonb_typeof(v->'dummy'->'next_price') <> 'null'
+       or not (v->'dummy'->>'has_home')::boolean or v->'dummy'->>'busy' is null or jsonb_typeof(v->'run') <> 'null'
+       or v->'last_stop'->>'reason' <> 'gold_out' or v->'last_stop'->>'skill' <> 'melee' then
+      raise exception 'combat-training §7(j2): the section reads %', v; end if;
     perform set_config('request.jwt.claim.sub', '', true);
     perform public.hr_party_open(c_b, 0);
     update public.account_wallet set gold = 100000 where user_id = c_b;
     perform set_config('request.jwt.claim.sub', c_b::text, true);
     delete from public.hr_rate_counters where user_id = c_b;
     v := public.hr_training_start(0, 'melee', 'yard', public.hr_training_fee(public.hr_skill_level('melee', coalesce((select xp from public.player_skills where user_id = c_b and slot = 0 and skill_id = 'melee'), 0))), (k || '00000050')::uuid);
-    if v->>'error' is distinct from 'training_party' then raise exception 'combat-training §7(j): a hero in a party answered %', v; end if;
+    if v->>'error' is distinct from 'in_party' then raise exception 'combat-training §7(j): a hero in a party answered %', v; end if;
     -- (k) NO LEVEL XP: a training window's whole delta reaches the trained skill only (the settle's own check, once more through the verb's ground).
     begin
       perform public.hr_training_window(c_a, 1, 'training_house_ranged', now() - interval '10 seconds', now(), '{"journal":{"meta":{"kills":0}},"level_xp":5,"xp":{"ranged":3}}'::jsonb);

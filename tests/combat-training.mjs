@@ -207,7 +207,7 @@ const MUTANTS = [
   { name: 'any weapon trains the skill', edits: [['src/core/hunt/training.js', ' && FAMILY_SKILL[m.family] === skill) {', ') {']], want: /CT-SHARE|CT-PAY/ },
   { name: 'a hit taken trains any skill', edits: [['src/core/hunt/training.js', "        if (skill === 'defense' && ev.dot !== true) pay(", "        if (ev.dot !== true) pay("]], want: /CT-SHARE|CT-PAY/ },
   { name: 'a pick fills the yard', edits: [['src/core/combat-sim.js', 'const pickOf = (ms) => (train || play.normalOf(tierPick(ms)) ? 0 : picker(ms));', 'const pickOf = (ms) => (play.normalOf(tierPick(ms)) ? 0 : picker(ms));']], want: /CT-PICK/ },
-  { name: 'the dummy walks', edits: [['src/data/monsters.js', '  if (row && row.dummy === true) return 0;\n', '']], want: /CT-ROW/ },
+  { name: 'the dummy walks', edits: [['src/data/monsters.js', '  if (row && row.dummy === true) return 0;   // a training', '  // a training']], want: /CT-ROW/ },
   { name: 'the Bestiary counts the dummy', edits: [['src/data/bestiary.js', '    if (m.dummy === true) continue;\n', '']], want: /CT-ROW/ },
   { name: 'the yard stops past its last hour', edits: [['src/core/hunt/training.js', ' || hours >= TRAINING_RULES.maxHours', '']], want: /CT-STOP/ },
   { name: 'the yard never stops', edits: [['src/core/hunt/training.js', '  return stop > Math.floor(Number(fromMs)) ? stop : Infinity;', '  return Infinity;']], want: /CT-STOP/ },

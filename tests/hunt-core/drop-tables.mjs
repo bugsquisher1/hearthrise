@@ -785,8 +785,13 @@ const playMutants = [
   /* The Sewer's coin cut to under half (armour weights, ruling K7, left the ladder-kit Melee +119% at the floor,
      so the old /1.8 coin clears +25% by a hair; lane b-spell-roles' Bronze-Rimmed Shield took the floor tank to +159%,
      so /2.2 clears it too, about +32%: the floor still bites at /2.6, about +16%). */
-  { name: 'the Glade\'s coin cut to a third (its thin floor no longer pays its way)', rule: 'profit-floor: mosslight_glade', edit: (ms) => {
+  /* Since the median-way judge (Tyler 11-12, lane/d-drop-tables-median) the Glade's coin /3 leaves the median lone way over +25% (the casters' bills are
+     small), so that cut is gear-faucet's catch (its gear then sells over half the coin) and the profit floor bites at a tenth. */
+  { name: 'the Glade\'s coin cut to a third (its gear outsells its coin)', rule: 'gear-faucet: mosslight_glade', edit: (ms) => {
     for (const id of ['carrion_crow', 'glade_poacher', 'walking_vine', 'goblin_sluicer', 'rook_poacher', 'brook_bear']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 3)));
+  } },
+  { name: 'the Glade\'s coin cut to a tenth (its median way no longer pays its way)', rule: 'profit-floor: mosslight_glade', edit: (ms) => {
+    for (const id of ['carrion_crow', 'glade_poacher', 'walking_vine', 'goblin_sluicer', 'rook_poacher', 'brook_bear']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 10)));
   } },
   { name: 'the Sewer coin cut to a sixth (re-aimed from 1/2.6 when the gentle blow cap cut the floor tank\'s bill to 628 g an hour)', rule: 'profit-floor: millrace_sewer', edit: (ms) => {
     for (const id of ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 6)));

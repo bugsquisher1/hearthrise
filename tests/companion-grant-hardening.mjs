@@ -417,9 +417,32 @@ async function armLastToucher() {
    timed-out connection, a re-run to confirm — and nothing else exercises it,
    because a fresh chain always meets the FIRST branch. */
 async function armRerun(db) {
+  const SIG = 'public.hr_companion_grant(integer,text,text,uuid)';
+  const authX = async () => (await db.query(`select has_function_privilege('authenticated', '${SIG}', 'execute') as x`)).rows[0].x;
+  /* THE REVOKED WORLD (2027-04-19-key-under-lock.sql §2 took the grant from authenticated, with its baseline row). A re-run of this
+     file over it would hand the grant back; its own §3(b) refuses an ACL it would move, so the retry fails closed and the revoke
+     stands. "SAFE TO RE-RUN" is then judged over the grant the file itself wrote, put back for the retry and taken away after. */
+  const revoked = !(await authX());
+  if (revoked) {
+    let back = null;
+    try { await db.exec(`begin;\n${await mig(FIX)}\ncommit;`); }
+    catch (e) { await db.exec('rollback').catch(() => {}); back = String(e.message || e).split('\n')[0]; }
+    const after = await authX();
+    ok('rerun/keeps-the-revoke', !after && back !== null && /ACL MOVED/.test(back),
+      `re-running ${FIX} over the revoked grant ${back ? 'answered ' + back.slice(0, 160) : 'APPLIED'} and left authenticated `
+      + `${after ? 'ABLE' : 'unable'} to execute hr_companion_grant: a retry of an applied file must never undo a later revoke`);
+    await db.exec(`grant execute on function ${SIG} to authenticated;
+      insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note)
+        values ('hr_companion_grant', pg_get_function_identity_arguments('${SIG}'::regprocedure), 'authenticated',
+                'tests/companion-grant-hardening.mjs armRerun: the file''s own world, for its retry only');`);
+  }
   let err = null;
   try { await db.exec(`begin;\n${await mig(FIX)}\ncommit;`); }
   catch (e) { await db.exec('rollback').catch(() => {}); err = String(e.message || e).split('\n')[0]; }
+  if (revoked) {
+    await db.exec(`revoke execute on function ${SIG} from authenticated;
+      delete from public.hr_client_rpc_baseline where proname = 'hr_companion_grant';`);
+  }
   ok('rerun/idempotent', err === null,
     `applying ${FIX} a SECOND time failed: ${err}. The header says SAFE TO RE-RUN and the `
     + 'Coordinator applies by hand; a file that refuses its own output turns a retry into an '

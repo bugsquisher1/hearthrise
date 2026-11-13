@@ -102,5 +102,12 @@ check(JSON.stringify(L) === JSON.stringify([{ offset: 'under3', level: 2 }, { of
   'levels: band 5-15 plays 2, 3, 5, 15 (no Level 0, floor+10 is the top) ' + JSON.stringify(L));
 check(levelsOf([1, 5], ['floor', 'plus10']).some((x) => x.offset === 'above' && x.level === 11), 'levels: floor+10 past the top reads above');
 
+/* lone-window (lane/d-live-grounds-2): a lone cell's HP trace is read at the live settle cadence. At 120 s cell.mjs spread a window's regeneration evenly
+   and read phantom dips under 25% (a fresh Thicket melee 1.5-3.5 in 12 h, a Glade Ranger about 6) on fights that read 0 at 10 s with the same XP and gold. */
+const { buildGrid } = await import('../tools/balance-sim/grade.mjs');
+const grid = await buildGrid(ROOT, 'full', { grounds: ['meadowbrook_thicket'] });
+const loneJobs = grid.filter((j) => j.party.length === 1), slow = loneJobs.filter((j) => !(j.windowMs <= 10000));
+check(loneJobs.length > 0 && slow.length === 0, 'lone-window: every lone cell (' + loneJobs.length + ', the fresh hero included) reads its HP at 10 s' + (slow.length ? ' (' + slow.length + ' at ' + slow[0].windowMs + ' ms, e.g. ' + slow[0].id + ')' : ''));
+
 if (fails.length) { console.error('balance-grade: ' + fails.length + ' FAILED'); process.exit(1); }
 console.log('balance-grade: all checks pass');

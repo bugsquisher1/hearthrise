@@ -58,7 +58,14 @@ export function levelsOf(band, offsets) {
 const dice = (mode, size, tier, offset) => (mode === 'quick' ? { seeds: 1, hours: 1 }
   : size === 1 ? (tier === 'normal' && IN_RANGE.includes(offset) ? { seeds: 6, hours: 4 } : { seeds: 4, hours: 2 }) : { seeds: 2, hours: 2 });
 
-/** Every job of a mode: { id, ground, party, level, density, hours, seeds, options, windowMs, whatIf, grade: { ground, tier, offset, size, comp } }. */
+/** THE SETTLE CUT a cell is read in (the engine's fight is the same at any cut, TICK-1; only the HP TRACE between cuts is estimated). A lone hero's
+    close calls and low points come from that trace (cell.mjs spreads a window's regeneration evenly, so regeneration lost at full HP early in a long
+    window shows as HP missing late in it): at 120 s a fresh Thicket melee read 1.5-3.5 dips under 25% in 12 h and a Glade Ranger about 6, on fights
+    that read 0 at 10 s, the live settle cadence, with the same XP and gold to the unit (lane/d-live-grounds-2). So a lone cell reads at 10 s; a
+    party, whose dips no rule judges (its lines read deaths, XP and gold, all the engine's own), keeps 120 s, which it pays for per cut. */
+export const windowFor = (size) => (size === 1 ? 10000 : 120000);
+
+/** Every job of a mode:{ id, ground, party, level, density, hours, seeds, options, windowMs, whatIf, grade: { ground, tier, offset, size, comp } }. */
 export async function buildGrid(root, mode, opts = {}) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   const G = await import(u('src/data/hunt-grounds.js'));
@@ -74,13 +81,13 @@ export async function buildGrid(root, mode, opts = {}) {
         const n = Number(size), pull = tier === 'normal' ? 0 : row.pull[n - 1], { seeds, hours } = dice(mode, n, tier, offset);
         const id = ['grade', 'g=' + g.id, 't=' + tier, 'o=' + offset, 'p=' + comp.join('+'), 'L=' + level, 's=' + seeds, 'h=' + hours].join(',') + tag;
         jobs.push({ id, ground: g.id, party: comp, level, ...(pull ? { density: pull } : {}), hours, seeds, ...(tier === 'normal' ? {} : { options: { tier } }),
-          windowMs: 120000, ...(wi ? { whatIf: wi } : {}), grade: { ground: g.id, band, groupFit: fitOf(g), tier, offset, size: n, comp: comp.join('+'), gear: 'ladder' } });
+          windowMs: windowFor(n), ...(wi ? { whatIf: wi } : {}), grade: { ground: g.id, band, groupFit: fitOf(g), tier, offset, size: n, comp: comp.join('+'), gear: 'ladder' } });
       }
       /* THE FRESH HERO (first-week bars): the practice set alone at a first-day solo floor (Level 15 or under), Normal, every way */
       if (tier === 'normal' && band[0] <= 15 && fitOf(g) === 'solo') for (const [s] of COMPS[mode][1]) {
         const { seeds, hours } = dice(mode, 1, tier, 'floor');
         const id = ['grade', 'g=' + g.id, 't=normal', 'o=floor', 'p=' + s, 'L=' + band[0], 'gear=practice', 's=' + seeds, 'h=' + hours].join(',') + tag;
-        jobs.push({ id, ground: g.id, party: [s], level: band[0], gear: { starter: true }, hours, seeds, windowMs: 120000, ...(wi ? { whatIf: wi } : {}),
+        jobs.push({ id, ground: g.id, party: [s], level: band[0], gear: { starter: true }, hours, seeds, windowMs: windowFor(1), ...(wi ? { whatIf: wi } : {}),
           grade: { ground: g.id, band, groupFit: 'solo', tier, offset: 'floor', size: 1, comp: s, gear: 'practice' } });
       }
     }

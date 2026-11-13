@@ -148,16 +148,6 @@
         "runner": ".github/workflows/nightly-loop.yml"
       }
     },
-    "gold-intents.mjs": {
-      "reason": "family pglite-chain-replay: shop_buy and vendor_sell at the catalogue price/bid. Overlaps the registered conservation-fuzz step, which fuzzes the same value-movement invariants.",
-      "family": "pglite-chain-replay",
-      "owner": "backend-architect",
-      "disposition": "adopt-via-shared-db",
-      "verified": {
-        "asserts": true,
-        "selftest": true
-      }
-    },
     "market-offers-guard.mjs": {
       "reason": "family pglite-chain-replay: market offer integrity. run-smoke already registers market-v2, which drives the market's value movement (market-intent retired with the edge verbs 2026-10-19).",
       "family": "pglite-chain-replay",
@@ -176,16 +166,6 @@
       "verified": {
         "asserts": false,
         "selftest": false
-      }
-    },
-    "open-beta.mjs": {
-      "reason": "family pglite-chain-replay: the open-beta invite/door surface. The in-page suite registers beta-invite-gate for the live half.",
-      "family": "pglite-chain-replay",
-      "owner": "backend-architect",
-      "disposition": "adopt-via-shared-db",
-      "verified": {
-        "asserts": true,
-        "selftest": true
       }
     },
     "lifetime-facts-reapply.mjs": {

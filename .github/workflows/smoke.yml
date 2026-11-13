@@ -4077,9 +4077,12 @@ jobs:
   # so they share a job with nothing else that reads those files (2026-11-13, lane/a-audit-guards). Measured locally:
   # leaderboard-server-source --mutate 852 s (14 mutants, each a cold full-chain replay) + live-settlement --mutate 263 s
   # = 1115 s; x2 = 37.2 min + setup, budget 40. Plain runs of both are in run-smoke.mjs.
+  # + batch 3 (2026-11-13): gold-intents 56 s, open-beta 37 s, client-write-sweep-3/4 201 s, unlock ownership 14 s,
+  # perk-channel 18 s = 326 s; x2 = 10.9 min, 40 -> 51.
+  # + batch 4 (2026-11-13): bug-triage 12 s, clan-feast 4 s, native-dialog < 1 s = 17 s; x2 = 0.6 min, 51 -> 52.
   db-replay-12:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 52
 
     steps:
       - uses: actions/checkout@v4
@@ -4102,6 +4105,49 @@ jobs:
       - name: Live settlement — mutation proof
         if: ${{ !cancelled() }}
         run: node tools/mutant-gate.mjs node tests/live-settlement.mjs --mutate
+
+      # BATCH 3 PROOF ARMS (2026-11-13, lane/a-audit-guards), measured locally one at a time. gold-intents was allowlisted ("overlaps conservation-fuzz") and ran NOWHERE: plain 7 s + --selftest 49 s.
+      - name: Gold intents — shop_buy and vendor_sell at the catalogue price (25 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/gold-intents.mjs
+          node tools/mutant-gate.mjs node tests/gold-intents.mjs --selftest
+
+      # open-beta was allowlisted and ran nowhere: plain 11 s + --selftest 26 s.
+      - name: Open beta — the invite gate is a switch that fails closed (11 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/open-beta.mjs
+          node tools/mutant-gate.mjs node tests/open-beta.mjs --selftest
+
+      # Plain runs in run-smoke.mjs. 75 s + 126 s.
+      - name: Client write sweeps 3 and 4 — mutation proofs (12 + 21)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/client-write-sweep-3.mjs --selftest
+          node tools/mutant-gate.mjs node tests/client-write-sweep-4.mjs --selftest
+
+      # Plain runs in run-smoke.mjs. 8 s + 6 s.
+      - name: Unlock catalogue and offer ownership — a refill deletes only its own rows
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/unlock-catalogue-ownership.mjs --selftest
+          node tools/mutant-gate.mjs node tests/unlock-offer-ownership.mjs --selftest
+
+      # Plain run in run-smoke.mjs. 18 s.
+      - name: Perk channel — mutation proof (6 planted defects)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/perk-channel.mjs --mutate
+
+      # BATCH 4 PROOF ARMS (2026-11-13, lane/a-audit-guards): plain runs in run-smoke.mjs. bug-triage --mutate 12 s
+      # (plants into the tree; mutation-safety restores), clan-feast-catalogue-drift --selftest 4 s, native-dialog --mutate < 1 s.
+      - name: Bug triage, feast catalogue drift, native dialogs — mutation proofs
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/bug-triage.mjs --mutate
+          node tools/mutant-gate.mjs node tests/clan-feast-catalogue-drift.mjs --selftest
+          node tools/mutant-gate.mjs node tests/native-dialog.mjs --mutate
 
   artisan-selftest:
     runs-on: ubuntu-latest
@@ -5406,6 +5452,15 @@ jobs:
       - name: Preflight - the plan is read from this workflow, a red and a timeout are never green
         if: ${{ !cancelled() }}
         run: node tools/mutant-gate.mjs node tools/preflight.local.mjs --selftest
+
+      # BATCH 5 PROOF ARMS (2026-11-13, lane/a-audit-guards): two local tools whose selftests are offline fixtures
+      # (< 1 s each, measured locally). guards-for picks the tests a lane's diff loads; player-read lists the player
+      # lines a release changed for the person who reads them.
+      - name: Guards-for and player-read - the local tools' own proofs
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/guards-for.local.mjs --selftest
+          node tools/mutant-gate.mjs node tools/player-read.local.mjs --selftest
 
 
 

@@ -227,6 +227,13 @@ export const SHIPPED = Object.freeze({
  */
 export const REGENERATE_DESPITE_SHIPPING = Object.freeze(['items/iron_ore']);
 
+/**
+ * Pickaxes shipping as INTERIM art (2026-11-13, Andy: they "look like axes"): the batch drew an axe, so each is
+ * the iron pickaxe re-dyed by tools/world-art/pickaxe-icons.mjs. They want a proper drawing in the 2026-11-14 PixelLab
+ * batch; when one lands, drop its id from TIERS in that tool and from this list.
+ */
+export const PICKAXE_REGENERATE = Object.freeze(['items/steel_pickaxe', 'items/mithril_pickaxe', 'items/ember_pickaxe']);
+
 /*
  * b361 — 107 became 65. What re-rolling actually taught us, kept HERE because
  * the next person to fund a batch will read this file before the picker.

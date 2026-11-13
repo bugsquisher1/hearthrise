@@ -1375,16 +1375,18 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
     for (const vp of run('coach') ? PHONES : []) {
       const tag = tagOf(vp);
       const o = await open(vp, ALPHA, (env) => { env.hunt = null; env.state = Object.assign({}, env.state, { level_xp: 0, active_kind: null, active_id: null });
-        env.equipment = Object.assign({}, env.equipment, { weapon: 'practice_sword' }); env.client_state = Object.assign({}, env.client_state, { coach: { read: [] } }); });
+        env.equipment = Object.assign({}, env.equipment, { weapon: 'practice_sword' }); env.client_state = Object.assign({}, env.client_state, { coach: { read: [] } });
+        env.tally = { per_day: 3, held_max: 3, paid_today: 0, held: [], recent: [] }; });   // Tamsin's rats not taken yet
       if (!o.up) { fails.push('PH-6 [' + tag + ' first card] the town did not mount'); await o.ctx.close(); continue; }
       const town = await o.page.evaluate(() => { const p = document.querySelector('.hs-launchers > .hs-pointer:not(.is-min)'); return p && { id: p.getAttribute('data-tutorial'), foot: window.__r(p).bottom, bar: window.__r('.hb-bar').top }; });
-      if (!town || town.id !== 'styles') fails.push('PH-6 [' + tag + ' first card] CONTROL: the first card is ' + JSON.stringify(town));
+      if (!town || town.id !== 'tamsins_rats') fails.push('PH-6 [' + tag + ' first card] CONTROL: the first card is ' + JSON.stringify(town));
       else if (town.foot > town.bar + 0.5) fails.push('PH-6 [' + tag + ' first card] it runs ' + Math.round(town.foot - town.bar) + ' px over the action bar');
-      await o.page.click('.hs-launchers [data-hs-open="inventory"]');
+      /* the first card is Tamsin's rats since 2026-11-12 (the style waits for the first hunt): its Got it is inside her tally */
+      await o.page.click('.hs-launchers [data-hs-open="tally"]');
       await wait(o.page, () => document.querySelector('.hs-win-coach .hs-coach-got'), null, 3000);
       await shot(o.page, 'coach-first-in-bag-' + tag);
       const got = await o.page.evaluate(() => { const b = document.querySelector('.hs-win-coach .hs-coach-got'); return b && window.__onScreen(window.__r(b)) && window.__hits(b); });
-      if (!got) fails.push('PH-6 [' + tag + ' first card] inside the bag its Got it is off screen or covered');
+      if (!got) fails.push('PH-6 [' + tag + ' first card] inside the tally its Got it is off screen or covered');
       await done(o, tag);
     }
     for (const vp of run('fight') ? [{ width: 922, height: 423 }, { width: 844, height: 390 }, { width: 1440, height: 900 }] : []) { // PH-10

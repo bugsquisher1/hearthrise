@@ -31,7 +31,7 @@ import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorde
 import { nameOf, bagOf, bagExpandOf } from '../../session/item-sections.js?v=0.2.125';
 import { staminaOf } from '../../session/hunt-sections.js?v=0.2.125';
 import { endCardAfter } from '../after-hunt.js?v=0.2.125';
-import { heldCard, glyphSvg } from '../launcher.js?v=0.2.125';
+import { heldStep, glyphSvg } from '../launcher.js?v=0.2.125';
 import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.125';
 import { townStepsOf, depositPlanned } from '../back-in-town.js?v=0.2.125';
 import { equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.125';
@@ -44,7 +44,7 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.125';
 const againOffWords = (cur) => (callOfHunt(cur.hunt) ? 'He comes when he is called, from the ground\'s page.' : 'This hunt did not keep its settings.');
 
 /* The tutorial card up now (a card of the guide, never the "What next" line), or null. */
-const nextStepOf = (ctx) => { const c = ctx.character ? heldCard(ctx) : null; return c && c.done ? c : null; };
+const nextStepOf = (ctx) => heldStep(ctx);
 
 /* Every character the account opens is recorded from its first envelope, so no hunt event is played unseen. */
 observeSessions(attach);
@@ -79,6 +79,8 @@ export function renderHuntSummary() {
        value (../back-in-town.js); the first open one is the card's one gold press, and a done one stays, ticked. Above the numbers, so the
        first step's press is in view as the window opens (under them it sat behind the sticky foot at 1440x900). */
     + '<section class="hsum-town"><h4 class="hw-ledger-head hsum-h-town is-on">' + esc(t('summary.town_head')) + '</h4><ul class="hsum-steps"></ul></section>'
+    /* TOP LOOT above the numbers (first-30 play 2026-11-12: the first gear drop sat under the sticky foot, out of sight) */
+    + '<h4 class="hw-ledger-head hsum-h-loot">Top loot</h4><ul class="hsum-list hsum-loot"></ul>'
     + '<dl class="hsum-stats">' + STATS.map(([k, label]) => '<div class="hsum-stat"><dt>' + label + '</dt><dd data-stat="' + k + '"></dd></div>').join('') + '</dl>'
     /* The presses and their answer stay in reach: the reason and the numbers pushed them under a 1366x768 window's fold, so a hunt that
        ran out of stamina opened with no press in sight (door panel 2026-11-04). */
@@ -91,7 +93,6 @@ export function renderHuntSummary() {
     /* a full bag (the server's cap, hr_bag_expand_view) links to Storage's Expand */
     + '<button type="button" class="hh-tool" data-hs-act="expand" hidden>Expand bag</button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
-    + '<h4 class="hw-ledger-head hsum-h-loot">Top loot</h4><ul class="hsum-list hsum-loot"></ul>'
     + '<h4 class="hw-ledger-head hsum-h-sup">Supplies used</h4><ul class="hsum-list hsum-sup"></ul>'
     + '<h4 class="hw-ledger-head hsum-h-deaths">What happened</h4><ul class="hsum-falls hsum-deaths"></ul>'
     + '</section>'

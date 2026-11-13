@@ -344,7 +344,10 @@ function blessingWords(b) {
   const on = b.tiers.filter((r) => r.held).length, next = b.tiers.find((r) => !r.held);
   const vars = { on, of: b.tiers.length, pct: Math.round(b.permille / 10), price: next ? gold(next.price) : '', level: b.freeUntil };
   if (!next) return t('prep.blessings_all', vars);
-  const how = next.price > 0 ? '_cost' : next.price === 0 && Number.isInteger(b.freeUntil) ? '_free' : '';
+  /* While the next one is free, the summary's Bless step is the one place that says it, with its press (first-30 play 2026-11-12:
+     a new hero was told three times); a priced Blessing is a real choice, so Before you go names its price. */
+  if (next.price === 0 && Number.isInteger(b.freeUntil)) return '';
+  const how = next.price > 0 ? '_cost' : '';
   return t('prep.blessings_' + (on ? 'some' : 'none') + how, vars);
 }
 

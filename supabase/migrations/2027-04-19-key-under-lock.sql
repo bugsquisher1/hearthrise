@@ -14,7 +14,7 @@
 -- and calls hr_apply with the decided key. hr_apply answers a decided key { ok: true, replayed: true } and charges nothing (its own
 -- idempotency, 2026-10-27-core-bodies.sql), and the verb went on to bank the hours: 12 h banked with no gold, no ledger row and no use of
 -- the day's clamp (the day is counted from the ledger). Reproduced on the replayed chain (tests/key-under-lock.mjs KL-SCALED).
--- THE FIX, hr_crier_send's (2027-03-1x crier, whose body already reads the key twice): the key is read AGAIN right after the lock, and a
+-- THE FIX, hr_crier_send's (2027-02-27-town-crier.sql, whose body already reads the key twice): the key is read AGAIN right after the lock, and a
 -- replayed hr_apply ends the call before anything else is written (the settle's own move, hr_hunt_apply_member: `replayed` returns early).
 --
 -- THE SWEEP, 2026-11-13: every function on the replayed chain whose body reads a key (hr_intent_replay or public.player_intents), classed

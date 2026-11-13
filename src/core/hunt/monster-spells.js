@@ -37,18 +37,18 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS } from '../../data/monsters.js?v=0.2.114';
-import { atTier } from '../../data/hunt-tiers.js?v=0.2.114';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.114';
-import { spellRow, castsOf, specOf, spellHit, marked, SHIELD_BRACE, firstCastSteps } from '../../data/monster-spells.js?v=0.2.114';
-import { monsterMaxHit } from '../combat.js?v=0.2.114';
-import { cheb, los } from './grid.js?v=0.2.114';
-import { atRest, unitById, dirOf } from './movement.js?v=0.2.114';
-import { makeEvent } from './events.js?v=0.2.114';
-import { place, covers } from './shapes.js?v=0.2.114';
-import { castShape } from './marks.js?v=0.2.114';
-import { landHit, restart, slowed } from './damage.js?v=0.2.114';
-import { swingRow } from './boss-phases.js?v=0.2.114';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.125';
+import { atTier } from '../../data/hunt-tiers.js?v=0.2.125';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.125';
+import { spellRow, castsOf, specOf, spellHit, marked, SHIELD_BRACE, firstCastSteps } from '../../data/monster-spells.js?v=0.2.125';
+import { monsterMaxHit } from '../combat.js?v=0.2.125';
+import { cheb, los } from './grid.js?v=0.2.125';
+import { atRest, unitById, dirOf } from './movement.js?v=0.2.125';
+import { makeEvent } from './events.js?v=0.2.125';
+import { place, covers } from './shapes.js?v=0.2.125';
+import { castShape } from './marks.js?v=0.2.125';
+import { landHit, restart, slowed } from './damage.js?v=0.2.125';
+import { swingRow } from './boss-phases.js?v=0.2.125';
 
 /* spellCds: { spell id: ms until it may start } while the monster is in a fight, a spell it does not name being ready ({} = every
    spell ready); null = not in a fight, its first casts not drawn yet. cast: its live cast (marks.js), or null. */

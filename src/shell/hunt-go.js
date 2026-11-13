@@ -23,21 +23,22 @@
 //                       characters that sit in no party (own characters join at once,
 //                       PARTY_SPEC 10-19).
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.114';
-import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf, blessingsOf } from '../session/item-sections.js?v=0.2.114';
-import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.114';
-import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.114';
-import { ITEMS } from '../data/items.js?v=0.2.114';
-import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.114';
-import { attackOrder, DEFAULT_ATTACK_ROW, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.114';
-import { ammoPerShot } from '../core/ammo.js?v=0.2.114';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.114';
-import { ABILITIES } from '../data/abilities.js?v=0.2.114';
-import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.114';
-import { itemName, runeWords } from './widgets/bits.js?v=0.2.114';
-import { ownCount } from './rune-supply.js?v=0.2.114';
-import { shortOf } from './item-lore.js?v=0.2.114';
-import { whole, gold } from '../render/format.js?v=0.2.114';
+import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.125';
+import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf, blessingsOf } from '../session/item-sections.js?v=0.2.125';
+import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.125';
+import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.125';
+import { ITEMS } from '../data/items.js?v=0.2.125';
+import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.125';
+import { attackOrder, DEFAULT_ATTACK_ROW, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.125';
+import { ammoPerShot } from '../core/ammo.js?v=0.2.125';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.125';
+import { ABILITIES } from '../data/abilities.js?v=0.2.125';
+import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.125';
+import { itemName, runeWords } from './widgets/bits.js?v=0.2.125';
+import { ownCount } from './rune-supply.js?v=0.2.125';
+import { shortOf } from './item-lore.js?v=0.2.125';
+import { whole, gold } from '../render/format.js?v=0.2.125';
+import { t } from '../render/player-text.js?v=0.2.125';
 
 /* How many of the bar's actions a setup line shows. */
 const SETUP_ICONS = 4;
@@ -251,8 +252,8 @@ export function noShotWords(cs) {
 /* HELD TASKS THAT DO NOT COUNT HERE (the panel 2026-11-01: 11 h at 0/120 because the list had moved its pick): said, never
    a stop. Quiet with no open task, or when any open task counts on this ground. */
 function tallyElsewhere(cs, hunt) {
-  const t = tallyOf(cs);
-  const open = t && hunt ? t.held.filter((h) => !h.done) : [];
+  const tally = tallyOf(cs);
+  const open = tally && hunt ? tally.held.filter((h) => !h.done) : [];
   if (!open.length || open.some((h) => h.hunt === hunt)) return null;
   return { id: 'tally', text: 'Tamsin\'s tasks: nothing here counts toward them. ' + open.map((h) => countsWords(h.task, huntName(h.hunt))).join(' '), short: false };
 }
@@ -340,10 +341,11 @@ export function beforeLines(cs, o) {
 /* WHAT A DEATH WOULD COST, said before the risk is taken: the Blessings on, or the next one and its price. A heads-up, never a stop. All the server's. */
 function blessingWords(b) {
   if (!b || !b.tiers.length) return '';
-  const on = b.tiers.filter((t) => t.held).length, next = b.tiers.find((t) => !t.held);
-  const cut = on ? 'A death takes ' + Math.round(b.permille / 10) + '% less XP. ' : '';
-  const more = !next ? '' : (on ? 'More' : 'A death takes less XP with them') + (next.price === 0 ? ': free for now' : ': the next is ' + gold(next.price)) + ', in the Shop\'s Services tab.';
-  return ('Blessings: ' + (on ? on + ' of ' + b.tiers.length + ' on. ' : 'none on. ') + cut + more).trim();
+  const on = b.tiers.filter((r) => r.held).length, next = b.tiers.find((r) => !r.held);
+  const vars = { on, of: b.tiers.length, pct: Math.round(b.permille / 10), price: next ? gold(next.price) : '', level: b.freeUntil };
+  if (!next) return t('prep.blessings_all', vars);
+  const how = next.price > 0 ? '_cost' : next.price === 0 && Number.isInteger(b.freeUntil) ? '_free' : '';
+  return t('prep.blessings_' + (on ? 'some' : 'none') + how, vars);
 }
 
 /** "Bring your heroes": this account's other open characters in no party, [{ slot, name }]. */

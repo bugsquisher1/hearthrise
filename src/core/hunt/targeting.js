@@ -20,13 +20,14 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.114';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.114';
-import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.114';
-import { elementPermille, heroElementPermille } from '../elements.js?v=0.2.114';
-import { cheb, dist2, los } from './grid.js?v=0.2.114';
-import { unitById, leaderOf } from './movement.js?v=0.2.114';
-import { makeEvent } from './events.js?v=0.2.114';
+import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.125';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.125';
+import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.125';
+import { elementPermille, heroElementPermille } from '../elements.js?v=0.2.125';
+import { cheb, dist2, los } from './grid.js?v=0.2.125';
+import { unitById, leaderOf } from './movement.js?v=0.2.125';
+import { makeEvent } from './events.js?v=0.2.125';
+import { engagedOf, livingOf, heroUnitsOf, staleIndex } from './unit-index.js?v=0.2.125';
 
 /* holdMs: ms a Challenged monster stays on its challenger (no other Challenge takes it meanwhile).
    The Challenge's cooldown is the ability's own clock (abilities.js `cds`). leaderLast: the leader's last target (TG-04).
@@ -42,8 +43,8 @@ export const PERSISTED = Object.freeze({
 /** The role row a unit plays, or null (a monster, or a hero with no role). */
 export const roleOf = (u) => (u && u.side === 'hero' && HUNT_ROLES[u.role]) || null;
 
-/** The living monsters that hold a target, in id order. */
-export const engaged = (inst) => inst.world.units.filter((u) => u.side === 'mon' && u.alive && Number.isInteger(u.target));
+/** The living monsters that hold a target, in list order (unit-index.js: a frozen list, read once a sub-step in a swing). */
+export const engaged = (inst) => engagedOf(inst);
 
 /** What a blow of `element` is worth against `unit`, in permille (core/elements.js; never 0). A hero takes it less by
     its own resistance to it (`resistPm`, from its gear: combat-sim.js syncUnit), in full with none (every hero today). */
@@ -97,7 +98,7 @@ export function followed(inst, u) {
 export function pickTargets(inst, unit, settings) {
   if (!unit || !roleOf(unit)) return [];
   const cmp = orderOf(inst, unit, (settings && settings.tmode) || unit.tmode);
-  return engaged(inst).sort((a, b) => cmp(a, b) || dist2(a, unit) - dist2(b, unit) || a.id - b.id);
+  return engaged(inst).slice().sort((a, b) => cmp(a, b) || dist2(a, unit) - dist2(b, unit) || a.id - b.id);
 }
 
 /**
@@ -114,13 +115,30 @@ function outranked(inst, u, cur) {
 
 /** The basic attack's target: the first in order it can hit. */
 export function basicTarget(inst, u) {
-  const inR = pickTargets(inst, u).filter((m) => inRange(inst, u, m));
-  return inR[0] || null;
+  /* THE FIRST IN pickTargets' ORDER THAT IS IN RANGE, picked without sorting the pack (lane/r-engine-profile part 2: every hero,
+     every sub-step). That order is a strict total order (its mode's key, then the distance, then the id, which no two units
+     share), so the first in range is the least of the monsters in range: take the least, and only if it is out of range set
+     it aside and take the next. inRange is pure, and no line of sight is traced past the answer. */
+  if (!u || !roleOf(u)) return null;
+  const cmp = orderOf(inst, u, u.tmode);
+  const left = engaged(inst).slice();
+  while (left.length) {
+    let bi = 0;
+    for (let i = 1; i < left.length; i++) {
+      const a = left[i]; const b = left[bi];
+      if ((cmp(a, b) || dist2(a, u) - dist2(b, u) || a.id - b.id) < 0) bi = i;
+    }
+    const m = left[bi];
+    if (inRange(inst, u, m)) return m;
+    left[bi] = left[left.length - 1]; left.pop();
+  }
+  return null;
 }
 
-function retarget(m, id, sc) {
+function retarget(inst, m, id, sc) {
   if (m.target === id) return;
   m.target = id;
+  staleIndex(inst);
   if (Number.isInteger(id)) sc.emit(makeEvent('target', sc.atMs, { u: m.id, t: id }));
 }
 
@@ -135,7 +153,7 @@ export function peel(inst, sc, hero) {
   if (!row || !row.peel || !k || k === hero) return null;
   const free = engaged(inst).filter((m) => m.target === k.id && m.queued && !(m.holdMs > 0) && cheb(m, k) > 1);
   if (!free.length || sc.rng.int(1, 1000) > row.peel) return null;
-  retarget(free[0], hero.id, sc);
+  retarget(inst, free[0], hero.id, sc);
   return free[0];
 }
 
@@ -180,7 +198,8 @@ export function pickInForce(inst) {
 
 /** THE TANKS THAT TAKE TURNS: the living tanks in seat (unit id) order, less any under the floor (underHoldFloor). */
 export function turnTanks(inst) {
-  const living = inst.world.units.filter((u) => u.alive && isTank(u));
+  /* (a tank is a hero: the living heroes, unit-index.js, in list order) */
+  const living = livingOf(inst, 'hero').filter(isTank);
   return living.filter((u) => !underHoldFloor(u, living)).sort((a, b) => a.id - b.id);
 }
 
@@ -217,7 +236,7 @@ export function challengeable(inst, k) {
  */
 export function challengeFrom(inst, sc, k) {
   const took = challengeable(inst, k);
-  for (const m of took) { retarget(m, k.id, sc); m.queued = false; m.holdMs = CHALLENGE.holdMs; }
+  for (const m of took) { retarget(inst, m, k.id, sc); m.queued = false; m.holdMs = CHALLENGE.holdMs; }
   if (took.length) sc.emit(makeEvent('challenge', sc.atMs, { u: k.id }));
   return took.length;
 }
@@ -241,11 +260,12 @@ export function chooseTargets(inst, sc) {
   for (const m of inst.world.units) if (m.holdMs > 0) m.holdMs = Math.max(0, m.holdMs - sc.dtMs);
   for (const m of engaged(inst)) {
     const t = unitById(inst, m.target);
-    if (!t || !t.alive) { retarget(m, k && k !== t ? k.id : null, sc); m.holdMs = 0; }
+    if (!t || !t.alive) { retarget(inst, m, k && k !== t ? k.id : null, sc); m.holdMs = 0; }
   }
   const fighting = inst.world.phase === 'fight';
   const leaderMoving = !!k && k.path.length > 0;
-  for (const u of inst.world.units) {
+  /* (only a hero has a role: the hero units, unit-index.js, in list order; nothing below changes who is one) */
+  for (const u of heroUnitsOf(inst)) {
     if (!roleOf(u)) continue;
     if (!u.alive || !fighting) { u.target = null; continue; }
     const marks = roleOf(u).melee && u.chase && !holding(inst, u);

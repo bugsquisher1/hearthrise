@@ -8,7 +8,7 @@
 //   node tests/phone-touch.mjs --shots <dir>  also write the visual-gate screenshots (667x375, 844x390,
 //                                             922x423, portrait 390x844 and desktop 1440x900, fonts loaded)
 //
-// mutant-anchors: src/shell/windows/hunts.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js
+// mutant-anchors: src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js
 // mutant-writes-tree: no — page mutants are served overrides
 // mutant-rule-functions: configureFits analyzerToggles portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule rules
 // mutant-runner-functions: main
@@ -75,7 +75,8 @@
 //         a desktop keeps the first field's focus
 //   The panel's second read (2026-11-01, art/review/player-feedback-2026-11-01/phone-perf.txt on lane/f2-phone-perf):
 //   PH-18 A CARD NEVER HIDES WHAT IT NAMES (667x375): in Hunts the card is at most 90 px and the ground it names is on
-//         screen and on top; a ground's page keeps 165 px and Enter; Got it leaves the next card on its tab until pressed;
+//         screen and on top; a ground's page keeps 165 px and Enter; Got it leaves the next card on its tab until pressed,
+//         and that card's title takes at most two lines, its foot under its words;
 //         a running hunt's note stands aside for a Hunts card
 //   PH-19 Summary and Leave at least 16 px apart; a folded card off the Details panel's close (667x375)
 //   PH-20 Leave party and Disband inside the sheet at every phone size; Disband's first press asks, its second sends ONE
@@ -84,7 +85,7 @@
 //   PH-22 THE DOORS: Create account and Back to sign in on screen (667x375, 844x390); Enter town and its way back (667x375)
 //   PH-23 Refresh in the sheet; How many, Price each and List on screen together; Sort in the sheet (667x375)
 //   PH-24 A PARTY ON A PHONE: an invite from the Party window, ONE hr_hunt_party_invite and its answer in words; an invite
-//         shows beside an open sheet (844x390); Also here at the sheet's top; the red count says what it wants; no mouse
+//         shows beside an open sheet (844x390), its Join clear of the town card; Also here at the sheet's top; the red count says what it wants; no mouse
 //         words and no press under 40 px in seven windows (667x375)
 //   The small-phone panel on v0.2.83 (2026-11-03, 844x390 and 667x375):
 //   PH-25 A GROUND'S PAGE GETS THE SHEET: with its card up, at least 190 px to read (it was 104), the sheet's head in reach in
@@ -94,7 +95,7 @@
 //   PH-27 EVERY CARD'S WORDS FIT: each tutorial card's words whole without a scroll, in the town's card, beside a sheet and under the
 //         hunt bar, up to the length each room holds; a longer card's corner shows the gold tip until its words end
 //   PH-28 HOW YOU FIGHT: the lead and all five ways whole with no scroll; a refusal keeps Enter town on screen; on a screen too short, "More below" until its end
-//   PH-29 THE PARTY PANEL: alone, folded to its name and plus, and a press opens it for good; in a party, open; a desktop never folds
+//   PH-29 THE PARTY PANEL: alone, folded to its name and plus, and a press opens it for good; in a party, open; a desktop from 1280 px starts open with its dash (narrower: HS-28)
 //   PH-30 THE BAR'S PRESSES: the slots' page at least 36 px wide, the setup's name 36 px tall and clear of its neighbour
 //   PH-31 AFTER CREATE ACCOUNT: only the answer and the way back, no word left from the form
 // ════════════════════════════════════════════════════════════════════════
@@ -107,6 +108,7 @@ import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { RING_WORDS, RING_WORDS_WIDEST } from './_bar-probes.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { withServerLevel } from './_server-level.mjs';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const HUNT = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
@@ -146,7 +148,8 @@ function scripted(fixture, prep) {
   if (prep) prep(s.env);
   /* a fixture's own residue is where the server keeps it: the store every later envelope echoes */
   if (s.env.client_state) { s.residue = Object.assign({}, s.env.client_state); delete s.env.client_state; }
-  s.next = () => Object.assign(clone(s.env), { version: ++s.version, client_state: clone(s.residue) });
+  /* The server states the Level itself (hr_state_of's `level` block): the stub states it for the XP a case set (./_server-level.mjs). */
+  s.next = () => withServerLevel(Object.assign(clone(s.env), { version: ++s.version, client_state: clone(s.residue) }));
   return s;
 }
 
@@ -679,7 +682,12 @@ async function gotItRests(page, tag, fails) {
   if (!next.min || next.h > 60) fails.push('PH-18 [' + tag + '] Got it chained the next card open: ' + JSON.stringify(next));
   await page.click('[data-hs-win="shop"] .hs-win-coach .hs-coach-tab', { timeout: 2500 }).catch(() => null);
   await page.waitForTimeout(400);
-  if (await page.evaluate(() => document.querySelector('[data-hs-win="shop"] .hs-win-coach .hs-pointer').classList.contains('is-min'))) fails.push('PH-18 [' + tag + '] the tab does not open the next card');
+  if (await page.evaluate(() => document.querySelector('[data-hs-win="shop"] .hs-win-coach .hs-pointer').classList.contains('is-min'))) { fails.push('PH-18 [' + tag + '] the tab does not open the next card'); return; }
+  /* That card's foot is its own row under its words (2026-11-12: on the title row it stood "Sell what only pays coin" one word to a line, under Don't show tips). */
+  await page.waitForTimeout(150);
+  const t = await page.evaluate(() => { const p = document.querySelector('[data-hs-win="shop"] .hs-win-coach .hs-pointer'), b = p.querySelector(':scope > b'), w = p.querySelector('.hs-coach-text'), f = p.querySelector('.hs-coach-foot');
+    return { title: b.textContent, lines: Math.round(window.__r(b).height / parseFloat(getComputedStyle(b).lineHeight)), under: !!f && window.__r(f).top >= window.__r(w).bottom - 0.5 }; });
+  if (t.lines > 2 || !t.under) fails.push('PH-18 [' + tag + '] the card "' + t.title + '" takes ' + t.lines + ' title lines, its foot ' + (t.under ? 'under' : 'beside') + ' its words');
 }
 /* ── PH-19 ── Summary and Leave apart; the fold's tab off the Details panel's close. */
 async function huntBarApart(page, tag, fails) {
@@ -806,7 +814,7 @@ async function groundPage(page, tag, fails, floor) {
   if (head.gap > 8) fails.push('PH-25 [' + tag + '] the sheet starts ' + Math.round(head.gap) + ' px below the icon row');
   await page.click('.hw-hunt', { timeout: 2500 }).catch(() => null);
   await page.waitForTimeout(300);
-  const facts = () => page.evaluate(() => { const s = document.querySelector('.hw-hd-page'), e = document.querySelector('.hw-hunt-enter'), b = document.querySelector('.hw-hd-back');
+  const facts = () => page.evaluate(() => { const s = document.querySelector('.hw-hd-page'), e = document.querySelector('.hw-hunt-enter'), b = document.querySelector('[data-hs-win="hunts"] .hs-win-head .hs-back');
     return { read: s.clientHeight, end: s.scrollHeight - s.clientHeight, enter: window.__onScreen(window.__r(e)) && window.__hits(e), back: window.__onScreen(window.__r(b)) && window.__hits(b), over: window.__cross(window.__r('[data-hs-win="hunts"] .hs-win-coach .hs-pointer'), window.__r('[data-hs-win="hunts"]')) }; });
   const f = await facts();
   if (f.read < floor) fails.push('PH-25 [' + tag + '] a ground\'s page has ' + f.read + ' px to read, under ' + floor);
@@ -820,7 +828,7 @@ async function groundPage(page, tag, fails, floor) {
   await page.waitForTimeout(100);
   const low = await facts();
   if (!low.enter || !low.back) fails.push('PH-25 [' + tag + '] at the page\'s end Enter ' + low.enter + ', the way back ' + low.back);
-  await page.click('.hw-hd-back', { timeout: 2500 }).catch(() => null);
+  await page.click('[data-hs-win="hunts"] .hs-win-head .hs-back', { timeout: 2500 }).catch(() => null);
   await page.waitForTimeout(200);
   if (!(await page.evaluate(() => !!window.__r('.hw-hunt-list')))) fails.push('PH-25 [' + tag + '] the way back did not bring the list');
 }
@@ -830,7 +838,7 @@ async function groundBackHunting(page, tag, fails) {
   if (!(await wait(page, () => document.querySelector('.hw-hunt b'), null, 4000))) { fails.push('PH-25 [' + tag + '] CONTROL: no list mid-hunt'); return; }
   await page.click('.hw-hunt', { timeout: 2500 }).catch(() => null);
   await page.waitForTimeout(250);
-  const off = await page.evaluate(() => ({ enter: document.querySelector('.hw-hunt-enter').disabled, back: document.querySelector('.hw-hd-back').disabled }));
+  const off = await page.evaluate(() => ({ enter: document.querySelector('.hw-hunt-enter').disabled, back: (() => { const b = document.querySelector('[data-hs-win="hunts"] .hs-win-head .hs-back'); return !b || b.hidden || b.disabled; })() }));
   if (!off.enter) fails.push('PH-25 [' + tag + '] CONTROL: Enter is on mid-hunt');
   if (off.back) fails.push('PH-25 [' + tag + '] mid-hunt the way back to the list is off');
 }
@@ -911,6 +919,15 @@ async function weighhouse(page, tag, fails) {
   await page.waitForTimeout(250);
   const see = await page.evaluate(() => ['#hw-mk-qty', '#hw-mk-ask', '[data-hs-act="ms-list"]'].map((q) => { const e = document.querySelector(q), r = window.__r(e); return [q, !!r && window.__onScreen(r) && window.__hits(e) && r.height >= 40]; }));
   for (const [q, ok] of see) if (!ok) fails.push('PH-23 [' + tag + '] ' + q + ' is not on the sell sheet with the others');
+  /* The sheet's layout, not only its fit (the one window header left room for both mutants to fit anyway): a picked
+     stack hides the purse and the tabs, and its two fields stand above what it would fetch. */
+  const lay = await page.evaluate(() => {
+    const shown = (q) => Array.from(document.querySelectorAll('[data-hs-win="market"] .hw-mk > ' + q)).filter((e) => e.getClientRects().length > 0).length;
+    const qty = document.querySelector('#hw-mk-qty'), facts = document.querySelector('.hw-mk-sell.is-paged .hw-mk-facts');
+    return { purse: shown('.hw-mk-greet'), tabs: shown('.hw-tabs'), factsFirst: !!qty && !!facts && facts.getBoundingClientRect().top < qty.getBoundingClientRect().top };
+  });
+  if (lay.purse || lay.tabs) fails.push('PH-23 [' + tag + '] the sell sheet keeps the purse or the tabs: ' + JSON.stringify(lay));
+  if (lay.factsFirst) fails.push('PH-23 [' + tag + '] what it would fetch stands above How many');
 }
 async function sorts(page, tag, fails) {
   for (const win of ['inventory', 'storage']) {
@@ -1124,7 +1141,7 @@ async function touchHunt(page, s, tag, fails) {
   /* After her board's answer: the line once stood only until the board had loaded. */
   for (let i = 0; i < 60 && !s.calls.some((c) => c.name === 'hr_tally_view'); i++) await page.waitForTimeout(50);
   await page.waitForTimeout(400);
-  const line = await page.evaluate(() => { const l = document.querySelector('[data-hs-win="tally"] .ht-wait'); return !!l && l.getClientRects().length > 0 && /back in town/.test(l.textContent); });
+  const line = await page.evaluate(() => { const l = document.querySelector('[data-hs-win="tally"] .ht-board-why'); return !!l && l.getClientRects().length > 0 && /back in town/.test(l.textContent); });
   if (!line) fails.push('PH-14 [' + tag + '] hunting, her board does not say why every Take is grey');
 }
 
@@ -1576,9 +1593,9 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       const two = await open(vp, HUNT);
       if (two.up) { const f = await two.page.evaluate(PARTY_NOW); if (f.folded || !f.member) fails.push('PH-29 [' + tag + '] a party\'s panel starts folded'); await done(two, tag); } else fails.push('PH-29 [' + tag + '] the hunt did not mount');
     }
-    if (run('partyfold')) { // PH-29: a desktop keeps its panel as it was, alone or not
+    if (run('partyfold')) { // PH-29: a desktop at or past the fold width (tokens.css --hud-fold-below) keeps a lone hero's panel open; its dash folds it (2026-11-11)
       const o = await open({ width: 1366, height: 768 }, HUNT, aloneInHunt, { crew: 1 });
-      if (o.up) { const f = await o.page.evaluate(PARTY_NOW); if (f.folded || !f.member || f.fold) fails.push('PH-29 [1366x768] the desktop\'s panel folds or shows a fold: ' + JSON.stringify(f)); await done(o, '1366x768'); } else fails.push('PH-29 [1366x768] the hunt did not mount');
+      if (o.up) { const f = await o.page.evaluate(PARTY_NOW); if (f.folded || !f.member || !f.fold) fails.push('PH-29 [1366x768] the desktop\'s panel starts folded, or has no dash to fold it: ' + JSON.stringify(f)); await done(o, '1366x768'); } else fails.push('PH-29 [1366x768] the hunt did not mount');
     }
     if (run('market')) { // PH-23
       const tag = tagOf(SMALLEST);
@@ -1678,7 +1695,7 @@ const MUTANTS = [
   ['PH-1 the screen widgets widen the page', 'src/styles/shell.css', '.hs-screen { z-index: 6; overflow: clip; }', '.hs-screen { z-index: 6; }'],
   ['PH-1 a new tab opens mid-list', 'src/shell/windows/configure-action.js', "v.hover = null; repaint(); listToTop(body); return; }", "v.hover = null; repaint(); return; }"],
   ['PH-1 the column heads hide the wrong cell', 'src/styles/hunt.css', '  .ca-head .ca-c[data-c="1"], .ca-row .ca-c[data-c="1"] { display: none; }', '  .ca-head .ca-c:nth-of-type(2), .ca-row .ca-c[data-c="1"] { display: none; }'],
-  ['PH-2 Hunt details only shows', 'src/shell/widgets/hunt-topbar.js', "  if (action === 'details') { ctx.hud.setVisible('analyzer', !ctx.hud.isShown('analyzer')); return; }", "  if (action === 'details') { ctx.show('analyzer'); return; }"],
+  ['PH-2 Hunt details only shows', 'src/shell/widgets/hunt-topbar.js', "    if (analyzerOpen(ctx)) { hud.setVisible('analyzer', false); return; }", "    if (analyzerOpen(ctx)) return;"],
   ['PH-2 the analyzer has no close', 'src/shell/widgets/analyzer.js', "  if (action === 'hide') { ctx.hud.setVisible('analyzer', false); return; }", ''],
   ['PH-2 the analyzer sits over the hunt bar', 'src/data/hud-widgets.js', "    below: Object.freeze(['hunt-topbar']),\n", ''],
   ['PH-2 the phone hunt bar is as wide as the ground\'s name', 'src/styles/hunt.css', '  .ht-bar { flex-wrap: nowrap; width: auto; justify-content: flex-end; }', '  .ht-bar { flex-wrap: nowrap; width: fit-content; }'],
@@ -1693,13 +1710,13 @@ const MUTANTS = [
   ['PH-5 the picked item scrolls away', 'src/styles/windows.css', '  .hw-pick.is-on { position: sticky;', '  .hw-pick.is-on { position: static;'],
   ['PH-5 the analyzer tabs are 30 px', 'src/styles/hunt.css', '  .ha-tab, .ht-bar .hh-tool { min-height: 40px; }', '  .ha-tab, .ht-bar .hh-tool { min-height: 30px; }', ['hunt']],
   /* the card's cap is the fallback where round() or lh is missing (the words' box is the tighter cap in Chromium): undo both */
-  ['PH-6 nothing caps the phone coach', 'src/styles/shell.css', '{ max-height: calc(var(--coach-room) - 20px); }\n  .hs-pointer:not(.is-min) > .hs-coach-text {\n    grid-area: 2 / 1 / 3 / -1; padding-right: 14px;\n    min-height: 0; max-height: calc(round(down, var(--coach-room) - 76px - .5lh, 1lh) + .5lh);',
+  ['PH-6 nothing caps the phone coach', 'src/styles/shell.css', '{ max-height: calc(var(--coach-room) - 20px); }\n  .hs-pointer:not(.is-min) > .hs-coach-text {\n    grid-area: 2 / 1 / 3 / -1; padding-right: 14px;\n    min-height: 0; max-height: calc(round(down, var(--coach-room) - 76px - var(--coach-foot) - .5lh, 1lh) + .5lh);',
     '{ }\n  .hs-pointer:not(.is-min) > .hs-coach-text {\n    grid-area: 2 / 1 / 3 / -1; padding-right: 14px;\n    min-height: 0;'],
   ['PH-6 the coach\'s room is never measured', 'src/shell/shell.js', '    publishInset();\n    roomForCoach();\n', '    publishInset();\n'],
   /* re-anchored 10-25 (lane/b-widget-move-fold): the coach's own thin scrollbar left for the game's one scrollbar (app.css) */
   ['PH-6 the coach\'s words take no thumb', 'src/styles/shell.css', '    pointer-events: auto;', ''],
-  ['PH-6 the coach\'s words end on a whole line', 'src/styles/shell.css', 'max-height: calc(round(down, var(--coach-room) - 76px - .5lh, 1lh) + .5lh);', ''],
-  ['PH-6 the whole card scrolls, its fold with it', 'src/styles/shell.css', '{ max-height: calc(var(--coach-room) - 20px); }\n  .hs-pointer:not(.is-min) > .hs-coach-text {\n    grid-area: 2 / 1 / 3 / -1; padding-right: 14px;\n    min-height: 0; max-height: calc(round(down, var(--coach-room) - 76px - .5lh, 1lh) + .5lh); overflow-y: auto; overscroll-behavior: contain;', '{ max-height: calc(var(--coach-room) - 20px); overflow-y: auto; pointer-events: auto; }\n  .hs-pointer:not(.is-min) > .hs-coach-text {\n    grid-area: 2 / 1 / 3 / -1; padding-right: 14px;\n    min-height: 0;'],
+  ['PH-6 the coach\'s words end on a whole line', 'src/styles/shell.css', 'max-height: calc(round(down, var(--coach-room) - 76px - var(--coach-foot) - .5lh, 1lh) + .5lh);', ''],
+  ['PH-6 the whole card scrolls, its fold with it', 'src/styles/shell.css', '{ max-height: calc(var(--coach-room) - 20px); }\n  .hs-pointer:not(.is-min) > .hs-coach-text {\n    grid-area: 2 / 1 / 3 / -1; padding-right: 14px;\n    min-height: 0; max-height: calc(round(down, var(--coach-room) - 76px - var(--coach-foot) - .5lh, 1lh) + .5lh); overflow-y: auto; overscroll-behavior: contain;', '{ max-height: calc(var(--coach-room) - 20px); overflow-y: auto; pointer-events: auto; }\n  .hs-pointer:not(.is-min) > .hs-coach-text {\n    grid-area: 2 / 1 / 3 / -1; padding-right: 14px;\n    min-height: 0;'],
   ['PH-7 the slots never give way, so the panel runs off a small phone', 'src/styles/hunt.css', '  .hb-grid { order: 1; display: flex; gap: 2px; min-width: 0; overflow-x: auto;', '  .hb-grid { order: 1; display: flex; gap: 2px; min-width: max-content; overflow-x: visible;'],
   ['PH-7 the phone stance folds away', 'src/styles/hunt.css', '  .hb-pl-row.is-stance { grid-area: stance; min-height: 0; }', '  .hb-pl-row.is-stance { display: none; }'],
   ['PH-7 the stamina + takes no press', 'src/styles/hunt.css', '.hb-stam-buy { position: relative; width: 36px;', '.hb-stam-buy { pointer-events: none; position: relative; width: 36px;'],
@@ -1735,13 +1752,13 @@ const MUTANTS = [
   ['PH-14 the key chips stay on touch', 'src/styles/shell.css', ':root.is-touch .hs-win-head .hs-key, :root.is-touch .hs-launch::before { display: none; }', ':root.is-touch .hs-launch::before { display: none; }'],
   ['PH-14 a grey button says nothing', 'src/shell/off-why.js', "if (words) show(b, words); else hide();", "hide();"],
   ['PH-14 a slot\'s sheet does not say why', 'src/shell/windows/configure-action.js', "text(root.querySelector('.ca-why'), fireWhy ? fireWhy.text : '');", ''],
-  ['PH-14 her board does not say why while it is loaded', 'src/shell/windows/tally.js', "'is-on', !sc.board || st.hunting);", "'is-on', !sc.board);"],
+  ['PH-14 her board does not say why while it is loaded', 'src/shell/windows/tally.js', "const why = !sc.board ? '' : hunting ? t('tally.board_hunting') : takeWhyOf(tally, hunting, suggest);", "const why = !sc.board ? '' : takeWhyOf(tally, hunting, suggest);"],
   ['PH-15 a sliver of card stays under a tall alert', 'src/styles/shell.css', '  .hs-widget.is-no-room > .hs-pointer { display: none; }\n', ''],
   ['PH-6 a press on a folded card\'s tab opens nothing on a return', 'src/shell/launcher.js', '  if (r && r.seen === card.id && r.min !== true) return false;\n', ''],
   ['PH-15 every alert stacks on a phone', 'src/styles/windows.css', '  .hw-alert-list > .hw-alert:not(:first-child) { display: none; }\n', ''],
   ['PH-15 the alert is see-through', 'src/styles/windows.css', 'padding: 0 0 0 10px; background: var(--bg-2); }', 'padding: 0 0 0 10px; }'],
   ['PH-15 nothing counts the alerts behind', 'src/styles/windows.css', '  .hw-alerts-more:not(:empty) { display: block; }\n', ''],
-  ['PH-15 the card runs under the alert', 'src/shell/shell.js', "const shared = alert && w.matches('.is-hunt-topbar') ? alert.getBoundingClientRect().top - 8 : floor;", 'const shared = floor;'],
+  ['PH-15 the card runs under the alert', 'src/shell/shell.js', "const shared = alert && (w.matches('.is-hunt-topbar') || beside) ? at.top - 8 : floor;", 'const shared = floor;'],
   ['PH-15 the town\'s card hangs on the hero', 'src/styles/shell.css', '  .hs-launchers > .hs-pointer { left: auto; right: calc(100vw - 268px); }\n', ''],
   ['PH-16 the world waits in silence', 'src/app/world-pane.js', 'statusEl.textContent = loadingWords(connection.state(), Date.now() - waitFrom, firstWords);', 'statusEl.textContent = firstWords;'],
   ['PH-16 no connection line', 'src/app/boot.js', 'mountConnectionLine(doc), ', ''],
@@ -1755,6 +1772,7 @@ const MUTANTS = [
   ['PH-18 a card stands in the sheet again', 'src/styles/shell.css', '  .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer { position: absolute; margin: 0; top: 50px; left: calc(min(400px, 48vw) + 5px - 100vw); }\n', ''],
   ['PH-18 the note stands over the ground the card names', 'src/styles/shell.css', '  [data-hs-win="hunts"]:has(.hs-win-coach .hs-pointer) .hw-hunts-now { display: none; }\n', '  [data-hs-win="hunts"]:has(.hs-win-coach .hs-pointer) .hw-hunts-now { min-height: 120px; }\n'],
   ['PH-18 Got it chains the next card open', 'src/shell/launcher.js', 'min = folded.min || !!rest || (!!inWin && RESTED.get(cs) === coachWindow(card));', 'min = folded.min || !!rest;'],
+  ['PH-18 the coach foot shares the title row again', 'src/styles/shell.css', '  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min) > .hs-coach-foot { grid-area: 3 / 1 / 4 / 3; margin: 0; white-space: normal; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min) > .hs-coach-foot > :is(.hs-coach-got, .hs-coach-off) { min-height: 40px; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-min { grid-area: 3 / 3; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > b { grid-area: 1 / 1 / 2 / -1; padding-right: 8px; line-height: 1.05; }\n', ''],
   ['PH-18 the next card\'s tab opens nothing', 'src/shell/launcher.js', "  if (action === 'coach-open') RESTED.delete(cs);\n", ''],
   ['PH-19 Summary and Leave stay 7 px apart', 'src/styles/hunt.css', '  .ht-bar [data-hs-act="leave"] { margin-left: 10px; }\n', ''],
   ['PH-19 the folded card lies on the Details close', 'src/styles/hunt.css', '.app:has(.hs-widget.is-analyzer) .hs-widget.is-hunt-topbar > .hs-pointer { display: none; }', '.app:has(.hs-widget.is-analyzer) .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { display: none; }'],
@@ -1777,12 +1795,14 @@ const MUTANTS = [
   ['PH-24 the red count says nothing', 'src/shell/windows/characters.js', "text(li.querySelector('.hw-char-waits'), wait ? wait.text : '');", ''],
   ['PH-24 Storage tells a thumb to shift-press', 'src/shell/windows/storage.js', "(ctx.isPhone && ctx.isPhone() ? 'Press a stack to move one across. Hold it to choose how many.' : ", '(false ? \'\' : '],
   ['PH-24 the sheet\'s presses stay 30 px', 'src/styles/windows.css', '  .hs-win .hh-tool, .hs-win .hh-select, .hs-win .hh-seg, .hs-win .hh-num, .hs-win .hw-search, .hs-win .hf-name, .hs-win .st-search, .hs-win .hs-close { min-height: 40px; }\n', ''],
+  ['PH-24 the town card lies over the invite beside a sheet', 'src/shell/shell.js', "(w.matches('.is-hunt-topbar') || beside) ? at.top - 8", "w.matches('.is-hunt-topbar') ? at.top - 8"],
+  ["PH-24 a window card's foot stays 24 px", 'src/styles/shell.css', '> .hs-coach-foot > :is(.hs-coach-got, .hs-coach-off) { min-height: 40px; }', '> .hs-coach-foot > :is(.hs-coach-got, .hs-coach-off) { min-height: 24px; }'],
   ['PH-25 a ground\'s page keeps its frame and padding', 'src/styles/windows.css', '  [data-hs-win="hunts"]:has(.is-paged) .hs-win-body { padding: 0; }\n', '  [data-hs-win="hunts"]:has(.is-paged) .hw-hd-page { max-height: 104px; }\n'],
   ['PH-25 the sheet starts under the place\'s row', 'src/styles/shell.css', '  #panel-world:not([data-scene="hunt"]) .hs-win:not(.is-modal) { top: calc(-1 * (var(--tap) + 6px)); }\n', ''],
   ['PH-25 the stage still clips the sheet\'s head', 'src/styles/shell.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal)) .world-stage { overflow: visible; }\n', ''],
-  ['PH-25 the way back scrolls off with the page', 'src/shell/windows/hunts.js', "    + '<button type=\"button\" class=\"hh-tool hw-hd-back\" data-hs-act=\"back\">Back to the list</button>'\n", "    + ''\n"],
+  ['PH-25 a ground\'s page has no way back in the sheet\'s head','src/shell/windows/hunts.js', "renderHunts.inner = (ctx, body) => (ctx.isPhone() && body.querySelector('.is-paged') ? 'back' : null);", 'renderHunts.inner = () => null;'],
   ['PH-25 the line beside Enter stands in a column', 'src/styles/windows.css', ".hw-hd-foot .hh-intent-msg:not(:empty), .hw-hd-foot .hw-enter-why:not(:empty) { flex: 1 0 100%; }", ".hw-hd-foot .hh-intent-msg:not(:empty) { flex: 1 0 100%; }"],
-  ['PH-25 mid-hunt the way back is off', 'src/shell/windows/hunts.js', ".hw-hd-foot button:not(.hw-hd-back), .hw-tiers button", ".hw-hd-foot button, .hw-tiers button"],
+  ['PH-25 mid-hunt the way back is off', 'src/shell/window-head.js', "  attr(back, 'hidden', !(inner || to));", "  attr(back, 'hidden', true);"],
   ['PH-26 the switch\'s span widens the fold and the close', 'src/styles/hunt.css', '  .ha-analyzer .ha-scope { grid-area: 2 / 1 / 3 / -1; justify-self: end; margin-bottom: 0; }\n', '  .ha-analyzer .ha-scope { grid-area: 2 / 2 / 3 / 4; justify-self: end; margin-bottom: 0; }\n'],
   ['PH-26 the panel is too narrow for its tabs', 'src/styles/hunt.css', 'column-gap: 2px; width: min(376px, calc(100vw - 232px));', 'column-gap: 2px; width: 300px;'],
   ['PH-26 a hero alone keeps the switch', 'src/styles/hunt.css', '  .ha-analyzer.is-alone .ha-scope { display: none; }\n', ''],
@@ -1802,9 +1822,9 @@ const MUTANTS = [
   ['PH-28 a refusal pushes Enter town off the screen', 'src/styles/app.css', '  .auth-card.is-create:has(.auth-message:not(:empty)) .hero-body { height: min(calc(100vh - 176px), 246px); }\n', ''],
   ['PH-28 nothing says the column runs on', 'src/app/hero-create.js', '    if (more.hidden !== hide) more.hidden = hide;\n', ''],
   ['PH-29 a hero alone keeps the panel open', 'src/data/hud-widgets.js', "phone: Object.freeze({ dx: 4, dy: 4, folded: 'alone' }),", 'phone: Object.freeze({ dx: 4, dy: 4 }),'],
-  ['PH-29 a party\'s panel folds as well', 'src/shell/shell.js', 'alone: () => heroIsAlone(opts.character),', 'alone: () => true,'],
-  ['PH-29 a folded panel keeps its empty box', 'src/shell/shell.js', "el.style.minWidth = L.folded && phoneMq.matches ? '' : row.min[0] + 'px';", "el.style.minWidth = row.min[0] + 'px';"],
-  ['PH-29 a desktop shows the fold', 'src/styles/hunt.css', '.hp-party .hs-wfold { display: none; }\n', ''],
+  ['PH-29 a party\'s panel folds as well', 'src/shell/shell-hud.js', 'alone: () => heroIsAlone(opts.character),', 'alone: () => true,'],
+  ['PH-29 a folded panel keeps its empty box', 'src/shell/shell.js', "el.style.minWidth = L.folded ? '' : row.min[0] + 'px';", "el.style.minWidth = row.min[0] + 'px';"],
+  ['PH-29 a wide desktop folds a lone hero\'s panel', 'src/data/hud-widgets.js', "folded: 'narrow-alone',", "folded: 'alone',"],
   ['PH-30 More slots stays 24 px', 'src/styles/hunt.css', 'align-self: center; width: 36px; height: 74px;', 'align-self: center; width: 24px; height: 74px;'],
   ['PH-30 the setup\'s name stays a line of text', 'src/styles/hunt.css', '  .hb-set .hs-name { width: 100%; height: 100%; }\n', ''],
   ['PH-30 the name runs under its neighbour', 'src/styles/hunt.css', '  .hb-set { grid-area: set; align-self: stretch;', '  .hb-set { grid-area: set; align-self: stretch; min-width: 90px;'],

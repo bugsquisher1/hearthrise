@@ -8,7 +8,8 @@
 // mutant-anchors: src/shell/windows/boss-call-pane.js src/hunt-view/summary-model.js src/hunt-view/boss-loss.js src/shell/widgets/boss-bar.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs).
-//   BW-1  THE SERVER'S WORDS: alone, the page says why and the press is off; a member reads the leader's line; a ground with no boss to call shows nothing
+//   BW-1  THE SERVER'S WORDS: alone, the press is on and the warning carries one more line (a warning, never a lock: the designer's ruling 2, 2026-11-10), one press
+//         calls and the answer names no party; a member reads the leader's line; a ground with no boss to call shows nothing
 //   BW-2  THE WARNING, THEN ONE PRESS: the press only opens the warning, at the server's price (nothing sent); Not yet closes it; confirming sends ONE hr_boss_call with the id and the QUOTED price
 //   BW-3  A MOVED PRICE: quote_changed shows the server's new price and the words say nothing was charged; the next press carries the new price
 //   BW-4  NO ANSWER, NO PRESS, NO HAMMER: a server that won't quote leaves the press off and is not asked again on the repaint its own answer causes
@@ -30,7 +31,7 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 const PID = '00000000-0000-4000-8000-00000000bc01';
 const seat = (seatNo, name) => ({ seat: seatNo, name, level: 25, slot: 0, hunting: false, weapon: 'iron_sword', role: 'tank' });
 const PARTY = (self, leader = 0) => ({ party: { id: PID, max: 4, hunt: null, open: false, self_seat: self, leader_seat: leader, members: [seat(0, 'Marlow'), seat(1, 'Tessaly')] } });
-const QUOTE = (o) => Object.assign({ call: 'rat_king', available: true, why: null, price: 10000, used: 1, per_day: 3, left: 2, seats: 2, party_min: 2 }, o);
+const QUOTE = (o) => Object.assign({ call: 'rat_king', available: true, why: null, price: 10000, used: 1, per_day: 3, left: 2, seats: 2, alone: false }, o);
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
 async function stub(page, s) {
@@ -89,17 +90,29 @@ async function checks(overrides) {
   const press = async (page, sel, rule) => { try { await page.click(sel, { timeout: 1500 }); return true; } catch { fails.push(rule + ' could not press ' + sel); return false; } };
   const off = (page) => page.evaluate(() => { const b = document.querySelector('.hw-call-press'); return b ? b.disabled : null; });
   try {
-    /* BW-1 */
+    /* BW-1: ALONE, A WARNING AND NEVER A LOCK (the designer's ruling 2, 2026-11-10): the press is on, the warning carries one more line, one press calls */
     {
-      const { ctx, page, errors, s } = await open({}, QUOTE({ available: false, why: 'call_party', seats: 1 }));
-      if (!/The Rat King wants a party of two or more\./.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-1 alone reads ' + JSON.stringify(await txt(page, '.hw-call-line')));
-      if (await off(page) !== true) fails.push('BW-1 alone, the press is not off');
-      if (!/Call out the Rat King: 10,000 gp/.test(await txt(page, '.hw-call-press') || '')) fails.push('BW-1 the press reads ' + JSON.stringify(await txt(page, '.hw-call-press')));
+      const { ctx, page, errors, s } = await open({}, QUOTE({ seats: 1, alone: true }));
+      if (!/2 calls left today\./.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-1 alone reads ' + JSON.stringify(await txt(page, '.hw-call-line')));
+      if (await off(page) !== false) fails.push('BW-1 alone, the press is off');
+      if (!/Call out the Rat King for 10,000 gp/.test(await txt(page, '.hw-call-press') || '')) fails.push('BW-1 the press reads ' + JSON.stringify(await txt(page, '.hw-call-press')));
+      await press(page, '[data-hs-act="call-warn"]', 'BW-1');
+      await page.waitForTimeout(150);
+      if (sent(s, 'hr_boss_call').length) fails.push('BW-1 the first press charged');
+      const lone = await txt(page, '.hw-call-note-alone') || '';
+      if (lone !== 'The Rat King is built for a party. You can fight him alone, but he can kill you.' || !await shown(page, '.hw-call-note-alone')) fails.push('BW-1 alone, the warning\'s own line reads ' + JSON.stringify(lone));
+      const warned = await txt(page, '.hw-call-warn') || '';
+      if (!/You pay 10,000 gp, win or lose/.test(warned) || !/At half his health his adds come/.test(warned)) fails.push('BW-1 alone, the warning reads ' + JSON.stringify(warned));
+      await press(page, '[data-hs-act="call-go"]', 'BW-1');
+      await page.waitForTimeout(500);
+      const calls = sent(s, 'hr_boss_call');
+      if (calls.length !== 1 || calls[0].body.p_price !== 10000 || calls[0].body.p_call !== 'rat_king') fails.push('BW-1 alone, the press sent ' + JSON.stringify(calls.map((c) => c.body)));
+      const msg = await page.evaluate(() => (document.querySelector('.hw-hunts .hh-intent-msg') || {}).textContent || '');
+      if (!/The Rat King answers\. You're on your way\./.test(msg) || /party/.test(msg)) fails.push('BW-1 alone, the answer reads ' + JSON.stringify(msg));
       await page.click('.hw-hunt[data-hunt="mill_cellar"]');
       await page.waitForTimeout(200);
       if (await shown(page, '.hw-hd-call')) fails.push('BW-1 a ground with no boss to call shows the section');
       if (errors.length) fails.push('BW-1 console errors: ' + errors.join(' | ').slice(0, 300));
-      if (sent(s, 'hr_boss_call').length) fails.push('BW-1 something was charged');
       await ctx.close();
     }
     {
@@ -118,7 +131,9 @@ async function checks(overrides) {
       if (sent(s, 'hr_boss_call').length) fails.push('BW-2 the first press charged');
       if (!await shown(page, '.hw-call-warn')) fails.push('BW-2 no warning');
       const warned = await txt(page, '.hw-call-warn') || '';
-      if (!/A death ends the fight/.test(warned) || !/10,000 gp from your purse, win or lose/.test(warned) || !/no XP, no coin and no drops/.test(warned) || !/At half his health his adds come/.test(warned) || !/At a quarter he rages/.test(warned)) fails.push('BW-2 the warning reads ' + JSON.stringify(warned));
+      if (!/If anyone dies, the fight ends/.test(warned) || !/You pay 10,000 gp, win or lose/.test(warned) || !/no XP, coin or drops/.test(warned) || !/At half his health his adds come/.test(warned) || !/At a quarter of his health he hits even harder/.test(warned)) fails.push('BW-2 the warning reads ' + JSON.stringify(warned));
+      /* a party's leader reads no lone line: the room holds the party */
+      if (/You can fight him alone/.test(warned) || await shown(page, '.hw-call-note-alone')) fails.push('BW-2 a party\'s warning reads the lone line: ' + JSON.stringify(warned));
       await press(page, '[data-hs-act="call-no"]', 'BW-2');
       await page.waitForTimeout(150);
       if (await shown(page, '.hw-call-warn')) fails.push('BW-2 Not yet left the warning up');
@@ -153,13 +168,13 @@ async function checks(overrides) {
       const { ctx, page, s } = await open(PARTY(0), null);
       await page.waitForTimeout(1500);
       if (await off(page) !== true) fails.push('BW-4 with no quote the press is on');
-      if (!/hasn't said yet/.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-4 off with no words: ' + JSON.stringify(await txt(page, '.hw-call-line')));
+      if (!/Checking if you can call him out/.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-4 off with no words: ' + JSON.stringify(await txt(page, '.hw-call-line')));
       if (sent(s, 'hr_boss_call_view').length > 1) fails.push('BW-4 asked ' + sent(s, 'hr_boss_call_view').length + ' times in a moment');
       await ctx.close();
     }
     /* BW-5: the module as this page serves it (a mutant's text included). */
     {
-      const { ctx, page } = await open({}, QUOTE({ available: false, why: 'call_party' }));
+      const { ctx, page } = await open({}, QUOTE({ available: false, why: 'call_limit', left: 0 }));
       const r = await page.evaluate(async () => {
         const v = new URL(Array.from(document.querySelectorAll('link[rel="modulepreload"]'), (l) => l.href).find((h) => h.includes('/summary-model.js'))).search;
         const M = await import('/src/hunt-view/summary-model.js' + v);
@@ -173,7 +188,7 @@ async function checks(overrides) {
     }
     /* BW-6, BW-7: the modules as this page serves them. */
     {
-      const { ctx, page } = await open({}, QUOTE({ available: false, why: 'call_party' }));
+      const { ctx, page } = await open({}, QUOTE({ available: false, why: 'call_limit', left: 0 }));
       const r = await page.evaluate(async () => {
         const hrefOf = (name) => new URL(Array.from(document.querySelectorAll('link[rel="modulepreload"]'), (l) => l.href).find((h) => h.includes(name)));
         const L = await import(hrefOf('/boss-loss.js').href);
@@ -212,20 +227,20 @@ async function checks(overrides) {
       });
       const l = r.lines;
       const want = (rule, name, re) => { if (!re.test(l[name] || '')) fails.push(rule + ' ' + name + ' reads ' + JSON.stringify(l[name])); };
-      want('BW-6', 'enrageTank', /^Fell in the enrage at 23%\. You ate 6 times\. .*eat earlier/i);
-      want('BW-6', 'enrageHealer', /^Fell in the enrage at 23%\. Your heals fired 12 times\./);
-      want('BW-6', 'addsMage', /^Fell in the add wave at 41%\. Your area slots fired 0 times\. .*Cleave or Fireball/);
-      want('BW-6', 'addsHealer', /^Fell in the add wave at 41%\. Your heals fired 2 times\./);
-      want('BW-6', 'addsTank', /^Fell in the add wave at 41%\. Your Challenge fired 1 time\. /);
-      want('BW-6', 'chiefAdds', /^Fell in the add wave at 41%\. Your area slots fired 3 times\. His adds shield him while they stand\. Set your damage dealers' Target to Lowest HP so they kill the adds before him\.$/);
-      want('BW-6', 'chiefEnrage', /^Fell in the enrage at 23%\. You ate 2 times\. Under a quarter of his health/);
+      want('BW-6', 'enrageTank', /^You lost after he got enraged, with him at 23%\. You ate 6 times\. .*eat earlier/i);
+      want('BW-6', 'enrageHealer', /^You lost after he got enraged, with him at 23%\. Your heals fired 12 times\./);
+      want('BW-6', 'addsMage', /^You lost while his adds were up, with him at 41%\. Your area slots fired 0 times\. .*Cleave or Fireball/);
+      want('BW-6', 'addsHealer', /^You lost while his adds were up, with him at 41%\. Your heals fired 2 times\./);
+      want('BW-6', 'addsTank', /^You lost while his adds were up, with him at 41%\. Your Challenge fired 1 time\. /);
+      want('BW-6', 'chiefAdds', /^You lost while his adds were up, with him at 41%\. Your area slots fired 3 times\. His adds shield him while they stand\. Set your damage dealers' Target to Lowest HP so they kill the adds before him\.$/);
+      want('BW-6', 'chiefEnrage', /^You lost after he got enraged, with him at 23%\. You ate 2 times\. Under a quarter of his health/);
       if (/shield/.test(l.addsMage || '')) fails.push('BW-6 the King, whose rats shield nothing, reads ' + JSON.stringify(l.addsMage));
-      want('BW-6', 'first', /^Fell before his adds came, at 80%\. You ate 1 time\. /);
-      want('BW-6', 'time', /^Time ran out in the enrage at 23%\. /);
+      want('BW-6', 'first', /^You lost before his adds came, with him at 80%\. You ate 1 time\. /);
+      want('BW-6', 'time', /^Time ran out after he got enraged, with him at 23%\. /);
       want('BW-6', 'floor', /at 1%\./);
       for (const n of ['won', 'left', 'normal', 'none']) if (l[n] !== null) fails.push('BW-6 ' + n + ' has a line: ' + l[n]);
       if (!r.ended || r.ended.boss_pm !== 230) fails.push('BW-6 the ended session lost the record: ' + JSON.stringify(r.ended));
-      if (!/^Fell in the enrage at 23%\. You ate 6 times/.test(r.loss || '')) fails.push('BW-6 the summary reads ' + JSON.stringify(r.loss));
+      if (!/^You lost after he got enraged, with him at 23%\. You ate 6 times/.test(r.loss || '')) fails.push('BW-6 the summary reads ' + JSON.stringify(r.loss));
       if (r.kept !== r.loss) fails.push('BW-6 the residue\'s bounds lost the line: ' + JSON.stringify(r.kept));
       const b = r.bars;
       if (b.full.quiet || b.full.name !== 'The Rat King' || b.full.adds !== '50%' || b.full.enrage !== '25%' || b.full.fill !== '100%' || b.full.wave || b.full.raging) fails.push('BW-7 at full he reads ' + JSON.stringify(b.full));
@@ -259,6 +274,10 @@ const MUTANTS = [
   { name: 'a mark in the wrong place', file: 'src/shell/widgets/boss-bar.js', from: "'left', (ph.enragePm / 10) + '%'", to: "'left', (ph.addsPm / 10) + '%'", want: /BW-7/ },
   { name: 'the bar reads the snapshot, not the instant shown', file: 'src/shell/widgets/boss-bar.js', from: 'const hp = played ? played.hp : x.hp, max = played ? played.maxHp : x.hpMax;', to: 'const hp = x.hp, max = x.hpMax;', want: /BW-7/ },
   { name: 'the bar stands on every hunt', file: 'src/shell/widgets/boss-bar.js', from: "cls(el, 'is-quiet', !ph);", to: "cls(el, 'is-quiet', false);", want: /BW-7/ },
+  /* ALONE, A WARNING (the designer's ruling 2, 2026-11-10): the lone line shows for a hero alone, only for one, and the answer names no party. */
+  { name: 'a hero alone reads no lone line', file: 'src/shell/windows/boss-call-pane.js', from: "prop(alone, 'hidden', !q.alone);", to: "prop(alone, 'hidden', true);", want: /BW-1/ },
+  { name: 'a party reads the lone line', file: 'src/shell/windows/boss-call-pane.js', from: "text(alone, q.alone ? callWords(BOSS_CALL_WORDS.warnAlone, call, q.price) : '');", to: 'text(alone, callWords(BOSS_CALL_WORDS.warnAlone, call, q.price));', want: /BW-2/ },
+  { name: 'a hero alone is told the party is on its way', file: 'src/shell/windows/boss-call-pane.js', from: 'const answered = quote.alone ? BOSS_CALL_WORDS.answered.alone : BOSS_CALL_WORDS.answered.party;', to: 'const answered = BOSS_CALL_WORDS.answered.party;', want: /BW-1/ },
   { name: 'a free way back from the room', file: 'src/hunt-view/summary-model.js', from: ' || callOfHunt(summary.hunt)) return null;', to: ') return null;', want: /BW-5/ },
 ];
 

@@ -14,7 +14,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { covers, tilesOf } from './shapes.js?v=0.2.114';
+import { covers, tilesOf } from './shapes.js?v=0.2.125';
 
 /** The placed shape of unit `u`'s live cast, or null (none, or a caster that has fallen). */
 export function castShape(u) {

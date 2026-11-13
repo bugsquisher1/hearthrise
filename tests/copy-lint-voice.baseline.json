@@ -1,7 +1,6 @@
 {
   "why": "tests/copy-lint.mjs THE PERSON DEBT: lines that broke a PERSON rule (Tyler 2026-11-09, \"the lint needs to check whether it reads like a person wrote it\") when the rules landed. Each is rewritten in a voice sweep batch (.claude/coordination/voice-sweep.txt); the list only shrinks (--prune-voice drops rewritten rows and never adds one).",
   "hits": [
-    "src/data/boss-calls.js#server-talk#The server hasn't said yet whether he can be called.",
     "src/data/condition-metrics.js#this-slots#of this slot’s item left",
     "src/data/how-to-play.js#per-unit#Bronze Arrows are free and never run out. Better ammo costs a little per shot. Uses food.",
     "src/data/refusal-words.js#server-talk#The server does not know that",
@@ -38,7 +37,6 @@
     "src/data/text/house.js#this-slots#One house for all your characters. Gold comes from your shared purse, and materials from this hero's bag first, then Storage.",
     "src/shell/hunt-go.js#label-sentence#Tamsin's tasks: nothing here counts toward them.",
     "src/shell/hunt-go.js#label-sentence#Weapon: none on, so your hero fights bare-handed. Put one on from your bag.",
-    "src/shell/loot-dispatch.js#set-to#Nothing is set to Deposit or Sell yet. Set it in an item’s menu.",
     "src/shell/setup-words.js#this-slots#This hero's",
     "src/shell/setup-words.js#this-slots#This hero's 1 setup slot is full.",
     "src/shell/slot-waits.js#label-sentence#Waiting: this slot ignores the monster you’re fighting.",

@@ -111,7 +111,12 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* CRAFTED JEWELRY (lane/c-jewelry-sample, Tyler 2026-11-05): 2027-03-08-rune-ladder-items-catalogue is APPLIED history; the Banded Signet's Fine and Hallmarked rows, the Road Carnelian (hr_items) and the two rolled Crafting jobs (hr_activities) land in ONE forward file, the same full delete+insert replace. */
 /* ONE FORMULA FOR EVERY HUNT (lane/b-ground-formula, Tyler 2026-11-07): 2027-03-14-jewelry-items-catalogue is APPLIED history; the open grounds' monsters' max HP (hr_activities combat rows) land in ONE forward file, the same full delete+insert replace. */
 /* TIER 4'S MADE RUNGS (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-20-ground-formula-items-catalogue is APPLIED history; the Mithril Hatchets' and Maple Crossbow's hr_items rows and their Smithing and Crafting recipes in hr_activities land in ONE forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-03-27-phase0-tier4-items-catalogue.generated.sql');
+/* PLAIN GEAR NAMES (lane/c-plain-gear-names, Tyler 2026-11-11): 2027-03-27-phase0-tier4-items-catalogue is APPLIED history; hr_items.name takes the plain names (23 rows: Coif -> Hood, Vambraces -> Bracers, Torc -> Necklace, Greaves -> Leg Plates, Hackle -> Neck Fur, Whelp -> Pup) in ONE forward file, the same full delete+insert replace, ids unchanged. The emitted self-check pins every landed name to the source by digest. */
+/* SMALL CALLS (lane/d-small-calls, designer 2026-11-11): 2027-04-11-plain-gear-names-items-catalogue is APPLIED history; Cook Wolf Meat opens at Cooking 1 (hr_activities artisan:cook_wolf_meat req_lv 5 -> 1) and the Frost Jarl's necklace reads Jarl's Collar (hr_items jarls_rimetorc name) in ONE forward file, the same full delete+insert replace, ids unchanged. The emitted self-check pins both rows from the source, beside the names digest. */
+/* THE BROOK BEAR, A HEAVY (lane/d-solo-fifteen, designer 2026-11-12, Tyler's open question 3 under the +10% lone profit floor): 2027-04-12-small-calls-items-catalogue
+   is APPLIED history; the bear's max HP (hr_activities combat:brook_bear, 69 -> 51, the formula's heavy row: src/data/balance-sheet.js roster and monsters.js) lands in
+   ONE forward file, the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-14-brook-bear-heavy-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -165,6 +170,9 @@ const { START_CURRENCY, START_SKILL_XP, START_INVENTORY, START_EQUIPMENT }
    is the byte-for-byte proof. */
 const { deriveCatalogueRows } = await import('./catalogue-rows.mjs');
 const { itemIds, items, itemSlots, activities } = await deriveCatalogueRows();
+
+/* The landed names' digest (the self-check's), in the same order Postgres reads them: item_id under the C collation. */
+const ITEM_NAMES_MD5 = createHash('md5').update([...items].sort((x, y) => (x.item_id < y.item_id ? -1 : x.item_id > y.item_id ? 1 : 0)).map((r) => r.item_id + '=' + r.name).join('\n')).digest('hex');
 
 const equipSlots = EQUIP_SLOTS.map((s, i) => ({ equip_slot: s, ord: i }));
 
@@ -688,6 +696,18 @@ declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
   if v_n <> ${items.length} then raise exception 'hr_items has % rows, generator emitted ${items.length}', v_n; end if;
+  -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
+  -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '${ITEM_NAMES_MD5}' then
+    raise exception 'hr_items names differ from src/data (expected digest ${ITEM_NAMES_MD5})';
+  end if;
+  -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
+  if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from ${n(activities.find((r) => r.kind === 'artisan' && r.activity_id === 'cook_wolf_meat').req_lv)} then
+    raise exception 'hr_activities artisan:cook_wolf_meat req_lv is not the source''s (${n(activities.find((r) => r.kind === 'artisan' && r.activity_id === 'cook_wolf_meat').req_lv)})';
+  end if;
+  if (select name from public.hr_items where item_id = 'jarls_rimetorc') is distinct from ${q(items.find((r) => r.item_id === 'jarls_rimetorc').name)} then
+    raise exception 'hr_items jarls_rimetorc name is not the source''s (${items.find((r) => r.item_id === 'jarls_rimetorc').name.replace(/'/g, "''")})';
+  end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> ${items.filter((r) => !r.tradeable).length} then
     raise exception 'untradeable count is %, generator emitted ${items.filter((r) => !r.tradeable).length}', v_n;
@@ -1474,7 +1494,7 @@ const { BASIC_SUPPLIES: RUNE_STORE } = await imp('src/data/supply-basics.js');
    AREA SPELLS (lane/b-area-set, Tyler 2026-11-08: "our heros some more aoe spells", and the Healer's long-cooldown party heal): 2027-03-24-undertow-rune-spells is the
    file before this one and this one carries it (Undertow and every spell before it, unchanged); Hoarfrost on the Ice family and Spring Tide on the Water family land in
    this forward file, the same create or replace. */
-const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '2027-03-28-area-spells-rune-spells.generated.sql');
+const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '2027-04-15-area-spells-rune-spells.generated.sql');
 const runeSpells = {};
 for (const id of Object.keys(RUNE_ABILITIES).sort()) {
   const row = RUNE_ABILITIES[id];
@@ -1515,7 +1535,7 @@ const sqlRuneSpells = `-- ══════════════════
 -- accepted and read usable. Carried from 2027-03-24-undertow-rune-spells.generated.sql: Undertow (Tyler 2026-11-09) and
 -- every spell before it; no other spell's runes or store rows move.
 --
--- APPLY ORDER: right after 2027-03-28-area-spells-hunt-sessions-catalogue.generated.sql (hr_hunt_abilities carries
+-- APPLY ORDER: right after 2027-04-15-area-spells-hunt-sessions-catalogue.generated.sql (hr_hunt_abilities carries
 --              Hoarfrost and Spring Tide, and this file's self-check compares the two), before the hr-accrue deploy
 --              and the client that offers the two spells. SAFE TO RE-RUN (create or replace).
 -- ══════════════════════════════════════════════════════════════

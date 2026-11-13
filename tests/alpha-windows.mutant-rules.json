@@ -228,5 +228,8 @@
   "ticker: it ticks long after the server stopped settling": "TK-6",
   "ticker: the character forgets the settle refusal": "TK-7",
   "ticker: the line does not mark the pending count": "TK-1",
-  "ticker: the pending logs can be sold": "TK-3"
+  "ticker: the pending logs can be sold": "TK-3",
+  "AW-93 a docked window stops above the bar on a short World again": "AW-93",
+  "AW-93 a scroll region ends on a cut row again": "AW-93",
+  "AW-93 the empty Market hides its press again": "AW-93"
 }

@@ -1,0 +1,261 @@
+{
+  "asset": "barn_spider hit clip (brief 10 B3), Wickstead",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B3 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "stead",
+  "object_id": "70b39926-6c54-4978-9862-72789e4b0669",
+  "name": "barn spider (44 canvas)",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); hit/<facing>/0..N.png = the kept roll; alt/<roll>/hit/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the object, frame_count 6, keep_first_frame false; south and the side facings are separate groups (their action texts differ)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "738b4c42-e9c2-4fd2-b83b-60c7356aa41a",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "6cd07226-be96-449b-9a08-8df103da7942",
+        "directions": "e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r2": [
+      {
+        "group": "a4899aad-1ebf-47d8-926e-45b4543d0256",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, all eight legs stay planted, the same colours throughout, no specks, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r2",
+    "east": "r1",
+    "north": "r1",
+    "west": "r1"
+  },
+  "refused": {
+    "south r1": "loose pale specks beside the legs at frames 0-2 and the body dips 3 px"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r2",
+      "xor": [
+        120,
+        224,
+        320,
+        358,
+        314,
+        219
+      ],
+      "alien": [
+        0,
+        0,
+        10,
+        20,
+        11,
+        2
+      ],
+      "dx": [
+        0.2,
+        0.1,
+        0,
+        -0.1,
+        0,
+        0
+      ],
+      "dy": [
+        0.6,
+        1.5,
+        2.3,
+        2.7,
+        1.7,
+        0.3
+      ],
+      "top": [
+        1,
+        2,
+        3,
+        3,
+        1,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        1,
+        2,
+        1,
+        0
+      ],
+      "auto_flags": []
+    },
+    "east": {
+      "roll": "r1",
+      "xor": [
+        108,
+        134,
+        133,
+        179,
+        185,
+        138
+      ],
+      "alien": [
+        0,
+        4,
+        21,
+        20,
+        16,
+        14
+      ],
+      "dx": [
+        -0.2,
+        -0.5,
+        -0.4,
+        -0.1,
+        -0.2,
+        -0.2
+      ],
+      "dy": [
+        0.1,
+        0.3,
+        0.2,
+        0.6,
+        0.7,
+        0.2
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "loose f2 (4)"
+      ]
+    },
+    "north": {
+      "roll": "r1",
+      "xor": [
+        140,
+        224,
+        290,
+        308,
+        261,
+        216
+      ],
+      "alien": [
+        3,
+        2,
+        16,
+        14,
+        8,
+        2
+      ],
+      "dx": [
+        -0.1,
+        0,
+        -0.3,
+        0,
+        0,
+        0
+      ],
+      "dy": [
+        -0.1,
+        -0.2,
+        0.1,
+        0,
+        -0.1,
+        0
+      ],
+      "top": [
+        0,
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        -1,
+        1,
+        2,
+        1,
+        0
+      ],
+      "auto_flags": [
+        "feet f3 (bot 2, dy 0)"
+      ]
+    },
+    "west": {
+      "roll": "r1",
+      "xor": [
+        85,
+        151,
+        187,
+        123,
+        58,
+        72
+      ],
+      "alien": [
+        0,
+        0,
+        3,
+        2,
+        1,
+        0
+      ],
+      "dx": [
+        0.1,
+        0.4,
+        0.3,
+        0.3,
+        0.1,
+        0
+      ],
+      "dy": [
+        -0.1,
+        0.2,
+        0.7,
+        0.7,
+        0.2,
+        -0.4
+      ],
+      "top": [
+        0,
+        0,
+        2,
+        1,
+        1,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    }
+  },
+  "generations": 5,
+  "flags": [
+    "east: the white silk line at the abdomen redraws each frame (the still has it); 4 loose px at frame 2"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/barn_spider-hit.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)"
+}

@@ -47,14 +47,14 @@
 //         names the picked hunt, Disband and an own invite by slot are each ONE rpc (slot, hunt,
 //         own slot only); a refusal re-reads nobody and `not_ready` names each seat in words;
 //         an ok re-reads every own character the verb touched; a malformed one sends nothing
-//   UI-3  the Hunts window is where a party starts: the leader's Enter reads "Start with party"
+//   UI-3  the Hunts window is where a party starts: the leader's Enter reads "Enter with party"
 //         and is ONE hr_hunt_party_start naming the picked hunt, off until the server
 //         answered, and a refusal names who was not ready; a member's Enter stays off. The
 //         Party window is Invites + Find a party: Invites opens first while one waits, Join is
 //         ONE hr_hunt_party_accept; the finder defaults to this character's weapon (no ground
 //         filter) and Join is ONE hr_hunt_party_join
 //   UI-5  the party note is the PICKED ground's, from its catalogue row, on its Hunts line
-//   UI-6  an invite reaches the player as an alert line with Join / No thanks; Join is ONE
+//   UI-6  an invite reaches the player as an alert line with Join / Decline; Join is ONE
 //         hr_hunt_party_accept for that character, off until the server answered
 //   UI-7  a character tab's right-click: Invite to party for an own character in no party (ONE
 //         hr_hunt_party_invite_own naming the viewed slot and that slot), Leave party for one
@@ -795,7 +795,7 @@ async function pureRules(M, base) {
     const left = M.AL.cameHomeLine({ endReason: 'party_member_left', endBy: 'Mira' }, 'Tyler');
     const fell = M.AL.cameHomeLine({ endReason: 'party_member_died', endBy: 'Mira' }, 'Tyler');
     const anon = M.AL.cameHomeLine({ endReason: 'party_member_left', endBy: null }, 'Tyler');
-    if (left !== 'Mira left the hunt, so Tyler came home too.' || fell !== 'Mira fell, so Tyler came home too.' || anon !== 'A party member left the hunt, so Tyler came home too.') {
+    if (left !== 'Mira left the hunt, so Tyler came home too.' || fell !== 'Mira died, so Tyler came home too.' || anon !== 'A party member left the hunt, so Tyler came home too.') {
       return 'the came-home lines read ' + JSON.stringify([left, fell, anon]);
     }
     const sum = [M.SM.endWords('party_member_left', false, 'Mira', 'Tyler'), M.SM.endWords('party_member_died', false, 'Mira', 'Tyler')];
@@ -826,41 +826,44 @@ async function pureRules(M, base) {
     return tboxes() === 'on,-' || 'after starting again the rows read ' + tboxes();
   });
 
-  /* PR-CLASS (Tyler 2026-10-31; designer's words 2026-11-02): the Your party tab's line states the measured answer against hunting alone for that party on
-     that ground, in the designer's words, on every row and cell (PARTY_VS_ALONE; first-week-bands vs-alone plays it). */
+  /* PR-CLASS (Tyler 2026-10-31; designer's words 2026-11-02, re-said in Tyler's voice 2026-11-11): the Your party tab's line states the measured answer
+     against hunting alone for that party on that ground, on every row and cell (PARTY_VS_ALONE; first-week-bands vs-alone plays it). Since one pack on
+     Normal for every group (Tyler 2026-11-11) a one-class party loses a lot there, so its line says how to get more (lane/d-party-xp-cells). */
   await t('PR-CLASS', async () => {
     const L = M.PRO.classXpLine;
-    const end = ' Melee, Ranger, Mage and Healer each count.';
+    const head = (k) => 'Your party has ' + k + ' of 4 classes. ';
+    const more = (k, vs, place) => head(k) + 'Each of you gets about ' + vs + '% more Level XP than hunting alone in ' + place + '.';
+    const less = (k, vs, place) => head(k) + 'Each of you gets about ' + vs + '% less Level XP than hunting alone in ' + place + '. Mix Melee, Ranger, Mage and Healer to get more.';
     for (const [roles, hunt, want] of [
-      [['tank', 'ranger'], 'meadowbrook_thicket', 'Your party has 2 of 4 classes: about 45% more Level XP each than hunting alone in Meadowbrook Thicket.'],
-      /* one class: a one-class party loses a little against a hero alone (Tyler 11-02 "about 6-15%"; the lane's fifth commit), measured */
-      [['tank', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['tank', 'melee_dps'], 'millrace_sewer', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in The Sewer.'],
-      [['tank', 'mage', 'healer'], 'coppercap_warrens', 'Your party has 3 of 4 classes: about 20% more Level XP each than hunting alone in Coppercap Warrens.'],
-      [['tank', 'ranger'], 'millrace_sewer', 'Your party has 2 of 4 classes: about 40% more Level XP each than hunting alone in The Sewer.'],
-      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', 'Your party has 4 of 4 classes: about 35% more Level XP each than hunting alone in The Sewer.'],
+      [['tank', 'ranger'], 'meadowbrook_thicket', more(2, 45, 'Meadowbrook Thicket')],
+      /* one class: with one pack for every group a one-class party loses a lot on Normal, measured */
+      [['tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 30, 'Meadowbrook Thicket')],
+      [['tank', 'melee_dps'], 'millrace_sewer', less(1, 15, 'The Sewer')],
+      [['tank', 'mage', 'healer'], 'coppercap_warrens', more(3, 25, 'Coppercap Warrens')],
+      [['tank', 'ranger'], 'millrace_sewer', more(2, 40, 'The Sewer')],
+      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', more(4, 45, 'The Sewer')],
       /* a seat with no weapon fights bare-handed, a Melee (hunt-roles.js ROLE_KEYS.neutral): it holds the Melee class */
-      [[null, 'ranger'], 'wickstead', 'Your party has 2 of 4 classes: about 40% more Level XP each than hunting alone in Wickstead.'],
-      [[null, 'tank'], 'wickstead', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in Wickstead.'],
-      /* A Thicket four who all share one role reads its own measured line (ONE_ROLE_VS_ALONE, CLAUDE.md §6): a four of wands loses least, shields and axes most. */
-      [['mage', 'mage', 'mage', 'mage'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 10% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['tank', 'tank', 'tank', 'tank'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 25% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['melee_dps', 'melee_dps', 'melee_dps', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 25% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['ranger', 'ranger', 'ranger', 'ranger'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 20% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['healer', 'healer', 'healer', 'healer'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in Meadowbrook Thicket.'],
+      [[null, 'ranger'], 'wickstead', more(2, 45, 'Wickstead')],
+      [[null, 'tank'], 'wickstead', less(1, 35, 'Wickstead')],
+      /* A Thicket four who all share one role reads its own measured line (ONE_ROLE_VS_ALONE, CLAUDE.md §6). */
+      [['mage', 'mage', 'mage', 'mage'], 'meadowbrook_thicket', less(1, 60, 'Meadowbrook Thicket')],
+      [['tank', 'tank', 'tank', 'tank'], 'meadowbrook_thicket', less(1, 50, 'Meadowbrook Thicket')],
+      [['melee_dps', 'melee_dps', 'melee_dps', 'melee_dps'], 'meadowbrook_thicket', less(1, 60, 'Meadowbrook Thicket')],
+      [['ranger', 'ranger', 'ranger', 'ranger'], 'meadowbrook_thicket', less(1, 55, 'Meadowbrook Thicket')],
+      [['healer', 'healer', 'healer', 'healer'], 'meadowbrook_thicket', less(1, 50, 'Meadowbrook Thicket')],
       /* one class of two roles reads the ground's row, and another ground's wands keep theirs */
-      [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 20% less Level XP each than hunting alone in Meadowbrook Thicket.'],
-      [['mage', 'mage', 'mage', 'mage'], 'wickstead', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in Wickstead.'],
+      [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 55, 'Meadowbrook Thicket')],
+      [['mage', 'mage', 'mage', 'mage'], 'wickstead', less(1, 50, 'Wickstead')],
     ]) {
-      if (L(roles, hunt) !== want + end) return JSON.stringify(roles) + ' on ' + hunt + ' reads ' + JSON.stringify(L(roles, hunt));
+      if (L(roles, hunt) !== want) return JSON.stringify(roles) + ' on ' + hunt + ' reads ' + JSON.stringify(L(roles, hunt));
     }
     const all = ['tank', 'ranger', 'mage', 'healer'];
     for (const [g, row] of Object.entries(M.PCX.PARTY_VS_ALONE)) for (const [n, cells] of Object.entries(row)) cells.forEach((vs, i) => {
       /* the row's one-class cell is read by one class of two roles: a four of one role may read its own line (pinned above) */
       const roles = Array.from({ length: Number(n) }, (_, s) => (i === 0 && s % 2 ? 'melee_dps' : all[Math.min(s, i)]));
-      const pay = vs > 0 ? 'about ' + vs + '% more Level XP each than hunting alone in ' : vs < 0 ? 'about ' + -vs + '% less Level XP each than hunting alone in ' : 'about the same Level XP each as hunting alone in ';
+      const pay = vs > 0 ? 'about ' + vs + '% more Level XP than hunting alone in ' : vs < 0 ? 'about ' + -vs + '% less Level XP than hunting alone in ' : 'about the same Level XP as hunting alone in ';
       const hunt = Object.values(HUNT_GROUNDS).find((x) => x.id === g).hunt;
-      if (!L(roles, hunt).includes((i + 1) + ' of 4 classes: ' + pay)) throw new Error(g + ' ' + roles + ' reads ' + L(roles, hunt) + ', the cell is ' + vs);
+      if (!L(roles, hunt).includes((i + 1) + ' of 4 classes. Each of you gets ' + pay)) throw new Error(g + ' ' + roles + ' reads ' + L(roles, hunt) + ', the cell is ' + vs);
     });
     /* On the tab: shown before a hunt starts, gone once anyone hunts, none alone. */
     const seat = (s, weapon, hunting) => ({ seat: s, unit: null, name: 'H' + s, level: 6, weapon, hunting: hunting === true, hp: 100, hp_max: 100 });
@@ -869,11 +872,11 @@ async function pureRules(M, base) {
       return M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs));
     };
     const shown = tab([seat(0, 'shield'), seat(1, 'ranged')], 'mill_cellar');
-    if (shown !== 'Your party has 2 of 4 classes: about 15% more Level XP each than hunting alone in Mill Cellar.' + end) return 'in town the tab reads ' + JSON.stringify(shown);
+    if (shown !== more(2, 20, 'Mill Cellar')) return 'in town the tab reads ' + JSON.stringify(shown);
     if (tab([seat(0, 'shield', true), seat(1, 'ranged', true)], 'mill_cellar') !== '') return 'the line stayed once the party hunts';
     if (tab([seat(0, 'shield')], 'mill_cellar') !== '') return 'a party of one reads a class line';
     const fresh = tab([seat(0, 'shield'), seat(1, 'wand')], null);
-    return (fresh && /2 of 4 classes: about (\d+% (more|less)|the same) Level XP each /.test(fresh)) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
+    return (fresh && /2 of 4 classes\. Each of you gets about (\d+% (more|less)|the same) Level XP /.test(fresh)) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
   });
 
   /* PR-TRUTH (blind panel 2026-11-01): what the server knows, said. A swapped weapon changes the role, the class line and the panel; a friend's
@@ -885,12 +888,12 @@ async function pureRules(M, base) {
     const look = (p) => { const cs = { read: (k) => (k === 'party' ? p : undefined) }; return [M.PP.rosterOf(cs).members.map((m) => m.role).join(), M.PS.partyMembershipOf(cs).seats.map((s) => s.role).join(), M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs))]; };
     const before = look(party('shield', 'shield')), after = look(party('shield', 'ranged'));
     if (before[0] !== 'tank,tank' || !/has 1 of 4 classes/.test(before[2])) return 'two shields read ' + JSON.stringify(before);
-    if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || !/has 2 of 4 classes: about 45% more Level XP each than hunting alone in Meadowbrook Thicket/.test(after[2])) return 'a swap to a bow reads ' + JSON.stringify(after);
+    if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || !/has 2 of 4 classes\. Each of you gets about 45% more Level XP than hunting alone in Meadowbrook Thicket/.test(after[2])) return 'a swap to a bow reads ' + JSON.stringify(after);
     /* (2) WHY A FRIEND CAME HOME, on both surfaces. */
     const why = (r, by, w) => M.AL.cameHomeLine({ endReason: r, endBy: by, endWhy: w }, 'Wrenna');
     if (why('party_member_left', 'Bramwell', 'stamina') !== 'Bramwell ran out of stamina, so Wrenna came home too.') return 'a stamina end reads ' + why('party_member_left', 'Bramwell', 'stamina');
     if (why('party_member_left', 'Bramwell', 'left') !== 'Bramwell left the hunt, so Wrenna came home too.') return 'a plain leave reads ' + why('party_member_left', 'Bramwell', 'left');
-    if (why('party_member_died', 'Bramwell', 'died') !== 'Bramwell fell, so Wrenna came home too.') return 'a death reads ' + why('party_member_died', 'Bramwell', 'died');
+    if (why('party_member_died', 'Bramwell', 'died') !== 'Bramwell died, so Wrenna came home too.') return 'a death reads ' + why('party_member_died', 'Bramwell', 'died');
     if (why('party_member_left', 'Bramwell', 'no_such_reason') !== 'Bramwell left the hunt, so Wrenna came home too.') return 'an unknown reason reads ' + why('party_member_left', 'Bramwell', 'no_such_reason');
     if (M.SM.reasonWords({ reason: 'party_member_left', by: 'Bramwell', why: 'stamina' }, 'Wrenna') !== 'Bramwell ran out of stamina, so Wrenna came home too.') return 'the summary reads ' + M.SM.reasonWords({ reason: 'party_member_left', by: 'Bramwell', why: 'stamina' }, 'Wrenna');
     if (M.SM.endedSessionOf({ read: (k) => (k === 'hunt' ? { session_id: 's', ended: true, session: { id: 's', end_reason: 'party_member_left', end_by: 'Bramwell', end_by_why: 'stamina', ended_at: '2026-10-17T12:30:00Z' } } : null) }).why !== 'stamina') return 'the ended session drops end_by_why';
@@ -1159,10 +1162,10 @@ async function pageRules(overrides, shots) {
         if (got.cards.length !== 1 || card.type !== 'image/png' || card.w !== 840 || card.h !== 400 || !/Card copied/.test(got.line))
           fails.push('SH-1 [' + tag + '] Share made ' + JSON.stringify(got));
       }
-      /* UI-6: the invite toast answers in place: Join / No thanks; Join is ONE accept, off while in flight. */
+      /* UI-6: the invite toast answers in place: Join / Decline; Join is ONE accept, off while in flight. */
       const toast = '.hw-alert[data-kind="invite"]';
       const no = await page.evaluate((q) => { const b = document.querySelector(q + ' [data-hs-act="alert-no"]'); return b && !b.hidden ? b.textContent : null; }, toast);
-      if (no !== 'No thanks') fails.push('UI-6 [' + tag + '] the invite line offers ' + JSON.stringify(no) + ', not No thanks');
+      if (no !== 'Decline') fails.push('UI-6 [' + tag + '] the invite line offers ' + JSON.stringify(no) + ', not Decline');
       const acc0 = sent(s, 'hr_hunt_party_accept').length;
       /* The press and the read in ONE turn: the button must be off from the press itself, not from some later paint. */
       const toastOff = await page.evaluate((q) => { const b = document.querySelector(q + ' [data-hs-act="alert-do"]'); b.click(); return b.disabled; }, toast);
@@ -1214,19 +1217,19 @@ async function pageRules(overrides, shots) {
         }
         const go = W + '.hw-hunt-detail [data-hs-act="enter"]';
         const label = await page.evaluate((q) => document.querySelector(q).textContent, go);
-        if (label !== 'Start with party') fails.push('UI-3 [' + tag + '] the leader’s button reads ' + JSON.stringify(label));
+        if (label !== 'Enter with party') fails.push('UI-3 [' + tag + '] the leader’s button reads ' + JSON.stringify(label));
         await shot('hunts-leader');
         s.startReplies.push({ ok: false, error: 'not_ready', seats: [{ seat: 1, name: 'Mira', error: 'away' }] });
         const before = sent(s, 'hr_hunt_party_start').length;
         await page.click(go);
-        if (!(await page.evaluate((q) => document.querySelector(q).disabled, go))) fails.push('UI-3 [' + tag + '] Start with party stayed on while the intent was in flight');
+        if (!(await page.evaluate((q) => document.querySelector(q).disabled, go))) fails.push('UI-3 [' + tag + '] Enter with party stayed on while the intent was in flight');
         await page.waitForTimeout(700);
         const st = sent(s, 'hr_hunt_party_start').slice(before);
         if (st.length !== 1 || Object.keys(st[0].body).sort().join() !== 'p_hunt,p_idem,p_slot' || st[0].body.p_slot !== 0 || st[0].body.p_hunt !== 'millrace_sewer') fails.push('UI-3 [' + tag + '] Start sent ' + JSON.stringify(st.map((c) => c.body)));
         const said = await page.evaluate((q) => document.querySelector(q).textContent, W + '.hh-intent-msg');
         if (said !== 'Nobody went in. Mira is away.') fails.push('UI-3 [' + tag + '] a refused start says ' + JSON.stringify(said));
         /* UI-TRUTH (panel 2026-11-01): a seat under the floor hears first: the first press is ONE hr_hunt_party_warn and no start,
-           the words name the seat, the button reads Start anyway, and only the second press starts. */
+           the words name the seat, the button reads Enter anyway, and only the second press starts. */
         const mira = s.env[0].party.members.find((m) => m.name === 'Mira');
         const hadLevel = mira.level;
         mira.level = 3;
@@ -1237,7 +1240,7 @@ async function pageRules(overrides, shots) {
         const w1 = sent(s, 'hr_hunt_party_warn').slice(warned0);
         if (w1.length !== 1 || w1[0].body.p_hunt !== 'millrace_sewer' || sent(s, 'hr_hunt_party_start').length !== started0) fails.push('UI-TRUTH [' + tag + '] the first press sent warn ' + JSON.stringify(w1.map((c) => c.body)) + ', starts ' + (sent(s, 'hr_hunt_party_start').length - started0));
         const warnSaid = await page.evaluate((q) => [document.querySelector(q + '.hh-intent-msg').textContent, document.querySelector(q + '.hw-hunt-warn').textContent, document.querySelector(q + '.hw-hunt-detail [data-hs-act="enter"]').textContent], W);
-        if (!/^Mira \(Level 3\) is under this ground’s Level \d+\..*They have been told\./.test(warnSaid[0]) || !/^Mira \(Level 3\) is under/.test(warnSaid[1]) || warnSaid[2] !== 'Start anyway') fails.push('UI-TRUTH [' + tag + '] the warning reads ' + JSON.stringify(warnSaid));
+        if (!/^Mira \(Level 3\) is under this ground’s Level \d+\..*They have been told\./.test(warnSaid[0]) || !/^Mira \(Level 3\) is under/.test(warnSaid[1]) || warnSaid[2] !== 'Enter anyway') fails.push('UI-TRUTH [' + tag + '] the warning reads ' + JSON.stringify(warnSaid));
         /* Someone sits down under the floor after that warning: this press tells them too, and still starts nothing. */
         const late = Object.assign(clone(mira), { seat: 2, unit: null, name: 'Oren', level: 3 });
         s.env[0].party.members.push(late);
@@ -1265,7 +1268,7 @@ async function pageRules(overrides, shots) {
         const P = '[data-hs-win="hunt-party"] ';
         await page.click(P + '.hw-tab[data-tab="find"]');
         const sw = await page.evaluate((q) => { const d = document.querySelector(q + '.hw-list-party'); return d && { hidden: d.hidden, text: d.querySelector('button').textContent }; }, P);
-        if (!sw || sw.hidden || sw.text !== 'Show in the finder') fails.push('UI-8 [' + tag + '] the leader’s listing switch reads ' + JSON.stringify(sw));
+        if (!sw || sw.hidden || sw.text !== 'Show in finder') fails.push('UI-8 [' + tag + '] the leader’s listing switch reads ' + JSON.stringify(sw));
         else {
           const before = sent(s, 'hr_hunt_party_list').length;
           const off = await page.evaluate((q) => { const b = document.querySelector(q + '[data-hs-act="list-party"]'); b.click(); return b.disabled; }, P);
@@ -1342,7 +1345,7 @@ async function pageRules(overrides, shots) {
           if (v.tab !== 'party' || names !== 'Tyler*:In town|Mira (you):In town' || !v.seats.every((x) => x.shown) || !v.leave || v.memberPicks
             || v.next !== 'Waiting for Tyler to pick a hunt.') fails.push('UI-9 [' + tag + '] the Party window in town reads ' + JSON.stringify(v));
           /* PR-CLASS on the page: the fixture's shield and bow, on the party's Sewer row (2 heroes of 2 classes). */
-          if (v.classLine !== 'Your party has 2 of 4 classes: about 40% more Level XP each than hunting alone in The Sewer. Melee, Ranger, Mage and Healer each count.') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
+          if (v.classLine !== 'Your party has 2 of 4 classes. Each of you gets about 40% more Level XP than hunting alone in The Sewer.') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
           if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword · Melee') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
             fails.push('UI-9 [' + tag + '] the finder’s weapon words read ' + JSON.stringify(v.opts));
           await shot('party-town');
@@ -1366,7 +1369,7 @@ async function pageRules(overrides, shots) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const PURE_MUTANTS = [
-  ['the class line promises the bonus whatever the table says (PR-CLASS)', 'src/shell/windows/party-roster.js', "const pay = vs === null ? 'no extra Level XP in ' + huntName(hunt)", "const pay = classes.length > 1 ? 'about 20% more Level XP each than hunting alone in ' + huntName(hunt) : vs === null ? 'no extra Level XP in ' + huntName(hunt)"],
+  ['the class line promises the bonus whatever the table says (PR-CLASS)', 'src/shell/windows/party-roster.js', "if (vs === null) return have + t('party.class_none', { place });", "if (classes.length > 1) return have + t('party.class_more', { pct: 20, place });\n  if (vs === null) return have + t('party.class_none', { place });"],
   ['a seat with no weapon holds no class on the class line (PR-CLASS)', 'src/shell/windows/party-roster.js', "roles.map((r) => r || roleForWeapon('neutral'))", 'roles'],
   ['the class line stays on while the party hunts (PR-CLASS)', 'src/shell/windows/party-roster.js', "if (r.anyHunting || r.members.length < 2) return '';", "if (r.members.length < 2) return '';"],
   ['the class line needs a ground the party has hunted (PR-CLASS)', 'src/shell/windows/party-roster.js', 'const hunt = p.hunt || (recommendation(r.members.map((m) => m.level), r.members.length).row || {}).hunt;', 'const hunt = p.hunt;'],
@@ -1455,8 +1458,8 @@ const PAGE_MUTANTS = [
   ['the leader\'s Start walks a seat under the floor in with no word (UI-TRUTH)', 'src/shell/windows/hunts.js', 'if (low.under.length && sc.warned !== warnKey(hunt, low.under)) {', 'if (false) {'],
   ['a seat that sits down after the warning is never told (UI-TRUTH)', 'src/shell/windows/hunts.js', "const warnKey = (hunt, seats) => hunt + ':' + seats.map((s) => s.seat).join();", "const warnKey = (hunt) => hunt;"],
   ['the warning is said and the seat is never told (UI-TRUTH)', 'src/shell/windows/hunts.js', '() => warnPartyGround(ctx.account, cs, hunt)', '() => Promise.resolve({ ok: true })'],
-  ['the button never says Start anyway (UI-TRUTH)', 'src/shell/windows/hunts.js', "(armed ? 'Start anyway' : 'Start with party')", "'Start with party'"],
-  ['Start with party stays on while in flight', 'src/shell/windows/hunts.js', "for (const b of det.querySelectorAll('.hw-hd-foot button:not(.hw-hd-back), .hw-tiers button')) prop(b, 'disabled', sc.pending || !!now);", "for (const b of det.querySelectorAll('.hw-hd-foot button:not(.hw-hd-back), .hw-tiers button')) prop(b, 'disabled', !!now);"],
+  ['the button never says Enter anyway (UI-TRUTH)', 'src/shell/windows/hunts.js', "(armed ? t('controls.enter_anyway') : t('controls.enter_with_party'))", "t('controls.enter_with_party')"],
+  ['Enter with party stays on while in flight', 'src/shell/windows/hunts.js', "for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-tiers button')) prop(b, 'disabled', sc.pending || !!now);", "for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-tiers button')) prop(b, 'disabled', !!now);"],
   ['a member may press Start', 'src/shell/windows/hunts.js', '  if (off) prop(enter, \'disabled\', true);\n', ''],
   ['the strip tab is no menu target', 'src/app/character-strip.js', '  markPlayer(b, uid ? { id: uid, name: x.name, slot: x.slot } : null);', '  markPlayer(b, null);'],
   ['the invite toast cannot answer', 'src/shell/widgets/alerts.js', "  if (a.action === 'join') { if (a.invite) await settle(ctx, el, a, (cs) => cs.answerInvite(a.invite, action === 'alert-do')); return; }", "  if (a.action === 'join') return;"],

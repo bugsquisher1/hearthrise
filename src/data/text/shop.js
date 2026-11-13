@@ -22,6 +22,18 @@ export const SHOP_TEXT = Object.freeze({
   upgrade_adds_perk: 'adds {perk}',
   upgrade_tie:'Nothing goes on by itself, since each piece is better at something. {ties}. Pick on the doll.',
   upgrade_tie_weights: 'Nothing goes on by itself, since each piece is better at something. {ties}. Pick on the doll, or pick an armor weight at Tamsin\'s.',
+  /* One tie's words when a plain stronger weapon in the bag would lose the worn one's bane (designer 2026-11-11): `more` is item.bane_more's line, the tooltip's. */
+  upgrade_tie_bane: '{plain} hits harder, {bane} does {more}',
+  /* Why Dispatch loot is off in town (src/shell/loot-dispatch.js dispatchBlock): no plan yet, or a plan with nothing left in the bag to move. */
+  dispatch_none_set: 'You haven’t picked Deposit or Sell for anything yet. Pick one in an item’s menu.',
+  dispatch_all_moved: 'Your loot plan has nothing left to move. New loot follows it the next time you press Dispatch loot.',
+  /* Blessings in the Services tab (src/shell/windows/services.js): all of them in one press, one server purchase each. */
+  bless_all: 'Bless all',
+  bless_all_busy: 'Blessing…',
+  bless_all_done: 'All {of} Blessings are on.',
+  /* Why Bless all is off, said under it. */
+  bless_all_on: 'All your Blessings are on.',
+  bless_all_short: 'You don’t have enough gold for the next Blessing.',
   junk_keeps: { one: 'Sell all junk keeps {count} stack worth {worth}. It is a Material. Sell it by hand if you want the gold.',
     other: 'Sell all junk keeps {count} stacks worth {worth}. They are Materials. Sell those by hand if you want the gold.' },
 });

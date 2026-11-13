@@ -1,0 +1,25 @@
+BRIEF 17 + VERDICT: THE TWELVE TIER 7 ICONS, SLAKEHIDE AND SHROUDWEAVE (art director, 2026-11-12)
+Owed: lane/b-krells-hold-pack renamed voidhide_* -> slakehide_* and voidweave_* -> shroudweave_* (board decision 6:
+"Hide cured green in the Slake's copper water"; "Woven from the Pyre Field's shrouds, the ones that wouldn't burn").
+Today's 12 icons are black with cyan glints: the retired "void" look. Redrawn to the new names.
+
+THE CALL (10 gens): create_1_direction_object, 60 candidates (5 a piece) at 32x32, palette hr-world-56-v2, object
+ e5ef49df-f624-4162-824d-ac9dd5a595d7. Style images: voidhide body, pants, boots, belt; dragonhide gloves; archmage
+ body and pants; voidweave helmet (the slot silhouettes the bag already shows, so a tier keeps its slot's shape).
+ Words: slakehide "thick hide cured a dull verdigris green-brown, copper rivets"; shroudweave "pale ash-white burial
+ linen, scorched black edges", no glow.
+ Candidates: art/world-src/gen-2026-11-12/icons-tier7/candidates/NN.png (0-4 coif, 5-9 body, 10-14 chaps, 15-19 boots,
+ 20-24 vambraces, 25-29 belt, 30-34 hat, 35-39 robe top, 40-44 robe bottom, 45-49 slippers, 50-54 gloves, 55-59 sash).
+
+VERDICT: APPROVED, every slot has a keep (fill 81-88%, 0 off-palette, 0 partial alpha)
+ slakehide_helmet 01 (alt 03)   slakehide_body 06 (08)     slakehide_pants 13 (12)
+ slakehide_boots  16 (18)       slakehide_gloves 22 (24)   slakehide_belt 27 (26)
+ shroudweave_helmet 31 (30)     shroudweave_body 39 (35)   shroudweave_pants 41 (43)
+ shroudweave_boots 47 (45)      shroudweave_gloves 50 (52) shroudweave_belt 59 (55)
+ Read at x2 beside dragonhide and archmage: each line is one set, told from tier 6 by material (green-brown hide with
+ copper against red dragon scale; pale scorched linen against cream and gold). The slakehide pieces are dark on the
+ pocket but a step lighter than the voidhide they replace. Refused: coif 00 and 04 (an empty hood, no hide), body 09
+ (a copper cuirass: plate's look), the black sash 57.
+
+READY FOR IMPORT: picks/<id>.png -> assets/icons-bundle/pixel/items/<id>.png in the Hold's item batch (lane C), which
+ moves the ids; the old voidhide_*/voidweave_* files go with it (no back-compat).

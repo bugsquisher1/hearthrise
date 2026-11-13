@@ -18,10 +18,10 @@
 // PURE ESM. Data only. Integer numbers only (ms, percent, HP, mana).
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLIES } from './supplies.js?v=0.2.114';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.114';
-import { BASIC_SUPPLIES } from './supply-basics.js?v=0.2.114';
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.114';
+import { SUPPLIES } from './supplies.js?v=0.2.125';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.125';
+import { BASIC_SUPPLIES } from './supply-basics.js?v=0.2.125';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.125';
 
 /* The numbers. ASSUMED values (spec §5 #10) are marked; the rest are rulings. */
 export const CONSUMABLE_RULES = Object.freeze({

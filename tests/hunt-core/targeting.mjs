@@ -37,6 +37,19 @@ const cases = {
     if (ids(M.targeting.pickTargets(inst, u, { tmode: 'follow' })) !== '2,4,3') return 'the leader follows no one: follow must be nearest for him';
     return null;
   },
+  /* THE SUB-STEP'S INDEX (unit-index.js, as a swing reads it): a monster whose target fell, with no leader to turn on, drops
+     its target, and the heroes choosing next in the same pass no longer see it engaged (retarget drops the index). */
+  'an-indexed-retarget-is-read-at-once': (M) => {
+    const a = H(M, 1, 11, 3, 'ranger');
+    const lead = H(M, 9, 17, 2, 'tank');
+    lead.alive = false;
+    const m = E(M, 2, 0, 12, 3, 9);
+    const inst = fight(M, [a, m, lead], { leader: 9 });
+    inst.indexed = true; inst.ix = null;
+    M.targeting.chooseTargets(inst, sc2(M, 1));
+    if (m.target !== null) return 'the monster kept a fallen target: ' + m.target;
+    return a.target === null ? null : 'the ranger took monster ' + a.target + ', which holds no target any more (a stale engaged list)';
+  },
   /* TG-02: Melee = adjacent; ranged = range + line of sight. */
   'in-range': (M) => {
     const melee = H(M, 1, 11, 3, 'melee_dps');
@@ -327,6 +340,8 @@ const cases = {
 };
 
 const mutants = [
+  { name: 'a retarget leaves the sub-step\'s index standing', case: 'an-indexed-retarget-is-read-at-once',
+    edits: [[T, '  m.target = id;\n  staleIndex(inst);\n', '  m.target = id;\n']] },
   { name: 'every mode is nearest', case: 'mode-order-each', edits: [[T, '(ORDER[mode] || ORDER[DEFAULT_TARGET_MODE])', 'ORDER[DEFAULT_TARGET_MODE]']] },
   { name: 'follow forgets the leader', case: 'mode-order-each', edits: [[T, 'const lt = followed(inst, u);', 'const lt = null;']] },
   { name: 'follow reads only the leader\'s last blow (live v0.2.33, Andy a08)', case: 'follow-takes-the-leaders-target-now',
@@ -343,7 +358,8 @@ const mutants = [
     edits: [[T, 'return engaged(inst).some((m) => m !== cur && cmp(m, cur) < 0);', 'return engaged(inst).some((m) => m !== cur && cmp(m, cur) <= 0);']] },
   { name: 'ranged ignores line of sight', case: 'in-range', edits: [[T, ' && los(inst.grid, u, m);', ';']] },
   { name: 'the basic target prefers what the element hurts most', case: 'element-never-skips-a-target',
-    edits: [[T, '  return inR[0] || null;', '  return inR.find((m) => elementOn(m, u.element) >= 1000) || inR[0] || null;']] },
+    edits: [[T, '  const left = engaged(inst).slice();\n',
+      '  { const inR = pickTargets(inst, u).filter((m) => inRange(inst, u, m)); const pref = inR.find((m) => elementOn(m, u.element) >= 1000) || inR[0]; if (pref) return pref; }\n  const left = engaged(inst).slice();\n']] },
   { name: 'the leader\'s target is not remembered', case: 'follow-uses-leader-last',
     edits: [['src/core/hunt/damage.js', 'if (inst.world.leader === u.id) inst.world.leaderLast = aim.id;', '']] },
   { name: 'a fallen target is kept', case: 'monster-retargets-on-death', edits: [[T, 'if (!t || !t.alive) { retarget(', 'if (!t) { retarget(']] },
@@ -371,7 +387,7 @@ const mutants = [
     edits: [[T, 'u.id === id && u.alive && isTank(u)', 'u.id === id && isTank(u)']] },
   { name: 'the holder never rotates', case: 'one-holder-a-lap', edits: [[T, 'return tanks[runs % tanks.length];', 'return tanks[0];']] },
   { name: 'an overflow goes to whichever tank comes first by id', case: 'one-holder-a-lap',
-    edits: [['src/core/hunt/abilities.js', '  return k ? [k, ...units.filter((u) => u !== k)] : units;', '  return units;']] },
+    edits: [['src/core/hunt/abilities.js', '  return k ? [k, ...heroes.filter((u) => u !== k)] : heroes;', '  return heroes;']] },
   { name: 'ties fall to id (live v0.2.22)', case: 'mode-ties-fall-to-nearest', edits: [[T, 'cmp(a, b) || dist2(a, unit) - dist2(b, unit) || a.id - b.id', 'cmp(a, b) || a.id - b.id']] },
   { name: 'a melee hits whatever stands beside it (live v0.2.22)', case: 'melee-takes-its-mark', edits: [[T, 'const b = marks ? null : basicTarget(inst, u);', 'const b = basicTarget(inst, u);']] },
   { name: 'a melee drops the target it stands beside', case: 'melee-takes-its-mark', edits: [[T, '(inRange(inst, u, cur) || enRoute) && !outranked', 'enRoute && !outranked']] },

@@ -1,0 +1,274 @@
+{
+  "asset": "brook_bear hit clip (brief 10 B3), Mosslight Glade",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B3 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "glade",
+  "object_id": "b76fcf34-678c-45d5-8226-8633c8e1d7ee",
+  "name": "brook bear (64 canvas)",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); hit/<facing>/0..N.png = the kept roll; alt/<roll>/hit/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the object, frame_count 6, keep_first_frame false; south and the side facings are separate groups (their action texts differ)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "3186fd54-3873-4165-8601-783fa0a9b866",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "e83be061-9437-40a5-90b2-c5061f2801b2",
+        "directions": "e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r2": [
+      {
+        "group": "95987bf1-077c-4c46-b408-1c912de6baba",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, all four paws planted, stays low, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "4f710700-b52f-4485-b520-64f49d478cca",
+        "directions": "n",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, all four legs stay under the body and do not move, stays low, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r3": [
+      {
+        "group": "5a1692d9-a798-4e10-82c2-209913fd41bb",
+        "directions": "s",
+        "action": "rocks back by one pixel as if pushed from the front, then returns to its stance, all four paws stay on the ground, the body keeps its height, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r2",
+    "east": "r1",
+    "north": "r2",
+    "west": "r1"
+  },
+  "refused": {
+    "south r1": "rises 6 px with the feet (frame 3)",
+    "south r3": "rises 6 px with the feet (frame 3)",
+    "north r1": "the forelegs swing out sideways like arms at frames 3-4"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r2",
+      "xor": [
+        93,
+        154,
+        283,
+        353,
+        223,
+        105
+      ],
+      "alien": [
+        0,
+        0,
+        4,
+        13,
+        2,
+        0
+      ],
+      "dx": [
+        -0.1,
+        0,
+        0,
+        -0.1,
+        0,
+        0
+      ],
+      "dy": [
+        -0.4,
+        -1.3,
+        -2.1,
+        -2.5,
+        -1.8,
+        -0.8
+      ],
+      "top": [
+        0,
+        -1,
+        0,
+        0,
+        0,
+        -1
+      ],
+      "bottom": [
+        -1,
+        -2,
+        -4,
+        -5,
+        -3,
+        0
+      ],
+      "auto_flags": [
+        "feet f2 (bot -4, dy -2.1)",
+        "feet f3 (bot -5, dy -2.5)"
+      ]
+    },
+    "east": {
+      "roll": "r1",
+      "xor": [
+        43,
+        86,
+        62,
+        128,
+        149,
+        160
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        0,
+        5,
+        13
+      ],
+      "dx": [
+        0,
+        -0.6,
+        -0.3,
+        -0.5,
+        -0.3,
+        0
+      ],
+      "dy": [
+        0.1,
+        0.2,
+        0.1,
+        -0.6,
+        -0.8,
+        -0.9
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        -2,
+        -3,
+        -3
+      ],
+      "bottom": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "north": {
+      "roll": "r2",
+      "xor": [
+        56,
+        96,
+        149,
+        154,
+        145,
+        84
+      ],
+      "alien": [
+        0,
+        0,
+        1,
+        2,
+        2,
+        2
+      ],
+      "dx": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "dy": [
+        -0.4,
+        -0.9,
+        -1.5,
+        -1.5,
+        -1.5,
+        -0.7
+      ],
+      "top": [
+        -1,
+        -1,
+        -2,
+        -2,
+        -2,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "west": {
+      "roll": "r1",
+      "xor": [
+        71,
+        135,
+        212,
+        294,
+        233,
+        146
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        12,
+        0,
+        0
+      ],
+      "dx": [
+        0.4,
+        0.3,
+        0.1,
+        -0.1,
+        0.2,
+        0.3
+      ],
+      "dy": [
+        -0.1,
+        -0.6,
+        -0.9,
+        -1.2,
+        -1.1,
+        -0.4
+      ],
+      "top": [
+        0,
+        -1,
+        -2,
+        -3,
+        -2,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        -1,
+        -1,
+        0
+      ],
+      "auto_flags": []
+    }
+  },
+  "generations": 7,
+  "flags": [
+    "SOUTH: no clean roll after 2 retries. Kept r2: the body rises 2.5 px and the paws 4-5 px at frames 2-3 (it rears a little toward the viewer), home by frame 5"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/brook_bear-hit.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)"
+}

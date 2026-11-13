@@ -18,12 +18,12 @@
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.114';
-import { VITALS } from '../data/core-model.js?v=0.2.114';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.114';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.114';
-import { TIER_IDS } from '../data/hunt-tiers.js?v=0.2.114';
-import { RUNE_ON_EMPTY } from '../data/runes.js?v=0.2.114';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.125';
+import { VITALS } from '../data/core-model.js?v=0.2.125';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.125';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.125';
+import { TIER_IDS } from '../data/hunt-tiers.js?v=0.2.125';
+import { RUNE_ON_EMPTY } from '../data/runes.js?v=0.2.125';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -169,8 +169,13 @@ export function huntBagOf(cs) {
 
 /** `hunt_settings`: the per-hero options of the active preset, and its bar. */
 export function settingsOf(cs) {
-  const s = section(cs, 'hunt_settings');
-  if (!s || int(s.preset) === null) return null;
+  return settingsView(section(cs, 'hunt_settings'));
+}
+
+/** A settings section in the panels' shape, from the raw object the server sent (the envelope's `hunt_settings`, or one saved
+    setup read on demand: src/session/preset-read.js, the same hr_hunt_settings_view shape), or null. */
+export function settingsView(s) {
+  if (!isObj(s) || int(s.preset) === null) return null;
   return {
     preset: s.preset,
     /* The hunt role the worn set gives (the server's), and the ability DISCIPLINE its role key plays

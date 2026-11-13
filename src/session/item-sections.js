@@ -11,7 +11,9 @@
 // What hr_state_of projects today:
 //   inventory  { item: qty }        the bag
 //   equipment  { equip_slot: item } the worn set
-//   skills     { skill: { xp, level } }
+//   skills     { skill: { xp, level } }   the hero's skill rows: what a gate reads
+//   skill_levels { skill: { xp, level, into, need } }   every skill in the server's catalogue, its level and the XP
+//              into it and across it on the SERVER's curve (2027-04-04-skills-from-server.sql): what a skill bar draws
 //   state.gold, state.gold_v (the ACCOUNT purse and its version), state.bank_cap (the bag's stack cap)
 //   bank       { item: qty }        the home storage (hr_bank_move)
 //   skill_inputs { from: ['bag', 'storage'] }  where a town skill's inputs come from, in order (heldOf)
@@ -31,8 +33,8 @@
 // The Characters window's (2026-12-04-hero-rename.sql):
 //   rename         { price, level, per_day, today, available, why }  what a new name costs, and whether it may
 // ════════════════════════════════════════════════════════════════════════
-import { huntBagOf } from './hunt-sections.js?v=0.2.114';
-import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.114';
+import { huntBagOf } from './hunt-sections.js?v=0.2.125';
+import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.125';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -79,6 +81,26 @@ export function skillsOf(cs) {
   for (const [id, r] of Object.entries(sk)) {
     if (!/^[a-z_]{1,32}$/.test(id) || !isObj(r) || count(r.xp) === null || !Number.isInteger(r.level) || r.level < 1) continue;
     out[id] = { xp: r.xp, level: r.level };
+  }
+  return out;
+}
+
+/**
+ * Every skill as the SERVER draws it: the envelope's `skill_levels` section, { skill: { xp, level, into, need } }
+ * (hr_skill_block: into = XP into this level, need = XP across it, 0 = no next level), or null when it was not sent.
+ * The skill ledgers' one source. A bar is never worked out here from `xp`: this build's copy of the skill curves
+ * (src/core/xp.js) can be a release away from the server's, the class lane/c-level-from-server closed for the Level.
+ * A cell that is not whole is left out, so its skill draws nothing rather than a number of the browser's own.
+ */
+export function skillLevelsOf(cs) {
+  const sk = read(cs, 'skill_levels');
+  if (!isObj(sk)) return null;
+  const out = {};
+  for (const [id, r] of Object.entries(sk)) {
+    if (!/^[a-z_]{1,32}$/.test(id) || !isObj(r)) continue;
+    const xp = count(r.xp), into = count(r.into), need = count(r.need);
+    if (xp === null || into === null || need === null || !Number.isInteger(r.level) || r.level < 1 || (need > 0 && into >= need)) continue;
+    out[id] = { xp, level: r.level, into, need };
   }
   return out;
 }

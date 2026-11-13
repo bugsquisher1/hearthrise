@@ -249,6 +249,32 @@
 .char-bar.is-stamina > i { background: var(--hud-fill-stamina); }
 .char-badge { display: none; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--red); color: var(--bg-0); font-size: var(--t-micro); font-weight: 700; line-height: 18px; text-align: center; }
 .char-badge.is-on { display: inline-block; }
+/* A hero this tab has not open (character-strip.js .char-unopened; Andy 2026-11-09: "only showed 3 chars"): listed so none seems
+   missing, and plainly not open: dimmer, a dashed foot, no bars or badge, and a gold Play leading the second line, before the
+   server's Level and status. At the play-at-once limit the Play goes. */
+.char-unopened {
+  display: flex; align-items: center;
+  min-width: 0; max-width: 300px;
+  font: inherit; font-size: 0.85rem; text-align: left;
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  border-bottom: 2px dashed var(--steel-sep);
+  padding: 4px 8px 3px;
+  cursor: pointer;
+}
+.char-unopened:hover { color: var(--ink); background: var(--bg-2); border-bottom-color: var(--gold-3); }
+.char-unopened:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.char-unopened .char-tab-name { font-weight: 400; }
+.char-unopened-line { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.char-unopened-line .char-tab-doing { min-width: 0; }
+.char-unopened-play { flex: none; color: var(--gold-2); font-size: var(--t-micro); font-weight: 700; }
+.char-unopened.is-full .char-unopened-play { display: none; }
+/* The strip's one line (character-strip.js say): why a press on a not-open hero opened nothing. On the page, under the strip. */
+.char-strip-note { position: fixed; z-index: 80; box-sizing: border-box; width: max-content; max-width: min(380px, calc(100vw - 16px)); margin: 0; padding: 4px 10px 4px 14px; pointer-events: none;
+  background: var(--bg-2); border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated; box-shadow: inset 4px 0 0 var(--gold);
+  font-family: var(--f-ui); font-size: var(--t-small); line-height: 1.35; color: var(--ink); }
+.char-strip-note:not(.is-on) { display: none; }
 /* The tools stand at the strip's right end, never behind the tabs: a tab arriving or a hero's status changing slid Characters under
    a pointer aimed at Sign out (Andy 2026-11-06, client-boot B-4). */
 .char-strip-tools { display: flex; align-items: stretch; flex: none; margin-left: auto; }
@@ -277,6 +303,12 @@
   .char-tab-row:has(.is-shown) { order: -1; }
   .char-tab { height: 40px; min-width: var(--tap); max-width: 110px; padding: 0 6px; justify-content: center; }
   .char-tab:not(.is-shown) .char-tab-main, .char-tab-doing, .char-bars { display: none; }
+  /* a hero not open here: its name over Play (no status: the row has no room), thumb-wide like the others; a glyph alone,
+     like an open hero's, could not say which of several it opens */
+  .char-unopened { height: 40px; min-width: var(--tap); max-width: 110px; padding: 0 6px; justify-content: center; }
+  .char-unopened .char-tab-main { gap: 0; }
+  .char-unopened .char-tab-name { font-size: var(--t-micro); line-height: 1.15; }
+  .char-unopened-play { line-height: 1.15; }
   @container char-strip (max-width: 150px) { .char-tabs { display: none; } }
   /* No room for a tab: the press to every hero names the one on screen, over its word (a player at 667 px could not see whose bar it was). */
   @container char-strip (max-width: 150px) {

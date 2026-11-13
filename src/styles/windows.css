@@ -335,6 +335,7 @@
 .hs-win[data-hs-win="hunts"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .hw-hunts { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .hw-hunts-now, .hw-hunts-reco { margin: 0 2px 8px; }
+.hw-hunts-now.is-advised { display: none; }
 .hw-hunts-cols { flex: 1; min-height: 0; display: grid; grid-template-columns: 286px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); column-gap: 12px; }
 /* The list: a steel panel of lines, one a ground; the picked one is lifted, outlined in gold, a gold bar at its left. */
 .hw-hunt-list { min-height: 0; overflow: auto; margin: 0; padding: 0; list-style: none; background: var(--fill-1); border: 2px solid var(--steel-edge); }
@@ -362,7 +363,6 @@
 .hw-hunt-detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--fill-1); border: 2px solid var(--steel-edge); border-left-color: var(--steel-rule); }
 .hw-hunt-detail[hidden] { display: none; }
 .hw-hd-page { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 18px 12px; }
-.hw-hd-back { display: none; }
 .hw-hd-head { margin-bottom: 8px; }
 /* The ground's name, as a place is named: Cinzel in gold (ART_DIRECTION §10). */
 .hw-hd-name { margin: 0; font-family: var(--f-display); font-size: calc(var(--t-h2) * 1.2); font-weight: 700; line-height: 1.15; letter-spacing: .05em; color: var(--gold-2); }
@@ -372,9 +372,19 @@
 .hw-hd-band::before { content: ''; position: absolute; z-index: 1; left: calc(50% - 7px); bottom: 4px; width: 14px; height: 14px;
   background: url('../../assets/ui/steel-diamond.png') 0 0 / 14px 14px no-repeat; image-rendering: pixelated; }
 .hw-hd-who { margin: 0; font-size: var(--t-small); color: var(--ink-2); }
+/* A live event that reaches this ground (src/shell/live-events-view.js groundLines): what it adds in bold, then when it ends.
+   Green only for a gain (Level XP, ART_DIRECTION §10); Open Halls moves a fee, so its bold is plain ink. */
+.hw-hd-event { margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-hd-event b { font-weight: 700; color: var(--green); }
+.hw-hd-event.is-plain b { color: var(--ink); }
+.hw-hd-events:empty { display: none; }
+/* The same on a Hunts line (rowLines): one bold line under the best. */
+.hw-hunt-event { display: block; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-hunt-event b { color: var(--ink); }
+.hw-hunt-events:empty { display: none; }
 .hw-hunt-warn { margin: 1px 0 0; font-size: var(--t-micro); color: var(--red); }
 .hw-hunt-warn:empty { display: none; }
-.hw-hd-theme { margin: 2px 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink); }
+.hw-hd-theme { margin: var(--gap) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink); }
 /* Each section head is a Forged Steel head (shell.css): Cinzel in gold over a rule. */
 .hw-hd-h { margin: 18px 0 10px; }
 /* Who lives here: each creature as the world draws it (x2), in even columns, all standing at the tallest one's
@@ -385,7 +395,7 @@
 .hw-hd-stand { display: flex; align-items: flex-end; justify-content: center; align-self: stretch; height: calc(var(--stand-h, 45px) + 6px); padding: 0 0 4px;
   background: url('../../assets/ui/ground-shadow.png') 50% 100% / 48px 10px no-repeat; image-rendering: pixelated; }
 .hw-hd-mon-name { margin-top: 6px; padding: 0 4px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: var(--t-small); font-weight: 700; line-height: 1.2; color: var(--ink); white-space: nowrap; }
-.hw-hd-mon-how { padding: 0 4px; font-size: var(--t-micro); line-height: 1.25; color: var(--ink-3); white-space: nowrap; }
+.hw-hd-mon-how { max-width: 100%; padding: 0 4px; font-size: var(--t-micro); line-height: 1.25; color: var(--ink-3); text-wrap: balance; }
 .hw-hd-sprite { display: block; image-rendering: pixelated; }
 .hw-hd-mon:not(.is-drawn) .hw-hd-sprite { width: 0; height: 0; }
 .hw-hd-mon[data-band="common"] .hw-hd-mon-how { color: var(--ink-2); }
@@ -462,7 +472,7 @@
 .hw-call-line:empty { display: none; }
 .hw-call-press { min-height: 36px; padding: 0 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
 .hw-call-press[hidden] { display: none; }
-.hw-hd-foot { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 18px 8px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
+.hw-hd-foot { flex: none; margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 6px 18px 8px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
 .hw-hd-foot .hh-intent-msg { flex: 1; min-width: 0; margin: 0; }
 .hw-enter-why { flex: 1; min-width: 0; margin: 0; font-size: var(--t-small); color: var(--ink); }
 .hw-enter-why:empty { display: none; }
@@ -535,6 +545,13 @@
 .hw-work-n { align-self: flex-start; margin-top: 4px; }
 .hw-work-n .hh-seg { min-width: 32px; min-height: 24px; padding: 0 6px; }
 .hw-work-row.is-locked .hw-work-n { display: none; }
+.hw-work-x { display: inline-flex; gap: 4px; margin-left: 4px; }
+.hw-work-x[hidden] { display: none; }
+.hw-work-xf { width: 72px; min-height: 24px; padding: 0 2px; border: 0; border-bottom: 1px solid var(--line-soft); background: none; color: var(--gold-2); font: inherit; font-size: 12px; text-align: center; }
+.hw-work-xf:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+/* A crafting station's Sort menu (src/shell/station-sort.js): the bag's own label and select, at the list's top right. */
+.hw-work-sort { display: flex; justify-content: flex-end; margin: 4px 0; }
+.hw-work-sort[hidden] { display: none; }
 
 /* ── The shop and hunt prep ── */
 .hw-qty { width: 64px; }
@@ -544,22 +561,111 @@
 .hw-add .hh-select { flex: 1; min-width: 0; }
 .hw-add .hw-preset-name { flex: 1; width: auto; }
 .hw-ready { margin: 0 0 6px; padding: 0; list-style: none; }
+.hw-ready[hidden] { display: none; }
 .hw-ready-row { padding: 6px 0 8px; border-top: 1px solid var(--line-soft); }
 .hw-ready-line { margin: 0; color: var(--red); }
 .hw-ready-row.is-ready .hw-ready-line { color: var(--green); }
 .hw-checks { margin: 4px 0 0; padding: 0 0 0 14px; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-check.is-short { color: var(--red); }
 .hw-use { color: var(--gold-2); }
-/* A setup's Delete asks once: "Delete it?" in red with Keep beside it, in the place Save here and Use stood. */
+/* A setup's Delete asks once: "Delete it?" in red with Keep beside it, in the place Use stood. */
 .hw-keep { display: none; }
 .hw-setup.is-arming .hw-keep { display: inline-block; }
 .hw-setup.is-arming .hw-del { color: var(--red); }
-.hw-setup.is-arming [data-hs-act="save-over"], .hw-setup.is-arming .hw-use { display: none; }
-/* The setup the hero is on: "In use" in gold, and no Delete (its place kept so the rows line up). */
+.hw-setup.is-arming .hw-use { display: none; }
+/* The setup the hero is on: "In use" in gold, and no Delete; Delete sits on the picked row only. */
 .hw-setup.is-current small, .hw-title.is-current small { color: var(--gold-2); }
-.hw-setup.is-current .hw-del { visibility: hidden; }
+.hw-setup .hw-del { display: none; }
+.hw-setup.is-picked:not(.is-current) .hw-del { display: inline-block; }
 .hw-town-only { display: none; }
 .hw-town-only.is-on { display: block; }
+
+/* ── HUNT PREP, THE SETUP BUILDER (Tyler 2026-11-11; mocks .claude/coordination/mocks/2026-11-11-hunt-prep-builder) ──
+   The setups column at the left, the one setup's copy at the right: Fights as, the three fight panels and the gold, then the
+   bar's well with the HUD's own tiles at the HUD's size (hunt.css .hb-slots: 68 px at 1280 and up, 40 px on a narrow desktop).
+   Every control is the game's own (hunt.css .hh-tool / .hh-seg / .hh-step / .hh-select, the gold plate .hh-tool.is-primary).
+   The bar's well is the one box on the page: it IS the bar. A narrow desktop caps the window to the World. */
+.hs-win[data-hs-win="hunt-prep"] { max-width: calc(100% - 24px); }
+.hpb { display: grid; grid-template-columns: 220px 1fr; column-gap: 20px; row-gap: 0; }
+.hpb .hw-ledger-head.is-on { margin: 0 0 6px; }
+.hpb-left { display: flex; flex-direction: column; gap: 2px; padding-right: 16px; box-shadow: 2px 0 0 var(--steel-rule); }
+.hpb-sets { margin: 0 0 8px; }
+.hpb-set { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 4px 6px 4px 10px; cursor: pointer; border-top: 0; border-left: 2px solid transparent; }
+.hpb-set .hw-line-name b { font-size: var(--t-small); color: var(--ink-2); white-space: normal; }
+.hpb-set .hw-line-name small { white-space: normal; color: var(--ink-3); }
+.hpb-set:hover { background: var(--surf-panel); }
+.hpb-set.is-picked { background: var(--bg-0); box-shadow: var(--steel-well); border-left-color: var(--gold); }
+.hpb-set.is-picked .hw-line-name b { color: var(--ink); }
+.hpb-set-do { display: flex; flex-direction: column; align-items: stretch; flex: none; }
+.hpb-set-do .hh-tool { min-height: 26px; padding: 0 6px; }
+/* The New row: the name field gives way to its Save, so both stay inside the column (the field's own width is wider than the column). */
+.hpb-add { margin: 0 0 6px; }
+.hpb-add .hw-preset-name { flex: 1 1 0; width: 0; min-width: 0; }
+.hpb-add .hh-tool { flex: none; }
+.hpb-add[hidden] { display: none; }
+.hpb-leftrow { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
+.hpb-left .hh-tool { justify-content: flex-start; text-align: left; }
+.hpb-from { display: flex; flex-direction: column; align-items: flex-start; padding: 6px 10px; min-height: 0; white-space: normal; }
+.hpb-from small { font-weight: 400; color: var(--ink-3); font-size: var(--t-micro); }
+.hpb-from.is-arming b { color: var(--red); }
+.hpb-keep[hidden] { display: none; }
+.hpb-count { margin: 6px 2px 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hpb-right { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.hpb-carry[hidden] { display: none; }
+.hpb-edit { display: flex; flex-direction: column; gap: 10px; }
+.hpb-read[hidden] { display: none; }
+/* With no copy to edit (a setup still reading, or one the server could not read) the panels wait, dim. */
+.hpb-edit.is-blank .hpb-plays-box, .hpb-edit.is-blank .hpb-three, .hpb-edit.is-blank .hpb-gridwrap, .hpb-edit.is-blank .hpb-under { opacity: .45; }
+/* FIGHTS AS is read only: the lit role is the worn weapon's; a press on a dim one only says how to get it. */
+.hpb-plays { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.hpb-plays .hh-seg { cursor: default; }
+.hpb-plays .hh-seg:not([aria-pressed="true"]) { color: var(--ink-3); cursor: help; }
+.hpb-plays p { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+/* The four fight panels in one row at the HUD's 68 px tiles; one wraps under where the column is narrower (a 44 px tile desktop). */
+.hpb-three { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-start; }
+.hpb-three > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* A panel is as wide as its control; its note wraps inside that width and never widens it (width 0, min-width 100%). */
+.hpb-three > div > p { width: 0; min-width: 100%; }
+.hpb-three .hpb-target { min-width: 140px; }
+.hpb-stance .hh-seg { padding: 0 6px; }
+.hpb-three p { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hpb-move, .hpb-gold { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.hpb-move .hb-label, .hpb-gold .hb-label { font-size: var(--t-micro); color: var(--ink-2); }
+.hpb-floor { width: 72px; }
+/* The bar's head row: the heading, the count, then Sort and Clear at its right. */
+.hpb-barhead { display: flex; align-items: center; gap: 8px; }
+.hpb-barhead h3 { flex: 1; margin: 0; }
+.hpb-barhead small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: tabular-nums; margin-right: 8px; }
+.hpb-gridwrap { position: relative; width: max-content; max-width: 100%; overflow-x: auto; }
+.hpb-grid { list-style: none; margin: 0; padding: 8px; display: grid; grid-template-columns: repeat(10, clamp(40px, calc(9.375vw - 52px), 68px)); grid-auto-rows: clamp(40px, calc(9.375vw - 52px), 68px); gap: 4px;
+  justify-content: start; background: var(--bg-0); box-shadow: var(--steel-well); width: max-content; user-select: none; }
+.hpb-grid .hb-slot { width: clamp(40px, calc(9.375vw - 52px), 68px); height: clamp(40px, calc(9.375vw - 52px), 68px); }
+/* A filled tile is dragged, so a finger on it never scrolls; an empty one still pans the sheet. The icon and the badges take no
+   pointer of their own: the tile is the press, and a mouse on the icon never starts the browser's own image drag. */
+.hpb-grid .hb-slot:not(.is-empty) { touch-action: none; cursor: grab; }
+.hpb-grid .hb-slot .hb-slot-ico, .hpb-grid .hb-slot small, .hpb-grid .hb-slot .hb-plus { pointer-events: none; }
+.hpb-grid .hb-slot.is-busy { cursor: default; opacity: .6; }
+.hpb-grid .hb-slot.is-lifted { opacity: .35; }
+.hpb-grid .hb-slot.is-drop { outline: 2px dashed var(--gold); outline-offset: -2px; }
+.hpb-ghost { position: absolute; left: 0; top: 0; width: clamp(40px, calc(9.375vw - 52px), 68px); height: clamp(40px, calc(9.375vw - 52px), 68px); display: grid; place-items: center; background: var(--bg-3);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--world-shadow) 60%, transparent); z-index: 5; pointer-events: none; }
+.hpb-ghost .hh-icon { width: round(down, 100% - 4px, 32px); height: round(down, 100% - 4px, 32px); }
+.hpb-under { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hpb-msg { grid-column: 1 / -1; margin-top: 10px; }
+/* THE FOOTER, always in reach (sticky at the body's foot): the copy's state (not saved, sorted, changed on the bar), else the hero's readiness
+   line (a press shows every hero's checklist); then Close, Save and the one gold primary. */
+.hpb-foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin: 10px 0 -12px; padding: 10px 0 12px; box-shadow: 0 -2px 0 var(--steel-rule); position: sticky; bottom: -12px; background: var(--bg-1); z-index: 1; }
+.hpb-state { flex: 1; min-width: 0; margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hpb-state:empty { display: none; }
+.hpb-foot:has(.hpb-state:not(:empty)) .hpb-ready { display: none; }
+.hpb-ready { flex: 1; min-width: 0; margin: 0; padding: 0; border: 0; background: none; text-align: left; font-family: var(--f-ui); font-size: var(--t-micro); color: var(--red); cursor: pointer; }
+.hpb-ready.is-ready { color: var(--green); }
+.hpb-ready b { font-weight: 700; }
+.hpb-ready:hover { text-decoration: underline; }
+.hpb-load[hidden], .hpb-save-use[hidden] { display: none; }
+.hpb-foot .hh-tool.is-primary { min-height: 40px; }
+.hpb-ready-head { grid-column: 1 / -1; }
+.hpb > .hw-ready { grid-column: 1 / -1; }
 
 /* ── Phone, landscape: the one sheet; the same density, tighter rhythm ── */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
@@ -567,6 +673,22 @@
   /* A Shop row on the half-wide sheet: the icon and name on one line, the count and the price under them (the name had 23 px and read "C…"). */
   .hw-shop .hw-line { flex-wrap: wrap; justify-content: flex-end; }
   .hw-shop .hw-line-name { flex: 1 1 calc(100% - 52px); }
+  /* HUNT PREP ON A PHONE: the builder takes the sheet's whole width (as Configure action does), the columns stack, the setups
+     run as a strip, the grid keeps its 2 x 10 at a thumb's tile and scrolls inside its well on the narrowest screen. */
+  .hs-win[data-hs-win="hunt-prep"] { width: min(100%, 840px); max-width: 100%; }
+  .hpb { grid-template-columns: 1fr; }
+  .hpb-left { padding: 0 0 10px; box-shadow: 0 2px 0 var(--steel-rule); margin-bottom: 12px; }
+  .hpb-sets { display: flex; flex-direction: row; gap: 4px; overflow-x: auto; margin-bottom: 4px; }
+  .hpb-set { flex: none; min-height: 44px; border-left: 0; border-bottom: 2px solid transparent; }
+  .hpb-set.is-picked { border-bottom-color: var(--gold); }
+  .hpb-leftrow { flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .hpb-leftrow .hh-tool { min-height: 44px; }
+  .hpb-count { margin: 0 0 0 auto; }
+  .hpb-from small { display: none; }
+  .hpb .hh-tool, .hpb .hh-seg, .hpb .hh-select { min-height: 44px; }
+  .hpb-grid { grid-template-columns: repeat(10, 56px); grid-auto-rows: 56px; padding: 6px; }
+  .hpb-grid .hb-slot, .hpb-ghost { width: 56px; height: 56px; }
+  .hpb-foot { bottom: -10px; margin-bottom: -10px; padding-bottom: 10px; }
   /* The phone sheet scrolls as one, its foot under the list. */
   .hs-win[data-hs-win="inventory"] .hs-win-body { display: block; overflow: auto; }
   [data-hs-win="inventory"] .hw-inv { display: block; overflow-y: visible; }
@@ -601,7 +723,7 @@
   /* THE PICKED ITEM STAYS IN REACH (QA 10-24: Equip sat under 42 stacks, a scroll away): its line pins to the
      sheet's foot while the bag scrolls, on the sheet's own floor. */
   .hw-pick.is-on { position: sticky; bottom: -10px; z-index: 1; margin: 8px -10px 0; padding: 6px 10px 8px; background: var(--bg-1); border-top: 2px solid var(--steel-sep); }
-  .hw-work-row .hh-tool, .hw-work-head .hh-tool, .hw-work-now .hh-tool, .hw-work-n .hh-seg { min-height: 40px; }
+  .hw-work-row .hh-tool, .hw-work-head .hh-tool, .hw-work-now .hh-tool, .hw-work-n .hh-seg, .hw-work-xf { min-height: 40px; }
   .hw-work-hint { display: none; }
   /* Hunts on the sheet: the list first; a pick opens the ground's page in its place, with the way back on top. */
   .hw-hunts-cols { display: flex; flex-direction: column; }
@@ -611,8 +733,6 @@
   /* A ground's page has the sheet to itself: the list's notes wait on the list. */
   .hw-hunts.is-paged .hw-hunt-list, .hw-hunts.is-paged .hw-hunts-now, .hw-hunts.is-paged .hw-hunts-reco { display: none; }
   .hw-hunts.is-paged .hw-hunt-detail:not([hidden]) { display: flex; flex: 1 1 auto; }
-  .hw-hd-back { display: inline-flex; align-items: center; min-height: 40px; margin: 0 0 4px -6px; }
-  .hw-hd-foot .hw-hd-back { margin: 0; }
   .hw-hd-page { padding: 8px 12px 10px; }
   /* THE PAGE GETS THE SHEET (phone panel v0.2.83: 104 px of a 1501 px page, about 14 swipes to the drops): no second frame
      or padding round it; only the sheet's head and the foot (the way back, Enter) stand outside its scroller. */
@@ -908,30 +1028,102 @@
   .hr-line { grid-template-columns: 44px minmax(0, 1fr) auto; min-height: 40px; padding: 2px 2px 2px 6px; }
   .hr-pick .hh-select { min-height: 40px; }
 }
-/* ── Tamsin's tally (src/shell/windows/tally.js): a keeper's board, not a card grid. Her name, then the
-   hero's tallies as notched sticks (.ht-stick, shell.css), her pick (weight, slot order), her board. ── */
-.ht-keeper { display: flex; flex-direction: column; gap: 2px; margin: 0 2px 8px; }
-.ht-keeper b { font-family: var(--f-label); font-weight: 700; font-size: var(--t-lead); color: var(--ink); }
-.ht-keeper small { font-size: var(--t-micro); color: var(--ink-3); }
-.ht-keeper .hs-note { margin: 4px 0 0; color: var(--ink-2); }
-.ht-take-why { display: none; align-items: center; gap: 8px; color: var(--gold-2); }
-.ht-take-why.is-on { display: flex; }
-.ht-take-why > span { flex: 1; min-width: 0; }
-.ht-take-why > button { flex: none; }
-.ht-tally .hw-line-name small { white-space: normal; }
-.ht-tally.is-done .hw-line-name b { color: var(--gold-2); }
-.ht-keep { display: flex; align-items: center; gap: 4px; flex: none; font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; }
-.ht-weights { display: flex; gap: 2px; margin: 4px 2px; }
-.ht-order { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 2px 8px; padding: 0; list-style: none; counter-reset: ht-slot; }
-.ht-slot { display: flex; align-items: center; gap: 4px; padding: 2px 2px 2px 6px; background: var(--bg-1); box-shadow: var(--hw-well);
-  font-size: var(--t-micro); color: var(--ink-2); counter-increment: ht-slot; }
-.ht-slot::before { content: counter(ht-slot) "."; color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
-.ht-offer .hw-line-name small { white-space: normal; }
+/* ── Tamsin's tally (src/shell/windows/tally.js): her ledger, not a card grid (mocks 2026-11-11). Her line on top (name in
+   the display face, the day's count, one thing she says on a gold rule), your tallies first as entries with her tally
+   marks (ten strokes in two fives, the cut ones gold) beside the exact count and the piece in a pocket well, then her
+   board two lines a row with a sunk Take, then her pick folded to one line behind Change. The HUD's stick is shell.css. ── */
+.hw-tally { display: flex; flex-direction: column; font-variant-numeric: lining-nums tabular-nums; }
+.ht-say { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-items: baseline; margin: 0 2px 10px; }
+.ht-who { white-space: nowrap; font-family: var(--f-display); font-weight: 700; font-size: var(--t-small); letter-spacing: .04em; color: var(--gold-2); }
+.ht-day { justify-self: end; font-size: var(--t-micro); color: var(--ink-3); white-space: nowrap; }
+.ht-day-paid { color: var(--ink); font-weight: 700; }
+.ht-day.is-full .ht-day-paid { color: var(--gold-2); }
+.ht-day-new:not(:empty)::before { content: ' · '; color: var(--ink-3); font-weight: 400; }
+.ht-voice { grid-column: 1 / -1; margin: 6px 0 0; padding-left: 10px; border-left: 2px solid var(--gold); font-size: var(--t-small); line-height: 1.35; color: var(--ink); }
+.ht-voice:empty { display: none; }
+/* Section heads are the Forged Steel .hw-ledger-head (shell.css); the held count sits past the rule. Your tallies goes (no .is-on) with nothing held. */
+.ht-head { margin: 6px 2px 0; }
+.ht-head small { order: 2; font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; color: var(--ink-3); }
+.ht-head small:empty { display: none; }
+/* YOUR TALLIES: one entry a held task. */
+.ht-mine { list-style: none; margin: 4px 0 6px; padding: 0; }
+.ht-entry { display: grid; grid-template-columns: minmax(0, 1fr) 44px; column-gap: 10px; row-gap: 4px; align-items: center; padding: 8px 6px 8px 4px; border-top: 2px solid var(--steel-sep); }
+.ht-entry:first-child { border-top: 0; }
+.ht-entry-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.ht-entry-top > b { font-weight: 700; font-size: var(--t-small); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ht-count { white-space: nowrap; line-height: 1; }
+.ht-count b { font-weight: 800; font-size: var(--t-lead); color: var(--ink); }
+.ht-count small { margin-left: 3px; font-weight: 400; font-size: var(--t-micro); color: var(--ink-3); }
+.ht-entry .ht-pocket { grid-column: 2; grid-row: 1 / span 2; }
+.ht-face { display: none; }
+/* The creature's head (art brief 15): the bag's sunk well, no frame of its own, the bust at its one 32 px density; no head, no well and the two columns stay. */
+.ht-entry.has-face { grid-template-columns: 44px minmax(0, 1fr) 44px; }
+.ht-entry.has-face .ht-face { display: grid; grid-column: 1; grid-row: 1 / span 2; width: 44px; height: 44px; place-items: center; background: var(--bg-1); box-shadow: var(--hw-well); }
+.ht-entry.has-face .ht-entry-top, .ht-entry.has-face .ht-marks { grid-column: 2; }
+.ht-entry.has-face .ht-pocket { grid-column: 3; }
+.ht-get, .ht-once { grid-column: 1 / -1; margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
+.ht-get:empty, .ht-once:empty { display: none; }
+.ht-entry .ht-once { color: var(--gold-2); }
+.ht-foot { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--t-micro); color: var(--ink-3); }
+.ht-where { min-width: 0; }
+.ht-tools { display: flex; align-items: center; gap: 2px; flex: none; }
+.ht-keep { display: flex; align-items: center; gap: 4px; padding: 0 6px; font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; }
+.ht-tools .hh-tool { min-height: 28px; padding: 0 8px; }
+/* Her tally marks: ten strokes in two fives, each a tenth of the count; the fifth is the bar across the four. Cut = gold. */
+.ht-marks { display: flex; gap: 14px; height: 18px; align-items: center; }
+.ht-five { position: relative; display: flex; gap: 5px; height: 18px; padding: 0 1px; }
+.ht-five i { display: block; width: 3px; height: 18px; background: var(--bg-3); }
+.ht-five i:nth-child(5) { position: absolute; left: -4px; right: -4px; top: 7px; width: auto; height: 3px; transform: rotate(-22deg); }
+.ht-five i.is-cut { background: var(--gold); }
+/* A done entry: the Hunts list's picked row (lifted, a gold bar at its left); the count turns gold. */
+.ht-entry.is-done { background: var(--fill-3); box-shadow: inset 4px 0 0 var(--gold); padding-left: 10px; }
+.ht-entry.is-done .ht-count b { color: var(--gold-2); }
+.ht-entry.is-done .ht-get { color: var(--ink); }
+/* The bag's pocket well: the piece she pays, at its one 32 px density. */
+.ht-pocket { position: relative; width: 44px; height: 44px; display: grid; place-items: center; background: var(--bg-1); box-shadow: var(--hw-well); }
+.ht-pocket .hh-icon { width: 32px; height: 32px; }
+.ht-pocket .hh-icon.is-glyph .hs-glyph { width: 20px; height: 20px; }
+/* HER BOARD: two lines a task, the ground a take-me-there link, her pay as the piece, a sunk Take. */
+.ht-board-why { display: none; align-items: center; gap: 8px; margin: 4px 2px 0; font-size: var(--t-micro); color: var(--gold-2); }
+.ht-board-why.is-on { display: flex; }
+.ht-board-why > span { flex: 1; min-width: 0; }
+.ht-board-why > button { flex: none; }
+.ht-list { list-style: none; margin: 4px 0 6px; padding: 0; }
+.ht-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px 118px auto; column-gap: 8px; row-gap: 2px; align-items: center; min-height: 56px; padding: 4px 0; border-top: 2px solid var(--steel-sep); }
+.ht-row:first-child { border-top: 0; }
+.ht-row-name { display: flex; flex-direction: column; min-width: 0; }
+.ht-row-name b { font-weight: 700; color: var(--ink); line-height: 1.2; }
+.ht-row-name small, .ht-pay small { font-size: var(--t-micro); color: var(--ink-2); line-height: 1.2; }
+.ht-row-lvl { white-space: nowrap; }
+.ht-row-lvl:not(:empty)::before { content: ' · '; }
+.ht-pay { display: flex; flex-direction: column; min-width: 0; }
+.ht-pay b { font-weight: 700; color: var(--ink); white-space: nowrap; }
+/* the once note runs under the whole row, never squeezed into the pay column (played 11-12: three lines at 118 px) */
+.ht-row .ht-once { grid-column: 1 / -1; margin: 0 0 2px; color: var(--gold-2); }
+.ht-take { min-height: 36px; padding: 0 12px; background: var(--bg-0); box-shadow: var(--hw-well); color: var(--ink); }
+.ht-take:disabled { color: var(--ink-3); opacity: 1; background: none; box-shadow: none; }
+/* HER PICK: one line at the foot, the picker folded behind Change. */
+.ht-pick { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; padding: 8px 2px 0; border-top: 2px solid var(--steel-sep); font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
+.ht-pick .hh-tool { flex: none; }
+.ht-pick-open { display: grid; gap: 8px; margin: 8px 2px 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
+.ht-pick-open[hidden] { display: none; }
+.ht-pick-open p { margin: 0; }
+.ht-weights { display: flex; gap: 2px; margin: 0; }
+.ht-weights .hh-seg { flex: 1; background: var(--bg-0); box-shadow: var(--hw-well); }
+.ht-slots { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.ht-slots button { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; border: 0; background: var(--bg-1); box-shadow: var(--hw-well); font: inherit; font-size: var(--t-micro); color: var(--ink-2); cursor: pointer; }
+.ht-slots button:disabled { color: var(--ink); cursor: default; }
+.ht-slots button:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
+.ht-slots button small { font-weight: 700; font-size: var(--t-micro); color: var(--ink-3); }
 .hw-hunt-tally { font-size: var(--t-micro); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-hunt-tally:empty { display: none; }
+/* PHONE (the sheet): her line at the small size, the pay column narrows so a long piece name wraps, thumb-sized presses. */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  .ht-tally, .ht-offer { flex-wrap: wrap; }
-  .ht-tally > .hh-tool, .ht-offer > .hh-tool { min-height: 36px; }
+  .ht-voice { font-size: var(--t-micro); }
+  .ht-row { grid-template-columns: minmax(0, 1fr) 44px 88px auto; column-gap: 6px; }
+  .ht-take { padding: 0 10px; }
+  .ht-tools .hh-tool, .ht-keep { min-height: 36px; }
+  .ht-pick { padding-bottom: 4px; }
 }
 /* ── A monster's page (src/shell/windows/monster.js): a page of the encyclopedia, not a card grid. The creature on its ground
    shadow (x2, facing front) beside its name, the grounds it lives on as links, a two-column table of facts, then its drops as
@@ -941,6 +1133,9 @@
   background: url('../../assets/ui/ground-shadow.png') 50% 100% / 48px 10px no-repeat; image-rendering: pixelated; }
 .mf-sprite { display: block; image-rendering: pixelated; }
 .mf-stand:not(.is-drawn) .mf-sprite { width: 0; height: 0; }
+/* The creature's head (art brief 15): the Tally's sunk well, the bust at its one 32 px density; no head, no well. */
+.mf-face { display: grid; flex: none; width: 44px; height: 44px; place-items: center; align-self: center; background: var(--bg-1); box-shadow: var(--hw-well); }
+.mf-face[hidden] { display: none; }
 .mf-id { min-width: 0; padding-bottom: 2px; }
 .mf-name { margin: 0; font-family: var(--f-display); font-size: var(--t-h2); font-weight: 700; line-height: 1.15; letter-spacing: .05em; color: var(--gold-2); }
 .mf-kind { margin: 2px 0 0; font-size: var(--t-small); color: var(--ink-2); }

@@ -38,16 +38,17 @@
 // Categories are data too, in the order the window lists them. Gameplay,
 // Chat & Social and Account stay hidden until a feature registers a row there.
 // ════════════════════════════════════════════════════════════════════════
-import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.114';
-import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.114';
-import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.114';
-import { HOTKEYS } from './hunt-hud.js?v=0.2.114';
-import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.114';
-import { HELP_NOTES } from './how-to-play.js?v=0.2.114';
-import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.114';
-import { REPLAY } from './privacy.js?v=0.2.114';
-import { IDLE_MOTION } from './world/motion.js?v=0.2.114';
-import { FX_ALPHA } from './fx-alpha.js?v=0.2.114';
+import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.125';
+import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.125';
+import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.125';
+import { HOTKEYS } from './hunt-hud.js?v=0.2.125';
+import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.125';
+import { HELP_NOTES } from './how-to-play.js?v=0.2.125';
+import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.125';
+import { REPLAY } from './privacy.js?v=0.2.125';
+import { IDLE_MOTION } from './world/motion.js?v=0.2.125';
+import { FX_ALPHA } from './fx-alpha.js?v=0.2.125';
+import { TIPS } from './tips.js?v=0.2.125';
 
 export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action', 'note']);
 export const SETTING_SCOPES = Object.freeze(['residue', 'server']);
@@ -81,6 +82,15 @@ const FLOAT_ROWS = FLOAT_TYPES.flatMap((f) => FLOAT_TARGETS.map((target) => row(
 
 /* ── Interface: the window opacity (Tyler 2026-10-24), a display preference kept in the character's residue ── */
 const LOOK_ROWS = [row({
+  /* SHOW TIPS (Tyler 2026-11-11, src/data/tips.js): the player's switch, kept for every hero; off hides the coach's cards and quiets the town criers */
+  id: 'ui.tips',
+  category: 'interface',
+  label: TIPS.label,
+  help: 'The coach\'s cards under the icons and the town criers\' calls in Local chat. Turn this off to hide them, or press Don\'t show tips on any card.',
+  type: 'toggle',
+  default: TIPS.defaultOn,
+  bind: Object.freeze({ store: 'switch', field: TIPS.field, sw: TIPS }),
+}), row({
   id: 'ui.windowOpacity',
   category: 'interface',
   label: 'Window opacity',
@@ -129,10 +139,12 @@ const PANEL_ROWS = HUD_WIDGETS.filter((w) => w.removable).map((w) => row({
   type: 'toggle',
   default: w.visible,
   bind: Object.freeze({ store: 'hud', id: w.id }),
+  /* A panel behind a server switch (its row's `section`, the live events) is listed only while the server sends that section. */
+  ...('section' in w && w.section ? { visibleWhen: (ctx) => !!ctx && !!ctx.character && typeof ctx.character.read === 'function' && ctx.character.read(w.section) != null } : {}),
 }));
 
 /* ── Controls: every window's key, then the shell's own (display only: hunts play themselves) ── */
-const HOTKEY_ROWS = SHELL_WINDOWS.filter((w) => !w.escape && w.key).map((w) => row({
+const HOTKEY_ROWS = SHELL_WINDOWS.filter((w) => !('escape' in w && w.escape) && w.key).map((w) => row({
   id: 'key.' + w.id, category: 'controls', label: 'Open ' + w.label,
   help: 'Press this key to open or close the ' + w.label.toLowerCase() + ' window.',
   type: 'hotkey', key: w.key,

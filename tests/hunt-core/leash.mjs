@@ -141,7 +141,7 @@ const mutants = [
   { name: 'the holder is leashed when no fight is on', case: 'only-the-holder-is-leashed-in-a-fight',
     edits: [['src/core/hunt/leash.js', "(inst.world.phase === 'fight' ? ", '(inst.world.phase !== \'\' ? ']] },
   { name: 'kite tiles may leave the area (soft penalty only)', case: 'kite-stays-in-area',
-    edits: [[MV, '    && inArea(inst, pocket, x, y) && !spotTaken(inst, hero, x, y);', '    && !spotTaken(inst, hero, x, y);']] },
+    edits: [[MV, '    && inArea(inst, pocket, x, y) && !(claims ? claimed(claims, x, y) : spotTaken(inst, hero, x, y));', '    && !(claims ? claimed(claims, x, y) : spotTaken(inst, hero, x, y));']] },
 ];
 
 await suite('hunt-core/leash', cases, mutants);

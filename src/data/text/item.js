@@ -32,6 +32,10 @@ export const ITEM_TEXT = Object.freeze({
   kind_junk: 'Junk',
   kind_material: 'Material',
 
+  /* A bane weapon: its damage against one kind of monster (src/core/bane.js). */
+  bane_label: 'Bane',
+  bane_more: '+{pct}% damage to {kind} monsters',
+
   /* Where it comes from. */
   dropped_closed: 'Dropped by creatures on grounds that aren\'t open yet',
   grown_with: 'Grown with {skill}',
@@ -77,6 +81,7 @@ export const ITEM_TEXT = Object.freeze({
 
   /* A requirement, against the server's number. */
   need_level: 'Needs Level {level}',
+  locked_unlock_first: '{item} is locked. Unlock it first.',
   need_level_have: 'Needs Level {level} (you\'re {have})',
   need_skill: 'Needs {skill} {level}',
   need_skill_have: 'Needs {skill} {level} (you have {have})',

@@ -38,6 +38,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { withServerLevel } from './_server-level.mjs';
 
 const ARGS = process.argv.slice(2);
 const SHOTS = ARGS.includes('--shots') ? ARGS[ARGS.indexOf('--shots') + 1] : null;
@@ -198,12 +199,12 @@ export const REASONS = Object.freeze({
   ],
   'src/shell/windows/market/browse.js': [
     { cond: '!plan.qty', words: "'You need ' + goldWords(-left) + ' more.'", where: 'Buy: the line under it says what the purse is short of, and data-off-why says it on a press; with nothing to buy the page says none are for sale' },
-    { cond: 'v.off || !!g', words: "No answer from the Weighhouse. Press again", where: 'while a lost answer is out, only Try again and Forget it stay on; the window\'s line says why' },
+    { cond: 'v.off || !!g', words: "No answer from the Weighhouse. Press again", where: 'while a lost answer is out, only Try again and Cancel stay on; the window\'s line says why' },
   ],
   'src/shell/windows/market/sell.js': [
     { cond: 'sug === null', words: "!s ? '…'", where: 'Suggested: off only until the server has said the item\'s floor and ceiling; the facts read … until then' },
     { cond: '!s || !!why || !!shortFee', words: "text(foot.querySelector('.hw-mk-why'), why || shortFee || f.msg);", where: 'List: its own line says the reason (locked, how many, under the shop, over the most, short of the fee)' },
-    { cond: 'v.off || !!g', words: "No answer from the Weighhouse. Press again", where: 'while a lost answer is out, only Try again and Forget it stay on; the window\'s line says why' },
+    { cond: 'v.off || !!g', words: "No answer from the Weighhouse. Press again", where: 'while a lost answer is out, only Try again and Cancel stay on; the window\'s line says why' },
   ],
   'src/shell/windows/inventory/actions.js': [
     { cond: 'on && !sc.pending', words: "'<small class=\"hw-mi-why\" data-why=\"'", where: 'every item-menu entry that is off: its own line under it (Cook all, Equip, Sell, Lock, Put on the bar, Link in chat)' },
@@ -231,7 +232,8 @@ export const REASONS = Object.freeze({
   ],
   'src/shell/windows/services.js': [
     { cond: '!canStam', words: "' You need ' + gold(q.price - purse) + ' more.'", where: 'the stamina quote line: full, all bought today, or how much more gold' },
-    { cond: 't.held || !next', words: "' · You need ' + gold(short) + ' more.'", where: 'each blessing row: Owned, Needs I, or how much more gold' },
+    { cond: 'r.held || !next', words: "' · You need ' + gold(short) + ' more.'", where: 'each blessing row: Owned, Needs I, or how much more gold' },
+    { cond: 'missing < 2 || sc.pending || allShort', words: "!missing ? t('shop.bless_all_on') : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short')", where: 'Bless all: the line under it says all are on, a purchase is under way, or the gold is short for the next one; with one missing it is hidden and that row\'s own button says why' },
   ],
   'src/shell/widgets/stamina-buy.js': [
     { cond: '!!why', words: ".hb-buy-why'), why", where: 'the bar\'s refill panel line' },
@@ -250,10 +252,22 @@ export const REASONS = Object.freeze({
   'src/shell/windows/hunt-summary.js': [
     { cond: 'huntOpen || !again', words: "'Hunt again is off. A hunt is already running.'", where: 'the summary\'s line under its buttons' },
   ],
-  'src/shell/windows/hunt-prep.js': [
-    { cond: '!presets || full || hunting', words: "setupFullWords(count, price)", where: 'the window line (full), the town-only note (hunting), the none line (no presets)' },
-    { cond: 'short > 0', words: "' You need ' + gold(short) + ' more.'", where: 'Buy a setup: the window line says how much more gold' },
-    { cond: 'sc.pending || hunting', words: "Setups change in town.", where: 'the town-only note' },
+  /* THE HUNT PREP BUILDER (lane/b-hunt-prep-builder, 2026-11-11): the setups column and the builder's copy of one setup. */
+  'src/shell/windows/hunt-prep/setups.js': [
+    { cond: 'sc.pending || hunting', words: "t('prep.town_only')", where: 'Use: the town-only note while hunting' },
+    { cond: 'noNew', words: "setupFullWords(count, price)", where: 'New and its Save: the window line (full), the town-only note (hunting), the none line (no presets)' },
+    { cond: 'sc.pending || hunting || !pickedRow', words: "t('prep.town_only')", where: 'Use equipped: the town-only note; with no setup picked there is nothing to replace (the none line)' },
+    { cond: 'short > 0', words: "t('prep.need_more'", where: 'Buy a setup: the window line says how much more gold' },
+  ],
+  'src/shell/windows/hunt-prep/builder.js': [
+    { cond: 'off || !d || d.stance === null', words: "t('prep.reading_setup')", where: 'stance: off until the copy of the setup is read (the read line says so, or the refusal); the server never sent a value' },
+    { cond: 'off || !d || d.targetMode === null', words: "t('prep.reading_setup')", where: 'target: the same' },
+    { cond: 'off || !d || d.chase === null', words: "t('prep.reading_setup')", where: 'chase: the same' },
+    { cond: 'off || !d || d.distance === null', words: "t('prep.reading_setup')", where: 'distance: the same, and at the ends of HERO_DISTANCE' },
+    { cond: 'off || !d || d.goldFloor === null', words: "t('prep.reading_setup')", where: 'the gold to keep: the same' },
+    { cond: 'off || !sc.draft', words: "t('prep.reading_setup')", where: 'Sort and Clear: off until the copy is read' },
+    { cond: 'off || !sc.draft || sc.stale', words: "t('prep.changed')", where: 'Save: the state line says the setup changed on the bar, load it again' },
+    { cond: 'off || !sc.draft || sc.stale || hunting', words: "t('prep.changed')", where: 'Save and use: the same, and the town-only note while hunting (setups.js)' },
   ],
   'src/shell/windows/character/titles.js': [
     { cond: 'w.off', words: "' · You need ' + gold(short) + ' more.'", where: 'the row\'s own line says how much more gold; a row short of its kills has no button, its line says the count' },
@@ -274,7 +288,7 @@ export const REASONS = Object.freeze({
     { cond: 'can.entry.off', words: 'text(inv, can ? can.entry.label', where: 'the phone\'s Invite: an off entry reads its reason as its label ("Party full")' },
   ],
   'src/shell/windows/character/outfit.js': [
-    { cond: '!owned || (o.worn || null) === d.outfit', words: "'Premium · not owned'", where: 'the outfit tile says not owned; Wear needs another outfit' },
+    { cond: '!owned || (o.worn || null) === d.outfit', words: "'Premium · not owned'", where: 'the outfit tile says not owned; Equip needs another outfit' },
     { cond: '!offer', words: "cls(save, 'is-on', offer)", where: 'with nothing to pay for the button isn\'t shown at all, and the line above the picker says what this outfit shows or why it has no colors' },
     { cond: 'short > 0', words: "text(root.querySelector('.hw-of-why'), short ? 'You need ' + gold(short) + ' more.' : '')", where: 'Save colors over the envelope\'s purse: the line under it says how much more, and data-off-why on a press' },
   ],
@@ -282,9 +296,9 @@ export const REASONS = Object.freeze({
     { cond: '!on', words: "t('house.cost_gold_short'", where: 'each step\'s cost lines mark what is short, with your counts' },
   ],
   'src/shell/windows/tally.js': [
-    { cond: '!!why || st.sc.pending || st.hunting', words: "': take tasks when you are back in town.'", where: 'the button reads Held / Full; hunting says the board is in town' },
-    { cond: 'order.indexOf(s) === 0', words: '(the first cannot move up)', where: 'the first slot has nothing to move above (its button reads Move up)' },
-    { cond: '!t', words: "'Loading her board…'", where: 'the board says it is loading' },
+    { cond: 'r.held || full || st.sc.pending || st.hunting', words: "t('tally.board_hunting')", where: 'the gold line under her board head says why every Take is off (hunting, three held, no weight yet), and data-off-why on the press' },
+    { cond: 'order.indexOf(s) === 0', words: "t('tally.slot_first_why')", where: 'the first slot chip has nothing to go before; a press on it says so (data-off-why)' },
+    { cond: '!tally', words: "t('tally.board_loading')", where: 'with no tally from the server the board says it is loading and every control stays off' },
   ],
   'src/shell/windows/work.js': [
     { cond: '(!running && !!why)', words: ": [why || (running ? 'Working on it now · '", where: 'the row\'s own line, a short input\'s places linked (workBlock: "You need Smithing 3 to make Bronze Axe. You have 1.")' },
@@ -435,7 +449,7 @@ async function screens(overrides) {
       await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
         const name = r.request().url().split('?')[0].split('/').pop();
         const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
-        if (name === 'hr_load' || name === 'hr-accrue') return json(Object.assign(clone(s.env), { version: ++s.version, ok: true }));
+        if (name === 'hr_load' || name === 'hr-accrue') return json(withServerLevel(Object.assign(clone(s.env), { version: ++s.version, ok: true })));
         return json({ ok: true });
       });
       const shot = async (n) => { if (SHOTS) await page.screenshot({ path: join(ROOT, SHOTS, n + '-' + w + 'x' + h + '.png') }); };

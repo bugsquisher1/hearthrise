@@ -10,11 +10,12 @@
 // Search filters every category by label and help text at once. Built once;
 // patched in place through paint.js, so a search or a toggle never rebuilds it.
 // ════════════════════════════════════════════════════════════════════════
-import { SETTINGS, SETTING_CATEGORIES } from '../../data/settings.js?v=0.2.114';
-import { read, write, visible, categoriesFor, search } from '../settings-model.js?v=0.2.114';
-import { keyLabel } from '../launcher.js?v=0.2.114';
-import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.114';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.114';
+import { SETTINGS, SETTING_CATEGORIES } from '../../data/settings.js?v=0.2.125';
+import { read, write, visible, categoriesFor, search } from '../settings-model.js?v=0.2.125';
+import { keyLabel } from '../launcher.js?v=0.2.125';
+import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.125';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.125';
+import { t } from '../../render/player-text.js?v=0.2.125';
 
 function control(r) {
   const sid = 'data-sid="' + esc(r.id) + '" data-hs-act="set"';
@@ -52,7 +53,7 @@ export function renderSettings() {
   return '<div class="st" data-view="list">'
     + '<div class="st-find"><input type="search" class="st-search" data-hs-act="search" placeholder="Search settings" aria-label="Search settings" autocomplete="off"></div>'
     + '<div class="st-body"><nav class="st-tabs" aria-label="Setting categories">' + tabs + '</nav>'
-    + '<div class="st-pages"><button type="button" class="st-back" data-hs-act="back">&lsaquo; All settings</button>' + pages
+    + '<div class="st-pages">' + pages
     + '<p class="hs-note st-none" hidden>No setting matches that.</p></div></div></div>';
 }
 
@@ -90,32 +91,34 @@ renderSettings.patch = function patchSettings(body, ctx) {
   }
   attr(root.querySelector('.st-none'), 'hidden', any);
   attr(root, 'data-view', q ? 'page' : root.getAttribute('data-view'));
-  text(root.querySelector('.st-back'), q ? '‹ Clear search' : '‹ All settings');
 };
 
-renderSettings.act = function actSettings(ctx, body, action, ev, t) {
+renderSettings.act = function actSettings(ctx, body, action, ev, el) {
   const root = body.querySelector('.st');
   if (action === 'search' && ev.type === 'input') {
-    attr(root, 'data-q', t.value.trim() || null);
-    attr(root, 'data-view', t.value.trim() ? 'page' : 'list');
+    attr(root, 'data-q', el.value.trim() || null);
+    attr(root, 'data-view', el.value.trim() ? 'page' : 'list');
   } else if (action === 'cat' && ev.type === 'click') {
-    attr(root, 'data-cat', t.getAttribute('data-cat'));
+    attr(root, 'data-cat', el.getAttribute('data-cat'));
     attr(root, 'data-view', 'page');
   } else if (action === 'back' && ev.type === 'click') {
     const find = root.querySelector('.st-search');
     prop(find, 'value', '');
     attr(root, 'data-q', null);
     attr(root, 'data-view', 'list');
-  } else if (action === 'set' && (ev.type === 'change' || (ev.type === 'input' && t.type === 'range'))) {
+  } else if (action === 'set' && (ev.type === 'change' || (ev.type === 'input' && el.type === 'range'))) {
     /* A slider applies while it is dragged (the window opacity shows the World through at once); the residue
        put is one per burst (character-session.js setResidue). */
-    const r = SETTINGS.find((x) => x.id === t.getAttribute('data-sid'));
+    const r = SETTINGS.find((x) => x.id === el.getAttribute('data-sid'));
     if (!r) return;
-    write(ctx, r, r.type === 'toggle' ? t.checked : r.type === 'slider' ? Number(t.value) : t.value);
+    write(ctx, r, r.type === 'toggle' ? el.checked : r.type === 'slider' ? Number(el.value) : el.value);
   } else if (action === 'run' && ev.type === 'click') {
-    const r = SETTINGS.find((x) => x.id === t.getAttribute('data-sid'));
+    const r = SETTINGS.find((x) => x.id === el.getAttribute('data-sid'));
     if (r && r.open) ctx.show(r.open);
     else if (r && ctx.character && typeof ctx.character[r.run] === 'function') ctx.character[r.run]();
   } else return;
   renderSettings.patch(body, ctx);
 };
+
+/* The header's Back (src/shell/window-head.js): on a phone, a page (or a search) goes back to the list. */
+renderSettings.inner = (ctx, body) => { const st = body.querySelector('.st'); return ctx.isPhone() && st && st.getAttribute('data-view') === 'page' ? 'back' : null; };

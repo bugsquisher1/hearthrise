@@ -37,7 +37,7 @@
 //                    (the row the database journals as rare_drop and broadcasts), and no Scarce piece does; on a party
 //                    ground every Rare unit a party of four gets also went through the party's rare roll
 //   big-pull         (played at the pull that brings it) a Rare row on a monster only a bigger pull brings holds its band; the
-//                    Keep's five Bear Pelts come within two played hours
+//                    Keep's five Bear Pelts come within two played hours, wherever the bear stands (as built since lane/c-brook-bear)
 //   profit-floor     at its band floor, in its first hour, each non-starter ground earns coin + commons at least +25% over
 //                    the store bill (a MINIMUM, Tyler 10-20)
 //   warrens-floor    the Warrens' party of four at 32 and a lone own-tier Melee at the card's soloFrom clear +25% on two seeds
@@ -70,7 +70,10 @@ const TOTAL_RISE_MAX = 0.25;    // Tyler 2026-10-23: total value up to +25% over
    coin x1.4 pays the food Tyler's x1.2 bite costs, so its floor nets over the Sewer party: forest-cave glade-between), the Warrens 4588 -> 7424
    and alone at 45 5226 -> 8427 (its coin x0.53 of its HP is the least that keeps harder-pays-more, Tyler 11-03, at 41 and 45: at the old pins the
    Warrens paid under the Glade for the same hero). Every other pin stands and every ground still reads under its +25%. */
-const TOTAL_TODAY = Object.freeze({ mill_cellar: 1869, millrace_sewer: 3822, meadowbrook_thicket: 2285, coppercap_warrens: 7424, mosslight_glade: 5043,
+/* mosslight_glade RE-PINNED 2026-11-12 (lane/d-solo-fifteen; was 5043): the Brook Bear is a heavy with most of an elite's purse (balance-sheet.js roster and
+   FORMULA_EXCEPTIONS; designer under Tyler's +10% lone profit floor, his open question 3), so the Glade's value per hero-hour in the ladder kit read 6364, +26% on the old
+   pin, measured by this rule. A named rise, not a drift: the Warrens' fours still net more (the grader's feel-gold-order). */
+const TOTAL_TODAY = Object.freeze({ mill_cellar: 1869, millrace_sewer: 3822, meadowbrook_thicket: 2285, coppercap_warrens: 7424, mosslight_glade: 6364,
   /* a NEW ground has no pre-conversion value: its pin is its neighbours' by floor, the Thicket (L5) to the Glade (L16)
      interpolated at Wickstead's L8 (lane b-greenhaven-6, designer 2026-10-28): 2285 + (3834 - 2285) x 3/11 */
   wickstead: 2707 });
@@ -525,23 +528,31 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
 /* THE BIG PULL (lane c-house-pelts, 2026-10-31). A monster standing only in a pocket's FILL rows is never met in the floor
    hours above, which play the pull as built: its Rare rows were measured on zero kills. So a Rare row on such a monster
    holds its band on a played hour, for a solo hero at the floor, at the smallest pull that brings it and at the ground's
-   solo cap. The Bear Pelt, the Keep's Common, is held to BEAR_PELT_RULE: not a wall, and not free either way. */
+   solo cap. A monster that stands as built has its Rare rows judged by the floor hours' rare-pace instead.
+   THE KEEP'S PELTS are held wherever the bear stands: KEEP_PELTS within PELT_MAX_HOURS, not a wall and not free either way, at the
+   pull that brings it (the room as built, 0, once it stands there: the designer's ruling 3, 2026-11-10, the Brook Bear in Vine
+   Hollow's as-built rows) and at the solo cap. */
 const KEEP_PELTS = 5;
 const PELT_MAX_HOURS = 2;       // the Keep's pelts within two played hours, whichever pull brings the bear
+const asBuiltOf = (ground) => new Set(ground.pockets.flatMap((p) => p.spawns.map((s) => s.monster)));
 const bigPullMonsters = (M, ground) => {
-  const asBuilt = new Set(ground.pockets.flatMap((p) => p.spawns.map((s) => s.monster)));
+  const asBuilt = asBuiltOf(ground);
   return rosterOf(ground).filter((id) => !asBuilt.has(id));
 };
+const carriesPelt = (m) => (m.drops || []).some((d) => d.id === 'bear_pelt');
 function bigPull(M, P, monsters, R, print) {
   const out = [];
   for (const [gid, ground] of Object.entries(M.G.HUNT_GROUNDS)) {
-    const fill = bigPullMonsters(M, ground).filter((id) => (monsters[id].drops || []).some((d) => d.band === 'rare' || d.id === 'bear_pelt'));
-    if (!fill.length) continue;
+    const asBuilt = asBuiltOf(ground);
+    const fill = bigPullMonsters(M, ground).filter((id) => (monsters[id].drops || []).some((d) => d.band === 'rare') || carriesPelt(monsters[id]));
+    const standing = rosterOf(ground).filter((id) => asBuilt.has(id) && carriesPelt(monsters[id]));
+    if (!fill.length && !standing.length) continue;
     const floor = M.HUNTS[ground.hunt].band[0];
     /* THE PULLS A LONE HERO REALLY PLAYS: the tiers' own rows (hunt-tiers.js). */
     const cap = M.TIERS.pullOfTier(M.TIERS.tierRowOf(gid, 'dangerous'), 1);
-    for (const id of fill) {
-      const first = Math.min(...ground.pockets.map((p) => (p.pack || []).findIndex((s) => s.monster === id)).filter((i) => i >= 0)) + 1;
+    for (const id of [...fill, ...standing]) {
+      const built = asBuilt.has(id);
+      const first = built ? 0 : Math.min(...ground.pockets.map((p) => (p.pack || []).findIndex((s) => s.monster === id)).filter((i) => i >= 0)) + 1;
       for (const density of [...new Set([first, cap])]) {
         const x = P.run(gid, floor, ['tank'], { spanMs: H, density, monsters });
         const kills = (x.killsBy[id] || 0) / (x.playedMs / H || 1);
@@ -549,13 +560,13 @@ function bigPull(M, P, monsters, R, print) {
         for (const d of monsters[id].drops) {
           /* THE YIELD IT REALLY PAYS (designer 2026-11-03): this read 1, so a Claw measured every 11-19 h came every 20-37 h on the real settle: a lone hero's scaled monster pays 0.55 of every chance (hunt-grounds.js). */
           const perH = kills * M.drops.effectiveDropChance(d, { dropMult: monsters[id].dropBonus || 1 });
-          if (d.band === 'rare') {
+          if (d.band === 'rare' && !built) {
             const [lo, hi] = M.LB.BAND_TARGETS.rare.hours;
             R.ok(1 / perH >= lo && 1 / perH <= hi, 'big-pull: ' + gid + ' rare ' + d.id + ' (' + id + ', density ' + density + ') every ' + (1 / perH).toFixed(1) + ' h, outside ' + lo + '-' + hi + ' h');
           }
           if (d.id === 'bear_pelt') {
             R.ok(KEEP_PELTS / perH <= PELT_MAX_HOURS, 'big-pull: ' + gid + ' the Keep\'s ' + KEEP_PELTS + ' pelts take ' + (KEEP_PELTS / perH).toFixed(1) + ' h at density ' + density + ', over ' + PELT_MAX_HOURS + ' h');
-            out.push('density ' + density + ': ' + kills.toFixed(0) + ' bears/h, ' + perH.toFixed(1) + ' pelts/h, the Keep\'s ' + KEEP_PELTS + ' in ' + (KEEP_PELTS / perH).toFixed(2) + ' h');
+            out.push((density ? 'density ' + density : 'as built') + ': ' + kills.toFixed(0) + ' bears/h, ' + perH.toFixed(1) + ' pelts/h, the Keep\'s ' + KEEP_PELTS + ' in ' + (KEEP_PELTS / perH).toFixed(2) + ' h');
           }
         }
       }
@@ -766,10 +777,15 @@ const playMutants = [
   { name: 'the den mother\'s fang a War Crown at 2% (value, not gear)', rule: 'total-value: meadowbrook_thicket', edit: (ms) => { Object.assign(rowOf(ms, 'grayjaw', 'alpha_fang'), { id: 'war_crown', ch: 0.02 }); } },
   { name: 'a fresh hero\'s heavy boots gone', rule: 'gear-pace: a fresh hero at the meadowbrook_thicket', fresh: true, edit: (ms) => { ms.gray_whelp.drops = ms.gray_whelp.drops.filter((d) => d.id !== 'bronze_boots'); } },
 ];
+/* THE BEAR STANDS AS BUILT (lane/c-brook-bear; the designer's ruling 3, 2026-11-10): the floor hours meet it, so its Claw is judged by their rare-pace, not
+   the big pull's. Each Claw mutant is the same row moved as before, caught on the rule that now reads it; the Pelt mutant stays on the big pull (the Keep's
+   pelts are held wherever the bear stands). */
+const bearClawMutants = [
+  { name: 'the Bear Claw at 2% (a reveal every hour or so)', rule: 'rare-pace: mosslight_glade rare bear_claw', edit: (ms) => { rowOf(ms, 'brook_bear', 'bear_claw').ch = 0.02; } },
+  { name: 'the Bear Claw back at 0.15% (past 20 h a hero)', rule: 'rare-pace: mosslight_glade rare bear_claw', edit: (ms) => { rowOf(ms, 'brook_bear', 'bear_claw').ch = 0.0015; } },
+];
+playMutants.push(...bearClawMutants);
 const bigPullMutants = [
-  { name: 'the Bear Claw at 2% (a reveal every hour or so)', rule: 'big-pull: mosslight_glade rare bear_claw', edit: (ms) => { rowOf(ms, 'brook_bear', 'bear_claw').ch = 0.02; } },
-  /* re-aimed (lane/b-ground-formula): the formula's bear falls faster, 48 an hour at the pull of 3, so 0.19% read 19.9 h, inside the band; 0.15% reads about 25 h */
-  { name: 'the Bear Claw back at 0.15% (every 25 h once the yield is paid)', rule: 'big-pull: mosslight_glade rare bear_claw', edit: (ms) => { rowOf(ms, 'brook_bear', 'bear_claw').ch = 0.0015; } },
   { name: 'the Bear Pelt at 1% (the Keep a long grind again)', rule: 'big-pull: mosslight_glade the Keep', edit: (ms) => { rowOf(ms, 'brook_bear', 'bear_pelt').ch = 0.01; } },
 ];
 /* Planted trees (src/data, src/core, the settle), played on the ground the rule names. */

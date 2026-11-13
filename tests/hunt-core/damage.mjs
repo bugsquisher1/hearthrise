@@ -398,7 +398,7 @@ const blowsAtLevel = (M, heroLv, tier, bare) => {
 const mutants = [
   { name: 'a tier does not raise the blow', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'const row = atTier(rowOf(inst, u.kind), inst.tier);', 'const row = MONSTERS[u.kind];']] },
   { name: 'armor ignores the tier', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier)', 'monsterLevelOf(MONSTERS[source.kind])']] },
-  { name: 'a kill pays no tier XP', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'atTier(rowOf(inst, target.kind), inst.tier).xp', 'MONSTERS[target.kind].xp']] },
+  { name: 'a kill pays no tier XP', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'atTier(row, inst.tier).xp', 'MONSTERS[target.kind].xp']] },
   { name: 'a tier reads the hero: Deadly is gentler on a low Level', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'const row = atTier(rowOf(inst, u.kind), inst.tier);', 'const row = atTier(MONSTERS[u.kind], (t.heroLv || 32) < 16 ? null : inst.tier);']] },
   { name: 'armor reads the hero\'s Level again', case: 'same-blow-at-any-level',
     edits: [[D, "mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },

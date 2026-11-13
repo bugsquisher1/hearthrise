@@ -19,21 +19,21 @@
 // the server refuses rather than charge another sum. Refusals in plain words.
 // Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.114';
-import { summaryOf } from '../command-model.js?v=0.2.114';
-import { alertShown, setAlertShown } from '../alerts.js?v=0.2.114';
-import { huntName } from '../../session/party-sections.js?v=0.2.114';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.114';
-import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.114';
-import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.114';
-import { gmOf } from '../../session/character-sections.js?v=0.2.114';
-import { runIntent } from '../intent-words.js?v=0.2.114';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.114';
-import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.114';
-import { glyphSvg } from '../launcher.js?v=0.2.114';
-import { entriesFor } from '../context-menu.js?v=0.2.114';
-import { menuProvidersOf } from '../menu-providers.js?v=0.2.114';
-import { t } from '../../render/player-text.js?v=0.2.114';
+import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.125';
+import { summaryOf } from '../command-model.js?v=0.2.125';
+import { alertShown, setAlertShown } from '../alerts.js?v=0.2.125';
+import { huntName } from '../../session/party-sections.js?v=0.2.125';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.125';
+import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.125';
+import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.125';
+import { gmOf } from '../../session/character-sections.js?v=0.2.125';
+import { runIntent } from '../intent-words.js?v=0.2.125';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.125';
+import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.125';
+import { glyphSvg } from '../launcher.js?v=0.2.125';
+import { entriesFor } from '../context-menu.js?v=0.2.125';
+import { menuProvidersOf } from '../menu-providers.js?v=0.2.125';
+import { t } from '../../render/player-text.js?v=0.2.125';
 
 /* The rename panel's scratch, per viewed character: which hero, the typed name, the confirm step. */
 const SCRATCH = new WeakMap();
@@ -55,7 +55,7 @@ const iconListHtml = (ctx) => '<div class="hw-phone-only"><h3 class="hw-ledger-h
 const alsoHereHtml = (ctx) => '<div class="hw-phone-only"><ul class="hw-icon-names is-more" aria-label="' + esc(t('heroes.also_here_aria')) + '">'
   + iconNames(ctx, iconRows(ctx).filter((r) => r.phoneIcon === false)) + '</ul></div>';
 const ACCOUNT_HTML = '<div class="hw-phone-only hw-account"><button type="button" class="hh-tool" data-app="characters">' + esc(t('heroes.character_list')) + '</button>'
-  + '<button type="button" class="hh-tool" data-app="sign-out">' + esc(t('heroes.sign_out')) + '</button></div>';
+  + '<button type="button" class="hh-tool" data-app="sign-out">' + esc(t('controls.sign_out')) + '</button></div>';
 
 /** The Invite entry for one of this account's other heroes, or null (the viewed hero, or one already in a party). */
 function inviteEntry(ctx, x) {
@@ -74,10 +74,10 @@ export function renderCharacters(ctx) {
     + '<p class="hs-note hw-rename-quote"></p>'
     + '<div class="hw-add"><input type="text" class="hh-num hw-rename-in" maxlength="20" placeholder="' + esc(t('heroes.new_name')) + '" aria-label="' + esc(t('heroes.new_name')) + '">'
     + '<button type="button" class="hh-tool" data-hs-act="rename-ask"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="rename-close">' + esc(t('heroes.close')) + '</button></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="rename-close">' + esc(t('controls.close')) + '</button></div>'
     + '<div class="hw-confirm" role="alertdialog" aria-label="' + esc(t('heroes.confirm_aria')) + '"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="rename-yes"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="rename-no">' + esc(t('heroes.cancel')) + '</button></div></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="rename-no">' + esc(t('controls.cancel')) + '</button></div></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
     + '<h3 class="hw-ledger-head is-on">' + esc(t('heroes.parties_head')) + '</h3>'
     + '<p class="hs-note hw-parties-line"></p><p class="hh-intent-msg hw-parties-msg" role="status" aria-live="polite"></p>'
@@ -96,8 +96,8 @@ function charRow(ctx) {
     + '<span class="hw-badge" aria-label="' + esc(t('heroes.alerts_waiting_aria')) + '"></span></p><p class="hw-char-waits"></p>'
     + '<div class="hw-char-gauges">' + gaugeHtml('hp', t('heroes.gauge_health')) + gaugeHtml('mana', t('heroes.gauge_mana')) + gaugeHtml('stamina', t('heroes.gauge_stamina')) + '</div>'
     + '<p class="hw-char-facts"><span class="hw-char-bag"></span><span class="hw-char-ready"></span><span class="hw-char-party"></span></p></div>'
-    + '<span class="hw-char-do"><button type="button" class="hh-tool hw-char-show" data-hs-act="show">' + esc(t('heroes.show')) + '</button>'
-    + '<button type="button" class="hh-tool hw-char-rename" data-hs-act="rename">' + esc(t('heroes.rename')) + '</button>'
+    + '<span class="hw-char-do"><button type="button" class="hh-tool hw-char-show" data-hs-act="show">' + esc(t('controls.show')) + '</button>'
+    + '<button type="button" class="hh-tool hw-char-rename" data-hs-act="rename">' + esc(t('controls.rename')) + '</button>'
     + '<button type="button" class="hh-tool hw-char-invite" data-hs-act="invite" hidden></button></span></li>');
 }
 
@@ -124,7 +124,7 @@ function patchRow(li, x, ctx) {
   const show = li.querySelector('.hw-char-show');
   show.setAttribute('data-slot', String(x.slot));
   prop(show, 'disabled', x.slot === ctx.character.slot || !ctx.goTo);
-  text(show, x.slot === ctx.character.slot ? t('heroes.on_screen') : t('heroes.show'));
+  text(show, x.slot === ctx.character.slot ? t('heroes.on_screen') : t('controls.show'));
   const ren = li.querySelector('.hw-char-rename');
   ren.setAttribute('data-slot', String(x.slot));
   prop(ren, 'disabled', scratchOf(ctx.character).pending);
@@ -155,7 +155,7 @@ function patchRename(root, ctx, peers) {
   const can = !!q && q.available && !short && !sc.pending;
   if (sc.confirm && !can) sc.confirm = false;
   const ask = panel.querySelector('[data-hs-act="rename-ask"]');
-  text(ask, q ? t('heroes.rename_price', { price: gold(q.price) }) : t('heroes.rename'));
+  text(ask, q ? t('heroes.rename_price', { price: gold(q.price) }) : t('controls.rename'));
   prop(ask, 'disabled', !can || sc.confirm);
   prop(panel.querySelector('.hw-rename-in'), 'disabled', sc.pending || sc.confirm);
   const cf = panel.querySelector('.hw-confirm');

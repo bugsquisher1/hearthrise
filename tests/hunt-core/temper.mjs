@@ -172,7 +172,7 @@ const cases = {
     for (const [id, it] of rows) {
       if (it.buff.magnitude < 3 || it.buff.magnitude > 7) return id + ' cuts ' + it.buff.magnitude + '%, outside a cape step';
       const words = M.descriptions[id] || '';
-      if (!words.includes('lighter') || /guard/i.test(words)) return id + ' says: ' + words;
+      if (!words.includes('less damage from every hit') || /guard/i.test(words)) return id + ' says: ' + words;
     }
     return null;
   },
@@ -287,7 +287,7 @@ const mutants = [
   { name: 'a food reads nothing on the hook', case: 'a-food-cuts-and-never-guards', edits: [[MI, " + Math.round((Number(bonus && bonus('steady')) || 0) * 1000);", ";"]] },
   { name: 'the buff back on its old flat key', case: 'a-food-cuts-and-never-guards', edits: [['src/core/buffs.js', "defense: { label: 'Damage cut', bonusKey: 'steady', isPercent: true, glyph: 'uiShield' },", "defense: { label: 'Defense', bonusKey: 'defense', isPercent: false, isFlat: true, glyph: 'uiShield' },"]] },
   { name: 'a Frostfin Supper past a cape step', case: 'a-food-cuts-and-never-guards', edits: [['src/data/items.js', "buff:{type:'defense', magnitude:5,", "buff:{type:'defense', magnitude:12,"]] },
-  { name: 'the words still promise guard', case: 'a-food-cuts-and-never-guards', edits: [['src/data/item-descriptions.js', "'A thick chowder of silverfin, potato and carrot. For five minutes, every blow that reaches you lands a little lighter'", "'A thick chowder of silverfin, potato and carrot, a hearty pot that stiffens your guard'"]] },
+  { name: 'the words still promise guard', case: 'a-food-cuts-and-never-guards', edits: [['src/data/item-descriptions.js', "'A thick chowder of silverfin, potato and carrot. For five minutes, you take a little less damage from every hit'", "'A thick chowder of silverfin, potato and carrot, a hearty pot that stiffens your guard'"]] },
   { name: 'a cut alone has no cap', case: 'the-cape-shares-the-hook-and-the-cap', edits: [[MI, 'const keep = m.keepPm || (armorPm ? 1000 - ARMOUR_MITIGATION.capPm : 0);', 'const keep = m.keepPm;']] },
   { name: 'a cape guards again', case: 'guard-is-a-shields-alone', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, defB: 4,']] },
   { name: 'a stud guards again', case: 'guard-is-a-shields-alone', edits: [['src/data/slot-ladders.js', "copper_studs:        { n: 'Copper Studs',", "copper_studs:        { defB: 1, n: 'Copper Studs',"]] },

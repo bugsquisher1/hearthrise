@@ -9,9 +9,12 @@
 // the gold she pays. Her PICK (a piece of gear) is not a row here: it is the next
 // Scarce armour piece of that ground in the hero's chosen weight that she has
 // not given that hero yet (derived from the loot bands by
-// tools/gen-tally-tasks.mjs), and once every piece is given, the ground's
-// crafting material below, in turn. A piece the hero found on the ground does not
-// move it: her board's line is what she pays (2027-02-15-panel-truth.sql).
+// tools/gen-tally-tasks.mjs), skipping a slot the hero already WEARS at that
+// piece's gear tier or better, any weight (the tier is gear-tiers.js's, emitted as
+// hr_tally_tiers; 2027-04-08-tally-worn.sql, designer 2026-11-11), and once every
+// piece is given or worn, the ground's crafting material below, in turn. A piece
+// the hero only carries does not move it: her board's line is what she pays
+// (2027-02-15-panel-truth.sql).
 //
 // THE RULES, server-owned (supabase/migrations/2026-12-23-tally-tasks.sql):
 //   · taken at her board in town; at most TALLY_RULES.heldMax held per hero;
@@ -33,16 +36,13 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { TOWN_NAME } from './world/town/plan.js?v=0.2.114';
+import { TOWN_NAME } from './world/town/plan.js?v=0.2.125';
 
-/** Who keeps the tally, and the one line her board opens with: what she does, in plain words (Tyler 2026-10-24:
- *  "this is weird dialogue"). Client copy only: the generated catalogue holds none of it. */
+/** Who keeps the tally. What she says lives in src/data/text/tally.js (first person, one line per state). */
 export const TALLY_KEEPER = Object.freeze({
   name: 'Tamsin Reeve',
-  title: 'Gives out kill tasks in ' + TOWN_NAME,
   /* where her board stands (src/data/world/stations.js `tally`) */
   board: 'Hearth Square',
-  greeting: 'Take a task from my board and go hunting. When the count\'s done, I\'ll pay you in town with gold, plus the armor or materials my board shows.',
 });
 
 /** The server's limits (hr_tally_config). */
@@ -68,8 +68,10 @@ export const TALLY_RULES = Object.freeze({
 const row = (r) => Object.freeze({ ...r, materials: Object.freeze(r.materials.map((m) => Object.freeze(m))) });
 
 export const TALLY_TASKS = Object.freeze([
-  /* ~25 min at the floor (rats are ~280 of the Cellar's 464 kills an hour). */
-  row({ id: 'cellar_giant_rats', hunt: 'mill_cellar', monster: 'rat', label: 'Giant Rats', count: 120, gold: 100, party: false,
+  /* THE FIRST TASK FINISHES INSIDE THE FIRST HUNT (designer 2026-11-10, lane/d-first-ten-minutes, played: 120 took 27 minutes of a ground the game
+     sends a hero out of at 16). Three fresh heroes had 24 to 29 rats at hunt minute 5 to 6 (rats are 61% of the Cellar's kills). 25 gp for 25 rats is
+     the old 100 for 120 per rat, and her three pays a day cap it. Her Cellar piece is a helmet in every weight, worn at Level 1. */
+  row({ id: 'cellar_giant_rats', hunt: 'mill_cellar', monster: 'rat', label: 'Giant Rats', count: 25, gold: 25, party: false,
     materials: [{ item: 'slime_gel', qty: 4 }, { item: 'silk_thread', qty: 1 }] }),
   row({ id: 'thicket_gray_wolves', hunt: 'meadowbrook_thicket', monster: 'gray_wolf', label: 'Gray Wolves', count: 200, gold: 480, party: false,
     materials: [{ item: 'raw_wolf_meat', qty: 5 }, { item: 'bones', qty: 6 }] }),

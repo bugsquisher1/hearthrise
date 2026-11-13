@@ -7,7 +7,7 @@
 // this window held only Invites and Find a party. So while the viewed hero sits
 // in a party, the window opens on this tab: every seat (name, level, role from
 // the weapon, the leader's crown, away / hunting / in town), the next step
-// (the leader picks a hunt in the Hunts window, where "Start with party"
+// (the leader picks a hunt in the Hunts window, where "Enter with party"
 // lives; a member waits for the leader) and Leave party / Disband.
 //
 // Everything is the SERVER's: the seats are party-panel.js rosterOf over the
@@ -16,15 +16,16 @@
 // one intent each), off from the press until the server answered; the tab
 // changes only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES, roleForWeapon } from '../../data/hunt-roles.js?v=0.2.114';
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.114';
-import { PARTY_CLASSES, partyClassXp, partyVsAlone } from '../../data/party-class-xp.js?v=0.2.114';
-import { recommendation } from '../hunt-list.js?v=0.2.114';
-import { huntName } from '../../session/party-sections.js?v=0.2.114';
-import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/party-panel.js?v=0.2.114';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.114';
-import { glyphSvg } from '../launcher.js?v=0.2.114';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.114';
+import { HUNT_ROLES, roleForWeapon } from '../../data/hunt-roles.js?v=0.2.125';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.125';
+import { PARTY_CLASSES, partyClassXp, partyVsAlone } from '../../data/party-class-xp.js?v=0.2.125';
+import { recommendation } from '../hunt-list.js?v=0.2.125';
+import { huntName } from '../../session/party-sections.js?v=0.2.125';
+import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/party-panel.js?v=0.2.125';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.125';
+import { glyphSvg } from '../launcher.js?v=0.2.125';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.125';
+import { t } from '../../render/player-text.js?v=0.2.125';
 
 /** The tab's skeleton (built once with the window). */
 export function rosterHtml() {
@@ -32,7 +33,7 @@ export function rosterHtml() {
     + '<p class="hs-note hw-party-next"></p>'
     + '<p class="hs-note hw-party-class" hidden></p>'
     + '<div class="hw-add hw-party-acts">'
-    + '<button type="button" class="hw-primary is-on" data-hs-act="party-hunts" hidden>Pick a hunt for the party</button>'
+    + '<button type="button" class="hw-primary is-on" data-hs-act="party-hunts" hidden>' + t('controls.pick_hunt') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="leave">Leave party</button>'
     + '<button type="button" class="hh-tool" data-hs-act="disband" hidden>Disband</button></div>';
 }
@@ -58,7 +59,7 @@ function seatWhere(m) {
 /** What the party does next, from the server's party (the leader picks the ground; a member waits). */
 function nextStep(p, r) {
   if (r.anyHunting) return p.hunt ? 'The party is hunting in ' + huntName(p.hunt) + '.' : 'The party is hunting.';
-  if (r.isLeader) return r.members.length > 1 ? 'You lead. Pick a hunt and press Start with party.'
+  if (r.isLeader) return r.members.length > 1 ? 'You lead. Pick a hunt and press Enter with party.'
     : 'You are the only one here. Invite someone (right-click a player), or pick a hunt.';
   const lead = r.members.find((m) => m.seat === r.leaderSeat);
   return 'Waiting for ' + (lead ? lead.name : 'the leader') + ' to pick a hunt.';
@@ -77,12 +78,15 @@ export function classXpLine(roles, hunt) {
   const seats = roles.map((r) => r || roleForWeapon('neutral'));
   const { classes } = partyClassXp(ground ? ground.id : null, seats);
   /* The measured answer against hunting alone (designer 2026-11-02), never the table's factor on a share: see PARTY_VS_ALONE. */
+  /* Tyler's voice (2026-11-09): a sentence each, no colon joins. Since one pack on Normal for every group (Tyler 2026-11-11) a one-class party loses a lot
+     there, so its line says how to fix it (lane/d-party-xp-cells). */
   const vs = partyVsAlone(ground ? ground.id : null, seats);
-  const pay = vs === null ? 'no extra Level XP in ' + huntName(hunt)
-    : vs > 0 ? 'about ' + vs + '% more Level XP each than hunting alone in ' + huntName(hunt)
-      : vs < 0 ? 'about ' + -vs + '% less Level XP each than hunting alone in ' + huntName(hunt)
-        : 'about the same Level XP each as hunting alone in ' + huntName(hunt);
-  return 'Your party has ' + classes.length + ' of ' + CLASS_NAMES.length + ' classes: ' + pay + '. ' + CLASS_WORDS + ' each count.';
+  const place = huntName(hunt);
+  const have = t('party.class_have', { have: classes.length, of: CLASS_NAMES.length }) + ' ';
+  if (vs === null) return have + t('party.class_none', { place });
+  if (vs === 0) return have + t('party.class_same', { place });
+  if (vs > 0) return have + t('party.class_more', { pct: vs, place });
+  return have + t('party.class_less', { pct: -vs, place, classes: CLASS_WORDS });
 }
 
 /** The line before a hunt starts, on the party's last ground or the one the Hunts window opens on; '' for no line. */

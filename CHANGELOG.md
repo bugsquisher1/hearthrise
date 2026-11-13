@@ -5,6 +5,114 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.125 — 2026-11-12 (Make as Many as You Like)
+
+**Pick your own count at a bench.** Next to 1, 5 and All there is now an X. Press it, type how many you want, and the next Start makes that many. It works for runes, bars, food and everything else you make at a bench.
+
+**Tidier headers and tip cards.** Got it and Don't show tips stay on one line each, and a long window name like Gathering and crafting takes two lines, not three.
+
+## v0.2.124 — 2026-11-12 (Faces and Frames)
+
+**Every window has the same header now.** The icon, Back, the title, Help, the hotkey and Close all sit in one row. Back takes you to the window that opened this one, so a Monster page goes back to Hunts. The old Back buttons inside the windows are gone.
+
+**Windows open where you'd expect.** On a wide screen the bag opens next to Storage, the Shop and your Character, so you can move things across. Hunts and Hunt prep open over the dock and leave everything else alone.
+
+**Creatures have faces now.** Forty-three creature heads and twenty-two item icons are drawn in the game's pixel style. A creature's head sits beside its name on its Monster page and on Tamsin's tally. A creature without a head yet shows no empty box.
+
+**Phone tip cards are easier to read.** On a phone, a tip card keeps its title on one line, and Don't show tips and Got it sit on their own row below the text. The party invite's Join button now sits under the town card, and the Shop's tip card no longer crowds the buttons.
+
+## v0.2.123 — 2026-11-12 (Your Town, Your Way)
+
+**Tips are yours to turn off.** Every coach card has Got it and Don't show tips. Got it closes that card. Don't show tips hides them all, and Settings, Interface, Show tips brings them back.
+
+**Town criers call out tips in Local chat.** The Town Crier, Garrick the Smith and Tamsin Reeve speak up now and then about something you haven't done yet, with a link that takes you there. They go quiet during a hunt and when Show tips is off. Only you see their lines.
+
+**Coming home from a hunt has a guided path.** The hunt summary lists what to do in town, each one press with its real count and value. Wear the better gear you found, sell what your loot plan marks for the shop, put away what it marks for Storage, bless, then hunt again. One gold button at a time, and done steps stay ticked.
+
+**Tamsin's tally board got a new look.** Tamsin talks to you at the top and tells you where you stand. Your own tasks come first, with her tally marks and the exact count, the piece she'll give you, and what you'll get. Her board shows only the tasks you don't hold, with the ground as a link and a proper Take button. The armor weight and slot order are behind Change.
+
+**Bag selection works like a file list.** Ctrl+A selects everything shown and again clears it, Esc clears, Shift picks a range, Ctrl+click adds one, a plain click picks just that one. The selection line shows what the shop would pay, with Sell, Deposit and Lock right there, and Deposit and Lock move every stack in one go.
+
+**One word per button.** Every window uses the same word for the same action: Equip and Unequip on the doll and for outfits and titles, Deposit and Withdraw in Storage and the loot plan, Back instead of "Back to the list", Enter with party instead of "Start with party", New setup and Use equipped in Hunt prep, Cancel, Decline and Abandon where it used to say "Forget it", "No thanks" and "Give up".
+
+**Hunt prep is a setup builder now.** Pick a setup on the left, change its stance, target, chase, distance and gold to keep, drag slots to move them or drop one on another to swap, press a slot to set what it does and when, press Sort to lay the bar out the way your hero reads it, then press Save or Save and use. Use puts any saved setup on with one press, Use equipped copies what you have on into the picked setup, and New setup saves a fresh one.
+
+**Windows no longer open with their bottom cut off on smaller screens.** Hunts, the bag, the Market and the rest fit what they show, and a list never stops halfway through a row. The Hunts advice names the ground that's right for your Level.
+
+**On smaller screens (under 1280 px wide) the hunt analyzer, the Tally and your Party panel start minimized,** so you can see the fight. The Tally still shows your count, and Hunt details opens the analyzer.
+
+## v0.2.122 — 2026-11-11 (Hunting Alone Pays)
+
+**Hunting alone earns 15% more Level XP.** A hero on its own gets the bonus on every ground and tier. A mixed party of four still earns about 15 to 25% more per head than a hero alone, now from a bigger share of each kill. On Normal every group fights the same packs, and bigger pulls come only from Dangerous and Deadly.
+
+**The level curve was refitted** to go with it. Hours to Level 10, 25 and 50 are about the same as before. Your Level can drop by one when this lands, because the XP you have is measured against the new curve. Nothing you earned is gone.
+
+**Coppercap Warrens gives less Level XP per kill** than it did, about a quarter less, so the ladder from the Glade up reads right. Bought scaled hunts also pay a little less for a party, so a bought hour is never the best party grind.
+
+**The Brook Bear lives in Vine Hollow.** A harder hunt in Mosslight Glade brings it, and its page says so.
+
+**You can call out the Rat King and Chief Coppercap on your own now.** Same price, still three calls a day, and the warning tells you what you are walking into.
+
+**Wolf Meat cooks at Cooking 1.** Jarl's Rime Necklace is Jarl's Collar.
+
+**Equip upgrades tells you when a stronger plain weapon would lose your bane.** If you wear a Bramble Blade and an Iron Sword sits in your bag, the line says the Iron Sword hits harder and the Bramble Blade does +40% to Plant monsters, and leaves the pick to you on the doll.
+
+## v0.2.121 — 2026-11-11 (Plainer Names)
+
+**Some gear and monsters have plainer names.** Coifs are Hoods, Vambraces are Bracers, Torcs are Necklaces and Greaves are Leg Plates. The Kobold Tosher is the Sewer Kobold, the Gray Whelp is the Gray Wolf Pup, and the Dire Gray Hackle is the Dire Gray Neck Fur. Your gear stays the same.
+
+## v0.2.120 — 2026-11-11 (Tamsin's First Task)
+
+**Your first task from Tamsin comes early.** Bring her 25 rats from the Mill Cellar in your first minutes and she pays 25 gold and a Bronze Helm. A card tells you when it's safe to close the game, because your hero keeps hunting.
+
+**Tamsin no longer pays you armor you're already wearing.** She skips that slot and gives you the next piece, or crafting materials if you're wearing them all.
+
+**If you start a hunt on your phone, the tab on your PC sees it right away,** and it sees the hunt end too.
+
+**Tier 4 gear sells for about half its price, tier 5 about a quarter, tier 6 and up about a tenth.** Mithril Hatchets (Smithing 45) and the Maple Crossbow (Crafting 45) can be made now.
+
+**Hundreds of item, hunt and monster lines are rewritten plain,** so they say what a thing is for in words a person would use.
+
+**The server settles fights faster.** Nothing about the fights changes. A watched hunt's confirmed loot, gold and XP now refresh a little less often, while the fight on screen keeps moving.
+
+## v0.2.119 — 2026-11-11 (Better Finds)
+
+**Equip upgrades picks a better weapon even when it has a monster bonus.** A Bramble Blade now goes on over a Practice Sword, and the tooltip says what the bonus does.
+
+**Monsters fight with their own moves.** They strike with their own attack animations, flinch when hit and fall the way they face. Heroes flinch when hit too.
+
+**Your heroes are all in the top bar now,** even ones you haven't opened in this window, and one click on Play brings them in.
+
+**Skill bars and XP to next level always match your real skill level.**
+
+**Top loot shows your gear and rare finds first,** and the welcome-back note names your best find.
+
+**Bless all gets you every blessing in one press,** and the hunt warning shows what a death really costs with your blessings on.
+
+**Coming back after a hunt ended tells you what your hero did next.** It went back to its gathering job, or it waited in town, and you see for how long and the one thing that would have filled that time.
+
+**Monster pages use the game's own labels now.** Attack Speed, Damage Type, Elements and Tier, and the page says in real numbers how much harder a monster hits on Dangerous and Deadly. Packs say when they respawn.
+
+**Crafting stations have a Sort menu,** so you can list recipes by what you can make, by level or by name, and each station remembers your pick.
+
+**Smaller fixes.** Item tooltips close when you close their window. The rune tip names the right tab. Dispatch loot says what it did after a sale.
+
+## v0.2.118 — 2026-11-11 (Max Hit)
+
+**Monster pages show Max Hit now.** That's the hardest a monster can hit you. The heal warning in Configure action uses it too.
+
+## v0.2.117 — 2026-11-11 (Lighter Reload)
+
+**Reloading is a little lighter.** When you reload, each hero who is waiting in town loads once instead of twice.
+
+## v0.2.116 — 2026-11-11 (Your Level, Everywhere)
+
+**Your Level shows the same number everywhere.** The Level bar, the character list and the away recap all read the Level the game keeps for your hero. When an update changes Levels, you see the new one right away.
+
+## v0.2.115 — 2026-11-10 (Honest Health)
+
+**Your Health reads right after a reload.** If you reloaded in the middle of a hunt, your Health could show 1 for up to a minute. It was never really 1. The bar shows your real Health right away now. Party members, monsters and the boss bar had the same problem and are fixed too.
+
 ## v0.2.114 — 2026-11-10 (One Fight for Everyone)
 
 **Every hunt is the same fight, alone or in a party.** Monsters don't change with your group size anymore. You get 5% more Level XP when you hunt alone. A mixed party still earns more than a party of one class.

@@ -4,8 +4,9 @@
 // Master-detail (designer plan 2026-10-22, B #1; Monster Hunter's quest board,
 // mechanics only): the Hunts list is lines, and the picked ground gets ONE page,
 // read top to bottom the way the decision is made:
-//   the ground      name, its band against the hero's Level, who may come, the
-//                   level warning (the floor is a warning: the server decides)
+//   the ground      name, its band against the hero's Level, who may come, a live
+//                   event that reaches it (the server's, src/shell/live-events-view.js),
+//                   the level warning (the floor is a warning: the server decides)
 //   its theme
 //   who lives here  each creature as the world draws it (style-1 idle frame at ×2,
 //                   src/render/creature-sprite.js) on one ground line, with how
@@ -20,16 +21,17 @@
 // Enter sits at the page's foot. This module draws; it holds no state and sends
 // nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.114';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.114';
-import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.114';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.114';
-import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.114';
-import { residentsOf, scarceSetOf, raresOf, bigPullLine, materialsOf } from '../hunt-ground-facts.js?v=0.2.114';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.114';
-import { chance, listWords } from '../../render/format.js?v=0.2.114';
-import { gotoAttr } from '../goto.js?v=0.2.114';
-import { factsTarget } from './monster.js?v=0.2.114';
+import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.125';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.125';
+import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.125';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.125';
+import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.125';
+import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.125';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.125';
+import { chance, listWords } from '../../render/format.js?v=0.2.125';
+import { gotoAttr, patchParts } from '../goto.js?v=0.2.125';
+import { factsTarget } from './monster.js?v=0.2.125';
+import { groundLines } from '../live-events-view.js?v=0.2.125';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
@@ -45,9 +47,10 @@ const asked = new Set();
 export function detailHtml() {
   return '<header class="hw-hd-head">'
     + '<h3 class="hw-hd-name"></h3><p class="hw-hd-band"><span class="hw-hd-levels"></span><span class="hw-hunt-fit"></span></p>'
-    + '<p class="hw-hd-who"></p><p class="hw-hunt-warn"></p></header>'
-    + '<p class="hw-hd-theme"></p>'
+    + '<p class="hw-hd-who"></p><div class="hw-hd-events"></div><p class="hw-hunt-warn"></p></header>'
     + '<h4 class="hw-hd-h">Who lives here</h4><ul class="hw-hd-lineup" aria-label="Who lives here"></ul><p class="hs-note hw-hd-bigpull" hidden></p>'
+    /* the ground's words under who lives there: on a short screen the first row of creatures shows whole (Tyler 2026-11-11) */
+    + '<p class="hw-hd-theme"></p>'
     + '<h4 class="hw-hd-h">Drops <small class="hw-hd-per hw-hd-per-size"></small></h4><ul class="hw-hd-sets" aria-label="Drops"></ul>'
     + '<h4 class="hw-hd-h">Materials <small class="hw-hd-per hw-hd-mats-per"></small></h4><ul class="hw-hd-mats" aria-label="Materials"></ul>'
     + '<h4 class="hw-hd-h">Rare drops <small class="hw-hd-per">chance per kill of its creature</small></h4><ul class="hw-hd-rares" aria-label="Rare drops"></ul>'
@@ -56,8 +59,8 @@ export function detailHtml() {
     + '<p class="hw-hd-best hw-hunt-best-solo"></p><p class="hw-hd-best hw-hunt-best-party"></p><p class="hw-hd-best hw-hunt-best-none"></p></section>';
 }
 
-/* A creature opens its facts (windows/monster.js): the whole figure is the link, and its name is the button a key presses. */
-const monHtml = (m) => '<li class="hw-hd-mon" data-monster="' + esc(m.id) + '"' + gotoAttr(factsTarget(m.id)) + '><span class="hw-hd-stand"><canvas class="hw-hd-sprite" aria-hidden="true"></canvas></span>'
+/* A creature opens its facts (windows/monster.js) on this ground: the whole figure is the link, and its name is the button a key presses. */
+const monHtml = (m, hunt) => '<li class="hw-hd-mon" data-monster="' + esc(m.id) + '"' + gotoAttr(factsTarget(m.id, hunt)) + '><span class="hw-hd-stand"><canvas class="hw-hd-sprite" aria-hidden="true"></canvas></span>'
   + '<button type="button" class="hw-hd-mon-name mf-open"></button><small class="hw-hd-mon-how"></small></li>';
 
 /**
@@ -123,8 +126,8 @@ export function patchGo(det, ctx, v) {
   text(none, v.partyBlock.bring.length ? '' : 'Your other heroes can come too. Play one from Characters and it shows here. Up to four play at once.');
 }
 
-/* "Level 2 · common"; a boss says so in place of its share. */
-const howWords = (m) => (Number.isInteger(m.level) ? 'Level ' + m.level + ' · ' : '') + (m.boss ? 'boss' : m.band);
+/* "Level 2 · common"; a boss says so in place of its share. The dot keeps to the line it ends (a wrapped line never starts with one). */
+const howWords = (m) => (Number.isInteger(m.level) ? 'Level ' + m.level + ' · ' : '') + (m.boss ? 'boss' : m.band);
 
 /* One creature's picture, drawn once per creature (a canvas keeps it); nothing until its art has loaded. */
 function paintSprite(li, id) {
@@ -156,6 +159,12 @@ export function patchGround(det, ctx, r, o) {
   text(fitEl, fit && (fit.tone === 'in' || fit.tone === 'below') ? fit.words : '');
   attr(fitEl, 'data-tone', fit ? fit.tone : null);
   text(det.querySelector('.hw-hd-who'), heroWords(r) + '.');
+  /* A live event that reaches this ground, the server's (live-events-view.js): nothing at all while every switch is off. */
+  rows(det.querySelector('.hw-hd-events'), groundLines(ctx.character, r.hunt), {
+    key: (l) => l.id,
+    build: () => element(ctx.doc, '<p class="hw-hd-event"><b></b> <span></span></p>'),
+    patch: (p, l) => { text(p.querySelector('b'), l.head); text(p.querySelector('span'), l.tail); cls(p, 'is-plain', l.plain); },
+  });
   text(det.querySelector('.hw-hd-theme'), (HUNT_INDEX[r.hunt] && HUNT_INDEX[r.hunt].theme) || r.theme);
   const residents = residentsOf(r.hunt);
   wantArt(ctx.doc, residents.map((m) => m.id), repaint);
@@ -164,7 +173,7 @@ export function patchGround(det, ctx, r, o) {
   const lineup = det.querySelector('.hw-hd-lineup');
   rows(lineup, residents, {
     key: (m) => r.hunt + ':' + m.id,
-    build: (m) => element(ctx.doc, monHtml(m)),
+    build: (m) => element(ctx.doc, monHtml(m, r.hunt)),
     patch: (li, m) => {
       text(li.querySelector('.hw-hd-mon-name'), m.name);
       text(li.querySelector('.hw-hd-mon-how'), howWords(m));
@@ -176,10 +185,10 @@ export function patchGround(det, ctx, r, o) {
   /* One ground line: every creature stands at the height of the tallest drawn here, feet on the same row. */
   const tallest = Math.max(0, ...Array.from(lineup.querySelectorAll('.hw-hd-mon.is-drawn canvas'), (c) => c.height));
   style(lineup, '--stand-h', tallest ? tallest + 'px' : null);
-  /* Who the line above leaves out: a creature only a bigger pull brings, and what it drops (the Brook Bear's Bear Pelt). */
-  const bigPull = det.querySelector('.hw-hd-bigpull'), bigSaid = bigPullLine(r.hunt);
-  text(bigPull, bigSaid);
-  prop(bigPull, 'hidden', !bigSaid);
+  /* Who the line above leaves out: a creature only a harder hunt summons, its name a link to its facts (Tyler 2026-11-11: no drop list). */
+  const bigPull = det.querySelector('.hw-hd-bigpull'), bigParts = bigPullParts(r.hunt, factsTarget);
+  patchParts(bigPull, bigParts);
+  prop(bigPull, 'hidden', !bigParts.length);
   /* What drops here and how often (Tyler 2026-10-24: "a % drop chance or nothing at all"): the gear a line a tier, the
      hero's own armour weight first ("Iron, Studded, Adept: helmets, boots and Iron Sword") with the chance a kill here drops
      any piece of it, then each Rare and Trophy, item and carrier, with its chance per kill of that creature. The odds

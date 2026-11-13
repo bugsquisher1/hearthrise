@@ -91,7 +91,10 @@
 /* ── Party board ── */
 /* It ends above the action bar and scrolls inside (--hs-room, hud-room.js; the phone's own cap is below). */
 .hp-party { width: 250px; max-height: var(--hs-room, none); }
-.hp-party .hs-wfold { display: none; }
+/* Folded (widget-move.js; a lone hero's starts so below --hud-fold-below, hud-widgets.js): its name and its plus, the width of those. */
+.is-folded > .hp-party { width: max-content; }
+.is-folded > .hp-party > .hh-panel-body, .is-folded > .hp-party [data-hs-act="expand"] { display: none; }
+.is-folded > .hp-party > .hh-panel-head { border-bottom: 0; }
 .hp-party .hh-panel-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .hp-party.is-empty .hh-empty { display: block; }
 .hp-members { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
@@ -149,7 +152,9 @@
 .ha-analyzer { width: 290px; max-height: min(560px, calc(100vh - 200px), var(--hs-room, 100vh)); }
 /* Its close is the phone's (no HUD panel carries one on a desktop, where Hunt details and HUD layout hide it). */
 .ha-close { display: none; }
-/* Folded (widget-move.js): the title row alone, its fold a plus; the stacked Tally rises under it. */
+/* Folded (widget-move.js; it starts so below --hud-fold-below): the title row alone, its fold a plus, the width of those,
+   so it sits beside the hunt bar rather than stepping under it into the fight; the stacked Tally rises under it. */
+.is-folded > .ha-analyzer { width: max-content; }
 .is-folded > .ha-analyzer > .hh-panel-body { display: none; }
 .is-folded > .ha-analyzer > .hh-panel-head { border-bottom: 0; }
 .ha-analyzer .hh-panel-body { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
@@ -538,6 +543,9 @@
 .hc-log.is-talk.is-on { display: block; }
 .hc-log.is-talk .hc-line { padding: 2px 2px; border-bottom: 0; line-height: 1.4; color: var(--ink); overflow-wrap: anywhere; }
 .hc-line.is-system { color: var(--gold-2); }
+/* a townsperson's line (a town crier, src/shell/town-criers.js): the name in gold, the words plain, its link under them */
+.hc-npc { font-weight: 700; color: var(--gold-2); }
+.hc-line.is-npc .hc-body .hs-goto { font-weight: 700; }
 .hc-time { margin-right: 2px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .hc-name { padding: 0; border: 0; background: none; font: inherit; font-weight: 700; color: var(--ink-2); cursor: pointer; }
 .hc-name:hover, .hc-name:focus-visible { text-decoration: underline; outline: none; }
@@ -623,7 +631,6 @@
 .st-tab.is-on { color: var(--gold-2); border-left: 4px solid var(--gold); background: var(--fill-3); }
 .st-tab:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 .st-pages { flex: 1; min-width: 0; }
-.st-back { display: none; }
 .st-row { padding: 6px 0; border-top: 1px solid var(--line-soft); }
 .st-line { display: flex; align-items: center; gap: 10px; min-height: 28px; }
 label.st-line { cursor: pointer; }
@@ -666,11 +673,8 @@ label.st-line { cursor: pointer; }
   .st-row input[type="range"]::-moz-range-thumb { width: 16px; height: 22px; }
   .hp-party { width: 200px; }
   /* SOLO, THE PANEL STARTS FOLDED (phone panel v0.2.83: board, hunt bar and card covered 60% of a 245 px World, and a party of
-     one says nothing the bar does not): its name and its plus, the width of those; hud-widgets.js says when. */
-  .hp-party .hs-wfold { display: grid; margin: -2px -6px; }
-  .is-folded > .hp-party { width: max-content; }
-  .is-folded > .hp-party > .hh-panel-body, .is-folded > .hp-party [data-hs-act="expand"] { display: none; }
-  .is-folded > .hp-party > .hh-panel-head { border-bottom: 0; }
+     one says nothing the bar does not): its name and its plus (the folded rules are the desktop's, above); hud-widgets.js says when. */
+  .hp-party .hs-wfold { margin: -2px -6px; }
   /* A party of two with the hold switch is 245 px tall: past the action bar's top at 390 px, so the bar pushed the
      board below the screen. It ends above the bar (at most 100 px tall, 2 px up) and scrolls inside. */
   .hp-party { max-height: calc(100vh - 160px); }
@@ -863,3 +867,4 @@ label.st-line { cursor: pointer; }
   /* Summary and Leave are not one thumb apart (panel 2026-11-01: 7 px, "I wanted Summary"). */
   .ht-bar [data-hs-act="leave"] { margin-left: 10px; }
 }
+.hs-win-body.is-page .ca-close { display: none; }   /* a page of Hunt prep: the header's Back and Close stand in for it (window-head.js) */

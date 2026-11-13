@@ -14,7 +14,8 @@
 // deliberate edit to the list below, never a line that slipped in:
 //   IS-1  every RPC the client names (`rpc('<name>'`) is on CLIENT_RPCS;
 //   IS-2  the edge is called with the character's slot and nothing else
-//         (`accrue({ slot: this.slot })`), or — in CharacterSession.edgeIntent
+//         (`accrue({ slot: this.slot })`), or with the hunter's ask src/session/hunt-ask.js
+//         builds (the slot and the version held whole, a selector), or — in CharacterSession.edgeIntent
 //         only — with the body src/session/edge-intents.js builds; the session's
 //         catch-up layer (src/session/catch-up.js, lane/c-tick-span) forwards the
 //         body it was handed as it is, or under a new intentId, and nothing else;
@@ -44,6 +45,11 @@ const CLIENT_DIRS = ['src/app', 'src/session', 'src/shell', 'src/net', 'src/worl
 const LINK = 'src/session/server.js';
 /* The session's catch-up retry (a settle_first refusal mid-hunt, asked again under a NEW key): a pass-through. */
 const CATCH = 'src/session/catch-up.js';
+/* THE HUNTER'S ASK (lane/c-watched-settle-cost, 2026-11-10): the slot and, for a hunter, the version its record holds whole
+   (have: a selector the server compares with its own row to leave out a copy of the caller's own character; never a value,
+   request.js readHave). One builder, pinned to exactly its two shapes; only CharacterSession sends what it builds. */
+const ASK = 'src/session/hunt-ask.js';
+const ASK_BUILDER = 'exportfunctionaskBody(slot,huntOpen,wholeAt){returnhuntOpen&&Number.isSafeInteger(wholeAt)&&wholeAt>=0?{slot,have:wholeAt}:{slot};}';
 
 /* The client's whole RPC surface, each with what it is for. */
 export const CLIENT_RPCS = Object.freeze({
@@ -69,10 +75,13 @@ export const CLIENT_RPCS = Object.freeze({
   /* Tyler's first playtest (10-18): going hunting and the home storage, both live, reviewed server verbs. */
   hr_hunt_enter: 'go hunting with names and counts of own supplies; band, stamina and stock are the server’s (CharacterSession.enterHunt; CharacterSession.huntAgain, the Hunt again card)',
   hr_bank_move: 'move a stack between the bag and the home storage, value-neutral (CharacterSession.moveStorage)',
+  /* The UX flow audit 2026-11-11 (2027-04-13-bank-move-many.sql): ids and a direction, WHOLE stacks at the server's own count, all or nothing. */
+  hr_bank_move_many: 'move many whole stacks between the bag and the home storage in one call, value-neutral, all or nothing (storage-intents.js moveStorageMany)',
   /* Tyler 2026-11-02 "Yes, add a press" (2027-02-21-hunt-carry-in.sql): an item id and a count; catalogue, stock and the open hunt are the server's. */
   hr_hunt_restock: 'carry a hunt supply from this hero\'s bag into its running hunt, value-neutral, one key moves once (carry-intents.js carryIntoHunt)',
   /* The alpha windows (2026-10-18; CONFLICTS.md): staged for the server lane, refused as http_404 until it lands. */
   hr_item_lock: 'lock or unlock an item so no bulk sale can name it (CharacterSession.lockItem)',
+  hr_item_lock_many: 'lock or unlock many items in one call, all or nothing; moves no value (storage-intents.js lockItems)',
   hr_loot_rule_set: "an item's loot plan (keep in bag / deposit in storage / sell) or its pickup filter (do not pick up); a name and a word, the server validates it (CharacterSession.setLootRule)",
   /* Tyler 2026-10-25 (2027-01-23-loot-dispatch.sql): a slot and a key; the plans, bag, bid and Storage room are the server's. */
   hr_loot_dispatch: "run this hero's loot plans in town: deposit and sell the planned stacks; names no item, count or price (loot-intents.js dispatchLoot)",
@@ -80,6 +89,8 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_preset_apply: 'put a saved setup back on (CharacterSession.applyPreset)',
   /* Ruling C4 (2026-11-15-preset-names.sql): a slot, a preset number and a name; the server owns the name rule. */
   hr_hunt_preset_rename: 'rename one of this character’s saved setups (preset-intents.js renameSetup)',
+  /* The Hunt prep builder (2027-04-13-hunt-preset-read.sql): a slot and a preset number, a read of that setup's bar and options, 60 a minute. */
+  hr_hunt_preset_read: 'one saved setup’s bar and options, the hr_hunt_settings_view shape, a read (preset-read.js readPreset)',
   hr_hunt_preset_delete: 'remove one of this character’s saved setups (preset-intents.js deleteSetup)',
   hr_action_set_rename: 'name the action set the bar shows (preset-intents.js renameActionSet)',
   hr_account_items: 'where an item is across this account, a read (AccountSession.findItems)',
@@ -264,7 +275,10 @@ export function check(files) {
         && /constbody=edgeBody\(this\.slot,verb,fields,intentId\|\|newIdem\(\)\);if\(!body\)return/.test(code.replace(/\s+/g, ''));
       const forwarded = f === CATCH && (arg === 'body'
         || (arg === 'next' && /constnext=\{\.\.\.body,intentId:newIdem\(\)\};returnserver\.accrue\(next\)/.test(code.replace(/\s+/g, ''))));
-      if (arg !== '{slot:this.slot}' && !built && !forwarded) problems.push(`IS-2 ${f} sends the edge ${m[1].trim()} — the client may name its slot, or an edgeBody-built item intent, and nothing else`);
+      const asked = arg === 'askBody(this.slot,this._huntOpen(' && f === 'src/session/character-session.js'
+        && code.replace(/\s+/g, '').includes('this._server.accrue(askBody(this.slot,this._huntOpen(),this._wholeAt))')
+        && strip(files[ASK] || '').replace(/\s+/g, '').includes(ASK_BUILDER);
+      if (arg !== '{slot:this.slot}' && !built && !forwarded && !asked) problems.push(`IS-2 ${f} sends the edge ${m[1].trim()} — the client may name its slot, or an edgeBody-built item intent, and nothing else`);
     }
     for (const m of code.matchAll(/\bedgeIntent\(\s*'([a-z_]+)'/g)) {
       edgeCalled.add(m[1]);
@@ -312,6 +326,9 @@ if (process.argv.includes('--selftest')) {
     ['a new RPC the list does not name', plant('src/app/boot.js', "server.rpc('hr_vendor_sell', { p_item: 'ore', p_qty: 9 });"), 'IS-1'],
     ['the edge sent an amount', plant('src/session/character-session.js', 'this._server.accrue({ slot: this.slot, gold: 500 });'), 'IS-2'],
     ['the edge sent a hand-built body outside the builder', plant('src/app/boot.js', 'server.accrue(body);'), 'IS-2'],
+    ["the hunter's ask grew a value", { ...real, [ASK]: real[ASK].replace('{ slot, have: wholeAt }', '{ slot, have: wholeAt, gold: 500 }') }, 'IS-2'],
+    ["the hunter's ask built from another argument", plant('src/session/character-session.js', 'this._server.accrue(askBody(this.slot, true, 500));'), 'IS-2'],
+    ["the hunter's ask sent from outside the session", plant('src/app/boot.js', 'server.accrue(askBody(this.slot, this._huntOpen(), this._wholeAt));'), 'IS-2'],
     ['the catch-up layer adds a field to the body it forwards', { ...real, [CATCH]: real[CATCH].replace('const next = { ...body, intentId: newIdem() };', 'const next = { ...body, intentId: newIdem(), gold: 500 };') }, 'IS-2'],
     ['a body forwarded under a new key outside the catch-up layer', plant('src/app/boot.js', 'const next = { ...body, intentId: newIdem() }; server.accrue(next);'), 'IS-2'],
     ['an engine intent the pin does not name', plant('src/shell/windows/inventory/actions.js', "cs.edgeIntent('grant_gold', { qty: 5 });"), 'IS-5'],

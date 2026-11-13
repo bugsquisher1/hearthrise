@@ -1,0 +1,44 @@
+{
+ "tool": "create_1_direction_object",
+ "object_id": "a30fb08b-d747-4998-9ce5-4a787046c03e",
+ "cost_gens": 10,
+ "size": 32,
+ "view": "top-down",
+ "palette": "hr-world-56-v2 (all 56 passed)",
+ "description": "a creature's head portrait for a bestiary slot, front view facing the viewer, the head and a little of the neck filling the square, dark single colour outline, lit from the upper left, classic fantasy MMORPG pixel art",
+ "style_images": [
+  "free-crops/rat.png",
+  "free-crops/gray_wolf.png",
+  "free-crops/brook_bear.png",
+  "free-crops/kobold_tosher.png",
+  "free-crops/culvert_bat.png"
+ ],
+ "candidates": [
+  {
+   "from": 0,
+   "to": 12,
+   "words": "head of a giant sewer rat, front view: dark charcoal-grey fur, small red eyes, pale pink nose and long whiskers, round ears"
+  },
+  {
+   "from": 13,
+   "to": 25,
+   "words": "head of a grey wolf, front view: grey fur with a pale muzzle and chest, amber eyes, pointed ears up"
+  },
+  {
+   "from": 26,
+   "to": 38,
+   "words": "head of a black-brown bear, front view: dark brown fur, a pale tan muzzle, small round ears, small dark eyes"
+  },
+  {
+   "from": 39,
+   "to": 51,
+   "words": "head of a kobold, front view: a small reptilian dog-faced humanoid with tan-brown scaly skin, pointed ears, yellow eyes, a leather hood strap"
+  },
+  {
+   "from": 52,
+   "to": 63,
+   "words": "head of a cave bat, front view: dark grey fur, large pointed ears, small red eyes, tiny fangs"
+  }
+ ],
+ "frames_url": "https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a30fb08b-d747-4998-9ce5-4a787046c03e/rotations/frame_{i}.png"
+}

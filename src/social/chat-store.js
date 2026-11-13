@@ -14,6 +14,8 @@
 //                 shows when the server answers it, never before
 //   draft         what the input holds (display state, survives a tab switch)
 //   addLink(id)   put a catalogue item's link into the draft
+//   tell(tab, l)  a townsperson's line (a town crier): local, display-only, kept
+//                 through re-reads, never sent
 //   hideFrom(id)  drop a blocked player's lines now (the history reads and the
 //                 party / whisper pushes stop at the server; a PUBLIC channel's
 //                 pushed line from a blocked player is dropped here, `blocked`)
@@ -23,11 +25,11 @@
 // System lines are the server's notices (channel 'system') and the account's
 // alerts (src/shell/alerts.js: rare drops, knock-outs, low supplies, ended hunts).
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_TABS, CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.114';
-import { lineOf, systemLine, tabOfChannel, bodyOf, linkLabel } from './chat-lines.js?v=0.2.114';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.114';
-import { partyMembershipOf } from '../session/party-sections.js?v=0.2.114';
-import { askVia } from '../session/intent-ledger.js?v=0.2.114';
+import { CHAT_TABS, CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.125';
+import { lineOf, systemLine, tabOfChannel, bodyOf, linkLabel } from './chat-lines.js?v=0.2.125';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.125';
+import { partyMembershipOf } from '../session/party-sections.js?v=0.2.125';
+import { askVia } from '../session/intent-ledger.js?v=0.2.125';
 
 const SERVER_TABS = Object.freeze(['global', 'local', 'party', 'system']);
 const SEND_KIND = Object.freeze(Object.fromEntries(CHAT_TABS.filter((t) => t.send).map((t) => [t.id, t.send])));
@@ -122,7 +124,8 @@ export class ChatStore {
     this.zone = typeof b.zone === 'string' ? b.zone : null;
     this.party = typeof b.party === 'string' ? b.party : null;
     for (const tab of SERVER_TABS) {
-      const keep = tab === 'system' ? this.lines(tab).filter((l) => l.system) : [];
+      /* the server's window replaces the server's lines; the client's own stay: the System tab's alerts, a townsperson's line (tell) */
+      const keep = this.lines(tab).filter((l) => (tab === 'system' && l.system) || l.npc === true);
       for (const l of this.lines(tab)) if (!keep.includes(l)) this._ids.delete(l.id);
       this._lines.set(tab, keep);
     }
@@ -218,6 +221,18 @@ export class ChatStore {
     };
     this._offAlerts = alerts.subscribe(take);
     take();
+  }
+
+  /**
+   * A townsperson's line into a tab (a town crier, src/shell/town-criers.js: chat-lines.js npcLine). Local and display-only:
+   * it is never sent, no other player sees it, and it stays through the server's re-reads. News like a pushed line
+   * (unread off screen). True when added.
+   */
+  tell(tab, l) {
+    if (!l || l.npc !== true || !this._lines.has(tab) || this._ids.has(l.id)) return false;
+    this._push(tab, l, true);
+    this._changed();
+    return true;
   }
 
   /** Put a catalogue item's link into the draft (from the bag's "Link in chat"). */

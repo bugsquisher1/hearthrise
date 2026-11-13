@@ -81,7 +81,7 @@ function memStore(initial) {
 }
 
 async function runTests(mods) {
-  const { WM, HUD, CS, AR, XP } = mods;
+  const { WM, HUD, CS, AR, AL, AH, XP, WH, SW, SHELL_CSS } = mods;
   const fails = [];
   const t = (id, fn) => { try { fn(); } catch (e) { fails.push(id + ': ' + e.message); } };
   const eq = (a, b, msg) => { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(msg + ' — got ' + JSON.stringify(a) + ', want ' + JSON.stringify(b)); };
@@ -269,6 +269,128 @@ async function runTests(mods) {
     phone.wm.open('bag');
     phone.wm.goTo('market', { tab: 'buy' });
     eq(phone.wm.openIds(), ['market'], 'the phone keeps the sheet the link was pressed in');
+  });
+
+  /* ── W17-W21: ONE WINDOW HEADER (UX flow audit 2026-11-11, lane/b-window-header), on the shipped catalogue ── */
+  t('W17 every window wears the same header: Back, title, ? when it has help, key, Close', () => {
+    WM.validateWindowRows(SW);
+    for (const row of SW) {
+      const h = WH.headHtml(row, {}, false), at = (s) => h.indexOf(s);
+      const back = at('data-hs-back="' + row.id + '" hidden'), title = at('class="hs-win-name">' + (row.title || row.label).replace(/'/g, '&#39;'));
+      const help = at('data-hs-help="' + row.id + '"'), key = at('<kbd class="hs-key">'), close = at('data-hs-close="' + row.id + '"');
+      ok(back > 0, row.id + ': no Back in its header');
+      ok(title > back, row.id + ': its title is missing or stands before Back');
+      ok(close > title, row.id + ': no Close after its title');
+      ok((key > title && key < close) === !!row.key, row.id + ': its key hint ' + (row.key ? 'is missing' : 'shows with no key'));
+      ok((help > title && help < close) === !!row.help, row.id + ': its ? ' + (row.help ? 'is missing' : 'shows with no help'));
+      if (row.help) {
+        ok(WH.helpLine(row, false).length > 20 && h.includes('class="hs-win-help" hidden'), row.id + ': its help line is empty or not folded under the band');
+        ok(!/opens this window/.test(WH.helpLine(row, true)) && (!row.key || /opens this window/.test(WH.helpLine(row, false))), row.id + ': the key sentence follows the keyboard');
+      }
+    }
+    eq(SW.filter((r) => r.help).map((r) => r.id).sort(), ['hunt-prep', 'hunts', 'inventory', 'shop', 'skills-trade', 'storage'], 'the windows with a help line');
+    for (const bad of [[{ id: 'a', label: 'A', key: 'a', width: 1, beside: ['nope'] }], [{ id: 'a', label: 'A', key: 'a', width: 1, beside: ['a'] }],
+      [{ id: 'a', label: 'A', key: 'a', width: 1, pageOf: ['a'], launcher: false }], [{ id: 'a', label: 'A', key: 'a', width: 1, over: true, modal: true, launcher: false }]]) {
+      let threw = false; try { WM.validateWindowRows(bad); } catch (e) { threw = true; } ok(threw, 'must refuse ' + JSON.stringify(bad));
+    }
+  });
+  /* With Back, ?, key and Close the band's controls leave a 380 window's title 133 px. Cinzel at .12em set "Gathering and crafting" on THREE
+     lines there (v0.2.124); at .04em it takes two (measured 1280, 1440). Widening instead breaks the Party pairing (W18). Two lines, never three. */
+  t('W22 a long window name keeps to two lines with Back showing: under 420 px the name sets at .04em or tighter', () => {
+    const m = /\.hs-win-head:has\(> \.hs-back:not\(\[hidden\]\)\) > \.hs-win-title \{[^}]*letter-spacing:\s*([\d.]+)em/.exec(SHELL_CSS);
+    const ls = m ? Number(m[1]) : 0.12;
+    for (const row of SW) {
+      const name = row.title || row.label;
+      if (name.length > 14 && row.width < 420) ok(ls <= 0.04, row.id + ': "' + name + '" at ' + row.width + ' px sets at ' + ls + 'em beside Back and wraps to three lines');
+    }
+  });
+  t('W18 the coexistence table: the bag beside Storage, the Shop and Character at 1440; Hunts lies over the dock', () => {
+    for (const other of ['storage', 'shop', 'character']) {
+      const { wm } = harness(WM, { windows: SW, width: 1440 });
+      wm.open('inventory'); wm.open(other);
+      eq(wm.openIds(), ['inventory', other], 'the bag and ' + other + ' stay open together at 1440');
+      const L = wm.layout(), a = L.find((p) => p.id === 'inventory'), b = L.find((p) => p.id === other);
+      ok(a.right + a.width + WM.DOCK_GAP <= b.right || b.right + b.width + WM.DOCK_GAP <= a.right, other + ' and the bag overlap');
+    }
+    const lone = harness(WM, { windows: SW, width: 1440 });
+    lone.wm.open('character'); lone.wm.open('storage');
+    eq(lone.wm.openIds(), ['storage'], 'two windows the table does not pair still share only 60% of the dock');
+    const over = harness(WM, { windows: SW, width: 1440 });
+    over.wm.open('hunt-party'); over.wm.open('skills-trade');
+    const before = Object.fromEntries(over.wm.layout().map((p) => [p.id, p.right]));
+    over.wm.open('hunts');
+    eq(over.wm.openIds(), ['hunt-party', 'skills-trade', 'hunts'], 'Hunts closed the windows under it');
+    const L = over.wm.layout();
+    ok(L.find((p) => p.id === 'hunts').top, 'Hunts is not on top');
+    for (const id of ['hunt-party', 'skills-trade']) eq(L.find((p) => p.id === id).right, before[id], id + ' moved under Hunts');
+    over.wm.open('friends');
+    ok(over.wm.isOpen('hunts') && over.wm.isOpen('friends'), 'a window opened over Hunts made room by closing Hunts: ' + over.wm.openIds());
+  });
+  t('W19 Back returns to the window a press came from, along the chain', () => {
+    const { wm } = harness(WM, { windows: SW, width: 1440 });
+    wm.open('shop');
+    eq(wm.backTo('shop'), null, 'a window opened by its key has nowhere to go back to');
+    ok(wm.back('shop') === false && wm.isOpen('shop'), 'Back on a window opened by its key did something');
+    wm.close('shop');
+    wm.open('hunts');
+    wm.from('hunts', () => wm.goTo('shop', { tab: 'services' }));
+    eq(wm.backTo('shop'), 'hunts', 'the Shop does not know it came from Hunts');
+    wm.from('shop', () => wm.open('inventory'));
+    eq(wm.backTo('inventory'), 'shop', 'the bag does not know it came from the Shop');
+    ok(wm.back('inventory'), 'Back from the bag refused');
+    ok(!wm.isOpen('inventory') && wm.openIds().slice(-1)[0] === 'shop', 'Back from the bag did not return to the Shop: ' + wm.openIds());
+    ok(wm.back('shop') && !wm.isOpen('shop') && wm.openIds().slice(-1)[0] === 'hunts', 'Back from the Shop did not return to Hunts: ' + wm.openIds());
+    const phone = harness(WM, { windows: SW, phone: true, width: 922 });
+    phone.wm.open('hunts');
+    phone.wm.from('hunts', () => phone.wm.open('storage'));
+    eq(phone.wm.openIds(), ['storage'], 'the phone keeps one sheet');
+    phone.wm.back('storage');
+    eq(phone.wm.openIds(), ['hunts'], 'the phone\'s Back did not bring the sheet it came from');
+    phone.wm.from('hunts', () => phone.wm.open('shop'));
+    phone.wm.from('shop', () => phone.wm.open('inventory'));
+    phone.wm.back('inventory');
+    eq([phone.wm.openIds(), phone.wm.backTo('shop')], [['shop'], 'hunts'], 'a sheet brought back forgot where it came from');
+    phone.wm.back('shop');
+    eq(phone.wm.openIds(), ['hunts'], 'the phone\'s chain of Backs broke');
+  });
+  t('W20 a window opened from its host is a page of it, with Back, never a second window', () => {
+    const { wm, flush } = harness(WM, { windows: SW, width: 1440 });
+    wm.open('hunts');
+    wm.from('hunts', () => wm.goTo('monster', { tab: 'gray_wolf' }));
+    eq(wm.pageIn('hunts'), 'monster', 'Monster facts is not a page of Hunts');
+    eq(wm.layout().map((p) => p.id), ['hunts'], 'Monster facts opened a second window');
+    ok(wm.isOpen('monster') && wm.openIds().includes('monster'), 'a page is not open to the shell');
+    eq(wm.backTo('hunts'), 'hunts', 'the page has no way back');
+    wm.back('hunts');
+    ok(wm.pageIn('hunts') === null && wm.isOpen('hunts'), 'Back did not return to Hunts\' own page');
+    wm.from('hunts', () => wm.goTo('monster', { tab: 'gray_wolf' }));
+    wm.handleKey(key('Escape'));
+    ok(wm.pageIn('hunts') === null && wm.isOpen('hunts'), 'Esc on a page closed its host');
+    wm.from('hunts', () => wm.goTo('monster', { tab: 'gray_wolf' }));
+    wm.from('hunts', () => wm.goTo('hunts', { tab: 'thicket' }));
+    eq(wm.pageIn('hunts'), null, 'a link to the host\'s own page left the page over it');
+    wm.from('hunts', () => wm.goTo('monster', { tab: 'gray_wolf' }));
+    wm.close('hunts'); flush();
+    ok(!wm.isOpen('monster'), 'closing the host left its page open');
+    wm.open('hunts');
+    eq(wm.pageIn('hunts'), null, 'Hunts reopened on the page it was closed with');
+    wm.close('hunts'); flush();
+    wm.open('monster');
+    eq(wm.layout().map((p) => p.id), ['monster'], 'opened from anywhere else it is a window of its own');
+    wm.close('monster'); flush();
+    wm.open('hunt-prep');
+    wm.from('hunt-prep', () => wm.open('configure-action'));
+    eq([wm.pageIn('hunt-prep'), wm.layout().map((p) => p.id)], ['configure-action', ['hunt-prep']], 'Configure action is not a page of Hunt prep');
+    wm.close('configure-action');
+    ok(wm.pageIn('hunt-prep') === null && wm.isOpen('hunt-prep'), 'closing the page closed Hunt prep');
+  });
+  t('W21 one gold plate per window: a confirmation, then the window\'s own, then the coach\'s', () => {
+    const g = (zone, shown = true) => ({ zone, shown });
+    eq(WH.pickGold([g('body'), g('body')]), 0, 'two of the window\'s own: the first');
+    eq(WH.pickGold([g('coach'), g('body')]), 1, 'the coach took the window\'s gold');
+    eq(WH.pickGold([g('body'), g('coach'), g('confirm')]), 2, 'a pending confirmation is not the gold');
+    eq(WH.pickGold([g('confirm', false), g('body', false), g('coach')]), 2, 'a hidden plate kept the gold');
+    eq(WH.pickGold([g('body', false)]), -1, 'nothing shows, nothing is gold');
   });
 
   /* ── H: the HUD contract ── */
@@ -609,14 +731,18 @@ async function runTests(mods) {
   /* ── R3: "while you were away" (src/shell/away-recap.js, designer 2026-10-22) ── */
   t('R3 the away recap: one line of server differences on return, never on a quick reload', () => {
     const T0 = 1_800_000_000_000, H2 = 2 * 3600 * 1000;
-    const stamp = { s: 's-1', at: T0, xp: XP.charXpForLevel(5), gold: 814, kills: 100 };
+    /* THE LEVELS ARE THE SERVER'S, BOTH OF THEM (lane/c-level-from-server): the stamp keeps the Level the server said with its
+       XP (`lv`) and the return reads the envelope's `level` block. The XP here is what THIS build's curve calls Level 6 and
+       Level 12, so a line worked out in the browser says "Level 6 to 12". */
+    const stamp = { s: 's-1', at: T0, xp: XP.charXpForLevel(6), lv: 5, gold: 814, kills: 100 };
     const hero = (o) => Object.assign({ record: { residue: { awaySeen: stamp } }, writes: [],
       setResidue(f, v) { this.writes.push([f, v]); this.record = { residue: { [f]: v } }; return true; } }, o);
+    const XP_NOW = XP.charXpForLevel(12) + 7;
     const env = (now, ended, session = 's-1') => hero({
       serverNow: () => now,
       /* state.gold is the ACCOUNT purse (2026-12-15-account-gold.sql): it moves with every hero, so the line
          reads this hero's own hunt coins (the analyzer's), never the purse. */
-      read: (k) => ({ name: 'Brannoc', state: { level_xp: XP.charXpForLevel(10) + 7, gold: 99999 },
+      read: (k) => ({ name: 'Brannoc', state: { level_xp: XP_NOW, gold: 99999 }, level: { xp: XP_NOW, level: 10, into: 7, need: 5000 },
         hunt: { session_id: session, hunt_id: 'meadowbrook_thicket', ended: !!ended, session: ended ? { end_reason: 'stamina' } : {}, hero: {}, pose: { units: [] } },
         hunt_analyzer: { hero: { kills: 644, coins: 1956 } } })[k] });
     const back = AR.awayRecapOf(env(T0 + H2));
@@ -624,6 +750,19 @@ async function runTests(mods) {
       && /Level 5 to 10/.test(back.text) && /\+1,142 gold/.test(back.text) && !/99,185|98,185/.test(back.text) && /544 kills/.test(back.text) && /Still hunting\./.test(back.text),
       'the return line: ' + JSON.stringify(back));
     ok(back && back.id === 'away:s-1:' + T0, 'the line is shown once: its id carries the stamp ' + (back && back.id));
+    ok(back && !/best find/.test(back.text), 'no loot tally, no best find: ' + JSON.stringify(back && back.text));
+    /* THE AWAY CARD NAMES THE BEST FIND (designer re-read 2026-11-11): gear or a Rare from the server's loot tally, never the Bones it has most of */
+    const found = env(T0 + H2); const fr = found.read;
+    found.read = (k) => (k === 'hunt_analyzer' ? { hero: { kills: 644, coins: 1956, loot: { bones: 900, iron_platebody: 1 } } } : fr(k));
+    const finds = AR.awayRecapOf(found);
+    ok(finds && /544 kills\. Your best find this hunt was the Iron Platebody\. Still hunting\./.test(finds.text), 'the best find on the return line: ' + JSON.stringify(finds && finds.text));
+    /* a stamp from a build that kept no Level says the XP and names no Levels: never a Level worked out from the stamped XP */
+    const old = env(T0 + H2); old.record = { residue: { awaySeen: { s: 's-1', at: T0, xp: stamp.xp, gold: 814, kills: 100 } } };
+    const oldLine = AR.awayRecapOf(old);
+    ok(oldLine && !/Level \d+ to \d+/.test(oldLine.text) && /Level XP/.test(oldLine.text), 'a stamp with no Level names none: ' + JSON.stringify(oldLine && oldLine.text));
+    /* an envelope with no `level` block raises no line (and no stamp): the browser never fills the Level in */
+    const bare = env(T0 + H2); const br = bare.read; bare.read = (k) => (k === 'level' ? undefined : br(k));
+    ok(AR.awayRecapOf(bare) === null && AR.stampAway(bare) === false, 'no Level from the server, no line and no stamp');
     const ended = AR.awayRecapOf(env(T0 + H2, true));
     ok(ended && /The hunt has ended\. Out of stamina/.test(ended.text), 'a hunt that stopped says why: ' + JSON.stringify(ended));
     /* A FRIEND'S END SAYS WHAT ENDED IT (friends' panel 2026-11-01: a leader's stamina read "left the hunt"), the server's end_by_why */
@@ -652,8 +791,9 @@ async function runTests(mods) {
     const cs = env(T0 + 9 * MIN);
     ok(AR.stampAway(cs) === false && cs.writes.length === 0, 'a hunt on screen does not renew a stamp 9 minutes old');
     const due = env(T0 + 10 * MIN);
-    ok(AR.stampAway(due) === true && due.writes[0][0] === 'awaySeen' && due.writes[0][1].at === T0 + 10 * MIN && due.writes[0][1].gold === 1956,
-      'a hunt on screen renews it at the shortest absence the line speaks of, with the server numbers: ' + JSON.stringify(due.writes));
+    ok(AR.stampAway(due) === true && due.writes[0][0] === 'awaySeen' && due.writes[0][1].at === T0 + 10 * MIN && due.writes[0][1].gold === 1956
+      && due.writes[0][1].xp === XP_NOW && due.writes[0][1].lv === 10,
+      'a hunt on screen renews it at the shortest absence the line speaks of, with the server numbers (its Level too): ' + JSON.stringify(due.writes));
     const fresh = env(T0 + 1000, false, 's-2');
     ok(AR.stampAway(fresh) === true && fresh.writes[0][1].s === 's-2', 'a hunt not stamped yet is stamped at once, so a killed tab still has an answer');
     const flicker = env(T0 + 30 * 1000);
@@ -674,6 +814,8 @@ async function runTests(mods) {
     ok(CS.RESIDUE_FIELDS.includes('awaySeen'), 'awaySeen must be in RESIDUE_FIELDS');
     eq(CS.sanitizeResidueField('awaySeen', { s: 'x; drop', at: 1, xp: 2 }), {}, 'a forged session id is dropped');
     eq(CS.sanitizeResidueField('awaySeen', { s: 's-1', at: 5, xp: -3, gold: 9, kills: 1.5, extra: 1 }), { s: 's-1', at: 5, gold: 9 }, 'a stamp is shaped and bounded');
+    eq(CS.sanitizeResidueField('awaySeen', { s: 's-1', at: 5, xp: 3, lv: 7 }), { s: 's-1', at: 5, xp: 3, lv: 7 }, 'the stamp keeps the Level the server said');
+    eq(CS.sanitizeResidueField('awaySeen', { s: 's-1', at: 5, lv: 2.5 }), { s: 's-1', at: 5 }, 'and only a whole one');
     /* A HUNT OVER BEFORE THE PLAYER LEFT IS NO PART OF THE ABSENCE (crafter's panel 2026-11-01). */
     const overBefore = endedAt(T0 + H2, T0 - 5 * MIN);
     ok(AR.awayRecapOf(overBefore) === null, 'a hunt that ended before the stamp raises no line: ' + JSON.stringify(AR.awayRecapOf(overBefore)));
@@ -684,6 +826,40 @@ async function runTests(mods) {
     const upEnded = AR.awayRecapOf(env(T0 + H2, true));
     ok(typeof AR.awayLineNow(env(T0 + H2, true), upEnded) === 'string', 'a card about a hunt that ended while away stays');
   });
+  /* A NEW HERO'S FIRST RETURN (designer 2026-11-10, the first ten minutes): its first away line speaks after 3 minutes, every later one after 10. */
+  t('R3e a new hero\'s first away line speaks after 3 minutes away, and only on its first return', () => {
+    const T0 = 1_800_000_000_000, MIN = 60 * 1000;
+    const stamp = { s: 's-1', at: T0, xp: XP.charXpForLevel(3), lv: 3, gold: 10, kills: 30 };
+    const hero = (now, coach, xpNow = XP.charXpForLevel(4) + 5, was = stamp) => ({ record: { residue: Object.assign({ awaySeen: was }, coach ? { coach } : {}) }, writes: [],
+      setResidue(f, v) { this.writes.push([f, v]); return true; }, serverNow: () => now,
+      read: (k) => ({ name: 'Odalys', state: { level_xp: xpNow }, level: { xp: xpNow, level: XP.charLevelFromXp(xpNow), into: 0, need: 1 }, hunt: { session_id: 's-1', hunt_id: 'mill_cellar', ended: false, session: {}, hero: {}, pose: { units: [] } },
+        hunt_analyzer: { hero: { kills: 70, coins: 40 } } })[k] });
+    eq(AR.FIRST_AWAY_MIN_MS, 3 * MIN, 'the first return speaks from three minutes');
+    ok(AR.awayRecapOf(hero(T0 + 3 * MIN - 1000)) === null, 'under three minutes away is a look, not an absence');
+    const first = AR.awayRecapOf(hero(T0 + 3 * MIN));
+    ok(first && /^While you were away \(3 min\), Odalys hunted Mill Cellar: Level 3 to 4, /.test(first.text) && /40 kills/.test(first.text) && /\+30 gold/.test(first.text),
+      'a new hero back after three minutes is told, from the server\'s numbers: ' + JSON.stringify(first && first.text));
+    ok(first && first.minutes === 3 && first.levels === 1 && first.at === T0, 'the line carries its minutes, its Levels and its stamp: ' + JSON.stringify(first));
+    /* the hero left at Level 4 and is back at 5: new by the STAMP's Level, not the Level it returns at */
+    ok(AR.awayRecapOf(hero(T0 + 4 * MIN, null, XP.charXpForLevel(5) + 1, { ...stamp, xp: XP.charXpForLevel(4), lv: 4 })), 'left at Level 4, back at Level 5 after four minutes: told');
+    ok(AR.awayRecapOf(hero(T0 + 5 * MIN, null, XP.charXpForLevel(6), { ...stamp, xp: XP.charXpForLevel(5), lv: 5 })) === null, 'a hero past the first hour keeps ten minutes');
+    /* told once: the return is recorded with its stamp, the same stamp still reads its line, and every later stamp waits ten minutes */
+    const home = hero(T0 + 3 * MIN);
+    ok(AR.markBack(home, 's-1', T0) === true && home.writes[0][1].back === 's-1' && home.writes[0][1].backAt === T0, 'the return is recorded with the stamp it was told from: ' + JSON.stringify(home.writes));
+    const told = { back: 's-1', backAt: T0 };
+    ok((AR.awayRecapOf(hero(T0 + 3 * MIN, told)) || {}).id === first.id, 'judged again inside its own write, the first return says the same line');
+    const later = { ...stamp, at: T0 + 20 * MIN };
+    ok(AR.awayRecapOf(hero(T0 + 25 * MIN, told, undefined, later)) === null, 'a second return five minutes long says nothing');
+    ok(AR.awayRecapOf(hero(T0 + 30 * MIN, told, undefined, later)), 'and speaks at ten, as ever');
+    ok(AR.awayRecapOf(hero(T0 + 25 * MIN, { back: 's-0' }, undefined, later)) === null, 'a return told in an older hunt counts too');
+    /* in view the stamp is renewed as often as the shortest absence the line speaks of, so a tab killed with no goodbye overstates by less than that */
+    ok(AR.stampAway(hero(T0 + 2 * MIN)) === false, 'a new hero\'s stamp two minutes old is not renewed');
+    ok(AR.stampAway(hero(T0 + 3 * MIN)) === true, 'at three minutes it is');
+    ok(AR.stampAway(hero(T0 + 9 * MIN, told)) === false, 'after the first return, every ten minutes again');
+    eq(CS.sanitizeResidueField('coach', { back: 's-1', backAt: 5 }), { back: 's-1', backAt: 5 }, 'the stamp of the return survives the residue');
+    eq(CS.sanitizeResidueField('coach', { backAt: 5 }), {}, 'never without its return');
+    eq(CS.sanitizeResidueField('coach', { back: 's-1', backAt: -1 }), { back: 's-1' }, 'and bounded');
+  });
   t('R3b the away line for a hero working in town: what the job did, from two server answers', () => {
     const T0 = 1_800_000_000_000, H8 = 8 * 3600 * 1000, MIN = 60 * 1000;
     const iso = (ms) => new Date(ms).toISOString();
@@ -693,7 +869,9 @@ async function runTests(mods) {
       serverNow: () => now,
       read: (k) => ({ name: 'Tess', state, skills, inventory, hunt })[k],
     });
-    const rock = { s: 'town:gather:copper_rock', at: T0, sx: XP.skillXpForLevel('mining', 26), n: 10 };
+    /* `sl` is the skill level the server said with `sx`; the XP is what this build's curve calls Mining 30, so a level worked
+       out in the browser says "Mining 30 to 47" (lane/c-level-from-server) */
+    const rock = { s: 'town:gather:copper_rock', at: T0, sx: XP.skillXpForLevel('mining', 30), sl: 26, n: 10 };
     const mining = (accrued) => ({ active_kind: 'gather', active_id: 'copper_rock', active_since: iso(T0 - H8), accrued_to: iso(accrued) });
     const paid = { mining: { xp: XP.skillXpForLevel('mining', 47), level: 47 } };
     /* a hero who has never hunted: no hunt section at all */
@@ -708,7 +886,7 @@ async function runTests(mods) {
     const ended = hero(T0 + H8, mining(T0 + H8), paid, { copper_ore: 4313 }, rock, { session_id: 's-old', hunt_id: 'mill_cellar', ended: true, session: { end_reason: 'left', ended_at: iso(T0 - MIN) }, hero: {}, pose: { units: [] } });
     ok(/mined the Copper Rock/.test((AR.awayRecapOf(ended) || {}).text || '') && !/hunt/i.test(AR.awayRecapOf(ended).text), 'the job, never the hunt that ended before it: ' + JSON.stringify(AR.awayRecapOf(ended)));
     /* a bench that ran out: what it made, the level, when and why it stopped */
-    const saw = { s: 'town:artisan:saw_normal', at: T0, sx: XP.skillXpForLevel('crafting', 10), n: 0 };
+    const saw = { s: 'town:artisan:saw_normal', at: T0, sx: XP.skillXpForLevel('crafting', 10), sl: 10, n: 0 };
     const idle = { active_kind: 'idle', active_id: null, accrued_to: iso(T0 + 50 * MIN) };
     const benched = AR.awayRecapOf(hero(T0 + 50 * MIN, idle, { crafting: { xp: XP.skillXpForLevel('crafting', 29), level: 29 } }, { normal_plank: 392 }, saw));
     ok(benched && /^While you were away \(50 min\), Tess made Normal Plank: \+392 Normal Plank, Crafting 10 to 29\. It stopped about \d+ min in: out of Normal Log\.$/.test(benched.text), 'the bench line: ' + JSON.stringify(benched && benched.text));
@@ -716,7 +894,10 @@ async function runTests(mods) {
     ok(AR.awayRecapOf(hero(T0 + H8, idle, { crafting: { xp: saw.sx, level: 10 } }, {}, saw)) === null, 'a job that made nothing raises no line');
     /* the stamp: at the server's watermark, with the server's skill and bag */
     const going = hero(T0 + 11 * MIN, mining(T0 + 11 * MIN), paid, { copper_ore: 50 }, rock);
-    ok(AR.stampAway(going) === true && going.writes[0][1].s === rock.s && going.writes[0][1].at === T0 + 11 * MIN && going.writes[0][1].sx === paid.mining.xp && going.writes[0][1].n === 50, 'a job is stamped as of its watermark: ' + JSON.stringify(going.writes));
+    ok(AR.stampAway(going) === true && going.writes[0][1].s === rock.s && going.writes[0][1].at === T0 + 11 * MIN && going.writes[0][1].sx === paid.mining.xp && going.writes[0][1].sl === 47 && going.writes[0][1].n === 50, 'a job is stamped as of its watermark, with the server\'s skill level: ' + JSON.stringify(going.writes));
+    /* a stamp from a build that kept no level says the XP gained, never a level worked out from the stamped XP */
+    const oldRock = AR.awayRecapOf(hero(T0 + H8, mining(T0 + H8), paid, { copper_ore: 4313 }, { s: rock.s, at: T0, sx: rock.sx, n: 10 }));
+    ok(oldRock && !/Mining \d+ to \d+/.test(oldRock.text) && /Mining XP/.test(oldRock.text), 'a job stamp with no level names none: ' + JSON.stringify(oldRock && oldRock.text));
     const young = hero(T0 + 9 * MIN, mining(T0 + 9 * MIN), paid, { copper_ore: 50 }, rock);
     ok(AR.stampAway(young) === false, 'and renewed no oftener than a hunt');
     const stopped = hero(T0 + 3 * MIN, idle, paid, { copper_ore: 50 }, rock);
@@ -725,8 +906,101 @@ async function runTests(mods) {
     ok(AR.awayLineNow(hero(T0 + H8, mining(T0 + H8), paid, {}, rock), back) === back.text, 'a job still running keeps its card');
     ok(AR.awayLineNow(hero(T0 + H8, idle, paid, {}, rock), back) === null, 'stopped since: the card goes');
     ok(typeof AR.awayLineNow(hero(T0 + 50 * MIN, idle, {}, {}, saw), benched) === 'string', 'a card about a job that stopped while away stays');
-    eq(CS.sanitizeResidueField('awaySeen', { s: 'town:gather:copper_rock', at: 5, sx: 9, n: 1, extra: 1 }), { s: 'town:gather:copper_rock', at: 5, sx: 9, n: 1 }, 'a job\'s stamp survives the residue');
+    eq(CS.sanitizeResidueField('awaySeen', { s: 'town:gather:copper_rock', at: 5, sx: 9, sl: 3, n: 1, extra: 1 }), { s: 'town:gather:copper_rock', at: 5, sx: 9, sl: 3, n: 1 }, 'a job\'s stamp survives the residue');
     eq(CS.sanitizeResidueField('awaySeen', { s: 'town:gather:x', at: 5, sx: -1, n: 1.5 }), { s: 'town:gather:x', at: 5 }, 'and is bounded');
+  });
+
+  /* THE HOOK, COUNTED (designer 2026-11-10: the funnel's three missing steps), sent from the alert centre, which sees the page go and the line come up */
+  t('R6 the funnel hears a page left over an open hunt, the away line coming up and a gear find, with no name in any of them', () => {
+    const T0 = 1_800_000_000_000, MIN = 60 * 1000;
+    const world = (loot, ended) => {
+      const env = { name: 'Odalys', state: { level_xp: XP.charXpForLevel(4) + 5 }, level: { xp: XP.charXpForLevel(4) + 5, level: 4, into: 5, need: 1 }, hunt_analyzer: { hero: { kills: 70, coins: 40 } },
+        hunt: { session_id: 's-1', hunt_id: 'mill_cellar', ended: !!ended, session: ended ? { end_reason: 'left' } : {}, hero: {}, pose: { units: [] }, loot } };
+      const subs = new Set(), sent = [];
+      const hero = { slot: 0, env, record: { residue: { awaySeen: { s: 's-1', at: T0, xp: XP.charXpForLevel(3), lv: 3, gold: 10, kills: 30 } } },
+        read: (k) => env[k], serverNow: () => T0 + 4 * MIN, flushResidue: () => Promise.resolve(),
+        setResidue(f, v) { this.record = { residue: Object.assign({}, this.record.residue, { [f]: v }) }; return true; },
+        subscribe: (fn) => { subs.add(fn); return () => subs.delete(fn); } };
+      const account = { viewed: 0, character: () => hero, characters: () => [hero], subscribe: () => () => {} };
+      const centre = AL.createAlertCenter(account, { track: (name, props, scope) => sent.push([name, props, scope]), clock: () => 9.6 * MIN });
+      return { hero, centre, sent, of: (n) => sent.filter((e) => e[0] === n).map((e) => e[1]), tell: () => { for (const fn of subs) fn(hero, 'changed'); } };
+    };
+    const w = world([]);
+    /* the away line came up on the return (a new hero, four minutes away): its minutes, whether the hunt still runs, the Levels gained */
+    ok(w.centre.list().some((a) => a.kind === 'away'), 'the return raised no away line: ' + JSON.stringify(w.centre.list().map((a) => a.kind)));
+    eq(w.of('away_recap_shown'), [{ slot: 0, minutes: 4, still_hunting: true, levels: 1 }], 'the away line coming up is counted');
+    eq(w.sent.find((e) => e[0] === 'away_recap_shown')[2], 'away:s-1:' + T0, 'once per line');
+    /* a find: gear new in the open hunt's loot since this page first read it; junk is no find, and it is counted once */
+    w.hero.env.hunt = Object.assign({}, w.hero.env.hunt, { loot: [{ item: 'rat_tail', count: 9 }] }); w.tell();
+    eq(w.of('first_gear_found'), [], 'a rat tail is not gear');
+    w.hero.env.hunt = Object.assign({}, w.hero.env.hunt, { loot: [{ item: 'rat_tail', count: 9 }, { item: 'apprentice_helmet', count: 1 }] }); w.tell(); w.tell();
+    eq(w.of('first_gear_found'), [{ slot: 0, hunt: 'mill_cellar', item: 'apprentice_helmet', level: 4 }], 'a piece of gear in the hunt\'s loot is a find, told once');
+    eq(w.sent.find((e) => e[0] === 'first_gear_found')[2], 'gear:0', 'once per hero');
+    const had = world([{ item: 'bronze_helm', count: 1 }]);
+    had.tell();
+    eq(had.of('first_gear_found'), [], 'gear already in the loot when the page first read the hunt is the return\'s news, not a find');
+    /* the page goes over an open hunt: hidden, then closed, each with the ground, the Level and the minutes this page was up */
+    w.centre.leaving({ hidden: true }); w.centre.leaving();
+    eq(w.of('left_with_hunt_running'), [{ slot: 0, hunt: 'mill_cellar', level: 4, minutes: 10, how: 'hidden' }, { slot: 0, hunt: 'mill_cellar', level: 4, minutes: 10, how: 'closed' }], 'leaving over an open hunt is counted');
+    eq(w.sent.filter((e) => e[0] === 'left_with_hunt_running').map((e) => e[2]), ['left:hidden:0', 'left:closed:0'], 'once hidden and once closed, per hero');
+    const over = world([], true);
+    over.centre.leaving();
+    eq(over.of('left_with_hunt_running'), [], 'a page left with the hunt over is not the hook');
+    ok(!/Odalys/.test(JSON.stringify(w.sent)), 'an event carries the hero\'s name: ' + JSON.stringify(w.sent));
+    w.centre.destroy(); had.centre.destroy(); over.centre.destroy();
+  });
+
+  /* ── R3c/R3d: what the hero did AFTER the hunt (src/shell/after-hunt.js, designer re-read 2026-11-11 #2: the second night's
+     "The hunt has ended 5 h 45 min ago" said nothing of the hero idle in town, nor what would have filled the time) ── */
+  const T0 = 1_800_000_000_000, MIN = 60 * 1000, H = 60 * MIN;
+  const iso = (ms) => new Date(ms).toISOString();
+  const END = T0 + 3 * H + 14 * MIN;                                   // the hunt ran 3 h 14 min on the server
+  const idleSince = (ms) => ({ active_kind: 'idle', active_id: null, active_since: iso(ms) });
+  const mining = (ms) => ({ active_kind: 'gather', active_id: 'copper_rock', active_since: iso(ms) });
+  const wrenna = (now, state, reason = 'stamina', o = {}) => Object.assign({
+    slot: 0, writes: [], record: { residue: { awaySeen: { s: 's-1', at: T0, xp: XP.charXpForLevel(10), lv: 10, gold: 0, kills: 0 } } },
+    setResidue(f, v) { this.writes.push([f, v]); return true; },
+    serverNow: () => now,
+    read: (k) => ({ name: 'Wrenna', state, level: { xp: XP.charXpForLevel(11), level: 11, into: 0, need: 1 }, stamina: { ms: now - END, max_ms: 8 * H },
+      hunt: { session_id: o.session || 's-1', hunt_id: 'meadowbrook_thicket', ended: o.open !== true,
+        session: o.open ? {} : { end_reason: reason, ended_at: iso(END) }, hero: {}, pose: { units: [] } },
+      hunt_analyzer: { hero: { kills: 900, coins: 0 } } })[k],
+  }, o);
+  const NOW = T0 + 9 * H;                                              // the player reopens 9 h after leaving: 5 h 46 min idle
+  t('R3c the browser closed: the away card says the hero waited in town, and the one thing that would have filled it', () => {
+    const night = AR.awayRecapOf(wrenna(NOW, idleSince(END + 8000)));
+    ok(night && night.text.includes('The hunt has ended. Out of stamina, so Wrenna came home. Then Wrenna waited in town for 5 h 46 min. '
+      + 'Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends. Stamina now: 5 h 46 min.')
+      && !/ ago\./.test(night.text), 'the second night: ' + JSON.stringify(night && night.text));
+    /* the line follows the record while the card is up: the wait grows, and it is the server's clock that says so */
+    ok(AR.awayLineNow(wrenna(NOW + 10 * MIN, idleSince(END + 8000)), night).includes('waited in town for 5 h 56 min'), 'the wait is the record\'s now');
+    /* the server put the hero back on its gathering job at the walk home's end (active_since = ended_at + travel): it says so, no wait, no advice */
+    const went = AR.awayRecapOf(wrenna(NOW, mining(END)));
+    ok(went && went.text.includes('Out of stamina, so Wrenna came home. Then Wrenna went back to mining the Copper Rock.') && !/waited|Start mining/.test(went.text),
+      'a resumed job: ' + JSON.stringify(went && went.text));
+    /* one next thing per end reason, by the rules (hunt-sessions.js RESUME_AFTER_END) */
+    const nextOf = (reason) => (AR.awayRecapOf(wrenna(NOW, idleSince(END), reason)) || {}).text || '';
+    ok(nextOf('hours').includes('Set a longer hunt next time, up to the stamina you have.'), 'a set limit: ' + nextOf('hours'));
+    ok(nextOf('heals_out').includes('Pack more food next time, and the hunt can run longer.'), 'out of food: ' + nextOf('heals_out'));
+    ok(nextOf('ammo_out').includes('Pack more ammo next time'), 'out of ammo: ' + nextOf('ammo_out'));
+    ok(nextOf('runes_out').includes('Pack more runes next time'), 'out of runes: ' + nextOf('runes_out'));
+    ok(nextOf('gold_out').includes('Keep more gold on hand for the store\'s supplies, or pack your own'), 'out of gold: ' + nextOf('gold_out'));
+    ok(nextOf('died').includes('Start mining, chopping or fishing before you hunt'), 'a death resumes a job too: ' + nextOf('died'));
+    /* never a guess: the player's own end, a pointer moved since the end, a job started later, a state that has not said */
+    ok(!/Then Wrenna/.test(nextOf('left')), 'leaving is the player\'s own choice and resumes nothing: ' + nextOf('left'));
+    ok(!/Then Wrenna/.test((AR.awayRecapOf(wrenna(NOW, idleSince(END + 2 * H))) || {}).text || ''), 'idle since long after the end: something happened between');
+    ok(!/Then Wrenna/.test((AR.awayRecapOf(wrenna(NOW, mining(END + 2 * H))) || {}).text || ''), 'a job started later was not a resume');
+    const unsaid = (AR.awayRecapOf(wrenna(NOW, { gold: 5 })) || {}).text || '';
+    ok(/The hunt has ended 5 h 46 min ago\./.test(unsaid) && !/Then Wrenna/.test(unsaid), 'no pointer from the server: the old line, nothing guessed: ' + unsaid);
+  });
+  t('R3d the hunt viewed: the summary card says what came after, from the server\'s pointer', () => {
+    const atEnd = AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000)), 's-1');
+    eq(atEnd, 'Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends.', 'watched as it ends: the one next thing, no wait yet');
+    const leftOpen = AH.endCardAfter(wrenna(END + 2 * H, idleSince(END + 8000)), 's-1');
+    eq(leftOpen, 'Then Wrenna waited in town for 2 h 0 min. Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends.', 'a page left open on the card');
+    eq(AH.endCardAfter(wrenna(END + MIN, mining(END)), 's-1'), 'Then Wrenna went back to mining the Copper Rock.', 'a resumed job');
+    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { session: 's-2' }), 's-1'), '', 'an older summary says nothing of today');
+    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { open: true }), 's-1'), '', 'a hunt still open: nothing came after');
   });
 
   return fails;
@@ -750,15 +1024,46 @@ async function load(base) {
   const u = (p) => pathToFileURL(join(base, p)).href;
   return {
     HUD_URL: u(HUD_FILE),
+    SHELL_CSS: readFileSync(join(base, 'src/styles/shell.css'), 'utf8'),
     WM: await import(u(WM_FILE)),
     HUD: await import(u(HUD_FILE)),
     CS: await import(u('src/session/residue.js')),
     AR: await import(u('src/shell/away-recap.js')),
+    AL: await import(u('src/shell/alerts.js')),
+    AH: await import(u('src/shell/after-hunt.js')),
     XP: await import(u('src/core/xp.js')),
+    WH: await import(u('src/shell/window-head.js')),
+    SW: (await import(u('src/data/shell-windows.js'))).SHELL_WINDOWS,
   };
 }
 
+const WH_FILE = 'src/shell/window-head.js';
 const MUTANTS = [
+  /* W17-W21: one window header (lane/b-window-header) */
+  { test: 'W22', file: 'src/styles/shell.css', from: '> .hs-win-title { letter-spacing: .04em; }', to: '> .hs-win-title { }' },
+  { test: 'W17', file: WH_FILE, from: "    + '<button type=\"button\" class=\"hs-back\" data-hs-back=\"' + id + '\" hidden>&lsaquo; ' + esc(t('controls.back')) + '</button>'\n", to: '' },
+  { test: 'W17', file: WH_FILE, from: "    + (help ? '<button type=\"button\" class=\"hs-help\"", to: "    + (false ? '<button type=\"button\" class=\"hs-help\"" },
+  { test: 'W17', file: WH_FILE, from: "  const key = row.key && !row.noShortcut && !touch ?", to: '  const key = row.key ?' },
+  { test: 'W17', file: 'src/data/shell-windows.js', from: "help: 'windows.help_shop', ", to: '' },
+  { test: 'W17', file: WM_FILE, from: "    if (r.beside !== undefined && !(Array.isArray(r.beside) && r.beside.length && r.beside.every((x) => typeof x === 'string' && x !== r.id)))", to: '    if (false)' },
+  { test: 'W18', file: WM_FILE, from: '    return occ.length && occ.every((q) => besides(id, q.id)) ? world().width - DOCK_EDGE : world().width * DOCK_MAX;', to: '    return world().width * DOCK_MAX;' },
+  { test: 'W18', file: WM_FILE, from: '    return occ.length && occ.every((q) => besides(id, q.id)) ? world().width - DOCK_EDGE : world().width * DOCK_MAX;', to: '    return occ.length ? world().width - DOCK_EDGE : world().width * DOCK_MAX;' },
+  { test: 'W18', file: WM_FILE, from: '    if (isOver(id)) { slot.set(id, DOCK_EDGE); return; }\n', to: '' },
+  { test: 'W18', file: WM_FILE, from: ' && !leaving.has(d) && !isOver(d))', to: ' && !leaving.has(d))' },
+  { test: 'W18', file: 'src/data/shell-windows.js', from: "    beside: Object.freeze(['storage', 'shop', 'character']) }", to: "    beside: Object.freeze(['storage']) }" },
+  { test: 'W19', file: WM_FILE, from: '    if (by) cameFrom.set(id, by); else if (!returning) cameFrom.delete(id);', to: '    cameFrom.delete(id);' },
+  { test: 'W19', file: WM_FILE, from: '    try { close(id); openWindow(to); }', to: '    try { close(id); }' },
+  { test: 'W19', file: WM_FILE, from: '    returning = true;\n', to: '' },
+  { test: 'W19', file: WM_FILE, from: '    return live().includes(id) && cameFrom.has(id) ? cameFrom.get(id) : null;', to: '    return null;' },
+  { test: 'W20', file: WM_FILE, from: '    if (by && (rows.get(id).pageOf || []).includes(by)) {', to: '    if (false) {' },
+  { test: 'W20', file: WM_FILE, from: '    pages.delete(id);   // a host takes its page with it\n', to: '' },
+  { test: 'W20', file: WM_FILE, from: 'pages.has(l[l.length - 1]) ? back(l[l.length - 1]) : ', to: '' },
+  { test: 'W20', file: WM_FILE, from: '    pages.delete(id);   // a host asked for one of its own tabs shows itself, not its page\n', to: '' },
+  { test: 'W20', file: WM_FILE, from: '    if (host) { pages.delete(host); emit(); return true; }', to: '' },
+  { test: 'W20', file: 'src/data/shell-windows.js', from: "    pageOf: Object.freeze(['hunts']) }", to: '    }' },
+  { test: 'W21', file: WH_FILE, from: '    if (best < 0 || ZONE_RANK[g.zone] < ZONE_RANK[list[best].zone]) best = i;', to: '    if (best < 0) best = i;' },
+  { test: 'W21', file: WH_FILE, from: '    if (!g || !g.shown || !(g.zone in ZONE_RANK)) return;', to: '    if (!g || !(g.zone in ZONE_RANK)) return;' },
+  { test: 'W21', file: WH_FILE, from: "const ZONE_RANK = Object.freeze({ confirm: 0, body: 1, coach: 2 });", to: "const ZONE_RANK = Object.freeze({ confirm: 1, body: 0, coach: 2 });" },
   { test: 'W1', file: WM_FILE, from: 'export const MAX_OPEN = 3;', to: 'export const MAX_OPEN = 4;' },
   { test: 'W2', file: WM_FILE, from: 'export const DOCK_MAX = 0.6;', to: 'export const DOCK_MAX = 0.9;' },
   { test: 'W3', file: WM_FILE, from: 'for (const r of rows.values()) if (r.escape) return openWindow(r.id);', to: '' },
@@ -816,7 +1121,15 @@ const MUTANTS = [
   { test: 'R1', file: 'src/session/residue.js', from: "  hudLayout: sanitizeHudLayout,", to: '  hudLayout: (v) => v,' },
   { test: 'R2', file: HUD_FILE, from: "      character.setResidue('hudLayout', next);\n", to: '' },
   { test: 'R2', file: HUD_FILE, from: "      if (now && typeof character.flushResidue === 'function') Promise.resolve(character.flushResidue()).catch(() => {});\n", to: '' },
-  { test: 'R3', file: 'src/shell/away-recap.js', from: '  if (gone < AWAY_MIN_MS) return null;\n', to: '' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: '  if (gone < awayMinMsOf(cs, was)) return null;\n', to: '' },
+  { test: 'R3e', file: 'src/shell/away-recap.js', from: '? FIRST_AWAY_MIN_MS : AWAY_MIN_MS;', to: '? AWAY_MIN_MS : AWAY_MIN_MS;' },
+  { test: 'R3e', file: 'src/shell/away-recap.js', from: '  if (told && !(was && coach.back === was.s && coach.backAt === was.at)) return AWAY_MIN_MS;\n', to: '' },
+  { test: 'R3e', file: 'src/shell/away-recap.js', from: 'coach.back === was.s && coach.backAt === was.at', to: 'coach.back === was.s' },
+  { test: 'R3e', file: 'src/shell/away-recap.js', from: 'level >= 1 && level < NEW_HERO_BELOW ?', to: 'true ?' },
+  { test: 'R3e', file: 'src/shell/away-recap.js', from: 'const level = was && Number.isSafeInteger(was.lv) && was.lv >= 1 ? was.lv : lv ? lv.level : 0;', to: 'const level = lv ? lv.level : 0;' },
+  { test: 'R3e', file: 'src/shell/away-recap.js', from: 'Math.min(awayMinMsOf(cs, null), (leaving', to: 'Math.min(AWAY_MIN_MS, (leaving' },
+  { test: 'R3e', file: 'src/shell/away-recap.js', from: 'backAt: Number.isSafeInteger(at) ? at : undefined', to: 'backAt: undefined' },
+  { test: 'R3e', file: 'src/session/residue.js', from: '  if (out.back && Number.isSafeInteger(v.backAt) && v.backAt >= 0) out.backAt = v.backAt;\n', to: '' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '(leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)', to: '(leaving ? -1 : STAMP_EVERY_MS)' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '  if (h.ended && Number.isFinite(h.endedAtMs) && h.endedAtMs <= was.at) return null;\n', to: '' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (!h || h.sessionId !== a.session || (h.ended && !a.ended)) return null;', to: 'if (!h || h.sessionId !== a.session) return null;' },
@@ -827,14 +1140,20 @@ const MUTANTS = [
   { test: 'R3b', file: 'src/shell/away-work.js', from: "return { s: keyOf(w), at: Math.floor(at),", to: "return { s: keyOf(w), at: Math.floor(serverNowOf(cs)) + 1,"},
   { test: 'R3b', file: 'src/shell/away-recap.js', from: 'if (isWorkStamp(was) && (!h || h.ended)) {', to: 'if (false) {' },
   { test: 'R3b', file: 'src/shell/away-recap.js', from: 'return (a.still && !(w && w.s === a.work)) || (h && !h.ended) ? null : a.text;', to: 'return a.text;' },
-  { test: 'R3b', file: 'src/session/residue.js', from: "for (const k of ['xp', 'gold', 'kills', 'sx', 'n'])", to: "for (const k of ['xp', 'gold', 'kills'])" },
+  { test: 'R3b', file: 'src/session/residue.js', from: "for (const k of ['xp', 'lv', 'gold', 'kills', 'sx', 'sl', 'n'])", to: "for (const k of ['xp', 'lv', 'gold', 'kills'])" },
+  /* lane/c-level-from-server: the away lines' Levels are two server answers, never this build's curve over a stamped XP */
+  { test: 'R3', file: 'src/session/residue.js', from: "for (const k of ['xp', 'lv', 'gold', 'kills', 'sx', 'sl', 'n'])", to: "for (const k of ['xp', 'gold', 'kills', 'sx', 'sl', 'n'])" },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: 'const from = Number.isSafeInteger(was.lv) && was.lv >= 1 ? was.lv : null;', to: 'const from = lv.level - 1;' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: 'xp: lv.xp, lv: lv.level,', to: 'xp: lv.xp,' },
+  { test: 'R3b', file: 'src/shell/away-work.js', from: 'const from = Number.isSafeInteger(was.sl) && was.sl >= 1 ? was.sl : null;', to: 'const from = sk.level - 1;' },
+  { test: 'R3b', file: 'src/shell/away-work.js', from: '{ sx: sk.xp, sl: sk.level }', to: '{ sx: sk.xp }' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "stamina ? ' Still hunting, with ' + stamina + ' of stamina left.' : ' Still hunting.'", to: "' Still hunting.'" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "(cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS", to: "(STAMINA_WORDS" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "|| STAMINA_WORDS[h.endReason] || (END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')", to: "|| (END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "return r.back === session ? false :", to: "return" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "!was || !h || h.sessionId !== was.s ||", to: '!was || !h ||' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at", to: "'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + now" },
-  { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (was && was.s === next.s && next.at - was.at < (leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)) return false;', to: '' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (was && was.s === next.s && next.at - was.at < Math.min(awayMinMsOf(cs, null), (leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS))) return false;', to: '' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '(leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)', to: 'STAMP_EVERY_MS' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '(leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)', to: 'LEAVE_EVERY_MS' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '!(was.at < h.endedAtMs && next.at >= h.endedAtMs)', to: '!(next.at >= h.endedAtMs)' },
@@ -842,6 +1161,23 @@ const MUTANTS = [
   { test: 'R3', file: 'src/shell/away-recap.js', from: ' || awayRecapOf(cs)) return false;', to: ') return false;' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (!was || was.s !== next.s || !(was.at', to: 'if (true || !was || was.s !== next.s || !(was.at' },
   { test: 'R3', file: 'src/session/residue.js', from: '  awaySeen: sanitizeAwaySeen,', to: '  awaySeen: (v) => v,' },
+  { test: 'R6', file: 'src/shell/alerts.js', from: "if (c.kind === 'away' && c.session) track('away_recap_shown',", to: "if (false) track('away_recap_shown'," },
+  { test: 'R6', file: 'src/shell/alerts.js', from: "      noteLeft(hidden ? 'hidden' : 'closed');\n", to: '' },
+  { test: 'R6', file: 'src/shell/alerts.js', from: "      noteLeft(hidden ? 'hidden' : 'closed');", to: "      noteLeft('closed');" },
+  { test: 'R6', file: 'src/shell/alerts.js', from: "      if (!h || h.ended) continue;\n      const lv = levelOf(cs);\n      track('left_with_hunt_running'", to: "      if (!h) continue;\n      const lv = levelOf(cs);\n      track('left_with_hunt_running'" },
+  { test: 'R6', file: 'src/shell/alerts.js', from: '    noteGear(cs);\n', to: '' },
+  { test: 'R6', file: 'src/shell/alerts.js', from: 'gearSeen.set(cs.slot, { session: h.sessionId, ids: new Set(ids) }); return; }', to: 'gearSeen.set(cs.slot, { session: h.sessionId, ids: new Set() }); }' },
+  { test: 'R6', file: 'src/shell/alerts.js', from: '&& GEAR_TYPES.has(ITEMS[l.item].type))', to: ')' },
+  { test: 'R6', file: 'src/shell/alerts.js', from: '    for (const id of ids) was.ids.add(id);\n', to: '' },
+  { test: 'R3c', file: 'src/shell/away-recap.js', from: "      + then + (stamina ? ' Stamina now: '", to: "      + (stamina ? ' Stamina now: '" },
+  { test: 'R3c', file: 'src/shell/away-recap.js', from: "const ago = h.ended && !waited && ", to: 'const ago = h.ended && ' },
+  { test: 'R3c', file: 'src/shell/after-hunt.js', from: 'Math.abs(since - home) <= SAME_MS', to: 'true' },
+  { test: 'R3c', file: 'src/shell/after-hunt.js', from: "if (Number.isFinite(since) && since > home + MOVED_AFTER_MS) return null;", to: '' },
+  { test: 'R3c', file: 'src/shell/after-hunt.js', from: " || !RESUME_AFTER_END.includes(h.endReason)) return null;", to: ') return null;' },
+  { test: 'R3c', file: 'src/shell/after-hunt.js', from: "if (st.active_kind !== 'idle') return null;", to: '' },
+  { test: 'R3c', file: 'src/shell/after-hunt.js', from: "hours: 'away.next_longer', ", to: '' },
+  { test: 'R3d', file: 'src/shell/after-hunt.js', from: 'a.idleMs >= WAITED_FROM_MS ?', to: 'true ?' },
+  { test: 'R3d', file: 'src/shell/after-hunt.js', from: '|| h.sessionId !== id ||', to: '||' },
 ];
 
 async function selftest() {
@@ -854,6 +1190,8 @@ async function selftest() {
       const skip = new Set(['styles', 'vendor'].map((n) => join(ROOT, 'src', n)));
       mkdirSync(join(base, 'src'), { recursive: true });
       cpSync(join(ROOT, 'src'), join(base, 'src'), { recursive: true, filter: (s) => !skip.has(s) });
+      mkdirSync(join(base, 'src/styles'), { recursive: true });
+      cpSync(join(ROOT, 'src/styles/shell.css'), join(base, 'src/styles/shell.css'));
       const p = join(base, m.file);
       const src = readFileSync(p, 'utf8');
       if (!src.includes(m.from)) throw new Error('selftest: anchor for ' + m.test + ' not found in ' + m.file);

@@ -11,9 +11,10 @@
 // way IN (envelope) and on the way OUT (put), so a malformed or oversized value
 // can never reach a renderer or the server.
 // ════════════════════════════════════════════════════════════════════════
-import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.114';
-import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.114';
-import { FX_ALPHA_ROW } from '../data/fx-alpha.js?v=0.2.114';
+import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.125';
+import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.125';
+import { FX_ALPHA_ROW } from '../data/fx-alpha.js?v=0.2.125';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.125';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -75,8 +76,8 @@ function sanitizeCombatLog(v) {
   return out;
 }
 
-import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.114';
-import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.114';
+import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.125';
+import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.125';
 
 const ITEM_ID = /^[a-z0-9_]{1,64}$/;
 export const BAG_SEEN_MAX = 512;
@@ -153,7 +154,8 @@ function sanitizeAlerts(v) {
 function sanitizeAwaySeen(v) {
   if (!isObj(v) || typeof v.s !== 'string' || !/^[A-Za-z0-9_:.-]{1,64}$/.test(v.s) || !Number.isSafeInteger(v.at) || v.at < 0) return {};
   const out = { s: v.s, at: v.at };
-  for (const k of ['xp', 'gold', 'kills', 'sx', 'n']) if (Number.isSafeInteger(v[k]) && v[k] >= 0) out[k] = v[k];
+  /* lv / sl: the Level and the skill level the server said with xp / sx (away-recap.js, away-work.js) */
+  for (const k of ['xp', 'lv', 'gold', 'kills', 'sx', 'sl', 'n']) if (Number.isSafeInteger(v[k]) && v[k] >= 0) out[k] = v[k];
   return out;
 }
 
@@ -184,9 +186,12 @@ function sanitizePanelAlpha(v) {
 /* The coach line's fold (src/shell/launcher.js coachFoldOf): folded or not, and the card id the player last had in
    front of them (a goal id joins its parts, so it may run long); and `read`, the tutorial cards the player pressed
    Got it on or had on screen long enough to read (src/shell/launcher.js markCoachRead; ids, oldest first, bounded).
-   and `back`, the hunt session the player last came back to after an absence (src/shell/away-recap.js).
+   and `back`, the hunt session the player last came back to after an absence, with `backAt`, the stamp it was told from (src/shell/away-recap.js);
+   and `hid`, the cards the player pressed Got it on that a server fact finishes (Tyler 2026-11-11: tips are never mandatory): the
+   card stays hidden, the chain's own progress stays the server's (ids, oldest first, bounded; a goal id joins its parts).
    Display state like the death popup's seen mark: a read only finishes a card that teaches; it gates and spends nothing. */
 export const COACH_READ_MAX = 128;
+export const COACH_HID_MAX = 64;
 function sanitizeCoach(v) {
   const out = {};
   if (!isObj(v)) return out;
@@ -196,7 +201,13 @@ function sanitizeCoach(v) {
     const read = Array.from(new Set(v.read.filter((id) => typeof id === 'string' && /^[a-z0-9_]{1,64}$/.test(id)))).slice(-COACH_READ_MAX);
     if (read.length) out.read = read;
   }
+  if (Array.isArray(v.hid)) {
+    const hid = Array.from(new Set(v.hid.filter((id) => typeof id === 'string' && /^[a-z0-9_]{1,256}$/.test(id)))).slice(-COACH_HID_MAX);
+    if (hid.length) out.hid = hid;
+  }
   if (typeof v.back === 'string' && /^[A-Za-z0-9_:.-]{1,64}$/.test(v.back)) out.back = v.back;
+  /* the last-seen stamp that return's line was told from (away-recap.js awayMinMsOf) */
+  if (out.back && Number.isSafeInteger(v.backAt) && v.backAt >= 0) out.backAt = v.backAt;
   return out;
 }
 
@@ -215,6 +226,17 @@ function sanitizeSwitch(v) {
    percent inside the row's range and on its step, and when it was picked (the newest any open hero holds is the pick), else none. */
 const valuePick = (sw) => (v) => (isObj(v) && Number.isSafeInteger(v.v) && v.v >= sw.min && v.v <= sw.max && (v.v - sw.min) % sw.step === 0
   && Number.isSafeInteger(v.at) && v.at >= 0 ? { v: v.v, at: v.at } : undefined);
+
+/* The order picked at each crafting station (src/shell/station-sort.js): skill -> sort id, for skills the data
+   defines only (so the count is bounded by the catalogue); the window reads an unknown sort as its default. */
+function sanitizeStationSort(v) {
+  const out = {};
+  if (!isObj(v)) return out;
+  for (const id of Object.keys(v)) {
+    if (ID.test(id) && Object.prototype.hasOwnProperty.call(SKILLS_DEF, id) && typeof v[id] === 'string' && ID.test(v[id])) out[id] = v[id];
+  }
+  return out;
+}
 
 /** field -> sanitizer. The keys ARE the allowlist. */
 const SANITIZERS = Object.freeze({
@@ -240,6 +262,8 @@ const SANITIZERS = Object.freeze({
   fxPeer: valuePick(FX_ALPHA_ROW.peer),       // display preference: the same for every other hero in the hunt; gates and spends nothing
   fxMonster: valuePick(FX_ALPHA_ROW.monster), // display preference: the same for the monsters' hits and spells; gates and spends nothing
   fxMarks: valuePick(FX_ALPHA_ROW.marks),     // display preference: how strong the danger marks fill, never under half; gates and spends nothing
+  tips: sanitizeSwitch,             // display preference: whether the coach's cards and the town criers show, one for every hero (src/data/tips.js); gates and spends nothing
+  stationSort: sanitizeStationSort, // display preference: each crafting station's recipe order (src/shell/station-sort.js); gates and spends nothing
 });
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));

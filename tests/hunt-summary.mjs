@@ -5,7 +5,7 @@
 //   node tests/hunt-summary.mjs             the tests, on the real modules
 //   node tests/hunt-summary.mjs --selftest  every planted defect must turn a test red
 //
-// mutant-anchors: src/hunt-view/death-explain.js src/hunt-view/summary-model.js src/session/hunt-summaries.js src/hunt-view/summary-recorder.js src/session/character-session.js src/session/residue.js
+// mutant-anchors: src/hunt-view/death-explain.js src/hunt-view/summary-model.js src/session/hunt-summaries.js src/hunt-view/summary-recorder.js src/session/character-session.js src/session/residue.js src/shell/back-in-town.js
 //
 //   D1  a death from a fixture event stream names the killing blows with their
 //       amounts, the healing gap, the empty mana, and the heal rule that waited
@@ -27,6 +27,16 @@
 //       nothing) and the stored card carries the death explanation
 //   A3  a re-read that lands before the debounced residue put keeps the stored
 //       card (pending residue outlives a replacing envelope until it is put)
+//   T1  BACK IN TOWN (UX flow audit 2026-11-11, flow C): the steps come from the server's sections in the order a player does
+//       them, each with its real count and value: Equip names the plan's picks; Sell names every stack the LOOT PLAN marks
+//       Sell (never a locked stack, the kit or a stack with no bid, one sale's worth of lines); Deposit names the plan's
+//       Deposit stacks with their worth; Bless names the tiers not on, only while the purse covers the next; a step with
+//       nothing to do is not listed, and nothing to do at all lists nothing
+//   T2  ONE GOLD PRESS: the first open step is the card's gold press, else Hunt again
+//   T3  DONE STAYS: a step pressed on this card that now has nothing left reads Done with the title it was pressed with; one
+//       with something left is open again
+//   T4  DEPOSIT IS ONE hr_bank_move_many naming the plan's stacks (lane/c-bank-move-many): all of them or none, never a
+//       per-stack hr_bank_move; a refusal moves nothing and says so
 // No ?v= on imports here (tests/**).
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, cpSync, rmSync } from 'node:fs';
@@ -41,6 +51,7 @@ const RECORDER = 'src/hunt-view/summary-recorder.js';
 const SESSION = 'src/session/character-session.js';
 const RESIDUE = 'src/session/residue.js';
 const SUMMARIES = 'src/session/hunt-summaries.js';
+const TOWN = 'src/shell/back-in-town.js';
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
 /* The names the recorder stamps on events as they arrive (the pose forgets a unit once it is gone). */
@@ -177,6 +188,12 @@ async function runTests(M) {
     const unrated = MD.buildSummary(ended(), { ...an, hero: { ...an.hero, balance: 2228, perHour: { ...an.hero.perHour, balance: null } } }, []);
     eq([unrated.balance, unrated.balanceH, MD.sanitizeSummaries([unrated])[0].balance], [2228, null, 2228], 'the balance shows before the per-hour rate does');
     eq(s.loot[0], ['cheese', 9], 'top loot first');
+    /* GEAR AND RARES LEAD, THEN THE SHOP'S BID EACH (designer re-read 2026-11-11: Bones and Rat Tail led by count, the Iron Platebody never got a line) */
+    const night = MD.buildSummary(ended(), { ...an, hero: { ...an.hero, loot: [{ item: 'bones', count: 900, value: 900 }, { item: 'rat_tail', count: 300, value: 1800 },
+      { item: 'dire_fang', count: 4, value: 600 }, { item: 'iron_platebody', count: 1, value: 100 }, { item: 'wolf_pelt', count: 40, value: null }] } }, []);
+    eq(night.loot.map((l) => l[0]), ['iron_platebody', 'dire_fang', 'rat_tail', 'bones', 'wolf_pelt'], 'gear first, then the most each is worth, an unbid row last');
+    eq(MD.bestFind([{ item: 'bones', count: 900, value: 900 }, { item: 'iron_platebody', count: 1, value: 400 }]), 'iron_platebody', 'the best find is the gear');
+    eq(MD.bestFind([{ item: 'bones', count: 900, value: 900 }]), null, 'Bones are never a best find');
     const free = MD.buildSummary(ended(), null, []);
     eq([free.ms, free.kills, free.xp, free.gold, free.loot, free.supplies], [60000, 7, 70, 30, [['rat_tail', 4]], [['wheat_bread', 'own', 3]]], 'the free character reads the session tally (XP = its Level key, not the skills)');
   });
@@ -320,6 +337,89 @@ async function runTests(M) {
     ok(!M.REC.summariesOf(cs).some((x) => x.id === 'sess-9'), 'an echoed field kept overriding the server forever');
   });
 
+  /* ── Back in town (src/shell/back-in-town.js): a Level 5 sword hero home from the Cellar with the alpha fixture's bag, plans and bids ── */
+  const { TN, UP } = M;
+  const bag = [{ id: 'rat_tail', qty: 31 }, { id: 'slime_gel', qty: 12 }, { id: 'sticky_core', qty: 1 }, { id: 'bones', qty: 8 }, { id: 'wolf_pelt', qty: 3 },
+    { id: 'leather_gloves', qty: 1 }, { id: 'bronze_belt', qty: 1 }, { id: 'shrimp', qty: 4 }];
+  const rules = { locked: new Set(['sticky_core']), loot: { rat_tail: 'sell', slime_gel: 'sell', sticky_core: 'sell', bones: 'sell', wolf_pelt: 'deposit', shrimp: 'sell' } };
+  const bids = new Map([['rat_tail', 6], ['slime_gel', 5], ['sticky_core', 35], ['wolf_pelt', 7], ['shrimp', 2]]);
+  const blessings = { tiers: [{ tier: 1, price: 0, held: false }, { tier: 2, price: 0, held: false }, { tier: 3, price: 0, held: false }], freeUntil: 30 };
+  const plan = UP.upgradePlan({ equipment: { weapon: 'bronze_sword' }, bag, skills: { defense: { level: 1 }, melee: { level: 1 } }, level: 5 });
+  const steps = (over) => TN.townSteps(Object.assign({ plan, bag, rules, bids, blessings, purse: 100, did: new Map() }, over || {}));
+
+  await t('T1 the steps come from the server\'s sections, in order, each with its real count and value', () => {
+    const r = steps();
+    eq(r.steps.map((s) => s.id), ['equip', 'sell', 'deposit', 'bless'], 'the four steps, in the order a player does them');
+    eq(r.steps.map((s) => s.title), ['Equip 2 better pieces', 'Sell 2 stacks for 246 gp', 'Deposit 1 stack worth 21 gp', 'Bless I, II and III'], 'the titles carry the count and the value');
+    eq(r.steps.map((s) => s.verb), ['Equip', 'Sell', 'Deposit', 'Bless'], 'the presses are the glossary\'s words');
+    const sell = r.steps[1];
+    /* the LOOT PLAN's rule, Dispatch loot's own (Coordinator 2026-11-11): never a locked stack (Sticky Core), the kit (Shrimp) or a stack with no bid (Bones) */
+    eq(sell.lines, [{ item: 'rat_tail', qty: 31 }, { item: 'slime_gel', qty: 12 }], 'the sale names the plan\'s Sell stacks whole, and nothing else');
+    eq(sell.words, 'Your loot plan marks Rat Tail and Slime Gel for the shop.', 'the sale says whose rule it is');
+    eq(r.steps[0].ops, { gloves: 'leather_gloves', belt: 'bronze_belt' }, 'Equip is the plan\'s ONE delta');
+    eq(r.steps[0].words, 'Wear Leather Gloves (+1 Melee accuracy) and Bronze Belt (+2 Defense).', 'Equip says what goes on');
+    eq(r.steps[2].lines, [{ item: 'wolf_pelt', qty: 3 }], 'Deposit names the plan\'s Deposit stacks whole');
+    eq(r.steps[2].words, 'Your loot plan marks Wolf Pelt for Storage, and that frees 1 bag space.', 'Deposit says what it frees');
+    /* a locked stack is never moved by a plan (the server's Dispatch loot skips it too): locked, the Wolf Pelt leaves no Deposit step */
+    eq(steps({ rules: { locked: new Set(['sticky_core', 'wolf_pelt']), loot: rules.loot } }).steps.map((s) => s.id), ['equip', 'sell', 'bless'], 'a locked Deposit stack is not a step');
+    eq([r.steps[3].tiers, r.steps[3].words], [[1, 2, 3], 'Free until Level 30. A death costs you less with them on.'], 'Bless names the tiers not on');
+    /* one sale's worth of lines: 70 planned stacks sell 64 now, the rest on the next press */
+    const many = Array.from({ length: 70 }, (_, i) => ({ id: 'stack_' + i, qty: 1 }));
+    const r70 = steps({ bag: many, rules: { locked: new Set(), loot: Object.fromEntries(many.map((x) => [x.id, 'sell'])) }, bids: new Map(many.map((x) => [x.id, 3])) });
+    const s70 = r70.steps.find((s) => s.id === 'sell');
+    eq([s70.count, s70.lines.length, s70.title], [64, 64, 'Sell 64 stacks for 192 gp'], 'one sale\'s worth of lines');
+    /* Bless only while the purse covers the next tier (the server prices each); a purse not read reads as enough */
+    const dear = { tiers: [{ tier: 1, price: 500, held: true }, { tier: 2, price: 900, held: false }, { tier: 3, price: 1400, held: false }], freeUntil: null };
+    eq(steps({ blessings: dear, purse: 100 }).steps.map((s) => s.id), ['equip', 'sell', 'deposit'], 'short of the next Blessing, no Bless step');
+    eq(steps({ blessings: dear, purse: 900 }).steps[3].title + ' · ' + steps({ blessings: dear, purse: 900 }).steps[3].words, 'Bless II and III · Costs 2,300 gp. A death costs you less with them on.', 'the purse covers the next');
+    eq(steps({ blessings: dear, purse: null }).steps.length, 4, 'a purse not read yet is not a refusal');
+    /* nothing to do at all: no steps, Hunt again is the press */
+    const none = steps({ plan: { ops: {}, picks: [], choices: [] }, rules: { locked: new Set(), loot: {} }, blessings: { tiers: dear.tiers.map((x) => ({ ...x, held: true })), freeUntil: null } });
+    eq([none.steps, none.primary], [[], 'again'], 'nothing to do lists nothing');
+    eq(steps({ plan: null, bag: null, rules: null, bids: null, blessings: null, purse: null }).steps, [], 'sections not read yet list nothing');
+  });
+
+  await t('T2 the first open step is the one gold press, else Hunt again', () => {
+    eq(steps().primary, 'equip', 'Equip first');
+    eq(steps({ plan: { ops: {}, picks: [] } }).primary, 'sell', 'with nothing to wear, Sell');
+    const did = new Map([['equip', 'Equip 2 better pieces'], ['sell', 'Sell 2 stacks for 246 gp']]);
+    const r = steps({ plan: { ops: {}, picks: [] }, rules: { locked: new Set(), loot: { wolf_pelt: 'deposit' } }, did });
+    eq([r.steps.map((s) => s.id + (s.done ? ':done' : '')), r.primary], [['equip:done', 'sell:done', 'deposit', 'bless'], 'deposit'], 'past the done rows, the first open step');
+  });
+
+  await t('T3 a pressed step with nothing left reads Done with the title it was pressed with, and stays', () => {
+    const did = new Map([['sell', 'Sell 2 stacks for 246 gp']]);
+    const sold = steps({ bag: bag.filter((r) => r.id !== 'rat_tail' && r.id !== 'slime_gel'), did });
+    const row = sold.steps.find((s) => s.id === 'sell');
+    eq([row.done, row.title, row.words], [true, 'Sell 2 stacks for 246 gp', ''], 'Done, saying what it did');
+    /* pressed, but a refusal left stacks behind: open again with what is left */
+    const left = steps({ bag: bag.filter((r) => r.id !== 'rat_tail'), did }).steps.find((s) => s.id === 'sell');
+    eq([left.done, left.title], [false, 'Sell 1 stack for 60 gp'], 'what is left stays a press');
+  });
+
+  await t('T4 Deposit is ONE hr_bank_move_many naming the plan\'s stacks, all or nothing', async () => {
+    const lines = [{ item: 'wolf_pelt', qty: 3 }, { item: 'bones', qty: 8 }, { item: 'rat_tail', qty: 2 }];
+    const calls = [];
+    let refuse = null;
+    const server = { accrue: async () => ({ ok: true, body: {} }), rpc: async (name, args) => {
+      calls.push({ name, args });
+      if (name === 'hr_load') return { ok: true, body: endedEnv(8) };
+      if (name === 'hr_bank_move_many') return refuse ? { ok: false, body: { ok: false, error: refuse, item: 'bones', index: 1 } } : { ok: true, body: { ok: true, count: 3 } };
+      return { ok: true, body: { ok: true } };
+    } };
+    const cs = new CS.CharacterSession({ slot: 0, uid: 'u', now: () => 0, server, setTimer: () => 0, clearTimer: () => {} });
+    const r = await TN.depositPlanned({ server }, cs, lines);
+    eq([r.ok, r.moved], [true, 3], 'every stack went, the server\'s count');
+    const many = calls.filter((c) => c.name === 'hr_bank_move_many');
+    eq([many.length, many[0].args.p_slot, many[0].args.p_items], [1, 0, [{ item: 'wolf_pelt', dir: 'deposit' }, { item: 'bones', dir: 'deposit' }, { item: 'rat_tail', dir: 'deposit' }]], 'ONE bulk move naming the stacks, no counts');
+    ok(!calls.some((c) => c.name === 'hr_bank_move'), 'never a per-stack hr_bank_move');
+    /* refused: nothing moved, the server's reason stands, still one ask */
+    refuse = 'bank_full';
+    const no = await TN.depositPlanned({ server }, cs, lines);
+    eq([no.ok, no.error, no.moved], [false, 'bank_full', 0], 'a refusal moves nothing');
+    eq(calls.filter((c) => c.name === 'hr_bank_move_many').length, 2, 'one ask per press');
+  });
+
   return fails;
 }
 
@@ -329,6 +429,7 @@ async function load(base) {
   return {
     EX: await import(u(EXPLAIN)), MD: await import(u(MODEL)), REC: await import(u(RECORDER)),
     CS: Object.assign({}, await import(u(SESSION))), RES: await import(u(RESIDUE)),
+    TN: await import(u(TOWN)), UP: await import(u('src/shell/upgrade-plan.js')),
     END_ORDER: (await import(u('src/data/hunt-sessions.js'))).END_ORDER,
   };
 }
@@ -351,7 +452,8 @@ const MUTANTS = [
   { test: 'S2', file: SUMMARIES, from: "if (!s || seen.has(s.id)) continue;", to: "if (!s) continue;" },
   { test: 'S3', file: RESIDUE, from: "  huntSummaries: sanitizeSummaries,", to: "  huntSummaries: (v) => v," },
   { test: 'S4', file: MODEL, from: ".map((x) => [x.item, x.source, x.count])", to: ".map((x) => [x.item, 'own', x.count])" },
-  { test: 'S4', file: MODEL, from: "loot.sort((a, b) => b[1] - a[1]);", to: '' },
+  { test: 'S4', file: MODEL, from: "(standout(b.item) - standout(a.item)) || ", to: '' },
+  { test: 'S4', file: MODEL, from: '(each(b) - each(a)) || ', to: '' },
   { test: 'S4', file: MODEL, from: 'balanceH: ph ? ph.balance : null,', to: 'balanceH: ph ? ph.gold : null,' },
   { test: 'S4', file: SUMMARIES, from: 'lootValue: num(v.lootValue), ', to: '' },
   { test: 'S4', file: SUMMARIES, from: 'balance: num(v.balance), ', to: '' },
@@ -369,6 +471,17 @@ const MUTANTS = [
   { test: 'A1', file: SESSION, from: "if (!a || !ITEM.test(String(a.hunt)) ||", to: "if (!a ||" },
   { test: 'A2', file: RECORDER, from: "    if (a.done.has(s.id)) return;\n    a.done.add(s.id);", to: "    a.done.add(s.id);" },
   { test: 'A2', file: RECORDER, from: "const ex = a.sid === s.id ? explainDeaths(a.rec.events(), { whoOf }) : { deaths: [] };", to: "const ex = { deaths: [] };" },
+  /* Back in town (T1..T4) */
+  { test: 'T1', file: TOWN, from: "rules.loot[r.id] === rule && !rules.locked.has(r.id) &&", to: "rules.loot[r.id] === rule &&" },
+  { test: 'T1', file: TOWN, from: " && !(rule === 'sell' && isStartKit(r.id))", to: '' },
+  { test: 'T1', file: TOWN, from: "const lines = sale.lines.slice(0, SELL_LINES_MAX);", to: "const lines = sale.lines.slice(0);" },
+  { test: 'T1', file: TOWN, from: "const can = missing.length > 0 && (purse === null || purse >= missing[0].price);", to: "const can = missing.length > 0;" },
+  { test: 'T1', file: TOWN, from: "if (step.count > 0) out.push(Object.assign(step, { done: false }));", to: "if (step.count >= 0) out.push(Object.assign(step, { done: false }));" },
+  { test: 'T2', file: TOWN, from: "const first = out.find((s) => !s.done);", to: "const first = out[0];" },
+  { test: 'T3', file: TOWN, from: "else if (did.has(step.id)) out.push(Object.assign(step, { done: true, title: did.get(step.id) || step.title, words: '' }));", to: '' },
+  { test: 'T3', file: TOWN, from: "done: true, title: did.get(step.id) || step.title, words: ''", to: "done: true, words: ''" },
+  { test: 'T4', file: TOWN, from: "lines.map((l) => l.item), 'deposit');", to: "lines.map((l) => l.item), 'withdraw');" },
+  { test: 'T4', file: TOWN, from: "return Object.assign({ moved: r && r.ok ? r.count : 0 }, r", to: "return Object.assign({ moved: lines.length }, r" },
 ];
 
 async function selftest() {

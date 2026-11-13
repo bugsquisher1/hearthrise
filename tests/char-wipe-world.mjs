@@ -12,7 +12,9 @@
 //   WW-2   the procedure in order, with that page still open and a hunt running: every file applies
 //   WW-3   the real tick and every scheduled job on the empty world: no error, nothing resurrected
 //   WW-4   a tab left open through it: it stops with the way back to the characters screen, not a dead game
-//   WW-5   the reload: the characters screen, both slots empty, the bought one gone, no error
+//   WW-5   the reload: the characters screen, a new account's slots and all empty, the bought one gone, no error
+// THE SLOTS are read, never written here: a new account owns hr_hero_slots_of(an unknown id), the starter rows of hr_hero_slots
+// (one since 2027-03-25-hero-slots-one, Tyler 2026-11-09; two before). WW-1 wants that set plus the bought slot 2, WW-2 and WW-5 that set.
 //   WW-6   a new hero in slot 0, the old name free: the same first card as a brand-new account's, no summary, no death popup, no away line
 //   WW-7   nothing old on the server: the new hero's residue holds none of the old cards, summaries or stamps, and a stale tab closing adds none
 //   WW-8   the real engine plays it: a first hunt fights, settles and comes home to a summary of the new hero's first kills
@@ -58,6 +60,7 @@ async function main() {
     /* WW-1: the game opened for the walk, then closed below, as the procedure wants it */
     await apply('2027-02-14-market-on.sql');
     await db.query(`update public.hr_market_config set min_level = 1 where only_row`);
+    const fresh = (await sql(`select public.hr_hero_slots_of('00000000-0000-4000-8000-0000000c3e01'::uuid) s`)).s;
     const p = await world.play({ account: 'veteran', viewport: { width: 1366, height: 768 } });
     const { page } = p;
     await p.createHero('Marlow');
@@ -86,8 +89,8 @@ async function main() {
     await db.query(`insert into public.player_progress (user_id, slot, kind, key, period_key, value) values ($1, 0, 'flag', 'character_slot:2', '', 1)`, [me]);
     const held = await sql(`select (select count(*)::int from public.hunt_sessions where user_id = $1 and ended_at is null) open, (select count(*)::int from public.market_listings where user_id = $1) listed,
       (select client_state from public.player_state where user_id = $1 and slot = 0) residue, public.hr_hero_slots_of($1::uuid) slots, (select count(*)::int from public.player_ledger where user_id = $1) ledger`, [me]);
-    step('WW-1 a played veteran: an open hunt, a listing, a bought slot, a ledger and residue on the server', held.open === 1 && held.listed === 1 && held.slots.length === 3 && held.ledger > 0 && held.residue.coach && Array.isArray(held.residue.huntSummaries || []) && Object.keys(held.residue).length >= 3,
-      JSON.stringify({ ...held, residue: Object.keys(held.residue) }));
+    step('WW-1 a played veteran: an open hunt, a listing, a bought slot, a ledger and residue on the server', held.open === 1 && held.listed === 1 && JSON.stringify(held.slots) === JSON.stringify([...new Set([...fresh, 2])].sort((a, b) => a - b)) && held.ledger > 0 && held.residue.coach && Array.isArray(held.residue.huntSummaries || []) && Object.keys(held.residue).length >= 3,
+      JSON.stringify({ ...held, residue: Object.keys(held.residue), fresh }));
     await shot(page, 'veteran-before');
     const oldSession = (await sql(`select id from public.hunt_sessions where user_id = $1 and ended_at is null`, [me])).id;
     /* A second tab of the same browser, which stays open through it all. The first one reloads the moment it's over: its record of what
@@ -108,8 +111,8 @@ async function main() {
     const after = await sql(`select (select count(*)::int from public.player_state) heroes, (select count(*)::int from public.hunt_sessions) sessions, (select count(*)::int from public.hunt_instances) instances,
       (select count(*)::int from public.market_listings) listings, (select count(*)::int from public.player_ledger) ledger, (select count(*)::int from public.account_wallet) purses,
       (select count(*)::int from public.leaderboard_ranked) board, (select enabled from public.hr_market_config) market, (select count(*)::int from cron.job where jobname = 'hr-market-expire') sweep, public.hr_hero_slots_of($1::uuid) slots`, [me]);
-    step('WW-2 the procedure in order, with a hunt running and the page open: empty, two slots, the market back on', after.heroes === 0 && after.sessions === 0 && after.instances === 0 && after.listings === 0 && after.ledger === 0 && after.purses === 0 && after.board === 0 && after.market === true && after.sweep === 1 && after.slots.length === 2,
-      JSON.stringify(after));
+    step('WW-2 the procedure in order, with a hunt running and the page open: empty, the slots a new account owns, the market back on', after.heroes === 0 && after.sessions === 0 && after.instances === 0 && after.listings === 0 && after.ledger === 0 && after.purses === 0 && after.board === 0 && after.market === true && after.sweep === 1 && JSON.stringify(after.slots) === JSON.stringify(fresh),
+      JSON.stringify({ ...after, fresh }));
 
     /* WW-5, first: the reload with the tab's own record still saying "hero 0, shown". */
     const record = await page.evaluate(() => Object.keys(sessionStorage).map((k) => k + '=' + sessionStorage.getItem(k)).filter((s) => /"viewed":0/.test(s)).length);
@@ -118,7 +121,7 @@ async function main() {
     const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.char-row')).map((r) => r.innerText.replace(/\s+/g, ' ').trim()));
     await shot(page, 'characters-after');
     const screenText = await p.text();
-    step('WW-5 the reload with the old "hero 0" record: the characters screen, two empty slots, nothing of Marlow, nothing said about it', record === 1 && rows.length === 2 && rows.every((r) => /Create hero/.test(r)) && !/Marlow/.test(screenText) && !SAYS_WHAT_HAPPENED.test(screenText), JSON.stringify({ record, rows, screenText: screenText.slice(0, 300) }));
+    step('WW-5 the reload with the old "hero 0" record: the characters screen, the slots a new account owns and all empty, nothing of Marlow, nothing said about it', record === 1 && rows.length === fresh.length && rows.every((r) => /Create hero/.test(r)) && !/Marlow/.test(screenText) && !SAYS_WHAT_HAPPENED.test(screenText), JSON.stringify({ record, rows, screenText: screenText.slice(0, 300) }));
 
     /* WW-3: the 10 s tick and every job */
     const answers = [];

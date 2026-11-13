@@ -12,7 +12,7 @@
 //   T2 Gnoll Packlord  (combat 15+)  → Packlord's Band     ring
 //   T3 The Mire Witch  (combat 30+)  → Mirewort Drops      earrings
 //   T4 The Barrow King (combat 45+)  → Barrow-King's Mantle cape
-//   T5 The Frost Jarl  (combat 60+)  → Jarl's Rimetorc     necklace
+//   T5 The Frost Jarl  (combat 60+)  → Jarl's Collar        necklace
 //
 // A CHAMPION is a step into the next tier's danger at its own tier's gate: its
 // hp/atk/def/xp/gp sit inside [its own tier's band floor, the NEXT tier's band
@@ -53,17 +53,17 @@ export const CHAMPION_ITEMS = {
     steadyPm: 150, strB: 3, rarity: 'epic', tier: 4, reqSkill: 'level', reqLv: 52,
   },
   jarls_rimetorc: {
-    n: "Jarl's Rimetorc", icon: '📿', v: 3300, type: 'jewelry', slot: 'necklace',
+    n: "Jarl's Collar", icon: '📿', v: 3300, type: 'jewelry', slot: 'necklace',  /* Rime Necklace -> Collar (designer 2026-11-11, lane/d-small-calls): the text says what it is, a frozen iron neck ring; one plain noun like Charm, Band, Drops, Mantle */
     atkB: 7, strB: 6, rarity: 'legendary', tier: 5, reqSkill: 'level', reqLv: 66,
   },
 };
 
 export const CHAMPION_DESC = {
-  tusker_charm: 'A cracked tusk from the oldest boar in the woods, strung on a thong to make its wearer braver than is wise',
+  tusker_charm: 'A cracked tusk from the oldest boar in the woods, on a leather cord. Wearing it makes you a bit too brave',
   packlord_band: 'A crude iron band the Packlord wore on one claw, and the gnolls followed whoever held it',
-  mirewort_drops: 'Two beads of bog-amber with a sprig of mirewort sealed inside, humming faintly when a spell is near',
-  barrowking_mantle: 'The moldering cloak of a king who would not stay buried, and it still remembers how to hold a line',
-  jarls_rimetorc: 'A torc of frozen iron worn by the Frost Jarl. It never warms, and neither does the one who wears it',
+  mirewort_drops: 'Two beads of bog amber with a bit of mirewort sealed inside. They hum a little when someone\'s casting nearby',
+  barrowking_mantle: 'The rotting cloak of a king who wouldn\'t stay buried. It still helps you stand your ground',
+  jarls_rimetorc: 'A frozen iron neck ring the Frost Jarl wore. It never warms up, and you feel the cold the whole time you wear it',
 };
 
 /** The champion id for each tier, the order the roster appends them. */

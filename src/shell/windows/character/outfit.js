@@ -5,7 +5,7 @@
 // that turns it through the eight facings), the outfit grid (search, "Show
 // only owned"; premium outfits marked; one not owned can be previewed, never
 // worn), and the dye picker. Two separate saves, because they are two things:
-//   Wear this outfit   ONE free intent (hr_outfit_set): the server owns ownership.
+//   Equip (an outfit)  ONE free intent (hr_outfit_set): the server owns ownership.
 //   Save colors: N gp  ONE paid intent (hr_hero_colors_set) with four dye indices and
 //                      the server's quote. A hero's colors are one set, across every outfit.
 // TRYING ON IS FREE AND TELLS THE TRUTH: the preview is the World's own recolour, the
@@ -14,18 +14,19 @@
 // scratch until the re-read envelope says what is worn and what the colors are. A price the purse can't pay leaves Save colors off with
 // the line under it saying how much more (the house style; v0.2.97 gate: 1,550 gp live on a 400 gp purse, refused only after the press).
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf } from '../../../data/outfits.js?v=0.2.114';
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.114';
-import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.114';
-import { outfitOf } from '../../../session/character-sections.js?v=0.2.114';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.114';
-import { heroSprite } from '../../../session/hero-look.js?v=0.2.114';
-import { saveHeroColors, readColorsPrice } from '../../../session/hero-color-intents.js?v=0.2.114';
-import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.114';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.114';
-import { gold } from '../../../render/format.js?v=0.2.114';
-import { glyphSvg } from '../../launcher.js?v=0.2.114';
-import { runIntent, refusalText } from '../../intent-words.js?v=0.2.114';
+import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf } from '../../../data/outfits.js?v=0.2.125';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.125';
+import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.125';
+import { outfitOf } from '../../../session/character-sections.js?v=0.2.125';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.125';
+import { heroSprite } from '../../../session/hero-look.js?v=0.2.125';
+import { saveHeroColors, readColorsPrice } from '../../../session/hero-color-intents.js?v=0.2.125';
+import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.125';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.125';
+import { gold } from '../../../render/format.js?v=0.2.125';
+import { glyphSvg } from '../../launcher.js?v=0.2.125';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.125';
+import { t } from '../../../render/player-text.js?v=0.2.125';
 
 /* The turn order of the rotate button: clockwise from facing the viewer. */
 const TURN = Object.freeze(['s', 'sw', 'w', 'nw', 'n', 'ne', 'e', 'se'].filter((d) => FACINGS.includes(d)));
@@ -39,7 +40,7 @@ export function outfitHtml(g) {
     + '<p class="hw-of-name"></p>'
     + '<p class="hw-of-shows"></p>'
     + '<div class="hw-of-dye"><div class="hw-of-regions" role="tablist"></div><div class="hw-of-swatches"></div></div>'
-    + '<div class="hw-of-save"><button type="button" class="hh-tool" data-hs-act="of-save">Wear this outfit</button>'
+    + '<div class="hw-of-save"><button type="button" class="hh-tool" data-hs-act="of-save">' + t('controls.equip') + '</button>'
     + '<button type="button" class="hw-primary hw-of-colors" data-hs-act="of-colors"></button>'
     + '<button type="button" class="hh-tool hw-of-undo" data-hs-act="of-undo">Undo colors</button>'
     + '<p class="hw-why hw-of-why"></p>'
@@ -172,14 +173,14 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
 }
 
 /** One gesture on the Outfit tab; true when it was the tab's. */
-export function actOutfit(ctx, sc, action, ev, t, repaint) {
+export function actOutfit(ctx, sc, action, ev, el, repaint) {
   const cs = ctx.character;
-  if (action === 'of-search' && ev.type === 'input') { sc.query = String(t.value || '').slice(0, 40); repaint(); return true; }
-  if (action === 'of-owned' && ev.type === 'change') { sc.ownedOnly = !!t.checked; repaint(); return true; }
+  if (action === 'of-search' && ev.type === 'input') { sc.query = String(el.value || '').slice(0, 40); repaint(); return true; }
+  if (action === 'of-owned' && ev.type === 'change') { sc.ownedOnly = !!el.checked; repaint(); return true; }
   if (ev.type !== 'click') return false;
   if (action === 'of-turn') { sc.dir = (sc.dir + 1) % TURN.length; repaint(); return true; }
   if (action === 'of-pick') {
-    const id = t.getAttribute('data-outfit');
+    const id = el.getAttribute('data-outfit');
     if (!OUTFIT_ROWS[id]) return true;
     /* the colors stay: they are one set, across every outfit */
     sc.draft = { outfit: id, colors: draftOf(cs, sc).colors };
@@ -187,10 +188,10 @@ export function actOutfit(ctx, sc, action, ev, t, repaint) {
     repaint();
     return true;
   }
-  if (action === 'of-region') { sc.region = t.getAttribute('data-region'); repaint(); return true; }
+  if (action === 'of-region') { sc.region = el.getAttribute('data-region'); repaint(); return true; }
   if (action === 'of-dye' && sc.region) {
     const d = draftOf(cs, sc);
-    const i = Number(t.getAttribute('data-dye'));
+    const i = Number(el.getAttribute('data-dye'));
     sc.draft = { outfit: d.outfit, colors: Object.assign({}, colorsShown(cs, d) || BASE_DEFAULT_COLORS, { [sc.region]: i }) };
     sc.msg = '';
     repaint();

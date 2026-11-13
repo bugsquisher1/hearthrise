@@ -2,14 +2,24 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "hearthrise-board",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "tools/board.local.mjs"
+      ],
+      "port": 8199
+    },
+    {
       "name": "hearthrise-qa",
       "runtimeExecutable": "python",
       "runtimeArgs": [
         "-m",
         "http.server",
-        "8123"
+        "8131",
+        "--directory",
+        "R:/the game/set-v0.2.48"
       ],
-      "port": 8123
+      "port": 8131
     },
     {
       "name": "hearthrise-static",
@@ -160,6 +170,54 @@
         "8225"
       ],
       "port": 8225
+    },
+    {
+      "name": "hearthrise-sandbox64",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8230",
+        "--directory",
+        "R:/the game/the game/.claude/worktrees/agent-a58109aa438c5780c"
+      ],
+      "port": 8230
+    },
+    {
+      "name": "hearthrise-set",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8126",
+        "--directory",
+        "R:/the game/set-v0.2.60"
+      ],
+      "port": 8126
+    },
+    {
+      "name": "hearthrise-qa2",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8128",
+        "--directory",
+        "R:/the game/set-v0.2.48"
+      ],
+      "port": 8128,
+      "autoPort": false
+    },
+    {
+      "name": "hearthrise-world-110",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "R:/the game/set-v0.2.110/tools/qa/local-world.mjs",
+        "serve",
+        "--port",
+        "8787"
+      ],
+      "port": 8787
     }
   ]
 }

@@ -74,6 +74,7 @@ const SOURCE_SHEET = 'tokens.css';
    reason is an entry nobody defended. */
 const COMPONENT_SCOPED = {
   '--td-cell': 'paper-doll cell size; .td-doll re-declares it per breakpoint',
+  '--coach-foot': 'the phone coach card foot row (Got it and the tips switch): --tap on a card with a foot, 0px without; local to .hs-pointer',
   '--cs-bleed': 'clan-seat scene bleed; local to .hr-cs',
   '--cs-inset': 'clan-seat scene inset; local to .hr-cs',
   '--tier-tint': 'combat scrim tint, one value per [data-foe-tier]; varies per element',

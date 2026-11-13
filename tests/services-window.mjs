@@ -5,7 +5,7 @@
 //   node tests/services-window.mjs            the rules
 //   node tests/services-window.mjs --mutate   every planted defect must turn a rule RED
 //
-// mutant-anchors: src/shell/windows/services.js src/session/item-sections.js src/shell/windows/shop.js
+// mutant-anchors: src/shell/windows/services.js src/session/item-sections.js src/shell/windows/shop.js src/shell/bless-all.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus the two S2 sections.
@@ -36,6 +36,9 @@
 //   SV-10 WHERE A HUNTED INPUT DROPS (Tyler 2026-11-07: "what drops the Fine Tempering Salts? haven't dropped any yet"): short of Fine
 //         Tempering Salts, the line counts the recipe's inputs ("2 Iron Bars and 1 Big Bones") and names where Big Bones drop, read from the
 //         monsters' rows and the open grounds (hunt-ground-facts dropWhereWords), never typed
+//   SV-11 BLESS ALL (designer re-read 2026-11-11: three presses to bless again after every death): one press sends one hr_blessing_buy per
+//         missing tier, in order, each at the price the envelope its last purchase brought back quotes; no client total; the button goes
+//         once nothing is missing
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -79,6 +82,11 @@ async function stub(page, s) {
     }
     if (s.refuseSale && name === 'hr-accrue' && JSON.stringify(body).includes('unlock_buy')) return r.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ ok: false, verb: 'unlock_buy', error: 'insufficient_item', stage: 'buy', detail: { ok: false, error: 'insufficient_item', item_id: 'temper_salts', have: 4, need: 20, bag: 3, storage: 1 } }) });
     if (name === 'hr_load' || name === 'hr-accrue') return json(Object.assign(clone(s.env), { version: ++s.version, ok: true }));
+    /* SV-11: the server holds the bought tier, and the next read says so (hr_blessing_view) */
+    if (s.blessMoves && name === 'hr_blessing_buy') {
+      const b = s.env.blessings, row = b.tiers.find((x) => x.tier === body.p_tier);
+      if (row && row.price === body.p_price) { row.held = true; b.held = b.tiers.filter((x) => x.held).map((x) => x.tier); b.permille = row.permille; }
+    }
     if (RPCS.includes(name)) { await new Promise((ok) => setTimeout(ok, 400)); return json({ ok: true }); }
     return json({ ok: true });
   });
@@ -107,7 +115,8 @@ async function checks(overrides) {
     const errors = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-    const s = { env: Object.assign(clone(BASE_ENV), sections), version: 1, calls: [] };
+    const s = { env: Object.assign(clone(BASE_ENV), sections), version: 1, calls: [], blessMoves: !!(sections && sections.blessMoves) };
+    delete s.env.blessMoves;
     await stub(page, s);
     const up = await signInAndPlay(page, 'http://127.0.0.1:' + port);
     await page.keyboard.press('r');
@@ -297,6 +306,28 @@ async function checks(overrides) {
       await ctx.close();
     }
     { // SV-5
+      /* SV-11 BLESS ALL (designer re-read 2026-11-11: three presses to bless again): ONE press buys every missing tier in order, each at the price
+         the envelope the last purchase brought back quotes, and the button goes once nothing is missing */
+      const sv = await open(Object.assign(clone(SECTIONS), { blessMoves: true }));
+      if (!sv.opened) fails.push('SV-11 the Services tab did not open');
+      else {
+        const shown = () => sv.page.evaluate(() => { const b = document.querySelector('[data-hs-win="shop"] [data-pane="services"] [data-hs-act="bless-all"]'); return b ? { hidden: b.parentNode.hidden, off: b.disabled, t: b.textContent } : null; });
+        const before = await shown();
+        if (!before || before.hidden || before.off || before.t !== 'Bless all') fails.push('SV-11 Bless all with two missing reads ' + JSON.stringify(before));
+        await press(sv.page, '[data-hs-win="shop"] [data-pane="services"] [data-hs-act="bless-all"]', 'SV-11');
+        await wait(sv.page, () => /All 3 Blessings are on/.test(document.querySelector('[data-hs-win="shop"] [data-pane="services"] .hh-intent-msg').textContent), null, 6000);
+        const bought = sent(sv.s, 'hr_blessing_buy').map((c) => [c.body.p_tier, c.body.p_price]);
+        if (JSON.stringify(bought) !== '[[2,165],[3,220]]') fails.push('SV-11 Bless all sent ' + JSON.stringify(bought));
+        const msg = await txt(sv.page, '.hh-intent-msg'), after = await shown();
+        if (!/All 3 Blessings are on\./.test(msg || '') || !after || !after.hidden) fails.push('SV-11 after Bless all: ' + JSON.stringify({ msg, after }));
+        /* say-why: with nothing left to buy, the line under it says so */
+        const why = await txt(sv.page, '.hw-bless-all-why');
+        if (why !== 'All your Blessings are on.') fails.push('SV-11 the Bless all why line reads ' + JSON.stringify(why));
+        if (sv.errors.length) fails.push('SV-11 console errors: ' + sv.errors.join(' | ').slice(0, 300));
+      }
+      await sv.ctx.close();
+    }
+    {
       const { ctx, page, opened } = await open({});
       if (!opened) fails.push('SV-5 the Services tab did not open without the sections');
       else {
@@ -334,7 +365,8 @@ const MUTANTS = [
   ['Buy sends without a confirmation', 'src/shell/windows/services.js',
     "if (q && q.available) { sc.confirm = true; sc.msg = ''; repaint(); } return true; }",
     "if (q && q.available) runIntent(sc, repaint, () => cs.buyStamina(q.price), 'x'); return true; }"],
-  ['any missing tier can be bought', 'src/shell/windows/services.js', "prop(btn, 'disabled', t.held || !next || next.tier !== t.tier || sc.pending", "prop(btn, 'disabled', t.held || sc.pending"],
+  ['any missing tier can be bought', 'src/shell/windows/services.js', "prop(btn, 'disabled', r.held || !next || next.tier !== r.tier || sc.pending", "prop(btn, 'disabled', r.held || sc.pending"],
+  ['Bless all buys one tier (SV-11)', 'src/shell/bless-all.js', '    r = got;\n', '    return got;\n'],
   ['the stamina control is on with no quote', 'src/shell/windows/services.js', 'const canStam = !!q && q.available && !sc.pending', 'const canStam = !sc.pending'],
   ['the Shop writes its own line over the Services answer (IP-3, v0.2.46)', 'src/shell/windows/shop.js',
     "text(root.querySelector(':scope > .hh-intent-msg'), st.sc.msgAt", "text(root.querySelector('.hh-intent-msg'), st.sc.msgAt"],

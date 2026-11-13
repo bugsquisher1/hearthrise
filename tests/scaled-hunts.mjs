@@ -61,7 +61,7 @@ const whatIfOf = (S, gid, L) => {
   for (const id of Object.keys(B.GROUND_ROSTER[gid])) {
     const r = S.scaledRow(MONSTERS[id], id, gid, L);
     if (r === MONSTERS[id]) throw new Error('scaled-hunts: ' + gid + ' did not scale ' + id + ' for a Level ' + L + ' leader');
-    rows[id] = Object.fromEntries(['level', 'hp', 'atk', 'baseAcc', 'def', 'xp', 'gp', 'drops'].map((k) => [k, r[k]]));
+    rows[id] = Object.fromEntries(['level', 'hp', 'atk', 'baseAcc', 'def', 'xp', 'gp', 'drops', 'partyPm'].map((k) => [k, r[k]]));
   }
   return { monsters: rows };
 };
@@ -184,7 +184,9 @@ function rules(S) {
       const table = S.scaledMonsters(MONSTERS, gid, L);
       for (const [id, role] of Object.entries(B.GROUND_ROSTER[gid])) {
         const m = MONSTERS[id], r = S.scaledRow(m, id, gid, L), gap = to - g.floor;
-        const f = B.formulaStats({ level: m.level + gap, role, tier: m.tier, floor: to, fit: g.fit, ground: gid }, { formula: F });
+        /* the XP fit is the TOP ground's (scaled-hunts.js topGroundOf), never the home ground's (designer 2026-11-11): one number for every scaled Level */
+        const topG = S.topGroundOf(), f = B.formulaStats({ level: m.level + gap, role, tier: m.tier, floor: to, fit: g.fit, ground: gid }, { formula: F, groundXp: { [gid]: B.GROUND_XP_FIT[topG] || 1 } });
+        if (topG !== Object.keys(G.OPEN_GROUNDS).sort((a, b) => band(b)[1] - band(a)[1] || band(b)[0] - band(a)[0])[0]) bad.push(gid + ' L' + L + ': topGroundOf says ' + topG);
         const mean = ((f.gp[0] + f.gp[1]) / 2) * (H.coinPm[g.fit] / 1000), got = (r.gp[0] + r.gp[1]) / 2;
         const k = gid + ' L' + L + ' ' + id;
         if (r.level !== m.level + gap) bad.push(k + ': Level ' + r.level + ', want ' + (m.level + gap));

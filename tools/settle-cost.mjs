@@ -175,13 +175,18 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
     }
   };
   /* index.ts's hello for a hunter, in its statements: the read transaction, the seed transaction, the hunt settle. */
+  let held = null;
   const hello = async (o) => {
     const u = viewer.user;
     await db.query('insert into public.character_presence (user_id, slot, seen_at) select unnest($1::uuid[]), 0, now() on conflict (user_id, slot) do update set seen_at = excluded.seen_at', [uids]);
     await helloRead.read(execSelf, u, 0);
     await execSelf(`select (public.hr_seed($1::uuid, $2::int, $3) & 4294967295)::bigint as seed,
              public.hr_seed($1::uuid, $2::int, $4)::text as salt, public.hr_perks_of($1::uuid, $2::int) as perks`, [u, 0, 'accrue:x', 'intent:accrue:x']);
-    return M.HS.settleHunt({ exec: execSelf, user: u, slot: 0, mode: 'settle', bucket: null, project: true, live: true, ...o });
+    /* the shipped client's ask names the version its record holds whole (character-session.js, the have field): the last answer
+       that carried the character. A tree whose edge does not read it answers as it always did. */
+    const v = await M.HS.settleHunt({ exec: execSelf, user: u, slot: 0, mode: 'settle', bucket: null, project: true, live: true, ...(held === null ? {} : { have: held }), ...o });
+    if (v && v.body && v.body.state && Number.isSafeInteger(v.body.version)) held = v.body.version;
+    return v;
   };
   const phases = { read: 0, propose: 0, commit: 0, wall: 0 };
   const kills = [];
@@ -213,7 +218,7 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
         const early = Math.floor((w * VIEWED_ASKS[0]) / VIEWED_ASKS[1]) - Math.floor(((w - 1) * VIEWED_ASKS[0]) / VIEWED_ASKS[1]);
         for (let i = 0; i < early; i++) {
           const a = await hello({ minWindowMs: 1e15 });
-          if (a.reason !== 'below_min_span' || !a.body.hunt_live || !a.body.state) throw new Error('an early ask did not answer the live start point: ' + JSON.stringify({ o: a.outcome, r: a.reason }));
+          if (a.reason !== 'below_min_span' || !a.body.hunt_live || (!a.body.state && a.body.hunt_slim !== true)) throw new Error('an early ask did not answer the live start point: ' + JSON.stringify({ o: a.outcome, r: a.reason }));
           if (recording) { asks++; answers.push(a.body); }
         }
         const v = await hello({ atMs: toMs });

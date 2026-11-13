@@ -99,8 +99,12 @@ async function check(root, sql) {
 }
 
 const MUTANTS = [
-  { name: 'the spawn rows back to the as-built spawns (the Brook Bear bug)', want: /^reach: mosslight_glade: the engine spawns brook_bear/,
-    edits: [['tools/gen-hunt-sessions.mjs', '      for (const s of (p.pack || p.spawns || [])) {', '      for (const s of (p.spawns || [])) {']] },
+  /* The bear stands in Vine Hollow as built since lane/c-brook-bear (the designer's ruling 3, 2026-11-10), so no open ground has a creature only a bigger
+     pull brings: the bug needs one, and the mutant puts the bear back where it stood on 2026-10-30 (the fill rows) beside the generator's slip. */
+  { name: 'the spawn rows back to the as-built spawns (the Brook Bear bug, the bear back in the fill rows)', want: /^reach: mosslight_glade: the engine spawns brook_bear/,
+    edits: [['tools/gen-hunt-sessions.mjs', '      for (const s of (p.pack || p.spawns || [])) {', '      for (const s of (p.spawns || [])) {'],
+      ['src/data/hunt-grounds.js', "['walking_vine', 'brook_bear'], ['carrion_crow', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']",
+        "['walking_vine', 'carrion_crow'], ['brook_bear', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']"]] },
   { name: 'a kill bound that forgets the Uncommon band', want: /^item-bound: .* \(1 a kill\), the settle's bound is 0/,
     edits: [['tools/gen-hunt-sessions.mjs', "for (const d of (m.drops || [])) if (d && d.id && ID.test(d.id)) drops[d.id]",
       "for (const d of (m.drops || [])) if (d && d.id && ID.test(d.id) && d.band !== 'uncommon') drops[d.id]"]] },

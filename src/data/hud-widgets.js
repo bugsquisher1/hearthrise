@@ -18,6 +18,10 @@
 //   phone      overrides of anchor/dx/dy/opacity/visible on the phone size class; folded: 'alone' starts the widget
 //              folded while the hero has no party, open in one, until the player presses its fold (hud.js layoutOf)
 //   below      (optional) widget ids this one stacks under when it would overlap them (hud.js stackBelow)
+//   folded     (optional) the desktop's default fold: 'narrow' starts the widget folded on a screen narrower than
+//              --hud-fold-below (tokens.css), 'narrow-alone' only while the hero has no party too (hud.js FOLD_RULES)
+//   section    (optional) an envelope section behind a server switch: the widget's lines in HUD layout and in Settings are
+//              listed only while the server sends it (a feature switched off shows nothing, its settings included)
 //
 // The player's layout is a DISPLAY preference (residue `hudLayout`, CLAUDE.md §6).
 // The hunt widgets show only while the character's envelope carries a hunt.
@@ -49,6 +53,16 @@ export const HUD_WIDGETS = Object.freeze([
     min: Object.freeze([96, 22]), opacity: 0.85, visible: true, removable: true, when: 'always',
     phone: Object.freeze({ visible: false, dx: 4, dy: 4 }),
   }),
+  /* LIVE EVENTS (src/shell/widgets/event-plate.js; mocks 2026-11-10 SPEC §2): a plate an event on now or starting within a day,
+     at the World's top left, in town and in a hunt. In a hunt it STACKS under the Party panel that holds that corner (`below`).
+     With no event, or every server switch off, the whole box goes: it takes no room and never moves the camera. `section`: its
+     line in Settings, HUD layout, is listed only while the server sends `live_events` (switched off, nothing of it shows). */
+  Object.freeze({
+    id: 'events', label: 'Live events', layer: 'world', anchor: 'tl', dx: 4, dy: 12,
+    min: Object.freeze([120, 26]), opacity: 1, visible: true, removable: true, when: 'always',
+    below: Object.freeze(['party']), section: 'live_events',
+    phone: Object.freeze({ dx: 12, dy: 12 }),
+  }),
   /* The hunt screen (HUNT_SCREEN_SPEC §1.4): built once, patched in place. */
   Object.freeze({
     id: 'hunt-topbar', label: 'Hunt bar (top)', layer: 'world', anchor: 'tc', dx: 0, dy: 8,
@@ -57,7 +71,7 @@ export const HUD_WIDGETS = Object.freeze([
   }),
   Object.freeze({
     id: 'party', label: 'Party', layer: 'world', anchor: 'tl', dx: 12, dy: 12,
-    min: Object.freeze([240, 80]), opacity: 0.9, visible: true, removable: true, when: 'hunt',
+    min: Object.freeze([240, 80]), opacity: 0.9, visible: true, removable: true, when: 'hunt', folded: 'narrow-alone',
     /* On a phone a hero with no party starts it folded (the World is 245 px tall; a party of one says nothing the bar does not). */
     phone: Object.freeze({ dx: 4, dy: 4, folded: 'alone' }),
   }),
@@ -65,7 +79,7 @@ export const HUD_WIDGETS = Object.freeze([
      covers Hunt details, Summary or Leave hunt (QA phone playtest 10-24: one press on Hunt details hid all three). */
   Object.freeze({
     id: 'analyzer', label: 'Hunt analyzer', layer: 'world', anchor: 'tr', dx: 12, dy: 12,
-    min: Object.freeze([260, 120]), opacity: 0.9, visible: true, removable: true, when: 'hunt',
+    min: Object.freeze([260, 120]), opacity: 0.9, visible: true, removable: true, when: 'hunt', folded: 'narrow',
     below: Object.freeze(['hunt-topbar']),
     phone: Object.freeze({ visible: false, dx: 4, dy: 4 }),
   }),
@@ -76,7 +90,7 @@ export const HUD_WIDGETS = Object.freeze([
      Off by default on a phone, where it stacks under the hunt bar (HUD layout shows it). */
   Object.freeze({
     id: 'tally', label: 'Tally (kill tasks)', layer: 'world', anchor: 'tr', dx: 12, dy: 12,
-    min: Object.freeze([180, 32]), opacity: 0.9, visible: true, removable: true, when: 'always',
+    min: Object.freeze([180, 32]), opacity: 0.9, visible: true, removable: true, when: 'always', folded: 'narrow',
     below: Object.freeze(['analyzer', 'hunt-topbar']),
     phone: Object.freeze({ visible: false, dx: 4, dy: 4 }),
   }),

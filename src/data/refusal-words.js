@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.114';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.125';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -54,6 +54,17 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
   loot_dispatch: Object.freeze({
     hunting: 'Your hero is out hunting. Dispatch loot works in town.',
     storage_full: 'Storage is full, so nothing was stored. Storage chests in the House (E) make more room.',
+  }),
+  /* Many stacks in one press (2027-04-13-bank-move-many.sql): all of them went, or none did. */
+  bank_move_many: Object.freeze({
+    hunt_open: 'Your hero is out hunting. Storage is at home, so nothing was put away.',
+    bank_full: 'Your storage is full, so nothing was put away. Storage chests in the House (E) make more room.',
+    bag_full: 'Your bag is full, so nothing was taken out. Make room first.',
+    item_locked: 'One of those is locked, so nothing was put away. Unlock it first.',
+    too_many_items: 'That is too many stacks for one press. Pick fewer.',
+  }),
+  item_lock_many: Object.freeze({
+    too_many_items: 'That is too many items for one press. Pick fewer.',
   }),
   /* Carrying supplies into a running hunt (2027-02-21-hunt-carry-in.sql hr_hunt_restock). */
   hunt_restock: Object.freeze({
@@ -317,7 +328,6 @@ export const REFUSAL_WORDS = Object.freeze({
   not_leader: 'Only the party leader can do that.',
   not_party_leader: 'Only the party leader can do that.',
   /* Call out (2027-03-12-boss-call.sql). The press's own section reads src/data/boss-calls.js, with the boss's name; these are the codes' lines anywhere else. */
-  call_party: 'The boss wants a party of two or more.',
   call_leader: 'Only your party\'s leader can call him out.',
   call_limit: 'You\'ve called 3 times today. More after midnight UTC.',
   call_unknown: 'Nobody here answers that call, so you weren\'t charged.',

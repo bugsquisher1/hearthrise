@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // tests/area-spells-server.mjs — THE AREA SPELLS' SERVER HALF (lane/b-area-set; Tyler 2026-11-08: "start giving some monsters some aoe
 // spells and our heros some more aoe spells"; CLAUDE.md §1, §4, §6). The three staged files, on the replayed chain (PGlite):
-//   2027-03-28-area-conditions.sql, 2027-03-28-area-spells-hunt-sessions-catalogue.generated.sql, 2027-03-28-area-spells-rune-spells.generated.sql
+//   2027-04-15-area-conditions.sql, 2027-04-15-area-spells-hunt-sessions-catalogue.generated.sql, 2027-04-15-area-spells-rune-spells.generated.sql
 //
 //   node tests/area-spells-server.mjs            the guard
 //   node tests/area-spells-server.mjs --mutate   the proof: each planted defect turns it red
@@ -45,8 +45,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    whichever way it ships. Off, AS-1 would have nothing to land. */
 const ENGINE_SPELLS = await import(pathToFileURL(join(ROOT, 'src', 'data', 'monster-spells.js')).href + '?v=' + BUILD.cache);
 ENGINE_SPELLS.SPELL_SWITCH.live = true;
-const COND = '2027-03-28-area-conditions.sql';
-const RUNES = '2027-03-28-area-spells-rune-spells.generated.sql';
+const COND = '2027-04-15-area-conditions.sql';
+const RUNES = '2027-04-15-area-spells-rune-spells.generated.sql';
 const FILES = Object.freeze([COND, CAT, RUNES]);
 const sqlOf = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const WARRENS = 'coppercap_warrens';

@@ -152,6 +152,13 @@ function contract(R, cs, body, tl) {
   need('equipment', R.IS.equipmentOf(cs) !== null, 'equipmentOf reads no equipment');
   const sk = R.IS.skillsOf(cs);
   need('skills', !!sk && Object.keys(sk).length >= 4 && !!sk.melee, 'skillsOf yields ' + JSON.stringify(sk).slice(0, 160) + ' from ' + JSON.stringify(body.skills).slice(0, 160));
+  /* A SKILL'S BAR IS THE SERVER'S SECTION (lane/c-skills-from-server): every skill the ledgers draw, whole, its level the one
+     `skills` states, its two marks holding its XP (the settled hunt has moved Melee off zero) */
+  const sl = R.IS.skillLevelsOf(cs);
+  const slBad = sl ? Object.keys(sk || {}).filter((id) => !sl[id] || sl[id].level !== sk[id].level || sl[id].xp !== sk[id].xp
+    || !(sl[id].need === 0 || sl[id].into < sl[id].need)) : ['(no section)'];
+  need('skill_levels', !!sl && Object.keys(sl).length >= 13 && !slBad.length && !!sl.melee && sl.melee.xp > 0 && sl.melee.need > 0,
+    'skillLevelsOf yields ' + JSON.stringify(sl && sl.melee) + ' (cells off `skills`: ' + slBad.join(',') + ') from ' + JSON.stringify(body.skill_levels).slice(0, 200));
   need('state', R.IS.goldOf(cs) !== null, 'goldOf reads no state.gold');
   const v = R.PS.vitalsOf(cs);
   need('state', !missing(v, ['hp', 'hpMax', 'mana', 'manaMax', 'staminaMs', 'staminaCapMs']).length, 'vitalsOf misses ' + missing(v, ['hp', 'hpMax', 'mana', 'manaMax', 'staminaMs', 'staminaCapMs']).join(', '));
@@ -240,6 +247,18 @@ function contract(R, cs, body, tl) {
   const tv = R.CS.heroVitalsOf(cs);
   need('vitals', !!tv && isNum(tv.hpMax) && isNum(tv.manaMax) && isNum(tv.level) && (tv.hunting || tv.mana === tv.manaMax),
     'heroVitalsOf yields ' + JSON.stringify(tv) + ' from ' + JSON.stringify(body.vitals));
+  /* THE LEVEL IS THE SERVER'S OWN BLOCK (lane/c-level-from-server): the real envelope states { xp, level, into, need }, the
+     client's one reader takes all four as they stand, and it is the Level the server's vitals are worked from. */
+  const lb = body.level, lr = R.CS.levelOf(cs);
+  need('level', !!lb && !!lr && isNum(lb.level) && lr.level === lb.level && lr.xp === lb.xp && lr.into === lb.into && lr.need === lb.need
+    && tv.level === lb.level && tv.into === lb.into && tv.need === lb.need && body.vitals.level === lb.level && lb.xp === body.state.level_xp,
+    'levelOf yields ' + JSON.stringify(lr) + ' from the envelope\'s level block ' + JSON.stringify(lb) + ' (vitals ' + JSON.stringify(body.vitals) + ', state.level_xp ' + JSON.stringify(body.state && body.state.level_xp) + ')');
+  /* the live events (2027-03-22-live-events.sql hr_live_events_view; src/shell/live-events-view.js reads it for the plate, the
+     Hunts lines and Call out): Open Halls, switched on and holding now, as the reader takes it (null when every switch is off) */
+  const le = R.LE.liveEventsOf(cs);
+  const oh = le && le.find((e) => e.id === 'open_halls');
+  need('live_events', !!oh && oh.type === 'open_halls' && oh.dial === 'feePm' && oh.pm === 0 && oh.live === true && oh.scope.includes('world')
+    && oh.startsMs < Date.now() && oh.endsMs > Date.now(), 'liveEventsOf yields ' + JSON.stringify(le) + ' from ' + JSON.stringify(body.live_events));
   /* the Farm window (2026-11-26-farm-window.sql): a fresh hero's field — room for 2 plots at the Camp, tier 1, the tier-2 price */
   const fl = R.FS.farmLandOf(cs, 0);
   need('farm_land', !!fl && fl.cap >= 2 && fl.plotLevel >= 1 && fl.plots instanceof Map && (fl.plotLevel >= 5 || (!!fl.upgrade && fl.upgrade.gold > 0 && fl.upgrade.farming > 0)),
@@ -277,7 +296,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'gm', 'hallmark']);
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -335,7 +354,7 @@ async function readers(root) {
     PS: await import(u('src/session/party-sections.js')), ACC: await import(u('src/session/account-session.js')),
     CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), HO: await import(u('src/session/home-sections.js')),
     TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TP: await import(u('src/session/temper-sections.js')),
-    JW: await import(u('src/session/jewelry-sections.js')),
+    JW: await import(u('src/session/jewelry-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')), SHOP: await import(u('src/data/shops.js')),
   };
@@ -361,6 +380,10 @@ async function realBody(db, M, H) {
     poses.push(await H.one(db, 'select public.hr_hunt_section_view($1::uuid, 0)', [H.UIDS[0]]));
   }
   await seedS2(db, M, H);
+  /* LIVE EVENTS (2027-03-22-live-events.sql §3): Open Halls switched on for everyone and its window holding now (inside this
+     test's transaction only), so the section lists it; a fee dial moves no settle number. */
+  await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'event_open_halls'");
+  await db.query("update public.hr_live_events set first_at = now() - interval '1 hour', every_days = null where event_id = 'open_halls'");
   const exec = H.makeExec(db);
   const at = h.from + 6 * 60000 + 60000;
   const v = await M.HS.settleHunt({ exec, user: H.UIDS[0], slot: 0, mode: 'settle', bucket: null, project: true,
@@ -454,6 +477,17 @@ const DB_MUTANTS = [
   ['bench_tax', 'public.hr_bench_tax_view(uuid,integer)', "'carry_mg', v_st.carry,", "'carry', v_st.carry,"],
   ['temper', 'public.hr_temper_view(uuid,integer)', "'rung', coalesce(pp.value, 0),", "'level', coalesce(pp.value, 0),"],
   ['hallmark', 'public.hr_hallmark_view(uuid,integer)', "'per_day', v_limit);", "'perday', v_limit);"],
+  /* lane/c-level-from-server: the client reads the Level from the server's block and nowhere else, so each of its fields is contract */
+  ['level', 'public.hr_level_block(bigint)', "jsonb_build_object('xp', x, 'level', lv,", "jsonb_build_object('xp', x, 'lv', lv,"],
+  ['level', 'public.hr_level_block(bigint)', "'into', x - public.hr_char_xp_for_level(lv),", "'in_to', x - public.hr_char_xp_for_level(lv),"],
+  ['level', 'public.hr_state_of(uuid,integer)', "'level', public.hr_level_block(v_st.level_xp),", "'level_block', public.hr_level_block(v_st.level_xp),"],
+  /* lane/c-skills-from-server: the skill ledgers draw each field of hr_skill_block and nothing of their own */
+  ['skill_levels', 'public.hr_skill_block(text,bigint)', "jsonb_build_object('xp', x, 'level', lv, 'into', x - lo,", "jsonb_build_object('xp', x, 'lv', lv, 'into', x - lo,"],
+  ['skill_levels', 'public.hr_skill_block(text,bigint)', "'into', x - lo, 'need',", "'in_to', x - lo, 'need',"],
+  ['skill_levels', 'public.hr_skill_block(text,bigint)', "'need', public.hr_skill_xp_for_level(p_skill, lv + 1) - lo);", "'needs', public.hr_skill_xp_for_level(p_skill, lv + 1) - lo);"],
+  /* lane/b-live-events-client: the plate and the Hunts lines read each event's window and dial from the section */
+  ['live_events', 'public.hr_live_events_view(uuid,integer)', "'starts', x.starts,", "'start', x.starts,"],
+  ['live_events', 'public.hr_live_events_view(uuid,integer)', "'dial', x.dial, 'pm', x.pm,", "'dial', x.dial, 'permille', x.pm,"],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

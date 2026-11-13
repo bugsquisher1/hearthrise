@@ -51,7 +51,7 @@
 //   bankStacks, lootRules { item: deposit|sell|ignore }, weapon (worn), armoured (wears armor or a shield), blessings { held, of, freeUntil, prices },
 //   endReason (the latest hunt's, once ended), death { xp, saved } (the newest death_log row), supplies [{ item,
 //   source, count }] (this hunt's analyzer), huntMs, hpMax, presets (saved setups), landPlanted, land { ready, empty },
-//   home { owned, next }, gold, staminaMs, tally { held, paid, weight }, sessionId (the open hunt's), and from the SHELL (the lane 1 / lane 2
+//   home { owned, next }, gold, staminaMs, tally { held, paid, weight, tasks { task: { kills, target, done } }, paidTasks [task] }, sessionId (the open hunt's), and from the SHELL (the lane 1 / lane 2
 //   interface, src/session/tutorial-sections.js pointerCardOf's second argument): read (Set of read card ids),
 //   roster [{ slot, level, name, open, hunting }], slotsOwned, playLimit, sellable (stacks Sell all loot sells
 //   now), upgrades ([item] Equip upgrades would put on), back (the hunt the player came back to after an absence), slotCost (the next hero slot's price).
@@ -65,27 +65,29 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.114';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.114';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.114';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.114';
-import { SKILLS_DEF } from './skills.js?v=0.2.114';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.114';
-import { tallyTask } from './tally-tasks.js?v=0.2.114';
-import { ITEMS } from './items.js?v=0.2.114';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.114';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.114';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.114';
-import { isShield } from './shields.js?v=0.2.114';
-import { deriveProfile } from '../core/member.js?v=0.2.114';
-import { ABILITIES } from './abilities.js?v=0.2.114';
-import { CONSUMABLES } from './consumables.js?v=0.2.114';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.114';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.114';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.114';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.114';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.114';
-import { regenPermille } from '../core/vitals.js?v=0.2.114';
+import { HUNT_INDEX } from './hunts.js?v=0.2.125';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.125';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.125';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.125';
+import { SKILLS_DEF } from './skills.js?v=0.2.125';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.125';
+import { tallyTask } from './tally-tasks.js?v=0.2.125';
+import { ITEMS } from './items.js?v=0.2.125';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.125';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.125';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.125';
+import { isShield } from './shields.js?v=0.2.125';
+import { deriveProfile } from '../core/member.js?v=0.2.125';
+import { ABILITIES } from './abilities.js?v=0.2.125';
+import { CONSUMABLES } from './consumables.js?v=0.2.125';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.125';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.125';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.125';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.125';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.125';
+import { regenPermille } from '../core/vitals.js?v=0.2.125';
+import { BAR_TEXT } from './text/bar.js?v=0.2.125';
+import { t } from '../render/player-text.js?v=0.2.125';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -108,7 +110,7 @@ export const TUTORIAL_ANCHORS = Object.freeze({
   market: anchor('the Weighhouse (src/shell/windows/market), its icon', 'market', true),
   honor: anchor('Leaderboards (src/shell/windows/honor.js), its icon', 'honor', true),
   settings: anchor('Settings (src/shell/windows/settings.js), its icon, then the Help tab', 'settings', true),
-  hunt_prep: anchor('Hunt prep (src/shell/windows/hunt-prep.js), the bar\'s setup corner, then Save current setup', 'hunt-prep', true),
+  hunt_prep: anchor('Hunt prep (src/shell/windows/hunt-prep.js), the bar\'s setup corner, then New setup', 'hunt-prep', true),
   house: anchor('the House (src/shell/windows/house.js), its icon, then Buy', 'house', true),
   characters: anchor('the character strip\'s Characters button, then Create hero on the characters screen', 'characters'),
   strip: anchor('the character strip (src/app/character-strip.js), another hero\'s tab'),
@@ -142,6 +144,15 @@ const WOLVES = tallyTask('thicket_gray_wolves');
 /* The first place a new hero picks an armor weight: one sentence a weight (Tyler 2026-10-25, src/data/armour-weights.js). */
 const TAMSIN_WAY = 'Tamsin pays for kills. Open her tally and Take ' + WOLVES.count + ' ' + WOLVES.label + '. She pays in armor, so pick the armor weight that suits your style.';
 const CELLAR = 'mill_cellar', THICKET = 'meadowbrook_thicket';
+/* TAMSIN FIRST (designer 2026-11-10, the first ten minutes, played: the quit minute was 9, with nothing asked for five minutes and only junk in the bag).
+   Her Cellar task is taken before the first hunt, counts inside it, and pays a helmet the hero wears at once. Its count and label are her row's. */
+const RATS = tallyTask('cellar_giant_rats');
+const RATS_WORDS = Object.freeze({ label: RATS.label, count: RATS.count, ground: HUNT_INDEX[CELLAR].name, level: HUNT_INDEX[THICKET].band[0], next: HUNT_INDEX[THICKET].name });
+/* The first hour's lessons are for a hero under the Thicket's floor. */
+const UNDER_THICKET = { kind: 'level_at', at: 1, below: HUNT_INDEX[THICKET].band[0] };
+/* "Out to the brook" as a hero who never took her rats reads it (played 2026-11-10: Level 5 at 15 min 45 s of one unbroken first hunt). */
+const BROOK = 'Level ' + HUNT_INDEX[THICKET].band[0] + ' opens ' + HUNT_INDEX[THICKET].name + '. That\'s about fifteen minutes of hunting here, and you don\'t have to watch. '
+  + 'Close the game and your hero keeps hunting until its stamina runs out. Everything it earns will be waiting for you.';
 /* A second hero skips the knowledge cards once another hero on the account is past this Level (the designer's rule:
    it has lived through the first hour; the cards that set THIS hero's own state still show). */
 export const KNOWN_LEVEL = 5;
@@ -204,7 +215,9 @@ const orGotIt = (fact) => ({ kind: 'any', asks: true, of: [READ, fact] });
 const LESSON = { kind: 'lesson_time', hunt: THICKET };
 /* The Shop's Services tab and its next Bless (the shell rings the deepest one on screen first) */
 const SERVICES_TAB = '[data-hs-win="shop"] .hw-tab[data-tab="services"]';
-const TO_BLESS = [SERVICES_TAB, '[data-hs-win="shop"] [data-hs-act="bless"]:not([disabled])'];
+/* ...after the hunt summary's Back in town Bless row, the shallowest doorway (ringPlan rings the deepest on screen first: the Shop's own controls
+   when the Shop is open, else the summary's row while that card shows, else the Shop's icon) */
+const TO_BLESS = ['[data-hs-win="hunt-summary"] [data-hs-act="town"][data-step="bless"]', SERVICES_TAB, '[data-hs-win="shop"] [data-hs-act="bless"]:not([disabled])'];
 
 export const HUNT_TUTORIAL = Object.freeze([
   /* ── THE WEAPON IS THE STYLE, BEFORE ANY HUNT (the panel 2026-10-31: it came after the archer's disaster). One Got it, or
@@ -214,6 +227,10 @@ export const HUNT_TUTORIAL = Object.freeze([
     'inventory', { kind: 'any', of: [READ, { kind: 'weapon_changed' }] },
     { knowledge: true, gotIt: true, when: [IN_TOWN], hooks: ['[data-hs-win="inventory"] .hw-slot[data-slot="weapon"]'] }),
   /* ── A. Before the first pull ───────────────────────────────────────── */
+  /* Before the first hunt only: a hero who has hunted meets her at the Thicket's card (tamsins_task), as before. */
+  step('tamsins_rats', t('coach.tamsins_rats_title'), t('coach.tamsins_rats', RATS_WORDS),
+    'tally', orGotIt({ kind: 'tally_taken', task: RATS.id }), { gotIt: true, when: [IN_TOWN, { kind: 'unhunted' }], ring: { task: RATS.id },
+      inWindow: t('coach.tamsins_rats_in', RATS_WORDS) }),
   step('to_the_cellar', 'Rats in the mill',
     'The miller has rats in his grain. Open Hunts and enter the Mill Cellar.',
     'hunt_picker', { kind: 'enter', hunt: CELLAR },
@@ -239,6 +256,9 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('first_level', 'Your first Level',
     'Every kill earns Level XP and fills the ring around your Level. Each new Level gives you more health and mana, and opens new grounds and gear.',
     'hud_vitals', { kind: 'level' }, { knowledge: true, holdOpen: true, hooks: ['[data-coach-hook="level"]'] }),
+  /* THE COUNT IS DONE: ahead of every lesson of the first hunt, so a hero who pressed nothing still hears it. The hunt bar's Leave is ringed. */
+  step('tamsin_owes', t('coach.tamsin_owes_title'), t('coach.tamsin_owes', RATS_WORDS),
+    'hunt_topbar', IN_TOWN, { holdOpen: true, when: [HUNTING, UNDER_THICKET, { kind: 'tally_counted', task: RATS.id }] }),
   /* ── Reactive cards that interrupt the chain (after the first-minute cards, so the shell's "passed" rule never
      replays one of those). Each starts on its own fact and explains what just happened. ── */
   step('stamina_low', 'Stamina is low',
@@ -276,7 +296,9 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('equip_upgrades', 'Wear what you found',
     'You found gear that beats what you\'re wearing. You change gear in town, so open your bag and press Equip upgrades.',
     'inventory', { kind: 'upgrades_none' }, { reactive: true, when: [IN_TOWN, { kind: 'upgrades' }],
-      inWindow: 'Press Equip upgrades. You can swap any piece back from your bag.', hooks: ['[data-hs-win="inventory"] [data-hs-act="equip-upgrades"]'] }),
+      inWindow: 'Press Equip upgrades. You can swap any piece back from your bag.',
+      /* the hunt summary's Back in town Equip row while that card shows (a card about the return rings its row, never the summary's gold press), then the bag's Equip upgrades */
+      hooks: ['[data-hs-win="hunt-summary"] [data-hs-act="town"][data-step="equip"]', '[data-hs-win="inventory"] [data-hs-act="equip-upgrades"]'] }),
   step('storage', 'Room in your bag',
     'Your bag is nearly full. Storage holds more, and all your heroes share it.',
     'storage', { kind: 'any', of: [READ, { kind: 'stored_stack' }] }, { reactive: true, gotIt: true, when: [{ kind: 'bag_full' }] }),
@@ -299,11 +321,18 @@ export const HUNT_TUTORIAL = Object.freeze([
     'shop', { kind: 'any', of: [READ, { kind: 'armoured' }] },
     { reactive: true, gotIt: true, when: [IN_TOWN, THICKET_BEHIND, { kind: 'unarmoured' }],
       inWindow: 'Press Buy, then buy Leather Gloves. Put them on from your bag.', hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="buy"]'] }),
+  /* PAID, AND BACK DOWN: after "Wear what you found" and the Hearth (reactive, above), and ahead of the hunt's own lessons, which wait for the hunt.
+     The invitation to close the game, at the minute the designer would have quit. */
+  step('back_down', t('coach.back_down_title', RATS_WORDS), t('coach.back_down', RATS_WORDS),
+    'hunt_picker', { kind: 'in_hunt', hunt: CELLAR }, { when: [IN_TOWN, UNDER_THICKET, { kind: 'tally_paid_for', task: RATS.id }],
+      inWindow: t('coach.back_down_in', RATS_WORDS) }),
   /* ── B. The first hunt, the bar while it fights ────────────────────── */
   /* In the cellar wait (designer 2026-10-24: dead minutes from minute 2 to Level 5); hr_farm_plant does not refuse a hunter. */
   step('plant_land', 'Plant your land',
-    'While your hero hunts, open the Farm and plant a Turnip Seed in each empty plot. Turnips are ready in '
-      + CROPS.turnip.hours + ' hours and cook into Turnip Juice, a drink.',
+    /* THE HOOK, SHOWN (designer 2026-11-10, lane/d-first-ten-minutes, played): the first thing a new player does while the hero fights
+       without them. The card says so first, then the job. */
+    'Your hero doesn\'t need you watching. While it fights, open the Farm and plant a Turnip Seed in each empty plot. Turnips take '
+      + CROPS.turnip.hours + ' hours to grow and cook into Turnip Juice, a drink.',
     'farm', orGotIt({ kind: 'planted', crop: 'turnip' }), { gotIt: true, when: [LESSON], ring: { crop: 'turnip' }, inWindow: 'Press Plant on an empty plot, then Plant on Turnip. Do it again for each empty plot.' }),
   step('bar_intro', 'Your action bar',
     'Your hero uses this bar on its own. It checks the slots in order and uses the first one that\'s ready and whose conditions are all met.',
@@ -340,9 +369,13 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('help_page', 'The whole picture',
     'The gear icon at the top right opens Settings, and its Help page explains hunting, supplies, loot, gear and dying in plain words. It\'s there whenever you want it.',
     'settings', READ, { knowledge: true, gotIt: true, when: [HUNTING, THICKET_BEHIND], hooks: ['[data-hs-win="settings"] .st-tab[data-cat="help"]'] }),
+  /* WHILE HER COUNT RUNS the wait has a goal, and "Out to the brook" keeps for the second trip (the designer's beat sheet). It also holds the
+     chain: the cards after it speak of Level 5 and the Thicket. */
+  step('rats_count', t('coach.rats_count_title'), t('coach.rats_count', RATS_WORDS),
+    'world', { kind: 'tally_idle', task: RATS.id }, { when: [HUNTING, { kind: 'not_elsewhere', hunt: CELLAR }] }),
   step('earn_the_thicket', 'Out to the brook',
-    'Keep hunting here until Level ' + HUNT_INDEX[THICKET].band[0] + ', about fifteen minutes into your first hunt. Then a tougher challenge awaits in '
-      + HUNT_INDEX[THICKET].name + '. You can close the game and your hero keeps hunting until its stamina runs out. Everything it earns will be waiting for you.',
+    /* The wait is the hook, so the card leads with it: you don't have to watch. Back from Tamsin's pay it is the invitation itself (SAY). */
+    BROOK,
     'hud_vitals', { kind: 'unlock', hunt: THICKET }, { hooks: ['[data-coach-hook="stamina"]'] }),
   step('leave_cellar', 'Cash in',
     'Leave the hunt to go back to town. Your loot is already in your bag.',
@@ -358,7 +391,9 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Open the Shop and press Sell. Sell all junk sells what is only worth gold. Your Materials stay, like fuel for the Great Hearth (it raises your Inner Flame), food you can cook and parts for your recipes and your House. Point at anything to see what it\'s for.',
     'shop', { kind: 'any', asks: true, of: [READ, { kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },
     { gotIt: true, when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all junk. Your Materials stay in your bag.',
-      hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="sell"]', '[data-hs-win="shop"] [data-hs-act="sell-loot"]', '[data-hs-win="shop"] [data-coach-hook="sell-confirm"]'] }),
+      /* the hunt summary's Back in town Sell row while that card shows (the card rings the row, never the summary's gold press), then the Shop's way */
+      hooks: ['[data-hs-win="hunt-summary"] [data-hs-act="town"][data-step="sell"]',
+        '[data-hs-win="shop"] .hw-tab[data-tab="sell"]', '[data-hs-win="shop"] [data-hs-act="sell-loot"]', '[data-hs-win="shop"] [data-coach-hook="sell-confirm"]'] }),
   /* One decision, not a form (panel 2026-11-01: a 14-dropdown list at hour one, "I don't know what I don't need yet"): after the
      Thicket the bag knows what piles up, and a plan once set is kept for every hunt after (the first principle). */
   step('loot_rules', 'Decide once',
@@ -383,14 +418,14 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('tamsin_pays', 'Paid in town',
     'Hunt the Thicket until your ' + WOLVES.count + ' ' + WOLVES.label + ' are down. The tally on screen keeps count. When you get back to town, Tamsin pays you '
       + WOLVES.gold + ' gp and a piece of armor you don\'t own yet, or materials if you already own them all.',
-    'world', { kind: 'any', of: [{ kind: 'tally_paid' }, { kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),
+    'world', { kind: 'any', of: [{ kind: 'tally_paid', task: WOLVES.id }, { kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),
   step('go_below', 'Into the sewer, together',
-    'The Sewer is a party hunt. Pick The Sewer and Start with party, and everyone walks in together. The Rat King holds the last room and only comes out for a party.',
+    'The Sewer is a party hunt. Pick The Sewer and press Enter with party, and everyone walks in together. The Rat King holds the last room and only comes out for a party.',
     'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),
   step('save_setup', 'Keep this bar',
-    'A setup is your whole loadout, bar and gear. Open Hunt prep and press Save current setup, so you can come back to it after trying another style.',
+    'A setup is your whole loadout, bar and gear. Open Hunt prep, press New setup and name it, so you can come back to it after trying another style.',
     'hunt_prep', { kind: 'setup_saved' }, { when: [IN_TOWN, { kind: 'bar_saved' }, { kind: 'been', hunt: THICKET }],
-      inWindow: 'Press Save current setup. Your bar and the gear you wear are kept under its name.',
+      inWindow: 'Press New setup, name it and press Save. Your bar and the gear you wear are kept under its name.',
       hooks: ['[data-hs-act="setups"]', '[data-hs-win="hunt-prep"] [data-coach-hook="setup-save"]'] }),
   /* ── F. Day one: each waits for the chain, then starts on its own fact ── */
   step('harvest_juice', 'Turnips are ready',
@@ -536,6 +571,9 @@ const reached = (facts, hunt, past) => been(facts).some((h) => (!past && h === h
 /* A skill's XP as the server said it (a skill it did not list is 0), or null when it sent no skills. */
 const xpIn = (facts, skill) => (facts.skillXp ? Number(facts.skillXp[skill]) || 0 : null);
 const known = (v, fn) => (v === null || v === undefined ? null : fn(v));
+/* Tamsin's tasks this hero holds or was paid for in the last day (the server's `tally` section), or null when the facts carry no rows. */
+const tallyTasks = (f) => (f.tally && f.tally.tasks ? [...Object.keys(f.tally.tasks), ...(f.tally.paidTasks || [])].filter((id) => tallyTask(id)) : null);
+const taskFloor = (id) => HUNT_INDEX[tallyTask(id).hunt].band[0];
 
 /* ── THE FACT KINDS: (params, facts, { openedIn, id }) -> true | false | null (the server has not said). In a card's
    `when` null is "not met" (a trigger the coach cannot see does not fire); in its `done` null is "done" (the coach
@@ -550,6 +588,9 @@ const FACTS = Object.freeze({
   /* not the hunt the player has just come back to (the shell's `back`, away-recap.js): nobody watched what happened in it */
   fresh_hunt: (p, f) => !f.back || f.back !== f.sessionId,
   in_town: (p, f) => !f.huntId,
+  in_hunt: (p, f) => f.huntId === p.hunt,
+  /* no kill yet (Level XP comes from kills only) */
+  unhunted: (p, f) => f.levelXp === 0,
   enter: (p, f) => reached(f, p.hunt) || (p.hunt === CELLAR && f.levelXp > 0),
   /* `past: true`: only a ground past `hunt` counts */
   been: (p, f) => reached(f, p.hunt, p.past === true),
@@ -587,8 +628,18 @@ const FACTS = Object.freeze({
   home_unowned: (p, f) => known(f.home, (h) => !h.owned && !!h.next),
   home_owned: (p, f) => known(f.home, (h) => h.owned),
   /* Tamsin */
-  tally_taken: (p, f) => { const t = f.tally; return !t || t.held > 0 || t.paid > 0 || (t.weight === true && reached(f, tallyTask(p.task).hunt)); },
-  tally_paid: (p, f) => !f.tally || f.tally.paid > 0 || f.tally.held === 0,
+  /* Taken: this task or one on a ground at or past its own is held or was paid (her Cellar rats are not her wolves: the wolves' card still asks). */
+  tally_taken: (p, f) => {
+    const tl = f.tally, mine = tallyTasks(f);
+    if (!tl) return true;
+    return (mine ? mine.some((id) => taskFloor(id) >= taskFloor(p.task)) : tl.held > 0 || tl.paid > 0) || (tl.weight === true && reached(f, tallyTask(p.task).hunt));
+  },
+  /* Paid: this task was paid or is no longer held (`task` absent, or no rows in the facts: any pay, or nothing held). */
+  tally_paid: (p, f) => !f.tally || (p.task && f.tally.tasks ? (f.tally.paidTasks || []).includes(p.task) || !f.tally.tasks[p.task] : f.tally.paid > 0 || f.tally.held === 0),
+  /* the held task's count, the server's: done and waiting for the pay, or nothing left to count (not held, or done) */
+  tally_counted: (p, f) => known(f.tally && f.tally.tasks, (ts) => !!ts[p.task] && ts[p.task].done === true),
+  tally_idle: (p, f) => known(f.tally && f.tally.tasks, (ts) => !ts[p.task] || ts[p.task].done === true),
+  tally_paid_for: (p, f) => known(f.tally && f.tally.paidTasks, (ps) => ps.includes(p.task)),
   /* the bar: what the server shows, what it stored, what it struck */
   rune_struck: (p, f) => (Array.isArray(f.slots) ? struckSpell(f) >= 0 : null),
   rune_ready: (p, f) => (Array.isArray(f.slots) ? struckSpell(f) < 0 : null),
@@ -649,7 +700,7 @@ const FACTS = Object.freeze({
   /* a press the shell recorded (Got it), or a reactive card on screen long enough to read */
   read: (p, f, c) => (f.read instanceof Set ? f.read.has(c.id) : null),
 });
-const PARAMS = Object.freeze({ lesson_time: ['hunt'], enter: ['hunt'], been: ['hunt'], not_elsewhere: ['hunt'], unlock: ['hunt'], level_at: ['at'], skill_xp: ['skill'],
+const PARAMS = Object.freeze({ tally_counted: ['task'], tally_idle: ['task'], tally_paid_for: ['task'], in_hunt: ['hunt'], lesson_time: ['hunt'], enter: ['hunt'], been: ['hunt'], not_elsewhere: ['hunt'], unlock: ['hunt'], level_at: ['at'], skill_xp: ['skill'],
   tally_taken: ['task'], hunt_age: ['min', 'past'], pull: ['ground', 'pocket'], eaten_at_least: ['n'], eating_fast: ['n', 'perHour'], heroes: ['atLeast'], drink_slot: ['item'],
   carries: ['item'], club_hand: ['item', 'made'], wields: ['item'], kills: ['atLeast'], fuel_held: ['n'], bought_drinks: ['n'] });
 
@@ -679,12 +730,13 @@ export function validate(rows = HUNT_TUTORIAL) {
     }
     if (!FACTS[d.kind]) return bad(where + ' kind ' + d.kind + ' is unknown');
     for (const k of PARAMS[d.kind] || []) if (d[k] === undefined) bad(where + ' ' + d.kind + ' needs ' + k);
-    if (['enter', 'been', 'not_elsewhere', 'unlock', 'lesson_time'].includes(d.kind) && !HUNT_INDEX[d.hunt]) bad('hunt ' + d.hunt + ' is not in hunts.js');
+    if (['enter', 'been', 'not_elsewhere', 'unlock', 'lesson_time', 'in_hunt'].includes(d.kind) && !HUNT_INDEX[d.hunt]) bad('hunt ' + d.hunt + ' is not in hunts.js');
     if (d.kind === 'hunt_age' && !HUNT_INDEX[d.past]) bad('hunt ' + d.past + ' is not in hunts.js');
     if (d.kind === 'kills' && d.atLeast !== 1) bad('kills: the server only tells the first kill (Level XP > 0), so atLeast must be 1');
     if (d.kind === 'ended' && !END_ORDER.includes(d.reason)) bad('end reason ' + d.reason + ' is not in END_ORDER');
     if (d.kind === 'skill_xp' && !SKILLS_DEF[d.skill]) bad('skill ' + d.skill + ' is not a skill');
-    if (d.kind === 'tally_taken' && !tallyTask(d.task)) bad('task ' + d.task + ' is not one of Tamsin\'s tasks');
+    if (['tally_taken', 'tally_counted', 'tally_idle', 'tally_paid_for'].includes(d.kind) && !tallyTask(d.task)) bad('task ' + d.task + ' is not one of Tamsin\'s tasks');
+    if (d.kind === 'tally_paid' && d.task !== undefined && !tallyTask(d.task)) bad('task ' + d.task + ' is not one of Tamsin\'s tasks');
     if (['drink_slot', 'carries', 'club_hand', 'wields'].includes(d.kind) && !ITEMS[d.item]) bad(d.kind + ' item ' + d.item + ' is not an item');
     if (d.kind === 'club_hand' && !ITEMS[d.made]) bad('club_hand made ' + d.made + ' is not an item');
     if (d.kind === 'pull') {
@@ -792,6 +844,8 @@ const STANCE_WORDS = (() => {
    Level XP +13.6% bow, +13.2% crossbow; net gold -6.7% bow, -4.3% crossbow. Bought shots read far worse (ranger-floor +3.3%), so a hero on them is not told this. */
 const VOLLEY_TRADE = ' On free arrows at the Thicket it earns about 14% more Level XP and about 5% less gold.';
 const SAY = Object.freeze({
+  /* THE SECOND TRIP (back from Tamsin's pay): the invitation leads, and the wait is the shorter one the designer measured from Level 3. */
+  earn_the_thicket: (f) => ({ text: FACTS.tally_paid_for({ task: RATS.id }, f) === true ? t('coach.keep_hunting', RATS_WORDS) : BROOK }),
   load_shot: (f) => {
     /* the bag's first stack the weapon can loose: the card names and rings it (none: the Hunts page's Ammo line says the rest) */
     const id = f.carried ? Object.keys(f.carried).find((x) => f.carried[x] > 0 && shootsItem(f.role, ITEMS[x])) : null;
@@ -896,7 +950,8 @@ const SAY = Object.freeze({
       : a.id === 'flame_volley' && freeShot ? VOLLEY_TRADE : '';
     return { text: 'Your bar has no spell that uses runes yet. ' + a.n + ' casts on its own timer beside your moves' + (a.magicXpMult > 0 ? ' and trains Magic' : '') + ', and every cast uses '
       + anA(fam.label) + ' rune. With none of your own, the store sells ' + name(st.id) + ' at ' + st.price + ' gp a cast.' + trade
-      + ' To try it, press ' + slotWords([free]) + ', then Runes, ' + a.n + ', ' + name(st.id) + ', then Save.',
+      /* the tab's own name (Configure action's Spells tab: a rune spell is a spell), never a tab that isn't there (designer re-read 2026-11-11) */
+      + ' To try it, press ' + slotWords([free]) + ', then ' + BAR_TEXT.tab_spells + ', ' + a.n + ', ' + name(st.id) + ', then Save.',
     barSlot: free, store: st.id, spell: a.id };
   },
   /* In a party a leaver takes the others home (Tyler 10-22: every ticked box, on by default): the card says so before the press (party panel 11-03). */
@@ -1033,17 +1088,17 @@ const SAY = Object.freeze({
       + below(S, 'self_mana_pct') + ', then press Earlier until it sits before ' + slotWords([st]) + ' (the store\'s ' + name(S.id) + ') and Save. Your own juice costs nothing, and the store\'s takes over once yours runs out.', barSlot: st };
   },
   home: (f) => {
-    const t = f.home && f.home.next;
-    if (!t || !Array.isArray(t.items)) return null;
-    const need = t.items.map((x) => ({ ...x, have: (f.bag && f.bag[x.id]) || 0 })).filter((x) => x.have < x.qty);
+    const deed = f.home && f.home.next;
+    if (!deed || !Array.isArray(deed.items)) return null;
+    const need = deed.items.map((x) => ({ ...x, have: (f.bag && f.bag[x.id]) || 0 })).filter((x) => x.have < x.qty);
     const node = need.length ? [...TREES, ...ROCKS].find((n) => n.prod === need[0].id && n.req <= 1) : null;
     const skill = node ? (TREES.includes(node) ? 'Woodcutting' : 'Mining') : null;
     /* "Normal Log ×30": an item name is never pluralised by guesswork (readyWords below) */
-    if (t.items.some((x) => !name(x.id))) return null;
-    const cost = t.gold + ' gp, ' + listed(t.items.map((x) => name(x.id) + ' ×' + x.qty));
+    if (deed.items.some((x) => !name(x.id))) return null;
+    const cost = deed.gold + ' gp, ' + listed(deed.items.map((x) => name(x.id) + ' ×' + x.qty));
     const next = need.length ? (node ? name(need[0].id) + ' so far: ' + need[0].have + ' of ' + need[0].qty + '. Get more in Gathering and crafting, ' + skill + ', ' + node.name + '.' : null)
       : 'You have the materials, so open the House and press Buy.';
-    return next ? { text: 'The ' + t.name + ' needs ' + cost + '. ' + next } : null;
+    return next ? { text: 'The ' + deed.name + ' needs ' + cost + '. ' + next } : null;
   },
   own_runes: (f) => {
     const r = runeless(f);

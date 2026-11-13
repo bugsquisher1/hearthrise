@@ -76,7 +76,11 @@ async function run(base) {
     const r = HL.recommendation(lv, 1, rows);
     if (!r.row || !HL.fitsGroup(r.row, 1)) { ok('G2', false, 'a lone Level-' + lv + ' hero is recommended ' + (r.row && r.row.hunt)); break; }
     const inBand = r.row.band[0] <= lv && lv <= r.row.band[1];
-    if (!inBand && !(r.row.band[1] < lv && typeof r.note === 'string' && r.note.startsWith('There’s no good hunt for Level ' + lv + ' yet. ' + r.row.name))) {
+    /* G7 (Tyler 2026-11-11): "no good hunt" only when NO ground holds the Level; a ground that does (its row reads "In your range") is named right for it */
+    const held = rows.filter((g) => g.band[0] <= lv && lv <= g.band[1]).sort((x, y) => y.band[0] - x.band[0])[0];
+    const said = held ? held.name + ' is right for Level ' + lv + ', but its monsters are tough. ' + r.row.name + ' (Level ' + r.row.band[0] + ' to ' + r.row.band[1] + ') is the easier hunt.'
+      : 'There’s no good hunt for Level ' + lv + ' yet. ' + r.row.name;
+    if (!inBand && !(r.row.band[1] < lv && typeof r.note === 'string' && r.note.startsWith(said))) {
       ok('G2', false, 'a lone Level-' + lv + ' hero is sent to ' + r.row.hunt + ' [' + r.row.band + '] with the note ' + JSON.stringify(r.note)); break;
     }
     if (inBand && r.note !== null) { ok('G2', false, 'a fitting ground still carries a note at Level ' + lv); break; }
@@ -85,8 +89,13 @@ async function run(base) {
   ok('G2', !!duo.row && HL.fitsGroup(duo.row, 2) && duo.row.band[0] <= 12 && 20 <= duo.row.band[1] && duo.note === null, 'a party at Levels 12 and 20 is recommended ' + (duo.row && duo.row.hunt));
   /* G4: where the advice stands until the pace is re-measured (level-curve reads it: a pair sent to the Glade and a lone 45 sent to the Warrens re-land together, 2026-11-04): the Warrens is a party's, and a pair's first ground is the Sewer. */
   const lone = (lv) => HL.recommendation(lv, 1, rows);
-  ok('G4', lone(44).row.hunt === 'mosslight_glade' && /Coppercap Warrens is at your level\. Its monsters are tough, so alone you’ll spend more than you earn\./.test(lone(44).note || '')
+  ok('G4', lone(44).row.hunt === 'mosslight_glade' && lone(44).note === 'Coppercap Warrens is right for Level 44, but its monsters are tough. Mosslight Glade (Level 16 to 31) is the easier hunt.'
     && !/party|one hero|solo/i.test(lone(44).note || ''), 'a lone Level 44 reads ' + JSON.stringify(lone(44).note));
+  const lostThere = HL.recommendation(36, 1, rows, { minMs: 600000, grounds: { coppercap_warrens: { solo: { xpH: 9000, balanceH: -1250 }, party: null } } });
+  const wonThere = HL.recommendation(36, 1, rows, { minMs: 600000, grounds: { coppercap_warrens: { solo: { xpH: 9000, balanceH: 800 }, party: null } } });
+  ok('G7', lostThere.note === 'Coppercap Warrens is right for Level 36, but alone you lost 1,250 gp an hour there. Mosslight Glade (Level 16 to 31) is the easier hunt.'
+    && /^Coppercap Warrens is right for Level 36, but its monsters are tough\./.test(wonThere.note || '') && !/no good hunt/i.test(lostThere.note + wonThere.note) && (HL.recommendation(top + 5, 1, rows).note || '').startsWith('There’s no good hunt for Level ' + (top + 5) + ' yet.'),
+    'a lone Level 36 reads ' + JSON.stringify([lostThere.note, wonThere.note]));
   const sewerPair = HL.recommendation([12, 12], 2, rows);
   ok('G4', sewerPair.row.hunt === 'millrace_sewer', 'the first party ground moved: a pair at Level 12 is sent to ' + sewerPair.row.hunt);
   /* G5 (first principle, played 11-04): the window opens on the harder ground this hero last hunted and came home from; never on one that killed it, and never on one below the advice. */
@@ -144,9 +153,9 @@ async function run(base) {
   ok('G3', /^Sorrel \(Level 9\) is under this ground’s Level 16\./.test(HL.underWords(glade, low.under)) && HL.underWords(glade, []) === '', 'the warning reads ' + HL.underWords(glade, low.under));
   /* The Hunts window is the list (hunts.js) and the picked ground's page (hunt-detail.js, master-detail 2026-10-22). */
   const win = read('src/shell/windows/hunts.js') + read('src/shell/windows/hunt-detail.js');
-  ok('G2', win.includes("recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list)")
+  ok('G2', win.includes("recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list, bests)")
     && win.includes('<p class="hs-note hw-hunts-reco" hidden></p>') && win.includes('text(reco, advice);'), 'the Hunts window does not recommend by the party\'s levels or never says the note');
-  ok('W2', win.includes("text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));") && win.includes('<p class="hw-hunt-warn"></p>')
+  ok('W2', win.includes("text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level, blessed ? blessed.permille : 0), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));") && win.includes('<p class="hw-hunt-warn"></p>')
     && win.includes("heroWords(r) + '.'"),
     'the Hunts line does not draw rangeWords');
   /* W4 in plain words (Tyler 2026-11-08, the tier note "way too exact"): every harder tier's line says you can die here, Deadly's says to bring food, and the note ends on the death line. */
@@ -154,7 +163,7 @@ async function run(base) {
   ok('W4', (tierData.match(/You can die here\./g) || []).length === 4 && (tierData.match(/Bring plenty of food\./g) || []).length === 2
     && read('src/shell/hunt-list.js').includes("[tierLine(r, tier, size), TIER_DEATH_LINE].join(' ')") && win.includes('tierWords(r, tier, size)'), 'the tier no longer says what a harder tier costs (first-week-bands.mjs bigger-pulls-words plays it)');
   ok('W2', !/prop\([^)]*'disabled'[^)]*(short|rangeWords)/.test(win), 'Enter must never be disabled by the level warning');
-  ok('W2', win.includes("if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {") && win.includes("armed ? 'Enter anyway' : 'Enter'"), 'a lone hero above its level walks in with no confirm press');
+  ok('W2', win.includes("if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {") && win.includes("armed ? t('controls.enter_anyway') : t('controls.enter')"), 'a lone hero above its level walks in with no confirm press');
   ok('W2', /res && res\.belowRange \? ' ' \+ ABOVE_LEVEL_WORDS/.test(win), 'a below_range enter does not repeat the warning');
   const cs = read('src/session/character-session.js');
   ok('W3', cs.includes('ans.body.ok === true && ans.body.below_range === true) { await this.load(); return { ok: true, belowRange: true }; }'), 'CharacterSession drops the server\'s below_range');
@@ -177,23 +186,25 @@ const MUTANTS = [
   ['the window forgets the harder ground the hero chose', 'src/shell/hunt-list.js', 'return was && advised && was.band[0] > advised.band[0] ? was : advised;', 'return advised;'],
   ['the window re-opens on the ground that killed the hero', 'src/shell/hunt-list.js', "const was = last && last.endReason !== 'died' ? list.find((r) => r.hunt === last.huntId) : null;", 'const was = last ? list.find((r) => r.hunt === last.huntId) : null;'],
   ['a hall built for a party leaves its ground solo (the Sewer)', 'src/shell/hunt-list.js', "groupFit: g.pockets.some((p) => p.forParty) ? 'party' : g.groupFit,", 'groupFit: g.groupFit,'],
-  ['the gap falls back to a party ground in band', 'src/shell/hunt-list.js', "    return { row: below, note };\n", ''],
-  ['the gap is not said', 'src/shell/hunt-list.js', 'return { row: below, note };', 'return { row: below, note: null };'],
-  ['a party is recommended by its own hero\'s level', 'src/shell/windows/hunts.js', 'recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list)', 'recommendation(level, size, list)'],
+  ['the gap falls back to a party ground in band', 'src/shell/hunt-list.js', "    return { row: below, note: t(key,", "    return { row: inBand, note: t(key,"],
+  ['the gap is not said', 'src/shell/hunt-list.js', "    if (!inBand) return { row: below, note: [t('hunts.no_ground',", "    if (!inBand) return { row: below, note: null && [t('hunts.no_ground',"],
+  ['"no good hunt" over a ground in range again (Tyler 2026-11-11)', 'src/shell/hunt-list.js', "    if (!inBand) return { row: below,", "    if (inBand || !inBand) return { row: below,"],
+  ['the server\'s loss alone is not said', 'src/shell/hunt-list.js', "const key = lost ? 'hunts.right_but_lost' :", "const key = lost && false ? 'hunts.right_but_lost' :"],
+  ['a party is recommended by its own hero\'s level', 'src/shell/windows/hunts.js', 'recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list, bests)', 'recommendation(level, size, list, bests)'],
   ['a ground says who it is for again (Tyler 2026-11-08: no ground is solo or party)', 'src/shell/hunt-list.js', "  return r.heroes > 1 ? t('hunts.heroes_up_to', { n: r.heroes - 1 }) : t('hunts.heroes_one');", "  return r.band[0] >= 32 ? t('hunts.heroes_one') : r.heroes > 1 ? t('hunts.heroes_up_to', { n: r.heroes - 1 }) : t('hunts.heroes_one');"],
   ['the warning words are dropped', 'src/shell/hunt-list.js', "  if (!Number.isInteger(level) || level >= r.band[0]) return null;\n  const gap", "  return null;\n  const gap"],
-  ['the note sends a lone hero to bring a party again', 'src/data/text/hunts.js', "'{ground} is at your level. Its monsters are tough, so alone you’ll spend more than you earn.'", "'{ground} is right for your level if you bring a party.'"],
+  ['the note sends a lone hero to bring a party again', 'src/data/text/hunts.js', "'{ground} is right for {levels}, but its monsters are tough. {easier}", "'{ground} is right for {levels} if you bring a party. {easier}"],
   /* "the Warrens forgets its solo break-even" retired with the words it guarded (Tyler 2026-11-08: no ground is solo or party; the card no longer
      says "alone it pays from Level 45"). soloFrom stays data: drop-tables reads a lone 45 there as its second sample, printed, not judged. */
   ['far under reads as near (the words never lean harder)', 'src/shell/hunt-list.js', "(gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS)", 'ABOVE_LEVEL_WORDS'],
-  ['the words forget what dying costs', 'src/shell/hunt-list.js', ",\n    t('hunts.range_die', { loss: Math.round(DEATH_XP_LOSS * 100) })]", "]"],
+  ['the words forget what dying costs', 'src/shell/hunt-list.js', ",\n    cut ? t('hunts.range_die_blessed', { loss }) : t('hunts.range_die', { loss })]", "]"],
   ['the fight reads a hero Level again (S2)', 'src/core/hunt/damage.js', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow));', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow) + (t.heroLv ? 0 : 0));'],
   ['a gap row comes back in the data (S2)', 'src/data/hunt-tuning.js', '  partyShareRangePm: 667,', '  partyShareRangePm: 667,\n  underFloorAtkPm: 50,'],
   ['the warning claims a penalty again', 'src/data/text/hunts.js', "'Its monsters are stronger than you. You’ll spend more on supplies and you might die, but you get more XP and better loot.'", "'More XP and better loot, but its monsters hit harder.'"],
   ['a margin comes back in the data', 'src/data/hunt-sessions.js', '  bagLines: 10,\n', '  bagLines: 10,\n  belowRangeRefuse: 15,\n'],
   ['a lone hero walks in with no confirm press', 'src/shell/windows/hunts.js', "if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {", 'if (false) {'],
   ['the tier says nothing of what it costs', 'src/data/hunt-tiers.js', "The most XP for each kill. Bring plenty of food. You can die here.' }),", "The most XP for each kill.' }),"],
-  ['the window never draws the warning', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));", ''],
+  ['the window never draws the warning', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level, blessed ? blessed.permille : 0), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));", ''],
   ['a ground names its start tiles, not the party the server allows (G3)', 'src/shell/hunt-list.js', 'heroes: PARTY.maxSize,', 'heroes: Math.min(g.start.length, PARTY.maxSize),'],
   ['the leader\'s warning names the leader too (G3)', 'src/shell/hunt-list.js', 's.seat !== party.me && Number.isInteger(s.level)', 'Number.isInteger(s.level)'],
   ['the session drops below_range', 'src/session/character-session.js', 'return { ok: true, belowRange: true };', 'return { ok: true };'],

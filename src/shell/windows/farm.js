@@ -35,18 +35,18 @@
 // on the server's `ready`, never on the clock. Every control is off while an
 // intent is in flight; the field changes only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.114';
-import { plantCrop, waterPlot, harvestPlot, clearPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.114';
-import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.114';
-import { CROPS } from '../../data/gathering.js?v=0.2.114';
-import { requiredPlotLevel, unlockedCrops, emptyPlotIndices } from '../../core/farm.js?v=0.2.114';
-import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.114';
-import { whole, gold } from '../../render/format.js?v=0.2.114';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.114';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.114';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.114';
-import { t, hasText } from '../../render/player-text.js?v=0.2.114';
-import { patchParts, targetOf } from '../goto.js?v=0.2.114';
+import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.125';
+import { plantCrop, waterPlot, harvestPlot, clearPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.125';
+import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.125';
+import { CROPS } from '../../data/gathering.js?v=0.2.125';
+import { requiredPlotLevel, unlockedCrops, emptyPlotIndices } from '../../core/farm.js?v=0.2.125';
+import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.125';
+import { whole, gold } from '../../render/format.js?v=0.2.125';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.125';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.125';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.125';
+import { t, hasText } from '../../render/player-text.js?v=0.2.125';
+import { patchParts, targetOf } from '../goto.js?v=0.2.125';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '', asked: null }; SCRATCH.set(cs, s); } return s; };
@@ -84,7 +84,7 @@ export function renderFarm() {
     + '<p class="hh-empty hw-farm-wait">' + esc(t('farm.loading')) + '</p>'
     + '<section class="hw-sow"><h3 class="hw-ledger-head is-on hw-sow-head"></h3><ul class="hw-ledger hw-seeds"></ul>'
     + '<p class="hs-note hw-sow-none"></p><div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="shop">' + esc(t('farm.open_shop')) + '</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="unpick">' + esc(t('farm.close')) + '</button></div></section>'
+    + '<button type="button" class="hh-tool" data-hs-act="unpick">' + esc(t('controls.close')) + '</button></div></section>'
     + '<h3 class="hw-ledger-head is-on">' + esc(t('farm.tier_head')) + '</h3><p class="hs-note hw-tier"></p>'
     + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="upgrade"></button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';

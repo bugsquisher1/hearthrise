@@ -57,6 +57,7 @@
       "setup_slots",
       "shop",
       "skill_inputs",
+      "skill_levels",
       "skills",
       "stamina",
       "stamina_refill",
@@ -102,5 +103,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-11-08"
+  "generatedAt": "2026-11-11"
 }

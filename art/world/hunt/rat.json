@@ -52,7 +52,11 @@
         "s": 6,
         "e": 6,
         "n": 6,
-        "w": 6
+        "w": 6,
+        "se": 6,
+        "sw": 6,
+        "ne": 6,
+        "nw": 6
       }
     },
     {
@@ -60,10 +64,25 @@
       "fps": 10,
       "loop": false,
       "dirs": {
-        "s": 6,
-        "e": 6,
-        "n": 6,
-        "w": 6
+        "s": 7,
+        "e": 7,
+        "n": 7,
+        "w": 7,
+        "se": 7,
+        "sw": 7,
+        "ne": 7,
+        "nw": 7
+      }
+    },
+    {
+      "name": "hit",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 5,
+        "e": 5,
+        "w": 5,
+        "se": 5
       }
     },
     {
@@ -74,11 +93,15 @@
         "s": 1,
         "e": 1,
         "n": 1,
-        "w": 1
+        "w": 1,
+        "se": 1,
+        "sw": 1,
+        "ne": 1,
+        "nw": 1
       }
     }
   ],
-  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from prototypes/hunt-sim-assets/giant_rat (PixelLab style-1, 2026-10-15) by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels. attack, death and corpse derived from this unit's own idle frames by tools/world-art/derive-combat.mjs (whole-pixel shifts, quarter turns, flips; no drawn death exists).",
+  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from prototypes/hunt-sim-assets/giant_rat (PixelLab style-1, 2026-10-15) by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels. Combat clips (hit, attack, death) laid from reviewed raw frames by tools/world-art/import-clips.mjs (hunt-clips.mjs): registered on the idle still by whole pixels, falls seated on the anchor row, never scaled or redrawn.",
   "pixellab": {
     "idle": {
       "tool": "animate_object",
@@ -136,6 +159,34 @@
           8,
           1
         ]
+      }
+    },
+    "clips": {
+      "hit": {
+        "s": "art/world-src/gen-2026-11-08b/rat-hit/hit/south lay 0 1 2 3 4",
+        "e": "art/world-src/gen-2026-11-08b/rat-hit/hit/east lay 0 1 2 3 4",
+        "w": "art/world-src/gen-2026-11-08b/rat-hit/hit/west lay 0 1 2 3 4",
+        "se": "art/world-src/gen-2026-11-09/m3-flinch-diagonals-sample/rat/m3/hit/south-east lay 0 1 2 3 4"
+      },
+      "attack": {
+        "s": "art/world-src/gen-2026-11-09b/q1-first-fights-sample/rat/attackpose/south lay 0 1 2 4 2 1",
+        "e": "art/world-src/gen-2026-11-09/m1-first-fights-sample/rat/m1atk/attack/east lay 0 1 2 3 4 5",
+        "n": "art/world-src/gen-2026-11-09b/q1-first-fights-sample/rat/attack/north lay 0 1 2 3 4 5",
+        "w": "art/world-src/gen-2026-11-09b/b3-first-fights/rat/attack/west lay 0 1 2 3 4 5",
+        "se": "art/world-src/gen-2026-11-09b/b3-first-fights/rat/attack/south-east lay 0 1 2 3 4 5",
+        "sw": "art/world-src/gen-2026-11-09b/b3-first-fights/rat/attack/south-west lay 0 1 2 3 4 5",
+        "ne": "art/world-src/gen-2026-11-09b/b3-first-fights/rat/attack/north-east lay 0 0 1 2 3 4",
+        "nw": "art/world-src/gen-2026-11-09b/b3-first-fights/rat/attack-fixed/north-west lay 1 2 3 4 5 4"
+      },
+      "death": {
+        "s": "art/world-src/gen-2026-11-09/m1-first-fights-sample/rat/m1deathpose/death/south",
+        "e": "art/world-src/gen-2026-11-09b/q1-first-fights-sample/rat/deathpose-seated/east",
+        "n": "art/world-src/gen-2026-11-09b/b3-first-fights/rat/deathpose-seated/north",
+        "w": "mirror of e",
+        "se": "art/world-src/gen-2026-11-09b/b3-first-fights/rat/deathpose-seated/south-east",
+        "sw": "mirror of se",
+        "ne": "art/world-src/gen-2026-11-09b/b3-first-fights/rat/deathpose-seated/north-east",
+        "nw": "mirror of ne"
       }
     }
   }

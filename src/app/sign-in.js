@@ -12,11 +12,11 @@
 // the form fields; `onSignedIn` is called once the account is signed in.
 // ════════════════════════════════════════════════════════════════════════
 
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.114';
-import { AUTH_COPY } from '../net/auth.js?v=0.2.114';
-import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.114';
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.114';
-import { LEGAL_DOCS, openLegal } from './legal-reader.js?v=0.2.114';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.125';
+import { AUTH_COPY } from '../net/auth.js?v=0.2.125';
+import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.125';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.125';
+import { LEGAL_DOCS, openLegal } from './legal-reader.js?v=0.2.125';
 
 const FIELD = {
   email: '<label class="auth-field"><span>Email</span><input name="email" type="email" autocomplete="email" required></label>',
@@ -28,8 +28,8 @@ const FIELD = {
 };
 
 /** The crest and the name over every account screen (painted art at its own 1:1 or exactly 1:2, never between). */
-export const AUTH_BRAND = '<header class="auth-brand"><img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.114" alt="" width="311" height="384">'
-  + '<p class="auth-name">Hearthrise</p><p class="auth-pitch">Your heroes hunt, gather and craft, even while you\'re away.</p></header>';
+export const AUTH_BRAND = '<header class="auth-brand"><img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.125" alt="" width="311" height="384">'
+  + '<p class="auth-name">Hearthrise</p><p class="auth-pitch">Your hero keeps hunting after you close the game.</p></header>';
 
 /* The two pages a player can read from here (legal-reader.js), as presses. */
 const legalLink = (which) => '<button type="button" class="auth-link" data-auth-legal="' + which + '">' + esc(LEGAL_DOCS[which].title) + '</button>';
@@ -45,9 +45,9 @@ const SCREENS = Object.freeze({
     links: [['create', 'Create an account'], ['forgot', 'Forgot your password?']] },
   create: { title: 'Create an account', fields: ['email', 'newPassword', 'confirm'], submit: 'Create account',
     lead: 'If you already have an account, sign in instead.', links: [['sign-in', 'Back to sign in']] },
-  forgot: { title: 'Reset your password', fields: ['email'], submit: 'Send the reset link',
+  forgot: { title: 'Reset your password', fields: ['email'], submit: 'Send reset link',
     lead: 'We will email you a link to choose a new password.', links: [['sign-in', 'Back to sign in']] },
-  'set-password': { title: 'Choose a new password', fields: ['newPassword', 'confirm'], submit: 'Save the new password', links: [] },
+  'set-password': { title: 'Choose a new password', fields: ['newPassword', 'confirm'], submit: 'Save password', links: [] },
 });
 
 
@@ -85,7 +85,7 @@ export function renderAuthScreen(box, auth, mode, on, email) {
   /* The press is here only while the auth server's own answer is "not confirmed" (auth.js resendConfirmation). */
   const offerResend = (wanted) => {
     const had = form.querySelector('[data-auth-resend]');
-    if (wanted && !had) msg.insertAdjacentHTML('afterend', '<button type="button" class="auth-link" data-auth-resend>Send me a new link</button>');
+    if (wanted && !had) msg.insertAdjacentHTML('afterend', '<button type="button" class="auth-link" data-auth-resend>Resend link</button>');
     else if (!wanted && had) had.remove();
   };
 

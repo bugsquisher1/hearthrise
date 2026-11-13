@@ -206,7 +206,7 @@ const ARMOUR_LINES = [
   { key: 'leather', vmul: 0.70, defMul: 0.55, icon: '🎽', craftMat: 'plank',
     tierNames: ['Leather', 'Studded Leather', 'Boarhide', 'Snakeskin', 'Wyvernhide', 'Dragonhide', 'Voidhide'],
     tierIds:   ['leather', 'studded', 'boarhide', 'snakeskin', 'wyvernhide', 'dragonhide', 'voidhide'],
-    slotLabels: { helmet: 'Coif', body: 'Body', pants: 'Chaps', boots: 'Boots', gloves: 'Vambraces', belt: 'Belt' },
+    slotLabels: { helmet: 'Hood', body: 'Body', pants: 'Chaps', boots: 'Boots', gloves: 'Bracers', belt: 'Belt' },
     id: (mat, slot, line, i) => line.tierIds[i] + '_' + slot.slot,
     name: (mat, slot, line, i) => line.tierNames[i] + ' ' + line.slotLabels[slot.slot],
     fields: (def, i) => ({ rangeAtkB: Math.round(def * 0.5), critB: 0.004 * (i + 1), magicAtkB: -Math.round(def * 0.15) }) },

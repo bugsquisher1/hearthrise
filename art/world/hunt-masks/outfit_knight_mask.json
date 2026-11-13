@@ -41,6 +41,18 @@
         "ne": 6,
         "nw": 6
       }
+    },
+    {
+      "name": "hit",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 5,
+        "e": 5,
+        "n": 5,
+        "w": 5,
+        "se": 5
+      }
     }
   ],
   "notes": "Region mask of outfit_knight (dyes): each pixel a dye recolours keyed by region, src/data/outfits.js MASK_COLOURS in BASE_REGIONS order. Written by tools/world-art/outfit-masks.mjs from art/world/heroes/outfit_knight.png; free, no generation."

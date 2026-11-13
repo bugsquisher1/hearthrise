@@ -9,8 +9,9 @@
 //   node tools/preflight.local.mjs --proofs     instead: the proofs this diff touches in every job with no browser, narrowed
 //                                               as GitHub narrows them, one at a time (10-20 min, no Chrome)
 //   node tools/preflight.local.mjs --proofs --pages   the same with the page guards' proofs (one Chrome, a minute a mutant)
-//   node tools/preflight.local.mjs --proofs --plant   in a LANE's own worktree: the proofs that plant into the tree too (party-flow,
-//                                               hunt-live: 3 of the 18 proof reds since 11-04); refuses a dirty tree, checks it after
+//   node tools/preflight.local.mjs --proofs --plant   in a LANE's own worktree: the proofs that plant into the tree too (guard-anchors'
+//                                               solo); refuses a dirty tree, checks it after. (party-flow and hunt-live plant into
+//                                               copies: since 11-10 plain --proofs runs them.)
 //   node tools/preflight.local.mjs --selftest   the plan and the verdict, each proved by a planted mutant
 //
 // WHY (lane r-release-gate, 2026-11-04). Of the 79 causes behind the last 30 red release runs, 24 were a forgotten pin or
@@ -61,6 +62,8 @@ export const SLOW = new Map([
   ['node tools/board-from-git.mjs --selftest', '81 s (41697486160), reads git history; a docs tool'],
   ['node tests/names-selfcheck-collision.mjs', '106 s here (one replay per name); no red in the last 30 runs'],
   ['node tests/plot-tier-parity.mjs', '48-88 s (one replay); no red in the last 30 runs'],
+  /* Ran nowhere here until 11-10 (its `mutant-writes-tree: no` was read as yes); --proofs runs it, one at a time. */
+  ['node tests/session-core.mjs --mutate', '172 s here alone (lane a-ci-first-run, 11-10), over the 120 s limit; --proofs runs it'],
 ]);
 
 /* Reddened a release on GitHub, and slower here than COMMAND_LIMIT_S, so a run never judged it (lane r-green-first,
@@ -91,7 +94,9 @@ export const EXTRAS = [
   ['node tests/apply-order-honesty.mjs', (f) => CHAIN(f) || f === 'tests/live-hash-drift.baseline.json', 'every apply-order note agrees with the baseline'],
   /* v0.2.91 and v0.2.93 (2026-11-05): a new envelope section went red on two of these after 25 min of a run, and a sink's price on the third. */
   ['node tests/envelope-contract.mjs', (f) => CHAIN(f) || f.startsWith('src/session/'), 'the client reads a section with no contract (41973095820)'],
-  ['node tests/no-client-copy-of-projection.mjs --execute', (f) => CHAIN(f), 'a new projection key: re-pin it (41973095820)'],
+  ['node tests/no-client-copy-of-projection.mjs --execute', (f) => CHAIN(f) || f === 'tests/no-client-copy-of-projection.baseline.json', 'a new projection key: re-pin it (41973095820; again 42998492497)'],
+  /* The credential-free half (a db-replay job, ~55 s): a migration moved a pinned body or its note. The baseline itself is the Coordinator's. */
+  ['node tests/live-hash-drift.mjs', (f) => CHAIN(f) || f === 'tests/live-hash-drift.baseline.json', 'a migration moved a pinned function body; report what it wants'],
   ['node tests/settle-budget.mjs', (f) => CHAIN(f) || f.startsWith('src/core/'), 'a SQL function in the settle path, or a settle over budget'],
   ['node tests/say-why.mjs', (f) => f.startsWith('src/shell/') || f.startsWith('src/app/'), 'a control off for a rule with no reason on screen (41973095820)'],
   ['bash bump-version.sh --check', () => true, 'the three version strings agree'],
@@ -393,6 +398,27 @@ async function selftest() {
     'node tests/copy-lint.mjs --report', 'node tests/dead-exports.mjs', 'node tests/patch-chain-guard.mjs --report', 'bash bump-version.sh --check', 'node tests/restore-census.mjs']) {
     ok(names(real).includes(need), `the real plan runs ${need}`);
   }
+  /* 11-11, set/v0.2.116: guard-anchors --selftest plants into src/session/envelope.js; in the pool it ran beside
+     no-client-copy-of-projection --selftest, whose copy of src/ caught the plant ("selftest anchor missing"). */
+  const realSolo = new Set(catalogue(ROOT).filter((e) => e.solo).map((e) => e.guard));
+  const both = names(buildPlan(readFileSync(WORKFLOW, 'utf8'), { selected: new Set(['tools/guard-anchors.mjs', 'tests/no-client-copy-of-projection.mjs']), solo: realSolo }));
+  ok(!both.includes('node tools/guard-anchors.mjs --selftest') && both.includes('node tests/no-client-copy-of-projection.mjs --selftest'),
+    'the real plan leaves guard-anchors --selftest (it plants into src/) for GitHub, and runs the projection selftest that copies src/');
+  /* 11-11, release 42998492497: a migration added a projection key and nobody re-pinned it; db-replay-3 went red. A migration diff
+     schedules the chain-vs-pin guards EXECUTED (not only their --selftest); a client-only diff schedules none of them. */
+  {
+    const wfText = readFileSync(WORKFLOW, 'utf8'), smk = readFileSync(join(ROOT, 'tests', 'run-smoke.mjs'), 'utf8');
+    const mig = names(buildPlan(wfText, { changed: ['supabase/migrations/x.sql'], smokeText: smk })), cli = names(buildPlan(wfText, { changed: ['src/shell/x.js'], smokeText: smk }));
+    for (const c of ['node tests/no-client-copy-of-projection.mjs --execute', 'node tests/live-hash-drift.mjs', 'node tests/restore-census.mjs']) ok(mig.includes(c), `a migration diff runs ${c}`);
+    for (const c of ['node tests/no-client-copy-of-projection.mjs --execute', 'node tests/live-hash-drift.mjs']) ok(!cli.includes(c), `a client-only diff does not run ${c}`);
+    const noRow = buildPlan(wfText, { changed: ['supabase/migrations/x.sql'], smokeText: smk, extras: EXTRAS.filter(([c]) => !/--execute/.test(c)) });
+    ok(!noRow.run.some((r) => /--execute/.test(r.cmd)), 'without its EXTRAS row the projection --execute is not scheduled (the arm bites)');
+  }
+  /* 11-10: `mutant-writes-tree: no` was read as yes, so 19 proofs that plant into copies never ran here. */
+  const wf = readFileSync(WORKFLOW, 'utf8');
+  ok(names(buildPlan(wf, { selected: new Set(['tests/hunt-view-core.mjs']), solo: realSolo })).includes('node tests/hunt-view-core.mjs --mutate')
+    && proofsPlan(wf, { selected: new Set(['tests/session-core.mjs']), solo: realSolo }).run.some((r) => r.cmd === 'node tests/session-core.mjs --mutate'),
+    'a touched proof that plants into a copy (`mutant-writes-tree: no`) runs: hunt-view-core in the plan, session-core in --proofs');
   /* --proofs: every job with no browser, touched proofs only, none that plants into the tree. */
   const proofChecks = (impl) => {
     const p = impl(FIXTURE, { selected: new Set(['tests/census.mjs', 'tests/plain-b.mjs', 'tests/plants.mjs', 'tests/page.mjs']), solo: new Set(['tests/plants.mjs']) });

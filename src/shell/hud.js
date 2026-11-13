@@ -21,7 +21,7 @@
 //
 // PURE except for `residueStore`, the adapter onto one character's residue.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.114';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.125';
 
 export const SIZE_CLASSES = Object.freeze(['desktop', 'phone']);
 export const OPACITY_MIN = 0.4;
@@ -30,8 +30,17 @@ const ANCHOR_RE = /^[tmb][lcr]$/;
 const LAYERS = new Set(['world', 'screen']);
 const WHENS = new Set(['always', 'hunt']);
 const PHONE_KEYS = new Set(['anchor', 'dx', 'dy', 'opacity', 'visible', 'folded']);
-/* A row's default fold that follows the game: folded while the hero has no party. A press saves a boolean, which wins from then on. */
-const FOLDED_ALONE = 'alone';
+/* A row's default fold that follows the game or the screen (a press saves a boolean, which wins from then on):
+   'alone'         folded while the hero has no party (the phone's Party panel)
+   'narrow'        folded while the screen is narrower than the fold width (--hud-fold-below, tokens.css), where the
+                   analyzer and the Tally open would cover the fight (designer 2026-11-11, 1024x768)
+   'narrow-alone'  both: the desktop Party panel of a hero with no party on that narrow screen */
+const FOLD_RULES = Object.freeze({
+  alone: (c) => c.alone(),
+  narrow: (c) => c.narrow(),
+  'narrow-alone': (c) => c.narrow() && c.alone(),
+});
+const isFoldRule = (v) => v === undefined || Object.prototype.hasOwnProperty.call(FOLD_RULES, v);
 
 const clampOpacity = (v) => Math.max(OPACITY_MIN, Math.min(OPACITY_MAX, Number(v)));
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -56,8 +65,10 @@ export function validateWidgetRows(rows) {
     if (!isObj(r.phone)) throw new Error(where + ': phone must be an object');
     for (const k of Object.keys(r.phone)) if (!PHONE_KEYS.has(k)) throw new Error(where + ': phone.' + k + ' is not overridable');
     if (r.phone.anchor !== undefined && !ANCHOR_RE.test(r.phone.anchor)) throw new Error(where + ': bad phone anchor');
-    if (r.phone.folded !== undefined && r.phone.folded !== FOLDED_ALONE) throw new Error(where + ': phone.folded can only be ' + FOLDED_ALONE);
+    if (!isFoldRule(r.folded)) throw new Error(where + ': folded can only be ' + Object.keys(FOLD_RULES).join(' / '));
+    if (!isFoldRule(r.phone.folded)) throw new Error(where + ': phone.folded can only be ' + Object.keys(FOLD_RULES).join(' / '));
     if (r.below !== undefined && (!Array.isArray(r.below) || !r.below.every((x) => typeof x === 'string' && x !== r.id))) throw new Error(where + ': below must list other widget ids');
+    if (r.section !== undefined && (typeof r.section !== 'string' || !/^[a-z][a-z0-9_]*$/.test(r.section))) throw new Error(where + ': section must name an envelope section');
     byId.set(r.id, r);
   }
   for (const r of byId.values()) for (const x of r.below || []) if (!byId.has(x)) throw new Error('hud widget ' + JSON.stringify(r.id) + ': below names no widget ' + JSON.stringify(x));
@@ -90,8 +101,9 @@ export function stackBelow(r, above, gap) {
 
 /** The row's own layout for a size class: the desktop fields, then the phone block. */
 export function defaultsFor(row, sizeClass) {
-  const d = { anchor: row.anchor, dx: row.dx, dy: row.dy, opacity: row.opacity, visible: row.visible, folded: false };
-  if (sizeClass === 'phone') Object.assign(d, row.phone);
+  const d = { anchor: row.anchor, dx: row.dx, dy: row.dy, opacity: row.opacity, visible: row.visible, folded: row.folded || false };
+  /* the phone's fold is its own (its stack is computed, HS-22): a desktop rule never reaches it */
+  if (sizeClass === 'phone') Object.assign(d, { folded: false }, row.phone);
   return d;
 }
 
@@ -371,12 +383,13 @@ export function residueStore(character) {
 
 /**
  * @param {object} o
- * @param {object[]} o.widgets             the rows (src/data/hud-widgets.js)
+ * @param {readonly object[]} o.widgets    the rows (src/data/hud-widgets.js)
  * @param {() => string} o.sizeClass       'desktop' | 'phone'
  * @param {{read():object|null, write(v:object):void}} o.store
  * @param {(id: string) => boolean} [o.inHunt]  true while hunt widget `id` belongs on screen (a hunt is running;
  *                                         src/shell/shell.js huntUp keeps the hunt bar until its summary is closed)
  * @param {() => boolean} [o.alone]        true while the hero has no party: a row's `folded: 'alone'` default reads it
+ * @param {() => boolean} [o.narrow]       true while the screen is narrower than the fold width: `folded: 'narrow'` reads it
  */
 export function createHud(o) {
   const rows = validateWidgetRows(o.widgets);
@@ -384,6 +397,7 @@ export function createHud(o) {
   const store = o.store;
   const inHunt = o.inHunt || (() => false);
   const alone = o.alone || (() => false);
+  const facts = { alone, narrow: o.narrow || (() => false) };
   const listeners = new Set();
   let cls = null;
   let layout = new Map();
@@ -479,7 +493,7 @@ export function createHud(o) {
     layoutOf(id) {
       if (!layout.has(id)) return null;
       const L = Object.assign({}, layout.get(id));
-      if (L.folded === FOLDED_ALONE) L.folded = alone();
+      if (typeof L.folded === 'string') L.folded = FOLD_RULES[L.folded](facts);
       return L;
     },
     rows: () => Array.from(rows.values()),
@@ -510,8 +524,12 @@ export function renderHudSettings(ctx) {
       + '</li>';
   };
   const move = hud.sizeClass() === 'desktop' ? ' Drag the Hunt analyzer or the Tally by its title to move it.' : '';
+  /* A row behind a server switch (its `section`, e.g. the live events) is listed only while the server sends that section:
+     switched off, its widget is nowhere, its settings line included. */
+  const cs = ctx.character;
+  const listed = (row) => !row.section || (!!cs && typeof cs.read === 'function' && cs.read(row.section) != null);
   return '<p class="hs-note">Show, hide or fade any part of the screen. Hovering shows it at full strength.' + move + '</p>'
-    + '<ul class="hs-hudset">' + hud.rows().map(line).join('') + '</ul>'
+    + '<ul class="hs-hudset">' + hud.rows().filter(listed).map(line).join('') + '</ul>'
     + '<div class="hs-foot"><button type="button" class="hs-quiet" data-hs-wreset>Reset layout</button></div>';
 }
 

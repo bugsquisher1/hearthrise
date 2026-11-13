@@ -17,25 +17,28 @@
 //   saleWords(id)   who won't buy it: "" or "For your own use. ..."; toolWords(id) what a tool does and where it counts
 //   needOf(id, sk, lv)  "Needs Melee 30 — you have 20" / "Needs Level 30 — you're 28", against the server's numbers
 //   flavourOf(id)   the item's one-line description, or ''
+//   baneWords(id)   a bane weapon's damage against one monster kind, the engine's clamped multiplier: ["+40% damage to Plant monsters"]
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.114';
-import { toolSpeed, toolXpB, toolDouble } from '../core/tools.js?v=0.2.114';
-import { listWords, whole } from '../render/format.js?v=0.2.114';
-import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.114';
-import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.114';
-import { MONSTERS } from '../data/monsters.js?v=0.2.114';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.114';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.114';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.114';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.114';
-import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.114';
-import { itemName } from './widgets/bits.js?v=0.2.114';
-import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromKit, temperSpends } from './bag-model.js?v=0.2.114';
-import { FLAMES } from '../data/hearth.js?v=0.2.114';
-import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.114';
-import { dropWhereWords, dropHuntOf, isRareItem } from './hunt-ground-facts.js?v=0.2.114';
-import { recipeOutcomes, HALLMARK_OFFERS } from '../data/jewelry.js?v=0.2.114';
-import { t, hasText } from '../render/player-text.js?v=0.2.114';
+import { ITEMS } from '../data/items.js?v=0.2.125';
+import { toolSpeed, toolXpB, toolDouble } from '../core/tools.js?v=0.2.125';
+import { listWords, whole } from '../render/format.js?v=0.2.125';
+import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.125';
+import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.125';
+import { MONSTERS } from '../data/monsters.js?v=0.2.125';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.125';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.125';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.125';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.125';
+import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.125';
+import { itemName } from './widgets/bits.js?v=0.2.125';
+import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromKit, temperSpends } from './bag-model.js?v=0.2.125';
+import { FLAMES } from '../data/hearth.js?v=0.2.125';
+import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.125';
+import { dropWhereWords, dropPlaceOf, isRareItem } from './hunt-ground-facts.js?v=0.2.125';
+import { recipeOutcomes, HALLMARK_OFFERS } from '../data/jewelry.js?v=0.2.125';
+import { t, hasText } from '../render/player-text.js?v=0.2.125';
+import { baneIndex, baneMultFor, MONSTER_CLASSES as BANE_CLASSES } from '../core/bane.js?v=0.2.125';
+import { MONSTER_CLASSES } from '../data/monster-classes.js?v=0.2.125';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 /* A rarity's word (item.rarity_<rarity>, else Common) and a type's (item.type_<type>, else `or`); own-property reads only. */
@@ -141,8 +144,7 @@ export function wherePlaces(id) {
   if (r.shop) out.push({ words: t('item.sold_at_shop'), place: { kind: 'shop', item: id } });
   const easy = r.shop || Object.values(r.at).some((lv) => lv <= 1);
   const drop = !easy && r.drops.length ? dropWhereWords(id) : '';
-  const hunt = drop ? dropHuntOf(id) : null;
-  if (drop) out.push({ words: drop, place: hunt ? { kind: 'hunt', hunt } : null });
+  if (drop) out.push({ words: drop, place: dropPlaceOf(id) });
   return out;
 }
 
@@ -197,6 +199,19 @@ export function saleWords(id) {
   if (!it) return '';
   if (!(Number(it.v) > 0) || it.bop) return t('item.own_use');
   return isStartKit(id) ? t('item.kit_unlisted') : '';
+}
+
+/** A monster kind's name as the Bestiary says it: bane.js keys "extra_dimensional", the class table "extradimensional". */
+export function baneKindName(cls) {
+  const row = MONSTER_CLASSES[cls] || MONSTER_CLASSES[String(cls).replace(/_/g, '')];
+  return row ? row.name : String(cls);
+}
+
+/** What a bane weapon adds against one monster kind, from its row through the engine's own clamp (bane.js baneMultFor), one line a kind. [] for none. */
+export function baneWords(id) {
+  const ix = baneIndex({ weapon: id }, ITEMS);
+  return BANE_CLASSES.filter((c) => baneMultFor(c, ix) > 1)
+    .map((c) => t('item.bane_more', { pct: Math.round((baneMultFor(c, ix) - 1) * 100), kind: baneKindName(c) }));
 }
 
 /** A sale's rare finds by name, for its confirmation ("Sell 7 stacks?" hid 3 Alpha Fang worth 1,350 of 2,054 gp, newcomer panel 2026-11-01), or ''. `lines`: { item, qty }. */

@@ -1,0 +1,38 @@
+{
+ "tool": "create_object_pro_flash",
+ "view": "high top-down",
+ "size": "48x48",
+ "palette": "hr-world-56-v2 (56 passed)",
+ "style_image": "art/briefs/gen-2026-11-07/refs/style-glade-poacher-s-48.png",
+ "bodies": {
+  "greened_pikeman": {
+   "r1": {
+    "object": "5e7cfb99-2bd5-4887-82fe-eae9576408c6",
+    "words": "undead pikeman soldier crusted in green copper verdigris and dried grey mud, corroded green helmet and breastplate, a long pike held upright in one hand, rags caked to the bones, muted grey-green and mud brown, single color black outline, basic shading lit from the upper left, game enemy sprite",
+    "cost": 5,
+    "verdict": "refused"
+   },
+   "r2": {
+    "object": "d2398516-229a-4539-a42e-818702c65bd1",
+    "rotations": "6973c53e-a801-42d9-8de8-5618d9568d1e",
+    "words": "undead pikeman soldier, a bare pale skull face under a round corroded copper-green iron helmet with no hood, a dented breastplate crusted with green verdigris and grey dried mud, bony arms and legs in caked brown rags, a long wooden pike held upright in one hand, mostly grey and mud brown with green only on the metal, single color black outline, basic shading lit from the upper left, game enemy sprite",
+    "cost": "5 + 1",
+    "verdict": "approved, import boneswap/"
+   }
+  },
+  "bargeman": {
+   "object": "76b1a845-472b-432a-8b1f-d0249023b297",
+   "rotations": "fc37534e-9ad0-4df7-a466-02bd1996b2d0",
+   "words": "a drowned river bargeman, broad and heavy, a waterlogged dark leather apron and rolled sleeves, a long wooden barge pole held in both hands, cracked pale grey skin, coal-black hands, muted browns and greys, not bloated, single color black outline, basic shading lit from the upper left, game enemy sprite",
+   "cost": "5 + 1",
+   "verdict": "approved"
+  },
+  "flag_sergeant": {
+   "object": "8468ebc5-997d-4d6e-abee-07338e0b540c",
+   "rotations": "a758d79a-0718-44a0-8601-770978ce874a",
+   "words": "an undead sergeant of a river company, half skeleton in a dented open-faced helmet and a mail shirt crusted with green copper verdigris, holding a tall pole with a torn faded green and grey company flag, muted grey-green and mud brown, single color black outline, basic shading lit from the upper left, game enemy sprite",
+   "cost": "5 + 1",
+   "verdict": "approved"
+  }
+ }
+}

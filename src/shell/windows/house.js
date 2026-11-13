@@ -20,19 +20,19 @@
 // answers, and the ledger changes only from the re-read envelope. A refusal is
 // said in plain words. A room whose rungs do nothing yet offers no purchase.
 // ════════════════════════════════════════════════════════════════════════
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.114';
-import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.114';
-import { bagOf, bankOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.114';
-import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.114';
-import { ROOM_PERKS } from '../../data/perks.js?v=0.2.114';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.114';
-import { whole, gold } from '../../render/format.js?v=0.2.114';
-import { itemName } from '../widgets/bits.js?v=0.2.114';
-import { runIntent } from '../intent-words.js?v=0.2.114';
-import { wherePlaces } from '../item-lore.js?v=0.2.114';
-import { patchParts, placesParts } from '../goto.js?v=0.2.114';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.114';
-import { t } from '../../render/player-text.js?v=0.2.114';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.125';
+import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.125';
+import { bagOf, bankOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.125';
+import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.125';
+import { ROOM_PERKS } from '../../data/perks.js?v=0.2.125';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.125';
+import { whole, gold } from '../../render/format.js?v=0.2.125';
+import { itemName } from '../widgets/bits.js?v=0.2.125';
+import { runIntent } from '../intent-words.js?v=0.2.125';
+import { wherePlaces } from '../item-lore.js?v=0.2.125';
+import { patchParts, placesParts } from '../goto.js?v=0.2.125';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.125';
+import { t } from '../../render/player-text.js?v=0.2.125';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']);
 const SCRATCH = new WeakMap();
@@ -110,7 +110,7 @@ export function renderHouse() {
     + '<h3 class="hs-sub">' + esc(t('house.chests_head')) + ' <small class="hw-chest-n"></small></h3><ul class="hw-ledger hw-chests" aria-label="' + esc(t('house.chests_head')) + '"></ul>'
     + '<div class="hw-house-foot"><div class="hw-confirm" role="alertdialog" aria-label="' + esc(t('house.confirm_aria')) + '"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="house-yes"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="house-no">' + esc(t('house.cancel')) + '</button></div></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="house-no">' + esc(t('controls.cancel')) + '</button></div></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div></div>';
 }
 
@@ -151,7 +151,7 @@ renderHouse.patch = function patchHouse(body, ctx) {
       text(li.querySelector('small'), tier.owned ? (tier.tier === home.tier ? t('house.deed_yours_home') : t('house.deed_yours'))
         : isNext ? (opens.length ? t('house.deed_opens', { rooms: opens.join(', ') }) : t('house.deed_next_home')) : t('house.deed_after', { tier: tierName(tier.tier - 1) }));
       const afford = patchCost(ctx, li.querySelector('.hw-mats'), isNext ? tier : null, purse, bag, bank);
-      patchAsk(li.querySelector('[data-hs-act="house-ask"]'), 'home', isNext ? tier.offer : null, t('house.buy'), isNext && afford && !sc.pending);
+      patchAsk(li.querySelector('[data-hs-act="house-ask"]'), 'home', isNext ? tier.offer : null, t('controls.buy'), isNext && afford && !sc.pending);
       cls(li, 'is-held', tier.owned);
       cls(li, 'is-next', isNext);
     },

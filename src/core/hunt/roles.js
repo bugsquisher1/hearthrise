@@ -23,13 +23,14 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_ROLES, ROLE_ORDER, SPOT, KITE, SURROUND, AI_REPATH_MS, OPEN_GROUND } from '../../data/hunt-roles.js?v=0.2.114';
-import { ROLE_DEFAULTS, HERO_DISTANCE, DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.114';
-import { walkable, cheb, dist2, los, ringFree, tileKey } from './grid.js?v=0.2.114';
-import { inArea } from './leash.js?v=0.2.114';
-import { atRest, unitById, setGoal, clearGoal, candidateTiles, chooseSpot, standable, goToNearest, reachWithin } from './movement.js?v=0.2.114';
-import { roleOf, engaged, inRange, pickTargets } from './targeting.js?v=0.2.114';
-import { anyMark, markedAt } from './marks.js?v=0.2.114';
+import { HUNT_ROLES, ROLE_ORDER, SPOT, KITE, SURROUND, AI_REPATH_MS, OPEN_GROUND } from '../../data/hunt-roles.js?v=0.2.125';
+import { ROLE_DEFAULTS, HERO_DISTANCE, DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.125';
+import { walkable, cheb, dist2, los, ringFree, tileKey } from './grid.js?v=0.2.125';
+import { inArea } from './leash.js?v=0.2.125';
+import { atRest, unitById, setGoal, clearGoal, candidateTiles, chooseSpot, standable, goToNearest, reachWithin } from './movement.js?v=0.2.125';
+import { roleOf, engaged, inRange, pickTargets } from './targeting.js?v=0.2.125';
+import { anyMark, markedAt } from './marks.js?v=0.2.125';
+import { livingOf } from './unit-index.js?v=0.2.125';
 
 /* role/dist/chase/tmode: the hero's settings. queued: a monster with no surround slot.
    aiMs: ms until the unit re-picks its goal. */
@@ -298,6 +299,18 @@ function closeIn(inst, h, tgt) {
   if (q) setGoal(inst, h, q[0], q[1]);
 }
 
+/*
+ * IS (x, y) BESIDE ONE OF `mons` (Chebyshev 1, its own tile included), for many tiles round `c`? The answer
+ * `mons.some((m) => cheb(m, { x, y }) <= 1)` gives, with the monsters too far from `c` set aside once: a tile within `r` of `c`
+ * has every monster beside it within r + 1 of `c` (Chebyshev distance is a metric), so for such a tile the near list's answer
+ * is the whole list's; a tile farther out asks the whole list. rangedPos asked every living monster on the ground (six packs
+ * at density 8) of every candidate, each sub-step a monster stands beside a ranged hero (lane/r-engine-profile).
+ */
+function besideNear(mons, c, r) {
+  const near = mons.filter((m) => cheb(m, c) <= r + 1);
+  return (x, y) => (Math.max(Math.abs(x - c.x), Math.abs(y - c.y)) <= r ? near : mons).some((m) => cheb(m, { x, y }) <= 1);
+}
+
 /* A ranged hero's distance d from its target must lie in [want - below, want + above] (tenths). */
 function inBand(d2, want) {
   const lo = want * 10 - SPOT.bandBelowTenths; const hi = want * 10 + SPOT.bandAboveTenths;
@@ -315,9 +328,10 @@ function rangedPos(inst, h, mons, marked) {
   if (h.aiMs > 0 && !nearMon) return;
   h.aiMs = AI_REPATH_MS.ranged;
   const want = h.dist;
-  const living = inst.world.units.filter((m) => m.side === 'mon' && m.alive);
-  const valid = (x, y) => inBand(dist2({ x, y }, tgt), want) && los(inst.grid, { x, y }, tgt)
-    && !living.some((m) => cheb(m, { x, y }) <= 1) && !(marked && marked(x, y));
+  const living = livingOf(inst, 'mon');
+  const beside = besideNear(living, tgt, SPOT.searchRadius);
+  const valid = (x, y) => inBand(dist2({ x, y }, tgt), want) && los(inst.grid, { x, y }, tgt) && !beside(x, y)
+    && !(marked && marked(x, y));
   const score = (x, y) => {
     const p = { x, y };
     let s = Math.abs(Math.sqrt(dist2(p, tgt)) - want) * SPOT.weightOffDistance + Math.sqrt(dist2(p, h)) * SPOT.weightWalk;
@@ -325,7 +339,11 @@ function rangedPos(inst, h, mons, marked) {
     return s;
   };
   let best = null; let bestScore = Infinity;
-  for (const [x, y] of candidateTiles(inst, h, tgt.pocket, tgt.x, tgt.y, SPOT.searchRadius)) {
+  /* `valid`'s first and cheapest term, asked of the square before candidateTiles' standable test (a tile off the band is never
+     valid, so the candidates that reach `valid` are the same tiles in the same order): the square is (2 x searchRadius + 1)^2
+     tiles and the band a ring of a few dozen, re-searched every sub-step a monster stands beside the hero (lane/r-engine-profile). */
+  const onBand = (x, y) => inBand((x - tgt.x) * (x - tgt.x) + (y - tgt.y) * (y - tgt.y), want);
+  for (const [x, y] of candidateTiles(inst, h, tgt.pocket, tgt.x, tgt.y, SPOT.searchRadius, onBand)) {
     if (!valid(x, y)) continue;
     const s = score(x, y);
     if (s < bestScore) { bestScore = s; best = [x, y]; }
@@ -414,7 +432,8 @@ export function positionHeroes(inst, sc) {
   const mons = engaged(inst);
   /* The ground marks standing now (marks.js), asked only while one stands: with none, every hero is placed as before. */
   const marked = anyMark(inst) ? (x, y) => markedAt(inst, x, y) : null;
-  for (const h of inst.world.units) {
+  /* (only a living hero is placed: unit-index.js, in list order; placing one kills nobody) */
+  for (const h of livingOf(inst, 'hero')) {
     const row = roleOf(h);
     if (!row || !h.alive) continue;
     if (!fighting || !mons.length) { h.spot = null; continue; }

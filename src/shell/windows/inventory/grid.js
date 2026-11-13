@@ -10,7 +10,7 @@
 // picked stack's line with its ONE primary action, the bulk tools (sell the
 // selection, sell a whole category, Dispatch loot) and the sale's confirmation
 // with the total. This hunt lists what the running hunt picked up with each
-// item's loot plan (Keep in bag / Deposit in storage / Sell, run by Dispatch loot
+// item's loot plan (Keep / Deposit / Sell, run by Dispatch loot
 // in town) or its pickup filter (Don't pick up, the only rule a pickup applies;
 // loot-dispatch.js, Tyler 2026-10-25).
 //
@@ -18,38 +18,41 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.114';
-import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.114';
-import { usePlaces, wherePlaces } from '../../item-lore.js?v=0.2.114';
-import { patchParts, placeLink } from '../../goto.js?v=0.2.114';
-import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.114';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.114';
-import { whole, gold } from '../../../render/format.js?v=0.2.114';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.114';
-import { glyphSvg } from '../../launcher.js?v=0.2.114';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.114';
-import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.114';
-import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.114';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.114';
-import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.114';
-import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js?v=0.2.114';
-import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.114';
-import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.114';
-import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.114';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.114';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.125';
+import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.125';
+import { usePlaces, wherePlaces } from '../../item-lore.js?v=0.2.125';
+import { patchParts, placeLink } from '../../goto.js?v=0.2.125';
+import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.125';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.125';
+import { whole, gold } from '../../../render/format.js?v=0.2.125';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.125';
+import { glyphSvg } from '../../launcher.js?v=0.2.125';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.125';
+import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.125';
+import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.125';
+import { pocketHtml, patchCount } from './pockets.js?v=0.2.125';
+import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.125';
+import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js?v=0.2.125';
+import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.125';
+import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.125';
+import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.125';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.125';
+import { t } from '../../../render/player-text.js?v=0.2.125';
+import { selectedIds, selectionWords, lockLabel } from './selection.js?v=0.2.125';
 
 /* The This hunt row's choices: the three plans, then the pickup filter (loot-dispatch.js). */
 const RULE_OPTIONS = '<optgroup label="Loot plan">' + LOOT_CHOICES.filter((c) => c[2] === 'plan').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('')
   + '</optgroup><optgroup label="On pickup">' + LOOT_CHOICES.filter((c) => c[2] === 'pickup').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('') + '</optgroup>';
-export const KEYS = '/ search · arrows move · Enter use · Space select · Delete sell · L lock · Ctrl+A select all';
+/** The key help line under the grid: the keys actions.js and selection.js really read. */
+export const KEYS = t('bag.keys');
 
 /** The toolbar across the window (tabs, search, sort, categories). */
 export function toolbarHtml(g) {
   return '<div class="hw-inv-head"><div class="hw-tabs" role="tablist">'
     + '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="bag" aria-selected="true">Bag</button>'
     + '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="hunt" aria-selected="false">This hunt</button></div>'
-    + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="search" placeholder="Find an item" aria-label="Find an item" autocomplete="off"></span>'
-    + '<label class="hw-sort"><span>Sort</span><select class="hh-select" data-hs-act="sort">' + BAG_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div></div>'
+    + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="search" placeholder="Search items" aria-label="Search items" autocomplete="off"></span>'
+    + '<label class="hw-sort"><span>' + t('controls.sort') + '</span><select class="hh-select" data-hs-act="sort">' + BAG_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div></div>'
     + '<div class="hw-cats" role="group" aria-label="Show">' + BAG_CATS.map(([id, l]) => '<button type="button" class="hw-cat" data-hs-act="cat" data-cat="' + id + '" aria-pressed="false">' + esc(l) + '</button>').join('') + '</div>';
 }
 
@@ -71,16 +74,19 @@ export function toolsHtml(g) {
     + '<button type="button" class="hh-tool hw-more" data-hs-act="more" aria-label="More for this item">' + glyphSvg(g, 'uiPlus') + '</button></div>'
     + '<p class="hw-why hw-pick-why" role="status" aria-live="polite"></p><p class="hw-pick-ways"></p>'
     + upgradeLineHtml()
-    + '<div class="hw-burying" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="bury-stop">Stop</button></div>'
+    + '<div class="hw-burying" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="bury-stop">' + t('controls.stop') + '</button></div>'
+    /* the selection line ("3 selected · value 120 gp", selection.js) with its bulk tools (the glossary's words, controls.js); it shows while a selection stands */
     + '<div class="hw-bulk"><span class="hw-selcount"></span>'
-    + '<button type="button" class="hh-tool" data-hs-act="sell-sel">Sell selected</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="clear-sel">Clear</button></div>'
-    + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="dispatch">Dispatch loot</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="sell-sel">' + t('controls.sell_selected') + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="deposit-sel">' + t('controls.deposit') + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="lock-sel">' + t('controls.lock') + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="clear-sel">' + t('controls.clear') + '</button></div>'
+    + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="sell-cat"></button><span class="hw-value"></span></div>'
     + '<p class="hw-why hw-dispatch-why" role="status" aria-live="polite"></p>'
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">Cancel</button></div></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="confirm-no">' + t('controls.cancel') + '</button></div></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>';
 }
 
@@ -173,22 +179,28 @@ export function patchTools(root, st, ctx) {
   prop(bl.querySelector('[data-hs-act="bury-stop"]'), 'disabled', sc.pending);
   prop(pick.querySelector('.hw-more'), 'disabled', sc.pending || !cur);
 
-  const selIds = Array.from(sc.sel).filter((id) => st.qty.has(id));
+  /* The selection: the server's rows it still names, counted and valued at the shop's bids (selection.js). */
+  const selIds = selectedIds(sc, st.items);
   cls(root.querySelector('.hw-bulk'), 'is-on', onBag && selIds.length > 0);
-  text(root.querySelector('.hw-selcount'), selIds.length + ' selected');
+  text(root.querySelector('.hw-selcount'), selectionWords(selIds, st.items, st.shop ? st.shop.bids : null));
   prop(root.querySelector('[data-hs-act="sell-sel"]'), 'disabled', sc.pending || !st.shop);
+  prop(root.querySelector('[data-hs-act="deposit-sel"]'), 'disabled', sc.pending);
+  const lb = root.querySelector('[data-hs-act="lock-sel"]');
+  text(lb, lockLabel(selIds, st.rules ? st.rules.locked : null));
+  prop(lb, 'disabled', sc.pending);
+  prop(root.querySelector('[data-hs-act="clear-sel"]'), 'disabled', sc.pending);
   const tools = root.querySelector('.hw-tools');
   cls(tools, 'is-off', !onBag);
   /* Dispatch loot: off with the server-sections' reason (a hunt running, nothing planned), said on its own line. */
   const dWhy = dispatchBlock(st.cs);
   const db = tools.querySelector('[data-hs-act="dispatch"]');
-  attr(db, 'title', dWhy || 'Stores every stack planned "Deposit in storage" and sells every stack planned "Sell"');
+  attr(db, 'title', dWhy || 'Deposits every stack planned "Deposit" and sells every stack planned "Sell"');
   prop(db, 'disabled', sc.pending || !!dWhy);
   whyLine(root.querySelector('.hw-dispatch-why'), onBag ? dWhy : '', false);
   const cb = tools.querySelector('[data-hs-act="sell-cat"]');
   const catLabel = (BAG_CATS.find(([id]) => id === prefs.cat) || [])[1] || '';
   cls(cb, 'is-on', prefs.cat !== 'all');
-  text(cb, 'Sell all ' + catLabel.toLowerCase());
+  text(cb, t('controls.sell_all_cat', { category: catLabel.toLowerCase() }));
   prop(cb, 'disabled', sc.pending || !st.shop || !st.shown.length);
   const val = st.shop ? bagValue(st.items, st.shop.bids) : null;
   text(tools.querySelector('.hw-value'), !st.shop ? 'Reading the shop prices…' : !val ? 'Value –' : 'Worth ' + gold(val.total) + (val.unpriced ? ' (' + val.unpriced + ' unpriced)' : ''));

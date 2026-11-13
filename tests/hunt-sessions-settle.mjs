@@ -149,6 +149,9 @@
 //   END        under `end`, a dry essential heal line ends the hunt heals_out.
 //   BAG-CAP    a full bag never stops a hunt (2027-02-11-hunt-loot-past-bag-cap.sql): loot lands past the
 //              stack cap with the browser closed and the hunt viewed; nothing is refused or forfeited.
+//   DEAD-WRITES  a settle journals no renown row and leaves the mark alone; the collection counter
+//              (stat ev:loot:<item>) is stored only while `collection_log` is on for the account, and then
+//              counts exactly what dropped (2027-03-30-dead-writes.sql). Both doors.
 //   HOME-WHOLE every end sends the hero home whole (designer 2026-10-29): a hero hurt
 //              when a Leave, stamina, supplies or gold ends its hunt is stored at full
 //              HP, the envelope draws full HP and mana in town, its next hunt enters
@@ -2757,6 +2760,62 @@ const DB_ARMS = {
     }
     return problems;
   }),
+  /* TWO WRITES NOTHING READS (2027-03-30-dead-writes.sql; hunt-path baseline 2026-11-10, finding 2). A settle journals no
+     renown row and leaves the renown mark where it was, and it stores the collection counter (stat ev:loot:<item>) only
+     while the `collection_log` switch is on for the account. The loot, the kill counters and the settle's own ledger rows
+     land either way. BOTH PATHS: the browser closed (the tick's door) and the hunt viewed (the player's settle door). */
+  'DEAD-WRITES': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const exec = makeExec(db);
+    const DOORS = {
+      'the browser closed': (sid) => ({ mode: 'tick', session: sid }),
+      'the hunt viewed': () => ({ mode: 'settle', bucket: null, project: true, live: true }),
+    };
+    const num = async (sql) => Number(await one(db, sql, [UID]));
+    const lootRows = () => q(db, `select substring(key from 9) as id, value from public.player_progress
+                                   where user_id = $1 and slot = 0 and kind = 'stat' and period_key = '' and key like 'ev:loot:%'`, [UID]);
+    const renownRows = () => num(`select count(*) from public.player_ledger where user_id = $1 and kind = 'renown'`);
+    const mark = () => num('select coalesce(renown_high, 0) from public.player_state where user_id = $1 and slot = 0');
+    const kills = () => num(`select coalesce(sum(value), 0) from public.player_progress where user_id = $1 and slot = 0 and key like 'ev:kill_monster:%'`);
+    const valueRows = () => num(`select count(*) from public.player_ledger where user_id = $1 and kind = 'combat' and intent <> 'death'`);
+    const bag = async () => Object.fromEntries((await q(db, 'select item_id, qty from public.player_inventory where user_id = $1 and slot = 0', [UID])).map((r) => [r.item_id, Number(r.qty)]));
+    const drops = ['rat', 'wolf'].flatMap((k) => M.MONSTERS[k].drops.map((d) => d.id));
+    const gained = (a, b) => Object.fromEntries(drops.map((id) => [id, (b[id] || 0) - (a[id] || 0)]).filter(([, n]) => n > 0));
+    const flip = (scope) => db.query(`update public.hr_feature_switches set scope = $1, accounts = '{}' where switch_id = 'collection_log'`, [scope]);
+    for (const [path, door] of Object.entries(DOORS)) {
+      const h = await hunter(db, M, { minutesAgo: 9, level: 12 });
+      const settle = async (t) => {
+        const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: h.from + t, ...door(h.sid) });
+        if (!r || r.outcome !== 'paid') problems.push(`${path}: the window to +${t} ms answered ${r && r.outcome}/${r && r.reason}`);
+      };
+      // ── the switch OFF (as it ships) ──
+      await flip('off');
+      const mark0 = await mark(), bag0 = await bag();
+      for (let t = 60000; t <= 240000; t += 60000) await settle(t);
+      const bag1 = await bag();
+      if (!(await kills() > 0) || !Object.keys(gained(bag0, bag1)).length || !(await valueRows() > 0)) {
+        problems.push(`${path}: CONTROL: four minutes killed ${await kills()}, dropped ${JSON.stringify(gained(bag0, bag1))}, journalled ${await valueRows()} combat row(s)`);
+      }
+      const off = await lootRows();
+      if (off.length) problems.push(`${path}: with collection_log off the settle stored ${off.length} loot counter row(s): ${JSON.stringify(off.slice(0, 3))}`);
+      if (await renownRows() !== 0) problems.push(`${path}: the settle journalled ${await renownRows()} renown row(s)`);
+      const score = await num('select public.hr_renown_of($1::uuid, 0)');
+      if (!(score > mark0)) problems.push(`${path}: CONTROL: the hero scores ${score} against a mark of ${mark0}, so the old ratchet would not have moved either`);
+      if (await mark() !== mark0) problems.push(`${path}: the renown mark moved ${mark0} -> ${await mark()}`);
+      // ── the switch ON: the counter comes back, and counts exactly what dropped ──
+      await flip('everyone');
+      for (let t = 300000; t <= 480000; t += 60000) await settle(t);
+      const want = gained(bag1, await bag());
+      const got = Object.fromEntries((await lootRows()).filter((r) => drops.includes(r.id)).map((r) => [r.id, Number(r.value)]));
+      if (!Object.keys(want).length) problems.push(`${path}: CONTROL: nothing dropped in the four minutes with the switch on`);
+      if (canon(got) !== canon(want)) problems.push(`${path}: with collection_log on the counter holds ${JSON.stringify(got)}, the bag gained ${JSON.stringify(want)}`);
+      if (await renownRows() !== 0 || await mark() !== mark0) problems.push(`${path}: renown moved with the switch on (${await renownRows()} row(s), mark ${await mark()})`);
+      const s = await snapshot(db, h.sid);
+      if (s.session.end_reason || s.session.forfeit) problems.push(`${path}: the hunt ended ${s.session.end_reason} (forfeit ${s.session.forfeit})`);
+      await db.query('rollback'); await db.query('begin');
+    }
+    return problems;
+  }),
   /* EVERY END SENDS THE HERO HOME WHOLE (designer 2026-10-29: Pellow sat at 135/160 in town for four days and
      started his next hunt there). A Level-10 hero that walks in at 20 of 240 HP, eats nothing on the way, and ends by
      a Leave, stamina, supplies (heals_out) or gold (gold_out) is STORED at its full HP; the envelope the client draws
@@ -3818,13 +3877,8 @@ const DB_ARMS = {
     try {
       const h = await hunter(db, M, { realGround: true, minutesAgo: 22, level: 2, density: 8,
         inv: { cooked_shrimp: 30 }, bag: [{ item: 'cooked_shrimp', qty: 25 }], gold: 1000 });
-      /* THE DENSITY TERM ALONE (v_pass = spawns + pockets x the frozen pick). hr_hunt_grounds.spawns also carries pockets x a party's
-         largest default pull (gen-hunt-sessions.mjs), which on the Cellar is room enough to hide a bound that drops the pick: this
-         arm holds the row at the as-built rows, for this transaction, so only the pick can admit these kills. The pull's own term
-         is tests/party-pull-bound.mjs's. */
-      const { HUNT_GROUNDS: REAL } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href);
-      const pullSpawns = REAL.mill_cellar.pockets.length * Math.max(0, ...(REAL.mill_cellar.partyPull || []));
-      await db.query("update public.hr_hunt_grounds set spawns = spawns - $1::int where hunt_id = 'mill_cellar'", [pullSpawns]);
+      /* THE DENSITY TERM ALONE (v_pass = spawns + pockets x the frozen pick). hr_hunt_grounds.spawns is the Cellar's rows as built (a party's
+         own Normal pull, which once widened it, is retired: Tyler 2026-11-11), so only the pick can admit these kills. */
       /* Hank's weapon: the club's cleave clears a full pack at once. */
       await db.query("delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot in ('shield', 'weapon')", [UID]);
       await db.query("insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'weapon', 'practice_club')", [UID]);
@@ -4652,6 +4706,19 @@ const DB_MUTANTS = [
   { arm: 'BAG-CAP', name: '[bag cap] a hunt\'s settle is refused bank_full at a full bag', fn: 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)',
     find: "if coalesce(current_setting('hr.hunt_session', true), '') = '' and v_stacks > v_st.bank_cap and v_stacks > v_stacks_before then",
     replace: "if v_stacks > v_st.bank_cap and v_stacks > v_stacks_before then" },
+  /* TWO WRITES NOTHING READS (2027-03-30-dead-writes.sql): each stopped write goes red when it comes back, and the switch when it is deaf. */
+  { arm: 'DEAD-WRITES', name: '[dead writes] the collection counter is stored with its switch off', fn: 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)',
+    find: "          if not v_collect then continue; end if;\n", replace: "" },
+  { arm: 'DEAD-WRITES', name: '[dead writes] the switch cannot bring the collection counter back', fn: 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)',
+    find: "          if not v_collect then continue; end if;\n", replace: "          continue;\n" },
+  { arm: 'DEAD-WRITES', name: '[dead writes] the gate swallows a counter that is not loot (the kill counters)', fn: 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)',
+    find: "        if v_prog->>'kind' = 'stat' and left(v_prog->>'key', 8) = 'ev:loot:' then\n", replace: "        if v_prog->>'kind' = 'stat' and left(v_prog->>'key', 3) = 'ev:' then\n" },
+  { arm: 'DEAD-WRITES', name: '[dead writes] a settle journals a renown row again', fn: 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)',
+    find: "    -- ── RENOWN: NO RATCHET AND NO JOURNAL ROW (DEAD-WRITES, 2027-03-30-dead-writes.sql) ──\n",
+    replace: "    insert into public.player_ledger (user_id, slot, kind, intent, meta) values (v_uid, v_slot, 'renown', 'renown_ratchet', jsonb_build_object('intent_id', p_intent_id));\n" },
+  { arm: 'DEAD-WRITES', name: '[dead writes] a settle raises the renown mark again', fn: 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)',
+    find: "    -- ── RENOWN: NO RATCHET AND NO JOURNAL ROW (DEAD-WRITES, 2027-03-30-dead-writes.sql) ──\n",
+    replace: "    update public.player_state ps set renown_high = greatest(coalesce(ps.renown_high, 0), coalesce(public.hr_renown_of(v_uid, v_slot), 0)) where ps.user_id = v_uid and ps.slot = v_slot;\n" },
   /* INNER FLAME KEEPS PRAYER'S DEATH LOSS (2027-01-31-inner-flame.sql): the death's skills are the catalogue's combat rows. */
   { arm: 'DEATHXP-FLAME', name: '[inner flame] a death no longer prices Inner Flame', fn: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)',
     find: "  c_xp_skills constant text[] := array(select k.skill_id from public.hr_skills k where k.cat = 'combat' order by k.skill_id);",
@@ -4795,8 +4862,9 @@ const DB_MUTANTS = [
     find: 'kills = t.kills + v_kills,', replace: 'kills = t.kills + v_kills + 1,' },
   { arm: 'TALLY', name: 'the fold drops the own-supply rows', fn: SS,
     find: 'supplies = public.hr_jsonb_add(t.supplies, v_sup)', replace: 'supplies = t.supplies' },
+  /* the tally's one write a member (2027-04-08-member-write-once.sql folds the store bill into it; each column keeps its own condition) */
   { arm: 'ANALYZER', name: 'the analyzer tally is not folded', fn: AM,
-    find: '           dealt = public.hr_hunt_tally_add(t.dealt, coalesce(p_analyzer->\'dealt\', \'{}\'::jsonb)),', replace: '           dealt = t.dealt,' },
+    find: 'then public.hr_hunt_tally_add(t.dealt, coalesce(p_analyzer->\'dealt\', \'{}\'::jsonb)) else t.dealt end,', replace: 'then t.dealt else t.dealt end,' },
   /* 'a free character reads the analyzer' RETIRED 2026-10-19: 2026-10-26-hunt-analyzer-basic.sql gives every
      character the basic analyzer, so the live body has no premium gate to remove. */
   { arm: 'DEATHXP', name: 'the applier stops bounding the Level\'s death price', fn: AM,

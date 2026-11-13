@@ -264,7 +264,8 @@ export const WORLD_FIELDS_READ = Object.freeze({
    blow taken at the plain rate, once a windup, and the bound prices a block every swing interval, so it holds while the least windup x block_mult covers the swing interval
    (refused here, and executed by the file's self-check). No kill bound, spawn, bid, end reason or ground moves. Postgres reads no spell row: the engine casts them. THE SHAPE MOVES,
    so the hr-accrue carrying the same src/core follows AT ONCE, and the client that draws the warning marks is live BEFORE that edge (never the edge first: a spell would land unwarned). */
-export const OUT_NAME = '2027-04-15-area-spells-hunt-sessions-catalogue.generated.sql';
+/* BARROW DATA (lane/d-barrow-data) is the file after it and carries it whole. */
+export const OUT_NAME = '2027-04-17-barrow-data-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

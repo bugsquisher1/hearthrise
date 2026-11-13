@@ -29,7 +29,7 @@
 //             script is the source, so a hand edit or an old copy of the file is a finding
 //   heads     a HEAD_ART id (src/data/monster-art.js) with no creature row, or an id in both head lists; the heads folder also runs
 //             the missing, orphan, size, palette, alpha and empty rules (32x32 busts, one file per listed id)
-//   drawn     the same for the icons tools/world-art/twin-icons.mjs and ability-tiles.mjs draw
+//   drawn     the same for the icons tools/world-art/twin-icons.mjs, ladder-icons.mjs and ability-tiles.mjs draw
 //
 // The SAME rules (missing, orphan, size, palette, alpha, empty) also hold for the shop's
 // basic supplies: one icon per row of src/data/supply-basics.js BASIC_SUPPLIES (salted
@@ -38,7 +38,7 @@
 // --selftest plants each defect into a copy of real shipped icons and requires it
 // to be caught BY ITS NAMED RULE; the clean copy must stay silent.
 //
-// mutant-anchors: assets/icons-bundle/pixel/items/ assets/icons-bundle/pixel/heads/ src/data/monster-art.js assets/icons-bundle/pixel/supplies/ assets/icons-bundle/pixel/abilities/ src/data/item-art.js art/world/palette.json tools/world-art/longbow-icon.mjs tools/world-art/twin-icons.mjs tools/world-art/ability-tiles.mjs
+// mutant-anchors: assets/icons-bundle/pixel/items/ assets/icons-bundle/pixel/heads/ src/data/monster-art.js assets/icons-bundle/pixel/supplies/ assets/icons-bundle/pixel/abilities/ src/data/item-art.js art/world/palette.json tools/world-art/longbow-icon.mjs tools/world-art/twin-icons.mjs tools/world-art/ladder-icons.mjs tools/world-art/ability-tiles.mjs
 //
 // Exit: 0 green · 1 a finding or a mutant escaped · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -50,6 +50,7 @@ import { decodePNG, encodePNG, createImage } from '../tools/world-art/png.mjs';
 import { inPalette } from '../tools/world-art/lock.mjs';
 import { drawGrid, toImage } from '../tools/world-art/longbow-icon.mjs';
 import { DRAW as TWIN_ICONS, toImage as twinImage } from '../tools/world-art/twin-icons.mjs';
+import { DRAW as LADDER_ICONS } from '../tools/world-art/ladder-icons.mjs';
 import { DRAW as ABILITY_TILES, toImage as tileImage } from '../tools/world-art/ability-tiles.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -298,6 +299,7 @@ const { MONSTERS } = await import(pathToFileURL(join(ROOT, 'src/data/monsters.js
 const headIds = headArt.HEAD_ART.concat(headArt.HEAD_ART_AHEAD);
 const findings = [...checkIcons(join(ROOT, HEADS), headIds), ...checkDuplicates(join(ROOT, HEADS), headIds, []), ...checkHeads(headArt, new Set(Object.keys(MONSTERS))),
   ...checkIcons(join(ROOT, DIR), ids), ...checkDuplicates(join(ROOT, DIR), ids), ...checkSupplies(join(ROOT, SUPPLY), supplyIds), ...(await checkWiring(ROOT, abilityIds)), ...checkSwitch(ROOT), ...checkLongbow(join(ROOT, DIR, 'longbow.png')),
-  ...checkDrawn(join(ROOT, DIR), TWIN_ICONS, twinImage), ...checkDrawn(join(ROOT, ABILITY), ABILITY_TILES, tileImage)];
+  ...checkDrawn(join(ROOT, DIR), TWIN_ICONS, twinImage), ...checkDrawn(join(ROOT, ABILITY), ABILITY_TILES, tileImage),
+  ...checkDrawn(join(ROOT, DIR), LADDER_ICONS, (img) => img)];
 report(`pixel-icons: ${ids.length} items + ${supplyIds.length} supplies + ${headIds.length} heads`, findings);
 process.exit(findings.length ? 1 : 0);

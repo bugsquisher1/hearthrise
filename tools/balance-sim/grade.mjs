@@ -9,6 +9,8 @@
 //
 //   node tools/balance-sim/grade.mjs --mode quick [--grounds a,b] [--workers 4]     a subset in minutes, for any lane
 //   node tools/balance-sim/grade.mjs --mode full  [--grounds a,b] [--tiers t,u]     the whole grid (about 17k hero-hours)
+//   ... [--open-also a,b]                                                          staged grounds that ship with these: their drops on
+//                                                                                   the gear ladder too (a staged graded ground's own always are)
 //   node tools/balance-sim/grade.mjs --in DIR                                       grade cells already played (no play)
 //   node tools/balance-sim/grade.mjs --mode quick --what-if '{"monsters":{"*":{"atk":"*3"}}}'   a candidate on the same dice
 //   node tools/balance-sim/grade.mjs --selftest                                     every rule bites a synthetic mutant
@@ -66,20 +68,28 @@ export async function buildGrid(root, mode, opts = {}) {
   const T = await import(u('src/data/hunt-tiers.js'));
   const wi = opts.whatIf || null, tag = wi ? ',w=' + createHash('sha256').update(JSON.stringify(wi)).digest('hex').slice(0, 8) : '';
   const jobs = [];
+  const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  for (const x of opts.openAlso || []) if (!own(G.HUNT_GROUNDS, x)) throw new Error('grade: --open-also names no ground ' + x);
   for (const g of groundsOf(G, opts.grounds)) {
     const band = HUNT_INDEX[g.hunt].band;
+    /* A STAGED GROUND IS PLAYED AS IT SHIPS (lane/b-slake-and-ford 2026-11-10): its own drops gettable, the ladder every open ground
+       is graded on (gear.mjs openAlso). `opts.openAlso` opens other staged grounds with it (a pair that ships together: the Ford's
+       armor and the Slake's weapons). The cell id says so, so a cell played on another ladder is never resumed as this one. */
+    const extra = (opts.openAlso || []).filter((x) => x !== g.id && !own(G.OPEN_GROUNDS, x));
+    const opens = [...(own(G.OPEN_GROUNDS, g.id) ? [] : [g.id]), ...extra];
+    const og = opens.length ? ',open' + (extra.length ? '=' + opens.join('+') : '') : '', ogear = opens.length ? { openAlso: opens } : null;
     for (const tier of T.tiersOf(g.id).filter((t) => !opts.tiers || opts.tiers.includes(t))) {
       const row = T.tierRowOf(g.id, tier);
       for (const { offset, level } of levelsOf(band, OFFSETS[mode])) for (const [size, comps] of Object.entries(COMPS[mode])) for (const comp of comps) {
         const n = Number(size), pull = tier === 'normal' ? 0 : row.pull[n - 1], { seeds, hours } = dice(mode, n, tier, offset);
-        const id = ['grade', 'g=' + g.id, 't=' + tier, 'o=' + offset, 'p=' + comp.join('+'), 'L=' + level, 's=' + seeds, 'h=' + hours].join(',') + tag;
-        jobs.push({ id, ground: g.id, party: comp, level, ...(pull ? { density: pull } : {}), hours, seeds, ...(tier === 'normal' ? {} : { options: { tier } }),
+        const id = ['grade', 'g=' + g.id, 't=' + tier, 'o=' + offset, 'p=' + comp.join('+'), 'L=' + level, 's=' + seeds, 'h=' + hours].join(',') + og + tag;
+        jobs.push({ id, ground: g.id, party: comp, level, ...(ogear ? { gear: ogear } : {}), ...(pull ? { density: pull } : {}), hours, seeds, ...(tier === 'normal' ? {} : { options: { tier } }),
           windowMs: 120000, ...(wi ? { whatIf: wi } : {}), grade: { ground: g.id, band, groupFit: fitOf(g), tier, offset, size: n, comp: comp.join('+'), gear: 'ladder' } });
       }
       /* THE FRESH HERO (first-week bars): the practice set alone at a first-day solo floor (Level 15 or under), Normal, every way */
       if (tier === 'normal' && band[0] <= 15 && fitOf(g) === 'solo') for (const [s] of COMPS[mode][1]) {
         const { seeds, hours } = dice(mode, 1, tier, 'floor');
-        const id = ['grade', 'g=' + g.id, 't=normal', 'o=floor', 'p=' + s, 'L=' + band[0], 'gear=practice', 's=' + seeds, 'h=' + hours].join(',') + tag;
+        const id = ['grade', 'g=' + g.id, 't=normal', 'o=floor', 'p=' + s, 'L=' + band[0], 'gear=practice', 's=' + seeds, 'h=' + hours].join(',') + og + tag;
         jobs.push({ id, ground: g.id, party: [s], level: band[0], gear: { starter: true }, hours, seeds, windowMs: 120000, ...(wi ? { whatIf: wi } : {}),
           grade: { ground: g.id, band, groupFit: 'solo', tier, offset: 'floor', size: 1, comp: s, gear: 'practice' } });
       }
@@ -97,6 +107,8 @@ export function groundsOf(G, names) {
 
 /** A ground's fit: party where a pocket needs a party or the ground says so (tools/balance-sim plans.mjs loadAxes), else solo (a both ground sends a lone hero). */
 export const fitOf = (g) => ((g.pockets || []).some((p) => p.forParty) || g.groupFit === 'party' ? 'party' : 'solo');
+/** Each pack's `checks` (src/data/grounds/index.js GROUND_PACKS), by ground id. */
+export async function packChecksOf(root) { const P = await import(pathToFileURL(join(root, 'src/data/grounds/index.js')).href); return Object.fromEntries(P.GROUND_PACKS.map((p) => [(p.ground && p.ground.id) || p.id, p.checks || {}])); }
 export async function fitsOf(root) { const G = await import(pathToFileURL(join(root, 'src/data/hunt-grounds.js')).href); return Object.fromEntries(Object.values(G.HUNT_GROUNDS).map((g) => [g.id, fitOf(g)])); }
 
 /* ── THE METRICS OF ONE CELL (hour-weighted per head) ── */
@@ -123,7 +135,7 @@ export async function loadPace(root) {
 const scoped = (rule, m) => (!rule.tiers || rule.tiers.includes(m.tier)) && (!rule.offsets || rule.offsets.includes(m.offset)) && (!rule.sizes || rule.sizes.includes(m.size))
   && (!rule.fit || rule.fit === m.groupFit) && (rule.gear || 'ladder') === (m.gear || 'ladder') && (rule.floorFrom == null || m.band[0] >= rule.floorFrom)
   && (rule.floorMax == null || m.band[0] <= rule.floorMax) && !(rule.skip && rule.skip(m));
-const median = (xs) => { const s = xs.filter(Number.isFinite).sort((a, b) => a - b); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; };
+export const median = (xs) => { const s = xs.filter(Number.isFinite).sort((a, b) => a - b); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; };
 const off = (v, rule) => (rule.min != null && v < rule.min ? (rule.min - v) / Math.max(Math.abs(rule.min), 1e-9) : rule.max != null && v > rule.max ? (v - rule.max) / Math.max(Math.abs(rule.max), 1e-9) : 0);
 
 /**
@@ -131,14 +143,17 @@ const off = (v, rule) => (rule.min != null && v < rule.min ? (rule.min - v) / Ma
  * { verdicts: [{ rule, binding, verdict 'FAIL'|'UNPROVEN'|'OFF'|'ok', key, value, lo, hi, bound, off, why }], grounds: { id: { fail, unproven, off, ok } } }.
  * OFF is an advisory rule off its target; a solo cell on a party ground (groupFit 'party') grades its binding rules as advisory.
  */
-export function gradeCells(cells, sheet, pace, fits = {}) {
-  const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade).map((c) => ({ c, m: { ...c.cell.grade, groupFit: fits[c.cell.grade.ground] || c.cell.grade.groupFit }, x: metricsOf(c) }));
+export function gradeCells(cells, sheet, pace, fits = {}, packs = {}) {
+  /* `packs`: a pack's own grading facts (src/data/grounds/<id>/pack.js `checks`), e.g. deadlyFourNeeds 'healer' (designer Q4 2026-11-12) */
+  const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade).map((c) => ({ c, m: { ...c.cell.grade, groupFit: fits[c.cell.grade.ground] || c.cell.grade.groupFit,
+    deadlyFourNeeds: (packs[c.cell.grade.ground] && packs[c.cell.grade.ground].deadlyFourNeeds) || null }, x: metricsOf(c) }));
   const key = (m, extra) => [m.ground, m.tier, m.offset, 'size ' + m.size, extra].filter(Boolean).join(' / ');
   const find = (m, pred) => rows.filter((r) => r.m.ground === m.ground && pred(r.m));
   const verdicts = [];
   const push = (rule, m, value, extra, ci) => {
     /* the pace contract is fitted on lone heroes (pace.mjs, the ladder plan), so its lone reading binds on a party ground too (Coordinator ruling 2026-11-11, lane/d-solo-fifteen) */
-    const binding = rule.binding && !(m.size === 1 && m.groupFit === 'party' && rule.aggregate !== 'xpVsContract');
+    /* a rule's `reportOnly(m)` cells are reported, never graded (designer rulings Q2 and Q4, 2026-11-12) */
+    const binding = rule.binding && !(m.size === 1 && m.groupFit === 'party' && rule.aggregate !== 'xpVsContract') && !(rule.reportOnly && rule.reportOnly(m));
     let verdict = 'ok', o = 0;
     if (ci) {
       if (rule.max != null && ci.lo > rule.max) { verdict = binding ? 'FAIL' : 'OFF'; o = (ci.lo - rule.max) / Math.max(rule.max, 1e-9); }
@@ -176,6 +191,7 @@ export function gradeCells(cells, sheet, pace, fits = {}) {
         let v = null;
         switch (rule.aggregate) {
           case 'supplyShare': v = median(g.map((r) => r.x.supplyShare)); break;
+          case 'medianMargin': v = median(g.map((r) => r.x.margin)); break;
           case 'xpVsContract': v = sheet.contract ? median(g.map((r) => r.x.xp)) / sheet.contract(Array.isArray(L) ? Math.max(...L) : L) : null; break;
           case 'xpVsNormal': { const n = median(find(m, (o) => o.tier === 'normal' && o.offset === m.offset && o.size === m.size && (o.gear || 'ladder') === 'ladder').map((o) => o.x.xp)); v = n > 0 ? median(g.map((r) => r.x.xp)) / n : null; break; }
           case 'heldCount': v = Math.round(((g.filter((r) => r.x.held).length * 8) / g.length) * 10) / 10; break; /* held of 8 ways (a quick run plays 4) */
@@ -347,7 +363,12 @@ export function synthSet(mut = {}) {
   if (mut.dips) pick('normal', 'floor', 1).heroes[0].closeCallsPer12h.k = 900;
   if (mut.profit) pick('normal', 'top', 1).heroes[0].storePerH = 4500, pick('normal', 'top', 1).heroes[0].profitPerH = 500;
   if (mut.under5) for (const h of pick('dangerous', 'under5', 4).heroes) h.storePerH = 1000, h.profitPerH = 3500;
-  if (mut.four) for (const h of pick('normal', 'floor', 4).heroes) h.levelXpPerH = 70000 * 1.6;
+  /* `ways`: three more lone ways at the floor, `ways` of them losing gold (the median-target selftest) */
+  if (mut.ways) for (const [i, comp] of ['sword', 'axes', 'bow'].entries()) cells.push(synthCell({ tier: 'normal', offset: 'floor', size: 1, comp }, { level: 16, hours: 2000, xp: 70000, income: 5000, store: i < mut.ways ? 4800 : 1500, hp: 70, coin: 3000 }));
+  if (mut.band) for (const c of cells) c.cell.grade.band = mut.band;
+  if (mut.fourOffset === 'middle') for (const c of cells.filter((c) => c.cell.grade.offset === 'top')) c.cell.grade.offset = 'middle';
+  if (mut.four) for (const h of pick('normal', mut.fourOffset || 'floor', 4).heroes) h.levelXpPerH = 70000 * 1.6;
+  if (mut.deadlyFour) { const c = pick('deadly', 'floor', 4); c.cell.grade.comp = mut.deadlyFour; for (const h of c.heroes) h.deaths = 40, h.hours = 8; }
   if (mut.tier) for (const h of pick('deadly', 'top', 4).heroes) h.levelXpPerH = 70000;
   if (mut.lowpoint) pick('normal', 'floor', 1).heroes[0].encMinHpPct.p50 = 40;
   /* fresh heroes in the practice kit at the floor (buildGrid's first-week cells): a four in the ladder kit is judged against solos in the
@@ -369,8 +390,23 @@ if (isMain(import.meta.url)) {
       const r = gradeCells(synthSet({ [mut]: true }), SHEET, flat);
       if (!r.verdicts.some((v) => v.rule === rule && v.verdict === 'FAIL')) bad.push('mutant ' + mut + ' did not FAIL ' + rule);
     }
+    const RS = await loadSheet(ROOT, null, null);
+    /* Q2: on a band of 20+ Levels a four's ends are reported (OFF), its middle is graded; on a narrower band the ends still FAIL */
+    const long = (band, at) => gradeCells(synthSet({ four: true, band, fourOffset: at }), RS, flat).verdicts.filter((v) => v.rule === 'four-xp' && v.verdict === 'FAIL');
+    if (long([16, 36], 'top').length) bad.push('a 20-Level band graded a four at its end');
+    if (!long([16, 36], 'middle').length) bad.push('a 20-Level band did not grade a four at its middle');
+    if (!long([16, 31], 'top').length) bad.push('a 15-Level band stopped grading a four at its top');
+    /* Q4: a pack that needs a Healer on Deadly grades only the four with one; the healerless four is reported */
+    const heal = (needs, comp) => gradeCells(synthSet({ deadlyFour: comp }), RS, flat, {}, { g: { deadlyFourNeeds: needs } }).verdicts.filter((v) => v.rule === 'tier-deadly-four-held' && v.verdict === 'FAIL').length;
+    if (heal('healer', 'tank+bow+mage+hammer')) bad.push('a healerless four failed a Deadly that needs a Healer');
+    if (!heal('healer', 'tank+healer+bow+mage')) bad.push('a four with a Healer was not graded on a Deadly that needs one');
+    if (!heal(null, 'tank+bow+mage+hammer')) bad.push('a healerless four went ungraded on an ordinary Deadly');
+    /* Tyler 11-12 median target: one way under +25% is reported while the median way clears; a median under +25% fails */
+    const prof = (lose) => gradeCells(synthSet({ ways: lose }), RS, flat).verdicts.filter((v) => v.rule === 'normal-profit' && v.verdict === 'FAIL').length;
+    if (prof(1)) bad.push('one way under +25% failed the ground (the floor is the median way)');
+    if (!prof(3)) bad.push('a median way under +25% passed');
     if (bad.length) { console.error('grade --selftest RED: ' + bad.join(' | ')); process.exit(1); }
-    console.log('grade --selftest: the good set passes and 7 mutants each FAIL their rule');
+    console.log('grade --selftest: the good set passes and 7 mutants each FAIL their rule; the long-band and needs-a-Healer scopes hold');
     process.exit(0);
   }
   const mode = arg('mode', 'quick');
@@ -380,14 +416,15 @@ if (isMain(import.meta.url)) {
   if (!inDir) {
     const whatIf = arg('what-if', null) ? JSON.parse(arg('what-if')) : null;
     const grounds = arg('grounds', null) ? arg('grounds').split(',') : null, tiers = arg('tiers', null) ? arg('tiers').split(',') : null;
-    const jobs = await buildGrid(ROOT, mode, { whatIf, grounds, tiers });
+    const openAlso = arg('open-also', null) ? arg('open-also').split(',') : null;
+    const jobs = await buildGrid(ROOT, mode, { whatIf, grounds, tiers, openAlso });
     if (process.argv.includes('--estimate')) { console.log('grade ' + mode + ': ' + jobs.length + ' cells, ' + jobs.reduce((s, j) => s + j.seeds * j.hours * j.party.length, 0) + ' hero-hours'); process.exit(0); }
     const { runPool } = await import('./pool.mjs');
     mkdirSync(out, { recursive: true });
     await runPool(jobs, join(out, 'cells.jsonl'), { root: ROOT, workers: Number(arg('workers', '4')), cpuMax: Number(arg('cpu', '85')) });
   }
   const cells = existsSync(join(out, 'cells.jsonl')) ? readFileSync(join(out, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
-  const graded = gradeCells(cells, SHEET, await loadPace(ROOT), await fitsOf(ROOT));
+  const graded = gradeCells(cells, SHEET, await loadPace(ROOT), await fitsOf(ROOT), await packChecksOf(ROOT));
   for (const v of feelVerdicts(cells, await fitsOf(ROOT))) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'unproven']++; }
   for (const v of await blowVerdicts(ROOT, SHEET, arg('grounds', null) ? arg('grounds').split(',') : null)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'ok']++; }
   writeFileSync(join(out, 'grade.json'), JSON.stringify({ sheet: SHEET.source, cells: cells.length, ...graded }, null, 1));

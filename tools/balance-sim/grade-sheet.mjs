@@ -17,7 +17,9 @@ export const SHEET = Object.freeze({
     { id: 'normal-dips', why: '10-25: Normal, at most 1 serious dip under 25% HP per 12 h on average', tiers: ['normal'], offsets: ['floor', 'plus10', 'top'], metric: 'dipsPer12h', max: 1, pooled: true, binding: true },
     { id: 'normal-low-point', why: '10-25: Normal, the typical encounter bottoms out at 60-80% HP (diagnostic: a defensive hero may stay above)', tiers: ['normal'], offsets: ['floor', 'plus10', 'top'], metric: 'minHpP50', min: 60, binding: true },
     { id: 'normal-easy', why: '10-25: Normal is 60-80%, Easy 80-95% (Andy 11-06: "a cake walk")', tiers: ['normal'], offsets: ['floor'], metric: 'minHpP50', max: 80, binding: false },
-    { id: 'normal-profit', why: '10-18 and 11-02: every hunt in range clears +25% over its store bill (a minimum)', tiers: ['normal'], offsets: ['floor', 'plus10', 'top'], metric: 'margin', min: 0.25, binding: true },
+    /* Tyler 2026-11-12 "Median target": the +25% floor binds the ground's MEDIAN way; each way's own margin is reported, not graded */
+    { id: 'normal-profit', why: '10-18, 11-02 and Tyler 11-12: the median way in range clears +25% over its store bill', tiers: ['normal'], offsets: ['floor', 'plus10', 'top'], aggregate: 'medianMargin', min: 0.25, binding: true },
+    { id: 'normal-profit-way', why: 'each way\'s own margin, reported (Tyler 11-12)', tiers: ['normal'], offsets: ['floor', 'plus10', 'top'], metric: 'margin', min: 0.25, binding: false },
     { id: 'normal-supplies', why: 'Andy 11-06 and Tyler 11-07 ("make it 20% harder", about a fifth of income): supplies are real at the floor', tiers: ['normal'], offsets: ['floor'], sizes: [1], metric: 'supplyShare', min: 0.1, binding: false },
     { id: 'normal-pace', why: '10-25 first-week bar: at the floor, at least half the pace of record (the pace is the ground the game sends a Level to, so a band top reads under it by design)', tiers: ['normal'], offsets: ['floor'], sizes: [1], metric: 'xpVsPace', min: 0.5, binding: true },
     /* UNDER YOUR WEIGHT CLASS COSTS GOLD (10-18 "below range = higher XP, gold loss, more deaths"; 11-06 "even in a party, you're gonna waste money") */
@@ -59,7 +61,9 @@ export function sheetFromBalanceSheet(BS) {
       { id: 'normal-deaths', why: why('normal.deathsPer1000h (RULED 10-25)'), ...floor1, metric: 'deathsPer1000h', max: N.deathsPer1000h, pooled: true, binding: true },
       { id: 'normal-dips', why: why('normal.closeCallsPer12h (RULED 10-25)'), ...floor1, metric: 'dipsPer12h', max: N.closeCallsPer12h, pooled: true, binding: true },
       { id: 'normal-low-point', why: why('normal.typicalMinHpPct, every way (RULED 10-25)'), ...floor1, metric: 'minHpP50', min: N.typicalMinHpPct, binding: true },
-      { id: 'normal-profit', why: why('normal.marginMin, every way (RULED 10-18)'), ...floor1, metric: 'margin', min: N.marginMin, binding: true },
+      /* Tyler 2026-11-12 "Median target": the +25% floor binds the ground's MEDIAN way; each way's own margin is reported, not graded */
+      { id: 'normal-profit', why: why('normal.marginMin, the median way (RULED 10-18, Tyler 11-12 median target)'), ...floor1, aggregate: 'medianMargin', min: N.marginMin, binding: true },
+      { id: 'normal-profit-way', why: why('normal.marginMin, each way, reported (Tyler 11-12)'), ...floor1, metric: 'margin', min: N.marginMin, binding: false },
       { id: 'normal-supplies-max', why: why('normal.supplyShare.max, the median way (DESIGNER)'), ...floor1, aggregate: 'supplyShare', max: N.supplyShare.max, binding: true },
       { id: 'normal-supplies-min', why: why('normal.supplyShare.min from Level ' + N.supplyShare.fromLevel + ', the median way (DESIGNER, Tyler 11-07)'), ...floor1, floorFrom: N.supplyShare.fromLevel, aggregate: 'supplyShare', min: N.supplyShare.min, binding: true },
       { id: 'normal-xp-contract', why: why('normal.xpVsContract at the band middle, the median lone way on every ground (the contract is fitted on lone heroes)'), tiers: ['normal'], offsets: ['middle'], aggregate: 'xpVsContract', min: N.xpVsContract.min, max: N.xpVsContract.max, binding: true },
@@ -81,8 +85,12 @@ export function sheetFromBalanceSheet(BS) {
          holds it at the floor (no death in the cell), the same way on Normal beside it, and the one ceiling, a four at the floor holding Deadly. */
       { id: 'tier-dangerous-xp', why: why('tiers.dangerous.xpVsNormalMin, held at the floor, any group, against the same way on Normal'), tiers: ['dangerous'], offsets: ['floor'], heldOnly: true, metric: 'xpVsNormal', min: T.dangerous.xpVsNormalMin, binding: true },
       { id: 'tier-deadly-xp', why: why('tiers.deadly.xpVsNormalMin, held at the floor, any group, against the same way on Normal'), tiers: ['deadly'], offsets: ['floor'], heldOnly: true, metric: 'xpVsNormal', min: T.deadly.xpVsNormalMin, binding: true },
-      { id: 'tier-deadly-four-held', why: why('tiers.deadly.fourDeathsPer16hMax, a four at the floor'), tiers: ['deadly'], offsets: ['floor'], sizes: [4], metric: 'deathsPer16h', max: T.deadly.fourDeathsPer16hMax, binding: true },
-      { id: 'four-xp', why: why('party.fourVsSolo (RULED 10-25)'), tiers: ['normal'], offsets: ['floor', 'middle', 'top'], sizes: [4], metric: 'xpVsSolo', min: P.fourVsSolo[0], max: P.fourVsSolo[1], binding: true },
+      { id: 'tier-deadly-four-held', why: why('tiers.deadly.fourDeathsPer16hMax, a four at the floor'), tiers: ['deadly'], offsets: ['floor'], sizes: [4], metric: 'deathsPer16h', max: T.deadly.fourDeathsPer16hMax, binding: true,
+        /* designer Q4 2026-11-12: a pack whose Deadly says bring a Healer (checks.deadlyFourNeeds) grades the four with one; the four without is a note */
+        reportOnly: (m) => m.deadlyFourNeeds === 'healer' && !String(m.comp).split('+').includes('healer') },
+      { id: 'four-xp', why: why('party.fourVsSolo (RULED 10-25)'), tiers: ['normal'], offsets: ['floor', 'middle', 'top'], sizes: [4], metric: 'xpVsSolo', min: P.fourVsSolo[0], max: P.fourVsSolo[1], binding: true,
+        /* designer Q2 2026-11-12: on a band 20 Levels wide or more one cell can't hold both ends, so the middle is graded and the ends reported */
+        reportOnly: (m) => m.offset !== 'middle' && Array.isArray(m.band) && m.band[1] - m.band[0] >= 20 },
     ]),
   });
 }

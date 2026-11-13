@@ -5442,6 +5442,15 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tools/mutant-gate.mjs node tools/preflight.local.mjs --selftest
 
+      # BATCH 5 PROOF ARMS (2026-11-13, lane/a-audit-guards): two local tools whose selftests are offline fixtures
+      # (< 1 s each, measured locally). guards-for picks the tests a lane's diff loads; player-read lists the player
+      # lines a release changed for the person who reads them.
+      - name: Guards-for and player-read - the local tools' own proofs
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/guards-for.local.mjs --selftest
+          node tools/mutant-gate.mjs node tools/player-read.local.mjs --selftest
+
 
 
 

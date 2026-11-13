@@ -3923,9 +3923,11 @@ jobs:
           node tools/mutant-gate.mjs node tests/envelope-contract.mjs --mutate
   # db-replay-10: Hunt sessions settle, split out of db-replay-8 (lane a-ci-speed, 2026-11-01). db-replay-8 measured
   # 29.8 min on run 41339988105 and its own limit cancelled it at 30.1 on 41362364405: 16.3 + setup here, x2 = 34.
+  # + equip-intent --mutate 82 s, clan-deposit-ownership --selftest 15 s, client-write-sweep-2 --selftest 31 s
+  # (2026-11-13, lane/a-audit-guards, measured locally) = 128 s; x2 = 4.3 min, 34 -> 39.
   db-replay-10:
     runs-on: ubuntu-latest
-    timeout-minutes: 34
+    timeout-minutes: 39
 
     steps:
       - uses: actions/checkout@v4
@@ -3965,11 +3967,28 @@ jobs:
           node tests/hunt-sessions-settle.mjs
           node tests/hunt-sessions-settle.mjs --closed
           node tools/mutant-gate.mjs node tests/hunt-sessions-settle.mjs --mutate
+
+      # PROOF ARMS (2026-11-13, lane/a-audit-guards): plain runs live in run-smoke.mjs; these are the halves CI never ran. Measured locally: 82 s.
+      - name: Equip intent — mutation proof (4 planted defects in the verb)
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/equip-intent.mjs --mutate
+
+      # Measured locally: 15 s.
+      - name: Clan deposit ownership — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/clan-deposit-ownership.mjs --selftest
+
+      # Measured locally: 31 s.
+      - name: Client write sweep 2 — mutation proof (8 defects)
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/client-write-sweep-2.mjs --selftest
   # db-replay-11: Scaled hunts, the server half (lane/c-scaled-hunts, 2026-11-07), and live events (lane/c-live-events), its own job: db-replay-8 already runs near its
   # 30 min. Measured locally 2026-11-07 on a cached chain: plain 89 s, --mutate 295 s (21 mutants); a cold chain build adds ~6 min.
+  # + hero-slot-buy --selftest 136 s, plot-tier-price-replay --mutate 92 s, kill-daily-credit --selftest 48 s
+  # (2026-11-13, lane/a-audit-guards, measured locally) = 276 s; x2 = 9.2 min, 34 -> 44.
   db-replay-11:
     runs-on: ubuntu-latest
-    timeout-minutes: 34
+    timeout-minutes: 44
 
     steps:
       - uses: actions/checkout@v4
@@ -4020,6 +4039,52 @@ jobs:
         run: |
           node tests/area-spells-server.mjs
           node tools/mutant-gate.mjs node tests/area-spells-server.mjs --mutate
+
+      # PROOF ARMS (2026-11-13, lane/a-audit-guards): money and credit, plain runs in run-smoke.mjs (plot-tier-price-replay: spawned plain by plot-tier-parity's REPLAY arm). Measured locally: 136 s.
+      - name: Hero slot buy — mutation proof (23 defects in the purchase)
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/hero-slot-buy.mjs --selftest
+
+      # Measured locally: 92 s.
+      - name: Plot tier price replay — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/plot-tier-price-replay.mjs --mutate
+
+      # Measured locally: 48 s.
+      - name: Kill daily credit — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/kill-daily-credit.mjs --selftest
+
+  # db-replay-12: the two proofs that PLANT INTO THE WORKING TREE (tests/mutation-safety.mjs restores and hash-verifies),
+  # so they share a job with nothing else that reads those files (2026-11-13, lane/a-audit-guards). Measured locally:
+  # leaderboard-server-source --mutate 852 s (14 mutants, each a cold full-chain replay) + live-settlement --mutate 263 s
+  # = 1115 s; x2 = 37.2 min + setup, budget 40. Plain runs of both are in run-smoke.mjs.
+  db-replay-12:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # Nine of these were planted in a body 2027-02-27-gold-given.sql restates, so they SLIPPED until 2026-11-13.
+      - name: Leaderboard server source — mutation proof (14 defects, planted in the file that owns each body)
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/leaderboard-server-source.mjs --mutate
+
+      # The settle restatement and the attended top-up.
+      - name: Live settlement — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/live-settlement.mjs --mutate
+
   artisan-selftest:
     runs-on: ubuntu-latest
     timeout-minutes: 56

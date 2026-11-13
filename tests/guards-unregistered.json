@@ -221,6 +221,11 @@
     "prefer that."
   ],
   "proof_baseline": {
+    "plot-tier-price-replay.mjs": {
+      "reason": "Its plain body DOES gate in CI, one level down: tests/plot-tier-parity.mjs (registered plain + --selftest + --mutate) spawns `node tests/plot-tier-price-replay.mjs` with no flag in its REPLAY arm and fails on a non-zero exit. Registering the plain run again would replay the chain twice for one verdict; the --mutate arm (2026-11-13) is the half nothing ran.",
+      "owner": "qa-engineer",
+      "disposition": "floor-via-chained-plain-spawn"
+    },
     "visual-qa.mjs": {
       "reason": "Its plain run is not a gate and cannot be one: `node tests/visual-qa.mjs` launches Playwright, drives every screen and WRITES the screenshot set to docs/reports/visual-qa/ for a human (Art Director) to read — it reports rather than exiting non-zero on a look. The gating half is tests/visual-qa-gate.mjs, whose plain run IS registered in the same step. The --selftest arm here is the one thing in this file that can be red, which is why it is what CI runs.",
       "owner": "art-director",

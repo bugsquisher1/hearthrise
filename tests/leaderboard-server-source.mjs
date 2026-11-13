@@ -639,47 +639,55 @@ const BLIND2 = [["  if to_regclass('public.leaderboard_ranked') is null then\n"
   + "    raise exception 'leaderboard_ranked missing';\n  end if;",
 '  return; -- MUTATION HARNESS: §6 disabled so the BEHAVIOUR is what fails']];
 
+/* 2026-11-13 (lane/a-audit-guards): 2027-02-27-gold-given.sql RESTATES the view, hr_lb_boards and hr_lb_row WHOLE, so
+   every mutant planted in VIEW above was undone by it — M1-M3, M6 and M9-M13 SLIPPED (exit 1, nothing in CI ran
+   --mutate) and M4/M5 read CAUGHT only because that file's §0 pins refused the edited view, not because an LB arm saw
+   them. The view-body mutants live in the file that now owns those bodies, with its §4 blinded. */
+const GIVEN = 'supabase/migrations/2027-02-27-gold-given.sql';
+const BLIND_GIVEN = [["  v jsonb; v_role text; v_n bigint; v_name1 text; v_row record;\nbegin\n",
+  "  v jsonb; v_role text; v_n bigint; v_name1 text; v_row record;\nbegin\n  return; -- MUTATION HARNESS: §4 disabled so the BEHAVIOUR is what fails\n"]];
+
 const MUTANTS = [
   {
-    id: 'M1', file: VIEW,
+    id: 'M1', file: GIVEN,
     what: 'the boards go back to slot 0 of each ACCOUNT, so a second hero never ranks',
     edits: [['  from public.player_state ps\n  where not exists (select 1 from public.hr_lb_hidden h',
-      '  from public.player_state ps\n  where ps.slot = 0 and not exists (select 1 from public.hr_lb_hidden h'], ...BLIND_VIEW],
+      '  from public.player_state ps\n  where ps.slot = 0 and not exists (select 1 from public.hr_lb_hidden h'], ...BLIND_GIVEN],
   },
   {
-    id: 'M2', file: VIEW,
+    id: 'M2', file: GIVEN,
     what: 'the F5 revoke is dropped, so the recreated matview re-inherits the schema default '
       + 'grant and anon can dump every player again',
     edits: [['revoke all on public.leaderboard_ranked from public, anon, authenticated, service_role;',
-      '-- revoke removed by the mutation harness'], ...BLIND_VIEW],
+      '-- revoke removed by the mutation harness'], ...BLIND_GIVEN],
   },
   {
-    id: 'M3', file: VIEW,
+    id: 'M3', file: GIVEN,
     what: 'renown goes back to ranking snapshot->>\'renown\' (a board still sourced from the blob '
       + 'while the rebuild claims to be done)',
-    edits: [["  -- NOTE: no 'renown', 'bosses', 'wealth' or 'clan_power' branch (§2).",
+    edits: [["  -- NOTE: no 'renown', 'bosses', 'wealth' or 'clan_power' branch (2027-02-12-leaderboard-heroes.sql §2).",
       "  union all\n  select 'renown', h.user_id, h.slot, h.name,\n"
       + "         public.hr_lb_num(gs.snapshot, 'renown'), 1\n"
       + '  from heroes h join public.game_saves gs on gs.user_id = h.user_id and gs.slot = h.slot\n'
-      + "  -- NOTE: no 'renown', 'bosses', 'wealth' or 'clan_power' branch (§2)."], ...BLIND_VIEW],
+      + "  -- NOTE: no 'renown', 'bosses', 'wealth' or 'clan_power' branch (2027-02-12-leaderboard-heroes.sql §2)."], ...BLIND_GIVEN],
   },
   {
-    id: 'M4', file: VIEW,
+    id: 'M4', file: GIVEN,
     what: 'the name goes back to the ACCOUNT\'s display name (every hero of an account, and every '
       + 'account with no claimed name, reads the same)',
     edits: [['         public.hr_character_name(ps.user_id, ps.slot) as name\n',
       "         coalesce((select p.display_name from public.profiles p where p.id = ps.user_id), 'Adventurer') as name\n"],
-    ...BLIND_VIEW],
+    ...BLIND_GIVEN],
   },
   {
-    id: 'M5', file: VIEW,
+    id: 'M5', file: GIVEN,
     what: 'wealth comes back as an account board (the purse under a hero\'s name)',
-    edits: [["  select array['renown','total_level','level','bosses']\n",
-      "  select array['renown','total_level','level','wealth','bosses']\n"],
-    ["  -- NOTE: no 'renown', 'bosses', 'wealth' or 'clan_power' branch (§2).",
+    edits: [["  select array['renown','total_level','level','bosses','gold_given']\n",
+      "  select array['renown','total_level','level','wealth','bosses','gold_given']\n"],
+    ["  -- NOTE: no 'renown', 'bosses', 'wealth' or 'clan_power' branch (2027-02-12-leaderboard-heroes.sql §2).",
       "  union all\n  select 'wealth', h.user_id, h.slot, h.name, coalesce(w.gold, 0), 1\n"
       + '  from heroes h left join public.account_wallet w on w.user_id = h.user_id\n'
-      + "  -- NOTE: no 'renown', 'bosses', 'wealth' or 'clan_power' branch (§2)."], ...BLIND_VIEW],
+      + "  -- NOTE: no 'renown', 'bosses', 'wealth' or 'clan_power' branch (2027-02-12-leaderboard-heroes.sql §2)."], ...BLIND_GIVEN],
   },
   /* ⚠ THERE IS DELIBERATELY NO "numeric INSTEAD OF float8" MUTANT.
      One was written, and it SLIPPED — correctly. The expression reduces to
@@ -692,47 +700,47 @@ const MUTANTS = [
      migration's comment on those casts was corrected to match this measurement
      rather than keeping the plausible-sounding claim it started with. */
   {
-    id: 'M6', file: VIEW,
+    id: 'M6', file: GIVEN,
     what: 'Total Level reads every skill on the capped 99 table, so a combat skill counts at the wrong '
       + 'level and the board disagrees with the player\'s own screen (was: the combat-level coalesce, deleted)',
     edits: [['  select s.user_id, s.slot, s.skill_id, s.xp, public.hr_skill_level(s.skill_id, s.xp) as level',
-      '  select s.user_id, s.slot, s.skill_id, s.xp, public.hr_level_from_xp(s.xp) as level'], ...BLIND_VIEW],
+      '  select s.user_id, s.slot, s.skill_id, s.xp, public.hr_level_from_xp(s.xp) as level'], ...BLIND_GIVEN],
   },
   {
     /* THE WAL CHURN, RESTORED: a ranked column that moves on every settle (player_state.updated_at), so every
        active hero's rows rewrite on every 5-minute refresh and `concurrently`'s diff saves nothing. */
-    id: 'M9', file: VIEW,
+    id: 'M9', file: GIVEN,
     what: 'a per-settle timestamp rides in a ranked row (the level column carries player_state.updated_at), '
       + 'so every active hero\'s rows churn on every refresh',
     edits: [["  select 'level', h.user_id, h.slot, h.name, h.level_xp, public.hr_char_level(h.level_xp)\n  from heroes h\n",
       "  select 'level', h.user_id, h.slot, h.name, h.level_xp,\n"
       + "         public.hr_char_level(h.level_xp) + (extract(epoch from (select ps2.updated_at from public.player_state ps2\n"
-      + '           where ps2.user_id = h.user_id and ps2.slot = h.slot))::bigint % 1000)::int\n  from heroes h\n'], ...BLIND_VIEW],
+      + '           where ps2.user_id = h.user_id and ps2.slot = h.slot))::bigint % 1000)::int\n  from heroes h\n'], ...BLIND_GIVEN],
   },
   {
-    id: 'M10', file: VIEW,
+    id: 'M10', file: GIVEN,
     what: 'the hide list is ignored, so a test or banned account ranks',
     edits: [['  where not exists (select 1 from public.hr_lb_hidden h\n                     where h.user_id = ps.user_id and (h.slot is null or h.slot = ps.slot))\n',
       '  where not exists (select 1 from public.hr_lb_hidden h\n                     where h.user_id = ps.user_id and (h.slot is null or h.slot = ps.slot) and false)\n'],
-    ...BLIND_VIEW],
+    ...BLIND_GIVEN],
   },
   {
-    id: 'M11', file: VIEW,
+    id: 'M11', file: GIVEN,
     what: 'a name the blocklist refuses is published as it stands',
     edits: [["           'name', case when public.hr_name_blocked(r.name) then 'Name hidden' else r.name end,",
-      "           'name', r.name,"], ...BLIND_VIEW],
+      "           'name', r.name,"], ...BLIND_GIVEN],
   },
   {
-    id: 'M12', file: VIEW,
+    id: 'M12', file: GIVEN,
     what: 'every row publishes the ranked player\'s account uuid again',
     edits: [["           'rank', r.rank, 'place', r.place,\n",
-      "           'rank', r.rank, 'place', r.place, 'id', r.user_id,\n"], ...BLIND_VIEW],
+      "           'rank', r.rank, 'place', r.place, 'id', r.user_id,\n"], ...BLIND_GIVEN],
   },
   {
-    id: 'M13', file: VIEW,
+    id: 'M13', file: GIVEN,
     what: 'the caller\'s mark follows the slot, not the account, so another player\'s slot-0 hero reads as yours',
     edits: [['         || case when p_viewer is not null and r.user_id = p_viewer\n',
-      '         || case when p_viewer is not null and r.slot = 0\n'], ...BLIND_VIEW],
+      '         || case when p_viewer is not null and r.slot = 0\n'], ...BLIND_GIVEN],
   },
   {
     /* THE ONE-WAY DOOR, IN THE FILE THAT NOW OWNS THE READER: replacing the PUBLIC name deletes the A9

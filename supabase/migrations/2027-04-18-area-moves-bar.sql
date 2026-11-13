@@ -28,7 +28,8 @@
 -- ── ORDER ───────────────────────────────────────────────────────────────────
 -- After 2027-04-15-area-spells-hunt-sessions-catalogue.generated.sql and
 -- 2027-04-15-area-spells-rune-spells.generated.sql (§0 refuses without them). The
--- live engine already carries the four moves; the client half rides the next release.
+-- live engine already carries the four moves; the client half rides the next release. Dated 04-18 to sort
+-- after 2027-04-17-barrow-data-* (staged): it reads none of their rows and they write no hr_hunt_role_rules row.
 -- REVERSIBILITY: re-apply §2 of 2027-03-24-undertow-bar.sql. No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 

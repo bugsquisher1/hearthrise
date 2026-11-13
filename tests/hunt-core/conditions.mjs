@@ -58,7 +58,7 @@ const AREA_MIGRATION = 'supabase/migrations/2027-04-15-area-conditions.sql';
 const VIEW_MIGRATION = 'supabase/migrations/2027-03-08-rune-ladder-slots.sql';
 /* The role rule sets once more (every default rune spell names its store rune, Flame Volley and Rend off the default bars: lane/c-caster-starter-bars, designer 2026-11-05),
    and again (Undertow on the Healer's set: lane/b-one-difficulty, Tyler 2026-11-09). */
-const BAR_MIGRATION = 'supabase/migrations/2027-04-17-area-moves-bar.sql';
+const BAR_MIGRATION = 'supabase/migrations/2027-04-18-area-moves-bar.sql';
 
 async function load(root) {
   const M = await loadCore(root);

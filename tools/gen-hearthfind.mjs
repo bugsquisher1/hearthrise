@@ -297,10 +297,47 @@ end $$;
 `;
 }
 
+/* THE CHECK'S VERDICT, one pure function so --selftest grades the code --check runs. */
+export function isStale(have, wanted) {
+  return have.replace(/\r\n/g, '\n') !== wanted.replace(/\r\n/g, '\n');
+}
+
+/* --selftest (2026-11-13, audit lane/a-audit-guards): each mutant is a hand edit of the COMMITTED
+   catalogue — the clamp hr_apply reads — derived from its own rows rather than a typed id, so a data
+   change cannot strand an anchor. Each must make --check's verdict STALE; the CRLF control must not. */
+function selftest(have, wanted) {
+  const N = have.replace(/\r\n/g, '\n');
+  const srcAt = N.indexOf('insert into public.hr_hearthfind_sources');
+  const firstRow = srcAt < 0 ? null : N.slice(N.indexOf('\n', srcAt) + 1, N.indexOf('\n', N.indexOf('\n', srcAt) + 1));
+  const oneIn = firstRow && /, (\d+), [\d.]+\)[,;]$/.exec(firstRow);
+  const mutants = [
+    ['odds_widened_tenfold', oneIn && N.replace(firstRow, firstRow.replace(`, ${oneIn[1]}, `, `, ${Math.max(1, Math.floor(oneIn[1] / 10))}, `))],
+    ['source_row_dropped', firstRow && N.replace(firstRow + '\n', '')],
+    ['band_widened_in_the_check', N.includes('expected_hours <= 400') && N.replace('expected_hours <= 400', 'expected_hours <= 4000')],
+    ['file_emptied', ''],
+  ];
+  let bad = 0;
+  if (isStale(have, wanted)) { bad++; console.log('  ✗ CONTROL: the committed catalogue is already stale — the mutants prove nothing'); }
+  else console.log('  ✓ CONTROL: the committed catalogue matches src/data/hearthfind.js');
+  if (isStale(N.replace(/\n/g, '\r\n'), wanted)) { bad++; console.log('  ✗ CRLF-only control read STALE — a checkout line ending would redden CI'); }
+  else console.log('  ✓ CRLF-only control stays fresh');
+  for (const [id, text] of mutants) {
+    if (typeof text !== 'string' || (id !== 'file_emptied' && text === N)) { bad++; console.log(`  ✗ ${id}: anchor not found — fix the anchor, never the check`); continue; }
+    const caught = isStale(text, wanted);
+    if (!caught) bad++;
+    console.log(`  ${caught ? '✓' : '✗'} ${id} ${caught ? 'caught' : 'SLIPPED'}`);
+  }
+  console.log(bad ? `gen-hearthfind --selftest: ${bad} failure(s)` : `gen-hearthfind --selftest: all ${mutants.length} mutants caught, both controls green`);
+  return bad ? 1 : 0;
+}
+
 const wanted = render();
+if (process.argv.includes('--selftest')) {
+  process.exit(selftest(await readFile(OUT, 'utf8').catch(() => ''), wanted));
+}
 if (process.argv.includes('--check')) {
   const have = await readFile(OUT, 'utf8').catch(() => '');
-  if (have.replace(/\r\n/g, '\n') !== wanted.replace(/\r\n/g, '\n')) {
+  if (isStale(have, wanted)) {
     console.error('gen-hearthfind --check FAILED: 2026-09-08-hearthfind-catalogue.generated.sql '
       + 'is stale. Run: node tools/gen-hearthfind.mjs');
     process.exit(1);

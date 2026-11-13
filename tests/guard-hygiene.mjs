@@ -135,15 +135,23 @@ function namedIn(cmd) {
   return { files, flags };
 }
 
-/** Files referenced in an EXECUTABLE position by another file's source. */
-function references(src) {
+/**
+ * Files referenced in an EXECUTABLE position by another file's source.
+ *
+ * A bare 'tests/x.mjs' string is NOT an executable position (audit 2026-11-13): tests/mutant-control.mjs
+ * listed 'tests/party-hunt-view.mjs' in a data table, which made that guard "chained" for weeks while the
+ * only thing that ran it was the control (every arm planted with NOTHING), never its plain body, and its
+ * function had been dropped by 2026-10-27-core-schema.sql. Only run-smoke.mjs, the in-page suite's own
+ * runner, still counts that form (`bareLiteral`), because plainlyInRunSmoke judges its spawns line by line.
+ */
+function references(src, { bareLiteral = false } = {}) {
   const out = new Set();
   // static / dynamic import of a sibling guard
   for (const m of src.matchAll(/from\s+'\.\/([A-Za-z0-9._-]+\.mjs)'/g)) out.add(m[1]);
   for (const m of src.matchAll(/import\s*\(\s*'\.\/([A-Za-z0-9._-]+\.mjs)'\s*\)/g)) out.add(m[1]);
   // spawned: join(ROOT, 'tests', 'x.mjs') — the shape run-smoke uses
   for (const m of src.matchAll(/'tests'\s*,\s*'([A-Za-z0-9._-]+\.mjs)'/g)) out.add(m[1]);
-  for (const m of src.matchAll(/'tests\/([A-Za-z0-9._-]+\.mjs)'/g)) out.add(m[1]);
+  if (bareLiteral) for (const m of src.matchAll(/'tests\/([A-Za-z0-9._-]+\.mjs)'/g)) out.add(m[1]);
   return out;
 }
 
@@ -259,7 +267,7 @@ export function verdict({ files, workflowText, runSmokeSrc, sources, allowlist, 
     }
   }
 
-  const fromRunSmoke = references(runSmokeSrc);
+  const fromRunSmoke = references(runSmokeSrc, { bareLiteral: true });
   const chained = new Map();      // file -> the guard that chains it
   for (const [name, src] of Object.entries(sources)) {
     if (name === 'run-smoke.mjs') continue;
@@ -534,6 +542,19 @@ const MUTATIONS = [
       toolSources: { ...(t.toolSources || {}), 'tools/planted-tool.mjs':
         "if (import.meta.url === `file://${process.argv[1]}`) { run(); }\n" } }),
     expect: /HAND-ROLLED isMain: tools\/planted-tool\.mjs line 1/,
+  },
+  {
+    id: 'M13-a-bare-string-mention-is-not-a-chain',
+    why: 'THE 2026-11-13 STATE: tests/mutant-control.mjs named \'tests/party-hunt-view.mjs\' in its REGISTERED '
+       + 'table, so that guard read as chained while nothing ran its plain body and its function was long dropped. '
+       + 'A file named in a data table, not imported or spawned, is still an orphan',
+    mutate: (t) => ({ ...t,
+      files: [...t.files, 'named-in-a-table.mjs'],
+      sources: { ...t.sources,
+        'named-in-a-table.mjs': 'process.exit(0);',
+        'mutant-control.mjs': t.sources['mutant-control.mjs']
+          .replace('export const REGISTERED = [', "export const REGISTERED = [\n  ['tests/named-in-a-table.mjs', '--mutate'],") } }),
+    expect: /ORPHAN: tests\/named-in-a-table\.mjs/,
   },
 ];
 

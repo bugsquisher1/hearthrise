@@ -46,10 +46,11 @@ export const REGISTERED = [
   ['tests/companion-equip-version-bump.mjs', '--mutate'],
   ['tests/world-tick-m4-party-horizon.mjs', '--mutate'],
   ['tests/world-tick-arm-combat.mjs', '--mutate'],
-  ['tests/party-hunt-view.mjs', '--mutate'],
   ['tests/party-hunt-select-lockdown.mjs', '--mutate'],
   ['tests/discord-gift.mjs', '--mutate'],
   ['tests/progress-coalesce.mjs', '--mutate'],
+  ['tests/world-tick-writer-authz.mjs', '--mutate'],
+  ['tests/leaderboard-lockdown-guard.mjs', '--mutate'],
 ];
 
 /* A PUSH CONTROLS WHAT IT PROVES (lane r-release-gate, 2026-11-04). This is the half of a mutation proof nobody ran, so it belongs

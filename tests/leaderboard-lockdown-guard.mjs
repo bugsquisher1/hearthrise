@@ -24,6 +24,9 @@
 //            migration that revoked everything would otherwise pass the file.
 //
 //   node tests/leaderboard-lockdown-guard.mjs
+//   node tests/leaderboard-lockdown-guard.mjs --mutate   six defects planted in the APPLIED database;
+//                                                        each must be named by an AFTER arm
+// mutant-anchors: supabase/migrations/2026-08-14-leaderboard-view-lockdown.sql
 //
 // Exit codes: 0 = clean · 1 = an assertion failed · 2 = harness problem.
 // ════════════════════════════════════════════════════════════════════════
@@ -58,8 +61,9 @@ const PREDECESSOR = await (async () => {
 const LF = (s) => s.replace(/\r\n/g, '\n');
 
 let failures = 0;
+const failed = [];
 const pass = (m) => process.stdout.write(`  ok    ${m}\n`);
-const fail = (m) => { failures++; process.stderr.write(`  FAIL  ${m}\n`); };
+const fail = (m) => { failures++; failed.push(m); process.stderr.write(`  FAIL  ${m}\n`); };
 const harness = (m) => { process.stderr.write(`HARNESS: ${m}\n`); process.exit(2); };
 
 const target = LF(await readFile(TARGET, 'utf8'));
@@ -120,6 +124,63 @@ async function oneAsRole(db, role, sql) {
   await db.exec(`set role ${role}`);
   try { return (await db.query(sql)).rows[0]; }
   finally { await db.exec('reset role').catch(() => {}); }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// --mutate — THE RUNTIME ARMS' OWN PROOF (2026-11-13, audit lane/a-audit-guards)
+//
+// The §5 mutations at the bottom prove the MIGRATION refuses a broken copy of
+// itself. Nothing proved the AFTER arms below can see a broken DATABASE, so a
+// regrant after the apply (a later file, a hand grant) could stay green here.
+// Each mutant applies the clean migration, then plants ONE defect in the
+// database, and the AFTER arms must name it. HR_MUTANT_CONTROL=1 plants nothing
+// (tests/mutant-control.mjs): every arm must then read `survived`.
+// ════════════════════════════════════════════════════════════════════════
+const RUNTIME_MUTANTS = [
+  { id: 'matview_regranted', expect: /F5 OPEN: role anon still reads leaderboard_ranked/,
+    sql: 'grant select on public.leaderboard_ranked to anon' },
+  { id: 'view_recreated', expect: /F5 OPEN: public\.leaderboard still exists/,
+    sql: 'create view public.leaderboard as select 1 as x' },
+  { id: 'browser_granted_to_anon', expect: /hr_clan_browser is anon-executable/,
+    sql: 'grant execute on function public.hr_clan_browser(int) to anon' },
+  { id: 'browser_declared_stable', expect: /provolatile=s/,
+    sql: 'alter function public.hr_clan_browser(int) stable' },
+  { id: 'browser_serves_signed_out', expect: /served a caller with no identity/,
+    from: "return jsonb_build_object('ok', false, 'error', 'not_signed_in');",
+    to: "v_uid := '00000000-0000-4000-0000-000000000000'::uuid;" },
+  { id: 'browser_clamp_removed', expect: /the clamp did not bite/,
+    from: 'least(greatest(coalesce(p_limit, 25), 1), 50)', to: 'greatest(coalesce(p_limit, 25), 1)' },
+];
+
+async function plantRuntime(d, m) {
+  if (process.env.HR_MUTANT_CONTROL) return;
+  if (m.sql) { await d.exec(m.sql); return; }
+  const def = (await one(d, `select pg_get_functiondef('public.hr_clan_browser(int)'::regprocedure) as d`)).d;
+  const n = def.split(m.from).length - 1;
+  if (n !== 1) harness(`runtime mutant "${m.id}": anchor matched ${n} times in hr_clan_browser — fix the anchor, never the arm`);
+  await d.exec(def.replace(m.from, m.to));
+}
+
+if (process.argv.includes('--mutate')) {
+  process.stdout.write(`[mutants] ${RUNTIME_MUTANTS.length}\n`);
+  let slipped = 0;
+  for (const m of RUNTIME_MUTANTS) {
+    process.stdout.write(`── MUTANT ${m.id}\n`);
+    const d = await build();
+    const r = await attempt(d, `begin;\n${target}\ncommit;`);
+    if (!r.ok) harness(`runtime mutant "${m.id}": the clean migration refused to apply: ${r.message}`);
+    await plantRuntime(d, m);
+    failed.length = 0;
+    await afterArms(d);
+    await d.close();
+    const caught = failed.some((f) => m.expect.test(f));
+    process.stdout.write(`[mutant] ${m.id} ${caught ? 'caught' : 'survived'}\n`);
+    if (!caught && !process.env.HR_MUTANT_CONTROL) slipped++;
+  }
+  process.stdout.write(slipped
+    ? `\nleaderboard-lockdown-guard --mutate: ${slipped} mutant(s) SLIPPED\n`
+    : `\nleaderboard-lockdown-guard --mutate: all ${RUNTIME_MUTANTS.length} runtime mutant(s) caught by their arm\n`);
+  process.exit(slipped ? 1 : 0);
 }
 
 let db;
@@ -183,6 +244,9 @@ process.stdout.write('── BEFORE: an unauthenticated caller reads the game\n'
 // ════════════════════════════════════════════════════════════════════════
 // AFTER — refused, each with a control
 // ════════════════════════════════════════════════════════════════════════
+await afterArms(db);
+
+async function afterArms(db) {
 process.stdout.write('── AFTER: refused, with controls\n');
 
 for (const rel of ['leaderboard', 'clan_leaderboard']) {
@@ -259,6 +323,12 @@ for (const role of ['anon', 'authenticated']) {
 // The server-owned limit. This is what the revoke was FOR: while the matview
 // and the view were both selectable, a clamp on the RPC bounded nothing.
 {
+  /* More clans than the clamp (2026-11-13): with the fixture's ONE clan, a browser with no clamp at all
+     returned 1 row and this arm passed (mutant browser_clamp_removed survived). Sixty extra holds make
+     the clamp observable; they are seeded after every arm that counts the fixture's single clan. */
+  await db.exec(`insert into public.clans (id, name, created_by, level, treasury, castle_tier)
+    select ('00000000-0000-4000-b000-' || lpad(g::text, 12, '0'))::uuid, 'Clamp ' || g, '${UID}', 1, 0, 1
+      from generate_series(100, 159) g on conflict do nothing`);
   await db.exec(`select set_config('request.jwt.claim.sub','${UID}',false)`);
   const out = (await one(db, `select public.hr_clan_browser(99999) as out`)).out;
   if (!out || out.ok !== true) fail(`the clamp probe was refused: ${JSON.stringify(out)}`);
@@ -273,6 +343,7 @@ for (const role of ['anon', 'authenticated']) {
                             where n.nspname='public' and p.proname='hr_clan_browser'`);
   if (r.v !== 'v') fail(`hr_clan_browser is provolatile=${r.v} — it calls hr_rate_ok, which WRITES; PostgREST would run it read-only and answer 25006 on every call`);
   else pass('hr_clan_browser is VOLATILE — PostgREST will not run it in a read-only transaction');
+}
 }
 
 // Re-runnable, as the header claims.

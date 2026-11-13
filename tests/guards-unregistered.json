@@ -148,16 +148,6 @@
         "runner": ".github/workflows/nightly-loop.yml"
       }
     },
-    "character-bootstrap-guard.mjs": {
-      "reason": "family pglite-chain-replay: hr_create_character is an ENSURE and grants exactly src/data/start-kit.js. NOTE: measured as asserts:false — it reports rather than exits non-zero, so registering it as-is would gate nothing. Needs a verdict before adoption.",
-      "family": "pglite-chain-replay",
-      "owner": "backend-architect",
-      "disposition": "needs-a-verdict-first",
-      "verified": {
-        "asserts": false,
-        "selftest": true
-      }
-    },
     "gold-intents.mjs": {
       "reason": "family pglite-chain-replay: shop_buy and vendor_sell at the catalogue price/bid. Overlaps the registered conservation-fuzz step, which fuzzes the same value-movement invariants.",
       "family": "pglite-chain-replay",

@@ -481,9 +481,11 @@ end $planted$;
   catalogue_gold_drift: {
     what: 'the catalogue grants different starting gold than src/data/start-kit.js',
     where: 'runtime',
-    patches: [['catalogue', [[
-      `  values (true, ${KIT.START_CURRENCY.gold}, `,
-      `  values (true, ${KIT.START_CURRENCY.gold + 1}, `,
+    /* Aimed at the SHIPPED kit row (the 'kit' extra), like its siblings: the 2026-08 root catalogue's gold is
+       overwritten by the kit step that replays after it, so a mutant there could never go red (audit 2026-11-13). */
+    patches: [['kit', [[
+      `update public.hr_start_kit set gold = ${KIT.START_CURRENCY.gold}, `,
+      `update public.hr_start_kit set gold = ${KIT.START_CURRENCY.gold + 1}, `,
     ]]]],
   },
 

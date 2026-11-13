@@ -707,9 +707,9 @@ Level 110, Human, an old man in Dawnsteel plate who has sat with that fire at hi
 | 6 | Adds that are a named boss with his own kit | Adds are plain rows marked `add` | Systems |
 | 7 | A spell that speeds up under a phase line, and its countdown on the boss bar | None | Systems, Art Director for the bar line |
 | 8 | Element resistance on gear and imbuements | The area-spell spec's next phase | Systems |
-| 9 | Sale rates for gear tiers 5, 6 and 7 | `VENDOR_GEAR_RATES` stops at tier 3. Without them an hour's tier 6 drops sell for several times the coin | Designer, with the Pyre lane |
+| 9 | Sale rates for gear tiers 5, 6 and 7 | DONE (lane/d-barrow-data, 2026-11-13). Tiers 4 to 6 were set 11-08 (0.075, 0.033, 0.015); tier 7 is 0.007, so a Dawnsteel piece sells for about 1.3x its Emberforged twin | Designer |
 | 10 | Pack fields for a named fuel, monster spells and a hall | `shape.js` refuses unknown fields | Systems |
-| 11 | Rows that are missing | Captain Hask has art on lane/b-muster-barrows-art and no monster row on main. No tier 7 wand or spellbook. Hatchets and crossbows stop at tier 3 | Designer |
+| 11 | Rows that are missing | DONE (lane/d-barrow-data, 2026-11-13). Captain Hask is the Muster Barrows pack's own row. Rune Hatchets (Barrow Knight) and Yew Crossbow (Hask), Emberforged Hatchets and Runewood Crossbow (the Pyre Field's Provost) are Rares. Duskwood Wand, Duskwood Codex, Dawnsteel Hatchets and Duskwood Crossbow are Krell's hall prize and wait on piece 5. Their icons are re-dyed placeholders (tools/world-art/ladder-icons.mjs) for the Art Director | Designer |
 | 12 | The hall remembers the bar setup a hero last entered with | Setups are not tied to a ground | Systems. First principle |
 
 Pieces 2, 3 and 4 are only for this ground's Lookout and Pyre Priest. If they slip, those two creatures wait. They do not ship as plain melee bodies, because that is a reskin.

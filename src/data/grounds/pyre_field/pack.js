@@ -239,7 +239,10 @@ export default definePack({
      1.24 at 2615: a four FALLS 13.5% FROM THE FLOOR TO THE TOP of this 20-Level band, and the band is 8.7% wide, so no one cell holds all three
      Levels. Centred on the middle: the four 2380 (about 1.30 / 1.20 / 1.145) over 2375, the pair 1465 (about 1.04-1.13), the threes 1830 and 1695
      (about 1.06-1.26). The floor row reads over and the top row a hair under: Tyler's call (the board, 2026-11-12 Packs re-tuned). */
-  partyClassXp: { 2: [990, 1465], 3: [1150, 1695, 1830], 4: [1120, 2130, 2375, 2380] },
+  /* TIER-5 AND -6 HATCHETS AND CROSSBOW (lane/d-barrow-data, 2026-11-13): the axes and crossbow ways alone now wear those rungs, so the median
+     lone way rose: on the full grade the fours read 1.11 (no Healer) and 1.13 at the middle and the tank and Healer pair 0.99 at the top. Each
+     cell scaled to its target: the fours 2375 x 1.18 / 1.11 = 2525 and 2380 x 1.18 / 1.13 = 2485, the pair 1465 x 1.04 / 0.99 = 1540. */
+  partyClassXp: { 2: [990, 1540], 3: [1150, 1695, 1830], 4: [1120, 2130, 2525, 2485] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10). One class is the
      mean of its five one-class parties (pairs 0.84-0.90, threes 0.83-0.94, fours 0.79-0.91 at 1150, times 1120/1150). Two of two is the

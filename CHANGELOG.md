@@ -11,7 +11,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **A dummy for your house.** Once you own the Hearthside Homestead, you can put a training dummy in your house and unlock it one skill at a time. The first unlock costs 150,000 gold and the next ones cost 250,000, 400,000 and 600,000. Training on it costs nothing. One of your heroes can use it at a time.
 
-**Fixes.** The heal warning when you set up an action now counts monster spells, so it warns you about the biggest hit a hunt can really throw at you. Monster spells on a scaled hunt now hit as hard as the rest of that hunt.
+**Fixes.** The heal warning when you set up an action now counts monster spells, so it warns you about the biggest hit a hunt can really throw at you. Monster spells on a scaled hunt now hit as hard as the rest of that hunt. Steel, Mithril and Ember pickaxes look like pickaxes now, not axes.
 
 ## v0.2.127 — 2026-11-13 (The Wiki)
 

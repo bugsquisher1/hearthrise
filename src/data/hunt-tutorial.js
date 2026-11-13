@@ -151,7 +151,7 @@ const RATS_WORDS = Object.freeze({ label: RATS.label, count: RATS.count, ground:
 /* The first hour's lessons are for a hero under the Thicket's floor. */
 const UNDER_THICKET = { kind: 'level_at', at: 1, below: HUNT_INDEX[THICKET].band[0] };
 /* "Out to the brook" as a hero who never took her rats reads it (played 2026-11-10: Level 5 at 15 min 45 s of one unbroken first hunt). */
-const BROOK = 'Level ' + HUNT_INDEX[THICKET].band[0] + ' opens ' + HUNT_INDEX[THICKET].name + '. That\'s about fifteen minutes of hunting here, and you don\'t have to watch. '
+const BROOK = HUNT_INDEX[THICKET].name + ' is suited to Level ' + HUNT_INDEX[THICKET].band[0] + '. That\'s about fifteen minutes of hunting here, and you don\'t have to watch. '
   + 'Close the game and your hero keeps hunting until its stamina runs out. Everything it earns will be waiting for you.';
 /* A second hero skips the knowledge cards once another hero on the account is past this Level (the designer's rule:
    it has lived through the first hour; the cards that set THIS hero's own state still show). */
@@ -254,7 +254,7 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* Shown from the first kill until Level 2 lands, so it never names the Level (playtest 2026-10-29: "Level 2" sat
      over a bar that read Lv 1). */
   step('first_level', 'Your first Level',
-    'Every kill earns Level XP and fills the ring around your Level. Each new Level gives you more health and mana, and opens new grounds and gear.',
+    'Every kill earns Level XP and fills the ring around your Level. Each new Level gives you more health and mana, lets you wear better gear, and readies you for harder grounds.',
     'hud_vitals', { kind: 'level' }, { knowledge: true, holdOpen: true, hooks: ['[data-coach-hook="level"]'] }),
   /* THE COUNT IS DONE: ahead of every lesson of the first hunt, so a hero who pressed nothing still hears it. The hunt bar's Leave is ringed. */
   step('tamsin_owes', t('coach.tamsin_owes_title'), t('coach.tamsin_owes', RATS_WORDS),

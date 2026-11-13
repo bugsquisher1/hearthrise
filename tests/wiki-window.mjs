@@ -142,6 +142,13 @@ async function checks(overrides, shots) {
     for (const g of Object.values(OPEN_GROUNDS)) if (!grounds.includes(g.hunt)) fails.push('WK-1 the open ground ' + g.hunt + ' has no page');
     if (formulas.map((f) => f.id).join() !== FORMULAS.join()) fails.push('WK-1 the formulas are ' + formulas.map((f) => f.id).join() + ', not ' + FORMULAS.join());
     for (const f of formulas) fails.push(...checkExample('WK-1', Object.assign({ id: f.id, terms: f.terms, inputs: f.example.inputs, result: f.example.result, blessed: f.example.blessed })));
+    /* No ground is gated by Level ("Enter anyway"), so no line may say one "opens" at a Level (audit 2026-11-13): the wiki's Level
+       page, the coach's keep-hunting card and the tutorial's brook card say the Level a ground is suited to instead. */
+    const GATE_WORDS = /\bground opens at\b|\bopens new grounds\b|\bit opens \{next\}|\bLevel ' \+ [^;]{0,60}' opens ' \+ HUNT_INDEX/;
+    for (const p of ['src/data/text/wiki.js', 'src/data/text/coach.js', 'src/data/hunt-tutorial.js']) {
+      const m = (await readFile(join(ROOT, p), 'utf8')).match(GATE_WORDS);
+      if (m) fails.push('WK-1 ' + p + ' says a ground opens at a Level, but none is gated: "' + m[0] + '"');
+    }
   }
   const firstGround = Object.values(OPEN_GROUNDS).map((g) => HUNT_INDEX[g.hunt]).sort((a, b) => a.band[0] - b.band[0])[0];
   const { server, port } = await serve(overrides);

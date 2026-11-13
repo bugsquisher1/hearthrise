@@ -122,7 +122,27 @@ export function validateWindowRows(rows) {
 /** True when a key event must not reach the shell: typing (the one key rule), IME, or a modifier chord. */
 function isTypingEvent(ev) {
   if (!ev || ev.ctrlKey || ev.metaKey || ev.altKey || ev.isComposing) return true;
+  if (pressesControl(ev)) return true;
   return keyBelongsToField(ev.target, ev.key);
+}
+
+/* The input types Enter presses (the rest are text, which keyBelongsToField already gives every key). */
+const PRESS_TYPES = new Set(['button', 'submit', 'reset', 'checkbox', 'radio', 'image']);
+
+/**
+ * True when Enter lands on a focused control Enter activates (a button, a link, a role=button or menu item): the
+ * press is the control's, so the shell's Enter (Chat) must not take it and cancel it (audit 2026-11-13: the item
+ * menu, the action bar's drop menu and the coach card). goto.js ownsKey is the same rule for goto links.
+ */
+function pressesControl(ev) {
+  const t = ev.target;
+  if (String(ev.key || '').toLowerCase() !== 'enter' || !t) return false;
+  const tag = String(t.tagName || '').toLowerCase();
+  if (tag === 'button' || tag === 'summary') return true;
+  const attr = (n) => (typeof t.getAttribute === 'function' ? t.getAttribute(n) : t[n]);
+  if (tag === 'a' && attr('href') != null) return true;
+  if (tag === 'input') return PRESS_TYPES.has(String(t.type != null ? t.type : attr('type') || '').toLowerCase());
+  return /^(button|link|menuitem|menuitemcheckbox|menuitemradio|tab|option|checkbox|radio|switch)$/.test(String(attr('role') || ''));
 }
 
 /**

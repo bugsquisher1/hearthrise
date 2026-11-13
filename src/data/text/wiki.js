@@ -24,7 +24,7 @@ export const WIKI_TEXT = Object.freeze({
   xp_level: 'Level {level}',
   level_name: 'Level',
   level_trains: 'Kill monsters on a hunt. Nothing else earns Level XP.',
-  level_feeds: 'Your health grows with every Level, and each hunting ground opens at its own Level.',
+  level_feeds: 'Your health grows with every Level. Each hunting ground is suited to a Level, so you can tell when you\'re ready for it.',
 
   /* A ground's page. */
   band: 'Level {lo} to {hi}',

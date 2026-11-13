@@ -41,7 +41,7 @@ import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.128';
 import { ITEMS } from '../data/items.js?v=0.2.128';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.128';
 import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.128';
-import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.128';
+import { indexGatherNodes, gatherIntervalMs, gatherBagFullFor } from '../core/skill-sim.js?v=0.2.128';
 import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.128';
 import { recipeInputs } from '../core/artisan.js?v=0.2.128';
 import { pacedXp } from '../core/pacing.js?v=0.2.128';
@@ -237,6 +237,9 @@ export function shortInputLine(cs, w, huntRunning) {
   return { head: shortWords(cs, s), places: wherePlaces(s.id) };
 }
 
+/* A full bag, said once for a bench and a gathering row alike. */
+const roomWords = (id) => 'Your bag is full. Make room for ' + itemName(id) + ' first.';
+
 /** Why this row cannot start now (plain words), or '' when it can. Every number is the server's. */
 export function workBlock(cs, w, huntRunning) {
   if (huntRunning) return 'Not while a hunt is running.';
@@ -253,10 +256,14 @@ export function workBlock(cs, w, huntRunning) {
     /* The bag's room (the engine's own test, artisan-sim.js bagFullFor, on the server's bag and stack cap): the
        product needs a new stack and the bag has none. The engine would stop the bench at once and say so. */
     const full = bagFullFor({ inventory: invOf(cs) }, w.row, w.skill, { bagCap: bagCapOf(cs), burns: false });
-    if (full) return 'Your bag is full. Make room for ' + itemName(full) + ' first.';
+    if (full) return roomWords(full);
     /* The work bench tax (bench-fee.js): the server would stop it at the first craft and say so; say it before the press. */
     const broke = feeBlock(cs, w);
     if (broke) return broke;
+  } else {
+    /* A gather row's room, by the engine's own test (skill-sim.js gatherBagFullFor): the node stops at once on a full bag. */
+    const full = gatherBagFullFor({ inventory: invOf(cs) }, w.row, { bagCap: bagCapOf(cs) });
+    if (full) return roomWords(full);
   }
   return '';
 }

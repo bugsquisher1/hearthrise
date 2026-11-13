@@ -2369,8 +2369,46 @@ async function deepWatersServerGuard() {
     + `reason=${refused.reason}, not unknown_node`);
 }
 
+/* GATHER-BAGFULL — A FULL BAG STOPS THE NODE AND SAYS WHY (audit 2026-11-13). With the browser CLOSED this is
+   the only path: accrueGather proposed the product's new stack, hr_apply refused bank_full, the window was
+   forfeited and the pointer stayed, so a full bag paid nothing, forever. Now the span stops bag_full before the
+   first swing, the pointer goes idle, the journal names the product, and no item is proposed. CONTROLS: the
+   product already held (no new stack) and one free stack both pay the whole hour on the same pointer. The
+   VIEWED half (the Work window's line) is AW-22 in tests/alpha-windows.mjs. */
+function gatherBagFullGuard() {
+  const NODE = 'copper_rock';
+  const PROD = GATHER_INDEX[NODE].node.prod;
+  const run = (inventory, bagCap) => computeAccrual({
+    userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+    nowMs: FROM_MS + 3600000, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+    activeKind: 'gather', activeId: NODE, capMs: 12 * 3600000, seed: SEED,
+    hp: 60, maxHp: 60, gold: 0, skills: { mining: 0 }, equipment: {},
+    inventory, bagCap, toolCarry: {},
+    items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX,
+  });
+  const full = run({ tin_ore: 1, bronze_bar: 1 }, 2);
+  ok(full.accrued === true && full.delta && full.delta.activity && full.delta.activity.kind === 'idle',
+    `GATHER-BAGFULL-1: a full bag left the pointer on ${NODE} (accrued=${full.accrued} reason=${full.reason} `
+    + `activity=${JSON.stringify(full.delta && full.delta.activity)}) — every window after it is forfeited`);
+  if (full.accrued) {
+    ok(!full.delta.items || !full.delta.items[PROD],
+      `GATHER-BAGFULL-2: a full bag proposed ${JSON.stringify(full.delta.items)}, which hr_apply refuses bank_full`);
+    const m = full.delta.journal && full.delta.journal.meta;
+    ok(m && m.stopped === 'bag_full' && m.room_for === PROD,
+      `GATHER-BAGFULL-3: the journal does not say the bag was full: ${JSON.stringify(m)}`);
+    eq(full.delta.accrued_to, new Date(FROM_MS + 3600000).toISOString(), 'GATHER-BAGFULL-4: the stopped window was not settled to now');
+  }
+  for (const [label, inv, cap] of [['the product held', { [PROD]: 1, tin_ore: 1 }, 2], ['one free stack', { tin_ore: 1 }, 2]]) {
+    const r = run(inv, cap);
+    ok(r.accrued === true && !(r.delta && r.delta.activity) && r.delta.items && r.delta.items[PROD] > 0,
+      `GATHER-BAGFULL CONTROL (${label}): the hour answered accrued=${r.accrued} items=${JSON.stringify(r.delta && r.delta.items)} `
+      + `activity=${JSON.stringify(r.delta && r.delta.activity)}, not a paid hour on a running node`);
+  }
+}
+
 export async function runAll() {
   problems.length = 0;
+  gatherBagFullGuard();
   gatherParityGuard();
   gatherBuffTimelineGuard();
   await timberlineServerGuard();

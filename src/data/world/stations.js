@@ -159,7 +159,7 @@ const ROWS = [
     stands: FIRES.flatMap(([, x, y]) => [[x, y + 1], [x + 1, y + 1]]),
     overflow: [[65, 31], [68, 30], [64, 32], [68, 32], [69, 31], [63, 31], [67, 33], [62, 31], [70, 31], [67, 34], [63, 34], [61, 30], [66, 35], [68, 34]], fallback: 'square_benches' },
   /* THE TRAINING YARD: three to a dummy */
-  { id: 'training_yard', district: 'training', kind: 'training', opens: win('hunts'), props: DUMMIES,
+  { id: 'training_yard', district: 'training', kind: 'training', opens: win('training'), props: DUMMIES,
     stands: DUMMIES.flatMap(([, x, y]) => [[x, y + 1], [x - 1, y + 1], [x + 1, y + 1]]), overflow: [], fallback: 'square_benches' },
   /* GATHERING: one hero to a tree, a rock, a stretch of shore or a plot */
   { id: 'westwood', district: 'westwood', kind: 'gather', skill: 'woodcutting', opens: skill('woodcutting'), props: TREES,

@@ -94,6 +94,23 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     show_limit: 'Havora takes 3 rounds a day from one account. More after midnight UTC.',
     show_busy: 'Someone\'s round is still going. You weren\'t charged.',
   }),
+  /* Combat training (lane/c-combat-training hr_training_start, hr_house_dummy_unlock). The ones with the server's numbers are
+     src/shell/training-words.js's. */
+  training_start: Object.freeze({
+    quote_changed: 'The price changed before you started. Look at the new price and press Start training again.',
+    in_hunt: 'Your hero is out hunting. Come back to town to train.',
+    in_party: 'Training is solo. Leave the party first.',
+    cannot_pay: 'You don\'t have enough gold for the first hour.',
+    not_owned: 'Your dummy at home doesn\'t train that skill yet. Unlock it in the House.',
+    dummy_busy: 'Another hero is on your dummy at home right now.',
+    bad_skill: 'You can train Melee, Ranged, Magic or Defense.',
+  }),
+  house_dummy: Object.freeze({
+    quote_changed: 'The price changed. Look at the new price and press Unlock again.',
+    no_home: 'You need the Hearthside Homestead before you can put a dummy in.',
+    cannot_pay: 'You don\'t have enough gold for that unlock.',
+    already_owned: 'Your dummy already trains that skill.',
+  }),
 });
 
 export const REFUSAL_WORDS = Object.freeze({

@@ -37,6 +37,7 @@ import { renderPlayCap } from './windows/play-cap.js?v=0.2.126';
 import { renderOnline } from './widgets/online.js?v=0.2.126';
 import { renderEventPlate } from './widgets/event-plate.js?v=0.2.126';
 import { renderHouse } from './windows/house.js?v=0.2.126';
+import { renderTraining } from './windows/training.js?v=0.2.126';
 import { renderFarm } from './windows/farm.js?v=0.2.126';
 import { renderTally } from './windows/tally.js?v=0.2.126';
 import { renderHonor } from './windows/honor.js?v=0.2.126';
@@ -59,6 +60,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   honor: renderHonor,
   havora: renderHavora,
   house: renderHouse,
+  training: renderTraining,
   'hunt-prep': renderHuntPrep,
   'hunt-party': renderParty,
   characters: renderCharacters,

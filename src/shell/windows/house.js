@@ -33,6 +33,7 @@ import { wherePlaces } from '../item-lore.js?v=0.2.126';
 import { patchParts, placesParts } from '../goto.js?v=0.2.126';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.126';
 import { t } from '../../render/player-text.js?v=0.2.126';
+import { DUMMY_HTML, patchDummy, actDummy } from './house-dummy.js?v=0.2.126';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']);
 const SCRATCH = new WeakMap();
@@ -108,6 +109,7 @@ export function renderHouse() {
     + '<h3 class="hs-sub">' + esc(t('house.deed_head')) + '</h3><ol class="hw-ledger hw-deed" aria-label="' + esc(t('house.deed_aria')) + '"></ol>'
     + '<h3 class="hs-sub">' + esc(t('house.rooms_head')) + '</h3><ul class="hw-ledger hw-rooms" aria-label="' + esc(t('house.rooms_head')) + '"></ul>'
     + '<h3 class="hs-sub">' + esc(t('house.chests_head')) + ' <small class="hw-chest-n"></small></h3><ul class="hw-ledger hw-chests" aria-label="' + esc(t('house.chests_head')) + '"></ul>'
+    + DUMMY_HTML
     + '<div class="hw-house-foot"><div class="hw-confirm" role="alertdialog" aria-label="' + esc(t('house.confirm_aria')) + '"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="house-yes"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="house-no">' + esc(t('controls.cancel')) + '</button></div></div>'
@@ -220,6 +222,7 @@ renderHouse.patch = function patchHouse(body, ctx) {
   prop(yes, 'disabled', sc.pending);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
   cls(root, 'is-pending', sc.pending);
+  patchDummy(root, ctx);
 };
 
 /* The step an ask names, re-read from the CURRENT sections (a quote never outlives the envelope it came from). */
@@ -240,6 +243,7 @@ renderHouse.act = function actHouse(ctx, body, action, ev, el) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => renderHouse.patch(body, ctx);
+  if (actDummy(ctx, action, el, repaint)) return true;
   if (action === 'house-ask') {
     const kind = el.getAttribute('data-kind'), id = el.getAttribute('data-id');
     if (id && (kind === 'home' || kind === 'chest')) { sc.ask = { kind, id }; sc.msg = ''; repaint(); }

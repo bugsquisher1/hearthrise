@@ -29,6 +29,7 @@ import { SLOTS_TEXT } from './slots.js?v=0.2.126';
 import { SUMMARY_TEXT } from './summary.js?v=0.2.126';
 import { TALLY_TEXT } from './tally.js?v=0.2.126';
 import { TEMPER_TEXT } from './temper.js?v=0.2.126';
+import { TRAINING_TEXT } from './training.js?v=0.2.126';
 import { WINDOWS_TEXT } from './windows.js?v=0.2.126';
 import { WORK_TEXT } from './work.js?v=0.2.126';
 
@@ -54,6 +55,7 @@ export const TEXT = Object.freeze({
   summary: SUMMARY_TEXT,
   tally: TALLY_TEXT,
   temper: TEMPER_TEXT,
+  training: TRAINING_TEXT,
   windows: WINDOWS_TEXT,
   work: WORK_TEXT,
 });

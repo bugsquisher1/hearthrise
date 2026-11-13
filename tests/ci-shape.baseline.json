@@ -342,6 +342,8 @@
     "node tools/mutant-gate.mjs node tools/gen-scaled-hunts.mjs --selftest": "db-replay-11",
     "node tests/scaled-hunts-server.mjs": "db-replay-11",
     "node tools/mutant-gate.mjs node tests/scaled-hunts-server.mjs --mutate": "db-replay-11",
+    "node tests/key-under-lock.mjs": "db-replay-11",
+    "node tools/mutant-gate.mjs node tests/key-under-lock.mjs --mutate": "db-replay-11",
     "node tools/gen-live-events.mjs --check": "db-replay-11",
     "node tools/mutant-gate.mjs node tools/gen-live-events.mjs --selftest": "db-replay-11",
     "node tests/live-events.mjs": "db-replay-11",

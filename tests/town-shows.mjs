@@ -72,7 +72,17 @@ const ADD = 'public.hr_gold_given_add(uuid,integer,bigint)';
    re-applying the file it splices, so it is re-applied after it, as a replay does. */
 /* (2027-04-16-combat-training-gold-sinks-catalogue.generated.sql is the newest full replace of hr_sink_rules: re-applied last, as a replay does, so the house dummy's row stands) */
 const CHAIN = [CATALOGUE, SEAMS, '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql', '2027-02-28-sink-price-plan.sql', '2027-03-07-gold-sinks-catalogue.generated.sql',
-  '2027-03-16-crier-muted.sql', '2027-04-16-combat-training-gold-sinks-catalogue.generated.sql'];
+  '2027-03-16-crier-muted.sql', '2027-04-16-combat-training-gold-sinks-catalogue.generated.sql', '2027-04-19-key-under-lock.sql'];
+/* A LATER FILE RESTATED A BODY ONE OF THESE FILES PINS (2027-04-19-key-under-lock.sql: hr_hearth_burn over 2027-02-27-town-shows.sql's image).
+   The pin refuses any other image, so the file's own body goes back first, as the chain held it when the file ran, and the later file is
+   re-applied after it (CHAIN's tail), as a replay does. */
+const PINNED_LATER = [['2027-02-27-town-shows.sql', 'hr_hearth_burn']];
+const ownBody = (text, fn) => {
+  const head = 'create or replace function public.' + fn + '(', tail = '\nend $fn$;';
+  const at = text.indexOf(head), end = text.indexOf(tail, at);
+  if (at < 0 || end < 0 || text.indexOf(head, at + 1) >= 0) throw new Error('harness: ' + fn + ' is not restated once in its file');
+  return text.slice(at, end + tail.length);
+};
 
 /* ── THE PLANTED DEFECTS ─────────────────────────────────────────────────────
    db: a live body edited inside the arm's transaction (fn, find, replace). ddl: a statement in it. sql: an edit of a migration's TEXT the
@@ -391,6 +401,7 @@ const ARMS = {
     await db.exec('savepoint again');
     try {
       /* gold-given's own self-check makes a second hero unpaid: re-applied on the ladder it was written against (tests/_slots.mjs) */
+      for (const [file, fn] of PINNED_LATER) await db.exec(ownBody(MIG(file), fn));
       await asOldLadder((sql) => db.exec(sql), async () => { for (const f of CHAIN) await db.exec(plantIn(f)); });
     } catch (e) {
       out.push('the second apply refused: ' + String(e.message).split('\n')[0].slice(0, 180));

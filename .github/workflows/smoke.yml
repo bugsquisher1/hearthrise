@@ -3982,6 +3982,17 @@ jobs:
           node tests/scaled-hunts-server.mjs
           node tools/mutant-gate.mjs node tests/scaled-hunts-server.mjs --mutate
 
+      # A SECOND PRESS OF ONE KEY ANSWERS THE FIRST, UNDER THE LOCK (2027-04-19-key-under-lock.sql, lane/c-audit-db-fixes): the audit's P1.
+      # hr_scaled_hunt_buy, hr_hearth_burn and hr_stamina_refill read their key only before hr_hunt_lock, so a second press that waited on
+      # the lock reached hr_apply with a decided key (ok, replayed, nothing charged) and banked hours / lit a town flame / refilled stamina
+      # free. The second press is played as the body it runs after the lock; KL-CLASS holds every definer verb of that shape to a read under
+      # its lock or a named check that refuses the second press. --mutate restores each old body (and drops a safe verb's check): 5 mutants.
+      - name: Key under lock — a second press of one key moves nothing (scaled hours, the Hearth, stamina) and the class census
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/key-under-lock.mjs
+          node tools/mutant-gate.mjs node tests/key-under-lock.mjs --mutate
+
       # LIVE EVENTS, STEPS 1 AND 2 (2027-03-22-live-events*.sql, lane/c-live-events): a Level XP dial paid by each kill's own time to the
       # accounts whose switch is on, browser closed and hunt viewed alike, kept apart on the tally so a personal best leaves it out; the
       # commit's bound grows by the account's own dial only; Open Halls makes a Call out free through the quote, journalled and counted;

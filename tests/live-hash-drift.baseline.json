@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-13",
- "replay_ms": 64527,
+ "replay_ms": 68483,
  "counts": {
   "tracked_names": 845,
   "entries": 697
@@ -1146,7 +1146,8 @@
     "2027-02-11-bag-over-cap.sql",
     "2027-02-11-hunt-loot-past-bag-cap.sql",
     "2027-02-19-bench-tax.sql",
-    "2027-03-30-dead-writes.sql"
+    "2027-03-30-dead-writes.sql",
+    "2027-04-19-key-under-lock.sql"
    ],
    "live": {
     "md5": "e6603d6219e093ca11bd7ccc77e0ceac",
@@ -1195,7 +1196,8 @@
     "2026-10-25-character-sheet.sql",
     "2027-01-12-market-account.sql",
     "2027-02-10-settle-reads.sql",
-    "2027-03-13-gm-tools.sql"
+    "2027-03-13-gm-tools.sql",
+    "2027-04-19-key-under-lock.sql"
    ],
    "live": {
     "md5": "19c0726a535d28b18699bdf5dbbfdd7f",
@@ -3471,7 +3473,8 @@
    "touched_by": [
     "2026-08-22-companion-grant.sql",
     "2026-09-06-companion-grant-hardening.sql",
-    "2026-10-22-closed-mode-ungated-rpcs.sql"
+    "2026-10-22-closed-mode-ungated-rpcs.sql",
+    "2027-04-19-key-under-lock.sql"
    ],
    "live": {
     "md5": "172260834de31310749af088b28d9b5a",
@@ -5646,22 +5649,24 @@
    "sig": "hr_hearth_burn(p_slot integer, p_item text, p_idem uuid)",
    "name": "hr_hearth_burn",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2027-01-31-inner-flame.sql",
-    "2027-02-27-town-shows.sql"
+    "2027-02-27-town-shows.sql",
+    "2027-04-19-key-under-lock.sql"
    ],
    "live": {
-    "md5": "9e9070575ccacf50749d1c1819cdec6d",
-    "norm_len": 7628,
+    "md5": "2cccdf3f522a09c52f596ae70f1c16e8",
+    "norm_len": 8276,
     "measured": "2026-11-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "9e9070575ccacf50749d1c1819cdec6d",
-    "norm_len": 7628,
+    "md5": "2cccdf3f522a09c52f596ae70f1c16e8",
+    "norm_len": 8276,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6922,7 +6927,8 @@
     "restate"
    ],
    "touched_by": [
-    "2026-10-21-hunt-sessions.sql"
+    "2026-10-21-hunt-sessions.sql",
+    "2027-04-19-key-under-lock.sql"
    ],
    "live": {
     "md5": "33398d6b4133468d0ab820bef1a2fb03",
@@ -8629,7 +8635,8 @@
     "restate"
    ],
    "touched_by": [
-    "2026-09-03-intent-mismatch-class.sql"
+    "2026-09-03-intent-mismatch-class.sql",
+    "2027-04-19-key-under-lock.sql"
    ],
    "live": {
     "md5": "97f6c74e00fa9e8419b9c6437efc0685",
@@ -10259,7 +10266,8 @@
    "touched_by": [
     "2026-09-12-hr-rejections-journal.sql",
     "2026-09-14-rejection-field-detail.sql",
-    "2026-09-28-settle-before-mutate.sql"
+    "2026-09-28-settle-before-mutate.sql",
+    "2027-04-19-key-under-lock.sql"
    ],
    "live": {
     "md5": "807506a8f149cc089f0716a30d80034a",
@@ -12486,17 +12494,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-03-21-scaled-hunts.sql"
+    "2027-03-21-scaled-hunts.sql",
+    "2027-04-19-key-under-lock.sql"
    ],
    "live": {
-    "md5": "202e79367372f78950c07a0591e38e16",
-    "norm_len": 5562,
+    "md5": "723241d5d15bdaaf0da98cccbb16c5d2",
+    "norm_len": 6203,
     "measured": "2026-11-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "202e79367372f78950c07a0591e38e16",
-    "norm_len": 5562,
+    "md5": "723241d5d15bdaaf0da98cccbb16c5d2",
+    "norm_len": 6203,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -13565,20 +13574,22 @@
    "sig": "hr_stamina_refill(p_slot integer, p_price bigint, p_idem uuid)",
    "name": "hr_stamina_refill",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-10-25-stamina-refill.sql"
+    "2026-10-25-stamina-refill.sql",
+    "2027-04-19-key-under-lock.sql"
    ],
    "live": {
-    "md5": "a81628429a0d8b978b4583e7b143ef94",
-    "norm_len": 3229,
+    "md5": "9277c1437c5a739cebce6c8a6a625230",
+    "norm_len": 3880,
     "measured": "2026-11-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a81628429a0d8b978b4583e7b143ef94",
-    "norm_len": 3229,
+    "md5": "9277c1437c5a739cebce6c8a6a625230",
+    "norm_len": 3880,
     "source": "computed-from-replay"
    },
    "agree": true

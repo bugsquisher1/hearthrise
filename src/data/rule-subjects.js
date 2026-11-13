@@ -99,13 +99,17 @@ const UNDERTOW_WHEN = Object.freeze([{ metric: 'ally_hp_pct', op: 'gte', value: 
    area move stands LAST on its default set, so a bar the player never edited holds it. Each waits for its skill level
    (abilities.js `unlock`: the engine skips it and the bar strikes it until then) and fires on its own trigger; the server keeps
    only the slots of the hero's discipline (Turning Cut is a sword alone's). Hoarfrost waits on Fireball's mana like Frost Lance. */
+/* Raking Shot spends two shots, so a default bar looses it only at 3+ in its line (designer 2026-11-13, measured: at 2+ the
+   crossbow + shield Ranger at the Sewer floor read +18.2% over its bill, under drop-tables' +25%, and a Thicket full mix
+   32% over alone against the Party window's 45%; at 3+ +27.5% and both green). */
+const RAKING_WHEN =Object.freeze([{ metric: 'enemies_in_aoe', op: 'gte', value: 3 }]);
 const HOARFROST_WHEN = Object.freeze([{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }, { metric: 'self_mana_pct', op: 'gte', value: 70 }]);
 export const ROLE_RULES = Object.freeze({
   tank: Object.freeze([slot('challenge'), slot('power_strike')]),
   /* One Melee damage set for every key that plays it (hunt-spawn heroSetup keeps the slots its discipline holds): a
      sword alone casts Power Strike, two axes and a club or bare hands Power Strike and Cleave (roadmap p15). */
   melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('turning_cut')]),
-  ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot'), slot('raking_shot')]),
+  ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot'), slot('raking_shot', RAKING_WHEN)]),
   mage: Object.freeze([slot('fireball'), slot('frost_lance', SPARE_MANA), slot('arcane_barrier'), slot('hoarfrost', HOARFROST_WHEN)]),
   healer: Object.freeze([slot('greater_mend'), slot('circle_of_renewal'), slot('green_sickness', SICKNESS_WHEN), slot('undertow', UNDERTOW_WHEN), slot('spring_tide')]),
 });

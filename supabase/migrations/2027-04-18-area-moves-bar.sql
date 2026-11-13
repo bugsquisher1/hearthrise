@@ -14,7 +14,7 @@
 --                        ROLE_RULES (pinned by tests/hunt-core/conditions.mjs
 --                        sql-rows; 13 -> 17 rows, 5 roles), each new slot LAST:
 --                        melee_dps d_turning_cut (sword only, by discipline), ranger
---                        d_raking_shot, mage d_hoarfrost (Plain Ice Rune, 2+ in its
+--                        d_raking_shot (3+ in its line), mage d_hoarfrost (Plain Ice Rune, 2+ in its
 --                        square and mana 70%+), healer d_spring_tide (Plain Water Rune,
 --                        its own party trigger). Each waits for its skill unlock in the
 --                        engine (src/core/hunt/abilities.js 'level').
@@ -64,7 +64,7 @@ insert into public.hr_hunt_role_rules (role, ord, slot) values
   ('melee_dps', 2, '{"id":"d_turning_cut","action":{"type":"ability","id":"turning_cut"},"conditions":[{"metric":"enemies_in_aoe","op":"gte","value":3}],"join":"and"}'::jsonb),
   ('ranger', 0, '{"id":"d_hunters_mark","action":{"type":"ability","id":"hunters_mark"},"conditions":[],"join":"and"}'::jsonb),
   ('ranger', 1, '{"id":"d_precision_shot","action":{"type":"ability","id":"precision_shot"},"conditions":[],"join":"and"}'::jsonb),
-  ('ranger', 2, '{"id":"d_raking_shot","action":{"type":"ability","id":"raking_shot"},"conditions":[{"metric":"enemies_in_aoe","op":"gte","value":2}],"join":"and"}'::jsonb),
+  ('ranger', 2, '{"id":"d_raking_shot","action":{"type":"ability","id":"raking_shot"},"conditions":[{"metric":"enemies_in_aoe","op":"gte","value":3}],"join":"and"}'::jsonb),
   ('tank', 0, '{"id":"d_challenge","action":{"type":"ability","id":"challenge"},"conditions":[],"join":"and"}'::jsonb),
   ('tank', 1, '{"id":"d_power_strike","action":{"type":"ability","id":"power_strike"},"conditions":[],"join":"and"}'::jsonb)
 -- ⟦/role-rules⟧

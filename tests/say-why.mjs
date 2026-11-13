@@ -182,6 +182,12 @@ const BUSY = /!?\(?\b(?:st\.|sc\.|s\.|o\.|a\.|party\.|st\.sc\.)*(?:pending|sendi
  * why, which must be in the file. `where` names where they show. The report's table is this list.
  */
 export const REASONS = Object.freeze({
+  'src/shell/windows/training.js': [
+    { cond: '!!block', words: "text(root.querySelector('.tw-off-why'), block)", where: 'Start training: the line above it says why (out hunting, in a party, no quote, a purse under the first hour, the dummy in use), and data-off-why says it on a press' },
+  ],
+  'src/shell/windows/house-dummy.js': [
+    { cond: '!canBuy', words: "text(box.querySelector('.hd-why'), block)", where: 'Unlock on the dummy: the line under the ladder says why (no Homestead, short of the next price); every skill held reads "Every skill is unlocked" and hides the buttons' },
+  ],
   'src/shell/windows/boss-call-pane.js': [
     { cond: '!open', words: 'BOSS_CALL_WORDS.noQuote', where: 'Call out: the line above the press reads the server\'s why (party of two, leader only, 3 a day), the hunt under way, or no answer yet' },
   ],

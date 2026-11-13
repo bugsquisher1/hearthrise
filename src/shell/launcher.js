@@ -393,10 +393,22 @@ export function actCoach(ctx, el, action, ev) {
   return true;
 }
 
+/**
+ * Does the server offer this row to the hero on screen? A Game Master row only to the Game Master; a row tied to a section
+ * (src/data/shell-windows.js `section`) only while the server sends that section. The icon row, the All characters sheet
+ * and a place's tap (src/app/world-pane.js) read this one answer. Pure.
+ */
+export function rowOffered(r, cs) {
+  if (!r) return false;
+  if (r.gm === true && !gmOf(cs)) return false;
+  if (typeof r.section === 'string') { const v = cs && typeof cs.read === 'function' ? cs.read(r.section) : null; return !!v && typeof v === 'object'; }
+  return true;
+}
+
 /* The rows the icon row shows on this screen: a phone holds fewer (src/data/shell-windows.js phoneIcon). */
 function launcherRows(ctx) {
   const phone = typeof ctx.isPhone === 'function' && ctx.isPhone();
-  return ctx.wm.rows().filter((r) => r.launcher !== false && !(phone && r.phoneIcon === false) && (r.gm !== true || gmOf(ctx.character)));
+  return ctx.wm.rows().filter((r) => r.launcher !== false && !(phone && r.phoneIcon === false) && rowOffered(r, ctx.character));
 }
 
 /** The `launchers` widget body: one button per window row that has a launcher. The coach's ring is drawn here when

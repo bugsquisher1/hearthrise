@@ -25,6 +25,9 @@
 //   phoneIcon false keeps a launcher row off the phone's icon row, which holds 15 at a thumb's width on the
 //            narrowest phone (tests/phone-touch.mjs PH-11); the All characters sheet names it under "Also here"
 //   gm       true: shown only when the server's `gm` section says so (launcher.js, characters.js)
+//   section  a section key: shown only while the server sends that section for the hero on screen (launcher.js
+//            rowOffered, the icon row, a place's tap); hidden, it never opens
+//   orElse   with `section`: while the server hides it, a tap in the world that names it opens this window instead
 //   help     the text row of the window's one help line, behind the header's ? (src/data/text/windows.js)
 //
 // THE COEXISTENCE TABLE (UX flow audit 2026-11-11, src/shell/window-manager.js): which windows stay open together.
@@ -65,6 +68,11 @@ export const SHELL_WINDOWS = Object.freeze([
   /* Lane S2: stamina refills, blessings and the character's name, each priced by the server. */
   /* The account's one house (Tyler 2026-10-15): the property, its rooms and the storage chests, bought from any character. */
   Object.freeze({ id: 'house', label: 'House', key: 'e', phoneIcon: false, glyph: 'navHouse', width: 480, object: 'deed' }),
+  /* Combat training (the designer's "2026-11-13 Combat training spec"): one combat skill for gold by the hour at the yard, or free
+     on the house dummy. Shown only while the server sends the `training` section; the yard's dummies open it, and while it is
+     hidden the yard opens Hunts, as before. No letter: the yard and the icon open it. */
+  Object.freeze({ id: 'training', label: 'Training', title: 'Training Yard', key: null, noShortcut: true, phoneIcon: false, section: 'training', orElse: 'hunts',
+    glyph: 'uiSword', width: 420, object: 'ledger' }),
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): kill tasks counted by the server, paid in town. Her board on the
      Common opens it too (src/data/world/stations.js TAP_OPENS), and so does the HUD's tally. */
   Object.freeze({ id: 'tally', label: 'Tamsin\'s tally', key: 'q', glyph: 'navBounty', width: 460, object: 'ledger' }),

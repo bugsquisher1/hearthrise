@@ -41,6 +41,7 @@ const FN = join('supabase', 'functions', 'hr-accrue');
    bag_rules, shop, hunt_presets, role and party_invites to CONTRACT. */
 export const PENDING = Object.freeze({
   imbuements: 'per worn piece, its imbuement slots and what fills them (ruling D v2; the Inventory Advanced view, CONFLICTS.md 2026-10-18 playtest)',
+  training: 'combat training: the yard quotes, the run, the house dummy (src/session/training-sections.js; server half lane/c-combat-training, 2026-11-13 spec)',
 });
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);

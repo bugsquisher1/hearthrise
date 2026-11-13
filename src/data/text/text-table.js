@@ -33,6 +33,7 @@ import { TEMPER_TEXT } from './temper.js?v=0.2.127';
 import { WINDOWS_TEXT } from './windows.js?v=0.2.127';
 import { WIKI_TEXT } from './wiki.js?v=0.2.127';
 import { WORK_TEXT } from './work.js?v=0.2.127';
+import { TRAINING_TEXT } from './training.js?v=0.2.127';
 
 export const TEXT = Object.freeze({
   away: AWAY_TEXT,
@@ -57,6 +58,7 @@ export const TEXT = Object.freeze({
   summary: SUMMARY_TEXT,
   tally: TALLY_TEXT,
   temper: TEMPER_TEXT,
+  training: TRAINING_TEXT,
   windows: WINDOWS_TEXT,
   wiki: WIKI_TEXT,
   work: WORK_TEXT,

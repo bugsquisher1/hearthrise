@@ -141,7 +141,7 @@ async function guard(X) {
     const row = X.EM[dId];
     const dummy = { id: 9, side: 'mon', kind: dId, alive: true, hp: 5, maxHp: row.hp, statuses: [] };
     const hero = { id: 1, side: 'hero', alive: true, hp: 60, maxHp: 100, statuses: [] };
-    const inst = { world: { units: [hero, dummy], packs: [{}] }, ground: G.TRAINING_GROUNDS.yard_melee, heroes: {} };
+    const inst = { world: { units: [hero, dummy], packs: [{}] }, ground: G.TRAINING_GROUNDS.training_yard_melee, heroes: {} };
     const r = X.D.hurt(inst, dummy, 50000, hero, null, null, null);
     if (r.killed || dummy.hp !== dummy.maxHp || r.dmg !== 5) bad.push('CT-DUMMY a blow that empties the dummy answered ' + JSON.stringify({ r, hp: dummy.hp }));
     const atFloor = { id: 1, side: 'hero', alive: true, hp: Math.ceil(100 * floorPm / 1000), maxHp: 100, statuses: [] };
@@ -165,11 +165,11 @@ async function guard(X) {
   {
     const S = X.TR.trainingStopMs, H0 = 1000000, hr = T.TRAINING_RULES.hourMs, max = T.TRAINING_RULES.maxHours;
     const cases = [
-      ['the yard, hour 1', G.TRAINING_GROUNDS.yard_melee, { hunt_from_ms: H0, hours_limit: 1 }, H0, H0 + hr],
-      ['the yard, hour 5', G.TRAINING_GROUNDS.yard_magic, { hunt_from_ms: H0, hours_limit: 5 }, H0 + 4 * hr, H0 + 5 * hr],
-      ['the yard, its last hour', G.TRAINING_GROUNDS.yard_melee, { hunt_from_ms: H0, hours_limit: max }, H0, Infinity],
-      ['a stop the window stands on', G.TRAINING_GROUNDS.yard_melee, { hunt_from_ms: H0, hours_limit: 1 }, H0 + hr, Infinity],
-      ['the house', G.TRAINING_GROUNDS.house_melee, { hunt_from_ms: H0, hours_limit: max }, H0, Infinity],
+      ['the yard, hour 1', G.TRAINING_GROUNDS.training_yard_melee, { hunt_from_ms: H0, hours_limit: 1 }, H0, H0 + hr],
+      ['the yard, hour 5', G.TRAINING_GROUNDS.training_yard_magic, { hunt_from_ms: H0, hours_limit: 5 }, H0 + 4 * hr, H0 + 5 * hr],
+      ['the yard, its last hour', G.TRAINING_GROUNDS.training_yard_melee, { hunt_from_ms: H0, hours_limit: max }, H0, Infinity],
+      ['a stop the window stands on', G.TRAINING_GROUNDS.training_yard_melee, { hunt_from_ms: H0, hours_limit: 1 }, H0 + hr, Infinity],
+      ['the house', G.TRAINING_GROUNDS.training_house_melee, { hunt_from_ms: H0, hours_limit: max }, H0, Infinity],
       ['a hunting ground', G.HUNT_GROUNDS.mill_cellar, { hunt_from_ms: H0, hours_limit: 1 }, H0, Infinity],
     ];
     for (const [name, g, s, from, want] of cases) if (S(g, s, from) !== want) bad.push('CT-STOP ' + name + ': ' + S(g, s, from) + ', want ' + want);

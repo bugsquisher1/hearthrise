@@ -994,7 +994,7 @@ begin
     raise exception 'combat-training §7(b): the house dummy ladder is %, not 150000/250000/400000/600000', v_ladder; end if;
   -- (c) THE WINDOW CHECK: a clean training window passes; Level XP, coin, an item, another skill, a kill, a death, a Hearthfind, a progress
   --     op and an XP past the time bound are each refused, by name.
-  perform public.hr_training_window(c_a, 0, 'yard_melee', now() - interval '10 seconds', now(),
+  perform public.hr_training_window(c_a, 0, 'training_yard_melee', now() - interval '10 seconds', now(),
     '{"accrued_to":"x","hp":5,"journal":{"kind":"combat","meta":{"kills":0,"ms":10000}},"xp":{"melee":12},"xp_frac":{"melee":0.5}}'::jsonb);
   foreach v_s in array array['{"journal":{"meta":{"kills":0}},"level_xp":1}', '{"journal":{"meta":{"kills":0}},"gold":1}',
                              '{"journal":{"meta":{"kills":0}},"items":{"bones":1}}', '{"journal":{"meta":{"kills":0}},"xp":{"defense":1}}',
@@ -1002,7 +1002,7 @@ begin
                              '{"journal":{"meta":{"kills":0}},"progress":[{"kind":"stat","key":"kills"}]}', '{"journal":{"meta":{"kills":0}},"xp_frac":{"level":0.5}}',
                              '{"hp":5}', '{"journal":{"meta":{"kills":0}},"xp":{"melee":100000000}}'] loop
     begin
-      perform public.hr_training_window(c_a, 0, 'yard_melee', now() - interval '10 seconds', now(), v_s::jsonb);
+      perform public.hr_training_window(c_a, 0, 'training_yard_melee', now() - interval '10 seconds', now(), v_s::jsonb);
       raise exception 'combat-training §7(c): % passed the window check', v_s;
     exception when sqlstate 'HR000' then
       if sqlerrm not in ('training_pays', 'value_over') then raise; end if;
@@ -1041,9 +1041,9 @@ begin
        or exists (select 1 from public.hunt_sessions where user_id = c_a and ended_at is null) then
       raise exception 'combat-training §7(e): a forged price moved something'; end if;
     -- (f) ONE DOOR: an enter on a training ground answers training_only and opens nothing.
-    v := public.hr_hunt_enter(0, 'yard_melee', '[]'::jsonb, 0, null, (k || '00000002')::uuid);
+    v := public.hr_hunt_enter(0, 'training_yard_melee', '[]'::jsonb, 0, null, (k || '00000002')::uuid);
     if coalesce(v->>'ok', '') = 'true' or v::text not like '%training_only%' then raise exception 'combat-training §7(f): an enter answered %', v; end if;
-    -- (g) THE START, ON AN EMPTY POOL: the fee from the purse, one shop row, the session on yard_melee with its paid hour; a replay charges
+    -- (g) THE START, ON AN EMPTY POOL: the fee from the purse, one shop row, the session on training_yard_melee with its paid hour; a replay charges
     --     nothing again. A hunt's enter on the same empty pool is still refused no_stamina.
     perform set_config('request.jwt.claim.sub', '', true);
     update public.player_state set stamina_ms = 0, stamina_at = now() where user_id = c_a and slot = 0;
@@ -1057,11 +1057,11 @@ begin
     v_sid := (v->>'session_id')::uuid;
     if (select gold from public.account_wallet where user_id = c_a) <> 100000 - v_fee then
       raise exception 'combat-training §7(g): the purse reads %, not %', (select gold from public.account_wallet where user_id = c_a), 100000 - v_fee; end if;
-    if (select count(*) from public.player_ledger where user_id = c_a and kind = 'shop' and intent = 'training_start:yard_melee:' || v_fee
+    if (select count(*) from public.player_ledger where user_id = c_a and kind = 'shop' and intent = 'training_start:training_yard_melee:' || v_fee
           and gold = -v_fee and meta->>'reason' = 'training_fee' and gold_kind = 'shop') <> 1 then
       raise exception 'combat-training §7(g): not one first-hour fee row'; end if;
-    if not exists (select 1 from public.hunt_sessions where id = v_sid and user_id = c_a and slot = 0 and hunt_id = 'yard_melee' and ended_at is null and hours_limit = 1) then
-      raise exception 'combat-training §7(g): no yard_melee session with its one paid hour'; end if;
+    if not exists (select 1 from public.hunt_sessions where id = v_sid and user_id = c_a and slot = 0 and hunt_id = 'training_yard_melee' and ended_at is null and hours_limit = 1) then
+      raise exception 'combat-training §7(g): no training_yard_melee session with its one paid hour'; end if;
     delete from public.hr_rate_counters where user_id = c_a;
     v := public.hr_training_start(0, 'melee', 'yard', v_fee, (k || '00000004')::uuid);
     if (select gold from public.account_wallet where user_id = c_a) <> 100000 - v_fee
@@ -1077,7 +1077,7 @@ begin
        or (select gold from public.account_wallet where user_id = c_a) <> 100000 - 2 * v_fee then
       raise exception 'combat-training §7(h): the second hour answered %, hours %, purse %', v, (select hours_limit from public.hunt_sessions where id = v_sid),
         (select gold from public.account_wallet where user_id = c_a); end if;
-    if (select count(*) from public.player_ledger where user_id = c_a and kind = 'shop' and intent = 'training_fee:yard_melee:2' and gold = -v_fee
+    if (select count(*) from public.player_ledger where user_id = c_a and kind = 'shop' and intent = 'training_fee:training_yard_melee:2' and gold = -v_fee
           and session_id is null and meta->>'session' = v_sid::text and gold_kind = 'shop' and meta->>'reason' = 'training_fee' and (meta->>'hour')::int = 2) <> 1 then
       raise exception 'combat-training §7(h): not one hourly fee row'; end if;
     -- (i) A PURSE THAT CAN'T PAY THE NEXT HOUR ends the session gold_out at that hour's first instant, nothing charged. A window's own store
@@ -1087,7 +1087,7 @@ begin
     if v->>'ended' is distinct from 'gold_out' then raise exception 'combat-training §7(i): a short purse answered %', v; end if;
     if not exists (select 1 from public.hunt_sessions where id = v_sid and end_reason = 'gold_out' and ended_at = v_from + interval '2 hours')
        or (select gold from public.account_wallet where user_id = c_a) <> v_fee + 20
-       or exists (select 1 from public.player_ledger where user_id = c_a and intent = 'training_fee:yard_melee:3') then
+       or exists (select 1 from public.player_ledger where user_id = c_a and intent = 'training_fee:training_yard_melee:3') then
       raise exception 'combat-training §7(i): the session did not end gold_out at the hour, or something was charged'; end if;
     -- (j) THE HOUSE: no home is no_home; with the home, the ladder in the order bought; the dummy holds one hero of the account at a time,
     --     costs nothing an hour, and runs the longest session from the start; a party is refused.
@@ -1123,7 +1123,7 @@ begin
     delete from public.hr_rate_counters where user_id = c_a;
     v := public.hr_training_start(1, 'ranged', 'house', 0, (k || '00000041')::uuid);
     if coalesce(v->>'ok', '') <> 'true'
-       or not exists (select 1 from public.hunt_sessions where user_id = c_a and slot = 1 and hunt_id = 'house_ranged' and ended_at is null and hours_limit = v_r.max_hours)
+       or not exists (select 1 from public.hunt_sessions where user_id = c_a and slot = 1 and hunt_id = 'training_house_ranged' and ended_at is null and hours_limit = v_r.max_hours)
        or (select gold from public.account_wallet where user_id = c_a) <> v_g then
       raise exception 'combat-training §7(j): the house start answered %', v; end if;
     delete from public.hr_rate_counters where user_id = c_a;
@@ -1138,7 +1138,7 @@ begin
     if v->>'error' is distinct from 'training_party' then raise exception 'combat-training §7(j): a hero in a party answered %', v; end if;
     -- (k) NO LEVEL XP: a training window's whole delta reaches the trained skill only (the settle's own check, once more through the verb's ground).
     begin
-      perform public.hr_training_window(c_a, 1, 'house_ranged', now() - interval '10 seconds', now(), '{"journal":{"meta":{"kills":0}},"level_xp":5,"xp":{"ranged":3}}'::jsonb);
+      perform public.hr_training_window(c_a, 1, 'training_house_ranged', now() - interval '10 seconds', now(), '{"journal":{"meta":{"kills":0}},"level_xp":5,"xp":{"ranged":3}}'::jsonb);
       raise exception 'combat-training §7(k): Level XP passed';
     exception when sqlstate 'HR000' then
       if sqlerrm <> 'training_pays' then raise; end if;

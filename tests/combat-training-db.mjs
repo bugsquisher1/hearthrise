@@ -68,7 +68,7 @@ async function verbArm(bootFn) {
   await hero(db, M, a);
   const fee = await feeOf(db, a);
   const view = await as(db, a, 'select public.hr_training_view(0)');
-  const yardMelee = view && view.ok === true ? (view.yard || []).find((x) => x.hunt === 'yard_melee') : null;
+  const yardMelee = view && view.ok === true ? (view.yard || []).find((x) => x.hunt === 'training_yard_melee') : null;
   if (!yardMelee || Number(yardMelee.price) !== fee || yardMelee.available !== true || (view.yard || []).length !== 4 || (view.house || []).length !== 4) bad.push('TD-VERB the view reads ' + JSON.stringify(view).slice(0, 300));
   let v = await start(db, a, fee + 1);
   if (v.error !== 'quote_changed') bad.push('TD-VERB a stale price answered ' + JSON.stringify(v));
@@ -76,11 +76,11 @@ async function verbArm(bootFn) {
   if (v.error !== 'quote_changed') bad.push('TD-VERB a forged low price answered ' + JSON.stringify(v));
   if (await purse(db, a) !== 100000 || Number(await one(db, 'select count(*) from public.hunt_sessions where user_id = $1', [a]))) bad.push('TD-VERB a refused price moved something');
   /* no other door */
-  v = await as(db, a, `select public.hr_hunt_enter(0, 'yard_melee', '[]'::jsonb, 0, null, $1::uuid)`, [idem()]);
+  v = await as(db, a, `select public.hr_hunt_enter(0, 'training_yard_melee', '[]'::jsonb, 0, null, $1::uuid)`, [idem()]);
   if (v.ok === true || !JSON.stringify(v).includes('training_only')) bad.push('TD-VERB an enter answered ' + JSON.stringify(v));
   v = await as(db, a, `select public.hr_hunt_enter(0, 'mill_cellar', '[]'::jsonb, 0, null, $1::uuid)`, [idem()]);
   if (v.ok !== true) bad.push('TD-VERB a normal ground refused: ' + JSON.stringify(v));
-  v = await as(db, a, `select public.hr_hunt_change(0, 'yard_melee', $1::uuid)`, [idem()]);
+  v = await as(db, a, `select public.hr_hunt_change(0, 'training_yard_melee', $1::uuid)`, [idem()]);
   if (v.ok === true || !JSON.stringify(v).includes('training_only')) bad.push('TD-VERB a move mid-hunt answered ' + JSON.stringify(v));
   await db.query(`select public.hr_hunt_close(h.id, 'left', now(), true) from public.hunt_sessions h where h.user_id = $1 and h.ended_at is null`, [a]);
   /* the charge, on the caller's key */
@@ -89,7 +89,7 @@ async function verbArm(bootFn) {
   if (v.ok !== true) bad.push('TD-VERB the start answered ' + JSON.stringify(v));
   if (await purse(db, a) !== 100000 - fee) bad.push('TD-VERB the purse reads ' + await purse(db, a) + ', want ' + (100000 - fee));
   const rows = await q(db, `select kind, intent, gold, meta->>'reason' as reason from public.player_ledger where user_id = $1 and intent like 'training\\_%'`, [a]);
-  if (rows.length !== 1 || rows[0].kind !== 'shop' || rows[0].intent !== `training_start:yard_melee:${fee}` || Number(rows[0].gold) !== -fee || rows[0].reason !== 'training_fee') bad.push('TD-VERB the ledger reads ' + JSON.stringify(rows));
+  if (rows.length !== 1 || rows[0].kind !== 'shop' || rows[0].intent !== `training_start:training_yard_melee:${fee}` || Number(rows[0].gold) !== -fee || rows[0].reason !== 'training_fee') bad.push('TD-VERB the ledger reads ' + JSON.stringify(rows));
   await start(db, a, fee, key);
   if (await purse(db, a) !== 100000 - fee || Number(await one(db, `select count(*) from public.player_ledger where user_id = $1 and intent like 'training\\_%'`, [a])) !== 1) bad.push('TD-VERB a replay charged again');
   v = await start(db, a, fee);
@@ -150,7 +150,7 @@ async function doorArm(bootFn, door) {
   await moveClock(db, sid, A - 58 * 60000, A);
   try { await settleTo(db, M, door, uid, sid, A + 4 * 60000); } catch (e) { return ['TD-DOORS ' + door + ' hour 2: ' + String(e.message).slice(0, 300)]; }
   const s1 = (await q(db, 'select hours_limit, ended_at from public.hunt_sessions where id = $1', [sid]))[0];
-  const hr2 = await q(db, `select kind, gold, session_id, gold_kind, meta from public.player_ledger where user_id = $1 and intent = 'training_fee:yard_melee:2'`, [uid]);
+  const hr2 = await q(db, `select kind, gold, session_id, gold_kind, meta from public.player_ledger where user_id = $1 and intent = 'training_fee:training_yard_melee:2'`, [uid]);
   if (s1.ended_at || Number(s1.hours_limit) !== 2) bad.push(`TD-DOORS ${door} the second hour: hours ${s1.hours_limit}, ended ${s1.ended_at}`);
   if (hr2.length !== 1 || hr2[0].kind !== 'shop' || Number(hr2[0].gold) !== -fee || hr2[0].session_id !== null || hr2[0].meta.session !== sid || hr2[0].gold_kind !== 'shop'
       || hr2[0].meta.reason !== 'training_fee' || Number(hr2[0].meta.hour) !== 2) bad.push(`TD-DOORS ${door} the hourly row reads ${JSON.stringify(hr2)}`);

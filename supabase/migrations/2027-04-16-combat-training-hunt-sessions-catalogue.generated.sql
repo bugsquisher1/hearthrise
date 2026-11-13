@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 206d94a12f6ed26b35082b371981b7dabda5e9c58d55d11dd58ef6c1223815de
+--   digest: 1d5b13cad842739edd1c56877199e1c46e85ae6448a48451f77b17f7f8380521
 --   82 supplies, 138 hunts (named + training), 47 limits, 16 end reasons,
 --   559 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 21 abilities, 10 action-set options, 16 hunt grounds
@@ -802,20 +802,20 @@ delete from public.hr_hunt_grounds;
 insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values
   ('coppercap_warrens', 'coppercap_warrens', 6, 18, 90000, 4, '{8,8,8,8}'::int[]),
   ('coppercap_warrens_called', 'coppercap_warrens_called', 1, 4, 600000, 4, '{8,8,8,8}'::int[]),
-  ('house_defense', 'house_defense', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
-  ('house_magic', 'house_magic', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
-  ('house_melee', 'house_melee', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
-  ('house_ranged', 'house_ranged', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
   ('meadowbrook_thicket', 'meadowbrook_thicket', 6, 13, 60000, 4, '{8,8,8,8}'::int[]),
   ('mill_cellar', 'mill_cellar', 2, 5, 32000, 4, '{8,8,8,8}'::int[]),
   ('millrace_sewer', 'millrace_sewer', 6, 19, 90000, 4, '{8,8,10,12}'::int[]),
   ('millrace_sewer_called', 'millrace_sewer_called', 1, 4, 600000, 4, '{8,8,8,8}'::int[]),
   ('mosslight_glade', 'mosslight_glade', 6, 13, 60000, 4, '{8,8,8,8}'::int[]),
-  ('wickstead', 'wickstead', 6, 12, 60000, 4, '{8,8,8,8}'::int[]),
-  ('yard_defense', 'yard_defense', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
-  ('yard_magic', 'yard_magic', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
-  ('yard_melee', 'yard_melee', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
-  ('yard_ranged', 'yard_ranged', 1, 1, 10000, 1, '{8,8,8,8}'::int[]);
+  ('training_house_defense', 'training_house_defense', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
+  ('training_house_magic', 'training_house_magic', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
+  ('training_house_melee', 'training_house_melee', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
+  ('training_house_ranged', 'training_house_ranged', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
+  ('training_yard_defense', 'training_yard_defense', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
+  ('training_yard_magic', 'training_yard_magic', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
+  ('training_yard_melee', 'training_yard_melee', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
+  ('training_yard_ranged', 'training_yard_ranged', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
+  ('wickstead', 'wickstead', 6, 12, 60000, 4, '{8,8,8,8}'::int[]);
 insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('coppercap_warrens', 'chief_coppercap', 1),
   ('coppercap_warrens', 'goblin_digger', 12),
@@ -824,10 +824,6 @@ insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('coppercap_warrens', 'hobgoblin_foreman', 2),
   ('coppercap_warrens_called', 'chief_coppercap_called', 1),
   ('coppercap_warrens_called', 'goblin_digger_called', 3),
-  ('house_defense', 'yard_dummy', 1),
-  ('house_magic', 'yard_dummy', 1),
-  ('house_melee', 'yard_dummy', 1),
-  ('house_ranged', 'yard_dummy', 1),
   ('meadowbrook_thicket', 'briarcoat_wolf', 7),
   ('meadowbrook_thicket', 'dire_gray', 3),
   ('meadowbrook_thicket', 'gray_whelp', 20),
@@ -850,15 +846,19 @@ insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('mosslight_glade', 'goblin_sluicer', 3),
   ('mosslight_glade', 'rook_poacher', 1),
   ('mosslight_glade', 'walking_vine', 10),
+  ('training_house_defense', 'yard_dummy', 1),
+  ('training_house_magic', 'yard_dummy', 1),
+  ('training_house_melee', 'yard_dummy', 1),
+  ('training_house_ranged', 'yard_dummy', 1),
+  ('training_yard_defense', 'yard_dummy', 1),
+  ('training_yard_magic', 'yard_dummy', 1),
+  ('training_yard_melee', 'yard_dummy', 1),
+  ('training_yard_ranged', 'yard_dummy', 1),
   ('wickstead', 'barn_spider', 7),
   ('wickstead', 'barn_wasp', 10),
   ('wickstead', 'granary_rat', 26),
   ('wickstead', 'orchard_boar', 2),
-  ('wickstead', 'turncoat', 3),
-  ('yard_defense', 'yard_dummy', 1),
-  ('yard_magic', 'yard_dummy', 1),
-  ('yard_melee', 'yard_dummy', 1),
-  ('yard_ranged', 'yard_dummy', 1);
+  ('wickstead', 'turncoat', 3);
 delete from public.hr_hunt_roster;
 insert into public.hr_hunt_roster (monster_id) values
   ('barn_spider'),
@@ -1057,10 +1057,6 @@ insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
   ('hive_wasp', 0, true),
   ('hobgoblin', 0, true),
   ('hobgoblin_foreman', 0, true),
-  ('house_defense', 0, false),
-  ('house_magic', 0, false),
-  ('house_melee', 0, false),
-  ('house_ranged', 0, false),
   ('ice_elemental', 0, true),
   ('imp', 0, true),
   ('kobold', 0, true),
@@ -1103,6 +1099,14 @@ insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
   ('storm_elemental', 0, true),
   ('sump_slime', 0, true),
   ('the_silence', 0, true),
+  ('training_house_defense', 0, false),
+  ('training_house_magic', 0, false),
+  ('training_house_melee', 0, false),
+  ('training_house_ranged', 0, false),
+  ('training_yard_defense', 0, false),
+  ('training_yard_magic', 0, false),
+  ('training_yard_melee', 0, false),
+  ('training_yard_ranged', 0, false),
   ('turncoat', 0, true),
   ('vampire_bride', 0, true),
   ('venom_spider', 0, true),
@@ -1124,10 +1128,6 @@ insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
   ('wraith', 0, true),
   ('wyrmling', 0, true),
   ('wyvern', 0, true),
-  ('yard_defense', 0, false),
-  ('yard_magic', 0, false),
-  ('yard_melee', 0, false),
-  ('yard_ranged', 0, false),
   ('zombie', 0, true);
 delete from public.hr_hunt_limits;
 insert into public.hr_hunt_limits (key, value) values
@@ -1793,14 +1793,14 @@ delete from public.hr_training_rules;
 insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier) values
   (true, 50, 6, 500, 12, 1);
 insert into public.hr_training_grounds (hunt_id, place, skill, fee, xp_permille) values
-  ('house_melee', 'house', 'melee', false, 350),
-  ('house_ranged', 'house', 'ranged', false, 350),
-  ('house_magic', 'house', 'magic', false, 350),
-  ('house_defense', 'house', 'defense', false, 350),
-  ('yard_melee', 'yard', 'melee', true, 350),
-  ('yard_ranged', 'yard', 'ranged', true, 350),
-  ('yard_magic', 'yard', 'magic', true, 350),
-  ('yard_defense', 'yard', 'defense', true, 350);
+  ('training_house_melee', 'house', 'melee', false, 350),
+  ('training_house_ranged', 'house', 'ranged', false, 350),
+  ('training_house_magic', 'house', 'magic', false, 350),
+  ('training_house_defense', 'house', 'defense', false, 350),
+  ('training_yard_melee', 'yard', 'melee', true, 350),
+  ('training_yard_ranged', 'yard', 'ranged', true, 350),
+  ('training_yard_magic', 'yard', 'magic', true, 350),
+  ('training_yard_defense', 'yard', 'defense', true, 350);
 
 -- ── SELF-CHECK (CLAUDE.md §4): the rows the generator wrote, and nothing more ──
 do $$
@@ -1841,11 +1841,11 @@ begin
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- Every ground's respawn is the data's (the settle's kill bound reads it: 2027-02-09, the Cellar at 32 s).
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.respawn_ms) not in
-               (('coppercap_warrens', 90000), ('coppercap_warrens_called', 600000), ('house_defense', 10000), ('house_magic', 10000), ('house_melee', 10000), ('house_ranged', 10000), ('meadowbrook_thicket', 60000), ('mill_cellar', 32000), ('millrace_sewer', 90000), ('millrace_sewer_called', 600000), ('mosslight_glade', 60000), ('wickstead', 60000), ('yard_defense', 10000), ('yard_magic', 10000), ('yard_melee', 10000), ('yard_ranged', 10000))) then
+               (('coppercap_warrens', 90000), ('coppercap_warrens_called', 600000), ('meadowbrook_thicket', 60000), ('mill_cellar', 32000), ('millrace_sewer', 90000), ('millrace_sewer_called', 600000), ('mosslight_glade', 60000), ('training_house_defense', 10000), ('training_house_magic', 10000), ('training_house_melee', 10000), ('training_house_ranged', 10000), ('training_yard_defense', 10000), ('training_yard_magic', 10000), ('training_yard_melee', 10000), ('training_yard_ranged', 10000), ('wickstead', 60000))) then
     raise exception 'a hunt ground''s respawn_ms is not hunt-grounds.js respawnMs'; end if;
   -- THE KILL BOUND'S BASE is the room as built for every group (Tyler 2026-11-11): every ground's spawns, as generated.
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.pockets, g.spawns) not in
-               (('coppercap_warrens', 6, 18), ('coppercap_warrens_called', 1, 4), ('house_defense', 1, 1), ('house_magic', 1, 1), ('house_melee', 1, 1), ('house_ranged', 1, 1), ('meadowbrook_thicket', 6, 13), ('mill_cellar', 2, 5), ('millrace_sewer', 6, 19), ('millrace_sewer_called', 1, 4), ('mosslight_glade', 6, 13), ('wickstead', 6, 12), ('yard_defense', 1, 1), ('yard_magic', 1, 1), ('yard_melee', 1, 1), ('yard_ranged', 1, 1))) then
+               (('coppercap_warrens', 6, 18), ('coppercap_warrens_called', 1, 4), ('meadowbrook_thicket', 6, 13), ('mill_cellar', 2, 5), ('millrace_sewer', 6, 19), ('millrace_sewer_called', 1, 4), ('mosslight_glade', 6, 13), ('training_house_defense', 1, 1), ('training_house_magic', 1, 1), ('training_house_melee', 1, 1), ('training_house_ranged', 1, 1), ('training_yard_defense', 1, 1), ('training_yard_magic', 1, 1), ('training_yard_melee', 1, 1), ('training_yard_ranged', 1, 1), ('wickstead', 6, 12))) then
     raise exception 'a hunt ground''s spawns is not its rows as built (no party pull on Normal)'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
   if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"stance":30,"acc":31,"maxHit":32,"def":33,"element":34,"swingLeftMs":35,"spellCds":36,"cast":37,"mana":38,"maxMana":39,"manaMilli":40,"regenPm":41,"lanes":42,"cds":43,"shield":44,"markPm":45,"markUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"ruleHold":51,"ruleWait":52},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"fightAt":14,"xpGroup":15,"rareWon":16}}'::jsonb

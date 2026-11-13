@@ -51,8 +51,9 @@ export const TRAINING_PLACES = Object.freeze({
   house: Object.freeze({ fee: false }),
 });
 
-/** The hunt (and ground) id of training `skill` at `place`: one per pair, so the engine reads the skill off the ground it settles. */
-export const trainingHuntId = (place, skill) => place + '_' + skill;
+/** The hunt (and ground) id of training `skill` at `place`: one per pair, so the engine reads the skill off the ground it settles.
+    (`training_` first: a probe that picks the lowest ground by Level floor, then by id, still finds the Mill Cellar.) */
+export const trainingHuntId = (place, skill) => 'training_' + place + '_' + skill;
 
 /** Every training hunt id, place by place, skill by skill. */
 export const TRAINING_HUNT_IDS = Object.freeze(Object.keys(TRAINING_PLACES).flatMap((p) => TRAINING_SKILLS.map((s) => trainingHuntId(p, s))));

@@ -29,7 +29,8 @@
 import { isMain } from './_is-main.mjs';
 import { bootReplay, manifest } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
-import { OUT_NAME as CAT } from '../tools/gen-hunt-sessions.mjs';
+/* THE AREA BATCH'S OWN CATALOGUE, by name: tools/gen-hunt-sessions.mjs OUT_NAME has moved on to 2027-04-16-combat-training's, which carries this one whole. */
+const CAT = '2027-04-15-area-spells-hunt-sessions-catalogue.generated.sql';
 import { ABILITIES } from '../src/data/abilities.js';
 import { MONSTER_SPELLS, SPELL_BOUNDS } from '../src/data/monster-spells.js';
 import { METRICS } from '../src/data/condition-metrics.js';
@@ -197,7 +198,8 @@ async function rowsOnly(patch) {
   const problems = [];
   const order = (await manifest()).order;
   const at = order.indexOf(COND);
-  if (at < 1 || order.slice(at).join() !== FILES.join()) return ['AS-4 HARNESS: the three area files are not the chain\'s last three, in order: ' + order.slice(-4).join()];
+  /* the three files stand together, in order (a later lane's files may follow them: 2027-04-16-combat-training's do); the replay stops before them */
+  if (at < 1 || order.slice(at, at + FILES.length).join() !== FILES.join()) return ['AS-4 HARNESS: the three area files are not together on the chain, in order: ' + order.slice(at, at + FILES.length + 1).join()];
   const { db } = await bootReplay({ upTo: order[at - 1] });
   const check = (slot) => one(db, 'select public.hr_hunt_slot_check($1::jsonb)', [JSON.stringify(slot)]);
   /* AS-5, before: the server before the three files knows neither the abilities nor the conditions */

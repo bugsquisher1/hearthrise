@@ -4068,9 +4068,10 @@ jobs:
   # = 1115 s; x2 = 37.2 min + setup, budget 40. Plain runs of both are in run-smoke.mjs.
   # + batch 3 (2026-11-13): gold-intents 56 s, open-beta 37 s, client-write-sweep-3/4 201 s, unlock ownership 14 s,
   # perk-channel 18 s = 326 s; x2 = 10.9 min, 40 -> 51.
+  # + batch 4 (2026-11-13): bug-triage 12 s, clan-feast 4 s, native-dialog < 1 s = 17 s; x2 = 0.6 min, 51 -> 52.
   db-replay-12:
     runs-on: ubuntu-latest
-    timeout-minutes: 51
+    timeout-minutes: 52
 
     steps:
       - uses: actions/checkout@v4
@@ -4127,6 +4128,15 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/mutant-gate.mjs node tests/perk-channel.mjs --mutate
+
+      # BATCH 4 PROOF ARMS (2026-11-13, lane/a-audit-guards): plain runs in run-smoke.mjs. bug-triage --mutate 12 s
+      # (plants into the tree; mutation-safety restores), clan-feast-catalogue-drift --selftest 4 s, native-dialog --mutate < 1 s.
+      - name: Bug triage, feast catalogue drift, native dialogs — mutation proofs
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/bug-triage.mjs --mutate
+          node tools/mutant-gate.mjs node tests/clan-feast-catalogue-drift.mjs --selftest
+          node tools/mutant-gate.mjs node tests/native-dialog.mjs --mutate
 
   artisan-selftest:
     runs-on: ubuntu-latest

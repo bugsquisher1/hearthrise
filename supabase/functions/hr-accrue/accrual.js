@@ -1866,9 +1866,9 @@ function accrueGather(inp, span) {
      above the server level, and levels do not fall), so this is the arm for a
      content re-balance that raises a requirement under a live character. */
   /* A FULL BAG stops the node the same way: it cannot pay until the player makes room. */
-  const stopped = summary.stoppedBy === STOP_REASON.LEVEL || summary.stoppedBy === STOP_REASON.BAG_FULL;
+  const nodeStopped = summary.stoppedBy === STOP_REASON.LEVEL || summary.stoppedBy === STOP_REASON.BAG_FULL;
   const nothingHappened = itemKinds === 0 && Object.keys(xpDelta).length === 0 && summary.ticks === 0;
-  if (nothingHappened && !stopped) {
+  if (nothingHappened && !nodeStopped) {
     return { accrued: false, reason: SKIP.NOTHING, summary };
   }
 
@@ -1949,7 +1949,7 @@ function accrueGather(inp, span) {
       ? { ...finds[0], dropped: Math.min(finds.length - 1, 99) }
       : finds[0];
   }
-  if (stopped) delta.activity = { kind: 'idle', id: null };
+  if (nodeStopped) delta.activity = { kind: 'idle', id: null };
 
   return {
     accrued: true,

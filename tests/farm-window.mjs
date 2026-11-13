@@ -397,7 +397,10 @@ const MUTANTS = [
   ['the no-seed row has no link to the Shop (11-08)', 'src/shell/windows/farm.js', ".concat(r.buy ? [' ', r.buy] : []));", '.concat([]));'],
   ['the link opens the Shop with the seed row out of view (11-08)', 'src/shell/goto.js', '    revealInWindow(row);\n', ''],
   ['the link opens the Shop without asking for the row (11-08)', 'src/shell/shell.js', '    seekRow(wm, id, body);', '    void seekRow;'],
-  ['Enter on a link opens Chat (11-08)', 'src/shell/shell.js', 'if (!ownsKey(e) && wm.handleKey(e))', 'if (wm.handleKey(e))'],
+  /* Two layers keep Enter on the link: goto.js ownsKey in the shell, and the window manager's pressesControl (a focused button, audit
+     2026-11-13). The link is a button, so either alone holds it: the mutant takes both (its fifth element: further [file, from, to]). */
+  ['Enter on a link opens Chat (11-08)', 'src/shell/shell.js', 'if (!ownsKey(e) && wm.handleKey(e))', 'if (wm.handleKey(e))',
+    [['src/shell/window-manager.js', "  if (tag === 'button' || tag === 'summary') return true;", "  if (tag === 'summary') return true;"]]],
   ['Plant in all runs past a refusal (0.2.95)', 'src/shell/windows/farm.js', 'if (!r.ok) return n ? { ok: true, n, at, stop: r } : r;', 'if (!r.ok) continue;'],
 ];
 
@@ -412,10 +415,16 @@ async function main() {
   const clean = await checks(null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   let bad = 0;
-  for (const [name, file, from, to] of MUTANTS) {
-    const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
-    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    const fails = await checks({ [file]: text.replace(from, to) });
+  for (const [name, file, from, to, more] of MUTANTS) {
+    const plant = {};
+    let missing = '';
+    for (const [f, a, b] of [[file, from, to]].concat(more || [])) {
+      const text = plant[f] || (await readFile(join(ROOT, f), 'utf8')).replace(/\r\n/g, '\n');
+      if (!text.includes(a)) { missing = f; break; }
+      plant[f] = text.replace(a, b);
+    }
+    if (missing) { console.log('  ✗ ' + name + ' — anchor not found in ' + missing); bad++; continue; }
+    const fails = await checks(plant);
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }

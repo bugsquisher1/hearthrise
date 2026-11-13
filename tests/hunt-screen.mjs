@@ -999,7 +999,11 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         sc.clock = () => Date.now();
         iso = (ago) => new Date(sc.clock() - ago).toISOString();
         /* a reload into a leave whose leave_at passed 3 s ago and whose close has not landed */
-        sc.env.hunt = Object.assign({}, sc.env.hunt, { session: Object.assign({}, sc.env.hunt.session, { leave_at: iso(3000), phase: 'leaving' }) });
+        /* leave_at is stamped when the page first reads it, not at prep: a slow runner's page load (13 s+ on CI) otherwise ate the 16.4 s 'now' window */
+        let at = null;
+        const session = Object.assign({}, sc.env.hunt.session, { phase: 'leaving' });
+        Object.defineProperty(session, 'leave_at', { enumerable: true, configurable: true, get: () => (at = at || iso(3000)) });
+        sc.env.hunt = Object.assign({}, sc.env.hunt, { session });
       } });
       if (up) {
         const line = () => page.evaluate(() => { const l = document.querySelector('.ht-bar .ht-leaving'); const b = document.querySelector('.ht-bar [data-hs-act="leave"]');

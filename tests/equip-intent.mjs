@@ -326,6 +326,12 @@ async function body(db, call, exec) {
        the delta never reaches the database — which is itself the assertion. */
     ok(r.status === 409 && r.body.error === 'wrong_slot',
       `E3: equipping a weapon into the shield slot returned ${JSON.stringify(r.body)}`);
+    /* …and it IS the shape layer (2026-11-13): hr_apply refuses wrong_slot too, so the HTTP answer alone stayed
+       green with equip.js's own check deleted (mutant "worn in a slot it does not fit" escaped), and the claim
+       above — refused before any collect or apply — went unasserted. */
+    const shape = validateOps({ shield: 'iron_sword' });
+    ok(shape && shape.ok === false && shape.error === 'wrong_slot',
+      `E3: equip.js's shape layer accepted a weapon in the shield slot (${JSON.stringify(shape)}) — only the database refused it`);
     ok(await ownedOf(db, 'iron_sword') === before,
       'E3: a refused equip changed the number of copies owned');
   }
@@ -618,6 +624,16 @@ const MUTANTS = [
   { name: 'an equip mid-hunt is taken (live v0.2.33, Andy a23)', arm: /^E10: an equip with a hunt open/,
     file: 'supabase/functions/hr-accrue/equip.js',
     from: "  if (st && st.active_kind === 'combat' && await huntOpenOf(exec, user, slot)) {", to: '  if (false) {' },
+  /* 2026-11-13 (lane/a-audit-guards): the verb's own shape gates, each named by the arm that claims it. */
+  { name: 'an item is worn in a slot it does not fit', arm: /^E3: /,
+    file: 'supabase/functions/hr-accrue/equip.js',
+    from: '    if (fits[s] !== true) {', to: '    if (false) {' },
+  { name: 'a slot that does not exist is accepted', arm: /^E6: a slot that does not exist/,
+    file: 'supabase/functions/hr-accrue/equip.js',
+    from: '    if (catalogueGet(EQUIP_SLOT_INDEX, s) !== true) {', to: '    if (false) {' },
+  { name: 'the swap is journalled as something other than an equip', arm: /journal/i,
+    file: 'supabase/functions/hr-accrue/equip.js',
+    from: "      kind: 'equip',", to: "      kind: 'admin'," },
 ];
 async function mutate() {
   const { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } = await import('node:fs');

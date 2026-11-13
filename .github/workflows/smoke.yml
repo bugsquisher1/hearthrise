@@ -716,6 +716,13 @@ jobs:
           node tests/house-window.mjs
           node tools/mutant-gate.mjs node tests/house-window.mjs --mutate
 
+      # COMBAT TRAINING (2026-11-13 spec, lane/b-combat-training-client): the yard's
+      # Training window and the House dummy from the server's `training` section,
+      # start / stop / unlock as intents, say-why on every off state, sizes.
+      - name: Training window (play.html)
+        if: ${{ !cancelled() }}
+        run: node tests/training-window.mjs
+
       # THE FARM WINDOW (2026-10-22, lane b-farm-window): plots at the server's cap
       # (`farm_land`), plant / water / harvest / harvest-and-replant as intents,
       # the plot tier at its quoted price, refusals in words. --mutate plants its defects.

@@ -25,6 +25,7 @@ import { rowOffered } from '../shell/launcher.js?v=0.2.128';
 
 /* The windows a town keeper or station opens (a tapped prop's `window`), and nothing else. */
 const KEEPER_WINDOWS = new Set([...TAP_WINDOWS, ...Object.values(SINK_TAPS).map((t) => t.window)]);
+/** @type {Map<string, {id: string, gm?: boolean, section?: string, orElse?: string}>} */
 const ROW_OF = new Map(SHELL_WINDOWS.map((r) => [r.id, r]));
 /* A window the server hides from this hero (shell-windows.js `section`) is not opened by a tap: its row's `orElse` is (the yard
    opens Hunts while the server sends no `training` section). */

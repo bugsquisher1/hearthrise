@@ -703,7 +703,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
     }
 
     if (leaving) { // B-18 a Got it pressed just before a reload stays pressed
-      /* a fresh hero in town (phone-touch PH-6): its first card, "Every weapon is a style", has a Got it in the bag */
+      /* a fresh hero in town (phone-touch PH-6): its first card, Tamsin's rats, has a Got it in her tally */
       const fixture = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
       const residue = { coach: { read: [] } };
       let version = 1;
@@ -716,7 +716,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         if (name === 'hr_put_client_state') { puts.push(body.p_patch); Object.assign(residue, body.p_patch); }
         const hero = name === 'hr_load' || name === 'hr-accrue';
         const answer = hero ? withServerLevel(Object.assign({}, fixture, { version: ++version, hunt: null, client_state: residue, state: Object.assign({}, fixture.state, { level_xp: 0, active_kind: null, active_id: null }),
-          equipment: Object.assign({}, fixture.equipment, { weapon: 'practice_sword' }) })) : { ok: true };
+          equipment: Object.assign({}, fixture.equipment, { weapon: 'practice_sword' }), tally: { per_day: 3, held_max: 3, paid_today: 0, held: [], recent: [] } })) : { ok: true };
         res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, answer) : answer));
         return true;
       };
@@ -744,7 +744,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           }).filter((x) => x.lines > 1));
           if (wrapped.length) fails.push('B-18b a card button wraps at 1280 px: ' + JSON.stringify(wrapped));
         }
-        if (await wait(page, () => document.querySelector('.hs-launchers [data-hs-open="inventory"]'), null, 15000)) await page.click('.hs-launchers [data-hs-open="inventory"]');
+        if (await wait(page, () => document.querySelector('.hs-launchers [data-hs-open="tally"]'), null, 15000)) await page.click('.hs-launchers [data-hs-open="tally"]');
         else fails.push('B-18 the game screen never showed its launchers');
         if (!(await wait(page, (q) => document.querySelector(q), got, 15000))) fails.push('B-18 CONTROL: a fresh hero shows no card with Got it');
         else {

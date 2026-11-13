@@ -31,7 +31,7 @@ import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorde
 import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.125';
 import { staminaOf } from '../../session/hunt-sections.js?v=0.2.125';
 import { endCardAfter } from '../after-hunt.js?v=0.2.125';
-import { heldCard, glyphSvg } from '../launcher.js?v=0.2.125';
+import { heldStep, glyphSvg } from '../launcher.js?v=0.2.125';
 import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.125';
 import { townStepsOf, depositPlanned } from '../back-in-town.js?v=0.2.125';
 import { equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.125';
@@ -44,7 +44,7 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.125';
 const againOffWords = (cur) => (callOfHunt(cur.hunt) ? 'He comes when he is called, from the ground\'s page.' : 'This hunt did not keep its settings.');
 
 /* The tutorial card up now (a card of the guide, never the "What next" line), or null. */
-const nextStepOf = (ctx) => { const c = ctx.character ? heldCard(ctx) : null; return c && c.done ? c : null; };
+const nextStepOf = (ctx) => heldStep(ctx);
 
 /* Every character the account opens is recorded from its first envelope, so no hunt event is played unseen. */
 observeSessions(attach);

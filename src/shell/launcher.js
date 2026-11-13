@@ -220,6 +220,13 @@ function noteCard(cs, from, to) {
 
 /** The card the coach shows now: the server's (pointerCardOf, with the shell's facts: ctx.account), or one still
  *  being read (above). */
+/** The held card when it is a STEP to take (the summary's Next press), null for a tip: a knowledge card only teaches, and
+    "Next: Every weapon is a style" named nothing to do (first-30 play 2026-11-12). */
+export function heldStep(ctx) {
+  const c = ctx.character ? heldCard(ctx) : null;
+  return c && c.done && !c.knowledge ? c : null;
+}
+
 export function heldCard(ctx) {
   const cs = ctx.character;
   /* tips off, or this card hidden with Got it: nothing shown and nothing rung (the server's chain still moves on its own facts) */

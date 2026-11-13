@@ -89,7 +89,10 @@ export function patchSetups(root, ctx, sc, hunting) {
   });
   const none = root.querySelector('.hw-presets-none');
   cls(none, 'is-on', !presets || !presets.length);
-  text(none, presets ? t('prep.setups_none') : t('prep.setups_reading'));
+  /* None saved: say what the bar's own name is (the server's set in use), so "Preset 1" under the bar and this line agree
+     (first-30 play 2026-11-12: the bar said Preset 1 while this said no setups existed). */
+  const barName = set && (set.presets.find((p) => p.preset === set.preset) || {}).name;
+  text(none, !presets ? t('prep.setups_reading') : barName ? t('prep.setups_none_named', { name: barName }) : t('prep.setups_none'));
   /* The server says how many this hero may open (`setup_slots`). Until it has, none is free (§6: fail safe to not unlocked),
      and never more than the data's limit: past it New stays off and says so, as the press would send nothing. */
   const slots = setupSlotsOf(cs);

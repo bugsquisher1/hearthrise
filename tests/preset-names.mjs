@@ -236,7 +236,9 @@ async function checks(overrides) {
     await reload(page);
     await openPrep(page);
     await page.waitForTimeout(300);
-    if (!(await page.evaluate(() => /No saved setups yet/.test(document.querySelector('.hw-presets-none.is-on')?.textContent || '')))) fails.push('PN-4 none left does not say so');
+    /* PN-11 none saved names the bar's set, so the plaque's name and this line agree (first-30 play 2026-11-12) */
+    const noneLine = await page.evaluate(() => ({ line: document.querySelector('.hw-presets-none.is-on')?.textContent || '', bar: document.querySelector('.hb-set .hs-name-t')?.textContent || '' }));
+    if (!noneLine.bar || noneLine.line !== 'Your bar, ' + noneLine.bar + ', is not saved yet. Save keeps its gear and bar to use again.') fails.push('PN-11 none saved reads ' + JSON.stringify(noneLine));
     // PN-8 back in town: the hunt has ended; setups 0 and 2 exist, so the next is number 1.
     s.env.hunt.ended = true;
     s.env.hunt_presets = [clone(FIXTURE.hunt_presets[0]), Object.assign(clone(FIXTURE.hunt_presets[0]), { preset: 2, name: 'Mill run' })];

@@ -2,6 +2,7 @@
   "projection": {
     "top": [
       "account",
+      "bag_expand",
       "bag_rules",
       "bank",
       "bench_run",
@@ -103,5 +104,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-11-11"
+  "generatedAt": "2026-11-13"
 }

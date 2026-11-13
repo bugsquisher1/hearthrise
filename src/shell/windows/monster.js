@@ -17,16 +17,16 @@
 // Every number is src/shell/monster-facts.js's, read from the rows the server's catalogue is generated
 // from; this module types none. One set of numbers for every group size (Tyler 2026-11-08). Every word is a row of src/data/text/monster.js.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, prop, attr, cls, element } from '../../render/paint.js?v=0.2.125';
-import { chance, whole, listWords } from '../../render/format.js?v=0.2.125';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.125';
-import { t, hasText } from '../../render/player-text.js?v=0.2.125';
-import { headPathFor } from '../../data/monster-art.js?v=0.2.125';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.125';
-import { itemIconHtml } from '../widgets/bits.js?v=0.2.125';
-import { TIER_NAME, DEFAULT_TIER } from '../../data/hunt-tiers.js?v=0.2.125';
-import { monsterFactsOf, isMet } from '../monster-facts.js?v=0.2.125';
-import { targetOf, placesParts, patchParts } from '../goto.js?v=0.2.125';
+import { rows, text, prop, attr, cls, element } from '../../render/paint.js?v=0.2.127';
+import { chance, whole, listWords } from '../../render/format.js?v=0.2.127';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.127';
+import { t, hasText } from '../../render/player-text.js?v=0.2.127';
+import { headPathFor } from '../../data/monster-art.js?v=0.2.127';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.127';
+import { itemIconHtml } from '../widgets/bits.js?v=0.2.127';
+import { TIER_NAME, DEFAULT_TIER } from '../../data/hunt-tiers.js?v=0.2.127';
+import { monsterFactsOf, isMet } from '../monster-facts.js?v=0.2.127';
+import { targetOf, placesParts, patchParts } from '../goto.js?v=0.2.127';
 
 const WIN = targetOf({ kind: 'monster', id: 'x' }).win;
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px, facing the player. */

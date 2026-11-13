@@ -21,26 +21,26 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.125';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.125';
-import { whole, gold } from '../../render/format.js?v=0.2.125';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.125';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.125';
-import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.125';
-import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.125';
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.125';
-import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.125';
-import { toolLossWords } from '../town-work.js?v=0.2.125';
-import { runIntent } from '../intent-words.js?v=0.2.125';
-import { showTip, hideTip } from './item-tip.js?v=0.2.125';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.125';
-import { gearLocked } from '../gear-gate.js?v=0.2.125';
-import { revealInWindow } from '../widgets/bits.js?v=0.2.125';
-import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.125';
-import { CROPS } from '../../data/gathering.js?v=0.2.125';
-import { requiredPlotLevel } from '../../core/farm.js?v=0.2.125';
-import { farmFieldOf } from '../../session/farm-sections.js?v=0.2.125';
-import { t } from '../../render/player-text.js?v=0.2.125';
+import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.127';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.127';
+import { whole, gold } from '../../render/format.js?v=0.2.127';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.127';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.127';
+import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.127';
+import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.127';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.127';
+import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.127';
+import { toolLossWords } from '../town-work.js?v=0.2.127';
+import { runIntent } from '../intent-words.js?v=0.2.127';
+import { showTip, hideTip } from './item-tip.js?v=0.2.127';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.127';
+import { gearLocked } from '../gear-gate.js?v=0.2.127';
+import { revealInWindow } from '../widgets/bits.js?v=0.2.127';
+import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.127';
+import { CROPS } from '../../data/gathering.js?v=0.2.127';
+import { requiredPlotLevel } from '../../core/farm.js?v=0.2.127';
+import { farmFieldOf } from '../../session/farm-sections.js?v=0.2.127';
+import { t } from '../../render/player-text.js?v=0.2.127';
 
 const TABS = Object.freeze([['buy', t('controls.buy')], ['sell', t('controls.sell')], ['services', 'Services']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
@@ -119,7 +119,9 @@ function patchBuy(root, st, ctx) {
         /* A tool says what it buys (panel 2026-11-01: the Shop listed them with no benefit). */
         const does = toolEffect(o.item);
         const plant = o.kind === 'seed' ? seedNeedWords(st.cs, o.item) : '';
-        text(li.querySelector('small'), gold(o.price) + ' each · ' + whole(st.qty.get(o.item) || 0) + ' in the bag' + (does ? ' · ' + does + ' while in your bag' : '') + (plant ? ' · ' + plant : '')
+        /* "0 in the bag" is said only when it is not 0 (first-30 play 2026-11-12: it wrapped every new hero's row to three lines) */
+        const held = st.qty.get(o.item) || 0;
+        text(li.querySelector('small'), gold(o.price) + ' each' + (held ? ' · ' + whole(held) + ' in the bag' : '') + (does ? ' · ' + does + ' while in your bag' : '') + (plant ? ' · ' + plant : '')
           + (short ? ' · You need ' + gold(short) + ' more.' : ''));
         prop(li.querySelector('select'), 'value', String(n));
         const b = li.querySelector('[data-hs-act="buy"]');

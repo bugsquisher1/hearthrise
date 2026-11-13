@@ -507,10 +507,11 @@ const cases = {
     const fed = (more) => fresh(floor - 1, { read: new Set(['first_eat', 'fight_settings', 'plant_land', 'bar_intro']), supplies: [{ item: 'cooked_shrimp', source: 'own', count: 3 }], ...(more || {}) });
     if (id(fed()) !== 'food_when') return 'a hero who has eaten three times is on ' + id(fed());
     if (id(fed({ read: new Set(['first_eat', 'fight_settings', 'plant_land', 'bar_intro', 'food_when']) })) === 'food_when') return 'Got it does not pass Eat on time';
-    /* the first card on a new hero is the style, one Got it from the first hunt; the Blessings come first on the way back */
-    if (id(tutAt(M, K, 1)) !== 'styles') return 'a new hero starts on ' + id(tutAt(M, K, 1));
+    /* the first card on a new hero is Tamsin's rats, then the Cellar: the style waits until home from that first hunt
+       (designer 2026-11-12, first-30 play: before any hunt it sent the hero into the bag, not to the Cellar) */
+    if (id(tutAt(M, K, 1)) !== 'tamsins_rats') return 'a new hero starts on ' + id(tutAt(M, K, 1));
     /* short over the town (it fits 667x375 without covering the bar), the five ways inside the bag */
-    const sc = M.tut.cardFor(M.tut.currentCard(tutAt(M, K, 1)), tutAt(M, K, 1));
+    const sc = M.tut.cardFor(M.tut.HUNT_TUTORIAL.find((r) => r.id === 'styles'), tutAt(M, K, 1));
     if (sc.text.split(' ').length > 25 || !sc.text.includes('then Equip') || (sc.textIn || '').length > 260 || !/heals\..*made in Gathering and crafting/.test(sc.textIn || '')) return 'the style card reads ' + JSON.stringify([sc.text, sc.textIn]);
     if (id(tutAt(M, K, 1, { read: new Set(['styles']) })) !== 'tamsins_rats') return 'after the style card comes ' + id(tutAt(M, K, 1, { read: new Set(['styles']) }));
     /* Tamsin's rats never wall the first hunt: Got it, or the Take, and the Cellar's card follows */
@@ -707,7 +708,7 @@ const cases = {
        Help page wait for the Thicket, where a hero has time to read, and Cook and Decide once for the second return */
     /* TAMSIN FIRST (designer 2026-11-10, the first ten minutes): her rats before the first hunt, her count while it runs, "Tamsin owes you" when it is
        done, the helmet worn in town, then back down, and "Out to the brook" only on that second trip */
-    const want = ['styles', 'tamsins_rats', 'to_the_cellar', 'first_kill', 'first_level', 'plant_land', 'bar_intro', 'rats_count', 'tamsin_owes', 'equip_upgrades', 'back_down', 'earn_the_thicket',
+    const want = ['tamsins_rats', 'to_the_cellar', 'first_kill', 'first_level', 'plant_land', 'bar_intro', 'rats_count', 'tamsin_owes', 'styles', 'equip_upgrades', 'back_down', 'earn_the_thicket',
       'leave_cellar', 'bless', 'sell_loot', 'tamsins_task', 'into_the_thicket', 'food_when', 'food_order', 'first_spell', 'help_page', 'tamsin_pays',
       'loot_rules', 'cook_catch', 'save_setup', 'own_runes', null];
     if (order.join() !== want.join()) return 'a sword-and-shield hero walks ' + order.join(' > ') + ', wanted ' + want.join(' > ');
@@ -1741,6 +1742,8 @@ const cases = {
     const gotCtx = { character: g, account: null, wm: { openIds: () => [], isOpen: () => false } };
     const atStyles = L.heldCard(gotCtx);
     if (!atStyles || atStyles.id !== 'styles') return 'after cooking, in town, the coach shows ' + (atStyles && atStyles.id) + ', want "Every weapon is a style"';
+    /* the summary's Next is a step, never a tip's title (first-30 play 2026-11-12: "Next: Every weapon is a style") */
+    if (L.heldStep(gotCtx) !== null) return 'the summary Next names the tip ' + JSON.stringify(L.heldStep(gotCtx).title);
     if (L.ringPlan(atStyles, at('inventory'))[0] !== '[data-hs-win="inventory"] .hw-slot[data-slot="weapon"]') return 'the styles card rings ' + L.ringPlan(atStyles, at('inventory'))[0];
     /* a press on a box still showing another card finishes nothing: the card it would finish was never read (a skipped step, QA 2026-11-04) */
     L.actCoach(gotCtx, null, 'coach-got', { type: 'click', target: { closest: () => ({ getAttribute: () => 'plant_land' }) } });

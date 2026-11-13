@@ -23,22 +23,22 @@
 //                       characters that sit in no party (own characters join at once,
 //                       PARTY_SPEC 10-19).
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.125';
-import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf, blessingsOf } from '../session/item-sections.js?v=0.2.125';
-import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.125';
-import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.125';
-import { ITEMS } from '../data/items.js?v=0.2.125';
-import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.125';
-import { attackOrder, DEFAULT_ATTACK_ROW, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.125';
-import { ammoPerShot } from '../core/ammo.js?v=0.2.125';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.125';
-import { ABILITIES } from '../data/abilities.js?v=0.2.125';
-import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.125';
-import { itemName, runeWords } from './widgets/bits.js?v=0.2.125';
-import { ownCount } from './rune-supply.js?v=0.2.125';
-import { shortOf } from './item-lore.js?v=0.2.125';
-import { whole, gold } from '../render/format.js?v=0.2.125';
-import { t } from '../render/player-text.js?v=0.2.125';
+import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.127';
+import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf, blessingsOf } from '../session/item-sections.js?v=0.2.127';
+import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.127';
+import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.127';
+import { ITEMS } from '../data/items.js?v=0.2.127';
+import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.127';
+import { attackOrder, DEFAULT_ATTACK_ROW, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.127';
+import { ammoPerShot } from '../core/ammo.js?v=0.2.127';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.127';
+import { ABILITIES } from '../data/abilities.js?v=0.2.127';
+import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.127';
+import { itemName, runeWords } from './widgets/bits.js?v=0.2.127';
+import { ownCount } from './rune-supply.js?v=0.2.127';
+import { shortOf } from './item-lore.js?v=0.2.127';
+import { whole, gold } from '../render/format.js?v=0.2.127';
+import { t } from '../render/player-text.js?v=0.2.127';
 
 /* How many of the bar's actions a setup line shows. */
 const SETUP_ICONS = 4;
@@ -344,7 +344,10 @@ function blessingWords(b) {
   const on = b.tiers.filter((r) => r.held).length, next = b.tiers.find((r) => !r.held);
   const vars = { on, of: b.tiers.length, pct: Math.round(b.permille / 10), price: next ? gold(next.price) : '', level: b.freeUntil };
   if (!next) return t('prep.blessings_all', vars);
-  const how = next.price > 0 ? '_cost' : next.price === 0 && Number.isInteger(b.freeUntil) ? '_free' : '';
+  /* While the next one is free, the summary's Bless step is the one place that says it, with its press (first-30 play 2026-11-12:
+     a new hero was told three times); a priced Blessing is a real choice, so Before you go names its price. */
+  if (next.price === 0 && Number.isInteger(b.freeUntil)) return '';
+  const how = next.price > 0 ? '_cost' : '';
   return t('prep.blessings_' + (on ? 'some' : 'none') + how, vars);
 }
 

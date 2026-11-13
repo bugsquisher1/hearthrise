@@ -15,12 +15,12 @@
 // server's clock is gone at once, before the next envelope says so; a dial the words can't say truthfully (a fee event that
 // isn't free) shows no line rather than a wrong one.
 // ════════════════════════════════════════════════════════════════════════
-import { liveEventsOf } from '../session/live-event-sections.js?v=0.2.125';
-import { serverNowOf } from '../session/hunt-sections.js?v=0.2.125';
-import { LIVE_EVENTS, LIVE_EVENT_SHOWN } from '../data/live-events.js?v=0.2.125';
-import { BOSS_CALLS, callFromGround } from '../data/boss-calls.js?v=0.2.125';
-import { localWhen } from '../render/format.js?v=0.2.125';
-import { t } from '../render/player-text.js?v=0.2.125';
+import { liveEventsOf } from '../session/live-event-sections.js?v=0.2.127';
+import { serverNowOf } from '../session/hunt-sections.js?v=0.2.127';
+import { LIVE_EVENTS, LIVE_EVENT_SHOWN } from '../data/live-events.js?v=0.2.127';
+import { BOSS_CALLS, callFromGround } from '../data/boss-calls.js?v=0.2.127';
+import { localWhen } from '../render/format.js?v=0.2.127';
+import { t } from '../render/player-text.js?v=0.2.127';
 
 const MIN_MS = 60000;
 const ON = new Set(['on', 'ending']);

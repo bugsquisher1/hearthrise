@@ -9,22 +9,22 @@
 // draft (the HUD bar edited it), the builder says so and Save waits until the draft is loaded again.
 // A clean draft always follows the server. Nothing here spends or gates anything (CLAUDE.md §6).
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf } from '../../../session/hunt-sections.js?v=0.2.125';
-import { presetsOf, equipmentOf } from '../../../session/item-sections.js?v=0.2.125';
-import { text, cls, prop, attr } from '../../../render/paint.js?v=0.2.125';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.125';
-import { runIntent, refusalWords } from '../../intent-words.js?v=0.2.125';
-import { HUNT_ROLES, ROLE_ORDER } from '../../../data/hunt-roles.js?v=0.2.125';
-import { HUNT_STANCES, TARGET_MODES, HERO_DISTANCE } from '../../../data/rule-subjects.js?v=0.2.125';
-import { GOLD_FLOOR } from '../../../data/hunt-sessions.js?v=0.2.125';
-import { itemName } from '../../widgets/bits.js?v=0.2.125';
-import { setupsOf } from '../../hunt-go.js?v=0.2.125';
-import { settleTownActivity } from '../../../session/party-intents.js?v=0.2.125';
-import { readPreset } from '../../../session/preset-read.js?v=0.2.125';
-import { draftFrom, draftKey, isDirty, optionsOf, clearedBar, stepDistance, goldFloorOk } from '../../prep-draft.js?v=0.2.125';
-import { sortBar } from '../../bar-sort.js?v=0.2.125';
-import { t } from '../../../render/player-text.js?v=0.2.125';
-import { gridHtml, patchGrid, actGrid } from './grid.js?v=0.2.125';
+import { settingsOf } from '../../../session/hunt-sections.js?v=0.2.127';
+import { presetsOf, equipmentOf } from '../../../session/item-sections.js?v=0.2.127';
+import { text, cls, prop, attr } from '../../../render/paint.js?v=0.2.127';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.127';
+import { runIntent, refusalWords } from '../../intent-words.js?v=0.2.127';
+import { HUNT_ROLES, ROLE_ORDER } from '../../../data/hunt-roles.js?v=0.2.127';
+import { HUNT_STANCES, TARGET_MODES, HERO_DISTANCE } from '../../../data/rule-subjects.js?v=0.2.127';
+import { GOLD_FLOOR } from '../../../data/hunt-sessions.js?v=0.2.127';
+import { itemName } from '../../widgets/bits.js?v=0.2.127';
+import { setupsOf } from '../../hunt-go.js?v=0.2.127';
+import { settleTownActivity } from '../../../session/party-intents.js?v=0.2.127';
+import { readPreset } from '../../../session/preset-read.js?v=0.2.127';
+import { draftFrom, draftKey, isDirty, optionsOf, clearedBar, stepDistance, goldFloorOk } from '../../prep-draft.js?v=0.2.127';
+import { sortBar } from '../../bar-sort.js?v=0.2.127';
+import { t } from '../../../render/player-text.js?v=0.2.127';
+import { gridHtml, patchGrid, actGrid } from './grid.js?v=0.2.127';
 
 /** Throw the draft away: the next patch builds it again from the server's row. */
 export function dropDraft(sc) {

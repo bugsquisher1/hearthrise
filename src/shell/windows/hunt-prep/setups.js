@@ -8,18 +8,18 @@
 // the count line, and past the server's count the Buy line (ONE hr_setup_slot_buy at the quote).
 // Picking a row is display only: the builder (builder.js) loads that setup's copy.
 // ════════════════════════════════════════════════════════════════════════
-import { presetsOf, setupSlotsOf, goldOf } from '../../../session/item-sections.js?v=0.2.125';
-import { settingsOf } from '../../../session/hunt-sections.js?v=0.2.125';
-import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.125';
-import { runIntent } from '../../intent-words.js?v=0.2.125';
-import { gold } from '../../../render/format.js?v=0.2.125';
-import { ACTION_SET_LIMITS } from '../../../data/rule-subjects.js?v=0.2.125';
-import { renameSetup, deleteSetup, buySetupSlot } from '../../../session/preset-intents.js?v=0.2.125';
-import { setupBuyWords, setupFullWords } from '../../setup-words.js?v=0.2.125';
-import { nameEditorHtml, openNameEditor, nameKey } from '../../inline-name.js?v=0.2.125';
-import { settleTownActivity } from '../../../session/party-intents.js?v=0.2.125';
-import { t } from '../../../render/player-text.js?v=0.2.125';
-import { dropDraft, pickSetup, draftDirty } from './builder.js?v=0.2.125';
+import { presetsOf, setupSlotsOf, goldOf } from '../../../session/item-sections.js?v=0.2.127';
+import { settingsOf } from '../../../session/hunt-sections.js?v=0.2.127';
+import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.127';
+import { runIntent } from '../../intent-words.js?v=0.2.127';
+import { gold } from '../../../render/format.js?v=0.2.127';
+import { ACTION_SET_LIMITS } from '../../../data/rule-subjects.js?v=0.2.127';
+import { renameSetup, deleteSetup, buySetupSlot } from '../../../session/preset-intents.js?v=0.2.127';
+import { setupBuyWords, setupFullWords } from '../../setup-words.js?v=0.2.127';
+import { nameEditorHtml, openNameEditor, nameKey } from '../../inline-name.js?v=0.2.127';
+import { settleTownActivity } from '../../../session/party-intents.js?v=0.2.127';
+import { t } from '../../../render/player-text.js?v=0.2.127';
+import { dropDraft, pickSetup, draftDirty } from './builder.js?v=0.2.127';
 
 const MAX_PRESETS = ACTION_SET_LIMITS.presets;
 
@@ -89,7 +89,10 @@ export function patchSetups(root, ctx, sc, hunting) {
   });
   const none = root.querySelector('.hw-presets-none');
   cls(none, 'is-on', !presets || !presets.length);
-  text(none, presets ? t('prep.setups_none') : t('prep.setups_reading'));
+  /* None saved: say what the bar's own name is (the server's set in use), so "Preset 1" under the bar and this line agree
+     (first-30 play 2026-11-12: the bar said Preset 1 while this said no setups existed). */
+  const barName = set && (set.presets.find((p) => p.preset === set.preset) || {}).name;
+  text(none, !presets ? t('prep.setups_reading') : barName ? t('prep.setups_none_named', { name: barName }) : t('prep.setups_none'));
   /* The server says how many this hero may open (`setup_slots`). Until it has, none is free (§6: fail safe to not unlocked),
      and never more than the data's limit: past it New stays off and says so, as the press would send nothing. */
   const slots = setupSlotsOf(cs);

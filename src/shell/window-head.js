@@ -19,10 +19,10 @@
 //
 // The shell (src/shell/shell.js) calls these; the pure parts (pickGold, helpLine) are tests/shell-core.mjs's.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.125';
-import { t } from '../render/player-text.js?v=0.2.125';
-import { attr, text, cls } from '../render/paint.js?v=0.2.125';
-import { keyLabel, glyphSvg } from './launcher.js?v=0.2.125';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.127';
+import { t } from '../render/player-text.js?v=0.2.127';
+import { attr, text, cls } from '../render/paint.js?v=0.2.127';
+import { keyLabel, glyphSvg } from './launcher.js?v=0.2.127';
 
 /** The gold plates (shell.css THE ONE PRIMARY). */
 export const GOLD = '.hw-primary, .hh-tool.is-primary';

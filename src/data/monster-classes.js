@@ -35,7 +35,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 /* The element vocabulary is src/data/elements.js's, the one copy (re-exported). */
-import { ELEMENTS, elementProfileProblems } from './elements.js?v=0.2.125';
+import { ELEMENTS, elementProfileProblems } from './elements.js?v=0.2.127';
 export { ELEMENTS };
 
 /** The weapon triangle axis. NOTE: 'neutral' is deliberately absent. */

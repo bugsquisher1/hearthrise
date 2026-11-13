@@ -26,8 +26,8 @@
  "live_measured": "2026-11-13",
  "replay_ms": 46031,
  "counts": {
-  "tracked_names": 837,
-  "entries": 689
+  "tracked_names": 838,
+  "entries": 690
  },
  "functions": [
   {
@@ -1232,6 +1232,28 @@
    "agree": true
   },
   {
+   "sig": "hr_bag_expand_view(p_user uuid, p_slot integer)",
+   "name": "hr_bag_expand_view",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-15-bag-expand-view.sql"
+   ],
+   "live": {
+    "md5": "b5dec9951a91e48c331a237419f5fc27",
+    "norm_len": 1053,
+    "measured": "2026-11-13",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "b5dec9951a91e48c331a237419f5fc27",
+    "norm_len": 1053,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_bag_rules_view(p_user uuid, p_slot integer)",
    "name": "hr_bag_rules_view",
    "tracked_by": [
@@ -1262,7 +1284,8 @@
     "restate"
    ],
    "touched_by": [
-    "2026-09-06-bank-cap-tracks-rungs.sql"
+    "2026-09-06-bank-cap-tracks-rungs.sql",
+    "2027-04-16-bank-cap-plpgsql.sql"
    ],
    "live": {
     "md5": "c3380c1fe6c7df8c2546e06953b9854a",
@@ -1271,12 +1294,11 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "de8bb5a5908f528f0581117df638046e",
-    "norm_len": 562,
+    "md5": "c3380c1fe6c7df8c2546e06953b9854a",
+    "norm_len": 590,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "REVIEW 2026-11-13: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+   "agree": true
   },
   {
    "sig": "hr_bank_cap_sync()",

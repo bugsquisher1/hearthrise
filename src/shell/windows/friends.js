@@ -14,14 +14,14 @@
 //                  `social.blocked` row opens this window)
 // Every button is ONE rpc and stays off until the server answered.
 // ════════════════════════════════════════════════════════════════════════
-import { refusalWords } from '../intent-words.js?v=0.2.125';
-import { huntName } from '../../session/party-sections.js?v=0.2.125';
-import { menuProvidersOf } from '../menu-providers.js?v=0.2.125';
-import { entriesFor, markPlayer, playerTargetOf } from '../context-menu.js?v=0.2.125';
-import { blocksHtml, patchBlocks, actBlocks } from './block-list.js?v=0.2.125';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.125';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.125';
-import { t } from '../../render/player-text.js?v=0.2.125';
+import { refusalWords } from '../intent-words.js?v=0.2.127';
+import { huntName } from '../../session/party-sections.js?v=0.2.127';
+import { menuProvidersOf } from '../menu-providers.js?v=0.2.127';
+import { entriesFor, markPlayer, playerTargetOf } from '../context-menu.js?v=0.2.127';
+import { blocksHtml, patchBlocks, actBlocks } from './block-list.js?v=0.2.127';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.127';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.127';
+import { t } from '../../render/player-text.js?v=0.2.127';
 
 const STATE = new WeakMap();
 const stateOf = (body) => { let s = STATE.get(body); if (!s) { s = { pending: false, msg: '', asked: false }; STATE.set(body, s); } return s; };

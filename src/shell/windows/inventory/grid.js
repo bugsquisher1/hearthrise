@@ -18,27 +18,27 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.125';
-import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.125';
-import { usePlaces, wherePlaces } from '../../item-lore.js?v=0.2.125';
-import { patchParts, placeLink } from '../../goto.js?v=0.2.125';
-import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.125';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.125';
-import { whole, gold } from '../../../render/format.js?v=0.2.125';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.125';
-import { glyphSvg } from '../../launcher.js?v=0.2.125';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.125';
-import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.125';
-import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.125';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.125';
-import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.125';
-import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js?v=0.2.125';
-import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.125';
-import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.125';
-import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.125';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.125';
-import { t } from '../../../render/player-text.js?v=0.2.125';
-import { selectedIds, selectionWords, lockLabel } from './selection.js?v=0.2.125';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.127';
+import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.127';
+import { usePlaces, wherePlaces } from '../../item-lore.js?v=0.2.127';
+import { patchParts, placeLink } from '../../goto.js?v=0.2.127';
+import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.127';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.127';
+import { whole, gold } from '../../../render/format.js?v=0.2.127';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.127';
+import { glyphSvg } from '../../launcher.js?v=0.2.127';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.127';
+import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.127';
+import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.127';
+import { pocketHtml, patchCount } from './pockets.js?v=0.2.127';
+import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.127';
+import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js?v=0.2.127';
+import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.127';
+import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.127';
+import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.127';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.127';
+import { t } from '../../../render/player-text.js?v=0.2.127';
+import { selectedIds, selectionWords, lockLabel } from './selection.js?v=0.2.127';
 
 /* The This hunt row's choices: the three plans, then the pickup filter (loot-dispatch.js). */
 const RULE_OPTIONS = '<optgroup label="Loot plan">' + LOOT_CHOICES.filter((c) => c[2] === 'plan').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('')

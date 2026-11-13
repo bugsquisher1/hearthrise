@@ -32,11 +32,11 @@
 // place (src/render/paint.js) on any character's change, a switch, or an
 // alert. Every number is the server's (src/shell/command-model.js).
 // ════════════════════════════════════════════════════════════════════════
-import { summaryOf } from '../shell/command-model.js?v=0.2.128';
-import { rows, text, cls, attr, style, element } from '../render/paint.js?v=0.2.128';
-import { patchRoleGlyph } from '../shell/widgets/bits.js?v=0.2.128';
-import { markPlayer, playerTargetOf } from '../shell/context-menu.js?v=0.2.128';
-import { t } from '../render/player-text.js?v=0.2.128';
+import { summaryOf } from '../shell/command-model.js?v=0.2.129';
+import { rows, text, cls, attr, style, element } from '../render/paint.js?v=0.2.129';
+import { patchRoleGlyph } from '../shell/widgets/bits.js?v=0.2.129';
+import { markPlayer, playerTargetOf } from '../shell/context-menu.js?v=0.2.129';
+import { t } from '../render/player-text.js?v=0.2.129';
 
 /** The menu target under a strip event: one of this account's own characters (its tab), or null. */
 export function stripTargetOf(e) {

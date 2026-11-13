@@ -23,9 +23,9 @@
 // values it at the shop's bids (the server's), and the Lock tool reads Unlock
 // over a selection that is already locked.
 // ════════════════════════════════════════════════════════════════════════
-import { bagValue } from '../../bag-model.js?v=0.2.128';
-import { gold, whole } from '../../../render/format.js?v=0.2.128';
-import { t } from '../../../render/player-text.js?v=0.2.128';
+import { bagValue } from '../../bag-model.js?v=0.2.129';
+import { gold, whole } from '../../../render/format.js?v=0.2.129';
+import { t } from '../../../render/player-text.js?v=0.2.129';
 
 const idsOf = (shown) => shown.map((r) => (typeof r === 'string' ? r : r.id));
 

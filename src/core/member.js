@@ -13,25 +13,25 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.128';
-import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.128';
-import { companionBonus } from './companion-perk.js?v=0.2.128';
-import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.128';
-import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.128';
-import { charLevelFromXp, levelsOf, levelOf, skillXpForLevel } from './xp.js?v=0.2.128';
-import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.128';
-import { newHuntSession, takeLine } from './action-rules.js?v=0.2.128';
-import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.128';
-import { MONSTERS } from '../data/monsters.js?v=0.2.128';
-import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.128';
-import { armourValues, steadyPmOf } from './mitigation.js?v=0.2.128';
-import { isRune } from '../data/runes.js?v=0.2.128';
-import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.128';
-import { STATUSES } from '../data/statuses.js?v=0.2.128';
-import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.128';
-import { LANE_OF } from './hunt/conditions.js?v=0.2.128';
-import { blowsPmOf, armorPmOf } from './temper.js?v=0.2.128';
-import { resistProfile } from './elements.js?v=0.2.128';
+import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.129';
+import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.129';
+import { companionBonus } from './companion-perk.js?v=0.2.129';
+import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.129';
+import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.129';
+import { charLevelFromXp, levelsOf, levelOf, skillXpForLevel } from './xp.js?v=0.2.129';
+import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.129';
+import { newHuntSession, takeLine } from './action-rules.js?v=0.2.129';
+import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.129';
+import { MONSTERS } from '../data/monsters.js?v=0.2.129';
+import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.129';
+import { armourValues, steadyPmOf } from './mitigation.js?v=0.2.129';
+import { isRune } from '../data/runes.js?v=0.2.129';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.129';
+import { STATUSES } from '../data/statuses.js?v=0.2.129';
+import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.129';
+import { LANE_OF } from './hunt/conditions.js?v=0.2.129';
+import { blowsPmOf, armorPmOf } from './temper.js?v=0.2.129';
+import { resistProfile } from './elements.js?v=0.2.129';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {

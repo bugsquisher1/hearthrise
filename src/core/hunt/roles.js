@@ -23,14 +23,14 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_ROLES, ROLE_ORDER, SPOT, KITE, SURROUND, AI_REPATH_MS, OPEN_GROUND } from '../../data/hunt-roles.js?v=0.2.128';
-import { ROLE_DEFAULTS, HERO_DISTANCE, DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.128';
-import { walkable, cheb, dist2, los, ringFree, tileKey } from './grid.js?v=0.2.128';
-import { inArea } from './leash.js?v=0.2.128';
-import { atRest, unitById, setGoal, clearGoal, candidateTiles, chooseSpot, standable, goToNearest, reachWithin } from './movement.js?v=0.2.128';
-import { roleOf, engaged, inRange, pickTargets } from './targeting.js?v=0.2.128';
-import { anyMark, markedAt } from './marks.js?v=0.2.128';
-import { livingOf } from './unit-index.js?v=0.2.128';
+import { HUNT_ROLES, ROLE_ORDER, SPOT, KITE, SURROUND, AI_REPATH_MS, OPEN_GROUND } from '../../data/hunt-roles.js?v=0.2.129';
+import { ROLE_DEFAULTS, HERO_DISTANCE, DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.129';
+import { walkable, cheb, dist2, los, ringFree, tileKey } from './grid.js?v=0.2.129';
+import { inArea } from './leash.js?v=0.2.129';
+import { atRest, unitById, setGoal, clearGoal, candidateTiles, chooseSpot, standable, goToNearest, reachWithin } from './movement.js?v=0.2.129';
+import { roleOf, engaged, inRange, pickTargets } from './targeting.js?v=0.2.129';
+import { anyMark, markedAt } from './marks.js?v=0.2.129';
+import { livingOf } from './unit-index.js?v=0.2.129';
 
 /* role/dist/chase/tmode: the hero's settings. queued: a monster with no surround slot.
    aiMs: ms until the unit re-picks its goal. */

@@ -30,8 +30,8 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { EVENT_VERSION } from './hunt/events.js?v=0.2.128';
-import { reconcileText } from './hunt/world-state.js?v=0.2.128';
+import { EVENT_VERSION } from './hunt/events.js?v=0.2.129';
+import { reconcileText } from './hunt/world-state.js?v=0.2.129';
 
 export const MAX_STEPS = 4000;
 export const MAX_EVENTS = 2000;

@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.129 — 2026-11-13 (Small Fixes)
+
+**Fixes.** Gathering now stops when your bag is full, and the Work panel tells you why. Pressing Enter on a button presses that button instead of opening Chat. A hero who falls before a monster dies no longer gets a share of its gold or loot. Hunting grounds now say which Level they are suited to. They were never locked, and now the text says so.
+
 ## v0.2.128 — 2026-11-13 (The Training Yard)
 
 **Train a combat skill in town.** Open the Training Yard from the yard in town and pick Melee, Ranged, Magic or Defense. Your hero works that skill on a dummy that never falls. You pay a little gold for each hour, a bit more as the skill gets higher. Your hero keeps training after you close the game, for up to 12 hours or until your gold runs out. Only that skill goes up. There is no Level XP, no loot and no stamina used, and it is slower than hunting, so hunting is still the fast way up. Training is solo, so leave your party first.

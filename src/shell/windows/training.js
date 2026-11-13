@@ -12,16 +12,16 @@
 // Start is off, and says why above it, for what the screen already knows; the server still judges, and every refusal
 // reads in plain words (src/shell/training-words.js, src/data/refusal-words.js).
 // ════════════════════════════════════════════════════════════════════════
-import { trainingOf, quoteFor, runForMs } from '../../session/training-sections.js?v=0.2.128';
-import { startTraining, stopTraining } from '../../session/training-intents.js?v=0.2.128';
-import { goldOf, nameOf, skillsOf } from '../../session/item-sections.js?v=0.2.128';
-import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.128';
-import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.128';
-import { whole } from '../../render/format.js?v=0.2.128';
-import { t } from '../../render/player-text.js?v=0.2.128';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.128';
-import { runIntent } from '../intent-words.js?v=0.2.128';
-import { skillWord, timeWords, endedWords } from '../training-words.js?v=0.2.128';
+import { trainingOf, quoteFor, runForMs } from '../../session/training-sections.js?v=0.2.129';
+import { startTraining, stopTraining } from '../../session/training-intents.js?v=0.2.129';
+import { goldOf, nameOf, skillsOf } from '../../session/item-sections.js?v=0.2.129';
+import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.129';
+import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.129';
+import { whole } from '../../render/format.js?v=0.2.129';
+import { t } from '../../render/player-text.js?v=0.2.129';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.129';
+import { runIntent } from '../intent-words.js?v=0.2.129';
+import { skillWord, timeWords, endedWords } from '../training-words.js?v=0.2.129';
 
 /* The ground a training session runs on (src/data/hunts.js, the server half): its hunt is the run, not "out hunting". */
 const YARD_GROUND = 'training_yard';

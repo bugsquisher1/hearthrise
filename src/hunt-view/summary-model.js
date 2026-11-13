@@ -18,15 +18,15 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.128';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.128';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.128';
-import { callOfHunt } from '../data/boss-calls.js?v=0.2.128';
-import { lossLine } from './boss-loss.js?v=0.2.128';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.128';
-import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.128';
-import { ITEMS } from '../data/items.js?v=0.2.128';
-import { isRareItem } from '../shell/hunt-ground-facts.js?v=0.2.128';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.129';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.129';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.129';
+import { callOfHunt } from '../data/boss-calls.js?v=0.2.129';
+import { lossLine } from './boss-loss.js?v=0.2.129';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.129';
+import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.129';
+import { ITEMS } from '../data/items.js?v=0.2.129';
+import { isRareItem } from '../shell/hunt-ground-facts.js?v=0.2.129';
 
 export { sanitizeSummaries };
 

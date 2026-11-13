@@ -10,12 +10,12 @@
 //   crierFactsOf(cs)   { unhunted, no_blessing, storage_unused, untempered, no_task, task_open }
 //                      each false, true, or an object with the line's words; null until the server has said the Level
 // ════════════════════════════════════════════════════════════════════════
-import { levelOf } from './character-sections.js?v=0.2.128';
-import { bankOf, blessingsOf } from './item-sections.js?v=0.2.128';
-import { tallyOf } from './tally-sections.js?v=0.2.128';
-import { temperRowsOf } from './temper-sections.js?v=0.2.128';
-import { tallyTask } from '../data/tally-tasks.js?v=0.2.128';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.128';
+import { levelOf } from './character-sections.js?v=0.2.129';
+import { bankOf, blessingsOf } from './item-sections.js?v=0.2.129';
+import { tallyOf } from './tally-sections.js?v=0.2.129';
+import { temperRowsOf } from './temper-sections.js?v=0.2.129';
+import { tallyTask } from '../data/tally-tasks.js?v=0.2.129';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.129';
 
 /** The facts for `cs`, or null while the server has not said its Level. */
 export function crierFactsOf(cs) {

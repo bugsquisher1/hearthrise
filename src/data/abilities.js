@@ -56,12 +56,12 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLIES } from './supplies.js?v=0.2.128';
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.128';
-import { isElement } from './elements.js?v=0.2.128';
-import { ITEMS } from './items.js?v=0.2.128';
-import { isRune, runeTierOf, RUNE_TIERS } from './runes.js?v=0.2.128';
-import { shapeProblem } from '../core/hunt/shapes.js?v=0.2.128';
+import { SUPPLIES } from './supplies.js?v=0.2.129';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.129';
+import { isElement } from './elements.js?v=0.2.129';
+import { ITEMS } from './items.js?v=0.2.129';
+import { isRune, runeTierOf, RUNE_TIERS } from './runes.js?v=0.2.129';
+import { shapeProblem } from '../core/hunt/shapes.js?v=0.2.129';
 
 /* THE ABILITY LANES and their lockouts (AB-02; Tyler 2026-10-19: attack, support and healing are separate
    groups; 2026-10-23 COMBAT AUDIT ANSWERS: offense 2 s, support 2 s, healing 1 s). A cast locks its row's lane;

@@ -12,14 +12,14 @@
 // tile through the shell (pointerdown); the drag's own moves and release are listened for on the
 // document only while the drag runs, so no shell-wide pointermove listener ever exists.
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, attr, keyedChild, element } from '../../../render/paint.js?v=0.2.128';
-import { actionIconHtml } from '../../widgets/bits.js?v=0.2.128';
-import { actionName } from '../../action-facts.js?v=0.2.128';
-import { conditionWords, openSlotIn } from '../../bar-draft.js?v=0.2.128';
-import { resetConfigureView } from '../configure-action.js?v=0.2.128';
-import { dropPlan, SLOTS } from '../../prep-draft.js?v=0.2.128';
-import { whole } from '../../../render/format.js?v=0.2.128';
-import { t } from '../../../render/player-text.js?v=0.2.128';
+import { text, cls, attr, keyedChild, element } from '../../../render/paint.js?v=0.2.129';
+import { actionIconHtml } from '../../widgets/bits.js?v=0.2.129';
+import { actionName } from '../../action-facts.js?v=0.2.129';
+import { conditionWords, openSlotIn } from '../../bar-draft.js?v=0.2.129';
+import { resetConfigureView } from '../configure-action.js?v=0.2.129';
+import { dropPlan, SLOTS } from '../../prep-draft.js?v=0.2.129';
+import { whole } from '../../../render/format.js?v=0.2.129';
+import { t } from '../../../render/player-text.js?v=0.2.129';
 
 /* A pointer that moved this far from its press is a drag, not a press. */
 const DRAG_START_PX = 6;

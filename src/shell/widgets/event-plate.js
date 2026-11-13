@@ -8,9 +8,9 @@
 // is the event's own words. A press opens Hunts, on the ground whose boss Open Halls frees. Built once, patched in place on
 // every envelope and display tick.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, attr, element } from '../../render/paint.js?v=0.2.128';
-import { plateLines } from '../live-events-view.js?v=0.2.128';
-import { pickHunt } from '../windows/hunts.js?v=0.2.128';
+import { rows, text, cls, attr, element } from '../../render/paint.js?v=0.2.129';
+import { plateLines } from '../live-events-view.js?v=0.2.129';
+import { pickHunt } from '../windows/hunts.js?v=0.2.129';
 
 /** The skeleton (built once): a column of plates, one an event. */
 export function renderEventPlate() {

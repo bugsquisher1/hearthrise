@@ -84,8 +84,9 @@ export const PENDING_ROWS = Object.freeze([]);
    TIERS 5 AND 6 (designer 2026-11-08, the same lane, for the Pyre Field: tier-5 armor hourly, tier-6 weapons as its Provost's Rares). ONE LADDER
    from tier 4 up: each tier's piece sells for about 1.3x its lower-tier twin while book climbs about 3x a tier (tier 5 45/15, tier 6 130/45), so
    the rate is the last one x 1.3 / that climb: tier 5 0.033 (the twin rule's floor is 0.025, the Pyre Field's faucet cap 0.05), tier 6 0.015
-   (its window about 0.01-0.016). Tier 7 reads tier 6's until a ground drops it (2.8x the book, so its piece still sells above its twin). */
-export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015]);
+   (its window about 0.01-0.016). TIER 7 (designer 2026-11-13, lane/d-barrow-data, Krell's hall prize): the same ladder, 0.015 x 1.3 / 2.77
+   (Dawnsteel book 360 against Emberforged 130) = 0.007, so a tier-7 piece sells for about 1.3x its tier-6 twin and not 2.8x. */
+export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);
 export const VENDOR_GEAR_TYPES = Object.freeze(['weapon', 'armor', 'offhand', 'jewelry']);
 /* THE GLADE'S ARMOR SELLS UNDER THE WARRENS' (designer 2026-11-03, lane/c-gold-matters; Tyler the same day: harder monsters pay more).
    Tier 2's helmet, body, legs and boots come about hourly in three weights on Wickstead, the Sewer and the Glade, and at 0.5 of book an Iron

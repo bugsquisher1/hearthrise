@@ -256,7 +256,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
    each pocket's whole pack, so they do not move). 2027-04-05-call-out is the file before this one and this file carries it whole. THE BOUND NARROWS:
    this file applies AFTER the hr-accrue carrying the same hunt-grounds.js (an old engine still pulls a party's bigger pack, which the narrower
    bound refuses kills_over), and once no party hunt that began on Normal on those four grounds before that deploy is still running. */
-export const OUT_NAME = '2027-04-07-brook-bear-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2027-04-17-barrow-data-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

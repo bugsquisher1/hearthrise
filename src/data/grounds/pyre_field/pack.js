@@ -167,7 +167,8 @@ export default definePack({
         { id: 'rune_platebody', ch: 0.029, band: 'scarce' }, { id: 'wyvernhide_body', ch: 0.029, band: 'scarce' }, { id: 'sorcerer_body', ch: 0.029, band: 'scarce' },
         { id: 'yew_bow', ch: 0.029, band: 'scarce' },
         { id: 'ember_sword', ch: 0.002, band: 'rare' }, { id: 'ember_warhammer', ch: 0.002, band: 'rare' }, { id: 'runewood_bow', ch: 0.002, band: 'rare' },
-        { id: 'runewood_staff', ch: 0.002, band: 'rare' }, { id: 'runewood_wand', ch: 0.002, band: 'rare' }, { id: 'runewood_codex', ch: 0.002, band: 'rare' }],
+        { id: 'runewood_staff', ch: 0.002, band: 'rare' }, { id: 'runewood_wand', ch: 0.002, band: 'rare' }, { id: 'runewood_codex', ch: 0.002, band: 'rare' },
+        { id: 'ember_hatchets', ch: 0.002, band: 'rare' }, { id: 'runewood_crossbow', ch: 0.002, band: 'rare' }],
       hp: 212, atk: 63, baseAcc: 1.04, def: 56, xp: 2248, gp: [45, 133], formula: true },
   },
   roster: {

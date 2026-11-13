@@ -114,15 +114,15 @@ export const WEAPON_FAMILIES = [
   },
   /* The Mage's wand: one hand, so a spellbook rides in the off-hand. Alone it hits a
      little under the staff; with its tier's spellbook it out-damages the staff by about
-     a third (the Mage deals damage, the Healer heals). Six tiers: a Duskwood wand waits
-     for tier-7 content (an item ships only with a source). */
+     a third (the Mage deals damage, the Healer heals). Seven tiers: the Duskwood Wand is a Krell's
+     Hold hall prize (designer 2026-11-13, lane/d-barrow-data; its door is that design's piece 5, PENDING_SOURCE). */
   {
     key: 'wand', label: 'Wand', weaponType: 'magic', skill: 'crafting', mat: 'plank',
     discipline: 'destruction',
-    atk: [4, 7, 12, 18, 25, 33], str: [4, 8, 13, 19, 27, 35],
+    atk: [4, 7, 12, 18, 25, 33, 42], str: [4, 8, 13, 19, 27, 35, 45],
     vmul: 90, lvOff: 6, planks: 1, essence: 1,
-    names: ['Apprentice Wand', 'Oak Wand', 'Willow Wand', 'Maple Wand', 'Yew Wand', 'Runewood Wand'],
-    ids:   ['apprentice_wand', 'oak_wand', 'willow_wand', 'maple_wand', 'yew_wand', 'runewood_wand'],
+    names: ['Apprentice Wand', 'Oak Wand', 'Willow Wand', 'Maple Wand', 'Yew Wand', 'Runewood Wand', 'Duskwood Wand'],
+    ids:   ['apprentice_wand', 'oak_wand', 'willow_wand', 'maple_wand', 'yew_wand', 'runewood_wand', 'duskwood_wand'],
   },
   /* THE STYLE LADDER (designer 2026-10-22, src/data/style-gear.js). Dual axes (bleed) and the crossbow had no
      rung above the practice kit. A `null` id is a rung the PRACTICE KIT holds (tier 1: the practice
@@ -136,15 +136,18 @@ export const WEAPON_FAMILIES = [
        made Mithril pair paid +2.7% over the Steel at Level 45 in the Warrens (first-week-bands weapon-rungs, the bar is +5%) */
     atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 14, 21, 22, 29, 38],
     vmul: 100,
-    names: [null, 'Iron Hatchets', 'Steel Hatchets', 'Mithril Hatchets'],
-    ids:   [null, 'iron_hatchets', 'steel_hatchets', 'mithril_hatchets'],
+    /* tiers 5 to 7 (designer 2026-11-13, lane/d-barrow-data): Rares on the Barrow March beside the other weapons of their tier
+       (the Barrow Knights at 5, the Pyre Field's Provost at 6, Krell's hall prize at 7) */
+    names: [null, 'Iron Hatchets', 'Steel Hatchets', 'Mithril Hatchets', 'Rune Hatchets', 'Emberforged Hatchets', 'Dawnsteel Hatchets'],
+    ids:   [null, 'iron_hatchets', 'steel_hatchets', 'mithril_hatchets', 'rune_hatchets', 'ember_hatchets', 'dawn_hatchets'],
   },
   {
     key: 'crossbow', label: 'Crossbow', weaponType: 'ranged', skill: 'crafting', mat: 'plank',   // wood-named, as the bow line is
     atk: [4, 8, 13, 19, 26, 34, 43], str: [4, 7, 11, 16, 22, 29, 37],
     vmul: 100,
-    names: [null, 'Oak Crossbow', 'Willow Crossbow', 'Maple Crossbow'],
-    ids:   [null, 'oak_crossbow', 'willow_crossbow', 'maple_crossbow'],
+    /* tiers 5 to 7 as the hatchets' (Captain Hask at 5, beside his Yew Bow) */
+    names: [null, 'Oak Crossbow', 'Willow Crossbow', 'Maple Crossbow', 'Yew Crossbow', 'Runewood Crossbow', 'Duskwood Crossbow'],
+    ids:   [null, 'oak_crossbow', 'willow_crossbow', 'maple_crossbow', 'yew_crossbow', 'runewood_crossbow', 'duskwood_crossbow'],
   },
 ];
 
@@ -153,10 +156,10 @@ export const WEAPON_FAMILIES = [
    (gear ruling): Magic accuracy and damage, a little defence. Worn by Level like every
    piece of gear (LEVEL_REQ, Tyler 2026-10-24). Six tiers, the same rungs as the wand. */
 export const SPELLBOOKS = Object.freeze({
-  magicAtk: [1, 2, 4, 6, 8, 11], magicStr: [2, 3, 5, 8, 11, 15], def: [1, 2, 3, 5, 7, 9],
+  magicAtk: [1, 2, 4, 6, 8, 11, 14], magicStr: [2, 3, 5, 8, 11, 15, 19], def: [1, 2, 3, 5, 7, 9, 12],
   vmul: 80,
-  names: ['Apprentice Primer', 'Oakboard Spellbook', 'Willowleaf Spellbook', 'Maplebound Spellbook', 'Yewclasp Spellbook', 'Runewood Codex'],
-  ids:   ['apprentice_primer', 'oak_spellbook', 'willow_spellbook', 'maple_spellbook', 'yew_spellbook', 'runewood_codex'],
+  names: ['Apprentice Primer', 'Oakboard Spellbook', 'Willowleaf Spellbook', 'Maplebound Spellbook', 'Yewclasp Spellbook', 'Runewood Codex', 'Duskwood Codex'],
+  ids:   ['apprentice_primer', 'oak_spellbook', 'willow_spellbook', 'maple_spellbook', 'yew_spellbook', 'runewood_codex', 'duskwood_codex'],
 });
 
 const round5 = (n) => Math.max(1, Math.round(n / 5) * 5);

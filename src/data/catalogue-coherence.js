@@ -208,6 +208,7 @@ export const UNREACHABLE = Object.freeze({
     'rune_sword', 'rune_warhammer', 'yew_bow', 'yew_staff', 'yew_wand', 'yew_spellbook',
     'coffin_nail', 'urn_shard', 'sergeant_spur', 'hasks_coin',
     'ember_sword', 'ember_warhammer', 'runewood_bow', 'runewood_staff', 'runewood_wand', 'runewood_codex',
+    'rune_hatchets', 'yew_crossbow', 'ember_hatchets', 'runewood_crossbow',
     'razor_claw', 'wraith_veil', 'pike_ferrule', 'rake_tine', 'kennel_tag', 'shroud_pin', 'warrant_seal',
     'archmage_belt', 'archmage_body', 'archmage_boots', 'archmage_gloves', 'archmage_helmet', 'archmage_pants', 'dragonhide_belt',
     'dragonhide_body', 'dragonhide_boots', 'dragonhide_gloves', 'dragonhide_helmet', 'dragonhide_pants', 'ember_belt', 'ember_boots',

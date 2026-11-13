@@ -63,11 +63,9 @@
 // day he sold the crossing. The men he sold buried him in it", type and tag trophy, legendary, v 11000), his last row at Trophy odds.
 // The art lane drew it over the old barrowking_mantle icon. Every item needs its own icon the day its row lands
 // (tests/pixel-icons.mjs), and a revealed one before it may drop (drop-tables loot-structure). The Pyre Field's pack carries the same set for a lone
-// hero ten Levels on. Tier 5 has no sale rate (loot-bands.js VENDOR_GEAR_RATES stops at tier 3): a tier above the table sells at
-// its last rate, 0.14 of book, and the hour's gear would sell for several times its coin. This pack ships only with or after the
-// tier-4 and tier-5 rates (the Pyre Field's pack says the same). Measured here (drop-tables, the four at the floor, each Scarce piece
-// every 1.00-1.04 h and each Rare every 14.6-15.2 h): at 0.14 the hour's gear sells for 12,890 g a head against 7,178 of coin, and the
-// caps hold up to 0.04 of book for tier 5.
+// hero ten Levels on. Tier 5 sells at 0.033 of book (loot-bands.js VENDOR_GEAR_RATES, 2026-11-08; at tier 3's 0.14 the hour's gear sold
+// for 12,890 g a head against 7,178 of coin, and the caps hold up to 0.04). The Rune Hatchets (Knights) and Yew Crossbow (Hask) joined the
+// Rares 2026-11-13 (lane/d-barrow-data), so every weapon style has a tier-5 piece here.
 // Commons feed the Hearth (Bones, Big Bones, Bone Chips, Grave Dust). Each body drops its own imbuement item, kept for the imbuer
 // (catalogue-coherence.js VENDOR_TRASH until imbuing is built): Sergeant's Spur and Hask's Coin have icons on the art lane, Coffin
 // Nail and Urn Shard need one each. The ground's named fuel waits on a pack field for NAMED_FUELS (src/data/hearth.js): no row.
@@ -158,7 +156,8 @@ export default definePack({
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'sergeant_spur', ch: 0.08, band: 'uncommon' },
         { id: 'rune_platebody', ch: 0.048, band: 'scarce' }, { id: 'wyvernhide_body', ch: 0.048, band: 'scarce' }, { id: 'sorcerer_body', ch: 0.048, band: 'scarce' },
         { id: 'rune_warhammer', ch: 0.048, band: 'scarce' },
-        { id: 'rune_gauntlets', ch: 0.0033, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0033, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0033, band: 'rare' }],
+        { id: 'rune_gauntlets', ch: 0.0033, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0033, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0033, band: 'rare' },
+        { id: 'rune_hatchets', ch: 0.0033, band: 'rare' }],
       hp: 440, atk: 41, baseAcc: 0.9, def: 44, xp: 3089, gp: [49, 147], formula: true },
     captain_hask: {
       name: 'Captain Hask', icon: '👑', tier: 5, level: 75, cls: 'undead', family: 'Undead', speed: 2800, boss: true,
@@ -169,7 +168,7 @@ export default definePack({
          quarter he hits 15% harder (measured, the header). No guard: his men fight beside him, they don't shield him. */
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'hasks_coin', ch: 0.15, band: 'uncommon' },
         { id: 'rune_belt', ch: 0.0133, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.0133, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.0133, band: 'rare' },
-        { id: 'yew_bow', ch: 0.0133, band: 'rare' }],
+        { id: 'yew_bow', ch: 0.0133, band: 'rare' }, { id: 'yew_crossbow', ch: 0.0133, band: 'rare' }],
       hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 11996, gp: [173, 520], formula: true,
       phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1150 } },
   },
@@ -252,7 +251,7 @@ export default definePack({
   /* THE PACK'S TEST FACTS. Hask holds his barrow (no spawn weight). dropRef: the four the ground is built for, at the floor in the
      harness's own-tier set (tests/hunt-core/drop-tables.mjs, as the Warrens'). valueToday is COMPUTED, not a pre-conversion pin: that
      four's measured coin a head (7,178 g/h) and commons (499) plus the gear-faucet's half of the coin (3,589), the most the hour's
-     worn gear may sell for. Tier 5 has no sale rate yet, so gear-faucet and total-value stay red on this ground until one lands. */
+     worn gear may sell for, at tier 5's 0.033. */
   checks: { holders: [HASK], dropRef: { roles: ['tank', 'ranger', 'mage', 'healer'], full: true }, valueToday: 11266, deadlyFourNeeds: 'healer' },
   map,
 });

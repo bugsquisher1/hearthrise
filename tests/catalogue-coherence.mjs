@@ -191,6 +191,12 @@ export const PENDING_SOURCE = Object.freeze({
   stone_maul:        'cut: a stat copy of the Practice Club (merge rung 1 into the practice kit), systems-engineer',
   /* The loot bands took its one source, Old Grayjaw's equipment row (designer loot redesign 2026-10-23, lane b-loot-bands). */
   shortbow:          'cut: a stat copy of the Practice Bow (merge rung 1 into the practice kit), systems-engineer',
+  /* Tier 7's caster pair and its hatchets and crossbow (designer 2026-11-13, lane/d-barrow-data): Lord Krell's hall prize, beside the
+     Dawnsteel and Duskwood weapons in AWAITING_ROSTER. The rows leave the day the keyed hall pays (Krell's Hold piece 5). */
+  duskwood_wand:     'Krell\'s Hold piece 5 — the keyed hall\'s prize pays it (systems-engineer, backend-architect)',
+  duskwood_codex:    'Krell\'s Hold piece 5 — the keyed hall\'s prize pays it (systems-engineer, backend-architect)',
+  dawn_hatchets:     'Krell\'s Hold piece 5 — the keyed hall\'s prize pays it (systems-engineer, backend-architect)',
+  duskwood_crossbow: 'Krell\'s Hold piece 5 — the keyed hall\'s prize pays it (systems-engineer, backend-architect)',
 });
 export const PENDING_CONSUMER = Object.freeze({
   /* (prayer's row left with the skill, 2026-10-27: Inner Flame's regen rate is an ENGINE_SKILL_CONSUMERS row) */

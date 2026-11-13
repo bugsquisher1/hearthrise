@@ -247,6 +247,8 @@ export default definePack({
       { id: 'coin', gp: [251, 753], band: 'common' },
       { id: 'dawn_sword', ch: 0.1, band: 'rare' }, { id: 'dawn_warhammer', ch: 0.1, band: 'rare' },
       { id: 'duskwood_bow', ch: 0.1, band: 'rare' }, { id: 'duskwood_staff', ch: 0.1, band: 'rare' },
+      { id: 'duskwood_wand', ch: 0.1, band: 'rare' }, { id: 'duskwood_codex', ch: 0.1, band: 'rare' },
+      { id: 'dawn_hatchets', ch: 0.1, band: 'rare' }, { id: 'duskwood_crossbow', ch: 0.1, band: 'rare' },
       { id: 'dawn_platebody', ch: 0.1, band: 'rare' }, { id: 'slakehide_body', ch: 0.1, band: 'rare' }, { id: 'shroudweave_body', ch: 0.1, band: 'rare' },
       { id: 'dawn_helm', ch: 0.1, band: 'rare' }, { id: 'slakehide_helmet', ch: 0.1, band: 'rare' }, { id: 'shroudweave_helmet', ch: 0.1, band: 'rare' },
     ],

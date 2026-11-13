@@ -107,9 +107,9 @@ export const STOP_REASON = Object.freeze({
  * (or no cap is known). Pure over the bag. A swing opens at most one stack, the node's product, and a
  * gather never frees one, so once the product is held every later swing fits (O(1) after the first).
  *
- * @param state { inventory (the BAG) }
- * @param node  a TREES/ROCKS/FISH_SPOTS row
- * @param ctx   { bagCap }
+ * @param {{ inventory?: object }} state  the hero (its `inventory` is the BAG)
+ * @param {{ prod?: string }} node  a TREES/ROCKS/FISH_SPOTS row
+ * @param {{ bagCap?: number|null }} ctx  the bag's stack cap, or none
  */
 export function gatherBagFullFor(state, node, ctx) {
   const c = ctx || {};

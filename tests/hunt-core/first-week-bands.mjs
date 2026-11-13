@@ -311,8 +311,8 @@ const mutants = [
      +8.5%) and the old 7/12 reads +7.0%, a passing rung. 7/10 reads +3.9% (2 seeds x 1 h at 16), the nearest strength under the bar. */
   { name: 'the Iron Warhammer at 7/10: its upgrade pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:10},"]] },
-  { name: 'the Steel Warhammer is back at 9/19: over the Iron it pays under +5%', case: 'weapon-rungs',
-    edits: [['src/data/gear-tiers.js', 'str: [7, 16, 23, 28, 39, 52, 68],', 'str: [7, 16, 19, 28, 39, 52, 68],']] },
+  { name: 'the Steel Warhammer is cut to 9/18: over the Iron it pays under +5%', case: 'weapon-rungs',
+    edits: [['src/data/gear-tiers.js', 'str: [7, 16, 23, 28, 39, 52, 68],', 'str: [7, 16, 18, 28, 39, 52, 68],']] },
   { name: 'the Iron Hatchets are back at 7/7: their upgrade pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 16, 21, 22, 29, 38],', 'atk: [4, 7, 14, 19, 25, 33, 42], str: [4, 7, 16, 21, 22, 29, 38],']] },
   { name: 'a Thicket four of one weapon is paid x0.85, and the window still says what its old cell measured', case: 'vs-alone',

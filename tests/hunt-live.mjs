@@ -1720,7 +1720,9 @@ function rules(M) {
     M.ENGINE_SPELLS[SID] = SPELL;
     const wasLive = M.ENGINE_SPELL_SWITCH.live;
     M.ENGINE_SPELL_SWITCH.live = true;
-    for (const k of kinds) for (const t of rows) t[k].spells = [SID];
+    /* ...and stand ten times their health: since one Normal pack for every group (lane/c-brook-bear) a four fells the Cellar's in seconds and one cast landed in 96 s */
+    const keepHp = kinds.map((k) => rows.map((t) => t[k].hp));
+    for (const k of kinds) for (const t of rows) { t[k].spells = [SID]; t[k].hp *= 10; }
     /* asked 50%, worn at the 40% cap (data/elements.js HERO_RESIST_PM) */
     shield.resistPm = { frost: 500 };
     try {
@@ -1752,7 +1754,7 @@ function rules(M) {
     } finally {
       delete M.ENGINE_SPELLS[SID];
       M.ENGINE_SPELL_SWITCH.live = wasLive;
-      kinds.forEach((k, i) => rows.forEach((t, j) => { const [had, v] = keep[i][j]; if (had) t[k].spells = v; else delete t[k].spells; }));
+      kinds.forEach((k, i) => rows.forEach((t, j) => { const [had, v] = keep[i][j]; if (had) t[k].spells = v; else delete t[k].spells; t[k].hp = keepHp[i][j]; }));
       if (hadResist) shield.resistPm = oldResist; else delete shield.resistPm;
     }
   }

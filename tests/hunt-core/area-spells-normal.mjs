@@ -50,7 +50,7 @@ async function groupSpellsOn(root, g) {
 }
 
 /** The bars over one played cell: null when every hero holds them, else the first one broken, in words. */
-function judge(r, groups, tag) {
+function judge(r, groups, tag, strikes = true) {
   const four = r.heroes.length > 1;
   for (const h of r.heroes) {
     const who = tag + ' ' + h.style + ' at L' + h.level;
@@ -58,7 +58,7 @@ function judge(r, groups, tag) {
     const dips = h.closeCallsPer12h.k, bar = four ? BAR.dips.four : BAR.dips.alone;
     if (dips > bar) return who + ': ' + dips + ' dip(s) under 25% HP in ' + h.hours + ' h on Normal (the bar is ' + bar + ')';
     const struck = groups.filter((id) => h.spellsIn[id] && h.spellsIn[id].hits > 0);
-    if (!struck.length) return who + ': no group spell (' + groups.join(', ') + ') struck it in ' + h.hours + ' h: the spells were not on (' + JSON.stringify(h.spellsIn) + ')';
+    if (strikes && !struck.length) return who + ': no group spell (' + groups.join(', ') + ') struck it in ' + h.hours + ' h: the spells were not on (' + JSON.stringify(h.spellsIn) + ')';
   }
   return null;
 }
@@ -73,7 +73,10 @@ const playGround = (key) => async (RUN, root) => {
     const why = judge(RUN.runCell({ id: 'as:' + g + ':' + s, ground: g, party: [s], level: L, hours: HOURS, seeds: SEEDS }), groups, g + ' alone,');
     if (why) return why;
   }
-  return judge(RUN.runCell({ id: 'as:' + g + ':four', ground: g, party: FOUR, level: L, hours: HOURS, seeds: SEEDS }), groups, g + ' four,');
+  /* WICKSTEAD'S FOUR IS JUDGED FOR SAFETY ONLY (lane/b-area-set-r3, 2026-11-12): since one Normal pack for every group (lane/c-brook-bear, Tyler 2026-11-11)
+     a four fells the Turncoat before its windup ends, so no Smoke Pot reaches it in the hour. That is the AOE DENSITY ruling (spells are the tier wall);
+     the Warrens' four still has to be struck, and every lone arm still is. */
+  return judge(RUN.runCell({ id: 'as:' + g + ':four', ground: g, party: FOUR, level: L, hours: HOURS, seeds: SEEDS }), groups, g + ' four,', key !== 'wickstead');
 };
 const cases = { wickstead: playGround('wickstead'), warrens: playGround('warrens') };
 

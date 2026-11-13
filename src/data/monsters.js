@@ -786,7 +786,6 @@ export const MONSTERS = {
     /* one override (element): the polished cauldron he wears for a crown sheds frost. */
     elements: { frost: 25, poison: -15 },
     hp: 1096, atk: 28, baseAcc: 0.88, def: 33, xp: 6603, gp: [122, 366], formula: true, speed: 2800,
-    /* his spells: the Slag Toss his tank stands in, and the Slag Rain the whole party takes */
     spells: ['slag_toss', 'slag_rain'],
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' }, { id: 'coppercaps_tallow', ch: .15, band: 'uncommon' },
       { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' }, { id: 'war_crown', ch: .0141, band: 'rare' },
@@ -830,8 +829,7 @@ export const MONSTERS = {
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */
     hp: 26, atk: 14, baseAcc: 0.85, def: 1, xp: 121, gp: [5, 17], formula: true, speed: 3400,
-    /* its spell: a volley down one line of tiles, through its target and on behind it. On the glass poacher, not on Rook: a caster that
-       dies fast casts in few fights on Normal and in most of a full box (lane/d-spell-tuning, measured on the Glade's floor) */
+    /* a volley down a line of tiles, on the glass poacher (not Rook): it dies fast, so it casts in few Normal fights (lane/d-spell-tuning) */
     spells: ['poachers_volley'],
     drops: [{ id: 'wolf_pelt', ch: .3, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'snare_wire', ch: .08, band: 'uncommon' },
       { id: 'iron_platelegs', ch: .028, band: 'scarce' }, { id: 'studded_pants', ch: .028, band: 'scarce' }, { id: 'adept_pants', ch: .028, band: 'scarce' }, { id: 'longbow', ch: .028, band: 'scarce' }, { id: 'houndskin_cloak', ch: .0018, band: 'rare' }] },

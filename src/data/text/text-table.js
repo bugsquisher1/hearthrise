@@ -30,6 +30,7 @@ import { SUMMARY_TEXT } from './summary.js?v=0.2.125';
 import { TALLY_TEXT } from './tally.js?v=0.2.125';
 import { TEMPER_TEXT } from './temper.js?v=0.2.125';
 import { WINDOWS_TEXT } from './windows.js?v=0.2.125';
+import { WIKI_TEXT } from './wiki.js?v=0.2.125';
 import { WORK_TEXT } from './work.js?v=0.2.125';
 
 export const TEXT = Object.freeze({
@@ -55,5 +56,6 @@ export const TEXT = Object.freeze({
   tally: TALLY_TEXT,
   temper: TEMPER_TEXT,
   windows: WINDOWS_TEXT,
+  wiki: WIKI_TEXT,
   work: WORK_TEXT,
 });

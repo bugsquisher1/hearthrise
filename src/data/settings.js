@@ -139,6 +139,11 @@ const HOTKEY_ROWS = SHELL_WINDOWS.filter((w) => !('escape' in w && w.escape) && 
 /* ── Help: how the game works (src/data/how-to-play.js HELP_NOTES, read-only notes the search finds),
    then the problem report, which opens its own window (src/shell/windows/report.js) ── */
 const HELP_ROWS = [...HELP_NOTES.map((n) => row({ id: 'help.' + n.id, category: 'help', label: n.label, help: n.text, type: 'note' })), row({
+  /* The wiki (src/shell/windows/wiki.js): the top bar has no room for a 21st icon at a laptop's width (alpha-windows AW-62), so Help is its door, and the slash. */
+  id: 'help.wiki', category: 'help', label: 'Wiki',
+  help: 'Look up every skill, hunting ground and formula. The game writes it from its own numbers, so it always matches a hunt.',
+  type: 'action', open: 'wiki',
+}), row({
   id: 'help.report', category: 'help', label: 'Report a problem',
   help: 'Write what went wrong and it goes straight to the team, with your game details attached.',
   type: 'action', open: 'report',

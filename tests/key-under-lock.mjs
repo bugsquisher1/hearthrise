@@ -24,8 +24,13 @@
 //               the second press after the lock restores nothing and charges nothing
 //   KL-CLASS    every SECURITY DEFINER function on the chain that reads its key before its first lock and pays through hr_apply after it
 //               reads the key again between that lock and hr_apply, or is on SAFE_BY_STATE with the check, after the lock, that refuses
-//               a second press before hr_apply (that check still in its body); a SAFE_BY_STATE entry that no longer has the shape is stale
+//               a second press before hr_apply (that check still in its body); a SAFE_BY_STATE entry that no longer has the shape is stale.
+//               A verb with no lock before hr_apply must end on hr_apply's `replayed` answer instead.
+//   KL-AGAIN    a second apply of the file is byte-identical (schema, the three bodies and grants, hr_companion_grant's ACL, the client
+//               baseline), and its §0 pins refuse a body another file moved
 // ════════════════════════════════════════════════════════════════════════
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { isMain } from './_is-main.mjs';
 
 const MUTATE = process.argv.includes('--mutate');
@@ -33,7 +38,8 @@ const { HARNESS: H } = await import('./hunt-sessions-settle.mjs');
 const { one, q, inTx, UIDS } = H;
 const UID = UIDS[0];
 const HOUR = 3600000;
-const ARMS = ['KL-SCALED', 'KL-HEARTH', 'KL-STAMINA', 'KL-CLASS'];
+const FILE = '2027-04-19-key-under-lock.sql';
+const ARMS = ['KL-SCALED', 'KL-HEARTH', 'KL-STAMINA', 'KL-CLASS', 'KL-AGAIN'];
 const SIG = Object.freeze({
   scaled: 'public.hr_scaled_hunt_buy(integer,text,integer,bigint,uuid)',
   hearth: 'public.hr_hearth_burn(integer,text,uuid)',
@@ -187,6 +193,21 @@ const DB_ARMS = {
     for (const sig of Object.values(SIG)) if (!shaped.get(sig.slice('public.'.length, sig.indexOf('(')))) bad.push('CONTROL: ' + sig + ' is not in the census');
     return bad;
   },
+
+  /* A SECOND APPLY of the file over the chain it ends: byte-identical (the schema, the three bodies and their grants, the companion
+     grant's ACL, the client baseline), and its §0 pins still accept their own image. */
+  'KL-AGAIN': async (db) => {
+    const { inventory } = await import('./schema-replay.mjs');
+    const read = async () => JSON.stringify({ inv: await inventory(db),
+      fns: await q(db, `select p.oid::regprocedure::text as f, md5(pg_get_functiondef(p.oid)) as m, p.proacl::text as acl from pg_proc p
+                         where p.oid in (select to_regprocedure(s) from unnest($1::text[]) s) order by 1`,
+                   [[...Object.values(SIG), 'public.hr_companion_grant(integer,text,text,uuid)']]),
+      baseline: await q(db, 'select proname, identity_args, grantee, note from public.hr_client_rpc_baseline order by 1, 2, 3') });
+    const before = await read();
+    try { await db.exec(readFileSync(join(H.ROOT, 'supabase', 'migrations', FILE), 'utf8')); }
+    catch (e) { return [FILE + ' refused a second apply: ' + String(e.message).split('\n')[0].slice(0, 200)]; }
+    return (await read()) === before ? [] : ['a second apply of ' + FILE + ' moved something'];
+  },
 };
 
 async function runArms(db, M, only) {
@@ -216,6 +237,8 @@ const DB_MUTANTS = [
   { arm: 'KL-CLASS', name: 'the scaled purchase reads its key only before the lock (its replayed line kept)', fn: SIG.scaled, edits: [{ find: REREAD('c_verb'), replace: '' }] },
   { arm: 'KL-CLASS', name: 'a safe-by-state verb loses the row check that refuses its second press', fn: 'public.hr_title_buy(integer,text,bigint,uuid)',
     edits: [{ find: "  if exists (select 1 from public.player_titles h where h.user_id = v_uid and h.slot = p_slot and h.title_id = p_title) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'title_owned', 'title', p_title)); end if;\n", replace: '' }] },
+  { arm: 'KL-AGAIN', name: 'another file moved a restated body (the §0 pin must refuse to overwrite it)', fn: SIG.hearth,
+    edits: [{ find: "  c_per_min constant int := 10;\n", replace: "  c_per_min constant int := 10;   -- moved by another lane\n" }] },
 ];
 
 async function main() {

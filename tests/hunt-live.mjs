@@ -153,6 +153,7 @@ async function load(base) {
     ENGINE_SPELLS: (await import(pathToFileURL(join(base, 'src/data/monster-spells.js')).href + V)).MONSTER_SPELLS,
     /* the engine's own switch (the one row that turns every monster's spells on or off): LV-SPELL plays with it on, whichever way it ships */
     ENGINE_SPELL_SWITCH: (await import(pathToFileURL(join(base, 'src/data/monster-spells.js')).href + V)).SPELL_SWITCH,
+    ENGINE_MS: await import(pathToFileURL(join(base, 'src/data/monster-spells.js')).href + V),
     /* the engine's own first-cast stagger row (LV-STAGGER plays it as shipped) */
     ENGINE_SPELL_STAGGER: (await import(pathToFileURL(join(base, 'src/data/monster-spells.js')).href + V)).SPELL_STAGGER,
     ENGINE_ELEMENTS: await import(pathToFileURL(join(base, 'src/core/elements.js')).href + V),
@@ -617,6 +618,32 @@ function rules(M) {
         + per(scaled, 'xp').toFixed(0) + ' Level XP and ' + per(scaled, 'gold').toFixed(1) + ' coin (own ' + per(own, 'xp').toFixed(0) + ' and ' + per(own, 'gold').toFixed(1)
         + '); the hardest blow landed ' + scaled.maxBlow + ' (a catalogue Cellar monster swings at most ' + catMax + ')');
     }
+  }
+
+  { // LV-SCALE-SPELL: A SCALED HUNT'S SPELLS HIT AT THE SCALED ROWS (audit 2026-11-13: monster-spells.js land read the catalogue row, so the
+    // Sewer's Muck Fling hit at about 38% of the scaled swing). The Sewer at Level 50, unarmored heroes who cannot fall: browser closed
+    // (the server's commits) and viewed (every commit matches the prediction), 240 s to reach the Toshers (the fifth pocket): a spell lands harder than the catalogue row's top can.
+    const L = 30, HERO_L = 70, SPELL_ID = 'muck_fling';
+    const play = M.ENGINE_SIM.huntPlayOf('millrace_sewer', { level: L });
+    const catTop = M.ENGINE_MS.spellHit(M.ENGINE_COMBAT.monsterMaxHit(M.ENGINE_MONSTERS.kobold_tosher), M.ENGINE_MS.spellRow(SPELL_ID))[1];
+    const scaledTop = M.ENGINE_MS.spellHit(M.ENGINE_COMBAT.monsterMaxHit(play.monsters.kobold_tosher), M.ENGINE_MS.spellRow(SPELL_ID))[1];
+    const wasLive = M.ENGINE_SPELL_SWITCH.live;
+    M.ENGINE_SPELL_SWITCH.live = true;
+    try {
+      for (const [name, n, viewer] of [['browser closed', 1, null], ['viewed', 2, { user: 'ss1', slot: 0 }]]) {
+        const mis = ['tank', 'melee_dps'].slice(0, n).map((role, i) => {
+          const mi = memberOf(M, 'ss' + i, i, role, HERO_L); mi.huntId = 'millrace_sewer'; mi.hp = 1e9; mi.gold = 50000; mi.equipment = { weapon: 'steel_warhammer' };
+          mi.hero = Object.assign({}, mi.hero, { lead: i === 0 });
+          return mi;
+        });
+        const r = run(M, mis, 240000, { server: { hunt: 'millrace_sewer', scale: L }, ...(viewer ? { viewer } : {}) });
+        const hits = r.verdicts.flatMap((x) => x.tl.hunt_events).filter((e) => e.type === 'dmg' && e.ability === SPELL_ID).map((e) => e.amount);
+        ok('LV-SCALE-SPELL', hits.length > 0 && Math.max(...hits) > catTop && Math.max(...hits) <= scaledTop,
+          name + ': ' + hits.length + ' Muck Flings landed, the hardest ' + Math.max(0, ...hits) + ' (the catalogue row tops at ' + catTop + ', the scaled row at ' + scaledTop + ')');
+        if (viewer) { const bad = r.verdicts.filter((x) => x.v !== 'match'); ok('LV-SCALE-SPELL', r.verdicts.length >= 5 && bad.length === 0, name + ': ' + bad.length + ' of ' + r.verdicts.length + ' commits did not match the prediction'); }
+        console.log('  LV-SCALE-SPELL ' + name + ': ' + hits.length + ' Muck Flings, the hardest ' + Math.max(0, ...hits) + ' (catalogue top ' + catTop + ', scaled top ' + scaledTop + ')');
+      }
+    } finally { M.ENGINE_SPELL_SWITCH.live = wasLive; }
   }
 
   { // LV-EVENT: A LIVE EVENT, VIEWED (lane/c-live-events). The peer leader's account holds a +25% Level XP window for 40 s of a 64 s run; the

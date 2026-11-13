@@ -92,7 +92,7 @@ export function slowed(u, ms) {
 
 const stanceOf = (u) => HUNT_STANCES[u && u.stance] || HUNT_STANCES[DEFAULT_STANCE];
 /* A MONSTER'S ROW, through the instance's one door (world-step.js inst.monsters: a scaled hunt's table, combat-sim.js huntPlayOf), the catalogue for a bare caller. */
-const rowOf = (inst, kind) => (inst.monsters || MONSTERS)[kind];
+export const rowOf = (inst, kind) => (inst.monsters || MONSTERS)[kind];
 
 /* WHAT THE HERO'S ARMOUR DOES TO THIS BLOW (mitigation.js): its values against the attacker's own level, the ground's tier on it (hunt-tiers.js). A status tick whose dealer has left the world has no level to read: 1. */
 const armourVs = (inst, target, source) => (target.armour

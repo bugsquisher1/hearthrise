@@ -1,7 +1,10 @@
 // tests/hunt-core/hunt-data.mjs — src/data/hunt-tuning.js and src/data/hunt-grounds.js validate. Run by run-all.mjs.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { suite, groundRow, ROOT } from './fixtures/h1.js';
+
+const MS = await import(pathToFileURL(join(ROOT, 'src/data/monster-spells.js')).href + '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1]);
 
 /* The last migration in the apply order that writes hr_hunt_stats_of: the server's analyzer body. */
 function statsBody() {
@@ -52,6 +55,27 @@ const cases = {
     if (!sewerGrounds.some((g) => M.grounds.monstersOn(g).has('rat_king'))) out.push('the Sewer\'s monsters leave out the Rat King');
     return out.length ? out.join('; ') : null;
   },
+  /* THE BLOW COUNTS THE SPELLS (audit 2026-11-13: Wickstead quoted 21 while the Smoke Pot lands up to 52 on every hero, with no
+     to-hit roll): with the spells on, a hunt's biggest blow is at least every monster's spell top (monster-spells.js spellHit). */
+  'blow-counts-spells': (M) => {
+    const C = M.C;
+    if (MS.SPELL_SWITCH.live !== true) return null;
+    const out = [];
+    for (const h of Object.values(M.HUNTS)) {
+      if (h.called === true) continue;
+      const b = M.hunt['pull-cycle'].biggestBlowOn(h.id);
+      const ids = new Set(h.spawns.map((s) => s.monster));
+      for (const g of Object.values(M.grounds.HUNT_GROUNDS)) if (g.hunt === h.id) for (const id of M.grounds.monstersOn(g)) ids.add(id);
+      for (const id of ids) {
+        const row = M.MONSTERS[id];
+        for (const sid of (row && row.spells) || []) {
+          const top = MS.spellHit(C.monsterMaxHit(row), MS.spellRow(sid))[1];
+          if (!b || b.hit < top) out.push(h.id + ': the biggest blow reads ' + (b ? b.hit : 'none') + ' while ' + id + "'s " + sid + ' lands up to ' + top);
+        }
+      }
+    }
+    return out.length ? out.join('; ') : null;
+  },
   /* THE ANALYZER RATE WINDOW: the client's "per hour after N min" is the server's own window. */
   'analyzer-rate-window': (M) => {
     const { ANALYZER_RATE_AFTER_MS } = M.huntSessions;
@@ -75,6 +99,8 @@ const cases = {
 const mutants = [
   { name: 'a clock that is not a whole number of sub-steps', case: 'tuning-valid',
     edits: [['src/data/hunt-tuning.js', '  stepMs: 100,', '  stepMs: 300,']] },
+  { name: 'the biggest blow leaves the spells out again (the audit\'s Wickstead 21 against a Smoke Pot of 52)', case: 'blow-counts-spells',
+    edits: [['src/core/hunt/pull-cycle.js', '    const hit = Math.max(swing, spell);', '    const hit = swing;']] },
   { name: 'the Rat King hits for 108 again (Andy\'s death)', case: 'blow-share',
     edits: [['src/data/monsters.js', 'hp: 556, atk: 7, baseAcc: 0.76, def: 11,', 'hp: 556, atk: 20, baseAcc: 0.76, def: 11,']] },
   { name: 'a walked ground\'s pockets are not read (the boss who holds a room is missed)', case: 'blow-share',

@@ -2343,6 +2343,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (shop.tabs.join() !== 'buy,sell,services' || shop.refill) fails.push('AW-7 the Shop\'s tabs are ' + JSON.stringify(shop) + ', want Buy, Sell and Services and no refill'
           + ' [' + (await page.evaluate(() => { const w = document.querySelector('[data-hs-win="shop"]'); return w ? w.outerHTML.slice(0, 400) : 'no shop'; })) + '] ' + errors.slice(0, 2).join(' | '));
         if (shop.lines.join() !== 'leather_gloves,bronze_axe') fails.push('AW-7 the Shop offers ' + JSON.stringify(shop.lines) + ', not the gear then the tools alone');
+        /* AW-96 (first-30 play 2026-11-12): a row never says "0 in the bag"; it wrapped a new hero's every row to three lines */
+        const zero = await page.evaluate(() => Array.from(document.querySelectorAll('.hw-shop [data-pane="buy"] .hw-line small')).map((x) => x.textContent).filter((x) => /(^|· )0 in the bag/.test(x) || !/ each/.test(x)));
+        if (zero.length) fails.push('AW-96 a Buy row says ' + JSON.stringify(zero));
         /* The session reader is the first filter (the Buy lists only draw their own kinds, so they mask it): it drops
            the fixture's food, drink and ammo itself. */
         const kept = await page.evaluate(async (offers) => (await import('/src/session/item-sections.js?v=0.1.0'))
@@ -3228,6 +3231,36 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (errors.length) fails.push('AW-65 console errors (hunting): ' + errors.slice(0, 2).join(' | '));
         await ctx.close();
       }
+    }
+
+    { // AW-95 TOP LOOT IN SIGHT (first-30 play 2026-11-12): the loot list sat under the sticky foot, so a first gear drop went unseen
+      const card = { id: '11111111-0000-4000-8000-000000000095', hunt: 'mill_cellar', at: Date.parse('2026-10-17T12:30:00Z'), reason: 'left', ms: 910000, kills: 111, xp: 2327, gold: 111,
+        lootValue: 325, balance: 426, balanceH: 1685, rawXpH: 8153, died: 0, loot: [['rat_tail', 29], ['bones', 13], ['slime_gel', 9], ['sticky_core', 4]],
+        supplies: [['wheat_bread', 'own', 2]], preset: 0, hoursLimit: null, bag: [], deaths: [] };
+      const { ctx, page, up } = await open({ viewport: { width: 1440, height: 900 }, mutateEnv: (e) => {
+        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
+        for (const k of ['hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
+        e.hunt.ended = true;
+        e.hunt.session = Object.assign({}, e.hunt.session, { hunt: 'mill_cellar', preset: 0, bag: [], end_reason: 'left', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
+      }, residue: { huntSummaries: [card] } });
+      if (!up) fails.push('AW-95 the town did not mount');
+      else if (!(await openWin(page, 'l', 'hunt-summary'))) fails.push('AW-95 the summary did not open');
+      else {
+        await page.waitForTimeout(300);
+        /* the ended envelope records its own (lootless) card first: pick the one with the loot, as AW-66 does */
+        if (await page.$('[data-hs-win="hunt-summary"] .hsum-past [data-hs-act="pick"]')) { await page.click('[data-hs-win="hunt-summary"] .hsum-past [data-hs-act="pick"]'); await page.waitForTimeout(200); }
+        const loot = await page.evaluate(() => {
+          const w = document.querySelector('[data-hs-win="hunt-summary"]');
+          w.querySelector('[data-hs-body]').scrollTop = 0;
+          const body = w.querySelector('[data-hs-body]').getBoundingClientRect();
+          const first = w.querySelector('.hsum-loot li'), stats = w.querySelector('.hsum-stats').getBoundingClientRect();
+          if (!first) return { rows: 0 };
+          const r = first.getBoundingClientRect();
+          return { rows: w.querySelectorAll('.hsum-loot li').length, inView: r.top >= body.top && r.bottom <= Math.min(body.bottom, window.innerHeight), aboveStats: r.bottom <= stats.top };
+        });
+        if (!loot.rows || !loot.inView || !loot.aboveStats) fails.push('AW-95 the summary\'s Top loot is out of sight: ' + JSON.stringify(loot));
+      }
+      await ctx.close();
     }
 
     { // AW-66 the summary's answer line and its width

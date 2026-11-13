@@ -119,7 +119,9 @@ function patchBuy(root, st, ctx) {
         /* A tool says what it buys (panel 2026-11-01: the Shop listed them with no benefit). */
         const does = toolEffect(o.item);
         const plant = o.kind === 'seed' ? seedNeedWords(st.cs, o.item) : '';
-        text(li.querySelector('small'), gold(o.price) + ' each · ' + whole(st.qty.get(o.item) || 0) + ' in the bag' + (does ? ' · ' + does + ' while in your bag' : '') + (plant ? ' · ' + plant : '')
+        /* "0 in the bag" is said only when it is not 0 (first-30 play 2026-11-12: it wrapped every new hero's row to three lines) */
+        const held = st.qty.get(o.item) || 0;
+        text(li.querySelector('small'), gold(o.price) + ' each' + (held ? ' · ' + whole(held) + ' in the bag' : '') + (does ? ' · ' + does + ' while in your bag' : '') + (plant ? ' · ' + plant : '')
           + (short ? ' · You need ' + gold(short) + ' more.' : ''));
         prop(li.querySelector('select'), 'value', String(n));
         const b = li.querySelector('[data-hs-act="buy"]');

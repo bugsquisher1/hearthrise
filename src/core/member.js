@@ -31,6 +31,7 @@ import { STATUSES } from '../data/statuses.js?v=0.2.126';
 import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.126';
 import { LANE_OF } from './hunt/conditions.js?v=0.2.126';
 import { blowsPmOf, armorPmOf } from './temper.js?v=0.2.126';
+import { resistProfile } from './elements.js?v=0.2.126';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -124,8 +125,11 @@ export function heroSnapshot(state, c) {
      (Keen is already in the rolls' crit chance). */
   const jewel = (c.eq && c.eq.jewel) || null;
   const followPm = jewel && jewel.follow > 0 ? jewel.follow : 0, surgePm = jewel && jewel.surge > 0 ? jewel.surge : 0;
+  /* ELEMENTAL RESISTANCE (Tyler 2026-11-08), the same: { element: permille less taken } from the resolved gear (combat.js equipmentStats), only on a
+     hero whose gear carries any (none yet); damage.js hurt takes it at the armour chain's resistances step (targeting.js elementOn). */
+  const resistPm = resistProfile(c.eq && c.eq.resistPm);
   return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, armour: armourValues(c.equipment, c.items), level: charLevelFromXp(state.levelXp),
-    ...(blowsPm ? { blowsPm } : {}), ...(armorPm ? { armorPm } : {}), ...(followPm ? { followPm } : {}), ...(surgePm ? { surgePm } : {}) };
+    ...(blowsPm ? { blowsPm } : {}), ...(armorPm ? { armorPm } : {}), ...(followPm ? { followPm } : {}), ...(surgePm ? { surgePm } : {}), ...(resistPm ? { resistPm } : {}) };
 }
 
 /* THE SET A FIGHT IS PRICED BY (Tyler 2026-10-23: runes fuel SPELLS only, caster basics cost mana): the
@@ -423,7 +427,8 @@ function shotItemsOf(hero) {
 }
 
 /* A peer's jewelry perks, as numbers like its rungs (combat-sim.js syncUnit), so the browser lands its blows and casts as the server does. */
-const jewelSnap = (snap) => ({ ...(snap.followPm ? { followPm: snap.followPm } : {}), ...(snap.surgePm ? { surgePm: snap.surgePm } : {}) });
+const jewelSnap = (snap) => ({ ...(snap.followPm ? { followPm: snap.followPm } : {}), ...(snap.surgePm ? { surgePm: snap.surgePm } : {}),
+  ...(snap.resistPm ? { resistPm: snap.resistPm } : {}) });
 
 /** The frozen numbers of an assembled member side at server instant `atMs`, against the monster `kinds` as the instance plays them
     (`monsters`: a scaled hunt's table, combat-sim.js huntPlayOf; the catalogue when absent). */

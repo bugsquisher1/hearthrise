@@ -27,6 +27,7 @@
 import { MONSTERS, monsterLevelOf } from '../../data/monsters.js?v=0.2.126';
 import { atTier, levelAtTier } from '../../data/hunt-tiers.js?v=0.2.126';
 import { STATUSES } from '../../data/statuses.js?v=0.2.126';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.126';
 import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.126';
 import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.126';
 import { cheb } from './grid.js?v=0.2.126';
@@ -42,6 +43,7 @@ import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.12
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.126';
 import { temperedAmount } from '../temper.js?v=0.2.126';
 import { swingRow, crossLines, guardPmOf } from './boss-phases.js?v=0.2.126';
+import { dummyBlow, dummyStands } from './training.js?v=0.2.126';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -65,6 +67,28 @@ function takenPmOf(u) {
     if (row && Number.isInteger(row.takenPm) && row.takenPm > best && st.left > 0) best = row.takenPm;
   }
   return best;
+}
+
+/* How much longer a unit's swings and windups run under its SLOWING statuses (statuses.js slowPm, Chill), permille: the
+   strongest stack's (status.js tickStatuses drops a stack the sub-step it runs out, so every stack a unit holds is live). */
+function slowPmOf(u) {
+  let best = 0;
+  for (const st of Array.isArray(u.statuses) ? u.statuses : []) {
+    const row = st && Object.prototype.hasOwnProperty.call(STATUSES, st.s) ? STATUSES[st.s] : null;
+    if (row && Number.isInteger(row.slowPm) && row.slowPm > best) best = row.slowPm;
+  }
+  return best;
+}
+
+/** A clock of `ms` that unit `u` starts NOW, slowed by its live slowing statuses (a wiki formula, Chill's slowPm 300 = 30%):
+      slowed = ceil(ms x (1000 + slowPm) / 1000 / stepMs) x stepMs   (stepMs: hunt-tuning.js, 100 ms),
+    so a chilled 2 s swing waits 2.6 s and a chilled 1.6 s windup 2.1 s. Fixed as it starts: a slow that lands later
+    stretches the next one. Unslowed it is `ms`. */
+export function slowed(u, ms) {
+  const pm = slowPmOf(u);
+  if (!pm) return ms;
+  const step = HUNT_TUNING.stepMs;
+  return Math.ceil((ms * (1000 + pm)) / (1000 * step)) * step;
 }
 
 const stanceOf = (u) => HUNT_STANCES[u && u.stance] || HUNT_STANCES[DEFAULT_STANCE];
@@ -100,8 +124,10 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
   if (source && source.blowsPm > 0 && target.side === 'mon') n = temperedAmount(n, source.blowsPm, rng);
   const absorbed = Number.isInteger(target.shield) && target.shield > 0 ? Math.min(target.shield, n) : 0;
   if (absorbed) target.shield -= absorbed;
-  const dmg = Math.min(target.hp, n - absorbed);
+  /* A TRAINING DUMMY (src/core/hunt/training.js): its blow never takes a hero under the floor, and it never falls (whole again before anyone reads a kill). */
+  const dmg = dummyBlow(source && source.side === 'mon' ? rowOf(inst, source.kind) : null, target, Math.min(target.hp, n - absorbed));
   target.hp -= dmg;
+  if (target.side === 'mon') dummyStands(rowOf(inst, target.kind), target);
   return { dmg, absorbed, killed: target.hp <= 0 };
 }
 
@@ -148,8 +174,8 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
 /* A CRIT is gear (critB + the set bonus + a crit buff, combat.js playerCombatRolls
    critChance): rolled only on a landed hero blow and only when the chance is
    above zero, so a hero with no crit draws no extra number. */
-/* A unit that swings waits the one basic-attack interval for its next. */
-function restart(u) { u.swingLeftMs = COMBAT_BALANCE.tickMs; }
+/* A unit that swings waits the one basic-attack interval for its next, slowed by a Chill on it as it swings (slowed). */
+export function restart(u) { u.swingLeftMs = slowed(u, COMBAT_BALANCE.tickMs); }
 
 function swing(inst, sc, u, t, accuracy, maxHit, critChance) {
   restart(u);
@@ -182,6 +208,9 @@ export function resolveAttacks(inst, sc) {
   for (const u of inst.world.units) {
     if (!u.alive) continue;
     if (u.swingLeftMs > 0) u.swingLeftMs = Math.max(0, u.swingLeftMs - sc.dtMs);
+    /* A MONSTER WINDING UP A SPELL makes no swing (monster-spells.js: the cast is its blow, and its landing restarts
+       the swing clock). */
+    if (u.cast) continue;
     if (u.swingLeftMs > 0 || !Number.isInteger(u.target)) continue;
     const t = unitById(inst, u.target);
     if (!t || !t.alive) continue;

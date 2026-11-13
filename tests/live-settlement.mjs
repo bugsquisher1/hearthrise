@@ -311,8 +311,10 @@ export async function sqlGuard() {
       "select activity_id, max_hp from hr_activities where kind='combat'")).rows;
     const inDb = new Map(rows.map((r) => [r.activity_id, r.max_hp === null ? null : Number(r.max_hp)]));
     /* A called boss (src/data/boss-calls.js) is no activity: one verb reaches his room, and no combat pointer or fight clamp may name him. */
-    const authored = Object.keys(MONSTERS).filter((id) => MONSTERS[id].called !== true);
+    /* Nor is the training dummy (src/data/training.js): its one door is hr_training_start, and it is never killed, so no fight clamp names it. */
+    const authored = Object.keys(MONSTERS).filter((id) => MONSTERS[id].called !== true && MONSTERS[id].dummy !== true);
     for (const id of Object.keys(MONSTERS)) ok(MONSTERS[id].called !== true || !inDb.has(id), `SETTLE-1c: the called row ${id} has an hr_activities row: a door of its own`);
+    for (const id of Object.keys(MONSTERS)) ok(MONSTERS[id].dummy !== true || !inDb.has(id), `SETTLE-1c: the training dummy ${id} has an hr_activities row: a door of its own`);
     ok(authored.length > 50,
       `SETTLE-1c: only ${authored.length} authored monsters — the sweep would be near-vacuous`);
     ok(inDb.size === authored.length,

@@ -57,6 +57,7 @@ import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.126';
 import { pullLeader } from './hunt/pull-cycle.js?v=0.2.126';
 import { rewardSwing } from './hunt-rewards.js?v=0.2.126';
 import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.126';
+import { trainOf } from './hunt/training.js?v=0.2.126';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
 export { stepSwing } from './hunt/world-step.js?v=0.2.126';
@@ -141,6 +142,10 @@ function syncUnit(u, m) {
   /* CRAFTED JEWELRY'S PERKS, the same: never persisted, absent on a hero that wears none (damage.js roll, abilities.js fire). */
   if (snap.followPm) u.followPm = snap.followPm; else if (u.followPm) delete u.followPm;
   if (snap.surgePm) u.surgePm = snap.surgePm; else if (u.surgePm) delete u.surgePm;
+  /* ELEMENTAL RESISTANCE (Tyler 2026-11-08), the same: from the gear the server holds, never persisted, absent with none (targeting.js elementOn). */
+  if (snap.resistPm) u.resistPm = snap.resistPm; else if (u.resistPm) delete u.resistPm;
+  /* A WORN SHIELD, the same (its brace takes a share off a marked monster spell: monster-spells.js, data SHIELD_BRACE). */
+  if (m.shield === true) u.shieldWorn = true; else if (u.shieldWorn) delete u.shieldWorn;
   u.maxHp = Math.max(u.maxHp, m.state.playerMaxHp);
   u.maxMana = Math.max(u.maxMana || 0, m.state.playerMaxMana || 0);
   u.regenPm = m.state.regenPm;
@@ -247,7 +252,11 @@ export function simulateHuntInstance(inst, ctx) {
   let world = inst.world || null;
   /* A SCALED HUNT (huntPlayOf): its rows, its tier and its pull, the same for every swing of this span. */
   const play = huntPlayOf(ctx.ground.id, ctx.scale || null);
-  const pickOf = (ms) => (play.normalOf(tierPick(ms)) ? 0 : picker(ms));
+  /* A TRAINING GROUND (src/core/hunt/training.js): its one dummy as built at any pick, the trained skill its only pay, and no stamina
+     spent or proposed (the server's pool rests while the hero trains): the same for every member, from the ground, never stored. */
+  const train = trainOf(ctx.ground);
+  if (train) for (const m of members) m.hs.staminaMs = null;
+  const pickOf = (ms) => (train || play.normalOf(tierPick(ms)) ? 0 : picker(ms));
   /* A world made in this call: the leader's hold pick is in force from its first lap (not only from the next). */
   let fresh = false;
   /* CALL OUT (src/data/boss-calls.js): the room's call, its limit from the party's first swing (one instant for every member however the windows were cut), and ONE FIGHT: whatever ends one
@@ -387,7 +396,7 @@ export function simulateHuntInstance(inst, ctx) {
       for (const e of r.events) worldEvents.push(e);
       /* The rewards' own events (a party's rare roll) follow the swing's, on the server-only `r` stream. */
       const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: play.monsters || ctx.monsters, tier, hearthfind: ctx.hearthfind, call,
-        emit: (e) => worldEvents.push(e) });
+        ...(train ? { train } : {}), emit: (e) => worldEvents.push(e) });
       /* THE CALLED BOSS IS DOWN: everyone still in the fight ends `boss_felled` at their next boundary. */
       if (call && r.events.some((e) => e.type === 'kill' && kinds[e.t] === call.monster)) for (const m of members) if (!m.left) m.hs.bossFelled = true;
       for (const f of deaths) {

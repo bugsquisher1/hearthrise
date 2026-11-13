@@ -13,6 +13,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.126';
 import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.126';
+import { FX_ALPHA_ROW } from '../data/fx-alpha.js?v=0.2.126';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.126';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -221,6 +222,11 @@ function sanitizeSwitch(v) {
   return isObj(v) && typeof v.on === 'boolean' && Number.isSafeInteger(v.at) && v.at >= 0 ? { on: v.on, at: v.at } : undefined;
 }
 
+/* A value switch's pick (src/session/player-switch.js switchValue: the effect opacities, src/data/fx-alpha.js): { v, at }, a whole
+   percent inside the row's range and on its step, and when it was picked (the newest any open hero holds is the pick), else none. */
+const valuePick = (sw) => (v) => (isObj(v) && Number.isSafeInteger(v.v) && v.v >= sw.min && v.v <= sw.max && (v.v - sw.min) % sw.step === 0
+  && Number.isSafeInteger(v.at) && v.at >= 0 ? { v: v.v, at: v.at } : undefined);
+
 /* The order picked at each crafting station (src/shell/station-sort.js): skill -> sort id, for skills the data
    defines only (so the count is bounded by the catalogue); the window reads an unknown sort as its default. */
 function sanitizeStationSort(v) {
@@ -252,6 +258,10 @@ const SANITIZERS = Object.freeze({
   townZoom: sanitizeTownZoom,       // display preference: the viewer's town zoom, one for every hero (src/world/town-zoom.js); gates and spends nothing
   shareReplay: sanitizeSwitch,      // display preference: whether the screen may be recorded, one for every hero (src/session/replay-pref.js); gates and spends nothing
   idleMotion: sanitizeSwitch,       // display preference: whether standing units breathe, one for every hero (src/world/idle-motion.js); gates and spends nothing
+  fxSelf: valuePick(FX_ALPHA_ROW.self),       // display preference: how strong the viewed hero's effects look, one for every hero (src/hunt-view/fx-prefs.js); gates and spends nothing
+  fxPeer: valuePick(FX_ALPHA_ROW.peer),       // display preference: the same for every other hero in the hunt; gates and spends nothing
+  fxMonster: valuePick(FX_ALPHA_ROW.monster), // display preference: the same for the monsters' hits and spells; gates and spends nothing
+  fxMarks: valuePick(FX_ALPHA_ROW.marks),     // display preference: how strong the danger marks fill, never under half; gates and spends nothing
   tips: sanitizeSwitch,             // display preference: whether the coach's cards and the town criers show, one for every hero (src/data/tips.js); gates and spends nothing
   stationSort: sanitizeStationSort, // display preference: each crafting station's recipe order (src/shell/station-sort.js); gates and spends nothing
 });

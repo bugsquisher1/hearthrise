@@ -11,6 +11,10 @@
 //   ranged     a claimed spot at its distance from its OWN target (RO-04..08)
 //   kiters     chase off AND distance > 1 (RO-09): keep the gap, retreat away
 //              from the pack, close in when nothing is in range (RO-10..13)
+//   a MARK     (a monster's spell winding up, marks.js; the area-spells design: "melee hold, ranged step off"): a
+//              ranged hero or a caster never picks a marked tile to stand on and steps off one it stands on or walks to,
+//              if it can (stepOff); every Melee hero, the tank too, holds its tile and takes it. A group strike marks no
+//              ground, so nobody moves for it
 //
 // The hero's settings (role, distance, chase, target mode) are persisted on its
 // unit: the settle writes them from the character's hunt settings when the
@@ -25,6 +29,7 @@ import { walkable, cheb, dist2, los, ringFree, tileKey } from './grid.js?v=0.2.1
 import { inArea } from './leash.js?v=0.2.126';
 import { atRest, unitById, setGoal, clearGoal, candidateTiles, chooseSpot, standable, goToNearest, reachWithin } from './movement.js?v=0.2.126';
 import { roleOf, engaged, inRange, pickTargets } from './targeting.js?v=0.2.126';
+import { anyMark, markedAt } from './marks.js?v=0.2.126';
 import { livingOf } from './unit-index.js?v=0.2.126';
 
 /* role/dist/chase/tmode: the hero's settings. queued: a monster with no surround slot.
@@ -313,9 +318,9 @@ function inBand(d2, want) {
 }
 
 /* Ranged (RO-04..08): a spot at `dist` from its OWN target, claimed once, held with hysteresis. */
-function rangedPos(inst, h, mons) {
+function rangedPos(inst, h, mons, marked) {
   if (!Number.isInteger(h.target)) return;
-  if (kites(h)) { keepDistance(inst, h, mons); return; }
+  if (kites(h)) { keepDistance(inst, h, mons, marked); return; }
   if (!h.chase) { clearGoal(h); return; }
   const tgt = unitById(inst, h.target);
   if (!tgt) return;
@@ -325,7 +330,8 @@ function rangedPos(inst, h, mons) {
   const want = h.dist;
   const living = livingOf(inst, 'mon');
   const beside = besideNear(living, tgt, SPOT.searchRadius);
-  const valid = (x, y) => inBand(dist2({ x, y }, tgt), want) && los(inst.grid, { x, y }, tgt) && !beside(x, y);
+  const valid = (x, y) => inBand(dist2({ x, y }, tgt), want) && los(inst.grid, { x, y }, tgt) && !beside(x, y)
+    && !(marked && marked(x, y));
   const score = (x, y) => {
     const p = { x, y };
     let s = Math.abs(Math.sqrt(dist2(p, tgt)) - want) * SPOT.weightOffDistance + Math.sqrt(dist2(p, h)) * SPOT.weightWalk;
@@ -354,7 +360,7 @@ function rangedPos(inst, h, mons) {
  * that restores the gap, AWAY from the pack centre (never through it), never next
  * to a monster, inside the pack area (candidateTiles is the hard filter).
  */
-function keepDistance(inst, h, mons) {
+function keepDistance(inst, h, mons, marked) {
   const row = roleOf(h);
   const want = h.dist;
   const pocket = mons[0].pocket;
@@ -367,7 +373,7 @@ function keepDistance(inst, h, mons) {
     let best = null; let bd = Infinity;
     for (const [x, y] of candidateTiles(inst, h, pocket, n.x, n.y, want)) {
       const p = { x, y };
-      if (gap(x, y) < minGap || dist2(p, n) > row.range * row.range || !los(inst.grid, p, n)) continue;
+      if ((marked && marked(x, y)) || gap(x, y) < minGap || dist2(p, n) > row.range * row.range || !los(inst.grid, p, n)) continue;
       const d = dist2(p, h) + (gap(x, y) >= want ? 0 : 1000);
       if (d < bd) { bd = d; best = [x, y]; }
     }
@@ -384,6 +390,7 @@ function keepDistance(inst, h, mons) {
   let best = null; let bs = Infinity;
   for (const [x, y] of candidateTiles(inst, h, pocket, h.x, h.y, KITE.searchRadius)) {
     if (fromMean(x, y) - here <= KITE.awayMin) continue;
+    if (marked && marked(x, y)) continue;
     const g = gap(x, y);
     if (g < minGap) continue;
     const p = { x, y };
@@ -392,6 +399,25 @@ function keepDistance(inst, h, mons) {
     if (s < bs) { bs = s; best = [x, y]; }
   }
   if (best && (best[0] !== h.x || best[1] !== h.y)) setGoal(inst, h, best[0], best[1]);
+}
+
+/*
+ * STEP OFF A MARK (the area-spells design, Tyler 2026-11-08): a ranged hero or a caster whose tile, or the tile it is
+ * walking to, lies under a monster's ground mark walks to the nearest tile it can reach round the monsters that no mark
+ * covers, standable in its fight's pack area (movement.js goToNearest: the leash's area, nobody else's spot). It gives up
+ * its spot (a spot under a mark is no spot; its next re-aim picks one off every mark). With no such tile in reach it
+ * stays and takes the hit: it steps off only if it can. Answers whether it was under a mark.
+ */
+function stepOff(inst, h, mons, marked) {
+  const end = h.goal && h.path.length ? h.goal : [h.x, h.y];
+  if (!marked(end[0], end[1])) return false;
+  /* HELD IN MELEE (a monster beside it has it as its target): it is in contact, as a Melee hero is, and holds ("step off
+     when no monster is holding them in melee", the design's rule as the wiki prints it). */
+  if (mons.some((m) => m.target === h.id && cheb(m, h) <= 1)) return false;
+  const pocket = (unitById(inst, h.target) || mons[0]).pocket;
+  h.spot = null;
+  goToNearest(inst, h, (x, y) => !marked(x, y) && standable(inst, h, pocket, x, y));
+  return true;
 }
 
 /**
@@ -404,6 +430,8 @@ export function positionHeroes(inst, sc) {
   positionMonsters(inst, sc);
   const fighting = inst.world.phase === 'fight';
   const mons = engaged(inst);
+  /* The ground marks standing now (marks.js), asked only while one stands: with none, every hero is placed as before. */
+  const marked = anyMark(inst) ? (x, y) => markedAt(inst, x, y) : null;
   /* (only a living hero is placed: unit-index.js, in list order; placing one kills nobody) */
   for (const h of livingOf(inst, 'hero')) {
     const row = roleOf(h);
@@ -411,6 +439,9 @@ export function positionHeroes(inst, sc) {
     if (!fighting || !mons.length) { h.spot = null; continue; }
     if (row.tank) tankPos(inst, h, mons);
     else if (row.melee) meleePos(inst, h, mons);
-    else rangedPos(inst, h, mons);
+    else {
+      rangedPos(inst, h, mons, marked);
+      if (marked) stepOff(inst, h, mons, marked);
+    }
   }
 }

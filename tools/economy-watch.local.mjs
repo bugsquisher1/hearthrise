@@ -100,6 +100,9 @@ const GOLD_KEYS = Object.freeze({
   'shop:hero_colors_set': sink('hero dye changes', true, 'hr_hero_colors_set'),
   'shop:boss_call': sink('boss calls', true, 'hr_boss_call'),
   'shop:hallmark': sink('jewelry hallmarks', true, 'hr_hallmark'),
+  'shop:training_start': sink('combat training, the first hour', true, 'hr_training_start'),
+  'shop:training_fee': sink('combat training, each hour after', true, 'hr_training_hour'),
+  'shop:house_dummy': sink('house training dummy', false, 'hr_house_dummy_unlock'),
   'trade:market_list': sink('market listing fees', true, 'hr_market_list'),
   'craft:accrue': sink('bench tax', true),
   'shop:unlock_buy.room': sink('house rooms'),
@@ -113,7 +116,7 @@ const GOLD_KEYS = Object.freeze({
 });
 /* Each gold-sinks.js row's journal key (the selftest fails when a row has none, so a new sink cannot ship unwatched). */
 const SINK_RULE_KEYS = Object.freeze({ powder: 'shop:town_show.powder', round: 'shop:town_show.round', crier: 'shop:crier',
-  setup_slot: 'shop:setup_slot_buy', hero_colors: 'shop:hero_colors_set' });
+  setup_slot: 'shop:setup_slot_buy', hero_colors: 'shop:hero_colors_set', house_dummy: 'shop:house_dummy' });
 
 /* WHAT A COIN BRINGS WITH IT, as the most the sheet's loot and tasks add to monster coin an hour:
      commons 1.15  src/data/supply-basics.js: a measured hour, 691 g of coins against 793 g of common drops

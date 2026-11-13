@@ -19,14 +19,23 @@
 //     store's when the slot names it. The rune is the family's, never one tier's.
 //   lvPm: permille of the row's numbers added per level of its skill above 1
 //     (outputPm; the same for every version).
-//   target: taunt | mark | enemy | area | cleave | self | ally | party
-//   dmg [lo, hi], element (an elements.js id), hits, maxHits, status (a statuses.js id, H3),
-//   bonusPct + durMs (mark), shield, heal [lo, hi], whenBelowPct, minHurt,
+//   target: taunt | mark | enemy | area | line | ring | cleave | self | ally | party
+//     area   the 3x3 round its best aim; line: `len` tiles from the hero through its best aim;
+//     ring   every monster within `r` (default 1) of the hero, up to `maxHits` (AREA_TARGETS, areaSpec:
+//            src/core/hunt/shapes.js is the one geometry, the monsters' spells' too)
+//   dmg [lo, hi], or hitPm: each hit is a share of the hero's OWN largest blow (its unit's maxHit),
+//     permille, rolled from half that to that (the rule a monster's spell hits by), so it grows
+//     with the weapon and the skill; element (an elements.js id), hits, maxHits, status (a
+//     statuses.js id, H3), bonusPct + durMs (mark), shield, heal [lo, hi], whenBelowPct, minHurt,
 //   radius (party heal, tiles)
 //   alone: true = cast only while no other living hero shares the caster's world (Tyler 2026-11-09:
 //     "a new spell that can only be used when not in a party"), read at each cast as the kill XP
 //     reads the living heroes (src/core/hunt/abilities.js aloneIn); a death or a leave changes the
 //     next cast. Otherwise the slot falls through to the next, as a slot that cannot act does.
+//   unlock: a level in the row's own skill (abilitySkill) the ability waits for: a slot set up
+//     early is kept and waits (`level`, the wait a locked rune version gives), never refused
+//   trigger: the conditions a NEW slot of the row starts with, when suggestedTrigger's generic one
+//     is not right (a party heal kept for the fight: "the fight is on")
 //   versions: a RUNE spell's versions I..V (Tyler 2026-10-23, src/data/runes.js), up to five
 //     { mana, outPm }: version N is cast by spending a tier-N rune at level versionLevel(N) in
 //     the row's skill (ABILITY_SKILL), costs `mana` and lands `outPm` permille of the row's
@@ -52,6 +61,7 @@ import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.126';
 import { isElement } from './elements.js?v=0.2.126';
 import { ITEMS } from './items.js?v=0.2.126';
 import { isRune, runeTierOf, RUNE_TIERS } from './runes.js?v=0.2.126';
+import { shapeProblem } from '../core/hunt/shapes.js?v=0.2.126';
 
 /* THE ABILITY LANES and their lockouts (AB-02; Tyler 2026-10-19: attack, support and healing are separate
    groups; 2026-10-23 COMBAT AUDIT ANSWERS: offense 2 s, support 2 s, healing 1 s). A cast locks its row's lane;
@@ -82,6 +92,10 @@ export const ABILITY_RULES = Object.freeze({
   /* An area ability's suggested trigger: at least this many monsters in its footprint (AB-03; a NEW slot's
      starting condition, suggestedTrigger, never a hidden one). */
   areaMin: 2,
+  /* THE AREA'S SIZE: an 'area' row strikes the areaSide x areaSide square round its best aim (Fireball's 3x3; areaSpec). */
+  areaSide: 3,
+  /* A hitPm row's roll (blowShare): from hitLowPm permille of its top to the top, the rule a monster's spell hits by. */
+  hitLowPm: 500,
 });
 
 /* Which abilities an action set skips (AB-11; presets ASSUMED, spec §3.7). */
@@ -117,6 +131,13 @@ export const ABILITIES = Object.freeze([
     versions: [[10, 1000], [12, 1740], [14, 2520], [17, 3310], [21, 4100]], lvPm: LV_PM }),
   ab({ id: 'power_strike', n: 'Power Strike', disciplines: ['shield', 'sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 6000, mana: 6,
     target: 'enemy', dmg: [7, 13] }),
+  /* TURNING CUT (the area-spells design, lane/b-area-data; Tyler 2026-11-08: "our heros some more aoe spells"): a sword ALONE's
+     area, every monster beside the hero, each for 60% of the hero's own largest blow (hitPm), so it grows with the weapon. Worse
+     than Power Strike on one or two, better from three: a new slot starts "when it would hit at least 3". The tank gets nothing
+     new (its job is holding). PROVISIONAL: played once (lane/b-area-data, Wickstead, a lone sword at 18 in a full box: 336 casts
+     an hour, its largest damage line; none in the ground's own pull of two), never balanced. */
+  ab({ id: 'turning_cut', n: 'Turning Cut', disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10, target: 'ring', maxHits: 8, hitPm: 600,
+    trigger: [{ metric: 'enemies_in_aoe', op: 'gte', value: 3 }] }),
   /* dual axes — Melee DPS (bleed); the club shares the sweep, never the bleed */
   ab({ id: 'cleave', n: 'Cleave', disciplines: ['dual_axe', 'club'], lane: 'offense', cdMs: 6000, mana: 8, target: 'cleave', dmg: [6, 11], maxHits: 3 }),
   /* Rend spends the RUPTURE family (Tyler 2026-10-23: its old Life rune is the Rupture rune); a deeper rune also
@@ -131,6 +152,10 @@ export const ABILITIES = Object.freeze([
     versions: [[15, 1000], [18, 1740], [22, 2520], [26, 3310], [31, 4100]], lvPm: LV_PM }),
   ab({ id: 'precision_shot', n: 'Precision Shot', disciplines: ['ranged'], lane: 'offense', cdMs: 6000, mana: 6, ammo: 1,
     target: 'enemy', dmg: [7, 12] }),
+  /* RAKING SHOT (the area-spells design): an arrow line with no element, 4 tiles from the hero through its aim, each monster on
+     it hit for 80% of the hero's own largest blow (hitPm). Two shots of the bar's ammo a cast. The Ranger's area that a slime's
+     element resistance never touches (Andy 11-06: every Ranger area was fire). PROVISIONAL, unmeasured. */
+  ab({ id: 'raking_shot', n: 'Raking Shot', disciplines: ['ranged'], lane: 'offense', cdMs: 8000, mana: 10, ammo: 2, unlock: 10, target: 'line', len: 4, hitPm: 800 }),
   /* staff — Mage (destruction) */
   /* Fireball is a FIRE rune spell (Tyler 2026-10-23, the approved spell map: "gold per cast covers heroes without
      runes"): a hero with no Fire Rune casts it on the store's, which the Mage's default slot names (rule-subjects.js). */
@@ -140,6 +165,12 @@ export const ABILITIES = Object.freeze([
   ab({ id: 'frost_lance', n: 'Frost Lance', disciplines: ['destruction'], lane: 'offense', cdMs: 6000, mana: 20, rune: 'chalked_ice_rune',
     target: 'enemy', dmg: [12, 18], element: 'frost', magicXpMult: 1600,
     versions: [[20, 1000], [24, 1740], [29, 2520], [35, 3310], [41, 4100]], lvPm: LV_PM }),
+  /* HOARFROST (the area-spells design): an ICE rune spell on Fireball's 3x3, and every monster it hits is Chilled (statuses.js:
+     its swings and spell windups run 30% slower for 4 s), so frost slows a pack and its casts where fire burns hardest.
+     PROVISIONAL, unmeasured. */
+  ab({ id: 'hoarfrost', n: 'Hoarfrost', disciplines: ['destruction'], lane: 'offense', cdMs: 10000, mana: 22, rune: 'chalked_ice_rune', unlock: 14,
+    target: 'area', dmg: [5, 9], element: 'frost', status: 'chill', magicXpMult: 1600,
+    versions: [[22, 1000], [26, 1740], [32, 2520], [38, 3310], [46, 4100]], lvPm: LV_PM }),
   /* An EARTH rune spell (a shell of stone, the approved spell map). Self-only (Tyler 2026-10-23, Andy's report);
      recast while its shell still stands, the unused part comes back as mana (abilities.js barrierRefund). */
   ab({ id: 'arcane_barrier', n: 'Arcane Barrier', disciplines: ['destruction'], lane: 'support', cdMs: 20000, mana: 30, rune: 'chalked_earth_rune', target: 'self',
@@ -153,6 +184,20 @@ export const ABILITIES = Object.freeze([
   ab({ id: 'circle_of_renewal', n: 'Circle of Renewal', disciplines: ['restoration'], lane: 'heal', cdMs: 12000, mana: 50, rune: 'chalked_water_rune', target: 'party',
     heal: [20, 30], whenBelowPct: 80, minHurt: 2, radius: 8, magicXpMult: 1600,
     versions: [[50, 1000], [60, 1740], [72, 2520], [86, 3310], [104, 4100]], lvPm: LV_PM }),
+  /* SPRING TIDE (Tyler 2026-11-08: "instead of a healer area spell lets just do a party heal with a long cooldown", "and
+     expensive, and make sure the conditions are available that make sense"): the once-a-minute save beside Circle of
+     Renewal's steady top-up, a WATER rune spell on every hero within 8 tiles.
+     ITS RULE AND ITS COST (lane/d-spell-tuning, Tyler 2026-11-08: its first rule never fired, and it starved the healer at the
+     Chief). A group spell hurts every hero a little, so "two allies under 60%" almost never came true. The rule now reads the
+     whole party: the party's HP under 85%, the fight on, and the healer's own mana at 50% or more, so it is never the cast that
+     leaves Greater Mend dry. Measured in Deadly fours buying every rune and drink (Warrens 32, Glade 24, 2 seeds x 1 h): the old rule 0 casts
+     an hour, and under 75% 0 too; "the fight is on" alone 59 an hour for 37 to 75% more drinks; this rule 6.5 and 13.5 an hour, the drinks
+     within 15% of none, and the Warrens four 578 g an hour a head better off. 120 mana (was 160): 44% of a fresh healer's pool at Magic 20, still 2.4 times Circle of Renewal's
+     cost on five times its cooldown. Each number is measured in the lane's board section. */
+  ab({ id: 'spring_tide', n: 'Spring Tide', disciplines: ['restoration'], lane: 'heal', cdMs: 60000, mana: 120, rune: 'chalked_water_rune', unlock: 20,
+    target: 'party', heal: [120, 180], radius: 8, magicXpMult: 1600,
+    trigger: [{ metric: 'party_hp_pct', op: 'lt', value: 85 }, { metric: 'in_fight', op: 'eq', value: true }, { metric: 'self_mana_pct', op: 'gte', value: 50 }],
+    versions: [[120, 1000], [144, 1740], [173, 2520], [207, 3310], [249, 4100]], lvPm: LV_PM }),
   /* GREEN SICKNESS (was Nature's Wrath; Tyler 2026-10-23: a POISON rune spell, its element poison): Restoration's
      lower-power area spell, and every monster it hits takes more from every blow for a while (statuses.js sickness,
      Bible §17: a fixed, non-stacking vulnerability that no rune tier raises). */
@@ -182,7 +227,22 @@ export const ABILITIES = Object.freeze([
     lane: 'heal', cdMs: 6000, mana: 15, target: 'self', heal: [20, 30], whenBelowPct: 50, magicXpMult: 250, lvPm: LV_PM }),
 ].reduce((acc, r) => { acc[r.id] = r; return acc; }, Object.create(null)));
 
-const TARGETS = ['taunt', 'mark', 'enemy', 'area', 'cleave', 'self', 'ally', 'party'];
+const TARGETS = ['taunt', 'mark', 'enemy', 'area', 'line', 'ring', 'cleave', 'self', 'ally', 'party'];
+/* The targets that strike a SHAPE (src/core/hunt/shapes.js): an action set that skips area abilities skips them all,
+   and a new slot of one starts "when it would hit at least ABILITY_RULES.areaMin". */
+export const AREA_TARGETS = Object.freeze(['area', 'line', 'ring']);
+/* The targets that land damage on monsters. */
+const DAMAGING = Object.freeze(['enemy', 'cleave', ...AREA_TARGETS]);
+
+/** The shape spec an area row strikes (src/core/hunt/shapes.js): the 3x3 on its aim, a line of `len` from the hero
+    through its aim, a ring of `r` round the hero; null for a row that strikes no shape. */
+export function areaSpec(row) {
+  if (!row) return null;
+  if (row.target === 'area') return { shape: 'square', n: ABILITY_RULES.areaSide };
+  if (row.target === 'line') return { shape: 'line', len: row.len };
+  if (row.target === 'ring') return { shape: 'ring', r: Number.isInteger(row.r) ? row.r : 1 };
+  return null;
+}
 
 /* THE SKILL A DISCIPLINE'S VERSIONS LEVEL ON (DISCIPLINES above). A universal row names its own `skill`. */
 export const DISCIPLINE_SKILL = Object.freeze(Object.fromEntries(DISCIPLINE_IDS.map((d) => [d, DISCIPLINES[d].skill])));
@@ -196,11 +256,21 @@ export const abilitySkill = (row) => (row && row.universal && row.skill) || DISC
     applied behind a slot: one with no conditions fires whenever it is ready (Tyler 2026-10-23, c21). */
 export function suggestedTrigger(row) {
   if (!row) return [];
+  /* A row's own starting rule (`trigger`), when the generic one below is not right. */
+  if (Array.isArray(row.trigger)) return row.trigger.map((c) => Object.assign({}, c));
   if (row.target === 'self') return [{ metric: 'self_hp_pct', op: 'lt', value: row.whenBelowPct }];
   if (row.target === 'ally') return [{ metric: 'ally_hp_pct', op: 'lt', value: row.whenBelowPct, subject: 'lowest' }];
-  if (row.target === 'area') return [{ metric: 'enemies_in_aoe', op: 'gte', value: ABILITY_RULES.areaMin }];
+  if (AREA_TARGETS.includes(row.target)) return [{ metric: 'enemies_in_aoe', op: 'gte', value: ABILITY_RULES.areaMin }];
   if (row.target === 'party') return [{ metric: 'allies_below', op: 'gte', value: row.minHurt, subject: 'under_' + row.whenBelowPct }];
   return [];
+}
+
+/** WHAT A hitPm ROW HITS FOR (a wiki formula): with M the hero's own largest blow (its unit's maxHit),
+      top = max(1, floor(M x hitPm / 1000)),  low = max(1, ceil(top x hitLowPm / 1000)),
+    and each hit rolls a whole number from low to top. Answers [low, top]. */
+export function blowShare(maxHit, row) {
+  const top = Math.max(1, Math.floor((Math.max(1, Math.floor(Number(maxHit) || 1)) * row.hitPm) / 1000));
+  return [Math.max(1, Math.ceil((top * ABILITY_RULES.hitLowPm) / 1000)), top];
 }
 
 /** Version `n` (1..5) of `row`: { mana, outPm }. A row with no `versions` row for it casts at its own mana and numbers. */
@@ -236,7 +306,19 @@ export function validate() {
     if (r.universal && (DISCIPLINE_IDS.some((d) => !r.disciplines.includes(d)) || !Object.values(DISCIPLINE_SKILL).includes(r.skill))) bad('a universal row lists every discipline and names its skill');
     if (new Set(r.disciplines).size !== r.disciplines.length) bad('a discipline is listed twice');
     for (const k of ['dmg', 'heal']) if (r[k] && !(r[k].length === 2 && r[k].every(Number.isInteger) && r[k][0] > 0 && r[k][0] <= r[k][1])) bad(k + ' must be [lo, hi]');
-    if (['enemy', 'area', 'cleave'].includes(r.target) && !r.dmg) bad('a damaging target with no dmg');
+    /* A damaging target lands dmg [lo, hi] OR a share of the hero's own largest blow (hitPm), never both. */
+    if (DAMAGING.includes(r.target) && !r.dmg && r.hitPm === undefined) bad('a damaging target with no dmg and no hitPm');
+    if (r.hitPm !== undefined && (!DAMAGING.includes(r.target) || r.dmg || !Number.isInteger(r.hitPm) || r.hitPm < 100 || r.hitPm > 4000)) bad('hitPm is a damaging row\'s whole share of the blow, 100..4000, in place of dmg');
+    /* The shape an area row strikes, in the one geometry's bounds (shapes.js: a line at most 4 long, a ring at most 2 out). */
+    const spec = areaSpec(r);
+    if (spec && shapeProblem(spec)) bad(shapeProblem(spec));
+    if (r.len !== undefined && r.target !== 'line') bad('only a line has a len');
+    if (r.r !== undefined && r.target !== 'ring') bad('only a ring has an r');
+    if (r.unlock !== undefined && !(Number.isInteger(r.unlock) && r.unlock >= 2 && r.unlock <= 99)) bad('unlock is a level 2..99 in the row\'s skill');
+    /* A row's own starting rule: at most three plain conditions (conditions.js slotProblem judges each against the registry:
+       tests/hunt-core/abilities.mjs rows-validate). */
+    if (r.trigger !== undefined && !(Array.isArray(r.trigger) && r.trigger.length >= 1 && r.trigger.length <= 3
+      && r.trigger.every((c) => c && typeof c === 'object' && typeof c.metric === 'string' && typeof c.op === 'string'))) bad('trigger is one to three { metric, op, value, subject? } conditions');
     /* A friendly target heals or shields: `heal` [lo, hi] or a whole `shield` (an ally one: the friend shield). */
     if (['ally', 'self'].includes(r.target) && !r.heal && !(Number.isInteger(r.shield) && r.shield > 0)) bad('a friendly target with no heal and no shield');
     if (['ally', 'self'].includes(r.target) && r.heal && r.shield !== undefined) bad('a friendly target heals or shields, never both');

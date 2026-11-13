@@ -120,7 +120,7 @@ export async function loadCellRunner(root) {
       vit: VIT.vitalsOf({ levelXp: XP.charXpForLevel(levels[i]), skills: {}, equipment: kits[i], items: ITEMS }),
       hours: 0, levelXp: 0, skillXp: {}, coin: 0, loot: { common: 0, uncommon: 0, scarce: 0, rare: 0, trophy: 0, other: 0 }, lootN: 0,
       rareItems: [], gear: {}, store: 0, buys: {}, uses: {}, deaths: 0, killers: {}, xpLostLevel: 0, deathLevelXpLost: [],
-      xpLostSkill: {}, dealt: 0, dealtBy: {}, taken: 0, takenBy: {}, healIn: { food: 0, self: 0, ally: 0 }, healOut: 0, shieldIn: 0,
+      xpLostSkill: {}, dealt: 0, dealtBy: {}, taken: 0, takenBy: {}, spellsIn: {}, healIn: { food: 0, self: 0, ally: 0 }, healOut: 0, shieldIn: 0,
       blowsLanded: 0, blowsMissed: 0, dodged: 0, eats: { own: 0, store: 0 }, drinks: { own: 0, store: 0 }, casts: {}, castGold: 0,
       manaShots: 0, enc: [], close: 0, dips: 0, ttdClose: [], ended: {} }));
     const P = { kills: 0, ttk: [], hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0 };
@@ -173,6 +173,8 @@ export async function loadCellRunner(root) {
                   h.taken += n;
                   const kind = (out.units && out.units[e.u] && out.units[e.u][0]) || (e.dot ? 'status' : '?');
                   h.takenBy[kind] = (h.takenBy[kind] || 0) + n;
+                  /* a monster's spell (monster-spells.js): its hit names the spell, where a swing names 'basic' */
+                  if (!e.dot && !uk && e.ability && e.ability !== 'basic') { const s = h.spellsIn[e.ability] || (h.spellsIn[e.ability] = { hits: 0, dmg: 0 }); s.hits++; s.dmg += n; }
                   if (!e.dot && !uk) h.blowsLanded++;
                   hp.push([e.atMs, tk, -n]);
                 } else if (uk) {
@@ -334,6 +336,8 @@ export async function loadCellRunner(root) {
         levelXpLostPerDeath: round(lostMean, 0), deathCostHours: lostMean !== null && xph > 0 ? round(lostMean / xph, 2) : null,
         dealtPerH: per(h.dealt), dps: round(h.dealt / (hr * 3600), 2), dealtBy: h.dealtBy,
         takenPerH: per(h.taken), takenBy: Object.fromEntries(Object.entries(h.takenBy).sort((a, b) => b[1] - a[1]).slice(0, 6)),
+        /* the monsters' spells that struck this hero: { spell id: { hits, dmg } } over the cell (dodged ones are not hits) */
+        spellsIn: h.spellsIn,
         monsterSwingsPerH: per(swings), landedPct: swings ? round((100 * h.blowsLanded) / swings, 1) : null,
         dodgedPct: swings ? round((100 * h.dodged) / swings, 1) : null, dmgPerMonsterSwing: swings ? round(h.taken / swings, 3) : null,
         healInPerH: { food: per(h.healIn.food), self: per(h.healIn.self), ally: per(h.healIn.ally), total: per(healTotal) },

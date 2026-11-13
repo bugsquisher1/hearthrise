@@ -999,7 +999,11 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         sc.clock = () => Date.now();
         iso = (ago) => new Date(sc.clock() - ago).toISOString();
         /* a reload into a leave whose leave_at passed 3 s ago and whose close has not landed */
-        sc.env.hunt = Object.assign({}, sc.env.hunt, { session: Object.assign({}, sc.env.hunt.session, { leave_at: iso(3000), phase: 'leaving' }) });
+        /* leave_at is stamped when the page first reads it, not at prep: a slow runner's page load (13 s+ on CI) otherwise ate the 16.4 s 'now' window */
+        let at = null;
+        const session = Object.assign({}, sc.env.hunt.session, { phase: 'leaving' });
+        Object.defineProperty(session, 'leave_at', { enumerable: true, configurable: true, get: () => (at = at || iso(3000)) });
+        sc.env.hunt = Object.assign({}, sc.env.hunt, { session });
       } });
       if (up) {
         const line = () => page.evaluate(() => { const l = document.querySelector('.ht-bar .ht-leaving'); const b = document.querySelector('.ht-bar [data-hs-act="leave"]');
@@ -1638,8 +1642,14 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (priced.length !== heals.length || !priced.every(rowOk)) fails.push('HS-8 the Food run is not the catalogue\'s HP / gold / gold a point: ' + JSON.stringify(priced));
       else if (priced.some((r, k) => k && Number(r.cells[2]) < Number(priced[k - 1].cells[2]))) fails.push('HS-8 the Food run is not cheapest per point first: ' + JSON.stringify(priced.map((r) => r.cells[2])));
       if (food.slice(0, priced.length).some((r) => r.cells[2] === '—')) fails.push('HS-8 an unpriced row sorts above a priced one');
-      /* Hover compares against the pick; the pick is the gold row, pinned. */
+      /* Hover compares against the pick; the pick is the gold row, pinned. A new pick takes its own starting rule (bar-draft.js
+         conditionsAfterPick), so the sentence above the list changes height and the list slides: measured 2026-11-10, Salted Trout is
+         clicked at 584,614 and Salted Lobster then stands at 584,619, under the pointer. The browser's mouseover for it carries the
+         click's own point, which Configure action passes over by design (pickedAt: Details never describes a row nobody aimed at), and
+         a move inside the same row fires no second one. So the pointer travels over another row first, as a hand does. */
       await page.click('.ca-run[data-run="food"] .ca-row[data-id="salted_trout"]');
+      const other = food.map((r) => r.id).find((id) => id !== 'salted_trout' && id !== 'salted_lobster');
+      await page.hover('.ca-run[data-run="food"] .ca-row[data-id="' + other + '"]');
       await page.hover('.ca-run[data-run="food"] .ca-row[data-id="salted_lobster"]');
       const cmp = await page.evaluate(() => ({ vs: document.querySelector('.ca-vs').textContent, lines: Array.from(document.querySelectorAll('.ca-cmp li')).map((l) => l.textContent),
         pinned: (document.querySelector('.ca-pinned.is-on .ca-name') || {}).textContent, lead: document.querySelector('.ca-lead').textContent }));
@@ -1660,7 +1670,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await page.click('.hc-foot [data-x="save"]');
       await until(() => s.sent('hr_action_set_options').length >= 1);
       const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
-      if (sent.length !== 1 || JSON.stringify(sent[0].slots[5]) !== JSON.stringify(want)) fails.push('HS-8 the town save sent ' + JSON.stringify(sent).slice(0, 300));
+      if (sent.length !== 1 || JSON.stringify(sent[0].slots[5]) !== JSON.stringify(want)) fails.push('HS-8 the town save sent ' + sent.length + ' save(s), slot 6 ' + JSON.stringify(sent[0] && sent[0].slots[5]));
       const saved = await wait(page, () => /Salted Trout/.test(document.querySelector('.hb-slot[data-slot="5"]').getAttribute('aria-label')) && !document.querySelector('[data-hs-win="configure-action"]'), null);
       if (!saved) fails.push('HS-8 the town slot did not show the server’s Salted Trout after it confirmed');
       /* Nobody is told to buy first (Tyler 10-19): with a store food on the bar and an empty bag, Hunt prep reads the store per use. */

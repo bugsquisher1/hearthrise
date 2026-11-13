@@ -18,6 +18,7 @@ import { MONSTERS } from '../data/monsters.js?v=0.2.126';
 import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.126';
 import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.126';
 import { tallyOf, tallyLine } from '../session/tally-sections.js?v=0.2.126';
+import { t } from '../render/player-text.js?v=0.2.126';
 
 const LOGS = new WeakMap();
 
@@ -70,6 +71,8 @@ export function lineOf(ev, n) {
       return line('supply', a + (ev.type === 'eat' ? ' eats ' : ' drinks ') + itemName(ev.item) + (ev.source === 'store' ? ', bought from the store.' : ' from the bag.'));
     /* A called boss crossed a line (boss-phases.js): the bar and the world say so too. */
     case 'boss_phase': return line('status', a + ' ' + BOSS_CALL_WORDS.log[ev.phase === 'adds' && n.guarded ? 'guarded' : ev.phase]);
+    /* A monster's spell winding up (monster-spells.js): the screen marks it, the log names it (a group spell reaches everyone). */
+    case 'spell': return line('status', t(ev.shape === 'group' ? 'log.spell_group' : 'log.spell', { who: a, spell: abilityName(ev.spell) }));
     case 'status_on': return line('status', b + ' is ' + (ev.status === 'bleed' ? 'bleeding' : 'affected by ' + ev.status) + '.');
     case 'status_off': return line('status', b + (ev.status === 'bleed' ? ' stops bleeding.' : ' is free of ' + ev.status + '.'));
     case 'death': return line('death', (n.isHero(ev.u) ? a : 'Your hero') + ' was killed by ' + monsterName(ev.monster) + '.');
@@ -109,9 +112,9 @@ export function logFor(cs) {
   let done = null;
   if (typeof cs.subscribe === 'function') {
     cs.subscribe(() => {
-      const t = tallyOf(cs);
-      if (!t) return;
-      const now = t.held.filter((x) => x.done).map((x) => [x.task + '@' + x.doneAt, x]);
+      const tally = tallyOf(cs);
+      if (!tally) return;
+      const now = tally.held.filter((x) => x.done).map((x) => [x.task + '@' + x.doneAt, x]);
       const h = huntOf(cs);
       const me = h && Number.isInteger(h.hero.unit) ? [h.hero.unit] : [];
       if (done) for (const [k, x] of now) if (!done.has(k)) push({ key: 'tally:' + k, type: 'tally', units: me, text: 'Task done: ' + tallyLine(x) + '. Tamsin pays when you are back in town.' });

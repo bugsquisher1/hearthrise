@@ -23,7 +23,7 @@
 import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.126';
 import { MONSTERS } from '../../data/monsters.js?v=0.2.126';
 import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.126';
-import { elementPermille } from '../elements.js?v=0.2.126';
+import { elementPermille, heroElementPermille } from '../elements.js?v=0.2.126';
 import { cheb, dist2, los } from './grid.js?v=0.2.126';
 import { unitById, leaderOf } from './movement.js?v=0.2.126';
 import { makeEvent } from './events.js?v=0.2.126';
@@ -46,8 +46,9 @@ export const roleOf = (u) => (u && u.side === 'hero' && HUNT_ROLES[u.role]) || n
 /** The living monsters that hold a target, in list order (unit-index.js: a frozen list, read once a sub-step in a swing). */
 export const engaged = (inst) => engagedOf(inst);
 
-/** What a blow of `element` is worth against `unit`, in permille (core/elements.js; never 0). Heroes take every element in full. */
-export const elementOn = (unit, element) => (unit.side === 'mon' ? elementPermille(MONSTERS[unit.kind], element) : 1000);
+/** What a blow of `element` is worth against `unit`, in permille (core/elements.js; never 0). A hero takes it less by
+    its own resistance to it (`resistPm`, from its gear: combat-sim.js syncUnit), in full with none (every hero today). */
+export const elementOn = (unit, element) => (unit.side === 'mon' ? elementPermille(MONSTERS[unit.kind], element) : heroElementPermille(unit.resistPm, element));
 
 /** Can hero `u` hit monster `m` from where it stands? Melee: adjacent. Ranged: range + line of sight (TG-02). */
 export function inRange(inst, u, m) {

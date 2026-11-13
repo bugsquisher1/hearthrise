@@ -96,6 +96,17 @@ export const METRICS = Object.freeze([
   Object.freeze({ id: 'allies_below', say: 'the party has', unit: noun('hero under', 'heroes under'), subjectAfter: true, value: 'count', ops: NUM, range: Object.freeze([0, 5]),
     subject: Object.freeze({ under_50: 'half health', under_60: '60% health', under_70: '70% health', under_80: '80% health', under_90: '90% health' }) }),
   Object.freeze({ id: 'enemies_in_aoe', say: 'it would hit', unit: noun('monster', 'monsters'), value: 'count', ops: NUM, range: Object.freeze([0, 25]), slotOnly: true }),
+  /* THE AREA SPELLS' CONDITIONS (Tyler 2026-11-08: "make sure the conditions are available that make sense"; the board's
+     "2026-11-08 Area spells" §2b). Every true/false `say` holds " is ": the slot's words deny it by " is not " (bar-draft.js conditionWords). */
+  Object.freeze({ id: 'party_hp_pct', say: 'the party’s HP', unit: PCT, value: 'pct', ops: NUM, range: Object.freeze([0, 100]) }),
+  /* the monsters winding up a spell whose mark covers me, or anyone in the party (a group strike covers everyone):
+     "the pack has at least 1 monster casting at me" */
+  Object.freeze({ id: 'enemy_casting', say: 'the pack has', unit: noun('monster casting at', 'monsters casting at'), subjectAfter: true, value: 'count', ops: NUM, range: Object.freeze([0, 8]),
+    subject: Object.freeze({ self: 'me', any: 'anyone' }) }),
+  Object.freeze({ id: 'in_fight', say: 'the fight is on', value: 'bool', ops: Object.freeze(['eq']) }),
+  /* the slot's own element against its aim (else my target): it takes more from it, or less */
+  Object.freeze({ id: 'target_weak', say: 'my target is weak to it', value: 'bool', ops: Object.freeze(['eq']), slotOnly: true }),
+  Object.freeze({ id: 'target_resists', say: 'my target is resistant to it', value: 'bool', ops: Object.freeze(['eq']), slotOnly: true }),
   Object.freeze({ id: 'target_is_boss', say: 'my target is a boss', value: 'bool', ops: Object.freeze(['eq']) }),
   /* (its subject is its unit: "I have at most 5 of my food left") */
   Object.freeze({ id: 'item_qty', say: 'I have', subjectAfter: true, value: 'count', ops: NUM, range: Object.freeze([0, 100000]),

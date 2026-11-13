@@ -124,7 +124,9 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, trainingHunt } from '../src/data/hunts.js';
+import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, TRAINING_HUNTS, trainingHunt } from '../src/data/hunts.js';
+import { TRAINING_RULES, TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from '../src/data/training.js';
+import { PROPERTY_TIERS } from '../src/data/homestead-tiers.js';
 import { BOSS_CALLS, BOSS_CALL_RULES } from '../src/data/boss-calls.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
@@ -136,12 +138,13 @@ import { SESSION_LIMITS, END_ORDER, NO_FIGHT_END_MIN, STAMINA_LOW_MIN, SESSIONS_
   RESUMABLE_KINDS, RESUME_AFTER_END, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY, ACTION_SET_OPTIONS, VALUE_HEADROOM,
   DEFAULT_RESUME, EVENT_COPY, GATHER_SHARE, coverSellable } from '../src/data/hunt-sessions.js';
 import { CONSUMABLE_RULES } from '../src/data/consumables.js';
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES } from '../src/data/abilities.js';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, AREA_TARGETS } from '../src/data/abilities.js';
+import { MONSTER_SPELLS, SPELL_BOUNDS } from '../src/data/monster-spells.js';
 import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, roleWeaponOf } from '../src/data/hunt-roles.js';
 import { isShield } from '../src/data/shields.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
 import { OPEN_GROUNDS, DENSITY_PICK, MAX_HEROES, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
-import { CALLED_GROUNDS } from '../src/data/hunt-grounds.js';
+import { CALLED_GROUNDS, TRAINING_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
 import { PARTY } from '../src/data/party.js';
 import { SESSION_CONFIG } from '../src/session/config.js';
@@ -256,7 +259,20 @@ export const WORLD_FIELDS_READ = Object.freeze({
    each pocket's whole pack, so they do not move). 2027-04-05-call-out is the file before this one and this file carries it whole. THE BOUND NARROWS:
    this file applies AFTER the hr-accrue carrying the same hunt-grounds.js (an old engine still pulls a party's bigger pack, which the narrower
    bound refuses kills_over), and once no party hunt that began on Normal on those four grounds before that deploy is still running. */
-export const OUT_NAME = '2027-04-07-brook-bear-hunt-sessions-catalogue.generated.sql';
+/* AREA SPELLS (lane/b-area-set, Tyler 2026-11-08: "start giving some monsters some aoe spells and our heros some more aoe spells"): 2027-04-07-brook-bear is the file before
+   this one and this one carries it whole (the gear sale ladder's bids and its two weapons, and under it one difficulty's kill bounds, Undertow, death_xp_permille 60, no death_xp_base, runes_out). hr_hunt_abilities gains the four hero area abilities
+   (Turning Cut, Raking Shot, Hoarfrost, Spring Tide); a monster unit carries its spell cooldowns and its live cast (monster-spells.js PERSISTED: spellCds, cast), so
+   hr_hunt_world_shape moves; and hr_hunt_limits gains spell_windup_min_ms (monster-spells.js SPELL_BOUNDS), the number the settle's Defense bound leans on: a spell's landing is a
+   blow taken at the plain rate, once a windup, and the bound prices a block every swing interval, so it holds while the least windup x block_mult covers the swing interval
+   (refused here, and executed by the file's self-check). No kill bound, spawn, bid, end reason or ground moves. Postgres reads no spell row: the engine casts them. THE SHAPE MOVES,
+   so the hr-accrue carrying the same src/core follows AT ONCE, and the client that draws the warning marks is live BEFORE that edge (never the edge first: a spell would land unwarned). */
+/* COMBAT TRAINING (lane/c-combat-training, Tyler 2026-11-08: "a public yard paid by the hour", "a personal training dummy for houses"; src/data/training.js):
+   2027-04-15-area-spells is the file before this one and this one carries it whole. The eight training grounds (yard and house, one per trained skill) join
+   hr_hunt_grounds, hr_hunt_ground_spawns, hr_hunt_travel; the training dummy joins hr_hunt_kill_bounds (no coin, no drop; its XP bound is its health at the
+   hit rate, the most one blow on it can teach); and the training rules land as hr_training_rules and hr_training_grounds, which hr_training_start, the
+   settle's hourly charge and its window check read (2027-04-16-combat-training.sql, which applies right after this file). No other row, bound, limit,
+   end reason or world shape moves: the hr-accrue that plays the grounds can land before or after this file, and the verb that opens them lands after both. */
+export const OUT_NAME = '2027-04-16-combat-training-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -358,13 +374,19 @@ export function catalogueRows(src = {}) {
     resumable: RESUMABLE_KINDS, resumeAfter: RESUME_AFTER_END,
     consumableLaneMs: CONSUMABLE_RULES.laneMs, abilityLanes: ABILITY_LANES, abilities: ABILITIES,
     grounds: OPEN_GROUNDS, worldMaxBytes: HUNT_TUNING.worldMaxBytes, calledHunts: CALLED_HUNTS, calledGrounds: CALLED_GROUNDS, calls: BOSS_CALLS, callRules: BOSS_CALL_RULES, partyMax: PARTY.maxSize,
+    trainingHunts: TRAINING_HUNTS, trainingGrounds: TRAINING_GROUNDS, training: { rules: TRAINING_RULES, places: TRAINING_PLACES, skills: TRAINING_SKILLS, homes: PROPERTY_TIERS },
     maxConcurrent: SESSION_CONFIG.maxConcurrentCharacters, maxSlot: SESSION_CONFIG.maxSlot,
     loginReward: PREMIUM_LOGIN_REWARD, worldVersion: WORLD_VERSION, worldShape: SHAPE, worldFields: WORLD_FIELDS,
-    roles: HUNT_ROLES, roleKeys: ROLE_KEYS, shieldArm: SHIELD_ARM, manaRegenPct: ABILITY_RULES.manaRegenPctPerMin, magicXpPermille: HUNT_XP.magicXpPermillePerMana, ...src,
+    roles: HUNT_ROLES, roleKeys: ROLE_KEYS, shieldArm: SHIELD_ARM, manaRegenPct: ABILITY_RULES.manaRegenPctPerMin, magicXpPermille: HUNT_XP.magicXpPermillePerMana,
+    /* the monsters' spells: the least windup any row may take (SPELL_BOUNDS), the rows, and the block multiple the Defense bound prices every blow at */
+    spellWindupMinMs: SPELL_BOUNDS.windupMs[0], spells: MONSTER_SPELLS, blockMult: COMBAT_XP.blockMult, ...src,
   };
   /* THE CALLED ROOMS (boss-calls.js) stand beside the open grounds in every row the settle reads; the roster below leaves them out. */
   S.hunts = [...S.hunts, ...S.calledHunts];
   S.grounds = { ...S.grounds, ...S.calledGrounds };
+  /* THE TRAINING GROUNDS (training.js) stand beside them too, served to one verb, hr_training_start; the roster below leaves them out as well. */
+  S.hunts = [...S.hunts, ...S.trainingHunts];
+  S.grounds = { ...S.grounds, ...S.trainingGrounds };
   /* THE STORE (Tyler 2026-10-14): each row is gold per use, never an item. */
   const basicSeen = new Set();
   const basics = [...S.basics].map((b) => {
@@ -417,7 +439,8 @@ export function catalogueRows(src = {}) {
   for (const h of S.hunts) addTravel(h, false);
   for (const id of Object.keys(S.monsters).sort()) {
     const m = S.monsters[id];
-    if (m.boss || m.champion || m.called === true) continue;
+    /* (a training dummy has no single-foe fight of its own: its grounds are its door) */
+    if (m.boss || m.champion || m.called === true || m.dummy === true) continue;
     addTravel(trainingHunt(id, m), true);
   }
   travel.sort((a, b) => (a.id < b.id ? -1 : 1));
@@ -436,7 +459,9 @@ export function catalogueRows(src = {}) {
     if (!(whole(a.mana) && a.mana >= 0) || !(whole(a.ammo) && a.ammo >= 0)) throw new Error(`ability ${id} mana / ammo`);
     /* An INACTIVE row may wait on a rune that is not a supply yet (abilities.js header). */
     if (a.active && a.rune !== null && !(own(S.supplies, a.rune))) throw new Error(`ability ${id} names rune ${a.rune}, which is no supply`);
-    return { id, ord: abilityOrder.indexOf(id), disciplines: [...a.disciplines].sort(), lane: a.lane, cd: a.cdMs, mana: a.mana, rune: a.rune, ammo: a.ammo, active: a.active === true };
+    /* `area`: it strikes a shape (abilities.js AREA_TARGETS) or heals the whole party. No column carries it: the self-check names those rows. */
+    return { id, ord: abilityOrder.indexOf(id), disciplines: [...a.disciplines].sort(), lane: a.lane, cd: a.cdMs, mana: a.mana, rune: a.rune, ammo: a.ammo, active: a.active === true,
+      area: AREA_TARGETS.includes(a.target) || a.target === 'party' };
   });
   const lim = {
     presets: S.setLimits.presets, slots: S.setLimits.slots,
@@ -487,8 +512,22 @@ export function catalogueRows(src = {}) {
     in_fight_regen_permille_s: VITALS.inFightRegenPermillePerS,
     flame_regen_max_permille: FLAME_REGEN.maxPermille, flame_regen_k: FLAME_REGEN.k,
     hit_xp_permille: Math.round(COMBAT_XP.hitXpPerDamage * 1000),
-    defense_xp_level_permille: COMBAT_XP.defenseXpPerLevelPermille, block_mult: COMBAT_XP.blockMult,
+    defense_xp_level_permille: COMBAT_XP.defenseXpPerLevelPermille, block_mult: S.blockMult,
+    /* THE LEAST WINDUP OF A MONSTER'S SPELL (monster-spells.js SPELL_BOUNDS): what the Defense bound leans on (below). */
+    spell_windup_min_ms: S.spellWindupMinMs,
   };
+  /* THE DEFENSE BOUND HOLDS A SPELL (hr_hunt_apply_member's v_def: every foe, every swing interval, a block's multiple). A spell's landing is
+     one blow taken at the PLAIN rate (hunt-rewards.js defenseXp: a `dmg`, never a shield's block, braced or not), it takes the caster a whole
+     windup in which it makes no swing, and it restarts the swing clock (monster-spells.js land). So a caster's Defense XP a millisecond is at
+     most 1 / windup against the bound's block_mult / swing interval, and the bound holds exactly while
+       spell_windup_min_ms x block_mult >= swing_interval_ms.
+     A row under the least windup, or a least windup under that line, would have honest settles refused value_over: refused here instead. */
+  if (!(whole(lim.spell_windup_min_ms) && whole(lim.block_mult) && lim.block_mult >= 1 && lim.spell_windup_min_ms * lim.block_mult >= S.swingIntervalMs)) {
+    throw new Error(`the least spell windup ${lim.spell_windup_min_ms} ms x block_mult ${lim.block_mult} is under the swing interval ${S.swingIntervalMs} ms: a spell's blows would outrun the settle's Defense bound`);
+  }
+  for (const [id, sp] of Object.entries(S.spells || {})) {
+    if (!(whole(sp.windupMs) && sp.windupMs >= lim.spell_windup_min_ms)) throw new Error(`monster spell ${id} winds up in ${sp.windupMs} ms, under the least windup ${lim.spell_windup_min_ms} the Defense bound leans on`);
+  }
   if (!(lim.gold_floor_min <= lim.gold_floor_default && lim.gold_floor_default <= lim.gold_floor_max)) {
     throw new Error(`GOLD_FLOOR ${JSON.stringify(S.floor)} is not min <= default <= max`);
   }
@@ -604,8 +643,11 @@ export function catalogueRows(src = {}) {
   const { rows: grounds, spawns: groundSpawns } = groundRows(S.grounds, { hunts: S.hunts.reduce((a, h) => { a[h.id] = h; return a; }, {}), monsters: S.monsters });
   /* THE CALLED ROOMS PAY NOTHING AND STAND APART (Tyler 2026-11-04; boss-calls.js): refused here, nothing written, unless every called row pays nothing and meets a party in its own room only. */
   const bossCalls = calledRows(S);
+  /* THE TRAINING GROUNDS PAY ONE SKILL AND STAND APART (training.js): refused here, nothing written, unless every rule is in range, the dummy pays
+     nothing but what a blow on it teaches, and each training ground holds one seat and the dummy alone. */
+  const training = trainingRows(S, grounds);
   /* what a player can meet on the grounds served above (a staged ground is not among them, nor a called room: the Bestiary's total never counts one) */
-  const reach = reachableOf(Object.fromEntries(Object.entries(S.grounds).filter(([, g]) => !g.call)), S.hunts.reduce((a, h) => { a[h.id] = h; return a; }, {}));
+  const reach = reachableOf(Object.fromEntries(Object.entries(S.grounds).filter(([, g]) => !g.call && !g.train)), S.hunts.reduce((a, h) => { a[h.id] = h; return a; }, {}));
   for (const id of reach.monsters) if (!ID.test(id) || !own(S.monsters, id)) throw new Error(`roster monster ${id} is not a monster id`);
   const roster = [...reach.monsters];
   /* THE DROP BOUNDS the self-check executes (dropNeeds: each ground's items, a second derivation from the authored rows) */
@@ -646,7 +688,7 @@ export function catalogueRows(src = {}) {
   const worldFields = { unit: fieldIdx('unit'), world: fieldIdx('world') };
   for (const n of WORLD_FIELDS_READ.unit) if (!own(worldFields.unit, n)) throw new Error(`world unit field ${n} (read by the party section) is not persisted`);
   for (const n of WORLD_FIELDS_READ.world) if (!own(worldFields.world, n)) throw new Error(`world field ${n} (read by the party section) is not persisted`);
-  return { bossCalls, supplySource, onEmpty, lanes, setOptions, killBounds, supplies, travel, lim, ends, vendor, targets, resumable, basics,
+  return { bossCalls, training, supplySource, onEmpty, lanes, setOptions, killBounds, supplies, travel, lim, ends, vendor, targets, resumable, basics,
     cover, resume, eventTypes, abilities, grounds, groundSpawns, roster, drops, world: { v: S.worldVersion, shape: S.worldShape, fields: worldFields },
     login: { item: lr.item ?? null, qty: lr.qty }, weapons, weaponRoles, shields,
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
@@ -701,6 +743,55 @@ function calledRows(S) {
   return rows.map((c) => ({ ...c, perDay: rules.perDay, limitMs: rules.limitMs }));
 }
 
+/* THE TRAINING RULES, AT THE GENERATOR (tests/combat-training.mjs mutates it): the rows of hr_training_rules and hr_training_grounds, or a throw.
+   The dummy (a `dummy` row) pays no coin, no drop and no Level XP, and stands on a training ground only; a training ground holds one seat, one
+   pocket and the dummy alone, on its own hunt, and names a place and a skill the rules list; every place and skill pair has its ground. */
+function trainingRows(S, groundRowsOut) {
+  const T = S.training;
+  const R = T.rules;
+  const dummies = Object.keys(S.monsters).filter((id) => S.monsters[id].dummy === true);
+  if (dummies.length !== 1) throw new Error(`training: ${dummies.length} dummy rows (want exactly one)`);
+  const dummy = dummies[0];
+  const d = S.monsters[dummy];
+  if (!(d.xp === 0 && Array.isArray(d.gp) && d.gp[0] === 0 && d.gp[1] === 0 && Array.isArray(d.drops) && d.drops.length === 0 && d.dropBonus === undefined)) {
+    throw new Error(`training dummy ${dummy} pays something: xp ${d.xp}, gp ${JSON.stringify(d.gp)}, ${(d.drops || []).length} drops`);
+  }
+  if (d.boss || d.champion || d.called === true || d.phases) throw new Error(`training dummy ${dummy} carries a boss's rules`);
+  if (!(whole(d.hp) && d.hp >= 100)) throw new Error(`training dummy ${dummy} hp ${d.hp}: the most one blow on it can teach must stand well over any blow`);
+  const skills = [...T.skills];
+  if (!skills.length || !skills.every((k) => ID.test(k))) throw new Error('training: no skills, or a bad skill id');
+  for (const k of skills) if (!(whole(R.xpPermille[k]) && R.xpPermille[k] >= 1 && R.xpPermille[k] <= 1000)) throw new Error(`training: ${k}'s xpPermille ${R.xpPermille[k]} is not 1..1000`);
+  if (Object.keys(R.xpPermille).some((k) => !skills.includes(k))) throw new Error('training: an xpPermille names no trained skill');
+  if (!(whole(R.hpFloorPm) && R.hpFloorPm >= 1 && R.hpFloorPm < 1000)) throw new Error(`training: hpFloorPm ${R.hpFloorPm} is not 1..999`);
+  if (!(whole(R.feeBase) && R.feeBase >= 0 && whole(R.feePerLevel) && R.feePerLevel >= 0 && R.feeBase + R.feePerLevel > 0)) throw new Error('training: the fee is not whole gold, or is nothing');
+  if (!(whole(R.maxHours) && R.maxHours >= 1 && R.maxHours <= S.sessionLimits.hours.max)) throw new Error(`training: maxHours ${R.maxHours} is not 1..${S.sessionLimits.hours.max} (a session's hours limit)`);
+  if (R.hourMs !== 3600000) throw new Error('training: an hour is 3600000 ms');
+  const home = T.homes.findIndex((h) => h.id === R.houseTier);
+  if (home < 1) throw new Error(`training: houseTier ${R.houseTier} is no property tier past the first`);
+  const places = Object.keys(T.places).sort();
+  if (!places.includes('yard') || !places.includes('house') || !T.places.yard.fee || T.places.house.fee) throw new Error('training: the yard charges by the hour and the house does not');
+  const rows = [];
+  for (const place of places) {
+    for (const skill of skills) {
+      const id = trainingHuntId(place, skill);
+      const g = S.grounds[id];
+      const h = S.hunts.find((x) => x.id === id);
+      const gr = groundRowsOut.find((x) => x.hunt === id);
+      if (!g || !h || !gr) throw new Error(`training: ${place} ${skill} has no ground or hunt ${id}`);
+      if (!g.train || g.train.place !== place || g.train.skill !== skill || !h.train || h.train.place !== place || h.train.skill !== skill) throw new Error(`training ground ${id} does not name ${place} ${skill}`);
+      const mons = g.pockets.flatMap((p) => (p.pack || []).concat(p.spawns, p.adds || [])).map((x) => x.monster);
+      if (gr.seats !== 1 || g.pockets.length !== 1 || gr.spawns !== 1 || mons.some((m) => m !== dummy)) throw new Error(`training ground ${id} is not one seat, one pocket and the dummy alone`);
+      rows.push({ hunt: id, place, skill, ord: skills.indexOf(skill), fee: T.places[place].fee === true, pm: R.xpPermille[skill] });
+    }
+  }
+  for (const g of Object.values(S.grounds)) {
+    const mons = g.pockets.flatMap((p) => (p.pack || []).concat(p.spawns, p.adds || [])).map((x) => x.monster);
+    if (!g.train && mons.includes(dummy)) throw new Error(`ground ${g.id} fields the training dummy`);
+    if (g.train && !rows.some((r) => r.hunt === g.hunt)) throw new Error(`ground ${g.id} trains and is no training row`);
+  }
+  return { dummy, rules: { feeBase: R.feeBase, feePerLevel: R.feePerLevel, hpFloorPm: R.hpFloorPm, maxHours: R.maxHours, houseTier: home, houseTierId: R.houseTier }, grounds: rows };
+}
+
 export function render(src) {
   const r = catalogueRows(src);
   const digest = createHash('sha256').update(JSON.stringify(r)).digest('hex');
@@ -727,12 +818,15 @@ export function render(src) {
   const resumableValues = r.resumable.map((k) => `  (${sq(k)})`).join(',\n');
   const endList = r.ends.map((e) => sq(e.r)).join(', ');
   const vendorValues = r.vendor.map((v) => `  (${sq(v.id)}, ${v.unit})`).join(',\n');
+  const trainValues = r.training.grounds.map((t) => `  (${sq(t.hunt)}, ${sq(t.place)}, ${sq(t.skill)}, ${t.ord}, ${t.fee}, ${t.pm})`).join(',\n');
+  const trainRule = r.training.rules;
   const callValues = r.bossCalls.map((c) => `  (${sq(c.id)}, ${sq(c.hunt)}, ${sq(c.from)}, ${sq(c.monster)}, ${c.fee}, ${c.perDay}, ${c.limitMs})`).join(',\n');
   const nLim = Object.keys(r.lim).length;
   const CATALOGUE = ['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value',
     'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes',
     'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns',
-    'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls'];
+    'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls',
+    'hr_training_rules', 'hr_training_grounds'];
   const tableList = CATALOGUE.map(sq).join(', ');
   return `-- ════════════════════════════════════════════════════════════════════════
 -- Hearthrise — THE HUNT SESSION CATALOGUE  (GENERATED — DO NOT EDIT)
@@ -749,7 +843,28 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/c-brook-bear, Tyler 2026-11-11: "No, if they want bigger pulls they need to up the difficulty"; the designer's ruling 3):
+-- NEW IN THIS FILE (lane/c-combat-training, Tyler 2026-11-08: "a public yard paid by the hour" and "a personal training dummy for houses"; src/data/training.js):
+-- the eight training grounds (yard and house, one per trained skill: melee, ranged, magic, defense) in hr_hunt_grounds, hr_hunt_ground_spawns and
+-- hr_hunt_travel; the training dummy (yard_dummy) in hr_hunt_kill_bounds, no coin and no drop, its XP bound its health at the hit rate; and the two
+-- training tables, hr_training_rules (the hourly fee, the dummy's floor, the longest session, the house dummy's property tier) and hr_training_grounds
+-- (each ground's place, skill, fee and XP share). No other row, bound, limit, end reason or world shape moves. ORDER: after
+-- 2027-04-15-area-spells-hunt-sessions-catalogue.generated.sql (carried whole) and 2027-04-16-combat-training-hunts-catalogue.generated.sql (the
+-- grounds' hunts in hr_hunts), right before 2027-04-16-combat-training.sql. The hr-accrue that plays the grounds may land on either side of it: no
+-- player can open one until the verb exists.
+--
+-- CARRIED FROM 2027-04-15-area-spells-hunt-sessions-catalogue (lane/b-area-set, Tyler 2026-11-08: "start giving some monsters some aoe spells and our heros some more aoe spells"):
+-- hr_hunt_abilities gains the four hero area abilities (turning_cut, raking_shot, hoarfrost, spring_tide: the bar's vocabulary, so a slot naming
+-- one is accepted); hr_hunt_world_shape MOVES (a monster unit carries its spell cooldowns and its live cast: spellCds, cast); hr_hunt_limits gains
+-- spell_windup_min_ms, the least windup a monster's spell may have, which the settle's Defense bound leans on (the self-check below executes it).
+-- Postgres reads no spell row: the engine casts them, and the settle bounds what they can pay. No kill bound, spawn, bid, end reason or ground
+-- moves. Every row the files before it set is carried (tests/area-spells-server.mjs AS-4 executes the comparison on the replayed chain): one difficulty's kill bounds
+-- and Undertow, the death share's death_xp_permille 60 with no death_xp_base, rune supply's runes_out, Phase 0's gear bids and weapons. ORDER: after
+-- 2027-04-07-brook-bear-hunt-sessions-catalogue.generated.sql (carried whole) and its hr-accrue, right before
+-- 2027-04-15-area-spells-rune-spells.generated.sql (its self-check compares hr_hunt_abilities), THEN the hr-accrue carrying the same src/core AT ONCE:
+-- the shape moves, so the old engine refuses every stored world until it deploys, and each running hunt's world restarts once. The client that
+-- draws the spells' warning marks goes live with that edge, never after it by more than the push (a spell must not land unwarned).
+--
+-- CARRIED FROM 2027-04-07-brook-bear-hunt-sessions-catalogue (lane/c-brook-bear, Tyler 2026-11-11: "No, if they want bigger pulls they need to up the difficulty"; the designer's ruling 3):
 -- a party's own Normal pull (hunt-grounds.js partyPull) is GONE, so hr_hunt_grounds.spawns of mill_cellar, meadowbrook_thicket, wickstead and
 -- mosslight_glade falls to their rows as built (the 2027-02-16 widening comes back out). The Brook Bear stands in the Glade's Vine Hollow as built;
 -- the spawn rows count each pocket's whole pack, so they do not move. Nothing else moves (no kill bound, limit, bid, ability or world shape).
@@ -1147,6 +1262,32 @@ create table if not exists public.hr_boss_calls (
 alter table public.hr_boss_calls drop column if exists party_min;
 comment on table public.hr_boss_calls is
   'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms and their fees (Call out, lane/c-boss-call). Names no player; character wipe c_no_player.';
+-- COMBAT TRAINING (training.js): the rules, one row, and each training ground's place, skill, fee and share. Read by hr_training_start, the settle's
+-- hourly charge (hr_training_hour) and its window check (hr_training_window), 2027-04-16-combat-training.sql.
+create table if not exists public.hr_training_rules (
+  id            boolean primary key default true check (id),
+  fee_base      int     not null check (fee_base >= 0),
+  fee_per_level int     not null check (fee_per_level >= 0),
+  hp_floor_pm   int     not null check (hp_floor_pm between 1 and 999),
+  max_hours     int     not null check (max_hours between 1 and 24),
+  house_tier    int     not null check (house_tier >= 1),
+  house_tier_id text    not null check (house_tier_id ~ '^[a-z0-9_]{1,32}$'),
+  constraint hr_training_rules_fee_ck check (fee_base + fee_per_level > 0)
+);
+create table if not exists public.hr_training_grounds (
+  hunt_id     text    primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
+  place       text    not null check (place in ('yard', 'house')),
+  skill       text    not null check (skill ~ '^[a-z0-9_]{1,64}$'),
+  ord         int     not null check (ord >= 0),
+  fee         boolean not null,
+  xp_permille int     not null check (xp_permille between 1 and 1000),
+  constraint hr_training_grounds_place_skill unique (place, skill),
+  constraint hr_training_grounds_fee_ck check (fee = (place = 'yard'))
+);
+comment on table public.hr_training_rules is
+  'tools/gen-hunt-sessions.mjs from src/data/training.js: the training yard''s fee, the dummy''s floor, the longest session, the house dummy''s property tier (lane/c-combat-training). Names no player; character wipe c_no_player.';
+comment on table public.hr_training_grounds is
+  'tools/gen-hunt-sessions.mjs from src/data/training.js and hunt-grounds.js TRAINING_GROUNDS: each training ground''s place, trained skill, hourly fee and XP share (lane/c-combat-training). Names no player; character wipe c_no_player.';
 do $$
 declare v_t text;
 begin
@@ -1244,6 +1385,12 @@ ${vendorValues};
 delete from public.hr_boss_calls;
 insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, fee, per_day, limit_ms) values
 ${callValues};
+delete from public.hr_training_grounds;
+delete from public.hr_training_rules;
+insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier, house_tier_id) values
+  (true, ${trainRule.feeBase}, ${trainRule.feePerLevel}, ${trainRule.hpFloorPm}, ${trainRule.maxHours}, ${trainRule.houseTier}, ${sq(trainRule.houseTierId)});
+insert into public.hr_training_grounds (hunt_id, place, skill, ord, fee, xp_permille) values
+${trainValues};
 
 -- ── SELF-CHECK (CLAUDE.md §4): the rows the generator wrote, and nothing more ──
 do $$
@@ -1275,6 +1422,8 @@ begin
      or (select count(*) from public.hr_hunt_roles) <> 0
      or (select count(*) from public.hr_hunt_shields) <> ${r.shields.length}
      or (select count(*) from public.hr_boss_calls) <> ${r.bossCalls.length}
+     or (select count(*) from public.hr_training_rules) <> 1
+     or (select count(*) from public.hr_training_grounds) <> ${r.training.grounds.length}
      or exists (select 1 from public.hr_hunt_weapon_roles where discipline is null)
      or exists (select 1 from public.hr_hunt_weapon_roles w where w.with_shield is not null
                  and not exists (select 1 from public.hr_hunt_weapon_roles k where k.weapon_type = w.with_shield))
@@ -1303,6 +1452,24 @@ begin
      or coalesce(public.hr_char_xp_for_level(2), 0) <= 0 or coalesce(public.hr_hunt_limit('skill_base'), 0) <= 0
      or coalesce(public.hr_hunt_limit('armour_slots'), 0) <= 0 then
     raise exception 'the stamina caps or the core model rows are malformed'; end if;
+  -- THE DEFENSE BOUND HOLDS A MONSTER'S SPELL (2027-04-15, area spells). hr_hunt_apply_member prices every foe at one block every swing
+  -- interval. A spell's landing is one blow taken at the PLAIN rate (a worn shield braces its damage, never its Defense XP), it costs its
+  -- caster a whole windup with no swing, and it restarts the swing clock. So the bound holds while the least windup x the block multiple
+  -- covers the swing interval; under that, an honest settle of a spell ground is refused value_over. Executed on the rows just written.
+  if public.hr_hunt_limit('spell_windup_min_ms') is null or public.hr_hunt_limit('block_mult') is null
+     or public.hr_hunt_limit('spell_windup_min_ms') * public.hr_hunt_limit('block_mult') < public.hr_hunt_limit('swing_interval_ms') then
+    raise exception 'the least spell windup (%) x block_mult (%) is under the swing interval (%): a spell''s blows outrun the Defense bound',
+      public.hr_hunt_limit('spell_windup_min_ms'), public.hr_hunt_limit('block_mult'), public.hr_hunt_limit('swing_interval_ms'); end if;
+  -- THE AREA ABILITIES AND THE PARTY HEALS (2027-04-15; src/data/abilities.js AREA_TARGETS and target 'party'): each is in the bar's vocabulary,
+  -- active, on the lane, disciplines, rune and ammo the data names, so the bar check accepts a slot naming one (Turning Cut, Raking Shot,
+  -- Hoarfrost and Spring Tide among them).
+${r.abilities.some((a) => a.area) ? `  select want.ability_id into v_t from (values
+${r.abilities.filter((a) => a.area).map((a) => `    (${sq(a.id)}, ${sq(a.lane)}, array[${a.disciplines.map(sq).join(', ')}]::text[], ${a.rune ? sq(a.rune) : 'null::text'}, ${a.ammo})`).join(',\n')}
+  ) want (ability_id, lane, disciplines, rune, ammo)
+   where not exists (select 1 from public.hr_hunt_abilities a where a.ability_id = want.ability_id and a.active and a.lane = want.lane
+                       and a.disciplines = want.disciplines and a.rune is not distinct from want.rune and a.ammo = want.ammo)
+   order by 1 limit 1;
+  if v_t is not null then raise exception 'the area ability % is not in hr_hunt_abilities as the data names it', v_t; end if;` : '  -- (no area ability in the data)'}
   -- CALL OUT, THE MONEY LINE: every called room stands only on rows that pay nothing, its rows reach no roster and no other ground, and it has its travel and its ground.
   if exists (select 1 from public.hr_boss_calls c
               where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = c.hunt_id)
@@ -1312,6 +1479,20 @@ begin
                  or exists (select 1 from public.hr_hunt_roster o where o.monster_id = c.monster_id)
                  or exists (select 1 from public.hr_hunt_ground_spawns s where s.monster_id = c.monster_id and s.hunt_id <> c.hunt_id)) then
     raise exception 'a called room pays, or its row reaches a normal hunt'; end if;
+  -- COMBAT TRAINING, THE MONEY LINE: every training ground stands in hr_hunts and hr_hunt_travel with one seat and the dummy alone; the dummy's bound
+  -- pays no coin and no drop; no other ground fields it and no roster names it.
+  if exists (select 1 from public.hr_training_grounds t
+              where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = t.hunt_id and g.seats = 1 and g.pockets = 1 and g.spawns = 1)
+                 or not exists (select 1 from public.hr_hunt_travel v where v.hunt_id = t.hunt_id and not v.training)
+                 or not exists (select 1 from public.hr_hunts h where h.hunt_id = t.hunt_id)
+                 or exists (select 1 from public.hr_hunt_ground_spawns s where s.hunt_id = t.hunt_id and s.monster_id <> ${sq(r.training.dummy)}))
+     or exists (select 1 from public.hr_hunt_kill_bounds b where b.monster_id = ${sq(r.training.dummy)} and (b.gold_max <> 0 or b.drops <> '{}'::jsonb or b.xp_max < 1))
+     or not exists (select 1 from public.hr_hunt_kill_bounds b where b.monster_id = ${sq(r.training.dummy)})
+     or exists (select 1 from public.hr_hunt_ground_spawns s where s.monster_id = ${sq(r.training.dummy)}
+                  and not exists (select 1 from public.hr_training_grounds t where t.hunt_id = s.hunt_id))
+     or exists (select 1 from public.hr_hunt_roster o where o.monster_id = ${sq(r.training.dummy)})
+     or exists (select 1 from public.hr_hunt_travel v where v.hunt_id = ${sq(r.training.dummy)}) then
+    raise exception 'a training ground holds more than its dummy, or the dummy pays, or it stands where it trains nobody'; end if;
   -- Every supply, vendor value, ability rune and login reward is a catalogued item;
   -- every named hunt and ground hunt is in hr_hunts; every training id is a
   -- non-boss combat target; every ground spawn has a kill bound.
@@ -1394,6 +1575,7 @@ function S_BID(id) { return vendorPriceOf(ITEMS, id); }
 /* --selftest: every refusal bites, and the shipped data passes. */
 function selftest() {
   catalogueRows();
+  const S_TRAINING = { rules: TRAINING_RULES, places: TRAINING_PLACES, skills: TRAINING_SKILLS, homes: PROPERTY_TIERS };
   const clone = (o) => JSON.parse(JSON.stringify(o));
   const S = { supplies: clone(SUPPLIES), hunts: clone(HUNTS) };
   const fixtureGround = { g1: { id: 'g1', hunt: HUNTS[0].id, map: 'x', start: [[1, 1]], route: [0], respawnMs: 60000, pullDist: 2,
@@ -1450,6 +1632,22 @@ function selftest() {
     'a free call': () => ({ calls: { ...BOSS_CALLS, rat_king: { ...BOSS_CALLS.rat_king, fee: 0 } } }),
     'a party size on the call (a hero alone may call)': () => ({ callRules: { ...BOSS_CALL_RULES, partyMin: 2 } }),
     'no shield arm (no worn set plays the tank)': () => ({ shieldArm: {} }),
+    /* THE DEFENSE BOUND AND A MONSTER'S SPELL: the least windup x block_mult covers the swing interval, and no row winds up faster than the least */
+    'a least spell windup the Defense bound does not cover': () => ({ spellWindupMinMs: Math.ceil(COMBAT_BALANCE.tickMs / COMBAT_XP.blockMult) - 100 }),
+    'a block multiple that no longer covers a spell\'s windup': () => ({ blockMult: 1 }),
+    'a monster spell under the least windup': () => ({ spells: { ...MONSTER_SPELLS, squeal: { ...MONSTER_SPELLS.squeal, windupMs: SPELL_BOUNDS.windupMs[0] - 100 } } }),
+    /* COMBAT TRAINING (training.js): the dummy pays nothing and stands only on a training ground; a training ground is one seat and the dummy */
+    'a training dummy that pays coin': () => ({ monsters: { ...MONSTERS, yard_dummy: { ...MONSTERS.yard_dummy, gp: [1, 2] } } }),
+    'a training dummy that pays XP': () => ({ monsters: { ...MONSTERS, yard_dummy: { ...MONSTERS.yard_dummy, xp: 5 } } }),
+    'a second training dummy': () => ({ monsters: { ...MONSTERS, yard_dummy_2: { ...MONSTERS.yard_dummy } } }),
+    'a training dummy on a hunting ground': () => ({ grounds: { ...OPEN_GROUNDS, mill_cellar: { ...OPEN_GROUNDS.mill_cellar,
+      pockets: [{ room: [4, 5, 10, 10], spawns: [{ monster: 'yard_dummy', x: 7, y: 8 }] }, ...OPEN_GROUNDS.mill_cellar.pockets.slice(1)] } } }),
+    'a training ground with two seats': () => ({ trainingGrounds: { ...TRAINING_GROUNDS, training_yard_melee: { ...TRAINING_GROUNDS.training_yard_melee, start: [[66, 68], [65, 68]] } } }),
+    'a training ground fielding a monster': () => ({ trainingGrounds: { ...TRAINING_GROUNDS, training_yard_melee: { ...TRAINING_GROUNDS.training_yard_melee,
+      pockets: [{ room: [64, 64, 68, 68], spawns: [{ monster: 'yard_dummy', x: 66, y: 66 }, { monster: 'rat', x: 67, y: 66 }] }] } } }),
+    'a training share over the whole': () => ({ training: { ...S_TRAINING, rules: { ...S_TRAINING.rules, xpPermille: { ...S_TRAINING.rules.xpPermille, melee: 1001 } } } }),
+    'a free yard': () => ({ training: { ...S_TRAINING, places: { ...S_TRAINING.places, yard: { fee: false } } } }),
+    'a session longer than an hours limit': () => ({ training: { ...S_TRAINING, rules: { ...S_TRAINING.rules, maxHours: 25 } } }),
   };
   /* The fixture ground itself must pass (the arm proves the ground path is live). */
   catalogueRows({ grounds: { ...fixtureGround, millrace_sewer: OPEN_GROUNDS.millrace_sewer, coppercap_warrens: OPEN_GROUNDS.coppercap_warrens } });

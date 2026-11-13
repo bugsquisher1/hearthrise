@@ -63,6 +63,8 @@ declare
   c_key  constant text := 'character-wipe-2026-11';
   c_wipe constant text[] := array[
     'account_bank', 'account_farm', 'account_farm_plots', 'account_gem_grants', 'account_play_net', 'account_storage_chests', 'account_wallet',
+    /* combat training (2027-04-16-combat-training.sql): the skills an account unlocked on its house dummy */
+    'account_house_dummy',
     'active_bounty', 'character_names', 'character_presence', 'chat_messages', 'chat_whispers',
     'clan_bans', 'clan_invites', 'clan_ledger', 'clan_members', 'clan_order_ballots', 'clan_order_votes', 'clan_stores', 'clan_tavern',
     'clan_withdrawals', 'clan_work_labour', 'clan_work_orders', 'clans',
@@ -117,7 +119,9 @@ declare
     /* scaled hunts' catalogues (2027-03-21-scaled-hunts-catalogue.generated.sql): the rule, the grounds, the scaled kill bounds */
     'hr_scaled_hunt_rule', 'hr_scaled_grounds', 'hr_scaled_kill_bounds',
     /* the live events' catalogues (2027-03-22-live-events-catalogue.generated.sql): the types and the schedule */
-    'hr_live_event_types', 'hr_live_events'];
+    'hr_live_event_types', 'hr_live_events',
+    /* combat training's catalogues (2027-04-16-combat-training-hunt-sessions-catalogue.generated.sql): the rules and the grounds */
+    'hr_training_rules', 'hr_training_grounds'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';

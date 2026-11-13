@@ -40,7 +40,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.126';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm, AREA_TARGETS, areaSpec, blowShare } from '../../data/abilities.js?v=0.2.126';
 import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js?v=0.2.126';
 import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.126';
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.126';
@@ -55,7 +55,8 @@ import { levelOf } from '../xp.js?v=0.2.126';
 import { ammoPerShot } from '../ammo.js?v=0.2.126';
 import { ITEMS } from '../../data/items.js?v=0.2.126';
 import { isRune } from '../../data/supplies.js?v=0.2.126';
-import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder, runeSupplyOf } from './conditions.js?v=0.2.126';
+import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder, runeSupplyOf, shapedAim } from './conditions.js?v=0.2.126';
+import { place, covers } from './shapes.js?v=0.2.126';
 import { shootsItem } from '../../data/hunt-roles.js?v=0.2.126';
 import { livingOf, targetedOf, heroesByIdOf } from './unit-index.js?v=0.2.126';
 
@@ -103,7 +104,13 @@ function targetFor(inst, hero, h, row, sc, cx) {
     case 'enemy': case 'cleave': return near[0] || null;
     case 'area': {
       if (cx && cx.aim && cx.aim.alive) return cx.aim;
-      const b = bestAim(inst, hero, h.range, 3, cx && cx.slot);
+      const b = bestAim(inst, hero, h.range, areaSpec(row).n, cx && cx.slot);
+      return b && b.count >= 1 ? b.aim : null;
+    }
+    /* A LINE through its best aim, a RING round the hero (conditions.js shapedAim, the count enemies_in_aoe reads). */
+    case 'line': case 'ring': {
+      if (cx && cx.aim && cx.aim.alive) return cx.aim;
+      const b = shapedAim(inst, hero, h.range, row, cx && cx.slot);
       return b && b.count >= 1 ? b.aim : null;
     }
     /* A self-heal (Mend) and a self-shield (Arcane Barrier) need missing HP; a self-shield's standing shell must
@@ -223,7 +230,7 @@ function suppliesFor(h, row, action, ammo) {
 export function gateOf(hero, h, row, atMs) {
   if (!row || !row.active) return 'inactive';
   const skip = ACTION_SET_SKIPS[h.actionSet] || ACTION_SET_SKIPS.hunt;
-  if ((skip.rune && row.rune) || (skip.area && row.target === 'area')) return 'action_set';
+  if ((skip.rune && row.rune) || (skip.area && AREA_TARGETS.includes(row.target))) return 'action_set';
   if (readyAt(hero.cds, row.id) > atMs) return 'cooldown';
   if (readyAt(hero.lanes, row.lane) > atMs) return 'lane';
   if (int(hero.mana) < row.mana) return 'mana';
@@ -284,6 +291,10 @@ export function firstUsable(inst, hero, sc, only) {
     const gate = gateOf(hero, h, row, sc.atMs);
     if (gate === 'cooldown' || gate === 'mana') return { why: gate };
     if (gate) return null;
+    /* AN ABILITY ITS HERO HAS NOT UNLOCKED (`unlock`, a level in the row's own skill): the slot is kept and waits
+       (`level`, the wait a locked rune version gives), never refused. A hero whose entry carries no skills is not gated
+       here (a bare fixture, a peer the browser draws: the server's commit is the truth), as runeFor. */
+    if (row.unlock && h.skills && skillLevel(h, row) < row.unlock) return { why: 'level' };
     const t = targetFor(inst, hero, h, row, sc, cx);
     if (!t) return { why: cx && (cx.ally || cx.aim) ? 'out_of_range' : 'no_target', t: cx && cx.ally ? cx.ally.id : undefined };
     /* A slot whose supplies the purse cannot pay WAITS (gold_short) and the next slot is tried. It never
@@ -328,6 +339,8 @@ function effect(inst, u, row, t, sc, v) {
   const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };
   /* A Surge (fire, surged) shows on its numbers with the crit mark. */
   const sg = !!(v && v.surge);
+  /* One hit's roll: the row's dmg [lo, hi], or a hitPm row's share of the hero's own largest blow (abilities.js blowShare). */
+  const dmg = () => roll(sc, row.hitPm ? blowShare(u.maxHit, row) : row.dmg);
   /* The row's status on `m` after a hit (applyStatus refuses a look-alike) and its source: the unit, the caster's
      level in the row's scalesWith skill (Tyler 10-16: bleed scales slowly with Melee) and the version's rune tier.
      A marking status (Green Sickness) reads neither. */
@@ -345,19 +358,24 @@ function effect(inst, u, row, t, sc, v) {
       break;
     case 'enemy':
       for (let i = 0; i < (row.hits || 1); i++) {
-        landHit(inst, sc, u, t, roll(sc, row.dmg), el, hitTag, sg);
+        landHit(inst, sc, u, t, dmg(), el, hitTag, sg);
         afflict(t);
       }
       break;
-    case 'area':
-      for (const m of engaged(inst).filter((o) => cheb(o, t) <= 1).sort((a, b) => a.id - b.id)) {
-        landHit(inst, sc, u, m, roll(sc, row.dmg), el, hitTag, sg);
+    /* AN AREA: every engaged monster the row's shape covers (shapes.js, areaSpec: the 3x3 on its aim, a line from the hero
+       through it, a ring round the hero), in id order, up to its maxHits. */
+    case 'area': case 'line': case 'ring': {
+      const s = place(areaSpec(row), u, t);
+      const hit = engaged(inst).filter((o) => covers(s, o.x, o.y)).sort((a, b) => a.id - b.id);
+      for (const m of Number.isInteger(row.maxHits) ? hit.slice(0, row.maxHits) : hit) {
+        landHit(inst, sc, u, m, dmg(), el, hitTag, sg);
         afflict(m);
       }
       break;
+    }
     case 'cleave': {
       const hits = [t, ...engaged(inst).filter((m) => m !== t && cheb(m, u) <= 1).sort((a, b) => a.id - b.id)].slice(0, row.maxHits);
-      for (const m of hits) landHit(inst, sc, u, m, roll(sc, row.dmg), el, hitTag, sg);
+      for (const m of hits) landHit(inst, sc, u, m, dmg(), el, hitTag, sg);
       break;
     }
     case 'self':

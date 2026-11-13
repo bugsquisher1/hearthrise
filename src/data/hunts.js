@@ -64,6 +64,8 @@
 // and then every pack's hunt (src/data/grounds/index.js), its id the pack's and `staged` while the pack is.
 // ════════════════════════════════════════════════════════════════════════
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.126';
+import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.126';
+import { SKILLS_DEF } from './skills.js?v=0.2.126';
 
 const BASE_HUNTS = Object.freeze([
   {
@@ -180,11 +182,23 @@ export const CALLED_HUNTS = Object.freeze([
     band: Object.freeze([32, 50]), spawns: Object.freeze([Object.freeze({ monster: 'chief_coppercap_called', w: 1 }), Object.freeze({ monster: 'goblin_digger_called', w: 1 })]), family: 'Humanoid', art: 'chief_coppercap_called', travelS: 0, pull: 1, respawnMs: 600000 }),
 ]);
 
+/* THE TRAINING GROUNDS (src/data/training.js; Tyler 2026-11-08): one hunt per place and skill, reached by one verb, hr_training_start, and never listed:
+   not in HUNTS, so no picker, advice line, tally task or spawn table reads them; HUNT_INDEX names them for the top bar and the end card. `train` says
+   what the hunt trains; the ground (hunt-grounds.js TRAINING_GROUNDS) carries the same. The band is every Level, from 1 (a dummy keeps pace with its hero). */
+const TRAINING_WORDS = Object.freeze({
+  yard: Object.freeze({ name: 'Training Yard', theme: (s) => 'Train your ' + s + ' on a dummy in the town yard. The yard charges for each hour at its start.' }),
+  house: Object.freeze({ name: 'House Dummy', theme: (s) => 'Train your ' + s + ' on your own dummy at home. It costs nothing to use.' }),
+});
+export const TRAINING_HUNTS = Object.freeze(Object.keys(TRAINING_PLACES).flatMap((place) => TRAINING_SKILLS.map((skill) => Object.freeze({
+  id: trainingHuntId(place, skill), name: TRAINING_WORDS[place].name, theme: TRAINING_WORDS[place].theme(SKILLS_DEF[skill].name),
+  train: Object.freeze({ place, skill }), band: Object.freeze([1, 200]), spawns: Object.freeze([Object.freeze({ monster: 'yard_dummy', w: 1 })]),
+  family: 'Dummy', art: 'yard_dummy', travelS: 0, pull: 1, respawnMs: 10000 }))));
+
 /** The words a player reads for a spawn's rarity. */
 export const RARITY_LABEL = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare' });
 
 /** Null-prototype index by id: `HUNT_INDEX['constructor']` is undefined. */
-export const HUNT_INDEX = Object.freeze([...HUNTS, ...CALLED_HUNTS].reduce((acc, h) => { acc[h.id] = h; return acc; },
+export const HUNT_INDEX = Object.freeze([...HUNTS, ...CALLED_HUNTS, ...TRAINING_HUNTS].reduce((acc, h) => { acc[h.id] = h; return acc; },
   Object.create(null)));
 
 /* A single-monster fight's walk, by the foe's tier: 0 for every tier until the

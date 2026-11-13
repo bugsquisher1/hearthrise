@@ -154,7 +154,12 @@ export class LiveLink {
       /* Not started, or out of seeds: (re)start from the server's world. A start point from an older
          commit leaves the prediction behind the clock, and advance() eases it on (catchUp). */
       if (!this.engine.running() && !this.engine.ended()) {
-        if (this.engine.seed(body.hunt_live)) { this._tl.setDelay(SESSION_CONFIG.liveDelayMs); this._tries = 0; this._joining = false; this._emit('live'); }
+        if (this.engine.seed(body.hunt_live)) {
+          this._tl.setDelay(SESSION_CONFIG.liveDelayMs); this._tries = 0; this._joining = false;
+          /* a monster's spell already winding up in the start point (a reload mid-windup) is drawn from the server's world */
+          this._tl.ingest({ events: this.engine.openCasts() }, this._now());
+          this._emit('live');
+        }
         return;
       }
       /* A start point the prediction agrees with hands it the next seeds. A character whose own poll
@@ -282,6 +287,8 @@ export class LiveLink {
     }
     this._tl.ingest({ units: res.units, fromMs: res.fromMs, events: res.events,
       track: res.track.filter((s) => !(ends.get(s.u) >= s.atMs)) }, client);
+    /* a spell still winding up at the instant is marked though its start was skipped (live-engine.js forward: spells) */
+    if (res.spells && res.spells.length) this._tl.ingest({ events: res.spells }, client);
     this._reseeded = res.alive;
     this._emit('reseed');
   }

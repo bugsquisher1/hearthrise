@@ -47,6 +47,7 @@ import { resolveHearthfind } from './hearthfind.js?v=0.2.126';
 import { magicXpFor } from './hunt/xp-share.js?v=0.2.126';
 import { splitEven, itemOwner, rareRoll } from './party-split.js?v=0.2.126';
 import { makeEvent } from './hunt/events.js?v=0.2.126';
+import { trainingSwing } from './hunt/training.js?v=0.2.126';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
 
@@ -143,13 +144,16 @@ function calledSwing(members, events, unitOf, boss) {
  *     weakness(monsterRow) → { dropMult } }.
  * `world` is the instance world AFTER the swing (a corpse is still a unit).
  * `ctx` = { rng (the swing's `r` stream), monsters?, tier? (the hunt's hunt-tiers.js row), hearthfind? (the indexed table; the catalogue's when absent),
- *   emit?(event) (the instance's world events: a party's `rare_roll`), call? (the room's boss call: it pays nothing) }.
+ *   emit?(event) (the instance's world events: a party's `rare_roll`), call? (the room's boss call: it pays nothing),
+ *   train? (a training ground's { place, skill }: it pays that skill only, src/core/hunt/training.js) }.
  * Answers the swing's deaths: [{ unit, atMs, monster }], in event order.
  */
 export function rewardSwing(members, events, world, ctx) {
   const unitOf = (id) => world.units.find((u) => u.id === id) || null;
   const presentIds = () => world.units.filter((u) => u.side === 'hero' && members.has(u.id)).map((u) => u.id).sort((a, b) => a - b);
   if (ctx.call) return calledSwing(members, events, unitOf, ctx.call.monster);
+  /* A TRAINING GROUND (src/core/hunt/training.js): the trained skill only, at its share; nothing else by any route. */
+  if (ctx.train) return trainingSwing(members, events, unitOf, ctx);
   const deaths = [];
   for (const ev of events) {
     switch (ev.type) {

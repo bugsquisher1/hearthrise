@@ -46,9 +46,9 @@ export function statusRow(id) {
 }
 
 /** The permille scale a stack of `row` lands with, from its source's level and rune tier. Refuses, never clamps.
-    A MARKING status (takenPm) is never scaled: 1000. */
+    A status that does not tick (a MARKING one, takenPm, or a SLOWING one, slowPm) is never scaled: 1000. */
 export function stackScale(row, source) {
-  if (row.takenPm !== undefined) return 1000;
+  if (!row.tick) return 1000;
   const lv = source && source.skillLv !== undefined && source.skillLv !== null ? source.skillLv : 0;
   const tier = source && source.runeTier !== undefined && source.runeTier !== null ? source.runeTier : 1;
   if (!Number.isInteger(lv) || lv < 0) throw new Error('status: source skillLv must be an integer >= 0, got ' + lv);
@@ -98,7 +98,8 @@ export function tickStatuses(inst, sc) {
     for (const st of list) {
       st.left -= sc.dtMs;
       const row = statusRow(st.s);
-      /* A MARKING status (takenPm) never ticks: it only wears off (damage.js landHit reads it). */
+      /* A MARKING status (takenPm) or a SLOWING one (slowPm) never ticks: it only wears off (damage.js landHit reads
+         a mark, damage.js slowed a slow). */
       if (!row.tick) continue;
       st.next -= sc.dtMs;
       if (st.next > 0 || st.left < 0) continue;

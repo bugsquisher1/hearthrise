@@ -24,7 +24,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import { HUNTS, OPEN_HUNTS, CALLED_HUNTS } from '../src/data/hunts.js';
+import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, TRAINING_HUNTS } from '../src/data/hunts.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { isMain } from '../tests/_is-main.mjs';
 import { wholeViewOrRerun } from './pack/whole.mjs';
@@ -40,8 +40,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    Wickstead opens on its painted ground (lane b-wickstead-art, 2026-10-28) in this forward file. */
 /* 2027-02-06 is APPLIED history. The Orchard Boar (Wickstead) and the Brook Bear (Mosslight Glade) join the spawn mixes
    (lane b-unsourced-items, 2026-10-28) in this forward file. */
-/* 2027-02-08 is APPLIED history. The called rooms (Call out, lane/c-boss-call) join hr_hunts in this forward file, with no spawn row: hunts.js CALLED_HUNTS. */
-export const OUT_NAME = '2027-03-12-boss-call-hunts-catalogue.generated.sql';
+/* 2027-02-08 is APPLIED history. The called rooms (Call out, lane/c-boss-call) join hr_hunts in 2027-03-12, with no spawn row: hunts.js CALLED_HUNTS. */
+/* 2027-03-12 is the file before this one. THE TRAINING GROUNDS (lane/c-combat-training, Tyler 2026-11-08; src/data/training.js) join hr_hunts in this
+   forward file, with no spawn row (their one door is hr_training_start, like a called room's): hunts.js TRAINING_HUNTS. */
+export const OUT_NAME = '2027-04-16-combat-training-hunts-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -71,6 +73,8 @@ export function huntRows(hunts, monsters) {
       const m = monsters[s.monster];
       /* A CALLED ROOM'S ONE DOOR IS ITS VERB (hr_boss_call): its boss is no spawn, so its hunt names none (below), and no other hunt may name him. */
       if (m.called === true && h.called !== true) throw new Error(`hunt ${h.id} spawn ${s.monster} is a called row`);
+      /* A TRAINING DUMMY stands only on a training ground (src/data/training.js), and a training ground fields nothing else. */
+      if ((m.dummy === true) !== !!h.train) throw new Error(`hunt ${h.id} spawn ${s.monster}: a dummy stands on a training ground, and only a dummy does`);
       for (const g of h.called === true ? [] : GATE_KEYS) {
         if (m[g] !== undefined && m[g] !== null && m[g] !== false) {
           throw new Error(`hunt ${h.id} spawn ${s.monster} carries its own gate (${g}); gated monsters are fought by declaration only`);
@@ -83,12 +87,13 @@ export function huntRows(hunts, monsters) {
       return [s.monster, s.w];
     });
     if (!own(monsters, h.art)) throw new Error(`hunt ${h.id} art ${h.art} is not a monster id`);
-    return { id: h.id, lo, hi, spawns: h.called === true ? [] : spawns };
+    /* A called room's and a training ground's one door is its verb (hr_boss_call, hr_training_start): no spawn row names its foe. */
+    return { id: h.id, lo, hi, spawns: h.called === true || h.train ? [] : spawns };
   }).sort((a, b) => (a.id < b.id ? -1 : 1));
 }
 
 /* A STAGED hunt (hunts.js `staged`: built, art pending) is not served: hr_hunts never names it. */
-export function render(hunts = [...OPEN_HUNTS, ...CALLED_HUNTS], monsters = MONSTERS) {
+export function render(hunts = [...OPEN_HUNTS, ...CALLED_HUNTS, ...TRAINING_HUNTS], monsters = MONSTERS) {
   const r = huntRows(hunts, monsters);
   const digest = createHash('sha256').update(JSON.stringify(r)).digest('hex');
   const nSpawns = r.reduce((n, h) => n + h.spawns.length, 0);
@@ -179,6 +184,8 @@ function selftest() {
     'proto id': (b) => { b[0].spawns[0].monster = 'constructor'; },
     'skill-gated spawn': (b) => { b[0].spawns[0].monster = '__gated_probe'; },
     'boss spawn': (b) => { b[0].spawns[0].monster = BOSS; },
+    'a dummy on a hunting ground': (b) => { b[0].spawns[0].monster = 'yard_dummy'; },
+    'a training ground fielding a monster': (b) => { b.push({ ...TRAINING_HUNTS[0], spawns: [{ monster: 'rat', w: 1 }] }); },
   };
   let bad = 0;
   huntRows(base, MONSTERS);

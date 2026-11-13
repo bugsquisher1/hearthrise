@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-13",
- "replay_ms": 64685,
+ "replay_ms": 46031,
  "counts": {
   "tracked_names": 838,
   "entries": 690
@@ -1298,7 +1298,8 @@
     "norm_len": 590,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-11-13: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_bank_cap_sync()",
@@ -7877,17 +7878,18 @@
    "touched_by": [
     "2027-02-21-rune-spells.generated.sql",
     "2027-03-08-rune-ladder-rune-spells.generated.sql",
-    "2027-03-24-undertow-rune-spells.generated.sql"
+    "2027-03-24-undertow-rune-spells.generated.sql",
+    "2027-04-15-area-spells-rune-spells.generated.sql"
    ],
    "live": {
-    "md5": "fa53e744db195eb7eb8add4f0e662abf",
-    "norm_len": 3523,
+    "md5": "4d3c13c967730a8369d7ac8ef412a331",
+    "norm_len": 4109,
     "measured": "2026-11-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "fa53e744db195eb7eb8add4f0e662abf",
-    "norm_len": 3523,
+    "md5": "4d3c13c967730a8369d7ac8ef412a331",
+    "norm_len": 4109,
     "source": "computed-from-replay"
    },
    "agree": true

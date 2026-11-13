@@ -20,7 +20,7 @@ const DISPLAY = Object.freeze({ ability: ['n'], status: ['name'] });
 /* THE SUGGESTED TRIGGER (Tyler 2026-10-23, c21): fields that never act behind a slot; abilities.js suggestedTrigger reads
    them into the conditions a role's default slot and a player's new slot start with, WRITTEN on the slot. Their reader
    is that function (the data copy under test), not the engine. */
-const SUGGEST = Object.freeze({ ability: ['whenBelowPct', 'minHurt'], ABILITY_RULES: ['areaMin'] });
+const SUGGEST = Object.freeze({ ability: ['whenBelowPct', 'minHurt', 'trigger'], ABILITY_RULES: ['areaMin'] });
 const suggestText = (root) => {
   const src = readFileSync(join(root, 'src/data/abilities.js'), 'utf8');
   const at = src.indexOf('export function suggestedTrigger(');
@@ -44,6 +44,16 @@ const listText = (root) => {
   const src = readFileSync(join(root, 'src/data/abilities.js'), 'utf8');
   const at = src.indexOf('export const disciplineAbilities = ');
   return at < 0 ? '' : strip(src.slice(at, src.indexOf('\n', at)));
+};
+/* THE AREA SHAPE AND THE BLOW'S SHARE (lane/b-area-engine, Tyler 2026-11-08): a line's `len`, a ring's `r` and the 3x3's
+   side (ABILITY_RULES.areaSide) are read by abilities.js areaSpec, a hitPm row's low end (hitLowPm) by blowShare (the data
+   copy under test), which the engine calls for every area cast and count and every hitPm hit (src/core/hunt/abilities.js,
+   conditions.js). Their reader is those functions, and the engine must call both. */
+const SHAPED = Object.freeze({ ability: ['len', 'r'], ABILITY_RULES: ['areaSide', 'hitLowPm'] });
+const shapeText = (root) => {
+  const src = readFileSync(join(root, 'src/data/abilities.js'), 'utf8');
+  const fn = (name) => { const at = src.indexOf('export function ' + name + '('); return at < 0 ? '' : strip(src.slice(at, src.indexOf('\n}\n', at) + 2)); };
+  return fn('areaSpec') + '\n' + fn('blowShare');
 };
 const ENGINE_DIRS = ['src/core', 'supabase/functions/hr-accrue'];
 const CLIENT_DIRS = ['src/shell', 'src/hunt-view', 'src/session'];
@@ -69,7 +79,7 @@ async function load(root) {
   const v = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(root, 'src/build-info.js'), 'utf8')) || [, ''])[1];
   const imp = (p) => import(pathToFileURL(join(root, p)).href + v);
   const M = { root, AD: await imp('src/data/abilities.js'), ST: await imp('src/data/statuses.js'), mods: [] };
-  for (const n of ['movement', 'targeting', 'roles', 'pull-cycle', 'damage', 'abilities', 'status', 'consumables', 'xp-share', 'conditions']) {
+  for (const n of ['movement', 'targeting', 'roles', 'pull-cycle', 'damage', 'monster-spells', 'abilities', 'status', 'consumables', 'xp-share', 'conditions']) {
     M.mods.push([n, await imp('src/core/hunt/' + n + '.js')]);
   }
   return M;
@@ -84,13 +94,15 @@ const cases = {
     const versioned = versionText(M.root);
     const calls = /\bversionOf\(/.test(engine) && /\boutputPm\(/.test(engine) && /\babilitySkill\(/.test(engine);
     const listed = listText(M.root), lists = /\bdisciplineAbilities\(/.test(engine);
+    const shaped = shapeText(M.root), shapes = /\bareaSpec\(/.test(engine) && /\bblowShare\(/.test(engine);
     const dead = [];
     const check = (kind, keys, display, suggested) => {
       for (const k of keys) {
         if (k === 'id') continue;
         const ok = display.includes(k) ? reads(client, k) : (suggested || []).includes(k) ? reads(suggest, k)
           : (VERSIONED[kind] || []).includes(k) ? reads(versioned, k) && calls
-            : (LISTED[kind] || []).includes(k) ? reads(listed, k) && lists : reads(engine, k);
+            : (LISTED[kind] || []).includes(k) ? reads(listed, k) && lists
+              : (SHAPED[kind] || []).includes(k) ? reads(shaped, k) && shapes : reads(engine, k);
         if (!ok) dead.push(kind + '.' + k);
       }
     };
@@ -129,9 +141,13 @@ const mutants = [
       ['src/data/abilities.js', "  if (row.target === 'ally') return [{ metric: 'ally_hp_pct', op: 'lt', value: row.whenBelowPct, subject: 'lowest' }];\n", ''],
       ['src/data/abilities.js', "  if (row.target === 'party') return [{ metric: 'allies_below', op: 'gte', value: row.minHurt, subject: 'under_' + row.whenBelowPct }];\n", '']] },
   { name: 'the area minimum is read by nothing', case: 'every-row-field-has-a-reader',
-    edits: [['src/data/abilities.js', "  if (row.target === 'area') return [{ metric: 'enemies_in_aoe', op: 'gte', value: ABILITY_RULES.areaMin }];\n", '']] },
+    edits: [['src/data/abilities.js', "  if (AREA_TARGETS.includes(row.target)) return [{ metric: 'enemies_in_aoe', op: 'gte', value: ABILITY_RULES.areaMin }];\n", '']] },
   { name: '[spell-content] the engine stops reading the level scaling (outputPm)', case: 'every-row-field-has-a-reader',
     edits: [['src/core/hunt/abilities.js', 'const pm = Math.floor((outputPm(row, s.version, skillLevel(h, row)) * s.pm) / 1000);', 'const pm = Math.floor((v.outPm * s.pm) / 1000);']] },
+  { name: '[area-engine] the 3x3 side is read by nothing', case: 'every-row-field-has-a-reader',
+    edits: [['src/data/abilities.js', "  if (row.target === 'area') return { shape: 'square', n: ABILITY_RULES.areaSide };", "  if (row.target === 'area') return { shape: 'square', n: 3 };"]] },
+  { name: '[area-engine] the engine stops sharing a hitPm blow (blowShare)', case: 'every-row-field-has-a-reader',
+    edits: [['src/core/hunt/abilities.js', '  const dmg = () => roll(sc, row.hitPm ? blowShare(u.maxHit, row) : row.dmg);', '  const dmg = () => roll(sc, row.dmg);']] },
   { name: '[spell-content] versionOf stops reading lvPm', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', '  return versionOf(row, n).outPm + (row && Number.isInteger(row.lvPm) ? row.lvPm * (lv - 1) : 0);', '  return versionOf(row, n).outPm;']] },
   { name: 'a persisted unit field nothing reads', case: 'every-persisted-unit-field-is-read',

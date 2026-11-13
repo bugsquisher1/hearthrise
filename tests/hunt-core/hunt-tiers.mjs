@@ -203,8 +203,14 @@ const cases = {
       if (!(xp > want - 0.05 && xp < want + 0.05)) return 'a dialled kill earns ' + xp.toFixed(3) + ' times the Level XP, the row says ' + want;
       const coin = perKill(dial, d.coinPerH) / perKill(flat, f.coinPerH);
       if (!(coin > 0.9 && coin < 1.1)) return 'a dialled kill pays ' + coin.toFixed(3) + ' times the coin (Tyler 2026-11-07: never gold)';
-      const loot = perKill(dial, d.incomePerH - d.coinPerH) / perKill(flat, f.incomePerH - f.coinPerH);
-      if (!(loot > 0.85 && loot < 1.15)) return 'a dialled kill pays ' + loot.toFixed(3) + ' times the loot (the same drops)';
+      /* THE LOOT LINE READS THE MEAN (2026-11-10, lane/b-area-set; drop-tables.mjs ranger-floor's rule): no dial moves a drop table, so a
+         dialled kill's loot is the same drops on other dice, and one seed swings past the bar on its own (0.72 to 1.07 on four seeds with no
+         spell at all, CONFLICTS 2026-11-08; 1.154 on the one seed once the monsters' first casts took dice). Total loot over total kills on
+         LOOT_SEEDS seeds; damage, XP and coin keep the one seed above. The mutant "more health pays more loot" holds the line's bite. */
+      const LOOT_SEEDS = 4;
+      const lootOf = (r) => perKill(r, r.heroes[0].incomePerH - r.heroes[0].coinPerH);
+      const loot = lootOf(R.runCell({ ...cell(GLADE, ['tank'], 31, 'deadly'), seeds: LOOT_SEEDS })) / lootOf(R.runCell({ ...cell(GLADE, ['tank'], 31, null), density: pull, seeds: LOOT_SEEDS }));
+      if (!(loot > 0.85 && loot < 1.15)) return 'a dialled kill pays ' + loot.toFixed(3) + ' times the loot (the same drops, ' + LOOT_SEEDS + ' seeds)';
       return null;
     } finally { rows.deadly = was; }
   },

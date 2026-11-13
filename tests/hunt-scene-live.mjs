@@ -80,6 +80,11 @@
 //         late judges each commit and start point when the prediction reaches its swing, no restart; a held verdict
 //         that differs asks at once; the correcting start point names what differed (live-diff.js).
 //   LV-33 EVERY BROWSER COMPUTES THE SERVER'S WORLD: no engine file reads a Math function the spec leaves to each JS engine.
+//   LV-36 A MONSTER'S SPELL IS STILL SEEN AFTER A RETURN OR A RELOAD (Tyler 2026-11-08, lane/b-area-client): every Cellar monster
+//         casts a group strike (a test row, put back after). The hero is viewed again mid-windup after a switch away (its prediction
+//         starts again from the server's world, which holds the cast: live-engine.js openCasts), and its tab comes back mid-windup
+//         after a pause (the catch-up skips the cast's start: forward's `spells`). Once the live view runs, every frame inside one of
+//         the server's windups [spell, spell_end) marks the hero and no frame outside every windup marks it.
 //   LV-4  THE PAGE (headless Chrome, the real client, the same server answers): the hunt
 //         draws, no page error, and the frame loop holds budget against the frozen sim
 //         (prototypes/hunt-sim) measured the same way.
@@ -1579,6 +1584,56 @@ async function nodeRules(M) {
       ok('LV-22', !loose.wait && loose.why !== 'holding' && !/Holding/.test(loose.label || ''), `with a monster on the mage the Challenge slot still reads ${JSON.stringify(loose)}`);
     }
   }
+
+  { // LV-36 a monster's spell, seen through a return and a tab coming back (lane/b-area-client)
+    const SID = 'lv_squall_mark', SPELL = { n: 'Test Squall', shape: 'group', range: 6, windupMs: 2000, cdMs: 6000, hitPm: 300, element: 'frost' };
+    const kinds = [...new Set(LM.HG.huntGroundOf('mill_cellar').ground.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((x) => x.monster || x)))]
+      .filter((k) => LM.ENGINE_MONSTERS[k]);
+    const tables = [LM.ENGINE_MONSTERS, LM.MONSTERS, M.MONSTERS];
+    const keep = kinds.map((k) => tables.map((t) => [Object.prototype.hasOwnProperty.call(t[k], 'spells'), t[k].spells]));
+    LM.ENGINE_SPELLS[SID] = SPELL;
+    /* the spells are this rule's subject: the switch on, whichever way the row ships */
+    const wasLive = LM.ENGINE_SPELL_SWITCH.live;
+    LM.ENGINE_SPELL_SWITCH.live = true;
+    /* and no first-cast wait (SPELL_STAGGER, lane/d-spell-tuning): the rule pauses the page at fixed instants and needs a windup open
+       past each; the stagger's own rules are hunt-live LV-STAGGER and hunt-core monster-spells first-cast-staggered */
+    const wasSpan = LM.ENGINE_SPELL_STAGGER.spanPm;
+    LM.ENGINE_SPELL_STAGGER.spanPm = 0;
+    for (const k of kinds) for (const t of tables) t[k].spells = [SID];
+    try {
+      /* THE WINDUPS, browser closed (the world does not depend on who watches): each cast's [spell, spell_end) */
+      const srv = LIVE_H.server(LM, [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6)]);
+      const ev = [];
+      for (let t = LIVE_H.T0 + 16000; t <= LIVE_H.T0 + 112000; t += 16000) { const c = srv.commit(t); if (c) ev.push(...c.tl.hunt_events); }
+      const wind = ev.filter((e) => e.type === 'spell').map((e) => ({ from: e.atMs, to: (ev.find((x) => x.type === 'spell_end' && x.u === e.u && x.atMs >= e.atMs) || {}).atMs }))
+        .filter((w) => Number.isFinite(w.to));
+      const after = (ms) => wind.find((w) => w.from > LIVE_H.T0 + ms && w.to - w.from >= 1500);
+      const w1 = after(40000), w2 = after(75000);
+      ok('LV-36', !!w1 && !!w2, 'CONTROL: no group strike wound up past 40 s and 75 s on the server (' + wind.length + ' windups)');
+      const PAD = 200;
+      const inside = (d) => wind.some((w) => d > w.from + PAD && d < w.to - PAD), outside = (d) => wind.every((w) => d < w.from - PAD || d > w.to + PAD);
+      for (const [tag, back, opt] of w1 && w2 ? [['viewed again', w1, { viewer: 'a', unview: [LIVE_H.T0 + 20000, w1.from + 400], clears: true, latencyMs: 400 }], ['tab back', w2, { pause: [LIVE_H.T0 + 60000, w2.from + 600] }]] : []) {
+        const r = { judged: 0, inBack: 0, missed: [], stray: [] };
+        await playLive(M, LM, book, [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6)], back.to - LIVE_H.T0 + 3000, ({ f, cs }) => {
+          const now = cs.timeline.serverNowAt(cs.now());
+          if (now === null || !cs.live.running()) return;
+          const d = now - cs.timeline.delayMs();
+          if (d < back.from) return;   // judged from the return on
+          r.judged++;
+          if (inside(d)) { if (d < back.to) r.inBack++; if (!f.marks.some((m) => m.kind === 'group')) r.missed.push(d - back.from); }
+          else if (outside(d) && f.marks.length) r.stray.push(d - back.from);
+        }, Object.assign({ fps: 30 }, opt));
+        console.log(`  LV-36 ${tag}: ${r.judged} frames judged from the return, ${r.inBack} inside the windup it came back in; ${r.missed.length} unmarked, ${r.stray.length} marked outside`);
+        ok('LV-36', r.inBack >= 5 && !r.missed.length, `${tag}: inside the server's windup the hero was not marked ${r.missed.length} time(s) (ms past its start: ${r.missed.slice(0, 5)}), ${r.inBack} frames inside`);
+        ok('LV-36', !r.stray.length, `${tag}: a mark was drawn outside every windup (ms past the return's windup start: ${r.stray.slice(0, 5)})`);
+      }
+    } finally {
+      delete LM.ENGINE_SPELLS[SID];
+      LM.ENGINE_SPELL_SWITCH.live = wasLive;
+      LM.ENGINE_SPELL_STAGGER.spanPm = wasSpan;
+      kinds.forEach((k, i) => tables.forEach((t, j) => { const [had, v] = keep[i][j]; if (had) t[k].spells = v; else delete t[k].spells; }));
+    }
+  }
   return fails;
 }
 
@@ -1769,6 +1824,10 @@ const MUTANTS = [
   ["the snapshot's alive is not read (LV-31)", 'src/session/hunt-sections.js', 'alive: u.alive !== false });', 'alive: true });', /^LV-31/],
   ['the snapshot reader keeps 64 units (LV-30, Andy #65)', 'src/session/hunt-sections.js', 'list(pose.units, (x) => x, POSE_UNITS_MAX)', 'list(pose.units, (x) => x, 64)', /^LV-30/],
   ["the bar keeps the hunt's first max HP (LV-21, Brannoc 10-22)", 'src/hunt-view/timeline.js', '    const max = base[2] || r.maxHp;', '    const max = r.bases[0][2] || r.maxHp;', /^LV-21/],
+  ['a fresh start draws no spell its world holds (LV-36)', 'src/session/live-link.js', '          this._tl.ingest({ events: this.engine.openCasts() }, this._now());\n', '', /^LV-36: viewed again/],
+  ['a restart drops the spells it skipped (LV-36)', 'src/session/live-link.js', '    if (res.spells && res.spells.length) this._tl.ingest({ events: res.spells }, client);\n', '', /^LV-36/],
+  ["a catch-up forgets its start world's casts (LV-36)", 'src/hunt-view/live-engine.js', '    const open = new Map(castsOf(st.world, st.next).map((ev) => [ev.u, ev]));', '    const open = new Map();', /^LV-36/],
+  ['a catch-up keeps no cast it skipped the start of (LV-36)', 'src/hunt-view/live-engine.js', "          if (ev.type === 'spell') open.set(ev.u, ev);\n", '', /^LV-36: tab back/],
 ];
 
 async function mutate() {

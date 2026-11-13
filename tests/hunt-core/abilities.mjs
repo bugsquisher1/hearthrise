@@ -1,10 +1,11 @@
 // tests/hunt-core/abilities.mjs — src/core/hunt/abilities.js + src/data/abilities.js
 // (spec §2 abilities; parity AB-01..AB-17). Run by run-all.mjs.
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
-import { suiteH4, oneHero, steps, supplySession, rngOf } from './fixtures/h4.js';
-import { hero, ROOT } from './fixtures/h1.js';
+import { suiteH4, oneHero, steps, supplySession, rngOf, loadData } from './fixtures/h4.js';
+import { hero, ROOT, loadCore } from './fixtures/h1.js';
 
 /* THE CLIENT'S SUPPLY ROWS, read from the repo (a planted copy holds only src/core and src/data): the Configure
    action table and the bar's store line must price what the engine buys, never more (CLAUDE.md §6). */
@@ -41,7 +42,13 @@ const cases = {
     const loose = runes.filter((id) => !M.SC.CRAFTED_RUNE_FAMILIES.includes(M.ITEMS[id].family));
     if (new Set(loose.map((id) => M.ITEMS[id].family)).size !== loose.length || !loose.every((id) => M.runes.runeTierOf(M.ITEMS[id]) === 1)) return 'an uncrafted family has more than its one old rune: ' + loose;
     const inactive = Object.values(M.AD.ABILITIES).filter((r) => !r.active).map((r) => r.id).sort();
-    return JSON.stringify(inactive) === '[]' ? null : 'held rows changed: ' + JSON.stringify(inactive);
+    if (JSON.stringify(inactive) !== '[]') return 'held rows changed: ' + JSON.stringify(inactive);
+    /* a row's own starting rule (`trigger`) is a slot the server's check (mirrored) takes, in the registry's words */
+    for (const r of Object.values(M.AD.ABILITIES).filter((x) => x.trigger)) {
+      const p = M.conditions.slotProblem({ action: { type: 'ability', id: r.id }, conditions: r.trigger, join: 'and' });
+      if (p) return r.id + "'s trigger is refused as a slot: " + JSON.stringify(p);
+    }
+    return null;
   },
   /* AB-10: the first usable ability in bar order fires, one per lane. */
   'first-usable-in-order': (M) => {
@@ -716,7 +723,146 @@ const cases = {
     const src = readFileSync(join(M.root, 'src/core/hunt/abilities.js'), 'utf8').replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
     return /press/i.test(src) ? 'abilities.js reads a press' : null;
   },
+  /* THE AREA ABILITIES' WORDS (lane/b-area-client; the board's "2026-11-08 Area spells" §2, §2b): Configure action's detail, the
+     bar's tooltip and the in-game wiki read one row's lines (action-facts.js factsOf). A line and a ring say what they strike, a
+     hitPm row its share of the hero's own blow (abilities.js blowShare), an `unlock` row its level, and a slot under that level
+     waits in the same words (reasonOf), never refused; every ability has a target line; the five area conditions pick plainly. */
+  'configure-words': (M) => {
+    if (!M.shell) return null;
+    const { factsOf, reasonOf } = M.shell.facts;
+    const { conditionFor, conditionWords } = M.shell.draft;
+    const f = (id) => factsOf({ type: 'ability', id });
+    const has = (x, type, effect, unlock) => x.type === type && effect.every((e) => x.effect.includes(e)) && x.unlock === unlock;
+    /* (the words are the text home's, src/data/text/bar.js: the shipped target lines, a line's and a ring's own beside them) */
+    const rows = [
+      ['raking_shot', 'Hits every monster on a line 4 tiles long, from you through your target.', ['Each monster on the line takes 40% to 80% of your biggest normal hit.'], 'Unlocks at Ranged 10.'],
+      ['turning_cut', 'Hits up to 8 monsters beside you.', ['Each monster it reaches takes 30% to 60% of your biggest normal hit.'], 'Unlocks at Melee 10.'],
+      ['hoarfrost', 'Hits the monsters around your target.', ['Deals 5–9 frost damage to each monster hit.', 'Causes chill for 4 s, so its swings and spell windups run 30% slower.'], 'Unlocks at Magic 14.'],
+      ['spring_tide', 'You and everyone near you get it.', ['Heals 120–180.'], 'Unlocks at Magic 20.'],
+    ];
+    for (const [id, type, effect, unlock] of rows) if (!has(f(id), type, effect, unlock)) return id + ' reads ' + JSON.stringify(f(id));
+    if (f('power_strike').unlock !== null) return 'a row with no unlock reads one: ' + f('power_strike').unlock;
+    /* a status with no slow and no mark still says how long it lasts, and Sickness what it does */
+    if (!f('rend').effect.includes('Causes bleed for 6 s.') || !f('green_sickness').effect.includes('Causes sickness for 6 s, so it takes 10% more from every blow.')) return 'the old statuses read ' + JSON.stringify([f('rend').effect, f('green_sickness').effect]);
+    /* a shot spell's cost line says what each cast shoots (Raking Shot looses two of the bar's ammo), a plain one only mana */
+    const src = ['raking_shot', 'power_strike'].map((id) => f(id).cost);
+    if (src.join('|') !== 'Cost: 10 mana · 2 ammo|Cost: 6 mana') return 'the cost lines read ' + JSON.stringify(src);
+    const blind = Object.keys(M.AD.ABILITIES).filter((id) => !f(id).type);
+    if (blind.length) return 'abilities with no target line: ' + blind;
+    /* the slot under its unlock waits, in the same words, from the server's skills; at the level it does not */
+    const set = { discipline: 'ranged', role: 'ranger', slots: [], store: [], supplySource: 'store', onEmpty: 'switch' };
+    const sl = { action: { type: 'ability', id: 'raking_shot' }, conditions: [], join: 'and', usable: true };
+    const bag = [{ id: 'bronze_arrows', qty: 50 }];
+    const under = reasonOf(sl, set, bag, null, 'bronze_arrows', { ranged: { level: 7, xp: 0 } }, null);
+    if (!under || under.code !== 'unlock' || under.text !== 'Unlocks at Ranged 10, and you have 7. This slot waits until then.') return 'a slot under its unlock reads ' + JSON.stringify(under);
+    const at = reasonOf(sl, set, bag, null, 'bronze_arrows', { ranged: { level: 10, xp: 0 } }, null);
+    if (at && at.code === 'unlock') return 'a slot at its unlock still waits: ' + JSON.stringify(at);
+    if (reasonOf(sl, set, bag, null, 'bronze_arrows', null, null)) return 'with no skills read the slot claims a wait: ' + JSON.stringify(reasonOf(sl, set, bag, null, 'bronze_arrows', null, null));
+    /* a new pick takes its own starting rule when the slot still holds the last pick's untouched (Turning Cut, then a food), never
+       the player's own edits */
+    const { conditionsAfterPick, startConditions } = M.shell.draft;
+    const cutA = { type: 'ability', id: 'turning_cut' }, fish = { type: 'consume', id: 'cooked_shrimp' };
+    const after = conditionsAfterPick(startConditions(cutA), cutA, fish), mine = [{ metric: 'enemies_in_aoe', op: 'gte', value: 4 }];
+    if (JSON.stringify(after) !== JSON.stringify(startConditions(fish)) || startConditions(fish)[0].metric !== 'self_hp_pct') return 'a food picked after Turning Cut keeps ' + JSON.stringify(after);
+    if (conditionsAfterPick(mine, cutA, fish) !== mine) return 'a pick threw away the player’s own conditions';
+    /* the area conditions, picked: each starts on a test that can hold, in plain words */
+    const said = ['party_hp_pct', 'enemy_casting', 'in_fight', 'target_weak', 'target_resists'].map((id) => conditionWords(conditionFor(id)));
+    const want = ['the party’s HP is below 50%', 'the pack has at least 1 monster casting at me', 'the fight is on', 'my target is weak to it', 'my target is resistant to it'];
+    return JSON.stringify(said) === JSON.stringify(want) ? null : 'the area conditions read ' + JSON.stringify(said);
+  },
+  /* HERO AREA ABILITIES BY SHAPE (lane/b-area-engine; Tyler 2026-11-08 "our heros some more aoe spells"): a LINE from the hero
+     through its best aim, a RING round the hero up to maxHits, a hitPm row hitting for a share of the hero's own largest blow,
+     `unlock` waiting on the row's skill, a row's own `trigger`, and the boss set skipping both shapes. The designer's rows are
+     lane 2's: two test rows are planted into a copy of the tree under test (a mutant's copy under a mutant). */
+  'hero-area-shapes': async (M) => {
+    const P = await withRows(M.root, AREA_ROWS);
+    try {
+      const X = P.M;
+      const bad = X.AD.validate();
+      if (bad.length) return 'the planted rows: ' + bad.join('; ');
+      const line = X.AD.ABILITIES.zz_line, ring = X.AD.ABILITIES.zz_ring;
+      /* the row's own trigger is what a new slot starts with, and the server's slot check (mirrored) takes it */
+      if (JSON.stringify(X.AD.suggestedTrigger(ring)) !== JSON.stringify(ring.trigger)) return 'a row\'s trigger is not its new slot\'s conditions';
+      if (X.conditions.slotProblem({ action: { type: 'ability', id: 'zz_ring' }, conditions: X.AD.suggestedTrigger(ring), join: 'and' })) return 'the row\'s trigger is refused as a slot';
+      if (JSON.stringify(X.AD.suggestedTrigger(line)) !== JSON.stringify([{ metric: 'enemies_in_aoe', op: 'gte', value: X.AD.ABILITY_RULES.areaMin }])) return 'a line starts with no area minimum';
+      /* the boss set skips both shapes, as it skips the 3x3 */
+      if (X.abilities.gateOf({ cds: {}, lanes: {}, mana: 99 }, { actionSet: 'boss' }, line, 0) !== 'action_set' || X.abilities.gateOf({ cds: {}, lanes: {}, mana: 99 }, { actionSet: 'boss' }, ring, 0) !== 'action_set') return 'the boss set casts a line or a ring';
+      if (X.conditions.areaTopOf({ action: { type: 'ability', id: 'zz_line' } }, null) !== 4 || X.conditions.areaTopOf({ action: { type: 'ability', id: 'zz_ring' } }, null) !== 2) return 'the slot\'s top count is not the line\'s length or the ring\'s maxHits';
+      /* THE LINE: a Ranged 9 hero waits (`level`), a Ranged 10 one casts through the three rats in a row and not the fourth */
+      const lineFight = (lv) => {
+        const slot = { action: { type: 'ability', id: 'zz_line' }, conditions: [{ metric: 'enemies_in_aoe', op: 'gte', value: 3 }], join: 'and' };
+        const x = oneHero(X, { role: 'ranger', acc: 1000, maxHit: 10, target: 10 }, { bar: [slot], range: 7, skills: { ranged: X.XP.skillXpForLevel('ranged', lv) } },
+          [{ x: 13, y: 3, hp: 900, maxHp: 900 }, { x: 14, y: 3, hp: 900, maxHp: 900 }, { x: 15, y: 3, hp: 900, maxHp: 900 }, { x: 13, y: 5, hp: 900, maxHp: 900 }]);
+        x.sc.rng = rngOf(X, 9);
+        X.abilities.castAbilities(x.inst, x.sc);
+        return x.sc;
+      };
+      const early = lineFight(9);
+      const wait = early.events.find((e) => e.type === 'rule_wait');
+      if (casts(early).length || !wait || wait.why !== 'level') return 'a Ranged 9 hero cast a Ranged 10 line: ' + JSON.stringify({ casts: casts(early), wait });
+      const at = lineFight(10);
+      const hit = at.events.filter((e) => e.type === 'dmg' && e.ability === 'zz_line');
+      const [lo, top] = X.AD.blowShare(10, line);
+      /* the wiki formula, stated here on its own: top = floor(M x hitPm / 1000), low = ceil(top x hitLowPm / 1000) */
+      const wantTop = Math.floor((10 * line.hitPm) / 1000);
+      if (top !== wantTop || lo !== Math.ceil((wantTop * X.AD.ABILITY_RULES.hitLowPm) / 1000)) return 'blowShare(10) of an 800 hitPm row is [' + lo + ', ' + top + ']';
+      if (JSON.stringify(casts(at)) !== '["zz_line"]' || JSON.stringify(hit.map((e) => e.t)) !== '[10,11,12]') return 'the line hit ' + JSON.stringify(hit.map((e) => e.t)) + ', want the three in a row';
+      if (hit.some((e) => e.amount < lo || e.amount > top)) return 'a line hit off its share [' + lo + ', ' + top + '] of the blow: ' + hit.map((e) => e.amount);
+      /* THE RING: three beside a sword hero, maxHits 2: the two lowest ids */
+      const r = oneHero(X, { role: 'melee_dps', acc: 1000, maxHit: 20, target: 10 }, { bar: [] },
+        [{ x: 13, y: 3, hp: 900, maxHp: 900 }, { x: 11, y: 3, hp: 900, maxHp: 900 }, { x: 12, y: 4, hp: 900, maxHp: 900 }, { x: 15, y: 3, hp: 900, maxHp: 900 }]);
+      r.sc.rng = rngOf(X, 10);
+      X.abilities.fire(r.inst, r.h, { row: ring, target: r.inst.world.units.find((u) => u.id === 10), lines: [] }, r.sc);
+      const rh = r.sc.events.filter((e) => e.type === 'dmg' && e.ability === 'zz_ring');
+      const [rlo, rtop] = X.AD.blowShare(20, ring);
+      if (JSON.stringify(rh.map((e) => e.t)) !== '[10,11]') return 'the ring of maxHits 2 hit ' + JSON.stringify(rh.map((e) => e.t)) + ', want the two lowest beside';
+      if (!rh.every((e) => e.amount >= rlo && e.amount <= rtop)) return 'a ring hit off its share of the blow: ' + rh.map((e) => e.amount);
+      /* THE LONG PARTY HEAL (Spring Tide's shape: radius 8, a 60 s cooldown, 160 mana, its own "the fight is on" rule) */
+      const tide = X.AD.ABILITIES.zz_tide;
+      const tideFight = (fight) => {
+        const x = oneHero(X, { role: 'healer', mana: 400, maxMana: 400, hp: 50, maxHp: 100 }, { bar: [{ action: { type: 'ability', id: 'zz_tide' }, conditions: X.AD.suggestedTrigger(tide), join: 'and' }], range: 7 },
+          fight ? [{ x: 13, y: 3, hp: 900, maxHp: 900 }] : []);
+        const near = hero(X, 2, 14, 5, { hp: 40, maxHp: 100 }), far = hero(X, 3, 3, 3, { hp: 40, maxHp: 100 });
+        x.inst.world.units.splice(1, 0, near, far);
+        x.inst.world.phase = fight ? 'fight' : 'travel';
+        x.sc.rng = rngOf(X, 11);
+        steps(x.inst, x.sc, cast(X), 20, 0);
+        return { x, near, far };
+      };
+      const calm = tideFight(false);
+      if (casts(calm.x.sc).length) return 'the long party heal fired between pulls: ' + casts(calm.x.sc);
+      const hot = tideFight(true);
+      const heals = hot.x.sc.events.filter((e) => e.type === 'heal').map((e) => e.t).sort();
+      if (JSON.stringify(casts(hot.x.sc)) !== '["zz_tide"]' || JSON.stringify(heals) !== '[1,2]') return 'the long party heal: casts ' + casts(hot.x.sc) + ', healed ' + heals + ' (want once, the caster and the ally within 8 tiles, not the one 9 away)';
+      /* (19 sub-steps of regen after the cast: 25% of 400 a minute is 3 mana) */
+      if (hot.x.h.mana < 400 - tide.mana || hot.x.h.mana > 400 - tide.mana + 4 || hot.x.h.cds.zz_tide !== tide.cdMs) return 'the long heal\'s mana or cooldown: ' + hot.x.h.mana + ' / ' + JSON.stringify(hot.x.h.cds);
+      return null;
+    } finally { P.done(); }
+  },
 };
+
+/* THE TEST AREA ROWS (hero-area-shapes): planted beside Circle of Renewal in a copy of the tree under test, never shipped. */
+const AREA_ROWS = [['src/data/abilities.js', "    versions: [[50, 1000], [60, 1740], [72, 2520], [86, 3310], [104, 4100]], lvPm: LV_PM }),\n",
+  "    versions: [[50, 1000], [60, 1740], [72, 2520], [86, 3310], [104, 4100]], lvPm: LV_PM }),\n"
+  + "  ab({ id: 'zz_line', n: 'Test Line', disciplines: ['ranged'], lane: 'offense', cdMs: 8000, mana: 10, unlock: 10, target: 'line', len: 4, hitPm: 800 }),\n"
+  + "  ab({ id: 'zz_ring', n: 'Test Ring', disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 8, target: 'ring', maxHits: 2, hitPm: 600,\n"
+  + "    trigger: [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }, { metric: 'in_fight', op: 'eq', value: true }] }),\n"
+  + "  ab({ id: 'zz_tide', n: 'Test Tide', disciplines: ['restoration'], lane: 'heal', cdMs: 60000, mana: 160, target: 'party', heal: [120, 180], radius: 8,\n"
+  + "    trigger: [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_60' }, { metric: 'in_fight', op: 'eq', value: true }] }),\n"]];
+/** A copy of `root`'s src/core + src/data with `edits` applied, loaded as the suite loads a tree: { M, done() }. */
+async function withRows(root, edits) {
+  const dir = mkdtempSync(join(tmpdir(), 'hunt-rows-'));
+  for (const d of ['src/core', 'src/data']) cpSync(join(root, d), join(dir, d), { recursive: true, filter: (f) => !/\.(png|webp)$/i.test(f) });
+  cpSync(join(root, 'src/build-info.js'), join(dir, 'src/build-info.js'));
+  for (const [file, from, to] of edits) {
+    const p = join(dir, file);
+    const src = readFileSync(p, 'utf8');
+    if (src.split(from).length !== 2) { rmSync(dir, { recursive: true, force: true }); throw new Error('withRows: ' + file + ' anchor not found once'); }
+    writeFileSync(p, src.replace(from, () => to));
+  }
+  const M = await loadCore(dir);
+  return { M: Object.assign(M, await loadData(M)), done: () => rmSync(dir, { recursive: true, force: true }) };
+}
 
 const mutants = [
   { name: 'a healer spell trains Magic at another rate', case: 'a-mage-and-a-healer-train-alike',
@@ -833,7 +979,7 @@ const mutants = [
   { name: '[spell-content] the sickness mark adds nothing', case: 'sickness-marks-what-it-hits',
     edits: [['src/core/hunt/damage.js', ' ? target.markPm : 0) + takenPmOf(target);', ' ? target.markPm : 0);']] },
   { name: '[spell-content] an area spell marks only its aim', case: 'sickness-marks-what-it-hits',
-    edits: [['src/core/hunt/abilities.js', '        landHit(inst, sc, u, m, roll(sc, row.dmg), el, hitTag, sg);\n        afflict(m);\n', '        landHit(inst, sc, u, m, roll(sc, row.dmg), el, hitTag, sg);\n']] },
+    edits: [['src/core/hunt/abilities.js', '        landHit(inst, sc, u, m, dmg(), el, hitTag, sg);\n        afflict(m);\n', '        landHit(inst, sc, u, m, dmg(), el, hitTag, sg);\n']] },
   { name: '[spell-content] the sickness mark never wears off', case: 'sickness-marks-what-it-hits',
     edits: [['src/core/hunt/status.js', '      st.left -= sc.dtMs;\n      const row = statusRow(st.s);\n', '      const row = statusRow(st.s);\n      if (row.tick) st.left -= sc.dtMs;\n']] },
   { name: 'the mark is drawn but adds nothing', case: 'mark-adds-damage',
@@ -859,7 +1005,7 @@ const mutants = [
   { name: 'a rune is never taken from the bag', case: 'rune-own-then-store',
     edits: [['src/core/hunt/abilities.js', '  for (const l of pick.lines) if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }', '']] },
   { name: 'the action set skips nothing', case: 'action-set-skips',
-    edits: [['src/core/hunt/abilities.js', "  if ((skip.rune && row.rune) || (skip.area && row.target === 'area')) return 'action_set';", '']] },
+    edits: [['src/core/hunt/abilities.js', "  if ((skip.rune && row.rune) || (skip.area && AREA_TARGETS.includes(row.target))) return 'action_set';", '']] },
   { name: 'a mana basic swings on an empty pool', case: 'basic-costs',
     edits: [['src/core/hunt/abilities.js', '    if (int(hero.mana) < c.mana) return false;', '']] },
   { name: 'a multi-shot ability may fire short', case: 'ammo-per-shot',
@@ -876,6 +1022,40 @@ const mutants = [
     edits: [['src/core/hunt/abilities.js', "    case 'taunt': challengeFrom(inst, sc, u); break;", "    case 'taunt': break;"]] },
   { name: 'fractional mana is dropped every sub-step', case: 'mana-regen',
     edits: [['src/core/hunt/abilities.js', '  u.manaMilli -= whole * 1000;', '  u.manaMilli = 0;']] },
+  { name: '[area-engine] a line strikes only its aim', case: 'hero-area-shapes',
+    edits: [['src/core/hunt/abilities.js', "      const s = place(areaSpec(row), u, t);\n      const hit = engaged(inst).filter((o) => covers(s, o.x, o.y))", "      const s = place(areaSpec(row), u, t);\n      const hit = engaged(inst).filter((o) => o === t)"]] },
+  { name: '[area-engine] a ring past its maxHits', case: 'hero-area-shapes',
+    edits: [['src/core/hunt/abilities.js', '      for (const m of Number.isInteger(row.maxHits) ? hit.slice(0, row.maxHits) : hit) {', '      for (const m of hit) {']] },
+  { name: '[area-engine] a hitPm row rolls nothing of the blow', case: 'hero-area-shapes',
+    edits: [['src/data/abilities.js', '  return [Math.max(1, Math.ceil((top * ABILITY_RULES.hitLowPm) / 1000)), top];', '  return [1, 1];']] },
+  { name: '[area-engine] an ability casts before its unlock', case: 'hero-area-shapes',
+    edits: [['src/core/hunt/abilities.js', "    if (row.unlock && h.skills && skillLevel(h, row) < row.unlock) return { why: 'level' };\n", '']] },
+  { name: "[area-engine] a row's trigger is ignored", case: 'hero-area-shapes',
+    edits: [['src/data/abilities.js', '  if (Array.isArray(row.trigger)) return row.trigger.map((c) => Object.assign({}, c));\n', '']] },
+  { name: '[area-engine] the boss set casts a line', case: 'hero-area-shapes',
+    edits: [['src/data/abilities.js', "export const AREA_TARGETS = Object.freeze(['area', 'line', 'ring']);", "export const AREA_TARGETS = Object.freeze(['area']);"]] },
+  { name: '[area-engine] a line counts like a 3x3', case: 'hero-area-shapes',
+    edits: [['src/core/hunt/conditions.js', "  return row && (row.target === 'line' || row.target === 'ring') ? row : null;", '  return null;']] },
+  { name: '[area-client] a line strikes nothing in words', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', "  if (spec && spec.shape === 'line') return t('bar.target_line', { len: spec.len });\n", '']] },
+  { name: '[area-client] a ring reads the line\'s words', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', "(r.maxHits ? '_max' : '')", "''"]] },
+  { name: '[area-client] a hitPm row says nothing of its damage', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', '    if (Number.isInteger(r.hitPm)) numbers.push(blowShareLine(r));\n', '']] },
+  { name: '[area-client] the share reads its top only', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', 'const hi = r.hitPm / 10, lo = Math.round((hi * ABILITY_RULES.hitLowPm) / 1000);', 'const hi = r.hitPm / 10, lo = hi;']] },
+  { name: '[area-client] no unlock wording', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', 'effect, unlock: unlockLine(r),', 'effect, unlock: null,']] },
+  { name: '[area-client] a slot under its unlock reads ready', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', "    if (have !== null && have < r.unlock) return { code: 'unlock',", "    if (false) return { code: 'unlock',"]] },
+  { name: '[area-client] a shot spell reads mana only', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/cast-facts.js', "k.row.ammo ? [t('bar.cost_ammo', { ammo: k.row.ammo })] : []", '[]']] },
+  { name: '[area-client] Chill says nothing of what it does', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', "const does = st.slowPm ? ['_slow', st.slowPm]", "const does = false ? ['_slow', st.slowPm]"]] },
+  { name: '[area-client] a new pick keeps the last pick’s rule', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/bar-draft.js', "  return !conds || !conds.length || untouched ? startConditions(next) : conds;", '  return !conds || !conds.length ? startConditions(next) : conds;']] },
+  { name: '[area-client] a picked count starts below 0', case: 'configure-words', also: ['src'],
+    edits: [['src/shell/bar-draft.js', "  const any = m.value === 'count' && m.ops.includes('gte');", '  const any = false;']] },
   { name: 'the lanes are not persisted', case: 'clocks-survive-a-cut',
     edits: [['src/core/hunt/abilities.js', "['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],", "['regenPm', 'int'], ['cds', 'json'],"]] },
 ];

@@ -68,7 +68,7 @@ export async function loadData(M) {
   const v = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(M.root, 'src/build-info.js'), 'utf8')) || [, ''])[1];
   const imp = (p) => import(pathToFileURL(join(M.root, p)).href + v);
   /* THE BAR'S SHELL (bar-draft, action-facts), when the tree holds it: the repo, or a mutant planted with `also: ['src']`. */
-  const shell = existsSync(join(M.root, 'src/shell/bar-draft.js')) ? { draft: await imp('src/shell/bar-draft.js'), facts: await imp('src/shell/action-facts.js') } : null;
+  const shell = existsSync(join(M.root, 'src/shell/bar-draft.js')) ? { draft: await imp('src/shell/bar-draft.js'), facts: await imp('src/shell/action-facts.js'), table: await imp('src/shell/action-table.js') } : null;
   return { CD: await imp('src/data/consumables.js'), AD: await imp('src/data/abilities.js'), HR: await imp('src/data/hunt-roles.js'), SB: await imp('src/data/supply-basics.js'), kit: await imp('src/data/start-kit.js'), XP: await imp('src/core/xp.js'), runes: await imp('src/data/runes.js'), SC: await imp('src/data/stonecraft.js'), shell };
 }
 
@@ -79,7 +79,8 @@ export async function suiteH4(name, cases, mutants) {
   const M = await load(ROOT);
   for (const [cn, fn] of Object.entries(cases)) {
     let why = null;
-    try { why = fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+    /* a case may be async (one that plants rows into its own copy of the tree under test: abilities.mjs hero-area-shapes) */
+    try { why = await fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
     R.ok(!why, cn + ': ' + why);
   }
   for (const mu of mutants || []) {
@@ -88,7 +89,7 @@ export async function suiteH4(name, cases, mutants) {
     const p = plant(mu.edits, mu.also || []);
     try {
       let why = null;
-      try { why = cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
+      try { why = await cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
       R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
     } finally { p.done(); }
   }

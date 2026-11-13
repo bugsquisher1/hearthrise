@@ -82,6 +82,7 @@ export function monsterLevelOf(row) {
 }
 
 export function monsterSpeedOf(row) {
+  if (row && row.dummy === true) return 0;   // a training dummy is a post in the ground (src/data/training.js)
   const v = row && row.speed;
   return Number.isInteger(v) && v > 0 ? v : MONSTER_SPEED_DEFAULT;
 }
@@ -699,6 +700,8 @@ export const MONSTERS = {
     drops: [{ id: 'silk_thread', ch: .3, band: 'common' }, { id: 'dry_husk', ch: .5, band: 'common' }, { id: 'cistern_venom_gland', ch: .1, band: 'uncommon' }, { id: 'longbow', ch: .0055, band: 'rare' }, { id: 'oak_crossbow', ch: .0055, band: 'rare' }] },
   kobold_tosher: { name: 'Sewer Kobold', icon: '🦎', tier: 1, level: 13, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 63, atk: 7, baseAcc: 0.37, def: 1, xp: 144, gp: [10, 31], formula: true, speed: 3200,
+    /* its spell: a fistful of outfall muck thrown at its target's tile, which a ranged hero steps off (lane/d-spell-tuning) */
+    spells: ['muck_fling'],
     /* junk: the Bone Chips it sifts out of the outfalls (the reachable source of Iron Fitting's chips, and a Hearth fuel) */
     drops: [{ id: 'bones', ch: 1, band: 'common' }, { id: 'bone_chips', ch: .5, band: 'common' }, { id: 'kobold_scale', ch: .08, band: 'uncommon' },
       { id: 'iron_boots', ch: .05, band: 'scarce' }, { id: 'studded_boots', ch: .05, band: 'scarce' }, { id: 'adept_boots', ch: .05, band: 'scarce' }, { id: 'iron_sword', ch: .05, band: 'scarce' },
@@ -707,7 +710,9 @@ export const MONSTERS = {
     /* one override (element): fire glances off the knot; frost is the exam's answer. */
     elements: { ember: 25, frost: -15, poison: 50 },
     hp: 556, atk: 7, baseAcc: 0.76, def: 11, xp: 1983, gp: [90, 269], formula: true, speed: 2800,
-    drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'knotted_tails', ch: .15, band: 'uncommon' }, { id: 'crown_shard', ch: .014, band: 'rare' }, { id: 'kingsgrate', ch: .017, band: 'rare' }, { id: 'rat_kings_knot', ch: .014, band: 'rare' }, { id: 'rat_kings_crown', ch: .00141, band: 'trophy' }] },
+    /* his spells (monster-spells.js): the Tail Lash his tank stands in, and the Squeal the whole party takes */
+    spells: ['tail_lash', 'squeal'],
+    drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'knotted_tails', ch: .15, band: 'uncommon' }, { id: 'crown_shard', ch: .014, band: 'rare' }, { id: 'kingsgrate', ch: .016, band: 'rare' }, { id: 'rat_kings_knot', ch: .014, band: 'rare' }, { id: 'rat_kings_crown', ch: .00141, band: 'trophy' }] },
 
   /* ══ Meadowbrook Thicket: the gray wolves (one family, five roles; a solo ground).
      Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS' SAMPLE (designer 2026-10-23): one
@@ -764,12 +769,15 @@ export const MONSTERS = {
     /* one override (weapon): the copper pot over its eyes turns a blade; a hammer rings it. */
     weaponWeak: 'hammer', weaponResist: ['sword'],
     hp: 206, atk: 17, baseAcc: 0.76, def: 20, xp: 1024, gp: [23, 69], formula: true, speed: 2600,
+    spells: ['blasting_charge'],
     drops: [{ id: 'copper_ore', ch: .8, band: 'common' }, { id: 'coal', ch: .4, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'goblin_ear', ch: .4, band: 'common' }, { id: 'dented_copper_pot', ch: .08, band: 'uncommon' },
       { id: 'steel_helm', ch: .0308, band: 'scarce' }, { id: 'boarhide_helmet', ch: .0308, band: 'scarce' }, { id: 'scholar_helmet', ch: .0308, band: 'scarce' }, { id: 'steel_warhammer', ch: .0308, band: 'scarce' },
       /* the first tier-3 belts (lane b-unsourced-items), Rares above the Shop's basic belt */
       { id: 'steel_belt', ch: .00238, band: 'rare' }, { id: 'boarhide_belt', ch: .00238, band: 'rare' }, { id: 'scholar_belt', ch: .00238, band: 'rare' }] },
   hobgoblin_foreman: { name: 'Hobgoblin Foreman', icon: '👹', tier: 3, level: 46, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 312, atk: 23, baseAcc: 0.86, def: 28, xp: 1715, gp: [35, 104], formula: true, speed: 3000,
+    /* his spell: the lash he drops (foremans_lash), swept across the two tiles in front of him (lane/d-spell-tuning) */
+    spells: ['lash_sweep'],
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'iron_ore', ch: .6, band: 'common' }, { id: 'coal', ch: .6, band: 'common' }, { id: 'foremans_lash', ch: .08, band: 'uncommon' },
       { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' },
       { id: 'steel_hatchets', ch: .0109, band: 'rare' }] },
@@ -777,6 +785,7 @@ export const MONSTERS = {
     /* one override (element): the polished cauldron he wears for a crown sheds frost. */
     elements: { frost: 25, poison: -15 },
     hp: 1096, atk: 28, baseAcc: 0.88, def: 33, xp: 6603, gp: [122, 366], formula: true, speed: 2800,
+    spells: ['slag_toss', 'slag_rain'],
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' }, { id: 'coppercaps_tallow', ch: .15, band: 'uncommon' },
       { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' }, { id: 'war_crown', ch: .0141, band: 'rare' },
       { id: 'willow_wand', ch: .011, band: 'rare' }, { id: 'willow_spellbook', ch: .011, band: 'rare' }, { id: 'willow_staff', ch: .011, band: 'rare' },
@@ -785,18 +794,24 @@ export const MONSTERS = {
   /* ══ THE CALLED BOSSES (src/data/boss-calls.js): a stronger copy, in one room a party pays to enter. A CALLED ROW PAYS NOTHING: xp 0, gp [0, 0], no drops (tests/boss-call.mjs). Stats are the only dials, through the normal paths: measured on tools/balance-sim/boss-call-table.mjs. The low `baseAcc` takes his to-hit off the 85% ceiling, so Defense and a shield count. Art: monster-art.js HUNT_ART_ALIAS. ══ */
   rat_king_called: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, called: true, boss: true,
     elements: { ember: 25, frost: -15, poison: 50 },
+    spells: ['tail_lash', 'squeal'],
     hp: 2000, atk: 42, baseAcc: 0.1, def: 4, xp: 0, gp: [0, 0], speed: 2800, drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1600 } },
   /* HIS ADDS (hunt-grounds.js `adds`, boss-phases.js): the ground's own Drain Rat, called too, so a wave pays what he pays: nothing. No boss: a slot's "target is a boss" tells them apart. */
   drain_rat_called: { name: 'Drain Rat', icon: '🐀', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, called: true, add: true,
     hp: 300, atk: 66, baseAcc: -0.6, def: 0, xp: 0, gp: [0, 0], speed: 3400, drops: [] },
   chief_coppercap_called: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, called: true, boss: true,
     elements: { frost: 25, poison: -15 },
+    spells: ['slag_toss', 'slag_rain'],
     hp: 3500, atk: 130, baseAcc: -1.3, def: 28, xp: 0, gp: [0, 0], speed: 2800, drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400, guardPm: 800 } },
   /* His adds, the Warrens' own diggers: called too, no boss, as the King's. His crew, under him: lower Level, softer, surer blows. While one stands he takes 80% of a blow
      (`guardPm`, boss-phases.js): burning him through them lost to the careless four (53% before), and Target on Lowest HP is the add wave's answer (board, 2026-11-05). */
   goblin_digger_called: { name: 'Goblin Digger', icon: '👺', tier: 3, level: 40, cls: 'humanoid', family: 'Humanoid', formation: true, called: true, add: true,
     weaponWeak: 'hammer', weaponResist: ['sword'],
     hp: 300, atk: 70, baseAcc: 0.2, def: 20, xp: 0, gp: [0, 0], speed: 2600, drops: [] },
+
+  /* ══ THE TRAINING DUMMY (src/data/training.js, src/core/hunt/training.js): never falls or walks, no class; `hp` is the most one blow teaches. ══ */
+  yard_dummy: { name: 'Training Dummy', icon: '🎯', tier: 1, level: 1, family: 'Dummy', dummy: true,
+    hp: 1000, atk: 2, baseAcc: 0.5, def: 0, xp: 0, gp: [0, 0], drops: [] },
 
   /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header.
      THE LOOT BANDS (batch 3): the whole tier-2 set in three weights, about hourly (crows boots, poachers legs and their
@@ -809,11 +824,14 @@ export const MONSTERS = {
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */
     hp: 26, atk: 14, baseAcc: 0.85, def: 1, xp: 121, gp: [5, 17], formula: true, speed: 3400,
+    /* a volley down a line of tiles, on the glass poacher (not Rook): it dies fast, so it casts in few Normal fights (lane/d-spell-tuning) */
+    spells: ['poachers_volley'],
     drops: [{ id: 'wolf_pelt', ch: .3, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'snare_wire', ch: .08, band: 'uncommon' },
       { id: 'iron_platelegs', ch: .028, band: 'scarce' }, { id: 'studded_pants', ch: .028, band: 'scarce' }, { id: 'adept_pants', ch: .028, band: 'scarce' }, { id: 'longbow', ch: .028, band: 'scarce' }, { id: 'houndskin_cloak', ch: .0018, band: 'rare' }] },
   walking_vine: { name: 'Walking Vine', icon: '🌿', tier: 2, level: 22, cls: 'plant', family: 'Plant',
     /* the tank: slow and woody; a blade cuts it, an arrow sticks, fire takes it */
     hp: 48, atk: 11, baseAcc: 0.82, def: 6, xp: 217, gp: [10, 30], formula: true, speed: 2400,
+    spells: ['spore_cloud'],
     drops: [{ id: 'magic_essence', ch: .25, band: 'common' }, { id: 'pithwood', ch: .5, band: 'common' }, { id: 'mosslight_tendril', ch: .08, band: 'uncommon' }, { id: 'iron_helm', ch: .019, band: 'scarce' }, { id: 'studded_helmet', ch: .019, band: 'scarce' }, { id: 'adept_helmet', ch: .019, band: 'scarce' },
       { id: 'mosslight_clump', ch: .0013, band: 'rare' }] },
   goblin_sluicer: { name: 'Goblin Sluicer', icon: '👺', tier: 3, level: 26, cls: 'humanoid', family: 'Humanoid',
@@ -854,6 +872,7 @@ export const MONSTERS = {
     /* the tank: slow and webbed in; fire takes the web */
     elements: { ember: -15, poison: 50 },
     hp: 25, atk: 4, baseAcc: 0.48, def: 3, xp: 96, gp: [3, 11], formula: true, speed: 2600,
+    spells: ['venom_spray'],
     drops: [{ id: 'silk_thread', ch: .308, band: 'common' }, { id: 'dry_husk', ch: .385, band: 'common' }, { id: 'loft_web', ch: .0616, band: 'uncommon' },
       { id: 'iron_platelegs', ch: .0127, band: 'scarce' }, { id: 'studded_pants', ch: .0127, band: 'scarce' }, { id: 'adept_pants', ch: .0127, band: 'scarce' },
       { id: 'iron_gauntlets', ch: .00115, band: 'rare' }, { id: 'studded_gloves', ch: .00115, band: 'rare' }, { id: 'adept_gloves', ch: .00115, band: 'rare' }] },
@@ -867,6 +886,7 @@ export const MONSTERS = {
   turncoat: { name: 'Turncoat', icon: '🗡️', tier: 2, level: 16, cls: 'human', family: 'Human',
     /* a deserter robbing the Thicket road; glass that hits hard. The jeweler's carrier: his Road Carnelian (jewelry.js) replaced the crafted Signet. */
     hp: 23, atk: 4, baseAcc: 0.69, def: 1, xp: 105, gp: [3, 10], formula: true, speed: 3400,
+    spells: ['smoke_pot'],
     drops: [{ id: 'wolf_pelt', ch: .231, band: 'common' }, { id: 'bones', ch: .385, band: 'common' }, { id: 'torn_company_badge', ch: .077, band: 'uncommon' },
       { id: 'iron_platebody', ch: .0266, band: 'scarce' }, { id: 'studded_body', ch: .0266, band: 'scarce' }, { id: 'adept_body', ch: .0266, band: 'scarce' }, { id: 'bramble_blade', ch: .0266, band: 'scarce' },
       { id: 'road_carnelian', ch: .00231, band: 'rare' }, { id: 'wolfbone_torc', ch: .00231, band: 'rare' }, { id: 'fang_studs', ch: .00231, band: 'rare' }] },

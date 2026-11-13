@@ -48,7 +48,7 @@ import { floatShown } from './float-prefs.js?v=0.2.125';
 import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.125';
 import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.125';
 import { STUB_SPRITE } from '../world/core/book.js?v=0.2.125';
-import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.125';
+import { entranceOf, idleFrame, facingOf } from './scene-pose.js?v=0.2.125';
 import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.125';
 import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.125';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.125';
@@ -56,13 +56,6 @@ import { levelOf, wornTitleOf } from '../session/character-sections.js?v=0.2.125
 import { createSpellMarks } from './spell-marks.js?v=0.2.125';
 import { fxAlphaOf, ownerAlpha, ownerOf } from './fx-prefs.js?v=0.2.125';
 import { createClipHook, struckBy } from './clip-hook.js?v=0.2.125';
-
-/* The ground's first start tile, standing (the hero before its first window). */
-function entranceOf(huntId) {
-  const g = huntId ? groundOfHunt(huntId) : null;
-  const t = g && g.start && g.start[0];
-  return t ? { x: t[0], y: t[1], moving: false, d: 0, hx: 0, hy: 1 } : null;
-}
 
 export const SCENE_TIMING = Object.freeze({
   deathFadeMs: 400,     // VW-05: colour to a grey corpse
@@ -78,24 +71,6 @@ const MAX_FX = 96, MAX_FLOATS = 64, MAX_KEYS = 4096, PRUNE_AT = 512;
    an ability's name sits above them (FX-03) and the big numbers higher still (FX-02). */
 const OFFSETS = Object.freeze([[0, 0], [7, -4], [-7, -4], [0, -9]]);
 const NAME_DY = -14, BIG_DY = -18, LEVEL_DY = -30;
-
-/**
- * A STANDING UNIT BREATHES: its idle clip turns on the clock, one frame edge for everyone on screen, so a hunt held still
- * paints at the clip's rate however many stand in it (frame-sig.js holds every frame between two edges). Each unit starts the
- * loop at its own frame, so a pack never breathes in step. A one-frame idle (a hero) is the same rect every turn and asks for no paint.
- */
-function idleFrame(idle, now, u) {
-  return idle && idle.fps ? Math.floor((now * idle.fps) / 1000) + u : 0;
-}
-
-/** The facing of a heading: the cardinal (larger axis; east/west on a tie) and the diagonal, if any. */
-function facingOf(dx, dy) {
-  const ax = Math.abs(dx), ay = Math.abs(dy);
-  if (!ax && !ay) return { dir: 's', diag: null };
-  const dir = ax >= ay ? (dx > 0 ? 'e' : 'w') : (dy > 0 ? 's' : 'n');
-  const diag = ax && ay && Math.min(ax, ay) / Math.max(ax, ay) >= Math.tan(Math.PI / 8) ? (dy > 0 ? 's' : 'n') + (dx > 0 ? 'e' : 'w') : null;
-  return { dir, diag };
-}
 
 /**
  * YOUR OWN OTHER HEROES IN THE PARTY (seat -> sprite id): each wears what its own session holds from

@@ -262,7 +262,7 @@ async function guard(X) {
     const took = ev.filter((e) => e.type === 'target' && k[e.u] === addOf(king) && k[e.t] === 'tank' && e.atMs >= at);
     if (!ev.some((e) => e.type === 'challenge' && e.atMs >= at) || !took.length) bad.push('BC-PHASE the tank\'s Challenge took no add');
   }
-  /* ...and the enrage raises his blows: his largest before the line stays under his row's, after it passes it. */
+  /* ...and the enrage raises his blows (his swings only, ability 'basic': a spell is priced off the same row and would hide a swing that ignores it): his largest before the line stays under his row's, after it passes it. */
   setRow(king.monster, { hp: 9000, atk: 10, baseAcc: 1, phases: { ...X.EM[king.monster].phases, enrageAtkPm: 3000 } });
   {
     const f = fight(X, king, ['tank', 'healer'], { bar: NO_CHALLENGE });
@@ -270,7 +270,7 @@ async function guard(X) {
     let on = false, before = 0, after = 0;
     for (const e of eventsOf(f)) {
       if (e.type === 'boss_phase' && e.phase === 'enrage') on = true;
-      if (e.type === 'dmg' && k[e.u] === king.monster) { if (on) after = Math.max(after, e.amount); else before = Math.max(before, e.amount); }
+      if (e.type === 'dmg' && k[e.u] === king.monster && e.ability === 'basic') { if (on) after = Math.max(after, e.amount); else before = Math.max(before, e.amount); }
     }
     const plain = X.C.monsterMaxHit({ ...X.EM[king.monster], atk: 10 });
     if (!before || before > plain) bad.push('BC-PHASE before the line his largest blow was ' + before + ', his row\'s is ' + plain);

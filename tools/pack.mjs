@@ -182,7 +182,7 @@ async function newPack(id, argv) {
   /* the pack's own ids: the ground is <id>, its map <id>, its monsters <id>_<monster> until renamed */
   const fx = p.id, mapWas = p.map.id;
   /* the source ground's measured rows are its own: a new ground earns its tier row, XP fit and party rows on its own check */
-  for (const k of ['tierOverride', 'xpFit', 'partyClassXp', 'partyVsAlone']) delete p[k];
+  for (const k of ['tierOverride', 'xpFit', 'gpFit', 'partyClassXp', 'partyVsAlone']) delete p[k];
   p.id = id; p.map = { ...p.map, id }; p.ground = { ...p.ground, map: id }; p.hunt = { ...p.hunt, name: id };
   if (Array.isArray(p.map.hunts)) p.map.hunts = p.map.hunts.map((h) => (h === fx ? id : h));
   console.log('pack new: ' + F.writePack(ROOT, p) + ' (from ' + like + ', map ' + mapWas + '); staged: plays in the sim, never listed or served');

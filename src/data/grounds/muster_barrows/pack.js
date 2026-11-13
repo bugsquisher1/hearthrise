@@ -237,7 +237,7 @@ export default definePack({
      / 1.20) over the three-class four at 1380, the pair 1220 (about 1.01-1.14), the threes 1280 and 1255 (about 1.00-1.30). THE TWO FOURS ARE 8%
      APART at the same cell (the Healer keeps the tank up through the Knights), and the band is 8.7% wide, so the well-built four sits in it and
      the four with no Healer reads about 1.09 / 1.15 / 1.11, under at the floor and top. The sheet names a well-built four (10-25 §5). */
-  partyClassXp: { 2: [990, 1220], 3: [990, 1255, 1280], 4: [970, 1185, 1380, 1385] },
+  partyClassXp: { 2: [990, 1460], 3: [990, 1255, 1500], 4: [970, 1185, 1400, 1385] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10, with Hask's lines and
      the cells above). One class is the mean of its five one-class parties: pairs 0.88-0.94 (0.91), threes 0.80-0.89 (0.84), fours
@@ -253,6 +253,6 @@ export default definePack({
      harness's own-tier set (tests/hunt-core/drop-tables.mjs, as the Warrens'). valueToday is COMPUTED, not a pre-conversion pin: that
      four's measured coin a head (7,178 g/h) and commons (499) plus the gear-faucet's half of the coin (3,589), the most the hour's
      worn gear may sell for. Tier 5 has no sale rate yet, so gear-faucet and total-value stay red on this ground until one lands. */
-  checks: { holders: [HASK], dropRef: { roles: ['tank', 'ranger', 'mage', 'healer'], full: true }, valueToday: 11266 },
+  checks: { holders: [HASK], dropRef: { roles: ['tank', 'ranger', 'mage', 'healer'], full: true }, valueToday: 11266, deadlyFourNeeds: 'healer' },
   map,
 });

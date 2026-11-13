@@ -274,6 +274,10 @@ export const GROUND_ROSTER = Object.freeze(foldRows('roster', BASE_ROSTER, GROUN
    x0.84 left its lone median 1.12x the re-measured contract, x0.76 lands it in band. Measured below (the grade) and in level-curve (C5). */
 export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.28, meadowbrook_thicket: 0.9, wickstead: 1.1, mosslight_glade: 0.90, millrace_sewer: 0.9, coppercap_warrens: 0.76 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));
 
+/* A GROUND'S COIN FIT: a monster's coin on one ground, x this, where its bill outruns the formula's purse at its floor. Packs only, each with its reason
+   (src/data/grounds/<id>/pack.js `gpFit`, at most x1.6: designer rulings Q3 and 7, 2026-11-12). Shop prices and drop values never move for one ground. */
+export const GROUND_GP_FIT = Object.freeze(foldRows('gp fit', {}, GROUND_PACKS, (p) => (p.gpFit ? { [p.id]: p.gpFit.k } : {})));
+
 /* NAMED EXCEPTIONS: { monster: { field: 'the reason' } }, a field a row keeps by hand. Empty: none has earned one. */
 export const FORMULA_EXCEPTIONS = Object.freeze({
   /* THE BROOK BEAR'S PURSE (designer 2026-11-12, Tyler's open question 3 decided under the +10% lone profit floor): as a heavy (roster above) it still hands
@@ -340,7 +344,8 @@ export function formulaStats(spec, opts = {}) {
   const xp = Math.max(1, Math.round(Math.max(F.xp.min || 0, F.xp.a * L ** F.xp.b) * hp * R.xp * fit.xp * gx * xFloor));
   const g0 = fit.gp === undefined ? 1 : fit.gp, fitGp = fit.gpFull === undefined ? g0 : g0 + (fit.gpFull - g0) * dz.ramp;
   const line = F.gp.line ? F.gp.line.lo + (F.gp.line.hi - F.gp.line.lo) * clamp01((Number(spec.floor) - F.gp.line.from) / (F.gp.line.to - F.gp.line.from)) : 1 + (F.gp.danger || 0) * dz.ramp;
-  const mean = F.gp.perHp * line * hp * R.gp * fitGp;
+  const gk = (opts.groundGp || GROUND_GP_FIT)[spec.ground] || 1;
+  const mean = F.gp.perHp * line * hp * R.gp * fitGp * gk;
   const lo = Math.max(1, Math.round(mean * F.gp.lo));
   const gp = F.gp.keepMean ? [lo, Math.max(lo, Math.round(2 * mean - lo))] : [lo, Math.max(1, Math.round(mean * F.gp.hi))];
   return { hp, atk, baseAcc, def, xp, gp, hitVsSameLevel: Math.round(hit * 100) / 100, blowShare: Math.round(blowShare * 1000) / 1000 };

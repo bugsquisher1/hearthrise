@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 4f6bbab1a94a87572767fc36ccbb95f94ba953d8abc2d7a16a3dd944ef5f6cf3
+--   digest: fa626f66577bd8731368ab4901b651f32d8da372358bd6386b4cd08beef9661f
 --   82 supplies, 138 hunts (named + training), 47 limits, 16 end reasons,
 --   559 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 21 abilities, 10 action-set options, 16 hunt grounds
@@ -1795,14 +1795,14 @@ delete from public.hr_training_rules;
 insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier, house_tier_id) values
   (true, 50, 6, 500, 12, 1, 'homestead');
 insert into public.hr_training_grounds (hunt_id, place, skill, ord, fee, xp_permille) values
-  ('training_house_melee', 'house', 'melee', 0, false, 350),
-  ('training_house_ranged', 'house', 'ranged', 1, false, 350),
-  ('training_house_magic', 'house', 'magic', 2, false, 350),
-  ('training_house_defense', 'house', 'defense', 3, false, 350),
-  ('training_yard_melee', 'yard', 'melee', 0, true, 350),
-  ('training_yard_ranged', 'yard', 'ranged', 1, true, 350),
-  ('training_yard_magic', 'yard', 'magic', 2, true, 350),
-  ('training_yard_defense', 'yard', 'defense', 3, true, 350);
+  ('training_house_melee', 'house', 'melee', 0, false, 215),
+  ('training_house_ranged', 'house', 'ranged', 1, false, 245),
+  ('training_house_magic', 'house', 'magic', 2, false, 340),
+  ('training_house_defense', 'house', 'defense', 3, false, 215),
+  ('training_yard_melee', 'yard', 'melee', 0, true, 215),
+  ('training_yard_ranged', 'yard', 'ranged', 1, true, 245),
+  ('training_yard_magic', 'yard', 'magic', 2, true, 340),
+  ('training_yard_defense', 'yard', 'defense', 3, true, 215);
 
 -- ── SELF-CHECK (CLAUDE.md §4): the rows the generator wrote, and nothing more ──
 do $$

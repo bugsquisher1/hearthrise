@@ -15,7 +15,7 @@
 //   BD-LIMIT   3 a UTC day across this account's heroes; midnight UTC opens the next three
 //   BD-DOOR    no other door reaches the room: enter, Start, Hunt again, a move mid-hunt, a member's join: none opens a session; a normal ground is untouched
 //   BD-FORGED  a window on a called room that pays anything is refused whole, by the settle, whatever the engine proposed: coin, an item, XP, Level XP, a kill, a Hearthfind
-//   BD-BOTH    the kill, a death and the limit, each with the browser closed (the tick) and the hunt viewed (index.ts's settle): the same end on the same instant, no hunt left open;
+//   BD-BOTH    the kill, a death (by his blows, and with his spells on), and the limit, each with the browser closed (the tick) and the hunt viewed (index.ts's settle): the same end on the same instant, no hunt left open;
 //              a hero ALONE, the kill and a death, on both doors the same
 //   BD-PAID    after each: no XP, no coin but the fee and the store's bill, no loot, no kill in the tally, no Bestiary row, the Bestiary's total unmoved, the party on its ground
 //   BD-PRIZE   the kill reaches the title's counter for each hero present; price 0, once; one System line a fight (alone: it says so); nothing without the kill
@@ -41,7 +41,7 @@ const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
 const { one, q } = H;
 const KING = BOSS_CALLS.rat_king;
 const FEE = KING.fee;
-const UIDS = Array.from({ length: 14 }, (_, i) => '00000000-0000-4000-8000-0000000bc0' + String(i + 10));
+const UIDS = Array.from({ length: 16 }, (_, i) => '00000000-0000-4000-8000-0000000bc0' + String(i + 10));
 const WINDOW = 90000;
 const GEAR = Object.freeze({ helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots', weapon: 'steel_sword', shield: 'coppercap_shield' });
 const STAFF = Object.freeze({ helmet: 'scholar_helmet', body: 'scholar_body', pants: 'scholar_pants', boots: 'scholar_boots', weapon: 'willow_staff' });
@@ -231,7 +231,11 @@ async function fightToEnd(db, M, door, uids, party, anchorMs) {
 
 const JOBS = [
   { name: 'the kill', want: ['boss_felled'], level: 60, uids: [0, 1], row: null },
-  { name: 'a death', want: ['died', 'party_member_died'], level: 2, uids: [2, 3], gear: [{}, {}], row: null },
+  /* A DEATH BY HIS BLOWS: one hero falls and the other's hunt ends with it. His spells are off this row for the arm, because a cast
+     fells both Level 2 heroes on one instant (7 of 24 dice in the engine, never with the spells off) and that is the next arm's end. */
+  { name: 'a death', want: ['died', 'party_member_died'], level: 2, uids: [2, 3], gear: [{}, {}], row: { spells: [] } },
+  /* A DEATH WITH HIS SPELLS ON, his real row: whichever of the two ends the dice give, both doors give the same one on the same instant. */
+  { name: 'a death to his spells', want: ['died', 'party_member_died'], or: ['died'], level: 2, uids: [14, 15], gear: [{}, {}], row: null },
   { name: 'the limit', want: ['boss_time'], level: 60, uids: [4, 5], row: { hp: 100000000, atk: 1, baseAcc: 0 }, stood: [999, 1000], manyWindows: true },
   /* THE PHASES: a death with the wave up, and the limit with the wave up (a row that takes 1 a blow, so his first line falls inside ten minutes and his last HP doesn't). */
   { name: 'a death in the add wave', want: ['died', 'party_member_died'], level: 60, uids: [6, 7], row: { hp: 2000, atk: 1, baseAcc: 0 }, add: { hp: 100000, atk: 800, baseAcc: 3 }, stood: [1, 500] },
@@ -261,7 +265,7 @@ async function bothDoors(door, boot) {
   await db.query('update public.hr_hunt_config set enabled = true where id');
   const ends = {};
   const row = EM[KING.monster];
-  const keep = { hp: row.hp, atk: row.atk, baseAcc: row.baseAcc, def: row.def };
+  const keep = { hp: row.hp, atk: row.atk, baseAcc: row.baseAcc, def: row.def, spells: row.spells };
   const ADD = EM[ADD_ID];
   const keepAdd = { hp: ADD.hp, atk: ADD.atk, baseAcc: ADD.baseAcc };
   for (const job of JOBS) {
@@ -290,7 +294,9 @@ async function bothDoors(door, boot) {
     }
     if (await openIn(db, pid)) bad.push(`BD-BOTH ${door} ${job.name}: ${await openIn(db, pid)} heroes still in the room`);
     const reasons = [...new Set(got.map((g) => g.end_reason))].sort();
-    if (reasons.join() !== job.want.join()) bad.push(`BD-BOTH ${door} ${job.name}: ended ${reasons.join()}, want ${job.want.join()}`);
+    if (reasons.join() !== job.want.join() && reasons.join() !== (job.or || job.want).join()) bad.push(`BD-BOTH ${door} ${job.name}: ended ${reasons.join()}, want ${job.want.join()}${job.or ? ' or ' + job.or.join() : ''}`);
+    /* Two deaths are one cast's: a second death at a later instant is a fight that ran on past the first. */
+    if (got.filter((g) => g.end_reason === 'died').length > 1 && new Set(got.map((g) => new Date(g.ended_at).getTime())).size !== 1) bad.push(`BD-BOTH ${door} ${job.name}: two deaths at two instants: ${got.map((g) => g.ended_at)}`);
     /* BD-RECORD: each hero's, and the view says what the row says. */
     const recs = await q(db, `select t.fight, public.hr_hunt_view(h.id)->'tally'->'fight' as seen from public.hunt_sessions h join public.hunt_session_tally t on t.session_id = h.id where h.instance_id = $1 order by h.seat`, [pid]);
     if (recs.length !== uids.length) bad.push(`BD-RECORD ${door} ${job.name}: ${recs.length} sessions`);

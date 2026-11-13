@@ -30,6 +30,7 @@ import * as targeting from './targeting.js?v=0.2.125';
 import * as roles from './roles.js?v=0.2.125';
 import * as pullCycle from './pull-cycle.js?v=0.2.125';
 import * as damage from './damage.js?v=0.2.125';
+import * as monsterSpells from './monster-spells.js?v=0.2.125';
 import * as abilities from './abilities.js?v=0.2.125';
 import * as status from './status.js?v=0.2.125';
 import * as consumables from './consumables.js?v=0.2.125';
@@ -46,7 +47,7 @@ const BASE = Object.freeze({
   pack: [['aggro', 'bool'], ['holder', 'int?']],
 });
 const MODULES = [BASE, movement.PERSISTED, targeting.PERSISTED, roles.PERSISTED, pullCycle.PERSISTED,
-  damage.PERSISTED, abilities.PERSISTED, status.PERSISTED, consumables.PERSISTED, xpShare.PERSISTED, conditions.PERSISTED,
+  damage.PERSISTED, monsterSpells.PERSISTED, abilities.PERSISTED, status.PERSISTED, consumables.PERSISTED, xpShare.PERSISTED, conditions.PERSISTED,
   partySplit.PERSISTED];
 
 function compose(part) {

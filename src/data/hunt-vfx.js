@@ -8,8 +8,10 @@
 //
 // EVENT_FX   every type of src/core/hunt/events.js EVENT_TYPES, mapped to a row
 //            or to null (the event draws no effect: its float or the log says it).
-//            A row: { fx, at, lift?, lifeMs?, monsterOnly? }
+//            A row: { fx, at, lift?, lifeMs?, monsterOnly?, reward? }
 //              at      'u' the actor · 't' the acted-on · 'viewed' the viewed hero
+//              reward  a reward's moment (a Level, a rare drop), no one's spell: the Effects sliders
+//                      (src/data/fx-alpha.js) never dim it. Every other effect is its actor's
 //              lift    how high on the unit it centres: a fraction of the unit's art
 //                      height above its feet (0 the feet, 0.5 the chest, 1 the top of the head)
 //              lifeMs  how long a LOOPING effect shows (a one-shot plays its frames once)
@@ -40,10 +42,12 @@ export const EVENT_FX = Object.freeze({
   shield: row({ fx: 'fx_arcane_barrier', at: 't', lift: CHEST, lifeMs: 600 }),
   mark: row({ fx: 'fx_hunters_mark', at: 't', lift: HEAD, lifeMs: ABILITIES.hunters_mark.durMs }),
   challenge: row({ fx: 'fx_challenge_taunt', at: 'u', lift: FEET }),
-  level: row({ fx: 'fx_level_up', at: 'u', lift: FEET }),
-  rare_drop: row({ fx: 'fx_loot_sparkle', at: 'viewed', lift: CHEST }),
+  level: row({ fx: 'fx_level_up', at: 'u', lift: FEET, reward: true }),
+  rare_drop: row({ fx: 'fx_loot_sparkle', at: 'viewed', lift: CHEST, reward: true }),
   rare_roll: null,   // a party's roll: its rare_drop (same instant, the winner) plays the sparkle; the roll is a log line
   ended: null, death: null, slot_dry: null, pack_reset: null, pull: null, respawn: null, wipe: null, boss_phase: null,
+  /* a monster's spell: its mark on the ground is drawn from marks.js (the server's tiles), not a sprite row here */
+  spell: null, spell_end: null,
   miss: null,  // GLANCE_FX, below
   target: null, status_on: null, status_off: null,
   eat: null, drink: null, xp: null, xp_group: null, rule_stop: null, shot: null, rule_wait: null,

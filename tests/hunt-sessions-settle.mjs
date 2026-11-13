@@ -294,7 +294,11 @@ const UID = UIDS[0];
 
 async function loadEdge(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
+  /* the engine's own instance of a src/data module: src/core imports src/data with the build's ?v= (CLAUDE.md §5) */
+  const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(root, 'src/build-info.js'), 'utf8')) || [, ''])[1];
   return {
+    /* the engine's own spells (noCasts turns its switch off for an arm whose subject is not the spells) */
+    SPELLS: await import(u('src/data/monster-spells.js') + V),
     HS: await import(u(join(FN, 'hunt-settle.js'))),
     AC: await import(u(join(FN, 'accrual.js'))),
     SEED: await import(u(join(FN, 'hunt-seed.js'))),
@@ -422,6 +426,13 @@ function memberIn(M, key, o) {
 function instIn(M, members, spanMs, extra) {
   return Object.assign({ instance: { id: IID, nextSwingAtMs: T0, world: null }, window: { fromMs: T0, toMs: T0 + spanMs },
     secret: SECRET, ...groundsOf(M).mill_cellar, items: M.ITEMS, monsters: M.MONSTERS, members }, extra || {});
+}
+/* Run `fn` with no monster casting (the engine's own switch, data/monster-spells.js SPELL_SWITCH, put back after): for an arm whose
+   subject is not the spells and whose fixture hero cannot afford them. */
+function noCasts(M, fn) {
+  const sw = M.SPELLS.SPELL_SWITCH, was = sw.live;
+  sw.live = false;
+  try { return fn(); } finally { sw.live = was; }
 }
 /* Run an instance over [T0, T0 + span) cut at `cuts`, carrying the world and every session like the database does. */
 function runCut(M, mk, spanMs, cuts, over) {
@@ -808,7 +819,9 @@ const ENGINE_ARMS = {
        no meal in 30 min; the Toshers: 58 kills, 6 meals). */
     /* Its bar eats the store's food under 40% HP (no drink slot), so the first meal comes after kills have paid coins. */
     const poorBar = [{ action: { type: 'consume', id: t.shop.heal }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 40 }], join: 'and' }];
-    const out = runCut(M, () => [memberIn(M, 'a', { level: 9, gold: row.price - 1, bar: poorBar })], 1800000, [], groundWith(M, 'kobold_tosher'));
+    /* NO MONSTER CASTS HERE (noCasts): the Tosher's Muck Fling (lane/d-spell-tuning) puts this Level 9 hero under 40% before its first
+       coin, and one coin short it then ends gold_out after one kill, as ruled. This arm's subject is the coin reaching the purse. */
+    const out = noCasts(M, () => runCut(M, () => [memberIn(M, 'a', { level: 9, gold: row.price - 1, bar: poorBar })], 1800000, [], groundWith(M, 'kobold_tosher')));
     const ms = out.outs.flatMap((o) => o.members);
     /* FOOD buys only: a 6 g store drink is affordable from the purse alone (designer 2026-10-17), so a drink buy proves nothing about the coins. */
     const tl = ms.reduce((a, x) => a + Object.entries(x.hunt.buys || {}).reduce((n, [id, q]) => n + ((t.basics[id] || {}).kind === 'heal' ? q : 0), 0), 0);

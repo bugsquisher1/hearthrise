@@ -38,6 +38,7 @@ import { heroBuilding } from './roofs.js?v=0.2.125';
 import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.125';
 import { vertexGrid, tileKey } from './wang.js?v=0.2.125';
 import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.125';
+import { markShapes } from './mark-shapes.js?v=0.2.125';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -330,8 +331,9 @@ function standingOf(map, book, tables, T) {
  * @param {object} book      createBook()
  * @param {{hero: {x:number,y:number}|null, name?: string, title?: string|null, roofAlpha?: object, t?: number,
  *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null, objectSwap?: Object<string, string>|null,
- *          stillIdle?: boolean}} state
- *                           hero in tile coords (fractional while moving); t = ms clock for idle clips; stillIdle: idle clips hold frame 0
+ *          stillIdle?: boolean, marks?: {kind: string, tiles?: number[][], x?: number, y?: number, fill: number, alpha: number}[]}} state
+ *                           hero in tile coords (fractional while moving); t = ms clock for idle clips; stillIdle: idle clips hold frame 0;
+ *                           marks: a hunt's danger marks (src/hunt-view/spell-marks.js), drawn on the ground under every actor (mark-shapes.js)
  * @param {{ox:number, oy:number, w:number, h:number}} view  compose region, art px
  * @param {{materials: object}} tables
  */
@@ -530,12 +532,15 @@ export function composeFrame(map, book, state, view, tables, T) {
     /* off the view it's no change at all, as an ambient loop above; a turned clip (a projectile) can swing back in, so it's always drawn */
     const fx0 = px - f.ax, fy0 = py - f.ay;
     if (!Number.isFinite(e.angle) && !(fx0 < view.ox + view.w && fy0 < view.oy + view.h && fx0 + f.w > view.ox && fy0 + f.h > view.oy)) continue;
+    /* its opacity: the owner's Effects slider (src/hunt-view/fx-prefs.js); a slider at 0 draws nothing */
+    const alpha = Number.isFinite(e.alpha) ? Math.max(0, Math.min(1, e.alpha)) : 1;
+    if (alpha <= 0) continue;
     effects.push({ id: e.id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x: px - f.ax, y: py - f.ay, cx: px, cy: py, ax: f.ax, ay: f.ay,
-      blend: s.blend === 'add' ? 'add' : 'over', angle: Number.isFinite(e.angle) ? e.angle : 0 });
+      blend: s.blend === 'add' ? 'add' : 'over', angle: Number.isFinite(e.angle) ? e.angle : 0, alpha });
   }
   const roofs = map.buildings.map((b) => ({ id: b.id, alpha: state.roofAlpha && b.id in state.roofAlpha ? state.roofAlpha[b.id] : (b.id === heroId ? 0 : 1) }));
   return { heroBuilding: heroId, decals, shadows, sprites: ySort(stand), raised: ySort(raised), roofs, lights: { kind: map.light, vignette: map.outdoor, points },
-    plates, bars, floats, target, bubbles, mark, badges, fx: effects };
+    plates, bars, floats, target, bubbles, mark, badges, fx: effects, marks: markShapes(state.marks, T) };
 }
 
 /* VW-07: an HP bar's tone by how full it is. */

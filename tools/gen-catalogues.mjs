@@ -1490,8 +1490,11 @@ const { isRune, runeTierOf, versionLevel } = await imp('src/data/runes.js');
 const { BASIC_SUPPLIES: RUNE_STORE } = await imp('src/data/supply-basics.js');
 /* THE RUNE LADDER (lane/c-rune-ladder, Tyler 2026-11-05): 2027-02-21-rune-spells is APPLIED history; a spell gains `store`, the store rows its slot may name, in a forward file.
    UNDERTOW (lane/b-one-difficulty, Tyler 2026-11-09: the Healer's strike when it hunts alone): 2027-03-08-rune-ladder-rune-spells is APPLIED history; the
-   eleventh rune spell lands in this forward file, the same create or replace. */
-const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '2027-03-24-undertow-rune-spells.generated.sql');
+   eleventh rune spell lands in this forward file, the same create or replace.
+   AREA SPELLS (lane/b-area-set, Tyler 2026-11-08: "our heros some more aoe spells", and the Healer's long-cooldown party heal): 2027-03-24-undertow-rune-spells is the
+   file before this one and this one carries it (Undertow and every spell before it, unchanged); Hoarfrost on the Ice family and Spring Tide on the Water family land in
+   this forward file, the same create or replace. */
+const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '2027-04-15-area-spells-rune-spells.generated.sql');
 const runeSpells = {};
 for (const id of Object.keys(RUNE_ABILITIES).sort()) {
   const row = RUNE_ABILITIES[id];
@@ -1527,12 +1530,14 @@ const sqlRuneSpells = `-- ══════════════════
 -- WHAT THIS IS FOR. hr_hunt_rune_state (2027-02-21-hunt-carry-in.sql) and hr_hunt_rune_store_state + hr_hunt_slot_check
 -- (2027-03-08-rune-ladder-slots.sql), which hr_hunt_settings_view's \`usable\` reads: { ability: { skill,
 -- runes: { item: the level in that skill its version needs }, store: { store row: the level its version needs } } }.
--- Server-only. New in this file: Undertow, the Healer's strike when it hunts alone (Tyler 2026-11-09), on the Water
--- family; no other spell's runes or store rows move.
+-- Server-only. New in this file (lane/b-area-set, the area spells, Tyler 2026-11-08): Hoarfrost on the Ice family and
+-- Spring Tide on the Water family, so a slot naming either with a rune of its family (carried, or the store's) is
+-- accepted and read usable. Carried from 2027-03-24-undertow-rune-spells.generated.sql: Undertow (Tyler 2026-11-09) and
+-- every spell before it; no other spell's runes or store rows move.
 --
--- APPLY ORDER: after 2027-03-26-one-difficulty-hunt-sessions-catalogue.generated.sql (hr_hunt_abilities carries Undertow,
---              and this file's self-check compares the two), BEFORE 2027-03-24-undertow-bar.sql, whose default slot names
---              the Plain Water Rune through hr_hunt_slot_check. SAFE TO RE-RUN (create or replace).
+-- APPLY ORDER: right after 2027-04-15-area-spells-hunt-sessions-catalogue.generated.sql (hr_hunt_abilities carries
+--              Hoarfrost and Spring Tide, and this file's self-check compares the two), before the hr-accrue deploy
+--              and the client that offers the two spells. SAFE TO RE-RUN (create or replace).
 -- ══════════════════════════════════════════════════════════════
 
 create or replace function public.hr_hunt_rune_spells()

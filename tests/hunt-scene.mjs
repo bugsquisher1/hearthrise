@@ -4,6 +4,7 @@
 //
 //   node tests/hunt-scene.mjs           the rules
 //   node tests/hunt-scene.mjs --mutate  every planted defect must turn a rule RED
+//   node tests/hunt-scene.mjs --mutate --only=SC-16   just the mutants whose name holds that text
 //
 // mutant-anchors: src/hunt-view/scene.js src/hunt-view/timeline.js src/data/hunt-vfx.js src/data/hunt-outfits.js src/world/core/compose.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/
@@ -54,6 +55,14 @@
 //   SC-15 A HIT NEVER REPAINTS THE SPRITE (ART_DIRECTION §2, §11): facing a way its flinch is drawn, the struck unit plays its hit
 //         clip in place; facing a way it is not, its draw entry is the entry it has once the hit has passed, 1 art px away from
 //         the blow; either way its name, bar and tone stand (the hook itself: tests/hunt-clips.mjs)
+//   SC-16 A MONSTER'S SPELL IS SEEN COMING (Tyler 2026-11-08; src/hunt-view/spell-marks.js): a marked spell's `spell` event marks the
+//         server's own tiles (marks.js markOfEvent on the ground's grid) and the mark fills in even steps over its windup, on the
+//         ground under every actor (the composed frame's `marks`); its `spell_end` clears it; a caster that falls in its windup takes
+//         its mark with it; a GROUP spell marks no ground but every hero standing, each with a ring that closes in
+//   SC-17 THE EFFECTS SLIDERS (Tyler 2026-11-08: "settings/opacity sliders for on screen effects"): a slider set in Settings
+//         (settings-model.js write) is put to the server with the residue, and a reload (a new session on the envelope whose
+//         client_state holds it) draws each effect at its OWNER's opacity: the viewed hero's, another hero's, a monster's (0 draws
+//         none); a reward is never dimmed; the Danger marks slider scales the mark's wash and never goes under half
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -84,6 +93,10 @@ async function load(base) {
     SETS: await u('src/data/world/atlas-sets.js'),
     AB: await u('src/data/world/art-budget.js'),
     XP: await u('src/core/xp.js'),
+    MK: await u('src/core/hunt/marks.js'),
+    HG: await u('src/core/hunt-ground.js'),
+    SD: await u('src/data/settings.js'),
+    SM: await u('src/shell/settings-model.js'),
   };
   const manifests = {};
   for (const set of M.SETS.ATLAS_SETS) manifests[set] = JSON.parse(readFileSync(join(ROOT, 'assets/world/atlas-' + set + '.json'), 'utf8'));
@@ -524,6 +537,91 @@ async function rules(M) {
     const loop = new Set(M.manifests.hunt.sprites.rat.anims.idle.dirs[rat.dir].map(String));
     ok('SC-IDLE', cells.size === loop.size && loop.size >= 3, 'four turns must draw the whole loop, and a loop is at least three drawings: ' + cells.size + ' cells of ' + loop.size);
   }
+
+  { // SC-16: a monster's spell, seen coming. The boss (103, at 15,7) sprays a ring round itself; the rat (101, at 14,9) starts one
+    // and falls in its windup; then the boss casts a group strike on the whole party (the tank on 13,9 and the ranger on 8,9).
+    const clock = { t: C0 };
+    const e = envelope(7, S0);
+    const RING = { id: 'k:s1', type: 'spell', atMs: S0 + 200, u: 103, t: 1, spell: 'venom_spray', shape: 'ring', x: 15, y: 7, dx: 0, dy: 0, r: 1, len: 0, ms: 1600 };
+    e.hunt_events.push(RING, { id: 'k:s2', type: 'spell_end', atMs: S0 + 1800, u: 103, spell: 'venom_spray', why: 'landed', hits: 0 },
+      { id: 'k:s3', type: 'spell', atMs: S0 + 100, u: 101, t: 1, spell: 'venom_spray', shape: 'ring', x: 14, y: 9, dx: 0, dy: 0, r: 1, len: 0, ms: 1600 },
+      { id: 'k:s4', type: 'spell', atMs: S0 + 2000, u: 103, t: 1, spell: 'squeal', shape: 'group', x: 15, y: 7, dx: 0, dy: 0, r: 0, len: 0, ms: 2000 },
+      { id: 'k:s5', type: 'spell_end', atMs: S0 + 4000, u: 103, spell: 'squeal', why: 'landed', hits: 2 });
+    const cs = session(M, clock, [e]);
+    await cs.load();
+    const v = viewer(M, cs);
+    const view = { ox: 0, oy: 0, w: M.map.w * 32, h: M.map.h * 32 };
+    const grounds = (f) => f.marks.filter((m) => m.kind === 'ground');
+    const early = v.at(at(S0 + 250));
+    ok('SC-16', grounds(early).length === 2, 'two casters winding up must draw two ground marks, got ' + JSON.stringify(early.marks.map((m) => m.kind)));
+    const want = M.MK.markOfEvent(RING, M.HG.huntGroundOf('mill_cellar').grid).tiles;
+    const f = v.at(at(S0 + 1000));
+    const ring = grounds(f);
+    ok('SC-16', ring.length === 1 && JSON.stringify(ring[0].tiles) === JSON.stringify(want) && want.length >= 3 && !want.some(([x, y]) => x === 15 && y === 7),
+      'the ring must mark the server\'s own walkable tiles round the caster, and the fallen rat\'s mark must be gone: ' + JSON.stringify(f.marks));
+    ok('SC-16', ring[0] && ring[0].fill === 0.5 && ring[0].alpha === 1 && grounds(v.at(at(S0 + 1700)))[0].fill === 0.875,
+      'the mark fills in even eighths over its 1.6 s windup: ' + JSON.stringify([ring[0] && ring[0].fill, grounds(v.at(at(S0 + 1700))).map((m) => m.fill)]));
+    const list = M.K.composeFrame(M.map, M.book, Object.assign({ t: at(S0 + 1000), roofAlpha: {} }, f), view, M.tables, 32);
+    const painted = list.marks[0];
+    /* whole tiles of wash and hatch: the ring's own, and the caster's tile it closes round (one shape, never a box round him) */
+    const tileAt = (r, x, y) => r[0] === x * 32 && r[1] === y * 32 && r[2] === 32 && r[3] === 32;
+    const inCaster = (r) => r[0] >= 15 * 32 && r[0] < 16 * 32 && r[1] >= 7 * 32 && r[1] < 8 * 32;
+    ok('SC-16', list.marks.length === 1 && painted.line.length > 0 && painted.fill.length === want.length + 1
+      && want.every(([x, y]) => painted.fill.some((r) => tileAt(r, x, y))) && painted.fill.some((r) => tileAt(r, 15, 7)) && !painted.line.some(inCaster)
+      && Math.abs(painted.fillAlpha - 0.4) < 1e-9 && Math.abs(painted.hatchAlpha - 0.55) < 1e-9,
+      'the canvas list must hold the mark as whole tiles of wash and hatch with its outer line: ' + JSON.stringify(painted && { n: painted.fill.length, lines: painted.line.length, a: painted.fillAlpha, h: painted.hatchAlpha }));
+    ok('SC-16', v.at(at(S0 + 1850)).marks.length === 0 && v.scene.stats().marks === 0, 'spell_end must clear the mark: ' + JSON.stringify(v.at(at(S0 + 1850)).marks));
+    const g = v.at(at(S0 + 2500));
+    const tank = unitOf(g, 1), ranger = unitOf(g, 2);
+    ok('SC-16', g.marks.length === 2 && g.marks.every((m) => m.kind === 'group' && m.fill === 0.25) && tank && ranger
+      && g.marks.some((m) => m.x === tank.x && m.y === tank.y) && g.marks.some((m) => m.x === ranger.x && m.y === ranger.y),
+      'a group spell must mark every hero, on its feet, and no ground: ' + JSON.stringify(g.marks));
+    const gl = M.K.composeFrame(M.map, M.book, Object.assign({ t: at(S0 + 2500), roofAlpha: {} }, g), view, M.tables, 32).marks;
+    const wide = (m) => Math.max(...m.line.map(([x, , w]) => x + w)) - Math.min(...m.line.map(([x]) => x));
+    const closing = M.K.composeFrame(M.map, M.book, Object.assign({ t: at(S0 + 3900), roofAlpha: {} }, v.at(at(S0 + 3900))), view, M.tables, 32).marks;
+    ok('SC-16', gl.length === 2 && closing.length === 2 && wide(closing[0]) < wide(gl[0]), 'the ring on a hero closes in as the windup fills: ' + JSON.stringify([gl.map(wide), closing.map(wide)]));
+    ok('SC-16', v.at(at(S0 + 4100)).marks.length === 0, 'the group strike\'s spell_end clears every hero\'s mark');
+  }
+
+  { // SC-17: the Effects sliders, set in Settings, put with the residue, back on a reload, drawn by owner
+    const clock = { t: C0 };
+    const e = envelope(7, S0);
+    /* the rat bites the tank (a monster's effect) as the tank's Power Strike plays (the viewed hero's), and the ranger shoots (another hero's) */
+    e.hunt_events.push({ id: 'k:m1', type: 'dmg', atMs: S0 + 150, u: 101, t: 1, amount: 3, ability: 'basic', element: null },
+      { id: 'k:s1', type: 'spell', atMs: S0 + 100, u: 103, t: 1, spell: 'venom_spray', shape: 'ring', x: 15, y: 7, dx: 0, dy: 0, r: 1, len: 0, ms: 1600 },
+      { id: 'k:l1', type: 'level', atMs: S0 + 100, u: 1, level: 25 });
+    const puts = [];
+    const server = { rpc: async (fn, args) => { if (fn === 'hr_put_client_state') { puts.push(args.p_patch); return { ok: true, body: {} }; } return { ok: true, body: clone(e) }; }, accrue: async () => ({ ok: false }) };
+    const make = () => new M.C.CharacterSession({ slot: 0, uid: '11111111-2222-3333-4444-555555555555', server, setTimer: () => 0, clearTimer: () => {}, now: () => clock.t });
+    const before = make();
+    await before.load();
+    const row = (id) => M.SD.SETTINGS.find((r) => r.id === id);
+    const sctx = { character: before, peers: () => [before], hud: { layoutOf: () => null, setVisible: () => true } };
+    for (const [id, val] of [['fx.self', 40], ['fx.monster', 0], ['fx.marks', 10]]) M.SM.write(sctx, row(id), val);
+    await before.flushResidue();
+    ok('SC-17', puts.length === 1 && puts[0].fxSelf && puts[0].fxSelf.v === 40 && puts[0].fxMonster.v === 0 && puts[0].fxMarks.v === 50,
+      'the sliders must be put with the residue, the Danger marks held at half: ' + JSON.stringify(puts));
+    e.client_state = Object.assign({}, puts[0]);   // the server keeps what was put: the reload's envelope carries it
+    const cs = make();
+    await cs.load();
+    const v = viewer(M, cs);
+    const now = at(S0 + 174);
+    const f = v.at(now);
+    const strike = f.fx.find((x) => x.id === 'fx_power_strike');
+    const bolt = f.fx.find((x) => x.id === 'fx_crossbow_bolt_impact' || x.id === 'fx_crossbow_bolt_projectile');
+    const levelFx = f.fx.find((x) => x.id === 'fx_level_up');
+    ok('SC-17', strike && strike.alpha === 0.4, 'the viewed hero\'s effect must draw at its slider after a reload, got ' + JSON.stringify(strike));
+    ok('SC-17', !f.fx.some((x) => x.id === 'fx_melee_slash'), 'a monster\'s effect at 0 must not draw: ' + JSON.stringify(f.fx.map((x) => [x.id, x.alpha])));
+    ok('SC-17', levelFx && levelFx.alpha === 1, 'a reward is never dimmed: ' + JSON.stringify(levelFx));
+    const list = M.K.composeFrame(M.map, M.book, Object.assign({ t: now, roofAlpha: {} }, f), { ox: 0, oy: 0, w: M.map.w * 32, h: M.map.h * 32 }, M.tables, 32);
+    const painted = list.fx.find((x) => x.id === 'fx_power_strike');
+    ok('SC-17', painted && painted.alpha === 0.4 && list.marks.length === 1 && f.marks[0].alpha === 0.5,
+      'the canvas list must carry the opacity and the mark its half-floor slider: ' + JSON.stringify([painted && painted.alpha, f.marks]));
+    const plain = session(M, { t: C0 }, [envelope(7, S0)]);
+    await plain.load();
+    const pf = viewer(M, plain).at(now).fx.find((x) => x.id === 'fx_power_strike');
+    ok('SC-17', pf && pf.alpha === 1 && (!bolt || bolt.alpha === 1), 'with no pick every effect draws whole: ' + JSON.stringify([pf, bolt]));
+  }
   return fails;
 }
 
@@ -567,6 +665,18 @@ const MUTANTS = [
   ['a monster wears the hero\'s spark (SC-14)', 'src/hunt-view/scene.js', 'isHero(ev.t) ? GLANCE_FX.hero : GLANCE_FX.monster', 'GLANCE_FX.hero'],
   ['a barrier floats a 0 (SC-14)', 'src/hunt-view/scene.js', 'if (ev.amount === 0 && isHero(ev.t)) glance(ev, start); else num(', 'num('],
   ['the spark names art the atlas lacks (SC-5)', 'src/data/hunt-vfx.js', "hero: 'fx_glance_spark'", "hero: 'fx_glance_sparks'"],
+  ['a spell draws no mark (SC-16)', 'src/hunt-view/scene.js', "      case 'spell': marks.open(ev, start, read.huntId); break;\n", ''],
+  ['a spell_end leaves its mark standing (SC-16)', 'src/hunt-view/scene.js', "      case 'spell_end': marks.close(ev.u); break;\n", ''],
+  ['a fallen caster keeps its mark (SC-16)', 'src/hunt-view/scene.js', 'gone: (u) => dead.has(u) || serverDead(u)', 'gone: () => false'],
+  ['a group spell marks nobody (SC-16)', 'src/hunt-view/spell-marks.js', 'if (m.group) for (const h of o.heroes)', 'if (m.group) for (const h of [])'],
+  ['a mark fills on a clock of its own (SC-16)', 'src/hunt-view/spell-marks.js', 'const f = Math.min(1, (now - m.start) / (m.lands - m.start));', 'const f = 1;'],
+  ['the mark is not handed to the canvas (SC-16)', 'src/world/core/compose.js', 'marks: markShapes(state.marks, T) };', 'marks: [] };'],
+  ['a ring draws a box round its caster (SC-16)', 'src/world/core/mark-shapes.js', '    if (!has(hx, hy) && has(hx - 1, hy)', '    if (false && has(hx - 1, hy)'],
+  ['the group ring never closes in (SC-16)', 'src/world/core/mark-shapes.js', '(MARK_LOOK.ringFrom - MARK_LOOK.ringTo) * m.fill', '0'],
+  ['an effect ignores its owner\'s slider (SC-17)', 'src/hunt-view/scene.js', 'const age = now - e.start, alpha = alphaOf(e.by);', 'const age = now - e.start, alpha = 1;'],
+  ['a reward is dimmed with the spells (SC-17)', 'src/hunt-view/scene.js', 'r.reward ? undefined : Number.isInteger(ev.u)', 'Number.isInteger(ev.u)'],
+  ['a slider pick is not kept in the residue (SC-17)', 'src/session/residue.js', "  fxSelf: valuePick(FX_ALPHA_ROW.self),", "  fxSelfX: valuePick(FX_ALPHA_ROW.self),"],
+  ['the canvas list drops the opacity (SC-17)', 'src/world/core/compose.js', "angle: Number.isFinite(e.angle) ? e.angle : 0, alpha });", "angle: Number.isFinite(e.angle) ? e.angle : 0 });"],
 ];
 
 async function main() {
@@ -580,7 +690,10 @@ async function main() {
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
   let bad = 0;
-  for (const [name, file, from, to] of MUTANTS) {
+  /* --only=<text>: just the mutants whose name holds that text */
+  const only = (process.argv.find((a) => a.startsWith('--only=')) || '').slice('--only='.length);
+  const picked = MUTANTS.filter(([name]) => !only || name.includes(only));
+  for (const [name, file, from, to] of picked) {
     const tmp = mkdtempSync(join(tmpdir(), 'hr-huntscene-'));
     try {
       cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true });
@@ -592,7 +705,7 @@ async function main() {
       else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
     } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
-  console.log(bad ? 'hunt-scene --mutate: ' + bad + ' escaped' : 'hunt-scene --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
+  console.log(bad ? 'hunt-scene --mutate: ' + bad + ' escaped' : 'hunt-scene --mutate: ' + picked.length + '/' + picked.length + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }
 main();

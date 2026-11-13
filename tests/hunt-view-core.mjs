@@ -29,6 +29,7 @@
 //   INT-1 a settings change is ONE intent (hr_action_set_options with slot,
 //         preset, options); ok re-reads the character; a refusal changes nothing
 //   LOG-1 the combat log writes each event once, in plain words, by type
+//   LOG-6 a monster's spell winding up is named in the log (the screen marks it), and its hits read with the spell's own name
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -292,6 +293,18 @@ async function rules(M) {
     ok('LOG-4', ['dealt', 'taken'].every((id) => M.CT.LOG_TYPES.find((r) => r.id === id).events.includes('miss')), 'the Dealt and Taken filters must read a miss');
   }
 
+  { // LOG-6: a monster's spell (lane/b-area-client): the screen marks its windup (spell-marks.js), the log names it under Effects,
+    // a group spell says it reaches the whole party, and a hit it lands names the spell (monster-spells.js rows), never its id.
+    const n = { name: (u) => ({ 1: 'Tyler', 101: 'Barn Spider', 102: 'Turncoat' })[u] || 'Someone', isHero: (u) => u === 1 };
+    const marked = M.L.lineOf({ key: 's1', type: 'spell', atMs: 1, u: 101, t: 1, spell: 'venom_spray', shape: 'ring', x: 4, y: 4, ms: 1600 }, n);
+    const group = M.L.lineOf({ key: 's2', type: 'spell', atMs: 1, u: 102, t: 1, spell: 'smoke_pot', shape: 'group', x: 4, y: 4, ms: 2000 }, n);
+    const hit = M.L.lineOf({ key: 's3', type: 'dmg', atMs: 1, u: 101, t: 1, amount: 30, ability: 'venom_spray' }, n);
+    ok('LOG-6', marked && marked.type === 'status' && marked.text === 'Barn Spider is casting Venom Spray.', 'a marked spell reads ' + JSON.stringify(marked));
+    ok('LOG-6', group && group.text === 'Turncoat is casting Smoke Pot on the whole party.', 'a group spell reads ' + JSON.stringify(group));
+    ok('LOG-6', hit && hit.text === 'Barn Spider hits Tyler for 30 with Venom Spray.', 'a spell\'s hit reads ' + JSON.stringify(hit));
+    ok('LOG-6', M.CT.LOG_TYPES.find((r) => r.id === 'status').events.includes('spell'), 'the Effects filter must read a spell');
+  }
+
   { // LOG-5: a unit newer than the last pose has a name ("Someone misses Someone" filled the first seconds of a hunt):
     // a monster the timeline walked but the pose does not list yet, a hero only the live view knows.
     const clock = { t: 500000 };
@@ -330,6 +343,8 @@ async function rules(M) {
 }
 
 const MUTANTS = [
+  ['the log names no spell (LOG-6)', 'src/hunt-view/combat-log.js', "    case 'spell': return line(", "    case 'spell_x': return line("],
+  ['a spell hit reads its id (LOG-6)', 'src/shell/widgets/bits.js', ' || (spellRow(id) || {}).n || spelled(id); }', ' || spelled(id); }'],
   ['an event is delivered twice', 'src/hunt-view/timeline.js', '      if (seen.has(k)) continue;\n', ''],
   ['the clock offset jumps to each batch', 'src/hunt-view/timeline.js', 'offset = offset === null ? m : offset + (m - offset) * cfg.skew;', 'offset = m;'],
   ['a new envelope clears the timeline', 'src/session/character-session.js', '  _play(body) {\n', '  _play(body) {\n    this.timeline = createTimeline();\n'],

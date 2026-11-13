@@ -32,6 +32,11 @@ export const ELEMENT_PCT = Object.freeze({ min: -100, max: 75 });
 /** The non-element damage type (a basic swing, a bleed). */
 export const PHYSICAL = 'physical';
 
+/** A HERO'S RESISTANCE to one element, permille less taken (Tyler 2026-11-08: gear and imbuements answer a monster's group
+    spell; design "2026-11-08 Area spells", next phase): from its worn gear, summed and capped at maxPm (40%: "No
+    resistance goes above 40%, so nothing is ever immune"). Never below 0: no gear makes a hero weak to an element. */
+export const HERO_RESIST_PM = Object.freeze({ min: 0, max: 400 });
+
 const SET = new Set(ELEMENTS);
 
 /** Is `e` one of the real elements? The single validity predicate. */

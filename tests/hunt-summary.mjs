@@ -101,6 +101,12 @@ async function runTests(M) {
     eq(f.damageByType, [{ type: 'physical', total: 131 }], 'damage by type');
   });
 
+  await t('D1b a killing blow from a monster spell names the spell (lane/b-area-client)', () => {
+    const spellStream = STREAM.map((e) => (e.atMs === T - 2000 ? Object.assign({}, e, { ability: 'tail_lash' }) : e));
+    const f = EX.explainDeaths(recorded(spellStream, MD).events(), { whoOf }).deaths[0];
+    ok(f.lines[1] === 'The killing blow was 51 from Rat King’s Tail Lash.', 'the spell\'s killing blow: ' + f.lines[1]);
+  });
+
   await t('D2 an event id counts once', () => {
     const rec = recorded(STREAM.concat(STREAM.slice(2, 6)), MD);   // the next settle restates the window's tail
     eq(rec.events().length, STREAM.length, 'a restated event is not kept twice');
@@ -436,6 +442,7 @@ const MUTANTS = [
   { test: 'D1', file: EXPLAIN, from: "else if (to - lastHeal >= 3000)", to: "else if (false)" },
   { test: 'D1', file: EXPLAIN, from: "for (const o of who.others || []) if", to: "for (const o of []) if" },
   { test: 'D1', file: EXPLAIN, from: "rules.push(\"rule '\" + ruleName(w) + \"' was waiting\"", to: "rules.push(\"rule '\" + ruleName(w) + \"' fired\"" },
+  { test: 'D1b', file: EXPLAIN, from: "const cast = killingBlow && spellRow(killingBlow.ability);", to: "const cast = null;" },
   { test: 'D2', file: MODEL, from: "if (key === null || seen.has(key)) return false;", to: "if (key === null) return false;" },
   { test: 'D3', file: EXPLAIN, from: "e.atMs >= from && e.atMs <= to)", to: "e.atMs <= to)" },
   { test: 'D4', file: EXPLAIN, from: "kind: wipe ? 'wipe'", to: "kind: false ? 'wipe'" },

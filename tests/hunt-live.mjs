@@ -6,7 +6,7 @@
 //   node tests/hunt-live.mjs --mutate   every planted defect must turn its rule RED
 //   node tests/hunt-live.mjs --mutate --only LV-HOLD   just the mutants whose name holds that text
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js src/core/hunt/boss-phases.js src/core/hunt/damage.js
+// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/monster-spells.js src/core/hunt/marks.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
 // mutant-rule-functions: rules
 // mutant-runner-functions: mutate main
@@ -76,6 +76,17 @@
 //         casts on them, on the server's commits (browser closed) and in the prediction (viewed).
 //   LV-NOFIGHT A HERO WHO CAN'T FIGHT GOES HOME (designer 10-31): a bare bow with the store shut ends no_fight at its
 //         span on the server's commits; viewed, the prediction stops there too and every commit before it matches.
+//   LV-SPELL A MONSTER'S GROUP STRIKE (Tyler 2026-11-08, lane/b-area-engine): every hero of a party of four, and a lone hero, is struck
+//         at every landing wherever it stands, on the server's commits (browser closed); viewed, every commit matches and the browser
+//         plays the server's own marks; a frost-resisting tank (gear resistPm, carried to a peer's browser in its frozen row) takes half.
+//   LV-STAGGER THE FIRST CAST'S STAGGER, BOTH PATHS (Tyler 2026-11-08, lane/d-spell-tuning's SPELL_STAGGER): a pack of casters does not open
+//         with every cast at once. Browser closed: on the server's commits the casters' first casts start at different instants, and the
+//         same seed gives the same casts again. Viewed: every commit matches the prediction and the browser's casts are the server's, start
+//         for start (the wait is drawn on the swing's own dice, which both sides hold).
+//   LV-AREA A HERO'S AREA ABILITY, BOTH PATHS (Tyler 2026-11-08, lane/b-area-set): a sword alone with Turning Cut beside a tank, watched by
+//         the TANK, so the caster is the browser's frozen peer. Browser closed: the server's commits cast it and it strikes for a share of
+//         the caster's own blow; a hero under its unlock level never casts it. Viewed: every commit matches the prediction both ways (the
+//         peer's level and its largest blow reach the browser in its frozen row).
 //   LV-RR THE PARTY'S RARE ROLL IS THE SERVER'S (Tyler L8; rulings: loot rolls use a server-only
 //         stream): with every monster carrying rare rows, the server's commits roll rares
 //         (`rare_roll`, each Crown Shard to its winner) and the browser's prediction, which
@@ -138,8 +149,17 @@ async function load(base) {
   const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(base, 'src/build-info.js'), 'utf8')) || [, ''])[1];
   return {
     ENGINE_MONSTERS: (await import(pathToFileURL(join(base, 'src/data/monsters.js')).href + V)).MONSTERS,
+    /* the engine's own spell table (LV-SPELL plants a test row and takes it back) */
+    ENGINE_SPELLS: (await import(pathToFileURL(join(base, 'src/data/monster-spells.js')).href + V)).MONSTER_SPELLS,
+    /* the engine's own switch (the one row that turns every monster's spells on or off): LV-SPELL plays with it on, whichever way it ships */
+    ENGINE_SPELL_SWITCH: (await import(pathToFileURL(join(base, 'src/data/monster-spells.js')).href + V)).SPELL_SWITCH,
+    /* the engine's own first-cast stagger row (LV-STAGGER plays it as shipped) */
+    ENGINE_SPELL_STAGGER: (await import(pathToFileURL(join(base, 'src/data/monster-spells.js')).href + V)).SPELL_STAGGER,
+    ENGINE_ELEMENTS: await import(pathToFileURL(join(base, 'src/core/elements.js')).href + V),
     /* the engine's own tier rows (LV-DIAL swaps one for a what-if and puts it back) */
     ENGINE_TIERS: (await import(pathToFileURL(join(base, 'src/data/hunt-tiers.js')).href + V)).GROUND_TIERS,
+    /* the engine's own ability rows (LV-AREA reads Turning Cut's unlock and share off them) */
+    ENGINE_ABILITIES: (await import(pathToFileURL(join(base, 'src/data/abilities.js')).href + V)).ABILITIES,
     /* the engine's own blow and to-hit (deadlyRows builds its rows with them) */
     ENGINE_COMBAT: await import(pathToFileURL(join(base, 'src/core/combat.js')).href + V),
     /* the engine's own scaled-hunt play (LV-SCALE reads the rows a scaled Cellar fights with) */
@@ -282,6 +302,23 @@ function run(M, mis, spanMs, opt) {
     if (!E.running()) starvedMs += 100;
   }
   return { srv, E, fed, verdicts, heroesSeen, starvedMs };
+}
+
+/* A MONSTER'S SWINGS, NEVER ITS SPELLS (lane/b-area-data: the monsters' spells on the real grounds). A spell's hits land in the
+   sub-step its `spell_end` (why 'landed') closes, from its caster (monster-spells.js land: the caster swings in no sub-step of
+   its windup), so `events` less every dmg and miss at that caster in that sub-step. A group spell strikes every hero by design
+   (Tyler 2026-11-08): it is no swing off the lap's holder. */
+function swingsOnly(events) {
+  const landed = new Set(events.filter((e) => e.type === 'spell_end' && e.why === 'landed').map((e) => e.u + '@' + e.atMs));
+  return events.filter((e) => !((e.type === 'dmg' || e.type === 'miss') && landed.has(e.u + '@' + e.atMs)));
+}
+
+/* Run `fn` with no monster casting (the engine's own rows: LV-SPELL's table, put back after), for an arm whose subject is not
+   the spells and whose party cannot live through them. */
+function withoutSpells(M, fn) {
+  const kept = Object.entries(M.ENGINE_MONSTERS).filter(([, m]) => Object.prototype.hasOwnProperty.call(m, 'spells')).map(([k, m]) => [k, m.spells]);
+  for (const [k] of kept) delete M.ENGINE_MONSTERS[k].spells;
+  try { return fn(); } finally { for (const [k, s] of kept) M.ENGINE_MONSTERS[k].spells = s; }
 }
 
 function rules(M) {
@@ -857,7 +894,7 @@ function rules(M) {
       for (let t = T0 + M.CB.tickMs; t <= T0 + 120000; t += M.CB.tickMs) {
         const c = srv.commit(t);
         if (!c) break;
-        for (const e of c.tl.hunt_events) {
+        for (const e of swingsOnly(c.tl.hunt_events)) {
           if (e.type === 'dmg') hits[e.u] = (hits[e.u] || 0) + 1;
           if (e.type === 'pull' && e.pocket === route0) lap++;
           /* a monster's swing at a tank (landed or missed: what trains its Defense), on or off the lap's holder
@@ -895,7 +932,7 @@ function rules(M) {
     const ids = [mis[0].unitId, mis[1].unitId];
     const route0 = M.HG.huntGroundOf('millrace_sewer').ground.route[0];
     const laps = [];
-    for (const e of v.fed.events.slice().sort((x, y) => x.atMs - y.atMs)) {
+    for (const e of swingsOnly(v.fed.events).sort((x, y) => x.atMs - y.atMs)) {
       if (e.type === 'pull' && e.pocket === route0) laps.push({ swings: {}, casts: 0 });
       const lap = laps[laps.length - 1];
       if (!lap) continue;
@@ -928,7 +965,7 @@ function rules(M) {
     };
     const swingsAt = (evs, ids) => {
       const out = { pick: 0, other: 0 };
-      for (const e of evs) if ((e.type === 'dmg' || e.type === 'miss') && !ids.includes(e.u) && ids.includes(e.t)) out[e.t === ids[1] ? 'pick' : 'other']++;
+      for (const e of swingsOnly(evs)) if ((e.type === 'dmg' || e.type === 'miss') && !ids.includes(e.u) && ids.includes(e.t)) out[e.t === ids[1] ? 'pick' : 'other']++;
       return out;
     };
     /* browser closed: the server's commits alone, with the change to "Take turns" at 1,000 s (two laps begun by then: since 2026-11-08 a pack carries its row's whole HP for a pair, a lap about 450 s) */
@@ -1006,6 +1043,10 @@ function rules(M) {
       }
       return laps;
     };
+    /* SPELLS OFF HERE (lane/b-area-data): the bug #61 party in its 10-22 gear (bronze bodies, Practice Shields, Offensive) cannot
+       live 600 s through the Warrens' spells (Fremulon falls at 516 s under Take turns, and a fallen holder ends the laps this arm
+       reads). Who pulls and holds is spell-blind; LV-SPELL and LV-4P play the spells on both paths. */
+    withoutSpells(M, () => {
     for (const [mode, hold] of [['Take turns', null], ['One tank holds: Fremulon', 1]]) {
       /* the holder of lap i (by `runs`): the lap's turn, or Fremulon every lap */
       const holderOf = (ids, i) => (hold === null ? ids[i % 2] : ids[1]);
@@ -1044,6 +1085,7 @@ function rules(M) {
       console.log(`  LV-PULL ${mode}, viewed: ${vlaps.length} lap(s), ${vCasts} Challenge cast(s), ${vOff} swing(s) off the holder; ${unmatched} of ${v.verdicts.length} commits off the prediction`);
       ok('LV-PULL', vlaps.length >= 3 && vCasts === 0 && vOff === 0 && unmatched === 0 && v.verdicts.length >= 30, `${mode}, viewed: ${vlaps.length} lap(s), ${vCasts} cast(s), ${vOff} swing(s) off the holder, ${unmatched} of ${v.verdicts.length} commits off (want 3+, 0, 0, 0)`);
     }
+    });
   }
 
   { // LV-TGT: "STRONGEST" AND "FOLLOW" ON A MIXED PACK, BOTH PATHS (Andy a08, live v0.2.33: "Strongest and Follow
@@ -1660,6 +1702,125 @@ function rules(M) {
     ok('LV-CLASS', closedXp.join() === viewedXp.join() && closedXp.every((x) => x > 0), 'pull: viewed the server paid ' + viewedXp + ', with the browser closed ' + closedXp);
     ok('LV-CLASS', off === 0, 'pull: ' + off + ' of ' + r.verdicts.length + ' commits did not match the prediction');
   }
+
+  { // LV-SPELL: A MONSTER'S GROUP STRIKE, BOTH PATHS (Tyler 2026-11-08: "for the full group to take some damage"; lane/b-area-engine).
+    // Every Cellar monster casts a group frost strike (a test row planted on the engine's own table, put back after): every
+    // hero of a party of four, and a lone hero, is struck at every landing wherever it stands. The tank wears frost resistance
+    // (a test resistPm on its shield) and takes at most half of what the others can. Browser closed: the server's commits.
+    // Viewed: every commit matches the prediction, the marks (spell / spell_end) the browser plays are the server's, and the
+    // tank's resistance reaches the browser through its frozen row (a peer's in the party).
+    /* THE FIRST CAST IS STAGGERED over the cooldown (SPELL_STAGGER, lane/d-spell-tuning) and plays here as shipped: a four fells a Cellar pack in seconds, so the row's
+       warning and cooldown are short enough that some casts start before their caster falls (at 2 s and 6 s the four saw none in 96 s). */
+    const SPELL = { n: 'Test Squall', shape: 'group', range: 6, windupMs: 1200, cdMs: 2400, hitPm: 2000, element: 'frost' }, SID = 'lv_squall';
+    const kinds = [...new Set(M.HG.huntGroundOf('mill_cellar').ground.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((s) => s.monster || s)))]
+      .filter((k) => M.ENGINE_MONSTERS[k]);
+    const rows = [M.ENGINE_MONSTERS, M.MONSTERS];
+    const keep = kinds.map((k) => rows.map((t) => [Object.prototype.hasOwnProperty.call(t[k], 'spells'), t[k].spells]));
+    const shield = M.ITEMS.practice_shield, hadResist = Object.prototype.hasOwnProperty.call(shield, 'resistPm'), oldResist = shield.resistPm;
+    M.ENGINE_SPELLS[SID] = SPELL;
+    const wasLive = M.ENGINE_SPELL_SWITCH.live;
+    M.ENGINE_SPELL_SWITCH.live = true;
+    for (const k of kinds) for (const t of rows) t[k].spells = [SID];
+    /* asked 50%, worn at the 40% cap (data/elements.js HERO_RESIST_PM) */
+    shield.resistPm = { frost: 500 };
+    try {
+      for (const [name, mis] of [['four', [memberOf(M, 'a', 0, 'tank', 6), memberOf(M, 'b', 1, 'melee_dps', 6), memberOf(M, 'c', 2, 'ranger', 6), memberOf(M, 'd', 3, 'melee_dps', 6)]],
+        ['lone', [memberOf(M, 'a', 0, 'tank', 6)]]]) {
+        const r = run(M, mis, 96000, { viewer: { user: mis[mis.length - 1].user, slot: 0 } });
+        const server = r.verdicts.flatMap((x) => x.tl.hunt_events);
+        const ends = server.filter((e) => e.type === 'spell_end' && e.why === 'landed');
+        const heroes = mis.map((m) => m.unitId);
+        /* (two casters may land in one instant: each landing is its own caster's hits) */
+        const hitAt = (at, u) => server.filter((e) => e.type === 'dmg' && e.ability === SID && e.atMs === at && e.u === u).map((e) => e.t).sort((a, b) => a - b);
+        const missed = ends.filter((e) => e.hits !== heroes.length || JSON.stringify(hitAt(e.atMs, e.u)) !== JSON.stringify(heroes.slice().sort((a, b) => a - b)));
+        console.log(`  LV-SPELL ${name}: ${ends.length} group strikes landed on the server's commits, ${missed.length} missed a hero; ${r.verdicts.filter((x) => x.v === 'match').length} of ${r.verdicts.length} commits matched`);
+        ok('LV-SPELL', ends.length >= 3, `${name}: browser closed: ${ends.length} group strikes landed in 96 s (the rule needs some)`);
+        ok('LV-SPELL', missed.length === 0, `${name}: browser closed: a group strike missed a hero of ${heroes.length} at ${missed.map((e) => e.atMs - T0)}`);
+        const off = r.verdicts.filter((x) => x.v !== 'match');
+        ok('LV-SPELL', r.verdicts.length >= 5 && off.length === 0, `${name}: viewed: ${off.length} of ${r.verdicts.length} commits did not match the prediction`);
+        const fed = new Set(r.fed.events.filter((e) => e.type === 'spell' || e.type === 'spell_end').map((e) => JSON.stringify(e)));
+        const marks = server.filter((e) => e.type === 'spell' || e.type === 'spell_end');
+        ok('LV-SPELL', marks.length > 0 && marks.every((e) => fed.has(JSON.stringify(e))), `${name}: viewed: ${marks.filter((e) => !fed.has(JSON.stringify(e))).length} of the server's ${marks.length} marks were not the browser's`);
+        /* the tank's resistance: its hits stay inside the capped share of the strike's top (balanced stance, no armor worn), the others' go past it */
+        const tank = mis[0].unitId;
+        const amounts = (pred) => server.filter((e) => e.type === 'dmg' && e.ability === SID && pred(e.t)).map((e) => e.amount);
+        const T = amounts((t) => t === tank), O = amounts((t) => t !== tank);
+        const top = Math.max(...kinds.map((k) => Math.floor((M.ENGINE_COMBAT.monsterMaxHit(M.ENGINE_MONSTERS[k]) * SPELL.hitPm) / 1000)));
+        const cap = Math.floor((top * M.ENGINE_ELEMENTS.heroElementPermille({ frost: 500 }, 'frost')) / 1000);
+        ok('LV-SPELL', T.length > 0 && Math.max(...T) <= cap && (name === 'lone' || Math.max(...O) > cap), `${name}: the frost-resisting tank took ${Math.max(...T, 0)} at most (cap ${cap} of the top ${top}), the rest ${Math.max(...O, 0)}`);
+      }
+    } finally {
+      delete M.ENGINE_SPELLS[SID];
+      M.ENGINE_SPELL_SWITCH.live = wasLive;
+      kinds.forEach((k, i) => rows.forEach((t, j) => { const [had, v] = keep[i][j]; if (had) t[k].spells = v; else delete t[k].spells; }));
+      if (hadResist) shield.resistPm = oldResist; else delete shield.resistPm;
+    }
+  }
+
+  { // LV-STAGGER: THE FIRST CAST'S STAGGER, BOTH PATHS (Tyler 2026-11-08: a pack must not open with every cast at once; lane/d-spell-tuning's
+    // SPELL_STAGGER, played as shipped). Every Cellar monster casts a weak group spell on a long cooldown at a lone tank it cannot fell, so
+    // each caster's FIRST cast is its drawn wait. Browser closed: the server's commits. Viewed: the prediction, cast for cast.
+    const SPELL = { n: 'Test Drizzle', shape: 'group', range: 6, windupMs: 1200, cdMs: 8000, hitPm: 100, element: null }, SID = 'lv_drizzle';
+    const kinds = [...new Set(M.HG.huntGroundOf('mill_cellar').ground.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((s) => s.monster || s)))]
+      .filter((k) => M.ENGINE_MONSTERS[k]);
+    const rows = [M.ENGINE_MONSTERS, M.MONSTERS];
+    const keep = kinds.map((k) => rows.map((t) => [Object.prototype.hasOwnProperty.call(t[k], 'spells'), t[k].spells]));
+    const wasLive = M.ENGINE_SPELL_SWITCH.live;
+    M.ENGINE_SPELLS[SID] = SPELL;
+    M.ENGINE_SPELL_SWITCH.live = true;
+    for (const k of kinds) for (const t of rows) t[k].spells = [SID];
+    try {
+      ok('LV-STAGGER', Number.isInteger(M.ENGINE_SPELL_STAGGER.spanPm) && M.ENGINE_SPELL_STAGGER.spanPm > 0, 'the stagger ships off (SPELL_STAGGER.spanPm ' + M.ENGINE_SPELL_STAGGER.spanPm + '): the rule has nothing to play');
+      const play = () => run(M, [memberOf(M, 'a', 0, 'tank', 6)], 180000, { viewer: { user: 'a', slot: 0 } });
+      const casts = (r) => r.verdicts.flatMap((x) => x.tl.hunt_events).filter((e) => e.type === 'spell' && e.spell === SID);
+      const r = play();
+      const server = casts(r);
+      /* each caster's first cast, and how many different instants they start at: a pack that opens at once shares one */
+      const first = new Map();
+      for (const e of server) if (!first.has(e.u)) first.set(e.u, e.atMs);
+      const instants = new Set(first.values());
+      console.log(`  LV-STAGGER: ${first.size} casters' first casts start at ${instants.size} different instants on the server's commits; ${r.verdicts.filter((x) => x.v === 'match').length} of ${r.verdicts.length} commits matched`);
+      ok('LV-STAGGER', first.size >= 4 && instants.size * 5 >= first.size * 4, `browser closed: ${first.size} casters' first casts start at only ${instants.size} different instants (a pack opened at once)`);
+      ok('LV-STAGGER', JSON.stringify(casts(play())) === JSON.stringify(server), 'browser closed: the same seed played twice gave different casts');
+      const off = r.verdicts.filter((x) => x.v !== 'match');
+      ok('LV-STAGGER', r.verdicts.length >= 5 && off.length === 0, `viewed: ${off.length} of ${r.verdicts.length} commits did not match the prediction`);
+      const fed = r.fed.events.filter((e) => e.type === 'spell' && e.spell === SID).map((e) => e.u + '@' + e.atMs);
+      const want = server.map((e) => e.u + '@' + e.atMs);
+      ok('LV-STAGGER', want.every((k) => fed.includes(k)), `viewed: ${want.filter((k) => !fed.includes(k)).length} of the server's ${want.length} casts were not the browser's, start for start`);
+    } finally {
+      delete M.ENGINE_SPELLS[SID];
+      M.ENGINE_SPELL_SWITCH.live = wasLive;
+      kinds.forEach((k, i) => rows.forEach((t, j) => { const [had, v] = keep[i][j]; if (had) t[k].spells = v; else delete t[k].spells; }));
+    }
+  }
+
+  { // LV-AREA: A HERO'S AREA ABILITY, BOTH PATHS (Tyler 2026-11-08: "our heros some more aoe spells"; lane/b-area-set). A sword alone
+    // with Turning Cut on its bar (a ring round the hero: each monster struck for a share of the hero's own largest blow, unlocked at a
+    // level in its skill) beside a tank, WATCHED BY THE TANK: the caster is the browser's frozen peer, so its level (the unlock) and its
+    // largest blow (the share) reach the prediction only through its frozen row (member.js frozenOf: lv, snap.maxHit).
+    const row = M.ENGINE_ABILITIES.turning_cut;
+    const slot = { action: { type: 'ability', id: 'turning_cut' }, conditions: [], join: 'and' };
+    const pair = (level) => {
+      const a = memberOf(M, 'a', 0, 'tank', level), b = memberOf(M, 'b', 1, 'melee_dps', level);
+      b.equipment = { weapon: 'bronze_sword' };
+      b.hero = M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [slot], partyRoles: ['tank', 'melee_dps'], leaveTogether: true });
+      return [a, b];
+    };
+    ok('LV-AREA', row && Number.isInteger(row.unlock) && row.unlock > 2 && row.target === 'ring' && Number.isInteger(row.hitPm), 'Turning Cut is no longer a ring with an unlock and a share: ' + JSON.stringify(row));
+    for (const [name, level, casts] of [['at its unlock', row.unlock, true], ['under its unlock', row.unlock - 1, false]]) {
+      const mis = pair(level);
+      const r = withoutSpells(M, () => run(M, mis, 96000, { viewer: { user: 'a', slot: 0 } }));
+      const server = r.verdicts.flatMap((x) => x.tl.hunt_events);
+      const caster = mis[1].unitId;
+      const cast = server.filter((e) => e.type === 'cast' && e.ability === 'turning_cut' && e.u === caster);
+      const hits = server.filter((e) => e.type === 'dmg' && e.ability === 'turning_cut' && e.u === caster);
+      const off = r.verdicts.filter((x) => x.v !== 'match');
+      console.log(`  LV-AREA ${name} (Melee ${level}): ${cast.length} Turning Cuts on the server's commits, ${hits.length} monsters struck; ${r.verdicts.length - off.length} of ${r.verdicts.length} commits matched`);
+      if (casts) ok('LV-AREA', cast.length >= 3 && hits.length >= cast.length, `${name}: browser closed: ${cast.length} casts struck ${hits.length} monsters in 96 s (the rule needs some)`);
+      else ok('LV-AREA', cast.length === 0 && hits.length === 0, `${name}: browser closed: a hero at Melee ${level} cast Turning Cut ${cast.length} time(s) under its unlock ${row.unlock}`);
+      ok('LV-AREA', r.verdicts.length >= 5 && off.length === 0, `${name}: viewed: ${off.length} of ${r.verdicts.length} commits did not match the prediction (first at +${off.length ? off[0].t - T0 : 0} ms)`);
+    }
+  }
   return fails;
 }
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
@@ -1718,6 +1879,13 @@ const MUTANTS = [
     '    const where = huntGroundOf(String(live.instance.hunt));\n',
     '    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { leashMargin: 0 }) };\n', /^LV-OPEN: viewed/],
   ['a second tank holds where it stands (LV-T)', 'src/core/hunt/roles.js', "  if (!onMe.length) { h.spot = null; closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }\n", '', /^LV-T/],
+  ['a pack opens with every cast at once (LV-STAGGER)', 'src/core/hunt/monster-spells.js', '    if (!u.spellCds) u.spellCds = firstCasts(sc, list);', '    if (!u.spellCds) u.spellCds = {};', /^LV-STAGGER: browser closed: \d+ casters/],
+  ['every caster waits the same, the wait is not drawn (LV-STAGGER)', 'src/core/hunt/monster-spells.js', 'const wait = steps > 0 ? sc.rng.int(0, steps) * sc.dtMs : 0;', 'const wait = steps > 0 ? Math.floor(steps / 2) * sc.dtMs : 0;', /^LV-STAGGER: browser closed: \d+ casters/],
+  ['a frozen peer row drops the levels its abilities read (LV-AREA)', 'src/core/member.js', '  for (const k of engineSkillsOf(m.hero.slots)) lv[k] = levelOf(m.state.skills, k);\n', '', /^LV-AREA: at its unlock: viewed/],
+  ['an ability casts under its unlock (LV-AREA)', 'src/core/hunt/abilities.js', "    if (row.unlock && h.skills && skillLevel(h, row) < row.unlock) return { why: 'level' };\n", '', /^LV-AREA: under its unlock: browser closed/],
+  ['a frozen peer row drops its resistance (LV-SPELL)', 'src/core/member.js', '  ...(snap.resistPm ? { resistPm: snap.resistPm } : {}) });', '  });', /^LV-SPELL: four: viewed/],
+  ['a group strike lands only on its target (LV-SPELL)', 'src/core/hunt/shapes.js', "    case 'group': return true;", "    case 'group': return d === 0;", /^LV-SPELL: four: browser closed/],
+  ['gear never sums its resistance (LV-SPELL)', 'src/core/combat.js', '  if (resist) Object.assign(s, { resistPm: resist });\n', '', /^LV-SPELL: four: the frost-resisting tank/],
   ['the swing runs on after a hero dies (LV-Q, live v0.2.23)', 'src/core/hunt/world-step.js', '    if (heroes.some((u) => !u.alive)) break;\n', '', /^LV-Q/],
   ['an ended instance keeps the prediction swinging (LV-E)', 'src/hunt-view/live-engine.js', 'if (!(sim.nextSwingAtMs > at)) {', 'if (false) {', /^LV-E/],
   ['a fresh world counts from 0, not the instance swing (LV-W)', 'src/hunt-view/live-engine.js', '      worldSwing: s.worldSwing },', '      worldSwing: 0 },', /^LV-W/],

@@ -1,0 +1,91 @@
+<!doctype html>
+<!-- tools/qa/spell-marks.html — A MONSTER SPELL'S DANGER MARK, DRAWN BY THE REAL RENDERER. A local, test-only page (never linked
+     from the game, signs nobody in, talks to no server) for the visual gate and the art lane (AS-1): a hunt ground drawn by the
+     real canvas backend (src/world/render/canvas-backend.js) with a boss, a tank beside him and two heroes standing off, and the
+     marks the hunt scene hands it (src/hunt-view/spell-marks.js frame -> src/world/core/mark-shapes.js), on the server's own tiles
+     (src/core/hunt/shapes.js tilesOf over the ground's grid). Until a live caster can be played (the area spells' server lane),
+     this is where a mark is read at the game's own zoom.
+       http://localhost:<port>/tools/qa/spell-marks.html?map=millrace_sewer&shape=ring&fill=0.5&alpha=1
+     map    a hunt map id (millrace_sewer is lit as a cellar, mosslight_glade and wickstead as day)
+     shape  ring | cone | line | blast | group | all (a ring round the boss, and the heroes' group rings)
+     r, len the shape's size (ring and blast 1, cone 2, line 4)
+     fill   0..1, the windup's share (the scene steps it in eighths); anim=1 loops a 2 s windup instead
+     alpha  the Danger marks slider, 0.5..1
+     w x h  the stage in CSS px (default the window), dpr the device pixel ratio
+-->
+<html><head><meta charset="utf-8"><title>spell marks</title>
+<base href="../../">
+<link rel="stylesheet" href="../../src/styles/tokens.css">
+<style>html,body{margin:0;background:#0b0a0c;color:#e6dcbc;font:12px monospace}#stage{position:relative;overflow:hidden}#stage canvas{position:absolute;inset:0;width:100%;height:100%}#out{position:fixed;left:4px;bottom:4px;background:#000c;padding:4px;white-space:pre}</style>
+</head><body><div id="stage"></div><div id="out">loading…</div>
+<script type="module">
+import { loadAtlases } from '../../src/world/atlas.js';
+import { STUB_SPRITE } from '../../src/world/core/book.js';
+import { compileMap } from '../../src/world/core/map-compile.js';
+import { reachFrom } from '../../src/world/core/path.js';
+import { createCanvasBackend } from '../../src/world/render/canvas-backend.js';
+import { WORLD_MAPS } from '../../src/data/world/maps/index.js';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../../src/data/world/terrain.js';
+import { gridOfMap } from '../../src/core/hunt-ground.js';
+import { place, tilesOf } from '../../src/core/hunt/shapes.js';
+import { MARK_TIMING } from '../../src/hunt-view/spell-marks.js';
+import { BUILD } from '../../src/build-info.js';
+
+const q = new URLSearchParams(location.search);
+const MAP = q.get('map') || 'millrace_sewer', SHAPE = q.get('shape') || 'all', ANIM = q.get('anim') === '1';
+const ALPHA = Math.max(0.5, Math.min(1, q.has('alpha') ? +q.get('alpha') : 1)), FILL = q.has('fill') ? +q.get('fill') : 0.5;
+const W = +q.get('w') || innerWidth, H = +q.get('h') || innerHeight, DPR = +q.get('dpr') || devicePixelRatio || 1;
+const out = document.getElementById('out');
+const stage = document.getElementById('stage');
+stage.style.width = W + 'px'; stage.style.height = H + 'px';
+const win = new Proxy(window, { get: (t, k) => (k === 'innerWidth' ? W : k === 'innerHeight' ? H : k === 'devicePixelRatio' ? DPR
+  : (typeof t[k] === 'function' ? t[k].bind(t) : t[k])) });
+const styles = getComputedStyle(document.documentElement);
+const css = (name) => styles.getPropertyValue(name).trim();
+
+const { book, images } = await loadAtlases({ doc: document, version: BUILD.cache });
+const sprites = new Proxy(book.sprites, { get: (t, k) => t[k] || STUB_SPRITE });
+const tables = { materials: MATERIALS, sprites, openClasses: OPEN_CLASSES, lights: LIGHTS };
+const map = compileMap(WORLD_MAPS.find((m) => m.id === MAP), tables);
+const grid = gridOfMap(MAP);
+const backend = createCanvasBackend({ win, doc: document, book, images, tables, css });
+backend.mount(stage);
+backend.setMap(map);
+
+/* the boss on the reachable tile with the most open ground round it (a 5x5 all open), the heroes round him */
+const reach = reachFrom(map.mask, map.w, map.h, map.start);
+const open = (x, y) => x >= 0 && y >= 0 && x < map.w && y < map.h && !!reach[y * map.w + x];
+let boss = map.start;
+for (let y = 0, best = -1; y < map.h; y++) for (let x = 0; x < map.w; x++) {
+  if (!open(x, y)) continue;
+  let n = 0;
+  for (let dy = -3; dy <= 3; dy++) for (let dx = -4; dx <= 4; dx++) if (open(x + dx, y + dy)) n++;
+  if (n > best) { best = n; boss = [x, y]; }
+}
+const [bx, by] = boss;
+const heroes = [{ id: 'outfit_knight', x: bx - 1, y: by }, { id: 'outfit_ranger', x: bx - 3, y: by + 1 }, { id: 'outfit_sorcerer', x: bx - 4, y: by - 1 }];
+const units = [{ id: 'rat_king', x: bx, y: by, anim: 'idle', dir: 'w', frame: 0, plate: { text: 'Rat King', kind: 'foe' } }]
+  .concat(heroes.slice(1).map((h) => Object.assign({ anim: 'idle', dir: 'e', frame: 0 }, h)));
+const spec = { ring: { shape: 'ring', r: +q.get('r') || 1 }, blast: { shape: 'blast', r: +q.get('r') || 1 }, cone: { shape: 'cone', len: +q.get('len') || 2 }, line: { shape: 'line', len: +q.get('len') || 4 } };
+
+/* the scene's marks at a windup share, as spell-marks.js hands them (eighths, held until it closes) */
+function marksAt(f) {
+  const fill = Math.floor(Math.min(1, f) * MARK_TIMING.steps) / MARK_TIMING.steps;
+  const out = [];
+  const ground = SHAPE === 'all' ? 'ring' : SHAPE;
+  if (spec[ground]) out.push({ kind: 'ground', tiles: tilesOf(place(spec[ground], { x: bx, y: by }, { x: bx - 1, y: by }), grid), fill, alpha: ALPHA });
+  if (SHAPE === 'group' || SHAPE === 'all') for (const h of heroes) out.push({ kind: 'group', x: h.x, y: h.y, fill, alpha: ALPHA });
+  return out;
+}
+const t0 = performance.now();
+function draw() {
+  const t = performance.now() - t0;
+  const f = ANIM ? (t % 2600) / 2000 : FILL;
+  backend.sync({ hero: Object.assign({ anim: 'idle', dir: 'e', frame: 0 }, heroes[0]), units, marks: f <= 1 ? marksAt(f) : [], t, roofAlpha: {} });
+  out.textContent = MAP + ' (' + map.light + ') ' + SHAPE + ' fill ' + (Math.floor(Math.min(1, f) * 8) / 8) + ' alpha ' + ALPHA + '  boss ' + bx + ',' + by;
+  if (ANIM) requestAnimationFrame(draw);
+  else document.title = 'done';
+}
+draw();
+</script>
+</body></html>

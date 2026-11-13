@@ -9,16 +9,17 @@
 //                       Tyler 2026-10-25)
 //                       — the same ids the server accepts (src/core/hunt/
 //                       conditions.js actionKnown), never a typed list
-//   factsOf             type line, cost line, cooldown, effect, requirement, for THIS hero: the rune
-//                       version its slot casts at its level (cast-facts.js castOf, the engine's rule)
+//   factsOf             type line, cost line, cooldown, effect, requirement, unlock, for THIS hero: the rune
+//                       version its slot casts at its level (cast-facts.js castOf, the engine's rule); every
+//                       line is read off the ability's own row, so the in-game wiki can print the same words
 //   hoverLines          the bar hover: a short read-only subset of those facts (Tyler 2026-11-08)
-//   conflictsOf         a slot that can NEVER fire because an earlier slot always
+//   conflictsOf        a slot that can NEVER fire because an earlier slot always
 //                       wins, by the engine's own rule (pickSlot: slots in order,
 //                       the first whose conditions pass AND that can act fires)
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
 import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.125';
-import { ABILITIES } from '../data/abilities.js?v=0.2.125';
+import { ABILITIES, ABILITY_RULES, abilitySkill, areaSpec } from '../data/abilities.js?v=0.2.125';
 import { aimsAtMonsters, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.125';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.125';
 import { STATUSES } from '../data/statuses.js?v=0.2.125';
@@ -26,7 +27,7 @@ import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.1
 import { ITEMS } from '../data/items.js?v=0.2.125';
 import { isRune } from '../data/supplies.js?v=0.2.125';
 import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.125';
-import { itemName, abilityName, runeWords } from './widgets/bits.js?v=0.2.125';
+import { itemName, abilityName, runeWords, skillName } from './widgets/bits.js?v=0.2.125';
 import { ownCount } from './rune-supply.js?v=0.2.125';
 import { shortOf } from './item-lore.js?v=0.2.125';
 import { storeOf, storeChoices, conditionWords } from './bar-draft.js?v=0.2.125';
@@ -121,11 +122,50 @@ export function aloneNote(action, party) {
   return r && r.alone && party > 1 ? t('bar.alone_party') : '';
 }
 
-/* The line for each spell target (bar.target_<target>). */
+/* The line for each spell target (bar.target_<target>); a line and a ring say their own size (targetLine). */
 const TARGET_LINE = Object.freeze({
   taunt: 'bar.target_taunt', mark: 'bar.target_mark', enemy: 'bar.target_enemy', area: 'bar.target_area',
   cleave: 'bar.target_cleave', self: 'bar.target_self', ally: 'bar.target_ally', party: 'bar.target_party',
 });
+
+/* WHAT A SPELL STRIKES, one sentence from its row (the area abilities, lane/b-area-client): a line says how long it is, a
+   ring how far it reaches and how many it can hit, by the engine's own shape (src/data/abilities.js areaSpec). An ally shield
+   is a ward, not a heal. Null for a target with no line. */
+function targetLine(r) {
+  if (r.target === 'ally' && r.shield) return t('bar.target_ward');
+  const spec = areaSpec(r);
+  if (spec && spec.shape === 'line') return t('bar.target_line', { len: spec.len });
+  if (spec && spec.shape === 'ring') {
+    const far = spec.r > 1;
+    return t('bar.target_ring' + (far ? '_far' : '') + (r.maxHits ? '_max' : ''), Object.assign({}, far ? { tiles: spec.r } : null, r.maxHits ? { max: r.maxHits } : null));
+  }
+  return own(TARGET_LINE, r.target) ? t(TARGET_LINE[r.target]) : null;
+}
+
+/* Who takes a share of the hero's own blow (a `hitPm` row), by what the row strikes: the targets with their own sentence
+   (bar.effect_blow_<target>); any other reads the plain one (bar.effect_blow). */
+const BLOW_TARGETS = Object.freeze(['line', 'ring', 'enemy']);
+
+/** A `hitPm` row's damage in words: each hit rolls from half its share to its share of the hero's biggest normal hit
+    (src/data/abilities.js blowShare, the rule a monster's spell hits by), so it grows with the weapon and the skill. */
+function blowShareLine(r) {
+  const hi = r.hitPm / 10, lo = Math.round((hi * ABILITY_RULES.hitLowPm) / 1000);
+  const shape = BLOW_TARGETS.includes(r.target) ? '_' + r.target : '';
+  return t('bar.effect_blow' + shape + (r.element ? '_el' : ''), Object.assign({ lo, hi }, r.element ? { element: r.element } : null));
+}
+
+/** What a status does to the monster it lands on, from its row: "Causes chill for 4 s, so its swings and spell windups run 30% slower." */
+function statusLine(st) {
+  const status = st.name.toLowerCase();
+  if (!st.durationMs) return t('bar.effect_status', { status });
+  const does = st.slowPm ? ['_slow', st.slowPm] : st.takenPm ? ['_taken', st.takenPm] : null;
+  return t('bar.effect_status_for' + (does ? does[0] : ''), Object.assign({ status, secs: secs(st.durationMs) }, does ? { pct: does[1] / 10 } : null));
+}
+
+/** "Unlocks at Ranged 10." for a row that waits for a level in its own skill (`unlock`), else null. */
+function unlockLine(r) {
+  return r && r.unlock ? t('bar.unlock', { skill: skillName(abilitySkill(r)), level: r.unlock }) : null;
+}
 
 /* "Deals 4–9 fire damage to each monster hit." by the spell's shape: area, a cap on monsters, repeated hits, or one;
    its numbers at the cast's `pm` (cast-facts.js castOf), landed as the engine lands them. */
@@ -145,10 +185,11 @@ function damageLine(r, pm) {
  * causes. A spell's mana and numbers are the version its slot casts at the hero's level (cast-facts.js castOf: the rune
  * it would spend, own first, then the store rune the slot names), and its cost line is the same cast's (costLine). `ctx` =
  * { bag, store, skills, set, worn }, all the server's; without them the numbers are version I's at level 1, as `version` says.
- * `alone` is an alone spell's callout (bar.alone), else null.
+ * `alone` is an alone spell's callout (bar.alone), else null. `unlock` is the level a row waits for in its own skill
+ * ("Unlocks at Ranged 10."), else null.
  */
 export function factsOf(a, ctx) {
-  const none = { type: null, cost: null, cooldown: null, numbers: [], effect: [], requires: null, alone: null };
+  const none = { type: null, cost: null, cooldown: null, numbers: [], effect: [], requires: null, alone: null, unlock: null };
   if (a.type === 'ability') {
     const k = castOf(a, ctx);
     if (!k) return none;
@@ -156,12 +197,12 @@ export function factsOf(a, ctx) {
     const numbers = [];
     if (r.target === 'mark') numbers.push(t('bar.effect_mark', { pct: r.bonusPct, secs: secs(r.durMs) }));
     if (r.dmg) numbers.push(damageLine(r, k.pm));
+    if (Number.isInteger(r.hitPm)) numbers.push(blowShareLine(r));
     if (r.heal) numbers.push(t('bar.effect_heal', { lo: landed(r.heal[0], k.pm), hi: landed(r.heal[1], k.pm) }));
     if (r.shield) numbers.push(t('bar.effect_shield', { points: landed(r.shield, k.pm) }));
-    const effect = numbers.concat(r.status && STATUSES[r.status] ? [t('bar.effect_status', { status: STATUSES[r.status].name.toLowerCase() })] : []);
-    /* (an ally shield is a ward, not a heal; the universal self-heal needs no particular weapon) */
-    const type = r.target === 'ally' && r.shield ? t('bar.target_ward') : own(TARGET_LINE, r.target) ? t(TARGET_LINE[r.target]) : null;
-    return { type, cost: costLine(a, ctx), cooldown: t('bar.cooldown', { secs: secs(r.cdMs) }), numbers, effect,
+    const effect = numbers.concat(r.status && STATUSES[r.status] ? [statusLine(STATUSES[r.status])] : []);
+    /* (the universal self-heal needs no particular weapon) */
+    return { type: targetLine(r), cost: costLine(a, ctx), cooldown: t('bar.cooldown', { secs: secs(r.cdMs) }), numbers, effect, unlock: unlockLine(r),
       requires: r.universal ? t('bar.requires_any') : t('bar.requires', { weapons: weaponsFor(r.disciplines[0]) }), alone: r.alone ? t('bar.alone') : null };
   }
   const cost = costLine(a, ctx) || null;
@@ -308,6 +349,9 @@ export function reasonOf(sl, set, bag, hero, worn, skills, pack) {
     const disc = set && set.discipline ? set.discipline : null;
     if (!disc) return { code: 'weapon', text: r.universal ? t('bar.no_weapon_any') : t('bar.no_weapon', { weapons: weaponsFor(r.disciplines[0]) }), glyph: 'uiLock', strike: true };
     if (!r.universal && !r.disciplines.includes(disc)) return { code: 'weapon', text: t('bar.weapon_cant_use', { weapons: weaponsFor(r.disciplines[0]) }), glyph: 'uiLock', strike: true };
+    /* NOT UNLOCKED YET (`unlock`, a level in the row's own skill, the server's `skills`): the slot is kept and waits, as the engine's does (abilities.js 'level') */
+    const have = r.unlock && skills ? (skills[abilitySkill(r)] || { level: 1 }).level : null;
+    if (have !== null && have < r.unlock) return { code: 'unlock', text: t('bar.unlock_wait', { skill: skillName(abilitySkill(r)), level: r.unlock, have }), glyph: 'uiLock', strike: true };
     const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
     /* RUNE SUPPLY PER SLOT (Tyler 2026-11-08): only the runes the slot ticked count, and the shop only when it buys on empty */
     const sup = r.rune ? runeSupplyOf(a) : null;

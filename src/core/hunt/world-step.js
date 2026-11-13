@@ -8,7 +8,8 @@
 // A swing is swingMs / HUNT_TUNING.stepMs sub-steps. Each sub-step runs the
 // modules in ONE fixed order (WS-02):
 //   trail → respawn → phase AI (pull cycle, targets, roles, follow) →
-//   movement → leash resets → attacks → status ticks → consumables → stop rules → corpses →
+//   movement → leash resets → attacks → monster spells → abilities → status ticks → consumables → stop rules →
+//   dropped casts → corpses →
 //   the closed "+XP" group
 // Every hook takes (inst, sc): `inst` = { world, ground, grid, occ }, `sc` =
 // { atMs, dtMs, swing, rng, emit(event), track(step) }. Draws come from
@@ -33,6 +34,7 @@ import { chooseTargets } from './targeting.js?v=0.2.125';
 import { positionHeroes } from './roles.js?v=0.2.125';
 import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js?v=0.2.125';
 import { resolveAttacks } from './damage.js?v=0.2.125';
+import { castSpells, dropCasts } from './monster-spells.js?v=0.2.125';
 import { castAbilities } from './abilities.js?v=0.2.125';
 import { tickStatuses } from './status.js?v=0.2.125';
 import { consume } from './consumables.js?v=0.2.125';
@@ -55,10 +57,11 @@ const SUBSTEP = Object.freeze([
   runPhase, chooseTargets, positionHeroes, (inst) => followTrail(inst),
   moveAll,
   (inst, sc) => { for (let p = 0; p < inst.world.packs.length; p++) if (holderOutside(inst, p)) resetPack(inst, p, sc); },
-  resolveAttacks, castAbilities,
+  resolveAttacks, castSpells, castAbilities,
   tickStatuses,
   consume,
   checkStopRules,
+  dropCasts,
   clearCorpses,
   flushXpGroup,
 ]);

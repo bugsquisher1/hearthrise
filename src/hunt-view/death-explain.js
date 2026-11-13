@@ -26,6 +26,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { listWords } from '../render/format.js?v=0.2.125';
+import { spellRow } from '../data/monster-spells.js?v=0.2.125';
 
 export const EXPLAIN_WINDOW_MS = 10000;
 const MAX_HITS_LISTED = 4;
@@ -114,7 +115,9 @@ function explainFall(events, fall, who) {
   /* the bar's rules, a sentence of their own on the same line (copy 11-06: no "; " joins) */
   const ruled = rules.length ? listWords(rules, Infinity) : '';
   lines.push(who.name + ' died: ' + parts.join(', ') + '.' + (ruled ? ' ' + ruled.charAt(0).toUpperCase() + ruled.slice(1) + '.' : ''));
-  if (killingBlow) lines.push('The killing blow was ' + killingBlow.amount + ' from ' + killingBlow.by + '.');
+  /* a monster's spell names itself: "from Barn Spider’s Venom Spray" (src/data/monster-spells.js) */
+  const cast = killingBlow && spellRow(killingBlow.ability);
+  if (killingBlow) lines.push('The killing blow was ' + killingBlow.amount + ' from ' + killingBlow.by + (cast ? '’s ' + cast.n : '') + '.');
   else if (killer) lines.push('The killing blow came from a ' + killer + '.');
 
   const byType = new Map();

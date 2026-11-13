@@ -50,9 +50,9 @@ const STORE_MIGRATION = 'supabase/migrations/2026-11-07-store-by-slot.sql';
 /* The limits (+ max_ignored), the action ids (no rune and no whetstone is an attack item) and the role rule sets (their triggers
    written as real conditions) moved forward: lane b-spell-core, Tyler 2026-10-23. */
 const SLOT_MIGRATION = 'supabase/migrations/2027-01-13-slot-truth.sql';
-/* The metrics (Green Sickness's mark, the heal aimed at yourself) and the role rule sets (a rune spell's slot names its
-   store rune) moved forward again: lane b-spell-content, Tyler 2026-10-23. */
-const CONTENT_MIGRATION = 'supabase/migrations/2027-01-13-spell-content.sql';
+/* The metrics (Green Sickness's mark, the heal aimed at yourself; 2027-01-13-spell-content.sql, lane b-spell-content, Tyler
+   2026-10-23), then once more: the area spells' five conditions and Chill (lane/b-area-engine, Tyler 2026-11-08). */
+const AREA_MIGRATION = 'supabase/migrations/2027-04-15-area-conditions.sql';
 /* The settings view that places the starter bar, at the chain's end (restated: a slot may name any store rune of its family): lane/c-rune-ladder, 2026-11-05. */
 const VIEW_MIGRATION = 'supabase/migrations/2027-03-08-rune-ladder-slots.sql';
 /* The role rule sets once more (every default rune spell names its store rune, Flame Volley and Rend off the default bars: lane/c-caster-starter-bars, designer 2026-11-05),
@@ -638,6 +638,73 @@ const cases = {
     if (holds(c('item_qty', 'eq', 7, 'item'), slot('consume', 'cooked_shrimp')) !== true) bad.push(['the slot item of a food slot']);
     return bad.length ? 'wrong: ' + JSON.stringify(bad) : null;
   },
+  /* THE AREA SPELLS' CONDITIONS (Tyler 2026-11-08; the board's "2026-11-08 Area spells" §2b test cases). */
+  'area-spell-metrics': (M) => {
+    const a = hero(M, 1, 12, 3, { hp: 100, maxHp: 200, target: 10 }), b = hero(M, 2, 12, 5, { hp: 300, maxHp: 400, target: 11 });
+    const wolf = mon(M, 10, 0, 13, 3, { kind: 'small_wolf', target: 1 }), slime = mon(M, 11, 0, 13, 5, { kind: 'slime', target: 2 });
+    const w = world(M, [a, b, wolf, slime]);
+    w.phase = 'fight';
+    const inst = instOf(M, w);
+    const holds = (u, cond, s) => M.cond.holds({ inst, u, h: null, slot: s || ab('power_strike') }, cond);
+    /* the party's HP, pooled: 400 of 600, 67% */
+    if (!holds(a, c('party_hp_pct', 'lt', 70)) || holds(a, c('party_hp_pct', 'lt', 60))) return 'the party\'s 400 / 600 HP is not 67%';
+    /* in a fight: the fight phase with a monster on the party; walking between pockets, or nobody engaged, it is not */
+    if (!holds(a, c('in_fight', 'eq', true))) return 'a pull with monsters on the party is not a fight';
+    w.phase = 'travel';
+    if (holds(a, c('in_fight', 'eq', true)) || !holds(a, c('in_fight', 'eq', false))) return 'walking between pockets reads as a fight';
+    w.phase = 'fight'; wolf.target = null; slime.target = null;
+    if (holds(a, c('in_fight', 'eq', true))) return 'a fight phase with nobody engaged reads as a fight';
+    wolf.target = 1; slime.target = 2;
+    /* a ring on hero A's tile (a live cast, marks.js): A's own count 1, B's 0, anyone 1; 0 the sub-step after it lands */
+    wolf.cast = { s: 'x', ms: 1600, left: 800, kind: 'ring', x: 13, y: 3, dx: 0, dy: 0, r: 1, len: 0 };
+    const cast = (u, subject) => [0, 1, 2].find((n) => holds(u, c('enemy_casting', 'eq', n, subject)));
+    if (cast(a, 'self') !== 1 || cast(b, 'self') !== 0 || cast(b, 'any') !== 1) return 'casting at me / anyone reads ' + [cast(a, 'self'), cast(b, 'self'), cast(b, 'any')];
+    wolf.cast = { s: 'x', ms: 1600, left: 800, kind: 'group', x: 13, y: 3, dx: 0, dy: 0, r: 0, len: 0 };
+    if (cast(b, 'self') !== 1) return 'a group strike is not casting at every hero';
+    wolf.cast = null;
+    if (cast(a, 'self') !== 0 || cast(a, 'any') !== 0) return 'a landed cast still counts';
+    wolf.cast = { s: 'x', ms: 1600, left: 800, kind: 'ring', x: 13, y: 3, dx: 0, dy: 0, r: 1, len: 0 }; wolf.alive = false;
+    if (cast(a, 'self') !== 0) return 'a fallen caster still casts';
+    wolf.alive = true; wolf.cast = null;
+    /* the slot's element against its aim (else my target): Fireball (ember) at a Wolf Cub (weak to ember) and a Slime (half
+       from ember); Precision Shot has no element: neither */
+    const fb = ab('fireball'), ps = ab('precision_shot');
+    if (!holds(a, c('target_weak', 'eq', true), fb) || holds(a, c('target_resists', 'eq', true), fb)) return 'Fireball at a Wolf Cub is not weak-to';
+    if (!holds(b, c('target_resists', 'eq', true), fb) || holds(b, c('target_weak', 'eq', true), fb)) return 'Fireball at a Slime is not resisted';
+    if (holds(a, c('target_weak', 'eq', true), ps) || holds(b, c('target_resists', 'eq', true), ps) || !holds(b, c('target_resists', 'eq', false), ps)) return 'a slot with no element read as weak or resisted';
+    /* an aim an earlier condition found outranks the hero's own target */
+    const cx = { inst, u: a, h: null, slot: fb, aim: slime, ally: null };
+    if (!M.cond.holds(cx, c('target_resists', 'eq', true))) return 'the slot\'s aim was not judged before the hero\'s target';
+    /* a monster that takes ember in full (a Giant Rat) is neither weak to Fireball nor resists it */
+    const rat = mon(M, 12, 0, 20, 9, { kind: 'rat' });
+    const ratCx = (m) => M.cond.holds({ inst, u: a, h: null, slot: fb, aim: rat, ally: null }, c(m, 'eq', true));
+    if (ratCx('target_weak') || ratCx('target_resists')) return 'a neutral element read as weak or resisted';
+    /* a stop rule may read the party, the fight and a cast, never a slot-only element test */
+    if (M.cond.stopRulesProblem([{ conditions: [c('party_hp_pct', 'lt', 50), c('enemy_casting', 'gte', 1, 'any'), c('in_fight', 'eq', true)], join: 'and', forMs: 0 }])) return 'a stop rule refused the party, the fight or a cast';
+    return M.cond.stopRulesProblem([{ conditions: [c('target_weak', 'eq', true)], join: 'and', forMs: 0 }]) ? null : 'a stop rule took a slot-only element test';
+  },
+  /* A LINE through its best aim and a RING round the hero (abilities.js areaSpec, conditions.js shapedAim): the count enemies_in_aoe
+     reads and the aim a cast takes. Synthetic rows: the designer's rows land in lane 2. */
+  'line-and-ring-aims': (M) => {
+    const h = hero(M, 1, 9, 5, { role: 'ranger', target: 14 });
+    /* three rats in a row east of the hero, one off the line, one ignored on it */
+    const ms = [[10, 5], [11, 5], [12, 5], [11, 7], [13, 5]].map(([x, y], i) => mon(M, 10 + i, 0, x, y, { target: 1, kind: i === 4 ? 'slime' : 'rat' }));
+    const inst = instOf(M, world(M, [h, ...ms]), openGround([]));
+    inst.grid = openGrid(M);
+    const line = { target: 'line', len: 4 }, ring = { target: 'ring', maxHits: 2 };
+    const l = M.cond.shapedAim(inst, h, 7, line, null);
+    if (!l || l.count !== 4 || l.aim.id !== 14) return 'a 4-long line counts ' + (l && l.count) + ' at ' + (l && l.aim.id) + ', want 4 at the hero\'s own target';
+    const ign = M.cond.shapedAim(inst, h, 7, line, { ignore: ['slime'], action: { type: 'ability', id: 'x' } });
+    if (!ign || ign.aim.id === 14 || ign.count !== 4) return 'an ignored monster was the aim or left the count: ' + JSON.stringify(ign && { id: ign.aim.id, n: ign.count });
+    const short = M.cond.shapedAim(inst, h, 7, { target: 'line', len: 1 }, null);
+    if (!short || short.count !== 1 || short.aim.id !== 10) return 'a 1-long line reaches past its first tile: ' + JSON.stringify(short && { id: short.aim.id, n: short.count });
+    /* the ring beside the hero: rats at (10, 5) only; capped by maxHits when more stand there */
+    const r1 = M.cond.shapedAim(inst, h, 1, ring, null);
+    if (!r1 || r1.count !== 1 || r1.aim.id !== 10) return 'the ring beside the hero counts ' + (r1 && r1.count);
+    ms[3].x = 10; ms[3].y = 4; ms[1].x = 10; ms[1].y = 6;
+    const r3 = M.cond.shapedAim(inst, h, 1, ring, null);
+    return r3 && r3.count === 2 ? null : 'a ring of maxHits 2 counts ' + (r3 && r3.count) + ' of three beside';
+  },
   'stop-rule': (M) => {
     const h = hero(M, 1, 12, 3, { mana: 10, maxMana: 100 });
     const inst = instOf(M, world(M, [h]));
@@ -956,13 +1023,13 @@ const cases = {
     try { truth = readFileSync(join(M.root, SLOT_MIGRATION), 'utf8'); } catch { return SLOT_MIGRATION + ' is missing'; }
     let store;
     try { store = readFileSync(join(M.root, STORE_MIGRATION), 'utf8'); } catch { return STORE_MIGRATION + ' is missing'; }
-    let content;
-    try { content = readFileSync(join(M.root, CONTENT_MIGRATION), 'utf8'); } catch { return CONTENT_MIGRATION + ' is missing'; }
+    let area;
+    try { area = readFileSync(join(M.root, AREA_MIGRATION), 'utf8'); } catch { return AREA_MIGRATION + ' is missing'; }
     let roles;
     try { roles = readFileSync(join(M.root, VIEW_MIGRATION), 'utf8'); } catch { return VIEW_MIGRATION + ' is missing'; }
     let bars;
     try { bars = readFileSync(join(M.root, BAR_MIGRATION), 'utf8'); } catch { return BAR_MIGRATION + ' is missing'; }
-    const from = { limits: truth, 'action-ids': truth, 'role-rules': bars, metrics: content };
+    const from = { limits: truth, 'action-ids': truth, 'role-rules': bars, metrics: area };
     for (const [tag, want] of [['metrics', metricRowsSql(M)], ['action-ids', actionIdRowsSql(M)], ['role-rules', roleRuleRowsSql(M)], ['limits', limitRowsSql(M)]]) {
       const got = between(from[tag] || sql, tag);
       if (got !== want) return 'the migration\'s ' + tag + ' block is stale (node tests/hunt-core/conditions.mjs --print)';
@@ -1013,8 +1080,16 @@ const mutants = [
   { name: 'a value out of range is accepted', case: 'validation', edits: [['src/core/hunt/conditions.js', ' || c.value < m.range[0] || c.value > m.range[1]) return', ') return']] },
   { name: 'a slot may join or', case: 'validation', edits: [['src/core/hunt/conditions.js', "(!JOINS.includes(join) || (!stop && join !== 'and'))", '!JOINS.includes(join)']] },
   { name: 'four conditions are accepted', case: 'validation', edits: [['src/core/hunt/conditions.js', '  if (list.length > MAX_CONDITIONS) return', '  if (list.length > MAX_CONDITIONS + 1) return']] },
-  { name: 'the even footprint is centred north-west', case: 'footprint', edits: [['src/core/hunt/conditions.js', ' : -(size / 2 - 1);', ' : -(size / 2);']] },
-  { name: 'enemies_in_aoe counts the 1x1 always', case: 'enemies-in-aoe', edits: [['src/core/hunt/conditions.js', '    const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, footprintOf(cx.slot, cx.h), cx.slot);', '    const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, 3, cx.slot);']] },
+  { name: 'the even footprint is centred north-west', case: 'footprint', edits: [['src/core/hunt/shapes.js', ' : -(size / 2 - 1);', ' : -(size / 2);']] },
+  /* the area spells' conditions (lane/b-area-engine) */
+  { name: "[area-engine] the party's HP is my own", case: 'area-spell-metrics', edits: [['src/core/hunt/conditions.js', '  party_hp_pct: (cx) => { const hs = heroesOf(cx.inst); return share(', '  party_hp_pct: (cx) => { const hs = [cx.u]; return share(']] },
+  { name: '[area-engine] the fight is on whatever the phase', case: 'area-spell-metrics', edits: [['src/core/hunt/conditions.js', "  in_fight: (cx) => cx.inst.world.phase === 'fight' && engagedMons(cx.inst).length > 0,", '  in_fight: (cx) => engagedMons(cx.inst).length > 0,']] },
+  { name: '[area-engine] the fight is on with nobody engaged', case: 'area-spell-metrics', edits: [['src/core/hunt/conditions.js', "  in_fight: (cx) => cx.inst.world.phase === 'fight' && engagedMons(cx.inst).length > 0,", "  in_fight: (cx) => cx.inst.world.phase === 'fight',"]] },
+  { name: '[area-engine] casting at anyone reads only me', case: 'area-spell-metrics', edits: [['src/core/hunt/conditions.js', "castsCovering(cx.inst, c.subject === 'any' ? heroesOf(cx.inst) : [cx.u])", 'castsCovering(cx.inst, [cx.u])']] },
+  { name: '[area-engine] a neutral element reads as weak', case: 'area-spell-metrics', edits: [['src/core/hunt/conditions.js', '  target_weak: (cx) => { const pm = elementVs(cx); return pm !== null && pm > 1000; },', '  target_weak: (cx) => { const pm = elementVs(cx); return pm !== null && pm >= 1000; },']] },
+  { name: '[area-engine] the element test ignores the slot\'s aim', case: 'area-spell-metrics', edits: [['src/core/hunt/conditions.js', '  const t = cx.aim && cx.aim.alive ? cx.aim : Number.isInteger(cx.u.target)', '  const t = Number.isInteger(cx.u.target)']] },
+  { name: '[area-engine] a line aims past its own reach', case: 'line-and-ring-aims', edits: [['src/core/hunt/conditions.js', '    if (!covers(s, c.x, c.y)) continue;\n', '']] },
+  { name: '[area-engine] a ring past its maxHits', case: 'line-and-ring-aims', edits: [['src/core/hunt/conditions.js', 'count: Math.min(hit.length, Number.isInteger(row.maxHits) ? row.maxHits : hit.length) }', 'count: hit.length }']] },  { name: 'enemies_in_aoe counts the 1x1 always', case: 'enemies-in-aoe', edits: [['src/core/hunt/conditions.js', '    const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, footprintOf(cx.slot, cx.h), cx.slot);', '    const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, 3, cx.slot);']] },
   { name: 'slots fire in reverse order', case: 'priority-fallback', edits: [['src/core/hunt/conditions.js', '  for (const row of rows) {\n    const t = testSlot', '  for (const row of rows.slice().reverse()) {\n    const t = testSlot']] },
   { name: 'or is read as and', case: 'join', edits: [['src/core/hunt/conditions.js', "(slot.join === 'or' ? mask !== 0 : mask === all)", '(mask === all)']] },
   { name: 'the ally subject is ignored (lowest is healed)', case: 'ally-subject', edits: [['src/core/hunt/abilities.js', '      if (cx && cx.ally) return ok(cx.ally) ? cx.ally : null;\n', '']] },
@@ -1031,7 +1106,7 @@ const mutants = [
   { name: '[spell-content] a heal aimed at yourself finds nobody', case: 'friend-shield-and-yourself',
     edits: [['src/core/hunt/conditions.js', "  if (subject === 'self') return cx.u.alive ? cx.u : null;\n", '']] },
   { name: 'an ignore list holds back a food slot', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', "  if (a.type === 'attack_with_item') return true;\n", "  if (a.type === 'attack_with_item' || a.type === 'consume') return true;\n"]] },
-  { name: 'an ignore list holds back an ally heal', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', "const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'cleave']);", "const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'cleave', 'ally']);"]] },
+  { name: 'an ignore list holds back an ally heal', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', "const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'line', 'ring', 'cleave']);", "const MONSTER_TARGETS = Object.freeze(['taunt', 'mark', 'enemy', 'area', 'line', 'ring', 'cleave', 'ally']);"]] },
   { name: 'an area slot aims at an ignored monster', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', '  const cand = mons.filter((m) => reaches(inst, hero, range, m) && !ignores(slot, m))', '  const cand = mons.filter((m) => reaches(inst, hero, range, m))']] },
   { name: 'an ignored monster may be a single-target ability\'s target', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/abilities.js', '  const near = mons.filter((m) => inReach(inst, hero, h.range, m) && !ignores(cx && cx.slot, m)).sort(byPreference(hero));', '  const near = mons.filter((m) => inReach(inst, hero, h.range, m)).sort(byPreference(hero));']] },
   { name: 'an unknown monster may be ignored', case: 'validation', edits: [['src/core/hunt/conditions.js', "  if (!s.ignore.every((id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(MONSTERS, id)) || new Set(s.ignore).size !== s.ignore.length) return { error: 'bad_ignore' };\n", '']] },

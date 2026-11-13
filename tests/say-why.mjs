@@ -228,6 +228,7 @@ export const REASONS = Object.freeze({
     { cond: '!plan.lines.length', words: "t('shop.sell_junk')", where: 'the label carries the total only when there is junk' },
   ],
   'src/shell/windows/storage.js': [
+    { cond: 'sc.pending || !!gWhy', words: "text(root.querySelector('.hw-store-grow .hw-why'), gWhy);", where: 'Expand in Storage: the line under it says the bag is being read, at its top, the gold is being read, or how much more gold (expandBlock)' },
     { cond: 'sc.pending || !!dWhy', words: "text(root.querySelector('.hw-store-do .hw-why'), away ? '' : dWhy);", where: 'Dispatch loot in Storage: its own line (the store note says a hunt)' },
   ],
   'src/shell/windows/services.js': [

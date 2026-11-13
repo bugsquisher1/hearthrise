@@ -924,6 +924,12 @@ const cases = {
     for (const [set, T] of [['tank', tutKit(M, 'tank')], ['axes', tutKit(M, null, 'practice_hatchets')], ['bow', tutKit(M, null, 'practice_bow')], ['hammer', tutKit(M, null, 'practice_club')]]) {
       if (walkChain(M, T).some((x) => x.id === 'why_it_waits')) return set + ': nothing on its bar waits, yet the card came';
     }
+    /* AN AREA MOVE UNDER ITS UNLOCK waits for the level, not its count (v0.2.129: Raking Shot on the Ranger's default bar
+       brought the count card to a new bow). At Ranged 10 it is a real count wait and the card names it. */
+    const bow = tutKit(M, null, 'practice_bow');
+    const at10 = up(bow, { skillXp: { farming: 28, cooking: 0, melee: 0, ranged: M.xp.skillXpForLevel('ranged', 10) } });
+    const rk = at10.c && at10.c.id === 'why_it_waits' ? M.tut.cardFor(at10.c, at10.f) : null;
+    if (!rk || !/Raking Shot, waits for 3 or more monsters/.test(rk.text)) return 'bow at Ranged 10: the card reads ' + JSON.stringify(rk && rk.text);
     /* the words stay true of a bar the player changed: runes of their own, no second spell, a bigger number, a struck slot, the slot switched off */
     const say = (T, more) => { const u = up(T, more); return u.c && u.c.id === 'why_it_waits' ? M.tut.cardFor(u.c, u.f).text : null; };
     if (/from the store/.test(say(mage, { carried: { chalked_fire_rune: 30 } }))) return 'with Fire runes of its own the card says ' + say(mage, { carried: { chalked_fire_rune: 30 } });
@@ -2076,6 +2082,10 @@ const mutants = [
   { name: 'Why it waits comes up on a bar where nothing waits', case: 'why-it-waits',
     edits: [['src/data/hunt-tutorial.js', "  slot_waits: (p, f) => (Array.isArray(f.slots) ? waitingSlot(f) >= 0 : null),", "  slot_waits: () => true,"],
       ['src/data/hunt-tutorial.js', "    const i = waitingSlot(f);\n    if (i < 0) return null;\n", "    const i = Math.max(waitingSlot(f), 0);\n"]] },
+  { name: 'Why it waits tells a new Ranger its locked Raking Shot waits for a count (v0.2.129)', case: 'why-it-waits',
+    edits: [['src/data/hunt-tutorial.js', ' && !underUnlock(f, ABILITIES[s.id])', '']] },
+  { name: 'Why it waits never names an unlocked area move', case: 'why-it-waits',
+    edits: [['src/data/hunt-tutorial.js', "const underUnlock = (f, row) => !!row.unlock && ", "const underUnlock = (f, row) => true || "]] },
   { name: 'Why it waits names a struck slot as waiting', case: 'why-it-waits',
     edits: [['src/data/hunt-tutorial.js', "f.slots.findIndex((s) => on(s) && s.type === 'ability' && s.usable !== false && !!ABILITIES[s.id]\n", "f.slots.findIndex((s) => on(s) && s.type === 'ability' && !!ABILITIES[s.id]\n"]] },
   { name: 'Why it waits says the store pays while the hero\'s own runes do', case: 'why-it-waits',

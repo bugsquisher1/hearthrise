@@ -55,7 +55,7 @@ const PARTY_TABLE = {
   wickstead: { 2: [1070, 2420], 3: [1315, 2750, 3010], 4: [1460, 3835, 3965, 4070] },
   mosslight_glade: { 2: [1085, 2035], 3: [1290, 2190, 2360], 4: [1270, 2730, 2940, 3000] },
   millrace_sewer: { 2: [1110, 1820], 3: [1265, 1980, 2070], 4: [1260, 1940, 2025, 2170] },
-  coppercap_warrens: { 2: [1085, 1500], 3: [1085, 1535, 1630], 4: [1060, 1490, 1565, 1690] },
+  coppercap_warrens: { 2: [1085, 1500], 3: [1085, 1535, 1630], 4: [1060, 1490, 1705, 1770] },   // mixed fours +9% / +5% (797a161f0, area moves on the default bars)
 };
 /* A HERO HUNTING ALONE (Tyler 2026-11-08: "a solo person gets a small exp boost"), typed here like the table: a retune moves both. */
 const SOLO = 1150; /* party-class-xp.js SOLO_XP_PM, pinned: +15% (Tyler 2026-11-11), was 1050 */

@@ -78,7 +78,8 @@ import { LEVEL_REQ } from './gear-tiers.js?v=0.2.129';
 import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.129';
 import { isShield } from './shields.js?v=0.2.129';
 import { deriveProfile } from '../core/member.js?v=0.2.129';
-import { ABILITIES } from './abilities.js?v=0.2.129';
+import { ABILITIES, abilitySkill } from './abilities.js?v=0.2.129';
+import { skillLevelFromXp } from '../core/xp.js?v=0.2.129';
 import { CONSUMABLES } from './consumables.js?v=0.2.129';
 import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.129';
 import { ARTISAN_RECIPES } from './recipes.js?v=0.2.129';
@@ -511,9 +512,12 @@ function struckSpell(f) {
 /* A TEST ON A COUNT A SLOT WAITS FOR: 2 or more monsters in its area, or 2 or more heroes hurt (what the bar marks, src/shell/slot-waits.js MARKS), or null. */
 const countWait = (s) => (s && Array.isArray(s.conditions)
   && s.conditions.find((c) => c && ['enemies_in_aoe', 'allies_below'].includes(c.metric) && c.op === 'gte' && Number.isInteger(c.value) && c.value > 1)) || null;
-/* The first slot that can fire but waits on such a count, or -1: on, not struck, of the worn weapon's discipline. */
+/* A move behind a skill level (abilities.js `unlock`, the area moves) the server's skills do not reach yet; unknown skills read as locked (fail safe).
+   Such a slot waits for the LEVEL, not for its count (a new Ranger's Raking Shot waits for Ranged 10), so the count card is not its story. */
+const underUnlock = (f, row) => !!row.unlock && !(skillLevelFromXp(abilitySkill(row), xpIn(f, abilitySkill(row)) ?? -1) >= row.unlock);
+/* The first slot that can fire but waits on such a count, or -1: on, not struck, not under its unlock, of the worn weapon's discipline. */
 const waitingSlot = (f) => (Array.isArray(f.slots) ? f.slots.findIndex((s) => on(s) && s.type === 'ability' && s.usable !== false && !!ABILITIES[s.id]
-  && (!f.discipline || ABILITIES[s.id].disciplines.includes(f.discipline)) && !!countWait(s)) : -1);
+  && (!f.discipline || ABILITIES[s.id].disciplines.includes(f.discipline)) && !underUnlock(f, ABILITIES[s.id]) && !!countWait(s)) : -1);
 /* The first pair where a STORE food slot eats while the hero's own food would wait: it fires at a higher HP than an
    own food slot that still holds stock, or at the same HP from an earlier slot (the engine fires the first slot whose
    conditions pass, conditions.js pickSlot). { store, own } slot indices, or null. */

@@ -202,6 +202,12 @@ const cases = {
     if (medianWay([...w([30, 30, 30, 30]), ...[30, 30, 30, 30].map((m) => ({ m, lived: false }))]) >= MARGIN_MIN) return 'four ways dead inside the hour passed';
     return null;
   },
+  /* a margin over a tiny bill is not a richer ground: compare net gold an hour (lane d-profit-outliers) */
+  'net-per-hour'() {
+    const cheap = { coin: 1839, commons: 680, store: 50 }, dear = { coin: 3040, commons: 232, store: 1826 };
+    if (!(netPerH(cheap) === 2469 && netPerH(dear) === 1446)) return 'net gold an hour is not coin + commons - the store bill';
+    return null;
+  },
   'loot-structure'(M) {
     for (const [gid, ground] of Object.entries(M.G.HUNT_GROUNDS)) {
       const band = M.HUNTS[ground.hunt].band;
@@ -348,6 +354,10 @@ let gearP = null;
 const gearOf = () => (gearP ||= loadGear(ROOT));
 const H = 3600000;
 const pct = (n) => (n >= 0 ? '+' : '') + Math.round(n) + '%';
+/* NET gold per hero-hour (coin + commons - store bill): the outlier read. A margin divides by the bill, so a near-free
+   kit reads +1000s% on ordinary income (Wickstead +1051% and the Warrens +3798% on 50 and 142 g/h bills, lane d-profit-outliers);
+   ground-to-ground profit is compared on this, the margin only grades the floor. */
+const netPerH = (r) => r.coin + r.commons - r.store;
 function marginOf(x) {
   const T = x.totals;
   return T.store > 0 ? ((T.coin + T.commons) / T.store - 1) * 100 : Infinity;
@@ -542,10 +552,10 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
   }
   if (!print) return;
   const span = (a) => (a.length ? Math.min(...a).toFixed(2) + '-' + Math.max(...a).toFixed(2) + ' h' : '-');
-  console.log('  per hero per hour at the band floor, first hour | coin | commons | store | margin');
+  console.log('  per hero per hour at the band floor, first hour | coin | commons | store | net/h | margin');
   for (const r of rows) {
     console.log('  ' + r.gid.padEnd(20) + ' L' + String(r.floor).padEnd(3) + (r.n > 1 ? 'party of ' + r.n : 'solo').padEnd(11) + String(Math.round(r.coin)).padStart(5)
-      + String(Math.round(r.commons)).padStart(6) + String(Math.round(r.store)).padStart(6) + (Number.isFinite(r.m) ? pct(r.m) : 'no bill').padStart(9) + (r.ways ? '  (lone tank, a note)' : ''));
+      + String(Math.round(r.commons)).padStart(6) + String(Math.round(r.store)).padStart(6) + String(Math.round(netPerH(r))).padStart(7) + (Number.isFinite(r.m) ? pct(r.m) : 'no bill').padStart(9) + (r.ways ? '  (lone tank, a note)' : ''));
     if (r.ways) console.log('  ' + ''.padEnd(25) + 'MEDIAN LONE WAY ' + pct(r.median) + ' (graded) | ' + r.ways.map((w) => w.s + ' ' + (w.lived ? (Number.isFinite(w.m) ? pct(w.m) : 'no bill') : 'died')).join(', '));
   }
   for (const B of rows.flatMap((q) => [Object.assign(q.bands, { gid: q.gid, floor: q.floor }), q.alt && Object.assign(q.alt, { gid: q.gid, floor: q.altLevel })]).filter(Boolean)) {

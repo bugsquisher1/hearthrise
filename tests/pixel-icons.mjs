@@ -45,11 +45,14 @@
 import { readFileSync, readdirSync, writeFileSync, mkdirSync, mkdtempSync, copyFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { decodePNG, encodePNG, createImage } from '../tools/world-art/png.mjs';
 import { inPalette } from '../tools/world-art/lock.mjs';
 import { drawGrid, toImage } from '../tools/world-art/longbow-icon.mjs';
 import { DRAW as TWIN_ICONS, toImage as twinImage } from '../tools/world-art/twin-icons.mjs';
+import { DRAW as PICKAXE_ICONS, toImage as pickImage } from '../tools/world-art/pickaxe-icons.mjs';
+import { PICKAXE_REGENERATE } from '../src/data/item-art.js';
 import { DRAW as ABILITY_TILES, toImage as tileImage } from '../tools/world-art/ability-tiles.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -107,6 +110,38 @@ export function checkIcons(dir, ids) {
     if (!opaque) out.push({ rule: 'empty', id, detail: 'no opaque pixels' });
     if (partial) out.push({ rule: 'alpha', id, detail: partial + ' partially transparent pixels' });
     if (off) out.push({ rule: 'palette', id, detail: off + ' pixels off the palette (first ' + first + ')' });
+  }
+  return out;
+}
+
+/**
+ * Pickaxe pins: the silhouette (alpha mask) of every pickaxe, sha1 prefix, REVIEWED BY EYE on 2026-11-13 as a pickaxe (a long
+ * head with a point each side of the haft). The batch's steel, mithril and ember pickaxes were axes, and no pixel measure
+ * tells the two apart (checked: overlap, area, core thickness all overlap), so a new or changed pickaxe silhouette needs a
+ * person to look at it and re-pin it here. steel/mithril/ember are the iron pickaxe's shape (tools/world-art/pickaxe-icons.mjs).
+ */
+const PICKAXE_SHAPES = {
+  bronze_pickaxe: 'dd7d2739b396', iron_pickaxe: '5c776ea29417', steel_pickaxe: '5c776ea29417', mithril_pickaxe: '5c776ea29417',
+  rune_pickaxe: 'ba7f984826ad', dawn_pickaxe: 'f4512e079c55', ember_pickaxe: '5c776ea29417',
+};
+const maskOf = (img) => { let s = ''; for (let i = 0; i < img.data.length; i += 4) s += img.data[i + 3] ? '1' : '0'; return s; };
+export const shapeHash = (img) => createHash('sha1').update(maskOf(img)).digest('hex').slice(0, 12);
+const overlap = (a, b) => { let i = 0, u = 0; for (let k = 0; k < a.length; k++) { if (a[k] === '1' && b[k] === '1') i++; if (a[k] === '1' || b[k] === '1') u++; } return u ? i / u : 0; };
+
+/** Every `*_pickaxe` icon: a pinned, reviewed silhouette, and not the silhouette of its tier's axe (an axe under a pickaxe's name). */
+export function checkPickaxes(dir, pins = PICKAXE_SHAPES) {
+  const out = [];
+  let ids;
+  try { ids = readdirSync(dir).filter((f) => f.endsWith('_pickaxe.png')).map((f) => f.slice(0, -4)); } catch { return out; }
+  for (const id of ids) {
+    let img;
+    try { img = decodePNG(readFileSync(join(dir, id + '.png'))); } catch { continue; }
+    const h = shapeHash(img);
+    if (pins[id] !== h) out.push({ rule: 'pickaxe', id, detail: id + '.png silhouette ' + h + ' is not the pinned reviewed one (' + (pins[id] || 'no pin') + '): LOOK at it, a pickaxe has a pointed head on both sides of the haft, then re-pin' });
+    try {
+      const axe = decodePNG(readFileSync(join(dir, id.replace('_pickaxe', '_axe') + '.png')));
+      if (overlap(maskOf(img), maskOf(axe)) >= 0.8) out.push({ rule: 'pickaxe', id, detail: id + '.png has the silhouette of its axe' });
+    } catch { /* no axe in this tier */ }
   }
   return out;
 }
@@ -279,8 +314,22 @@ async function selftest(ids) {
     const orphan = checkIcons(dir, ['rat']).some((f) => f.rule === 'orphan' && f.id === 'stray');
     console.log(`  ${hit && quiet && orphan ? 'caught ' : 'ESCAPED'} heads`);
     if (!(hit && quiet && orphan)) escaped++; }
+  // pickaxe: shipped silent; an axe drawing under a pickaxe's name (the old steel_pickaxe was a different, unreviewed shape), a copy of the axe, and a stale worklist each trip it
+  { const d = mkdtempSync(join(tmp, 'pk-'));
+    for (const f of ['iron_pickaxe', 'steel_pickaxe', 'steel_axe']) copyFileSync(join(real, f + '.png'), join(d, f + '.png'));
+    const quiet = checkPickaxes(d).length === 0;
+    const olds = join(tmp, 'old-steel.png'); copyFileSync(join(real, 'steel_axe.png'), olds);
+    copyFileSync(olds, join(d, 'steel_pickaxe.png'));
+    const axeShape = checkPickaxes(d).some((f) => f.rule === 'pickaxe' && f.id === 'steel_pickaxe');
+    copyFileSync(join(real, 'rune_pickaxe.png'), join(d, 'steel_pickaxe.png'));
+    const unreviewed = checkPickaxes(d).some((f) => f.rule === 'pickaxe' && f.id === 'steel_pickaxe');
+    copyFileSync(olds, join(d, 'steel_pickaxe.png'));   // pinned as if reviewed: only the axe-silhouette rule can catch it now
+    const same = checkPickaxes(d, { ...PICKAXE_SHAPES, steel_pickaxe: shapeHash(decodePNG(readFileSync(olds))) }).some((f) => f.detail.includes('silhouette of its axe'));
+    const ok = quiet && axeShape && unreviewed && same;
+    console.log(`  ${ok ? 'caught ' : 'ESCAPED'} pickaxe`);
+    if (!ok) escaped++; }
   rmSync(tmp, { recursive: true, force: true });
-  console.log(escaped ? `pixel-icons --selftest: RED — ${escaped} planted defect(s) escaped` : 'pixel-icons --selftest: all 13 planted defects caught; clean control silent');
+  console.log(escaped ? `pixel-icons --selftest: RED — ${escaped} planted defect(s) escaped` : 'pixel-icons --selftest: all 14 planted defects caught; clean control silent');
   process.exit(escaped ? 1 : 0);
 }
 
@@ -298,6 +347,8 @@ const { MONSTERS } = await import(pathToFileURL(join(ROOT, 'src/data/monsters.js
 const headIds = headArt.HEAD_ART.concat(headArt.HEAD_ART_AHEAD);
 const findings = [...checkIcons(join(ROOT, HEADS), headIds), ...checkDuplicates(join(ROOT, HEADS), headIds, []), ...checkHeads(headArt, new Set(Object.keys(MONSTERS))),
   ...checkIcons(join(ROOT, DIR), ids), ...checkDuplicates(join(ROOT, DIR), ids), ...checkSupplies(join(ROOT, SUPPLY), supplyIds), ...(await checkWiring(ROOT, abilityIds)), ...checkSwitch(ROOT), ...checkLongbow(join(ROOT, DIR, 'longbow.png')),
-  ...checkDrawn(join(ROOT, DIR), TWIN_ICONS, twinImage), ...checkDrawn(join(ROOT, ABILITY), ABILITY_TILES, tileImage)];
+  ...checkDrawn(join(ROOT, DIR), TWIN_ICONS, twinImage), ...checkDrawn(join(ROOT, DIR), PICKAXE_ICONS, pickImage), ...checkPickaxes(join(ROOT, DIR)),
+  ...(Object.keys(PICKAXE_ICONS).sort().join() === PICKAXE_REGENERATE.map((s) => s.replace('items/', '')).sort().join() ? [] : [{ rule: 'pickaxe', id: 'worklist', detail: 'PICKAXE_REGENERATE (src/data/item-art.js) must list exactly the pickaxes tools/world-art/pickaxe-icons.mjs re-dyes' }]),
+  ...checkDrawn(join(ROOT, ABILITY), ABILITY_TILES, tileImage)];
 report(`pixel-icons: ${ids.length} items + ${supplyIds.length} supplies + ${headIds.length} heads`, findings);
 process.exit(findings.length ? 1 : 0);

@@ -49,6 +49,16 @@
         "runner": "by hand: node tests/town-shows-world.mjs --shots DIR"
       }
     },
+    "bag-expand-world.mjs": {
+      "reason": "a manual walk of the real game on tools/qa/local-world.mjs: the Storage window's Expand, short of gold, one rung bought, a reload. Slow by nature; the section is pinned in CI by tests/envelope-contract.mjs bag_expand and the migration's §4.",
+      "owner": "systems-engineer",
+      "disposition": "intentional-tool",
+      "verified": {
+        "asserts": true,
+        "selftest": false,
+        "runner": "by hand: node tests/bag-expand-world.mjs --shots DIR"
+      }
+    },
     "hero-colors-world.mjs": {
       "reason": "a manual walk of the real game on tools/qa/local-world.mjs: creation, the Outfit tab, a paid save, a second account seeing it, a reload, a stale price, the cap, a hunting hero. Slow by nature; the rules are mutation-proven in CI by tests/hero-colors.mjs.",
       "owner": "systems-engineer",

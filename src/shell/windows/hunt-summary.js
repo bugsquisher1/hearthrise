@@ -28,7 +28,7 @@ import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0
 import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.125';
 import { observeSessions } from '../../session/character-session.js?v=0.2.125';
 import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.125';
-import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.125';
+import { nameOf, bagOf, bagExpandOf } from '../../session/item-sections.js?v=0.2.125';
 import { staminaOf } from '../../session/hunt-sections.js?v=0.2.125';
 import { endCardAfter } from '../after-hunt.js?v=0.2.125';
 import { heldCard, glyphSvg } from '../launcher.js?v=0.2.125';
@@ -62,6 +62,12 @@ const didOf = (sc, id) => { let d = sc.did.get(id); if (!d) { d = new Map(); sc.
 const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'Level XP', whole], ['gold', 'Gold', gold], ['lootValue', 'Loot value (unsold)', gold, true],
   ['balance', 'Balance', gold, true], ['balanceH', 'Balance per hour', gold, true], ['rawXpH', 'Level XP per hour before bonuses', whole, true]]);
 
+/** The bag is at the server's cap and the server sells a next rung. */
+function bagFull(cs) {
+  const g = bagExpandOf(cs), bag = bagOf(cs);
+  return !!(g && g.next && bag && bag.length >= g.cap);
+}
+
 /** The skeleton (built once). */
 export function renderHuntSummary() {
   return '<div class="hsum">'
@@ -81,7 +87,9 @@ export function renderHuntSummary() {
        the first card); the gold press is the first open Back in town step, else "Hunt again" */
     + '<button type="button" class="hh-tool" data-hs-act="coach-next" hidden></button>'
     + '<button type="button" class="hh-tool is-primary" data-hs-act="again">' + t('controls.hunt_again') + '</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="bag">' + t('controls.open_bag') + '</button></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="bag">' + t('controls.open_bag') + '</button>'
+    /* a full bag (the server's cap, hr_bag_expand_view) links to Storage's Expand */
+    + '<button type="button" class="hh-tool" data-hs-act="expand" hidden>Expand bag</button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
     + '<h4 class="hw-ledger-head hsum-h-loot">Top loot</h4><ul class="hsum-list hsum-loot"></ul>'
     + '<h4 class="hw-ledger-head hsum-h-sup">Supplies used</h4><ul class="hsum-list hsum-sup"></ul>'
@@ -174,6 +182,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     patchTown(root, ctx, sc, town);
     cls(go, 'is-primary', town.primary === 'again');
     for (const b of root.querySelectorAll('.hsum-actions button:not([data-hs-act="again"])')) prop(b, 'disabled', sc.pending);
+    prop(root.querySelector('[data-hs-act="expand"]'), 'hidden', !bagFull(cs));
   }
   /* THE ANSWER IS THE PRESS'S (party panel 2026-11-03: "Setting out." still up with the hero home from that hunt): a hunt that opens or ends makes it old. */
   const huntNow = open ? open.id + (open.ended ? ':over' : '') : '';
@@ -269,6 +278,7 @@ renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, el) {
     return true;
   }
   if (action === 'bag') { ctx.show('inventory'); return true; }
+  if (action === 'expand') { ctx.show('storage'); return true; }
   if (action === 'again') {
     const list = summariesOf(cs);
     const cur = list.find((s) => s.id === sc.pick) || list[0];

@@ -103,4 +103,6 @@ export const CONTROLS_TEXT = Object.freeze({
   dispatch_loot: 'Dispatch loot',
   hunt_again: 'Hunt again',
   open_bag: 'Open bag',
+  expand: 'Expand',
+  expand_bag: 'Expand bag',
 });

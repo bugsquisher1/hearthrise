@@ -58,14 +58,14 @@ const bagSeenOf = (cs, bag) => residueOf(cs).bagSeen || Object.fromEntries(bag.m
 export function renderStorage(ctx) {
   const g = ctx.glyphs;
   return '<div class="hw-store">'
-    + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="search" placeholder="Search items" aria-label="Search items" autocomplete="off"></span>'
+    + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="search" placeholder="' + t('bag.store_search') + '" aria-label="' + t('bag.store_search') + '" autocomplete="off"></span>'
     + '<label class="hw-sort"><span>' + t('controls.sort') + '</span><select class="hh-select" data-hs-act="sort">' + BAG_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div>'
     + '<div class="hw-cats" role="group" aria-label="Show">' + BAG_CATS.map(([id, l]) => '<button type="button" class="hw-cat" data-hs-act="cat" data-cat="' + id + '" aria-pressed="false">' + esc(l) + '</button>').join('') + '</div>'
     + '<p class="hs-note hw-store-note"></p>'
-    + '<h3 class="hw-ledger-head is-on">In storage <small class="hw-store-n" data-n="bank"></small></h3>'
-    + '<ul class="hw-pockets" data-side="bank" role="listbox" aria-label="In storage"></ul><p class="hh-empty hw-store-none" data-none="bank"></p>'
+    + '<h3 class="hw-ledger-head is-on">' + t('bag.store_in_storage') + ' <small class="hw-store-n" data-n="bank"></small></h3>'
+    + '<ul class="hw-pockets" data-side="bank" role="listbox" aria-label="' + t('bag.store_in_storage') + '"></ul><p class="hh-empty hw-store-none" data-none="bank"></p>'
     + '<p class="hs-note hw-store-room"></p>'
-    + '<h3 class="hw-ledger-head is-on hw-store-baghead">In your bag <small class="hw-store-n" data-n="bag"></small></h3>'
+    + '<h3 class="hw-ledger-head is-on hw-store-baghead">' + t('bag.store_in_bag') + ' <small class="hw-store-n" data-n="bag"></small></h3>'
     /* Expand: the bag's next rung, at the server's price (hr_bag_expand_view); one unlock_buy naming the offer and no number. */
     + '<div class="hw-tools hw-store-grow"><button type="button" class="hh-tool" data-hs-act="expand"></button><p class="hw-why"></p></div>'
     + '<div class="hw-tools hw-store-do"><button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button><p class="hw-why"></p></div>'
@@ -87,10 +87,10 @@ function sayAway(cs, sc, repaint) {
 
 /* Why Expand is off, in words, or '' when it can be pressed. Every number is the server's: the cap, the offer, the price and the purse. */
 export function expandBlock(grow, purse) {
-  if (!grow) return 'Reading your bag\'s room…';
-  if (!grow.next) return 'Your bag is as big as it gets.';
-  if (purse === null) return 'Reading your gold…';
-  return purse < grow.next.gold ? 'You need ' + gold(grow.next.gold - purse) + ' more to expand your bag.' : '';
+  if (!grow) return t('bag.store_grow_reading');
+  if (!grow.next) return t('bag.store_grow_top');
+  if (purse === null) return t('bag.store_gold_reading');
+  return purse < grow.next.gold ? t('bag.store_grow_short', { gold: gold(grow.next.gold - purse) }) : '';
 }
 
 function patchSide(root, ctx, side, list, shown, off, depot, grow) {
@@ -106,10 +106,10 @@ function patchSide(root, ctx, side, list, shown, off, depot, grow) {
   });
   /* The storage's space is the ACCOUNT's (the server's used / cap); the bag counts its own stacks. */
   text(root.querySelector('[data-n="' + side + '"]'), side === 'bank' && depot ? whole(depot.used) + ' of ' + whole(depot.cap) + ' stacks'
-    : grow ? 'Bag ' + whole(list.length) + ' / ' + whole(grow.cap) : whole(list.length) + (list.length === 1 ? ' stack' : ' stacks'));
+    : grow ? t('bag.store_bag_of', { n: whole(list.length), cap: whole(grow.cap) }) : whole(list.length) + (list.length === 1 ? ' stack' : ' stacks'));
   const none = root.querySelector('[data-none="' + side + '"]');
   cls(none, 'is-on', !shown.length);
-  text(none, list.length ? 'Nothing here matches.' : side === 'bank' ? 'Your storage is empty. All your characters share it. Press a stack in your bag to put it away.' : 'Your bag is empty.');
+  text(none, list.length ? t('bag.store_no_match') : side === 'bank' ? t('bag.store_empty') : t('bag.store_bag_empty'));
 }
 
 renderStorage.patch = function patchStorage(body, ctx) {
@@ -130,21 +130,21 @@ renderStorage.patch = function patchStorage(body, ctx) {
   prop(root.querySelector('[data-hs-act="sort"]'), 'value', prefs.sort);
   for (const b of root.querySelectorAll('.hw-cat')) attr(b, 'aria-pressed', String(b.getAttribute('data-cat') === prefs.cat));
   text(root.querySelector('.hw-store-note'), away ? STORE_AWAY
-    : !bank ? 'Reading your storage…' : (ctx.isPhone && ctx.isPhone() ? 'Press a stack to move one across. Hold it to choose how many.' : 'Press a stack to move one across. Shift-press moves all of it. Right-click (or hold) to choose how many.'));
+    : !bank ? t('bag.store_reading') : (ctx.isPhone && ctx.isPhone() ? t('bag.store_help_touch') : t('bag.store_help_mouse')));
   const depot = depotOf(cs);
   patchSide(root, ctx, 'bank', bank || [], view(bank || [], Object.assign({ seen: marks || residueOf(cs).storeSeen || {} }, o)), off, depot);
   /* "73 of 100 stacks. 2 more are kept free for your market listings." (a listing's return always has its place) */
   const kept = depot && depot.reserved ? whole(depot.reserved) + (depot.reserved === 1 ? ' more is' : ' more are') + ' kept free for your market listings. ' : '';
   text(root.querySelector('.hw-store-room'), !depot ? '' : kept + (depot.next
-    ? 'More room comes from storage chests, built in the House (E). Next: the ' + depot.next.name + ', ' + whole(depot.next.stacks) + ' more stacks.'
-    : 'Every storage chest is built.'));
+    ? t('bag.store_more_room', { name: depot.next.name, n: whole(depot.next.stacks) })
+    : t('bag.store_all_built')));
   const grow = bagExpandOf(cs);
   patchSide(root, ctx, 'bag', bag || [], view(bag || [], Object.assign({ seen: bagSeenOf(cs, bag || []) }, o)), off, null, grow);
   const gWhy = expandBlock(grow, goldOf(cs));
   const gb = root.querySelector('[data-hs-act="expand"]');
-  text(gb, grow && grow.next ? 'Expand (+' + whole(grow.next.adds) + ') · ' + gold(grow.next.gold) : 'Expand');
+  text(gb, grow && grow.next ? t('bag.store_expand_at', { n: whole(grow.next.adds), gold: gold(grow.next.gold) }) : t('controls.expand'));
   prop(gb, 'disabled', sc.pending || !!gWhy);
-  attr(gb, 'title', gWhy || 'Room for ' + whole(grow.next.adds) + ' more stacks in your bag');
+  attr(gb, 'title', gWhy || t('bag.store_expand_tip', { n: whole(grow.next.adds) }));
   text(root.querySelector('.hw-store-grow .hw-why'), gWhy);
   /* Dispatch loot: off with the server-sections' reason; a hunt's reason is the note above, any other is said here. */
   const dWhy = dispatchBlock(cs);
@@ -171,7 +171,7 @@ function setPref(cs, key, value) {
 function move(cs, sc, repaint, id, qty, dir) {
   /* Read from the bag before the move: a tool put away slows its skill, and that is not a silent change (panel 2026-11-01). */
   const slower = dir === 'deposit' ? toolLossWords(cs, id, qty) : '';
-  return runIntent(sc, repaint, () => cs.moveStorage(id, qty, dir), dir === 'withdraw' ? 'Taking it out…' : 'Putting it away…',
+  return runIntent(sc, repaint, () => cs.moveStorage(id, qty, dir), dir === 'withdraw' ? t('bag.store_taking') : t('bag.store_putting'),
     () => (dir === 'withdraw' ? 'Took out ' : 'Put away ') + whole(qty) + ' ' + itemName(id) + '.' + (slower ? ' ' + slower : ''));
 }
 
@@ -181,7 +181,7 @@ function expand(cs, sc, repaint) {
   if (!grow || !grow.next || expandBlock(grow, goldOf(cs))) return;
   const offer = grow.next.offer;
   return runIntent(sc, repaint, async () => { const r = await cs.edgeIntent('unlock_buy', { offer }); if (!r.ok && r.error !== 'closed') await cs.resync(); return r; },
-    'Expanding your bag…', () => { const g = bagExpandOf(cs); return g ? 'Your bag holds ' + whole(g.cap) + ' stacks now.' : 'Your bag is bigger now.'; }, cs);
+    t('bag.store_expanding'), () => { const g = bagExpandOf(cs); return g ? t('bag.store_expanded', { n: whole(g.cap) }) : t('bag.store_expanded_plain'); }, cs);
 }
 
 /* "How many?" beside the stack: Deposit X / Withdraw X, up to the stack the server last sent. */

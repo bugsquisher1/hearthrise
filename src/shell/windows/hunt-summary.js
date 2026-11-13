@@ -91,7 +91,7 @@ export function renderHuntSummary() {
     + '<button type="button" class="hh-tool is-primary" data-hs-act="again">' + t('controls.hunt_again') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="bag">' + t('controls.open_bag') + '</button>'
     /* a full bag (the server's cap, hr_bag_expand_view) links to Storage's Expand */
-    + '<button type="button" class="hh-tool" data-hs-act="expand" hidden>Expand bag</button></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="expand" hidden>' + t('controls.expand_bag') + '</button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
     + '<h4 class="hw-ledger-head hsum-h-sup">Supplies used</h4><ul class="hsum-list hsum-sup"></ul>'
     + '<h4 class="hw-ledger-head hsum-h-deaths">What happened</h4><ul class="hsum-falls hsum-deaths"></ul>'

@@ -281,6 +281,10 @@ export const FORMULA_EXCEPTIONS = Object.freeze({
      bill on one seed of six (forest-cave glade-between); the bear is the hour's one purse worth a stop, so its coin, not the whole ground's, carries the point. At
      the elite's full [14, 44] the Glade's lone median netted 0.7% over the Warrens' fours (the grader's feel-gold-order: a higher floor nets more, Tyler 11-03). */
   brook_bear: Object.freeze({ gp: "a heavy with most of an elite's purse, so the Glade floor clears +10% over its bill and stays under the Warrens' fours (designer 2026-11-12)" }),
+  /* THE HOLD'S SOFTER FLOOR (designer ruling Q3, 2026-11-12, option c): Krell's Lookouts hit for the Glade's 0.17 of a same-Level hero (the Farmhands' share),
+     not the glass role's 0.22, so the sword and axes stop paying their hour in food. The to-hit stays the role's 0.75 at a same-Level hero. */
+  hasks_lookout: Object.freeze({ atk: "a blow of 0.17 of a same-Level hero, the Glade's and the Farmhands', so every way clears its food at the Hold's floor (designer Q3 2026-11-12)",
+    baseAcc: "the glass role's 0.75 to-hit at a same-Level hero, kept at the softer blow (designer Q3 2026-11-12)" }),
 });
 
 /* combat.js monsterDamageScaleByTier, restated: the formula divides the blow by it (a test pins the two equal). */

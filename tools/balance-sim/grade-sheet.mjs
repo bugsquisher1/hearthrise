@@ -81,8 +81,12 @@ export function sheetFromBalanceSheet(BS) {
          holds it at the floor (no death in the cell), the same way on Normal beside it, and the one ceiling, a four at the floor holding Deadly. */
       { id: 'tier-dangerous-xp', why: why('tiers.dangerous.xpVsNormalMin, held at the floor, any group, against the same way on Normal'), tiers: ['dangerous'], offsets: ['floor'], heldOnly: true, metric: 'xpVsNormal', min: T.dangerous.xpVsNormalMin, binding: true },
       { id: 'tier-deadly-xp', why: why('tiers.deadly.xpVsNormalMin, held at the floor, any group, against the same way on Normal'), tiers: ['deadly'], offsets: ['floor'], heldOnly: true, metric: 'xpVsNormal', min: T.deadly.xpVsNormalMin, binding: true },
-      { id: 'tier-deadly-four-held', why: why('tiers.deadly.fourDeathsPer16hMax, a four at the floor'), tiers: ['deadly'], offsets: ['floor'], sizes: [4], metric: 'deathsPer16h', max: T.deadly.fourDeathsPer16hMax, binding: true },
-      { id: 'four-xp', why: why('party.fourVsSolo (RULED 10-25)'), tiers: ['normal'], offsets: ['floor', 'middle', 'top'], sizes: [4], metric: 'xpVsSolo', min: P.fourVsSolo[0], max: P.fourVsSolo[1], binding: true },
+      { id: 'tier-deadly-four-held', why: why('tiers.deadly.fourDeathsPer16hMax, a four at the floor'), tiers: ['deadly'], offsets: ['floor'], sizes: [4], metric: 'deathsPer16h', max: T.deadly.fourDeathsPer16hMax, binding: true,
+        /* designer Q4 2026-11-12: a pack whose Deadly says bring a Healer (checks.deadlyFourNeeds) grades the four with one; the four without is a note */
+        reportOnly: (m) => m.deadlyFourNeeds === 'healer' && !String(m.comp).split('+').includes('healer') },
+      { id: 'four-xp', why: why('party.fourVsSolo (RULED 10-25)'), tiers: ['normal'], offsets: ['floor', 'middle', 'top'], sizes: [4], metric: 'xpVsSolo', min: P.fourVsSolo[0], max: P.fourVsSolo[1], binding: true,
+        /* designer Q2 2026-11-12: on a band 20 Levels wide or more one cell can't hold both ends, so the middle is graded and the ends reported */
+        reportOnly: (m) => m.offset !== 'middle' && Array.isArray(m.band) && m.band[1] - m.band[0] >= 20 },
     ]),
   });
 }

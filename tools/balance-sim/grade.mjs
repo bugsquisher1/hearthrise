@@ -107,6 +107,8 @@ export function groundsOf(G, names) {
 
 /** A ground's fit: party where a pocket needs a party or the ground says so (tools/balance-sim plans.mjs loadAxes), else solo (a both ground sends a lone hero). */
 export const fitOf = (g) => ((g.pockets || []).some((p) => p.forParty) || g.groupFit === 'party' ? 'party' : 'solo');
+/** Each pack's `checks` (src/data/grounds/index.js GROUND_PACKS), by ground id. */
+export async function packChecksOf(root) { const P = await import(pathToFileURL(join(root, 'src/data/grounds/index.js')).href); return Object.fromEntries(P.GROUND_PACKS.map((p) => [(p.ground && p.ground.id) || p.id, p.checks || {}])); }
 export async function fitsOf(root) { const G = await import(pathToFileURL(join(root, 'src/data/hunt-grounds.js')).href); return Object.fromEntries(Object.values(G.HUNT_GROUNDS).map((g) => [g.id, fitOf(g)])); }
 
 /* ── THE METRICS OF ONE CELL (hour-weighted per head) ── */
@@ -141,14 +143,17 @@ const off = (v, rule) => (rule.min != null && v < rule.min ? (rule.min - v) / Ma
  * { verdicts: [{ rule, binding, verdict 'FAIL'|'UNPROVEN'|'OFF'|'ok', key, value, lo, hi, bound, off, why }], grounds: { id: { fail, unproven, off, ok } } }.
  * OFF is an advisory rule off its target; a solo cell on a party ground (groupFit 'party') grades its binding rules as advisory.
  */
-export function gradeCells(cells, sheet, pace, fits = {}) {
-  const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade).map((c) => ({ c, m: { ...c.cell.grade, groupFit: fits[c.cell.grade.ground] || c.cell.grade.groupFit }, x: metricsOf(c) }));
+export function gradeCells(cells, sheet, pace, fits = {}, packs = {}) {
+  /* `packs`: a pack's own grading facts (src/data/grounds/<id>/pack.js `checks`), e.g. deadlyFourNeeds 'healer' (designer Q4 2026-11-12) */
+  const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade).map((c) => ({ c, m: { ...c.cell.grade, groupFit: fits[c.cell.grade.ground] || c.cell.grade.groupFit,
+    deadlyFourNeeds: (packs[c.cell.grade.ground] && packs[c.cell.grade.ground].deadlyFourNeeds) || null }, x: metricsOf(c) }));
   const key = (m, extra) => [m.ground, m.tier, m.offset, 'size ' + m.size, extra].filter(Boolean).join(' / ');
   const find = (m, pred) => rows.filter((r) => r.m.ground === m.ground && pred(r.m));
   const verdicts = [];
   const push = (rule, m, value, extra, ci) => {
     /* the pace contract is fitted on lone heroes (pace.mjs, the ladder plan), so its lone reading binds on a party ground too (Coordinator ruling 2026-11-11, lane/d-solo-fifteen) */
-    const binding = rule.binding && !(m.size === 1 && m.groupFit === 'party' && rule.aggregate !== 'xpVsContract');
+    /* a rule's `reportOnly(m)` cells are reported, never graded (designer rulings Q2 and Q4, 2026-11-12) */
+    const binding = rule.binding && !(m.size === 1 && m.groupFit === 'party' && rule.aggregate !== 'xpVsContract') && !(rule.reportOnly && rule.reportOnly(m));
     let verdict = 'ok', o = 0;
     if (ci) {
       if (rule.max != null && ci.lo > rule.max) { verdict = binding ? 'FAIL' : 'OFF'; o = (ci.lo - rule.max) / Math.max(rule.max, 1e-9); }
@@ -357,7 +362,10 @@ export function synthSet(mut = {}) {
   if (mut.dips) pick('normal', 'floor', 1).heroes[0].closeCallsPer12h.k = 900;
   if (mut.profit) pick('normal', 'top', 1).heroes[0].storePerH = 4500, pick('normal', 'top', 1).heroes[0].profitPerH = 500;
   if (mut.under5) for (const h of pick('dangerous', 'under5', 4).heroes) h.storePerH = 1000, h.profitPerH = 3500;
-  if (mut.four) for (const h of pick('normal', 'floor', 4).heroes) h.levelXpPerH = 70000 * 1.6;
+  if (mut.band) for (const c of cells) c.cell.grade.band = mut.band;
+  if (mut.fourOffset === 'middle') for (const c of cells.filter((c) => c.cell.grade.offset === 'top')) c.cell.grade.offset = 'middle';
+  if (mut.four) for (const h of pick('normal', mut.fourOffset || 'floor', 4).heroes) h.levelXpPerH = 70000 * 1.6;
+  if (mut.deadlyFour) { const c = pick('deadly', 'floor', 4); c.cell.grade.comp = mut.deadlyFour; for (const h of c.heroes) h.deaths = 40, h.hours = 8; }
   if (mut.tier) for (const h of pick('deadly', 'top', 4).heroes) h.levelXpPerH = 70000;
   if (mut.lowpoint) pick('normal', 'floor', 1).heroes[0].encMinHpPct.p50 = 40;
   /* fresh heroes in the practice kit at the floor (buildGrid's first-week cells): a four in the ladder kit is judged against solos in the
@@ -379,8 +387,19 @@ if (isMain(import.meta.url)) {
       const r = gradeCells(synthSet({ [mut]: true }), SHEET, flat);
       if (!r.verdicts.some((v) => v.rule === rule && v.verdict === 'FAIL')) bad.push('mutant ' + mut + ' did not FAIL ' + rule);
     }
+    const RS = await loadSheet(ROOT, null, null);
+    /* Q2: on a band of 20+ Levels a four's ends are reported (OFF), its middle is graded; on a narrower band the ends still FAIL */
+    const long = (band, at) => gradeCells(synthSet({ four: true, band, fourOffset: at }), RS, flat).verdicts.filter((v) => v.rule === 'four-xp' && v.verdict === 'FAIL');
+    if (long([16, 36], 'top').length) bad.push('a 20-Level band graded a four at its end');
+    if (!long([16, 36], 'middle').length) bad.push('a 20-Level band did not grade a four at its middle');
+    if (!long([16, 31], 'top').length) bad.push('a 15-Level band stopped grading a four at its top');
+    /* Q4: a pack that needs a Healer on Deadly grades only the four with one; the healerless four is reported */
+    const heal = (needs, comp) => gradeCells(synthSet({ deadlyFour: comp }), RS, flat, {}, { g: { deadlyFourNeeds: needs } }).verdicts.filter((v) => v.rule === 'tier-deadly-four-held' && v.verdict === 'FAIL').length;
+    if (heal('healer', 'tank+bow+mage+hammer')) bad.push('a healerless four failed a Deadly that needs a Healer');
+    if (!heal('healer', 'tank+healer+bow+mage')) bad.push('a four with a Healer was not graded on a Deadly that needs one');
+    if (!heal(null, 'tank+bow+mage+hammer')) bad.push('a healerless four went ungraded on an ordinary Deadly');
     if (bad.length) { console.error('grade --selftest RED: ' + bad.join(' | ')); process.exit(1); }
-    console.log('grade --selftest: the good set passes and 7 mutants each FAIL their rule');
+    console.log('grade --selftest: the good set passes and 7 mutants each FAIL their rule; the long-band and needs-a-Healer scopes hold');
     process.exit(0);
   }
   const mode = arg('mode', 'quick');
@@ -398,7 +417,7 @@ if (isMain(import.meta.url)) {
     await runPool(jobs, join(out, 'cells.jsonl'), { root: ROOT, workers: Number(arg('workers', '4')), cpuMax: Number(arg('cpu', '85')) });
   }
   const cells = existsSync(join(out, 'cells.jsonl')) ? readFileSync(join(out, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
-  const graded = gradeCells(cells, SHEET, await loadPace(ROOT), await fitsOf(ROOT));
+  const graded = gradeCells(cells, SHEET, await loadPace(ROOT), await fitsOf(ROOT), await packChecksOf(ROOT));
   for (const v of feelVerdicts(cells, await fitsOf(ROOT))) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'unproven']++; }
   for (const v of await blowVerdicts(ROOT, SHEET, arg('grounds', null) ? arg('grounds').split(',') : null)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'ok']++; }
   writeFileSync(join(out, 'grade.json'), JSON.stringify({ sheet: SHEET.source, cells: cells.length, ...graded }, null, 1));

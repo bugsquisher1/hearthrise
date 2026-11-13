@@ -102,7 +102,7 @@ export default definePack({
         { id: 'ember_helm', ch: 0.026, band: 'scarce' }, { id: 'dragonhide_helmet', ch: 0.026, band: 'scarce' }, { id: 'archmage_helmet', ch: 0.026, band: 'scarce' },
         { id: 'runewood_bow', ch: 0.026, band: 'scarce' },
         { id: 'ember_gauntlets', ch: 0.0018, band: 'rare' }, { id: 'dragonhide_gloves', ch: 0.0018, band: 'rare' }, { id: 'archmage_gloves', ch: 0.0018, band: 'rare' }],
-      hp: 109, atk: 103, baseAcc: 0.45, def: 38, xp: 1200, gp: [23, 69], formula: true },
+      hp: 109, atk: 80, baseAcc: 0.91, def: 38, xp: 1200, gp: [23, 69], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (Q3)
     grave_guard: {
       name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', speed: 2400,
       /* the heavy, the slowest thing in the castle: one of the Banded Company's officers, buried with honors in the Muster Barrows, dug up and
@@ -197,7 +197,7 @@ export default definePack({
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.54-0.73, threes 0.42-0.70, fours 0.32-0.59), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 0.96-1.08, threes 0.93-1.07, the four 1.02: the Pyre Field's shape, a Mage or a Healer alone earns the most); the cells between are the size's mix times the cell ratio. Whole fives. */
   partyVsAlone: { 2: [-35, 0], 3: [-40, -5, 0], 4: [-55, -10, 0, 0] },
-  checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 19778 },
+  checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 19778, deadlyFourNeeds: 'healer' }, // designer Q4 2026-11-12: Deadly keeps six, bring a Healer
   /* KRELL'S HALL: one room, one fight, opened with a Hall Key (the design's section 3). Written in the called-room machinery's own shapes, so the
      engine that plays the Rat King's and the Chief's rooms plays this one: `hunt` is a hunts.js CALLED_HUNTS row less its id and `called`,
      `ground` a hunt-grounds.js CALLED_GROUNDS row less its id, hunt, map and call (the boss in the pocket's spawns, his adds in `adds`), and

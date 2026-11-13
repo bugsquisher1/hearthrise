@@ -9,6 +9,12 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **There is a wiki in the game now.** Press / or open it from Settings, then Help. It has every skill, every hunting ground with its Levels and monsters, and the formulas the game really uses, like your chance to hit, your max hit and how XP adds up to Levels. Each formula works an example with the same numbers the game uses, so the wiki is never out of date. Search finds anything in it.
 
+**Some monsters cast spells now.** The ground lights up where a spell will land, so you can see it coming and step out of it. Some spells hit the whole party at once. More monsters means more spells, so the harder difficulties hit harder.
+
+**Four new area moves for heroes.** Turning Cut hits every monster standing next to you. Raking Shot hits every monster in a line through your target. Hoarfrost chills a group and slows it down. Spring Tide is the Healer's party heal, with a long cooldown and a high mana cost. Your bar has new conditions to go with them, like when the party is low or when a monster starts casting at you.
+
+**Effect sliders.** Settings has sliders for how strong the effects look, for your hero, the rest of the party, the monsters and the danger marks.
+
 ## v0.2.126 — 2026-11-13 (Room to Grow)
 
 **A bigger bag.** Storage shows how full your bag is, with an Expand button that adds 20 stacks. The price grows with each step.

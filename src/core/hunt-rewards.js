@@ -150,7 +150,8 @@ function calledSwing(members, events, unitOf, boss) {
  */
 export function rewardSwing(members, events, world, ctx) {
   const unitOf = (id) => world.units.find((u) => u.id === id) || null;
-  const presentIds = () => world.units.filter((u) => u.side === 'hero' && members.has(u.id)).map((u) => u.id).sort((a, b) => a - b);
+  /* The heroes alive at the kill share its gold, loot and rare roll, as its XP (xp-share.js): one who died in the same sub-step does not. */
+  const presentIds = () => world.units.filter((u) => u.side === 'hero' && u.alive === true && members.has(u.id)).map((u) => u.id).sort((a, b) => a - b);
   if (ctx.call) return calledSwing(members, events, unitOf, ctx.call.monster);
   /* A TRAINING GROUND (src/core/hunt/training.js): the trained skill only, at its share; nothing else by any route. */
   if (ctx.train) return trainingSwing(members, events, unitOf, ctx);

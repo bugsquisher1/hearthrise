@@ -339,6 +339,26 @@ const cases = {
     const blow = pay([{ type: 'dmg', u: 9, t: 1, amount: 3, ability: 'basic' }]);
     return Math.abs(blow - def) > 1e-9 ? 'CONTROL: a landed blow paid Defense ' + blow + ', want ' + def : null;
   },
+  /* THE DEAD DON'T SHARE THE KILL'S PURSE (audit 2026-11-13): a party member who died in the same 100 ms sub-step as the kill
+     takes no share of its gold, loot or rare roll, as he takes none of its XP. One engine runs the hunt viewed and with the
+     browser closed (AWAY-1), so both ctx shapes are judged. CONTROL: both alive split it 5 / 5. */
+  'kill-pays-the-living': async (M) => {
+    const rw = await import(new URL('src/core/hunt-rewards.js', rootUrl(M)).href + M.V);
+    const monsters = { testmon: { gp: [10, 10], drops: [] } };
+    const mk = () => ({ family: 'sword', armoured: false, shield: false, bonus: () => 0, weakness: () => ({ dropMult: 1 }), fx: {}, state: { stats: {} }, hs: { tally: { kills: 0 } } });
+    for (const away of [false, true]) {
+      const pay = (secondAlive) => {
+        const a = mk(), b = mk();
+        const w = { swing: 0, units: [{ id: 1, side: 'hero', alive: true }, { id: 2, side: 'hero', alive: secondAlive }, { id: 9, side: 'mon', kind: 'testmon', alive: false, hp: 0 }] };
+        rw.rewardSwing(new Map([[1, a], [2, b]]), [{ type: 'kill', u: 1, t: 9, atMs: 100 }], w, { rng: { int: (lo) => lo, chance: () => false }, monsters, away });
+        return [a.state.gold || 0, b.state.gold || 0, a.hs.tally.kills, b.hs.tally.kills].join();
+      };
+      const path = away ? 'closed' : 'viewed';
+      if (pay(false) !== '10,0,1,0') return path + ': a kill with a hero who died in its sub-step paid gold,gold,kills,kills ' + pay(false) + ', want 10,0,1,0';
+      if (pay(true) !== '5,5,1,1') return path + ' CONTROL: two living heroes were paid ' + pay(true) + ', want 5,5,1,1';
+    }
+    return null;
+  },
   /* AB-04: Magic XP = mana x 1.5 x the ability's multiplier. */
   'magic-xp-from-mana': (M) => {
     const f = M.xpshare.magicXpFor;
@@ -362,6 +382,8 @@ const cases = {
 };
 
 const mutants = [
+  { name: 'the dead share the kill\'s gold and loot', case: 'kill-pays-the-living',
+    edits: [['src/core/hunt-rewards.js', "u.side === 'hero' && u.alive === true && members.has(u.id)", "u.side === 'hero' && members.has(u.id)"]] },
   { name: 'the dead share the kill', case: 'share-split-by-living',
     edits: [['src/core/hunt/xp-share.js', "units.filter((u) => u.side === 'hero' && u.alive === true)", "units.filter((u) => u.side === 'hero')"]] },
   { name: 'the multiplier is ignored', case: 'each-hero-own-multiplier',

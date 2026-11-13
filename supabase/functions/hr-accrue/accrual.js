@@ -1796,6 +1796,10 @@ function accrueGather(inp, span) {
     items,
     nodes,
     bonus,
+    /* THE BAG'S STACK CAP (envelope.js bagCap, player_state.bank_cap): a node whose product has no room
+       stops BAG_FULL (skill-sim.js gatherBagFullFor), as the bench does, rather than proposing a stack
+       hr_apply refuses bank_full and forfeiting every window after it. */
+    bagCap: Number.isSafeInteger(inp.bagCap) && inp.bagCap > 0 ? inp.bagCap : null,
     /* `minStepMs` is NOT SET, so resolveStepMs uses the real MIN_ACTION_MS
        floor. Exactly as in the combat ctx, this object is built field by field
        and nothing is spread into it — if it were built from a request body,
@@ -1861,8 +1865,10 @@ function accrueGather(inp, span) {
      Unreachable through the intent surface (hr_apply refuses to SET a node
      above the server level, and levels do not fall), so this is the arm for a
      content re-balance that raises a requirement under a live character. */
+  /* A FULL BAG stops the node the same way: it cannot pay until the player makes room. */
+  const stopped = summary.stoppedBy === STOP_REASON.LEVEL || summary.stoppedBy === STOP_REASON.BAG_FULL;
   const nothingHappened = itemKinds === 0 && Object.keys(xpDelta).length === 0 && summary.ticks === 0;
-  if (nothingHappened && summary.stoppedBy !== STOP_REASON.LEVEL) {
+  if (nothingHappened && !stopped) {
     return { accrued: false, reason: SKIP.NOTHING, summary };
   }
 
@@ -1906,6 +1912,8 @@ function accrueGather(inp, span) {
               // `w` — the non-paying accounted time; see windowWaste. Absent
               // when zero, which is most gathering windows (no death clock).
               ...(windowWaste(summary) ? { w: windowWaste(summary) } : {}),
+              /* WHY it stopped: a full bag, and the product that had no room (the bench's keys). */
+              ...(summary.stoppedBy === STOP_REASON.BAG_FULL ? { stopped: 'bag_full', room_for: nodes[summary.nodeId].node.prod } : {}),
               // The credited window, for the reason the combat journal carries it.
               from: new Date(credit.fromMs).toISOString(),
               to: new Date(credit.toMs).toISOString() },
@@ -1941,7 +1949,7 @@ function accrueGather(inp, span) {
       ? { ...finds[0], dropped: Math.min(finds.length - 1, 99) }
       : finds[0];
   }
-  if (summary.stoppedBy === STOP_REASON.LEVEL) delta.activity = { kind: 'idle', id: null };
+  if (stopped) delta.activity = { kind: 'idle', id: null };
 
   return {
     accrued: true,

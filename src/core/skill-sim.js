@@ -96,7 +96,32 @@ export const STOP_REASON = Object.freeze({
   UNKNOWN_NODE: 'unknown_node',       // the id is not in the gather index
   WRONG_SKILL: 'wrong_skill',         // pointer and index disagree about the skill
   LEVEL: 'level',                     // the level gate refused (client: stopSkill())
+  /* The node's product would open a NEW stack in a bag already at its cap (`ctx.bagCap`, hr_apply's
+     bank_full fuse). The artisan BAG_FULL stop's twin: the caller idles the pointer and says why,
+     rather than proposing a settle hr_apply refuses window after window. */
+  BAG_FULL: 'bag_full',
 });
+
+/**
+ * The item whose new stack the bag has no room for on the NEXT swing at `node`, or null when it fits
+ * (or no cap is known). Pure over the bag. A swing opens at most one stack, the node's product, and a
+ * gather never frees one, so once the product is held every later swing fits (O(1) after the first).
+ *
+ * @param state { inventory (the BAG) }
+ * @param node  a TREES/ROCKS/FISH_SPOTS row
+ * @param ctx   { bagCap }
+ */
+export function gatherBagFullFor(state, node, ctx) {
+  const c = ctx || {};
+  const cap = Number.isSafeInteger(c.bagCap) && c.bagCap > 0 ? c.bagCap : null;
+  const prod = node && node.prod;
+  if (cap === null || !prod) return null;
+  const bag = (state && state.inventory) || {};
+  if ((Number(bag[prod]) || 0) > 0) return null;
+  let stacks = 0;
+  for (const id in bag) if ((Number(bag[id]) || 0) > 0) stacks++;
+  return stacks + 1 > cap ? prod : null;
+}
 
 /* b226 (spec §8.2) — the per-SKILL gathering counters, as DATA.
    `stats.chopped` / `stats.mined` / `stats.fished` are what the daily and
@@ -456,6 +481,13 @@ export function simulateSkillSpan(state, ctx) {
       };
       let done = 0;
       for (let i = 0; i < n; i++) {
+        /* THE BAG'S ROOM, before the swing: a product with no stack to land in is refused by hr_apply
+           (bank_full), so the run stops here and says so instead of paying a window nobody can bank. */
+        if (gatherBagFullFor(state, node, c) !== null) {
+          stopReason = STOP_REASON.BAG_FULL;
+          call(fx, 'onStop', stopReason, skill, targetId, node.prod);
+          return done;
+        }
         const r = resolveGatherTick(state, node, tickCtx);
         if (r.outcome === OUTCOME.STOP) {
           /* The level gate. Core STATES the fact; the caller decides what it

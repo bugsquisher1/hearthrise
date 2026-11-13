@@ -160,6 +160,16 @@ async function runTests(mods) {
     ok(wm.handleKey(key('b', { target: { tagName: 'INPUT', type: 'checkbox' } })), 'a focused checkbox must not swallow B');
     ok(wm.handleKey(key('b', { target: { tagName: 'SELECT' } })), 'a focused select must not swallow B');
     wm.close('bag');
+    /* Enter on a focused button presses it (audit 2026-11-13: the item menu, the drop menu and the coach card opened Chat
+       instead). A button still lets the letters through, and Enter with nothing focused still opens Chat. */
+    for (const target of [{ tagName: 'BUTTON' }, { tagName: 'A', href: '#' }, { tagName: 'DIV', role: 'menuitem' }, { tagName: 'INPUT', type: 'checkbox' }]) {
+      ok(!wm.handleKey(key('Enter', { target })), 'Enter on a focused ' + JSON.stringify(target) + ' must press it, not open Chat');
+    }
+    eq(wm.openIds(), [], 'Enter on a button opened ' + wm.openIds().join());
+    ok(wm.handleKey(key('b', { target: { tagName: 'BUTTON' } })), 'a focused button must not swallow B');
+    wm.close('bag');
+    ok(wm.handleKey(key('Enter', { target: { tagName: 'DIV' } })), 'Enter on the page must still open Chat');
+    wm.close('chat');
     ok(!wm.handleKey(key('1')), 'digits belong to the action bar');
   });
   t('W9 close waits 120 ms for the slide-out; reduced motion does not', () => {
@@ -1091,6 +1101,7 @@ const MUTANTS = [
   { test: 'H13', file: HUD_FILE, from: '      const under = Math.ceil(q.top + q.height + gap);', to: '      const under = Math.round(q.top + q.height + gap);' },
   { test: 'W13', file: WM_FILE, from: 'else if (slot.has(id)) lastAt.set(id, { right: slot.get(id) });', to: ';' },
   { test: 'W8', file: WM_FILE, from: 'return keyBelongsToField(ev.target, ev.key);', to: 'return false;' },
+  { test: 'W8', file: WM_FILE, from: '  if (pressesControl(ev)) return true;\n', to: '' },
   { test: 'W8', file: 'src/utils/dom.js', from: "  if (tag === 'select') return /^Arrow/.test(String(key || ''));", to: "  if (tag === 'select') return true;" },
   { test: 'W8', file: 'src/utils/dom.js', from: '  return TEXT_TYPES.has(type);', to: '  return true;' },
   { test: 'W9', file: WM_FILE, from: 'if (reducedMotion()) { drop(id); emit(); return true; }', to: '' },

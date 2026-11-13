@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-13",
- "replay_ms": 85243,
+ "replay_ms": 64685,
  "counts": {
   "tracked_names": 838,
   "entries": 690
@@ -1284,17 +1284,18 @@
     "restate"
    ],
    "touched_by": [
-    "2026-09-06-bank-cap-tracks-rungs.sql"
+    "2026-09-06-bank-cap-tracks-rungs.sql",
+    "2027-04-16-bank-cap-plpgsql.sql"
    ],
    "live": {
-    "md5": "de8bb5a5908f528f0581117df638046e",
-    "norm_len": 562,
+    "md5": "c3380c1fe6c7df8c2546e06953b9854a",
+    "norm_len": 590,
     "measured": "2026-11-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "de8bb5a5908f528f0581117df638046e",
-    "norm_len": 562,
+    "md5": "c3380c1fe6c7df8c2546e06953b9854a",
+    "norm_len": 590,
     "source": "computed-from-replay"
    },
    "agree": true

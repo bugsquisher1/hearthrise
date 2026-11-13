@@ -274,6 +274,13 @@ async function run({ control = false } = {}) {
     }
     fixSql = fixSql.replace(anchor, '  from public.hr_companion_grants g where false\n');
   }
+  /* THE REVOKED WORLD (2027-04-19-key-under-lock.sql §2): no request role may run hr_companion_grant and nothing approves it, so the
+     reseed lands catalogue rows with no client writer, and its §2(g) must accept exactly that (the grant and its approval agree). */
+  const grantNow = (await q(`select has_function_privilege('authenticated', 'public.hr_companion_grant(integer,text,text,uuid)', 'execute') as x,
+      exists (select 1 from public.hr_client_rpc_baseline where proname = 'hr_companion_grant') as b`))[0];
+  ok(grantNow.x === false && grantNow.b === false,
+    `hr_companion_grant is ${grantNow.x ? '' : 'not '}executable by authenticated and ${grantNow.b ? '' : 'not '}in hr_client_rpc_baseline: `
+    + 'the chain must end with both gone (2027-04-19-key-under-lock.sql §2) before the reseed is judged against it');
   let fixFailed = null;
   try { await db.exec(fixSql); }
   catch (e) { fixFailed = String(e.message || e).split('\n')[0]; }

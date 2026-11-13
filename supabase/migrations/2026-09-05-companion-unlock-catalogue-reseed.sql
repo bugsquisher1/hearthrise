@@ -360,13 +360,22 @@ begin
     raise exception '§2(f): these roles can write the unlock catalogue: %', v_missing;
   end if;
 
-  -- (g) the WRITER of these rows is unchanged. hr_companion_grant stays
-  --     authenticated-only: not anon, not service_role, and above all not
-  --     hr_engine — the accrual engine must never grant a companion.
-  if not has_function_privilege('authenticated',
-        to_regprocedure('public.hr_companion_grant(int,text,text,uuid)'), 'execute') then
-    raise exception '§2(g): hr_companion_grant is not executable by authenticated — these rows '
-                    'would have no client writer';
+  -- (g) the WRITER of these rows is unchanged. hr_companion_grant is never
+  --     anon's, service_role's or, above all, hr_engine's: the accrual engine
+  --     must never grant a companion. Whether `authenticated` holds it is the
+  --     client surface's decision, and the grant and its approval must agree:
+  --     it held it (and hr_client_rpc_baseline approved it) until
+  --     2027-04-19-key-under-lock.sql §2 revoked both together (no src/ caller;
+  --     its source was the caller's word). Applied after that revoke, this
+  --     file seeds catalogue rows with no client writer, which is inert: the
+  --     storage guard accepts them and nothing can mint them.
+  if has_function_privilege('authenticated',
+        to_regprocedure('public.hr_companion_grant(int,text,text,uuid)'), 'execute')
+     is distinct from exists (select 1 from public.hr_client_rpc_baseline
+                               where proname = 'hr_companion_grant' and grantee = 'authenticated') then
+    raise exception '§2(g): hr_companion_grant''s authenticated grant and its hr_client_rpc_baseline '
+                    'approval disagree — a client writer nobody approved, or an approval for a '
+                    'grant that is gone';
   end if;
   select string_agg(r, ', ') into v_missing
     from unnest(array['public','anon','service_role','hr_engine']) r
@@ -431,7 +440,7 @@ begin
   raise notice 'companion-unlock reseed PASSED: 17 grantable companions have a storable home '
                '(max/unlock/1/{1}); the 4 shop companions keep the rung ladder hr_unlock_buy '
                'sells; no id is both grantable and priced; no client write surface; '
-               'hr_companion_grant still '
-               'authenticated-only; the guard accepts the seventeen and still refuses an '
+               'hr_companion_grant never anon''s, service_role''s or hr_engine''s, its client grant '
+               'and its approval agreeing; the guard accepts the seventeen and still refuses an '
                'uncatalogued id, an off-ladder value and a wrong kind.';
 end $$;

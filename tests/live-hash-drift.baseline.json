@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-13",
- "replay_ms": 46031,
+ "replay_ms": 64527,
  "counts": {
-  "tracked_names": 838,
-  "entries": 690
+  "tracked_names": 845,
+  "entries": 697
  },
  "functions": [
   {
@@ -825,6 +825,7 @@
    "sig": "hr_account_property_tier(p_user uuid)",
    "name": "hr_account_property_tier",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -1298,8 +1299,7 @@
     "norm_len": 590,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "REVIEW 2026-11-13: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+   "agree": true
   },
   {
    "sig": "hr_bank_cap_sync()",
@@ -5899,6 +5899,29 @@
    "agree": true
   },
   {
+   "sig": "hr_house_dummy_unlock(p_slot integer, p_skill text, p_price bigint, p_idem uuid)",
+   "name": "hr_house_dummy_unlock",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-16-combat-training.sql"
+   ],
+   "live": {
+    "md5": "cd9b53860ab496d54523dda0129335bf",
+    "norm_len": 3715,
+    "measured": "2026-11-13",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "cd9b53860ab496d54523dda0129335bf",
+    "norm_len": 3715,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_hunt_accrue_fence()",
    "name": "hr_hunt_accrue_fence",
    "tracked_by": [
@@ -5953,17 +5976,18 @@
    ],
    "touched_by": [
     "2026-10-21-hunt-sessions.sql",
-    "2027-03-12-boss-call.sql"
+    "2027-03-12-boss-call.sql",
+    "2027-04-16-combat-training.sql"
    ],
    "live": {
-    "md5": "3e9d29fe7ec468b037e0e98878afdb61",
-    "norm_len": 1561,
+    "md5": "c6cff5f013d8a549567fd65413339052",
+    "norm_len": 2031,
     "measured": "2026-11-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3e9d29fe7ec468b037e0e98878afdb61",
-    "norm_len": 1561,
+    "md5": "c6cff5f013d8a549567fd65413339052",
+    "norm_len": 2031,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6123,17 +6147,18 @@
     "2027-03-22-live-events.sql",
     "2027-03-25-death-share.sql",
     "2027-04-08-member-write-once.sql",
-    "2027-04-12-tick-enrol-restated.sql"
+    "2027-04-12-tick-enrol-restated.sql",
+    "2027-04-16-combat-training.sql"
    ],
    "live": {
-    "md5": "5186f2e9d3865eebe43718626b34b0e2",
-    "norm_len": 34706,
+    "md5": "5786ead704f7d4230d49aff8921ed288",
+    "norm_len": 36441,
     "measured": "2026-11-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5186f2e9d3865eebe43718626b34b0e2",
-    "norm_len": 34706,
+    "md5": "5786ead704f7d4230d49aff8921ed288",
+    "norm_len": 36441,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6524,20 +6549,22 @@
    "sig": "hr_hunt_enter_check(p_uid uuid, p_slot integer, p_hunt text, p_bag jsonb, p_preset integer, p_hours integer, p_any_ground boolean)",
    "name": "hr_hunt_enter_check",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-12-05-hunt-setup-per-ground.sql"
+    "2026-12-05-hunt-setup-per-ground.sql",
+    "2027-04-16-combat-training.sql"
    ],
    "live": {
-    "md5": "8f1a4752c011160580903909c36e5026",
-    "norm_len": 5566,
+    "md5": "ecca3617edc072f103bfb14c36891f8d",
+    "norm_len": 5944,
     "measured": "2026-11-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "8f1a4752c011160580903909c36e5026",
-    "norm_len": 5566,
+    "md5": "ecca3617edc072f103bfb14c36891f8d",
+    "norm_len": 5944,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -15756,6 +15783,144 @@
    "replay": {
     "md5": "08ef5ccbbc702b2ef5e05cbf3836b5e6",
     "norm_len": 150,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_training_fee(p_level integer)",
+   "name": "hr_training_fee",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-16-combat-training.sql"
+   ],
+   "live": {
+    "md5": "971c9af3df2a27e4464bce776324813d",
+    "norm_len": 335,
+    "measured": "2026-11-13",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "971c9af3df2a27e4464bce776324813d",
+    "norm_len": 335,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_training_hour(p_user uuid, p_slot integer, p_session uuid, p_to timestamp with time zone, p_cost bigint, p_floor bigint, p_h jsonb)",
+   "name": "hr_training_hour",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-16-combat-training.sql"
+   ],
+   "live": {
+    "md5": "ced454cc4439b2a7370b0b427ac2c0d2",
+    "norm_len": 3003,
+    "measured": "2026-11-13",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "ced454cc4439b2a7370b0b427ac2c0d2",
+    "norm_len": 3003,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_training_quote(p_user uuid, p_slot integer, p_skill text, p_place text)",
+   "name": "hr_training_quote",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-16-combat-training.sql"
+   ],
+   "live": {
+    "md5": "2bbfea96fad5c835318f5a257ced5d7e",
+    "norm_len": 2037,
+    "measured": "2026-11-13",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "2bbfea96fad5c835318f5a257ced5d7e",
+    "norm_len": 2037,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_training_section(p_user uuid, p_slot integer)",
+   "name": "hr_training_section",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-16-combat-training.sql"
+   ],
+   "live": {
+    "md5": "24b243ffdf16736de5f987eced185a86",
+    "norm_len": 4132,
+    "measured": "2026-11-13",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "24b243ffdf16736de5f987eced185a86",
+    "norm_len": 4132,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_training_start(p_slot integer, p_skill text, p_where text, p_fee_seen bigint, p_idem uuid)",
+   "name": "hr_training_start",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-16-combat-training.sql"
+   ],
+   "live": {
+    "md5": "72753779196fb86f92c7c42ba6a3e685",
+    "norm_len": 4001,
+    "measured": "2026-11-13",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "72753779196fb86f92c7c42ba6a3e685",
+    "norm_len": 4001,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_training_window(p_user uuid, p_slot integer, p_hunt text, p_from timestamp with time zone, p_to timestamp with time zone, p_delta jsonb)",
+   "name": "hr_training_window",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-16-combat-training.sql"
+   ],
+   "live": {
+    "md5": "a396047961d1fccbd116c392c8bbc3db",
+    "norm_len": 2800,
+    "measured": "2026-11-13",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "a396047961d1fccbd116c392c8bbc3db",
+    "norm_len": 2800,
     "source": "computed-from-replay"
    },
    "agree": true

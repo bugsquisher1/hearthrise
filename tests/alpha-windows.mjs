@@ -289,7 +289,7 @@ function levelOne(e) {
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 const ITEM_RPCS = ['hr_item_lock', 'hr_loot_rule_set', 'hr_hunt_preset_save', 'hr_hunt_preset_apply', 'hr_action_set_options', 'hr_hunt_enter', 'hr_bank_move', 'hr_loot_dispatch', 'hr_hunt_restock'];
 /* The windows a player opens from the launcher row, with their keys (src/data/shell-windows.js). */
-const WINDOWS = [['h', 'hunts'], ['b', 'inventory'], ['c', 'character'], ['g', 'skills-trade'], ['t', 'storage'], ['v', 'shop'], ['p', 'hunt-prep']];
+const WINDOWS = [['h', 'hunts'], ['b', 'inventory'], ['c', 'character'], ['g', 'skills-trade'], ['t', 'storage'], ['v', 'shop'], ['p', 'hunt-prep'], ['x', 'havora']];
 
 function scripted() {
   /* Like the real server, the residue a put stores comes back in every later envelope (client_state). */
@@ -2040,6 +2040,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (!(await openWin(page, key, id))) fails.push('AW-1 the ' + key.toUpperCase() + ' key did not open ' + id);
           else if (shots) await shot(page, 'alpha-1440x900-' + id);
         }
+        /* AW-1 Havora (vitals 11-12: powders, rounds and gifts at zero for two days): its icon, not only a map building, opens it. */
+        for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving)').length > 0); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(160); }
+        await page.click('.hs-launch[data-hs-open="havora"]', { timeout: 2500 }).catch(() => null);
+        if (!(await wait(page, () => document.querySelector('[data-hs-win="havora"] [data-hs-built]'), null, 3000))) fails.push('AW-1 the Havora icon did not open Havora');
         /* AW-15 (Tyler 10-18): one Inventory, no Gear and no Find window, and the item search only inside Inventory and Storage. */
         if (launchers.some((id) => /^(bag|gear|find)$/.test(id))) fails.push('AW-15 the launcher row still opens a separate bag, gear or find window: ' + launchers.join(','));
         const searches = [];

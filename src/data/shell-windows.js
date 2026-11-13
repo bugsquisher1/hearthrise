@@ -64,16 +64,16 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'farm', label: 'Farm', key: 'j', glyph: 'uiSprout', width: 440, object: 'plain' }),
   /* Lane S2: stamina refills, blessings and the character's name, each priced by the server. */
   /* The account's one house (Tyler 2026-10-15): the property, its rooms and the storage chests, bought from any character. */
-  Object.freeze({ id: 'house', label: 'House', key: 'e', glyph: 'navHouse', width: 480, object: 'deed' }),
+  Object.freeze({ id: 'house', label: 'House', key: 'e', phoneIcon: false, glyph: 'navHouse', width: 480, object: 'deed' }),
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): kill tasks counted by the server, paid in town. Her board on the
      Common opens it too (src/data/world/stations.js TAP_OPENS), and so does the HUD's tally. */
   Object.freeze({ id: 'tally', label: 'Tamsin\'s tally', key: 'q', glyph: 'navBounty', width: 460, object: 'ledger' }),
   /* Leaderboards (lane/b-leaderboards, 2026-10-31; named by Tyler 2026-11-01): Havora's heroes in order, one board at a
      time, every place and number the server's (src/data/honor-roll.js names the boards). */
   Object.freeze({ id: 'honor', label: 'Leaderboards', key: 'z', phoneIcon: false, glyph: 'uiTrophy', width: 440, object: 'book' }),
-  /* What gold buys in town (Tyler 2026-11-04; the designer's gold sinks section): Hearth powders, a round at the Tavern, later the Town Works. Every letter is taken and
-     WASD walks, so it has no shortcut; the Tavern on the map opens it on Round. Its label is the city's name, read from the one place it lives. */
-  Object.freeze({ id: 'havora', label: TOWN_NAME, key: null, noShortcut: true, phoneIcon: false, glyph: 'uiFlame', width: 420, object: 'ledger' }),
+  /* What gold buys in town (Tyler 2026-11-04; the designer's gold sinks section): Hearth powders, a round at the Tavern, later the Town Works. X is its shortcut (every
+     other letter is taken and WASD walks; You died gave X up, a popup only the game opens). The Tavern on the map opens it on Round. Its label is the city's name, read from the one place it lives. */
+  Object.freeze({ id: 'havora', label: TOWN_NAME, key: 'x', glyph: 'uiCastle', width: 420, object: 'ledger' }),
   /* The setup builder (Tyler 2026-11-11): the setups column beside the HUD's own 2 x 10 slot grid, so it is as wide as Hunts. */
   Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 1040, object: 'plain', over: true, help: 'windows.help_prep' }),
   /* Week plan step 16 + QoL 3: the party, and every open character on one screen (opened from the
@@ -86,7 +86,7 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'configure-action', label: 'Configure action', key: 'k', glyph: 'uiTarget', width: 800, object: 'plain', launcher: false, modal: true,
     pageOf: Object.freeze(['hunt-prep']) }),
   /* Tyler 2026-10-19: a death opens a centred popup (src/shell/death-popup.js opens it; its key shows the last death). */
-  Object.freeze({ id: 'death', label: 'You died', key: 'x', glyph: 'uiSkull', width: 420, object: 'ledger', launcher: false, modal: true }),
+  Object.freeze({ id: 'death', label: 'You died', key: null, glyph: 'uiSkull', width: 420, object: 'ledger', launcher: false, modal: true }),
   /* Tyler 2026-11-01: the play cap's refusal opens a centered popup (windows/play-cap.js). It has nothing to say until the server refuses a start, so no key. */
   Object.freeze({ id: 'play-cap', label: 'Too many heroes playing', key: null, glyph: 'uiWarn', width: 420, object: 'plain', launcher: false, modal: true }),
   /* Tyler 2026-10-22: Chat opens floating at the bottom-left (never docked) and the player resizes it (kept in the residue).

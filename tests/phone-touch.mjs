@@ -1041,9 +1041,9 @@ async function stripReach(page, tag, fails) {
   /* What the row has no room for has its one press here: named, at a thumb's size, and it opens. Market keeps its icon. */
   const more = await page.evaluate(() => { const rows = Array.from(document.querySelectorAll('[data-hs-win="characters"] .hw-icon-names.is-more .hw-icon-name'));
     return { ids: rows.map((r) => r.getAttribute('data-hs-open')).sort(), small: rows.filter((r) => r.getBoundingClientRect().height < 44).length, empty: rows.filter((r) => !r.textContent.trim()).length,
-      market: !!document.querySelector('.hs-launch[data-hs-open="market"]'), onRow: ['havora', 'honor', 'report'].filter((id) => document.querySelector('.hs-launch[data-hs-open="' + id + '"]')) }; });
-  if (more.ids.join() !== 'havora,honor,report' || more.small || more.empty) fails.push('PH-11 [' + tag + '] the sheet does not name what the row left out: ' + JSON.stringify(more));
-  if (!more.market || more.onRow.length) fails.push('PH-11 [' + tag + '] the row is not Market on, Leaderboards and Report off: ' + JSON.stringify(more));
+      market: !!document.querySelector('.hs-launch[data-hs-open="market"]'), onRow: ['honor', 'house', 'report'].filter((id) => document.querySelector('.hs-launch[data-hs-open="' + id + '"]')) }; });
+  if (more.ids.join() !== 'honor,house,report' || more.small || more.empty) fails.push('PH-11 [' + tag + '] the sheet does not name what the row left out: ' + JSON.stringify(more));
+  if (!more.market || more.onRow.length) fails.push('PH-11 [' + tag + '] the row is not Market on, Leaderboards, House and Report off: ' + JSON.stringify(more));
   await page.evaluate(() => document.querySelector('[data-hs-win="characters"] .hw-icon-name[data-hs-open="honor"]').click());
   if (!(await wait(page, () => document.querySelector('[data-hs-win="honor"]'), null, 3000))) fails.push('PH-11 [' + tag + '] Leaderboards cannot be opened on a phone');
   await page.click('.char-tool.is-all', { timeout: 2500 }).catch(() => null);

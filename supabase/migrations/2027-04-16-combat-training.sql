@@ -138,10 +138,12 @@ create policy "account_house_dummy own read" on public.account_house_dummy for s
 
 -- ── §2 THE HELPERS (owner-only) ──────────────────────────────────────────────
 -- THE YARD'S FEE for one hour at trained-skill level p_level: fee_base + fee_per_level x the level (src/data/training.js trainingFee).
+-- plpgsql, not SQL: every envelope's section calls it once a skill, and a SET-clause SQL function is re-planned per call (settle-budget SB-3).
 create or replace function public.hr_training_fee(p_level int)
-returns bigint language sql stable security definer set search_path = public, pg_catalog as $fn$
-  select (r.fee_base + r.fee_per_level * greatest(1, coalesce(p_level, 1)))::bigint from public.hr_training_rules r where r.id
-$fn$;
+returns bigint language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
+begin
+  return (select (r.fee_base + r.fee_per_level * greatest(1, coalesce(p_level, 1)))::bigint from public.hr_training_rules r where r.id);
+end $fn$;
 
 -- THE QUOTE: training p_skill at p_place for this hero, as the server prices it now, or null for no such ground. `why` is the first
 -- refusal (in_party, no_home, not_owned, dummy_busy) or null; `busy` the name of the hero on the dummy. Read under hr:train by the verb.

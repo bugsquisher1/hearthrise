@@ -72,7 +72,8 @@ export const DOCK_ROOM_PX = 480;
 /** Does a docked window with `cap` px above the bar and `need` px of content rise over the bar? Pure. */
 export function overBar(cap, need) { return Number.isFinite(cap) && cap < DOCK_ROOM_PX && need > cap; }
 
-const KEY_RE = /^([a-z]|enter|escape)$/;
+/* The slash opens the Wiki: every letter is a window's or WASD's. */
+const KEY_RE = /^([a-z]|\/|enter|escape)$/;
 
 /** Throws on a catalogue the manager cannot honour; returns the rows by id. */
 export function validateWindowRows(rows) {
@@ -86,7 +87,7 @@ export function validateWindowRows(rows) {
     const noKey = r.key === null && ((r.modal === true && r.launcher === false)   // a popup only the game opens
       || r.noShortcut === true                                                    // a launcher row with no letter left for it: the icon opens it
       || r.gm === true);                                                          // the Game Master's window: a key would open an empty window on anyone's keyboard
-    if (!noKey && !KEY_RE.test(r.key || '')) throw new Error('shell windows: ' + r.id + ' key must be a letter, enter or escape');
+    if (!noKey && !KEY_RE.test(r.key || '')) throw new Error('shell windows: ' + r.id + ' key must be a letter, the slash, enter or escape');
     if (keys.has(r.key)) throw new Error('shell windows: key ' + r.key + ' is both ' + keys.get(r.key) + ' and ' + r.id);
     /* tabKeys: a second shortcut that opens this window on one of its tabs ({ r: 'services' }: R opens the Shop on Services) */
     if (r.tabKeys !== undefined) {

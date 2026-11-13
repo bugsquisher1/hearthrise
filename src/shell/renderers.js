@@ -45,7 +45,8 @@ import { renderTallyHud } from './widgets/tally-hud.js?v=0.2.126';
 import { renderMonster } from './windows/monster.js?v=0.2.126';
 import { renderGameMaster } from './windows/game-master.js?v=0.2.126';
 
-/* A renderer with `.patch` is a component: built once, then patched in place (src/shell/shell.js). */
+/* A renderer with `.patch` is a component: built once, then patched in place (src/shell/shell.js). */import { renderWiki } from './windows/wiki.js?v=0.2.126';
+
 export const WINDOW_RENDERERS = Object.freeze({
   hunts: renderHunts,
   inventory: renderInventory,
@@ -74,6 +75,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   report: renderReport,
   'game-master': renderGameMaster,
   monster: renderMonster,
+  wiki: renderWiki,
 });
 
 export const WIDGET_RENDERERS = Object.freeze({

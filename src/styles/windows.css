@@ -1175,3 +1175,30 @@
   .mf-name { font-size: var(--t-lead); }
   .mf-home { line-height: 1.9; }
 }
+/* ── The wiki (src/shell/windows/wiki.js): an encyclopedia's pages, not cards. A page is a display heading, the monster page's
+   two-column table of facts, lines of text and small ruled tables of numbers; pages are parted by a hairline, never a box. ── */
+.wk-sec[hidden], .wk-page[hidden], .wk-sec-h[hidden] { display: none; }
+.wk-page { padding: 12px 2px 14px; border-top: 1px solid var(--steel-sep); }
+.wk-name { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-family: var(--f-display); font-size: var(--t-lead); font-weight: 700; letter-spacing: .04em; color: var(--gold-2); }
+.wk-name .hs-glyph { width: 20px; height: 20px; color: var(--ink-2); }
+.wk-sub { margin: 0 0 4px; font-size: var(--t-small); font-weight: 700; color: var(--ink); }
+.wk-text { margin: 0 0 8px; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
+.wk-h { margin: 10px 0 4px; font-size: var(--t-small); font-weight: 700; color: var(--ink); }
+.wk-h small, .wk-list small { font-size: var(--t-micro); font-weight: 400; color: var(--ink-3); }
+.wk-list { margin: 0; padding: 0; list-style: none; font-size: var(--t-small); line-height: 1.6; color: var(--ink); }
+.wk-drop { display: flex; justify-content: space-between; gap: 12px; }
+.wk-curve { margin: 10px 0 0; font-size: var(--t-micro); font-variant-numeric: lining-nums tabular-nums; }
+.wk-curve-h { margin: 0 0 4px; color: var(--ink-3); }
+.wk-curve dl { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0; }
+.wk-curve dt { color: var(--ink-3); }
+.wk-curve dd { margin: 0; font-weight: 700; color: var(--ink); }
+.wk-table { margin: 10px 0 0; border-collapse: collapse; font-size: var(--t-micro); font-variant-numeric: lining-nums tabular-nums; }
+.wk-table th { padding: 2px 14px 2px 0; font-weight: 400; text-align: left; color: var(--ink-3); }
+.wk-table td { padding: 2px 14px 2px 0; font-weight: 700; color: var(--ink); }
+.wk-rows tr + tr td { border-top: 1px solid var(--steel-sep); }
+.wk-example { margin: 8px 0 0; padding-left: 10px; border-left: 2px solid var(--gold); font-size: var(--t-small); line-height: 1.5; color: var(--ink); }
+.wk-example b { margin-right: 6px; color: var(--gold-2); }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .wk-name { font-size: var(--t-small); }
+  .wk-table th, .wk-table td { padding-right: 10px; }
+}

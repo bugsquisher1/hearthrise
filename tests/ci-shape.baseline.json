@@ -42,6 +42,8 @@
     "node tests/honor-window.mjs": "in-page-25",
     "node tools/mutant-gate.mjs node tests/honor-window.mjs --mutate": "in-page-25",
     "node tests/monster-facts.mjs": "in-page-25",
+    "node tests/wiki-window.mjs": "in-page-25",
+    "node tools/mutant-gate.mjs node tests/wiki-window.mjs --mutate": "in-page-25",
     "node tools/mutant-gate.mjs node tests/monster-facts.mjs --mutate": "in-page-25",
     "node tools/gen-outfits.mjs --check": "in-page-25",
     "node tools/mutant-gate.mjs node tools/gen-outfits.mjs --selftest": "in-page-25",

@@ -176,6 +176,12 @@ function contract(R, cs, body, tl) {
   // This hero is hunting: the section sends no rooms and no fees to a hunter (settle cost), only the carry; a town hero's rooms: tests/bench-tax.mjs T-HOUSE.
   need('bench_tax', R.BT.benchTaxOf(cs) !== null && Number.isInteger(body.bench_tax && body.bench_tax.carry_mg) && R.BT.benchTaxOf(cs).carry === body.bench_tax.carry_mg,
     'benchTaxOf reads ' + JSON.stringify(body.bench_tax).slice(0, 160));
+  // combat training (2027-04-16-combat-training.sql): the yard's four quotes at the server's fee and the house dummy's ladder; a hunter has no run
+  const tr = R.TR.trainingOf(cs);
+  need('training', !!tr && tr.skills.length === 4 && tr.maxHours > 0 && tr.run === null && tr.quotes.length === 4
+    && tr.quotes.every((q) => Number.isInteger(q.feeH) && q.feeH > 0 && Number.isInteger(q.level))
+    && !!tr.dummy && tr.dummy.ladder.length === 4 && Number.isInteger(tr.dummy.nextPrice) && tr.dummy.nextPrice > 0,
+    'trainingOf yields ' + JSON.stringify(tr) + ' from ' + JSON.stringify(body.training).slice(0, 200));
   // the bag's next rung (2027-04-15-bag-expand-view.sql): the cap and bank.0 at the server's price, the Storage window's Expand
   const be = R.IS.bagExpandOf(cs);
   need('bag_expand', !!be && be.cap === 100 && be.rung === 0 && !!be.next && be.next.offer === 'bank.0' && be.next.gold === 3000 && be.next.adds === 20,
@@ -300,7 +306,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events']);
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -359,6 +365,7 @@ async function readers(root) {
     CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), HO: await import(u('src/session/home-sections.js')),
     TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TP: await import(u('src/session/temper-sections.js')),
     JW: await import(u('src/session/jewelry-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
+    TR: await import(u('src/session/training-sections.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')), SHOP: await import(u('src/data/shops.js')),
   };
@@ -492,6 +499,9 @@ const DB_MUTANTS = [
   /* lane/b-live-events-client: the plate and the Hunts lines read each event's window and dial from the section */
   ['live_events', 'public.hr_live_events_view(uuid,integer)', "'starts', x.starts,", "'start', x.starts,"],
   ['live_events', 'public.hr_live_events_view(uuid,integer)', "'dial', x.dial, 'pm', x.pm,", "'dial', x.dial, 'permille', x.pm,"],
+  /* lane/c-combat-training: the Training window prices each hour from the quote and the House the next unlock from the dummy */
+  ['training', 'public.hr_training_section(uuid,integer)', "'fee_h', public.hr_training_fee(q.lv),", "'fee', public.hr_training_fee(q.lv),"],
+  ['training', 'public.hr_training_section(uuid,integer)', "'ladder', coalesce(to_jsonb(", "'prices', coalesce(to_jsonb("],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

@@ -80,4 +80,11 @@ export const SINK_RULES = Object.freeze({
     scope: 'hero', offers: Object.freeze([]),
     priceBase: 1500, pricePerLevel: 50, perDay: 10,
   }),
+  /* THE HOUSE DUMMY (Tyler 2026-11-08: "Wildly expensive gold sink ... a personal training dummy for houses ... multiple unlocks for each combat
+     skill"; src/data/training.js): one dummy an account, a skill unlocked a rung, the ladder climbing in the order the player picks skills. It
+     trains at the yard's rate, never faster; what it buys is no hourly fee. The offers are training.js TRAINING_SKILLS (gen-gold-sinks checks). */
+  house_dummy: Object.freeze({
+    scope: 'account', offers: Object.freeze(['melee', 'ranged', 'magic', 'defense']),
+    prices: Object.freeze([150000, 250000, 400000, 600000]),
+  }),
 });

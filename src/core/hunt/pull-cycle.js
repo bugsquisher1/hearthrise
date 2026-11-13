@@ -22,21 +22,22 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.127';
-import { VITALS } from '../../data/core-model.js?v=0.2.127';
-import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.127';
-import { atTier } from '../../data/hunt-tiers.js?v=0.2.127';
-import { AI_REPATH_MS, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.127';
-import { HUNT_GROUNDS, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.127';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.127';
-import { monsterMaxHit } from '../combat.js?v=0.2.127';
-import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.127';
-import { inArea, resetPack } from './leash.js?v=0.2.127';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.127';
-import { makeEvent, trackStep } from './events.js?v=0.2.127';
-import { staleIndex } from './unit-index.js?v=0.2.127';
-import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.127';
-import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.127';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.128';
+import { VITALS } from '../../data/core-model.js?v=0.2.128';
+import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.128';
+import { atTier } from '../../data/hunt-tiers.js?v=0.2.128';
+import { AI_REPATH_MS, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.128';
+import { HUNT_GROUNDS, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.128';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.128';
+import { monsterMaxHit } from '../combat.js?v=0.2.128';
+import { castsOf, spellHit, spellRow } from '../../data/monster-spells.js?v=0.2.128';
+import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.128';
+import { inArea, resetPack } from './leash.js?v=0.2.128';
+import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.128';
+import { makeEvent, trackStep } from './events.js?v=0.2.128';
+import { staleIndex } from './unit-index.js?v=0.2.128';
+import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.128';
+import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.128';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -60,7 +61,8 @@ const heroes = (inst) => inst.world.units.filter((u) => u.side === 'hero');
 /**
  * THE BIGGEST BLOW A HUNT CAN LAND (designer ruling 2026-10-21): the largest monsterMaxHit (combat.js, the one the engine
  * swings with) of every monster on it: its ground's whole route (hunt-grounds.js monstersOn, the same for every party size
- * since 2026-11-08) plus the hunt's weighted spawns. Before mitigation: a catalogue fact.
+ * since 2026-11-08) plus the hunt's weighted spawns, each monster's swing or its spell's top (castsOf, while SPELL_SWITCH is live), whichever
+ * is bigger. Before mitigation: a catalogue fact.
  * On `tier` (a hunt-tiers.js row), that tier's blows. { monster, name, hit } or null for an unknown hunt. The Configure action heal warning and the
  * blow-share guard (tests/hunt-core/hunt-data.mjs) both read THIS, never a copy.
  */
@@ -72,7 +74,10 @@ export function biggestBlowOn(huntId, tier) {
   let best = null;
   for (const id of [...ids].sort()) {
     const row = MONSTERS[id];
-    const hit = row ? monsterMaxHit(atTier(row, tier)) : 0;
+    const swing = row ? monsterMaxHit(atTier(row, tier)) : 0;
+    /* ...or its spell's top, when the spells are on: a spell lands on every hero it covers with no to-hit roll (monster-spells.js land) */
+    const spell = row ? Math.max(0, ...castsOf(row).map((sid) => spellHit(swing, spellRow(sid))[1])) : 0;
+    const hit = Math.max(swing, spell);
     if (row && (!best || hit > best.hit)) best = { monster: id, name: row.name, hit };
   }
   return best;

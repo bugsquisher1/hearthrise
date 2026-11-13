@@ -1202,3 +1202,44 @@
   .wk-name { font-size: var(--t-small); }
   .wk-table th, .wk-table td { padding-right: 10px; }
 }
+
+/* ── THE TRAINING YARD (src/shell/windows/training.js): the run while one runs, then the skill picks (sunk steel, the
+   picked one outlined in gold, like the Hearth's powders), the picked skill's quote as a short ledger, and the one press
+   stuck to the window's foot. ── */
+.tw-train [hidden] { display: none; }
+.tw-train .hs-sub { margin-top: 12px; }
+.tw-purse { margin-bottom: 8px; }
+.tw-run { margin: 0 0 10px; padding: 8px 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.tw-now { margin: 0 0 4px; font-weight: 700; color: var(--gold-2); }
+.tw-line { margin: 0 0 2px; font-size: var(--t-small); line-height: 1.4; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.tw-line:empty { display: none; }
+.tw-skills { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 0 0 8px; }
+.tw-where { display: flex; gap: 6px; margin: 0 0 6px; }
+.tw-skill, .tw-place { min-height: 36px; border: 1px solid var(--steel-sep); background: var(--bg-0); color: var(--ink); font-family: var(--f-label); font-weight: 700; font-variant-numeric: lining-nums tabular-nums; cursor: pointer; }
+.tw-skill { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-width: 0; padding: 0 8px; }
+.tw-place { flex: 1 1 0; padding: 0 8px; }
+.tw-skill-level { color: var(--ink-2); }
+.tw-skill:hover:not(:disabled), .tw-place:hover:not(:disabled) { color: var(--gold-2); }
+.tw-skill[aria-checked="true"], .tw-place[aria-checked="true"] { outline: 2px solid var(--gold); outline-offset: -2px; color: var(--gold-2); }
+.tw-skill[aria-checked="true"] .tw-skill-level { color: var(--gold-2); }
+.tw-skill:focus-visible, .tw-place:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.tw-skill:disabled, .tw-place:disabled { opacity: .5; cursor: default; }
+.tw-quote { margin: 0 2px 6px; font-variant-numeric: lining-nums tabular-nums; }
+.tw-quote dt { font-weight: 700; color: var(--gold-2); }
+.tw-quote dd { margin: 0; font-size: var(--t-small); color: var(--ink); }
+.tw-quote dd:empty { display: none; }
+.tw-go, .tw-stop { display: block; width: 100%; min-height: 40px; margin: 6px 0; }
+.tw-foot { position: sticky; bottom: -12px; margin-bottom: -12px; padding: 4px 0 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
+.tw-foot .hw-why { margin: 4px 2px 0; }
+/* THE HOUSE'S DUMMY (src/shell/windows/house-dummy.js): four skills as ledger lines, the held ones gold. */
+.hd-dummy[hidden], .hd-confirm[hidden] { display: none; }
+.hd-skills { list-style: none; margin: 0 0 6px; padding: 0; }
+.hd-skill { display: flex; align-items: center; gap: 8px; min-height: 40px; border-top: 2px solid var(--steel-sep); }
+.hd-skill b { flex: 1 1 auto; }
+.hd-skill small { color: var(--ink-2); }
+.hd-skill.is-held b, .hd-skill.is-held small { color: var(--gold-2); }
+.hd-next { margin: 0 2px 4px; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .tw-foot { bottom: -10px; margin-bottom: -10px; padding-bottom: 10px; }
+  .tw-skills { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

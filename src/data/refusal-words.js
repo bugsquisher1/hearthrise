@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.127';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.128';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -93,6 +93,24 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     hunting: 'Your hero is out hunting. The Tavern is in town.',
     show_limit: 'Havora takes 3 rounds a day from one account. More after midnight UTC.',
     show_busy: 'Someone\'s round is still going. You weren\'t charged.',
+  }),
+  /* Combat training (lane/c-combat-training hr_training_start, hr_house_dummy_unlock). The ones with the server's numbers are
+     src/shell/training-words.js's. */
+  training_start: Object.freeze({
+    quote_changed: 'The price changed before you started. Look at the new price and press Start training again.',
+    hunt_open: 'Your hero is out hunting. Come back to town to train.',
+    in_party: 'Training is solo. Leave the party first.',
+    insufficient_gold: 'You don\'t have enough gold for the first hour.',
+    not_owned: 'Your dummy at home doesn\'t train that skill yet. Unlock it in the House.',
+    dummy_busy: 'Another hero is on your dummy at home right now.',
+    bad_skill: 'You can train Melee, Ranged, Magic or Defense.',
+  }),
+  house_dummy: Object.freeze({
+    quote_changed: 'The price changed. Look at the new price and press Unlock again.',
+    no_home: 'You need the Hearthside Homestead before you can put a dummy in.',
+    insufficient_gold: 'You don\'t have enough gold for that unlock.',
+    dummy_max: 'Every skill is unlocked on your dummy already.',
+    already_owned: 'Your dummy already trains that skill.',
   }),
 });
 
@@ -287,6 +305,8 @@ export const REFUSAL_WORDS = Object.freeze({
   activity_locked: 'Your level is too low for that hunt yet.',
   activity_running: 'Your hero is busy with something else. Stop it first.',
   same_hunt: 'You are already hunting there.',
+  training_only: 'That spot is for training. Start it from the Training window.',
+  dummy_max: 'Your dummy trains every skill already.',
   /* The play cap (2027-01-19-play-cap.sql; Tyler 2026-10-17): at most four heroes play at once per account and per
      internet connection. The number is SESSION_CONFIG.maxConcurrentCharacters (tests/play-cap.mjs holds the words to it). */
   /* These two open the centered popup (src/shell/windows/play-cap.js), never a window's foot line. */

@@ -58,7 +58,8 @@ function audit(w) {
      monster is a badge that can never be earned and a claim key that dangles. */
   for (const id of Object.keys(roster)) {
     /* A called boss (src/data/boss-calls.js) is the one row with none: the Bestiary never counts him (tests/boss-call.mjs BC-ROW). */
-    if (!best[id] && roster[id].called !== true) say('B1', `monster "${id}" is in the roster and has no bestiary ladder`);
+    /* Nor has the training dummy (src/data/training.js): it never falls, so there is nothing to count (tests/combat-training.mjs CT-ROW). */
+    if (!best[id] && roster[id].called !== true && roster[id].dummy !== true) say('B1', `monster "${id}" is in the roster and has no bestiary ladder`);
   }
   for (const id of Object.keys(best)) {
     if (!roster[id]) say('B1', `bestiary ladder "${id}" names no monster in the roster`);

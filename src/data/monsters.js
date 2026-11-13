@@ -63,10 +63,10 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=0.2.127';
-import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.127';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.127';
-import { foldRows } from './grounds/shape.js?v=0.2.127';
+import { applyClassProfiles } from './monster-classes.js?v=0.2.128';
+import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.128';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.128';
+import { foldRows } from './grounds/shape.js?v=0.2.128';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -82,6 +82,7 @@ export function monsterLevelOf(row) {
 }
 
 export function monsterSpeedOf(row) {
+  if (row && row.dummy === true) return 0;   // a training dummy is a post in the ground (src/data/training.js)
   const v = row && row.speed;
   return Number.isInteger(v) && v > 0 ? v : MONSTER_SPEED_DEFAULT;
 }
@@ -807,6 +808,10 @@ export const MONSTERS = {
   goblin_digger_called: { name: 'Goblin Digger', icon: '👺', tier: 3, level: 40, cls: 'humanoid', family: 'Humanoid', formation: true, called: true, add: true,
     weaponWeak: 'hammer', weaponResist: ['sword'],
     hp: 300, atk: 70, baseAcc: 0.2, def: 20, xp: 0, gp: [0, 0], speed: 2600, drops: [] },
+
+  /* ══ THE TRAINING DUMMY (src/data/training.js, src/core/hunt/training.js): never falls or walks, no class; `hp` is the most one blow teaches. ══ */
+  yard_dummy: { name: 'Training Dummy', icon: '🎯', tier: 1, level: 1, family: 'Dummy', dummy: true,
+    hp: 1000, atk: 2, baseAcc: 0.5, def: 0, xp: 0, gp: [0, 0], drops: [] },
 
   /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header.
      THE LOOT BANDS (batch 3): the whole tier-2 set in three weights, about hourly (crows boots, poachers legs and their

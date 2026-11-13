@@ -29,7 +29,8 @@
 import { isMain } from './_is-main.mjs';
 import { bootReplay, manifest } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
-import { OUT_NAME as CAT } from '../tools/gen-hunt-sessions.mjs';
+/* THE AREA BATCH'S OWN CATALOGUE, by name: tools/gen-hunt-sessions.mjs OUT_NAME has moved on to 2027-04-16-combat-training's, which carries this one whole. */
+const CAT = '2027-04-15-area-spells-hunt-sessions-catalogue.generated.sql';
 import { ABILITIES } from '../src/data/abilities.js';
 import { MONSTER_SPELLS, SPELL_BOUNDS } from '../src/data/monster-spells.js';
 import { METRICS } from '../src/data/condition-metrics.js';

@@ -19,17 +19,17 @@
 // While open, a stale sheet is asked for once per record version. The answer
 // is the re-read envelope. A server without the section is never asked.
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.127';
-import { characterSheetOf, outfitOf } from '../../../session/character-sections.js?v=0.2.127';
-import { heroSprite } from '../../../session/hero-look.js?v=0.2.127';
-import { attr, cls } from '../../../render/paint.js?v=0.2.127';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.127';
-import { outfitArt, outfitMasks, drawOutfit } from '../../../render/outfit-sprite.js?v=0.2.127';
-import { scratchOf } from './state.js?v=0.2.127';
-import { sheetHtml, patchSheet } from './sheet.js?v=0.2.127';
-import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, colorsShown, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.127';
-import { deathsHtml, patchDeaths, actDeaths } from './deaths.js?v=0.2.127';
-import { titlesHtml, patchTitles, actTitles } from './titles.js?v=0.2.127';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.128';
+import { characterSheetOf, outfitOf } from '../../../session/character-sections.js?v=0.2.128';
+import { heroSprite } from '../../../session/hero-look.js?v=0.2.128';
+import { attr, cls } from '../../../render/paint.js?v=0.2.128';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.128';
+import { outfitArt, outfitMasks, drawOutfit } from '../../../render/outfit-sprite.js?v=0.2.128';
+import { scratchOf } from './state.js?v=0.2.128';
+import { sheetHtml, patchSheet } from './sheet.js?v=0.2.128';
+import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, colorsShown, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.128';
+import { deathsHtml, patchDeaths, actDeaths } from './deaths.js?v=0.2.128';
+import { titlesHtml, patchTitles, actTitles } from './titles.js?v=0.2.128';
 
 const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['titles', 'Titles'], ['deaths', 'Deaths']]);
 const PORTRAIT_SCALE = 1;

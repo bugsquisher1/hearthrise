@@ -12,17 +12,24 @@
 // sends an intent or writes a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { worldViewOf } from './world-view.js?v=0.2.127';
-import { mountShell } from '../shell/shell.js?v=0.2.127';
-import { logFor } from '../hunt-view/combat-log.js?v=0.2.127';
-import { pickHunt } from '../shell/windows/hunts.js?v=0.2.127';
-import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.127';
-import { TAP_WINDOWS } from '../data/world/stations.js?v=0.2.127';
-import { SINK_TAPS } from '../data/world/sink-taps.js?v=0.2.127';
-import { connection, loadingWords } from '../net/connection.js?v=0.2.127';
+import { worldViewOf } from './world-view.js?v=0.2.128';
+import { mountShell } from '../shell/shell.js?v=0.2.128';
+import { logFor } from '../hunt-view/combat-log.js?v=0.2.128';
+import { pickHunt } from '../shell/windows/hunts.js?v=0.2.128';
+import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.128';
+import { TAP_WINDOWS } from '../data/world/stations.js?v=0.2.128';
+import { SINK_TAPS } from '../data/world/sink-taps.js?v=0.2.128';
+import { connection, loadingWords } from '../net/connection.js?v=0.2.128';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.128';
+import { rowOffered } from '../shell/launcher.js?v=0.2.128';
 
 /* The windows a town keeper or station opens (a tapped prop's `window`), and nothing else. */
 const KEEPER_WINDOWS = new Set([...TAP_WINDOWS, ...Object.values(SINK_TAPS).map((t) => t.window)]);
+/** @type {Map<string, {id: string, gm?: boolean, section?: string, orElse?: string}>} */
+const ROW_OF = new Map(SHELL_WINDOWS.map((r) => [r.id, r]));
+/* A window the server hides from this hero (shell-windows.js `section`) is not opened by a tap: its row's `orElse` is (the yard
+   opens Hunts while the server sends no `training` section). */
+const shownOr = (id, character) => (rowOffered(ROW_OF.get(id), character) ? id : (ROW_OF.get(id) && ROW_OF.get(id).orElse) || null);
 
 const PANE_HTML = '<div class="world-chrome">'
   + '<span class="world-title">World</span>'
@@ -75,7 +82,7 @@ export async function mountWorldPane(host, character, o) {
   let shell = null;
   const SHOWS = { entrance: (d) => { pickHunt(character, d.hunt); return 'hunts'; }, station: () => 'skills-trade',
     /* A town keeper's or station's window (src/data/world/stations.js TAP_WINDOWS): only a window a station names. */
-    keeper: (d) => (KEEPER_WINDOWS.has(d.window) ? d.window : null) };
+    keeper: (d) => (KEEPER_WINDOWS.has(d.window) ? shownOr(d.window, character) : null) };
   function emit(kind, detail) {
     /* The World's entity context (a right-click or long press on a unit): the shell's one player / monster menu. */
     if (kind === 'entity') { const t = shell && worldTargetOf(detail); return !!t && shell.menu.open(t, { x: detail.x, y: detail.y }); }
@@ -101,7 +108,7 @@ export async function mountWorldPane(host, character, o) {
   let runtime = null;
   let reloading = false;   // the World's module did not load and the page is about to try again by itself (src/platform/load-shell.js)
   try {
-    const { bootWorld } = await import('../world/world-boot.js?v=0.2.127').catch((e) => {
+    const { bootWorld } = await import('../world/world-boot.js?v=0.2.128').catch((e) => {
       const win = doc.defaultView;
       reloading = typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad();
       throw e;

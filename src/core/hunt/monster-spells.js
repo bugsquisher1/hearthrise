@@ -37,18 +37,17 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS } from '../../data/monsters.js?v=0.2.127';
-import { atTier } from '../../data/hunt-tiers.js?v=0.2.127';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.127';
-import { spellRow, castsOf, specOf, spellHit, marked, SHIELD_BRACE, firstCastSteps } from '../../data/monster-spells.js?v=0.2.127';
-import { monsterMaxHit } from '../combat.js?v=0.2.127';
-import { cheb, los } from './grid.js?v=0.2.127';
-import { atRest, unitById, dirOf } from './movement.js?v=0.2.127';
-import { makeEvent } from './events.js?v=0.2.127';
-import { place, covers } from './shapes.js?v=0.2.127';
-import { castShape } from './marks.js?v=0.2.127';
-import { landHit, restart, slowed } from './damage.js?v=0.2.127';
-import { swingRow } from './boss-phases.js?v=0.2.127';
+import { atTier } from '../../data/hunt-tiers.js?v=0.2.128';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.128';
+import { spellRow, castsOf, specOf, spellHit, marked, SHIELD_BRACE, firstCastSteps } from '../../data/monster-spells.js?v=0.2.128';
+import { monsterMaxHit } from '../combat.js?v=0.2.128';
+import { cheb, los } from './grid.js?v=0.2.128';
+import { atRest, unitById, dirOf } from './movement.js?v=0.2.128';
+import { makeEvent } from './events.js?v=0.2.128';
+import { place, covers } from './shapes.js?v=0.2.128';
+import { castShape } from './marks.js?v=0.2.128';
+import { landHit, restart, slowed, rowOf } from './damage.js?v=0.2.128';
+import { swingRow } from './boss-phases.js?v=0.2.128';
 
 /* spellCds: { spell id: ms until it may start } while the monster is in a fight, a spell it does not name being ready ({} = every
    spell ready); null = not in a fight, its first casts not drawn yet. cast: its live cast (marks.js), or null. */
@@ -96,7 +95,7 @@ function begin(inst, sc, u, id, sp) {
 function land(inst, sc, u, sp) {
   const s = castShape(u);
   const id = u.cast.s;
-  const row = swingRow(u, atTier(MONSTERS[u.kind], inst.tier));
+  const row = swingRow(u, atTier(rowOf(inst, u.kind), inst.tier));   // the instance's row (a scaled hunt's), as a swing reads it (damage.js)
   const [lo, top] = spellHit(monsterMaxHit(row), sp);
   const struck = inst.world.units.filter((h) => h.side === 'hero' && h.alive && covers(s, h.x, h.y)).sort((a, b) => a.id - b.id);
   u.cast = null;
@@ -124,7 +123,7 @@ export function castSpells(inst, sc) {
   for (const u of inst.world.units) {
     if (u.side !== 'mon') continue;
     /* what it casts now (data/monster-spells.js castsOf: its row's list, or nothing while the switch is off) */
-    const list = castsOf(MONSTERS[u.kind]);
+    const list = castsOf(rowOf(inst, u.kind));
     if (u.cast) {
       /* a cast its caster no longer casts (its row gone, off its list, the switch off) lands nothing: a stored windup never outlives a deploy */
       const why = outOf(u) || (spellRow(u.cast.s) && list.includes(u.cast.s) ? null : 'reset');

@@ -59,7 +59,7 @@
 // PURE ESM. Data + pure derivation — no DOM, no window, no clock, no Math.random.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from './monsters.js?v=0.2.127';
+import { MONSTERS } from './monsters.js?v=0.2.128';
 
 /**
  * The ladder, ASCENDING by `at`. One shared, frozen array: every monster points
@@ -182,6 +182,8 @@ export function buildBestiary(monsters) {
     const m = monsters[id];
     /* A called boss is no entry: the Bestiary never counts him (Call out, src/data/boss-calls.js). */
     if (!m || typeof m !== 'object' || m.called === true) continue;
+    /* Nor is a training dummy (src/data/training.js): it never falls. */
+    if (m.dummy === true) continue;
     out[id] = Object.freeze({
       id,
       name: String(m.name || id),

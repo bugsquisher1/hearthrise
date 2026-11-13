@@ -1628,7 +1628,12 @@ async function rules(M) {
     const a = acc.character(0), b = acc.character(1);
     let painted = 0; b.subscribe((s, why) => { if (why === 'storage') painted++; });
     srv.spend('iron_ore', 1);
-    await a.load();
+    /* a ping-pong (the mutant) overflows the stack, and printing that error's stack frames ran a 2 GB CI runner out of heap
+       (client-guards-2, run 43392845828): count the listener failures instead of printing them */
+    const err = console.error; let failed = 0;
+    console.error = (...a0) => { if (String(a0[0]).includes('a listener failed')) failed++; else err(...a0); };
+    try { await a.load(); } finally { console.error = err; }
+    if (failed) return failed + ' listener(s) failed: the heroes re-render each other until the stack overflows';
     if (shows(b) !== '{"iron_ore":3}') return 'B shows ' + shows(b) + ' after A read 3 ore at the same instant';
     return (painted >= 1 && painted <= 2) || 'B re-rendered ' + painted + ' times for one answer of A';
   });

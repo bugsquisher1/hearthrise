@@ -49,7 +49,7 @@ import { splitEven, itemOwner, rareRoll } from './party-split.js?v=0.2.126';
 import { makeEvent } from './hunt/events.js?v=0.2.126';
 import { trainingSwing } from './hunt/training.js?v=0.2.126';
 
-const call =(fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
+const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
 
 
 /* THE DEFENSE XP of one monster blow aimed at member `m` (landed or turned aside):

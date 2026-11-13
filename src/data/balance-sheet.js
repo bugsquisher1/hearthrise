@@ -288,7 +288,7 @@ export const FORMULA_EXCEPTIONS = Object.freeze({
   /* THE HOLD'S SOFTER FLOOR (designer ruling Q3, 2026-11-12, option c): Krell's Lookouts hit for the Glade's 0.17 of a same-Level hero (the Farmhands' share),
      not the glass role's 0.22, so the sword and axes stop paying their hour in food. The to-hit stays the role's 0.75 at a same-Level hero. */
   hasks_lookout: Object.freeze({ atk: "a blow of 0.17 of a same-Level hero, the Glade's and the Farmhands', so every way clears its food at the Hold's floor (designer Q3 2026-11-12)",
-    baseAcc: "a 0.70 to-hit, measured: the Lookout is the bow and crossbow's top damage, and with the Hold's Dangerous dmgPm 1300 the median food bill passes 0.35 while under-Level pairs still lose (designer ruling 16, 2026-11-12)" }),
+    baseAcc: "a 0.45 to-hit, measured on the full grade: the Lookout is the bow and crossbow's top damage, and with the Hold's Dangerous dmgPm 1300 the median food bill passes 0.35 (0.55 read 0.38) while under-Level pairs still lose (designer ruling 17, 2026-11-12)" }),
 });
 
 /* combat.js monsterDamageScaleByTier, restated: the formula divides the blow by it (a test pins the two equal). */

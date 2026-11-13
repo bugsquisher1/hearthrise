@@ -21,14 +21,14 @@
 // card that now has nothing left is listed as done, so the player sees what happened;
 // the first open step is the card's ONE gold press, else Hunt again is.
 // ════════════════════════════════════════════════════════════════════════
-import { sellPlan, isStartKit, SELL_LINES_MAX } from './bag-model.js?v=0.2.125';
-import { upgradeWords } from './upgrade-plan.js?v=0.2.125';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.125';
-import { bagOf, rulesOf, shopOf, blessingsOf, goldOf } from '../session/item-sections.js?v=0.2.125';
-import { moveStorageMany } from '../session/storage-intents.js?v=0.2.125';
-import { itemName } from './widgets/bits.js?v=0.2.125';
-import { gold, listWords } from '../render/format.js?v=0.2.125';
-import { t } from '../render/player-text.js?v=0.2.125';
+import { sellPlan, isStartKit, SELL_LINES_MAX } from './bag-model.js?v=0.2.126';
+import { upgradeWords } from './upgrade-plan.js?v=0.2.126';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.126';
+import { bagOf, rulesOf, shopOf, blessingsOf, goldOf } from '../session/item-sections.js?v=0.2.126';
+import { moveStorageMany } from '../session/storage-intents.js?v=0.2.126';
+import { itemName } from './widgets/bits.js?v=0.2.126';
+import { gold, listWords } from '../render/format.js?v=0.2.126';
+import { t } from '../render/player-text.js?v=0.2.126';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const names = (ids) => listWords(ids.map(itemName));

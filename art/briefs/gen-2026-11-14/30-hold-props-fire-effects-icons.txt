@@ -1,0 +1,32 @@
+BRIEF 30: KRELL'S HOLD, 14 PROPS, THE HALL FIRE, 4 EFFECTS, 8 PLACEHOLDER ICONS (~140 gens, 16 rows)
+Board section 7. The last brief: runs only after 26-29. Sheets are 4x4 grids of 64 px cells on a transparent canvas, create_image_pro_flash
+256x256, style image a 64x64 crop of a March prop ("match palette, outline, shading"), 6 gens a sheet; the pick is cell by cell.
+ PROPS, 14 (classes fixture / bulky / station / seat / box / log; board's list)
+ #  Sheet                               Cells                                                                                Gens
+ 1  SAMPLE sheet A, Krell's hall        high seat (seat 24-28), lectern with the Company Roster (station), long hall table (bulky), banner stand (fixture, Krell's red), the company's colors hung upside down (fixture)   6
+ 2  sheet B, the yard                   pells (fixture), weapon rack (bulky), woodpile (bulky), saw horse (bulky), well (bulky)   6
+ 3  sheet C, the chapel and crypt       open barrow coffin stood on end (fixture, 2 variants), candle stand (fixture, 4 frames), brazier (fixture, 4 frames), chapel bench (seat), toll box (box)   6
+ 4  re-roll sheets (2)                  the cells the read refuses                                                                12
+ 5  animated cells, candle stand and brazier  animate_image on the two kept cells, 4 frames at 8 fps, "the flame flickers, the stand does not move"   10
+ Subtotal 40 gens; Crypt's Emberstone vein node comes from brief 20, 0 here.
+ THE HALL FIRE (needs a class row first: ask the art director to add it to art-budget.js; the budget is law)
+ 6  Hall Fire, base                     create_image_pro 160x96, 2 cand: "a long floor hearth fire, a stone trough of logs and embers, flames rising, no glow halo, dull orange and yellow, top-down game prop", about 96 px wide  20
+ 7  Hall Fire, 4 frames at 8 fps        animate_image on the kept base, cut to the moving pixels, one FLAMES row (as pf_great_pyre)  8
+ 8  Hall Fire, flare                    a bigger variant, flames at twice the height, for "the Hall Fire flares" every 20 s (boss-bar line, engine piece)  8
+ EFFECTS, 4 (class vfx, vfx_workbench, FREE)
+ 9  crossbow bolt                       a short dark bolt with a pale fletch, flies; free                                      0
+ 10 the coal cone's mark                a cone-shaped hatch of dull orange on the floor, "Rake the Coals", free               0
+ 11 the Hall Fire's flare               fold into row 8's variant; free overlay                                                0
+ 12 the dead standing up                a death clip played backward (Grave Guard, free)                                       0
+ ICONS (create_1_direction_object, 32x32, palette, ONE call of 64 for 10 gens, object new)
+ 13 roster_page + krells_toll_box       two NEW items only if the designer's items land (board: "A Roster Page burns alone at the Hearth"; "Krell's Toll Box"): words "a torn page of a long handwritten list of names, grey ink, ash-grey paper" and "a small iron-bound wooden toll box with a slot"  10 (shared call)
+ 14 the 8 placeholders replaced         dawn_hatchets, ember_hatchets, rune_hatchets (pair of hatchets, tiers 5-7: dawn = pale steel + gold edge, ember = black head + dull ember, rune = grey head + faint runes), yew_crossbow, duskwood_crossbow, runewood_crossbow (a crossbow in yew / dark / pale rune wood), duskwood_wand, duskwood_codex (a dark wood wand, a dark bound codex)   same call, 8 rows x 7 candidates = 56, ONE call, 10 gens (counted once with row 13)
+ Style images: iron_hatchets, steel_hatchets, oak_crossbow, maple_wand, whispering_codex: SHAPES unlike the targets (the alpha_fang lesson, no twin is copied).
+ Rows 13+14 are one 64-candidate call: 10 gens.
+ 15 icon re-rolls                      for rows the read refuses                                                               10
+ 16 Hall Key: DONE (brief 18 pick 37 in the bundle)                                                                           0
+ Subtotal 40 + 36 + 0 + 10 + 10 = 96; Hall Fire and re-rolls take it to ~140 with the 15%.
+READ: props sit a value step below actors; the Hall Fire is the one warm thing on a grey castle and must not be a glow disc;
+ icons 75-94% fill, 0 off-palette, 0 partial alpha, the hatchet and crossbow tiers told apart at x2 in the bag.
+WIRING: props via tools/world-art into the `hold` set; the Fire as a FLAMES row, placed along the hall's north wall; effects in the
+ vfx atlas; icons assets/icons-bundle/pixel/items/<id>.png replacing the 8 placeholders (their sha changes, tests/pixel-icons.mjs).

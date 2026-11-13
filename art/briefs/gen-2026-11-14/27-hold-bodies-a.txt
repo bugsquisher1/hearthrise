@@ -1,0 +1,22 @@
+BRIEF 27: KRELL'S HOLD BODIES A, THE FARMHAND, THE LOOKOUT, THE GRAVE GUARD (~110 gens, 15 rows)
+Runs only after brief 26's sample is approved. The Farmhand's south and rotations come from 26 (kept), so its row here is the clips.
+Style image for all: refs/style-glade-poacher-s-48.png ("match palette, outline, shading and proportions"), palette hr-world-56-v2,
+create_object_pro_flash, high top-down, 48x48, n_directions 1 then 8 from the kept south. Clip tool animate_object v3 pro.
+Clips per board section 7: idle 4 (8 here: the world-assets [live] rule), walk 6, death 6; the hit 6 too (brief 11 M3) because every March body ships a hit.
+Heads exist (brief 18); each body follows its head.
+ #  Body            Class       Row                              Gens
+ 1  Farmhand        character   idle 8 facings, walk, attack, death, hit (5 groups x 4 gens)   20
+ 2  hasks_lookout   character   SOUTH SAMPLE + rotations: "a living guard in a green hood and a quilted jerkin, a Banded Company striped sleeve under a dark red tabard, a crossbow held at the shoulder, game enemy sprite" (head 07: green hood, the crossbow stock)  6
+ 3  hasks_lookout   idle (S sample) then 7 more facings      8
+ 4  hasks_lookout   walk, attack ("raises and fires the crossbow, the bolt is NOT drawn: the engine draws it"), death, hit   20
+ 5  grave_guard     brute-or-character by measure   SOUTH SAMPLE + rotations: "a dead company officer behind a door-sized iron shield, a rusted crested helmet over a skull, bone-white hands, a short sword, game enemy sprite". NEW drawing: the barrow knight has been poured twice; this is not a recolour. Ring 3:1 on cobble, set apart from the Pyre bodies (grey stone, not black)  6
+ 6  grave_guard     idle 8 facings                                    8
+ 7  grave_guard     walk                                              8  "a slow shield-forward tread"
+ 8  grave_guard     attack ("slams the shield forward into the tiles in front of him, then draws it back": the marked shield slam, engine piece 1)  8
+ 9  grave_guard     death, hit                                       12  "collapses behind the shield, the shield lands on top"
+ Subtotal 20+6+8+20+6+8+8+8+12 = 96, ~110 with re-rolls.
+The nine rows are the work items; the Lookout and Grave Guard souths are each a read gate (STOP), so the Farmhand clips run first.
+SAMPLE RULE: rows 2 and 5 (the souths) go first, are read at x2 beside the Farmhand and the Banded Pikeman, then 3-4 and 6-9.
+REJECT: a hood that reads as a ranger (brief 12 P2); the Grave Guard as the barrow knight in grey; a Lookout whose crossbow
+is lost at 48 px (it carries the bolt's identity); any cross, plus or X on the Guard's shield or tabard.
+WIRING: port-pixellab.mjs unit --set hold --class character (Grave Guard: measure; brute if 41-52), --hit 3.

@@ -1,0 +1,39 @@
+BRIEF 23: THE PYRE FIELD'S ASH FAMILY, PALETTE-LOCKED (~150 gens, 12 rows)
+Brief 12 P1 and brief 14. The palette HELD (every pixel on hr-world-56-v2, scorched half got its colour spread) but the
+sample failed on OUR setup. The three lessons are the first three rules here.
+ RULES (pixellab-palette-tileset-lesson):
+  1 NO lower_base_tile_id with a palette: chained, PixelLab recoloured the ash onto the cold slate ramp (#6e727a). Roll both
+    halves NEW with the palette.
+  2 Name the warm grey ramp in the ash words: "warm mid-light grey, #8a867d family, a brown cast, never blue or slate".
+  3 Import as material `native` (identity grade). lock.mjs `terrain` (value x0.9, sat x0.7) crushed 91.6% of the first sample.
+  4 Prompt words cannot stop "scorched earth" drawing as cracked plates: say "flat soil, no plates, no paving, no stones"
+    (brief 14's words) and let the art director's authored-wear route cover it if it still plates.
+ THE FLOOR RULE (brief 12): ash fill median on #8a867d or lighter, never a run wider than 2 px darker than #6a6865; scorched
+ median #6a6865, warm brown-grey; charred wood and cinder may go near black. Bodies pass ring-contrast 3:1, ring median <=0.045.
+
+CALL SHAPE (each, 15 gens): create_topdown_tileset mode pro, tile_size 32, view "high top-down", transition_size 0,
+ max_colors 12, palette_name hr-world-56-v2, palette = the 56 hex of palette.js. A pro transition returns 25 tiles; the wang16
+ reader takes the 16 corners. REST route if the MCP is not connected (the lesson).
+ #  Pair                         Words (upper over lower)                                                           Gens
+ 1  SAMPLE ash / scorched earth  lower "pale warm grey wood ash, soft powdery, charred flecks, calm low contrast";      15
+                                 upper "scorched bare soil, sooty dark brown-grey, thin hairline cracks, flat and level
+                                 with the ash, no plates no stones no slabs no paving"
+ 2  pair 1 second roll          only if 1 fails the four tests below, the failing half named in the words                15
+ -- STOP. Art director reads the raw histogram and the x2 render on tools/qa/region-kit.html. PASS (brief 14):
+    scorched majority colour under 80% with at least 15% on 2+ other palette colours, none on the iron ramp; fewer than 5% of
+    pixels move under the identity lock; the three black bodies keep ring <=0.045 on it. --
+ 3  ash / cinder pit            "a sunken pit of black cinders and dull ember specks, flat, no glow" over the SAME ash words   15
+ 4  ash / charred wood          "a floor of fallen charred black timbers and soot, flat"                               15
+ 5  scorched / burnt grass      "dead burnt grass, dry dark yellow-brown, short, flattened" over the scorched words     15
+ 6  burnt grass / charred wood  both halves' words                                                                      15
+ 7  burnt grass / March grass   upper "March withered grass", lower the burnt-grass words. The March grass id 61a68177
+                                 cannot be chained now; roll it NEW with the palette and judge it beside the shipped one:
+                                 it must read as the same grass family at x2 (this is where the field meets the barrows)    15
+ 8-12 re-roll reserve            five rolls of ~15, spent only on a named refusal                                        75, expect ~30
+ Subtotal 6 pairs = 90 (+ reserve 60 realised) -> ~150.
+
+CONSISTENCY RISK (named, not hidden): with no chain, ash pair 3 will not be byte-identical to pair 1's ash. The seams between
+ pairs are the failure to look for at x2. If two ash fills differ by more than a palette step, use a pro CONNECTED set
+ (Tileset Pro "connected sets", workflow §7) for the family in one call, rolled once, instead of six pairs.
+WIRING (import): terrains + tileset ids as family `ash` in region-kits.js barrow_march; pyre_field_ground painted from map rows
+ with port-pixellab.mjs paint, native material; 'P' cells paint ash.

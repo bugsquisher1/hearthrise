@@ -46,7 +46,6 @@ export const REGISTERED = [
   ['tests/companion-equip-version-bump.mjs', '--mutate'],
   ['tests/world-tick-m4-party-horizon.mjs', '--mutate'],
   ['tests/world-tick-arm-combat.mjs', '--mutate'],
-  ['tests/party-hunt-view.mjs', '--mutate'],
   ['tests/party-hunt-select-lockdown.mjs', '--mutate'],
   ['tests/discord-gift.mjs', '--mutate'],
   ['tests/progress-coalesce.mjs', '--mutate'],

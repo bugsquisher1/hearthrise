@@ -44,6 +44,7 @@ try {
   const openStore = async () => {
     if (!(await page.$('.hw-store'))) await page.keyboard.press('t');
     await page.waitForSelector('.hw-store [data-hs-act="expand"]');
+    await page.waitForTimeout(1500);   // the sheet's open transition finishes before any shot
   };
   const read = () => page.evaluate(() => ({
     head: document.querySelector('.hw-store [data-n="bag"]').textContent,

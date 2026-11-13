@@ -92,7 +92,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'wheat', ch: 0.3, band: 'common' }, { id: 'farmhands_tag', ch: 0.08, band: 'uncommon' },
         { id: 'ember_boots', ch: 0.02, band: 'scarce' }, { id: 'dragonhide_boots', ch: 0.02, band: 'scarce' }, { id: 'archmage_boots', ch: 0.02, band: 'scarce' },
         { id: 'ember_sword', ch: 0.02, band: 'scarce' }],
-      hp: 114, atk: 78, baseAcc: 0.82, def: 36, xp: 1036, gp: [38, 115], formula: true },
+      hp: 114, atk: 78, baseAcc: 0.82, def: 36, xp: 1036, gp: [24, 72], formula: true },
     hasks_lookout: {
       name: 'Hask\'s Lookout', icon: '🏹', tier: 6, level: 88, cls: 'human', family: 'Human', speed: 3000,
       /* the glass: the sentries Captain Hask pulled off the line the night of the Ford. They took Krell's pay too, and now they stand his wall
@@ -102,7 +102,7 @@ export default definePack({
         { id: 'ember_helm', ch: 0.026, band: 'scarce' }, { id: 'dragonhide_helmet', ch: 0.026, band: 'scarce' }, { id: 'archmage_helmet', ch: 0.026, band: 'scarce' },
         { id: 'runewood_bow', ch: 0.026, band: 'scarce' },
         { id: 'ember_gauntlets', ch: 0.0018, band: 'rare' }, { id: 'dragonhide_gloves', ch: 0.0018, band: 'rare' }, { id: 'archmage_gloves', ch: 0.0018, band: 'rare' }],
-      hp: 109, atk: 80, baseAcc: 0.91, def: 38, xp: 1200, gp: [37, 109], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (Q3)
+      hp: 109, atk: 80, baseAcc: 0.91, def: 38, xp: 1200, gp: [23, 69], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (Q3)
     grave_guard: {
       name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', speed: 2400,
       /* the heavy, the slowest thing in the castle: one of the Banded Company's officers, buried with honors in the Muster Barrows, dug up and
@@ -113,7 +113,7 @@ export default definePack({
         { id: 'ember_platelegs', ch: 0.017, band: 'scarce' }, { id: 'dragonhide_pants', ch: 0.017, band: 'scarce' }, { id: 'archmage_pants', ch: 0.017, band: 'scarce' },
         { id: 'ember_warhammer', ch: 0.017, band: 'scarce' },
         { id: 'ember_belt', ch: 0.0012, band: 'rare' }, { id: 'dragonhide_belt', ch: 0.0012, band: 'rare' }, { id: 'archmage_belt', ch: 0.0012, band: 'rare' }],
-      hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 1869, gp: [61, 184], formula: true },
+      hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 1869, gp: [38, 115], formula: true },
     pyre_priest: {
       name: 'Pyre Priest', icon: '📿', tier: 6, level: 95, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: one of Krell's priests, the men who said the rite over the Pyre Field and tied the dead to his fire. Hooded, ash-gray,
@@ -122,18 +122,18 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'priests_cord', ch: 0.08, band: 'uncommon' },
         { id: 'runewood_staff', ch: 0.045, band: 'scarce' },
         { id: 'runewood_wand', ch: 0.0035, band: 'rare' }, { id: 'runewood_codex', ch: 0.0035, band: 'rare' }],
-      hp: 157, atk: 100, baseAcc: 0.6, def: 45, xp: 1485, gp: [53, 158], formula: true },
+      hp: 157, atk: 100, baseAcc: 0.6, def: 45, xp: 1485, gp: [33, 99], formula: true },
     gatekeeper: {
       name: 'Gatekeeper', icon: '🗝️', tier: 6, level: 100, cls: 'human', family: 'Human', speed: 2800,
       /* the elite and the rare carrier: Krell's steward, in plate with a mace and a ring of keys. He keeps the castle, its stores and the toll.
          A man in plate, so a blade skids off him and a hammer gets through (one override, the weapon axis). The toll gold he keeps, a link of
          his key chain, and the tier-6 bodies. He is the first monster whose drop opens a fight: the Hall Key off his ring (the Key band,
          loot-bands.js, about one every two hours). */
-      weaponWeak: 'hammer', weaponResist: ['sword'],
+      weaponWeak: 'hammer', weaponResist: [], // designer round 3, 2026-11-12: no sword resist, the hammer edge stays
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_bar', ch: 0.3, band: 'common' }, { id: 'gatekeepers_chain', ch: 0.1, band: 'uncommon' },
         { id: 'ember_platebody', ch: 0.05, band: 'scarce' }, { id: 'dragonhide_body', ch: 0.05, band: 'scarce' }, { id: 'archmage_body', ch: 0.05, band: 'scarce' },
         { id: 'hall_key', ch: 0.026, band: 'key' }],
-      hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 2920, gp: [88, 265], formula: true },
+      hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 2920, gp: [55, 166], formula: true },
   },
   roster: {
     farmhand: 'swarm',          // the common majority
@@ -178,7 +178,6 @@ export default definePack({
      has a spawn weight) and no one-tile bridge (every corridor is three wide). */
   /* THE XP FIT (lane/d-packs-retune, 2026-11-12): under solo +15% (Tyler 2026-11-11) and the re-pinned, flatter contract (core-model.js LEVEL_PACE.contract,
      522k an hour at 98) the median lone way read 1.11 of the contract at the band middle on the formula's rows (quick grade, 1 seed x 1 h), so 0.90. */
-  gpFit: { k: 1.6, why: 'after the softer Lookout the Sword and Axes still paid their floor hour in food (-17%, -27%); the ruling allows up to x1.6 and no more (designer rulings Q3 and 7, 2026-11-12)' },
   xpFit: { k: 0.90, why: 'on the formula\'s rows the median lone way read 1.11 of the pace contract at the band middle (98) under solo +15% and the re-pinned contract (quick grade, 1 seed x 1 h). At 0.90 it reads about 1.00' },
   /* PARTY LEVEL XP (party-class-xp.js's row shape; lane/d-packs-retune, 2026-11-12). With no row a party paid the even share, and on one pack for every
      group (Tyler 2026-11-11) a four of four classes read 0.43 / 0.40 of the median lone way at the floor and middle (quick grade), a tank and Healer

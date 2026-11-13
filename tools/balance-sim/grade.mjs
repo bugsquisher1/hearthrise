@@ -191,6 +191,7 @@ export function gradeCells(cells, sheet, pace, fits = {}, packs = {}) {
         let v = null;
         switch (rule.aggregate) {
           case 'supplyShare': v = median(g.map((r) => r.x.supplyShare)); break;
+          case 'medianMargin': v = median(g.map((r) => r.x.margin)); break;
           case 'xpVsContract': v = sheet.contract ? median(g.map((r) => r.x.xp)) / sheet.contract(Array.isArray(L) ? Math.max(...L) : L) : null; break;
           case 'xpVsNormal': { const n = median(find(m, (o) => o.tier === 'normal' && o.offset === m.offset && o.size === m.size && (o.gear || 'ladder') === 'ladder').map((o) => o.x.xp)); v = n > 0 ? median(g.map((r) => r.x.xp)) / n : null; break; }
           case 'heldCount': v = Math.round(((g.filter((r) => r.x.held).length * 8) / g.length) * 10) / 10; break; /* held of 8 ways (a quick run plays 4) */
@@ -362,6 +363,8 @@ export function synthSet(mut = {}) {
   if (mut.dips) pick('normal', 'floor', 1).heroes[0].closeCallsPer12h.k = 900;
   if (mut.profit) pick('normal', 'top', 1).heroes[0].storePerH = 4500, pick('normal', 'top', 1).heroes[0].profitPerH = 500;
   if (mut.under5) for (const h of pick('dangerous', 'under5', 4).heroes) h.storePerH = 1000, h.profitPerH = 3500;
+  /* `ways`: three more lone ways at the floor, `ways` of them losing gold (the median-target selftest) */
+  if (mut.ways) for (const [i, comp] of ['sword', 'axes', 'bow'].entries()) cells.push(synthCell({ tier: 'normal', offset: 'floor', size: 1, comp }, { level: 16, hours: 2000, xp: 70000, income: 5000, store: i < mut.ways ? 4800 : 1500, hp: 70, coin: 3000 }));
   if (mut.band) for (const c of cells) c.cell.grade.band = mut.band;
   if (mut.fourOffset === 'middle') for (const c of cells.filter((c) => c.cell.grade.offset === 'top')) c.cell.grade.offset = 'middle';
   if (mut.four) for (const h of pick('normal', mut.fourOffset || 'floor', 4).heroes) h.levelXpPerH = 70000 * 1.6;
@@ -398,6 +401,10 @@ if (isMain(import.meta.url)) {
     if (heal('healer', 'tank+bow+mage+hammer')) bad.push('a healerless four failed a Deadly that needs a Healer');
     if (!heal('healer', 'tank+healer+bow+mage')) bad.push('a four with a Healer was not graded on a Deadly that needs one');
     if (!heal(null, 'tank+bow+mage+hammer')) bad.push('a healerless four went ungraded on an ordinary Deadly');
+    /* Tyler 11-12 median target: one way under +25% is reported while the median way clears; a median under +25% fails */
+    const prof = (lose) => gradeCells(synthSet({ ways: lose }), RS, flat).verdicts.filter((v) => v.rule === 'normal-profit' && v.verdict === 'FAIL').length;
+    if (prof(1)) bad.push('one way under +25% failed the ground (the floor is the median way)');
+    if (!prof(3)) bad.push('a median way under +25% passed');
     if (bad.length) { console.error('grade --selftest RED: ' + bad.join(' | ')); process.exit(1); }
     console.log('grade --selftest: the good set passes and 7 mutants each FAIL their rule; the long-band and needs-a-Healer scopes hold');
     process.exit(0);

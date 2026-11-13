@@ -126,7 +126,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'pike_ferrule', ch: 0.08, band: 'uncommon' },
         { id: 'rune_boots', ch: 0.0115, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.0115, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.0115, band: 'scarce' },
         { id: 'rune_sword', ch: 0.0115, band: 'scarce' }],
-      hp: 93, atk: 48, baseAcc: 1.1, def: 28, xp: 813, gp: [22, 68], formula: true },
+      hp: 93, atk: 48, baseAcc: 1.1, def: 28, xp: 813, gp: [20, 58], formula: true },
     stoker: {
       name: 'Stoker', icon: '🪵', tier: 5, level: 74, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank, the slowest thing on the field: the Hold's woodmen who fed the pyres and forged in their heat. Worked in the
@@ -136,7 +136,7 @@ export default definePack({
         { id: 'rune_platelegs', ch: 0.029, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.029, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.029, band: 'scarce' },
         { id: 'rune_warhammer', ch: 0.029, band: 'scarce' },
         { id: 'rune_belt', ch: 0.0019, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.0019, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.0019, band: 'rare' }],
-      hp: 147, atk: 47, baseAcc: 1.14, def: 45, xp: 1445, gp: [36, 106], formula: true },
+      hp: 147, atk: 47, baseAcc: 1.14, def: 45, xp: 1445, gp: [31, 92], formula: true },
     lurcher: {
       name: 'Lurcher', icon: '🐕', tier: 5, level: 72, cls: 'mammal', family: 'Mammal', speed: 4600,
       /* the skirmisher: the company's camp dogs, lean and quick enough to run down a kiter, who never left their dead. Living, so the
@@ -145,7 +145,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'razor_claw', ch: 0.5, band: 'common' }, { id: 'kennel_tag', ch: 0.08, band: 'uncommon' },
         { id: 'rune_helm', ch: 0.05, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.05, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.05, band: 'scarce' },
         { id: 'rune_gauntlets', ch: 0.0039, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0039, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0039, band: 'rare' }],
-      hp: 90, atk: 64, baseAcc: 0.91, def: 29, xp: 955, gp: [22, 65], formula: true },
+      hp: 90, atk: 64, baseAcc: 0.91, def: 29, xp: 955, gp: [19, 57], formula: true },
     pyre_wraith: {
       name: 'Pyre Wraith', icon: '👻', tier: 5, level: 76, cls: 'undead', family: 'Undead', speed: 3600,
       /* the regular: a dead man Krell's rite bound into the pyre smoke, still in his shroud. A spell undoes the binding and a blade goes
@@ -155,7 +155,7 @@ export default definePack({
       drops: [{ id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'wraith_veil', ch: 0.6, band: 'common' }, { id: 'shroud_pin', ch: 0.08, band: 'uncommon' },
         { id: 'yew_staff', ch: 0.028, band: 'scarce' },
         { id: 'yew_wand', ch: 0.0019, band: 'rare' }, { id: 'yew_spellbook', ch: 0.0019, band: 'rare' }],
-      hp: 126, atk: 61, baseAcc: 1, def: 34, xp: 1138, gp: [30, 92], formula: true },
+      hp: 126, atk: 61, baseAcc: 1, def: 34, xp: 1138, gp: [26, 80], formula: true },
     provost: {
       name: 'Provost', icon: '⚔️', tier: 5, level: 80, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier: the company's provosts, who hanged its deserters (Wickstead's Turncoats ran from them), burned
@@ -168,7 +168,7 @@ export default definePack({
         { id: 'yew_bow', ch: 0.029, band: 'scarce' },
         { id: 'ember_sword', ch: 0.002, band: 'rare' }, { id: 'ember_warhammer', ch: 0.002, band: 'rare' }, { id: 'runewood_bow', ch: 0.002, band: 'rare' },
         { id: 'runewood_staff', ch: 0.002, band: 'rare' }, { id: 'runewood_wand', ch: 0.002, band: 'rare' }, { id: 'runewood_codex', ch: 0.002, band: 'rare' }],
-      hp: 212, atk: 63, baseAcc: 1.04, def: 56, xp: 2248, gp: [51, 154], formula: true },
+      hp: 212, atk: 63, baseAcc: 1.04, def: 56, xp: 2248, gp: [45, 133], formula: true },
   },
   roster: {
     charred_pikeman: 'swarm',   // the common majority
@@ -206,7 +206,6 @@ export default definePack({
   /* RE-FITTED (lane/d-packs-retune, 2026-11-12): under solo +15% (Tyler 2026-11-11) and the re-pinned, flatter contract (core-model.js LEVEL_PACE.contract,
      407k an hour at 80) the median lone way read 1.41 of the contract at the band middle at 1.14 (quick grade, 1 seed x 1 h). 1.14 / 1.41 = 0.81.
      On the full grade (the median of 8 lone ways) 0.81 read 0.86, so 0.94 (about 1.00). */
-  gpFit: { k: 1.15, why: 'a lone tank at the floor (70) read -8% over its bill on the drop-tables harness (coin 9,857, commons 9,943, bill 21,420); the floor binds every ground (designer ruling 8, 2026-11-12)' },
   xpFit: { k: 0.94, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
   /* THE TIER PULLS (TIER_PULL_OVERRIDES' shape: ONE number a tier for every group), measured as opened, full grade. Dangerous brings six,
      one over the table's five: on five a Melee and Healer pair two Levels under the floor still netted gold on Dangerous, where the

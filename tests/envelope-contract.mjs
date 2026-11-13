@@ -176,6 +176,10 @@ function contract(R, cs, body, tl) {
   // This hero is hunting: the section sends no rooms and no fees to a hunter (settle cost), only the carry; a town hero's rooms: tests/bench-tax.mjs T-HOUSE.
   need('bench_tax', R.BT.benchTaxOf(cs) !== null && Number.isInteger(body.bench_tax && body.bench_tax.carry_mg) && R.BT.benchTaxOf(cs).carry === body.bench_tax.carry_mg,
     'benchTaxOf reads ' + JSON.stringify(body.bench_tax).slice(0, 160));
+  // the bag's next rung (2027-04-15-bag-expand-view.sql): the cap and bank.0 at the server's price, the Storage window's Expand
+  const be = R.IS.bagExpandOf(cs);
+  need('bag_expand', !!be && be.cap === 100 && be.rung === 0 && !!be.next && be.next.offer === 'bank.0' && be.next.gold === 3000 && be.next.adds === 20,
+    'bagExpandOf yields ' + JSON.stringify(be) + ' from ' + JSON.stringify(body.bag_expand));
   // Tempering (2027-02-27-tempering.sql): each ladder's rung and the next rung's price, the smith's window
   const tp = R.TP.temperOf(cs);
   need('temper', Array.isArray(tp) && tp.length === 4 && tp.every((l) => l.rung === 0 && l.max === 5 && typeof l.offer === 'string' && Number.isInteger(l.gold) && l.gold > 0),
@@ -296,7 +300,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events']);
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',

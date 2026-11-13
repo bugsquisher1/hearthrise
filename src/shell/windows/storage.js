@@ -27,11 +27,11 @@
 // Storage has room and sells every stack planned "Sell"; off with its reason (a
 // hunt, nothing planned), and its line is the server's answer.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bankOf, depotOf, shopOf } from '../../session/item-sections.js?v=0.2.125';
+import { bagOf, bankOf, depotOf, shopOf, bagExpandOf, goldOf } from '../../session/item-sections.js?v=0.2.125';
 import { STORE_SEEN_MAX } from '../../session/residue.js?v=0.2.125';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.125';
 import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.125';
-import { whole } from '../../render/format.js?v=0.2.125';
+import { whole, gold } from '../../render/format.js?v=0.2.125';
 import { glyphSvg } from '../launcher.js?v=0.2.125';
 import { itemName } from '../widgets/bits.js?v=0.2.125';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.125';
@@ -65,7 +65,9 @@ export function renderStorage(ctx) {
     + '<h3 class="hw-ledger-head is-on">In storage <small class="hw-store-n" data-n="bank"></small></h3>'
     + '<ul class="hw-pockets" data-side="bank" role="listbox" aria-label="In storage"></ul><p class="hh-empty hw-store-none" data-none="bank"></p>'
     + '<p class="hs-note hw-store-room"></p>'
-    + '<h3 class="hw-ledger-head is-on">In your bag <small class="hw-store-n" data-n="bag"></small></h3>'
+    + '<h3 class="hw-ledger-head is-on hw-store-baghead">In your bag <small class="hw-store-n" data-n="bag"></small></h3>'
+    /* Expand: the bag's next rung, at the server's price (hr_bag_expand_view); one unlock_buy naming the offer and no number. */
+    + '<div class="hw-tools hw-store-grow"><button type="button" class="hh-tool" data-hs-act="expand"></button><p class="hw-why"></p></div>'
     + '<div class="hw-tools hw-store-do"><button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button><p class="hw-why"></p></div>'
     + '<ul class="hw-pockets" data-side="bag" role="listbox" aria-label="In your bag"></ul><p class="hh-empty hw-store-none" data-none="bag"></p>'
     /* The press's answer: "Putting it away…", then the result or the refusal. At the foot, it stands in view however the window is scrolled
@@ -83,7 +85,15 @@ function sayAway(cs, sc, repaint) {
   if (h && !h.ended && !sc.pending) { sc.msg = STORE_AWAY; repaint(); }
 }
 
-function patchSide(root, ctx, side, list, shown, off, depot) {
+/* Why Expand is off, in words, or '' when it can be pressed. Every number is the server's: the cap, the offer, the price and the purse. */
+export function expandBlock(grow, purse) {
+  if (!grow) return 'Reading your bag\'s room…';
+  if (!grow.next) return 'Your bag is as big as it gets.';
+  if (purse === null) return 'Reading your gold…';
+  return purse < grow.next.gold ? 'You need ' + gold(grow.next.gold - purse) + ' more to expand your bag.' : '';
+}
+
+function patchSide(root, ctx, side, list, shown, off, depot, grow) {
   rows(root.querySelector('.hw-pockets[data-side="' + side + '"]'), shown, {
     key: (r) => r.id,
     build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs, side === 'bank' ? 'withdraw' : 'deposit')),
@@ -96,7 +106,7 @@ function patchSide(root, ctx, side, list, shown, off, depot) {
   });
   /* The storage's space is the ACCOUNT's (the server's used / cap); the bag counts its own stacks. */
   text(root.querySelector('[data-n="' + side + '"]'), side === 'bank' && depot ? whole(depot.used) + ' of ' + whole(depot.cap) + ' stacks'
-    : whole(list.length) + (list.length === 1 ? ' stack' : ' stacks'));
+    : grow ? 'Bag ' + whole(list.length) + ' / ' + whole(grow.cap) : whole(list.length) + (list.length === 1 ? ' stack' : ' stacks'));
   const none = root.querySelector('[data-none="' + side + '"]');
   cls(none, 'is-on', !shown.length);
   text(none, list.length ? 'Nothing here matches.' : side === 'bank' ? 'Your storage is empty. All your characters share it. Press a stack in your bag to put it away.' : 'Your bag is empty.');
@@ -128,7 +138,14 @@ renderStorage.patch = function patchStorage(body, ctx) {
   text(root.querySelector('.hw-store-room'), !depot ? '' : kept + (depot.next
     ? 'More room comes from storage chests, built in the House (E). Next: the ' + depot.next.name + ', ' + whole(depot.next.stacks) + ' more stacks.'
     : 'Every storage chest is built.'));
-  patchSide(root, ctx, 'bag', bag || [], view(bag || [], Object.assign({ seen: bagSeenOf(cs, bag || []) }, o)), off);
+  const grow = bagExpandOf(cs);
+  patchSide(root, ctx, 'bag', bag || [], view(bag || [], Object.assign({ seen: bagSeenOf(cs, bag || []) }, o)), off, null, grow);
+  const gWhy = expandBlock(grow, goldOf(cs));
+  const gb = root.querySelector('[data-hs-act="expand"]');
+  text(gb, grow && grow.next ? 'Expand (+' + whole(grow.next.adds) + ') · ' + gold(grow.next.gold) : 'Expand');
+  prop(gb, 'disabled', sc.pending || !!gWhy);
+  attr(gb, 'title', gWhy || 'Room for ' + whole(grow.next.adds) + ' more stacks in your bag');
+  text(root.querySelector('.hw-store-grow .hw-why'), gWhy);
   /* Dispatch loot: off with the server-sections' reason; a hunt's reason is the note above, any other is said here. */
   const dWhy = dispatchBlock(cs);
   const db = root.querySelector('[data-hs-act="dispatch"]');
@@ -158,6 +175,15 @@ function move(cs, sc, repaint, id, qty, dir) {
     () => (dir === 'withdraw' ? 'Took out ' : 'Put away ') + whole(qty) + ' ' + itemName(id) + '.' + (slower ? ' ' + slower : ''));
 }
 
+/* ONE unlock_buy naming the server's offer id; the cap and the next price change only from the answer's envelope. */
+function expand(cs, sc, repaint) {
+  const grow = bagExpandOf(cs);
+  if (!grow || !grow.next || expandBlock(grow, goldOf(cs))) return;
+  const offer = grow.next.offer;
+  return runIntent(sc, repaint, async () => { const r = await cs.edgeIntent('unlock_buy', { offer }); if (!r.ok && r.error !== 'closed') await cs.resync(); return r; },
+    'Expanding your bag…', () => { const g = bagExpandOf(cs); return g ? 'Your bag holds ' + whole(g.cap) + ' stacks now.' : 'Your bag is bigger now.'; }, cs);
+}
+
 /* "How many?" beside the stack: Deposit X / Withdraw X, up to the stack the server last sent. */
 function askAmount(ctx, body, cs, sc, repaint, row, dir, at) {
   hideTip(ctx.doc);
@@ -183,6 +209,7 @@ renderStorage.act = function actStorage(ctx, body, action, ev, el) {
   if (action === 'search' && ev.type === 'input') { sc.query = el.value.slice(0, 40); repaint(); return false; }
   if (action === 'sort' && ev.type === 'change') { setPref(cs, 'sort', el.value); repaint(); return false; }
   if (action === 'cat' && ev.type === 'click') { setPref(cs, 'cat', el.getAttribute('data-cat')); repaint(); return true; }
+  if (action === 'expand') { if (ev.type === 'click' && !sc.pending && !el.disabled) expand(cs, sc, repaint); return ev.type === 'click'; }
   if (action === 'dispatch') { if (ev.type === 'click' && !sc.pending && !el.disabled) runDispatch(ctx.account, cs, sc, repaint); return ev.type === 'click'; }
   if (action !== 'withdraw' && action !== 'deposit') return false;
   const id = el.getAttribute('data-item');

@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-11-11",
- "digest": "bd317c55bb4f8941a7358d1cf9f008bc83c1388acb62b35a333e454c133359d5",
+ "generated": "2026-11-13",
+ "digest": "582938390d52d8bb5fae7eb4bedebfc523fc0924eb3e5d342c9b2e5dfbc84142",
  "counts": {
   "relations": 273,
-  "functions": 704,
+  "functions": 705,
   "policies": 119,
   "indexes": 387,
   "triggers": 93,
@@ -360,6 +360,7 @@
    "hr_apply(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_delta jsonb)",
    "hr_assert_grant_hygiene(p_strict boolean)",
    "hr_backfill_lifetime_facts(p_user uuid)",
+   "hr_bag_expand_view(p_user uuid, p_slot integer)",
    "hr_bag_rules_view(p_user uuid, p_slot integer)",
    "hr_bank_cap_for_rungs(p_rungs integer)",
    "hr_bank_cap_sync()",

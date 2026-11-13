@@ -8,6 +8,7 @@
 //
 //   node tools/gen-plan-cache.mjs          (re)write the files (pass 1, then pass 2: see PASS 2 below)
 //   node tools/gen-plan-cache.mjs --check  exit 1 if a file is not what it would write
+//   node tools/gen-plan-cache.mjs --selftest  four hand edits per file must each read stale (+ clean/CRLF controls)
 //   ... --pass=1|2                         one pass only
 //
 // WHAT IT DOES TO EACH FUNCTION IN `FNS`: nothing but its language. A `LANGUAGE sql` function with a `SET` clause is
@@ -497,8 +498,40 @@ const PASSES = [
   { file: FILE2, out: OUT2, pass: 2, build: buildSql2 },
 ];
 
+/* THE CHECK'S VERDICT, one pure function so --selftest grades the code --check runs. */
+export function isStale(have, wanted) {
+  return have.replace(/\r\n/g, '\n') !== wanted.replace(/\r\n/g, '\n');
+}
+
+/* --selftest (2026-11-13, audit lane/a-audit-guards): hand edits of each COMMITTED file, derived from its own
+   text (no typed function name, so a regenerate cannot strand an anchor). Each must read STALE against the
+   replayed pre-images; the clean file and its CRLF copy must not. */
+function selftestPass(file, have, wanted) {
+  const N = have.replace(/\r\n/g, '\n');
+  const pin = /[0-9a-f]{32}/.exec(N);
+  const lines = N.split('\n');
+  const mid = lines.findIndex((l, i) => i > lines.length / 2 && /\S/.test(l) && !/^\s*--/.test(l));
+  const mutants = [
+    ['pin_retyped', pin && N.replace(pin[0], '0'.repeat(32))],
+    ['body_line_dropped', mid > 0 && lines.filter((_, i) => i !== mid).join('\n')],
+    ['language_reverted', N.includes('language plpgsql') && N.replace('language plpgsql', 'language sql')],
+    ['file_emptied', ''],
+  ];
+  let bad = 0;
+  if (isStale(have, wanted)) { bad++; console.log(`  ✗ ${file} CONTROL: already stale — the mutants prove nothing`); }
+  if (isStale(N.replace(/\n/g, '\r\n'), wanted)) { bad++; console.log(`  ✗ ${file} CRLF-only control read STALE`); }
+  for (const [id, text] of mutants) {
+    if (typeof text !== 'string' || (id !== 'file_emptied' && text === N)) { bad++; console.log(`  ✗ ${file} ${id}: anchor not found — fix the anchor, never the check`); continue; }
+    const caught = isStale(text, wanted);
+    if (!caught) bad++;
+    console.log(`  ${caught ? '✓' : '✗'} ${file} ${id} ${caught ? 'caught' : 'SLIPPED'}`);
+  }
+  return bad;
+}
+
 async function main() {
-  const check = process.argv.includes('--check');
+  const selftest = process.argv.includes('--selftest');
+  const check = selftest || process.argv.includes('--check');
   const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
   const { bootReplay } = await import('../tests/schema-replay.mjs');
   let bad = 0;
@@ -513,7 +546,8 @@ async function main() {
     await db.close?.();
     if (check) {
       const have = existsSync(P.out) ? readFileSync(P.out, 'utf8').replace(/\r\n/g, '\n') : '';
-      if (have !== sql) { console.error(`✗ ${P.file} is not what tools/gen-plan-cache.mjs writes (replayed up to ${upTo}). Re-run it.`); bad++; continue; }
+      if (selftest) { bad += selftestPass(P.file, have, sql); continue; }
+      if (isStale(have, sql)) { console.error(`✗ ${P.file} is not what tools/gen-plan-cache.mjs writes (replayed up to ${upTo}). Re-run it.`); bad++; continue; }
       console.log(`✓ ${P.file}: ${fns.length} functions, matches its pre-images (replayed up to ${upTo})`);
       continue;
     }

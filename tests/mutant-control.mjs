@@ -49,6 +49,8 @@ export const REGISTERED = [
   ['tests/party-hunt-select-lockdown.mjs', '--mutate'],
   ['tests/discord-gift.mjs', '--mutate'],
   ['tests/progress-coalesce.mjs', '--mutate'],
+  ['tests/world-tick-writer-authz.mjs', '--mutate'],
+  ['tests/leaderboard-lockdown-guard.mjs', '--mutate'],
 ];
 
 /* A PUSH CONTROLS WHAT IT PROVES (lane r-release-gate, 2026-11-04). This is the half of a mutation proof nobody ran, so it belongs

@@ -2821,9 +2821,11 @@ jobs:
   # Budget = measured x2 = 20 min.
   # 40 (2026-11-03): cancelled at 20 on 41497147816 before its last step ended. 2x the worst completed
   # night (19.6, 40898080100).
+  # + proof arms (2026-11-13, lane/a-audit-guards, measured locally): world-tick-writer-authz --mutate
+  # 14 s + world-tick-shadow-chain --mutate 129 s = 143 s; x2 = 4.8 min, 40 -> 45.
   db-replay-5:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
@@ -2884,7 +2886,9 @@ jobs:
       # unregistered while the review was open; it is green, so it is here.
       - name: World tick — the security verdict, executed
         if: ${{ !cancelled() }}
-        run: node tests/world-tick-writer-authz.mjs
+        run: |
+          node tests/world-tick-writer-authz.mjs
+          node tools/mutant-gate.mjs node tests/world-tick-writer-authz.mjs --mutate
 
       # THE SHADOW RUN MUST SURVIVE ITS OWN DRIVER
       # (SEC_WORLD_TICK_M1_2026-09-21.md finding M-1, P0, which BLOCKED the
@@ -2906,7 +2910,9 @@ jobs:
       # (tests/guards-unregistered.json); it is green, so it is here.
       - name: World tick — SHADOW chains on its own watermark
         if: ${{ !cancelled() }}
-        run: node tests/world-tick-shadow-chain.mjs
+        run: |
+          node tests/world-tick-shadow-chain.mjs
+          node tools/mutant-gate.mjs node tests/world-tick-shadow-chain.mjs --mutate
 
       # AND DOES THE ENTRY SPEAK THE TRANSPORT IT DEPLOYS ON?
       # (SEC_WORLD_TICK_M1_2026-09-21.md OP:TICK REVIEW findings T-1 and T-2,
@@ -3462,9 +3468,11 @@ jobs:
   # plain + ~5 min --selftest (14 arms, prefix-cached replays) = ~1710 s (28.5 min) local;
   # GitHub has run this job's replays 1.5-3.6x faster than local. Budget 43 -> 50; re-measure
   # from the first GitHub run and tighten.
+  # + mutant-control of world-tick-writer-authz (5 arms) and leaderboard-lockdown-guard (6 arms)
+  # (2026-11-13, lane/a-audit-guards, measured locally ~14 s + ~8 s = 22 s); x2 = 0.7 min, 50 -> 51.
   db-replay-7:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 51
 
     steps:
       - uses: actions/checkout@v4
@@ -3712,9 +3720,12 @@ jobs:
   # over 23 on run 40609031329 (Inner Flame's 2027-01-31 chain lengthens every
   # replay; cancelled mid-step, no assertion failed). Budget 30 until the job is
   # split (optimization review).
+  # + proof arms (2026-11-13, lane/a-audit-guards, measured locally): leaderboard-lockdown-guard
+  # --mutate 8 s warm + gen-plan-cache --selftest 6 s warm (102 s if its --check did not warm the
+  # snapshot) = up to 110 s; x2 = 3.7 min, 30 -> 34.
   db-replay-8:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 34
 
     steps:
       - uses: actions/checkout@v4
@@ -3790,7 +3801,9 @@ jobs:
       # refuse five broken variants by name. Measured 12 s locally.
       - name: Leaderboard view lockdown — F5 reproduces, closes, and §5 refuses five mutants
         if: ${{ !cancelled() }}
-        run: node tests/leaderboard-lockdown-guard.mjs
+        run: |
+          node tests/leaderboard-lockdown-guard.mjs
+          node tools/mutant-gate.mjs node tests/leaderboard-lockdown-guard.mjs --mutate
 
   # ── artisan-selftest ── tests/artisan-accrual.mjs --selftest (b569). Its plain
   # run is in run-smoke; the 22-mutant proof was registered nowhere and was RED
@@ -3810,6 +3823,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/gen-plan-cache.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-plan-cache.mjs --selftest
           node tests/settle-budget.mjs
           node tools/mutant-gate.mjs node tests/settle-budget.mjs --mutate
       # A PARTY'S DEFAULT PULL STAYS INSIDE THE KILL BOUND (designer 2026-11-01): a Thicket four with no pick lands its windows
@@ -4478,7 +4492,9 @@ jobs:
       # game, so drift would silently widen them.
       - name: Hearthfind catalogue - generated from src/data, never hand-typed
         if: ${{ !cancelled() }}
-        run: node tools/gen-hearthfind.mjs --check
+        run: |
+          node tools/gen-hearthfind.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-hearthfind.mjs --selftest
 
       # THE ENGINE HALF + THE MINT GUARD. The roll is seeded and replayable (an
       # away grant that cannot be re-derived cannot be audited); a source with NO

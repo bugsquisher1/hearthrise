@@ -36,6 +36,11 @@
 // (not a v4). No live credential is read and no live query is issued.
 //
 // Run:  node tests/world-tick-writer-authz.mjs
+//       node tests/world-tick-writer-authz.mjs --mutate   five planted defects, each RED at its named arm
+//
+// mutant-anchors: supabase/migrations/ services/world-tick/
+//   (the mutants plant into the REPLAYED bodies of hr_apply / hr_tick_settle / hr_tick_roster, which
+//    any later migration may restate; 14 s, so any migration re-proves it)
 // ============================================================================
 
 import { bootReplay } from './schema-replay.mjs';
@@ -197,8 +202,13 @@ async function armWriterReachable(db) {
   await arm(db);
   const tickRaw = await applyAs(db, 'hr_tick', 1, '33333333-3333-4333-8333-333333333333', 100,
     `to_jsonb((now() - interval '5 minutes')::timestamptz)`);
-  if (tickRaw.ok === true) {
-    bad('S-1c', 'hr_tick still holds raw hr_apply. The tick must reach the writer only through '
+  /* The GRANT, not only the outcome (2026-11-13): with raw hr_apply re-granted, hr_apply's own seam still
+     refuses `role = hr_tick`, so `ok !== true` stayed green with the second door open (mutant
+     raw_hr_apply_regranted_to_tick survived). The withdrawal is the privilege; assert it. */
+  const rawHeld = (await db.query(`select has_function_privilege('hr_tick',
+      'public.hr_apply(uuid, integer, bigint, uuid, jsonb)', 'execute') as h`)).rows[0].h;
+  if (tickRaw.ok === true || rawHeld) {
+    bad('S-1c', `hr_tick still holds raw hr_apply (privilege ${rawHeld}, call ${JSON.stringify(tickRaw).slice(0, 80)}). The tick must reach the writer only through `
       + 'hr_tick_settle, which checks the lease and compare-and-sets the watermark; a raw grant '
       + 'is a second door with neither check (SEC_WORLD_TICK_GATHER_2026-09-19.md S-1/S-7).');
   } else {
@@ -330,23 +340,90 @@ async function armLease(db) {
   }
 }
 
+// ── --mutate: THE MUTATION PROOF (2026-11-13, audit lane/a-audit-guards) ──────
+// Each mutant plants its defect into the REPLAYED database after the whole chain
+// has run — the shipped body as pg_get_functiondef returns it, one anchor that
+// must match exactly once, or one grant — so no later migration can restate the
+// planted function and silently un-plant it. HR_MUTANT_CONTROL=1 plants NOTHING
+// (tests/mutant-control.mjs): every arm must then read `survived`.
+const MUTANTS = [
+  { id: 'raw_hr_apply_regranted_to_tick', expect: 'S-1c',
+    what: 'hr_tick holds raw hr_apply again: a second door with no lease and no watermark check',
+    sql: ['grant execute on function public.hr_apply(uuid, integer, bigint, uuid, jsonb) to hr_tick'] },
+  { id: 'fence_revoked_from_engine', expect: 'S-1',
+    what: 'hr_engine loses the fence, so the tick settles nothing',
+    sql: ['revoke execute on function public.hr_tick_settle(text, uuid, integer, text, bigint, timestamptz, timestamptz, uuid, jsonb, jsonb) from hr_engine'] },
+  { id: 'version_cas_removed', expect: 'S-2', fn: 'hr_apply',
+    what: 'hr_apply stops comparing the caller version, so a tick and an accrue on one version both pay',
+    from: 'if p_version is null or p_version <> v_st.version then', to: 'if p_version is null then' },
+  { id: 'watermark_cas_removed', expect: 'S-3', fn: 'hr_tick_settle',
+    what: 'the fence no longer refuses a window at or behind the settled watermark',
+    from: '  if p_window_from < v_mark then', to: '  if false and p_window_from < v_mark then',
+    from2: '  if p_window_to <= v_mark then', to2: '  if false and p_window_to <= v_mark then' },
+  { id: 'roster_lease_ignores_channel', expect: 'S-4b', fn: 'hr_tick_roster',
+    what: 'the roster stamps its lease on every channel row of the character, not the one it claimed',
+    from: 'where o.user_id = c.user_id and o.slot = c.slot and o.channel = c.channel',
+    to: 'where o.user_id = c.user_id and o.slot = c.slot' },
+];
+
+async function plant(db, m) {
+  if (process.env.HR_MUTANT_CONTROL) return;
+  for (const s of m.sql || []) await db.exec(s);
+  if (!m.fn) return;
+  const r = await db.query(`select pg_get_functiondef(p.oid) d from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                             where n.nspname = 'public' and p.proname = $1`, [m.fn]);
+  if (r.rows.length !== 1) throw Object.assign(new Error(`${m.id}: ${m.fn} has ${r.rows.length} overloads`), { harness: true });
+  let def = r.rows[0].d;
+  for (const [a, b] of [[m.from, m.to], [m.from2, m.to2]]) {
+    if (!a) continue;
+    const n = def.split(a).length - 1;
+    if (n !== 1) throw Object.assign(new Error(`${m.id}: anchor matched ${n} times in ${m.fn} — fix the anchor, never the arm`), { harness: true });
+    def = def.replace(a, b);
+  }
+  await db.exec(def);
+}
+
+async function runDbArms(m) {
+  const { db, failures } = await bootReplay({});
+  if (failures.length) {
+    console.error('the schema replay did not complete:', failures);
+    process.exit(2);
+  }
+  try {
+    if (m) await plant(db, m);
+    await armWriterReachable(db);
+    await armDoublePayVersion(db);
+    await armReplayedWindow(db);
+    await armLease(db);
+  } finally {
+    await db.close();
+  }
+}
+
+if (process.argv.includes('--mutate')) {
+  console.log(`[mutants] ${MUTANTS.length}`);
+  let slipped = 0;
+  for (const m of MUTANTS) {
+    problems.length = 0;
+    console.log(`\n── MUTANT ${m.id}: ${m.what}`);
+    await runDbArms(m);
+    const caught = problems.some((p) => p.startsWith(m.expect + ':'));
+    console.log(`[mutant] ${m.id} ${caught ? 'caught' : 'survived'}`);
+    if (!caught && !process.env.HR_MUTANT_CONTROL) slipped++;
+  }
+  console.log('');
+  if (slipped) {
+    console.log(`world-tick-writer-authz --mutate: ${slipped} mutant(s) SLIPPED — the arm is decoration.`);
+    process.exit(1);
+  }
+  console.log(`world-tick-writer-authz --mutate: all ${MUTANTS.length} mutant(s) RED at their named arm, as required.`);
+  process.exit(0);
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 console.log('world-tick-writer-authz: security proof arms for lane/world-tick-gather');
 armOverlapMetric();
-
-const { db, failures } = await bootReplay({});
-if (failures.length) {
-  console.error('the schema replay did not complete:', failures);
-  process.exit(2);
-}
-try {
-  await armWriterReachable(db);
-  await armDoublePayVersion(db);
-  await armReplayedWindow(db);
-  await armLease(db);
-} finally {
-  await db.close();
-}
+await runDbArms(null);
 
 console.log('');
 if (problems.length) {

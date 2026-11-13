@@ -54,6 +54,11 @@ export function proposeGround(gid, D, opts = {}) {
   });
 }
 
+/** Who a ground is built for, as the formula reads it: a pocket built for a party (`forParty`) makes it a party ground, else its
+    groupFit (tools/balance-sim plans.mjs reads it the same way). ONE reader: tools/pack.mjs uses it too, after it read a retired
+    `minParty` key and judged the Sewer's party rows against the lone formula. */
+export const groundFit = (g) => ((g.pockets || []).some((p) => p.forParty) ? 'party' : g.groupFit || 'both');
+
 async function load() {
   const u = (p) => pathToFileURL(join(ROOT, p)).href;
   const { MONSTERS } = await import(u('src/data/monsters.js'));
@@ -62,8 +67,7 @@ async function load() {
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
   /* a ground's floor: its hunt's band floor (src/data/hunts.js) */
   const floorOf = (gid) => { const g = HUNT_GROUNDS[gid]; if (!g || !HUNT_INDEX[g.hunt]) throw new Error('gen-ground-stats: no ground ' + gid); return HUNT_INDEX[g.hunt].band[0]; };
-  /* who a ground is built for: a pocket that needs a party makes it a party ground (tools/balance-sim plans.mjs reads it the same way) */
-  const fitOf = (gid) => { const g = HUNT_GROUNDS[gid]; return g.pockets.some((p) => p.forParty) ? 'party' : g.groupFit || 'both'; };
+  const fitOf = (gid) => groundFit(HUNT_GROUNDS[gid]);
   return { MONSTERS, formulaStats, tierRowFor, floorOf, fitOf };
 }
 const fmt = (r) => r.hp + ' hp, atk ' + r.atk + ' @' + r.baseAcc + ', def ' + r.def + ', xp ' + r.xp + ', gp ' + r.gp.join('-');

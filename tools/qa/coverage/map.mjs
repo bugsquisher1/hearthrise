@@ -77,7 +77,7 @@ export function coverageMap() {
   const grounds = Object.entries(OPEN_GROUNDS).map(([id, g]) => {
     const h = HUNT_INDEX[g.hunt] || {};
     return { id, hunt: g.hunt, name: h.name || id, band: (h.band || [1, 1]).slice(), groupFit: g.groupFit || 'both',
-      party: (g.pockets || []).some((p) => p.minParty), tiers: tiersOf(id), monsters: monstersOfGround(g) };
+      party: (g.pockets || []).some((p) => p.forParty), tiers: tiersOf(id), monsters: monstersOfGround(g) };
   }).sort((a, b) => a.band[0] - b.band[0] || (a.id < b.id ? -1 : 1));
 
   const monsters = [...new Set(grounds.flatMap((g) => g.monsters))].map((id) => ({ id, name: MONSTERS[id].name || id, boss: MONSTERS[id].boss === true,

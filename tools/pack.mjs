@@ -74,7 +74,7 @@ async function propose(gid, argv) {
   const S = await import(u('tools/gen-ground-stats.mjs'));
   const D = await loadPackData();
   const floorOf = (g) => D.HUNT_INDEX[D.G.HUNT_GROUNDS[g].hunt].band[0];
-  const fitOf = (g) => { const x = D.G.HUNT_GROUNDS[g]; return x.pockets.some((p) => p.minParty) ? 'party' : x.groupFit || 'both'; };
+  const fitOf = (g) => S.groundFit(D.G.HUNT_GROUNDS[g]);
   const lint = lintGround(gid, D);
   if (lint.length) { console.error('pack propose: ' + lint.join('\n  ')); process.exit(1); }
   const rows = S.proposeGround(gid, { MONSTERS: D.MONSTERS, formulaStats: D.BS.formulaStats, floorOf, fitOf });
@@ -97,7 +97,7 @@ async function check(gid, argv) {
   const lint = lintGround(gid, D);
   const S = await import(u('tools/gen-ground-stats.mjs'));
   const floorOf = (g) => D.HUNT_INDEX[D.G.HUNT_GROUNDS[g].hunt].band[0];
-  const fitOf = (g) => { const x = D.G.HUNT_GROUNDS[g]; return x.pockets.some((p) => p.minParty) ? 'party' : x.groupFit || 'both'; };
+  const fitOf = (g) => S.groundFit(D.G.HUNT_GROUNDS[g]);
   if (!lint.length) {
     for (const r of S.proposeGround(gid, { MONSTERS: D.MONSTERS, formulaStats: D.BS.formulaStats, floorOf, fitOf })) {
       if (r.drift.length) lint.push(gid + ': ' + r.id + ' is not the formula\'s (' + r.drift.join(', ') + '): node tools/pack.mjs propose ' + gid + ' --write, or a named exception');
@@ -129,6 +129,16 @@ async function selftest() {
     ['a placed monster with no Level', () => lintGround(gid, { ...D, MONSTERS: { ...D.MONSTERS, [first]: { ...D.MONSTERS[first], level: undefined } } })],
   ];
   for (const [what, fn] of cases) { const n = fn().length; console.log('  ' + (n ? 'ok ' : 'RED') + ' refuses: ' + what); if (!n) bad.push(what + ' passed the lint'); }
+  /* THE FIT check reads: every open ground's rows are the formula's under its own fit (S.groundFit), so `check` reaches the grader;
+     and the Sewer read as a lone ground drifts, so a fit reader that misses its party pocket (the retired `minParty` key did) bites. */
+  const S = await import(u('tools/gen-ground-stats.mjs'));
+  const floorOf = (x) => D.HUNT_INDEX[D.G.HUNT_GROUNDS[x].hunt].band[0];
+  const driftOf = (x, fitOf) => S.proposeGround(x, { MONSTERS: D.MONSTERS, formulaStats: D.BS.formulaStats, floorOf, fitOf }).filter((r) => r.drift.length).map((r) => r.id);
+  for (const x of Object.keys(D.G.OPEN_GROUNDS)) { const d = driftOf(x, (y) => S.groundFit(D.G.HUNT_GROUNDS[y])); if (d.length) bad.push('open ' + x + ' is off its formula: ' + d.join(', ')); }
+  const loneSewer = driftOf('millrace_sewer', () => 'both').length;
+  console.log('  ' + (loneSewer ? 'ok ' : 'RED') + ' the Sewer read without its party pocket is off-formula (the fit is read)');
+  if (!loneSewer) bad.push('the Sewer reads on-formula as a lone ground: the fit is not read');
+  if (S.groundFit(D.G.HUNT_GROUNDS.millrace_sewer) !== 'party') bad.push('groundFit does not read the Sewer\'s forParty pocket as a party ground');
   if (bad.length) { console.error('pack --selftest: RED\n  ' + bad.join('\n  ')); process.exit(1); }
   console.log('pack --selftest: green (' + Object.keys(D.G.HUNT_GROUNDS).length + ' grounds lint clean, ' + cases.length + ' refusals bite)');
 }

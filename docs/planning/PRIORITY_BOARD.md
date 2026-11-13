@@ -49,6 +49,14 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 | 4 Gold runs out | | next hour refused, ends `gold_out`, nothing owed |
 | 5 Buy house dummy | Hearthside Homestead + 150,000 g | sink ladder rung 1 |
 **Exploit review.** No Level XP, loot or coin, so nothing to farm or trade; the fee is taken before the hour from server gold; four heroes each pay their own fee; the house dummy holds one hero; party starts refused. Known limitation: Magic in the yard spends runes like a hunt (no free supply path).
+**Server half BUILT, STAGED (lane/c-combat-training, backend-architect, 2026-11-12; contract: `2027-04-16-combat-training.sql` header).** Eight grounds (`yard_` / `house_` x the four skills), one door `hr_training_start`, `hr_house_dummy_buy`, `hr_training_view`; the yard's hour is charged by the settle that lands on its first instant (or the session ends `gold_out` there); no stamina spent; the trained skill only. `xpPermille` is now ONE DIAL A SKILL (`src/data/training.js`), all 350 as specified. **The 0.40x gate reads RED at 350** (`node tools/balance-sim/yard-table.mjs`, the real settle, an hour a cell, the hero's best fitting ground; the last column is the most that skill's dial can take and hold the line at that row):
+| Skill | skill 10 | skill 30 (Glade) | skill 56 (Warrens) | most it can take |
+|---|---|---|---|---|
+| Melee | 0.30 | **0.58** | 0.35 | 242 |
+| Ranged | **0.40** | **0.51** | 0.39 | 273 (349 at skill 10) |
+| Magic | 0.15 | 0.28 | 0.36 | 390 |
+| Defense | 0.10 | **0.57** | 0.30 | 243 |
+The dummy is hit without a walk or a kill gap and has no defence, so a blow teaches more of an hour than the spec's estimate. Designer's call: the four dials (about 240 / 270 / 350 / 240 hold every row). Defense in the yard reads the hero's own Level (the dummy keeps pace); a hero training Defense must stand in reach (the dummy never walks). Not built here: training resumed after an automatic hunt end (`RESUMABLE_KINDS` `training`), the client panel (lane B).
 
 ### 2026-11-10 Spell tuning (designer, lane/d-spell-tuning; Tyler 2026-11-08 "AOE DENSITY": "more monsters = more aoe spells", "show the player what is happening to their heros"): BUILT and MEASURED on the real engine. The monsters' spells are ON. **The harder tiers are not yet a wall for a four: that needs one new tier dial, sized below, not built**
 

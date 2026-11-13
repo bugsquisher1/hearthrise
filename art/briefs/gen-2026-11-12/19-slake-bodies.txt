@@ -1,0 +1,34 @@
+BRIEF 19 + VERDICT: THE SLAKE'S THREE BODIES, ROTATIONS ONLY (art director, 2026-11-12)
+Owed: greened_pikeman, bargeman, color_sergeant (now flag_sergeant), brief 01's second section and brief 06. The
+generations left (about 23 after briefs 15-18) buy each body's south frame and its 8 rotations, not its clips; the
+idle, walk, attack, hit and death clips (about 30 gens a body, §5b) open the next cycle (allowance resets 11-14).
+THE CALL: create_object_pro_flash, high top-down, 48x48, n_directions 1 first (5 gens), then 8 directions from the
+ kept south as first_frame_url (1 gen). Style image refs/style-glade-poacher-s-48.png (base64, "match palette, outline,
+ shading and proportions"). palette = hr-world-56-v2 (§7: the first palette-locked pro creatures; every pixel came
+ back on palette, 0 partial alpha). Words in note.json. Twins to differ from: refs/still-banded_pikeman-s-64.png,
+ still-fordsunk-s-64.png, still-bannerman-s-64.png.
+ Raw: art/world-src/gen-2026-11-12/slake-bodies/<id>/<facing>.png (south, east, north, west, south-east, south-west,
+ north-east, north-west).
+
+VERDICT (x3 and x5 beside the twins)
+ greened_pikeman r1 (object 5e7cfb99-2bd5-4887-82fe-eae9576408c6) REFUSED: a green hooded figure, the brief 12 P2
+   lesson again (a hood reads as a ranger), and verdigris on well over 15% of it. Kept as r1-south-refused.png.
+ greened_pikeman r2 (object d2398516-229a-4539-a42e-818702c65bd1, rotations 6973c53e-a801-42d9-8de8-5618d9568d1e)
+   APPROVED with a free fix: a skull under a round corroded helmet, a verdigris-crusted breastplate, bony limbs in mud
+   rags, the pike upright. The Banded Pikeman's drowned cousin, armoured where the Ford's is a bare skeleton. The
+   palette put its bones on the mithril ramp (#c8e6e0, a frost white): boneswap/ maps #c8e6e0 -> #e6dcbc and #86b4b4
+   -> #c9bfa0 (13-31 px a facing), the March family's bone. Import boneswap/, not the raw. The shaft is drawn black,
+   so it merges with the outline: read it on the Slake mud at x2 before the clips are bought. 330 of 593 px are
+   outline: a thin body, so the ring test on the mud decides it.
+ bargeman (object 76b1a845-472b-432a-8b1f-d0249023b297, rotations fc37534e-9ad0-4df7-a466-02bd1996b2d0) APPROVED:
+   broad, a dark apron, grey face, the barge pole in both hands, the braces and shirt from behind. Not the bloated
+   Fordsunk. Box 41 px tall with the pole; the body's own height is for build --report.
+ flag_sergeant (object 8468ebc5-997d-4d6e-abee-07338e0b540c, rotations a758d79a-0718-44a0-8601-770978ce874a)
+   APPROVED: a dead sergeant in a dented helmet and a verdigris mail shirt with a torn green and grey company flag.
+   Told from the Ford's bannerman by the green flag and the mail. The flag's cloth is redrawn in each facing (cloth may
+   move; the pole stays in the same hand). 46 px tall with the pole: its class row and overhang are the import's call.
+ All three: identity and gear the same in all 8 facings; no glow, no baked shadow.
+
+NEXT CYCLE (not run, 0 gens left): the clips for all three (brief 01's words), then ring-contrast on the locked
+ Slake mud for each body (pass 3:1), then import with port-pixellab.mjs unit --set slake. The March tree node (oaks),
+ the river/shallows Tileset Pro set and brief 14's ash sample also wait for the 11-14 allowance.

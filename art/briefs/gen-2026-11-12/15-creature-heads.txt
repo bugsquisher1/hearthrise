@@ -1,0 +1,61 @@
+BRIEF 15 + VERDICT: 32 PX CREATURE HEADS FOR TAMSIN'S TALLY (art director, 2026-11-12, lane/a-gen-2026-11-12)
+Why: the Tally window's entry rows have no creature picture (mocks 2026-11-11 SPEC Q2). World sprites are 46-92 px and
+cannot shrink at an integer scale. The old painted portraits are the retired style and never sit beside style 1. Owed:
+a 32x32 head for each of the 30 live monsters (the B3 hit-clip list: art/world-src/gen-2026-11-08b/*-hit).
+Balance before the lane: 83.4 generations, credits $0 (the plan's 2,123 had been spent by other lanes).
+
+FREE ROUTE FIRST (§4b), 0 gens: a 32x32 crop of each south still at 1x, locked. Script and sheet in the lane report.
+ Critters and beasts crop well (the bat, the bear's head and paws). Humanoids do not: the kobold's crop is its whole
+ 35 px body at 42% fill, the head 10 px across, and a bust of a 36-40 px figure is a face of 8-10 px. REFUSED as the
+ route; kept only as the identity reference for the generated heads.
+
+THE CALL (each 10 gens, 64 candidates): create_1_direction_object, size from 32x32 style images, view top-down,
+ palette = hr-world-56-v2 (all 56), description "a creature's head portrait for a bestiary slot, front view facing the
+ viewer, the head and a little of the neck filling the square, dark single colour outline, lit from the upper left,
+ classic fantasy MMORPG pixel art", item_descriptions one line a creature (in each candidates/ note below).
+ H1 SAMPLE (5 creatures x 12-13): object a30fb08b-d747-4998-9ce5-4a787046c03e. Style: the five 32 px crops.
+ H2a beasts (13 x 4-5): object 8d2d499d-4922-437a-a41c-7fa8c62d8998. Style: 4 approved sample heads + 4 crops.
+ H2b folk (12 x 5, kobold x3 spare): object d7d3bbb2-cb5d-4332-b64a-894aea13f56e. Style: 2 approved heads + 6 crops.
+ Candidates in index order: art/world-src/gen-2026-11-12/heads-{sample,beasts,folk}/candidates/NN.png.
+
+VERDICT (read at x2, the pocket's size, and x3-x4; every pick measured: 0 off-palette pixels, 0 partial alpha)
+ H1 sample APPROVED as the route: about 9 in 10 read as the asked creature, one style, front-facing, palette-true.
+ Refused in the sample: rat 03-05 (they read as bears or moles), kobold 50 (gear on the shoulder, a goblin). In H2b
+ kobold 62 (a side-on dragon). The kobolds come back horned and reptilian where the body's ears are tall and dog-like;
+ 43 is the closest and is kept, a re-roll can name "long upright ears, no horns" next cycle.
+ H2a, H2b APPROVED, all 30 have a keep:
+   creature           keep   alt  | creature            keep  alt
+   rat                00     10   | chief_coppercap     01    05
+   gray_wolf          13     16   | glade_poacher       07    09
+   brook_bear         37     28   | goblin_digger       11    14
+   kobold_tosher      43     42   | goblin_scavenger    17    16
+   culvert_bat        59     54   | goblin_skulker      21    22
+   barn_spider        01     04   | goblin_sluicer      27    26
+   barn_wasp          06     08   | hobgoblin_foreman   32    34
+   briarcoat_wolf     12     11   | rook_poacher        37    38
+   carrion_crow       16     19   | slime               41    44
+   cistern_spider     22     20   | sump_slime          46    48
+   dire_gray          26     28   | turncoat            52    51
+   drain_rat          31     33   | walking_vine        56    60
+   granary_rat        36     38   |
+   gray_whelp         41     43   |
+   grayjaw            46     49   |
+   hive_wasp          50     52   |
+   orchard_boar       56     57   |
+   rat_king           61     63   |
+ (indices are into the batch the creature sits in: sample, beasts or folk)
+ Saved as picks/<id>.png and picks/<id>-alt.png beside the candidates.
+ Family reads: the five wolves are told apart by coat (whelp round-faced pale, gray_wolf pale calm, grayjaw charcoal
+ snarling, dire_gray near-white and scarred, briarcoat black with burrs); the goblins by headgear as their bodies are
+ (chief wide pot and fur, digger bowl, sluicer tall pot, scavenger leather cap, skulker headband); the two wasps by
+ red against yellow. Green goblins (folk 23-25) are REFUSED: the Warren goblins are grey.
+ Spiders and slimes come back as the whole creature front-on, which is right: a spider has no separate head.
+
+RULING: a head is a bust portrait, not an object icon. 16 of 30 touch the canvas edge (fill 100%); that is the bust
+ cut, so §7's 75-94% icon fill does not bind them. The pocket that shows one gives it the bag's sunk well and no frame
+ of its own. Never shown above 32 px x the screen's one density (64 at x2).
+
+READY FOR IMPORT (an asset lane, with tests/pixel-icons-style checks): picks/<id>.png -> a new head set, e.g.
+ assets/icons-bundle/pixel/heads/<monster id>.png, wired by a manifest row per monster (monster-art.js has the
+ portrait manifest; the heads are their own language, not a replacement for the painted portraits there until the
+ designer decides the bestiary uses them). Not imported here.

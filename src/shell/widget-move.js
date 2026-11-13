@@ -24,9 +24,9 @@
 //
 // DOM only through src/render/paint.js (a fold repaint writes only what changed).
 // ════════════════════════════════════════════════════════════════════════
-import { attr, cls } from '../render/paint.js?v=0.2.123';
-import { placeFrom } from './hud.js?v=0.2.123';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.123';
+import { attr, cls } from '../render/paint.js?v=0.2.125';
+import { placeFrom } from './hud.js?v=0.2.125';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.125';
 
 /* As a window's head (shell.js): a press that wanders less than this is a click, never a move. */
 const DRAG_SLOP_PX = 5;

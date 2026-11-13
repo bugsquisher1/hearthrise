@@ -40,20 +40,20 @@
 //      flinches on a blow that landed on it, and a dead one falls, each only on a facing its
 //      clip has; no clip ever plays without the event that caused it.
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.123';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.123';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.123';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.123';
-import { floatShown } from './float-prefs.js?v=0.2.123';
-import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.123';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.123';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.123';
-import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.123';
-import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.123';
-import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.123';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.123';
-import { levelOf, wornTitleOf } from '../session/character-sections.js?v=0.2.123';
-import { createClipHook, struckBy } from './clip-hook.js?v=0.2.123';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.125';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.125';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.125';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.125';
+import { floatShown } from './float-prefs.js?v=0.2.125';
+import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.125';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.125';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.125';
+import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.125';
+import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.125';
+import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.125';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.125';
+import { levelOf, wornTitleOf } from '../session/character-sections.js?v=0.2.125';
+import { createClipHook, struckBy } from './clip-hook.js?v=0.2.125';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {

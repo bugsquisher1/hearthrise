@@ -1,0 +1,34 @@
+BRIEF 16 + VERDICT: KRELL'S HOLD, MUSTER BARROWS AND HASK'S FORD ITEM ICONS (art director, 2026-11-12)
+Owed: Krell's Hold pack (lane/b-krells-hold-pack c06c43b23, pack.js items) hall_key, farmhands_tag, lookouts_whistle,
+barrow_nail, priests_cord, gatekeepers_chain; Muster Barrows (lane/b-muster-barrows 98d03903e) coffin_nail, urn_shard;
+Hask's Ford toll_token, if the hand-drawn one fails.
+
+TOLL_TOKEN JUDGED FIRST (0 gens): the drawn icon from tools/world-art/slake-icons.mjs (lane/a-import-slake-art
+ 8b1e70726) beside hearth_token, crown_shard, rooks_whistle and keystone at x3. REFUSED: a flat gold disc with a square
+ hole, one colour and a rim, no light from the upper left, no wear. Beside the generated shelf it reads as a UI dot.
+ The same lane's barge_nail is as plain (a grey T); not in this brief's ask, flagged for the next cycle.
+
+THE CALL (10 gens): create_1_direction_object, 64 candidates at 32x32, palette hr-world-56-v2, object
+ ae2383db-f14c-4339-9aac-d0e68e3ed6a3. Style images: hearth_token, crown_shard, keystone, wolfbone_torc,
+ culvert_bat_fang (shapes unlike any target, so no twin is copied: the alpha_fang lesson). 7 candidates each, the
+ toll token 8. Words: each item's pack line made concrete (in the spec, kept with the candidates' note below).
+ Candidates in order: art/world-src/gen-2026-11-12/icons-krell-muster-ford/candidates/NN.png (0-6 key, 7-13 tag,
+ 14-20 whistle, 21-27 barrow nail, 28-34 cord, 35-41 chain, 42-48 coffin nail, 49-55 urn shard, 56-63 toll token).
+
+VERDICT (x2 and x3; picks measured: fill 88-94% by the longest side, 0 off-palette, 0 partial alpha)
+ item               keep  alt  note
+ farmhands_tag      09    12   a stamped tin tag on twine. The stamp is a mark, not the asked wheat; reads as a tag
+ lookouts_whistle   15    18   a brass pea whistle on a chain; not a twin of rooks_whistle (a bone whistle)
+ barrow_nail        22    25   a black forged spike with Krell's red rag; the rag carries it on the dark pocket
+ priests_cord       30    32   a coiled knotted cream cord
+ gatekeepers_chain  38    36   a steel chain loop and padlock
+ coffin_nail        42    44   a rusty bent nail with its splinter of lid; told from barrow_nail by rust vs black
+ urn_shard          51    54   terracotta with the cream zigzag band. 49, 52, 55 REFUSED: whole pots, not shards
+ toll_token         61    57   a bronze ferry token stamped with a boat, a copper-green patina rim: replaces the drawn one
+ hall_key           (03)       HELD: a thin black key, 267 px of mass, median luminance 0.003. It reads as a key at x2
+                               but is the darkest thing in the bag. Re-rolled in brief 18 (call C) in bright steel: REPLACED there.
+ Within a row the 7 candidates are near twins (one seed family), so an alt is a spare, not a second design.
+
+READY FOR IMPORT: picks/<id>.png -> assets/icons-bundle/pixel/items/<id>.png on the lanes that own the packs
+ (Krell's Hold, Muster Barrows; toll_token on the Slake/Ford art branch, replacing slake-icons.mjs's drawing and its
+ entry in tests/pixel-icons.mjs's drawn list if it has one). hall_key: brief 18 picks/hall_key.png.

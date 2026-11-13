@@ -6,7 +6,7 @@
 // A FREE CALL IS A PRICE (2027-03-22-live-events.sql §4): an event's fee dial (Open Halls) quotes 0, the verb takes 0, and the
 // quote names the event that set it (`event`). 0 is the server's number like any other, never "no quote".
 // ════════════════════════════════════════════════════════════════════════
-import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.123';
+import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.125';
 
 /** A quote as the server sent it, bounded: whole numbers and a code, or null. */
 export function quoteOf(q) {

@@ -1,6 +1,6 @@
 {
   "note": "Ceilings, not targets: per file and error kind, counts may only fall. Written by node tests/typecheck-ratchet.mjs --write, which refuses a rise. Regenerate, never hand-merge.",
-  "total": 389,
+  "total": 381,
   "files": {
     "src/app/boot.js": {"TS2367":1,"TS2554":5},
     "src/app/hero-create.js": {"TS1005":3,"TS2304":2,"TS2353":1},
@@ -38,7 +38,6 @@
     "src/data/item-authority.js": {"TS2339":2},
     "src/data/party-words.js": {"TS2339":2},
     "src/data/recipes.js": {"TS2769":2},
-    "src/data/settings.js": {"TS2339":1},
     "src/data/skill-unlocks.js": {"TS2339":3},
     "src/data/supplies.js": {"TS2538":12},
     "src/data/tally-tasks.js": {"TS4104":1},
@@ -73,7 +72,7 @@
     "src/shell/readiness.js": {"TS2339":4},
     "src/shell/report-model.js": {"TS2339":11},
     "src/shell/share-card.js": {"TS2339":8,"TS2345":1,"TS2353":2},
-    "src/shell/shell.js": {"TS2339":41,"TS4104":2},
+    "src/shell/shell.js": {"TS2339":35,"TS4104":1},
     "src/shell/town-ticker.js": {"TS2353":1},
     "src/shell/widgets/action-bar.js": {"TS2554":2},
     "src/shell/widgets/analyzer.js": {"TS2349":1,"TS2538":3},

@@ -8,8 +8,8 @@
 //   buyTitle(account, cs, title, price)  hr_title_buy
 //   wearTitle(account, cs, title)        hr_title_wear (null takes it off)
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.123';
-import { refusalOf } from './refusal.js?v=0.2.123';
+import { askVia } from './intent-ledger.js?v=0.2.125';
+import { refusalOf } from './refusal.js?v=0.2.125';
 
 const ID = /^[a-z0-9_]{1,32}$/;
 const newIdem = () => globalThis.crypto.randomUUID();

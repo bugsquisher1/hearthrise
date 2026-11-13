@@ -41,37 +41,37 @@
 // account reaches another's heroes and no answer of another's reaches this page (Andy 2026-11-06).
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient, authLockFor } from '../net/supabase-bootstrap.js?v=0.2.123';
-import { createBootTiming } from '../net/boot-timing.js?v=0.2.123';
-import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.123';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.123';
-import { createServerLink } from '../session/server.js?v=0.2.123';
-import { AccountSession } from '../session/account-session.js?v=0.2.123';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.123';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.123';
-import { mountWorldPane } from './world-pane.js?v=0.2.123';
-import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.123';
-import { renderHeroCreate } from './hero-create.js?v=0.2.123';
-import { renderBannedNotice, renderClosedNotice } from './closed-notice.js?v=0.2.123';
-import { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.123';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.123';
-import { mountMarketWatch } from '../shell/market-watch.js?v=0.2.123';
-import { mountSocialWatch } from '../shell/social-watch.js?v=0.2.123';
-import { mountTownCriers } from '../shell/town-criers.js?v=0.2.123';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.123';
-import { SocialSession } from '../social/social-session.js?v=0.2.123';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.123';
-import { startObservability, track, trackOnce } from '../net/observability.js?v=0.2.123';
-import { loadGlyphs } from './glyphs-loader.js?v=0.2.123';
-import { startDiagnostics } from '../net/diagnostics.js?v=0.2.123';
-import { mountPressAck } from '../shell/press-ack.js?v=0.2.123';
-import { mountOffWhy } from '../shell/off-why.js?v=0.2.123';
-import { mountLauncherNames } from '../shell/launcher-names.js?v=0.2.123';
-import { connection, mountConnectionLine } from '../net/connection.js?v=0.2.123';
-import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.123';
-import { mountNewVersion } from './new-version.js?v=0.2.123';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.123';
-import { coachFactsOf } from '../shell/launcher.js?v=0.2.123';
+import { SUPABASE_CONFIG, createSupabaseClient, authLockFor } from '../net/supabase-bootstrap.js?v=0.2.125';
+import { createBootTiming } from '../net/boot-timing.js?v=0.2.125';
+import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.125';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.125';
+import { createServerLink } from '../session/server.js?v=0.2.125';
+import { AccountSession } from '../session/account-session.js?v=0.2.125';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.125';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.125';
+import { mountWorldPane } from './world-pane.js?v=0.2.125';
+import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.125';
+import { renderHeroCreate } from './hero-create.js?v=0.2.125';
+import { renderBannedNotice, renderClosedNotice } from './closed-notice.js?v=0.2.125';
+import { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.125';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.125';
+import { mountMarketWatch } from '../shell/market-watch.js?v=0.2.125';
+import { mountSocialWatch } from '../shell/social-watch.js?v=0.2.125';
+import { mountTownCriers } from '../shell/town-criers.js?v=0.2.125';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.125';
+import { SocialSession } from '../social/social-session.js?v=0.2.125';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.125';
+import { startObservability, track, trackOnce } from '../net/observability.js?v=0.2.125';
+import { loadGlyphs } from './glyphs-loader.js?v=0.2.125';
+import { startDiagnostics } from '../net/diagnostics.js?v=0.2.125';
+import { mountPressAck } from '../shell/press-ack.js?v=0.2.125';
+import { mountOffWhy } from '../shell/off-why.js?v=0.2.125';
+import { mountLauncherNames } from '../shell/launcher-names.js?v=0.2.125';
+import { connection, mountConnectionLine } from '../net/connection.js?v=0.2.125';
+import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.125';
+import { mountNewVersion } from './new-version.js?v=0.2.125';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.125';
+import { coachFactsOf } from '../shell/launcher.js?v=0.2.125';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -187,7 +187,7 @@ function startApp(win) {
     /* the town's sheets likewise (src/world/prewarm.js): a cold Play after a release no longer waits for 2.5 MB */
     /* ...for THIS session only: the pass asks before every slice and sheet whether its account is still the page's, so a
        sign-out or a refused session stops it at once (client-boot B-15) */
-    import('../world/prewarm.js?v=0.2.123').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
+    import('../world/prewarm.js?v=0.2.125').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
     /* the token's answer is the moment the first read leaves (boot-timing.js): whatever it waited on is before that; the
        link carries THIS login's token only (auth.tokensFor), never another account's a later sign-in left on the device */
     const tokens = auth.tokensFor(auth.userId());

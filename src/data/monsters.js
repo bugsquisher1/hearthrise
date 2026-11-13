@@ -63,10 +63,10 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=0.2.123';
-import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.123';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.123';
-import { foldRows } from './grounds/shape.js?v=0.2.123';
+import { applyClassProfiles } from './monster-classes.js?v=0.2.125';
+import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.125';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.125';
+import { foldRows } from './grounds/shape.js?v=0.2.125';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -830,7 +830,7 @@ export const MONSTERS = {
   brook_bear: { name: 'Brook Bear', icon: '🐻', tier: 3, level: 24, cls: 'mammal', family: 'Mammal',
     /* the Meadowbrook's bruiser: the wet coat sheds frost, fire takes it. The Keep and Trophy Room ask for its Pelt (Andy's report), about an hour's errand, so the Claw, a pie's trophy, rides a Rare row (drop-tables rare-pace: it stands in Vine Hollow as built, lane/c-brook-bear). */
     elements: { ember: -15, frost: 25 },
-    hp: 69, atk: 20, baseAcc: 0.78, def: 10, xp: 338, gp: [14, 44], formula: true, speed: 3000,
+    hp: 51, atk: 16, baseAcc: 0.76, def: 8, xp: 239, gp: [13, 40], formula: true, speed: 3000, /* gp: most of an elite's purse on a heavy, FORMULA_EXCEPTIONS (balance-sheet.js) */
     drops: [{ id: 'raw_bear_meat', ch: .6, band: 'common' }, { id: 'bear_pelt', ch: .18, band: 'common' }, { id: 'brook_bear_tooth', ch: .08, band: 'uncommon' }, { id: 'bear_claw', ch: .0033, band: 'rare' }] },
 
   /* ══ Wickstead, levels 8-18, solo, mixed (lane b-greenhaven-6, designer 2026-10-28): roles and economy in the

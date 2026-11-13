@@ -21,7 +21,7 @@
 //
 // PURE except for `residueStore`, the adapter onto one character's residue.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.123';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.125';
 
 export const SIZE_CLASSES = Object.freeze(['desktop', 'phone']);
 export const OPACITY_MIN = 0.4;
@@ -383,7 +383,7 @@ export function residueStore(character) {
 
 /**
  * @param {object} o
- * @param {object[]} o.widgets             the rows (src/data/hud-widgets.js)
+ * @param {readonly object[]} o.widgets    the rows (src/data/hud-widgets.js)
  * @param {() => string} o.sizeClass       'desktop' | 'phone'
  * @param {{read():object|null, write(v:object):void}} o.store
  * @param {(id: string) => boolean} [o.inHunt]  true while hunt widget `id` belongs on screen (a hunt is running;

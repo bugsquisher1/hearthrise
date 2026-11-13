@@ -17,8 +17,8 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================================
 
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.123';
-import { TEMPER_RUNGS, TEMPER_RUNG_PM, TEMPER_TIERS, temperUnlockId } from '../data/temper.js?v=0.2.123';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.125';
+import { TEMPER_RUNGS, TEMPER_RUNG_PM, TEMPER_TIERS, temperUnlockId } from '../data/temper.js?v=0.2.125';
 
 /* The armor points a piece wears: a shield or a cape wears none here (mitigation.js armourValues reads the same pieces). */
 const armorPointsOf = (it) => (it && it.slot && ARMOUR_WEIGHT[it.armourClass] ? Math.floor(Number(it.defB) || 0) : 0);

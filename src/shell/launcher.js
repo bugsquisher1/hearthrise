@@ -6,23 +6,23 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.123';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.123';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.123';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.123';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf } from '../session/item-sections.js?v=0.2.123';
-import { gmOf, levelOf } from '../session/character-sections.js?v=0.2.123';
-import { huntOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.123';
-import { COACH_READ_MAX, COACH_HID_MAX } from '../session/residue.js?v=0.2.123';
-import { TIPS } from '../data/tips.js?v=0.2.123';
-import { switchOn, setSwitch } from '../session/player-switch.js?v=0.2.123';
-import { t } from '../render/player-text.js?v=0.2.123';
-import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.123';
-import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.123';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.123';
-import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.123';
-import { draftOf, serverBar } from './bar-draft.js?v=0.2.123';
-import { trackOnce } from '../net/observability.js?v=0.2.123';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.125';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.125';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.125';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.125';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf } from '../session/item-sections.js?v=0.2.125';
+import { gmOf, levelOf } from '../session/character-sections.js?v=0.2.125';
+import { huntOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.125';
+import { COACH_READ_MAX, COACH_HID_MAX } from '../session/residue.js?v=0.2.125';
+import { TIPS } from '../data/tips.js?v=0.2.125';
+import { switchOn, setSwitch } from '../session/player-switch.js?v=0.2.125';
+import { t } from '../render/player-text.js?v=0.2.125';
+import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.125';
+import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.125';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.125';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.125';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.125';
+import { trackOnce } from '../net/observability.js?v=0.2.125';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -444,7 +444,7 @@ export function ringPlan(card, at) {
       /* Enter while the ground is the picked one and on screen; else its line (a phone shows the list first); on a
          phone showing ANOTHER ground's page, the way back to the list */
       return [inWin('hunts', '.hw-hunt-enter[data-hunt="' + hunt + '"]:not([disabled])'),
-        inWin('hunts', '.hw-hunt[data-hunt="' + hunt + '"]'), '[data-hs-win="hunts"]:not(:has(.hw-hunt-enter[data-hunt="' + hunt + '"])) .hw-hd-back'];
+        inWin('hunts', '.hw-hunt[data-hunt="' + hunt + '"]'), '[data-hs-win="hunts"]:not(:has(.hw-hunt-enter[data-hunt="' + hunt + '"])) .hs-win-head .hs-back'];
     }
     case 'hunt_topbar': return ['[data-hs-widget="hunt-topbar"] [data-hs-act="leave"]:not([disabled])'];
     case 'action_bar': {

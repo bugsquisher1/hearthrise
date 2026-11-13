@@ -170,7 +170,7 @@ async function settingsTabs(page, tag, fails, home) {
   const tabs = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="settings"] .st-tab:not([hidden])')).map((t) => t.getAttribute('data-cat')));
   if (tabs.length < 2) fails.push('WC-6 [' + tag + '] Settings shows ' + tabs.length + ' tab(s)');
   for (const cat of tabs) {
-    const back = await page.$('[data-hs-win="settings"] .st-back');
+    const back = await page.$('[data-hs-win="settings"] .hs-win-head .hs-back');
     if (back && await back.isVisible()) { await back.click(); await page.waitForTimeout(80); }
     await page.click('[data-hs-win="settings"] .st-tab[data-cat="' + cat + '"]');
     await settle(page);

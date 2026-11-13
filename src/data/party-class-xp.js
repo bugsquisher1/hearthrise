@@ -32,9 +32,9 @@
 // PURE ESM. Data, and the one reader of it (the engine and the party window both).
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_ROLES } from './hunt-roles.js?v=0.2.123';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.123';
-import { foldRows } from './grounds/shape.js?v=0.2.123';
+import { HUNT_ROLES } from './hunt-roles.js?v=0.2.125';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.125';
+import { foldRows } from './grounds/shape.js?v=0.2.125';
 
 /* THE CLASSES a party can hold: class id → the word the player reads and the hunt roles it covers.
    Tank is a function of a Melee, not a class of its own (Tyler 2026-10-16). */
@@ -94,7 +94,9 @@ const BASE_CLASS_XP = Object.freeze({
      four of staves at 8 each 1.014 (960). */
   meadowbrook_thicket: row([1145, 2375], [1110, 2750, 3055], [1305, 3510, 3675, 3760]),
   wickstead: row([1070, 2420], [1315, 2750, 3010], [1460, 3835, 3965, 4070]),
-  mosslight_glade: row([1085, 2035], [1290, 2190, 2360], [1270, 2690, 2895, 2955]),
+  /* the four's mixed cells +1.5% (designer 2026-11-12): with the Brook Bear a heavy (balance-sheet.js roster) the Glade's four read 1.144 at its middle (24) against
+     the 1.15-1.25 band, 1.221 at the floor; 2730 / 2940 / 3000 land the middle about 1.16 and the floor about 1.24. One-class cell unchanged. */
+  mosslight_glade: row([1085, 2035], [1290, 2190, 2360], [1270, 2730, 2940, 3000]),
   millrace_sewer: row([1110, 1820], [1265, 1980, 2070], [1260, 1940, 2025, 2170]),
   /* One class under the even share (Tyler 2026-10-31, "only better if there are different classes"; lane/c-caster-party-line). With Green Sickness on the Healer's default bar a pair at 8 each read 1.033 against
      one alone and a four 1.005: the debuff stays up far longer in a one-class party, as Greater Mend's load splits (a head's casts an hour, alone 84 and 256, in a pair 144 and 168). Mana gates can't hold it (at 95% the

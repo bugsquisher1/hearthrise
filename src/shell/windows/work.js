@@ -25,26 +25,26 @@
 // (src/shell/town-ticker.js), as pending; the rows' numbers stay the server's.
 // Farming has no door here: it is grown in plots, which this window does not run.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.123';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.123';
-import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.123';
-import { skillsOf, skillLevelsOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.123';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.123';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.123';
-import { whole } from '../../render/format.js?v=0.2.123';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.123';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.123';
-import { runIntent } from '../intent-words.js?v=0.2.123';
-import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.123';
-import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, perHourOf, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf, toolLine, shortInputLine } from '../town-work.js?v=0.2.123';
-import { patchParts, placesParts } from '../goto.js?v=0.2.123';
-import { saleWords } from '../item-lore.js?v=0.2.123';
-import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.123';
-import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.123';
-import { rollOddsOf } from '../../session/jewelry-sections.js?v=0.2.123';
-import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark-pane.js?v=0.2.123';
-import { DEFAULT_SORT, stationSortOf, withStationSort, orderStation, sortMenuHtml, patchSortMenu } from '../station-sort.js?v=0.2.123';
-import { t } from '../../render/player-text.js?v=0.2.123';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.125';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.125';
+import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.125';
+import { skillsOf, skillLevelsOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.125';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.125';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.125';
+import { whole } from '../../render/format.js?v=0.2.125';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.125';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.125';
+import { runIntent } from '../intent-words.js?v=0.2.125';
+import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.125';
+import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, perHourOf, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, BENCH_MAX, clampCount, defaultCount, leftOf, toolLine, shortInputLine } from '../town-work.js?v=0.2.125';
+import { patchParts, placesParts } from '../goto.js?v=0.2.125';
+import { saleWords } from '../item-lore.js?v=0.2.125';
+import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.125';
+import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.125';
+import { rollOddsOf } from '../../session/jewelry-sections.js?v=0.2.125';
+import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark-pane.js?v=0.2.125';
+import { DEFAULT_SORT, stationSortOf, withStationSort, orderStation, sortMenuHtml, patchSortMenu } from '../station-sort.js?v=0.2.125';
+import { t } from '../../render/player-text.js?v=0.2.125';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;
@@ -110,7 +110,11 @@ function rowHtml(g, w) {
     /* "Make N" (a bench row only), under the row's words: how many the next Start makes; the server stops the bench there. */
     + (w.kind === 'artisan' ? '<span class="hh-segs hw-work-n" role="group" aria-label="How many to make">'
       + BENCH_COUNTS.map((n) => '<button type="button" class="hh-seg" data-hs-act="work-n" data-id="' + esc(w.id) + '" data-n="' + n + '">'
-        + (n === 'all' ? 'All' : n) + '</button>').join('') + '</span>' : '')
+        + (n === 'all' ? 'All' : n) + '</button>').join('')
+      + '<button type="button" class="hh-seg hw-work-xb" data-hs-act="work-x" data-id="' + esc(w.id) + '" data-n="x">X</button>'
+      + '<span class="hw-work-x" hidden><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="7" autocomplete="off" enterkeyhint="done"'
+      + ' class="hw-work-xf" data-hs-act="work-x-field" data-id="' + esc(w.id) + '" aria-label="How many, 1 to ' + BENCH_MAX + '">'
+      + '<button type="button" class="hh-seg" data-hs-act="work-x-set" data-id="' + esc(w.id) + '">Set</button></span></span>' : '')
     + '</span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="' + w.kind + '" data-id="' + esc(w.id) + '"></button></li>';
 }
 
@@ -146,8 +150,15 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
   const short = why ? shortInputLine(cs, w, hunting) : null;
   patchParts(li.querySelector('.hw-work-why'), short ? [short.head].concat(short.places.length ? [' '] : [], placesParts(short.places))
     : [why || (running ? 'Working on it now · ' + (left !== null ? whole(left) + ' left · ' : '') : '') + have]);
+  /* "X": a typed count shows on its button; the field is open only on the row that asked for it. */
+  const custom = typeof pick === 'number' && !BENCH_COUNTS.includes(pick);
+  const xb = li.querySelector('.hw-work-xb');
+  if (xb) text(xb, custom ? whole(pick) : 'X');
+  const xs = li.querySelector('.hw-work-x');
+  if (xs) attr(xs, 'hidden', sc.xOpen === w.id && !running ? null : '');
   for (const s of li.querySelectorAll('.hw-work-n .hh-seg')) {
-    attr(s, 'aria-pressed', String(s.getAttribute('data-n') === String(pick)));
+    const dn = s.getAttribute('data-n');
+    if (dn !== null) attr(s, 'aria-pressed', String(dn === 'x' ? custom : dn === String(pick)));
     prop(s, 'disabled', sc.pending || running);
   }
   cls(li, 'is-on', running);
@@ -165,7 +176,7 @@ export function renderWork() {
     + '<div class="hw-burying hw-work-now" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="work-stop">' + t('controls.stop') + '</button></div>'
     + '<p class="hs-note hw-work-end" role="status"></p>'
     + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make.</p>' + renderTradeSkills() + '</div>'
-    + '<section class="hw-work"><div class="hw-work-head"><button type="button" class="hh-tool" data-hs-act="work-back">‹ ' + t('controls.back') + '</button>'
+    + '<section class="hw-work"><div class="hw-work-head">'
     + '<b class="hw-work-title"></b>' + skillBarHtml('Skill') + '<small class="hw-skill-xp"></small><b class="hw-skill-lv"></b></div>'
     + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p>' + hallmarkPaneHtml() + sortMenuHtml() + '<ul class="hw-ledger hw-work-rows"></ul></section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
@@ -247,6 +258,16 @@ renderWork.patch = function patchWork(body, ctx) {
 /* Enter or Space on a focused skill opens it, like a press. */
 renderWork.events = Object.freeze(['keydown']);
 
+/* The typed count, clamped to what the server takes, becomes the row's pick (Enter or Set). */
+function setX(sc, field, repaint) {
+  const n = field ? clampCount(field.value) : null;
+  const id = field && field.getAttribute('data-id');
+  if (id && n !== null) sc.n[id] = n;
+  sc.xOpen = null;
+  repaint();
+  return true;
+}
+
 renderWork.act = function actWork(ctx, body, action, ev, el) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
@@ -258,6 +279,11 @@ renderWork.act = function actWork(ctx, body, action, ev, el) {
     const next = withStationSort(residueOf(cs), sc.skill, el.value);
     if (next) { cs.setResidue('stationSort', next); repaint(); }
     return false;
+  }
+  if (action === 'work-x-field') {
+    if (ev.type !== 'keydown') return false;
+    if (ev.key === 'Escape') { sc.xOpen = null; repaint(); return true; }
+    return ev.key === 'Enter' ? setX(sc, el, repaint) : false;
   }
   if (ev.type === 'keydown') {
     if (action !== 'open-skill' || (ev.key !== 'Enter' && ev.key !== ' ')) return false;
@@ -273,6 +299,15 @@ renderWork.act = function actWork(ctx, body, action, ev, el) {
     if (id && BENCH_COUNTS.includes(n)) { sc.n[id] = n; repaint(); }
     return true;
   }
+  if (action === 'work-x') {
+    const id = el.getAttribute('data-id');
+    sc.xOpen = sc.xOpen === id ? null : id;
+    repaint();
+    const f = sc.xOpen && el.parentNode.querySelector('.hw-work-xf');
+    if (f) { f.value = typeof sc.n[id] === 'number' ? String(sc.n[id]) : ''; f.focus(); }
+    return true;
+  }
+  if (action === 'work-x-set') return setX(sc, el.parentNode.querySelector('.hw-work-xf'), repaint);
   if (action === 'work-go') {
     const w = workRow(el.getAttribute('data-kind'), el.getAttribute('data-id'));
     if (!w) return true;
@@ -285,3 +320,6 @@ renderWork.act = function actWork(ctx, body, action, ev, el) {
   }
   return false;
 };
+
+/* The header's Back (src/shell/window-head.js): a skill's rows go back to the ledger. */
+renderWork.inner = (ctx, body) => (body.querySelector('.hw-work.is-on') ? 'work-back' : null);

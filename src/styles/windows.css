@@ -363,7 +363,6 @@
 .hw-hunt-detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--fill-1); border: 2px solid var(--steel-edge); border-left-color: var(--steel-rule); }
 .hw-hunt-detail[hidden] { display: none; }
 .hw-hd-page { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 18px 12px; }
-.hw-hd-back { display: none; }
 .hw-hd-head { margin-bottom: 8px; }
 /* The ground's name, as a place is named: Cinzel in gold (ART_DIRECTION §10). */
 .hw-hd-name { margin: 0; font-family: var(--f-display); font-size: calc(var(--t-h2) * 1.2); font-weight: 700; line-height: 1.15; letter-spacing: .05em; color: var(--gold-2); }
@@ -546,6 +545,10 @@
 .hw-work-n { align-self: flex-start; margin-top: 4px; }
 .hw-work-n .hh-seg { min-width: 32px; min-height: 24px; padding: 0 6px; }
 .hw-work-row.is-locked .hw-work-n { display: none; }
+.hw-work-x { display: inline-flex; gap: 4px; margin-left: 4px; }
+.hw-work-x[hidden] { display: none; }
+.hw-work-xf { width: 72px; min-height: 24px; padding: 0 2px; border: 0; border-bottom: 1px solid var(--line-soft); background: none; color: var(--gold-2); font: inherit; font-size: 12px; text-align: center; }
+.hw-work-xf:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 /* A crafting station's Sort menu (src/shell/station-sort.js): the bag's own label and select, at the list's top right. */
 .hw-work-sort { display: flex; justify-content: flex-end; margin: 4px 0; }
 .hw-work-sort[hidden] { display: none; }
@@ -720,7 +723,7 @@
   /* THE PICKED ITEM STAYS IN REACH (QA 10-24: Equip sat under 42 stacks, a scroll away): its line pins to the
      sheet's foot while the bag scrolls, on the sheet's own floor. */
   .hw-pick.is-on { position: sticky; bottom: -10px; z-index: 1; margin: 8px -10px 0; padding: 6px 10px 8px; background: var(--bg-1); border-top: 2px solid var(--steel-sep); }
-  .hw-work-row .hh-tool, .hw-work-head .hh-tool, .hw-work-now .hh-tool, .hw-work-n .hh-seg { min-height: 40px; }
+  .hw-work-row .hh-tool, .hw-work-head .hh-tool, .hw-work-now .hh-tool, .hw-work-n .hh-seg, .hw-work-xf { min-height: 40px; }
   .hw-work-hint { display: none; }
   /* Hunts on the sheet: the list first; a pick opens the ground's page in its place, with the way back on top. */
   .hw-hunts-cols { display: flex; flex-direction: column; }
@@ -730,8 +733,6 @@
   /* A ground's page has the sheet to itself: the list's notes wait on the list. */
   .hw-hunts.is-paged .hw-hunt-list, .hw-hunts.is-paged .hw-hunts-now, .hw-hunts.is-paged .hw-hunts-reco { display: none; }
   .hw-hunts.is-paged .hw-hunt-detail:not([hidden]) { display: flex; flex: 1 1 auto; }
-  .hw-hd-back { display: inline-flex; align-items: center; min-height: 40px; margin: 0 0 4px -6px; }
-  .hw-hd-foot .hw-hd-back { margin: 0; }
   .hw-hd-page { padding: 8px 12px 10px; }
   /* THE PAGE GETS THE SHEET (phone panel v0.2.83: 104 px of a 1501 px page, about 14 swipes to the drops): no second frame
      or padding round it; only the sheet's head and the foot (the way back, Enter) stand outside its scroller. */
@@ -1054,6 +1055,12 @@
 .ht-count b { font-weight: 800; font-size: var(--t-lead); color: var(--ink); }
 .ht-count small { margin-left: 3px; font-weight: 400; font-size: var(--t-micro); color: var(--ink-3); }
 .ht-entry .ht-pocket { grid-column: 2; grid-row: 1 / span 2; }
+.ht-face { display: none; }
+/* The creature's head (art brief 15): the bag's sunk well, no frame of its own, the bust at its one 32 px density; no head, no well and the two columns stay. */
+.ht-entry.has-face { grid-template-columns: 44px minmax(0, 1fr) 44px; }
+.ht-entry.has-face .ht-face { display: grid; grid-column: 1; grid-row: 1 / span 2; width: 44px; height: 44px; place-items: center; background: var(--bg-1); box-shadow: var(--hw-well); }
+.ht-entry.has-face .ht-entry-top, .ht-entry.has-face .ht-marks { grid-column: 2; }
+.ht-entry.has-face .ht-pocket { grid-column: 3; }
 .ht-get, .ht-once { grid-column: 1 / -1; margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
 .ht-get:empty, .ht-once:empty { display: none; }
 .ht-entry .ht-once { color: var(--gold-2); }
@@ -1126,6 +1133,9 @@
   background: url('../../assets/ui/ground-shadow.png') 50% 100% / 48px 10px no-repeat; image-rendering: pixelated; }
 .mf-sprite { display: block; image-rendering: pixelated; }
 .mf-stand:not(.is-drawn) .mf-sprite { width: 0; height: 0; }
+/* The creature's head (art brief 15): the Tally's sunk well, the bust at its one 32 px density; no head, no well. */
+.mf-face { display: grid; flex: none; width: 44px; height: 44px; place-items: center; align-self: center; background: var(--bg-1); box-shadow: var(--hw-well); }
+.mf-face[hidden] { display: none; }
 .mf-id { min-width: 0; padding-bottom: 2px; }
 .mf-name { margin: 0; font-family: var(--f-display); font-size: var(--t-h2); font-weight: 700; line-height: 1.15; letter-spacing: .05em; color: var(--gold-2); }
 .mf-kind { margin: 2px 0 0; font-size: var(--t-small); color: var(--ink-2); }

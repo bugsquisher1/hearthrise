@@ -13,22 +13,22 @@
 // as numbers with their sales count, and the player types the price, until the server's read
 // carries the sample rules. A listing's price then only ever comes from this player's eyes.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.123';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.123';
-import { whole } from '../../../render/format.js?v=0.2.123';
-import { ITEMS } from '../../../data/items.js?v=0.2.123';
-import { jewelSuggestedAsk } from '../../../data/jewelry.js?v=0.2.123';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.123';
-import { bagOf, bankOf, shopOf, rulesOf as bagRulesOf, nameOf, presetsOf, goldOf } from '../../../session/item-sections.js?v=0.2.123';
-import { refusalText } from '../../intent-words.js?v=0.2.123';
-import { marketList } from '../../../session/market-intents.js?v=0.2.123';
-import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.123';
-import { feeOf, netEachOf, netLotOf, evenAskOf, sellRowWords, goldWords, priceSample, ageWords } from '../../market-model.js?v=0.2.123';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.123';
-import { notListableWords, keptWords } from '../../market-words.js?v=0.2.123';
-import { toolLossWords } from '../../town-work.js?v=0.2.123';
-import { viewOf, setView, readItem, readNamed, rereadAll, holdGesture, dropGesture } from './state.js?v=0.2.123';
-import { t } from '../../../render/player-text.js?v=0.2.123';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.125';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.125';
+import { whole } from '../../../render/format.js?v=0.2.125';
+import { ITEMS } from '../../../data/items.js?v=0.2.125';
+import { jewelSuggestedAsk } from '../../../data/jewelry.js?v=0.2.125';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.125';
+import { bagOf, bankOf, shopOf, rulesOf as bagRulesOf, nameOf, presetsOf, goldOf } from '../../../session/item-sections.js?v=0.2.125';
+import { refusalText } from '../../intent-words.js?v=0.2.125';
+import { marketList } from '../../../session/market-intents.js?v=0.2.125';
+import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.125';
+import { feeOf, netEachOf, netLotOf, evenAskOf, sellRowWords, goldWords, priceSample, ageWords } from '../../market-model.js?v=0.2.125';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.125';
+import { notListableWords, keptWords } from '../../market-words.js?v=0.2.125';
+import { toolLossWords } from '../../town-work.js?v=0.2.125';
+import { viewOf, setView, readItem, readNamed, rereadAll, holdGesture, dropGesture } from './state.js?v=0.2.125';
+import { t } from '../../../render/player-text.js?v=0.2.125';
 
 /** The Sell pane's skeleton. */
 export function sellHtml() {
@@ -37,7 +37,6 @@ export function sellHtml() {
     + '<button type="button" class="hh-seg" data-hs-act="ms-from" data-from="storage" aria-pressed="false">Storage</button><p class="hs-note hw-mk-kept"></p></div>'
     + '<div class="hw-mk-cols"><ul class="hw-mk-list" role="listbox" aria-label="What to sell"></ul>'
     + '<section class="hw-mk-page" aria-label="The picked stack"><div class="hw-hd-page">'
-    + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="ms-back">' + t('controls.back') + '</button>'
     + '<p class="hh-empty hw-mk-pickone">Pick a stack to see what it would fetch.</p>'
     + '<div class="hw-mk-sheet"><div class="hw-mk-head"><span class="hw-ico hw-mk-ico"></span><div class="hw-mk-title"><h3 class="hw-hd-name hw-mk-name"></h3><p class="hw-hd-band hw-mk-kind"></p></div></div>'
     + '<dl class="hw-mk-facts"><dt>The shop pays</dt><dd data-f="shop"></dd><dt>Lowest now</dt><dd data-f="low"></dd><dt>Last sold</dt><dd data-f="last"></dd></dl>'

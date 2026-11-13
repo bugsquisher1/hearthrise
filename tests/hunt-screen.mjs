@@ -877,7 +877,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         const withWin = await page.evaluate(() => document.querySelectorAll('.hs-pointer').length);
         if (withWin) fails.push('HS-10b the tutorial card is drawn over an open window (' + withWin + ')');
-        for (let i = 0; i < 4 && await page.$('[data-hs-win] [data-hs-close]'); i++) { await page.click('[data-hs-win] [data-hs-close]'); await page.waitForTimeout(300); }
+        for (let i = 0; i < 4 && await page.$('[data-hs-win] [data-hs-close]'); i++) {
+          /* A Close something else lies over is a player who cannot shut the window: a named fail, never a harness timeout. */
+          const shut = await page.click('[data-hs-win] [data-hs-close]', { timeout: 3000 }).then(() => true, (e) => String(e.message || e).split('\n').find((l) => /intercepts/.test(l)) || 'unclickable');
+          if (shut !== true) { fails.push('HS-10b an open window\'s Close cannot be pressed: ' + shut.trim()); break; }
+          await page.waitForTimeout(300);
+        }
         await wait(page, () => !document.querySelector('[data-hs-win]'));
         await pushEnvelope(page, s);
         await wait(page, () => document.querySelectorAll('.hs-pointer').length === 1);
@@ -1014,7 +1019,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     }
 
     { // HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop (Tyler 10-19)
-      const { ctx, page, up } = await open();
+      /* Below the fold width the analyzer and the Tally start folded (HS-28); this player opened them (residue hudLayout), so the
+         narrow passes still have open edge panels for the hunt bar to slide or step clear of. */
+      const { ctx, page, up } = await open({ prep: (s) => { s.env.client_state = { hudLayout: { desktop: { analyzer: { folded: false }, tally: { folded: false } } } }; } });
       if (up) {
         const overlaps = () => page.evaluate(() => {
           const els = Array.from(document.querySelectorAll('[data-hs-hud="world"] [data-hs-widget]')).map((e) => [e.getAttribute('data-hs-widget'), e.getBoundingClientRect()]);

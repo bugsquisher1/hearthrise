@@ -10,12 +10,12 @@
 // Search filters every category by label and help text at once. Built once;
 // patched in place through paint.js, so a search or a toggle never rebuilds it.
 // ════════════════════════════════════════════════════════════════════════
-import { SETTINGS, SETTING_CATEGORIES } from '../../data/settings.js?v=0.2.123';
-import { read, write, visible, categoriesFor, search } from '../settings-model.js?v=0.2.123';
-import { keyLabel } from '../launcher.js?v=0.2.123';
-import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.123';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.123';
-import { t } from '../../render/player-text.js?v=0.2.123';
+import { SETTINGS, SETTING_CATEGORIES } from '../../data/settings.js?v=0.2.125';
+import { read, write, visible, categoriesFor, search } from '../settings-model.js?v=0.2.125';
+import { keyLabel } from '../launcher.js?v=0.2.125';
+import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.125';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.125';
+import { t } from '../../render/player-text.js?v=0.2.125';
 
 function control(r) {
   const sid = 'data-sid="' + esc(r.id) + '" data-hs-act="set"';
@@ -53,7 +53,7 @@ export function renderSettings() {
   return '<div class="st" data-view="list">'
     + '<div class="st-find"><input type="search" class="st-search" data-hs-act="search" placeholder="Search settings" aria-label="Search settings" autocomplete="off"></div>'
     + '<div class="st-body"><nav class="st-tabs" aria-label="Setting categories">' + tabs + '</nav>'
-    + '<div class="st-pages"><button type="button" class="st-back" data-hs-act="back">&lsaquo; ' + t('controls.back') + '</button>' + pages
+    + '<div class="st-pages">' + pages
     + '<p class="hs-note st-none" hidden>No setting matches that.</p></div></div></div>';
 }
 
@@ -91,7 +91,6 @@ renderSettings.patch = function patchSettings(body, ctx) {
   }
   attr(root.querySelector('.st-none'), 'hidden', any);
   attr(root, 'data-view', q ? 'page' : root.getAttribute('data-view'));
-  text(root.querySelector('.st-back'), '‹ ' + (q ? t('controls.clear_search') : t('controls.back')));
 };
 
 renderSettings.act = function actSettings(ctx, body, action, ev, el) {
@@ -120,3 +119,6 @@ renderSettings.act = function actSettings(ctx, body, action, ev, el) {
   } else return;
   renderSettings.patch(body, ctx);
 };
+
+/* The header's Back (src/shell/window-head.js): on a phone, a page (or a search) goes back to the list. */
+renderSettings.inner = (ctx, body) => { const st = body.querySelector('.st'); return ctx.isPhone() && st && st.getAttribute('data-view') === 'page' ? 'back' : null; };

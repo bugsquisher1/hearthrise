@@ -12,7 +12,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/shell-hud.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js src/shell/windows/inventory/elsewhere.js src/shell/station-sort.js src/shell/windows/inventory/selection.js src/data/text/bag.js src/shell/prep-draft.js src/shell/windows/hunt-prep/builder.js src/shell/windows/hunt-prep/setups.js src/session/preset-read.js src/shell/window-fit.js src/shell/window-manager.js src/styles/market.css
+// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/shell-hud.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js src/shell/windows/inventory/elsewhere.js src/shell/station-sort.js src/shell/windows/inventory/selection.js src/data/text/bag.js src/shell/prep-draft.js src/shell/windows/hunt-prep/builder.js src/shell/windows/hunt-prep/setups.js src/session/preset-read.js src/shell/window-fit.js src/shell/window-manager.js src/shell/window-head.js src/styles/market.css
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -126,6 +126,10 @@
 //         Shift+arrow take the range from the anchor, growing and shrinking, Ctrl+Shift adding it; the line reads
 //         "N selected · value X gp" at the shop's bids (the count alone with no shop) and Lock reads Unlock over a
 //         locked selection; the help line names those keys and is the line the grid shows
+//   AW-94 ONE WINDOW HEADER (UX flow audit 2026-11-11): at 1440 every keyed row of src/data/shell-windows.js opens wearing the same band
+//         (Back, title, ? where it has help, key, Close); a creature on a ground's page opens Monster facts as a PAGE of Hunts with Back,
+//         and a link out of it opens a window whose Back says Back to Hunts and goes there; the bag stays open beside Storage, the Shop
+//         and Character; Hunts lies over Party and Gathering without closing them; two more gold plates planted in the Shop leave one gold
 //   AW-93 A WINDOW OPENS WHOLE (Tyler 2026-11-11, the Hunts window at 1014x652: "when I open a menu, part of it shouldn't
 //         automatically be cut off"): at 1014x652, 1024x768 and 922x423, a Level 36 hero in town, Hunts, Inventory, Shop and Market each
 //         open inside the World, lose no word or press to a box that hides its overflow or to the frame, and every scroll
@@ -1233,7 +1237,7 @@ async function panelLeftovers(base) {
   const bySuggest = [[{ boots: 'leather_boots' }, 'tank', 'medium'], [{ helmet: 'iron_helm' }, 'mage', 'heavy'], [{}, 'tank', 'heavy'], [{}, 'melee_dps', 'heavy'], [{}, 'ranger', 'medium'], [{}, 'mage', 'light'], [{}, 'healer', 'light']];
   for (const [w, r, want] of bySuggest) if ((suggestedWeight(w, r) || {}).weight !== want) fails.push('AW-62 a first Take for ' + r + ' in ' + JSON.stringify(w) + ' asks for ' + JSON.stringify(suggestedWeight(w, r)));
   if (suggestedWeight({}, null) !== null) fails.push('AW-62 with nothing said a first Take still guesses ' + JSON.stringify(suggestedWeight({}, null)));
-  if (takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')) !== 'Your first Take asks her for heavy armor, which suits a shield tank. Change it below any time.') fails.push('AW-62 the line over her board with a suggestion reads ' + takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')));
+  if (takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')) !== 'When you take your first task, she pays you in heavy armor, which suits a shield tank. Change it below any time.') fails.push('AW-62 the line over her board with a suggestion reads ' + takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')));
   if (!/^Pick the armor weight/.test(takeWhyOf({ weight: null, held: [], heldMax: 3 }, false)) || !/^You have three of mine already/.test(takeWhyOf({ weight: 'heavy', held: [1, 2, 3], heldMax: 3 }, false))
     || takeWhyOf({ weight: 'heavy', held: [], heldMax: 3 }, false) !== '' || takeWhyOf({ weight: null, held: [], heldMax: 3 }, true) !== '') fails.push('AW-62 the line over her board is wrong');
   const { buryLabel, buryRecipeOf } = await imp('src/shell/windows/inventory/bury.js');
@@ -2902,7 +2906,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (!up || !(await openWin(page, 'h', 'hunts'))) fails.push('AW-25 the Hunts sheet did not open at 922x423');
       else {
         const seen = () => page.evaluate((w) => { const on = (q) => { const n = document.querySelector(w + q); return !!n && n.getClientRects().length > 0; };
-          const b = document.querySelector(w + '.hs-win-body'); return [on('.hw-hunt-list'), on('.hw-hunt-detail'), on('.hw-hd-back'), b.scrollWidth <= b.clientWidth + 1].join(); }, W);
+          const b = document.querySelector(w + '.hs-win-body'); return [on('.hw-hunt-list'), on('.hw-hunt-detail'), on('.hs-win-head .hs-back'), b.scrollWidth <= b.clientWidth + 1].join(); }, W);
         /* A press as the shell routes it (a DOM click): a control a mutant leaves off-screen is a rule's red, not a harness timeout. */
         const press = (q) => page.evaluate((sel) => { const n = document.querySelector(sel); if (n) n.click(); return !!n; }, W + q);
         const s0 = await seen();
@@ -2911,7 +2915,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(300);
         const s1 = await seen();
         if (shots) await shot(page, 'hunts-922x423-sewer');
-        await press('.hw-hd-back');
+        await press('.hs-win-head .hs-back');
         await page.waitForTimeout(200);
         const s2 = await seen();
         if (s0 !== 'true,false,false,true' || s1 !== 'false,true,true,true' || s2 !== 'true,false,false,true') fails.push('AW-25 the phone sheet shows (list, page, back, fits) ' + JSON.stringify([s0, s1, s2]));
@@ -3776,13 +3780,31 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const five = r.find((x) => x.id === 'smelt_bronze');
           if (!five || five.n !== '5' || !/^Makes 5 of up to 5 · /.test(five.why)) fails.push('AW-22 picking 5 reads ' + JSON.stringify(five));
           if (shots) await shot(page, 'work-1440x900-smithing');
+          /* AW-22X "X" (Andy, Discord 2026-11-12): X opens a number field; 37 + Enter makes the pick 37 and Start sends count 37.
+             0 clamps to 1 and 200000 to 100000 (the server's active_left range); Escape closes without a change. */
+          const XR = W + ' .hw-work-row[data-id="smelt_bronze"]';
+          const typeX = async (v, key) => { await page.click(XR + ' [data-hs-act="work-x"]'); await page.waitForTimeout(100); await page.fill(XR + ' .hw-work-xf', v);
+            if (key) await page.press(XR + ' .hw-work-xf', key); else await page.click(XR + ' [data-hs-act="work-x-set"]'); await page.waitForTimeout(150); };
+          const xBtn = () => page.evaluate((r) => { const b = document.querySelector(r + ' .hw-work-xb'); const f = document.querySelector(r + ' .hw-work-x');
+            return { t: b.textContent, on: b.getAttribute('aria-pressed'), open: !f.hidden, im: document.querySelector(r + ' .hw-work-xf').getAttribute('inputmode') }; }, XR);
+          await typeX('0');
+          r = await rowsOf(); /* 1 is a choice of its own: its button lights, X stays X */
+          if ((r.find((x) => x.id === 'smelt_bronze') || {}).n !== '1' || (await xBtn()).t !== 'X') fails.push('AW-22X 0 did not clamp to 1: ' + JSON.stringify(await xBtn()));
+          await typeX('200000', 'Enter');
+          if ((await xBtn()).t !== '100,000') fails.push('AW-22X 200000 did not clamp to 100000: ' + JSON.stringify(await xBtn()));
+          await typeX('9', 'Escape');
+          let xb = await xBtn();
+          if (xb.t !== '100,000' || xb.open) fails.push('AW-22X Escape changed the pick or left the field open: ' + JSON.stringify(xb));
+          await typeX('37', 'Enter');
+          xb = await xBtn();
+          if (xb.t !== '37' || xb.on !== 'true' || xb.open || xb.im !== 'numeric') fails.push('AW-22X X set to 37 reads ' + JSON.stringify(xb));
           await page.click(W + ' .hw-work-row[data-id="smelt_bronze"] .hw-work-go');
           await page.waitForTimeout(800);
           go = sent(s, 'hr-accrue', 'set_activity');
-          if (go.length !== 2 || JSON.stringify(go[1].body.activity) !== '{"kind":"artisan","id":"smelt_bronze","count":5}') fails.push('AW-22 the switch sent ' + JSON.stringify(go.map((c) => c.body)));
+          if (go.length !== 2 || JSON.stringify(go[1].body.activity) !== '{"kind":"artisan","id":"smelt_bronze","count":37}') fails.push('AW-22 the switch sent ' + JSON.stringify(go.map((c) => c.body)));
           if (!/^Making Bronze Bar: 0 made so far, \d+ Copper Ore left\. It stops when they run out\.$/.test(await nowText())) fails.push('AW-22 the bench line reads ' + JSON.stringify(await nowText()));
           r = await rowsOf();
-          if (!/^Working on it now · 5 left · Makes 5 of up to 5 · /.test((r.find((x) => x.id === 'smelt_bronze') || {}).why)) fails.push('AW-22 the bag was spent before the server did it: ' + JSON.stringify(r.find((x) => x.id === 'smelt_bronze')));
+          if (!/^Working on it now · 37 left · Makes 5 of up to 5 · /.test((r.find((x) => x.id === 'smelt_bronze') || {}).why)) fails.push('AW-22 the bag was spent before the server did it: ' + JSON.stringify(r.find((x) => x.id === 'smelt_bronze')));
           await page.click(W + ' .hw-work-now [data-hs-act="work-stop"]');
           await page.waitForTimeout(800);
           go = sent(s, 'hr-accrue', 'set_activity');
@@ -4022,16 +4044,18 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (chrome.tabs.length && chrome.tabs.some((t) => t.over > 0 || t.right > chrome.edge)) fails.push('AW-62 in ' + font + ' the analyzer tabs read ' + JSON.stringify(chrome));
         }
         const { SHELL_WINDOWS } = await import(pathToFileURL(join(ROOT, 'src/data/shell-windows.js')).href);
+        /* the real band (src/shell/window-head.js), its Back shown: the widest it gets */
+        const { headHtml } = await import(pathToFileURL(join(ROOT, 'src/shell/window-head.js')).href);
         const heads = await page.evaluate((list) => list.map((r) => {
           const host = document.createElement('div');
           host.style.cssText = 'position:fixed;left:0;top:0;visibility:hidden;width:' + r.width + 'px';
-          host.innerHTML = '<header class="hs-win-head"><span class="hs-glyph"></span><h2 class="hs-win-title"></h2>' + (r.key ? '<kbd class="hs-key">M</kbd>' : '') + '<button class="hs-close"></button></header>';
-          host.querySelector('h2').textContent = r.title;
+          host.innerHTML = r.head;
           document.body.appendChild(host);
           const t = host.querySelector('h2'), got = { id: r.id, w: t.scrollWidth - t.clientWidth, band: host.firstChild.offsetHeight, ell: getComputedStyle(t).textOverflow };
           host.remove();
           return got;
-        }), SHELL_WINDOWS.map((r) => ({ id: r.id, title: r.title || r.label, width: r.width, key: r.key })));
+        }), SHELL_WINDOWS.map((r) => ({ id: r.id, width: r.width,
+          head: headHtml(r, {}, false).replace(/^(<header[^>]*>)/, '$1<span class="hs-glyph"></span>').replace(' hidden>&lsaquo;', '>&lsaquo;') })));
         for (const h of heads) if (h.w > 0 || h.band > 46 || h.ell === 'ellipsis') fails.push('AW-61 the ' + h.id + ' title clips: ' + JSON.stringify(h));
         /* the Shop on the phone (a sheet, half of 667): the name has its own line and is never cut; desktop keeps its one row */
         const shopNames = async (p, tag) => {
@@ -4244,6 +4268,117 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       }
     }
 
+    { // AW-94 one window header (UX flow audit 2026-11-11): the same band on every window, Back to where a press came from, a page in its host,
+      // the bag beside Storage, the Shop and Character at 1440, Hunts over the dock, one gold plate per window
+      const { ctx, page, up } = await open({ viewport: { width: 1440, height: 900 } });
+      if (!up) fails.push('AW-94 the 1440 screen did not mount');
+      else {
+        const { SHELL_WINDOWS } = await import(pathToFileURL(join(ROOT, 'src/data/shell-windows.js')).href);
+        const pressOf = (k) => (k === 'escape' ? 'Escape' : k === 'enter' ? 'Enter' : k);
+        for (const r of SHELL_WINDOWS.filter((x) => x.key && !x.modal)) {
+          await openWin(page, pressOf(r.key), r.id);
+          if (!(await wait(page, (w) => document.querySelector('.hs-win[data-hs-win="' + w + '"]:not(.is-leaving)'), r.id, 1500))) { fails.push('AW-94 ' + r.key + ' did not open ' + r.id); continue; }
+          const head = await page.evaluate((id) => {
+            const h = document.querySelector('.hs-win[data-hs-win="' + id + '"] > .hs-win-head');
+            if (!h) return null;
+            const kids = Array.from(h.children).map((c) => ['hs-back', 'hs-win-title', 'hs-help', 'hs-key', 'hs-close'].find((k) => c.classList.contains(k))).filter(Boolean);
+            return { kids: kids.join(' '), name: h.querySelector('.hs-win-name').textContent, key: h.querySelector('.hs-key') ? h.querySelector('.hs-key').textContent : null, back: h.querySelector('.hs-back').textContent.trim() };
+          }, r.id);
+          const want = 'hs-back hs-win-title' + (r.help ? ' hs-help' : '') + ' hs-key hs-close';
+          if (!head || head.kids !== want || head.name !== (r.title || r.label) || head.back !== '‹ Back') fails.push('AW-94 ' + r.id + '\'s header reads ' + JSON.stringify(head) + ', want ' + want);
+        }
+        /* a creature on a ground's page opens its facts as a PAGE of Hunts, with Back */
+        const shown = (q) => page.evaluate((s) => { const n = document.querySelector(s); return !!n && n.getClientRects().length > 0; }, q);
+        if (!(await openWin(page, 'h', 'hunts')) || !(await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hd-mon[data-monster]'), null, 3000))) fails.push('AW-94 CONTROL: no creature on the Hunts page');
+        else {
+          await page.click('[data-hs-win="hunts"] .hw-hd-mon[data-monster]');
+          await wait(page, () => document.querySelector('.hs-win[data-hs-win="hunts"] > .hs-win-body.is-page[data-hs-win="monster"] .mf-name'), null, 3000);
+          await page.waitForTimeout(300);
+          const pg = await page.evaluate(() => ({ page: !!document.querySelector('.hs-win[data-hs-win="hunts"] > .is-page[data-hs-win="monster"]'), second: !!document.querySelector('.hs-win[data-hs-win="monster"]'),
+            own: document.querySelector('.hs-win[data-hs-win="hunts"] > .hs-win-body:not(.is-page)').getClientRects().length > 0, name: document.querySelector('.hs-win[data-hs-win="hunts"] .hs-win-name').textContent }));
+          if (!pg.page || pg.second || pg.own || pg.name !== 'Monster facts' || !(await shown('[data-hs-win="hunts"] .hs-win-head .hs-back'))) fails.push('AW-94 Monster facts from Hunts is not a page with Back: ' + JSON.stringify(pg));
+          if (shots) await shot(page, 'header-1440-monster-page');
+          /* a link out of the page opens its window, whose Back names Hunts and goes there */
+          const out = await page.evaluate(() => { const l = Array.from(document.querySelectorAll('[data-hs-win="monster"] [data-hs-goto]')).find((a) => !/^(hunts|monster)\|/.test(a.getAttribute('data-hs-goto')) && a.getClientRects().length);
+            if (!l) return null; l.setAttribute('data-aw94', ''); return l.getAttribute('data-hs-goto').split('|')[0]; });
+          await page.click('[data-hs-win="hunts"] .hs-win-head .hs-back');
+          await page.waitForTimeout(250);
+          if (!(await shown('[data-hs-win="hunts"] .hw-hunt-list')) || (await shown('.is-page[data-hs-win="monster"]'))) fails.push('AW-94 Back on the monster page did not return to the Hunts list');
+          if (!out) fails.push('AW-94 CONTROL: the monster page links to no other window');
+          else {
+            await page.click('[data-hs-win="hunts"] .hw-hd-mon[data-monster]');
+            await page.waitForTimeout(300);
+            await page.evaluate(() => { const l = Array.from(document.querySelectorAll('[data-hs-win="monster"] [data-hs-goto]')).find((a) => !/^(hunts|monster)\|/.test(a.getAttribute('data-hs-goto')) && a.getClientRects().length); if (l) l.click(); });
+            await page.waitForTimeout(400);
+            const backTitle = () => page.evaluate((w) => { const x = document.querySelector('.hs-win[data-hs-win="' + w + '"] > .hs-win-head .hs-back'); return x && x.getClientRects().length ? (x.getAttribute('title') || 'inner') : null; }, out);
+            /* a window opened on one of its own pages (a skill's rows) steps back up through them first, then to Hunts */
+            let b = await backTitle();
+            for (let i = 0; i < 2 && b === 'inner'; i++) { await page.click('.hs-win[data-hs-win="' + out + '"] > .hs-win-head .hs-back'); await page.waitForTimeout(250); b = await backTitle(); }
+            if (b !== 'Back to Hunts') fails.push('AW-94 ' + out + ' opened from Hunts reads its Back as ' + JSON.stringify(b));
+            else {
+              await page.click('.hs-win[data-hs-win="' + out + '"] > .hs-win-head .hs-back');
+              await page.waitForTimeout(300);
+              const now = await page.evaluate((w) => ({ gone: !document.querySelector('.hs-win[data-hs-win="' + w + '"]:not(.is-leaving)'), top: (document.querySelector('.hs-win.is-top') || { getAttribute: () => null }).getAttribute('data-hs-win') }), out);
+              if (!now.gone || now.top !== 'hunts') fails.push('AW-94 Back from ' + out + ' did not return to Hunts: ' + JSON.stringify(now));
+            }
+          }
+        }
+        /* the coexistence table at 1440 */
+        const rects = () => page.evaluate(() => Array.from(document.querySelectorAll('.hs-win:not(.is-leaving)')).map((w) => { const q = w.getBoundingClientRect(); return { id: w.getAttribute('data-hs-win'), l: q.left, r: q.right }; }));
+        for (const [k, id] of [['t', 'storage'], ['v', 'shop'], ['c', 'character']]) {
+          await openWin(page, 'b', 'inventory');
+          await page.keyboard.press(k);
+          await page.waitForTimeout(350);
+          const rs = await rects(), a = rs.find((x) => x.id === 'inventory'), o = rs.find((x) => x.id === id);
+          if (!a || !o || !(a.r <= o.l || o.r <= a.l)) fails.push('AW-94 at 1440 the bag and ' + id + ' are not open side by side: ' + JSON.stringify(rs));
+          if (shots && id === 'storage') await shot(page, 'header-1440-bag-storage');
+        }
+        await openWin(page, 'y', 'hunt-party');
+        await page.keyboard.press('g'); await page.waitForTimeout(250);
+        await page.keyboard.press('h'); await page.waitForTimeout(350);
+        const three = (await rects()).map((x) => x.id).sort().join();
+        if (three !== 'hunt-party,hunts,skills-trade') fails.push('AW-94 at 1440 Hunts closed the windows under it: ' + three);
+        /* a bar slot pressed in Hunt prep opens Configure action as its page, not a second window */
+        if (!(await openWin(page, 'p', 'hunt-prep')) || !(await wait(page, () => document.querySelector('[data-hs-win="hunt-prep"] .hb-slot[data-slot="0"]'), null, 3000))) fails.push('AW-94 CONTROL: Hunt prep shows no bar slot');
+        else {
+          await page.click('[data-hs-win="hunt-prep"] .hb-slot[data-slot="0"]');
+          await wait(page, () => document.querySelector('.hs-win[data-hs-win="hunt-prep"] > .is-page[data-hs-win="configure-action"] .ca-tab'), null, 3000);
+          await page.waitForTimeout(300);
+          const ca = await page.evaluate(() => ({ page: !!document.querySelector('.hs-win[data-hs-win="hunt-prep"] > .is-page[data-hs-win="configure-action"]'), second: !!document.querySelector('.hs-win[data-hs-win="configure-action"]') }));
+          if (!ca.page || ca.second) fails.push('AW-94 Configure action from Hunt prep is not its page: ' + JSON.stringify(ca));
+          if (shots) await shot(page, 'header-1440-configure-page');
+        }
+        /* one gold plate per window: two more planted in the Shop, one stays gold */
+        if (!(await openWin(page, 'v', 'shop'))) fails.push('AW-94 CONTROL: the Shop did not open');
+        else {
+          await page.evaluate(() => { const b = document.querySelector('[data-hs-win="shop"] [data-hs-body]'); for (let i = 0; i < 2; i++) { const x = document.createElement('button'); x.className = 'hw-primary is-on'; x.textContent = 'Gold ' + i; b.prepend(x); } });
+          await page.waitForTimeout(600);
+          const gold = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="shop"] :is(.hw-primary, .hh-tool.is-primary):not(.is-second)')).filter((b) => b.getClientRects().length).length);
+          if (gold !== 1) fails.push('AW-94 the Shop shows ' + gold + ' gold plates at once');
+        }
+      }
+      await ctx.close();
+    }
+    if (shots) { // the window header at 922x423: a page in the Hunts sheet, Back on the left
+      const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 } });
+      if (up && await openWin(page, 'h', 'hunts') && await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt'), null, 3000)) {
+        await shot(page, 'header-922-hunts-list');
+        await page.evaluate(() => document.querySelector('[data-hs-win="hunts"] .hw-hunt').click());
+        await page.waitForTimeout(300);
+        await shot(page, 'header-922-hunts-ground');
+        await page.evaluate(() => { const m = document.querySelector('[data-hs-win="hunts"] .hw-hd-mon[data-monster]'); if (m) m.click(); });
+        await page.waitForTimeout(400);
+        await shot(page, 'header-922-monster-page');
+        await page.evaluate(() => { const p = document.querySelector('.is-page[data-hs-win="monster"]'); if (p) p.scrollTop = p.scrollHeight; });
+        await page.waitForTimeout(150);
+        await shot(page, 'header-922-monster-page-end');
+        await page.evaluate(() => { const h = document.querySelector('[data-hs-win="hunts"] .hs-help'); if (h) h.click(); });
+        await page.waitForTimeout(150);
+        await shot(page, 'header-922-help');
+      }
+      await ctx.close();
+    }
+
     if (shots) { // the phone size class
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 } });
       if (up) {
@@ -4288,6 +4423,14 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 const MUTANTS = [
   ['AW-93 a docked window stops above the bar on a short World again', 'src/shell/window-manager.js', 'return Number.isFinite(cap) && cap < DOCK_ROOM_PX && need > cap;', 'return false && need > cap;'],
   ['AW-93 a scroll region ends on a cut row again', 'src/shell/window-fit.js', "  if (!frame || frame.classList.contains('is-sized')) return;", '  return;'],
+  ['AW-94 a window shows two gold plates at once', 'src/shell/shell.js', "    for (const w of layer.querySelectorAll(':scope > .hs-win')) oneGold(w);\n", ''],
+  ['AW-94 a press inside a window is not remembered as where the next came from', 'src/shell/shell.js', 'function onClick(e) { inWin(e, () => press(e)); }', 'function onClick(e) { press(e); }'],
+  ['AW-94 a page is never drawn in its host', 'src/shell/shell.js', '      if (showPage(el, page)) refresh(page);\n', ''],
+  ['AW-94 the host\'s own body shows under its page', 'src/styles/shell.css', '.hs-shell .hs-win > .hs-win-body[hidden] { display: none; }\n', ''],
+  ['AW-94 the header never shows Back', 'src/shell/window-head.js', "  attr(back, 'hidden', !(inner || to));", "  attr(back, 'hidden', true);"],
+  ['AW-94 the header has no ?', 'src/shell/window-head.js', "    + (help ? '<button type=\"button\" class=\"hs-help\"", "    + (false ? '<button type=\"button\" class=\"hs-help\""],
+  ['AW-94 the bag and Storage cannot stay open together at 1440', 'src/shell/window-manager.js', '    return occ.length && occ.every((q) => besides(id, q.id)) ? world().width - DOCK_EDGE : world().width * DOCK_MAX;', '    return world().width * DOCK_MAX;'],
+  ['AW-94 Hunts closes the windows under it again', 'src/shell/window-manager.js', '    if (isOver(id)) { slot.set(id, DOCK_EDGE); return; }\n', ''],
   ['AW-93 the empty Market hides its press again', 'src/styles/market.css', 'flex: 1; min-height: 0; overflow-y: auto; flex-direction: column;', 'flex: 1; flex-direction: column;'],
   ['armor weight: the doll line never shows', 'src/shell/windows/inventory/doll.js', "  cls(p, 'is-on', !!eq);", "  cls(p, 'is-on', false);"],
   ['armor weight: the doll line counts the bag, not the worn set', 'src/shell/windows/inventory/doll.js', "for (const x of wornWeights(eq))", "for (const x of wornWeights(Object.fromEntries((bagOf(st.cs) || []).map((r, i) => [i, r.id]))))"],

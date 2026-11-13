@@ -749,16 +749,26 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # ── in-page-20 ── TALLY AND CHARACTER, SPLIT OUT OF in-page-2 2026-10-26 (lane
+  # ── in-page-20 ── TALLY (AND CHARACTER UNTIL 2026-11-12), SPLIT OUT OF in-page-2 2026-10-26 (lane
   # a-ci-budget). release/v0.2.49 (run 40301377956) CANCELLED in-page-2 at 36:16 with 0
   # failures: its runner spent 12.5 min in `playwright install --with-deps` (apt fetched
   # 25.0 MB at 34.5 kB/s — half the browser jobs of 40301377956 and 40314818369 hit that
   # mirror stall, 11.4-12.8 min each). MEASURED (40314818369, every --mutate here ran):
   # Tally 11.3 (--mutate 10.9) + Character 9.1 (character-window --mutate 8.6) + setup
   # 0.9 = 21.3 min; x2 = 43. With the apt stall: 33.5 (78%).
+  # SPLIT AGAIN 2026-11-12 (lane a-ci-inpage-20): TALLY ONLY. Roll of Honor, Monster facts and
+  # Character moved to in-page-25 (below). Nightlies on main grew 22 (10-28) -> 36 min (11-10) as
+  # the guards gained mutants (tally-window 25 -> 37, monster-facts 9 -> 17), and release runs
+  # 43116635170 and 43127106448 were CANCELLED at 43 inside Character with 0 failures, running
+  # the full sweep because the 11-11 nightly (43057571434) was red on the apt lock. MEASURED on
+  # 43127106448 (job 130881871616, full sweep): setup 0.5 + Tally 32.2 (plain 0.9, then 37
+  # mutants at 45-95 s, 51 s a mutant: each re-opens every page) = 32.7 min; x2 = 66. With the
+  # 12.5-min apt stall: 45.2 (68%). The 11-10 nightly (42854941317) ran Tally at 15.3 with 25
+  # mutants. The per-mutant cost is the next thing to cut (scope each mutant to the pages its
+  # rule reads, as window-camera and phone-touch do), never the budget.
   in-page-20:
     runs-on: ubuntu-latest
-    timeout-minutes: 43
+    timeout-minutes: 66
 
     steps:
       - uses: actions/checkout@v4
@@ -783,6 +793,43 @@ jobs:
         run: |
           node tests/tally-window.mjs
           node tools/mutant-gate.mjs node tests/tally-window.mjs --mutate
+
+      # A failing run is far easier to diagnose with the page state attached.
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-20
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ── in-page-25 ── ROLL OF HONOR, MONSTER FACTS AND CHARACTER, SPLIT OUT OF in-page-20
+  # 2026-11-12 (lane a-ci-inpage-20, see the note there). MEASURED: setup 0.85 (42854941317) +
+  # Roll of Honor 1.8 + Monster facts 2.2 (both 43127106448, job 130881871616, full sweep) +
+  # Character 18.3 (nightly 42494622081, 11-08, full sweep; 16.8 on 42854941317, 11-10; tonight's
+  # run was cut at 8 of 28 character-window mutants, 35 s each, 6.5 min in) = 23.2 min; x2 = 47.
+  # With the 12.5-min apt stall: 35.7 (76%). A new job name has no nightly proof, so this runs
+  # its full sweep on every push until a nightly proves it green: 23.2 fits.
+  in-page-25:
+    runs-on: ubuntu-latest
+    timeout-minutes: 47
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
 
       # THE ROLL OF HONOR ON SCREEN (lane/b-leaderboards): Z opens it; the server's rows,
       # places (a tie is one place twice) and marks; ONE read naming a board only; the
@@ -827,7 +874,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-failure-in-page-20
+          name: smoke-failure-in-page-25
           path: |
             tests/**/*.png
             tests/**/*.log
@@ -1625,7 +1672,8 @@ jobs:
   # steps on job 108958707424; the 16-min timeout is unchanged.
   db-replay:
     runs-on: ubuntu-latest
-    timeout-minutes: 16
+    # 14.3 min measured on 43127106448 (8.5 on 43143204963) x2 = 29; 16 cancelled 43260108569 with no supabase/ change.
+    timeout-minutes: 29
 
     steps:
       - uses: actions/checkout@v4

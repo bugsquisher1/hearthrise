@@ -3246,6 +3246,24 @@ opens a folded analyzer; the folded Tally keeps its count in its title. HS-28 gu
 canvas: the action bar always takes a quarter, so a canvas metric can never be met; (2) a fold that keeps the open box's width still
 steps under the hunt bar into the fight, so a fold must shrink too; (3) folding a counter hides the number a coach card points at:
 keep it in the title. Open: the coach card's reading window (20 s or more) still covers about 9% at 1024 before it rests.
+### 2026-11-12 lane/b-window-header (UX flow audit lane 3: one window header)
+Every window wears one band (src/shell/window-head.js): glyph, Back, title, ? (rows with `help`), key, Close. Back shows only when there is
+somewhere to go: a renderer's own inner page (`inner(ctx, body)` names its act: Hunts' phone page, Settings, Market listing, a skill's rows),
+a page the window shows, or the window a press came from (window-manager.js from/back/backTo, memory only). The four in-body backs are gone.
+Pages: a `pageOf` row opened by a press inside its host draws as a second body in the host's frame, keeping its own [data-hs-win], so acts,
+refresh and coach hooks still find it (Monster facts in Hunts, Configure action in Hunt prep). Coexistence lives in shell-windows.js: `beside`
+(bag with Storage, Shop, Character past 60%), `over` (Hunts, Hunt prep lie over the dock). One gold per window: oneGold demotes extra plates
+to steel on the display tick, before the coach reads layout. Lessons: (1) a page as a nested [data-hs-win] needs `:scope >` on every frame
+query; (2) Back plus ? cost a 380 px window its title's second line, so Back takes the glyph's place when it shows; (3) on a page the host's ?
+is the wrong help, hide it; (4) PH-24's invite and Shop coach-press reds are on the base too (proved by running the base src).
+### 2026-11-12 lane/a-gen-2026-11-12 (heads, icons, Slake bodies; 83 gens, briefs 15-19)
+The account held 83.4 generations, not the 2,123 of 11-07. A 32 px create_1_direction_object bills 10 for 64 slots whatever
+fills them, so one call can carry several owed lines (brief 18 carried 6 faces, 7 heads, a key and a pin). Lessons: (1) heads
+with approved heads as style images hold one family across calls; crops of the world stills are good identity refs but poor
+heads (a humanoid face is 8-10 px at 1x); (2) the palette param kept every pick on hr-world-56-v2 with 0 off pixels, but it
+can pick the wrong ramp (the pikeman's bones came back mithril, not bone): read a census by ramp; (3) the model paints "ash on
+the brow" as a cross every time: say "no shape, no symbol"; (4) the PixelLab MCP answers plain HTTP with ~/.pixellab-token
+(a scratch client, token never printed), so a missing connector is not a blocker for brief 14.
 
 ## 2026-11-12 lane/a-phone-touch-24
 PH-24 red on two layout causes. (1) 844x390, chat sheet open: the alert stack steps left beside the sheet into the town
@@ -3253,3 +3271,10 @@ coach card's column, and roomForCoach only shortened the hunt bar's card for an 
 Join. Now any card whose box shares the alert's column ends 8 px above it. (2) Shop, 667x375: the one-line window card's
 desktop 24 px foot rule (.hs-win-coach > .is-line, 0-4-0) outranked the phone's --tap; the phone block now sets both foot
 presses to --tap. Open: on a 277 px phone card the foot squeezes the title to one word per line (filed in DISCOVERIES).
+
+## 2026-11-12 lane/a-phone-coach-foot
+Phone coach foot moved to its own row under the words in town and beside a sheet; the dash joins it, so the title has the
+top row alone (Shop "Sell what only pays coin": 5/3/3 lines at 667/844/922 -> 1/1/1, card 142 -> 105 px). A second row
+costs a line PH-27 does not have: paid for with the card's own 40 px presses, a 1.05 one-line title and words at 1.3
+(--coach-foot feeds every words cap). The hunt-bar card keeps the shared row (no line to spare). Lesson: name scratch
+scripts per lane; a stale shared `edit.cjs` re-ran another lane's edits (filed in DISCOVERIES).

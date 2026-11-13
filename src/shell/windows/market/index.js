@@ -11,18 +11,18 @@
 // Anonymous: no seller or buyer name reaches this window; the server's reads hold listing
 // ids only. Every number is the server's and every control is off until it has answered.
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.123';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.123';
-import { whole } from '../../../render/format.js?v=0.2.123';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.123';
-import { MARKET_TABS } from '../../market-model.js?v=0.2.123';
-import { lockedWords } from '../../market-words.js?v=0.2.123';
-import { hideTip } from '../item-tip.js?v=0.2.123';
-import { marketScratch, rereadAll, readMine, readItem } from './state.js?v=0.2.123';
-import { browseHtml, patchBrowse, actBrowse } from './browse.js?v=0.2.123';
-import { sellHtml, patchSell, actSell } from './sell.js?v=0.2.123';
-import { ledgerHtml, patchLedger, actLedger } from './ledger.js?v=0.2.123';
-import { t } from '../../../render/player-text.js?v=0.2.123';
+import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.125';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.125';
+import { whole } from '../../../render/format.js?v=0.2.125';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.125';
+import { MARKET_TABS } from '../../market-model.js?v=0.2.125';
+import { lockedWords } from '../../market-words.js?v=0.2.125';
+import { hideTip } from '../item-tip.js?v=0.2.125';
+import { marketScratch, rereadAll, readMine, readItem } from './state.js?v=0.2.125';
+import { browseHtml, patchBrowse, actBrowse } from './browse.js?v=0.2.125';
+import { sellHtml, patchSell, actSell } from './sell.js?v=0.2.125';
+import { ledgerHtml, patchLedger, actLedger } from './ledger.js?v=0.2.125';
+import { t } from '../../../render/player-text.js?v=0.2.125';
 
 /** The skeleton (built once per opening). An opening reads the server again. */
 export function renderMarket(ctx) {
@@ -88,4 +88,10 @@ renderMarket.act = function actMarket(ctx, body, action, ev, el) {
   if (ev.type === 'click' && action === 'refresh') { if (!sc.pending) { sc.known.clear(); sc.knownAt.clear(); rereadAll(ctx, cs, sc); } return true; }
   const o = { ctx, cs, sc, body, repaint };
   return actBrowse(o, action, ev, el) || actSell(o, action, ev, el) || actLedger(o, action, ev, el) || false;
+};
+
+/* The header's Back (src/shell/window-head.js): on a phone, a listing or a stack's page goes back to its list. */
+renderMarket.inner = (ctx, body) => {
+  const p = ctx.isPhone() ? body.querySelector('.hw-pane.is-on.is-paged') : null;
+  return p ? (p.getAttribute('data-pane') === 'sell' ? 'ms-back' : 'mk-back') : null;
 };

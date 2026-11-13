@@ -5,6 +5,22 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.125 — 2026-11-12 (Make as Many as You Like)
+
+**Pick your own count at a bench.** Next to 1, 5 and All there is now an X. Press it, type how many you want, and the next Start makes that many. It works for runes, bars, food and everything else you make at a bench.
+
+**Tidier headers and tip cards.** Got it and Don't show tips stay on one line each, and a long window name like Gathering and crafting takes two lines, not three.
+
+## v0.2.124 — 2026-11-12 (Faces and Frames)
+
+**Every window has the same header now.** The icon, Back, the title, Help, the hotkey and Close all sit in one row. Back takes you to the window that opened this one, so a Monster page goes back to Hunts. The old Back buttons inside the windows are gone.
+
+**Windows open where you'd expect.** On a wide screen the bag opens next to Storage, the Shop and your Character, so you can move things across. Hunts and Hunt prep open over the dock and leave everything else alone.
+
+**Creatures have faces now.** Forty-three creature heads and twenty-two item icons are drawn in the game's pixel style. A creature's head sits beside its name on its Monster page and on Tamsin's tally. A creature without a head yet shows no empty box.
+
+**Phone tip cards are easier to read.** On a phone, a tip card keeps its title on one line, and Don't show tips and Got it sit on their own row below the text. The party invite's Join button now sits under the town card, and the Shop's tip card no longer crowds the buttons.
+
 ## v0.2.123 — 2026-11-12 (Your Town, Your Way)
 
 **Tips are yours to turn off.** Every coach card has Got it and Don't show tips. Got it closes that card. Don't show tips hides them all, and Settings, Interface, Show tips brings them back.

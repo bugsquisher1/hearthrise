@@ -43,6 +43,7 @@ import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.12
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.125';
 import { temperedAmount } from '../temper.js?v=0.2.125';
 import { swingRow, crossLines, guardPmOf } from './boss-phases.js?v=0.2.125';
+import { dummyBlow, dummyStands } from './training.js?v=0.2.125';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -123,8 +124,10 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
   if (source && source.blowsPm > 0 && target.side === 'mon') n = temperedAmount(n, source.blowsPm, rng);
   const absorbed = Number.isInteger(target.shield) && target.shield > 0 ? Math.min(target.shield, n) : 0;
   if (absorbed) target.shield -= absorbed;
-  const dmg = Math.min(target.hp, n - absorbed);
+  /* A TRAINING DUMMY (src/core/hunt/training.js): its blow never takes a hero under the floor, and it never falls (whole again before anyone reads a kill). */
+  const dmg = dummyBlow(source && source.side === 'mon' ? rowOf(inst, source.kind) : null, target, Math.min(target.hp, n - absorbed));
   target.hp -= dmg;
+  if (target.side === 'mon') dummyStands(rowOf(inst, target.kind), target);
   return { dmg, absorbed, killed: target.hp <= 0 };
 }
 

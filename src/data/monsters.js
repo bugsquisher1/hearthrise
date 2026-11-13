@@ -82,6 +82,8 @@ export function monsterLevelOf(row) {
 }
 
 export function monsterSpeedOf(row) {
+  /* A TRAINING DUMMY (`dummy`, src/data/training.js) is a post in the ground: it never walks. */
+  if (row && row.dummy === true) return 0;
   const v = row && row.speed;
   return Number.isInteger(v) && v > 0 ? v : MONSTER_SPEED_DEFAULT;
 }
@@ -808,6 +810,14 @@ export const MONSTERS = {
   goblin_digger_called: { name: 'Goblin Digger', icon: '👺', tier: 3, level: 40, cls: 'humanoid', family: 'Humanoid', formation: true, called: true, add: true,
     weaponWeak: 'hammer', weaponResist: ['sword'],
     hp: 300, atk: 70, baseAcc: 0.2, def: 20, xp: 0, gp: [0, 0], speed: 2600, drops: [] },
+
+  /* ══ THE TRAINING DUMMY (src/data/training.js): the one foe of every training ground, yard and house. `dummy` is the whole rule: it never falls
+     (a blow that empties it finds it whole again, src/core/hunt/damage.js), never walks (monsterSpeedOf), its blow never takes a hero under
+     TRAINING_RULES.hpFloorPm of its max HP, and it pays nothing but the trained skill (src/core/hunt/training.js). No class: it has no weak spot
+     and no hard hide, so every weapon trains on it the same. `hp` is the most one blow can teach (the settle's bound reads it): far above any
+     hero's blow, so a blow's whole damage always counts. Its tap is light on purpose (`atk`): the yard is for the trained skill, not for food. ══ */
+  yard_dummy: { name: 'Training Dummy', icon: '🎯', tier: 1, level: 1, family: 'Dummy', dummy: true,
+    hp: 1000, atk: 2, baseAcc: 0.5, def: 0, xp: 0, gp: [0, 0], drops: [] },
 
   /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header.
      THE LOOT BANDS (batch 3): the whole tier-2 set in three weights, about hourly (crows boots, poachers legs and their

@@ -139,6 +139,7 @@ import { PARTY } from './party.js?v=0.2.125';
 /* the shape helpers (pocket, box, gather) live with the ground packs, which build their grounds with the same ones */
 import { pocket, box, gather, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.125';
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.125';
+import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.125';
 export { FULL_BOX };
 
 /* THE GATHER NODE KINDS (HUNT_GATHERING_SPEC §3, REVIEW §3 and §5): what a placed node is. `node` is a
@@ -372,9 +373,26 @@ export const CALLED_GROUNDS = Object.freeze({
   }),
 });
 
-/** The ground row a hunt is fought on, called rooms included, or null: the engine's and the scene's one lookup. */
+/* THE TRAINING GROUNDS (src/data/training.js; Tyler 2026-11-08): one pocket, one dummy, one seat, one per place and skill, reached by one verb,
+   hr_training_start. Not in HUNT_GROUNDS, so nothing that lists grounds sees them; the engine and the scene reach them by hunt (groundOfHunt).
+   `train` { place, skill } marks the ground: the engine pays the trained skill only (src/core/hunt/training.js), no stamina is spent, and
+   the yard's settle stops at each unpaid hour (src/core/hunt/training.js trainingStopMs). THE YARD is the town's training yard, the dummy on the
+   helmed straw dummy's own tile (src/data/world/stations.js DUMMIES); THE HOUSE is the cottage. One seat each: training is solo. */
+const TRAINING_SPOTS = Object.freeze({
+  yard: Object.freeze({ map: 'town_common', room: Object.freeze([64, 64, 68, 68]), dummy: Object.freeze([66, 66]), start: Object.freeze([66, 68]) }),
+  house: Object.freeze({ map: 'home_cottage', room: Object.freeze([9, 3, 13, 7]), dummy: Object.freeze([11, 5]), start: Object.freeze([11, 7]) }),
+});
+export const TRAINING_GROUNDS = Object.freeze(Object.fromEntries(Object.keys(TRAINING_PLACES).flatMap((place) => TRAINING_SKILLS.map((skill) => {
+  const at = TRAINING_SPOTS[place];
+  const id = trainingHuntId(place, skill);
+  return [id, Object.freeze({ id, hunt: id, map: at.map, train: Object.freeze({ place, skill }),
+    start: Object.freeze([at.start]), pockets: Object.freeze([pocket(at.room, ['yard_dummy', at.dummy[0], at.dummy[1]])]),
+    route: Object.freeze([0]), respawnMs: 10000, pullDist: 1.5, groupFit: 'solo' })];
+}))));
+
+/** The ground row a hunt is fought on, called rooms and training grounds included, or null: the engine's and the scene's one lookup. */
 export function groundOfHunt(huntId) {
-  return Object.values(HUNT_GROUNDS).find((g) => g.hunt === huntId) || CALLED_GROUNDS[huntId] || null;
+  return Object.values(HUNT_GROUNDS).find((g) => g.hunt === huntId) || CALLED_GROUNDS[huntId] || TRAINING_GROUNDS[huntId] || null;
 }
 
 /** The grounds a player can enter: every row whose hunt is not `staged` (hunts.js). The server catalogue reads these. */
@@ -583,7 +601,7 @@ export function validateGround(row, refs) {
 /** Every problem with the table, as strings. Empty = valid. */
 export function validate() {
   const out = [];
-  for (const [key, row] of [...Object.entries(HUNT_GROUNDS), ...Object.entries(CALLED_GROUNDS)]) {
+  for (const [key, row] of [...Object.entries(HUNT_GROUNDS), ...Object.entries(CALLED_GROUNDS), ...Object.entries(TRAINING_GROUNDS)]) {
     if (row.id !== key) out.push(key + ': row id ' + row.id + ' does not match its key');
     out.push(...validateGround(row));
   }

@@ -64,6 +64,7 @@ import { COMBAT_BALANCE } from '../../../src/core/combat.js';
 import { memberSide, frozenOf } from '../../../src/core/member.js';
 import { WORLD_VERSION, SHAPE as WORLD_SHAPE } from '../../../src/core/hunt/world-state.js';
 import { seederFor } from './hunt-seed.js';
+import { trainingStopMs } from '../../../src/core/hunt/training.js';
 
 /* A DEPLOY IN FLIGHT (2026-12-11-hunt-deploy-no-forfeit.sql). The read carries the server catalogue's
    world shape (hr_hunt_instance_read instance.world_shape = hr_hunt_world_shape { v, s }). When it is not
@@ -534,8 +535,10 @@ export async function readHuntSettle(o, mode) {
   }
   const endMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
   const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS, inst.play.stopMs);
-  if (!(toMs > fromMs)) return notDue();
-  return { envOf, inst, members, where, fromMs, toMs, endMs, nowMs, worldMaxBytes: o.worldMaxBytes };
+  /* A YARD SESSION STOPS AT ITS NEXT UNPAID HOUR (src/core/hunt/training.js trainingStopMs): the commit that lands there pays it or ends the session `gold_out`. */
+  const paidTo = Math.min(toMs, trainingStopMs(where.ground, mine.session, fromMs));
+  if (!(paidTo > fromMs)) return notDue();
+  return { envOf, inst, members, where, fromMs, toMs: paidTo, endMs, nowMs, worldMaxBytes: o.worldMaxBytes };
 }
 
 /**

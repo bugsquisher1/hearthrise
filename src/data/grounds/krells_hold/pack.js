@@ -102,7 +102,7 @@ export default definePack({
         { id: 'ember_helm', ch: 0.026, band: 'scarce' }, { id: 'dragonhide_helmet', ch: 0.026, band: 'scarce' }, { id: 'archmage_helmet', ch: 0.026, band: 'scarce' },
         { id: 'runewood_bow', ch: 0.026, band: 'scarce' },
         { id: 'ember_gauntlets', ch: 0.0018, band: 'rare' }, { id: 'dragonhide_gloves', ch: 0.0018, band: 'rare' }, { id: 'archmage_gloves', ch: 0.0018, band: 'rare' }],
-      hp: 109, atk: 80, baseAcc: 0.91, def: 38, xp: 1200, gp: [23, 69], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (Q3)
+      hp: 109, atk: 80, baseAcc: 0.7, def: 38, xp: 1200, gp: [23, 69], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (Q3)
     grave_guard: {
       name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', speed: 2400,
       /* the heavy, the slowest thing in the castle: one of the Banded Company's officers, buried with honors in the Muster Barrows, dug up and
@@ -192,7 +192,7 @@ export default definePack({
   /* DEADLY BRINGS SIX, not the table's eight (the Pyre Field's row; lane/d-packs-retune, 2026-11-12): on eight a four with no Healer died 82 times in
      16 hero-hours at the floor and the four with a Healer 10 (full grade, 2 seeds x 2 h), where the sheet allows 9. Six is the least Deadly may bring
      (never under Dangerous, tests/hunt-core/hunt-tiers.mjs rows). Measured on the re-grade below. */
-  tierOverride: { deadly: 6, why: 'on the full box a group of four with no Healer died 82 times in 16 hours at the floor, and a group with one 10, where the rule allows 9. On six they hold it' },
+  tierOverride: { deadly: 6, dials: { dangerous: { dmgPm: 1300 } }, why: 'on the full box a group of four with no Healer died 82 times in 16 hours at the floor, and a group with one 10, where the rule allows 9. On six they hold it' },
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.54-0.73, threes 0.42-0.70, fours 0.32-0.59), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 0.96-1.08, threes 0.93-1.07, the four 1.02: the Pyre Field's shape, a Mage or a Healer alone earns the most); the cells between are the size's mix times the cell ratio. Whole fives. */

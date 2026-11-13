@@ -288,7 +288,7 @@ export const FORMULA_EXCEPTIONS = Object.freeze({
   /* THE HOLD'S SOFTER FLOOR (designer ruling Q3, 2026-11-12, option c): Krell's Lookouts hit for the Glade's 0.17 of a same-Level hero (the Farmhands' share),
      not the glass role's 0.22, so the sword and axes stop paying their hour in food. The to-hit stays the role's 0.75 at a same-Level hero. */
   hasks_lookout: Object.freeze({ atk: "a blow of 0.17 of a same-Level hero, the Glade's and the Farmhands', so every way clears its food at the Hold's floor (designer Q3 2026-11-12)",
-    baseAcc: "the glass role's 0.75 to-hit at a same-Level hero, kept at the softer blow (designer Q3 2026-11-12)" }),
+    baseAcc: "a 0.70 to-hit, measured: the Lookout is the bow and crossbow's top damage, and with the Hold's Dangerous dmgPm 1300 the median food bill passes 0.35 while under-Level pairs still lose (designer ruling 16, 2026-11-12)" }),
 });
 
 /* combat.js monsterDamageScaleByTier, restated: the formula divides the blow by it (a test pins the two equal). */
@@ -398,7 +398,7 @@ export const TIER_DIALS = Object.freeze({
 /** The party sizes a tier row answers for (the server's catalogue reads its pull by size, 1..4). */
 export const TIER_SIZES = 4;
 /* A GROUND'S OWN TIER RULE, only where its place in the world demands one, each with a reason a player could read in the wiki:
-   normalOnly, a tier's own pull ({ tier: ONE number for every group }), or its own XP and HP dials ({ dials: { tier: { hpPm, xpPm } } }).
+   normalOnly, a tier's own pull ({ tier: ONE number for every group }), or its own XP, HP and damage dials ({ dials: { tier: { hpPm, xpPm, dmgPm } } }).
    No ground carries a pull of its own since 2026-11-08 (TIER_PULL_FROM_FLOOR says it for all); grounds not listed take TIER_DIALS whole. */
 const BASE_TIER_OVERRIDES = Object.freeze({
   mill_cellar: Object.freeze({ normalOnly: true, why: 'the first ground: a choice adds nothing to the first minutes (Coordinator 2026-11-05)' }),
@@ -442,7 +442,8 @@ export function tierRowFor(floor, tierId, opts = {}) {
   const F = opts.formula || STAT_FORMULA;
   /* a party ground's tiers lift nothing (STAT_FORMULA.fit): the table's own scaling on its own Normal */
   const fit = F.fit && F.fit[opts.fit || 'solo'];
-  const want = swingWorth(floor, fit && fit.tierLift === false ? 0 : T.lift, T.dmgPm / 1000, F);
+  const o0 = opts.ground ? (opts.overrides || TIER_PULL_OVERRIDES)[opts.ground] : null, d0 = (o0 && o0.dials && o0.dials[tierId]) || {};
+  const want = swingWorth(floor, fit && fit.tierLift === false ? 0 : T.lift, (d0.dmgPm || T.dmgPm) / 1000, F);
   /* the scaling of this ground's Normal regular that reaches `want` (it only grows with k): bisection */
   let lo = 1, hi = 10;
   for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (swingWorth(floor, 0, mid, F) < want) lo = mid; else hi = mid; }

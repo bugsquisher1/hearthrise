@@ -758,8 +758,9 @@ const cases = {
       if (!intro || intro.id !== 'bar_intro') return set + ': at Level 3 in the Cellar the card is ' + (intro && intro.id);
       if (!/^Your hero uses this bar on its own\. .* Slots? \d/.test(intro.text) || !intro.text.toLowerCase().includes(M.tut.slotWords(T.slots.map((s, i) => (s.type === 'ability' ? i : -1)).filter((i) => i >= 0))))
         return set + ': the bar card does not say which slots are the moves: ' + intro.text;
-      /* a bar with a slot waiting on a count explains it next, on that slot; any other bar passes it by */
-      const waits = T.slots.findIndex((s) => s.type === 'ability' && s.usable !== false && s.conditions.some((k) => ['enemies_in_aoe', 'allies_below'].includes(k.metric) && k.op === 'gte' && k.value > 1));
+      /* a bar with a slot waiting on a count explains it next, on that slot; any other bar passes it by. A move under its skill unlock (every area
+         move at this hero's skills, Raking Shot on the bow) waits for the level, not its count (v0.2.129) */
+      const waits = T.slots.findIndex((s) => s.type === 'ability' && s.usable !== false && !(M.abilities.ABILITIES[s.id] || {}).unlock && s.conditions.some((k) => ['enemies_in_aoe', 'allies_below'].includes(k.metric) && k.op === 'gte' && k.value > 1));
       const next = say({ ...L3, read: new Set(['bar_intro']) });
       if (waits >= 0 ? !next || next.id !== 'why_it_waits' || next.barSlot !== waits : !!next && next.id === 'why_it_waits') return set + ': after Your action bar the card is ' + JSON.stringify(next && { id: next.id, barSlot: next.barSlot }) + ', the waiting slot is ' + waits;
       const read = { ...L3, read: new Set(['bar_intro', 'why_it_waits']) };

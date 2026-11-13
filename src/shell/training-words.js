@@ -39,10 +39,11 @@ export function endedWords(last, name) {
 export function trainingRefusal(r, name) {
   if (!r || (r.verb !== 'training_start' && r.verb !== 'house_dummy')) return null;
   const who = nameWord(name);
-  if (r.error === 'cannot_pay' && num(r.fee) && num(r.purse)) return t('training.short_gold', { fee: whole(r.fee), purse: whole(r.purse) });
-  if (r.error === 'cannot_pay' && num(r.price) && num(r.purse)) return t('training.dummy_short', { price: whole(r.price), purse: whole(r.purse) });
+  if (r.error === 'insufficient_gold' && num(r.fee) && num(r.purse)) return t('training.short_gold', { fee: whole(r.fee), purse: whole(r.purse) });
+  if (r.error === 'insufficient_gold' && num(r.price) && num(r.purse)) return t('training.dummy_short', { price: whole(r.price), purse: whole(r.purse) });
   if (r.error === 'dummy_busy' && r.busy) return t('training.dummy_busy', { who: r.busy });
-  if (r.error === 'in_hunt') return t('training.hunting', { name: who });
+  if (r.error === 'hunt_open') return t('training.hunting', { name: who });
   if (r.error === 'in_party') return t('training.in_party', { name: who });
+  if (r.error === 'dummy_max') return t('training.dummy_all');
   return null;
 }

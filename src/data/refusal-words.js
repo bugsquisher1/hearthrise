@@ -98,9 +98,9 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
      src/shell/training-words.js's. */
   training_start: Object.freeze({
     quote_changed: 'The price changed before you started. Look at the new price and press Start training again.',
-    in_hunt: 'Your hero is out hunting. Come back to town to train.',
+    hunt_open: 'Your hero is out hunting. Come back to town to train.',
     in_party: 'Training is solo. Leave the party first.',
-    cannot_pay: 'You don\'t have enough gold for the first hour.',
+    insufficient_gold: 'You don\'t have enough gold for the first hour.',
     not_owned: 'Your dummy at home doesn\'t train that skill yet. Unlock it in the House.',
     dummy_busy: 'Another hero is on your dummy at home right now.',
     bad_skill: 'You can train Melee, Ranged, Magic or Defense.',
@@ -108,7 +108,8 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
   house_dummy: Object.freeze({
     quote_changed: 'The price changed. Look at the new price and press Unlock again.',
     no_home: 'You need the Hearthside Homestead before you can put a dummy in.',
-    cannot_pay: 'You don\'t have enough gold for that unlock.',
+    insufficient_gold: 'You don\'t have enough gold for that unlock.',
+    dummy_max: 'Every skill is unlocked on your dummy already.',
     already_owned: 'Your dummy already trains that skill.',
   }),
 });

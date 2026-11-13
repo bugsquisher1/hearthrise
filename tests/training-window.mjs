@@ -115,6 +115,17 @@ async function checks() {
   const offWhy = (page) => page.evaluate(() => { const b = document.querySelector('[data-hs-act="train-start"]'); return { off: !!b && b.disabled, why: (document.querySelector('[data-hs-win="training"] .tw-off-why') || {}).textContent || '' }; });
 
   try {
+    /* TR-0: the server's refusal codes (2027-04-16-combat-training.sql) read with its numbers */
+    {
+      const { trainingRefusal } = await import('../src/shell/training-words.js');
+      const want = [
+        [{ verb: 'training_start', error: 'insufficient_gold', fee: 272, purse: 100 }, /costs 272 gold\. You have 100/],
+        [{ verb: 'house_dummy', error: 'insufficient_gold', price: 250000, purse: 5200 }, /costs 250,000 gold\. You have 5,200/],
+        [{ verb: 'training_start', error: 'hunt_open' }, /out hunting/],
+        [{ verb: 'house_dummy', error: 'dummy_max' }, /Every skill is unlocked/],
+      ];
+      for (const [r, re] of want) { const w = trainingRefusal(r, 'Tyler'); if (!re.test(w || '')) fails.push('TR-0 ' + r.error + ' reads ' + JSON.stringify(w)); }
+    }
     /* TR-1 */
     {
       const s = world({ training: null });

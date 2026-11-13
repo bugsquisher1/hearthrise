@@ -40,22 +40,22 @@
 //      flinches on a blow that landed on it, and a dead one falls, each only on a facing its
 //      clip has; no clip ever plays without the event that caused it.
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.125';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.125';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.125';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.125';
-import { floatShown } from './float-prefs.js?v=0.2.125';
-import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.125';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.125';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.125';
-import { entranceOf, idleFrame, facingOf } from './scene-pose.js?v=0.2.125';
-import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.125';
-import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.125';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.125';
-import { levelOf, wornTitleOf } from '../session/character-sections.js?v=0.2.125';
-import { createSpellMarks } from './spell-marks.js?v=0.2.125';
-import { fxAlphaOf, ownerAlpha, ownerOf } from './fx-prefs.js?v=0.2.125';
-import { createClipHook, struckBy } from './clip-hook.js?v=0.2.125';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.126';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.126';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.126';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.126';
+import { floatShown } from './float-prefs.js?v=0.2.126';
+import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.126';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.126';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.126';
+import { entranceOf, idleFrame, facingOf } from './scene-pose.js?v=0.2.126';
+import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.126';
+import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.126';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.126';
+import { levelOf, wornTitleOf } from '../session/character-sections.js?v=0.2.126';
+import { createSpellMarks } from './spell-marks.js?v=0.2.126';
+import { fxAlphaOf, ownerAlpha, ownerOf } from './fx-prefs.js?v=0.2.126';
+import { createClipHook, struckBy } from './clip-hook.js?v=0.2.126';
 
 export const SCENE_TIMING = Object.freeze({
   deathFadeMs: 400,     // VW-05: colour to a grey corpse

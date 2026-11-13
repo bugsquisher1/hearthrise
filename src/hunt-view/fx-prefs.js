@@ -12,8 +12,8 @@
 //   ownerAlpha(a, owner)     the opacity for an effect whose owner is 'self' | 'peer' | 'monster' | null
 //                            (null: a reward, a Level or a rare drop, never dimmed)
 // ════════════════════════════════════════════════════════════════════════
-import { FX_ALPHA } from '../data/fx-alpha.js?v=0.2.125';
-import { switchValue } from '../session/player-switch.js?v=0.2.125';
+import { FX_ALPHA } from '../data/fx-alpha.js?v=0.2.126';
+import { switchValue } from '../session/player-switch.js?v=0.2.126';
 
 /**
  * @param {object} cs  the viewed CharacterSession

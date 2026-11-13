@@ -39,29 +39,29 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.125';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.125';
-import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.125';
-import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt, stackBelow } from './hud.js?v=0.2.125';
-import { createShellHud } from './shell-hud.js?v=0.2.125';
-import { createHudRoom } from './hud-room.js?v=0.2.125';
-import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.125';
-import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js?v=0.2.125';
-import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.125';
-import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.125';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.125';
-import { mountContextMenu } from './context-menu.js?v=0.2.125';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.125';
-import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.125';
-import { takeFresh, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.125';
-import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.125';
-import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.125';
-import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.125';
-import { benchSpentAtMs } from './town-work.js?v=0.2.125';
-import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.125';
-import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.125';
-import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.125';
-import { hideTipIfGone } from './windows/item-tip.js?v=0.2.125';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.126';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.126';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.126';
+import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt, stackBelow } from './hud.js?v=0.2.126';
+import { createShellHud } from './shell-hud.js?v=0.2.126';
+import { createHudRoom } from './hud-room.js?v=0.2.126';
+import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.126';
+import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js?v=0.2.126';
+import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.126';
+import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.126';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.126';
+import { mountContextMenu } from './context-menu.js?v=0.2.126';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.126';
+import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.126';
+import { takeFresh, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.126';
+import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.126';
+import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.126';
+import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.126';
+import { benchSpentAtMs } from './town-work.js?v=0.2.126';
+import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.126';
+import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.126';
+import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.126';
+import { hideTipIfGone } from './windows/item-tip.js?v=0.2.126';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;

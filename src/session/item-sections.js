@@ -15,6 +15,7 @@
 //   skill_levels { skill: { xp, level, into, need } }   every skill in the server's catalogue, its level and the XP
 //              into it and across it on the SERVER's curve (2027-04-04-skills-from-server.sql): what a skill bar draws
 //   state.gold, state.gold_v (the ACCOUNT purse and its version), state.bank_cap (the bag's stack cap)
+//   bag_expand    { cap, rung, max, next: { offer, gold, adds } | null } (hr_bag_expand_view: the bag's next rung at the server's price)
 //   bank       { item: qty }        the home storage (hr_bank_move)
 //   skill_inputs { from: ['bag', 'storage'] }  where a town skill's inputs come from, in order (heldOf)
 //   buffs      [{ type, magnitude, until, remaining_ms }]
@@ -33,8 +34,8 @@
 // The Characters window's (2026-12-04-hero-rename.sql):
 //   rename         { price, level, per_day, today, available, why }  what a new name costs, and whether it may
 // ════════════════════════════════════════════════════════════════════════
-import { huntBagOf } from './hunt-sections.js?v=0.2.125';
-import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.125';
+import { huntBagOf } from './hunt-sections.js?v=0.2.126';
+import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.126';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -267,6 +268,15 @@ export function depotOf(cs) {
 export function bagCapOf(cs) {
   const st = read(cs, 'state');
   return isObj(st) && count(st.bank_cap) ? st.bank_cap : null;
+}
+
+/** `bag_expand` (hr_bag_expand_view): { cap, rung, max, next: { offer, gold, adds } | null }, or null. Every number is the server's. */
+export function bagExpandOf(cs) {
+  const s = read(cs, 'bag_expand');
+  if (!isObj(s) || !count(s.cap) || count(s.rung) === null || count(s.max) === null) return null;
+  const n = s.next;
+  const next = isObj(n) && OFFER.test(String(n.offer)) && count(n.gold) && count(n.adds) ? { offer: n.offer, gold: n.gold, adds: n.adds } : null;
+  return { cap: s.cap, rung: s.rung, max: s.max, next };
 }
 
 /** `buffs` (hr_state_of, the consumable queue): the live ones, [{ type, magnitude, msLeft }], soonest first. */

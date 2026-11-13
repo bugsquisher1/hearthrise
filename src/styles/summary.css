@@ -92,7 +92,7 @@
   /* the steps come before the foot (the same list, stacked), so the first open step's gold press is the first thing under the reason */
   .hsum-card > .hsum-town { order: 1; }
   .hsum-foot { position: static; order: 1; margin: 0 0 8px; padding: 0; background: none; }
-  .hsum-card > .hsum-stats { order: 2; }
+  .hsum-card > .hsum-h-loot, .hsum-card > .hsum-loot, .hsum-card > .hsum-stats { order: 2; }
   .hsum-actions { margin-top: 0; }
   .hsum-actions .hh-tool, .hsum-actions .hh-tool.is-primary { min-height: 44px; flex: 1 1 30%; }
   .hsum-stats { gap: 8px 10px; padding: 8px 10px 10px; }

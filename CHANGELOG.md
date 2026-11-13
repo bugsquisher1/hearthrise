@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.127 — 2026-11-13 (The Wiki)
+
+**There is a wiki in the game now.** Press / or open it from Settings, then Help. It has every skill, every hunting ground with its Levels and monsters, and the formulas the game really uses: your chance to hit, your max hit, how XP and Levels add up. Each formula works an example with the same numbers the game uses, so the wiki is never out of date. Search finds anything in it.
+
 ## v0.2.126 — 2026-11-13 (Room to Grow)
 
 **A bigger bag.** Storage shows how full your bag is, with an Expand button that adds 20 stacks. The price grows with each step.

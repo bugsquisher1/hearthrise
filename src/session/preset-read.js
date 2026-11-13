@@ -21,9 +21,9 @@
 //                        rate_limited (60 a minute an account), no_character.
 // A read, so it is tracked as the player's ask (press-ack) and never re-reads the character.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.126';
-import { settingsOf, settingsView } from './hunt-sections.js?v=0.2.126';
-import { ACTION_SET_LIMITS } from '../data/rule-subjects.js?v=0.2.126';
+import { askVia } from './intent-ledger.js?v=0.2.127';
+import { settingsOf, settingsView } from './hunt-sections.js?v=0.2.127';
+import { ACTION_SET_LIMITS } from '../data/rule-subjects.js?v=0.2.127';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 

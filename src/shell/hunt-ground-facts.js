@@ -36,6 +36,7 @@
 import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, pullRows } from '../data/hunt-grounds.js?v=0.2.127';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.127';
 import { MONSTERS } from '../data/monsters.js?v=0.2.127';
+import { castsOf, spellRow } from '../data/monster-spells.js?v=0.2.127';
 import { ITEMS } from '../data/items.js?v=0.2.127';
 import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.127';
 import { weaknessInfo } from '../core/combat.js?v=0.2.127';
@@ -59,7 +60,7 @@ function shareBand(share) {
 
 /**
  * The ground's creatures, most common first (then lowest Level): [{ id, name, level, boss, points,
- * share, band }]. [] for a ground the data does not know.
+ * share, band, casts }]. `casts`: the names of the area spells it casts now (monster-spells.js), so the page warns before the hunt does. [] for a ground the data does not know.
  */
 export function residentsOf(hunt) {
   const g = groundOf(hunt);
@@ -69,7 +70,8 @@ export function residentsOf(hunt) {
   const all = Array.from(points.values()).reduce((t, n) => t + n, 0);
   return Array.from(points, ([id, n]) => {
     const m = MONSTERS[id] || {};
-    return { id, name: m.name || id, level: Number.isInteger(m.level) ? m.level : null, boss: m.boss === true, points: n, share: n / all, band: shareBand(n / all) };
+    return { id, name: m.name || id, level: Number.isInteger(m.level) ? m.level : null, boss: m.boss === true, points: n, share: n / all, band: shareBand(n / all),
+      casts: castsOf(m).map((s) => (spellRow(s) || {}).n || s) };
   }).sort((a, b) => b.points - a.points || (a.level || 0) - (b.level || 0) || (a.name < b.name ? -1 : 1));
 }
 

@@ -31,6 +31,7 @@ import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-s
 import { chance, listWords } from '../../render/format.js?v=0.2.127';
 import { gotoAttr, patchParts } from '../goto.js?v=0.2.127';
 import { factsTarget } from './monster.js?v=0.2.127';
+import { t } from '../../render/player-text.js?v=0.2.127';
 import { groundLines } from '../live-events-view.js?v=0.2.127';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
@@ -127,7 +128,8 @@ export function patchGo(det, ctx, v) {
 }
 
 /* "Level 2 · common"; a boss says so in place of its share. The dot keeps to the line it ends (a wrapped line never starts with one). */
-const howWords = (m) => (Number.isInteger(m.level) ? 'Level ' + m.level + ' · ' : '') + (m.boss ? 'boss' : m.band);
+const howWords = (m) => (Number.isInteger(m.level) ? 'Level ' + m.level + ' · ' : '') + (m.boss ? 'boss' : m.band)
+  + (m.casts && m.casts.length ? ' · ' + t('hunts.casts', { spells: listWords(m.casts) }) : '');   // an area caster says so before the hunt does (lane/d-area-playtest)
 
 /* One creature's picture, drawn once per creature (a canvas keeps it); nothing until its art has loaded. */
 function paintSprite(li, id) {

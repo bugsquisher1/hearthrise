@@ -19,11 +19,11 @@
 //   stepDistance(d, by)     the distance one tile closer or farther, inside HERO_DISTANCE
 //   goldFloorOk(n)          a whole number of gold the server takes (GOLD_FLOOR)
 // ════════════════════════════════════════════════════════════════════════
-import { wireSlot } from '../session/hunt-sections.js?v=0.2.125';
-import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.125';
-import { HERO_DISTANCE, HUNT_STANCES, TARGET_MODES } from '../data/rule-subjects.js?v=0.2.125';
-import { GOLD_FLOOR } from '../data/hunt-sessions.js?v=0.2.125';
-import { movePlan, swapPlan } from './bar-draft.js?v=0.2.125';
+import { wireSlot } from '../session/hunt-sections.js?v=0.2.126';
+import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.126';
+import { HERO_DISTANCE, HUNT_STANCES, TARGET_MODES } from '../data/rule-subjects.js?v=0.2.126';
+import { GOLD_FLOOR } from '../data/hunt-sessions.js?v=0.2.126';
+import { movePlan, swapPlan } from './bar-draft.js?v=0.2.126';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 

@@ -10,7 +10,7 @@
 //
 // mutant-anchors: src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js
 // mutant-writes-tree: no — page mutants are served overrides
-// mutant-rule-functions: configureFits analyzerToggles portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule rules
+// mutant-rule-functions: bagReach configureFits analyzerToggles portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule rules
 // mutant-runner-functions: main
 //
 // QA's phone playtest (2026-10-24) scored mobile 4/10. play.html with supabase-js and the REST paths stubbed
@@ -984,6 +984,16 @@ async function sheetWords(page, tag, fails) {
   if (!c.more) fails.push('PH-24 [' + tag + '] Also here is not at the sheet\'s top');
   if (!c.seen || !/invite/i.test(c.wait)) fails.push('PH-24 [' + tag + '] the red count does not say what it wants: ' + JSON.stringify(c));
 }
+/* PH-24 Expand in reach: at 922x423 the Storage sheet's Expand sits inside the sheet's visible body on opening, no scroll. */
+async function bagReach(page, tag, fails) {
+  await page.click('.hs-launch[data-hs-open="storage"]', { timeout: 2500 }).catch(() => null);
+  if (!(await wait(page, () => document.querySelector('[data-hs-win="storage"] [data-hs-act="expand"]'), null, 4000))) { fails.push('PH-24 [' + tag + '] Storage did not open'); return; }
+  await page.waitForTimeout(1500);
+  const f = await page.evaluate(() => { const b = window.__r('[data-hs-win="storage"] .hs-win-body'), e = window.__r('[data-hs-win="storage"] [data-hs-act="expand"]');
+    return { b, e, text: document.querySelector('[data-hs-win="storage"] [data-hs-act="expand"]').textContent }; });
+  if (!f.e || !f.b || f.e.top < f.b.top || f.e.bottom > f.b.bottom || !window_onScreen(f.e, page.viewportSize())) fails.push('PH-24 [' + tag + '] Expand is below the Storage sheet\'s fold: ' + JSON.stringify(f));
+  if (!/^Expand \(\+20\)/.test(f.text)) fails.push('PH-24 [' + tag + '] CONTROL: Expand does not read the server\'s offer: ' + f.text);
+}
 async function mouseWordsAndTargets(page, tag, fails) {
   for (const win of ['storage', 'friends', 'shop', 'tally', 'hunts', 'hunt-party', 'inventory']) {
     await page.click('.hs-launch[data-hs-open="' + win + '"]', { timeout: 2500 }).catch(() => null);
@@ -1041,9 +1051,9 @@ async function stripReach(page, tag, fails) {
   /* What the row has no room for has its one press here: named, at a thumb's size, and it opens. Market keeps its icon. */
   const more = await page.evaluate(() => { const rows = Array.from(document.querySelectorAll('[data-hs-win="characters"] .hw-icon-names.is-more .hw-icon-name'));
     return { ids: rows.map((r) => r.getAttribute('data-hs-open')).sort(), small: rows.filter((r) => r.getBoundingClientRect().height < 44).length, empty: rows.filter((r) => !r.textContent.trim()).length,
-      market: !!document.querySelector('.hs-launch[data-hs-open="market"]'), onRow: ['havora', 'honor', 'report'].filter((id) => document.querySelector('.hs-launch[data-hs-open="' + id + '"]')) }; });
-  if (more.ids.join() !== 'havora,honor,report' || more.small || more.empty) fails.push('PH-11 [' + tag + '] the sheet does not name what the row left out: ' + JSON.stringify(more));
-  if (!more.market || more.onRow.length) fails.push('PH-11 [' + tag + '] the row is not Market on, Leaderboards and Report off: ' + JSON.stringify(more));
+      market: !!document.querySelector('.hs-launch[data-hs-open="market"]'), onRow: ['honor', 'house', 'report'].filter((id) => document.querySelector('.hs-launch[data-hs-open="' + id + '"]')) }; });
+  if (more.ids.join() !== 'honor,house,report' || more.small || more.empty) fails.push('PH-11 [' + tag + '] the sheet does not name what the row left out: ' + JSON.stringify(more));
+  if (!more.market || more.onRow.length) fails.push('PH-11 [' + tag + '] the row is not Market on, Leaderboards, House and Report off: ' + JSON.stringify(more));
   await page.evaluate(() => document.querySelector('[data-hs-win="characters"] .hw-icon-name[data-hs-open="honor"]').click());
   if (!(await wait(page, () => document.querySelector('[data-hs-win="honor"]'), null, 3000))) fails.push('PH-11 [' + tag + '] Leaderboards cannot be opened on a phone');
   await page.click('.char-tool.is-all', { timeout: 2500 }).catch(() => null);
@@ -1365,16 +1375,18 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
     for (const vp of run('coach') ? PHONES : []) {
       const tag = tagOf(vp);
       const o = await open(vp, ALPHA, (env) => { env.hunt = null; env.state = Object.assign({}, env.state, { level_xp: 0, active_kind: null, active_id: null });
-        env.equipment = Object.assign({}, env.equipment, { weapon: 'practice_sword' }); env.client_state = Object.assign({}, env.client_state, { coach: { read: [] } }); });
+        env.equipment = Object.assign({}, env.equipment, { weapon: 'practice_sword' }); env.client_state = Object.assign({}, env.client_state, { coach: { read: [] } });
+        env.tally = { per_day: 3, held_max: 3, paid_today: 0, held: [], recent: [] }; });   // Tamsin's rats not taken yet
       if (!o.up) { fails.push('PH-6 [' + tag + ' first card] the town did not mount'); await o.ctx.close(); continue; }
       const town = await o.page.evaluate(() => { const p = document.querySelector('.hs-launchers > .hs-pointer:not(.is-min)'); return p && { id: p.getAttribute('data-tutorial'), foot: window.__r(p).bottom, bar: window.__r('.hb-bar').top }; });
-      if (!town || town.id !== 'styles') fails.push('PH-6 [' + tag + ' first card] CONTROL: the first card is ' + JSON.stringify(town));
+      if (!town || town.id !== 'tamsins_rats') fails.push('PH-6 [' + tag + ' first card] CONTROL: the first card is ' + JSON.stringify(town));
       else if (town.foot > town.bar + 0.5) fails.push('PH-6 [' + tag + ' first card] it runs ' + Math.round(town.foot - town.bar) + ' px over the action bar');
-      await o.page.click('.hs-launchers [data-hs-open="inventory"]');
+      /* the first card is Tamsin's rats since 2026-11-12 (the style waits for the first hunt): its Got it is inside her tally */
+      await o.page.click('.hs-launchers [data-hs-open="tally"]');
       await wait(o.page, () => document.querySelector('.hs-win-coach .hs-coach-got'), null, 3000);
       await shot(o.page, 'coach-first-in-bag-' + tag);
       const got = await o.page.evaluate(() => { const b = document.querySelector('.hs-win-coach .hs-coach-got'); return b && window.__onScreen(window.__r(b)) && window.__hits(b); });
-      if (!got) fails.push('PH-6 [' + tag + ' first card] inside the bag its Got it is off screen or covered');
+      if (!got) fails.push('PH-6 [' + tag + ' first card] inside the tally its Got it is off screen or covered');
       await done(o, tag);
     }
     for (const vp of run('fight') ? [{ width: 922, height: 423 }, { width: 844, height: 390 }, { width: 1440, height: 900 }] : []) { // PH-10
@@ -1616,6 +1628,9 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       if (m.up) { await mouseWordsAndTargets(m.page, tag, fails); await done(m, tag); } else fails.push('PH-24 [' + tag + '] the town did not mount');
       const sn = await open({ width: 922, height: 423 }, ALPHA, (env) => { townOnly(env); twoHeroes(env); });
       if (sn.up) { await menuSending(sn, '922x423', fails); await sn.ctx.close(); } else fails.push('PH-24 the town did not mount');
+      const bx = await open({ width: 922, height: 423 }, ALPHA, (env) => { townOnly(env); env.bag_expand = { cap: 100, rung: 0, max: 30, next: { offer: 'bank.0', gold: 3000, adds: 20 } };
+        env.account = Object.assign({}, env.account, { bank: { coal: 3 }, depot: { used: 1, cap: 100, next: { name: 'Millrace Crate', stacks: 20 } } }); env.bank = { coal: 3 }; env.depot = env.account.depot; });
+      if (bx.up) { await bagReach(bx.page, '922x423', fails); await shot(bx.page, 'storage-expand-922x423'); await done(bx, '922x423'); } else fails.push('PH-24 the town did not mount');
     }
     if (run('door')) { // PH-17
       for (const vp of PHONES) await doorRule(browser, base, vp, true, fails);
@@ -1793,6 +1808,7 @@ const MUTANTS = [
   ['PH-24 no toast beside a sheet', 'src/styles/hunt.css', '  :root:has(.hs-win:not(.is-modal):not(.is-leaving)) .hs-widget.is-alerts { transform: translateX(calc(-1 * min(400px, 48vw) - 8px)); }\n', ''],
   ['PH-24 Also here is far down the sheet', 'src/shell/windows/characters.js', '    + alsoHereHtml(ctx)\n    + \'<ul class="hw-chars"></ul>\'', '    + \'<ul class="hw-chars"></ul>\' + alsoHereHtml(ctx)'],
   ['PH-24 the red count says nothing', 'src/shell/windows/characters.js', "text(li.querySelector('.hw-char-waits'), wait ? wait.text : '');", ''],
+  ['PH-24 Expand below the Storage fold on a phone', 'src/styles/windows.css', '  .hw-store > .hw-store-baghead, .hw-store > .hw-store-grow { order: -1; }\n', ''],
   ['PH-24 Storage tells a thumb to shift-press', 'src/shell/windows/storage.js', "(ctx.isPhone && ctx.isPhone() ? 'Press a stack to move one across. Hold it to choose how many.' : ", '(false ? \'\' : '],
   ['PH-24 the sheet\'s presses stay 30 px', 'src/styles/windows.css', '  .hs-win .hh-tool, .hs-win .hh-select, .hs-win .hh-seg, .hs-win .hh-num, .hs-win .hw-search, .hs-win .hf-name, .hs-win .st-search, .hs-win .hs-close { min-height: 40px; }\n', ''],
   ['PH-24 the town card lies over the invite beside a sheet', 'src/shell/shell.js', "(w.matches('.is-hunt-topbar') || beside) ? at.top - 8", "w.matches('.is-hunt-topbar') ? at.top - 8"],

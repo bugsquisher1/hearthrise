@@ -36,7 +36,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { TOWN_NAME } from './world/town/plan.js?v=0.2.125';
+import { TOWN_NAME } from './world/town/plan.js?v=0.2.126';
 
 /** Who keeps the tally. What she says lives in src/data/text/tally.js (first person, one line per state). */
 export const TALLY_KEEPER = Object.freeze({

@@ -17,34 +17,34 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.125';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.125';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.125';
-import { runIntent } from '../intent-words.js?v=0.2.125';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle } from '../../hunt-view/summary-model.js?v=0.2.125';
-import { callOfHunt } from '../../data/boss-calls.js?v=0.2.125';
-import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.125';
-import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.125';
-import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.125';
-import { observeSessions } from '../../session/character-session.js?v=0.2.125';
-import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.125';
-import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.125';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.125';
-import { endCardAfter } from '../after-hunt.js?v=0.2.125';
-import { heldCard, glyphSvg } from '../launcher.js?v=0.2.125';
-import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.125';
-import { townStepsOf, depositPlanned } from '../back-in-town.js?v=0.2.125';
-import { equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.125';
-import { blessAll } from '../bless-all.js?v=0.2.125';
-import { blessingsOf } from '../../session/item-sections.js?v=0.2.125';
-import { t } from '../../render/player-text.js?v=0.2.125';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.125';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.126';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.126';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.126';
+import { runIntent } from '../intent-words.js?v=0.2.126';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle } from '../../hunt-view/summary-model.js?v=0.2.126';
+import { callOfHunt } from '../../data/boss-calls.js?v=0.2.126';
+import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.126';
+import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.126';
+import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.126';
+import { observeSessions } from '../../session/character-session.js?v=0.2.126';
+import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.126';
+import { nameOf, bagOf, bagExpandOf } from '../../session/item-sections.js?v=0.2.126';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.126';
+import { endCardAfter } from '../after-hunt.js?v=0.2.126';
+import { heldStep, glyphSvg } from '../launcher.js?v=0.2.126';
+import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.126';
+import { townStepsOf, depositPlanned } from '../back-in-town.js?v=0.2.126';
+import { equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.126';
+import { blessAll } from '../bless-all.js?v=0.2.126';
+import { blessingsOf } from '../../session/item-sections.js?v=0.2.126';
+import { t } from '../../render/player-text.js?v=0.2.126';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.126';
 
 /* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), and an old hunt that kept no settings. */
 const againOffWords = (cur) => (callOfHunt(cur.hunt) ? 'He comes when he is called, from the ground\'s page.' : 'This hunt did not keep its settings.');
 
 /* The tutorial card up now (a card of the guide, never the "What next" line), or null. */
-const nextStepOf = (ctx) => { const c = ctx.character ? heldCard(ctx) : null; return c && c.done ? c : null; };
+const nextStepOf = (ctx) => heldStep(ctx);
 
 /* Every character the account opens is recorded from its first envelope, so no hunt event is played unseen. */
 observeSessions(attach);
@@ -62,6 +62,12 @@ const didOf = (sc, id) => { let d = sc.did.get(id); if (!d) { d = new Map(); sc.
 const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'Level XP', whole], ['gold', 'Gold', gold], ['lootValue', 'Loot value (unsold)', gold, true],
   ['balance', 'Balance', gold, true], ['balanceH', 'Balance per hour', gold, true], ['rawXpH', 'Level XP per hour before bonuses', whole, true]]);
 
+/** The bag is at the server's cap and the server sells a next rung. */
+function bagFull(cs) {
+  const g = bagExpandOf(cs), bag = bagOf(cs);
+  return !!(g && g.next && bag && bag.length >= g.cap);
+}
+
 /** The skeleton (built once). */
 export function renderHuntSummary() {
   return '<div class="hsum">'
@@ -73,6 +79,8 @@ export function renderHuntSummary() {
        value (../back-in-town.js); the first open one is the card's one gold press, and a done one stays, ticked. Above the numbers, so the
        first step's press is in view as the window opens (under them it sat behind the sticky foot at 1440x900). */
     + '<section class="hsum-town"><h4 class="hw-ledger-head hsum-h-town is-on">' + esc(t('summary.town_head')) + '</h4><ul class="hsum-steps"></ul></section>'
+    /* TOP LOOT above the numbers (first-30 play 2026-11-12: the first gear drop sat under the sticky foot, out of sight) */
+    + '<h4 class="hw-ledger-head hsum-h-loot">Top loot</h4><ul class="hsum-list hsum-loot"></ul>'
     + '<dl class="hsum-stats">' + STATS.map(([k, label]) => '<div class="hsum-stat"><dt>' + label + '</dt><dd data-stat="' + k + '"></dd></div>').join('') + '</dl>'
     /* The presses and their answer stay in reach: the reason and the numbers pushed them under a 1366x768 window's fold, so a hunt that
        ran out of stamina opened with no press in sight (door panel 2026-11-04). */
@@ -81,9 +89,10 @@ export function renderHuntSummary() {
        the first card); the gold press is the first open Back in town step, else "Hunt again" */
     + '<button type="button" class="hh-tool" data-hs-act="coach-next" hidden></button>'
     + '<button type="button" class="hh-tool is-primary" data-hs-act="again">' + t('controls.hunt_again') + '</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="bag">' + t('controls.open_bag') + '</button></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="bag">' + t('controls.open_bag') + '</button>'
+    /* a full bag (the server's cap, hr_bag_expand_view) links to Storage's Expand */
+    + '<button type="button" class="hh-tool" data-hs-act="expand" hidden>Expand bag</button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
-    + '<h4 class="hw-ledger-head hsum-h-loot">Top loot</h4><ul class="hsum-list hsum-loot"></ul>'
     + '<h4 class="hw-ledger-head hsum-h-sup">Supplies used</h4><ul class="hsum-list hsum-sup"></ul>'
     + '<h4 class="hw-ledger-head hsum-h-deaths">What happened</h4><ul class="hsum-falls hsum-deaths"></ul>'
     + '</section>'
@@ -174,6 +183,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     patchTown(root, ctx, sc, town);
     cls(go, 'is-primary', town.primary === 'again');
     for (const b of root.querySelectorAll('.hsum-actions button:not([data-hs-act="again"])')) prop(b, 'disabled', sc.pending);
+    prop(root.querySelector('[data-hs-act="expand"]'), 'hidden', !bagFull(cs));
   }
   /* THE ANSWER IS THE PRESS'S (party panel 2026-11-03: "Setting out." still up with the hero home from that hunt): a hunt that opens or ends makes it old. */
   const huntNow = open ? open.id + (open.ended ? ':over' : '') : '';
@@ -269,6 +279,7 @@ renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, el) {
     return true;
   }
   if (action === 'bag') { ctx.show('inventory'); return true; }
+  if (action === 'expand') { ctx.show('storage'); return true; }
   if (action === 'again') {
     const list = summariesOf(cs);
     const cur = list.find((s) => s.id === sc.pick) || list[0];

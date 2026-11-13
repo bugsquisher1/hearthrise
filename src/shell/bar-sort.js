@@ -13,8 +13,8 @@
 //   sortBar(bar)  the bar in the wire shape (null = empty) → a new bar of the same length
 // Display scratch: nothing is sent here. The builder's Save sends the whole bar as ONE intent.
 // ════════════════════════════════════════════════════════════════════════
-import { LANE_OF, attackOrder } from '../core/hunt/conditions.js?v=0.2.125';
-import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.125';
+import { LANE_OF, attackOrder } from '../core/hunt/conditions.js?v=0.2.126';
+import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.126';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 

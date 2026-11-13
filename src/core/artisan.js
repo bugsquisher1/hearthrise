@@ -26,8 +26,8 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { advanceToolCarry } from './tools.js?v=0.2.125';
-import { rollOdds, perksFor, jewelId, ODDS_SCALE } from '../data/jewelry.js?v=0.2.125';
+import { advanceToolCarry } from './tools.js?v=0.2.126';
+import { rollOdds, perksFor, jewelId, ODDS_SCALE } from '../data/jewelry.js?v=0.2.126';
 
 /* ── Burn (open-fire cooking) ─────────────────────────────────────────
    Values unchanged from b225 / b227. Documented at length in

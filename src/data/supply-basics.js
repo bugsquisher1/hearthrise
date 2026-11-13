@@ -53,9 +53,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName } from './runes.js?v=0.2.125';
-import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.125';
-import { JEWEL_SHOP_PRICE } from './jewelry.js?v=0.2.125';
+import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName } from './runes.js?v=0.2.126';
+import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.126';
+import { JEWEL_SHOP_PRICE } from './jewelry.js?v=0.2.126';
 
 /* A basic heal or drink gives this share of its crafted partner (floored); a
    basic arrow gives this share of its partner's ammo bonus. */

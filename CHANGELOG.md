@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.126 — 2026-11-13 (Room to Grow)
+
+**A bigger bag.** Storage shows how full your bag is, with an Expand button that adds 20 stacks. The price grows with each step.
+
+**Havora has a key.** Press X to open Havora, where you buy powders, stand a round at the tavern and give to the Works. On a phone, Havora is on the icon row and House sits under All characters.
+
+**Your first hunt reads better.** The hunt summary shows your loot first, so your first drop is the first thing you see. Shop rows only say how many you carry when you carry some. Hunt prep names the setup on your bar. Free Blessings stop asking three times, and the weapon tip waits until you are home from your first hunt.
+
 ## v0.2.125 — 2026-11-12 (Make as Many as You Like)
 
 **Pick your own count at a bench.** Next to 1, 5 and All there is now an X. Press it, type how many you want, and the next Start makes that many. It works for runes, bars, food and everything else you make at a bench.

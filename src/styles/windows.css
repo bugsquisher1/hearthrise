@@ -669,6 +669,10 @@
 
 /* ── Phone, landscape: the one sheet; the same density, tighter rhythm ── */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  /* Storage on a phone: the bag's head and Expand come up under the search and chips, above the storage help (Expand was below the fold at 922x423). */
+  .hw-store { display: flex; flex-direction: column; }
+  .hw-store > .hw-find, .hw-store > .hw-cats { order: -2; }
+  .hw-store > .hw-store-baghead, .hw-store > .hw-store-grow { order: -1; }
   .hw-shop > .hw-tabs { top: -8px; margin-top: -8px; padding-top: 8px; }   /* the sheet's body padding */
   /* A Shop row on the half-wide sheet: the icon and name on one line, the count and the price under them (the name had 23 px and read "C…"). */
   .hw-shop .hw-line { flex-wrap: wrap; justify-content: flex-end; }

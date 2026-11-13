@@ -52,20 +52,20 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.125';
-import { ABILITIES, suggestedTrigger } from '../../data/abilities.js?v=0.2.125';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.125';
-import { SUPPLIES } from '../../data/supplies.js?v=0.2.125';
-import { ITEMS } from '../../data/items.js?v=0.2.125';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.125';
-import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.125';
-import { cheb, dist2, los } from './grid.js?v=0.2.125';
-import { makeEvent } from './events.js?v=0.2.125';
-import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.125';
-import { START_BAR } from '../../data/start-kit.js?v=0.2.125';
-import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.125';
-import { RUNE_ON_EMPTY, isRune, runeTierOf } from '../../data/runes.js?v=0.2.125';
-import { engagedOf, heroesByIdOf, livingOf } from './unit-index.js?v=0.2.125';
+import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.126';
+import { ABILITIES, suggestedTrigger } from '../../data/abilities.js?v=0.2.126';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.126';
+import { SUPPLIES } from '../../data/supplies.js?v=0.2.126';
+import { ITEMS } from '../../data/items.js?v=0.2.126';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.126';
+import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.126';
+import { cheb, dist2, los } from './grid.js?v=0.2.126';
+import { makeEvent } from './events.js?v=0.2.126';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.126';
+import { START_BAR } from '../../data/start-kit.js?v=0.2.126';
+import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.126';
+import { RUNE_ON_EMPTY, isRune, runeTierOf } from '../../data/runes.js?v=0.2.126';
+import { engagedOf, heroesByIdOf, livingOf } from './unit-index.js?v=0.2.126';
 
 /* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
    ruleWait: the last `rule_wait` reported, per lane ('ruleId:why'), so it is reported once.

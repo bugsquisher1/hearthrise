@@ -33,6 +33,8 @@
 import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.130';
 import { isElement } from './elements.js?v=0.2.130';
 import { SHAPE_KINDS, shapeProblem } from '../core/hunt/shapes.js?v=0.2.130';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.130';
+import { foldRows } from './grounds/shape.js?v=0.2.130';
 
 /* The shapes a monster may cast (a 'square' is an aimed footprint, a hero's); every one but 'group' is MARKED. */
 export const SPELL_SHAPES = Object.freeze(['group', 'ring', 'blast', 'cone', 'line']);
@@ -115,9 +117,12 @@ export const MONSTER_SPELLS = {
   muck_fling: { n: 'Muck Fling', shape: 'blast', r: 1, range: 4, windupMs: 1600, cdMs: 14000, hitPm: 1500, element: 'poison' },   // the Kobold Tosher (the Sewer): thrown from up to 4 tiles at its target's tile
   poachers_volley: { n: "Poacher's Volley", shape: 'line', len: 4, range: 4, windupMs: 1600, cdMs: 16000, hitPm: 1200, element: null }, // the Glade Poacher: through its target and the heroes lined up behind it
   lash_sweep: { n: 'Lash Sweep', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 20000, hitPm: 1000, element: null },      // the Hobgoblin Foreman (the Warrens): the two tiles in front of him
-  /* WAITING on their monsters (not on this branch): Cold Bilge (the Bargeman, the Slake: group, frost, 1.5x, 16 s) and Ash
+  /* Cold Bilge (the Bargeman) is the Slake pack's own row (src/data/grounds/the_slake/pack.js spells). WAITING on its monster: Ash
      Bloom (the Pyre Field's ash caster, not designed yet: group, fire, 1.5x, 16 s). validate refuses a row no monster casts. */
 };
+/* GROUND PACKS (lane/b-pack-fields): a pack's own spell rows (its `spells`) join this table, a copy each, as its monsters join
+   MONSTERS. An id already taken is refused: a pack adds. Still the one table every reader and validate see. */
+Object.assign(MONSTER_SPELLS, foldRows('spell', MONSTER_SPELLS, GROUND_PACKS, (p) => Object.fromEntries(Object.entries(p.spells || {}).map(([k, v]) => [k, { ...v }]))));
 
 const own = (id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(MONSTER_SPELLS, id);
 /** The spell row of id `id`, or null. */

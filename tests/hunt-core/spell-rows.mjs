@@ -7,7 +7,7 @@
 //   rows-validate      every monster spell row is valid (src/data/monster-spells.js validate: bounds, the fair warning, its
 //                      shape's one parameter), every monster's `spells` names real rows, and every row is cast by a monster
 //   every-caster-plays every monster that lists a spell spawns where a hero meets it: an open ground's pocket (its spawns, its
-//                      full pack, a boss room's adds) or a called room. A spell on a monster nobody meets is content nothing plays
+//                      full pack, a boss room's adds) or a called room. A spell on a monster nobody meets is content nothing plays. A STAGED pack ground counts (lane/b-pack-fields): it is graded as it ships and its casters play when it opens
 //   boss-kits          a boss carries his marked heavy hit FIRST and his whole-group pulse second (Tyler 2026-11-08: "the tank
 //                      absorbing the boss hits and the casters dodging it", plus "so the whole party takes damage"; the engine
 //                      starts the first spell of the list that is ready, so the heavy hit leads); a called boss casts exactly
@@ -44,7 +44,7 @@ const cases = {
   },
   'every-caster-plays': (M) => {
     const met = new Set();
-    for (const g of [...Object.values(M.grounds.OPEN_GROUNDS), ...Object.values(M.grounds.CALLED_GROUNDS)]) {
+    for (const g of [...Object.values(M.grounds.HUNT_GROUNDS), ...Object.values(M.grounds.CALLED_GROUNDS)]) {
       for (const p of g.pockets) for (const s of [...(p.spawns || []), ...(p.pack || []), ...(p.adds || [])]) met.add(s.monster);
     }
     const lost = Object.keys(M.MONSTERS).filter((k) => M.MS.spellsOf(M.MONSTERS[k]).length && !met.has(k));

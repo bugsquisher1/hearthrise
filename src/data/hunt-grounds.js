@@ -405,7 +405,7 @@ export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries(HUNT
 export function reachableOf(grounds, hunts) {
   const mons = new Set();
   for (const g of Object.values(grounds)) {
-    for (const p of g.pockets) for (const s of (p.pack || []).concat(p.spawns)) mons.add(s.monster);
+    for (const p of g.pockets) for (const s of (p.pack || []).concat(p.spawns, p.adds || [])) mons.add(s.monster);
     for (const s of ((hunts[g.hunt] || {}).spawns || [])) mons.add(s.monster);
   }
   return Object.freeze({ monsters: Object.freeze([...mons].sort()) });
@@ -555,6 +555,19 @@ export function validateGround(row, refs) {
     if (row.groupFit !== 'party') bad('soloFrom is for a party ground only');
     if (!(Number.isInteger(row.soloFrom) && row.soloFrom > band[0] && row.soloFrom <= band[1])) bad('soloFrom must be a Level inside the band, above its floor');
   }
+  /* A BOSS'S WAVE (shape.js addRows; the Muster Barrows' Captain Hask): only in a pocket that holds a boss with two lines (boss-phases.js), each a
+     known monster that is no boss and has no lines of its own, standing inside the room. A wave nothing can call would be a row the engine never plays. */
+  (row.pockets || []).forEach((p, i) => {
+    if (!p || p.adds === undefined) return;
+    if (!Array.isArray(p.adds) || !p.adds.length) { bad('pocket ' + i + ' adds must list at least one row'); return; }
+    const ph = (s) => !!s && !!monsters[s.monster] && monsters[s.monster].boss === true && !!monsters[s.monster].phases;
+    if (!(p.pack || p.spawns || []).concat(p.spawns || []).some(ph)) bad('pocket ' + i + ' has adds and no boss with phases to call them');
+    for (const s of p.adds) {
+      if (!s || !monsters[s.monster]) bad('pocket ' + i + ' adds unknown monster ' + (s && s.monster));
+      else if (monsters[s.monster].boss === true || monsters[s.monster].phases) bad('pocket ' + i + ' add ' + s.monster + ' is a boss');
+      else if (!isTile([s.x, s.y]) || !Array.isArray(p.room) || !inRect(p.room, s.x, s.y)) bad('pocket ' + i + ' add ' + s.monster + ' stands outside its room');
+    }
+  });
   (row.pockets || []).forEach((p, i) => {
     if (p && p.forParty !== undefined && !(Number.isInteger(p.forParty) && p.forParty >= 2 && p.forParty <= MAX_HEROES)) bad('pocket ' + i + ' forParty must be 2..' + MAX_HEROES);
   });

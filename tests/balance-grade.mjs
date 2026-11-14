@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // tests/balance-grade.mjs — THE BALANCE GRADER BITES (lane/b-ground-grader, Tyler 2026-11-07: one formula for every hunt, tested
 // extensively). tools/balance-sim/grade.mjs grades played cells against the target sheet; this proves, with no engine run, that:
-//   good-set      a synthetic grid on target (Normal safe and paying in range, five under losing gold, a four 20% over solo, each
-//                 harder tier paying more) has no binding FAIL, and `grade.mjs --in` exits 0 on it
-//   mutants       each rule family FAILS the cell that breaks it: Normal deaths and dips (on their 95% interval), the low point, the
-//                 +25% profit, five-under in profit, a four far over solo, a harder tier that pays less; `--in` exits 1 on one
+//   good-set      a synthetic grid on target (Normal safe in range, a four 20% over solo, each harder tier paying more) has no
+//                 binding FAIL, and `grade.mjs --in` exits 0 on it
+//   mutants       each rule family FAILS the cell that breaks it: Normal deaths and dips (on their 95% interval), the low point, a four
+//                 far over solo, a harder tier that pays less; `--in` exits 1 on one
+//   no-profit-molds  (Tyler 2026-11-13) gold is printed, never graded: a lone hero 11% over its bill and a pair five under in profit FAIL
+//                 nothing, `--in` exits 0 on them and prints each number in GOLD BY GROUND; no sheet carries a profit rule
 //   rare-events   a death rate is FAIL only past its interval: 1 death in 2,000 h on Normal is not proof of more than 1 per 1,000 h
 //                 (UNPROVEN at most), 12 in 2,000 h is
 //   levels        the grid's Levels: deduped, never under 1, floor+10 past the band's top reads `above`
@@ -13,7 +15,10 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { gradeCells, synthSet, levelsOf, ranked, feelVerdicts } from '../tools/balance-sim/grade.mjs';
+import { gradeCells, synthSet, levelsOf, ranked, feelVerdicts, buildGrid, isProfitRule } from '../tools/balance-sim/grade.mjs';
+import { loadGear } from '../tools/balance-sim/gear.mjs';
+import { monstersOfGround } from '../tools/pack.mjs';
+import { MONSTERS } from '../src/data/monsters.js';
 import { SHEET, sheetFromBalanceSheet } from '../tools/balance-sim/grade-sheet.mjs';
 import { worse } from '../tools/balance-sim/grade-compare.mjs';
 
@@ -27,7 +32,9 @@ const cli = (cells) => {
   const dir = mkdtempSync(join(tmpdir(), 'grade-'));
   try {
     writeFileSync(join(dir, 'cells.jsonl'), cells.map((c) => JSON.stringify(c)).join('\n') + '\n');
-    return spawnSync(process.execPath, [GRADER, '--in', dir, '--sheet', 'local'], { encoding: 'utf8' }).status;
+    const r = spawnSync(process.execPath, [GRADER, '--in', dir, '--sheet', 'local'], { encoding: 'utf8' });
+    cli.out = r.stdout || '';
+    return r.status;
   } finally { rmSync(dir, { recursive: true, force: true }); }
 };
 
@@ -35,11 +42,18 @@ console.log('balance-grade:');
 const good = failsOf(synthSet());
 check(good.length === 0, 'good-set: no binding FAIL' + (good.length ? ' (' + good.map((v) => v.rule + ' ' + v.key).join('; ') + ')' : ''));
 check(cli(synthSet()) === 0, 'good-set: grade.mjs --in exits 0');
-for (const [mut, rule] of [['deaths', 'normal-deaths'], ['dips', 'normal-dips'], ['profit', 'normal-profit'], ['under5', 'under5-loses'],
+for (const [mut, rule] of [['deaths', 'normal-deaths'], ['dips', 'normal-dips'],
   ['four', 'four-xp'], ['tier', 'tier-pays-more'], ['lowpoint', 'normal-low-point']]) {
   check(failsOf(synthSet({ [mut]: true })).some((v) => v.rule === rule), 'mutants: ' + mut + ' FAILS ' + rule);
 }
-check(cli(synthSet({ profit: true })) === 1, 'mutants: grade.mjs --in exits 1 on the +25% mutant');
+check(cli(synthSet({ deaths: true })) === 1, 'mutants: grade.mjs --in exits 1 on the Normal deaths mutant');
+
+/* NO PROFIT MOLDS (Tyler 2026-11-13): gold is PRINTED per ground, never graded. The old +25% and five-under-loses mutants FAIL nothing, the CLI
+   exits 0 on them, and the printed GOLD BY GROUND table carries each number (the floor hero +11% over its bill, the five-under four's 3,500) */
+for (const [mut, printed] of [['profit', '| +11% |'], ['under5', 'to 3,500)']]) {
+  check(failsOf(synthSet({ [mut]: true })).length === 0, 'no-profit-molds: the ' + mut + ' mutant (gold only) FAILS nothing');
+  check(cli(synthSet({ [mut]: true })) === 0 && cli.out.includes('GOLD BY GROUND') && cli.out.includes(printed), 'no-profit-molds: grade.mjs --in exits 0 on the ' + mut + ' mutant and prints ' + printed);
+}
 /* a four is judged against solos in its own kit: practice-kit fresh heroes at the floor don't drag the median (10-25 §5 "same gear quality") */
 const kitFails = failsOf(synthSet({ practice: true })).filter((v) => v.rule === 'four-xp');
 check(kitFails.length === 0, 'same-kit: practice-kit solos leave the four at 1.2' + (kitFails.length ? ' (' + kitFails.map((v) => v.key + ' ' + v.value).join('; ') + ')' : ''));
@@ -72,7 +86,8 @@ const seat = synthSet(); seat.find((c) => c.cell.grade.tier === 'normal' && c.ce
 check(feel(seat).includes('feel-seat-below-solo'), 'feel: a party seat under the lone hero is flagged');
 const two = synthSet().concat(synthSet().map((c) => ({ ...c, cell: { ...c.cell, grade: { ...c.cell.grade, ground: 'g2', band: [30, 40] } },
   heroes: c.heroes.map((h) => ({ ...h, profitPerH: h.profitPerH - 3000 })) })));
-check(feel(two).includes('feel-gold-order'), 'feel: a higher floor netting less gold is flagged');
+check(feel(two).length === 0, 'no-profit-molds: a higher floor netting less gold is no longer flagged (feel-gold-order retired 2026-11-13; ' + feel(two).join(', ') + ')');
+check(worse(synthSet(), two).length === 0, 'no-profit-molds: grade-compare calls a gold inversion worse for nobody');
 
 /* the release gate (grade-compare.mjs): nothing is worse against itself; a new Normal death and a seat sliding under solo are */
 check(worse(synthSet(), synthSet()).length === 0, 'compare: a run against itself is worse nowhere');
@@ -92,7 +107,11 @@ const lone = (deaths) => synthSet().filter((x) => x.cell.grade.tier === 'dangero
 const wc = (cells) => gradeCells(cells, WC, flat).verdicts.filter((v) => v.rule.startsWith('wc-'));
 check(!wc([pairCell(6000)]).some((v) => v.verdict === 'FAIL'), 'weight-class: a pair five under on Dangerous that loses gold and never dies is not a FAIL ('
   + wc([pairCell(6000)]).filter((v) => v.verdict === 'FAIL').map((v) => v.rule).join(', ') + ')');
-check(wc([pairCell(1000)]).some((v) => v.rule === 'wc-deadly-under-loses' && v.verdict === 'FAIL'), 'weight-class mutant: the same pair in profit FAILS wc-deadly-under-loses');
+check(!wc([pairCell(1000)]).some((v) => v.verdict === 'FAIL'), 'no-profit-molds: the same pair in profit FAILS nothing (the under-Level gold line is retired 2026-11-13)');
+for (const [name, sheet] of [['the local sheet', SHEET], ['the balance sheet\'s', WC]]) {
+  const gold = sheet.rules.filter(isProfitRule).map((r) => r.id);
+  check(gold.length === 0, 'no-profit-molds: ' + name + ' carries no profit rule (' + gold.join(', ') + ')');
+}
 check(wc(lone(0)).some((v) => v.rule === 'wc-under-lone-dies' && v.verdict === 'OFF'), 'weight-class: every lone way holding five under on Dangerous reads OFF on wc-under-lone-dies, never FAIL');
 check(wc(lone(2)).some((v) => v.rule === 'wc-under-lone-dies' && v.verdict === 'ok'), 'weight-class: lone heroes dying five under reads ok');
 check(!WC.rules.some((r) => r.metric === 'deaths' && r.min != null && r.binding), 'weight-class: no binding line asks a group to die');
@@ -104,10 +123,36 @@ check(levelsOf([1, 5], ['floor', 'plus10']).some((x) => x.offset === 'above' && 
 
 /* lone-window (lane/d-live-grounds-2): a lone cell's HP trace is read at the live settle cadence. At 120 s cell.mjs spread a window's regeneration evenly
    and read phantom dips under 25% (a fresh Thicket melee 1.5-3.5 in 12 h, a Glade Ranger about 6) on fights that read 0 at 10 s with the same XP and gold. */
-const { buildGrid } = await import('../tools/balance-sim/grade.mjs');
 const grid = await buildGrid(ROOT, 'full', { grounds: ['meadowbrook_thicket'] });
 const loneJobs = grid.filter((j) => j.party.length === 1), slow = loneJobs.filter((j) => !(j.windowMs <= 10000));
 check(loneJobs.length > 0 && slow.length === 0, 'lone-window: every lone cell (' + loneJobs.length + ', the fresh hero included) reads its HP at 10 s' + (slow.length ? ' (' + slow.length + ' at ' + slow[0].windowMs + ' ms, e.g. ' + slow[0].id + ')' : ''));
+/* A STAGED GROUND IS GRADED AS IT SHIPS (lane/b-slake-and-ford 2026-11-10, ported by lane/d-packs-retune): its jobs put its own drops on the gear ladder
+   and say so in the cell id; an open ground's jobs carry neither. Without it a staged ground at a tier's first Level is graded one tier under. */
+{
+  const G = await import('../src/data/hunt-grounds.js');
+  const staged = Object.keys(G.HUNT_GROUNDS).filter((g) => !Object.prototype.hasOwnProperty.call(G.OPEN_GROUNDS, g));
+  const open = Object.keys(G.OPEN_GROUNDS)[0];
+  const jobs = await buildGrid(ROOT, 'quick', { grounds: [...staged, open] });
+  const of = (g) => jobs.filter((j) => j.ground === g);
+  check(of(open).length > 0 && of(open).every((j) => !(j.gear && j.gear.openAlso) && !j.id.includes(',open')), 'as it ships: an open ground (' + open + ') is played on the open ladder');
+  if (!staged.length) console.log('  --   as it ships: no staged ground today, the staged half reads nothing');
+  const gear = staged.length ? await loadGear(ROOT) : null;
+  for (const g of staged) {
+    check(of(g).length > 0 && of(g).every((j) => j.gear && j.gear.openAlso && j.gear.openAlso.join() === g && j.id.includes(',open')), 'as it ships: staged ' + g + ' plays with its own drops, and its cell ids say so');
+    const own = monstersOfGround(G.HUNT_GROUNDS[g]).flatMap((m) => (MONSTERS[m].drops || []).map((d) => d.id));
+    const only = own.filter((id) => !gear.reach.has(id));
+    if (!only.length) { console.log('  --   as it ships: every drop of ' + g + ' is gettable elsewhere, nothing to open'); continue; }
+    check(only.every((id) => gear.reachWith([g]).has(id)), 'as it ships: ' + only.length + ' drops found only on ' + g + ' are on its ladder with openAlso, and off it without');
+  }
+  /* --open-also: a pair that ships together (pack check --with); a name that is no ground is refused before anything plays */
+  if (staged.length > 1) {
+    const [a, b] = staged, pair = await buildGrid(ROOT, 'quick', { grounds: [a], openAlso: [b] });
+    check(pair.every((j) => j.gear.openAlso.join() === a + ',' + b && j.id.includes(',open=' + a + '+' + b)), 'as it ships with ' + b + ': ' + a + '\'s jobs open both, and their ids say so');
+  }
+  let refused = false;
+  try { await buildGrid(ROOT, 'quick', { grounds: [open], openAlso: ['no_such_ground'] }); } catch { refused = true; }
+  check(refused, 'as it ships: --open-also with no such ground is refused');
+}
 
 if (fails.length) { console.error('balance-grade: ' + fails.length + ' FAILED'); process.exit(1); }
 console.log('balance-grade: all checks pass');

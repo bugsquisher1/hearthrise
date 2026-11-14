@@ -9,6 +9,8 @@
 //
 //   node tools/balance-sim/grade.mjs --mode quick [--grounds a,b] [--workers 4]     a subset in minutes, for any lane
 //   node tools/balance-sim/grade.mjs --mode full  [--grounds a,b] [--tiers t,u]     the whole grid (about 17k hero-hours)
+//   ... [--open-also a,b]                                                          staged grounds that ship with these: their drops on
+//                                                                                   the gear ladder too (a staged graded ground's own always are)
 //   node tools/balance-sim/grade.mjs --in DIR                                       grade cells already played (no play)
 //   node tools/balance-sim/grade.mjs --mode quick --what-if '{"monsters":{"*":{"atk":"*3"}}}'   a candidate on the same dice
 //   node tools/balance-sim/grade.mjs --selftest                                     every rule bites a synthetic mutant
@@ -16,6 +18,10 @@
 // Output: the ranked outliers (binding FAILs first, then UNPROVEN, then advisory, each by how far off), a pass/fail line per
 // ground, and DIR/grade.json (every verdict). Cells land in tools/balance-sim/out/grade-<mode>/cells.jsonl (a stopped run
 // resumes). EXIT 1 when any binding rule FAILS, 0 otherwise (UNPROVEN and advisory rows never turn it red).
+//
+// NO PROFIT MOLDS (Tyler 2026-11-13: "if the player can do it and profit from it, great, if not, too bad"; "if a certain hunt is way
+// under and needs rebalanced, we'll treat it one at a time, not a blanket mold"). Gold is never graded: a sheet rule on a profit number
+// (PROFIT_METRICS) is refused, and every ground's gold is PRINTED side by side (goldRows / goldReport), numbers only, no bound.
 //
 // Rare events are judged honestly: deaths and dips under 25% HP are pooled per ground x tier x offset x size and read on their
 // exact 95% Poisson interval (stats.mjs): FAIL only when the interval's low end is past the bound, UNPROVEN when the bound sits
@@ -73,20 +79,28 @@ export async function buildGrid(root, mode, opts = {}) {
   const T = await import(u('src/data/hunt-tiers.js'));
   const wi = opts.whatIf || null, tag = wi ? ',w=' + createHash('sha256').update(JSON.stringify(wi)).digest('hex').slice(0, 8) : '';
   const jobs = [];
+  const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  for (const x of opts.openAlso || []) if (!own(G.HUNT_GROUNDS, x)) throw new Error('grade: --open-also names no ground ' + x);
   for (const g of groundsOf(G, opts.grounds)) {
     const band = HUNT_INDEX[g.hunt].band;
+    /* A STAGED GROUND IS PLAYED AS IT SHIPS (lane/b-slake-and-ford 2026-11-10): its own drops gettable, the ladder every open ground
+       is graded on (gear.mjs openAlso). `opts.openAlso` opens other staged grounds with it (a pair that ships together: the Ford's
+       armor and the Slake's weapons). The cell id says so, so a cell played on another ladder is never resumed as this one. */
+    const extra = (opts.openAlso || []).filter((x) => x !== g.id && !own(G.OPEN_GROUNDS, x));
+    const opens = [...(own(G.OPEN_GROUNDS, g.id) ? [] : [g.id]), ...extra];
+    const og = opens.length ? ',open' + (extra.length ? '=' + opens.join('+') : '') : '', ogear = opens.length ? { openAlso: opens } : null;
     for (const tier of T.tiersOf(g.id).filter((t) => !opts.tiers || opts.tiers.includes(t))) {
       const row = T.tierRowOf(g.id, tier);
       for (const { offset, level } of levelsOf(band, OFFSETS[mode])) for (const [size, comps] of Object.entries(COMPS[mode])) for (const comp of comps) {
         const n = Number(size), pull = tier === 'normal' ? 0 : row.pull[n - 1], { seeds, hours } = dice(mode, n, tier, offset);
-        const id = ['grade', 'g=' + g.id, 't=' + tier, 'o=' + offset, 'p=' + comp.join('+'), 'L=' + level, 's=' + seeds, 'h=' + hours].join(',') + tag;
-        jobs.push({ id, ground: g.id, party: comp, level, ...(pull ? { density: pull } : {}), hours, seeds, ...(tier === 'normal' ? {} : { options: { tier } }),
+        const id = ['grade', 'g=' + g.id, 't=' + tier, 'o=' + offset, 'p=' + comp.join('+'), 'L=' + level, 's=' + seeds, 'h=' + hours].join(',') + og + tag;
+        jobs.push({ id, ground: g.id, party: comp, level, ...(ogear ? { gear: ogear } : {}), ...(pull ? { density: pull } : {}), hours, seeds, ...(tier === 'normal' ? {} : { options: { tier } }),
           windowMs: windowFor(n), ...(wi ? { whatIf: wi } : {}), grade: { ground: g.id, band, groupFit: fitOf(g), tier, offset, size: n, comp: comp.join('+'), gear: 'ladder' } });
       }
       /* THE FRESH HERO (first-week bars): the practice set alone at a first-day solo floor (Level 15 or under), Normal, every way */
       if (tier === 'normal' && band[0] <= 15 && fitOf(g) === 'solo') for (const [s] of COMPS[mode][1]) {
         const { seeds, hours } = dice(mode, 1, tier, 'floor');
-        const id = ['grade', 'g=' + g.id, 't=normal', 'o=floor', 'p=' + s, 'L=' + band[0], 'gear=practice', 's=' + seeds, 'h=' + hours].join(',') + tag;
+        const id = ['grade', 'g=' + g.id, 't=normal', 'o=floor', 'p=' + s, 'L=' + band[0], 'gear=practice', 's=' + seeds, 'h=' + hours].join(',') + og + tag;
         jobs.push({ id, ground: g.id, party: [s], level: band[0], gear: { starter: true }, hours, seeds, windowMs: windowFor(1), ...(wi ? { whatIf: wi } : {}),
           grade: { ground: g.id, band, groupFit: 'solo', tier, offset: 'floor', size: 1, comp: s, gear: 'practice' } });
       }
@@ -104,6 +118,8 @@ export function groundsOf(G, names) {
 
 /** A ground's fit: party where a pocket needs a party or the ground says so (tools/balance-sim plans.mjs loadAxes), else solo (a both ground sends a lone hero). */
 export const fitOf = (g) => ((g.pockets || []).some((p) => p.forParty) || g.groupFit === 'party' ? 'party' : 'solo');
+/** Each pack's `checks` (src/data/grounds/index.js GROUND_PACKS), by ground id. */
+export async function packChecksOf(root) { const P = await import(pathToFileURL(join(root, 'src/data/grounds/index.js')).href); return Object.fromEntries(P.GROUND_PACKS.map((p) => [(p.ground && p.ground.id) || p.id, p.checks || {}])); }
 export async function fitsOf(root) { const G = await import(pathToFileURL(join(root, 'src/data/hunt-grounds.js')).href); return Object.fromEntries(Object.values(G.HUNT_GROUNDS).map((g) => [g.id, fitOf(g)])); }
 
 /* ── THE METRICS OF ONE CELL (hour-weighted per head) ── */
@@ -126,11 +142,16 @@ export async function loadPace(root) {
   return (L) => { if (L >= snap.ceiling) return LEVEL_PACE.contract.a * L ** LEVEL_PACE.contract.b; let r = snap.rate[known[0]]; for (const k of known) if (k <= L) r = snap.rate[k]; return r; };
 }
 
+/* THE PROFIT NUMBERS (Tyler 2026-11-13, NO PROFIT MOLDS): printed by goldReport, never a rule's metric or aggregate. A sheet that grades
+   one is refused, so no lane can tune a ground toward a profit percentage again. */
+export const PROFIT_METRICS = Object.freeze(['net', 'margin', 'supplyShare', 'netMinusFloor', 'netVsSolo', 'medianCost']);
+export const isProfitRule = (rule) => PROFIT_METRICS.includes(rule.metric) || PROFIT_METRICS.includes(rule.aggregate);
+
 /* a rule's scope: tier, offset, size, the ground's fit, the gear (`ladder` unless it says `practice`), the floor's Level, a skip */
 const scoped = (rule, m) => (!rule.tiers || rule.tiers.includes(m.tier)) && (!rule.offsets || rule.offsets.includes(m.offset)) && (!rule.sizes || rule.sizes.includes(m.size))
   && (!rule.fit || rule.fit === m.groupFit) && (rule.gear || 'ladder') === (m.gear || 'ladder') && (rule.floorFrom == null || m.band[0] >= rule.floorFrom)
   && (rule.floorMax == null || m.band[0] <= rule.floorMax) && !(rule.skip && rule.skip(m));
-const median = (xs) => { const s = xs.filter(Number.isFinite).sort((a, b) => a - b); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; };
+export const median = (xs) => { const s = xs.filter(Number.isFinite).sort((a, b) => a - b); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; };
 const off = (v, rule) => (rule.min != null && v < rule.min ? (rule.min - v) / Math.max(Math.abs(rule.min), 1e-9) : rule.max != null && v > rule.max ? (v - rule.max) / Math.max(Math.abs(rule.max), 1e-9) : 0);
 
 /**
@@ -138,14 +159,19 @@ const off = (v, rule) => (rule.min != null && v < rule.min ? (rule.min - v) / Ma
  * { verdicts: [{ rule, binding, verdict 'FAIL'|'UNPROVEN'|'OFF'|'ok', key, value, lo, hi, bound, off, why }], grounds: { id: { fail, unproven, off, ok } } }.
  * OFF is an advisory rule off its target; a solo cell on a party ground (groupFit 'party') grades its binding rules as advisory.
  */
-export function gradeCells(cells, sheet, pace, fits = {}) {
-  const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade).map((c) => ({ c, m: { ...c.cell.grade, groupFit: fits[c.cell.grade.ground] || c.cell.grade.groupFit }, x: metricsOf(c) }));
+export function gradeCells(cells, sheet, pace, fits = {}, packs = {}) {
+  const gold = sheet.rules.filter(isProfitRule);
+  if (gold.length) throw new Error('grade: ' + gold.map((r) => r.id).join(', ') + ' grade a profit number; Tyler 2026-11-13 NO PROFIT MOLDS: gold is printed (goldReport), never graded');
+  /* `packs`: a pack's own grading facts (src/data/grounds/<id>/pack.js `checks`), e.g. deadlyFourNeeds 'healer' (designer Q4 2026-11-12) */
+  const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade).map((c) => ({ c, m: { ...c.cell.grade, groupFit: fits[c.cell.grade.ground] || c.cell.grade.groupFit,
+    deadlyFourNeeds: (packs[c.cell.grade.ground] && packs[c.cell.grade.ground].deadlyFourNeeds) || null }, x: metricsOf(c) }));
   const key = (m, extra) => [m.ground, m.tier, m.offset, 'size ' + m.size, extra].filter(Boolean).join(' / ');
   const find = (m, pred) => rows.filter((r) => r.m.ground === m.ground && pred(r.m));
   const verdicts = [];
   const push = (rule, m, value, extra, ci) => {
     /* the pace contract is fitted on lone heroes (pace.mjs, the ladder plan), so its lone reading binds on a party ground too (Coordinator ruling 2026-11-11, lane/d-solo-fifteen) */
-    const binding = rule.binding && !(m.size === 1 && m.groupFit === 'party' && rule.aggregate !== 'xpVsContract');
+    /* a rule's `reportOnly(m)` cells are reported, never graded (designer rulings Q2 and Q4, 2026-11-12) */
+    const binding = rule.binding && !(m.size === 1 && m.groupFit === 'party' && rule.aggregate !== 'xpVsContract') && !(rule.reportOnly && rule.reportOnly(m));
     let verdict = 'ok', o = 0;
     if (ci) {
       if (rule.max != null && ci.lo > rule.max) { verdict = binding ? 'FAIL' : 'OFF'; o = (ci.lo - rule.max) / Math.max(rule.max, 1e-9); }
@@ -182,11 +208,9 @@ export function gradeCells(cells, sheet, pace, fits = {}) {
         const m = g[0].m, L = g[0].c.cell.level;
         let v = null;
         switch (rule.aggregate) {
-          case 'supplyShare': v = median(g.map((r) => r.x.supplyShare)); break;
           case 'xpVsContract': v = sheet.contract ? median(g.map((r) => r.x.xp)) / sheet.contract(Array.isArray(L) ? Math.max(...L) : L) : null; break;
           case 'xpVsNormal': { const n = median(find(m, (o) => o.tier === 'normal' && o.offset === m.offset && o.size === m.size && (o.gear || 'ladder') === 'ladder').map((o) => o.x.xp)); v = n > 0 ? median(g.map((r) => r.x.xp)) / n : null; break; }
           case 'heldCount': v = Math.round(((g.filter((r) => r.x.held).length * 8) / g.length) * 10) / 10; break; /* held of 8 ways (a quick run plays 4) */
-          case 'medianCost': v = median(g.map((r) => r.x.deaths)) > 0 || median(g.map((r) => r.x.net)) < 0 ? 1 : 0; break;
           default: throw new Error('grade: no aggregate ' + rule.aggregate);
         }
         push(rule, m, v, 'the median of ' + g.length + ' (' + g.map((r) => r.m.comp).join(', ') + ') L' + L);
@@ -199,14 +223,13 @@ export function gradeCells(cells, sheet, pace, fits = {}) {
       const m = r.m, x = r.x;
       let v = null;
       switch (rule.metric) {
-        case 'net': case 'margin': case 'supplyShare': case 'minHpP50': case 'deaths': case 'dips': v = x[rule.metric]; break;
+        case 'minHpP50': case 'deaths': case 'dips': v = x[rule.metric]; break;
         case 'deathsPer16h': v = x.hours > 0 ? (x.deaths / x.hours) * 16 : null; break;
         case 'xpVsFloorSolo': { const f = median(find(m, (o) => o.tier === m.tier && o.offset === 'floor' && o.size === 1 && (o.gear || 'ladder') === 'ladder').map((o) => o.x.xp)); v = f > 0 ? x.xp / f : null; break; }
         case 'xpVsNormal': { const n = find(m, (o) => o.tier === 'normal' && o.offset === m.offset && o.comp === m.comp && (o.gear || 'ladder') === 'ladder')[0]; v = n && n.x.xp > 0 ? x.xp / n.x.xp : null; break; }
         case 'xpVsPace': { const L = r.c.cell.level, p = pace(Array.isArray(L) ? Math.max(...L) : L); v = p > 0 ? x.xp / p : null; break; }
-        case 'netMinusFloor': { const f = find(m, (o) => o.tier === m.tier && o.offset === 'floor' && o.comp === m.comp)[0]; v = f ? x.net - f.x.net : null; break; }
-        case 'xpVsSolo': case 'netVsSolo': { const solo = median(find(m, (o) => o.tier === m.tier && o.offset === m.offset && o.size === 1 && (o.gear || 'ladder') === (m.gear || 'ladder')).map((o) => (rule.metric === 'xpVsSolo' ? o.x.xp : o.x.net)));
-          v = solo > 0 ? (rule.metric === 'xpVsSolo' ? x.xp : x.net) / solo : null; break; }
+        case 'xpVsSolo': { const solo = median(find(m, (o) => o.tier === m.tier && o.offset === m.offset && o.size === 1 && (o.gear || 'ladder') === (m.gear || 'ladder')).map((o) => o.x.xp));
+          v = solo > 0 ? x.xp / solo : null; break; }
         case 'xpVsTierBelow': { const below = m.tier === 'deadly' ? 'dangerous' : 'normal'; const b = find(m, (o) => o.tier === below && o.offset === m.offset && o.comp === m.comp)[0]; v = b && b.x.xp > 0 ? x.xp / b.x.xp : null; break; }
         default: throw new Error('grade: no metric ' + rule.metric);
       }
@@ -270,8 +293,8 @@ export async function blowVerdicts(root, sheet, grounds = null) {
  *   feel-normal-deaths  a death on Normal at or above a floor, any party size (11-04 "in range is safe"; 10-25 <= 1 per 1,000 h)
  *   feel-tier-less      a harder tier a hero or party HELD (no death) paying less Level XP a head than Normal (11-05 more XP a kill)
  *   feel-seat-below-solo a party seat on Normal in range earning less Level XP than the median lone hero there (10-25 parties advantaged)
- *   feel-gold-order     a ground's floor netting less gold an hour than a ground with a lower floor (11-03 "harder pays more"): the
- *                       median lone way on a solo ground, the four a head on a party ground
+ * (feel-gold-order, a higher floor netting less gold than a lower one, is RETIRED by Tyler's 2026-11-13 NO PROFIT MOLDS: each ground's
+ * gold is printed side by side in goldReport, and an outlier is treated one ground at a time.)
  */
 export function feelVerdicts(cells, fits = {}) {
   const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade).map((c) => ({ c, m: { ...c.cell.grade, groupFit: fits[c.cell.grade.ground] || c.cell.grade.groupFit }, x: metricsOf(c) }))
@@ -297,17 +320,41 @@ export function feelVerdicts(cells, fits = {}) {
     if (solo > 0 && seat < solo) v('feel-seat-below-solo', 'FAIL', r.m.ground + ' / normal / ' + r.m.offset + ' / ' + r.m.comp + ' L' + r.c.cell.level + ' (lowest seat ' + r.c.heroes.reduce((a, h) => (h.levelXpPerH < a.levelXpPerH ? h : a)).style + ')',
       r.m.ground, seat / solo, { min: 1, off: 1 - seat / solo, why: '10-25: parties are advantaged; a seat here levels slower than going alone' });
   }
-  const floors = [...new Set(rows.map((r) => r.m.ground))].map((g) => {
-    const fl = rows.filter((r) => r.m.ground === g && r.m.tier === 'normal' && r.m.offset === 'floor');
-    if (!fl.length) return null;
-    const party = fl[0].m.groupFit === 'party', pick = fl.filter((r) => r.m.size === (party ? 4 : 1));
-    return { g, floor: fl[0].m.band[0], net: median(pick.map((r) => r.x.net)), who: party ? 'the fours a head' : 'the median lone way' };
-  }).filter(Boolean).sort((a, b) => a.floor - b.floor);
-  for (const a of floors) for (const b of floors) if (b.floor < a.floor && a.net < b.net) {
-    v('feel-gold-order', 'FAIL', a.g + ' (floor ' + a.floor + ', ' + a.who + ') nets ' + Math.round(a.net) + ' g/h, under ' + b.g + ' (floor ' + b.floor + ', ' + b.who + ') at ' + Math.round(b.net), a.g, a.net / b.net,
-      { min: 1, off: 1 - a.net / b.net, why: '11-03: harder pays more; a higher floor nets more gold an hour' });
-  }
   return out;
+}
+
+/**
+ * GOLD BY GROUND, PRINTED (Tyler 2026-11-13, NO PROFIT MOLDS): one row per ground, side by side, so an outlier is easy to spot and
+ * treated on its own. Numbers only: no bound, no verdict, no rule across grounds. Per head an hour, the ladder kit, each the median
+ * of the cells it names: net gold, coin + commons over the store bill, and the bill as a share of income alone at the floor on Normal;
+ * net a head for a duo / trio / four there; and net under the floor (2-3 and 5 under, any tier and size) and at the floor on the
+ * harder tiers (any size); a spread reads "median (lowest to highest cell)". A cell the run did not play reads '-'.
+ */
+export function goldRows(cells, fits = {}) {
+  const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade && (c.cell.grade.gear || 'ladder') === 'ladder').map((c) => ({ m: c.cell.grade, x: metricsOf(c) }));
+  return [...new Set(rows.map((r) => r.m.ground))].map((g) => {
+    const mine = rows.filter((r) => r.m.ground === g);
+    const med = (pred, k) => median(mine.filter(pred).map((r) => r.x[k]));
+    /* a spread: the median and the lowest and highest cell, so one way or group far off the rest shows */
+    const spread = (pred) => { const v = mine.filter(pred).map((r) => r.x.net).filter(Number.isFinite); return v.length ? { med: median(v), lo: Math.min(...v), hi: Math.max(...v) } : null; };
+    const at = (tiers, offsets, sizes) => (r) => tiers.includes(r.m.tier) && offsets.includes(r.m.offset) && (!sizes || sizes.includes(r.m.size));
+    const lone = at(['normal'], ['floor'], [1]), size = (n) => med(at(['normal'], ['floor'], [n]), 'net');
+    return { ground: g, floor: mine[0].m.band[0], fit: fits[g] || mine[0].m.groupFit,
+      lone: { net: spread(lone), margin: med(lone, 'margin'), supplyShare: med(lone, 'supplyShare') },
+      party: { 2: size(2), 3: size(3), 4: size(4) },
+      under23: spread(at(['normal', 'dangerous', 'deadly'], ['under2', 'under3'])), under5: spread(at(['normal', 'dangerous', 'deadly'], ['under5'])),
+      dangerous: spread(at(['dangerous'], ['floor'])), deadly: spread(at(['deadly'], ['floor'])) };
+  }).sort((a, b) => a.floor - b.floor);
+}
+export function goldReport(rows) {
+  const g = (v) => (v == null ? '-' : Math.round(v).toLocaleString('en-US'));
+  const sp = (v) => (v == null ? '-' : g(v.med) + (v.lo === v.hi ? '' : ' (' + g(v.lo) + ' to ' + g(v.hi) + ')'));
+  const p = (v) => (v == null ? '-' : (v >= 0 ? '+' : '') + Math.round(v * 100) + '%');
+  const lines = ['GOLD BY GROUND (printed, never graded: Tyler 2026-11-13 NO PROFIT MOLDS; per head an hour, medians, ladder kit)',
+    '| Ground | Floor | Fit | Alone at floor: net | over the bill | bill share | Duo | Trio | Four | 2-3 under | 5 under | Dangerous floor | Deadly floor |',
+    '|---|---|---|---|---|---|---|---|---|---|---|---|---|'];
+  for (const r of rows) lines.push('| ' + [r.ground, r.floor, r.fit, sp(r.lone.net), p(r.lone.margin), p(r.lone.supplyShare), g(r.party[2]), g(r.party[3]), g(r.party[4]), sp(r.under23), sp(r.under5), sp(r.dangerous), sp(r.deadly)].join(' | ') + ' |');
+  return lines.join('\n');
 }
 
 const RANK = { FAIL: 3, UNPROVEN: 2, OFF: 1, ok: 0 };
@@ -352,9 +399,14 @@ export function synthSet(mut = {}) {
   const pick = (tier, offset, size) => cells.find((c) => c.cell.grade.tier === tier && c.cell.grade.offset === offset && c.cell.grade.size === size);
   if (mut.deaths) pick('normal', 'floor', 1).heroes[0].deaths = 12;
   if (mut.dips) pick('normal', 'floor', 1).heroes[0].closeCallsPer12h.k = 900;
-  if (mut.profit) pick('normal', 'top', 1).heroes[0].storePerH = 4500, pick('normal', 'top', 1).heroes[0].profitPerH = 500;
+  /* a lone hero at the floor 11% over its bill (gold only: the old +25% floor's mutant, now a printed number) */
+  if (mut.profit) pick('normal', 'floor', 1).heroes[0].storePerH = 4500, pick('normal', 'floor', 1).heroes[0].profitPerH = 500;
   if (mut.under5) for (const h of pick('dangerous', 'under5', 4).heroes) h.storePerH = 1000, h.profitPerH = 3500;
-  if (mut.four) for (const h of pick('normal', 'floor', 4).heroes) h.levelXpPerH = 70000 * 1.6;
+  /* `ways`: three more lone ways at the floor, `ways` of them losing gold (the median-target selftest) */
+  if (mut.band) for (const c of cells) c.cell.grade.band = mut.band;
+  if (mut.fourOffset === 'middle') for (const c of cells.filter((c) => c.cell.grade.offset === 'top')) c.cell.grade.offset = 'middle';
+  if (mut.four) for (const h of pick('normal', mut.fourOffset || 'floor', 4).heroes) h.levelXpPerH = 70000 * 1.6;
+  if (mut.deadlyFour) { const c = pick('deadly', 'floor', 4); c.cell.grade.comp = mut.deadlyFour; for (const h of c.heroes) h.deaths = 40, h.hours = 8; }
   if (mut.tier) for (const h of pick('deadly', 'top', 4).heroes) h.levelXpPerH = 70000;
   if (mut.lowpoint) pick('normal', 'floor', 1).heroes[0].encMinHpPct.p50 = 40;
   /* fresh heroes in the practice kit at the floor (buildGrid's first-week cells): a four in the ladder kit is judged against solos in the
@@ -372,12 +424,35 @@ if (isMain(import.meta.url)) {
     const good = gradeCells(synthSet(), SHEET, flat);
     const bad = [];
     if (good.verdicts.some((v) => v.verdict === 'FAIL')) bad.push('the good set fails: ' + ranked(good.verdicts).filter((v) => v.verdict === 'FAIL').map((v) => v.rule + ' ' + v.key).join('; '));
-    for (const [mut, rule] of [['deaths', 'normal-deaths'], ['dips', 'normal-dips'], ['profit', 'normal-profit'], ['under5', 'under5-loses'], ['four', 'four-xp'], ['tier', 'tier-pays-more'], ['lowpoint', 'normal-low-point']]) {
+    for (const [mut, rule] of [['deaths', 'normal-deaths'], ['dips', 'normal-dips'], ['four', 'four-xp'], ['tier', 'tier-pays-more'], ['lowpoint', 'normal-low-point']]) {
       const r = gradeCells(synthSet({ [mut]: true }), SHEET, flat);
       if (!r.verdicts.some((v) => v.rule === rule && v.verdict === 'FAIL')) bad.push('mutant ' + mut + ' did not FAIL ' + rule);
     }
+    const RS = await loadSheet(ROOT, null, null);
+    /* Q2: on a band of 20+ Levels a four's ends are reported (OFF), its middle is graded; on a narrower band the ends still FAIL */
+    const long = (band, at) => gradeCells(synthSet({ four: true, band, fourOffset: at }), RS, flat).verdicts.filter((v) => v.rule === 'four-xp' && v.verdict === 'FAIL');
+    if (long([16, 36], 'top').length) bad.push('a 20-Level band graded a four at its end');
+    if (!long([16, 36], 'middle').length) bad.push('a 20-Level band did not grade a four at its middle');
+    if (!long([16, 31], 'top').length) bad.push('a 15-Level band stopped grading a four at its top');
+    /* Q4: a pack that needs a Healer on Deadly grades only the four with one; the healerless four is reported */
+    const heal = (needs, comp) => gradeCells(synthSet({ deadlyFour: comp }), RS, flat, {}, { g: { deadlyFourNeeds: needs } }).verdicts.filter((v) => v.rule === 'tier-deadly-four-held' && v.verdict === 'FAIL').length;
+    if (heal('healer', 'tank+bow+mage+hammer')) bad.push('a healerless four failed a Deadly that needs a Healer');
+    if (!heal('healer', 'tank+healer+bow+mage')) bad.push('a four with a Healer was not graded on a Deadly that needs one');
+    if (!heal(null, 'tank+bow+mage+hammer')) bad.push('a healerless four went ungraded on an ordinary Deadly');
+    /* NO PROFIT MOLDS (Tyler 2026-11-13): a hunt under +25% and a pair five under in profit FAIL nothing, and the printed gold report carries
+       each changed number; a sheet that grades gold is refused */
+    const goldOf = (cells) => goldReport(goldRows(cells));
+    for (const [mut, cell] of [['profit', '| +11% |'], ['under5', 'to 3,500)']]) {
+      const r = gradeCells(synthSet({ [mut]: true }), SHEET, flat), was = goldOf(synthSet()), now = goldOf(synthSet({ [mut]: true }));
+      if (r.verdicts.some((v) => v.verdict === 'FAIL')) bad.push('mutant ' + mut + ' (gold only) FAILS ' + r.verdicts.filter((v) => v.verdict === 'FAIL').map((v) => v.rule).join(', '));
+      if (now === was) bad.push('mutant ' + mut + ' left the printed gold report unchanged');
+      if (cell && !now.includes(cell)) bad.push('the gold report does not print the five-under net (3,500): ' + now);
+    }
+    let refused = false;
+    try { gradeCells(synthSet(), { ...SHEET, rules: [...SHEET.rules, { id: 'a-profit-floor', metric: 'margin', min: 0.25, binding: true }] }, flat); } catch (e) { refused = /NO PROFIT MOLDS/.test(e.message); }
+    if (!refused) bad.push('a sheet with a profit rule (margin >= +25%) was not refused as a profit rule');
     if (bad.length) { console.error('grade --selftest RED: ' + bad.join(' | ')); process.exit(1); }
-    console.log('grade --selftest: the good set passes and 7 mutants each FAIL their rule');
+    console.log('grade --selftest: the good set passes, 5 mutants each FAIL their rule, the long-band and needs-a-Healer scopes hold, 2 gold mutants fail nothing and move the printed gold report, a profit rule is refused');
     process.exit(0);
   }
   const mode = arg('mode', 'quick');
@@ -387,17 +462,19 @@ if (isMain(import.meta.url)) {
   if (!inDir) {
     const whatIf = arg('what-if', null) ? JSON.parse(arg('what-if')) : null;
     const grounds = arg('grounds', null) ? arg('grounds').split(',') : null, tiers = arg('tiers', null) ? arg('tiers').split(',') : null;
-    const jobs = await buildGrid(ROOT, mode, { whatIf, grounds, tiers });
+    const openAlso = arg('open-also', null) ? arg('open-also').split(',') : null;
+    const jobs = await buildGrid(ROOT, mode, { whatIf, grounds, tiers, openAlso });
     if (process.argv.includes('--estimate')) { console.log('grade ' + mode + ': ' + jobs.length + ' cells, ' + jobs.reduce((s, j) => s + j.seeds * j.hours * j.party.length, 0) + ' hero-hours'); process.exit(0); }
     const { runPool } = await import('./pool.mjs');
     mkdirSync(out, { recursive: true });
     await runPool(jobs, join(out, 'cells.jsonl'), { root: ROOT, workers: Number(arg('workers', '4')), cpuMax: Number(arg('cpu', '85')) });
   }
   const cells = existsSync(join(out, 'cells.jsonl')) ? readFileSync(join(out, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
-  const graded = gradeCells(cells, SHEET, await loadPace(ROOT), await fitsOf(ROOT));
+  const graded = gradeCells(cells, SHEET, await loadPace(ROOT), await fitsOf(ROOT), await packChecksOf(ROOT));
   for (const v of feelVerdicts(cells, await fitsOf(ROOT))) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'unproven']++; }
   for (const v of await blowVerdicts(ROOT, SHEET, arg('grounds', null) ? arg('grounds').split(',') : null)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'ok']++; }
-  writeFileSync(join(out, 'grade.json'), JSON.stringify({ sheet: SHEET.source, cells: cells.length, ...graded }, null, 1));
-  console.log('GRADE (' + SHEET.source + '), ' + cells.length + ' cells from ' + out + '\n' + report(graded, Number(arg('limit', '60'))));
+  const gold = goldRows(cells, await fitsOf(ROOT));
+  writeFileSync(join(out, 'grade.json'), JSON.stringify({ sheet: SHEET.source, cells: cells.length, ...graded, gold }, null, 1));
+  console.log('GRADE (' + SHEET.source + '), ' + cells.length + ' cells from ' + out + '\n' + report(graded, Number(arg('limit', '60'))) + '\n\n' + goldReport(gold));
   process.exit(graded.verdicts.some((v) => v.verdict === 'FAIL') ? 1 : 0);
 }

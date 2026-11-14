@@ -39,6 +39,8 @@ export const ITEM_DESC = {
   'willow_spellbook': 'A spellbook with willow-leaf pages, full of spells that go off a little quicker',
   'maple_spellbook': 'A spellbook with maple covers and a clasp that keeps the damp out',
   'yew_spellbook': 'A spellbook with yew covers. It always seems to fall open to the spell you need',
+  'duskwood_codex': "A spellbook bound in duskwood out of Lord Krell's hall. He paid for every page and never read one",
+  'duskwood_wand': "A duskwood wand from Lord Krell's hall, the best wand anyone in the March has seen",
   'runewood_codex': 'A thick spellbook bound in runewood, with a master\'s whole life of spells written in it',
   ...WAVE3_DESC, // b247: the 14 Wave-3 unique item flavour lines
   ...SLOT_DESC,  // b343: the ammo / earrings / cape / jewelry ladders

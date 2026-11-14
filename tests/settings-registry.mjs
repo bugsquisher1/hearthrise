@@ -89,7 +89,7 @@ async function check(base) {
   must(idle && M.write(busy, idle, false) && M.read(busy, idle) === false && worldStill(false, i2) === true, 'idle switch: off must reach the World from any open hero');
   must(/backend\.sync\(Object\.assign\(\{[^\n]*stillIdle: idleMotion\.still\(\) \}, cast\)\)/.test(readFileSync(join(base, 'src/world/world-boot.js'), 'utf8')), 'idle switch: the World must put the switch on every frame it draws');
   /* MONSTER NAMES (Tyler 2026-11-14, "should be a toggle to turn on enemy names right?"): Settings > Interface, a player switch, OFF
-     until pressed, its pick kept in an allowlisted residue field and read by the live hunt from any open hero (tests/hunt-scene.mjs SC-18 draws it). */
+     until pressed, its pick kept in an allowlisted residue field and read by the live hunt from any open hero (tests/hunt-scene.mjs SC-19 draws it). */
   const { MONSTER_NAMES } = await import(u('src/data/world/monster-names.js'));
   const names = D.SETTINGS.find((r) => r.id === 'ui.monsterNames');
   must(names && names.category === 'interface' && names.type === 'toggle' && names.label === 'Monster names' && names.default === false && MONSTER_NAMES.defaultOn === false

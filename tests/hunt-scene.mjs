@@ -66,7 +66,7 @@
 //         (settings-model.js write) is put to the server with the residue, and a reload (a new session on the envelope whose
 //         client_state holds it) draws each effect at its OWNER's opacity: the viewed hero's, another hero's, a monster's (0 draws
 //         none); a reward is never dimmed; the Danger marks slider scales the mark's wash and never goes under half
-//   SC-18 MONSTER NAMES (Tyler 2026-11-14: "should be a toggle to turn on enemy names right?"): off by default, so only the boss
+//   SC-19 MONSTER NAMES (Tyler 2026-11-14: "should be a toggle to turn on enemy names right?"): off by default, so only the boss
 //         is named; turned on in Settings it is put with the residue, and after a reload every LIVING monster wears its name
 //         (bits.js monsterName) as a plate that gives way in a crowd (core/plates.js), the boss keeps its own; a corpse is
 //         never named; turned off, no name from the next frame
@@ -651,7 +651,7 @@ async function rules(M) {
     ok('SC-17', pf && pf.alpha === 1 && (!bolt || bolt.alpha === 1), 'with no pick every effect draws whole: ' + JSON.stringify([pf, bolt]));
   }
 
-  { // SC-18: Monster names, off by default, turned on in Settings, back on a reload, over the living only
+  { // SC-19: Monster names, off by default, turned on in Settings, back on a reload, over the living only
     const clock = { t: C0 };
     const e = envelope(7, S0);
     const puts = [];
@@ -664,27 +664,27 @@ async function rules(M) {
     const before = make();
     await before.load();
     const off = named(viewer(M, before).at(alive), alive);
-    ok('SC-18', row && row.default === false && row.category === 'interface' && !off.some((p) => p.text === 'Giant Rat') && off.some((p) => p.text === 'Hive Queen' && p.kind === 'foe'),
+    ok('SC-19', row && row.default === false && row.category === 'interface' && !off.some((p) => p.text === 'Giant Rat') && off.some((p) => p.text === 'Hive Queen' && p.kind === 'foe'),
       'off by default: no regular monster is named and the boss still is: ' + JSON.stringify(off.map((p) => [p.text, p.kind])));
     M.SM.write({ character: before, peers: () => [before], hud: { layoutOf: () => null, setVisible: () => true } }, row, true);
     await before.flushResidue();
-    ok('SC-18', puts.length === 1 && puts[0].monsterNames && puts[0].monsterNames.on === true, 'the switch must be put with the residue: ' + JSON.stringify(puts));
+    ok('SC-19', puts.length === 1 && puts[0].monsterNames && puts[0].monsterNames.on === true, 'the switch must be put with the residue: ' + JSON.stringify(puts));
     e.client_state = Object.assign({}, puts[0]);   // the server keeps what was put: the reload's envelope carries it
     const cs = make();
     await cs.load();
     const v = viewer(M, cs);
     const on = named(v.at(alive), alive);
     const rat = on.find((p) => p.text === 'Giant Rat');
-    ok('SC-18', rat && rat.kind === 'ambient' && rat.yields === true && on.some((p) => p.text === 'Hive Queen' && p.kind === 'foe' && !p.yields)
+    ok('SC-19', rat && rat.kind === 'ambient' && rat.yields === true && on.some((p) => p.text === 'Hive Queen' && p.kind === 'foe' && !p.yields)
       && on.filter((p) => p.kind === 'self' || p.kind === 'peer').length === 2,
       'on after a reload: the living rat wears its name, the boss its own, the heroes theirs: ' + JSON.stringify(on.map((p) => [p.text, p.kind, p.yields])));
     const sctx = { character: cs, peers: () => [cs], hud: { layoutOf: () => null, setVisible: () => true } };
     M.SM.write(sctx, row, false);
     const back = named(v.at(alive + 16), alive + 16);
-    ok('SC-18', !back.some((p) => p.text === 'Giant Rat') && back.some((p) => p.text === 'Hive Queen'), 'off again: no name from the next frame: ' + JSON.stringify(back.map((p) => p.text)));
+    ok('SC-19', !back.some((p) => p.text === 'Giant Rat') && back.some((p) => p.text === 'Hive Queen'), 'off again: no name from the next frame: ' + JSON.stringify(back.map((p) => p.text)));
     M.SM.write(sctx, row, true);
     const dead = named(v.at(gone), gone);
-    ok('SC-18', !dead.some((p) => p.text === 'Giant Rat') && dead.some((p) => p.text === 'Hive Queen'), 'a dead monster\'s name hides: ' + JSON.stringify(dead.map((p) => p.text)));
+    ok('SC-19', !dead.some((p) => p.text === 'Giant Rat') && dead.some((p) => p.text === 'Hive Queen'), 'a dead monster\'s name hides: ' + JSON.stringify(dead.map((p) => p.text)));
   }
   return fails;
 }
@@ -701,11 +701,11 @@ const MUTANTS = [
   ['playback runs ahead of the track', 'src/hunt-view/timeline.js', 'const f = Math.min(1, (t - cur.atMs) / (cur.dur || cfg.tileMs));', 'const f = (t - cur.atMs + 200) / (cur.dur || cfg.tileMs);'],
   ['an event type left unmapped', 'src/data/hunt-vfx.js', '  eat: null, drink: null,', '  drink: null,'],
   ['an effect the atlas lacks', 'src/data/hunt-vfx.js', "heal: row({ fx: 'fx_nature_heal_motes'", "heal: row({ fx: 'fx_heal_glow'"],
-  ['monster names are drawn with the switch off (SC-18)', 'src/hunt-view/scene.js', '        else if (read.names) {', '        else if (true) {'],
-  ['monster names never show (SC-18)', 'src/hunt-view/scene.js', '        else if (read.names) {', '        else if (false) {'],
-  ['the names pick is not kept in the residue (SC-18)', 'src/session/residue.js', '  monsterNames: sanitizeSwitch,', '  monsterNamesX: sanitizeSwitch,'],
-  ['a corpse keeps its name (SC-18)', 'src/hunt-view/scene.js', '      if (out.plate && !out.plate.text) delete out.plate;', '      if (out.plate && !out.plate.text) delete out.plate;\n    } else if (read.names && !hero) { out.plate = { text: monsterName(kindOf(u)), kind: \'ambient\', yields: true };'],
-  ['compose drops a name\'s yield (SC-18)', 'src/world/core/compose.js', 'yields: u.plate.yields === true, ', ''],
+  ['monster names are drawn with the switch off (SC-19)', 'src/hunt-view/scene.js', '        else if (read.names) {', '        else if (true) {'],
+  ['monster names never show (SC-19)', 'src/hunt-view/scene.js', '        else if (read.names) {', '        else if (false) {'],
+  ['the names pick is not kept in the residue (SC-19)', 'src/session/residue.js', '  monsterNames: sanitizeSwitch,', '  monsterNamesX: sanitizeSwitch,'],
+  ['a corpse keeps its name (SC-19)', 'src/hunt-view/scene.js', '      if (out.plate && !out.plate.text) delete out.plate;', '      if (out.plate && !out.plate.text) delete out.plate;\n    } else if (read.names && !hero) { out.plate = { text: monsterName(kindOf(u)), kind: \'ambient\', yields: true };'],
+  ['compose drops a name\'s yield (SC-19)', 'src/world/core/compose.js', 'yields: u.plate.yields === true, ', ''],
   ["a wand's basic hit shows nothing", 'src/data/hunt-vfx.js', "mage: 'fx_wand_bolt_impact'", 'mage: null'],
   ["a staff's bolt is missing", 'src/data/hunt-vfx.js', "healer: 'fx_staff_bolt' }", 'healer: null }'],
   ['the diagonal is dropped', 'src/hunt-view/scene-pose.js', 'const diag = ax && ay && ', 'const diag = false && '],

@@ -272,7 +272,8 @@ export const WORLD_FIELDS_READ = Object.freeze({
    hit rate, the most one blow on it can teach); and the training rules land as hr_training_rules and hr_training_grounds, which hr_training_start, the
    settle's hourly charge and its window check read (2027-04-16-combat-training.sql, which applies right after this file). No other row, bound, limit,
    end reason or world shape moves: the hr-accrue that plays the grounds can land before or after this file, and the verb that opens them lands after both. */
-export const OUT_NAME = '2027-04-16-combat-training-hunt-sessions-catalogue.generated.sql';
+/* BARROW DATA (lane/d-barrow-data) is the file after combat training (2027-04-16-combat-training.sql) and carries it whole. */
+export const OUT_NAME = '2027-04-17-barrow-data-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

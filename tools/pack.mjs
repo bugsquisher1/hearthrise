@@ -7,9 +7,10 @@
 //   node tools/pack.mjs propose <ground> [--write]   the formula's numbers for every monster on the ground's roster, beside its
 //                                                    rows (tools/gen-ground-stats.mjs proposeGround over src/data/balance-sheet.js);
 //                                                    --write puts them into the rows, in monsters.js or the pack's own file
-//   node tools/pack.mjs check <ground> [--mode quick|full] [--workers N]
+//   node tools/pack.mjs check <ground> [--mode quick|full] [--workers N] [--with <staged ground>,...]
 //                                                    lint (the ground row, its roster, the formula) and then the grader on the real
-//                                                    engine (tools/balance-sim/grade.mjs --grounds <ground>, a STAGED one included):
+//                                                    engine (tools/balance-sim/grade.mjs --grounds <ground>, a STAGED one included,
+//                                                    played as it ships: its own drops on the gear ladder, as every open ground's are):
 //                                                    exit 1 on a binding FAIL, as the grader's
 //   node tools/pack.mjs new <id> --like <ground> [--band lo,hi]
 //                                                    a STAGED pack in src/data/grounds/<id>, copied from a shipped ground under new
@@ -21,7 +22,8 @@
 // propose and check work on every ground, a pack's or one authored in the old files.
 // ════════════════════════════════════════════════════════════════════════
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, statSync, readdirSync, readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
@@ -40,10 +42,10 @@ export async function loadPackData(root = ROOT) {
   return { G, HUNT_INDEX, MONSTERS, BS };
 }
 
-/** Every monster a ground places (its packs and spawns, a boss included), sorted. */
+/** Every monster a ground places (its packs and spawns, a boss and his wave included), sorted. */
 export function monstersOfGround(ground) {
   const ids = new Set();
-  for (const p of ground.pockets || []) for (const s of [...(p.pack || []), ...(p.spawns || [])]) ids.add(s.monster);
+  for (const p of ground.pockets || []) for (const s of [...(p.pack || []), ...(p.spawns || []), ...(p.adds || [])]) ids.add(s.monster);
   return [...ids].sort();
 }
 
@@ -69,6 +71,27 @@ export function lintGround(gid, D) {
   for (const id of Object.keys(roster || {})) if (!placed.includes(id)) out.push(gid + ': the roster names ' + id + ', which the ground never places');
   return out;
 }
+
+/**
+ * THE PACK FIELDS' DATA HALF (lane/b-pack-fields, engine piece 10; shape.js definePack checks their shape): answers refusals for pack `p`.
+ *   fuel    its flame is a hearth.js FLAMES key, and its id is not already a NAMED_FUELS row
+ *   spells  every row passes monster-spells.js validateSpell (the one spell model), and every row is cast by one of the pack's own monsters
+ * `S` = { validateSpell }, `H` = { FLAMES, NAMED_FUELS }.
+ */
+export function lintFields(p, S, H) {
+  const out = [];
+  if (p.fuel) {
+    if (!own(H.FLAMES, p.fuel.flame)) out.push(p.id + ': fuel.flame ' + p.fuel.flame + ' is not a hearth.js FLAMES key');
+    if (own(H.NAMED_FUELS, p.fuel.item)) out.push(p.id + ': fuel ' + p.fuel.item + ' is already a NAMED_FUELS row');
+  }
+  const cast = new Set(Object.values(p.monsters || {}).flatMap((m) => (Array.isArray(m.spells) ? m.spells : [])));
+  for (const [id, row] of Object.entries(p.spells || {})) {
+    out.push(...S.validateSpell(row, id).map((w) => p.id + ': ' + w));
+    if (!cast.has(id)) out.push(p.id + ': spell ' + id + ' is cast by none of its own monsters');
+  }
+  return out;
+}
+const fieldLibs = async () => [await import(u('src/data/monster-spells.js')), await import(u('src/data/hearth.js'))];
 
 async function propose(gid, argv) {
   const S = await import(u('tools/gen-ground-stats.mjs'));
@@ -103,13 +126,48 @@ async function check(gid, argv) {
       if (r.drift.length) lint.push(gid + ': ' + r.id + ' is not the formula\'s (' + r.drift.join(', ') + '): node tools/pack.mjs propose ' + gid + ' --write, or a named exception');
     }
   }
+  const P = (await import(u('src/data/grounds/index.js'))).GROUND_PACKS.find((x) => x.id === gid);
+  if (P) { const [S, H] = await fieldLibs(); lint.push(...lintFields(P, S, H)); }
   if (lint.length) { console.error('pack check ' + gid + ': RED before the grader\n  ' + lint.join('\n  ')); process.exit(1); }
   console.log('pack check ' + gid + ': lint and formula clean; the grader plays it next');
   const mode = argv.includes('--mode') ? argv[argv.indexOf('--mode') + 1] : 'quick';
   const workers = argv.includes('--workers') ? argv[argv.indexOf('--workers') + 1] : '4';
-  const out = join(ROOT, 'tools', 'balance-sim', 'out', 'pack-' + gid + '-' + mode);
-  const r = spawnSync(process.execPath, [join(ROOT, 'tools', 'balance-sim', 'grade.mjs'), '--mode', mode, '--grounds', gid, '--workers', workers, '--out', out], { stdio: 'inherit' });
+  /* --with a,b: staged grounds that ship with this one (their drops on the gear ladder too), graded in a folder of their own */
+  const withIds = argOf(argv, 'with') ? argOf(argv, 'with').split(',').filter(Boolean) : [];
+  const out = join(ROOT, 'tools', 'balance-sim', 'out', 'pack-' + gid + '-' + mode + (withIds.length ? '-with-' + withIds.join('+') : ''));
+  setAsideStale(out);
+  const r = spawnSync(process.execPath, [join(ROOT, 'tools', 'balance-sim', 'grade.mjs'), '--mode', mode, '--grounds', gid, '--workers', workers, '--out', out,
+    ...(withIds.length ? ['--open-also', withIds.join(',')] : [])], { stdio: 'inherit' });
   process.exit(r.status == null ? 1 : r.status);
+}
+
+/* A STOPPED RUN RESUMES, A STALE ONE DOES NOT (lane/b-slake-and-ford 2026-11-10). The grader resumes by cell id, and an id names the
+   cell, not the data: after a row or the engine moved, a re-run kept the old cells and graded them as new. The folder keeps a hash of
+   everything a cell reads (src, the edge's engine, the simulator, the play fixture); when it differs, the old cells are set aside. */
+const CELL_INPUTS = ['src', 'supabase/functions/hr-accrue', 'tools/balance-sim', 'tests/hunt-core/fixtures'];
+export function inputsHash(root = ROOT) {
+  const h = createHash('sha256');
+  const walk = (rel) => {
+    const abs = join(root, rel);
+    if (!existsSync(abs)) return;
+    if (statSync(abs).isDirectory()) {
+      if (rel.replace(/\\/g, '/') === 'tools/balance-sim/out') return;
+      for (const e of readdirSync(abs).sort()) walk(join(rel, e));
+    } else if (/\.(m?js|json)$/.test(rel)) h.update(rel.replace(/\\/g, '/') + '\0').update(readFileSync(abs)).update('\0');
+  };
+  for (const d of CELL_INPUTS) walk(d);
+  return h.digest('hex');
+}
+function setAsideStale(out) {
+  const now = inputsHash(), stamp = join(out, 'inputs.sha256'), cells = join(out, 'cells.jsonl');
+  const was = existsSync(stamp) ? readFileSync(stamp, 'utf8').trim() : null;
+  if (existsSync(cells) && was !== now) {
+    const aside = join(out, 'cells.stale-' + (was || 'unstamped').slice(0, 8) + '.jsonl');
+    renameSync(cells, aside);
+    console.log('pack check: the data or the engine moved since the cells here were played; set aside as ' + aside);
+  }
+  mkdirSync(out, { recursive: true });
+  writeFileSync(stamp, now + '\n');
 }
 
 /* --selftest: every shipped ground lints clean, and each refusal bites a mutant of a real one. */
@@ -128,6 +186,31 @@ async function selftest() {
     ['a placed monster that does not exist', () => lintGround(gid, { ...D, MONSTERS: Object.fromEntries(Object.entries(D.MONSTERS).filter(([k]) => k !== first)) })],
     ['a placed monster with no Level', () => lintGround(gid, { ...D, MONSTERS: { ...D.MONSTERS, [first]: { ...D.MONSTERS[first], level: undefined } } })],
   ];
+  /* THE PACK FIELDS (engine piece 10): every pack's fields lint clean; each shape refusal (definePack) and data refusal (lintFields) bites */
+  const { GROUND_PACKS } = await import(u('src/data/grounds/index.js'));
+  const { definePack } = await import(u('src/data/grounds/shape.js'));
+  const [SP, H] = await fieldLibs();
+  for (const p of GROUND_PACKS) { const l = lintFields(p, SP, H); if (l.length) bad.push('pack ' + p.id + ' fields do not lint: ' + l.join('; ')); }
+  const slake = GROUND_PACKS.find((p) => p.id === 'the_slake');
+  const item = Object.keys(slake.items)[0];
+  const fuel = { item, xp: 3000, req: 30, flame: 'fire', secs: 60, chunk: 'fuel_' + item };
+  const bilge = slake.spells.cold_bilge;
+  const shapeRefuses = (patch) => () => { try { definePack({ ...slake, ...patch }); return []; } catch (e) { return [String(e.message)]; } };
+  const fieldRefuses = (patch) => () => lintFields({ ...slake, ...patch }, SP, H);
+  if (shapeRefuses({ fuel })().length || fieldRefuses({ fuel })().length) bad.push('a well-formed fuel is refused: ' + shapeRefuses({ fuel })().concat(fieldRefuses({ fuel })()).join('; '));
+  cases.push(
+    ['a fuel whose item is not one of the pack items', shapeRefuses({ fuel: { ...fuel, item: 'bones', chunk: 'fuel_bones' } })],
+    ['a fuel with a field it does not read', shapeRefuses({ fuel: { ...fuel, colour: 'red' } })],
+    ['a fuel with no XP', shapeRefuses({ fuel: { ...fuel, xp: 0 } })],
+    ['a fuel whose chunk is not its sprite', shapeRefuses({ fuel: { ...fuel, chunk: 'fuel_bone' } })],
+    ['a fuel whose flame is no FLAMES key', fieldRefuses({ fuel: { ...fuel, flame: 'no_such_flame' } })],
+    ['a fuel that is already a named fuel', fieldRefuses({ fuel: { ...fuel, item: 'queens_comb', chunk: 'fuel_queens_comb' } })],
+    ['an empty spells table', shapeRefuses({ spells: {} })],
+    ['a spell row with a field it does not read', shapeRefuses({ spells: { cold_bilge: { ...bilge, dmg: 5 } } })],
+    ['a spell row out of its bounds', fieldRefuses({ spells: { cold_bilge: { ...bilge, hitPm: 99999 } } })],
+    ['a spell row under the fair warning', fieldRefuses({ spells: { cold_bilge: { ...bilge, windupMs: 400 } } })],
+    ['a spell none of its monsters casts', fieldRefuses({ spells: { ...slake.spells, river_mist: { ...bilge, n: 'River Mist' } } })],
+  );
   for (const [what, fn] of cases) { const n = fn().length; console.log('  ' + (n ? 'ok ' : 'RED') + ' refuses: ' + what); if (!n) bad.push(what + ' passed the lint'); }
   /* THE FIT check reads: every open ground's rows are the formula's under its own fit (S.groundFit), so `check` reaches the grader;
      and the Sewer read as a lone ground drifts, so a fit reader that misses its party pocket (the retired `minParty` key did) bites. */
@@ -157,7 +240,7 @@ async function newPack(id, argv) {
   /* the pack's own ids: the ground is <id>, its map <id>, its monsters <id>_<monster> until renamed */
   const fx = p.id, mapWas = p.map.id;
   /* the source ground's measured rows are its own: a new ground earns its tier row, XP fit and party rows on its own check */
-  for (const k of ['tierOverride', 'xpFit', 'partyClassXp', 'partyVsAlone']) delete p[k];
+  for (const k of ['tierOverride', 'xpFit', 'gpFit', 'partyClassXp', 'partyVsAlone']) delete p[k];
   p.id = id; p.map = { ...p.map, id }; p.ground = { ...p.ground, map: id }; p.hunt = { ...p.hunt, name: id };
   if (Array.isArray(p.map.hunts)) p.map.hunts = p.map.hunts.map((h) => (h === fx ? id : h));
   console.log('pack new: ' + F.writePack(ROOT, p) + ' (from ' + like + ', map ' + mapWas + '); staged: plays in the sim, never listed or served');

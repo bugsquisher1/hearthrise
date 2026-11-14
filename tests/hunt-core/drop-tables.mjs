@@ -39,7 +39,10 @@
 //   big-pull         (played at the pull that brings it) a Rare row on a monster only a bigger pull brings holds its band; the
 //                    Keep's five Bear Pelts come within two played hours, wherever the bear stands (as built since lane/c-brook-bear)
 //   profit-floor     at its band floor, in its first hour, each non-starter ground earns coin + commons at least +25% over
-//                    the store bill (a MINIMUM, Tyler 10-20)
+//                    the store bill (a MINIMUM, Tyler 10-20). A ground measured on a LONE hero is judged on the MEDIAN of the eight
+//                    lone ways (Tyler 2026-11-12 "median target", designer ruling 13): every way of tools/balance-sim (grade.mjs COMPS
+//                    full, gear.mjs STYLES) at the floor in its own-tier kit (gear.mjs kitOf; a staged ground's own drops gettable);
+//                    each way and the lone-tank reference are printed as notes, not graded. A party-reference ground keeps its party.
 //   warrens-floor    the Warrens' party of four at 32 and a lone own-tier Melee at the card's soloFrom clear +25% on two seeds
 //   caster-floor     the Sewer's party of four at its floor lives the hour, the Mage casts, every role clears +25%
 //   ranger-floor     a crossbow + shield Ranger on store Iron Bolts (no free bolt rung: every shot bought) in the party of four
@@ -52,6 +55,8 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
+import { COMPS, median } from '../../tools/balance-sim/grade.mjs';
+import { STYLES, loadGear } from '../../tools/balance-sim/gear.mjs';
 
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const imp = (root, p) => import(pathToFileURL(join(root, p)).href + V);
@@ -90,6 +95,10 @@ const COMMONS_PENDING = Object.freeze(['rat', 'goblin_scavenger', 'goblin_skulke
 const BONES = Object.freeze(['bones', 'big_bones']);
 const STARTER = Object.freeze(['mill_cellar', 'meadowbrook_thicket']);   // keep their gold (Tyler 10-20): printed, not floored
 const PARTY = Object.freeze(['tank', 'ranger', 'mage', 'healer']);
+/* THE LONE WAYS the profit floor's median reads: the grader's own eight (never a second list) */
+const LONE_WAYS = Object.freeze(COMPS.full[1].map((c) => c[0]));
+/* the median way's margin; a way that does not live the hour reads -100% (it earns nothing more) */
+const medianWay = (ways) => median(ways.map((w) => (w.lived ? (Number.isFinite(w.m) ? w.m : 1e9) : -100)));
 /* WHO IS MEASURED AT THE FLOOR. The Sewer is the start flow's first real ground, entered from the cellar: a solo Melee
    in the smiths' ladder kit (weapon, helm, body) before anything here has dropped. The Warrens is a party ground whose
    floor kills the ladder kit in minutes, so its party of four wears the full own-tier set (play-ground fullSet). */
@@ -183,6 +192,16 @@ function revealWhy(M, tag, mid, m, d) {
 }
 
 const cases = {
+  /* the profit floor's judge (Tyler 11-12 "median target"): the eight lone ways, judged on their median */
+  'median-way'() {
+    const want = Object.keys(STYLES);
+    if (LONE_WAYS.length !== 8 || want.some((s) => !LONE_WAYS.includes(s))) return 'the lone ways are ' + LONE_WAYS.join(', ') + ', not the eight styles ' + want.join(', ');
+    const w = (ms) => ms.map((m) => ({ m, lived: true }));
+    if (!(medianWay(w([-10, 5, 30, 30, 30, 30, 30, 30])) >= MARGIN_MIN)) return 'two losing ways failed a ground whose median way clears +' + MARGIN_MIN + '%';
+    if (medianWay(w([-10, -10, -10, -10, 20, 30, 30, 30])) >= MARGIN_MIN) return 'a ground whose median way is under +' + MARGIN_MIN + '% passed';
+    if (medianWay([...w([30, 30, 30, 30]), ...[30, 30, 30, 30].map((m) => ({ m, lived: false }))]) >= MARGIN_MIN) return 'four ways dead inside the hour passed';
+    return null;
+  },
   'loot-structure'(M) {
     for (const [gid, ground] of Object.entries(M.G.HUNT_GROUNDS)) {
       const band = M.HUNTS[ground.hunt].band;
@@ -324,6 +343,9 @@ const cases = {
 };
 
 /* ── THE PLAYS ─────────────────────────────────────────────────────────── */
+/* the balance-sim's worn sets (gear.mjs), loaded once from this tree */
+let gearP = null;
+const gearOf = () => (gearP ||= loadGear(ROOT));
 const H = 3600000;
 const pct = (n) => (n >= 0 ? '+' : '') + Math.round(n) + '%';
 function marginOf(x) {
@@ -472,7 +494,20 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
     const m = marginOf(x), T = x.totals, h = x.playedMs / H || 1;
     const row = { gid, floor, n, h, coin: T.coin / h / n, commons: T.commons / h / n, store: T.store / h / n, m, deaths: T.falls };
     rows.push(row);
-    if (!STARTER.includes(gid)) {
+    if (!STARTER.includes(gid) && n === 1) {
+      /* A LONE GROUND: the median of the eight lone ways at the floor, own-tier kit (a staged ground's drops gettable) */
+      const L = Math.max(1, floor), og = Object.prototype.hasOwnProperty.call(M.G.OPEN_GROUNDS, gid) ? {} : { openAlso: [gid] };
+      const gear = await gearOf();
+      row.ways = LONE_WAYS.map((s) => {
+        const kit = gear.kitOf(s, L, og);
+        const xw = P.run(gid, L, [STYLES[s].role], { spanMs: H, monsters, equipment: () => ({ ...kit }) });
+        return { s, m: marginOf(xw), lived: xw.playedMs >= H };
+      });
+      row.median = medianWay(row.ways);
+      const mMin = MARGIN_MIN_OF[gid] ?? MARGIN_MIN;
+      R.ok(row.median >= mMin, 'profit-floor: ' + gid + ' at level ' + floor + ': the median lone way earns ' + pct(row.median) + ' over its store bill, under +' + mMin + '% ('
+        + row.ways.map((w) => w.s + ' ' + (w.lived ? pct(w.m) : 'died')).join(', ') + ')');
+    } else if (!STARTER.includes(gid)) {
       R.ok(x.playedMs >= H, 'profit-floor: ' + gid + ' ended after ' + (x.playedMs / 60000).toFixed(0) + ' min at its floor (' + T.ended.join(', ') + ')');
       const mMin = MARGIN_MIN_OF[gid] ?? MARGIN_MIN;
       R.ok(m >= mMin, 'profit-floor: ' + gid + ' at level ' + floor + ' earns ' + pct(m) + ' over its store bill, under +' + mMin + '%');
@@ -510,7 +545,8 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
   console.log('  per hero per hour at the band floor, first hour | coin | commons | store | margin');
   for (const r of rows) {
     console.log('  ' + r.gid.padEnd(20) + ' L' + String(r.floor).padEnd(3) + (r.n > 1 ? 'party of ' + r.n : 'solo').padEnd(11) + String(Math.round(r.coin)).padStart(5)
-      + String(Math.round(r.commons)).padStart(6) + String(Math.round(r.store)).padStart(6) + (Number.isFinite(r.m) ? pct(r.m) : 'no bill').padStart(9));
+      + String(Math.round(r.commons)).padStart(6) + String(Math.round(r.store)).padStart(6) + (Number.isFinite(r.m) ? pct(r.m) : 'no bill').padStart(9) + (r.ways ? '  (lone tank, a note)' : ''));
+    if (r.ways) console.log('  ' + ''.padEnd(25) + 'MEDIAN LONE WAY ' + pct(r.median) + ' (graded) | ' + r.ways.map((w) => w.s + ' ' + (w.lived ? (Number.isFinite(w.m) ? pct(w.m) : 'no bill') : 'died')).join(', '));
   }
   for (const B of rows.flatMap((q) => [Object.assign(q.bands, { gid: q.gid, floor: q.floor }), q.alt && Object.assign(q.alt, { gid: q.gid, floor: q.altLevel })]).filter(Boolean)) {
     const E = B.E, someRare = B.rare.length ? 1 / B.rare.reduce((s, hh) => s + 1 / hh, 0) : Infinity;
@@ -749,8 +785,13 @@ const playMutants = [
   /* The Sewer's coin cut to under half (armour weights, ruling K7, left the ladder-kit Melee +119% at the floor,
      so the old /1.8 coin clears +25% by a hair; lane b-spell-roles' Bronze-Rimmed Shield took the floor tank to +159%,
      so /2.2 clears it too, about +32%: the floor still bites at /2.6, about +16%). */
-  { name: 'the Glade\'s coin cut to a third (its thin floor no longer pays its way)', rule: 'profit-floor: mosslight_glade', edit: (ms) => {
+  /* Since the median-way judge (Tyler 11-12, lane/d-drop-tables-median) the Glade's coin /3 leaves the median lone way over +25% (the casters' bills are
+     small), so that cut is gear-faucet's catch (its gear then sells over half the coin) and the profit floor bites at a tenth. */
+  { name: 'the Glade\'s coin cut to a third (its gear outsells its coin)', rule: 'gear-faucet: mosslight_glade', edit: (ms) => {
     for (const id of ['carrion_crow', 'glade_poacher', 'walking_vine', 'goblin_sluicer', 'rook_poacher', 'brook_bear']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 3)));
+  } },
+  { name: 'the Glade\'s coin cut to a tenth (its median way no longer pays its way)', rule: 'profit-floor: mosslight_glade', edit: (ms) => {
+    for (const id of ['carrion_crow', 'glade_poacher', 'walking_vine', 'goblin_sluicer', 'rook_poacher', 'brook_bear']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 10)));
   } },
   { name: 'the Sewer coin cut to a sixth (re-aimed from 1/2.6 when the gentle blow cap cut the floor tank\'s bill to 628 g an hour)', rule: 'profit-floor: millrace_sewer', edit: (ms) => {
     for (const id of ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 6)));
@@ -790,8 +831,8 @@ const bigPullMutants = [
 ];
 /* Planted trees (src/data, src/core, the settle), played on the ground the rule names. */
 const plantMutants = [
-  { name: 'worn gear sells at full book again', rule: 'gear-faucet: meadowbrook_thicket', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015]);', 'export const VENDOR_GEAR_RATES = Object.freeze([1, 1, 1, 1, 1, 1]);']] },
-  { name: 'tier-3 gear sells at the tier-1 rate', rule: 'gear-faucet: coppercap_warrens', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.5, 0.075, 0.033, 0.015]);']] },
+  { name: 'worn gear sells at full book again', rule: 'gear-faucet: meadowbrook_thicket', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([1, 1, 1, 1, 1, 1, 1]);']] },
+  { name: 'tier-3 gear sells at the tier-1 rate', rule: 'gear-faucet: coppercap_warrens', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.5, 0.075, 0.033, 0.015, 0.007]);']] },
   { name: 'the roller reveals nothing (a Rare credited with no hint)', rule: 'reveal-path: meadowbrook_thicket', fresh: true,
     edits: [['src/core/drops.js', 'rare: REVEAL_BANDS.includes(band) });', 'rare: false });']] },
   { name: 'a party\'s Rare skips the rare roll (round-robin instead)', rule: 'reveal-path: millrace_sewer (party of 4)', fresh: true,
@@ -848,11 +889,14 @@ const engineMutants = [
      (0.0747 the Mithril Sword over the Steel, 0.025 the Rune Helm over the Mithril, 0.0127 the Ember Sword over the Rune). The high side is
      gold-intents G1's pin on the whole ladder, and the faucet cap of each ground that drops the tier. */
   { name: 'tier-4 gear sells at 0.07 of book (a Mithril Sword under the Steel one)', case: 'sale-ladder',
-    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.07, 0.033, 0.015]);']] },
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.07, 0.033, 0.015, 0.007]);']] },
   { name: 'tier-5 gear sells at 0.02 of book (a Rune Helm under the Mithril one)', case: 'sale-ladder',
-    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.02, 0.015]);']] },
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.02, 0.015, 0.007]);']] },
   { name: 'tier-6 gear sells at 0.012 of book (an Ember Sword under the Rune one)', case: 'sale-ladder',
-    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.012]);']] },
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.012, 0.007]);']] },
+  /* tier 7 (lane/d-barrow-data, designer 2026-11-13): the twin rule's floor is 0.0054 (Dawnsteel book 2.77x Emberforged) */
+  { name: 'tier-7 gear sells at 0.005 of book (a Dawnsteel Sword under the Ember one)', case: 'sale-ladder',
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.005]);']] },
 ];
 
 const R = makeReport('hunt-core/drop-tables');

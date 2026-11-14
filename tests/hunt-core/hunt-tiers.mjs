@@ -10,7 +10,7 @@
 //   dials                 ONE FORMULA (Tyler 2026-11-07: "a scaling % of exp and difficulty BUT NOT GOLD"): the Glade's Deadly with a health dial (a what-if):
 //                         every monster of the first world has the dial's health under the party scale and the party scale's yield; over an hour each
 //                         kill takes the dial's damage, pays the tier's XP and the row's coin and loot, never more coin.
-//   ladder                the rule that keeps people moving: a ground's top tier doesn't beat the next ground's Normal on XP at the Level that fits it, for a LONE single target
+//   ladder                the rule that keeps people moving: a ground's top tier doesn't beat the next ground's Normal on XP at the Level that fits it, for a LONE hero, and Normal against Normal for a four (designer Q1 2026-11-12)
 //                         and lone area heroes; a mixed four's seam is reported, not judged (Tyler 2026-11-11: no cap on party Deadly XP; designer 2026-11-12).
 //
 // --only a,b plays just those cases and their mutants. About three minutes on one core, mutants included.
@@ -234,6 +234,9 @@ const cases = {
         if (!(a < b)) return lower + ' on Deadly reads ' + Math.round(a) + ' XP/h and ' + upper + ' on Normal ' + Math.round(b) + ' for ' + party.join('+') + ' at ' + level + ': nobody moves on';
       }
       const four = ['tank', 'healer', 'bow', 'mage'], a4 = xp(lower, four, level, 'deadly'), b4 = xp(upper, four, level, null);
+      /* Normal against Normal binds a four too (designer ruling Q1, 2026-11-12): only the harder tiers are the party's reward. */
+      const n4 = xp(lower, four, level, null);
+      if (!(n4 < b4)) return lower + ' on Normal reads ' + Math.round(n4) + ' XP/h and ' + upper + ' on Normal ' + Math.round(b4) + ' for a mixed four at ' + level + ': nobody moves on';
       seams.push(lower + ' Deadly ' + Math.round(a4 / 1000) + 'k ' + (a4 < b4 ? '<' : '>=') + ' ' + upper + ' Normal ' + Math.round(b4 / 1000) + 'k at ' + level + ' (' + (a4 / b4).toFixed(2) + 'x)');
     }
     console.log('    a mixed four at each seam, reported (no cap on party Deadly XP, Tyler 2026-11-11): ' + seams.join('; '));
@@ -274,6 +277,8 @@ const mutants = [
   { name: 'a word nobody offers plays a harder tier', case: 'normal-is-the-ground', edits: [[D, "return (rows && Object.prototype.hasOwnProperty.call(rows, id) && rows[id]) || NORMAL;", "return (rows && (rows[id] || rows.deadly)) || NORMAL;"]] },
   { name: 'Deadly pays triple XP: nobody moves on', case: 'ladder', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1250', 'xpPm: 4200')]] },
   /* the bigger pulls from Wickstead's and the Sewer's floor (8), not the Glade's (16), one for everyone: a lone hammer there out-earns the Glade (98k and 113k against 79k, lane/b-one-difficulty) */
+  /* Q1 2026-11-12: a real Normal-vs-Normal inversion for a four still bites */
+  { name: 'the Glade pays a mixed four triple on Normal: it out-earns the Warrens', case: 'ladder', edits: [['src/data/party-class-xp.js', 'mosslight_glade: row([1085, 2035], [1290, 2190, 2360], [1270, 2730, 2940, 3000]),', 'mosslight_glade: row([1085, 2035], [1290, 2190, 2360], [1270, 2730, 2940, 9000]),']] },
   { name: 'the bigger pulls start at Wickstead: it out-earns the Glade', case: 'ladder', edits: [[SH, 'export const TIER_PULL_FROM_FLOOR = 16;', 'export const TIER_PULL_FROM_FLOOR = 8;']] },
 ];
 

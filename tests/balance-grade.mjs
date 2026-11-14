@@ -13,7 +13,10 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { gradeCells, synthSet, levelsOf, ranked, feelVerdicts } from '../tools/balance-sim/grade.mjs';
+import { gradeCells, synthSet, levelsOf, ranked, feelVerdicts, buildGrid } from '../tools/balance-sim/grade.mjs';
+import { loadGear } from '../tools/balance-sim/gear.mjs';
+import { monstersOfGround } from '../tools/pack.mjs';
+import { MONSTERS } from '../src/data/monsters.js';
 import { SHEET, sheetFromBalanceSheet } from '../tools/balance-sim/grade-sheet.mjs';
 import { worse } from '../tools/balance-sim/grade-compare.mjs';
 
@@ -104,10 +107,36 @@ check(levelsOf([1, 5], ['floor', 'plus10']).some((x) => x.offset === 'above' && 
 
 /* lone-window (lane/d-live-grounds-2): a lone cell's HP trace is read at the live settle cadence. At 120 s cell.mjs spread a window's regeneration evenly
    and read phantom dips under 25% (a fresh Thicket melee 1.5-3.5 in 12 h, a Glade Ranger about 6) on fights that read 0 at 10 s with the same XP and gold. */
-const { buildGrid } = await import('../tools/balance-sim/grade.mjs');
 const grid = await buildGrid(ROOT, 'full', { grounds: ['meadowbrook_thicket'] });
 const loneJobs = grid.filter((j) => j.party.length === 1), slow = loneJobs.filter((j) => !(j.windowMs <= 10000));
 check(loneJobs.length > 0 && slow.length === 0, 'lone-window: every lone cell (' + loneJobs.length + ', the fresh hero included) reads its HP at 10 s' + (slow.length ? ' (' + slow.length + ' at ' + slow[0].windowMs + ' ms, e.g. ' + slow[0].id + ')' : ''));
+/* A STAGED GROUND IS GRADED AS IT SHIPS (lane/b-slake-and-ford 2026-11-10, ported by lane/d-packs-retune): its jobs put its own drops on the gear ladder
+   and say so in the cell id; an open ground's jobs carry neither. Without it a staged ground at a tier's first Level is graded one tier under. */
+{
+  const G = await import('../src/data/hunt-grounds.js');
+  const staged = Object.keys(G.HUNT_GROUNDS).filter((g) => !Object.prototype.hasOwnProperty.call(G.OPEN_GROUNDS, g));
+  const open = Object.keys(G.OPEN_GROUNDS)[0];
+  const jobs = await buildGrid(ROOT, 'quick', { grounds: [...staged, open] });
+  const of = (g) => jobs.filter((j) => j.ground === g);
+  check(of(open).length > 0 && of(open).every((j) => !(j.gear && j.gear.openAlso) && !j.id.includes(',open')), 'as it ships: an open ground (' + open + ') is played on the open ladder');
+  if (!staged.length) console.log('  --   as it ships: no staged ground today, the staged half reads nothing');
+  const gear = staged.length ? await loadGear(ROOT) : null;
+  for (const g of staged) {
+    check(of(g).length > 0 && of(g).every((j) => j.gear && j.gear.openAlso && j.gear.openAlso.join() === g && j.id.includes(',open')), 'as it ships: staged ' + g + ' plays with its own drops, and its cell ids say so');
+    const own = monstersOfGround(G.HUNT_GROUNDS[g]).flatMap((m) => (MONSTERS[m].drops || []).map((d) => d.id));
+    const only = own.filter((id) => !gear.reach.has(id));
+    if (!only.length) { console.log('  --   as it ships: every drop of ' + g + ' is gettable elsewhere, nothing to open'); continue; }
+    check(only.every((id) => gear.reachWith([g]).has(id)), 'as it ships: ' + only.length + ' drops found only on ' + g + ' are on its ladder with openAlso, and off it without');
+  }
+  /* --open-also: a pair that ships together (pack check --with); a name that is no ground is refused before anything plays */
+  if (staged.length > 1) {
+    const [a, b] = staged, pair = await buildGrid(ROOT, 'quick', { grounds: [a], openAlso: [b] });
+    check(pair.every((j) => j.gear.openAlso.join() === a + ',' + b && j.id.includes(',open=' + a + '+' + b)), 'as it ships with ' + b + ': ' + a + '\'s jobs open both, and their ids say so');
+  }
+  let refused = false;
+  try { await buildGrid(ROOT, 'quick', { grounds: [open], openAlso: ['no_such_ground'] }); } catch { refused = true; }
+  check(refused, 'as it ships: --open-also with no such ground is refused');
+}
 
 if (fails.length) { console.error('balance-grade: ' + fails.length + ' FAILED'); process.exit(1); }
 console.log('balance-grade: all checks pass');

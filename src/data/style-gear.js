@@ -113,4 +113,10 @@ export const STYLE_GEAR_DESC = Object.freeze({
   willow_crossbow: 'A willow crossbow for a ranger who keeps a shield up, the kind the goblin skulkers shoot down the galleries',
   mithril_hatchets: 'Mithril hatchets on oak hafts for a fighter who bleeds a foe, light enough to swing all day',
   maple_crossbow: 'A maple crossbow strung with spider silk for a ranger who keeps a shield up and wants the bolt to land hard',
+  rune_hatchets: "Rune hatchets the Banded Company's sergeants carried. The Barrow Knights still have them",
+  yew_crossbow: "Captain Hask's own crossbow, a yew stock with his mark burned into it",
+  ember_hatchets: 'Emberforged hatchets from the Pyre Field, still black from the fire',
+  runewood_crossbow: 'A runewood crossbow the Provost kept for shooting anyone who ran from the pyres',
+  dawn_hatchets: "Dawnsteel hatchets out of Lord Krell's hall. Nobody else in the March could afford them",
+  duskwood_crossbow: "A duskwood crossbow from Lord Krell's hall, the best one in the March",
 });

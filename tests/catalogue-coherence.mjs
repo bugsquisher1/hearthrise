@@ -177,6 +177,9 @@ export const PENDING_USE = Object.freeze({
   lexarch_seal:     'w0f — boss trophies hang in the trophy room',
   voidwoven_sigil:  'w0f — boss trophies hang in the trophy room',
   dragon_relic:     'w0f — boss trophies hang in the trophy room',
+  /* The designer's 11-10 Krell's Hold (ruling 6: it trades). Its use is the door of a keyed hall, a new room kind (that design's engine
+     piece 5, on the pre-EA Security list); the row leaves the day that verb spends it (the Krell lane's row, carried by lane/d-packs-retune). */
+  hall_key:         'Krell\'s Hold piece 5 — the keyed hall spends it on entry (systems-engineer, backend-architect)',
 });
 /* Items with NO source today, each with the ruling and the lane that closes it. SHRINK-ONLY like PENDING_USE: a
    row whose id gained a source or left ITEMS fails; no id may be added without a ruling and an owner. They are the
@@ -188,6 +191,12 @@ export const PENDING_SOURCE = Object.freeze({
   stone_maul:        'cut: a stat copy of the Practice Club (merge rung 1 into the practice kit), systems-engineer',
   /* The loot bands took its one source, Old Grayjaw's equipment row (designer loot redesign 2026-10-23, lane b-loot-bands). */
   shortbow:          'cut: a stat copy of the Practice Bow (merge rung 1 into the practice kit), systems-engineer',
+  /* Tier 7's caster pair and its hatchets and crossbow (designer 2026-11-13, lane/d-barrow-data): Lord Krell's hall prize, beside the
+     Dawnsteel and Duskwood weapons in AWAITING_ROSTER. The rows leave the day the keyed hall pays (Krell's Hold piece 5). */
+  duskwood_wand:     'Krell\'s Hold piece 5 — the keyed hall\'s prize pays it (systems-engineer, backend-architect)',
+  duskwood_codex:    'Krell\'s Hold piece 5 — the keyed hall\'s prize pays it (systems-engineer, backend-architect)',
+  dawn_hatchets:     'Krell\'s Hold piece 5 — the keyed hall\'s prize pays it (systems-engineer, backend-architect)',
+  duskwood_crossbow: 'Krell\'s Hold piece 5 — the keyed hall\'s prize pays it (systems-engineer, backend-architect)',
 });
 export const PENDING_CONSUMER = Object.freeze({
   /* (prayer's row left with the skill, 2026-10-27: Inner Flame's regen rate is an ENGINE_SKILL_CONSUMERS row) */

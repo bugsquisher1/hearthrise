@@ -18,6 +18,7 @@
 //   TK-4 EACH HERO ITS OWN: two heroes in one party name two kinds; the engine's read gives each member its own, never the leader's.
 //   TK-5 THE BAR OFFERS ONLY WHAT THE SERVER TAKES: for every ground the server holds, every monster the bar's First target lists
 //        (src/shell/widgets/first-target.js reads hunt-grounds.js monstersOn) is one hr_hunt_ground_spawns holds there.
+//   TK-6 TWICE: the file applied again on the chain end applies (its pin takes its own image) and moves no body, row or check.
 //
 // The mutants are SQL patched into the booted replay; their anchors are FILE's text.
 import { isMain } from './_is-main.mjs';
@@ -195,7 +196,24 @@ async function barInsideCatalogue(db) {
   return problems;
 }
 
+/* TK-6: FILE applied a second time on the booted chain (`again`: a mutant's edit to its text) applies, and moves no body, row or check. */
+async function twice(db, again) {
+  const problems = [];
+  const print = async () => JSON.stringify({
+    fns: (await db.query("select p.proname, md5(pg_get_functiondef(p.oid)) m, p.proacl::text acl from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname in ('hr_hunt_instance_read', 'hr_hunt_target_kind_set', 'hr_hunt_target_kind_view') order by 1")).rows,
+    rows: (await db.query("select (select row_to_json(s) from public.hr_state_sections s where key = 'hunt_target_kind') sec, (select count(*) from public.hr_client_rpc_baseline where proname = 'hr_hunt_target_kind_set') base, (select count(*) from public.hr_gm_wall_allow where rpc = 'hr_hunt_target_kind_set') wall")).rows,
+    checks: (await db.query("select conname, pg_get_constraintdef(oid) d from pg_constraint where conrelid = 'public.hunt_density'::regclass order by conname")).rows,
+  });
+  const once = await print();
+  const sql = readFileSync(join(ROOT, 'supabase', 'migrations', FILE), 'utf8').replace(/\r\n/g, '\n');
+  try { await db.exec(again ? again(sql) : sql); } catch (e) { problems.push('TK-6 ' + FILE + ' does not apply a second time: ' + String(e && e.message).slice(0, 200)); return problems; }
+  if (await print() !== once) problems.push('TK-6 a second apply of ' + FILE + ' moved a body, a row or a check');
+  return problems;
+}
+
 const MUTANTS = [
+  { name: 'the pin refuses its own image: the file applies once', again: (sql) => sql.replace("'5081f20a0facc6f36375b8af8ac9f1c8', 'd0cb8c8ec3e038ff865ce81b05242d49')", "'5081f20a0facc6f36375b8af8ac9f1c8')"), want: /TK-6/ },
+  { name: 'a second apply adds a second check', again: (sql) => sql.replace("if not exists (select 1 from pg_constraint where conrelid = 'public.hunt_density'::regclass and conname = 'hunt_density_target_kind_ck') then", 'if true then').replace('add constraint hunt_density_target_kind_ck check', 'add constraint hunt_density_target_kind_ck2 check'), want: /TK-6/ },
   { name: 'the engine never reads the pick', fn: 'public.hr_hunt_instance_read(uuid,integer)',
     find: "(select jsonb_build_object('target_kind', d.target_kind) from public.hunt_density d", repl: "(select '{}'::jsonb from public.hunt_density d", want: /TK-1 browser closed/, run: 'both' },
   { name: 'a member plays the leader\'s pick', fn: 'public.hr_hunt_instance_read(uuid,integer)',
@@ -217,6 +235,15 @@ async function main() {
     const text = readFileSync(join(ROOT, 'supabase', 'migrations', FILE), 'utf8').replace(/\r\n/g, '\n');
     let escaped = 0;
     for (const m of MUTANTS) {
+      if (m.again) {
+        let got = [];
+        if (m.again(text) === text) got = ['HARNESS: the edit changed nothing in ' + FILE];
+        else try { got = await twice((await bootReplay()).db, m.again); } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
+        const hit = got.some((p) => m.want.test(p));
+        if (!hit) escaped++;
+        console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + m.name + ': ' + (got[0] || 'every check held').slice(0, 200));
+        continue;
+      }
       if (text.split(m.find).length !== 2) { console.log('  ESCAPED ' + m.name + ': HARNESS: the anchor is not in ' + FILE + ' exactly once'); escaped++; continue; }
       /* Patched into the booted replay (FILE's own self-check would refuse most of them at apply): the body as it landed, the one change, re-applied. */
       const boot = async () => {
@@ -237,10 +264,11 @@ async function main() {
     return;
   }
   const boot = () => bootReplay();
-  const problems = [...await bothPaths(boot), ...await aParty(boot), ...await barInsideCatalogue((await boot()).db)];
+  const last = (await boot()).db;
+  const problems = [...await bothPaths(boot), ...await aParty(boot), ...await barInsideCatalogue(last), ...await twice(last)];
   for (const p of problems) console.log('FAIL  ' + p);
   console.log(problems.length ? 'target-kind-db: ' + problems.length + ' FAILED'
-    : 'target-kind-db: green (a healer named first on both paths, refused not clamped, read afresh and survives a reload, each hero its own, the bar inside the catalogue)');
+    : 'target-kind-db: green (a healer named first on both paths, refused not clamped, read afresh and survives a reload, each hero its own, the bar inside the catalogue, a second apply moves nothing)');
   process.exitCode = problems.length ? 1 : 0;
 }
 

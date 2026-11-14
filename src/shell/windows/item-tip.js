@@ -64,7 +64,7 @@ function tipHtml(id, o) {
      item the bag doesn't hold (a Buy row) just has no value line. */
   const sale = saleWords(id);
   if (opt.bid !== undefined && opt.bid !== null) {
-    h += '<p class="hw-tip-line"><small>Value</small>' + esc('The shop pays ' + gold(opt.bid) + ' each' + (opt.qty > 1 ? ' · ' + gold(opt.bid * opt.qty) + ' for ' + whole(opt.qty) : '')) + '</p>';
+    h += '<p class="hw-tip-line"><small>Value</small>' + esc('The shop pays ' + gold(opt.bid) + ' each' + (opt.qty > 1 ? ', ' + gold(opt.bid * opt.qty) + ' for ' + whole(opt.qty) : '')) + '</p>';
   }
   if (sale) h += '<p class="hw-tip-line"><small>' + (opt.bid === undefined || opt.bid === null ? 'Value' : 'Market') + '</small>' + esc(sale) + '</p>';
   if (opt.locked) h += '<p class="hw-tip-line"><small>Locked</small>Bulk sales never take it.</p>';

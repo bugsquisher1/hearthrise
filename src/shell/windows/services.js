@@ -70,7 +70,7 @@ export function patchServicesPane(body, ctx) {
   } else {
     text(quote, 'Restores ' + hoursText(q.restoreMs) + ' for ' + gold(q.price) + '. Bought today: ' + whole(q.boughtToday) + ' of ' + whole(q.perDay) + '. Each one costs more.'
       + (purse !== null && purse < q.price ? ' You need ' + gold(q.price - purse) + ' more.' : ''));
-    text(ask, 'Buy ' + hoursText(q.restoreMs) + ' · ' + gold(q.price));
+    text(ask, 'Buy ' + hoursText(q.restoreMs) + ' for ' + gold(q.price));
   }
   const canStam = !!q && q.available && !sc.pending && (purse === null || purse >= q.price);
   prop(ask, 'disabled', !canStam || sc.confirm);
@@ -95,10 +95,10 @@ export function patchServicesPane(body, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="bless" data-tier="' + r.tier + '"></button></li>'),
     patch: (li, r) => {
       const short = !r.held && next && next.tier === r.tier && purse !== null && purse < r.price ? r.price - purse : 0;
-      text(li.querySelector('small'), Math.round(r.permille / 10) + '% less XP lost' + (r.tier > 1 ? ' with ' + (r.tier > 2 ? 'I and II' : 'I') : '') + ' · ' + (r.held ? 'owned' : r.price ? gold(r.price) : 'free')
-        + (short ? ' · You need ' + gold(short) + ' more.' : ''));
+      text(li.querySelector('small'), Math.round(r.permille / 10) + '% less XP lost' + (r.tier > 1 ? ' with ' + (r.tier > 2 ? 'I and II' : 'I') : '') + ', ' + (r.held ? 'owned' : r.price ? gold(r.price) : 'free')
+        + (short ? '. You need ' + gold(short) + ' more.' : ''));
       const btn = li.querySelector('button');
-      text(btn, r.held ? 'Owned' : next && next.tier === r.tier ? (r.price ? 'Bless · ' + gold(r.price) : 'Bless · free') : 'Needs ' + ROMAN[r.tier - 1]);
+      text(btn, r.held ? 'Owned' : next && next.tier === r.tier ? (r.price ? 'Bless for ' + gold(r.price) : 'Bless for free') : 'Needs ' + ROMAN[r.tier - 1]);
       prop(btn, 'disabled', r.held || !next || next.tier !== r.tier || sc.pending || (purse !== null && purse < r.price));
     },
   });

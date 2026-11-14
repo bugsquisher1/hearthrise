@@ -121,11 +121,11 @@ function patchBuy(root, st, ctx) {
         const plant = o.kind === 'seed' ? seedNeedWords(st.cs, o.item) : '';
         /* "0 in the bag" is said only when it is not 0 (first-30 play 2026-11-12: it wrapped every new hero's row to three lines) */
         const held = st.qty.get(o.item) || 0;
-        text(li.querySelector('small'), gold(o.price) + ' each' + (held ? ' · ' + whole(held) + ' in the bag' : '') + (does ? ' · ' + does + ' while in your bag' : '') + (plant ? ' · ' + plant : '')
-          + (short ? ' · You need ' + gold(short) + ' more.' : ''));
+        text(li.querySelector('small'), gold(o.price) + ' each' + (held ? ', ' + whole(held) + ' in the bag' : '') + (does ? ', ' + does + ' while in your bag' : '') + (plant ? '. ' + plant : '')
+          + (short ? '. You need ' + gold(short) + ' more.' : ''));
         prop(li.querySelector('select'), 'value', String(n));
         const b = li.querySelector('[data-hs-act="buy"]');
-        text(b, 'Buy ' + n + ' · ' + gold(o.price * n));
+        text(b, 'Buy ' + n + ' for ' + gold(o.price * n));
         prop(b, 'disabled', st.sc.pending || short > 0);
         attr(b, 'data-off-why', short ? 'You need ' + gold(short) + ' more.' : null);
       },
@@ -170,11 +170,11 @@ function patchSell(root, st, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="sell" data-item="' + esc(r.id) + '"></button></li>'),
     patch: (li, r) => {
       const isLocked = locked.has(r.id);
-      text(li.querySelector('small'), '×' + whole(r.qty) + ' · ' + gold(bids.get(r.id)) + ' each' + (isLocked ? ' · locked' : keptLoot.has(r.id) ? ' · ' + t('shop.junk_keeps_it') : spares.has(r.id) ? ' · spare' : madeFromKit(r.id) ? ' · Sell spare gear keeps it' : ''));
+      text(li.querySelector('small'), '×' + whole(r.qty) + ', ' + gold(bids.get(r.id)) + ' each' + (isLocked ? ', locked' : keptLoot.has(r.id) ? '. ' + t('shop.junk_keeps_it') : spares.has(r.id) ? ', spare' : madeFromKit(r.id) ? '. Sell spare gear keeps it' : ''));
       const b = li.querySelector('button');
       /* One sale takes up to the server's limit of a stack: a bigger stack's button says how many, so its price adds up. */
       const take = sellQty(r.qty);
-      text(b, isLocked ? 'Locked' : 'Sell ' + (take < r.qty ? whole(take) + ' ' : '') + '· ' + gold(bids.get(r.id) * take));
+      text(b, isLocked ? 'Locked' : 'Sell ' + (take < r.qty ? whole(take) + ' ' : '') + 'for ' + gold(bids.get(r.id) * take));
       prop(b, 'disabled', sc.pending || isLocked);
     },
   });
@@ -184,7 +184,7 @@ function patchSell(root, st, ctx) {
   prop(lb, 'disabled', sc.pending || !plan.lines.length);
   const sb = root.querySelector('[data-hs-act="sell-spare"]');
   prop(sb, 'hidden', !spare.lines.length);
-  text(sb, spare.lines.length ? 'Sell spare gear · ' + gold(spare.total) : '');
+  text(sb, spare.lines.length ? 'Sell spare gear for ' + gold(spare.total) : '');
   prop(sb, 'disabled', sc.pending);
   text(root.querySelector('.hw-sell-note'), sellNote(plan, kept, spare));
   const cf = root.querySelector('[data-pane="sell"] .hw-confirm');

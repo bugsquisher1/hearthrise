@@ -116,9 +116,9 @@ function patchSheet(pane, v, have, source) {
   const page = sc.page && sc.page.id === id ? sc.page : null;
   const sample = page ? priceSample(page) : null;
   text(sheet.querySelector('[data-f="shop"]'), bid === null ? 'Nothing' : goldWords(bid));
-  text(sheet.querySelector('[data-f="low"]'), !s ? '…' : s.forSale ? whole(s.lowest) + ' each · ' + whole(s.forSale) + ' for sale' : 'No one is selling these');
+  text(sheet.querySelector('[data-f="low"]'), !s ? '…' : s.forSale ? whole(s.lowest) + ' each, ' + whole(s.forSale) + ' for sale' : 'No one is selling these');
   /* A number from history carries its sample; it is not a press (market review change 5). */
-  text(sheet.querySelector('[data-f="last"]'), !s ? '…' : s.lastEach === null ? 'Never yet' : whole(s.lastEach) + ' each, ' + ageWords(s.lastAt, Date.now()) + (sample ? ' · ' + sample.line : ''));
+  text(sheet.querySelector('[data-f="last"]'), !s ? '…' : s.lastEach === null ? 'Never yet' : whole(s.lastEach) + ' each, ' + ageWords(s.lastAt, Date.now()) + (sample ? '. ' + sample.line : ''));
   const sug = suggested(id, s);
   const mine = lastAsk(sc, id);
   /* The first price on the sheet is the catalogue's, once the server has said what it may be. */

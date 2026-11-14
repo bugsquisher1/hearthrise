@@ -114,7 +114,7 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
   const d = draftOf(cs, sc);
   const row = OUTFIT_ROWS[d.outfit];
   const owned = !!o && o.owned.has(d.outfit);
-  text(root.querySelector('.hw-of-name'), (row ? row.label : d.outfit) + (row && row.premium ? ' · Premium' : '') + (o && !owned ? ' · not owned' : ''));
+  text(root.querySelector('.hw-of-name'), (row ? row.label : d.outfit) + (row && row.premium ? ' (Premium' + (o && !owned ? ', not owned)' : ')') : o && !owned ? ' (not owned)' : ''));
   const shown = colorsShown(cs, d);
   const changedColors = !!d.colors && !!o && dyeKeyOf(d.colors) !== dyeKeyOf(o.base);
   /* The picker: this outfit's parts, by their names, once the masks are here. The druid's row says why it has none. */
@@ -147,7 +147,7 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
       cls(b, 'is-worn', !!o && o.worn === id);
       const have = !!o && o.owned.has(id);
       cls(b, 'is-locked', !!o && !have);
-      text(b.querySelector('.hw-of-mark'), o && o.worn === id ? 'Worn' : OUTFIT_ROWS[id].premium ? (have ? 'Premium' : 'Premium · not owned') : '');
+      text(b.querySelector('.hw-of-mark'), o && o.worn === id ? 'Worn' : OUTFIT_ROWS[id].premium ? (have ? 'Premium' : 'Premium, not owned') : '');
       drawTile(b.querySelector('canvas'), id);
     },
   });

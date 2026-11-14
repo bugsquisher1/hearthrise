@@ -44,7 +44,7 @@ export function patchLedger(v) {
         + '<button type="button" class="hh-tool" data-hs-act="mk-cancel" data-listing="' + esc(l.id) + '">' + t('controls.cancel') + '</button></li>'),
       patch: (li, l) => {
         const by = heroName(ctx, l.hero);
-        text(li.querySelector('small'), listingWords(l, now) + (by ? ' · listed by ' + by : ''));
+        text(li.querySelector('small'), listingWords(l, now) + (by ? ', listed by ' + by : ''));
         prop(li.querySelector('button'), 'disabled', sc.pending);
       },
     });
@@ -53,7 +53,7 @@ export function patchLedger(v) {
     cls(root.querySelector('.hw-mk-none-p'), 'is-on', bare);
     text(root.querySelector('.hw-mk-none-p'), 'You have nothing listed. Anything you list stays here until it sells, and you can take it back any time.');
     const today = mine ? mine.today : {};
-    text(root.querySelector('.hw-mk-caps'), !mine || !sc.rules ? '' : whole(list.length) + ' of ' + whole(sc.rules.maxListings) + ' listings up · ' + whole(Number(today.listed) || 0) + ' of ' + whole(sc.rules.maxListsPerDay) + ' listed today');
+    text(root.querySelector('.hw-mk-caps'), !mine || !sc.rules ? '' : whole(list.length) + ' of ' + whole(sc.rules.maxListings) + ' listings up, ' + whole(Number(today.listed) || 0) + ' of ' + whole(sc.rules.maxListsPerDay) + ' listed today');
     return;
   }
   const hist = mine ? mine.history : [];

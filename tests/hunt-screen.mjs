@@ -1182,7 +1182,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
               picked: (document.querySelector('.ca-runs .ca-row.is-on .ca-name') || {}).textContent, tab: (document.querySelector('.ca-tab[aria-selected="true"]') || {}).textContent, mid };
           });
           if (!picks.ok) fails.push('HS-7 the metric picker is not the registry: ' + picks.shown.join(','));
-          if (!/^Slot 3 · tried after slot 2$/.test(picks.title)) fails.push('HS-7 the window opened on "' + picks.title + '", not slot 3');
+          if (!/^Slot 3, tried after slot 2$/.test(picks.title)) fails.push('HS-7 the window opened on "' + picks.title + '", not slot 3');
           if (picks.picked !== 'Wheat Bread' || picks.tab !== 'Food & drink') fails.push('HS-7 the server’s action is not the picked choice on its tab: ' + picks.picked + ' / ' + picks.tab);
           /* AMMO HAS ITS OWN TAB (Tyler 2026-10-25): Spells | Food & drink | Ammo (Tyler 2026-11-08: the Runes tab merged into Spells,
              "why bother having a 'spells' and 'runes' section"); Food & drink lists food and drink only, and every shot is under Ammo. */
@@ -1479,7 +1479,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           }, hunt);
         };
         const a = await card('mill_cellar');
-        if (!a || a.line !== 'Best 12,400 Level XP/h' || a.page.join('|') !== 'Best alone: 12,400 Level XP per hour · balance 3,100 gp per hour' || !(a.px >= 12)) {
+        if (!a || a.line !== 'Best 12,400 Level XP/h' || a.page.join('|') !== 'Best alone: 12,400 Level XP and a balance of 3,100 gp per hour' || !(a.px >= 12)) {
           fails.push('HS-24 the picker does not show the server’s personal bests: ' + JSON.stringify(a));
         }
         const none = await card('meadowbrook_thicket');
@@ -1488,7 +1488,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { party: { xp_h: 20500, balance_h: -450 } } } };
         await pushEnvelope(page, s);
         const b = await card('mill_cellar');
-        if (!b || b.line !== 'Best 20,500 Level XP/h' || b.page.join('|') !== 'Best in a party: 20,500 Level XP per hour · balance -450 gp per hour') {
+        if (!b || b.line !== 'Best 20,500 Level XP/h' || b.page.join('|') !== 'Best in a party: 20,500 Level XP and a balance of -450 gp per hour') {
           fails.push('HS-24 the picker is not replaced by the next envelope: ' + JSON.stringify(b));
         }
         if (errors.length) fails.push('HS-24 console errors: ' + errors.slice(0, 3).join(' | '));

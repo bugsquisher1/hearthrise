@@ -48,7 +48,7 @@ function seatHtml(glyphs) {
 /** One seat's second line: "Lv 12 · Melee (shield)" (no weapon worn: "No weapon"). */
 function seatFacts(m) {
   const role = m.role && HUNT_ROLES[m.role] ? HUNT_ROLES[m.role].label : 'No weapon';
-  return (m.level === null ? '' : 'Lv ' + m.level + ' · ') + role;
+  return (m.level === null ? '' : 'Lv ' + m.level + ', ') + role;
 }
 
 /** Where a seat is, in words: away (its seat kept), hunting, or in town. */

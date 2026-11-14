@@ -202,7 +202,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const table = tableOf(tab, { discipline: set.discipline, role: set.role, bag, store: set.store, skills: facts.skills, set, picked: d.action });
   const picked = rowIn(table, d.action);
   /* THE TOP LINE */
-  text(root.querySelector('.ca-rank'), 'Slot ' + (s.open + 1) + (s.open === 0 ? ' · tried first' : ' · tried after slot ' + s.open));
+  text(root.querySelector('.ca-rank'), 'Slot ' + (s.open + 1) + (s.open === 0 ? ', tried first' : ', tried after slot ' + s.open));
   /* Why this slot's action will not fire, as the bar's tooltip says it: a phone has no hover and a press on a slot opens
      this window, so the words are here, first (shown on a phone only, hunt.css). */
   const saved = hosted(cs) ? null : set.slots[s.open];

@@ -32,6 +32,10 @@ export function short(v) {
 }
 const trim = (x) => (x >= 100 ? String(Math.round(x)) : x.toFixed(1).replace(/\.0$/, ''));
 
+/** A phrase that stands alone capitalized, carried on after a comma: "Hunting in Mill Cellar" → "Level 10, hunting in Mill Cellar".
+    Only for phrases that open on a plain word (a doing line), never on a name. */
+export const lowerFirst = (s) => (s ? s.charAt(0).toLowerCase() + s.slice(1) : s);
+
 /** "A, B and C", or "A, B, C and 4 more" past `max`; `conj` 'or' for "A, B or C". The one way player text joins a list
     (copy 11-06: never "; "). */
 export function listWords(names, max = 3, conj = 'and') {

@@ -49,7 +49,7 @@ function weaponOption(w) {
   const role = HUNT_ROLES[WEAPON_ROLES[w][0]];
   const word = (WEAPON_WORDS[w] || w).toLowerCase();
   const what = 'Needs ' + (/s$/.test(word) ? '' : 'a ') + word;
-  return role.label.toLowerCase().includes(word) ? what : what + ' · ' + role.label;
+  return role.label.toLowerCase().includes(word) ? what : what + ' (' + role.label + ')';
 }
 
 export function finderHtml() {
@@ -103,7 +103,7 @@ export function patchFinder(root, ctx, sc) {
     build: (r) => foundRow(ctx, r),
     patch: (li, r) => {
       text(li.querySelector('b'), r.hunt ? 'Last hunted ' + huntName(r.hunt) : 'Party of ' + r.seats.length);
-      text(li.querySelector('small'), r.seats.map((s) => s.name).join(', ') + ' · ' + r.seats.length + (r.max ? ' of ' + r.max : ''));
+      text(li.querySelector('small'), r.seats.map((s) => s.name).join(', ') + ' (' + r.seats.length + (r.max ? ' of ' + r.max : '') + ')');
       rows(li.querySelector('.hw-found-roles'), r.seats, {
         key: (s) => String(s.seat),
         build: () => element(ctx.doc, '<span class="hw-ico hw-roleglyph" aria-hidden="true"></span>'),

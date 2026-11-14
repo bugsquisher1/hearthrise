@@ -10,8 +10,8 @@
 export const BAG_TEXT = Object.freeze({
   /* The selection line over the bulk tools: how many stacks, and what the shop would pay for them (the server's bids). */
   selected: '{count} selected',
-  selected_worth: '{count} selected · value {worth}',
-  selected_worth_unpriced: '{count} selected · value {worth} ({unpriced} with no shop price)',
+  selected_worth: '{count} selected, worth {worth}',
+  selected_worth_unpriced: '{count} selected, worth {worth} ({unpriced} with no shop price)',
   /* (The bulk tools beside it say the glossary's words: controls.sell_selected, deposit, lock / unlock, clear.) */
   /* Deposit: ONE storage move of every selected stack, whole (all or nothing); the count is the server's. */
   putting_away: 'Putting them away…',
@@ -42,11 +42,19 @@ export const BAG_TEXT = Object.freeze({
   store_grow_top: 'Your bag is as big as it gets.',
   store_gold_reading: 'Reading your gold…',
   store_grow_short: 'You need {gold} more to expand your bag.',
-  store_expand_at: 'Expand (+{n}) · {gold}',
+  store_expand_at: 'Expand (+{n}) for {gold}',
   store_expand_tip: 'Room for {n} more stacks in your bag',
   store_expanding: 'Expanding your bag…',
   store_expanded: 'Your bag holds {n} stacks now.',
   store_expanded_plain: 'Your bag is bigger now.',
-  /* The key help line under the grid. */
-  keys: '/ search · arrows move · Enter use · Space or Ctrl+click select · Shift+click or Shift+arrows select a range · Ctrl+A select all, again deselect all · Esc clear · Delete sell · L lock',
+  /* The key help at the window's foot, one hint a row: the key, then "to" and what it does (grid.js keyHintHtml sets the key apart). */
+  key_search: '/ to search',
+  key_move: 'Arrows to move',
+  key_use: 'Enter to use',
+  key_select: 'Space or Ctrl+click to select',
+  key_range: 'Shift+click or Shift+arrows to select a range',
+  key_all: 'Ctrl+A to select or deselect all',
+  key_clear: 'Esc to deselect',
+  key_sell: 'Delete to sell',
+  key_lock: 'L to lock',
 });

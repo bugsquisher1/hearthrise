@@ -62,6 +62,7 @@ import { mountLauncherNames } from '../shell/launcher-names.js?v=0.2.130';
 import { connection, mountConnectionLine } from '../net/connection.js?v=0.2.130';
 import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.130';
 import { mountNewVersion } from './new-version.js?v=0.2.130';
+import { lowerFirst } from '../render/format.js?v=0.2.130';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -272,7 +273,7 @@ function startApp(win) {
     const rows = roster.map((r) => '<li class="char-row' + (r.exists ? '' : ' is-empty') + '">'
       + '<button type="button" class="char-pick" ' + (r.exists ? 'data-app="play"' : 'data-app="create"') + ' data-slot="' + r.slot + '">'
       + '<span class="char-name"><b>' + (r.exists ? esc(r.name || 'Unnamed hero') : r.unnamed ? 'Unnamed hero' : 'Empty slot') + '</b>'
-      + (r.exists && r.level ? ' <small class="char-level">Level ' + r.level + (r.doing ? ' · ' + esc(r.doing) : '') + '</small>' : '') + '</span> '
+      + (r.exists && r.level ? ' <small class="char-level">Level ' + r.level + (r.doing ? ', ' + esc(lowerFirst(r.doing)) : '') + '</small>' : '') + '</span> '
       + '<span class="char-go">' + (r.exists ? (open.has(r.slot) ? 'Show' : 'Play') : r.unnamed ? 'Name hero' : 'Create hero') + '</span>'
       + '</button></li>').join('');
     /* the server's play-at-once limit, never a client fallback (board 2026-10-25 #8: an empty account read "One can play

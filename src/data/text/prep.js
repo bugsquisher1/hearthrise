@@ -97,7 +97,7 @@ export const PREP_TEXT = Object.freeze({
   carry_head: 'Carry into this hunt',
   carry_note: 'This hunt uses only the supplies it carries, then buys from the store. What you got after you set out waits in your backpack until you carry it in.',
   carry_none: 'Nothing in your backpack can be carried into a hunt.',
-  carry_line: '{have} in your backpack · {inHunt} in this hunt',
+  carry_line: '{have} in your backpack, {inHunt} in this hunt',
   carry_press: 'Carry {n}',
 
   /* BEFORE YOU GO, THE BLESSINGS (src/shell/hunt-go.js blessingWords). Every number is the server's Blessings section:

@@ -73,7 +73,7 @@ export function patchStaminaBuy(el, ctx) {
   text(box.querySelector('.hb-buy-why'), why || '');
   cls(box.querySelector('.hb-buy-premium'), 'is-on', !isPremium(cs));
   const go = box.querySelector('.hb-buy-go');
-  text(go, !(q && q.available) ? 'Buy' : s.asking ? 'Buy for ' + gold(q.price) : 'Buy +' + hoursWords(q.restoreMs) + ' · ' + gold(q.price));
+  text(go, !(q && q.available) ? 'Buy' : s.asking ? 'Buy for ' + gold(q.price) : 'Buy +' + hoursWords(q.restoreMs) + ' for ' + gold(q.price));
   prop(box.querySelector('.hb-buy-no'), 'hidden', !s.asking);
   prop(go, 'disabled', !!why || s.pending);
   attr(go, 'title', why);

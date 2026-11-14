@@ -68,7 +68,7 @@ export function patchHallmarkPane(root, ctx, sc) {
       text(li.querySelector('.hw-hallmark-what'), 'Your ' + itemName(o.from) + (it && it.jewelPerks ? ' gains: ' + perkWords(o.perk, it.jewelPerks[o.perk] || 0) + '.' : '.'));
       text(li.querySelector('.hw-hallmark-need'), why || ('Uses it and 1 ' + itemName(o.gem) + ' (' + holdWords(cs, o.gem) + ').'));
       const btn = li.querySelector('button');
-      text(btn, 'Hallmark · ' + gold(o.gold));
+      text(btn, 'Hallmark for ' + gold(o.gold));
       prop(btn, 'disabled', !!why || sc.pending || !!sc.hallmark);
     },
   });

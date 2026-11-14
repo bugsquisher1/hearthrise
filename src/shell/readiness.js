@@ -55,7 +55,7 @@ export function readinessOf(cs) {
        play 2026-10-30: Corliss in Havora read "on this hunt"). */
     const h = huntOf(cs);
     const which = h && !h.ended ? 'this hunt' : 'your last hunt';
-    checks.push({ id: 'gold-now', ok: true, text: 'Gold: ' + whole(gp) + ' gp' + (spend ? ' · supplies about ' + whole(spend) + ' gp an hour on ' + which + ', about ' + (Math.floor((gp / spend) * 10) / 10) + ' h of gold' : '') });
+    checks.push({ id: 'gold-now', ok: true, text: 'Gold: ' + whole(gp) + ' gp' + (spend ? '. Supplies cost about ' + whole(spend) + ' gp an hour on ' + which + ', so you have about ' + (Math.floor((gp / spend) * 10) / 10) + ' h of gold' : '') });
   }
   return { name, ready: short.length === 0, checks, short };
 }

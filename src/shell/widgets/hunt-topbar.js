@@ -60,7 +60,7 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   const gname = ground ? ground.name : h ? 'Hunting' : '';
   /* The harder tier this hunt froze, in the same plain word as the picker (Normal says nothing: it is the ground as it stands). */
   const tiers = h && !h.ended ? huntTierOf(ctx.character) : null;
-  const hard = tiers && tiers.playing && tiers.playing !== DEFAULT_TIER ? ' · ' + TIER_NAME[tiers.playing] : '';
+  const hard = tiers && tiers.playing && tiers.playing !== DEFAULT_TIER ? ' (' + TIER_NAME[tiers.playing] + ')' : '';
   text(el.querySelector('.ht-ground'), h && h.ended && ground ? 'Last hunt: ' + gname : gname + hard);
   const ms = sessionClockMs(a, serverNowOf(ctx.character));
   text(el.querySelector('.ht-clock'), ms === null ? '' : clock(ms));

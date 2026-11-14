@@ -54,6 +54,16 @@ for (const [mut, printed] of [['profit', '| +11% |'], ['under5', 'to 3,500)']]) 
 /* a four is judged against solos in its own kit: practice-kit fresh heroes at the floor don't drag the median (10-25 §5 "same gear quality") */
 const kitFails = failsOf(synthSet({ practice: true })).filter((v) => v.rule === 'four-xp');
 check(kitFails.length === 0, 'same-kit: practice-kit solos leave the four at 1.2' + (kitFails.length ? ' (' + kitFails.map((v) => v.key + ' ' + v.value).join('; ') + ')' : ''));
+/* THE FOUR'S LINE, WHERE IT BINDS (designer 2026-11-13): a well-built four (all four classes) at the floor and middle; a three-class four and the
+   band's top report. Each four below earns 1.08x a hero alone (under the 1.15 line). */
+const slowFour = (offset, comp) => synthSet().map((c) => (c.cell.grade.tier === 'normal' && c.cell.grade.offset === offset && c.cell.grade.size === 4
+  ? { ...c, cell: { ...c.cell, grade: { ...c.cell.grade, comp } }, heroes: c.heroes.map((h) => ({ ...h, levelXpPerH: 70000 * 1.08 })) } : c));
+const fourVerdicts = (cells) => gradeCells(cells, SHEET, flat).verdicts.filter((v) => v.rule.startsWith('four-xp') && v.verdict !== 'ok');
+check(fourVerdicts(slowFour('floor', 'tank+healer+bow+mage')).some((v) => v.rule === 'four-xp' && v.verdict === 'FAIL'), 'four-binds: a well-built four at the floor under 1.15 FAILS four-xp');
+check(!fourVerdicts(slowFour('floor', 'tank+hammer+bow+mage')).some((v) => v.verdict === 'FAIL') && fourVerdicts(slowFour('floor', 'tank+hammer+bow+mage')).some((v) => v.rule === 'four-xp-report' && v.verdict === 'OFF'),
+  'four-binds: a three-class four at the floor under 1.15 reads OFF on four-xp-report, never FAIL (its own cell, 10-31)');
+check(!fourVerdicts(slowFour('top', 'tank+healer+bow+mage')).some((v) => v.verdict === 'FAIL') && fourVerdicts(slowFour('top', 'tank+healer+bow+mage')).some((v) => v.rule === 'four-xp-report' && v.verdict === 'OFF'),
+  'four-binds: a well-built four at the band top under 1.15 reads OFF (a ground being outgrown), never FAIL');
 
 /* THE PACE CONTRACT READS THE LONE MEDIAN ON EVERY GROUND (Coordinator ruling 2026-11-11, lane/d-solo-fifteen): the contract is fitted on lone heroes, and a four
    is ruled 1.15-1.25x a lone hero, so on a party ground the four a head read about 1.2x it (the Sewer 1.19, the Warrens 1.52) while its lone median sat in band.

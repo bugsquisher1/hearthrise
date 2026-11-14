@@ -336,7 +336,7 @@ const mutants = [
   /* RE-AIMED (NO PROFIT MOLDS, Tyler 2026-11-13): def 60 was caught only by the retired +25% bar (the kills slowed, the bill stood); twenty times
      the health is a Cellar a fresh hero cannot clear at pace */
   { name: 'the Cellar\'s rats, slimes and wasps with twenty times their health: a fresh hero cannot clear it', case: 'solo-mill_cellar',
-    edits: [['src/data/monsters.js', 'hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 15, gp: [1, 1], formula: true, speed: 3400,', 'hp: 120, atk: 3, baseAcc: 0.34, def: 0, xp: 15, gp: [1, 1], formula: true, speed: 3400,'],
+    edits: [['src/data/monsters.js', 'hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 16, gp: [1, 1], formula: true, speed: 3400,', 'hp: 120, atk: 3, baseAcc: 0.34, def: 0, xp: 16, gp: [1, 1], formula: true, speed: 3400,'],
       ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 23, gp: [1, 1], formula: true, speed: 2400,', 'hp: 160, atk: 3, baseAcc: 0.28, def: 0, xp: 23, gp: [1, 1], formula: true, speed: 2400,'],
       ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.47, def: 0, xp: 25, gp: [1, 1],', 'hp: 160, atk: 3, baseAcc: 0.47, def: 0, xp: 25, gp: [1, 1],']] },
   { name: 'Wickstead\'s Granary Rats bite like a Rat King (atk 5 -> 14)', case: 'solo-wickstead',

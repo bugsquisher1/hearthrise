@@ -107,7 +107,7 @@ export const MONSTERS = {
      `barn_rat`'s better drop line (wheat, the granary flavour) is absorbed here
      so nothing the merged monster offered is lost. */
   rat: { name: 'Giant Rat', icon: '🐀', tier: 1, level: 2, cls: 'vermin', family: 'Vermin',
-    hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 15, gp: [1, 1], formula: true, speed: 3400,
+    hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 16, gp: [1, 1], formula: true, speed: 3400,
     drops: [{ id: 'rat_tail', ch: .42, band: 'common' }, { id: 'small_fang', ch: .16, band: 'common' }, { id: 'wheat', ch: .18, band: 'common' }, { id: 'bones', ch: .21, band: 'common' },
       { id: 'giant_rat_hide', ch: .08, band: 'uncommon' }] },
   hive_wasp: { name: 'Hive Wasp', icon: '🐝', tier: 1, level: 4, cls: 'vermin', family: 'Vermin',
@@ -848,7 +848,7 @@ export const MONSTERS = {
   brook_bear: { name: 'Brook Bear', icon: '🐻', tier: 3, level: 24, cls: 'mammal', family: 'Mammal',
     /* the Meadowbrook's bruiser: the wet coat sheds frost, fire takes it. The Keep and Trophy Room ask for its Pelt (Andy's report), about an hour's errand, so the Claw, a pie's trophy, rides a Rare row (drop-tables rare-pace: it stands in Vine Hollow as built, lane/c-brook-bear). */
     elements: { ember: -15, frost: 25 },
-    hp: 51, atk: 16, baseAcc: 0.76, def: 8, xp: 239, gp: [13, 40], formula: true, speed: 3000, /* gp: most of an elite's purse on a heavy, FORMULA_EXCEPTIONS (balance-sheet.js) */
+    hp: 51, atk: 16, baseAcc: 0.76, def: 8, xp: 239, gp: [11, 32], formula: true, speed: 3000,
     drops: [{ id: 'raw_bear_meat', ch: .6, band: 'common' }, { id: 'bear_pelt', ch: .18, band: 'common' }, { id: 'brook_bear_tooth', ch: .08, band: 'uncommon' }, { id: 'bear_claw', ch: .0033, band: 'rare' }] },
 
   /* ══ Wickstead, levels 8-18, solo, mixed (lane b-greenhaven-6, designer 2026-10-28): roles and economy in the

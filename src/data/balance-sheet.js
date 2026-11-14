@@ -32,8 +32,9 @@ import { foldRows } from './grounds/shape.js?v=0.2.129';
 export const BALANCE_SHEET = Object.freeze({
   /* NORMAL AT THE RIGHT LEVEL: a lone hero at the floor in that Level's gear (gear.mjs kitOf: the best
      piece its Level may wear and can get), each of the 8 ways to fight. RULED 10-25 §3 (Normal band:
-     <= 1 death per 1,000 h, <= 1 dip under 25% per 12 h, a 12 h hunt almost always finishes);
-     RULED 10-18 / 10-20 (every way at least +25% over its store bill at the floor, a minimum). */
+     <= 1 death per 1,000 h, <= 1 dip under 25% per 12 h, a 12 h hunt almost always finishes). NO PROFIT MOLDS (Tyler 2026-11-13):
+     no line on this sheet is a gold target. The +25% floor (10-18 / 10-20), the supplies share and "under the floor loses gold" are
+     retired; a hunt's profit is whatever it is, printed per ground by the grader (GOLD BY GROUND), never graded. */
   normal: Object.freeze({
     deathsPer1000h: 1,
     closeCallPct: 25,
@@ -41,12 +42,6 @@ export const BALANCE_SHEET = Object.freeze({
     closeCallsPer12h: 1,
     /* the median encounter's low point, every way (10-25: Normal 60-80%; over 80 reads Easy, allowed) */
     typicalMinHpPct: 60,
-    /* coin + commons over the store bill, every way: >= +25% */
-    marginMin: 0.25,
-    /* the median way's store bill as a share of its income. DESIGNER: from Level 16 a ground costs real
-       supplies (Tyler 2026-11-07 accepted 21% at the Glade's floor); under 16 only the ceiling holds
-       (the first-day grounds feed fresh heroes). */
-    supplyShare: Object.freeze({ fromLevel: 16, min: 0.10, max: 0.35 }),
     /* XP: at the band's MIDDLE the median way's Level XP an hour within this share of the pace contract
        LEVEL_PACE.contract (a x L^b, the trend the Level curve is held to past the measured grounds; RULED
        10-25 §2 pace: L10 ~6 h, L25 ~36 h, L50 ~168 h at 12 h a day). The median LONE way on every ground, a party ground too:
@@ -55,7 +50,7 @@ export const BALANCE_SHEET = Object.freeze({
   }),
   /* THE FRESH HERO on a first-day ground (the grounds the Hunts window sends a LONE hero to at Levels 1-15):
      the style's practice set only (no armor), at the floor, every way. Mirrors tests/hunt-core/first-week-bands.mjs. */
-  freshHero: Object.freeze({ upToLevel: 15, deaths: 0, closeCalls: 0, typicalMinHpPct: 60, marginMin: 0.25, xpVsPaceMin: 0.5 }),
+  freshHero: Object.freeze({ upToLevel: 15, deaths: 0, closeCalls: 0, typicalMinHpPct: 60, xpVsPaceMin: 0.5 }),
   /* OUTSIDE YOUR WEIGHT CLASS (RULED 2026-11-06 20:20 UTC: "if you are fighting outside your weight class even
      in a party, you're gonna waste money but get more exp and possibly die a few times"; 11-04 the price is
      the monsters' own stats). A pair (tank + healer, hammer + bow) 2-3 Levels under the floor, and 5 under. */
@@ -64,10 +59,9 @@ export const BALANCE_SHEET = Object.freeze({
        fits them pays; tools/balance-sim/level-pace.json). Their gold is not graded on Normal: Tyler 2026-11-07 took
        x1.2 knowing such a pair still nets about +2.6-3k an hour. */
     normalUnder: Object.freeze({ xpVsOwnPaceMin: 1.0 }),
-    /* on Dangerous, 2-3 under: the median pair nets below zero a head (they pay for it; a kiting way may slip by, named) */
-    dangerousUnder: Object.freeze({ netMax: 0 }),
-    /* on Deadly, 2-3 under, and on Dangerous or Deadly 5 under: the median cell dies (a death in the sample) and loses gold */
-    deadlyUnder: Object.freeze({ deathsMin: 1, netMax: 0 }),
+    /* on Deadly, 2-3 under, and on Dangerous or Deadly 5 under: the median cell dies (a death in the sample). Its gold is printed,
+       never graded: the "loses gold" lines on Dangerous and Deadly are retired (NO PROFIT MOLDS, Tyler 2026-11-13). */
+    deadlyUnder: Object.freeze({ deathsMin: 1 }),
   }),
   /* THE HARDER TIERS AT THE RIGHT LEVEL (RULED 11-05 tier words: bigger pulls, harder hits, more XP a kill,
      same coin and drops, you can die). ONE DIFFICULTY FOR EVERY GROUP (RULED 2026-11-08: "a solo person gets a small exp
@@ -144,12 +138,13 @@ export const STAT_FORMULA = Object.freeze({
   xp: Object.freeze({ a: 1.70, b: 0.4, min: 3.0, floorFit: Object.freeze({ from: 8, to: 32, lo: 0.67 }) }),
   /* COIN a kill: perHp gold per HP point times the ground's `line`, rolled lo..2 x mean - lo so the roll's mean IS the
      formula's (keepMean: a plain [0.5, 1.5] rounding paid a 3 g whelp 3.5). HARDER PAYS MORE ON ONE LINE (Tyler 11-03,
-     11-04): coin per HP climbs straight with the ground's floor, x0.75 at the first ground to x1.4 from floor 16
-     (the Thicket x0.92, Wickstead and the Sewer x1.05). Measured (lane/b-ground-formula-2, the real settle, 6 seeds):
-     at a flat 0.30 the Thicket's floor netted 2,069 g an hour over the Sewer party's 1,771 (first-grounds chain), and
-     the Glade's floor, whose x1.2 bite costs food, needs x1.4 to net over the Sewer party (2,234 against 1,964).
-     The line starts at x0.5 since 2026-11-08 (was x0.75; the Thicket x0.74, Wickstead and the Sewer x0.92): a lone hero now takes the
-     whole kill, and the first grounds' gold an hour read +39-54% over their pinned values (tests/hunt-core/drop-tables.mjs total-value). */
+     11-04): coin per HP climbs straight with the ground's floor, x0.5 at the first ground to x1.4 from floor 16 (the Thicket x0.74,
+     Wickstead and the Sewer x0.92). Why a line and not a flat rate (re-reasoned 2026-11-13 under NO PROFIT MOLDS): a kill of a
+     harder monster is worth more of the hero's time, so its coin rises with where it lives, and from 16 on, where the monsters
+     bite hard enough to cost real food (the Glade's x1.2 bite), a kill's coin stops climbing per HP and the rest of the climb is
+     the monsters' own HP. The line starts at x0.5 since 2026-11-08 (was x0.75): a lone hero now takes the whole kill, and the first
+     grounds' gold an hour read +39-54% over their pinned values (tests/hunt-core/drop-tables.mjs total-value, the faucet ceiling).
+     What a hunt nets is printed per ground (tools/balance-sim/grade.mjs GOLD BY GROUND), never a target. */
   gp: Object.freeze({ perHp: 0.30, lo: 0.5, keepMean: true, line: Object.freeze({ from: 1, to: 16, lo: 0.5, hi: 1.4 }) }),
   /* WHO A GROUND IS BUILT FOR. A PARTY GROUND (hunt-grounds.js groupFit 'party', or a pocket that needs a party) is built
      for four heroes' damage on one tank: its rows carry `hp` times the HP (today's Sewer and Warrens stand 2.2-3x the solo
@@ -158,14 +153,15 @@ export const STAT_FORMULA = Object.freeze({
      earned 21-25% over today's pace at the Sewer and the Warrens), and its harder tiers lift nothing (`tierLift` false:
      a gentle party ground's Deadly lifted to full killed its four at the floor 195 times in 16 hero-hours). Plan formula.
      Its boss's blow takes `blow` too (`bossBlow`). Two dials run on the danger ramp, gentle to full (lane/b-ground-formula-2):
-       to-hit  `hit` points on a gentle party ground, `hitFull` on a full one. -0.3 there: a lone hero at the Warrens'
-               soloFrom (45) ate 3.9k g an hour of food at the formula's to-hit and earned less than on the Glade
-               (forest-cave harder-pays-more); at -0.3 it eats next to nothing, as the card's "alone from 45" says.
-       coin    `gp` on a gentle party ground (1.17 since 2026-11-08, when the line's start fell to x0.5: the Sewer keeps its coin a kill), `gpFull` on a full one, on top of the line. Gentle 1.02: since the gentle blow cap the
-               Sewer's four eats less and nets 1,945-2,050 a head against the Thicket's ~1,850 (1.05 put it over the Glade's floor,
-               forest-cave glade-between); at 1 the store-fed crossbow Ranger read +24.2% (ranger-floor, bar +25%). Full 0.53: the least that keeps harder-pays-more with a 5% margin at
-               both Warrens probes (a four at 41: 8,168 against the Glade's 7,693; alone at 45: 8,356 against 7,116); at x1
-               the Warrens paid 2.4x its 10-23 value (a four at 32 netted 8,759 g an hour, the Glade's floor 1,977). */
+       to-hit  `hit` points on a gentle party ground, `hitFull` on a full one. -0.3 there (re-reasoned 2026-11-13, NO PROFIT
+               MOLDS): the Warrens' heavy crowd lands every blow on one hero, so at the formula's to-hit a lone hero at its
+               soloFrom (45) lived on its potions (3.9k g an hour of food) and the card's "alone from 45" read as a dare. At -0.3
+               it holds the room on its armor, as the card says; a four at the floor still reads the Warrens' danger.
+       coin    `gp` on a gentle party ground (1.17 since 2026-11-08, when the line's start fell to x0.5: the Sewer keeps its coin a kill,
+               so a Sewer kill pays what it paid before the line moved), `gpFull` on a full one, on top of the line. Full 0.53
+               (re-reasoned 2026-11-13, NO PROFIT MOLDS): the faucet. At x1 the Warrens paid 2.4x its 10-23 value a kill (a four at
+               32 netted 8,759 g an hour, the Glade's floor 1,977), more gold into the world than the loot model was built for; 0.53
+               is the least that still pays a kill there more than the Glade's (harder pays more, Tyler 11-03, a per-kill rule). */
   fit: Object.freeze({
     solo: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
     both: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
@@ -229,9 +225,9 @@ const BASE_ROSTER = Object.freeze({
     glade_poacher: 'glass',   // "glass that hits like a cart"
     walking_vine: 'heavy',    // "the tank: slow and woody"
     goblin_sluicer: 'elite',  // the tier-3 body carrier
-    brook_bear: 'heavy',      // "the Meadowbrook's bruiser": heavy, not elite (designer 2026-11-12, Tyler's open question 3 decided under the floor ruling: as an elite in Vine
-                              // Hollow it put a plate hero at the Glade's floor at -1 / 0 / +9 / +2% over its bill on four seeds against the +10% lone profit floor (forest-cave glade-between);
-                              // a heavy bear hits softer and dies sooner (hp 1.2 and blow 0.8 of a regular, def 3.0), so the hour spends less and kills more. One role word, the formula does the rest.
+    brook_bear: 'heavy',      // "the Meadowbrook's bruiser": a slow, thick-hided brawler that wades in and leans on you, not a quick elite (designer 2026-11-12,
+                              // re-reasoned 2026-11-13 under NO PROFIT MOLDS): as an elite in Vine Hollow it out-hit the Glade's own elite for a plate hero at the floor; a
+                              // heavy hits softer and lasts (hp 1.2 and blow 0.8 of a regular, def 3.0), the bruiser it reads as. One role word, the formula does the rest.
     rook_poacher: 'elite',    // "the poachers' chief", the rare carrier
   }),
   coppercap_warrens: Object.freeze({
@@ -256,7 +252,9 @@ export const GROUND_ROSTER = Object.freeze(foldRows('roster', BASE_ROSTER, GROUN
    group a lone hammer at the Glade's floor earned 131k on its Deadly against the Glade's Normal 108k (the ladder rule); the floor fit alone
    leaves it about 4% over. */
 /* THE CELLAR x1.28 (was 1.25; lane/d-solo-fifteen, 2026-11-11): the contract re-pinned to the flatter measured ladder (core-model.js LEVEL_PACE.contract 1378 x L^1.298)
-   reads the Cellar's lone median 0.895x at its middle (5), half a point under the band; x1.28 lands it about 0.92x. Level 5 still inside LEVEL_PACE.early. */
+   reads the Cellar's lone median 0.895x at its middle (5), half a point under the band; x1.28 lands it about 0.92x. Level 5 still inside LEVEL_PACE.early.
+   x1.32 (designer 2026-11-13, lane/d-no-profit-molds): the FULL grade (8 ways, 6 seeds) read x1.28 at 0.888x, a new hero's first Levels slower than
+   the pace the curve promises; x1.32 moves one row (the Giant Rat 15 -> 16 XP) and reads 0.914x. Pace, not gold: the Cellar's coin is 1 a kill either way. */
 /* THE GLADE x0.90 UNDER SOLO +15% (lane/d-solo-fifteen, 2026-11-11). The +15% put the Glade's lone median at 1.12x the pace contract at its middle (24),
    1.07x at +5% (grade quick, Normal; the band is 0.90-1.10), and the Glade is a solo ground, so its lone median is the way the contract reads: x0.90
    lands it at 1.01x. Ratios between heroes on one ground never move (a fit scales alone and party alike).
@@ -272,15 +270,12 @@ export const GROUND_ROSTER = Object.freeze(foldRows('roster', BASE_ROSTER, GROUN
    band (x0.87 or less) broke that guard. THE LEVER, built (scaled-hunts.js partyPm 720: a party on a scaled hunt keeps 72% of its ground's party cell), put a
    scaled four at 0.54-0.71x the Warrens' four, so THE WARRENS x0.76: the Warrens is the ladder's last rung, so a cut there flattens the measured ladder and the contract follows it (level-curve C5):
    x0.84 left its lone median 1.12x the re-measured contract, x0.76 lands it in band. Measured below (the grade) and in level-curve (C5). */
-export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.28, meadowbrook_thicket: 0.9, wickstead: 1.1, mosslight_glade: 0.90, millrace_sewer: 0.9, coppercap_warrens: 0.76 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));
+export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.32, meadowbrook_thicket: 0.9, wickstead: 1.1, mosslight_glade: 0.90, millrace_sewer: 0.9, coppercap_warrens: 0.76 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));
 
 /* NAMED EXCEPTIONS: { monster: { field: 'the reason' } }, a field a row keeps by hand. Empty: none has earned one. */
 export const FORMULA_EXCEPTIONS = Object.freeze({
-  /* THE BROOK BEAR'S PURSE (designer 2026-11-12, Tyler's open question 3 decided under the +10% lone profit floor): as a heavy (roster above) it still hands
-     most of the elite's coin it carried before, [13, 40] against the formula's [11, 32]. With the role alone a plate hero at the Glade's floor read +9% over its
-     bill on one seed of six (forest-cave glade-between); the bear is the hour's one purse worth a stop, so its coin, not the whole ground's, carries the point. At
-     the elite's full [14, 44] the Glade's lone median netted 0.7% over the Warrens' fours (the grader's feel-gold-order: a higher floor nets more, Tyler 11-03). */
-  brook_bear: Object.freeze({ gp: "a heavy with most of an elite's purse, so the Glade floor clears +10% over its bill and stays under the Warrens' fours (designer 2026-11-12)" }),
+  /* (the Brook Bear's [13, 40] purse, kept by hand to clear the Glade's +10% floor, went back to the formula's [11, 32] when that floor was
+     retired: NO PROFIT MOLDS, Tyler 2026-11-13) */
 });
 
 /* combat.js monsterDamageScaleByTier, restated: the formula divides the blow by it (a test pins the two equal). */

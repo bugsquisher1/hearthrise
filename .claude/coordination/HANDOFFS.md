@@ -1,5 +1,12 @@
 # Handoffs
 
+### 2026-11-14 · RELIABILITY (lane/r-restore-drill) → BACKEND ARCHITECT, COORDINATOR · what the first restore drill found
+
+1. **Code drift a rebuild would ship:** `clan_feast_call__ungated` answers `all_xp` 0.01-0.04 on production and 0.08-0.18 from the repo. The apply order runs `2026-08-09-bonus-rebase.sql` (the rebase) BEFORE `2026-08-09-clan-governance.sql` (the old values); production applied the reconcile after. `tests/live-hash-drift.mjs` does not track this function. Fix the order (or restate the body) and track it; `node tools/restore-drill.local.mjs` V7 stays red until then.
+2. **A rebuild with no backup turns the game off:** `hr_flags.closed_mode` / `beta_premium`, `hr_market_config.enabled` and `hr_tick_config.enabled` (+ channels, armed_channels, edge_url) all come back false/null. Recorded in the census `live_value` (2026-11-14); a rebuild must re-apply them. The world tick also needs the 5 `vault.secrets`, which no repo or logical export carries.
+3. **Capacity:** `player_ledger` is 390k rows / 231 MB (66% of the database), ~18.4k rows a day from 3-6 players, `gather` 77% of them: the game_events pattern. At 90-day retention that is ~1 GB at today's players and ~10 GB at 10x, past the 8 GB disk. Journal aggregates, not each gather.
+4. **Stale note retired:** "backups stopped after 2026-10-14" is false. Measured 2026-11-14: 7 COMPLETED daily backups (11-07 to 11-13), newest 15 h old, PITR off.
+
 ### 2026-11-07 · ART DIRECTOR (lane/a-region-kit) → GROUND PACK (lane/b-ground-pack), GENERATOR, IMPORT LANES · the region kits
 
 1. **Kits are data now:** `src/data/world/region-kits.js` (greenhaven: 3 tile families, 65 props, 27 bodies, 5 signatures; barrow_march: 8 terrains in 13 pro tilesets, 41 props, 5 bodies, 5 signatures, 14 pending). `tests/world-assets.mjs` rule [kit] (`tools/world-art/region-kit.mjs`) holds every hunting map to its kit: a new ground is claimed by one kit, places its props plus at most 2 signature pieces (a signature covers its `<id>_*` variants), never another ground's. `pack new --region` and `pack-distinct`'s "signature" check should read this file, not a second list.

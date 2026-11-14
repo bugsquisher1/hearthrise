@@ -36,9 +36,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.129';
-import { isElement } from './elements.js?v=0.2.129';
-import { SHAPE_KINDS, shapeProblem } from '../core/hunt/shapes.js?v=0.2.129';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.130';
+import { isElement } from './elements.js?v=0.2.130';
+import { SHAPE_KINDS, shapeProblem } from '../core/hunt/shapes.js?v=0.2.130';
 
 /* The shapes a monster may cast (a 'square' is an aimed footprint, a hero's); every one but 'group' and 'mend' is MARKED. A 'mend'
    is no shapes.js shape: it lands on one packmate, never on ground. */

@@ -6,23 +6,24 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.129';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.129';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.129';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.129';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf } from '../session/item-sections.js?v=0.2.129';
-import { gmOf, levelOf } from '../session/character-sections.js?v=0.2.129';
-import { huntOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.129';
-import { COACH_READ_MAX, COACH_HID_MAX } from '../session/residue.js?v=0.2.129';
-import { TIPS } from '../data/tips.js?v=0.2.129';
-import { switchOn, setSwitch } from '../session/player-switch.js?v=0.2.129';
-import { t } from '../render/player-text.js?v=0.2.129';
-import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.129';
-import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.129';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.129';
-import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.129';
-import { draftOf, serverBar } from './bar-draft.js?v=0.2.129';
-import { trackOnce } from '../net/observability.js?v=0.2.129';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.130';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.130';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.130';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.130';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf } from '../session/item-sections.js?v=0.2.130';
+import { gmOf, levelOf } from '../session/character-sections.js?v=0.2.130';
+import { huntOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.130';
+import { COACH_READ_MAX, COACH_HID_MAX } from '../session/residue.js?v=0.2.130';
+import { TIPS } from '../data/tips.js?v=0.2.130';
+import { switchOn, setSwitch } from '../session/player-switch.js?v=0.2.130';
+import { t } from '../render/player-text.js?v=0.2.130';
+import { keepLastWords } from '../render/format.js?v=0.2.130';
+import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.130';
+import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.130';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.130';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.130';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.130';
+import { trackOnce } from '../net/observability.js?v=0.2.130';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -287,7 +288,7 @@ export function coachHtml(cs, card, inWin, rest) {
   const also = Array.isArray(card.also) && card.also.length ? card.also : null;
   const open = !!also && ALSO_OPEN.get(cs) === card.id;
   return head + '<button type="button" class="hs-coach-min" data-hs-act="coach-min" aria-expanded="true" aria-label="Minimize '
-    + esc(card.title) + '" title="Minimize"></button>' + close + '<b>' + esc(card.title) + '</b> <span class="hs-coach-text">' + esc(card.text) + '</span>'
+    + esc(card.title) + '" title="Minimize"></button>' + close + '<b>' + esc(keepLastWords(card.title)) + '</b> <span class="hs-coach-text">' + esc(card.text) + '</span>'
     + (line ? '<button type="button" class="hs-coach-more" data-hs-act="coach-more" aria-expanded="false" hidden>More</button>' : '')
     + (also ? ' <button type="button" class="hs-coach-more" data-hs-act="coach-more" aria-expanded="' + open + '">' + (open ? 'Less' : 'More') + '</button><span class="hs-coach-also"' + (open ? '' : ' hidden') + '>'
       + also.map((g) => '<span class="hs-coach-goal">' + esc(g) + '</span>').join('') + '</span>' : '')
@@ -487,7 +488,7 @@ export function ringPlan(card, at) {
         inWin('skills-trade', '.hw-skill[data-key="' + g.skill + '"]'),
         inWin('skills-trade', '.hw-work.is-on:not(:has(.hw-work-row[data-id="' + g.work + '"])) [data-hs-act="work-back"]')];
     case 'tally':
-      /* A first Take asks for the weight that suits (tally.js suggestedWeight), so it is rung while it can fire; off (the server has not said the role), the picker,
+      /* Her window asks for the weight that suits on a first visit (tally.js suggestedWeight), so Take is rung while it can fire; off (the server has not said the role), the picker,
          or the Change press over her board that opens it while it is folded (the picker sits behind Change since the 11-11 ledger) */
       return [inWin('tally', '[data-hs-act="take"][data-task="' + g.task + '"]:not([disabled])'),
         ...(at.weight === false ? [inWin('tally', '.ht-weights'), inWin('tally', '[data-hs-act="to-weight"]:not([hidden])')] : [])];

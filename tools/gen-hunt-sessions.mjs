@@ -272,7 +272,12 @@ export const WORLD_FIELDS_READ = Object.freeze({
    hit rate, the most one blow on it can teach); and the training rules land as hr_training_rules and hr_training_grounds, which hr_training_start, the
    settle's hourly charge and its window check read (2027-04-16-combat-training.sql, which applies right after this file). No other row, bound, limit,
    end reason or world shape moves: the hr-accrue that plays the grounds can land before or after this file, and the verb that opens them lands after both. */
-export const OUT_NAME = '2027-04-16-combat-training-hunt-sessions-catalogue.generated.sql';
+/* THE BROOK BEAR'S PURSE, BACK ON THE FORMULA (lane/d-no-profit-molds, designer 2026-11-13, NO PROFIT MOLDS): 2027-04-16-combat-training is APPLIED
+   history and this file carries it whole. The bear's hand-kept purse [13, 40] served the Glade's retired +10% floor; it reads the formula's [11, 32]
+   (src/data/monsters.js, balance-sheet.js FORMULA_EXCEPTIONS empty), so its coin bound in hr_hunt_kill_bounds falls 40 -> 32. No other row, bound, limit,
+   end reason or world shape moves. The bound only falls, so the hr-accrue carrying the same monsters.js lands FIRST (its bear rolls at most 32,
+   under both bounds); an old engine against this file would be refused on a roll of 33-40. */
+export const OUT_NAME = '2027-04-20-bear-purse-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -843,7 +848,12 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/c-combat-training, Tyler 2026-11-08: "a public yard paid by the hour" and "a personal training dummy for houses"; src/data/training.js):
+-- NEW IN THIS FILE (lane/d-no-profit-molds, designer 2026-11-13; Tyler 2026-11-13 NO PROFIT MOLDS): ONE row of hr_hunt_kill_bounds moves. The Brook Bear's
+-- hand-kept purse [13, 40] served the Glade's retired +10% profit floor; it reads the formula's [11, 32], so its coin bound falls 40 -> 32. No other row,
+-- bound, limit, end reason or world shape moves. ORDER: after 2027-04-20-feast-call-ladder.sql. The hr-accrue carrying the same monsters.js lands FIRST
+-- (its bear rolls at most 32, under both bounds).
+--
+-- CARRIED FROM 2027-04-16-combat-training-hunt-sessions-catalogue (lane/c-combat-training, Tyler 2026-11-08: "a public yard paid by the hour" and "a personal training dummy for houses"; src/data/training.js):
 -- the eight training grounds (yard and house, one per trained skill: melee, ranged, magic, defense) in hr_hunt_grounds, hr_hunt_ground_spawns and
 -- hr_hunt_travel; the training dummy (yard_dummy) in hr_hunt_kill_bounds, no coin and no drop, its XP bound its health at the hit rate; and the two
 -- training tables, hr_training_rules (the hourly fee, the dummy's floor, the longest session, the house dummy's property tier) and hr_training_grounds

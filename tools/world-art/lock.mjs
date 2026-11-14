@@ -6,6 +6,12 @@
 // hue at a ×3 zoom). Alpha is cut at ALPHA_CUT: the world's art has no partial alpha.
 // Pure and deterministic: the same pixels and palette give the same output, which is
 // what lets build.mjs --check compare a rebuild against the committed atlas.
+//
+// PALETTE-LOCKED ART IS NEVER GRADED (PixelLab 2026-11-11, docs/PIXELLAB_WORKFLOW.md §7; brief 14's sample). A source
+// PixelLab drew on our palette (`palette` / `max_colors`, pro mode) is already the answer: a grade moves each colour
+// about a ramp step before the snap (the `terrain` grade moved 91.6% of the sample's ash), undoing the choice the
+// palette was passed to make. So such a source is material `native` (the identity): importMaterial() is what every
+// importer declares, and regradeFinding() makes build.mjs refuse a set whose sidecar grades one (rule [regrade]).
 import { GRADE, ALPHA_CUT } from '../../src/data/world/palette.js';
 import { PALETTE, RAMPS } from './palette.mjs';
 import { createImage } from './png.mjs';
@@ -40,6 +46,33 @@ export function nearest(r, g, b) {
     if (d < bestD) { bestD = d; best = i; }
   }
   return best;
+}
+
+/** The identity grade: the snap alone decides (GRADE.native, GRADE.light). */
+export const isIdentityGrade = (material) => { const g = GRADE[material]; return !!g && g.sat === 1 && g.dk === 1 && !g.hue; };
+
+/** True when the image has opaque pixels and every one of them is exactly a palette colour: drawn on the palette, nothing to grade. */
+export function paletteLocked(img) {
+  let opaque = 0;
+  for (let i = 0; i < img.data.length; i += 4) {
+    if (img.data[i + 3] < ALPHA_CUT) continue;
+    if (!inPalette(img.data[i], img.data[i + 1], img.data[i + 2])) return false;
+    opaque++;
+  }
+  return opaque > 0;
+}
+
+/** The material an import declares for `img`: `native` when it came palette-locked, else the importer's own class. */
+export const importMaterial = (img, graded) => (paletteLocked(img) ? 'native' : graded);
+
+/**
+ * [regrade]: a source sheet wholly on the palette whose sidecar names a grading material. The whole SHEET is read, never
+ * a frame (one dark frame of a graded clip can sit on the palette by chance; a sheet of generated colour cannot).
+ * `kept` lists the ids read and shipped with their grade before the rule (validate.mjs REGRADE_KEPT). null when clean.
+ */
+export function regradeFinding(sc, sheet, kept = []) {
+  if (isIdentityGrade(sc.material) || !GRADE[sc.material] || kept.includes(sc.id) || !paletteLocked(sheet)) return null;
+  return { rule: 'regrade', id: sc.id, detail: `its source is wholly on the palette but material "${sc.material}" would grade it (sat x${GRADE[sc.material].sat}, value x${GRADE[sc.material].dk}) before the snap: palette-locked art is material "native"` };
 }
 
 // HLS saturation scale (and an optional hue turn, in degrees), the model the v3

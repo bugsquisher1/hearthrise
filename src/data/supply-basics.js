@@ -53,21 +53,20 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName } from './runes.js?v=0.2.129';
-import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.129';
-import { JEWEL_SHOP_PRICE } from './jewelry.js?v=0.2.129';
+import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName } from './runes.js?v=0.2.130';
+import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.130';
+import { JEWEL_SHOP_PRICE } from './jewelry.js?v=0.2.130';
 
 /* A basic heal or drink gives this share of its crafted partner (floored); a
    basic arrow gives this share of its partner's ammo bonus. */
 export const BASIC_EFFECT_SHARE = 0.75;
 
-/* A basic shot costs at least this many times its partner's book value. ONE (designer 2026-10-23, the spell-release
-   balance, PROVISIONAL; was 2): a store shot is 1 g at tiers 1-3, then mithril 4, rune 6, emberhead 9, dawnpoint 12,
-   each its partner's book. At 2 g a shot a store-fed Ranger spent 90-180% of its coin share on shots (a crossbow and a
-   shield on store Iron Bolts: +13% at the Sewer L20 party, -30% at the Sewer and Warrens floors); at 1 g the shots are
-   48% of coin at the Sewer L20 party and 59% at the Warrens L50 (the designer's ~45-55%), +32% / +39% at the floors
-   (tests/hunt-core/drop-tables.mjs ranger-floor holds the floors at +25%). The
-   crafted arrow stays the better shot (its whole bonus, the store's is BASIC_EFFECT_SHARE of it). */
+/* A basic shot costs at least this many times its partner's book value. ONE (designer 2026-10-23; re-reasoned 2026-11-13 under
+   NO PROFIT MOLDS): a store shot is 1 g at tiers 1-3, then mithril 4, rune 6, emberhead 9, dawnpoint 12, each its partner's book.
+   The reason is the bow and crossbow staying a way to fight: every shot is a bought supply, the only style that pays for its
+   basic attack. At 2 g a store-fed crossbow spent 90-180% of its whole coin share on shots, so a Ranger hunted for its arrows
+   and nothing else; at 1 g the shots are about half its coin (48% at the Sewer L20, 59% at the Warrens L50), a real cost
+   that a crafted arrow beats (its whole bonus, the store's is BASIC_EFFECT_SHARE of it). Profit is printed, never a target. */
 export const BASIC_AMMO_PREMIUM = 1;
 
 const heal = (id, n, partner, heals, price) => Object.freeze({ id, kind: 'heal', n, partner, heals, price });

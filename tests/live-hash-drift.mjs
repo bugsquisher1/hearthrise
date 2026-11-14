@@ -46,11 +46,17 @@
 //                hr_credit_kills__ungated(int,text,bigint,text) exactly, and a
 //                hand-added five-argument overload is invisible to it while
 //                being what PostgREST might resolve
+//   live-unknown production carries a public function under a name the baseline
+//                has never recorded and the chain does not drop: a body applied
+//                by hand, or by a migration the repo does not hold. A rebuild
+//                from the repo would not have it
 //   replay       the repo chain no longer rebuilds to the body the baseline
 //                records — a migration FILE was edited after it was applied
 //   replay-missing / replay-extra  the same two directions, repo-side
 //   untracked    the sweep derived a hash-pinned / programmatically-patched
-//                function that has no baseline entry at all
+//                function that has no baseline entry at all, or the replayed
+//                chain END builds a public function no baseline entry records
+//                (rule `catalog`, below)
 //   unexplained  an entry whose live and replay hashes disagree with no reason
 //                recorded. Silence is not a measurement
 //   encoding     a production body carries double-encoded UTF-8 (see §ENCODING)
@@ -68,6 +74,21 @@
 // signature: a new patcher idiom must be taught to the sweep loudly, never drop
 // a function silently. (The "a bug that was never planted is the same defect as
 // a probe that is always null" rule, from schema-drift.mjs.)
+//
+// ── RULE `catalog`: WHAT THE TEXT CANNOT NAME, THE CATALOGUE DOES (2026-11-14) ─
+// Every rule above reads migration TEXT, and some bodies are never written under
+// their own name. The first restore drill (tools/restore-drill.local.mjs, V7)
+// found clan_feast_call__ungated answering all_xp 0.01-0.04 on production and
+// 0.08-0.18 from the repo: 2026-08-11-authenticated-surface-lockdown.sql made it
+// with `execute format('alter function %s rename to %I', …)` from a jsonb list
+// (the A9 gate), no file ever wrote `create function public.clan_feast_call__ungated(`,
+// and so 15 bodies the chain builds were measured by nobody: 13 A9 `__ungated`
+// twins and 2 supabase/schema.sql bodies (handle_new_user, sync_profile_clan).
+// The measurement therefore no longer filters by name. Both sides hash EVERY
+// public function or procedure that no extension owns, and a body the replayed
+// chain END builds with no baseline entry is `untracked` whatever idiom made it;
+// a production body under a name nobody records is `live-unknown`. Teaching the
+// sweep one more idiom would fix this rename and miss the next shape.
 //
 // ── NORMALISATION: '[[:space:]]+', NEVER '\s+' ──────────────────────────────
 // The hash is md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ',
@@ -172,6 +193,9 @@ const RULES = {
        + 'revision is installed (the b484-b487 "a later file silently deletes a '
        + 'hardening" class)',
   floor: 'named by the server-authority program — see FLOOR in this file',
+  catalog: 'MEASURED, not read: the replayed chain END builds this public function and no rule above '
+         + 'derives it (an A9 `__ungated` twin made by `alter function … rename to`, a supabase/schema.sql '
+         + 'body, a format()-built create). Listed only by a replay, so --list cannot show these (2026-11-14)',
 };
 
 const RULES_DROP = 'a name marked [DROPPED] is derived by a rule above but a migration that '
@@ -656,12 +680,16 @@ export const restateOnlyOf = (tracked) => new Set(
 // ════════════════════════════════════════════════════════════════════════
 // THE MEASUREMENT — one query shape, run on production AND on the replay
 // ════════════════════════════════════════════════════════════════════════
-// Read-only. Filtered by tracked PRONAME (not by signature) precisely so a NEW
-// OVERLOAD of a tracked function shows up as a row the baseline does not have.
+// Read-only. EVERY public function or procedure no extension owns (rule
+// `catalog`): no name filter, so a body no migration writes under its own name
+// (a rename, schema.sql, format()) and a NEW OVERLOAD of a tracked function both
+// come back as rows the baseline must account for. Until 2026-11-14 this was
+// filtered by the swept names, which is how clan_feast_call__ungated drifted
+// unmeasured. Aggregates and window functions are out: pg_get_functiondef
+// refuses them, and no migration here makes one.
 // The `__census__` row makes a truncated paste a harness error instead of a set
 // of silent live-missing findings — schema-drift's partial_measurement lesson.
-export function bodyQuery(names) {
-  const list = [...names].sort().map((n) => `'${n}'`).join(',');
+export function bodyQuery() {
   const NORM = "regexp_replace(pg_get_functiondef(p.oid), '[[:space:]]+', ' ', 'g')";
   // chr(226)/chr(195)/chr(194) are the lead characters of double-encoded UTF-8 as
   // stored. Written with chr() rather than as literals so this probe cannot be
@@ -671,18 +699,18 @@ export function bodyQuery(names) {
              + ' or position(chr(194) in p.prosrc) > 0)';
   return `-- READ-ONLY. Generated by: node tests/live-hash-drift.mjs --live-sql
 -- Run against production, then: node tests/live-hash-drift.mjs --live-compare <result.json>
--- Every tracked function BODY, normalised exactly as the migrations' own hash
--- pins normalise it: md5(regexp_replace(def, '[[:space:]]+', ' ', 'g')).
-with tracked(nm) as (select unnest(array[${list}])),
-     f as (
+-- Every public function BODY no extension owns, normalised exactly as the
+-- migrations' own hash pins normalise it: md5(regexp_replace(def, '[[:space:]]+', ' ', 'g')).
+with f as (
   select p.proname::text||'('||pg_get_function_identity_arguments(p.oid)||')' as sig,
          md5(${NORM}) as body_md5,
          length(${NORM})::int as norm_len,
          ${MOJI} as mojibake
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
-    join tracked t on t.nm = p.proname::text
-   where n.nspname = 'public' and p.prokind = 'f')
+   where n.nspname = 'public' and p.prokind in ('f', 'p')
+     and not exists (select 1 from pg_depend d
+                      where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e'))
 select '__census__'::text as sig, md5(coalesce(string_agg(sig, chr(10) order by sig), '')) as body_md5,
        count(*)::int as norm_len, false as mojibake
   from f
@@ -698,8 +726,7 @@ async function measureReplay(patches) {
   const { db } = await bootReplay(patches
     ? { patches, fullChain: 'the measurement is the CHAIN-END body set, compared to the live baseline' }
     : undefined);
-  const names = [...(await sweep(undefined, patches)).keys()];
-  const rows = (await db.query(bodyQuery(names))).rows;
+  const rows = (await db.query(bodyQuery())).rows;
   await db.close?.();
   return { rows, ms: Date.now() - t0 };
 }
@@ -789,7 +816,16 @@ export function classifyLive(prodRows, base, dropped = new Map()) {
   for (const [sig, r] of prod) {
     if (known.has(sig)) continue;
     const name = sig.split('(')[0];
-    if (!tracked.has(name)) continue;   // not ours to police
+    /* Every public body is ours to police (rule `catalog`): the measurement no longer filters by name, so a
+       name nobody has ever recorded is a body production runs and a rebuild would not have. */
+    if (!tracked.has(name)) {
+      say(`live-unknown ${sig}`,
+        `production carries this public function (md5 ${r.body_md5}) and the baseline has never recorded `
+        + 'a body under its name, nor does the repo chain drop it: applied by hand, by a migration this repo '
+        + 'does not hold, or by one whose apply was never re-measured. If no migration builds it, a rebuild '
+        + 'from the repo would not have it. Put it in a migration and re-measure with --live --write, or drop it.');
+      continue;
+    }
     if (dropped.has(name)) {
       say(`live-extra ${sig}`,
         `the repo chain DROPS this function (${dropped.get(name)}) and production still carries `
@@ -842,6 +878,18 @@ export function classifyReplay(replayRows, base, derivedNames, dropped = new Map
       + 'no recorded belief is a body nobody is watching. Re-seed with --write.');
   }
 
+  /* (catalog) the chain END builds it, whatever made it: a body the text rules cannot name (an A9 rename, a
+     schema.sql body, a format()-built create) is still a body a rebuild ships. The 2026-11-14 restore drill found
+     clan_feast_call__ungated drifted here, measured by nobody. */
+  const derivedSet = new Set(derivedNames);
+  for (const n of [...builtInReplay].sort()) {
+    if (byName.has(n) || derivedSet.has(n)) continue;
+    say(`untracked ${n}`,
+      'the replayed chain END builds this public function, no migration writes it under this name (a rename, '
+      + 'supabase/schema.sql, a format()-built create: rule `catalog`) and the baseline has no entry for it. A '
+      + 'body a rebuild ships with no recorded belief is a body nobody is watching. Re-seed with --write.');
+  }
+
   for (const e of base.functions) {
     const r = rep.get(e.sig);
     if (!r) {
@@ -850,10 +898,12 @@ export function classifyReplay(replayRows, base, derivedNames, dropped = new Map
         + 'stopped creating it or its arguments moved — and production still has it.');
       continue;
     }
-    if (r.body_md5 !== e.replay.md5) {
+    /* `replay: null` is a production-only body --write recorded (the catalog measures live bodies too). */
+    const was = e.replay || { md5: 'nothing', norm_len: 0 };
+    if (r.body_md5 !== was.md5) {
       say(`replay ${e.sig}`,
         `the repo chain now rebuilds to md5 ${r.body_md5} (normalised length ${r.norm_len}); `
-        + `the baseline records ${e.replay.md5} (${e.replay.norm_len}). A migration FILE `
+        + `the baseline records ${was.md5} (${was.norm_len}). A migration FILE `
         + 'changed. If that change was applied to production, re-measure with --live --write '
         + 'so the baseline records the deploy. If it was NOT applied, the repo and the '
         + 'database have just diverged and someone has to decide which is right.');
@@ -864,7 +914,7 @@ export function classifyReplay(replayRows, base, derivedNames, dropped = new Map
        have turned every fresh divergence green while explaining nothing — the
        guard writing its own alibi. A placeholder is treated as no reason. */
     const placeholder = typeof e.why === 'string' && /^REVIEW\b/.test(e.why);
-    if (e.live && e.live.md5 !== e.replay.md5 && (!e.why || placeholder)) {
+    if (e.live && e.live.md5 !== was.md5 && (!e.why || placeholder)) {
       say(`unexplained ${e.sig}`,
         `live and replay hashes disagree and the entry ${placeholder
           ? 'still carries the --write REVIEW placeholder' : 'records no reason'}. An unexplained `
@@ -1036,7 +1086,7 @@ const loadBaseline = async () => {
 // so the clean case must produce ZERO findings before any defect means anything.
 function synth(base, side) {
   const rows = base.functions
-    .filter((e) => (side === 'live' ? e.live : true))
+    .filter((e) => (side === 'live' ? e.live : e.replay))
     .map((e) => ({
       sig: e.sig,
       body_md5: side === 'live' ? e.live.md5 : e.replay.md5,
@@ -1280,21 +1330,59 @@ function selftestCases(base) {
     },
   };
 
+  /* ── RULE `catalog`, BOTH SIDES (2026-11-14) ─────────────────────────────
+     Both were silent before: the replay arm skipped a sig whose name no rule derived, and the live arm called such a
+     name "not ours to police". The renamed body is clan_feast_call__ungated's shape: made by `alter function … rename
+     to`, written under its own name by no migration, so the sweep cannot derive it and only the catalogue sees it. */
+  const RENAMED = 'hr_selftest_gate_verb__ungated';
+  cases.renamed_body_untracked = {
+    what: 'the chain END builds a body no migration writes under its own name (the A9 rename made '
+        + 'clan_feast_call__ungated) and the baseline has no entry: the drift the 2026-11-14 restore drill found',
+    side: 'replay',
+    expect: `untracked ${RENAMED}`,
+    rows: () => {
+      const out = [...repRows, { sig: `${RENAMED}(p_slot integer)`, body_md5: '1'.repeat(32), norm_len: 70, mojibake: false }];
+      return out.map((r) => (r.sig === '__census__' ? { ...r, norm_len: out.length - 1 } : r));
+    },
+  };
+  const HAND = 'hr_selftest_hand_added(p_x integer)';
+  cases.hand_added_on_prod = {
+    what: 'production carries a public function under a name no baseline entry or drop has ever named: applied by '
+        + 'hand, so a rebuild from the repo would not have it',
+    side: 'live',
+    expect: `live-unknown ${HAND}`,
+    rows: () => {
+      const out = [...liveRows, { sig: HAND, body_md5: '2'.repeat(32), norm_len: 44, mojibake: false }];
+      return out.map((r) => (r.sig === '__census__' ? { ...r, norm_len: out.length - 1 } : r));
+    },
+  };
+
   return { cases, liveRows, repRows, names };
 }
 
 async function selftest() {
   const base = await loadBaseline();
   const trackedNow = await sweep();
-  const derived = [...trackedNow.keys()];
   const gone = droppedIn(trackedNow);
+  /* The selftest proves the CLASSIFIER against a database synthesized from the baseline; grading the TREE is the
+     plain run's job. A derived name the baseline does not record yet (a new pin on a staged migration, waiting for
+     the Coordinator's re-measure: CLAUDE.md §2) is the plain run's `untracked` finding, not a false positive under
+     every planted case here. A brand-new restate-only name was already quiet (the synthetic replay does not build
+     it); a new PIN was not, which made --selftest a harness error on every lane that pins a body. Named, not hidden. */
+  const baseNames = new Set(base.functions.map((e) => e.name));
+  const only = restateOnlyOf(trackedNow);   // a restate-only name the synthetic replay does not build is skipped anyway
+  const pending = [...trackedNow.keys()].filter((n) => !baseNames.has(n) && !gone.has(n) && !only.has(n)).sort();
+  const derived = [...trackedNow.keys()].filter((n) => !pending.includes(n));
+  if (pending.length) {
+    console.log(`  note: ${pending.length} derived name(s) await a baseline entry; the plain run reports each as untracked: `
+      + `${pending.join(', ')}`);
+  }
   const { cases, liveRows, repRows, names } = selftestCases(base);
 
   // THE FALSE-POSITIVE FLOOR. If a production identical to the baseline already
   // produces findings, every case below would "pass" on the noise floor.
   censusOk(liveRows, 'synthetic live');
   const cleanLive = classifyLive(liveRows, base, gone).findings;
-  const only = restateOnlyOf(trackedNow);
   const cleanRep = classifyReplay(repRows, base, derived, gone, only).findings;
   /* rule `restate`, both directions, on a REAL restate-only body: its baseline entry deleted is untracked while the
      replay builds it; a restated body the chain end does not build (a rolled-back probe) is no claim. */
@@ -1688,6 +1776,22 @@ const MUTATIONS = {
         + 'create or replace function public.hr_mut_restated_once(p_slot integer) returns integer language sql stable as $m$ select p_slot $m$;\n'
         + 'revoke execute on function public.hr_mut_restated_once(integer) from public, anon, authenticated, service_role;\n',
   },
+  /* 2026-11-14, rule `catalog`: clan_feast_call__ungated was made by a RENAME (2026-08-11-authenticated-surface-
+     lockdown.sql, the A9 gate), so no file wrote it under its own name, the sweep never derived it, and the name
+     filter the measurement then had kept it out of both hashes: its drift was measured by nobody. The plant makes a
+     body the same way. The source name is restated once and never built at the chain end (rule `restate` skips
+     it), so `untracked hr_mut_renamed_twin` can only come from the catalogue. Same anchor as the case above. */
+  renamed_body_untracked: {
+    file: '2027-01-12-market-account.sql',
+    what: 'a migration makes a body by `alter function … rename to`, the A9 idiom that hid clan_feast_call__ungated: '
+        + 'no file writes the new name, so only the replayed catalogue can track it',
+    expect: 'untracked hr_mut_renamed_twin',
+    find: "  return jsonb_build_object('ok', true, 'items', v_items, 'next', v_next, 'rules', public.hr_market_rules());\nend $$;\n",
+    repl: "  return jsonb_build_object('ok', true, 'items', v_items, 'next', v_next, 'rules', public.hr_market_rules());\nend $$;\n"
+        + 'create or replace function public.hr_mut_renamed_src(p_slot integer) returns integer language sql stable as $m$ select p_slot $m$;\n'
+        + 'alter function public.hr_mut_renamed_src(integer) rename to hr_mut_renamed_twin;\n'
+        + 'revoke execute on function public.hr_mut_renamed_twin(integer) from public, anon, authenticated, service_role;\n',
+  },
   new_overload_authored: {
     file: '2026-09-02-renown-kill-faucet.sql',
     what: 'a migration grows an OVERLOAD of a hash-pinned function. Every hash pin in this repo '
@@ -1750,7 +1854,6 @@ async function write() {
   try { prev = JSON.parse(await readFile(BASELINE, 'utf8')); } catch { /* first run */ }
   const prevBy = new Map(prev.functions.map((e) => [e.sig, e]));
   const tracked = await sweep();
-  const names = [...tracked.keys()];
 
   const { rows: repRows, ms } = await measureReplay();
   censusOk(repRows, 'replay');
@@ -1758,8 +1861,12 @@ async function write() {
 
   let live = null;
   if (!argv.includes('--no-live')) {
-    live = asMap(readRows(await fetchLive(bodyQuery(names))));
+    const liveRows = readRows(await fetchLive(bodyQuery()));
+    censusOk(liveRows, 'live');
+    live = asMap(liveRows);
   }
+  /* the tracked names: every rule's, plus every body either side carries (rule `catalog`) */
+  const names = [...new Set([...tracked.keys(), ...[...rep.keys(), ...(live ? live.keys() : [])].map((s) => s.split('(')[0])])];
 
   const today = new Date().toISOString().slice(0, 10);
   const sigs = new Set([...rep.keys(), ...(live ? live.keys() : [])]);
@@ -1770,7 +1877,7 @@ async function write() {
     const r = rep.get(sig);
     const p = live ? live.get(sig) : (prevBy.get(sig) || {}).live;
     const old = prevBy.get(sig);
-    const t = tracked.get(name) || { rules: new Set(['floor']), files: new Set() };
+    const t = tracked.get(name) || { rules: new Set(['catalog']), files: new Set() };
     const liveBlock = live
       ? (p ? { md5: p.body_md5, norm_len: p.norm_len, measured: today, source: 'measured-live', ...(p.mojibake ? { mojibake: true } : {}) } : null)
       : (old ? old.live : null);
@@ -1801,8 +1908,9 @@ async function write() {
       'WHAT THE REPO BELIEVES IS DEPLOYED, as a measured fact rather than as prose.',
       'One entry per function whose live body this repo has an opinion about — every',
       'body a migration in the apply order creates or replaces, every hash-pinned /',
-      'programmatically-patched body (derived by sweep() in tests/live-hash-drift.mjs), and',
-      'the program floor. `live` is what production ACTUALLY had when it was last',
+      'programmatically-patched body (derived by sweep() in tests/live-hash-drift.mjs),',
+      'the program floor, and every other public function either side carries (rule',
+      '`catalog`: a rename, a schema.sql body). `live` is what production ACTUALLY had when it was last',
       'measured; `replay` is what supabase/schema.sql + supabase/migrations/**',
       'rebuild to. Both hashes are',
       "  md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
@@ -1853,7 +1961,7 @@ async function main() {
       console.log(`${n.padEnd(34)} ${[...t.rules].sort().join('+')}`
         + (t.dropped ? `  [DROPPED by ${t.dropped} — no baseline entry expected]` : ''));
     }
-    console.log('\nrules:');
+    console.log('\nrules (the names above are the TEXT rules; `catalog` adds every other body the replay builds):');
     for (const [k, v] of Object.entries(RULES)) console.log(`  ${k.padEnd(7)} ${v}`);
     console.log(`  ${'drop'.padEnd(7)} ${RULES_DROP}`);
     return;
@@ -1865,7 +1973,7 @@ async function main() {
   if (argv.includes('--write')) { await write(); return; }
 
   if (argv.includes('--live-sql')) {
-    console.log(bodyQuery([...(await sweep()).keys()]));
+    console.log(bodyQuery());
     return;
   }
 
@@ -1879,7 +1987,7 @@ async function main() {
       if (!file) throw harness('--live-compare needs the JSON produced by running --live-sql on production');
       rows = readRows(JSON.parse(await readFile(file, 'utf8')));
     } else {
-      rows = readRows(await fetchLive(bodyQuery([...trackedLive.keys()])));
+      rows = readRows(await fetchLive(bodyQuery()));
     }
     censusOk(rows, 'live');
     const { findings, checked } = classifyLive(rows, base, droppedIn(trackedLive));
@@ -1906,8 +2014,9 @@ async function main() {
   censusOk(rows, 'replay');
   const { findings } = classifyReplay(rows, base, derived, gone, restateOnlyOf(tracked));
 
-  console.log(`live-hash-drift: ${derived.length} tracked names, ${base.functions.length} baselined `
-    + `bodies, replayed in ${(ms / 1000).toFixed(1)}s`);
+  const built = new Set(rows.filter((r) => r.sig !== '__census__').map((r) => r.sig.split('(')[0]));
+  console.log(`live-hash-drift: ${derived.length} derived names + ${[...built].filter((n) => !tracked.has(n)).length} `
+    + `catalog-only, ${base.functions.length} baselined bodies, replayed in ${(ms / 1000).toFixed(1)}s`);
   if (findings.length) {
     report(findings, 'RED ');
     console.error(`\n${findings.length} problem(s). The repo no longer matches its own record of`);

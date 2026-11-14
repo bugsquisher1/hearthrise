@@ -3690,6 +3690,8 @@ jobs:
 
   # db-replay-9: Lane S2 server, split out of db-replay-7 (lane a-ci-speed, 2026-11-01). Run 41339988105
   # measured db-replay-7 at 48.3 of its 50 min, Lane S2 21.1 of it: 21.7 min here, 26.6 left there. x2 = 44.
+  # + balance tools 34 s and tool/driver proofs 27 s (2026-11-14, lane/a-guard-proofs-2, measured locally): nightly 43463973910
+  # ran this job in 8.0 min, + 1.0 = 9.0, x2 = 18, inside the 44.
   db-replay-9:
     runs-on: ubuntu-latest
     timeout-minutes: 44
@@ -3726,6 +3728,35 @@ jobs:
           node tools/build-settle-hooks.mjs --check
           node tests/settle-hooks.mjs
           node tools/mutant-gate.mjs node tests/settle-hooks.mjs --mutate
+
+      # BALANCE TOOLS THAT RAN NOWHERE (lane/a-guard-proofs-2, 2026-11-14). The Balance Lab (Tyler's simulator) must answer
+      # tools/balance-sim's numbers digit for digit: it had been red since 2026-11-08 (cell.mjs gained `spellsIn` with the
+      # area spells, lab-core.mjs did not) and nothing ran it. The yard's 0.40x pace gate (the designer's, src/data/training.js
+      # xpPermille) and its proof, whose anchor had gone stale the day the dial moved. No database. Measured locally: parity
+      # 10 s + --mutate 9 s, yard-table 13 s + --selftest 2 s.
+      - name: Balance tools — the Lab plays the sim's game, the training yard pays at most 0.40x a fitting hunt
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/balance-lab/parity.mjs
+          node tools/mutant-gate.mjs node tools/balance-lab/parity.mjs --mutate
+          node tools/balance-sim/yard-table.mjs
+          node tools/mutant-gate.mjs node tools/balance-sim/yard-table.mjs --selftest
+
+      # PROOF ARMS NO WORKFLOW RAN (lane/a-guard-proofs-2, 2026-11-14; guard-hygiene RULE 7 now refuses one). The shared
+      # mutation driver every bespoke proof leans on; the §2 bash hook; the vitals and hunt-health alarms; the local
+      # world's production refusal; the race harness against its own stand-in (no network, no credentials); the recipe
+      # faucet (run-smoke's preflight also calls it, before the browser). Measured locally, one at a time: 0.1 + 0.1 +
+      # 0.1 + 0.1 + 0.2 + 25 + < 1 s, about 27 s.
+      - name: Tool and driver proofs — mutation driver, bash hook, vitals alarms, local world, race harness, recipe faucet
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/mutation-proof.mjs --selftest
+          node tools/mutant-gate.mjs node tools/hooks/bash-guard.mjs --selftest
+          node tools/mutant-gate.mjs node tools/lib/hunt-lag.mjs --selftest
+          node tools/mutant-gate.mjs node tools/lib/server-pulse.mjs --selftest
+          node tools/mutant-gate.mjs node tools/qa/local-world.mjs --selftest
+          node tools/mutant-gate.mjs node tools/race-test.mjs --selftest
+          node tools/mutant-gate.mjs node tests/recipe-yield-guard.mjs --mutate
 
   # ── db-replay-8 ── SPLIT OUT OF db-replay-5 2026-10-08 (CI-SPLIT-6). The
   # GitHub run for 3ea45544 (set/b565 on next, run 37725703255) CANCELLED
@@ -4185,6 +4216,61 @@ jobs:
           node tools/mutant-gate.mjs node tests/bug-triage.mjs --mutate
           node tools/mutant-gate.mjs node tests/clan-feast-catalogue-drift.mjs --selftest
           node tools/mutant-gate.mjs node tests/native-dialog.mjs --mutate
+
+  # pg17: THE RACES PGLITE CANNOT RUN (lane/a-guard-proofs-2, 2026-11-14). PGlite is one backend, so a chain replay there
+  # plays each order the locks admit one after the other and can never show that the locks admit ONLY those orders. These
+  # guards replay the same chain on a real PostgreSQL 17 cluster (tools/pg-replay.mjs, production's major version), one
+  # backend per actor, each race pinned open by a gate connection until pg_stat_activity shows every actor parked on the
+  # lock. Until this job they were "not a CI step: GitHub has no PostgreSQL 17 binaries" and ran by hand.
+  # The first guard builds the chain template once (a database on the scratch server); every later world clones it.
+  # MEASURED on GitHub, run 43537362373 (two copies, every proof, each race guard run twice, all green): PostgreSQL 17
+  # install 12-18 s, chain template 49-63 s (671 files), hunt-carry-race 11-15 s + --mutate 3-4 s (4 mutants), town-shows-race
+  # 2 s + --mutate 9-11 s (9 mutants, 3 controls), beta-load --selftest 1 s; about 2.6 min with setup. x2 = 5.2, + 10 for an
+  # apt stall (the in-page jobs have seen 12 min) = 15.
+  pg17:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      HR_PG_BIN: /usr/lib/postgresql/17/bin
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      - name: Install PostgreSQL 17
+        uses: ./.github/actions/postgres-17
+
+      # Carry-in (2027-02-21-hunt-carry-in.sql) on real backends: two presses at once, a press against the settle that
+      # spends the line or ends the hunt, a Leave, a Storage move, a party settle, the storm. The book after every race:
+      # backpack + Storage + hunt bag + eaten = what the hero began with. --mutate plants 4 defects in hr_hunt_restock.
+      - name: Hunt carry-in races — no unit duplicated or lost (PostgreSQL 17)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-carry-race.mjs
+          node tools/mutant-gate.mjs node tests/hunt-carry-race.mjs --mutate
+
+      # What gold buys in Havora, raced: the sink lock's price climb, the Hearth's last booking, the Crier's 30 s, a named
+      # fuel against a powder (the deadlock this race found), the Town Works' day cap and stage line, one key pressed twice.
+      - name: Town shows and Town Works races (PostgreSQL 17)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/town-shows-race.mjs
+          node tools/mutant-gate.mjs node tests/town-shows-race.mjs --mutate
+
+      # tools/beta-load.mjs's end-of-run audit (journalled window ms == the clock's move, tally == ledger, no intent twice)
+      # must go red on a planted double pay, lost time, an unjournalled purse and a tally off its ledger, with a clean control.
+      - name: Beta load audit — mutation proof (PostgreSQL 17)
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tools/beta-load.mjs --selftest
 
   artisan-selftest:
     runs-on: ubuntu-latest

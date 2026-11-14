@@ -14,7 +14,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { covers, tilesOf, SHAPE_KINDS } from './shapes.js?v=0.2.129';
+import { covers, tilesOf, SHAPE_KINDS } from './shapes.js?v=0.2.130';
 
 /** The placed shape of unit `u`'s live cast, or null (none, a caster that has fallen, or a cast that is no shape: a MEND winds
     up on a packmate and strikes no hero, data/monster-spells.js mends, so it marks no ground, casts at no hero and draws no mark). */

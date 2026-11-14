@@ -33,6 +33,14 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 **The call.** The Burning Tower is the Great Hearth's chimney. You go in through the fire and climb. Every floor is one room of five monsters, and floor 40 fights like a Level 40 ground. It runs as a normal idle hunt on the one engine, alone or in a party, watched or not. Dying sends you back to the ledge and costs nothing. Every tenth floor an old Keeper holds a key, and you can take each landing's key once a week. The four chests sit on the Hearth's ledge in the middle of town, so everybody in the square sees you open one. Every chest has something in it, and a few have a tower weapon.
 
+**Tyler's answers, 2026-11-14, and what they changed here.** "lets start 50% exp since it uses stamina and supplies. I dont LOVE the cap on keys, but if we do have one i think it should be more than 3, maybe 6 and lower the odds."
+| Answer | Read as | What moved |
+|---|---|---|
+| "start 50% exp" | A Tower hour gives about half the XP of a hunting hour for the same hero. Not half of each kill: a Tower room is so dense that half a kill would pay 1 to 3.3 times hunting, and the Tower would be the best place to level | A kill gives 200‰ and the Tower has its own flat party share. Section 7 has the table |
+| "more than 3, maybe 6 and lower the odds" | Six keys a week for each hero, odds halved | 3 / 4.5 / 6 / 7.5%. The week starts 60 floors under your best. Section 5 |
+| "I dont LOVE the cap" | Offer one way with no cap that still can't be farmed | Section 5, with my pick |
+Stamina drains, keys don't trade, opening is free and the weapons keep the standard numbers: those stand as picked. The story draft is still his to read.
+
 **What I kept from Tyler, and what I changed.**
 | His idea | Verdict | What it is now |
 |---|---|---|
@@ -40,10 +48,10 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 | Solo or group | Kept, one difficulty | The same room for one hero or four (Tyler 11-08). Measured: alone you hold about your own Level, a good four holds about 25 floors higher |
 | A leaderboard | Kept, two boards | Solo and Party, highest floor, a new season every UTC month. No tradeable prize for rank |
 | Dying has no penalty | Kept, and made general | One server switch any mode can turn on, section 3. The Tower uses it first, the capture-the-flag idea later |
-| Level XP isn't great | Kept, with a number | A Tower kill gives 5% of the formula's XP. Measured best case is a third of hunting, section 7 |
+| Level XP isn't great | Kept, with his number | A Tower hour gives about half of a hunting hour at Level 45, and the best die-and-retry case stays under hunting, section 7 |
 | A key every 10 floors | Kept, capped by the week | Each landing's key once a week for each hero. Without the cap, free deaths turn it into a key farm |
 | Bronze, Silver, Gold, Platinum | Kept as named | Everybody already knows that order. "Bronze" is also the first gear metal, and I don't think anyone will mix up a key and a sword |
-| Higher keys, better odds | Kept | 6 / 9 / 12 / 15%, printed on the chest |
+| Higher keys, better odds | Kept | 3 / 4.5 / 6 / 7.5% with six keys a week, printed on the chest |
 | Chests on the Hearth's ledge | Kept, and it's the best part | The opening happens in the shared town, not in a menu |
 | Tower weapons trade | Kept | Through the Weighhouse and player trade, like any gear (NO BOUND GEAR, 10-23) |
 | Are keys tradeable | **No. My one real pushback** | A key is a random roll. If keys trade, then Crowns buy gold, gold buys keys, and keys roll for weapons. That is the "random gold spends" line Tyler put on the avoid list on 11-04 because Steam can read it as gambling. Keys stay with the account. The weapons trade |
@@ -55,7 +63,7 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 | Which player problem | Dying costs 6% now, so nobody tries anything risky. There is nowhere to find out how good your bar and gear really are. And there is no reason to stand in Havora once a week |
 | What decision | Which weapon and which lining for this climb. Go alone for the Solo board or bring three friends and get 25 floors higher. Spend an hour of today's stamina here or on Levels. Keep the weapon you rolled or sell it |
 | What it plugs into | Source: the stat formula, the monsters already in the data, the party system, the action bar. Consumers: the Leaderboards window, the Weighhouse, Tempering (the chest's Salts), Inner Flame (the chest's Cinders), the Hearth as a place |
-| The tradeoff | A Tower hour costs stamina and food and gives almost no XP, no coin and no drops. You are trading Levels for a key and a rank |
+| The tradeoff | A Tower hour costs stamina and food and gives about half the XP, no coin and no drops. You are trading Levels and gold for keys and a rank |
 | Hour 100 and hour 1,000 | Floors never end, the board starts over every month, the key resets every week, and every new Level and every new piece of gear moves your record |
 | Depth or complexity | It adds no new stat, no new currency and no new combat rule. It is the game's own fight with the fear of dying taken off |
 
@@ -89,12 +97,12 @@ A climb is a hunt session. Its ground is the Tower, its instance is solo or a pa
 | How it gets harder | Each floor is one Level of the formula: about 2% more HP at floor 45, a harder hit that lands more often, more defense. The same room for one hero or four | "Floors get incrementally harder." ONE DIFFICULTY (11-08). Nothing reads the hero's Level (11-04) |
 | HP, mana, food | They carry from floor to floor. No rest on the stair. Food, drink, runes and arrows are used and bought exactly as in a hunt | The climb is one long fight. A four with a healer spends almost nothing. A hero alone at their limit spends a lot. Measured below |
 | Stamina | It drains like a hunt | Otherwise four heroes climb all night for free XP on top of a full day's hunting |
-| Where you start | Your best landing is kept for good. Each week your first climb starts 30 floors under it. After that you can start from any landing you've cleared that week | First principle: nobody re-climbs floors they have already beaten to get back to the one they are stuck on. The 30 floors are the week's three keys |
+| Where you start | Your best landing is kept for good. Each week your first climb starts 60 floors under it. After that you can start from any landing you've cleared that week | First principle: nobody re-climbs floors they have already beaten to get back to the one they are stuck on. The 60 floors are the week's six keys |
 | Time on a floor | Three minutes a floor, ten on a landing. Then the climb ends | A party that can't die and can't kill would sit there for ever. The boss room already has this limit (`boss-room.js` `limitMs`) |
 | What ends a climb | You die. Your party's death or leave, if your own box is ticked. Stamina. Gold for supplies. Your own bar's rule. The floor's time. Leave | Every one is an END_ORDER reason that exists today, plus one new one for the floor's time. The party box works as it does in a hunt, so friends can climb on after one falls |
 | What counts | The highest floor a hero was alive to clear | The server writes it at the settle. A hero who died on 47 has 46 |
 
-**What a Tower kill gives.** 5% of the formula's Level XP and 5% of the skill XP. No coin. No drops, no bones, no rare roll. No Bestiary kill, no Tamsin task, no Hearthfind. The fire isn't the creature. This is the whole reason free deaths can't be farmed, and it is a rule on the mode, not on the Tower (section 3).
+**What a Tower kill gives.** 200‰ of the formula's Level XP, and skill XP at the same 200‰. Every hero gets the same share alone or in a party: no solo boost, and a party splits a kill on the Tower's own flat row (section 7). No coin. No drops, no bones, no rare roll. No Bestiary kill, no Tamsin task, no Hearthfind. The fire isn't the creature. This is the whole reason free deaths can't be farmed, and it is a rule on the mode, not on the Tower (section 3).
 
 **The sample, measured.** Real engine, `node tools/balance-sim/tower-table.mjs floors --pull 5`. Every monster on the formula at Level F, the Glade's layout and roster as a stand-in room, heroes in the kit their Level can get today, store food, 2 seeds x 30 minutes a cell. A cell is a hero or a four holding one floor, so it is a proxy for a climb and not a climb. A death starts the next life at once, so the numbers past a hero's reach are die-and-retry rates.
 
@@ -124,7 +132,7 @@ A session has a **mode**. The mode is a row in one table, `src/data/session-mode
 | Mode row | Death loss | Blessings | Level and skill XP | Coin, drops | Bestiary, tasks | Stamina |
 |---|---|---|---|---|---|---|
 | `hunt` (every ground today) | 1000‰, the full 6% | Used up by a death | 1000‰ | Yes | Yes | Drains |
-| `tower` | 0 | Not touched | 50‰ | No | No | Drains |
+| `tower` | 0 | Not touched | 200‰ a kill, its own party row | No | No | Drains |
 | the capture-the-flag mode, later | 0 | Not touched | its own low number | No | No | its own call |
 
 **Exactly where it sits.**
@@ -138,13 +146,13 @@ A session has a **mode**. The mode is a row in one table, `src/data/session-mode
 
 Two locks, so a bug in one can't cost anyone XP: the engine proposes nothing, and the database would refuse it anyway.
 
-**It can't be farmed, and that is a rule on the table.** A mode whose death loss is under 1000‰ must have coin off, drops off, Bestiary off and XP at 400‰ or less, or the data check fails and the mode doesn't load. So nobody can add a free-death mode that pays like a hunt by forgetting a field. What is left to farm on die-and-retry, and what stops each one:
+**It can't be farmed, and that is a rule on the table.** A mode whose death loss is under 1000‰ must have coin off, drops off and Bestiary off, or the data check fails and the mode doesn't load. So nobody can add a free-death mode that pays like a hunt by forgetting a field. The XP half of that rule changed with Tyler's 50%. It was "400‰ a kill or less", and a per-kill number says nothing about an hour (the Tower's rooms pay 2 to 7 times hunting at the formula's own XP). So XP is held by a measured guard instead: every sampled cell of a no-loss mode, die-and-retry included, earns less Level XP an hour than hunting does at that Level, or the mode's row is refused (section 7). What is left to farm on die-and-retry, and what stops each one:
 | What | What stops it |
 |---|---|
 | Keys | One key for each hero, landing and week, a unique row on the server. A second clear gives nothing |
 | Drops and coin | The mode pays none |
-| Level XP | 50‰. The measured die-and-retry rates are in section 7, and the best one is a third of hunting |
-| Skill XP, and Defense from taking hits off monsters 30 Levels up | The same 50‰ on every skill. Without it the Tower is a free Training Yard, and that yard is a gold sink Tyler asked for |
+| Level XP | 200‰ and a flat party share. The measured die-and-retry rates are in section 7, and the best one is 71% of hunting |
+| Skill XP, and Defense from taking hits off monsters 30 Levels up | The same 200‰ on every skill. Without it the Tower is a free Training Yard, and that yard is a gold sink Tyler asked for |
 | Time | Stamina drains, and food still costs gold |
 
 **The guard (spec, for the Systems lane).** `tests/mode-death.mjs`, both paths as §4 asks, the hunt viewed and the browser closed. A hunt death takes 6% of Level XP and of each combat skill's progress and uses a Blessing. A mode death takes nothing from Level or any skill and leaves the Blessings alone. Mutants that must each turn it red: `die()` ignores the mode. The default mode is set to the no-loss row. The database bound is not scaled by the mode. `hr_blessing_take` is still called in a mode. An intent carries a mode field. And the table check: a no-loss mode with coin or drops on.
@@ -190,20 +198,39 @@ A third line under each board shows the all-time record and who holds it. A filt
 | Gold Key | 70, 80, 90 | The same |
 | Platinum Key | 100, and every tenth floor after | The same. A fifth key is one data row when the game has gear above Dawnsteel for it |
 
-The week starts Monday 00:00 UTC. A hero's week is the three landings under their best, plus any new landing they reach. So three keys most weeks, about 10 minutes of climbing in a four and 20 to 30 alone. A key is an item with no shop value that can't be listed, traded or sold. It can go through Storage to another hero on the same account, because that is still you. Opening costs nothing, ever.
+The week starts Monday 00:00 UTC. A hero's week is the six landings under their best, plus any new landing they reach. So six keys most weeks (Tyler 2026-11-14), about 20 minutes of climbing in a four and 40 to 60 alone. The six span two chests for most heroes: a hero whose best is 60 takes three Bronze and three Silver. A hero whose best is under 60 has fewer landings to take, so a new hero's keys grow with their record. A key is an item with no shop value that can't be listed, traded or sold. It can go through Storage to another hero on the same account, because that is still you. Opening costs nothing, ever.
 
 **The chests.** Four chests on the Hearth's ledge, one for each key. Click a chest, the hero walks over, the server rolls, and the chest opens for everyone in the square. A weapon is called out in chat on the rare-drop rails (`hr_world_notice_rules`) and gets the rare-drop reveal. "Open all" spends every key of that kind in one press and shows each result.
 
 | Chest | Always inside | Chance of a tower weapon too | Which weapon |
 |---|---|---|---|
-| Bronze | Tower Cinders, Tempering Salts | 6% | One of the seven, even odds |
-| Silver | More Cinders, Tempering Salts | 9% | The same |
-| Gold | More Cinders, Fine Tempering Salts | 12% | The same |
-| Platinum | The most Cinders, Fine Tempering Salts | 15% | The same |
+| Bronze | Tower Cinders, Tempering Salts | 3% | One of the seven, even odds |
+| Silver | More Cinders, Tempering Salts | 4.5% | The same |
+| Gold | More Cinders, Fine Tempering Salts | 6% | The same |
+| Platinum | The most Cinders, Fine Tempering Salts | 7.5% | The same |
 
 Tower Cinders are a new Hearth fuel. You burn them in the fire you just climbed for Inner Flame XP, so a chest with no weapon still feeds a skill. The Salts are the ones Tempering already uses (`temper_salts`, `fine_temper_salts`). No chest pays gold. The counts are proposed and get sized so a chest is worth about what the climb's food cost. The odds are printed on the chest. There is no hidden pity count. If real play shows long dry runs feel bad, a visible one is a data row.
 
-**How many weapons that makes (arithmetic, not measured).** Three Silver keys a week at 9% is one weapon about every four weeks for a hero, and the one type you want about every six months. An account with four heroes sees one a week. That puts a tower weapon in Tyler's "extremely rare" band for one hero and makes the Weighhouse the real way to get the one you want, which is the point of making them tradeable.
+**How many weapons that makes (arithmetic, not measured).** Six keys at half the odds is the same number of rolls' worth as three at full.
+| A hero whose best landing is | Keys a week | Weapons a week | The first design (3 keys, 6 / 9 / 12 / 15%) |
+|---|---|---|---|
+| 30 | 3 Bronze | 3 x 3% = 0.09 | 0.18 |
+| 60 | 3 Bronze, 3 Silver | 0.09 + 0.135 = 0.225 | 3 Silver, 0.27 |
+| 90 | 3 Silver, 3 Gold | 0.135 + 0.18 = 0.315 | 3 Gold, 0.36 |
+| 130 | 6 Platinum | 6 x 7.5% = 0.45 | 3 Platinum, 0.45 |
+
+So about one weapon a month for a hero at 60 or above, and one a week or so for an account of four, as before. Two things do move. A high hero now also opens the chest below theirs, so lower weapons reach the Weighhouse from people who don't need them, which is good for new players. And a hero under floor 60 has fewer than six landings, so they see about half the weapons they did. I'd leave that: their record climbs fast and every new landing is a key on the spot.
+
+**One way to have no weekly cap (Tyler: "I dont LOVE the cap").** With free deaths, a key from every Keeper kill is a farm: start ten floors under the landing, kill the Keeper, leave, again, a key every three minutes. So a key has to cost something a death can't refund. The one honest price is stamina, which the server already counts.
+| | Weekly cap (as designed) | No cap, a key an hour |
+|---|---|---|
+| The rule | Each landing's key once a week, six most weeks | A Keeper gives a key to a hero who has burned an hour of stamina in the Tower since their last key. No weekly limit |
+| Keys a week | 6 | As many hours as you climb. 8 to 12 a day if you never hunt |
+| Odds to keep the same weapons for a 3-hour-a-week climber | 3 / 4.5 / 6 / 7.5% | 6 / 9 / 12 / 15% |
+| Can it be farmed | No. The unique row is the limit | No. Stamina is the limit and deaths don't give it back |
+| What it does to the game | A weekly ritual. Twenty minutes to an hour, then you go hunt | The Tower becomes a full-time job that pays weapons by the hour. An account of four that only climbs makes about 20 times the weapons of a casual hero, and the price of a tower weapon falls to whatever those accounts will take |
+
+**My pick: keep the weekly six.** The no-cap version is fair and safe, but it sets Tower hours against Levels every single day, and the best way to get tower weapons becomes not playing the rest of the game. The weekly six gets a player to the Hearth every week and sends them back out. If Tyler wants no cap anyway, it is one rule on the key's source row and the odds column, and nothing else in this design changes.
 
 **Another key later is a row, not a system (Tyler's capture-the-flag idea, backlog).** The pipe is three small tables. A key row says what the key is. A source row says what gives it (today "a Tower landing from 10 to 30", later "a place in the capture-the-flag event"). A chest row says which key opens it, where it stands, what is always inside and what it can roll. A helmet chest for that event is one key row, one source row, one chest row and the helmet's item rows. The open call, the ledger line, the weekly cap, the call-out and the reveal are the same code. The no-loss mode in section 3 is the other half that mode needs.
 
@@ -256,26 +283,45 @@ The hatchets and the crossbow are named when the five have been built and played
 
 **Trading is the server's.** A tower weapon lists in the Weighhouse through the escrow that exists (`hr_market_*`), with a ceiling row for each weapon the way jewelry has one, and it moves in player trade when that ships. It sells to the Shop at the dropped-gear rate for its tier, so the Shop is a floor and never the reason to open a chest. Every move is journalled.
 
-#### 7. XP, with numbers
-Hunting pace is the measured median of eight solo styles where the game sends them (`tools/balance-sim/level-pace.json`): 88.7k an hour at Level 20 and 112.0k at Level 45. The "raw" column is the formula's XP with no Tower dial.
+#### 7. XP, with numbers (re-fitted to Tyler's "start 50% exp")
+Hunting pace is the measured median of eight solo styles where the game sends them (`tools/balance-sim/level-pace.json`): 38.2k an hour at Level 10, 88.7k at Level 20 and 112.0k at Level 45.
 
-| Who | Where | Raw XP an hour | Times hunting, raw | At 50‰ |
+**Why it can't be half of each kill.** At the formula's own XP a Tower hour pays 2 to 3.4 times a hunting hour for a Level 45 hero holding their own floor, and 6.5 times for a four 25 floors up, because five monsters in every room is denser than any ground. Half of that is 1 to 3.3 times hunting. So "50%" is fitted as an hour against an hour.
+
+**The fit.** Two numbers on the Tower's rows.
+| Dial | Value | Why |
+|---|---|---|
+| A kill's Level XP and skill XP | 200‰ of the formula's | Lands a Level 45 hero alone on their own floor at half of hunting |
+| A hero alone | The plain kill, no +15% | The solo boost is there so hunting alone keeps up with a party. In the Tower the party's edge is 25 more floors |
+| A party of four | 1300‰ of a kill between them, 325‰ a head | The grounds' mixed-party rows pay a four up to 3000‰ so parties level faster. Carried into the Tower that put a four at 6.5 times hunting. At 1300‰ a four 25 floors up earns about what a hero alone earns on their own floor. Pairs and threes get their rows when the room is built |
+
+**The table.** Raw is what the engine measured (section 2's cells, the Glade's rows, which pay a hero alone 1150‰ and a four of four classes 3000‰). The last column is the same cells at the fit. XP is the kill's number times the share, so the re-scale is exact for a held floor. It is arithmetic on measured cells, not a second run.
+| Who | Where | Deaths an hour | Raw, times hunting | At the fit, share of hunting |
 |---|---|---|---|---|
-| Level 45 alone, holding its own floor (45) | no deaths | 225k to 378k | 2.0 to 3.4 | 10 to 17% of hunting |
-| Level 45 mage alone, die and retry on floor 70 | 20 deaths an hour | 459k | 4.1 | 21% |
-| Level 45 four, holding floor 70 | no deaths | 729k a head | 6.5 | 33% |
-| Level 45 four, die and retry on floor 85 | 15 deaths an hour | 792k a head | 7.1 | 35% |
-| Level 20 alone, floor 20 | no deaths | 75k to 137k | 0.9 to 1.5 | 4 to 8% |
-| Level 20 four, floor 45 | no deaths | 356k a head | 4.0 | 20% |
+| Level 45 alone, their own floor (45) | holding | 0 | 2.01 to 3.38 | 35% tank, 50% bow, 53% hammer, 59% mage |
+| Level 45 alone, the easy end of a key climb (35) | holding | 0 | 1.75 to 2.86 | 30 to 50% |
+| Level 45 mage alone, floor 70 | die and retry | 20 | 4.10 | 71%. The best case measured |
+| Level 45 bow alone, floor 70 | die and retry | 14 | 3.30 | 57% |
+| Level 45 four, their own floor (45) | holding | 0 | 5.00 | 43% |
+| Level 45 four, floor 70 | holding | 0 | 6.51 | 56% |
+| Level 45 four, floor 85 | die and retry | 15 | 7.07 | 61% |
+| Level 20 alone, floor 20 | holding | 0 | 0.85 to 1.54 | 15 to 27% |
+| Level 20 mage alone, floor 45 | die and retry | 22 | 2.53 | 44% |
+| Level 20 four, floor 45 | holding | 0 | 4.02 | 35% |
+| Level 10 alone, floor 10 | holding | 0 | 0.84 to 1.40 | 15 to 24% |
 
-The raw number is high because five monsters in every room is denser than any ground. That is why the dial is as low as 50‰. At 50‰ the best thing anyone can do in the Tower, a four dying and retrying 40 floors up, earns about a third of a hunting hour and no gold. A normal key climb earns a tenth to a sixth. Both spend the same stamina hunting would. The guard to write: no Tower cell earns more than 40% of the hunting pace at its Level.
+**What it says.** At Level 45 a key climb pays about half of hunting, which is Tyler's number, and the best anyone can do by dying on purpose is 71%, under hunting and with no gold. At Levels 10 and 20 the same 200‰ pays a sixth to a quarter. One flat number can't be half at every Level, because the formula pays early floors less on purpose (its `floorFit`) and early hunting is fast. I'd start there: low is the safe side, and a new hero is in the Tower for the first key, not the XP. If Tyler wants half at every Level, the fix is a second number for floors under 32, and it gets measured first.
+
+**The guard to write with the rows.** Over the sampled grid, every Tower cell earns less Level XP an hour than the hunting pace at its Level, die-and-retry cells included. And the median hero alone on their own floor, at the top Level the grid plays, sits between 35 and 65%. This is the measured rule that replaced "400‰ or less" on the mode table (section 3).
+
+**Not measured.** Any Level past 45, so the fit is re-read when the Barrow March opens. Pairs and threes. Skill XP against the Training Yard at 200‰.
 
 #### 8. The hour, the day, the week, the month
 | When | What you're chasing |
 |---|---|
 | The hour | One more floor. You died on 47 to a volley, so you move your bow back a tile, change the lining, and go again from 41. It costs nothing but food |
 | The day | A new best landing. Each one is a key the moment you take it |
-| The week | Three keys, three chests opened on the ledge with the square watching, and a chance at a weapon |
+| The week | Six keys, six chests opened on the ledge with the square watching, and a chance at a weapon |
 | The month | Your place on the Solo and Party boards before they start over, and your name on the ledge |
 | The long chase | The seven weapons of your chest, by luck or at the Weighhouse. Then the next chest up |
 
@@ -284,7 +330,7 @@ The raw number is high because five monsters in every room is denser than any gr
 - `go_tower`: "Open the Tower"
 
 The Tower window's own lines (drafts):
-- The card: "Every floor is harder than the last. Dying here costs you nothing. You get very little XP."
+- The card: "Every floor is harder than the last. Dying here costs you nothing. You get about half the XP you would hunting, and no gold."
 - The death popup: "The Tower put you out on floor {floor}. You lost no XP."
 - A key: "You got a {key}. Open the {chest} on the Hearth's ledge."
 - A key you already took: "You already took this landing's key this week."
@@ -304,7 +350,7 @@ Ids were read on main 405afc082. "New" means this design, not built.
 | 6 | They keep going and die somewhere from 15 to 20 | The Level 10 sword held 15 and died twice on 20. The mage held 15 and died on 20 | Measured, the proxy |
 | 7 | They wake on the ledge. No XP lost, Blessings untouched | Section 3's switch | New, checked as a planted what-if |
 | 8 | They click the Bronze Chest and open it | They hold the key from step 5 and are standing at the ledge from step 7 | New |
-| 9 | Inside: Tower Cinders and Tempering Salts. 6% of the time a weapon too | `temper_salts` exists and Tempering is under the Shop's Services. Cinders are new and burn at the same Hearth (`hearth.js`) | Salts exist, Cinders new |
+| 9 | Inside: Tower Cinders and Tempering Salts. 3% of the time a weapon too | `temper_salts` exists and Tempering is under the Shop's Services. Cinders are new and burn at the same Hearth (`hearth.js`) | Salts exist, Cinders new |
 | 10 | A weapon needs Level 15. They wear it then, or list it | The Weighhouse is window `market` | Exists, the item rows are new |
 | 11 | They look at the Leaderboards | Window `honor`, two new rows | Rows are new |
 | 12 | Next week, three more keys from landings they can reach | Their best landing is 10, so the week starts at floor 1 and floor 10 gives its key again | Rule is new |
@@ -333,17 +379,17 @@ Both paths (§4): the climb viewed and the browser closed are the same settle, a
 
 **For other lanes.** Systems: the mode switch in `die()`, a floor counter and floor-by-floor rows in one instance, the floor's time as an END reason, item-fed Follow-through and Surge, a named kit in the sim. Backend: section 10. Art Director: the chests on the ledge, the flue room kit, the fire tint, the Tower window, the opening reveal. Security: keys that can't trade, the weekly cap, the floors a minute clamp, the chest roll, weapons through the market.
 
-**Done and verified.** Every existing id here was read on main. Every new name was checked free. The floor curve, the solo and four reach, the XP rates, the bow and the no-loss check are the real engine's numbers from `tower-table.mjs`, each run's exit code 0. **Not verified.** Nothing was played by hand. No real climb, no Keeper, no mixed roster, no Level past 45. Six of the seven attributes. The chest counts. The story and every player line have had no reader. **Assumed.** The 6 / 9 / 12 / 15% odds, three keys a week, the Keeper's pulse, the three and ten minute limits, the 40% guard line.
+**Done and verified.** Every existing id here was read on main. Every new name was checked free. The floor curve, the solo and four reach, the XP rates, the bow and the no-loss check are the real engine's numbers from `tower-table.mjs`, each run's exit code 0. **Not verified.** Nothing was played by hand. No real climb, no Keeper, no mixed roster, no Level past 45. Six of the seven attributes. The chest counts. The story and every player line have had no reader. **Assumed.** The 3 / 4.5 / 6 / 7.5% odds, the Tower's party row for pairs and threes, the Keeper's pulse, the three and ten minute limits, the 40% guard line.
 
-**Six questions only Tyler can answer, each with my pick.**
-| # | Question | My pick |
+**Where the six questions stand (Tyler 2026-11-14).**
+| # | Question | State |
 |---|---|---|
-| 1 | How poor is the XP? | A Tower kill gives 5% of the formula's XP. That is a tenth to a sixth of hunting on a key climb and a third at the very best. Skill XP the same |
-| 2 | Does climbing drain stamina? | Yes. If it doesn't, four heroes climb all night for free XP after a full day's hunting, and the dial would have to be zero |
-| 3 | Can keys be traded or sold? | No. Keys stay on the account and opening is always free. The weapons trade. Tradeable keys make the chest a paid random roll through Crowns, the thing you put on the avoid list on 11-04 |
-| 4 | How rare are the weapons? | 6 / 9 / 12 / 15% a chest and three keys a week for each hero. About one weapon a month for a hero and one a week for a full account |
-| 5 | How strong are they? | The same numbers as the standard weapon of their rank plus the attribute. Measured at 2 to 4% better for the bow, always under the next tier. The other choice is a little less damage for the attribute, which makes them a wash and nobody chases a wash |
-| 6 | Is the Tower the Hearth's chimney, and is that story yours? | Yes to the chimney. It needs no new landmark and it puts the chests exactly where you said. The story needs your read before any of it goes in the game |
+| 1 | How poor is the XP? | ANSWERED: "start 50% exp". Fitted as half a hunting hour at Level 45, section 7 |
+| 2 | Does climbing drain stamina? | Stands as picked: yes. His answer leans on it ("since it uses stamina and supplies") |
+| 3 | Can keys be traded or sold? | Stands as picked: no, and opening is free |
+| 4 | How rare are the weapons? | ANSWERED: six keys a week, lower odds. 3 / 4.5 / 6 / 7.5%. A no-cap option is in section 5, and my pick is the weekly six |
+| 5 | How strong are they? | Stands as picked: the standard weapon's numbers plus the attribute |
+| 6 | Is the Tower the Hearth's chimney, and is that story his? | OPEN. The story needs his read before any of it goes in the game |
 
 ### 2026-11-13 No profit molds on the live grounds (designer, lane/d-no-profit-molds; **Tyler 2026-11-13: no profit molds**): BUILT, MEASURED on the full grade, the edge moves, ONE staged catalogue
 - **The grader prints gold and never grades it** (GOLD BY GROUND). Every +25% / +10% floor, supplies share, "under-Level loses gold" and gold-order rule is retired from the grader, the hunt-core guards and the Balance Lab, and a sheet that grades a profit number is refused.

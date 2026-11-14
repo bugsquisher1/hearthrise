@@ -245,6 +245,8 @@ A new hero gets a tower weapon in their second week on average. A top hero waits
 
 It is a real choice and not a loophole: equip the weapon you want before you use the key. A bow hero who wants a wand for an alt puts a wand on first. The other half still lands as types you don't use, and that half is what stocks the Weighhouse.
 
+**RULED (Tyler 2026-11-14, "lets do that"): the 500‰ own-type weight stays, Platinum stays at 4%, and keys MAY pass between heroes on the same account through Storage.** Keys are still earned for each hero, landing and week, and they never trade outside the account. A top hero waits about 8 weeks for a Platinum weapon of their own type (6 keys x 4% x 500‰ = 0.12 a week). The two shortcuts are on purpose: buy it at the Weighhouse, or have four heroes feed their keys to one, which is 24 keys and about 2 weeks (24 x 4% x 500‰ = 0.48 a week).
+
 **The first-key guarantee is dropped (Tyler disliked it).** With 20% on a Bronze Key and half of those your own type, a new hero has a weapon in about 12 days and one they can use in about three weeks. That is soon enough to hook, and a guaranteed first key would have made every key after it feel worse. It also needed an account flag and a farm rule, and now it needs neither.
 
 **The super-rare outfit: the Sweep's Coat (Tyler 2026-11-14: "a super rare outfit that can drop from any chest would be cool too").** One cosmetic outfit, no stats, on the outfit system that exists (`src/data/outfits.js`: a base model, recolor regions, add-ons). Any key can roll it, on its own roll beside the weapon's.

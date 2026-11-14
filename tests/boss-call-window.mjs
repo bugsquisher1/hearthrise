@@ -249,7 +249,7 @@ async function checks(overrides) {
       if (!b.half.wave || b.half.raging || b.half.state !== 'His adds are coming') fails.push('BW-7 at the first line he reads ' + JSON.stringify(b.half));
       /* A boss whose adds shield him says so, on the bar and in the warning; one whose adds don't, never (boss-calls.js isGuarded). */
       if (!b.chief.wave || b.chief.state !== 'His adds shield him') fails.push('BW-7 the Chief at his first line reads ' + JSON.stringify(b.chief));
-      if (!/They shield him until they fall\. Your tank can't hold him and his adds at the same time, so take Challenge off your tank's bar for this fight\. At a quarter/.test(r.warn.chief) || /shield/.test(r.warn.king) || /{guard}/.test(r.warn.king + r.warn.chief)) fails.push('BW-7 the warnings read ' + JSON.stringify(r.warn));
+      if (!/They shield him until you kill them\. Your tank can't hold him and his adds at the same time, so take Challenge off your tank's bar for this fight\. At a quarter/.test(r.warn.chief) || /shield/.test(r.warn.king) || /{guard}/.test(r.warn.king + r.warn.chief)) fails.push('BW-7 the warnings read ' + JSON.stringify(r.warn));
       if (b.quarter.wave || !b.quarter.raging || !/enraged/.test(b.quarter.state) || b.quarter.fill !== '24%') fails.push('BW-7 under the second line he reads ' + JSON.stringify(b.quarter));
       if (!b.played.raging || b.played.fill !== '24%') fails.push('BW-7 the bar does not read the instant shown: ' + JSON.stringify(b.played));
       if (!b.normal.quiet) fails.push('BW-7 a normal hunt has a boss bar');

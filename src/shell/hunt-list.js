@@ -33,6 +33,7 @@ import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOf
 import { PARTY } from '../data/party.js?v=0.2.131';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.131';
 import { MONSTERS } from '../data/monsters.js?v=0.2.131';
+import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.131';
 import { SUPPLIES } from '../data/supplies.js?v=0.2.131';
 import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.131';
 import { whole, gold } from '../render/format.js?v=0.2.131';
@@ -47,10 +48,12 @@ export function partyNote(hunt) {
   const g = Object.values(HUNT_GROUNDS).find((r) => r.hunt === hunt);
   const p = g && g.pockets.find((q) => q.forParty);
   if (!p) return '';
-  const boss = p.spawns.map((s) => MONSTERS[s.monster]).find((m) => m && m.boss === true);
+  const id = p.spawns.map((s) => s.monster).find((m) => MONSTERS[m] && MONSTERS[m].boss === true);
+  /* How a sentence opens on him: a called boss's own words ("The Rat King"), else his name ("Captain Hask", never "The Captain Hask"). */
+  const call = id && Object.values(BOSS_CALLS).find((c) => c.of === id);
   const n = countWords(p.forParty);
   /* A warning, never a gate (Tyler 2026-11-08: "Either they are strong enough to do the harder content or they aren't"): a lone hero walks the hall. */
-  return boss ? t('hunts.party_boss', { boss: boss.name, n }) : t('hunts.party_hall', { n });
+  return id ? t('hunts.party_boss', { boss: call ? call.Boss : MONSTERS[id].name, n }) : t('hunts.party_hall', { n });
 }
 
 /** One line per hunt ground, lowest band first (ties by name). */

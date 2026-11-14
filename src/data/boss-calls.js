@@ -56,7 +56,7 @@ export const BOSS_CALL_WORDS = Object.freeze({
      PRESS AT A SHIELDED BOSS (designer 2026-11-14, lane/d-hold-pass; boss-call-table.mjs, the good bar with one answer moved): his own blows
      already fill the tank, so pulling the adds on too is what loses. Chief Coppercap, 100 tries: damage left on him 38% won with Challenge,
      96% without. Krell's Hall, 200 tries: 66% against 99%, and the good bar 98% against 100%. Without Challenge the Target setting moves nothing. */
-  warnGuard: ' They shield him until they fall. Your tank can\'t hold him and his adds at the same time, so take Challenge off your tank\'s bar for this fight.',
+  warnGuard: ' They shield him until you kill them. Your tank can\'t hold him and his adds at the same time, so take Challenge off your tank\'s bar for this fight.',
   /* The warning's one more line when the room will hold the caller alone (the server's quote says `alone`). */
   warnAlone: '{Boss} is built for a party. You can fight him alone, but he can kill you.',
   confirm: 'Call him out for {fee} gp',
@@ -70,7 +70,7 @@ export const BOSS_CALL_WORDS = Object.freeze({
   /* The boss bar (src/shell/widgets/boss-bar.js) past each line, the same words the world calls out (hunt-view/scene.js). */
   bar: Object.freeze({ adds: 'His adds are coming', guarded: 'His adds shield him', enrage: 'He is enraged' }),
   /* The combat log's line, after his name (src/hunt-view/combat-log.js), and what the world calls out over him (src/hunt-view/scene.js). */
-  log: Object.freeze({ adds: 'calls his adds. They go for whoever isn\'t your tank.', guarded: 'calls his adds. They go for whoever isn\'t your tank and shield him while they stand.', enrage: 'is enraged, and hits harder.' }),
+  log: Object.freeze({ adds: 'calls his adds. They go for whoever isn\'t your tank.', guarded: 'calls his adds. They go for whoever isn\'t your tank and shield him until you kill them.', enrage: 'is enraged, and hits harder.' }),
   shout: Object.freeze({ adds: 'Adds!', enrage: 'Enraged!' }),
   /* THE LOSING LINE (src/hunt-view/boss-loss.js): where it was lost, what this hero's bar did there, what answers it. {pct} his HP at the end; {times} the server's count. */
   loss: Object.freeze({
@@ -78,7 +78,7 @@ export const BOSS_CALL_WORDS = Object.freeze({
     time: Object.freeze({ first: 'Time ran out before his adds came, with him at {pct}%', adds: 'Time ran out while his adds were up, with him at {pct}%', enrage: 'Time ran out after he got enraged, with him at {pct}%' }),
     fact: Object.freeze({ challenge: 'your Challenge fired {times}', heals: 'your heals fired {times}', area: 'your area slots fired {times}', ate: 'you ate {times}' }),
     answer: Object.freeze({
-      first: 'His plain blows beat your healing. Bring a healer, eat earlier, or come back a gear tier up.',
+      first: 'His plain blows beat your healing. Bring a healer, eat earlier, or come back in better gear.',
       adds: 'His adds go for whoever isn\'t your tank. Challenge brings them to your tank, an area slot like Cleave or Fireball clears them, and Target on Lowest HP kills them first.',
       /* The add wave of a boss whose adds shield him (isGuarded): the one answer the table says decides it (warnGuard above, re-measured 2026-11-14). */
       guarded: 'Your tank can\'t hold him and his adds at the same time. Take Challenge off your tank\'s bar for this fight and let your healer look after whoever the adds go for.',

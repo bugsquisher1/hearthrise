@@ -5,7 +5,7 @@
 // formula's (`node tools/pack.mjs propose krells_hold --write`): tier 6, floor 85, fit both.
 //
 // STAGED UNTIL ITS ART LANDS. The three engine pieces its bodies wait on are built, and since lane/b-barrow-numbers (2026-11-14) the rows use
-// them: the Lookout shoots from 5 tiles (piece 2, `range`), the Pyre Priest mends the most hurt body in his pull (piece 3, the Pyre Rite) and
+// them: the Lookout shoots from 5 tiles (piece 2, `range`), the Pyre Priest mends the most hurt body in his pull (piece 3, Mend the Dead) and
 // the Grave Guard's Shield Slam is a marked hit on the two tiles in front of him (piece 1). The grader plays all three as written.
 //
 // NAMES (the Barrow March's): the monsters and items keep their names (Farmhand, Hask's Lookout, Grave Guard, Pyre Priest, Gatekeeper, Hall Key). THE PLAYER'S
@@ -45,7 +45,7 @@ export default definePack({
   sql: null,
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 7 Farmhands, 5 Grave Guards, 3 Lookouts, 3 Pyre Priests, 2 Gatekeepers. */
   hunt: {
-    name: 'Krell\'s Hold', theme: 'Lord Krell lives here. His men guard the walls, and the officers he dug up from the Barrows guard the cellar.',
+    name: 'Krell\'s Hold', theme: 'Lord Krell lives here. His men guard the walls, and the officers he dug up out of the Muster Barrows guard the crypt.',
     band: [85, 110],
     spawns: [{ monster: LV, w: 7, rarity: 'common' }, { monster: WD, w: 5, rarity: 'uncommon' },
       { monster: PK, w: 3, rarity: 'uncommon' }, { monster: BD, w: 3, rarity: 'uncommon' }, { monster: CS, w: 2, rarity: 'rare' }],
@@ -121,7 +121,7 @@ export default definePack({
       name: 'Pyre Priest', icon: '📿', tier: 6, level: 95, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: one of Krell's priests, the men who said the rite over the Pyre Field and tied the dead to his fire. Hooded, ash-gray,
          a knotted cord at his belt. Living, Human, no override. The pyre coal on his hands, his cord, the Runewood Staff, and the Pyre Priests' own
-         wand and codex. He mends the dead in his pull, so the Grave Guards beside him take far longer to drop (the Pyre Rite, `spells` below). Kill him first. */
+         wand and codex. He mends the dead in his pull, so the Grave Guards beside him take far longer to drop (Mend the Dead, `spells` below). Kill him first. */
       spells: ['pyre_rite'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'priests_cord', ch: 0.08, band: 'uncommon' },
         { id: 'runewood_staff', ch: 0.045, band: 'scarce' },
@@ -166,7 +166,7 @@ export default definePack({
     barrow_nail: 'A coffin nail from the Muster Barrows. Krell\'s men pulled it out when they dug the company\'s officers back up',
     priests_cord: 'Krell\'s priests tied this cord around the dead before they burned them. They put a knot in it for every name',
     gatekeepers_chain: 'A link off the Gatekeeper\'s key chain. He keeps every key in the castle, including the one to the toll box',
-    hall_key: 'Opens Krell\'s Hall once for you and your party. It\'s used up whether you win or lose',
+    hall_key: 'It opens Krell\'s Hall for you and your party. You get one fight out of it, win or lose',
   },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Pyre Field's store food, and Chalked Poison Runes in place of its ice. These are
      living men (poison does 15% more), and the dead in the cellar shrug poison off, so a caster brings a second family for the Crypt.
@@ -299,7 +299,7 @@ export default definePack({
      THE GROUND'S TWO (the same lane, graded with the ground on the full grade):
        Shield Slam: the Grave Guard's marked hit on the two tiles in front of him, on the Foreman's cone and at his number, 1.0x every 20 s. At 1.5x every
          16 s a lone sword at the floor read a typical low of 59.6% HP on Normal, under the sheet's 60, and at 1.2x every 20 s only 60.5.
-       The Pyre Rite: the Pyre Priest's mend. From 4 tiles, every 16 s, it puts up to half his own biggest hit back on the most hurt body
+       Mend the Dead: the Pyre Priest's mend. From 4 tiles, every 16 s, it puts up to half his own biggest hit back on the most hurt body
          in his pull. He never mends himself. At a full hit every 8 s a lone tank at Level 110 on Dangerous (three Priests in the Chapel's
          pull) healed slower than he killed: 7.5k XP an hour, no death, a fight that never ended. A mend must slow a kill, never stop it. */
   spells: {
@@ -308,7 +308,7 @@ export default definePack({
     hasks_cleave: { n: 'Cleave', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 14000, hitPm: 1500, element: null },
     hasks_war_cry: { n: 'War Cry', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: null },
     shield_slam: { n: 'Shield Slam', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 20000, hitPm: 1000, element: null },
-    pyre_rite: { n: 'Pyre Rite', shape: 'mend', range: 4, windupMs: 1600, cdMs: 16000, hitPm: 500, element: null },
+    pyre_rite: { n: 'Mend the Dead', shape: 'mend', range: 4, windupMs: 1600, cdMs: 16000, hitPm: 500, element: null },
   },
   map,
 });

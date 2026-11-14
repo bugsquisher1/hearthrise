@@ -87,14 +87,14 @@ export const BOSS_HALL_WORDS = Object.freeze({
   /* the confirm group's name for a screen reader (src/shell/windows/boss-hall-pane.js) */
   sure: 'Are you sure?',
   press: 'Open {hall}',
-  have: Object.freeze({ none: 'You don\'t have a {key}.', one: 'You have 1 {key}.', other: 'You have {n} of them.' }),
+  have: Object.freeze({ none: 'You don\'t have a {key}.', one: 'You have 1 {key}.', other: 'You have {n} keys.' }),
   warnTitle: 'Fight {boss}?',
   warn: Object.freeze([
     '{Boss} hits hard. At half his health his adds come for whoever isn\'t your tank.{guard} At a quarter of his health he hits even harder.{haste} If anyone dies, the fight ends.',
     'It uses up your {key}, win or lose. The fight ends after {minutes} minutes.',
   ]),
   /* the same rule as a called room's (boss-calls.js warnGuard: Challenge is the wrong press at a shielded boss, measured) */
-  warnGuard: ' They shield him until they fall. Your tank can\'t hold him and his adds at the same time, so take Challenge off your tank\'s bar for this fight.',
+  warnGuard: ' They shield him until you kill them. Your tank can\'t hold him and his adds at the same time, so take Challenge off your tank\'s bar for this fight.',
   /* the boss row's phases.hasten: the spell that speeds up under his enrage line */
   warnHaste: ' From then on his {spell} comes faster.',
   warnAlone: '{Boss} is built for a party. You can fight him alone, but he can kill you.',
@@ -104,23 +104,23 @@ export const BOSS_HALL_WORDS = Object.freeze({
   opened: Object.freeze({ party: 'The door opens. Your party is on its way.', alone: 'The door opens. You\'re on your way.' }),
   hunting: 'Not while you\'re hunting. Come back to town first.',
   /* The end card's Hunt again, off for a hall (one door: the key on the ground's page). */
-  again: 'His hall opens with a {key}, from the ground\'s page.',
+  again: 'To fight him again, use another {key} from the hunt\'s page.',
   /* The end card's line when the hall's boss is down (summary-model.js END_WORDS.boss_felled is a called room's: it names a title). */
   felled: 'You beat {Boss}.',
   /* The boss bar (src/shell/widgets/boss-bar.js): the spell that speeds up, counting down, and a named add while he stands. */
   bar: Object.freeze({ soon: '{spell} in {s} s', casting: '{spell} is coming', named: '{pct}%', namedRage: 'Enraged' }),
   /* The combat log's line when his adds come with a named add among them (src/hunt-view/combat-log.js), after his name. */
   log: Object.freeze({
-    named: 'calls {names} and his other adds. They go for whoever isn\'t your tank.',
-    namedGuarded: 'calls {names} and his other adds. They go for whoever isn\'t your tank and shield him while they stand.',
-    namedOnly: 'calls {names}. They go for whoever isn\'t your tank.',
-    namedOnlyGuarded: 'calls {names}. They go for whoever isn\'t your tank and shield him while they stand.',
+    named: 'calls up {names} and the rest of his adds. They go for whoever isn\'t your tank.',
+    namedGuarded: 'calls up {names} and the rest of his adds. They go for whoever isn\'t your tank and shield him until you kill them.',
+    namedOnly: 'calls up {names}. They go for whoever isn\'t your tank.',
+    namedOnlyGuarded: 'calls up {names}. They go for whoever isn\'t your tank and shield him until you kill them.',
   }),
   /* The verb's own refusals, each moving nothing (supabase/migrations/2027-04-20-boss-hall.sql). */
   refused: Object.freeze({
     hall_leader: 'Only your party\'s leader can open it.',
     no_key: 'You need a {key} for that, so nothing was used.',
-    hall_unknown: 'That door doesn\'t open, so nothing was used.',
+    hall_unknown: 'That hall isn\'t open, so nothing was used.',
     not_ready: 'Not everyone in the party is ready, so nothing was used. The Party window says who.',
     party_hunting: 'Not while your party is hunting, so nothing was used. Wait until everyone is back in town.',
   }),

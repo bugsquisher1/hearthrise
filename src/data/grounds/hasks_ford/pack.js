@@ -59,7 +59,7 @@ export default definePack({
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 12 Pikemen, 6 Fordsunk, 4 Ledger Wights and
      the 2 Bannermen. */
   hunt: {
-    name: 'Hask\'s Ford', theme: 'Hask\'s soldiers were killed at this river crossing and came back as undead.',
+    name: 'Hask\'s Ford', theme: 'Captain Hask sold this river crossing to Lord Krell. Krell\'s men killed Hask\'s soldiers here, and they came back as undead.',
     band: [45, 60],
     spawns: [{ monster: PK, w: 12, rarity: 'common' }, { monster: FS, w: 6, rarity: 'uncommon' },
       { monster: LW, w: 4, rarity: 'uncommon' }, { monster: BN, w: 2, rarity: 'rare' }],
@@ -165,10 +165,10 @@ export default definePack({
     toll_token: { n: 'Toll Token', icon: '🪙', v: 112, raw: true, imbue: { kind: 'ward', tier: 2 } },
   },
   itemText: {
-    pike_band: 'It\'s the iron ring from a Banded Pikeman\'s spear, stamped with Hask\'s mark',
-    ford_weed: 'This river weed grew through a Fordsunk while it lay at the bottom of Hask\'s Ford',
-    ledger_leaf: 'It\'s a page from a Ledger Wight\'s account book, listing the pay Hask\'s soldiers never got',
-    toll_token: 'Hask\'s men gave these lead tokens to people who paid to cross the river. Bannermen carry a bag of them',
+    pike_band: 'The iron ring off a Banded Pikeman\'s spear. It\'s stamped with Hask\'s mark',
+    ford_weed: 'River weed that grew through a Fordsunk while it lay at the bottom of Hask\'s Ford',
+    ledger_leaf: 'A page from a Ledger Wight\'s account book. It lists the pay Hask\'s soldiers never got',
+    toll_token: 'Hask\'s men handed out these lead tokens to anyone who paid to cross the river. Bannermen still carry a bag of them',
   },
   /* PARTY LEVEL XP (party-class-xp.js's row shape: heroes alive -> permille at 1, 2, ... classes): better only with different
      classes (Tyler 10-31), and since one difficulty the mixed cells are the lever (Tyler 11-08, "Same monsters, re-tune"). Measured

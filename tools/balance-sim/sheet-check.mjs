@@ -35,6 +35,9 @@ const k = (n) => (!Number.isFinite(n) ? '-' : Math.abs(n) >= 1000 ? (n / 1000).t
 const signed = (n) => (n >= 0 ? '+' : '') + k(n);
 const pct = (x) => (x == null || !Number.isFinite(x) ? '-' : Math.round(x * 100) + '%');
 const TIER_WORD = { dangerous: 'Dangerous', deadly: 'Deadly' };
+/* NO PROFIT MOLDS (Tyler 2026-11-13): a gold line's target reads this and its pass is null (printed, never graded). The sheet's old gold
+   fields (marginMin, supplyShare, netMax) are gone from it. */
+const GOLD = 'printed, not graded';
 export const load = (dir) => (existsSync(join(dir, 'cells.jsonl')) ? [...new Map(readFileSync(join(dir, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((r) => r.heroes).map((r) => [r.id, r])).values()] : []);
 
 /** The cells of one ground, row set and tier, by a predicate. */
@@ -62,12 +65,11 @@ export function gradeGround(cells, g, rows) {
     line('normal.close', 'Normal, ' + by + ' floor: dips under ' + S.normal.closeCallPct + '% per 12 h, the 8 ways pooled (most in one way)', pooled.toFixed(2) + ' (' + dips + ' in ' + Math.round(hours) + ' h; ' + worstWay[1] + ' ' + worstWay[0] + ')', '<= ' + S.normal.closeCallsPer12h, pooled <= S.normal.closeCallsPer12h);
     const low = Math.min(...floor.map((x) => x.r.hp));
     line('normal.typical', 'Normal, ' + by + ' floor: typical low point, worst way', low + '%', '>= ' + S.normal.typicalMinHpPct + '%', low >= S.normal.typicalMinHpPct);
+    /* NO PROFIT MOLDS (Tyler 2026-11-13): gold is a printed line (pass null), never graded. The +25% floor and the supplies share are retired. */
     const margins = floor.map((x) => (x.r.margin == null ? Infinity : x.r.margin));
     const worst = Math.min(...margins), wi = margins.indexOf(worst);
-    line('normal.margin', 'Normal, ' + by + ' floor: coin + commons over the bill, worst way', worst === Infinity ? 'no bill' : pct(worst) + ' (' + who(floor[wi].c) + ')', '>= +' + pct(S.normal.marginMin), worst >= S.normal.marginMin);
     const share = median(floor.map((x) => (x.r.income ? x.r.store / x.r.income : 0)));
-    const ss = S.normal.supplyShare, needsMin = sh.floor >= ss.fromLevel;
-    line('normal.supplies', 'Normal, ' + by + ' floor: the bill as a share of income, median way', pct(share), (needsMin ? pct(ss.min) + '-' : '<= ') + pct(ss.max), share <= ss.max && (!needsMin || share >= ss.min));
+    line('normal.gold', 'Normal, ' + by + ' floor: coin + commons over the bill, worst way / the bill as a share of income, median way', (worst === Infinity ? 'no bill' : pct(worst) + ' (' + who(floor[wi].c) + ')') + ' / ' + pct(share), GOLD, null);
     facts.floorXp = median(floor.map((x) => x.r.xp)); facts.floorNet = median(floor.map((x) => x.r.net));
     if (sh.party) facts.fourXp = facts.floorXp;
   }
@@ -84,7 +86,8 @@ export function gradeGround(cells, g, rows) {
       const low = Math.min(...fr.map((x) => x.r.hp)), worst = Math.min(...fr.map((x) => (x.r.margin == null ? Infinity : x.r.margin)));
       const pace = PACE.rate[String(sh.floor)], xpMin = Math.min(...fr.map((x) => x.r.xp));
       line('fresh.safe', 'Fresh hero (practice set), floor: deaths / dips under 25% / typical low, worst way', deaths + ' / ' + close + ' / ' + low + '%', '0 / 0 / >= ' + S.freshHero.typicalMinHpPct + '%', deaths <= S.freshHero.deaths && close <= S.freshHero.closeCalls && low >= S.freshHero.typicalMinHpPct);
-      line('fresh.paid', 'Fresh hero, floor: worst margin / slowest XP against the pace of record', (worst === Infinity ? 'no bill' : pct(worst)) + ' / ' + (xpMin / pace).toFixed(2) + 'x', '>= +' + pct(S.freshHero.marginMin) + ' / >= ' + S.freshHero.xpVsPaceMin + 'x', worst >= S.freshHero.marginMin && xpMin / pace >= S.freshHero.xpVsPaceMin);
+      line('fresh.pace', 'Fresh hero, floor: slowest XP against the pace of record', (xpMin / pace).toFixed(2) + 'x', '>= ' + S.freshHero.xpVsPaceMin + 'x', xpMin / pace >= S.freshHero.xpVsPaceMin);
+      line('fresh.gold', 'Fresh hero, floor: worst margin over the bill', worst === Infinity ? 'no bill' : pct(worst), GOLD, null);
     }
   }
   /* PARTY: a four at the floor, per head, against the median way alone at the floor */
@@ -114,11 +117,12 @@ export function gradeGround(cells, g, rows) {
     const pairs = T((c) => c.heroes.length === 2 && c.cell.level >= sh.floor - 3 && c.cell.level <= sh.floor - 2).map((c) => readCell(c));
     const span = (rs, k2) => { const v = rs.map((r) => r[k2]).sort((a, b) => a - b); return v.length > 1 ? v[0] + ' to ' + v[v.length - 1] : String(v[0]); };
     const spanG = (rs) => { const v = rs.map((r) => r.net).sort((a, b) => a - b); return signed(v[0]) + (v.length > 1 ? ' to ' + signed(v[v.length - 1]) : ''); };
-    if (pairs.length && tier === 'dangerous') { const n = median(pairs.map((r) => r.net)); line('weight.dangerous', 'Dangerous, pairs 2-3 under: net a head, median pair (range)', signed(n) + ' (' + spanG(pairs) + ')', '< 0', n < S.weightClass.dangerousUnder.netMax); }
-    if (pairs.length && tier === 'deadly') { const d = median(pairs.map((r) => r.deaths)), n = median(pairs.map((r) => r.net)); line('weight.deadly', 'Deadly, pairs 2-3 under: deaths / net a head, median pair (ranges)', d + ' (' + span(pairs, 'deaths') + ') / ' + signed(n) + ' (' + spanG(pairs) + ')', '>= 1 / < 0', d >= S.weightClass.deadlyUnder.deathsMin && n < S.weightClass.deadlyUnder.netMax); }
+    /* the under-the-floor-loses-gold lines are RETIRED (NO PROFIT MOLDS, Tyler 2026-11-13): each net is printed (pass null), the deaths still read */
+    if (pairs.length && tier === 'dangerous') { const n = median(pairs.map((r) => r.net)); line('weight.dangerous', 'Dangerous, pairs 2-3 under: net a head, median pair (range)', signed(n) + ' (' + spanG(pairs) + ')', GOLD, null); }
+    if (pairs.length && tier === 'deadly') { const d = median(pairs.map((r) => r.deaths)), n = median(pairs.map((r) => r.net)); line('weight.deadly', 'Deadly, pairs 2-3 under: deaths, median pair (range) / net a head (printed)', d + ' (' + span(pairs, 'deaths') + ') / ' + signed(n) + ' (' + spanG(pairs) + ')', '>= 1', d >= S.weightClass.deadlyUnder.deathsMin); }
     const five = T((c) => c.cell.level === sh.floor - 5 && c.cell.level >= 1).map((c) => readCell(c));
     if (five.length) { const d = median(five.map((r) => r.deaths)), n = median(five.map((r) => r.net)), dies = tier === 'deadly';
-      line('weight.five.' + tier, tier[0].toUpperCase() + tier.slice(1) + ', 5 under (pairs and alone): deaths / net, median cell (ranges)', d + ' (' + span(five, 'deaths') + ') / ' + signed(n) + ' (' + spanG(five) + ')', (dies ? '>= 1' : 'any') + ' / < 0', (!dies || d >= S.weightClass.deadlyUnder.deathsMin) && n < S.weightClass.deadlyUnder.netMax); }
+      line('weight.five.' + tier, tier[0].toUpperCase() + tier.slice(1) + ', 5 under (pairs and alone): deaths, median cell (range) / net (printed)', d + ' (' + span(five, 'deaths') + ') / ' + signed(n) + ' (' + spanG(five) + ')', dies ? '>= 1' : 'any', dies ? d >= S.weightClass.deadlyUnder.deathsMin : null); }
   }
   const pairsN = N((c) => c.heroes.length === 2 && c.cell.level >= sh.floor - 3 && c.cell.level <= sh.floor - 2);
   if (pairsN.length) {
@@ -163,11 +167,18 @@ function selftest(cells) {
   red('a death at the floor on Normal', 'normal.deaths', (cs) => { floorCell(cs).heroes[0].deaths = 1; });
   red('a floor hero dipping under 25% twice in two hours', 'normal.close', (cs) => { const h = floorCell(cs).heroes[0]; h.closeCallsPer12h = { ...(h.closeCallsPer12h || {}), k: 2 * Math.ceil(h.hours) }; });
   red('a floor hero whose typical encounter falls to 40%', 'normal.typical', (cs) => { floorCell(cs).heroes[0].encMinHpPct.p50 = 40; });
-  red('a floor bill eating the income', 'normal.margin', (cs) => { const h = floorCell(cs).heroes[0]; h.storePerH = h.incomePerH; });
-  red('every floor bill at 90% of income', 'normal.supplies', (cs) => { for (const c of cs) if (c.ground === g && c.cell.x === 'Fnormal' && c.heroes.length === 1 && c.cell.level === sh.floor && !starter(c)) c.heroes[0].storePerH = Math.round(c.heroes[0].incomePerH * 0.9); });
   red('the middle paying half its XP', 'normal.xp', (cs) => { for (const c of cs) if (c.ground === g && c.cell.x === 'Fnormal' && c.heroes.length === 1 && c.cell.level === sh.mid) c.heroes[0].levelXpPerH = Math.round(c.heroes[0].levelXpPerH / 2); });
+  /* NO PROFIT MOLDS (Tyler 2026-11-13): a gold-only change (every floor bill eating the income) turns NO line red, and the printed gold line moves */
+  const goldOnly = clone();
+  for (const c of goldOnly) if (c.ground === g && c.heroes.length === 1 && c.cell.level === sh.floor && !starter(c)) c.heroes[0].storePerH = c.heroes[0].incomePerH;
+  const was = gradeGround(cells, g, 'F').lines, now = gradeGround(goldOnly, g, 'F').lines;
+  const newRed = now.filter((l) => l.pass === false && !was.some((x) => x.id === l.id && x.pass === false));
+  if (newRed.length) bad.push('a gold-only change turned ' + newRed.map((l) => l.id).join(', ') + ' red (gold is printed, never graded)');
+  const gl = (ls) => (ls.find((l) => l.id === 'normal.gold') || {}).value;
+  if (!gl(now) || gl(now) === gl(was)) bad.push('the printed gold line did not move on a gold-only change (' + gl(was) + ' -> ' + gl(now) + ')');
+  if (now.some((l) => l.target === GOLD && l.pass !== null)) bad.push('a printed gold line carries a pass');
   if (bad.length) { console.error('sheet-check --selftest: RED\n  ' + bad.join('\n  ')); process.exit(1); }
-  console.log('sheet-check --selftest: green (6 mutants on ' + g + ', each caught by its line)');
+  console.log('sheet-check --selftest: green (4 mutants on ' + g + ', each caught by its line; a gold-only change turns nothing red and moves the printed gold line)');
 }
 
 if (isMain(import.meta.url)) main();

@@ -37,6 +37,7 @@ import * as XP from '../src/core/xp.js';
 import * as VIT from '../src/core/vitals.js';
 import { SKILLS_DEF } from '../src/data/skills.js';
 import { MONSTERS, monsterLevelOf } from '../src/data/monsters.js';
+import { GROUND_PACKS } from '../src/data/grounds/index.js';
 
 const LEVELS = [...Array.from({ length: 120 }, (_, i) => i + 1), 150, 199, 200, 201, 250, 300, 400];
 /* the character's Level curve also past them: its late brackets' edges and deep into the last one (it runs forever) */
@@ -49,7 +50,11 @@ const CAPPED = Object.keys(SKILLS_DEF).filter((k) => SKILLS_DEF[k].cat !== 'comb
    one server reader, the settle's Defense bound, is then 0 in a called room, which pays nothing on any route (hunt-rewards.js
    calledSwing). The engine's own level for him (mitigation) never crosses to the server. */
 /* THE TRAINING DUMMY (src/data/training.js) has none either, for the same reason: its yard pays Defense at the hero's own Level, never its row's. */
-const serverLevelOf = (id) => (MONSTERS[id].called === true || MONSTERS[id].dummy === true ? 0 : monsterLevelOf(MONSTERS[id]));
+/* A STAGED GROUND PACK'S ROWS (src/data/grounds, status staged; its keyed hall's room rows with it) are in src/data and in no migration
+   until tools/pack.mjs ship writes its file (tests/live-settlement.mjs UNSERVED, the same set): nobody can fight one, so the server
+   must read 0 for it. A served row that reads 0 is still a disagreement. */
+const UNSERVED = new Set(GROUND_PACKS.filter((p) => p.status !== 'open').flatMap((p) => [...Object.keys(p.monsters || {}), ...Object.keys((p.hall && p.hall.monsters) || {})]));
+const serverLevelOf = (id) => (MONSTERS[id].called === true || MONSTERS[id].dummy === true || UNSERVED.has(id) ? 0 : monsterLevelOf(MONSTERS[id]));
 
 /* The JS half, as one object, so --selftest can hand a drifted copy to the same comparison. */
 const JS = Object.freeze({

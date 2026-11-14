@@ -1,0 +1,28 @@
+{
+  "brief": "art/briefs/gen-2026-11-14/30-hold-props-fire-effects-icons.txt",
+  "props (create_image_pro_flash 256x256, 4x4 sheets, style hf_wagon_tipped; cut by connected blobs to 30-hold-props/props/)": {
+    "sample": "sheet A r1 (3d9dadd3): the look passed, the VIEW failed: chairs, lecterns and a table came back rotated (isometric), which the art direction forbids, and at 40-95 px. Only its two banner stands are kept. The words that fixed it for all three sheets: 'drawn straight from the front ... its front face square to the viewer, never rotated, never diagonal, never isometric, at most 40 px wide and 40 px tall' plus a size on every row",
+    "kept (w x h)": {
+      "hall c20648fa": "kh_high_seat 25x41 (+_b), kh_lectern 24x39 (+_b, the open Roster), kh_hall_table 40x29 (+_b), kh_hall_table_runner 40x29",
+      "hall first sheet 3d9dadd3": "kh_banner_stand 23x64 (Krell's plain red), kh_colors_upside_down 23x65 (red and gold stripes)",
+      "yard 80ea6463": "kh_pell 28x44 (+_b), kh_weapon_rack 37x37 (+_b), kh_woodpile 40x33 (+_b), kh_saw_horse 37x32, kh_well 39x47 (+_b)",
+      "chapel and crypt c8de9701": "kh_coffin_open 27x39 (+_b, _c), kh_candle_stand 18x46, kh_brazier 23x36, kh_chapel_bench 44x27, kh_toll_box 24x25"
+    },
+    "flags": "class by measure at import (art-budget.js): the high seat and lectern are taller than seat/station (41 and 39), so fixture; the rack and woodpile are 5 and 1 px over bulky; the saw horse is the one prop still a little turned; weapon rack cells 3 and 4 carry a red shield with a mark and were not cut",
+    "animated": "props-clips/kh_candle_stand and kh_brazier: animate_image, f00 the still + 4 frames, the stand does not move (1 gen each)"
+  },
+  "hall fire": {
+    "base": "hall-fire/kh_hall_fire-32c4ae4c.png, create_image_pro_flash 160x96, style = the kept brazier: a gray stone trough of logs and embers 116x27, low flames, no halo. alt ebcdfb5f (taller flames)",
+    "flicker": "hall-fire/kh_hall_fire/ f00 + 4 frames (28cf6fc5)", "flare": "hall-fire/kh_hall_fire_flare/ f00 + 6 frames (d6b2b139): the flames rise about 1.5x with a pale core and sink; f06 is nearly out, so the import ends on f05",
+    "class row owed (art-budget.js is law; add it WITH the sprite in the import lane so a guard bites it)": "hallfire: body [20, 40] measure h, maxW 128, contact solid, shadow null, layer prop, flames as a FLAMES row like pf_great_pyre"
+  },
+  "effects rows 9-12": "NOT made here (0-gen rows): the bolt and the coal cone's mark are script or engine drawings for the import lane (class vfx), the flare is the clip above, the dead standing up is a death clip played backward",
+  "icons (create_1_direction_object, 64 candidates at 32 px, palette, style iron_hatchets steel_hatchets oak_crossbow maple_wand whispering_codex; 2 calls)": {
+    "kept in icons/": { "dawn_hatchets": "r2 15", "ember_hatchets": "r1 11", "rune_hatchets": "r1 42", "yew_crossbow": "r1 23", "duskwood_crossbow": "r2 35", "runewood_crossbow": "r1 15", "duskwood_wand": "r1 36", "duskwood_codex": "r1 07 (no sign on the cover)", "roster_page": "r1 18", "krells_toll_box": "r1 09" },
+    "read": "0 off-palette, 0 partial alpha, fill 88-94%; the three hatchet tiers and three crossbow woods tell apart at x2 beside the shipped iron/steel/mithril and oak/maple/willow",
+    "r2 why": "every r1 dawn hatchet was 31-32 px wide (over the 94% fill rule) and the r1 duskwood crossbow was a black shape on a dark slot",
+    "NOT WIRED": "the items are not on release: nothing copied to assets/icons-bundle, no sha changed. roster_page and krells_toll_box wait on the designer's items",
+    "flag": "the three duskwood icons are dark by identity: check them on the bag's slot at import"
+  },
+  "gens": "prop sheets 4 x 9 = 36, fire 12 + clips 4, icons 20: about 75 (brief 140)"
+}

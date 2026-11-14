@@ -55,7 +55,7 @@ import { createServer } from 'node:http';
 import { createHash, randomUUID, webcrypto } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
-import { registerHooks } from 'node:module';
+import * as nodeModule from 'node:module';   // a namespace: registerHooks (Node 22.15/23.5+) is read only by loadEngine, so --selftest loads on CI's Node 20
 import { extname, join, normalize, dirname, resolve as resolvePath } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -151,7 +151,8 @@ async function loadEngine(db, env) {
   if (engineLoaded) throw new Error('local-world: one world per process (the engine is module state)');
   if (!/^(2[3-9]|[3-9]\d)\./.test(process.versions.node)) throw new Error('local-world: needs Node 23.6+ (type stripping), this is ' + process.versions.node);
   globalThis.__hrLocalPostgres = postgresShim(db);
-  registerHooks({
+  if (typeof nodeModule.registerHooks !== 'function') throw new Error('local-world: needs module.registerHooks (Node 23.6+), this is ' + process.versions.node);
+  nodeModule.registerHooks({
     resolve(specifier, context, next) {
       if (specifier.startsWith('npm:postgres')) return { url: 'data:text/javascript,export default globalThis.__hrLocalPostgres', shortCircuit: true };
       return next(specifier, context);

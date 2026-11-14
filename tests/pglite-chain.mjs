@@ -76,8 +76,9 @@ export const CHAIN = [
   ['muster', MIG('2026-08-08-muster.sql')],
   ['raid-hardening', MIG('2026-08-08-raid-hardening.sql')],
   ['unique-names', MIG('2026-08-08-unique-names.sql')],
-  ['bonus-rebase', MIG('2026-08-09-bonus-rebase.sql')],
   ['clan-governance', MIG('2026-08-09-clan-governance.sql')],
+  // AFTER governance, as production applied it: its header says "Run bonus-rebase LAST" (2026-11-14 drill, V7).
+  ['bonus-rebase', MIG('2026-08-09-bonus-rebase.sql')],
   ['rally-preselect', MIG('2026-08-09-rally-preselect.sql')],
   ['rally-v2', MIG('2026-08-09-rally-v2.sql')],
   ['save-integrity', MIG('2026-08-10-save-integrity.sql')],

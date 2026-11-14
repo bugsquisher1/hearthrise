@@ -16,7 +16,7 @@
 //   WW-6  a hero walks to row 54 behind stage 4 and to row 61 in front of it (the order itself is TW-MAP's, on this map's real compose; these are the shots to read)
 //   WW-7  finished: the works_done line, the building stands, a tap on it opens the Market, the plaque stays
 //   WW-8  no console errors, nothing left the machine
-//   WW-9  at 1366x768 the day's line and the answer stay whole in the window's foot at both ends of the pane's scroll
+//   WW-9  the day's line and the answer stay whole in the window's foot at 1366x768, and at both ends of the pane's scroll at 1366x600
 // mutant-anchors: none — a manual walk of the real game
 // ════════════════════════════════════════════════════════════════════════
 import { mkdirSync } from 'node:fs';
@@ -169,6 +169,12 @@ try {
     return { day: whole(day), said: whole(said) };
   }, [WIN, WIN + ' .hv-count[data-of="works"]', WIN + ' .hh-intent-msg']);
   const scrollTo = (end) => page.evaluate(([s, e]) => { let n = document.querySelector(s); while (n && !(n.scrollHeight > n.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(n).overflowY))) n = n.parentElement; if (!n) return null; n.scrollTop = e ? n.scrollHeight : 0; return { top: n.scrollTop, max: n.scrollHeight - n.clientHeight }; }, [WIN + ' .hv-works-plaque', end]);
+  /* At 1366x768 the Works pane fits its window today (no scroll), so the foot is read whole there; then the window is made
+     short enough that the pane must scroll (1366x600, still the desktop class), and the foot is read at both ends of it. */
+  const fits = await footWhole();
+  step('WW-9 the day\'s line and the answer are whole at 1366x768', fits.day && fits.said, JSON.stringify(fits));
+  await page.setViewportSize({ width: 1366, height: 600 });
+  await page.waitForTimeout(600);
   const atTop = await scrollTo(false);
   await page.waitForTimeout(200);
   const topWhole = await footWhole();
@@ -177,10 +183,12 @@ try {
   await page.waitForTimeout(200);
   const endWhole = await footWhole();
   await p.shot('works-scroll-end');
-  step('WW-9 the pane scrolls at this size', !!atEnd && atEnd.max > 0 && atEnd.top > 0 && !!atTop && atTop.top === 0, JSON.stringify({ atTop, atEnd }));
+  step('WW-9 the pane scrolls at 1366x600', !!atEnd && atEnd.max > 0 && atEnd.top > 0 && !!atTop && atTop.top === 0, JSON.stringify({ atTop, atEnd }));
   step('WW-9 the day\'s line and the answer are whole at the top of the scroll', topWhole.day && topWhole.said, JSON.stringify(topWhole));
   step('WW-9 the day\'s line and the answer are whole at the end of the scroll', endWhole.day && endWhole.said, JSON.stringify(endWhole));
   await scrollTo(false);
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.waitForTimeout(600);
   const maxWords = await waitText(WIN + ' .hv-works-max', /Give the 23,300 gp left today/);
   step('WW-4 the last button names what\'s left today', maxWords, await textOf(WIN + ' .hv-works-max'));
 

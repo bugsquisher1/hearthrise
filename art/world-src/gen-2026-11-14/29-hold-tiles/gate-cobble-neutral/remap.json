@@ -1,0 +1,9 @@
+{
+ "from": "26-hold-sample/road-cobble-dark",
+ "gens": 0,
+ "remap": {
+  "#5c6c7a": "#4a4d54",
+  "#3a4652": "#2c2e33",
+  "#1a2c44": "#231d1f"
+ }
+}

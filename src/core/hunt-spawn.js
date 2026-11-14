@@ -4,15 +4,15 @@
 // roll is src/core/hunt/pull-cycle.js (every pack spawns from its pocket's
 // rows): the C2 single-foe `pickSpawn` was retired with the single-foe swing
 // (HUNT_SCREEN_SPEC §1.1 one-path table; lane S1, 2026-10-17).
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.129';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.129';
-import { MONSTERS } from '../data/monsters.js?v=0.2.129';
-import { HUNT_ROLES, roleForWeapon, disciplineOf } from '../data/hunt-roles.js?v=0.2.129';
-import { disciplineAbilities } from '../data/abilities.js?v=0.2.129';
-import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.129';
-import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js?v=0.2.129';
-import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.129';
-import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.129';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.130';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.130';
+import { MONSTERS } from '../data/monsters.js?v=0.2.130';
+import { HUNT_ROLES, roleForWeapon, disciplineOf } from '../data/hunt-roles.js?v=0.2.130';
+import { disciplineAbilities } from '../data/abilities.js?v=0.2.130';
+import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.130';
+import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js?v=0.2.130';
+import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.130';
+import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.130';
 
 /** The named hunt a combat pointer names, or null (a monster id / unknown). */
 export function huntFor(activeId) {
@@ -70,19 +70,28 @@ export function heroSetup(o) {
     range: row.range,
     element: '',
     settings: { dist: pick('distance', d.dist), chase: pick('chase', d.chase), tmode: pick('target_mode', d.tmode),
-      stance: pick('stance', d.stance) },
+      stance: pick('stance', d.stance), ...kindPick(opt.target_kind) },
   };
 }
+
+/* THE KIND FIRST (targeting.js kindOf; the Krell's Hold design's engine piece 4, remembered per ground): the monster kind the hero
+   takes first on this ground, the server's `target_kind` on the options it reads (a MONSTERS id), as settings' `tkind`; absent with
+   none. Anything but a catalogue id is none, so a forged or stale value only ever falls back to the Target setting alone. */
+const kindPick = (v) => (typeof v === 'string' && Object.prototype.hasOwnProperty.call(MONSTERS, v) ? { tkind: v } : {});
 
 /* One hero unit: the server-read hero at `tile`, its settings over its role's
    defaults for this party (roles.defaultSettings). */
 function heroUnit(id, h, partyRoles, tile) {
   const s = Object.assign(defaultSettings(h.role, partyRoles), h.settings || {});
   const [x, y] = tile;
-  return makeUnit({ id, side: 'hero', kind: h.role, pocket: null, alive: true, hp: h.hp ?? h.maxHp, maxHp: h.maxHp,
+  const u = makeUnit({ id, side: 'hero', kind: h.role, pocket: null, alive: true, hp: h.hp ?? h.maxHp, maxHp: h.maxHp,
     x, y, fx: x, fy: y, speed: HUNT_ROLES[h.role].speed, role: h.role, dist: s.dist, chase: s.chase, tmode: s.tmode,
     stance: s.stance, acc: h.acc, maxHit: h.maxHit, def: h.def || 0, element: h.element || '',
     mana: h.mana ?? h.maxMana ?? 0, maxMana: h.maxMana || 0, regenPm: h.regenPm || 1000 });
+  /* THE KIND FIRST is not persisted (the settle writes it at every boundary, combat-sim.js syncUnit): set on the unit it joins with */
+  const tkind = h.settings && h.settings.tkind;
+  if (typeof tkind === 'string') Object.assign(u, { tkind });
+  return u;
 }
 
 /**

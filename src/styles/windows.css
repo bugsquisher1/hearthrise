@@ -350,14 +350,13 @@
 .hw-hunt-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .hw-hunt-name { font-size: var(--t-body); font-weight: 700; color: var(--ink); }
 .hw-hunt-band, .hw-hd-band { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
-.hw-hunt-fit:not(:empty)::before { content: ' · '; color: var(--ink-3); }
+/* The dots between a line's parts are text (hunts.js, hunt-detail.js), so a reader gets them too. */
+.hw-hunt-sep { font-weight: 400; color: var(--ink-3); }
 /* The band against the Level: words always, the tone a second cue (in range / above / far above / below). */
 .hw-hunt-fit[data-tone="in"] { color: var(--green); }
 .hw-hunt-fit[data-tone="above"], .hw-hunt-fit[data-tone="far"] { color: var(--red); }
 .hw-hunt-sub { display: block; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-hunt-fits { font-weight: 700; color: var(--gold-2); }
-/* The separator keeps to the line it ends: a wrapped line never starts with a dot (the narrow list, 2026-11-04). */
-.hw-hunt-fits:not(:empty) + .hw-hunt-bestline:not(:empty)::before { content: '\00a0· '; font-weight: 400; color: var(--ink-3); }
 .hw-hunt-fits:empty, .hw-hunt-bestline:empty { display: none; }
 /* The page: a steel panel, its left edge in dim gold toward the list; its text scrolls, its foot stays. */
 .hw-hunt-detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--fill-1); border: 2px solid var(--steel-edge); border-left-color: var(--steel-rule); }
@@ -518,7 +517,7 @@
 .hw-skill[data-hs-act]:hover, .hw-skill[data-hs-act]:focus-visible { background: var(--surf-panel); }
 .hw-skill[data-hs-act]:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 .hw-skill.is-working .hw-skill-name { color: var(--gold-2); }
-.hw-skill[data-hs-act] .hw-skill-lv::after { content: ' ›'; color: var(--ink-3); }
+.hw-skill[data-hs-act] .hw-skill-lv::after { content: '\203A'; margin-left: 4px; color: var(--ink-3); }
 .hw-work-hint { margin-bottom: 4px; }
 .hw-work { display: none; }
 .hw-work.is-on { display: block; }
@@ -1042,7 +1041,6 @@
 .ht-day { justify-self: end; font-size: var(--t-micro); color: var(--ink-3); white-space: nowrap; }
 .ht-day-paid { color: var(--ink); font-weight: 700; }
 .ht-day.is-full .ht-day-paid { color: var(--gold-2); }
-.ht-day-new:not(:empty)::before { content: ' · '; color: var(--ink-3); font-weight: 400; }
 .ht-voice { grid-column: 1 / -1; margin: 6px 0 0; padding-left: 10px; border-left: 2px solid var(--gold); font-size: var(--t-small); line-height: 1.35; color: var(--ink); }
 .ht-voice:empty { display: none; }
 /* Section heads are the Forged Steel .hw-ledger-head (shell.css); the held count sits past the rule. Your tallies goes (no .is-on) with nothing held. */
@@ -1057,7 +1055,7 @@
 .ht-entry-top > b { font-weight: 700; font-size: var(--t-small); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ht-count { white-space: nowrap; line-height: 1; }
 .ht-count b { font-weight: 800; font-size: var(--t-lead); color: var(--ink); }
-.ht-count small { margin-left: 3px; font-weight: 400; font-size: var(--t-micro); color: var(--ink-3); }
+.ht-count small { font-weight: 400; font-size: var(--t-micro); color: var(--ink-3); }
 .ht-entry .ht-pocket { grid-column: 2; grid-row: 1 / span 2; }
 .ht-face { display: none; }
 /* The creature's head (art brief 15): the bag's sunk well, no frame of its own, the bust at its one 32 px density; no head, no well and the two columns stay. */
@@ -1065,9 +1063,8 @@
 .ht-entry.has-face .ht-face { display: grid; grid-column: 1; grid-row: 1 / span 2; width: 44px; height: 44px; place-items: center; background: var(--bg-1); box-shadow: var(--hw-well); }
 .ht-entry.has-face .ht-entry-top, .ht-entry.has-face .ht-marks { grid-column: 2; }
 .ht-entry.has-face .ht-pocket { grid-column: 3; }
-.ht-get, .ht-once { grid-column: 1 / -1; margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
-.ht-get:empty, .ht-once:empty { display: none; }
-.ht-entry .ht-once { color: var(--gold-2); }
+.ht-get { grid-column: 1 / -1; margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
+.ht-get:empty { display: none; }
 .ht-foot { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--t-micro); color: var(--ink-3); }
 .ht-where { min-width: 0; }
 .ht-tools { display: flex; align-items: center; gap: 2px; flex: none; }
@@ -1099,11 +1096,11 @@
 .ht-row-name b { font-weight: 700; color: var(--ink); line-height: 1.2; }
 .ht-row-name small, .ht-pay small { font-size: var(--t-micro); color: var(--ink-2); line-height: 1.2; }
 .ht-row-lvl { white-space: nowrap; }
-.ht-row-lvl:not(:empty)::before { content: ' · '; }
 .ht-pay { display: flex; flex-direction: column; min-width: 0; }
 .ht-pay b { font-weight: 700; color: var(--ink); white-space: nowrap; }
-/* the once note runs under the whole row, never squeezed into the pay column (played 11-12: three lines at 118 px) */
-.ht-row .ht-once { grid-column: 1 / -1; margin: 0 0 2px; color: var(--gold-2); }
+/* the once note: one line under her board, not under every row */
+.ht-board-once { margin: 4px 2px 0; font-size: var(--t-micro); color: var(--gold-2); line-height: 1.35; }
+.ht-board-once:empty { display: none; }
 .ht-take { min-height: 36px; padding: 0 12px; background: var(--bg-0); box-shadow: var(--hw-well); color: var(--ink); }
 .ht-take:disabled { color: var(--ink-3); opacity: 1; background: none; box-shadow: none; }
 /* HER PICK: one line at the foot, the picker folded behind Change. */

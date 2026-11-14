@@ -41,7 +41,7 @@
 // one line to change if the sheet wins.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from './monsters.js?v=0.2.129';
+import { MONSTERS } from './monsters.js?v=0.2.130';
 
 /** The retired direction — the 30 portraits that shipped before the wave. */
 export const PAINTED_DIR = 'assets/icons-bundle/painted/monsters/';
@@ -198,13 +198,19 @@ export const HEAD_ART = Object.freeze([
   'rat', 'gray_wolf', 'brook_bear', 'kobold_tosher', 'culvert_bat', 'barn_spider', 'barn_wasp', 'briarcoat_wolf', 'carrion_crow', 'cistern_spider',
   'dire_gray', 'drain_rat', 'granary_rat', 'gray_whelp', 'grayjaw', 'hive_wasp', 'orchard_boar', 'rat_king', 'chief_coppercap', 'glade_poacher',
   'goblin_digger', 'goblin_scavenger', 'goblin_skulker', 'goblin_sluicer', 'hobgoblin_foreman', 'rook_poacher', 'slime', 'sump_slime', 'turncoat', 'walking_vine']);
-/** Heads drawn before their creature's row lands: Krell's six faces and the seven March bodies. Move an id to HEAD_ART the day its row ships. */
+/** Heads drawn before their creature's row lands: Krell's six faces, the seven March bodies, the Slake's and the Pyre Field's. Move an id to HEAD_ART the day its row ships. */
 export const HEAD_ART_AHEAD = Object.freeze([
   'farmhand', 'hasks_lookout', 'grave_guard', 'gatekeeper', 'lord_krell', 'pyre_priest',
-  'mudlark', 'wight', 'banded_pikeman', 'bannerman', 'barrow_knight', 'captain_hask', 'fordsunk']);
+  'mudlark', 'wight', 'banded_pikeman', 'bannerman', 'barrow_knight', 'captain_hask', 'fordsunk',
+  /* brief 32 (2026-11-14): the Slake's three and the Pyre Field's five */
+  'greened_pikeman', 'bargeman', 'color_sergeant', 'charred_pikeman', 'stoker', 'lurcher', 'pyre_wraith', 'provost']);
 const HEAD_SET = new Set(HEAD_ART.concat(HEAD_ART_AHEAD));
-/** The head's path for a creature id, or null when the set has none (the caller draws nothing). */
-export function headPathFor(id) { return HEAD_SET.has(id) ? HEAD_DIR + fileFor(id) : null; }
+/** The head's path for a creature id, or null when the set has none (the caller draws nothing). A creature drawn as another
+    (HUNT_ART_ALIAS below: a pack body that wears a kit body, a called boss) wears that one's head too: one face a sprite. */
+export function headPathFor(id) {
+  const worn = Object.prototype.hasOwnProperty.call(HUNT_ART_ALIAS, id) ? HUNT_ART_ALIAS[id] : id;
+  return HEAD_SET.has(worn) ? HEAD_DIR + fileFor(worn) : null;
+}
 
 /* THE HUNT WALK ART (2026-10-18): which PixelLab style-1 unit each hunt-ground monster
    is drawn with in the world pane, the key of `units` in
@@ -217,4 +223,13 @@ export const HUNT_WALK_ART = Object.freeze({
 });
 
 /* A CALLED BOSS WEARS HIS OWN ART (Call out, src/data/boss-calls.js): a row with no sprite of its own draws as the row it copies. The scene's one reader (hunt-view/scene.js spriteOf). */
-export const HUNT_ART_ALIAS = Object.freeze({ rat_king_called: 'rat_king', chief_coppercap_called: 'chief_coppercap', drain_rat_called: 'drain_rat', goblin_digger_called: 'goblin_digger' });
+export const HUNT_ART_ALIAS = Object.freeze({ rat_king_called: 'rat_king', chief_coppercap_called: 'chief_coppercap', drain_rat_called: 'drain_rat', goblin_digger_called: 'goblin_digger',
+  /* A PACK BODY WHOSE ID IS NOT ITS SPRITE'S: the Ford's Ledger Wight is drawn as the March kit's wight (art/world/march). */
+  ledger_wight: 'wight',
+  /* The Muster Barrows' bodies are the March's (its pack header: a monster's numbers are its ground's, so each is the ground's own row
+     under its own id): the kit's pikeman and wight, and the Muster set's Barrow Knight (art/world/muster). Captain Hask wears his own. */
+  barrow_pikeman: 'banded_pikeman', cairn_wight: 'wight', muster_knight: 'barrow_knight',
+  /* Krell's Hall (src/data/grounds/krells_hold `hall`): Captain Hask stands up as himself. His row is the hall's own (he pays there); the
+     drawing is the body everyone already met. Lord Krell wears his own. The two officers who stand up out of the hall floor are the Hold's
+     Grave Guard (art/world/holdguard). */
+  hall_hask: 'captain_hask', hall_grave_guard: 'grave_guard' });

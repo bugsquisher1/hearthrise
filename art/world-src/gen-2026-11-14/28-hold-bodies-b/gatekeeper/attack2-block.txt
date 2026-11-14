@@ -1,0 +1,6 @@
+  attack2 [group: 24ab54b4-fce1-4661-9d86-448b504b4c6b]
+    description: raises the flanged mace high and swings it down hard in front of him, then pulls it back to his side, feet planted, ends in the same pose it started, the flanged mace stays in his hand and keeps its shape and its grey iron colour, the ring of keys stays at his belt, the red surcoat and steel plate stay the same, no glow, no spark, no dots, no flash, nothing else appears in the frame
+    directions: south, south-east (2/8)
+    frames: 7
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/001fb0e9-11c5-47e5-8d0a-95b2164c2ec5/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/87896a38-16a5-44c4-8d1d-e13e7467a44c/south-east/{i}.png  (i=0..6)

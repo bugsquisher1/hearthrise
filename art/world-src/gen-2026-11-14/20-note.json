@@ -1,0 +1,30 @@
+{
+  "brief": "art/briefs/gen-2026-11-14/20-ford-muster-closeout.txt",
+  "route": "PixelLab MCP-over-HTTP from a script (key from the Windows user env, never printed); subscription gens only, credits $0 throughout",
+  "balance": { "start": 10000, "end": 9940, "spent": 60 },
+  "rows": {
+    "alder (rows 1-3)": {
+      "tool": "create_image_pro_flash 64x96 (gather trees are 64x90: oak, pine), palette hr-world-56-v2, style mu_dead_hawthorn then the kept alder",
+      "jobs": ["f8093428 (s11, rejected)", "3185b724 (s21)", "31ec3fc7 (s22)", "fe9db71a (s23, KEPT alder_a)", "5a1b79da (s31, KEPT alder_b, leaning)", "b2d473d9 (s32, KEPT alder_c, younger, forked)", "87b7a879 (s33, KEPT alder_stump)"],
+      "gens": 35,
+      "read": "x2 on March olive beside mu_dead_hawthorn, westwood_ash, oak: oval dense crowns of dark olive leaves on grey-brown trunks; not the oak's light round canopy; one family with the stump (bark from a crop of alder_a). Palette 0 off, 0 partial alpha.",
+      "rejected": { "rejected-alder-birchlike.png": "s11: white trunk, sparse yellow crown, reads as a birch in autumn, 46x66 too small", "alt-alder-yellow.png": "s21: kept as an alt only, yellow speckle too bright for the March", "alt-alder-rusttop.png": "s22: alt only, rust top reads autumnal" },
+      "row 3 sheet": "not run: a 4x4 of 64 cells cannot hold a 64x90 gather tree; two single variants (b, c) replace it"
+    },
+    "emberstone vein (rows 4-5)": {
+      "tool": "create_image_pro_flash 32x48, palette, style cw_copper_vein (the shipped vein's size and shape language)",
+      "jobs": ["ffd7879d (s41, alt: busy veins)", "97449c4d (s42, rejected: red-orange reads as lava, a glow)", "157c1c8a (s43, KEPT emberstone_rock)"],
+      "gens": 15,
+      "spent": "emberstone_rock_spent.png is SCRIPTED from the kept vein (0 gens, tools: remap #f2a03a>#3a3a3e #a8743a>#2f2723 #7a4f26>#231d1f #553a26>#231d1f): the same outcrop, the veins dark, so the swap cannot jump",
+      "read": "x4 on ash grey: dull orange veins on grey stone, no glow, same box as cw_copper_vein (24x31 vs 24x30)"
+    },
+    "barge_nail icon (row 6)": {
+      "tool": "create_1_direction_object 32, 64 candidates, palette, style hearth_token keystone culvert_bat_fang",
+      "object": "90e29467-bf25-41eb-b785-7f5f6d590988 (review, frames 0-63)",
+      "gens": 10,
+      "kept": "frame 4 (barge_nail.png): square forged shank, flat head lit upper left, brown rust at the point; alt frame 36 (red rust along the shank)",
+      "read": "x4 beside coffin_nail: straight and grey where the coffin nail is bent and brown, so the two never read as one item"
+    }
+  },
+  "wiring": "Item barge_nail is not on release/v0.2.129 (lane/d-barrow-data): icon stays here. The alder and emberstone kinds are imported to the common set as staged sprites; GROUND_NODE_KINDS rows are the data lane's."
+}

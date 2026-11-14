@@ -1,0 +1,16 @@
+{
+ "mode": "pro",
+ "tile_size": {
+  "width": 32,
+  "height": 32
+ },
+ "view": "high top-down",
+ "transition_size": 0,
+ "lower_description": "small dark cobbles set in black mortar seen from above, tight even rows of small rounded stones, dark neutral charcoal grey #2c2e33 #4a4d54 #231d1f with no blue, low value, calm, worn smooth, in good repair",
+ "upper_description": "a dark gravel path seen from above, many tiny loose pebbles, dark warm grey #2f2723 #231d1f with a few lighter grey pebbles #4f4e52 #6a6865, low value, calm, even",
+ "palette": "hr-world-56-v2 (56)",
+ "palette_name": "hr-world-56-v2",
+ "max_colors": 12,
+ "lower_base_tile_id": "c5ce4639-040a-4e9b-84a7-98c29893063b",
+ "upper_base_tile_id": "11bf114e-b2bf-449a-b74e-fb2556a41312"
+}

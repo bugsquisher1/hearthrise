@@ -1,0 +1,12 @@
+  attack [group: 28978bd0-5a56-4675-a4e2-b463379064bc]
+    description: raises the flanged mace and swings it down hard in front of him, then pulls it back to his side, feet planted, ends in the same pose it started, the flanged mace stays in his hand and keeps its shape, the ring of keys stays at his belt, the red surcoat and steel plate stay the same, no glow, no spark, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/5aa77ba5-4d94-4879-808e-bb2f9257a707/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/8be3f5eb-d13b-484b-afdc-7c9bfdc48fce/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/b2cdbd0f-ed47-40ca-b6de-e974a16cb39a/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/d0e0d3c9-b3eb-44d5-a813-7402fc109a64/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/a2bce568-e8da-47fe-8bd4-492c124bba43/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/5bba2b16-8bd9-44f0-b6b3-f2b7044b2f5d/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/5c77f925-4e65-44f9-902c-8cef388d7f6c/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/45b459fa-fdae-4415-a205-af8115ed0f5a/west/{i}.png  (i=0..6)

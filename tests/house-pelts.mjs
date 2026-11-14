@@ -234,8 +234,17 @@ const ARMS = {
     await refuses(OFFERS, [[`('property.castle', 'property', 'Hearthrise Castle', 'property:castle', 5, null, null, null, null, 'held:its_materials_have_no_source_yet', 'gen-unlock-offers')`,
       `('property.castle', 'property', 'Hearthrise Castle', 'property:castle', 5, 150000, '{"mithril_bar":40}'::jsonb, 4, null, null, 'gen-unlock-offers')`],
     ['if v_n <> 36 then', 'if v_n <> 37 then']], 'held house rows are sellable', 'the Castle sold');
-    await refuses(BOUNDS, [[`'{"raw_bear_meat":1,"bear_pelt":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb`, `'{"raw_bear_meat":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb`]],
-      'item bound is under', 'the bear\'s bound forgets the pelt');
+    /* THE BOUNDS FILE IS READ WHERE IT STANDS (AGAIN_UP_TO, the second apply's rule below): it is a whole-table catalogue, and at the
+       chain's end a later file has moved rows its old text names (the tier 7 item ids, renamed 2026-11-14), so its first check would
+       answer for that row instead of the edited one. */
+    const { bootReplay } = await import('./schema-replay.mjs');
+    const here = db;
+    db = (await bootReplay({ upTo: AGAIN_UP_TO })).db;
+    try {
+      await db.query('begin');   // refuses() rolls back to a savepoint, as in the arm's own transaction
+      await refuses(BOUNDS, [[`'{"raw_bear_meat":1,"bear_pelt":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb`, `'{"raw_bear_meat":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb`]],
+        'item bound is under', 'the bear\'s bound forgets the pelt');
+    } finally { await db.close().catch(() => {}); db = here; }
     problems.push(...await secondApply(H));
     return problems;
   },

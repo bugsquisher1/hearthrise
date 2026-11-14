@@ -1,0 +1,12 @@
+  walk [group: b4d3fc9a-4e1f-4394-953b-6413175ac887]
+    description: a slow heavy trudge, both feet lift in turn, the flag stays in hand, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/fe287bc4-be41-484e-b8c4-e4c02593237a/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/73b56019-9fc5-42ff-b9fa-72631e265f88/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/878a220e-c6a5-4d48-b2da-3061657468ea/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/1acca20e-cc74-49ed-88e8-b32d1d0fb355/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/6f1b189b-7599-4ecb-9775-5aa5b73ceb4c/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/0465d9f5-4838-4011-be16-fdba6707dc27/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/da8a2989-303e-4a4c-86fb-356d3606ccd4/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/132242da-aeaf-48b2-b096-8b54372de60c/west/{i}.png  (i=0..6)

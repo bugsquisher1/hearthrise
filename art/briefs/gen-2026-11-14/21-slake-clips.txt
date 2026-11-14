@@ -1,0 +1,25 @@
+BRIEF 21: THE SLAKE'S THREE BODIES, THE CLIPS (~120 gens, 16 rows)
+Brief 19 bought rotations only. Now the clips so the bodies stop standing on a still (world-assets rule [live]).
+Bodies: greened_pikeman r2 (object d2398516-229a-4539-a42e-818702c65bd1, boneswap import), bargeman (76b1a845-472b-432a-8b1f-d0249023b297),
+flag_sergeant (8468ebc5-997d-4d6e-abee-07338e0b540c). mudlark already has art (gen-2026-11-07/08); not redone.
+
+TOOL: animate_object v3, mode pro, palette hr-world-56-v2, on the kept object. 8 facings, keep_first_frame as noted. Words
+follow brief 02 and brief 12 P2: one subject, "nothing else appears in the frame". Idle 8 frames, walk/attack/death/hit 6.
+ #   Row                              Gens  Words (all end "nothing else appears in the frame")
+ 1   greened_pikeman idle SAMPLE (S)    5  "standing guard, the chest rises and falls, the head stays level, both feet stay put, the pike stays upright"
+ 2   bargeman idle SAMPLE (S)           5  "standing, the chest rises and falls, the head stays level, both feet stay put, the pole stays in both hands"
+ 3   flag_sergeant idle SAMPLE (S)      5  "standing, the chest rises and falls, the head stays level, the torn flag stirs by one pixel, the pole stays in the same hand"
+ -- STOP. The art director reads rows 1-3 at x2 on the locked Slake mud and runs ring-contrast (pass 3:1) on all three. The
+    greened_pikeman's black pike shaft merging with the outline is the open question from brief 19; if it fails, redraw the
+    shaft lighter with the pixelart_workbench (free) and re-roll row 1 once. --
+ 4-6 idle, the other 7 facings           15  one call a body, 5 each, extending the approved sample group
+ 7-9 walk, 8 facings                     15  "a slow heavy trudge, both feet lift in turn" (pikeman: "a stiff march"; sergeant: "the flag stays in hand")
+ 10-12 attack, 8 facings                 15  pikeman "thrusts the pike forward then pulls back"; bargeman "swings the pole in a wide sweep then draws back"; sergeant "jabs with the staff and flag then pulls back"
+ 13-15 death, 8 facings                  15  pikeman "collapses into a heap of bones, the pike beside it"; bargeman "falls forward, the pole beside him"; sergeant "drops to his knees, the flag falls over him, lies still". Refuse any that ends standing (the stoker lesson: pose route, edit then animate_image)
+ 16  hit, 8 facings, all three           15  brief 11 M3's words (frames 0-4 kept), the blow lands on frame 3
+ Subtotal 90, plus 25% re-rolls the sample read names = ~120.
+
+REJECT: idle drift over 1 px from the still's box; a death that ends standing; any body whose ring is under 3:1 on the Slake
+mud (b brief 19 reads this at the first still); verdigris on well over 15% of a body (greened_pikeman r1's fault).
+WIRING (import lane): port-pixellab.mjs unit --set slake --class character (bargeman: brute if measured 41-52), --hit 3.
+build.mjs --report decides each class row.

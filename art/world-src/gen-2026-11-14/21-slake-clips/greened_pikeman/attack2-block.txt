@@ -1,0 +1,7 @@
+  attack2 [group: f455fb01-f9fe-4f2b-a47b-60badc153997]
+    description: thrusts the pike straight forward then pulls it back, the pike stays one straight unbroken pole the whole time, feet planted, nothing else appears in the frame
+    directions: east, north-east, south-east (3/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/f9b3deed-d60e-4dcd-82a8-3fd77dab23c0/east/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/c08ceda6-e023-44cd-b07c-7b60eb26fb31/north-east/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/9caf83bc-8503-4847-b7c8-d69d3720d35d/south-east/{i}.png  (i=0..6)

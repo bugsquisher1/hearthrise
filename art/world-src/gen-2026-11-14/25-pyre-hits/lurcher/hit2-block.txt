@@ -1,0 +1,10 @@
+  hit2 [group: 1cce75b7-9816-4db8-8a6c-0066d6eef0f8]
+    description: flinches back by one pixel as if pushed from the front, the head ducks, then returns to its stance, all four paws stay planted, the same colours throughout, nothing else appears in the frame
+    directions: east, north, south, south-east, south-west, west (6/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/997e815e-6954-401c-8fc9-7e677848023a/animations/579170d7-e54e-4c25-9899-419123895fe3/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/997e815e-6954-401c-8fc9-7e677848023a/animations/fc558ee1-7fa3-44f3-90ae-96d535993850/north/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/997e815e-6954-401c-8fc9-7e677848023a/animations/121de570-50f8-4d3e-a171-902db2d7bb0c/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/997e815e-6954-401c-8fc9-7e677848023a/animations/f7b3a482-7d95-4709-83be-3d94592cba37/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/997e815e-6954-401c-8fc9-7e677848023a/animations/20541c37-c7e9-4739-ac50-9b6562748fee/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/997e815e-6954-401c-8fc9-7e677848023a/animations/7cc6182b-463a-4092-bcfa-367fc3cccecf/west/{i}.png  (i=0..6)

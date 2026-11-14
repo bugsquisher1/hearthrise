@@ -217,7 +217,7 @@ function cellKits(cell, levels) {
 const LOOT0 = () => ({ common: 0, uncommon: 0, scarce: 0, rare: 0, trophy: 0, other: 0 });
 function heroTotals(key, style, level, kit) {
   return { key, style, level, kit, hours: 0, levelXp: 0, skillXp: {}, coin: 0, loot: LOOT0(), lootN: 0, rareItems: [], gear: {}, store: 0, buys: {}, uses: {},
-    deaths: 0, killers: {}, xpLostLevel: 0, deathLevelXpLost: [], xpLostSkill: {}, dealt: 0, dealtBy: {}, taken: 0, takenBy: {},
+    deaths: 0, killers: {}, xpLostLevel: 0, deathLevelXpLost: [], xpLostSkill: {}, dealt: 0, dealtBy: {}, taken: 0, takenBy: {}, spellsIn: {},
     healIn: { food: 0, self: 0, ally: 0 }, healOut: 0, shieldIn: 0, blowsLanded: 0, blowsMissed: 0, dodged: 0, eats: { own: 0, store: 0 },
     drinks: { own: 0, store: 0 }, casts: {}, castGold: 0, manaShots: 0, enc: [], close: 0, dips: 0, ttdClose: [], ended: {} };
 }
@@ -293,6 +293,8 @@ export function playCell(cell, seeds, hooks = {}) {
                 h.taken += n;
                 const kind = (out.units && out.units[e.u] && out.units[e.u][0]) || (e.dot ? 'status' : '?');
                 h.takenBy[kind] = (h.takenBy[kind] || 0) + n;
+                /* a monster's spell (monster-spells.js): its hit names the spell, where a swing names 'basic' (cell.mjs, the same line) */
+                if (!e.dot && !uk && e.ability && e.ability !== 'basic') { const s = h.spellsIn[e.ability] || (h.spellsIn[e.ability] = { hits: 0, dmg: 0 }); s.hits++; s.dmg += n; }
                 if (!e.dot && !uk) h.blowsLanded++;
                 hp.push([e.atMs, tk, -n]);
               } else if (uk) {
@@ -430,6 +432,7 @@ export function mergeTotals(parts) {
       for (const k of ['hours', 'levelXp', 'coin', 'lootN', 'store', 'deaths', 'xpLostLevel', 'dealt', 'taken', 'healOut', 'shieldIn', 'blowsLanded', 'blowsMissed', 'dodged', 'castGold', 'manaShots', 'close', 'dips']) h[k] += g[k];
       for (const k of ['skillXp', 'loot', 'gear', 'buys', 'uses', 'killers', 'xpLostSkill', 'dealtBy', 'takenBy', 'healIn', 'eats', 'drinks', 'casts', 'ended']) addInto(h[k], g[k]);
       for (const k of ['rareItems', 'deathLevelXpLost', 'enc', 'ttdClose']) h[k].push(...g[k]);
+      for (const [id, s] of Object.entries(g.spellsIn || {})) { const t = h.spellsIn[id] || (h.spellsIn[id] = { hits: 0, dmg: 0 }); t.hits += s.hits; t.dmg += s.dmg; }
     });
   }
   return first;
@@ -483,6 +486,8 @@ export function summarise(cell, totals) {
       levelXpLostPerDeath: round(lostMean, 0), deathCostHours: lostMean !== null && xph > 0 ? round(lostMean / xph, 2) : null,
       dealtPerH: per(h.dealt), dps: round(h.dealt / (hr * 3600), 2), dealtBy: h.dealtBy,
       takenPerH: per(h.taken), takenBy: Object.fromEntries(Object.entries(h.takenBy).sort((a, b) => b[1] - a[1]).slice(0, 6)),
+      /* the monsters' spells that struck this hero: { spell id: { hits, dmg } } over the cell (cell.mjs since 2026-11-08) */
+      spellsIn: h.spellsIn,
       monsterSwingsPerH: per(swings), landedPct: swings ? round((100 * h.blowsLanded) / swings, 1) : null,
       dodgedPct: swings ? round((100 * h.dodged) / swings, 1) : null, dmgPerMonsterSwing: swings ? round(h.taken / swings, 3) : null,
       healInPerH: { food: per(h.healIn.food), self: per(h.healIn.self), ally: per(h.healIn.ally), total: per(healTotal) },

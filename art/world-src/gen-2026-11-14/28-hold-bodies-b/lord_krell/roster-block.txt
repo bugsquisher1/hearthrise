@@ -1,0 +1,8 @@
+  roster [group: 4101d9be-63b6-4f18-90b0-5f266a18f6fa]
+    description: lifts the open book high in his left hand and reads aloud from it, his head tilts to the page, the sword hand points down at the floor, then lowers the book, feet planted, ends in the same pose it started, the red fur cloak stays red, the iron circlet and grey beard stay, the book stays in his left hand and the longsword in his right, no glow, no spark, no magic light, nothing else appears in the frame
+    directions: east, north, south, west (4/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/500a99cb-33b7-4f48-a59c-c76ff80e66f2/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/d598b37f-1566-4c81-8101-89d4f7ad6590/north/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/815c90a2-cbc0-4681-a0b3-14ae6f3fd218/south/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/b884b99b-1c80-482b-9e69-a72bfb11ca69/west/{i}.png  (i=0..6)

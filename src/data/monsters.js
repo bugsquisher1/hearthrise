@@ -63,10 +63,10 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=0.2.129';
-import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.129';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.129';
-import { foldRows } from './grounds/shape.js?v=0.2.129';
+import { applyClassProfiles } from './monster-classes.js?v=0.2.130';
+import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.130';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.130';
+import { foldRows } from './grounds/shape.js?v=0.2.130';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -85,6 +85,23 @@ export function monsterSpeedOf(row) {
   if (row && row.dummy === true) return 0;   // a training dummy is a post in the ground (src/data/training.js)
   const v = row && row.speed;
   return Number.isInteger(v) && v > 0 ? v : MONSTER_SPEED_DEFAULT;
+}
+
+/* A MONSTER THAT SHOOTS (Krell's Hold, PRIORITY_BOARD): `range` = whole tiles its blow reaches in line of sight (targeting.js inRange);
+   no `range` = melee. Played by src/core/hunt/shooters.js, read only via monsterRangeOf; MONSTER_RANGE is a bound, not a balance number. */
+export const MONSTER_RANGE = Object.freeze({ min: 2, max: 6 });
+/** The tiles monster row `row` shoots from, or 0: a melee monster (no `range`, or one rangeProblems refuses). */
+export function monsterRangeOf(row) {
+  const v = row && row.range;
+  return Number.isInteger(v) && v >= MONSTER_RANGE.min && v <= MONSTER_RANGE.max ? v : 0;
+}
+/** Every `range` on the roster `monsters` that is not a whole number of tiles inside MONSTER_RANGE, as strings. Empty = valid. */
+export function rangeProblems(monsters) {
+  const out = [];
+  for (const [id, m] of Object.entries(monsters || {})) {
+    if (m && m.range !== undefined && monsterRangeOf(m) === 0) out.push('monster ' + id + ' range must be a whole number ' + MONSTER_RANGE.min + '..' + MONSTER_RANGE.max + ', got ' + m.range);
+  }
+  return out;
 }
 
 export const MONSTERS = {
@@ -848,7 +865,7 @@ export const MONSTERS = {
   brook_bear: { name: 'Brook Bear', icon: '🐻', tier: 3, level: 24, cls: 'mammal', family: 'Mammal',
     /* the Meadowbrook's bruiser: the wet coat sheds frost, fire takes it. The Keep and Trophy Room ask for its Pelt (Andy's report), about an hour's errand, so the Claw, a pie's trophy, rides a Rare row (drop-tables rare-pace: it stands in Vine Hollow as built, lane/c-brook-bear). */
     elements: { ember: -15, frost: 25 },
-    hp: 51, atk: 16, baseAcc: 0.76, def: 8, xp: 239, gp: [13, 40], formula: true, speed: 3000, /* gp: most of an elite's purse on a heavy, FORMULA_EXCEPTIONS (balance-sheet.js) */
+    hp: 51, atk: 16, baseAcc: 0.76, def: 8, xp: 239, gp: [11, 32], formula: true, speed: 3000,
     drops: [{ id: 'raw_bear_meat', ch: .6, band: 'common' }, { id: 'bear_pelt', ch: .18, band: 'common' }, { id: 'brook_bear_tooth', ch: .08, band: 'uncommon' }, { id: 'bear_claw', ch: .0033, band: 'rare' }] },
 
   /* ══ Wickstead, levels 8-18, solo, mixed (lane b-greenhaven-6, designer 2026-10-28): roles and economy in the
@@ -894,7 +911,8 @@ export const MONSTERS = {
 
 /* GROUND PACKS (src/data/grounds): each pack's new monsters join the table, a copy each (the seal below writes onto its rows).
    An id already taken is refused (foldRows): a pack adds, it never replaces. */
-for (const [id, row] of Object.entries(foldRows('monster', {}, GROUND_PACKS, (p) => p.monsters))) {
+/* A pack's KEYED HALL (its `hall`, shape.js) brings its room's own rows too: the hall's boss and his adds, paying rows that stand in his room only. */
+for (const [id, row] of Object.entries(foldRows('monster', {}, GROUND_PACKS, (p) => (p.hall ? { ...p.monsters, ...p.hall.monsters } : p.monsters)))) {
   if (Object.prototype.hasOwnProperty.call(MONSTERS, id)) throw new Error('ground pack: monster ' + id + ' is already taken; a pack only adds');
   MONSTERS[id] = { ...row };
 }

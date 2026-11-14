@@ -1,0 +1,5 @@
+  death2 [group: 96db1c4b-050b-4d15-8066-1be9dc009924]
+    description: drops to his knees and falls forward onto the ground, the mace falls beside him, lies flat and still, the armour stays steel and red, the flanged mace stays in his hand and keeps its shape and its grey iron colour, the ring of keys stays at his belt, the red surcoat and steel plate stay the same, no glow, no spark, no dots, no flash, nothing else appears in the frame
+    directions: east (1/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/d9cf6c99-21f7-489a-854c-1f04e1f4ccd5/east/{i}.png  (i=0..6)

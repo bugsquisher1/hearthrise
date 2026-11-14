@@ -72,6 +72,7 @@ export const MONSTER_TEXT = Object.freeze({
   band_uncommon: 'Uncommon',
   band_scarce: 'Scarce',
   band_rare: 'Rare',
+  band_key: 'Key',
   band_trophy: 'Trophy',
   band_always: 'Always',
 });

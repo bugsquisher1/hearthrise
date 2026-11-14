@@ -1,0 +1,6 @@
+  attack3 [group: cae89d91-cc45-486a-8924-123cf9f53ad9]
+    description: swings the flag pole down in a short chop toward the enemy then lifts it back upright, the torn flag cloth stays tied to the pole and flaps, the pole stays upright at the start and end, nothing else appears in the frame
+    directions: east, south-east (2/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/103cc52a-f993-4c8e-92c7-15d00797e647/east/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/2a7dedc6-8991-4531-a2a0-312953afaa03/south-east/{i}.png  (i=0..6)

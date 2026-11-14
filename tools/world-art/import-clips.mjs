@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/world-art/import-clips.mjs — REVIEWED CLIP FRAMES INTO THE SHIPPED SHEETS (lane/a-hunt-clips, 2026-11-10).
 //
-//   node tools/world-art/import-clips.mjs            write every row of hunt-clips.mjs into art/world/<set>/<id>.{png,json}
+//   node tools/world-art/import-clips.mjs            write every row of hunt-clips.mjs and barrow-clips.mjs into art/world/<set>/<id>.{png,json}
 //   node tools/world-art/import-clips.mjs --check    exit 1 when a committed sheet or sidecar is not what a re-run writes
 //   node tools/world-art/import-clips.mjs --id rat   one sprite (with --check too)
 // Then node tools/world-art/build.mjs (the atlases) and, for the heroes, tools/world-art/outfit-masks.mjs.
@@ -33,7 +33,8 @@ import { ALPHA_CUT } from '../../src/data/world/palette.js';
 import { ROOT, ART_DIR } from './build.mjs';
 import { plant } from './port-hunt-sim.mjs';
 import { measureFrame } from './measure.mjs';
-import { HUNT_CLIPS, NAME } from './hunt-clips.mjs';
+import { HUNT_CLIPS } from './hunt-clips.mjs';
+import { BARROW_CLIPS } from './barrow-clips.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const SEAT_PX = 3;          // port-pixellab.mjs: a swing frame may stand this far above the anchor
@@ -44,11 +45,11 @@ const FALL_HOP_PX = 4;      // validate.mjs [feet]: a ground unit's frame (not i
 const on = (im, x, y) => x >= 0 && y >= 0 && x < im.width && y < im.height && im.data[(y * im.width + x) * 4 + 3] >= ALPHA_CUT;
 const load = (rel) => decodePNG(readFileSync(join(ROOT, rel)));
 
-/** A clip dir's frames in order (0.png… or frame_000.png…). */
+/** A clip dir's frames in order (0.png…, frame_000.png… or f00.png…). */
 function framesIn(rel) {
   const dir = join(ROOT, rel);
   if (!existsSync(dir)) throw Object.assign(new Error('missing source ' + rel), { missing: true });
-  return readdirSync(dir).filter((f) => /^(frame_)?\d+\.png$/.test(f)).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0])).map((f) => load(rel + '/' + f));
+  return readdirSync(dir).filter((f) => /^(frame_|f)?\d+\.png$/.test(f)).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0])).map((f) => load(rel + '/' + f));
 }
 
 function box(im) {
@@ -197,7 +198,7 @@ function run(argv) {
   const check = argv.includes('--check');
   const only = argv.includes('--id') ? argv[argv.indexOf('--id') + 1] : null;
   let stale = 0, done = 0;
-  for (const row of HUNT_CLIPS) {
+  for (const row of HUNT_CLIPS.concat(BARROW_CLIPS)) {
     if (only && row.id !== only) continue;
     const dir = join(ROOT, ART_DIR, row.set), jp = join(dir, row.id + '.json');
     const sc0 = JSON.parse(readFileSync(jp, 'utf8'));

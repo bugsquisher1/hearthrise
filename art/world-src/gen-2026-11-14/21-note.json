@@ -1,0 +1,22 @@
+{
+  "brief": "art/briefs/gen-2026-11-14/21-slake-clips.txt",
+  "tool": "animate_object v3 (1 gen a facing at 48 px). NOT mode pro: pro is 'a different style' at 10-25 a facing (80-200 a body), which the brief's own budget (5 a facing group) rules out; the palette is pro-only, so the lock snaps at import as for every v3 clip",
+  "objects": { "greened_pikeman": "6973c53e-a801-42d9-8de8-5618d9568d1e (r2 r8)", "bargeman": "fc37534e-9ad0-4df7-a466-02bd1996b2d0 (r8)", "flag_sergeant": "a758d79a-0718-44a0-8601-770978ce874a (r8)" },
+  "layout": "21-slake-clips/<body>/<clip>/<facing>/fNN.png (f00 is the still), <clip>-block.txt is the get_object record (group ids, words)",
+  "sample read (rows 1-3)": {
+    "idle": "pikeman (group 5e7e0e6e) calm, box fixed; sergeant (ad8663bf) the flag stirs, box moves 1-2 px with the cloth only; bargeman idle (07e812dc) and idle2 (2928a7c9) both straighten 4-5 px from a hunched still (a v3 habit on a crouched still): frame 1 is calm in both, so the import's calm-frame pick (idle-clip.mjs) takes frame 1 of each as a and b",
+    "ring": "raw ring on the Slake mud 1.02-1.41:1, the same as the shipped March bodies on the Ford mud (banded_pikeman 1.00, fordsunk 1.31); 3:1 is reached at import with --lift (mudlark, lifted, 3.75). The pikeman's black shaft reads as a dark line on the mud at x2: kept, lift the shaft one step at import if the ring asks"
+  },
+  "kept clips": {
+    "greened_pikeman": { "idle": "idle (8)", "walk": "walk 22793d05 (8)", "attack": "attack 237d1f0c S SW W NW N; attack2 f455fb01 E NE SE (the first E broke the pike into debris)", "death": "death 10ebbde4 SW N NE SE; death2 1827d34d E NW W (W keeps the pike upright beside the heap, the kobold-spear ruling); death3 6233c1b9 S (v3 with an end frame = the SW heap)", "hit": "see 25-note hit2 (group in 25-note)" },
+    "bargeman": { "idle": "idle2 (8)", "walk": "walk 008daed3", "attack": "attack 6be49fb9", "death": "death 7091ac2f (all 8 lie flat)", "hit": "hit 198aca46" },
+    "flag_sergeant": { "idle": "idle ad8663bf (8; SE added after a concurrency drop)", "walk": "walk b4d3fc9a", "attack": "attack2 8cb6b8dd S SW W NW N NE; attack3 cae89d91 E SE", "death": "death ae560566 (body down; the pole stays standing in E and SE)", "hit": "hit 458e62a2" }
+  },
+  "refused": {
+    "flag_sergeant attack 297126c6 (all), attack2 E and SE": "the flag cloth tears off and floats away, or the pole turns into a spear: gear disappears mid-clip (identity rule)",
+    "greened_pikeman death S (both rolls), NW, E, W first roll": "ends standing, sitting, or frozen mid-fall",
+    "greened_pikeman attack E": "the pike breaks into a spray of debris"
+  },
+  "gens": "about 150 (3 bodies x 39 facings + re-rolls)",
+  "wiring": "port-pixellab.mjs unit --set slake --class character (bargeman: brute if build --report measures 41-52) --hit 3, on top of origin/lane/a-import-slake-art; the greened pikeman's boneswap repaint (gen-2026-11-12) applies to every frame"
+}

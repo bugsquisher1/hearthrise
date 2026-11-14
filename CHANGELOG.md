@@ -5,6 +5,12 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.130 — 2026-11-14 (Clear Views)
+
+**Fixes.** An open window no longer covers Leave hunt, Setup, stance or Target when a hunt starts. On a phone, the tip card under the hunt bar keeps its buttons below the words, so the title fits on one line. Tamsin’s board shows the reward she will really pay before your first task, and says the armor weight once. The hero screen and the bag both call the starter weapons Hatchets or a club. The Tally no longer gets squeezed when the hunt analyzer is docked. Closing a window and pressing Enter right away opens Chat again like it should.
+
+**Faster start.** The sign-in screen now shows up right away. On a phone it used to take about 17 seconds and now takes about 3. The rest of the game loads in while you type.
+
 ## v0.2.129 — 2026-11-13 (Small Fixes)
 
 **Fixes.** Gathering now stops when your bag is full, and the Work panel tells you why. Pressing Enter on a button presses that button instead of opening Chat. A hero who falls before a monster dies no longer gets a share of its gold or loot. Hunting grounds now say which Level they are suited to. They were never locked, and now the text says so. The last hunt's summary closes when you start a new hunt. Hunt settings has an Effects button.

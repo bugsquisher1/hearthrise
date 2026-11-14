@@ -34,19 +34,19 @@
 // PURE (no DOM). The caller owns the clock.
 // ════════════════════════════════════════════════════════════════════════
 
-import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.129';
-import { memberSide, frozenSide } from '../core/member.js?v=0.2.129';
-import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.129';
-import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.129';
-import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.129';
-import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.129';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.129';
-import { stepCost } from '../core/hunt/grid.js?v=0.2.129';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.129';
-import { holderTank, roleOf, engaged, challengeable } from '../core/hunt/targeting.js?v=0.2.129';
-import { testSlot, aimsAtMonsters, ignores } from '../core/hunt/conditions.js?v=0.2.129';
-import { aloneIn } from '../core/hunt/abilities.js?v=0.2.129';
-import { xpMultFor } from '../core/live-events.js?v=0.2.129';
+import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.130';
+import { memberSide, frozenSide } from '../core/member.js?v=0.2.130';
+import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.130';
+import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.130';
+import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.130';
+import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.130';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.130';
+import { stepCost } from '../core/hunt/grid.js?v=0.2.130';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.130';
+import { holderTank, roleOf, engaged, challengeable } from '../core/hunt/targeting.js?v=0.2.130';
+import { testSlot, aimsAtMonsters, ignores } from '../core/hunt/conditions.js?v=0.2.130';
+import { aloneIn } from '../core/hunt/abilities.js?v=0.2.130';
+import { xpMultFor } from '../core/live-events.js?v=0.2.130';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
@@ -84,7 +84,8 @@ function castsOf(world, atMs) {
     const c = u.side === 'mon' && u.alive && u.cast && typeof u.cast === 'object' ? u.cast : null;
     if (!c || !isInt(c.ms) || !isInt(c.left) || !isInt(atMs)) continue;
     const from = atMs - (c.ms - c.left);
-    out.push({ id: 'cast.' + u.id + '.' + from, type: 'spell', atMs: from, u: u.id, t: isInt(u.target) ? u.target : u.id, spell: c.s,
+    /* (a mend names the packmate it lands on: monster-spells.js begin) */
+    out.push({ id: 'cast.' + u.id + '.' + from, type: 'spell', atMs: from, u: u.id, t: isInt(c.t) ? c.t : isInt(u.target) ? u.target : u.id, spell: c.s,
       shape: c.kind, x: c.x, y: c.y, dx: c.dx || 0, dy: c.dy || 0, r: c.r || 0, len: c.len || 0, ms: c.ms });
   }
   return out;
@@ -418,6 +419,16 @@ export function createLiveEngine(o) {
     },
     /** The server instant of the next swing boundary (null when not running). */
     nextAt: () => (st ? st.next : null),
+    /**
+     * A standing monster of `kind` and its spell `spell` in the world this prediction runs (monster-spells.js PERSISTED): { leftMs (its
+     * wait before it may start again, 0 ready), casting (its windup's ms left, or null), atMs (the instant that world stands at) }, or
+     * null when none runs, none stands or it is not in a fight yet (its first casts not drawn). The boss bar's countdown reads it: display only.
+     */
+    spellWait(kind, spell) {
+      const u = st && st.world && !st.ended ? st.world.units.find((x) => x.side === 'mon' && x.alive && x.kind === kind) : null;
+      if (!u || !u.spellCds) return null;
+      return { leftMs: Math.max(0, Number(u.spellCds[spell]) || 0), casting: u.cast && u.cast.s === spell ? Math.max(0, u.cast.left) : null, atMs: st.next };
+    },
     /**
      * Run every swing whose boundary the server clock has reached; each one's playback batch goes to
      * `feed` (timeline.ingest's shape). Answers how many swings ran.

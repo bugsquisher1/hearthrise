@@ -18,8 +18,8 @@
 // Its opacity is the Danger marks slider's (src/data/fx-alpha.js), whose floor is half: "Monster spell effects" never
 // reaches a warning. Bounded: one mark per caster, and a caster casts one spell at a time.
 // ════════════════════════════════════════════════════════════════════════
-import { markOfEvent } from '../core/hunt/marks.js?v=0.2.129';
-import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.129';
+import { markOfEvent } from '../core/hunt/marks.js?v=0.2.130';
+import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.130';
 
 export const MARK_TIMING = Object.freeze({ steps: 8, graceMs: 1000 });
 

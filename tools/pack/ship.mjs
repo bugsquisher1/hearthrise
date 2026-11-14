@@ -43,14 +43,40 @@ export function renderFolded(fold, root = ROOT) {
 }
 
 /** Everything of a file a pack must not move: its schema and function bodies. Masked: its catalogue rows (the diff reads them),
-    comments, its `do $$ ... $$` self-checks (they restate the rows they check), counts and digests. */
+    comments, its `do $$ ... $$` self-checks (they restate the rows they check), counts and digests. A plain `insert ... values ...;`
+    into a table a pack may write (PACK_TABLES) is rows and nothing else, so the whole statement is masked: a generator writes a comment
+    where a table has no row yet, and the FIRST row of such a table (Krell's Hold's hall in hr_boss_halls) is a row, not a new frame.
+    An insert into any other table still reads as a move (and the diff refuses its rows). */
 export function frameOf(text) {
+  const packInsert = new RegExp('^insert into public\\.(' + Object.keys(PACK_TABLES).join('|') + ') \\([^)]*\\) values <rows>;$', 'gm');
   return text.replace(/\r\n/g, '\n')
     .replace(/^\s*--.*$/gm, '')
     .replace(/\bdo \$\$[\s\S]*?\$\$;/g, 'do <self-check>;')
     .replace(/(insert into public\.[a-z0-9_]+ \([^)]*\) values)[\s\S]*?(?=\n(on conflict|;)|;\n)/g, '$1 <rows>')
+    .replace(packInsert, '')
     .replace(/\b[0-9a-f]{64}\b|\b[0-9a-f]{12,16}…?/g, '<digest>')
     .replace(/\b\d+\b/g, '<n>');
+}
+
+/**
+ * A staged pack's pack.js text OPENED on `file` (a staged ground is never served, so its rows exist only once it is open). Throws when
+ * the text has no `status: "staged",` and `sql: null,` lines as the tool writes them: a silent miss would ship a file with no rows.
+ */
+export function openedText(text, file) {
+  const status = /^(\s*)status: "staged",$/m, sql = /^(\s*)sql: (null|"[^"]*"),$/m;
+  if (!status.test(text) || !sql.test(text)) throw new Error('its pack.js has no `status: "staged",` and `sql: null,` lines to open (double quotes, as the tool writes them)');
+  return text.replace(status, '$1status: "open",').replace(sql, '$1sql: "' + file + '",');
+}
+
+/**
+ * A SHIP REHEARSAL: what `tools/pack.mjs ship <id>` would render for a staged pack, with the tree put back as it was. The pack is
+ * opened in place on a file name no apply order holds, rendered, and restored. Answers shipText's { sql, added, moved, files }.
+ */
+export function rehearse(id, root = ROOT) {
+  const packFile = join(root, 'src', 'data', 'grounds', id, 'pack.js');
+  const before = readFileSync(packFile, 'utf8');
+  writeFileSync(packFile, openedText(before, '2099-01-01-pack-' + id + '.generated.sql'));
+  try { return shipText(id, root); } finally { writeFileSync(packFile, before); }
 }
 
 /**

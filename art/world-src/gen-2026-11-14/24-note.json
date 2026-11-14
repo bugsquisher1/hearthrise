@@ -1,0 +1,15 @@
+{
+  "brief": "art/briefs/gen-2026-11-14/24-pyre-signatures-and-props.txt",
+  "footprint": "CONFIRMED from the data lane's map (origin/lane/d-barrow-data src/data/grounds/pyre_field/map.js): 'P' x25-34 y16-20, footprint 10x5, pf_great_pyre placed at (25,16). The b9 kept pyre (t1-inpainted-one-bed.png, 297x174 box) fits 10 tiles wide.",
+  "rows": {
+    "1 great pyre re-roll": { "tool": "create_image_pro 320x256, 15 gens each, reference the kept t1, palette", "jobs": ["9ab828e4", "068bbb04"],
+      "verdict": "BOTH REFUSED (24-rejected/): the reference carried the three ember lobes into both, and the ember red got brighter (#c23a2a over the whole bed). The b9 kept pyre stands: gen-2026-11-09b/b9-great-pyre/t1-inpainted-one-bed.png" },
+    "2 inpaint": "not run: the re-roll proved the lobes come back from context; the soft three-lobe bed reads as one long pyre on the ash at x2",
+    "3 embers": { "job": "0e20ec0a (3 gens)", "verdict": "REFUSED: animate_image redrew the whole crop, the ash went near-white (#d8cdc9) and the embers dimmed. b9's round-2 lay (frames 0-2, still a b a, gen-2026-11-09b/b9-great-pyre/embers/lay.json) stands" },
+    "4-6 burnt pyres + kit props": { "tool": "create_image_pro_flash 256x256 sheet 9efc5d93 (9 gens), palette, style hf_pyre_unlit",
+      "kept": "24-pyre-props/: pf_burnt_pyre 47x33 (wreck), pf_burnt_pyre_small 45x25, pf_burnt_pyre_scatter 44x22 (+alt), ma_fire_rake 41x52, ma_log_stack 47x33 (+2 alts), ma_ash_barrow 53x36 (+alt), ma_charred_stake 25x44 (+alt)",
+      "read": "x2 on brief 23's ash: no glow, no white; the burnt pyre's stone ring is #aaa49a 7.8% (plinth stones, the brief's allowed specks)" }
+  },
+  "gens": "about 57",
+  "wiring": "pyre set is not on release: port-pixellab sheet --set pyre; pf_great_pyre at (25,16) by the import lane (maskHash rule in the brief)"
+}

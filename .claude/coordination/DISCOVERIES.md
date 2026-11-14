@@ -4,6 +4,15 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-14 · game-designer (lane/b-barrow-numbers) · Krell's Hall measured, a mend that froze a fight, the March's tree, and a renamed id the Tally table still held
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P2 design · In Krell's Hall the good bar with NO Challenge wins more than the good bar with it (100% against 95% at Level 98, 100% against 71% at 85; 40 and 24 tries on the real settle). Challenge pulls Hask and both Grave Guards onto the tank beside Krell. The Target setting is the answer that bites (95 down to 60 with damage left on Krell). The hall's warning tells the player to keep adds off the back line. | `src/data/grounds/krells_hold/pack.js` hall, `src/data/boss-halls.js` warn lines | Designer, before the hall opens: either the wave should threaten the back line more than it threatens the tank, or the warning stops pointing at Challenge. Not a blocker for the staged pack. |
+| 2 | P1 class, fixed in data · A monster's mend sized like a hit can out-heal the slowest hero: three Pyre Priests at a full hit every 8 s left a lone tank (Level 110, Dangerous) in a fight with no end, no death and 7.5k XP an hour. The grader shows it only as one `feel-tier-less` row. | any future `shape: 'mend'` row; the grader | Systems (optional): a grader line for a held cell with almost no kills. The Pyre Rite is now half a hit every 16 s. |
+| 3 | P3 art · The March's gather tree is the sprite `alder` on the data row `willow_tree` (a node kind must be a gathering.js row and there is no alder wood). It replaced the oak stand-ins on the Ford, the Slake and the Muster Barrows. `alder_b` and `alder_c` are unused: a kind has one sprite. | `hunt-grounds.js GROUND_NODE_KINDS`, the three maps' gather line, `tools/world-art/registry.mjs` (still says "on no map yet") | Art Director: read the three maps at x2 and flip the registry line. Systems, when the gathering engine lands: a kind that can draw one of several sprites. |
+| 4 | P2 process · The 11-14 tier-7 rename left `hr_tally_tiers` naming the old ids: `gen-tally-tasks --check` was red on set/v0.2.130's tip. The forward file is `2027-04-21-tally-tier7-names.generated.sql`, staged last in the apply order. | every generated table that names an item id | Any lane renaming an id runs every `tools/gen-*.mjs --check`. |
+
 ## 2026-11-11 · qa-engineer (lane/r-client-health) · a tab left open for an hour stays flat; an own hero's hunt started elsewhere is invisible until the first flush (tools + one server routing)
 
 | # | Found | Affected | Action |
@@ -3923,8 +3932,19 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   Still open: the card UNDER THE HUNT BAR keeps the shared row (its room has no line to spare, PH-27), so at 667x375 "Your
   hero fights on its own" stands four lines beside Don't show tips. Options for the game-designer: shorter hunt-card titles
   (two words), or a wider hunt-bar card at 667 if PH-10 allows. Not a CSS-only fix.
+  FIXED 2026-11-14 (art-director, lane/a-phone-hunt-coach): the hunt-bar card has the foot row too; title 4 lines -> 1 at
+  667x375 and 844x390, card 127 -> 99 px. Words under the hunt bar set at 1.25. Neither listed option worked: beside both
+  presses the title column is ~75 px in Cinzel (two-word titles still took 3 lines), and +20 px of card at 844 fails PH-10.
 - 2026-11-12 (art-director, lane/a-phone-coach-foot) INCIDENT: the session scratchpad is shared across lanes; I ran a stale
   `scratchpad/edit.cjs` (another lane's, written 15:58) by name and it re-applied its edits to
   `.claude/worktrees/agent-ad943bab7953c3a92` at 16:21:51. That worktree now holds each edit TWICE: monster.js lines 25
   (import), 57 (mf-face span), 110-120 (paintFace), 158 (paintFace call); windows.css lines 1135-1137 (.mf-face rules). Delete
   those second copies to restore it; I was not permitted to touch it. Lesson: unique scratch names per lane.
+- 2026-11-13 (art-director, lane/b-ground-art-pipeline): the hd64 sandbox (art/world/sandbox64) has seven sources that are wholly
+  on the palette AND graded by their material (sandbox_ground terrain: 100% of pixels moved; pine 62%, bush 78%, sign 55%,
+  barrel 44%, well 43%, rocks 11%). They ship as read, listed in tools/world-art/validate.mjs REGRADE_KEPT. If the 64 px grid
+  goes further, re-read them as `native` at x1 beside the graded look and pick one; until then no change.
+- 2026-11-13 (art-director, lane/b-ground-art-pipeline): tools/lib/guard-deps.mjs picks a test by a changed file BASENAME, so
+  any committed `request.json` (PixelLab samples under art/world-src/ keep one) schedules 13 edge and intent tests and
+  run-smoke for an art-only diff. I left that file out of this lane. Owner: reliability-engineer (match on the path, or skip
+  art/world-src/**).

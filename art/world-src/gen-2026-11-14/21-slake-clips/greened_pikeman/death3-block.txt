@@ -1,0 +1,5 @@
+  death3 [group: 6233c1b9-374d-4b38-8aab-8b14983a8e4e]
+    description: collapses into a heap of bones on the ground, the pike falls flat beside it, nothing else appears in the frame
+    directions: south (1/8)
+    frames: 7
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/88f010af-db24-4450-8584-94f615b3dfff/south/{i}.png  (i=0..6)

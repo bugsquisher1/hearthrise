@@ -113,10 +113,15 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* TIER 4'S MADE RUNGS (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-20-ground-formula-items-catalogue is APPLIED history; the Mithril Hatchets' and Maple Crossbow's hr_items rows and their Smithing and Crafting recipes in hr_activities land in ONE forward file, the same full delete+insert replace. */
 /* PLAIN GEAR NAMES (lane/c-plain-gear-names, Tyler 2026-11-11): 2027-03-27-phase0-tier4-items-catalogue is APPLIED history; hr_items.name takes the plain names (23 rows: Coif -> Hood, Vambraces -> Bracers, Torc -> Necklace, Greaves -> Leg Plates, Hackle -> Neck Fur, Whelp -> Pup) in ONE forward file, the same full delete+insert replace, ids unchanged. The emitted self-check pins every landed name to the source by digest. */
 /* SMALL CALLS (lane/d-small-calls, designer 2026-11-11): 2027-04-11-plain-gear-names-items-catalogue is APPLIED history; Cook Wolf Meat opens at Cooking 1 (hr_activities artisan:cook_wolf_meat req_lv 5 -> 1) and the Frost Jarl's necklace reads Jarl's Collar (hr_items jarls_rimetorc name) in ONE forward file, the same full delete+insert replace, ids unchanged. The emitted self-check pins both rows from the source, beside the names digest. */
-/* THE BROOK BEAR, A HEAVY (lane/d-solo-fifteen, designer 2026-11-12, Tyler's open question 3 under the +10% lone profit floor): 2027-04-12-small-calls-items-catalogue
+/* THE BROOK BEAR, A HEAVY (lane/d-solo-fifteen, designer 2026-11-12, Tyler's open question 3; the Meadowbrook's bruiser reads as a slow heavy): 2027-04-12-small-calls-items-catalogue
    is APPLIED history; the bear's max HP (hr_activities combat:brook_bear, 69 -> 51, the formula's heavy row: src/data/balance-sheet.js roster and monsters.js) lands in
    ONE forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-14-brook-bear-heavy-items-catalogue.generated.sql');
+/* THE BARROW DATA AND TIER 7'S NAMES (lane/d-barrow-data, designer 2026-11-13; lane/b-barrow-integrate 2026-11-14): 2027-04-14-brook-bear-heavy-items-catalogue
+   is APPLIED history. Eight new weapons (hr_items, hr_item_slots: Rune, Emberforged and Dawnsteel Hatchets, Yew, Runewood and Duskwood Crossbows, the
+   Duskwood Wand and Codex), and tier 7 leather and cloth RENAMED, ids and names (Tyler 2026-11-14: Dawnhide and Duskweave, voidhide_ -> dawnhide_, voidweave_ ->
+   duskweave_; the designer's 11-10 Slakehide and Shroudweave never applied; twelve rows of each table; no hero can hold one, no ground or recipe a player reaches gives it), in ONE forward file, the same full
+   delete+insert replace. Staged, never applied before this rename joined it. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-17-barrow-data-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

@@ -22,22 +22,23 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.129';
-import { VITALS } from '../../data/core-model.js?v=0.2.129';
-import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.129';
-import { atTier } from '../../data/hunt-tiers.js?v=0.2.129';
-import { AI_REPATH_MS, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.129';
-import { HUNT_GROUNDS, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.129';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.129';
-import { monsterMaxHit } from '../combat.js?v=0.2.129';
-import { castsOf, spellHit, spellRow } from '../../data/monster-spells.js?v=0.2.129';
-import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.129';
-import { inArea, resetPack } from './leash.js?v=0.2.129';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.129';
-import { makeEvent, trackStep } from './events.js?v=0.2.129';
-import { staleIndex } from './unit-index.js?v=0.2.129';
-import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.129';
-import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.129';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.130';
+import { VITALS } from '../../data/core-model.js?v=0.2.130';
+import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.130';
+import { atTier } from '../../data/hunt-tiers.js?v=0.2.130';
+import { AI_REPATH_MS, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.130';
+import { HUNT_GROUNDS, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.130';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.130';
+import { monsterMaxHit } from '../combat.js?v=0.2.130';
+import { castsOf, spellHit, spellRow, mends } from '../../data/monster-spells.js?v=0.2.130';
+import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.130';
+import { inArea, resetPack } from './leash.js?v=0.2.130';
+import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.130';
+import { makeEvent, trackStep } from './events.js?v=0.2.130';
+import { staleIndex } from './unit-index.js?v=0.2.130';
+import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.130';
+import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.130';
+import { aimOf } from './shooters.js?v=0.2.130';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -75,16 +76,18 @@ export function biggestBlowOn(huntId, tier) {
   for (const id of [...ids].sort()) {
     const row = MONSTERS[id];
     const swing = row ? monsterMaxHit(atTier(row, tier)) : 0;
-    /* ...or its spell's top, when the spells are on: a spell lands on every hero it covers with no to-hit roll (monster-spells.js land) */
-    const spell = row ? Math.max(0, ...castsOf(row).map((sid) => spellHit(swing, spellRow(sid))[1])) : 0;
+    /* ...or its spell's top, when the spells are on: a spell lands on every hero it covers with no to-hit roll (monster-spells.js land);
+       a mend strikes nobody (data/monster-spells.js mends) */
+    const spell = row ? Math.max(0, ...castsOf(row).filter((sid) => !mends(spellRow(sid))).map((sid) => spellHit(swing, spellRow(sid))[1])) : 0;
     const hit = Math.max(swing, spell);
     if (row && (!best || hit > best.hit)) best = { monster: id, name: row.name, hit };
   }
   return best;
 }
 
-/* One spawn row as a unit on the first free tile near its spot, at this party's HP on the hunt's tier, or null with no tile: the pack's path and a called boss's adds'. */
-function placeRow(inst, p, s, sc) {
+/* One spawn row as a unit on the first free tile near its spot, at this party's HP on the hunt's tier, or null with no tile: the pack's path and a boss's adds'.
+   A pack's monster has its tile as its HOME (a reset walks it back there); an add has none (`add`: leash.js isAdd, it leaves on a reset). */
+function placeRow(inst, p, s, sc, add) {
   const w = inst.world;
   const taken = (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)) || inst.occ.hero.has(tileKey(inst.grid, x, y)) || !inArea(inst, p, x, y);
   const at = freeNear(inst.grid, s.x, s.y, 3, taken);
@@ -94,7 +97,7 @@ function placeRow(inst, p, s, sc) {
   /* THE ROW'S HEALTH ON THE HUNT'S TIER (hunt-tiers.js hpPm), the same for every party size (Tyler 2026-11-08): it pays its row's whole kill. */
   const hp = Math.max(1, atTier(row, inst.tier).hp || 1);
   const u = inst.makeUnit({ id: w.nextId, side: 'mon', kind: s.monster, pocket: p, alive: true, hp, maxHp: hp,
-    target: null, home: at, x: at[0], y: at[1], fx: at[0], fy: at[1], speed: monsterSpeedOf(row) });
+    target: null, home: add ? null : at, x: at[0], y: at[1], fx: at[0], fy: at[1], speed: monsterSpeedOf(row) });
   w.nextId += 1;
   w.units.push(u);
   staleIndex(inst);
@@ -122,8 +125,9 @@ export function spawnPack(inst, p, sc) {
 }
 
 /**
- * A CALLED BOSS'S ADDS (boss-phases.js): pocket `p`'s `adds` rows, through the pack's own unit path, each on a hero who isn't
- * holding him, in seat order round again (none: the holder). A pick with no dice, so every cut of the windows spawns the same.
+ * A BOSS'S ADDS (boss-phases.js; a called room's or a ground's): pocket `p`'s `adds` rows, through the pack's own unit path with no
+ * home (leash.js isAdd: a reset sends them away), each on a hero who isn't holding him, in seat order round again (none: the
+ * holder). A pick with no dice, so every cut of the windows spawns the same.
  */
 export function spawnAdds(inst, p, sc) {
   const w = inst.world;
@@ -132,7 +136,7 @@ export function spawnAdds(inst, p, sc) {
   const on = off.length ? off : standing;
   occupancy(inst);
   (inst.ground.pockets[p].adds || []).forEach((s, i) => {
-    const u = placeRow(inst, p, s, sc);
+    const u = placeRow(inst, p, s, sc, true);
     if (u && on.length) { u.target = on[i % on.length].id; staleIndex(inst); }
   });
 }
@@ -180,7 +184,8 @@ function startPull(inst, sc, k, p) {
   const pack = inst.world.packs[p];
   pack.aggro = true;
   pack.holder = k.id;
-  for (const m of packMonsters(inst, p)) m.target = k.id;
+  /* (a SHOOTER aims at the hero farthest from it instead: shooters.js aimOf) */
+  for (const m of packMonsters(inst, p)) m.target = aimOf(inst, m, k.id);
   staleIndex(inst);
   clearGoal(k);
   inst.world.phase = PHASE.FIGHT;

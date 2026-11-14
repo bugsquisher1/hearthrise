@@ -6,17 +6,17 @@
 // Original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.129';
-import { foldRows } from './grounds/shape.js?v=0.2.129';
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.129';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.129';
-import { LIB2_DESC } from './library2-items.js?v=0.2.129';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.129';
-import { CHAMPION_DESC } from './champions.js?v=0.2.129';
-import { DRINK_DESC } from './drinks.js?v=0.2.129';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.129';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.129';
-import { SHIELD_DESC } from './shields.js?v=0.2.129';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.130';
+import { foldRows } from './grounds/shape.js?v=0.2.130';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.130';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.130';
+import { LIB2_DESC } from './library2-items.js?v=0.2.130';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.130';
+import { CHAMPION_DESC } from './champions.js?v=0.2.130';
+import { DRINK_DESC } from './drinks.js?v=0.2.130';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.130';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.130';
+import { SHIELD_DESC } from './shields.js?v=0.2.130';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -39,6 +39,8 @@ export const ITEM_DESC = {
   'willow_spellbook': 'A spellbook with willow-leaf pages, full of spells that go off a little quicker',
   'maple_spellbook': 'A spellbook with maple covers and a clasp that keeps the damp out',
   'yew_spellbook': 'A spellbook with yew covers. It always seems to fall open to the spell you need',
+  'duskwood_codex': "A spellbook bound in duskwood out of Lord Krell's hall. He paid for every page and never read one",
+  'duskwood_wand': "A duskwood wand from Lord Krell's hall, the best wand anyone in the March has seen",
   'runewood_codex': 'A thick spellbook bound in runewood, with a master\'s whole life of spells written in it',
   ...WAVE3_DESC, // b247: the 14 Wave-3 unique item flavour lines
   ...SLOT_DESC,  // b343: the ammo / earrings / cape / jewelry ladders
@@ -192,6 +194,12 @@ export const ITEM_DESC = {
   'dawn_platelegs': 'Dawnsteel leg armor that protects your legs better than anything else a smith makes',
   'dawn_sword': 'A bright dawnsteel sword with a perfect edge. It\'s the best sword a smith can make',
   'dawn_warhammer': 'A dawnsteel warhammer that hits harder than any other hammer a smith can make',
+  'dawnhide_belt': 'A dawnhide belt, the best belt a ranger can wear',
+  'dawnhide_body': 'A dawnhide vest that weighs almost nothing. It\'s the best body armor a ranger can get',
+  'dawnhide_boots': 'Dawnhide boots. They\'re light and quiet, and no ranger boots are better',
+  'dawnhide_gloves': 'Dawnhide arm guards. They\'re light and they keep your aim steady',
+  'dawnhide_helmet': 'A dawnhide hood, the best head armor a ranger can wear',
+  'dawnhide_pants': 'Dawnhide leggings. They\'re stiff until you break them in, and no ranger leggings are better',
   'dawnsteel_rod': 'A dawnsteel fishing rod, the best one there is for open water',
   'dawnstone_ore': 'Glowing dawnstone ore, the top ore you can mine. It smelts into dawnsteel',
   'death_steel': 'Steel taken off the dead and hammered back into a bar. It always feels a little cold',
@@ -210,6 +218,12 @@ export const ITEM_DESC = {
   'dragonhide_gloves': 'Dragonhide arm guards, hard as scale but loose enough for a clean shot',
   'dragonhide_helmet': 'A dragon-scale hood that\'s almost as tough as plate',
   'dragonhide_pants': 'Dragonhide leggings, scaled and as tough as old plate',
+  'duskweave_belt': 'A duskweave sash, the best one a caster can wear',
+  'duskweave_body': 'A duskweave robe top. No robe gives a caster more power',
+  'duskweave_boots': 'Duskweave slippers, the best footwear a caster can get',
+  'duskweave_gloves': 'Duskweave gloves. Your spells hit harder in these than in any other gloves',
+  'duskweave_helmet': 'A duskweave hat, the best hat a caster can wear',
+  'duskweave_pants': 'Duskweave robe bottoms, the best a caster can get',
   'duskwood_bow': 'A duskwood bow, the strongest bow a bowyer can make',
   'duskwood_log': 'An almost black duskwood log, the best wood you can chop',
   'duskwood_plank': 'A dark duskwood plank, the best wood a crafter can work',
@@ -452,19 +466,7 @@ export const ITEM_DESC = {
   'void_chitin': 'A shell plate off a void monster. Almost nothing burns hotter in the Great Hearth',
   'void_core': 'The caved-in heart of a void beast. It hums, and cooks build the Void Banquet around it',
   'void_essence': 'Pure void, boiled down into something you can actually hold',
-  'voidhide_belt': 'A dark voidhide belt that barely makes a sound. It\'s the best belt a ranger can get',
-  'voidhide_body': 'A dark voidhide vest that weighs almost nothing. It\'s the best body armor for a ranger',
-  'voidhide_boots': 'Voidhide boots that make no sound at all. A ranger can\'t find better',
-  'voidhide_gloves': 'Dark voidhide arm guards that are unbelievably light. They give you the steadiest draw there is',
-  'voidhide_helmet': 'A dark voidhide hood, the best head armor a ranger can wear',
-  'voidhide_pants': 'Voidhide leggings as dark as the night sky. They\'re the top ranger leggings there are',
   'voidmaw_scepter': 'A scepter shaped like the Riftmaw\'s open mouth. It puts void power into every spell',
-  'voidweave_belt': 'A voidweave sash, cloth spun from the void. It\'s the best sash a caster can wear',
-  'voidweave_body': 'A voidweave robe top, and no robe gives a caster more power',
-  'voidweave_boots': 'Voidweave slippers, the best footwear a caster can get',
-  'voidweave_gloves': 'Voidweave gloves that put more force behind your spells than any others',
-  'voidweave_helmet': 'A voidweave hat spun from the void, the best hat a caster can wear',
-  'voidweave_pants': 'Voidweave robe bottoms, the top of the line for casters',
   'voidwoven_sigil': 'A sigil woven from void thread. It\'s a trophy, and it never quite stops moving',
   'war_crown': 'A crown you pulled off a warlord\'s head. It\'s worth a fortune',
   'warboss_standard': 'The warboss\'s own banner. You tore it down to prove you beat the warcamp',

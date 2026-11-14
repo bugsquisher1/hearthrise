@@ -12,14 +12,15 @@
 // Names: heroes from the `party` section, monsters from the hunt pose's unit
 // kinds (src/session/hunt-sections.js). An unknown unit reads "Someone".
 // ════════════════════════════════════════════════════════════════════════
-import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.129';
-import { BOSS_CALL_WORDS, callOfHunt, isGuarded } from '../data/boss-calls.js?v=0.2.129';
-import { MONSTERS } from '../data/monsters.js?v=0.2.129';
-import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.129';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.129';
-import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.129';
-import { tallyOf, tallyLine } from '../session/tally-sections.js?v=0.2.129';
-import { t } from '../render/player-text.js?v=0.2.129';
+import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.130';
+import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js?v=0.2.130';
+import { BOSS_HALL_WORDS, roomOfHunt, namedWaveOf } from '../data/boss-halls.js?v=0.2.130';
+import { MONSTERS } from '../data/monsters.js?v=0.2.130';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.130';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.130';
+import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.130';
+import { tallyOf, tallyLine } from '../session/tally-sections.js?v=0.2.130';
+import { t } from '../render/player-text.js?v=0.2.130';
 
 const LOGS = new WeakMap();
 
@@ -36,10 +37,15 @@ function namer(cs) {
     if (m) heroes.set(x.unit, m.name);
   }
   const units = h ? h.units : new Map();
-  const call = h ? callOfHunt(h.huntId) : null;
+  const call = h ? roomOfHunt(h.huntId) : null;
   return {
-    /* A called boss whose adds shield him (boss-calls.js isGuarded): the add line says so. */
-    guarded: !!call && isGuarded(MONSTERS[call.monster]),
+    /* Does boss `u`'s wave shield him (boss-calls.js isGuarded, his own row: a room's boss or a ground's)? The add line says so. */
+    guarded(u) {
+      const kind = (units.get(u) || {}).kind || cs.timeline.kindOf(u);
+      return !!kind && isGuarded(MONSTERS[kind]);
+    },
+    /* A hall's wave with a named add in it (boss-halls.js namedWaveOf): the add line names him. */
+    wave: call && call.kind === 'hall' ? namedWaveOf(call.hunt) : null,
     name(u) {
       if (heroes.has(u)) return heroes.get(u);
       const x = units.get(u) || {};
@@ -77,8 +83,15 @@ export function lineOf(ev, n) {
     case 'level': return line('xp', a + ' reaches ' + (ev.skill === 'level' ? 'Level ' : skillName(ev.skill) + ' level ') + ev.level + '.' + unlockedBy(ev.skill, ev.level));
     case 'eat': case 'drink':
       return line('supply', a + (ev.type === 'eat' ? ' eats ' : ' drinks ') + itemName(ev.item) + (ev.source === 'store' ? ', bought from the store.' : ' from the bag.'));
-    /* A called boss crossed a line (boss-phases.js): the bar and the world say so too. */
-    case 'boss_phase': return line('status', a + ' ' + BOSS_CALL_WORDS.log[ev.phase === 'adds' && n.guarded ? 'guarded' : ev.phase]);
+    /* A boss crossed a line (boss-phases.js; a room's boss or a ground's): the bar and the world say so too. */
+    case 'boss_phase': {
+      const guarded = ev.phase === 'adds' && n.guarded(ev.u);
+      if (ev.phase === 'adds' && n.wave) {
+        const L = BOSS_HALL_WORDS.log;
+        return line('status', a + ' ' + (n.wave.others ? (guarded ? L.namedGuarded : L.named) : (guarded ? L.namedOnlyGuarded : L.namedOnly)).replace('{names}', n.wave.names));
+      }
+      return line('status', a + ' ' + BOSS_CALL_WORDS.log[guarded ? 'guarded' : ev.phase]);
+    }
     /* A monster's spell winding up (monster-spells.js): the screen marks it, the log names it (a group spell reaches everyone). */
     case 'spell': return line('status', t(ev.shape === 'group' ? 'log.spell_group' : 'log.spell', { who: a, spell: abilityName(ev.spell) }));
     case 'status_on': return line('status', b + ' is ' + (ev.status === 'bleed' ? 'bleeding' : 'affected by ' + ev.status) + '.');

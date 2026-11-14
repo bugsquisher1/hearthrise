@@ -1,0 +1,32 @@
+{
+  "brief": "art/briefs/gen-2026-11-14/29-hold-tiles-walls-gatehouse.txt",
+  "call": "create_topdown_tileset pro 32 px, high top-down, transition 0, palette hr-world-56-v2 + max_colors 12; every fill is on palette, import native",
+  "value rule (from the review of 26)": "every Hold floor's median luminance is 0.013-0.027, so the lifted Farmhand's ring is 3.38:1 or better on all of them (ring-contrast.mjs); the walls are the light stone, the floors the dark",
+  "pairs follow the MAP's joins (lane/d-barrow-data krells_hold/map.js), not the brief's list": "':' meets '.', '.' meets 'f', 'f' meets 's', 'f' meets '=', 'g' meets '.' and 'f'. The brief's yard dirt is not a map floor, so pair 1's dirt half IS the cart road's earth",
+  "one castle: the chain": "the first unchained rolls gave three different flagstones and two cobbles (brief 23's finding again). Each material is born once WITH the palette and then chained by base tile id, which returns it byte-identical (cmp, all seven halves): cobble c5ce4639, flagstone 456e148f, setts 9c3260b1, planks 6f4ca2d8, gravel 11bf114e. No base without the palette was chained",
+  "kept": {
+    "1-earth-cobble": "b2844c51 (unchained; the cobble and the earth are born here)",
+    "2-gravel-earth": "fbdb29a5 (unchained; the gravel is born here; the map has no gravel/earth join, a spare)",
+    "3-flagstone-cobble": "a828894c (cobble chained; the flagstone is born here: plain dark slabs, no repeated mark)",
+    "4-setts-flagstone": "dc901b7b (both chained) + a 0-gen ramp remap of the setts' green stain (#1f3322 #16241a to the shadow ramp, remap.json): the stain drew as a checkerboard",
+    "5-planks-flagstone": "a24a289a (both chained): the Hall's warm oak boards",
+    "6-gravel-cobble": "c7ab981f (both chained)",
+    "7-gravel-flagstone": "72391b8e (both chained)",
+    "gate-cobble-neutral": "brief 26's dark pair with its blue cobble remapped to the iron ramp (0 gens): superseded by pair 1, kept as the alt with a rutted road"
+  },
+  "refused (rejected/)": {
+    "3-flagstone-cobble 999da9f6": "fish-scale cobbles and plank-like flags", "4-setts-flagstone 4743b5ba": "the setts read as an iron grate", "3b c7b91e3d, 5 b595ab29, 7 f4b4459d, 4b 0b1cf30c": "the first flagstone: an X crack on every tile and a blue cast",
+    "3c 9394b540": "plain flagstone but #3a3a3e (0.043): the Farmhand's ring is 2.81:1 on it"
+  },
+  "walls (create_image_pro_flash 192x64 runs, style = brief 26's kept run)": {
+    "kept": "run 8a476eef: kh_wall_buttress, kh_wall_cracked, kh_wall_plain_c, kh_wall_pier, kh_wall_end_left / end_right (a run's ends only), kh_wallend_left / right (12x60); run 26f8cef4: kh_wall_gate_jamb; with 26's plain_b, arrow_loop, torch_bracket. All 32x60, cap top on row 4, courses line up across the three runs",
+    "wallcap": "kh_wallcap_strip 7e08f2e8 (10 px wide capstones for a north-south run, 32x64 strip; the import cuts it)", "refused": "wallcap 17cb13e0 (mint)"
+  },
+  "gatehouse (create_image_pro_flash 224x192, style = the wall)": { "kept": "586d798e: 138x126, two towers, a raised portcullis, a plain red pennant, no sign; class building", "alts": "1988911d, bd762bd9 (smaller)", "row 11 gate down": "not run: no state uses it yet" },
+  "flags for the import": [
+    "the cobble and the gravel are fine even noise over a large court: wear decals (ART_DIRECTION 5) carry the life, never a second cobble",
+    "the earth has a straw fleck at one place per tile: fine on a 5-wide road",
+    "row 6 (dirt/planks) not run: the Hall's door stands on flagstone in the map"
+  ],
+  "gens": "tilesets 12 rolls about 200, walls 12 + caps 10, gatehouse 27: about 230 (brief 170: the chain round after the unchained rolls disagreed)"
+}

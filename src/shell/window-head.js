@@ -19,10 +19,10 @@
 //
 // The shell (src/shell/shell.js) calls these; the pure parts (pickGold, helpLine) are tests/shell-core.mjs's.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.129';
-import { t } from '../render/player-text.js?v=0.2.129';
-import { attr, text, cls } from '../render/paint.js?v=0.2.129';
-import { keyLabel, glyphSvg } from './launcher.js?v=0.2.129';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.130';
+import { t } from '../render/player-text.js?v=0.2.130';
+import { attr, text, cls } from '../render/paint.js?v=0.2.130';
+import { keyLabel, glyphSvg } from './launcher.js?v=0.2.130';
 
 /** The gold plates (shell.css THE ONE PRIMARY). */
 export const GOLD = '.hw-primary, .hh-tool.is-primary';
@@ -91,7 +91,8 @@ export function paintHead(frame, ctx, renderers) {
   const page = pageId ? wm.row(pageId) : null;
   const crumb = frame.querySelector(':scope > .hs-win-head .hs-win-crumb');
   attr(crumb, 'hidden', !page);
-  text(crumb, page ? (row.title || row.label) : '');
+  /* the arrow is text, so a reader gets "Hunts › Mill Cellar", not "HuntsMill Cellar" */
+  text(crumb, page ? (row.title || row.label) + ' › ' : '');
   text(frame.querySelector(':scope > .hs-win-head .hs-win-name'), page ? (page.title || page.label) : (row.title || row.label));
 }
 

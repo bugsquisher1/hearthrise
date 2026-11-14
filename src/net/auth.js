@@ -72,8 +72,8 @@
 // Ending it there signs out the whole device.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.129';
-import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.129';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.130';
+import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.130';
 
 /** A token closer than this to its expiry is refreshed before it is sent. */
 export const TOKEN_MARGIN_MS = 60000;
@@ -101,6 +101,7 @@ export const AUTH_COPY = Object.freeze({
   passwordFailed: 'That reset link has expired. Ask for a new one from the sign-in screen.',
   network: 'Could not reach the server. Check your connection and try again.',
   signedOut: 'You were signed out. Sign in again.',
+  loadFailed: 'Hearthrise could not finish loading. Check your connection and reload the page.',
 });
 
 const fail = (message) => ({ ok: false, message });

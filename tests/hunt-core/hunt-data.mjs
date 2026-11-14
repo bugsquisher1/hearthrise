@@ -44,6 +44,10 @@ const cases = {
     for (const h of Object.values(M.HUNTS)) {
       /* A called room's blow is the warned exam (src/data/boss-calls.js), not a hunt's floor: its Level-ready bands are tests/boss-call.mjs's table. */
       if (h.called === true) continue;
+      /* A keyed hall is the same warned exam (src/data/boss-halls.js: a key, a confirm that says he hits hard, one fight): its boss is fitted to
+         the ship bar at the band's middle (tools/balance-sim/boss-call-table.mjs --hall), not held to a walked ground's floor. The ground the key
+         drops on is still read here like any other. */
+      if (h.hall === true) continue;
       const b = M.hunt['pull-cycle'].biggestBlowOn(h.id);
       const hp = M.vitals.maxHpFor(h.band[0], 0);
       if (!b) { out.push(h.id + ' has no blow to read'); continue; }

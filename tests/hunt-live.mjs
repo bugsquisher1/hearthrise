@@ -83,6 +83,10 @@
 //         with every cast at once. Browser closed: on the server's commits the casters' first casts start at different instants, and the
 //         same seed gives the same casts again. Viewed: every commit matches the prediction and the browser's casts are the server's, start
 //         for start (the wait is drawn on the swing's own dice, which both sides hold).
+//   LV-KINDS THE KRELL'S HOLD MONSTER KINDS, BOTH PATHS (the design's engine pieces 2, 3 and 4): a Cellar wasp that shoots from range, a
+//         slime that mends its pull, and two Melee heroes that name a kind first. Browser closed: the server's commits show each (most wasp
+//         blows from range, mends landed, the wasp-first hero on a wasp). Viewed: every commit matches, every mend and wasp blow is the
+//         browser's, and a peer's kind first reaches the browser in its frozen row. Each rule's mutants: tests/hunt-core/monster-kinds.mjs.
 //   LV-AREA A HERO'S AREA ABILITY, BOTH PATHS (Tyler 2026-11-08, lane/b-area-set): a sword alone with Turning Cut beside a tank, watched by
 //         the TANK, so the caster is the browser's frozen peer. Browser closed: the server's commits cast it and it strikes for a share of
 //         the caster's own blow; a hero under its unlock level never casts it. Viewed: every commit matches the prediction both ways (the
@@ -1823,6 +1827,74 @@ function rules(M) {
     }
   }
 
+  { // LV-KINDS: THE KRELL'S HOLD MONSTER KINDS, BOTH PATHS (the design's engine pieces 2, 3 and 4; tests/hunt-core/monster-kinds.mjs holds each
+    // rule and its mutants). The Cellar's Hive Wasp SHOOTS (a row `range` of 4: src/core/hunt/shooters.js), its Slime MENDS its pull (a 'mend'
+    // row: monster-spells.js), and two Melee heroes name a KIND FIRST (`target_kind`, hunt-spawn.js heroSetup): `c` the wasp, `b` the rat.
+    // Every Cellar monster stands ten times its health so the fight lasts. Viewed by `c`, so b's kind reaches the browser only through its
+    // frozen peer row (on "Follow", b would mostly be on the leader's slime: naming the rat moves its blows). BROWSER CLOSED: on the server's
+    // commits the wasp shoots from range, the slime mends a packmate and `c` is on the wasp whenever one is engaged. VIEWED: every commit
+    // matches the prediction, and every mend and every wasp blow the server played is the browser's, instant for instant.
+    const SID = 'lv_mend', SPELL = { n: 'Test Mend', shape: 'mend', range: 4, windupMs: 1200, cdMs: 4000, hitPm: 1000, element: null };
+    const kinds = ['rat', 'slime', 'hive_wasp'];
+    const rows = [M.ENGINE_MONSTERS, M.MONSTERS];
+    const had = (t, k, f) => [Object.prototype.hasOwnProperty.call(t[k], f), t[k][f]];
+    const keep = kinds.map((k) => rows.map((t) => ({ hp: t[k].hp, range: had(t, k, 'range'), spells: had(t, k, 'spells') })));
+    const wasLive = M.ENGINE_SPELL_SWITCH.live;
+    M.ENGINE_SPELLS[SID] = SPELL;
+    M.ENGINE_SPELL_SWITCH.live = true;
+    for (const t of rows) { for (const k of kinds) t[k].hp *= 10; t.hive_wasp.range = 4; t.slime.spells = [SID]; }
+    try {
+      const mk = () => [['a', 'tank', null], ['b', 'melee_dps', 'rat'], ['c', 'melee_dps', 'hive_wasp']].map(([user, role, kind], i) => {
+        const mi = memberOf(M, user, i, role, 6);
+        mi.hero = M.SPAWN.heroSetup({ weaponType: role === 'tank' ? 'shield' : 'hammer', options: kind ? { target_kind: kind } : {},
+          bar: [], partyRoles: ['tank', 'melee_dps', 'melee_dps'], lead: i === 0, leaveTogether: true });
+        return mi;
+      });
+      const mis = mk();
+      const n = { cWith: 0, cOnWasp: 0 };
+      const r = run(M, mis, 96000, { viewer: { user: 'c', slot: 0 }, commitMs: 2000, onCommit: ({ srv }) => {
+        if (!srv.inst.world) return;
+        const w = M.WS.decode(JSON.parse(srv.inst.world));
+        const at = (id) => w.units.find((u) => u.id === id);
+        const wasps = w.units.filter((u) => u.side === 'mon' && u.alive && u.kind === 'hive_wasp' && Number.isInteger(u.target));
+        const C = at(mis[2].unitId);
+        if (wasps.length && C && Number.isInteger(C.target)) { n.cWith++; if ((at(C.target) || {}).kind === 'hive_wasp') n.cOnWasp++; }
+      } });
+      const server = r.verdicts.flatMap((x) => x.tl.hunt_events);
+      const mends = server.filter((e) => e.type === 'heal' && e.spell === SID);
+      /* each unit's kind, from the commits' unit books (hunt-track.js huntTimeline hunt_units: { id: [kind, maxHp, hp] }) */
+      const kindOf = new Map();
+      for (const x of r.verdicts) for (const [id, row] of Object.entries(x.tl.hunt_units || {})) kindOf.set(Number(id), row[0]);
+      const waspBlows = server.filter((e) => (e.type === 'dmg' || e.type === 'miss') && kindOf.get(e.u) === 'hive_wasp');
+      /* where each unit stood at a blow: the last step it began by then on the commits' tracks (every window anchors each standing unit
+         on its tile, combat-sim.js ANCHORS; a unit swings only at rest) */
+      const steps = r.verdicts.flatMap((x) => x.tl.hunt_track);
+      const tileAt = (u, at) => { let p = null; for (const st of steps) if (st.u === u && st.atMs <= at) p = st; return p; };
+      const fromRange = waspBlows.filter((e) => { const a = tileAt(e.u, e.atMs), b = tileAt(e.t, e.atMs); return a && b && Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) > 1; });
+      const pct = (a, b) => (b ? Math.round((100 * a) / b) : 0);
+      console.log(`  LV-KINDS closed: ${mends.length} mends, ${waspBlows.length} wasp blows (${fromRange.length} from range), the Melee hero on a wasp at ${n.cOnWasp}/${n.cWith} boundaries; ${r.verdicts.filter((x) => x.v === 'match').length} of ${r.verdicts.length} commits matched`);
+      ok('LV-KINDS', mends.length >= 2, `browser closed: ${mends.length} mends landed in 96 s (want 2+)`);
+      /* (a hero that walks up to a shooter is shot from beside, as it should be: c walks to the wasp, so not every blow is from range) */
+      ok('LV-KINDS', fromRange.length >= 5 && pct(fromRange.length, waspBlows.length) >= 50, `browser closed: the wasp shot ${waspBlows.length} times, ${fromRange.length} of them from range (want 5+ from range, half or more)`);
+      ok('LV-KINDS', n.cWith >= 10 && pct(n.cOnWasp, n.cWith) >= 80, `browser closed: the Melee hero naming the wasp first was on one at ${n.cOnWasp} of ${n.cWith} boundaries (want 10+, 80%+)`);
+      const off = r.verdicts.filter((x) => x.v !== 'match');
+      ok('LV-KINDS', r.verdicts.length >= 20 && off.length === 0, `viewed: ${off.length} of ${r.verdicts.length} commits did not match the prediction`);
+      const last = r.verdicts.length ? r.verdicts[r.verdicts.length - 1].t : 0;
+      const key = (e) => e.type + ':' + e.atMs + ':' + e.u + '>' + e.t + ':' + (e.amount ?? '');
+      const fed = new Set(r.fed.events.map(key));
+      const want = mends.concat(waspBlows).filter((e) => e.atMs < last);
+      ok('LV-KINDS', want.length > 0 && want.every((e) => fed.has(key(e))), `viewed: ${want.filter((e) => !fed.has(key(e))).length} of the server's ${want.length} mends and wasp blows were not the browser's`);
+    } finally {
+      delete M.ENGINE_SPELLS[SID];
+      M.ENGINE_SPELL_SWITCH.live = wasLive;
+      kinds.forEach((k, i) => rows.forEach((t, j) => {
+        const was = keep[i][j];
+        t[k].hp = was.hp;
+        for (const f of ['range', 'spells']) { const [h, v] = was[f]; if (h) t[k][f] = v; else delete t[k][f]; }
+      }));
+    }
+  }
+
   { // LV-AREA: A HERO'S AREA ABILITY, BOTH PATHS (Tyler 2026-11-08: "our heros some more aoe spells"; lane/b-area-set). A sword alone
     // with Turning Cut on its bar (a ring round the hero: each monster struck for a share of the hero's own largest blow, unlocked at a
     // level in its skill) beside a tank, WATCHED BY THE TANK: the caster is the browser's frozen peer, so its level (the unlock) and its
@@ -1912,6 +1984,10 @@ const MUTANTS = [
   ['every caster waits the same, the wait is not drawn (LV-STAGGER)', 'src/core/hunt/monster-spells.js', 'const wait = steps > 0 ? sc.rng.int(0, steps) * sc.dtMs : 0;', 'const wait = steps > 0 ? Math.floor(steps / 2) * sc.dtMs : 0;', /^LV-STAGGER: browser closed: \d+ casters/],
   ['a frozen peer row drops the levels its abilities read (LV-AREA)', 'src/core/member.js', '  for (const k of engineSkillsOf(m.hero.slots)) lv[k] = levelOf(m.state.skills, k);\n', '', /^LV-AREA: at its unlock: viewed/],
   ['an ability casts under its unlock (LV-AREA)', 'src/core/hunt/abilities.js', "    if (row.unlock && h.skills && skillLevel(h, row) < row.unlock) return { why: 'level' };\n", '', /^LV-AREA: under its unlock: browser closed/],
+  ['a frozen peer row drops its kind first (LV-KINDS)', 'src/core/member.js', '    shield: m.shield === true, hero: m.hero, session, lv, shots };',
+    '    shield: m.shield === true, hero: Object.assign({}, m.hero, { settings: m.hero.settings && Object.assign({}, m.hero.settings, { tkind: undefined }) }), session, lv, shots };', /^LV-KINDS: viewed/],
+  ['a shooter shoots only from beside its target (LV-KINDS)', 'src/core/hunt/shooters.js', '  return r ? inShot(inst, m.x, m.y, t, r) : cheb(m, t) <= 1;', '  return cheb(m, t) <= 1;', /^LV-KINDS: browser closed: the wasp/],
+  ['a mender never mends (LV-KINDS)', 'src/core/hunt/monster-spells.js', '  if (mends(sp)) return mendable(inst, u, sp);\n', '  if (mends(sp)) return null;\n', /^LV-KINDS: browser closed: \d+ mends/],
   ['a frozen peer row drops its resistance (LV-SPELL)', 'src/core/member.js', '  ...(snap.resistPm ? { resistPm: snap.resistPm } : {}) });', '  });', /^LV-SPELL: four: viewed/],
   ['a group strike lands only on its target (LV-SPELL)', 'src/core/hunt/shapes.js', "    case 'group': return true;", "    case 'group': return d === 0;", /^LV-SPELL: four: browser closed/],
   ['gear never sums its resistance (LV-SPELL)', 'src/core/combat.js', '  if (resist) Object.assign(s, { resistPm: resist });\n', '', /^LV-SPELL: four: the frost-resisting tank/],

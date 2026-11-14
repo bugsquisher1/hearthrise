@@ -105,12 +105,19 @@ function guardFiles(dir = HERE) {
   return readdirSync(dir).filter((f) => f.endsWith('.mjs')).sort();
 }
 
-/** Every `run:` command in the workflow, as raw strings. */
+/**
+ * Every `run:` command in the workflow, as raw strings.
+ *
+ * A COMMENT LINE IS NOT A COMMAND (2026-11-14). A `# node tests/x.mjs` line inside a `run: |` block is
+ * shell comment, and it used to register x.mjs here while tests/run-ci-local.mjs's parser (the one CI and
+ * tests/ci-shape.mjs read) drops it: a guard commented out of its step stayed "registered" with nothing
+ * running it. Same class as the bare-string chain (M13): a mention is not a run. M14 proves it.
+ */
 function workflowCommands(text) {
   const out = [];
   for (const line of text.split('\n')) {
     const m = /^\s*run:\s*(.+?)\s*$/.exec(line);
-    if (m) out.push(m[1]);
+    if (m && !/^[|>][-+]?$/.test(m[1])) out.push(m[1]);
   }
   // Block scalars (`run: |`) hold their commands on following lines.
   const block = /^\s*run:\s*[|>][-+]?\s*$/;
@@ -122,7 +129,39 @@ function workflowCommands(text) {
       const l = lines[j];
       if (l.trim() === '') continue;
       if ((/^(\s*)/.exec(l))[1].length < indent) break;
+      if (l.trim().startsWith('#')) continue;
       out.push(l.trim());
+    }
+  }
+  return out;
+}
+
+/**
+ * A workflow that RUNS ON ITS OWN: its top-level `on:` holds `push:` or `schedule:` (nightly-loop.yml, pages.yml).
+ * A workflow_dispatch-only one (perf-measure.yml) runs when somebody remembers, which is what "not in CI" means.
+ */
+export function runsOnItsOwn(text) {
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
+  const at = lines.findIndex((l) => /^on:\s*$/.test(l));
+  if (at < 0) return /^on:\s*\[?[^\n]*\b(push|schedule)\b/m.test(text);
+  for (let i = at + 1; i < lines.length; i++) {
+    const l = lines[i];
+    if (/^\S/.test(l)) break;                       // the next top-level key
+    if (/^\s{2}(push|schedule):/.test(l)) return true;
+  }
+  return false;
+}
+
+/**
+ * Every repo script a command RUNS with a proof flag: `node <tests|tools>/…/x.mjs … --selftest`. The mutant gate's
+ * wrapper (`node tools/mutant-gate.mjs node tests/x.mjs --mutate`) is two invocations, and the flag belongs to the
+ * second: each `node <script>` takes the arguments up to the next `node`.
+ */
+export function proofRunsIn(cmd) {
+  const out = [];
+  for (const seg of cmd.split(/&&|\|\||;|\|/)) {
+    for (const m of seg.matchAll(/\bnode\s+((?:tests|tools)\/[A-Za-z0-9._/-]+\.mjs)((?:\s+(?!node\b)[^\s]+)*)/g)) {
+      if (PROOF_FLAGS.some((f) => new RegExp('(?:^|\\s)' + f.replace(/-/g, '\\-') + '(?![\\w-])').test(m[2]))) out.push(m[1]);
     }
   }
   return out;
@@ -253,9 +292,10 @@ export function handRolledIsMain(src) {
   return 0;
 }
 
-export function verdict({ files, workflowText, runSmokeSrc, sources, allowlist, toolSources }) {
+export function verdict({ files, workflowText, runSmokeSrc, sources, allowlist, toolSources, otherWorkflows, nestedTestSources }) {
   const problems = [];
-  const cmds = workflowCommands(workflowText);
+  /* smoke.yml, plus every other workflow that runs on its own (nightly-loop.yml: Tyler's once-a-day core loop) */
+  const cmds = [workflowText, ...Object.values(otherWorkflows || {}).filter(runsOnItsOwn)].flatMap(workflowCommands);
 
   // Who is reachable, and how?
   const registered = new Map();   // file -> [flags seen on its run: lines]
@@ -268,7 +308,10 @@ export function verdict({ files, workflowText, runSmokeSrc, sources, allowlist, 
   }
 
   const fromRunSmoke = references(runSmokeSrc, { bareLiteral: true });
-  const chained = new Map();      // file -> the guard that chains it
+  /* A CHAIN STARTS AT SOMETHING THAT RUNS (2026-11-14). A file imported or spawned only by a guard nothing runs (one
+     on the allowlist, run by hand) is run by nothing either; counting it "chained" was the bare-string hole (M13) one
+     level down. So the chain is walked from the roots, registered files, run-smoke's and the runners, to a fixpoint. M15. */
+  const refsOf = new Map();
   for (const [name, src] of Object.entries(sources)) {
     if (name === 'run-smoke.mjs') continue;
     /* THIS FILE'S OWN mutation catalogue names other guards in string literals
@@ -276,7 +319,22 @@ export function verdict({ files, workflowText, runSmokeSrc, sources, allowlist, 
        file it mentions look reachable would switch off the rule it exists to
        enforce. Skip self. */
     if (name === 'guard-hygiene.mjs') continue;
-    for (const ref of references(src)) if (ref !== name && !chained.has(ref)) chained.set(ref, name);
+    refsOf.set(name, [...references(src)].filter((ref) => ref !== name));
+  }
+  const chained = new Map();      // file -> the reachable guard that chains it
+  {
+    const reached = new Set([...registered.keys(), ...fromRunSmoke, ...RUNNERS]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const [name, refs] of refsOf) {
+        if (!reached.has(name)) continue;
+        for (const ref of refs) {
+          if (reached.has(ref)) continue;
+          reached.add(ref); chained.set(ref, name); grew = true;
+        }
+      }
+    }
   }
 
   const allowed = allowlist.guards || {};
@@ -384,6 +442,41 @@ export function verdict({ files, workflowText, runSmokeSrc, sources, allowlist, 
     }
   }
 
+  // ── RULE 7: EVERY PROOF ARM RUNS IN CI ─────────────────────────────────
+  // RULES 2 and 5 judge the proof steps that EXIST. Nothing judged the proofs that were never registered: the
+  // 2026-11-13 audit found ~29 guards whose --selftest/--mutate no workflow ran (lane/a-audit-guards wired 20), and
+  // two of the rest had rotted unseen: tools/balance-sim/yard-table.mjs --selftest threw on an anchor the designer's
+  // dial moved that day, and tools/balance-lab/parity.mjs had been red since 2026-11-08. A proof nobody runs is a
+  // claim. So every tests/** and tools/** file that BRANCHES on --selftest or --mutate is run with a proof flag by a
+  // workflow that runs on its own, or is named in proof_unrun with the reason it cannot run there.
+  const unrunAllowed = allowlist.proof_unrun || {};
+  const proofCapable = proofCapableFiles({ sources, toolSources, nestedTestSources });
+  const proofRun = new Set(cmds.flatMap(proofRunsIn));
+  for (const p of proofCapable) {
+    if (proofRun.has(p)) continue;
+    const entry = unrunAllowed[p];
+    if (!entry) {
+      problems.push(`PROOF NEVER RUN: ${p} branches on --selftest/--mutate, but no workflow that runs on its own (push or `
+        + 'schedule) runs it with that flag, so it rots where nobody looks. Register `node tools/mutant-gate.mjs node ' + p
+        + ' --selftest|--mutate` in a smoke.yml job, or name it in tests/guards-unregistered.json proof_unrun with the reason '
+        + 'it cannot run there.');
+      continue;
+    }
+    if (typeof entry.reason !== 'string' || entry.reason.trim().length < 40) {
+      problems.push(`UNREASONED PROOF EXEMPTION: ${p} is in proof_unrun with no real reason ("${String(entry.reason).slice(0, 40)}").`);
+    }
+  }
+  for (const p of Object.keys(unrunAllowed)) {
+    if (p.startsWith('$')) continue;
+    if (!proofCapable.includes(p)) {
+      problems.push(`GHOST: tests/guards-unregistered.json proof_unrun names ${p}, which does not exist or no longer branches on `
+        + '--selftest/--mutate. Delete the entry.');
+    } else if (proofRun.has(p)) {
+      problems.push(`STALE PROOF EXEMPTION: ${p} is run with a proof flag in CI now, but proof_unrun still lists it. Remove `
+        + 'the entry so the list keeps meaning what it says.');
+    }
+  }
+
   const stats = {
     guards: files.length - [...RUNNERS].filter((r) => files.includes(r)).length,
     registered: registered.size,
@@ -391,25 +484,57 @@ export function verdict({ files, workflowText, runSmokeSrc, sources, allowlist, 
     chained: chained.size,
     allowlisted: Object.keys(allowed).filter((k) => !k.startsWith('$')).length,
     proof_steps: [...registered.values()].flat().filter((u) => u.flags.length).length,
+    proof_capable: proofCapable.length,
+    proof_unrun: proofCapable.filter((p) => !proofRun.has(p)).length,
   };
   return { problems, stats };
 }
 
+/** Every tests/** and tools/** file that branches on --selftest or --mutate, as a repo-relative path. */
+export function proofCapableFiles({ sources, toolSources, nestedTestSources }) {
+  const all = {
+    ...Object.fromEntries(Object.entries(sources || {}).map(([f, s]) => ['tests/' + f, s])),
+    ...(nestedTestSources || {}),
+    ...(toolSources || {}),
+  };
+  return Object.keys(all).filter((p) => implementsFlag(all[p], '--selftest') || implementsFlag(all[p], '--mutate')).sort();
+}
+
+/** The proof-capable files no workflow runs with a proof flag (tools/guard-anchors.mjs --unregistered prints these). */
+export function unrunProofs(tree = readTree()) {
+  const cmds = [tree.workflowText, ...Object.values(tree.otherWorkflows || {}).filter(runsOnItsOwn)].flatMap(workflowCommands);
+  const run = new Set(cmds.flatMap(proofRunsIn));
+  const exempt = (tree.allowlist && tree.allowlist.proof_unrun) || {};
+  return proofCapableFiles(tree).filter((p) => !run.has(p)).map((p) => ({ path: p, exempt: exempt[p] ? exempt[p].reason : null }));
+}
+
 // ── Reading the real tree ────────────────────────────────────────────────
-function readTree() {
+export function readTree() {
   const files = guardFiles();
   const sources = {};
   for (const f of files) sources[f] = readFileSync(join(HERE, f), 'utf8');
-  const toolSources = {};
-  const walk = (dir) => {
+  const walk = (dir, into, skipTop, depth = 0) => {
     for (const e of readdirSync(dir, { withFileTypes: true })) {
-      if (e.isDirectory()) { if (e.name !== 'node_modules') walk(join(dir, e.name)); }
-      else if (e.name.endsWith('.mjs')) toolSources['tools/' + relative(join(ROOT, 'tools'), join(dir, e.name)).replace(/\\/g, '/')] = readFileSync(join(dir, e.name), 'utf8');
+      if (e.isDirectory()) { if (e.name !== 'node_modules' && !e.name.startsWith('.')) walk(join(dir, e.name), into, skipTop, depth + 1); }
+      else if (e.name.endsWith('.mjs') && !(skipTop && depth === 0)) {
+        into[relative(ROOT, join(dir, e.name)).replace(/\\/g, '/')] = readFileSync(join(dir, e.name), 'utf8');
+      }
     }
   };
-  walk(join(ROOT, 'tools'));
+  const toolSources = {};
+  walk(join(ROOT, 'tools'), toolSources, false);
+  /* tests/<sub>/**.mjs (tests/hunt-core/…): RULE 7 judges their proofs too; the top level is `sources` */
+  const nestedTestSources = {};
+  walk(HERE, nestedTestSources, true);
+  const wfDir = dirname(WORKFLOW);
+  const otherWorkflows = {};
+  for (const f of readdirSync(wfDir)) {
+    if (/\.ya?ml$/.test(f) && join(wfDir, f) !== WORKFLOW) otherWorkflows[f] = readFileSync(join(wfDir, f), 'utf8');
+  }
   return {
     toolSources,
+    nestedTestSources,
+    otherWorkflows,
     files,
     workflowText: readFileSync(WORKFLOW, 'utf8'),
     runSmokeSrc: sources['run-smoke.mjs'] || '',
@@ -567,6 +692,81 @@ const MUTATIONS = [
           .replace('export const REGISTERED = [', "export const REGISTERED = [\n  ['tests/named-in-a-table.mjs', '--mutate'],") } }),
     expect: /ORPHAN: tests\/named-in-a-table\.mjs/,
   },
+  {
+    id: 'M14-a-commented-out-command-is-not-a-registration',
+    why: 'THE 2026-11-14 STATE: `# node tests/x.mjs` inside a run block read as a command here, while tests/run-ci-local.mjs '
+       + '(the parser CI and ci-shape read) drops it. A guard commented out of its step stayed "registered" with nothing running it',
+    mutate: (t) => ({ ...t,
+      files: [...t.files, 'commented-out-guard.mjs'],
+      sources: { ...t.sources, 'commented-out-guard.mjs': 'process.exit(0);\n' },
+      workflowText: t.workflowText
+        + '\n      - name: a step whose guard was commented out\n        run: |\n          # node tests/commented-out-guard.mjs\n          echo nothing\n' }),
+    expect: /ORPHAN: tests\/commented-out-guard\.mjs/,
+  },
+  {
+    id: 'M15-a-chain-from-a-guard-nobody-runs-is-not-a-chain',
+    why: 'M13 one level down: a file imported only by a guard on the allowlist (run by hand) is run by nothing either, and '
+       + 'counting it "chained" hid it. A chain has to start at something CI runs',
+    mutate: (t) => { const u = withPlant(t);
+      return { ...u,
+        files: [...u.files, 'chained-by-a-hand-run.mjs'],
+        sources: { ...u.sources, 'chained-by-a-hand-run.mjs': 'export const x = 1;\n',
+          [PLANT]: u.sources[PLANT] + "import { x } from './chained-by-a-hand-run.mjs';\n" } }; },
+    expect: /ORPHAN: tests\/chained-by-a-hand-run\.mjs/,
+  },
+  {
+    id: 'M16-a-proof-arm-no-workflow-runs',
+    why: 'THE 2026-11-13 AUDIT: ~29 guards branched on --selftest/--mutate and no workflow ran that arm; of the last ten, '
+       + 'yard-table --selftest threw on a stale anchor and balance-lab parity had been red for five days. Plain-registered is not enough',
+    mutate: (t) => ({ ...t,
+      files: [...t.files, 'proof-nobody-runs.mjs'],
+      sources: { ...t.sources, 'proof-nobody-runs.mjs': "if (process.argv.includes('--mutate')) process.exit(0);\nprocess.exit(0);\n" },
+      workflowText: t.workflowText + '\n      - name: plain only\n        run: node tests/proof-nobody-runs.mjs\n' }),
+    expect: /PROOF NEVER RUN: tests\/proof-nobody-runs\.mjs/,
+  },
+  {
+    id: 'M17-a-tool-proof-in-a-subfolder-no-workflow-runs',
+    why: 'tools/guard-anchors.mjs --unregistered read the top of tools/ only, so tools/hooks/bash-guard.mjs (the §2 hook) '
+       + 'and six more subfolder proofs ran nowhere and were counted by nobody',
+    mutate: (t) => ({ ...t, toolSources: { ...t.toolSources,
+      'tools/planted/sub-proof.mjs': "if (process.argv.includes('--selftest')) process.exit(0);\n" } }),
+    expect: /PROOF NEVER RUN: tools\/planted\/sub-proof\.mjs/,
+  },
+  {
+    id: 'M18-a-proof-run-only-by-hand-dispatch-is-not-ci',
+    why: 'a workflow_dispatch-only workflow (perf-measure.yml) runs when somebody remembers; registering a proof there must '
+       + 'not count, or RULE 7 has a door that needs no schedule and no push',
+    mutate: (t) => ({ ...t,
+      toolSources: { ...t.toolSources, 'tools/planted/dispatch-proof.mjs': "if (process.argv.includes('--selftest')) process.exit(0);\n" },
+      otherWorkflows: { ...(t.otherWorkflows || {}), 'planted-manual.yml': 'name: manual\non:\n  workflow_dispatch: {}\n'
+        + 'jobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n      - name: by hand\n        run: node tools/planted/dispatch-proof.mjs --selftest\n' } }),
+    expect: /PROOF NEVER RUN: tools\/planted\/dispatch-proof\.mjs/,
+  },
+  {
+    id: 'M19-a-proof-exemption-with-no-argument-in-it',
+    why: 'the cheap way to silence RULE 7 is a one-word proof_unrun entry; an exemption that does not say why the proof '
+       + 'cannot run in CI is an unrun proof with paperwork',
+    mutate: (t) => ({ ...t,
+      toolSources: { ...t.toolSources, 'tools/planted/exempt-proof.mjs': "if (process.argv.includes('--mutate')) process.exit(0);\n" },
+      allowlist: { ...t.allowlist, proof_unrun: { ...(t.allowlist.proof_unrun || {}), 'tools/planted/exempt-proof.mjs': { reason: 'slow' } } } }),
+    expect: /UNREASONED PROOF EXEMPTION: tools\/planted\/exempt-proof\.mjs/,
+  },
+  {
+    id: 'M20-the-proof-runs-but-the-exemption-stays',
+    why: 'somebody wires an exempt proof and forgets the entry: the list then over-reports the debt and stops being read',
+    mutate: (t) => ({ ...t,
+      toolSources: { ...t.toolSources, 'tools/planted/paid-proof.mjs': "if (process.argv.includes('--mutate')) process.exit(0);\n" },
+      workflowText: t.workflowText + '\n      - name: now wired\n        run: node tools/mutant-gate.mjs node tools/planted/paid-proof.mjs --mutate\n',
+      allowlist: { ...t.allowlist, proof_unrun: { ...(t.allowlist.proof_unrun || {}), 'tools/planted/paid-proof.mjs': { reason: 'x'.repeat(60) } } } }),
+    expect: /STALE PROOF EXEMPTION: tools\/planted\/paid-proof\.mjs/,
+  },
+  {
+    id: 'M21-a-proof-exemption-for-a-file-that-is-gone',
+    why: 'a tool is deleted and its proof_unrun entry outlives it',
+    mutate: (t) => ({ ...t, allowlist: { ...t.allowlist,
+      proof_unrun: { ...(t.allowlist.proof_unrun || {}), 'tools/long-gone-proof.mjs': { reason: 'x'.repeat(60) } } } }),
+    expect: /GHOST: tests\/guards-unregistered\.json proof_unrun names tools\/long-gone-proof\.mjs/,
+  },
 ];
 
 /* The CLI runs only when this file IS the entry point: tools/guard-anchors.mjs imports
@@ -630,12 +830,14 @@ if (isMain(import.meta.url)) {
   } else {
     console.log('guard hygiene — every guard reachable, every claimed proof real\n');
     console.log(`  ${stats.guards} guard file(s) under tests/`);
-    console.log(`    ${stats.registered} registered in .github/workflows/smoke.yml`);
+    console.log(`    ${stats.registered} registered in a workflow that runs on its own (smoke.yml, nightly-loop.yml)`);
     console.log(`    ${stats.via_run_smoke} invoked by tests/run-smoke.mjs`);
-    console.log(`    ${stats.chained} chained from another guard`);
+    console.log(`    ${stats.chained} chained from a guard that runs`);
     console.log(`    ${stats.allowlisted} on tests/guards-unregistered.json, each with a written reason`);
     console.log(`  ${stats.proof_steps} workflow step(s) claim a mutation proof; each resolves to a file that `
-      + 'branches on the flag\n');
+      + 'branches on the flag');
+    console.log(`  ${stats.proof_capable} proof-capable file(s) under tests/ and tools/: ${stats.proof_capable - stats.proof_unrun} `
+      + `run with their proof flag in CI, ${stats.proof_unrun} in proof_unrun with a reason\n`);
     if (problems.length) {
       console.error(`FAILED — ${problems.length} problem(s):\n`);
       for (const p of problems) console.error('  ✗ ' + p + '\n');

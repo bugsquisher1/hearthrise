@@ -1,0 +1,12 @@
+  attack [group: 297126c6-e0b6-4b69-9bdf-20e9994b1001]
+    description: jabs with the staff and flag then pulls back, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/1a4ce709-8e5e-4f3b-b82f-70801a297d5e/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/48cffaa6-44b5-440a-8efe-6ad11782fb38/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/e3ee398c-3b4c-47fb-8691-a16e4951b9f5/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/2543a3df-420c-48e2-aa03-6fc77186ab33/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/455ee15b-fcc0-4e12-9b08-af3ffdccc9b2/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/4c230268-cef7-4235-a3c7-7738ac013cfe/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/8dc840b1-9757-4efe-9545-3abbdf2980f0/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/db29f6a9-1841-495c-8aaa-21ba59264308/west/{i}.png  (i=0..6)

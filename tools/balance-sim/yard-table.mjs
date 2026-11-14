@@ -15,6 +15,7 @@
 // Exit: 0 every row under the line · 1 a row over it · 2 harness.
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { join, dirname, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -70,10 +71,13 @@ function print(rows) {
 async function selftest() {
   const { plant } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/h1.js')).href);
   const { PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
-  const SHARE = 'xpPermille: Object.freeze({ melee: 350, ranged: 350, magic: 350, defense: 350 }),';
+  /* The dial's line as the file holds it today, read rather than retyped: a literal of the shares (350 each) went stale the day the
+     designer moved them to 215/245/340/215 (80b1fea6f), and plant() then threw on a missing anchor with nothing in CI to see it. */
+  const SHARE = (/xpPermille: Object\.freeze\(\{[^}\n]*\}\),/.exec(readFileSync(join(ROOT, 'src/data/training.js'), 'utf8')) || [])[0];
+  if (!SHARE) { console.error('yard-table --selftest: src/data/training.js holds no `xpPermille: Object.freeze({ ... }),` line to plant into'); process.exit(2); }
   const cases = [
-    ['a share far under the line reads green', SHARE.replace(/350/g, '60'), false],
-    ['a share far over the line reads red', SHARE.replace(/350/g, '1000'), true],
+    ['a share far under the line reads green', SHARE.replace(/\d+/g, '60'), false],
+    ['a share far over the line reads red', SHARE.replace(/\d+/g, '1000'), true],
   ];
   let bad = 0;
   for (const [name, to, wantRed] of cases) {

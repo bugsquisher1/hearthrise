@@ -14,9 +14,9 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { leashMarginOf } from '../../data/hunt-grounds.js?v=0.2.129';
-import { makeEvent } from './events.js?v=0.2.129';
-import { staleIndex } from './unit-index.js?v=0.2.129';
+import { leashMarginOf } from '../../data/hunt-grounds.js?v=0.2.130';
+import { makeEvent } from './events.js?v=0.2.130';
+import { staleIndex } from './unit-index.js?v=0.2.130';
 
 /** Is (x, y) inside pocket `pocket`'s pack area (its room plus the ground's margin)? */
 export function inArea(inst, pocket, x, y) {
@@ -57,22 +57,45 @@ export function holderOutside(inst, pocket) {
 }
 
 /**
+ * AN ADD: a monster a boss's line brought into his pocket for the fight (pull-cycle.js spawnAdds, boss-phases.js), not one of
+ * the pack it spawned with. It is placed with NO HOME, the tile a reset walks a monster back to: every monster spawnPack places
+ * has one. Only a pocket that names `adds` (hunt-grounds.js) can hold one, so a world built without homes elsewhere is never
+ * read as a wave. The engine's one test of an add: the guard reads it (boss-phases.js guardPmOf) and so does the reset below.
+ */
+export function isAdd(inst, u) {
+  const p = Number.isInteger(u.pocket) && inst.ground ? inst.ground.pockets[u.pocket] : null;
+  return u.side === 'mon' && !u.home && !!p && Array.isArray(p.adds) && p.adds.length > 0;
+}
+
+/**
  * THE LEASH RESET (spec §3.1 #7, LE-06): the pack drops its targets, heals to
  * full and walks home. The walk is a goal; movement.js takes every step of it
  * (it is the only writer of a monster's tile).
+ * A BOSS'S ADDS LEAVE (a ground's boss with `phases`: the leader died, or his holder walked out). They came for that try and
+ * have no home to walk to, so they go with it: off the world, no kill, nothing paid. He heals with his pack, so the next try
+ * crosses his lines again and brings ONE fresh wave, never a second on top of the first (boss-phases.js stores nothing).
  */
 export function resetPack(inst, pocket, sc) {
   const pack = inst.world.packs[pocket];
   /* A CALLED ROOM NEVER RESETS: a death ends the whole fight at its next boundary, and his HP only falls (boss-phases.js reads no flag, the fight's record reads where he stood). */
   if (!pack || (inst.ground && inst.ground.call)) return;
+  /* NOR DOES A KEYED HALL (boss-room.js): one fight, his HP only falls, his adds stay until they fall. */
+  if (inst.ground && inst.ground.hall) return;
   pack.aggro = false;
   pack.holder = null;
+  const gone = new Set();
   for (const u of inst.world.units) {
     if (u.side !== 'mon' || u.pocket !== pocket || !u.alive) continue;
     u.target = null;
+    u.path = [];
+    /* off the world below; not alive now, so a loop still walking this swing's list passes it by */
+    if (isAdd(inst, u)) { u.alive = false; u.hp = 0; u.goal = null; gone.add(u.id); continue; }
     u.hp = u.maxHp;
     u.goal = u.home ? [u.home[0], u.home[1]] : null;
-    u.path = [];
+  }
+  if (gone.size) {
+    inst.world.units = inst.world.units.filter((u) => !gone.has(u.id));
+    for (const u of inst.world.units) if (gone.has(u.target)) u.target = null;
   }
   staleIndex(inst);
   sc.emit(makeEvent('pack_reset', sc.atMs, { pocket }));

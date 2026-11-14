@@ -35,10 +35,10 @@
 // journal's bag side - eaten = the hunt bag (tests/hunt-sessions-db.mjs B1); journal's inventory side = the backpack's move;
 // every carry's pair matched (one +qty, one -qty).
 //
-// NOT A CI STEP: GitHub has no PostgreSQL 17 binaries (tests/guards-unregistered.json). Never touches production or the
+// CI: smoke.yml's pg17 job, plain + --mutate (.github/actions/postgres-17, since 2026-11-14). Never touches production or the
 // machine's own PostgreSQL service: it starts tools/pg-replay.mjs's scratch cluster. Env: HR_PG_PORT, HR_PG_DATA, HR_PG_BIN;
-// HR_PG_TEMPLATE = an existing chain database to clone, this lane's files applied over it, instead of the 25 min
-// build of the whole chain. Exit: 0 green (--mutate: every mutant caught) · 1 red · 2 harness.
+// HR_PG_TEMPLATE = an existing chain database to clone, this lane's files applied over it, instead of the build
+// of the whole chain (45 s on a GitHub runner, measured 2026-11-14). Exit: 0 green (--mutate: every mutant caught) · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

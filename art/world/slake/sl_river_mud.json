@@ -1,0 +1,120 @@
+{
+  "id": "sl_river_mud",
+  "class": "terrain",
+  "kind": "wang16",
+  "style": "s1",
+  "material": "native",
+  "source": "sl_river_mud.png",
+  "lower": "river",
+  "upper": "mud",
+  "tiles": {
+    "1000": [
+      [
+        0,
+        1
+      ]
+    ],
+    "1001": [
+      [
+        1,
+        1
+      ]
+    ],
+    "1010": [
+      [
+        2,
+        1
+      ]
+    ],
+    "1011": [
+      [
+        3,
+        1
+      ]
+    ],
+    "1100": [
+      [
+        4,
+        1
+      ]
+    ],
+    "1101": [
+      [
+        5,
+        1
+      ]
+    ],
+    "1110": [
+      [
+        6,
+        1
+      ]
+    ],
+    "1111": [
+      [
+        7,
+        1
+      ]
+    ],
+    "0000": [
+      [
+        0,
+        0
+      ]
+    ],
+    "0001": [
+      [
+        1,
+        0
+      ]
+    ],
+    "0010": [
+      [
+        2,
+        0
+      ]
+    ],
+    "0011": [
+      [
+        3,
+        0
+      ]
+    ],
+    "0100": [
+      [
+        4,
+        0
+      ]
+    ],
+    "0101": [
+      [
+        5,
+        0
+      ]
+    ],
+    "0110": [
+      [
+        6,
+        0
+      ]
+    ],
+    "0111": [
+      [
+        7,
+        0
+      ]
+    ]
+  },
+  "pixellab": {
+    "tool": "create_topdown_tileset",
+    "mode": "pro",
+    "tileset": "5730601c-af79-4b9f-9eea-6cf5b8df42d0",
+    "lower_base_tile_id": "08acfa0d-fa4c-42ad-b4d7-93e19bc545e5",
+    "upper_base_tile_id": "e7f42865-6429-488a-92e9-06b27f9960a7",
+    "transition_size": 0,
+    "tiles": 16,
+    "palette": "hr-world-56-v2",
+    "palette_locked": true
+  },
+  "notes": "The river/mud pair from PixelLab tileset 5730601c-af79-4b9f-9eea-6cf5b8df42d0 (pro, 16 tiles) by tools/world-art/port-pixellab.mjs tileset: its sixteen corner tiles cut at the metadata's boxes, pixels unscaled. Every pixel came on hr-world-56-v2, so it is `native`: the lock does not grade it."
+}

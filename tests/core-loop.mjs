@@ -128,12 +128,13 @@ import { START_KIT } from '../src/data/start-kit.js';
 import { charLevelFromXp, charXpForLevel, skillXpForLevel } from '../src/core/xp.js';
 import { BASIC_INDEX } from '../src/data/supply-basics.js';
 import { STAMINA_MAX_MS as STAMINA_CAPS, DEFAULT_RESUME } from '../src/data/hunt-sessions.js';
-import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
+import { OPEN_GROUNDS } from '../src/data/hunt-grounds.js';
 import { recommendedHunt, huntRows } from '../src/shell/hunt-list.js';
 /* A free character's pool (lane S1: the cap is per character, free 8 h / premium 12 h). */
 const STAMINA_MAX_MS = STAMINA_CAPS.free;
 /* The hunts a character can enter: lane S1 fights only on a ground. */
-const GROUNDED = new Set(Object.values(HUNT_GROUNDS).map((g) => g.hunt));
+/* the hunts a character can enter: lane S1 fights only on a ground, and only on an OPEN one (a staged ground pack is hidden and refused, unknown_hunt) */
+const GROUNDED = new Set(Object.values(OPEN_GROUNDS).map((g) => g.hunt));
 
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
 const SEED = 0x10091;

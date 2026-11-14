@@ -1,0 +1,5 @@
+  attack3 [group: 5835b6e5-7659-4adb-af2f-edf2cc405614]
+    description: seen from behind, he raises his right arm and chops it down in front of his body then lowers it again, the small sickle stays hidden in front of him and never shows beyond his body, no pole, no long tool, the iron cap stays on, feet planted, ends in the same pose it started, nothing else appears in the frame
+    directions: north-west (1/8)
+    frames: 7
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/0293a2df-eaba-4a7b-884f-264012a49ca7/north-west/{i}.png  (i=0..6)

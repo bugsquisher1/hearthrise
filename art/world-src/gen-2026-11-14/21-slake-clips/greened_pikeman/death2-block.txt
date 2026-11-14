@@ -1,0 +1,8 @@
+  death2 [group: 1827d34d-70af-41dd-8405-b9d38bb2674a]
+    description: the bones fall apart and collapse flat onto the ground in a low heap, the helmet rolls off, the pike falls and lies flat on the ground beside the heap, at the end nothing is standing or sitting, nothing else appears in the frame
+    directions: east, north-west, south, west (4/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/e9cbf2dc-dd03-4138-8268-c5fb7af63808/east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/862aaa2a-cc79-429b-815c-eb71d837dad3/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/8114e0bb-127d-4d4a-abcd-b9227c8f691b/south/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/d2689c97-0487-4b58-ba31-0621aa095c58/west/{i}.png  (i=0..6)

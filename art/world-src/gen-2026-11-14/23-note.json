@@ -1,0 +1,19 @@
+{
+  "brief": "art/briefs/gen-2026-11-14/23-pyre-ash-family.txt",
+  "call": "create_topdown_tileset pro 32 px, high top-down, transition 0, palette hr-world-56-v2 (56 hex) + max_colors 12; every fill is on palette, so the native (identity) lock moves 0 pixels",
+  "finding": "A CHAIN IS SAFE WHEN THE BASE IS ITSELF PALETTE-NATIVE. Brief 14's recolour came from chaining a NON-palette base. Chaining pair 1's palette-born scorched (61e78317) with the same palette came back byte-identical (fill-lower of 7b5f62f2 == fill-upper of 97189b07, Buffer.equals true). So the family is one ash, one scorched, one burnt grass, one charred wood, chained, with no seams. Worth folding into the palette-lesson memory.",
+  "pairs": {
+    "1 ash/scorched": { "kept": "97189b07 (roll 3)", "ash": "#8a867d 86.1 #6a6865 13.0", "scorched": "#3a3a3e 51.4 #553a26 19.7 #2f2723 15.8 #3d2a1d 12.5 (majority under 80, none on the iron ramp)",
+      "refused": { "48298b36 r1": "scorched drew as cobble plates and 11.4% on iron #2c2e33", "1f0c72f4 r2": "scorched read as plain red-brown dirt, not soot" },
+      "flag": "scorched median is #3a3a3e, darker than the brief's #6a6865: the black bodies stand on the ash, the scorched is the field's dark patches" },
+    "3 ash/cinder pit": { "kept": "a8118c34", "ash": "#8a867d 88.7 (the same ash family as pair 1)", "cinder": "#0b0a0c 71.6 #231d1f 18.1 with dull orange specks" },
+    "4 ash/charred wood": { "kept": "ae3c3036", "wood": "#2f2723 46.4 #0b0a0c 17.6 #231d1f 17.1 #17141a 11.2: fallen planks, flat" },
+    "5 scorched/burnt grass": { "kept": "ef2eed4d (chained: lower = pair 1's scorched 61e78317, byte-identical)", "grass": "#6b7a38 67.8 #4a5a2a 18.5 #a88457 5.3, withered olive with soot-black tips",
+      "refused": { "e15a4ba1 (unchained)": "scorched #3a3a3e 81% (not pair 1's), burnt grass flat orange dirt", "7b5f62f2 (chained)": "burnt grass still read as orange gravel (#7a4f26 66%)" } },
+    "6 burnt grass/charred wood": { "kept": "27950f46 (both halves chained: burnt grass c5ee7a66, charred wood 4e1250ef)", "refused": { "7ac25f53 (unchained)": "the charred wood drew as a brick wall, the grass flat orange" } },
+    "7 burnt grass/March grass": { "kept": "b54f3f77 (lower chained burnt grass)", "alt": "92374a96 (khaki words, same result)", "refused": { "955ab250 (unchained)": "a third, different burnt grass" },
+      "flag": "on palette the March grass is #6b7a38 (84-92%), greener than the Muster's shipped khaki (#786e3c, which is the terrain grade's output). Native import keeps it greener; a `terrain` grade would pull it to khaki but drops the burnt half a step. Import lane's call." }
+  },
+  "gens": "pair 1 x3 45, pairs 3-7 first rolls 75, chained 5 x3 + 6 + 7 x2 75: about 195 (over the brief's 150: the chain experiment and the burnt-grass words)",
+  "wiring": "family `ash` in region-kits.js barrow_march (the import lane), native material; the Pyre's ground paints from map 'P' and '#' rows"
+}

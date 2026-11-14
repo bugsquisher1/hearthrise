@@ -21,9 +21,10 @@
 // Debian's /usr/lib/postgresql/17/bin). A scratch cluster under the OS temp dir (HR_PG_DATA overrides), trust auth on
 // 127.0.0.1 only, port HR_PG_PORT (55417), fsync off: it is a measuring bench, never a store. The chain is built ONCE
 // into a template database named by the hash of every byte it applies; each bootPg() clones it (seconds).
-// Never touches production. Not a CI step (CI has no PostgreSQL 17 binaries; the PGlite replay stays the gate).
+// Never touches production. CI runs it in smoke.yml's pg17 job (.github/actions/postgres-17 installs the binaries, 2026-11-14)
+// for the races PGlite cannot run; the PGlite replay stays the gate for everything else.
 // ════════════════════════════════════════════════════════════════════════
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { spawn, execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
@@ -69,7 +70,10 @@ async function ready() {
     try { execFileSync(exe('pg_isready'), ['-h', '127.0.0.1', '-p', String(PORT)], { stdio: 'ignore' }); return; }
     catch { await new Promise((r) => setTimeout(r, 200)); }
   }
-  throw new Error(`pg-replay: no server on 127.0.0.1:${PORT} after 20 s`);
+  /* the server's own words: a detached pg_ctl writes them only to its log (the first CI run died here with nothing else to read) */
+  let tail = '';
+  try { tail = readFileSync(join(DATA, 'server.log'), 'utf8').trim().split('\n').slice(-8).join('\n'); } catch { /* no log */ }
+  throw new Error(`pg-replay: no server on 127.0.0.1:${PORT} after 20 s${tail ? `; ${join(DATA, 'server.log')} ends:\n${tail}` : ''}`);
 }
 
 /** Start the scratch cluster (initdb once). Detached: the server outlives this process, as a bench should. */
@@ -80,8 +84,12 @@ export async function ensureServer() {
     mkdirSync(DATA, { recursive: true });
     execFileSync(exe('initdb'), ['-D', DATA, '-U', 'postgres', '--auth=trust', '-E', 'UTF8', '--locale=C'], { stdio: 'ignore' });
   }
+  /* Debian's server keeps its socket in /var/run/postgresql, which only the postgres user may write: started as anyone else
+     (a GitHub runner) it cannot take its lock file and exits. The scratch cluster is TCP-only by design; its socket lives
+     in its own data directory. Windows has no such default and is left as it was. */
   const opts = `-p ${PORT} -c listen_addresses=127.0.0.1 -c fsync=off -c synchronous_commit=off -c full_page_writes=off`
-    + ' -c shared_buffers=256MB -c max_connections=30 -c max_locks_per_transaction=1024 -c track_functions=all';
+    + ' -c shared_buffers=256MB -c max_connections=30 -c max_locks_per_transaction=1024 -c track_functions=all'
+    + (process.platform === 'win32' ? '' : ` -c unix_socket_directories=${DATA}`);
   spawn(exe('pg_ctl'), ['-D', DATA, '-l', join(DATA, 'server.log'), '-o', opts, 'start'], { detached: true, stdio: 'ignore' }).unref();
   await ready();
 }

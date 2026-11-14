@@ -130,6 +130,10 @@
 //         (Back, title, ? where it has help, key, Close); a creature on a ground's page opens Monster facts as a PAGE of Hunts with Back,
 //         and a link out of it opens a window whose Back says Back to Hunts and goes there; the bag stays open beside Storage, the Shop
 //         and Character; Hunts lies over Party and Gathering without closing them; two more gold plates planted in the Shop leave one gold
+//   AW-95 NO WINDOW LIES ON THE HUNT'S CONTROLS (play gate 2026-11-13, 1280x720: the bag docked in town covered Leave hunt and
+//         the bar's Setup, Target and stance): at 1280x720, 1024x768 and 922x423, in a hunt, with Inventory or Character open, the
+//         middle of Leave hunt, Hunt details, Setup, stance and Target is the control itself, never a window (in a hunt a
+//         docked window starts under the hunt bar and ends above the action bar; a phone's sheet ends above the bar)
 //   AW-93 A WINDOW OPENS WHOLE (Tyler 2026-11-11, the Hunts window at 1014x652: "when I open a menu, part of it shouldn't
 //         automatically be cut off"): at 1014x652, 1024x768 and 922x423, a Level 36 hero in town, Hunts, Inventory, Shop and Market each
 //         open inside the World, lose no word or press to a box that hides its overflow or to the frame, and every scroll
@@ -1243,7 +1247,9 @@ async function panelLeftovers(base) {
   const bySuggest = [[{ boots: 'leather_boots' }, 'tank', 'medium'], [{ helmet: 'iron_helm' }, 'mage', 'heavy'], [{}, 'tank', 'heavy'], [{}, 'melee_dps', 'heavy'], [{}, 'ranger', 'medium'], [{}, 'mage', 'light'], [{}, 'healer', 'light']];
   for (const [w, r, want] of bySuggest) if ((suggestedWeight(w, r) || {}).weight !== want) fails.push('AW-62 a first Take for ' + r + ' in ' + JSON.stringify(w) + ' asks for ' + JSON.stringify(suggestedWeight(w, r)));
   if (suggestedWeight({}, null) !== null) fails.push('AW-62 with nothing said a first Take still guesses ' + JSON.stringify(suggestedWeight({}, null)));
-  if (takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')) !== 'When you take your first task, she pays you in heavy armor, which suits a shield tank. Change it below any time.') fails.push('AW-62 the line over her board with a suggestion reads ' + takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')));
+  /* the weight that suits is said once, on her pick line (fresh-account play 11-13: it was said over her board and again under it) */
+  if (suggestedWeight({}, 'tank').words !== 'She\'ll pay you in heavy armor, since you\'re a shield tank.' || suggestedWeight({ boots: 'leather_boots' }, 'tank').words !== 'She\'ll pay you in medium armor, since that\'s what you wear most.'
+    || takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')) !== '') fails.push('AW-62 the weight that suits reads ' + JSON.stringify([suggestedWeight({}, 'tank').words, takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank'))]));
   if (!/^Pick the armor weight/.test(takeWhyOf({ weight: null, held: [], heldMax: 3 }, false)) || !/^You have three of mine already/.test(takeWhyOf({ weight: 'heavy', held: [1, 2, 3], heldMax: 3 }, false))
     || takeWhyOf({ weight: 'heavy', held: [], heldMax: 3 }, false) !== '' || takeWhyOf({ weight: null, held: [], heldMax: 3 }, true) !== '') fails.push('AW-62 the line over her board is wrong');
   const { buryLabel, buryRecipeOf } = await imp('src/shell/windows/inventory/bury.js');
@@ -1469,6 +1475,15 @@ async function planRules(base) {
   const { HOW_YOU_FIGHT } = await imp('src/data/how-to-play.js');
   const shoot = HOW_YOU_FIGHT.find((f) => f.id === 'shoot');
   if (!shoot || !/Bronze Arrows are free and never run out/.test(JSON.stringify(shoot))) fails.push('AW-27 creation says of the bow ' + JSON.stringify(shoot));
+  /* AW-27 ONE NAME PER WEAPON (fresh-account play 11-13: the Hero screen said "Two axes or a hammer", the bag tip "Hatchets or a club"): each style
+     names its weapons by the items' own names, and the bag's styles tip says each style the same way. */
+  const { ITEMS: KIT } = await imp('src/data/items.js');
+  const stylesTip = (readFileSync(join(ROOT, 'src/data/hunt-tutorial.js'), 'utf8').match(/textIn: '(Sword and shield hold[^']*)'/) || [])[1] || '';
+  for (const f of HOW_YOU_FIGHT) {
+    const off = f.weapons.filter((w) => !f.name.toLowerCase().includes(String(KIT[w]?.n || w).split(' ').pop().toLowerCase()));
+    if (off.length) fails.push('AW-27 the ' + f.id + ' style "' + f.name + '" does not name ' + off.join(', '));
+    if (!stylesTip.toLowerCase().includes(f.name.toLowerCase())) fails.push('AW-27 the bag\'s styles tip does not say "' + f.name + '": ' + JSON.stringify(stylesTip));
+  }
   /* AW-8 / AW-27 AN EMPTY FOOD SLOT IS A HEADS-UP, NOT A BLOCKER (Tyler 10-29: "0 food" in Hunt prep on a hero that
      carries food the bar does not name and is not getting hit). Both surfaces say the empty stock and the bag's spare
      food with the fix, and neither calls it short; empty ammo on a shooter's bar still stops it. */
@@ -2757,6 +2772,15 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           'mosslight_glade::Level 16–31:far:Far above your level::No best yet:Alone or with up to 3 more',
           'coppercap_warrens::Level 32–50:far:Far above your level::No best yet:Alone or with up to 3 more'];
         if (list.join('|') !== want.join('|')) fails.push('AW-25 the list lines read ' + JSON.stringify(list));
+        /* AW-25 THE DOTS ARE TEXT (lane a-first-board-copy, the class of "Paid today 0 of 3resets"): a reader gets the line as it looks, and the
+           picked ground's page reads its band the same way */
+        const readLine = await page.evaluate((w) => { const li = document.querySelector(w + '.hw-hunt[data-hunt="mill_cellar"]');
+          return [li.querySelector('.hw-hunt-band').innerText, li.querySelector('.hw-hunt-sub').innerText, document.querySelector(w + '.hw-hd-band')?.innerText]; }, W);
+        /* and each dot binds to the words after it (format.js SEP, a no-break space), so no wrapped line ends on one (the v0.2.130 gate) */
+        const NBSP = String.fromCharCode(160), bound = (x) => String(x || '').split('·').slice(1).every((rest) => rest[0] === NBSP);
+        if (!readLine.every(bound)) fails.push('AW-25 a dot in the Hunts lines can end a line: ' + JSON.stringify(readLine));
+        readLine.forEach((x, i) => { readLine[i] = String(x || '').split(NBSP).join(' '); });
+        if (readLine[0] !== 'Level 1–8 · In your range' ||!/^Right for your level[ \u00a0]· No best yet$/.test(readLine[1]) || readLine[1] !== 'Right for your level · No best yet' || !/ · In your range$/.test(readLine[2] || '')) fails.push('AW-25 a reader gets ' + JSON.stringify(readLine));
         /* The picked ground's page: who lives here as the world draws them, at a whole-number scale on one ground line. */
         const page1 = () => page.evaluate((w) => {
           const d = document.querySelector(w + '.hw-hunt-detail');
@@ -2767,7 +2791,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             rares: Array.from(d.querySelectorAll('.hw-hd-rares .hw-hd-rare')).map((n) => n.querySelector('.hw-hd-rare-name').textContent + ' / ' + n.querySelector('.hw-hd-rare-by').textContent + (n.classList.contains('is-trophy') ? ' (trophy)' : '')),
             raresShown: (() => { const h = d.querySelector('.hw-hd-rares'), head = h && h.previousElementSibling; return !!head && head.getClientRects().length > 0; })(),
             mons: Array.from(d.querySelectorAll('.hw-hd-mon')).map((li) => { const c = li.querySelector('canvas'), b = c.getBoundingClientRect(), st = li.querySelector('.hw-hd-stand').getBoundingClientRect();
-              return { id: li.dataset.monster, how: li.querySelector('.hw-hd-mon-how').textContent.replace(/ /g, ' '), drawn: li.classList.contains('is-drawn'), carrier: li.classList.contains('is-carrier'),
+              const how = li.querySelector('.hw-hd-mon-how').textContent;
+              return { id: li.dataset.monster, how: how.split(String.fromCharCode(160)).join(' '), bound: how.split('\u00b7').slice(1).every((x) => x[0] === String.fromCharCode(160)), drawn: li.classList.contains('is-drawn'), carrier: li.classList.contains('is-carrier'),
                 w: c.width, h: c.height, cw: b.width, ch: b.height, ground: Math.round(st.bottom), inside: b.top >= st.top - 0.5 }; }),
             bests: Array.from(d.querySelectorAll('.hw-hd-best')).filter((n) => n.getClientRects().length).map((n) => n.textContent) };
         }, W);
@@ -2776,6 +2801,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!drawn || p.mons.some((m) => !m.drawn || !m.w || m.w % 2 || m.h % 2 || Math.abs(m.cw - m.w) > 0.5 || Math.abs(m.ch - m.h) > 0.5)) fails.push('AW-25 the creatures are not drawn at x2 from the world art: ' + JSON.stringify(p.mons));
         if (new Set(p.mons.map((m) => m.ground)).size !== 1 || p.mons.some((m) => !m.inside)) fails.push('AW-25 the creatures do not stand on one ground line, inside it: ' + JSON.stringify(p.mons.map((m) => [m.ground, m.inside])));
         const mons = p.mons.map((m) => m.id + ':' + m.how + (m.carrier ? ':carrier' : '')).join('|');
+        /* a creature card's dot binds to its share ("Level 2 ·" / "uncommon" was the v0.2.130 gate) */
+        if (p.mons.some((m) => !m.bound)) fails.push('AW-25 a creature card\'s dot can end its line: ' + JSON.stringify(p.mons.map((m) => m.how)));
         if (p.name !== 'Mill Cellar' || p.theme !== HUNTS.mill_cellar.theme || mons !== 'rat:Level 2 · common|slime:Level 2 · uncommon|hive_wasp:Level 4 · uncommon:carrier')
           fails.push('AW-25 the Mill Cellar page reads ' + JSON.stringify({ name: p.name, theme: p.theme, mons }));
         /* the fixture hero wears Leather Boots, so the medium line reads first; the Cellar's one Rare is the Hive Wasp's
@@ -2809,7 +2836,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         /* AW-26 GO AS: the setups as lines, the one on now chosen; Enter as it is ONE hr_hunt_enter and no apply. */
         const goAs = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-go')).map((b) => [b.dataset.preset, b.getAttribute('aria-checked'), b.querySelector('.hw-go-name').textContent,
-          b.querySelector('.hw-go-what').textContent, b.querySelectorAll('.hw-go-bar .hh-icon').length, (b.querySelector('.hw-go-weapon img') || {}).src ? b.querySelector('.hw-go-weapon img').getAttribute('src').split('/').pop() : ''].join(':')), W);
+          b.querySelector('.hw-go-what').textContent.split(String.fromCharCode(160)).join(' '), b.querySelectorAll('.hw-go-bar .hh-icon').length, (b.querySelector('.hw-go-weapon img') || {}).src ? b.querySelector('.hw-go-weapon img').getAttribute('src').split('/').pop() : ''].join(':')), W);
         const g0 = (await goAs()).join('|');
         if (g0 !== '0:true:Hunt:Melee · on now:4:iron_sword.png|1:false:Bow:Ranger:0:shortbow.png') fails.push('AW-26 Go as reads ' + JSON.stringify(g0));
         /* AW-27 BEFORE YOU GO: what the bar spends, in slot order, from the server's bar, bag and gold. */
@@ -4315,6 +4342,35 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       }
     }
 
+    { // AW-95 no window lies on the hunt's controls (play gate 2026-11-13: the bag docked at 1280x720 covered Leave hunt and the bar's Setup, Target, stance)
+      for (const viewport of [{ width: 1280, height: 720 }, { width: 1024, height: 768 }, { width: 922, height: 423 }]) {
+        const { ctx, page, up } = await open({ viewport });
+        const at = viewport.width + 'x' + viewport.height;
+        if (!up) { fails.push('AW-95 the ' + at + ' hunt did not mount'); await ctx.close(); continue; }
+        for (const [key, id] of [['b', 'inventory'], ['c', 'character']]) {
+          if (!(await openWin(page, key, id))) { fails.push('AW-95 the ' + key.toUpperCase() + ' key did not open ' + id + ' at ' + at); continue; }
+          await page.waitForTimeout(400);
+          const covered = await page.evaluate(() => {
+            const out = [];
+            const sels = ['[data-hs-widget="hunt-topbar"] [data-hs-act="leave"]', '[data-hs-widget="hunt-topbar"] [data-hs-act="details"]', '.hb-plaque .hb-set', '.hb-plaque .hb-stance', '.hb-plaque [data-opt="target_mode"]'];
+            for (const sel of sels) {
+              const b = document.querySelector(sel);
+              if (!b || !b.getClientRects().length || b.closest('.is-under-dock')) continue;   // a control not drawn here, or waiting beside the dock, is under no window
+              const q = b.getBoundingClientRect();
+              if (!q.width || !q.height) continue;
+              const top = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2);
+              const win = top && top.closest('.hs-win');
+              if (win) out.push(sel + ' lies under the ' + win.getAttribute('data-hs-win') + ' window');
+            }
+            return out;
+          });
+          for (const c of covered) fails.push('AW-95 at ' + at + ' with ' + id + ' open, ' + c);
+          if (shots) await shot(page, 'hunt-controls-' + at + '-' + id);
+        }
+        await ctx.close();
+      }
+    }
+
     { // AW-94 one window header (UX flow audit 2026-11-11): the same band on every window, Back to where a press came from, a page in its host,
       // the bag beside Storage, the Shop and Character at 1440, Hunts over the dock, one gold plate per window
       const { ctx, page, up } = await open({ viewport: { width: 1440, height: 900 } });
@@ -4468,9 +4524,16 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
+  ['AW-25 a creature card\'s dot can end its line', 'src/shell/windows/hunt-detail.js', "'Level ' + m.level + SEP : ''", "'Level ' + m.level + ' · ' : ''"],
+  ['AW-25 a list line\'s band and its fit run together in text', 'src/shell/windows/hunts.js', "prop(band.previousElementSibling, 'hidden', !fit || !fit.words);", "prop(band.previousElementSibling, 'hidden', true);"],
+  ['AW-25 a list line\'s tag and best run together in text', 'src/shell/windows/hunts.js', "prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', !tag || !best);", "prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', true);"],
+  ['AW-25 the page\'s band and its fit run together in text', 'src/shell/windows/hunt-detail.js', "prop(band.querySelector('.hw-hunt-sep'), 'hidden', !fitWordsShown);", "prop(band.querySelector('.hw-hunt-sep'), 'hidden', true);"],
   ['AW-25 the area casters back on each card (it grows a line)', 'src/shell/windows/hunt-detail.js', "(m.boss ? 'boss' : m.band);", "(m.boss ? 'boss' : m.band) + (m.casts && m.casts.length ? ' · casts ' + m.casts.join(' and ') : '');"],
   ['AW-25 the casters note is never shown', 'src/shell/windows/hunt-detail.js', "prop(det.querySelector('.hw-hd-casts'), 'hidden', !casts);", "prop(det.querySelector('.hw-hd-casts'), 'hidden', true);"],
   ['AW-93 a docked window stops above the bar on a short World again', 'src/shell/window-manager.js', 'return Number.isFinite(cap) && cap < DOCK_ROOM_PX && need > cap;', 'return false && need > cap;'],
+  ['AW-95 a window rises over the action bar in a hunt again', 'src/shell/window-fit.js', 'if (cap !== null && !hunt && overBar(cap, Infinity)) {', 'if (cap !== null && overBar(cap, Infinity)) {'],
+  ['AW-95 a docked window lies over the hunt bar again', 'src/shell/window-fit.js', '    if (hunt) clearTops(w, hunt.tops, gap);', '    if (false) clearTops(w, hunt.tops, gap);'],
+  ['AW-95 the phone sheet lies over the action bar in a hunt again', 'src/shell/shell.js', 'const bars = phoneMq.matches && !hunting ? [] :', 'const bars = phoneMq.matches ? [] :'],
   ['AW-93 a scroll region ends on a cut row again', 'src/shell/window-fit.js', "  if (!frame || frame.classList.contains('is-sized')) return;", '  return;'],
   ['AW-94 a window shows two gold plates at once', 'src/shell/shell.js', "    for (const w of layer.querySelectorAll(':scope > .hs-win')) oneGold(w);\n", ''],
   ['AW-94 a press inside a window is not remembered as where the next came from', 'src/shell/shell.js', 'function onClick(e) { inWin(e, () => press(e)); }', 'function onClick(e) { press(e); }'],
@@ -4547,7 +4610,7 @@ const MUTANTS = [
   ['item truth: no-book-value says nothing', 'src/shell/item-lore.js', "if (!(Number(it.v) > 0) || it.bop) return t('item.own_use')", "if (false) return t('item.own_use')"],
   ['item truth: a kit item says the Weighhouse lists it', 'src/shell/item-lore.js', "return isStartKit(id) ? t('item.kit_unlisted')", "return false ? t('item.kit_unlisted')"],
   ['item truth: the Weighhouse has one vague reason', 'src/shell/market-words.js', "(Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.')", "'.'"],
-  ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !tally.weight ? (suggest ? suggest.words : t('tally.no_weight')) : tally.held.length >= tally.heldMax ? t('tally.board_full', { n: countWord(tally.heldMax) }) : '';", "  return '';"],
+  ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !tally.weight ? (suggest ? '' : t('tally.no_weight')) : tally.held.length >= tally.heldMax ? t('tally.board_full', { n: countWord(tally.heldMax) }) : '';", "  return '';"],
   ['item truth: panel: Fuel all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';\n", ''],
   ['item truth: panel: the sale hides its rares', 'src/shell/item-lore.js', "rare.length ? t('item.sells_rares', { items: listWords(rare) }) : ''", "''"],
   ['item truth: panel: a slot on sale beside an empty one', 'src/app/slot-offer.js', "if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "if (!offer || !purse || actor === null) return '';"],

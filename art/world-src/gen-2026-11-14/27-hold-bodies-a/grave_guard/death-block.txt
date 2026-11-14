@@ -1,0 +1,12 @@
+  death [group: acfd7374-4615-4279-aec2-c839fe400ce1]
+    description: collapses to the ground behind the shield, the bones fall in a heap and the tall shield falls flat on top of them, lies still, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/6c4f9c7e-c3a1-4495-91dc-056cdb2877a5/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/565cec08-32c3-45d4-89fb-ff962d44fa0f/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/1c7f706a-f411-4057-808d-43d98cefe3f9/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/310100d7-4cd4-456a-bd93-232b8d25dc79/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/41a223f3-74a1-4b08-9751-a6a934ab600d/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/69ef63d7-0568-48bd-992b-fc3f6613f6c8/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/532a20cf-1550-4192-b7ea-656d594fa8c8/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/045fa9af-e11e-4ecf-9c96-b370da952dea/west/{i}.png  (i=0..6)

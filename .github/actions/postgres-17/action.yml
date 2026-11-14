@@ -1,0 +1,60 @@
+# ============================================================
+# Install PostgreSQL 17, production's major version, from the PostgreSQL project's own apt
+# repository (lane/a-guard-proofs-2, 2026-11-14). The `pg17` job in smoke.yml runs it as its
+# "Install PostgreSQL 17" step.
+#
+# WHY. tools/pg-replay.mjs replays the chain on a REAL PostgreSQL 17 cluster with one backend
+# per connection, which PGlite (one backend, version 18) cannot be. Three guards need that:
+# tests/hunt-carry-race.mjs and tests/town-shows-race.mjs race real connections against the
+# real locks, and tools/beta-load.mjs --selftest proves its conservation audit on a replayed
+# chain. Until this they sat on tests/guards-unregistered.json as "GitHub has no PostgreSQL 17
+# binaries", run by hand when somebody remembered.
+#
+# WHAT. Only the server binaries: no cluster is created (pg-replay initdb's its own scratch
+# cluster under the temp dir, 127.0.0.1 only, port 55417) and no service is started. The
+# binaries land in /usr/lib/postgresql/17/bin, the Debian path pg-replay looks in.
+#
+# EVERY NETWORK FETCH HAS A DEADLINE (tests/ci-shape.mjs CI-SHAPE-11; run 42758317717 sat
+# silent 43 min in an apt step). apt waits for the runner's own unattended apt to let go of
+# the dpkg lock (release/v0.2.120 runs 43036176366 and 43047648773 died on that lock), and the
+# install gets a second try.
+# ============================================================
+name: Install PostgreSQL 17
+description: PostgreSQL 17 server binaries from apt.postgresql.org, no cluster, no service.
+
+runs:
+  using: composite
+  steps:
+    - name: apt install postgresql-17
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo 'DPkg::Lock::Timeout "300";' | sudo tee /etc/apt/apt.conf.d/99hr-lock-wait > /dev/null
+        # No main cluster and no service: the guards' scratch cluster is the only server.
+        sudo mkdir -p /etc/postgresql-common
+        if [ -f /etc/postgresql-common/createcluster.conf ] && grep -Eq '^\s*#?\s*create_main_cluster' /etc/postgresql-common/createcluster.conf; then
+          sudo sed -i -E 's/^\s*#?\s*create_main_cluster.*/create_main_cluster = false/' /etc/postgresql-common/createcluster.conf
+        else
+          echo 'create_main_cluster = false' | sudo tee -a /etc/postgresql-common/createcluster.conf > /dev/null
+        fi
+        # The PGDG repository, unless the image already carries one (two lines naming it with different keys break apt).
+        if ! grep -rqs 'apt.postgresql.org' /etc/apt/sources.list /etc/apt/sources.list.d/; then
+          sudo install -d /usr/share/postgresql-common/pgdg
+          timeout -k 10 90 sudo curl -fsSL --retry 3 --max-time 60 -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+        fi
+        for try in 1 2; do
+          rc=0
+          timeout 300 bash -c 'while sudo fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock > /dev/null 2>&1; do sleep 5; done' || echo "::warning::the dpkg lock was still held after 300 s; trying anyway"
+          timeout -k 20 240 sudo apt-get update -q -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o Acquire::Retries=3 || rc=$?
+          if [ "$rc" -eq 0 ]; then
+            timeout -k 30 600 sudo apt-get install -y -q --no-install-recommends postgresql-17 || rc=$?
+          fi
+          if [ "$rc" -eq 0 ]; then break; fi
+          if [ "$try" -eq 2 ]; then echo "::error::installing postgresql-17 failed twice (exit $rc; 124 is a deadline)"; exit "$rc"; fi
+          echo "::warning::installing postgresql-17 exited $rc (124 is a deadline): one more try"
+          sleep 30
+          timeout 120 sudo dpkg --configure -a || true
+        done
+        /usr/lib/postgresql/17/bin/postgres --version

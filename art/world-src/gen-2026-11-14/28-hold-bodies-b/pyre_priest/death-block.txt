@@ -1,0 +1,12 @@
+  death [group: 9b142493-ecf5-42af-a3e8-5d9e959528c8]
+    description: crumples to his knees and falls onto his side on the ground, lies flat and still in the robe, the hood stays up, the pale grey robe, the red sash and the rope cord stay the same, no symbol, no glow, no light, no magic, no spark, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/1cbd4c19-5147-48f0-a501-11bd729e26ce/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/84011a14-c09c-4326-ab02-746e24388c25/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/5c1977ff-ab98-497f-a34a-dc55404b60fa/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/a3d2eca4-181f-41fa-9d05-04bfc615506a/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/13da6b15-b58b-44a8-adb5-14c187ee0361/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/bc952313-840c-4fc8-9f41-5a677fc5a74f/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/bdd4b245-297e-4ee7-94cc-ad4823ae4a07/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/9df00db2-4d67-4212-815e-885014b46bf7/west/{i}.png  (i=0..6)

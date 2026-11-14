@@ -1,0 +1,9 @@
+  attack2 [group: 1f30f5d6-abe6-4e4b-a4b9-24ae62851ab7]
+    description: shoves the tall shield one step forward with a short hard push and pulls it back to his side, feet planted, the sword stays low, ends in the same pose it started, the tall plain grey rectangular iron shield keeps exactly its shape, size and grey colour the whole time and never turns round, gold or white, the grey coat and the crested helmet stay the same, no glow, no spark, nothing else appears in the frame
+    directions: north, north-east, north-west, south-east, west (5/8)
+    frames: 7
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/96ea4c6e-c05d-4b12-9e57-6be6769ac499/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/c62ad030-d955-44f3-9c2b-c00ecd912aef/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/c481677a-2d14-4300-9d64-27bbd8dab3c1/north-west/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/5a9984c5-28b9-4ce6-9f62-32fe56dc25f6/south-east/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/a3b2abb5-a625-4d66-8f5c-908eba6124c1/west/{i}.png  (i=0..6)

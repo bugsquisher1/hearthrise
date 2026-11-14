@@ -1,0 +1,35 @@
+BRIEF 24: THE PYRE FIELD'S TWO PYRES AND FOUR PROPS (~85 gens, 8 rows)
+Brief 12 P4 and P5. The b9 great-pyre work (gen-2026-11-09b/b9-great-pyre, 36 gens) stands as the base: its bed has three soft
+lobes and pale ember tips (flagged). It was waiting on the designer's footprint (map.js 'P' cells, 8x5 at (26,16); b9 says 10x5):
+CONFIRM the footprint with the designer before row 1; do not generate against a number that may move.
+
+ #  Row                        Tool                                              Gens  Notes
+ 1  SAMPLE pf_great_pyre       create_image_pro 320x256 (32 px margin), 2 cand,    20  style image: a crop of hf_pyre_unlit. "a great
+    re-roll of the lobes        style the kept b9 t1; footprint from the designer      square funeral pyre of stacked charred logs
+                                                                                     on a low fieldstone plinth, officers' shields
+                                                                                     and broken banner poles laid on top, burnt half
+                                                                                     down, a bed of dull embers in its heart, black
+                                                                                     timbers and grey ash, top-down game landmark,
+                                                                                     single black outline". Fix the three lobes
+                                                                                     and the white ember tips (no pixel brighter
+                                                                                     than #f2a03a, palette has no white).
+ 2  great pyre inpaint fixes   inpaint_image on the lobes / tips                   10
+ 3  its embers overlay         animate_image on the heart crop, 8 fps, 8 frames,    5  "the embers flicker and small flames lick
+                                cut to moving pixels, one FLAMES row                    between the logs, the logs do not move, nothing
+                                                                                     else appears in the frame". `light` overlay.
+ 4  SAMPLE burnt pyre sheet 1  create_image_pro_flash 256x256 4x4 of 64 cells,      6  rows: pf_burnt_pyre (collapsed heap, 28-44 tall,
+                                style 64x64 crop of hf_pyre_unlit                        class wreck, <=64 wide), pf_burnt_pyre_small
+                                                                                     (bulky), pf_burnt_pyre_scatter (decal, flat),
+                                                                                     4 props below
+ 5  kit props, in the sheet    same sheet: ma_fire_rake (iron fire rake leaning on a post), ma_log_stack (split logs stacked for a
+                                pyre), ma_ash_barrow (wooden barrow of ash), ma_charred_stake (burnt stake): 2 cells each so the pick is cell by cell
+ 6  sheet 2 and re-roll sheet  same call                                            12
+ 7  Emberstone vein (shared)   brief 20 row 4-5, not here; listed so the Pyre's coal stand-ins swap to it        0
+ 8  Pyre signature wiring check build.mjs --report on the class of each piece     0
+ Subtotal 20+10+5+6+12 = 53, +re-roll allowance ~85 (the 11-09 plan priced P4+P5 at 70).
+
+READ: x2 on brief 23's ash with a pack of 4 charred_pikemen at its foot (the pyre must not hide them). The floor is pale, bodies
+ black: nothing over #8a867d in the signature's mass except plinth specks. REJECT any glow, any pale near-white.
+WIRING (data, import lane): pf_great_pyre placed at (26,16), maskHash d4a6b03b must not move (tests/world-core.mjs --hashes);
+ pf_burnt_pyre placements on both pyre rows (13-14 and 27-28) at least every 10 tiles and round the cinder pits;
+ region-kits.js grounds.pyre_field { family: 'ash', signature: 'pf_great_pyre pf_burnt_pyre' }.

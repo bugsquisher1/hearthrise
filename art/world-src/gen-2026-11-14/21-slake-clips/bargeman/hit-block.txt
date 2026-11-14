@@ -1,0 +1,12 @@
+  hit [group: 198aca46-5c25-4ed9-ae01-e4cc677c229c]
+    description: recoils from a blow, the head snaps back and the shoulders jerk back one pixel, then recovers to the standing pose, feet stay planted, the pole stays in both hands, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/b70fea9f-9822-43d6-b476-0bb9ed763d81/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/a289e304-57c6-43fd-9b96-7e550758ea63/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/3887432b-b7e9-46c0-abd2-5f986cb278bd/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/e44da384-82df-41bf-ba8e-5e1462efb561/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/64aed8a0-e96c-467f-b018-450c4403cd4b/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/646e06a3-8032-4ad1-8747-de2ac0a7b628/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/b7ab1a08-c5f9-4d77-b935-c6b18f151ca1/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/e2492320-e6d5-49e6-95cc-dada2c831af4/west/{i}.png  (i=0..6)

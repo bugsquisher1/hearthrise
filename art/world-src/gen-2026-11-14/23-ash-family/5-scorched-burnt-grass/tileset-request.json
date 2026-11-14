@@ -1,0 +1,15 @@
+{
+ "mode": "pro",
+ "tile_size": {
+  "width": 32,
+  "height": 32
+ },
+ "view": "high top-down",
+ "transition_size": 0,
+ "lower_description": "soot-blackened bare earth (kept)",
+ "upper_description": "a meadow of withered dead grass seen from above, many thin dry grass blades in tufts like old straw, muted grey-olive #6b7a38 #4a5a2a and faded straw #a88457, dark soot-blackened blade tips, desaturated, no orange, no dirt showing, flat",
+ "palette": "hr-world-56-v2 (56)",
+ "palette_name": "hr-world-56-v2",
+ "max_colors": 12,
+ "lower_base_tile_id": "61e78317-25bf-42bb-a77c-8c79bfac95de"
+}

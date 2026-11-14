@@ -1,0 +1,36 @@
+{
+  "id": "alder_c",
+  "class": "sapling",
+  "style": "s1",
+  "material": "native",
+  "source": "alder_c.png",
+  "frame": [
+    64,
+    90
+  ],
+  "anchor_px": [
+    32,
+    89
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "2e95e3af-d87e-5eac-a819-0f880575d51a",
+    "job": "b2d473d9-6e19-4038-a417-ca04f34ad591",
+    "palette": "hr-world-56-v2"
+  },
+  "notes": "Alder variant c (younger, forked trunk), styled on the kept alder. Raw and review: art/world-src/gen-2026-11-14/20-note.json. Ported by tools/world-art/port-pixellab.mjs object: pixels unscaled, bottom-centre anchor. STAGED: on no map yet."
+}

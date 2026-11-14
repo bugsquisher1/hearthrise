@@ -1,0 +1,35 @@
+{
+  "id": "mr_drowned_pikes",
+  "class": "fixture",
+  "style": "s1",
+  "material": "wood",
+  "source": "mr_drowned_pikes.png",
+  "frame": [
+    38,
+    48
+  ],
+  "anchor_px": [
+    19,
+    47
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "4275829b-11ed-534d-a45e-2ac92ff5cacd",
+    "cell": 13
+  },
+  "notes": "Cell 13 of a 4x4 style-1 prop sheet (PixelLab image 4275829b-11ed-534d-a45e-2ac92ff5cacd, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

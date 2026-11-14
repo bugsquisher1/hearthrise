@@ -47,7 +47,10 @@ const SEED = '-4611686018427387904';
      src/data/hunt-grounds.js    moves glade-4 and glade-1-kite (kills 500 -> 504, 137 -> 128): the party's own Normal pull retired and the bear standing in
                                  Vine Hollow as built (lane/c-brook-bear, Tyler 2026-11-11)
      core-model.js (the re-fitted Level curve), scaled-hunts.js, balance-sheet.js, items.js, hunt-tiers.js, hunt-xp.js and the ground packs move no pin.
-   Every settle's hashes moved, the kills with them (warrens-4 221 as before). The baseline is --write on this tree. */
+   Every settle's hashes moved, the kills with them (warrens-4 221 as before). The baseline is --write on this tree.
+   RE-PINNED 2026-11-13 (lane/d-no-profit-molds), DATA ONLY: glade-4's TALLY alone moved (world and timeline held, kills 536 as pinned). Cause, proved by
+   putting the old row back alone (the bear's gp [13, 40]: every pin holds, exit 0): src/data/monsters.js brook_bear gp [13, 40] -> [11, 32], the purse
+   back on the formula when the +10% floor it served was retired (NO PROFIT MOLDS). The Cellar's XP fit (rat 15 -> 16 XP) is on no pinned ground. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
@@ -143,13 +146,17 @@ const WRITERS = [
   ['src/core/hunt-spawn.js', 'world.units = world.units.filter((u) => u.id !== unitId);', 'a hero leaves between swings'],
   ['src/core/hunt-spawn.js', 'for (const u of world.units) if (u.target === unitId) u.target = null;', 'a hero leaves between swings'],
   ['src/core/hunt/leash.js', 'u.target = null;', 'resetPack drops the index'],
+  /* A ground boss's adds leave on his reset (lane/b-muster-barrows; tests/ground-boss.mjs): all three before resetPack's one staleIndex, which nothing reads ahead of */
+  ['src/core/hunt/leash.js', 'if (isAdd(inst, u)) { u.alive = false; u.hp = 0; u.goal = null; gone.add(u.id); continue; }', 'resetPack drops the index'],
+  ['src/core/hunt/leash.js', 'inst.world.units = inst.world.units.filter((u) => !gone.has(u.id));', 'resetPack drops the index'],
+  ['src/core/hunt/leash.js', 'for (const u of inst.world.units) if (gone.has(u.target)) u.target = null;', 'resetPack drops the index'],
   ['src/core/hunt/pull-cycle.js', 'w.units.push(u);', 'placeRow drops the index'],
   ['src/core/hunt/pull-cycle.js', 'w.packs[p].alive = true;', 'a pack\'s alive, not a unit\'s'],
   ['src/core/hunt/pull-cycle.js', 'if (u && on.length) { u.target = on[i % on.length].id; staleIndex(inst); }', 'spawnAdds drops the index'],
   ['src/core/hunt/pull-cycle.js', 'u.alive = false;', 'fallen drops the index'],
   ['src/core/hunt/pull-cycle.js', 'u.target = null;', 'fallen drops the index'],
   ['src/core/hunt/pull-cycle.js', 'h.target = null;', 'a hero\'s target, in no list'],
-  ['src/core/hunt/pull-cycle.js', 'for (const m of packMonsters(inst, p)) m.target = k.id;', 'startPull drops the index'],
+  ['src/core/hunt/pull-cycle.js', 'for (const m of packMonsters(inst, p)) m.target = aimOf(inst, m, k.id);', 'startPull drops the index'],
   ['src/core/hunt/pull-cycle.js', 'w.packs[p].alive = false;', 'a pack\'s alive, not a unit\'s'],
   ['src/core/hunt/pull-cycle.js', "if (gone) { w.units = w.units.filter((u) => u.side !== 'mon' || u.alive || u.deadMs < HUNT_TUNING.corpseMs); staleIndex(inst); }", 'clearCorpses drops the index'],
   ['src/core/hunt/roles.js', 'if (m) h.target = m.id;', 'a hero\'s target, in no list'],
@@ -204,7 +211,7 @@ const mutants = [
   { name: 'a death leaves the index standing (pull-cycle.js fallen)', only: ['warrens-4'],
     edits: [AUDIT, ['src/core/hunt/pull-cycle.js', '  u.target = null;\n  staleIndex(inst);\n', '  u.target = null;\n']] },
   { name: 'a pull leaves the index standing, past the sub-step (pull-cycle.js startPull)', only: ['warrens-4'],
-    edits: [AUDIT, ['src/core/hunt/pull-cycle.js', '  for (const m of packMonsters(inst, p)) m.target = k.id;\n  staleIndex(inst);\n', '  for (const m of packMonsters(inst, p)) m.target = k.id;\n'],
+    edits: [AUDIT, ['src/core/hunt/pull-cycle.js', '  for (const m of packMonsters(inst, p)) m.target = aimOf(inst, m, k.id);\n  staleIndex(inst);\n', '  for (const m of packMonsters(inst, p)) m.target = aimOf(inst, m, k.id);\n'],
       ['src/core/hunt/world-step.js', '    inst.ix = null;\n', '']] },
   { name: 'the cast order is the list\'s, not the ids\' (abilities.js castOrder)', only: ['warrens-4', 'glade-4'],
     edits: [['src/core/hunt/abilities.js', '  return k ? [k, ...heroes.filter((u) => u !== k)] : heroes;', '  return k ? [...heroes.filter((u) => u !== k), k] : heroes;']] },

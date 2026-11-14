@@ -61,6 +61,7 @@ import { readFileSync } from 'node:fs';
 import { bootReplay } from './schema-replay.mjs';
 import { deriveCatalogueRows } from '../tools/catalogue-rows.mjs';
 import { isMain } from './_is-main.mjs';
+import { wholeViewOrRerun } from '../tools/pack/whole.mjs';
 
 /* The fields compared per table. Adding a column to a catalogue table means
    adding it HERE too, or the new column is unguarded and silently driftable —
@@ -301,7 +302,11 @@ async function selftest() {
   return bad;
 }
 
-if (isMain(import.meta.url)) {
+/* THE CHAIN END'S VIEW OF THE DATA: a STAGED ground pack's rows (its monsters' combat activities, its items) are in src/data and in no migration until
+   tools/pack.mjs ship writes its file, so the repo side is the whole view: the base and every pack whose own file is in the apply order (tools/pack/whole.mjs).
+   Without it every staged pack read as rows "with no seeding migration" (lane/d-packs-retune, the lane/b-slake-and-ford pattern). */
+const WHOLE_VIEW = 'the chain end, every applied file';
+if (isMain(import.meta.url) && wholeViewOrRerun(import.meta.url, WHOLE_VIEW)) {
   const argv = process.argv.slice(2);
   const fail = (e) => {
     process.stderr.write(`ERROR: ${e && e.message || e}\n`);

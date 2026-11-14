@@ -1,0 +1,41 @@
+{
+  "id": "pf_great_pyre",
+  "class": "building",
+  "style": "s1",
+  "material": "native",
+  "source": "pf_great_pyre.png",
+  "frame": [
+    298,
+    174
+  ],
+  "anchor_px": [
+    149,
+    173
+  ],
+  "footprint": [
+    10,
+    5
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 5,
+      "loop": true,
+      "dirs": {
+        "s": 4
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro + inpaint_image + animate_image",
+    "image": "648b1161-0859-4ba5-9dac-994523b2dae9",
+    "embers": "c24b8e34-ae90-418d-b9cf-f475400ea73a",
+    "lay": [
+      0,
+      1,
+      2,
+      1
+    ]
+  },
+  "notes": "The Great Pyre (brief 13 Q7 / b9, t1-inpainted-one-bed.png): the kept pyre with its ember loop, the cut frames 0 1 2 1 laid back at their crop (48,60), by tools/world-art/barrow-grounds.mjs; pixels unscaled, snapped to the palette by the lock's own metric."
+}

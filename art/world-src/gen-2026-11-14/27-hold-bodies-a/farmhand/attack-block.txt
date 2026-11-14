@@ -1,0 +1,12 @@
+  attack [group: 4d36318a-46cb-49fa-9a44-012a959dfcc5]
+    description: swings the bill hook down in a short clumsy chop then pulls it back to his side, the iron cap stays on, feet planted, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/e4fc4f11-2efb-4f48-b570-21ac8c7bf559/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/581f0b7d-0cab-4062-8a28-760838f8c65e/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/109e6de6-1090-45a2-8808-1982c4aaf7f3/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/0b0685f4-bfe4-4943-ba17-c1dc9e370a2f/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/9476bf0f-75a3-4e03-90e8-1dae9ca4b9b5/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/51358ecd-9b83-45e4-9f56-550ba351f51f/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/6deb546c-ea3d-47c6-b9ea-57c64e5df559/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/8c73e44a-40bf-42d4-ab46-d3cb47351edd/west/{i}.png  (i=0..6)

@@ -132,14 +132,14 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.129';
-import { HUNT_INDEX } from './hunts.js?v=0.2.129';
-import { MONSTERS } from './monsters.js?v=0.2.129';
-import { PARTY } from './party.js?v=0.2.129';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.130';
+import { HUNT_INDEX } from './hunts.js?v=0.2.130';
+import { MONSTERS } from './monsters.js?v=0.2.130';
+import { PARTY } from './party.js?v=0.2.130';
 /* the shape helpers (pocket, box, gather) live with the ground packs, which build their grounds with the same ones */
-import { pocket, box, gather, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.129';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.129';
-import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.129';
+import { pocket, box, gather, addRows, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.130';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.130';
+import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.130';
 export { FULL_BOX };
 
 /* THE GATHER NODE KINDS (HUNT_GATHERING_SPEC §3, REVIEW §3 and §5): what a placed node is. `node` is a
@@ -152,6 +152,12 @@ export const GROUND_NODE_KINDS = Object.freeze({
   normal_tree: kind('woodcutting', 1, 6, 45000, 'pine', 'mb_pine_stump'),
   oak_tree: kind('woodcutting', 1, 8, 60000, 'oak', 'mb_oak_stump'),
   hollow_oak_tree: kind('woodcutting', 1, 10, 90000, 'mb_hollow_oak', 'mb_hollow_oak_stump'),
+  /* THE BARROW MARCH'S TREE (lane/b-barrow-numbers, designer 2026-11-14): the riverbank tree the art lane drew for the March (sprites
+     `alder` and `alder_stump`, brief 20) works as a WILLOW (gathering.js willow_tree, Woodcutting 30, willow logs; the spec's tier-2 wood).
+     A node kind is a gathering.js row, and no row is an alder: a tree named for a wood the game doesn't have would hand out another
+     tree's logs, and a new wood is a whole content batch (log, plank, recipes) nothing asks for. So the sprite is the March's, the
+     tree is a Willow. It replaces the Greenhaven oaks that stood in on the Ford, the Slake and the Muster Barrows. */
+  willow_tree: kind('woodcutting', 2, 8, 75000, 'alder', 'alder_stump'),
   copper_rock: kind('mining', 1, 6, 45000, 'cw_copper_vein', 'cw_copper_vein_spent'),
   iron_rock: kind('mining', 1, 6, 60000, 'cw_iron_vein', 'cw_iron_vein_spent'),
   coal_rock: kind('mining', 1, 8, 75000, 'cw_coal_seam', 'cw_coal_seam_spent'),
@@ -348,9 +354,6 @@ const BASE_GROUNDS = Object.freeze({
 /* THE BASE ROWS, then every ground pack's (src/data/grounds): its id is the pack's, and so is its hunt. */
 export const HUNT_GROUNDS = Object.freeze(foldRows('ground', BASE_GROUNDS, GROUND_PACKS, (p) => ({ [p.id]: Object.freeze({ id: p.id, hunt: p.id, ...p.ground }) })));
 
-/* A called boss's wave, rows like a pocket's spawns (pull-cycle.js spawnAdds): nothing else reads them but the catalogue's bounds. */
-const addRows = (...rows) => Object.freeze(rows.map(([monster, x, y]) => Object.freeze({ monster, x, y })));
-
 /* THE CALLED ROOMS (Call out, Tyler 2026-11-04; src/data/boss-calls.js): one pocket, the boss's own hall on his own map, no pull dial: a pocket of nothing but a boss keeps its
    as-built pack at any size (pullRows). Not in HUNT_GROUNDS, so nothing that lists grounds sees them; the engine and the scene reach them by hunt (groundOfHunt). `call` marks
    the room: the engine pays nothing in it (hunt-rewards.js), a death or a leave sends everyone home, and its end is the kill or the limit (combat-sim.js). */
@@ -373,6 +376,18 @@ export const CALLED_GROUNDS = Object.freeze({
   }),
 });
 
+/* THE KEYED HALLS (src/data/boss-halls.js; the Krell's Hold design's engine piece 5): one pocket on its ground's own map, the boss its ONE spawn and his
+   wave its `adds` (a named add among them: boss-halls.js), no pull dial. `hall` names the row in BOSS_HALLS (the ground whose key opens it). The engine
+   plays it as a called room plays (src/core/hunt/boss-room.js: one fight, a limit, his kill ends it, nothing resets) and PAYS like any ground. Not in
+   HUNT_GROUNDS, so nothing that lists grounds sees them; the engine and the scene reach them by hunt (groundOfHunt). Folded from a ground pack's
+   `hall` (src/data/grounds/shape.js): its room is `<pack>_hall` on the pack's own map (Krell's Hall, krells_hold). */
+const hallPocket = (p) => Object.freeze({ room: Object.freeze([...p.room]), spawns: addRows(...p.spawns.map((s) => [s.monster, s.x, s.y])), adds: addRows(...p.adds.map((s) => [s.monster, s.x, s.y])) });
+export const HALL_GROUNDS = Object.freeze(Object.fromEntries(GROUND_PACKS.filter((p) => p.hall).map((p) => {
+  const id = p.id + '_hall', g = p.hall.ground;
+  return [id, Object.freeze({ id, hunt: id, map: p.ground.map, hall: p.id, ...g,
+    start: Object.freeze(g.start.map((t) => Object.freeze([...t]))), pockets: Object.freeze(g.pockets.map(hallPocket)), route: Object.freeze([...g.route]) })];
+})));
+
 /* THE TRAINING GROUNDS (src/data/training.js; Tyler 2026-11-08): one pocket, one dummy, one seat, one per place and skill, reached by one verb,
    hr_training_start. Not in HUNT_GROUNDS, so nothing that lists grounds sees them; the engine and the scene reach them by hunt (groundOfHunt).
    `train` { place, skill } marks the ground: the engine pays the trained skill only (src/core/hunt/training.js), no stamina is spent, and
@@ -390,22 +405,24 @@ export const TRAINING_GROUNDS = Object.freeze(Object.fromEntries(Object.keys(TRA
     route: Object.freeze([0]), respawnMs: 10000, pullDist: 1.5, groupFit: 'solo' })];
 }))));
 
-/** The ground row a hunt is fought on, called rooms and training grounds included, or null: the engine's and the scene's one lookup. */
+/** The ground row a hunt is fought on, called rooms, keyed halls and training grounds included, or null: the engine's and the scene's one lookup. */
 export function groundOfHunt(huntId) {
-  return Object.values(HUNT_GROUNDS).find((g) => g.hunt === huntId) || CALLED_GROUNDS[huntId] || TRAINING_GROUNDS[huntId] || null;
+  return Object.values(HUNT_GROUNDS).find((g) => g.hunt === huntId) || CALLED_GROUNDS[huntId] || HALL_GROUNDS[huntId] || TRAINING_GROUNDS[huntId] || null;
 }
 
 /** The grounds a player can enter: every row whose hunt is not `staged` (hunts.js). The server catalogue reads these. */
 export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries(HUNT_GROUNDS).filter(([, g]) => !(HUNT_INDEX[g.hunt] && HUNT_INDEX[g.hunt].staged === true))));
+/** The halls a player can open: every hall room whose hunt is not `staged` (its pack is open). The server catalogue reads these. */
+export const OPEN_HALL_GROUNDS = Object.freeze(Object.fromEntries(Object.entries(HALL_GROUNDS).filter(([, g]) => !(HUNT_INDEX[g.hunt] && HUNT_INDEX[g.hunt].staged === true))));
 
 /** THE REACHABLE ROSTER (designer 2026-10-22, lane c-monster-ladders): what a player can actually meet, from `grounds`
-    (pass OPEN_GROUNDS: a staged ground is hidden and refused): every pocket's spawns and full pack plus its hunt's spawn
+    (pass OPEN_GROUNDS: a staged ground is hidden and refused): every pocket's spawns, full pack and boss's wave (`adds`) plus its hunt's spawn
     rows. The Bestiary's total counts these: gen-hunt-sessions writes them to hr_hunt_roster, so a new open ground moves
     the total by itself. */
 export function reachableOf(grounds, hunts) {
   const mons = new Set();
   for (const g of Object.values(grounds)) {
-    for (const p of g.pockets) for (const s of (p.pack || []).concat(p.spawns)) mons.add(s.monster);
+    for (const p of g.pockets) for (const s of (p.pack || []).concat(p.spawns, p.adds || [])) mons.add(s.monster);
     for (const s of ((hunts[g.hunt] || {}).spawns || [])) mons.add(s.monster);
   }
   return Object.freeze({ monsters: Object.freeze([...mons].sort()) });
@@ -555,6 +572,20 @@ export function validateGround(row, refs) {
     if (row.groupFit !== 'party') bad('soloFrom is for a party ground only');
     if (!(Number.isInteger(row.soloFrom) && row.soloFrom > band[0] && row.soloFrom <= band[1])) bad('soloFrom must be a Level inside the band, above its floor');
   }
+  /* A BOSS'S WAVE (shape.js addRows; the Muster Barrows' Captain Hask): only in a pocket that holds a boss with two lines (boss-phases.js), each a
+     known monster that is no boss and has no lines of its own, standing inside the room. A wave nothing can call would be a row the engine never plays. */
+  (row.pockets || []).forEach((p, i) => {
+    if (!p || p.adds === undefined) return;
+    if (!Array.isArray(p.adds) || !p.adds.length) { bad('pocket ' + i + ' adds must list at least one row'); return; }
+    const ph = (s) => !!s && !!monsters[s.monster] && monsters[s.monster].boss === true && !!monsters[s.monster].phases;
+    if (!(p.pack || p.spawns || []).concat(p.spawns || []).some(ph)) bad('pocket ' + i + ' has adds and no boss with phases to call them');
+    for (const s of p.adds) {
+      if (!s || !monsters[s.monster]) bad('pocket ' + i + ' adds unknown monster ' + (s && s.monster));
+      /* (a keyed hall's wave may stand a NAMED ADD, a row `boss` and `add` both: boss-halls.js; tools/gen-hunt-sessions.mjs hallRows holds his lines) */
+      else if ((monsters[s.monster].boss === true || monsters[s.monster].phases) && !(row.hall && monsters[s.monster].boss === true && monsters[s.monster].add === true)) bad('pocket ' + i + ' add ' + s.monster + ' is a boss');
+      else if (!isTile([s.x, s.y]) || !Array.isArray(p.room) || !inRect(p.room, s.x, s.y)) bad('pocket ' + i + ' add ' + s.monster + ' stands outside its room');
+    }
+  });
   (row.pockets || []).forEach((p, i) => {
     if (p && p.forParty !== undefined && !(Number.isInteger(p.forParty) && p.forParty >= 2 && p.forParty <= MAX_HEROES)) bad('pocket ' + i + ' forParty must be 2..' + MAX_HEROES);
   });
@@ -601,7 +632,7 @@ export function validateGround(row, refs) {
 /** Every problem with the table, as strings. Empty = valid. */
 export function validate() {
   const out = [];
-  for (const [key, row] of [...Object.entries(HUNT_GROUNDS), ...Object.entries(CALLED_GROUNDS), ...Object.entries(TRAINING_GROUNDS)]) {
+  for (const [key, row] of [...Object.entries(HUNT_GROUNDS), ...Object.entries(CALLED_GROUNDS), ...Object.entries(HALL_GROUNDS), ...Object.entries(TRAINING_GROUNDS)]) {
     if (row.id !== key) out.push(key + ': row id ' + row.id + ' does not match its key');
     out.push(...validateGround(row));
   }

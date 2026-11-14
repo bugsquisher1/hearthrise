@@ -6,9 +6,9 @@
 //   a held harder tier paying under Normal any such cell new in the candidate
 //   a party seat against going alone      every party cell on Normal in range: the lowest seat's XP over the median lone hero,
 //                                         worse when it drops more than TOL and ends under 1 (a seat that now levels slower)
-//   gold an hour by floor                  a new inversion (a higher floor netting less than a lower one)
 //   the fresh hero (practice set)          dips under 25% HP and deaths at a first-day floor, worse when they rise
-// plus the sheet's binding fails per ground, before and after. EXIT 1 when anything a player would feel is worse, else 0.
+// plus the sheet's binding fails per ground, before and after. Gold is never a gate (Tyler 2026-11-13, NO PROFIT MOLDS: the old "gold an
+// hour by floor" inversion is retired; grade.mjs prints each ground's gold side by side). EXIT 1 when anything a player would feel is worse, else 0.
 //
 //   node tools/balance-sim/grade-compare.mjs --before DIR --after DIR [--root TREE] [--tol 0.02]
 import { readFileSync } from 'node:fs';
@@ -43,10 +43,10 @@ export function worse(before, after, fits, tol = 0.02) {
   const out = [];
   const fb = feelVerdicts(before, fits), fa = feelVerdicts(after, fits);
   const keys = (vs, rule) => new Set(vs.filter((v) => v.rule === rule).map((v) => v.key.split(' / ').slice(0, 4).join(' / ')));
-  for (const rule of ['feel-normal-deaths', 'feel-tier-less', 'feel-gold-order']) {
-    const had = rule === 'feel-gold-order' ? new Set(fb.filter((v) => v.rule === rule).map((v) => v.key.replace(/ nets .*/, '') + ' < ' + v.key.replace(/.*under /, '').replace(/ \(.*/, ''))) : keys(fb, rule);
+  for (const rule of ['feel-normal-deaths', 'feel-tier-less']) {
+    const had = keys(fb, rule);
     for (const v of fa.filter((x) => x.rule === rule)) {
-      const k = rule === 'feel-gold-order' ? v.key.replace(/ nets .*/, '') + ' < ' + v.key.replace(/.*under /, '').replace(/ \(.*/, '') : v.key.split(' / ').slice(0, 4).join(' / ');
+      const k = v.key.split(' / ').slice(0, 4).join(' / ');
       if (!had.has(k)) out.push({ what: rule, where: v.key, before: 'none', after: Math.round(v.value * 100) / 100 });
     }
   }

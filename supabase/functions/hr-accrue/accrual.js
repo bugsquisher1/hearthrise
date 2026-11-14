@@ -127,6 +127,7 @@ import { memberSide, sharePurses, bonusFor, liveBuffHost } from '../../../src/co
 import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../../../src/core/hunt/world-state.js';
 import { tallyEvents } from '../../../src/core/hunt/tally.js';
 import { BOSS_CALLS } from '../../../src/data/boss-calls.js';
+import { roomOf } from '../../../src/core/hunt/boss-room.js';
 /* THE WORLD BOUND (hunt_instances.world <= worldMaxBytes UTF-8 bytes): the engine
    refuses a world past it before anything is proposed (accrueHunt). */
 import { HUNT_TUNING } from '../../../src/data/hunt-tuning.js';
@@ -1182,8 +1183,8 @@ function analyzerOf(sim, unitIds, unitId) {
   return t ? { dealt: t.dealt, taken: t.taken, healed: t.healed } : null;
 }
 
-/* THE RECORD OF A CALLED FIGHT (Tyler 2026-11-05: a losing line naming the phase; hunt_session_tally.fight), display only: where the boss stood when this
-   window closed, in permille of his HP (a called room never heals him: leash.js resetPack), and what this hero's bar fired in it, by ability, plus `eat` and `drink`. */
+/* THE RECORD OF A ROOM'S FIGHT, called or a keyed hall (Tyler 2026-11-05: a losing line naming the phase; hunt_session_tally.fight), display only: where the boss stood when this
+   window closed, in permille of his HP (a room never heals him: leash.js resetPack), and what this hero's bar fired in it, by ability, plus `eat` and `drink`. */
 function fightOf(sim, unitId, call) {
   const boss = sim.world ? sim.world.units.find((u) => u.kind === call.monster) : null;
   const fired = {};
@@ -1254,6 +1255,11 @@ export function accrueHunt(inp) {
     if (inp.ground.call && Number.isInteger(summary.unitIdEver)) {
       const row = out[out.length - 1];
       row.analyzer = { ...(row.analyzer || {}), fight: fightOf(sim, summary.unitIdEver, BOSS_CALLS[inp.ground.call]) };
+    } else if (inp.ground.hall && Number.isInteger(summary.unitIdEver)) {
+      /* A KEYED HALL keeps the same record (src/core/hunt/boss-room.js: its boss is the room's one spawn), read by the same losing line. */
+      const room = roomOf(inp.ground);
+      const row = out[out.length - 1];
+      if (room) row.analyzer = { ...(row.analyzer || {}), fight: fightOf(sim, summary.unitIdEver, room) };
     }
   }
   if (!out.length) return { accrued: false, reason: SKIP.NOTHING };

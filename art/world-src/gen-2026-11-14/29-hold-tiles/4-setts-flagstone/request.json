@@ -1,0 +1,16 @@
+{
+ "mode": "pro",
+ "tile_size": {
+  "width": 32,
+  "height": 32
+ },
+ "view": "high top-down",
+ "transition_size": 0,
+ "lower_description": "large smooth very dark flagstones seen from above, big plain rectangular slabs, very dark charcoal #2c2e33, thin black mortar, plain, calm",
+ "upper_description": "small square stone setts seen from above laid in a plain even grid, very dark grey, thin black joints, a damp crypt floor",
+ "palette": "hr-world-56-v2 (56)",
+ "palette_name": "hr-world-56-v2",
+ "max_colors": 12,
+ "lower_base_tile_id": "456e148f-3322-47f1-84e6-8efbad93a87c",
+ "upper_base_tile_id": "9c3260b1-616c-4c44-b735-f5ebaae8fe39"
+}

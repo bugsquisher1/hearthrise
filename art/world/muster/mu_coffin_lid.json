@@ -1,0 +1,35 @@
+{
+  "id": "mu_coffin_lid",
+  "class": "decal",
+  "style": "s1",
+  "material": "stone",
+  "source": "mu_coffin_lid.png",
+  "frame": [
+    54,
+    36
+  ],
+  "anchor_px": [
+    27,
+    35
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "e1802e87-fb7d-4f29-a88e-731a36bff5e2",
+    "cell": 14
+  },
+  "notes": "Cell 14 of a 4x4 style-1 prop sheet (PixelLab image e1802e87-fb7d-4f29-a88e-731a36bff5e2, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

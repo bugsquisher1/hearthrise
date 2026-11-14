@@ -1,0 +1,14 @@
+{
+ "mode": "pro",
+ "tile_size": {
+  "width": 32,
+  "height": 32
+ },
+ "view": "high top-down",
+ "transition_size": 0,
+ "lower_description": "packed trodden drill-yard dirt seen from above, very dark warm brown earth #3d2a1d #2a1c14 #553a26, faint boot scuffs and a few flecks of straw, low value, calm, even, no stones",
+ "upper_description": "small dark cobbles set in black mortar seen from above, tight even rows of small rounded stones, dark neutral charcoal grey #2c2e33 #4a4d54 #231d1f with no blue, low value, calm, worn smooth, in good repair",
+ "palette": "hr-world-56-v2 (56)",
+ "palette_name": "hr-world-56-v2",
+ "max_colors": 12
+}

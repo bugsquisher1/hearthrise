@@ -1,0 +1,14 @@
+{
+ "mode": "pro",
+ "tile_size": {
+  "width": 32,
+  "height": 32
+ },
+ "view": "high top-down",
+ "transition_size": 0,
+ "lower_description": "soft powdery wood ash bed, a warm mid-light grey with a brown cast, mottled #8a867d #aaa49a and a little #6a6865, small drifts and soft footprints, a few charred black flecks, never blue or slate, calm low contrast",
+ "upper_description": "a sunken pit of black cinders and dull ember specks, black #0b0a0c #17141a cinders with a few dull orange #a8743a specks, flat, no glow",
+ "palette": "hr-world-56-v2 (56)",
+ "palette_name": "hr-world-56-v2",
+ "max_colors": 12
+}

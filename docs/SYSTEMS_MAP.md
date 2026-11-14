@@ -253,6 +253,16 @@ VERY RARE) by the same file. 46 rows T1-T6; their rules (item, tier rate, 4% per
 row / 5% all-gear faucet caps, 0.5-10 measured hours, both paths) are
 `tests/field-salvage.mjs`. A salvage-shaped row without the flag is a guard red,
 because the flag is what silences the client's dice.
+**How a monster fights** is data on its row too. `range: N` (whole tiles, 2 to 6,
+`MONSTER_RANGE`) makes it shoot from range: it aims at the hero farthest from it
+in its pack's area, stands where it can shoot and takes no slot
+(`src/core/hunt/shooters.js`). `spells: [id]` names rows of
+`src/data/monster-spells.js`: a strike (`group`, `ring`, `blast`, `cone`, `line`)
+or a `mend`, which puts the spell's number back on the most hurt monster of its
+own pack in range. The rules and their mutants are
+`tests/hunt-core/monster-kinds.mjs` and `monster-spells.mjs`. A hero's
+`target_kind` (an option the server overlays, one monster id) takes that kind
+first under any Target mode.
 
 ### 6. A called boss (Call out) — data
 A paid fight in one room that pays nothing. One row in each of `src/data/boss-calls.js` (the fee, the press's ground), `monsters.js` (`called: true`, id ending `_called`, `xp: 0, gp: [0, 0], drops: []`), `hunts.js` `CALLED_HUNTS`, `hunt-grounds.js` `CALLED_GROUNDS`, `monster-art.js` `HUNT_ART_ALIAS`, its map's `hunts`, and a title in `titles.js`. Then `gen-hunts`, `gen-hunt-sessions`, `gen-title-catalogue`. The generator refuses a row that pays; `tests/boss-call.mjs` and `tests/boss-call-db.mjs` hold it. A boss row also carries `phases` (`addsPm`, `enragePm`, `enrageAtkPm`), and his room's pocket an `adds` list of called rows with `add: true`: both lines read in `src/core/hunt/boss-phases.js`, no stored field. Tune with `tools/balance-sim/boss-call-table.mjs` (`--ship`, the bad and good bars and each answer taken away): the rows' `hp`, `atk`, `baseAcc`, `level` and `phases` are the only dials.

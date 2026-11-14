@@ -121,7 +121,9 @@ declare
     /* the live events' catalogues (2027-03-22-live-events-catalogue.generated.sql): the types and the schedule */
     'hr_live_event_types', 'hr_live_events',
     /* combat training's catalogues (2027-04-16-combat-training-hunt-sessions-catalogue.generated.sql): the rules and the grounds */
-    'hr_training_rules', 'hr_training_grounds'];
+    'hr_training_rules', 'hr_training_grounds',
+    /* the keyed halls' catalogue (2027-04-20-boss-hall-hunt-sessions-catalogue.generated.sql): the halls, their keys and limits */
+    'hr_boss_halls'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';

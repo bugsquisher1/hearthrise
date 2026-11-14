@@ -3,8 +3,11 @@
 //
 // A GUARD, not a measurement. Its sibling tests/settle-carry-loss.mjs PRICED
 // the defect (1.3-1.7% of a 4 h combat session at the live 90 s cadence, up to
-// 6.66% on a 7 s gathering node) and its own entry in
-// tests/guards-unregistered.json wrote down the succession plan verbatim:
+// 6.66% on a 7 s gathering node; RETIRED 2026-11-14, lane/a-guard-proofs-2: after
+// lane C2 its five combat fixtures priced 0 ticks, so its --mutate could not go
+// red, and it stayed exit 0 on both planted watermark defects this file catches)
+// and its own entry in tests/guards-unregistered.json wrote down the succession
+// plan verbatim:
 //
 //     "If the carry is ever threaded for real … the forfeited-time property
 //      becomes a real invariant and THIS FILE'S --mutate arm is the guard to
@@ -17,8 +20,8 @@
 // window instead of destroyed. This file is that invariant, executed.
 //
 // ── WHAT IS DIFFERENT FROM THE SIBLING ──────────────────────────────────────
-// settle-carry-loss.mjs proves a property of the PRIMITIVE by wrapping it: its
-// `threaded` arm snaps window ends outside the engine and never crosses the
+// settle-carry-loss.mjs proved a property of the PRIMITIVE by wrapping it: its
+// `threaded` arm snapped window ends outside the engine and never crossed the
 // edge's own delta. This file measures THE EDGE PATH — it chains real
 // `computeAccrual` calls through the real `delta.accrued_to`, exactly as the
 // live settle loop chains them through hr_apply, and asserts on the result.

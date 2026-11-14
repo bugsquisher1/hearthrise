@@ -1,0 +1,21 @@
+{
+  "brief": "art/briefs/gen-2026-11-14/26-hold-sample.txt",
+  "status": "SAMPLE. Briefs 27-30 do NOT run until this is reviewed (CLAUDE.md §10).",
+  "rows": {
+    "1 Farmhand south": { "tool": "create_object_pro_flash 48x48 high top-down, n_directions 1, style refs/style-glade-poacher-s-48.png, palette", "objects": { "61": "c68d0c73 (face too yellow)", "62": "bde8250b KEPT", "63": "d3f4ed51 (grey clothes, reads as a guard)" },
+      "read": "62: the head's too-big iron cap and straw shirt, a quilted jack, a rope belt, a bill hook low in one hand; body 40 px (36-40); young and scared at x4; not a ranger (no hood), not a Wickstead farmer (the cap and jack)" },
+    "2 rotations": "802bd336-4d67-4f91-9dc5-43954c36b7ef (first frame = 62, rotation charge only): eight facings hold the cap, jack and hook",
+    "3 idle": { "idle af7ceed0": "straightens 5 px from frame 2 (the crouched-still habit, as the bargeman)", "idle2 05584b8f": "the same with the words 'the body does not straighten'", "use": "frame 1 of each is calm: still, a, b, a from those two (0 gens) or one more roll after review" },
+    "4 wall run": { "tool": "create_image_pro_flash 192x64 (a continuous run, 6 gens each) instead of the 4x4 sheet: one run keeps the courses and the cap continuous, so the cut slices cycle with no seam", "kept": "cacd73f5 -> walls/kh_wall_plain_a, kh_wall_plain_b, kh_wall_arrow_loop, kh_wall_torch_bracket (32x60, wall 56 px: face about 46 + a lit cap 10)",
+      "refused": { "e875605d": "hollow: the block faces came back transparent (3,113 opaque px)", "7cf64a33": "teal (mithril) cap" },
+      "read": "cool blue-grey dressed stone, quiet mortar, a lit top cap: it reads as a castle wall, not a fence, and is clearly cooler than the Pyre's warm ash" },
+    "5 cart road / gate cobble": { "light": "road-cobble-light/ 2d6bc623 (dirt #6e4c30 47.8, cobble #6e727a 32.4)", "dark": "road-cobble-dark/ 97c21761 (dirt #3d2a1d 46.5, cobble #3a4652 29.6 #17141a 23.9 #5c6c7a 22.9 #1a2c44 19.3)" },
+    "6 ring": {
+      "raw Farmhand": "2.09:1 on the light cobble, 1.48:1 on the light dirt (banded_pikeman 1.92 on the same cobble): a mid-value floor fails every mid body",
+      "lifted 2 steps (lock.mjs liftBody)": "3.38:1 on the dark dirt PASS, 2.40:1 on the dark cobble",
+      "scratch": "1.17-1.37 raw / lift 1 on the dark pair"
+    }
+  },
+  "verdict": "LOOK PASSES: the Farmhand, the wall and the road pair read as a gray castle in good repair, distinct from the Pyre and the Slake. READABILITY IS THE GATE: the Hold's floors must be low value (lum <= 0.03) and its bodies lifted 2 steps at import. Before 27-30: re-roll the gate cobble one step darker without the blue cast (#1a2c44 19% in the dark roll), keep the dark dirt, and plan --lift 2 for every Hold body.",
+  "gens": "Farmhand 15 + rotations 3 + idles 8, walls 18, road pairs 31: about 75 (over the brief's 50: the second, darker pair was the ring test)"
+}

@@ -1,0 +1,7 @@
+  death2 [group: 82e55928-b88f-4c76-91f9-0674c0c5890f]
+    description: his legs give way and he falls full length onto the floor, he does not kneel and does not sit, by the end he lies stretched out flat on the ground on top of his red cloak, the book lying beside him, completely flat and still, the cloak stays red, no glow, nothing else appears in the frame
+    directions: north, south, south-east (3/8)
+    frames: 7
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/5aadf5d4-3d6d-48e5-b29f-5a1864d21c89/north/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/f8fb14f3-fc93-4901-893b-6e5a259ce492/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/f585c6eb-b2da-4a1d-90fd-7146e0994321/south-east/{i}.png  (i=0..6)

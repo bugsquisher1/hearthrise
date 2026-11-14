@@ -52,23 +52,23 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.129';
-import { ABILITIES, suggestedTrigger, areaSpec } from '../../data/abilities.js?v=0.2.129';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.129';
-import { SUPPLIES } from '../../data/supplies.js?v=0.2.129';
-import { ITEMS } from '../../data/items.js?v=0.2.129';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.129';
-import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.129';
-import { cheb, dist2, los } from './grid.js?v=0.2.129';
-import { makeEvent } from './events.js?v=0.2.129';
-import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.129';
-import { START_BAR } from '../../data/start-kit.js?v=0.2.129';
-import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.129';
-import { footprint, inFootprint, place, covers, tilesMax } from './shapes.js?v=0.2.129';
-import { castsCovering } from './marks.js?v=0.2.129';
-import { elementPermille } from '../elements.js?v=0.2.129';
-import { RUNE_ON_EMPTY, isRune, runeTierOf } from '../../data/runes.js?v=0.2.129';
-import { engagedOf, heroesByIdOf, livingOf } from './unit-index.js?v=0.2.129';
+import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.130';
+import { ABILITIES, suggestedTrigger, areaSpec } from '../../data/abilities.js?v=0.2.130';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.130';
+import { SUPPLIES } from '../../data/supplies.js?v=0.2.130';
+import { ITEMS } from '../../data/items.js?v=0.2.130';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.130';
+import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.130';
+import { cheb, dist2, los } from './grid.js?v=0.2.130';
+import { makeEvent } from './events.js?v=0.2.130';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.130';
+import { START_BAR } from '../../data/start-kit.js?v=0.2.130';
+import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.130';
+import { footprint, inFootprint, place, covers, tilesMax } from './shapes.js?v=0.2.130';
+import { castsCovering } from './marks.js?v=0.2.130';
+import { elementPermille } from '../elements.js?v=0.2.130';
+import { RUNE_ON_EMPTY, isRune, runeTierOf } from '../../data/runes.js?v=0.2.130';
+import { engagedOf, heroesByIdOf, livingOf } from './unit-index.js?v=0.2.130';
 
 /* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
    ruleWait: the last `rule_wait` reported, per lane ('ruleId:why'), so it is reported once.

@@ -124,7 +124,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, TRAINING_HUNTS, trainingHunt } from '../src/data/hunts.js';
+import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, OPEN_HALL_HUNTS, TRAINING_HUNTS, trainingHunt } from '../src/data/hunts.js';
+import { OPEN_BOSS_HALLS, BOSS_HALL_RULES } from '../src/data/boss-halls.js';
 import { TRAINING_RULES, TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from '../src/data/training.js';
 import { PROPERTY_TIERS } from '../src/data/homestead-tiers.js';
 import { BOSS_CALLS, BOSS_CALL_RULES } from '../src/data/boss-calls.js';
@@ -144,7 +145,7 @@ import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, roleWeaponOf } from '../src/data/hun
 import { isShield } from '../src/data/shields.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
 import { OPEN_GROUNDS, DENSITY_PICK, MAX_HEROES, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
-import { CALLED_GROUNDS, TRAINING_GROUNDS } from '../src/data/hunt-grounds.js';
+import { CALLED_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS, TRAINING_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
 import { PARTY } from '../src/data/party.js';
 import { SESSION_CONFIG } from '../src/session/config.js';
@@ -272,7 +273,17 @@ export const WORLD_FIELDS_READ = Object.freeze({
    hit rate, the most one blow on it can teach); and the training rules land as hr_training_rules and hr_training_grounds, which hr_training_start, the
    settle's hourly charge and its window check read (2027-04-16-combat-training.sql, which applies right after this file). No other row, bound, limit,
    end reason or world shape moves: the hr-accrue that plays the grounds can land before or after this file, and the verb that opens them lands after both. */
-export const OUT_NAME = '2027-04-16-combat-training-hunt-sessions-catalogue.generated.sql';
+/* THE BROOK BEAR'S PURSE, BACK ON THE FORMULA (lane/d-no-profit-molds, designer 2026-11-13, NO PROFIT MOLDS): 2027-04-16-combat-training is APPLIED
+   history and 2027-04-20-bear-purse carries it whole. The bear's hand-kept purse [13, 40] served the Glade's retired +10% floor; it reads the formula's [11, 32]
+   (src/data/monsters.js, balance-sheet.js FORMULA_EXCEPTIONS), so its coin bound in hr_hunt_kill_bounds falls 40 -> 32. The bound only falls, so the hr-accrue
+   carrying the same monsters.js lands FIRST (its bear rolls at most 32, under both bounds); an old engine against that file would be refused on a roll of 33-40. */
+/* THE BARROW MARCH'S DATA AND THE KEYED HALLS, ONE FILE (lane/b-barrow-integrate, 2026-11-14; from lane/d-barrow-data and lane/b-barrow-boss-room, the Krell's
+   Hold design's engine piece 5; src/data/boss-halls.js): 2027-04-20-bear-purse is the file before this one and this one carries it whole. Each of those lanes
+   staged its own copy of this catalogue (2027-04-17-barrow-data, and this name with no barrow row); neither was applied, and one generator vouches for one
+   file, so the two are collapsed here (as the 12-21, 12-22 and 12-24 files were, above). It carries the tier 5 to 7 gear rows of the barrow data and adds
+   hr_boss_halls, which 2027-04-20-boss-hall.sql reads, applied right after this file. A STAGED pack is served nowhere: its ground, its monsters and its
+   hall join these tables the day the pack opens, not before. */
+export const OUT_NAME = '2027-04-20-boss-hall-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -337,7 +348,7 @@ export function groundRows(grounds, refs = {}) {
 }
 
 /** WHAT EACH GROUND CAN DROP (the drop-bound self-check): per hunt, every item a monster standing in any of its
-    pockets' authored rows (a box's whole `pack`, plus its `spawns`) drops, and the most rows one kill's table names
+    pockets' authored rows (a box's whole `pack`, plus its `spawns` and a boss's `adds`, which pay on a ground) drops, and the most rows one kill's table names
     it (one unit a row: src/core/drops.js rollDropTable). The self-check executes the settle's item bound on the
     APPLIED rows for each. Sorted [{ hunt, item, need }]. */
 export function dropNeeds(grounds, monsters) {
@@ -345,7 +356,8 @@ export function dropNeeds(grounds, monsters) {
   for (const id of Object.keys(grounds).sort()) {
     const g = grounds[id];
     const mons = new Set();
-    for (const p of g.pockets || []) for (const s of (p.pack || []).concat(p.spawns || [])) mons.add(s.monster);
+    /* a boss's wave too (a keyed hall's adds and a ground's pay; a called room's drop nothing, so they add no row) */
+    for (const p of g.pockets || []) for (const s of (p.pack || []).concat(p.spawns || [], p.adds || [])) mons.add(s.monster);
     for (const m of mons) {
       const per = {};
       for (const d of ((monsters[m] || {}).drops || [])) if (d && d.id && ID.test(d.id)) per[d.id] = (per[d.id] || 0) + 1;
@@ -375,6 +387,8 @@ export function catalogueRows(src = {}) {
     consumableLaneMs: CONSUMABLE_RULES.laneMs, abilityLanes: ABILITY_LANES, abilities: ABILITIES,
     grounds: OPEN_GROUNDS, worldMaxBytes: HUNT_TUNING.worldMaxBytes, calledHunts: CALLED_HUNTS, calledGrounds: CALLED_GROUNDS, calls: BOSS_CALLS, callRules: BOSS_CALL_RULES, partyMax: PARTY.maxSize,
     trainingHunts: TRAINING_HUNTS, trainingGrounds: TRAINING_GROUNDS, training: { rules: TRAINING_RULES, places: TRAINING_PLACES, skills: TRAINING_SKILLS, homes: PROPERTY_TIERS },
+    /* the OPEN halls only (a staged pack's hall is served nowhere); everyHall, staged too, is where a named add may stand (hallRows) */
+    hallHunts: OPEN_HALL_HUNTS, hallGrounds: OPEN_HALL_GROUNDS, halls: OPEN_BOSS_HALLS, hallRules: BOSS_HALL_RULES, everyHall: HALL_GROUNDS,
     maxConcurrent: SESSION_CONFIG.maxConcurrentCharacters, maxSlot: SESSION_CONFIG.maxSlot,
     loginReward: PREMIUM_LOGIN_REWARD, worldVersion: WORLD_VERSION, worldShape: SHAPE, worldFields: WORLD_FIELDS,
     roles: HUNT_ROLES, roleKeys: ROLE_KEYS, shieldArm: SHIELD_ARM, manaRegenPct: ABILITY_RULES.manaRegenPctPerMin, magicXpPermille: HUNT_XP.magicXpPermillePerMana,
@@ -387,6 +401,9 @@ export function catalogueRows(src = {}) {
   /* THE TRAINING GROUNDS (training.js) stand beside them too, served to one verb, hr_training_start; the roster below leaves them out as well. */
   S.hunts = [...S.hunts, ...S.trainingHunts];
   S.grounds = { ...S.grounds, ...S.trainingGrounds };
+  /* THE KEYED HALLS (boss-halls.js) stand beside them as well, served to one verb, hr_boss_hall_enter; they PAY, so the roster and the drop bounds read them like any ground. */
+  S.hunts = [...S.hunts, ...S.hallHunts];
+  S.grounds = { ...S.grounds, ...S.hallGrounds };
   /* THE STORE (Tyler 2026-10-14): each row is gold per use, never an item. */
   const basicSeen = new Set();
   const basics = [...S.basics].map((b) => {
@@ -439,8 +456,8 @@ export function catalogueRows(src = {}) {
   for (const h of S.hunts) addTravel(h, false);
   for (const id of Object.keys(S.monsters).sort()) {
     const m = S.monsters[id];
-    /* (a training dummy has no single-foe fight of its own: its grounds are its door) */
-    if (m.boss || m.champion || m.called === true || m.dummy === true) continue;
+    /* (a training dummy has no single-foe fight of its own: its grounds are its door; nor has a boss's add: it stands only in his room) */
+    if (m.boss || m.champion || m.called === true || m.dummy === true || m.add === true) continue;
     addTravel(trainingHunt(id, m), true);
   }
   travel.sort((a, b) => (a.id < b.id ? -1 : 1));
@@ -643,6 +660,8 @@ export function catalogueRows(src = {}) {
   const { rows: grounds, spawns: groundSpawns } = groundRows(S.grounds, { hunts: S.hunts.reduce((a, h) => { a[h.id] = h; return a; }, {}), monsters: S.monsters });
   /* THE CALLED ROOMS PAY NOTHING AND STAND APART (Tyler 2026-11-04; boss-calls.js): refused here, nothing written, unless every called row pays nothing and meets a party in its own room only. */
   const bossCalls = calledRows(S);
+  /* THE KEYED HALLS PAY AND STAND APART (boss-halls.js): refused here, nothing written, unless every hall's rows pay, stand in its room only, and carry only the lines they can. */
+  const bossHalls = hallRows(S);
   /* THE TRAINING GROUNDS PAY ONE SKILL AND STAND APART (training.js): refused here, nothing written, unless every rule is in range, the dummy pays
      nothing but what a blow on it teaches, and each training ground holds one seat and the dummy alone. */
   const training = trainingRows(S, grounds);
@@ -688,11 +707,16 @@ export function catalogueRows(src = {}) {
   const worldFields = { unit: fieldIdx('unit'), world: fieldIdx('world') };
   for (const n of WORLD_FIELDS_READ.unit) if (!own(worldFields.unit, n)) throw new Error(`world unit field ${n} (read by the party section) is not persisted`);
   for (const n of WORLD_FIELDS_READ.world) if (!own(worldFields.world, n)) throw new Error(`world field ${n} (read by the party section) is not persisted`);
-  return { bossCalls, training, supplySource, onEmpty, lanes, setOptions, killBounds, supplies, travel, lim, ends, vendor, targets, resumable, basics,
+  return { bossCalls, bossHalls, training, supplySource, onEmpty, lanes, setOptions, killBounds, supplies, travel, lim, ends, vendor, targets, resumable, basics,
     cover, resume, eventTypes, abilities, grounds, groundSpawns, roster, drops, world: { v: S.worldVersion, shape: S.worldShape, fields: worldFields },
     login: { item: lr.item ?? null, qty: lr.qty }, weapons, weaponRoles, shields,
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
 }
+
+/* A boss row's two lines (src/core/hunt/boss-phases.js): adds at addsPm, a raised blow under enragePm, whole permille in order. */
+const twoLines = (ph) => !!ph && whole(ph.addsPm) && whole(ph.enragePm) && whole(ph.enrageAtkPm) && ph.addsPm > ph.enragePm && ph.enragePm > 0 && ph.addsPm < 1000 && ph.enrageAtkPm > 1000;
+/* A NAMED ADD's one line (a row `boss` and `add` both, the Krell's Hold design's engine piece 6): his own enrage, never a wave or a guard (NAMED_ADD_PHASES, below). */
+const namedAddLine = (ph) => !!ph && whole(ph.enragePm) && whole(ph.enrageAtkPm) && ph.enragePm > 0 && ph.enragePm < 1000 && ph.enrageAtkPm > 1000 && Object.keys(ph).every((k) => NAMED_ADD_PHASES.includes(k));
 
 /* THE MONEY LINE, AT THE GENERATOR (tests/boss-call.mjs mutates it): the rows of hr_boss_calls, or a throw. A called row has xp 0, gp [0, 0] and no drops, and carries no yield trick;
    a called room holds called rows only and a called row stands nowhere else; a call names one room and the open ground its press sits on, and that ground fields the boss it copies. */
@@ -706,7 +730,7 @@ function calledRows(S) {
     if (m.dropBonus !== undefined) throw new Error(`called row ${id} carries a drop bonus: a called row drops nothing`);
     if (m.boss !== true && m.add !== true) throw new Error(`called row ${id} is neither a boss nor his add`);
     if (m.boss === true && m.add === true) throw new Error(`called row ${id} is both a boss and an add: "target is a boss" tells them apart`);
-    if (m.boss === true && !(m.phases && whole(m.phases.addsPm) && whole(m.phases.enragePm) && whole(m.phases.enrageAtkPm) && m.phases.addsPm > m.phases.enragePm && m.phases.enragePm > 0 && m.phases.addsPm < 1000 && m.phases.enrageAtkPm > 1000)) throw new Error(`called boss ${id} has no two lines: ${JSON.stringify(m.phases)}`);
+    if (m.boss === true && !twoLines(m.phases)) throw new Error(`called boss ${id} has no two lines: ${JSON.stringify(m.phases)}`);
   }
   /* The table's CHECK tells a called row by its id (hr_hunt_kill_bounds_xp_max_check): the id and the flag agree, both ways. */
   for (const id of Object.keys(S.monsters)) if (/_called$/.test(id) !== (S.monsters[id].called === true)) throw new Error(`monster ${id}: an id ends _called exactly when its row is called`);
@@ -722,10 +746,20 @@ function calledRows(S) {
     if (!(whole(c.fee) && c.fee >= 1 && c.fee <= 1000000000)) throw new Error(`call ${c.id} fee ${c.fee} is not whole gold in 1..1e9`);
     return { id: c.id, hunt: c.hunt, from: c.from, monster: c.monster, fee: c.fee };
   }).sort((a, b) => (a.id < b.id ? -1 : 1));
-  for (const id of Object.keys(S.monsters)) if (S.monsters[id].phases && S.monsters[id].called !== true) throw new Error(`monster ${id} has phases and is no called row`);
+  /* A BOSS'S LINES, ON ANY ROW THAT HAS THEM (src/core/hunt/boss-phases.js plays a ground's boss as it plays a room's): only a boss carries
+     them. A NAMED ADD (boss and add both; he stands in a keyed hall, hallRows) carries an enrage line at most; every other boss both lines, in
+     order. The rule is the row's, so a staged pack's rows are held to it before they are served. A called row with none is refused above. */
+  for (const id of Object.keys(S.monsters)) {
+    const m = S.monsters[id];
+    if (m.phases === undefined) continue;
+    if (m.boss !== true) throw new Error(`monster ${id} has phases and is no boss`);
+    if (m.add === true) { if (!namedAddLine(m.phases)) throw new Error(`named add ${id} carries a line he can't: only an enrage line (no wave, no guard), ${JSON.stringify(m.phases)}`); continue; }
+    if (!twoLines(m.phases)) throw new Error(`boss ${id} has no two lines: ${JSON.stringify(m.phases)}`);
+  }
   for (const g of Object.values(S.grounds)) {
     if (g.call && !g.pockets.some((p) => (p.adds || []).length)) throw new Error(`called room ${g.id} has no adds`);
-    if (!g.call && g.pockets.some((p) => p.adds)) throw new Error(`ground ${g.id} has adds and is no called room`);
+    /* A WAVE OUTSIDE A CALLED ROOM (a ground's, Captain Hask's; a keyed hall's): only in a pocket whose boss has the lines to call it; its rows pay like the ground's own (no called row, below). */
+    for (const p of g.pockets) if (!g.call && p.adds && !(p.pack || []).concat(p.spawns).some((s) => S.monsters[s.monster] && S.monsters[s.monster].phases)) throw new Error(`ground ${g.id} has adds and no boss with lines to call them`);
     const mons = g.pockets.flatMap((p) => (p.pack || []).concat(p.spawns, p.adds || [])).map((s) => s.monster);
     for (const id of mons) {
       if (g.call && !(S.monsters[id] && S.monsters[id].called === true)) throw new Error(`called room ${g.id} fields ${id}, which pays`);
@@ -741,6 +775,75 @@ function calledRows(S) {
     throw new Error(`BOSS_CALL_RULES ${JSON.stringify(rules)}: a whole per-day count, a limit of 1 to 60 minutes, and no party size (a hero alone may call)`);
   }
   return rows.map((c) => ({ ...c, perDay: rules.perDay, limitMs: rules.limitMs }));
+}
+
+/* THE KEYED HALLS, AT THE GENERATOR (tests/boss-hall.mjs drives it): the rows of hr_boss_halls, or a throw. A hall PAYS, so none of its rows is called;
+   its room is its ground's id and _hall, one pocket standing the boss as its ONE spawn and his wave as `adds`, on no other ground; its key is an item
+   (whose `opens`, when it says, names the hall). The boss has his two lines (core/hunt/boss-phases.js); a NAMED ADD (boss and add both, piece 6) may
+   carry spells and an enrage line but never a wave or a guard of his own; a plain add has no lines. A hasted spell (piece 7) is the row's own, and
+   its hastened wait still outlasts its windup (data/monster-spells.js: a cooldown is longer than its windup). */
+const NAMED_ADD_PHASES = Object.freeze(['enragePm', 'enrageAtkPm']);
+const BOSS_PHASES = Object.freeze(['addsPm', 'enragePm', 'enrageAtkPm', 'guardPm', 'hasten']);
+function hallRows(S) {
+  const rules = S.hallRules;
+  if (!(whole(rules.limitMs) && rules.limitMs >= 60000 && rules.limitMs <= 3600000)) throw new Error(`BOSS_HALL_RULES ${JSON.stringify(rules)}: a limit of 1 to 60 minutes`);
+  const lines = (ph) => !!ph && whole(ph.addsPm) && whole(ph.enragePm) && whole(ph.enrageAtkPm) && ph.addsPm > ph.enragePm && ph.enragePm > 0 && ph.addsPm < 1000 && ph.enrageAtkPm > 1000
+    && (ph.guardPm === undefined || (whole(ph.guardPm) && ph.guardPm >= 1 && ph.guardPm < 1000)) && Object.keys(ph).every((k) => BOSS_PHASES.includes(k));
+  const hasten = (id, m) => {
+    const h = m.phases && m.phases.hasten;
+    if (h === undefined) return;
+    const sp = h && S.spells ? S.spells[h.spell] : null;
+    if (!h || !(Array.isArray(m.spells) && m.spells.includes(h.spell)) || !sp) throw new Error(`hall row ${id}'s hasted spell ${h && h.spell} is not one of his own spells`);
+    if (!(whole(h.cdPm) && h.cdPm >= 100 && h.cdPm < 1000)) throw new Error(`hall row ${id}'s hasted spell cdPm ${h.cdPm} is not 100..999`);
+    if (!(Math.floor((sp.cdMs * h.cdPm) / 1000) > sp.windupMs)) throw new Error(`hall row ${id}'s hasted ${h.spell} would start again before it lands (${sp.cdMs} x ${h.cdPm} / 1000 <= windup ${sp.windupMs})`);
+    if (Object.keys(h).some((k) => k !== 'spell' && k !== 'cdPm')) throw new Error(`hall row ${id}'s hasten has a field it does not read`);
+  };
+  const hallGrounds = Object.values(S.grounds).filter((g) => g.hall);
+  const rows = Object.values(S.halls).map((h) => {
+    if (!(ID.test(h.id) && h.id.length <= 59 && h.hunt === h.id + '_hall')) throw new Error(`hall ${h.id}: its room's id is its ground's and _hall (the close trigger's cheap test), not ${h.hunt}`);
+    const hunt = S.hunts.find((x) => x.id === h.hunt);
+    const g = hallGrounds.find((x) => x.hunt === h.hunt);
+    const from = Object.values(S.grounds).find((x) => x.hunt === h.id);
+    if (!hunt || hunt.hall !== true || hunt.called === true) throw new Error(`hall ${h.id} names room ${h.hunt}, which is no hall hunt`);
+    if (!g || g.hall !== h.id) throw new Error(`hall ${h.id}: its room's ground does not name it`);
+    if (!from || from.call || from.hall || from.train) throw new Error(`hall ${h.id}: its key's ground ${h.id} is no open ground`);
+    if (!(ID.test(String(h.key)) && own(S.items, h.key))) throw new Error(`hall ${h.id}: its key ${h.key} is no item`);
+    if (S.items[h.key].opens !== undefined && S.items[h.key].opens !== h.id) throw new Error(`hall ${h.id}: its key ${h.key} opens ${S.items[h.key].opens}`);
+    if (typeof h.boss !== 'string' || typeof h.Boss !== 'string' || !h.boss || !h.Boss) throw new Error(`hall ${h.id} has no words for its boss`);
+    if (g.pockets.length !== 1 || g.route.length !== 1) throw new Error(`hall room ${g.id} is not one pocket`);
+    const p = g.pockets[0];
+    if (p.pack || !Array.isArray(p.spawns) || p.spawns.length !== 1) throw new Error(`hall room ${g.id} does not stand its boss alone (one spawn, no pack)`);
+    if (!Array.isArray(p.adds) || !p.adds.length) throw new Error(`hall room ${g.id} has no adds`);
+    const boss = p.spawns[0].monster;
+    const b = S.monsters[boss];
+    if (!b || b.boss !== true || b.add === true || b.called === true) throw new Error(`hall ${h.id}'s boss ${boss} is not a boss row that pays`);
+    if (!lines(b.phases)) throw new Error(`hall boss ${boss} has no two lines: ${JSON.stringify(b.phases)}`);
+    hasten(boss, b);
+    for (const s of p.adds) {
+      const a = S.monsters[s.monster];
+      if (!a || a.add !== true || a.called === true) throw new Error(`hall ${h.id}'s add ${s.monster} is not an add row that pays`);
+      if (a.boss === true) {
+        /* A NAMED ADD: his own enrage line at most, never a wave or a guard */
+        const ph = a.phases;
+        if (ph !== undefined && !namedAddLine(ph)) throw new Error(`named add ${s.monster} carries a line he can't: only an enrage line (no wave, no guard), ${JSON.stringify(ph)}`);
+      } else if (a.phases !== undefined) throw new Error(`hall add ${s.monster} has phases and is no named add`);
+    }
+    /* his rows stand in his room only: no other ground fields the boss or an add */
+    const mine = new Set([boss, ...p.adds.map((s) => s.monster)]);
+    for (const o of Object.values(S.grounds)) {
+      if (o === g) continue;
+      for (const q of o.pockets) for (const s of (q.pack || []).concat(q.spawns || [], q.adds || [])) if (mine.has(s.monster)) throw new Error(`hall ${h.id}'s ${s.monster} stands on ${o.id} too`);
+    }
+    return { id: h.id, hunt: h.hunt, monster: boss, key: h.key, limitMs: rules.limitMs };
+  }).sort((a, b) => (a.id < b.id ? -1 : 1));
+  for (const g of hallGrounds) if (!rows.some((r) => r.hunt === g.hunt && r.id === g.hall)) throw new Error(`hall room ${g.id} names hall ${g.hall}, which is no row`);
+  const loose = S.hunts.filter((x) => x.hall === true && !rows.some((r) => r.hunt === x.id));
+  if (loose.length) throw new Error(`hall hunt ${loose[0].id} has no hall: it would have no door`);
+  /* a named add stands in a hall only: everywhere else an add is a called room's, which never names one. EVERY hall in the data counts (a staged
+     pack's too, `everyHall`: its rows are in S.monsters though its room is served nowhere yet) */
+  const anyHall = [...hallGrounds, ...Object.values(S.everyHall || {})];
+  for (const [id, m] of Object.entries(S.monsters)) if (m.boss === true && m.add === true && !anyHall.some((g) => g.pockets[0].adds.some((s) => s.monster === id))) throw new Error(`named add ${id} stands in no hall`);
+  return rows;
 }
 
 /* THE TRAINING RULES, AT THE GENERATOR (tests/combat-training.mjs mutates it): the rows of hr_training_rules and hr_training_grounds, or a throw.
@@ -821,12 +924,13 @@ export function render(src) {
   const trainValues = r.training.grounds.map((t) => `  (${sq(t.hunt)}, ${sq(t.place)}, ${sq(t.skill)}, ${t.ord}, ${t.fee}, ${t.pm})`).join(',\n');
   const trainRule = r.training.rules;
   const callValues = r.bossCalls.map((c) => `  (${sq(c.id)}, ${sq(c.hunt)}, ${sq(c.from)}, ${sq(c.monster)}, ${c.fee}, ${c.perDay}, ${c.limitMs})`).join(',\n');
+  const hallValues = r.bossHalls.map((h) => `  (${sq(h.id)}, ${sq(h.hunt)}, ${sq(h.monster)}, ${sq(h.key)}, ${h.limitMs})`).join(',\n');
   const nLim = Object.keys(r.lim).length;
   const CATALOGUE = ['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value',
     'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes',
     'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns',
     'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls',
-    'hr_training_rules', 'hr_training_grounds'];
+    'hr_training_rules', 'hr_training_grounds', 'hr_boss_halls'];
   const tableList = CATALOGUE.map(sq).join(', ');
   return `-- ════════════════════════════════════════════════════════════════════════
 -- Hearthrise — THE HUNT SESSION CATALOGUE  (GENERATED — DO NOT EDIT)
@@ -843,7 +947,22 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/c-combat-training, Tyler 2026-11-08: "a public yard paid by the hour" and "a personal training dummy for houses"; src/data/training.js):
+-- NEW IN THIS FILE (lane/b-barrow-integrate, 2026-11-14; from lane/b-barrow-boss-room, the Krell's Hold design's engine piece 5, src/data/boss-halls.js,
+-- and lane/d-barrow-data): the keyed halls' table, hr_boss_halls (the room a Hall Key opens, the boss whose kill ends it, the key it spends, its limit),
+-- which hr_hunt_admit, hr_boss_hall_enter and the settle's proof of a room's ends read (2027-04-20-boss-hall.sql, which applies right after this file).
+-- It is EMPTY: the one hall in the data is Lord Krell's, his pack is staged, and a staged pack is served nowhere; his room, its rows' kill bounds and its
+-- drops join the tables above like any ground's the day the pack opens. THE BARROW DATA (lane/d-barrow-data): hr_hunt_vendor_value gains the eight new
+-- weapons (559 -> 567) and every tier-7 gear bid moves DOWN from 0.015 to 0.007 of book (loot-bands.js VENDOR_GEAR_RATES tier 7; no tier-7 item has a
+-- reachable source today); hr_hunt_weapons gains seven weapons (69 -> 76). No ground, monster, kill bound, spawn, limit, end reason or world shape
+-- moves: all five Barrow March grounds are staged and stand in no table here. ORDER: after 2027-04-20-bear-purse-hunt-sessions-catalogue.generated.sql
+-- (carried whole) and 2027-04-17-barrow-data-items-catalogue.generated.sql (the self-check wants the weapons in hr_items), right before
+-- 2027-04-20-boss-hall.sql; then the hr-accrue carrying the same loot-bands.js. That hr-accrue may land on either side of the hall: none exists to open.
+--
+-- CARRIED FROM 2027-04-20-bear-purse-hunt-sessions-catalogue (lane/d-no-profit-molds, designer 2026-11-13; Tyler 2026-11-13 NO PROFIT MOLDS): ONE row of
+-- hr_hunt_kill_bounds. The Brook Bear's hand-kept purse [13, 40] served the Glade's retired +10% profit floor; it reads the formula's [11, 32], so its coin
+-- bound is 32. The hr-accrue carrying the same monsters.js lands FIRST (its bear rolls at most 32, under both bounds).
+--
+-- CARRIED FROM 2027-04-16-combat-training-hunt-sessions-catalogue (lane/c-combat-training, Tyler 2026-11-08: "a public yard paid by the hour" and "a personal training dummy for houses"; src/data/training.js):
 -- the eight training grounds (yard and house, one per trained skill: melee, ranged, magic, defense) in hr_hunt_grounds, hr_hunt_ground_spawns and
 -- hr_hunt_travel; the training dummy (yard_dummy) in hr_hunt_kill_bounds, no coin and no drop, its XP bound its health at the hit rate; and the two
 -- training tables, hr_training_rules (the hourly fee, the dummy's floor, the longest session, the house dummy's property tier) and hr_training_grounds
@@ -1288,6 +1407,18 @@ comment on table public.hr_training_rules is
   'tools/gen-hunt-sessions.mjs from src/data/training.js: the training yard''s fee, the dummy''s floor, the longest session, the house dummy''s property tier (lane/c-combat-training). Names no player; character wipe c_no_player.';
 comment on table public.hr_training_grounds is
   'tools/gen-hunt-sessions.mjs from src/data/training.js and hunt-grounds.js TRAINING_GROUNDS: each training ground''s place, trained skill, hourly fee and XP share (lane/c-combat-training). Names no player; character wipe c_no_player.';
+-- KEYED HALLS (boss-halls.js): which room a Hall Key opens, the boss whose kill ends it, the key it spends and its limit. Read by hr_hunt_admit,
+-- hr_boss_hall_enter and the settle's proof of the room's ends (2027-04-20-boss-hall.sql). A hall's room is its ground's id and _hall.
+create table if not exists public.hr_boss_halls (
+  hall_id    text not null primary key check (hall_id ~ '^[a-z0-9_]{1,59}$'),
+  hunt_id    text not null unique,
+  monster_id text not null check (monster_id ~ '^[a-z0-9_]{1,64}$' and monster_id !~ '_called$'),
+  key_item   text not null check (key_item ~ '^[a-z0-9_]{1,64}$'),
+  limit_ms   int  not null check (limit_ms between 60000 and 3600000),
+  constraint hr_boss_halls_hunt_ck check (hunt_id = hall_id || '_hall')
+);
+comment on table public.hr_boss_halls is
+  'tools/gen-hunt-sessions.mjs from src/data/boss-halls.js: the keyed halls, the key each spends and its limit (lane/b-barrow-boss-room). Names no player; character wipe c_no_player.';
 do $$
 declare v_t text;
 begin
@@ -1391,6 +1522,8 @@ insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, 
   (true, ${trainRule.feeBase}, ${trainRule.feePerLevel}, ${trainRule.hpFloorPm}, ${trainRule.maxHours}, ${trainRule.houseTier}, ${sq(trainRule.houseTierId)});
 insert into public.hr_training_grounds (hunt_id, place, skill, ord, fee, xp_permille) values
 ${trainValues};
+delete from public.hr_boss_halls;
+${hallValues ? `insert into public.hr_boss_halls (hall_id, hunt_id, monster_id, key_item, limit_ms) values\n${hallValues};` : '-- (no open keyed hall in the data: src/data/boss-halls.js OPEN_BOSS_HALLS)'}
 
 -- ── SELF-CHECK (CLAUDE.md §4): the rows the generator wrote, and nothing more ──
 do $$
@@ -1424,6 +1557,7 @@ begin
      or (select count(*) from public.hr_boss_calls) <> ${r.bossCalls.length}
      or (select count(*) from public.hr_training_rules) <> 1
      or (select count(*) from public.hr_training_grounds) <> ${r.training.grounds.length}
+     or (select count(*) from public.hr_boss_halls) <> ${r.bossHalls.length}
      or exists (select 1 from public.hr_hunt_weapon_roles where discipline is null)
      or exists (select 1 from public.hr_hunt_weapon_roles w where w.with_shield is not null
                  and not exists (select 1 from public.hr_hunt_weapon_roles k where k.weapon_type = w.with_shield))
@@ -1493,6 +1627,18 @@ ${r.abilities.filter((a) => a.area).map((a) => `    (${sq(a.id)}, ${sq(a.lane)},
      or exists (select 1 from public.hr_hunt_roster o where o.monster_id = ${sq(r.training.dummy)})
      or exists (select 1 from public.hr_hunt_travel v where v.hunt_id = ${sq(r.training.dummy)}) then
     raise exception 'a training ground holds more than its dummy, or the dummy pays, or it stands where it trains nobody'; end if;
+  -- KEYED HALLS: every hall stands in hr_hunts, hr_hunt_travel and hr_hunt_grounds (one pocket), its boss among its spawns and on no other ground,
+  -- its key a catalogued item, and every row in its room a paying one (a called row never stands in a hall: the kill bounds' CHECK tells them apart).
+  if exists (select 1 from public.hr_boss_halls h
+              where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = h.hunt_id and g.pockets = 1)
+                 or not exists (select 1 from public.hr_hunt_travel t where t.hunt_id = h.hunt_id and not t.training)
+                 or not exists (select 1 from public.hr_hunts u where u.hunt_id = h.hunt_id)
+                 or not exists (select 1 from public.hr_items i where i.item_id = h.key_item)
+                 or not exists (select 1 from public.hr_hunt_ground_spawns s where s.hunt_id = h.hunt_id and s.monster_id = h.monster_id)
+                 or exists (select 1 from public.hr_hunt_ground_spawns s where s.monster_id = h.monster_id and s.hunt_id <> h.hunt_id)
+                 or exists (select 1 from public.hr_hunt_ground_spawns s where s.hunt_id = h.hunt_id and s.monster_id ~ '_called$')
+                 or exists (select 1 from public.hr_boss_calls c where c.hunt_id = h.hunt_id)) then
+    raise exception 'a keyed hall is missing its room, its travel, its key or its boss, or a called row stands in it'; end if;
   -- Every supply, vendor value, ability rune and login reward is a catalogued item;
   -- every named hunt and ground hunt is in hr_hunts; every training id is a
   -- non-boss combat target; every ground spawn has a kill bound.

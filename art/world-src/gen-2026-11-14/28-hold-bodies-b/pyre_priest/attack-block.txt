@@ -1,0 +1,12 @@
+  attack [group: d096ec1e-5997-4ffa-bdb6-8ad26f677bd6]
+    description: raises both bare hands high above his head and chants, the hands pull back toward his chest, then he drops them to where they started, feet planted, ends in the same pose it started, the hood stays up, the pale grey robe, the red sash and the rope cord stay the same, no symbol, no glow, no light, no magic, no spark, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/9cddc70f-d16d-4ecc-b366-1b693c60d122/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/56ae1436-67c5-4b8d-8549-51f8eda2b239/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/d4d6ff53-d097-451c-b36a-ab1222474261/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/1715d24c-130b-4044-9bd6-0bf60334a3b6/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/c11a80af-f708-4ceb-9f41-b2f8b386e625/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/d8605676-59d6-4c67-85e6-93f98928c7bf/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/f0465593-99e3-41bf-8509-2b5ab1a5786c/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/359311ba-a30d-4d33-91c2-2794b7ba173f/west/{i}.png  (i=0..6)

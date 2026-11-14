@@ -30,7 +30,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { walkable } from './grid.js?v=0.2.129';
+import { walkable } from './grid.js?v=0.2.130';
 
 /* The kinds and the one parameter each reads; `at`: where `place` puts its origin. */
 export const SHAPE_KINDS = Object.freeze({

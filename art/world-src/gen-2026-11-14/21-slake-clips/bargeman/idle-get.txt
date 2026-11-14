@@ -1,0 +1,30 @@
+status: completed
+id: fc37534e-9ad0-4df7-a466-02bd1996b2d0
+name: S1 Bargeman r8
+state_name: base
+directions: 8
+size: 48x48px
+view: high top-down
+group: 6dbdffc8-3ad3-4ea9-b955-3e58ebedcc67
+
+rotations:
+  east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/rotations/east.png
+  west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/rotations/west.png
+  north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/rotations/north.png
+  south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/rotations/south.png
+  north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/rotations/north-east.png
+  north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/rotations/north-west.png
+  south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/rotations/south-east.png
+  south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/rotations/south-west.png
+
+animations (1 groups):
+  idle [group: 07e812dc-7bf9-4864-b4ee-6f47c141fcda]
+    description: standing, the chest rises and falls, the head stays level, both feet stay put, the pole stays in both hands, nothing else appears in the frame
+    directions: south (1/8)
+    frames: 9
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/469b07a1-f224-4ef9-99e5-32b88f04e82d/south/{i}.png  (i=0..8)
+
+download: https://api.pixellab.ai/mcp/objects/fc37534e-9ad0-4df7-a466-02bd1996b2d0/download
+spritesheet: https://api.pixellab.ai/mcp/objects/fc37534e-9ad0-4df7-a466-02bd1996b2d0/spritesheet (one uniform-grid sheet PNG + layout JSON, zipped)
+
+actions: animate_object(object_id="fc37534e-9ad0-4df7-a466-02bd1996b2d0", ...) | create_object_state(object_id="fc37534e-9ad0-4df7-a466-02bd1996b2d0", ...) | delete_object(object_id="fc37534e-9ad0-4df7-a466-02bd1996b2d0")

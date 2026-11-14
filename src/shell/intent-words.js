@@ -10,20 +10,20 @@
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.129';
-import { ITEMS } from '../data/items.js?v=0.2.129';
-import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.129';
-import { skillsOf, nameOf } from '../session/item-sections.js?v=0.2.129';
-import { levelOf } from '../session/character-sections.js?v=0.2.129';
-import { needOf, needWords } from './item-lore.js?v=0.2.129';
-import { listWords, whole } from '../render/format.js?v=0.2.129';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.129';
-import { marketRefusal } from './market-words.js?v=0.2.129';
-import { setupFullWords } from './setup-words.js?v=0.2.129';
-import { TITLES } from '../data/titles.js?v=0.2.129';
-import { sinkRefusal } from './sink-words.js?v=0.2.129';
-import { t } from '../render/player-text.js?v=0.2.129';
-import { trainingRefusal } from './training-words.js?v=0.2.129';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.130';
+import { ITEMS } from '../data/items.js?v=0.2.130';
+import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.130';
+import { skillsOf, nameOf } from '../session/item-sections.js?v=0.2.130';
+import { levelOf } from '../session/character-sections.js?v=0.2.130';
+import { needOf, needWords } from './item-lore.js?v=0.2.130';
+import { listWords, whole } from '../render/format.js?v=0.2.130';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.130';
+import { marketRefusal } from './market-words.js?v=0.2.130';
+import { setupFullWords } from './setup-words.js?v=0.2.130';
+import { TITLES } from '../data/titles.js?v=0.2.130';
+import { sinkRefusal } from './sink-words.js?v=0.2.130';
+import { t } from '../render/player-text.js?v=0.2.130';
+import { trainingRefusal } from './training-words.js?v=0.2.130';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 

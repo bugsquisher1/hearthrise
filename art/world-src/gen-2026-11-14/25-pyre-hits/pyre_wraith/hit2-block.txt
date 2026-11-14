@@ -1,0 +1,12 @@
+  hit2 [group: 6381870a-521d-49c6-b183-36f838f4f482]
+    description: the shroud shudders and leans back by one pixel as if pushed from the front, the hood stays at the same height, then returns to its stance, the same colours throughout, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/0270f103-104f-41d8-802e-e45ed6f4c212/animations/f8ed4376-4ffc-4fb5-90ec-2ce01654bb8d/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/0270f103-104f-41d8-802e-e45ed6f4c212/animations/a7c57c75-6f6f-4f58-b2bc-cbba95f72ca5/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/0270f103-104f-41d8-802e-e45ed6f4c212/animations/4719e271-19e7-4c9d-a877-95719964dff8/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/0270f103-104f-41d8-802e-e45ed6f4c212/animations/962a05eb-c913-4741-878c-3e7d76f13097/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/0270f103-104f-41d8-802e-e45ed6f4c212/animations/986c4736-a712-4613-b8ed-9f61f9be7e03/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/0270f103-104f-41d8-802e-e45ed6f4c212/animations/8c9b016e-c147-493c-af7e-492535d65567/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/0270f103-104f-41d8-802e-e45ed6f4c212/animations/d4ab1e37-0df7-40be-874a-2e3cfe6de34a/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/0270f103-104f-41d8-802e-e45ed6f4c212/animations/3780a80e-7e08-4d22-afc9-598c868d4351/west/{i}.png  (i=0..6)

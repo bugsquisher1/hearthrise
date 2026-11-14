@@ -1,0 +1,15 @@
+{
+ "mode": "pro",
+ "tile_size": {
+  "width": 32,
+  "height": 32
+ },
+ "view": "high top-down",
+ "transition_size": 0,
+ "lower_description": "withered dead grass (kept)",
+ "upper_description": "short dull khaki grass of a cold march country seen from above, a yellow-olive khaki, an even mix of olive #6b7a38 and straw #a88457 with a few #8a6440 blades, small sparse tufts, muted, flat, low contrast",
+ "palette": "hr-world-56-v2 (56)",
+ "palette_name": "hr-world-56-v2",
+ "max_colors": 12,
+ "lower_base_tile_id": "c5ee7a66-e673-4fe2-8a4a-822876f73ccf"
+}

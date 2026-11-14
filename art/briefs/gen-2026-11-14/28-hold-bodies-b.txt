@@ -1,0 +1,22 @@
+BRIEF 28: KRELL'S HOLD BODIES B, THE PYRE PRIEST, THE GATEKEEPER, LORD KRELL (~150 gens, 14 rows)
+After brief 27's Farmhand read. Same tools and style image as 27. Heads exist (brief 18); bodies follow them.
+ #  Body          Class    Row                                                                        Gens
+ 1  pyre_priest   character SOUTH SAMPLE + rotations: "a living priest in a hood and an ash-grey robe, a knotted cord at the waist, a dark red cloth sash, bare thin hands raised, game enemy sprite". NO symbol on brow, chest, sleeve or banner (the held cross, brief 25: the smear is "a grey smudge of ash across the brow, no shape, no symbol"). NOT a monk/nun. Hood reads as a priest, not a ranger: robe and cord carry it  6
+ 2  pyre_priest   idle 8, walk, attack ("raises both hands and chants, a faint pull of the hands, then drops them"), death, hit  22
+ 3  gatekeeper    brute    SOUTH SAMPLE + rotations: "a big living gatekeeper in steel plate and a dark red surcoat, a flanged mace in one hand, a large ring of iron keys at the belt that catches light, a raised visor, bearded face, game enemy sprite". The keys must read at x2 (the board). Hammer-weak: heavy plate. 6
+ 4  gatekeeper    idle 8, walk, attack, death, hit                                                      24
+ 5  lord_krell    brute    SOUTH SAMPLE: "an old thin man in Dawnsteel plate with an iron circlet, a grey beard, a dark red fur cloak (keep the cloak RED: brief 18's refused rolls went grey), the Company Roster held in his off hand, game boss sprite". Canvas 64. 3 cand  8
+ 6  lord_krell    8 rotations                                                                             1
+ -- STOP: the art director reads Krell's south beside the Gatekeeper and Hask (the Muster). He must read as a lord, not the Gatekeeper's father. --
+ 7  lord_krell    idle 8 frames, walk                                                                    12
+ 8  lord_krell    attack "swings the heavy sword at the tank" (engine piece: phase 1), 8 facings         10
+ 9  lord_krell    SPECIAL 1, Rake the Coals: "drags a long fire rake through the floor coals in a wide cone, coals spark, then lifts it", 4 facings (board: 8 and 4 facings like Hask)  10
+ 10 lord_krell    SPECIAL 2, Reads the Roster: "lifts the open Roster and reads aloud, the other hand points down", 4 facings   10
+ 11 lord_krell    death "falls to his knees, the Roster drops, then onto his face, lies still", 8 facings  10
+ 12 lord_krell    hit, 4 facings                                                                          6
+ 13 Hall Fire dead standing-up: NOT a gen: a death clip played backward (board: free)                      0
+ Subtotal 6+22+6+24+8+1+12+10+10+10+10+6 = 125, ~150 with re-rolls.
+REJECT: any glow on Krell or the Fire (art direction: no glow); a cloak gone grey; a face that reads as the Gatekeeper; a Priest with any sign
+on the body; a Gatekeeper whose keys are lost at x2 (the key ring is his identity: it is also the Hall Key's source).
+WIRING: port-pixellab.mjs unit --set hold; lord_krell class brute with a called-room boss row (a hall body), specials as named clips
+in the pack's lord_krell_called row; the pack's phase engine pieces are Systems', not here.

@@ -22,9 +22,10 @@ const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 &
 const IN = resolve(arg('in', join(HERE, 'out', 'verdict')));
 const WRITE = process.argv.includes('--write');
 
-/* THE RULING'S NUMBERS this verdict judges against (Tyler 2026-10-25; the profit floor 10-20) */
+/* THE RULING'S NUMBERS this verdict judges against (Tyler 2026-10-25). NO PROFIT MOLDS (Tyler 2026-11-13): profit is printed in its own
+   columns, never marked or counted in a verdict (the 10-20 profit floor is retired). */
 export const TARGET = Object.freeze({
-  normalMinHp: [60, 80], deathsPer1000h: 1, closePer12h: 1, margin: 0.25, rareH: [10, 20], gearPerH: [0.5, 2],
+  normalMinHp: [60, 80], deathsPer1000h: 1, closePer12h: 1, rareH: [10, 20], gearPerH: [0.5, 2],
   party: { 2: [1.05, 1.15], 4: [1.15, 1.25] }, weapon: [0.05, 0.08], armour: [0.03, 0.05],
   /* XP/h against the Level pace of record (level-pace.json: the rate the fitted curve's hours were measured at) */
   xpRatio: [0.8, 1.25],
@@ -65,7 +66,6 @@ export function pool(heroes) {
 
 /* ── marks ── */
 const markXp = (ratio) => (ratio === null ? '-' : ratio < TARGET.xpRatio[0] ? 'LOW' : ratio > TARGET.xpRatio[1] ? 'HIGH' : 'OK');
-const markProfit = (p) => (p.worstProfit !== null && p.worstProfit < 0 ? 'BROKEN' : p.margin !== null && p.margin < TARGET.margin ? 'LOW' : 'OK');
 const markDeaths = (p) => (p.deaths === 0 ? 'OK' : p.deathsPer1000h.lo > 30 ? 'BROKEN' : 'HIGH');
 const markMinHp = (m) => (m === null ? '-' : m > TARGET.normalMinHp[1] ? 'HIGH' : m < TARGET.normalMinHp[0] ? 'LOW' : 'OK');
 const worst = (...ms) => (ms.includes('BROKEN') ? 'BROKEN' : ms.includes('LOW') ? 'LOW' : ms.includes('HIGH') ? 'HIGH' : 'OK');
@@ -94,10 +94,10 @@ function table() {
       /* the worst style of the role (a role is as good as its weakest way to fight) */
       const byStyle = ROLES[role].map((s) => [s, pool(solo(0, plainGear).flatMap((c) => c.heroes.filter((h) => h.style === s)))]).filter(([, p]) => p.n);
       const weakest = byStyle.length ? byStyle.sort((a, b) => a[1].xpPerH - b[1].xpPerH)[0][0] : null;
-      const marks = { xp: fit === 'party' ? '-' : markXp(ratio), profit: built.n ? markProfit(built) : '-', deaths: built.n ? markDeaths(built) : '-',
+      const marks = { xp: fit === 'party' ? '-' : markXp(ratio), deaths: built.n ? markDeaths(built) : '-',
         minHp: markMinHp(built.minHpP50), kitDeaths: kit.n ? markDeaths(kit) : '-', boxDeaths: box.n ? markDeaths(box) : '-' };
       out.push({ ground: g, band, groupFit: fit, soloFrom: from ?? null, role, weakest, xpVsPace: ratio, built, box, kit, offAdvice, marks,
-        verdict: worst(marks.xp, marks.profit, marks.deaths, marks.kitDeaths === 'BROKEN' ? 'BROKEN' : 'OK') });
+        verdict: worst(marks.xp, marks.deaths, marks.kitDeaths === 'BROKEN' ? 'BROKEN' : 'OK') });
     }
   }
   return out;
@@ -224,8 +224,7 @@ function discrepancies() {
     for (const [k, m] of Object.entries(r.marks)) {
       if (m === 'OK' || m === '-') continue;
       const p = k === 'kitDeaths' ? r.kit : k === 'boxDeaths' ? r.box : r.built;
-      const what = { xp: 'Level XP/h ' + (r.xpVsPace) + 'x the pace of record', profit: 'profit ' + p.profitPerH + ' g/h, margin ' + p.margin + ' (worst hero ' + p.worstProfit + ')',
-        deaths: p.deaths + ' deaths in ' + p.hours + ' h in band as built', minHp: 'typical encounter min HP ' + p.minHpP50 + '% (Normal is 60-80)',
+      const what = { xp: 'Level XP/h ' + (r.xpVsPace) + 'x the pace of record', deaths: p.deaths + ' deaths in ' + p.hours + ' h in band as built', minHp: 'typical encounter min HP ' + p.minHpP50 + '% (Normal is 60-80)',
         kitDeaths: p.deaths + ' deaths in ' + p.hours + ' h in the starter kit', boxDeaths: p.deaths + ' deaths in ' + p.hours + ' h at the full box' }[k];
       const key = r.ground + '|' + k + '|' + m;
       if (merged[key]) { merged[key].role += ', ' + r.role; merged[key].what += '; ' + r.role + ': ' + what; continue; }
@@ -254,12 +253,12 @@ const pad = (s, n) => String(s === null || s === undefined ? '-' : s).padEnd(n).
 const lpad = (s, n) => String(s === null || s === undefined ? '-' : s).padStart(n);
 console.log('THE VERDICT (' + rows.length + ' cells, in band, in-band gear, density as built; Box = the full box; Kit = the starter kit)');
 console.log(pad('ground', 10) + pad('role', 7) + lpad('XP/h', 8) + lpad('xPace', 6) + lpad('profit', 8) + lpad('margin', 9) + lpad('d/kh', 6) + lpad('minHP', 6)
-  + lpad('boxHP', 6) + lpad('box d', 6) + lpad('kit d', 6) + '  ' + pad('marks xp/profit/deaths/minHp', 30) + 'VERDICT');
+  + lpad('boxHP', 6) + lpad('box d', 6) + lpad('kit d', 6) + '  ' + pad('marks xp/deaths/minHp', 30) + 'VERDICT');
 for (const r of T) {
   const b = r.built;
   console.log(pad(SHORT[r.ground], 10) + pad(r.role, 7) + lpad(b.xpPerH, 8) + lpad(r.xpVsPace, 6) + lpad(b.profitPerH, 8) + lpad(b.margin, 9) + lpad(b.deathsPer1000h.rate, 6)
     + lpad(b.minHpP50, 6) + lpad(r.box.minHpP50, 6) + lpad(r.box.deaths, 6) + lpad(r.kit.n ? r.kit.deaths : '-', 6) + '  '
-    + pad([r.marks.xp, r.marks.profit, r.marks.deaths, r.marks.minHp].join('/'), 30) + r.verdict);
+    + pad([r.marks.xp, r.marks.deaths, r.marks.minHp].join('/'), 30) + r.verdict);
 }
 console.log('\nPARTIES (in band, in-band gear, the better density): XP per hero vs the comparable solo (where a lone hero is sent) / any solo / same ground solo');
 for (const p of PARTY_BEST) console.log('  ' + pad(SHORT[p.ground], 10) + pad(p.party, 24) + 'L' + pad(p.level, 4) + 'd' + pad(p.density, 2) + lpad(p.xpPerHero, 7) + '  ' + p.vsComparableSolo + ' / ' + p.vsAnySolo + ' / ' + p.vsSameGroundSolo + '  (target ' + (p.target || []).join('-') + ') deaths ' + p.deaths);

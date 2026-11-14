@@ -29,25 +29,25 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=0.2.129';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.129';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.129';
-import { SKILLS_DEF } from './skills.js?v=0.2.129';
-import { SHOP_OFFERS } from './shops.js?v=0.2.129';
-import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.129';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.129';
-import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.129';
-import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.129';
-import { EFFECT_KINDS } from './item-effects.js?v=0.2.129';
-import { MONSTERS } from './monsters.js?v=0.2.129';
-import { NAMED_FUELS } from './hearth.js?v=0.2.129';
-import { TEMPER_OFFERS } from './temper.js?v=0.2.129';
-import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.129';
-import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.129';
-import { HUNT_INDEX } from './hunts.js?v=0.2.129';
+import { ITEMS } from './items.js?v=0.2.130';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.130';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.130';
+import { SKILLS_DEF } from './skills.js?v=0.2.130';
+import { SHOP_OFFERS } from './shops.js?v=0.2.130';
+import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.130';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.130';
+import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.130';
+import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.130';
+import { EFFECT_KINDS } from './item-effects.js?v=0.2.130';
+import { MONSTERS } from './monsters.js?v=0.2.130';
+import { NAMED_FUELS } from './hearth.js?v=0.2.130';
+import { TEMPER_OFFERS } from './temper.js?v=0.2.130';
+import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.130';
+import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS } from './hunt-grounds.js?v=0.2.130';
+import { HUNT_INDEX } from './hunts.js?v=0.2.130';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-} from './item-authority.js?v=0.2.129';
+} from './item-authority.js?v=0.2.130';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module
@@ -109,6 +109,12 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'granary_whisker', 'barn_wasp_sting', 'loft_web', 'torn_company_badge',
   /* the boar and the bear (lane b-unsourced-items): their imbuement items, and the boar's bristles */
   'orchard_boar_tusk', 'brook_bear_tooth', 'boar_bristle',
+  /* the Slake's four and Hask's Ford's four (lane/b-slake-and-ford), the same promise: a Material that only sells until linings are built */
+  'green_rivet', 'barge_nail', 'mudlark_hook', 'color_cord', 'pike_band', 'ford_weed', 'ledger_leaf', 'toll_token',
+  /* the Muster Barrows' four (lane/b-muster-barrows), the Pyre Field's five (lane/b-pyre-field) and Krell's Hold's five (lane/b-krells-hold-pack), the same promise */
+  'coffin_nail', 'urn_shard', 'sergeant_spur', 'hasks_coin',
+  'pike_ferrule', 'rake_tine', 'kennel_tag', 'shroud_pin', 'warrant_seal',
+  'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -122,42 +128,38 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
 export const AWAITING_ROSTER = Object.freeze([
   'oak_rod',   // the road_cook reward until the 2026-10-14 re-reward; rods have no recipe yet
   'abyssal_greaves', 'alphaheart_longbow',
-  'archmage_belt', 'archmage_body', 'archmage_helmet',
-  'archmage_pants', 'ashcrown_greatsword', 'bone_needle',
+  'ashcrown_greatsword', 'bone_needle',
   'bronze_hammer', 'bronze_knife',
   'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
   'choirbone_gauntlets', 'crown_of_the_fallen_king', 'dawn_belt',
-  'dawn_boots', 'dawn_gauntlets', 'dawn_helm', 'dawn_platebody',
-  'dawn_platelegs', 'dawn_sword', 'dawn_warhammer', 'dawnbound_amulet', 'dawnforged_signet',
+  'dawn_boots', 'dawn_gauntlets',
+  'dawn_platelegs', 'dawnbound_amulet', 'dawnforged_signet',
   'dawnlit_mantle', 'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',
-  'dragon_relic', 'dragonfang_pike', 'dragonhide_belt', 'dragonhide_body', 'dragonhide_boots',
-  'dragonhide_gloves', 'dragonhide_helmet', 'dragonhide_pants', 'dragonrend_greatblade',
-  'duskwood_bow', 'duskwood_rod', 'duskwood_staff', 'elderscale_heart', 'elderscale_platebody',
-  'ember_belt', 'ember_boots', 'ember_helm', 'ember_platebody',
-  'ember_platelegs', 'ember_sword', 'ember_warhammer', 'fangdart_recurve', 'gold_amulet',
+  'dragon_relic', 'dragonfang_pike', 'dragonrend_greatblade',
+  'duskwood_rod', 'elderscale_heart', 'elderscale_platebody',
+  'fangdart_recurve', 'gold_amulet',
   'gold_ring', 'heartgarnet_maul', 'hollow_sigil_ring',
   'lexarch_seal',
-  'maple_rod', 'maple_staff', 'mithril_helm',
-  'mithril_platebody', 'mithril_platelegs', 'mithril_sword', 'mithril_warhammer',
+  'maple_rod',
   'nightstalker_pelt', 'plaguewarden_greaves', 'quiet_coat', 'regent_helm',
   'riftmaw_carapace', 'riftmaw_husk', 'ruby_signet', 'rubyfire_studs',
-  'rune_hammer', 'rune_helm', 'rune_knife', 'rune_needle', 'rune_platebody',
-  'rune_platelegs', 'rune_warhammer', 'runewood_bow', 'runewood_rod',
-  'slagheart_core', 'slagheart_platebody', 'snakeskin_body',
-  'snakeskin_helmet', 'snakeskin_pants', 'sorcerer_body', 'sorcerer_helmet', 'sorcerer_pants',
+  'rune_hammer', 'rune_knife', 'rune_needle', 'runewood_rod',
+  'slagheart_core', 'slagheart_platebody',
   'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
   'steel_needle',
   'verdite_blade', 'verdite_helm', 'verdite_platebody',
-  'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidhide_belt', 'voidhide_body',
-  'voidhide_boots', 'voidhide_gloves', 'voidhide_helmet', 'voidhide_pants', 'voidmaw_scepter',
-  'voidweave_belt', 'voidweave_body', 'voidweave_boots', 'voidweave_gloves',
-  'voidweave_helmet', 'voidweave_pants', 'voidwoven_sigil', 'warband_bulwark',
-  'warboss_standard', 'warden_girdle', 'warden_seal', 'warlock_body', 'warlock_pants',
+  /* tier 7 leather and cloth, Dawnhide and Duskweave (Tyler 2026-11-14), renamed from voidhide_ and voidweave_. Their bodies and helmets are Lord Krell's
+     prize (UNREACHABLE.staged); the other four slots of each have no source yet */
+  'duskweave_belt', 'duskweave_boots', 'duskweave_gloves', 'duskweave_pants',
+  'dawnhide_belt', 'dawnhide_boots', 'dawnhide_gloves', 'dawnhide_pants',
+  'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidmaw_scepter',
+  'voidwoven_sigil', 'warband_bulwark',
+  'warboss_standard', 'warden_girdle', 'warden_seal',
   'wartusk_cleaver', 'watchknight_belt', 'watchknight_body', 'watchknight_boots',
   'watchknight_gloves', 'watchknight_helmet', 'watchknight_pants', 'whispering_codex',
   'widows_fang', 'willow_rod', 'woolen_cloak', 'wyrm_gilding', 'wyrmgilt_mantle',
-  'wyvernhide_body', 'wyvernhide_helmet', 'wyvernhide_pants', 'yew_rod',
+  'yew_rod',
   /* The Hearth Token (IAP bond): its redeem, IAP grant and store left with the
      client in the same demolition; the row stays because hr_items and
      account_wallet.hearth_tokens still carry it until the M2 migration drops it. */
@@ -179,7 +181,7 @@ export const AWAITING_ROSTER = Object.freeze([
    planned ground or system, (b) needed now (its source is a listing away), (c) no home in
    Early Access, listed for Tyler's keep-or-cut. */
 export const UNREACHABLE_FATES = Object.freeze({
-  staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens (Wickstead, waiting on its painted ground)', open: Object.freeze({ grounds: HUNT_GROUNDS }) }),
+  staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens, and its keyed hall with it (Hask\'s Ford, the Slake, the Muster Barrows, the Pyre Field and Krell\'s Hold and Hall, waiting on their art)', open: Object.freeze({ grounds: Object.freeze({ ...HUNT_GROUNDS, ...HALL_GROUNDS }) }) }),
   premium:    Object.freeze({ bucket: 'a', door: 'premium sells and the daily login claim pays', open: Object.freeze({ premium: true }) }),
   greenhaven: Object.freeze({ bucket: 'a', door: 'a Greenhaven ground not yet built puts it on one of its creatures' }),
   later:      Object.freeze({ bucket: 'c', door: 'none in Early Access, kept for a later region or cut (Tyler)' }),
@@ -190,31 +192,52 @@ export const UNREACHABLE_FATES = Object.freeze({
    Only `staged` may grow, and only with a ground whose opening the guard proves; every
    other fate is held under UNREACHABLE_CEILING. */
 export const UNREACHABLE = Object.freeze({
-  /* Empty since Wickstead opened on its painted ground (lane b-wickstead-art, 2026-10-28): its tier-2 gloves, belts and
-     jewelry, the Bramble Blade and its four imbuement items are reachable. A ground staged again may refill it. */
-  staged: Object.freeze([]),
+  /* THE BARROW MARCH'S FIVE STAGED PACKS (lane/d-packs-retune, 2026-11-12, folding the five pack lanes' rows; each staged until its art lands). C11
+     proves their opening sources every one.
+     Hask's Ford and the Slake (tier 4): the set in three weights, its weapons, gloves, belts and the caster's pair, Grave Dust, eight imbuement items.
+     The Muster Barrows and the Pyre Field (tier 5): the set in three weights and all six slots, its weapons and off-hand, the six tier-6 weapons as the
+     Field's Rares, Razor Claw and Wraith Veil, nine imbuement items.
+     Krell's Hold (tier 6): the set in three weights, four weapons, the Pyre Priests' wand and codex, five imbuement items and the Hall Key.
+     Krell's Hall (lane/b-barrow-integrate, 2026-11-14: the keyed hall folded, staged with its pack): Lord Krell's prize, the first tier 7 in the game,
+     eight weapons and the body and helm in three weights. They were AWAITING_ROSTER and PENDING_SOURCE rows until his row named them. */
+  staged: Object.freeze([
+    'mithril_sword', 'mithril_warhammer', 'maple_staff', 'mithril_helm', 'mithril_platebody', 'mithril_platelegs',
+    'snakeskin_body', 'snakeskin_helmet', 'snakeskin_pants', 'warlock_body', 'warlock_pants', 'mithril_boots',
+    'mithril_gauntlets', 'mithril_belt', 'snakeskin_boots', 'snakeskin_gloves', 'snakeskin_belt', 'warlock_helmet',
+    'warlock_boots', 'warlock_gloves', 'warlock_belt', 'maple_bow', 'maple_wand', 'maple_spellbook', 'grave_dust',
+    'green_rivet', 'barge_nail', 'mudlark_hook', 'color_cord', 'pike_band', 'ford_weed', 'ledger_leaf', 'toll_token',
+    'rune_helm', 'rune_platebody', 'rune_platelegs', 'rune_boots', 'rune_gauntlets', 'rune_belt',
+    'wyvernhide_helmet', 'wyvernhide_body', 'wyvernhide_pants', 'wyvernhide_boots', 'wyvernhide_gloves', 'wyvernhide_belt',
+    'sorcerer_helmet', 'sorcerer_body', 'sorcerer_pants', 'sorcerer_boots', 'sorcerer_gloves', 'sorcerer_belt',
+    'rune_sword', 'rune_warhammer', 'yew_bow', 'yew_staff', 'yew_wand', 'yew_spellbook',
+    'coffin_nail', 'urn_shard', 'sergeant_spur', 'hasks_coin',
+    'ember_sword', 'ember_warhammer', 'runewood_bow', 'runewood_staff', 'runewood_wand', 'runewood_codex',
+    'rune_hatchets', 'yew_crossbow', 'ember_hatchets', 'runewood_crossbow',
+    'razor_claw', 'wraith_veil', 'pike_ferrule', 'rake_tine', 'kennel_tag', 'shroud_pin', 'warrant_seal',
+    'archmage_belt', 'archmage_body', 'archmage_boots', 'archmage_gloves', 'archmage_helmet', 'archmage_pants', 'dragonhide_belt',
+    'dragonhide_body', 'dragonhide_boots', 'dragonhide_gloves', 'dragonhide_helmet', 'dragonhide_pants', 'ember_belt', 'ember_boots',
+    'ember_gauntlets', 'ember_helm', 'ember_platebody', 'ember_platelegs',
+    'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain', 'hall_key',
+    'dawn_sword', 'dawn_warhammer', 'dawn_hatchets', 'duskwood_bow', 'duskwood_crossbow', 'duskwood_staff', 'duskwood_wand', 'duskwood_codex',
+    'dawn_platebody', 'dawn_helm', 'dawnhide_body', 'dawnhide_helmet', 'duskweave_body', 'duskweave_helmet',
+  ]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next
      grounds. Gloves, belts and the caster's cloth line have NO reachable piece today. */
   greenhaven: Object.freeze([
     'rat_stick',
     'spidersilk_choker', 'tusker_charm', 'packlord_band',
-    'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'grave_dust', 'razor_claw',
+    'mirewort_drops', 'ancient_fragment', 'cracked_spellstone',
   ]),
   /* Tier 4+ ladder rungs, the old roster's uniques, and the dragon, undead, demon, troll and void materials
      with the late recipes they feed (Cooking 25 panther and 70+, Inner Flame 35+, Crafting 60 keystones). */
   later: Object.freeze([
-    'mithril_boots', 'rune_boots', 'mithril_gauntlets', 'rune_gauntlets', 'ember_gauntlets', 'mithril_belt',
-    'rune_belt', 'snakeskin_boots', 'wyvernhide_boots', 'snakeskin_gloves', 'wyvernhide_gloves', 'snakeskin_belt',
-    'wyvernhide_belt', 'warlock_helmet', 'warlock_boots', 'sorcerer_boots', 'archmage_boots', 'warlock_gloves',
-    'sorcerer_gloves', 'archmage_gloves', 'warlock_belt', 'sorcerer_belt', 'rune_sword', 'maple_bow', 'yew_bow',
-    'yew_staff', 'runewood_staff', 'maple_wand', 'yew_wand', 'runewood_wand', 'maple_spellbook', 'yew_spellbook',
-    'runewood_codex', 'emberfang_blade', 'panthers_eye_pendant', 'wraithsilk_shroud', 'chitinweave_cloak',
+    'emberfang_blade', 'panthers_eye_pendant', 'wraithsilk_shroud', 'chitinweave_cloak',
     'wraithglass_drops', 'trollhide_cape', 'shadowsilk_cape', 'warlords_torc', 'lazlos_maul', 'dragonrib_bow',
     'void_censer', 'barrowking_mantle', 'jarls_rimetorc', 'captains_ribblade', 'chief_blade', 'alpha_cloak',
     'keystone',
     'dragon_bones', 'troll_hide', 'vamp_dust', 'demon_shard', 'dragon_scale', 'lich_soul', 'ancient_rune',
-    'dragon_gem', 'wraith_veil', 'void_chitin', 'void_core', 'ancient_claw', 'raw_panther_meat', 'cooked_panther_meat',
+    'dragon_gem', 'void_chitin', 'void_core', 'ancient_claw', 'raw_panther_meat', 'cooked_panther_meat',
     /* the Hunter's Feast waits on its troll hide (the Bear Pelt it also asks for drops from the Brook Bear) */
     'hunters_feast', 'dragon_stew', 'lich_soul_soup', 'void_banquet', 'soul_recipe', 'marrow_cookbook',
     'field_cookbook', 'emberheart',
@@ -238,19 +261,23 @@ export const UNREACHABLE = Object.freeze({
 /* 115 -> 105 (lane b-unsourced-items): the tier-1 gloves and sashes are made (style-gear.js), the tier-3 ones are Warrens Rares. */
 /* 105 -> 101: the Brook Bear's meat and claw (and the two dishes they cook). */
 /* 101 -> 100 (lane c-house-pelts): the Brook Bear drops the Bear Pelt the Keep and the Trophy Room ask for. */
-export const UNREACHABLE_CEILING = 100;
+/* 100 -> 64 (lane/d-packs-retune, 2026-11-12): the five Barrow March packs stage every tier-4, tier-5 and tier-6 rung that was `later`
+   (33 rows: boots, gauntlets, belts, gloves, the bows, staves, wands and spellbooks, the Runewood codex), Grave Dust, Razor Claw and
+   Wraith Veil; they move to `staged`, which only a ground's proven opening may hold. */
+export const UNREACHABLE_CEILING = 64;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:
  * { grounds: every ground including staged ones, premium: true }. The Shop is its LISTED rows (SHOP_LISTED_OFFER_IDS).
  */
 export function reachableSources(opts = {}) {
-  const grounds = opts.grounds || OPEN_GROUNDS;
+  /* (an open pack's keyed hall pays like its ground: boss-halls.js) */
+  const grounds = opts.grounds || { ...OPEN_GROUNDS, ...OPEN_HALL_GROUNDS };
   const m = new Map();
   const put = (id, label) => { if (!id || !ITEMS[id] || m.has(id)) return false; m.set(id, label); return true; };
   const met = new Set();
   for (const g of Object.values(grounds)) {
-    for (const p of g.pockets || []) for (const s of (p.pack || []).concat(p.spawns || [])) met.add(s.monster);
+    for (const p of g.pockets || []) for (const s of (p.pack || []).concat(p.spawns || [], p.adds || [])) met.add(s.monster);
     for (const s of (HUNT_INDEX[g.hunt] || {}).spawns || []) met.add(s.monster);
   }
   for (const id of met) for (const d of (MONSTERS[id] && MONSTERS[id].drops) || []) put(d.id, 'drops from ' + id);

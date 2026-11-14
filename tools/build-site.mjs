@@ -75,7 +75,9 @@ export const SITE_BUDGET_BYTES = 25 * 1024 * 1024;
 
 const MARKER = '.built-by-build-site';
 const VENDOR = 'src/vendor/';   // third-party bundles, pinned by hash: they load nothing by path, and are not ours to read
-const FLOORS = Object.freeze({ 'SITE-1': 100, 'SITE-2': 300, 'SITE-3': 10, 'SITE-4': 5, 'SITE-5': 100 });
+/* SITE-1's floor: play.html's tags name the sign-in screen's files only since lane b-first-load (2026-11-13: 63 tags; the game's
+   modules are named by src/app/game-modules.js and reached by SITE-2), so the floor reads a broken reader, not the old count. */
+const FLOORS = Object.freeze({ 'SITE-1': 40, 'SITE-2': 300, 'SITE-3': 10, 'SITE-4': 5, 'SITE-5': 100 });
 
 // ── THE PLAN ─────────────────────────────────────────────────────────────
 const globRe = (g) => new RegExp('^' + g.split('**/').map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*')).join('(?:[^/]+/)*') + '$');

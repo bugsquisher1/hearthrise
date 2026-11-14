@@ -63,9 +63,9 @@
 // GROUND PACKS (lane/b-ground-pack): a new ground is a folder under src/data/grounds, not a row here. HUNTS is the rows below
 // and then every pack's hunt (src/data/grounds/index.js), its id the pack's and `staged` while the pack is.
 // ════════════════════════════════════════════════════════════════════════
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.129';
-import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.129';
-import { SKILLS_DEF } from './skills.js?v=0.2.129';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.130';
+import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.130';
+import { SKILLS_DEF } from './skills.js?v=0.2.130';
 
 const BASE_HUNTS = Object.freeze([
   {
@@ -182,6 +182,17 @@ export const CALLED_HUNTS = Object.freeze([
     band: Object.freeze([32, 50]), spawns: Object.freeze([Object.freeze({ monster: 'chief_coppercap_called', w: 1 }), Object.freeze({ monster: 'goblin_digger_called', w: 1 })]), family: 'Humanoid', art: 'chief_coppercap_called', travelS: 0, pull: 1, respawnMs: 600000 }),
 ]);
 
+/* THE KEYED HALLS (src/data/boss-halls.js; the Krell's Hold design's engine piece 5): one room each, opened by one verb, hr_boss_hall_enter, with a
+   Hall Key, and never listed: not in HUNTS, so no picker, advice line, tally task or spawn table reads them; HUNT_INDEX names them for the top bar
+   and the end card. A hall's id is its ground's id and `_hall` (the close trigger's cheap test). A HALL PAYS like any ground: `hall: true`, never
+   `called`. The rows are a ground pack's `hall` (src/data/grounds/shape.js), folded here: its hunt row, its `spawns` the room's boss and each
+   kind of add once (for the facts: a hall's rows are never a spawn table), and `staged` while the pack is (Krell's Hall, krells_hold). */
+const hallSpawns = (g) => Object.freeze([...new Set(g.pockets.flatMap((p) => p.spawns.concat(p.adds)).map((s) => s.monster))].map((monster) => Object.freeze({ monster, w: 1 })));
+export const HALL_HUNTS = Object.freeze(GROUND_PACKS.filter((p) => p.hall).map((p) => Object.freeze({ id: p.id + '_hall', ...p.hall.hunt, hall: true,
+  spawns: hallSpawns(p.hall.ground), ...(p.status === 'staged' ? { staged: true } : {}) })));
+/** The halls a player can open: every row not `staged` (its pack is open). The server catalogue reads these. */
+export const OPEN_HALL_HUNTS = Object.freeze(HALL_HUNTS.filter((h) => h.staged !== true));
+
 /* THE TRAINING GROUNDS (src/data/training.js; Tyler 2026-11-08): one hunt per place and skill, reached by one verb, hr_training_start, and never listed:
    not in HUNTS, so no picker, advice line, tally task or spawn table reads them; HUNT_INDEX names them for the top bar and the end card. `train` says
    what the hunt trains; the ground (hunt-grounds.js TRAINING_GROUNDS) carries the same. The band is every Level, from 1 (a dummy keeps pace with its hero). */
@@ -198,7 +209,7 @@ export const TRAINING_HUNTS = Object.freeze(Object.keys(TRAINING_PLACES).flatMap
 export const RARITY_LABEL = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare' });
 
 /** Null-prototype index by id: `HUNT_INDEX['constructor']` is undefined. */
-export const HUNT_INDEX = Object.freeze([...HUNTS, ...CALLED_HUNTS, ...TRAINING_HUNTS].reduce((acc, h) => { acc[h.id] = h; return acc; },
+export const HUNT_INDEX = Object.freeze([...HUNTS, ...CALLED_HUNTS, ...HALL_HUNTS, ...TRAINING_HUNTS].reduce((acc, h) => { acc[h.id] = h; return acc; },
   Object.create(null)));
 
 /* A single-monster fight's walk, by the foe's tier: 0 for every tier until the

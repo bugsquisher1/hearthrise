@@ -33,30 +33,30 @@
 // It authors no number: the record changes only from a server answer, and it sends of its own only the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.129';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.129';
-import { LiveLink } from './live-link.js?v=0.2.129';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.129';
-import { SESSION_CONFIG } from './config.js?v=0.2.129';
-import { edgeBody, edgeRead, withReceipt } from './edge-intents.js?v=0.2.129';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.129';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.129';
-import { AskPacer } from './ask-pacer.js?v=0.2.129';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.129';
-import { ReadGate } from './read-gate.js?v=0.2.129';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.129';
-import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.129';
-import { catchUpLink, newIdem } from './catch-up.js?v=0.2.129';
-import { pageAway } from './page-away.js?v=0.2.129';
-import { askBody, slimFloor, takeSlim } from './hunt-ask.js?v=0.2.129';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.129';
+import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.130';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.130';
+import { LiveLink } from './live-link.js?v=0.2.130';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.130';
+import { SESSION_CONFIG } from './config.js?v=0.2.130';
+import { edgeBody, edgeRead, withReceipt } from './edge-intents.js?v=0.2.130';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.130';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.130';
+import { AskPacer } from './ask-pacer.js?v=0.2.130';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.130';
+import { ReadGate } from './read-gate.js?v=0.2.130';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.130';
+import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.130';
+import { catchUpLink, newIdem } from './catch-up.js?v=0.2.130';
+import { pageAway } from './page-away.js?v=0.2.130';
+import { askBody, slimFloor, takeSlim } from './hunt-ask.js?v=0.2.130';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.130';
+import { observeSessions, announceSession } from './session-observers.js?v=0.2.130';
 
 export const FRAME_EVENT = 'frame';
 
-/* Observers handed every CharacterSession as it is made, before its first envelope (the hunt summary's recorder). */
-const OBSERVERS = new Set();
-/** Call `fn(session)` for every session made from now on; returns the stop function. */
-export function observeSessions(fn) { OBSERVERS.add(fn); return () => OBSERVERS.delete(fn); }
+/* Observers handed every CharacterSession as it is made, before its first envelope (the hunt summary's recorder); the
+   registry is its own import-free module so a watcher can register before this graph loads (session-observers.js). */
+export { observeSessions };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ITEM = /^[a-z0-9_]{1,64}$/;
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
@@ -111,7 +111,7 @@ export class CharacterSession {
     this._askedAt = null; this._answeredAt = null;   // the last settle's send and answer (client ms): a leave's 'late'
     /** The hunt session the timeline holds (a new one clears it: _play). */
     this._huntSid = null;
-    for (const fn of Array.from(OBSERVERS)) fn(this);   // e.g. the hunt summary's recorder: it must hear the timeline from the first event
+    announceSession(this);   // e.g. the hunt summary's recorder: it must hear the timeline from the first event
   }
 
   /** The display clock (ms) this character's timeline plays on: every view of it reads this one. */

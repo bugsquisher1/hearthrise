@@ -170,6 +170,16 @@ async function runTests(mods) {
     wm.close('bag');
     ok(wm.handleKey(key('Enter', { target: { tagName: 'DIV' } })), 'Enter on the page must still open Chat');
     wm.close('chat');
+    /* A click on Close leaves focus on it through the 120 ms slide-out: Enter then opens Chat (town-works-world WW-5, 11-14).
+       The same button in a window that is still open keeps its Enter. */
+    const m = harness(WM, { reduced: false });
+    const inWin = (id) => ({ tagName: 'BUTTON', closest: (s) => (s === '[data-hs-win]' ? { getAttribute: () => id } : null) });
+    m.wm.open('bag');
+    ok(!m.wm.handleKey(key('Enter', { target: inWin('bag') })), 'Enter on a button in an open window must press it');
+    m.wm.close('bag');
+    ok(m.wm.layout().some((p) => p.id === 'bag' && p.leaving), 'the bag is sliding out');
+    ok(m.wm.handleKey(key('Enter', { target: inWin('bag') })), 'Enter on the Close of a window sliding out must open Chat');
+    ok(m.wm.openIds().includes('chat'), 'Chat opened');
     ok(!wm.handleKey(key('1')), 'digits belong to the action bar');
   });
   t('W9 close waits 120 ms for the slide-out; reduced motion does not', () => {
@@ -1101,7 +1111,8 @@ const MUTANTS = [
   { test: 'H13', file: HUD_FILE, from: '      const under = Math.ceil(q.top + q.height + gap);', to: '      const under = Math.round(q.top + q.height + gap);' },
   { test: 'W13', file: WM_FILE, from: 'else if (slot.has(id)) lastAt.set(id, { right: slot.get(id) });', to: ';' },
   { test: 'W8', file: WM_FILE, from: 'return keyBelongsToField(ev.target, ev.key);', to: 'return false;' },
-  { test: 'W8', file: WM_FILE, from: '  if (pressesControl(ev)) return true;\n', to: '' },
+  { test: 'W8', file: WM_FILE, from: '  if (pressesControl(ev) && !gone(ev.target)) return true;\n', to: '' },
+  { test: 'W8', file: WM_FILE, from: '  if (pressesControl(ev) && !gone(ev.target)) return true;\n', to: '  if (pressesControl(ev)) return true;\n' },
   { test: 'W8', file: 'src/utils/dom.js', from: "  if (tag === 'select') return /^Arrow/.test(String(key || ''));", to: "  if (tag === 'select') return true;" },
   { test: 'W8', file: 'src/utils/dom.js', from: '  return TEXT_TYPES.has(type);', to: '  return true;' },
   { test: 'W9', file: WM_FILE, from: 'if (reducedMotion()) { drop(id); emit(); return true; }', to: '' },

@@ -61,8 +61,8 @@
 //         while in flight and after a refusal), survives a reload; no Hunt settings window
 //   HS-29 THE FIRST TARGET (lane/c-target-kind): the fold offers None and the ground's own monsters at the server's pick;
 //         a change is ONE hr_hunt_target_kind_set (slot, ground, kind), the select off and on the server's pick until the
-//         re-read says otherwise; a refusal keeps it and says why; None sends no kind; a reload brings it back; at 922x423
-//         the fight sheet holds it and the gold to keep whole
+//         re-read says otherwise; a refusal keeps it and says why; None sends no kind; a reload brings it back; on a phone
+//         (922x423, 667x375) the fight sheet starts at its head, holds it and the gold to keep, and scrolls to its Effects door
 //   HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop, nor with a window docked
 //   HS-28 THE FIGHT STAYS CLEAR AT 1024x768 (designer 2026-11-11): a lone hero with a kill task; below the fold width
 //         (tokens.css --hud-fold-below) the analyzer, the Tally and the Party panel start folded and no widget crosses
@@ -799,19 +799,32 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
-    { // HS-29 at 922x423 (the phone gate): the fight settings' sheet holds the First target (the server's Slime) and the gold to keep
-      // whole, each on screen, a press tall and not covered; the line naming the ground fits the sheet.
-      const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, prep: (sv) => { sv.env.hunt_target_kind = { picks: { mill_cellar: 'slime' } }; } });
-      if (!up) fails.push('HS-29 the screen did not mount at 922x423');
+    for (const vp of [{ width: 922, height: 423 }, { width: 667, height: 375 }]) { // HS-29 ON A PHONE (the gate's 922x423, the smallest
+      // landscape phone): the fight settings' sheet, open and done sliding in, starts at its head INSIDE the sheet (never cut above it),
+      // shows the First target (the server's Slime), the line naming the ground and the gold to keep, each on screen and not covered, and
+      // its last row (the Effects door) is reached by scrolling the sheet, never cut off below it.
+      const tag = vp.width + 'x' + vp.height;
+      const { ctx, page, up } = await open({ viewport: vp, prep: (sv) => { sv.env.hunt_target_kind = { picks: { mill_cellar: 'slime' } }; } });
+      if (!up) fails.push('HS-29 the screen did not mount at ' + tag);
       else {
+        await wait(page, () => { const s = document.querySelector('.hb-pl-first select'); return s && !s.disabled && s.value === 'slime'; });
         await page.click('.hb-plaque .hb-more');
-        const whole = (q) => { const e = document.querySelector(q); if (!e) return null; const r = e.getBoundingClientRect(), h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-          return { h: Math.round(r.height), on: r.width > 0 && r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth, hit: h === e || e.contains(h) }; };
-        const fits = await wait(page, (src) => { const f = (0, eval)(src); const s = f('.hb-pl-first select'), g = f('.hb-plaque [data-opt="gold_floor"]'), n = f('.hb-pl-first .hb-pl-note');
-          return !!s && !!g && !!n && s.on && s.hit && s.h >= 36 && g.on && g.hit && n.on && document.querySelector('.hb-pl-first select').value === 'slime'; }, '(' + whole + ')');
-        if (!fits) fails.push('HS-29 at 922x423 the fight sheet does not hold the First target and the gold to keep whole: '
-          + JSON.stringify(await page.evaluate((src) => { const f = (0, eval)(src); return { first: f('.hb-pl-first select'), gold: f('.hb-plaque [data-opt="gold_floor"]'), note: f('.hb-pl-first .hb-pl-note') }; }, '(' + whole + ')')));
-        if (shots) await page.screenshot({ path: join(shots, 'hunt-922x423-first-target.png') });
+        const slid = await wait(page, () => { const p = document.querySelector('.hb-plaque'), c = getComputedStyle(p.querySelector('.hb-pl-more'));
+          return p.classList.contains('is-open') && c.visibility === 'visible' && c.transform === 'none'; });
+        const look = (scroll) => page.evaluate((last) => {
+          const sheet = document.querySelector('.hb-pl-more').getBoundingClientRect();
+          if (last) document.querySelector('.hb-plaque .hb-effects').scrollIntoView({ block: 'nearest' });
+          const whole = (q) => { const e = document.querySelector(q); if (!e) return null; const r = e.getBoundingClientRect(), h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            return { h: Math.round(r.height), top: Math.round(r.top), bottom: Math.round(r.bottom), on: r.width > 0 && r.top >= sheet.top && r.bottom <= sheet.bottom && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth, hit: !!h && (h === e || e.contains(h)) }; };
+          return last ? { effects: whole('.hb-plaque .hb-effects') } : { head: whole('.hb-pl-head b'), first: whole('.hb-pl-first select'), note: whole('.hb-pl-first .hb-pl-note'),
+            gold: whole('.hb-plaque [data-opt="gold_floor"]'), value: document.querySelector('.hb-pl-first select').value };
+        }, scroll);
+        const got = await look(false);
+        const end = await look(true);
+        const ok = slid && got.value === 'slime' && got.first && got.first.h >= 36 && ['head', 'first', 'note', 'gold'].every((k) => got[k] && got[k].on && (k === 'note' || k === 'head' || got[k].hit))
+          && end.effects && end.effects.on && end.effects.hit;
+        if (!ok) fails.push('HS-29 at ' + tag + ' the fight sheet does not hold its head, the First target and the gold to keep, or its Effects door is out of reach: ' + JSON.stringify({ slid, ...got, ...end }));
+        if (shots) await page.screenshot({ path: join(shots, 'hunt-' + tag + '-first-target.png') });
       }
       await ctx.close();
     }
@@ -2034,6 +2047,7 @@ const MUTANTS = [
   /* lane/c-target-kind: the First target is the server's, and one press is one intent (HS-29) */
   ['the First target shows the pick before the server confirms (HS-29)', 'src/shell/widgets/first-target.js', "  if (v !== null) prop(sel, 'value', v);", "  if (v !== null && !pending) prop(sel, 'value', v);"],
   ['the First target sends nothing (HS-29)', 'src/shell/widgets/first-target.js', '  const r = await answerWithin(() => setTargetKind(ctx.account, cs, hunt, want));', "  const r = { ok: true };"],
+  ['the phone fight sheet is cut at both ends again (HS-29)', 'src/styles/hunt.css', '  .hb-pl-more { justify-content: safe center; overflow-y: auto; overscroll-behavior: contain; }\n', ''],
   /* playtest v0.2.127: the Effects door opens Settings, but not on Effects (HS-12) */
   ['the Effects door opens Settings on its first page (HS-12)', 'src/shell/windows/settings.js', "if (want && SETTING_CATEGORIES.some((c) => c.id === want))", 'if (false)'],
   /* Tyler 10-25: ammo on its own tab (HS-7). */

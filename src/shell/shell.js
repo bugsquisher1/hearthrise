@@ -306,7 +306,9 @@ export function mountShell(root, o) {
   }
 
   /* A widget that stacks (a row's `below`: the tally) sits under the widgets it names on its edge, wherever
-     they are now (hud.js stackBelow); a hidden one is in nobody's way. Run again after a step-down. */
+     they are now (hud.js stackBelow); a hidden one is in nobody's way, and so is one waiting under the dock (v0.2.130 gate D1:
+     the Tally stacked under an analyzer the bag hid, slid left of the bag and was squeezed to 51 px, its row cut, the observer
+     looping as each pass moved it). Run again after a step-down. */
   function stackWidgets() {
     for (const row of hud.rows()) {
       if (!row.below || hud.isMoved(row.id)) continue;
@@ -315,7 +317,7 @@ export function mountShell(root, o) {
       if (!el || !el.offsetWidth) continue;
       const b = box.getBoundingClientRect();
       const rel = (e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; };
-      const above = row.below.map((id) => box.querySelector('[data-hs-widget="' + id + '"]')).filter(Boolean).map(rel);
+      const above = row.below.map((id) => box.querySelector('[data-hs-widget="' + id + '"]')).filter((a) => a && !a.classList.contains('is-under-dock')).map(rel);
       const at = rel(el);
       const top = stackBelow(at, above, DOCK_EDGE);
       if (top !== Math.round(at.top)) el.style.top = top + 'px';

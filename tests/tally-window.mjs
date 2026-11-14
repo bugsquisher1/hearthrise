@@ -42,7 +42,8 @@
 //   TW-8  THE HUD'S PLACE (v0.2.37 run 40020854780): hunting with three tasks held, the tally
 //         overlaps no World panel at 1440x900, 1100x800 or 1024x700 (it stacks under the
 //         analyzer), nor on the phone (922x423) when the player shows it there (under the
-//         hunt bar); with nothing to show it takes no room (its empty box sat on the analyzer
+//         hunt bar); beside a docked window (Inventory, Character at 1440x900) every held line shows whole and the layout never
+//         loops (v0.2.130 gate D1: stacked under an analyzer the bag hid, squeezed to 51 px); with nothing to show it takes no room (its empty box sat on the analyzer
 //         and pushed the town camera off the hero, window-camera WC-3)
 //   TW-11 MOVE AND FOLD (Tyler 2026-10-25: "need to be able to move and minimize hunt analyzer and Tally"),
 //         hunting with three tasks held at 1440x900: the analyzer's dash folds it to its title and the Tally
@@ -382,6 +383,36 @@ async function checks(overrides, shots) {
           for (const end = Date.now() + 3000; o.length && Date.now() < end; o = await over()) await page8.waitForTimeout(100);
           if (o.length) fails.push('TW-8 the HUD panels overlap at ' + vp.width + 'x' + vp.height + ': ' + o.join(', '));
         }
+      }
+      await ctx.close();
+    }
+    { // TW-8 BESIDE A DOCKED WINDOW (v0.2.130 visual gate D1, 1440x900: the bag open in a hunt slid the Tally left under the analyzer,
+      // squeezed to 51 px, its list 7 px for a 31 px row, "Giant Rats 0/25" cut through the letters; and the shell's observer looped)
+      const { ctx, page, errors, up } = await open({ tally: Object.assign(clone(TALLY), { held: [TALLY.held[1]] }) });
+      const shown = up && await wait(page, () => document.querySelectorAll('[data-hs-widget="tally"] .hs-tally-row').length === 1);
+      if (!shown) fails.push('TW-8 docked: the held tally never showed while hunting');
+      else {
+        /* the loop error is an ErrorEvent on the window, not a console line */
+        await page.evaluate(() => { window.__roLoop = 0; window.addEventListener('error', (e) => { if (/ResizeObserver/.test(e.message || '')) window.__roLoop++; }); });
+        for (const [key, id] of [['b', 'inventory'], ['c', 'character']]) {
+          await page.keyboard.press(key);
+          if (!(await wait(page, (w) => document.querySelector('[data-hs-win="' + w + '"] [data-hs-built]'), id, 3000))) { fails.push('TW-8 docked: ' + id + ' did not open'); continue; }
+          await page.waitForTimeout(700);
+          const cut = await page.evaluate(() => {
+            const t = document.querySelector('[data-hs-widget="tally"]');
+            if (!t || !t.offsetWidth || t.classList.contains('is-under-dock')) return '';   // waiting beside the dock, not squeezed
+            const l = t.querySelector('.hs-tally-list'), b = l.getBoundingClientRect();
+            const bad = Array.from(l.querySelectorAll('.hs-tally-row')).filter((r) => { const q = r.getBoundingClientRect(); return !(q.top >= b.top - 1 && q.bottom <= b.bottom + 1); });
+            return bad.length ? 'its list shows ' + Math.round(b.height) + ' px, a row is ' + Math.round(bad[0].getBoundingClientRect().height) + ' px (--hs-room ' + t.style.getPropertyValue('--hs-room') + ')' : '';
+          });
+          if (cut) fails.push('TW-8 docked: with ' + id + ' open the Tally is cut: ' + cut);
+          await page.keyboard.press(key);
+          await page.waitForTimeout(400);
+        }
+        const loop = errors.filter((e) => /ResizeObserver/.test(e));
+        const roLoop = await page.evaluate(() => window.__roLoop);
+        if (roLoop) loop.push(roLoop + ' window error(s): ResizeObserver loop completed with undelivered notifications');
+        if (loop.length) fails.push('TW-8 docked: the layout loops (' + loop.length + 'x ' + loop[0] + ')');
       }
       await ctx.close();
     }
@@ -756,6 +787,8 @@ async function checks(overrides, shots) {
 }
 
 const MUTANTS = [
+  /* TW-8 docked (v0.2.130 gate D1) */
+  ['the Tally stacks under an analyzer waiting under the dock', 'src/shell/shell.js', ".filter((a) => a && !a.classList.contains('is-under-dock')).map(rel);", '.filter(Boolean).map(rel);'],
   ['Take stays on while hunting', 'src/shell/windows/tally.js', "prop(btn, 'disabled', r.held || full || st.sc.pending || st.hunting || !tally || (!tally.weight && !st.suggest));", "prop(btn, 'disabled', r.held || full || st.sc.pending || !tally || !tally.weight);"],
   ['a done task is handed in mid-hunt', 'src/shell/windows/tally.js', "const due = tally && !hunting && tally.paidToday < tally.perDay", 'const due = tally && tally.paidToday < tally.perDay'],
   /* TW-17: the creature's head */

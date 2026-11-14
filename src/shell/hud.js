@@ -68,6 +68,7 @@ export function validateWidgetRows(rows) {
     if (!isFoldRule(r.folded)) throw new Error(where + ': folded can only be ' + Object.keys(FOLD_RULES).join(' / '));
     if (!isFoldRule(r.phone.folded)) throw new Error(where + ': phone.folded can only be ' + Object.keys(FOLD_RULES).join(' / '));
     if (r.below !== undefined && (!Array.isArray(r.below) || !r.below.every((x) => typeof x === 'string' && x !== r.id))) throw new Error(where + ': below must list other widget ids');
+    if (r.keepClear !== undefined && r.keepClear !== true) throw new Error(where + ': keepClear is true or absent');
     if (r.section !== undefined && (typeof r.section !== 'string' || !/^[a-z][a-z0-9_]*$/.test(r.section))) throw new Error(where + ': section must name an envelope section');
     byId.set(r.id, r);
   }

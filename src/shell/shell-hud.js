@@ -12,6 +12,12 @@ import { huntOf } from '../session/hunt-sections.js?v=0.2.129';
 import { summaryDone } from '../hunt-view/summary-recorder.js?v=0.2.129';
 import { heroIsAlone } from './widgets/party-panel.js?v=0.2.129';
 
+/** A hunt is running on this shell's character (not over, its summary aside): its bar's controls are in play. Display only. */
+export function fightOn(opts) {
+  const h = opts.inHunt && opts.inHunt() ? huntOf(opts.character) : null;
+  return !!h && !h.ended;
+}
+
 /**
  * @param {object} o
  * @param {Window} o.host

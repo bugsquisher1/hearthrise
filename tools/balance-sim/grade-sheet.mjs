@@ -63,6 +63,13 @@ export const SHEET = Object.freeze({
  * NO PROFIT MOLDS (Tyler 2026-11-13): the sheet carries no gold line (its old marginMin, supplyShare and netMax are gone): gold is
  * printed per ground (grade.mjs goldReport), never graded.
  */
+/* THE CONTRACT ON A TUTORIAL GROUND (designer 2026-11-13): a ground whose band middle is at or under LEVEL_PACE.early's Level is held by the
+   tutorial's promise (Level 5 inside its hours, tests/level-curve.mjs C3), not by the contract fitted on the ladder, so its contract line reports.
+   The Cellar (middle 5) reads 0.888x on the full grade; the one row step that lifts it walls Level 5 -> 6 (level-curve C6). */
+const EARLY_LEVEL = 5;   // src/data/core-model.js LEVEL_PACE.early.level (tests/balance-grade.mjs holds the two equal)
+export const contractIsEarly = (m) => Array.isArray(m.band) && Math.round((m.band[0] + m.band[1]) / 2) <= EARLY_LEVEL;
+export { EARLY_LEVEL };
+
 export function sheetFromBalanceSheet(BS) {
   const N = BS.normal, F = BS.freshHero, W = BS.weightClass, T = BS.tiers, P = BS.party;
   const floor1 = { tiers: ['normal'], offsets: ['floor'], sizes: [1] };
@@ -75,7 +82,8 @@ export function sheetFromBalanceSheet(BS) {
       { id: 'normal-deaths', why: why('normal.deathsPer1000h (RULED 10-25)'), ...floor1, metric: 'deathsPer1000h', max: N.deathsPer1000h, pooled: true, binding: true },
       { id: 'normal-dips', why: why('normal.closeCallsPer12h (RULED 10-25)'), ...floor1, metric: 'dipsPer12h', max: N.closeCallsPer12h, pooled: true, binding: true },
       { id: 'normal-low-point', why: why('normal.typicalMinHpPct, every way (RULED 10-25)'), ...floor1, metric: 'minHpP50', min: N.typicalMinHpPct, binding: true },
-      { id: 'normal-xp-contract', why: why('normal.xpVsContract at the band middle, the median lone way on every ground (the contract is fitted on lone heroes)'), tiers: ['normal'], offsets: ['middle'], aggregate: 'xpVsContract', min: N.xpVsContract.min, max: N.xpVsContract.max, binding: true },
+      { id: 'normal-xp-contract', why: why('normal.xpVsContract at the band middle, the median lone way on every ground (the contract is fitted on lone heroes)'), tiers: ['normal'], offsets: ['middle'], skip: contractIsEarly, aggregate: 'xpVsContract', min: N.xpVsContract.min, max: N.xpVsContract.max, binding: true },
+      { id: 'normal-xp-contract-early', why: why('normal.xpVsContract, a report line on a tutorial ground (band middle at or under LEVEL_PACE.early, whose promise level-curve C3 holds; designer 2026-11-13)'), tiers: ['normal'], offsets: ['middle'], skip: (m) => !contractIsEarly(m), aggregate: 'xpVsContract', min: N.xpVsContract.min, max: N.xpVsContract.max, binding: false },
       { id: 'fresh-deaths', why: why('freshHero.deaths, the practice set at a first-day floor'), ...fresh, metric: 'deaths', max: F.deaths },
       { id: 'fresh-dips', why: why('freshHero.closeCalls'), ...fresh, metric: 'dips', max: F.closeCalls },
       { id: 'fresh-low-point', why: why('freshHero.typicalMinHpPct'), ...fresh, metric: 'minHpP50', min: F.typicalMinHpPct },

@@ -107,7 +107,7 @@ export const MONSTERS = {
      `barn_rat`'s better drop line (wheat, the granary flavour) is absorbed here
      so nothing the merged monster offered is lost. */
   rat: { name: 'Giant Rat', icon: '🐀', tier: 1, level: 2, cls: 'vermin', family: 'Vermin',
-    hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 16, gp: [1, 1], formula: true, speed: 3400,
+    hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 15, gp: [1, 1], formula: true, speed: 3400,
     drops: [{ id: 'rat_tail', ch: .42, band: 'common' }, { id: 'small_fang', ch: .16, band: 'common' }, { id: 'wheat', ch: .18, band: 'common' }, { id: 'bones', ch: .21, band: 'common' },
       { id: 'giant_rat_hide', ch: .08, band: 'uncommon' }] },
   hive_wasp: { name: 'Hive Wasp', icon: '🐝', tier: 1, level: 4, cls: 'vermin', family: 'Vermin',

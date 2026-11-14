@@ -274,10 +274,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
    end reason or world shape moves: the hr-accrue that plays the grounds can land before or after this file, and the verb that opens them lands after both. */
 /* THE BROOK BEAR'S PURSE, BACK ON THE FORMULA (lane/d-no-profit-molds, designer 2026-11-13, NO PROFIT MOLDS): 2027-04-16-combat-training is APPLIED
    history and this file carries it whole. The bear's hand-kept purse [13, 40] served the Glade's retired +10% floor; it reads the formula's [11, 32]
-   (src/data/monsters.js, balance-sheet.js FORMULA_EXCEPTIONS empty), so its coin bound in hr_hunt_kill_bounds falls 40 -> 32; and the Cellar's XP fit
-   1.28 -> 1.32 (a new hero's pace) moves the Giant Rat 15 -> 16 XP, its XP bound 24 -> 25. No other row, bound, limit, end reason or world shape moves.
-   APPLY, then the hr-accrue carrying the same monsters.js and balance-sheet.js AT ONCE: the rat's bound rises (a new engine needs it first); in the
-   gap an old engine's bear roll of 33-40 at the Glade would be refused. */
+   (src/data/monsters.js, balance-sheet.js FORMULA_EXCEPTIONS empty), so its coin bound in hr_hunt_kill_bounds falls 40 -> 32. No other row, bound, limit,
+   end reason or world shape moves. The bound only falls, so the hr-accrue carrying the same monsters.js lands FIRST (its bear rolls at most 32,
+   under both bounds); an old engine against this file would be refused on a roll of 33-40. */
 export const OUT_NAME = '2027-04-20-bear-purse-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -849,10 +848,10 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/d-no-profit-molds, designer 2026-11-13; Tyler 2026-11-13 NO PROFIT MOLDS): TWO rows of hr_hunt_kill_bounds move. The Brook Bear's
--- hand-kept purse [13, 40] served the Glade's retired +10% profit floor; it reads the formula's [11, 32], so its coin bound falls 40 -> 32. The Cellar's XP
--- fit 1.28 -> 1.32 (a new hero's pace) moves the Giant Rat 15 -> 16 XP, its XP bound 24 -> 25. No other row, bound, limit, end reason or world shape
--- moves. ORDER: after 2027-04-18-area-moves-bar.sql; the hr-accrue carrying the same src/data follows AT ONCE (the rat's bound rises first).
+-- NEW IN THIS FILE (lane/d-no-profit-molds, designer 2026-11-13; Tyler 2026-11-13 NO PROFIT MOLDS): ONE row of hr_hunt_kill_bounds moves. The Brook Bear's
+-- hand-kept purse [13, 40] served the Glade's retired +10% profit floor; it reads the formula's [11, 32], so its coin bound falls 40 -> 32. No other row,
+-- bound, limit, end reason or world shape moves. ORDER: after 2027-04-18-area-moves-bar.sql. The hr-accrue carrying the same monsters.js lands FIRST
+-- (its bear rolls at most 32, under both bounds).
 --
 -- CARRIED FROM 2027-04-16-combat-training-hunt-sessions-catalogue (lane/c-combat-training, Tyler 2026-11-08: "a public yard paid by the hour" and "a personal training dummy for houses"; src/data/training.js):
 -- the eight training grounds (yard and house, one per trained skill: melee, ranged, magic, defense) in hr_hunt_grounds, hr_hunt_ground_spawns and

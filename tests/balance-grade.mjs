@@ -16,7 +16,8 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { gradeCells, synthSet, levelsOf, ranked, feelVerdicts, isProfitRule } from '../tools/balance-sim/grade.mjs';
-import { SHEET, sheetFromBalanceSheet } from '../tools/balance-sim/grade-sheet.mjs';
+import { SHEET, sheetFromBalanceSheet, EARLY_LEVEL } from '../tools/balance-sim/grade-sheet.mjs';
+const CM = await import('../src/data/core-model.js');
 import { worse } from '../tools/balance-sim/grade-compare.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -76,6 +77,12 @@ const middle = (loneX) => synthSet().filter((c) => c.cell.grade.tier === 'normal
 const contract = (loneX) => gradeCells(middle(loneX), { ...sheetFromBalanceSheet(BS0.BALANCE_SHEET), contract: flat }, flat, { g: 'party' }).verdicts.filter((v) => v.rule === 'normal-xp-contract');
 check(contract(1.0).length === 1 && contract(1.0)[0].verdict === 'ok' && contract(1.0)[0].key.includes('size 1'), 'lone-contract: a party ground reads its lone median, the four at 1.5x is not the pace (' + JSON.stringify(contract(1.0).map((v) => [v.key, v.verdict])) + ')');
 check(contract(1.3)[0].verdict === 'FAIL' && contract(1.3)[0].binding === true, 'lone-contract: the lone median at 1.3x FAILS, binding, on a party ground (' + contract(1.3)[0].verdict + ')');
+/* THE CONTRACT ON A TUTORIAL GROUND (designer 2026-11-13): a band whose middle is at or under LEVEL_PACE.early's Level reports, never FAILS; the line
+   still binds everywhere else (the 1.3x above, on [16, 31]). The grader's copy of the early Level is the data's. */
+const earlyBand = (loneX) => middle(loneX).map((c) => ({ ...c, cell: { ...c.cell, grade: { ...c.cell.grade, band: [1, 8] } } }));
+const early = (loneX) => gradeCells(earlyBand(loneX), { ...sheetFromBalanceSheet(BS0.BALANCE_SHEET), contract: flat }, flat, { g: 'solo' }).verdicts.filter((v) => v.rule.startsWith('normal-xp-contract'));
+check(!early(0.85).some((v) => v.verdict === 'FAIL') && early(0.85).some((v) => v.rule === 'normal-xp-contract-early' && v.verdict === 'OFF'), 'contract-early: a tutorial ground (middle 5) at 0.85x reads OFF on normal-xp-contract-early, never FAIL');
+check(EARLY_LEVEL === CM.LEVEL_PACE.early.level, 'contract-early: the grader early Level ' + EARLY_LEVEL + ' is LEVEL_PACE.early.level ' + CM.LEVEL_PACE.early.level);
 
 /* rare events: one Normal floor cell of 2,000 h holds the whole pooled group's hours (synthSet's floor solo is one cell) */
 const withDeaths = (k) => { const cells = synthSet(); const c = cells.find((x) => x.cell.grade.tier === 'normal' && x.cell.grade.offset === 'floor' && x.cell.grade.size === 1); c.heroes[0].deaths = k; return cells; };

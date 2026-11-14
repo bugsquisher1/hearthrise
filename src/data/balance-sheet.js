@@ -253,8 +253,10 @@ export const GROUND_ROSTER = Object.freeze(foldRows('roster', BASE_ROSTER, GROUN
    leaves it about 4% over. */
 /* THE CELLAR x1.28 (was 1.25; lane/d-solo-fifteen, 2026-11-11): the contract re-pinned to the flatter measured ladder (core-model.js LEVEL_PACE.contract 1378 x L^1.298)
    reads the Cellar's lone median 0.895x at its middle (5), half a point under the band; x1.28 lands it about 0.92x. Level 5 still inside LEVEL_PACE.early.
-   x1.32 (designer 2026-11-13, lane/d-no-profit-molds): the FULL grade (8 ways, 6 seeds) read x1.28 at 0.888x, a new hero's first Levels slower than
-   the pace the curve promises; x1.32 moves one row (the Giant Rat 15 -> 16 XP) and reads 0.914x. Pace, not gold: the Cellar's coin is 1 a kill either way. */
+   KEPT at x1.28 (designer 2026-11-13, lane/d-no-profit-molds): the FULL grade (8 ways, 6 seeds) reads it 0.888x, and the next step a row can take
+   (x1.32, the Giant Rat 15 -> 16 XP) made Level 4 -> 5 so quick that Level 5 -> 6 read 2.04x it, a wall (level-curve C6, at most 2x). The Cellar's
+   middle is Level 5, LEVEL_PACE.early's Level, where the tutorial's promise rules (Level 5 in 0.15-0.35 h, measured 0.24 h: level-curve C3), so the
+   grader reads the contract there as a report line, not a bar (tools/balance-sim/grade-sheet.mjs). A felt wall loses to an unfelt 1%. */
 /* THE GLADE x0.90 UNDER SOLO +15% (lane/d-solo-fifteen, 2026-11-11). The +15% put the Glade's lone median at 1.12x the pace contract at its middle (24),
    1.07x at +5% (grade quick, Normal; the band is 0.90-1.10), and the Glade is a solo ground, so its lone median is the way the contract reads: x0.90
    lands it at 1.01x. Ratios between heroes on one ground never move (a fit scales alone and party alike).
@@ -270,7 +272,7 @@ export const GROUND_ROSTER = Object.freeze(foldRows('roster', BASE_ROSTER, GROUN
    band (x0.87 or less) broke that guard. THE LEVER, built (scaled-hunts.js partyPm 720: a party on a scaled hunt keeps 72% of its ground's party cell), put a
    scaled four at 0.54-0.71x the Warrens' four, so THE WARRENS x0.76: the Warrens is the ladder's last rung, so a cut there flattens the measured ladder and the contract follows it (level-curve C5):
    x0.84 left its lone median 1.12x the re-measured contract, x0.76 lands it in band. Measured below (the grade) and in level-curve (C5). */
-export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.32, meadowbrook_thicket: 0.9, wickstead: 1.1, mosslight_glade: 0.90, millrace_sewer: 0.9, coppercap_warrens: 0.76 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));
+export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.28, meadowbrook_thicket: 0.9, wickstead: 1.1, mosslight_glade: 0.90, millrace_sewer: 0.9, coppercap_warrens: 0.76 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));
 
 /* NAMED EXCEPTIONS: { monster: { field: 'the reason' } }, a field a row keeps by hand. Empty: none has earned one. */
 export const FORMULA_EXCEPTIONS = Object.freeze({

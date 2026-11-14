@@ -8,15 +8,15 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 62119d4a51fe57f7bf30c8a9805c884f072dea3a00ff118166253ec684613855
+--   digest: c36dd5a87775d8c35ff48da3a42b26b9b918c79746dc6d0c675a28853f4d923d
 --   82 supplies, 138 hunts (named + training), 47 limits, 16 end reasons,
 --   559 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 21 abilities, 10 action-set options, 16 hunt grounds
 --
--- NEW IN THIS FILE (lane/d-no-profit-molds, designer 2026-11-13; Tyler 2026-11-13 NO PROFIT MOLDS): TWO rows of hr_hunt_kill_bounds move. The Brook Bear's
--- hand-kept purse [13, 40] served the Glade's retired +10% profit floor; it reads the formula's [11, 32], so its coin bound falls 40 -> 32. The Cellar's XP
--- fit 1.28 -> 1.32 (a new hero's pace) moves the Giant Rat 15 -> 16 XP, its XP bound 24 -> 25. No other row, bound, limit, end reason or world shape
--- moves. ORDER: after 2027-04-18-area-moves-bar.sql; the hr-accrue carrying the same src/data follows AT ONCE (the rat's bound rises first).
+-- NEW IN THIS FILE (lane/d-no-profit-molds, designer 2026-11-13; Tyler 2026-11-13 NO PROFIT MOLDS): ONE row of hr_hunt_kill_bounds moves. The Brook Bear's
+-- hand-kept purse [13, 40] served the Glade's retired +10% profit floor; it reads the formula's [11, 32], so its coin bound falls 40 -> 32. No other row,
+-- bound, limit, end reason or world shape moves. ORDER: after 2027-04-18-area-moves-bar.sql. The hr-accrue carrying the same monsters.js lands FIRST
+-- (its bear rolls at most 32, under both bounds).
 --
 -- CARRIED FROM 2027-04-16-combat-training-hunt-sessions-catalogue (lane/c-combat-training, Tyler 2026-11-08: "a public yard paid by the hour" and "a personal training dummy for houses"; src/data/training.js):
 -- the eight training grounds (yard and house, one per trained skill: melee, ranged, magic, defense) in hr_hunt_grounds, hr_hunt_ground_spawns and
@@ -729,7 +729,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('orchard_boar', 10, 125, '{"boar_bristle":1,"bones":1,"orchard_boar_tusk":1}'::jsonb),
   ('panther', 210, 828, '{"shadow_pelt":1,"razor_claw":1,"ruby":1,"raw_panther_meat":1,"panthers_eye_pendant":1}'::jsonb),
   ('plague_swarm', 82, 360, '{"plague_ichor":1,"venom_sac":1,"swarm_heart":1,"field_cookbook":1}'::jsonb),
-  ('rat', 1, 25, '{"rat_tail":1,"small_fang":1,"wheat":1,"bones":1,"giant_rat_hide":1}'::jsonb),
+  ('rat', 1, 24, '{"rat_tail":1,"small_fang":1,"wheat":1,"bones":1,"giant_rat_hide":1}'::jsonb),
   ('rat_king', 269, 2817, '{"rat_tail":1,"bones":1,"knotted_tails":1,"crown_shard":1,"kingsgrate":1,"rat_kings_knot":1,"rat_kings_crown":1}'::jsonb),
   ('rat_king_called', 0, 0, '{}'::jsonb),
   ('revenant', 512, 1707, '{"big_bones":1,"death_steel":1,"ancient_rune":1,"grave_dust":1,"ember_gauntlets":1}'::jsonb),

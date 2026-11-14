@@ -87,6 +87,26 @@ export function monsterSpeedOf(row) {
   return Number.isInteger(v) && v > 0 ? v : MONSTER_SPEED_DEFAULT;
 }
 
+/* A MONSTER THAT SHOOTS (the Krell's Hold design's engine piece 2, docs/planning/PRIORITY_BOARD.md: Hask's Lookout "shoots a
+   crossbow from range at the hero farthest back and doesn't walk in"). A row's `range` is how many whole tiles its blow reaches,
+   in a straight line it can see: the rule a ranged hero's shot has (src/core/hunt/targeting.js inRange). A row with no `range`
+   fights beside its target, as every monster always has. src/core/hunt/shooters.js plays it; read it only via monsterRangeOf.
+   MONSTER_RANGE bounds it (a bound, not a balance number: the number on a row is the designer's). */
+export const MONSTER_RANGE = Object.freeze({ min: 2, max: 6 });
+/** The tiles monster row `row` shoots from, or 0: a melee monster (no `range`, or one rangeProblems refuses). */
+export function monsterRangeOf(row) {
+  const v = row && row.range;
+  return Number.isInteger(v) && v >= MONSTER_RANGE.min && v <= MONSTER_RANGE.max ? v : 0;
+}
+/** Every `range` on the roster `monsters` that is not a whole number of tiles inside MONSTER_RANGE, as strings. Empty = valid. */
+export function rangeProblems(monsters) {
+  const out = [];
+  for (const [id, m] of Object.entries(monsters || {})) {
+    if (m && m.range !== undefined && monsterRangeOf(m) === 0) out.push('monster ' + id + ' range must be a whole number ' + MONSTER_RANGE.min + '..' + MONSTER_RANGE.max + ', got ' + m.range);
+  }
+  return out;
+}
+
 export const MONSTERS = {
 
   /* ══ Tier 1 — local threats ═══════════════════════════════════════════ */

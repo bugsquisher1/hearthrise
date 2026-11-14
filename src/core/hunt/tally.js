@@ -16,7 +16,7 @@
 // when present, with the stated default):
 //   dmg   hero u → dealt.{total, byAbility[ability|'basic'], byElement[element|'physical']}
 //         monster u → hero t taken.{total, byMonster[kind of u], byElement}
-//   heal  healer u → healed.{total, bySource[ability|item|'heal']}
+//   heal  healer u → healed.{total, bySource[ability|item|'heal']}; a monster's mend (it names its `spell`) credits nobody
 //   kill  of a monster: hero u kills +1, gold += gold|0, loot[item] += qty (`loot` {item: qty})
 //         of a hero: hero t deaths +1
 //   xp    hero u: xp += amount, rawXp += raw|amount; skill 'magic' → magicXp
@@ -97,6 +97,8 @@ export function tallyEvents(events, roster = null) {
         break;
       }
       case 'heal': {
+        /* A MONSTER'S MEND (monster-spells.js: a heal that names its `spell`, from a monster to its packmate) is no hero's work */
+        if (ev.spell !== undefined && !ids.has(ev.u)) break;
         const h = heroOf(ev.u, ev);
         const n = int(ev.amount, 'heal amount');
         h.healed.total += n; bump(h.healed.bySource, ev.ability || ev.item || 'heal', n);

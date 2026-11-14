@@ -156,6 +156,9 @@ function syncUnit(u, m) {
     if (s.tmode !== undefined) u.tmode = s.tmode;
     if (s.stance !== undefined) u.stance = s.stance;
   }
+  /* THE KIND FIRST (targeting.js kindOf): never persisted, so written here at every boundary like the gear values above, absent with none */
+  const k = m.hero.settings && m.hero.settings.tkind;
+  if (typeof k === 'string' && k) u.tkind = k; else if (u.tkind !== undefined) delete u.tkind;
 }
 
 /* A DEATH (Tyler 2026-10-19): priced on the member at once (Level and every

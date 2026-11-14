@@ -44,6 +44,7 @@ import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.129';
 import { temperedAmount } from '../temper.js?v=0.2.129';
 import { swingRow, crossLines, guardPmOf } from './boss-phases.js?v=0.2.129';
 import { dummyBlow, dummyStands } from './training.js?v=0.2.129';
+import { reaches } from './shooters.js?v=0.2.129';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -215,7 +216,8 @@ export function resolveAttacks(inst, sc) {
     const t = unitById(inst, u.target);
     if (!t || !t.alive) continue;
     if (u.side === 'mon') {
-      if (cheb(u, t) > 1 || !atRest(u)) continue;
+      /* beside its target, or a SHOOTER within its range in sight (shooters.js reaches) */
+      if (!reaches(inst, u, t) || !atRest(u)) continue;
       const row = atTier(rowOf(inst, u.kind), inst.tier);
       /* A called boss under his enrage line swings that row raised (boss-phases.js). */
       const blowRow = swingRow(u, row);

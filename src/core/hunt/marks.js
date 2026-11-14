@@ -14,12 +14,13 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { covers, tilesOf } from './shapes.js?v=0.2.129';
+import { covers, tilesOf, SHAPE_KINDS } from './shapes.js?v=0.2.129';
 
-/** The placed shape of unit `u`'s live cast, or null (none, or a caster that has fallen). */
+/** The placed shape of unit `u`'s live cast, or null (none, a caster that has fallen, or a cast that is no shape: a MEND winds
+    up on a packmate and strikes no hero, data/monster-spells.js mends, so it marks no ground, casts at no hero and draws no mark). */
 export function castShape(u) {
   const c = u && u.alive && u.cast;
-  if (!c || typeof c !== 'object') return null;
+  if (!c || typeof c !== 'object' || !SHAPE_KINDS[c.kind]) return null;
   return { kind: c.kind, ox: c.x, oy: c.y, dx: c.dx, dy: c.dy, n: 0, r: c.r, len: c.len };
 }
 
@@ -68,7 +69,7 @@ export function markTiles(u, grid) {
  * never on a clock of the screen's own. Null for any other event.
  */
 export function markOfEvent(ev, grid) {
-  if (!ev || ev.type !== 'spell') return null;
+  if (!ev || ev.type !== 'spell' || !SHAPE_KINDS[ev.shape]) return null;
   const s = { kind: ev.shape, ox: ev.x, oy: ev.y, dx: ev.dx || 0, dy: ev.dy || 0, n: 0, r: ev.r || 0, len: ev.len || 0 };
   return { caster: ev.u, spell: ev.spell, tiles: tilesOf(s, grid), group: ev.shape === 'group', fromMs: ev.atMs, landsAtMs: ev.atMs + ev.ms };
 }

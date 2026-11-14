@@ -35,7 +35,9 @@ export const EVENT_TYPES = Object.freeze({
   wipe: Object.freeze([]),
   /* monster-spells.js: a monster's telegraphed area spell. `spell` STARTS its mark: the shape (shapes.js kind, origin x, y,
      aim offset dx, dy, r, len) and the windup `ms` it lands after (marks.js markTiles: the tiles to draw, the server's own).
-     `spell_end` CLOSES it: why 'landed' (hits: the heroes struck), 'killed' or 'reset' (the caster fell or left the fight). */
+     `spell_end` CLOSES it: why 'landed' (hits: the heroes struck), 'killed' or 'reset' (the caster fell or left the fight).
+     A MEND (shape 'mend') names the packmate it lands on as `t`, at its tile, and marks nothing; its landing is a `heal` naming
+     the `spell` (hits 0 or 1). */
   spell: Object.freeze(['u', 't', 'spell', 'shape', 'x', 'y', 'ms']),
   spell_end: Object.freeze(['u', 'spell', 'why']),
   /* boss-phases.js: a called boss crossed a line (phase: adds | enrage) */

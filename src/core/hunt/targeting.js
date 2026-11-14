@@ -2,9 +2,10 @@
 // src/core/hunt/targeting.js — TARGET CHOICE (spec §3.2 #11-15; parity TG-01..09)
 //
 // Who each unit is after. A hero picks from the ENGAGED monsters (a monster is
-// engaged while it holds a target) in the order its Target setting gives
+// engaged while it holds a target) in the order its Target setting gives, a kind it
+// names first (kindOf: the kind-first Target)
 // (no monster is immune to an element, Tyler 2026-11-06, so no element skips one). A monster keeps its target until that target falls
-// (it then turns on the pull leader, TG-05/06), a hero's attack peels it
+// (it then turns on the pull leader, TG-05/06; a SHOOTER on the hero farthest from it, shooters.js), a hero's attack peels it
 // (TG-07), or a tank Challenges it (TG-08).
 //
 // A MELEE hero no monster is on walks to its MARK, the first monster its
@@ -28,6 +29,7 @@ import { cheb, dist2, los } from './grid.js?v=0.2.129';
 import { unitById, leaderOf } from './movement.js?v=0.2.129';
 import { makeEvent } from './events.js?v=0.2.129';
 import { engagedOf, livingOf, heroUnitsOf, staleIndex } from './unit-index.js?v=0.2.129';
+import { rangeOf, aimOf } from './shooters.js?v=0.2.129';
 
 /* holdMs: ms a Challenged monster stays on its challenger (no other Challenge takes it meanwhile).
    The Challenge's cooldown is the ability's own clock (abilities.js `cds`). leaderLast: the leader's last target (TG-04).
@@ -74,7 +76,19 @@ const ORDER = Object.freeze({
     return (a, b) => (b.id === lt) - (a.id === lt);
   },
 });
-const orderOf = (inst, u, mode) => (ORDER[mode] || ORDER[DEFAULT_TARGET_MODE])(inst, u);
+/* THE KIND FIRST (the Krell's Hold design's engine piece 4: "Target set to take them first", remembered per ground, so it is set
+   once). A hero's `tkind` names a monster kind (a MONSTERS id; null or absent, none): every engaged monster of that kind comes
+   before every other, and within each the Target setting's own order holds. The settle writes it on the hero's unit from its
+   settings at every boundary (combat-sim.js syncUnit; hunt-spawn.js heroSetup reads the server's `target_kind`); never persisted.
+   A kind nothing in the fight is changes nothing. `settings.tkind` overrides the unit's own, as `settings.tmode` does. */
+const kindOf = (u, settings) => {
+  const k = settings && settings.tkind !== undefined ? settings.tkind : u.tkind;
+  return typeof k === 'string' && k ? k : null;
+};
+const orderOf = (inst, u, mode, kind) => {
+  const cmp = (ORDER[mode] || ORDER[DEFAULT_TARGET_MODE])(inst, u);
+  return kind ? (a, b) => ((a.kind === kind ? 0 : 1) - (b.kind === kind ? 0 : 1)) || cmp(a, b) : cmp;
+};
 
 /* THE MODES THE FIGHT DOES NOT REORDER: a kind's max HP, the leader's choice. A melee hero beside a target
    turns to its mark when one of these ranks the mark strictly ahead (outranked); under nearest, lowest HP
@@ -97,7 +111,7 @@ export function followed(inst, u) {
 /** Ordered targets for `unit` by its Target setting (TG-01). `settings.tmode` overrides the unit's own. */
 export function pickTargets(inst, unit, settings) {
   if (!unit || !roleOf(unit)) return [];
-  const cmp = orderOf(inst, unit, (settings && settings.tmode) || unit.tmode);
+  const cmp = orderOf(inst, unit, (settings && settings.tmode) || unit.tmode, kindOf(unit, settings));
   return engaged(inst).slice().sort((a, b) => cmp(a, b) || dist2(a, unit) - dist2(b, unit) || a.id - b.id);
 }
 
@@ -108,8 +122,11 @@ export function pickTargets(inst, unit, settings) {
  * tile beside it is tried once a re-aim, never a path search every sub-step.
  */
 function outranked(inst, u, cur) {
+  /* the kind first is steady under every mode (a monster's kind never changes): its kind engaged and this one not of it */
+  const kind = kindOf(u);
+  if (kind && !(u.aiMs > 0) && cur.kind !== kind && engaged(inst).some((m) => m.kind === kind)) return true;
   if (u.aiMs > 0 || !STEADY_MODES.includes(u.tmode)) return false;
-  const cmp = orderOf(inst, u, u.tmode);
+  const cmp = orderOf(inst, u, u.tmode, kind);
   return engaged(inst).some((m) => m !== cur && cmp(m, cur) < 0);
 }
 
@@ -120,7 +137,7 @@ export function basicTarget(inst, u) {
      share), so the first in range is the least of the monsters in range: take the least, and only if it is out of range set
      it aside and take the next. inRange is pure, and no line of sight is traced past the answer. */
   if (!u || !roleOf(u)) return null;
-  const cmp = orderOf(inst, u, u.tmode);
+  const cmp = orderOf(inst, u, u.tmode, kindOf(u));
   const left = engaged(inst).slice();
   while (left.length) {
     let bi = 0;
@@ -241,8 +258,9 @@ export function challengeFrom(inst, sc, k) {
   return took.length;
 }
 
-/* Is any engaged monster on hero `u` (it holds them: a tank's hold, a peeled healer)? */
-const holding = (inst, u) => engaged(inst).some((m) => m.target === u.id);
+/* Is any engaged monster on hero `u` (it holds them: a tank's hold, a peeled healer)? A SHOOTER on it is not held: it shoots
+   from where it stands (shooters.js), so a Melee hero it shoots still walks to its mark. */
+const holding = (inst, u) => engaged(inst).some((m) => m.target === u.id && !rangeOf(inst, m));
 
 /**
  * Phase-AI hook, every sub-step: holds run down, monsters whose target fell turn
@@ -260,7 +278,8 @@ export function chooseTargets(inst, sc) {
   for (const m of inst.world.units) if (m.holdMs > 0) m.holdMs = Math.max(0, m.holdMs - sc.dtMs);
   for (const m of engaged(inst)) {
     const t = unitById(inst, m.target);
-    if (!t || !t.alive) { retarget(inst, m, k && k !== t ? k.id : null, sc); m.holdMs = 0; }
+    /* (a SHOOTER turns on the hero farthest from it instead: shooters.js aimOf) */
+    if (!t || !t.alive) { retarget(inst, m, aimOf(inst, m, k && k !== t ? k.id : null), sc); m.holdMs = 0; }
   }
   const fighting = inst.world.phase === 'fight';
   const leaderMoving = !!k && k.path.length > 0;

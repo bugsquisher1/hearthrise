@@ -30,7 +30,7 @@ import { AI_REPATH_MS, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.129';
 import { HUNT_GROUNDS, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.129';
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.129';
 import { monsterMaxHit } from '../combat.js?v=0.2.129';
-import { castsOf, spellHit, spellRow } from '../../data/monster-spells.js?v=0.2.129';
+import { castsOf, spellHit, spellRow, mends } from '../../data/monster-spells.js?v=0.2.129';
 import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.129';
 import { inArea, resetPack } from './leash.js?v=0.2.129';
 import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.129';
@@ -38,6 +38,7 @@ import { makeEvent, trackStep } from './events.js?v=0.2.129';
 import { staleIndex } from './unit-index.js?v=0.2.129';
 import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.129';
 import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.129';
+import { aimOf } from './shooters.js?v=0.2.129';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -75,8 +76,9 @@ export function biggestBlowOn(huntId, tier) {
   for (const id of [...ids].sort()) {
     const row = MONSTERS[id];
     const swing = row ? monsterMaxHit(atTier(row, tier)) : 0;
-    /* ...or its spell's top, when the spells are on: a spell lands on every hero it covers with no to-hit roll (monster-spells.js land) */
-    const spell = row ? Math.max(0, ...castsOf(row).map((sid) => spellHit(swing, spellRow(sid))[1])) : 0;
+    /* ...or its spell's top, when the spells are on: a spell lands on every hero it covers with no to-hit roll (monster-spells.js land);
+       a mend strikes nobody (data/monster-spells.js mends) */
+    const spell = row ? Math.max(0, ...castsOf(row).filter((sid) => !mends(spellRow(sid))).map((sid) => spellHit(swing, spellRow(sid))[1])) : 0;
     const hit = Math.max(swing, spell);
     if (row && (!best || hit > best.hit)) best = { monster: id, name: row.name, hit };
   }
@@ -180,7 +182,8 @@ function startPull(inst, sc, k, p) {
   const pack = inst.world.packs[p];
   pack.aggro = true;
   pack.holder = k.id;
-  for (const m of packMonsters(inst, p)) m.target = k.id;
+  /* (a SHOOTER aims at the hero farthest from it instead: shooters.js aimOf) */
+  for (const m of packMonsters(inst, p)) m.target = aimOf(inst, m, k.id);
   staleIndex(inst);
   clearGoal(k);
   inst.world.phase = PHASE.FIGHT;

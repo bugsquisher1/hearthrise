@@ -3,10 +3,11 @@
 // tools/restore-drill.local.mjs — THE RESTORE DRILL THAT COSTS NOTHING, AS A RUNBOOK THAT RUNS.
 //
 //   node tools/restore-drill.local.mjs              backups -> export production -> rebuild locally -> load -> prove, timed
-//   node tools/restore-drill.local.mjs --mutate     the drill, then seven defects planted in the restored copy: each must be caught
+//   node tools/restore-drill.local.mjs --mutate     the drill, then seven defects planted in the restored copy, each caught by
+//                                                  its own proof, and a control (nothing planted) that every proof leaves clean
 //   node tools/restore-drill.local.mjs --selftest   no network, no token: a replay with one hero made by the real RPCs stands in
 //                                                  for production, every keyed table is paged, the same restore and proofs run,
-//                                                  then the seven mutants
+//                                                  then the mutants and the control
 //   node tools/restore-drill.local.mjs --backups    backup posture and the price of the real drill only (read-only API)
 //   --keep <dir>                                    keep the export there (default: an OS temp dir, deleted when done)
 //   --from <dir>                                    restore and prove an export kept earlier, without reading production

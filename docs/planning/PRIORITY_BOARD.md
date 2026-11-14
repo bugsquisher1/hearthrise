@@ -236,6 +236,43 @@ A new hero gets a tower weapon in their second week on average, and with the fir
 
 **The hook: your first key always has a weapon.** The first Bronze Key an ACCOUNT ever uses gets a tower weapon for sure, of the type the hero is holding when they use it, so it is one they can wear at 15. Once for the account, not once for each hero: a fresh alt can be carried to floor 10 by your own party in a minute, so a per-hero rule is a weapon farm by deleting and remaking heroes. It trades like any other gear (NO BOUND GEAR, 10-23). One Bronze weapon an account is worth about the Shop's floor, so a second account made for it earns nothing worth the trouble. Server side it is one flag on the account, read inside the same open call. The chest says so before the press: "Your first key always has a tower weapon."
 
+**The super-rare outfit: the Sweep's Coat (Tyler 2026-11-14: "a super rare outfit that can drop from any chest would be cool too").** One cosmetic outfit, no stats, on the outfit system that exists (`src/data/outfits.js`: a base model, recolor regions, add-ons). Any key can roll it, on its own roll beside the weapon's.
+| Key | Chance of the Sweep's Coat |
+|---|---|
+| Bronze | 0.2% |
+| Silver | 0.3% |
+| Gold | 0.4% |
+| Platinum, and every key after | 0.5% |
+
+Nearly flat on purpose, so "any key could be the one" is true for a new hero too. Arithmetic, not measured:
+| Who | Keys a week | Chance a week | Expect one in about |
+|---|---|---|---|
+| A new hero, best landing 30 | 3 Bronze | 0.6% | 167 weeks. They will most likely see somebody else get one first, which is the point |
+| Best landing 60 | 3 Bronze, 3 Silver | 1.5% | 67 weeks |
+| A top hero, 100 and up | 6 Platinum | 3.0% | 33 weeks |
+| An account of four top heroes | 24 Platinum | 12% | 8 weeks |
+| A town of 200 climbing heroes | about 1,000 keys | | three or four a week across the whole server, so the call-out is seen and stays news |
+
+- **The name and the story tie.** Before the fire got into the chimney, somebody had to sweep it. The last sweep went up one morning and never came down, and this is his coat. "Sweep" was checked free.
+- **The look, one line for the art director.** A soot-black long coat, a flat cap and knee leathers with a coil of brush rope over one shoulder, scorched at the hems, no glow and no flame effect. Recolor regions are the cap, the coat, the trousers and the boots.
+- **Add-ons are earned, not rolled.** Once a hero owns the coat: the Sweep's Brush at best landing 50, and the Sweep's Lantern, a tin lamp with one banked coal, at best landing 100. So the luck gets you the coat and the climbing finishes it.
+- **The moment (memory super-rare-drop-moments).** The chest doesn't flare, it pours black smoke, and the coat comes out of it. That reveal is drawn only from the server's event. A server-wide line goes to every chat tab, on its own notice kind that the rare-drop daily cap doesn't count: "{hero} pulled the Sweep's Coat out of the chest on key number {n}." And a shareable card: the hero wearing it, the name, the date, the key count and their best floor, built from the same server row so it can't be faked.
+- **It trades, until someone wears it.** It comes out of the chest as an item, the Sweep's Coat bundle. Use it and that hero owns the outfit for good (the server's `hr_outfit_owned`). Or list it on the Weighhouse first. NO BOUND GEAR (10-23) is about equipment, so this is my call, and I'd let it trade: the lucky hero who doesn't care about looks gets a real payday, and the player who wants it can earn it in gold instead of waiting three years.
+- **The market, and why it isn't gambling.** A handful exist on a server at any time and each one is used up when worn, so the price stays high and it is a gold sink for the rich in everything but name (the gold moves to another player, the coat leaves the market). Nobody can pay to roll for it: keys can't be bought, sold or traded, using a key is free, and there are six a week no matter what. The only thing gold or Crowns can reach is a known item at a price another player set, which is the same as buying any drop. It goes on the Steam and legal read with the jewelry rolls all the same.
+- **As data.** A chest row has a list of outfit rows: the bundle's item, its chance for each key, its add-on rules. A second outfit later is one more row there plus its art. The roll, the reveal, the call-out and the card are the same code.
+
+**A title for keys used: the Turnkey (Tyler 2026-11-14: "after opening 100 chests a title maybe").** On the title rails that exist (`src/data/titles.js`, the server's `hr_titles`), not a new system. A turnkey is the old word for whoever carries the keys, and it is what Rowe calls anyone who is at her chest that often.
+| Keys this hero has used at the chest | Title | Beside the name | Price | At six keys a week |
+|---|---|---|---|---|
+| 100 | Turnkey | "Marlow the Turnkey" | 0 | 17 weeks |
+| 500 | Hearth-Hand | "Marlow the Hearth-Hand". Holly's own job, and you have now spent about as long at that ledge as she has | 0 | 83 weeks |
+| 1,000 | Old Sweep | "Marlow the Old Sweep" | 0 | 167 weeks |
+
+- **Counted for each hero, by the server.** Titles stand beside a hero's name and every title today counts that hero's own deeds, so this one does too. The count is the hero's rows in `chest_opens`, the append-only ledger the open call already writes. No press carries a number. A key that came through Storage from another hero on the account counts for the hero who uses it. That lets a four-hero account reach 100 on one hero in about a month, and I'd allow it: it is the same person and the same 100 keys, and a title is worth nothing to anyone else.
+- **Free to claim.** The other titles cost gold once the kills are earned. Here the keys were the price, and `titles.js` already allows a price of 0 for "a title that is itself a prize".
+- **Is 17 weeks right? Yes.** It is about four months of showing up every week, long enough to mean something and short enough that the first players get there while the Tower is still new. Faster would make it the title everyone has by the second month.
+- **More milestones are rows.** 500 and 1,000 are in the table above. The title row needs one small widening for the Systems lane: today a row counts `kills` of `monsters`, and this one counts a named server counter. Three names is the sample, and no more get written until these are played.
+
 **One way to have no weekly cap (Tyler: "I dont LOVE the cap").** With free deaths, a key from every Keeper kill is a farm: start ten floors under the landing, kill the Keeper, leave, again, a key every three minutes. So a key has to cost something a death can't refund. The one honest price is stamina, which the server already counts.
 | | Weekly cap (as designed) | No cap, a key an hour |
 |---|---|---|
@@ -387,6 +424,7 @@ One gap this found. Step 3 needs the hero to have gold for food. A Level 10 hero
 | Start of a climb | The hunt-start verb that exists, with the Tower's ground and a start floor | The start floor is checked against `tower_progress` and `tower_keys_taken`. Party rules as a hunt |
 | The settle (`hr_hunt_apply_member`, restated whole) | Credits XP at the mode's permille, counts floors, grants a landing's key, writes the board | Floors a minute clamp. A key needs the engine's Keeper kill in the same window. The no-loss bound of section 3 |
 | `hr_keys` (a key's start landing, odds, weapon set, always-inside row), `hr_key_sources`, `hr_chests` (one row today) (catalogues, generated from a new `src/data/chests.js`) | Section 5's open table. A new key is rows, never a migration of code | Odds are whole permille and add up, checked |
+| `hr_chest_outfits` (catalogue: bundle item, permille by key, add-on rules) and a `super_rare` world-notice kind | The Sweep's Coat and any later outfit | The bundle's use is the existing outfit-ownership write, journalled |
 | `hr_chest_open(slot, chest, key, count)` (client RPC, added to `hr_client_rpc_baseline`) | Takes the keys, rolls on the server's random stream, grants the items, answers the envelope | 1 to 20 a call. `chest_opens` append-only with the roll. `player_ledger` intent `chest_open`. A weapon posts a world notice under the rare-drop daily cap |
 | Tower weapons | Item rows with a tier. Market ceiling rows | The Weighhouse's own caps and escrow |
 
@@ -396,7 +434,7 @@ Both paths (§4): the climb viewed and the browser closed are the same settle, a
 
 **For other lanes.** Systems: the mode switch in `die()`, a floor counter and floor-by-floor rows in one instance, the floor's time as an END reason, item-fed Follow-through and Surge, a named kit in the sim. Backend: section 10. Art Director: the one chest on the ledge, the flue room kit, the fire tint, the Tower window, the opening reveal. Security: keys that can't trade, the weekly cap, the floors a minute clamp, the chest roll, weapons through the market.
 
-**Done and verified.** Every existing id here was read on main. Every new name was checked free. The floor curve, the solo and four reach, the XP rates, the bow and the no-loss check are the real engine's numbers from `tower-table.mjs`, each run's exit code 0. **Not verified.** Nothing was played by hand. No real climb, no Keeper, no mixed roster, no Level past 45. Six of the seven attributes. The chest counts. The story and every player line have had no reader. **Assumed.** The 20 / 12 / 7 / 4% odds, the Cinders and Salts counts, the Tower's party row for pairs and threes, the Keeper's pulse, the three and ten minute limits, the 40% guard line.
+**Done and verified.** Every existing id here was read on main. Every new name was checked free. The floor curve, the solo and four reach, the XP rates, the bow and the no-loss check are the real engine's numbers from `tower-table.mjs`, each run's exit code 0. **Not verified.** Nothing was played by hand. No real climb, no Keeper, no mixed roster, no Level past 45. Six of the seven attributes. The chest counts. The story and every player line have had no reader. **Assumed.** The 20 / 12 / 7 / 4% odds, the Sweep's Coat odds and add-on landings, the Cinders and Salts counts, the Tower's party row for pairs and threes, the Keeper's pulse, the three and ten minute limits, the 40% guard line.
 
 **Where the six questions stand (Tyler 2026-11-14).**
 | # | Question | State |

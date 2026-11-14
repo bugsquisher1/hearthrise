@@ -33,8 +33,8 @@
 // Gatekeeper keeps. The Hall Key is the Gatekeeper's last row, in its own band (loot-bands.js `key`, about one every two hours).
 // THE CHANCES ARE FITTED, NOT GUESSED: each was set from the floor hour's kills on the real settle (tests/hunt-core/drop-tables.mjs, a lone
 // tank in its tier-6 set, 2026-11-10): Scarce 0.88-1.17 h a piece, Rare 14.6-15.0 h, the Hall Key about every 2.0 h (19 Gatekeepers an hour).
-// GOLD IS PRINTED, NEVER A TARGET (NO PROFIT MOLDS, Tyler 2026-11-13): the Lookout's softer blow and to-hit and the Dangerous dmgPm 1300 that
-// chased a profit floor and a food share are reverted to the formula; Deadly brings six, a danger fix, and stays.
+// GOLD IS PRINTED, NEVER A TARGET (NO PROFIT MOLDS, Tyler 2026-11-13): the Lookout's 0.45 to-hit and the Dangerous dmgPm 1300 that
+// chased a food share are reverted. His 0.17 blow stays as a danger fix (close calls at the floor) and Deadly brings six, also danger.
 import { definePack, box, gather } from '../shape.js?v=0.2.129';
 import map from './map.js?v=0.2.129';
 
@@ -102,7 +102,7 @@ export default definePack({
         { id: 'ember_helm', ch: 0.026, band: 'scarce' }, { id: 'dragonhide_helmet', ch: 0.026, band: 'scarce' }, { id: 'archmage_helmet', ch: 0.026, band: 'scarce' },
         { id: 'runewood_bow', ch: 0.026, band: 'scarce' },
         { id: 'ember_gauntlets', ch: 0.0018, band: 'rare' }, { id: 'dragonhide_gloves', ch: 0.0018, band: 'rare' }, { id: 'archmage_gloves', ch: 0.0018, band: 'rare' }],
-      hp: 109, atk: 103, baseAcc: 0.45, def: 38, xp: 1200, gp: [23, 69], formula: true }, // the glass role's formula: a 0.22 blow, 0.75 to-hit at a same-Level hero (profit-only exceptions reverted, NO PROFIT MOLDS 2026-11-13)
+      hp: 109, atk: 80, baseAcc: 0.91, def: 38, xp: 1200, gp: [23, 69], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (a danger fix: close calls at the floor)
     grave_guard: {
       name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', speed: 2400,
       /* the heavy, the slowest thing in the castle: one of the Banded Company's officers, buried with honors in the Muster Barrows, dug up and

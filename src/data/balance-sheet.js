@@ -281,6 +281,11 @@ export const FORMULA_EXCEPTIONS = Object.freeze({
      bill on one seed of six (forest-cave glade-between); the bear is the hour's one purse worth a stop, so its coin, not the whole ground's, carries the point. At
      the elite's full [14, 44] the Glade's lone median netted 0.7% over the Warrens' fours (the grader's feel-gold-order: a higher floor nets more, Tyler 11-03). */
   brook_bear: Object.freeze({ gp: "a heavy with most of an elite's purse, so the Glade floor clears +10% over its bill and stays under the Warrens' fours (designer 2026-11-12)" }),
+  /* KRELL'S LOOKOUT, A DANGER EXCEPTION (lane/b-barrow-packs 2026-11-13, after NO PROFIT MOLDS): on the glass role's 0.22 blow a lone hero at the
+     Hold's floor on Normal read 2.81 close calls in 12 h on the full grade (the sheet allows 1). While engine piece 2 is unbuilt he swings in melee,
+     and he is the floor's top damage. His blow is the Farmhands' 0.17 (designer Q3 measured close calls 3.2 to 0.63); his to-hit stays the role's 0.75. */
+  hasks_lookout: Object.freeze({ atk: "a blow of 0.17 of a same-Level hero, the Farmhands', so a lone hero at the floor on Normal is safe (close calls, not gold)",
+    baseAcc: "the glass role's 0.75 to-hit at a same-Level hero, restated for the lower blow: 0.75 + (88 - 80) x 0.02" }),
 });
 
 /* combat.js monsterDamageScaleByTier, restated: the formula divides the blow by it (a test pins the two equal). */

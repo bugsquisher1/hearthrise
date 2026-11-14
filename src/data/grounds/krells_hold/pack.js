@@ -221,7 +221,15 @@ export default definePack({
     key: 'hall_key',
     words: { boss: 'Lord Krell', Boss: 'Lord Krell' },
     hunt: { name: 'Krell\'s Hall', theme: 'Krell sits by the long fire at the back of his hall, holding the list of every soldier his men killed.',
-      band: [85, 110], family: 'Human', art: 'lord_krell', travelS: 0, pull: 1, respawnMs: 600000 },
+      band: [85, 110], family: 'Human', art: 'lord_krell', travelS: 0, pull: 1, respawnMs: 600000,
+      /* THE HALL'S WRITTEN BLOW CAP (designer 2026-11-14, lane/d-hold-pass; tests/hunt-core/hunt-data.mjs blow-share). His Rake the Coals
+         tops out at 541, 55% of a bare Level 85 hero. Every blow past 35% lands only on the tank or can be stepped out of: his swing goes
+         to the tank, and the Rake is marked (Tyler 11-08: the tank soaks the boss's hits, the casters dodge). The pulse that reaches
+         everyone, the Hall Fire, tops out at 25%. Held to 35%, measured (boss-call-table.mjs --hall, atk 157, the Rake at 1.0x): on the old
+         x1.25 enrage the bad bar won 95% (40 tries), at 10,000 HP still 85%, against Tyler's 30 (11-05). On x1.6 with the Hall Fire at
+         1.0x (120 tries) the pulse alone holds the bad bar at 25%, but one gear tier behind wins 99%, eating at 40% 97% and a healer who
+         waits 100%: nothing but the pulse asks anything. The tank's big blows are what make gear and the eat lines matter. */
+      blowCap: { pct: 55, why: 'Krell\'s biggest hits land on your tank or come with a warning you can step out of. The hit everyone takes is far smaller' } },
     ground: {
       /* in through the door off the Tower Stairs, Krell in his high seat across the hall, the fire behind him */
       start: [[48, 8], [47, 8], [49, 8], [48, 9]],
@@ -234,7 +242,7 @@ export default definePack({
       /* LORD KRELL, Level 110, Human: an old man in Dawnsteel plate. The fire at his back for years: fire does 25% less, poison 15% more (one
          override, the element axis). He started as the formula's boss row for the party fit at the floor (2,256 HP, atk 94, tier 6,
          21,720 XP, coin 251-753) and is fitted to the ship bar (Tyler 11-05: the same gear wins about 30% with a bad bar and 85% with a good
-         one, 40 tries a row; the numbers are on his row). His lines: adds at half, shielded to 80% while they stand, enraged at a quarter, x1.25.
+         one, 40 tries a row; the numbers are on his row). His lines: adds at half, shielded to 80% while they stand, enraged at a quarter, x1.6.
          HIS PRIZE (the design's section 4), each rare about 1 kill in 10: the first tier 7 in the game (worn from 88), the four weapons and the
          body and helm in three weights. They break the 5% row ceiling on purpose: the loot-band guard learns a per-kill boss with the fold.
          Two prizes wait on their own rows: the Roll Page (a named Hearth fuel, piece 10) and Krell's Toll Box (his Trophy, 100-150 h). */
@@ -252,9 +260,14 @@ export default definePack({
         /* FITTED TO THE SHIP BAR (lane/b-barrow-numbers 2026-11-14; node tools/balance-sim/boss-call-table.mjs --hall krells_hold --seeds 40,
            the real settle, tank + healer + hammer + mage at Level 98, the band's middle). On the formula's row (2,256 HP, atk 94) every row
            won in 70 s, the bad bar too. At 7,000 HP, atk 205, enrage x1.25 and the spells below: the good bar 95%, the bad bar 30%, the good
-           bar one gear tier behind 30%, about 200 s a kill. His XP and coin stay the formula's: his prize is his drops. */
+           bar one gear tier behind 30%, about 200 s a kill. His XP and coin stay the formula's: his prize is his drops.
+           RE-FITTED ON THE RIGHT ANSWER (designer 2026-11-14, lane/d-hold-pass; 200 tries a row). That fit's good bar had Challenge on, and
+           Challenge is the wrong press here (boss-calls.js warnGuard): taking it off, the good bar one gear tier behind won 96%, so gear
+           checked nothing. The gear check moved to his enrage, x1.25 to x1.6, and the Hall Fire down to 0.55x (below). With Challenge off:
+           the good bar 99%, one gear tier behind 54%, the bad bar 31%, eating at 40% 67%, a healer who waits 72%. With Challenge left on
+           the good bar still wins 95%, and a bar never touched 62%. */
         hp: 7000, atk: 205, baseAcc: 0.72, def: 80, xp: 21720, gp: [251, 753], speed: 2800,
-        phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1250, guardPm: 800, hasten: { spell: 'hall_fire', cdPm: 500 } } },
+        phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1600, guardPm: 800, hasten: { spell: 'hall_fire', cdPm: 500 } } },
       /* CAPTAIN HASK, read off the Roll: the man who sold the crossing. Everyone who gets here killed him in the Muster Barrows; now the man who
          bought him calls him by name and he has to come. A NAMED ADD (boss and add both, piece 6): the formula's elite at 100, and his own enrage
          line, the Barrows' (a quarter, x1.15); never a wave or a guard of his own. Not the Barrows' own Hask row: the two never share an id. */
@@ -277,7 +290,8 @@ export default definePack({
          Nearly off (0.1x) 98 / 65 / 83, at 2x 75 / 15 / 5: it is the tank's check, and 1.2x holds the bar.
        The Hall Fire: his pulse on every hero in the room, every 20 s, and every 10 s under a quarter (phases.hasten cdPm 500). 0.95x.
          At the old 0.4x a boss this size never troubled a healer who waits. At 0.7-0.85x the bad bar still won 43-46%. At 0.95x it is what
-         kills a bad bar: 17 of its 28 losses were the Healer, in the enrage.
+         kills a bad bar: 17 of its 28 losses were the Healer, in the enrage. NOW 0.55x (lane/d-hold-pass 2026-11-14): with the enrage at
+         x1.6 the tank's gear is what decides the finish, and at 0.55x the pulse everyone takes tops out at 248, 25% of a bare Level 85 hero.
        Cleave: Captain Hask's own marked blow, the two tiles in front of him. 1.5x. Nearly off 100 / 30 / 58, at 2.5x 90 / 30 / 13: it
          only reaches a tank in weak gear, which is its job.
        War Cry: his pulse while he stands, 0.4x every 20 s, no element. Nearly off 100 / 38 / 33, at 0.8x 95 / 28 / 20. Two pulses on
@@ -290,7 +304,7 @@ export default definePack({
          pull) healed slower than he killed: 7.5k XP an hour, no death, a fight that never ended. A mend must slow a kill, never stop it. */
   spells: {
     rake_the_coals: { n: 'Rake the Coals', shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 1200, element: 'ember' },
-    hall_fire: { n: 'The Hall Fire', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 950, element: 'ember' },
+    hall_fire: { n: 'Hall Fire', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 550, element: 'ember' },
     hasks_cleave: { n: 'Cleave', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 14000, hitPm: 1500, element: null },
     hasks_war_cry: { n: 'War Cry', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: null },
     shield_slam: { n: 'Shield Slam', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 20000, hitPm: 1000, element: null },

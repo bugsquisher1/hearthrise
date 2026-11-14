@@ -93,7 +93,8 @@ export const BOSS_HALL_WORDS = Object.freeze({
     '{Boss} hits hard. At half his health his adds come for whoever isn\'t your tank.{guard} At a quarter of his health he hits even harder.{haste} If anyone dies, the fight ends.',
     'It uses up your {key}, win or lose. The fight ends after {minutes} minutes.',
   ]),
-  warnGuard: ' They shield him until they fall.',
+  /* the same rule as a called room's (boss-calls.js warnGuard: Challenge is the wrong press at a shielded boss, measured) */
+  warnGuard: ' They shield him until they fall. Your tank can\'t hold him and his adds at the same time, so take Challenge off your tank\'s bar for this fight.',
   /* the boss row's phases.hasten: the spell that speeds up under his enrage line */
   warnHaste: ' From then on his {spell} comes faster.',
   warnAlone: '{Boss} is built for a party. You can fight him alone, but he can kill you.',

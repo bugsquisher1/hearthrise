@@ -258,6 +258,7 @@ const SANITIZERS = Object.freeze({
   townZoom: sanitizeTownZoom,       // display preference: the viewer's town zoom, one for every hero (src/world/town-zoom.js); gates and spends nothing
   shareReplay: sanitizeSwitch,      // display preference: whether the screen may be recorded, one for every hero (src/session/replay-pref.js); gates and spends nothing
   idleMotion: sanitizeSwitch,       // display preference: whether standing units breathe, one for every hero (src/world/idle-motion.js); gates and spends nothing
+  monsterNames: sanitizeSwitch,     // display preference: whether every living monster in a hunt shows its name, one for every hero (src/data/world/monster-names.js); gates and spends nothing
   fxSelf: valuePick(FX_ALPHA_ROW.self),       // display preference: how strong the viewed hero's effects look, one for every hero (src/hunt-view/fx-prefs.js); gates and spends nothing
   fxPeer: valuePick(FX_ALPHA_ROW.peer),       // display preference: the same for every other hero in the hunt; gates and spends nothing
   fxMonster: valuePick(FX_ALPHA_ROW.monster), // display preference: the same for the monsters' hits and spells; gates and spends nothing

@@ -47,6 +47,7 @@ import { HELP_NOTES } from './how-to-play.js?v=0.2.130';
 import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.130';
 import { REPLAY } from './privacy.js?v=0.2.130';
 import { IDLE_MOTION } from './world/motion.js?v=0.2.130';
+import { MONSTER_NAMES } from './world/monster-names.js?v=0.2.130';
 import { FX_ALPHA } from './fx-alpha.js?v=0.2.130';
 import { TIPS } from './tips.js?v=0.2.130';
 
@@ -108,6 +109,15 @@ const LOOK_ROWS = [row({
   type: 'toggle',
   default: IDLE_MOTION.defaultOn,
   bind: Object.freeze({ store: 'switch', field: IDLE_MOTION.field, sw: IDLE_MOTION }),
+}), row({
+  /* MONSTER NAMES (Tyler 2026-11-14, src/data/world/monster-names.js): the player's switch, kept for every hero; on names every living monster in a hunt */
+  id: 'ui.monsterNames',
+  category: 'interface',
+  label: MONSTER_NAMES.label,
+  help: 'Show each monster\'s name over its head during a hunt. Bosses always show theirs.',
+  type: 'toggle',
+  default: MONSTER_NAMES.defaultOn,
+  bind: Object.freeze({ store: 'switch', field: MONSTER_NAMES.field, sw: MONSTER_NAMES }),
 })];
 
 /* ── Effects (Tyler 2026-11-08: "settings/opacity sliders for on screen effects"; src/data/fx-alpha.js): one slider per

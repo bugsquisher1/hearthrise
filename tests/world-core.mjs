@@ -33,7 +33,9 @@
 //   N  NAME PLATES (src/world/core/plates.js; Tyler 2026-11-08: "Fingerguns / The Rat catcher (centered of
 //      course)"): a titled hero's plate is two centred lines, the title under the name, the block's foot
 //      where a one-line plate's is; an untitled plate is one line; a crowd of plates on one spot never
-//      overlaps; compose carries the title of your hero and of every unit
+//      overlaps; compose carries the title of your hero and of every unit; a plate that YIELDS (a monster's
+//      name, Monster names on) steps up one line at most and is left out of a crowd rather than towering,
+//      never moving a hero's plate
 //   A  art by scene (src/world/scene-sets.js): every shipped scene loads every
 //      sheet it draws from (the whole map, every hero, its monsters and effects,
 //      every room's furniture), and a walked scene loads nothing more: the
@@ -639,6 +641,22 @@ async function check(M) {
     const touch = (a, b) => a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t;
     const clash = laid.flatMap((a, i) => laid.slice(i + 1).filter((b) => touch(a.box, b.box)).map((b) => a.plate.text + ' / ' + b.plate.text));
     ok('N', laid.length === 4 && clash.length === 0, 'four plates on one tile overlap: ' + clash.join(', '));
+    /* A dense pull with Monster names on: eight yielding names on the spot after the four heroes' plates. Each steps up one
+       line at most (so it stays over its own monster) and is left out rather than towering; the heroes' plates never move. */
+    const pull = Array.from({ length: 8 }, (_, i) => ({ text: 'Giant Rat', kind: 'ambient', yields: true, x: order[0].x * 3 + (i % 2) * 6, y: order[0].y * 3 }));
+    const opts = { measure: (s, px) => s.length * px * 0.55, px: (k) => (k === 'self' ? 15 : 13), width: 1e7, edge: 48 };
+    const crowd = M.platesM.layPlates(order.map((p) => Object.assign({}, p, { x: p.x * 3, y: p.y * 3 })).concat(pull), opts);
+    const names = crowd.filter((l) => l.plate.yields), heroesKept = crowd.filter((l) => !l.plate.yields);
+    const clash2 = crowd.flatMap((a, i) => crowd.slice(i + 1).filter((b) => touch(a.box, b.box)).map((b) => a.plate.text + ' / ' + b.plate.text));
+    ok('N', clash2.length === 0 && names.length < pull.length && names.every((l) => l.plate.y - l.box.b <= M.platesM.YIELD_STEPS * (l.px + M.platesM.PLATE_GAP))
+      && JSON.stringify(heroesKept.map((l) => l.box)) === JSON.stringify(laid.map((l) => l.box)),
+      'a crowd of monster names must give way, not tower or move a hero: ' + JSON.stringify({ clash: clash2, shown: names.length, lifts: names.map((l) => l.plate.y - l.box.b) }));
+    /* four rats in one tile, no hero near: the first stands, the second steps up one line, the rest give way */
+    const pack = M.platesM.layPlates(Array.from({ length: 4 }, () => ({ text: 'Giant Rat', kind: 'ambient', yields: true, x: 500, y: 500 })), opts);
+    ok('N', pack.length === 1 + M.platesM.YIELD_STEPS && pack.every((l, i) => l.box.b === 500 - i * (l.px + M.platesM.PLATE_GAP)),
+      'a pack of four must show one name per line it may step, then give way: ' + JSON.stringify(pack.map((l) => l.box.b)));
+    const alone = M.platesM.layPlates([{ text: 'Giant Rat', kind: 'ambient', yields: true, x: 500, y: 500 }, { text: 'Giant Rat', kind: 'ambient', yields: true, x: 900, y: 500 }], opts);
+    ok('N', alone.length === 2 && alone.every((l) => l.box.b === 500), 'two monsters apart must both show their names where they stand: ' + JSON.stringify(alone.map((l) => l.box)));
   });
 
   fam('A', () => {
@@ -772,7 +790,9 @@ const MUTANTS = [
   ['N', 'the title is dropped from the plate', 'src/world/core/plates.js', [['const lines = p.title ? [p.text, p.title] : [p.text];', 'const lines = [p.text];']]],
   ['N', 'a two-line plate is placed as one line', 'src/world/core/plates.js', [['const tall = lines.length * px + (lines.length - 1) * PLATE_GAP;', 'const tall = px;']]],
   ['N', 'the title lies on the head art, under the anchor', 'src/world/core/plates.js', [['y: y - (lines.length - 1 - i) * (px + PLATE_GAP)', 'y: y + i * (px + PLATE_GAP)']]],
-  ['N', 'a crowded plate never steps up', 'src/world/core/plates.js', [['for (let k = 0; k < PLATE_STEPS && touches(y); k++) y -= px + PLATE_GAP;', 'void touches;']]],
+  ['N', 'a crowded plate never steps up', 'src/world/core/plates.js', [['for (let k = 0; k < (p.yields ? YIELD_STEPS : PLATE_STEPS) && touches(y); k++) y -= px + PLATE_GAP;', 'void touches;']]],
+  ['N', 'a yielding plate towers like a hero\'s', 'src/world/core/plates.js', [['(p.yields ? YIELD_STEPS : PLATE_STEPS)', 'PLATE_STEPS']]],
+  ['N', 'a yielding plate that is not clear draws over the crowd', 'src/world/core/plates.js', [['    if (p.yields && touches(y)) continue;\n', '']]],
   ['N', 'compose drops a unit\'s title', 'src/world/core/compose.js', [["title: u.plate.title || null, kind: u.plate.kind,", 'kind: u.plate.kind,']]],
   ['N', 'compose drops your own title', 'src/world/core/compose.js', [["title: state.title || null, kind: 'self'", "kind: 'self'"]]],
 ];

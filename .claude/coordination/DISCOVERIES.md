@@ -3923,6 +3923,9 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   Still open: the card UNDER THE HUNT BAR keeps the shared row (its room has no line to spare, PH-27), so at 667x375 "Your
   hero fights on its own" stands four lines beside Don't show tips. Options for the game-designer: shorter hunt-card titles
   (two words), or a wider hunt-bar card at 667 if PH-10 allows. Not a CSS-only fix.
+  FIXED 2026-11-14 (art-director, lane/a-phone-hunt-coach): the hunt-bar card has the foot row too; title 4 lines -> 1 at
+  667x375 and 844x390, card 127 -> 99 px. Words under the hunt bar set at 1.25. Neither listed option worked: beside both
+  presses the title column is ~75 px in Cinzel (two-word titles still took 3 lines), and +20 px of card at 844 fails PH-10.
 - 2026-11-12 (art-director, lane/a-phone-coach-foot) INCIDENT: the session scratchpad is shared across lanes; I ran a stale
   `scratchpad/edit.cjs` (another lane's, written 15:58) by name and it re-applied its edits to
   `.claude/worktrees/agent-ad943bab7953c3a92` at 16:21:51. That worktree now holds each edit TWICE: monster.js lines 25

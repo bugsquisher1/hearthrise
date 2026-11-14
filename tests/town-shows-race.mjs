@@ -18,7 +18,7 @@
 //   R8  two accounts race for what's left on the project (gate: the project's key): it fills exactly; the other is refused works_short and every trace of its charge rolls back
 //   R9  two accounts' gifts cross one stage at once (gate: the project's key): the town says it once, and the total is the sum of both
 //   R10 one gift's key pressed twice at once: one charge, one row, one gift
-// NOT A CI STEP: GitHub has no PostgreSQL 17 binaries (tests/guards-unregistered.json). Never touches production or the machine's own PostgreSQL service: it starts tools/pg-replay.mjs's
+// CI: smoke.yml's pg17 job, plain + --mutate (.github/actions/postgres-17, since 2026-11-14). Never touches production or the machine's own PostgreSQL service: it starts tools/pg-replay.mjs's
 // scratch cluster. HR_PG_TEMPLATE = an existing chain database to clone, this lane's files applied over it, instead of the build of the whole chain.
 // mutant-anchors: supabase/migrations/2027-02-27-town-shows.sql, supabase/migrations/2027-03-04-town-works.sql
 // Exit: 0 green (--mutate: every mutant caught) · 1 red · 2 harness.
@@ -27,6 +27,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { bootPg, attachPg } from '../tools/pg-replay.mjs';
+import { ownHeroSlots } from './_slots.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
@@ -114,6 +115,9 @@ async function account(w, heroes) {
   await w.db.query(`insert into public.hr_access_allowlist (user_id, note) values ($1, 'town-shows-race') on conflict (user_id) do nothing`, [u]);
   const dye = (await w.db.query('select min(idx) m from public.hr_outfit_dyes')).rows[0].m;
   for (let s = 0; s < heroes; s++) {
+    /* an account starts with one hero slot (2027-03-25-hero-slots-one.sql): the second is owned as a buyer owns it, after
+       slot 0's hero exists (tests/_slots.mjs). This harness ran by hand only and answered slot_not_owned from that file on. */
+    if (s === 1) await ownHeroSlots((sql, params) => w.db.query(sql, params), u, heroes - 1);
     const r = await asClient(w.watch, u, 'select public.hr_create_hero($1::int, $2, $3::jsonb, $4::uuid) r', [s, 'Racer' + 'abcdefghijklmnopqrstuvwxyz'[serial % 26] + 'abcdefghijklmnopqrstuvwxyz'[s], JSON.stringify({ head: dye, body: dye, legs: dye, feet: dye }), idem()]);
     if (!r || r.ok !== true) throw Object.assign(new Error('hr_create_hero: ' + JSON.stringify(r)), { harness: true });
   }

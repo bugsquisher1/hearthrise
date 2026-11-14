@@ -39,29 +39,29 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.129';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.129';
-import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.129';
-import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt, stackBelow } from './hud.js?v=0.2.129';
-import { createShellHud } from './shell-hud.js?v=0.2.129';
-import { createHudRoom } from './hud-room.js?v=0.2.129';
-import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.129';
-import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js?v=0.2.129';
-import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.129';
-import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.129';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.129';
-import { mountContextMenu } from './context-menu.js?v=0.2.129';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.129';
-import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.129';
-import { takeFresh, takeStarted, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.129';
-import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.129';
-import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.129';
-import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.129';
-import { benchSpentAtMs } from './town-work.js?v=0.2.129';
-import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.129';
-import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.129';
-import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.129';
-import { hideTipIfGone } from './windows/item-tip.js?v=0.2.129';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.130';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.130';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.130';
+import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt, stackBelow } from './hud.js?v=0.2.130';
+import { createShellHud, fightOn } from './shell-hud.js?v=0.2.130';
+import { createHudRoom } from './hud-room.js?v=0.2.130';
+import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.130';
+import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js?v=0.2.130';
+import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.130';
+import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.130';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.130';
+import { mountContextMenu } from './context-menu.js?v=0.2.130';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.130';
+import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.130';
+import { takeFresh, takeStarted, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.130';
+import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.130';
+import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.130';
+import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.130';
+import { benchSpentAtMs } from './town-work.js?v=0.2.130';
+import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.130';
+import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.130';
+import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.130';
+import { hideTipIfGone } from './windows/item-tip.js?v=0.2.130';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -69,6 +69,8 @@ const DISPLAY_TICK_MS = 250;
 const DRAG_SLOP_PX = 5;
 /* The widgets the coach card hangs under (launcher.js: the icon row in town, the hunt bar in a hunt). */
 const COACH_HOSTS = '[data-hs-widget="launchers"], [data-hs-widget="hunt-topbar"]', SHORT_ROOM = 112, NO_ROOM = 60;
+/* A phone's sheet stands this far above the action bar in a hunt (the phone's widgets keep 4 px from every edge, hud-widgets.js). */
+const SHEET_GAP = 4;
 /* The DOM events a renderer may opt into with `.events` (click and change always reach `.act`). */
 const EXTRA_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout', 'focusin']);
@@ -304,7 +306,9 @@ export function mountShell(root, o) {
   }
 
   /* A widget that stacks (a row's `below`: the tally) sits under the widgets it names on its edge, wherever
-     they are now (hud.js stackBelow); a hidden one is in nobody's way. Run again after a step-down. */
+     they are now (hud.js stackBelow); a hidden one is in nobody's way, and so is one waiting under the dock (v0.2.130 gate D1:
+     the Tally stacked under an analyzer the bag hid, slid left of the bag and was squeezed to 51 px, its row cut, the observer
+     looping as each pass moved it). Run again after a step-down. */
   function stackWidgets() {
     for (const row of hud.rows()) {
       if (!row.below || hud.isMoved(row.id)) continue;
@@ -313,7 +317,7 @@ export function mountShell(root, o) {
       if (!el || !el.offsetWidth) continue;
       const b = box.getBoundingClientRect();
       const rel = (e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; };
-      const above = row.below.map((id) => box.querySelector('[data-hs-widget="' + id + '"]')).filter(Boolean).map(rel);
+      const above = row.below.map((id) => box.querySelector('[data-hs-widget="' + id + '"]')).filter((a) => a && !a.classList.contains('is-under-dock')).map(rel);
       const at = rel(el);
       const top = stackBelow(at, above, DOCK_EDGE);
       if (top !== Math.round(at.top)) el.style.top = top + 'px';
@@ -333,13 +337,17 @@ export function mountShell(root, o) {
   }
   /* Desktop: a docked window whose column crosses the bottom bar's home ends above it (hud.js dockCap), so a window
      that grows (a Settings tab) never moves the bar, and the home window (Chat) stands above it. The phone's sheet is
-     full height; the bar clears it as before. */
+     full height in town; the bar clears it as before. */
   function capDock() {
     const b = shell.getBoundingClientRect();
-    const bars = phoneMq.matches ? [] : Array.from(worldHud.querySelectorAll('[data-hs-widget]'))
-      .filter((e) => hud.layoutOf(e.getAttribute('data-hs-widget')).anchor === 'bc')
-      .map((e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; });
-    fitDocked(layer, bars, DOCK_EDGE);   // a short World: a window whose content needs it rises over the bar; scroll regions end on a whole row (window-fit.js)
+    const rel = (e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; };
+    const shown = Array.from(worldHud.querySelectorAll('[data-hs-widget]'));
+    /* In a hunt the phone's sheet ends above the bar too: its setup, target and stance stay in reach (window-fit.js). */
+    const hunting = fightOn(opts);
+    const bars = phoneMq.matches && !hunting ? [] : shown.filter((e) => hud.layoutOf(e.getAttribute('data-hs-widget')).anchor === 'bc').map(rel);
+    /* ...and a docked desktop window starts under the hunt bar (hud-widgets.js keepClear); the phone's waits beside the sheet (clearOfDock). */
+    const keep = phoneMq.matches ? [] : shown.filter((e) => hud.row(e.getAttribute('data-hs-widget')).keepClear).map(rel);
+    fitDocked(layer, bars, phoneMq.matches ? SHEET_GAP : DOCK_EDGE, hunting ? { tops: keep } : null);   // a short World in town: a window whose content needs it rises over the bar (never in a hunt); scroll regions end on a whole row (window-fit.js)
     /* The home window (Chat) stands above the bar where its column crosses it and below the widgets over its
        column (a four-seat party panel), never over either: it shrinks, or slides right past them (hud.js homeAt).
        Measured from its home column every time, so it comes back when the panel gets shorter. */

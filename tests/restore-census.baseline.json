@@ -35,8 +35,8 @@
  ],
  "generated": "2026-11-13",
  "production": {
-  "measured": "2026-08-30",
-  "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
+  "measured": "2026-11-14",
+  "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Small compute)",
   "method": [
    "Read-only. `select count(*)` over every base table in public, in one",
    "statement built from pg_class, executed against the live database. Not",
@@ -55,21 +55,23 @@
    "returns them EMPTY. There is no client-side copy any more (server authority",
    "is live and game_saves is never read), so the sentence 'the database is the",
    "only copy of every player's progression' stopped being a forecast on this",
-   "measurement."
+   "measurement.",
+   "2026-11-14 (restore drill, read-only): 64 auth users, 21 characters, 273 skill rows, 390,174 ledger rows (90-day",
+   "retention + monthly rollup, oldest row 2026-10-19); 351 MB database on an 8 GB gp3 disk (12% used)."
   ],
-  "db_bytes": 35368083,
-  "db_size": "34 MB",
-  "max_connections": 60,
-  "connections_in_use_at_measurement": 22,
+  "db_bytes": 350276755,
+  "db_size": "334 MB",
+  "max_connections": 90,
+  "connections_in_use_at_measurement": 19,
   "backups": {
-   "measured": "2026-08-30",
+   "measured": "2026-11-14",
    "plan": "Pro — daily physical backups, walg_enabled=true",
-   "retained_count": 8,
-   "oldest_retained": "2026-08-23T10:31:43Z",
-   "newest_retained": "2026-08-30T10:24:36Z",
+   "retained_count": 7,
+   "oldest_retained": "2026-11-07T10:25:50Z",
+   "newest_retained": "2026-11-13T10:28:10Z",
    "taken_at": "~10:25-10:32 UTC daily",
    "pitr_enabled": false,
-   "data_loss_window": "UP TO 24 HOURS. The newest backup was 11h07m old at measurement; every character-hour since then existed in exactly one place. PITR is a separate paid add-on and is OFF — enabling it takes the window from ~24h to minutes.",
+   "data_loss_window": "UP TO 24 HOURS (daily at ~10:28 UTC, PITR off). PITR-7 is $100/month (billing API, 2026-11-14) on the Small compute already running.",
    "restore_tested": false,
    "_recommendation": [
     "ENABLE PITR. The census now measures 35 live characters and 12,301 ledger",
@@ -82,7 +84,8 @@
     "'we lose a minute'.",
     "SECOND, AND FREE: RUN THE DRILL. restore_drill.last_executed is null.",
     "Eight backups that have never been restored are eight rumours."
-   ]
+   ],
+   "logical_restore_tested": "2026-11-14: production exported read-only and restored into a local rebuild, every row and every hero's envelope proven equal (tools/restore-drill.local.mjs, RTO 106 s). A Supabase backup has still never been opened."
   },
   "disk": {
    "_why": [
@@ -132,97 +135,255 @@
    ]
   },
   "rows": {
-   "active_bounty": 10,
+   "account_bank": 282,
+   "account_farm": 4,
+   "account_farm_plots": 45,
+   "account_gem_grants": 0,
+   "account_gold_given": 6,
+   "account_house_dummy": 0,
+   "account_play_net": 6,
+   "account_storage_chests": 8,
+   "account_wallet": 6,
+   "active_bounty": 0,
    "beta_invites": 30,
-   "beta_signup_log": 63,
-   "bug_reports": 51,
+   "beta_signup_log": 78,
+   "bug_reports": 78,
+   "character_names": 21,
+   "character_presence": 20,
    "chat_blocks": 0,
-   "chat_messages": 0,
+   "chat_messages": 379,
+   "chat_whispers": 0,
    "clan_bans": 0,
-   "clan_board": 0,
    "clan_invites": 0,
    "clan_ledger": 0,
    "clan_members": 0,
    "clan_order_ballots": 0,
    "clan_order_votes": 0,
-   "clan_raids": 0,
    "clan_stores": 0,
    "clan_tavern": 0,
    "clan_withdrawals": 0,
    "clan_work_labour": 0,
    "clan_work_orders": 0,
    "clans": 0,
-   "display_names": 37,
-   "game_events": 352,
-   "game_saves": 1,
-   "hr_activities": 473,
-   "hr_bounty_monsters": 108,
-   "hr_castle_board_tasks": 9,
+   "display_names": 0,
+   "friend_links": 1,
+   "friend_requests": 0,
+   "game_events": 0,
+   "game_saves": 0,
+   "hearth_flames": 3,
+   "hearthfind_log": 0,
+   "hearthfind_ordinal": 0,
+   "hero_play_net": 20,
+   "hero_tally": 16,
+   "hero_tally_claims": 147,
+   "hero_tally_given": 48,
+   "hero_tally_tasks": 17,
+   "hr_access_allowlist": 7,
+   "hr_activities": 354,
+   "hr_bans": 0,
+   "hr_bench_tax_rates": 152,
+   "hr_blessing_rule": 1,
+   "hr_blessing_tiers": 3,
+   "hr_boss_calls": 2,
+   "hr_bounty_board_monsters": 94,
+   "hr_bounty_monsters": 113,
    "hr_castle_buildings": 5,
    "hr_castle_items": 34,
    "hr_castle_tiers": 5,
    "hr_catalogue_meta": 1,
-   "hr_client_rpc_baseline": 72,
+   "hr_character_sheet_engine": 1,
+   "hr_character_sheets": 16,
+   "hr_chat_config": 1,
+   "hr_chat_mutes": 0,
+   "hr_client_rpc_baseline": 132,
    "hr_client_write_baseline": 0,
-   "hr_combat_styles": 13,
-   "hr_combat_xp_credit_log": 5666,
+   "hr_combat_xp_credit_log": 0,
    "hr_companion_grants": 17,
    "hr_crop_plot_tier": 9,
    "hr_crops": 9,
-   "hr_db_samples": 4,
-   "hr_equip_slots": 15,
-   "hr_farm_yield_perk": 8,
-   "hr_feast_foods": 28,
-   "hr_goal_rewards": 19,
-   "hr_hunt_boss_reward": 6,
-   "hr_hunt_bosses": 6,
-   "hr_hunt_tiers": 5,
-   "hr_import_marker": 6,
-   "hr_item_slots": 275,
+   "hr_db_samples": 720,
+   "hr_depot_config": 1,
+   "hr_discord_gift_claims": 0,
+   "hr_dungeon_loot": 0,
+   "hr_dungeons": 6,
+   "hr_equip_slots": 14,
+   "hr_farm_yield_perk": 7,
+   "hr_feast_foods": 34,
+   "hr_feature_switches": 4,
+   "hr_flags": 5,
+   "hr_gem_unlocks": 10,
+   "hr_gm_accounts": 0,
+   "hr_gm_log": 0,
+   "hr_gm_wall_allow": 91,
+   "hr_ground_tiers": 10,
+   "hr_hallmark_offers": 6,
+   "hr_hallmark_rule": 1,
+   "hr_hearth_named": 5,
+   "hr_hearth_rule": 1,
+   "hr_hearthfind_items": 4,
+   "hr_hearthfind_meta": 4,
+   "hr_hearthfind_sources": 12,
+   "hr_hero_rename_rule": 1,
+   "hr_hero_slots": 3,
+   "hr_hunt_abilities": 21,
+   "hr_hunt_action_ids": 46,
+   "hr_hunt_basic_supplies": 49,
+   "hr_hunt_condition_limits": 5,
+   "hr_hunt_condition_metrics": 14,
+   "hr_hunt_config": 1,
+   "hr_hunt_cover_items": 0,
+   "hr_hunt_end_reasons": 16,
+   "hr_hunt_ground_spawns": 42,
+   "hr_hunt_grounds": 16,
+   "hr_hunt_kill_bounds": 145,
+   "hr_hunt_lanes": 4,
+   "hr_hunt_limits": 47,
+   "hr_hunt_resumable_kinds": 3,
+   "hr_hunt_role_rules": 17,
+   "hr_hunt_roles": 0,
+   "hr_hunt_roster": 30,
+   "hr_hunt_set_options": 10,
+   "hr_hunt_shields": 6,
+   "hr_hunt_spawns": 34,
+   "hr_hunt_stances": 3,
+   "hr_hunt_supplies": 82,
+   "hr_hunt_target_modes": 5,
+   "hr_hunt_travel": 138,
+   "hr_hunt_vendor_value": 559,
+   "hr_hunt_weapon_roles": 12,
+   "hr_hunt_weapons": 69,
+   "hr_hunt_world_shape": 1,
+   "hr_hunts": 19,
+   "hr_import_marker": 0,
    "hr_item_buffs": 30,
-   "hr_items": 515,
-   "hr_kill_credit_log": 549,
+   "hr_item_slots": 339,
+   "hr_items": 584,
+   "hr_kill_credit_log": 0,
+   "hr_lb_hidden": 1,
    "hr_ledger_config": 1,
+   "hr_level_curve": 12,
+   "hr_live_event_notices": 0,
+   "hr_live_event_types": 2,
+   "hr_live_events": 2,
+   "hr_market_ceilings": 6,
    "hr_market_config": 1,
+   "hr_market_premium_items": 1,
+   "hr_name_blocklist": 94,
+   "hr_name_holds": 0,
+   "hr_outfit_dyes": 16,
+   "hr_outfits": 8,
+   "hr_players_online_cache": 1,
    "hr_plot_tier": 5,
-   "hr_rate_counters": 1012,
-   "hr_rejections": 128,
-   "hr_runes": 3,
-   "hr_server_secrets": 1,
+   "hr_premium_login_reward": 1,
+   "hr_qm_offers": 0,
+   "hr_rate_counters": 574,
+   "hr_rejections": 126,
+   "hr_return_anchor": 21,
+   "hr_room_perks": 40,
+   "hr_runes": 0,
+   "hr_scaled_grounds": 5,
+   "hr_scaled_hunt_rule": 1,
+   "hr_scaled_kill_bounds": 153,
+   "hr_server_secrets": 2,
    "hr_settings": 1,
-   "hr_skills": 17,
-   "hr_start_equipment": 1,
-   "hr_start_inventory": 4,
+   "hr_shop_supply_offers": 37,
+   "hr_sink_rules": 6,
+   "hr_skill_curve": 476,
+   "hr_skills": 13,
+   "hr_stamina_refill_rule": 1,
+   "hr_start_equipment": 2,
+   "hr_start_inventory": 12,
    "hr_start_kit": 1,
-   "hr_start_skill_xp": 1,
+   "hr_start_skill_xp": 0,
+   "hr_state_sections": 43,
+   "hr_storage_chests": 4,
+   "hr_tally_config": 1,
+   "hr_tally_materials": 15,
+   "hr_tally_pieces": 63,
+   "hr_tally_tasks": 6,
+   "hr_tally_tiers": 154,
+   "hr_tick_cohort": 2,
+   "hr_tick_config": 1,
+   "hr_tick_cron_log": 26124,
+   "hr_tick_enrolment": 34,
+   "hr_tick_horizon_log": 24,
+   "hr_tick_ownership": 34,
+   "hr_tick_probe": 0,
+   "hr_tick_shadow": 0,
+   "hr_tick_shard_cursor": 1,
+   "hr_titles": 7,
+   "hr_town_maps": 1,
+   "hr_town_stands": 644,
+   "hr_town_station_hosts": 13,
+   "hr_town_stations": 20,
+   "hr_town_works": 1,
+   "hr_training_grounds": 8,
+   "hr_training_rules": 1,
    "hr_traits": 2,
-   "hr_unlock_offers": 142,
-   "hr_unlocks": 65,
+   "hr_unlock_offers": 102,
+   "hr_unlocks": 55,
+   "hr_wipe_log": 2,
+   "hr_world_notice_rules": 1,
+   "hr_world_notices": 1104,
    "hr_xp_table": 99,
+   "hunt_bag": 1149,
+   "hunt_bests": 100,
+   "hunt_density": 96,
+   "hunt_instances": 231,
+   "hunt_parties": 60,
+   "hunt_party_invites": 1,
+   "hunt_party_members": 4,
+   "hunt_session_events": 3233,
+   "hunt_session_tally": 329,
+   "hunt_sessions": 329,
+   "hunt_tick_lease": 237,
+   "hunt_world_shape_move": 1,
    "leaderboard_meta": 1,
-   "maintenance_alerts": 16,
-   "maintenance_log": 478,
-   "market_buy_offers": 0,
-   "market_listings": 0,
-   "market_sales": 3,
-   "player_bank": 0,
-   "player_equipment": 79,
-   "player_farm": 119,
-   "player_intents": 1297,
-   "player_inventory": 316,
-   "player_ledger": 12301,
+   "maintenance_alerts": 205,
+   "maintenance_log": 2396,
+   "market_item_daily": 0,
+   "market_listings": 1,
+   "market_sales": 0,
+   "party": 0,
+   "party_hunt": 0,
+   "party_hunt_roster_log": 0,
+   "party_hunt_tally": 0,
+   "party_invite": 0,
+   "party_member": 0,
+   "party_notices": 0,
+   "party_seekers": 0,
+   "party_settle_boundary": 0,
+   "party_tick_lease": 0,
+   "player_action_sets": 24,
+   "player_blessings": 54,
+   "player_cosmetics": 0,
+   "player_equipment": 173,
+   "player_hunt_active": 7,
+   "player_hunt_presets": 11,
+   "player_intents": 8205,
+   "player_inventory": 913,
+   "player_item_rules": 900,
+   "player_ledger": 390177,
    "player_ledger_rollup": 0,
-   "player_progress": 914,
-   "player_skills": 595,
-   "player_state": 35,
-   "player_workers": 6,
-   "profiles": 49,
-   "raid_claims": 0,
-   "raid_contributions": 0,
-   "session_claims": 34,
-   "world_event_joins": 1,
-   "world_event_pledges": 0,
-   "world_event_totals": 1
+   "player_outfits": 20,
+   "player_progress": 2492,
+   "player_scaled_hours": 0,
+   "player_skills": 273,
+   "player_state": 21,
+   "player_titles": 3,
+   "player_workers": 0,
+   "profiles": 64,
+   "session_claims": 0,
+   "social_presence": 6,
+   "town_bodies": 20,
+   "town_moves": 0,
+   "town_positions": 18,
+   "town_seen": 20,
+   "town_shows": 13,
+   "town_snapshot": 1,
+   "town_works_gifts": 4,
+   "town_works_totals": 1,
+   "world_finds": 0
   },
   "divergence_vs_repo": {
    "_why": [
@@ -336,13 +497,13 @@
     "Recorded because the runbook needs it and because auth.users is the single",
     "most important table in the system that no migration creates."
    ],
-   "auth.users": 49,
-   "auth.identities": 49,
-   "auth.sessions": 75,
-   "auth.refresh_tokens": 1066,
+   "auth.users": 64,
+   "auth.identities": 64,
+   "auth.sessions": 117,
+   "auth.refresh_tokens": 2792,
    "auth.mfa_factors": 0,
    "storage.buckets": 1,
-   "storage.objects": 11,
+   "storage.objects": 13,
    "cron.job": 13,
    "supabase_migrations.schema_migrations": 27,
    "_auth_users_is_the_root": [
@@ -454,6 +615,13 @@
     "covered'. --live-compare knows about this exemption by name.",
     "VERIFY THE THIRTEENTH BY HAND after any real rebuild:",
     "  select jobname, schedule from cron.job order by jobname;   -- expect 13"
+   ],
+   "hr-net-response-vacuum": [
+    "PRODUCTION HAS IT ('47 * * * *', 'vacuum (analyze) net._http_response', measured 2026-11-14) and a real rebuild",
+    "schedules it: 2027-02-10-pg-net-vacuum.sql guards on to_regclass('net._http_response') and PGlite has no pg_net",
+    "extension, so the replay prints a NOTICE and schedules nothing. A stand-in artefact like hearthrise-leaderboards,",
+    "NOT a hole in the rebuild. Found by the restore drill 2026-11-14, which --live-compare had reported as a job a",
+    "rebuild does not produce. VERIFY BY HAND after any real rebuild: select jobname from cron.job."
    ]
   },
   "fixture_only": {
@@ -485,7 +653,18 @@
    "failing one, precisely so the absence cannot be lived with comfortably.",
    "As of 2026-08-30 there are eight daily backups on Pro carrying 35",
    "characters' entire progression and not one of them has ever been opened."
-  ]
+  ],
+  "logical_drill": {
+   "executed": "2026-11-14",
+   "rto_s": 106,
+   "tool": "node tools/restore-drill.local.mjs",
+   "measured": [
+    "export (one repeatable-read snapshot + 20 keyset pages of player_ledger) 81 s, rebuild 4.6 s warm / 71.5 s cold, load 447,511 rows 18 s",
+    "proven equal to production: every table count + content hash (249 tables), FK orphans, hr_state_of for all 21 heroes at the snapshot instant, grant hygiene, RLS + policies, function bodies + constraints (one real drift: clan_feast_call__ungated), hr_load as a player",
+    "7 planted defects each caught by its proof; the control (nothing planted) clean"
+   ],
+   "not_proven": "a Supabase backup has still never been opened: Restore to a New Project is a dashboard click (no API), ~$0.06 for 3 h on Small. last_executed stays null until that runs."
+  }
  },
  "player_value_tables": [
   "account_gem_grants",
@@ -1020,8 +1199,13 @@
    "replay": 4,
    "wiped_at_cutover": false,
    "live_value": {
-    "measured": "2026-11-07",
+    "measured": "2026-11-14",
     "value": [
+     {
+      "switch_id": "collection_log",
+      "scope": "off",
+      "accounts": []
+     },
      {
       "switch_id": "event_open_halls",
       "scope": "off",
@@ -1038,7 +1222,7 @@
       "accounts": []
      }
     ],
-    "_source": "the AUTHORED DEFAULT, measured on the replay: the table is STAGED (2027-03-21-feature-switches.sql; scaled_hunts seeded by 2027-03-21-scaled-hunts.sql, event_xp_bonus and event_open_halls by 2027-03-22-live-events.sql) and not yet on production. Re-measure with --live-sql after the apply and after every flip."
+    "_source": "measured on production (read-only) by the restore drill, tools/restore-drill.local.mjs; tests/restore-census.mjs --live-sql then --live-compare is the re-measurement."
    },
    "note": "THE SERVER FEATURE SWITCHES (2027-03-21-feature-switches.sql): one row per switch, its scope (off, accounts, testers = hr_access_allowlist, everyone) and the accounts it names. Each feature seeds its own row OFF with on conflict do nothing (scaled_hunts, 2027-03-21-scaled-hunts.sql; event_xp_bonus and event_open_halls, 2027-03-22-live-events.sql), and the Coordinator moves it by a migration, so a rebuild restores every switch OFF and silently closes what live had opened: re-apply the flips from the apply order after a restore. No client or service_role privilege, no policy; the owner is the only writer. Coming back empty is the SAFE direction (a missing row is off)."
   },
@@ -1048,17 +1232,30 @@
    "wiped_at_cutover": false,
    "note": "THE SERVER FEATURE FLAGS (created 2026-09-13-town-presence.sql; the chain had no flag table before it — every arm switch was a `constant boolean := true` inside a function body, i.e. a migration and an apply window to change). One row per flag: key, enabled, note, updated_at. PUBLIC READ, no write policy and no write grant to any role including service_role, so the only writer is the owner. A rebuild seeds every flag at its SHIPPED DEFAULT, which for town_presence is OFF — fail-safe by construction: a restore-free rebuild closes a live surface rather than opening one. What is lost is the OPERATOR'S CURRENT CHOICE (a feature an operator had switched on comes back off) and the `note`/`updated_at` audit of when it was flipped. Cheap to re-assert: one UPDATE per flag. operator_tunable rather than seeded because the row's VALUE is an operations decision, not content. ⚠ live_value RECORDS town_presence = FALSE, AND THAT IS THE LIVE TRUTH TODAY (Security F2, 2026-09-13): production has the flag OFF, because 2026-09-13-town-presence-on.sql is STAGED. An earlier revision of this entry recorded TRUE - the state the apply will land in - which is the same class of mistake apply-order-honesty exists to catch: a deployment record that describes a future. A CHAIN REBUILD does produce TRUE (the ON file is in `order`), so the repo and production diverge on this one row until the Coordinator applies it - that is a KNOWN, NAMED window, not drift, and `expected_after` records what to move it to and how. Re-measure with `node tests/restore-census.mjs --live-sql` + --live-compare per lane C after the flip, and again if an operator ever uses the one-statement kill switch (2026-09-13-town-presence-off.sql). Only `key` and `enabled` are compared - the projection is built from the keys recorded here - so `note` and `updated_at` drift freely and cannot make this check permanently red.",
    "live_value": {
-    "measured": "2026-09-23",
+    "measured": "2026-11-14",
     "value": [
      {
+      "key": "beta_premium",
+      "enabled": true
+     },
+     {
+      "key": "closed_mode",
+      "enabled": true
+     },
+     {
       "key": "inventory_absolute",
+      "enabled": true
+     },
+     {
+      "key": "town_crier",
       "enabled": true
      },
      {
       "key": "town_presence",
       "enabled": true
      }
-    ]
+    ],
+    "_source": "measured on production (read-only) by the restore drill, tools/restore-drill.local.mjs; tests/restore-census.mjs --live-sql then --live-compare is the re-measurement."
    },
    "expected_after": {
     "2026-09-13-town-presence-on.sql": "town_presence flips to enabled=true. Re-measure with `node tests/restore-census.mjs --live-sql` + --live-compare after the apply and move live_value; the census does not read this field, it is a note for the operator who does.",
@@ -1165,14 +1362,14 @@
    "wiped_at_cutover": false,
    "replay": 1,
    "live_value": {
-    "measured": "2026-10-14",
+    "measured": "2026-11-14",
     "value": [
      {
       "id": true,
-      "enabled": false
+      "enabled": true
      }
     ],
-    "_source": "the AUTHORED DEFAULT, measured on the replay: the table is STAGED and not yet on production. It ships OFF (Security GO-WITH-CHANGES on e482cc54, item 1) and lane C2 flips it at deploy. Re-measure with --live-sql after C2."
+    "_source": "measured on production (read-only) by the restore drill, tools/restore-drill.local.mjs; tests/restore-census.mjs --live-sql then --live-compare is the re-measurement."
    },
    "note": "THE HUNT-SESSION KILL SWITCH (2026-10-21-hunt-sessions.sql), a singleton seeded `on conflict do nothing` with enabled = FALSE, so no hunt opens between the C1 apply and the C2 deploy (the old accrue/tick path would otherwise pay the combat:<hunt> pointer and C2's first settle pay it again). While false, hr_hunt_enter / hr_hunt_change refuse hunts_paused and the settle applier may end open hunts with reason server. A rebuild restores the AUTHORED DEFAULT (off), silently pausing every hunt until an operator re-opens it: the safe direction. No player value, no secret; RLS on, no policy, no grant."
   },
@@ -1364,17 +1561,19 @@
    "class": "operator_tunable",
    "replay": 1,
    "live_value": {
-    "measured": "2026-08-30",
+    "measured": "2026-11-14",
     "value": [
      {
+      "enabled": true,
       "max_qty": 1000000,
       "only_row": true,
       "max_gross": 100000000,
-      "house_tax_bp": 150,
-      "max_listings": 12,
-      "listing_ttl_h": 48
+      "house_tax_bp": 400,
+      "max_listings": 50,
+      "listing_ttl_h": 168
      }
-    ]
+    ],
+    "_source": "measured on production (read-only) by the restore drill, tools/restore-drill.local.mjs; tests/restore-census.mjs --live-sql then --live-compare is the re-measurement."
    },
    "note": "The single-row market tuning table: house tax in basis points, listing TTL, per-seller listing cap, per-listing qty ceiling, and the per-trade GROSS ceiling that makes the overflow argument a bound rather than a hope. Seeded `on conflict do nothing` (2026-08-17-market-v2.sql:547), so a rebuild restores the AUTHORED DEFAULTS and silently reverts any live economy tuning. All six columns match their defaults today; the class records the mechanism, and the recorded live_value is what a rebuild re-applies from."
   },
@@ -1565,8 +1764,22 @@
    "wiped_at_cutover": false,
    "note": "THE WORLD TICK ROLLOUT DIAL for automatic ownership, per channel (CHECK: gather, artisan since 2027-02-10-artisan-tick.sql) - created 2026-10-10-world-tick-gather-widen.sql and seeded ONCE (on conflict do nothing) at stage 1: gather permille 100, max_owned 20, fresh_s 600; 2027-02-10-artisan-tick.sql seeds artisan permille 1000 (every player), max_owned 100, fresh_s 600 the same way; 2027-02-20-tick-fuse-load.sql moves each from exactly those values to every player, max_owned 500 (replay 2 rows). A rebuild therefore reproduces that dial, never an operator's later stage; and gather enrolment needs gather ARMED, which a rebuild never is (the arm file is excluded from the chain), so a rebuilt database enrols no gatherer whatever this row says (artisan is armed by its own file in the chain). No player value: it decides only which returning gatherers the tick (rather than accrue-on-return) settles, at the same price. Coming back EMPTY is the safe direction too: hr_tick_enrol loops over its rows and enrols nothing. What is lost is the rollout stage, one UPDATE in a staged migration. max_owned is CHECKed <= 1000 since 2027-02-20-tick-fuse-load.sql (it counts heroes on the channel, not rows). RLS enabled and forced, zero policies, zero grants.",
    "live_value": {
-    "measured": "2026-10-08",
-    "value": "ABSENT on production: the table is created by 2026-10-10-world-tick-gather-widen.sql (STAGED, NOT APPLIED). After apply the expected live row is the seed, [{channel:gather, permille:100, max_owned:20, fresh_s:600}]; re-measure then, and at every later stage file."
+    "measured": "2026-11-14",
+    "value": [
+     {
+      "channel": "artisan",
+      "permille": 1000,
+      "max_owned": 500,
+      "fresh_s": 600
+     },
+     {
+      "channel": "gather",
+      "permille": 1000,
+      "max_owned": 500,
+      "fresh_s": 600
+     }
+    ],
+    "_source": "measured on production (read-only) by the restore drill, tools/restore-drill.local.mjs; tests/restore-census.mjs --live-sql then --live-compare is the re-measurement."
    }
   },
   "hr_tick_config": {
@@ -1575,15 +1788,19 @@
    "note": "THE WORLD TICK'S KILL SWITCH AND SHADOW FLAG — a singleton row created 2026-09-21-world-tick-settle-fence.sql (`id boolean primary key check (id)`). It carries no player value and no secret (the pg_net bearer lives in Vault). Coming back EMPTY is the SAFE direction and is the reason the fence reads it with `if not found ... return tick_disabled`: a missing row means the tick is off, the accrual path keeps every channel, and an operator re-arms deliberately. What is actually lost is the tuning — cadence, flush, batch cap, channel list, edge_url — which is four UPDATEs from the runbook, not player progress. RLS enabled and forced, zero policies, zero grants.",
    "replay": 1,
    "live_value": {
-    "measured": "2026-09-23",
+    "measured": "2026-11-14",
     "value": [
      {
       "id": true,
-      "shadow": true,
       "enabled": true,
       "channels": [
        "combat",
-       "gather"
+       "gather",
+       "artisan"
+      ],
+      "armed_channels": [
+       "gather",
+       "artisan"
       ],
       "edge_url": "https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue",
       "lease_ms": 30000,
@@ -1592,7 +1809,8 @@
       "flush_seconds": 90,
       "cadence_seconds": 10
      }
-    ]
+    ],
+    "_source": "measured on production (read-only) by the restore drill, tools/restore-drill.local.mjs; tests/restore-census.mjs --live-sql then --live-compare is the re-measurement."
    }
   },
   "hr_tick_cron_log": {

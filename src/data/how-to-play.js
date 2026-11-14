@@ -23,11 +23,11 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS } from './items.js?v=0.2.129';
-import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.129';
-import { STARTER_SETS } from './start-kit.js?v=0.2.129';
-import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.129';
-import { DEATH_XP_LOSS } from './hunt-sessions.js?v=0.2.129';
+import { ITEMS } from './items.js?v=0.2.130';
+import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.130';
+import { STARTER_SETS } from './start-kit.js?v=0.2.130';
+import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.130';
+import { DEATH_XP_LOSS } from './hunt-sessions.js?v=0.2.130';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 
@@ -40,8 +40,10 @@ export const HOW_YOU_FIGHT_SLOTS = 'You start with one hero slot, and gold buys 
 export const HOW_YOU_FIGHT = Object.freeze([
   style('hold', 'tank', ['practice_sword', 'practice_shield'], 'Sword and shield',
     'Holds the monsters on you, so your party isn\'t hit.', 'Uses food.'),
-  /* Tyler 2026-10-24 (player text ruling 4): the crush weapon family is the Hammer. */
-  style('hit', 'melee_dps', ['practice_hatchets', 'practice_club'], 'Two axes or a hammer',
+  /* Each name says the weapons the hero holds, by their item names (fresh-account play 11-13: this said "Two axes or a hammer"
+     while the bag tip said "Hatchets or a club" over Practice Hatchets and a Practice Club). Ruling 4 (10-24) names the crush
+     family Hammer; the starter item is still a Club, so the item's name wins here until the item is renamed. */
+  style('hit', 'melee_dps', ['practice_hatchets', 'practice_club'], 'Hatchets or a club',
     'Hits hardest, up close.', 'Uses food.'),
   style('shoot', 'ranger', ['practice_bow', 'practice_crossbow'], 'Bow or crossbow',
     'Shoots from a distance.', 'Bronze Arrows are free and never run out. Better ammo costs a little per shot. Uses food.'),

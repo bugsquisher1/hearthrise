@@ -16,8 +16,8 @@
 //      paragraph among paragraphs), so no window lists its rows. Display only: nothing here reads or writes the game.
 // mutant-anchors: tests/alpha-windows.mjs AW-90
 // ════════════════════════════════════════════════════════════════════════
-import { dockCap } from './hud.js?v=0.2.129';
-import { overBar } from './window-manager.js?v=0.2.129';
+import { dockCap } from './hud.js?v=0.2.130';
+import { overBar } from './window-manager.js?v=0.2.130';
 
 const TRIM = 'data-hs-trim';
 /* The scroll regions a player has scrolled, pressed in or wheeled over: their height is theirs from then on. */
@@ -45,12 +45,17 @@ export function dockedHeight(w) {
   return cap > 0 ? Math.min(cap, w.offsetHeight) : w.offsetHeight;
 }
 
-/** Rule 1 for the docked windows in `layer` (desktop): each one's max height, from the bottom bars under it (`bars`, the shell's px). */
-export function fitDocked(layer, bars, gap) {
+/** Rule 1 for the docked windows in `layer`: each one's top and max height, from the bottom bars under it (`bars`, the shell's px).
+ *  THE HUNT'S CONTROLS STAY IN REACH (`hunt`, play gate 2026-11-13: at 1280x720 the bag docked in town lay over Leave hunt and the
+ *  bar's Setup, Target and stance; Tyler 10-25: "Not having it there is dangerous for the player"). In a hunt no window rises over
+ *  the bar, and a docked window whose column crosses a top bar (`hunt.tops`, the rows marked keepClear) starts one gap below it. */
+export function fitDocked(layer, bars, gap, hunt = null) {
   for (const w of layer.querySelectorAll('.hs-win:not(.is-floating):not(.is-modal)')) {
+    if (hunt) clearTops(w, hunt.tops, gap);
+    else if (w.style.top) w.style.top = '';
     const cap = bars.length ? dockCap({ left: w.offsetLeft, top: w.offsetTop, width: w.offsetWidth, height: w.offsetHeight }, bars, gap) : null;
     let over = false;
-    if (cap !== null && overBar(cap, Infinity)) {
+    if (cap !== null && !hunt && overBar(cap, Infinity)) {
       /* what it needs: its height with no cap and no trims (the frame's own CSS still holds it inside the World) */
       clearTrims(w);
       if (w.style.maxHeight) w.style.maxHeight = '';
@@ -63,6 +68,14 @@ export function fitDocked(layer, bars, gap) {
   }
   for (const w of layer.querySelectorAll('.hs-win.is-floating:not(.is-home)')) holdInside(w, layer, gap);
   for (const w of layer.querySelectorAll('.hs-win.is-modal')) trimEnds(w);
+}
+
+/* A docked window in a hunt: its own top (its CSS), or one gap under the lowest top bar whose column it crosses. */
+function clearTops(w, tops, gap) {
+  if (w.style.top) w.style.top = '';
+  const home = w.offsetTop, left = w.offsetLeft, right = left + w.offsetWidth;
+  const under = tops.filter((q) => q.width > 0 && q.height > 0 && q.left < right + gap && left < q.left + q.width + gap && q.top + q.height + gap > home);
+  if (under.length) w.style.top = Math.round(Math.max(...under.map((q) => q.top + q.height)) + gap) + 'px';
 }
 
 /* Rule 1 for a floating window: its foot inside the World, its head first (the place the manager keeps is unchanged). */

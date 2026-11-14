@@ -18,7 +18,12 @@
 //   node tools/pack.mjs ship <id>                    the pack's server rows as ONE additive file (tools/pack/ship.mjs), its
 //                                                    apply-order line, and the pack opened on it. Refuses a pack that moves any
 //                                                    other row, schema or function body (a world move)
-// propose and check work on every ground, a pack's or one authored in the old files.
+//   node tools/pack.mjs art <ground> [--write]       the ground's ART LIST from its rows (tools/pack/art.mjs): floor, props, bodies
+//                                                    and clips, icons, spell effects, each HAVE or OWED, an owed one with the
+//                                                    PixelLab tool and mode that makes it and its import command; --write puts
+//                                                    the skeleton in art/briefs/ground-<id>.txt for the art director to fill.
+//                                                    Calls nothing and spends nothing
+// propose, check and art work on every ground, a pack's or one authored in the old files.
 // ════════════════════════════════════════════════════════════════════════
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -149,8 +154,11 @@ async function selftest() {
   try { GR.gradeCells([], { ...sheet, rules: [...sheet.rules, { id: 'normal-profit', metric: 'margin', min: 0.25, binding: true }] }, () => 1); } catch (e) { refused = /NO PROFIT MOLDS/.test(e.message); }
   console.log('  ' + (refused ? 'ok ' : 'RED') + ' a +25% profit rule on that sheet is refused, not graded');
   if (!refused) bad.push('the grader graded a +25% profit rule');
+  /* THE ART LIST (tools/pack/art.mjs): what ships reads as drawn, and each planted gap is listed with its tool */
+  const A = await (await import(u('tools/pack/art.mjs'))).artSelftest();
+  bad.push(...A.bad);
   if (bad.length) { console.error('pack --selftest: RED\n  ' + bad.join('\n  ')); process.exit(1); }
-  console.log('pack --selftest: green (' + Object.keys(D.G.HUNT_GROUNDS).length + ' grounds lint clean, ' + cases.length + ' refusals bite)');
+  console.log('pack --selftest: green (' + Object.keys(D.G.HUNT_GROUNDS).length + ' grounds lint clean, ' + cases.length + ' refusals bite, ' + A.cases + ' art gaps listed)');
 }
 
 /* ── new / index / ship (phase 4) ── */
@@ -214,8 +222,23 @@ async function ship(id, argv) {
   console.log('  then: node tests/ground-pack.mjs, node tests/schema-drift.mjs, node tests/restore-census.mjs (re-pin its counts in this lane)');
 }
 
+/** `art <ground> [--write]`: the ground's art list as a brief skeleton. Exit 0 whatever it owes: it is a list, not a gate. */
+async function art(gid, argv) {
+  const A = await import(u('tools/pack/art.mjs'));
+  const D = await A.loadArtData();
+  const input = A.inputOf(gid, D);
+  if (!input) { console.error('pack art: no ground ' + gid + ' (src/data/hunt-grounds.js or a pack)'); process.exit(2); }
+  const text = A.briefText(A.artList(input), D.palette);
+  if (!argv.includes('--write')) { process.stdout.write(text); return; }
+  const { writeFileSync, mkdirSync } = await import('node:fs');
+  const file = join(ROOT, 'art', 'briefs', 'ground-' + gid + '.txt');
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, text);
+  console.log('pack art: wrote ' + file);
+}
+
 const USAGE = 'usage: node tools/pack.mjs propose <ground> [--write] | check <ground> [--mode quick|full] [--workers N]\n'
-  + '       | new <id> --like <ground> [--band lo,hi] | index | ship <id> | --selftest';
+  + '       | new <id> --like <ground> [--band lo,hi] | index | ship <id> | art <ground> [--write] | --selftest';
 async function main() {
   if (process.argv.includes('--selftest')) return selftest();
   const [cmd, gid, ...rest] = process.argv.slice(2);
@@ -225,6 +248,7 @@ async function main() {
   if (cmd === 'check') return check(gid, rest);
   if (cmd === 'new') return newPack(gid, rest);
   if (cmd === 'ship') return ship(gid, rest);
+  if (cmd === 'art') return art(gid, rest);
   console.error(USAGE); process.exit(2);
 }
 

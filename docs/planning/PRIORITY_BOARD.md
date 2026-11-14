@@ -37,6 +37,143 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 - **The Warrens' lone pace is green** (1.09x on the full grade, 8 ways). The old 1.27 predates its 0.76 fit, and the quick grade's 1.14 was 4 ways on one seed.
 - **Kept, with the reasons re-worded to danger and fun:** the store shot at 1 g (the bow and crossbow stay a way to fight), the coin line to x1.4, the party coin 1.17 / 0.53 (the faucet), the Warrens' to-hit -0.3 ("alone from 45" holds on armor).
 - **Staged:** `2027-04-20-bear-purse-hunt-sessions-catalogue.generated.sql` (the bear's coin bound 40 -> 32). The hr-accrue goes first, since the bound only falls.
+### 2026-11-13 Resistance and linings, measured (designer, lane/d-resist-imbue, ledger item 7, Barrow March engine piece 8. Tyler 2026-11-08 "add some elemental resistance to gear and imbuements in order for the party to survive", "more monsters = more aoe spells", "show the player what is happening to their heros". Tyler 2026-11-13 NO PROFIT MOLDS): SPECIFIED and MEASURED on the real engine, nothing built. **It keeps the 2026-11-10 "Resistance and imbuements" section below (rules, server shape, build order) except where this one says otherwise. The server half is a §1 money and combat surface and goes on the pre-EA Security list (§3.7)**
+
+**What changed from 11-10, and why.**
+| What | 11-10 | Now | Why |
+|---|---|---|---|
+| How it was measured | Each spell row at 0.7x as a stand-in for 30% | The real seam: `resistPm` on each hero's worn body piece, summed by `combat.js` `resistOf`, taken by `elements.js` `heroElementPermille` | The seam is on main. A stand-in can't show how resistance and cloth Ward stack (below) |
+| Lining strengths | 10 / 20 / 30% | **20 / 25 / 30%** (Stitched, Corded, Sealed) | 20% is the first point that changes a death count anywhere measured. A first lining at 10% decides nothing, so it fails the purpose test |
+| Names | "Frost Lining", "Flag Cord" | **Ice Lining**, **Color Cord** | The game says Ice (`text/monster.js` `el_frost`, the Ice runes). The Slake's sergeant is the Color Sergeant now |
+| The runes in a lining | "Buys 30 Chalked runes at the rune shop" | Made at Runecrafting 1 (`bind_chalked_poison_runes`: 6 Blank Runes make 45), or bought from a player | The store sells no rune to carry. Its basic runes are bought per cast (`supply-basics.js`) |
+| Torn Company Badge | 10% a kill | 7.7% (`monsters.js` `turncoat`) | The row moved |
+| The summary hint | Needs a new `bySpell` tally on the server | Reads `takenByElement`, which the settle already writes and `hunt-sections.js` already projects | No server work and no migration. `bySpell` (11-10 spell tuning) stays a later nice-to-have that names the spell |
+| What a fee is set against | Its share of an hour's net | What it is: a sink beside Tempering. The supply bill it saves is reported, never a target | NO PROFIT MOLDS (11-13) |
+| The wall | "A four on Dangerous loses gold bare and holds at 30%" | **Deaths.** A harder tier is a wall when a four at the floor dies there bare and stops dying with a lining or about 10 more Levels | The same ruling. Danger, never a profit % |
+
+**The purpose test.** Same answers as 11-10, sharpened by what the engine showed.
+| Question | Answer |
+|---|---|
+| Which player problem | A group spell hits every hero and can't be stepped out of. In a four the back line's ONLY damage is the ground's one group spell (measured: 100% of what the healer, bow and mage took at the Glade, the Warrens and the Slake). Alone, it is 10 to 54% of what a bow or mage takes |
+| What decision | Which element to guard against on this ground. Whether the harder tier is worth a lining or 10 more Levels. Make it, buy it from a crafter, or skip it |
+| What it plugs into | Source: the `element_ward` piece each ground already drops (`imbuements.js`, the Slake's `color_cord`, the Pyre's `warrant_seal`) plus crafted runes. Maker: Crafting at `smithy_benches`. Consumer: the resistance seam on main. Sinks: the fitting fee and the hours that burn |
+| The tradeoff | One lining worn at a time. Pieces and gold every 20 hunting hours, against deaths and food on the harder tiers |
+| Hour 100 and 1,000 | Every new ground brings its element and its tiers. The hours burn forever |
+| Depth or complexity | One percent a hero, one element. Picked once per ground and remembered |
+
+**What the engine showed (the measured table is below).**
+1. **Resistance does nothing to kill pace or XP.** A four's kills an hour stay within 1% at 0, 20, 30 and 40% on every ground and tier. Alone they move only where deaths were cutting hunts short. It buys survival and food, never speed, so it can't become a must-have for XP farmers.
+2. **Normal never needs it.** No death anywhere on Normal, alone or in a four, with or without resistance.
+3. **With today's spell rows it decides very little.** The only death counts it moves are a lone hero on Wickstead Deadly and the Slake. A four holds Deadly bare on Wickstead, the Glade and the Warrens. That matches the 11-10 spell tuning: the wall for a four isn't there yet.
+4. **With the tier dial for spells it becomes the answer.** At Dangerous 2x and Deadly 3x (the 11-10 pick for `spellPm`), a bare four dies on the Glade's Deadly and the Slake's Dangerous and stops dying at 20 to 30%. About 10 Levels over the floor does the same job bare. That is Tyler's "resistances or higher levels".
+5. **Cloth Ward makes resistance count for more on casters.** The engine takes resistance before Ward (the 10-18 order), so a flat Ward comes off a smaller blow. A mage at 40% took 60% less from Spore Cloud, not 40%. Worth one wiki line.
+6. **A lining is mostly a back-line item in a party.** The tank's damage is physical. Telling every hero to buy one would be wrong, so the hint reads each hero's own split.
+
+So **the linings and the spell dial ship together.** A dial with no answer is only a tax, and an answer with no dial is a sink that buys nothing.
+
+**The measured table.** The real settle (`tools/balance-sim/cell.mjs` `runCell`, the live 10 s cut alone and 30 s for a four), each hero at the ground's floor in the balance sim's Level kit, 2 seeds x 1 h a cell. Alone is tank, hammer, bow and mage, each hunting alone, pooled (8 hero-hours a cell). A four is tank, healer, bow and mage. Resistance is 0, 20, 30 and 40% to every element on each hero's body piece. Deaths are per hero-hour alone and per party-hour in a four. "Back line" is the damage an hour each healer, bow and mage took. Normal is left out: **no death on Normal on any ground, alone or in a four, at any resistance, with either spell setting.** The scratch driver and its raw lines are in the lane's scratchpad, not in the repo.
+
+*Today's spell rows (live).*
+| Ground (floor) | Tier | Alone deaths/h, 0 / 20 / 30 / 40% | Four deaths/h | Back line damage/h, 0 → 40% | Four kills/h |
+|---|---|---|---|---|---|
+| Wickstead (8) | Dangerous | 0 / 0 / 0 / 0 | 0 | 0 (a four never met a Smoke Pot) | 688 |
+| Wickstead (8) | Deadly | **3.0 / 0.88 / 0.13 / 0.13** | 0 | 0 | 688 |
+| The Glade (16) | Dangerous | 0.13 / 0.13 / 0.25 / 0.13 | 0 | 1,149 → 427 | 1,078 |
+| The Glade (16) | Deadly | 38.5 / 38.2 / 38.3 / 38.1 | 0 | 1,927 → 1,253 | 1,394 |
+| The Warrens (32) | Dangerous | 0 / 0 / 0 / 0 | 0 | 2,509 → 1,260 | 485 |
+| The Warrens (32) | Deadly | 1.38 / 1.13 / 1.13 / 1.13 | 0 | 4,074 → 2,141 | 581 |
+| The Slake (50) | Dangerous | 7.4 / 6.5 / 5.8 / 6.0 | 0 | 12,158 → 6,581 | 975 |
+| The Slake (50) | Deadly | 69 / 66 / 64 / 63 | 2.5 / 1 / 1 / 1 | 15,471 → 9,806 | 1,181 |
+
+*With the spell tier dial (every spell x2 on Dangerous, x3 on Deadly).* Close calls are the four's dips under 25% HP per 12 hours, summed over its four heroes. Store is the supply bill a head an hour.
+| Ground (floor) | Tier | Alone deaths/h, 0 / 20 / 30 / 40% | Four deaths/h | Four close calls /12 h | Back line damage/h | Store a head/h | Four, 10 Levels over, bare |
+|---|---|---|---|---|---|---|---|
+| The Glade (16) | Dangerous | 0.13 / 0 / 0.13 / 0.13 | 0 / 0 / 0 / 0 | 0 | 2,176 → 1,127 | 759 → 666 | not run |
+| The Glade (16) | Deadly | 65 / 60 / 56 / 56 | **1.5 / 0.5 / 0 / 0** | **294 / 102 / 78 / 30** | 9,583 / 7,162 / 4,555 / 4,479 | 6,347 / 5,405 / 4,672 / 4,348 | **0 deaths at 26** |
+| The Warrens (32) | Dangerous | 0 / 0 / 0 / 0 | 0 | 0 | 5,875 → 2,887 | 2,654 → 1,580 | not run |
+| The Warrens (32) | Deadly | 4.9 / 3.0 / 3.1 / 2.6 | 0 / 0.5 / 0 / 0 (the 0.5 is one death to the Chief on one seed) | **84 / 24 / 0 / 0** | 15,752 / 13,171 / 10,755 / 9,097 | 20,246 / 15,965 / 14,120 / 13,368 | 0 deaths at 42 |
+| The Slake (50), Cold Bilge 1.5x | Dangerous | 17 / 12 / 12 / 10 | **2 / 0 / 0 / 0** | **138 / 54 / 18 / 12** | 26,899 / 21,804 / 19,210 / 16,048 | 18,400 / 13,638 / 10,853 / 9,837 | **0 deaths at 60** |
+| The Slake (50), Cold Bilge 1.5x | Deadly | 253 / 180 / 125 / 102 | 42 / 17 / 6.5 / 4.5 | in the thousands | 58,630 → 32,194 | 54,424 → 40,429 | 15.7 deaths at 60 |
+| Wickstead (8), for scale (not dialled in the proposal) | Dangerous | **10.3 / 6.0 / 2.5 / 0.63** | 0 | 0 | 0 | 172 | not run |
+
+How to read it. On the Glade's Deadly and the Slake's Dangerous a bare four dies, and 20% (one Stitched or Corded lining) is the step that stops it. On the Warrens' Deadly nobody dies, but the close calls go from 84 to none at 30%. Ten Levels over the floor does the same job bare. That is the wall Tyler asked for. Alone on Deadly the pull is the wall, not the spells: the Glade reads 56 deaths an hour even at 40%. A lone cell's deaths swing with a single seed, so read the small lone numbers loosely. **The Slake's Deadly at 3x is too much** (a four at 40% still dies 4.5 times an hour, and 15.7 ten Levels over). At 2x on Deadly the four reads 8 / 3.5 / 3 / 2 deaths an hour at 0 / 20 / 30 / 40%, and **0 ten Levels over**. Even with today's rows it dies 2.5 times an hour bare, mostly the tank to the Pikemen and the Sergeant, so part of that is the steel kit (see Not measured). My pick: the Slake's Deadly row starts at 2x, and the Slake's lane re-measures it in its own tier-4 armor before it ships. The dial is a per-ground tier row, so that is data, not code.
+
+**Where resistance comes from.** Two places, inside the engine's 40% cap (`HERO_RESIST_PM`).
+| Source | What | Notes |
+|---|---|---|
+| A lining (the imbuement) | 20, 25 or 30% off one element, worn by the hero for 20 hunting hours | The sample below. It belongs to the hero, so changing armor never loses it |
+| A cape (gear) | 10% off one element, a plain `resistPm` on the item row | Not in this sample. One a ground, from its Scarce band, as their own sample after the linings are played. The cape ladder has holes at 5 of 7 tiers (`items.js` header), so they fill a gap. The seam already sums any worn row's `resistPm`, so a cape is a data row and nothing else |
+A lining plus a cape reaches 30, 35 or 40%. Nothing else adds resistance. More sources would be sprawl.
+
+**The sample: five linings** (DESIGN_STANDARDS §9). Every id below was checked in `src/data/` on `release/v0.2.129`, or in the staged packs on `origin/lane/d-barrow-data` where marked.
+| Lining (new item id) | Does | Pieces | Runes | Crafting | Fitting | Made for |
+|---|---|---|---|---|---|---|
+| **Stitched Poison Lining** (`stitched_poison_lining`) | 20% less poison damage | 6 Cistern Venom Gland (`cistern_venom_gland`, Cistern Spider, the Sewer, Level 20, 10%), or 2 Knotted Tails (`knotted_tails`, the Rat King, 15%), or 2 Rook's Moss Charm (`rooks_moss_charm`, Rook the Poacher, the Glade, 15%) | 30 Chalked Poison Rune | 1 | 3,000 | The Glade's Spore Cloud. The Sewer's Muck Fling and Squeal. Wickstead's Venom Spray |
+| **Stitched Fire Lining** (`stitched_fire_lining`) | 20% less fire damage | 6 Torn Company Badge (`torn_company_badge`, Turncoat, Wickstead, Level 16, 7.7%) | 30 Chalked Fire Rune | 1 | 3,000 | The Warrens' Blasting Charge and Slag Rain. Wickstead's Smoke Pot |
+| **Corded Ice Lining** (`corded_ice_lining`) | 25% less ice damage | 2 Coppercap's Tallow (`coppercaps_tallow`, Chief Coppercap, the Warrens' boss, Level 52, 15%) | 30 Scored Ice Rune (Runecrafting 15) | 25 | 12,000 | The Slake's Cold Bilge |
+| **Corded Fire Lining** (`corded_fire_lining`) | 25% less fire damage | 6 Color Cord (`color_cord`, Color Sergeant, the Slake, Level 58, 10%. STAGED) | 30 Scored Fire Rune | 25 | 12,000 | The Pyre Field on Normal and Dangerous. The Warrens on Deadly |
+| **Sealed Fire Lining** (`sealed_fire_lining`) | 30% less fire damage | 6 Warrant Seal (`warrant_seal`, Provost, the Pyre Field, Level 80, 10%. STAGED) | 30 Etched Fire Rune (Runecrafting 30) | 50 | 40,000 | The Pyre Field on Deadly |
+
+The pieces were chosen because the creature lives in or shrugs off that element (Coppercap's Tallow: "That's why frost doesn't hurt him as much"), and because the ground before makes the lining for the ground after. The Slake's and the Pyre's element-ward pieces (`color_cord`, `warrant_seal`) get their use here. Their flat-Ward pieces (`green_rivet`, `pike_ferrule`) and every Keen, Life Leech and Mana Leech piece stay sell-only Materials until those kinds are designed, one sample at a time. **Left out on purpose:** Sticky Core (the Cellar's slime) would make every first lining from a Level 2 monster. No Stitched Ice: nothing under Level 50 casts ice.
+
+**Every new item has a source and a use** (catalogue coherence).
+| Item | Source | Use |
+|---|---|---|
+| The five linings | A Crafting recipe at `smithy_benches` (new rows in `recipes.js`) | Fit (eaten by `hr_lining_fit`). They trade as plain stacks |
+| `cistern_venom_gland`, `knotted_tails`, `rooks_moss_charm`, `torn_company_badge`, `coppercaps_tallow`, `color_cord`, `warrant_seal` | Their monsters, as today | Lining recipes. They leave the sell-only list in `catalogue-coherence.js` |
+| Chalked, Scored and Etched Fire, Ice and Poison runes | Runecrafting, as today | Spells, as today, and now lining recipes |
+No new monster, drop row or currency.
+
+**The gold.** Fitting costs 3,000, 12,000 and 40,000 from the account purse, on top of the bench tax every craft already pays. They are gold sinks beside Tempering, Blessings and the training yard, and players who never leave Normal never pay them. For scale only, not as a target: where a lining changes a death count (the dial table), 20% saved a four 940 to 4,760 gold a head an hour in supplies. Over the lining's 20 hours that is well over its fee, so the hero who needs one will pay for it.
+
+**How a player learns which element hurts.** All from data, never a hand list.
+1. **After every hunt (new, client and text only).** The summary already holds `takenByElement` for each hero. On Dangerous and Deadly, when one element is 25% or more of the damage a hero took and that hero's resistance to it is under 20%, one line and one button show under that hero. Measured, that is the back line of a four on every ground with a group spell, and a lone bow or mage on Wickstead, the Warrens and the Slake. It isn't the tank, which is right. Normal never shows it.
+2. **Before (new text, data driven).** A ground whose monsters cast a group spell gets one line on its Dangerous and Deadly notes on the Hunts page, built from the spell row's element.
+3. **On a death.** The death line names the spell and its element when a spell landed the last blow.
+
+New text rows, in Tyler's voice, for the copy lint and the player-read gate:
+| Key | Line |
+|---|---|
+| `summary.hint_resist_ember` | "Fire did {pct}% of the damage you took. A Fire Lining would cut that." |
+| `summary.hint_resist_frost` | "Ice did {pct}% of the damage you took. An Ice Lining would cut that." |
+| `summary.hint_resist_poison` | "Poison did {pct}% of the damage you took. A Poison Lining would cut that." |
+| `summary.hint_wear` | "You have one. Wear it here?" (shown instead of the button's window when the hero holds the right lining) |
+| `hunts.group_spell` | "The {monster}s here hit the whole party with {element}. A lining helps." |
+| `controls.linings` | "Linings" (the button and the window's name) |
+
+**Why it isn't a chore.** Same as 11-10. The lining is picked once per ground, goes on when the hunt starts, refits itself from the bag, then Storage, and burns hours only while hunting. The one repeated job is getting pieces every 20 hunting hours, and that is the sink. A hero who buys linings from a crafter skips it.
+
+**What each piece needs (not built here).**
+| Piece | Lane | What |
+|---|---|---|
+| The spell tier dial | C, then engine | `spellPm` on the tier rows beside `dmgPm` (Dangerous 2000 and Deadly 3000 on the Glade and the Warrens. The Slake's Deadly starts at 2000 until its lane re-measures. Normal, the Thicket, Wickstead and the Sewer stay at 1000), its generated catalogue, and one read in `monster-spells.js` where a spell's hit is rolled. Lands in the same combat batch as the linings |
+| Cold Bilge | Data, on the Slake's lane | The seed row as written: group, ice (`frost`), 1.5x, 16 s, on the Bargeman. Measured below. At 1.2x and 24 s a bare four held the Slake's Dangerous, so resistance decided nothing there |
+| Linings data | Data | `IMBUE_LININGS` in `imbuements.js` (id, element, tier, `resistPm` 200 / 250 / 300, `hoursMs` 72,000,000, `bankMs` 144,000,000, `gold`), `element` on each `element_ward` piece, five item rows, five recipes, five descriptions, five icons. A generator writes `hr_imbue_linings` |
+| Server | C | As 11-10: `player_imbues`, `imbue_worn`, the per-ground rule beside the tier, `hr_lining_fit` / `hr_lining_wear` / `hr_lining_rule` (town only, rate-bucketed, the fee re-quoted on the server), ledger rows `lining_fit` and `lining_refit`, `imbues` in `hr_state_of`. The snapshot's `resistPm` is the worn lining plus worn gear, clamped to 400 |
+| Engine | Systems, xhigh, the combat batch | The hours burn per settle, the refit inside the settle, and END_ORDER `lining_out`. Both paths: the tab open and the browser closed play the same hunt |
+| Client | B | The Linings window at the bench, the summary line and button, the Hunts note, the party card's "No lining" |
+
+**The walk** (a Level 20 hero's first lining, after the dial and the linings ship. Steps use only what earlier steps gave).
+| Step | The player | Holds, from the steps before | Doable, checked against |
+|---|---|---|---|
+| 1 | Hunts the Glade (`mosslight_glade`, 16 to 31) on Dangerous with three friends. Walking Vines cast Spore Cloud | A Level 20 hero in a party | Live. `walking_vine` casts `spore_cloud` (poison, group) |
+| 2 | Back in town the summary says "Poison did 100% of the damage you took. A Poison Lining would cut that." The healer taps Linings | Step 1's hunt. The server's `taken.byElement` | `hunt-sections.js` projects `takenByElement` today. The line and the button are new |
+| 3 | Linings opens on the Stitched Poison Lining: "Cistern Venom Gland 0 of 6. Cistern Spiders drop it in the Sewer." | Step 2 | New window. `cistern_venom_gland` drops off `cistern_spider` (Level 20, 10%) |
+| 4 | Hunts the Sewer (`millrace_sewer`, 8 to 25) until six glands drop, or kills the Rat King for two Knotted Tails | A Level 20 hero, inside the Sewer's band | Live. Both drop today and file under Materials |
+| 5 | Binds Chalked Poison Runes: 6 Blank Runes make 45 | Runecrafting 1 and Blank Runes, or buys runes from a player | Live (`bind_chalked_poison_runes`) |
+| 6 | Sews the lining at a Crafting bench | Steps 4 and 5. Crafting 1 | The bench is live (`smithy_benches`). The recipe and item rows are new |
+| 7 | Taps Fit and pays 3,000 gold | Step 6's lining | New (`hr_lining_fit`) |
+| 8 | Taps "Wear it here" for the Glade | Step 7 | New |
+| 9 | Back on Dangerous, Spore Cloud lands for 20% less. When the 20 hours run out it refits from Storage if there's one there | Steps 7 and 8 | New (the seam on main takes it) |
+
+**Balance and exploit review.**
+- Resistance moves no XP and no kill pace (point 1 above), so it can't be farmed for XP. It moves deaths and supply bills only.
+- A made lining trades. A fitted one is hours on a hero and can't move. Nothing is refunded, so fitting launders nothing.
+- The cap stays 40% in the engine whatever the rows say, and the server clamps the snapshot to 400.
+- A lone hero on Deadly at the Glade or the Slake keeps dying at 40% (the table). The text never says a lining makes Deadly safe.
+- One wiki line: resistance comes off before Ward, so on cloth it counts for more.
+
+**Not measured.** The Slake was played on a scratch copy of `release/v0.2.129` with the staged Slake pack folded in and Cold Bilge as a what-if. The heroes wore the Level-50 kit this branch has (steel, one armor tier under the Slake's own drops), so its lone numbers are harsher than they will be. The Pyre Field (no spell designed yet). Piece drops an hour. The hours to Crafting 25 and 50. Whether 20 hours is the right life.
 
 ### 2026-11-13 Under-Level pairs and the fresh hero's dips (designer, lane/d-live-grounds-2, the plan's #3 and #1 below): MEASURED on the full grade; the dips were a GRADER artefact (fixed in the grader, the Glade crow withdrawn); the under-Level rule CAN'T be met with monster stats on the three grounds under 16. **Tyler: one call**
 **#1, the fresh melee hero's dips under 25% HP: not real.** The grader played every cell in 120 s settle cuts and `cell.mjs` spreads a cut's regeneration evenly over it, so regeneration lost at full HP early in a cut reads as HP missing later. The same fights read in 10 s cuts (the live cadence) show the same XP and gold to the unit and **zero** dips: the Thicket's fresh melee 7/6/3/3 -> 0, the Glade's lone Rangers 47 in 96 h -> 0 (at the crow's old 4.4 too). Proof that it was the trace and not the fight: lowering every Thicket monster's to-hit 10% moved the 120 s dips not at all (35 -> 33). Fix: `tools/balance-sim/grade.mjs windowFor` reads a lone cell at 10 s (same run time, 8-13 s a cell); parties keep 120 s, since no rule reads a party's dips. Regression `lone-window` in `tests/balance-grade.mjs` (the old 120 s turns it red, read). **Yesterday's Glade crow change is WITHDRAWN** (speed back to 4.4): it fixed a number that wasn't there. If its hr-accrue was deployed, the next deploy puts it back; if not, nothing moves.
@@ -1021,7 +1158,7 @@ So training is a luxury at 20 and a real choice from about 50. That is the right
 
 **Not measured.** Anything at Level 80. Any tier but Normal. A tank and a healer. Parties. More than one seed. A career with training in it. What share of all gold the yard will take. **Not played.** Nothing is built, so nothing was played in the browser.
 
-### 2026-11-10 Resistance and imbuements (designer, lane/d-training-and-wards; Tyler 2026-11-08: "add some elemental resistance to gear and imbuements in order for the party to survive", "make later hunts require some resistances or higher levels to advance to the harder tiers", "show the player what is happening to their heros"): DESIGN ONLY, a sample of five, real ingredient rows, nothing built. **This replaces the "Next phase (spec only)" table in the area spells section, which is on `origin/lane/d-area-spells` and not yet on main. The server half is a §1 money and combat surface and goes on the pre-EA Security list (§3.7)**
+### 2026-11-10 Resistance and imbuements (UPDATED by "2026-11-13 Resistance and linings, measured" above: strengths 20/25/30%, Ice not Frost, Color Cord, the hint reads takenByElement, the wall is deaths. designer, lane/d-training-and-wards; Tyler 2026-11-08: "add some elemental resistance to gear and imbuements in order for the party to survive", "make later hunts require some resistances or higher levels to advance to the harder tiers", "show the player what is happening to their heros"): DESIGN ONLY, a sample of five, real ingredient rows, nothing built. **This replaces the "Next phase (spec only)" table in the area spells section, which is on `origin/lane/d-area-spells` and not yet on main. The server half is a §1 money and combat surface and goes on the pre-EA Security list (§3.7)**
 **What it is.** A **lining** is the first imbuement. A crafter sews one from a monster's piece and runes. A hero has it fitted for gold and then takes less damage from one element for 20 hours of hunting. Linings go from 10% to 30%. One cape a ground adds 10%. The engine stops at 40% (`HERO_RESIST_PM`, `origin/lane/b-area-engine`). After every hunt the summary says what hit the hero and which lining cuts it.
 
 **Why "lining" and not "ward".** Ward is already cloth armor's line (10-18), a flat imbuement kind and a spell (Protective Ward). A fourth thing called Ward would be a clarity bug. The data kind stays `element_ward`.

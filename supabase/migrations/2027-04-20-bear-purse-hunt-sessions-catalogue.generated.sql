@@ -15,7 +15,7 @@
 --
 -- NEW IN THIS FILE (lane/d-no-profit-molds, designer 2026-11-13; Tyler 2026-11-13 NO PROFIT MOLDS): ONE row of hr_hunt_kill_bounds moves. The Brook Bear's
 -- hand-kept purse [13, 40] served the Glade's retired +10% profit floor; it reads the formula's [11, 32], so its coin bound falls 40 -> 32. No other row,
--- bound, limit, end reason or world shape moves. ORDER: after 2027-04-18-area-moves-bar.sql. The hr-accrue carrying the same monsters.js lands FIRST
+-- bound, limit, end reason or world shape moves. ORDER: after 2027-04-20-feast-call-ladder.sql. The hr-accrue carrying the same monsters.js lands FIRST
 -- (its bear rolls at most 32, under both bounds).
 --
 -- CARRIED FROM 2027-04-16-combat-training-hunt-sessions-catalogue (lane/c-combat-training, Tyler 2026-11-08: "a public yard paid by the hour" and "a personal training dummy for houses"; src/data/training.js):

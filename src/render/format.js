@@ -8,6 +8,9 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const DASH = '–';
+/** The dot between a line's parts. It binds to the part AFTER it (a no-break space), so a wrapped line may start with
+    "· Level 5" but never ends on a lone dot ("Meadowbrook Thicket ·", the v0.2.130 visual gate). */
+export const SEP = ' \u00b7\u00a0';
 const ok = (v) => typeof v === 'number' && Number.isFinite(v);
 
 /* ONE formatter (perf lane 2026-10-29): toLocaleString('en-US') builds a new Intl.NumberFormat every call, 1.5% of a
@@ -36,6 +39,13 @@ export function listWords(names, max = 3, conj = 'and') {
   if (a.length <= 1) return a.join('');
   if (a.length > max) return a.slice(0, max).join(', ') + ' ' + conj + ' ' + (a.length - max) + ' more';
   return a.slice(0, -1).join(', ') + ' ' + conj + ' ' + a[a.length - 1];
+}
+
+/** A heading's last two words held together by a no-break space, so a wrapped title of three words or more never leaves one
+    word alone on its last line ("Your hero fights on its / own", 1440x900 2026-11-14). Shorter titles are as given. */
+export function keepLastWords(s) {
+  const t = String(s == null ? '' : s);
+  return t.trim().split(/ +/).length >= 3 ? t.replace(/ +(\S+)\s*$/, ' $1') : t;
 }
 
 /** 1,234 gp */

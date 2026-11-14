@@ -64,6 +64,14 @@
 // --selftest plants a drawn sprite into a mask set, a misnamed mask, a key nudged off its colour, a mask of a
 // sprite that does not exist, and a mask set whose base set nobody loads.
 //
+// PIXELLAB'S 2026-11-11 UPDATE (docs/PIXELLAB_WORKFLOW.md §7). Rule [regrade] (tools/world-art/lock.mjs): a source drawn on
+// the palette is never graded, so the lock cannot undo a palette-locked generation (brief 14: the terrain grade moved 91.6%
+// of a palette-locked ash a ramp step). Rule [tileset] (tools/world-art/tileset.mjs): a PixelLab tileset reads as our sixteen
+// corner tiles, a Tileset Pro set of 25 included. Both are run on brief 14's real pro tileset (art/world-src/gen-2026-11-11/
+// ash-palette): it imports `native` and the lock moves none of its pixels. --selftest grades it as terrain, and plants a
+// 25-tile set (the sixteen moved on a 4x8 sheet among wall tiles and wall twins), a missing corner, twins the ring cannot
+// tell apart, a 64 px tile and a box off the sheet.
+//
 // mutant-anchors: assets/world/ art/world/ tools/world-art/ src/data/world/ src/data/hunt-outfits.js
 //
 // Exit: 0 green · 1 a finding, drift, or a mutant escaped · 2 harness.
@@ -93,6 +101,9 @@ import { OPEN_GROUNDS as HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 /* ONE KIT A REGION (Tyler 2026-11-07): every hunting ground places its region kit's props and at most two signature pieces */
 import { REGION_KITS, SIGNATURE_MAX } from '../src/data/world/region-kits.js';
 import { kitFindings } from '../tools/world-art/region-kit.mjs';
+import { lock, regradeFinding, paletteLocked } from '../tools/world-art/lock.mjs';
+import { importTileset, wangTiles, tileRows, keyOf } from '../tools/world-art/tileset.mjs';
+import { REGRADE_KEPT } from '../tools/world-art/validate.mjs';
 
 /* ONE STYLE (tools/world-art/style1.mjs): what the renderer loads, what is in the tree, and
    everything a player can reach, read from the shipped data. */
@@ -296,6 +307,48 @@ function encodingFinding(file, bytes) {
   return bytes[25] === 3 ? null : `${file}: [sheet-encoding] PNG colour type ${bytes[25]}, not indexed (3): the same pixels at about twice the bytes (tools/world-art/png.mjs encodeSheetPNG)`;
 }
 
+/* ── PIXELLAB 2026-11-11: palette-locked art and Tileset Pro ────────────────────────────────────────────── */
+/* brief 14's sample: the one real pro tileset drawn with the sticky palette (100% of its pixels on hr-world-56-v2), and a
+   real pro tileset drawn without one (brief 13's ash pair, r3) */
+const PRO_LOCKED = 'art/world-src/gen-2026-11-11/ash-palette/1533d45a-5dfb-496b-a63a-565efa4e1845';
+const PRO_FREE = 'art/world-src/gen-2026-11-09b/q3-ash-pair1/r3-78845280';
+const proSet = (stem) => ({ meta: JSON.parse(readFileSync(join(ROOT, stem + '-metadata.json'), 'utf8')), sheet: decodePNG(readFileSync(join(ROOT, stem + '-sheet.png'))) });
+const movedBy = (a, b) => { let n = 0; for (let i = 0; i < a.data.length; i += 4) if (a.data[i] !== b.data[i] || a.data[i + 1] !== b.data[i + 1] || a.data[i + 2] !== b.data[i + 2]) n++; return n; };
+
+/** The real sets through the reader and the lock. Strings (empty = clean). */
+function proTilesetFindings() {
+  const out = [];
+  const a = importTileset({ id: 'pro_locked', ...proSet(PRO_LOCKED), lower: 'ash', upper: 'scorched' });
+  if (a.total !== 16 || Object.keys(a.sidecar.tiles).length !== 16) out.push(`tileset: the palette-locked pro set read as ${Object.keys(a.sidecar.tiles).length} keys of ${a.total} tiles, not 16 of 16`);
+  if (a.sidecar.material !== 'native' || !a.sidecar.pixellab.palette_locked) out.push(`regrade: the palette-locked pro set imported as "${a.sidecar.material}", not native`);
+  const moved = movedBy(a.image, lock(a.image, a.sidecar.material));
+  if (moved) out.push(`regrade: the lock moved ${moved} pixels of a palette-locked import (it must move none)`);
+  if (regradeFinding(a.sidecar, a.image, REGRADE_KEPT)) out.push('regrade: a native import of the palette-locked set is still a finding');
+  const b = importTileset({ id: 'pro_free', ...proSet(PRO_FREE), lower: 'ash', upper: 'scorched' });
+  if (b.sidecar.material !== 'terrain' || paletteLocked(b.image)) out.push(`regrade: a pro set drawn with no palette imported as "${b.sidecar.material}", not its grade class (terrain)`);
+  return out;
+}
+
+/** Tileset Pro's tall answer built from a real pro set: its sixteen moved onto a 4x8 sheet among five wall tiles and four wall twins. */
+function tallSet(stem = PRO_LOCKED) {
+  const { meta, sheet } = proSet(stem);
+  const rows = tileRows(meta), T = 32;
+  const flat = (rgb) => { const im = createImage(T, T); for (let i = 0; i < im.data.length; i += 4) { im.data[i] = rgb[0]; im.data[i + 1] = rgb[1]; im.data[i + 2] = rgb[2]; im.data[i + 3] = 255; } return im; };
+  const ring = (c, low) => ({ row_0: [255, 255, 255, 255], row_1: [255, c.NW, c.NE, 255], row_2: [255, c.SW, c.SE, 255], row_3: low });
+  const enc = { lower: 0, upper: 1, transition: 2 };
+  const num = (c) => Object.fromEntries(Object.entries(c).map(([k, v]) => [k, enc[v]]));
+  const walls = [['upper', 'upper', 'transition', 'transition'], ['upper', 'lower', 'transition', 'lower'], ['lower', 'upper', 'lower', 'transition'], ['transition', 'transition', 'lower', 'lower'], ['upper', 'transition', 'transition', 'lower']]
+    .map(([NW, NE, SW, SE], i) => ({ id: 'w' + i, name: 'wall_' + i, corners: { NW, NE, SW, SE }, pattern_4x4: ring(num({ NW, NE, SW, SE }), [255, 255, 255, 255]), img: flat([200, 0, 200]) }));
+  /* a twin: a plain tile's corners, told apart only by what stands under it (the ring's bottom row) */
+  const twins = ['wang_3', 'wang_1', 'wang_2', 'wang_12'].map((name, i) => { const t = rows.find((r) => r.name === name); return { id: 't' + i, name: name + '_wall', corners: t.corners, pattern_4x4: ring(num(t.corners), [255, 1, 1, 255]), img: flat([0, 200, 200]) }; });
+  const own = rows.map((t) => { const im = createImage(T, T); blit(im, sheet, t.bounding_box.x, t.bounding_box.y, T, T, 0, 0); return { ...t, img: im }; });
+  /* twins and walls FIRST, so a reader that takes the first match of a key, or assumes the 4x4 grid, takes a wrong tile */
+  const order = [...twins, ...walls, ...own];
+  const tall = createImage(4 * T, 8 * T);
+  const tiles = order.map(({ img, ...t }, n) => { const x = (n % 4) * T, y = Math.floor(n / 4) * T; blit(tall, img, 0, 0, T, T, x, y); return { ...t, original_position: { col: n % 4, row: n >> 2 }, bounding_box: { x, y, width: T, height: T } }; });
+  return { meta: { ...meta, transition_size: 0.5, tileset_data: { ...meta.tileset_data, tiles, total_tiles: 25, terrain_types: ['lower', 'upper', 'transition'], spritesheet_grid: { cols: 4, rows: 8 } } }, sheet: tall };
+}
+
 function guard() {
   const fails = [];
   const atlases = loadAtlases();
@@ -339,6 +392,7 @@ function guard() {
   }
   for (const f of style1Findings(style1Input())) fails.push(`style-1: [${f.rule}] ${f.detail}`);
   for (const f of kitFindings(kitInput(atlases))) fails.push(`kit: [${f.kind}] ${f.detail}`);
+  for (const f of proTilesetFindings()) fails.push(f);
   const { findings, drift } = checkAll(ROOT);
   for (const f of findings) fails.push(`source: [${f.rule}] ${f.id}: ${f.detail}`);
   for (const d of drift) fails.push(`drift: ${d}`);
@@ -489,6 +543,37 @@ function selftest(atlases) {
   kitCase('a kit that lists a retired set', 'sets', { kits: withGh((k) => ({ sets: k.sets.concat([RETIRED_SETS[0]]) })) });
   const KIT_MUTANTS = 9;
 
+  // PIXELLAB 2026-11-11: the real pro sets read clean; a grade on palette-locked art and each bad tileset is named.
+  const proClean = proTilesetFindings();
+  if (proClean.length) { console.error('world-assets --selftest: harness — the real pro tilesets do not read clean: ' + proClean.join('; ')); process.exit(2); }
+  const proCase = (name, rule, hit, control = false) => {
+    if (hit) console.log(`  ✓ ${name}: ${control ? 'silent under' : 'caught by'} [${rule}]`);
+    else { escaped++; console.log(`  ✗ ${name}: ${control ? 'NOT silent under' : 'NOT caught by'} [${rule}]`); }
+  };
+  const real = proSet(PRO_LOCKED), flatImport = importTileset({ id: 'x', ...real, lower: 'ash', upper: 'scorched' });
+  const asTerrain = { ...flatImport.sidecar, material: 'terrain' };
+  const graded = movedBy(flatImport.image, lock(flatImport.image, 'terrain'));
+  proCase(`the palette-locked ash pair declared terrain (the grade would move ${graded} of ${flatImport.image.width * flatImport.image.height} pixels)`, 'regrade',
+    graded > 0 && (regradeFinding(asTerrain, flatImport.image, REGRADE_KEPT) || {}).rule === 'regrade');
+  proCase('a kept id, a native sidecar and a sheet with one colour off the palette stay silent', 'regrade',
+    !regradeFinding(asTerrain, flatImport.image, ['x']) && !regradeFinding(flatImport.sidecar, flatImport.image, [])
+    && !regradeFinding(asTerrain, recolourOne(flatImport.image, hex('#ff00ff')), []), true);
+  const tall = tallSet();
+  const tallImport = (() => { try { return importTileset({ id: 'x', ...tall, lower: 'ash', upper: 'scorched' }); } catch (e) { return { error: e.message }; } })();
+  proCase('a Tileset Pro set of 25 (the sixteen moved on a 4x8 sheet, five wall tiles, four wall twins) reads as the same sixteen', 'tileset',
+    !tallImport.error && tallImport.total === 25 && tallImport.ignored.length === 9 && pixelHash(tallImport.image) === pixelHash(flatImport.image));
+  const refuses = (meta, sheet, want, opts = {}) => { try { wangTiles(meta, { sheet, ...opts }); return false; } catch (e) { return e.message.includes(want); } };
+  const withTiles = (m, fn) => ({ ...m, tileset_data: { ...m.tileset_data, tiles: fn(tileRows(m)) } });
+  proCase('a set with no tile for one corner key', 'tileset', refuses(withTiles(real.meta, (t) => t.filter((x) => x.name !== 'wang_6')), real.sheet, 'no tile for corners'));
+  const blind = withTiles(tall.meta, (t) => t.map((x) => (x.name === 'wang_3_wall' ? { ...x, pattern_4x4: tileRows(tall.meta).find((y) => y.name === 'wang_3').pattern_4x4 } : x)));
+  const twinKey = keyOf(tileRows(real.meta).find((y) => y.name === 'wang_3'));
+  proCase('a wall twin whose ring does not tell it from the plain tile (refused, never guessed)', 'tileset', refuses(blind, tall.sheet, 'the ring does not tell'));
+  proCase('the same twins settled by --pick', 'tileset', (() => { try { return wangTiles(blind, { sheet: tall.sheet, pick: { [twinKey]: 'wang_3' } }).tiles[twinKey].name === 'wang_3'; } catch { return false; } })(), true);
+  proCase('a 64 px tile on the 32 px grid', 'tileset', refuses(withTiles(real.meta, (t) => t.map((x, i) => (i ? x : { ...x, bounding_box: { ...x.bounding_box, width: 64, height: 64 } }))), real.sheet, 'the grid\'s tile is 32x32'));
+  proCase('the GET answer (tiles as images, no boxes) passed as the metadata', 'tileset', refuses({ tileset: { tiles: tileRows(real.meta) } }, real.sheet, 'pass the metadata.json'));
+  proCase('a tile whose box lies off the sheet', 'tileset', refuses(withTiles(real.meta, (t) => t.map((x, i) => (i ? x : { ...x, bounding_box: { ...x.bounding_box, x: 4096 } }))), real.sheet, 'lies off the sheet'));
+  const PRO_MUTANTS = 8, PRO_CONTROLS = 2;   // 7 planted above and the build's own refusal below; 2 controls
+
   // REGION MASKS: the shipped masks are clean; each planted mask defect is named by its own rule.
   const maskAtlas = atlases.find((a) => MASK_SETS[a.manifest.set]);
   if (!maskAtlas) { console.error('world-assets --selftest: harness — needs a shipped mask set (src/data/world/atlas-sets.js MASK_SETS)'); process.exit(2); }
@@ -586,13 +671,21 @@ function selftest(atlases) {
     const edited = decodePNG(readFileSync(png));
     edited.data[firstOpaque(edited)] ^= 1;
     writeFileSync(png, encodePNG(edited));
+    /* [regrade] through the BUILD, not just the rule: a palette-drawn terrain of another set re-declared as a grading class */
+    const natives = listSets(tmp).filter((x) => x !== set && !MASK_SETS[x]).flatMap((x) => readSidecars(tmp, x).filter((sc) => sc.class === 'terrain' && sc.material === 'native' && !REGRADE_KEPT.includes(sc.id)));
+    const victim = natives.find((sc) => paletteLocked(decodePNG(readFileSync(join(tmp, sc.file.replace(/[^/]+$/, sc.source))))));
+    if (!victim) { console.error('world-assets --selftest: harness — needs a shipped native terrain drawn on the palette'); process.exit(2); }
+    const { file: vFile, ...vSc } = victim;
+    writeFileSync(join(tmp, vFile), JSON.stringify({ ...vSc, material: 'terrain' }, null, 2) + '\n');
     const clean = checkAll(tmp);
+    if (clean.findings.some((x) => x.rule === 'regrade' && x.id === victim.id)) console.log(`  ✓ ${victim.id} (drawn on the palette) re-declared terrain: the build refuses it by [regrade]`);
+    else { escaped++; console.log(`  ✗ ${victim.id} re-declared terrain: the build did NOT refuse it by [regrade]`); }
     if (clean.drift.some((d) => d.startsWith(`${set}:`) && d.includes('pixels differ'))) console.log('  ✓ a hand-edited atlas pixel: caught by [drift]');
     else { escaped++; console.log(`  ✗ a hand-edited atlas pixel: NOT caught by [drift] (${clean.drift.join('; ') || 'no drift'})`); }
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
-  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 13 + LIVE_MUTANTS + MASK_MUTANTS + KIT_MUTANTS} planted defects caught; ${controls.length + 4} clean controls silent`);
+  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 13 + LIVE_MUTANTS + MASK_MUTANTS + KIT_MUTANTS + PRO_MUTANTS} planted defects caught; ${controls.length + 4 + PRO_CONTROLS} clean controls silent`);
   process.exit(escaped ? 1 : 0);
 }
 

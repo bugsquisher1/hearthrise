@@ -87,11 +87,8 @@ export function monsterSpeedOf(row) {
   return Number.isInteger(v) && v > 0 ? v : MONSTER_SPEED_DEFAULT;
 }
 
-/* A MONSTER THAT SHOOTS (the Krell's Hold design's engine piece 2, docs/planning/PRIORITY_BOARD.md: Hask's Lookout "shoots a
-   crossbow from range at the hero farthest back and doesn't walk in"). A row's `range` is how many whole tiles its blow reaches,
-   in a straight line it can see: the rule a ranged hero's shot has (src/core/hunt/targeting.js inRange). A row with no `range`
-   fights beside its target, as every monster always has. src/core/hunt/shooters.js plays it; read it only via monsterRangeOf.
-   MONSTER_RANGE bounds it (a bound, not a balance number: the number on a row is the designer's). */
+/* A MONSTER THAT SHOOTS (Krell's Hold, PRIORITY_BOARD): `range` = whole tiles its blow reaches in line of sight (targeting.js inRange);
+   no `range` = melee. Played by src/core/hunt/shooters.js, read only via monsterRangeOf; MONSTER_RANGE is a bound, not a balance number. */
 export const MONSTER_RANGE = Object.freeze({ min: 2, max: 6 });
 /** The tiles monster row `row` shoots from, or 0: a melee monster (no `range`, or one rangeProblems refuses). */
 export function monsterRangeOf(row) {

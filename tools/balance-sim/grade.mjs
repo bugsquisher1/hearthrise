@@ -429,11 +429,15 @@ if (isMain(import.meta.url)) {
       if (!r.verdicts.some((v) => v.rule === rule && v.verdict === 'FAIL')) bad.push('mutant ' + mut + ' did not FAIL ' + rule);
     }
     const RS = await loadSheet(ROOT, null, null);
-    /* Q2: on a band of 20+ Levels a four's ends are reported (OFF), its middle is graded; on a narrower band the ends still FAIL */
-    const long = (band, at) => gradeCells(synthSet({ four: true, band, fourOffset: at }), RS, flat).verdicts.filter((v) => v.rule === 'four-xp' && v.verdict === 'FAIL');
-    if (long([16, 36], 'top').length) bad.push('a 20-Level band graded a four at its end');
-    if (!long([16, 36], 'middle').length) bad.push('a 20-Level band did not grade a four at its middle');
-    if (!long([16, 31], 'top').length) bad.push('a 15-Level band stopped grading a four at its top');
+    /* Q2: on a band of 20+ Levels a four's floor is reported (OFF), its middle is graded; on a narrower band the floor still FAILs.
+       Designer 2026-11-13 (grade-sheet.mjs THE FOUR'S LINE): every band's TOP is a report line (four-xp-report OFF), never four-xp. */
+    const four = (band, at, rule, verdict) => gradeCells(synthSet({ four: true, band, fourOffset: at }), RS, flat).verdicts
+      .filter((v) => v.rule === rule && v.verdict === verdict && v.key.includes('/ ' + at + ' /'));
+    if (four([16, 36], 'floor', 'four-xp', 'FAIL').length) bad.push('a 20-Level band graded a four at its floor');
+    if (!four([16, 36], 'middle', 'four-xp', 'FAIL').length) bad.push('a 20-Level band did not grade a four at its middle');
+    if (!four([16, 31], 'floor', 'four-xp', 'FAIL').length) bad.push('a 15-Level band stopped grading a four at its floor');
+    if (four([16, 31], 'top', 'four-xp', 'FAIL').length) bad.push('a four at a band top was graded (designer 11-13: a report line)');
+    if (!four([16, 31], 'top', 'four-xp-report', 'OFF').length) bad.push('a four off its line at a band top was not reported');
     /* Q4: a pack that needs a Healer on Deadly grades only the four with one; the healerless four is reported */
     const heal = (needs, comp) => gradeCells(synthSet({ deadlyFour: comp }), RS, flat, {}, { g: { deadlyFourNeeds: needs } }).verdicts.filter((v) => v.rule === 'tier-deadly-four-held' && v.verdict === 'FAIL').length;
     if (heal('healer', 'tank+bow+mage+hammer')) bad.push('a healerless four failed a Deadly that needs a Healer');

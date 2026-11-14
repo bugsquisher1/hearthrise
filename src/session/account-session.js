@@ -54,15 +54,15 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.129';
-import { CharacterSession } from './character-session.js?v=0.2.129';
-import { TownPresence } from './town-presence.js?v=0.2.129';
-import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.129';
-import { levelOf } from './character-sections.js?v=0.2.129';
-import { assignmentOf } from './party-sections.js?v=0.2.129';
-import { benchJobOver } from './bench-sections.js?v=0.2.129';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.129';
-import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.129';
+import { SESSION_CONFIG } from './config.js?v=0.2.130';
+import { CharacterSession } from './character-session.js?v=0.2.130';
+import { TownPresence } from './town-presence.js?v=0.2.130';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.130';
+import { levelOf } from './character-sections.js?v=0.2.130';
+import { assignmentOf } from './party-sections.js?v=0.2.130';
+import { benchJobOver } from './bench-sections.js?v=0.2.130';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.130';
+import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.130';
 
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */

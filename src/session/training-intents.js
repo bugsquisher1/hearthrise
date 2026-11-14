@@ -9,8 +9,8 @@
 //   unlockDummy(account, cs, skill, priceSeen)  ONE hr_house_dummy_unlock at the price the player SAW; every open hero
 //                     of the account is re-read (the dummy is the account's).
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.129';
-import { PLACES } from './training-sections.js?v=0.2.129';
+import { askVia } from './intent-ledger.js?v=0.2.130';
+import { PLACES } from './training-sections.js?v=0.2.130';
 
 const WORD = /^[a-z0-9_]{1,64}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

@@ -9,13 +9,13 @@
 // that event's words (live-events-view.js callEventWords): its line before today's, "for free" on the press and the confirm, its
 // warning in place of the fee's. The event coming on or going off on the server's clock reads the quote again (feeKey).
 // ════════════════════════════════════════════════════════════════════════
-import { text, prop, cls } from '../../render/paint.js?v=0.2.129';
-import { whole } from '../../render/format.js?v=0.2.129';
-import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.129';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.129';
-import { callOut } from '../../session/boss-intents.js?v=0.2.129';
-import { readCall } from '../../session/boss-quote.js?v=0.2.129';
-import { callEventWords, feeKey } from '../live-events-view.js?v=0.2.129';
+import { text, prop, cls } from '../../render/paint.js?v=0.2.130';
+import { whole } from '../../render/format.js?v=0.2.130';
+import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.130';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.130';
+import { callOut } from '../../session/boss-intents.js?v=0.2.130';
+import { readCall } from '../../session/boss-quote.js?v=0.2.130';
+import { callEventWords, feeKey } from '../live-events-view.js?v=0.2.130';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { call: null, key: '', quote: null, asking: false, warned: false }; SCRATCH.set(cs, s); } return s; };

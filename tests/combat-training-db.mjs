@@ -228,7 +228,10 @@ const FILES = ['2027-04-16-combat-training-hunts-catalogue.generated.sql', '2027
   '2027-04-16-combat-training-gold-sinks-catalogue.generated.sql', '2027-04-16-combat-training.sql'];
 async function againArm(bootFn) {
   const bad = [];
-  const { db } = await bootFn();
+  /* THE SECOND APPLY STANDS WHERE THE FIRST DID: the chain as of the lane's last file. Its hunt-sessions catalogue is a whole-table file
+     that later ones replace, so at the chain's end it names rows a newer file has since moved (the tier 7 item ids renamed 2026-11-14:
+     its vendor values then name items hr_items no longer has, and its own self-check refuses it, rightly). */
+  const { db } = await bootFn({ upTo: FILES[FILES.length - 1] });
   const read = async () => JSON.stringify({ inv: await inventory(db),
     bodies: await q(db, `select p.proname, md5(p.prosrc) as m from pg_proc p where p.pronamespace = 'public'::regnamespace and (p.proname like 'hr\\_training\\_%' or p.proname in ('hr_hunt_admit', 'hr_hunt_enter_check', 'hr_hunt_apply_member', 'hr_house_dummy_unlock')) order by 1`),
     rules: await q(db, 'select * from public.hr_training_rules'), grounds: await q(db, 'select * from public.hr_training_grounds order by hunt_id'),

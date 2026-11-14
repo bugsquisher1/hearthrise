@@ -1,0 +1,15 @@
+{
+ "mode": "pro",
+ "tile_size": {
+  "width": 32,
+  "height": 32
+ },
+ "view": "high top-down",
+ "transition_size": 0,
+ "lower_description": "withered dead grass (kept)",
+ "upper_description": "the withered grass of a cold march country seen from above, short dull green and olive grass, a little straw yellow, sparse dry tufts, muted, low value, flat",
+ "palette": "hr-world-56-v2 (56)",
+ "palette_name": "hr-world-56-v2",
+ "max_colors": 12,
+ "lower_base_tile_id": "c5ee7a66-e673-4fe2-8a4a-822876f73ccf"
+}

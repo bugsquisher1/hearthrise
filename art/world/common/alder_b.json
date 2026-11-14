@@ -1,0 +1,36 @@
+{
+  "id": "alder_b",
+  "class": "sapling",
+  "style": "s1",
+  "material": "foliage",
+  "source": "alder_b.png",
+  "frame": [
+    64,
+    91
+  ],
+  "anchor_px": [
+    32,
+    90
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "8a3e8769-5615-5755-9394-e1b3c18a39a1",
+    "job": "5a1b79da-e34d-4713-9f18-700d628d282f",
+    "palette": "hr-world-56-v2"
+  },
+  "notes": "Alder variant b (leaning), styled on the kept alder. Raw and review: art/world-src/gen-2026-11-14/20-note.json. Ported by tools/world-art/port-pixellab.mjs object: pixels unscaled, bottom-centre anchor. STAGED: on no map yet."
+}

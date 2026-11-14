@@ -1,0 +1,14 @@
+{
+ "mode": "pro",
+ "tile_size": {
+  "width": 32,
+  "height": 32
+ },
+ "view": "high top-down",
+ "transition_size": 0,
+ "lower_description": "deep slow river water seen from above, a dark dull blue-teal #2e4a52 and #4f7a80, darker than a brook, faint slow ripples, no bright highlights, calm, low value",
+ "upper_description": "dark wet river silt flat seen from above, a deep grey-brown as dark as wet mud, never lighter, the darkest browns #231d1f #2f2723 #3d2a1d, smooth with soft patches of dull olive green copper staining, never turquoise, faint ripple marks and a few pebbles, muted, calm low contrast, low value",
+ "palette": "hr-world-56-v2 (56)",
+ "palette_name": "hr-world-56-v2",
+ "max_colors": 12
+}

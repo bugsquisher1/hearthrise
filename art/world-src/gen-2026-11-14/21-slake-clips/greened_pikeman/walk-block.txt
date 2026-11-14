@@ -1,0 +1,12 @@
+  walk [group: 22793d05-7191-4365-8d4a-bd91e4b7c037]
+    description: a stiff march, both feet lift in turn, the pike stays upright, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/b1f22b53-a085-4feb-9235-454f7af50818/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/a216c4de-a1de-4a0d-986d-2521cbb11962/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/e3c2707b-41fa-4085-938e-249d354db6e6/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/e2d97552-ea0e-4962-9395-c6eef79d74b1/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/13a04f7a-21f3-4520-9380-c5acb579428d/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/40f8d017-aa9a-43b0-a59e-dd48ce2a5d26/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/c8cc27ea-dca8-4937-88da-4b92152dd1b0/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/3b7de11d-3124-40cb-9ea7-5d9b618e73d6/west/{i}.png  (i=0..6)

@@ -1,0 +1,12 @@
+  walk [group: 008daed3-8ab9-437d-9e13-75029fae7dea]
+    description: a slow heavy trudge, both feet lift in turn, the pole stays in both hands, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/7ab5452a-e702-4963-8e6c-0947f135858f/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/a94eb86c-d208-42f3-b16e-b972ce716450/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/21f848c5-cbf0-4a6d-8800-962d0a144b8d/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/44055317-17ce-4ef4-8ce8-bf671221eddf/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/bd1ba797-5ea0-4f40-a34c-5c31a20c8af2/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/83d69400-8da0-4144-994d-00d1d8688305/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/3013a869-1ba7-4cf0-848b-eb132991a0c6/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/8757db7d-ebce-4316-9d63-0a5ffdf1f4e0/west/{i}.png  (i=0..6)

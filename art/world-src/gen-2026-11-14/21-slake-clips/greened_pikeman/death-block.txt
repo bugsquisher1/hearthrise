@@ -1,0 +1,12 @@
+  death [group: 10ebbde4-71eb-4fa8-94d6-f57d4db0396c]
+    description: collapses into a heap of bones, the pike beside it, lies still, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/4107e779-8717-4d4a-8bfb-23a2e3bd6b4e/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/04dbe2a9-4106-42a5-9fdb-a3851c39e4a4/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/bd7f493a-effc-4ae5-bf2f-83fe05440b7f/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/276ccf1a-a213-4abf-806f-5a8b30fc537d/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/550424a0-61f8-4972-bc6a-b4a93d2200be/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/d4c2849e-6dea-4232-80a6-182ec3a099b5/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/15a92bfe-9a69-45a9-baa4-de23fd61af67/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/6973c53e-a801-42d9-8de8-5618d9568d1e/animations/99033af8-8450-4314-8a6a-ec6125e24dc8/west/{i}.png  (i=0..6)

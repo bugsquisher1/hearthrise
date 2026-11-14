@@ -1,0 +1,14 @@
+{
+ "mode": "pro",
+ "tile_size": {
+  "width": 32,
+  "height": 32
+ },
+ "view": "high top-down",
+ "transition_size": 0,
+ "lower_description": "packed dirt cart road seen from above, warm brown earth #553a26 #6e4c30, two worn wheel ruts and a few small stones, calm",
+ "upper_description": "grey gate cobbles seen from above, small set stones in tight rows with dark mortar between, cool blue-grey #5c6c7a #4f4e52 #8a9aa8, calm, even, in good repair",
+ "palette": "hr-world-56-v2 (56)",
+ "palette_name": "hr-world-56-v2",
+ "max_colors": 12
+}

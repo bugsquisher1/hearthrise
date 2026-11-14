@@ -115,6 +115,10 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'coffin_nail', 'urn_shard', 'sergeant_spur', 'hasks_coin',
   'pike_ferrule', 'rake_tine', 'kennel_tag', 'shroud_pin', 'warrant_seal',
   'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain',
+  /* the Morrow Hills' first three grounds (lane/d-morrow-grounds): Carter's Rest, the Ox Road and Wyvern Roost, five each, the same promise */
+  'pewter_spoon', 'roof_slate', 'stable_bit', 'coal_tongs', 'cellar_tally',
+  'wagon_pin', 'runners_tin', 'ox_shoe', 'drovers_goad', 'waybill',
+  'eggshell', 'gizzard_stone', 'tail_spur', 'fire_gland', 'stolen_fleece',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -132,9 +136,8 @@ export const AWAITING_ROSTER = Object.freeze([
   'bronze_hammer', 'bronze_knife',
   'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
-  'choirbone_gauntlets', 'crown_of_the_fallen_king', 'dawn_belt',
-  'dawn_boots', 'dawn_gauntlets',
-  'dawn_platelegs', 'dawnbound_amulet', 'dawnforged_signet',
+  'choirbone_gauntlets', 'crown_of_the_fallen_king',
+  'dawnbound_amulet', 'dawnforged_signet',
   'dawnlit_mantle', 'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',
   'dragon_relic', 'dragonfang_pike', 'dragonrend_greatblade',
   'duskwood_rod', 'elderscale_heart', 'elderscale_platebody',
@@ -149,10 +152,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
   'steel_needle',
   'verdite_blade', 'verdite_helm', 'verdite_platebody',
-  /* tier 7 leather and cloth, Dawnhide and Duskweave (Tyler 2026-11-14), renamed from voidhide_ and voidweave_. Their bodies and helmets are Lord Krell's
-     prize (UNREACHABLE.staged); the other four slots of each have no source yet */
-  'duskweave_belt', 'duskweave_boots', 'duskweave_gloves', 'duskweave_pants',
-  'dawnhide_belt', 'dawnhide_boots', 'dawnhide_gloves', 'dawnhide_pants',
+  /* tier 7's boots, gloves, legs and belts in three weights left for Carter's Rest (lane/d-morrow-grounds, UNREACHABLE.staged) */
   'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidmaw_scepter',
   'voidwoven_sigil', 'warband_bulwark',
   'warboss_standard', 'warden_girdle', 'warden_seal',
@@ -220,6 +220,14 @@ export const UNREACHABLE = Object.freeze({
     'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain', 'hall_key',
     'dawn_sword', 'dawn_warhammer', 'dawn_hatchets', 'duskwood_bow', 'duskwood_crossbow', 'duskwood_staff', 'duskwood_wand', 'duskwood_codex',
     'dawn_platebody', 'dawn_helm', 'dawnhide_body', 'dawnhide_helmet', 'duskweave_body', 'duskweave_helmet',
+    /* THE MORROW HILLS' FIRST THREE STAGED PACKS (lane/d-morrow-grounds, 2026-11-14). Carter's Rest: tier 7's boots, gloves, legs and belts in
+       three weights (they were AWAITING_ROSTER rows), Troll Hide and five imbuement items. The Ox Road: the eight tier-7 weapons again (Krell's
+       prize above) and five imbuement items. Wyvern Roost: Dragon Bones and Dragon Scale (they were `later`) and five imbuement items. */
+    'dawn_boots', 'dawn_gauntlets', 'dawn_platelegs', 'dawn_belt', 'dawnhide_boots', 'dawnhide_gloves', 'dawnhide_pants', 'dawnhide_belt',
+    'duskweave_boots', 'duskweave_gloves', 'duskweave_pants', 'duskweave_belt', 'troll_hide', 'dragon_bones', 'dragon_scale',
+    'pewter_spoon', 'roof_slate', 'stable_bit', 'coal_tongs', 'cellar_tally',
+    'wagon_pin', 'runners_tin', 'ox_shoe', 'drovers_goad', 'waybill',
+    'eggshell', 'gizzard_stone', 'tail_spur', 'fire_gland', 'stolen_fleece',
   ]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next
@@ -236,7 +244,7 @@ export const UNREACHABLE = Object.freeze({
     'wraithglass_drops', 'trollhide_cape', 'shadowsilk_cape', 'warlords_torc', 'lazlos_maul', 'dragonrib_bow',
     'void_censer', 'barrowking_mantle', 'jarls_rimetorc', 'captains_ribblade', 'chief_blade', 'alpha_cloak',
     'keystone',
-    'dragon_bones', 'troll_hide', 'vamp_dust', 'demon_shard', 'dragon_scale', 'lich_soul', 'ancient_rune',
+    'vamp_dust', 'demon_shard', 'lich_soul', 'ancient_rune',
     'dragon_gem', 'void_chitin', 'void_core', 'ancient_claw', 'raw_panther_meat', 'cooked_panther_meat',
     /* the Hunter's Feast waits on its troll hide (the Bear Pelt it also asks for drops from the Brook Bear) */
     'hunters_feast', 'dragon_stew', 'lich_soul_soup', 'void_banquet', 'soul_recipe', 'marrow_cookbook',
@@ -264,7 +272,8 @@ export const UNREACHABLE = Object.freeze({
 /* 100 -> 64 (lane/d-packs-retune, 2026-11-12): the five Barrow March packs stage every tier-4, tier-5 and tier-6 rung that was `later`
    (33 rows: boots, gauntlets, belts, gloves, the bows, staves, wands and spellbooks, the Runewood codex), Grave Dust, Razor Claw and
    Wraith Veil; they move to `staged`, which only a ground's proven opening may hold. */
-export const UNREACHABLE_CEILING = 64;
+/* 64 -> 61 (lane/d-morrow-grounds, 2026-11-14): Carter's Rest stages Troll Hide, Wyvern Roost Dragon Bones and Dragon Scale. */
+export const UNREACHABLE_CEILING = 61;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

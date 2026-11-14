@@ -10,14 +10,16 @@
 //
 // THE PLACE. Carter's Rest was the halfway inn on the road from Krell's Hold up to Morrow. Krell shut the road years ago, the carters stopped
 // coming, and a family of hill trolls moved in. Harry's cart is parked in the yard, because the trolls are between him and Morrow.
-// ALIGNMENT (Tyler 2026-11-14): a GOOD ground. Everything here is alive and nothing here is tied to Krell's fire. The field waits for the
-// ground row to learn it (the board's faction section).
+// STANDING (the board's section 6): it pays the LAST EMBER. Everything here is alive and sitting on the road the next Morrow needs.
+// The tier-7 leather and cloth are Dawnhide and Duskweave (Tyler 2026-11-14, renamed from voidhide_ and voidweave_ on main).
 // NAMING VOICE: inn and carter words (taproom, stable, cellar, slate, sign, yard). Trolls are named for the job they took over at the inn.
 // THE LESSON: trolls are Humanoid, so a sword cuts them and poison does 15% more. The Slate Thrower goes for whoever stands farthest back, the
 // Stable Troll's swing is a marked hit the tank holds, and the Brewer's boiling mash lands on everyone (a Fire Lining from the March answers it).
-// THE LOOT. Scarce: the tier-7 boots, gloves, legs and belts in three weights, the four slots Lord Krell does not drop. Worn from 88, so every
-// piece is wearable the hour it drops. Each body drops one imbuement item. THE CHANCES ARE PROPOSED, the Hold's by role, not fitted.
-import { definePack, box } from '../shape.js?v=0.2.130';
+// THE LOOT. Scarce: the tier-7 boots and legs in three weights. Rare, each about every 10-20 h: the gloves and belts (the Shop sells a glove and a belt,
+// so a ground drops those only as Rares, tests/hunt-core/forest-cave.mjs shop-outfits-defense, the Hold's pattern). Lord Krell has the bodies and helms. Worn from 88, so every
+// piece is wearable the hour it drops. Each body drops one imbuement item. FITTED on the floor hour's kills (tests/hunt-core/drop-tables.mjs, a lone
+// tank in its full set, lane/d-morrow-grounds 2026-11-14).
+import { definePack, box, gather } from '../shape.js?v=0.2.130';
 import map from './map.js?v=0.2.130';
 
 const PK = 'troll_picker', TH = 'slate_thrower', ST = 'stable_troll', BR = 'troll_brewer', LL = 'the_landlord';
@@ -26,13 +28,15 @@ export default definePack({
   id: 'carters_rest',
   status: 'staged',
   sql: null,
-  /* Weights are the pockets' head-count as built (two a pocket, six pockets): 5 Pickers, 2 Slate Throwers, 2 Stable Trolls, 2 Brewers, 1 Landlord. */
+  /* Weights are the pockets' head-count at a pull of 4 (the first four of each box): 10 Pickers, 5 Stable Trolls, 4 Slate Throwers, 4 Brewers, 1 Landlord. */
   hunt: {
     name: 'Carter\'s Rest', theme: 'This was the halfway inn on the road to Morrow. Trolls moved in when the carters stopped coming.',
     band: [110, 125],
-    spawns: [{ monster: PK, w: 5, rarity: 'common' }, { monster: TH, w: 2, rarity: 'uncommon' }, { monster: ST, w: 2, rarity: 'uncommon' },
-      { monster: BR, w: 2, rarity: 'uncommon' }, { monster: LL, w: 1, rarity: 'rare' }],
+    spawns: [{ monster: PK, w: 10, rarity: 'common' }, { monster: ST, w: 5, rarity: 'uncommon' }, { monster: TH, w: 4, rarity: 'uncommon' },
+      { monster: BR, w: 4, rarity: 'uncommon' }, { monster: LL, w: 1, rarity: 'rare' }],
     family: 'Troll', art: PK, travelS: 0, pull: 4, respawnMs: 60000,
+    /* THE FACTION FIELDS (the board's section 6, spec only until the faction lane builds the settle hook). */
+    region: 'morrow_hills', standingFor: 'last_ember',
   },
   ground: {
     map: 'carters_rest',
@@ -56,41 +60,44 @@ export default definePack({
     /* ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08), ONE PACK ON NORMAL (Tyler 2026-11-11). */
     respawnMs: 60000, pullDist: 1.5, groupFit: 'both',
     densityMax: [8, 8, 8, 8],
+    /* THE GATHER SLIDER (inert until the hunt-gathering engine lands): two coal seams in the Cellar, standing in for a Dawnstone Vein
+       (gathering.js dawnstone_rock, Mining 90, has no node kind or sprite yet; the Night Shift gets the first real one). refKillMs the Hold's. */
+    gather: gather(12000, [['coal_rock', 5, 31, 5], ['coal_rock', 6, 36, 5]]),
   },
   monsters: {
     troll_picker: {
       name: 'Troll Picker', icon: '🧌', tier: 6, level: 111, cls: 'humanoid', family: 'Troll', speed: 3400,
       /* the swarm: the young ones, going through the inn's rooms and the last wagon for anything that shines. Humanoid, no override. */
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'troll_hide', ch: 0.3, band: 'common' }, { id: 'pewter_spoon', ch: 0.08, band: 'uncommon' },
-        { id: 'dawn_boots', ch: 0.02, band: 'scarce' }, { id: 'dawnhide_boots', ch: 0.02, band: 'scarce' }, { id: 'duskweave_boots', ch: 0.02, band: 'scarce' }],
-      hp: 146, atk: 97, baseAcc: 0.94, def: 50, xp: 1633, gp: [31, 92], formula: true },
+        { id: 'dawn_boots', ch: 0.013, band: 'scarce' }, { id: 'dawnhide_boots', ch: 0.013, band: 'scarce' }, { id: 'duskweave_boots', ch: 0.013, band: 'scarce' }],
+      hp: 146, atk: 97, baseAcc: 0.94, def: 50, xp: 1567, gp: [31, 92], formula: true },
     slate_thrower: {
       name: 'Slate Thrower', icon: '🧌', tier: 6, level: 114, cls: 'humanoid', family: 'Troll', speed: 3000,
       /* the glass: a lanky troll on the roof, pulling slates and throwing them at whoever stands farthest back. Poacher's Volley stands in for the throw. */
       spells: ['poachers_volley'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'troll_hide', ch: 0.3, band: 'common' }, { id: 'roof_slate', ch: 0.08, band: 'uncommon' },
-        { id: 'dawn_gauntlets', ch: 0.026, band: 'scarce' }, { id: 'dawnhide_gloves', ch: 0.026, band: 'scarce' }, { id: 'duskweave_gloves', ch: 0.026, band: 'scarce' }],
-      hp: 140, atk: 129, baseAcc: 0.45, def: 52, xp: 1899, gp: [29, 89], formula: true },
+        { id: 'dawn_gauntlets', ch: 0.0022, band: 'rare' }, { id: 'dawnhide_gloves', ch: 0.0022, band: 'rare' }, { id: 'duskweave_gloves', ch: 0.0022, band: 'rare' }],
+      hp: 140, atk: 129, baseAcc: 0.45, def: 52, xp: 1823, gp: [29, 89], formula: true },
     stable_troll: {
       name: 'Stable Troll', icon: '🧌', tier: 6, level: 117, cls: 'humanoid', family: 'Troll', speed: 2400,
       /* the heavy: the big one that sleeps in the stable and swings the water trough. Lash Sweep stands in for the swing, a marked cone. */
       spells: ['lash_sweep'],
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'troll_hide', ch: 0.5, band: 'common' }, { id: 'stable_bit', ch: 0.08, band: 'uncommon' },
-        { id: 'dawn_platelegs', ch: 0.017, band: 'scarce' }, { id: 'dawnhide_pants', ch: 0.017, band: 'scarce' }, { id: 'duskweave_pants', ch: 0.017, band: 'scarce' }],
-      hp: 230, atk: 96, baseAcc: 1.02, def: 77, xp: 2890, gp: [48, 145], formula: true },
+        { id: 'dawn_platelegs', ch: 0.033, band: 'scarce' }, { id: 'dawnhide_pants', ch: 0.033, band: 'scarce' }, { id: 'duskweave_pants', ch: 0.033, band: 'scarce' }],
+      hp: 230, atk: 96, baseAcc: 1.02, def: 77, xp: 2774, gp: [48, 145], formula: true },
     troll_brewer: {
       name: 'Troll Brewer', icon: '🧌', tier: 6, level: 119, cls: 'humanoid', family: 'Troll', speed: 3000,
       /* the regular: she kept the inn's kettles going and throws the boiling mash over everyone. Blasting Charge stands in for it, a group fire
          spell. The tongs came off a priest of Krell's who came through with a live coal. */
       spells: ['blasting_charge'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'coal_tongs', ch: 0.08, band: 'uncommon' }],
-      hp: 195, atk: 122, baseAcc: 0.64, def: 59, xp: 2242, gp: [41, 123], formula: true },
+      hp: 195, atk: 122, baseAcc: 0.64, def: 59, xp: 2153, gp: [41, 123], formula: true },
     the_landlord: {
       name: 'The Landlord', icon: '🧌', tier: 6, level: 123, cls: 'humanoid', family: 'Troll', speed: 2800,
       /* the elite and the rare carrier: the biggest troll, in the innkeeper's apron, sitting on the cellar. He has the last ore wagon's Dawnstone. */
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', ch: 0.3, band: 'common' }, { id: 'cellar_tally', ch: 0.1, band: 'uncommon' },
-        { id: 'dawn_belt', ch: 0.05, band: 'scarce' }, { id: 'dawnhide_belt', ch: 0.05, band: 'scarce' }, { id: 'duskweave_belt', ch: 0.05, band: 'scarce' }],
-      hp: 322, atk: 125, baseAcc: 0.66, def: 91, xp: 4315, gp: [68, 202], formula: true },
+        { id: 'dawn_belt', ch: 0.0048, band: 'rare' }, { id: 'dawnhide_belt', ch: 0.0048, band: 'rare' }, { id: 'duskweave_belt', ch: 0.0048, band: 'rare' }],
+      hp: 322, atk: 125, baseAcc: 0.66, def: 91, xp: 4142, gp: [68, 202], formula: true },
   },
   roster: { troll_picker: 'swarm', slate_thrower: 'glass', stable_troll: 'heavy', troll_brewer: 'regular', the_landlord: 'elite' },
   /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, tier and book value from its dropper's Level, raw). */
@@ -113,5 +120,11 @@ export default definePack({
     melee: { heal: { id: 'cooked_lobster', qty: 100 } },
     ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
+  /* THE XP FIT AND PARTY LEVEL XP (lane/d-morrow-grounds 2026-11-14, the Hold's method; quick grade, 1 seed x 1 h, every Barrow March and Morrow pack open
+     on the ladder). The median lone way read 1.08 / 1.04 of the contract at the floor and middle, so 0.96. A four of four classes read 0.54 / 0.51 of it and a
+     tank and Healer 0.79 / 0.74, so the four 1000 x 1.20 / 0.523 = 2295, the pair 1000 x 1.10 / 0.764 = 1440, the cells between at the Hold's proportions. */
+  xpFit: { k: 0.96, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
+  partyClassXp: { 2: [990, 1440], 3: [1150, 1595, 1705], 4: [1150, 2065, 2285, 2295] },
+  checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 22472 },
   map,
 });

@@ -677,6 +677,82 @@ So "Voidhide Bracers" becomes "Duskhide Bracers" and "Voidweave Slippers" become
 
 **For Tyler.** The faction names, colors, symbols, building styles and philosophies are his (2026-11-14), and so are Harry in the Last Ember, Holly leading the First Flame, the NPC villains, and the skill names Bulwark and Reap. Neither hero has a surname. No tier 8, unique gear instead (section 9). Waiting on him: the two renames above, the name Keeper Rowe, and the section 7 recommendation (Bulwark's speed at 15%, Reap's leech at 100%).
 
+#### 10. Grounds 2 and 3 drafted: the Ox Road and Wyvern Roost (designer, lane/d-morrow-grounds, 2026-11-14): STAGED packs, MEASURED, grade 0 fail on all three Morrow grounds. Nothing played by hand, no art, no map, no server work
+Tyler's brief: grounds 2 and 3 the way Carter's Rest was done, Last Ember on 1, 3, 5 and First Flame on 2, 4, 6, tier-7 leather and cloth are **Dawnhide** and **Duskweave** (his pick, so the section 9 rename table is settled). Carter's Rest's pack came onto this branch from `lane/b-carters-rest-pack` (merged, not copied) so the three can be graded together on one ladder.
+
+| Ground, band | Pays | Who lives there (role, Level) | The question each one asks | Drops (source and use) |
+|---|---|---|---|---|
+| **The Ox Road**, 112-128 (`src/data/grounds/ox_road/`) | The First Flame | **Dead Teamster** (swarm 113, Undead), **Coal Runner** (glass 116, Human), **Yoke Ox** (heavy 119, Undead), **Drover** (regular 121, Human), **Wagonmaster** (elite 125, Undead) | Trample (the Ox runs through its target and everyone lined up behind: don't stand behind the tank). Hot Coal (a thrown coal splashes the tiles around it: spread out). Goad (the Drover gets the dead back up, a mend: kill him first, or the ox). Undead take a hammer and fire, the living an arrow and poison | All eight tier-7 weapons, off Krell's last arms order in the wagons. Scarce, about an hour each: Hatchets, Wand, Warhammer, Staff. Rare, about 15 h each: Bow, Crossbow, Sword, Codex. Bones and Big Bones, Grave Dust (Hearth, Inner Flame 46), Coal, Dawnstone Ore (Dawnsteel bars, Smithing 88). Five imbuement pieces: Wagon Pin, Runner's Tin, Ox Shoe, Drover's Goad, Waybill |
+| **Wyvern Roost**, 125-142 (`src/data/grounds/wyvern_roost/`) | The Last Ember | **Wyvern Fledgling** (swarm 126), **Ledge Wyvern** (glass 130, shoots from 5 tiles), **Bull Wyvern** (heavy 133), **Crag Wyvern** (regular 136), **Brood Wyvern** (elite 140). All Dragon: an arrow, not a sword. Fire does 25% less, ice 15% more | Out-shoot the Ledge Wyvern (your bow reaches 7). Tail Sweep hits everyone next to the Bull. Fire Breath is a marked cone: the tank stands in it, everyone else steps off | No gear (no tier 8, and the uniques wait on the sample rule). Dragon Bones (Hearth, Inner Flame 35) and Dragon Scale (Hearth at Inner Flame 79, the house's top tiers, Dragon Stew): both had no source in the game until now. Five imbuement pieces: Eggshell, Gizzard Stone, Tail Spur, Fire Gland, Stolen Fleece |
+
+Every name was grepped free in `src/data`, `src/shell` and `src/app`. Every id a row names is a real row (`tests/catalogue-coherence.mjs`, `tests/hunt-core/drop-tables.mjs`). The creature and item lines are in the voice, short and plain, and nobody but me has read them yet.
+
+**Measured on the real engine.** `node tools/pack.mjs check <ground> --mode quick --with hasks_ford,the_slake,muster_barrows,pyre_field,krells_hold,carters_rest[,ox_road]`: 72 cells a ground, 1 seed x 1 h, with every Barrow March and Morrow pack open on the gear ladder, so a hero wears what the ground will have under it when it ships (tier-7 boots, legs, gloves and belts from Carter's Rest, a tier-7 weapon from the Ox Road, Krell's tier-6 body and helm, since his hall isn't on the ladder). XP is Level XP an hour per hero as a share of the pace contract.
+
+| Ground | Grade | Normal at the floor alone: tank, hammer, bow, mage | Pair, four (floor) | Deaths on Normal | Harder tiers |
+|---|---|---|---|---|---|
+| Carter's Rest, re-measured | **pass, 0 fail, 21 ok** | 0.93, 1.08, 0.99, 1.75 | 1.17, 1.28 | 0 in every cell, 5 under included | Deadly alone in melee can't be played (59 deaths). A four holds Deadly (2) |
+| The Ox Road | **pass, 0 fail, 21 ok** | 0.76, 1.13, 0.98, 1.61 | 1.17, 1.28 | 0 | The same shape. A four holds Deadly (1) |
+| Wyvern Roost | **pass, 0 fail, 21 ok** | 0.78, 0.99, 1.08, 1.54 | 1.15, 1.26 | 0 | Deadly on eight killed a four 9 times in 4 h, so Deadly brings six there (the Hold's row): now 0 |
+
+What I fitted, by the Hold's method, and nothing else: an XP fit per ground (0.96 / 0.91 / 0.94, the median lone way to about 1.0 at the middle), a party row per ground (the four at 1.2 of the median lone way, the pair at 1.1; the first grade read the four at 0.48-0.54 with no row, the same hole Carter's Rest had), and Deadly brings six on the Roost. The drop chances are fitted on the floor hour's kills (`tests/hunt-core/drop-tables.mjs`, a lone tank in its full set): every Scarce piece lands every 0.78-1.48 h, every Rare every 13.9-15.2 h.
+
+**What the numbers say.**
+1. **Each ground's weapon reads.** The hammer is the best lone melee on the Ox Road (1.13, Undead) and the bow the best lone way after the Mage on the Roost (1.08, Dragon). Carter's Rest's sword ground has the tank at its best of the three (0.93).
+2. **The Mage is still way out** (1.54-1.75 alone on Normal, never under 95% HP). That's three Morrow grounds and Krell's Hold saying the same thing, so it's the Mage at Level 110+, not a ground. It needs its own look. I didn't tune it here.
+3. **The Roost pays the least gold.** A lone hero at the floor nets a median 6.4k an hour (a tank -3.5k, a hammer -10.4k) against 20.5k on the Ox Road. Printed, never graded (NO PROFIT MOLDS, 11-13). It's the XP ground, and Dragon Scales sell.
+4. **The quick grade is a first read.** One seed and one hour a cell, four lone ways. The full grade (8 ways, 6 seeds x 4 h) is owed before any of the three opens.
+
+**Changed on Carter's Rest (it's on this branch now).** Its tier-7 gloves and belts are Rares now (the Shop sells a glove and a belt, so a ground drops those only as Rares, `tests/hunt-core/forest-cave.mjs` shop-outfits-defense, the Hold's pattern). Its weights are the head-count at a pull of 4, its drop chances are fitted, it has two coal seams standing in for a Dawnstone Vein, and it has an XP fit and a party row. So section 8's "the first day: boots, gloves and legs" becomes boots and legs. The pack lane's own branch never ran forest-cave or drop-tables: both were red on it.
+
+**What the guards had to learn (all in this lane).** `tests/hunt-core/drop-tables.mjs` build-coverage asked every ground for a helmet, body, legs and boots in each weight, which is the tier ladder. Tyler ruled there's no tier 8, so a ground whose floor is 110 or more is past it (`UNIQUE_GEAR_FROM`). A mutant that moves the end past the Morrow Hills turns it red on Carter's Rest (seen: EXIT 1, then back to EXIT 0). `src/data/grounds/shape.js` learns `region` and `standingFor` on a pack's hunt row (they come as a pair, `standingFor` is `first_flame` or `last_ember`). The per-region balance guard (`tests/faction-ground-balance.mjs`) is still the faction lane's. `src/data/catalogue-coherence.js`: tier-7 boots, gloves, legs and belts leave AWAITING_ROSTER for `staged`, and Troll Hide, Dragon Bones and Dragon Scale leave `later` (ceiling 64 to 61).
+
+**Walk-through: the Ox Road.** A Level 112 hero coming off Carter's Rest, on the Hold's bar (`cooked_lobster`, `carrot_juice`, `barbed_arrows`, `chalked_poison_rune`).
+
+| Step | Does | Has from earlier steps | Doable? |
+|---|---|---|---|
+| 1 | Reaches 112 on Carter's Rest | Carter's Rest | Not yet. Staged |
+| 2 | Opens Hunts, sees The Ox Road 112-128 | Level 112 | Yes once it opens |
+| 3 | A caster swaps the poison rune for `chalked_fire_rune` (three of five are Undead) | The Hold's bar | Yes, a real rune Fireball already uses |
+| 4 | Enters at Holly's Vigil, first pull two Dead Teamsters | Step 2 | Not yet. Wickstead's layout stands in, no art, no Vigil |
+| 5 | First kills: coin, Bones, Grave Dust | Step 4 | Yes, real rows |
+| 6 | Burns the Grave Dust at the Great Hearth | Step 5 | Yes, Inner Flame 46 (`hearth.js`) |
+| 7 | A Yoke Ox Tramples the tank and the Healer standing behind him | Step 4 | Yes, the line row plays on the grade |
+| 8 | A Drover gets a Teamster back up, and the player wants the bar to go for him first | Step 4 | **Partly.** The mend plays. The bar's Target has Nearest, Lowest HP, Highest % life, Strongest and Follow the leader, so there's no way to say "the Drover first". Krell's Pyre Priest has the same gap |
+| 9 | A tier-7 weapon within the hour or so | Step 5 | Yes, 0.78-1.48 h a piece |
+| 10 | Smelts Dawnstone Ore into Dawnsteel bars | Step 5 | Yes, `smelt_dawn` at Smithing 88 (an Emberforged bar and 5 coal a bar) |
+| 11 | Earns First Flame standing | A join at Krell | Needs the settle hook (the faction lane) |
+
+**Walk-through: Wyvern Roost.** A Level 125 hero off the Ox Road, the same bar.
+
+| Step | Does | Has from earlier steps | Doable? |
+|---|---|---|---|
+| 1 | Sees Wyvern Roost 125-142: "Bring a bow, because a sword barely scratches them" | Level 125 | Yes once it opens |
+| 2 | A caster swaps to `chalked_ice_rune` | Step 1 | Yes, Frost Lance's rune |
+| 3 | Enters at Harry's Camp, fledglings off the scree | Step 1 | Not yet. Stand-in map, no art, no cart |
+| 4 | Coin and Dragon Bones, burned at the Hearth | Step 3 | Yes, Inner Flame 35 |
+| 5 | A Ledge Wyvern spits at the back line | Step 3 | Yes, `range: 5`, the Lookout's piece |
+| 6 | The Bull's Tail Sweep, the Crag's Fire Breath | Step 3 | Yes, the ring and cone rows |
+| 7 | Dragon Scales from the big three | Step 3 | Yes. Hearth at Inner Flame 79 and the house's top tiers. Dragon Stew needs the Marrow Cookbook, which has no source |
+| 8 | Wants a gear upgrade | Step 3 | **No. A dead moment.** Nothing here drops gear until the bow's uniques and the Roost Mother land |
+| 9 | Earns Last Ember standing | A join at Krell | Needs the settle hook |
+
+Three steps on each ground wait on art and the map, and one on the faction lane. The Roost's step 8 is a design gap, not a build gap.
+
+**Art, for the art pipeline (`node tools/pack.mjs art <ground>`, no generation in this lane).** Each ground owes 16 pieces, about 184-240 generations for the Ox Road and 200-210 for the Roost by the tool's prices. Sample first: the Dead Teamster and one Yoke Ox in harness, read at x2 beside Krell's Hold, and the Wyvern Fledgling beside the Bull for the size ladder.
+
+| Ground | Bodies (5 each) | Icons | Tiles and props (not in the tool's count, the map is a stand-in) |
+|---|---|---|---|
+| The Ox Road | Dead Teamster, Yoke Ox, Wagonmaster (`body_object`); Coal Runner, Drover (`body_character`) | 5 heads, 5 drops (Wagon Pin, Runner's Tin, Ox Shoe, Drover's Goad, Waybill) | A region kit row (`region-kits.js`, none claims it yet). Road ruts, stopped ore wagons, a broken bridge, Holly's brazier and wood stack |
+| Wyvern Roost | All five `body_object`: one wyvern body plan in three sizes (Fledgling, Ledge and Crag, Bull and Brood), the Brood on a nest | 5 heads, 5 drops (Eggshell, Gizzard Stone, Tail Spur, Fire Gland, Stolen Fleece) | A region kit row. Crag ledges, scree, nests, burnt rock, Harry's cart moved up from Carter's Rest |
+
+**Open questions.**
+1. **The Roost's gear.** It drops none. The bow's uniques and the Roost Mother's pieces (section 9) are the plan, and the sample rule holds them behind Carter's Rest's five. Until then the Roost's chase is XP, the bestiary and Dragon Scales. I'd sooner open it with nothing than invent a sixth unique ahead of the sample.
+2. **Dragon Scale flow.** About 20 an hour for a lone floor hero, and each one is 855 Inner Flame XP at 79. Fine for a late skill, but whoever owns the Hearth should look at it beside the Night Shift's Dawnstone.
+3. **Target by kind.** The Ox Road's Drover and Krell's Pyre Priest both ask "kill the mender first", and the bar can't say it. That's a Systems piece, and it's the first-principle kind (set it once per ground).
+4. **The Mage at 110+** (point 2 above), for its own lane.
+5. **The old Wyvern row.** `monsters.js` still has a tier-4 Wyvern (no ground) and the tier-5 leather set is called Wyvernhide. Neither touches the Roost, but a player will notice the leather name once real wyverns live at 125.
+
 ### 2026-11-13 Under-Level pairs and the fresh hero's dips (designer, lane/d-live-grounds-2, the plan's #3 and #1 below): MEASURED on the full grade; the dips were a GRADER artefact (fixed in the grader, the Glade crow withdrawn); the under-Level rule CAN'T be met with monster stats on the three grounds under 16. **Tyler: one call**
 **#1, the fresh melee hero's dips under 25% HP: not real.** The grader played every cell in 120 s settle cuts and `cell.mjs` spreads a cut's regeneration evenly over it, so regeneration lost at full HP early in a cut reads as HP missing later. The same fights read in 10 s cuts (the live cadence) show the same XP and gold to the unit and **zero** dips: the Thicket's fresh melee 7/6/3/3 -> 0, the Glade's lone Rangers 47 in 96 h -> 0 (at the crow's old 4.4 too). Proof that it was the trace and not the fight: lowering every Thicket monster's to-hit 10% moved the 120 s dips not at all (35 -> 33). Fix: `tools/balance-sim/grade.mjs windowFor` reads a lone cell at 10 s (same run time, 8-13 s a cell); parties keep 120 s, since no rule reads a party's dips. Regression `lone-window` in `tests/balance-grade.mjs` (the old 120 s turns it red, read). **Yesterday's Glade crow change is WITHDRAWN** (speed back to 4.4): it fixed a number that wasn't there. If its hr-accrue was deployed, the next deploy puts it back; if not, nothing moves.
 Re-graded FULL with the fixed grader: Thicket 37 -> 32 FAIL (5 fresh-dips gone), Wickstead 26 -> 24, the Glade 4 FAIL + 1 unproven -> 4 FAIL (its pooled dips read 0, interval 0-0.23), the Sewer 21 -> 21 (its lone sword's low point now reads 58% against 60, advisory on a party ground). Player-felt checks: zero on all four, as before.

@@ -2768,6 +2768,11 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           'mosslight_glade::Level 16–31:far:Far above your level::No best yet:Alone or with up to 3 more',
           'coppercap_warrens::Level 32–50:far:Far above your level::No best yet:Alone or with up to 3 more'];
         if (list.join('|') !== want.join('|')) fails.push('AW-25 the list lines read ' + JSON.stringify(list));
+        /* AW-25 THE DOTS ARE TEXT (lane a-first-board-copy, the class of "Paid today 0 of 3resets"): a reader gets the line as it looks, and the
+           picked ground's page reads its band the same way */
+        const readLine = await page.evaluate((w) => { const li = document.querySelector(w + '.hw-hunt[data-hunt="mill_cellar"]');
+          return [li.querySelector('.hw-hunt-band').innerText, li.querySelector('.hw-hunt-sub').innerText, document.querySelector(w + '.hw-hd-band')?.innerText]; }, W);
+        if (readLine[0] !== 'Level 1–8 · In your range' || !/^Right for your level[  ]· No best yet$/.test(readLine[1]) || !/ · In your range$/.test(readLine[2] || '')) fails.push('AW-25 a reader gets ' + JSON.stringify(readLine));
         /* The picked ground's page: who lives here as the world draws them, at a whole-number scale on one ground line. */
         const page1 = () => page.evaluate((w) => {
           const d = document.querySelector(w + '.hw-hunt-detail');
@@ -4479,6 +4484,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
+  ['AW-25 a list line\'s band and its fit run together in text', 'src/shell/windows/hunts.js', "prop(band.previousElementSibling, 'hidden', !fit || !fit.words);", "prop(band.previousElementSibling, 'hidden', true);"],
+  ['AW-25 a list line\'s tag and best run together in text', 'src/shell/windows/hunts.js', "prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', !tag || !best);", "prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', true);"],
+  ['AW-25 the page\'s band and its fit run together in text', 'src/shell/windows/hunt-detail.js', "prop(band.querySelector('.hw-hunt-sep'), 'hidden', !fitWordsShown);", "prop(band.querySelector('.hw-hunt-sep'), 'hidden', true);"],
   ['AW-25 the area casters back on each card (it grows a line)', 'src/shell/windows/hunt-detail.js', "(m.boss ? 'boss' : m.band);", "(m.boss ? 'boss' : m.band) + (m.casts && m.casts.length ? ' · casts ' + m.casts.join(' and ') : '');"],
   ['AW-25 the casters note is never shown', 'src/shell/windows/hunt-detail.js', "prop(det.querySelector('.hw-hd-casts'), 'hidden', !casts);", "prop(det.querySelector('.hw-hd-casts'), 'hidden', true);"],
   ['AW-93 a docked window stops above the bar on a short World again', 'src/shell/window-manager.js', 'return Number.isFinite(cap) && cap < DOCK_ROOM_PX && need > cap;', 'return false && need > cap;'],

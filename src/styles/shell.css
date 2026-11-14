@@ -276,7 +276,6 @@
 .hs-win-head:has(> .hs-back:not([hidden])) > .hs-win-title { letter-spacing: .04em; }
 /* A page's path: its host's name, dim, then the page's own. */
 .hs-win-crumb { color: var(--ink-3); }
-.hs-win-crumb::after { content: ' \203A  '; }
 .hs-win-crumb[hidden] { display: none; }
 /* The help line under the band, folded until ? is pressed. */
 .hs-win-help { margin: 0; padding: 8px 12px; flex: none; background: var(--fill-0); border-bottom: 2px solid var(--steel-rule);

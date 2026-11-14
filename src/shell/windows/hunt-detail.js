@@ -47,7 +47,7 @@ const asked = new Set();
 /** The page's skeleton: the ground's facts (this module) and the slots hunts.js fills. */
 export function detailHtml() {
   return '<header class="hw-hd-head">'
-    + '<h3 class="hw-hd-name"></h3><p class="hw-hd-band"><span class="hw-hd-levels"></span><span class="hw-hunt-fit"></span></p>'
+    + '<h3 class="hw-hd-name"></h3><p class="hw-hd-band"><span class="hw-hd-levels"></span><span class="hw-hunt-sep" hidden> · </span><span class="hw-hunt-fit"></span></p>'
     + '<p class="hw-hd-who"></p><div class="hw-hd-events"></div><p class="hw-hunt-warn"></p></header>'
     + '<h4 class="hw-hd-h">Who lives here</h4><ul class="hw-hd-lineup" aria-label="Who lives here"></ul><p class="hs-note hw-hd-casts" hidden></p><p class="hs-note hw-hd-bigpull" hidden></p>'
     /* the ground's words under who lives there: on a short screen the first row of creatures shows whole (Tyler 2026-11-11) */
@@ -159,7 +159,10 @@ export function patchGround(det, ctx, r, o) {
   const band = det.querySelector('.hw-hd-band');
   text(band.querySelector('.hw-hd-levels'), bandWords(r, level));
   const fitEl = band.querySelector('.hw-hunt-fit');
-  text(fitEl, fit && (fit.tone === 'in' || fit.tone === 'below') ? fit.words : '');
+  const fitWordsShown = fit && (fit.tone === 'in' || fit.tone === 'below') ? fit.words : '';
+  text(fitEl, fitWordsShown);
+  /* the dot is text, so a reader gets "Level 1–8 · In range", not "1–8In range" */
+  prop(band.querySelector('.hw-hunt-sep'), 'hidden', !fitWordsShown);
   attr(fitEl, 'data-tone', fit ? fit.tone : null);
   text(det.querySelector('.hw-hd-who'), heroWords(r) + '.');
   /* A live event that reaches this ground, the server's (live-events-view.js): nothing at all while every switch is off. */

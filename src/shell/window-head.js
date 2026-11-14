@@ -91,7 +91,8 @@ export function paintHead(frame, ctx, renderers) {
   const page = pageId ? wm.row(pageId) : null;
   const crumb = frame.querySelector(':scope > .hs-win-head .hs-win-crumb');
   attr(crumb, 'hidden', !page);
-  text(crumb, page ? (row.title || row.label) : '');
+  /* the arrow is text, so a reader gets "Hunts › Mill Cellar", not "HuntsMill Cellar" */
+  text(crumb, page ? (row.title || row.label) + ' › ' : '');
   text(frame.querySelector(':scope > .hs-win-head .hs-win-name'), page ? (page.title || page.label) : (row.title || row.label));
 }
 

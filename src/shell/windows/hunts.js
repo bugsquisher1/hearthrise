@@ -202,8 +202,9 @@ function lineHtml(r, glyphs) {
   return '<li class="hw-hunt" role="option" data-hs-act="pick" data-hunt="' + esc(r.hunt) + '" tabindex="-1">'
     + '<span class="hw-hunt-glyph" title="' + esc(heroWords(r)) + '">' + glyphSvg(glyphs, 'uiPeople') + '</span>'
     + '<span class="hw-hunt-main"><b class="hw-hunt-name">' + esc(r.name) + '</b>'
-    + '<small class="hw-hunt-band"><span class="hw-hunt-lv">Level ' + r.band[0] + '–' + r.band[1] + '</span><span class="hw-hunt-fit"></span></small>'
-    + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span><span class="hw-hunt-bestline"></span></small>'
+    + '<small class="hw-hunt-band"><span class="hw-hunt-lv">Level ' + r.band[0] + '–' + r.band[1] + '</span><span class="hw-hunt-sep" hidden> · </span><span class="hw-hunt-fit"></span></small>'
+    /* the separators are text (a reader got "Level 1–8In range"); the second keeps to the line it ends: a wrapped line never starts with a dot */
+    + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span><span class="hw-hunt-sep" hidden> · </span><span class="hw-hunt-bestline"></span></small>'
     + '<small class="hw-hunt-tally"></small><span class="hw-hunt-events"></span></span></li>';
 }
 
@@ -265,8 +266,11 @@ renderHunts.patch = function patchHunts(body, ctx) {
       const band = li.querySelector('.hw-hunt-fit');
       text(band, fit ? fit.words : '');
       attr(band, 'data-tone', fit ? fit.tone : null);
-      text(li.querySelector('.hw-hunt-fits'), adviceTag(r, rec, step, !!party));
-      text(li.querySelector('.hw-hunt-bestline'), bestLine(bests, r.hunt) || '');
+      prop(band.previousElementSibling, 'hidden', !fit || !fit.words);
+      const tag = adviceTag(r, rec, step, !!party), best = bestLine(bests, r.hunt) || '';
+      text(li.querySelector('.hw-hunt-fits'), tag);
+      text(li.querySelector('.hw-hunt-bestline'), best);
+      prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', !tag || !best);
       /* Tamsin's tallies held on this ground, the server's count ("Gray Wolves 112/200"). */
       text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(' · '));
       /* A live event on this ground or its boss, the server's (live-events-view.js rowLines): Open Halls frees its call out. */

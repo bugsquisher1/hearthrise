@@ -6,7 +6,7 @@
 //   node tests/tally-window.mjs --mutate   every planted defect must turn a rule RED
 //   node tests/tally-window.mjs --shots <dir>   also write TW-11's screenshots (moved, folded; desktop and phone)
 //
-// mutant-anchors: src/shell/windows/tally.js src/session/tally-sections.js src/session/tally-intents.js src/shell/windows/hunts.js src/shell/shell.js src/shell/widgets/tally-hud.js src/shell/widget-move.js src/shell/hud-room.js
+// mutant-anchors: src/shell/windows/tally.js src/session/tally-sections.js src/session/tally-intents.js src/shell/windows/hunts.js src/shell/shell.js src/shell/widgets/tally-hud.js src/shell/widget-move.js src/shell/hud-room.js src/styles/windows.css
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus a `tally` section
@@ -54,7 +54,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile, mkdir, readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
@@ -200,6 +200,29 @@ const STATE = () => { const w = document.querySelector('[data-hs-win="tally"]');
     first: e && { task: e.getAttribute('data-task'), cut: e.querySelectorAll('.ht-five i.is-cut').length, done: e.classList.contains('is-done'), get: e.querySelector('.ht-get').textContent, where: e.querySelector('.ht-where').textContent },
     takes: Array.from(w.querySelectorAll('.ht-take')).map((b) => b.disabled) }; };
 
+/* TW-18 NO WORDS OR SEPARATORS DRAWN BY CSS (lane a-first-board-copy, 2026-11-13: "Paid today 0 of 3resets in 24 h", "Mill CellarLevel 1",
+   "HuntsMill Cellar"): a `content:` text is invisible to page text, copy and screen readers, so a dot, arrow-between-words or label is markup.
+   Allowed: '' (a box), ONE icon glyph standing alone on a control (a fold triangle, a page chevron), and the launcher's hover tip, which
+   repeats its button's own label (CSS_CONTENT_OK). Pure: reads src/styles/*.css (or `overrides`). */
+const ICON_GLYPH = /^(?:\\(?:203[9A]|25B[48ACE]|25C[24])|[‹›▴▸▾◂])$/i;
+const CSS_CONTENT_OK = new Set(['src/styles/shell.css|attr(data-tip) "  " attr(data-key)']);
+async function cssWords(overrides) {
+  const out = [];
+  const dir = join(ROOT, 'src/styles');
+  for (const name of (await readdir(dir)).filter((n) => n.endsWith('.css')).sort()) {
+    const f = 'src/styles/' + name;
+    const src = (overrides && overrides[f] !== undefined ? overrides[f] : await readFile(join(dir, name), 'utf8')).replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const m of src.matchAll(/(?:^|[;{\s])content:\s*([^;}]+)/g)) {
+      const v = m[1].trim();
+      if (v === 'none' || v === 'normal' || /^(['"])\1$/.test(v) || CSS_CONTENT_OK.has(f + '|' + v)) continue;
+      const lit = v.match(/^(['"])(.*)\1$/);
+      if (lit && ICON_GLYPH.test(lit[2])) continue;
+      out.push(f + ' draws ' + v + ' in CSS: make it text in the markup');
+    }
+  }
+  return out;
+}
+
 async function checks(overrides, shots) {
   const fails = [];
   for (const f of COPY_FILES) {
@@ -209,6 +232,7 @@ async function checks(overrides, shots) {
     const hit = strings.find((s) => OLD_WORDS.test(s));
     if (hit) fails.push('TW-9 ' + f + ' still says ' + hit);
   }
+  for (const f of await cssWords(overrides)) fails.push('TW-18 ' + f);
   const { server, port } = await serve(overrides);
   const browser = await leaseBrowser(chromium);
   const W = '[data-hs-win="tally"] ';
@@ -755,6 +779,8 @@ const MUTANTS = [
   ['a slot chip sends the old order', 'src/shell/windows/tally.js', "    order.splice(i, 1);\n    order.unshift(s);", "    order.splice(i, 1);\n    order.push(s);"],
   ['the day count hides its reset', 'src/shell/windows/tally.js', "text(root.querySelector('.ht-day-new'), left ? t('tally.day_resets', { left }) : '');", "text(root.querySelector('.ht-day-new'), '');"],
   ['the day count and its reset run together in text', 'src/shell/windows/tally.js', "prop(root.querySelector('.ht-day-sep'), 'hidden', !tally || !left);", "prop(root.querySelector('.ht-day-sep'), 'hidden', true);"],
+  /* TW-18: a separator drawn by CSS again (the old .hw-hunt-fit dot) */
+  ['a CSS content draws a separator again', 'src/styles/windows.css', '.hw-hunt-sep { font-weight: 400; color: var(--ink-3); }', ".hw-hunt-sep { font-weight: 400; color: var(--ink-3); }\n.hw-hunt-fit:not(:empty)::before { content: ' · '; }"],
   ['an entry\'s count runs together in text', 'src/shell/windows/tally.js', '<span class="ht-count"><b></b> <small></small></span>', '<span class="ht-count"><b></b><small></small></span>'],
   ['a row\'s ground and its Level run together in text', 'src/shell/windows/tally.js', "prop(li.querySelector('.ht-row-sep'), 'hidden', !lvl);", "prop(li.querySelector('.ht-row-sep'), 'hidden', true);"],
   ['held tasks stay on her board', 'src/shell/windows/tally.js', "rows(root.querySelector('.ht-list'), board.filter((r) => !r.held),", "rows(root.querySelector('.ht-list'), board,"],

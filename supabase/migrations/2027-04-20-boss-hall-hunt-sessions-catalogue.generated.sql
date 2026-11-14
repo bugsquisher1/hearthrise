@@ -8,17 +8,25 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: d687ff1fae140d76eeb4e22161a5de0dd8ea225ef87f597eecd7dd5032d67504
+--   digest: 2fa5507c5fe453ccc6bf25dcd827ea534d0dca8a859abf8e88eec0283f375a15
 --   82 supplies, 138 hunts (named + training), 47 limits, 16 end reasons,
---   559 vendor values, 49 store supplies paid per use, 5 target modes,
+--   567 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 21 abilities, 10 action-set options, 16 hunt grounds
 --
--- NEW IN THIS FILE (lane/b-barrow-boss-room, the Krell's Hold design's engine piece 5; src/data/boss-halls.js): the keyed halls' table, hr_boss_halls (the
--- room a Hall Key opens, the boss whose kill ends it, the key it spends, its limit), which hr_hunt_admit, hr_boss_hall_enter and the settle's proof of a
--- room's ends read (2027-04-20-boss-hall.sql, which applies right after this file). The data holds no hall yet, so the table is empty; a hall's
--- room, its rows' kill bounds and its drops join the tables above like any ground's the day a pack carries one. No other row, bound, limit, end
--- reason or world shape moves. ORDER: after 2027-04-16-combat-training-hunt-sessions-catalogue.generated.sql (carried whole), right before
--- 2027-04-20-boss-hall.sql. The hr-accrue that plays a hall may land on either side of it: no hall exists to open.
+-- NEW IN THIS FILE (lane/b-barrow-integrate, 2026-11-14; from lane/b-barrow-boss-room, the Krell's Hold design's engine piece 5, src/data/boss-halls.js,
+-- and lane/d-barrow-data): the keyed halls' table, hr_boss_halls (the room a Hall Key opens, the boss whose kill ends it, the key it spends, its limit),
+-- which hr_hunt_admit, hr_boss_hall_enter and the settle's proof of a room's ends read (2027-04-20-boss-hall.sql, which applies right after this file).
+-- It is EMPTY: the one hall in the data is Lord Krell's, his pack is staged, and a staged pack is served nowhere; his room, its rows' kill bounds and its
+-- drops join the tables above like any ground's the day the pack opens. THE BARROW DATA (lane/d-barrow-data): hr_hunt_vendor_value gains the eight new
+-- weapons (559 -> 567) and every tier-7 gear bid moves DOWN from 0.015 to 0.007 of book (loot-bands.js VENDOR_GEAR_RATES tier 7; no tier-7 item has a
+-- reachable source today); hr_hunt_weapons gains seven weapons (69 -> 76). No ground, monster, kill bound, spawn, limit, end reason or world shape
+-- moves: all five Barrow March grounds are staged and stand in no table here. ORDER: after 2027-04-20-bear-purse-hunt-sessions-catalogue.generated.sql
+-- (carried whole) and 2027-04-17-barrow-data-items-catalogue.generated.sql (the self-check wants the weapons in hr_items), right before
+-- 2027-04-20-boss-hall.sql; then the hr-accrue carrying the same loot-bands.js. That hr-accrue may land on either side of the hall: none exists to open.
+--
+-- CARRIED FROM 2027-04-20-bear-purse-hunt-sessions-catalogue (lane/d-no-profit-molds, designer 2026-11-13; Tyler 2026-11-13 NO PROFIT MOLDS): ONE row of
+-- hr_hunt_kill_bounds. The Brook Bear's hand-kept purse [13, 40] served the Glade's retired +10% profit floor; it reads the formula's [11, 32], so its coin
+-- bound is 32. The hr-accrue carrying the same monsters.js lands FIRST (its bear rolls at most 32, under both bounds).
 --
 -- CARRIED FROM 2027-04-16-combat-training-hunt-sessions-catalogue (lane/c-combat-training, Tyler 2026-11-08: "a public yard paid by the hour" and "a personal training dummy for houses"; src/data/training.js):
 -- the eight training grounds (yard and house, one per trained skill: melee, ranged, magic, defense) in hr_hunt_grounds, hr_hunt_ground_spawns and
@@ -658,7 +666,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('bog_vine', 42, 209, '{"willow_log":1,"silk_thread":1,"moonbloom":1,"steel_gauntlets":1}'::jsonb),
   ('briarcoat_wolf', 7, 91, '{"wolf_pelt":1,"bones":1,"briar_burr":1,"bronze_platelegs":1,"leather_pants":1,"apprentice_pants":1}'::jsonb),
   ('broodmother', 572, 1728, '{"silk_thread":1,"spider_eye":1,"void_chitin":1,"swarm_heart":1,"shadow_thread":1,"chitinweave_cloak":1}'::jsonb),
-  ('brook_bear', 40, 316, '{"raw_bear_meat":1,"bear_pelt":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb),
+  ('brook_bear', 32, 316, '{"raw_bear_meat":1,"bear_pelt":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb),
   ('carnivorous_plant', 100, 465, '{"maple_log":1,"moonbloom":1,"goldenroot":1,"emberfruit":1}'::jsonb),
   ('carrion_crow', 19, 154, '{"bone_chips":1,"crow_quill":1,"iron_boots":1,"studded_boots":1,"adept_boots":1}'::jsonb),
   ('carrion_swarm', 236, 857, '{"plague_ichor":1,"swarm_heart":1,"venom_sac":1}'::jsonb),
@@ -922,6 +930,7 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('bronze_sword', 'sword'),
   ('captains_ribblade', 'sword'),
   ('chief_blade', 'sword'),
+  ('dawn_hatchets', 'axe'),
   ('dawn_sword', 'sword'),
   ('dawn_warhammer', 'hammer'),
   ('demoncaller_staff', 'staff'),
@@ -929,7 +938,10 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('dragonrend_greatblade', 'sword'),
   ('dragonrib_bow', 'ranged'),
   ('duskwood_bow', 'ranged'),
+  ('duskwood_crossbow', 'ranged'),
   ('duskwood_staff', 'staff'),
+  ('duskwood_wand', 'wand'),
+  ('ember_hatchets', 'axe'),
   ('ember_sword', 'sword'),
   ('ember_warhammer', 'hammer'),
   ('emberfang_blade', 'sword'),
@@ -960,9 +972,11 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('practice_sword', 'sword'),
   ('practice_wand', 'wand'),
   ('rat_stick', 'hammer'),
+  ('rune_hatchets', 'axe'),
   ('rune_sword', 'sword'),
   ('rune_warhammer', 'hammer'),
   ('runewood_bow', 'ranged'),
+  ('runewood_crossbow', 'ranged'),
   ('runewood_staff', 'staff'),
   ('runewood_wand', 'wand'),
   ('shortbow', 'ranged'),
@@ -981,6 +995,7 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('willow_staff', 'staff'),
   ('willow_wand', 'wand'),
   ('yew_bow', 'ranged'),
+  ('yew_crossbow', 'ranged'),
   ('yew_staff', 'staff'),
   ('yew_wand', 'wand');
 delete from public.hr_hunt_weapon_roles;
@@ -1246,7 +1261,7 @@ alter table public.player_state add constraint player_state_last_activity_ck
          and (last_activity_id is null or last_activity_id ~ '^[a-z0-9_]{1,64}$'));
 delete from public.hr_hunt_vendor_value;
 insert into public.hr_hunt_vendor_value (item_id, unit) values
-  ('abyssal_greaves', 2970),
+  ('abyssal_greaves', 1386),
   ('abyssal_pearl', 3400),
   ('adept_belt', 37),
   ('adept_body', 82),
@@ -1341,7 +1356,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('chitin_pants', 173),
   ('chitinweave_cloak', 228),
   ('choirbone', 3800),
-  ('choirbone_gauntlets', 945),
+  ('choirbone_gauntlets', 441),
   ('cistern_venom_gland', 8),
   ('coal', 2),
   ('cooked_bear_meat', 42),
@@ -1370,25 +1385,26 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('coppercaps_tallow', 20),
   ('cracked_spellstone', 260),
   ('crow_quill', 6),
-  ('crown_of_the_fallen_king', 255),
+  ('crown_of_the_fallen_king', 119),
   ('crown_shard', 150),
   ('culvert_bat_fang', 6),
   ('dark_sigil', 180),
   ('dawn_axe', 540),
   ('dawn_bar', 210),
-  ('dawn_belt', 432),
-  ('dawn_boots', 432),
-  ('dawn_gauntlets', 378),
-  ('dawn_helm', 648),
+  ('dawn_belt', 201),
+  ('dawn_boots', 201),
+  ('dawn_gauntlets', 176),
+  ('dawn_hatchets', 252),
+  ('dawn_helm', 302),
   ('dawn_pickaxe', 540),
-  ('dawn_platebody', 1620),
-  ('dawn_platelegs', 1188),
-  ('dawn_sword', 540),
-  ('dawn_warhammer', 594),
+  ('dawn_platebody', 756),
+  ('dawn_platelegs', 554),
+  ('dawn_sword', 252),
+  ('dawn_warhammer', 277),
   ('dawn_whetstone', 100),
-  ('dawnbound_amulet', 1080),
-  ('dawnforged_signet', 1080),
-  ('dawnlit_mantle', 1296),
+  ('dawnbound_amulet', 504),
+  ('dawnforged_signet', 504),
+  ('dawnlit_mantle', 604),
   ('dawnpoint_arrows', 6),
   ('dawnsteel_rod', 58000),
   ('dawnstone_ore', 19),
@@ -1401,7 +1417,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('dire_hackle', 5),
   ('dragon_bones', 2),
   ('dragon_gem', 2000),
-  ('dragon_gem_earrings', 360),
+  ('dragon_gem_earrings', 168),
   ('dragon_relic', 5000),
   ('dragon_scale', 100),
   ('dragon_stew', 780),
@@ -1412,14 +1428,17 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('dragonhide_gloves', 95),
   ('dragonhide_helmet', 163),
   ('dragonhide_pants', 300),
-  ('dragonrend_greatblade', 264),
+  ('dragonrend_greatblade', 123),
   ('dragonrib_bow', 204),
   ('dry_husk', 1),
-  ('duskwood_bow', 567),
+  ('duskwood_bow', 264),
+  ('duskwood_codex', 201),
+  ('duskwood_crossbow', 252),
   ('duskwood_log', 20),
   ('duskwood_plank', 50),
   ('duskwood_rod', 23000),
-  ('duskwood_staff', 540),
+  ('duskwood_staff', 252),
+  ('duskwood_wand', 226),
   ('elderscale_heart', 9000),
   ('elderscale_platebody', 59400),
   ('ember_axe', 280),
@@ -1427,6 +1446,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('ember_belt', 156),
   ('ember_boots', 156),
   ('ember_gauntlets', 136),
+  ('ember_hatchets', 195),
   ('ember_helm', 234),
   ('ember_pickaxe', 280),
   ('ember_platebody', 585),
@@ -1594,7 +1614,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('raw_panther_meat', 1),
   ('raw_wolf_meat', 1),
   ('razor_claw', 72),
-  ('regent_helm', 1620),
+  ('regent_helm', 756),
   ('riftmaw_carapace', 41580),
   ('riftmaw_husk', 4200),
   ('river_chowder', 380),
@@ -1616,6 +1636,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('rune_frag', 6),
   ('rune_gauntlets', 103),
   ('rune_hammer', 9200),
+  ('rune_hatchets', 148),
   ('rune_helm', 178),
   ('rune_knife', 9200),
   ('rune_needle', 9200),
@@ -1627,6 +1648,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('rune_whetstone', 20),
   ('runewood_bow', 204),
   ('runewood_codex', 156),
+  ('runewood_crossbow', 195),
   ('runewood_log', 12),
   ('runewood_plank', 50),
   ('runewood_rod', 9500),
@@ -1654,7 +1676,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('silverfin', 4),
   ('skulkers_shiv', 15),
   ('slagheart_core', 3200),
-  ('slagheart_platebody', 4050),
+  ('slagheart_platebody', 1890),
   ('slime_gel', 1),
   ('sluice_crust', 10),
   ('small_fang', 3),
@@ -1736,24 +1758,24 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('void_core', 2200),
   ('void_essence', 3000),
   ('voidheart_robe', 41580),
-  ('voidhide_belt', 302),
-  ('voidhide_body', 1134),
-  ('voidhide_boots', 302),
-  ('voidhide_gloves', 264),
-  ('voidhide_helmet', 453),
-  ('voidhide_pants', 831),
+  ('voidhide_belt', 141),
+  ('voidhide_body', 529),
+  ('voidhide_boots', 141),
+  ('voidhide_gloves', 123),
+  ('voidhide_helmet', 211),
+  ('voidhide_pants', 388),
   ('voidmaw_scepter', 32500),
-  ('voidweave_belt', 302),
-  ('voidweave_body', 1134),
-  ('voidweave_boots', 302),
-  ('voidweave_gloves', 264),
-  ('voidweave_helmet', 453),
-  ('voidweave_pants', 831),
+  ('voidweave_belt', 141),
+  ('voidweave_body', 529),
+  ('voidweave_boots', 141),
+  ('voidweave_gloves', 123),
+  ('voidweave_helmet', 211),
+  ('voidweave_pants', 388),
   ('voidwoven_sigil', 5000),
   ('war_crown', 2500),
   ('warband_bulwark', 980),
   ('warboss_standard', 1200),
-  ('warden_girdle', 1080),
+  ('warden_girdle', 504),
   ('warden_seal', 4400),
   ('warlock_belt', 63),
   ('warlock_body', 236),
@@ -1791,7 +1813,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('wraithglass_drops', 112),
   ('wraithsilk_shroud', 343),
   ('wyrm_gilding', 5200),
-  ('wyrmgilt_mantle', 1350),
+  ('wyrmgilt_mantle', 630),
   ('wyvernhide_belt', 83),
   ('wyvernhide_body', 311),
   ('wyvernhide_boots', 83),
@@ -1799,6 +1821,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('wyvernhide_helmet', 124),
   ('wyvernhide_pants', 228),
   ('yew_bow', 155),
+  ('yew_crossbow', 148),
   ('yew_log', 9),
   ('yew_plank', 27),
   ('yew_rod', 3500),
@@ -1823,7 +1846,7 @@ insert into public.hr_training_grounds (hunt_id, place, skill, ord, fee, xp_perm
   ('training_yard_magic', 'yard', 'magic', 2, true, 340),
   ('training_yard_defense', 'yard', 'defense', 3, true, 215);
 delete from public.hr_boss_halls;
--- (no keyed hall in the data: src/data/boss-halls.js)
+-- (no open keyed hall in the data: src/data/boss-halls.js OPEN_BOSS_HALLS)
 
 -- ── SELF-CHECK (CLAUDE.md §4): the rows the generator wrote, and nothing more ──
 do $$
@@ -1833,7 +1856,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 138
      or (select count(*) from public.hr_hunt_limits) <> 47
      or (select count(*) from public.hr_hunt_end_reasons) <> 16
-     or (select count(*) from public.hr_hunt_vendor_value) <> 559
+     or (select count(*) from public.hr_hunt_vendor_value) <> 567
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)
@@ -1850,7 +1873,7 @@ begin
      or (select count(*) from public.hr_hunt_roster) <> 30
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1
-     or (select count(*) from public.hr_hunt_weapons) <> 69
+     or (select count(*) from public.hr_hunt_weapons) <> 76
      or (select count(*) from public.hr_hunt_weapon_roles) <> 12
      or (select count(*) from public.hr_hunt_roles) <> 0
      or (select count(*) from public.hr_hunt_shields) <> 6

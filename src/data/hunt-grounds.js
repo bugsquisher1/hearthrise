@@ -374,8 +374,13 @@ export const CALLED_GROUNDS = Object.freeze({
    wave its `adds` (a named add among them: boss-halls.js), no pull dial. `hall` names the row in BOSS_HALLS (the ground whose key opens it). The engine
    plays it as a called room plays (src/core/hunt/boss-room.js: one fight, a limit, his kill ends it, nothing resets) and PAYS like any ground. Not in
    HUNT_GROUNDS, so nothing that lists grounds sees them; the engine and the scene reach them by hunt (groundOfHunt). Folded from a ground pack's
-   `hall` when the first pack carries one: none does on this tree. */
-export const HALL_GROUNDS = Object.freeze({});
+   `hall` (src/data/grounds/shape.js): its room is `<pack>_hall` on the pack's own map (Krell's Hall, krells_hold). */
+const hallPocket = (p) => Object.freeze({ room: Object.freeze([...p.room]), spawns: addRows(...p.spawns.map((s) => [s.monster, s.x, s.y])), adds: addRows(...p.adds.map((s) => [s.monster, s.x, s.y])) });
+export const HALL_GROUNDS = Object.freeze(Object.fromEntries(GROUND_PACKS.filter((p) => p.hall).map((p) => {
+  const id = p.id + '_hall', g = p.hall.ground;
+  return [id, Object.freeze({ id, hunt: id, map: p.ground.map, hall: p.id, ...g,
+    start: Object.freeze(g.start.map((t) => Object.freeze([...t]))), pockets: Object.freeze(g.pockets.map(hallPocket)), route: Object.freeze([...g.route]) })];
+})));
 
 /* THE TRAINING GROUNDS (src/data/training.js; Tyler 2026-11-08): one pocket, one dummy, one seat, one per place and skill, reached by one verb,
    hr_training_start. Not in HUNT_GROUNDS, so nothing that lists grounds sees them; the engine and the scene reach them by hunt (groundOfHunt).
@@ -401,6 +406,8 @@ export function groundOfHunt(huntId) {
 
 /** The grounds a player can enter: every row whose hunt is not `staged` (hunts.js). The server catalogue reads these. */
 export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries(HUNT_GROUNDS).filter(([, g]) => !(HUNT_INDEX[g.hunt] && HUNT_INDEX[g.hunt].staged === true))));
+/** The halls a player can open: every hall room whose hunt is not `staged` (its pack is open). The server catalogue reads these. */
+export const OPEN_HALL_GROUNDS = Object.freeze(Object.fromEntries(Object.entries(HALL_GROUNDS).filter(([, g]) => !(HUNT_INDEX[g.hunt] && HUNT_INDEX[g.hunt].staged === true))));
 
 /** THE REACHABLE ROSTER (designer 2026-10-22, lane c-monster-ladders): what a player can actually meet, from `grounds`
     (pass OPEN_GROUNDS: a staged ground is hidden and refused): every pocket's spawns, full pack and boss's wave (`adds`) plus its hunt's spawn

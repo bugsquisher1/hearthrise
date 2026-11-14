@@ -18,29 +18,37 @@
 // A SPELL THAT SPEEDS UP UNDER HIS LINE (piece 7): the boss row's `phases.hasten` { spell, cdPm } (core/hunt/boss-phases.js spellCdOf):
 // at his enrage line that spell's wait is cdPm/1000 of its row's, so the Hall Fire flares twice as often at a quarter (cdPm 500).
 //
-// THE ROWS ARE A GROUND PACK'S `hall` (src/data/grounds/shape.js), folded in when the first pack carries one: none does on this tree, so
-// every table here is empty and nothing serves a hall. tests/boss-hall.mjs holds the engine on its own fixture hall and the rules on any row.
+// THE ROWS ARE A GROUND PACK'S `hall` (src/data/grounds/shape.js), folded here and into HALL_HUNTS, HALL_GROUNDS and MONSTERS: Krell's Hall
+// (src/data/grounds/krells_hold) is the first. A STAGED PACK'S HALL IS SERVED NOWHERE: its room's hunt is `staged` (hunts.js), so the server
+// catalogue leaves it out (OPEN_BOSS_HALLS: hr_boss_halls holds open halls only, and hr_boss_hall_enter refuses the rest `hall_unknown`) and no
+// ground page shows its door (hallFromGround). The engine and the tests still play it by hunt (groundOfHunt), as they play a staged ground.
+// tests/boss-hall.mjs holds the engine on its own fixture hall, and the generator's rules on every hall in the data as if it were open.
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 import { BOSS_CALLS } from './boss-calls.js?v=0.2.130';
+import { HUNT_INDEX } from './hunts.js?v=0.2.130';
 import { HALL_GROUNDS } from './hunt-grounds.js?v=0.2.130';
 import { MONSTERS } from './monsters.js?v=0.2.130';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.130';
 
 export const BOSS_HALL_RULES = Object.freeze({
   /* The fight's limit from the first swing, the called rooms' ten minutes (the design: "a 10 minute limit"). */
   limitMs: 10 * 60000,
 });
 
-/* No hall on this tree (see the header). A row: Object.freeze({ id, hunt: id + '_hall', key, boss, Boss }). */
-export const BOSS_HALLS = Object.freeze({});
+/* Every pack's hall (see the header), staged or open. A row: Object.freeze({ id, hunt: id + '_hall', key, boss, Boss }). */
+export const BOSS_HALLS = Object.freeze(Object.fromEntries(GROUND_PACKS.filter((p) => p.hall).map((p) => [p.id,
+  Object.freeze({ id: p.id, hunt: p.id + '_hall', key: p.hall.key, boss: p.hall.words.boss, Boss: p.hall.words.Boss })])));
+/** The halls a player can open: every row whose room is not `staged` (its pack is open). The server catalogue reads these. */
+export const OPEN_BOSS_HALLS = Object.freeze(Object.fromEntries(Object.entries(BOSS_HALLS).filter(([, h]) => !(HUNT_INDEX[h.hunt] && HUNT_INDEX[h.hunt].staged === true))));
 
 const rows = () => Object.values(BOSS_HALLS);
 
 /** The hall whose room is hunt `huntId`, or null. */
 export function hallOfHunt(huntId) { return rows().find((h) => h.hunt === huntId) || null; }
-/** The hall opened from ground `huntId`'s page, or null. */
-export function hallFromGround(huntId) { return rows().find((h) => h.id === huntId) || null; }
+/** The hall opened from ground `huntId`'s page, or null: an OPEN hall's door only (a staged pack's hall has none: the server holds no row for it). */
+export function hallFromGround(huntId) { return Object.values(OPEN_BOSS_HALLS).find((h) => h.id === huntId) || null; }
 
 /** A hall ground's boss: its one spawn (boss-room.js reads the same), or null. */
 export function hallBossOf(ground) {

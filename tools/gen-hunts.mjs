@@ -24,7 +24,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, HALL_HUNTS, TRAINING_HUNTS } from '../src/data/hunts.js';
+import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, OPEN_HALL_HUNTS, TRAINING_HUNTS } from '../src/data/hunts.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { isMain } from '../tests/_is-main.mjs';
 import { wholeViewOrRerun } from './pack/whole.mjs';
@@ -94,7 +94,7 @@ export function huntRows(hunts, monsters) {
 }
 
 /* A STAGED hunt (hunts.js `staged`: built, art pending) is not served: hr_hunts never names it. */
-export function render(hunts = [...OPEN_HUNTS, ...CALLED_HUNTS, ...HALL_HUNTS, ...TRAINING_HUNTS], monsters = MONSTERS) {
+export function render(hunts = [...OPEN_HUNTS, ...CALLED_HUNTS, ...OPEN_HALL_HUNTS, ...TRAINING_HUNTS], monsters = MONSTERS) {
   const r = huntRows(hunts, monsters);
   const digest = createHash('sha256').update(JSON.stringify(r)).digest('hex');
   const nSpawns = r.reduce((n, h) => n + h.spawns.length, 0);

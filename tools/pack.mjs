@@ -89,7 +89,8 @@ export function lintFields(p, S, H) {
     if (!own(H.FLAMES, p.fuel.flame)) out.push(p.id + ': fuel.flame ' + p.fuel.flame + ' is not a hearth.js FLAMES key');
     if (own(H.NAMED_FUELS, p.fuel.item)) out.push(p.id + ': fuel ' + p.fuel.item + ' is already a NAMED_FUELS row');
   }
-  const cast = new Set(Object.values(p.monsters || {}).flatMap((m) => (Array.isArray(m.spells) ? m.spells : [])));
+  /* its own monsters: the ground's, and its keyed hall's room rows (shape.js `hall`: Krell casts the Hall Fire in his hall) */
+  const cast = new Set([...Object.values(p.monsters || {}), ...Object.values((p.hall && p.hall.monsters) || {})].flatMap((m) => (Array.isArray(m.spells) ? m.spells : [])));
   for (const [id, row] of Object.entries(p.spells || {})) {
     out.push(...S.validateSpell(row, id).map((w) => p.id + ': ' + w));
     if (!cast.has(id)) out.push(p.id + ': spell ' + id + ' is cast by none of its own monsters');

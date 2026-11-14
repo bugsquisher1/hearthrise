@@ -185,8 +185,13 @@ export const CALLED_HUNTS = Object.freeze([
 /* THE KEYED HALLS (src/data/boss-halls.js; the Krell's Hold design's engine piece 5): one room each, opened by one verb, hr_boss_hall_enter, with a
    Hall Key, and never listed: not in HUNTS, so no picker, advice line, tally task or spawn table reads them; HUNT_INDEX names them for the top bar
    and the end card. A hall's id is its ground's id and `_hall` (the close trigger's cheap test). A HALL PAYS like any ground: `hall: true`, never
-   `called`. The rows are a ground pack's `hall` (src/data/grounds/shape.js), folded in when the first pack carries one: none does on this tree. */
-export const HALL_HUNTS = Object.freeze([]);
+   `called`. The rows are a ground pack's `hall` (src/data/grounds/shape.js), folded here: its hunt row, its `spawns` the room's boss and each
+   kind of add once (for the facts: a hall's rows are never a spawn table), and `staged` while the pack is (Krell's Hall, krells_hold). */
+const hallSpawns = (g) => Object.freeze([...new Set(g.pockets.flatMap((p) => p.spawns.concat(p.adds)).map((s) => s.monster))].map((monster) => Object.freeze({ monster, w: 1 })));
+export const HALL_HUNTS = Object.freeze(GROUND_PACKS.filter((p) => p.hall).map((p) => Object.freeze({ id: p.id + '_hall', ...p.hall.hunt, hall: true,
+  spawns: hallSpawns(p.hall.ground), ...(p.status === 'staged' ? { staged: true } : {}) })));
+/** The halls a player can open: every row not `staged` (its pack is open). The server catalogue reads these. */
+export const OPEN_HALL_HUNTS = Object.freeze(HALL_HUNTS.filter((h) => h.staged !== true));
 
 /* THE TRAINING GROUNDS (src/data/training.js; Tyler 2026-11-08): one hunt per place and skill, reached by one verb, hr_training_start, and never listed:
    not in HUNTS, so no picker, advice line, tally task or spawn table reads them; HUNT_INDEX names them for the top bar and the end card. `train` says

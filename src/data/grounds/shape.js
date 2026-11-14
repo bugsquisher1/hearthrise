@@ -68,8 +68,9 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
                hunts.js HALL_HUNTS row less its id and `hall`; `ground` a hunt-grounds.js HALL_GROUNDS row less its id, hunt, map and `hall`
                (one pocket: the boss its ONE spawn, his adds in `adds`); `monsters` the room's own PAYING rows (a hall pays: never `called`,
                no id ending _called; the boss's prize is his own drops, xp and gp; an add is `add`, a named add `boss` and `add` both, piece 6).
-               The keyed-hall contract of lane/b-barrow-boss-room (boss-halls.js, gen-hunt-sessions hallRows). CARRIED, NOT FOLDED: the fold
-               into BOSS_HALLS / HALL_HUNTS / HALL_GROUNDS and MONSTERS lands with that lane (engine piece 5)
+               The keyed-hall contract of lane/b-barrow-boss-room (boss-halls.js, gen-hunt-sessions hallRows). FOLDED (lane/b-barrow-integrate):
+               boss-halls.js BOSS_HALLS[id], hunts.js HALL_HUNTS and hunt-grounds.js HALL_GROUNDS (the room `<id>_hall`), and its rows into
+               MONSTERS. A staged pack's hall is staged with it: served nowhere, no door on any page (boss-halls.js OPEN_BOSS_HALLS)
      fuel      (optional, lane/b-pack-fields: engine piece 10) the ground's NAMED FUEL, a src/data/hearth.js NAMED_FUELS row plus its item:
                { item, xp, req, flame, secs, chunk }. `item` is one of the pack's own items. CARRIED, NOT FOLDED: hr_hearth_named is a server
                catalogue (tools/gen-hearth-catalogue.mjs), so the fold into NAMED_FUELS lands with the pack's ship. tools/pack.mjs lintFields
@@ -128,6 +129,7 @@ function hallWhy(p) {
   if (!isObj(h.monsters) || !Object.keys(h.monsters).length) return 'hall.monsters is empty';
   for (const [id, m] of Object.entries(h.monsters)) {
     if (/_called$/.test(id) || !isObj(m) || 'called' in m) return 'hall row ' + id + ' is a called row, and a hall pays (no id ending _called, no called mark)';
+    if (!ID.test(id) || (p.monsters && Object.prototype.hasOwnProperty.call(p.monsters, id))) return 'hall row ' + id + ' is one of the ground\'s own monsters: a hall\'s rows stand in his room only, under their own ids';
     if (m.boss !== true && m.add !== true) return 'hall row ' + id + ' is neither the boss nor an add';
   }
   const boss = h.monsters[pk.spawns[0].monster];

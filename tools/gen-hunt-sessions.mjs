@@ -124,8 +124,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, HALL_HUNTS, TRAINING_HUNTS, trainingHunt } from '../src/data/hunts.js';
-import { BOSS_HALLS, BOSS_HALL_RULES } from '../src/data/boss-halls.js';
+import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, OPEN_HALL_HUNTS, TRAINING_HUNTS, trainingHunt } from '../src/data/hunts.js';
+import { OPEN_BOSS_HALLS, BOSS_HALL_RULES } from '../src/data/boss-halls.js';
 import { TRAINING_RULES, TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from '../src/data/training.js';
 import { PROPERTY_TIERS } from '../src/data/homestead-tiers.js';
 import { BOSS_CALLS, BOSS_CALL_RULES } from '../src/data/boss-calls.js';
@@ -145,7 +145,7 @@ import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, roleWeaponOf } from '../src/data/hun
 import { isShield } from '../src/data/shields.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
 import { OPEN_GROUNDS, DENSITY_PICK, MAX_HEROES, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
-import { CALLED_GROUNDS, HALL_GROUNDS, TRAINING_GROUNDS } from '../src/data/hunt-grounds.js';
+import { CALLED_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS, TRAINING_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
 import { PARTY } from '../src/data/party.js';
 import { SESSION_CONFIG } from '../src/session/config.js';
@@ -387,7 +387,8 @@ export function catalogueRows(src = {}) {
     consumableLaneMs: CONSUMABLE_RULES.laneMs, abilityLanes: ABILITY_LANES, abilities: ABILITIES,
     grounds: OPEN_GROUNDS, worldMaxBytes: HUNT_TUNING.worldMaxBytes, calledHunts: CALLED_HUNTS, calledGrounds: CALLED_GROUNDS, calls: BOSS_CALLS, callRules: BOSS_CALL_RULES, partyMax: PARTY.maxSize,
     trainingHunts: TRAINING_HUNTS, trainingGrounds: TRAINING_GROUNDS, training: { rules: TRAINING_RULES, places: TRAINING_PLACES, skills: TRAINING_SKILLS, homes: PROPERTY_TIERS },
-    hallHunts: HALL_HUNTS, hallGrounds: HALL_GROUNDS, halls: BOSS_HALLS, hallRules: BOSS_HALL_RULES,
+    /* the OPEN halls only (a staged pack's hall is served nowhere); everyHall, staged too, is where a named add may stand (hallRows) */
+    hallHunts: OPEN_HALL_HUNTS, hallGrounds: OPEN_HALL_GROUNDS, halls: OPEN_BOSS_HALLS, hallRules: BOSS_HALL_RULES, everyHall: HALL_GROUNDS,
     maxConcurrent: SESSION_CONFIG.maxConcurrentCharacters, maxSlot: SESSION_CONFIG.maxSlot,
     loginReward: PREMIUM_LOGIN_REWARD, worldVersion: WORLD_VERSION, worldShape: SHAPE, worldFields: WORLD_FIELDS,
     roles: HUNT_ROLES, roleKeys: ROLE_KEYS, shieldArm: SHIELD_ARM, manaRegenPct: ABILITY_RULES.manaRegenPctPerMin, magicXpPermille: HUNT_XP.magicXpPermillePerMana,
@@ -950,10 +951,12 @@ export function render(src) {
 -- and lane/d-barrow-data): the keyed halls' table, hr_boss_halls (the room a Hall Key opens, the boss whose kill ends it, the key it spends, its limit),
 -- which hr_hunt_admit, hr_boss_hall_enter and the settle's proof of a room's ends read (2027-04-20-boss-hall.sql, which applies right after this file).
 -- It is EMPTY: the one hall in the data is Lord Krell's, his pack is staged, and a staged pack is served nowhere; his room, its rows' kill bounds and its
--- drops join the tables above like any ground's the day the pack opens. The barrow data's gear rows (tiers 5 to 7) ride in the tables that carry gear.
--- No ground, spawn, limit, end reason or world shape moves. ORDER: after 2027-04-20-bear-purse-hunt-sessions-catalogue.generated.sql (carried whole) and
--- 2027-04-17-barrow-data-items-catalogue.generated.sql, right before 2027-04-20-boss-hall.sql. The hr-accrue that plays a hall may land on either side
--- of it: no hall exists to open.
+-- drops join the tables above like any ground's the day the pack opens. THE BARROW DATA (lane/d-barrow-data): hr_hunt_vendor_value gains the eight new
+-- weapons (559 -> 567) and every tier-7 gear bid moves DOWN from 0.015 to 0.007 of book (loot-bands.js VENDOR_GEAR_RATES tier 7; no tier-7 item has a
+-- reachable source today); hr_hunt_weapons gains seven weapons (69 -> 76). No ground, monster, kill bound, spawn, limit, end reason or world shape
+-- moves: all five Barrow March grounds are staged and stand in no table here. ORDER: after 2027-04-20-bear-purse-hunt-sessions-catalogue.generated.sql
+-- (carried whole) and 2027-04-17-barrow-data-items-catalogue.generated.sql (the self-check wants the weapons in hr_items), right before
+-- 2027-04-20-boss-hall.sql; then the hr-accrue carrying the same loot-bands.js. That hr-accrue may land on either side of the hall: none exists to open.
 --
 -- CARRIED FROM 2027-04-20-bear-purse-hunt-sessions-catalogue (lane/d-no-profit-molds, designer 2026-11-13; Tyler 2026-11-13 NO PROFIT MOLDS): ONE row of
 -- hr_hunt_kill_bounds. The Brook Bear's hand-kept purse [13, 40] served the Glade's retired +10% profit floor; it reads the formula's [11, 32], so its coin
@@ -1520,7 +1523,7 @@ insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, 
 insert into public.hr_training_grounds (hunt_id, place, skill, ord, fee, xp_permille) values
 ${trainValues};
 delete from public.hr_boss_halls;
-${hallValues ? `insert into public.hr_boss_halls (hall_id, hunt_id, monster_id, key_item, limit_ms) values\n${hallValues};` : '-- (no keyed hall in the data: src/data/boss-halls.js)'}
+${hallValues ? `insert into public.hr_boss_halls (hall_id, hunt_id, monster_id, key_item, limit_ms) values\n${hallValues};` : '-- (no open keyed hall in the data: src/data/boss-halls.js OPEN_BOSS_HALLS)'}
 
 -- ── SELF-CHECK (CLAUDE.md §4): the rows the generator wrote, and nothing more ──
 do $$

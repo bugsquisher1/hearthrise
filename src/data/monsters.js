@@ -894,7 +894,8 @@ export const MONSTERS = {
 
 /* GROUND PACKS (src/data/grounds): each pack's new monsters join the table, a copy each (the seal below writes onto its rows).
    An id already taken is refused (foldRows): a pack adds, it never replaces. */
-for (const [id, row] of Object.entries(foldRows('monster', {}, GROUND_PACKS, (p) => p.monsters))) {
+/* A pack's KEYED HALL (its `hall`, shape.js) brings its room's own rows too: the hall's boss and his adds, paying rows that stand in his room only. */
+for (const [id, row] of Object.entries(foldRows('monster', {}, GROUND_PACKS, (p) => (p.hall ? { ...p.monsters, ...p.hall.monsters } : p.monsters)))) {
   if (Object.prototype.hasOwnProperty.call(MONSTERS, id)) throw new Error('ground pack: monster ' + id + ' is already taken; a pack only adds');
   MONSTERS[id] = { ...row };
 }

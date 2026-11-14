@@ -203,10 +203,12 @@ export default definePack({
      2026-11-13). A HALL PAYS: its boss and adds are plain paying rows (never `called`, no id ending _called), the boss's prize is his own
      drops, XP and coin, and a NAMED ADD (piece 6) is a row that is `boss` and `add` both, with at most his own enrage line. `hunt` is a
      hunts.js HALL_HUNTS row less its id and `hall`; `ground` a hunt-grounds.js HALL_GROUNDS row less its id, hunt, map and `hall` (the boss
-     the pocket's ONE spawn, his wave in `adds`). CARRIED, NOT FOLDED on this branch: the fold (BOSS_HALLS.krells_hold = { id: 'krells_hold',
-     hunt: 'krells_hold_hall', key: 'hall_key', boss, Boss }, the HALL_HUNTS and HALL_GROUNDS rows, these rows into MONSTERS) lands with the
-     boss-room lane. Still to come with it: Krell's `phases.hasten` { spell: the Hall Fire, cdPm: 500 } once the Hall Fire is a spell row
-     (piece 7), and Hask's own spells (piece 6). Numbers are the formula's at the floor 85. PROPOSED, unmeasured. */
+     the pocket's ONE spawn, his wave in `adds`). FOLDED (lane/b-barrow-integrate 2026-11-14): BOSS_HALLS.krells_hold = { id: 'krells_hold',
+     hunt: 'krells_hold_hall', key: 'hall_key', boss, Boss } (boss-halls.js), the HALL_HUNTS and HALL_GROUNDS rows `krells_hold_hall`, and
+     these rows into MONSTERS. STAGED WITH THE PACK: the room's hunt is `staged`, so no catalogue serves it and no page shows its door.
+     HIS SPELLS (`spells` below, the design's section 3): Rake the Coals, a marked cone out of the fire, then the Hall Fire, the pulse nobody
+     steps out of, every 20 s and twice as often under his enrage line (`phases.hasten`, piece 7). Hask's own kit is one marked blow, Cleave
+     (piece 6). Numbers are the formula's at the floor 85. PROPOSED, unmeasured: the designer fits them to the ship bar. */
   hall: {
     key: 'hall_key',
     words: { boss: 'Lord Krell', Boss: 'Lord Krell' },
@@ -230,6 +232,8 @@ export default definePack({
          Two prizes wait on their own rows: the Roll Page (a named Hearth fuel, piece 10) and Krell's Toll Box (his Trophy, 100-150 h). */
       lord_krell: { name: 'Lord Krell', icon: '👑', tier: 6, level: 110, cls: 'human', family: 'Human', formation: true, boss: true,
         elements: { ember: 25, poison: -15 },
+        /* his marked hit first, then his pulse (monster-spells.js: castSpells starts the first one ready) */
+        spells: ['rake_the_coals', 'hall_fire'],
         drops: [
           { id: 'dawn_sword', ch: 0.1, band: 'rare' }, { id: 'dawn_warhammer', ch: 0.1, band: 'rare' },
           { id: 'duskwood_bow', ch: 0.1, band: 'rare' }, { id: 'duskwood_staff', ch: 0.1, band: 'rare' },
@@ -237,16 +241,29 @@ export default definePack({
           { id: 'dawn_hatchets', ch: 0.1, band: 'rare' }, { id: 'duskwood_crossbow', ch: 0.1, band: 'rare' },
           { id: 'dawn_platebody', ch: 0.1, band: 'rare' }, { id: 'slakehide_body', ch: 0.1, band: 'rare' }, { id: 'shroudweave_body', ch: 0.1, band: 'rare' },
           { id: 'dawn_helm', ch: 0.1, band: 'rare' }, { id: 'slakehide_helmet', ch: 0.1, band: 'rare' }, { id: 'shroudweave_helmet', ch: 0.1, band: 'rare' }],
-        hp: 2256, atk: 94, baseAcc: 0.72, def: 80, xp: 21720, gp: [251, 753], speed: 2800, phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400, guardPm: 800 } },
+        hp: 2256, atk: 94, baseAcc: 0.72, def: 80, xp: 21720, gp: [251, 753], speed: 2800,
+        phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400, guardPm: 800, hasten: { spell: 'hall_fire', cdPm: 500 } } },
       /* CAPTAIN HASK, read off the Roll: the man who sold the crossing. Everyone who gets here killed him in the Muster Barrows; now the man who
          bought him calls him by name and he has to come. A NAMED ADD (boss and add both, piece 6): the formula's elite at 100, and his own enrage
          line, the Barrows' (a quarter, x1.15); never a wave or a guard of his own. Not the Barrows' own Hask row: the two never share an id. */
       hall_hask: { name: 'Captain Hask', icon: '⚔️', tier: 6, level: 100, cls: 'undead', family: 'Undead', formation: true, boss: true, add: true,
+        spells: ['hasks_cleave'],
         hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 2920, gp: [55, 166], speed: 3000, drops: [], phases: { enragePm: 250, enrageAtkPm: 1150 } },
       /* Two of the company's officers, standing up out of the hall floor: the Hold's Grave Guard row (formula heavy at 92), paying a kill as there */
       hall_grave_guard: { name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', formation: true, add: true,
         hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 1869, gp: [38, 115], speed: 2400, drops: [] },
     },
+  },
+  /* THE HALL'S SPELLS (src/data/monster-spells.js rows; the design's section 3). PROPOSED, unmeasured: each starts from the row of the
+     same kind the area-spell design measured, for the designer to fit with the hall.
+       Rake the Coals: Krell's marked cone, the tank's to stand in and a ranged hero's to step off. Chief Coppercap's Slag Toss (4F).
+       The Hall Fire: his pulse on every hero in the room, every 20 s (the design's number). A boss's pulse (4L: 0.4x at 20 s). His row
+         hastens it to every 10 s under a quarter (phases.hasten cdPm 500), still well over its 2 s warning.
+       Cleave: Captain Hask's own marked blow, the two tiles in front of him. The regulars' dodgeable hit (1.5x), on the Foreman's cone. */
+  spells: {
+    rake_the_coals: { n: 'Rake the Coals', shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 1200, element: 'ember' },
+    hall_fire: { n: 'The Hall Fire', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: 'ember' },
+    hasks_cleave: { n: 'Cleave', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 14000, hitPm: 1500, element: null },
   },
   map,
 });

@@ -5,7 +5,8 @@
 //   node tests/target-kind-db.mjs --mutate   the proof: each SQL mutant turns its case red
 //
 // THE MEASURE: the replayed chain (PGlite) and the shipped engine through the world tick (tools/settle-cost.mjs prepare).
-//   TK-1 BOTH PATHS, A HEALER NAMED FIRST: a lone Melee hero at the Mill Cellar names the Slime first through the real verb; the
+//   TK-1 BOTH PATHS, A HEALER NAMED FIRST: a lone Melee hero at the Mill Cellar, its Target on Weakest (alone, that order takes the
+//        Giant Rats first: 9 of 18 boundaries on a Slime, measured with the read mutant), names the Slime first through the real verb; the
 //        Slime is a HEALER here (it casts a mend on its pull, src/data/monster-spells.js 'mend', planted in the engine's own rows as
 //        tests/hunt-live.mjs LV-KINDS does) and every Cellar monster stands ten times its health so the fights last. Windows settled
 //        with the browser closed (the tick's `fire` door) and with the hunt viewed (index.ts's hello, the `viewed` door), from one

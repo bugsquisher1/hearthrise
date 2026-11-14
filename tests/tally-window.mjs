@@ -6,7 +6,7 @@
 //   node tests/tally-window.mjs --mutate   every planted defect must turn a rule RED
 //   node tests/tally-window.mjs --shots <dir>   also write TW-11's screenshots (moved, folded; desktop and phone)
 //
-// mutant-anchors: src/shell/windows/tally.js src/session/tally-sections.js src/session/tally-intents.js src/shell/windows/hunts.js src/shell/shell.js src/shell/widgets/tally-hud.js src/shell/widget-move.js src/shell/hud-room.js src/styles/windows.css src/styles/shell.css src/render/format.js
+// mutant-anchors: src/shell/windows/tally.js src/session/tally-sections.js src/session/tally-intents.js src/shell/windows/hunts.js src/shell/shell.js src/shell/widget-stack.js src/shell/widgets/tally-hud.js src/shell/widget-move.js src/shell/hud-room.js src/styles/windows.css src/styles/shell.css src/render/format.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus a `tally` section
@@ -854,7 +854,7 @@ async function checks(overrides, shots) {
 
 const MUTANTS = [
   /* TW-8 docked (v0.2.130 gate D1) */
-  ['the Tally stacks under an analyzer waiting under the dock', 'src/shell/shell.js', ".filter((a) => a && !a.classList.contains('is-under-dock')).map(rel);", '.filter(Boolean).map(rel);'],
+  ['the Tally stacks under an analyzer waiting under the dock', 'src/shell/widget-stack.js', ".filter((a) => a && !a.classList.contains('is-under-dock')).map(rel);", '.filter(Boolean).map(rel);'],
   ['Take stays on while hunting', 'src/shell/windows/tally.js', "prop(btn, 'disabled', r.held || full || st.sc.pending || st.hunting || !tally || (!tally.weight && !st.suggest));", "prop(btn, 'disabled', r.held || full || st.sc.pending || !tally || !tally.weight);"],
   ['a done task is handed in mid-hunt', 'src/shell/windows/tally.js', "const due = tally && !hunting && tally.paidToday < tally.perDay", 'const due = tally && tally.paidToday < tally.perDay'],
   /* TW-17: the creature's head */
@@ -900,7 +900,7 @@ const MUTANTS = [
   ['a first Take names no weight', 'src/shell/windows/tally.js', "takeTask(ctx.account, cs, task, first ? first.weight : null)", "takeTask(ctx.account, cs, task, null)"],
   ['a first Take guesses with nothing to go on', 'src/shell/windows/tally.js', "const weight = wears || WEIGHT_FOR_ROLE[role] || null;", "const weight = wears || WEIGHT_FOR_ROLE[role] || 'heavy';"],
   ['the weight picker stands over her board again', 'src/shell/windows/tally.js', "    + '<h3 class=\"hw-ledger-head is-on ht-head ht-board-head\"><span></span></h3>'", "    + '<div class=\"ht-weights\"></div><h3 class=\"hw-ledger-head is-on ht-head ht-board-head\"><span></span></h3>'"],
-  ['the tally sits at its anchor, over the analyzer', 'src/shell/shell.js', '      const top = stackBelow(at, above, DOCK_EDGE);', '      const top = Math.round(at.top);'],
+  ['the tally sits at its anchor, over the analyzer', 'src/shell/widget-stack.js', '      const top = stackBelow(at, above, DOCK_EDGE);', '      const top = Math.round(at.top);'],
   ['her first line is the riddle again', 'src/data/text/tally.js', "say_first: 'I kept the mill\\'s rats down myself for thirty years. Then they got a king, so now I pay people to do it. Take one off my board.',",
     "say_first: 'Bring me your half of the stick when the count is done, and I pay. Coin, and a piece for your back.',"],
   ['a tally with nothing to show keeps its box', 'src/shell/widgets/tally-hud.js', "  cls(el, 'is-quiet', !tl || (!held.length && (hunting || !met)));", "  cls(el.querySelector('.hs-tally'), 'is-quiet', !tl || (!held.length && (hunting || !met)));"],
@@ -908,7 +908,7 @@ const MUTANTS = [
   /* TW-11: move and fold (Tyler 2026-10-25) */
   ['a folded analyzer keeps its full minimum height', 'src/shell/shell.js', "      el.style.minHeight = L.folded ? '' : row.min[1] + 'px';", "      el.style.minHeight = row.min[1] + 'px';"],
   ['the fold press does nothing', 'src/shell/widget-move.js', '    hud.setFolded(id, !hud.layoutOf(id).folded);', ''],
-  ['a moved tally still stacks under the analyzer', 'src/shell/shell.js', '      if (!row.below || hud.isMoved(row.id)) continue;', '      if (!row.below) continue;'],
+  ['a moved tally still stacks under the analyzer', 'src/shell/widget-stack.js', '      if (!row.below || hud.isMoved(row.id)) continue;', '      if (!row.below) continue;'],
   ['the drop is never kept', 'src/shell/widget-move.js', '      hud.setPlace(id, hud.layoutOf(id), true);', '      hud.setPlace(id, hud.layoutOf(id), false);'],
   ['dragging the tally opens her window', 'src/shell/widget-move.js', '    if (swallow) { swallow = false; e.stopPropagation(); e.preventDefault(); return; }', ''],
   ['the phone drags a widget', 'src/shell/widget-move.js', "    if (e.button !== 0 || o.isPhone()) return;", "    if (e.button !== 0) return;"],

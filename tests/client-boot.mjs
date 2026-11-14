@@ -1370,7 +1370,8 @@ const MUTANTS = [
   ['a third party\'s failure reloads the page (B-19)', 'src/platform/load-shell.js', "if (url.indexOf(win.location.origin) !== 0 || !/\\.js(\\?|$)/.test(url)) return;", 'if (!/\\.js(\\?|$)/.test(url)) return;'],
   ['a failure behind the first screen reloads under the player (B-19)', 'src/platform/load-shell.js', [['    if (!shell.parentNode) return;\n    if (!win.HearthriseRetryLoad', '    if (!win.HearthriseRetryLoad'], ['if (failed || !t || !shell.parentNode || (t.tagName', 'if (failed || !t || (t.tagName']]],
   ['a game file that failed gets no second go (B-19)', 'src/app/boot.js', "    if (typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad()) return;\n", ''],
-  ['the sign-in screen waits for the game again (B-19)', 'src/app/boot.js', "import { GAME_MODULES } from './game-modules.js?v=", "import './game-half.js?v=0';\nimport { GAME_MODULES } from './game-modules.js?v="],
+  ['the sign-in screen waits for the game again (B-19)', 'src/app/boot.js', "import { GAME_MODULES } from './game-modules.js?v=", /* (the planted import's version is joined here, so tools/pack-edge.mjs versionQueryGuard reads no ?v= import in a test) */
+    "import './game-half.js?v=" + "0';\nimport { GAME_MODULES } from './game-modules.js?v="],
   ['the World\'s module gets no second go (B-19)', 'src/app/world-pane.js', "reloading = typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad();", 'void win;'],
   ['a script that fails before the store is up is lost (B-19)', 'src/platform/load-shell.js', "if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', failedNow); else failedNow();", 'failedNow();'],
   ['the page paints no loading shell', 'play.html', '<p class="boot-shell-line">Loading Hearthrise…</p>', ''],

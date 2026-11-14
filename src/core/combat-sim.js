@@ -56,7 +56,8 @@ import { makeEvent, trackStep } from './hunt/events.js?v=0.2.130';
 import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.130';
 import { pullLeader } from './hunt/pull-cycle.js?v=0.2.130';
 import { rewardSwing } from './hunt-rewards.js?v=0.2.130';
-import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.130';
+import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.130';
+import { roomOf } from './hunt/boss-room.js?v=0.2.130';
 import { trainOf } from './hunt/training.js?v=0.2.130';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
@@ -259,11 +260,13 @@ export function simulateHuntInstance(inst, ctx) {
   const pickOf = (ms) => (train || play.normalOf(tierPick(ms)) ? 0 : picker(ms));
   /* A world made in this call: the leader's hold pick is in force from its first lap (not only from the next). */
   let fresh = false;
-  /* CALL OUT (src/data/boss-calls.js): the room's call, its limit from the party's first swing (one instant for every member however the windows were cut), and ONE FIGHT: whatever ends one
-     hero's ends everyone's, box ticked or not (the box is the hero's own word for a hunt, and this isn't one). */
+  /* A BOSS ROOM (src/core/hunt/boss-room.js: a called room or a keyed hall): its limit from the party's first swing (one instant for every member however the windows were cut), and ONE
+     FIGHT: whatever ends one hero's ends everyone's, box ticked or not (the box is the hero's own word for a hunt, and this isn't one). CALL OUT (src/data/boss-calls.js) alone pays
+     nothing: only a called room hands the rewards its call (hunt-rewards.js calledSwing); a hall pays like any ground. */
+  const room = roomOf(ctx.ground);
   const call = ctx.ground && ctx.ground.call ? BOSS_CALLS[ctx.ground.call] : null;
-  if (call) {
-    const ends = Math.min(...members.map((m) => Number(m.hs.huntFromMs) || 0)) + BOSS_CALL_RULES.limitMs;
+  if (room) {
+    const ends = Math.min(...members.map((m) => Number(m.hs.huntFromMs) || 0)) + room.limitMs;
     for (const m of members) { m.hs.callEndsAtMs = ends; m.hero = Object.assign({}, m.hero, { leaveTogether: true }); }
   }
   /* NO WORLD, NO PLACED HERO: a unit id names a unit of a world that is gone (a stored world of
@@ -397,8 +400,8 @@ export function simulateHuntInstance(inst, ctx) {
       /* The rewards' own events (a party's rare roll) follow the swing's, on the server-only `r` stream. */
       const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: play.monsters || ctx.monsters, tier, hearthfind: ctx.hearthfind, call,
         ...(train ? { train } : {}), emit: (e) => worldEvents.push(e) });
-      /* THE CALLED BOSS IS DOWN: everyone still in the fight ends `boss_felled` at their next boundary. */
-      if (call && r.events.some((e) => e.type === 'kill' && kinds[e.t] === call.monster)) for (const m of members) if (!m.left) m.hs.bossFelled = true;
+      /* THE ROOM'S BOSS IS DOWN: everyone still in the fight ends `boss_felled` at their next boundary. */
+      if (room && r.events.some((e) => e.type === 'kill' && kinds[e.t] === room.monster)) for (const m of members) if (!m.left) m.hs.bossFelled = true;
       for (const f of deaths) {
         const m = byUnit.get(f.unit);
         const o = out.get(m.key);

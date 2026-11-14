@@ -8,7 +8,8 @@
 // ════════════════════════════════════════════════════════════════════════
 import { ABILITIES } from '../data/abilities.js?v=0.2.130';
 import { MONSTERS } from '../data/monsters.js?v=0.2.130';
-import { BOSS_CALL_WORDS, callOfHunt, isGuarded } from '../data/boss-calls.js?v=0.2.130';
+import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js?v=0.2.130';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.130';
 
 const LOST = Object.freeze(['died', 'party_member_died', 'boss_time']);
 /* Every ability that heals (abilities.js `heal`), and every one that hits a crowd (an area cast or a Cleave). */
@@ -40,7 +41,8 @@ function factFor(phase, role, fired) {
  * @returns {string|null}
  */
 export function lossLine(o) {
-  const call = o && o.hunt ? callOfHunt(o.hunt) : null;
+  /* a called room's or a keyed hall's fight (boss-halls.js roomOfHunt): the same record, the same line */
+  const call = o && o.hunt ? roomOfHunt(o.hunt) : null;
   const f = o && o.fight;
   if (!call || !f || !Number.isInteger(f.boss_pm) || !LOST.includes(o.reason)) return null;
   const fired = f.fired && typeof f.fired === 'object' ? f.fired : {};

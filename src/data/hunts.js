@@ -182,6 +182,12 @@ export const CALLED_HUNTS = Object.freeze([
     band: Object.freeze([32, 50]), spawns: Object.freeze([Object.freeze({ monster: 'chief_coppercap_called', w: 1 }), Object.freeze({ monster: 'goblin_digger_called', w: 1 })]), family: 'Humanoid', art: 'chief_coppercap_called', travelS: 0, pull: 1, respawnMs: 600000 }),
 ]);
 
+/* THE KEYED HALLS (src/data/boss-halls.js; the Krell's Hold design's engine piece 5): one room each, opened by one verb, hr_boss_hall_enter, with a
+   Hall Key, and never listed: not in HUNTS, so no picker, advice line, tally task or spawn table reads them; HUNT_INDEX names them for the top bar
+   and the end card. A hall's id is its ground's id and `_hall` (the close trigger's cheap test). A HALL PAYS like any ground: `hall: true`, never
+   `called`. The rows are a ground pack's `hall` (src/data/grounds/shape.js), folded in when the first pack carries one: none does on this tree. */
+export const HALL_HUNTS = Object.freeze([]);
+
 /* THE TRAINING GROUNDS (src/data/training.js; Tyler 2026-11-08): one hunt per place and skill, reached by one verb, hr_training_start, and never listed:
    not in HUNTS, so no picker, advice line, tally task or spawn table reads them; HUNT_INDEX names them for the top bar and the end card. `train` says
    what the hunt trains; the ground (hunt-grounds.js TRAINING_GROUNDS) carries the same. The band is every Level, from 1 (a dummy keeps pace with its hero). */
@@ -198,7 +204,7 @@ export const TRAINING_HUNTS = Object.freeze(Object.keys(TRAINING_PLACES).flatMap
 export const RARITY_LABEL = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare' });
 
 /** Null-prototype index by id: `HUNT_INDEX['constructor']` is undefined. */
-export const HUNT_INDEX = Object.freeze([...HUNTS, ...CALLED_HUNTS, ...TRAINING_HUNTS].reduce((acc, h) => { acc[h.id] = h; return acc; },
+export const HUNT_INDEX = Object.freeze([...HUNTS, ...CALLED_HUNTS, ...HALL_HUNTS, ...TRAINING_HUNTS].reduce((acc, h) => { acc[h.id] = h; return acc; },
   Object.create(null)));
 
 /* A single-monster fight's walk, by the foe's tier: 0 for every tier until the

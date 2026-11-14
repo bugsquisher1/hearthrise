@@ -984,9 +984,9 @@ Level 110, Human, an old man in Dawnsteel plate who has sat with that fire at hi
 | 2 | A monster that attacks from range | No row in `monsters.js` has a range | Systems |
 | 3 | A monster that heals its pull | None | Systems |
 | 4 | A Target mode that names a kind first | Modes are nearest, weakest, strongest, follow | Systems. Remembered per ground, so it is set once |
-| 5 | A keyed boss room that pays XP and drops | `boss-phases.js` reads only in a called room, and `tests/boss-call.mjs` holds that a called room pays nothing. This is a new room kind. That guard is not loosened | Systems, Backend. A money surface, so it is on the Security list |
-| 6 | Adds that are a named boss with his own kit | Adds are plain rows marked `add` | Systems |
-| 7 | A spell that speeds up under a phase line, and its countdown on the boss bar | None | Systems, Art Director for the bar line |
+| 5 | A keyed boss room that pays XP and drops | BUILT, STAGED (lane/b-barrow-boss-room, 2026-11-13): src/data/boss-halls.js, core/hunt/boss-room.js, 2027-04-20-boss-hall.sql (hr_boss_hall_enter, the key read under the lock). No hall in the data yet: the pack's `hall` block must fold as paying rows (CONFLICTS 2026-11-13). boss-call.mjs untouched | Systems, Backend. A money surface, so it is on the Security list |
+| 6 | Adds that are a named boss with his own kit | BUILT (same lane): a row `boss` and `add` both, his own spells and an enrage line, no wave or guard of his own (gen-hunt-sessions hallRows); the log and the bar name him | Systems |
+| 7 | A spell that speeds up under a phase line, and its countdown on the boss bar | BUILT (same lane): `phases.hasten` { spell, cdPm } (boss-phases.js spellCdOf); the bar counts it down. The Art Director owes a look at the bar's two new lines | Systems, Art Director for the bar line |
 | 8 | Element resistance on gear and imbuements | The area-spell spec's next phase | Systems |
 | 9 | Sale rates for gear tiers 5, 6 and 7 | DONE (lane/d-barrow-data, 2026-11-13). Tiers 4 to 6 were set 11-08 (0.075, 0.033, 0.015); tier 7 is 0.007, so a Dawnsteel piece sells for about 1.3x its Emberforged twin | Designer |
 | 10 | Pack fields for a named fuel, monster spells and a hall | `shape.js` refuses unknown fields | Systems |

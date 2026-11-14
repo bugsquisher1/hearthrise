@@ -44,7 +44,8 @@ const cases = {
   },
   'every-caster-plays': (M) => {
     const met = new Set();
-    for (const g of [...Object.values(M.grounds.HUNT_GROUNDS), ...Object.values(M.grounds.CALLED_GROUNDS)]) {
+    /* (a staged ground's casters count: its pack plays on the grade; a keyed hall's boss and adds are met in his room: src/data/boss-halls.js) */
+    for (const g of [...Object.values(M.grounds.HUNT_GROUNDS), ...Object.values(M.grounds.CALLED_GROUNDS), ...Object.values(M.grounds.HALL_GROUNDS || {})]) {
       for (const p of g.pockets) for (const s of [...(p.spawns || []), ...(p.pack || []), ...(p.adds || [])]) met.add(s.monster);
     }
     const lost = Object.keys(M.MONSTERS).filter((k) => M.MS.spellsOf(M.MONSTERS[k]).length && !met.has(k));

@@ -65,6 +65,8 @@ export function resetPack(inst, pocket, sc) {
   const pack = inst.world.packs[pocket];
   /* A CALLED ROOM NEVER RESETS: a death ends the whole fight at its next boundary, and his HP only falls (boss-phases.js reads no flag, the fight's record reads where he stood). */
   if (!pack || (inst.ground && inst.ground.call)) return;
+  /* NOR DOES A KEYED HALL (boss-room.js): one fight, his HP only falls, his adds stay until they fall. */
+  if (inst.ground && inst.ground.hall) return;
   pack.aggro = false;
   pack.holder = null;
   for (const u of inst.world.units) {

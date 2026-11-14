@@ -373,6 +373,13 @@ export const CALLED_GROUNDS = Object.freeze({
   }),
 });
 
+/* THE KEYED HALLS (src/data/boss-halls.js; the Krell's Hold design's engine piece 5): one pocket on its ground's own map, the boss its ONE spawn and his
+   wave its `adds` (a named add among them: boss-halls.js), no pull dial. `hall` names the row in BOSS_HALLS (the ground whose key opens it). The engine
+   plays it as a called room plays (src/core/hunt/boss-room.js: one fight, a limit, his kill ends it, nothing resets) and PAYS like any ground. Not in
+   HUNT_GROUNDS, so nothing that lists grounds sees them; the engine and the scene reach them by hunt (groundOfHunt). Folded from a ground pack's
+   `hall` when the first pack carries one: none does on this tree. */
+export const HALL_GROUNDS = Object.freeze({});
+
 /* THE TRAINING GROUNDS (src/data/training.js; Tyler 2026-11-08): one pocket, one dummy, one seat, one per place and skill, reached by one verb,
    hr_training_start. Not in HUNT_GROUNDS, so nothing that lists grounds sees them; the engine and the scene reach them by hunt (groundOfHunt).
    `train` { place, skill } marks the ground: the engine pays the trained skill only (src/core/hunt/training.js), no stamina is spent, and
@@ -390,9 +397,9 @@ export const TRAINING_GROUNDS = Object.freeze(Object.fromEntries(Object.keys(TRA
     route: Object.freeze([0]), respawnMs: 10000, pullDist: 1.5, groupFit: 'solo' })];
 }))));
 
-/** The ground row a hunt is fought on, called rooms and training grounds included, or null: the engine's and the scene's one lookup. */
+/** The ground row a hunt is fought on, called rooms, keyed halls and training grounds included, or null: the engine's and the scene's one lookup. */
 export function groundOfHunt(huntId) {
-  return Object.values(HUNT_GROUNDS).find((g) => g.hunt === huntId) || CALLED_GROUNDS[huntId] || TRAINING_GROUNDS[huntId] || null;
+  return Object.values(HUNT_GROUNDS).find((g) => g.hunt === huntId) || CALLED_GROUNDS[huntId] || HALL_GROUNDS[huntId] || TRAINING_GROUNDS[huntId] || null;
 }
 
 /** The grounds a player can enter: every row whose hunt is not `staged` (hunts.js). The server catalogue reads these. */
@@ -614,7 +621,7 @@ export function validateGround(row, refs) {
 /** Every problem with the table, as strings. Empty = valid. */
 export function validate() {
   const out = [];
-  for (const [key, row] of [...Object.entries(HUNT_GROUNDS), ...Object.entries(CALLED_GROUNDS), ...Object.entries(TRAINING_GROUNDS)]) {
+  for (const [key, row] of [...Object.entries(HUNT_GROUNDS), ...Object.entries(CALLED_GROUNDS), ...Object.entries(HALL_GROUNDS), ...Object.entries(TRAINING_GROUNDS)]) {
     if (row.id !== key) out.push(key + ': row id ' + row.id + ' does not match its key');
     out.push(...validateGround(row));
   }

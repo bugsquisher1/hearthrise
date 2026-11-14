@@ -21,7 +21,7 @@
 import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.130';
 import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.130';
 import { cameHomeWords } from '../data/party-words.js?v=0.2.130';
-import { callOfHunt } from '../data/boss-calls.js?v=0.2.130';
+import { BOSS_HALL_WORDS, roomOfHunt } from '../data/boss-halls.js?v=0.2.130';
 import { lossLine } from './boss-loss.js?v=0.2.130';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.130';
 import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.130';
@@ -69,15 +69,18 @@ export const FORFEIT_WORDS = Object.freeze({
 /** The plain-words end reason (`forfeit`: the server forfeited the hunt's last window); an unknown name still reads as a sentence.
     LEAVE TOGETHER: a hero sent home by another member's end names that member (`by`, the server's end_by), what ended it
     (`why`, end_by_why) and itself (`hero`), "Mira ran out of stamina, so Oren came home too." (party-words.js cameHomeWords). */
-export function endWords(reason, forfeit, by, hero, why) {
+export function endWords(reason, forfeit, by, hero, why, hunt) {
   if (typeof by === 'string' && by && (reason === 'party_member_left' || reason === 'party_member_died')) return cameHomeWords(reason, by, why, hero);
+  /* A KEYED HALL'S KILL (src/data/boss-halls.js) names him and no title: END_WORDS.boss_felled is a called room's. */
+  const room = reason === 'boss_felled' && hunt ? roomOfHunt(hunt) : null;
+  if (room && room.kind === 'hall') return BOSS_HALL_WORDS.felled.replace('{Boss}', room.Boss);
   return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason] || 'The hunt ended.';
 }
 
 /** The end card's reason line. `msLeft`: the stamina the server says the hero has now, given only for the newest hunt with none running:
     out of stamina, the card says what it has rested back, so Hunt again is a decision and not a guess (panel 2026-11-01). */
 export function reasonWords(s, hero, msLeft) {
-  const why = s.reason ? endWords(s.reason, s.forfeit, s.by, hero, s.why) : 'The hunt ended.';
+  const why = s.reason ? endWords(s.reason, s.forfeit, s.by, hero, s.why, s.hunt) : 'The hunt ended.';
   if (s.reason !== 'stamina' || !Number.isFinite(msLeft)) return why;
   const m = Math.floor(msLeft / 60000);
   return why + ' Stamina now: ' + (m >= 60 ? Math.floor(m / 60) + ' h ' : '') + (m % 60) + ' min.';
@@ -201,8 +204,8 @@ export function withSummary(list, summary) {
  * @returns {{hunt: string, bag: {item: string, qty: number, essential?: boolean}[], preset: number, hours: number|null}|null}
  */
 export function huntAgainOf(summary) {
-  /* A called room has one door, its paid press on the ground's page (src/data/boss-calls.js): no free way back. */
-  if (!summary || !summary.hunt || summary.preset === null || callOfHunt(summary.hunt)) return null;
+  /* A boss room has one door, its press on the ground's page (a call's fee or a hall's key: src/data/boss-halls.js): no free way back. */
+  if (!summary || !summary.hunt || summary.preset === null || roomOfHunt(summary.hunt)) return null;
   return {
     hunt: summary.hunt, preset: summary.preset, hours: summary.hoursLimit,
     bag: summary.bag.map(([item, qty, ess]) => (ess ? { item, qty, essential: true } : { item, qty })),

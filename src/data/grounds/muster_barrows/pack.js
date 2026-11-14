@@ -69,7 +69,7 @@
 // Commons feed the Hearth (Bones, Big Bones, Bone Chips, Grave Dust). Each body drops its own imbuement item, kept for the imbuer
 // (catalogue-coherence.js VENDOR_TRASH until imbuing is built): Sergeant's Spur and Hask's Coin have icons on the art lane, Coffin
 // Nail and Urn Shard need one each. The ground's named fuel waits on a pack field for NAMED_FUELS (src/data/hearth.js): no row.
-import { definePack, box, gather, addRows } from '../shape.js?v=0.2.129';
+import { definePack, box, gather } from '../shape.js?v=0.2.129';
 import map from './map.js?v=0.2.129';
 
 const PK = 'barrow_pikeman', CW = 'cairn_wight', BK = 'muster_knight', HASK = 'captain_hask';
@@ -115,7 +115,7 @@ export default definePack({
       /* P6 the Captain's Barrow: Captain Hask in the forecourt of the great mound, two of his sergeants with him. BUILT FOR FOUR
          (`forParty`, a warning before Enter and never a gate, Tyler 2026-11-08). HIS WAVE (`adds`, his `phases` line at half
          health): two Barrow Pikemen of his file out of the barrows on the pocket's north edge, the walk down to him (the header). */
-      { ...box([37, 21, 57, 38], [48, 26], [HASK, BK, BK], [PK, BK, CW, PK, PK]), forParty: 4, adds: addRows([PK, 44, 24], [PK, 52, 24]) },
+      { ...box([37, 21, 57, 38], [48, 26], [HASK, BK, BK], [PK, BK, CW, PK, PK]), forParty: 4 }, // adds: addRows([PK, 44, 24], [PK, 52, 24]) returns with his phases (below)
     ],
     route: [0, 1, 2, 3, 4, 5, 6],
     respawnMs: 90000, pullDist: 1.5, groupFit: 'party',
@@ -169,8 +169,10 @@ export default definePack({
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'hasks_coin', ch: 0.15, band: 'uncommon' },
         { id: 'rune_belt', ch: 0.0133, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.0133, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.0133, band: 'rare' },
         { id: 'yew_bow', ch: 0.0133, band: 'rare' }, { id: 'yew_crossbow', ch: 0.0133, band: 'rare' }],
-      hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 11996, gp: [173, 520], formula: true,
-      phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1150 } },
+      hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 11996, gp: [173, 520], formula: true },
+      /* CARRIED, NOT RUN on this branch (lane/b-barrow-packs 2026-11-13): phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1150 }. A ground boss's
+         lines (adds leave on a reset, the ground boss bar, boss-call BC-ROW for a ground boss, tests/ground-boss.mjs) are engine work on
+         lane/b-muster-barrows 36a7a2d1b, not merged; until it lands boss-call holds that only a called boss has phases. Restore with it. */
   },
   roster: {
     barrow_pikeman: 'swarm',   // the common majority

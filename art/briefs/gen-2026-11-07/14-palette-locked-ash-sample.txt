@@ -32,3 +32,42 @@ FAIL: any of the four. Then the scripted ash route of brief 13 stands and the pa
 
 BLOCKER, 2026-11-11: the PixelLab MCP connector is not in the Coordinator session (session_connectors_status lists
   Supabase, Claude Docs, Gmail only), and no API key is on disk. The call runs from the first session that has it.
+
+VERDICT (2026-11-11, run from session a-brief14-ash through PixelLab's v2 REST API; the MCP connector's token was not
+  live in the app yet). Tyler said "yes, run it" at a balance of 98.4, under the 115 floor. One call, 15 generations.
+  tileset 1533d45a-5dfb-496b-a63a-565efa4e1845, seed none returned (PixelLab did not echo one), base ids lower
+  093a18a0-67de-4862-b64a-b755422ac0a0 (as asked), upper 949bdae8-1046-4b9b-a6a0-24ef84a99735 (the new scorched).
+  Balance before 98.4, after 83.4. Files: art/world-src/gen-2026-11-11/ash-palette/ (GET response json, sheet,
+  metadata, fill-ash/fill-scorched raw, locked-ash/locked-scorched, read-x2/x4 strips, measure.json, balances.json).
+
+  OVERALL: FAIL (1, 3 and 4 miss; 2 misses by three pixels). The scripted ash route of brief 13 A5 stands.
+
+  1 ash byte-identical to 093a18a0: FAIL. All 1,024 pixels differ. The palette was applied to the CHAINED base too:
+    PixelLab recoloured the kept ash (raw #afa9a2 93%) onto the palette, and its nearest pick was #6e727a 83.8%, the
+    cold slate ramp, with #8a867d 7.2%, #6a6865 6.3%, #4f4e52 2.1%. The flecks' positions survive (858 of 1,024 px
+    follow one consistent colour remap), so it is the same drawing in the wrong ramp, not a redraw. A chain plus a
+    palette does not keep a base; a later ash pair would have to chain WITHOUT the palette or re-roll the ash.
+  2 scorched, locked (lock.mjs terrain: sat 0.7, value 0.9, snap): majority #2f2723 71.1% (under 80, PASS),
+    28.9% on five others (PASS), #17141a 14.8% / #3d2a1d 7.1% / #231d1f 4.4% / #553a26 2.2% (two or more, PASS),
+    iron ramp #4f4e52 0.3% = 3 pixels (the rule says none: FAIL by the letter). 84.9% sits on the brown ramp or the
+    charcoal as asked. The RAW scorched is the first roll that meets the neighbours rule on its own: #3d2a1d 57.7%,
+    #17141a 14.8%, #2f2723 13.4%, #553a26 7.1%, #231d1f 4.4%, #6e4c30 2.2%, 100% of pixels on the palette, 7 colours.
+  3 x2 read (read-x4.png, a plain tiling; region-kit.html cannot show an unwired ground): FAIL. The scorched is a
+    network of cracked plates with dark seams again, the same shape the words refuse ("no plates, no slabs, no
+    paving"); it reads as dark cobbles, not burnt soil. The ash reads flat grey with a visible row grid of flecks.
+    Rings on the locked scorched (floor L 0.022): pikeman 0.014, stoker 0.027, wraith 0.022, all 0.045 or less
+    (PASS on the ring), but the contrast is 1.13 / 1.07 / 1.00 to 1: the black bodies vanish on it. Raw scorched
+    luminance p10 0.008, p50 0.027, p90 0.027: near black, as brief 13 r3 was.
+  4 raw vs locked change: FAIL as the brief measures it. Ash 91.6% of pixels change, scorched 67.1%. The cause is
+    the GRADE, not the snap: every raw pixel is already on the palette (100% both halves), so the snap alone moves
+    0%, but the terrain grade (value x0.9, saturation x0.7) pushes each colour one step down its ramp before the
+    snap (#6e727a -> #6a6865 97.3%, #3d2a1d -> #2f2723). A palette-locked tile must import as material `native`
+    (the identity grade), or the lock undoes PixelLab's choice. With that, criterion 4 is 0% by construction and
+    the question becomes whether the raw histogram is right, which here it is for the scorched and not for the ash.
+
+  WHAT THE SAMPLE PROVED: the palette parameter works as a hard constraint (every drawn pixel on hr-world-56-v2,
+  7 colours per fill, under max_colors 12) and the scorched's raw spread is the one brief 13 called unreachable.
+  WHAT IT DID NOT: it does not keep a chained base, it chose the slate ramp for the ash (nearest in its own metric,
+  not ours), and the words still cannot stop the scorched from being drawn as plates. Next cycle, if the art
+  director wants a second sample: no chain (both halves new), the ash words naming the warm grey ramp, import as
+  native, and judge the scorched by its raw histogram plus the x2 read. Nothing wired into region-kits.js.

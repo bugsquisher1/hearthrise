@@ -6,8 +6,8 @@
      notice (index.html); this page is the game, behind the server's closed
      allowlist. Boot: src/app/boot.js. An http visit moves to https first
      (hr-accrue answers https origins only), then the b124 kill-switch runs. -->
-<script src="src/platform/https-upgrade.js?v=0.2.129"></script>
-<script src="src/platform/sw-killswitch.js?v=0.2.129"></script>
+<script src="src/platform/https-upgrade.js?v=0.2.130"></script>
+<script src="src/platform/sw-killswitch.js?v=0.2.130"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="application-name" content="Hearthrise">
 <meta name="robots" content="noindex">
@@ -24,79 +24,79 @@
   form-action 'self';
 ">
 <title>Hearthrise</title>
-<link rel="icon" type="image/png" sizes="512x512" href="assets/brand/hearthrise-mark.png?v=0.2.129">
+<link rel="icon" type="image/png" sizes="512x512" href="assets/brand/hearthrise-mark.png?v=0.2.130">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Alegreya+Sans:wght@400;500;700&family=Alegreya+Sans+SC:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="src/styles/tokens.css?v=0.2.129">
-<link rel="stylesheet" href="src/styles/world.css?v=0.2.129">
-<link rel="stylesheet" href="src/styles/shell.css?v=0.2.129">
-<link rel="stylesheet" href="src/styles/hunt.css?v=0.2.129">
-<link rel="stylesheet" href="src/styles/windows.css?v=0.2.129">
-<link rel="stylesheet" href="src/styles/market.css?v=0.2.129">
-<link rel="stylesheet" href="src/styles/summary.css?v=0.2.129">
-<link rel="stylesheet" href="src/styles/character.css?v=0.2.129">
-<link rel="stylesheet" href="src/styles/app.css?v=0.2.129">
+<link rel="stylesheet" href="src/styles/tokens.css?v=0.2.130">
+<link rel="stylesheet" href="src/styles/world.css?v=0.2.130">
+<link rel="stylesheet" href="src/styles/shell.css?v=0.2.130">
+<link rel="stylesheet" href="src/styles/hunt.css?v=0.2.130">
+<link rel="stylesheet" href="src/styles/windows.css?v=0.2.130">
+<link rel="stylesheet" href="src/styles/market.css?v=0.2.130">
+<link rel="stylesheet" href="src/styles/summary.css?v=0.2.130">
+<link rel="stylesheet" href="src/styles/character.css?v=0.2.130">
+<link rel="stylesheet" href="src/styles/app.css?v=0.2.130">
 <!-- MODULE PRELOAD (generated: node tests/module-preload.mjs --write). The sign-in screen's modules, asked for at once
      while this page is parsed; the game's are src/app/game-modules.js, asked for by boot.js. Fetched, never run early. -->
-<link rel="preload" as="script" href="src/platform/load-shell.js?v=0.2.129">
-<link rel="preload" as="script" href="src/vendor/supabase-js-2.103.0.umd.js?v=0.2.129">
-<link rel="preload" as="script" href="src/platform/storage.js?v=0.2.129">
-<link rel="modulepreload" href="src/app/boot.js?v=0.2.129">
-<link rel="modulepreload" href="src/app/closed-notice.js?v=0.2.129">
-<link rel="modulepreload" href="src/app/game-modules.js?v=0.2.129">
-<link rel="modulepreload" href="src/app/glyphs-loader.js?v=0.2.129">
-<link rel="modulepreload" href="src/app/legal-reader.js?v=0.2.129">
-<link rel="modulepreload" href="src/app/live-overlay.js?v=0.2.129">
-<link rel="modulepreload" href="src/app/new-version.js?v=0.2.129">
-<link rel="modulepreload" href="src/app/sign-in.js?v=0.2.129">
-<link rel="modulepreload" href="src/build-info.js?v=0.2.129">
-<link rel="modulepreload" href="src/data/account-rules.js?v=0.2.129">
-<link rel="modulepreload" href="src/data/chat-channels.js?v=0.2.129">
-<link rel="modulepreload" href="src/data/privacy.js?v=0.2.129">
-<link rel="modulepreload" href="src/data/world/art-budget.js?v=0.2.129">
-<link rel="modulepreload" href="src/net/auth-lock.js?v=0.2.129">
-<link rel="modulepreload" href="src/net/auth.js?v=0.2.129">
-<link rel="modulepreload" href="src/net/boot-timing.js?v=0.2.129">
-<link rel="modulepreload" href="src/net/connection.js?v=0.2.129">
-<link rel="modulepreload" href="src/net/diagnostics.js?v=0.2.129">
-<link rel="modulepreload" href="src/net/observability-config.js?v=0.2.129">
-<link rel="modulepreload" href="src/net/observability.js?v=0.2.129">
-<link rel="modulepreload" href="src/net/supabase-bootstrap.js?v=0.2.129">
-<link rel="modulepreload" href="src/session/config.js?v=0.2.129">
-<link rel="modulepreload" href="src/session/intent-ledger.js?v=0.2.129">
-<link rel="modulepreload" href="src/session/player-switch.js?v=0.2.129">
-<link rel="modulepreload" href="src/session/replay-pref.js?v=0.2.129">
-<link rel="modulepreload" href="src/session/server.js?v=0.2.129">
-<link rel="modulepreload" href="src/session/session-observers.js?v=0.2.129">
-<link rel="modulepreload" href="src/shell/launcher-names.js?v=0.2.129">
-<link rel="modulepreload" href="src/shell/off-why.js?v=0.2.129">
-<link rel="modulepreload" href="src/shell/press-ack.js?v=0.2.129">
-<link rel="modulepreload" href="src/shell/social-watch.js?v=0.2.129">
-<link rel="modulepreload" href="src/social/realtime.js?v=0.2.129">
-<link rel="modulepreload" href="src/utils/dom.js?v=0.2.129">
-<link rel="modulepreload" href="src/world/core/camera.js?v=0.2.129">
+<link rel="preload" as="script" href="src/platform/load-shell.js?v=0.2.130">
+<link rel="preload" as="script" href="src/vendor/supabase-js-2.103.0.umd.js?v=0.2.130">
+<link rel="preload" as="script" href="src/platform/storage.js?v=0.2.130">
+<link rel="modulepreload" href="src/app/boot.js?v=0.2.130">
+<link rel="modulepreload" href="src/app/closed-notice.js?v=0.2.130">
+<link rel="modulepreload" href="src/app/game-modules.js?v=0.2.130">
+<link rel="modulepreload" href="src/app/glyphs-loader.js?v=0.2.130">
+<link rel="modulepreload" href="src/app/legal-reader.js?v=0.2.130">
+<link rel="modulepreload" href="src/app/live-overlay.js?v=0.2.130">
+<link rel="modulepreload" href="src/app/new-version.js?v=0.2.130">
+<link rel="modulepreload" href="src/app/sign-in.js?v=0.2.130">
+<link rel="modulepreload" href="src/build-info.js?v=0.2.130">
+<link rel="modulepreload" href="src/data/account-rules.js?v=0.2.130">
+<link rel="modulepreload" href="src/data/chat-channels.js?v=0.2.130">
+<link rel="modulepreload" href="src/data/privacy.js?v=0.2.130">
+<link rel="modulepreload" href="src/data/world/art-budget.js?v=0.2.130">
+<link rel="modulepreload" href="src/net/auth-lock.js?v=0.2.130">
+<link rel="modulepreload" href="src/net/auth.js?v=0.2.130">
+<link rel="modulepreload" href="src/net/boot-timing.js?v=0.2.130">
+<link rel="modulepreload" href="src/net/connection.js?v=0.2.130">
+<link rel="modulepreload" href="src/net/diagnostics.js?v=0.2.130">
+<link rel="modulepreload" href="src/net/observability-config.js?v=0.2.130">
+<link rel="modulepreload" href="src/net/observability.js?v=0.2.130">
+<link rel="modulepreload" href="src/net/supabase-bootstrap.js?v=0.2.130">
+<link rel="modulepreload" href="src/session/config.js?v=0.2.130">
+<link rel="modulepreload" href="src/session/intent-ledger.js?v=0.2.130">
+<link rel="modulepreload" href="src/session/player-switch.js?v=0.2.130">
+<link rel="modulepreload" href="src/session/replay-pref.js?v=0.2.130">
+<link rel="modulepreload" href="src/session/server.js?v=0.2.130">
+<link rel="modulepreload" href="src/session/session-observers.js?v=0.2.130">
+<link rel="modulepreload" href="src/shell/launcher-names.js?v=0.2.130">
+<link rel="modulepreload" href="src/shell/off-why.js?v=0.2.130">
+<link rel="modulepreload" href="src/shell/press-ack.js?v=0.2.130">
+<link rel="modulepreload" href="src/shell/social-watch.js?v=0.2.130">
+<link rel="modulepreload" href="src/social/realtime.js?v=0.2.130">
+<link rel="modulepreload" href="src/utils/dom.js?v=0.2.130">
+<link rel="modulepreload" href="src/world/core/camera.js?v=0.2.130">
 <!-- /MODULE PRELOAD -->
 </head>
 <body class="client-page">
 <!-- THE LOADING SHELL (old-laptop player 10-31: a slow line stared at plain black until all 346 modules had arrived).
      Painted with this page's stylesheets; the bar is src/platform/load-shell.js; boot.js takes it away with the first screen. -->
 <div class="boot-shell" role="status" aria-live="polite">
-  <img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.129" alt="" width="311" height="384" decoding="async" fetchpriority="high">
+  <img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.130" alt="" width="311" height="384" decoding="async" fetchpriority="high">
   <p class="boot-shell-line">Loading Hearthrise…</p>
   <div class="boot-shell-bar" aria-hidden="true"><i class="boot-shell-fill"></i></div>
 </div>
-<script src="src/platform/load-shell.js?v=0.2.129"></script>
+<script src="src/platform/load-shell.js?v=0.2.130"></script>
 <div class="app" id="app"></div>
 <!-- A phone held upright (QA 2026-10-24): phones are landscape-only, so ONE card over everything asks to turn it.
      Shown only by app.css's portrait touch-phone query; a desktop or a tablet never sees it. -->
 <div class="turn-phone" role="dialog" aria-modal="true" aria-labelledby="turn-phone-title">
-  <img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.129" alt="" width="311" height="384" loading="lazy" decoding="async">
+  <img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.130" alt="" width="311" height="384" loading="lazy" decoding="async">
   <div class="auth-card turn-phone-card">
     <h1 class="auth-title" id="turn-phone-title">Turn your phone sideways</h1>
     <p class="auth-lead">Hearthrise plays in landscape. Hold your phone on its side to carry on.</p>
   </div>
 </div>
-<script src="src/vendor/supabase-js-2.103.0.umd.js?v=0.2.129"></script>
-<script src="src/platform/storage.js?v=0.2.129"></script>
-<script type="module" src="src/app/boot.js?v=0.2.129"></script>
+<script src="src/vendor/supabase-js-2.103.0.umd.js?v=0.2.130"></script>
+<script src="src/platform/storage.js?v=0.2.130"></script>
+<script type="module" src="src/app/boot.js?v=0.2.130"></script>
 </body>
 </html>

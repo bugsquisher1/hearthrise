@@ -20,6 +20,8 @@
 //   below      (optional) widget ids this one stacks under when it would overlap them (hud.js stackBelow)
 //   folded     (optional) the desktop's default fold: 'narrow' starts the widget folded on a screen narrower than
 //              --hud-fold-below (tokens.css), 'narrow-alone' only while the hero has no party too (hud.js FOLD_RULES)
+//   keepClear  (optional, true) a top bar whose controls no window covers in a hunt: a docked desktop window whose column
+//              crosses it starts one gap below it (src/shell/window-fit.js fitDocked; the bottom bars are kept clear by anchor)
 //   section    (optional) an envelope section behind a server switch: the widget's lines in HUD layout and in Settings are
 //              listed only while the server sends it (a feature switched off shows nothing, its settings included)
 //
@@ -66,7 +68,7 @@ export const HUD_WIDGETS = Object.freeze([
   /* The hunt screen (HUNT_SCREEN_SPEC §1.4): built once, patched in place. */
   Object.freeze({
     id: 'hunt-topbar', label: 'Hunt bar (top)', layer: 'world', anchor: 'tc', dx: 0, dy: 8,
-    min: Object.freeze([300, 40]), opacity: 1, visible: true, removable: true, when: 'hunt',
+    min: Object.freeze([300, 40]), opacity: 1, visible: true, removable: true, when: 'hunt', keepClear: true,
     phone: Object.freeze({ anchor: 'tr', dx: 4, dy: 4 }),
   }),
   Object.freeze({

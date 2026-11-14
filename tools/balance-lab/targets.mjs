@@ -4,7 +4,8 @@
 // targets, each RULED or DESIGNER in its own comment). Without it, Tyler's balance ruling of 2026-10-25 (§2 pace, §3
 // Normal band, §5 parties) and the 10-18 profit line, the numbers the sheet restates. Either way the pace is the
 // contract a x L^b Level XP an hour at Level L (src/data/core-model.js LEVEL_PACE.contract), the trend the Level curve
-// is held to. A target that does not apply to a run is left out and the run's notes say why (a harder tier carries
+// is held to. NO PROFIT MOLDS (Tyler 2026-11-13): gold rows (margin, the bill's share, net under the band) are PRINTED with
+// pass null, never green or red; the sheet's old gold fields are not read. A target that does not apply to a run is left out and the run's notes say why (a harder tier carries
 // risk by design; a hero outside the ground's band is read on the weight-class lines); a target that needs a run the
 // page did not play (each hero alone, the same party on Normal) says which box to tick.
 import { LEVEL_PACE } from '../../src/data/core-model.js';
@@ -12,9 +13,9 @@ import { charXpForLevel } from '../../src/core/xp.js';
 import { STYLES } from '../balance-sim/gear.mjs';
 import * as SHEET from './virtual/sheet.mjs';
 
-/* Tyler's 2026-10-25 ruling and the 10-18 profit line, in the sheet's shape (used when the bundle has no sheet) */
+/* Tyler's 2026-10-25 ruling, in the sheet's shape (used when the bundle has no sheet) */
 const RULING_1025 = Object.freeze({
-  normal: { deathsPer1000h: 1, closeCallPct: 25, closeCallsPer12h: 1, typicalMinHpPct: 60, marginMin: 0.25, supplyShare: null, xpVsContract: { at: 'middle', min: 0.9, max: 1.1 } },
+  normal: { deathsPer1000h: 1, closeCallPct: 25, closeCallsPer12h: 1, typicalMinHpPct: 60, xpVsContract: { at: 'middle', min: 0.9, max: 1.1 } },
   freshHero: null, weightClass: null, tiers: null,
   party: { fourVsSolo: [1.15, 1.25] },
 });
@@ -34,6 +35,7 @@ const row = (id, label, who, value, target, pass, note) => ({ id, label, who, va
 const pct = (x) => (x === null || x === undefined || !Number.isFinite(x) ? null : Math.round(x * 1000) / 10);
 const pctTxt = (x) => (pct(x) === null ? null : pct(x) + '%');
 const TIER_NAME = { normal: 'Normal', dangerous: 'Dangerous', deadly: 'Deadly' };
+const GOLD = 'printed, not graded';
 
 /**
  * Grade one measured run. run = the summarise answer; ctx = { band: [lo, hi], tier, gear: [preset per seat] };
@@ -66,13 +68,8 @@ export function grade(run, ctx, extra) {
       rows.push(row('close', 'Dips under 25% per 12 h', who, cc.rate, '<= ' + ccMax, cc.rate <= ccMax));
       const minHp = h.encMinHpPct && h.encMinHpPct.p50;
       rows.push(row('minhp', 'Typical lowest HP a pull', who, minHp === null ? null : minHp + '%', '>= ' + T.typicalMinHpPct + '%', minHp === null ? null : minHp >= T.typicalMinHpPct));
-      rows.push(row('margin', 'Coin + commons over the store bill', who, h.margin === null ? 'no store bill' : '+' + pct(h.margin) + '%', '>= +' + pct(T.marginMin) + '%',
-        h.margin === null ? true : h.margin >= T.marginMin));
-      if (!fresh && N.supplyShare && h.level >= N.supplyShare.fromLevel) {
-        const share = h.incomePerH > 0 ? h.storePerH / h.incomePerH : null;
-        rows.push(row('supply', 'Store bill as a share of income', who, pctTxt(share), pct(N.supplyShare.min) + '-' + pct(N.supplyShare.max) + '%',
-          share === null ? null : share >= N.supplyShare.min && share <= N.supplyShare.max));
-      }
+      rows.push(row('margin', 'Coin + commons over the store bill', who, h.margin === null ? 'no store bill' : (h.margin >= 0 ? '+' : '') + pct(h.margin) + '%', GOLD, null));
+      rows.push(row('supply', 'Store bill as a share of income', who, pctTxt(h.incomePerH > 0 ? h.storePerH / h.incomePerH : null), GOLD, null));
       if (n === 1) {
         const ratio = h.levelXpPerH / contractXpPerH(h.level);
         const lo = fresh ? S.freshHero.xpVsPaceMin : N.xpVsContract.min, hi = fresh ? Infinity : N.xpVsContract.max;
@@ -102,10 +99,10 @@ export function grade(run, ctx, extra) {
     const under = band[0] - h.level;
     if (!W || under < 2) continue;
     const who = whoOf(h);
-    if (tier === 'dangerous' && under <= 3) rows.push(row('weight', 'Under the band on Dangerous: net gold', who, Math.round(h.profitPerH) + ' g/h', '<= ' + W.dangerousUnder.netMax, h.profitPerH <= W.dangerousUnder.netMax));
+    if (tier === 'dangerous' && under <= 3) rows.push(row('weight', 'Under the band on Dangerous: net gold', who, Math.round(h.profitPerH) + ' g/h', GOLD, null));
     if (tier === 'deadly' || under >= 5) {
       rows.push(row('weight', 'Under the band on ' + TIER_NAME[tier] + ': dies', who, h.deaths, '>= ' + W.deadlyUnder.deathsMin + ' in the sample', h.deaths >= W.deadlyUnder.deathsMin));
-      rows.push(row('weight', 'Under the band on ' + TIER_NAME[tier] + ': net gold', who, Math.round(h.profitPerH) + ' g/h', '<= ' + W.deadlyUnder.netMax, h.profitPerH <= W.deadlyUnder.netMax));
+      rows.push(row('weight', 'Under the band on ' + TIER_NAME[tier] + ': net gold', who, Math.round(h.profitPerH) + ' g/h', GOLD, null));
     }
   }
   const TT = S.tiers && S.tiers[tier];

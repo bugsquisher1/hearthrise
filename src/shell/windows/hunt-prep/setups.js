@@ -8,18 +8,18 @@
 // the count line, and past the server's count the Buy line (ONE hr_setup_slot_buy at the quote).
 // Picking a row is display only: the builder (builder.js) loads that setup's copy.
 // ════════════════════════════════════════════════════════════════════════
-import { presetsOf, setupSlotsOf, goldOf } from '../../../session/item-sections.js?v=0.2.129';
-import { settingsOf } from '../../../session/hunt-sections.js?v=0.2.129';
-import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.129';
-import { runIntent } from '../../intent-words.js?v=0.2.129';
-import { gold } from '../../../render/format.js?v=0.2.129';
-import { ACTION_SET_LIMITS } from '../../../data/rule-subjects.js?v=0.2.129';
-import { renameSetup, deleteSetup, buySetupSlot } from '../../../session/preset-intents.js?v=0.2.129';
-import { setupBuyWords, setupFullWords } from '../../setup-words.js?v=0.2.129';
-import { nameEditorHtml, openNameEditor, nameKey } from '../../inline-name.js?v=0.2.129';
-import { settleTownActivity } from '../../../session/party-intents.js?v=0.2.129';
-import { t } from '../../../render/player-text.js?v=0.2.129';
-import { dropDraft, pickSetup, draftDirty } from './builder.js?v=0.2.129';
+import { presetsOf, setupSlotsOf, goldOf } from '../../../session/item-sections.js?v=0.2.130';
+import { settingsOf } from '../../../session/hunt-sections.js?v=0.2.130';
+import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.130';
+import { runIntent } from '../../intent-words.js?v=0.2.130';
+import { gold } from '../../../render/format.js?v=0.2.130';
+import { ACTION_SET_LIMITS } from '../../../data/rule-subjects.js?v=0.2.130';
+import { renameSetup, deleteSetup, buySetupSlot } from '../../../session/preset-intents.js?v=0.2.130';
+import { setupBuyWords, setupFullWords } from '../../setup-words.js?v=0.2.130';
+import { nameEditorHtml, openNameEditor, nameKey } from '../../inline-name.js?v=0.2.130';
+import { settleTownActivity } from '../../../session/party-intents.js?v=0.2.130';
+import { t } from '../../../render/player-text.js?v=0.2.130';
+import { dropDraft, pickSetup, draftDirty } from './builder.js?v=0.2.130';
 
 const MAX_PRESETS = ACTION_SET_LIMITS.presets;
 

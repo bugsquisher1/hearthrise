@@ -8,6 +8,8 @@
 //   node tools/world-art/build.mjs --check      rebuild in memory and compare with what is
 //                                               committed (the drift guard); write nothing
 //
+// A source already wholly on the palette (PixelLab's sticky palette, or drawn by hand) is material `native`: a sidecar
+// that would grade it is finding [regrade] (lock.mjs), so the lock cannot undo a palette-locked generation.
 // The pipeline is lock (material grade + palette snap) → validate (the budget in
 // src/data/world/art-budget.js) → pack → manifest. A set with any finding is NOT
 // written: an atlas that breaks the scale or contact rules never reaches the tree.
@@ -35,9 +37,9 @@ import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, statSy
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePNG, encodeSheetPNG, crop, pixelHash, createImage } from './png.mjs';
-import { lock } from './lock.mjs';
+import { lock, regradeFinding } from './lock.mjs';
 import { measureFrame, contactSpans } from './measure.mjs';
-import { validateSprite, validateMask, validateTerrain, validateAtlasSize, referenceFrames, MASK_PALETTE } from './validate.mjs';
+import { validateSprite, validateMask, validateTerrain, validateAtlasSize, referenceFrames, MASK_PALETTE, REGRADE_KEPT } from './validate.mjs';
 import { pack } from './pack.mjs';
 import { FACINGS, MANIFEST_VERSION, atlasPaths, gridOf } from '../../src/data/world/art-budget.js';
 import { PALETTE_ID } from './palette.mjs';
@@ -133,6 +135,9 @@ export function buildSet(root, set) {
     const src = join(root, ART_DIR, set, sc.source || '');
     if (!sc.source || !existsSync(src)) { findings.push({ rule: 'source', id: sc.id, detail: `missing source ${sc.source}` }); continue; }
     const sheet = decodePNG(readFileSync(src));
+    /* palette-locked art is never graded (lock.mjs): a set that would is not written */
+    const regrade = masks ? null : regradeFinding(sc, sheet, REGRADE_KEPT);
+    if (regrade) findings.push(regrade);
     if (sc.class === 'terrain') {
       const tiles = {};
       for (const [k, cells] of Object.entries(sc.tiles)) tiles[k] = cells.map(([c, r]) => lock(crop(sheet, c * T, r * T, T, T), sc.material));

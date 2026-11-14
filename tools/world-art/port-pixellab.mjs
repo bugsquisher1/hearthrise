@@ -17,6 +17,15 @@
 //     that: the frame is the image with empty rows below the art cut, the anchor is the
 //     bottom-centre, footprint 1x1 — so a placement at the same cell lands on the same pixels.
 //
+//   node tools/world-art/port-pixellab.mjs tileset --set S --id ID --meta META.json --file SHEET.png --lower MAT --upper MAT
+//        [--material M] [--pick KEY=TILE_NAME,…] [--note "…"]
+//     A PixelLab top-down tileset (standard, pro, or Tileset Pro's 25 tiles) as a wang16 terrain: its sixteen corner
+//     tiles read from the metadata (tools/world-art/tileset.mjs). META is the metadata.json downloaded beside the sheet.
+//
+// PALETTE-LOCKED ART IMPORTS AS `native` (PixelLab 2026-11-11 sticky palettes; lock.mjs importMaterial): map, object,
+// sheet, wang and tileset declare `native` when the pixels they wrote are wholly on the palette, whatever --material or
+// the item spec says, so the lock cannot re-grade a palette-locked generation. Anything else keeps its grade class.
+//
 // The pixels are never scaled or redrawn (ART_DIRECTION §2); build.mjs locks them to the
 // palette and checks them against the budget like every other source.
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
@@ -24,7 +33,8 @@ import { join } from 'node:path';
 import { decodePNG, encodePNG, createImage, blit } from './png.mjs';
 import { T, CLASSES, FACINGS } from '../../src/data/world/art-budget.js';
 import { ROOT, ART_DIR } from './build.mjs';
-import { snapTo, liftBody } from './lock.mjs';
+import { snapTo, liftBody, importMaterial } from './lock.mjs';
+import { importTileset } from './tileset.mjs';
 import { RAMPS } from './palette.mjs';
 import { plant } from './port-hunt-sim.mjs';
 import { idleFrames, flightIdle } from './idle-clip.mjs';
@@ -186,7 +196,7 @@ function main() {
     const patches = (o.patch || []).map((c) => { const [x, y, f, job] = c.split(','); return { x: Number(x), y: Number(y), f, job }; });
     for (const p of patches) { const im = decodePNG(readFileSync(p.f)); blit(img, im, 0, 0, im.width, im.height, p.x, p.y); }
     writeFileSync(join(dir, o.id + '.png'), encodePNG(img));
-    writeFileSync(join(dir, o.id + '.json'), JSON.stringify(paintedSidecar({ id: o.id, mapId: o.map, w, h, material: o.material || 'terrain', note: o.note, crops }), null, 2) + '\n');
+    writeFileSync(join(dir, o.id + '.json'), JSON.stringify(paintedSidecar({ id: o.id, mapId: o.map, w, h, material: importMaterial(img, o.material || 'terrain'), note: o.note, crops }), null, 2) + '\n');
     console.log('  ✓ ' + o.set + '/' + o.id + ': painted ' + w + 'x' + h + ' from ' + crops.length + ' renders');
   } else if (cmd === 'object') {
     const cls = CLASSES[o.class];
@@ -195,7 +205,7 @@ function main() {
     if (!f) throw new Error(o.id + ': ' + o.file + ' is empty');
     writeFileSync(join(dir, o.id + '.png'), encodePNG(f.img));
     const sc = {
-      id: o.id, class: o.class, style: 's1', material: o.material || 'stone', source: o.id + '.png',
+      id: o.id, class: o.class, style: 's1', material: importMaterial(f.img, o.material || 'stone'), source: o.id + '.png',
       frame: f.frame, anchor_px: f.anchor, footprint: o.footprint ? pair(o.footprint) : [1, 1],
       ...(o.hover ? { hover_px: Number(o.hover) } : {}),
       anims: [{ name: 'idle', fps: 0, loop: false, dirs: { s: 1 } }],
@@ -220,7 +230,7 @@ function main() {
       if (!img) throw new Error(id + ': cell ' + n + ' of ' + o.file + ' is empty');
       writeFileSync(join(dir, id + '.png'), encodePNG(img));
       const sc = {
-        id, class: klass, style: 's1', material: material || 'wood', source: id + '.png',
+        id, class: klass, style: 's1', material: importMaterial(img, material || 'wood'), source: id + '.png',
         frame: [img.width, img.height], anchor_px: [Math.floor(img.width / 2), img.height - 1 - Number(up || 0)],
         footprint: fp && fp !== '1x1' ? fp.split('x').map(Number) : [1, 1], ...(up ? { overhang_px: [0, 0, Number(up), 0] } : {}),
         anims: [{ name: 'idle', fps: 0, loop: false, dirs: { s: 1 } }],
@@ -370,13 +380,21 @@ function main() {
     writeFileSync(join(dir, o.id + '.png'), encodePNG(sheet));
     const sources = grounds.map((g) => ({ ground: g.p, ...(g.sc.pixellab || {}) }));
     const sc = {
-      id: o.id, class: 'terrain', kind: 'wang16', style: 's1', material: o.material || 'terrain', source: o.id + '.png', lower: lo, upper: up, tiles,
+      id: o.id, class: 'terrain', kind: 'wang16', style: 's1', material: importMaterial(sheet, o.material || 'terrain'), source: o.id + '.png', lower: lo, upper: up, tiles,
       pixellab: { tool: 'port-wang', map: sources.map((s) => s.map || s.id || s.ground).join(','), sources },
       notes: 'The ' + lo + '/' + up + ' Wang-16 pair recovered from the painted grounds ' + grounds.map((g) => g.p).join(', ') + ' (their tileset tiles, cut on the dual grid) by tools/world-art/port-pixellab.mjs wang; pixels unscaled.' + (composed.length ? ' Corners ' + composed.join(', ') + ' were never painted: each is four quadrants of painted tiles whose nearest corners match.' : ''),
     };
     writeFileSync(join(dir, o.id + '.json'), JSON.stringify(sc, null, 2) + '\n');
     console.log('  ✓ ' + o.set + '/' + o.id + ' wang16 ' + lo + '/' + up + ': ' + cells.length + ' tiles' + (composed.length ? ', composed ' + composed.join(' ') : '') + ' · per key ' + Object.keys(tiles).sort().map((k) => k + ':' + tiles[k].length).join(' '));
-  } else throw new Error('usage: port-pixellab.mjs map|object|sheet|unit|idle|wang …');
+  } else if (cmd === 'tileset') {
+    /* --meta META.json --file SHEET.png --lower MAT --upper MAT [--material M] [--pick KEY=NAME,…]: tileset.mjs importTileset */
+    if (!o.meta || !o.file || !o.lower || !o.upper) throw new Error(o.id + ': tileset needs --meta, --file, --lower and --upper');
+    const pick = Object.fromEntries((o.pick ? o.pick.split(',') : []).map((p) => p.split('=')));
+    const t = importTileset({ id: o.id, meta: JSON.parse(readFileSync(o.meta, 'utf8')), sheet: decodePNG(readFileSync(o.file)), lower: o.lower, upper: o.upper, material: o.material, pick, note: o.note });
+    writeFileSync(join(dir, o.id + '.png'), encodePNG(t.image));
+    writeFileSync(join(dir, o.id + '.json'), JSON.stringify(t.sidecar, null, 2) + '\n');
+    console.log('  ✓ ' + o.set + '/' + o.id + ' wang16 ' + o.lower + '/' + o.upper + ': 16 of ' + t.total + ' tiles' + (t.ignored.length ? ', left ' + t.ignored.join(' ') : '') + ' · material ' + t.sidecar.material);
+  } else throw new Error('usage: port-pixellab.mjs map|object|sheet|unit|idle|wang|tileset …');
 }
 if (isMain(import.meta.url)) {
   try { main(); } catch (e) { console.error('port-pixellab: ' + (e && e.message || e)); process.exit(2); }

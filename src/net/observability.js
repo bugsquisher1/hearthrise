@@ -51,21 +51,21 @@
 // Every event is bounded: EVENT_MAX named events per load, CLICK_MAX of each click kind (a loop cannot spend the quota).
 // ════════════════════════════════════════════════════════════════════════
 
-import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.129';
-import { BUILD } from '../build-info.js?v=0.2.129';
-import { observeSessions } from '../session/session-observers.js?v=0.2.129';
-import { replayWanted } from '../session/replay-pref.js?v=0.2.129';
-import { startDiagnostics } from './diagnostics.js?v=0.2.129';
+import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.130';
+import { BUILD } from '../build-info.js?v=0.2.130';
+import { observeSessions } from '../session/session-observers.js?v=0.2.130';
+import { replayWanted } from '../session/replay-pref.js?v=0.2.130';
+import { startDiagnostics } from './diagnostics.js?v=0.2.130';
 
 /* THE HERO READERS (src/net/hero-readers.js: the hunt, party, tier, Level and last-session sections) pull the session's
    whole graph, so they arrive with the game half (boot.js hands them in before it opens any hero) instead of being
    imported here: the sign-in screen loads without them (lane b-first-load 2026-11-13). Only a hero's own events read
    them, and no hero exists before they are in. */
-/** @type {typeof import('./hero-readers.js?v=0.2.129').HERO_READERS} */
+/** @type {typeof import('./hero-readers.js?v=0.2.130').HERO_READERS} */
 let read = /** @type {any} */ (null);
 /**
  * The hero readers, once per page: boot.js, with the game half.
- * @param {typeof import('./hero-readers.js?v=0.2.129').HERO_READERS} readers
+ * @param {typeof import('./hero-readers.js?v=0.2.130').HERO_READERS} readers
  */
 export function useHeroReaders(readers) { read = readers; }
 

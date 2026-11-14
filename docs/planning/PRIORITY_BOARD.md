@@ -37,7 +37,7 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 - The Tower is a climb. Every floor is one room of monsters, and every floor is harder than the last.
 - Your hero fights it like a hunt, alone or with a party. It uses your stamina and your supplies.
 - Dying here costs you nothing. You go back to town and you lose no XP.
-- Every 10th floor gives you a key. You can earn 6 keys a week, and higher floors give better keys.
+- Every 10th floor gives you a key. Each of your heroes can earn 6 keys a week, and higher floors give better keys.
 - Use a key on the chest at the Great Hearth. You always get something, and sometimes a tower weapon you can use or trade.
 - You get about half the XP of hunting and no gold. The Leaderboards show who climbed highest, solo and in a party.
 
@@ -214,6 +214,8 @@ A third line under each board shows the all-time record and who holds it. A filt
 **The odds fall as the keys rise (Tyler 2026-11-14).** Early weapons are easy so a new player sees the whole loop in their first weeks. The top ones are the long chase. A higher key still beats the one below it every time you use it: about three times the Cinders and clearly more Salts, so the sure part of the haul always goes up even when the weapon chance goes down. The counts are proposed and unmeasured.
 
 Every key owns three landings, so the next one after that starts at 160, then 190. No landing is ever renumbered: a hero's record, the board and the keys already taken all read floor numbers, and a new row only changes which key floors 130 and up hand out from that day on. A new key is one row here (its start, its odds, what is always inside), its seven weapon rows, and its art. No code and no new chest. Its name is the row's own, so the list doesn't have to stay metals. Each landing's key is given once a week for each hero, when the Keeper dies and they're alive.
+
+**Keys are for each hero, each week, never for the account (Tyler 2026-11-14: "also the keys are per character per week not per account").** Six a week for each hero, held by one unique server row for each hero, landing and week. An account playing four heroes can earn 24. Every weekly and odds number in this section is for one hero unless it says "an account of four".
 
 The week starts Monday 00:00 UTC. A hero's week is the six landings under their best, plus any new landing they reach. So six keys most weeks (Tyler 2026-11-14), about 20 minutes of climbing in a four and 40 to 60 alone. The six span two kinds of key for most heroes: a hero whose best is 60 takes three Bronze and three Silver. A hero whose best is under 60 has fewer landings to take, so a new hero's keys grow with their record. A key is an item with no shop value that can't be listed, traded or sold. It can go through Storage to another hero on the same account, because that is still you. Opening costs nothing, ever.
 
@@ -451,7 +453,7 @@ Both paths (§4): the climb viewed and the browser closed are the same settle, a
 | 1 | How poor is the XP? | ANSWERED: "start 50% exp". Fitted as half a hunting hour at Level 45, section 7 |
 | 2 | Does climbing drain stamina? | Stands as picked: yes. His answer leans on it ("since it uses stamina and supplies") |
 | 3 | Can keys be traded or sold? | Stands as picked: no, and opening is free |
-| 4 | How rare are the weapons? | ANSWERED and locked: six keys a week, no per-hour option. Odds reversed by Tyler: 20 / 12 / 7 / 4%. The weapon is your equipped type half the time (his pick). The first-key guarantee is dropped |
+| 4 | How rare are the weapons? | ANSWERED and locked: six keys a week for each hero (24 for an account of four), no per-hour option. Odds reversed by Tyler: 20 / 12 / 7 / 4%. The weapon is your equipped type half the time (his pick). The first-key guarantee is dropped |
 | 5 | How strong are they? | Stands as picked: the standard weapon's numbers plus the attribute |
 | 6 | Is the Tower the Hearth's chimney, and is that story his? | ANSWERED and locked: "I like it for the lore / story". One chest, an open key table and the plain summary were his additions |
 

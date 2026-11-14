@@ -1,0 +1,35 @@
+{
+  "id": "sl_stake_nets",
+  "class": "wreck",
+  "style": "s1",
+  "material": "wood",
+  "source": "sl_stake_nets.png",
+  "frame": [
+    46,
+    38
+  ],
+  "anchor_px": [
+    23,
+    37
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "4275829b-11ed-534d-a45e-2ac92ff5cacd",
+    "cell": 0
+  },
+  "notes": "Cell 0 of a 4x4 style-1 prop sheet (PixelLab image 4275829b-11ed-534d-a45e-2ac92ff5cacd, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

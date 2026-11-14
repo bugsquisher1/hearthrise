@@ -1,0 +1,35 @@
+{
+  "id": "sl_grounded_barge_spar",
+  "class": "decal",
+  "style": "s1",
+  "material": "wood",
+  "source": "sl_grounded_barge_spar.png",
+  "frame": [
+    52,
+    39
+  ],
+  "anchor_px": [
+    26,
+    38
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "cb38ac56-5091-5665-83fd-96b37c18991a",
+    "cell": 5
+  },
+  "notes": "Cell 5 of a 4x4 style-1 prop sheet (PixelLab image cb38ac56-5091-5665-83fd-96b37c18991a, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

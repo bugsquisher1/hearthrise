@@ -92,6 +92,7 @@ export const REGION_KITS = Object.freeze({
           gravel: '64f28123-bfbb-4399-9b6f-a977435865aa', mud: '2fdf9b47-aff6-4510-a1cf-8461af777554',
           grass: '61a68177-5975-468e-be66-3c611c4a3203', reeds: '8a61041f-fe25-4585-be53-4afbbdd5a45e',
           thicket: 'd40b5758-d7b9-4f2a-9569-24600a967c62', barrow: 'c1295240-6b10-4a2e-84e9-4597d576c741',
+          silt: '330d6904-4e64-4737-b6a4-6239f79e74d1',
         }),
         /* reeds/shallows, gravel/shallows, grass/reeds, river/reeds, mud/shallows, reeds/thicket, mud/barrow, barrow/thicket,
            river/shallows, mud/grass, grass/thicket, grass/barrow, mud/reeds. There is no river/mud, river/grass or
@@ -100,7 +101,8 @@ export const REGION_KITS = Object.freeze({
           4004bd16-a3be-44a4-8752-8462ce5427ab 4a3822fd-ece9-4cbe-81b6-a43e98153a9e 7739cc60-4ffa-463d-8460-22171ae47a78
           77869a44-e3d1-4c98-80de-4c2b3beea86f 7ec1b34b-cb91-46ab-be85-4691a0cf4b01 82b5e18b-baf3-4e49-8a4d-f50f31c67841
           9a817bf5-7444-4a77-8f3b-b0b61eed4258 a16e2cb5-5f05-4dbb-b230-5cae403ca499 d2acf6a0-7c4a-49ff-af74-48981e769ebf
-          deb9194f-162c-41a5-af8a-5a7937ed898d`),
+          deb9194f-162c-41a5-af8a-5a7937ed898d
+          c62a50a3-6148-415d-88b4-b2e827e5b804 168be062-a561-4e5a-bf4f-8fb1964dd0ba ec6c96ef-8da7-4437-ab0c-a7b38cd44755`),
         maps: ids('ee5f44c4-49da-446b-b26d-1a0de257fde1'),
       }),
     }),
@@ -110,9 +112,10 @@ export const REGION_KITS = Object.freeze({
       mu_bier_unburned mu_cairn mu_coffin_lid mu_crates mu_dead_hawthorn mu_drum_split mu_grave_goods mu_grave_open mu_horse_skull
       mu_kerbstones mu_shields_leaning mu_standard_fallen mu_sword_marker mu_urns mu_weapon_rack
       barrel_broken barrels bone_pile bones cart_wheel coins_scattered sack_pile skull
-      mb_fallen_log mb_reeds mb_stepping_stones westwood_ash`),
-    units: ids('banded_pikeman bannerman fordsunk wight barrow_knight'),
-    sets: ids('march ford muster'),
+      mb_fallen_log mb_reeds mb_stepping_stones westwood_ash
+      mr_drowned_pikes mr_eel_trap mr_green_harness mr_greened_shield mr_mooring_post mr_silt_ripples mr_silt_stain mr_silt_stain_small`),
+    units: ids('banded_pikeman bannerman fordsunk wight barrow_knight mudlark'),
+    sets: ids('march ford muster slake'),
     grounds: Object.freeze({
       hasks_ford: Object.freeze({ family: 'march', signature: ids('hf_toll_stone hf_ford_marker') }),
       muster_barrows: Object.freeze({ family: 'march', signature: ids('mu_barrow_door') }),
@@ -123,7 +126,6 @@ export const REGION_KITS = Object.freeze({
        pieces the kit lacks (04: a mud flat needs wear, ART_DIRECTION §5). The Ford's brief places `oak`: it is not in this
        kit (its light round canopy reads as Greenhaven beside the March's alder and ash; read 2026-11-07), so the Ford's
        import swaps it for westwood_ash or mu_dead_hawthorn. */
-    pending: ids(`sl_grounded_barge sl_stake_nets mudlark greened_pikeman bargeman color_sergeant
-      mr_mooring_post mr_eel_trap mr_silt_stain mr_silt_stain_small mr_silt_ripples mr_drowned_pikes mr_green_harness mr_greened_shield`),
+    pending: ids('greened_pikeman bargeman color_sergeant'),
   }),
 });

@@ -10,17 +10,12 @@
 //   ':' the shallows, walked (earth; the painter lays the March's shallows tiles here)
 //   '~' a deep channel (brook: flat water, blocks a step)
 //   '#' reeds and the banks (thicket: blocks a step and a shot)
-//   'B' THE GROUNDED BARGE's hull, x27-36 y18-22, the board's signature 1 (art brief 03, footprint 10x5). Blocked in the rows
-//       until its sprite loads; the art import then swaps these cells to silt and places sl_grounded_barge at (27,18), whose
-//       footprint blocks the same 50 tiles, so the mask hash does not move.
+//   (the Grounded Barge is an object now: sl_grounded_barge at (27,20), footprint 10x3, art imported by lane/a-import-slake-art 2026-11-10;
+//   the board drew a five-deep hull but the approved sprite is 312x95 px, so the two rows above it are open silt)
 //
-// ART: STAGED. The ground `the_slake_ground` is painted from these rows on the Barrow March kit's tilesets
-// (src/data/world/region-kits.js barrow_march.families.march, with the copper silt pair of brief 04). Every object placed below
-// is a kit prop on a loaded set, but the four gather oaks (the Ford's node kind, which the kit keeps off the March: they swap for a
-// March tree node when one exists). Waiting on their sets (brief 04): the Stake Nets (signature 2) as a run of 4-6 across the
-// north-east bar, x45-52 y7-9 beside the Stake Nets pocket; the barge's spill (sl_grounded_barge_coal, _spar, _pitch, _plank)
-// west of the hull round the Grounded Barge pocket; the river kit's silt stains and ripples (mr_*) at least every 12 tiles of
-// open silt; hf_helm_heap at the Mudlark Holes, hf_pikes_fallen and hf_banded_shield along the Tow Path.
+// ART (2026-11-10): the ground the_slake_ground is painted from these rows (art/briefs/the-slake-grid-2026-11-10.txt, set slake) on the copper
+// silt pairs; the Mudlark, the barge, the Stake Nets run, the barge's spill and the river kit's wear decals are in set slake. Still waiting:
+// the Greened Pikeman, the Bargeman and the Color Sergeant (no art yet) and the four gather oaks (a March tree node).
 //
 // The pockets, packs, pull tiles and route are in ./pack.js `ground`; `spawns` here lists every pack tile at full density so
 // the map lint proves each is open floor.
@@ -32,7 +27,7 @@ export default Object.freeze({
   outdoor: true,
   light: 'day',
   ground: 'the_slake_ground',
-  legend: Object.freeze({ '#': 'thicket', '.': 'earth', ':': 'earth', '~': 'brook', 'B': 'thicket' }),
+  legend: Object.freeze({ '#': 'thicket', '.': 'earth', ':': 'earth', '~': 'brook' }),
   rows: Object.freeze([
     '############....############################################', // 0  the road in
     '###########.......##########################################',
@@ -52,11 +47,11 @@ export default Object.freeze({
     '~~~~#########.........................................####~~', // 15
     '~~~##########..........................................###~~',
     '~~###########..........................................###~~',
-    '~~###########..............BBBBBBBBBB.....................#~',
-    '~~##########...............BBBBBBBBBB.....................#~', //    P5 the Grounded Barge, P2 the Greenbar
-    '~~##########...............BBBBBBBBBB.....................#~', // 20
-    '~~##########...............BBBBBBBBBB....................##~',
-    '~~###########..............BBBBBBBBBB...................###~',
+    '~~###########.............................................#~',
+    '~~##########..............................................#~', //    P5 the Grounded Barge, P2 the Greenbar
+    '~~##########..............................................#~', // 20
+    '~~##########.............................................##~',
+    '~~###########...........................................###~',
     '~~#############..........................................#~~',
     '~~##############.........................................#~~',
     '~~~#############.......::::::::::.............:::::::....#~~', // 25
@@ -77,6 +72,34 @@ export default Object.freeze({
   ]),
   faces: Object.freeze([]),
   objects: Object.freeze([
+    /* THE ART (lane/a-import-slake-art, 2026-11-10). The Grounded Barge, signature 1: its hull sprite is 312 x 95 px (three tiles deep), so its
+       footprint is 10 x 3 at the hull's south rows (y20-22) and the two rows above it are open silt again (the board drew five). */
+    { id: 'sl_grounded_barge', x: 27, y: 20 },
+    /* the barge's spill, west and south of the hull round the Grounded Barge pocket */
+    { id: 'sl_grounded_barge_coal', x: 24, y: 19 }, { id: 'sl_grounded_barge_plank', x: 23, y: 22 }, { id: 'sl_grounded_barge_spar', x: 25, y: 24 }, { id: 'sl_grounded_barge_pitch', x: 26, y: 24 },
+    /* the Stake Nets, signature 2: a run across the north-east bar beside the Stake Nets pocket */
+    { id: 'sl_stake_nets', x: 43, y: 9 }, { id: 'sl_stake_nets', x: 45, y: 9 }, { id: 'sl_stake_nets', x: 47, y: 9 }, { id: 'sl_stake_nets_torn', x: 49, y: 9 }, { id: 'sl_stake_nets_snag', x: 51, y: 9 }, { id: 'sl_stake_nets_end', x: 53, y: 9 },
+    /* the river kit and the March kit: the Tow Path's war-dead, the Mudlark Holes' helms, the posts and traps the silt keeps */
+    { id: 'hf_pikes_fallen', x: 14, y: 9 }, { id: 'hf_banded_shield', x: 19, y: 6 }, { id: 'hf_helm_heap', x: 37, y: 34 }, { id: 'mr_mooring_post', x: 27, y: 10 }, { id: 'mr_mooring_post', x: 44, y: 26 }, { id: 'mr_eel_trap', x: 36, y: 25 }, { id: 'mr_drowned_pikes', x: 31, y: 25 },
+    /* wear: silt stains, ripples, the company's harness and shields gone green, scattered about one to a dozen tiles and never twice alike in a row (ART_DIRECTION 5) */
+    { id: 'mr_silt_stain', x: 12, y: 1 }, { id: 'mr_silt_ripples', x: 9, y: 2 }, { id: 'mr_silt_stain_small', x: 18, y: 2 }, { id: 'mr_silt_stain', x: 39, y: 2 }, { id: 'mr_silt_ripples', x: 23, y: 3 }, { id: 'mr_silt_stain_small', x: 36, y: 3 },
+    { id: 'mr_green_harness', x: 45, y: 3 }, { id: 'mr_silt_ripples', x: 27, y: 4 }, { id: 'mr_silt_stain', x: 32, y: 4 }, { id: 'mr_greened_shield', x: 42, y: 4 }, { id: 'mr_silt_stain', x: 11, y: 6 }, { id: 'mr_silt_ripples', x: 15, y: 6 },
+    { id: 'mr_silt_stain_small', x: 21, y: 6 }, { id: 'mr_silt_stain', x: 48, y: 6 }, { id: 'mr_silt_ripples', x: 8, y: 7 }, { id: 'mr_silt_stain_small', x: 37, y: 7 }, { id: 'mr_green_harness', x: 45, y: 7 }, { id: 'mr_silt_ripples', x: 24, y: 8 },
+    { id: 'mr_silt_stain', x: 28, y: 8 }, { id: 'mr_greened_shield', x: 34, y: 8 }, { id: 'mr_silt_stain', x: 42, y: 8 }, { id: 'mr_silt_ripples', x: 13, y: 9 }, { id: 'mr_silt_stain_small', x: 17, y: 9 }, { id: 'mr_silt_stain', x: 53, y: 9 },
+    { id: 'mr_silt_ripples', x: 31, y: 10 }, { id: 'mr_silt_stain_small', x: 38, y: 10 }, { id: 'mr_green_harness', x: 49, y: 10 }, { id: 'mr_silt_ripples', x: 21, y: 11 }, { id: 'mr_silt_stain', x: 18, y: 12 }, { id: 'mr_greened_shield', x: 41, y: 12 },
+    { id: 'mr_silt_stain', x: 46, y: 12 }, { id: 'mr_silt_ripples', x: 24, y: 14 }, { id: 'mr_silt_stain_small', x: 16, y: 15 }, { id: 'mr_silt_stain', x: 27, y: 15 }, { id: 'mr_silt_ripples', x: 31, y: 15 }, { id: 'mr_silt_stain_small', x: 39, y: 15 },
+    { id: 'mr_green_harness', x: 36, y: 16 }, { id: 'mr_silt_ripples', x: 51, y: 16 }, { id: 'mr_silt_stain', x: 20, y: 17 }, { id: 'mr_greened_shield', x: 43, y: 17 }, { id: 'mr_silt_stain', x: 48, y: 17 }, { id: 'mr_silt_ripples', x: 13, y: 18 },
+    { id: 'mr_silt_stain_small', x: 17, y: 18 }, { id: 'mr_silt_stain', x: 25, y: 18 }, { id: 'mr_silt_ripples', x: 40, y: 18 }, { id: 'mr_silt_stain_small', x: 54, y: 18 }, { id: 'mr_green_harness', x: 45, y: 20 }, { id: 'mr_silt_ripples', x: 57, y: 20 },
+    { id: 'mr_silt_stain', x: 15, y: 21 }, { id: 'mr_greened_shield', x: 20, y: 21 }, { id: 'mr_silt_stain', x: 24, y: 21 }, { id: 'mr_silt_ripples', x: 38, y: 21 }, { id: 'mr_silt_stain_small', x: 51, y: 21 }, { id: 'mr_silt_stain', x: 42, y: 22 },
+    { id: 'mr_silt_ripples', x: 54, y: 22 }, { id: 'mr_silt_stain_small', x: 46, y: 23 }, { id: 'mr_green_harness', x: 21, y: 24 }, { id: 'mr_silt_ripples', x: 32, y: 24 }, { id: 'mr_silt_stain', x: 24, y: 25 }, { id: 'mr_greened_shield', x: 29, y: 25 },
+    { id: 'mr_silt_stain', x: 38, y: 25 }, { id: 'mr_silt_ripples', x: 56, y: 25 }, { id: 'mr_silt_stain_small', x: 16, y: 26 }, { id: 'mr_silt_stain', x: 35, y: 26 }, { id: 'mr_silt_ripples', x: 42, y: 26 }, { id: 'mr_silt_stain_small', x: 47, y: 26 },
+    { id: 'mr_green_harness', x: 52, y: 26 }, { id: 'mr_silt_ripples', x: 25, y: 28 }, { id: 'mr_silt_stain', x: 32, y: 28 }, { id: 'mr_greened_shield', x: 29, y: 29 }, { id: 'mr_silt_stain', x: 17, y: 30 }, { id: 'mr_silt_ripples', x: 21, y: 30 },
+    { id: 'mr_silt_stain_small', x: 42, y: 30 }, { id: 'mr_silt_stain', x: 9, y: 31 }, { id: 'mr_silt_ripples', x: 13, y: 31 }, { id: 'mr_silt_stain_small', x: 26, y: 31 }, { id: 'mr_green_harness', x: 39, y: 31 }, { id: 'mr_silt_ripples', x: 47, y: 31 },
+    { id: 'mr_silt_stain', x: 52, y: 31 }, { id: 'mr_greened_shield', x: 56, y: 31 }, { id: 'mr_silt_stain', x: 30, y: 32 }, { id: 'mr_silt_ripples', x: 36, y: 32 }, { id: 'mr_silt_stain_small', x: 6, y: 33 }, { id: 'mr_silt_stain', x: 33, y: 33 },
+    { id: 'mr_silt_ripples', x: 44, y: 33 }, { id: 'mr_silt_stain_small', x: 3, y: 34 }, { id: 'mr_green_harness', x: 11, y: 34 }, { id: 'mr_silt_ripples', x: 18, y: 34 }, { id: 'mr_silt_stain', x: 24, y: 34 }, { id: 'mr_greened_shield', x: 41, y: 34 },
+    { id: 'mr_silt_stain', x: 57, y: 34 }, { id: 'mr_silt_ripples', x: 21, y: 35 }, { id: 'mr_silt_stain_small', x: 29, y: 35 }, { id: 'mr_silt_stain', x: 47, y: 35 }, { id: 'mr_silt_ripples', x: 54, y: 35 }, { id: 'mr_silt_stain_small', x: 7, y: 37 },
+    { id: 'mr_green_harness', x: 17, y: 37 }, { id: 'mr_silt_ripples', x: 26, y: 37 }, { id: 'mr_silt_stain', x: 35, y: 37 }, { id: 'mr_greened_shield', x: 40, y: 37 }, { id: 'mr_silt_stain', x: 44, y: 37 }, { id: 'mr_silt_ripples', x: 51, y: 37 },
+    { id: 'mr_silt_stain_small', x: 13, y: 38 }, { id: 'mr_silt_stain', x: 22, y: 38 }, { id: 'mr_silt_ripples', x: 30, y: 38 },
     /* P0 the Tow Path: the bank the barge was hauled up, and what the haulers left */
     { id: 'cart_wheel', x: 10, y: 8 }, { id: 'sack_pile', x: 20, y: 3 }, { id: 'mb_fallen_log', x: 22, y: 8 }, { id: 'bones', x: 18, y: 9 },
     { id: 'skull', x: 11, y: 4 },
@@ -111,5 +134,5 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 13, y: 0, to: 'town_common' }]),
   start: Object.freeze([13, 1]),
-  maskHash: '75e610b2',
+  maskHash: 'f74c683b',
 });

@@ -1104,7 +1104,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hunt-screen.mjs
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=1/11
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=1/12
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
@@ -1138,10 +1138,10 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      - name: Hunt screen mutants, shard 2 of 11 (play.html)
+      - name: Hunt screen mutants, shard 2 of 12 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=2/11
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=2/12
 
       - name: Upload failure artifacts
         if: failure()
@@ -1172,10 +1172,10 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      - name: Hunt screen mutants, shard 3 of 11 (play.html)
+      - name: Hunt screen mutants, shard 3 of 12 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=3/11
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=3/12
 
       - name: Upload failure artifacts
         if: failure()
@@ -1206,10 +1206,10 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      - name: Hunt screen mutants, shard 4 of 11 (play.html)
+      - name: Hunt screen mutants, shard 4 of 12 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=4/11
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=4/12
 
       - name: Upload failure artifacts
         if: failure()
@@ -1240,10 +1240,10 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      - name: Hunt screen mutants, shard 5 of 11 (play.html)
+      - name: Hunt screen mutants, shard 5 of 12 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=5/11
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=5/12
 
       - name: Upload failure artifacts
         if: failure()
@@ -1274,10 +1274,10 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      - name: Hunt screen mutants, shard 6 of 11 (play.html)
+      - name: Hunt screen mutants, shard 6 of 12 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=6/11
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=6/12
 
       - name: Upload failure artifacts
         if: failure()
@@ -1308,10 +1308,10 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      - name: Hunt screen mutants, shard 7 of 11 (play.html)
+      - name: Hunt screen mutants, shard 7 of 12 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=7/11
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=7/12
 
       - name: Upload failure artifacts
         if: failure()
@@ -1345,10 +1345,10 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      - name: Hunt screen mutants, shard 8 of 11 (play.html)
+      - name: Hunt screen mutants, shard 8 of 12 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=8/11
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=8/12
 
       - name: Upload failure artifacts
         if: failure()
@@ -1379,10 +1379,10 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      - name: Hunt screen mutants, shard 9 of 11 (play.html)
+      - name: Hunt screen mutants, shard 9 of 12 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=9/11
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=9/12
 
       - name: Upload failure artifacts
         if: failure()
@@ -1413,10 +1413,10 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      - name: Hunt screen mutants, shard 10 of 11 (play.html)
+      - name: Hunt screen mutants, shard 10 of 12 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=10/11
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=10/12
 
       - name: Upload failure artifacts
         if: failure()
@@ -1461,16 +1461,53 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      - name: Hunt screen mutants, shard 11 of 11 (play.html)
+      - name: Hunt screen mutants, shard 11 of 12 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=11/11
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=11/12
 
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-failure-in-page-22
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ── in-page-26 ── HUNT SCREEN MUTANT SHARD 12 (2026-11-13). Run 43525080246 on release/v0.2.129:
+  # `hunt-screen --shard-plan` booked all 11 shards ~18.1 min, over the 18 min cap. The cap stays; a
+  # 12th shard takes the plan to ~16.6 min each.
+  in-page-26:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      - name: Hunt screen mutants, shard 12 of 12 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=12/12
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-26
           path: |
             tests/**/*.png
             tests/**/*.log

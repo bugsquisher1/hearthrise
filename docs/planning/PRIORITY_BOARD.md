@@ -47,7 +47,7 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 | Answer | Read as | What moved |
 |---|---|---|
 | "start 50% exp" | A Tower hour gives about half the XP of a hunting hour for the same hero. Not half of each kill: a Tower room is so dense that half a kill would pay 1 to 3.3 times hunting, and the Tower would be the best place to level | A kill gives 200‰ and the Tower has its own flat party share. Section 7 has the table |
-| "more than 3, maybe 6 and lower the odds" | Six keys a week for each hero, odds halved | 3 / 4.5 / 6 / 7.5%. The week starts 60 floors under your best. Section 5 |
+| "more than 3, maybe 6 and lower the odds" | Six keys a week for each hero, odds halved | Six keys, the week starts 60 floors under your best. The odds were then reversed by Tyler the same day: 20 / 12 / 7 / 4%. Section 5 |
 | "I dont LOVE the cap" | Offer one way with no cap that still can't be farmed | Section 5. **LOCKED by Tyler the same day: "6 a week". The key-an-hour option is rejected** |
 Stamina drains, keys don't trade, opening is free and the weapons keep the standard numbers: those stand as picked. The story draft is still his to read.
 
@@ -61,7 +61,7 @@ Stamina drains, keys don't trade, opening is free and the weapons keep the stand
 | Level XP isn't great | Kept, with his number | A Tower hour gives about half of a hunting hour at Level 45, and the best die-and-retry case stays under hunting, section 7 |
 | A key every 10 floors | Kept, capped by the week | Each landing's key once a week for each hero. Without the cap, free deaths turn it into a key farm |
 | Bronze, Silver, Gold, Platinum | Kept as named, as the first four rows of an open table | Everybody already knows that order. "Bronze" is also the first gear metal, and I don't think anyone will mix up a key and a sword |
-| Higher keys, better odds | Kept | 3 / 4.5 / 6 / 7.5% with six keys a week, printed on the chest |
+| Higher keys, better odds | **Reversed by Tyler, 2026-11-14**: "should we reverse the % weapon chances so the better gear is harder to get and the early gear is easier so people can understand the system and get hooked?" | 20 / 12 / 7 / 4%, falling as the keys rise. A higher key always has more in it, and its weapon is the rarer one |
 | Chests on the Hearth's ledge | Kept as ONE chest (Tyler's second read) | The key decides what comes out. The opening happens in the shared town, not in a menu |
 | Tower weapons trade | Kept | Through the Weighhouse and player trade, like any gear (NO BOUND GEAR, 10-23) |
 | Are keys tradeable | **No. My one real pushback** | A key is a random roll. If keys trade, then Crowns buy gold, gold buys keys, and keys roll for weapons. That is the "random gold spends" line Tyler put on the avoid list on 11-04 because Steam can read it as gambling. Keys stay with the account. The weapons trade |
@@ -205,11 +205,13 @@ A third line under each board shows the all-time record and who holds it. A filt
 **Keys are an open table (`src/data/chests.js`, new).** A key row says where its landings start. A landing gives the key of the highest row that starts at or under it. So the top row is always open-ended, and adding a key above it is one row that changes nothing below.
 | Key | Its landings start at | So today it is | Chance of a tower weapon | Its weapons | Always inside |
 |---|---|---|---|---|---|
-| Bronze Key | 10 | 10, 20, 30 | 3% | Worn at Level 15, the Iron weapon's numbers | Tower Cinders, Tempering Salts |
-| Silver Key | 40 | 40, 50, 60 | 4.5% | Level 45, Mithril or Maple | More Cinders, Tempering Salts |
-| Gold Key | 70 | 70, 80, 90 | 6% | Level 75, Emberforged or Runewood | More Cinders, Fine Tempering Salts |
-| Platinum Key | 100 | 100, and every tenth floor after, until a row above it exists | 7.5% | Level 88, Dawnsteel or Duskwood | The most Cinders, Fine Tempering Salts |
-| The next key, when the game has gear for it | **130** | 130, 140, 150, and Platinum becomes 100, 110, 120 | +1.5%, so 9% | Its own seven weapons, numbers from that region's unique gear | Its own row |
+| Bronze Key | 10 | 10, 20, 30 | 20% | Worn at Level 15, the Iron weapon's numbers | 5 Tower Cinders, 2 Tempering Salts |
+| Silver Key | 40 | 40, 50, 60 | 12% | Level 45, Mithril or Maple | 15 Cinders, 5 Tempering Salts |
+| Gold Key | 70 | 70, 80, 90 | 7% | Level 75, Emberforged or Runewood | 40 Cinders, 5 Fine Tempering Salts |
+| Platinum Key | 100 | 100, and every tenth floor after, until a row above it exists | 4% | Level 88, Dawnsteel or Duskwood | 100 Cinders, 10 Fine Tempering Salts |
+| The next key, when the game has gear for it | **130** | 130, 140, 150, and Platinum becomes 100, 110, 120 | 3%, and never under 2% for any later key | Its own seven weapons, numbers from that region's unique gear | More again, its own row |
+
+**The odds fall as the keys rise (Tyler 2026-11-14).** Early weapons are easy so a new player sees the whole loop in their first weeks. The top ones are the long chase. A higher key still beats the one below it every time you use it: about three times the Cinders and clearly more Salts, so the sure part of the haul always goes up even when the weapon chance goes down. The counts are proposed and unmeasured.
 
 Every key owns three landings, so the next one after that starts at 160, then 190. No landing is ever renumbered: a hero's record, the board and the keys already taken all read floor numbers, and a new row only changes which key floors 130 and up hand out from that day on. A new key is one row here (its start, its odds, what is always inside), its seven weapon rows, and its art. No code and no new chest. Its name is the row's own, so the list doesn't have to stay metals. Each landing's key is given once a week for each hero, when the Keeper dies and they're alive.
 
@@ -219,22 +221,27 @@ The week starts Monday 00:00 UTC. A hero's week is the six landings under their 
 
 Tower Cinders are a new Hearth fuel. You burn them in the fire you just climbed for Inner Flame XP, so a key with no weapon still feeds a skill. The Salts are the ones Tempering already uses (`temper_salts`, `fine_temper_salts`). No key pays gold. The counts are proposed and get sized so a key is worth about what the climb's food cost. The odds are printed on the chest. There is no hidden pity count. If real play shows long dry runs feel bad, a visible one is a data row.
 
-**How many weapons that makes (arithmetic, not measured).** Six keys at half the odds is the same number of rolls' worth as three at full.
-| A hero whose best landing is | Keys a week | Weapons a week | The first design (3 keys, 6 / 9 / 12 / 15%) |
+**How many weapons that makes (arithmetic, not measured).**
+| A hero whose best landing is | Keys a week | Weapons a week | About one every |
 |---|---|---|---|
-| 30 | 3 Bronze | 3 x 3% = 0.09 | 0.18 |
-| 60 | 3 Bronze, 3 Silver | 0.09 + 0.135 = 0.225 | 3 Silver, 0.27 |
-| 90 | 3 Silver, 3 Gold | 0.135 + 0.18 = 0.315 | 3 Gold, 0.36 |
-| 130 | 6 Platinum | 6 x 7.5% = 0.45 | 3 Platinum, 0.45 |
+| 30, a new hero | 3 Bronze | 3 x 20% = 0.60 | 12 days |
+| 60 | 3 Bronze, 3 Silver | 0.60 + 0.36 = 0.96 | a week, most of them Bronze |
+| 90 | 3 Silver, 3 Gold | 0.36 + 0.21 = 0.57 | 12 days, a Gold one every 5 weeks |
+| 100 and up, a top hero today | 6 Platinum | 6 x 4% = 0.24 | 4 weeks. The one type they want, about 7 months |
+| 160, once the next key exists | 3 Platinum, 3 of the next | 0.12 + 0.09 = 0.21 | 5 weeks |
 
-So about one weapon a month for a hero at 60 or above, and one a week or so for an account of four, as before. Two things do move. A high hero now also earns the key below theirs, so lower weapons reach the Weighhouse from people who don't need them, which is good for new players. And a hero under floor 60 has fewer than six landings, so they see about half the weapons they did. I'd leave that: their record climbs fast and every new landing is a key on the spot.
+A new hero gets a tower weapon in their second week on average, and with the first-key rule below, on their very first key. A top hero waits a month for any Platinum weapon and most of a year for a named one, which is what the Weighhouse is for.
+
+**Does a flood of Bronze weapons hurt trade? No, and it shouldn't be fought.** Bronze weapons will be cheap. Only heroes whose best is 30 to 60 make them, and each makes about one every 12 days. A Bronze weapon is worn from 15 and outgrown at 30 when Steel comes, so it was never going to hold a price. Three things hold its floor: the Shop buys it at the dropped-gear rate for its tier, every new hero and every alt is a buyer between Levels 15 and 30, and nobody can make more than their three Bronze landings a week. The market's real value sits where the odds are low, in Gold and Platinum, and the reversal makes that better, not worse. A cheap Bronze weapon on the Weighhouse is also the cheapest ad the Tower can have.
+
+**The hook: your first key always has a weapon.** The first Bronze Key an ACCOUNT ever uses gets a tower weapon for sure, of the type the hero is holding when they use it, so it is one they can wear at 15. Once for the account, not once for each hero: a fresh alt can be carried to floor 10 by your own party in a minute, so a per-hero rule is a weapon farm by deleting and remaking heroes. It trades like any other gear (NO BOUND GEAR, 10-23). One Bronze weapon an account is worth about the Shop's floor, so a second account made for it earns nothing worth the trouble. Server side it is one flag on the account, read inside the same open call. The chest says so before the press: "Your first key always has a tower weapon."
 
 **One way to have no weekly cap (Tyler: "I dont LOVE the cap").** With free deaths, a key from every Keeper kill is a farm: start ten floors under the landing, kill the Keeper, leave, again, a key every three minutes. So a key has to cost something a death can't refund. The one honest price is stamina, which the server already counts.
 | | Weekly cap (as designed) | No cap, a key an hour |
 |---|---|---|
 | The rule | Each landing's key once a week, six most weeks | A Keeper gives a key to a hero who has burned an hour of stamina in the Tower since their last key. No weekly limit |
 | Keys a week | 6 | As many hours as you climb. 8 to 12 a day if you never hunt |
-| Odds to keep the same weapons for a 3-hour-a-week climber | 3 / 4.5 / 6 / 7.5% | 6 / 9 / 12 / 15% |
+| Odds at the time this was offered (before the reversal) | 3 / 4.5 / 6 / 7.5% | 6 / 9 / 12 / 15% |
 | Can it be farmed | No. The unique row is the limit | No. Stamina is the limit and deaths don't give it back |
 | What it does to the game | A weekly ritual. Twenty minutes to an hour, then you go hunt | The Tower becomes a full-time job that pays weapons by the hour. An account of four that only climbs makes about 20 times the weapons of a casual hero, and the price of a tower weapon falls to whatever those accounts will take |
 
@@ -360,7 +367,7 @@ Ids were read on main 405afc082. "New" means this design, not built.
 | 6 | They keep going and die somewhere from 15 to 20 | The Level 10 sword held 15 and died twice on 20. The mage held 15 and died on 20 | Measured, the proxy |
 | 7 | They wake on the ledge. No XP lost, Blessings untouched | Section 3's switch | New, checked as a planted what-if |
 | 8 | They click the chest and use the Bronze Key | They hold the key from step 5 and are standing at the ledge from step 7 | New |
-| 9 | Inside: Tower Cinders and Tempering Salts. 3% of the time a weapon too | `temper_salts` exists and Tempering is under the Shop's Services. Cinders are new and burn at the same Hearth (`hearth.js`) | Salts exist, Cinders new |
+| 9 | Inside: 5 Tower Cinders, 2 Tempering Salts, and a tower weapon of the type they hold, because it is the account's first key. After that a Bronze Key has one 20% of the time | `temper_salts` exists and Tempering is under the Shop's Services. Cinders are new and burn at the same Hearth (`hearth.js`) | Salts exist, Cinders new |
 | 10 | A weapon needs Level 15. They wear it then, or list it | The Weighhouse is window `market` | Exists, the item rows are new |
 | 11 | They look at the Leaderboards | Window `honor`, two new rows | Rows are new |
 | 12 | Next week, three more keys from landings they can reach | Their best landing is 10, so the week starts at floor 1 and floor 10 gives its key again | Rule is new |
@@ -389,7 +396,7 @@ Both paths (§4): the climb viewed and the browser closed are the same settle, a
 
 **For other lanes.** Systems: the mode switch in `die()`, a floor counter and floor-by-floor rows in one instance, the floor's time as an END reason, item-fed Follow-through and Surge, a named kit in the sim. Backend: section 10. Art Director: the one chest on the ledge, the flue room kit, the fire tint, the Tower window, the opening reveal. Security: keys that can't trade, the weekly cap, the floors a minute clamp, the chest roll, weapons through the market.
 
-**Done and verified.** Every existing id here was read on main. Every new name was checked free. The floor curve, the solo and four reach, the XP rates, the bow and the no-loss check are the real engine's numbers from `tower-table.mjs`, each run's exit code 0. **Not verified.** Nothing was played by hand. No real climb, no Keeper, no mixed roster, no Level past 45. Six of the seven attributes. The chest counts. The story and every player line have had no reader. **Assumed.** The 3 / 4.5 / 6 / 7.5% odds, the Tower's party row for pairs and threes, the Keeper's pulse, the three and ten minute limits, the 40% guard line.
+**Done and verified.** Every existing id here was read on main. Every new name was checked free. The floor curve, the solo and four reach, the XP rates, the bow and the no-loss check are the real engine's numbers from `tower-table.mjs`, each run's exit code 0. **Not verified.** Nothing was played by hand. No real climb, no Keeper, no mixed roster, no Level past 45. Six of the seven attributes. The chest counts. The story and every player line have had no reader. **Assumed.** The 20 / 12 / 7 / 4% odds, the Cinders and Salts counts, the Tower's party row for pairs and threes, the Keeper's pulse, the three and ten minute limits, the 40% guard line.
 
 **Where the six questions stand (Tyler 2026-11-14).**
 | # | Question | State |
@@ -397,7 +404,7 @@ Both paths (§4): the climb viewed and the browser closed are the same settle, a
 | 1 | How poor is the XP? | ANSWERED: "start 50% exp". Fitted as half a hunting hour at Level 45, section 7 |
 | 2 | Does climbing drain stamina? | Stands as picked: yes. His answer leans on it ("since it uses stamina and supplies") |
 | 3 | Can keys be traded or sold? | Stands as picked: no, and opening is free |
-| 4 | How rare are the weapons? | ANSWERED and locked: six keys a week, 3 / 4.5 / 6 / 7.5%. No per-hour option |
+| 4 | How rare are the weapons? | ANSWERED and locked: six keys a week, no per-hour option. Odds reversed by Tyler: 20 / 12 / 7 / 4%, and an account's first key always has a weapon (my addition, his to veto) |
 | 5 | How strong are they? | Stands as picked: the standard weapon's numbers plus the attribute |
 | 6 | Is the Tower the Hearth's chimney, and is that story his? | ANSWERED and locked: "I like it for the lore / story". One chest, an open key table and the plain summary were his additions |
 

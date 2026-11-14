@@ -38,16 +38,13 @@
 //                    ground every Rare unit a party of four gets also went through the party's rare roll
 //   big-pull         (played at the pull that brings it) a Rare row on a monster only a bigger pull brings holds its band; the
 //                    Keep's five Bear Pelts come within two played hours, wherever the bear stands (as built since lane/c-brook-bear)
-//   profit-floor     at its band floor, in its first hour, each non-starter ground earns coin + commons at least +25% over
-//                    the store bill (a MINIMUM, Tyler 10-20). A ground measured on a LONE hero is judged on the MEDIAN of the eight
-//                    lone ways (Tyler 2026-11-12 "median target", designer ruling 13): every way of tools/balance-sim (grade.mjs COMPS
-//                    full, gear.mjs STYLES) at the floor in its own-tier kit (gear.mjs kitOf; a staged ground's own drops gettable);
-//                    each way and the lone-tank reference are printed as notes, not graded. A party-reference ground keeps its party.
-//   warrens-floor    the Warrens' party of four at 32 and a lone own-tier Melee at the card's soloFrom clear +25% on two seeds
-//   caster-floor     the Sewer's party of four at its floor lives the hour, the Mage casts, every role clears +25%
+//   floor-hour       at its band floor each non-starter ground's reference group plays its whole first hour (no death ends it)
+//   warrens-floor    the Warrens' party of four at 32 and a lone own-tier Melee at the card's soloFrom live the hour on two seeds
+//   caster-floor     the Sewer's party of four at its floor lives the hour and the Mage casts
 //   ranger-floor     a crossbow + shield Ranger on store Iron Bolts (no free bolt rung: every shot bought) in the party of four
-//                    at the Sewer and Warrens floors lives the hour and clears +25% over its own bill ON THE MEAN of the dice (one hour swings about 3 points); in range (Sewer 20,
-//                    Warrens 50) its shot bill is printed against the coin share (the designer's ~45-55% of coin)
+//                    at the Sewer and Warrens floors lives the hour and buys its shots; its margin and shot bill are printed
+// NO PROFIT MOLDS (Tyler 2026-11-13): every margin here is PRINTED, never graded. The old +25% floors (profit-floor, and the
+// warrens / caster / ranger margins) and their gold-only mutants are retired; a ground that pays badly is treated on its own.
 //
 // Prints the per-ground tables every run: the evidence. EVERY LOOT NUMBER IS PROVISIONAL (Tyler 2026-10-23): re-tuned
 // after combat balance and the economy sims; a re-tune changes data, these rules stay.
@@ -55,16 +52,11 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
-import { COMPS, median } from '../../tools/balance-sim/grade.mjs';
-import { STYLES, loadGear } from '../../tools/balance-sim/gear.mjs';
 
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const imp = (root, p) => import(pathToFileURL(join(root, p)).href + V);
 
 /* THE NUMBERS THE RULINGS NAME (the designer's picks inside them, stated once). */
-const MARGIN_MIN = 25;          // percent over the store bill at the band floor (Tyler 10-18/10-20: 25-35%, a minimum)
-/* THE GLADE'S FLOOR MAY BE THIN (Tyler 2026-11-09, on its +19%: "fine"; a ruled bar, not a loosened one): it must still pay its way by this much. */
-const MARGIN_MIN_OF = Object.freeze({ mosslight_glade: 10 });
 const GEAR_HOURS = 6;           // "a few hours of hunting equips a new hero": every slot within 6 h at the floor
 const FAUCET = 0.50;            // designer 2026-10-23, Tyler: gear's sale value at most half the coin
 const TOTAL_RISE_MAX = 0.25;    // Tyler 2026-10-23: total value up to +25% over today's pinned numbers
@@ -77,7 +69,7 @@ const TOTAL_RISE_MAX = 0.25;    // Tyler 2026-10-23: total value up to +25% over
    Warrens paid under the Glade for the same hero). Every other pin stands and every ground still reads under its +25%. */
 /* mosslight_glade RE-PINNED 2026-11-12 (lane/d-solo-fifteen; was 5043): the Brook Bear is a heavy with most of an elite's purse (balance-sheet.js roster and
    FORMULA_EXCEPTIONS; designer under Tyler's +10% lone profit floor, his open question 3), so the Glade's value per hero-hour in the ladder kit read 6364, +26% on the old
-   pin, measured by this rule. A named rise, not a drift: the Warrens' fours still net more (the grader's feel-gold-order). */
+   pin, measured by this rule. A named rise, not a drift: the Warrens' fours still net more (printed in the grader's GOLD BY GROUND). */
 const TOTAL_TODAY = Object.freeze({ mill_cellar: 1869, millrace_sewer: 3822, meadowbrook_thicket: 2285, coppercap_warrens: 7424, mosslight_glade: 6364,
   /* a NEW ground has no pre-conversion value: its pin is its neighbours' by floor, the Thicket (L5) to the Glade (L16)
      interpolated at Wickstead's L8 (lane b-greenhaven-6, designer 2026-10-28): 2285 + (3834 - 2285) x 3/11 */
@@ -95,10 +87,6 @@ const COMMONS_PENDING = Object.freeze(['rat', 'goblin_scavenger', 'goblin_skulke
 const BONES = Object.freeze(['bones', 'big_bones']);
 const STARTER = Object.freeze(['mill_cellar', 'meadowbrook_thicket']);   // keep their gold (Tyler 10-20): printed, not floored
 const PARTY = Object.freeze(['tank', 'ranger', 'mage', 'healer']);
-/* THE LONE WAYS the profit floor's median reads: the grader's own eight (never a second list) */
-const LONE_WAYS = Object.freeze(COMPS.full[1].map((c) => c[0]));
-/* the median way's margin; a way that does not live the hour reads -100% (it earns nothing more) */
-const medianWay = (ways) => median(ways.map((w) => (w.lived ? (Number.isFinite(w.m) ? w.m : 1e9) : -100)));
 /* WHO IS MEASURED AT THE FLOOR. The Sewer is the start flow's first real ground, entered from the cellar: a solo Melee
    in the smiths' ladder kit (weapon, helm, body) before anything here has dropped. The Warrens is a party ground whose
    floor kills the ladder kit in minutes, so its party of four wears the full own-tier set (play-ground fullSet). */
@@ -192,16 +180,6 @@ function revealWhy(M, tag, mid, m, d) {
 }
 
 const cases = {
-  /* the profit floor's judge (Tyler 11-12 "median target"): the eight lone ways, judged on their median */
-  'median-way'() {
-    const want = Object.keys(STYLES);
-    if (LONE_WAYS.length !== 8 || want.some((s) => !LONE_WAYS.includes(s))) return 'the lone ways are ' + LONE_WAYS.join(', ') + ', not the eight styles ' + want.join(', ');
-    const w = (ms) => ms.map((m) => ({ m, lived: true }));
-    if (!(medianWay(w([-10, 5, 30, 30, 30, 30, 30, 30])) >= MARGIN_MIN)) return 'two losing ways failed a ground whose median way clears +' + MARGIN_MIN + '%';
-    if (medianWay(w([-10, -10, -10, -10, 20, 30, 30, 30])) >= MARGIN_MIN) return 'a ground whose median way is under +' + MARGIN_MIN + '% passed';
-    if (medianWay([...w([30, 30, 30, 30]), ...[30, 30, 30, 30].map((m) => ({ m, lived: false }))]) >= MARGIN_MIN) return 'four ways dead inside the hour passed';
-    return null;
-  },
   'loot-structure'(M) {
     for (const [gid, ground] of Object.entries(M.G.HUNT_GROUNDS)) {
       const band = M.HUNTS[ground.hunt].band;
@@ -343,9 +321,6 @@ const cases = {
 };
 
 /* ── THE PLAYS ─────────────────────────────────────────────────────────── */
-/* the balance-sim's worn sets (gear.mjs), loaded once from this tree */
-let gearP = null;
-const gearOf = () => (gearP ||= loadGear(ROOT));
 const H = 3600000;
 const pct = (n) => (n >= 0 ? '+' : '') + Math.round(n) + '%';
 function marginOf(x) {
@@ -487,32 +462,16 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
     if (only && !only.includes(gid)) continue;
     /* a ground pack states its own reference group and value pin (src/data/grounds/<id>/pack.js checks.dropRef, checks.valueToday) */
     const ref = REFERENCE[gid] || packCheck(M, gid, 'dropRef');
-    if (!ref) { R.ok(false, 'profit-floor: ' + gid + ' has no REFERENCE group' + (packCheck(M, gid, null) ? ' (its pack\'s checks.dropRef: { roles, full })' : '')); continue; }
+    if (!ref) { R.ok(false, 'floor-hour: ' + gid + ' has no REFERENCE group' + (packCheck(M, gid, null) ? ' (its pack\'s checks.dropRef: { roles, full })' : '')); continue; }
     const floor = M.HUNTS[M.G.HUNT_GROUNDS[gid].hunt].band[0];
     const n = ref.roles.length;
     const x = P.run(gid, Math.max(1, floor), ref.roles, { spanMs: H, fullSet: ref.full, monsters });
     const m = marginOf(x), T = x.totals, h = x.playedMs / H || 1;
     const row = { gid, floor, n, h, coin: T.coin / h / n, commons: T.commons / h / n, store: T.store / h / n, m, deaths: T.falls };
     rows.push(row);
-    if (!STARTER.includes(gid) && n === 1) {
-      /* A LONE GROUND: the median of the eight lone ways at the floor, own-tier kit (a staged ground's drops gettable) */
-      const L = Math.max(1, floor), og = Object.prototype.hasOwnProperty.call(M.G.OPEN_GROUNDS, gid) ? {} : { openAlso: [gid] };
-      const gear = await gearOf();
-      row.ways = LONE_WAYS.map((s) => {
-        const kit = gear.kitOf(s, L, og);
-        const xw = P.run(gid, L, [STYLES[s].role], { spanMs: H, monsters, equipment: () => ({ ...kit }) });
-        return { s, m: marginOf(xw), lived: xw.playedMs >= H };
-      });
-      row.median = medianWay(row.ways);
-      const mMin = MARGIN_MIN_OF[gid] ?? MARGIN_MIN;
-      R.ok(row.median >= mMin, 'profit-floor: ' + gid + ' at level ' + floor + ': the median lone way earns ' + pct(row.median) + ' over its store bill, under +' + mMin + '% ('
-        + row.ways.map((w) => w.s + ' ' + (w.lived ? pct(w.m) : 'died')).join(', ') + ')');
-    } else if (!STARTER.includes(gid)) {
-      R.ok(x.playedMs >= H, 'profit-floor: ' + gid + ' ended after ' + (x.playedMs / 60000).toFixed(0) + ' min at its floor (' + T.ended.join(', ') + ')');
-      const mMin = MARGIN_MIN_OF[gid] ?? MARGIN_MIN;
-      R.ok(m >= mMin, 'profit-floor: ' + gid + ' at level ' + floor + ' earns ' + pct(m) + ' over its store bill, under +' + mMin + '%');
-    }
-    /* the value and band rules read the kit the pin was measured in (REFERENCE valueFull), the profit rule the reference kit */
+    /* the margin is printed below, never graded (NO PROFIT MOLDS, Tyler 2026-11-13) */
+    if (!STARTER.includes(gid)) R.ok(x.playedMs >= H && T.falls === 0, 'floor-hour: ' + gid + ' ended after ' + (x.playedMs / 60000).toFixed(0) + ' min at its floor, ' + T.falls + ' death(s) (' + T.ended.join(', ') + ')');
+    /* the value and band rules read the kit the pin was measured in (REFERENCE valueFull), the floor hour the reference kit */
     const vFull = ref.valueFull === undefined ? ref.full : ref.valueFull;
     const xv = vFull === ref.full ? x : P.run(gid, Math.max(1, floor), ref.roles, { spanMs: H, fullSet: vFull, monsters });
     const refKills = bossKillsOf(M, monsters, gid, xv, (secret) => P.run(gid, Math.max(1, floor), ref.roles, { spanMs: H, fullSet: vFull, monsters, secret }));
@@ -545,8 +504,7 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
   console.log('  per hero per hour at the band floor, first hour | coin | commons | store | margin');
   for (const r of rows) {
     console.log('  ' + r.gid.padEnd(20) + ' L' + String(r.floor).padEnd(3) + (r.n > 1 ? 'party of ' + r.n : 'solo').padEnd(11) + String(Math.round(r.coin)).padStart(5)
-      + String(Math.round(r.commons)).padStart(6) + String(Math.round(r.store)).padStart(6) + (Number.isFinite(r.m) ? pct(r.m) : 'no bill').padStart(9) + (r.ways ? '  (lone tank, a note)' : ''));
-    if (r.ways) console.log('  ' + ''.padEnd(25) + 'MEDIAN LONE WAY ' + pct(r.median) + ' (graded) | ' + r.ways.map((w) => w.s + ' ' + (w.lived ? (Number.isFinite(w.m) ? pct(w.m) : 'no bill') : 'died')).join(', '));
+      + String(Math.round(r.commons)).padStart(6) + String(Math.round(r.store)).padStart(6) + (Number.isFinite(r.m) ? pct(r.m) : 'no bill').padStart(9));
   }
   for (const B of rows.flatMap((q) => [Object.assign(q.bands, { gid: q.gid, floor: q.floor }), q.alt && Object.assign(q.alt, { gid: q.gid, floor: q.altLevel })]).filter(Boolean)) {
     const E = B.E, someRare = B.rare.length ? 1 / B.rare.reduce((s, hh) => s + 1 / hh, 0) : Infinity;
@@ -611,8 +569,8 @@ function bigPull(M, P, monsters, R, print) {
   if (print) console.log('  the big pull, solo at the Glade floor: ' + out.join(' ; '));
 }
 
-/* THE CASTER FLOOR (designer pass 2026-10-21). Income is split evenly and each hero pays its own store bill
-   (ruling 10-16), so each role's margin is its share of coin + commons over its own bill. */
+/* THE CASTER FLOOR (designer pass 2026-10-21): the party lives the hour and the Mage casts. Income is split evenly and each hero pays
+   its own store bill (ruling 10-16), so each role's printed margin is its share of coin + commons over its own bill. */
 function casterFloor(M, P, R, print) {
   const gid = 'millrace_sewer', floor = M.HUNTS[M.G.HUNT_GROUNDS[gid].hunt].band[0];
   /* the Mage's SPELLS, counted from the casts (its mana basic trains Magic too since lane b-spell-core) */
@@ -629,15 +587,12 @@ function casterFloor(M, P, R, print) {
   const mage = x.heroes.find((k) => k.startsWith('mage'));
   R.ok((spells[mage] || 0) > 0, 'caster-floor: the Mage (wand + book) cast no spell in ' + (x.playedMs / 60000).toFixed(1) + ' min');
   const bills = x.heroes.map((k) => [k, Object.entries(T.buys[k] || {}).reduce((s, [id, q]) => s + q * ((P.basics[id] || {}).price || 0), 0) / h]);
-  for (const [k, bill] of bills) {
-    const m = bill > 0 ? (share / bill - 1) * 100 : Infinity;
-    R.ok(m >= MARGIN_MIN, 'caster-floor: ' + k + ' at the ' + gid + ' floor earns ' + pct(m) + ' (share ' + Math.round(share) + ' g/h vs its bill ' + Math.round(bill) + ' g/h), under +' + MARGIN_MIN + '%');
-  }
+  /* each role's margin is printed, never graded (NO PROFIT MOLDS, Tyler 2026-11-13) */
   if (print) console.log('  ' + gid.padEnd(20) + ' L' + floor + '  party of 4 (ladder kit): ' + (x.playedMs / 60000).toFixed(0) + ' min, ' + T.falls + ' deaths, share ' + Math.round(share)
     + ' g/h; bill per hero/h ' + bills.map(([k, b]) => k + ' ' + Math.round(b) + (b > 0 ? ' (' + pct((share / b - 1) * 100) + ')' : '')).join(', '));
 }
 
-/* THE WARRENS FLOOR (CONFLICTS item 2): the party at 32 and a lone hero at the card's soloFrom, two seeds. */
+/* THE WARRENS FLOOR (CONFLICTS item 2): the party at 32 and a lone hero at the card's soloFrom live the hour, two seeds. */
 const WARRENS_SEEDS = Object.freeze(['-4611686018427387904', '1234567890123']);
 function warrensFloor(M, P, R, print) {
   const gid = 'coppercap_warrens', row = M.G.HUNT_GROUNDS[gid], floor = M.HUNTS[row.hunt].band[0];
@@ -650,11 +605,11 @@ function warrensFloor(M, P, R, print) {
   for (const secret of WARRENS_SEEDS) {
     const party = P.run(gid, floor, PARTY, { spanMs: H, secret });
     R.ok(party.playedMs >= H && party.totals.falls === 0, 'warrens-floor: the party of four (ladder kit) at ' + floor + ' ended after ' + (party.playedMs / 60000).toFixed(1) + ' min, ' + party.totals.falls + ' death(s)');
-    for (const [k, m] of margins(party)) R.ok(m >= MARGIN_MIN, 'warrens-floor: party ' + k + ' at ' + floor + ' earns ' + pct(m) + ', under +' + MARGIN_MIN + '%');
+    /* the margins are printed, never graded (NO PROFIT MOLDS, Tyler 2026-11-13) */
     const lone = Number.isInteger(row.soloFrom) ? row.soloFrom : floor;
     const solo = P.run(gid, lone, ['tank'], { spanMs: H, secret, fullSet: true });
     const [, sm] = margins(solo)[0];
-    R.ok(solo.playedMs >= H && sm >= MARGIN_MIN, 'warrens-floor: a lone Melee at ' + lone + ' (the card\'s alone-from Level) earns ' + pct(sm) + ' over ' + (solo.playedMs / 60000).toFixed(0) + ' min, under +' + MARGIN_MIN + '%');
+    R.ok(solo.playedMs >= H && solo.totals.falls === 0, 'warrens-floor: a lone Melee at ' + lone + ' (the card\'s alone-from Level) ended after ' + (solo.playedMs / 60000).toFixed(0) + ' min, ' + solo.totals.falls + ' death(s) (' + solo.totals.ended.join(', ') + ')');
     out.push(margins(party).map(([k, m]) => k + ' ' + pct(m)).join(', ') + ' | alone at ' + lone + ' ' + (Number.isFinite(sm) ? pct(sm) : 'no bill'));
   }
   if (print) console.log('  ' + gid.padEnd(20) + ' L' + floor + '  party of 4 (ladder kit) per seed: ' + out.join(' ; '));
@@ -669,11 +624,11 @@ function warrensFloor(M, P, R, print) {
    MEASURED (1 h, the fixture seed): at 2 g a shot the floors read -30% (Sewer 8) and -30% (Warrens 32), in range +13%
    (Sewer 20) and +4% (Warrens 50), the shots 96-180% of the coin share; at 1 g +32% / +39% at the floors and +125% /
    +107% in range, the shots 48% / 59% of coin in range.
-   THE BAR READS THE MEAN (2026-11-05): an hour of one seat's share swings by the drops, sd 3.2 points at the Sewer floor, so one seed near the bar is a coin flip: at
-   the old Drain Rat row the fixture seed read +26% while the twelve read +23.7% +-0.9 (4 of 12 over). The Sewer sits near the bar, so twelve dice (+-0.9); the Warrens sits far over it, so three. */
+   NO PROFIT MOLDS (Tyler 2026-11-13): the +25% bar on the mean of twelve dice is retired, so the floor plays two dice a ground (lives the
+   hour, buys its shots) and the mean margin is printed. */
 const RANGER_AT = Object.freeze({ millrace_sewer: 20, coppercap_warrens: 50 });   // in range: printed, not floored
-const RANGER_SEEDS = Object.freeze(['', '1234567890123', '987654321987', '424242424242', '555555555555', '-777777777777', '111111111111', '222222222222', '-333333333333', '444444444444', '-666666666666', '888888888888']);   // '': the fixture's own
-const RANGER_FLOOR_DICE = Object.freeze({ millrace_sewer: 12, coppercap_warrens: 3 });
+const RANGER_SEEDS = Object.freeze(['', '1234567890123']);   // '': the fixture's own
+const RANGER_FLOOR_DICE = Object.freeze({ millrace_sewer: 2, coppercap_warrens: 2 });
 const crossbowSet = (L, kit) => ({ ...kit, ammo: L < 15 ? 'iron_arrows' : 'iron_bolts',
   weapon: L < 15 ? 'practice_crossbow' : L < 30 ? 'oak_crossbow' : 'willow_crossbow',
   shield: L < 15 ? 'bronze_rimmed_shield' : L < 30 ? 'ironbound_shield' : 'coppercap_shield' });
@@ -696,9 +651,9 @@ function rangerFloor(M, P, R, print, dice = RANGER_FLOOR_DICE) {
       R.ok(x.playedMs >= H && T.falls === 0, 'ranger-floor: the ' + gid + ' party with a crossbow + shield Ranger at ' + floor + ' ended after ' + (x.playedMs / 60000).toFixed(1) + ' min, ' + T.falls + ' death(s) (' + T.ended.join(', ') + ')');
       R.ok(bolts.length > 0, 'ranger-floor: the crossbow Ranger at the ' + gid + ' floor bought no store shots (' + JSON.stringify(T.buys[rk] || {}) + ')');
     }
-    const m = mean(rows, 'm'), share = mean(rows, 'share'), bill = mean(rows, 'bill'), overBar = rows.filter((r) => r.m >= MARGIN_MIN).length;
-    R.ok(m >= MARGIN_MIN, 'ranger-floor: the crossbow + shield Ranger at the ' + gid + ' floor (' + floor + ') earns ' + m.toFixed(1) + '% on the mean of ' + rows.length + ' dice (share ' + Math.round(share) + ' g/h vs its bill ' + Math.round(bill) + ' g/h), under +' + MARGIN_MIN + '%');
-    out.push(gid + ' L' + floor + ' (floor, ' + rows.length + ' dice): shots ' + Math.round(mean(rows, 'shots')) + ' g/h = ' + Math.round(100 * mean(rows, 'shots') / mean(rows, 'coin')) + '% of coin ' + Math.round(mean(rows, 'coin')) + ', bill ' + Math.round(bill) + ', mean +' + m.toFixed(1) + '% (' + overBar + ' of ' + rows.length + ' over the bar)');
+    /* the mean margin is printed, never graded (NO PROFIT MOLDS, Tyler 2026-11-13) */
+    const m = mean(rows, 'm'), bill = mean(rows, 'bill');
+    out.push(gid + ' L' + floor + ' (floor, ' + rows.length + ' dice): shots ' + Math.round(mean(rows, 'shots')) + ' g/h = ' + Math.round(100 * mean(rows, 'shots') / mean(rows, 'coin')) + '% of coin ' + Math.round(mean(rows, 'coin')) + ', bill ' + Math.round(bill) + ', mean ' + pct(m));
     const y = hour(gid, inRange, RANGER_SEEDS[0]);
     out.push(gid + ' L' + inRange + ': shots ' + Math.round(y.shots) + ' g/h = ' + Math.round(100 * y.shots / y.coin) + '% of coin ' + Math.round(y.coin) + ', bill ' + Math.round(y.bill) + ', ' + pct(y.m));
   }
@@ -782,20 +737,6 @@ const dataMutants = [
 ];
 /* Played on the monsters' copy: the expected loot on the floor hours' kills (and, with `fresh`, the fresh and party hunts). */
 const playMutants = [
-  /* The Sewer's coin cut to under half (armour weights, ruling K7, left the ladder-kit Melee +119% at the floor,
-     so the old /1.8 coin clears +25% by a hair; lane b-spell-roles' Bronze-Rimmed Shield took the floor tank to +159%,
-     so /2.2 clears it too, about +32%: the floor still bites at /2.6, about +16%). */
-  /* Since the median-way judge (Tyler 11-12, lane/d-drop-tables-median) the Glade's coin /3 leaves the median lone way over +25% (the casters' bills are
-     small), so that cut is gear-faucet's catch (its gear then sells over half the coin) and the profit floor bites at a tenth. */
-  { name: 'the Glade\'s coin cut to a third (its gear outsells its coin)', rule: 'gear-faucet: mosslight_glade', edit: (ms) => {
-    for (const id of ['carrion_crow', 'glade_poacher', 'walking_vine', 'goblin_sluicer', 'rook_poacher', 'brook_bear']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 3)));
-  } },
-  { name: 'the Glade\'s coin cut to a tenth (its median way no longer pays its way)', rule: 'profit-floor: mosslight_glade', edit: (ms) => {
-    for (const id of ['carrion_crow', 'glade_poacher', 'walking_vine', 'goblin_sluicer', 'rook_poacher', 'brook_bear']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 10)));
-  } },
-  { name: 'the Sewer coin cut to a sixth (re-aimed from 1/2.6 when the gentle blow cap cut the floor tank\'s bill to 628 g an hour)', rule: 'profit-floor: millrace_sewer', edit: (ms) => {
-    for (const id of ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 6)));
-  } },
   { name: 'the Kingsgrate at 5% (a Rare every 4 h)', rule: 'rare-pace: millrace_sewer rare kingsgrate', edit: (ms) => { rowOf(ms, 'rat_king', 'kingsgrate').ch = 0.05; } },
   { name: 'the Thicket\'s heavy boots five times rarer', rule: 'gear-pace: meadowbrook_thicket', edit: (ms) => { rowOf(ms, 'gray_whelp', 'bronze_boots').ch /= 5; } },
   { name: 'the Thicket\'s bodies twice as common', rule: 'gear-pace: meadowbrook_thicket', edit: (ms) => { for (const d of scarceOf(ms, 'dire_gray')) d.ch *= 2; } },
@@ -831,6 +772,10 @@ const bigPullMutants = [
 ];
 /* Planted trees (src/data, src/core, the settle), played on the ground the rule names. */
 const plantMutants = [
+  /* the floor hour (NO PROFIT MOLDS, Tyler 2026-11-13: the old coin-cut mutants of the +25% floor are retired with it). Planted, since the
+     clone's monsters feed only the loot stream: the Drain Rat at ten times its bite ends the Sewer's floor hour in a death. */
+  { name: 'the Drain Rat hits ten times as hard (the Sewer floor hour ends in a death)', rule: 'floor-hour: millrace_sewer',
+    edits: [['src/data/monsters.js', 'hp: 41, atk: 6, baseAcc: 0.31, def: 0, xp: 84, gp: [7, 19]', 'hp: 41, atk: 60, baseAcc: 0.31, def: 0, xp: 84, gp: [7, 19]']] },
   { name: 'worn gear sells at full book again', rule: 'gear-faucet: meadowbrook_thicket', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([1, 1, 1, 1, 1, 1, 1]);']] },
   { name: 'tier-3 gear sells at the tier-1 rate', rule: 'gear-faucet: coppercap_warrens', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.5, 0.075, 0.033, 0.015, 0.007]);']] },
   { name: 'the roller reveals nothing (a Rare credited with no hint)', rule: 'reveal-path: meadowbrook_thicket', fresh: true,
@@ -840,15 +785,7 @@ const plantMutants = [
 ];
 /* The caster floor's levers live in src/data the engine imports: each mutant plays on a planted copy. */
 const casterMutants = [
-  /* Every store drink back (the bar's default buys the cheapest per point of them all, not one tier's). */
-  { name: 'the drinks back to the old grain (a tier-1 drink 6-8 mana)', edits: [
-    ['src/data/supply-basics.js', "'turnip_juice', 72, 10)", "'turnip_juice', 6, 10)"],
-    ['src/data/supply-basics.js', "'carrot_juice', 120, 18)", "'carrot_juice', 10, 18)"],
-    ['src/data/supply-basics.js', "'tomato_juice', 216, 45)", "'tomato_juice', 18, 45)"],
-    ['src/data/supply-basics.js', "'pumpkin_cider', 288, 80)", "'pumpkin_cider', 24, 80)"],
-    ['src/data/supply-basics.js', "'goldenroot_tea', 396, 138)", "'goldenroot_tea', 33, 138)"],
-    ['src/data/supply-basics.js', "'emberfruit_cordial', 480, 233)", "'emberfruit_cordial', 40, 233)"],
-    ['src/data/drinks.js', "v: 6, mana: 96 ", "v: 6, mana: 8 "]] },
+  /* (the old-grain drinks mutant, a bill-only change the +25% bar caught, is retired with it: NO PROFIT MOLDS, Tyler 2026-11-13) */
   /* Fireball is a Fire rune spell (Tyler 2026-10-23): a Mage with no runes casts it on the store's rune. Since RUNE SUPPLY
      PER SLOT (Tyler 2026-11-08) a slot that says nothing buys from the shop when its runes run out (conditions.js
      runeSupplyOf; one naming no store rune buys the family's tier-1 one), so dropping the default slots' store rune
@@ -859,26 +796,15 @@ const casterMutants = [
 ];
 /* The Warrens floor's levers (src/data + the tier table in src/core/combat.js): each plays on a planted copy. */
 const warrensMutants = [
-  /* Store-by-slot (v0.2.30): the measured hero's bar names the guide's food (play-ground.mjs refBar), so the mutant
-     puts the guide back on the tier-4 Swordfish, as a player stocking by the old guide would. */
-  /* Since lane b-spell-roles (the floor tank behind a Coppercap Shield, guard 7; heals between pulls) the floor party's bills
-     are about a tenth of its share (tank +1340%, Mage +954%, Healer +2025% on the first seed) and the lone Melee at 45
-     buys nothing: ONE cost lever no longer reaches +25%. Measured (1 h, the two seeds): the tier-4 food alone, the flat
-     5.4 blows alone and alone-from 40 all clear it; the two old cost levers together (tank -25% on the first seed), the
-     tier-3 blows doubled (tank -68%) and the card's alone-from at the floor itself (-51%) do not. The +25% floor is
-     unchanged; the margins are a balance finding for the designer (p30/p31). */
-  { name: 'the Warrens store food back to tier 4, with tier-3 blows at the flat 5.4', edits: [['src/data/supplies.js', "  coppercap_warrens: Object.freeze({ tier: 3,\n    melee: melee('cooked_lobster', 80),",
-    "  coppercap_warrens: Object.freeze({ tier: 4,\n    melee: melee('cooked_swordfish', 80),"],
-    ['src/core/combat.js', 'monsterDamageScaleByTier: Object.freeze({ 3: 4.0, 4: 4.0,', 'monsterDamageScaleByTier: Object.freeze({ 4: 4.0,']] },
-  { name: 'tier-3 blows doubled', edits: [['src/core/combat.js', 'monsterDamageScaleByTier: Object.freeze({ 3: 4.0, 4: 4.0,', 'monsterDamageScaleByTier: Object.freeze({ 3: 8.0, 4: 4.0,']] },
-  { name: 'the card offers the Warrens alone from its floor (32)', edits: [['src/data/hunt-grounds.js', '    soloFrom: 45,', '    soloFrom: 32,']] },
+  /* NO PROFIT MOLDS (Tyler 2026-11-13): the tier-4 food, the doubled tier-3 blows and alone-from 32 were caught only by the +25% bar (the
+     party and the lone Melee lived the hour on both seeds), so they retire with it. The floor still bites on a Warrens that kills. */
+  { name: 'tier-3 blows ten times as hard (the Warrens kills its floor party)', edits: [['src/core/combat.js', 'monsterDamageScaleByTier: Object.freeze({ 3: 4.0, 4: 4.0,', 'monsterDamageScaleByTier: Object.freeze({ 3: 40.0, 4: 4.0,']] },
 ];
 /* The Ranger floor's lever: the store shot's price (src/data/supply-basics.js), played on a planted copy. */
+/* NO PROFIT MOLDS (Tyler 2026-11-13): the shot-price and Drain Rat coin mutants (gold only) are retired with the +25% bar; the floor still
+   bites on a party that does not live the hour. */
 const rangerMutants = [
-  { name: 'the store Iron Bolt back at 2 g a shot', dice: { millrace_sewer: 1, coppercap_warrens: 1 }, edits: [['src/data/supply-basics.js', "shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 1),", "shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 2),"]] },
-  /* the mean is the guard: at this old row the fixture's one seed still read over +25%, the twelve read +23.7% */
-  /* (the casters' store-fed spells lift this floor to +29.7%, so the plant is the row's pre-x1.8 coin, not [4, 18]: the bar doesn't move, lane/c-caster-starter-bars) */
-  { name: 'the Drain Rat\'s coin back at its pre-x1.8 [2, 10]', dice: { millrace_sewer: 12, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 41, atk: 6, baseAcc: 0.31, def: 0, xp: 84, gp: [7, 19]', 'hp: 41, atk: 6, baseAcc: 0.31, def: 0, xp: 84, gp: [2, 10]']] },
+  { name: 'the Drain Rat hits ten times as hard (the Sewer party dies)', dice: { millrace_sewer: 1, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 41, atk: 6, baseAcc: 0.31, def: 0, xp: 84, gp: [7, 19]', 'hp: 41, atk: 60, baseAcc: 0.31, def: 0, xp: 84, gp: [7, 19]']] },
 ];
 const engineMutants = [
   { name: 'the row\'s band ignored (the odds decide the reveal again)', case: 'band-is-the-reveal',
@@ -972,7 +898,7 @@ for (const mu of rangerMutants) {
   try {
     const MR = { fails: [], ok(c, msg) { if (!c) this.fails.push(msg); } };
     rangerFloor(M, await loadPlay(p.root), MR, false, mu.dice);
-    R.ok(MR.fails.some((f) => f.startsWith('ranger-floor: the crossbow + shield Ranger')), 'mutant "' + mu.name + '" was NOT caught by ranger-floor (fails: ' + (MR.fails.join(' | ') || 'none') + ')');
+    R.ok(MR.fails.some((f) => f.startsWith('ranger-floor: the millrace_sewer party')), 'mutant "' + mu.name + '" was NOT caught by ranger-floor (fails: ' + (MR.fails.join(' | ') || 'none') + ')');
     if (MR.fails.length) console.log('  ranger mutant "' + mu.name + '" caught: ' + MR.fails[0].slice(0, 160));
   } finally { p.done(); }
 }

@@ -23,7 +23,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { groundOf, groundOfSliced, composeFrame, sliced } from './core/compose.js?v=0.2.130';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.130';
-import { HUNT_GROUNDS, gatherNodesOf } from '../data/hunt-grounds.js?v=0.2.130';
+import { HUNT_GROUNDS, HALL_GROUNDS, gatherNodesOf } from '../data/hunt-grounds.js?v=0.2.130';
 import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.130';
 import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.130';
 import { effectIds } from '../data/hunt-vfx.js?v=0.2.130';
@@ -41,13 +41,14 @@ function fetchOrder(sets, groundTiles, book) {
   return Array.from(sets).sort((a, b) => rank(a) - rank(b) || book.area(a) - book.area(b) || (a < b ? -1 : a > b ? 1 : 0));
 }
 
-/** The monsters (and gather-node art) of every ground drawn on map `row` and every hunt it renders. */
+/** The monsters (and gather-node art) of every ground drawn on map `row` and every hunt it renders: the hunting grounds, and the boss halls
+    that stand on the same map (Krell's Hall: its boss and the wave he calls, `adds`), so a hall's bodies are in the scene's sets. */
 function groundIds(row, ids) {
   const hunts = new Set(row.hunts || []);
   for (const h of hunts) for (const s of (HUNT_INDEX[h] || {}).spawns || []) ids.add(HUNT_ART_ALIAS[s.monster] || s.monster);
-  for (const g of Object.values(HUNT_GROUNDS)) {
+  for (const g of [...Object.values(HUNT_GROUNDS), ...Object.values(HALL_GROUNDS)]) {
     if (g.map !== row.id && !hunts.has(g.hunt)) continue;
-    for (const p of g.pockets) for (const s of [...p.spawns, ...(p.pack || [])]) ids.add(s.monster);
+    for (const p of g.pockets) for (const s of [...p.spawns, ...(p.pack || []), ...(p.adds || [])]) ids.add(HUNT_ART_ALIAS[s.monster] || s.monster);
     for (const n of gatherNodesOf(g)) { if (n.sprite) ids.add(n.sprite); if (n.spent) ids.add(n.spent); }
   }
 }

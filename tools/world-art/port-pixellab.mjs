@@ -196,15 +196,19 @@ function paintRows(text) {
  * tileFor(corners NW NE SW SE as terrain ids) is the tile drawing them (null when none can); cornersOf(hash) reads
  * a cut back as its corner terrains.
  */
-function tileBook(dirPaths, use) {
+function tileBook(dirPaths, use, same = {}) {
   const sets = [];
+  /* --same A=B: base tile A is the family's material B, born again in a pair rolled without a chain (same words, same palette) */
+  const one = (t) => { const k = Object.keys(same).find((a) => t.startsWith(a)); return k ? same[k] : t; };
   for (const [dirPath, f] of String(dirPaths).split(',').flatMap((d) => readdirSync(d).filter((f) => f.endsWith('.json')).map((f) => [d, f]))) {
     const j = JSON.parse(readFileSync(join(dirPath, f), 'utf8'));
     if (j.tileset_data && j.base_tile_ids) {
       /* the GET /mcp/tilesets/<id>/metadata shape: the tiles are boxes of the sibling PNG sheet */
       const id = j.id, hit = use.find((u) => id.startsWith(u));
       if (!hit) continue;
-      const sheet = decodePNG(readFileSync(join(dirPath, f.replace(/\.json$/, '.png'))));
+      /* the sheet beside it: <name>.png, or the MCP download's <id>-sheet.png beside <id>-metadata.json */
+      const png = existsSync(join(dirPath, f.replace(/\.json$/, '.png'))) ? f.replace(/\.json$/, '.png') : f.replace(/-metadata\.json$/, '-sheet.png');
+      const sheet = decodePNG(readFileSync(join(dirPath, png)));
       const tiles = {};
       for (const t of j.tileset_data.tiles) {
         const key = ['NW', 'NE', 'SW', 'SE'].map((c) => (t.corners[c] === 'upper' ? '1' : '0')).join('');
@@ -212,7 +216,7 @@ function tileBook(dirPaths, use) {
         blit(im, sheet, b.x, b.y, T, T, 0, 0);
         tiles[key] = im;
       }
-      sets.push({ id: hit, full: id, lower: j.base_tile_ids.lower, upper: j.base_tile_ids.upper, tiles, prompts: { lower: j.lower_description, upper: j.upper_description } });
+      sets.push({ id: hit, full: id, lower: one(j.base_tile_ids.lower), upper: one(j.base_tile_ids.upper), tiles, prompts: { lower: j.lower_description, upper: j.upper_description } });
       continue;
     }
     if (!j.metadata || !j.tileset) continue;
@@ -228,7 +232,7 @@ function tileBook(dirPaths, use) {
     sets.push({ id: hit, full: id, lower, upper, tiles, prompts: j.metadata.terrain_prompts });
   }
   const missing = use.filter((u) => !sets.some((s) => s.id === u));
-  if (missing.length) throw new Error('tilesets not in ' + dirPath + ': ' + missing.join(', '));
+  if (missing.length) throw new Error('tilesets not in ' + dirPaths + ': ' + missing.join(', '));
   const ids = [...new Set(sets.flatMap((s) => [s.lower, s.upper]))];
   const terrain = (p) => { const m = ids.filter((t) => t.startsWith(p)); if (m.length !== 1) throw new Error('terrain ' + p + ' matches ' + m.length + ' of the sets\' terrains'); return m[0]; };
   const name = (t) => { const s = sets.find((s) => s.lower === t || s.upper === t); return t.slice(0, 8) + ' (' + (s.lower === t ? s.prompts.lower : s.prompts.upper).split(/[,]/)[0] + ')'; };
@@ -496,24 +500,34 @@ function main() {
     writeFileSync(join(dir, o.id + '.json'), JSON.stringify(t.sidecar, null, 2) + '\n');
     console.log('  ✓ ' + o.set + '/' + o.id + ' wang16 ' + o.lower + '/' + o.upper + ': 16 of ' + t.total + ' tiles' + (t.ignored.length ? ', left ' + t.ignored.join(' ') : '') + ' · material ' + t.sidecar.material);
   } else if (cmd === 'paint') {
-    /* --grid FILE --tilesets DIR --use ID,… --legend L=TERRAIN,… [--note "…"]
+    /* --grid FILE --tilesets DIR --use ID,… --legend L=TERRAIN,… [--same A=B,…] [--void CHARS [--void-fill #hex]] [--material M] [--note "…"]
        A painted ground drawn the way Map Workshop draws one, from PixelLab pro tilesets (the GET /tilesets/{id}
        JSON, one file per set in DIR): the grid's PAINT rows give each map cell a material, and every 32 px tile
        sits on the DUAL grid, its four corners on four cell centres (the edge cells continue past the border).
        One material is its base tile; two are the tile of the pair's set whose corners match. Chained sets share
        their base tiles pixel for pixel (one terrain id each), so the paint is exactly the sets' own tiles. Three
-       materials round one vertex are blended from quadrants (blendTile); a pair no set draws refuses the grid. */
+       materials round one vertex are blended from quadrants (blendTile); a pair no set draws refuses the grid.
+       --void: cells of these characters are no floor (a castle's wall mass, drawn over the paint by its importer): a vertex reads
+       its floor cells only, and one with no floor cell is left the fill colour. --same: tileBook. */
     const rows = paintRows(readFileSync(o.grid, 'utf8'));
     const h = rows.length, w = rows[0].length;
-    const legend = Object.fromEntries(o.legend.split(',').map((p) => p.split('=')));
-    const book = tileBook(o.tilesets, o.use.split(','));
+    /* L=TERRAIN: the first character is the cell's, so '=' itself can be one */
+    const legend = Object.fromEntries(o.legend.split(',').map((p) => [p[0], p.slice(2)]));
+    const book = tileBook(o.tilesets, o.use.split(','), Object.fromEntries((o.same ? o.same.split(',') : []).map((q) => q.split('='))));
+    const isVoid = (ch) => !!o.void && o.void.includes(ch);
+    const fill = (o['void-fill'] || '#0b0a0c').match(/[0-9a-f]{2}/gi).map((v) => parseInt(v, 16));
     const terrain = (ch) => { const p = legend[ch]; if (!p) throw new Error(o.id + ': no legend entry for ' + ch); return book.terrain(p); };
     const out = createImage(w * T, h * T), bad = [];
+    if (o.void) for (let i = 0; i < out.data.length; i += 4) out.data.set([fill[0], fill[1], fill[2], 255], i);
     let blends = 0;
-    const cell = (x, y) => terrain(rows[Math.min(h - 1, Math.max(0, y))][Math.min(w - 1, Math.max(0, x))]);
+    const charAt = (x, y) => rows[Math.min(h - 1, Math.max(0, y))][Math.min(w - 1, Math.max(0, x))];
     for (let vy = -1; vy < h; vy++) for (let vx = -1; vx < w; vx++) {
-      const c = [cell(vx, vy), cell(vx + 1, vy), cell(vx, vy + 1), cell(vx + 1, vy + 1)];
-      const tile = book.tileFor(c) || blendTile(book, c);
+      const ch = [charAt(vx, vy), charAt(vx + 1, vy), charAt(vx, vy + 1), charAt(vx + 1, vy + 1)];
+      const floor = ch.filter((q) => !isVoid(q)).map(terrain);
+      if (!floor.length) continue;
+      const c = ch.map((q) => (isVoid(q) ? floor[0] : terrain(q)));
+      /* two rooms meeting only across a wall corner may be a pair no set draws: the wall hides the join, so one of them is laid */
+      const tile = book.tileFor(c) || blendTile(book, c) || (floor.length < 4 ? book.tileFor([floor[0], floor[0], floor[0], floor[0]]) : null);
       if (tile && new Set(c).size > 2) blends++;
       if (!tile) { bad.push(vx + ',' + vy + ' ' + [...new Set(c.map((t) => book.name(t)))].join('+')); continue; }
       blit(out, tile, 0, 0, T, T, vx * T + T / 2, vy * T + T / 2);

@@ -1,0 +1,78 @@
+{
+ "tool": "create_1_direction_object",
+ "object_id": "1a1e54d0-56fd-4680-a008-c6753f63d205",
+ "size": 32,
+ "view": "top-down",
+ "palette": "hr-world-56-v2 (all 56 passed)",
+ "description": "classic fantasy MMORPG pixel art at 32 px, dark single colour outline, lit from the upper left, filling the square, no glow",
+ "style_images": [
+  "assets/icons-bundle/pixel/heads/wight.png",
+  "assets/icons-bundle/pixel/heads/banded_pikeman.png",
+  "assets/icons-bundle/pixel/heads/mudlark.png",
+  "assets/icons-bundle/pixel/heads/barrow_knight.png",
+  "assets/icons-bundle/pixel/heads/bannerman.png",
+  "assets/icons-bundle/pixel/heads/gatekeeper.png",
+  "assets/icons-bundle/pixel/heads/grave_guard.png",
+  "assets/icons-bundle/pixel/heads/gray_wolf.png"
+ ],
+ "candidates": [
+  {
+   "id": "greened_pikeman",
+   "from": 0,
+   "to": 7,
+   "words": "head portrait, front view: an undead pikeman, a bare pale skull face under a round corroded copper-green iron helmet, green verdigris streaks on the metal, dried grey mud on the jaw, a brown rag collar"
+  },
+  {
+   "id": "bargeman",
+   "from": 8,
+   "to": 15,
+   "words": "head portrait, front view: a drowned river bargeman, a broad heavy bald head, cracked pale grey skin, dull white eyes, a thick neck, the strap of a dark wet leather apron"
+  },
+  {
+   "id": "color_sergeant",
+   "from": 16,
+   "to": 23,
+   "words": "head portrait, front view: an undead sergeant, a half skull face in a dented open-faced iron helmet, a mail collar crusted with green verdigris, a torn faded green flag cloth behind one shoulder"
+  },
+  {
+   "id": "charred_pikeman",
+   "from": 24,
+   "to": 31,
+   "words": "head portrait, front view: a burnt soldier, a charred soot-black skull face under a scorched dark iron cap, a dull dark red scarf at the neck, no flames, no fire"
+  },
+  {
+   "id": "stoker",
+   "from": 32,
+   "to": 39,
+   "words": "head portrait, front view: a heavy pyre stoker in a deep soot-brown hood, a dark leather mask over the mouth, small hard eyes, a soot-stained dark red neckerchief, no flames, no fire"
+  },
+  {
+   "id": "lurcher",
+   "from": 40,
+   "to": 47,
+   "words": "head portrait, front view: a lean black hunting dog, pointed ears, pale yellow eyes, bared teeth, a brown leather collar with a small brass tag"
+  },
+  {
+   "id": "pyre_wraith",
+   "from": 48,
+   "to": 55,
+   "words": "head portrait, front view: a wraith in a deep charcoal-black burial shroud hood, a pale skull face half lost in shadow, a small bone pin at the throat, plain cloth, no symbol, no sign, no glow"
+  },
+  {
+   "id": "provost",
+   "from": 56,
+   "to": 63,
+   "words": "head portrait, front view: an undead officer in a burnt black closed great helm with a narrow eye slit, a charred black gorget, soot streaks, plain steel, no symbol, no sign, no flames"
+  }
+ ],
+ "balance": {
+  "before": {
+   "gens": 8665,
+   "usd": 0
+  },
+  "after": {
+   "gens": 8655,
+   "usd": 0
+  }
+ }
+}

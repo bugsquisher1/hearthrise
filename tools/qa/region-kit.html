@@ -5,7 +5,7 @@
      sees), stands kit pieces and creatures on it, and puts the hero beside them for scale. A kit is judged here, never on
      a sprite sheet (src/data/world/region-kits.js; ART_DIRECTION §2-§4).
        http://localhost:<port>/tools/qa/region-kit.html?map=wickstead&at=30,20&props=hf_pikes_fallen@31,21&units=banded_pikeman@32,20
-     map=ID                 a map row (WORLD_MAPS) with its own objects; or ground=TERRAIN&size=WxH: an open field on that ground
+     map=ID                 a map row (maps/index.js mapRowOf: open or staged) with its own objects; or ground=TERRAIN&size=WxH: an open field on that ground
      extra=SET,SET&from=DIR  unshipped atlases to load as well, DIR/atlas-SET.json|png (an art lane's sets before they merge)
      props=ID@X,Y;…         stand props          units=ID@X,Y[@DIR[@ANIM]];…   stand creatures (idle, facing s)
      board=KIT&cols=N       every prop of a region kit (region-kits.js) laid out from `at` in rows, 3 tiles apart
@@ -23,7 +23,7 @@ import { loadManifests, createSceneImages, baseTables } from '../../src/world/at
 import { createBook } from '../../src/world/core/book.js';
 import { compileMap } from '../../src/world/core/map-compile.js';
 import { createCanvasBackend } from '../../src/world/render/canvas-backend.js';
-import { WORLD_MAPS } from '../../src/data/world/maps/index.js';
+import { mapRowOf } from '../../src/data/world/maps/index.js';
 import { REGION_KITS } from '../../src/data/world/region-kits.js';
 import { OUTFITS } from '../../src/data/hunt-outfits.js';
 import { BUILD } from '../../src/build-info.js';
@@ -56,7 +56,7 @@ const tables = baseTables(book);
 /* the ground: a map row, or an open field on a painted terrain */
 let row;
 if (q.get('map')) {
-  row = WORLD_MAPS.find((m) => m.id === q.get('map'));
+  row = mapRowOf(q.get('map'));   /* a staged pack's ground too: its art is read here before it opens */
   if (q.get('bare') === '1') row = Object.assign({}, row, { objects: [] });
 } else {
   const [w, h] = (q.get('size') || '60x40').split('x').map(Number);

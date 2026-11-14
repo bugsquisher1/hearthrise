@@ -1,0 +1,9 @@
+{
+  "brief": "lane/b-barrow-art-import add-on, 2026-11-14: the 8 heads `pack art` owed for the Slake (3) and the Pyre Field (5)",
+  "tool": "create_1_direction_object, 64 candidates at 32 px, palette hr-world-56-v2, 8 style heads (wight, banded_pikeman, mudlark, barrow_knight, bannerman, gatekeeper, grave_guard, gray_wolf); words in 32-heads/request.json",
+  "object": "1a1e54d0-56fd-4680-a008-c6753f63d205 (review, frames 0-63, 8 a head)",
+  "kept (32-heads/picks/)": { "greened_pikeman": "04", "bargeman": "08", "color_sergeant": "20", "charred_pikeman": "25", "stoker": "32", "lurcher": "43", "pyre_wraith": "48", "provost": "57" },
+  "read": "x4 and x8 on a dark slot: one family with the March heads; each told apart at a glance. Every pick 32x32, 0 off-palette, 0 partial alpha (the import checks).",
+  "refused": "provost 56, 58, 59, 60, 62, 63: the helm's ridge crosses its eye slit and reads as a cross (brief 25's rule); 57 has the slits only",
+  "gens": "10 (one call). Balance 8665 -> 8655, credits $0"
+}

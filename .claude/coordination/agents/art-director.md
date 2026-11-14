@@ -3298,3 +3298,13 @@ pixels moved), kept as read (REGRADE_KEPT) until an art pass looks at them; (3) 
 roads are create_path_tiles and walls create_building_kit, `create_tiles_pro tile_feature` takes only "tileset";
 (4) no real 25-tile set exists in the tree, so the tall reader is proved on a real pro set re-laid from the docs'
 description: read the first real one at x2 before trusting it.
+
+## 2026-11-14 lane/b-barrow-art-import (the Slake, the Pyre Field and Krell's Hold owe no art)
+Driver: tools/world-art/import-barrow-2026-11-14.mjs (bodies, heads) + barrow-grounds.mjs (floors, walls, props) + barrow-clips.mjs (rows for
+import-clips). Sets pyre, pyrefolk, hold, holdguard, holdkeep; class rows hound and hallfire. Lessons: (1) six 64 px bodies with full clips do
+not fit one 2048 atlas: split bodies from the ground before importing; (2) nothing may be PLACED on a blocked cell (L-SPACE), so what stands on
+a pyre row or is a castle wall goes in the paint, and a solid prop on open floor moves the mask: an art lane can only swap same-footprint pieces
+or use cells no pack reads; (3) pairs rolled unchained give one material three base ids: paint --same names them one; (4) a wall mass with no
+tileset is paint --void plus kept face slices, read in region-kit.html (now reads staged maps); (5) the notes' lift 1 left the Slake bodies at
+1.4-2.1:1 on the silt: measure with ring-contrast after the import, not from the note (3 and 4 steps pass at 4.25). Open: the gatehouse and 12
+Hold props are drawn and unplaced (need pack cells), Krell's roster clip has no hook, the lurcher reads 2.72:1 by ring on ash (its outline carries it).

@@ -17,11 +17,11 @@
 //       Key (pack.js `hall`), so on a hunt the hall stands empty
 //   'g' gravel: the back gate and the path outside the east wall
 //
-// ART: STAGED, NOTHING DRAWN. The ground `krells_hold_ground` is to be painted from these rows on five chained tilesets (cart road and
-// gate dirt, yard cobble, chapel flags, crypt stone, hall boards) with gray dressed stone wall slices (a feature every 6 tiles: an
-// arrow loop, a torch or a buttress). Only the two coal seams below are placed, because none of the Hold's props exists in an atlas: the gatehouse and
-// portcullis at (27-31, 37), the Hall Fire along the hall's north wall, and the fourteen props of the art brief (the board's section 7)
-// go on once their sets load. The Crypt wants an Emberstone Vein, which has no node kind or sprite yet (the Pyre Field's flag).
+// ART: DRAWN (lane/b-barrow-art-import 2026-11-14, set `hold`). The ground `krells_hold_ground` is painted from these rows on the kit's
+// hold family (cart road earth, cobble, flagstone, setts, the hall's boards, gravel) with the gray dressed stone wall slices laid over
+// the paint (a feature every 6 tiles: an arrow loop, a torch or a buttress). Placed: the two coal seams, and in the hall the Hall Fire
+// with its two banners. STILL TO PLACE, each needing cells from the pack (a solid piece moves the mask): the gatehouse and portcullis
+// at (27-31, 37), and the other props of the art brief (the board's section 7), all drawn in set `hold`. The Crypt wants an Emberstone Vein, which has no node kind or sprite yet (the Pyre Field's flag).
 export default Object.freeze({
   id: 'krells_hold',
   name: 'Krell\'s Hold',
@@ -80,7 +80,10 @@ export default Object.freeze({
   faces: Object.freeze([]),
   /* the gather nodes (pack.js ground.gather): two coal seams in the Crypt's north wall, standing in for the Emberstone Vein the cellar
      rock should hold (gathering.js emberstone_rock has no node kind or sprite yet, the Pyre Field's flag) */
-  objects: Object.freeze([{ id: 'cw_coal_seam', x: 28, y: 4 }, { id: 'cw_coal_seam', x: 35, y: 4 }]),
+  objects: Object.freeze([{ id: 'cw_coal_seam', x: 28, y: 4 }, { id: 'cw_coal_seam', x: 35, y: 4 },
+    /* Krell's Hall, off the route: the Hall Fire along the north wall behind his seat, his red on one side of it and the Banded
+       Company's colors hung upside down on the other */
+    { id: 'kh_hall_fire', x: 47, y: 1 }, { id: 'kh_banner_stand', x: 45, y: 1 }, { id: 'kh_colors_upside_down', x: 52, y: 1 }]),
   buildings: Object.freeze([]),
   /* the patrol loop, on the cart road below the gate */
   path: Object.freeze([[28, 39], [30, 39], [30, 41], [28, 41]]),
@@ -95,5 +98,5 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 29, y: 43, to: 'town_common' }]),
   start: Object.freeze([29, 42]),
-  maskHash: '7e0cba14',
+  maskHash: '6d6c1a7a',
 });

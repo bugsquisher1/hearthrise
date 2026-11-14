@@ -57,6 +57,10 @@
 // one region kit (src/data/world/region-kits.js), places only that kit's props and at most two signature pieces of its
 // own (never another ground's), and its painted floor comes from its kit's tile family. --selftest plants each defect.
 //
+// NOBODY WADES (Tyler 2026-11-14, tools/world-art/crossings.mjs, rule [wet]): on a painted ground, no open tile's foot (the
+// unit's contact row) is painted water with no bridge or stepping stone under it. --selftest puts back each crossing as it
+// shipped before that day (the Glade's one-span sluice boards and a ford stone, the Sewer's grate, the Thicket's raft, the Drop).
+//
 // A REGION-MASK SET (src/data/world/atlas-sets.js MASK_SETS, the dyes' masks) is never drawn: it is held to
 // validateMask (only exact region keys, binary alpha, <sprite>_mask names) instead of the scale budget and
 // palette, its manifest says palette MASK_PALETTE, and every mask names a sprite of the set it masks with the
@@ -102,6 +106,9 @@ import { OPEN_GROUNDS as HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 /* ONE KIT A REGION (Tyler 2026-11-07): every hunting ground places its region kit's props and at most two signature pieces */
 import { REGION_KITS, SIGNATURE_MAX } from '../src/data/world/region-kits.js';
 import { kitFindings } from '../tools/world-art/region-kit.mjs';
+/* NOBODY WADES (Tyler 2026-11-14): an open tile is never painted water with no bridge or stone under the feet */
+import { wetFootFindings } from '../tools/world-art/crossings.mjs';
+import { MATERIALS } from '../src/data/world/terrain.js';
 import { lock, regradeFinding, paletteLocked } from '../tools/world-art/lock.mjs';
 import { importTileset, wangTiles, tileRows, keyOf } from '../tools/world-art/tileset.mjs';
 import { REGRADE_KEPT } from '../tools/world-art/validate.mjs';
@@ -409,6 +416,7 @@ function guard() {
   }
   for (const f of style1Findings(style1Input())) fails.push(`style-1: [${f.rule}] ${f.detail}`);
   for (const f of kitFindings(kitInput(atlases))) fails.push(`kit: [${f.kind}] ${f.detail}`);
+  for (const f of wetFootFindings({ maps: WORLD_MAPS, atlases, materials: MATERIALS })) fails.push(`map: [wet] ${f.detail}`);
   for (const f of proTilesetFindings()) fails.push(f);
   const { findings, drift } = checkAll(ROOT);
   for (const f of findings) fails.push(`source: [${f.rule}] ${f.id}: ${f.detail}`);
@@ -559,6 +567,23 @@ function selftest(atlases) {
   kitCase('a creature listed as a kit prop', 'piece', { kits: withGh((k) => ({ props: k.props.concat(['gray_wolf']) })) });
   kitCase('a kit that lists a retired set', 'sets', { kits: withGh((k) => ({ sets: k.sets.concat([RETIRED_SETS[0]]) })) });
   const KIT_MUTANTS = 9;
+
+  // NOBODY WADES: the shipped grounds are dry underfoot; each crossing put back the way it shipped before 2026-11-14 is named by [wet].
+  const wetOf = (maps) => wetFootFindings({ maps, atlases, materials: MATERIALS });
+  const wetClean = wetOf(WORLD_MAPS);
+  if (wetClean.length) { console.error('world-assets --selftest: harness — a shipped ground already wades: ' + wetClean.slice(0, 3).map((f) => f.detail).join('; ')); process.exit(2); }
+  const reworked = (map, fn) => WORLD_MAPS.map((m) => (m.id === map ? { ...m, objects: fn(m.objects.slice()) } : m));
+  const wetCase = (name, at, maps) => {
+    const hit = wetOf(maps).some((f) => `${f.id} ${f.x},${f.y}` === at);
+    if (hit) console.log(`  ✓ ${name}: caught by [wet] at ${at}`);
+    else { escaped++; console.log(`  ✗ ${name}: NOT caught by [wet] at ${at}`); }
+  };
+  wetCase("the Glade's sluice boards on one 75 px span (Tyler 2026-11-14)", 'mosslight_glade 44,22', reworked('mosslight_glade', (o) => o.filter((x) => !(x.id === 'cw_plank_bridge' && x.y === 23))));
+  wetCase("a stone taken out of the Glade's ford", 'mosslight_glade 9,21', reworked('mosslight_glade', (o) => o.filter((x) => !(x.id === 'mb_stepping_stones' && x.x === 9 && x.y === 21))));
+  wetCase("the Sewer's grate half a tile above the feet", 'millrace_sewer 33,24', reworked('millrace_sewer', (o) => o.map((x) => (x.id === 'grate_bridge' ? { ...x, y: 24 } : x))));
+  wetCase("the Thicket's log bridge as one raft on the trail row", 'meadowbrook_thicket 30,5', reworked('meadowbrook_thicket', (o) => o.filter((x) => !(x.id === 'mb_log_bridge' && x.x === 31)).map((x) => (x.id === 'mb_log_bridge' ? { ...x, x: 30, y: 5 } : x))));
+  wetCase("the Warrens' Drop on one span", 'coppercap_warrens 51,22', reworked('coppercap_warrens', (o) => o.filter((x) => !(x.id === 'cw_plank_bridge' && x.y === 23))));
+  const WET_MUTANTS = 5;
 
   // PIXELLAB 2026-11-11: the real pro sets read clean; a grade on palette-locked art and each bad tileset is named.
   const proClean = proTilesetFindings();
@@ -713,7 +738,7 @@ function selftest(atlases) {
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
-  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 13 + LIVE_MUTANTS + MASK_MUTANTS + KIT_MUTANTS + PRO_MUTANTS} planted defects caught; ${controls.length + 4 + PRO_CONTROLS} clean controls silent`);
+  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 13 + LIVE_MUTANTS + MASK_MUTANTS + KIT_MUTANTS + PRO_MUTANTS + WET_MUTANTS} planted defects caught; ${controls.length + 4 + PRO_CONTROLS} clean controls silent`);
   process.exit(escaped ? 1 : 0);
 }
 

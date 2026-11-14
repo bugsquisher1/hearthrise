@@ -245,3 +245,10 @@ Nothing server-side was changed here. Baseline finding 3 ("the whole character r
 - **asset director (one import lane, from `art/world-src/gen-2026-11-12/`):** 43 creature heads (briefs 15, 18: `picks/<id>.png`) need a home and a manifest row each (a 32 px head set, not `monster-art.js`'s painted portraits). The Hold, Muster, Ford and tier 7 icons (briefs 16-18) go to `assets/icons-bundle/pixel/items` with their packs; toll_token replaces the `slake-icons.mjs` drawing. Slake bodies (brief 19): bargeman and flag_sergeant rotations approved; greened_pikeman after the free bone swap (`#c8e6e0` to `#e6dcbc`). No clips yet: next cycle.
 - **game designer:** Krell's six faces are drawn before his bodies, and the bodies take the faces as their reference. pyre_priest's ash mark comes out as a cross on every roll: a free smear at import, or one re-roll.
 - **the Tally lane:** the pocket column has heads for all 30 live monsters, 7 March bodies and Krell's 6. They are full-bleed busts: give the pocket the bag's sunk well and no frame of its own, 32 px at the one density.
+
+## 2026-11-14 · art-director (lane/b-map-audit) → asset director · what the map audit could not fix in data
+- **The two fords (Mosslight x8-10 y20-22, Thicket x29-31 y31-33):** painted as deep water; a 3x3 of stepping stones holds the feet for now. Paint each as a shallow or gravel ford in its own ground (the meadow family; Wickstead's dry ford is the reference), then cut the stones to a few. Rule [wet] in tests/world-assets.mjs proves the result.
+- **cw_rails:** each tile has rounded ends, so a run reads as separate pieces with a gap every tile (the Warrens' x8 track, the Glade's spur). One mid piece that tiles north-south.
+- **The Mosslight Springs (P3):** no water is painted there; its moss_puddle and cw_puddle read as black holes on bright grass. A glowing-moss spring piece would be the signature the Glade has none of.
+- **Rook's Hide (Glade P4):** the ruined spring-house is four sewer cobble patches in a square; no wall stub says "house".
+- **Wickstead's Burned House:** a bare pale flagstone rectangle in the painted ground, with no char and no wall stubs.

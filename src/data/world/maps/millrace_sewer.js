@@ -80,8 +80,9 @@ export default Object.freeze({
     { id: 'pipe_outflow', x: 27, y: 1 }, { id: 'pipe_outflow', x: 33, y: 10 }, { id: 'pipe_outflow', x: 5, y: 20 }, { id: 'pipe_outflow', x: 41, y: 19 },
     { id: 'hanging_chains', x: 35, y: 10 }, { id: 'hanging_chains', x: 55, y: 17 }, { id: 'hanging_chains', x: 7, y: 27 },
     { id: 'wall_chunk', x: 8, y: 1 }, { id: 'wall_chunk', x: 29, y: 1 }, { id: 'wall_chunk', x: 48, y: 30 }, { id: 'wall_chunk', x: 20, y: 13 },
-    /* the channel: the one bridge, two lanterns lost in the sewage */
-    { id: 'grate_bridge', x: 33, y: 24 }, { id: 'drowned_lantern', x: 33, y: 19 }, { id: 'drowned_lantern', x: 27, y: 9 },
+    /* the channel: the one bridge (placed on y25 so its deck runs under the feet of a walker on y24, the open row), two
+       lanterns lost in the sewage */
+    { id: 'grate_bridge', x: 33, y: 25 }, { id: 'drowned_lantern', x: 33, y: 19 }, { id: 'drowned_lantern', x: 27, y: 9 },
     /* what stands on the floor */
     { id: 'brazier', x: 7, y: 14 },
     { id: 'barrels', x: 36, y: 32 }, { id: 'barrels', x: 7, y: 24 }, { id: 'barrels', x: 55, y: 21 }, { id: 'barrels', x: 55, y: 29 },

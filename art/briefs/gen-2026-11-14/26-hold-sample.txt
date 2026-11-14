@@ -1,0 +1,23 @@
+BRIEF 26: KRELL'S HOLD, THE SAMPLE (~50 gens, 6 rows). Gates briefs 27-30.
+Board section 7: "Draw the Farmhand and one wall run, read them at x2 beside the Pyre Field, then the rest." Nothing in 27-30
+runs until the art director has read these. Read the Hold's map (src/data/grounds/krells_hold/map.js) and the designer's
+section 1-2 of "2026-11-10 Krell's Hold" first. The Hold is a small gray castle in GOOD repair with living men: it must not read as
+another dead-March ground (pale ash Pyre, dark mud Slake). Gray dressed stone, smoke from one chimney, a warm hall.
+ #  Row                          Tool                                                    Gens
+ 1  Farmhand SAMPLE south        create_object_pro_flash, high top-down, 48x48, n_dir 1,   5
+                                 style image refs/style-glade-poacher-s-48.png (art/briefs/gen-2026-11-07/refs), palette
+                                 hr-world-56-v2. "a young frightened farm worker in a quilted padded jack, a bill hook in
+                                 one hand, no helmet, plain cloth, living skin, game enemy sprite". Match brief 18's head
+                                 (00 "a gaunt man in a too-big iron cap and a straw shirt" is the HEAD reference; if the
+                                 head holds a cap the body takes it: the body follows the face, brief 18). 3 cand.
+ 2  Farmhand 8 rotations         first_frame_url = the kept south                         1
+ 3  Farmhand idle, 8 frames      animate_object v3 south only: "standing, the chest rises and falls, the head stays level, both feet stay put, the bill hook stays in hand, nothing else appears in the frame"   5
+ 4  Wall run SAMPLE, 3 variants  create_image_pro_flash 256x256 4x4 of 32x60 cells (class wall: frame 32x60, anchor 16,59, body 56-60, face 48, cap 8-12). "gray dressed stone castle wall slice, mortar lines, a plain face / an arrow loop / a torch bracket, single black outline, top-down game wall". 3 sheets  18
+ 5  Cart-road / gate-dirt PAIR   create_topdown_tileset mode pro 32 px, palette, max_colors 12, NO chain: lower "packed dirt cart road, warm brown, ruts, a few stones", upper "grey gate cobbles, set small stones, mortar, calm"   15
+ 6  Farmhand ring-contrast read  0: ring-contrast.mjs on the locked cobble and dirt (3:1), x2 beside the Pyre Field, the Banded Pikeman beside him for scale
+ Subtotal 5+1+5+18+15 = 44, ~50 with one re-roll.
+READ BY THE ART DIRECTION CHECKS: ring 3:1 on cobble and dirt; body 36-40 tall; palette 0 off, 0 partial alpha; the wall's
+ mortar not noisy; "reads young and scared" (board); gray stone must differ from the Pyre's grey ash (stone is cooler, with a
+ clear outline, and has a lit top cap).
+FAIL ROUTES: a Farmhand that reads as a ranger or a peasant from Wickstead (it is a Glade/Wickstead lookalike): re-roll once with
+ "quilted jack, bare head, a rope belt"; a wall that reads as a fence: more face, a cap row.

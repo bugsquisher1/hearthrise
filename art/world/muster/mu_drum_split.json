@@ -1,0 +1,35 @@
+{
+  "id": "mu_drum_split",
+  "class": "wreck",
+  "style": "s1",
+  "material": "wood",
+  "source": "mu_drum_split.png",
+  "frame": [
+    50,
+    37
+  ],
+  "anchor_px": [
+    25,
+    36
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "e1802e87-fb7d-4f29-a88e-731a36bff5e2",
+    "cell": 5
+  },
+  "notes": "Cell 5 of a 4x4 style-1 prop sheet (PixelLab image e1802e87-fb7d-4f29-a88e-731a36bff5e2, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

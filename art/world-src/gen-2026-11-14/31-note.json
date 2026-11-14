@@ -1,0 +1,15 @@
+{
+  "brief": "coordinator add-on, 2026-11-13: the four Pyre Field item icons no bundle holds (brief 12 P6 / brief 13 Q9), to the pixel item-icon spec of tests/pixel-icons.mjs",
+  "spec check (each file in 31-pyre-icons/)": "32x32, 0 off-palette (hr-world-56-v2), 0 partial alpha, not empty, fill 91-94% by the longest side",
+  "kept": {
+    "pike_ferrule": "brief 13 Q9 c1, the art director's free trim (gen-2026-11-09b/q9-icons-sample/trimmed), snapped to the palette with the lock's own metric, 0 gens: a blackened iron cone cap with its collar and a charred stub",
+    "rake_tine": "Q9 c1 trimmed, snapped, 0 gens: one bent black spike with its seat",
+    "warrant_seal": "Q9 c2 trimmed, snapped, 0 gens: a grey lead disc with a stamped crest and a scorched red cord",
+    "kennel_tag": "NEW, candidate 18 of 06640f0c (create_1_direction_object, 64 at 32 px, palette, style toll_token hall_key coffin_nail shroud_pin urn_shard): a round brass tag on a torn scrap of dark leather collar. Brief 12's approved pick was never saved anywhere in the repo"
+  },
+  "one free edit on all four": "the snap and the generator put the palest mithril step (#c8e6e0) on a few highlight pixels: remapped to the steel ramp's top (#c4ccd2), so no icon carries a mint glint",
+  "alts/": "kennel_tag-c01 (a narrower scrap), rake_tine-c47 (a thinner plain tine: weaker on a dark slot), warrant_seal-c55-plain (no crest: reads as a plate)",
+  "read": "at x2 and x4 beside shroud_pin, toll_token, coffin_nail and urn_shard: one family, each told apart at a glance",
+  "NOT WIRED": "nothing copied to assets/icons-bundle/pixel/items and no item-art row added: lane/b-barrow-integrate wires them (copy the four files as <id>.png; pixel-icons then wants them listed)",
+  "gens": "10 (one call). Balance 8675 -> 8665, credits $0"
+}

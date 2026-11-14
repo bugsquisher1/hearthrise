@@ -1,0 +1,14 @@
+{
+ "mode": "pro",
+ "tile_size": {
+  "width": 32,
+  "height": 32
+ },
+ "view": "high top-down",
+ "transition_size": 0,
+ "lower_description": "soft powdery wood ash bed, a warm mid-light grey with a brown cast, mottled #8a867d #aaa49a and a little #6a6865, small drifts and soft footprints, a few charred black flecks, never blue or slate, calm low contrast",
+ "upper_description": "a floor of fallen charred black timbers and soot, split burnt planks and logs lying flat, black and dark brown, flat",
+ "palette": "hr-world-56-v2 (56)",
+ "palette_name": "hr-world-56-v2",
+ "max_colors": 12
+}

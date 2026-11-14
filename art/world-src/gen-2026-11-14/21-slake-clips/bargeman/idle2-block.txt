@@ -1,0 +1,12 @@
+  idle2 [group: 2928a7c9-157b-4c95-9781-90c42867cc9e]
+    description: breathing in place, only the chest rises and falls by one pixel, the head stays level, both feet stay put, the pole does not move and stays held low in both hands, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 9
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/b248de13-fe58-467a-a89f-097edcd3b5f5/east/{i}.png  (i=0..8)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/8cccfc3b-fc88-478c-a3cf-7a486f991814/north/{i}.png  (i=0..8)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/2bb65477-8ec7-484f-9525-d8bfaea1b8fa/north-east/{i}.png  (i=0..8)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/d238cd1f-2829-4a1f-be2f-5d729e8c254a/north-west/{i}.png  (i=0..8)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/9b36ac5a-9f4b-4f76-8458-6bac85635a97/south/{i}.png  (i=0..8)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/20e962dc-daf0-495b-bafa-3dbc71fda18c/south-east/{i}.png  (i=0..8)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/5f4f3c96-3ba8-4634-84e2-e005e33c798f/south-west/{i}.png  (i=0..8)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/ba3c042c-0225-4d4f-843a-c4af1d16fd9e/west/{i}.png  (i=0..8)

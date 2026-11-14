@@ -203,8 +203,12 @@ export const HEAD_ART_AHEAD = Object.freeze([
   'farmhand', 'hasks_lookout', 'grave_guard', 'gatekeeper', 'lord_krell', 'pyre_priest',
   'mudlark', 'wight', 'banded_pikeman', 'bannerman', 'barrow_knight', 'captain_hask', 'fordsunk']);
 const HEAD_SET = new Set(HEAD_ART.concat(HEAD_ART_AHEAD));
-/** The head's path for a creature id, or null when the set has none (the caller draws nothing). */
-export function headPathFor(id) { return HEAD_SET.has(id) ? HEAD_DIR + fileFor(id) : null; }
+/** The head's path for a creature id, or null when the set has none (the caller draws nothing). A creature drawn as another
+    (HUNT_ART_ALIAS below: a pack body that wears a kit body, a called boss) wears that one's head too: one face a sprite. */
+export function headPathFor(id) {
+  const worn = Object.prototype.hasOwnProperty.call(HUNT_ART_ALIAS, id) ? HUNT_ART_ALIAS[id] : id;
+  return HEAD_SET.has(worn) ? HEAD_DIR + fileFor(worn) : null;
+}
 
 /* THE HUNT WALK ART (2026-10-18): which PixelLab style-1 unit each hunt-ground monster
    is drawn with in the world pane, the key of `units` in
@@ -219,4 +223,7 @@ export const HUNT_WALK_ART = Object.freeze({
 /* A CALLED BOSS WEARS HIS OWN ART (Call out, src/data/boss-calls.js): a row with no sprite of its own draws as the row it copies. The scene's one reader (hunt-view/scene.js spriteOf). */
 export const HUNT_ART_ALIAS = Object.freeze({ rat_king_called: 'rat_king', chief_coppercap_called: 'chief_coppercap', drain_rat_called: 'drain_rat', goblin_digger_called: 'goblin_digger',
   /* A PACK BODY WHOSE ID IS NOT ITS SPRITE'S: the Ford's Ledger Wight is drawn as the March kit's wight (art/world/march). */
-  ledger_wight: 'wight' });
+  ledger_wight: 'wight',
+  /* The Muster Barrows' bodies are the March's (its pack header: a monster's numbers are its ground's, so each is the ground's own row
+     under its own id): the kit's pikeman and wight, and the Muster set's Barrow Knight (art/world/muster). Captain Hask wears his own. */
+  barrow_pikeman: 'banded_pikeman', cairn_wight: 'wight', muster_knight: 'barrow_knight' });

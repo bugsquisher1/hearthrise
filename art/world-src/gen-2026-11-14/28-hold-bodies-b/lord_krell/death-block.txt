@@ -1,0 +1,12 @@
+  death [group: 3ba7c4f1-ab87-4993-b2a6-1cdcbfb1edd8]
+    description: falls to his knees, the open book drops from his hand, then falls forward onto his face and lies flat and still on his red cloak, the cloak stays red, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/c0c8a74c-c523-49bd-aaa7-a714eecc1dc7/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/9de942e7-0ce4-4d3e-8360-29b6af4eef72/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/ef25d6f9-53c7-44e9-8edc-a834740f5464/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/78cd20d3-14c0-4f0d-8b79-c56aa8542d94/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/9053c9f8-5eb1-4d37-b995-043a59346fab/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/576a9421-bb13-42de-9777-44a0ed0fefe6/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/c7942c32-16c6-4d1d-95ae-ccec45b8e532/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/9104ccd7-703a-43e0-a9cd-33b8d22d6582/west/{i}.png  (i=0..6)

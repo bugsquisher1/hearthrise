@@ -1,0 +1,12 @@
+  death [group: 83c88801-0ae5-4622-b327-c8b5e276daef]
+    description: staggers and falls backward onto the ground, the crossbow drops beside him, lies flat on his back and still, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/fc630330-8e86-4686-85c6-692f737aef41/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/7d438bdc-cbe5-4f53-a0ab-689e4478a8b3/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/32bc0442-bb9f-44ea-abac-dd1ae8d85a3c/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/053bfc5d-5237-4223-9940-892332ca35da/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/0cf1bd55-8263-432b-80cb-24368371c13a/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/0c5b160b-794e-4e81-9889-c514277cdb34/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/ae5087dd-76eb-44e6-b17b-7f9927d90130/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/24a1e149-30be-4312-b391-6583fba13f0a/west/{i}.png  (i=0..6)

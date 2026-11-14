@@ -1,0 +1,15 @@
+{
+ "mode": "pro",
+ "tile_size": {
+  "width": 32,
+  "height": 32
+ },
+ "view": "high top-down",
+ "transition_size": 0,
+ "lower_description": "small dark cobbles set in black mortar seen from above, tight even rows of small rounded stones, dark neutral charcoal grey #2c2e33 #4a4d54 #231d1f with no blue, low value, calm, worn smooth, in good repair",
+ "upper_description": "large smooth very dark flagstones seen from above, big plain rectangular slabs two to a tile in a staggered bond with thin black mortar lines, each slab one flat very dark charcoal #2c2e33, mortar #0b0a0c #17141a, a thin slightly lighter upper-left edge, perfectly plain smooth faces with no cracks, no scratches, no marks, no specks, no blue, very low value, darker than the cobbles, calm, in good repair",
+ "palette": "hr-world-56-v2 (56)",
+ "palette_name": "hr-world-56-v2",
+ "max_colors": 12,
+ "lower_base_tile_id": "c5ce4639-040a-4e9b-84a7-98c29893063b"
+}

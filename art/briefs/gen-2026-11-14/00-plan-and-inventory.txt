@@ -1,0 +1,73 @@
+BRIEF 00: THE 11-14 RESET, SPENT ON THE BARROW MARCH (asset director, 2026-11-13, lane/art-barrow-briefs)
+No generation was run to write this. Docs only. Briefs 20-30 are ready to run the day the allowance resets.
+The five grounds are balanced and green (origin/lane/d-packs-apply 86d585698, origin/lane/d-barrow-data 43ff72c21); art is
+what holds them. Law: docs/ART_DIRECTION.md, src/data/world/art-budget.js, palette.js (hr-world-56-v2), tests/world-assets.mjs.
+Memory read: pixellab-palette-tileset-lesson, pixellab-release-2026-11-11, pixellab-generations-use-them.
+
+PRE-FLIGHT (the first thing the generator does, 0 gens)
+ 1 session_connectors_status: is PixelLab connected? Brief 14 stalled on 11-11 because it was not. Fallback: the REST route in
+   the palette lesson (v2 /create-tileset with target_palette, key from the user env var, never printed).
+ 2 get_balance. The plan below is about 1,400 gens against an allowance that resets 11-14 (10,000 at the plan's start; read it);
+   credits must read $0. NEVER buy credits (a per-spend OK from Tyler only). Stop any brief at a balance of 0. Read the
+   balance before and after every call and write both in the brief's note.json.
+ 3 Every palette-capable call passes palette_name hr-world-56-v2 plus the 56 hex values from src/data/world/palette.js (mode
+   pro for characters, topdown tilesets and animate_object). Palette-locked tilesets import as material `native` (identity
+   grade), NOT `terrain` (the lesson: `terrain` pushes on-palette pixels a ramp step down). Never chain a base with a palette.
+ 4 Sample first (CLAUDE.md §10): each brief opens with a SAMPLE row. Nothing after it runs until the art director has read the
+   sample at x2 on the locked ground. Batches are 20 rows or fewer; nothing is rolled twice without a named refusal.
+ 5 Raw output goes to art/world-src/gen-2026-11-14/<asset>/ with note.json (object ids, prompts, balance). Imports wire through
+   tools/world-art, never by hand. The generator imports and wires nothing.
+
+WHAT EXISTS (checked on this branch, art/world-src, assets/icons-bundle, origin art branches)
+ Hask's Ford    4 bodies idle (gen-2026-11-07/*-idle), 16 hf_ props, hasks_ford_ground (origin/lane/b-hasks-ford-art, imported by
+                origin/lane/a-import-ford-art). Icon toll_token (brief 16 keep 61). Heads banded_pikeman, bannerman, fordsunk.
+ The Slake      mudlark (gen-2026-11-07/08), grounded barge candidate and silt pair candidate (gen-2026-11-08, "not imported"),
+                3 bodies' ROTATIONS ONLY (brief 19: greened_pikeman r2 boneswap, bargeman, flag_sergeant). No clips.
+                barge_nail is a plain grey T (brief 16 flag). origin/lane/a-import-slake-art holds the kit import.
+ Muster Barrows 2 bodies (barrow_knight, captain_hask), 16 mu_ props, muster_barrows_ground (origin/lane/b-muster-barrows-art);
+                wight and banded_pikeman idles. Icons coffin_nail, urn_shard in the bundle. No alder gather node kind.
+ Pyre Field     RAW, not imported: charred_pikeman, stoker, lurcher clips (gen-2026-11-09b/b7), pyre_wraith (b8; SW idle bad,
+                hits wait on the hook), great pyre and embers (b9; import waits on the designer's 10x5 footprint), barrow_knight
+                deaths for the provost re-pour (b10), ash pair 1 (q3, and brief 14's palette sample, FAIL, 15 gens spent).
+                Icon shroud_pin (brief 18) is in the bundle. pike_ferrule, rake_tine, kennel_tag, warrant_seal were kept in
+                brief 13 Q9 but are NOT in assets/icons-bundle/pixel/items here: an import lane owes them, 0 gens.
+ Krell's Hold   NO body, tile, wall or prop. Has: 6 heads in pixel/heads (farmhand, hasks_lookout, grave_guard, pyre_priest,
+                gatekeeper, lord_krell; the priest's brow smeared at import), 6 item icons (hall_key, farmhands_tag,
+                lookouts_whistle, barrow_nail, priests_cord, gatekeepers_chain), tier 7 slakehide/shroudweave icons.
+                Captain Hask is reused from the Muster, 0 gens.
+ 8 PLACEHOLDER re-dyed icons (lane/d-barrow-data): dawn_hatchets, ember_hatchets, rune_hatchets, yew_crossbow, duskwood_crossbow,
+                runewood_crossbow, duskwood_wand, duskwood_codex. Real ones: brief 30.
+
+WHAT EACH GROUND STILL NEEDS, AND THE BRIEF THAT CLOSES IT
+ Hask's Ford    alder gather node (the six oaks are stand-ins), a better barge_nail                       20
+ Muster Barrows alder gather node, an Emberstone vein node shared with Pyre and Hold                       20
+ The Slake      3 bodies' clips; copper silt pair; river/mud pair; barge final; stake nets check           21, 22
+ Pyre Field     ash family (6 palette-locked pairs); great and burnt pyres + 4 props; hits; wraith SW
+                idle; provost re-pour; the priest's brow (held cross)                                     23, 24, 25
+ Krell's Hold   6 bodies, 5 tilesets, wall slices, gatehouse, Hall Fire, 14 props, 4 effects, 8 icons    26-30
+
+ORDER (which ground ships first = least art owed)
+ 1 Ford, Muster   brief 20       ~45 gens     two gather nodes, rest is imports
+ 2 The Slake      briefs 21-22   ~210 gens    bodies exist, clips and two tile pairs owed
+ 3 Pyre Field     briefs 23-25   ~330 gens    bodies exist raw, ground tiles and signatures owed
+ 4 Krell's Hold   briefs 26-30   ~620 gens    everything new; the sample (26) gates the rest
+
+GENERATION BUDGET (estimates from the plan's unit costs: 32 px object call 10 gens for 64 candidates; pro object south 5 plus
+ 8 rotations 1; a clip set about 5 gens a facing group; pro tileset 15; image_pro candidate about 10; 4x4 sheet 6. NONE
+ measured for this batch)
+ brief  what                                              gens
+ 20     Ford + Muster closeout                              45
+ 21     Slake clips, 3 bodies                              120
+ 22     Slake tiles, barge, nets                            90
+ 23     Pyre ash family, palette-locked                    150
+ 24     Pyre signatures and props                           85
+ 25     Pyre body gaps, priest brow, wraith                 95
+ 26     Hold SAMPLE (Farmhand, one wall, one tile pair)     50
+ 27     Hold bodies A (Farmhand, Lookout, Grave Guard)     110
+ 28     Hold bodies B (Priest, Gatekeeper, Krell)          150
+ 29     Hold tiles, walls, gatehouse                       170
+ 30     Hold props, Hall Fire, effects, icons              140
+        TOTAL                                           ~1,205, plus 15% re-rolls = about 1,390
+ Fits the monthly allowance with a large surplus. If the balance reads under 1,400 on the day, 30 then 28-29 give way (the
+ Hold is last). Surplus after the Marches' briefs goes to creature idle frames and missing icons (pixellab-generations-use-them
+ work order), not to repeats of anything here.

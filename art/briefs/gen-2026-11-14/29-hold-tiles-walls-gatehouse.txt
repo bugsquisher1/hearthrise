@@ -1,0 +1,27 @@
+BRIEF 29: KRELL'S HOLD, TILES, WALLS, GATEHOUSE (~170 gens, 13 rows)
+The five Hold floors, the wall family, and the one landmark at the start tile. All palette-locked pro tilesets from the lesson:
+NO chain, palette on both halves, import native. Brief 26 already made the cart-road / gate-dirt pair and one wall run: those stand
+if approved (their gens are not repeated here).
+The map (src/data/grounds/krells_hold/map.js) uses: '#' dressed stone/hill (blocks), '.' cobble (gate court, Drill Yard), ':' earth
+(cart road), 'f' flagstone (Chapel, doors, Tower Stairs), 's' setts (Crypt, its stair), '=' planks (Krell's Hall x41-56 y1-6, door x47-49),
+'g' gravel (back gate, east-wall path). Every corridor is 3 wide. Cart road: x27-31, going up from the Pyre Field.
+ #  Row                                  Words (upper over lower, palette words as in 23)                       Gens
+ 1  SAMPLE cobble / yard dirt (Drill Yard) lower "packed trodden yard dirt, warm brown, boot scuffs, straw flecks"; upper "small grey cobbles set in mortar, worn, calm"  15
+ 2  earth / gravel (back gate path)        lower "packed earth", upper "pale gravel, small stones"                              15
+ 3  flagstone / cobble (Chapel to Court)   lower "grey cobbles", upper "large smooth grey flagstones, thin mortar, a hairline crack, calm, no ornament"  15
+ 4  setts / flagstone (Crypt floor)        lower "dark grey flagstone", upper "small square dark setts, damp, grey-green stain, calm"          15
+ 5  planks / flagstone (Hall boards)       lower "grey flagstone", upper "long dark-brown wooden boards, nailed, an oak-brown ramp, a long worn path down the middle"  15
+ 6  dirt / planks door (hall door join)    short: the door apron tile where x47-49 meets the hall                                    15 (re-roll reserve use first)
+ 7  wall slice: plain face + cap           create_image_pro_flash 4x4 of 32x60 (class wall: frame 32x60, anchor 16,59, body 56-60, face 48, cap 8-12), 2 sheets   12
+ 8  wall: arrow loop, torch bracket, buttress, a corner, a gate-jamb  one sheet each, the "feature every 6 tiles" the board names  18
+ 9  wallend / wallcap                      wallend 12x60 and wallcap (class wallcap 8x32)                                         6
+ 10 Gatehouse and portcullis              create_image_pro 256x192, 3 cand, 32 px margin, style hf_ toll stone crop for stone: "a small grey castle gatehouse, an arched gate with a raised iron portcullis, two small towers, a plain pennant, smoke-free, top-down game landmark, single black outline". Class building (body 80-160). Placed at (27-31, 37)  30
+ 11 gatehouse variant, gate down           inpaint of the kept gatehouse: portcullis lowered (the closed state at the Hall door's key moment, if used)  10
+ 12 re-roll reserve                        2 of the above                                                                          ~30
+ 13 smoke chimney marker                   0 gens: the Hall chimney's smoke is the Hall Fire's effect (brief 30)                   0
+ Subtotal 75 (rows 1-5) + 15 + 12 + 18 + 6 + 30 + 10 = ~166, ~170.
+PASS: each floor reads as its place at x2 (Chapel quiet, Crypt damp, Hall warm); the six floors together look like ONE castle, not
+ six tilesets (the consistency risk named in 23: fill seams). Value rule: floors a step below actors (ART_DIRECTION §4). Ring 3:1
+ for every Hold body (brief 27/28) on cobble and flag and setts. A Hold floor must not match the Pyre's pale ash.
+WIRING: region-kits.js a new family `hold`; port-pixellab.mjs paint from the map; wall slices placed by the map-compile `wall` rows;
+ the gatehouse placed at the start tile. native material throughout.

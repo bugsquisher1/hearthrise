@@ -1,0 +1,36 @@
+{
+  "id": "alder_stump",
+  "class": "wreck",
+  "style": "s1",
+  "material": "native",
+  "source": "alder_stump.png",
+  "frame": [
+    64,
+    53
+  ],
+  "anchor_px": [
+    32,
+    52
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "ff3bdfb0-a652-5421-bbbc-6657012b03fe",
+    "job": "87b7a879-63ae-4180-8a4c-81e904ffd956",
+    "palette": "hr-world-56-v2"
+  },
+  "notes": "The felled alder (the alder kind spent sprite); bark styled from a crop of the kept alder trunk. Raw and review: art/world-src/gen-2026-11-14/20-note.json. Ported by tools/world-art/port-pixellab.mjs object: pixels unscaled, bottom-centre anchor. STAGED: on no map yet."
+}

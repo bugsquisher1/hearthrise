@@ -1,0 +1,25 @@
+{
+  "brief": "art/briefs/gen-2026-11-14/28-hold-bodies-b.txt",
+  "tool": "create_object_pro_flash high top-down, palette hr-world-56-v2, style refs/style-glade-poacher-s-48.png; canvas 48 (priest), 56 (gatekeeper), 60 (Krell: 64 would pass the brute row's 52); clips animate_object v3, 1 gen a facing",
+  "objects": { "pyre_priest": "39b3a548-4c03-47d8-b752-620fa61139ab (south e1444458, seed 12)", "gatekeeper": "4c759eff-7552-4819-b879-eba410501c20 (south 944c4482, seed 22)", "lord_krell": "ff5a6489-753d-4eac-90b4-adcbc0ee3541 (south c4728c65, seed 32)" },
+  "souths": {
+    "pyre_priest": { "kept": "12: a deep hood, a pale ash-grey robe, a dark red sash, a rope cord; 42 px; no sign anywhere on the body, the brow is hidden by the hood", "refused": "11 (the face lost in the hood), 13 (a cream robe, reads as the Lookout's buff)" },
+    "gatekeeper": { "kept": "22: steel plate, a dark red surcoat, a flanged mace, a big ring of gold keys at the belt that reads at x2, a raised visor and a beard; 39x47, class brute", "refused": "21 (smaller keys), 23 (a T mark on the chest)" },
+    "lord_krell": { "kept": "32: a bald old man with a long grey beard, pale plate, a RED cloak with a white fur mantle, a longsword, the open Roster; 44 px, class brute. Read beside the Gatekeeper and Hask: bare head, fur and book against a helmet, keys and mace, he reads as the lord", "refused": "31 (no fur, plainer), 33 (ring 1.77:1 at lift 2)", "flag": "the iron circlet is not drawn at this size: the bald head and the fur carry him" }
+  },
+  "lift at import (ring on the 0.027 floors)": { "pyre_priest": "0 (3.74 raw)", "gatekeeper": "2 (4.81)", "lord_krell": "2 (3.74)" },
+  "kept clips (28-hold-bodies-b/<body>/<clip>/<facing>/fNN.png)": {
+    "pyre_priest": "idle, walk, attack (the chant: both hands raised), death, hit: 8 facings each, all kept",
+    "gatekeeper": "idle 8, walk 8, attack (6) + attack2 24ab54b4 S SE, death (7) + death2 96db1c4b E. No hit rolled: the scripted 1 px recoil at import (brief 25's advice, the Grave Guard's result)",
+    "lord_krell": "idle 8, walk 8, attack S E SE + attack2 SW W NW N NE (N and NW: frames 0-4 only, a blue arc on the last two), roster S W N E (Reads the Roster: lifts the book), death SW W NW NE E + death2 S SE"
+  },
+  "refused clips": {
+    "gatekeeper attack S (orange specks), SE (no swing), death E (blue sparks)": "re-rolled once, kept above; attack2 SE is still a weak swing",
+    "lord_krell attack SW W NW N NE (first roll)": "a blue star, a gold staff, swoosh arcs, the body turned to face front",
+    "lord_krell rake (Rake the Coals), both rolls, all 4 facings": "dust swirls, a staff, the body turns and changes. No clip: the engine piece plays his attack and the coal cone's floor mark is the tell. A fire rake in hand would break the gear rule anyway",
+    "lord_krell death N (both rolls)": "kneels or never falls: the import pours it from NE or NW, or one v3 call with an end frame",
+    "lord_krell death S, SE (first roll)": "ended kneeling; death2 lies down"
+  },
+  "wiring": "port-pixellab.mjs unit --set hold; pyre_priest --class character, gatekeeper and lord_krell --class brute; --hit 3; lifts above",
+  "gens": "about 205: souths 45, rotations 3, priest clips 40, gatekeeper 32 + 3, Krell 56 + re-rolls 12, and concurrent rounding"
+}

@@ -1,0 +1,22 @@
+{
+  "brief": "art/briefs/gen-2026-11-14/25-pyre-body-gaps-and-priest-brow.txt",
+  "rows": {
+    "1 read b7 pikeman + lurcher (0 gens)": "PASS at x2 on brief 23's ash with the b7 lays (attack-lay drops the trail frames, deaths seated / pose route): review/25-b7-pikeman-lurcher-read-x2.png",
+    "2-5 hits": {
+      "r1 (group 'hit', my words 'the blow lands on frame 3')": "REFUSED for all four: the words read as an attack (weapons swing, the stoker paints a white crescent)",
+      "r2 (group 'hit2', brief 09 B3's proven r3 words: 'leans back by one pixel as if pushed from the front')": {
+        "lurcher": "1cce75b7 KEPT (S SE E SW W N; NE NW stay the import's animate_image route): head ducks, paws planted",
+        "pyre_wraith": "6381870a KEPT (8): the shroud shudders and leans, the hood holds its height",
+        "charred_pikeman": "8a54b2d5 PART: N NE NW W SW calm; S E SE refused (the pike turns into a double-headed bar or drops, 8-12 px box jumps)",
+        "stoker": "a7a9feff PART: NE NW SE SW W calm; S refused (a white swirl at frame 2), E and N refused (the rake swings out, a red-tipped blade appears)",
+        "greened_pikeman (brief 21's hit, re-rolled with these words)": "e47ce44e PART: S SW W calm; E N NE NW SE refused (the pike swings level from frame 3). Brief 21's first hit (4caf9135) is the other source"
+      },
+      "advice": "two v3 rolls proved a long-weapon humanoid swaps its weapon pose in a hit. For the refused facings the cheapest correct hit is the §6 recoil itself, scripted at import (0 gens): the still shifted 1 art px away from the blow on frames 1-3, home on 4. No more gens on these hits."
+    },
+    "6 wraith SW idle": "0 gens: the 0 1 0 1 lay the brief allows (b8 frame 1 is calm)",
+    "7 provost re-pour": "0 gens, a script on barrow_knight (import lane; the forecast passes 4.03:1)",
+    "8 provost fallback": "not run (row 7 is the route)",
+    "9 pyre_priest held cross": "CANCELLED, 0 gens: assets/icons-bundle/pixel/heads/pyre_priest.png at x2 and x4 reads as an uneven grey smudge on the brow, no sign (review/25-pyre-priest-brow-x4.png). The same rule stands for the Hold's priest body (brief 28)"
+  },
+  "gens": "hits r1 47 + r2 30 (greened pikeman r2 counted here, 8) = about 85"
+}

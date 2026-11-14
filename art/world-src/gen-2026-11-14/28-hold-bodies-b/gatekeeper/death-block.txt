@@ -1,0 +1,12 @@
+  death [group: e560dbc5-56e2-4ceb-8b6f-be0f0e2e8e6c]
+    description: drops to his knees and falls forward onto the ground with a crash, the mace falls beside him, lies flat and still, the armour stays steel and red, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/f9439409-22cf-4b71-9b93-5d26df800894/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/3a01c618-5a74-4676-8297-bf17645c7223/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/1ecc178a-7f50-492b-89c3-3da359fe5544/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/8a443f98-7888-441c-bb46-a2565d3d3d71/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/ffa98adc-efae-4266-886a-6328a45a46eb/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/fc77eb66-664b-4e74-8af2-9718289b5a8a/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/91ce65e6-6564-4e98-b5ec-f589810ff791/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/e753845f-713d-472c-8eba-bf5c8d673910/west/{i}.png  (i=0..6)

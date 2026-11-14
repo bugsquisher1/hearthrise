@@ -1,0 +1,12 @@
+  idle [group: b3a4ee5b-b446-4825-86da-4c650790170e]
+    description: standing still behind the tall shield, only the shoulders rise and fall by one pixel, the helmet stays at the same height, the body does not straighten or grow, both feet stay put, the shield stays planted in front, the sword stays low, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 9
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/b9f28922-6402-4f93-9231-5e90e9ab3db7/east/{i}.png  (i=0..8)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/a71a84d4-fce4-47cc-9f88-25c53d38bcec/north/{i}.png  (i=0..8)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/63e7ccb0-9c3e-469e-b08f-c4c760252ac1/north-east/{i}.png  (i=0..8)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/ee947924-79aa-46b8-a682-cdab044db34a/north-west/{i}.png  (i=0..8)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/130ad737-f851-4701-9764-bd1bc1057003/south/{i}.png  (i=0..8)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/2737c22e-f085-43c4-ba2b-8d38816c232f/south-east/{i}.png  (i=0..8)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/e602ec3f-9831-4bc8-9fa4-ff9e6d2c4fbc/south-west/{i}.png  (i=0..8)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/2806f0f1-d1be-4218-912b-b50b07c2cb59/west/{i}.png  (i=0..8)

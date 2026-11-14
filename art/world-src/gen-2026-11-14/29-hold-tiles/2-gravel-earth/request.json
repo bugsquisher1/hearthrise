@@ -1,0 +1,14 @@
+{
+ "mode": "pro",
+ "tile_size": {
+  "width": 32,
+  "height": 32
+ },
+ "view": "high top-down",
+ "transition_size": 0,
+ "lower_description": "packed dark earth seen from above, very dark warm brown #3d2a1d #2a1c14 #553a26, low value, calm, even, no stones",
+ "upper_description": "a dark gravel path seen from above, many tiny loose pebbles, dark warm grey #2f2723 #231d1f with a few lighter grey pebbles #4f4e52 #6a6865, low value, calm, even",
+ "palette": "hr-world-56-v2 (56)",
+ "palette_name": "hr-world-56-v2",
+ "max_colors": 12
+}

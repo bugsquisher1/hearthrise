@@ -1,0 +1,12 @@
+  attack [group: 6be49fb9-fd81-4e4a-9d1d-0406dc910276]
+    description: swings the pole in a wide sweep then draws back, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/dbfeb899-18bb-4b23-832a-4d6f091f1461/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/4d5071cf-059f-4f8b-bb25-6bc804ecdddf/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/88b46b06-dea6-4f2d-9dc7-19a2d05a6966/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/e89126de-ad6b-4c28-a891-bc0cc9634d5d/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/000207ab-c638-49f8-9791-3a2403826a5a/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/ef149ae3-4afb-411a-a03b-89f11b9c636b/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/5f178033-91c7-4d83-b35f-a5b5c5f313c4/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/62dd3ab8-f844-4458-b964-807a8f302225/west/{i}.png  (i=0..6)

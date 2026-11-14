@@ -1,0 +1,12 @@
+  idle [group: 30b5fd8d-727c-4433-a32f-94d2b949082a]
+    description: standing still with his hands held in front of him, only the chest rises and falls by one pixel, the hooded head stays at the same height, the body does not straighten or grow, both feet stay put, the hood stays up, the pale grey robe, the red sash and the rope cord stay the same, no symbol, no glow, no light, no magic, no spark, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 9
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/2feaff5b-f3de-4746-a774-b982b7cc380e/east/{i}.png  (i=0..8)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/a5a2893c-56cc-4abd-bf8b-fa0b2f0d5f3f/north/{i}.png  (i=0..8)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/9296789c-bdf6-44ca-b044-9fc9c7af9221/north-east/{i}.png  (i=0..8)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/b63f3302-36ce-4beb-a16b-d71eae039c1a/north-west/{i}.png  (i=0..8)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/025e13e0-892b-4a8f-9f8b-945d57f9122e/south/{i}.png  (i=0..8)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/f80ddbab-e560-4a22-8708-dff90879ae11/south-east/{i}.png  (i=0..8)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/a7130359-36bf-43ab-a73b-55e03eab7165/south-west/{i}.png  (i=0..8)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/39b3a548-4c03-47d8-b752-620fa61139ab/animations/dc48b579-9318-4429-a5bb-8391c21711a0/west/{i}.png  (i=0..8)

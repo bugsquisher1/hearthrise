@@ -1,0 +1,12 @@
+  idle [group: 00c85f4e-b451-48b0-9bd0-18ff995509fb]
+    description: standing proud, breathing in place, only the chest rises and falls by one pixel, the head stays at the same height, the body does not straighten or grow, both feet stay put, the red fur cloak stays red, the iron circlet and grey beard stay, the book stays in his left hand and the longsword in his right, no glow, no spark, no magic light, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 9
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/0b0bead5-4a86-4eca-a76a-16bad77d55c3/east/{i}.png  (i=0..8)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/215f21d6-e1bf-48eb-ac83-1fcb705dc2c7/north/{i}.png  (i=0..8)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/7fe9f170-2382-4d2c-8d75-744d79ca484c/north-east/{i}.png  (i=0..8)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/c641ee10-2c27-4021-9c4a-494a70814fb8/north-west/{i}.png  (i=0..8)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/b7770cf0-8985-421d-883f-47c566a86e8b/south/{i}.png  (i=0..8)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/61b4871e-1fa6-4539-9ebd-f523706014e0/south-east/{i}.png  (i=0..8)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/e01fd4cb-5b82-4775-a5a8-81aa3a8d1b8c/south-west/{i}.png  (i=0..8)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/e4ef1b65-b45f-4997-bec1-051063457c79/west/{i}.png  (i=0..8)

@@ -1,0 +1,30 @@
+{
+  "brief": "art/briefs/gen-2026-11-14/27-hold-bodies-a.txt",
+  "review of brief 26 (art director, 2026-11-13)": {
+    "verdict": "GO-WITH-CHANGES",
+    "look": "PASS at x2 beside the Banded Pikeman and the Barrow Knight: the Farmhand reads young and scared (too-big cap, jack, hook), the wall is dressed stone with a lit cap, cooler than the Pyre's ash",
+    "changes": [
+      "floors: every Hold floor has a median luminance of 0.027 (ring 3.38:1 for the lifted Farmhand). Done in brief 29, not by re-rolling 26's blue cobble: 26's pair is superseded by 29 pair 1 (the same cobble look, neutral iron ramp, a calm earth with no per-tile ruts)",
+      "bodies: lift at import by body, measured on the 0.027 floor: farmhand --lift 2 (3.39), hasks_lookout --lift 1 (3.74), grave_guard --lift 2 (3.74)",
+      "walls: a run's two END slices carry the outline and clear columns, so they go only at a run's ends (kh_wall_plain_a is one); interior runs cycle interior slices"
+    ]
+  },
+  "tool": "create_object_pro_flash 48x48 high top-down, palette hr-world-56-v2, style refs/style-glade-poacher-s-48.png; clips animate_object v3 (1 gen a facing; the lock snaps at import)",
+  "objects": { "farmhand": "802bd336-4d67-4f91-9dc5-43954c36b7ef (brief 26)", "hasks_lookout": "8046c3c6-84e2-4380-8690-be2ab0814e08 (south 5c99886c, seed 75)", "grave_guard": "96a7fcde-9c50-4763-bcd5-0fea35ca0404 (south 71380a77, seed 81)" },
+  "souths": {
+    "hasks_lookout": { "kept": "75: sage-green hood, buff jerkin, red and white banded sleeves, red tabard, the crossbow across the chest; 40 px", "refused": { "71 72 73 (first words)": "ring 1.77:1 even at lift 2 (brown edges), 72 a bright green ranger, 73 a brown hood", "74": "a helmet and a white cross on a blue tabard", "76": "a white hood, reads as an assassin" } },
+    "grave_guard": { "kept": "81: crested helmet over a skull, grey coat, a door-sized plain shield with rust runs (no sign), a short sword; 42 px, so class brute", "refused": { "82 83": "muddy, the shield and skull lost" } }
+  },
+  "kept clips (layout 27-hold-bodies-a/<body>/<clip>/<facing>/fNN.png, f00 is the still)": {
+    "farmhand": { "idle": "idle2 05584b8f (7 facings here, south in 26): straightens 5 px from frame 2, so the import's calm-frame pick takes frame 1", "walk": "1790d919 (8)", "attack": "attack 4d36318a (6) + attack2 9bc2b8f2 W + attack3 5835b6e5 NW", "death": "91173838 (8, all lie flat)", "hit": "4b4b175c (8)" },
+    "hasks_lookout": { "idle": "3238167f (8)", "walk": "bd7195c8 (8)", "attack": "739065b6 (8; no bolt drawn; S and SW lose the red tabard on the last frame: the import's lay drops it)", "death": "8 lie flat", "hit": "6 facings; S (the crossbow vanishes) and NE (a yellow spark) refused" },
+    "grave_guard": { "idle": "b3a4ee5b (8)", "walk": "57748b92 (6) + walk3 cc5a557f N NE", "attack": "attack S SW E + attack2 1f30f5d6 W NW SE + attack3 N NE (the shield slam)", "death": "8, the shield lands on him", "hit": "S and NW only" }
+  },
+  "refused clips": {
+    "farmhand attack W NW (first roll), attack2 NW": "the hand sickle grows a pole, a rake or a pick head",
+    "grave_guard walk/attack N NE (two rolls each), attack W NW SE (first roll)": "from behind the shield turns round, gold or white, or the body turns into another armoured man; the words that held: 'seen from behind, only a thin dark grey edge of the shield shows at his side'",
+    "grave_guard hit SW W N NE E SE": "a white sparkle on the shield, a gold shield, a changed body: scripted 1 px recoil at import instead (brief 25's advice), 0 gens"
+  },
+  "wiring": "port-pixellab.mjs unit --set hold --class character (grave_guard --class brute) --hit 3, with the lifts above",
+  "gens": "about 185: farmhand clips 42, lookout souths 30 + rotations 1 + clips 40, guard souths 15 + rotations 1 + clips 40 + re-rolls 11. Balance 9361 at the start of the run"
+}

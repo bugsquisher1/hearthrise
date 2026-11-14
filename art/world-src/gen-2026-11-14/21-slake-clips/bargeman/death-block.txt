@@ -1,0 +1,12 @@
+  death [group: 7091ac2f-50ca-48ca-81b4-4bcecfea7b63]
+    description: falls forward onto the ground, the pole beside him, lies still, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/f6186384-3071-4d0a-a541-451de818a394/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/23d9efcf-a030-4204-b072-b2dd2818bfdc/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/0e1988c1-e67c-44bc-b196-ad2a66b496a9/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/3911e729-c00c-469f-887f-331f1266842d/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/c7097173-2e31-463a-b7e4-dea3e036e288/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/a4d99092-639e-4a08-945b-2730a55517e3/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/3928ef75-5a69-4f09-b93e-4b05ac8a297e/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fc37534e-9ad0-4df7-a466-02bd1996b2d0/animations/2ecee83a-7545-4550-bc8b-6b0c536908fb/west/{i}.png  (i=0..6)

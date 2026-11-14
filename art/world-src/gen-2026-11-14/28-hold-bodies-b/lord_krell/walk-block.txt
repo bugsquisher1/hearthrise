@@ -1,0 +1,12 @@
+  walk [group: edc93bb1-89a3-49f2-a9c5-bba8905df7bb]
+    description: a slow stiff proud walk, both feet lift in turn, the cloak sways a little, the red fur cloak stays red, the iron circlet and grey beard stay, the book stays in his left hand and the longsword in his right, no glow, no spark, no magic light, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/4863fc43-8da6-4ba6-8b90-672efc04fada/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/9771bba8-0f75-4af7-b41f-4abd67977f73/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/648e74b1-6ebd-455d-af85-d61679857966/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/b06451d5-9f65-44ba-a9c9-8e917c3da488/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/9b8ba7a6-2a7e-463c-afab-bc838127dd24/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/6bef9467-2de6-4329-ada1-a456353b104f/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/7f3063c0-8627-4961-8c28-0b2b77f10526/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/0dbb90b8-0aaa-406b-b5c7-abae7afbdd39/west/{i}.png  (i=0..6)

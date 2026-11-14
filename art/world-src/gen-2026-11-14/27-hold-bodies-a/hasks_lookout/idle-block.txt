@@ -1,0 +1,12 @@
+  idle [group: 3238167f-83bc-404a-b6db-880de2c19fbf]
+    description: standing watch, breathing in place, only the chest rises and falls by one pixel, the head and hood stay at the same height, the body does not straighten or grow, both feet stay put, the crossbow stays held at the chest, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 9
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/26837b47-7245-40be-a394-2f1b18154d58/east/{i}.png  (i=0..8)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/f5eebb5e-4b0f-4533-bad5-5ac97f6717dc/north/{i}.png  (i=0..8)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/8204cfac-8c3a-4c65-a69f-0636536e80a4/north-east/{i}.png  (i=0..8)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/a003a810-5ed0-4379-b303-da49da8334f7/north-west/{i}.png  (i=0..8)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/d84145a0-7d1b-4b13-a94d-5a2778819012/south/{i}.png  (i=0..8)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/c2aacde4-8e68-4e13-a4de-03867d1671b9/south-east/{i}.png  (i=0..8)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/7889a9b7-2820-44a2-a634-9d8e7c3d1469/south-west/{i}.png  (i=0..8)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/d3dd880c-aa60-4f9c-8831-6b6d47607f08/west/{i}.png  (i=0..8)

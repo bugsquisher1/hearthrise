@@ -1,0 +1,12 @@
+  walk [group: 57748b92-d52b-4894-95ba-8f11fce63077]
+    description: a slow heavy shield-forward tread, both feet lift in turn, the tall shield stays held in front, the sword stays low, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/38672eea-5213-4a9d-8b8b-6f6f1b69442a/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/9fa1e02c-674a-47eb-9526-289f1189af2e/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/a595d950-595c-4acf-884f-51c96db019b4/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/b9f25e48-4d78-4a0c-a53c-2791a766a9c2/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/0f5492bf-e6a8-4dba-b3d2-759962c280b8/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/c6d00fa4-70cc-4bff-b689-dfa94ba845da/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/de862983-2d3b-475c-9ca6-c4052f32bdd9/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/d5d9db00-5407-486c-8298-b9d05b54714a/west/{i}.png  (i=0..6)

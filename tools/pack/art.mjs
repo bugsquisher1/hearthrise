@@ -259,7 +259,8 @@ export async function loadArtData(root = ROOT) {
   const files = (dir) => new Set(existsSync(join(root, dir)) ? readdirSync(join(root, dir)) : []);
   const items = files(PIXEL_DIR), heads = files(PIXEL_DIR.replace(/items\/$/, 'heads/'));
   return { G, HUNT_INDEX, MONSTERS, mapRowOf, kits: REGION_KITS, sprites, terrains, artAlias: HUNT_ART_ALIAS, nodeKinds: G.GROUND_NODE_KINDS,
-    spells: MONSTER_SPELLS, hitFx: HIT_FX.element, hasItemIcon: (id) => items.has(id + '.png'), hasHeadIcon: (id) => heads.has(id + '.png'),
+    spells: MONSTER_SPELLS, hitFx: HIT_FX.element, hasItemIcon: (id) => items.has(id + '.png'), /* a body that wears another's sprite wears its head too (monster-art.js headPathFor) */
+    hasHeadIcon: (id) => heads.has((Object.prototype.hasOwnProperty.call(HUNT_ART_ALIAS, id) ? HUNT_ART_ALIAS[id] : id) + '.png'),
     palette: { id: P.PALETTE_ID, colours: P.PALETTE } };
 }
 

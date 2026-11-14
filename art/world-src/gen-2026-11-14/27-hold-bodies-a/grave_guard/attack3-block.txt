@@ -1,0 +1,6 @@
+  attack3 [group: 1b5c41f2-a253-454d-8a94-a2fbf9d00ab5]
+    description: leans his whole body forward in a short hard shove and straightens back up, feet planted, the arms stay close to the body, ends in the same pose it started, seen from behind, the long grey coat covers his back the whole time, only a thin dark grey edge of the shield shows at his side and it never grows, never turns round and never changes colour, the crested helmet stays, no gold, no white, no glow, nothing else appears in the frame
+    directions: north, north-east (2/8)
+    frames: 7
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/1ae5206b-7769-45f9-814b-5080a0c87f81/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/49f14986-fb4a-41c4-bde2-7c9f80376a69/north-east/{i}.png  (i=0..6)

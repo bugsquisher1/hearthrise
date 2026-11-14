@@ -1,0 +1,16 @@
+{
+ "mode": "pro",
+ "tile_size": {
+  "width": 32,
+  "height": 32
+ },
+ "view": "high top-down",
+ "transition_size": 0,
+ "lower_description": "large smooth very dark flagstones seen from above, big plain rectangular slabs, very dark charcoal #2c2e33, thin black mortar, plain, calm",
+ "upper_description": "long dark wooden floor boards seen from above, boards run left to right, dark oak brown, a great hall floor",
+ "palette": "hr-world-56-v2 (56)",
+ "palette_name": "hr-world-56-v2",
+ "max_colors": 12,
+ "lower_base_tile_id": "456e148f-3322-47f1-84e6-8efbad93a87c",
+ "upper_base_tile_id": "6f4ca2d8-bc8a-4811-8448-c7ad1c38c123"
+}

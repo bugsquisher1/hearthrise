@@ -1,0 +1,12 @@
+  idle [group: ad8663bf-1219-4dcb-935d-af3d4be0d6bf]
+    description: standing, the chest rises and falls, the head stays level, the torn flag stirs by one pixel, the pole stays in the same hand, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 9
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/e78a3c1c-81ec-4995-8e82-ccf5928c84f8/east/{i}.png  (i=0..8)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/557bfb9d-cb5a-481c-bfb7-c79d830844a8/north/{i}.png  (i=0..8)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/3d9cf3fb-e445-46d6-94a3-3d7b15d5bb95/north-east/{i}.png  (i=0..8)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/f9ada23f-bd0a-48f9-b668-01614030f5a8/north-west/{i}.png  (i=0..8)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/ae9fde1a-38ae-4e30-8694-0f280474dd71/south/{i}.png  (i=0..8)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/0ef2b335-1ebe-4a3e-9847-abcb768fd948/south-east/{i}.png  (i=0..8)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/4c9e9853-b68d-4d1a-bf2c-78b62718e469/south-west/{i}.png  (i=0..8)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/a758d79a-0718-44a0-8601-770978ce874a/animations/e42765fb-5ec4-4730-94fe-ec9724eb698c/west/{i}.png  (i=0..8)

@@ -1,0 +1,12 @@
+  hit [group: 6bf593f6-91d0-4863-bcf0-d9365d184906]
+    description: the shroud shudders, the hood bows, the blow lands on frame 3, then it recovers to its stance, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/0270f103-104f-41d8-802e-e45ed6f4c212/animations/8c4607f9-cf43-4965-8098-7c8cb5ef0004/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/0270f103-104f-41d8-802e-e45ed6f4c212/animations/b394deb0-693c-4404-9571-9de52ece228a/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/0270f103-104f-41d8-802e-e45ed6f4c212/animations/0fd5f9fe-ccf9-45a1-ab47-37b90ad0ef82/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/0270f103-104f-41d8-802e-e45ed6f4c212/animations/2e2a604b-b71d-455f-9b81-24a54218237c/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/0270f103-104f-41d8-802e-e45ed6f4c212/animations/ecef570c-1cac-4026-9754-af53c20bf40e/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/0270f103-104f-41d8-802e-e45ed6f4c212/animations/8ff5a2e2-803b-452d-84ec-802820b20ad8/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/0270f103-104f-41d8-802e-e45ed6f4c212/animations/2b940cbf-af77-4376-adc6-8c214fd04b45/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/0270f103-104f-41d8-802e-e45ed6f4c212/animations/c0d3f242-7c57-48fa-a741-d1fcff5e6d1a/west/{i}.png  (i=0..6)

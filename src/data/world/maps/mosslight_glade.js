@@ -75,9 +75,12 @@ export default Object.freeze({
     { id: 'oak', x: 46, y: 35 }, { id: 'cw_copper_vein', x: 41, y: 12 }, { id: 'cw_copper_vein', x: 50, y: 16 }, { id: 'cw_copper_vein', x: 52, y: 12 },
     { id: 'oak', x: 24, y: 2 }, { id: 'oak', x: 33, y: 10 }, { id: 'pine', x: 5, y: 4 }, { id: 'pine', x: 15, y: 12 },
     { id: 'oak', x: 4, y: 10 },
-    /* the crossings: the goblins' sluice boards (the one 1-tile choke) and the ford stones */
-    { id: 'cw_plank_bridge', x: 44, y: 21 }, { id: 'mb_stepping_stones', x: 8, y: 20 }, { id: 'mb_stepping_stones', x: 9, y: 22 }, { id: 'mb_stepping_stones', x: 10, y: 21 },
-    { id: 'mb_stepping_stones', x: 9, y: 19 }, { id: 'mb_stepping_stones', x: 10, y: 23 }, { id: 'mb_reeds', x: 43, y: 19 }, { id: 'mb_reeds', x: 45, y: 23 },
+    /* the crossings: the goblins' sluice boards (the one 1-tile choke: two spans meeting on one pair of posts, bank to bank;
+       one 75 px deck left the hero wading its south row, Tyler 2026-11-14) and the ford stones, one on every open tile of the brook */
+    { id: 'cw_plank_bridge', x: 44, y: 21 }, { id: 'cw_plank_bridge', x: 44, y: 23 },
+    { id: 'mb_stepping_stones', x: 8, y: 20 }, { id: 'mb_stepping_stones', x: 9, y: 20 }, { id: 'mb_stepping_stones', x: 10, y: 20 }, { id: 'mb_stepping_stones', x: 8, y: 21 },
+    { id: 'mb_stepping_stones', x: 9, y: 21 }, { id: 'mb_stepping_stones', x: 10, y: 21 }, { id: 'mb_stepping_stones', x: 8, y: 22 }, { id: 'mb_stepping_stones', x: 9, y: 22 },
+    { id: 'mb_stepping_stones', x: 10, y: 22 }, { id: 'mb_reeds', x: 43, y: 19 }, { id: 'mb_reeds', x: 45, y: 23 },
     { id: 'mb_reeds', x: 7, y: 19 }, { id: 'mb_reeds', x: 11, y: 23 }, { id: 'mb_reeds', x: 30, y: 23 }, { id: 'mb_reeds', x: 55, y: 19 },
     /* P0 the Crow Field: what the poachers leave when they skin a wolf */
     { id: 'bone_pile', x: 9, y: 28 }, { id: 'bone_pile', x: 17, y: 33 }, { id: 'skull', x: 12, y: 35 }, { id: 'mb_leaf_litter', x: 18, y: 27 },
@@ -86,12 +89,12 @@ export default Object.freeze({
     { id: 'collapsed_cart', x: 47, y: 28 }, { id: 'woodpile', x: 33, y: 35 }, { id: 'chopping_block', x: 35, y: 35 }, { id: 'barrels', x: 48, y: 31 },
     { id: 'crates', x: 48, y: 32 }, { id: 'brazier', x: 37, y: 29 }, { id: 'bones', x: 43, y: 29 }, { id: 'straw', x: 36, y: 33 },
     { id: 'sack_pile', x: 31, y: 29 }, { id: 'mb_leaf_litter', x: 44, y: 36 },
-    /* P2 the Sluice: the goblins wash the Warrens' ore in the spring run */
-    { id: 'cw_rails', x: 42, y: 14 }, { id: 'cw_rails', x: 43, y: 14 }, { id: 'cw_mine_cart', x: 41, y: 16 }, { id: 'cw_ore_stain', x: 49, y: 13 },
+    /* P2 the Sluice: the goblins wash the Warrens' ore in the spring run; one track runs from the vein down to the cart */
+    { id: 'cw_rails', x: 41, y: 13 }, { id: 'cw_rails', x: 41, y: 14 }, { id: 'cw_mine_cart', x: 41, y: 15 }, { id: 'cw_ore_stain', x: 49, y: 13 },
     { id: 'cw_puddle', x: 44, y: 17 }, { id: 'cw_tool_rack', x: 40, y: 11 }, { id: 'cw_copper_pots', x: 52, y: 14 },
     /* P3 the Mosslight Springs: the brook rises here, and the moss glows */
     { id: 'moss_puddle', x: 45, y: 3 }, { id: 'moss_puddle', x: 54, y: 6 }, { id: 'cw_puddle', x: 47, y: 6 }, { id: 'mushrooms', x: 42, y: 7 },
-    { id: 'mb_fern', x: 55, y: 3 }, { id: 'mb_reeds', x: 53, y: 2 }, { id: 'pebbles', x: 57, y: 7 }, { id: 'mb_stepping_stones', x: 52, y: 6 },
+    { id: 'mb_fern', x: 55, y: 3 }, { id: 'mb_reeds', x: 53, y: 2 }, { id: 'pebbles', x: 57, y: 7 },
     /* P4 Rook's Hide: the ruined spring-house the poachers camp in */
     { id: 'cracked_flagstone', x: 26, y: 4 }, { id: 'cracked_flagstone', x: 30, y: 4 }, { id: 'cracked_flagstone', x: 26, y: 8 }, { id: 'cracked_flagstone', x: 30, y: 8 },
     { id: 'corner_rubble', x: 25, y: 3 }, { id: 'corner_rubble', x: 31, y: 9 }, { id: 'cw_rubble', x: 32, y: 5 }, { id: 'barrel_broken', x: 23, y: 7 },
@@ -116,5 +119,5 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 0, y: 33, to: 'town_common' }]),
   start: Object.freeze([1, 33]),
-  maskHash: 'd07e85b8',
+  maskHash: '6f296514',
 });

@@ -1,5 +1,20 @@
 # Art Director — running log
 
+## 2026-11-14 - nobody wades (lane/b-map-audit, from main v0.2.130)
+
+Tyler on live: "the bridge needs fixed in mosslight glade, i'm walking through water". Lessons worth keeping:
+
+- **Feet are on the tile's south row.** compose.js lands a unit's contact row on its tile's last pixel row, so a crossing must
+  be judged where the feet go, not by the rows it spans. Four of five bridges missed: a 75 px deck over 91 px of water, a raft
+  and a grate drawn half a tile above the walkers. Two spans of the same bridge meeting on one pair of posts reach bank to bank.
+- **Read the walk, not the sprite sheet.** tools/qa/region-kit.html with `at=` on the crossing tile shows it as a player sees it
+  in 5 s; a static file server on the worktree is all it needs (local-world serves only play.html, src and assets).
+- **An indexed sheet shares colours between water and grass,** so "colours only in water" was empty on every ground. A colour
+  is water when its share of the water is 20x its share of the open floor: rule [wet] found all four bridges and both fords.
+- **A whole-tile grid cannot hold a ford.** One stone a tile is a stamped lattice; the honest fix is paint, handed to the Asset Director.
+- **Moving a solid prop changes maskHash** (the cart): `node tests/world-core.mjs --hashes`. Map files ride in the edge bundle,
+  so any map edit moves the payload hash even when the engine reads nothing new.
+
 ## 2026-11-04 - the spark instead of the word (lane/a-miss-spark, from main v0.2.89)
 
 Tyler's named fix: "miss miss miss" over the hero becomes a spark. Lessons worth keeping:

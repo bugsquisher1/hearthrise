@@ -47,8 +47,9 @@
 //        every filled slot's icon 64 px (x2), the fight controls and the stamina "+" in view and pressable without
 //        opening anything, the ring's words inside its disc, no pixel medallion
 //   PH-9 THE STAMINA "+" (844x390; Tyler 10-25): a panel wholly on screen with the server's quote and Buy in reach;
-//        ONE hr_stamina_refill at that price, Buy off until the answer, the stamina from the re-read; a refusal in
-//        words; refills used up or too little gold turn Buy off with the reason and keep the "+"; the premium note
+//        ONE hr_stamina_refill at that price, Buy off until the answer, the stamina from the re-read; the question asks
+//        the price the server quotes at the press; a refusal in words, and one that brings new state (quote_changed,
+//        already full) replaces what the panel offers (lane/a-quote-changed); refills used up or too little gold turn Buy off with the reason and keep the "+"; the premium note
 //        for a hero without premium only
 //   PH-10 THE COACH NEVER LIES ON THE FIGHT (922x423, 844x390; first-hour playtest 10-29 #10: the card covered the hero
 //        mid-fight): in a hunt, the open card under the hunt bar crosses neither the viewed hero nor a party member
@@ -607,11 +608,13 @@ async function staminaBuy(open, fails, done) {
   if (!p0.on || !p0.whole || !p0.reach || !/\+4 h for 1,880 gp/.test(p0.quote) || p0.off || p0.now !== '3 h 12 m of 8 h') fails.push('PH-9 [' + tag + '] the "+" did not open the server\'s quote whole on screen: ' + JSON.stringify(p0));
   if (!p0.premium) fails.push('PH-9 [' + tag + '] a hero without premium is not told premium raises the cap');
   a.s.holdRefill = true;
-  /* The first press asks, in the Shop's words; nothing is sent until the second. */
+  /* The first press asks, in the Shop's words, at the price the server quotes NOW (town rest moved it while the panel stood open, QA 11-14);
+     nothing is sent until the second. */
+  a.s.env.stamina_refill = Object.assign({}, QUOTE, { price: 1840 });
   await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
-  await a.page.waitForTimeout(150);
+  await wait(a.page, () => /\?$/.test(document.querySelector('.hb-buy-quote').textContent), null, 4000);
   const asked = await panelOf(a.page);
-  if (!/^Buy 4 h of stamina for 1,880 gp\?$/.test(asked.quote) || a.s.calls.some((c) => c.name === 'hr_stamina_refill')) fails.push('PH-9 [' + tag + '] the first press on Buy: ' + JSON.stringify(asked));
+  if (!/^Buy 4 h of stamina for 1,840 gp\?$/.test(asked.quote) || a.s.calls.some((c) => c.name === 'hr_stamina_refill')) fails.push('PH-9 [' + tag + '] the first press on Buy (the server quotes 1,840 gp now): ' + JSON.stringify(asked));
   a.s.onRefill = () => { a.s.env.stamina = Object.assign({}, a.s.env.stamina, { ms: a.s.env.stamina.ms + H4 }); a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 520, n: 3 }); return { ok: true }; };
   await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
   for (let i = 0; i < 40 && !a.s.calls.some((c) => c.name === 'hr_stamina_refill'); i++) await a.page.waitForTimeout(50);
@@ -621,13 +624,25 @@ async function staminaBuy(open, fails, done) {
   if (a.s.releaseRefill) a.s.releaseRefill();
   const bought = await wait(a.page, () => document.querySelector('.hb-buy-now').textContent === '7 h 12 m of 8 h' && document.querySelector('.hb-buy-msg').textContent === 'Stamina restored.', null, 6000);
   const sent = a.s.calls.filter((c) => c.name === 'hr_stamina_refill');
-  if (sent.length !== 1 || sent[0].body.p_price !== 1880 || sent[0].body.p_slot !== 0 || !sent[0].body.p_idem) fails.push('PH-9 [' + tag + '] Buy sent ' + JSON.stringify(sent.map((c) => c.body)));
+  if (sent.length !== 1 || sent[0].body.p_price !== 1840 || sent[0].body.p_slot !== 0 || !sent[0].body.p_idem) fails.push('PH-9 [' + tag + '] Buy sent ' + JSON.stringify(sent.map((c) => c.body)));
   if (!bought) fails.push('PH-9 [' + tag + '] after the server answered the panel reads ' + JSON.stringify(await panelOf(a.page)));
-  a.s.onRefill = () => ({ ok: false, error: 'quote_changed' });
-  await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
-  await a.page.waitForTimeout(100);
-  await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
-  if (!(await wait(a.page, () => /^Prices or your bag changed/.test(document.querySelector('.hb-buy-msg').textContent), null, 6000))) fails.push('PH-9 [' + tag + '] a refused refill reads ' + JSON.stringify(await panelOf(a.page)));
+  /* A refusal that brings new server state replaces what the panel offers (lane/a-quote-changed; live 11-14: 197 gp shown, 169 quoted, every
+     retry refused; "+1 m for 31 gp" offered at 11:59 h after the server said full): the price moved, then the bar filled. */
+  const askThenBuy = async () => {
+    await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
+    await wait(a.page, () => /\?$/.test(document.querySelector('.hb-buy-quote').textContent), null, 4000);
+    await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
+  };
+  a.s.onRefill = () => { a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 410, n: 3 }); return { ok: false, error: 'quote_changed', stamina_refill: a.s.env.stamina_refill }; };
+  a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 520, n: 3 });
+  await askThenBuy();   // the question reads 520 (the server's then); the server moves to 410 under the second press
+  const moved = await wait(a.page, () => /^Prices or your bag changed/.test(document.querySelector('.hb-buy-msg').textContent) && / 410 gp\.$/.test(document.querySelector('.hb-buy-quote').textContent), null, 6000);
+  if (!moved) fails.push('PH-9 [' + tag + '] after quote_changed (the server quotes 410 gp) the panel reads ' + JSON.stringify(await panelOf(a.page)));
+  a.s.onRefill = () => { a.s.env.stamina = Object.assign({}, a.s.env.stamina, { ms: 28800000 }); a.s.env.stamina_refill = { available: false, why: 'stamina_full', n: 3, per_day: 6 };
+    return { ok: false, error: 'stamina_full', stamina_refill: a.s.env.stamina_refill }; };
+  await askThenBuy();
+  const full = await wait(a.page, () => document.querySelector('.hb-buy-go').disabled && /^Your stamina is already full\.$/.test(document.querySelector('.hb-buy-why').textContent), null, 6000);
+  if (!full) fails.push('PH-9 [' + tag + '] after the server said the bar is full the panel still offers a refill: ' + JSON.stringify(await panelOf(a.page)));
   await done(a, tag);
   /* Cannot be bought: Buy off with the server's words, the "+" still there; a premium hero is not told about premium. */
   for (const [label, prep, words, premium] of [

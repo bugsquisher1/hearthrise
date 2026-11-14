@@ -3278,3 +3278,17 @@ top row alone (Shop "Sell what only pays coin": 5/3/3 lines at 667/844/922 -> 1/
 costs a line PH-27 does not have: paid for with the card's own 40 px presses, a 1.05 one-line title and words at 1.3
 (--coach-foot feeds every words cap). The hunt-bar card keeps the shared row (no line to spare). Lesson: name scratch
 scripts per lane; a stale shared `edit.cjs` re-ran another lane's edits (filed in DISCOVERIES).
+
+## 2026-11-13 lane/art-gen-2026-11-14 (Krell's Hold, briefs 27-30; about 686 gens, 9361 -> 8675, credits $0)
+Sample 26 ruled GO-WITH-CHANGES: the look passed, readability was the gate. What settled it: on a dark ground the WALLS are the
+light stone and every FLOOR sits at 0.027 or darker, then each body lifts by its own measure (farmhand 2, lookout 1, guard 2,
+priest 0, gatekeeper 2, Krell 2). Lessons: (1) a ring under 3:1 after lift 2 is a body with brown edge shading: re-roll the
+south with "light colours, pale edges", do not lift 3; (2) unchained palette tilesets disagree on a shared material every time
+(three flagstones in three pairs): bear each material once WITH the palette, then chain by base tile id (byte-identical, cmp);
+read the MAP's joins before listing pairs, the brief had a floor the map lacks; (3) a per-tile mark (an X crack, a green
+stain) repeats as a grid: ask for plain faces, or ramp-remap it away for 0 gens; (4) prop sheets come back isometric unless
+every row says "straight from the front, never rotated, never isometric" and carries a px size; cut by blobs, not by cells;
+(5) v3 cannot hold a shield from behind or a sword plus a book through a swing: "seen from behind, only a thin edge of the
+shield shows" held it, Krell's rake did not hold in two rolls, and a shield body's hit is the scripted recoil, never a roll;
+(6) a run's two end slices carry the outline and clear columns, so interior runs cycle interior slices only; (7) gen.mjs's
+poll takes the job id for an object and never finishes: poll get_object by object_id (scratch obj.mjs).

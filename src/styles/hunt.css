@@ -270,6 +270,9 @@
 .hb-pl-head { display: flex; align-items: center; justify-content: space-between; min-height: 30px; font-family: var(--f-label); font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
 .hb-label { flex: none; font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .04em; }
 .hb-pl-note { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+/* The First target (first-target.js): its row and the line naming the ground, gone where the ground offers no choice. */
+.hb-pl-first { display: flex; flex-direction: column; gap: 4px; }
+.hb-pl-first[hidden] { display: none; }
 /* The setup in use is the panel's title: its name in gold, set as a heading (Forged Steel's Cinzel). */
 .hb-set { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gold-2); font-family: var(--f-display); font-weight: 700; letter-spacing: .04em; }
 .hb-pl-row .hh-select { flex: 1; min-width: 0; }

@@ -43,11 +43,7 @@ import { selectedIds, selectionWords, lockLabel } from './selection.js?v=0.2.130
 /* The This hunt row's choices: the three plans, then the pickup filter (loot-dispatch.js). */
 const RULE_OPTIONS = '<optgroup label="Loot plan">' + LOOT_CHOICES.filter((c) => c[2] === 'plan').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('')
   + '</optgroup><optgroup label="On pickup">' + LOOT_CHOICES.filter((c) => c[2] === 'pickup').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('') + '</optgroup>';
-/** The key help at the window's foot: the keys actions.js and selection.js really read, one hint a row, each its own item
-    (a wrapped list, never one long line the bag's scroll can cut through). The words before the first " to " are the key. */const KEY_HINTS = Object.freeze(['bag.key_search', 'bag.key_move', 'bag.key_use', 'bag.key_select', 'bag.key_range', 'bag.key_all',
-  'bag.key_clear', 'bag.key_sell', 'bag.key_lock'].map((id) => t(id)));
-const keyHintHtml = (h) => { const at = h.indexOf(' to '); return at < 0 ? esc(h) : '<kbd>' + esc(h.slice(0, at)) + '</kbd>' + esc(h.slice(at)); };
-export const KEYS_HTML = '<ul class="hw-keys">' + KEY_HINTS.map((h) => '<li>' + keyHintHtml(h) + '</li>').join('') + '</ul>';
+/* The keys actions.js and selection.js read are listed behind the window's ? (src/data/shell-windows.js helpKeys, the bag.key_* rows). */
 
 /** The toolbar across the window (tabs, search, sort, categories). */
 export function toolbarHtml(g) {

@@ -26,7 +26,7 @@ import { whole, gold } from '../../../render/format.js?v=0.2.130';
 import { closeFloatMenu } from '../float-menu.js?v=0.2.130';
 import { stateOf } from './state.js?v=0.2.130';
 import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights } from './doll.js?v=0.2.130';
-import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools, KEYS_HTML } from './grid.js?v=0.2.130';
+import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools } from './grid.js?v=0.2.130';
 import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.130';
 import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.130';
 
@@ -41,7 +41,7 @@ export function renderInventory(ctx) {
     + '<div class="hw-inv-foot"><span class="hw-capacity"><span class="hw-capbar" role="meter" aria-label="Bag spaces used" aria-valuemin="0"><i class="hw-capfill"></i></span><small class="hw-captext"></small></span>'
     + '<label class="hw-adv-toggle"><input type="checkbox" data-hs-act="advanced"> Advanced view</label>'
     + '<b class="hw-gold"></b></div><p class="hw-why hw-over"></p>'
-    + slotLineHtml() + toolsHtml(g) + advancedHtml() + KEYS_HTML + '</div>';
+    + slotLineHtml() + toolsHtml(g) + advancedHtml() + '</div>';
 }
 
 /** What a bag at or past its spaces means (midgame panel 2026-11-01: "114 of 100 spaces" with no word): the server's rule, 2027-02-11-hunt-loot-past-bag-cap.sql. Pure. */

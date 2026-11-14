@@ -3308,3 +3308,14 @@ or use cells no pack reads; (3) pairs rolled unchained give one material three b
 tileset is paint --void plus kept face slices, read in region-kit.html (now reads staged maps); (5) the notes' lift 1 left the Slake bodies at
 1.4-2.1:1 on the silt: measure with ring-contrast after the import, not from the note (3 and 4 steps pass at 4.25). Open: the gatehouse and 12
 Hold props are drawn and unplaced (need pack cells), Krell's roster clip has no hook, the lurcher reads 2.72:1 by ring on ash (its outline carries it).
+
+## 2026-11-14 lane/a-text-polish (the bag's key help whole at 1366x768; " · " out of player text)
+The key help sat at the end of the bag's scroll, so the scroll edge cut its third line. It is now the window's last element, one li a hint
+("Ctrl+A to select or deselect all", the key in a kbd), wrapping whole, the gap as the separator; phones still hide it. AW-62 measures it
+against every scrolling ancestor, with and without a coach card. Every " · " literal in player text became words ("Rename for 50 gp"), a
+comma, a sentence or parentheses ("Mill Cellar (Deadly)", "Marlow (18)"); copy-lint's `dot` rule forbids the glyph in any copy literal
+(selftest plants three; the old touching-a-word rule as a mutant misses two). Kept: format.js SEP between separately painted tag spans
+(Hunts list, hunt page, Tally), built at the v0.2.130 gate with no-break binding; a call for the designer if those should go too.
+Lessons: (1) help text inside a content scroll gets cut like content, so pin it outside; (2) pinning costs height: at 1366x768 the
+"Armor worn" line now sits just under the bag's fold; (3) the browser pane is shared with other sessions, so drive local-world through
+Playwright (world.play) for screenshots.

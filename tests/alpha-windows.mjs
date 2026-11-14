@@ -877,12 +877,12 @@ async function selectRules(base) {
   /* Lock reads Unlock only over a selection locked through */
   const lock = [S.lockLabel(['a', 'b'], new Set(['a', 'b'])), S.lockLabel(['a', 'b'], new Set(['a'])), S.lockLabel(['a'], null), S.lockLabel([], new Set())];
   if (lock.join() !== 'Unlock,Lock,Lock,Lock') fails.push('AW-77 the lock tool reads ' + lock.join());
-  /* the key help names the keys read above, and is the help the grid shows (one bag.key_* row a hint) */
+  /* the key help names the keys read above, and is the list behind the Inventory's ? (one bag.key_* row a hint) */
   const HINTS = ['search', 'move', 'use', 'select', 'range', 'all', 'clear', 'sell', 'lock'];
   const keys = HINTS.map((k) => t('bag.key_' + k)).join(' | ');
   for (const k of ['Ctrl+A to select or deselect all', 'Esc to deselect', 'Shift+click', 'Shift+arrows', 'Ctrl+click']) if (!keys.includes(k)) fails.push('AW-77 the key help leaves out "' + k + '": ' + keys);
-  const gridSrc = readFileSync(join(base, 'src/shell/windows/inventory/grid.js'), 'utf8');
-  if (!HINTS.every((k) => gridSrc.includes("'bag.key_" + k + "'"))) fails.push('AW-77 the grid shows key help of its own, not every bag.key_* row');
+  const rowSrc = readFileSync(join(base, 'src/data/shell-windows.js'), 'utf8');
+  if (!HINTS.every((k) => rowSrc.includes("'bag.key_" + k + "'"))) fails.push('AW-77 the Inventory\'s ? does not list every bag.key_* row (shell-windows.js helpKeys)');
   return fails;
 }
 
@@ -4160,26 +4160,32 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             const w = document.querySelector('[data-hs-win="inventory"]');
             w.querySelector('.hs-win-coach').insertAdjacentHTML('beforeend', '<p class="hs-pointer is-line"><b>A card</b> <span class="hs-coach-text">words</span></p>');
             const bottom = (q) => { const e = w.querySelector(q); return e && e.getClientRects().length ? Math.round(e.getBoundingClientRect().bottom) : null; };
-            /* the key help stands whole: no scrolling box it sits in cuts it (it sat at the end of the bag's scroll, its third line cut), and it ends inside the window */
-            const keysCut = () => {
-              const k = w.querySelector('.hw-keys');
-              if (!k || !k.getClientRects().length) return 'not shown';
-              const r = k.getBoundingClientRect();
-              for (let a = k.parentElement; a && a !== w; a = a.parentElement) {
-                if (getComputedStyle(a).overflowY === 'visible') continue;
-                const b = a.getBoundingClientRect(), shownBottom = b.top + a.clientTop + a.clientHeight;
-                if (r.top < b.top - 0.5 || r.bottom > shownBottom + 0.5) return 'cut by .' + a.className.split(' ')[0] + ' (' + Math.round(r.bottom - shownBottom) + ' px)';
-              }
-              return r.bottom > w.getBoundingClientRect().bottom + 0.5 ? 'past the window' : null;
-            };
-            const out = { win: Math.round(w.getBoundingClientRect().bottom), foot: bottom('.hw-inv-foot'), tools: bottom('.hw-tools'), scroll: w.querySelector('.hw-inv-scroll').clientHeight, keysCut: keysCut() };
+            const out = { win: Math.round(w.getBoundingClientRect().bottom), foot: bottom('.hw-inv-foot'), tools: bottom('.hw-tools'), scroll: w.querySelector('.hw-inv-scroll').clientHeight };
             w.querySelector('.hs-win-coach').textContent = '';
-            out.keysCutNoCard = keysCut();
             return out;
           });
           /* three whole rows of 44 px wells under a card (it was 97 px: two rows beside a cut doll) */
           if (foot.foot === null || foot.foot > foot.win || foot.tools === null || foot.tools > foot.win || foot.scroll < 130) fails.push('AW-62 Inventory at 1366x768 reads ' + JSON.stringify(foot));
-          if (foot.keysCut || foot.keysCutNoCard) fails.push('AW-62 the bag\'s key help at 1366x768 is cut: ' + JSON.stringify(foot));
+          /* THE BAG'S KEYS STAND WHOLE (lane/a-text-polish): they sat at the end of the bag's scroll and its edge cut the third line at
+             1366x768. Behind the ?, every hint shows, no scrolling box the list sits in cuts it, and it ends inside the window; at rest none
+             is in the body. Measured, not snapshotted. */
+          await page.click('[data-hs-win="inventory"] [data-hs-help]');
+          const keys = await page.evaluate(() => {
+            const w = document.querySelector('[data-hs-win="inventory"]'), k = w.querySelector('.hs-help-keys');
+            if (!k || !k.getClientRects().length) return { cut: 'not shown' };
+            const r = k.getBoundingClientRect();
+            let cut = r.bottom > w.getBoundingClientRect().bottom + 0.5 ? 'past the window' : null;
+            for (let a = k.parentElement; a && a !== w && !cut; a = a.parentElement) {
+              if (getComputedStyle(a).overflowY === 'visible') continue;
+              const b = a.getBoundingClientRect(), shown = b.top + a.clientTop + a.clientHeight;
+              if (r.top < b.top - 0.5 || r.bottom > shown + 0.5) cut = 'cut by .' + a.className.split(' ')[0] + ' (' + Math.round(r.bottom - shown) + ' px)';
+            }
+            const lis = [...k.querySelectorAll('li')];
+            return { cut, hints: lis.length, keyed: lis.filter((li) => li.querySelector('kbd')).length, wrapped: lis.filter((li) => li.getClientRects().length > 1).length };
+          });
+          await page.click('[data-hs-win="inventory"] [data-hs-help]');
+          const inBody = await page.evaluate(() => !!document.querySelector('[data-hs-win="inventory"] .hw-inv .hs-help-keys, [data-hs-win="inventory"] .hw-inv .hw-keys'));
+          if (keys.cut || keys.hints !== 9 || keys.keyed !== 9 || keys.wrapped || inBody) fails.push('AW-62 the bag\'s keys at 1366x768 read ' + JSON.stringify({ keys, inBody }));
           await page.keyboard.press('b');
           /* the Hunts how-to stands aside for a card there, and comes back */
           if (await openWin(page, 'h', 'hunts')) {
@@ -4772,7 +4778,7 @@ const MUTANTS = [
   ['plans: AW-21 a bow turns into a crossbow', 'src/shell/upgrade-plan.js', ' && !!ITEMS[id].twoHanded === !!ITEMS[cur].twoHanded', ''],
   ['plans: AW-64 a slot switched Off is said as spending', 'src/shell/hunt-go.js', 'if (!sl || sl.empty || sl.enabled === false) return null;', 'if (!sl || sl.empty) return null;'],
   ['plans: Hunt prep says stamina with no amount', 'src/shell/readiness.js', "'Stamina: ' + hoursWords(st.msLeft) + ' left'", "'Stamina left'"],
-  ['plans: Hunt prep calls the last hunt this hunt', 'src/shell/readiness.js', "h && !h.ended ? 'this hunt' : 'your last hunt'", "'this hunt'"],
+  ['plans: Hunt prep calls the last hunt this hunt', 'src/shell/readiness.js', "t(h && !h.ended ? 'prep.gold_spend_now' : 'prep.gold_spend_last', vars)", "t('prep.gold_spend_now', vars)"],
   ['plans: Equip upgrades forgets the weight chosen at Tamsin\'s', 'src/shell/upgrade-plan.js', '    if (mine.length) front = mine;', '    if (mine.length) front = front.slice();'],
   ['plans: a Sell plan for a stack not held reads unsellable', 'src/shell/loot-dispatch.js', "if (plan === 'sell' && held && bids && !bids.has(id))", "if (plan === 'sell' && bids && !bids.has(id))"],
   ['Equip upgrades marks nothing in flight', 'src/shell/widgets/upgrade-line.js', '  sc.wearing = { slots, items: slots.map((s) => plan.ops[s]) };\n', ''],

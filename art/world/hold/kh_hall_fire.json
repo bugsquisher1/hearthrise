@@ -1,0 +1,44 @@
+{
+  "id": "kh_hall_fire",
+  "class": "hallfire",
+  "style": "s1",
+  "material": "native",
+  "source": "kh_hall_fire.png",
+  "frame": [
+    116,
+    40
+  ],
+  "anchor_px": [
+    58,
+    39
+  ],
+  "footprint": [
+    4,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 8,
+      "loop": true,
+      "dirs": {
+        "s": 5
+      }
+    },
+    {
+      "name": "flare",
+      "fps": 8,
+      "loop": false,
+      "dirs": {
+        "s": 6
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash + animate_image",
+    "image": "32c4ae4c",
+    "flicker": "28cf6fc5",
+    "flare": "d6b2b139"
+  },
+  "notes": "The Hall Fire (brief 30): a gray stone trough of logs and embers, its flicker (f00-f04) and its flare (f00-f05) on one frame, by tools/world-art/barrow-grounds.mjs; pixels unscaled, snapped to the palette by the lock's own metric."
+}

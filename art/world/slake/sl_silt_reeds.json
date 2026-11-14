@@ -1,0 +1,120 @@
+{
+  "id": "sl_silt_reeds",
+  "class": "terrain",
+  "kind": "wang16",
+  "style": "s1",
+  "material": "native",
+  "source": "sl_silt_reeds.png",
+  "lower": "silt",
+  "upper": "reeds",
+  "tiles": {
+    "1000": [
+      [
+        0,
+        1
+      ]
+    ],
+    "1001": [
+      [
+        1,
+        1
+      ]
+    ],
+    "1010": [
+      [
+        2,
+        1
+      ]
+    ],
+    "1011": [
+      [
+        3,
+        1
+      ]
+    ],
+    "1100": [
+      [
+        4,
+        1
+      ]
+    ],
+    "1101": [
+      [
+        5,
+        1
+      ]
+    ],
+    "1110": [
+      [
+        6,
+        1
+      ]
+    ],
+    "1111": [
+      [
+        7,
+        1
+      ]
+    ],
+    "0000": [
+      [
+        0,
+        0
+      ]
+    ],
+    "0001": [
+      [
+        1,
+        0
+      ]
+    ],
+    "0010": [
+      [
+        2,
+        0
+      ]
+    ],
+    "0011": [
+      [
+        3,
+        0
+      ]
+    ],
+    "0100": [
+      [
+        4,
+        0
+      ]
+    ],
+    "0101": [
+      [
+        5,
+        0
+      ]
+    ],
+    "0110": [
+      [
+        6,
+        0
+      ]
+    ],
+    "0111": [
+      [
+        7,
+        0
+      ]
+    ]
+  },
+  "pixellab": {
+    "tool": "create_topdown_tileset",
+    "mode": "pro",
+    "tileset": "7442c425-c417-4486-92fd-4c0f5b60d65a",
+    "lower_base_tile_id": "43384614-ce1c-497d-8204-62ba7f4c6a4a",
+    "upper_base_tile_id": "bf19b473-2f37-476b-a914-3da54b5d35a2",
+    "transition_size": 0,
+    "tiles": 16,
+    "palette": "hr-world-56-v2",
+    "palette_locked": true
+  },
+  "notes": "The silt/reeds pair from PixelLab tileset 7442c425-c417-4486-92fd-4c0f5b60d65a (pro, 16 tiles) by tools/world-art/port-pixellab.mjs tileset: its sixteen corner tiles cut at the metadata's boxes, pixels unscaled. Every pixel came on hr-world-56-v2, so it is `native`: the lock does not grade it."
+}

@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/world-art/import-barrow-2026-11-14.mjs — THE BARROW MARCH'S KEPT PICKS → art/world/<set>/ (lane/b-barrow-art-import).
 //
-//   node tools/world-art/import-barrow-2026-11-14.mjs [--only bodies|slake|pyre|hold] [--id <body>]
+//   node tools/world-art/import-barrow-2026-11-14.mjs [--only bodies|heads|slake|pyre|hold] [--id <body>]
 //
 // Imports what the generation notes of art/world-src/gen-2026-11-14 (briefs 21-30) and gen-2026-11-09b (b7-b10) KEPT, for the
 // Slake (set `slake`), the Pyre Field (set `pyre`) and Krell's Hold (set `hold`). It is a driver: every pixel goes through the
@@ -22,10 +22,11 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { decodePNG, encodePNG, createImage } from './png.mjs';
 import { ROOT, ART_DIR } from './build.mjs';
-import { lock } from './lock.mjs';
+import { lock, inPalette } from './lock.mjs';
 import { RAMPS } from './palette.mjs';
 import { ALPHA_CUT } from '../../src/data/world/palette.js';
 import { isMain } from '../../tests/_is-main.mjs';
+import { groundParts } from './barrow-grounds.mjs';
 
 const G12 = 'art/world-src/gen-2026-11-12', G14 = 'art/world-src/gen-2026-11-14', B13 = 'art/world-src/gen-2026-11-09b';
 const FACING = ['south', 'east', 'north', 'west', 'south-east', 'south-west', 'north-east', 'north-west'];
@@ -137,10 +138,25 @@ function main(argv) {
   for (const [part, fn] of Object.entries(GROUNDS)) if (want(part) && !id) fn();
 }
 
-/* the grounds' own art (tiles, floors, props): one function a set, filled in below */
-const GROUNDS = {};
+/* the grounds' own art (tiles, floors, walls, props): barrow-grounds.mjs, one function a set */
+const GROUNDS = groundParts(run);
+
+/* ── HEADS (brief 32, one 64-candidate call, 10 gens): the picks, each 32x32 on the palette with binary alpha ── */
+const HEADS = Object.freeze(['greened_pikeman', 'bargeman', 'color_sergeant', 'charred_pikeman', 'stoker', 'lurcher', 'pyre_wraith', 'provost']);
+GROUNDS.heads = () => {
+  for (const id of HEADS) {
+    const buf = readFileSync(abs(G14 + '/32-heads/picks/' + id + '.png')), img = decodePNG(buf);
+    if (img.width !== 32 || img.height !== 32) throw new Error('head ' + id + ' is ' + img.width + 'x' + img.height);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const a = img.data[i + 3];
+      if (a !== 0 && a !== 255) throw new Error('head ' + id + ' has partial alpha');
+      if (a === 255 && !inPalette(img.data[i], img.data[i + 1], img.data[i + 2])) throw new Error('head ' + id + ' has an off-palette pixel');
+    }
+    writeFileSync(abs('assets/icons-bundle/pixel/heads/' + id + '.png'), encodePNG(img));
+  }
+  console.log('  ✓ ' + HEADS.length + ' heads -> assets/icons-bundle/pixel/heads');
+};
 
 if (isMain(import.meta.url)) {
   try { main(process.argv.slice(2)); } catch (e) { console.error('import-barrow: ' + (e && e.message || e)); process.exit(2); }
 }
-export { BODIES, GROUNDS, run, abs, G14, B13 };

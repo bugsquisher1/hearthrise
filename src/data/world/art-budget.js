@@ -103,6 +103,9 @@ export const CLASSES = Object.freeze({
   span: row({ body: [64, 160], measure: 'max', raw: true, contact: 'flat', shadow: null, layer: 'decal' }),
   // Wreckage wider than a crate (the Sewer's collapsed cart): something of it reaches the floor.
   wreck: row({ body: [28, 44], measure: 'h', maxW: 64, contact: 'touch', shadow: 'ellipse', layer: 'prop' }),
+  // A long floor hearth (Krell's Hall Fire): a low stone trough of logs and flame four tiles wide, resting along its whole length.
+  // It is fire, so it casts no shadow. Its flicker and its flare are clips of the one sprite.
+  hallfire: row({ body: [20, 40], measure: 'h', maxW: 128, contact: 'solid', shadow: null, layer: 'prop' }),
   // A trunk lying on the ground (the Meadowbrook's fallen log): long and low, it rests along its length.
   log: row({ body: [14, 24], measure: 'h', maxW: 64, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
   // A LAYER of a composite prop drawn over its base at the base's anchor (the house training dummy's plates, arms and target):

@@ -12,13 +12,12 @@
 //       walked, the gaps in the pyre rows and the ring round the Great Pyre
 //   '#' charred wood and the two pyre rows (thicket: blocks a step and a shot)
 //   'o' a cinder pit, where a pyre burned all the way down (chasm: flat, blocks a step, hides nothing)
-//   'P' THE GREAT PYRE, x25-34 y16-20, the ground's signature 1 (footprint 10x5). Blocked in the rows until its sprite loads; the art
-//       import then swaps these cells to ash and places pf_great_pyre at (25,16), whose footprint blocks the same 50 tiles, so the
-//       mask hash does not move.
+//   THE GREAT PYRE, x25-34 y16-20, the ground's signature 1: pf_great_pyre at (25,16), footprint 10x5. Its cells are ash in the rows and
+//       its footprint blocks all 50 (they were 'P' thicket until the sprite loaded 2026-11-14: the mask hash did not move).
 //
-// ART: STAGED. The ground `pyre_field_ground` is painted from these rows on the Barrow March kit's NEW ash family (the art plan's
-// B4: ash, scorched earth, burnt grass, charred wood, cinder pit, and the March's grass where the field meets the barrows: six
-// pairs). Every object placed below is on a loaded set; the four coal seams stand in for the gather node the ground wants (an
+// ART: DRAWN (lane/b-barrow-art-import 2026-11-14, set `pyre`). The ground `pyre_field_ground` is painted from these rows on the Barrow
+// March kit's ash family (ash, scorched earth, burnt grass, charred wood, cinder pit, and the March's grass at the rim: six pairs), and
+// the burnt-out pyres along both pyre rows are in that paint (a blocked cell takes no object). Every object placed below is on a loaded set; the four coal seams stand in for the gather node the ground wants (an
 // emberstone vein: gathering.js emberstone_rock has no node kind or sprite yet, hunt-grounds.js GROUND_NODE_KINDS). Waiting on
 // their sets: the burnt-out pyres (signature 2, pf_burnt_pyre and its variants) along both pyre rows at least every 10 tiles and
 // round the cinder pits; the kit's hf_pyre_unlit and mu_bier_unburned in the Shroud Rows; mu_shields_leaning and hf_pikes_fallen at
@@ -34,7 +33,7 @@ export default Object.freeze({
   outdoor: true,
   light: 'day',
   ground: 'pyre_field_ground',
-  legend: Object.freeze({ '#': 'thicket', '.': 'earth', ':': 'earth', 'o': 'chasm', 'P': 'thicket' }),
+  legend: Object.freeze({ '#': 'thicket', '.': 'earth', ':': 'earth', 'o': 'chasm' }),
   rows: Object.freeze([
     '############################################################', // 0
     '############################################################',
@@ -52,11 +51,11 @@ export default Object.freeze({
     '######:::::#############::::###################::::::#######', //    the north pyre row
     '######:::::#############::::###################::::::#######',
     '###.....................::::::::::::....................####', // 15
-    '###.....................:PPPPPPPPPP:....................####',
-    '###...........##........:PPPPPPPPPP:.......oo...........####',
-    '###...........##........:PPPPPPPPPP:.......oo............###',
-    '###.....................:PPPPPPPPPP:.....................###',
-    '###.....................:PPPPPPPPPP:.....................###', // 20 P1 the Shroud Rows, the Great Pyre, P4 the Ash Heaps
+    '###.....................:..........:....................####',
+    '###...........##........:..........:.......oo...........####',
+    '###...........##........:..........:.......oo............###',
+    '###.....................:..........:.....................###',
+    '###.....................:..........:.....................###', // 20 P1 the Shroud Rows, the Great Pyre, P4 the Ash Heaps
     '###.....................::::::::::::.....................###',
     '###..........................::..........................###',
     '###..........................::......##..................###',
@@ -79,14 +78,16 @@ export default Object.freeze({
   ]),
   faces: Object.freeze([]),
   objects: Object.freeze([
+    /* THE GREAT PYRE, signature 1: ten by five at (25,16), the officers' pyre, its embers still turning */
+    { id: 'pf_great_pyre', x: 25, y: 16 },
     /* P0 the Gate Pyres: where the death carts tipped the company's dead to wait for a pyre */
     { id: 'bone_pile', x: 13, y: 30 }, { id: 'skull', x: 24, y: 35 }, { id: 'bones', x: 12, y: 34 }, { id: 'cart_wheel', x: 25, y: 31 },
-    { id: 'collapsed_cart', x: 18, y: 36 },
+    { id: 'hf_wagon_tipped', x: 18, y: 36 },
     /* P1 the Shroud Rows: the dead laid out in their shrouds for a pyre that never came */
     { id: 'bone_pile', x: 5, y: 17 }, { id: 'bones', x: 12, y: 23 }, { id: 'skull', x: 19, y: 16 }, { id: 'sack_pile', x: 6, y: 24 },
     { id: 'bones', x: 17, y: 21 },
     /* P2 the Stokers' Yard: the Hold's wood and the block the Stokers split it on */
-    { id: 'woodpile', x: 8, y: 10 }, { id: 'woodpile', x: 9, y: 10 }, { id: 'woodpile', x: 18, y: 3 }, { id: 'chopping_block', x: 11, y: 4 },
+    { id: 'ma_log_stack', x: 8, y: 10 }, { id: 'ma_fire_rake', x: 9, y: 10 }, { id: 'ma_log_stack', x: 18, y: 3 }, { id: 'ma_ash_barrow', x: 11, y: 4 },
     { id: 'barrels', x: 23, y: 10 }, { id: 'sack_pile', x: 6, y: 6 },
     /* P3 the Kennels: the burnt-out pits the company's dogs den in, and what they dragged there */
     { id: 'bones', x: 42, y: 4 }, { id: 'bone_pile', x: 49, y: 5 }, { id: 'skull', x: 37, y: 9 }, { id: 'bones', x: 53, y: 11 },

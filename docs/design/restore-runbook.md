@@ -6,6 +6,12 @@ Everything below is either measured (marked ✅ with the date) or staged and une
 (marked **NOT EXECUTED**). Nothing in here has been proven end to end, and until §9 has
 been run once, this is a plan and not a capability.
 
+> **2026-11-14 — THE RUNBOOK NOW RUNS: `node tools/restore-drill.local.mjs`** (`--backups`, `--selftest`, `--mutate`,
+> `--keep`/`--from`; its header is the procedure). Executed against production read-only: one snapshot export, a local
+> rebuild from the repo, 447,511 rows loaded and proven equal (every table, every FK, all 21 heroes' `hr_state_of`,
+> grants, RLS, code), RTO 106 s. That proves the export path, **not a Supabase backup**: the dashboard clone in §9 is
+> still the one unexecuted step, and the tool is what runs against its result.
+
 > **DRILL ATTEMPTED 2026-08-15 ~21:15–21:40 UTC — BLOCKED AT THE CLONE, WHICH HAS NO API.**
 > Authorised, priced at ~$0.04, pre-flight green, every gate that does not need a restored
 > database re-run and passing, and the last inferred line in the document (the pooler

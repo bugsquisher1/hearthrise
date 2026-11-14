@@ -297,11 +297,19 @@ const BASELINE_MUTATIONS = {
 };
 
 // ── Measure a replay ───────────────────────────────────────────────────────
-async function measure(patches) {
+async function measure(patches, probeBase) {
   /* WHOLE chain on purpose: the census classifies every CHAIN-END table. */
   const { db } = await bootReplay(patches && patches.size
     ? { patches, fullChain: 'the census classifies every CHAIN-END table; every file judges it' }
     : {});
+
+  // The --live-sql tunable projection must RUN on the schema the chain builds, for the recorded baseline and for the
+  // two shapes that once made it unrunnable. A failure here is a broken re-measurement ritual, reported by compare().
+  const liveSqlErrors = [];
+  for (const [what, b] of Object.entries(probeBase ? liveSqlProbes(probeBase) : {})) {
+    try { await db.query(`select count(*) from (\n${tunableSql(b)}\n) probe__`); }
+    catch (e) { liveSqlErrors.push(`${what}: ${String(e.message).split('\n')[0]}`); }
+  }
 
   const tables = (await db.query(
     `select c.relname::text as nm from pg_class c join pg_namespace n on n.oid=c.relnamespace
@@ -333,7 +341,7 @@ async function measure(patches) {
     cron = ['<cron.job unreadable>'];
   }
 
-  return { rows, cron, userScoped };
+  return { rows, cron, userScoped, liveSqlErrors };
 }
 
 // ── The comparison ─────────────────────────────────────────────────────────
@@ -344,6 +352,11 @@ function compare(base, m) {
   const manifest = Array.isArray(base.player_value_tables) ? base.player_value_tables : null;
   const exempt = (base.player_value_exempt && typeof base.player_value_exempt === 'object')
     ? base.player_value_exempt : {};
+
+  for (const e of m.liveSqlErrors || []) {
+    problems.push(`--live-sql WOULD NOT RUN (${e}).\n`
+      + '      The re-measurement of production is broken: fix tunableSql() in this file, never the probe.');
+  }
 
   for (const [t, n] of Object.entries(m.rows)) {
     const spec = cls[t];
@@ -507,18 +520,23 @@ function drillBanner(base) {
   const d = base?.restore_drill;
   const line = '─'.repeat(72);
   if (!d) return `┌${line}┐\n│ RESTORE DRILL: NOT EVEN RECORDED.\n└${line}┘`;
+  // The logical drill (tools/restore-drill.local.mjs) proves production's rows come back through an export and a
+  // rebuild; it never opens a Supabase backup, so it never sets last_executed and is printed on its own line.
+  const ld = d.logical_drill;
+  const logical = ld ? `│ Logical export drill (NOT a backup restore): ${ld.executed}, RTO ${ld.rto_s} s — ${ld.tool}\n` : '';
   if (!d.last_executed) {
     return `┌${line}┐\n`
       + '│ RESTORE DRILL: NEVER EXECUTED.  An untested backup is a rumour.\n'
       + `│ Runbook: ${d.runbook}\n`
       + '│ This census proves which rows a restore must CARRY. It does not prove\n'
-      + '│ that a restore carries them, and nothing else in this repo does either.\n'
+      + '│ that a backup restore carries them.\n'
+      + logical
       + `└${line}┘`;
   }
   const age = Math.round((Date.now() - Date.parse(d.last_executed)) / 86400000);
   const rto = d.measured_rto ? `  measured RTO ${d.measured_rto}` : '';
   return `┌${line}┐\n│ RESTORE DRILL: last executed ${d.last_executed} (${age} day(s) ago).${rto}\n`
-    + `│ Runbook: ${d.runbook}\n└${line}┘`;
+    + `│ Runbook: ${d.runbook}\n${logical}└${line}┘`;
 }
 
 // ── THE PRODUCTION HALF (--live-sql / --live-compare) ──────────────────────
@@ -541,27 +559,47 @@ function drillBanner(base) {
 // The table list is BUILT FROM THE BASELINE, never hand-copied — a second copy
 // of the census's own table list is how a file and its remeasurement
 // instructions drift apart.
+// The tunable projection names ONLY the columns the baseline already records
+// in `live_value`, rather than `to_jsonb(x)`. `hr_settings` carries a `note`
+// paragraph and an `updated_at`, and shipping the whole row made this check
+// fire on every single run — a comparison that is always red is a comparison
+// nobody reads. The consequence, stated: a column NOT in `live_value` is not
+// compared. Adding one to the recorded value is what starts watching it.
+// NEVER A QUERY THAT CANNOT RUN (restore drill, 2026-11-14): this SQL failed twice, on a recorded value that was a
+// note ("ABSENT on production": Object.keys of a string gave `x."0"`) and on a recorded column the table had since
+// dropped (hr_tick_config.shadow), so the re-measurement had been unrunnable since 2026-10-08. The recorded keys now
+// FILTER the whole row instead of naming columns: a dropped column is simply absent and --live-compare reports the row
+// as moved. The plain run executes this projection on the replay, planted with both shapes (LIVE_SQL_PROBES).
+function tunableSql(base) {
+  return Object.entries(base.tables)
+    .filter(([, s]) => s.class === 'operator_tunable')
+    .map(([t, s]) => {
+      const rec = Array.isArray(s.live_value?.value) ? s.live_value.value : [];
+      const keys = Object.keys(rec[0] || {});
+      const obj = keys.length
+        ? `(select coalesce(jsonb_object_agg(e.k, e.v), '{}'::jsonb) from jsonb_each(to_jsonb(x)) e(k, v) where e.k in (${keys.map((k) => `'${k.replace(/'/g, "''")}'`).join(', ')}))`
+        : 'to_jsonb(x)';
+      return `  select 'tunable', '${t}', 0::bigint, (select coalesce(jsonb_agg(${obj} order by ${obj}::text)::text, '[]') from public.${t} x)`;
+    })
+    .join('\n  union all\n');
+}
+/* The recorded baseline, and the two shapes that broke --live-sql, each planted on the first tunable table. */
+function liveSqlProbes(base) {
+  const t = Object.keys(base.tables).find((k) => base.tables[k].class === 'operator_tunable');
+  if (!t) return {};
+  const plant = (value) => ({ ...base, tables: { ...base.tables, [t]: { ...base.tables[t], live_value: { measured: 'probe', value } } } });
+  return {
+    'the recorded baseline': base,
+    'a recorded value that is a note, not rows': plant('ABSENT on production (a note, as hr_tick_cohort once carried)'),
+    'a recorded key the table no longer has': plant([{ no_such_column__: 1 }]),
+  };
+}
 function liveSql(base) {
   const tables = Object.keys(base.tables).sort();
   const counts = tables
     .map((t) => `  select 'row'::text as kind, '${t}'::text as name, count(*)::bigint as n, ''::text as txt from public.${t}`)
     .join('\n  union all\n');
-  // The tunable projection names ONLY the columns the baseline already records
-  // in `live_value`, rather than `to_jsonb(x)`. `hr_settings` carries a `note`
-  // paragraph and an `updated_at`, and shipping the whole row made this check
-  // fire on every single run — a comparison that is always red is a comparison
-  // nobody reads. The consequence, stated: a column NOT in `live_value` is not
-  // compared. Adding one to the recorded value is what starts watching it.
-  const tunable = Object.entries(base.tables)
-    .filter(([, s]) => s.class === 'operator_tunable')
-    .map(([t, s]) => {
-      const keys = Object.keys((s.live_value?.value || [{}])[0] || {});
-      const obj = keys.length
-        ? `jsonb_build_object(${keys.map((k) => `'${k}', x."${k}"`).join(', ')})`
-        : 'to_jsonb(x)';
-      return `  select 'tunable', '${t}', 0::bigint, (select coalesce(jsonb_agg(${obj} order by ${obj}::text)::text, '[]') from public.${t} x)`;
-    })
-    .join('\n  union all\n');
+  const tunable = tunableSql(base);
   return `-- READ-ONLY. Generated by: node tests/restore-census.mjs --live-sql
 -- Run against production, save the rows as JSON, then:
 --   node tests/restore-census.mjs --live-compare <result.json>
@@ -835,7 +873,9 @@ async function main() {
     return;
   }
 
-  const m = await measure();
+  let probeBase;
+  try { probeBase = JSON.parse(await readFile(BASELINE, 'utf8')); } catch { /* --write's first run: nothing recorded */ }
+  const m = await measure(undefined, probeBase);
 
   // ── --write ──────────────────────────────────────────────────────────────
   if (argv.includes('--write')) {

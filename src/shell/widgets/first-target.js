@@ -4,8 +4,9 @@
 // The Krell's Hold design's engine piece 4 (lane/c-target-kind): the menders, a captain's adds, the Pyre Priest. One
 // select in the bar's fight settings, beside Target: None, then every monster that ground holds (hunt-grounds.js
 // monstersOn, the rows the engine spawns there, which the server's catalogue of the ground holds whole: tests/
-// target-kind-db.mjs TK-6). It is remembered PER GROUND, so the ground is named under it: the open hunt's, else the
-// ground the Hunts window has picked (configurable in town, Tyler 10-25); a ground with one kind offers no choice.
+// target-kind-db.mjs TK-5). It is remembered PER GROUND, so the ground is named under it: the open hunt's, else the
+// ground the Hunts window has picked, else the last hunt's (configurable in town, Tyler 10-25); a ground with one kind
+// offers no choice.
 // It SHOWS the server's `hunt_target_kind` section and nothing else. A change is ONE intent (target-intents.js
 // setTargetKind): the panel goes pending at once, every control off, and comes back only when the server has answered
 // and the re-read envelope has replaced the section (CLAUDE.md §6). A refusal keeps the server's pick and says why.
@@ -29,11 +30,11 @@ export function firstTargetHtml() {
     + '<p class="hb-pl-note"></p></div>';
 }
 
-/** The ground the pick is for: the open hunt's, else the Hunts window's pick; null = none known (the row hides). */
+/** The ground the pick is for: the open hunt's, else the Hunts window's pick, else the last hunt's; null = none known (the row hides). */
 function firstTargetGround(cs) {
   const h = huntOf(cs);
   if (h && !h.ended && h.huntId) return h.huntId;
-  return pickedHuntOf(cs);
+  return pickedHuntOf(cs) || (h && h.huntId) || null;
 }
 
 /** The kinds a hero can name first on `hunt`, by name: [{ id, name }], [] for a ground the data does not hold. */

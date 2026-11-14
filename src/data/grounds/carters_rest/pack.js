@@ -9,7 +9,7 @@
 // drop-tables are the pack lane's. Nothing here is served or listed.
 //
 // THE PLACE. Carter's Rest was the halfway inn on the road from Krell's Hold up to Morrow. Krell shut the road years ago, the carters stopped
-// coming, and a family of hill trolls moved in. Harry Wick's cart is parked in the yard, because the trolls are between him and Morrow.
+// coming, and a family of hill trolls moved in. Harry's cart is parked in the yard, because the trolls are between him and Morrow.
 // ALIGNMENT (Tyler 2026-11-14): a GOOD ground. Everything here is alive and nothing here is tied to Krell's fire. The field waits for the
 // ground row to learn it (the board's faction section).
 // NAMING VOICE: inn and carter words (taproom, stable, cellar, slate, sign, yard). Trolls are named for the job they took over at the inn.

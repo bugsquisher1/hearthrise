@@ -94,6 +94,10 @@ function gp4() {
   let hall = null;
   try { hall = diffRows(base, rowsOf("insert into public.hr_hunts (hunt_id, band_min, band_max) values ('a', 1, 2), ('b', 3, 4);\ninsert into public.hr_boss_halls (hall_id, hunt_id, monster_id, key_item, limit_ms) values ('c', 'c_hall', 'm', 'k', 600000);\n")); } catch { hall = null; }
   ok(!!hall && hall.length === 1 && hall[0].table === 'hr_boss_halls' && (PACK_TABLES.hr_boss_halls || []).join() === 'hall_id', 'GP-4 the diff refused a pack\'s hall row (hr_boss_halls is not a table a pack may write)');
+  /* the first row of a pack table (a comment stood where its insert now does) is rows, not a moved frame; any other table's is a move */
+  const none = "-- (no open keyed hall in the data)\n", first = "insert into public.hr_boss_halls (hall_id, hunt_id, monster_id, key_item, limit_ms) values\n  ('c', 'c_hall', 'm', 'k', 600000);\n";
+  ok(frameOf(none) === frameOf(first), 'GP-4 the first row of a pack table reads as a moved frame');
+  ok(frameOf(none) !== frameOf("insert into public.hr_hunt_limits (key, value) values\n  ('x', 1);\n"), 'GP-4 a new insert into a table no pack may write reads as no move');
 }
 
 /* GP-8 A STAGED PACK WITH A HALL SHIPS: rehearsed (opened in place, rendered, put back), its file holds the hall's own row and the

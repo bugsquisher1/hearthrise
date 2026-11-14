@@ -43,12 +43,17 @@ export function renderFolded(fold, root = ROOT) {
 }
 
 /** Everything of a file a pack must not move: its schema and function bodies. Masked: its catalogue rows (the diff reads them),
-    comments, its `do $$ ... $$` self-checks (they restate the rows they check), counts and digests. */
+    comments, its `do $$ ... $$` self-checks (they restate the rows they check), counts and digests. A plain `insert ... values ...;`
+    into a table a pack may write (PACK_TABLES) is rows and nothing else, so the whole statement is masked: a generator writes a comment
+    where a table has no row yet, and the FIRST row of such a table (Krell's Hold's hall in hr_boss_halls) is a row, not a new frame.
+    An insert into any other table still reads as a move (and the diff refuses its rows). */
 export function frameOf(text) {
+  const packInsert = new RegExp('^insert into public\\.(' + Object.keys(PACK_TABLES).join('|') + ') \\([^)]*\\) values <rows>;$', 'gm');
   return text.replace(/\r\n/g, '\n')
     .replace(/^\s*--.*$/gm, '')
     .replace(/\bdo \$\$[\s\S]*?\$\$;/g, 'do <self-check>;')
     .replace(/(insert into public\.[a-z0-9_]+ \([^)]*\) values)[\s\S]*?(?=\n(on conflict|;)|;\n)/g, '$1 <rows>')
+    .replace(packInsert, '')
     .replace(/\b[0-9a-f]{64}\b|\b[0-9a-f]{12,16}…?/g, '<digest>')
     .replace(/\b\d+\b/g, '<n>');
 }

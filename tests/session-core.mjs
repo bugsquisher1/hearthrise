@@ -1169,7 +1169,22 @@ async function rules(M) {
   const mkAccount = (srv, o = {}) => {
     const tab = memStore();
     const auth = { userId: () => UID, token: () => 'jwt', signOut: async () => { auth.out = true; } };
-    return new A.AccountSession({ auth, server: srv, tab, channel: fakeHub().channel, timers, config: o.config });
+    const acc = new A.AccountSession({ auth, server: srv, tab, channel: fakeHub().channel, timers, config: o.config });
+    /* Heroes re-rendering each other with no new answer (ACC-STORE-TIE's mutant) recurse until the stack overflows; each
+       frame's listener loop then re-enters it and Node 20 printed/allocated a 2 GB CI runner out of heap (client-guards-2,
+       runs 43392845828, 43593490462). Bound the nesting: past PINGPONG_DEPTH cross-hero re-renders a hero stops forwarding
+       and the account records it (acc.pingPong), so every rule stays shallow and ACC-STORE-TIE reads the flag. */
+    const PINGPONG_DEPTH = 8; let depth = 0;
+    acc.pingPong = 0;
+    acc._chars.set = (slot, cs) => {
+      const real = cs.noteStorage.bind(cs);
+      cs.noteStorage = () => {
+        if (depth >= PINGPONG_DEPTH) { acc.pingPong++; return; }
+        depth++; try { real(); } finally { depth--; }
+      };
+      return Map.prototype.set.call(acc._chars, slot, cs);
+    };
+    return acc;
   };
   const said = (n) => ({ account: { max_concurrent: n } });
   await t('ACC-1', async () => {
@@ -1628,18 +1643,11 @@ async function rules(M) {
     const a = acc.character(0), b = acc.character(1);
     let painted = 0; b.subscribe((s, why) => { if (why === 'storage') painted++; });
     srv.spend('iron_ore', 1);
-    /* a ping-pong (the mutant) used to recurse until the stack overflowed; each frame's listener loop then re-entered it,
-       and Node 20 ran a 2 GB CI runner out of heap (client-guards-2, runs 43392845828, 43593490462). Bound it: past
-       NOTE_CAP cross-hero re-renders the spy stops forwarding and records the loop, so it is caught at a shallow depth. */
-    const NOTE_CAP = 8; let notes = 0, looped = false;
-    for (const h of [a, b]) {
-      const real = h.noteStorage.bind(h);
-      h.noteStorage = () => { if (++notes > NOTE_CAP) { looped = true; return; } real(); };
-    }
+    /* a ping-pong (the mutant) is cut at a shallow depth by mkAccount's bound and recorded in acc.pingPong */
     const err = console.error; let failed = 0;
     console.error = (...a0) => { if (String(a0[0]).includes('a listener failed')) failed++; else err(...a0); };
-    try { await a.load(); } finally { console.error = err; delete a.noteStorage; delete b.noteStorage; }
-    if (looped) return 'the heroes re-render each other back and forth (' + notes + '+ cross re-renders for one answer)';
+    try { await a.load(); } finally { console.error = err; }
+    if (acc.pingPong) return 'the heroes re-render each other back and forth (cut ' + acc.pingPong + ' time(s) at the depth bound)';
     if (failed) return failed + ' listener(s) failed: the heroes re-render each other until the stack overflows';
     if (shows(b) !== '{"iron_ore":3}') return 'B shows ' + shows(b) + ' after A read 3 ore at the same instant';
     return (painted >= 1 && painted <= 2) || 'B re-rendered ' + painted + ' times for one answer of A';

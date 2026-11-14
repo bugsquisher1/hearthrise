@@ -46,7 +46,7 @@
 //   node tools/guard-anchors.mjs --for <file> …     which proofs a change to <file> re-runs
 //   node tools/guard-anchors.mjs --changed [--base <ref>]  the same, for this lane's diff
 //                                                   (base: newest set/v* or origin/next under HEAD, else origin/main)
-//   node tools/guard-anchors.mjs --unregistered     proof arms CI never runs
+//   node tools/guard-anchors.mjs --unregistered     proof arms CI never runs (guard-hygiene RULE 7: tests/** + tools/**, every workflow on a trigger)
 //   node tools/guard-anchors.mjs --selftest         mutation proof of this file and of
 //                                                   lane-done's scoped step, end to end
 // mutant-writes-tree: yes — --selftest plants into src/session/envelope.js (E) and writes tests/__guard-anchors-probe.mjs (X).
@@ -819,10 +819,16 @@ if (isMain(import.meta.url)) {
     for (const s of new Set(L.strings)) if (s.trim().length >= MIN_LITERAL && text.includes(s)) console.log('literal  ' + JSON.stringify(s).slice(0, 140));
     for (const r of compiledRegexes(L)) if (r.test(text)) console.log('regex    /' + r.source.slice(0, 120) + '/');
   } else if (argv.includes('--unregistered')) {
-    const entries = catalogue(ROOT);
-    const un = entries.filter((e) => !e.registered.length && e.none === null);
-    for (const e of un) console.log(`${e.guard} ${e.arms.join(' ')}${e.solo ? '  (solo)' : ''}`);
-    console.log(`\n${un.length} of ${entries.length} proof-capable guards have no proof arm in smoke.yml.`);
+    /* ONE DEFINITION (2026-11-14): tests/guard-hygiene.mjs RULE 7's. This used to read smoke.yml and the top of tools/
+       only, and skipped every `mutant-anchors: none` guard, so it answered 7 (one of them core-loop, whose arm runs in
+       nightly-loop.yml) while 14 proofs ran nowhere (tests/mutation-proof.mjs and seven tools/<sub>/ proofs uncounted). */
+    const { unrunProofs, proofCapableFiles, readTree } = await import('../tests/guard-hygiene.mjs');
+    const tree = readTree();
+    const un = unrunProofs(tree);
+    for (const u of un) console.log(`${u.path}${u.exempt ? `  (proof_unrun: ${u.exempt.slice(0, 90)}…)` : ''}`);
+    const open = un.filter((u) => !u.exempt).length;
+    console.log(`\n${un.length} of ${proofCapableFiles(tree).length} proof-capable files under tests/ and tools/ have no proof arm in a `
+      + `workflow that runs on its own; ${un.length - open} exempt with a reason, ${open} open (guard-hygiene RULE 7 fails on those).`);
   } else if (argv.includes('--for') || argv.includes('--changed')) {
     const files = argv.includes('--for') ? argv.slice(argv.indexOf('--for') + 1).filter((a) => !a.startsWith('--')) : null;
     const bAt = argv.indexOf('--base');

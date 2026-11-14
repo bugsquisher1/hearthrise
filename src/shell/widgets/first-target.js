@@ -30,14 +30,14 @@ export function firstTargetHtml() {
 }
 
 /** The ground the pick is for: the open hunt's, else the Hunts window's pick; null = none known (the row hides). */
-export function firstTargetGround(cs) {
+function firstTargetGround(cs) {
   const h = huntOf(cs);
   if (h && !h.ended && h.huntId) return h.huntId;
   return pickedHuntOf(cs);
 }
 
 /** The kinds a hero can name first on `hunt`, by name: [{ id, name }], [] for a ground the data does not hold. */
-export function kindsOf(hunt) {
+function kindsOf(hunt) {
   const g = hunt ? groundOfHunt(hunt) : null;
   if (!g) return [];
   return [...monstersOn(g)].filter((id) => MONSTERS[id]).map((id) => ({ id, name: MONSTERS[id].name }))
@@ -71,8 +71,8 @@ export function patchFirstTarget(root, ctx) {
   const pending = root.hasAttribute('data-pending');
   const v = shownKind(cs, hunt, kinds);
   prop(sel, 'disabled', pending || v === null);
-  /* the server's pick, never the one chosen before it answered */
-  if (v !== null && !pending) prop(sel, 'value', v);
+  /* the server's pick, in flight too: the one chosen shows only once the re-read envelope says so (CLAUDE.md §6) */
+  if (v !== null) prop(sel, 'value', v);
   attr(sel, 'aria-label', t('bar.first_target_on', { ground: huntName(hunt) }));
   const named = v ? kinds.find((k) => k.id === v) : null;
   text(box.querySelector('.hb-pl-note'), named ? t('bar.first_target_note_on', { ground: huntName(hunt), monster: named.name })

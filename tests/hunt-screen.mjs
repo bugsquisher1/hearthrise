@@ -59,6 +59,9 @@
 //         10-25), the gold folded out from the bar's sliders (shut until pressed, then on top
 //         above the bar); each is ONE intent, shows the server value (the gold field keeps it
 //         while in flight and after a refusal), survives a reload; no Hunt settings window
+//   HS-29 THE FIRST TARGET (lane/c-target-kind): the fold offers None and the ground's own monsters at the server's pick;
+//         a change is ONE hr_hunt_target_kind_set (slot, ground, kind), the select off and on the server's pick until the
+//         re-read says otherwise; a refusal keeps it and says why; None sends no kind; a reload brings it back
 //   HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop, nor with a window docked
 //   HS-28 THE FIGHT STAYS CLEAR AT 1024x768 (designer 2026-11-11): a lone hero with a kill task; below the fold width
 //         (tokens.css --hud-fold-below) the analyzer, the Tally and the Party panel start folded and no widget crosses
@@ -236,10 +239,10 @@ async function driveSelfCheck() {
 
 /** A scripted server: `env` is what hr_load and hr-accrue answer (version bumped each call). */
 function scripted() {
-  const s = { env: clone(FIXTURE), version: 1, calls: [], optionsReply: { ok: true }, optionsDelayMs: 300, tierReply: { ok: true }, waiting: {} };
+  const s = { env: clone(FIXTURE), version: 1, calls: [], optionsReply: { ok: true }, optionsDelayMs: 300, tierReply: { ok: true }, kindReply: { ok: true }, waiting: {} };
   /* answer every held reply of a kind, and stop holding that kind */
   s.release = (kind) => {
-    if (kind === 'accrue') s.holdAccrue = false; else if (kind === 'tier') s.holdTier = false; else s.holdOptions = false;
+    if (kind === 'accrue') s.holdAccrue = false; else if (kind === 'tier') s.holdTier = false; else if (kind === 'firsts') s.holdKind = false; else s.holdOptions = false;
     for (const go of (s.waiting[kind] || []).splice(0)) go();
   };
   s.sent = (name) => s.calls.filter((c) => c.name === name);
@@ -288,6 +291,13 @@ async function stub(page, s) {
       if (s.holdTier) await hold(page, r, s, 'tier'); else await sleep(s.optionsDelayMs);
       if (s.onTier && s.tierReply.ok) s.onTier(body);
       return json(s.tierReply.ok ? Object.assign({ hunt: body.p_hunt, tier: body.p_tier }, s.tierReply) : s.tierReply);
+    }
+    /* The First target per ground (hr_hunt_target_kind_set, HS-29): held or answered like a settings save; the server saves it as it answers. */
+    if (name === 'hr_hunt_target_kind_set') {
+      if (s.holdKind) await hold(page, r, s, 'firsts'); else await sleep(s.optionsDelayMs);
+      if (s.kindReply.ok) s.env.hunt_target_kind = { picks: Object.assign({}, (s.env.hunt_target_kind || {}).picks, { [body.p_hunt]: body.p_kind }) };
+      if (s.kindReply.ok && body.p_kind === null) delete s.env.hunt_target_kind.picks[body.p_hunt];
+      return json(s.kindReply.ok ? Object.assign({ hunt: body.p_hunt, kind: body.p_kind }, s.kindReply) : s.kindReply);
     }
     if (name === 'hr_hunt_leave' && s.onLeave) { await sleep(400); const out = s.onLeave(); await json(out); s.leaveAnswered = true; return undefined; }
     /* `keepResidue`: the server keeps what hr_put_client_state sends and hands it back in every envelope (as hr_state_of does). */
@@ -730,6 +740,60 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (again.target !== 'weakest' || again.stance !== 'offensive' || again.distance !== String(d0 + 1)) fails.push('HS-12 after a reload the panel is not the server’s: ' + JSON.stringify(again));
         }
       } else fails.push('HS-3 the screen did not mount');
+      await ctx.close();
+    }
+
+    { // HS-29 THE FIRST TARGET (lane/c-target-kind, the Krell's Hold design's piece 4): in the fight settings' fold, the monster a hero
+      // goes for first on THIS ground (None, then the ground's own monsters), shown from the server's `hunt_target_kind` section only. A
+      // change sends ONE hr_hunt_target_kind_set naming the slot, the ground and the kind; the select is off and keeps the server's pick
+      // until the re-read envelope says otherwise (CLAUDE.md §6); a refusal keeps the server's pick and says why; None clears it; a
+      // reload brings the server's pick back.
+      const { ctx, page, s, up } = await open({ prep: (sv) => { sv.env.hunt_target_kind = { picks: {} }; } });
+      if (!up) fails.push('HS-29 the screen did not mount');
+      else {
+        const P = '.hb-plaque', SEL = '.hb-plaque .hb-pl-first select';
+        const read = () => page.evaluate((q) => { const e = document.querySelector(q); const box = e && e.closest('.hb-pl-first');
+          return e ? { v: e.value, off: e.disabled, hidden: box.hidden, opts: Array.from(e.options).map((o) => o.value).sort().join(), note: box.querySelector('.hb-pl-note').textContent,
+            msg: document.querySelector('.hb-plaque .hh-intent-msg').textContent } : null; }, SEL);
+        await page.click(P + ' .hb-more');
+        await wait(page, (q) => { const e = document.querySelector(q); return e && !e.disabled && !e.closest('.hb-pl-first').hidden; }, SEL);
+        const r0 = await read();
+        if (!r0 || r0.hidden || r0.opts !== ',hive_wasp,rat,slime' || r0.v !== '' || !/Mill Cellar/.test(r0.note))
+          fails.push('HS-29 the First target does not offer None and the Cellar\'s three monsters at the server\'s none: ' + JSON.stringify(r0));
+        s.holdKind = true;
+        const b0 = s.sent('hr_hunt_target_kind_set').length;
+        await page.selectOption(SEL, 'slime');
+        await until(() => s.sent('hr_hunt_target_kind_set').length > b0);
+        const mid = await read();
+        if (!mid || mid.v !== '' || !mid.off) fails.push('HS-29 the First target showed the pick (or stayed on) before the server confirmed: ' + JSON.stringify(mid));
+        s.release('firsts');
+        const done = await wait(page, (q) => { const e = document.querySelector(q); return e.value === 'slime' && !e.disabled; }, SEL);
+        const sent = s.sent('hr_hunt_target_kind_set').slice(b0).map((c) => c.body);
+        if (!done || sent.length !== 1 || sent[0].p_slot !== 0 || sent[0].p_hunt !== 'mill_cellar' || sent[0].p_kind !== 'slime' || !/^[0-9a-f-]{36}$/.test(String(sent[0].p_idem)))
+          fails.push('HS-29 one pick sent ' + JSON.stringify(sent) + ' and shows ' + JSON.stringify(await read()));
+        if (!/Slime/.test((await read()).note)) fails.push('HS-29 the line under the pick does not name the server\'s Slime: ' + JSON.stringify(await read()));
+        /* Refused: the server's Slime stays, the line says why. */
+        s.kindReply = { ok: false, error: 'bad_kind' };
+        await page.selectOption(SEL, 'rat');
+        const back = await wait(page, (q) => { const e = document.querySelector(q); return !e.disabled && e.value === 'slime'
+          && /doesn.t live on this hunt/.test(document.querySelector('.hb-plaque .hh-intent-msg').textContent); }, SEL);
+        if (!back) fails.push('HS-29 a refused pick did not go back to the server\'s Slime with a reason: ' + JSON.stringify(await read()));
+        /* None clears it: one intent naming no kind. */
+        s.kindReply = { ok: true };
+        const b1 = s.sent('hr_hunt_target_kind_set').length;
+        await page.selectOption(SEL, '');
+        const none = await wait(page, (q) => { const e = document.querySelector(q); return !e.disabled && e.value === '' && !document.querySelector('.hb-plaque').classList.contains('is-pending'); }, SEL);
+        const sentNone = s.sent('hr_hunt_target_kind_set').slice(b1).map((c) => c.body.p_kind);
+        if (!none || sentNone.length !== 1 || sentNone[0] !== null) fails.push('HS-29 None sent ' + JSON.stringify(sentNone) + ' and shows ' + JSON.stringify(await read()));
+        /* After a reload the server's pick comes back. */
+        s.env.hunt_target_kind = { picks: { mill_cellar: 'hive_wasp' } };
+        await page.reload({ waitUntil: BOOTED });
+        if (!(await signInAndPlay(page, ''))) fails.push('HS-29 the screen did not mount after a reload');
+        else {
+          const again = await wait(page, (q) => { const e = document.querySelector(q); return e && e.value === 'hive_wasp'; }, SEL);
+          if (!again) fails.push('HS-29 after a reload the First target is not the server\'s Hive Wasp: ' + JSON.stringify(await read()));
+        }
+      }
       await ctx.close();
     }
 
@@ -1948,6 +2012,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
+  /* lane/c-target-kind: the First target is the server's, and one press is one intent (HS-29) */
+  ['the First target shows the pick before the server confirms (HS-29)', 'src/shell/widgets/first-target.js', "  if (v !== null) prop(sel, 'value', v);", "  if (v !== null && !pending) prop(sel, 'value', v);"],
+  ['the First target sends nothing (HS-29)', 'src/shell/widgets/first-target.js', '  const r = await answerWithin(() => setTargetKind(ctx.account, cs, hunt, want));', "  const r = { ok: true };"],
   /* playtest v0.2.127: the Effects door opens Settings, but not on Effects (HS-12) */
   ['the Effects door opens Settings on its first page (HS-12)', 'src/shell/windows/settings.js', "if (want && SETTING_CATEGORIES.some((c) => c.id === want))", 'if (false)'],
   /* Tyler 10-25: ammo on its own tab (HS-7). */

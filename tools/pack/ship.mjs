@@ -11,8 +11,9 @@ import { spawnSync } from 'node:child_process';
 import { ROOT } from './files.mjs';
 import { rowsOf, diffRows, packSql, PACK_TABLES } from './sql.mjs';
 
-/* the whole generators whose tables carry a ground's rows (measured: a fixture pack moves these four and no other generator) */
-export const COVERED = Object.freeze(['gen-hunts.mjs', 'gen-hunt-sessions.mjs', 'gen-catalogues.mjs', 'gen-ground-tiers.mjs']);
+/* the whole generators whose tables carry a ground's rows (measured: a fixture pack moves the first four and no other generator; gen-factions
+   moves only for a ground that pays a faction standing, its standingFor, lane/c-faction-standing) */
+export const COVERED = Object.freeze(['gen-hunts.mjs', 'gen-hunt-sessions.mjs', 'gen-catalogues.mjs', 'gen-ground-tiers.mjs', 'gen-factions.mjs']);
 
 const MIG = (root) => join(root, 'supabase', 'migrations');
 

@@ -4225,6 +4225,20 @@ jobs:
           node tools/mutant-gate.mjs node tests/clan-feast-catalogue-drift.mjs --selftest
           node tools/mutant-gate.mjs node tests/native-dialog.mjs --mutate
 
+      # THE TWO FACTIONS (Tyler 2026-11-14, lane/c-faction-standing): join after the server counted a Krell kill, standing only from the
+      # settle's own window on a ground that pays a side (both doors), the day's ceiling, a swap of ten hours a week apart, pieces on server
+      # standing; the data rule (every ground after Krell pays one side, evenly per region); the catalogue's drift. Measured locally:
+      # faction-standing-db plain 26 s + --mutate 95 s (22 mutants); the other four under 10 s each.
+      - name: Factions - standing from the settle, the even rule, the catalogue (22 + 12 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-factions.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-factions.mjs --selftest
+          node tests/faction-ground-balance.mjs
+          node tools/mutant-gate.mjs node tests/faction-ground-balance.mjs --mutate
+          node tests/faction-standing-db.mjs
+          node tools/mutant-gate.mjs node tests/faction-standing-db.mjs --mutate
+
   # pg17: THE RACES PGLITE CANNOT RUN (lane/a-guard-proofs-2, 2026-11-14). PGlite is one backend, so a chain replay there
   # plays each order the locks admit one after the other and can never show that the locks admit ONLY those orders. These
   # guards replay the same chain on a real PostgreSQL 17 cluster (tools/pg-replay.mjs, production's major version), one

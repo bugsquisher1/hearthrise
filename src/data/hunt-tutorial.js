@@ -968,7 +968,7 @@ const SAY = Object.freeze({
     /* Short: over the town and inside a phone's bag sheet the long list cut Got it off the screen (played at 922x423). The
        creation step and Help carry each style's fuller words. */
     return { text: 'No class to pick. The weapon in your hand decides how you fight. Press another in your bag, then Equip, any time in town.',
-      textIn: 'Sword and shield hold the monsters on you. Hatchets or a club hit hardest. A bow or crossbow shoots from range. A wand and book cast spells. A staff heals. Press one, then Equip, any time in town. Better ones are made in Gathering and crafting.' };
+      textIn: 'Sword and shield hold the monsters on you. Hatchets or a club hit hardest. A bow or crossbow shoots from range. A wand and spellbook cast spells. A staff heals. Press one, then Equip, any time in town. Better ones are made in Gathering and crafting.' };
   },
   bless: (f) => {
     const b = f.blessings;

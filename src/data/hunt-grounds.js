@@ -575,7 +575,8 @@ export function validateGround(row, refs) {
     if (!(p.pack || p.spawns || []).concat(p.spawns || []).some(ph)) bad('pocket ' + i + ' has adds and no boss with phases to call them');
     for (const s of p.adds) {
       if (!s || !monsters[s.monster]) bad('pocket ' + i + ' adds unknown monster ' + (s && s.monster));
-      else if (monsters[s.monster].boss === true || monsters[s.monster].phases) bad('pocket ' + i + ' add ' + s.monster + ' is a boss');
+      /* (a keyed hall's wave may stand a NAMED ADD, a row `boss` and `add` both: boss-halls.js; tools/gen-hunt-sessions.mjs hallRows holds his lines) */
+      else if ((monsters[s.monster].boss === true || monsters[s.monster].phases) && !(row.hall && monsters[s.monster].boss === true && monsters[s.monster].add === true)) bad('pocket ' + i + ' add ' + s.monster + ' is a boss');
       else if (!isTile([s.x, s.y]) || !Array.isArray(p.room) || !inRect(p.room, s.x, s.y)) bad('pocket ' + i + ' add ' + s.monster + ' stands outside its room');
     }
   });

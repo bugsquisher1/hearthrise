@@ -672,6 +672,8 @@
     "node tools/mutant-gate.mjs node tests/combat-training.mjs --mutate": "client-guards-3",
     "node tests/combat-training-db.mjs": "client-guards-3",
     "node tools/mutant-gate.mjs node tests/combat-training-db.mjs --mutate": "client-guards-3",
+    "node tests/ground-boss.mjs": "client-guards-3",
+    "node tools/mutant-gate.mjs node tests/ground-boss.mjs --mutate": "client-guards-3",
     "node tests/hero-colors.mjs": "client-guards-3",
     "node tools/mutant-gate.mjs node tests/hero-colors.mjs --selftest": "client-guards-3",
     "node tests/four-hero-slots.mjs": "client-guards-3",

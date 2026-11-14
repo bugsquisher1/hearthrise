@@ -129,7 +129,7 @@ function hallWhy(p) {
   if (!isObj(h.monsters) || !Object.keys(h.monsters).length) return 'hall.monsters is empty';
   for (const [id, m] of Object.entries(h.monsters)) {
     if (/_called$/.test(id) || !isObj(m) || 'called' in m) return 'hall row ' + id + ' is a called row, and a hall pays (no id ending _called, no called mark)';
-    if (!ID.test(id) || (p.monsters && Object.prototype.hasOwnProperty.call(p.monsters, id))) return 'hall row ' + id + ' is one of the ground\'s own monsters: a hall\'s rows stand in his room only, under their own ids';
+    if (!ID.test(id) || (p.monsters && Object.prototype.hasOwnProperty.call(p.monsters, id))) return 'hall row ' + id + ' is one of the ground\'s own monsters, and a hall\'s rows stand in his room only (give it its own id)';
     if (m.boss !== true && m.add !== true) return 'hall row ' + id + ' is neither the boss nor an add';
   }
   const boss = h.monsters[pk.spawns[0].monster];

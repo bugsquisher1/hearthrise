@@ -11,6 +11,8 @@
 //   node tools/restore-drill.local.mjs --backups    backup posture and the price of the real drill only (read-only API)
 //   --keep <dir>                                    keep the export there (default: an OS temp dir, deleted when done)
 //   --from <dir>                                    restore and prove an export kept earlier, without reading production
+//   --ref <project>                                 every step against another project: the clone a backup restores into
+//                                                  (the real drill: dashboard "Restore to a New Project", then this, read-only)
 //
 // THE STEPS, in the order a 3am responder runs them (each is timed; export start to loaded is the RTO of THIS path):
 //   0 BACKUPS   GET /database/backups: >= 7 COMPLETED, newest < 26 h, no gap > 26 h, PITR state. Billing prices the real drill.
@@ -60,7 +62,10 @@ import { performance } from 'node:perf_hooks';
 import { isMain } from '../tests/_is-main.mjs';
 import { bootReplay, ROOT } from '../tests/schema-replay.mjs';
 
-const REF = 'nezapsylztqbbwuwembx';
+/* --ref <project>: run every step against another project, e.g. the "Restore to a New Project" clone of a backup. Its
+   proofs then judge the CLONE: its rows rebuilt from the repo, its envelopes, its grants, its census. Read-only, too. */
+const REF = (process.argv.includes('--ref') && process.argv[process.argv.indexOf('--ref') + 1]) || 'nezapsylztqbbwuwembx';
+if (!/^[a-z]{20}$/.test(REF)) throw new Error('restore-drill: --ref takes a 20-letter Supabase project ref');
 /* A table bigger than PAGE_BYTES is paged on its primary key (keyset), PAGE_ROWS a page (~11 MB of ledger JSON an
    answer, ~3.5 s, measured 2026-11-14). The selftest pages every keyed table 7 rows at a time so the pager is proven. */
 let PAGE_BYTES = 64 * 1048576;

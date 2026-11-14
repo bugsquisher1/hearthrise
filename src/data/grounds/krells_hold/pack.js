@@ -4,10 +4,9 @@
 // 85,110` (the Pyre Field, the design's pick, is not on main), then every row rewritten and the map drawn new (map.js). The stat lines are the
 // formula's (`node tools/pack.mjs propose krells_hold --write`): tier 6, floor 85, fit both.
 //
-// STAGED, AND IT STAYS STAGED UNTIL THE ENGINE CAN PLAY IT (the design's section 3, "Engine pieces that do not exist yet"). The Lookout
-// shoots from range (piece 2), the Pyre Priest mends the dead in his pull (piece 3) and the Grave Guard's shield slam is a marked heavy hit (piece 1).
-// None of those exists, so the grader plays all five as plain melee bodies. That is fine for a staged pack's numbers and wrong for a player:
-// the design says the Lookout and the Pyre Priest must not ship as plain melee bodies, because that is a reskin. Open it only with pieces 1-3.
+// STAGED UNTIL ITS ART LANDS. The three engine pieces its bodies wait on are built, and since lane/b-barrow-numbers (2026-11-14) the rows use
+// them: the Lookout shoots from 5 tiles (piece 2, `range`), the Pyre Priest mends the most hurt body in his pull (piece 3, the Pyre Rite) and
+// the Grave Guard's Shield Slam is a marked hit on the two tiles in front of him (piece 1). The grader plays all three as written.
 //
 // NAMES (the Barrow March's): the monsters and items keep their names (Farmhand, Hask's Lookout, Grave Guard, Pyre Priest, Gatekeeper, Hall Key). THE PLAYER'S
 // LINES (item text, the hunt's line) are Tyler's voice (11-11): short, plain, everyday words that say what happened. No old or military
@@ -42,7 +41,7 @@ const LV = 'farmhand', PK = 'hasks_lookout', WD = 'grave_guard', BD = 'pyre_prie
 
 export default definePack({
   id: 'krells_hold',
-  status: 'staged',
+  status: "staged",
   sql: null,
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 7 Farmhands, 5 Grave Guards, 3 Lookouts, 3 Pyre Priests, 2 Gatekeepers. */
   hunt: {
@@ -92,37 +91,42 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'wheat', ch: 0.3, band: 'common' }, { id: 'farmhands_tag', ch: 0.08, band: 'uncommon' },
         { id: 'ember_boots', ch: 0.02, band: 'scarce' }, { id: 'dragonhide_boots', ch: 0.02, band: 'scarce' }, { id: 'archmage_boots', ch: 0.02, band: 'scarce' },
         { id: 'ember_sword', ch: 0.02, band: 'scarce' }],
-      hp: 114, atk: 78, baseAcc: 0.82, def: 36, xp: 1036, gp: [24, 72], formula: true },
+      hp: 114, atk: 78, baseAcc: 0.82, def: 36, xp: 1094, gp: [24, 72], formula: true },
     hasks_lookout: {
       name: 'Hask\'s Lookout', icon: '🏹', tier: 6, level: 88, cls: 'human', family: 'Human', speed: 3000,
       /* the glass: the sentries Captain Hask pulled off the line the night of the Ford. They took Krell's pay too, and now they stand his wall
          walk with a crossbow and the company's striped sleeve under his tabard. Human, no override. Their bolt iron, the whistle nobody answered,
-         the tier-6 helmets and the Runewood Bow, and now and then the gloves off a dead officer. A crossbow at range is engine piece 2 (unbuilt). */
+         the tier-6 helmets and the Runewood Bow, and now and then the gloves off a dead officer. HE SHOOTS (`range`, src/core/hunt/shooters.js): from 5 tiles
+         at the hero standing farthest back, and he doesn't walk in. A hero's bow reaches 7, so a Ranger can still out-reach him, and a
+         Challenge turns his aim to the tank. */
+      range: 5,
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'iron_bar', ch: 0.3, band: 'common' }, { id: 'lookouts_whistle', ch: 0.08, band: 'uncommon' },
         { id: 'ember_helm', ch: 0.026, band: 'scarce' }, { id: 'dragonhide_helmet', ch: 0.026, band: 'scarce' }, { id: 'archmage_helmet', ch: 0.026, band: 'scarce' },
         { id: 'runewood_bow', ch: 0.026, band: 'scarce' },
         { id: 'ember_gauntlets', ch: 0.0018, band: 'rare' }, { id: 'dragonhide_gloves', ch: 0.0018, band: 'rare' }, { id: 'archmage_gloves', ch: 0.0018, band: 'rare' }],
-      hp: 109, atk: 80, baseAcc: 0.91, def: 38, xp: 1200, gp: [23, 69], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (a danger fix: close calls at the floor)
+      hp: 109, atk: 80, baseAcc: 0.91, def: 38, xp: 1266, gp: [23, 69], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (a danger fix: close calls at the floor)
     grave_guard: {
       name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', speed: 2400,
       /* the heavy, the slowest thing in the castle: one of the Banded Company's officers, buried with honors in the Muster Barrows, dug up and
          set at Krell's doors behind a door-sized shield. Undead, no override: a hammer breaks him, fire does 15% more, poison half. His grave dust
          for the Hearth, the barrow nail they pulled to get him out, the tier-6 legs and the Emberforged Warhammer, and now and then a belt. His
-         shield slam, a marked heavy hit on the tiles in front of him, is engine piece 1 (unbuilt). */
+         Shield Slam is a marked hit on the two tiles in front of him (`spells` below): the tank holds, everyone else steps off. */
+      spells: ['shield_slam'],
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'barrow_nail', ch: 0.08, band: 'uncommon' },
         { id: 'ember_platelegs', ch: 0.017, band: 'scarce' }, { id: 'dragonhide_pants', ch: 0.017, band: 'scarce' }, { id: 'archmage_pants', ch: 0.017, band: 'scarce' },
         { id: 'ember_warhammer', ch: 0.017, band: 'scarce' },
         { id: 'ember_belt', ch: 0.0012, band: 'rare' }, { id: 'dragonhide_belt', ch: 0.0012, band: 'rare' }, { id: 'archmage_belt', ch: 0.0012, band: 'rare' }],
-      hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 1869, gp: [38, 115], formula: true },
+      hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 1973, gp: [38, 115], formula: true },
     pyre_priest: {
       name: 'Pyre Priest', icon: '📿', tier: 6, level: 95, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: one of Krell's priests, the men who said the rite over the Pyre Field and tied the dead to his fire. Hooded, ash-gray,
          a knotted cord at his belt. Living, Human, no override. The pyre coal on his hands, his cord, the Runewood Staff, and the Pyre Priests' own
-         wand and codex. He mends the dead in his pull, so the Grave Guards beside him take far longer to drop: engine piece 3 (unbuilt). */
+         wand and codex. He mends the dead in his pull, so the Grave Guards beside him take far longer to drop (the Pyre Rite, `spells` below). Kill him first. */
+      spells: ['pyre_rite'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'priests_cord', ch: 0.08, band: 'uncommon' },
         { id: 'runewood_staff', ch: 0.045, band: 'scarce' },
         { id: 'runewood_wand', ch: 0.0035, band: 'rare' }, { id: 'runewood_codex', ch: 0.0035, band: 'rare' }],
-      hp: 157, atk: 100, baseAcc: 0.6, def: 45, xp: 1485, gp: [33, 99], formula: true },
+      hp: 157, atk: 100, baseAcc: 0.6, def: 45, xp: 1567, gp: [33, 99], formula: true },
     gatekeeper: {
       name: 'Gatekeeper', icon: '🗝️', tier: 6, level: 100, cls: 'human', family: 'Human', speed: 2800,
       /* the elite and the rare carrier: Krell's steward, in plate with a mace and a ring of keys. He keeps the castle, its stores and the toll.
@@ -133,7 +137,7 @@ export default definePack({
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_bar', ch: 0.3, band: 'common' }, { id: 'gatekeepers_chain', ch: 0.1, band: 'uncommon' },
         { id: 'ember_platebody', ch: 0.05, band: 'scarce' }, { id: 'dragonhide_body', ch: 0.05, band: 'scarce' }, { id: 'archmage_body', ch: 0.05, band: 'scarce' },
         { id: 'hall_key', ch: 0.026, band: 'key' }],
-      hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 2920, gp: [55, 166], formula: true },
+      hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 3082, gp: [55, 166], formula: true },
   },
   roster: {
     farmhand: 'swarm',          // the common majority
@@ -178,7 +182,10 @@ export default definePack({
      has a spawn weight) and no one-tile bridge (every corridor is three wide). */
   /* THE XP FIT (lane/d-packs-retune, 2026-11-12): under solo +15% (Tyler 2026-11-11) and the re-pinned, flatter contract (core-model.js LEVEL_PACE.contract,
      522k an hour at 98) the median lone way read 1.11 of the contract at the band middle on the formula's rows (quick grade, 1 seed x 1 h), so 0.90. */
-  xpFit: { k: 0.90, why: 'on the formula\'s rows the median lone way read 1.11 of the pace contract at the band middle (98) under solo +15% and the re-pinned contract (quick grade, 1 seed x 1 h). At 0.90 it reads about 1.00' },
+  /* RE-FITTED (lane/b-barrow-numbers, 2026-11-14). With the Lookout shooting, the Priest mending and the Grave Guard's slam the bodies are
+     slower to kill than the plain melee rows 0.90 was fitted on: the full grade as it ships read 0.90 of the contract at 98 (the median of 8
+     lone ways, 476k against 529k). The mend was then cut to a quarter (`spells`), which gives some of that back, so 0.95. */
+  xpFit: { k: 0.95, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
   /* PARTY LEVEL XP (party-class-xp.js's row shape; lane/d-packs-retune, 2026-11-12). With no row a party paid the even share, and on one pack for every
      group (Tyler 2026-11-11) a four of four classes read 0.43 / 0.40 of the median lone way at the floor and middle (quick grade), a tank and Healer
      pair 0.67 / 0.66. The Ford's method: the four's 1000 x 1.20 / 0.415 = 2890 (the three-class four 2880, the two-class 2600), the pair 1000 x 1.10
@@ -208,8 +215,8 @@ export default definePack({
      these rows into MONSTERS. STAGED WITH THE PACK: the room's hunt is `staged`, so no catalogue serves it and no page shows its door.
      HIS SPELLS (`spells` below, the design's section 3): Rake the Coals, a marked cone out of the fire, then the Hall Fire, the pulse nobody
      steps out of, every 20 s and twice as often under his enrage line (`phases.hasten`, piece 7). Hask's own kit is a boss's, his marked
-     blow (Cleave) and his pulse (War Cry), piece 6. Numbers are the formula's at the floor 85. PROPOSED, unmeasured: the designer fits them
-     to the ship bar. */
+     blow (Cleave) and his pulse (War Cry), piece 6. FITTED TO THE SHIP BAR at the band's middle, Level 98 (lane/b-barrow-numbers
+     2026-11-14; the numbers are on Krell's row and on `spells`). A key holder has cleared the Tower Stairs, so the middle is who walks in. */
   hall: {
     key: 'hall_key',
     words: { boss: 'Lord Krell', Boss: 'Lord Krell' },
@@ -225,9 +232,9 @@ export default definePack({
     },
     monsters: {
       /* LORD KRELL, Level 110, Human: an old man in Dawnsteel plate. The fire at his back for years: fire does 25% less, poison 15% more (one
-         override, the element axis). The formula's boss row for the party fit at the floor (2,256 HP, atk 94, tier 6, 21,720 XP, coin 251-753),
-         to be fitted to the ship bar (Tyler 11-05: the same gear wins about 30% with a bad bar and 85% with a good one, 40 tries a row). His
-         lines: adds at half, shielded to 80% while they stand, enraged at a quarter, x1.4.
+         override, the element axis). He started as the formula's boss row for the party fit at the floor (2,256 HP, atk 94, tier 6,
+         21,720 XP, coin 251-753) and is fitted to the ship bar (Tyler 11-05: the same gear wins about 30% with a bad bar and 85% with a good
+         one, 40 tries a row; the numbers are on his row). His lines: adds at half, shielded to 80% while they stand, enraged at a quarter, x1.25.
          HIS PRIZE (the design's section 4), each rare about 1 kill in 10: the first tier 7 in the game (worn from 88), the four weapons and the
          body and helm in three weights. They break the 5% row ceiling on purpose: the loot-band guard learns a per-kill boss with the fold.
          Two prizes wait on their own rows: the Roll Page (a named Hearth fuel, piece 10) and Krell's Toll Box (his Trophy, 100-150 h). */
@@ -240,35 +247,54 @@ export default definePack({
           { id: 'duskwood_bow', ch: 0.1, band: 'rare' }, { id: 'duskwood_staff', ch: 0.1, band: 'rare' },
           { id: 'duskwood_wand', ch: 0.1, band: 'rare' }, { id: 'duskwood_codex', ch: 0.1, band: 'rare' },
           { id: 'dawn_hatchets', ch: 0.1, band: 'rare' }, { id: 'duskwood_crossbow', ch: 0.1, band: 'rare' },
-          { id: 'dawn_platebody', ch: 0.1, band: 'rare' }, { id: 'slakehide_body', ch: 0.1, band: 'rare' }, { id: 'shroudweave_body', ch: 0.1, band: 'rare' },
-          { id: 'dawn_helm', ch: 0.1, band: 'rare' }, { id: 'slakehide_helmet', ch: 0.1, band: 'rare' }, { id: 'shroudweave_helmet', ch: 0.1, band: 'rare' }],
-        hp: 2256, atk: 94, baseAcc: 0.72, def: 80, xp: 21720, gp: [251, 753], speed: 2800,
-        phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400, guardPm: 800, hasten: { spell: 'hall_fire', cdPm: 500 } } },
+          { id: 'dawn_platebody', ch: 0.1, band: 'rare' }, { id: 'dawnhide_body', ch: 0.1, band: 'rare' }, { id: 'duskweave_body', ch: 0.1, band: 'rare' },
+          { id: 'dawn_helm', ch: 0.1, band: 'rare' }, { id: 'dawnhide_helmet', ch: 0.1, band: 'rare' }, { id: 'duskweave_helmet', ch: 0.1, band: 'rare' }],
+        /* FITTED TO THE SHIP BAR (lane/b-barrow-numbers 2026-11-14; node tools/balance-sim/boss-call-table.mjs --hall krells_hold --seeds 40,
+           the real settle, tank + healer + hammer + mage at Level 98, the band's middle). On the formula's row (2,256 HP, atk 94) every row
+           won in 70 s, the bad bar too. At 7,000 HP, atk 205, enrage x1.25 and the spells below: the good bar 95%, the bad bar 30%, the good
+           bar one gear tier behind 30%, about 200 s a kill. His XP and coin stay the formula's: his prize is his drops. */
+        hp: 7000, atk: 205, baseAcc: 0.72, def: 80, xp: 21720, gp: [251, 753], speed: 2800,
+        phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1250, guardPm: 800, hasten: { spell: 'hall_fire', cdPm: 500 } } },
       /* CAPTAIN HASK, read off the Roll: the man who sold the crossing. Everyone who gets here killed him in the Muster Barrows; now the man who
          bought him calls him by name and he has to come. A NAMED ADD (boss and add both, piece 6): the formula's elite at 100, and his own enrage
          line, the Barrows' (a quarter, x1.15); never a wave or a guard of his own. Not the Barrows' own Hask row: the two never share an id. */
       hall_hask: { name: 'Captain Hask', icon: '⚔️', tier: 6, level: 100, cls: 'undead', family: 'Undead', boss: true, add: true,
         /* a boss's kit, the marked hit then the pulse (Tyler 2026-11-08; tests/hunt-core/spell-rows.mjs boss-kits) */
         spells: ['hasks_cleave', 'hasks_war_cry'],
-        hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 2920, gp: [55, 166], speed: 3000, drops: [], phases: { enragePm: 250, enrageAtkPm: 1150 } },
+        /* fitted with the hall (2026-11-14): on the elite's 263 HP he fell in seconds and nobody met him. At 700 HP and atk 135 he is the
+           wave's question. His attack is the hall's most sensitive number: at 110 the bad bar won 58%, at 150 the good bar lost its tank. */
+        hp: 700, atk: 135, baseAcc: 0.6, def: 72, xp: 3082, gp: [55, 166], speed: 3000, drops: [], phases: { enragePm: 250, enrageAtkPm: 1150 } },
       /* Two of the company's officers, standing up out of the hall floor: the Hold's Grave Guard row (formula heavy at 92), paying a kill as there */
       hall_grave_guard: { name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', add: true,
-        hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 1869, gp: [38, 115], speed: 2400, drops: [] },
+        hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 1973, gp: [38, 115], speed: 2400, drops: [] },
     },
   },
-  /* THE HALL'S SPELLS (src/data/monster-spells.js rows; the design's section 3). PROPOSED, unmeasured: each starts from the row of the
-     same kind the area-spell design measured, for the designer to fit with the hall.
-       Rake the Coals: Krell's marked cone, the tank's to stand in and a ranged hero's to step off. Chief Coppercap's Slag Toss (4F).
-       The Hall Fire: his pulse on every hero in the room, every 20 s (the design's number). A boss's pulse (4L: 0.4x at 20 s). His row
-         hastens it to every 10 s under a quarter (phases.hasten cdPm 500), still well over its 2 s warning.
-       Cleave: Captain Hask's own marked blow, the two tiles in front of him. The regulars' dodgeable hit (1.5x), on the Foreman's cone.
-       War Cry: his pulse while he stands, a boss's (0.4x at 20 s), no element. With the Hall Fire that is two pulses on the party until
-         Hask is down, which is the wave's question (kill the named add first): the designer's to measure before the hall opens. */
+  /* THE HOLD'S SPELLS (src/data/monster-spells.js rows; the design's sections 2 and 3).
+     THE HALL'S FOUR, MEASURED (lane/b-barrow-numbers 2026-11-14; boss-call-table.mjs --hall krells_hold --seeds 40 --spell <row>.hitPm=N, the
+     ship rows at Level 98 with Krell's and Hask's fitted rows: win % on the good bar / the bad bar / the good bar one gear tier behind).
+     As set: 95 / 30 / 30.
+       Rake the Coals: Krell's marked cone, the tank's to stand in and a ranged hero's to step off. 1.2x, Chief Coppercap's Slag Toss.
+         Nearly off (0.1x) 98 / 65 / 83, at 2x 75 / 15 / 5: it is the tank's check, and 1.2x holds the bar.
+       The Hall Fire: his pulse on every hero in the room, every 20 s, and every 10 s under a quarter (phases.hasten cdPm 500). 0.95x.
+         At the old 0.4x a boss this size never troubled a healer who waits. At 0.7-0.85x the bad bar still won 43-46%. At 0.95x it is what
+         kills a bad bar: 17 of its 28 losses were the Healer, in the enrage.
+       Cleave: Captain Hask's own marked blow, the two tiles in front of him. 1.5x. Nearly off 100 / 30 / 58, at 2.5x 90 / 30 / 13: it
+         only reaches a tank in weak gear, which is its job.
+       War Cry: his pulse while he stands, 0.4x every 20 s, no element. Nearly off 100 / 38 / 33, at 0.8x 95 / 28 / 20. Two pulses on
+         the party until Hask is down, so the answer is to kill him first. 0.4x is enough to say it.
+     THE GROUND'S TWO (the same lane, graded with the ground on the full grade):
+       Shield Slam: the Grave Guard's marked hit on the two tiles in front of him, on the Foreman's cone and at his number, 1.0x every 20 s. At 1.5x every
+         16 s a lone sword at the floor read a typical low of 59.6% HP on Normal, under the sheet's 60, and at 1.2x every 20 s only 60.5.
+       The Pyre Rite: the Pyre Priest's mend. From 4 tiles, every 16 s, it puts up to half his own biggest hit back on the most hurt body
+         in his pull. He never mends himself. At a full hit every 8 s a lone tank at Level 110 on Dangerous (three Priests in the Chapel's
+         pull) healed slower than he killed: 7.5k XP an hour, no death, a fight that never ended. A mend must slow a kill, never stop it. */
   spells: {
     rake_the_coals: { n: 'Rake the Coals', shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 1200, element: 'ember' },
-    hall_fire: { n: 'The Hall Fire', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: 'ember' },
+    hall_fire: { n: 'The Hall Fire', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 950, element: 'ember' },
     hasks_cleave: { n: 'Cleave', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 14000, hitPm: 1500, element: null },
     hasks_war_cry: { n: 'War Cry', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: null },
+    shield_slam: { n: 'Shield Slam', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 20000, hitPm: 1000, element: null },
+    pyre_rite: { n: 'Pyre Rite', shape: 'mend', range: 4, windupMs: 1600, cdMs: 16000, hitPm: 500, element: null },
   },
   map,
 });

@@ -92,9 +92,9 @@ export default definePack({
     densityMax: [8, 8, 8, 8],
     /* ONE PACK ON NORMAL FOR EVERY GROUP (Tyler 2026-11-11, "if they want bigger pulls they need to up the difficulty"; lane/d-packs-retune): a party
        meets the room as built, the same as a hero alone. A bigger pull is Dangerous or Deadly (the tier row), never a party's own. */
-    /* THE GATHER SLIDER (inert until the hunt-gathering engine lands; tests/hunt-core/forest-cave.mjs gather-nodes): the oaks at
+    /* THE GATHER SLIDER (inert until the hunt-gathering engine lands; tests/hunt-core/forest-cave.mjs gather-nodes): the March's willows (hunt-grounds.js willow_tree, drawn as the kit's own tree) at
        the clearings' edges, two each at the Pike Files, the Muster Line and the High Barrows. */
-    gather: gather(12000, [['oak_tree', 17, 36, 0], ['oak_tree', 5, 34, 0], ['oak_tree', 54, 6, 4], ['oak_tree', 42, 5, 4], ['oak_tree', 7, 8, 5], ['oak_tree', 6, 5, 5]]),
+    gather: gather(12000, [['willow_tree', 17, 36, 0], ['willow_tree', 5, 34, 0], ['willow_tree', 54, 6, 4], ['willow_tree', 42, 5, 4], ['willow_tree', 7, 8, 5], ['willow_tree', 6, 5, 5]]),
   },
   /* THE BODIES (art: origin/lane/b-hasks-ford-art, art/world/march). The class is Undead (hammer weak, poison and frost do
      less, fire more). No body overrides the weapon axis: the hammer answers all four.

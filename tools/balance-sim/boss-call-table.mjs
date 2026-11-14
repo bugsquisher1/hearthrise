@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // tools/balance-sim/boss-call-table.mjs — CALL OUT, MEASURED ON THE REAL SETTLE (Tyler 2026-11-04; src/data/boss-calls.js).
 //
+//   node tools/balance-sim/boss-call-table.mjs --hall krells_hold [--level 98] [--spell hall_fire.hitPm=300,hall_fire.cdMs=20000] [--named-hp N --named-atk N --named-rage N] ...
+//                                          a KEYED HALL (src/data/boss-halls.js) on the same rows and bars. It pays, so the money line is not read
 //   node tools/balance-sim/boss-call-table.mjs [--seeds 12] [--only rat|chief] [--json OUT] [--hp 1500 --atk 21 --acc 0.7 --lvl 25 --rage 1400 --addhp 260 --addatk 30 --addacc 0.1 --addlvl 40 --adds 5 --guard 500] [--cliff] [--ship] [--focus] [--rows REGEX] [--stats]
 //
 // Each cell plays the called room to its end through accrueHunt (tests/hunt-core/fixtures/play-ground.mjs, the settle
@@ -32,9 +34,13 @@ const { BUILD } = await import(u('src/build-info.js'));
 const v = '?v=' + BUILD.version;
 const G = await import(u('src/data/hunt-grounds.js'));
 const { BOSS_CALLS, BOSS_CALL_RULES } = await import(u('src/data/boss-calls.js'));
+const { BOSS_HALLS, BOSS_HALL_RULES, hallBossOf, isNamedAdd } = await import(u('src/data/boss-halls.js'));
+/* the engine's own spell rows (a --spell what-if moves the row the fight reads) */
+const ENGINE_SPELLS = (await import(u('src/data/monster-spells.js') + v)).MONSTER_SPELLS;
 const { START_BAR } = await import(u('src/data/start-kit.js'));
 const { BAG_GUIDE_BY_HUNT } = await import(u('src/data/supplies.js'));
 const SB = await import(u('src/data/supply-basics.js'));
+const await_hunts = await import(u('src/data/hunts.js'));
 /* the engine's own module instances (src/core imports src/data with ?v=): a what-if moves the rows the fight reads */
 const ENGINE_MONSTERS = (await import(u('src/data/monsters.js') + v)).MONSTERS;
 const COND = await import(u('src/core/hunt/conditions.js') + v);
@@ -75,12 +81,12 @@ const BARS = {
     tank: [['challenge'], ['power_strike']],
     healer: [['circle_of_renewal', [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_80' }]], ['greater_mend', [under_('ally_hp_pct', 85, 'lowest')]]],
     hammer: [['cleave', []], ['power_strike']], axes: [['cleave', []], ['power_strike']],
-    mage: { rat_king: [['fireball', [aoe(3)]], ['frost_lance']], chief_coppercap: [['fireball', []]] }, bow: [['flame_volley', [aoe(2)]], ['precision_shot']] } },
+    mage: { rat_king: [['fireball', [aoe(3)]], ['frost_lance']], chief_coppercap: [['fireball', []]], krells_hold: [['fireball', [aoe(3)]], ['frost_lance']] }, bow: [['flame_volley', [aoe(2)]], ['precision_shot']] } },
 };
 /* DOES EACH QUESTION BITE? The good bar with one answer taken away. At the Chief the Mage keeps Fireball, his one spell he doesn't resist, so "no area slot" there is the hammer's Cleave. */
 const without = (spells) => ({ ...BARS.good, spells: { ...BARS.good.spells, ...spells } });
 BARS.noChallenge = without({ tank: [['power_strike']] });
-BARS.noArea = without({ hammer: [['power_strike']], mage: { rat_king: [['frost_lance']], chief_coppercap: [['fireball', []]] } });
+BARS.noArea = without({ hammer: [['power_strike']], mage: { rat_king: [['frost_lance']], chief_coppercap: [['fireball', []]], krells_hold: [['frost_lance']] } });
 BARS.noTarget = { ...BARS.good, tmode: 'strongest' };
 BARS.eatsLate = { ...BARS.good, eat: 40 };
 BARS.healsLate = without({ healer: [['greater_mend', [under_('ally_hp_pct', 40, 'lowest')]]] });
@@ -102,8 +108,8 @@ function traceWindow(o, roles) {
   for (const e of o.events || []) {
     if (t0 === null) t0 = e.atMs;
     const tk = name(e.t);
-    if (e.type === 'dmg' && /_called$/.test(tk)) { by[tk] = (by[tk] || 0) + e.amount; if (BOSS_MONSTERS.has(tk)) traceState.boss += e.amount; }
-    if (e.type === 'dmg' && /_called$/.test(name(e.u))) { const k = name(e.u).replace('_called', '') + '>' + tk; on[k] = (on[k] || 0) + e.amount; }
+    if (e.type === 'dmg' && inRoom(tk)) { by[tk] = (by[tk] || 0) + e.amount; if (BOSS_MONSTERS.has(tk)) traceState.boss += e.amount; }
+    if (e.type === 'dmg' && inRoom(name(e.u))) { const k = name(e.u).replace('_called', '') + '>' + tk; on[k] = (on[k] || 0) + e.amount; }
     if (e.type === 'cast') casts[name(e.u) + ':' + e.ability] = (casts[name(e.u) + ':' + e.ability] || 0) + 1;
     if (e.type === 'eat') casts[name(e.u) + ':eat'] = (casts[name(e.u) + ':eat'] || 0) + 1;
     if (e.type === 'boss_phase') spawned.push(e.phase);
@@ -114,13 +120,25 @@ function traceWindow(o, roles) {
 }
 /* The room the fight is played in: the shipped row, or --adds N's what-if copy. */
 function groundOf(call) {
-  const g = G.CALLED_GROUNDS[call.hunt];
+  const g = call.hall ? G.HALL_GROUNDS[call.hunt] : G.CALLED_GROUNDS[call.hunt];
   const n = Number(arg('adds', '0'));
   if (!n) return g;
   const rows = g.pockets[0].adds;
   return { ...g, pockets: [{ ...g.pockets[0], adds: Array.from({ length: n }, (_, i) => rows[i % rows.length]) }] };
 }
 const BOSS_MONSTERS = new Set(Object.values(BOSS_CALLS).map((c) => c.monster));
+/* A KEYED HALL as a room row of the same shape (`hall`: it pays, and its limit is the halls'). */
+const hallRoom = (id) => {
+  const h = BOSS_HALLS[id];
+  if (!h) throw new Error('no hall ' + id + ' (src/data/boss-halls.js BOSS_HALLS)');
+  const monster = hallBossOf(G.HALL_GROUNDS[h.hunt]);
+  BOSS_MONSTERS.add(monster);
+  ROOM_KINDS = new Set([monster, ...G.HALL_GROUNDS[h.hunt].pockets[0].adds.map((a) => a.monster)]);
+  return { id: h.id, hunt: h.hunt, from: h.id, monster, hall: true, fee: 'a ' + h.key };
+};
+/* is unit kind `k` one of the room's monsters (a called row, or a hall's boss and wave)? */
+let ROOM_KINDS = null;
+const inRoom = (k) => /_called$/.test(k) || (!!ROOM_KINDS && ROOM_KINDS.has(k));
 
 /** One try: { how: 'felled' | 'death' | 'time' | 'other', ms, deaths, store, hpMinPct }. */
 function tryOnce(call, c, seed) {
@@ -136,7 +154,7 @@ function tryOnce(call, c, seed) {
   const units = {}, blows = {}, casts = {}, at = {};
   const nameOf = (id) => (units[id] ? units[id][0] : String(id)).replace('_called', '');
   const out = play.run(call.hunt, c.level, roles, {
-    ground, spanMs: BOSS_CALL_RULES.limitMs + 30000, windowMs: TRACE ? 10000 : 30000, secret: secretOf(seed), equipment: (role, i) => kits[i],
+    ground, spanMs: (call.hall ? BOSS_HALL_RULES : BOSS_CALL_RULES).limitMs + 30000, windowMs: TRACE ? 10000 : 30000, secret: secretOf(seed), equipment: (role, i) => kits[i],
     bar, leaveTogether: true, ...(c.temper ? { temper: c.temper } : {}),
     ...(named ? { options: (role) => (role === 'tank' || role === 'healer' ? {} : { target_mode: named.tmode }) } : {}),
     bag: (role, i) => (kits[i].ammo === 'bronze_arrows' ? { bronze_arrows: { loaded: 1 } } : {}),
@@ -144,7 +162,7 @@ function tryOnce(call, c, seed) {
       if (TRACE) traceWindow(o, roles);
       for (const [id, r] of Object.entries(o.units || {})) units[id] = r;
       for (const e of o.events || []) {
-        if ((e.type === 'dmg' || e.type === 'miss') && !e.dot && /_called$/.test(units[e.u] ? units[e.u][0] : '')) {
+        if ((e.type === 'dmg' || e.type === 'miss') && !e.dot && inRoom(units[e.u] ? units[e.u][0] : '')) {
           const k = nameOf(e.u) + '>' + nameOf(e.t); const b = blows[k] || (blows[k] = [0, 0, 0]);
           b[0] += 1; if (e.type === 'dmg') { b[1] += 1; b[2] += e.amount; }
         }
@@ -195,7 +213,7 @@ function cell(call, c, seeds) {
   for (let s = 0; s < seeds; s++) t.push(tryOnce(call, c, s));
   const won = t.filter((x) => x.how === 'felled');
   const paid = t.reduce((a, x) => a + x.paid, 0);
-  if (paid !== 0) throw new Error('A CALLED FIGHT PAID ' + paid + ' on ' + c.label + ': the money line is broken');
+  if (paid !== 0 && !call.hall) throw new Error('A CALLED FIGHT PAID ' + paid + ' on ' + c.label + ': the money line is broken');
   return {
     call: call.id, label: c.label, level: c.level, seeds,
     win: round((100 * won.length) / seeds), felled: won.length, deaths: t.filter((x) => x.how === 'death').length, time: t.filter((x) => x.how === 'time').length,
@@ -273,17 +291,42 @@ const RUNS = {
   ],
 };
 
+/* A HALL'S ROWS: the ship bar at --level (the band's middle), the cliff either side, a hero alone. */
+const HUNT_BAND = (call) => (await_hunts.HUNT_INDEX[call.hunt] || await_hunts.HUNT_INDEX[call.from]).band;
+const hallRows = (L) => [
+  ...shipRows(L),
+  ['Optimized: tank + healer + bow, L' + L, { level: L, party: ['tank', 'healer', 'bow'] }],
+  ['Careless: four dps, no tank or healer, L' + L, { level: L, party: ['hammer', 'axes', 'bow', 'mage'] }],
+  ['Careless: tank + dps, no healer, L' + L, { level: L, party: ['tank', 'hammer'] }],
+  ['Alone: tank, good bar, L' + L, { level: L, party: ['tank'], bar: 'good' }],
+];
 const seeds = Number(arg('seeds', '12'));
 const only = arg('only', null);
 const hp = arg('hp', null), atk = arg('atk', null), lvl = arg('lvl', null), acc = arg('acc', null), rage = arg('rage', null), addhp = arg('addhp', null), addatk = arg('addatk', null), addacc = arg('addacc', null);
-const addOf = (call, monsters) => monsters[G.CALLED_GROUNDS[call.hunt].pockets[0].adds[0].monster];
+const HALL = arg('hall', null);
+const roomGround = (call) => (call.hall ? G.HALL_GROUNDS : G.CALLED_GROUNDS)[call.hunt];
+/* the wave's plain add row (--addhp and the like move it), and a hall's named add (--named-hp, --named-atk, --named-rage) */
+const addOf = (call, monsters) => monsters[(roomGround(call).pockets[0].adds.find((a) => !isNamedAdd(monsters[a.monster])) || roomGround(call).pockets[0].adds[0]).monster];
+const namedOf = (call, monsters) => { const a = roomGround(call).pockets[0].adds.find((x) => isNamedAdd(monsters[x.monster])); return a ? monsters[a.monster] : null; };
+/* --spell id.field=n,...: a spell row's whole number on the same dice (scratch) */
+for (const s of (arg('spell', '') || '').split(',').filter(Boolean)) {
+  const m = /^([a-z0-9_]+)\.([a-zA-Z]+)=(\d+)$/.exec(s);
+  if (!m || !ENGINE_SPELLS[m[1]]) throw new Error('--spell ' + s + ': id.field=n on a src/data/monster-spells.js row');
+  ENGINE_SPELLS[m[1]][m[2]] = Number(m[3]);
+}
 /* --adds N: a what-if wave of N, the room's own rows round again (a second row on a spot takes the next free tile, pull-cycle.js placeRow). */
 const addsN = arg('adds', null), addlvl = arg('addlvl', null);
 const FOCUS = /^Ship: (good bar|bad bar|good bar, one gear tier behind|good bar but no Challenge on the tank|good bar but no area slot), tank \+ healer \+ 2 dps|^Careless: four dps, no tank/;
 const CLIFF = /Optimized|Under|gear tier|four dps, no tank|tank \+ dps, no healer/;
 const rows = [];
-for (const call of Object.values(BOSS_CALLS)) {
+for (const call of (HALL ? [hallRoom(HALL)] : Object.values(BOSS_CALLS))) {
   if (only && !call.id.includes(only)) continue;
+  for (const m of [namedOf(call, ENGINE_MONSTERS), namedOf(call, play.MONSTERS)]) {
+    if (!m) continue;
+    if (arg('named-hp', null)) m.hp = Number(arg('named-hp', null));
+    if (arg('named-atk', null)) m.atk = Number(arg('named-atk', null));
+    if (arg('named-rage', null)) m.phases.enrageAtkPm = Number(arg('named-rage', null));
+  }
   for (const inst of [ENGINE_MONSTERS[call.monster], play.MONSTERS[call.monster]]) {
     if (hp) inst.hp = Number(hp);
     if (atk) inst.atk = Number(atk);
@@ -301,7 +344,7 @@ for (const call of Object.values(BOSS_CALLS)) {
   const row = ENGINE_MONSTERS[call.monster];
   console.log('\n' + call.id + ' (HP ' + row.hp + ', atk ' + row.atk + ', Level ' + row.level + ', fee ' + call.fee + ')');
   console.log('win%  kill(s)  dead time  food/head  low HP%   party');
-  for (const [label, c] of RUNS[call.id]) {
+  for (const [label, c] of (RUNS[call.id] || hallRows(Number(arg('level', String(Math.round((HUNT_BAND(call)[0] + HUNT_BAND(call)[1]) / 2))))))) {
     if (process.argv.includes('--cliff') && !CLIFF.test(label)) continue;
     if (process.argv.includes('--ship') && !/^Ship/.test(label)) continue;
     if (process.argv.includes('--focus') && !FOCUS.test(label)) continue;

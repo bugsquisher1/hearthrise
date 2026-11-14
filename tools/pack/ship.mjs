@@ -54,6 +54,27 @@ export function frameOf(text) {
 }
 
 /**
+ * A staged pack's pack.js text OPENED on `file` (a staged ground is never served, so its rows exist only once it is open). Throws when
+ * the text has no `status: "staged",` and `sql: null,` lines as the tool writes them: a silent miss would ship a file with no rows.
+ */
+export function openedText(text, file) {
+  const status = /^(\s*)status: "staged",$/m, sql = /^(\s*)sql: (null|"[^"]*"),$/m;
+  if (!status.test(text) || !sql.test(text)) throw new Error('its pack.js has no `status: "staged",` and `sql: null,` lines to open (double quotes, as the tool writes them)');
+  return text.replace(status, '$1status: "open",').replace(sql, '$1sql: "' + file + '",');
+}
+
+/**
+ * A SHIP REHEARSAL: what `tools/pack.mjs ship <id>` would render for a staged pack, with the tree put back as it was. The pack is
+ * opened in place on a file name no apply order holds, rendered, and restored. Answers shipText's { sql, added, moved, files }.
+ */
+export function rehearse(id, root = ROOT) {
+  const packFile = join(root, 'src', 'data', 'grounds', id, 'pack.js');
+  const before = readFileSync(packFile, 'utf8');
+  writeFileSync(packFile, openedText(before, '2099-01-01-pack-' + id + '.generated.sql'));
+  try { return shipText(id, root); } finally { writeFileSync(packFile, before); }
+}
+
+/**
  * A pack's additive file from one fold render: { sql, added, moved } where `moved` lists every file whose frame (its text with
  * rows, numbers and digests masked) changed, which a pack must not do (a new function body or a new statement is a world move).
  */

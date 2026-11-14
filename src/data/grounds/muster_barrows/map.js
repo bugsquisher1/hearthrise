@@ -101,7 +101,7 @@ export default Object.freeze({
     { id: 'mu_bier_unburned', x: 30, y: 31 }, { id: 'mu_bier_unburned', x: 27, y: 34 }, { id: 'mu_bier_unburned', x: 24, y: 35 }, { id: 'hf_pyre_unlit', x: 31, y: 33 },
     { id: 'mu_coffin_lid', x: 26, y: 36 }, { id: 'mu_grave_open', x: 20, y: 33 }, { id: 'mu_dead_hawthorn', x: 19, y: 31 },
     /* the gather nodes (pack.js ground.gather): standing oaks, to swap for a March tree kind */
-    { id: 'oak', x: 4, y: 13 }, { id: 'oak', x: 15, y: 14 }, { id: 'oak', x: 22, y: 18 }, { id: 'oak', x: 33, y: 24 },
+    { id: 'alder', x: 4, y: 13 }, { id: 'alder', x: 15, y: 14 }, { id: 'alder', x: 22, y: 18 }, { id: 'alder', x: 33, y: 24 },
   ]),
   buildings: Object.freeze([]),
   /* the patrol loop, on the road in */

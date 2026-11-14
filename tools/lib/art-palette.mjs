@@ -113,7 +113,7 @@ export const PALETTE = {
   // ── NEUTRALS — the class the SUFFIX's neutral-material lock protects ────
   contour_black:     { rgb: [ 26,  28,  32], match: ['near-black', 'charcoal', 'soot', 'coal', 'char black'] }, // [expG]
   neutral_grey:      { rgb: [146, 146, 146], match: ['neutral grey', 'muddy grey', 'cliff-grey', 'grey muzzle', 'dusty grey', 'grey'] },
-  ash_grey:          { rgb: [128, 126, 120], match: ['ash grey', 'ash-gray', 'ash gray', 'ash'] }, // the American twins: tier 7 Shroudweave's lines (11-10 ruling 6)
+  ash_grey:          { rgb: [128, 126, 120], match: ['ash grey', 'ash-gray', 'ash gray', 'ash'] }, // the American twins: tier 7 Duskweave's lines (11-10 ruling 6)
   stone_grey:        { rgb: [140, 138, 132], match: ['dressed stone', 'stone'] },
   granite_pink:      { rgb: [176, 150, 146], match: ['speckled pink-grey granite', 'pink-grey granite', 'pink-grey', 'granite'] },
   basalt:            { rgb: [ 48,  48,  54], match: ['columnar basalt', 'basalt'] },
@@ -224,7 +224,7 @@ export const COLOUR_TOKENS = new Set([
   'khaki', 'sepia', 'verdigris', 'patinated', 'honey', 'straw', 'wheat', 'sand',
   'clay', 'soot', 'coal', 'chalk', 'snow', 'frost', 'ice', 'ember', 'molten',
   'chestnut', 'sickly', 'mithril', 'dawnsteel', 'duskwood', 'boarhide',
-  'snakeskin', 'dragonhide', 'slakehide', 'linen', 'oak', 'willow', 'maple', 'yew',
+  'snakeskin', 'dragonhide', 'dawnhide', 'linen', 'oak', 'willow', 'maple', 'yew',
 ]);
 
 /** Tokens that look like colours in isolation but never are, in this corpus. */

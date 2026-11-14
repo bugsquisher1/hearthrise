@@ -98,7 +98,7 @@ export default Object.freeze({
     { id: 'hf_standing_stone', x: 45, y: 27 }, { id: 'hf_standing_stone_leaning', x: 51, y: 29 }, { id: 'hf_kerb_ring', x: 49, y: 33 }, { id: 'hf_palisade_stake', x: 42, y: 28 },
     { id: 'hf_banded_shield', x: 53, y: 25 },
     /* the gather nodes (pack.js ground.gather): six oaks at the clearings' edges, two a clearing */
-    { id: 'oak', x: 17, y: 36 }, { id: 'oak', x: 5, y: 34 }, { id: 'oak', x: 54, y: 6 }, { id: 'oak', x: 7, y: 8 }, { id: 'oak', x: 42, y: 5 }, { id: 'oak', x: 6, y: 5 },
+    { id: 'alder', x: 17, y: 36 }, { id: 'alder', x: 5, y: 34 }, { id: 'alder', x: 54, y: 6 }, { id: 'alder', x: 7, y: 8 }, { id: 'alder', x: 42, y: 5 }, { id: 'alder', x: 6, y: 5 },
   ]),
   buildings: Object.freeze([]),
   path: Object.freeze([[4, 29], [12, 29], [12, 31], [4, 31]]),

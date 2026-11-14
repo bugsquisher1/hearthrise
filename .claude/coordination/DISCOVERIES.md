@@ -4,6 +4,15 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-14 · game-designer (lane/b-barrow-numbers) · Krell's Hall measured, a mend that froze a fight, the March's tree, and a renamed id the Tally table still held
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P2 design · In Krell's Hall the good bar with NO Challenge wins more than the good bar with it (100% against 95% at Level 98, 100% against 71% at 85; 40 and 24 tries on the real settle). Challenge pulls Hask and both Grave Guards onto the tank beside Krell. The Target setting is the answer that bites (95 down to 60 with damage left on Krell). The hall's warning tells the player to keep adds off the back line. | `src/data/grounds/krells_hold/pack.js` hall, `src/data/boss-halls.js` warn lines | Designer, before the hall opens: either the wave should threaten the back line more than it threatens the tank, or the warning stops pointing at Challenge. Not a blocker for the staged pack. |
+| 2 | P1 class, fixed in data · A monster's mend sized like a hit can out-heal the slowest hero: three Pyre Priests at a full hit every 8 s left a lone tank (Level 110, Dangerous) in a fight with no end, no death and 7.5k XP an hour. The grader shows it only as one `feel-tier-less` row. | any future `shape: 'mend'` row; the grader | Systems (optional): a grader line for a held cell with almost no kills. The Pyre Rite is now half a hit every 16 s. |
+| 3 | P3 art · The March's gather tree is the sprite `alder` on the data row `willow_tree` (a node kind must be a gathering.js row and there is no alder wood). It replaced the oak stand-ins on the Ford, the Slake and the Muster Barrows. `alder_b` and `alder_c` are unused: a kind has one sprite. | `hunt-grounds.js GROUND_NODE_KINDS`, the three maps' gather line, `tools/world-art/registry.mjs` (still says "on no map yet") | Art Director: read the three maps at x2 and flip the registry line. Systems, when the gathering engine lands: a kind that can draw one of several sprites. |
+| 4 | P2 process · The 11-14 tier-7 rename left `hr_tally_tiers` naming the old ids: `gen-tally-tasks --check` was red on set/v0.2.130's tip. The forward file is `2027-04-21-tally-tier7-names.generated.sql`, staged last in the apply order. | every generated table that names an item id | Any lane renaming an id runs every `tools/gen-*.mjs --check`. |
+
 ## 2026-11-11 · qa-engineer (lane/r-client-health) · a tab left open for an hour stays flat; an own hero's hunt started elsewhere is invisible until the first flush (tools + one server routing)
 
 | # | Found | Affected | Action |

@@ -2,6 +2,14 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-14 lane/b-barrow-numbers: the Barrow March's numbers, the hall fitted, tier 7 renamed
+- **A monster that heals can stop a fight, not just slow it.** The Pyre Priest's first mend (a full hit every 8 s) put a lone tank at Level 110 on Dangerous into a pull he could never finish: 7.5k XP an hour, no death, nothing on the grade but one `feel-tier-less` row. Size a mend against the slowest way to fight in the biggest pull, and read the cell list for an hour with no XP and no death.
+- **Grade a staged pack with the packs under it** (`pack.mjs check <g> --mode full --with <lower packs>`). Alone, its heroes have no gear from the grounds below and the grade reads deaths that won't ship.
+- **A boss's own formula row is far too soft for a hall.** Krell on 2,256 HP and atk 94 lost to nobody, bad bar included. Fitted at the band's middle: 7,000 HP, atk 205. `boss-call-table.mjs --hall <ground>` now plays a keyed hall on the called rooms' rows and bars.
+- **In a wave fight, Challenge can be the wrong answer.** With Hask and two Grave Guards up, pulling them onto the tank beside Krell is what kills the tank. The good bar with no Challenge won 100%. The Target setting (adds first) is the question that bites (95 down to 60). Worth a design pass before the hall opens.
+- A node kind is a gathering row, so "an alder node" needs a tree the game has. The March's drawn tree works as a Willow. A new wood is a content batch, not a row.
+- An id rename reaches every generated table that names items. `hr_tally_tiers` was missed on 11-14 (gen-tally-tasks --check was red on the set's tip). Run every gen --check after a rename, not the two you expect.
+
 ## 2026-11-11 — party cells without a party pull: the grader was judging against fresh heroes
 
 Re-fit the mixed party cells after Tyler retired the Normal party pull (board "2026-11-11 Party XP cells").

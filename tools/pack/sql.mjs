@@ -24,6 +24,8 @@ export const PACK_TABLES = Object.freeze({
   hr_hunt_travel: ['hunt_id'],
   hr_hunt_vendor_value: ['item_id'],
   hr_ground_tiers: ['hunt_id', 'tier'],
+  /* a pack's keyed hall (its `hall`, src/data/boss-halls.js): the one row that says which room its key opens. Krell's Hold is the first */
+  hr_boss_halls: ['hall_id'],
 });
 
 /** Split `s` at top-level commas (outside quotes, parentheses and brackets). */

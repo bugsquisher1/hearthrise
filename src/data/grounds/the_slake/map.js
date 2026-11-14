@@ -114,7 +114,7 @@ export default Object.freeze({
     /* P5 the Grounded Barge: the stores that came off the hull when its back broke */
     { id: 'barrels', x: 24, y: 17 }, { id: 'barrel_broken', x: 25, y: 21 }, { id: 'sack_pile', x: 16, y: 22 },
     /* the gather nodes (pack.js ground.gather): bank oaks, to swap for a March tree kind */
-    { id: 'oak', x: 9, y: 4 }, { id: 'oak', x: 21, y: 8 }, { id: 'oak', x: 5, y: 34 }, { id: 'oak', x: 18, y: 32 },
+    { id: 'alder', x: 9, y: 4 }, { id: 'alder', x: 21, y: 8 }, { id: 'alder', x: 5, y: 34 }, { id: 'alder', x: 18, y: 32 },
     /* reeds where the silt meets deep water */
     { id: 'mb_reeds', x: 13, y: 10 }, { id: 'mb_reeds', x: 30, y: 10 }, { id: 'mb_reeds', x: 50, y: 10 }, { id: 'mb_reeds', x: 23, y: 14 },
     { id: 'mb_reeds', x: 48, y: 14 }, { id: 'mb_reeds', x: 18, y: 26 }, { id: 'mb_reeds', x: 38, y: 26 }, { id: 'mb_reeds', x: 54, y: 26 },

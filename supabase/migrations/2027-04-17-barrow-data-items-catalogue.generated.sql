@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 3a907368717c0a59cc97b577319a88ad7a8469b6ee1cd03d8c2e16a4dd41f7bb
+--   catalogue digest: adc4c038f37d297387fd69a610ad5241df8ec2caea8e8dd22bb1ae2d75590d2e
 --   rows: 592 items (6 untradeable) ·
 --         347 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 354 activities ·
@@ -348,6 +348,12 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('dawn_whetstone','Dawnsteel Whetstone',true,'ammo',100,'melee',88,null,false,null,false),
   ('dawnbound_amulet','Dawnbound Amulet',true,'jewelry',72000,'level',86,null,false,null,false),
   ('dawnforged_signet','Dawnforged Signet',true,'jewelry',72000,'level',84,null,false,null,false),
+  ('dawnhide_belt','Dawnhide Belt',true,'armor',20160,'level',88,null,false,'medium',false),
+  ('dawnhide_body','Dawnhide Body',true,'armor',75600,'level',88,null,false,'medium',false),
+  ('dawnhide_boots','Dawnhide Boots',true,'armor',20160,'level',88,null,false,'medium',false),
+  ('dawnhide_gloves','Dawnhide Bracers',true,'armor',17640,'level',88,null,false,'medium',false),
+  ('dawnhide_helmet','Dawnhide Hood',true,'armor',30240,'level',88,null,false,'medium',false),
+  ('dawnhide_pants','Dawnhide Chaps',true,'armor',55440,'level',88,null,false,'medium',false),
   ('dawnlit_mantle','Dawnlit Mantle',true,'armor',86400,'level',88,null,false,null,false),
   ('dawnpoint_arrows','Dawnpoint Arrows',true,'ammo',12,'ranged',88,null,false,null,false),
   ('dawnsteel_rod','Dawnsteel Rod',true,'tool',58000,null,null,null,false,null,false),
@@ -376,6 +382,12 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('dragonrend_greatblade','Dragonrend',true,'weapon',17600,'level',88,null,false,null,false),
   ('dragonrib_bow','Dragonrib Bow',true,'weapon',13650,'level',75,null,false,null,true),
   ('dry_husk','Dry Husk',true,null,1,null,null,null,false,null,false),
+  ('duskweave_belt','Duskweave Sash',true,'armor',20160,'level',88,null,false,'light',false),
+  ('duskweave_body','Duskweave Robe Top',true,'armor',75600,'level',88,null,false,'light',false),
+  ('duskweave_boots','Duskweave Slippers',true,'armor',20160,'level',88,null,false,'light',false),
+  ('duskweave_gloves','Duskweave Gloves',true,'armor',17640,'level',88,null,false,'light',false),
+  ('duskweave_helmet','Duskweave Hat',true,'armor',30240,'level',88,null,false,'light',false),
+  ('duskweave_pants','Duskweave Robe Bottom',true,'armor',55440,'level',88,null,false,'light',false),
   ('duskwood_bow','Duskwood Bow',true,'weapon',37800,'level',88,null,false,null,true),
   ('duskwood_codex','Duskwood Codex',true,'offhand',28800,'level',88,null,false,null,false),
   ('duskwood_crossbow','Duskwood Crossbow',true,'weapon',36000,'level',88,null,false,null,false),
@@ -630,23 +642,11 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('shark','Raw Shark',true,null,100,null,null,240,true,null,false),
   ('shortbow','Shortbow',true,'weapon',90,'level',1,null,false,null,true),
   ('shrimp','Raw Shrimp',true,null,5,null,null,36,true,null,false),
-  ('shroudweave_belt','Shroudweave Sash',true,'armor',20160,'level',88,null,false,'light',false),
-  ('shroudweave_body','Shroudweave Robe Top',true,'armor',75600,'level',88,null,false,'light',false),
-  ('shroudweave_boots','Shroudweave Slippers',true,'armor',20160,'level',88,null,false,'light',false),
-  ('shroudweave_gloves','Shroudweave Gloves',true,'armor',17640,'level',88,null,false,'light',false),
-  ('shroudweave_helmet','Shroudweave Hat',true,'armor',30240,'level',88,null,false,'light',false),
-  ('shroudweave_pants','Shroudweave Robe Bottom',true,'armor',55440,'level',88,null,false,'light',false),
   ('silk_thread','Silk Thread',true,null,55,null,null,null,false,null,false),
   ('silverfin','Raw Silverfin',true,null,20,null,null,120,true,null,false),
   ('skulkers_shiv','Skulker''s Shiv',true,null,76,null,null,null,false,null,false),
   ('slagheart_core','Slagheart Core',true,null,3200,null,null,null,false,null,false),
   ('slagheart_platebody','Slagheart Platebody',true,'armor',270000,'level',88,null,false,'heavy',false),
-  ('slakehide_belt','Slakehide Belt',true,'armor',20160,'level',88,null,false,'medium',false),
-  ('slakehide_body','Slakehide Body',true,'armor',75600,'level',88,null,false,'medium',false),
-  ('slakehide_boots','Slakehide Boots',true,'armor',20160,'level',88,null,false,'medium',false),
-  ('slakehide_gloves','Slakehide Bracers',true,'armor',17640,'level',88,null,false,'medium',false),
-  ('slakehide_helmet','Slakehide Hood',true,'armor',30240,'level',88,null,false,'medium',false),
-  ('slakehide_pants','Slakehide Chaps',true,'armor',55440,'level',88,null,false,'medium',false),
   ('slime_gel','Slime Gel',true,null,5,null,null,null,false,null,false),
   ('sluice_crust','Sluice Crust',true,null,52,null,null,null,false,null,false),
   ('small_fang','Small Fang',true,null,15,null,null,null,false,null,false),
@@ -890,6 +890,12 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('dawnbound_amulet','necklace'),
   ('dawnforged_signet','ring1'),
   ('dawnforged_signet','ring2'),
+  ('dawnhide_belt','belt'),
+  ('dawnhide_body','body'),
+  ('dawnhide_boots','boots'),
+  ('dawnhide_gloves','gloves'),
+  ('dawnhide_helmet','helmet'),
+  ('dawnhide_pants','pants'),
   ('dawnlit_mantle','cape'),
   ('dawnpoint_arrows','ammo'),
   ('demoncaller_staff','weapon'),
@@ -903,6 +909,12 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('dragonhide_pants','pants'),
   ('dragonrend_greatblade','weapon'),
   ('dragonrib_bow','weapon'),
+  ('duskweave_belt','belt'),
+  ('duskweave_body','body'),
+  ('duskweave_boots','boots'),
+  ('duskweave_gloves','gloves'),
+  ('duskweave_helmet','helmet'),
+  ('duskweave_pants','pants'),
   ('duskwood_bow','weapon'),
   ('duskwood_codex','shield'),
   ('duskwood_crossbow','weapon'),
@@ -1041,19 +1053,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('scored_water_rune','ammo'),
   ('shadowsilk_cape','cape'),
   ('shortbow','weapon'),
-  ('shroudweave_belt','belt'),
-  ('shroudweave_body','body'),
-  ('shroudweave_boots','boots'),
-  ('shroudweave_gloves','gloves'),
-  ('shroudweave_helmet','helmet'),
-  ('shroudweave_pants','pants'),
   ('slagheart_platebody','body'),
-  ('slakehide_belt','belt'),
-  ('slakehide_body','body'),
-  ('slakehide_boots','boots'),
-  ('slakehide_gloves','gloves'),
-  ('slakehide_helmet','helmet'),
-  ('slakehide_pants','pants'),
   ('snakeskin_belt','belt'),
   ('snakeskin_body','body'),
   ('snakeskin_boots','boots'),
@@ -2088,7 +2088,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '3a907368717c0a59cc97b577319a88ad7a8469b6ee1cd03d8c2e16a4dd41f7bb', now())
+  values (true, 'adc4c038f37d297387fd69a610ad5241df8ec2caea8e8dd22bb1ae2d75590d2e', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2119,8 +2119,8 @@ begin
   if v_n <> 592 then raise exception 'hr_items has % rows, generator emitted 592', v_n; end if;
   -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
   -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
-  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '9b393d39544524be839f5c21ec73ce60' then
-    raise exception 'hr_items names differ from src/data (expected digest 9b393d39544524be839f5c21ec73ce60)';
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> 'c0bf2193edaebe86604c2b1e0242d346' then
+    raise exception 'hr_items names differ from src/data (expected digest c0bf2193edaebe86604c2b1e0242d346)';
   end if;
   -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
   if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
@@ -2320,7 +2320,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 3a907368717c0a59cc97b577319a88ad7a8469b6ee1cd03d8c2e16a4dd41f7bb',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest adc4c038f37d297387fd69a610ad5241df8ec2caea8e8dd22bb1ae2d75590d2e',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

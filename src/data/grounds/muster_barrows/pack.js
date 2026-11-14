@@ -121,9 +121,9 @@ export default definePack({
     respawnMs: 90000, pullDist: 1.5, groupFit: 'party',
     densityMax: [8, 8, 8, 8],
     /* THE GATHER SLIDER (inert until the hunt-gathering engine lands; tests/hunt-core/forest-cave.mjs gather-nodes): the field's few
-       standing oaks, as the Slake's (refKillMs the Slake's 12000). Stand-ins: the March kit keeps the Greenhaven oak out and has no
-       alder node kind yet (hunt-grounds.js GROUND_NODE_KINDS), so they swap when one exists. */
-    gather: gather(12000, [['oak_tree', 4, 13, 0], ['oak_tree', 15, 14, 0], ['oak_tree', 22, 18, 3], ['oak_tree', 33, 24, 3]]),
+       standing willows, as the Slake's (refKillMs the Slake's 12000): hunt-grounds.js willow_tree, drawn as the March kit's own
+       riverbank tree (sprite alder). The oaks that stood in here are gone (lane/b-barrow-numbers 2026-11-14). */
+    gather: gather(12000, [['willow_tree', 4, 13, 0], ['willow_tree', 15, 14, 0], ['willow_tree', 22, 18, 3], ['willow_tree', 33, 24, 3]]),
   },
   monsters: {
     barrow_pikeman: {
@@ -135,7 +135,7 @@ export default definePack({
         { id: 'rune_boots', ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.016, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.016, band: 'scarce' },
         { id: 'rune_helm', ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.016, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.016, band: 'scarce' },
         { id: 'rune_sword', ch: 0.016, band: 'scarce' }],
-      hp: 191, atk: 23, baseAcc: 1.04, def: 21, xp: 1100, gp: [21, 64], formula: true },
+      hp: 191, atk: 23, baseAcc: 1.04, def: 21, xp: 995, gp: [21, 64], formula: true },
     cairn_wight: {
       name: 'Cairn Wight', icon: '🪦', tier: 4, level: 60, cls: 'undead', family: 'Undead', speed: 4000,
       /* the glass, quick enough to reach the back line: the dead who were in this field before the company dug into it, cloth and
@@ -146,7 +146,7 @@ export default definePack({
         { id: 'rune_platelegs', ch: 0.048, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.048, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.048, band: 'scarce' },
         { id: 'yew_staff', ch: 0.048, band: 'scarce' },
         { id: 'yew_wand', ch: 0.0033, band: 'rare' }, { id: 'yew_spellbook', ch: 0.0033, band: 'rare' }],
-      hp: 188, atk: 31, baseAcc: 1.03, def: 22, xp: 1326, gp: [21, 63], formula: true },
+      hp: 188, atk: 31, baseAcc: 1.03, def: 22, xp: 1199, gp: [21, 63], formula: true },
     muster_knight: {
       name: 'Barrow Knight', icon: '⚔️', tier: 5, level: 66, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser: the company's mounted sergeants, buried armed in the round barrows of the Row with a sword set before each and
@@ -158,7 +158,7 @@ export default definePack({
         { id: 'rune_warhammer', ch: 0.048, band: 'scarce' },
         { id: 'rune_gauntlets', ch: 0.0033, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0033, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0033, band: 'rare' },
         { id: 'rune_hatchets', ch: 0.0033, band: 'rare' }],
-      hp: 440, atk: 41, baseAcc: 0.9, def: 44, xp: 3089, gp: [49, 147], formula: true },
+      hp: 440, atk: 41, baseAcc: 0.9, def: 44, xp: 2795, gp: [49, 147], formula: true },
     captain_hask: {
       name: 'Captain Hask', icon: '👑', tier: 5, level: 75, cls: 'undead', family: 'Undead', speed: 2800, boss: true,
       /* THE BOSS: the Banded Company's captain, who sold the crossing to Lord Krell and was buried by Krell with the men he sold, in his cloak
@@ -171,7 +171,7 @@ export default definePack({
         { id: 'yew_bow', ch: 0.0133, band: 'rare' }, { id: 'yew_crossbow', ch: 0.0133, band: 'rare' }],
       /* HIS LINES ARE BACK with the ground-boss engine (lane/b-barrow-integrate 2026-11-14, from lane/b-muster-barrows 36a7a2d1b; carried as a
          comment on lane/b-barrow-packs until it landed): his file at half, +15% under a quarter (measured, the header). tests/ground-boss.mjs holds him. */
-      hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 11996, gp: [173, 520], formula: true,
+      hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 10853, gp: [173, 520], formula: true,
       phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1150 } },
   },
   roster: {
@@ -207,8 +207,11 @@ export default definePack({
      was re-pinned flatter (core-model.js LEVEL_PACE.contract 1378 x L^1.298: 311k an hour at 65) and a hero alone earns +15% (Tyler 2026-11-11). At
      0.93 the median lone way read 1.30 of the contract at the band middle (quick grade, the Ford's and the Slake's tier-4 gear on the ladder, 1 seed
      x 1 h). 0.93 x 1.00 / 1.30 = 0.72, the Warrens' own road (1 -> 0.76 the same day). A fit scales a four and a hero alone alike.
-     On the full grade (the median of 8 lone ways) 0.72 read 0.86, so 0.84 (about 1.00). */
-  xpFit: { k: 0.84, why: 'at 0.93 the median lone way read 1.30 of the pace contract at the band middle (65) under solo +15% and the re-pinned contract, which reads the lone median on a party ground too (quick grade). On the full grade 0.72 read 0.86. At 0.84 it reads about 1.00' },
+     On the full grade (the median of 8 lone ways) 0.72 read 0.86, so 0.84 (about 1.00).
+     RE-FITTED AGAIN (lane/b-barrow-numbers, 2026-11-14). The tier-5 hatchets and crossbow (11-13) lifted the axes and crossbow ways, so the
+     median of the 8 lone ways rose and 0.84 read 1.10 on the full grade as it ships (the Ford and the Slake on the ladder), on the band's
+     edge. 0.84 x 1.00 / 1.10 = 0.76, the Warrens' number. A fit scales a party and a hero alone alike, so no party cell moves. */
+  xpFit: { k: 0.76, why: 'Monsters here give less XP than the base formula, so a hero in the middle of the range levels at the usual speed. At 0.84 a hero alone leveled 10% faster than that' },
   /* THE HARDER TIERS (TIER_PULL_OVERRIDES' shape since one difficulty: ONE pull for every group). Dangerous brings the full box, 8, not
      the table's 5: on 5 a Melee and Healer pair two under the floor netted +2.9k gold an hour a head and five under +0.5k, where the
      weight-class ruling (11-06) asks them to lose gold. On 8 they lose 15.6k and 28.8k (quick grade, 1 seed x 1 h). So here the two

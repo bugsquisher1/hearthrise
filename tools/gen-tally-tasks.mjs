@@ -38,8 +38,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    Glade's Steel) and 2027-04-03-tally-first-rats.generated.sql (the Cellar's count of 25 with the held-row step,
    lane/b-first-ten-build, 2026-11-10) are history. The tier book her pick reads to skip a slot the hero already wears
    (lane/c-tally-reward-worn, 2026-11-11) lands in this forward file, which rewrites the same tables, keeps the held-row
-   step and adds hr_tally_tiers; 2027-04-08-tally-worn.sql, the pick that reads it, applies right after. */
-export const OUT_FILE = '2027-04-08-tally-worn.generated.sql';
+   step and adds hr_tally_tiers; 2027-04-08-tally-worn.sql, the pick that reads it, applies right after.
+   2027-04-08-tally-worn.generated.sql is APPLIED history too. TIER 7'S NAMES (lane/b-barrow-numbers, Tyler 2026-11-14: Dawnhide and
+   Duskweave): hr_tally_tiers names every wearable item, so the twelve tier-7 leather and cloth ids move with the items catalogue
+   (2027-04-17-barrow-data-items-catalogue) in this forward file, the same full rewrite of the same tables. No function body moves. */
+export const OUT_FILE = '2027-04-21-tally-tier7-names.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 /**

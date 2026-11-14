@@ -84,10 +84,10 @@ export default definePack({
     densityMax: [8, 8, 8, 8],
     /* ONE PACK ON NORMAL FOR EVERY GROUP (Tyler 2026-11-11, "if they want bigger pulls they need to up the difficulty"; lane/d-packs-retune): a party
        meets the room as built, the same as a hero alone. A bigger pull is Dangerous or Deadly (the tier row), never a party's own. */
-    /* THE GATHER SLIDER (inert until the hunt-gathering engine lands; tests/hunt-core/forest-cave.mjs gather-nodes): oaks on the north
-       and south banks, as the Ford placed them (refKillMs its 12000). The March kit has no tree node of its own: the art director's read
-       keeps oak off the March, so these swap to a March tree kind (a bank maple or willow, the tier-4 bow and staff wood) when one exists. */
-    gather: gather(12000, [['oak_tree', 9, 4, 0], ['oak_tree', 21, 8, 0], ['oak_tree', 5, 34, 4], ['oak_tree', 18, 32, 4]]),
+    /* THE GATHER SLIDER (inert until the hunt-gathering engine lands; tests/hunt-core/forest-cave.mjs gather-nodes): willows on the north
+       and south banks, as the Ford placed them (refKillMs its 12000). They are hunt-grounds.js willow_tree, drawn as the March kit's own
+       riverbank tree (sprite alder): the oaks that stood in here are gone (lane/b-barrow-numbers 2026-11-14). */
+    gather: gather(12000, [['willow_tree', 9, 4, 0], ['willow_tree', 21, 8, 0], ['willow_tree', 5, 34, 4], ['willow_tree', 18, 32, 4]]),
   },
   /* THE BODIES (art brief 01 and 06): the Mudlark is a new drawing. The Greened Pikeman, the Bargeman and the Color Sergeant are
      verdigris re-pours of the Ford's Pikeman, Fordsunk and Bannerman. Each differs from its Ford cousin in its weakness.

@@ -17,6 +17,8 @@
 //         file's schema or function bodies move), and they are that ground's own rows, renamed: the pack path writes what the
 //         base path writes for the same content. The whole --check of every covered generator stays green with it planted.
 //   GP-7  (--fold) a new ground at a new band takes the formula's numbers from tools/pack.mjs propose --write, in its own file only
+//   GP-8  (--fold) a staged pack with a keyed hall rehearses its ship clean: its file holds the hall's own hr_boss_halls row
+//         (a table a pack may write, GP-4) and the room's hunt, and moves no schema or function body
 //   GP-6  THE ADDITIVE FILE EQUALS THE WHOLE ONE on a real PostgreSQL (the replayed chain, tests/schema-replay.mjs): the six
 //         planted packs' files applied in turn (twice: idempotent), then the whole files with all six folded: no row of a
 //         pack table moves. So a world move that folds the packs later re-states them, and packs commute.
@@ -29,7 +31,7 @@ import { isMain } from './_is-main.mjs';
 import { ROOT, GROUNDS_DIR, packIds, indexText, buildVersion, fixturePack, writePack, removePack } from '../tools/pack/files.mjs';
 import { packSqlOf, applyOrder, foldedPacks } from '../tools/pack/whole.mjs';
 import { rowsOf, diffRows, PACK_TABLES } from '../tools/pack/sql.mjs';
-import { shipText, frameOf, COVERED } from '../tools/pack/ship.mjs';
+import { shipText, rehearse, frameOf, COVERED } from '../tools/pack/ship.mjs';
 
 const MIG = join(ROOT, 'supabase', 'migrations');
 const fail = [];
@@ -88,6 +90,26 @@ function gp4() {
   const fn = (body) => 'create or replace function public.f() returns int language sql as $$ select ' + body + ' $$;\n';
   ok(frameOf(fn('1')) !== frameOf(fn("'x'")), 'GP-4 a moved function body reads as no move');
   ok(frameOf('do $$ begin perform 1; end $$;\n') === frameOf("do $$ begin perform 'other'; end $$;\n"), 'GP-4 a self-check restating rows reads as a move');
+  /* a pack's keyed hall is its own row to write (hr_boss_halls, keyed on the hall): refused, no pack with a hall could ship */
+  let hall = null;
+  try { hall = diffRows(base, rowsOf("insert into public.hr_hunts (hunt_id, band_min, band_max) values ('a', 1, 2), ('b', 3, 4);\ninsert into public.hr_boss_halls (hall_id, hunt_id, monster_id, key_item, limit_ms) values ('c', 'c_hall', 'm', 'k', 600000);\n")); } catch { hall = null; }
+  ok(!!hall && hall.length === 1 && hall[0].table === 'hr_boss_halls' && (PACK_TABLES.hr_boss_halls || []).join() === 'hall_id', 'GP-4 the diff refused a pack\'s hall row (hr_boss_halls is not a table a pack may write)');
+}
+
+/* GP-8 A STAGED PACK WITH A HALL SHIPS: rehearsed (opened in place, rendered, put back), its file holds the hall's own row and the
+   room's hunt, and moves no schema or function body. Krell's Hold is the first; the claim loops over every staged pack with a hall. */
+function gp8() {
+  const halls = childJson(`import { GROUND_PACKS } from './src/data/grounds/index.js'; console.log(JSON.stringify(GROUND_PACKS.filter((p) => p.hall && p.status === 'staged').map((p) => p.id)));`);
+  for (const id of halls) {
+    let s = null;
+    try { s = rehearse(id); } catch (e) { ok(false, 'GP-8 a ship rehearsal refuses ' + id + ': ' + String(e.message || e).split('\n').slice(0, 3).join(' | ')); continue; }
+    ok(!s.moved.length, 'GP-8 ' + id + ' rehearsed moves the frame (schema or a function body) of ' + s.moved.join(', '));
+    const t = s.added.find((x) => x.table === 'hr_boss_halls');
+    ok(!!t && t.rows.length === 1 && t.rows[0][t.cols.indexOf('hall_id')] === "'" + id + "'", 'GP-8 ' + id + ' rehearsed writes no hr_boss_halls row of its own');
+    const h = s.added.find((x) => x.table === 'hr_hunt_travel');
+    ok(!!h && h.rows.some((r) => r[h.cols.indexOf('hunt_id')] === "'" + id + "_hall'"), 'GP-8 ' + id + ' rehearsed leaves its hall\'s room (' + id + '_hall) out of hr_hunt_travel');
+  }
+  return halls;
 }
 
 /* ── GP-5 / GP-6: the planted grounds ── */
@@ -231,6 +253,7 @@ async function main() {
   if (argv.includes('--loop')) return loop(argv);
   if (argv.includes('--fold')) {
     await gp7();
+    gp8();
     const grounds = childJson(`import { OPEN_GROUNDS } from './src/data/hunt-grounds.js'; console.log(JSON.stringify(Object.keys(OPEN_GROUNDS).filter((g) => !g.startsWith('${FIX}'))));`);
     const planted = await plantAll(grounds);
     try {
@@ -247,7 +270,7 @@ async function main() {
 
 function report() {
   if (fail.length) { for (const f of fail) console.error('✗ ' + f); console.error('ground-pack: ' + fail.length + ' claim(s) red'); process.exit(1); }
-  console.log('ground-pack: green (' + packIds().length + ' pack(s); GP-1..GP-4' + (process.argv.includes('--fold') ? ', GP-5, GP-6, GP-7' : '') + ')');
+  console.log('ground-pack: green (' + packIds().length + ' pack(s); GP-1..GP-4' + (process.argv.includes('--fold') ? ', GP-5, GP-6, GP-7, GP-8' : '') + ')');
 }
 
 /* --mutate: each claim bites. Tree edits are planted packs only, always removed. */

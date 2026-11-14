@@ -152,6 +152,12 @@ export const GROUND_NODE_KINDS = Object.freeze({
   normal_tree: kind('woodcutting', 1, 6, 45000, 'pine', 'mb_pine_stump'),
   oak_tree: kind('woodcutting', 1, 8, 60000, 'oak', 'mb_oak_stump'),
   hollow_oak_tree: kind('woodcutting', 1, 10, 90000, 'mb_hollow_oak', 'mb_hollow_oak_stump'),
+  /* THE BARROW MARCH'S TREE (lane/b-barrow-numbers, designer 2026-11-14): the riverbank tree the art lane drew for the March (sprites
+     `alder` and `alder_stump`, brief 20) works as a WILLOW (gathering.js willow_tree, Woodcutting 30, willow logs; the spec's tier-2 wood).
+     A node kind is a gathering.js row, and no row is an alder: a tree named for a wood the game doesn't have would hand out another
+     tree's logs, and a new wood is a whole content batch (log, plank, recipes) nothing asks for. So the sprite is the March's, the
+     tree is a Willow. It replaces the Greenhaven oaks that stood in on the Ford, the Slake and the Muster Barrows. */
+  willow_tree: kind('woodcutting', 2, 8, 75000, 'alder', 'alder_stump'),
   copper_rock: kind('mining', 1, 6, 45000, 'cw_copper_vein', 'cw_copper_vein_spent'),
   iron_rock: kind('mining', 1, 6, 60000, 'cw_iron_vein', 'cw_iron_vein_spent'),
   coal_rock: kind('mining', 1, 8, 75000, 'cw_coal_seam', 'cw_coal_seam_spent'),

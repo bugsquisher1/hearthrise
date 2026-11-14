@@ -287,7 +287,10 @@ async function ship(id, argv) {
      read the open grounds). Put back as it was if the render refuses. */
   const packFile = join(F.GROUNDS_DIR(), id, 'pack.js');
   const before = readFileSync(packFile, 'utf8');
-  writeFileSync(packFile, before.replace(/^(\s*)status: "staged",$/m, '$1status: "open",').replace(/^(\s*)sql: (null|"[^"]*"),$/m, '$1sql: "' + (was || file) + '",'));
+  /* an open pack re-ships as it stands; a staged one is opened, or refused when its lines can't be found (never a file with no rows) */
+  if (!/^\s*status: "open",$/m.test(before)) {
+    try { writeFileSync(packFile, S.openedText(before, was || file)); } catch (e) { console.error('pack ship: ' + id + ': ' + (e.message || e)); process.exit(1); }
+  }
   let out;
   try {
     out = S.shipText(id);

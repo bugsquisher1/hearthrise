@@ -33,7 +33,7 @@ WHAT EXISTS (checked on this branch, art/world-src, assets/icons-bundle, origin 
                 brief 13 Q9 but are NOT in assets/icons-bundle/pixel/items here: an import lane owes them, 0 gens.
  Krell's Hold   NO body, tile, wall or prop. Has: 6 heads in pixel/heads (farmhand, hasks_lookout, grave_guard, pyre_priest,
                 gatekeeper, lord_krell; the priest's brow smeared at import), 6 item icons (hall_key, farmhands_tag,
-                lookouts_whistle, barrow_nail, priests_cord, gatekeepers_chain), tier 7 slakehide/shroudweave icons.
+                lookouts_whistle, barrow_nail, priests_cord, gatekeepers_chain), tier 7 dawnhide/duskweave icons.
                 Captain Hask is reused from the Muster, 0 gens.
  8 PLACEHOLDER re-dyed icons (lane/d-barrow-data): dawn_hatchets, ember_hatchets, rune_hatchets, yew_crossbow, duskwood_crossbow,
                 runewood_crossbow, duskwood_wand, duskwood_codex. Real ones: brief 30.

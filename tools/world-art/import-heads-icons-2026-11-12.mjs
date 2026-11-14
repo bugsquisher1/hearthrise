@@ -34,11 +34,11 @@ export const HEAD_BATCHES = Object.freeze({
     'mudlark', 'wight', 'banded_pikeman', 'bannerman', 'barrow_knight', 'captain_hask', 'fordsunk'],
 });
 
-/** Icons, by batch folder. toll_token and the tier 7 ids are the packs' own (lane/b-krells-hold-pack c06c43b23 renamed void* to slakehide/shroudweave). */
+/** Icons, by batch folder. toll_token and the tier 7 ids are the packs' own (lane/b-krells-hold-pack c06c43b23 renamed void* to dawnhide/duskweave). */
 export const ICON_BATCHES = Object.freeze({
   'icons-krell-muster-ford': ['farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain', 'coffin_nail', 'urn_shard', 'toll_token'],
-  'icons-tier7': ['slakehide_helmet', 'slakehide_body', 'slakehide_pants', 'slakehide_boots', 'slakehide_gloves', 'slakehide_belt',
-    'shroudweave_helmet', 'shroudweave_body', 'shroudweave_pants', 'shroudweave_boots', 'shroudweave_gloves', 'shroudweave_belt'],
+  'icons-tier7': ['dawnhide_helmet', 'dawnhide_body', 'dawnhide_pants', 'dawnhide_boots', 'dawnhide_gloves', 'dawnhide_belt',
+    'duskweave_helmet', 'duskweave_body', 'duskweave_pants', 'duskweave_boots', 'duskweave_gloves', 'duskweave_belt'],
   'heads-krell-march-and-rerolls': ['hall_key', 'shroud_pin'],
 });
 

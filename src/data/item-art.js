@@ -125,9 +125,9 @@ export const SHIPPED = Object.freeze({
     'mithril_platebody', 'mithril_platelegs', 'rune_belt', 'rune_boots', 'rune_gauntlets',
     'rune_helm', 'rune_platebody', 'rune_platelegs', 'scholar_belt', 'scholar_body',
     'scholar_boots', 'scholar_gloves', 'scholar_helmet', 'scholar_pants',
-    'shroudweave_belt', 'shroudweave_body', 'shroudweave_boots', 'shroudweave_gloves',
-    'shroudweave_helmet', 'shroudweave_pants', 'slakehide_belt',
-    'slakehide_body', 'slakehide_boots', 'slakehide_gloves', 'slakehide_helmet', 'slakehide_pants',
+    'duskweave_belt', 'duskweave_body', 'duskweave_boots', 'duskweave_gloves',
+    'duskweave_helmet', 'duskweave_pants', 'dawnhide_belt',
+    'dawnhide_body', 'dawnhide_boots', 'dawnhide_gloves', 'dawnhide_helmet', 'dawnhide_pants',
     'snakeskin_belt',
     'snakeskin_body', 'snakeskin_boots', 'snakeskin_gloves', 'snakeskin_helmet',
     'snakeskin_pants', 'sorcerer_belt', 'sorcerer_body', 'sorcerer_boots', 'sorcerer_gloves',
@@ -365,7 +365,7 @@ export const SUPPLY_ART_AHEAD = Object.freeze([]);   // plain_fire_rune's row la
 /* ICONS DRAWN BEFORE THEIR ITEM ROW LANDS (the Krell's Hold, Muster Barrows and Hask's Ford drops, the Pyre Field's shroud pin),
    imported from art/world-src/gen-2026-11-12 by tools/world-art/import-heads-icons-2026-11-12.mjs. They sit under items/ like
    every item icon; tests/pixel-icons.mjs requires the file for each and does not call it an orphan. Delete an id here the day its
-   row ships (the row carries it). The tier 7 slakehide and shroudweave sets' rows landed with the rename (gear-tiers.js). */
+   row ships (the row carries it). The tier 7 dawnhide and duskweave sets' rows landed with the rename (gear-tiers.js). */
 export const ITEM_ART_AHEAD = Object.freeze([
   'hall_key', 'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain', 'coffin_nail', 'urn_shard', 'toll_token', 'shroud_pin']);
 

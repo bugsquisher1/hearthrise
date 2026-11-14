@@ -149,10 +149,10 @@ export const AWAITING_ROSTER = Object.freeze([
   'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
   'steel_needle',
   'verdite_blade', 'verdite_helm', 'verdite_platebody',
-  /* tier 7 leather and cloth, renamed from voidhide_ and voidweave_ (designer 2026-11-10, ruling 6). Their bodies and helmets are Lord Krell's
+  /* tier 7 leather and cloth, Dawnhide and Duskweave (Tyler 2026-11-14), renamed from voidhide_ and voidweave_. Their bodies and helmets are Lord Krell's
      prize (UNREACHABLE.staged); the other four slots of each have no source yet */
-  'shroudweave_belt', 'shroudweave_boots', 'shroudweave_gloves', 'shroudweave_pants',
-  'slakehide_belt', 'slakehide_boots', 'slakehide_gloves', 'slakehide_pants',
+  'duskweave_belt', 'duskweave_boots', 'duskweave_gloves', 'duskweave_pants',
+  'dawnhide_belt', 'dawnhide_boots', 'dawnhide_gloves', 'dawnhide_pants',
   'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidmaw_scepter',
   'voidwoven_sigil', 'warband_bulwark',
   'warboss_standard', 'warden_girdle', 'warden_seal',
@@ -219,7 +219,7 @@ export const UNREACHABLE = Object.freeze({
     'ember_gauntlets', 'ember_helm', 'ember_platebody', 'ember_platelegs',
     'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain', 'hall_key',
     'dawn_sword', 'dawn_warhammer', 'dawn_hatchets', 'duskwood_bow', 'duskwood_crossbow', 'duskwood_staff', 'duskwood_wand', 'duskwood_codex',
-    'dawn_platebody', 'dawn_helm', 'slakehide_body', 'slakehide_helmet', 'shroudweave_body', 'shroudweave_helmet',
+    'dawn_platebody', 'dawn_helm', 'dawnhide_body', 'dawnhide_helmet', 'duskweave_body', 'duskweave_helmet',
   ]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next

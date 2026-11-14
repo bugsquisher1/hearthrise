@@ -93,7 +93,8 @@
 //   PH-26 HUNT DETAILS: all four tabs whole and clear of the fold and the close, no sideways pan; alone, no hero / party switch and
 //         at least 72 px of numbers with Next level in showing (it was 61, its first 30 a head that said Session again); in a party the switch stays
 //   PH-27 EVERY CARD'S WORDS FIT: each tutorial card's words whole without a scroll, in the town's card, beside a sheet and under the
-//         hunt bar, up to the length each room holds; a longer card's corner shows the gold tip until its words end
+//         hunt bar, up to the length each room holds (under the hunt bar the cards a hunt can show, each title on one line, its presses on a row under the words); a longer
+//         card's corner shows the gold tip until its words end
 //   PH-28 HOW YOU FIGHT: the lead and all five ways whole with no scroll; a refusal keeps Enter town on screen; on a screen too short, "More below" until its end
 //   PH-29 THE PARTY PANEL: alone, folded to its name and plus, and a press opens it for good; in a party, open; a desktop from 1280 px starts open with its dash (narrower: HS-28)
 //   PH-30 THE BAR'S PRESSES: the slots' page at least 36 px wide, the setup's name 36 px tall and clear of its neighbour
@@ -860,12 +861,22 @@ async function detailsTabs(page, tag, fails, floor, alone) {
   if (f.list < floor) fails.push('PH-26 [' + tag + '] the numbers have ' + f.list + ' px, under ' + floor);
 }
 /* Each row's words in the card as a host draws it, by the row's own title. Long cards scroll: `under` is the length each room must hold. */
-async function wordsFit(page, sel, field, under, tag, where, fails) {
-  const rows = HUNT_TUTORIAL.filter((c) => typeof c.text === 'string').map((c) => ({ id: c.id, title: c.title, words: (field === 'in' && (c.textIn || c.inWindow)) || c.text }));
+/* `hunting`: the card under the hunt bar. It shows only the cards a hunt can show (none gated on being in town: those are held to the
+   town's card above), and its presses stand on a row under the words, so every title is one line across the card (phone 2026-11-14: on
+   the title's row they left it 75 px, and "Your hero fights on its own" stood four lines at 667x375). */
+async function wordsFit(page, sel, field, under, tag, where, fails, hunting = false) {
+  const inTown = (c) => (c.when || []).some((w) => w && w.kind === 'in_town');
+  const rows = HUNT_TUTORIAL.filter((c) => typeof c.text === 'string' && !(hunting && inTown(c))).map((c) => ({ id: c.id, title: c.title, words: (field === 'in' && (c.textIn || c.inWindow)) || c.text, lines: hunting }));
+  if (hunting && rows.length < 20) { fails.push('PH-27 [' + tag + ' ' + where + '] CONTROL: only ' + rows.length + ' cards a hunt can show'); return; }
   const out = await page.evaluate(([q, list, cap]) => {
     const p = document.querySelector(q); if (!p) return null;
     const t = p.querySelector('.hs-coach-text'), b = p.querySelector('b'), keep = [b.textContent, t.textContent], bad = [];
-    for (const c of list) { b.textContent = c.title; t.textContent = c.words; if (c.words.length < cap && t.scrollHeight > t.clientHeight + 1) bad.push(c.id + ' (' + c.words.length + ' characters, ' + t.clientHeight + ' of ' + t.scrollHeight + ' px)'); }
+    for (const c of list) {
+      b.textContent = c.title; t.textContent = c.words;
+      if (c.words.length < cap && t.scrollHeight > t.clientHeight + 1) bad.push(c.id + ' (' + c.words.length + ' characters, ' + t.clientHeight + ' of ' + t.scrollHeight + ' px)');
+      const n = b.getBoundingClientRect().height / parseFloat(getComputedStyle(b).lineHeight);
+      if (c.lines && n > 1.5) bad.push(c.id + ' title "' + c.title + '" takes ' + Math.round(n) + ' lines');
+    }
     b.textContent = keep[0]; t.textContent = keep[1];
     return bad;
   }, [sel, rows, under]);
@@ -1596,7 +1607,7 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
         await shot(w.page, 'card-sheet-' + tag); await done(w, tag);
       } else fails.push('PH-27 [' + tag + '] the town did not mount');
       const h = await open(vp, HUNT, (env) => { env.state = Object.assign({}, env.state, { level_xp: 0 }); }, { settle: 800 });
-      if (h.up) { await wordsFit(h.page, '.hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min)', 'text', hunt, tag, 'under the hunt bar', fails); await shot(h.page, 'card-hunt-' + tag); await done(h, tag); } else fails.push('PH-27 [' + tag + '] the hunt did not mount');
+      if (h.up) { await wordsFit(h.page, '.hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min)', 'text', hunt, tag, 'under the hunt bar', fails, true); await shot(h.page, 'card-hunt-' + tag); await done(h, tag); } else fails.push('PH-27 [' + tag + '] the hunt did not mount');
     }
     for (const vp of run('partyfold') ? SMALL_PHONES : []) { // PH-29
       const tag = tagOf(vp);
@@ -1787,7 +1798,7 @@ const MUTANTS = [
   ['PH-18 a card stands in the sheet again', 'src/styles/shell.css', '  .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer { position: absolute; margin: 0; top: 50px; left: calc(min(400px, 48vw) + 5px - 100vw); }\n', ''],
   ['PH-18 the note stands over the ground the card names', 'src/styles/shell.css', '  [data-hs-win="hunts"]:has(.hs-win-coach .hs-pointer) .hw-hunts-now { display: none; }\n', '  [data-hs-win="hunts"]:has(.hs-win-coach .hs-pointer) .hw-hunts-now { min-height: 120px; }\n'],
   ['PH-18 Got it chains the next card open', 'src/shell/launcher.js', 'min = folded.min || !!rest || (!!inWin && RESTED.get(cs) === coachWindow(card));', 'min = folded.min || !!rest;'],
-  ['PH-18 the coach foot shares the title row again', 'src/styles/shell.css', '  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min) > .hs-coach-foot { grid-area: 3 / 1 / 4 / 3; margin: 0; white-space: normal; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min) > .hs-coach-foot > :is(.hs-coach-got, .hs-coach-off) { min-height: 40px; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-min { grid-area: 3 / 3; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > b { grid-area: 1 / 1 / 2 / -1; padding-right: 8px; line-height: 1.05; }\n', ''],
+  ['PH-18 the coach foot shares the title row again', 'src/styles/shell.css', '  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min) > .hs-coach-foot { grid-area: 3 / 1 / 4 / 3; margin: 0; white-space: normal; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min) > .hs-coach-foot > :is(.hs-coach-got, .hs-coach-off) { min-height: 40px; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-min { grid-area: 3 / 3; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > b { grid-area: 1 / 1 / 2 / -1; padding-right: 8px; line-height: 1.05; }\n', ''],
   ['PH-18 the next card\'s tab opens nothing', 'src/shell/launcher.js', "  if (action === 'coach-open') RESTED.delete(cs);\n", ''],
   ['PH-19 Summary and Leave stay 7 px apart', 'src/styles/hunt.css', '  .ht-bar [data-hs-act="leave"] { margin-left: 10px; }\n', ''],
   ['PH-19 the folded card lies on the Details close', 'src/styles/hunt.css', '.app:has(.hs-widget.is-analyzer) .hs-widget.is-hunt-topbar > .hs-pointer { display: none; }', '.app:has(.hs-widget.is-analyzer) .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { display: none; }'],
@@ -1825,6 +1836,8 @@ const MUTANTS = [
   ['PH-26 a party loses the switch', 'src/shell/widgets/analyzer.js', "cls(panel, 'is-alone', !crew || crew.members.length < 2);", "cls(panel, 'is-alone', true);"],
   ['PH-27 the presses keep a column down the card', 'src/styles/shell.css', '  .hs-pointer:not(.is-min) > .hs-coach-min { position: static; grid-area: 1 / 3; width: 40px; height: 40px; }\n', '  .hs-pointer:not(.is-min) > .hs-coach-min { position: absolute; top: 0; right: 0; width: 44px; height: 44px; }\n  .hs-pointer:not(.is-min) { padding-right: 48px !important; }\n'],
   ['PH-27 the town\'s card stays narrow', 'src/styles/shell.css', '{ width: min(340px, calc(50vw - 56px)); right: calc(100vw - 8px - min(340px, calc(50vw - 56px))); }', '{ width: 200px; }'],
+  ['PH-27 the words under the hunt bar set at 1.3', 'src/styles/shell.css', '  .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-text { line-height: 1.25; }\n', ''],
+  ['PH-27 the card under the hunt bar keeps its presses on the title\'s row', 'src/styles/shell.css', '  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) { padding: 0 0 0 12px; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min) > .hs-coach-foot { grid-area: 3 / 1 / 4 / 3; margin: 0; white-space: normal; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min) > .hs-coach-foot > :is(.hs-coach-got, .hs-coach-off) { min-height: 40px; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-min { grid-area: 3 / 3; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > b { grid-area: 1 / 1 / 2 / -1; padding-right: 8px; line-height: 1.05; }\n', '  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) { padding: 0 0 0 12px; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min) > .hs-coach-foot { grid-area: 3 / 1 / 4 / 3; margin: 0; white-space: normal; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min) > .hs-coach-foot > :is(.hs-coach-got, .hs-coach-off) { min-height: 40px; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-min { grid-area: 3 / 3; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > b { grid-area: 1 / 1 / 2 / -1; padding-right: 8px; line-height: 1.05; }\n'],
   ['PH-27 the card under the hunt bar stays narrow', 'src/styles/shell.css', '  .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { width: min(320px, 100%); }\n', '  .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { width: min(200px, 100%); }\n'],
   ['PH-27 no tip says the words go on', 'src/styles/shell.css', 'linear-gradient(to bottom left, var(--gold-2) 50%, transparent 50%) no-repeat right 7px bottom 2px / 5px 6px,\n      linear-gradient(to bottom right, var(--gold-2) 50%, transparent 50%) no-repeat right 2px bottom 2px / 5px 6px;', 'none;'],
   ['PH-7 the ring\'s XP grows past the disc', 'src/styles/hunt.css', '  .hb-xp { font-size-adjust: var(--f-ui-aspect); }\n', '  .hb-xp { font-size-adjust: .7; }\n'],

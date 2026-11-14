@@ -3278,3 +3278,12 @@ top row alone (Shop "Sell what only pays coin": 5/3/3 lines at 667/844/922 -> 1/
 costs a line PH-27 does not have: paid for with the card's own 40 px presses, a 1.05 one-line title and words at 1.3
 (--coach-foot feeds every words cap). The hunt-bar card keeps the shared row (no line to spare). Lesson: name scratch
 scripts per lane; a stale shared `edit.cjs` re-ran another lane's edits (filed in DISCOVERIES).
+
+## 2026-11-14 lane/a-phone-hunt-coach
+The hunt-bar coach card now has the foot row too (one card design in town, beside a sheet and under the hunt bar). Title
+"Your hero fights on its own": 4 lines -> 1 at 667x375 and 844x390 (Cinzel); card 127 -> 99 px. Shorter titles were tried
+first and rejected: beside both presses the title column is ~75 px, so even "Your hero fights" stood 3 lines. A wider card
+was rejected by PH-10 (20 px more at 844 puts Mira under the Party panel). The row is paid for with words at 1.25 under the
+hunt bar; PH-27 under the hunt bar now measures only cards a hunt can show (town-gated ones are held to the town card) and
+each title on one line. Lesson: local-world blocks Google Fonts, so its title widths are the fallback face; read the
+phone-touch --shots run (real faces) for Cinzel.

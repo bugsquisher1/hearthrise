@@ -144,6 +144,21 @@ async function bow() {
   }
 }
 
-const run = { floors, death, bow }[mode];
+/* A TOWER WEAPON'S +SKILL (Tyler 2026-11-14: Bronze +1, Silver +2, Gold +3, Platinum +4 to the weapon's own combat skill), read as that
+   skill raised on the hero with everything else at its Level: three ways to fight on the Warrens' Normal, the same dice. */
+async function skill() {
+  const R = await loadCellRunner(ROOT);
+  const play = (style, id, add) => R.runCell({ id: 'skill', ground: 'coppercap_warrens', party: [style], level: LEVEL, hours: 2, seeds: SEEDS, segmentH: 2,
+    skillsBySeat: [{ melee: LEVEL, ranged: LEVEL, magic: LEVEL, defense: LEVEL, [id]: LEVEL + add }] }).heroes[0];
+  console.log('+SKILL ON A WEAPON: Level XP an hour against the same hero with no bonus, the Warrens\' Normal, Level ' + LEVEL + ', ' + SEEDS + ' seeds x 2 h, the same dice.');
+  console.log('| Way to fight | Skill | +1 | +2 | +3 | +4 |');
+  console.log('|---|---|---|---|---|---|');
+  for (const [style, id] of [['bow', 'ranged'], ['hammer', 'melee'], ['sword', 'melee'], ['mage', 'magic'], ['healer', 'magic']]) {
+    const base = play(style, id, 0).levelXpPerH;
+    console.log('| ' + style + ' | ' + id + ' | ' + [1, 2, 3, 4].map((n) => (play(style, id, n).levelXpPerH / base).toFixed(3)).join(' | ') + ' |');
+  }
+}
+
+const run = { floors, death, bow, skill }[mode];
 if (!run) { console.error('usage: node tools/balance-sim/tower-table.mjs floors|death|bow [--level N] ...'); process.exit(1); }
 try { const ok = await run(); process.exit(ok === false ? 1 : 0); } catch (e) { console.error(String((e && e.stack) || e)); process.exit(1); }

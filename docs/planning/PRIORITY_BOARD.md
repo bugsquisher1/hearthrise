@@ -356,39 +356,43 @@ Nearly flat on purpose, so "any key could be the one" is true for a new hero too
 
 #### 6. Tower weapons
 **Where they sit.**
-| Key | Worn at Level | Numbers | Attribute size |
+| Key | Worn at Level | Numbers | Its weapons give |
 |---|---|---|---|
-| Bronze | 15 | The Iron weapon's of its type (tier 2) | Half |
-| Silver | 45 | The Mithril or Maple weapon's (tier 4) | Full |
-| Gold | 75 | The Emberforged or Runewood weapon's (tier 6) | One and a half |
-| Platinum | 88 | The Dawnsteel or Duskwood weapon's (tier 7) | Double |
+| Bronze | 15 | The Iron weapon's of its type (tier 2) | +1 to the weapon's own combat skill |
+| Silver | 45 | The Mithril or Maple weapon's (tier 4) | +2 |
+| Gold | 75 | The Emberforged or Runewood weapon's (tier 6) | +3 |
+| Platinum | 88 | The Dawnsteel or Duskwood weapon's (tier 7) | +4 |
+| The next key | Its own | Its region's unique gear | +5, and one more for each key after |
 
 A hero climbing alone reaches a landing at about its own Level, so the key they earn opens the weapon they are about to wear. A four gets there about 25 Levels early and holds it or sells it.
 
-**The budget.** A tower weapon has the same accuracy and damage as the standard weapon of its rank, plus one attribute. It keeps a tier, so Tempering, sale rates and the kit ladders work with no new rule. Measured for the bow: `tower-table.mjs bow`, a bow alone at Level 45 on the Warrens' Normal, 2 seeds x 2 h, the same dice.
-| Bow | Level XP an hour | Against the standard bow |
-|---|---|---|
-| Standard (Willow Longbow, the bow a Level 45 hero can get today) | 179.8k | 1.000 |
-| The same numbers, +6% crit | 183.3k | 1.019 |
-| +9% crit | 187.1k | 1.040 |
-| +12% crit | 185.4k | 1.031 |
+**The special attribute is +skill (Tyler 2026-11-14: "I realized i know what i want as additional attributes on tower weapons.. + respective combat skill. bronze +1, silver +2, gold +3, plat +4").** This replaces the one-attribute-for-each-type table (the bow's crit, the wand's Surge and the rest). It is a column on the key table, so a later key's number is its row's.
+| Weapon | The skill it raises |
+|---|---|
+| Sword, Hammer, Hatchets | Melee |
+| Bow, Crossbow | Ranged |
+| Wand, Staff | Magic |
 
-So the attribute is worth about 2 to 4% (two seeds, so the 9 and 12 rows are inside each other's noise). A whole weapon tier is worth 5 to 8% (balance ruling 10-25 §8). A tower weapon beats the standard weapon of its own rank and never reaches the next one. That is what "relatively close but with a special attribute" comes to in numbers. The standing guard to write with the rows: no tower weapon out-earns the next standard tier, and none is worth more than half a rung over its own.
+**The rule (Tyler 2026-11-14: "correct, it functions like it does in tibia". The mechanic only).** The bonus is an equipment bonus to the hero's effective combat skill while the weapon is worn. It raises damage, the chance to hit and spell and heal power exactly as that many more skill levels would. It adds no skill XP and no skill levels. It doesn't count toward anything that asks for a skill level: runes, ammo and supplies still read the base skill (10-24), and so does any task, title or board. The Leaderboards rank the base skill. It is gone the moment the weapon comes off.
 
-**The weapon rows follow the key table.** A key row names its set of seven, so a key above Platinum brings its own seven and nothing here is rewritten. Past Dawnsteel there is no standard tier to copy, so that set takes its numbers from the unique gear of the region it ships with (the Morrow Hills, Levels 110 and up).
+**The budget.** A tower weapon has the same accuracy and damage as the standard weapon of its rank, plus the +skill. It keeps a tier, so Tempering, sale rates and the kit ladders work with no new rule. Measured: `node tools/balance-sim/tower-table.mjs skill`, a hero alone at Level 45 with every combat skill at 45 on the Warrens' Normal, 2 seeds x 2 h, the same dice, the weapon's skill raised by the bonus. Level XP an hour against no bonus:
+| Way to fight | +1 | +2 | +3 | +4 |
+|---|---|---|---|---|
+| Bow (Ranged) | 1.019 | 1.019 | 1.019 | 1.064 |
+| Hammer (Melee) | 1.000 | 1.022 | 1.037 | 1.036 |
+| Sword alone (Melee) | 1.036 | 1.044 | 1.049 | 1.114 |
+| Wand and book (Magic) | 1.016 | 1.026 | 1.027 | 1.047 |
+| Staff, the Healer alone (Magic) | 1.000 | 1.022 | 1.010 | 1.010 |
 
-**One attribute for each weapon type.** Sizes are the Silver Key's. Each one is its own line on the item card and adds to what jewelry gives. Crit stays under the engine's 60% cap.
-| Weapon | Attribute | In plain words | Engine today |
-|---|---|---|---|
-| Bow | Crit | 6% more of your shots land critical | Live. `critB` on the item row |
-| Crossbow | Punch-through | 6% of your bolts carry on into one more monster | Live as jewelry's Follow-through. Needs the item to feed it |
-| Wand | Surge | 10% of your spells land half again as hard | Live as jewelry's Surge. The same |
-| Staff | Thrift | 8% of your heals cost no mana | Designed for jewelry, hook not built |
-| Sword | Deflect | 4% of the blows at you are turned aside | Designed for jewelry, hook not built |
-| Hammer | Second Wind | 1% of your HP back on each kill | Designed for jewelry, hook not built |
-| Hatchets | Deep Cuts | Your bleeds tick 10% harder | New hook |
+Two seeds, so read it in bands and not to the digit: a skill level moves damage in whole steps, which is why some rows sit flat and then jump. +1 is worth 0 to 4%, +2 is 2 to 4%, +3 is 1 to 5% and +4 is 4 to 11% for the damage styles. A whole weapon tier is worth 5 to 8% (balance ruling 10-25 §8). So Bronze, Silver and Gold weapons beat the standard weapon of their own rank and stay under the next tier. A Platinum weapon is worth about a tier by itself, and that is right for it: there is no standard tier above Dawnsteel, so it is the top of the ladder, the first unique-style weapon, and the hardest one to get at 2%.
 
-The sizes are jewelry's own measured exchange rate (`src/data/jewelry.js`, the tier 3 column), so a staff's 8% and a bow's 6% are meant to be worth the same. Only the bow is measured here. Three attributes play on hooks that exist. Three more are jewelry perks that were already waiting on a hook, so building them pays for both systems. `item-effects.js` holds the rule: an attribute ships in the same change as its engine and its test.
+**Why Platinum gets very desirable, and whether that is a problem.** The Coordinator's figure: on the skill curve, +4 near skill 80 is about 140 hours of training. That is the real pull, more than the 4 to 11% measured at Level 45, and it grows with the hero, because each skill level costs more than the last. It is not measured past 45 here. I'd keep it: it is exactly the "special attribute" a top hero will trade for, it can't be bought with anything but a weapon another player rolled, and it never makes the skill itself any higher.
+
+**Does it break a ground's difficulty band? No.** The bonus is on the weapon's own skill, so it makes a hero kill faster. It does not touch Defense, armor or HP, so a monster's blow lands as hard and as often as before. Normal at a ground's Level was already near no risk, and the harder tiers get a little shorter fights, well inside what one weapon tier already does. The one place to watch is the Healer: +Magic raises heals, and a Platinum staff on a party's healer is +4 skill of healing on the harder tiers. It measured 0 to 2% alone at 45 and gets checked in a four when the rows are built.
+
+**How it shows (Tyler's screenshot, 2026-11-14: a skill row reading the level, then a green +N, then the bar and its percent).** On the skills and hero windows, each combat skill row reads: the base level, then the equipment bonus as a green "+N", then the progress bar and the percent toward the next BASE level. The +N is the server's own sum of every worn bonus to that skill, tower weapons and any other gear that ever gives one. It uses the positive color token that exists, no new color, and today's row layout. The bonus never changes the base number or the percent. A row with no bonus shows no "+0".
+
+**What the engine needs.** One item field, the skill and how much, summed over what is worn and added to the skill wherever combat reads it (`src/core/combat.js`), and projected in the envelope for the row above. It is not in `item-effects.js` today, so it ships in the same change as its test, and that is the whole list: the six per-type hooks the earlier table needed are no longer needed.
 
 **The sample of five: the Silver Key's weapons (Level 45).** Names from the people of Havora who left them on the ledge. All checked free.
 | Weapon | Type | One line |
@@ -401,7 +405,7 @@ The sizes are jewelry's own measured exchange rate (`src/data/jewelry.js`, the t
 
 The hatchets and the crossbow are named when the five have been built and played. Then the Bronze Key's seven, then Gold and Platinum with the Barrow March, never more than 20 rows in a batch.
 
-**Beside Dawnhide, Duskweave and unique gear after tier 7.** The Tower gives weapons only. Armor stays with the grounds and Krell, so Dawnhide and Duskweave lose nothing. A Platinum bow with a Dawnhide set is the tier 7 crit build, and nobody has to be told that. Dawnsteel is the last standard tier, and the Platinum weapons respect it: Dawnsteel numbers and a double attribute, not a tier 8. They are the first unique-style weapons a hero can own, and they sit beside the Morrow Hills' rare drops as another piece to pick between. The next key starts at floor 130 and is a data row (section 5).
+**Beside Dawnhide, Duskweave and unique gear after tier 7.** The Tower gives weapons only. Armor stays with the grounds and Krell, so Dawnhide and Duskweave lose nothing. A Platinum bow with a Dawnhide set is +4 Ranged on top of the leather's own crit, and nobody has to be told that. Dawnsteel is the last standard tier, and the Platinum weapons respect it: Dawnsteel numbers and a double attribute, not a tier 8. They are the first unique-style weapons a hero can own, and they sit beside the Morrow Hills' rare drops as another piece to pick between. The next key starts at floor 130 and is a data row (section 5).
 
 **Trading is the server's.** A tower weapon lists in the Weighhouse through the escrow that exists (`hr_market_*`), with a ceiling row for each weapon the way jewelry has one, and it moves in player trade when that ships. It sells to the Shop at the dropped-gear rate for its tier, so the Shop is a floor and never the reason to open a chest. Every move is journalled.
 
@@ -498,11 +502,11 @@ One gap this found. Step 3 needs the hero to have gold for food. A Level 10 hero
 
 Both paths (§4): the climb viewed and the browser closed are the same settle, and the guard in section 3 plays both.
 
-**Build order.** 1: the mode switch and its guard, alone, because every later mode needs it. 2: the floor rows and a Tower room, a climb with no keys, measured as a real climb. 3: the chest, the Bronze and Silver keys, the sample of five weapons with the three live attributes. 4: the boards and the season. 5: the three waiting hooks, then the rest of the weapons. 6: Gold and Platinum with the Barrow March. The feature stays hidden until step 3 is whole.
+**Build order.** 1: the mode switch and its guard, alone, because every later mode needs it. 2: the floor rows and a Tower room, a climb with no keys, measured as a real climb. 3: the chest, the Bronze and Silver keys, the sample of five weapons with the +skill field. 4: the boards and the season. 5: the rest of the weapons. 6: Gold and Platinum with the Barrow March. The feature stays hidden until step 3 is whole.
 
-**For other lanes.** Systems: the mode switch in `die()`, a floor counter and floor-by-floor rows in one instance, the floor's time as an END reason, item-fed Follow-through and Surge, a named kit in the sim. Backend: section 10. Art Director: the one chest on the ledge, the flue room kit, the fire tint, the Tower window, the opening reveal. Security: keys that can't trade, the weekly cap, the floors a minute clamp, the chest roll, weapons through the market.
+**For other lanes.** Systems: the mode switch in `die()`, a floor counter and floor-by-floor rows in one instance, the floor's time as an END reason, the +skill item field and its row on the skills window, a named kit in the sim. Backend: section 10. Art Director: the one chest on the ledge, the flue room kit, the fire tint, the Tower window, the opening reveal. Security: keys that can't trade, the weekly cap, the floors a minute clamp, the chest roll, weapons through the market.
 
-**Done and verified.** Every existing id here was read on main. Every new name was checked free. The floor curve, the solo and four reach, the XP rates, the bow and the no-loss check are the real engine's numbers from `tower-table.mjs`, each run's exit code 0. **Not verified.** Nothing was played by hand. No real climb, no Keeper, no mixed roster, no Level past 45. Six of the seven attributes. The chest counts. The story and every player line have had no reader. **Assumed.** The 16 / 8 / 4.5 / 2% odds, the Sweep's Coat odds and add-on landings, the Cinders and Salts counts, the Tower's party row for pairs and threes, the Keeper's pulse, the three and ten minute limits, the 40% guard line.
+**Done and verified.** Every existing id here was read on main. Every new name was checked free. The floor curve, the solo and four reach, the XP rates, the +skill table and the no-loss check are the real engine's numbers from `tower-table.mjs`, each run's exit code 0. **Not verified.** Nothing was played by hand. No real climb, no Keeper, no mixed roster, no Level past 45. The +skill past Level 45 and in a four. The chest counts. The story and every player line have had no reader. **Assumed.** The 16 / 8 / 4.5 / 2% odds, the Sweep's Coat odds and add-on landings, the Cinders and Salts counts, the Tower's party row for pairs and threes, the Keeper's pulse, the three and ten minute limits, the 40% guard line.
 
 **Where the six questions stand (Tyler 2026-11-14).**
 | # | Question | State |
@@ -511,7 +515,7 @@ Both paths (§4): the climb viewed and the browser closed are the same settle, a
 | 2 | Does climbing drain stamina? | Stands as picked: yes. His answer leans on it ("since it uses stamina and supplies") |
 | 3 | Can keys be traded or sold? | Stands as picked: no, and opening is free |
 | 4 | How rare are the weapons? | ANSWERED and locked: six keys a week for each hero (24 for an account of four), no per-hour option. Odds reversed by Tyler: 16 / 8 / 4.5 / 2%. The weapon is your equipped type half the time (his pick). The first-key guarantee is dropped |
-| 5 | How strong are they? | Stands as picked: the standard weapon's numbers plus the attribute |
+| 5 | How strong are they? | ANSWERED: the standard weapon's numbers plus +1 / +2 / +3 / +4 to the weapon's own combat skill, an equipment bonus as he confirmed |
 | 6 | Is the Tower the Hearth's chimney, and is that story his? | ANSWERED and locked: "I like it for the lore / story". One chest, an open key table and the plain summary were his additions |
 
 ### 2026-11-13 No profit molds on the live grounds (designer, lane/d-no-profit-molds; **Tyler 2026-11-13: no profit molds**): BUILT, MEASURED on the full grade, the edge moves, ONE staged catalogue

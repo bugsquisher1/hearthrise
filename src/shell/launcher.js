@@ -17,6 +17,7 @@ import { COACH_READ_MAX, COACH_HID_MAX } from '../session/residue.js?v=0.2.129';
 import { TIPS } from '../data/tips.js?v=0.2.129';
 import { switchOn, setSwitch } from '../session/player-switch.js?v=0.2.129';
 import { t } from '../render/player-text.js?v=0.2.129';
+import { keepLastWords } from '../render/format.js?v=0.2.129';
 import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.129';
 import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.129';
 import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.129';
@@ -287,7 +288,7 @@ export function coachHtml(cs, card, inWin, rest) {
   const also = Array.isArray(card.also) && card.also.length ? card.also : null;
   const open = !!also && ALSO_OPEN.get(cs) === card.id;
   return head + '<button type="button" class="hs-coach-min" data-hs-act="coach-min" aria-expanded="true" aria-label="Minimize '
-    + esc(card.title) + '" title="Minimize"></button>' + close + '<b>' + esc(card.title) + '</b> <span class="hs-coach-text">' + esc(card.text) + '</span>'
+    + esc(card.title) + '" title="Minimize"></button>' + close + '<b>' + esc(keepLastWords(card.title)) + '</b> <span class="hs-coach-text">' + esc(card.text) + '</span>'
     + (line ? '<button type="button" class="hs-coach-more" data-hs-act="coach-more" aria-expanded="false" hidden>More</button>' : '')
     + (also ? ' <button type="button" class="hs-coach-more" data-hs-act="coach-more" aria-expanded="' + open + '">' + (open ? 'Less' : 'More') + '</button><span class="hs-coach-also"' + (open ? '' : ' hidden') + '>'
       + also.map((g) => '<span class="hs-coach-goal">' + esc(g) + '</span>').join('') + '</span>' : '')

@@ -8,7 +8,7 @@
 //   node tests/phone-touch.mjs --shots <dir>  also write the visual-gate screenshots (667x375, 844x390,
 //                                             922x423, portrait 390x844 and desktop 1440x900, fonts loaded)
 //
-// mutant-anchors: src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js
+// mutant-anchors: src/render/format.js src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js
 // mutant-writes-tree: no — page mutants are served overrides
 // mutant-rule-functions: bagReach configureFits analyzerToggles portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule rules
 // mutant-runner-functions: main
@@ -94,7 +94,7 @@
 //         at least 72 px of numbers with Next level in showing (it was 61, its first 30 a head that said Session again); in a party the switch stays
 //   PH-27 EVERY CARD'S WORDS FIT: each tutorial card's words whole without a scroll, in the town's card, beside a sheet and under the
 //         hunt bar, up to the length each room holds (under the hunt bar the cards a hunt can show, each title on one line, its presses on a row under the words); a longer
-//         card's corner shows the gold tip until its words end
+//         card's corner shows the gold tip until its words end; at 1440x900 no title of three words or more ends on one word
 //   PH-28 HOW YOU FIGHT: the lead and all five ways whole with no scroll; a refusal keeps Enter town on screen; on a screen too short, "More below" until its end
 //   PH-29 THE PARTY PANEL: alone, folded to its name and plus, and a press opens it for good; in a party, open; a desktop from 1280 px starts open with its dash (narrower: HS-28)
 //   PH-30 THE BAR'S PRESSES: the slots' page at least 36 px wide, the setup's name 36 px tall and clear of its neighbour
@@ -861,6 +861,41 @@ async function detailsTabs(page, tag, fails, floor, alone) {
   if (f.list < floor) fails.push('PH-26 [' + tag + '] the numbers have ' + f.list + ' px, under ' + floor);
 }
 /* Each row's words in the card as a host draws it, by the row's own title. Long cards scroll: `under` is the length each room must hold. */
+/* A wrapped title never leaves one word alone on its last line (1440x900, 2026-11-14: "Your hero fights on its / own"). The open card's
+   title is the one launcher.js drew (keepLastWords: its last two words held by a no-break space); then every title of three words or more,
+   through the page's own keepLastWords, is drawn in the card a word to a span, and its last line must hold at least two words. */
+async function titlesBalance(page, sel, tag, fails) {
+  const titles = HUNT_TUTORIAL.map((c) => [c.id, c.title]).filter(([, t]) => typeof t === 'string' && t.trim().split(/ +/).length >= 3);
+  const out = await page.evaluate(async ([q, list]) => {
+    const p = document.querySelector(q); if (!p) return null;
+    /* the module as the page imports it: the same ?v= as its own scripts, so it is the same (served) file launcher.js runs */
+    const v = (Array.from(document.scripts).map((s) => s.src).find((u) => /\?v=/.test(u)) || '').split('?v=')[1];
+    if (!v) return { control: 'no ?v= on the page\'s scripts' };
+    const { keepLastWords } = await import(new URL('src/render/format.js?v=' + v, location.href).href);
+    if (typeof keepLastWords !== 'function') return { control: 'src/render/format.js has no keepLastWords' };
+    const b = p.querySelector('b'), keep = b.innerHTML, bad = [], own = b.textContent;
+    if (own.trim().split(/ +/).length >= 3 && !/ \S+\s*$/.test(own)) bad.push('the open card\'s title "' + own + '" does not hold its last two words together');
+    let wrapped = 0;
+    /* At the card's own width, and at 150 px: the guards' fallback face is narrower than Cinzel and wraps no title at 260 px. */
+    for (const w of ['', '150px']) {
+      b.style.maxWidth = w;
+      for (const [id, t] of list) {
+        b.textContent = '';
+        const spans = keepLastWords(t).trim().split(/ +/).map((x, i) => { if (i) b.append(' '); const s = document.createElement('span'); s.textContent = x; b.append(s); return s; });
+        const top = (s) => s.getBoundingClientRect().top, n = spans.length;
+        if (top(spans[n - 1]) > top(spans[0]) + 1) wrapped++;
+        const last = spans.filter((s) => Math.abs(top(s) - top(spans[n - 1])) <= 1).reduce((k, s) => k + s.textContent.split(/\s+/).length, 0);
+        if (last < 2) bad.push(id + ' "' + t + '"' + (w ? ' at ' + w : ''));
+      }
+    }
+    b.style.maxWidth = ''; b.innerHTML = keep;
+    return { bad, wrapped, n: list.length };
+  }, [sel, titles]);
+  if (out === null) { fails.push('PH-27 [' + tag + '] CONTROL: no open card'); return; }
+  if (out.control) { fails.push('PH-27 [' + tag + '] CONTROL: ' + out.control); return; }
+  if (out.n < 20 || out.wrapped < 3) { fails.push('PH-27 [' + tag + '] CONTROL: ' + out.n + ' titles, ' + out.wrapped + ' wrap, so the rule proves nothing'); return; }
+  if (out.bad.length) fails.push('PH-27 [' + tag + '] a title ends on one word: ' + out.bad.join('; '));
+}
 /* `hunting`: the card under the hunt bar. It shows only the cards a hunt can show (none gated on being in town: those are held to the
    town's card above), and its presses stand on a row under the words, so every title is one line across the card (phone 2026-11-14: on
    the title's row they left it 75 px, and "Your hero fights on its own" stood four lines at 667x375). */
@@ -1609,6 +1644,10 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       const h = await open(vp, HUNT, (env) => { env.state = Object.assign({}, env.state, { level_xp: 0 }); }, { settle: 800 });
       if (h.up) { await wordsFit(h.page, '.hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min)', 'text', hunt, tag, 'under the hunt bar', fails, true); await shot(h.page, 'card-hunt-' + tag); await done(h, tag); } else fails.push('PH-27 [' + tag + '] the hunt did not mount');
     }
+    if (run('cards')) { // PH-27 at the desktop: no title ends on one word
+      const d = await open({ width: 1440, height: 900 }, HUNT, (env) => { env.state = Object.assign({}, env.state, { level_xp: 0 }); }, { settle: 800 });
+      if (d.up) { await titlesBalance(d.page, '.hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min)', '1440x900', fails); await shot(d.page, 'card-hunt-1440x900'); await done(d, '1440x900'); } else fails.push('PH-27 [1440x900] the hunt did not mount');
+    }
     for (const vp of run('partyfold') ? SMALL_PHONES : []) { // PH-29
       const tag = tagOf(vp);
       const o = await open(vp, HUNT, aloneInHunt, { crew: 1 });
@@ -1836,7 +1875,9 @@ const MUTANTS = [
   ['PH-26 a party loses the switch', 'src/shell/widgets/analyzer.js', "cls(panel, 'is-alone', !crew || crew.members.length < 2);", "cls(panel, 'is-alone', true);"],
   ['PH-27 the presses keep a column down the card', 'src/styles/shell.css', '  .hs-pointer:not(.is-min) > .hs-coach-min { position: static; grid-area: 1 / 3; width: 40px; height: 40px; }\n', '  .hs-pointer:not(.is-min) > .hs-coach-min { position: absolute; top: 0; right: 0; width: 44px; height: 44px; }\n  .hs-pointer:not(.is-min) { padding-right: 48px !important; }\n'],
   ['PH-27 the town\'s card stays narrow', 'src/styles/shell.css', '{ width: min(340px, calc(50vw - 56px)); right: calc(100vw - 8px - min(340px, calc(50vw - 56px))); }', '{ width: 200px; }'],
-  ['PH-27 the words under the hunt bar set at 1.3', 'src/styles/shell.css', '  .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-text { line-height: 1.25; }\n', ''],
+  ['PH-27 a wrapped title leaves its last word alone', 'src/render/format.js', '.split(/ +/).length >= 3 ? t.replace(', '.split(/ +/).length >= 99 ? t.replace('],
+  ['PH-27 the open card draws its title unglued', 'src/shell/launcher.js', "'<b>' + esc(keepLastWords(card.title)) + '</b>", "'<b>' + esc(card.title) + '</b>"],
+  ['PH-27 the words under the hunt bar set at 1.3','src/styles/shell.css', '  .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-text { line-height: 1.25; }\n', ''],
   ['PH-27 the card under the hunt bar keeps its presses on the title\'s row', 'src/styles/shell.css', '  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) { padding: 0 0 0 12px; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min) > .hs-coach-foot { grid-area: 3 / 1 / 4 / 3; margin: 0; white-space: normal; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min) > .hs-coach-foot > :is(.hs-coach-got, .hs-coach-off) { min-height: 40px; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-min { grid-area: 3 / 3; }\n  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > b { grid-area: 1 / 1 / 2 / -1; padding-right: 8px; line-height: 1.05; }\n', '  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) { padding: 0 0 0 12px; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min) > .hs-coach-foot { grid-area: 3 / 1 / 4 / 3; margin: 0; white-space: normal; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min) > .hs-coach-foot > :is(.hs-coach-got, .hs-coach-off) { min-height: 40px; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-min { grid-area: 3 / 3; }\n  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > b { grid-area: 1 / 1 / 2 / -1; padding-right: 8px; line-height: 1.05; }\n'],
   ['PH-27 the card under the hunt bar stays narrow', 'src/styles/shell.css', '  .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { width: min(320px, 100%); }\n', '  .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { width: min(200px, 100%); }\n'],
   ['PH-27 no tip says the words go on', 'src/styles/shell.css', 'linear-gradient(to bottom left, var(--gold-2) 50%, transparent 50%) no-repeat right 7px bottom 2px / 5px 6px,\n      linear-gradient(to bottom right, var(--gold-2) 50%, transparent 50%) no-repeat right 2px bottom 2px / 5px 6px;', 'none;'],

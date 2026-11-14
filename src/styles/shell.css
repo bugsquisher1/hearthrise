@@ -110,7 +110,9 @@
 }
 /* In a hunt the card hangs under the hunt top bar (hunt-topbar.js), inside that widget's own box. */
 .hs-widget > .hs-pointer { left: 0; width: min(260px, 100%); }
-.hs-pointer b { display: block; font-family: var(--f-display); font-weight: 700; letter-spacing: .06em; color: var(--gold-2); }
+/* A title that wraps splits evenly; its last two words are held together (launcher.js keepLastWords), so no word stands alone on its
+   last line ("Your hero fights on its / own" at 1440x900, 2026-11-14; balance alone still left "Defense isn't / training"). */
+.hs-pointer b { display: block; font-family: var(--f-display); font-weight: 700; letter-spacing: .06em; color: var(--gold-2); text-wrap: balance; }
 /* The pointer's tip stands on the frame's top edge (the frame is 6 px). */
 .hs-pointer::before { content: ''; position: absolute; top: -12px; left: 10px; border: 6px solid transparent; border-top: 0; border-bottom-color: var(--gold); }
 /* The coach folds (launcher.js coachFoldOf): a dash at the card's corner folds it to its title, a tab that opens it;

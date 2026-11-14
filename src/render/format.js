@@ -38,6 +38,13 @@ export function listWords(names, max = 3, conj = 'and') {
   return a.slice(0, -1).join(', ') + ' ' + conj + ' ' + a[a.length - 1];
 }
 
+/** A heading's last two words held together by a no-break space, so a wrapped title of three words or more never leaves one
+    word alone on its last line ("Your hero fights on its / own", 1440x900 2026-11-14). Shorter titles are as given. */
+export function keepLastWords(s) {
+  const t = String(s == null ? '' : s);
+  return t.trim().split(/ +/).length >= 3 ? t.replace(/ +(\S+)\s*$/, ' $1') : t;
+}
+
 /** 1,234 gp */
 export function gold(v) { return ok(v) ? whole(v) + ' gp' : DASH; }
 

@@ -56,16 +56,16 @@ export const TALLY_TEXT = Object.freeze({
   board_level_party: 'Level {level}, party',
   board_party: 'Best with a party',
   take_held_why: 'You already have this task.',
-  first_take_worn: 'When you take your first task, she pays you in {weight} armor, the weight you wear most. Change it below any time.',
-  first_take_role: 'When you take your first task, she pays you in {weight} armor, which suits {role}. Change it below any time.',
   no_weight: 'Pick the armor weight she pays you in first. You can change it later.',
 
   /* Her pick, folded to one line at the foot; Change opens the picker (Take, Abandon, Keep and Close are the glossary's, src/data/text/controls.js). */
   pick_label: 'The armor weight she pays you in',
   order_label: 'The order she fills your slots in',
   pick_line: 'She pays you in {weight} armor, {first} first, then {second} and {third}.',
-  pick_none: 'Pick the armor weight she pays you in.',
-  pick_none_suggest: 'When you take your first task, she picks the armor weight for you. Or pick it here.',
+  pick_none: 'No armor weight picked yet.',
+  /* Before the server answers her first-visit ask (tally.js suggestedWeight): the weight that suits and why, said once. {role} is "a shield tank". */
+  suggest_worn: 'She\'ll pay you in {weight} armor, since that\'s what you wear most.',
+  suggest_role: 'She\'ll pay you in {weight} armor, since you\'re {role}.',
   change: 'Change',
   weight_heavy: 'Heavy',
   weight_medium: 'Medium',

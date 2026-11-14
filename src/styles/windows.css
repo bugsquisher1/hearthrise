@@ -1042,7 +1042,6 @@
 .ht-day { justify-self: end; font-size: var(--t-micro); color: var(--ink-3); white-space: nowrap; }
 .ht-day-paid { color: var(--ink); font-weight: 700; }
 .ht-day.is-full .ht-day-paid { color: var(--gold-2); }
-.ht-day-new:not(:empty)::before { content: ' · '; color: var(--ink-3); font-weight: 400; }
 .ht-voice { grid-column: 1 / -1; margin: 6px 0 0; padding-left: 10px; border-left: 2px solid var(--gold); font-size: var(--t-small); line-height: 1.35; color: var(--ink); }
 .ht-voice:empty { display: none; }
 /* Section heads are the Forged Steel .hw-ledger-head (shell.css); the held count sits past the rule. Your tallies goes (no .is-on) with nothing held. */
@@ -1057,7 +1056,7 @@
 .ht-entry-top > b { font-weight: 700; font-size: var(--t-small); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ht-count { white-space: nowrap; line-height: 1; }
 .ht-count b { font-weight: 800; font-size: var(--t-lead); color: var(--ink); }
-.ht-count small { margin-left: 3px; font-weight: 400; font-size: var(--t-micro); color: var(--ink-3); }
+.ht-count small { font-weight: 400; font-size: var(--t-micro); color: var(--ink-3); }
 .ht-entry .ht-pocket { grid-column: 2; grid-row: 1 / span 2; }
 .ht-face { display: none; }
 /* The creature's head (art brief 15): the bag's sunk well, no frame of its own, the bust at its one 32 px density; no head, no well and the two columns stay. */
@@ -1099,7 +1098,6 @@
 .ht-row-name b { font-weight: 700; color: var(--ink); line-height: 1.2; }
 .ht-row-name small, .ht-pay small { font-size: var(--t-micro); color: var(--ink-2); line-height: 1.2; }
 .ht-row-lvl { white-space: nowrap; }
-.ht-row-lvl:not(:empty)::before { content: ' · '; }
 .ht-pay { display: flex; flex-direction: column; min-width: 0; }
 .ht-pay b { font-weight: 700; color: var(--ink); white-space: nowrap; }
 /* the once note runs under the whole row, never squeezed into the pay column (played 11-12: three lines at 118 px) */

@@ -487,7 +487,7 @@ export function ringPlan(card, at) {
         inWin('skills-trade', '.hw-skill[data-key="' + g.skill + '"]'),
         inWin('skills-trade', '.hw-work.is-on:not(:has(.hw-work-row[data-id="' + g.work + '"])) [data-hs-act="work-back"]')];
     case 'tally':
-      /* A first Take asks for the weight that suits (tally.js suggestedWeight), so it is rung while it can fire; off (the server has not said the role), the picker,
+      /* Her window asks for the weight that suits on a first visit (tally.js suggestedWeight), so Take is rung while it can fire; off (the server has not said the role), the picker,
          or the Change press over her board that opens it while it is folded (the picker sits behind Change since the 11-11 ledger) */
       return [inWin('tally', '[data-hs-act="take"][data-task="' + g.task + '"]:not([disabled])'),
         ...(at.weight === false ? [inWin('tally', '.ht-weights'), inWin('tally', '[data-hs-act="to-weight"]:not([hidden])')] : [])];

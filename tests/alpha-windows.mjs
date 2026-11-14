@@ -1243,7 +1243,9 @@ async function panelLeftovers(base) {
   const bySuggest = [[{ boots: 'leather_boots' }, 'tank', 'medium'], [{ helmet: 'iron_helm' }, 'mage', 'heavy'], [{}, 'tank', 'heavy'], [{}, 'melee_dps', 'heavy'], [{}, 'ranger', 'medium'], [{}, 'mage', 'light'], [{}, 'healer', 'light']];
   for (const [w, r, want] of bySuggest) if ((suggestedWeight(w, r) || {}).weight !== want) fails.push('AW-62 a first Take for ' + r + ' in ' + JSON.stringify(w) + ' asks for ' + JSON.stringify(suggestedWeight(w, r)));
   if (suggestedWeight({}, null) !== null) fails.push('AW-62 with nothing said a first Take still guesses ' + JSON.stringify(suggestedWeight({}, null)));
-  if (takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')) !== 'When you take your first task, she pays you in heavy armor, which suits a shield tank. Change it below any time.') fails.push('AW-62 the line over her board with a suggestion reads ' + takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')));
+  /* the weight that suits is said once, on her pick line (fresh-account play 11-13: it was said over her board and again under it) */
+  if (suggestedWeight({}, 'tank').words !== 'She\'ll pay you in heavy armor, since you\'re a shield tank.' || suggestedWeight({ boots: 'leather_boots' }, 'tank').words !== 'She\'ll pay you in medium armor, since that\'s what you wear most.'
+    || takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')) !== '') fails.push('AW-62 the weight that suits reads ' + JSON.stringify([suggestedWeight({}, 'tank').words, takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank'))]));
   if (!/^Pick the armor weight/.test(takeWhyOf({ weight: null, held: [], heldMax: 3 }, false)) || !/^You have three of mine already/.test(takeWhyOf({ weight: 'heavy', held: [1, 2, 3], heldMax: 3 }, false))
     || takeWhyOf({ weight: 'heavy', held: [], heldMax: 3 }, false) !== '' || takeWhyOf({ weight: null, held: [], heldMax: 3 }, true) !== '') fails.push('AW-62 the line over her board is wrong');
   const { buryLabel, buryRecipeOf } = await imp('src/shell/windows/inventory/bury.js');
@@ -1469,6 +1471,15 @@ async function planRules(base) {
   const { HOW_YOU_FIGHT } = await imp('src/data/how-to-play.js');
   const shoot = HOW_YOU_FIGHT.find((f) => f.id === 'shoot');
   if (!shoot || !/Bronze Arrows are free and never run out/.test(JSON.stringify(shoot))) fails.push('AW-27 creation says of the bow ' + JSON.stringify(shoot));
+  /* AW-27 ONE NAME PER WEAPON (fresh-account play 11-13: the Hero screen said "Two axes or a hammer", the bag tip "Hatchets or a club"): each style
+     names its weapons by the items' own names, and the bag's styles tip says each style the same way. */
+  const { ITEMS: KIT } = await imp('src/data/items.js');
+  const stylesTip = (readFileSync(join(ROOT, 'src/data/hunt-tutorial.js'), 'utf8').match(/textIn: '(Sword and shield hold[^']*)'/) || [])[1] || '';
+  for (const f of HOW_YOU_FIGHT) {
+    const off = f.weapons.filter((w) => !f.name.toLowerCase().includes(String(KIT[w]?.n || w).split(' ').pop().toLowerCase()));
+    if (off.length) fails.push('AW-27 the ' + f.id + ' style "' + f.name + '" does not name ' + off.join(', '));
+    if (!stylesTip.toLowerCase().includes(f.name.toLowerCase())) fails.push('AW-27 the bag\'s styles tip does not say "' + f.name + '": ' + JSON.stringify(stylesTip));
+  }
   /* AW-8 / AW-27 AN EMPTY FOOD SLOT IS A HEADS-UP, NOT A BLOCKER (Tyler 10-29: "0 food" in Hunt prep on a hero that
      carries food the bar does not name and is not getting hit). Both surfaces say the empty stock and the bag's spare
      food with the fix, and neither calls it short; empty ammo on a shooter's bar still stops it. */
@@ -4547,7 +4558,7 @@ const MUTANTS = [
   ['item truth: no-book-value says nothing', 'src/shell/item-lore.js', "if (!(Number(it.v) > 0) || it.bop) return t('item.own_use')", "if (false) return t('item.own_use')"],
   ['item truth: a kit item says the Weighhouse lists it', 'src/shell/item-lore.js', "return isStartKit(id) ? t('item.kit_unlisted')", "return false ? t('item.kit_unlisted')"],
   ['item truth: the Weighhouse has one vague reason', 'src/shell/market-words.js', "(Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.')", "'.'"],
-  ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !tally.weight ? (suggest ? suggest.words : t('tally.no_weight')) : tally.held.length >= tally.heldMax ? t('tally.board_full', { n: countWord(tally.heldMax) }) : '';", "  return '';"],
+  ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !tally.weight ? (suggest ? '' : t('tally.no_weight')) : tally.held.length >= tally.heldMax ? t('tally.board_full', { n: countWord(tally.heldMax) }) : '';", "  return '';"],
   ['item truth: panel: Fuel all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';\n", ''],
   ['item truth: panel: the sale hides its rares', 'src/shell/item-lore.js', "rare.length ? t('item.sells_rares', { items: listWords(rare) }) : ''", "''"],
   ['item truth: panel: a slot on sale beside an empty one', 'src/app/slot-offer.js', "if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "if (!offer || !purse || actor === null) return '';"],

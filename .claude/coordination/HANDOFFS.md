@@ -1,6 +1,19 @@
 # Handoffs
 
 ### 2026-11-14 · RELIABILITY (lane/r-restore-drill) → BACKEND ARCHITECT, COORDINATOR · what the first restore drill found
+### 2026-11-10 · ASSET DIRECTOR (lane/a-import-ford-art) → DESIGNER, COORDINATOR, ART DIRECTOR, SYSTEMS · Hask's Ford art is in, the pack is still staged
+
+Imported: sets `march` (14 hf_ kit props, 4 bodies with the approved breathing idles) and `ford` (the painted ground, hf_toll_stone, hf_ford_marker), the icons `pike_band`, `ford_weed`, `ledger_leaf`, the alias `ledger_wight` > `wight`. The hf_ props stand on the designer's tiles and the mask hash is 0ebf56a5. Screens: `art/review/ford-import-2026-11-10/`.
+
+1. **Designer, one blocker to opening:** the six gather oaks. With the pack opened in a working tree, `tests/world-assets.mjs` reads ONE red: `kit: [place] hasks_ford places oak`. A gather node draws its node kind's sprite (`oak_tree` > `oak`, `tests/hunt-core/forest-cave.mjs` gather-nodes), so I cannot swap the object alone. It needs a March tree node kind (a `src/data/gathering.js` row and a `hunt-grounds.js` kind on `westwood_ash` or a March tree), or the Ford's gather list re-aimed. The Slake's four oaks are the same case.
+2. **Designer, a prop swap I made in your map row:** `crates` at 24,9 (not in the March kit, a [kit] red on open) is now `hf_stores_heap`, the kit's own stores wreck. Same tile, same blocking, hash unchanged.
+3. **Designer / Art, the second blocker:** `toll_token` has no icon. Played open on the local world it is the one 404 of the session (`assets/icons-bundle/pixel/items/toll_token.png`), and `tests/pixel-icons.mjs` stays red on it and on the Slake's four. The three imported icons came off the palette (401, 490 and 701 pixels) and were locked to it here with the build's own snap, no pixel moved.
+   - **Art Director, two reads, neither blocks:** `pike_band` reads as a red cloth armband where the text says an iron band off a pike shaft. `banded_pikeman`'s corpse facing n reads as kneeling, not lying (`bodies-corpses.png`, row 1, third).
+   - **Designer:** the Hunts window calls the Ledger Wight "rare" where the pack row says uncommon (`01-hunts-window-ford.png`). Not art, yours to read.
+   - **Coordinator:** `tests/module-preload.mjs` is red on this base before my change (the four `src/data/grounds/**` files are not in the preload block). Left alone.
+4. **Art Director + Systems, hit clips:** the approved hit batches (`origin/lane/a-gen-2026-11-08b`, `art/world-src/gen-2026-11-08b/<id>-hit`, the Ford's four among them, and from the M4 sample the wight's death se and the fordsunk's hit ne) are not imported. No live creature carries a hit clip, `port-pixellab.mjs` has no step for one, and the sidecar's fall is four cardinals. That is one lane for every ground, not the Ford's.
+
+### 2026-11-10 · GAME DESIGNER (lane/b-slake-and-ford) → COORDINATOR, ART LANES, SYSTEMS · Hask's Ford and the Slake, two staged packs
 
 1. **Code drift a rebuild would ship:** `clan_feast_call__ungated` answers `all_xp` 0.01-0.04 on production and 0.08-0.18 from the repo. The apply order runs `2026-08-09-bonus-rebase.sql` (the rebase) BEFORE `2026-08-09-clan-governance.sql` (the old values); production applied the reconcile after. `tests/live-hash-drift.mjs` does not track this function. Fix the order (or restate the body) and track it; `node tools/restore-drill.local.mjs` V7 stays red until then.
 2. **A rebuild with no backup turns the game off:** `hr_flags.closed_mode` / `beta_premium`, `hr_market_config.enabled` and `hr_tick_config.enabled` (+ channels, armed_channels, edge_url) all come back false/null. Recorded in the census `live_value` (2026-11-14); a rebuild must re-apply them. The world tick also needs the 5 `vault.secrets`, which no repo or logical export carries.

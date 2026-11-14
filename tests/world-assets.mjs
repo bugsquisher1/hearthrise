@@ -96,6 +96,7 @@ import { HUNT_INDEX } from '../src/data/hunts.js';
 import { HUNT_ART_ALIAS } from '../src/data/monster-art.js';
 import { clipFacing } from '../src/world/core/facing.js';
 import { CLIP_RULES } from '../src/hunt-view/clip-hook.js';
+import { withWorn } from '../src/render/creature-sprite.js';
 /* the OPEN grounds: a staged one (src/data/hunts.js `staged`) is drawn by nobody until its art lands (forest-cave.mjs staged-until-art) */
 import { OPEN_GROUNDS as HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 /* ONE KIT A REGION (Tyler 2026-11-07): every hunting ground places its region kit's props and at most two signature pieces */
@@ -204,6 +205,9 @@ const CARDINALS = ['s', 'e', 'n', 'w'];
 const LIVE_CLIPS = [['idle', FACINGS], ['walk', FACINGS], ['death', CARDINALS], ['corpse', CARDINALS]];
 const SWING_REACH = CLIP_RULES.reach;
 const IDLE_POSES = 3;
+/* THE SPRITE A MONSTER WEARS: its own id, or the one its alias names (src/data/monster-art.js HUNT_ART_ALIAS, the scenes' one
+   reader: hunt-view/scene.js spriteOf). The rules below judge the drawing the renderer really shows. */
+const wornBy = (alias = HUNT_ART_ALIAS) => (id) => (Object.prototype.hasOwnProperty.call(alias, id) ? alias[id] : id);
 /** monster id → the grounds whose packs and spawn rows name it. */
 function liveMonsters(grounds = HUNT_GROUNDS, hunts = HUNT_INDEX) {
   const out = new Map();
@@ -215,12 +219,12 @@ function liveMonsters(grounds = HUNT_GROUNDS, hunts = HUNT_INDEX) {
   return out;
 }
 /** `sprites`: id → { set, sprite } (the shipped manifests); `atlasOf(set)`: the decoded atlas of a loaded set. */
-function liveFindings(monsters, sprites, atlasOf) {
+function liveFindings(monsters, sprites, atlasOf, worn = wornBy()) {
   const out = [];
   for (const [id, where] of monsters) {
     const at = [...where].join(', ');
-    const got = sprites[id];
-    if (!got) { out.push(`live: ${id} spawns on ${at} but no loaded atlas carries a sprite "${id}" (the renderer draws a brown stub box)`); continue; }
+    const got = sprites[worn(id)];
+    if (!got) { out.push(`live: ${id} spawns on ${at} but no loaded atlas carries a sprite "${worn(id)}" (the renderer draws a brown stub box)`); continue; }
     const [fw, fh] = got.sprite.frame, atlas = atlasOf(got.set);
     /* nothing alive is a still frame (ART_DIRECTION section 6): a standing monster plays a loop of at least IDLE_POSES different drawings */
     const idle = got.sprite.anims.idle || { dirs: {} };
@@ -248,16 +252,28 @@ function liveFindings(monsters, sprites, atlasOf) {
 }
 
 /* One drawing under two names (art audit 2026-11-04: the same rat three times from the Cellar to Wickstead): two live monsters whose idle facings are the same pixels. */
-function twinFindings(monsters, sprites, atlasOf) {
+function twinFindings(monsters, sprites, atlasOf, worn = wornBy()) {
   const seen = new Map(), out = [];
   for (const id of monsters.keys()) {
-    const got = sprites[id];
+    const got = sprites[worn(id)];
     if (!got || !got.sprite.anims.idle) continue;
     const [fw, fh] = got.sprite.frame, atlas = atlasOf(got.set);
     if (!atlas) continue;
     const key = CARDINALS.map((d) => { const [[x, y]] = got.sprite.anims.idle.dirs[d]; let s = ''; for (let r = 0; r < fh; r++) s += Buffer.from(atlas.data.subarray(((y + r) * atlas.width + x) * 4, ((y + r) * atlas.width + x + fw) * 4)).toString('latin1'); return s; }).join('|');
     if (seen.has(key)) out.push(`twin: ${id} and ${seen.get(key)} are one drawing under two names`);
     else seen.set(key, id);
+  }
+  return out;
+}
+
+/* [alias]: a body that wears another's sprite (HUNT_ART_ALIAS) names a unit sprite a loaded set carries, and the Hunts window's
+   lineup finds it under the body's own id (src/render/creature-sprite.js withWorn: an empty portrait otherwise). */
+function aliasFindings(sprites, alias = HUNT_ART_ALIAS, worn = withWorn) {
+  const out = [], units = new Map(Object.entries(sprites).filter(([, s]) => s.sprite.layer === 'unit'));
+  const lineup = worn(new Map(units), alias);
+  for (const [body, sprite] of Object.entries(alias)) {
+    if (!units.has(sprite)) out.push(`alias: ${body} wears "${sprite}", which is no unit sprite of a loaded set`);
+    else if (lineup.get(body) !== units.get(sprite)) out.push(`alias: the Hunts window's lineup does not find ${body} under its own id (an empty portrait)`);
   }
   return out;
 }
@@ -386,6 +402,7 @@ function guard() {
   const atlasOf = (set) => (atlases.find((a) => a.manifest.set === set) || {}).atlas;
   for (const f of liveFindings(liveMonsters(), seen, atlasOf)) fails.push(f);
   for (const f of twinFindings(liveMonsters(), seen, atlasOf)) fails.push(f);
+  for (const f of aliasFindings(seen)) fails.push(f);
   for (const [id, set] of Object.entries(REQUIRED_TERRAIN)) {
     const m = atlases.find((a) => a.manifest.set === set);
     if (!m || !m.manifest.terrain[id]) fails.push(`content: no terrain "${id}" in set ${set}`);
@@ -635,6 +652,17 @@ function selftest(atlases) {
         if (!any) blank = [xx, yy]; }
       return { anims: { ...sp.anims, corpse: { ...sp.anims.corpse, dirs: { ...sp.anims.corpse.dirs, s: [blank || [x, y]] } } } }; }));
   liveCase('a spawn whose monster has no sprite at all (the brown stub)', 'brown stub', new Map([...monsters, ['ghost_rat', new Set(['mill_cellar'])]]), sprites);
+  /* an alias is no way round the rules: an alias to a sprite no set carries is the stub, a second wearer of a drawing is a twin */
+  { const probe = new Map([['alias_probe', new Set(['mill_cellar'])]]);
+    const stub = liveFindings(probe, sprites, atlasOf, wornBy({ alias_probe: 'no_such_sprite' })).some((f) => f.includes('"no_such_sprite"') && f.includes('brown stub'));
+    const twin = twinFindings(new Map([...monsters, ...probe]), sprites, atlasOf, wornBy({ alias_probe: 'rat' })).some((f) => f.includes('alias_probe'));
+    const clean = !liveFindings(probe, sprites, atlasOf, wornBy({ alias_probe: 'rat' })).length;
+    if (stub) console.log('  ✓ a body whose alias names a sprite no set carries: caught by [live]'); else { escaped++; console.log('  ✗ a body whose alias names a sprite no set carries: NOT caught by [live]'); }
+    if (twin && clean) console.log('  ✓ a second body aliased onto the Giant Rat: caught by [twin] (and clean under [live], it wears real art)');
+    else { escaped++; console.log(`  ✗ a second body aliased onto the Giant Rat: twin ${twin}, live clean ${clean}`); } }
+  { const a = aliasFindings(sprites, { alias_probe: 'no_such_sprite' }), b = aliasFindings(sprites, { alias_probe: 'rat' }, (by) => by), c = aliasFindings(sprites);
+    if (a.some((f) => f.includes('no unit sprite')) && b.some((f) => f.includes('empty portrait')) && !c.length) console.log('  ✓ an alias to no sprite, and a lineup that forgets the alias: both caught by [alias]');
+    else { escaped++; console.log('  ✗ [alias]: missing sprite ' + a.length + ', forgetful lineup ' + b.length + ', shipped ' + c.length); } }
   const idleOf = (id, over) => without(id, (sp) => ({ anims: { ...sp.anims, idle: over(sp.anims.idle) } }));
   liveCase('a monster standing on one still frame in one facing', 'stands still facing e', monsters, idleOf('rat', (c) => ({ ...c, dirs: { ...c.dirs, e: c.dirs.e.slice(0, 1) } })));
   liveCase('an idle of four rects that are one drawing', 'stands still facing s', monsters, idleOf('goblin_digger', (c) => ({ ...c, dirs: { ...c.dirs, s: c.dirs.s.map(() => c.dirs.s[0]) } })));
@@ -645,7 +673,7 @@ function selftest(atlases) {
   const twins = twinFindings(monsters, { ...sprites, drain_rat: sprites.rat }, atlasOf);
   if (twins.some((f) => f.includes('drain_rat') && f.includes('rat'))) console.log('  ✓ the Drain Rat wearing the Giant Rat: caught by [twin]');
   else { escaped++; console.log(`  ✗ the Drain Rat wearing the Giant Rat: NOT caught by [twin] (${twins.join('; ') || 'silent'})`); }
-  const LIVE_MUTANTS = 11;
+  const LIVE_MUTANTS = 14;
 
   // The sheet encoding: the committed bytes pass, RGBA is red, and the encoder gives back every pixel, transparent ones
   // included, past 256 colours too (it falls back to RGBA there, so no sheet can lose a colour to a palette).

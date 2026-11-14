@@ -42,9 +42,10 @@
 import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.130';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.130';
 import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.130';
-import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt, stackBelow } from './hud.js?v=0.2.130';
+import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt } from './hud.js?v=0.2.130';
 import { createShellHud, fightOn } from './shell-hud.js?v=0.2.130';
 import { createHudRoom } from './hud-room.js?v=0.2.130';
+import { createWidgetStack } from './widget-stack.js?v=0.2.130';
 import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.130';
 import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js?v=0.2.130';
 import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.130';
@@ -305,27 +306,10 @@ export function mountShell(root, o) {
     }
   }
 
-  /* A widget that stacks (a row's `below`: the tally) sits under the widgets it names on its edge, wherever
-     they are now (hud.js stackBelow); a hidden one is in nobody's way, and so is one waiting under the dock (v0.2.130 gate D1:
-     the Tally stacked under an analyzer the bag hid, slid left of the bag and was squeezed to 51 px, its row cut, the observer
-     looping as each pass moved it). Run again after a step-down. */
-  function stackWidgets() {
-    for (const row of hud.rows()) {
-      if (!row.below || hud.isMoved(row.id)) continue;
-      const box = row.layer === 'screen' ? screenHud : worldHud;
-      const el = box.querySelector('[data-hs-widget="' + row.id + '"]');
-      if (!el || !el.offsetWidth) continue;
-      const b = box.getBoundingClientRect();
-      const rel = (e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; };
-      const above = row.below.map((id) => box.querySelector('[data-hs-widget="' + id + '"]')).filter((a) => a && !a.classList.contains('is-under-dock')).map(rel);
-      const at = rel(el);
-      const top = stackBelow(at, above, DOCK_EDGE);
-      if (top !== Math.round(at.top)) el.style.top = top + 'px';
-    }
-  }
-
   /* Every panel ends above the floor and the screen's plates clear what they would cover (./hud-room.js). */
   const { roomForStack, liftMoved, clearPlates } = createHudRoom({ hud, worldHud, screenHud, layer, isPhone: () => phoneMq.matches, gap: DOCK_EDGE });
+  /* A widget that stacks sits under the widgets it names (./widget-stack.js). */
+  const stackWidgets = createWidgetStack({ hud, worldHud, screenHud });
 
   /* The docked windows' boxes in the World's px (the layer and the World HUD share the shell's box);
      layout boxes, so a window sliding in is where it will sit. Floating and centred windows are the

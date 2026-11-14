@@ -278,7 +278,7 @@ const MUTANTS = [
   { name: 'a hero alone reads no lone line', file: 'src/shell/windows/boss-call-pane.js', from: "prop(alone, 'hidden', !q.alone);", to: "prop(alone, 'hidden', true);", want: /BW-1/ },
   { name: 'a party reads the lone line', file: 'src/shell/windows/boss-call-pane.js', from: "text(alone, q.alone ? callWords(BOSS_CALL_WORDS.warnAlone, call, q.price) : '');", to: 'text(alone, callWords(BOSS_CALL_WORDS.warnAlone, call, q.price));', want: /BW-2/ },
   { name: 'a hero alone is told the party is on its way', file: 'src/shell/windows/boss-call-pane.js', from: 'const answered = quote.alone ? BOSS_CALL_WORDS.answered.alone : BOSS_CALL_WORDS.answered.party;', to: 'const answered = BOSS_CALL_WORDS.answered.party;', want: /BW-1/ },
-  { name: 'a free way back from the room', file: 'src/hunt-view/summary-model.js', from: ' || callOfHunt(summary.hunt)) return null;', to: ') return null;', want: /BW-5/ },
+  { name: 'a free way back from the room', file: 'src/hunt-view/summary-model.js', from: ' || roomOfHunt(summary.hunt)) return null;', to: ') return null;', want: /BW-5/ },
 ];
 
 async function main() {

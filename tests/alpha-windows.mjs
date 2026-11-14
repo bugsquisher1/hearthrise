@@ -130,6 +130,10 @@
 //         (Back, title, ? where it has help, key, Close); a creature on a ground's page opens Monster facts as a PAGE of Hunts with Back,
 //         and a link out of it opens a window whose Back says Back to Hunts and goes there; the bag stays open beside Storage, the Shop
 //         and Character; Hunts lies over Party and Gathering without closing them; two more gold plates planted in the Shop leave one gold
+//   AW-95 NO WINDOW LIES ON THE HUNT'S CONTROLS (play gate 2026-11-13, 1280x720: the bag docked in town covered Leave hunt and
+//         the bar's Setup, Target and stance): at 1280x720, 1024x768 and 922x423, in a hunt, with Inventory or Character open, the
+//         middle of Leave hunt, Hunt details, Setup, stance and Target is the control itself, never a window (in a hunt a
+//         docked window starts under the hunt bar and ends above the action bar; a phone's sheet ends above the bar)
 //   AW-93 A WINDOW OPENS WHOLE (Tyler 2026-11-11, the Hunts window at 1014x652: "when I open a menu, part of it shouldn't
 //         automatically be cut off"): at 1014x652, 1024x768 and 922x423, a Level 36 hero in town, Hunts, Inventory, Shop and Market each
 //         open inside the World, lose no word or press to a box that hides its overflow or to the frame, and every scroll
@@ -4338,6 +4342,35 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       }
     }
 
+    { // AW-95 no window lies on the hunt's controls (play gate 2026-11-13: the bag docked at 1280x720 covered Leave hunt and the bar's Setup, Target, stance)
+      for (const viewport of [{ width: 1280, height: 720 }, { width: 1024, height: 768 }, { width: 922, height: 423 }]) {
+        const { ctx, page, up } = await open({ viewport });
+        const at = viewport.width + 'x' + viewport.height;
+        if (!up) { fails.push('AW-95 the ' + at + ' hunt did not mount'); await ctx.close(); continue; }
+        for (const [key, id] of [['b', 'inventory'], ['c', 'character']]) {
+          if (!(await openWin(page, key, id))) { fails.push('AW-95 the ' + key.toUpperCase() + ' key did not open ' + id + ' at ' + at); continue; }
+          await page.waitForTimeout(400);
+          const covered = await page.evaluate(() => {
+            const out = [];
+            const sels = ['[data-hs-widget="hunt-topbar"] [data-hs-act="leave"]', '[data-hs-widget="hunt-topbar"] [data-hs-act="details"]', '.hb-plaque .hb-set', '.hb-plaque .hb-stance', '.hb-plaque [data-opt="target_mode"]'];
+            for (const sel of sels) {
+              const b = document.querySelector(sel);
+              if (!b || !b.getClientRects().length || b.closest('.is-under-dock')) continue;   // a control not drawn here, or waiting beside the dock, is under no window
+              const q = b.getBoundingClientRect();
+              if (!q.width || !q.height) continue;
+              const top = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2);
+              const win = top && top.closest('.hs-win');
+              if (win) out.push(sel + ' lies under the ' + win.getAttribute('data-hs-win') + ' window');
+            }
+            return out;
+          });
+          for (const c of covered) fails.push('AW-95 at ' + at + ' with ' + id + ' open, ' + c);
+          if (shots) await shot(page, 'hunt-controls-' + at + '-' + id);
+        }
+        await ctx.close();
+      }
+    }
+
     { // AW-94 one window header (UX flow audit 2026-11-11): the same band on every window, Back to where a press came from, a page in its host,
       // the bag beside Storage, the Shop and Character at 1440, Hunts over the dock, one gold plate per window
       const { ctx, page, up } = await open({ viewport: { width: 1440, height: 900 } });
@@ -4498,6 +4531,9 @@ const MUTANTS = [
   ['AW-25 the area casters back on each card (it grows a line)', 'src/shell/windows/hunt-detail.js', "(m.boss ? 'boss' : m.band);", "(m.boss ? 'boss' : m.band) + (m.casts && m.casts.length ? ' · casts ' + m.casts.join(' and ') : '');"],
   ['AW-25 the casters note is never shown', 'src/shell/windows/hunt-detail.js', "prop(det.querySelector('.hw-hd-casts'), 'hidden', !casts);", "prop(det.querySelector('.hw-hd-casts'), 'hidden', true);"],
   ['AW-93 a docked window stops above the bar on a short World again', 'src/shell/window-manager.js', 'return Number.isFinite(cap) && cap < DOCK_ROOM_PX && need > cap;', 'return false && need > cap;'],
+  ['AW-95 a window rises over the action bar in a hunt again', 'src/shell/window-fit.js', 'if (cap !== null && !hunt && overBar(cap, Infinity)) {', 'if (cap !== null && overBar(cap, Infinity)) {'],
+  ['AW-95 a docked window lies over the hunt bar again', 'src/shell/window-fit.js', '    if (hunt) clearTops(w, hunt.tops, gap);', '    if (false) clearTops(w, hunt.tops, gap);'],
+  ['AW-95 the phone sheet lies over the action bar in a hunt again', 'src/shell/shell.js', 'const bars = phoneMq.matches && !hunting ? [] :', 'const bars = phoneMq.matches ? [] :'],
   ['AW-93 a scroll region ends on a cut row again', 'src/shell/window-fit.js', "  if (!frame || frame.classList.contains('is-sized')) return;", '  return;'],
   ['AW-94 a window shows two gold plates at once', 'src/shell/shell.js', "    for (const w of layer.querySelectorAll(':scope > .hs-win')) oneGold(w);\n", ''],
   ['AW-94 a press inside a window is not remembered as where the next came from', 'src/shell/shell.js', 'function onClick(e) { inWin(e, () => press(e)); }', 'function onClick(e) { press(e); }'],

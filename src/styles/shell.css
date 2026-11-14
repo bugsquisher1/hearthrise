@@ -113,7 +113,9 @@
 /* A town card's body never ends on one lone word ("…she pays you gold and a" / "helmet.", the v0.2.130 gate, both sizes): the words wrap
    pretty. Only the town's cards: a card inside a window is sized with the window (window-fit.js), so it keeps its lines. */
 :is(.hs-launchers, .hs-widget) > .hs-pointer { text-wrap: pretty; }
-.hs-pointer b { display: block; font-family: var(--f-display); font-weight: 700; letter-spacing: .06em; color: var(--gold-2); }
+/* A title that wraps splits evenly; its last two words are held together (launcher.js keepLastWords), so no word stands alone on its
+   last line ("Your hero fights on its / own" at 1440x900, 2026-11-14; balance alone still left "Defense isn't / training"). */
+.hs-pointer b { display: block; font-family: var(--f-display); font-weight: 700; letter-spacing: .06em; color: var(--gold-2); text-wrap: balance; }
 /* The pointer's tip stands on the frame's top edge (the frame is 6 px). */
 .hs-pointer::before { content: ''; position: absolute; top: -12px; left: 10px; border: 6px solid transparent; border-top: 0; border-bottom-color: var(--gold); }
 /* The coach folds (launcher.js coachFoldOf): a dash at the card's corner folds it to its title, a tab that opens it;
@@ -410,22 +412,24 @@
      (tests/phone-touch.mjs PH-6). */
   .hs-pointer:not(.is-min), .hs-pointer.has-close:not(.is-min), .hs-win-coach > .hs-pointer:not(.is-min), .hs-win-coach > .hs-pointer.has-close:not(.is-min) { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; grid-template-rows: auto minmax(0, 1fr) auto; align-items: center; padding: 0 0 4px 12px; }
   .hs-pointer:not(.is-min) > b { grid-area: 1 / 1; line-height: 1.2; }
-  /* IN TOWN AND BESIDE A SHEET THE FOOT IS ITS OWN ROW UNDER THE WORDS (phone 2026-11-12: on the title row its two presses took 192
-     of a 277 px card and "Sell what only pays coin" stood one word to a line, under Don't show tips): the desktop's order, quiet at
-     the left, Got it at the right, the dash after it; the title has the top row to itself, one line where it was five. The row is
-     paid for, so every card's words still fit whole (phone-touch PH-27): the presses are the card's own 40 px (as the dash), the
-     one-line title sets tight on the frame, the words at 1.3. The card under the hunt bar (320 px, short titles) keeps one row:
-     its room has no line to spare. */
-  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) { padding: 0 0 0 12px; }
-  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min) > .hs-coach-foot { grid-area: 3 / 1 / 4 / 3; margin: 0; white-space: normal; }
-  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min) > .hs-coach-foot > :is(.hs-coach-got, .hs-coach-off) { min-height: 40px; }
-  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-min { grid-area: 3 / 3; }
-  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > b { grid-area: 1 / 1 / 2 / -1; padding-right: 8px; line-height: 1.05; }
-  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-text { line-height: 1.3; }
+  /* EVERY CARD'S FOOT IS ITS OWN ROW UNDER THE WORDS, in town, beside a sheet and under the hunt bar (phone 2026-11-12: on the title
+     row its two presses took 192 of a 277 px card and "Sell what only pays coin" stood one word to a line, under Don't show tips;
+     2026-11-14: under the hunt bar "Your hero fights on its own" stood four lines): the desktop's order, quiet at the left, Got it
+     at the right, the dash after it; the title has the top row to itself, one line. The row is paid for, so every card's words
+     still fit whole (phone-touch PH-27): the presses are the card's own 40 px (as the dash), the one-line title sets tight on the
+     frame, the words at 1.3. Under the hunt bar at 667x375 the room is a few px short of a hunt card's fourth line at 1.3, so
+     the words there set at 1.25 (the card cannot widen instead: 20 px more at 844 puts a party member under the Party panel, PH-10). */
+  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) { padding: 0 0 0 12px; }
+  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min) > .hs-coach-foot { grid-area: 3 / 1 / 4 / 3; margin: 0; white-space: normal; }
+  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min) > .hs-coach-foot > :is(.hs-coach-got, .hs-coach-off) { min-height: 40px; }
+  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-min { grid-area: 3 / 3; }
+  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > b { grid-area: 1 / 1 / 2 / -1; padding-right: 8px; line-height: 1.05; }
+  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-text { line-height: 1.3; }
+  .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min):has(> .hs-coach-foot) > .hs-coach-text { line-height: 1.25; }
   /* What that costs the words' box, past the 40 px row and 4 px foot every cap below already takes off: the title's own line, less
      the 4 px foot the card no longer has (the 40 px foot row takes the 40 px row's place). */
   .hs-pointer:not(.is-min) { --coach-foot: 0px; }
-  :is(.hs-launchers, .hs-win-coach) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) { --coach-foot: calc(var(--t-micro) * 1.05 - 4px); }
+  :is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min):has(> .hs-coach-foot) { --coach-foot: calc(var(--t-micro) * 1.05 - 4px); }
   .hs-pointer:not(.is-min) > .hs-coach-min { position: static; grid-area: 1 / 3; width: 40px; height: 40px; }
   /* relative, not static: its cross is drawn from its own middle. Static, the cross lay over the words in the middle of the card, and the button was blank (door panel 2026-11-04). */
   .hs-pointer:not(.is-min) > .hs-coach-close { position: relative; top: auto; right: auto; grid-area: 1 / 4; width: 40px; height: 40px; }

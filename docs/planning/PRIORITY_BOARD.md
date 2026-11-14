@@ -756,9 +756,9 @@ Level 110, Human, an old man in Dawnsteel plate who has sat with that fire at hi
 | # | Piece | State today | Owner |
 |---|---|---|---|
 | 1 | Monster spells, group and marked | Specced on lane/d-area-spells. Not on main | Systems |
-| 2 | A monster that attacks from range | No row in `monsters.js` has a range | Systems |
-| 3 | A monster that heals its pull | None | Systems |
-| 4 | A Target mode that names a kind first | Modes are nearest, weakest, strongest, follow | Systems. Remembered per ground, so it is set once |
+| 2 | A monster that attacks from range | Engine built (lane/b-barrow-monster-kinds): a monster row's `range`, whole tiles 2 to 6 (`MONSTER_RANGE`), played by `src/core/hunt/shooters.js`. It aims at the hero farthest from it in its pack's area, stands where it can shoot and takes no slot. No row has a range yet | Designer: the Lookout's `range` |
+| 3 | A monster that heals its pull | Engine built (same lane): a `shape: 'mend'` row in `monster-spells.js` (range, windup, cooldown, `hitPm` is the heal). It mends the most hurt monster of its own pack in range, never itself and never a boss with phases | Designer: the Pyre Priest's row |
+| 4 | A Target mode that names a kind first | Engine built (same lane): a hero's `target_kind` takes that kind first under any Target mode. Nothing stores or shows it yet | Backend (lane C): `hunt_density.target_kind`, its setter, the instance read's overlay. Then the bar's choice |
 | 5 | A keyed boss room that pays XP and drops | `boss-phases.js` reads only in a called room, and `tests/boss-call.mjs` holds that a called room pays nothing. This is a new room kind. That guard is not loosened | Systems, Backend. A money surface, so it is on the Security list |
 | 6 | Adds that are a named boss with his own kit | Adds are plain rows marked `add` | Systems |
 | 7 | A spell that speeds up under a phase line, and its countdown on the boss bar | None | Systems, Art Director for the bar line |

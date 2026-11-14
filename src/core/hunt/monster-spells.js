@@ -77,7 +77,7 @@ function drop(u, sc, why) {
  * his lines from his falling HP); the lowest share of its max HP first (compared whole: hp x other's max), ties to the lower id.
  * The rule a hero healer's ally pick has (abilities.js targetFor 'ally'). Pure.
  */
-export function mendable(inst, u, sp) {
+function mendable(inst, u, sp) {
   let best = null;
   for (const m of inst.world.units) {
     if (m === u || m.side !== 'mon' || !m.alive || m.pocket !== u.pocket || !(m.hp < m.maxHp)) continue;

@@ -9,6 +9,7 @@
   "a dead session stays in the game": "B-10",
   "a failed read reads as a no (B-7)": "B-7",
   "a failure behind the first screen reloads under the player (B-19)": "B-19",
+  "a game file that failed gets no second go (B-19)": "B-19",
   "a hero short of gold can press buy": "B-11",
   "a lost answer's retry gets a new key": "B-9",
   "a made hero's press asks the server again": "B-9",
@@ -56,6 +57,7 @@
   "the recovery link is ignored": "B-6",
   "the reloads are spent and nothing is said (B-19)": "B-16",
   "the sign-in says nothing of the game": "B-9",
+  "the sign-in screen waits for the game again (B-19)": "B-19",
   "the town's sheets wait for Play again": "B-14",
   "the words stand with no press (B-19)": "B-19",
   "the world pane never mounts the shell": "B-3"

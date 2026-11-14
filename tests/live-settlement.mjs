@@ -53,7 +53,8 @@ import { MONSTERS } from '../src/data/monsters.js';
 import { GROUND_PACKS } from '../src/data/grounds/index.js';
 /* A STAGED ground pack's rows (src/data/grounds, status staged) are in src/data and in no migration until tools/pack.mjs ship writes its file
    (lane/d-packs-retune 2026-11-12, the pattern from lane/b-slake-and-ford): nobody can fight one, so the ceiling sweep leaves them out. */
-const UNSERVED = new Set(GROUND_PACKS.filter((p) => p.status !== 'open').flatMap((p) => Object.keys(p.monsters || {})));
+/* (a staged pack's keyed hall brings its room's own rows, shape.js `hall`: unserved with it) */
+const UNSERVED = new Set(GROUND_PACKS.filter((p) => p.status !== 'open').flatMap((p) => [...Object.keys(p.monsters || {}), ...Object.keys((p.hall && p.hall.monsters) || {})]));
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
 

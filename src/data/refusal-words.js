@@ -66,6 +66,11 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
   item_lock_many: Object.freeze({
     too_many_items: 'That is too many items for one press. Pick fewer.',
   }),
+  /* The First target on one ground (2027-04-22-target-kind.sql hr_hunt_target_kind_set). */
+  hunt_target_kind_set: Object.freeze({
+    bad_hunt: 'That hunt has no monsters to pick from.',
+    bad_kind: 'That monster doesn\'t live on this hunt, so nothing changed.',
+  }),
   /* Carrying supplies into a running hunt (2027-02-21-hunt-carry-in.sql hr_hunt_restock). */
   hunt_restock: Object.freeze({
     no_hunt: 'Your hero isn\'t hunting right now, so there is nothing to carry it into.',

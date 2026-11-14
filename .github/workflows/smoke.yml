@@ -3926,6 +3926,14 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-ground-tiers.mjs --selftest
           node tests/hunt-tiers-db.mjs
           node tools/mutant-gate.mjs node tests/hunt-tiers-db.mjs --mutate
+      # THE FIRST TARGET IS THE SERVER'S (2027-04-22-target-kind.sql): a hero names a healer first on a ground and is on it, browser closed and
+      # hunt viewed storing one world; refused not clamped; read afresh every settle; each hero its own; the bar offers only what the server takes.
+      # --mutate: the engine never reads it, a member plays the leader's, another ground's kind taken, a kind off the ground served, None drops the row.
+      - name: First target — the server's per-ground kind, both paths
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/target-kind-db.mjs
+          node tools/mutant-gate.mjs node tests/target-kind-db.mjs --mutate
       # ONE SAVED SETUP READ WHOLE, IN USE OR NOT (2027-04-13-hunt-preset-read.sql, the Hunt prep builder): two setups read back their own
       # bars and options, parity with hunt_settings on the one in use, an unset number reads the role default, own hero only, every number
       # the data allows, the name clamp, the shape, a read writes nothing. --mutate: the number ignored, the role default dropped, the filled

@@ -270,6 +270,9 @@
 .hb-pl-head { display: flex; align-items: center; justify-content: space-between; min-height: 30px; font-family: var(--f-label); font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
 .hb-label { flex: none; font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .04em; }
 .hb-pl-note { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+/* The First target (first-target.js): its row and the line naming the ground, gone where the ground offers no choice. */
+.hb-pl-first { display: flex; flex-direction: column; gap: 4px; }
+.hb-pl-first[hidden] { display: none; }
 /* The setup in use is the panel's title: its name in gold, set as a heading (Forged Steel's Cinzel). */
 .hb-set { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gold-2); font-family: var(--f-display); font-weight: 700; letter-spacing: .04em; }
 .hb-pl-row .hh-select { flex: 1; min-width: 0; }
@@ -756,6 +759,8 @@ label.st-line { cursor: pointer; }
     background: var(--modal-bg); border: 0 solid transparent; border-left-width: 4px; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated;
     transform: translateX(100%); visibility: hidden; transition: transform 160ms ease-out, visibility 0s linear 160ms; }
   .hb-plaque.is-open .hb-pl-more { transform: none; visibility: visible; transition: transform 160ms ease-out; }
+  /* Taller than the space under the hunt bar (667x375 with the First target row): it starts at its head and scrolls, never cut at both ends. */
+  .hb-pl-more { justify-content: safe center; overflow-y: auto; overscroll-behavior: contain; }
   .hb-pl-fold { display: contents; }
   .hb-pl-head { order: -1; color: var(--ink); font-family: var(--f-ui); font-size: var(--t-small); letter-spacing: 0; }
   .hb-pl-more .hb-pl-row, .hb-pl-more .hh-seg, .hb-pl-more .hh-select { min-height: 40px; }

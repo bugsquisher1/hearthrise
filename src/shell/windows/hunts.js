@@ -85,6 +85,12 @@ export function pickHunt(cs, hunt) {
   if (huntRows().some((r) => r.hunt === hunt)) { sc.pick = hunt; sc.auto = false; sc.msg = ''; sc.paged = true; }
 }
 
+/** The ground this character's Hunts window has picked, or null before the window has picked one (the bar's First target in town). */
+export function pickedHuntOf(cs) {
+  const sc = cs ? SCRATCH.get(cs) : null;
+  return sc && sc.pick ? sc.pick : null;
+}
+
 /* The character's Level as the server states it (the envelope's `level` block), or null. */
 function levelOf(cs) {
   const lv = levelRowOf(cs);

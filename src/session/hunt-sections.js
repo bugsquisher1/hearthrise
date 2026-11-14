@@ -380,6 +380,19 @@ export function huntTierOf(cs) {
   return picks ? { picks, playing: TIER_IDS.includes(s.playing) ? s.playing : null } : null;
 }
 
+/**
+ * `hunt_target_kind` (hr_hunt_target_kind_view, 2027-04-22-target-kind.sql): THIS hero's First target on each ground, the
+ * monster kind it takes before the Target order (remembered per ground, read afresh by every settle). { picks: { [hunt]:
+ * monster id } }, no key = none; null = the server sent no section, and the bar shows no choice.
+ */
+export function huntTargetKindOf(cs) {
+  const s = section(cs, 'hunt_target_kind');
+  if (!isObj(s) || !isObj(s.picks)) return null;
+  const picks = {};
+  for (const [hunt, kind] of Object.entries(s.picks).slice(0, 256)) if (str(hunt) && str(kind)) picks[hunt] = kind;
+  return { picks };
+}
+
 /* THE PARTY'S VIEW. The server's figure sums its members' sessions, and every hero present is credited every kill
    (hunt-rewards.js payKill), so its `kills` counts each monster once per hero (blind playtest 2026-10-31: 1,710 for 855
    kills; the sum is right for XP and gold, which each hero really earns). A monster dies once: this hero's own count. */

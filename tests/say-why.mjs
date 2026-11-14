@@ -191,6 +191,9 @@ export const REASONS = Object.freeze({
   'src/shell/windows/boss-call-pane.js': [
     { cond: '!open', words: 'BOSS_CALL_WORDS.noQuote', where: 'Call out: the line above the press reads the server\'s why (party of two, leader only, 3 a day), the hunt under way, or no answer yet' },
   ],
+  'src/shell/windows/boss-hall-pane.js': [
+    { cond: '!open', words: "text(box.querySelector('.hw-call-line'), hallWords(said, hall))", where: 'A keyed hall: the line above the press says why it is off (no key, only the leader opens it, the hunt under way), from the server\'s bag and party' },
+  ],
   'src/shell/windows/temper-pane.js': [
     { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
     { cond: 'itemsShort', words: "'Needs ' + whole(n.need) + ' ' + n.name + '. You hold '", where: 'Temper, short of its material: the line beside it says what the rung takes and what the hero holds, in the bag and Storage, and the note under both rows says where to get it (wayWords)' },

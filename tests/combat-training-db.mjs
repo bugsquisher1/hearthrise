@@ -226,9 +226,12 @@ async function forgedArm(bootFn) {
 /* ── A SECOND APPLY ───────────────────────────────────────────────────────── */
 const FILES = ['2027-04-16-combat-training-hunts-catalogue.generated.sql', '2027-04-16-combat-training-hunt-sessions-catalogue.generated.sql',
   '2027-04-16-combat-training-gold-sinks-catalogue.generated.sql', '2027-04-16-combat-training.sql'];
+/* On the chain as of this lane's own last file: a later file that restates one of its bodies (2027-04-20-boss-hall.sql splices hr_hunt_admit)
+   makes its §0 pin refuse a second apply on the WHOLE chain by design, so the claim is that these files are idempotent where they stand
+   (tests/boss-call-db.mjs AGAIN_UP_TO, the same reason). */
 async function againArm(bootFn) {
   const bad = [];
-  const { db } = await bootFn();
+  const { db } = await bootFn({ upTo: FILES[FILES.length - 1] });
   const read = async () => JSON.stringify({ inv: await inventory(db),
     bodies: await q(db, `select p.proname, md5(p.prosrc) as m from pg_proc p where p.pronamespace = 'public'::regnamespace and (p.proname like 'hr\\_training\\_%' or p.proname in ('hr_hunt_admit', 'hr_hunt_enter_check', 'hr_hunt_apply_member', 'hr_house_dummy_unlock')) order by 1`),
     rules: await q(db, 'select * from public.hr_training_rules'), grounds: await q(db, 'select * from public.hr_training_grounds order by hunt_id'),

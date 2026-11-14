@@ -270,7 +270,7 @@ export function reachableSources(opts = {}) {
   const put = (id, label) => { if (!id || !ITEMS[id] || m.has(id)) return false; m.set(id, label); return true; };
   const met = new Set();
   for (const g of Object.values(grounds)) {
-    for (const p of g.pockets || []) for (const s of (p.pack || []).concat(p.spawns || [])) met.add(s.monster);
+    for (const p of g.pockets || []) for (const s of (p.pack || []).concat(p.spawns || [], p.adds || [])) met.add(s.monster);
     for (const s of (HUNT_INDEX[g.hunt] || {}).spawns || []) met.add(s.monster);
   }
   for (const id of met) for (const d of (MONSTERS[id] && MONSTERS[id].drops) || []) put(d.id, 'drops from ' + id);

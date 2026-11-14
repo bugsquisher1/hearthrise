@@ -39,8 +39,11 @@ function namer(cs) {
   const units = h ? h.units : new Map();
   const call = h ? roomOfHunt(h.huntId) : null;
   return {
-    /* A room's boss whose adds shield him (boss-calls.js isGuarded): the add line says so. */
-    guarded: !!call && isGuarded(MONSTERS[call.monster]),
+    /* Does boss `u`'s wave shield him (boss-calls.js isGuarded, his own row: a room's boss or a ground's)? The add line says so. */
+    guarded(u) {
+      const kind = (units.get(u) || {}).kind || cs.timeline.kindOf(u);
+      return !!kind && isGuarded(MONSTERS[kind]);
+    },
     /* A hall's wave with a named add in it (boss-halls.js namedWaveOf): the add line names him. */
     wave: call && call.kind === 'hall' ? namedWaveOf(call.hunt) : null,
     name(u) {
@@ -80,13 +83,14 @@ export function lineOf(ev, n) {
     case 'level': return line('xp', a + ' reaches ' + (ev.skill === 'level' ? 'Level ' : skillName(ev.skill) + ' level ') + ev.level + '.' + unlockedBy(ev.skill, ev.level));
     case 'eat': case 'drink':
       return line('supply', a + (ev.type === 'eat' ? ' eats ' : ' drinks ') + itemName(ev.item) + (ev.source === 'store' ? ', bought from the store.' : ' from the bag.'));
-    /* A called boss crossed a line (boss-phases.js): the bar and the world say so too. */
+    /* A boss crossed a line (boss-phases.js; a room's boss or a ground's): the bar and the world say so too. */
     case 'boss_phase': {
+      const guarded = ev.phase === 'adds' && n.guarded(ev.u);
       if (ev.phase === 'adds' && n.wave) {
         const L = BOSS_HALL_WORDS.log;
-        return line('status', a + ' ' + (n.wave.others ? (n.guarded ? L.namedGuarded : L.named) : (n.guarded ? L.namedOnlyGuarded : L.namedOnly)).replace('{names}', n.wave.names));
+        return line('status', a + ' ' + (n.wave.others ? (guarded ? L.namedGuarded : L.named) : (guarded ? L.namedOnlyGuarded : L.namedOnly)).replace('{names}', n.wave.names));
       }
-      return line('status', a + ' ' + BOSS_CALL_WORDS.log[ev.phase === 'adds' && n.guarded ? 'guarded' : ev.phase]);
+      return line('status', a + ' ' + BOSS_CALL_WORDS.log[guarded ? 'guarded' : ev.phase]);
     }
     /* A monster's spell winding up (monster-spells.js): the screen marks it, the log names it (a group spell reaches everyone). */
     case 'spell': return line('status', t(ev.shape === 'group' ? 'log.spell_group' : 'log.spell', { who: a, spell: abilityName(ev.spell) }));

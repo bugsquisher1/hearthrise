@@ -146,6 +146,10 @@ const WRITERS = [
   ['src/core/hunt-spawn.js', 'world.units = world.units.filter((u) => u.id !== unitId);', 'a hero leaves between swings'],
   ['src/core/hunt-spawn.js', 'for (const u of world.units) if (u.target === unitId) u.target = null;', 'a hero leaves between swings'],
   ['src/core/hunt/leash.js', 'u.target = null;', 'resetPack drops the index'],
+  /* A ground boss's adds leave on his reset (lane/b-muster-barrows; tests/ground-boss.mjs): all three before resetPack's one staleIndex, which nothing reads ahead of */
+  ['src/core/hunt/leash.js', 'if (isAdd(inst, u)) { u.alive = false; u.hp = 0; u.goal = null; gone.add(u.id); continue; }', 'resetPack drops the index'],
+  ['src/core/hunt/leash.js', 'inst.world.units = inst.world.units.filter((u) => !gone.has(u.id));', 'resetPack drops the index'],
+  ['src/core/hunt/leash.js', 'for (const u of inst.world.units) if (gone.has(u.target)) u.target = null;', 'resetPack drops the index'],
   ['src/core/hunt/pull-cycle.js', 'w.units.push(u);', 'placeRow drops the index'],
   ['src/core/hunt/pull-cycle.js', 'w.packs[p].alive = true;', 'a pack\'s alive, not a unit\'s'],
   ['src/core/hunt/pull-cycle.js', 'if (u && on.length) { u.target = on[i % on.length].id; staleIndex(inst); }', 'spawnAdds drops the index'],

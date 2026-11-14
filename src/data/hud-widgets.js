@@ -96,7 +96,7 @@ export const HUD_WIDGETS = Object.freeze([
     below: Object.freeze(['analyzer', 'hunt-topbar']),
     phone: Object.freeze({ visible: false, dx: 4, dy: 4 }),
   }),
-  /* A called boss's bar, under the hunt bar. On any other hunt it is quiet and takes no room (widgets/boss-bar.js). */
+  /* A boss's bar, under the hunt bar: a called boss's, or a ground's boss with lines while he is fought. Otherwise it is quiet and takes no room (widgets/boss-bar.js). */
   Object.freeze({
     id: 'boss-bar', label: 'Boss bar', layer: 'world', anchor: 'tc', dx: 0, dy: 56,
     min: Object.freeze([320, 40]), opacity: 1, visible: true, removable: true, when: 'hunt',

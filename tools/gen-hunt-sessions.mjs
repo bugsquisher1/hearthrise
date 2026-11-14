@@ -348,7 +348,7 @@ export function groundRows(grounds, refs = {}) {
 }
 
 /** WHAT EACH GROUND CAN DROP (the drop-bound self-check): per hunt, every item a monster standing in any of its
-    pockets' authored rows (a box's whole `pack`, plus its `spawns`) drops, and the most rows one kill's table names
+    pockets' authored rows (a box's whole `pack`, plus its `spawns` and a boss's `adds`, which pay on a ground) drops, and the most rows one kill's table names
     it (one unit a row: src/core/drops.js rollDropTable). The self-check executes the settle's item bound on the
     APPLIED rows for each. Sorted [{ hunt, item, need }]. */
 export function dropNeeds(grounds, monsters) {
@@ -356,7 +356,7 @@ export function dropNeeds(grounds, monsters) {
   for (const id of Object.keys(grounds).sort()) {
     const g = grounds[id];
     const mons = new Set();
-    /* a boss's wave too (a keyed hall's adds pay; a called room's drop nothing, so they add no row) */
+    /* a boss's wave too (a keyed hall's adds and a ground's pay; a called room's drop nothing, so they add no row) */
     for (const p of g.pockets || []) for (const s of (p.pack || []).concat(p.spawns || [], p.adds || [])) mons.add(s.monster);
     for (const m of mons) {
       const per = {};
@@ -712,6 +712,11 @@ export function catalogueRows(src = {}) {
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
 }
 
+/* A boss row's two lines (src/core/hunt/boss-phases.js): adds at addsPm, a raised blow under enragePm, whole permille in order. */
+const twoLines = (ph) => !!ph && whole(ph.addsPm) && whole(ph.enragePm) && whole(ph.enrageAtkPm) && ph.addsPm > ph.enragePm && ph.enragePm > 0 && ph.addsPm < 1000 && ph.enrageAtkPm > 1000;
+/* A NAMED ADD's one line (a row `boss` and `add` both, the Krell's Hold design's engine piece 6): his own enrage, never a wave or a guard (NAMED_ADD_PHASES, below). */
+const namedAddLine = (ph) => !!ph && whole(ph.enragePm) && whole(ph.enrageAtkPm) && ph.enragePm > 0 && ph.enragePm < 1000 && ph.enrageAtkPm > 1000 && Object.keys(ph).every((k) => NAMED_ADD_PHASES.includes(k));
+
 /* THE MONEY LINE, AT THE GENERATOR (tests/boss-call.mjs mutates it): the rows of hr_boss_calls, or a throw. A called row has xp 0, gp [0, 0] and no drops, and carries no yield trick;
    a called room holds called rows only and a called row stands nowhere else; a call names one room and the open ground its press sits on, and that ground fields the boss it copies. */
 function calledRows(S) {
@@ -724,7 +729,7 @@ function calledRows(S) {
     if (m.dropBonus !== undefined) throw new Error(`called row ${id} carries a drop bonus: a called row drops nothing`);
     if (m.boss !== true && m.add !== true) throw new Error(`called row ${id} is neither a boss nor his add`);
     if (m.boss === true && m.add === true) throw new Error(`called row ${id} is both a boss and an add: "target is a boss" tells them apart`);
-    if (m.boss === true && !(m.phases && whole(m.phases.addsPm) && whole(m.phases.enragePm) && whole(m.phases.enrageAtkPm) && m.phases.addsPm > m.phases.enragePm && m.phases.enragePm > 0 && m.phases.addsPm < 1000 && m.phases.enrageAtkPm > 1000)) throw new Error(`called boss ${id} has no two lines: ${JSON.stringify(m.phases)}`);
+    if (m.boss === true && !twoLines(m.phases)) throw new Error(`called boss ${id} has no two lines: ${JSON.stringify(m.phases)}`);
   }
   /* The table's CHECK tells a called row by its id (hr_hunt_kill_bounds_xp_max_check): the id and the flag agree, both ways. */
   for (const id of Object.keys(S.monsters)) if (/_called$/.test(id) !== (S.monsters[id].called === true)) throw new Error(`monster ${id}: an id ends _called exactly when its row is called`);
@@ -740,12 +745,20 @@ function calledRows(S) {
     if (!(whole(c.fee) && c.fee >= 1 && c.fee <= 1000000000)) throw new Error(`call ${c.id} fee ${c.fee} is not whole gold in 1..1e9`);
     return { id: c.id, hunt: c.hunt, from: c.from, monster: c.monster, fee: c.fee };
   }).sort((a, b) => (a.id < b.id ? -1 : 1));
-  /* A keyed hall's boss and named adds carry phases too (hallRows holds them); every other row with phases is a called one. */
-  const inHall = new Set(Object.values(S.grounds).filter((g) => g.hall).flatMap((g) => g.pockets.flatMap((p) => (p.spawns || []).concat(p.adds || []))).map((s) => s.monster));
-  for (const id of Object.keys(S.monsters)) if (S.monsters[id].phases && S.monsters[id].called !== true && !inHall.has(id)) throw new Error(`monster ${id} has phases and is no called row`);
+  /* A BOSS'S LINES, ON ANY ROW THAT HAS THEM (src/core/hunt/boss-phases.js plays a ground's boss as it plays a room's): only a boss carries
+     them. A NAMED ADD (boss and add both; he stands in a keyed hall, hallRows) carries an enrage line at most; every other boss both lines, in
+     order. The rule is the row's, so a staged pack's rows are held to it before they are served. A called row with none is refused above. */
+  for (const id of Object.keys(S.monsters)) {
+    const m = S.monsters[id];
+    if (m.phases === undefined) continue;
+    if (m.boss !== true) throw new Error(`monster ${id} has phases and is no boss`);
+    if (m.add === true) { if (!namedAddLine(m.phases)) throw new Error(`named add ${id} carries a line he can't: only an enrage line (no wave, no guard), ${JSON.stringify(m.phases)}`); continue; }
+    if (!twoLines(m.phases)) throw new Error(`boss ${id} has no two lines: ${JSON.stringify(m.phases)}`);
+  }
   for (const g of Object.values(S.grounds)) {
     if (g.call && !g.pockets.some((p) => (p.adds || []).length)) throw new Error(`called room ${g.id} has no adds`);
-    if (!g.call && !g.hall && g.pockets.some((p) => p.adds)) throw new Error(`ground ${g.id} has adds and is no called room`);
+    /* A WAVE OUTSIDE A CALLED ROOM (a ground's, Captain Hask's; a keyed hall's): only in a pocket whose boss has the lines to call it; its rows pay like the ground's own (no called row, below). */
+    for (const p of g.pockets) if (!g.call && p.adds && !(p.pack || []).concat(p.spawns).some((s) => S.monsters[s.monster] && S.monsters[s.monster].phases)) throw new Error(`ground ${g.id} has adds and no boss with lines to call them`);
     const mons = g.pockets.flatMap((p) => (p.pack || []).concat(p.spawns, p.adds || [])).map((s) => s.monster);
     for (const id of mons) {
       if (g.call && !(S.monsters[id] && S.monsters[id].called === true)) throw new Error(`called room ${g.id} fields ${id}, which pays`);
@@ -811,8 +824,7 @@ function hallRows(S) {
       if (a.boss === true) {
         /* A NAMED ADD: his own enrage line at most, never a wave or a guard */
         const ph = a.phases;
-        if (ph !== undefined && !(ph && whole(ph.enragePm) && whole(ph.enrageAtkPm) && ph.enragePm > 0 && ph.enragePm < 1000 && ph.enrageAtkPm > 1000
-          && Object.keys(ph).every((k) => NAMED_ADD_PHASES.includes(k)))) throw new Error(`named add ${s.monster} carries a line he can't: only an enrage line (no wave, no guard), ${JSON.stringify(ph)}`);
+        if (ph !== undefined && !namedAddLine(ph)) throw new Error(`named add ${s.monster} carries a line he can't: only an enrage line (no wave, no guard), ${JSON.stringify(ph)}`);
       } else if (a.phases !== undefined) throw new Error(`hall add ${s.monster} has phases and is no named add`);
     }
     /* his rows stand in his room only: no other ground fields the boss or an add */
@@ -826,8 +838,10 @@ function hallRows(S) {
   for (const g of hallGrounds) if (!rows.some((r) => r.hunt === g.hunt && r.id === g.hall)) throw new Error(`hall room ${g.id} names hall ${g.hall}, which is no row`);
   const loose = S.hunts.filter((x) => x.hall === true && !rows.some((r) => r.hunt === x.id));
   if (loose.length) throw new Error(`hall hunt ${loose[0].id} has no hall: it would have no door`);
-  /* a named add stands in a hall only: everywhere else an add is a called room's, which never names one */
-  for (const [id, m] of Object.entries(S.monsters)) if (m.boss === true && m.add === true && !hallGrounds.some((g) => g.pockets[0].adds.some((s) => s.monster === id))) throw new Error(`named add ${id} stands in no hall`);
+  /* a named add stands in a hall only: everywhere else an add is a called room's, which never names one. EVERY hall in the data counts (a staged
+     pack's too, `everyHall`: its rows are in S.monsters though its room is served nowhere yet) */
+  const anyHall = [...hallGrounds, ...Object.values(S.everyHall || {})];
+  for (const [id, m] of Object.entries(S.monsters)) if (m.boss === true && m.add === true && !anyHall.some((g) => g.pockets[0].adds.some((s) => s.monster === id))) throw new Error(`named add ${id} stands in no hall`);
   return rows;
 }
 

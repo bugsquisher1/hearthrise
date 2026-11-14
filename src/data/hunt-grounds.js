@@ -137,7 +137,7 @@ import { HUNT_INDEX } from './hunts.js?v=0.2.130';
 import { MONSTERS } from './monsters.js?v=0.2.130';
 import { PARTY } from './party.js?v=0.2.130';
 /* the shape helpers (pocket, box, gather) live with the ground packs, which build their grounds with the same ones */
-import { pocket, box, gather, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.130';
+import { pocket, box, gather, addRows, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.130';
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.130';
 import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.130';
 export { FULL_BOX };
@@ -348,9 +348,6 @@ const BASE_GROUNDS = Object.freeze({
 /* THE BASE ROWS, then every ground pack's (src/data/grounds): its id is the pack's, and so is its hunt. */
 export const HUNT_GROUNDS = Object.freeze(foldRows('ground', BASE_GROUNDS, GROUND_PACKS, (p) => ({ [p.id]: Object.freeze({ id: p.id, hunt: p.id, ...p.ground }) })));
 
-/* A called boss's wave, rows like a pocket's spawns (pull-cycle.js spawnAdds): nothing else reads them but the catalogue's bounds. */
-const addRows = (...rows) => Object.freeze(rows.map(([monster, x, y]) => Object.freeze({ monster, x, y })));
-
 /* THE CALLED ROOMS (Call out, Tyler 2026-11-04; src/data/boss-calls.js): one pocket, the boss's own hall on his own map, no pull dial: a pocket of nothing but a boss keeps its
    as-built pack at any size (pullRows). Not in HUNT_GROUNDS, so nothing that lists grounds sees them; the engine and the scene reach them by hunt (groundOfHunt). `call` marks
    the room: the engine pays nothing in it (hunt-rewards.js), a death or a leave sends everyone home, and its end is the kill or the limit (combat-sim.js). */
@@ -406,7 +403,7 @@ export function groundOfHunt(huntId) {
 export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries(HUNT_GROUNDS).filter(([, g]) => !(HUNT_INDEX[g.hunt] && HUNT_INDEX[g.hunt].staged === true))));
 
 /** THE REACHABLE ROSTER (designer 2026-10-22, lane c-monster-ladders): what a player can actually meet, from `grounds`
-    (pass OPEN_GROUNDS: a staged ground is hidden and refused): every pocket's spawns and full pack plus its hunt's spawn
+    (pass OPEN_GROUNDS: a staged ground is hidden and refused): every pocket's spawns, full pack and boss's wave (`adds`) plus its hunt's spawn
     rows. The Bestiary's total counts these: gen-hunt-sessions writes them to hr_hunt_roster, so a new open ground moves
     the total by itself. */
 export function reachableOf(grounds, hunts) {

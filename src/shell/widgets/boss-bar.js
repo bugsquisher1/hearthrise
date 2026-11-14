@@ -1,13 +1,17 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/shell/widgets/boss-bar.js — A BOSS ROOM'S BAR (Tyler 2026-11-05: "phases"): a called room's boss (src/data/boss-calls.js) and a keyed
+// src/shell/widgets/boss-bar.js — A BOSS'S BAR (Tyler 2026-11-05: "phases"): a called room's boss (src/data/boss-calls.js), a keyed
 // hall's (src/data/boss-halls.js; the Krell's Hold design: "Krell's health with lines drawn at 50 and 25, the phase words under it, and one
-// more line for the next flare").
+// more line for the next flare"), and a ground's boss with the same two lines (Captain Hask, src/data/grounds/muster_barrows;
+// src/core/hunt/boss-phases.js).
 //
 // His name, his HP at the instant the world shows (the timeline's, as his sprite's own bar reads it), and a mark on each of his two lines.
 // Past a line it says what that line brought. Under it, while one stands, a NAMED ADD's name and his HP or his enrage (piece 6), and, for a
 // boss whose row hastens a spell under his enrage line (phases.hasten, piece 7), that spell's COUNTDOWN: the wait the browser's live
 // prediction holds (live-engine.js spellWait), moved back to the instant shown. Display only: nothing reads it, and each envelope and
-// each server commit replace the prediction it comes from. Quiet on any other hunt, so the widget takes no room. Built once, patched in place.
+// each server commit replace the prediction it comes from. Quiet when no boss is being fought, so the widget takes no room. Built once,
+// patched in place.
+// WHICH BOSS: in a room, the room's boss for the whole fight (the room is the fight). On a ground, a boss with lines who stands hurt at
+// the instant shown: the party is on him. Before the first blow, and once a reset heals him, the bar steps aside.
 // ════════════════════════════════════════════════════════════════════════
 import { BOSS_CALL_WORDS, isGuarded } from '../../data/boss-calls.js?v=0.2.130';
 import { BOSS_HALL_WORDS, roomOfHunt, isNamedAdd } from '../../data/boss-halls.js?v=0.2.130';
@@ -35,6 +39,27 @@ function pmOf(cs, u, x) {
 function bossPmOf(cs, h, monster) {
   for (const [u, x] of h.units) if (x.kind === monster) return pmOf(cs, u, x);
   return null;
+}
+
+/* A GROUND'S BOSS BEING FOUGHT: the standing boss with lines (monsters.js `phases`) the instant shown has hurt, the lowest if two. */
+function groundBossOf(cs, h) {
+  let best = null;
+  for (const [u, x] of h.units) {
+    const row = x.side === 'monster' && x.alive !== false ? MONSTERS[x.kind] : null;
+    if (!row || row.boss !== true || !row.phases) continue;
+    const pm = pmOf(cs, u, x);
+    if (pm === null || pm <= 0 || pm >= 1000) continue;
+    if (!best || pm < best.pm) best = { monster: x.kind, name: row.name, pm };
+  }
+  return best;
+}
+
+/* The boss the bar follows now, { monster, name, pm }, or null: a room's boss (a called room's or a keyed hall's), else a ground's. */
+function bossOf(cs, h) {
+  if (!h || h.ended) return null;
+  const room = roomOfHunt(h.huntId);
+  if (room) return { monster: room.monster, name: room.Boss, pm: bossPmOf(cs, h, room.monster) };
+  return groundBossOf(cs, h);
 }
 
 /* A NAMED ADD standing at the instant shown (the timeline's units: one the live view placed may not be in the pose yet): { name, pm, row }. */
@@ -68,22 +93,21 @@ function flareOf(cs, monster, ph, raging) {
 renderBossBar.patch = function patchBossBar(el, ctx) {
   const cs = ctx.character;
   const h = huntOf(cs);
-  const room = h && !h.ended ? roomOfHunt(h.huntId) : null;
-  const ph = room ? (MONSTERS[room.monster] || {}).phases : null;
+  const boss = bossOf(cs, h);
+  const ph = boss ? (MONSTERS[boss.monster] || {}).phases : null;
   cls(el, 'is-quiet', !ph);
   if (!ph) return;
-  const pm = bossPmOf(cs, h, room.monster);
-  const now = pm === null ? 1000 : pm;
+  const now = boss.pm === null ? 1000 : boss.pm;
   const raging = now <= ph.enragePm, wave = now <= ph.addsPm;
-  text(el.querySelector('.hs-boss-name'), room.Boss);
-  text(el.querySelector('.hs-boss-state'), raging ? BOSS_CALL_WORDS.bar.enrage : wave ? BOSS_CALL_WORDS.bar[isGuarded(MONSTERS[room.monster]) ? 'guarded' : 'adds'] : Math.ceil(now / 10) + '%');
+  text(el.querySelector('.hs-boss-name'), boss.name);
+  text(el.querySelector('.hs-boss-state'), raging ? BOSS_CALL_WORDS.bar.enrage : wave ? BOSS_CALL_WORDS.bar[isGuarded(MONSTERS[boss.monster]) ? 'guarded' : 'adds'] : Math.ceil(now / 10) + '%');
   const box = el.querySelector('.hs-boss');
   cls(box, 'is-wave', wave && !raging);
   cls(box, 'is-raging', raging);
   style(el.querySelector('.hs-boss-fill'), 'width', (now / 10) + '%');
   style(el.querySelector('.hs-boss-mark.is-adds'), 'left', (ph.addsPm / 10) + '%');
   style(el.querySelector('.hs-boss-mark.is-enrage'), 'left', (ph.enragePm / 10) + '%');
-  /* the named add while he stands */
+  /* the named add while he stands (a hall's: a named add stands nowhere else, so a ground's wave shows none) */
   const add = wave ? namedAddOf(cs, h) : null;
   const addBox = el.querySelector('.hs-boss-add');
   prop(addBox, 'hidden', !add);
@@ -94,7 +118,7 @@ renderBossBar.patch = function patchBossBar(el, ctx) {
     cls(addBox, 'is-raging', addRaging);
   }
   /* the hasted spell's countdown */
-  const flare = flareOf(cs, room.monster, ph, raging);
+  const flare = flareOf(cs, boss.monster, ph, raging);
   const flareBox = el.querySelector('.hs-boss-flare');
   prop(flareBox, 'hidden', !flare);
   if (flare) {

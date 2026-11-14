@@ -222,7 +222,9 @@ async function checks(overrides) {
             adds: q('.hs-boss-mark.is-adds').style.left, enrage: q('.hs-boss-mark.is-enrage').style.left, wave: q('.hs-boss').classList.contains('is-wave'), raging: q('.hs-boss').classList.contains('is-raging') };
         };
         return { lines, ended: ended && ended.fight, loss: built.loss, kept: kept && kept.loss,
-          bars: { full: bar(room, 1000), half: bar(room, 500), quarter: bar(room, 240), played: bar(room, 1000, false, { hp: 240, maxHp: 1000 }), normal: bar('millrace_sewer', 1000), over: bar(room, 240, true), chief: bar('coppercap_warrens_called', 500, false, null, 'chief_coppercap_called') },
+          bars: { full: bar(room, 1000), half: bar(room, 500), quarter: bar(room, 240), played: bar(room, 1000, false, { hp: 240, maxHp: 1000 }), normal: bar('millrace_sewer', 1000), over: bar(room, 240, true), chief: bar('coppercap_warrens_called', 500, false, null, 'chief_coppercap_called'),
+            /* A GROUND'S BOSS WITH LINES (Captain Hask): his bar once he is hurt, none before */
+            hask: bar('muster_barrows', 400, false, null, 'captain_hask'), haskFull: bar('muster_barrows', 1000, false, null, 'captain_hask'), haskOver: bar('muster_barrows', 400, true, null, 'captain_hask') },
           warn: { king: P.callWords(BC.BOSS_CALL_WORDS.warn[0], BC.BOSS_CALLS.rat_king), chief: P.callWords(BC.BOSS_CALL_WORDS.warn[0], BC.BOSS_CALLS.chief_coppercap) } };
       });
       const l = r.lines;
@@ -252,6 +254,9 @@ async function checks(overrides) {
       if (!b.played.raging || b.played.fill !== '24%') fails.push('BW-7 the bar does not read the instant shown: ' + JSON.stringify(b.played));
       if (!b.normal.quiet) fails.push('BW-7 a normal hunt has a boss bar');
       if (!b.over.quiet) fails.push('BW-7 a finished fight still has a boss bar');
+      if (b.hask.quiet || b.hask.name !== 'Captain Hask' || !b.hask.wave || b.hask.state !== 'His adds are coming' || b.hask.adds !== '50%' || b.hask.enrage !== '25%') fails.push('BW-7 Captain Hask hurt on his ground reads ' + JSON.stringify(b.hask));
+      if (!b.haskFull.quiet) fails.push('BW-7 Captain Hask has a bar before anyone hurt him');
+      if (!b.haskOver.quiet) fails.push('BW-7 a finished hunt at the Barrows still has his bar');
       await ctx.close();
     }
   } finally {
@@ -274,6 +279,8 @@ const MUTANTS = [
   { name: 'a mark in the wrong place', file: 'src/shell/widgets/boss-bar.js', from: "'left', (ph.enragePm / 10) + '%'", to: "'left', (ph.addsPm / 10) + '%'", want: /BW-7/ },
   { name: 'the bar reads the snapshot, not the instant shown', file: 'src/shell/widgets/boss-bar.js', from: 'const hp = played ? played.hp : x ? x.hp : NaN, max = played ? played.maxHp : x ? x.hpMax : 0;', to: 'const hp = x ? x.hp : NaN, max = x ? x.hpMax : 0;', want: /BW-7/ },
   { name: 'the bar stands on every hunt', file: 'src/shell/widgets/boss-bar.js', from: "cls(el, 'is-quiet', !ph);", to: "cls(el, 'is-quiet', false);", want: /BW-7/ },
+  { name: 'a ground boss has no bar', file: 'src/shell/widgets/boss-bar.js', from: 'return groundBossOf(cs, h);', to: 'return null;', want: /BW-7/ },
+  { name: 'a ground boss has his bar before he is hurt', file: 'src/shell/widgets/boss-bar.js', from: 'if (pm === null || pm <= 0 || pm >= 1000) continue;', to: 'if (pm === null || pm <= 0) continue;', want: /BW-7/ },
   /* ALONE, A WARNING (the designer's ruling 2, 2026-11-10): the lone line shows for a hero alone, only for one, and the answer names no party. */
   { name: 'a hero alone reads no lone line', file: 'src/shell/windows/boss-call-pane.js', from: "prop(alone, 'hidden', !q.alone);", to: "prop(alone, 'hidden', true);", want: /BW-1/ },
   { name: 'a party reads the lone line', file: 'src/shell/windows/boss-call-pane.js', from: "text(alone, q.alone ? callWords(BOSS_CALL_WORDS.warnAlone, call, q.price) : '');", to: 'text(alone, callWords(BOSS_CALL_WORDS.warnAlone, call, q.price));', want: /BW-2/ },

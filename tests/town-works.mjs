@@ -758,7 +758,8 @@ const ARMS = {
     if (edge.length < 50) out.push('the pack read ' + edge.length + ' files');
     for (const n of edge) if (/town-works|works\.js|town-intents|sink-taps/.test(n)) out.push(n + ' is in the edge bundle');
     /* ONLY THE WORKS' OWN CLIENT MODULES READ IT: no price, gate or number a player can act on */
-    const CLIENT_READERS = new Set(['src/world/town-works.js', 'src/world/world-boot.js', 'src/session/town-presence.js', 'src/session/town-intents.js', 'src/shell/sink-words.js', 'src/shell/windows/havora/works.js', 'src/shell/windows/havora/index.js', 'src/data/town-works.js', 'src/data/world/sink-taps.js', 'src/data/honor-roll.js', 'src/data/refusal-words.js', 'src/data/world/town/sites.js']);
+    /* (src/app/game-modules.js is the generated list of every module's path, tests/module-preload.mjs --write: it names the file, it reads nothing) */
+    const CLIENT_READERS = new Set(['src/app/game-modules.js', 'src/world/town-works.js', 'src/world/world-boot.js', 'src/session/town-presence.js', 'src/session/town-intents.js', 'src/shell/sink-words.js', 'src/shell/windows/havora/works.js', 'src/shell/windows/havora/index.js', 'src/data/town-works.js', 'src/data/world/sink-taps.js', 'src/data/honor-roll.js', 'src/data/refusal-words.js', 'src/data/world/town/sites.js']);
     const client = X.clientFiles.concat(mutant && mutant.plant === 'clientFile' ? [['src/shell/windows/shop.js', 'const discount = town.extras();']] : []);
     for (const [rel, text] of client) if (/\.extras\(\)|data\/town-works\.js|readWorks|hr_town_works/.test(text) && !CLIENT_READERS.has(rel)) out.push(rel + ' reads the Works');
     if (client.length < 50) out.push('the scan of the client read ' + client.length + ' files');

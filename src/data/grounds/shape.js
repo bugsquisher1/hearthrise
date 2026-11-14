@@ -99,7 +99,7 @@ function fuelWhy(p) {
 
 /** A pack's `spells`, checked for shape: answers why it is malformed, or null. The bounds are monster-spells.js validateSpell. */
 function spellsWhy(p) {
-  if (!isObj(p.spells) || !Object.keys(p.spells).length) return 'spells is not { id: row } with a row';
+  if (!isObj(p.spells) || !Object.keys(p.spells).length) return 'spells is not a map of spell ids to rows, with at least one';
   for (const [id, row] of Object.entries(p.spells)) {
     if (!/^[a-z0-9_]{1,32}$/.test(id)) return 'spell id ' + id + ' is not [a-z0-9_]';
     if (!isObj(row)) return 'spell ' + id + ' is not a row';

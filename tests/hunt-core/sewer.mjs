@@ -45,6 +45,7 @@ async function load(root) {
   M.terrain = await imp('src/data/world/terrain.js');
   M.mapc = await imp('src/world/core/map-compile.js');
   M.sets = await imp('src/data/world/atlas-sets.js');
+  M.book = await imp('src/world/core/book.js');
   M.classes = await imp('src/data/monster-classes.js');
   M.tut = await imp('src/data/hunt-tutorial.js');
   M.cm = await imp('src/data/condition-metrics.js');
@@ -86,7 +87,8 @@ function maskOf(M, mapId) {
   for (const set of M.sets.ATLAS_SETS) {
     Object.assign(sprites, JSON.parse(readFileSync(join(M.root, 'assets/world/atlas-' + set + '.json'), 'utf8')).sprites);
   }
-  const map = M.mapc.compileMap(row, { materials: M.terrain.MATERIALS, sprites, openClasses: M.terrain.OPEN_CLASSES, lights: {} });
+  /* as the game compiles it (src/world/atlas.js): a prop with no art yet is the one-tile stub (a staged ground's art comes with its import, forest-cave staged-until-art) */
+  const map = M.mapc.compileMap(row, { materials: M.terrain.MATERIALS, sprites: new Proxy(sprites, { get: (t, k) => t[k] || M.book.STUB_SPRITE }), openClasses: M.terrain.OPEN_CLASSES, lights: {} });
   return { row, map, open: (x, y) => x >= 0 && y >= 0 && x < map.w && y < map.h && map.mask[y * map.w + x] === 0 };
 }
 

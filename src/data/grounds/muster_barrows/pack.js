@@ -240,7 +240,7 @@ export default definePack({
      the four with no Healer reads about 1.09 / 1.15 / 1.11, under at the floor and top. The sheet names a well-built four (10-25 §5). */
   /* TIER-5 HATCHETS AND CROSSBOW (lane/d-barrow-data, 2026-11-13): the axes and crossbow ways alone now wear a tier-5 rung, so the median lone
      way rose and the three-class four (tank, hammer, bow, mage) read 1.13 at the middle on the full grade. 1400 x 1.17 / 1.13 = 1450. */
-  partyClassXp: { 2: [990, 1460], 3: [990, 1255, 1500], 4: [970, 1185, 1450, 1385] },
+  partyClassXp: { 2: [990, 1460], 3: [990, 1255, 1500], 4: [970, 1185, 1450, 1455] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10, with Hask's lines and
      the cells above). One class is the mean of its five one-class parties: pairs 0.88-0.94 (0.91), threes 0.80-0.89 (0.84), fours

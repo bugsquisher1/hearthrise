@@ -139,6 +139,16 @@ async function selftest() {
   console.log('  ' + (loneSewer ? 'ok ' : 'RED') + ' the Sewer read without its party pocket is off-formula (the fit is read)');
   if (!loneSewer) bad.push('the Sewer reads on-formula as a lone ground: the fit is not read');
   if (S.groundFit(D.G.HUNT_GROUNDS.millrace_sewer) !== 'party') bad.push('groundFit does not read the Sewer\'s forParty pocket as a party ground');
+  /* NO PROFIT MOLDS (Tyler 2026-11-13): `check` grades a ground by the sheet the grader loads, so that sheet carries no gold rule, and a sheet
+     that adds one (the retired +25% floor) is refused by the grader rather than graded */
+  const GR = await import(u('tools/balance-sim/grade.mjs'));
+  const sheet = await GR.loadSheet(ROOT), gold = sheet.rules.filter(GR.isProfitRule).map((r) => r.id);
+  console.log('  ' + (gold.length ? 'RED' : 'ok ') + ' the sheet pack check grades by carries no profit rule' + (gold.length ? ' (' + gold.join(', ') + ')' : ''));
+  if (gold.length) bad.push('the pack check\'s sheet grades gold: ' + gold.join(', '));
+  let refused = false;
+  try { GR.gradeCells([], { ...sheet, rules: [...sheet.rules, { id: 'normal-profit', metric: 'margin', min: 0.25, binding: true }] }, () => 1); } catch (e) { refused = /NO PROFIT MOLDS/.test(e.message); }
+  console.log('  ' + (refused ? 'ok ' : 'RED') + ' a +25% profit rule on that sheet is refused, not graded');
+  if (!refused) bad.push('the grader graded a +25% profit rule');
   if (bad.length) { console.error('pack --selftest: RED\n  ' + bad.join('\n  ')); process.exit(1); }
   console.log('pack --selftest: green (' + Object.keys(D.G.HUNT_GROUNDS).length + ' grounds lint clean, ' + cases.length + ' refusals bite)');
 }

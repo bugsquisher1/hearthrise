@@ -19,25 +19,22 @@
 //   sim-plays-the-server-map  what the fixture's run plays (the hunt guards, tools/balance-sim) is, tile for tile, the grid the edge settle plays, on every ground
 //   glade-solo-floor    a solo Melee in the ladder kit at the glade's floor (L16) plays the hour with no death on the six
 //                       seeds; prints the practice-sword-and-Thicket-leather graduate beside it (evidence)
-//   glade-between       at each floor (6-seed median per hero-hour): the Sewer's party < the glade solo in its four plate pieces < the
-//                       Warrens' party, in net gold AND Level XP, and the glade in those four pieces clears +25% over its bill (Tyler 2026-11-07: judged properly equipped)
+//   glade-between       at each floor (6-seed median per hero-hour): the Sewer's party -> the glade solo in its four plate pieces -> the
+//                       Warrens' party, each step pays more net gold OR more Level XP, never less of both (Tyler 2026-11-09)
 //   harder-pays-more    a kill's expected gold climbs with hp x attack, and the same hero at one Level earns more an hour on the ground above (Tyler 2026-11-03)
 //   wickstead-solo-floor  (Wickstead, lane b-greenhaven-6; staged, played on its fitted grid) a ladder-kit Melee alone at
-//                       its floor (L8) lives the hour on the six seeds, clears +25%, and nets and levels no worse than
-//                       the Thicket at the Thicket's floor; the start kit's hour is printed (evidence)
+//                       its floor (L8) lives the hour on the six seeds and levels no worse than the Thicket at the
+//                       Thicket's floor; its net gold and the start kit's hour are printed (evidence)
 //   shop-outfits-defense  the Shop's gear (designer 2026-10-22) sells no slot a walked ground's regular gear drops (a Rare
 //                       named piece may share a slot with a Shop basic), has gloves and
 //                       a belt a new hero can afford (one medium), and a start-kit Melee at the Thicket floor who buys them
-//                       trains Defense (0 without), lives the hour and nets more than the pair cost
+//                       trains Defense (0 without) and lives the hour (its net is printed)
 //   thicket-solo-starter-kit  a new hero alone at the Thicket's floor (the solo-first ground, band 5-15), wearing
 //                       ONLY the start kit, plays the hour on the real settle (play-ground.mjs) with no death, on
 //                       each of the designer's six seeds (designer pass 2026-10-21, Tyler: solo first)
-//   first-grounds-net-chain  net gold per hero-hour (coin + commons - store) at each first ground's floor never
-//                       drops along the start flow, Cellar (L1, solo) -> Thicket (L5, solo) -> Sewer (L8, party of
-//                       four), every floor in the reference kit (play-ground's smiths' ladder kit, the kit every
-//                       ground's numbers use; Coordinator 2026-10-21: the start kit is its own check above), the
-//                       median of the six seeds per ground; and +25% over the bill (a minimum) wherever the bill is
-//                       at least a quarter of the income (designer pass 2026-10-21)
+// NO PROFIT MOLDS (Tyler 2026-11-13): no case grades a profit number. The +25% / +10% margin floors, "a second door nets no
+// less than the first", "the Shop pair pays for itself in the first hour" and first-grounds-net-chain (net gold never drops
+// along the start flow) are retired with their gold-only mutants; the nets are printed.
 //
 // `--play` runs each ground ONCE on the real engine (supabase/functions/hr-accrue accrueHunt, the world
 // tick's settle): a fresh solo hero from the start kit in the forest, a four-hero party in the cave,
@@ -59,16 +56,8 @@ const BRIDGE = { meadowbrook_thicket: [[28, 5], [29, 5], [30, 5], [31, 5], [32, 
   mosslight_glade: [[44, 19], [44, 20], [44, 21], [44, 22], [44, 23]], wickstead: [[28, 8], [29, 8], [30, 8], [31, 8]] };
 const MID_DENSITY = 4;
 const RING8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
-/* The designer's six hunt seeds (pass 2026-10-21) and the margin floor (+25%, a minimum: Tyler 10-18/10-20). */
+/* The designer's six hunt seeds (pass 2026-10-21). */
 const STARTER_SEEDS = Object.freeze(['-4611686018427387904', '1234567890123', '-987654321987', '42', '7777777777777', '-31415926535']);
-const STARTER_MARGIN_MIN = 25;
-/* THE GLADE'S FLOOR MAY BE THIN (Tyler 2026-11-09, on its +15-25% over its bill in four plate pieces: "fine"; a ruled bar, not a loosened one):
-   it must still pay its way, at least this much over its bill on every seed. */
-const GLADE_MARGIN_MIN = 10;
-const BILL_SHARE_FOR_MARGIN = 0.25;   // the margin floor applies where store >= 25% of income
-/* The start flow's grounds in order: [ground, roles], each played at its floor in the reference (ladder) kit. */
-const FIRST_CHAIN = Object.freeze([['mill_cellar', ['tank']], ['meadowbrook_thicket', ['tank']],
-  ['millrace_sewer', ['tank', 'ranger', 'mage', 'healer']]]);
 const median = (a) => { const v = [...a].sort((x, y) => x - y); return v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2; };
 
 async function load(root) {
@@ -343,8 +332,8 @@ cases['thicket-solo-starter-kit'] = async (M) => {
    (b) sell gloves AND a belt, each an armour piece a new hero's 500 starting gold can buy, and at least one of them
    medium (neither health nor mana: right for every way to fight); (c) played: a start-kit Melee at the Thicket floor
    trains Defense through its shield (Tyler 2026-10-23: a worn shield counts as armour), the same sword with no shield
-   and no armour trains none, and the kit hero wearing the Shop's gloves and belt trains more than that, lives the
-   hour and nets more than the two pieces cost (the purchase pays for itself inside the first hour). */
+   and no armour trains none, and the kit hero wearing the Shop's gloves and belt trains more than that and lives the
+   hour (its net beside the pair's price is printed, never graded: NO PROFIT MOLDS, Tyler 2026-11-13). */
 cases['shop-outfits-defense'] = async (M) => {
   const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
   const { SUPPLY_SHOP_OFFERS } = await imp('src/data/supply-basics.js');
@@ -384,30 +373,8 @@ cases['shop-outfits-defense'] = async (M) => {
   if (defOf(sword) !== 0) bad.push('a sword with no shield and no armour trained ' + defOf(sword) + ' Defense XP');
   if (!(defOf(dressed) > 0)) bad.push('the Shop gloves and belt trained no Defense');
   if (worn.totals.falls || worn.playedMs < 3600000) bad.push('the outfitted hero did not live the hour (' + worn.ended.join(', ') + ')');
-  if (worn.net < cost) bad.push('the outfitted hour nets ' + worn.net + ' g, under the ' + cost + ' g the pieces cost');
   return bad.length ? bad.join('; ') : null;
 };
-cases['first-grounds-net-chain'] = async (M) => {
-  const P = await playOf(M);
-  const bad = [], rows = [];
-  for (const [gid, roles] of FIRST_CHAIN) {
-    const floor = floorOf(M, gid), nets = [];
-    for (const secret of STARTER_SEEDS) {
-      const x = P.run(gid, floor, roles, { spanMs: 3600000, secret });
-      nets.push(x.income - x.store);
-      if (x.store >= BILL_SHARE_FOR_MARGIN * x.income && (x.income / x.store - 1) * 100 < STARTER_MARGIN_MIN) {
-        bad.push(gid + ' seed ' + secret + ': ' + Math.round((x.income / x.store - 1) * 100) + '% over a bill that is ' + Math.round(100 * x.store / x.income) + '% of income, under +' + STARTER_MARGIN_MIN + '%');
-      }
-    }
-    rows.push({ gid, floor, n: roles.length, net: median(nets), nets });
-  }
-  console.log('    net g per hero-hour at the floor (6-seed median): ' + rows.map((r) => r.gid + ' L' + r.floor + (r.n > 1 ? ' party' : ' solo') + ' ' + r.net + ' [' + r.nets.join(' ') + ']').join(' -> '));
-  for (let i = 1; i < rows.length; i++) {
-    if (rows[i].net < rows[i - 1].net) bad.push(rows[i].gid + ' nets ' + rows[i].net + ' g/h, under ' + rows[i - 1].gid + "'s " + rows[i - 1].net + ' before it');
-  }
-  return bad.length ? bad.join('; ') : null;
-};
-
 /* THE SIM PLAYS THE SERVER'S MAP (2026-11-05): every balance number in the hunt guards and tools/balance-sim comes from the fixture's `run`. Its own grid carried the client's object
    footprints, 7-52 walkable tiles short of the server's on each ground, and a Level 1 bow on the Glade read 16,500 damage an hour where the page took 20,000. Walking and sight both, on every ground. */
 cases['sim-plays-the-server-map'] = async (M) => {
@@ -451,9 +418,7 @@ cases['glade-between'] = async (M) => {
   /* each ground at its floor in its own reference (tests/hunt-core/drop-tables.mjs REFERENCE): the Sewer's party of four in the ladder kit, the glade's solo Melee, the
      Warrens' party of four in the full own-tier set. THE GLADE'S STEP IS MEASURED IN ITS FOUR PLATE PIECES (designer 2026-11-03, Tyler's accuracy 0.80): a hero who reaches
      Level 16 holds them (the Thicket's Bronze in 6 h, Wickstead's and the Glade's Iron about hourly), and in helm and body alone the harder Glade now nets 1,282 g/h against
-     the Sewer party's 2,024: the armor is what the harder floor asks for, as ruled. THE PROFIT RULE IS JUDGED IN THAT SAME FULL KIT (Tyler 2026-11-07, "make it 20% harder":
-     he took the measured cost that a hero in helm and body alone drops to about +6% over its bill on the Glade, so the floor is judged "properly equipped", his 10-25 words;
-     the formula's rows, lane/b-ground-formula, are that 20%). */
+     the Sewer party's 2,024: the armor is what the harder floor asks for, as ruled. (The Glade's +10% margin floor in that kit is retired: NO PROFIT MOLDS, Tyler 2026-11-13.) */
   const chain = [['millrace_sewer', PARTY4, false], [GLADE, ['tank'], true], ['coppercap_warrens', PARTY4, true]];
   const rows = [], bad = [];
   for (const [gid, roles, fullSet] of chain) {
@@ -461,9 +426,6 @@ cases['glade-between'] = async (M) => {
     for (const secret of STARTER_SEEDS) {
       const x = P.run(gid, floor, roles, { spanMs: 3600000, secret, fullSet });
       nets.push(x.income - x.store); xps.push(x.levelXp);
-      if (gid === GLADE && x.store >= BILL_SHARE_FOR_MARGIN * x.income && (x.income / x.store - 1) * 100 < GLADE_MARGIN_MIN) {
-        bad.push(gid + ' seed ' + secret + ' in its four plate pieces: ' + Math.round((x.income / x.store - 1) * 100) + '% over its bill, under +' + GLADE_MARGIN_MIN + '%');
-      }
     }
     rows.push({ gid, floor, net: median(nets), xp: median(xps) });
   }
@@ -523,9 +485,9 @@ cases['harder-pays-more'] = async (M) => {
 };
 
 /* THE FARM GROUND (lane b-greenhaven-6, designer 2026-10-28): Wickstead is the second solo door for 8-18, beside the
-   Thicket. Played at its floor (L8) on the real settle, alone, six seeds: the ladder-kit Melee lives the hour, clears +25%
-   wherever its bill is a quarter of its income, and its median net gold and Level XP per hour are no worse than the
-   Thicket's at the Thicket's own floor (a second door must not pay less than the first). The start kit is printed. */
+   Thicket. Played at its floor (L8) on the real settle, alone, six seeds: the ladder-kit Melee lives the hour and its median
+   Level XP per hour is no worse than the Thicket's at the Thicket's own floor (a second door must not level slower than the
+   first). Its net gold beside the Thicket's and the start kit are printed (NO PROFIT MOLDS, Tyler 2026-11-13). */
 const WICK = 'wickstead';
 cases['wickstead-solo-floor'] = async (M) => {
   const P = await playOf(M);
@@ -535,7 +497,6 @@ cases['wickstead-solo-floor'] = async (M) => {
     const x = P.run(WICK, floor, ['tank'], { spanMs: 3600000, secret });
     seen.push(x.totals.falls ? 'died ' + (x.playedMs / 60000).toFixed(1) + 'm' : 'lived');
     if (x.totals.falls || x.playedMs < 3600000) bad.push('seed ' + secret + ': ended after ' + (x.playedMs / 60000).toFixed(1) + ' min with ' + x.totals.falls + ' death(s) (' + x.ended.join(', ') + ')');
-    if (x.store >= BILL_SHARE_FOR_MARGIN * x.income && (x.income / x.store - 1) * 100 < STARTER_MARGIN_MIN) bad.push('seed ' + secret + ': ' + Math.round((x.income / x.store - 1) * 100) + '% over its bill');
     nets.push(x.income - x.store); xps.push(x.levelXp);
     const y = P.run(WICK, floor, ['tank'], { spanMs: 3600000, secret, equipment: M.kit.START_EQUIPMENT });
     kit.push(y.totals.falls ? 'died ' + (y.playedMs / 60000).toFixed(1) + 'm' : 'lived ' + (y.income - y.store) + ' g');
@@ -544,7 +505,6 @@ cases['wickstead-solo-floor'] = async (M) => {
   }
   console.log('    wickstead solo at L' + floor + ', ladder kit, ' + STARTER_SEEDS.length + ' seeds: ' + seen.join(' | ') + '; net ' + median(nets) + ' g/h, Level XP ' + median(xps)
     + '/h (thicket L' + tf + ': ' + median(tn) + ' g/h, ' + median(tx) + '/h); start kit (evidence): ' + kit.join(' | '));
-  if (!(median(nets) >= median(tn))) bad.push('nets ' + median(nets) + ' g/h, under the Thicket\'s ' + median(tn));
   if (!(median(xps) >= median(tx))) bad.push('gives ' + median(xps) + ' Level XP/h, under the Thicket\'s ' + median(tx));
   return bad.length ? 'a ladder-kit Melee alone at the Wickstead floor: ' + bad.join('; ') : null;
 };
@@ -584,15 +544,8 @@ const mutants = [
     edits: [['src/data/monsters.js', 'xp: 109, gp: [6, 19]', 'xp: 36, gp: [3, 10]'], ['src/data/monsters.js', 'xp: 121, gp: [5, 17]', 'xp: 40, gp: [2, 9]'],
       ['src/data/monsters.js', 'xp: 217, gp: [10, 30]', 'xp: 72, gp: [5, 15]'], ['src/data/monsters.js', 'xp: 374, gp: [16, 46]', 'xp: 125, gp: [8, 23]'],
       ['src/data/monsters.js', 'xp: 427, gp: [17, 51]', 'xp: 142, gp: [8, 26]'], ['src/data/monsters.js', 'xp: 239, gp: [13, 40]', 'xp: 80, gp: [7, 20]']] },
-  { name: 'the glade\'s blows x2 (its four plate pieces under +25%)', case: 'glade-between',
-    edits: [['src/data/monsters.js', 'hp: 30, atk: 11, baseAcc: 0.8,', 'hp: 30, atk: 22, baseAcc: 0.8,'], ['src/data/monsters.js', 'hp: 26, atk: 14, baseAcc: 0.85,', 'hp: 26, atk: 28, baseAcc: 0.85,'],
-      ['src/data/monsters.js', 'hp: 48, atk: 11, baseAcc: 0.82,', 'hp: 48, atk: 22, baseAcc: 0.82,'], ['src/data/monsters.js', 'hp: 74, atk: 21, baseAcc: 0.8,', 'hp: 74, atk: 42, baseAcc: 0.8,'],
-      ['src/data/monsters.js', 'hp: 81, atk: 22, baseAcc: 0.84,', 'hp: 81, atk: 44, baseAcc: 0.84,'], ['src/data/monsters.js', 'hp: 51, atk: 16, baseAcc: 0.76,', 'hp: 51, atk: 32, baseAcc: 0.76,']] },
   { name: 'Wickstead\'s Turncoats and spiders hit six times as hard (atk 8 -> 48, 5 -> 30)', case: 'wickstead-solo-floor',
     edits: [['src/data/monsters.js', 'hp: 23, atk: 4, baseAcc: 0.69, def: 1, xp: 105,', 'hp: 23, atk: 48, baseAcc: 0.69, def: 1, xp: 105,'], ['src/data/monsters.js', 'hp: 25, atk: 4, baseAcc: 0.48, def: 3, xp: 96,', 'hp: 25, atk: 30, baseAcc: 0.48, def: 3, xp: 96,']] },
-  { name: 'Wickstead\'s coin cut to a third (it pays under the Thicket)', case: 'wickstead-solo-floor',
-    edits: [['src/data/monsters.js', 'xp: 45, gp: [2, 6]', 'xp: 45, gp: [1, 2]'], ['src/data/monsters.js', 'xp: 96, gp: [3, 11]', 'xp: 96, gp: [1, 4]'],
-      ['src/data/monsters.js', 'xp: 105, gp: [3, 10]', 'xp: 105, gp: [1, 4]'], ['src/data/monsters.js', 'xp: 67, gp: [2, 7]', 'xp: 67, gp: [1, 3]']] },
   { name: 'the Warrens\' coin halved and its XP a fifth (the Glade out-earns the harder ground in both)', case: 'harder-pays-more',
     edits: [['src/data/monsters.js', 'xp: 623, gp: [16, 49]', 'xp: 125, gp: [8, 25]'], ['src/data/monsters.js', 'xp: 648, gp: [14, 40]', 'xp: 130, gp: [7, 20]'],
       ['src/data/monsters.js', 'xp: 1024, gp: [23, 69]', 'xp: 205, gp: [12, 35]'], ['src/data/monsters.js', 'xp: 1715, gp: [35, 104]', 'xp: 343, gp: [18, 52]'],
@@ -610,14 +563,6 @@ const mutants = [
       "export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots']);"]] },
   { name: 'the Thicket wolves hit like a Sewer spider (atk 4 -> 13)', case: 'thicket-solo-starter-kit',
     edits: [['src/data/monsters.js', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 40, gp: [2, 6], formula: true, speed: 4200,', 'hp: 17, atk: 16, baseAcc: 0.48, def: 1, xp: 40, gp: [2, 6], formula: true, speed: 4200,']] },
-  /* The whole Sewer roster's coin back to its pre-x1.8 rows (the drop-tables play mutant's /1.8): the party nets under the Thicket. */
-  { name: 'the Sewer coin back to its pre-x1.8 rows (the party nets under the Thicket)', case: 'first-grounds-net-chain',
-    edits: [['src/data/monsters.js', 'hp: 41, atk: 6, baseAcc: 0.31, def: 0, xp: 84, gp: [7, 19]', 'hp: 41, atk: 6, baseAcc: 0.31, def: 0, xp: 84, gp: [4, 11]'],
-      ['src/data/monsters.js', 'hp: 51, atk: 5, baseAcc: 0.29, def: 2, xp: 116, gp: [8, 25]', 'hp: 51, atk: 5, baseAcc: 0.29, def: 2, xp: 116, gp: [4, 14]'],
-      ['src/data/monsters.js', 'hp: 53, atk: 7, baseAcc: 0.44, def: 1, xp: 154, gp: [9, 25]', 'hp: 53, atk: 7, baseAcc: 0.44, def: 1, xp: 154, gp: [5, 14]'],
-      ['src/data/monsters.js', 'hp: 110, atk: 7, baseAcc: 0.51, def: 6, xp: 344, gp: [18, 53]', 'hp: 110, atk: 7, baseAcc: 0.51, def: 6, xp: 344, gp: [10, 31]'],
-      ['src/data/monsters.js', 'hp: 63, atk: 7, baseAcc: 0.37, def: 1, xp: 144, gp: [10, 31]', 'hp: 63, atk: 7, baseAcc: 0.37, def: 1, xp: 144, gp: [6, 18]'],
-      ['src/data/monsters.js', 'hp: 556, atk: 7, baseAcc: 0.76, def: 11, xp: 1983, gp: [90, 269]', 'hp: 556, atk: 7, baseAcc: 0.76, def: 11, xp: 1983, gp: [51, 155]']] },
   { name: 'a pack tile moved into the thicket', case: 'packs-on-the-map',
     edits: [['src/data/hunt-grounds.js', "box([5, 13, 21, 24], [15, 19],", "box([5, 13, 21, 24], [21, 15],"]] },
   { name: 'a prop dropped into a full box', case: 'packs-on-the-map',

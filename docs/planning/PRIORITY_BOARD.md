@@ -29,8 +29,8 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
-### 2026-11-14 The Morrow Hills: the region after Krell, Harry Wick, and two factions (designer, lane/d-next-region. Tyler 2026-11-14: "let's go ahead and get started on the next set of lore and hunts after this boss", "The lore should somewhat tie in", "a good guy in the lore somewhere named Harry Something after my son", "some type of normal fella that ends up being a god at the endgame", "something similar to horde and alliance it doesn't have to be called good and evil", "Havora is a neutral town", "each new zone has equal amounts"): DESIGNED, one ground drafted as a STAGED pack and MEASURED on the real engine, two faction skills MEASURED as a what-if. Nothing built, nothing played by hand, no art, no server work
-**The call.** The road north keeps going past Krell's castle, up into the hills to a mining town called Morrow. That's where Dawnstone comes from and where the Banded Company came from. Six grounds, Levels 110 to 165, three for each faction, and a boss behind a keyed door at the end. Harry Wick is the fella with the cart, and the region is his first job. One ground, Carter's Rest, is drafted and measured below. The other five are a ladder, not rows.
+### 2026-11-14 The Morrow Hills: the region after Krell, Harry, two factions, and unique gear (designer, lane/d-next-region. Tyler 2026-11-14: "let's go ahead and get started on the next set of lore and hunts after this boss", "The lore should somewhat tie in", "a good guy in the lore somewhere named Harry Something after my son", "some type of normal fella that ends up being a god at the endgame", "something similar to horde and alliance it doesn't have to be called good and evil", "Havora is a neutral town", "each new zone has equal amounts", "after tier 7 we start getting unique with the itemization", "for now lets just call him Harry"): DESIGNED, one ground drafted as a STAGED pack and MEASURED on the real engine, two faction skills MEASURED as a what-if. Nothing built, nothing played by hand, no art, no server work
+**The call.** The road north keeps going past Krell's castle, up into the hills to a mining town called Morrow. That's where Dawnstone comes from and where the Banded Company came from. Six grounds, Levels 110 to 165, three for each faction, and a boss behind a keyed door at the end. Harry is the fella with the cart, and the region is his first job. One ground, Carter's Rest, is drafted and measured below. The other five are a ladder, not rows.
 
 **What I cut.** A second region of more dead things with a bigger number on them. A "chosen one" Harry. A faction stat buff (the outfits and the skill carry it). A new ore, since Dawnstone is already in the data with nowhere to come from (`dawnstone_rock`, Mining 90, no ground has the node).
 
@@ -58,14 +58,14 @@ Every new name was checked free in `src/data`, `src/shell` and `src/app` on `rel
 |---|---|---|---|
 | The region | **The Morrow Hills** | The hills around the town | The High Road, Carrick |
 | The mining town | **Morrow** | An old plain word for morning. It's where Dawnstone comes from, and the game's own promise is rise and dawn (`gear-tiers.js` header) | Pennet (pen, a hilltop), Carrick (a rock) |
-| The good fella | **Harry Wick** | Wickstead is Wick's stead, his family's farm. Players have fought on it since Level 8. A wick is also the part that carries the flame | Harry Hale, Harry Coll (a collier burns charcoal) |
+| The good fella | **Harry** | No surname for now (Tyler 2026-11-14: "for now lets just call him Harry"). Wickstead stays the name of his farm, as a place name only | Surnames offered and parked: Wick, Hale, Coll |
 | The region's villain | **Father Gault** | Gault is a heavy blue clay that miners dig through. Short and hard like Krell and Hask | Marn, Sorrel |
 | The company's survivor | **Quartermaster Venn** | Short and hard, the company's style | Tolley, Brask |
 | Morrow's furnace | **The Bellows** | What everyone in a smelting town would call the big furnace | The Blowing House (the real old word for a smelter, and Discord would have fun with it) |
-| Faction that frees the dead | **The Lamplighters** | A plain job. They carry a fire into places that don't have one | The Carters, the Wicks |
-| Faction that keeps the bond | **The Banded** | The Banded Company, re-formed. Members wear the bronze band | The Roster, the Standing |
+| Faction that frees the dead | **FACTION_A** (placeholder) | Tyler is picking flame-themed names in chat. My first offers (the Lamplighters, the Carters, the Wicks) are not it | Open |
+| Faction that keeps the bond | **FACTION_B** (placeholder) | The same. My first offers (the Banded, the Roster, the Standing) are not it. In the story it is still the Banded Company re-formed around Venn | Open |
 
-Two flags, the same kind as the Krell note. "Wick" will make some people think of John Wick. I'd keep it, because the Wickstead tie is already live and can't be bought any other way. "Morrow" is the front half of Morrowind. It's a plain word and I'd keep that too. Both are Tyler's to veto.
+One flag, the same kind as the Krell note. "Morrow" is the front half of Morrowind. It's a plain word and I'd keep it. Tyler's to veto.
 
 #### 3. The story (a draft in the approved voice. It has not been through the reader gate, and I can't approve my own copy)
 **The Road to Morrow.**
@@ -80,7 +80,7 @@ Two flags, the same kind as the Krell note. "Wick" will make some people think o
 >
 > Two people are going after him, and they don't agree about what happens when they catch him.
 >
-> Harry Wick farmed at Wickstead until the Turncoats burned him out. He's hauled firewood for the Great Hearth ever since, and right now he's got a pot of its fire on the back of his cart. He wants to get it to Morrow and relight the Bellows with it, so everybody tied to Gault's fire can finally rest. He'd also like to be home in time to get a crop in.
+> Harry farmed at Wickstead until the Turncoats burned him out. He's hauled firewood for the Great Hearth ever since, and right now he's got a pot of its fire on the back of his cart. He wants to get it to Morrow and relight the Bellows with it, so everybody tied to Gault's fire can finally rest. He'd also like to be home in time to get a crop in.
 >
 > Quartermaster Venn ran the company's supply barge, and being downriver that night is the only reason she's alive. She still has the company's own roster, the real one, and as far as she's concerned every name on it is still a soldier. She wants that coal back in the company's hands. Then she wants to march all of them home, the living and the dead together, and take Morrow back from Gault.
 >
@@ -88,14 +88,14 @@ Two flags, the same kind as the Krell note. "Wick" will make some people think o
 
 **How it ties back.** Nothing in "The Road North" changes. The new facts sit behind it: the toll was a toll on Dawnstone, the company were Morrow's kids, Krell's priests were on loan from Gault, and one coal got out of the hall. Burning a Roster Page at the Great Hearth still frees the names on that page, for anyone, and it stays the March's ending. What Krell had on his table was his own list of who he killed. The company's real roster is Venn's.
 
-#### 4. Harry Wick
+#### 4. Harry
 He's a farmer who lost his farm and took the job that was going, which was hauling wood to the Hearth. He isn't told he's special and neither is the player. He's good at keeping a fire going, he feeds whoever turns up at his camp, and he complains about the road. Every step up is something he did with his hands that a player helped with.
 
 | Where | What he is there | In play |
 |---|---|---|
 | Havora, now | The fella with the firewood cart by the Great Hearth | One town crier line (`src/data/text/criers.js`). A small change, and it means a new player has seen him by hour 1 |
 | Wickstead, now | It was his farm | One line on the ground's wiki page. The Turncoats who burned it were company deserters, so he has every reason to hate the Banded Company, and he's still the one carrying a fire to their home town |
-| Krell's Hold, after the kill | Waiting at the gate with the cart and the fire pot | Where a hero can join the Lamplighters (section 6) |
+| Krell's Hold, after the kill | Waiting at the gate with the cart and the fire pot | Where a hero can join FACTION_A (section 6) |
 | Carter's Rest | Camped in the inn yard, stuck behind the trolls | His cart is the landmark at the start tile. He is the ground's kill-task giver, on the Tally's own rails (`src/data/text/tally.js`), so no new system |
 | Each later Morrow ground | **Harry's Camp**, moved one stop up the road | The same cart at each start tile. A player sees how far he's got |
 | The Bellows, when Gault falls | He tips the pot into the cold furnace and it takes | The region's ending. The first odd thing: he mentions he hasn't put wood in that pot since the inn |
@@ -113,37 +113,37 @@ He's a farmer who lost his farm and took the job that was going, which was hauli
 
 **What "a god at the endgame" means in play (proposed, for the endgame lane).** His Hearth is the endgame's hub. The three Blessings (death protection, `src/data/blessings.js`) are bought at his fire there. The last trial is his: a keyed room where he tests you and nobody kills him. He still asks if you've eaten. A player who watched him swear at a stuck cart wheel at Level 110 should feel it when the fire stands up for him.
 
-**Named after him:** Harry's Camp (every Morrow start tile), Wickstead (already live), and Wick's Lantern (the Lamplighter outfit's first add-on).
+**Named after him:** Harry's Camp (every Morrow start tile) and Harry's Lantern (FACTION_A's first outfit add-on). Wickstead is his farm and is already live.
 
 #### 5. The ladder
 Bands overlap in pairs, so both factions always have a ground that pays them at their Level. At the 10-25 pace (about 10.8 hours a Level from 100 to 200, `LEVEL_PACE.targets`) the region is about 590 hunting hours end to end, so each ground has to hold a hero for 150 hours or more. Every number in this table is proposed, unmeasured, except Carter's Rest.
 
 | # | Ground, band | Pays standing to | Who lives there (class) | Problem it solves, decision it adds, what it plugs into | New in the engine | Drops (source and use) | Art kit |
 |---|---|---|---|---|---|---|---|
-| 1 | **Carter's Rest**, 110-125 | The Banded | A family of hill trolls in the halfway inn (Humanoid) | There's nothing to hunt or wear past Krell. Sword or poison, and where the back line stands. Finishes tier 7 armor | A monster that throws from range, a marked heavy hit, a group fire spell | Tier 7 boots, gloves, legs, belts in three weights (worn). Troll Hide, Bones, Coal (existing rows). Dawnstone Ore (smelts to Dawnsteel). Five imbuement pieces | Region kit: road, dry stone wall, moor grass. Own: the inn and its sign, Harry's cart |
-| 2 | **The Ox Road**, 112-128 | The Lamplighters | The last ore wagons, stopped dead on the road. Dead Teamsters and their Yoke Oxen (Undead), Gault's Coal Runners (Human) | A hammer and fire ground beside the sword's. Kill the priest or the ox first. Tier 7's missing weapons | A monster that heals its pull, Target by kind | Tier 7 wand, spellbook, crossbow, axes (no rows today, `gear-tiers.js`). Grave Dust and Big Bones (Hearth fuel). The piece for a Sealed Ice Lining | Own: ore wagons, the ox, a broken bridge |
-| 3 | **Wyvern Roost**, 125-142 | The Banded | Wyverns on the crags over the road (Dragon) | The bow's ground and the first "mythical" kill. Stand in the breath or step off it. Starts the next armor tier in leather | A marked cone on a regular monster, a call-out boss (the Roost Mother) on the called-room rails | The next tier's leather set (rows to write). Wyvern hide and eggshell for its recipes. A fire cape | Own: crag ledges, nests, the wyvern in three sizes |
-| 4 | **The Night Shift**, 122-140 | The Lamplighters | Morrow's dead, still mining for Gault (Undead), and the living Shift Boss who drives them (Human) | The gold and ore ground. Mine between pulls or don't. The first Dawnstone node on a ground | Named adds (the Shift Boss calls the shift), a poison group spell (Blackdamp, the real word for bad mine air) that makes the Poison Lining matter on the harder tiers | Dawnstone Ore from kills and from Dawnstone Veins (Mining 90, `dawnstone_rock`). The next tier's plate set | Own: mine timbers, ore carts, lamps, a Dawnstone Vein sprite (the node kind has none) |
-| 5 | **The Old Guard**, 138-155 | The Banded | The stone guards Morrow's first smelters set on the stair to the Bellows (Construct), and the wind that lives in the pass (Elemental) | The mage's ground, which the March never had. Ice lining or more Levels. The next tier in cloth | An ice group spell as the tier wall, a spell that speeds up under a phase line on the elite | The next tier's cloth set. Guard stone for a house trophy. The piece for the top Ice Lining | Own: the stair, standing stones, snow edge tiles |
-| 6 | **The Bellows**, 145-165 | The Lamplighters | Gault's priests (Human, they mend), his Castings, bodies poured in Dawnsteel (Construct), and the dead he keeps closest | The party ground and the region's exam. Every earlier lesson in one pull | Everything above together | The next tier's weapons. **Bellows Key** off the elite | Own: the furnace house, water wheel, the great bellows |
-| Boss | **Father Gault**, in the Bellows' keyed room | Counts with ground 6 | Gault, the Coal Runner who got away from Krell's hall (a named add), and the furnace | The region's ending | A keyed boss room, named adds, phase spells. The same pieces Krell needs | 1 in 10 a kill: the next tier's body and helm, his trophy. The coal (section 6) | Gault, the furnace as a class row like the Hall Fire |
+| 1 | **Carter's Rest**, 110-125 | FACTION_B | A family of hill trolls in the halfway inn (Humanoid) | There's nothing to hunt or wear past Krell. Sword or poison, and where the back line stands. Finishes tier 7 armor | A monster that throws from range, a marked heavy hit, a group fire spell | Tier 7 boots, gloves, legs, belts in three weights (worn). Five rare uniques (section 9). Troll Hide, Bones, Coal (existing rows). Dawnstone Ore (smelts to Dawnsteel). Five imbuement pieces | Region kit: road, dry stone wall, moor grass. Own: the inn and its sign, Harry's cart |
+| 2 | **The Ox Road**, 112-128 | FACTION_A | The last ore wagons, stopped dead on the road. Dead Teamsters and their Yoke Oxen (Undead), Gault's Coal Runners (Human) | A hammer and fire ground beside the sword's. Kill the priest or the ox first. Tier 7's missing weapons | A monster that heals its pull, Target by kind | Tier 7 wand, spellbook, crossbow, axes (no rows today, `gear-tiers.js`). Its own rare uniques. Grave Dust and Big Bones (Hearth fuel). The piece for a Sealed Ice Lining | Own: ore wagons, the ox, a broken bridge |
+| 3 | **Wyvern Roost**, 125-142 | FACTION_B | Wyverns on the crags over the road (Dragon) | The bow's ground and the first "mythical" kill. Stand in the breath or step off it. The bow's rare uniques and the first boss pieces | A marked cone on a regular monster, a call-out boss (the Roost Mother) on the called-room rails | Rare uniques for the bow. The Roost Mother's boss pieces (section 9). Wyvern hide and eggshell | Own: crag ledges, nests, the wyvern in three sizes |
+| 4 | **The Night Shift**, 122-140 | FACTION_A | Morrow's dead, still mining for Gault (Undead), and the living Shift Boss who drives them (Human) | The gold and ore ground. Mine between pulls or don't. The first Dawnstone node on a ground | Named adds (the Shift Boss calls the shift), a poison group spell (Blackdamp, the real word for bad mine air) that makes the Poison Lining matter on the harder tiers | Dawnstone Ore from kills and from Dawnstone Veins (Mining 90, `dawnstone_rock`). Rare uniques for melee | Own: mine timbers, ore carts, lamps, a Dawnstone Vein sprite (the node kind has none) |
+| 5 | **The Old Guard**, 138-155 | FACTION_B | The stone guards Morrow's first smelters set on the stair to the Bellows (Construct), and the wind that lives in the pass (Elemental) | The mage's ground, which the March never had. Ice lining or more Levels. The casters' rare uniques | An ice group spell as the tier wall, a spell that speeds up under a phase line on the elite | Rare uniques for casters. Guard stone for a house trophy. The piece for the top Ice Lining | Own: the stair, standing stones, snow edge tiles |
+| 6 | **The Bellows**, 145-165 | FACTION_A | Gault's priests (Human, they mend), his Castings, bodies poured in Dawnsteel (Construct), and the dead he keeps closest | The party ground and the region's exam. Every earlier lesson in one pull | Everything above together | Rare uniques. **Bellows Key** off the elite | Own: the furnace house, water wheel, the great bellows |
+| Boss | **Father Gault**, in the Bellows' keyed room | Counts with ground 6 | Gault, the Coal Runner who got away from Krell's hall (a named add), and the furnace | The region's ending | A keyed boss room, named adds, phase spells. The same pieces Krell needs | 1 in 10 a kill: his boss pieces (section 9), his trophy. The coal (section 6) | Gault, the furnace as a class row like the Hall Fire |
 
 Three and three. The boss room is part of ground 6 and has no count of its own.
 
-**What a "Banded" ground and a "Lamplighter" ground are.** A ground pays the Lamplighters when the things on it are tied to the wrong fire: the kept dead and the people who keep them. Every one a Lamplighter puts down gets to rest. A ground pays the Banded when the things on it are alive and in the way: trolls, wyverns, the old stone guard. Everything the Banded put down there, Venn can write onto the roster. Neither kind is the boring kind. One has trolls throwing a roof at you and the other has skeleton oxen.
+**What makes a ground pay one side or the other.** A ground pays FACTION_A when the things on it are tied to the wrong fire: the kept dead and the people who keep them. Every one a FACTION_A hero puts down gets to rest. A ground pays FACTION_B when the things on it are alive and in the way: trolls, wyverns, the old stone guard. Everything FACTION_B put down there, Venn can write onto the roster. Neither kind is the boring kind. One has trolls throwing a roof at you and the other has skeleton oxen.
 
-**No ground is best at everything (proposed, unmeasured past ground 1).** Carter's Rest wins armor slots. The Ox Road wins weapons. The Roost wins the bow's XP. The Night Shift wins gold and ore. The Old Guard wins the mage's XP. The Bellows wins party XP and the boss.
+**No ground is best at everything (proposed, unmeasured past ground 1).** Carter's Rest wins the last Dawnsteel armor. The Ox Road wins the last Dawnsteel weapons. The Roost wins the bow's XP. The Night Shift wins gold and ore. The Old Guard wins the mage's XP. The Bellows wins party XP and the boss.
 
-**The gear gap, said plainly.** Tier 7 is worn from 88 and its last slots drop at 110-128. That keeps today's lag (tier 6 is worn at 75 and drops at 85-110). From ground 3 on, the region needs a tier 8 that doesn't exist. It gets its own sample and its own names later. One weight a ground (leather at the Roost, plate in the mine, cloth on the stair) so different heroes want different grounds.
+**Gear, said plainly.** Dawnsteel is the last standard tier (Tyler 2026-11-14). It is worn from 88 and its last slots drop at 110-128, which keeps today's lag (tier 6 is worn at 75 and drops at 85-110). There is no tier 8. From here on every ground has a few rare unique pieces and every boss has pieces to mix and match. Section 9.
 
 **Held back on purpose.** Knockers, the mine folk from old miners' stories, are a good living family for this region. They wait for a seventh and eighth ground, added as a pair.
 
 #### 6. The two factions
-Both are right about something. The Lamplighters think the dead are owed their rest and nobody gets to keep them. The Banded think the company is still the company, and that "resting" a soldier who wants to finish the march is just a nice word for striking him off. Both of them are after Gault.
+Both are right about something. FACTION_A think the dead are owed their rest and nobody gets to keep them. FACTION_B think the company is still the company, and that "resting" a soldier who wants to finish the march is just a nice word for striking him off. Both of them are after Gault. The names are placeholders until Tyler picks (flame-themed, his list).
 
-| | The Lamplighters | The Banded |
+| | FACTION_A (frees the dead) | FACTION_B (keeps the bond) |
 |---|---|---|
-| Face | Harry Wick | Quartermaster Venn |
+| Face | Harry | Quartermaster Venn |
 | Seat, outside Havora | **Wickstead**, his farm, rebuilt as their hall. Reuses the live Wickstead kit | **The Barge** on the Slake, the company's supply barge. Reuses the Slake's kit |
 | Mark on the hero | A small lantern by the name plate | A bronze band by the name plate |
 | Look | Bright plate and a tabard. A paladin's shape | A long hooded coat and a bill hook on the back. A reaper's shape |
@@ -160,20 +160,20 @@ Both are right about something. The Lamplighters think the dead are owed their r
 
 **No stat buff. My pick, and why.** Tyler asked for "mostly cosmetic" and then for a skill. A permanent buff on top of both would be a third thing to balance, and because swapping is allowed it would turn into gear people change for a ground. The outfit is the identity and the skill is the toy.
 
-**Swapping (Tyler: "like 10 hours of hunting something with a week cooldown").** Tell the other side's face you want in. Then hunt 10 hours on grounds that pay your new side. They pay you nothing while you do it. That's the price. Then you're in, your skill changes, and you can't start another swap for seven days. For a Lamplighter going over, Venn calls it standing a watch. For one of the Banded, Harry just says "ten hours, then we'll talk".
+**Swapping (Tyler: "like 10 hours of hunting something with a week cooldown").** Tell the other side's face you want in. Then hunt 10 hours on grounds that pay your new side. They pay you nothing while you do it. That's the price. Then you're in, your skill changes, and you can't start another swap for seven days. For a FACTION_A hero going over, Venn calls it standing a watch. For one of FACTION_B, Harry just says "ten hours, then we'll talk".
 
 **Outfits (the 10-15 outfit ruling: a base model with recolor regions and add-ons, cosmetic only, current art style, our own designs).** For the art pipeline lane. Sample first: one base each, read side by side at x2, before any add-on.
 
 | Faction | Piece | What it is | Recolor regions | Unlocks at |
 |---|---|---|---|---|
-| Lamplighters | Mark | Lantern badge, 16 px | none | Joining |
-| Lamplighters | Outfit: **Lamplighter** | Polished plate, short tabard with a flame in a pot, open helm | tabard, trim, plume, cloth | 25 standing hours |
-| Lamplighters | Add-on 1: **Wick's Lantern** | A lit lantern on a hip chain, 2 frames | glass | 100 hours |
-| Lamplighters | Add-on 2: **Carter's Cloak** | A long road cloak and a wide hat like Harry's, over the plate | cloak, hat band | 300 hours |
-| Banded | Mark | Bronze band, 16 px | none | Joining |
-| Banded | Outfit: **Banded** | Long hooded coat over old company mail, the company's striped sleeve, face mostly hidden | coat, stripe, hood lining, band | 25 standing hours |
-| Banded | Add-on 1: **Bill Hook** | The farmhand's long hook worn on the back. A scythe's outline. Not a weapon | haft wrap | 100 hours |
-| Banded | Add-on 2: **The Colors** | The company's flag worn as a torn half cape, and the roster on a chain | flag field, chain | 300 hours |
+| FACTION_A | Mark | Lantern badge, 16 px | none | Joining |
+| FACTION_A | Outfit (name waits on the faction's) | Polished plate, short tabard with a flame in a pot, open helm | tabard, trim, plume, cloth | 25 standing hours |
+| FACTION_A | Add-on 1: **Harry's Lantern** | A lit lantern on a hip chain, 2 frames | glass | 100 hours |
+| FACTION_A | Add-on 2: **Carter's Cloak** | A long road cloak and a wide hat like Harry's, over the plate | cloak, hat band | 300 hours |
+| FACTION_B | Mark | Bronze band, 16 px | none | Joining |
+| FACTION_B | Outfit (name waits on the faction's) | Long hooded coat over old company mail, the company's striped sleeve, face mostly hidden | coat, stripe, hood lining, band | 25 standing hours |
+| FACTION_B | Add-on 1: **Bill Hook** | The farmhand's long hook worn on the back. A scythe's outline. Not a weapon | haft wrap | 100 hours |
+| FACTION_B | Add-on 2: **The Colors** | The company's flag worn as a torn half cape, and the roster on a chain | flag field, chain | 300 hours |
 
 That's 2 marks, 2 base outfits on the hero base model in 8 and 4 facings, and 4 add-on layers. Hours are proposed. They need no sim, since an hour is an hour.
 
@@ -193,12 +193,12 @@ That's 2 marks, 2 base outfits on the hero base model in 8 and 4 facings, and 4 
 | The settle (`hr-accrue`) | Credits standing and swap minutes from settled hunt time and the ground's `standingFor`. Clamped to the hours a hero can hunt in a day |
 | The hero snapshot | Carries `faction`, so the skill's gate is the server's |
 
-**The data rule and its guard (spec only).** Two new fields on a hunt row: `region` and `standingFor: 'lamplighters' | 'banded'`. A new check in `src/data/catalogue-coherence.js`, held by `tests/faction-ground-balance.mjs`: every region after `barrow_march` has the same count of each, every post-Krell ground has the field, and a mutant with one flipped turns it red. The pack shape (`src/data/grounds/shape.js`) learns both fields in the same lane.
+**The data rule and its guard (spec only).** Two new fields on a hunt row: `region` and `standingFor: 'faction_a' | 'faction_b'` (the ids take the picked names). A new check in `src/data/catalogue-coherence.js`, held by `tests/faction-ground-balance.mjs`: every region after `barrow_march` has the same count of each, every post-Krell ground has the field, and a mutant with one flipped turns it red. The pack shape (`src/data/grounds/shape.js`) learns both fields in the same lane.
 
 #### 7. The faction skills (Tyler 2026-11-14: "a faction skill, not super over powered for either of them and balanced as best we can")
 One bar ability each, set up in Configure action like any other move. Different in kind.
 
-| | **Lantern** (Lamplighters) | **Roll Call** (the Banded) |
+| | **Lantern** (FACTION_A, working name) | **Roll Call** (FACTION_B, working name) |
 |---|---|---|
 | What the player reads | Blocks the next chunk of damage on you | Hits your target hard |
 | Kind | Protective. It answers the big hit and the group spell | Aggressive. It ends one monster sooner |
@@ -261,15 +261,15 @@ The family is one body plan in five jobs, and the job changes what it does in a 
 
 **Drops.** Every existing id was read in `ITEMS` on `release/v0.2.129`. The chances are the Hold's by role, proposed and not fitted.
 
-| From | Common | Uncommon (new, an imbuement piece) | Scarce, about hourly a piece |
-|---|---|---|---|
-| Troll Picker | `bones`, `troll_hide` | Pewter Spoon (life leech) | Tier 7 boots: `dawn_boots`, `voidhide_boots`, `voidweave_boots` |
-| Slate Thrower | `bones`, `troll_hide` | Roof Slate (keen) | Tier 7 gloves: `dawn_gauntlets`, `voidhide_gloves`, `voidweave_gloves` |
-| Stable Troll | `big_bones`, `troll_hide` | Stable Bit (ward) | Tier 7 legs: `dawn_platelegs`, `voidhide_pants`, `voidweave_pants` |
-| Troll Brewer | `bones`, `coal` | Coal Tongs (element ward) | none |
-| The Landlord | `big_bones`, `dawnstone_ore` | Cellar Tally (mana leech) | Tier 7 belts: `dawn_belt`, `voidhide_belt`, `voidweave_belt` |
+| From | Common | Uncommon (new, an imbuement piece) | Scarce, about hourly a piece | Rare, a unique (section 9) |
+|---|---|---|---|---|
+| Troll Picker | `bones`, `troll_hide` | Pewter Spoon (life leech) | Tier 7 boots: `dawn_boots`, `voidhide_boots`, `voidweave_boots` | Carter's Boots |
+| Slate Thrower | `bones`, `troll_hide` | Roof Slate (keen) | Tier 7 gloves: `dawn_gauntlets`, `voidhide_gloves`, `voidweave_gloves` | Slater's Mitts |
+| Stable Troll | `big_bones`, `troll_hide` | Stable Bit (ward) | Tier 7 legs: `dawn_platelegs`, `voidhide_pants`, `voidweave_pants` | Stable Door |
+| Troll Brewer | `bones`, `coal` | Coal Tongs (element ward) | none | Brewer's Ladle |
+| The Landlord | `big_bones`, `dawnstone_ore` | Cellar Tally (mana leech) | Tier 7 belts: `dawn_belt`, `voidhide_belt`, `voidweave_belt` | Landlord's Apron |
 
-**Where every drop goes.** Tier 7 armor is worn from 88, sold, or handed over through Storage. With Krell's bodies and helms that's the whole tier 7 set. Bones and Big Bones burn at the Hearth. Coal goes to the forge. Troll Hide sells today and is the obvious hide for the next leather tier's recipe. Dawnstone Ore smelts into Dawnsteel bars (`smelt_dawn`, Smithing 88). The five pieces wait for the imbuer like every ground's. The Coal Tongs are the natural piece for the next Fire Lining. Their line is also the first proof a priest came this way: "One of Krell's priests came through here carrying a live coal in these. The trolls kept the tongs". The `voidhide` and `voidweave` names still carry a banned word (flagged in the Krell's Hold section, still open).
+**Where every drop goes.** Tier 7 armor is worn from 88, sold, or handed over through Storage. With Krell's bodies and helms that's the whole tier 7 set. Bones and Big Bones burn at the Hearth. Coal goes to the forge. Troll Hide sells today. The five rare uniques are worn, traded, or sold. Dawnstone Ore smelts into Dawnsteel bars (`smelt_dawn`, Smithing 88). The five pieces wait for the imbuer like every ground's. The Coal Tongs are the natural piece for the next Fire Lining. Their line is also the first proof a priest came this way: "One of Krell's priests came through here carrying a live coal in these. The trolls kept the tongs". The `voidhide` and `voidweave` names still carry a banned word (flagged in the Krell's Hold section, still open).
 
 **Measured on the real engine.** The grader `pack check` runs (`tools/balance-sim/grade.mjs --mode quick --grounds carters_rest`, 72 cells, 1 seed x 1 h a cell), so every death count is a first read and not a rate.
 
@@ -302,8 +302,8 @@ In the full tier 7 set on Normal at 110 the same four lone heroes read 1.00, 1.1
 |---|---|
 | The first hour | A tier 7 piece in a slot Krell never gave them. Meeting Harry |
 | The first day | Boots, gloves and legs in their weight. The Landlord's first belt |
-| The first week | The full tier 7 set. 25 standing hours and the Banded coat, or the same on the Ox Road for the plate |
-| After that | The Picker's first bestiary stage at 2,500 kills, the 100 hour add-on, and Level 125 |
+| The first week | The full tier 7 set. 25 standing hours and the FACTION_B coat, or the same on the Ox Road for the plate |
+| After that | The five rare uniques, one about every 10 to 20 hours each. The Picker's first bestiary stage at 2,500 kills, the 100 hour add-on, and Level 125 |
 
 **Walk-through.** A Level 110 hero just off Krell, in tier 6 with one or two Dawnsteel pieces, on the Hold's bar (`cooked_lobster`, `carrot_juice`, `barbed_arrows`, `chalked_poison_rune`, all real rows).
 
@@ -320,7 +320,7 @@ In the full tier 7 set on Normal at 110 the same four lone heroes read 1.00, 1.1
 | 9 | Reaches the Brewhouse and takes fire as a group | Step 5 | Yes on a stand-in row. Its own spell row is the pack lane's |
 | 10 | Kills the Landlord, maybe a belt | Laps | Yes |
 | 11 | Sells spare tier 7 | Step 7 | Needs the tier 5-7 sale rates (the Hold's piece 9), or the gold floods |
-| 12 | Earns standing if Banded | Step 2 | Needs the settle hook |
+| 12 | Earns standing if FACTION_B | Step 2 | Needs the settle hook |
 
 Five of twelve steps wait on something unbuilt, and four of those five are the Hold's own pieces.
 
@@ -330,7 +330,7 @@ Five of twelve steps wait on something unbuilt, and four of those five are the H
 |---|---|---|
 | Troll Picker, Slate Thrower, Troll Brewer | `character`, 64x64 | One lanky body plan. Told apart by what they carry: a sack, a stack of slates, a ladle and apron |
 | Stable Troll, the Landlord | `brute` | The trough. The innkeeper's apron and the inn's sign under one arm |
-| Harry Wick | `character`, 8 facings | Wide hat, road coat, ordinary. He has to read as nobody special at x2 |
+| Harry | `character`, 8 facings | Wide hat, road coat, ordinary. He has to read as nobody special at x2 |
 | Harry's cart and fire pot | `bulky`, 4 frames for the pot | The landmark. Reused at every Morrow start tile |
 | The inn | `building`, wall slices, a roof with missing slates | Two floors read from above, the sign post out front |
 | Tilesets, 4 | chained pro tilesets | Road and yard cobble, stable straw, taproom boards, cellar stone |
@@ -341,9 +341,64 @@ Five of twelve steps wait on something unbuilt, and four of those five are the H
 
 **The pack.** `src/data/grounds/carters_rest/` on its own branch, `lane/b-carters-rest-pack`, STAGED and registered there. It is kept off this docs branch because a registered pack moves the engine's data and every guard that loads it. It was started with `node tools/pack.mjs new carters_rest --like wickstead --band 110,125` and then every row rewritten. `tests/ground-pack.mjs` and `tests/copy-lint.mjs` exit 0 on it. Its map is Wickstead's layout under a new id, so the numbers above come from six pockets shaped like a farm. That's fine for a first read of danger and pace and wrong for a player. It opens only with its own map, art, spell rows, a fitted drop table and the ranged piece.
 
-**Done and verified.** The old world doc was read from the saved transcript. Every existing id named here was read on `release/v0.2.129`. Every new name was checked free. The pack loads and lints, the formula wrote its rows, and both measured tables are the real engine's. **Not verified.** Nothing was played by hand. No drop chance is fitted. Grounds 2 to 6 have no rows. The story text has had no reader. The faction skills were measured on one live ground at one Level. **Assumed.** Three weights of a tier 8, the 20-hero switch for the weekly event, the outfit hours, and that Krell's engine pieces land as specced.
+#### 9. Gear after Dawnsteel: unique pieces, not tier 8 (Tyler 2026-11-14: "after tier 7 we start getting unique with the itemization and it goes away from being just standard upgrades", "Boss gear to mix and match, rare drops from hunts")
+**The rule.** Dawnsteel is the last standard tier. Carter's Rest and the Ox Road finish it. Past that there is no tier 8 and no ladder. Gear comes from two places. A ground has a few **rare drops**, each a named piece that does one thing a standard piece doesn't. A boss has **boss pieces**, one for several different slots, built so you mix pieces from several bosses. A unique is a choice against the piece you're wearing, and it always gives something up. Power still climbs with the Level bands, because a later ground's uniques carry bigger numbers and need a higher Level.
 
-**For Tyler, three questions.** Is Harry's surname Wick, or one of the other two? Are the faction names the Lamplighters and the Banded? Does the next armor tier get made at all, or should Levels 125 and up stay in Dawnsteel with the chase moved to looks and the bestiary?
+**No set bonuses. My call.** A bonus for wearing two of Gault's pieces turns "mix and match" back into "collect the set". The pieces already work together on their own: element resistance adds up across pieces to the engine's 40% cap (`HERO_RESIST_PM.max`), so two fire pieces and a lining is a real build and nobody has to be told so.
+
+**The sample of five: Carter's Rest's rare drops.** Each is in the Rare band (`src/data/loot-bands.js`, one about every 10 to 20 hours at the floor, a `rare_drop` reveal and the party's rare roll, both already built). All need Level 110. Every number is proposed and unmeasured. All five names were checked free.
+
+| Piece, slot | From | Stats, beside the Dawnsteel-tier piece in that slot | What it does | Who wants it, and what they give up |
+|---|---|---|---|---|
+| **Carter's Boots**, boots | Troll Picker | 22 armor, no penalty to bow or magic. Dawnsteel Boots are 30 armor with -8 bow and -15 magic. Voidweave Slippers are 9 armor | Real armor with no caster penalty | A Healer or Mage who gets hit. They give up the magic bonus on cloth boots |
+| **Slater's Mitts**, gloves | Slate Thrower | 10 armor, +6 bow accuracy, 6% crit. Voidhide Bracers are 13 armor, +12 accuracy, 2.8% crit | Twice the crit, half the accuracy | A bow hunting under its Level who already lands every shot. On a ground above them they miss more |
+| **Stable Door**, shield | Stable Troll | 12 armor, -6 accuracy. Blocks 45% of a marked hit, where every other shield blocks 30% | The boss tank's shield | Whoever holds Krell's rake or the Stable Troll's swing. They hit less often on ordinary pulls |
+| **Brewer's Ladle**, two-handed hammer | Troll Brewer | 30 accuracy, 60 strength. Dawnsteel Warhammer is 32 and 68. Hits Humanoids 20% harder | Makes the hammer a real pick on a sword ground | A hammer hero farming trolls, goblins, and giants later. It's worse than Dawnsteel on everything else |
+| **Landlord's Apron**, belt | The Landlord | 20 armor, 10% less fire damage. Dawnsteel Belt is 30 armor | The first fire piece outside a lining | Anyone heading for the Brewhouse on Deadly, Wyvern Roost or the Bellows. They take a little more from every ordinary hit |
+
+Four of the five are data rows today. `critB`, `resistPm` and `bane` are fields the engine already reads (`src/core/combat.js` equipmentStats, `src/core/bane.js`). Only the Stable Door needs new engine work.
+
+**Boss pieces mix and match.** A sketch for the region's bosses. Names and numbers are proposed, and each boss gets its own sample when its ground is built.
+
+| Boss | Pieces (slot) | The idea |
+|---|---|---|
+| Lord Krell (built, the March) | Dawnsteel body and helm in three weights, the four Dawnsteel and Duskwood weapons | The plain best armor. The base every build starts from |
+| The Roost Mother (ground 3) | Roost Mother's Hide (legs, fire), Crag Talon (necklace, crit), Eggshell Cap (helm, light, bow) | Fire and crits. The bow's boss |
+| Father Gault (ground 6) | Furnace Mitts (gloves, fire, magic), Gault's Stole (cape, heals land harder), Bellows Key Ring (ring, mana) | Casters and Healers. The party's boss |
+
+**One late build, to show the mixing (proposed, unmeasured).** A Level 160 tank getting ready for the Bellows on Deadly, where nearly everything is fire.
+
+| Slot | Piece | From | Why this one |
+|---|---|---|---|
+| Body, helm | Dawnsteel Platebody and Helm | Krell | Nothing has more armor. No reason to swap |
+| Legs | Roost Mother's Hide | The Roost Mother | Less armor than Dawnsteel legs, but it's fire resistance and the Bellows is fire |
+| Belt | Landlord's Apron | A rare drop at Carter's Rest | The second fire piece. With the Hide and a Sealed Fire Lining the tank is at the 40% cap |
+| Shield | Stable Door | A rare drop at Carter's Rest | Gault's big hits are marked |
+| Gloves, boots | Dawnsteel | Carter's Rest, standard | Furnace Mitts would be more fire, but the tank is already at the cap and the Mitts' magic is wasted on them |
+
+The same hero on Wyvern Roost's Normal would drop the Stable Door (nothing there needs it) and go back to a Dawnsteel belt. That swap is the decision. A bow hero makes different ones: Krell's Duskwood Bow, the Eggshell Cap, Slater's Mitts on a ground under their Level and Voidhide Bracers on one above.
+
+**How a player compares two.** On the item card, a unique shows what changes against the piece worn in that slot, one line a stat, with the sign (the bar already does this for moves, `src/shell/action-table.js` compareLines). Under that is its one plain line, like "Blocks 45% of a marked hit" or "10% less fire damage". In Hunt prep the same card adds what the piece is worth on the ground you picked: "Fire was 34% of the damage you took here" from the per-element breakdown the server already sends (`takenByElement`, the resistance section's hint). No score and no "better" arrow, since a unique isn't better or worse until you say where you're going.
+
+**How it plugs into the linings (`lane/d-resist-imbue`, board 2026-11-13).** That section said a lining and a cape are the only sources of resistance. This widens the cape's half to any unique piece. The cap stays 40%, which is what keeps it a choice: a 30% lining and one 10% piece is already at the cap, so a second fire piece only helps a hero with a cheaper lining or none. The Landlord's Apron is that first piece. The Coal Tongs from the same ground are the natural piece for the lining itself, so one ground gives both halves.
+
+**First principle flag.** A hero who swaps three pieces for the Bellows and swaps back for the Roost is repeating a decision. Saved setups have to remember gear by ground, the same gap Krell's Hold flagged for bars (its piece 12). Uniques make that gap much worse, so it lands before they do.
+
+**What's missing.**
+| # | Piece | State today | Owner |
+|---|---|---|---|
+| 1 | A per-item property the engine reads, beyond `bane` | `src/data/item-effects.js` lists one live kind. The rule there stands: a new kind ships in the same change as its engine and its test. First new kind: a shield's own brace (`bracePm`, read where `SHIELD_BRACE.markedPm` is) | Systems |
+| 2 | Gear with no tier | Sale rates, Tempering, the sim's kit picker (`tools/balance-sim/gear.mjs`) and the gear ladders all key on `tier`. A unique needs a rule from its Level instead | Systems, Designer |
+| 3 | Resistance on any slot | The sum already reads every worn row's `resistPm`. Nothing to build. The item card needs the line | Art Director |
+| 4 | The compare view and the "on this ground" line | `compareLines` exists for bar moves only | Systems, Art Director |
+| 5 | Setups that remember gear by ground | Not built | Systems |
+| 6 | A guard that a unique is a trade | New, spec only: `tests/unique-is-a-trade.mjs`. No unique beats the standard piece of its slot and Level on every stat, each has exactly one property line, and each names who it's for | Designer |
+| 7 | The sim plays a named kit | `cell.gearBySeat` takes tier offsets only. It needs to take item ids, so a unique is measured against the piece it replaces on the same dice | Systems |
+| 8 | Sample rule | These five get built, measured against Dawnsteel and played before a sixth is written | Designer |
+
+**Done and verified.** The old world doc was read from the saved transcript. Every existing id named here was read on `release/v0.2.129`. Every new name was checked free. The pack loads and lints, the formula wrote its rows, and both measured tables are the real engine's. The fields the four data-only uniques use (`critB`, `resistPm`, `bane`, the stat bonuses) were read on real item rows. **Not verified.** Nothing was played by hand. No drop chance is fitted. No unique is in the pack or has been measured. Grounds 2 to 6 have no rows. The story text has had no reader. The faction skills were measured on one live ground at one Level. **Assumed.** Every unique's numbers, the boss pieces, the 20-hero switch for the weekly event, the outfit hours, and that Krell's engine pieces land as specced.
+
+**For Tyler.** The third question is answered: no tier 8, unique gear instead (section 9). Harry has no surname for now. The two faction names are with Tyler, who is picking flame-themed ones. Nothing else is waiting on him.
 
 ### 2026-11-13 Under-Level pairs and the fresh hero's dips (designer, lane/d-live-grounds-2, the plan's #3 and #1 below): MEASURED on the full grade; the dips were a GRADER artefact (fixed in the grader, the Glade crow withdrawn); the under-Level rule CAN'T be met with monster stats on the three grounds under 16. **Tyler: one call**
 **#1, the fresh melee hero's dips under 25% HP: not real.** The grader played every cell in 120 s settle cuts and `cell.mjs` spreads a cut's regeneration evenly over it, so regeneration lost at full HP early in a cut reads as HP missing later. The same fights read in 10 s cuts (the live cadence) show the same XP and gold to the unit and **zero** dips: the Thicket's fresh melee 7/6/3/3 -> 0, the Glade's lone Rangers 47 in 96 h -> 0 (at the crow's old 4.4 too). Proof that it was the trace and not the fight: lowering every Thicket monster's to-hit 10% moved the 120 s dips not at all (35 -> 33). Fix: `tools/balance-sim/grade.mjs windowFor` reads a lone cell at 10 s (same run time, 8-13 s a cell); parties keep 120 s, since no rule reads a party's dips. Regression `lone-window` in `tests/balance-grade.mjs` (the old 120 s turns it red, read). **Yesterday's Glade crow change is WITHDRAWN** (speed back to 4.4): it fixed a number that wasn't there. If its hr-accrue was deployed, the next deploy puts it back; if not, nothing moves.

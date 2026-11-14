@@ -41,6 +41,25 @@
 // dashboard (Restore to a New Project has no Management API endpoint, re-audited 2026-11-14) or IN PLACE over production.
 // That drill is priced by step 0 and stays a human click; this tool is what runs against its result.
 //
+// THE REAL RESTORE, IN ORDER (production lost or corrupted; every step read-only unless it says otherwise):
+//   1 CLASSIFY  GET /v1/projects/<ref> (status) and /config/disk/util: an outage or a full disk is not a data loss.
+//   2 KEEP      node tools/restore-drill.local.mjs --keep <dir> while production still answers: a logical copy, 104 s.
+//   3 CLONE     Tyler, dashboard: Database > Backups > newest COMPLETED backup before the damage > "Restore to a New
+//               Project" (~$0.02/h on Small). Production stays up; every step before cutover is undone by deleting the clone.
+//               NOT the plain "Restore": that overwrites production in place, loses everything since the backup and has
+//               no undo (PITR is off). Only on an explicit, stated human yes, never as the default.
+//   4 DISARM    on the CLONE first: select cron.unschedule(jobname) from cron.job. Its world tick points at PRODUCTION's
+//               edge_url (hr_tick_config) and would settle live hunts twice. Re-arm by name only once it is the new production.
+//   5 PROVE     node tools/restore-drill.local.mjs --ref <clone>: rows, envelopes, grants, RLS, code, census, a player.
+//   6 ENGINE    backups carry no custom-role password: ALTER ROLE hr_engine_login PASSWORD on the clone (a human applies
+//               it), prove the pooler user hr_engine_login.<ref> on port 6543 with tools/pooler-probe.mjs, then set the
+//               HR_ENGINE_DB_URL secret. A new ref also needs hr-accrue deployed there (tools/pack-edge.mjs), the 10 Edge
+//               secrets, the client's URL and anon key, and hr_tick_config.edge_url pointed at the new project.
+//   7 VAULT     the 5 vault.secrets (tick gateway key/apikey/shared secret, alert webhook, gift secret): confirm they
+//               decrypt on the clone; re-create any that do not, from their owners, never from this repo.
+//   8 REBUILD   with no backup at all (repo chain only): re-apply the census live_value of every operator_tunable row,
+//               or closed_mode, the market and the world tick come back OFF (V9 lists them), and every player is gone.
+//
 // WHAT THIS PATH CANNOT CARRY (printed by every run): hr_server_secrets values (withheld from disk; a rebuild makes new
 // ones), auth credentials and identities (only ids leave production: no email, no password hash), vault.secrets (the
 // world tick's gateway keys and webhooks), the hr_engine_login password and the Edge Function secrets (not in ANY backup),

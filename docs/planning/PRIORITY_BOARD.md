@@ -38,7 +38,7 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 |---|---|---|
 | "start 50% exp" | A Tower hour gives about half the XP of a hunting hour for the same hero. Not half of each kill: a Tower room is so dense that half a kill would pay 1 to 3.3 times hunting, and the Tower would be the best place to level | A kill gives 200‰ and the Tower has its own flat party share. Section 7 has the table |
 | "more than 3, maybe 6 and lower the odds" | Six keys a week for each hero, odds halved | 3 / 4.5 / 6 / 7.5%. The week starts 60 floors under your best. Section 5 |
-| "I dont LOVE the cap" | Offer one way with no cap that still can't be farmed | Section 5, with my pick |
+| "I dont LOVE the cap" | Offer one way with no cap that still can't be farmed | Section 5. **LOCKED by Tyler the same day: "6 a week". The key-an-hour option is rejected** |
 Stamina drains, keys don't trade, opening is free and the weapons keep the standard numbers: those stand as picked. The story draft is still his to read.
 
 **What I kept from Tyler, and what I changed.**
@@ -70,19 +70,21 @@ Stamina drains, keys don't trade, opening is free and the weapons keep the stand
 #### 1. Where it is, and the story
 The Great Hearth's art is approved and doesn't change (`art/reference/hearth-reference-2026-10-25.png`). It already has a tall stack and a stone ledge in front of the fire. The stack is the Tower and the ledge is where the chests sit. New art is four small chests, the inside of the flue as one room kit, and a fire tint for monsters that already exist. The art director rules how.
 
-**The Burning Tower (a draft in the approved story voice. It has had no reader, and I can't approve my own copy).**
+**The Burning Tower (tuned 2026-11-14 after Tyler's read: "its good, it coudl use some tuning up. 'when you feel death coming for you, the hearth spits you out' or something like that". The fourth paragraph is built on his line. It has had no second reader, and I can't approve my own copy).**
 
-> The Great Hearth has a chimney, and everybody in Havora calls it the Burning Tower, because it goes up a lot farther on the inside than it does on the outside. Nobody's found the top.
+> The Great Hearth has a chimney, and everybody in Havora calls it the Burning Tower. It goes up a lot farther on the inside than it does on the outside, and nobody's found the top.
 >
-> Here's how it got that way. For a few hundred years people brought their dead to the Hearth, and they left the dead person's sword or bow on the ledge, the way you'd leave flowers. Nobody wanted to sell a dead man's sword and nobody wanted to throw it out either. So the Keepers locked them in four chests on the ledge. They hung the keys up inside the chimney, one every ten floors, the good ones higher, so no hearth-hand would get ideas.
+> For a few hundred years people brought their dead to the Hearth, and they'd leave the dead person's sword or bow on the ledge, the way you'd leave flowers. Nobody wanted to sell a dead man's sword, and nobody wanted to throw it out either. So the Keepers locked them in four chests on the ledge and hung the keys up inside the chimney. One key every ten floors, the good ones higher up, so no hearth-hand would get ideas.
 >
-> Then the fire got into the chimney, and it's never gone out. That fire has eaten every bone anybody ever fed the Hearth, and it remembers all of them. Climb up there and it'll throw them at you, floor after floor. The old Keepers are still on the landings too, still holding the keys, and they don't hand them over.
+> Then the fire got into the chimney, and it's never gone out. That fire has eaten every bone anybody ever fed the Hearth, and it remembers all of them. Climb up there and it throws them at you, floor after floor. The old Keepers are still on the landings holding the keys, and they don't hand them over.
 >
-> The good news is it can't kill you. It's the Hearth's own fire, and the Hearth doesn't keep anybody who's still breathing. You go down in there and you wake up on the ledge smelling like smoke, and Holly tells you to mind the ash pile.
+> Here's the good part. It can't kill you. It's the Hearth's own fire, and the Hearth only takes the dead. The second you feel death coming for you, it spits you out. You land on the ledge smelling like smoke, no worse off, and Holly tells you to mind the ash pile.
 >
-> Keeper Rowe says you're welcome to any key you can reach. Harry says he's hauled wood to that Hearth for years and he's never once seen anybody carry a stick of it up there, so he'd like to know what's burning.
+> Keeper Rowe says any key you can reach is yours. Harry says he's hauled wood to that Hearth for years and never seen anybody carry a stick of it up there, so he'd like to know what's burning.
 
-**How it ties in.** Nothing in "The Road North" or "The Road to Morrow" changes. The dead only rest if they're burned at the Great Hearth, and this is that fire. Krell and Gault are what happens when someone uses the wrong fire. The Tower is what the right one is like after a few hundred years. It is why a tower death is free and a death at Krell's Hold is not. Holly rakes the ash, so she is the one you wake up next to. Rowe is the Keeper, so the chests are hers. Harry's line plants the question his own arc answers later, the pot that stops needing wood. Havora is neutral, so both factions climb the same Tower, and the board shows a hero's faction mark beside their name. That is all the faction gets here. A weekly "which side climbed more" tally is a good later idea and is not in this design.
+**In the game's words.** Nobody dies in the Tower. The Hearth spits you out. The engine still ends the climb on the same `died` reason, with section 3's switch on, and every player line says "spat out", never "died".
+
+**How it ties in.** Nothing in "The Road North" or "The Road to Morrow" changes. The dead only rest if they're burned at the Great Hearth, and this is that fire. Krell and Gault are what happens when someone uses the wrong fire. The Tower is what the right one is like after a few hundred years. It is why the Tower spits you out for free and a death at Krell's Hold costs you. Holly rakes the ash, so she is the one you land next to. Rowe is the Keeper, so the chests are hers. Harry's line plants the question his own arc answers later, the pot that stops needing wood. Havora is neutral, so both factions climb the same Tower, and the board shows a hero's faction mark beside their name. That is all the faction gets here. A weekly "which side climbed more" tally is a good later idea and is not in this design.
 
 **Names** (each checked free in `src/data`, `src/shell` and `src/app` on main 405afc082): the Burning Tower, a landing, the old Keepers (the first two are Keeper Marn on floor 10 and Keeper Sorrel on floor 20, both names offered and not used for Rowe), Tower Cinders. "Keeper" appears once in `bosses.js`, inside another boss's title.
 
@@ -230,7 +232,7 @@ So about one weapon a month for a hero at 60 or above, and one a week or so for 
 | Can it be farmed | No. The unique row is the limit | No. Stamina is the limit and deaths don't give it back |
 | What it does to the game | A weekly ritual. Twenty minutes to an hour, then you go hunt | The Tower becomes a full-time job that pays weapons by the hour. An account of four that only climbs makes about 20 times the weapons of a casual hero, and the price of a tower weapon falls to whatever those accounts will take |
 
-**My pick: keep the weekly six.** The no-cap version is fair and safe, but it sets Tower hours against Levels every single day, and the best way to get tower weapons becomes not playing the rest of the game. The weekly six gets a player to the Hearth every week and sends them back out. If Tyler wants no cap anyway, it is one rule on the key's source row and the odds column, and nothing else in this design changes.
+**RULED (Tyler 2026-11-14): six a week. The key-an-hour option is rejected and stays here only as the record.** My pick was the same: keep the weekly six. The no-cap version is fair and safe, but it sets Tower hours against Levels every single day, and the best way to get tower weapons becomes not playing the rest of the game. The weekly six gets a player to the Hearth every week and sends them back out. If Tyler wants no cap anyway, it is one rule on the key's source row and the odds column, and nothing else in this design changes.
 
 **Another key later is a row, not a system (Tyler's capture-the-flag idea, backlog).** The pipe is three small tables. A key row says what the key is. A source row says what gives it (today "a Tower landing from 10 to 30", later "a place in the capture-the-flag event"). A chest row says which key opens it, where it stands, what is always inside and what it can roll. A helmet chest for that event is one key row, one source row, one chest row and the helmet's item rows. The open call, the ledger line, the weekly cap, the call-out and the reveal are the same code. The no-loss mode in section 3 is the other half that mode needs.
 
@@ -330,8 +332,8 @@ Hunting pace is the measured median of eight solo styles where the game sends th
 - `go_tower`: "Open the Tower"
 
 The Tower window's own lines (drafts):
-- The card: "Every floor is harder than the last. Dying here costs you nothing. You get about half the XP you would hunting, and no gold."
-- The death popup: "The Tower put you out on floor {floor}. You lost no XP."
+- The card: "Every floor is harder than the last. The Hearth spits you out before anything can kill you, and it costs you nothing. You get about half the XP you would hunting, and no gold."
+- The popup when a climb ends that way: "The Hearth spat you out on floor {floor}. You lost no XP."
 - A key: "You got a {key}. Open the {chest} on the Hearth's ledge."
 - A key you already took: "You already took this landing's key this week."
 - The chest's hover: "{pct}% of these have a tower weapon inside."
@@ -387,9 +389,9 @@ Both paths (§4): the climb viewed and the browser closed are the same settle, a
 | 1 | How poor is the XP? | ANSWERED: "start 50% exp". Fitted as half a hunting hour at Level 45, section 7 |
 | 2 | Does climbing drain stamina? | Stands as picked: yes. His answer leans on it ("since it uses stamina and supplies") |
 | 3 | Can keys be traded or sold? | Stands as picked: no, and opening is free |
-| 4 | How rare are the weapons? | ANSWERED: six keys a week, lower odds. 3 / 4.5 / 6 / 7.5%. A no-cap option is in section 5, and my pick is the weekly six |
+| 4 | How rare are the weapons? | ANSWERED and locked: six keys a week, 3 / 4.5 / 6 / 7.5%. No per-hour option |
 | 5 | How strong are they? | Stands as picked: the standard weapon's numbers plus the attribute |
-| 6 | Is the Tower the Hearth's chimney, and is that story his? | OPEN. The story needs his read before any of it goes in the game |
+| 6 | Is the Tower the Hearth's chimney, and is that story his? | ANSWERED: "its good", with a tuning pass built on his line (section 1). The tuned text still needs a reader before it goes in the game |
 
 ### 2026-11-13 No profit molds on the live grounds (designer, lane/d-no-profit-molds; **Tyler 2026-11-13: no profit molds**): BUILT, MEASURED on the full grade, the edge moves, ONE staged catalogue
 - **The grader prints gold and never grades it** (GOLD BY GROUND). Every +25% / +10% floor, supplies share, "under-Level loses gold" and gold-order rule is retired from the grader, the hunt-core guards and the Balance Lab, and a sheet that grades a profit number is refused.

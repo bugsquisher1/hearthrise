@@ -88,6 +88,22 @@ async function check(base) {
   must(idle && M.write(calm, idle, true) && M.read(calm, idle) === true && i2.puts.length === 1 && i2.puts[0][0] === 'idleMotion' && worldStill(true, i2) === false, 'idle switch: a press must win over reduced motion, in every open hero');
   must(idle && M.write(busy, idle, false) && M.read(busy, idle) === false && worldStill(false, i2) === true, 'idle switch: off must reach the World from any open hero');
   must(/backend\.sync\(Object\.assign\(\{[^\n]*stillIdle: idleMotion\.still\(\) \}, cast\)\)/.test(readFileSync(join(base, 'src/world/world-boot.js'), 'utf8')), 'idle switch: the World must put the switch on every frame it draws');
+  /* MONSTER NAMES (Tyler 2026-11-14, "should be a toggle to turn on enemy names right?"): Settings > Interface, a player switch, OFF
+     until pressed, its pick kept in an allowlisted residue field and read by the live hunt from any open hero (tests/hunt-scene.mjs SC-18 draws it). */
+  const { MONSTER_NAMES } = await import(u('src/data/world/monster-names.js'));
+  const names = D.SETTINGS.find((r) => r.id === 'ui.monsterNames');
+  must(names && names.category === 'interface' && names.type === 'toggle' && names.label === 'Monster names' && names.default === false && MONSTER_NAMES.defaultOn === false
+    && names.bind.store === 'switch' && names.bind.field === MONSTER_NAMES.field && RESIDUE_FIELDS.includes(names.bind.field), 'names switch: the Interface row is missing, not off by default, or not a switch kept in an allowlisted residue field');
+  must(JSON.stringify(sanitizeResidueField('monsterNames', { on: true, at: 9, x: 1 })) === '{"on":true,"at":9}'
+    && JSON.stringify(residueOf({ monsterNames: { on: false, at: 4 } }).monsterNames) === '{"on":false,"at":4}', 'names switch: a pick must round-trip through the residue sanitizer');
+  for (const junk of [true, 'on', {}, { on: 1, at: 1 }, { on: true, at: -1 }]) must(sanitizeResidueField('monsterNames', junk) === undefined, 'names switch: not a pick: ' + JSON.stringify(junk));
+  const SC = await import(u('src/hunt-view/scene.js'));
+  const n1 = heroOf({}), n2 = heroOf({});
+  const nctx = { character: n1, peers: () => [n1, n2], hud: ctx.hud };
+  must(names && M.read(nctx, names) === false && SC.readHunt(n2, () => [n1, n2]).names === false, 'names switch: off until pressed, in Settings and in the hunt');
+  const n3 = heroOf({});   // a hero opened after the press holds no pick of its own: it reads the newest any open hero holds
+  must(names && M.write(nctx, names, true) && n2.puts.length === 1 && n2.puts[0][0] === 'monsterNames' && SC.readHunt(n2, () => [n1, n2]).names === true
+    && SC.readHunt(n3, () => [n1, n2, n3]).names === true, 'names switch: a press must reach the hunt of every open hero');
   const BK = await import(u('src/world/core/book.js')), CP = await import(u('src/world/core/compose.js'));
   const strip = [[0, 0], [8, 0], [16, 0], [24, 0]];
   const clip = { fps: 4, loop: true, dirs: { s: strip } };
@@ -182,6 +198,9 @@ const MUTANTS = [
   { name: 'the World never reads the idle switch', file: 'src/world/world-boot.js', from: ', stillIdle: idleMotion.still() }, cast));', to: ' }, cast));', want: 'every frame it draws' },
   { name: 'reduced motion is ignored', file: 'src/session/player-switch.js', from: "return reduced === true && typeof sw.reducedOn === 'boolean' ? sw.reducedOn : sw.defaultOn === true;", to: 'return sw.defaultOn === true;', want: 'reduced motion must make the default off' },
   { name: 'the idle pick is not allowlisted', file: 'src/session/residue.js', from: '  idleMotion: sanitizeSwitch,', to: '', want: 'round-trip' },
+  { name: 'the names pick is not allowlisted', file: 'src/session/residue.js', from: '  monsterNames: sanitizeSwitch,', to: '', want: 'names switch: a pick must round-trip' },
+  { name: 'monster names default on', file: 'src/data/world/monster-names.js', from: 'defaultOn: false,', to: 'defaultOn: true,', want: 'not off by default' },
+  { name: 'the hunt reads the viewed hero alone', file: 'src/hunt-view/scene.js', from: 'names: switchOn(openHeroes(cs, peers), MONSTER_NAMES),', to: 'names: switchOn([cs], MONSTER_NAMES),', want: 'every open hero' },
   { name: 'a slider pick is not snapped to its step', file: 'src/session/player-switch.js', from: 'sw.min + Math.round((n - sw.min) / sw.step) * sw.step', to: 'n', want: 'snapped to its step' },
   { name: 'Danger marks go under half', file: 'src/data/fx-alpha.js', from: "label: 'Danger marks', min: 50,", to: "label: 'Danger marks', min: 0,", want: 'never go under half' },
   { name: 'a slider drag writes one hero only', file: 'src/shell/settings-model.js', from: 'setSwitchValue(peersOf(ctx), b.sw, value,', to: 'setSwitchValue([ctx.character], b.sw, value,', want: 'every open hero' },

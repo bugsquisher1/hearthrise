@@ -46,7 +46,7 @@ import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.130';
 import { partyPeopleOf } from '../session/party-sections.js?v=0.2.130';
 import { floatShown } from './float-prefs.js?v=0.2.130';
 import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.130';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.130';
+import { abilityName, itemName, monsterName } from '../shell/widgets/bits.js?v=0.2.130';
 import { STUB_SPRITE } from '../world/core/book.js?v=0.2.130';
 import { entranceOf, idleFrame, facingOf } from './scene-pose.js?v=0.2.130';
 import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.130';
@@ -56,6 +56,8 @@ import { levelOf, wornTitleOf } from '../session/character-sections.js?v=0.2.130
 import { createSpellMarks } from './spell-marks.js?v=0.2.130';
 import { fxAlphaOf, ownerAlpha, ownerOf } from './fx-prefs.js?v=0.2.130';
 import { createClipHook, struckBy } from './clip-hook.js?v=0.2.130';
+import { switchOn } from '../session/player-switch.js?v=0.2.130';
+import { MONSTER_NAMES } from '../data/world/monster-names.js?v=0.2.130';
 
 export const SCENE_TIMING = Object.freeze({
   deathFadeMs: 400,     // VW-05: colour to a grey corpse
@@ -92,6 +94,12 @@ function ownLooks(cs, peers, people) {
   }
   return out;
 }
+
+/* The account's open heroes with `cs` among them: who a player switch's newest pick is read from (player-switch.js). */
+const openHeroes = (cs, peers) => {
+  const all = typeof peers === 'function' ? peers() || [] : [];
+  return !cs || all.includes(cs) ? all : all.concat(cs);
+};
 
 /**
  * What the scene reads from ONE character, every frame (the snapshot, never cached).
@@ -138,6 +146,8 @@ export function readHunt(cs, peers) {
     /* the viewed hero's worn title, under its name (Tyler 2026-11-08); the party section carries no member's title yet */
     title: wornTitleOf(cs),
     shown: (type, boss) => floatShown(cs, type, boss ? 'boss' : 'regular'),
+    /* the Monster names switch (src/data/world/monster-names.js): the newest pick any open hero holds, read each frame */
+    names: switchOn(openHeroes(cs, peers), MONSTER_NAMES),
   };
 }
 
@@ -178,10 +188,11 @@ export function createHuntScene(o) {
   const roleOf = (u) => (read.heroes.get(u) ? read.heroes.get(u).role : isHero(u) ? null : 'monster');
   /* A monster's kind: the snapshot's, else the timeline's unit book (a corpse played after the
      snapshot dropped it). Unknown is null and the unit is not drawn (never a stub box). */
+  const kindOf = (u) => (read.units.get(u) || {}).kind || (typeof tl.kindOf === 'function' ? tl.kindOf(u) : null) || null;
   const spriteOf = (u) => {
     if (u === read.viewed && read.look) return read.look;
     if (isHero(u)) { const m = read.heroes.get(u); return (m && m.look) || outfitSprite(m && m.outfit, m && m.role); }
-    const kind = (read.units.get(u) || {}).kind || (typeof tl.kindOf === 'function' ? tl.kindOf(u) : null) || null;
+    const kind = kindOf(u);
     /* A called boss wears his own art (monster-art.js): the one place a kind becomes a sprite. */
     return (kind && HUNT_ART_ALIAS[kind]) || kind;
   };
@@ -421,6 +432,8 @@ export function createHuntScene(o) {
         const kind = spriteOf(u);
         if (kind) out.ref = { monster: kind };
         if (isBoss(u)) out.plate = { text: (read.units.get(u) || {}).name || null, kind: 'foe' };
+        /* Monster names on: a living monster wears its name in the bystander tone, and gives way in a crowd (core/plates.js) */
+        else if (read.names) { const k = kindOf(u); if (k) out.plate = { text: monsterName(k), kind: 'ambient', yields: true }; }
       }
       if (out.plate && !out.plate.text) delete out.plate;
       const stacks = bleed.get(u) || 0;

@@ -1,0 +1,30 @@
+BRIEF 20: HASK'S FORD AND THE MUSTER BARROWS, CLOSEOUT (~45 gens, 8 rows)
+Ships first: both grounds have their bodies, props and ground. What is left is two gather nodes the engine draws and one
+weak icon. Read 00 pre-flight first.
+
+ #  Row                         Tool, size                          Gens  Note
+ 1  SAMPLE alder gather node    create_image_pro_flash 64x64, 3 cand   8  "an alder tree for gathering, thin grey-green
+    (kind `alder`)              style image: mu_dead_hawthorn crop        trunk, dull yellow-green leaves, single black
+                                                                          outline, top-down game prop". Class tree is
+                                                                          96-128 tall: draw at 128x160 with a 32 px margin,
+                                                                          image_pro, NOT flash, if the 64 read fails.
+ 2  alder gather node, 2 more   same call, kept words                   8  only after the art director reads row 1 at x2
+                                                                          beside the March alder wall (hf_, mu_)
+ 3  alder gather node, sheet    4x4 sheet of 64 cells at 256x256        6  a variant set so a ground does not repeat one tree
+ 4  Emberstone vein node        create_image_pro_flash 64x64, 3 cand    8  "a rock outcrop with veins of dull orange ember
+    (kind `emberstone_rock`)    style image: a Pyre cinder pit crop       ore, grey stone, single black outline". Needed by
+                                                                          Pyre (coal stand-ins) and Krell's Crypt.
+ 5  Emberstone vein, depleted   same, "the same outcrop, veins dark"    5  the gather node swaps to this when empty
+ 6  barge_nail icon             create_1_direction_object 32x32         10  ONE call, 64 candidates, palette hr-world-56-v2,
+    (the Slake's; plain grey T)                                           style images hearth_token, keystone, culvert_bat_fang:
+                                                                          "a long square forged iron nail with a flat head,
+                                                                          rust at the point, lit from upper left". 8 cand.
+ 7  fold into row 6             pick 1 keep + 1 alt                      0  the call is shared with row 6's other rows below
+ 8  (spare) re-roll of the one  as row 1                                 0  held in reserve, counted in 00's 15%
+    node the read refuses
+ Gens: 8+8+6+8+5+10 = 45.
+
+WIRING (import lane, not here): the alder kinds in src/data/hunt-grounds.js GROUND_NODE_KINDS plus node-art manifest; the six
+Ford/Slake oaks and the Muster's `westwood_ash` stand-ins swap to alder in the packs' gather lines. tools/world-art.
+REFUSE: a light round canopy (the oak lesson, Greenhaven's tree), any glow on the vein (no light baked in), any pixel off the
+palette after lock.

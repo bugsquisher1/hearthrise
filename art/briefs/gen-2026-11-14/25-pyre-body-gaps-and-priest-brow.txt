@@ -1,0 +1,25 @@
+BRIEF 25: PYRE BODY GAPS, THE PROVOST, AND THE PYRE PRIEST'S HELD CROSS (~95 gens, 10 rows)
+Raw bodies exist (gen-2026-11-09b/b7, b8, b10). What each still lacks before the Pyre Field can open.
+
+ #  Row                                          Tool                               Gens  Notes
+ 1  pikeman + lurcher read pending               (0 gens) the b7 note says the pikeman's and lurcher's clips waited on the read of
+                                                  A3 and A4: art director reads them first, at x2 on brief 23's ash
+ 2  charred_pikeman hit, 8 facings               animate_object v3, brief 11 M3 words  12  "recoils from a blow, head snaps back, the pike stub stays in hand"; blow lands on frame 3, frames 0-4 kept
+ 3  stoker hit, 8 facings                        same                                    12  "rocks back under a blow, the rake stays in both hands"
+ 4  lurcher hit, 8 facings                       same                                    12  "yelps and flinches, the head ducks, feet stay planted"
+ 5  pyre_wraith hit, 8 facings                   same                                    12  "the shroud shudders, the hood bows"; waits on "the hook"
+ 6  pyre_wraith SW idle re-roll                  animate_object, SW only                  8  b8 flag: hood rises 2-4 px from frame 2. Words as P7 idle; or a 0 1 0 1 lay (0 gens)
+ 7  provost re-pour from barrow_knight           SCRIPT (0 gens): ramp re-pour to #0b0a0c #17141a #231d1f #2f2723 #2c2e33 #4a4d54; barrow_knight's death sw/ne/nw from b10 (3 gens spent). Forecast PASSES at 4.03:1; final read on brief 23's ash
+ 8  provost fallback                             create_object_pro_flash 48x48, only if row 7 fails the read    30  "an undead provost officer in charred black plate, a burnt tabard, a bow on his back and a sword in hand", P2 recipe, palette hr-world-56-v2
+ 9  pyre_priest head, held cross re-roll         create_1_direction_object 32x32      10  see below
+ 10 pyre_priest body brow (Hold, brief 28)       n/a                                                       0
+ Subtotal 12*4 + 8 + 10 + (30 if row 8) = 66 / 96. Budget 95 includes the fallback.
+
+PYRE PRIEST'S ASH CROSS (brief 18 HELD). Every roll painted the ash on the brow as a cross; a real faith's sign on the enemy
+ who burns the dead is not ours to use. The free fix (brief 18: 5 brow pixels to an uneven grey smear) was applied at import
+ (commit 78f334d76, "pyre_priest brow cross smeared at import"). DO FIRST, 0 gens: read assets/icons-bundle/pixel/heads/pyre_priest.png
+ at x2 and x4. If it reads as a smudge, row 9 is cancelled. If it still reads as a sign: ONE re-roll, object ca8bede7-79b1-4c89-971f-1bbd25d583fe, style
+ images the four folk heads and the kept pyre_priest 19, words "a grey smudge of ash across the brow, no shape, no symbol",
+ 6 candidates (not 64: 10 gens buys the call anyway, so take 64 and pick). Same rule goes into brief 28 for the BODY.
+REJECT: any priest, wraith or provost with a cross, plus, or X on brow, chest or banner; the same for the Hold's Pyre Priest body.
+WIRING: port-pixellab.mjs unit --set pyre --class character --hit 3 (wraith/pikeman), brute (stoker), beast (lurcher).

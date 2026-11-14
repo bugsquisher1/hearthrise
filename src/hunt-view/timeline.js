@@ -206,7 +206,8 @@ export function createTimeline(o) {
   /**
    * Where unit `u` stands at client time `now`, or null: {x, y, moving} in tiles, plus
    * `d` (its odometer, tiles walked: a walk cycle's frame is a function of it) and
-   * (hx, hy), the heading of its latest move (a held unit keeps facing that way).
+   * (hx, hy), the heading of its latest move (a held unit keeps facing that way), and `since`, the server
+   * instant that move began (what it acted on before it is behind it: scene.js facing).
    */
   function positionAt(u, now) {
     const a = steps.get(u);
@@ -215,12 +216,12 @@ export function createTimeline(o) {
     let i = a.length - 1;
     while (i > 0 && a[i].atMs > t) i--;
     const cur = a[i];
-    if (cur.atMs > t || i === 0) return { x: cur.x, y: cur.y, moving: false, d: cur.d, hx: cur.hx, hy: cur.hy };
+    if (cur.atMs > t || i === 0) return { x: cur.x, y: cur.y, moving: false, d: cur.d, hx: cur.hx, hy: cur.hy, since: cur.atMs };
     const prev = a[i - 1];
     const f = Math.min(1, (t - cur.atMs) / (cur.dur || cfg.tileMs));
     const moving = f < 1 && (cur.x !== prev.x || cur.y !== prev.y);
     return { x: prev.x + (cur.x - prev.x) * f, y: prev.y + (cur.y - prev.y) * f, moving,
-      d: prev.d + (cur.d - prev.d) * f, hx: cur.hx, hy: cur.hy };
+      d: prev.d + (cur.d - prev.d) * f, hx: cur.hx, hy: cur.hy, since: cur.atMs };
   }
 
   /** The client time a server instant plays at (null before the first batch). */

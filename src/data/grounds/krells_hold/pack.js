@@ -33,8 +33,8 @@
 // Gatekeeper keeps. The Hall Key is the Gatekeeper's last row, in its own band (loot-bands.js `key`, about one every two hours).
 // THE CHANCES ARE FITTED, NOT GUESSED: each was set from the floor hour's kills on the real settle (tests/hunt-core/drop-tables.mjs, a lone
 // tank in its tier-6 set, 2026-11-10): Scarce 0.88-1.17 h a piece, Rare 14.6-15.0 h, the Hall Key about every 2.0 h (19 Gatekeepers an hour).
-// NOT FITTED, the designer's (CONFLICTS 2026-11-10): that tank earns -39% over its food on drop-tables' profit floor (+25% ruled), and the
-// full grade as opened reads the shieldless melee ways under it too, the parties under the lone median and Deadly's four over its deaths.
+// GOLD IS PRINTED, NEVER A TARGET (NO PROFIT MOLDS, Tyler 2026-11-13): the Lookout's softer blow and to-hit and the Dangerous dmgPm 1300 that
+// chased a profit floor and a food share are reverted to the formula; Deadly brings six, a danger fix, and stays.
 import { definePack, box, gather } from '../shape.js?v=0.2.129';
 import map from './map.js?v=0.2.129';
 
@@ -102,7 +102,7 @@ export default definePack({
         { id: 'ember_helm', ch: 0.026, band: 'scarce' }, { id: 'dragonhide_helmet', ch: 0.026, band: 'scarce' }, { id: 'archmage_helmet', ch: 0.026, band: 'scarce' },
         { id: 'runewood_bow', ch: 0.026, band: 'scarce' },
         { id: 'ember_gauntlets', ch: 0.0018, band: 'rare' }, { id: 'dragonhide_gloves', ch: 0.0018, band: 'rare' }, { id: 'archmage_gloves', ch: 0.0018, band: 'rare' }],
-      hp: 109, atk: 80, baseAcc: 0.45, def: 38, xp: 1200, gp: [23, 69], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (Q3)
+      hp: 109, atk: 103, baseAcc: 0.45, def: 38, xp: 1200, gp: [23, 69], formula: true }, // the glass role's formula: a 0.22 blow, 0.75 to-hit at a same-Level hero (profit-only exceptions reverted, NO PROFIT MOLDS 2026-11-13)
     grave_guard: {
       name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', speed: 2400,
       /* the heavy, the slowest thing in the castle: one of the Banded Company's officers, buried with honors in the Muster Barrows, dug up and
@@ -192,7 +192,7 @@ export default definePack({
   /* DEADLY BRINGS SIX, not the table's eight (the Pyre Field's row; lane/d-packs-retune, 2026-11-12): on eight a four with no Healer died 82 times in
      16 hero-hours at the floor and the four with a Healer 10 (full grade, 2 seeds x 2 h), where the sheet allows 9. Six is the least Deadly may bring
      (never under Dangerous, tests/hunt-core/hunt-tiers.mjs rows). Measured on the re-grade below. */
-  tierOverride: { deadly: 6, dials: { dangerous: { dmgPm: 1300 } }, why: 'on the full box a group of four with no Healer died 82 times in 16 hours at the floor, and a group with one 10, where the rule allows 9. On six they hold it' },
+  tierOverride: { deadly: 6, why: 'on the full box a group of four with no Healer died 82 times in 16 hours at the floor, and a group with one 10, where the rule allows 9. On six they hold it' },
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.54-0.73, threes 0.42-0.70, fours 0.32-0.59), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 0.96-1.08, threes 0.93-1.07, the four 1.02: the Pyre Field's shape, a Mage or a Healer alone earns the most); the cells between are the size's mix times the cell ratio. Whole fives. */

@@ -56,7 +56,6 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
      monsters  { id: row }: the pack's NEW monsters, src/data/monsters.js rows (the numbers by `tools/pack.mjs propose --write`)
      roster    { monster: role }: each placed monster's role (src/data/balance-sheet.js GROUND_ROSTER's row)
      items     { id: row }: the pack's NEW items, src/data/items.js rows; itemText { id: 'its line' } (item-descriptions.js)
-     gpFit     (optional) its GROUND_GP_FIT coin number (k <= 1.6), with its reason
      xpFit, tierOverride   (optional) its GROUND_XP_FIT number and TIER_PULL_OVERRIDES row (balance-sheet.js), each with its reason
      partyClassXp, partyVsAlone   (optional) its party rows { 2: [...], 3: [...], 4: [...] } (party-class-xp.js): the pay cell when a
                same-class party would beat solo there, and the measured line the party window says (tests/party-class-xp-line.mjs)
@@ -81,7 +80,7 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
 export const PACK_STATUS = Object.freeze(['staged', 'open']);
 const ID = /^[a-z0-9_]{1,40}$/;
 const isObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
-const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'gpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide', 'hall', 'fuel', 'spells']);
+const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide', 'hall', 'fuel', 'spells']);
 const FUEL_KEYS = Object.freeze(['item', 'xp', 'req', 'flame', 'secs', 'chunk']);
 const SPELL_ROW_KEYS = Object.freeze(['n', 'shape', 'r', 'len', 'range', 'windupMs', 'cdMs', 'hitPm', 'element']);
 const posInt = (n) => Number.isInteger(n) && n > 0;
@@ -151,8 +150,6 @@ export function definePack(p) {
   for (const k of ['monsters', 'roster', 'items', 'itemText']) if (p[k] !== undefined && !isObj(p[k])) no(k + ' is not an object');
   for (const k of ['monsters', 'items']) for (const x of Object.keys(p[k] || {})) if (!ID.test(x)) no(k + ' id ' + x + ' is not [a-z0-9_]');
   for (const x of Object.keys(p.itemText || {})) if (!(p.items && x in p.items)) no('itemText names ' + x + ', which is not one of its items');
-  /* a pack's coin fit (balance-sheet.js GROUND_GP_FIT), never over x1.6 (designer rulings Q3 and 7, 2026-11-12) */
-  if (p.gpFit !== undefined && !(isObj(p.gpFit) && Number.isFinite(p.gpFit.k) && p.gpFit.k > 0 && p.gpFit.k <= 1.6 && typeof p.gpFit.why === 'string' && p.gpFit.why)) no('gpFit is not { k <= 1.6, why }');
   if (p.xpFit !== undefined && !(isObj(p.xpFit) && Number.isFinite(p.xpFit.k) && typeof p.xpFit.why === 'string' && p.xpFit.why)) no('xpFit is not { k, why }');
   if (p.tierOverride !== undefined && !(isObj(p.tierOverride) && typeof p.tierOverride.why === 'string' && p.tierOverride.why)) no('tierOverride has no why');
   if (p.checks !== undefined && !isObj(p.checks)) no('checks is not an object');

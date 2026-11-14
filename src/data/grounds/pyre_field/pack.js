@@ -44,14 +44,9 @@
 // THE SALE RATES (Phase 0, loot-bands.js VENDOR_GEAR_RATES): tier 5 sells at 0.033 of book and tier 6 at 0.015, so the hour's worn
 // gear sells for well under half its coin (drop-tables gear-faucet) and a Rune Platebody still sells for more than a Mithril one.
 // Commons feed the Hearth (Bone Chips, Grave Dust, Razor Claw, Wraith Veil, the bones) and the forge (Coal).
-// THE PROFIT FLOOR IS PAID BY THE COMMONS (Tyler 10-18 and 10-20: at least +25% over the store bill at the floor). The coin is the
-// formula's and does not cover the food alone: a lone tank at 70 in its full tier-5 set eats about 15.2k g of store food an hour
-// against 11.0k coin (tests/hunt-core/drop-tables.mjs profit-floor, 8 seeds). The commons pay the rest: a Wraith leaves its veil six
-// times in ten, a Lurcher its claw one time in two, and Grave Dust drops one time in two. That hour reads +44.7% on the mean of eight
-// seeds, +26.8% on the worst and +46.1% on the guard's. The veil was three in four while a lone hero was paid 0.55 of a row (the party
-// scale, before one difficulty) and, with the Kennels' and the Ash Heaps' three as built, the same hour cost 26.8k g of food (-13%).
-// The veil carries most of it: it sells for 420 g because it is not on items.js RAW_DROPS (Razor Claw is, and sells for 72 g). If it
-// is ever made raw this floor falls back under the bar.
+// THE COMMONS ARE THE HEARTH'S, NOT A PROFIT LEVER (NO PROFIT MOLDS, Tyler 2026-11-13: gold is printed, never a target). A Wraith leaves its
+// veil two times in ten, a Lurcher its claw two in ten and Grave Dust drops three in ten, the Pyre Field's own rows as first built; the
+// raise to 0.6 / 0.5 / 0.5 that paid a +25% floor is reverted. The hour's gold is printed by tests/hunt-core/drop-tables.mjs.
 // Each body drops its own imbuement item, one of each of the five kinds, a Material that only sells until linings are built (its
 // book value is twice its dropper's Level). The ground's named fuel, Pyre Ash (the board's), waits on a pack field for NAMED_FUELS
 // (src/data/hearth.js): no row.
@@ -142,7 +137,7 @@ export default definePack({
       /* the skirmisher: the company's camp dogs, lean and quick enough to run down a kiter, who never left their dead. Living, so the
          Mammal class with no override: an arrow's mark, fire does more. They worry the helmets off the dead, chew the gloves, and
          dig the claws sharp in the ash. */
-      drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'razor_claw', ch: 0.5, band: 'common' }, { id: 'kennel_tag', ch: 0.08, band: 'uncommon' },
+      drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'razor_claw', ch: 0.2, band: 'common' }, { id: 'kennel_tag', ch: 0.08, band: 'uncommon' },
         { id: 'rune_helm', ch: 0.05, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.05, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.05, band: 'scarce' },
         { id: 'rune_gauntlets', ch: 0.0039, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0039, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0039, band: 'rare' }],
       hp: 90, atk: 64, baseAcc: 0.91, def: 29, xp: 955, gp: [19, 57], formula: true },
@@ -152,7 +147,7 @@ export default definePack({
          through smoke (one override, weapon: weak to magic). Its veil and its grave dust for the Hearth, the Binder's staff, and the
          Binders' books it guards: the caster's prizes. */
       weaponWeak: 'magic', weaponResist: ['sword'],
-      drops: [{ id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'wraith_veil', ch: 0.6, band: 'common' }, { id: 'shroud_pin', ch: 0.08, band: 'uncommon' },
+      drops: [{ id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'wraith_veil', ch: 0.2, band: 'common' }, { id: 'shroud_pin', ch: 0.08, band: 'uncommon' },
         { id: 'yew_staff', ch: 0.028, band: 'scarce' },
         { id: 'yew_wand', ch: 0.0019, band: 'rare' }, { id: 'yew_spellbook', ch: 0.0019, band: 'rare' }],
       hp: 126, atk: 61, baseAcc: 1, def: 34, xp: 1138, gp: [26, 80], formula: true },
@@ -163,7 +158,7 @@ export default definePack({
          differs from the barrow knight it is poured from. The bodies, the bow they shot runaways with, and the Stokers' best work, the
          Emberforged weapons the company's officers were burned with. */
       elements: BURNED,
-      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'warrant_seal', ch: 0.1, band: 'uncommon' },
+      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'warrant_seal', ch: 0.1, band: 'uncommon' },
         { id: 'rune_platebody', ch: 0.029, band: 'scarce' }, { id: 'wyvernhide_body', ch: 0.029, band: 'scarce' }, { id: 'sorcerer_body', ch: 0.029, band: 'scarce' },
         { id: 'yew_bow', ch: 0.029, band: 'scarce' },
         { id: 'ember_sword', ch: 0.002, band: 'rare' }, { id: 'ember_warhammer', ch: 0.002, band: 'rare' }, { id: 'runewood_bow', ch: 0.002, band: 'rare' },
@@ -254,9 +249,9 @@ export default definePack({
   partyVsAlone: { 2: [-35, -5], 3: [-40, -10, -5], 4: [-50, -10, 0, 0] },
   /* THE PACK'S TEST FACTS (re-pinned 2026-11-10 for one difficulty). dropRef: a lone tank at the floor in its full own-tier set
      (tests/hunt-core/drop-tables.mjs, the harness's tier-5 kit). valueToday is COMPUTED, the 11-09 method: the hour's expected coin
-     (10,880 g) and commons (10,528) plus the gear-faucet's half of the coin (5,440), the most the hour's worn gear may sell for. The
-     hour's gear sells for 3,207 g (29% of the coin) at the tier-5 rate of 0.033, and the guard reads the caps as holding up to 0.05.
+     (10,090 g) and commons (3,930; re-pinned 2026-11-13 with the commons reverted) plus the gear-faucet's half of the coin (5,045). The
+     hour's gear sells for 2,977 g (30% of the coin) at the tier-5 rate of 0.033, and the guard reads the caps as holding up to 0.05.
      No room holders (every placed body has a spawn weight) and no one-tile bridge. */
-  checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 26848 },
+  checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 19065 },
   map,
 });

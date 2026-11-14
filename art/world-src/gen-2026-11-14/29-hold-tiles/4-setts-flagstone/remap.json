@@ -1,0 +1,8 @@
+{
+ "from": "out/b29/4c-setts-flagstone",
+ "gens": 0,
+ "remap": {
+  "#1f3322": "#231d1f",
+  "#16241a": "#17141a"
+ }
+}

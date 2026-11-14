@@ -569,7 +569,7 @@ function drillBanner(base) {
 // note ("ABSENT on production": Object.keys of a string gave `x."0"`) and on a recorded column the table had since
 // dropped (hr_tick_config.shadow), so the re-measurement had been unrunnable since 2026-10-08. The recorded keys now
 // FILTER the whole row instead of naming columns: a dropped column is simply absent and --live-compare reports the row
-// as moved. The plain run executes this projection on the replay, planted with both shapes (LIVE_SQL_PROBES).
+// as moved. The plain run executes this projection on the replay, planted with both shapes (liveSqlProbes below).
 function tunableSql(base) {
   return Object.entries(base.tables)
     .filter(([, s]) => s.class === 'operator_tunable')

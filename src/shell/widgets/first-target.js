@@ -37,12 +37,17 @@ function firstTargetGround(cs) {
   return pickedHuntOf(cs) || (h && h.huntId) || null;
 }
 
-/** The kinds a hero can name first on `hunt`, by name: [{ id, name }], [] for a ground the data does not hold. */
+/* The kinds a hero can name first on `hunt`, by name: [{ id, name }], [] for a ground the data does not hold. Data only, so
+   read once per ground: the bar patches every display tick. */
+const KINDS = new Map();
 function kindsOf(hunt) {
-  const g = hunt ? groundOfHunt(hunt) : null;
-  if (!g) return [];
-  return [...monstersOn(g)].filter((id) => MONSTERS[id]).map((id) => ({ id, name: MONSTERS[id].name }))
-    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  if (!hunt) return [];
+  if (!KINDS.has(hunt)) {
+    const g = groundOfHunt(hunt);
+    KINDS.set(hunt, g ? [...monstersOn(g)].filter((id) => MONSTERS[id]).map((id) => ({ id, name: MONSTERS[id].name }))
+      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) : []);
+  }
+  return KINDS.get(hunt);
 }
 
 /* The server's pick on `hunt` ('' = none) when it is a kind of that ground, else ''; null = the server sent no section. */

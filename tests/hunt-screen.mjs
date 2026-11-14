@@ -772,6 +772,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!done || sent.length !== 1 || sent[0].p_slot !== 0 || sent[0].p_hunt !== 'mill_cellar' || sent[0].p_kind !== 'slime' || !/^[0-9a-f-]{36}$/.test(String(sent[0].p_idem)))
           fails.push('HS-29 one pick sent ' + JSON.stringify(sent) + ' and shows ' + JSON.stringify(await read()));
         if (!/Slime/.test((await read()).note)) fails.push('HS-29 the line under the pick does not name the server\'s Slime: ' + JSON.stringify(await read()));
+        if (shots) await page.screenshot({ path: join(shots, 'hunt-1440x900-first-target.png') });
         /* Refused: the server's Slime stays, the line says why. */
         s.kindReply = { ok: false, error: 'bad_kind' };
         await page.selectOption(SEL, 'rat');

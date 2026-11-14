@@ -734,7 +734,12 @@
   "hero_tally_given",
   "hero_tally_tasks",
   "town_works_gifts",
-  "player_scaled_hours"
+  "player_scaled_hours",
+  "hr_faction_claims",
+  "hr_faction_days",
+  "hr_faction_ledger",
+  "hr_faction_members",
+  "hr_faction_standing"
  ],
  "_player_value_tables_why": [
   "THE CLASS OF THESE IS NOT NEGOTIABLE: restore_only, always. They hold a",

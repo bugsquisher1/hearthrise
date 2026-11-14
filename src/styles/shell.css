@@ -110,6 +110,9 @@
 }
 /* In a hunt the card hangs under the hunt top bar (hunt-topbar.js), inside that widget's own box. */
 .hs-widget > .hs-pointer { left: 0; width: min(260px, 100%); }
+/* A town card's body never ends on one lone word ("…she pays you gold and a" / "helmet.", the v0.2.130 gate, both sizes): the words wrap
+   pretty. Only the town's cards: a card inside a window is sized with the window (window-fit.js), so it keeps its lines. */
+:is(.hs-launchers, .hs-widget) > .hs-pointer { text-wrap: pretty; }
 .hs-pointer b { display: block; font-family: var(--f-display); font-weight: 700; letter-spacing: .06em; color: var(--gold-2); }
 /* The pointer's tip stands on the frame's top edge (the frame is 6 px). */
 .hs-pointer::before { content: ''; position: absolute; top: -12px; left: 10px; border: 6px solid transparent; border-top: 0; border-bottom-color: var(--gold); }

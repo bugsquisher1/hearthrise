@@ -2772,7 +2772,11 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
            picked ground's page reads its band the same way */
         const readLine = await page.evaluate((w) => { const li = document.querySelector(w + '.hw-hunt[data-hunt="mill_cellar"]');
           return [li.querySelector('.hw-hunt-band').innerText, li.querySelector('.hw-hunt-sub').innerText, document.querySelector(w + '.hw-hd-band')?.innerText]; }, W);
-        if (readLine[0] !== 'Level 1–8 · In your range' || !/^Right for your level[  ]· No best yet$/.test(readLine[1]) || !/ · In your range$/.test(readLine[2] || '')) fails.push('AW-25 a reader gets ' + JSON.stringify(readLine));
+        /* and each dot binds to the words after it (format.js SEP, a no-break space), so no wrapped line ends on one (the v0.2.130 gate) */
+        const NBSP = String.fromCharCode(160), bound = (x) => String(x || '').split('·').slice(1).every((rest) => rest[0] === NBSP);
+        if (!readLine.every(bound)) fails.push('AW-25 a dot in the Hunts lines can end a line: ' + JSON.stringify(readLine));
+        readLine.forEach((x, i) => { readLine[i] = String(x || '').split(NBSP).join(' '); });
+        if (readLine[0] !== 'Level 1–8 · In your range' ||!/^Right for your level[ \u00a0]· No best yet$/.test(readLine[1]) || readLine[1] !== 'Right for your level · No best yet' || !/ · In your range$/.test(readLine[2] || '')) fails.push('AW-25 a reader gets ' + JSON.stringify(readLine));
         /* The picked ground's page: who lives here as the world draws them, at a whole-number scale on one ground line. */
         const page1 = () => page.evaluate((w) => {
           const d = document.querySelector(w + '.hw-hunt-detail');
@@ -2783,7 +2787,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             rares: Array.from(d.querySelectorAll('.hw-hd-rares .hw-hd-rare')).map((n) => n.querySelector('.hw-hd-rare-name').textContent + ' / ' + n.querySelector('.hw-hd-rare-by').textContent + (n.classList.contains('is-trophy') ? ' (trophy)' : '')),
             raresShown: (() => { const h = d.querySelector('.hw-hd-rares'), head = h && h.previousElementSibling; return !!head && head.getClientRects().length > 0; })(),
             mons: Array.from(d.querySelectorAll('.hw-hd-mon')).map((li) => { const c = li.querySelector('canvas'), b = c.getBoundingClientRect(), st = li.querySelector('.hw-hd-stand').getBoundingClientRect();
-              return { id: li.dataset.monster, how: li.querySelector('.hw-hd-mon-how').textContent.replace(/ /g, ' '), drawn: li.classList.contains('is-drawn'), carrier: li.classList.contains('is-carrier'),
+              const how = li.querySelector('.hw-hd-mon-how').textContent;
+              return { id: li.dataset.monster, how: how.split(String.fromCharCode(160)).join(' '), bound: how.split('\u00b7').slice(1).every((x) => x[0] === String.fromCharCode(160)), drawn: li.classList.contains('is-drawn'), carrier: li.classList.contains('is-carrier'),
                 w: c.width, h: c.height, cw: b.width, ch: b.height, ground: Math.round(st.bottom), inside: b.top >= st.top - 0.5 }; }),
             bests: Array.from(d.querySelectorAll('.hw-hd-best')).filter((n) => n.getClientRects().length).map((n) => n.textContent) };
         }, W);
@@ -2792,6 +2797,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!drawn || p.mons.some((m) => !m.drawn || !m.w || m.w % 2 || m.h % 2 || Math.abs(m.cw - m.w) > 0.5 || Math.abs(m.ch - m.h) > 0.5)) fails.push('AW-25 the creatures are not drawn at x2 from the world art: ' + JSON.stringify(p.mons));
         if (new Set(p.mons.map((m) => m.ground)).size !== 1 || p.mons.some((m) => !m.inside)) fails.push('AW-25 the creatures do not stand on one ground line, inside it: ' + JSON.stringify(p.mons.map((m) => [m.ground, m.inside])));
         const mons = p.mons.map((m) => m.id + ':' + m.how + (m.carrier ? ':carrier' : '')).join('|');
+        /* a creature card's dot binds to its share ("Level 2 ·" / "uncommon" was the v0.2.130 gate) */
+        if (p.mons.some((m) => !m.bound)) fails.push('AW-25 a creature card\'s dot can end its line: ' + JSON.stringify(p.mons.map((m) => m.how)));
         if (p.name !== 'Mill Cellar' || p.theme !== HUNTS.mill_cellar.theme || mons !== 'rat:Level 2 · common|slime:Level 2 · uncommon|hive_wasp:Level 4 · uncommon:carrier')
           fails.push('AW-25 the Mill Cellar page reads ' + JSON.stringify({ name: p.name, theme: p.theme, mons }));
         /* the fixture hero wears Leather Boots, so the medium line reads first; the Cellar's one Rare is the Hive Wasp's
@@ -2825,7 +2832,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         /* AW-26 GO AS: the setups as lines, the one on now chosen; Enter as it is ONE hr_hunt_enter and no apply. */
         const goAs = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-go')).map((b) => [b.dataset.preset, b.getAttribute('aria-checked'), b.querySelector('.hw-go-name').textContent,
-          b.querySelector('.hw-go-what').textContent, b.querySelectorAll('.hw-go-bar .hh-icon').length, (b.querySelector('.hw-go-weapon img') || {}).src ? b.querySelector('.hw-go-weapon img').getAttribute('src').split('/').pop() : ''].join(':')), W);
+          b.querySelector('.hw-go-what').textContent.split(String.fromCharCode(160)).join(' '), b.querySelectorAll('.hw-go-bar .hh-icon').length, (b.querySelector('.hw-go-weapon img') || {}).src ? b.querySelector('.hw-go-weapon img').getAttribute('src').split('/').pop() : ''].join(':')), W);
         const g0 = (await goAs()).join('|');
         if (g0 !== '0:true:Hunt:Melee · on now:4:iron_sword.png|1:false:Bow:Ranger:0:shortbow.png') fails.push('AW-26 Go as reads ' + JSON.stringify(g0));
         /* AW-27 BEFORE YOU GO: what the bar spends, in slot order, from the server's bar, bag and gold. */
@@ -4484,6 +4491,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
+  ['AW-25 a creature card\'s dot can end its line', 'src/shell/windows/hunt-detail.js', "'Level ' + m.level + SEP : ''", "'Level ' + m.level + ' · ' : ''"],
   ['AW-25 a list line\'s band and its fit run together in text', 'src/shell/windows/hunts.js', "prop(band.previousElementSibling, 'hidden', !fit || !fit.words);", "prop(band.previousElementSibling, 'hidden', true);"],
   ['AW-25 a list line\'s tag and best run together in text', 'src/shell/windows/hunts.js', "prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', !tag || !best);", "prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', true);"],
   ['AW-25 the page\'s band and its fit run together in text', 'src/shell/windows/hunt-detail.js', "prop(band.querySelector('.hw-hunt-sep'), 'hidden', !fitWordsShown);", "prop(band.querySelector('.hw-hunt-sep'), 'hidden', true);"],

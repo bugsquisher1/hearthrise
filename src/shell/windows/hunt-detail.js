@@ -28,7 +28,7 @@ import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.129';
 import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.129';
 import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.129';
 import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.129';
-import { chance, listWords } from '../../render/format.js?v=0.2.129';
+import { chance, listWords, SEP } from '../../render/format.js?v=0.2.129';
 import { gotoAttr, patchParts } from '../goto.js?v=0.2.129';
 import { factsTarget } from './monster.js?v=0.2.129';
 import { t } from '../../render/player-text.js?v=0.2.129';
@@ -47,7 +47,7 @@ const asked = new Set();
 /** The page's skeleton: the ground's facts (this module) and the slots hunts.js fills. */
 export function detailHtml() {
   return '<header class="hw-hd-head">'
-    + '<h3 class="hw-hd-name"></h3><p class="hw-hd-band"><span class="hw-hd-levels"></span><span class="hw-hunt-sep" hidden> · </span><span class="hw-hunt-fit"></span></p>'
+    + '<h3 class="hw-hd-name"></h3><p class="hw-hd-band"><span class="hw-hd-levels"></span><span class="hw-hunt-sep" hidden>' + SEP + '</span><span class="hw-hunt-fit"></span></p>'
     + '<p class="hw-hd-who"></p><div class="hw-hd-events"></div><p class="hw-hunt-warn"></p></header>'
     + '<h4 class="hw-hd-h">Who lives here</h4><ul class="hw-hd-lineup" aria-label="Who lives here"></ul><p class="hs-note hw-hd-casts" hidden></p><p class="hs-note hw-hd-bigpull" hidden></p>'
     /* the ground's words under who lives there: on a short screen the first row of creatures shows whole (Tyler 2026-11-11) */
@@ -95,7 +95,7 @@ export function patchGo(det, ctx, v) {
       attr(b, 'aria-checked', String(on));
       cls(b, 'is-picked', on);
       text(b.querySelector('.hw-go-name'), p.name);
-      text(b.querySelector('.hw-go-what'), [p.roleWords, p.inUse ? 'on now' : null].filter(Boolean).join(' · '));
+      text(b.querySelector('.hw-go-what'), [p.roleWords, p.inUse ? 'on now' : null].filter(Boolean).join(SEP));
       const w = b.querySelector('.hw-go-weapon');
       if (w.getAttribute('data-item') !== String(p.weapon)) { w.innerHTML = p.weapon ? itemIconHtml(ctx.glyphs, p.weapon) : ''; w.setAttribute('data-item', String(p.weapon)); }
       const bar = b.querySelector('.hw-go-bar');
@@ -127,8 +127,8 @@ export function patchGo(det, ctx, v) {
   text(none, v.partyBlock.bring.length ? '' : 'Your other heroes can come too. Play one from Characters and it shows here. Up to four play at once.');
 }
 
-/* "Level 2 · common"; a boss says so in place of its share. The dot keeps to the line it ends (a wrapped line never starts with one). */
-const howWords = (m) => (Number.isInteger(m.level) ? 'Level ' + m.level + ' · ' : '') + (m.boss ? 'boss' : m.band);
+/* "Level 2 · common"; a boss says so in place of its share. The dot binds to the share after it (format.js SEP): no line ends on it. */
+const howWords = (m) => (Number.isInteger(m.level) ? 'Level ' + m.level + SEP : '') + (m.boss ? 'boss' : m.band);
 /* The area casters, one note under the line (lane/d-area-playtest): the page warns before the hunt does, and no card grows (AW-25c, AW-93). */
 const castsWords = (residents) => residents.filter((m) => m.casts && m.casts.length).map((m) => t('hunts.casts', { name: m.name, spells: listWords(m.casts) })).join(' ');
 

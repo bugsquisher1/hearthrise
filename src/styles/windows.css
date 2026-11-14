@@ -1063,9 +1063,8 @@
 .ht-entry.has-face .ht-face { display: grid; grid-column: 1; grid-row: 1 / span 2; width: 44px; height: 44px; place-items: center; background: var(--bg-1); box-shadow: var(--hw-well); }
 .ht-entry.has-face .ht-entry-top, .ht-entry.has-face .ht-marks { grid-column: 2; }
 .ht-entry.has-face .ht-pocket { grid-column: 3; }
-.ht-get, .ht-once { grid-column: 1 / -1; margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
-.ht-get:empty, .ht-once:empty { display: none; }
-.ht-entry .ht-once { color: var(--gold-2); }
+.ht-get { grid-column: 1 / -1; margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
+.ht-get:empty { display: none; }
 .ht-foot { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--t-micro); color: var(--ink-3); }
 .ht-where { min-width: 0; }
 .ht-tools { display: flex; align-items: center; gap: 2px; flex: none; }
@@ -1099,8 +1098,9 @@
 .ht-row-lvl { white-space: nowrap; }
 .ht-pay { display: flex; flex-direction: column; min-width: 0; }
 .ht-pay b { font-weight: 700; color: var(--ink); white-space: nowrap; }
-/* the once note runs under the whole row, never squeezed into the pay column (played 11-12: three lines at 118 px) */
-.ht-row .ht-once { grid-column: 1 / -1; margin: 0 0 2px; color: var(--gold-2); }
+/* the once note: one line under her board, not under every row */
+.ht-board-once { margin: 4px 2px 0; font-size: var(--t-micro); color: var(--gold-2); line-height: 1.35; }
+.ht-board-once:empty { display: none; }
 .ht-take { min-height: 36px; padding: 0 12px; background: var(--bg-0); box-shadow: var(--hw-well); color: var(--ink); }
 .ht-take:disabled { color: var(--ink-3); opacity: 1; background: none; box-shadow: none; }
 /* HER PICK: one line at the foot, the picker folded behind Change. */

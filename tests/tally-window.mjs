@@ -6,7 +6,7 @@
 //   node tests/tally-window.mjs --mutate   every planted defect must turn a rule RED
 //   node tests/tally-window.mjs --shots <dir>   also write TW-11's screenshots (moved, folded; desktop and phone)
 //
-// mutant-anchors: src/shell/windows/tally.js src/session/tally-sections.js src/session/tally-intents.js src/shell/windows/hunts.js src/shell/shell.js src/shell/widgets/tally-hud.js src/shell/widget-move.js src/shell/hud-room.js src/styles/windows.css
+// mutant-anchors: src/shell/windows/tally.js src/session/tally-sections.js src/session/tally-intents.js src/shell/windows/hunts.js src/shell/shell.js src/shell/widgets/tally-hud.js src/shell/widget-move.js src/shell/hud-room.js src/styles/windows.css src/styles/shell.css src/render/format.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus a `tally` section
@@ -59,6 +59,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
+import { COACH_TEXT } from '../src/data/text/coach.js';
 import { pinFonts } from './_test-fonts.mjs';
 
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
@@ -193,6 +194,61 @@ const FIRST_LINE = 'I kept the mill\'s rats down myself for thirty years. Then t
 const OLD_WORDS = /half of the stick|piece for your back|tally-keeper|picks for|her pick for you|tallies a day|you hold no tally|loads from the server|Tamsin has work/i;
 const COPY_FILES = ['src/data/tally-tasks.js', 'src/data/text/tally.js', 'src/shell/windows/tally.js', 'src/session/tally-sections.js', 'src/shell/widgets/tally-hud.js',
   'src/data/refusal-words.js', 'src/data/alerts.js', 'src/shell/alerts.js', 'src/hunt-view/combat-log.js'];
+/* TW-18 (page side): every dot drawn in `root` binds to what follows it (a no-break space, src/render/format.js SEP) and sits on the
+   same line as the next word, with the window as drawn or squeezed to `px`. [] when none dangles. */
+const DANGLING_DOTS = ({ root, px }) => {
+  const w = document.querySelector(root);
+  if (!w) return ['no ' + root];
+  const was = w.style.width;
+  if (px) w.style.width = px + 'px';
+  const nodes = [];
+  for (let it = document.createTreeWalker(w, NodeFilter.SHOW_TEXT), n; (n = it.nextNode());) nodes.push(n);
+  const shown = (n) => !!n.parentElement && n.parentElement.getClientRects().length > 0;
+  const rect = (n, k) => { const r = document.createRange(); r.setStart(n, k); r.setEnd(n, k + 1); return r.getBoundingClientRect(); };
+  const after = (i, k) => {
+    for (let a = i; a < nodes.length; a++) {
+      if (!shown(nodes[a])) continue;
+      for (let b = a === i ? k : 0; b < nodes[a].data.length; b++) if (!/\s/.test(nodes[a].data[b])) return rect(nodes[a], b);
+    }
+    return null;
+  };
+  const out = [];
+  nodes.forEach((n, i) => {
+    if (!shown(n)) return;
+    for (let k = n.data.indexOf('·'); k >= 0; k = n.data.indexOf('·', k + 1)) {
+      const say = (n.parentElement.closest('li, p, header, small') || n.parentElement).textContent.trim().slice(0, 60);
+      if (n.data[k + 1] !== '\u00a0') { out.push('breaks after the dot: ' + say); continue; }
+      const dot = rect(n, k), next = after(i, k + 2);
+      if (next && next.top - dot.top > dot.height / 2) out.push('dangles: ' + say);
+    }
+  });
+  w.style.width = was;
+  return out;
+};
+/* TW-19 (page side): each coach body as the town draws it (a .hs-pointer: its title, then the words), at every card width from a
+   phone's to the desktop's: [] when the last line always holds two words or more. */
+const COACH_BODIES = [COACH_TEXT.tamsins_rats.replace('{label}', 'Giant Rats').replace('{count}', '25'),
+  COACH_TEXT.tamsins_rats_in.replace('{label}', 'Giant Rats').replace('{count}', '25').replace('{ground}', 'Mill Cellar')];
+const LONE_LAST_WORD = (bodies) => {
+  const out = [];
+  for (const body of bodies) {
+    for (let px = 200; px <= 420; px += 4) {
+      const town = document.createElement('div'), p = document.createElement('div');
+      town.className = 'hs-launchers';
+      p.className = 'hs-pointer';
+      p.style.cssText = 'position:fixed;top:0;left:0;visibility:hidden;width:' + px + 'px';
+      p.innerHTML = '<b>Tamsin\'s rats</b> <span class="hs-coach-text"></span>';
+      p.lastChild.textContent = body;
+      town.appendChild(p);
+      document.body.appendChild(town);
+      const n = p.lastChild.firstChild, s = n.data.trimEnd(), last = s.lastIndexOf(' ');
+      const at = (k) => { const r = document.createRange(); r.setStart(n, k); r.setEnd(n, k + 1); return r.getBoundingClientRect().top; };
+      if (at(last + 1) - at(last - 1) > 2) out.push(px + ' px: ' + s.slice(last + 1));
+      town.remove();
+    }
+  }
+  return out;
+};
 /* TW-14: what she says and shows in one state, read off her window. */
 const STATE = () => { const w = document.querySelector('[data-hs-win="tally"]'); const e = w.querySelector('.ht-entry');
   return { voice: w.querySelector('.ht-voice').textContent, day: w.querySelector('.ht-day-paid').textContent, full: w.querySelector('.ht-day').classList.contains('is-full'),
@@ -280,19 +336,29 @@ async function checks(overrides, shots) {
         const head = await page.evaluate(() => ({ day: document.querySelector('[data-hs-win="tally"] .ht-day-paid').textContent, reset: document.querySelector('[data-hs-win="tally"] .ht-day-new').textContent,
           read: document.querySelector('[data-hs-win="tally"] .ht-day').innerText, where: document.querySelector('[data-hs-win="tally"] .ht-row[data-task="glade_poachers"] .ht-row-name small')?.innerText,
           who: document.querySelector('[data-hs-win="tally"] .ht-who').textContent, mine: document.querySelector('[data-hs-win="tally"] .ht-mine-head small').textContent, voice: document.querySelector('[data-hs-win="tally"] .ht-voice').textContent }));
-        if (head.who !== 'Tamsin Reeve' || head.day !== 'Paid today 1 of 3' || head.reset !== 'resets in 6 h' || head.read !== 'Paid today 1 of 3 · resets in 6 h' || head.where !== 'Mosslight Glade · Level 16' || head.mine !== '2 of 3') fails.push('TW-1 her line\'s head reads ' + JSON.stringify(head));
+        const sp = (s) => String(s).replace(/\u00a0/g, ' ');
+        if (head.who !== 'Tamsin Reeve' || head.day !== 'Paid today 1 of 3' || head.reset !== 'resets in 6 h' || sp(head.read) !== 'Paid today 1 of 3 · resets in 6 h' || sp(head.where) !== 'Mosslight Glade · Level 16' || head.mine !== '2 of 3') fails.push('TW-1 her line\'s head reads ' + JSON.stringify(head));
+        /* TW-18 NO LINE ENDS ON A DOT (the v0.2.130 gate: "Meadowbrook Thicket ·" / "Level 5"): her window as drawn and squeezed to a phone's 300 px */
+        for (const px of [0, 300]) {
+          const dangling = await page.evaluate(DANGLING_DOTS, { root: '[data-hs-win="tally"]', px });
+          if (dangling.length) fails.push('TW-18 at ' + (px || 'full') + ' width a line ends on a dot: ' + JSON.stringify(dangling.slice(0, 3)));
+        }
+        /* TW-19 A COACH CARD'S BODY NEVER ENDS ON ONE WORD (the gate: "…gold and a" / "helmet.", desktop and phone), at every card width */
+        const lone = await page.evaluate(LONE_LAST_WORD, COACH_BODIES);
+        if (lone.length) fails.push('TW-19 a coach card ends on one word: ' + JSON.stringify(lone.slice(0, 3)));
         if (head.voice !== 'That\'s all 120. Let me get your pay.') fails.push('TW-14 with a done task in town she says ' + JSON.stringify(head.voice));
         /* TW-9 no line on screen keeps the riddles (Tyler 2026-10-24: "this is weird dialogue") */
         const all = await page.evaluate(() => (document.querySelector('[data-hs-win="tally"]') || {}).textContent + ' ' + (document.querySelector('.hs-tally') || {}).textContent);
         if (OLD_WORDS.test(all)) fails.push('TW-9 her window still says "' + OLD_WORDS.exec(all)[0] + '"');
         const row = await page.evaluate(() => { const li = document.querySelector('[data-hs-win="tally"] .ht-row[data-task="glade_poachers"]'); return li && { name: li.querySelector('.ht-row-name b').textContent,
           go: li.querySelector('.ht-row-go .hs-goto')?.getAttribute('data-hs-goto'), ground: li.querySelector('.ht-row-go').textContent, lvl: li.querySelector('.ht-row-lvl').textContent,
-          gold: li.querySelector('.ht-pay b').textContent, piece: li.querySelector('.ht-pay-name').textContent, once: li.querySelector('.ht-once').textContent, icon: !!li.querySelector('.ht-pocket .hh-icon'), take: li.querySelector('.ht-take').textContent }; });
+          gold: li.querySelector('.ht-pay b').textContent, piece: li.querySelector('.ht-pay-name').textContent, icon: !!li.querySelector('.ht-pocket .hh-icon'), take: li.querySelector('.ht-take').textContent }; });
         if (!row || row.name !== '60 Glade Poachers' || row.go !== 'hunts|mosslight_glade|' || row.ground !== 'Mosslight Glade' || row.lvl !== 'Level 16' || row.gold !== '920 gp' || row.piece !== 'Adept Hat' || !row.icon || row.take !== 'Take') fails.push('TW-1 the board row reads ' + JSON.stringify(row));
-        /* TW-15 SHE GIVES IT ONCE (the mock lane 2026-11-11): the Adept Hat is on two rows, so both say so. sharedPieces read `pick.pick` while
-           tally-intents.js hands it over as `pick.kind`, so the note never showed. */
-        const once = await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="tally"] .ht-row')].map((li) => li.getAttribute('data-task') + '|' + li.querySelector('.ht-once').textContent));
-        if (once.join(';') !== 'glade_poachers|She gives it once, to the first of these she pays.;wickstead_turncoats|She gives it once, to the first of these she pays.') fails.push('TW-15 the once note reads ' + JSON.stringify(once));
+        /* TW-15 SHE GIVES IT ONCE (the mock lane 2026-11-11): the Adept Hat is on two rows, so her board says so, ONCE under it (the v0.2.130
+           gate: the note sat under 5 of 6 rows). sharedPieces read pick.pick while tally-intents.js hands it over as pick.kind, so it never showed. */
+        const once = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"]');
+          return { notes: [...w.querySelectorAll('.ht-board-once')].filter((n) => n.getClientRects().length).map((n) => n.textContent), told: (w.textContent.match(/same piece/g) || []).length }; });
+        if (once.notes.length !== 1 || !/^When two tasks show the same piece, you get it once\./.test(once.notes[0]) || once.told !== 1) fails.push('TW-15 the once note reads ' + JSON.stringify(once));
         // TW-2: the visit hands the done task in, once
         await idle(page);
         const cl = sent(s, 'hr_tally_collect');
@@ -350,7 +416,7 @@ async function checks(overrides, shots) {
         if (hunting.voice !== 'That\'s all 120. Come back to town and I\'ll pay you.') fails.push('TW-14 done while hunting she says ' + JSON.stringify(hunting.voice));
         if (!/^Done\. I'll pay you when you're back in town\. You'll get/.test(hunting.done)) fails.push('TW-5 the done entry reads ' + JSON.stringify(hunting.done));
         /* hunting the Cellar, the wolves' entry says its ground is not this one */
-        if (hunting.where !== 'Meadowbrook Thicket · Not here') fails.push('TW-5 the wolves\' entry reads ' + JSON.stringify(hunting.where));
+        if (hunting.where.replace(/\u00a0/g, ' ') !== 'Meadowbrook Thicket · Not here') fails.push('TW-5 the wolves\' entry reads ' + JSON.stringify(hunting.where));
       }
       await ctx.close();
     }
@@ -661,7 +727,7 @@ async function checks(overrides, shots) {
         ['taken', clone(TOWN), { held: [wolves(0)], paid_today: 0 }, boardHeld('thicket_gray_wolves'), (st) => st.voice === '200 Gray Wolves in Meadowbrook Thicket. Every kill counts, even while you\'re away, so off you go.'
           && st.entries === 1 && st.first.cut === 0 && st.rows === 3 && st.takes.every((d) => !d) && st.why === ''],
         ['hunting', { tally: null }, { held: [wolves(112)], paid_today: 0 }, Object.assign(boardHeld('thicket_gray_wolves'), { hunting: true }), (st) => st.voice === '112 down, 88 to go. Every one counts, even while you\'re away.'
-          && st.first.cut === 5 && st.first.where === 'Meadowbrook Thicket · Not here' && st.why === 'You can take more when you\'re back in town.' && st.takes.every((d) => d)],
+          && st.first.cut === 5 && st.first.where.replace(/\u00a0/g, ' ') === 'Meadowbrook Thicket · Not here' && st.why === 'You can take more when you\'re back in town.' && st.takes.every((d) => d)],
         /* hunting the Cellar with the rats held: the entry says it counts here */
         ['here', { tally: null }, { held: [held(9, 25, 'cellar_giant_rats', 'mill_cellar', 'rat')], paid_today: 0 }, Object.assign(boardHeld('cellar_giant_rats'), { hunting: true }),
           (st) => st.voice === '9 down, 16 to go. Every one counts, even while you\'re away.' && st.first.cut === 3 && st.first.where === 'Counting here in Mill Cellar.'],
@@ -767,7 +833,7 @@ const MUTANTS = [
   ['a pay from yesterday reads as just paid', 'src/shell/windows/tally.js', "const justPaid = sc.paidNow || !!(paid && paid.at && nowMs - Date.parse(paid.at) < PAID_FRESH_MS);", "const justPaid = sc.paidNow || !!paid;"],
   ['the marks cut a stroke ahead of the count', 'src/shell/windows/tally.js', "Math.floor((kills / target) * MARKS)", "Math.ceil((kills / target) * MARKS)"],
   ['sharedPieces reads pick.pick again (the 11-11 bug)', 'src/shell/windows/tally.js', "if (!r.pick || r.pick.kind !== 'piece') continue;", "if (!r.pick || r.pick.pick !== 'piece') continue;"],
-  ['the once note never shows on her board', 'src/shell/windows/tally.js', "  text(li.querySelector('.ht-once'), pick ? onceWords(r, st) : '');", "  text(li.querySelector('.ht-once'), '');"],
+  ['the once note never shows on her board', 'src/shell/windows/tally.js', "text(root.querySelector('.ht-board-once'), st.shared.size ? t('tally.once') : '');", "text(root.querySelector('.ht-board-once'), '');"],
   /* TW-13 a first visit (fresh-account play 11-13) */
   ['her board names the material she would not pay before a weight', 'src/shell/windows/tally.js', '  const pick = st.tally && st.tally.weight ? r.pick : null;', '  const pick = r.pick;'],
   ['a first visit never asks for the weight that suits', 'src/shell/windows/tally.js', '  if (tally && !tally.weight && suggest && sc.board', '  if (false && tally && !tally.weight && suggest && sc.board'],
@@ -779,6 +845,9 @@ const MUTANTS = [
   ['a slot chip sends the old order', 'src/shell/windows/tally.js', "    order.splice(i, 1);\n    order.unshift(s);", "    order.splice(i, 1);\n    order.push(s);"],
   ['the day count hides its reset', 'src/shell/windows/tally.js', "text(root.querySelector('.ht-day-new'), left ? t('tally.day_resets', { left }) : '');", "text(root.querySelector('.ht-day-new'), '');"],
   ['the day count and its reset run together in text', 'src/shell/windows/tally.js', "prop(root.querySelector('.ht-day-sep'), 'hidden', !tally || !left);", "prop(root.querySelector('.ht-day-sep'), 'hidden', true);"],
+  /* TW-18 a dot that lets the line break after it ("Meadowbrook Thicket ·" / "Level 5"), TW-19 a coach body left to end on one word */
+  ['a dot can end a line again', 'src/render/format.js', "export const SEP = '", "export const SEP = ' · ' || '"],
+  ['a coach card can end on one word again', 'src/styles/shell.css', ':is(.hs-launchers, .hs-widget) > .hs-pointer { text-wrap: pretty; }', ''],
   /* TW-18: a separator drawn by CSS again (the old .hw-hunt-fit dot) */
   ['a CSS content draws a separator again', 'src/styles/windows.css', '.hw-hunt-sep { font-weight: 400; color: var(--ink-3); }', ".hw-hunt-sep { font-weight: 400; color: var(--ink-3); }\n.hw-hunt-fit:not(:empty)::before { content: ' · '; }"],
   ['an entry\'s count runs together in text', 'src/shell/windows/tally.js', '<span class="ht-count"><b></b> <small></small></span>', '<span class="ht-count"><b></b><small></small></span>'],
@@ -791,7 +860,7 @@ const MUTANTS = [
   ['take carries a count', 'src/session/tally-intents.js', "{ p_slot: cs.slot, p_task: task, p_weight: weight == null ? null : weight, p_idem: newIdem() }", "{ p_slot: cs.slot, p_task: task, p_weight: weight == null ? null : weight, p_count: 1, p_idem: newIdem() }"],
   ['the HUD shows one more kill than the server', 'src/session/tally-sections.js', "return label + ' ' + h.kills + '/' + h.target;", "return label + ' ' + (h.kills + 1) + '/' + h.target;"],
   ['a refusal reads as a generic line', 'src/shell/windows/tally.js', "  const run = (send, busy, done) => runIntent(sc, repaint, send, busy, (r) => { sc.stale = true; return done(r); }, cs);", "  const run = (send, busy, done) => runIntent(sc, repaint, async () => { const r = await send(); if (!r.ok) r.error = 'refused'; return r; }, busy, (r) => { sc.stale = true; return done(r); }, cs);"],
-  ['the hunt list drops the tally line', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(' · '));", "text(li.querySelector('.hw-hunt-tally'), '');"],
+  ['the hunt list drops the tally line', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(SEP));", "text(li.querySelector('.hw-hunt-tally'), '');"],
   ['the Tally is held at its capped height', 'src/shell/hud-room.js', 'phone ? rel(el) : Object.assign(rel(el), { height: wholeHeight(el) })', 'rel(el)'],
   ['her board says nothing of a missing weight', 'src/shell/windows/tally.js', "const why = !sc.board ? '' : hunting ? t('tally.board_hunting') : takeWhyOf(tally, hunting, suggest);", "const why = !sc.board ? '' : hunting ? t('tally.board_hunting') : '';"],
   ['every Take stays grey until a weight is picked', 'src/shell/windows/tally.js', "st.hunting || !tally || (!tally.weight && !st.suggest));", "st.hunting || !tally || !tally.weight);"],

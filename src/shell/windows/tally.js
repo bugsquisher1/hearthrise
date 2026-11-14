@@ -30,7 +30,7 @@ import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.129';
 import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.129';
 import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.129';
 import { rows, text, cls, attr, prop, element, keyedChild } from '../../render/paint.js?v=0.2.129';
-import { whole, gold } from '../../render/format.js?v=0.2.129';
+import { whole, gold, SEP } from '../../render/format.js?v=0.2.129';
 import { t } from '../../render/player-text.js?v=0.2.129';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.129';
 import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.129';
@@ -127,11 +127,11 @@ export function keeperSay(tally, hunting, justPaid, firstMeet) {
 export function renderTally(ctx) {
   if (ctx && ctx.character) { const sc = scratchOf(ctx.character); sc.stale = true; sc.collected = null; sc.paidNow = false; sc.pickOpen = false; sc.msg = ''; sc.firstMeet = null; sc.weightAsked = false; }
   return '<div class="hw-tally">'
-    + '<header class="ht-say"><b class="ht-who"></b><span class="ht-day"><span class="ht-day-paid"></span><span class="ht-day-sep" hidden> · </span><span class="ht-day-new"></span></span><p class="ht-voice"></p></header>'
+    + '<header class="ht-say"><b class="ht-who"></b><span class="ht-day"><span class="ht-day-paid"></span><span class="ht-day-sep" hidden>' + SEP + '</span><span class="ht-day-new"></span></span><p class="ht-voice"></p></header>'
     + '<h3 class="hw-ledger-head ht-head ht-mine-head"><span></span><small></small></h3><ul class="ht-mine"></ul>'
     + '<h3 class="hw-ledger-head is-on ht-head ht-board-head"><span></span></h3>'
     + '<p class="ht-board-why"><span></span><button type="button" class="hh-tool" data-hs-act="to-weight" hidden></button></p>'
-    + '<p class="hh-empty ht-wait"></p><ul class="ht-list"></ul>'
+    + '<p class="hh-empty ht-wait"></p><ul class="ht-list"></ul><p class="ht-board-once"></p>'
     + '<div class="ht-pick"><span class="ht-pick-line"></span><button type="button" class="hh-tool" data-hs-act="pick-toggle"></button></div>'
     + '<div class="ht-pick-open" hidden><div class="ht-weights" role="group">'
     + TALLY_RULES.weights.map((w) => '<button type="button" class="hh-seg" data-hs-act="weight" data-weight="' + w + '" aria-pressed="false" title="' + esc(weightSentence(w)) + '"></button>').join('')
@@ -144,16 +144,16 @@ const marksHtml = () => '<span class="ht-marks" aria-hidden="true">' + ('<span c
 function entryHtml(h) {
   const task = esc(h.task);
   return '<li class="ht-entry" data-task="' + task + '"><span class="ht-face"></span><span class="ht-entry-top"><b></b><span class="ht-count"><b></b> <small></small></span></span>'
-    + marksHtml() + '<span class="ht-pocket"></span><p class="ht-get"></p><p class="ht-once"></p>'
+    + marksHtml() + '<span class="ht-pocket"></span><p class="ht-get"></p>'
     + '<span class="ht-foot"><span class="ht-where"></span><span class="ht-tools"><label class="ht-keep"><input type="checkbox" data-hs-act="keep" data-task="' + task + '"><span></span></label>'
     + '<button type="button" class="hh-tool" data-hs-act="drop" data-task="' + task + '"></button></span></span></li>';
 }
 
 function rowHtml(r) {
   const task = esc(r.task);
-  return '<li class="ht-row" data-task="' + task + '" data-hs-find="' + task + '"><span class="ht-row-name"><b></b><small><span class="ht-row-go"></span><span class="ht-row-sep" hidden> · </span><span class="ht-row-lvl"></span></small></span>'
+  return '<li class="ht-row" data-task="' + task + '" data-hs-find="' + task + '"><span class="ht-row-name"><b></b><small><span class="ht-row-go"></span><span class="ht-row-sep" hidden>' + SEP + '</span><span class="ht-row-lvl"></span></small></span>'
     + '<span class="ht-pocket"></span><span class="ht-pay"><b></b><small class="ht-pay-name"></small></span>'
-    + '<button type="button" class="hh-tool ht-take" data-hs-act="take" data-task="' + task + '"></button><small class="ht-once"></small></li>';
+    + '<button type="button" class="hh-tool ht-take" data-hs-act="take" data-task="' + task + '"></button></li>';
 }
 
 /* The piece in its pocket: the icon node kept per item, so a repaint with the same pick writes nothing. */
@@ -175,7 +175,6 @@ function patchFace(li, monster, st) {
 
 /* What she pays for a task, from her answer's row ('' until it comes). */
 const getWords = (offer) => (offer ? t('tally.get', { gold: gold(offer.gold), pick: offer.pick ? pickWords(offer.pick, itemName) : '' }) : '');
-const onceWords = (offer, st) => (offer && offer.pick && st.shared.has(offer.pick.item) ? t('tally.once') : '');
 
 function patchEntry(li, h, st) {
   const tally = st.tally;
@@ -190,9 +189,8 @@ function patchEntry(li, h, st) {
   patchFace(li, h.monster, st);
   const next = !h.done ? '' : tally.paidToday >= tally.perDay ? t('tally.done_tomorrow') : h.wait === 'bag_full' ? t('tally.done_bag') : st.hunting ? t('tally.done_hunting') : t('tally.done_town');
   text(li.querySelector('.ht-get'), [next, getWords(offer)].filter(Boolean).join(' '));
-  text(li.querySelector('.ht-once'), onceWords(offer, st));
   const here = st.hunting && st.huntId === h.hunt;
-  patchParts(li.querySelector('.ht-where'), here ? [t('tally.counting_here', { ground: huntName(h.hunt) })] : st.hunting ? [groundLink(h.hunt), ' · ', t('tally.not_here')] : [groundLink(h.hunt)]);
+  patchParts(li.querySelector('.ht-where'), here ? [t('tally.counting_here', { ground: huntName(h.hunt) })] : st.hunting ? [groundLink(h.hunt), SEP, t('tally.not_here')] : [groundLink(h.hunt)]);
   const keep = li.querySelector('[data-hs-act="keep"]');
   text(keep.nextElementSibling, t('controls.keep'));
   prop(keep, 'checked', h.keep);
@@ -214,7 +212,6 @@ function patchRow(li, r, st) {
   patchPocket(li.querySelector('.ht-pocket'), pick, st);
   text(li.querySelector('.ht-pay b'), gold(r.gold));
   text(li.querySelector('.ht-pay-name'), pick ? pieceName(pick) : '');
-  text(li.querySelector('.ht-once'), pick ? onceWords(r, st) : '');
   const btn = li.querySelector('.ht-take');
   text(btn, t('controls.take'));
   const tally = st.tally;
@@ -302,6 +299,8 @@ renderTally.patch = function patchTally(body, ctx) {
   text(toWeight, t('controls.pick_weight'));
   prop(toWeight, 'hidden', !why || hunting || !tally || !!tally.weight);
   rows(root.querySelector('.ht-list'), board.filter((r) => !r.held), { key: (r) => r.task, build: (r) => element(ctx.doc, rowHtml(r)), patch: (li, r) => patchRow(li, r, st) });
+  /* she gives a piece once: said ONCE under her board when two tasks show the same piece (the gate 11-13: it sat under 5 of 6 rows) */
+  text(root.querySelector('.ht-board-once'), st.shared.size ? t('tally.once') : '');
   cls(root.querySelector('.ht-wait'), 'is-on', !sc.board);
   text(root.querySelector('.ht-wait'), sc.board ? '' : t('tally.board_loading'));
   patchPick(root, st);

@@ -35,7 +35,7 @@ export const TALLY_TEXT = Object.freeze({
 
   /* A held task's entry: what she pays for it (her board's own line), and a done one's next step. */
   get: 'You\'ll get {gold} and {pick}.',
-  once: 'She gives it once, to the first of these she pays.',
+  once: 'When two tasks show the same piece, you get it once. Whichever she pays you for first comes with it, and the other moves on to her next piece.',
   done_hunting: 'Done. I\'ll pay you when you\'re back in town.',
   done_town: 'Done. I\'ll pay you now.',
   done_tomorrow: 'Done. I\'ll pay you for this one tomorrow.',

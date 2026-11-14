@@ -29,6 +29,77 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-14 Training gear: 150% training for 12 or 24 hours, a big gold sink (designer, lane/d-training-gear. **Tyler 2026-11-14: "a training wand / bow / melee weapon / shield to boost the rate by 2x for a big gold sink", "a 12 hour or 24 hour version", then "go with 1.5x", then "label it as 150%"**): SPECIFIED and MEASURED on the real settle, nothing built. **The buy is a §1 money surface: on the pre-EA Security list (§3.7)**
+**Purpose test** (DESIGN_STANDARDS §4). Problem: late in a day a hero with stamina spent and gold piling up has nothing to turn that gold into. Decision: *pay about a third of a hunting hour's gold to train 50% faster, or keep the gold for Tempering, linings and the house*, and *12 hours or 24*. Plugs into: the yard and the house dummy (`src/data/training.js`, `hr_training_start`), the sink rows and their Level-priced quote (`gold-sinks.js`, `hr_sink_price(p_sink, 0, Level)`), and the banked-hours shape scaled hunts already use (`player_scaled_hours`). Tradeoff: gold now against a skill sooner. Hour 1,000: yes, the price reads the Level and the skill curve never flattens. Depth: one bank of hours per skill and one switch. No new currency or meter.
+
+**The four, in Tyler's words and the genre's.** Training Sword (Melee), Training Bow (Ranged), Training Wand (Magic), Training Shield (Defense), each as 12 hours and 24 hours. Sold by the Arms Master at the Training Yard (`sites.js` `npc_arms_master`, beside the sword rack), in the Training window the yard already opens (`stations.js` `training_yard` -> `win('training')`), right next to Start, so the buy sits where the choice is made. He stays unnamed. Player text, never "1.5x":
+- Card: "150% Magic training at the yard or your house dummy. Its 12 hours only count down while you train Magic. When they run out, it's gone."
+- Panel: "Training Wand, 9 hours left. 150% Magic training." The hero list: "Training Magic, 150%".
+- Refused: "You already have 48 hours of Magic training saved. Use some first."
+- Flavour, one line each, tied to the yard: Sword "From the Arms Master's own rack. Every swing works you harder." Bow "A heavy draw from the archery lane." Wand "Kept by the lectern in the rune corner." Shield "Takes a beating so you learn to take one."
+- Controls: Buy, and a "Use Training Wand" switch (on by default, remembered: keep the hours for later without selling them back).
+
+**A design call: hours on the hero, not a bag item.** A price that reads the hero's Level can't be traded, or a Level 10 alt buys at Level 10 prices for the main (the sink gone). Items are stacks by id with no per-piece data, so a half-burnt wand can't live in a bag anyway. So the Buy puts hours in the hero's bank for that skill, like scaled-hunt hours. It is a service, not gear: no worn slot, no stats, no binding rule touched. If Tyler wants it as a tradeable bag item, the price must be flat (one row a length, about 3,500 g a boosted hour), which reads 38% of a Level 25 hunting hour and 15% at Level 110.
+
+**How a 24-hour item spans sessions.** A session still ends at `maxHours` 12. The hours sit in the bank per hero and skill and never expire on the wall clock. Only a settled window of a training session in THAT skill (yard or house) spends them, by its played milliseconds on the server clock. So a 24-hour Wand is two 12-hour sessions, or six 4-hour ones, a week apart if the player likes. First principle: when a session ends `hours` and the hero still holds hours for that skill, the server starts the next session itself (same skill and place, the hour's fee re-quoted, `gold_out` still ends it). It's bounded by the bank, so at most 48 hours of unattended training. This needs `RESUMABLE_KINDS` `training`, still unbuilt (11-13 section).
+
+**The multiplier: 150% (Tyler, "go with 1.5x").** Measured on the real settle with `tools/balance-sim/yard-table.mjs`'s method (a hero at skill = Level, the measured ladder kit, the yard for an hour against the same hero's best fitting ground for an hour), the share dial scaled by the boost. **One fixture fix first:** `tests/hunt-core/fixtures/play-ground.mjs` builds heroes with `xpFrac: null`, which takes `progression.js grantXp`'s old per-grant `max(1, floor)`. The server carries the remainder (`xpFrac`), so the gate today reads Defense 10 at a flat 1,800 XP an hour whatever the dial (each 0.43 XP blow paid as 1). The table below is with the server's carry (the fixture edited for the run, then reverted). Skill XP an hour, yard / best fitting hunt:
+| Skill | 10 (yard XP, ratio) | 30, Glade | 56, Warrens |
+|---|---|---|---|
+| Melee 100% | 5,791, 0.204 | 11,192, 0.377 | 14,721, 0.224 |
+| Melee **150%** | 8,752, **0.308** | 16,814, **0.567** | 22,119, **0.337** |
+| Ranged 100% | 4,506, 0.263 | 10,065, 0.377 | 13,077, 0.250 |
+| Ranged **150%** | 6,888, **0.402** | 15,119, **0.566** | 19,645, **0.375** |
+| Magic 100% | 2,149, 0.119 | 4,697, 0.254 | 7,993, 0.339 |
+| Magic **150%** | 3,229, **0.178** | 7,047, **0.382** | 11,993, **0.509** |
+| Defense 100% | 1,329, 0.073 | 4,537, 0.342 | 8,469, 0.199 |
+| Defense **150%** | 1,996, **0.110** | 6,817, **0.514** | 12,728, **0.299** |
+| 2x, reference only | worst 0.541 (Ranged) | worst 0.755 (Melee) | worst 0.678 (Magic) |
+
+Hunts at 10/30/56: Millrace Sewer (Wickstead for Magic 10), Mosslight Glade, Coppercap Warrens, 28,399 / 29,658 / 65,609 Melee XP an hour. 150% is linear on the carry (8,752 / 5,791 = 1.51, and Melee rises a hair more as the skill climbs inside the hour). The gate as it runs today (the old floor) reads 1x worst 0.344 and 150% worst 0.534, also under the line below.
+**Hunting stays the better hour, by a lot.** A boosted yard hour is at most 0.57 of a fitting hunt's skill XP, with no Level XP, no gold and no loot, and it costs a third of a hunting hour's gold. Nobody trains instead of hunting. The boost fills the hours stamina leaves empty, which is what it's for.
+**The gate, moved on purpose.** yard-table keeps LINE 0.40 for the plain yard and adds BOOSTED_LINE = LINE x boost (0.60 at 150%), with the reason in its header: Tyler bought 150% of the yard's speed on 11-14, so the line moves by exactly that and no further. Worst measured 0.567. A planted 2x must read red (0.755).
+
+**Price: about a third of a hunting hour, read off the hero's Level.** Lone net gold an hour, everything sold at the vendor, nothing spent but supplies (`tools/balance-sim/cell.mjs`, the real settle, 1 h x 2 seeds a cell, 0 deaths in all 12, hammer / bow / mage / tank): **Level 25** Glade 6,175-9,724, median 9,094. **Level 60** the Slake (staged pack) 12,786-19,413, median 14,776. **Level 110** Krell's Hold (staged pack) 18,583-31,098, median 23,355. The medians fit 4,900 + 168 x Level. The Muster at 60 lost 17-34k an hour on store supplies for three of four ways, so it's left out (a pack question, not this one). The Slake and the Hold aren't open, so their numbers move when they ship.
+- **A boosted hour costs 1,500 + 50 x Level.** The 12-hour item is 12 of those: **18,000 + 600 x Level**. The 24-hour item is 10% off a boosted hour: **32,400 + 1,080 x Level**. The hero's Level, not the trained skill: income follows the Level, and a high hero catching up a low skill (a mage's Defense, the 11-10 case) is when the boost is worth most, so it shouldn't be cheapest there. It's the price reader `hr_sink_price` already has (`hero_colors`).
+
+| Level | 12 h | 24 h | Item a boosted hour, + the yard's fee (skill = Level) | Share of a median lone hunting hour (all four ways) |
+|---|---|---|---|---|
+| 10 | 24,000 | 43,200 | 2,000 + 110 = 2,110 | about 70-80% of the 11-04 table's 2.6-3k (a luxury at 10, on purpose) |
+| 25 | 33,000 | 59,400 | 2,750 + 200 = 2,950 | **32%** (30-48%). 24 h: 29% |
+| 60 | 54,000 | 97,200 | 4,500 + 410 = 4,910 | **33%** (25-38%). 24 h: 30% |
+| 110 | 84,000 | 151,200 | 7,000 + 710 = 7,710 | **33%** (25-41%). 24 h: 30% |
+
+**What it buys.** At Melee 30, 12 boosted hours reach Melee 34 where the plain yard reaches 32 (`xp.js` skillXpForLevel): two levels for 36,000 g plus the fees. At skill 56 a level is 406,725 XP, so 24 boosted hours give about 0.75 of a level where the plain yard gives 0.5. That's a sink for the gold-rich, as Tyler asked. A 12-hour-stamina hunter at Level 60 nets about 177k a day, and a 12-hour boost every night takes about 59k of it.
+
+**Exploit review.** Gold only, never Crowns or XP for money (§1). The price is the server's (`hr_sink_price`, the hero's Level on the server, `quote_changed` on a stale quote). Hours burn on settled played time, never a client clock. Bank cap 48 hours a skill (`maxHeldH`), so buying a stock at a low Level and using it at a high one gains at most two days of price drift. Per hero, so no alt arbitrage. Party training is already refused. The house dummy takes the boost at the same 150% (no fee, so the item is the whole price). Skill boards rank boosted XP: gold buys rank speed, flagged for the EA review as the plain yard already is. Nothing can be sold back.
+
+**Build spec (lane C then B, one migration, Security pre-EA).**
+| Piece | What |
+|---|---|
+| Data | `src/data/training.js` `TRAINING_GEAR = { boostPermille: 1500, maxHeldH: 48, hours: [12, 24], names: { melee: 'Training Sword', ranged: 'Training Bow', magic: 'Training Wand', defense: 'Training Shield' } }`. Two sink rows in `gold-sinks.js`: `training_gear_12` { scope 'hero', offers the four skills, priceBase 18000, pricePerLevel 600, perMinute 6 } and `training_gear_24` { 32400, 1080 }. gen-gold-sinks and gen-hunt-sessions regenerate the server copies and their --check holds them |
+| Table | `player_training_gear (user_id, slot, skill, banked_ms, bought_ms, spent_ms, use_on default true, bought_at, updated_at, pk (user_id, slot, skill))` with the books check `banked_ms = bought_ms - spent_ms`, RLS own read, no client write. `player_scaled_hours`'s exact shape |
+| Verb | `hr_training_gear_buy(p_slot, p_skill, p_hours, p_price, p_idem)` modelled on `hr_scaled_hunt_buy`: hours in TRAINING_GEAR.hours, skill in TRAINING_SKILLS, price re-quoted `hr_sink_price('training_gear_' || hours, 0, server Level)`, `quote_changed` if it moved, `hours_full` past maxHeldH, gold from the account purse, ledger kind `shop`, intent `training_gear_buy:<skill>:<hours>:<price>`, hr_apply idempotency, a per-minute bucket. Buying while hunting is allowed (nothing in a hunt reads it). `hr_training_gear_switch(p_slot, p_skill, p_on, p_idem)` for the remembered switch. Feature switch `training_gear` seeded off |
+| Settle | The instance read carries each member's banked_ms for the ground's skill when use_on. Engine: `ctx.train.boostPm` (1000 when none), `trainingSwing` pays `xpPermille x boostPm / 1000`. `trainingStopMs` also cuts at `fromMs + banked_ms` when that falls inside the window, so the boosted span is exact (TICK-1 holds: any cut walks the same swings). The commit spends the window's played ms from banked_ms, under the hunt lock. The row reaching 0 is "used up" (the envelope stops listing it). `hr_training_window`'s XP cap multiplies by the boost only when the SERVER's row held hours at the window's start |
+| Resume | A session ended `hours` with banked_ms > 0 for its skill starts the next one on its own (same skill and place, fee re-quoted). Needs `RESUMABLE_KINDS` `training` |
+| Envelope / window | `hr_training_section` adds `gear: { skill: { leftMs, on } }`. The two quotes are the window's read at the hero's Level, never on the settle path (the hero-colors rule, settle-budget) |
+| Client | The Training window: per skill, the item, its hours left, the 150% line, Buy 12 h / Buy 24 h with the server's quote, the switch. Hero list "Training Magic, 150%". All text in `src/data/text/`, copy-lint and player-read |
+| Guards | `tests/combat-training.mjs` CT-BOOST: 150% on the trained skill only, only while hours are held, the stop at the bank's edge, one long window equals many short ones. `tests/combat-training-db.mjs`: the verb (re-quote, cap, books, used up), both paths (viewed, and browser closed through a used-up bank and a `gold_out`). yard-table: BOOSTED_LINE as above, its --selftest plants 2x and must read red. play-ground.mjs: an `xpFrac` option (default unchanged), which yard-table passes as `{}` so the gate measures the server's carry |
+| Art | 4 icons (sword, bow, wand, shield in one practice look: bound wood and leather, no glow) in `assets/icons-bundle/medieval/`. The 12 / 24 is a number the UI draws in the corner, never baked into the sprite, so 4 icons, not 8 |
+
+**Walk-through (a Level 30 Melee hero, from step 1 only, every name grepped).**
+| Step | The player | Holds / can reach, from the steps before | Doable because |
+|---|---|---|---|
+| 1 | A hunt ends `stamina`. Back in Havora | Level 30, Melee 30, a purse of 40,000 | `stamina` is in `RESUME_AFTER_END` (hunt-sessions.js) |
+| 2 | Taps a yard dummy. The Training window opens | Step 1 | `stations.js` `training_yard` opens `win('training')`, and `shell-windows.js` `training` shows while the server sends the section |
+| 3 | Picks Melee. Reads "Training Sword, 12 hours, 36,000 gold. 150% Melee training." Taps Buy | 40,000 >= 36,000 | NEW: the verb above (18,000 + 600 x 30) |
+| 4 | Taps Start | 4,000 left, fee 230 | `hr_training_start` (2027-04-16-combat-training.sql), fee 50 + 6 x 30 |
+| 5 | Closes the browser for 12 hours | Step 4 | The settle runs without the browser (§1). NEW: the bank burns by played time |
+| 6 | Comes back. Melee 34 (32 without the sword). The sword is gone, the session ended `hours` together with it | Steps 3-5 | Measured: 16,814 XP an hour x 12. Fees about 2,900 of the 4,000 |
+| 7 | Next night taps Buy 24 h, Start, and leaves it | A day's hunting gold | NEW: the auto-restart at `hours` carries it through the second 12 |
+
+**For the Coordinator, not decided here.** (1) The 10-17 ruling makes Premium's daily reward "the 1 h tier" of a training weapon (today the Oak Practice Blade, a worn sword). This bank is the natural home for it: a daily grant of 1 hour of 150% training. Money is Tyler's, so this is only a flag. (2) A "Buy another when it runs out" switch would remove the last repeated buy. It moves gold inside the settle, so it waits for the EA review. **Not measured:** parties (refused anyway), Level 80, the house dummy separately (the same engine row), a career with nightly boosts. **Not played:** nothing is built.
+
 ### 2026-11-13 No profit molds on the live grounds (designer, lane/d-no-profit-molds; **Tyler 2026-11-13: no profit molds**): BUILT, MEASURED on the full grade, the edge moves, ONE staged catalogue
 - **The grader prints gold and never grades it** (GOLD BY GROUND). Every +25% / +10% floor, supplies share, "under-Level loses gold" and gold-order rule is retired from the grader, the hunt-core guards and the Balance Lab, and a sheet that grades a profit number is refused.
 - **The Brook Bear's purse is back on the formula** ([13, 40] -> [11, 32]). It was kept by hand only for the +10% floor. The bear stays a heavy, the slow bruiser it reads as. drop-tables Glade value pin 6364 -> 6214, cause named.

@@ -9,7 +9,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 /* pack imports (tools/pack.mjs index) */
+import pack_carters_rest from './carters_rest/pack.js?v=0.2.129';
 
 export const GROUND_PACKS = Object.freeze([
   /* pack rows (tools/pack.mjs index) */
+  pack_carters_rest,
 ]);

@@ -205,6 +205,11 @@ export function validateMask(sp, grid = GRIDS.base) {
   return out;
 }
 
+/* [regrade] (lock.mjs regradeFinding): the sources that were on the palette AND graded before the rule (2026-11-13), each
+   read and shipped with that grade, so its look stands until an art pass re-reads it: the hd64 sandbox's seven. No new id
+   joins this list: a palette-locked import declares `native`. */
+export const REGRADE_KEPT = Object.freeze(['sandbox_barrel', 'sandbox_bush', 'sandbox_ground', 'sandbox_pine', 'sandbox_rocks', 'sandbox_sign', 'sandbox_well']);
+
 export function validateAtlasSize(set, w, h) {
   return w > ATLAS_MAX || h > ATLAS_MAX ? [{ rule: 'atlas-size', id: set, detail: `atlas ${w}x${h} exceeds ${ATLAS_MAX}x${ATLAS_MAX}` }] : [];
 }

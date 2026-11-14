@@ -3931,3 +3931,11 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   `.claude/worktrees/agent-ad943bab7953c3a92` at 16:21:51. That worktree now holds each edit TWICE: monster.js lines 25
   (import), 57 (mf-face span), 110-120 (paintFace), 158 (paintFace call); windows.css lines 1135-1137 (.mf-face rules). Delete
   those second copies to restore it; I was not permitted to touch it. Lesson: unique scratch names per lane.
+- 2026-11-13 (art-director, lane/b-ground-art-pipeline): the hd64 sandbox (art/world/sandbox64) has seven sources that are wholly
+  on the palette AND graded by their material (sandbox_ground terrain: 100% of pixels moved; pine 62%, bush 78%, sign 55%,
+  barrel 44%, well 43%, rocks 11%). They ship as read, listed in tools/world-art/validate.mjs REGRADE_KEPT. If the 64 px grid
+  goes further, re-read them as `native` at x1 beside the graded look and pick one; until then no change.
+- 2026-11-13 (art-director, lane/b-ground-art-pipeline): tools/lib/guard-deps.mjs picks a test by a changed file BASENAME, so
+  any committed `request.json` (PixelLab samples under art/world-src/ keep one) schedules 13 edge and intent tests and
+  run-smoke for an art-only diff. I left that file out of this lane. Owner: reliability-engineer (match on the path, or skip
+  art/world-src/**).

@@ -3287,3 +3287,14 @@ was rejected by PH-10 (20 px more at 844 puts Mira under the Party panel). The r
 hunt bar; PH-27 under the hunt bar now measures only cards a hunt can show (town-gated ones are held to the town card) and
 each title on one line. Lesson: local-world blocks Google Fonts, so its title widths are the fallback face; read the
 phone-touch --shots run (real faces) for Cinzel.
+## 2026-11-13 lane/b-ground-art-pipeline (the art path after PixelLab's 11-11 update)
+Palette-locked art is never graded: lock.mjs importMaterial makes `native` the default of every port-pixellab import whose
+pixels are wholly on the palette, and rule [regrade] (build.mjs, world-assets) refuses a sidecar that grades one. One tileset
+importer (`port-pixellab.mjs tileset`, tools/world-art/tileset.mjs) reads standard, pro and the 25-tile answer from the
+metadata's boxes, never a grid guess. `node tools/pack.mjs art <ground>` cuts a ground's art list from its rows (have / owed,
+tool, parameters, import, price). Lessons: (1) decide a grade on the whole SHEET, never a frame: one dark frame can sit on
+the palette by chance; (2) the hd64 sandbox's seven sources were on the palette and graded all along (11-100% of their
+pixels moved), kept as read (REGRADE_KEPT) until an art pass looks at them; (3) the MCP docs disagree with our §7 note:
+roads are create_path_tiles and walls create_building_kit, `create_tiles_pro tile_feature` takes only "tileset";
+(4) no real 25-tile set exists in the tree, so the tall reader is proved on a real pro set re-laid from the docs'
+description: read the first real one at x2 before trusting it.

@@ -119,10 +119,11 @@ export function validateWindowRows(rows) {
   return byId;
 }
 
-/** True when a key event must not reach the shell: typing (the one key rule), IME, or a modifier chord. */
-function isTypingEvent(ev) {
+/** True when a key event must not reach the shell: typing (the one key rule), IME, or a modifier chord.
+ *  `gone(el)`: is el inside a window sliding out (its controls are closed, whatever still holds focus). */
+function isTypingEvent(ev, gone) {
   if (!ev || ev.ctrlKey || ev.metaKey || ev.altKey || ev.isComposing) return true;
-  if (pressesControl(ev)) return true;
+  if (pressesControl(ev) && !gone(ev.target)) return true;
   return keyBelongsToField(ev.target, ev.key);
 }
 
@@ -353,6 +354,8 @@ export function createWindowManager(o) {
 
   /** The live windows, oldest first (a window sliding out is already gone). */
   const live = () => open.filter((id) => !leaving.has(id));
+  /* A click on Close leaves focus on that button through the 120 ms slide-out: Enter then is the shell's (Chat), not a closed window's. */
+  const inLeaving = (t) => { const w = t && typeof t.closest === 'function' ? t.closest('[data-hs-win]') : null; return !!w && leaving.has(w.getAttribute('data-hs-win')); };
   /** A window is open, or shown as a page of an open one. */
   function isOpen(id) { return live().includes(id) || (hostOf(id) !== null && live().includes(hostOf(id))); }
 
@@ -390,7 +393,7 @@ export function createWindowManager(o) {
 
   /** Route a keydown. Returns true when the shell consumed it (the host then preventDefaults). */
   function handleKey(ev) {
-    if (isTypingEvent(ev)) return false;
+    if (isTypingEvent(ev, inLeaving)) return false;
     const k = String(ev.key || '').toLowerCase();
     if (k === 'escape') return onEscape();
     for (const r of rows.values()) if (r.key === k && k !== 'escape') return toggle(r.id);

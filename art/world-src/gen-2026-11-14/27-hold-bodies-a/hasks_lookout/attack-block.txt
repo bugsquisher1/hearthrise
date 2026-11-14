@@ -1,0 +1,12 @@
+  attack [group: 739065b6-aaed-424c-ac01-b6f73821e0f7]
+    description: raises the crossbow to his shoulder, aims and fires with a small kick of recoil, then lowers it to his chest, no bolt and no projectile is drawn, feet planted, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/97305256-cfda-4b12-9d3f-41655f2ad705/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/5726247c-ae4e-49dd-9e2d-7cf9a0320524/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/6d6ef421-a9cd-4aa8-878e-f8a1d52436e1/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/77b028af-ddbf-453f-9efd-75a807dc5b50/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/8ae0b238-8b82-43a0-8fb1-66e96285b5d0/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/5e191ac1-5bb4-4cac-a62a-424e869ce00a/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/d7923a34-9d3f-40cf-93bb-ea6bc258d104/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/72887431-e162-4115-adeb-55500f95b531/west/{i}.png  (i=0..6)

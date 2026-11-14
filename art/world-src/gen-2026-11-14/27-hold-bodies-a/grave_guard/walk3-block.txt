@@ -1,0 +1,6 @@
+  walk3 [group: cc5a557f-160f-4720-a34d-1fb7274514a7]
+    description: a slow heavy tread away from the viewer, both feet lift in turn, the arms stay close to the body, seen from behind, the long grey coat covers his back the whole time, only a thin dark grey edge of the shield shows at his side and it never grows, never turns round and never changes colour, the crested helmet stays, no gold, no white, no glow, nothing else appears in the frame
+    directions: north, north-east (2/8)
+    frames: 7
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/6728451b-8e53-4424-a2ea-5c9cd22443be/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/96a7fcde-9c50-4763-bcd5-0fea35ca0404/animations/938e4e25-4aea-4d6d-85b8-d46f81a8058c/north-east/{i}.png  (i=0..6)

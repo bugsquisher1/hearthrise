@@ -1,0 +1,12 @@
+  walk [group: bd7195c8-62fc-4f49-82b3-83a067b05f7e]
+    description: a brisk alert walk, both feet lift in turn, the crossbow stays held across the chest in both hands, the hood stays up, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/1d2c8807-b7ec-449d-af60-77857f6cc418/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/b134285d-5bc9-4a51-8079-d6184f105562/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/91cb046f-c43e-4423-991e-b7b627dd6ee0/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/3e768840-7819-4008-b363-7707038bc7b7/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/e883ee2b-9f6b-4a06-84c5-aa91c512eca6/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/ba6f5803-a535-4496-9853-c2be2720f6f0/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/f97ff7c5-432a-4dd3-93ca-36f60a8f1a43/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/8046c3c6-84e2-4380-8690-be2ab0814e08/animations/06318cd9-226a-4290-8bc8-2e66f5a9c36c/west/{i}.png  (i=0..6)

@@ -1,0 +1,12 @@
+  hit [group: 4b4b175c-0de5-4d7b-b217-dcabba2d9023]
+    description: leans back by one pixel as if pushed from the front, then returns to his stance, feet planted, the bill hook stays where it is, the same colours throughout, no flash, no spark, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/b869390e-2796-4c5a-aa91-f642ee833123/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/48924494-48f0-49cd-aa4a-d0df92c0148c/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/72f8b9a6-d290-45c5-beed-824eb4f93ff2/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/24552f8d-0d67-465d-a58a-6ba41fba5caf/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/3ca04f30-3d57-4bb1-abb9-97826547e4c2/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/a7ca0043-8f11-4e81-b064-650a437bb9f9/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/9b4c0551-6b43-44f4-bff4-39f83426bda4/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/57de7520-58bb-44ee-8ad3-ae6c3a95b43c/west/{i}.png  (i=0..6)

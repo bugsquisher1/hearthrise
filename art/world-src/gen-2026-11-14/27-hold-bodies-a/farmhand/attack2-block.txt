@@ -1,0 +1,6 @@
+  attack2 [group: 9bc2b8f2-e03f-4334-b795-301375dcd7b3]
+    description: a short quick downward chop with the small hand sickle and back to the starting stance, the sickle keeps exactly its small size and shape and never grows a pole, the iron cap stays on, feet planted, ends in the same pose it started, nothing else appears in the frame
+    directions: north-west, west (2/8)
+    frames: 7
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/a12b7e67-82ae-4f26-b6f0-b44ad2aa28e8/north-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/802bd336-4d67-4f91-9dc5-43954c36b7ef/animations/b93b19a5-a49d-4850-a538-cd759af53c78/west/{i}.png  (i=0..6)

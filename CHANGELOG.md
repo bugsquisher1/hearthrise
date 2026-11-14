@@ -7,7 +7,9 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.130 — 2026-11-14 (Clear Views)
 
-**Fixes.** An open window no longer covers Leave hunt, Setup, stance or Target when a hunt starts. On a phone, the tip card under the hunt bar keeps its buttons below the words, so the title fits on one line. Tamsin’s board shows the reward she will really pay before your first task, and says the armor weight once. The hero screen and the bag both call the starter weapons Hatchets or a club.
+**Fixes.** An open window no longer covers Leave hunt, Setup, stance or Target when a hunt starts. On a phone, the tip card under the hunt bar keeps its buttons below the words, so the title fits on one line. Tamsin’s board shows the reward she will really pay before your first task, and says the armor weight once. The hero screen and the bag both call the starter weapons Hatchets or a club. The Tally no longer gets squeezed when the hunt analyzer is docked. Closing a window and pressing Enter right away opens Chat again like it should.
+
+**Faster start.** The sign-in screen now shows up right away. On a phone it used to take about 17 seconds and now takes about 3. The rest of the game loads in while you type.
 
 ## v0.2.129 — 2026-11-13 (Small Fixes)
 

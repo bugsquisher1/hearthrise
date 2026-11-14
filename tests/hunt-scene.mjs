@@ -43,6 +43,9 @@
 //         role's default — a druid-clad sword hero never flips to the knight
 //   SC-10 NO SPIN: a hero standing between swings keeps facing its target; it
 //         never turns back to its last walk heading and round again each swing
+//   SC-18 NO LOOK BACK (Tyler 2026-11-14: "the character faces away from the mob before starting to fight it"): a hero that
+//         killed one monster and walked to the next stands facing the foe its next blow is queued at, and with none queued
+//         its walk heading, never the body it walked away from (standing still by its kill, it keeps facing it: SC-10)
 //   SC-13 A SNAPSHOT AHEAD OF THE SCREEN NEVER CUTS A DEATH SHORT (scene.js S9): a monster the
 //         pose lists dead stands until its kill plays in the window behind it, then lies as its corpse
 //   SC-12 THE LEVEL-UP MOMENT: "Level N" rises over the viewed hero once when the
@@ -367,6 +370,27 @@ async function rules(M) {
     const seen = new Set();
     for (let s = S0 + 150; s <= S0 + 2500; s += 50) { const h = unitOf(v.at(at(s)), 1); if (h && h.anim !== 'walk') seen.add(h.dir + '/' + h.diag); }
     ok('SC-10', seen.size === 1 && seen.has('e/null'), 'the tank stood by the rat it struck (east) but turned ' + JSON.stringify(Array.from(seen)));
+  }
+
+  { // SC-18: the tank kills the rat east of it (14,9) at S0 + 300, walks SW then W to 11,10 (there by S0 + 1312), and the
+    // next rat (104) waits NORTH of it on 11,9. Its first blow at 104 lands at `blow`; the frames read stand before any wind-up.
+    const walkedOn = async (blow) => {
+      const body = envelope(7, S0);
+      body.hunt.pose.units = body.hunt.pose.units.map((x) => (x.u === 1 ? Object.assign({}, x, { x: 11, y: 10 }) : x))
+        .concat([{ u: 104, side: 'monster', kind: 'rat', x: 11, y: 9, hp: 30, hp_max: 30 }]);
+      body.hunt_track = body.hunt_track.concat([{ u: 1, x: 12, y: 10, atMs: S0 + 700 }, { u: 1, x: 11, y: 10, atMs: S0 + 1000 },
+        { u: 104, x: 11, y: 9, atMs: S0 - 1000 }]);
+      body.hunt_events = body.hunt_events.concat([{ id: 'n:1', type: 'dmg', atMs: blow, u: 1, t: 104, amount: 5, ability: 'basic', element: null }]);
+      const cs = session(M, { t: C0 }, [body]);
+      await cs.load();
+      const v = viewer(M, cs);
+      const seen = new Set();
+      for (let s = S0 + 1400; s <= S0 + 1900; s += 50) { const h = unitOf(v.at(at(s)), 1); if (h) seen.add(h.anim + ':' + h.dir + '/' + h.diag); }
+      return Array.from(seen);
+    };
+    const near = await walkedOn(S0 + 3000), far = await walkedOn(S0 + 7000);
+    ok('SC-18', near.length === 1 && near[0] === 'idle:n/null', 'standing before its first blow at the rat north of it, the tank faced ' + JSON.stringify(near));
+    ok('SC-18', far.length === 1 && far[0] === 'idle:w/null', 'no blow queued yet: the tank keeps its walk heading (west), never the body east of it, but faced ' + JSON.stringify(far));
   }
 
   { // SC-7: a hidden type never shows
@@ -696,7 +720,9 @@ const MUTANTS = [
   ['bars from the events, not the snapshot', 'src/hunt-view/scene.js', 'const hp = played ? played.hp : hero ? m && m.hp : (read.units.get(u) || {}).hp;', 'const hp = 1;'],
   ["only a ranger's shot flies (a caster's bolt is dropped)", 'src/hunt-view/scene.js', 'const bolt = Object.hasOwn(PROJECTILE.ability, ev.ability) ? PROJECTILE.ability[ev.ability] : PROJECTILE.role[role] || null;', "const bolt = role === 'ranger' ? PROJECTILE.role.ranger : null;"],
   ['the hunt draws the role default, not the chosen outfit', 'src/hunt-view/scene.js', '    if (u === read.viewed && read.look) return read.look;', 'if (false) return read.look;'],
-  ['a standing hero turns back to its walk heading after a swing', 'src/hunt-view/scene.js', 'if (!p.moving && s && (act || now - s.at >= 0)) {', 'if (!p.moving && s && (act || now - s.at >= 0) && now - s.at < 700) {'],
+  ['a standing hero turns back to its walk heading after a swing', 'src/hunt-view/scene.js', '(was && now - was.at >= 0 && !(', '(was && now - was.at >= 0 && now - was.at < 700 && !('],
+  ['a standing hero turns back to the body it walked away from (SC-18)', 'src/hunt-view/scene.js', ' && !(tl.clientAt(p.since) > was.at) ? was : null', ' ? was : null'],
+  ['a standing hero ignores the foe it is about to fight (SC-18)', 'src/hunt-view/scene.js', 'act || hook.next(u) || (was', 'act || (was'],
   ['a corpse greys its idle instead of its death clip', 'src/hunt-view/scene.js', '          corpse = hook.fallAt(id, age, fell);', '          corpse = null;'],
   ['a Level rise plays no moment', 'src/hunt-view/scene.js', '    if (p) floats.push({ text: \'Level \' + lv,', '    if (false) floats.push({ text: \'Level \' + lv,'],
   ['a mount plays a level-up it never saw', 'src/hunt-view/scene.js', 'const up = lastLevel !== null && lv > lastLevel;', 'const up = lv > (lastLevel || 0);'],

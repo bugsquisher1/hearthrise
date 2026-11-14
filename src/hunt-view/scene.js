@@ -184,8 +184,7 @@ export function createHuntScene(o) {
   const serverDead = (u) => {
     const r = read.units.get(u);
     return !!r && r.alive === false && r.side !== 'hero' && shownAt !== null && Number.isFinite(read.poseAtMs) && shownAt >= read.poseAtMs;
-  };
-  const roleOf = (u) => (read.heroes.get(u) ? read.heroes.get(u).role : isHero(u) ? null : 'monster');
+  };  const roleOf = (u) => (read.heroes.get(u) ? read.heroes.get(u).role : isHero(u) ? null : 'monster');
   /* A monster's kind: the snapshot's, else the timeline's unit book (a corpse played after the
      snapshot dropped it). Unknown is null and the unit is not drawn (never a stub box). */
   const kindOf = (u) => (read.units.get(u) || {}).kind || (typeof tl.kindOf === 'function' ? tl.kindOf(u) : null) || null;
@@ -361,13 +360,15 @@ export function createHuntScene(o) {
     const m = read.heroes.get(u);
     const sp = book.sprite(id);
     const clips = sp.anims || {};
-    /* Facing: the way it walks; standing, toward the blow it is winding up or swinging, else what it last acted on (no
-       turning back between swings); else its last heading. */
+    /* Facing: the way it walks; standing, toward the blow it is winding up or swinging, else the foe its next blow is
+       queued at (the one it walked up to), else what it last acted on since its last move (no turning back between
+       swings, never toward the body it walked away from: Tyler 11-14); else its last heading. */
     let hx = p.hx, hy = p.hy;
     const act = p.moving ? null : hook.swingAt(u, id, now);
-    const s = act || hook.last(u);
-    if (!p.moving && s && (act || now - s.at >= 0)) {
-      const q = tl.positionAt(s.t, now);
+    if (!p.moving) {
+      const was = hook.last(u);
+      const s = act || hook.next(u) || (was && now - was.at >= 0 && !(tl.clientAt(p.since) > was.at) ? was : null);
+      const q = s && tl.positionAt(s.t, now);
       if (q && (q.x !== p.x || q.y !== p.y)) { hx = q.x - p.x; hy = q.y - p.y; }
     }
     let { dir, diag } = facingOf(hx, hy);

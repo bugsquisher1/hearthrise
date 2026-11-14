@@ -119,7 +119,7 @@ Every subject line below already uses this table; keep it if you edit them.
 | 4 | Snakeskin | green scaled snakeskin with a fine repeating pattern |
 | 5 | Wyvernhide | slate blue-grey wyvern scale, overlapping and hard |
 | 6 | Dragonhide | deep oxblood-red dragon scale, thick and glossy |
-| 7 | Voidhide | black scale with a faint violet sheen in the highlights |
+| 7 | Slakehide | smooth bottle-green tanned hide with a dull copper bloom along the seams (cured in the Slake's copper water; smooth, never scaled, so it reads apart from Snakeskin) |
 
 **Cloth ladder** (cloth armour — the magic class)
 
@@ -131,7 +131,7 @@ Every subject line below already uses this table; keep it if you edit them.
 | 4 | Warlock | dark purple cloth with black leather bindings |
 | 5 | Sorcerer | midnight blue cloth with silver embroidery |
 | 6 | Archmage | white and gold cloth set with small gems |
-| 7 | Voidweave | black cloth woven with starless violet thread |
+| 7 | Shroudweave | pale ash-gray shroud linen, coarse and heavy, scorched brown at the hem (the Pyre Field's shrouds that wouldn't burn; the scorch reads it apart from Apprentice linen) |
 
 **Wood ladder** (bows, staves, rods, planks, logs)
 
@@ -206,42 +206,42 @@ Every subject line below already uses this table; keep it if you edit them.
 | snakeskin_helmet | Snakeskin Coif | a green scaled snakeskin coif with a fine repeating pattern across the crown | `snakeskin_helmet.png` |
 | wyvernhide_helmet | Wyvernhide Coif | a slate blue-grey wyvern-scale coif with hard overlapping plates over the temples | `wyvernhide_helmet.png` |
 | dragonhide_helmet | Dragonhide Coif | a deep oxblood-red dragon-scale coif, thick and glossy, with a ridged crest | `dragonhide_helmet.png` |
-| voidhide_helmet | Voidhide Coif | a black scaled coif with a faint violet sheen in the highlights | `voidhide_helmet.png` |
+| slakehide_helmet | Slakehide Coif | a coif of smooth bottle-green tanned hide with a dull copper bloom along the seams | `slakehide_helmet.png` |
 | leather_body | Leather Body | a plain tanned tan leather jerkin with simple stitching and a laced front | `leather_body.png` |
 | studded_body | Studded Leather Body | a dark brown leather jerkin set with rows of iron studs across the chest | `studded_body.png` |
 | boarhide_body | Boarhide Body | a coarse ochre boarhide jerkin with bristles still in the hide and rough seams | `boarhide_body.png` |
 | snakeskin_body | Snakeskin Body | a green scaled snakeskin jerkin with a fine repeating pattern down the torso | `snakeskin_body.png` |
 | wyvernhide_body | Wyvernhide Body | a slate blue-grey wyvern-scale jerkin of hard overlapping plates | `wyvernhide_body.png` |
 | dragonhide_body | Dragonhide Body | a deep oxblood-red dragon-scale jerkin, thick and glossy | `dragonhide_body.png` |
-| voidhide_body | Voidhide Body | a black scaled jerkin with a faint violet sheen along the shoulders | `voidhide_body.png` |
+| slakehide_body | Slakehide Body | a jerkin of smooth bottle-green tanned hide with a dull copper bloom along the shoulder seams | `slakehide_body.png` |
 | leather_pants | Leather Chaps | plain tanned tan leather chaps with simple stitching and side laces | `leather_pants.png` |
 | studded_pants | Studded Leather Chaps | dark brown leather chaps set with rows of iron studs down the thigh | `studded_pants.png` |
 | boarhide_pants | Boarhide Chaps | coarse ochre boarhide chaps with bristles still in the hide | `boarhide_pants.png` |
 | snakeskin_pants | Snakeskin Chaps | green scaled snakeskin chaps with a fine repeating pattern | `snakeskin_pants.png` |
 | wyvernhide_pants | Wyvernhide Chaps | a pair of empty slate blue-grey scaled leather leggings laid out flat side by side, no wearer, hard overlapping plates | `wyvernhide_pants.png` |
 | dragonhide_pants | Dragonhide Chaps | deep oxblood-red dragon-scale chaps, thick and glossy | `dragonhide_pants.png` |
-| voidhide_pants | Voidhide Chaps | a pair of empty black scaled leather leggings laid out flat side by side, no wearer, a faint violet sheen at the knee | `voidhide_pants.png` |
+| slakehide_pants | Slakehide Chaps | a pair of empty bottle-green tanned leather leggings laid out flat side by side, no wearer, a dull copper bloom at the knee seams | `slakehide_pants.png` |
 | leather_boots | Leather Boots | plain tanned tan leather boots with simple stitching and a soft turned-down cuff | `leather_boots.png` |
 | studded_boots | Studded Leather Boots | dark brown leather boots set with rows of iron studs up the shin | `studded_boots.png` |
 | boarhide_boots | Boarhide Boots | coarse ochre boarhide boots with bristles still in the hide and a thick sole | `boarhide_boots.png` |
 | snakeskin_boots | Snakeskin Boots | green scaled snakeskin boots with a fine repeating pattern | `snakeskin_boots.png` |
 | wyvernhide_boots | Wyvernhide Boots | slate blue-grey wyvern-scale boots of hard overlapping plates | `wyvernhide_boots.png` |
 | dragonhide_boots | Dragonhide Boots | deep oxblood-red dragon-scale boots, thick and glossy | `dragonhide_boots.png` |
-| voidhide_boots | Voidhide Boots | black scaled boots with a faint violet sheen along the shin | `voidhide_boots.png` |
+| slakehide_boots | Slakehide Boots | boots of smooth bottle-green tanned hide with a dull copper bloom along the shin seam | `slakehide_boots.png` |
 | leather_gloves | Leather Gloves | a pair of plain tanned tan leather gloves with simple stitching | `leather_gloves.png` |
 | studded_gloves | Studded Leather Vambraces | a pair of dark brown leather vambraces set with rows of iron studs | `studded_gloves.png` |
 | boarhide_gloves | Boarhide Vambraces | a pair of coarse ochre boarhide vambraces with bristles still in the hide | `boarhide_gloves.png` |
 | snakeskin_gloves | Snakeskin Vambraces | a pair of green scaled snakeskin vambraces with a fine repeating pattern | `snakeskin_gloves.png` |
 | wyvernhide_gloves | Wyvernhide Vambraces | a pair of slate blue-grey wyvern-scale vambraces of hard overlapping plates | `wyvernhide_gloves.png` |
 | dragonhide_gloves | Dragonhide Vambraces | a pair of deep oxblood-red dragon-scale vambraces, thick and glossy | `dragonhide_gloves.png` |
-| voidhide_gloves | Voidhide Vambraces | a pair of black scaled vambraces with a faint violet sheen | `voidhide_gloves.png` |
+| slakehide_gloves | Slakehide Vambraces | a pair of smooth bottle-green tanned hide vambraces with a dull copper bloom at the laces | `slakehide_gloves.png` |
 | leather_belt | Leather Belt | a plain tanned tan leather belt with a simple brass buckle and stitched edge | `leather_belt.png` |
 | studded_belt | Studded Leather Belt | a dark brown leather belt set with rows of iron studs and a heavy buckle | `studded_belt.png` |
 | boarhide_belt | Boarhide Belt | a coarse ochre boarhide belt with bristles still in the hide and a tusk toggle | `boarhide_belt.png` |
 | snakeskin_belt | Snakeskin Belt | a green scaled snakeskin belt with a fine repeating pattern | `snakeskin_belt.png` |
 | wyvernhide_belt | Wyvernhide Belt | a slate blue-grey wyvern-scale belt of hard overlapping plates | `wyvernhide_belt.png` |
 | dragonhide_belt | Dragonhide Belt | a deep oxblood-red dragon-scale belt, thick and glossy | `dragonhide_belt.png` |
-| voidhide_belt | Voidhide Belt | a black scaled belt with a faint violet sheen on the buckle | `voidhide_belt.png` |
+| slakehide_belt | Slakehide Belt | a belt of smooth bottle-green tanned hide with a copper buckle gone green | `slakehide_belt.png` |
 
 ### 2.3 Cloth armour — the magic class (42)
 
@@ -253,42 +253,42 @@ Every subject line below already uses this table; keep it if you edit them.
 | warlock_helmet | Warlock Hat | a dark purple wide-brimmed hat with black leather bindings around the crown | `warlock_helmet.png` |
 | sorcerer_helmet | Sorcerer Hat | a midnight blue pointed hat with silver embroidery running up the crown | `sorcerer_helmet.png` |
 | archmage_helmet | Archmage Hat | a white and gold ceremonial mage hat set with small gems at the band | `archmage_helmet.png` |
-| voidweave_helmet | Voidweave Hat | a black hood-hat woven with starless violet thread, hanging in soft folds | `voidweave_helmet.png` |
+| shroudweave_helmet | Shroudweave Hat | a hood-hat of pale ash-gray shroud linen hanging in heavy folds, scorched brown at the edge | `shroudweave_helmet.png` |
 | apprentice_body | Apprentice Robe Top | an undyed coarse linen robe top, plain and cheap, with a rope tie | `apprentice_body.png` |
 | adept_body | Adept Robe Top | a blue-grey wool robe top with simple braid trim at the cuffs | `adept_body.png` |
 | scholar_body | Scholar Robe Top | an empty deep green cloth robe tunic laid out flat with its sleeves spread, no wearer, brass clasps down the front | `scholar_body.png` |
 | warlock_body | Warlock Robe Top | an empty dark purple robe tunic laid out flat with its sleeves spread, no wearer, black leather bindings across the front | `warlock_body.png` |
 | sorcerer_body | Sorcerer Robe Top | an empty midnight blue robe tunic laid out flat with its sleeves spread, no wearer, silver embroidery at the shoulders | `sorcerer_body.png` |
 | archmage_body | Archmage Robe Top | an empty white and gold robe tunic laid out flat with its sleeves spread, no wearer, small gems set along the collar | `archmage_body.png` |
-| voidweave_body | Voidweave Robe Top | an empty black robe tunic laid out flat with its sleeves spread, no wearer, starless violet thread woven through it | `voidweave_body.png` |
+| shroudweave_body | Shroudweave Robe Top | an empty robe tunic of pale ash-gray shroud linen laid out flat with its sleeves spread, no wearer, scorched brown at the cuffs | `shroudweave_body.png` |
 | apprentice_pants | Apprentice Robe Bottom | an undyed coarse linen robe skirt, plain and cheap, hem uneven | `apprentice_pants.png` |
 | adept_pants | Adept Robe Bottom | a blue-grey wool robe skirt with simple braid trim at the hem | `adept_pants.png` |
 | scholar_pants | Scholar Robe Bottom | a deep green cloth robe skirt with brass hem weights | `scholar_pants.png` |
 | warlock_pants | Warlock Robe Bottom | a dark purple robe skirt with black leather binding at the waist | `warlock_pants.png` |
 | sorcerer_pants | Sorcerer Robe Bottom | a midnight blue robe skirt with silver embroidery along the hem | `sorcerer_pants.png` |
 | archmage_pants | Archmage Robe Bottom | a pair of empty white and gold robe trousers laid out flat side by side, no wearer, small gems at the ankle hem | `archmage_pants.png` |
-| voidweave_pants | Voidweave Robe Bottom | a black robe skirt woven with starless violet thread, hem dissolving into dark | `voidweave_pants.png` |
+| shroudweave_pants | Shroudweave Robe Bottom | a robe skirt of pale ash-gray shroud linen, the hem scorched brown | `shroudweave_pants.png` |
 | apprentice_boots | Apprentice Slippers | a pair of undyed coarse linen slippers, plain, cheap and soft-soled | `apprentice_boots.png` |
 | adept_boots | Adept Slippers | a pair of blue-grey wool slippers with simple braid trim at the ankle | `adept_boots.png` |
 | scholar_boots | Scholar Slippers | a pair of deep green cloth slippers with small brass buckles | `scholar_boots.png` |
 | warlock_boots | Warlock Slippers | a pair of dark purple slippers with black leather bindings crossing the instep | `warlock_boots.png` |
 | sorcerer_boots | Sorcerer Slippers | a pair of midnight blue slippers with silver embroidery over the toe | `sorcerer_boots.png` |
 | archmage_boots | Archmage Slippers | a pair of white and gold slippers set with a small gem on each toe | `archmage_boots.png` |
-| voidweave_boots | Voidweave Slippers | a pair of black slippers woven with starless violet thread | `voidweave_boots.png` |
+| shroudweave_boots | Shroudweave Slippers | a pair of slippers of pale ash-gray shroud linen, scorched at the toe | `shroudweave_boots.png` |
 | apprentice_gloves | Apprentice Gloves | a pair of undyed coarse linen gloves, plain, cheap and fingerless | `apprentice_gloves.png` |
 | adept_gloves | Adept Gloves | a pair of blue-grey wool gloves with simple braid trim at the wrist | `adept_gloves.png` |
 | scholar_gloves | Scholar Gloves | a pair of deep green cloth gloves with brass wrist studs | `scholar_gloves.png` |
 | warlock_gloves | Warlock Gloves | a pair of dark purple gloves with black leather bindings up the wrist | `warlock_gloves.png` |
 | sorcerer_gloves | Sorcerer Gloves | a pair of midnight blue gloves with silver embroidery across the back of the hand | `sorcerer_gloves.png` |
 | archmage_gloves | Archmage Gloves | a pair of white and gold gloves set with a small gem on each cuff | `archmage_gloves.png` |
-| voidweave_gloves | Voidweave Gloves | a pair of black gloves woven with starless violet thread | `voidweave_gloves.png` |
+| shroudweave_gloves | Shroudweave Gloves | a pair of gloves of pale ash-gray shroud linen, scorched brown at the fingertips | `shroudweave_gloves.png` |
 | apprentice_belt | Apprentice Sash | a knotted undyed coarse linen sash, plain and cheap, ends frayed | `apprentice_belt.png` |
 | adept_belt | Adept Sash | a blue-grey wool sash with simple braid trim along its length | `adept_belt.png` |
 | scholar_belt | Scholar Sash | a single deep green cloth sash rolled and laid flat, no wearer, a brass clasp at its centre | `scholar_belt.png` |
 | warlock_belt | Warlock Sash | a dark purple sash bound with black leather cord | `warlock_belt.png` |
 | sorcerer_belt | Sorcerer Sash | a midnight blue sash with silver embroidery running its length | `sorcerer_belt.png` |
 | archmage_belt | Archmage Sash | a white and gold sash set with small gems along the centre | `archmage_belt.png` |
-| voidweave_belt | Voidweave Sash | a single black cloth sash rolled and laid flat, no wearer, woven with starless violet thread | `voidweave_belt.png` |
+| shroudweave_belt | Shroudweave Sash | a single sash of pale ash-gray shroud linen rolled and laid flat, no wearer, tied with a knotted cord | `shroudweave_belt.png` |
 
 ### 2.4 Weapons — the four generated families (28)
 

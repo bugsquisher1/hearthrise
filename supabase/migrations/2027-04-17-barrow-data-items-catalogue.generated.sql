@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 2b2c2b6d3565c2b111389b8113d3ce4e6af15ddd6cc7e18e65ddaad9ec59266a
+--   catalogue digest: 3a907368717c0a59cc97b577319a88ad7a8469b6ee1cd03d8c2e16a4dd41f7bb
 --   rows: 592 items (6 untradeable) ·
 --         347 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 354 activities ·
@@ -630,11 +630,23 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('shark','Raw Shark',true,null,100,null,null,240,true,null,false),
   ('shortbow','Shortbow',true,'weapon',90,'level',1,null,false,null,true),
   ('shrimp','Raw Shrimp',true,null,5,null,null,36,true,null,false),
+  ('shroudweave_belt','Shroudweave Sash',true,'armor',20160,'level',88,null,false,'light',false),
+  ('shroudweave_body','Shroudweave Robe Top',true,'armor',75600,'level',88,null,false,'light',false),
+  ('shroudweave_boots','Shroudweave Slippers',true,'armor',20160,'level',88,null,false,'light',false),
+  ('shroudweave_gloves','Shroudweave Gloves',true,'armor',17640,'level',88,null,false,'light',false),
+  ('shroudweave_helmet','Shroudweave Hat',true,'armor',30240,'level',88,null,false,'light',false),
+  ('shroudweave_pants','Shroudweave Robe Bottom',true,'armor',55440,'level',88,null,false,'light',false),
   ('silk_thread','Silk Thread',true,null,55,null,null,null,false,null,false),
   ('silverfin','Raw Silverfin',true,null,20,null,null,120,true,null,false),
   ('skulkers_shiv','Skulker''s Shiv',true,null,76,null,null,null,false,null,false),
   ('slagheart_core','Slagheart Core',true,null,3200,null,null,null,false,null,false),
   ('slagheart_platebody','Slagheart Platebody',true,'armor',270000,'level',88,null,false,'heavy',false),
+  ('slakehide_belt','Slakehide Belt',true,'armor',20160,'level',88,null,false,'medium',false),
+  ('slakehide_body','Slakehide Body',true,'armor',75600,'level',88,null,false,'medium',false),
+  ('slakehide_boots','Slakehide Boots',true,'armor',20160,'level',88,null,false,'medium',false),
+  ('slakehide_gloves','Slakehide Bracers',true,'armor',17640,'level',88,null,false,'medium',false),
+  ('slakehide_helmet','Slakehide Hood',true,'armor',30240,'level',88,null,false,'medium',false),
+  ('slakehide_pants','Slakehide Chaps',true,'armor',55440,'level',88,null,false,'medium',false),
   ('slime_gel','Slime Gel',true,null,5,null,null,null,false,null,false),
   ('sluice_crust','Sluice Crust',true,null,52,null,null,null,false,null,false),
   ('small_fang','Small Fang',true,null,15,null,null,null,false,null,false),
@@ -718,19 +730,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('void_core','Void Core',true,null,2200,null,null,null,false,null,false),
   ('void_essence','Void Essence',false,null,3000,null,null,null,false,null,false),
   ('voidheart_robe','Voidheart Robe',true,'armor',83160,'level',90,null,false,'light',false),
-  ('voidhide_belt','Voidhide Belt',true,'armor',20160,'level',88,null,false,'medium',false),
-  ('voidhide_body','Voidhide Body',true,'armor',75600,'level',88,null,false,'medium',false),
-  ('voidhide_boots','Voidhide Boots',true,'armor',20160,'level',88,null,false,'medium',false),
-  ('voidhide_gloves','Voidhide Bracers',true,'armor',17640,'level',88,null,false,'medium',false),
-  ('voidhide_helmet','Voidhide Hood',true,'armor',30240,'level',88,null,false,'medium',false),
-  ('voidhide_pants','Voidhide Chaps',true,'armor',55440,'level',88,null,false,'medium',false),
   ('voidmaw_scepter','Voidmaw Scepter',true,'weapon',65000,'level',80,null,false,null,false),
-  ('voidweave_belt','Voidweave Sash',true,'armor',20160,'level',88,null,false,'light',false),
-  ('voidweave_body','Voidweave Robe Top',true,'armor',75600,'level',88,null,false,'light',false),
-  ('voidweave_boots','Voidweave Slippers',true,'armor',20160,'level',88,null,false,'light',false),
-  ('voidweave_gloves','Voidweave Gloves',true,'armor',17640,'level',88,null,false,'light',false),
-  ('voidweave_helmet','Voidweave Hat',true,'armor',30240,'level',88,null,false,'light',false),
-  ('voidweave_pants','Voidweave Robe Bottom',true,'armor',55440,'level',88,null,false,'light',false),
   ('voidwoven_sigil','Voidwoven Sigil',true,'trophy',5000,null,null,null,false,null,false),
   ('war_crown','War Crown',true,null,2500,null,null,null,false,null,false),
   ('warband_bulwark','Warband Bulwark',true,'armor',7000,'level',35,null,false,null,false),
@@ -1041,7 +1041,19 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('scored_water_rune','ammo'),
   ('shadowsilk_cape','cape'),
   ('shortbow','weapon'),
+  ('shroudweave_belt','belt'),
+  ('shroudweave_body','body'),
+  ('shroudweave_boots','boots'),
+  ('shroudweave_gloves','gloves'),
+  ('shroudweave_helmet','helmet'),
+  ('shroudweave_pants','pants'),
   ('slagheart_platebody','body'),
+  ('slakehide_belt','belt'),
+  ('slakehide_body','body'),
+  ('slakehide_boots','boots'),
+  ('slakehide_gloves','gloves'),
+  ('slakehide_helmet','helmet'),
+  ('slakehide_pants','pants'),
   ('snakeskin_belt','belt'),
   ('snakeskin_body','body'),
   ('snakeskin_boots','boots'),
@@ -1086,19 +1098,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('verdite_platelegs','pants'),
   ('void_censer','weapon'),
   ('voidheart_robe','body'),
-  ('voidhide_belt','belt'),
-  ('voidhide_body','body'),
-  ('voidhide_boots','boots'),
-  ('voidhide_gloves','gloves'),
-  ('voidhide_helmet','helmet'),
-  ('voidhide_pants','pants'),
   ('voidmaw_scepter','weapon'),
-  ('voidweave_belt','belt'),
-  ('voidweave_body','body'),
-  ('voidweave_boots','boots'),
-  ('voidweave_gloves','gloves'),
-  ('voidweave_helmet','helmet'),
-  ('voidweave_pants','pants'),
   ('warband_bulwark','cape'),
   ('warden_girdle','belt'),
   ('warlock_belt','belt'),
@@ -2088,7 +2088,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '2b2c2b6d3565c2b111389b8113d3ce4e6af15ddd6cc7e18e65ddaad9ec59266a', now())
+  values (true, '3a907368717c0a59cc97b577319a88ad7a8469b6ee1cd03d8c2e16a4dd41f7bb', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2119,8 +2119,8 @@ begin
   if v_n <> 592 then raise exception 'hr_items has % rows, generator emitted 592', v_n; end if;
   -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
   -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
-  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '09d67454cc045d11da15177f188e364c' then
-    raise exception 'hr_items names differ from src/data (expected digest 09d67454cc045d11da15177f188e364c)';
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '9b393d39544524be839f5c21ec73ce60' then
+    raise exception 'hr_items names differ from src/data (expected digest 9b393d39544524be839f5c21ec73ce60)';
   end if;
   -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
   if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
@@ -2320,7 +2320,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 2b2c2b6d3565c2b111389b8113d3ce4e6af15ddd6cc7e18e65ddaad9ec59266a',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 3a907368717c0a59cc97b577319a88ad7a8469b6ee1cd03d8c2e16a4dd41f7bb',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

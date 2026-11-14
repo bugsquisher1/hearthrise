@@ -224,7 +224,7 @@ export const COLOUR_TOKENS = new Set([
   'khaki', 'sepia', 'verdigris', 'patinated', 'honey', 'straw', 'wheat', 'sand',
   'clay', 'soot', 'coal', 'chalk', 'snow', 'frost', 'ice', 'ember', 'molten',
   'chestnut', 'sickly', 'mithril', 'dawnsteel', 'duskwood', 'boarhide',
-  'snakeskin', 'dragonhide', 'voidhide', 'linen', 'oak', 'willow', 'maple', 'yew',
+  'snakeskin', 'dragonhide', 'slakehide', 'linen', 'oak', 'willow', 'maple', 'yew',
 ]);
 
 /** Tokens that look like colours in isolation but never are, in this corpus. */

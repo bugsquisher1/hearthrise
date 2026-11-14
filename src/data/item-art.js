@@ -124,15 +124,16 @@ export const SHIPPED = Object.freeze({
     'leather_pants', 'mithril_belt', 'mithril_boots', 'mithril_gauntlets', 'mithril_helm',
     'mithril_platebody', 'mithril_platelegs', 'rune_belt', 'rune_boots', 'rune_gauntlets',
     'rune_helm', 'rune_platebody', 'rune_platelegs', 'scholar_belt', 'scholar_body',
-    'scholar_boots', 'scholar_gloves', 'scholar_helmet', 'scholar_pants', 'snakeskin_belt',
+    'scholar_boots', 'scholar_gloves', 'scholar_helmet', 'scholar_pants',
+    'shroudweave_belt', 'shroudweave_body', 'shroudweave_boots', 'shroudweave_gloves',
+    'shroudweave_helmet', 'shroudweave_pants', 'slakehide_belt',
+    'slakehide_body', 'slakehide_boots', 'slakehide_gloves', 'slakehide_helmet', 'slakehide_pants',
+    'snakeskin_belt',
     'snakeskin_body', 'snakeskin_boots', 'snakeskin_gloves', 'snakeskin_helmet',
     'snakeskin_pants', 'sorcerer_belt', 'sorcerer_body', 'sorcerer_boots', 'sorcerer_gloves',
     'sorcerer_helmet', 'sorcerer_pants', 'steel_belt', 'steel_boots', 'steel_gauntlets',
     'steel_helm', 'steel_platebody', 'steel_platelegs', 'studded_belt', 'studded_body',
-    'studded_boots', 'studded_gloves', 'studded_helmet', 'studded_pants', 'voidhide_belt',
-    'voidhide_body', 'voidhide_boots', 'voidhide_gloves', 'voidhide_helmet', 'voidhide_pants',
-    'voidweave_belt', 'voidweave_body', 'voidweave_boots', 'voidweave_gloves',
-    'voidweave_helmet', 'voidweave_pants', 'warlock_belt', 'warlock_body', 'warlock_boots',
+    'studded_boots', 'studded_gloves', 'studded_helmet', 'studded_pants', 'warlock_belt', 'warlock_body', 'warlock_boots',
     'warlock_gloves', 'warlock_helmet', 'warlock_pants', 'wyvernhide_belt', 'wyvernhide_body',
     'wyvernhide_boots', 'wyvernhide_gloves', 'wyvernhide_helmet', 'wyvernhide_pants',
   ]),
@@ -361,14 +362,12 @@ export const SUPPLY_DIR = 'assets/icons-bundle/pixel/supplies/';
    the day its row ships: the row itself then carries it. tests/pixel-icons.mjs requires the file for each. */
 export const SUPPLY_ART_AHEAD = Object.freeze([]);   // plain_fire_rune's row landed (supply-basics.js)
 
-/* ICONS DRAWN BEFORE THEIR ITEM ROW LANDS (the Krell's Hold, Muster Barrows and Hask's Ford drops, the tier 7 slakehide and
-   shroudweave sets, the Pyre Field's shroud pin), imported from art/world-src/gen-2026-11-12 by
-   tools/world-art/import-heads-icons-2026-11-12.mjs. They sit under items/ like every item icon; tests/pixel-icons.mjs
-   requires the file for each and does not call it an orphan. Delete an id here the day its row ships (the row carries it). */
+/* ICONS DRAWN BEFORE THEIR ITEM ROW LANDS (the Krell's Hold, Muster Barrows and Hask's Ford drops, the Pyre Field's shroud pin),
+   imported from art/world-src/gen-2026-11-12 by tools/world-art/import-heads-icons-2026-11-12.mjs. They sit under items/ like
+   every item icon; tests/pixel-icons.mjs requires the file for each and does not call it an orphan. Delete an id here the day its
+   row ships (the row carries it). The tier 7 slakehide and shroudweave sets' rows landed with the rename (gear-tiers.js). */
 export const ITEM_ART_AHEAD = Object.freeze([
-  'hall_key', 'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain', 'coffin_nail', 'urn_shard', 'toll_token', 'shroud_pin',
-  'slakehide_helmet', 'slakehide_body', 'slakehide_pants', 'slakehide_boots', 'slakehide_gloves', 'slakehide_belt',
-  'shroudweave_helmet', 'shroudweave_body', 'shroudweave_pants', 'shroudweave_boots', 'shroudweave_gloves', 'shroudweave_belt']);
+  'hall_key', 'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain', 'coffin_nail', 'urn_shard', 'toll_token', 'shroud_pin']);
 
 /** `<PIXEL_DIR><id>.png` for every id given. */
 export function pixelIconMap(ids) {

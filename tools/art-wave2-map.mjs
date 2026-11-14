@@ -25,7 +25,7 @@ export const MANUAL = Object.freeze({
   'give-me-this-exact-pole-but-in-a--duskwood-shade-.png': 'duskwood_rod',
   'this-is-an-emberhead-arrow---meaning-the-head-shou.png': 'emberhead_arrows',
   'this-should-have-a-skull-etched-on-it--since-it-s-.png': 'deathsteel_ingot',
-  'voidhide-pants--a-stylized-hand-painted-fantasy-ga.png': 'voidhide_pants',
+  'voidhide-pants--a-stylized-hand-painted-fantasy-ga.png': 'slakehide_pants', // the id renamed from voidhide_pants (11-10 rulings, 6)
   'way-too-thick-to-be-a-fishing-rod-.png': 'oak_rod',
 });
 

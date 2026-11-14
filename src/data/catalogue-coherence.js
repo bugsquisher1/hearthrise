@@ -43,7 +43,7 @@ import { MONSTERS } from './monsters.js?v=0.2.130';
 import { NAMED_FUELS } from './hearth.js?v=0.2.130';
 import { TEMPER_OFFERS } from './temper.js?v=0.2.130';
 import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.130';
-import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.130';
+import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS } from './hunt-grounds.js?v=0.2.130';
 import { HUNT_INDEX } from './hunts.js?v=0.2.130';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
@@ -133,11 +133,11 @@ export const AWAITING_ROSTER = Object.freeze([
   'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
   'choirbone_gauntlets', 'crown_of_the_fallen_king', 'dawn_belt',
-  'dawn_boots', 'dawn_gauntlets', 'dawn_helm', 'dawn_platebody',
-  'dawn_platelegs', 'dawn_sword', 'dawn_warhammer', 'dawnbound_amulet', 'dawnforged_signet',
+  'dawn_boots', 'dawn_gauntlets',
+  'dawn_platelegs', 'dawnbound_amulet', 'dawnforged_signet',
   'dawnlit_mantle', 'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',
   'dragon_relic', 'dragonfang_pike', 'dragonrend_greatblade',
-  'duskwood_bow', 'duskwood_rod', 'duskwood_staff', 'elderscale_heart', 'elderscale_platebody',
+  'duskwood_rod', 'elderscale_heart', 'elderscale_platebody',
   'fangdart_recurve', 'gold_amulet',
   'gold_ring', 'heartgarnet_maul', 'hollow_sigil_ring',
   'lexarch_seal',
@@ -149,10 +149,12 @@ export const AWAITING_ROSTER = Object.freeze([
   'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
   'steel_needle',
   'verdite_blade', 'verdite_helm', 'verdite_platebody',
-  'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidhide_belt', 'voidhide_body',
-  'voidhide_boots', 'voidhide_gloves', 'voidhide_helmet', 'voidhide_pants', 'voidmaw_scepter',
-  'voidweave_belt', 'voidweave_body', 'voidweave_boots', 'voidweave_gloves',
-  'voidweave_helmet', 'voidweave_pants', 'voidwoven_sigil', 'warband_bulwark',
+  /* tier 7 leather and cloth, renamed from voidhide_ and voidweave_ (designer 2026-11-10, ruling 6). Their bodies and helmets are Lord Krell's
+     prize (UNREACHABLE.staged); the other four slots of each have no source yet */
+  'shroudweave_belt', 'shroudweave_boots', 'shroudweave_gloves', 'shroudweave_pants',
+  'slakehide_belt', 'slakehide_boots', 'slakehide_gloves', 'slakehide_pants',
+  'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidmaw_scepter',
+  'voidwoven_sigil', 'warband_bulwark',
   'warboss_standard', 'warden_girdle', 'warden_seal',
   'wartusk_cleaver', 'watchknight_belt', 'watchknight_body', 'watchknight_boots',
   'watchknight_gloves', 'watchknight_helmet', 'watchknight_pants', 'whispering_codex',
@@ -179,7 +181,7 @@ export const AWAITING_ROSTER = Object.freeze([
    planned ground or system, (b) needed now (its source is a listing away), (c) no home in
    Early Access, listed for Tyler's keep-or-cut. */
 export const UNREACHABLE_FATES = Object.freeze({
-  staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens (Hask\'s Ford, the Slake, the Muster Barrows, the Pyre Field and Krell\'s Hold, waiting on their art)', open: Object.freeze({ grounds: HUNT_GROUNDS }) }),
+  staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens, and its keyed hall with it (Hask\'s Ford, the Slake, the Muster Barrows, the Pyre Field and Krell\'s Hold and Hall, waiting on their art)', open: Object.freeze({ grounds: Object.freeze({ ...HUNT_GROUNDS, ...HALL_GROUNDS }) }) }),
   premium:    Object.freeze({ bucket: 'a', door: 'premium sells and the daily login claim pays', open: Object.freeze({ premium: true }) }),
   greenhaven: Object.freeze({ bucket: 'a', door: 'a Greenhaven ground not yet built puts it on one of its creatures' }),
   later:      Object.freeze({ bucket: 'c', door: 'none in Early Access, kept for a later region or cut (Tyler)' }),
@@ -195,7 +197,9 @@ export const UNREACHABLE = Object.freeze({
      Hask's Ford and the Slake (tier 4): the set in three weights, its weapons, gloves, belts and the caster's pair, Grave Dust, eight imbuement items.
      The Muster Barrows and the Pyre Field (tier 5): the set in three weights and all six slots, its weapons and off-hand, the six tier-6 weapons as the
      Field's Rares, Razor Claw and Wraith Veil, nine imbuement items.
-     Krell's Hold (tier 6): the set in three weights, four weapons, the Pyre Priests' wand and codex, five imbuement items and the Hall Key. */
+     Krell's Hold (tier 6): the set in three weights, four weapons, the Pyre Priests' wand and codex, five imbuement items and the Hall Key.
+     Krell's Hall (lane/b-barrow-integrate, 2026-11-14: the keyed hall folded, staged with its pack): Lord Krell's prize, the first tier 7 in the game,
+     eight weapons and the body and helm in three weights. They were AWAITING_ROSTER and PENDING_SOURCE rows until his row named them. */
   staged: Object.freeze([
     'mithril_sword', 'mithril_warhammer', 'maple_staff', 'mithril_helm', 'mithril_platebody', 'mithril_platelegs',
     'snakeskin_body', 'snakeskin_helmet', 'snakeskin_pants', 'warlock_body', 'warlock_pants', 'mithril_boots',
@@ -214,6 +218,8 @@ export const UNREACHABLE = Object.freeze({
     'dragonhide_body', 'dragonhide_boots', 'dragonhide_gloves', 'dragonhide_helmet', 'dragonhide_pants', 'ember_belt', 'ember_boots',
     'ember_gauntlets', 'ember_helm', 'ember_platebody', 'ember_platelegs',
     'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain', 'hall_key',
+    'dawn_sword', 'dawn_warhammer', 'dawn_hatchets', 'duskwood_bow', 'duskwood_crossbow', 'duskwood_staff', 'duskwood_wand', 'duskwood_codex',
+    'dawn_platebody', 'dawn_helm', 'slakehide_body', 'slakehide_helmet', 'shroudweave_body', 'shroudweave_helmet',
   ]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next
@@ -265,7 +271,8 @@ export const UNREACHABLE_CEILING = 64;
  * { grounds: every ground including staged ones, premium: true }. The Shop is its LISTED rows (SHOP_LISTED_OFFER_IDS).
  */
 export function reachableSources(opts = {}) {
-  const grounds = opts.grounds || OPEN_GROUNDS;
+  /* (an open pack's keyed hall pays like its ground: boss-halls.js) */
+  const grounds = opts.grounds || { ...OPEN_GROUNDS, ...OPEN_HALL_GROUNDS };
   const m = new Map();
   const put = (id, label) => { if (!id || !ITEMS[id] || m.has(id)) return false; m.set(id, label); return true; };
   const met = new Set();

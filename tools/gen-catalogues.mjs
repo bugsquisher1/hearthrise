@@ -116,6 +116,11 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* THE BROOK BEAR, A HEAVY (lane/d-solo-fifteen, designer 2026-11-12, Tyler's open question 3; the Meadowbrook's bruiser reads as a slow heavy): 2027-04-12-small-calls-items-catalogue
    is APPLIED history; the bear's max HP (hr_activities combat:brook_bear, 69 -> 51, the formula's heavy row: src/data/balance-sheet.js roster and monsters.js) lands in
    ONE forward file, the same full delete+insert replace. */
+/* THE BARROW DATA AND TIER 7'S NAMES (lane/d-barrow-data, designer 2026-11-13; lane/b-barrow-integrate 2026-11-14): 2027-04-14-brook-bear-heavy-items-catalogue
+   is APPLIED history. Eight new weapons (hr_items, hr_item_slots: Rune, Emberforged and Dawnsteel Hatchets, Yew, Runewood and Duskwood Crossbows, the
+   Duskwood Wand and Codex), and tier 7 leather and cloth RENAMED, ids and names (designer 2026-11-10, ruling 6: voidhide_ -> slakehide_, voidweave_ ->
+   shroudweave_, twelve rows of each table; no hero can hold one, no ground or recipe a player reaches gives it), in ONE forward file, the same full
+   delete+insert replace. Staged, never applied before this rename joined it. */
 const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-17-barrow-data-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational

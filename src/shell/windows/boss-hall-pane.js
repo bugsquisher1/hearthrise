@@ -38,10 +38,10 @@ export function hallRefusal(r, hall) {
 const keysOf = (cs, hall) => ((bagOf(cs) || []).find((x) => x.id === hall.key) || { qty: 0 }).qty;
 
 export function hallHtml() {
-  return '<section class="hw-hd-call hw-hd-hall" aria-label="The hall" hidden><h4 class="hw-hd-h"></h4>'
+  return '<section class="hw-hd-call hw-hd-hall" aria-label="' + BOSS_HALL_WORDS.heading + '" hidden><h4 class="hw-hd-h"></h4>'
     + '<p class="hw-call-line"></p>'
     + '<button type="button" class="hh-tool hw-call-press" data-hs-act="hall-warn"></button>'
-    + '<div class="hw-confirm hw-call-warn" role="group" aria-label="Are you sure?"><p class="hw-confirm-q"></p><p class="hw-confirm-note hw-hall-note-alone" hidden></p><p class="hw-confirm-note hw-hall-note-a"></p><p class="hw-confirm-note hw-hall-note-b"></p>'
+    + '<div class="hw-confirm hw-call-warn" role="group" aria-label="' + BOSS_HALL_WORDS.sure + '"><p class="hw-confirm-q"></p><p class="hw-confirm-note hw-hall-note-alone" hidden></p><p class="hw-confirm-note hw-hall-note-a"></p><p class="hw-confirm-note hw-hall-note-b"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary is-on" data-hs-act="hall-go"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="hall-no"></button></div></div></section>';
 }

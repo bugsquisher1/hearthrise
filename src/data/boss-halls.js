@@ -84,6 +84,8 @@ export function roomOfHunt(huntId) {
 /* ── THE WORDS (`{Boss}`, `{boss}`, `{key}` the key item's name, `{hall}` the hall's name, `{minutes}`, `{spell}`, `{s}`, `{names}`) ───── */
 export const BOSS_HALL_WORDS = Object.freeze({
   heading: 'The hall',
+  /* the confirm group's name for a screen reader (src/shell/windows/boss-hall-pane.js) */
+  sure: 'Are you sure?',
   press: 'Open {hall}',
   have: Object.freeze({ none: 'You don\'t have a {key}.', one: 'You have 1 {key}.', other: 'You have {n} of them.' }),
   warnTitle: 'Fight {boss}?',

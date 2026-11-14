@@ -65,6 +65,8 @@ import { openFinderOn } from './party-finder.js?v=0.2.129';
 import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.129';
 import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.129';
 import { callFromGround } from '../../data/boss-calls.js?v=0.2.129';
+import { hallHtml, patchHall, actHall, hallRefusal } from './boss-hall-pane.js?v=0.2.129';
+import { hallFromGround } from '../../data/boss-halls.js?v=0.2.129';
 import { rowLines } from '../live-events-view.js?v=0.2.129';
 import { t } from '../../render/player-text.js?v=0.2.129';
 
@@ -189,7 +191,7 @@ export function renderHunts(ctx) {
     + TIER_IDS.map((id) => '<button type="button" class="hh-seg" data-hs-act="tier" data-tier="' + id + '">' + TIER_NAME[id] + '</button>').join('')
     + '</span><output class="hw-tier-read"></output></span></div>'
     + '<p class="hw-tier-note"></p>'
-    + '<p class="hw-hunt-pack"></p>' + goHtml() + callHtml() + '</div>'
+    + '<p class="hw-hunt-pack"></p>' + goHtml() + callHtml() + hallHtml() + '</div>'
     + '<div class="hw-hd-foot"><p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<p class="hw-enter-why"></p><button type="button" class="hh-tool" data-hs-act="leave-party" hidden>' + t('controls.leave_party') + '</button>'
     + '<button type="button" class="hw-primary is-on hw-hunt-enter" data-hs-act="enter">' + t('controls.enter') + '</button></div>'
@@ -317,6 +319,7 @@ function patchPage(det, ctx, sc, v) {
     } : null,
   });
   patchCall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending });
+  patchHall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending });
   const enter = det.querySelector('.hw-hunt-enter');
   attr(enter, 'data-hunt', r.hunt);
   const armed = sc.warned === warnKey(r.hunt, under) && (under.length > 0 || !!rangeWords(r, level));
@@ -407,6 +410,14 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   const called = callFromGround(sc.pick);
   if (actCall(ctx, action, repaint, (send, busy, done) => runIntent(sc, repaint, () => asChosen(cs, sc, send), busy, done, cs).then((r) => {
     const said = r && !r.ok && called ? callRefusal(r, called) : null;
+    if (said) { sc.msg = said; repaint(); }
+    thenClose(r);
+    return r;
+  }))) return true;
+  /* A keyed hall: its section's presses, the same way; its refusals read its own words, with the key's name. */
+  const hall = hallFromGround(sc.pick);
+  if (actHall(ctx, action, repaint, (send, busy, done) => runIntent(sc, repaint, () => asChosen(cs, sc, send), busy, done, cs).then((r) => {
+    const said = r && !r.ok && hall ? hallRefusal(r, hall) : null;
     if (said) { sc.msg = said; repaint(); }
     thenClose(r);
     return r;

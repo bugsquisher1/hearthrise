@@ -117,6 +117,7 @@ export const CLIENT_RPCS = Object.freeze({
   /* Call out (2027-03-12-boss-call.sql): a slot, a catalogue id and the price shown; the fee, the count and the party are the server's. */
   hr_boss_call: 'the party leader pays the server\'s fee and the party enters the called room, every member or none; a stale price is quote_changed (boss-intents.js callOut)',
   hr_boss_call_view: 'the call as the server prices it, read while the ground\'s page is open (boss-quote.js readCall)',
+  hr_boss_hall_enter: 'a hero alone, or a party\'s leader with every member, spends one of the hall\'s keys and enters its room; the server names the key (boss-intents.js openHall)',
   hr_hunt_party_warn: 'the leader, before Start, tells the seats under a ground; a catalogue ground only, display notices, no value (party-intents.js warnPartyGround)',
   hr_party_hold_set: 'the leader picks who holds the pack, a seat or null for take turns; the server checks leader, seat and tank (party-intents.js setHoldSeat; 2026-12-08-party-hold.sql)',
   hr_party_leave_together_set: 'this hero\'s own "Leave if anyone leaves the hunt or dies", a yes/no; no other hero is named (party-intents.js setLeaveTogether; 2026-12-18-party-leave-together.sql)',

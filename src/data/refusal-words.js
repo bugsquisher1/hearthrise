@@ -353,6 +353,11 @@ export const REFUSAL_WORDS = Object.freeze({
   call_unknown: 'Nobody here answers that call, so you weren\'t charged.',
   call_only: 'He only comes when he is called. Press Call out on the ground\'s page.',
   called_pays: 'That fight pays nothing, so nothing was paid.',
+  /* A keyed hall (2027-04-20-boss-hall.sql). The press's own section reads src/data/boss-halls.js, with the key's name; these are the codes' lines anywhere else. */
+  hall_only: 'That door opens with its key. Use it on the ground\'s page.',
+  hall_leader: 'Only your party\'s leader can open it.',
+  hall_unknown: 'That door doesn\'t open, so nothing was used.',
+  no_key: 'You need its key for that, so nothing was used.',
   bad_seat: 'That seat is empty now.',
   not_a_tank: 'Only a hero with a sword and shield can hold the pack.',
   member_hunting: 'Not while that member is hunting.',

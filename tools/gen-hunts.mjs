@@ -24,7 +24,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, TRAINING_HUNTS } from '../src/data/hunts.js';
+import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, HALL_HUNTS, TRAINING_HUNTS } from '../src/data/hunts.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { isMain } from '../tests/_is-main.mjs';
 import { wholeViewOrRerun } from './pack/whole.mjs';
@@ -75,7 +75,8 @@ export function huntRows(hunts, monsters) {
       if (m.called === true && h.called !== true) throw new Error(`hunt ${h.id} spawn ${s.monster} is a called row`);
       /* A TRAINING DUMMY stands only on a training ground (src/data/training.js), and a training ground fields nothing else. */
       if ((m.dummy === true) !== !!h.train) throw new Error(`hunt ${h.id} spawn ${s.monster}: a dummy stands on a training ground, and only a dummy does`);
-      for (const g of h.called === true ? [] : GATE_KEYS) {
+      /* (a keyed hall's boss is a boss row by design: src/data/boss-halls.js) */
+      for (const g of h.called === true || h.hall === true ? [] : GATE_KEYS) {
         if (m[g] !== undefined && m[g] !== null && m[g] !== false) {
           throw new Error(`hunt ${h.id} spawn ${s.monster} carries its own gate (${g}); gated monsters are fought by declaration only`);
         }
@@ -87,13 +88,13 @@ export function huntRows(hunts, monsters) {
       return [s.monster, s.w];
     });
     if (!own(monsters, h.art)) throw new Error(`hunt ${h.id} art ${h.art} is not a monster id`);
-    /* A called room's and a training ground's one door is its verb (hr_boss_call, hr_training_start): no spawn row names its foe. */
-    return { id: h.id, lo, hi, spawns: h.called === true || h.train ? [] : spawns };
+    /* A called room's, a keyed hall's and a training ground's one door is its verb (hr_boss_call, hr_boss_hall_enter, hr_training_start): no spawn row names its foe. */
+    return { id: h.id, lo, hi, spawns: h.called === true || h.hall === true || h.train ? [] : spawns };
   }).sort((a, b) => (a.id < b.id ? -1 : 1));
 }
 
 /* A STAGED hunt (hunts.js `staged`: built, art pending) is not served: hr_hunts never names it. */
-export function render(hunts = [...OPEN_HUNTS, ...CALLED_HUNTS, ...TRAINING_HUNTS], monsters = MONSTERS) {
+export function render(hunts = [...OPEN_HUNTS, ...CALLED_HUNTS, ...HALL_HUNTS, ...TRAINING_HUNTS], monsters = MONSTERS) {
   const r = huntRows(hunts, monsters);
   const digest = createHash('sha256').update(JSON.stringify(r)).digest('hex');
   const nSpawns = r.reduce((n, h) => n + h.spawns.length, 0);

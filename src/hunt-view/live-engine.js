@@ -419,6 +419,16 @@ export function createLiveEngine(o) {
     /** The server instant of the next swing boundary (null when not running). */
     nextAt: () => (st ? st.next : null),
     /**
+     * A standing monster of `kind` and its spell `spell` in the world this prediction runs (monster-spells.js PERSISTED): { leftMs (its
+     * wait before it may start again, 0 ready), casting (its windup's ms left, or null), atMs (the instant that world stands at) }, or
+     * null when none runs, none stands or it is not in a fight yet (its first casts not drawn). The boss bar's countdown reads it: display only.
+     */
+    spellWait(kind, spell) {
+      const u = st && st.world && !st.ended ? st.world.units.find((x) => x.side === 'mon' && x.alive && x.kind === kind) : null;
+      if (!u || !u.spellCds) return null;
+      return { leftMs: Math.max(0, Number(u.spellCds[spell]) || 0), casting: u.cast && u.cast.s === spell ? Math.max(0, u.cast.left) : null, atMs: st.next };
+    },
+    /**
      * Run every swing whose boundary the server clock has reached; each one's playback batch goes to
      * `feed` (timeline.ingest's shape). Answers how many swings ran.
      */

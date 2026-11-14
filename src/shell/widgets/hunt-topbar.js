@@ -10,7 +10,7 @@
 // "Ready in" and the "»" buttons of the reference are NOT built (TB-03, TB-04: purpose unknown, Tyler 10-17).
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.129';
-import { callOfHunt } from '../../data/boss-calls.js?v=0.2.129';
+import { roomOfHunt } from '../../data/boss-halls.js?v=0.2.129';
 import { huntOf, huntTierOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.129';
 import { DEFAULT_TIER, TIER_NAME } from '../../data/hunt-tiers.js?v=0.2.129';
 import { text, prop, attr } from '../../render/paint.js?v=0.2.129';
@@ -92,8 +92,8 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   /* The tutorial card hangs UNDER this bar while a hunt is open (the launcher's would cover Leave hunt). */
   /* Nothing while the leave runs: "Cash in, leave the hunt" popped up during its countdown (the panel 2026-10-31). */
   const html = leaving && !over ? '' : pointerFor(ctx, !over);
-  /* ...nor over a called fight: the card hung across his boss bar (played 2026-11-05). */
-  placeCoach(el, callOfHunt(h && h.huntId) && !over ? '' : html);
+  /* ...nor over a boss room's fight (a call or a hall): the card hung across his boss bar (played 2026-11-05). */
+  placeCoach(el, roomOfHunt(h && h.huntId) && !over ? '' : html);
 };
 
 /** Hunt details is pressed while the analyzer shows open: shown, and not folded to its title. */

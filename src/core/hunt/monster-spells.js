@@ -47,7 +47,7 @@ import { makeEvent } from './events.js?v=0.2.129';
 import { place, covers } from './shapes.js?v=0.2.129';
 import { castShape } from './marks.js?v=0.2.129';
 import { landHit, restart, slowed, rowOf } from './damage.js?v=0.2.129';
-import { swingRow } from './boss-phases.js?v=0.2.129';
+import { swingRow, spellCdOf } from './boss-phases.js?v=0.2.129';
 
 /* spellCds: { spell id: ms until it may start } while the monster is in a fight, a spell it does not name being ready ({} = every
    spell ready); null = not in a fight, its first casts not drawn yet. cast: its live cast (marks.js), or null. */
@@ -77,7 +77,8 @@ function begin(inst, sc, u, id, sp) {
   const ms = slowed(u, sp.windupMs);
   const s = place(specOf(sp), u, t);
   u.cast = { s: id, ms, left: ms, kind: s.kind, x: s.ox, y: s.oy, dx: s.dx, dy: s.dy, r: s.r, len: s.len };
-  u.spellCds = Object.assign({}, u.spellCds || {}, { [id]: sp.cdMs });
+  /* a boss's hasted spell under his enrage line waits less (boss-phases.js spellCdOf); every other spell its row's cdMs */
+  u.spellCds = Object.assign({}, u.spellCds || {}, { [id]: spellCdOf(u, id, sp.cdMs) });
   u.dir = dirOf(t.x - u.x, t.y - u.y);
   /* A NEW MARK RE-AIMS every hero that answers one (a ranged hero or a caster steps off: roles.js), at once. A group
      spell marks no ground: nobody moves for it. */

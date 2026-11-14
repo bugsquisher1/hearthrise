@@ -23,6 +23,7 @@ import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.129';
 import { runIntent } from '../intent-words.js?v=0.2.129';
 import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle } from '../../hunt-view/summary-model.js?v=0.2.129';
 import { callOfHunt } from '../../data/boss-calls.js?v=0.2.129';
+import { BOSS_HALL_WORDS, roomOfHunt } from '../../data/boss-halls.js?v=0.2.129';
 import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.129';
 import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.129';
 import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.129';
@@ -40,8 +41,13 @@ import { blessingsOf } from '../../session/item-sections.js?v=0.2.129';
 import { t } from '../../render/player-text.js?v=0.2.129';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.129';
 
-/* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), and an old hunt that kept no settings. */
-const againOffWords = (cur) => (callOfHunt(cur.hunt) ? 'He comes when he is called, from the ground\'s page.' : 'This hunt did not keep its settings.');
+/* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), a keyed hall its key on the ground's
+   page (src/data/boss-halls.js), and an old hunt that kept no settings. */
+const againOffWords = (cur) => {
+  const room = roomOfHunt(cur.hunt);
+  if (room && room.kind === 'hall') return BOSS_HALL_WORDS.again.replace('{key}', itemName(room.key));
+  return callOfHunt(cur.hunt) ? 'He comes when he is called, from the ground\'s page.' : 'This hunt did not keep its settings.';
+};
 
 /* The tutorial card up now (a card of the guide, never the "What next" line), or null. */
 const nextStepOf = (ctx) => heldStep(ctx);
@@ -198,7 +204,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="pick" data-id="' + s.id.replace(/[^a-z0-9-]/gi, '') + '">' + t('controls.show') + '</button></li>'),
     patch: (el, s) => {
       text(el.querySelector('b'), groundTitle(s));
-      text(el.querySelector('small'), [dayTime(s.at), s.kills !== null ? whole(s.kills) + ' kills' : '', s.reason ? endWords(s.reason, s.forfeit, s.by, nameOf(cs), s.why).split('. ')[0].replace(/\.$/, '') : ''].filter(Boolean).join(' · '));
+      text(el.querySelector('small'), [dayTime(s.at), s.kills !== null ? whole(s.kills) + ' kills' : '', s.reason ? endWords(s.reason, s.forfeit, s.by, nameOf(cs), s.why, s.hunt).split('. ')[0].replace(/\.$/, '') : ''].filter(Boolean).join(' · '));
     },
   });
 };

@@ -46,7 +46,7 @@ import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.129';
 import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.129';
 import { carriedOf, nameOf, huntLootOf } from '../session/item-sections.js?v=0.2.129';
 import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.129';
-import { callOfHunt } from '../data/boss-calls.js?v=0.2.129';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.129';
 import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.129';
 import { itemName } from './widgets/bits.js?v=0.2.129';
 import { noShotWords } from './hunt-go.js?v=0.2.129';
@@ -146,8 +146,8 @@ function candidatesOf(cs, viewed) {
   const h = huntOf(cs);
   if (!h) return out;
   const where = huntName(h.huntId);
-  /* A called room has no "Start again": its one door is the paid press on the ground's page (src/data/boss-calls.js). */
-  const endedKind = callOfHunt(h.huntId) ? 'party' : 'ended', endedSession = endedKind === 'ended' ? h.sessionId : null;
+  /* A boss room has no "Start again": its one door is the press on the ground's page (a call's fee or a hall's key: src/data/boss-halls.js). */
+  const endedKind = roomOfHunt(h.huntId) ? 'party' : 'ended', endedSession = endedKind === 'ended' ? h.sessionId : null;
   /* A death ends the hunt (CORE_MODEL.md §4): the death alert stands in for the ended one. The character
      on screen gets the death POPUP instead (death-popup.js, Tyler 2026-10-19), and a death whose popup was
      already dismissed never comes back as a side line. */

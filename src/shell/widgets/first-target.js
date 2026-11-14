@@ -98,7 +98,7 @@ export async function sendFirstTarget(ctx, root, el, repaint) {
   /* only a kind of this ground, and only a change, is sent; anything else snaps back to the server's pick */
   if (!hunt || now === null || (want !== null && !kinds.some((k) => k.id === want)) || (want || '') === now || root.hasAttribute('data-pending')) { repaint(); return false; }
   attr(root, 'data-pending', true);
-  text(root.querySelector('.hh-intent-msg'), 'Saving…');
+  text(root.querySelector('.hh-intent-msg'), t('prep.saving'));
   repaint();
   /* never left pending: the answer, a refusal or the timeout always turns the controls back on */
   const r = await answerWithin(() => setTargetKind(ctx.account, cs, hunt, want));

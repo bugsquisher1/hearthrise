@@ -3308,3 +3308,14 @@ or use cells no pack reads; (3) pairs rolled unchained give one material three b
 tileset is paint --void plus kept face slices, read in region-kit.html (now reads staged maps); (5) the notes' lift 1 left the Slake bodies at
 1.4-2.1:1 on the silt: measure with ring-contrast after the import, not from the note (3 and 4 steps pass at 4.25). Open: the gatehouse and 12
 Hold props are drawn and unplaced (need pack cells), Krell's roster clip has no hook, the lurcher reads 2.72:1 by ring on ash (its outline carries it).
+
+## 2026-11-14 lane/b-hold-art (v0.2.130 gate opens: the Hold's hill and gate, the Slake's floor, the Pyre icons)
+Krell's Hold read as a castle's inside because every '#' was painted wall mass: the cart road climbed between black wall tops.
+barrow-grounds.mjs holdCastle splits the rock: castle = touches a castle floor, or two rows south of one (a south wall is two
+thick so its face keeps its 28 px cap off the floor), or shut in; the rest of the south half is the HILL, March grass and gray hill
+rock (3 pro tilesets, 45 gens, chained to the hold earth/gravel and the ash family's grass: gen-2026-11-14/33-hold-hill). The
+gatehouse is brief 29's widened by repeating its own periods (merlon 15 px above, keystone and portcullis 6 px below): a 41 px arch
+becomes 101 px. New class `gate` (OPEN_CLASSES): anchor on the passage's middle tile, towers on rock (27,38-39) (31,38-39).
+The Slake is repainted on brief 22's two pairs (mud --same silt; reeds that touch water are silt). Lessons: (1) maskHash reads
+the BUILT atlas's class (open vs solid): rebuild the atlas before `world-core --hashes`; (2) the Slake's one silt tile shows a
+chevron row repeat at x2 (a variant fill needs create_tiles_pro); (3) the pane is shared: another session took the tab mid-read.

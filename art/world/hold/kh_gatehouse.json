@@ -1,15 +1,15 @@
 {
   "id": "kh_gatehouse",
-  "class": "building",
+  "class": "gate",
   "style": "s1",
   "material": "native",
   "source": "kh_gatehouse.png",
   "frame": [
-    224,
+    202,
     156
   ],
   "anchor_px": [
-    112,
+    101,
     155
   ],
   "footprint": [

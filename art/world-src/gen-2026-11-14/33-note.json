@@ -1,0 +1,12 @@
+{
+  "brief": "lane/b-hold-art (v0.2.130 visual gate): Krell's Hold read as a castle's inside; the hill outside the walls needs ground of its own",
+  "call": "create_topdown_tileset pro 32 px, high top-down, transition 0, palette hr-world-56-v2 + max_colors 12; requests in each folder's request.json",
+  "kept": {
+    "1-earth-grass": "8552f1bf: the hold's cart-road earth (6c769ec4, chained) meets the March's grass (9e1580b2, the ash family's pair 7 upper, chained): only the transition is new",
+    "2-gravel-grass": "dbb59875: the hold's gravel (11bf114e, chained) meets the same grass",
+    "3-grass-rock": "fc57725c: the grass (chained) meets a new gray hill rock (c5e4eabb): flat weathered slabs with dark cracks and a little moss"
+  },
+  "derived (0 gens)": "gatehouse/kh_gatehouse_wide.png: brief 29's gatehouse 586d798e widened 60 px by tools/world-art/barrow-grounds.mjs wideGate (its own periods repeated, nothing drawn)",
+  "read": "x2 in tools/qa/region-kit.html on krells_hold: the road climbs a grass hill to a curtain wall and the gatehouse; the rock sits at the walls' foot and in a few outcrops",
+  "gens": "3 x 15 = 45. Balance 8655 before the calls, credits $0"
+}

@@ -76,6 +76,9 @@ export const CLASSES = Object.freeze({
   // A whole building drawn as one style-1 sprite, roof and front wall (a closed facade: the
   // smithy, the mill, a neighbour's cottage). Its footprint is the ground it covers.
   building: row({ body: [80, 160], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
+  // A gatehouse the road runs through (Krell's Hold's cart gate): drawn like a building, but its anchor tile is the gate's
+  // passage, so it never blocks a step (terrain.js OPEN_CLASSES); its towers stand on the map's own rock either side.
+  gate: row({ body: [80, 160], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
   // A town's one monument, larger than any building (the Great Hearth of Hearth Square: footprint
   // 11 x 4, art 11 x 11 tiles). Drawn like a building: one closed sprite, its anchor bottom-centre.
   // A big town hall-sized building round a plaza (Hearth Square's general store, depot, bank, guild

@@ -46,22 +46,14 @@ import { createBootTiming } from '../net/boot-timing.js?v=0.2.130';
 import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.130';
 import { SESSION_CONFIG } from '../session/config.js?v=0.2.130';
 import { createServerLink } from '../session/server.js?v=0.2.130';
-import { AccountSession } from '../session/account-session.js?v=0.2.130';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.130';
 import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.130';
-import { mountWorldPane } from './world-pane.js?v=0.2.130';
-import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.130';
-import { renderHeroCreate } from './hero-create.js?v=0.2.130';
 import { renderBannedNotice, renderClosedNotice } from './closed-notice.js?v=0.2.130';
-import { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.130';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.130';
-import { mountMarketWatch } from '../shell/market-watch.js?v=0.2.130';
 import { mountSocialWatch } from '../shell/social-watch.js?v=0.2.130';
-import { mountTownCriers } from '../shell/town-criers.js?v=0.2.130';
 import { createSocialRealtime } from '../social/realtime.js?v=0.2.130';
-import { SocialSession } from '../social/social-session.js?v=0.2.130';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.130';
-import { startObservability, track, trackOnce } from '../net/observability.js?v=0.2.130';
+import { startObservability, track, trackOnce, useHeroReaders } from '../net/observability.js?v=0.2.130';
+import { BUILD } from '../build-info.js?v=0.2.130';
+import { GAME_MODULES } from './game-modules.js?v=0.2.130';
 import { loadGlyphs } from './glyphs-loader.js?v=0.2.130';
 import { startDiagnostics } from '../net/diagnostics.js?v=0.2.130';
 import { mountPressAck } from '../shell/press-ack.js?v=0.2.130';
@@ -70,17 +62,33 @@ import { mountLauncherNames } from '../shell/launcher-names.js?v=0.2.130';
 import { connection, mountConnectionLine } from '../net/connection.js?v=0.2.130';
 import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.130';
 import { mountNewVersion } from './new-version.js?v=0.2.130';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.130';
-import { coachFactsOf } from '../shell/launcher.js?v=0.2.130';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
+
+/* THE GAME HALF (src/app/game-half.js): the account, its heroes, the World pane and the shell, about 450 modules the
+   sign-in screen never draws. This module's own imports are only what that screen needs, so the form shows after a few
+   dozen files (lane b-first-load 2026-11-13: it waited for all 520). The game half is asked for as this module runs, its
+   files all at once (GAME_MODULES, generated: tests/module-preload.mjs --write; one import level at a time they would
+   come in about eight round trips), so they land while the player types and a returning player's page still asks for
+   everything at once. Nothing below the sign-in screen runs before it is in: startAccount awaits it. */
+/** @type {typeof import('./game-half.js?v=0.2.130')} */
+let G = /** @type {any} */ (null);
+function loadGameHalf(doc) {
+  for (const path of GAME_MODULES) {
+    const link = doc.createElement('link');
+    link.rel = 'modulepreload';
+    link.href = path + '?v=' + BUILD.cache;
+    doc.head.appendChild(link);
+  }
+  return import('./game-half.js?v=0.2.130').then((m) => { G = m; useHeroReaders(m.HERO_READERS); return m; });
+}
 
 /** A private broadcast topic on the shared client: (topic, onMessage, onStatus) => leave. */
 function channelFor(client, auth) {
   return (topic, onMessage, onStatus) => {
     try { client.realtime.setAuth(auth.token()); } catch (e) { /* the join reports it */ }
     const ch = client.channel(topic, { config: { private: true } });
-    ch.on('broadcast', { event: FRAME_EVENT }, (m) => onMessage(m && m.payload));
+    ch.on('broadcast', { event: G.FRAME_EVENT }, (m) => onMessage(m && m.payload));
     /* Left once; a status after the leave (removeChannel's own CLOSED) is not reported back. */
     let left = false;
     ch.subscribe((status) => { if (!left) onStatus(status); });
@@ -106,6 +114,9 @@ function startApp(win) {
   const client = createSupabaseClient(win.supabase, store, SESSION_CONFIG.authKey, authLock.lock);
   const auth = createAuth({ client, lock: authLock, device: HS, tab: HS.session, redirectTo: win.location.origin + win.location.pathname, doc });
   const timing = createBootTiming(win, { lockStats: authLock.stats, perf: diag.perf });
+  const gameHalf = loadGameHalf(doc);
+  gameHalf.catch(() => {});   // answered where it is awaited (startAccount): a sign-in screen nobody uses says nothing
+  let starting = false;   // startAccount is waiting for the game half: a second call (a sign-in event beside it) does nothing
   let account = null;
   let alerts = null;
   let watchers = [];   // the account's page-level watchers: the press acknowledgement, ?debug=live
@@ -178,10 +189,27 @@ function startApp(win) {
     showAuth('sign-in');
   }
 
+  /* THE GAME HALF DID NOT LOAD: a file of it failed, and stays failed in this page's module map, so only a new page load
+     helps. The page's own second go first (src/platform/load-shell.js, at most twice per release in this tab); past those,
+     the loading shell's words and Reload press while it is still up (a reload signing back in), else the same words on
+     the sign-in card. */
+  function gameFailed(e) {
+    console.error('[boot] the game failed to load', e);
+    if (typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad()) return;
+    if (doc.querySelector('.boot-shell') && typeof win.HearthriseLoadFailed === 'function') { win.HearthriseLoadFailed(); return; }
+    if (!root.querySelector('.auth-message')) showAuth('sign-in');
+    const m = root.querySelector('.auth-message');
+    if (m) m.textContent = AUTH_COPY.loadFailed;
+  }
+
   /* `resume`: this load signed back in from the stored session (a reload), so the tab's heroes reopen. */
   async function startAccount(resume) {
     if (!auth.userId()) { showAuth('sign-in'); return; }
+    if (account || starting) return;
+    starting = true;
+    try { await gameHalf; } catch (e) { gameFailed(e); return; } finally { starting = false; }
     if (account) return;
+    if (!auth.userId()) { showAuth('sign-in'); return; }   // signed out while it arrived
     obs.identify(auth.userId());
     loadGlyphs(win);   // the icon atlas, for the game screen (glyphs-loader.js): fetched while the roster is read
     /* the town's sheets likewise (src/world/prewarm.js): a cold Play after a release no longer waits for 2.5 MB */
@@ -194,18 +222,18 @@ function startApp(win) {
     const tokenForCall = async () => { const t = await tokens.fresh(); timing.sending(); return t; };
     const server = createServerLink({ url: SUPABASE_CONFIG.url, publishableKey: SUPABASE_CONFIG.publishableKey, token: tokenForCall, renew: tokens.renew, watch: connection,
       stale: () => fresh.check(true) });
-    account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
-      social: (acc) => new SocialSession({ account: acc, realtime: createSocialRealtime(client, auth.token) }) });
+    account = new G.AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
+      social: (acc) => new G.SocialSession({ account: acc, realtime: createSocialRealtime(client, auth.token) }) });
     account.subscribe((why) => {
       if (why === 'closed-game') showClosed();
       else if (why === 'viewed' && strip) showPane();
       else if (why === 'hero-gone') showCharacters();   // a tab left open while the server let that hero go: the list, not a dead game
     });
     account.setPageHidden(doc.hidden);   // opened behind another tab: visibilitychange has nothing to say yet
-    alerts = createAlertCenter(account);
+    alerts = G.createAlertCenter(account);
     /* Every press answers at once (src/shell/press-ack.js); ?debug=live adds the corner (live-overlay.js). */
-    watchers = [mountPressAck(doc, account.intents), mountConnectionLine(doc), mountOffWhy(doc), mountLauncherNames(doc), mountMarketWatch(win, account, alerts), mountSocialWatch(account, alerts),
-      mountTownCriers(win, account)];   // the town criers' tips in Local chat (display only, never sent)
+    watchers = [mountPressAck(doc, account.intents), mountConnectionLine(doc), mountOffWhy(doc), mountLauncherNames(doc), G.mountMarketWatch(win, account, alerts), mountSocialWatch(account, alerts),
+      G.mountTownCriers(win, account)];   // the town criers' tips in Local chat (display only, never sent)
     if (liveOverlayWanted(win.location.search)) watchers.push(mountLiveOverlay(win, account));
     account.social.chat.followAlerts(alerts);   // the alerts are also the chat's System lines
     if (!resume) account.forgetOpen();
@@ -249,11 +277,11 @@ function startApp(win) {
       + '</button></li>').join('');
     /* the server's play-at-once limit, never a client fallback (board 2026-10-25 #8: an empty account read "One can play
        at a time." because the server had not said yet); unsaid, nothing is said */
-    const playLine = playLineOf(a.statedLimit(), a.limit(), roster.length, a.slotOffer, roster);
+    const playLine = G.playLineOf(a.statedLimit(), a.limit(), roster.length, a.slotOffer, roster);
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Your characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + playLine + '</p>'
       + '<ul class="char-list">' + (rows || '<li class="char-row">The server did not answer. Reload to try again.</li>') + '</ul>'
-      + '<div class="slot-offer-mount">' + slotOfferHtml(a.slotOffer, roster, { pending: slotBuying }) + '</div>'
+      + '<div class="slot-offer-mount">' + G.slotOfferHtml(a.slotOffer, roster, { pending: slotBuying }) + '</div>'
       + '<p class="auth-message' + (note ? ' is-good' : '') + '" role="status" aria-live="polite">' + esc(note || '') + '</p>'
       + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
     ringCharacters(a, root.querySelector('.auth-card'));
@@ -265,7 +293,7 @@ function startApp(win) {
      one on screen, from the same facts the shell reads (src/shell/launcher.js coachFactsOf). Display only. */
   function ringCharacters(a, card) {
     const cs = a.character(a.viewed);
-    const c = cs ? pointerCardOf(cs, coachFactsOf(cs, a)) : null;
+    const c = cs ? G.pointerCardOf(cs, G.coachFactsOf(cs, a)) : null;
     const el = c && c.hooks ? c.hooks.slice().reverse().map((q) => card.querySelector(q)).find(Boolean) : null;
     if (el) el.setAttribute('data-coach-ring', '');
   }
@@ -273,7 +301,7 @@ function startApp(win) {
   /* The offer block alone, redrawn while a purchase is in flight. */
   function drawSlotOffer() {
     const m = root.querySelector('.slot-offer-mount');
-    if (m && account) m.innerHTML = slotOfferHtml(account.slotOffer, roster, { pending: slotBuying });
+    if (m && account) m.innerHTML = G.slotOfferHtml(account.slotOffer, roster, { pending: slotBuying });
   }
 
   /* The characters card's answer line. */
@@ -295,7 +323,7 @@ function startApp(win) {
     slotBuying = false;
     drawSlotOffer();
     const m = root.querySelector('.auth-message');
-    if (m) { m.classList.remove('is-good'); m.textContent = slotRefusalText(r); }
+    if (m) { m.classList.remove('is-good'); m.textContent = G.slotRefusalText(r); }
   }
 
   /* The creation step over the characters card: the hero enters town only on the server's yes. */
@@ -304,7 +332,7 @@ function startApp(win) {
     root.className = 'app is-auth';
     root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card is-create"></div></main>';
     const tokens = win.getComputedStyle(doc.documentElement);
-    creating = renderHeroCreate(root.querySelector('.auth-card'), {
+    creating = G.renderHeroCreate(root.querySelector('.auth-card'), {
       slot,
       colorOf: (t) => tokens.getPropertyValue('--' + t),
       create: (name, colors, key) => account.create(slot, name, colors, key),
@@ -352,7 +380,7 @@ function startApp(win) {
       main.className = 'game';
       root.appendChild(nav);
       root.appendChild(main);
-      strip = mountCharacterStrip(nav, { account, alerts, glyphs: () => win.HR_GLYPHS || {}, soon: () => soon });
+      strip = G.mountCharacterStrip(nav, { account, alerts, glyphs: () => win.HR_GLYPHS || {}, soon: () => soon });
     }
     await showPane();
   }
@@ -368,13 +396,13 @@ function startApp(win) {
     if (pane && pane.slot === cs.slot) { if (want) pane.shell.open(want); return; }
     const seq = ++paneSeq;
     if (pane) { pane.destroy(); pane = null; }
-    const p = await mountWorldPane(main, cs, { screen: root, account: acc, alerts, goTo,
+    const p = await G.mountWorldPane(main, cs, { screen: root, account: acc, alerts, goTo,
       peers: () => (acc ? acc.characters() : [cs]) });
     if (seq !== paneSeq) { p.destroy(); return; }
     pane = Object.assign(p, { slot: cs.slot });
     /* The strip's tabs open the viewed shell's one player menu (Invite to party / Leave party for own characters). */
     const nav = root.querySelector('nav.char-strip');
-    if (nav && p.shell && p.shell.menu) p.shell.menu.attach(nav, stripTargetOf);
+    if (nav && p.shell && p.shell.menu) p.shell.menu.attach(nav, G.stripTargetOf);
     if (strip) strip.patch();
     if (want) pane.shell.open(want);
   }

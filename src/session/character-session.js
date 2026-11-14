@@ -50,13 +50,13 @@ import { catchUpLink, newIdem } from './catch-up.js?v=0.2.130';
 import { pageAway } from './page-away.js?v=0.2.130';
 import { askBody, slimFloor, takeSlim } from './hunt-ask.js?v=0.2.130';
 import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.130';
+import { observeSessions, announceSession } from './session-observers.js?v=0.2.130';
 
 export const FRAME_EVENT = 'frame';
 
-/* Observers handed every CharacterSession as it is made, before its first envelope (the hunt summary's recorder). */
-const OBSERVERS = new Set();
-/** Call `fn(session)` for every session made from now on; returns the stop function. */
-export function observeSessions(fn) { OBSERVERS.add(fn); return () => OBSERVERS.delete(fn); }
+/* Observers handed every CharacterSession as it is made, before its first envelope (the hunt summary's recorder); the
+   registry is its own import-free module so a watcher can register before this graph loads (session-observers.js). */
+export { observeSessions };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ITEM = /^[a-z0-9_]{1,64}$/;
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
@@ -111,7 +111,7 @@ export class CharacterSession {
     this._askedAt = null; this._answeredAt = null;   // the last settle's send and answer (client ms): a leave's 'late'
     /** The hunt session the timeline holds (a new one clears it: _play). */
     this._huntSid = null;
-    for (const fn of Array.from(OBSERVERS)) fn(this);   // e.g. the hunt summary's recorder: it must hear the timeline from the first event
+    announceSession(this);   // e.g. the hunt summary's recorder: it must hear the timeline from the first event
   }
 
   /** The display clock (ms) this character's timeline plays on: every view of it reads this one. */
